@@ -32,16 +32,13 @@ incrementally via a pull-based reactive cell system.
 
 ## Screenshots
 
-Screenshots are generated with `write_image_example` and stored in
-[image/](image/) as BMP files (clone the repo to view them).
-
 | JSON editor | Widget forms |
 |---|---|
-| [image/json-example.bmp](image/json-example.bmp) | [image/widget-example.bmp](image/widget-example.bmp) |
+| ![JSON example](image/json-example.png) | ![Widget example](image/widget-example.png) |
 
 | Table view | Julia AST |
 |---|---|
-| [image/table-example.bmp](image/table-example.bmp) | [image/julia-example.bmp](image/julia-example.bmp) |
+| ![Table example](image/table-example.png) | ![Julia AST example](image/julia-example.png) |
 
 ## What can it do today?
 
