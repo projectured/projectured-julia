@@ -10,7 +10,13 @@ const _ALL_KEY_EVENTS = [KeyPress(key, ctrl)
 const _MOUSE_SAMPLE_XY = [(0, 0), (1, 1), (100, 100), (400, 300), (800, 600)]
 
 const _ALL_MOUSE_EVENTS = vcat(
-    [MouseClick(btn, x, y)
+    [MouseDown(btn, x, y)
+     for btn   in (:left, :middle, :right)
+     for (x,y) in _MOUSE_SAMPLE_XY],
+    [MouseUp(btn, x, y)
+     for btn   in (:left, :middle, :right)
+     for (x,y) in _MOUSE_SAMPLE_XY],
+    [MousePress(btn, x, y)
      for btn   in (:left, :middle, :right)
      for (x,y) in _MOUSE_SAMPLE_XY],
     [MouseMove(x, y)   for (x,y) in _MOUSE_SAMPLE_XY],

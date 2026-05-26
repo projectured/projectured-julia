@@ -33,7 +33,7 @@ import ..GraphicsModule: GraphicsText, GraphicsRect, GraphicsCanvas, GraphicsVie
 import ..FontModule: StyleFont
 import ..IoMapModule: SimpleIoMap, ChildrenIoMap
 import ..IoMapApiModule: IoMap
-import ..MouseModule: MouseScroll, MouseClick
+import ..MouseModule: MouseScroll, MousePress
 import ..OperationModule: ReplaceSelectionOperation
 import ..ReferenceModule: ConcreteReferencePath, FieldReference, RangeReference
 import ..TypeDispatchingModule: TypeDispatchingProjection
@@ -258,9 +258,9 @@ _route_scroll_to_children(child_entries::Vector, evt::MouseScroll) =
     _route_to_children(child_entries, evt.x, evt.y,
         (x, y) -> MouseScroll(evt.dx, evt.dy, x, y))
 
-_route_click_to_children(child_entries::Vector, evt::MouseClick) =
+_route_click_to_children(child_entries::Vector, evt::MousePress) =
     _route_to_children(child_entries, evt.x, evt.y,
-        (x, y) -> MouseClick(evt.button, x, y))
+        (x, y) -> MousePress(evt.button, x, y, evt.modifiers))
 
 # ── WidgetLabel ─────────────────────────────────────────────────────────────
 
@@ -567,7 +567,7 @@ end
 function projection_read(::WidgetShellToGraphicsCanvas, iomap::ChildrenIoMap, evt)
     child_iomaps = iomap.child_iomaps[]::Vector
     evt isa MouseScroll && return _route_scroll_to_children(child_iomaps, evt)
-    evt isa MouseClick  && return _route_click_to_children(child_iomaps, evt)
+    evt isa MousePress  && return _route_click_to_children(child_iomaps, evt)
     nothing
 end
 
@@ -664,7 +664,7 @@ end
 function projection_read(::WidgetSplitPaneToGraphicsCanvas, iomap::ChildrenIoMap, evt)
     child_iomaps = iomap.child_iomaps[]::Vector
     evt isa MouseScroll && return _route_scroll_to_children(child_iomaps, evt)
-    evt isa MouseClick  && return _route_click_to_children(child_iomaps, evt)
+    evt isa MousePress  && return _route_click_to_children(child_iomaps, evt)
     nothing
 end
 
@@ -762,7 +762,7 @@ end
 
 function projection_read(p::WidgetTabbedPaneToGraphicsCanvas, iomap::ChildrenIoMap, evt)
     child_iomaps = iomap.child_iomaps[]::Vector
-    if evt isa MouseClick
+    if evt isa MousePress
         w = iomap.input
         w isa WidgetTabbedPane || return _route_click_to_children(_active_tab_children(iomap, child_iomaps), evt)
         cox, coy = _content_offset(w)
@@ -936,7 +936,7 @@ function map_reference_backward(::WidgetScrollBarToGraphicsCanvas, iomap, refere
 end
 
 function projection_read(::WidgetScrollBarToGraphicsCanvas, iomap::SimpleIoMap, evt)
-    evt isa MouseClick || return nothing
+    evt isa MousePress || return nothing
     w = iomap.input
     w isa WidgetScrollBar || return nothing
     sz  = w.size

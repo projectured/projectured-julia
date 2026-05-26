@@ -91,10 +91,10 @@ function projection_read(p::TextToGraphics, iomap::TextToGraphicsIoMap, evt)
                   if span isa TextString]
     isempty(span_infos) && return nothing
 
-    if evt.key == :home && evt.ctrl
+    if evt.key == :home && evt.modifiers.ctrl
         first = span_infos[1]
         return ReplaceSelectionOperation(_build_selection_path(first[1], 0))
-    elseif evt.key == :end && evt.ctrl
+    elseif evt.key == :end && evt.modifiers.ctrl
         last = span_infos[end]
         return ReplaceSelectionOperation(_build_selection_path(last[1], last[2]))
     end

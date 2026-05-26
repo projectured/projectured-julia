@@ -222,7 +222,7 @@ function test_mouse_click_roundtrip(label, document, projection; tolerance=100)
         
         for (click_x, click_y, description) in clicks
             # Call projection_read with mouse click
-            event = MouseClick(:left, click_x, click_y)
+            event = MousePress(:left, click_x, click_y)
             op = try
                 projection_read(projection, iomap, event)
             catch e

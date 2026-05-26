@@ -24,7 +24,7 @@ import ..PredicateDispatchingModule: PredicateDispatchingProjection
 import ..PreservingProjectionModule: PreservingProjection
 import ..ReferenceModule: ConcreteReferencePath, ElementReference, PositionReference, RangeReference, PointReference
 import ..OperationModule: ReplaceSelectionOperation
-import ..MouseModule: MouseClick
+import ..MouseModule: MousePress
 import ..FontModule: font_scaled_size
 export GraphicsCanvasToGraphicsImage, GraphicsCaching
 
@@ -126,7 +126,7 @@ _rect_hit(r::GraphicsRect, cx::Integer, cy::Integer) =
     cy >= Int(r.y) && cy < Int(r.y) + Int(r.h)
 
 function projection_read(::GraphicsCanvasToGraphicsImage, iomap::SimpleIoMap, evt)
-    evt isa MouseClick || return nothing
+    evt isa MousePress || return nothing
     canvas = iomap.input
     elems  = canvas.elements
 

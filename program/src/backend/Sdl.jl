@@ -14,8 +14,9 @@ import ..GraphicsModule: GraphicsCanvas, GraphicsText, GraphicsRect, GraphicsVie
 import ..CollectionModule: ListNode
 import ..FontModule: StyleFont, font_scaled_size, _FONT_SCALE
 import ..WindowModule: Window, QuitEvent
+import ..ModifiersModule: Modifiers
 import ..KeyboardModule: KeyPress
-import ..MouseModule: MouseClick, MouseMove, MouseScroll
+import ..MouseModule: MouseDown, MouseUp, MousePress, MouseMove, MouseScroll
 
 export SdlBackend, sdl_measure_text, sdl_render_canvas
 
@@ -27,13 +28,49 @@ export SdlBackend, sdl_measure_text, sdl_render_canvas
     SdlBackend()
 
 SDL2 + SDL_ttf backend. The font measurement cache is shared across all
-windows.
+windows. An internal `pending_events` queue holds synthesised events
+(e.g. `MousePress`) scheduled to be delivered on the next poll.
 """
 mutable struct SdlBackend <: Backend
     font_cache::Dict{Tuple{String,Int}, Ptr{Nothing}}
+    # Synthesised-event queue: drained before polling SDL.
+    pending_events::Vector{Any}
+    # State for MousePress synthesis.
+    last_down_button::Symbol
+    last_down_x::Int
+    last_down_y::Int
+    last_down_time::Float64
 end
 
-SdlBackend() = SdlBackend(Dict{Tuple{String,Int}, Ptr{Nothing}}())
+SdlBackend() = SdlBackend(
+    Dict{Tuple{String,Int}, Ptr{Nothing}}(),
+    Any[],
+    :none, 0, 0, 0.0,
+)
+
+# ════════════════════════════════════════════════════════════════════════
+# Modifier extraction
+# ════════════════════════════════════════════════════════════════════════
+
+"""
+    sdl_modifiers(mod::UInt16) -> Modifiers
+
+Decode an SDL modifier bitmask into a `Modifiers` struct.
+
+Bitmask layout (same as SDL_Keymod):
+- Ctrl  : bits 6–7  (KMOD_LCTRL=0x0040, KMOD_RCTRL=0x0080)
+- Shift : bits 0–1  (KMOD_LSHIFT=0x0001, KMOD_RSHIFT=0x0002)
+- Alt   : bits 8–9  (KMOD_LALT=0x0100, KMOD_RALT=0x0200)
+"""
+function sdl_modifiers(mod::UInt16)::Modifiers
+    ctrl  = (mod & UInt16(0x00C0)) != UInt16(0)  # KMOD_LCTRL | KMOD_RCTRL
+    shift = (mod & UInt16(0x0003)) != UInt16(0)  # KMOD_LSHIFT | KMOD_RSHIFT
+    alt   = (mod & UInt16(0x0300)) != UInt16(0)  # KMOD_LALT | KMOD_RALT
+    Modifiers(ctrl, shift, alt)
+end
+
+# Convenience overload: extract modifiers from the current SDL state.
+_current_modifiers() = sdl_modifiers(UInt16(SDL_GetModState() & 0xFFFF))
 
 # ════════════════════════════════════════════════════════════════════════
 # Keyboard
@@ -44,52 +81,34 @@ SdlBackend() = SdlBackend(Dict{Tuple{String,Int}, Ptr{Nothing}}())
 
 Convert an SDL keysym value and modifier bitmask to a `KeyPress`. Returns
 `nothing` for unrecognised keys (caller handles escape/quit separately).
-`ctrl` is set when either Ctrl key is held (KMOD_LCTRL | KMOD_RCTRL).
 """
 function sdl_to_keypress(keysym::Int32, mod::UInt16 = UInt16(0))
-    ctrl = (mod & UInt16(0x00C0)) != UInt16(0)
-    keysym == Int32(1073741904) && return KeyPress(:left,   ctrl)  # SDLK_LEFT
-    keysym == Int32(1073741903) && return KeyPress(:right,  ctrl)  # SDLK_RIGHT
-    keysym == Int32(1073741906) && return KeyPress(:up,     ctrl)  # SDLK_UP
-    keysym == Int32(1073741905) && return KeyPress(:down,   ctrl)  # SDLK_DOWN
-    keysym == Int32(1073741898) && return KeyPress(:home,   ctrl)  # SDLK_HOME
-    keysym == Int32(1073741901) && return KeyPress(:end,    ctrl)  # SDLK_END
-    keysym == Int32(13)         && return KeyPress(:return, ctrl)  # SDLK_RETURN
-    keysym == Int32(44)         && return KeyPress(:comma,  ctrl)  # SDLK_COMMA
-    keysym == Int32(46)         && return KeyPress(:period, ctrl)  # SDLK_PERIOD
+    mods = sdl_modifiers(mod)
+    keysym == Int32(1073741904) && return KeyPress(:left,   mods)  # SDLK_LEFT
+    keysym == Int32(1073741903) && return KeyPress(:right,  mods)  # SDLK_RIGHT
+    keysym == Int32(1073741906) && return KeyPress(:up,     mods)  # SDLK_UP
+    keysym == Int32(1073741905) && return KeyPress(:down,   mods)  # SDLK_DOWN
+    keysym == Int32(1073741898) && return KeyPress(:home,   mods)  # SDLK_HOME
+    keysym == Int32(1073741901) && return KeyPress(:end,    mods)  # SDLK_END
+    keysym == Int32(13)         && return KeyPress(:return, mods)  # SDLK_RETURN
+    keysym == Int32(44)         && return KeyPress(:comma,  mods)  # SDLK_COMMA
+    keysym == Int32(46)         && return KeyPress(:period, mods)  # SDLK_PERIOD
     return nothing
 end
 
 # ════════════════════════════════════════════════════════════════════════
-# Mouse
+# Mouse helpers
 # ════════════════════════════════════════════════════════════════════════
 
-"""
-    sdl_to_mouse(evt) -> Union{MouseClick, MouseMove, MouseScroll, Nothing}
+# Map SDL button byte → Symbol.
+_sdl_button_sym(b::UInt8) = b == 0x01 ? :left : b == 0x02 ? :middle : :right
 
-Convert an SDL event to one of the mouse event structs.
-Returns `nothing` for non-mouse events.
-
-Handled SDL event types:
-- `SDL_MOUSEBUTTONDOWN` → `MouseClick`
-- `SDL_MOUSEMOTION`    → `MouseMove`
-- `SDL_MOUSEWHEEL`     → `MouseScroll`
-"""
-function sdl_to_mouse(evt)
-    t = evt.type
-    if t == 0x00000401  # SDL_MOUSEBUTTONDOWN
-        b = evt.button.button
-        button = b == 0x01 ? :left : b == 0x02 ? :middle : :right
-        return MouseClick(button, Int(evt.button.x), Int(evt.button.y))
-    elseif t == 0x00000200  # SDL_MOUSEMOTION
-        return MouseMove(Int(evt.motion.x), Int(evt.motion.y))
-    elseif t == 0x00000403  # SDL_MOUSEWHEEL
-        mx = Ref{Cint}(0)
-        my = Ref{Cint}(0)
-        SDL_GetMouseState(mx, my)
-        return MouseScroll(Int(evt.wheel.x), Int(evt.wheel.y), Int(mx[]), Int(my[]))
-    end
-    return nothing
+# Map SDL_GetMouseState bitmask → currently-held button symbol.
+function _held_button(bstate::UInt32)::Symbol
+    (bstate & UInt32(0x01)) != UInt32(0) && return :left
+    (bstate & UInt32(0x02)) != UInt32(0) && return :middle
+    (bstate & UInt32(0x04)) != UInt32(0) && return :right
+    :none
 end
 
 # ════════════════════════════════════════════════════════════════════════
@@ -455,28 +474,81 @@ end
 """
     read_from_devices(backend::SdlBackend, devices) -> event or nothing
 
-Poll the SDL event queue once and classify events:
-- `SDL_QUIT` / Escape → `QuitEvent()`
-- `SDL_KEYDOWN` → `KeyPress` via `sdl_to_keypress`
-- `SDL_MOUSEBUTTONDOWN` / `SDL_MOUSEWHEEL` → mouse event via `sdl_to_mouse`
-Returns the first successfully translated event, or `nothing`.
+Poll the SDL event queue once and return a backend-agnostic event:
+- Pending synthesised events (e.g. `MousePress`) are returned first.
+- `SDL_QUIT` / Escape          → `QuitEvent()`
+- `SDL_KEYDOWN`                → `KeyPress` via `sdl_to_keypress`
+- `SDL_MOUSEBUTTONDOWN`        → `MouseDown`
+- `SDL_MOUSEBUTTONUP`          → `MouseUp`; also queues `MousePress` when
+                                 the button-up is close to the preceding
+                                 button-down (≤ 5 px, ≤ 300 ms).
+- `SDL_MOUSEMOTION` (btn held) → `MouseMove`
+- `SDL_MOUSEWHEEL`             → `MouseScroll`
+
+Motion events are forwarded only when a mouse button is held; idle motion
+is dropped to avoid flooding the projection pipeline.
 """
-function read_from_devices(::SdlBackend, devices)
+function read_from_devices(backend::SdlBackend, devices)
+    # Deliver any previously synthesised events before polling SDL.
+    if !isempty(backend.pending_events)
+        return popfirst!(backend.pending_events)
+    end
+
     event_ref = Ref{SDL_Event}()
     while Bool(SDL_PollEvent(event_ref))
         evt = event_ref[]
-        if evt.type == SDL_QUIT
+        t = evt.type
+
+        if t == SDL_QUIT
             return QuitEvent()
-        elseif evt.type == SDL_KEYDOWN
+
+        elseif t == SDL_KEYDOWN
             keysym = evt.key.keysym.sym
             if keysym == Int32(27)  # SDLK_ESCAPE
                 return QuitEvent()
             end
             key = sdl_to_keypress(keysym, evt.key.keysym.mod)
             key !== nothing && return key
-        elseif evt.type == 0x00000401 || evt.type == 0x00000403  # SDL_MOUSEBUTTONDOWN / SDL_MOUSEWHEEL
-            mouse = sdl_to_mouse(evt)
-            mouse !== nothing && return mouse
+
+        elseif t == 0x00000401  # SDL_MOUSEBUTTONDOWN
+            button = _sdl_button_sym(evt.button.button)
+            mods = _current_modifiers()
+            x, y = Int(evt.button.x), Int(evt.button.y)
+            # Record for press synthesis.
+            backend.last_down_button = button
+            backend.last_down_x = x
+            backend.last_down_y = y
+            backend.last_down_time = time()
+            return MouseDown(button, x, y, mods)
+
+        elseif t == 0x00000402  # SDL_MOUSEBUTTONUP
+            button = _sdl_button_sym(evt.button.button)
+            mods = _current_modifiers()
+            x, y = Int(evt.button.x), Int(evt.button.y)
+            # Synthesise MousePress when this up matches the preceding down.
+            if button == backend.last_down_button &&
+               abs(x - backend.last_down_x) < 5 &&
+               abs(y - backend.last_down_y) < 5 &&
+               (time() - backend.last_down_time) < 0.3
+                push!(backend.pending_events, MousePress(button, x, y, mods))
+            end
+            return MouseUp(button, x, y, mods)
+
+        elseif t == 0x00000200  # SDL_MOUSEMOTION
+            # Only forward motion while a button is held to avoid flooding.
+            mx_ref, my_ref = Ref{Cint}(0), Ref{Cint}(0)
+            bstate = UInt32(SDL_GetMouseState(mx_ref, my_ref))
+            buttons = _held_button(bstate)
+            buttons == :none && continue
+            mods = _current_modifiers()
+            return MouseMove(Int(evt.motion.x), Int(evt.motion.y), buttons, mods)
+
+        elseif t == 0x00000403  # SDL_MOUSEWHEEL
+            mx_ref, my_ref = Ref{Cint}(0), Ref{Cint}(0)
+            SDL_GetMouseState(mx_ref, my_ref)
+            mods = _current_modifiers()
+            return MouseScroll(Int(evt.wheel.x), Int(evt.wheel.y),
+                               Int(mx_ref[]), Int(my_ref[]), mods)
         end
     end
     return nothing

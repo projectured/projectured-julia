@@ -13,11 +13,11 @@ Add a `DraggingDocument` (state holder) and a `Dragging` projection (gesture int
 If the mouse is released before exceeding the movement threshold, no drag occurs (falls through as normal click).
 
 **State machine** (stored in `DraggingState`):
-- `idle` + mouse down (`MouseClick`/button-down) → store press coords + resolve source selection → `pending`
-- `pending` + mouse move while held → if distance from press exceeds threshold → `dragging`
-- `pending` + mouse up (`MouseRelease`) → reset to `idle`, delegate original click to inner projection (normal selection)
-- `dragging` + mouse move while held → update current destination coords
-- `dragging` + mouse up (`MouseRelease`) → resolve destination via inner iomap, produce `OperationDraggingMove`, reset to `idle`
+- `idle` + mouse down (`MouseDown`) → store press coords + resolve source selection → `pending`
+- `pending` + mouse move while held (`MouseMove`) → if distance from press exceeds threshold → `dragging`
+- `pending` + mouse up (`MouseUp`) → reset to `idle`, delegate original click to inner projection as `MousePress` (normal selection)
+- `dragging` + mouse move while held (`MouseMove`) → update current destination coords
+- `dragging` + mouse up (`MouseUp`) → resolve destination via inner iomap, produce `OperationDraggingMove`, reset to `idle`
 
 ## Files to Create
 
@@ -34,27 +34,26 @@ If the mouse is released before exceeding the movement threshold, no drag occurs
   - `selection::Reference`
 - Convenience constructor: `DraggingState(content; threshold=5)`
 
-### 2. `program/src/device/Mouse.jl` — Add `MouseRelease`
+### 2. `program/src/device/Mouse.jl` — *(already done by mouse-events plan)*
 
-- Add `MouseRelease` struct with `button::Symbol`, `x::Int`, `y::Int`
-- Add to exports
+`MouseDown`, `MouseUp`, `MousePress`, `MouseMove`, and `MouseScroll` are all
+implemented. `MouseRelease` is superseded by `MouseUp`.
 
-### 3. `program/src/backend/Sdl.jl` — Forward new events
+### 3. `program/src/backend/Sdl.jl` — *(already done by mouse-events plan)*
 
-- Handle `SDL_MOUSEBUTTONUP` (0x00000402) → `MouseRelease`
-- Forward `SDL_MOUSEMOTION` (already handled by `sdl_to_mouse`) in `read_from_devices`
-- Update the event type filter in `read_from_devices` to include motion and button-up
+`SDL_MOUSEBUTTONUP` → `MouseUp`, `SDL_MOUSEMOTION` (while button held) →
+`MouseMove` are both forwarded. No further changes needed here.
 
 ### 4. `program/src/projection/primitive/Dragging.jl` — `DraggingProjectionModule`
 
 - `struct DraggingProjection <: Projection` (no extra fields needed)
 - `projection_print`: recurse into `DraggingState.content` via the recursion argument, return `ContentIoMap`
 - `projection_read`: the gesture state machine:
-  - **idle + mouse down** (`MouseClick`): store press coords + resolve source selection via inner iomap, set phase to `:pending`, absorb event (return `nothing`)
-  - **pending + mouse move**: check distance from press coords; if past threshold → set `:dragging`, absorb
-  - **pending + mouse up** (`MouseRelease`): reset to `:idle`, delegate original press to inner projection as `ReplaceSelectionOperation` (normal click)
-  - **dragging + mouse move**: update current destination coords in `DraggingState`, absorb
-  - **dragging + mouse up** (`MouseRelease`): resolve destination via inner iomap, produce `MoveRangeOperation` (or `nothing` if unresolvable), reset to `:idle`
+  - **idle + `MouseDown`**: store press coords + resolve source selection via inner iomap, set phase to `:pending`, absorb event (return `nothing`)
+  - **pending + `MouseMove`**: check distance from press coords; if past threshold → set `:dragging`, absorb
+  - **pending + `MouseUp`**: reset to `:idle`, re-emit as `MousePress` to inner projection so normal selection fires
+  - **dragging + `MouseMove`**: update current destination coords in `DraggingState`, absorb
+  - **dragging + `MouseUp`**: resolve destination via inner iomap, produce `MoveRangeOperation` (or `nothing` if unresolvable), reset to `:idle`
   - **all other events**: delegate to inner projection read
 - `MoveRangeOperation <: Operation` with:
   - `source_collection` — the source CellVector
@@ -72,8 +71,8 @@ If the mouse is released before exceeding the movement threshold, no drag occurs
 
 ## Steps
 
-1. Add `MouseRelease` to `Mouse.jl`
-2. Update `Sdl.jl` to forward `MouseRelease` and `MouseMove`
+1. ~~Add `MouseRelease` to `Mouse.jl`~~ — done; `MouseUp` serves this role.
+2. ~~Update `Sdl.jl`~~ — done; `MouseUp` and `MouseMove` are already forwarded.
 3. Create `document/Dragging.jl`
 4. Create `projection/primitive/Dragging.jl`
 5. Wire into `Projectured.jl` (includes, using, exports)

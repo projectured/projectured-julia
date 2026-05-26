@@ -72,7 +72,7 @@ function projection_read(p::FocusingProjection, iomap::SimpleIoMap, event)
         input_selection = map_reference_backward(p, iomap, event.path)
         input_selection === nothing && return nothing
         return ReplaceSelectionOperation(input_selection)
-    elseif event isa KeyPress && event.ctrl
+    elseif event isa KeyPress && event.modifiers.ctrl
         if event.key == :comma
             isempty(p.part) && return nothing
             return ReplaceFocusPartOperation(p, _drop_last(p.part))
