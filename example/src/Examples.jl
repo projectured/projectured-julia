@@ -35,6 +35,7 @@ const lazy_example           = Example("lazy",           make_lazy_document_exam
 const lazy_bidirectional_example = Example("lazy_bidirectional", make_lazy_bidirectional_document_example, make_lazy_bidirectional_projection_example)
 const math_example           = Example("math",           make_math_document_example,           make_math_projection_example)
 const julia_example          = Example("julia",          make_julia_document_example,          make_julia_projection_example)
+const graphics_image_example = Example("graphics_image", make_json_document_example,           make_graphics_image_projection_example)
 
 const examples = [
     json_example, json_sorted_example, json_null_example, json_string_example,
@@ -44,6 +45,7 @@ const examples = [
     collection_example, reversing_example, filtering_example, sorting_example, focusing_example, table_example, math_table_example, workbench_example,
     math_example,
     julia_example,
+    graphics_image_example,
 ]
 
 function run_example(example::Example; width=2400, height=1600,
@@ -87,5 +89,17 @@ function print_example(name="json")
         error("Unknown example: \"$name\". Available: $available")
     end
     print_example(examples[idx])
+end
+
+function write_image_example(example::Example, filename;
+                              width=1200, height=800, kwargs...)
+    write_image(example.document, example.projection, filename;
+                width=width, height=height, kwargs...)
+end
+
+function write_image_example(name="json", filename=tempname()*".bmp"; kwargs...)
+    idx = findfirst(ex -> ex.name == name, examples)
+    idx === nothing && error("Unknown example: \"$name\"")
+    write_image_example(examples[idx], filename; kwargs...)
 end
 

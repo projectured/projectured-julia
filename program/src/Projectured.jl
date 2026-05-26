@@ -165,7 +165,8 @@ using .ModifiersModule: Modifiers
 using .KeyboardModule: KeyDown, KeyUp, KeyPress, is_ctrl, is_shift, is_alt, is_meta
 using .MouseModule: MouseDown, MouseUp, MousePress, MouseMove, MouseScroll
 using .BackendModule: Backend, init!, quit!, open_window!, close_window!, measure_text
-using .SdlBackendModule: SdlBackend, sdl_measure_text, sdl_render_canvas
+using .SdlBackendModule: SdlBackend, sdl_measure_text, sdl_render_canvas,
+                          write_image, GraphicsCanvasToImageFile
 using .DeviceModule: Device, write_to_device, read_from_device, write_to_devices, read_from_devices
 using .IoMapApiModule: IoMap
 using .IoMapModule: SimpleIoMap, ChildrenIoMap, ContentIoMap
@@ -330,7 +331,7 @@ export Modifiers
 export KeyDown, KeyUp, KeyPress, is_ctrl, is_shift, is_alt, is_meta
 export MouseDown, MouseUp, MousePress, MouseMove, MouseScroll
 export Backend, init!, quit!, open_window!, close_window!, measure_text
-export SdlBackend, sdl_measure_text, sdl_render_canvas
+export SdlBackend, sdl_measure_text, sdl_render_canvas, write_image, GraphicsCanvasToImageFile
 export Device, write_to_device, read_from_device, write_to_devices, read_from_devices
 export IoMap, SimpleIoMap, ChildrenIoMap, ContentIoMap
 export TypeDispatchingProjection, RecursiveProjection

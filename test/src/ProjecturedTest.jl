@@ -22,6 +22,7 @@ include("projection/JsonToSyntaxTest.jl")
 include("projection/SyntaxToTextTest.jl")
 include("projection/TextToGraphicsTest.jl")
 include("projection/CopyingProjectionTest.jl")
+include("projection/GraphicsToFileTest.jl")
 include("editor/PrinterTest.jl")
 include("editor/ExampleTest.jl")
 include("editor/SelectionTest.jl")
@@ -47,6 +48,7 @@ function test_projections()
         test_syntax_to_text()
         test_text_to_graphics()
         test_copying_projection()
+        test_write_image()
     end
 end
 
@@ -67,7 +69,7 @@ end
 
 export test_all
 export test_cell, test_json, test_syntax, test_text, test_graphics, test_graphics_layout, test_collection
-export test_json_to_syntax, test_syntax_to_text, test_text_to_graphics, test_copying_projection
+export test_json_to_syntax, test_syntax_to_text, test_text_to_graphics, test_copying_projection, test_write_image
 export test_examples, test_selections
 export test_printer, test_printers, test_example, test_selection
 export explore_selections

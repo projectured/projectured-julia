@@ -17,8 +17,11 @@ import ..WindowModule: Window, QuitEvent
 import ..ModifiersModule: Modifiers
 import ..KeyboardModule: KeyDown, KeyUp, KeyPress
 import ..MouseModule: MouseDown, MouseUp, MousePress, MouseMove, MouseScroll
+import ..ImageModule: ImageFile
+import ..ProjectionApiModule: projection_print, Projection
+import ..IoMapModule: SimpleIoMap
 
-export SdlBackend, sdl_measure_text, sdl_render_canvas
+export SdlBackend, sdl_measure_text, sdl_render_canvas, write_image, GraphicsCanvasToImageFile
 
 # ════════════════════════════════════════════════════════════════════════
 # Backend
@@ -527,6 +530,146 @@ parameter or use a shared offscreen context.
 """
 function sdl_render_canvas(canvas::GraphicsCanvas)
     GraphicsImage(Int32(0), Int32(0), Int32(0), Int32(0), nothing)
+end
+
+# ════════════════════════════════════════════════════════════════════════
+# Offscreen rendering / write_image
+# ════════════════════════════════════════════════════════════════════════
+
+"""
+    write_image(canvas::GraphicsCanvas, filename::AbstractString;
+                width::Integer = 800, height::Integer = 600,
+                background::NTuple{4,UInt8} = (0x00, 0x00, 0x00, 0xff)) -> ImageFile
+
+Low-level overload. Render `canvas` to an offscreen SDL2 software renderer and
+save the result to `filename` (BMP format). Returns an `ImageFile` document.
+No window is required; SDL2 + SDL_ttf are initialized lazily.
+
+Supported extensions: `.bmp` (case-insensitive).
+
+Most callers should use `write_image(document, projection, filename)` instead.
+"""
+function write_image(canvas::GraphicsCanvas, filename::AbstractString;
+                     width::Integer = 800,
+                     height::Integer = 600,
+                     background::NTuple{4,UInt8} = (0x00, 0x00, 0x00, 0xff))
+    SDL_Init(SDL_INIT_VIDEO)
+    TTF_Init()
+
+    surface = SDL_CreateRGBSurface(UInt32(0), Int32(width), Int32(height), Int32(32),
+                                   UInt32(0x00FF0000), UInt32(0x0000FF00),
+                                   UInt32(0x000000FF), UInt32(0xFF000000))
+    @assert surface != C_NULL "SDL surface creation failed: $(unsafe_string(SDL_GetError()))"
+
+    renderer = SDL_CreateSoftwareRenderer(surface)
+    @assert renderer != C_NULL "SDL software renderer creation failed: $(unsafe_string(SDL_GetError()))"
+
+    h = SdlWindowHandle(C_NULL, renderer, Dict{Tuple{String,Int}, Ptr{TTF_Font}}())
+    r, g, b, a = background
+    SDL_SetRenderDrawColor(renderer, r, g, b, a)
+    SDL_RenderClear(renderer)
+
+    _render_canvas!(h, canvas, 0, 0, Int(width), Int(height))
+
+    ext = lowercase(splitext(filename)[2])
+    if ext == ".bmp"
+        rw = SDL_RWFromFile(filename, "wb")
+        @assert rw != C_NULL "Failed to open output file: $filename"
+        SDL_SaveBMP_RW(surface, rw, Int32(1))   # freedst=1 — SDL closes the RW handle
+    else
+        SDL_DestroyRenderer(renderer)
+        SDL_FreeSurface(surface)
+        error("write_image: unsupported format \"$ext\" (only .bmp is supported)")
+    end
+
+    for (_, font) in h.font_cache
+        TTF_CloseFont(font)
+    end
+    SDL_DestroyRenderer(renderer)
+    SDL_FreeSurface(surface)
+
+    ImageFile(filename)
+end
+
+"""
+    write_image(document, projection, filename::AbstractString;
+                width::Integer = 800, height::Integer = 600,
+                background::NTuple{4,UInt8} = (0x00, 0x00, 0x00, 0xff)) -> ImageFile
+
+Run `projection_print(projection, document)` to obtain a `GraphicsCanvas`,
+then render it offscreen and save to `filename` (BMP). The projection is
+provided by the caller, typically the same pipeline used to open a live editor
+window. Returns an `ImageFile` pointing at the saved file.
+
+```julia
+proj = SequentialProjection(
+    RecursiveProjection(JsonToSyntax()),
+    RecursiveProjection(SyntaxToText()),
+    TextToGraphics(measure=sdl_measure_text),
+)
+write_image(doc, proj, "snapshot.bmp"; width=1200, height=800)
+```
+
+Throws if the projection output is not a `GraphicsCanvas`.
+"""
+function write_image(document, projection, filename::AbstractString;
+                     width::Integer = 800,
+                     height::Integer = 600,
+                     background::NTuple{4,UInt8} = (0x00, 0x00, 0x00, 0xff))
+    iomap = projection_print(projection, document)
+    canvas = iomap.output
+    canvas isa GraphicsCanvas ||
+        error("write_image: projection output is $(typeof(canvas)), expected GraphicsCanvas")
+    write_image(canvas, filename; width=width, height=height, background=background)
+end
+
+"""
+    GraphicsCanvasToImageFile(filename; width=800, height=600,
+                               background=(0x00,0x00,0x00,0xff))
+
+Printer-only projection. On `projection_print` it renders the input
+`GraphicsCanvas` offscreen and saves to `filename` (BMP). The `output` field
+of the returned `SimpleIoMap` is an `ImageFile` document. Has no reader.
+
+```julia
+proj = SequentialProjection(
+    RecursiveProjection(JsonToSyntax()),
+    RecursiveProjection(SyntaxToText()),
+    TextToGraphics(measure=sdl_measure_text),
+    GraphicsCanvasToImageFile("output.bmp"; width=1200, height=800),
+)
+iomap = projection_print(proj, doc)   # writes output.bmp
+# iomap.output isa ImageFile
+```
+"""
+struct GraphicsCanvasToImageFile <: Projection
+    filename::String
+    width::Int
+    height::Int
+    background::NTuple{4, UInt8}
+end
+
+function GraphicsCanvasToImageFile(filename::AbstractString;
+                                    width::Integer = 800,
+                                    height::Integer = 600,
+                                    background = (0x00, 0x00, 0x00, 0xff))
+    GraphicsCanvasToImageFile(String(filename), Int(width), Int(height),
+                               NTuple{4,UInt8}(background))
+end
+
+function projection_print(p::GraphicsCanvasToImageFile,
+                           canvas::GraphicsCanvas, recursion, reference)
+    output = write_image(canvas, p.filename;
+                         width=p.width, height=p.height, background=p.background)
+    SimpleIoMap(p, canvas, output)
+end
+
+function map_reference_forward(::GraphicsCanvasToImageFile, iomap, reference)
+    nothing
+end
+
+function map_reference_backward(::GraphicsCanvasToImageFile, iomap, reference)
+    nothing
 end
 
 # ════════════════════════════════════════════════════════════════════════
