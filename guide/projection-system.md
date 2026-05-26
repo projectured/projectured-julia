@@ -161,6 +161,86 @@ function map_reference_backward(::MyProjection, iomap, reference)
 end
 ```
 
+### A compound (node-shaped) projection
+
+A leaf projection maps one document value to one output value. A compound
+projection maps one input *node* to an output node whose children are the
+recursively-projected input children. The extra requirements are:
+
+1. **Call `projection_print` on each child** via the `recursion` argument.
+2. **Store the child IO maps** in a shared reactive `Cell` (not inline in two
+   separate cells — see [selection-deep-dive.md §8](selection-deep-dive.md)).
+3. **Project the selection reactively** using the child IO maps.
+4. **Use `ChildrenIoMap`** rather than `SimpleIoMap` so the reader can locate
+   the correct child IO map when translating a selection backward.
+
+```julia
+struct MyNodeProjection <: Projection end
+
+function projection_print(p::MyNodeProjection, node::MyNode, recursion, reference)
+    # Step 1+2: project children, store IO maps in a shared cell
+    child_iomaps = Cell(() -> [
+        projection_print(recursion, getfield(node, :children)[][i][],
+                         recursion,
+                         append_reference(reference, ElementReference(Cell(i))))
+        for i in 1:length(node.children)
+    ])
+
+    # Build the output children from the IO maps
+    out_children = Cell(() -> CellVector(Cell[Cell(m.output) for m in child_iomaps[]]))
+
+    # Step 3: project the selection reactively
+    sel = Cell(() -> begin
+        path = node.selection
+        @reference_case path begin
+            children[i] + rest => begin
+                iomaps = child_iomaps[]
+                i > length(iomaps) && return nothing
+                child_sel = iomaps[i].output.selection
+                child_sel === nothing && return nothing
+                ConcreteReferencePath(ElementReference(Cell(i)), child_sel)
+            end
+            _ => nothing
+        end
+    end)
+
+    # Step 4: ChildrenIoMap so the reader can find child IO maps
+    ChildrenIoMap(p, node,
+        SyntaxNode(..., out_children, ..., sel),
+        child_iomaps)
+end
+
+function map_reference_forward(::MyNodeProjection, iomap::ChildrenIoMap, reference)
+    @reference_case reference begin
+        children[i] + rest => begin
+            iomaps = iomap.child_iomaps[]
+            i > length(iomaps) && return nothing
+            child_iomap = iomaps[i]
+            child_ref = map_reference_forward(child_iomap.projection, child_iomap, rest)
+            child_ref === nothing && return nothing
+            ConcreteReferencePath(ElementReference(Cell(i)), child_ref)
+        end
+    end
+end
+
+function map_reference_backward(::MyNodeProjection, iomap::ChildrenIoMap, reference)
+    @reference_case reference begin
+        [i] + rest => begin
+            iomaps = iomap.child_iomaps[]
+            i > length(iomaps) && return nothing
+            child_iomap = iomaps[i]
+            child_ref = map_reference_backward(child_iomap.projection, child_iomap, rest)
+            child_ref === nothing && return nothing
+            ConcreteReferencePath(FieldReference(Cell("children")),
+                ConcreteReferencePath(ElementReference(Cell(i)), child_ref))
+        end
+    end
+end
+```
+
+See [tutorial-new-domain.md](tutorial-new-domain.md) for a complete worked
+example with document types, example, and test.
+
 ## Recursion across projections
 
 Whenever a node-shaped projection produces children, it should call
