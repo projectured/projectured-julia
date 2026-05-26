@@ -8,9 +8,9 @@ A reference is a sequence of typed steps that descend through a document tree. E
 
 ## Reference Steps
 
-- `ElementReference(index::Cell)` — i-th element in a collection (1-based indexing)
-- `PositionReference(index::Cell)` — cursor position between elements (0-based indexing)
-- `RangeReference(start::Cell, stop::Cell)` — range of cursor positions (0-based)
+- `ElementReference(index::Cell)` — constructor alias for `RangeReference(index-1, index)`; selects the i-th element (1-based)
+- `PositionReference(index::Cell)` — constructor alias for `RangeReference(index, index)`; zero-width cursor at boundary `index` (0-based)
+- `RangeReference(start::Cell, stop::Cell)` — the underlying type; `ElementReference` and `PositionReference` are both shorthands that produce a `RangeReference`
 - `FieldReference(name::Cell)` — named struct field
 - `ProjectionReference(projection, output_path)` — projection-introduced element (e.g. delimiters)
 - `PointReference(x::Cell, y::Cell)` — pixel coordinates for hit-testing

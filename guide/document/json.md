@@ -88,6 +88,15 @@ obj = JsonObject("name" => JsonString("Alice"), "age" => JsonNumber(30))
 
 Each JSON value has a `selection::Cell` that holds a ReferencePath. Both readings of the boundary axis are available everywhere: `.elements[i]` / `.entries[i]` / `.value[i]` selects the i-th item (1-based); `.elements{k}` / `.entries{k}` / `.value{k}` is the cursor at boundary `k` (0-based) — between elements/entries (an insertion point) or between characters.
 
+## Collapsed and indentation fields
+
+`JsonArray`, `JsonObject`, and `JsonObjectEntry` each carry a `collapsed::Bool` field (default `false`). When `true`, the projection renders the value on a single line instead of expanding it. This field is directly settable:
+
+```julia
+arr.collapsed = true   # render array inline
+obj.collapsed = true   # render object inline
+```
+
 ## Key Features
 
 - All fields are reactive Cells for automatic dependency tracking

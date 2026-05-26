@@ -11,35 +11,24 @@ The graphics domain provides rendering primitives for the SDL2 backend. It repre
 ## Examples
 
 ```julia
-# Create graphics text
-gtext = GraphicsText(
-    TextString("Hello"),
-    x = Cell(10),
-    y = Cell(20),
-    font = "monospace",
-    color = "white"
-)
+# Create graphics text: (text, x, y, font, r, g, b, a)
+gtext = GraphicsText("Hello", 10, 20, font_ubuntu_monospace_regular_24, 255, 255, 255, 255)
 
-# Create a rectangle (e.g., for cursor)
-rect = GraphicsRect(
-    x = Cell(100),
-    y = Cell(50),
-    width = Cell(10),
-    height = Cell(20),
-    color = "red"
-)
+# Create a rectangle: (x, y, w, h, r, g, b, a)
+rect = GraphicsRect(100, 50, 2, 20, 255, 0, 0, 255)
 
-# Create a canvas
-canvas = GraphicsCanvas(
-    width = Cell(800),
-    height = Cell(600),
-    elements = CellVector([Cell(gtext), Cell(rect)])
-)
+# Create an empty canvas
+canvas = GraphicsCanvas()
 
-# Access and modify
-gtext.x[] = 50
-rect.color[] = "blue"
-push!(canvas.elements, Cell(new_element))
+# Create a canvas from a vector of elements
+canvas = GraphicsCanvas([gtext, rect])
+
+# Create a canvas with a layout direction
+canvas = GraphicsCanvas(CellVector([Cell(gtext), Cell(rect)]), layout_vertical)
+
+# Access and modify (transparent via @document macro — no [] needed)
+gtext.x = 50
+gtext.text = "World"
 ```
 
 ## Coordinates

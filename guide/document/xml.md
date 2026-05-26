@@ -31,9 +31,9 @@ elem = XmlElement("div",
     [XmlText("Content")]
 )
 
-# Access and modify
-text.cell[] = "New text"
-attr.cell[] = "456"
+# Access and modify (transparent via @document macro — no [] needed)
+text.cell = "New text"
+attr.cell = "456"
 push!(elem, XmlText("More content"))
 ```
 

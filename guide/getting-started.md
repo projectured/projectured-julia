@@ -33,12 +33,13 @@ concept. The deeper material is split across topic-specific guides.
 
 ## Recommended reading order
 
-1. **[reactive-cells.md](reactive-cells.md)** — the foundation. Everything else assumes you understand `Cell`, dependency tracking, and lazy invalidation.
-2. **[macros.md](macros.md)** — `@document`, `@projection`, `@iomap`. Explains why the rest of the code can read Julia struct fields directly even though every field is wrapped in a `Cell`.
-3. **[projection-system.md](projection-system.md)** — the heart of the architecture. The four interface functions (`projection_print`, `projection_read`, `map_reference_forward`, `map_reference_backward`) and how they compose.
-4. **[editor/reference.md](editor/reference.md)** — reference paths, the `@reference` DSL, and the `@reference_case` pattern matcher.
-5. **[editor/selection.md](editor/selection.md)** — how selection is stored and propagated through nested documents.
-6. **[editor.md](editor.md)** — the editor loop, devices, backend wiring, and MCP server.
+1. **[design.md](design.md)** — architecture overview, design decisions, module inventory, and mapping from the original Common Lisp ProjecturEd. **Read this first.**
+2. **[reactive-cells.md](reactive-cells.md)** — the foundation. Everything else assumes you understand `Cell`, dependency tracking, and lazy invalidation.
+3. **[macros.md](macros.md)** — `@document`, `@projection`, `@iomap`. Explains why the rest of the code can read Julia struct fields directly even though every field is wrapped in a `Cell`.
+4. **[projection-system.md](projection-system.md)** — the heart of the architecture. The four interface functions (`projection_print`, `projection_read`, `map_reference_forward`, `map_reference_backward`) and how they compose.
+5. **[editor/reference.md](editor/reference.md)** — reference paths, the `@reference` DSL, and the `@reference_case` pattern matcher.
+6. **[editor/selection.md](editor/selection.md)** — how selection is stored and propagated through nested documents.
+7. **[editor.md](editor.md)** — the editor loop, devices, backend wiring, and MCP server.
 
 For the projection ecosystem:
 
@@ -57,10 +58,6 @@ For specific domains:
 - **Widget** → [document/widget.md](document/widget.md)
 - **Workbench** (IDE shell) → [document/workbench.md](document/workbench.md)
 - **Collection** (`CellVector`, `ListNode`) → [document/collection.md](document/collection.md)
-
-Plus deeper background:
-
-- **[design.md](design.md)** — the architecture overview, design decisions, and mapping from the original Common Lisp ProjecturEd to this Julia port.
 
 ## A minimal example
 

@@ -28,6 +28,7 @@ All subtype `WorkbenchDocument` (`<: Document`).
 | `WorkbenchSearcher()` | The "Searcher" panel |
 | `WorkbenchEvaluator(content)` | The "Evaluator" panel — eval-print loop window |
 | `WorkbenchEditor(title, filename, content)` | An open document in the editing column |
+| `WorkbenchAssistant(content)` | The "Assistant" panel — AI assistant window |
 
 Each panel carries a `title` (class-level constant or per-instance for
 `WorkbenchEditor`) that becomes the title-bar text in the widget output.
@@ -49,6 +50,7 @@ workbench type, with one projection per panel:
 | `WorkbenchSearcherToWidgetScrollPane` | `WidgetScrollPane` search UI |
 | `WorkbenchEvaluatorToWidgetScrollPane` | `WidgetScrollPane` REPL UI |
 | `WorkbenchEditorToWidgetScrollPane` | `WidgetScrollPane` containing the editor's projected content |
+| `WorkbenchAssistantToWidgetScrollPane` | `WidgetScrollPane` containing the assistant's projected content |
 
 Each of these is exported, so a custom workbench layout can re-bind one
 projection without touching the rest.

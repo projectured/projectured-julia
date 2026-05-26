@@ -59,12 +59,10 @@ end
 
 function projection_read(np::NestingProjection, iomap::NestingProjectionIoMap, event)
     if !isempty(np.elements)
-        inner = NestingProjection(np.elements[2:end], something(np.recursion, nothing))
         projection_read(np.elements[1], iomap.child_iomap, event)
     else
-        fallback = something(np.recursion, nothing)
-        fallback === nothing && return nothing
-        projection_read(fallback, iomap.child_iomap, event)
+        np.recursion === nothing && return nothing
+        projection_read(np.recursion, iomap.child_iomap, event)
     end
 end
 

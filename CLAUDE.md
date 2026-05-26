@@ -15,7 +15,7 @@ Read the guides in [guide/](guide/) before making non-trivial changes. They expl
 When touching selection/reference handling or a specific domain, also consult:
 
 - [guide/editor/reference.md](guide/editor/reference.md) and [guide/editor/selection.md](guide/editor/selection.md) — how selections are represented and mapped through projections.
-- [guide/document/](guide/document/) — per-domain guides: [json.md](guide/document/json.md), [xml.md](guide/document/xml.md), [text.md](guide/document/text.md), [syntax.md](guide/document/syntax.md), [graphics.md](guide/document/graphics.md).
+- [guide/document/](guide/document/) — per-domain guides: [json.md](guide/document/json.md), [xml.md](guide/document/xml.md), [text.md](guide/document/text.md), [syntax.md](guide/document/syntax.md), [graphics.md](guide/document/graphics.md), [widget.md](guide/document/widget.md), [workbench.md](guide/document/workbench.md), [collection.md](guide/document/collection.md).
 
 When iterating in the REPL or running the test suite:
 

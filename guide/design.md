@@ -153,8 +153,8 @@ Reference steps:
 
 | Type | Meaning |
 |---|---|
-| `ElementReference(index::Cell)` | Descend to the i-th element (1-based) — for array/collection access |
-| `PositionReference(index::Cell)` | Cursor position between elements (0-based) — for character offsets |
+| `ElementReference(index::Cell)` | Constructor alias for `RangeReference(index-1, index)` — descend to the i-th element (1-based) |
+| `PositionReference(index::Cell)` | Constructor alias for `RangeReference(index, index)` — zero-width cursor at boundary `index` (0-based) |
 | `FieldReference(name::Cell)` | Descend by named field (object key, struct field) |
 | `ProjectionReference(projection, output_path)` | Points to an element *introduced by a projection* (e.g. a delimiter) that has no direct counterpart in the input domain |
 
@@ -517,7 +517,7 @@ Reactive  (no deps)
 
 ---
 
-## 11. The Reference and Selection Mechanism
+## 10. The Reference and Selection Mechanism
 
 ### 11.1 What a Reference Is
 
@@ -525,8 +525,8 @@ A **reference** is a path-like pointer into a document tree — a sequence of ty
 
 | Step type | Meaning |
 |---|---|
-| `ElementReference(k)` | Descend to the `k`-th child (1-based) — for array/collection access |
-| `PositionReference(k)` | Cursor position between elements (0-based) — for character offsets |
+| `ElementReference(k)` | Constructor alias for `RangeReference(k-1, k)` — descend to the k-th child (1-based) |
+| `PositionReference(k)` | Constructor alias for `RangeReference(k, k)` — zero-width cursor at boundary k (0-based) |
 | `FieldReference(name)` | Descend into the named field of the current node |
 | `ProjectionReference(p, inner)` | Points to something introduced by projection `p`; `inner` locates it within `p`'s output |
 
@@ -798,7 +798,7 @@ selection cell reads from the same document the children cell exposes.
 
 ---
 
-## 10. Key Differences from the Original
+## 11. Key Differences from the Original
 
 1. **Language:** Julia. Multiple dispatch replaces CLOS generic functions. Modules replace packages. `Cell` replaces `computed-class` slots.
 2. **Reactivity model:** The original uses a computed-class library with slot-level change propagation. This reimplementation uses an explicit `Cell` type with manual thunk wiring — more verbose but more transparent and debuggable.

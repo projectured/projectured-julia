@@ -44,6 +44,18 @@ Each delimiter or value is a `TextString` containing:
 - Font color
 - Background fill
 
+## Collapsed and indentation fields
+
+Both `SyntaxLeaf` and `SyntaxNode` carry:
+
+- `indentation::Int` — the nesting depth used for pretty-printing (set by the upstream projection; consumers typically leave this at `0`)
+- `collapsed::Bool` — when `true`, the node is rendered on a single line; children or value are not expanded
+
+```julia
+node.collapsed = true    # collapse this node to one line
+node.indentation = 2     # override indentation depth
+```
+
 ## Key Features
 
 - Generic representation for multiple domains

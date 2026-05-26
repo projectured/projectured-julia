@@ -6,6 +6,7 @@ The text domain bridges structural (syntax tree) and visual (graphics) domains. 
 
 ## Types
 
+- **TextText**: Container holding a flat sequence of spans (`elements::CollectionDocument`); the top-level text document
 - **TextString**: A text span with content and styling
 - **TextNewline**: Line break with styling
 - **TextSpacing**: Horizontal or vertical spacing
@@ -14,26 +15,24 @@ The text domain bridges structural (syntax tree) and visual (graphics) domains. 
 ## Examples
 
 ```julia
-# Create a simple text span
-span = TextString("Hello", "bold", "red")
+# Create a simple text span (default font and color)
+span = TextString("Hello")
 
-# Create with just content
-span = TextString("world")
+# Create a span with explicit font and color
+span = TextString("Hello", font_ubuntu_monospace_regular_24, color_default)
 
-# Styled text
-span = TextString("Important!", "bold italic", "#ff0000")
+# Create a span with a computed content thunk
+span = TextString(() -> uppercase(doc.name), font_ubuntu_monospace_regular_24, color_default)
 
 # Create a newline
-newline = TextNewline(font="monospace", line_color="gray")
+newline = TextNewline(font=font_ubuntu_monospace_regular_24)
 
-# Create spacing
-spacing = TextSpacing(10, unit=:pixel)
-spacing = TextSpacing(2, unit=:space)
+# Create a container of spans
+text = TextText(TextString("Hello"), TextString(" world"))
 
-# Access and modify
-span.content[] = "New content"
-span.font[] = "italic"
-span.font_color[] = "blue"
+# Access and modify (transparent via @document macro — no [] needed)
+span.content = "New content"
+span.font_color = color_default
 ```
 
 ## Selection
