@@ -1,0 +1,118 @@
+"""
+    SortingProjectionModule
+
+Domain-independent projection that sorts the elements of a collection
+document by a configurable key function.
+"""
+module SortingProjectionModule
+
+import ..ProjectionApiModule: projection_print, map_reference_forward, map_reference_backward, Projection
+import ..IoMapModule: SimpleIoMap
+import ..IoMapApiModule: IoMap
+import ..ReactiveModule: Cell
+import ..CollectionModule: CellVector
+import ..ReferenceModule: ConcreteReferencePath, ElementReference, PositionReference, RangeReference, append_reference
+import ..ReferenceCaseModule: var"@reference_case"
+import ..PreservingProjectionModule: PreservingProjection
+export SortingProjection, SortingProjectionIoMap
+
+"""
+    SortingProjection(; by=identity, lt=isless, rev=false)
+
+A generic projection that sorts the elements in the input collection.
+
+# Example
+
+    srt = SortingProjection(by=length)
+    result = projection_print(srt, ["bb", "a", "ccc"])  # ["a", "bb", "ccc"]
+"""
+struct SortingProjection <: Projection
+    by::Function
+    lt::Function
+    rev::Bool
+end
+
+SortingProjection(; by::Function=identity, lt::Function=isless, rev::Bool=false) =
+    SortingProjection(by, lt, rev)
+
+struct SortingProjectionIoMap <: IoMap
+    projection::Any
+    input::Any
+    output::Any
+    index_map::Vector{Int}   # index_map[j] is the 1-based input index for 1-based output position j
+    element_iomaps::Cell
+end
+
+function projection_print(p::SortingProjection, input::CellVector, recursion, reference)
+    recursion = something(recursion, PreservingProjection())
+    n = length(input)
+    perm = sortperm(1:n; by = i -> p.by(input[i]), lt=p.lt, rev=p.rev)
+    # Recursively project each element (CellVector getindex already unwraps the Cell)
+    children = [projection_print(recursion, input[i], recursion,
+                    append_reference(reference, PositionReference(i)))
+                for i in 1:n]
+    # Build output by arranging projected elements in sorted order
+    out_cells = Cell[Cell(children[perm[j]].output) for j in 1:n]
+    output = CellVector(out_cells)
+    output.selection = input.selection
+    element_iomaps = Cell(children)
+    SortingProjectionIoMap(p, input, output, perm, element_iomaps)
+end
+
+function projection_print(p::SortingProjection, input::Vector{Cell}, recursion, reference)
+    recursion = something(recursion, PreservingProjection())
+    n = length(input)
+    perm = sortperm(1:n; by = i -> p.by(input[i]), lt=p.lt, rev=p.rev)
+    # Recursively project each element (unwrapping Cell like CopyingProjection does)
+    children = [projection_print(recursion, c[], recursion,
+                    append_reference(reference, PositionReference(i)))
+                for (i, c) in enumerate(input)]
+    # Build output by arranging projected Cells in sorted order (no double-wrapping)
+    output = [children[perm[j]].output for j in 1:n]
+    element_iomaps = Cell(children)
+    SortingProjectionIoMap(p, input, output, perm, element_iomaps)
+end
+
+function projection_print(p::SortingProjection, input, recursion, reference)
+    recursion = something(recursion, PreservingProjection())
+    n = length(input)
+    perm = sortperm(1:n; by = i -> p.by(input[i]), lt=p.lt, rev=p.rev)
+    # Recursively project each element
+    children = [projection_print(recursion, input[i], recursion,
+                    append_reference(reference, PositionReference(i)))
+                for i in 1:n]
+    # Build output by arranging projected elements in sorted order
+    output = [children[perm[j]].output for j in 1:n]
+    element_iomaps = Cell(children)
+    SortingProjectionIoMap(p, input, output, perm, element_iomaps)
+end
+
+function map_reference_forward(::SortingProjection, iomap::SortingProjectionIoMap, reference)
+    @reference_case reference begin
+        [i].rest... => begin
+            n = length(iomap.input)
+            (i < 1 || i > n) && return nothing
+            j = findfirst(==(i), iomap.index_map)
+            j === nothing && return nothing
+            elem_iomap = iomap.element_iomaps[][j]
+            mapped_tail = map_reference_forward(elem_iomap.projection, elem_iomap, rest)
+            mapped_tail === nothing && return nothing
+            ConcreteReferencePath(ElementReference(j), mapped_tail)
+        end
+    end
+end
+
+function map_reference_backward(::SortingProjection, iomap::SortingProjectionIoMap, reference)
+    @reference_case reference begin
+        [j].rest... => begin
+            n = length(iomap.output)
+            (j < 1 || j > n) && return nothing
+            elem_iomap = iomap.element_iomaps[][j]
+            mapped_tail = map_reference_backward(elem_iomap.projection, elem_iomap, rest)
+            mapped_tail === nothing && return nothing
+            ConcreteReferencePath(ElementReference(iomap.index_map[j]), mapped_tail)
+        end
+    end
+end
+
+end # module

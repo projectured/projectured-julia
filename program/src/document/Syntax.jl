@@ -1,0 +1,379 @@
+"""
+    SyntaxModule
+
+The syntax tree domain provides a generic intermediate representation between
+any structured document and flat text. Nodes carry open/close delimiters and
+a separator; leaves carry open/value/close spans. This layer decouples the
+layout engine from any specific source domain so the same word-wrap and
+indentation logic applies to JSON, XML, or any future domain.
+
+The domain includes:
+- **Core types**: `SyntaxLeaf` (leaf with delimiters and value), `SyntaxNode` (compound with delimiters and children)
+- **Wrapper types**: `SyntaxDelimitation`, `SyntaxIndentation`, `SyntaxCollapsible`, `SyntaxNavigation` (intermediate document wrappers)
+- **Container types**: `SyntaxConcatenation`, `SyntaxSeparation` (for combining documents)
+- **Base type**: `SyntaxDocument` abstract type for all syntax documents
+
+Selection semantics:
+- Leaves: `.open[k]`, `.value[k]`, `.close[k]` — character offset in delimiters or value
+- Nodes: `.open[k]`, `.close[k]` for delimiters, `.children[i]` for child nodes
+"""
+module SyntaxModule
+
+import ..ReactiveModule: Cell, setfn!, setval!
+import ..DocumentModule: Document, @document
+import ..CollectionModule: CellVector
+import ..TextModule: TextString
+import ..ReferenceModule: Reference
+import ..FontModule: font_ubuntu_monospace_regular_24
+import ..ColorModule: color_default
+export SyntaxNode, SyntaxLeaf, SyntaxDocument, SyntaxInsertion, SyntaxForeign, render, setfn!,
+       SyntaxDelimitation, SyntaxIndentation, SyntaxCollapsible,
+       SyntaxNavigation, SyntaxConcatenation, SyntaxSeparation,
+       ISyntaxNode, ISyntaxLeaf, ISyntaxInsertion, ISyntaxForeign, ISyntaxDelimitation, ISyntaxIndentation,
+       ISyntaxCollapsible, ISyntaxNavigation, ISyntaxConcatenation, ISyntaxSeparation
+
+"""
+    SyntaxDocument
+
+Abstract base type for all syntax document types. Every concrete syntax type
+subtypes `SyntaxDocument` and must have a `selection::Reference` field as required
+by the `Document` contract.
+"""
+abstract type SyntaxDocument <: Document end
+
+# ── SyntaxInsertion / SyntaxForeign ───────────────────────────────────────
+
+@document struct SyntaxInsertion <: SyntaxDocument
+    value::Any
+    selection::Reference
+end
+SyntaxInsertion() = SyntaxInsertion(Cell(nothing), Cell(nothing))
+
+@document struct SyntaxForeign <: SyntaxDocument
+    value::Any
+    selection::Reference
+end
+SyntaxForeign(value) = SyntaxForeign(Cell(value), Cell(nothing))
+
+# ── Intermediate document types ──────────────────────────────────────────
+
+"""
+    SyntaxDelimitation
+
+Wraps a document with opening and closing delimiters. Used to add
+bracket-style delimiters to any document type.
+
+# Fields
+
+- `content` — the wrapped document
+- `opening_delimiter::TextString` — the opening delimiter text
+- `closing_delimiter::TextString` — the closing delimiter text
+- `selection::Reference` — holds the ReferencePath for cursor position
+
+# Constructor
+
+- `SyntaxDelimitation(content; opening_delimiter=TextString(""), closing_delimiter=TextString(""))`
+"""
+@document struct SyntaxDelimitation <: SyntaxDocument
+    content
+    opening_delimiter::TextString
+    closing_delimiter::TextString
+    selection::Reference
+end
+
+SyntaxDelimitation(content; opening_delimiter=TextString(""), closing_delimiter=TextString("")) =
+    SyntaxDelimitation(content, opening_delimiter, closing_delimiter, nothing)
+
+"""
+    SyntaxIndentation
+
+Wraps a document with a specific indentation level. Used to control
+pretty-printing indentation for structured documents.
+
+# Fields
+
+- `content` — the wrapped document
+- `indentation::Int` — the indentation level (number of spaces/tabs)
+- `selection::Reference` — holds the ReferencePath for cursor position
+
+# Constructor
+
+- `SyntaxIndentation(content; indentation::Int=0)`
+"""
+@document struct SyntaxIndentation <: SyntaxDocument
+    content
+    indentation::Int
+    selection::Reference
+end
+
+SyntaxIndentation(content; indentation::Int=0) =
+    SyntaxIndentation(content, indentation, nothing)
+
+"""
+    SyntaxCollapsible
+
+Wraps a document with a collapsible state. Used to allow the UI to
+collapse/expand portions of the document tree.
+
+# Fields
+
+- `content` — the wrapped document
+- `collapsed::Cell` — holds `Bool` indicating if collapsed
+- `selection::Reference` — holds the ReferencePath for cursor position
+
+# Constructor
+
+- `SyntaxCollapsible(content; collapsed::Bool=false)`
+"""
+@document struct SyntaxCollapsible <: SyntaxDocument
+    content
+    collapsed::Bool
+    selection::Reference
+end
+
+SyntaxCollapsible(content; collapsed::Bool=false) =
+    SyntaxCollapsible(content, collapsed, nothing)
+
+"""
+    SyntaxNavigation
+
+Wraps a document to mark it as a navigation point. Used to indicate
+that the cursor should be positioned at this location.
+
+# Fields
+
+- `content` — the wrapped document
+- `selection::Reference` — holds the ReferencePath for cursor position
+
+# Constructor
+
+- `SyntaxNavigation(content)`
+"""
+@document struct SyntaxNavigation <: SyntaxDocument
+    content
+    selection::Reference
+end
+
+SyntaxNavigation(content) = SyntaxNavigation(content, nothing)
+
+"""
+    SyntaxConcatenation
+
+Concatenates multiple syntax documents without separators. Used to
+join documents end-to-end.
+
+# Fields
+
+- `children::CellVector` — holds the child `SyntaxDocument` nodes
+- `selection::Reference` — holds the ReferencePath for cursor position
+
+# Constructors
+
+- `SyntaxConcatenation(children::Vector{<:SyntaxDocument})`
+- `SyntaxConcatenation()` — empty concatenation
+"""
+@document struct SyntaxConcatenation <: SyntaxDocument
+    children::CellVector
+    selection::Reference
+end
+
+SyntaxConcatenation(children::Vector{<:SyntaxDocument}) =
+    SyntaxConcatenation(CellVector(Cell[Cell(c) for c in children]), nothing)
+
+SyntaxConcatenation() = SyntaxConcatenation(CellVector(), nothing)
+
+"""
+    SyntaxSeparation
+
+Concatenates multiple syntax documents with a separator between each.
+Used to join documents with a specific separator string.
+
+# Fields
+
+- `children::CellVector` — holds the child `SyntaxDocument` nodes
+- `separator::TextString` — the separator text string
+- `selection::Reference` — holds the ReferencePath for cursor position
+
+# Constructors
+
+- `SyntaxSeparation(children::Vector{<:SyntaxDocument}, separator::TextString)`
+- `SyntaxSeparation(separator::TextString)` — empty separation with separator
+"""
+@document struct SyntaxSeparation <: SyntaxDocument
+    children::CellVector
+    separator::TextString
+    selection::Reference
+end
+
+SyntaxSeparation(children::Vector{<:SyntaxDocument}, separator::TextString) =
+    SyntaxSeparation(CellVector(Cell[Cell(c) for c in children]), separator, nothing)
+
+SyntaxSeparation(separator::TextString) =
+    SyntaxSeparation(CellVector(), separator, nothing)
+
+# ── Leaf ─────────────────────────────────────────────────────────────────
+
+"""
+    SyntaxLeaf(open, close, value)
+
+A leaf node with opening/closing delimiters and a content value.
+Each of `open`, `close`, `value` is a `TextString` carrying text, font, and color.
+Renders as: open.content * value.content * close.content
+
+The `selection` cell holds a path into the leaf's rendered span, or `nothing`:
+  `.open[k]`   — character k of the open delimiter
+  `.value[k]`  — character k of the value content
+  `.close[k]`  — character k of the close delimiter
+"""
+@document struct SyntaxLeaf <: SyntaxDocument
+    open::TextString
+    close::TextString
+    value::TextString
+    indentation::Int
+    collapsed::Bool
+    selection::Reference
+end
+
+SyntaxLeaf(open::TextString, close::TextString, value::TextString) =
+    SyntaxLeaf(open, close, value, 0, false, nothing)
+
+SyntaxLeaf(open::TextString, close::TextString, value::TextString, selection) =
+    SyntaxLeaf(open, close, value, 0, false, selection)
+
+SyntaxLeaf(open::AbstractString, close::AbstractString, value::AbstractString) =
+    SyntaxLeaf(TextString(open), TextString(close), TextString(value), 0, false, nothing)
+
+SyntaxLeaf(open::AbstractString, close::AbstractString, f::Function) =
+    SyntaxLeaf(TextString(open), TextString(close), TextString(f, font_ubuntu_monospace_regular_24, color_default), 0, false, nothing)
+
+SyntaxLeaf(value::TextString) = SyntaxLeaf(TextString(""), TextString(""), value, 0, false, nothing)
+
+SyntaxLeaf(value::AbstractString) = SyntaxLeaf(TextString(""), TextString(""), TextString(value), 0, false, nothing)
+
+SyntaxLeaf(f::Function) = SyntaxLeaf(TextString(""), TextString(""), TextString(f, font_ubuntu_monospace_regular_24, color_default), 0, false, nothing)
+
+# ── Node ─────────────────────────────────────────────────────────────────
+
+"""
+    SyntaxNode(open, close, sep, children)
+
+A compound node with opening/closing delimiters, a separator, and children.
+Each of `open`, `close`, `sep` is a `TextString` carrying text, font, and color.
+Renders as: open.content * join(children, sep.content) * close.content
+
+The `selection` cell routes a cursor into the rendered node, or `nothing`:
+  `.open[k]`          — cursor at character k of the open delimiter
+  `.close[k]`         — cursor at character k of the close delimiter
+  `.children[i]`      — cursor within child i; set_selection! clears all other
+                        children and propagates the rest into child i
+"""
+@document struct SyntaxNode <: SyntaxDocument
+    open::TextString
+    close::TextString
+    sep::TextString
+    children::CellVector
+    indentation::Int
+    collapsed::Bool
+    selection::Reference
+end
+
+SyntaxNode(open::TextString, close::TextString, sep::TextString,
+      children::Vector{<:SyntaxDocument}; indentation::Int = 0) =
+    SyntaxNode(open, close, sep, CellVector(Cell[Cell(c) for c in children]), indentation, false, nothing)
+
+SyntaxNode(open::TextString, close::TextString, sep::TextString;
+      indentation::Int = 0) =
+    SyntaxNode(open, close, sep, CellVector(), indentation, false, nothing)
+
+SyntaxNode(open::TextString, close::TextString, sep::TextString,
+      f::Function; indentation::Int = 0) =
+    SyntaxNode(open, close, sep, CellVector(f), indentation, false, nothing)
+
+SyntaxNode(open::AbstractString, close::AbstractString, sep::AbstractString,
+      children::Vector{<:SyntaxDocument}; indentation::Int = 0) =
+    SyntaxNode(TextString(open), TextString(close), TextString(sep),
+               CellVector(Cell[Cell(c) for c in children]), indentation, false, nothing)
+
+SyntaxNode(open::AbstractString, close::AbstractString, sep::AbstractString;
+      indentation::Int = 0) =
+    SyntaxNode(TextString(open), TextString(close), TextString(sep), CellVector(), indentation, false, nothing)
+
+SyntaxNode(open::AbstractString, close::AbstractString, sep::AbstractString,
+      f::Function; indentation::Int = 0) =
+    SyntaxNode(TextString(open), TextString(close), TextString(sep), CellVector(f), indentation, false, nothing)
+
+# ── Unparse (render to string) ──────────────────────────────────────────
+
+"""
+    render(tree::SyntaxDocument) -> String
+
+Recursively render the tree into a string. Reading cells during rendering
+registers reactive dependencies automatically.
+"""
+function render(leaf::SyntaxLeaf)
+    string(leaf.open.content, leaf.value.content, leaf.close.content)
+end
+
+function render(node::SyntaxNode)
+    parts = [render(child) for child in node.children]
+    string(node.open.content, join(parts, node.sep.content), node.close.content)
+end
+
+# ── Children access ─────────────────────────────────────────────────────
+
+Base.length(n::SyntaxNode)               = length(n.children)
+Base.isempty(n::SyntaxNode)              = isempty(n.children)
+Base.getindex(n::SyntaxNode, i::Integer) = n.children[i]
+Base.firstindex(::SyntaxNode)            = 1
+Base.lastindex(n::SyntaxNode)            = length(n)
+Base.iterate(n::SyntaxNode, state...)    = iterate(n.children, state...)
+
+function Base.setindex!(n::SyntaxNode, child::SyntaxDocument, i::Integer)
+    n.children[i] = child
+    return child
+end
+
+function Base.push!(n::SyntaxNode, children::SyntaxDocument...)
+    for c in children
+        push!(n.children, Cell(c))
+    end
+    return n
+end
+
+function Base.pop!(n::SyntaxNode)
+    pop!(n.children)
+end
+
+function Base.insert!(n::SyntaxNode, i::Integer, child::SyntaxDocument)
+    insert!(n.children, i, Cell(child))
+    return n
+end
+
+function Base.deleteat!(n::SyntaxNode, i)
+    deleteat!(n.children, i)
+    return n
+end
+
+# ── setfn! delegation ───────────────────────────────────────────────────
+
+setfn!(t::SyntaxLeaf, f::Function) = (setfn!(getfield(t.value, :content), f); t)
+setfn!(n::SyntaxNode, f::Function) = (setfn!(getfield(n.children, :elements), () -> Cell[Cell(x) for x in f()]); n)
+
+# ── Display ──────────────────────────────────────────────────────────────
+
+function Base.show(io::IO, leaf::SyntaxLeaf)
+    print(io, "SyntaxLeaf(", repr(leaf.open.content), ", ", repr(leaf.close.content),
+          ", ", repr(leaf.value.content), ")")
+end
+
+function Base.show(io::IO, node::SyntaxNode)
+    print(io, "SyntaxNode(", repr(node.open.content), ", ", repr(node.close.content),
+          ", ", repr(node.sep.content), ", indentation=", node.indentation, ", [")
+    for (i, c) in enumerate(node.children)
+        i > 1 && print(io, ", ")
+        show(io, c)
+    end
+    print(io, "])") 
+end
+
+end # module

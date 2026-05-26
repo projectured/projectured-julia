@@ -1,0 +1,23 @@
+function JsonXmlToSyntax()
+    RecursiveProjection(TypeDispatchingProjection(
+        JsonNull        => JsonNullToSyntaxLeaf(),
+        JsonBool        => JsonBoolToSyntaxLeaf(),
+        JsonNumber      => JsonNumberToSyntaxLeaf(),
+        JsonString      => JsonStringToSyntaxLeaf(),
+        JsonArray       => JsonArrayToSyntaxNode(),
+        JsonObject      => JsonObjectToSyntaxNode(),
+        JsonInsertion   => JsonInsertionToSyntaxLeaf(),
+        JsonObjectEntry => CopyingProjection(),
+        Vector{Cell}    => CopyingProjection(),
+        XmlText         => XmlTextToSyntaxLeaf(),
+        XmlElement      => XmlElementToSyntaxNode(),
+    ))
+end
+
+function make_mixed_projection_example(; measure=sdl_measure_text)
+    SequentialProjection(
+        JsonXmlToSyntax(),
+        RecursiveProjection(SyntaxToText()),
+        TextToGraphics(measure=measure),
+    )
+end

@@ -1,0 +1,7 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(julia --project=. -e 'using ProjecturedTest; ProjecturedTest.test_all\\(\\)')"
+    ]
+  }
+}

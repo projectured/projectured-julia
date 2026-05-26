@@ -1,0 +1,12 @@
+name = "Projectured"
+uuid = "92922de3-b970-4d9a-8b2a-9d6f361397b5"
+version = "0.1.0"
+authors = []
+
+[deps]
+Markdown = "d6f4376e-aef5-505a-96c1-9c027394607a"
+ModelContextProtocol = "c58f755f-f2a7-4f48-bf29-4e9659b78499"
+SimpleDirectMediaLayer = "98e33af6-2ee5-5afd-9e75-cbc738b767c4"
+
+[compat]
+ModelContextProtocol = "0.4.1"
