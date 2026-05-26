@@ -1,0 +1,172 @@
+# Design Decisions
+
+This document explains the *why* behind ProjecturEd's key architectural
+choices. For the *what* (module inventory, layer diagram) see
+[architecture.md](architecture.md). For the full reference/selection mechanism
+see [selection-deep-dive.md](selection-deep-dive.md).
+
+---
+
+## 1. Pull-based reactivity (not push-based)
+
+The `Cell` system is **pull-based / lazy**: invalidation propagates eagerly
+(marking cells stale), but recomputation happens only on read. This matches
+ProjecturEd's performance strategy:
+
+- **Laziness** — only the visible portion of a document is ever computed. A
+  JSON array with 10 000 elements projects only as many rows as fit on screen.
+- **The reader is event-driven** — only the projection path touched by the
+  current event is traversed; off-screen projections are never invoked.
+
+A push-based system (e.g. Observables) would eagerly recompute every
+downstream dependency when any cell changes, wasting work on content that is
+not visible and not relevant to the current event. Pull-based evaluation gives
+the incremental recomputation for free: if a cell's value hasn't been read
+since its last invalidation, no work is done.
+
+## 2. Structural vs. value incrementality
+
+Every domain module distinguishes two kinds of changes:
+
+- **Value changes** — e.g. changing a JSON string's content. Invalidates only
+  the leaf cell in the syntax tree and the corresponding text span. The span
+  list itself stays cached; the word-wrap layout is unchanged.
+- **Structural changes** — e.g. adding a JSON array element. Invalidates the
+  children cell of the affected array, triggering a rebuild of that subtree's
+  flat representation.
+
+This two-level strategy avoids full-document recomputation for the common case
+(editing a single field value).
+
+## 3. Every field is a `Cell`
+
+All domain types wrap every field in a `Cell`, even fields that rarely change
+(like static delimiters). This uniform approach:
+
+- Keeps the type hierarchy simple — no separate "static" vs "reactive" variants.
+- Allows any field to become computed later without changing the type definition.
+- Enables projections to be expressed as simple thunks that read upstream cells.
+- Makes the `@document` macro straightforward: it just intercepts
+  `getproperty` / `setproperty!` to unwrap/wrap the `Cell` transparently.
+
+The cost is a small amount of heap allocation per field. In practice this is
+dominated by the rendering work and is not a bottleneck.
+
+## 4. Multiple dispatch for projections
+
+Julia's multiple dispatch is a natural fit for ProjecturEd's
+**type-dispatch projection** pattern. `projection_print` dispatches on the
+concrete projection struct *and* the input document type — no visitor pattern,
+no explicit type-case, no abstract method table.
+
+```julia
+function projection_print(p::JsonStringToSyntaxLeaf, s::JsonString, rec, ref)
+    ...
+end
+
+function projection_print(p::JsonArrayToSyntaxNode, a::JsonArray, rec, ref)
+    ...
+end
+```
+
+`TypeDispatchingProjection` wraps a map of `Type → Projection` and uses Julia's
+`typeof` to select the right sub-projection at runtime. For the common recursive
+case `RecursiveProjection` passes itself as the `recursion` argument, so the
+inner projection can recurse without knowing about the outer wrapper.
+
+## 5. Module-per-domain / module-per-projection
+
+Each domain and each projection lives in its own `module`. This mirrors
+ProjecturEd's principle that domains are independent of each other and of
+projections. Dependencies are explicit: `JsonToSyntax` imports from `Json` and
+`Syntax` but knows nothing about `Text` or `Graphics`.
+
+The trade-off is verbosity in `Projectured.jl` (the root module that assembles
+them all), but it prevents accidental coupling and makes the dependency graph
+auditable.
+
+## 6. `projection_print` returns an IO map
+
+Rather than returning just the output document, every `projection_print` method
+returns an `IoMap` that carries both the input and the output (and any
+additional mapping data the reader needs). This ensures the reader always has
+access to both contexts without any additional bookkeeping.
+
+`SequentialProjection` collects all step IO maps into
+`SequentialProjectionIoMap.step_iomaps`, enabling the reader to walk backward
+through each step:
+
+```julia
+function projection_read(seq, iomap, event)
+    op = projection_read(seq.projections[end], iomap.step_iomaps[end], event)
+    for i in (n-1):-1:1
+        op === nothing && return nothing
+        op = projection_read(seq.projections[i], iomap.step_iomaps[i], op)
+    end
+    return op
+end
+```
+
+## 7. Shared selection cell
+
+For a simple leaf pipeline (e.g. `JsonString → SyntaxLeaf → Text`), the
+printer passes the *same* `selection::Cell` object from the `JsonString` struct
+through to the `SyntaxLeaf` and on to the `Text`. All three objects reference
+the same `Cell` instance.
+
+When `evaluate_operation` writes `doc.selection[] = new_path`, the change is
+immediately visible at every projection level without any wiring, because the
+`Text.selection` computed cell reads `leaf.selection` which reads
+`json_string.selection` — they are the same cell. The cursor redraws
+automatically.
+
+This optimisation is valid for *leaf-to-leaf* projections where the input and
+output selection formats are identical. For compound projections (arrays,
+objects) each child document manages its own `selection` cell and
+`set_selection!` sets them individually. See
+[selection-deep-dive.md §Selection projection under recursion](selection-deep-dive.md#selection-projection-under-recursion).
+
+## 8. `ProjectionReference` for projection-introduced elements
+
+When the cursor moves onto a character introduced by a projection (e.g. the
+`"` delimiters of a JSON string), there is no corresponding index in the JSON
+document to point to. Rather than clamping or skipping these positions, the
+reference path contains a `ProjectionReference` step:
+
+```julia
+struct ProjectionReference <: ReferenceStep
+    projection::Any             # which projection introduced this element
+    output_path::ReferencePath  # where within that projection's output
+end
+```
+
+This allows the editor to represent a cursor on the opening `"` as:
+```
+ProjectionReference(json_string_proj, FieldReference("open") + PositionReference(0))
+```
+
+The reader knows how to translate this back: a `ProjectionReference` to the
+`open` field means the cursor is on the delimiter, not in the value, so no
+JSON-domain path can represent it — the `ProjectionReference` is kept as-is
+and stored in the `JsonString.selection`.
+
+## 9. `KeyPress` abstraction
+
+SDL keysyms are converted to a `KeyDown(key::Symbol, modifiers::Modifiers)`
+struct in the backend before being passed to `projection_read`. This decouples
+projections from the SDL backend — a future terminal or web backend produces
+the same events, and projection reader code stays unchanged.
+
+---
+
+## Key differences from the original ProjecturEd (Common Lisp)
+
+| Aspect | Original (Lisp) | Julia reimplementation |
+|---|---|---|
+| Language | Common Lisp, CLOS | Julia, multiple dispatch |
+| Reactivity | `computed-class` MOP slots | Explicit `Cell` with manual thunks |
+| Struct magic | Computed slots via metaclass | `@document` macro + `Cell` wrapping |
+| Projections | CLOS generic functions | Lightweight structs + `projection_print` dispatch |
+| Selection cells | Shared by reference | Shared by reference (same approach) |
+| `ProjectionReference` | Different mechanism | `ProjectionReference` step in path |
+| Scope | Dozens of domains | Complete vertical slice + expanding |
