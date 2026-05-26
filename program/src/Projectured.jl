@@ -162,7 +162,7 @@ using .GraphicsModule: GraphicsDocument, GraphicsInsertion, GraphicsForeign,
                        GraphicsFence, LayoutDirection, layout_none, layout_horizontal, layout_vertical,
                        hit_element_at
 using .ModifiersModule: Modifiers
-using .KeyboardModule: KeyPress
+using .KeyboardModule: KeyDown, KeyUp, KeyPress, is_ctrl, is_shift, is_alt, is_meta
 using .MouseModule: MouseDown, MouseUp, MousePress, MouseMove, MouseScroll
 using .BackendModule: Backend, init!, quit!, open_window!, close_window!, measure_text
 using .SdlBackendModule: SdlBackend, sdl_measure_text, sdl_render_canvas
@@ -327,7 +327,7 @@ export GraphicsDocument, GraphicsInsertion, GraphicsForeign,
        GraphicsText, GraphicsRect, GraphicsCanvas, GraphicsViewport, GraphicsImage,
        GraphicsFence, LayoutDirection, layout_none, layout_horizontal, layout_vertical, hit_element_at
 export Modifiers
-export KeyPress
+export KeyDown, KeyUp, KeyPress, is_ctrl, is_shift, is_alt, is_meta
 export MouseDown, MouseUp, MousePress, MouseMove, MouseScroll
 export Backend, init!, quit!, open_window!, close_window!, measure_text
 export SdlBackend, sdl_measure_text, sdl_render_canvas

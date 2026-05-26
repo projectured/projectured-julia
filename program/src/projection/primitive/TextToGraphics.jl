@@ -23,7 +23,7 @@ import ..FontModule: StyleFont
 import ..ColorModule: StyleColor
 import ..ReferenceModule: ReferencePath, ConcreteReferencePath, ElementReference, PositionReference, RangeReference, PointReference, EmptyReferencePath, FieldReference, head, tail
 import ..OperationModule: ReplaceSelectionOperation
-import ..KeyboardModule: KeyPress
+import ..KeyboardModule: KeyDown
 import ..IoMapApiModule: IoMap
 export TextToGraphics, TextToGraphicsIoMap
 
@@ -84,7 +84,7 @@ function projection_read(p::TextToGraphics, iomap::TextToGraphicsIoMap, op::Repl
 end
 
 function projection_read(p::TextToGraphics, iomap::TextToGraphicsIoMap, evt)
-    evt isa KeyPress || return nothing
+    evt isa KeyDown || return nothing
     styled = iomap.input
     span_infos = [(elem_idx, length(span.content::AbstractString))
                   for (elem_idx, span) in enumerate(styled)

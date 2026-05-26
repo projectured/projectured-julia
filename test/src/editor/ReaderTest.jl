@@ -1,11 +1,22 @@
 const _ALL_KEY_SYMBOLS = [
-    :left, :right, :up, :down, :home, :end,
-    :escape, :return, :char, :comma, :period,
+    :left, :right, :up, :down, :home, :end, :page_up, :page_down,
+    :backspace, :delete, :return, :tab, :insert,
+    :f1, :f2, :f3, :f4, :f5, :f6, :f7, :f8, :f9, :f10, :f11, :f12,
+    :escape, :space, :caps_lock,
+    :lctrl, :rctrl, :lshift, :rshift, :lalt, :ralt, :lmeta, :rmeta,
+    :comma, :period, :char,
 ]
 
-const _ALL_KEY_EVENTS = [KeyPress(key, ctrl)
-                         for key  in _ALL_KEY_SYMBOLS
-                         for ctrl in (false, true)]
+const _ALL_KEY_EVENTS = vcat(
+    # KeyDown with each symbol, with and without ctrl
+    [KeyDown(key, Modifiers(ctrl=ctrl)) for key in _ALL_KEY_SYMBOLS for ctrl in (false, true)],
+    # KeyDown with repeat flag
+    [KeyDown(key, Modifiers(), true)    for key in (:left, :right, :backspace, :delete)],
+    # KeyUp
+    [KeyUp(key, Modifiers())            for key in _ALL_KEY_SYMBOLS],
+    # KeyPress — printable characters
+    [KeyPress(ch) for ch in ('a', 'Z', '0', ' ', ',', '.', '\n', 'é', '€')],
+)
 
 const _MOUSE_SAMPLE_XY = [(0, 0), (1, 1), (100, 100), (400, 300), (800, 600)]
 

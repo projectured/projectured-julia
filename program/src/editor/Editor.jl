@@ -51,7 +51,7 @@ Editor(backend, document, projection, devices) = Editor(backend, document, proje
     read!(editor::Editor)
 
 Poll input events via the backend. The backend returns backend-agnostic
-events (KeyPress, MouseDown, MouseUp, MousePress, MouseMove, MouseScroll, QuitEvent, …). Events are passed
+events (KeyDown, KeyUp, KeyPress, MouseDown, MouseUp, MousePress, MouseMove, MouseScroll, QuitEvent, …). Events are passed
 to the projection pipeline reader which translates them into domain-specific
 operations via the last stored IoMap. The result is stored in `editor.operation`.
 """

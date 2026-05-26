@@ -15,7 +15,7 @@ import ..CollectionModule: ListNode
 import ..FontModule: StyleFont, font_scaled_size, _FONT_SCALE
 import ..WindowModule: Window, QuitEvent
 import ..ModifiersModule: Modifiers
-import ..KeyboardModule: KeyPress
+import ..KeyboardModule: KeyDown, KeyUp, KeyPress
 import ..MouseModule: MouseDown, MouseUp, MousePress, MouseMove, MouseScroll
 
 export SdlBackend, sdl_measure_text, sdl_render_canvas
@@ -58,15 +58,17 @@ SdlBackend() = SdlBackend(
 Decode an SDL modifier bitmask into a `Modifiers` struct.
 
 Bitmask layout (same as SDL_Keymod):
-- Ctrl  : bits 6–7  (KMOD_LCTRL=0x0040, KMOD_RCTRL=0x0080)
-- Shift : bits 0–1  (KMOD_LSHIFT=0x0001, KMOD_RSHIFT=0x0002)
-- Alt   : bits 8–9  (KMOD_LALT=0x0100, KMOD_RALT=0x0200)
+- Ctrl  : bits 6–7   (KMOD_LCTRL=0x0040, KMOD_RCTRL=0x0080)
+- Shift : bits 0–1   (KMOD_LSHIFT=0x0001, KMOD_RSHIFT=0x0002)
+- Alt   : bits 8–9   (KMOD_LALT=0x0100, KMOD_RALT=0x0200)
+- Meta  : bits 10–11 (KMOD_LGUI=0x0400, KMOD_RGUI=0x0800)
 """
 function sdl_modifiers(mod::UInt16)::Modifiers
     ctrl  = (mod & UInt16(0x00C0)) != UInt16(0)  # KMOD_LCTRL | KMOD_RCTRL
     shift = (mod & UInt16(0x0003)) != UInt16(0)  # KMOD_LSHIFT | KMOD_RSHIFT
     alt   = (mod & UInt16(0x0300)) != UInt16(0)  # KMOD_LALT | KMOD_RALT
-    Modifiers(ctrl, shift, alt)
+    meta  = (mod & UInt16(0x0C00)) != UInt16(0)  # KMOD_LGUI | KMOD_RGUI
+    Modifiers(ctrl, shift, alt, meta)
 end
 
 # Convenience overload: extract modifiers from the current SDL state.
@@ -77,23 +79,101 @@ _current_modifiers() = sdl_modifiers(UInt16(SDL_GetModState() & 0xFFFF))
 # ════════════════════════════════════════════════════════════════════════
 
 """
-    sdl_to_keypress(keysym::Int32, mod::UInt16 = UInt16(0)) -> Union{KeyPress, Nothing}
+    sdl_keysym_to_symbol(keysym::Int32) -> Symbol
 
-Convert an SDL keysym value and modifier bitmask to a `KeyPress`. Returns
-`nothing` for unrecognised keys (caller handles escape/quit separately).
+Map an SDL keysym integer to the backend-agnostic key symbol vocabulary.
+Returns `:char` for printable keys whose specific identity is not tracked
+(the character value arrives separately via `SDL_TEXTINPUT`).
 """
-function sdl_to_keypress(keysym::Int32, mod::UInt16 = UInt16(0))
-    mods = sdl_modifiers(mod)
-    keysym == Int32(1073741904) && return KeyPress(:left,   mods)  # SDLK_LEFT
-    keysym == Int32(1073741903) && return KeyPress(:right,  mods)  # SDLK_RIGHT
-    keysym == Int32(1073741906) && return KeyPress(:up,     mods)  # SDLK_UP
-    keysym == Int32(1073741905) && return KeyPress(:down,   mods)  # SDLK_DOWN
-    keysym == Int32(1073741898) && return KeyPress(:home,   mods)  # SDLK_HOME
-    keysym == Int32(1073741901) && return KeyPress(:end,    mods)  # SDLK_END
-    keysym == Int32(13)         && return KeyPress(:return, mods)  # SDLK_RETURN
-    keysym == Int32(44)         && return KeyPress(:comma,  mods)  # SDLK_COMMA
-    keysym == Int32(46)         && return KeyPress(:period, mods)  # SDLK_PERIOD
-    return nothing
+function sdl_keysym_to_symbol(keysym::Int32)::Symbol
+    # Navigation
+    keysym == Int32(1073741904) && return :left
+    keysym == Int32(1073741903) && return :right
+    keysym == Int32(1073741906) && return :up
+    keysym == Int32(1073741905) && return :down
+    keysym == Int32(1073741898) && return :home
+    keysym == Int32(1073741901) && return :end
+    keysym == Int32(1073741899) && return :page_up
+    keysym == Int32(1073741902) && return :page_down
+    # Editing
+    keysym == Int32(8)          && return :backspace
+    keysym == Int32(127)        && return :delete
+    keysym == Int32(13)         && return :return
+    keysym == Int32(9)          && return :tab
+    keysym == Int32(1073741897) && return :insert
+    # Function keys
+    keysym == Int32(1073741882) && return :f1
+    keysym == Int32(1073741883) && return :f2
+    keysym == Int32(1073741884) && return :f3
+    keysym == Int32(1073741885) && return :f4
+    keysym == Int32(1073741886) && return :f5
+    keysym == Int32(1073741887) && return :f6
+    keysym == Int32(1073741888) && return :f7
+    keysym == Int32(1073741889) && return :f8
+    keysym == Int32(1073741890) && return :f9
+    keysym == Int32(1073741891) && return :f10
+    keysym == Int32(1073741892) && return :f11
+    keysym == Int32(1073741893) && return :f12
+    # Misc
+    keysym == Int32(27)         && return :escape
+    keysym == Int32(32)         && return :space
+    keysym == Int32(1073741881) && return :caps_lock
+    # Modifier-only keys
+    keysym == Int32(1073742048) && return :lctrl
+    keysym == Int32(1073742052) && return :rctrl
+    keysym == Int32(1073742049) && return :lshift
+    keysym == Int32(1073742053) && return :rshift
+    keysym == Int32(1073742050) && return :lalt
+    keysym == Int32(1073742054) && return :ralt
+    keysym == Int32(1073742051) && return :lmeta
+    keysym == Int32(1073742055) && return :rmeta
+    # Printable fallback: character arrives via SDL_TEXTINPUT
+    return :char
+end
+
+"""
+    sdl_to_keydown(keysym, mod, is_repeat) -> KeyDown
+
+Build a `KeyDown` from SDL key-down event fields.
+"""
+function sdl_to_keydown(keysym::Int32, mod::UInt16, is_repeat::Bool)::KeyDown
+    KeyDown(sdl_keysym_to_symbol(keysym), sdl_modifiers(mod), is_repeat)
+end
+
+"""
+    sdl_to_keyup(keysym, mod) -> KeyUp
+
+Build a `KeyUp` from SDL key-up event fields.
+"""
+function sdl_to_keyup(keysym::Int32, mod::UInt16)::KeyUp
+    KeyUp(sdl_keysym_to_symbol(keysym), sdl_modifiers(mod))
+end
+
+"""
+    sdl_to_keypress(evt) -> Union{KeyPress, Nothing}
+
+Build a `KeyPress` from an `SDL_TEXTINPUT` event. Returns `nothing` if
+the event carries no printable text (e.g. empty or invalid UTF-8).
+`SDL_TEXTINPUT` provides a null-terminated UTF-8 string in `evt.text.text`
+(a `NTuple{32,UInt8}`).
+"""
+function sdl_to_keypress(evt)::Union{KeyPress,Nothing}
+    text_bytes = evt.text.text  # NTuple{32,UInt8}
+    len = 0
+    for b in text_bytes
+        b == 0x00 && break
+        len += 1
+    end
+    len == 0 && return nothing
+    text = try
+        String(UInt8[text_bytes[i] for i in 1:len])
+    catch
+        return nothing
+    end
+    isempty(text) && return nothing
+    ch = first(text)
+    mods = _current_modifiers()
+    KeyPress(ch, text, mods)
 end
 
 # ════════════════════════════════════════════════════════════════════════
@@ -456,9 +536,11 @@ end
 function init!(::SdlBackend)
     @assert SDL_Init(SDL_INIT_VIDEO) == 0 "SDL init failed: $(unsafe_string(SDL_GetError()))"
     @assert TTF_Init() == 0 "TTF init failed: $(unsafe_string(SDL_GetError()))"
+    SDL_StartTextInput()   # enable SDL_TEXTINPUT events (explicit for portability)
 end
 
 function quit!(backend::SdlBackend)
+    SDL_StopTextInput()
     for font in values(backend.font_cache)
         TTF_CloseFont(Ptr{TTF_Font}(font))
     end
@@ -477,7 +559,9 @@ end
 Poll the SDL event queue once and return a backend-agnostic event:
 - Pending synthesised events (e.g. `MousePress`) are returned first.
 - `SDL_QUIT` / Escape          → `QuitEvent()`
-- `SDL_KEYDOWN`                → `KeyPress` via `sdl_to_keypress`
+- `SDL_KEYDOWN`                → `KeyDown` (Escape → `QuitEvent()`)
+- `SDL_KEYUP`                  → `KeyUp`
+- `SDL_TEXTINPUT`              → `KeyPress` (decoded Unicode character)
 - `SDL_MOUSEBUTTONDOWN`        → `MouseDown`
 - `SDL_MOUSEBUTTONUP`          → `MouseUp`; also queues `MousePress` when
                                  the button-up is close to the preceding
@@ -507,8 +591,15 @@ function read_from_devices(backend::SdlBackend, devices)
             if keysym == Int32(27)  # SDLK_ESCAPE
                 return QuitEvent()
             end
-            key = sdl_to_keypress(keysym, evt.key.keysym.mod)
-            key !== nothing && return key
+            is_repeat = evt.key.repeat != 0
+            return sdl_to_keydown(keysym, evt.key.keysym.mod, is_repeat)
+
+        elseif t == 0x00000301  # SDL_KEYUP
+            return sdl_to_keyup(evt.key.keysym.sym, evt.key.keysym.mod)
+
+        elseif t == 0x00000303  # SDL_TEXTINPUT
+            kp = sdl_to_keypress(evt)
+            kp !== nothing && return kp
 
         elseif t == 0x00000401  # SDL_MOUSEBUTTONDOWN
             button = _sdl_button_sym(evt.button.button)

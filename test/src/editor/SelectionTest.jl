@@ -18,14 +18,14 @@
 
 function explore_selections(document, projection, initial_selection=nothing)
     nav_keys = [
-        KeyPress(:left,  false),
-        KeyPress(:right, false),
-        KeyPress(:up,    false),
-        KeyPress(:down,  false),
-        KeyPress(:home,  false),
-        KeyPress(:end,   false),
-        KeyPress(:home,  true),
-        KeyPress(:end,   true),
+        KeyDown(:left,  Modifiers()),
+        KeyDown(:right, Modifiers()),
+        KeyDown(:up,    Modifiers()),
+        KeyDown(:down,  Modifiers()),
+        KeyDown(:home,  Modifiers()),
+        KeyDown(:end,   Modifiers()),
+        KeyDown(:home,  Modifiers(ctrl=true)),
+        KeyDown(:end,   Modifiers(ctrl=true)),
     ]
 
     visited = Set{String}()
@@ -40,7 +40,7 @@ function explore_selections(document, projection, initial_selection=nothing)
 
     if initial_selection === nothing
         op = try
-            projection_read(projection, iomap, KeyPress(:home, true))
+            projection_read(projection, iomap, KeyDown(:home, Modifiers(ctrl=true)))
         catch e
             return (state_count=0, errors=["Ctrl+Home failed: $e"])
         end

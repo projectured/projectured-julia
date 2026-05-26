@@ -11,7 +11,7 @@ import ..OperationApiModule: Operation, evaluate_operation
 import ..OperationModule: ReplaceSelectionOperation
 import ..ReferenceModule: ReferencePath, ConcreteReferencePath, EmptyReferencePath, evaluate_reference, append_reference
 import ..IoMapModule: SimpleIoMap
-import ..KeyboardModule: KeyPress
+import ..KeyboardModule: KeyDown, is_ctrl
 
 export FocusingProjection, ReplaceFocusPartOperation
 
@@ -72,7 +72,7 @@ function projection_read(p::FocusingProjection, iomap::SimpleIoMap, event)
         input_selection = map_reference_backward(p, iomap, event.path)
         input_selection === nothing && return nothing
         return ReplaceSelectionOperation(input_selection)
-    elseif event isa KeyPress && event.modifiers.ctrl
+    elseif event isa KeyDown && is_ctrl(event)
         if event.key == :comma
             isempty(p.part) && return nothing
             return ReplaceFocusPartOperation(p, _drop_last(p.part))
