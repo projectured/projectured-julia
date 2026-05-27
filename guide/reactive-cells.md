@@ -85,7 +85,7 @@ getfield(s, :value)  # → the raw Cell, escape hatch when you need it
 ```
 
 This is why the bulk of the code reads like ordinary Julia struct manipulation
-even though every field is reactive. See [macros.md](macros.md) for details.
+even though every field is reactive. See [the macros guide](macros.md) for details.
 
 ## Idioms you will encounter
 

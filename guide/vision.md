@@ -3,7 +3,7 @@
 This document explains the long-term potential of ProjecturEd, the pain
 points it addresses, and how it relates to other tools in the structured
 editing space. For the current state and near-term priorities see
-[roadmap.md](roadmap.md).
+[the roadmap](roadmap.md).
 
 ---
 
@@ -125,7 +125,7 @@ Adding a new domain in ProjecturEd is intentionally small:
 Step 2–3 together are typically 50–150 lines for a simple domain. The
 framework — reactive cells, the editor REPL, higher-order projections,
 selection mechanism, MCP server — is already there. See
-[tutorial-new-domain.md](tutorial-new-domain.md) for a worked walkthrough.
+[the tutorial](tutorial-new-domain.md) for a worked walkthrough.
 
 ---
 

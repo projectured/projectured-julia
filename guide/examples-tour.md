@@ -192,7 +192,7 @@ The navigator pane on the left shows the document tree.
 
 Once you have a feel for these examples, the natural next steps are:
 
-- [concepts.md](concepts.md) — if you want the conceptual model before the code
-- [architecture.md](architecture.md) — module inventory and layer diagram
-- [projection-system.md](projection-system.md) — the four interface functions
-- [tutorial-new-domain.md](tutorial-new-domain.md) — add your own domain
+- [Concepts](concepts.md) — if you want the conceptual model before the code
+- [Architecture](architecture.md) — module inventory and layer diagram
+- [Projection system](projection-system.md) — the four interface functions
+- [Tutorial: new domain](tutorial-new-domain.md) — add your own domain

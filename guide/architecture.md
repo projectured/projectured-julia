@@ -1,9 +1,9 @@
 # Architecture
 
 This document covers the layer diagram, the module inventory, and the
-projection pipeline status. For design rationale see
-[design-decisions.md](design-decisions.md). For the full reference/selection
-mechanism see [selection-deep-dive.md](selection-deep-dive.md).
+projection pipeline status. For design rationale see the
+[design decisions guide](design-decisions.md). For the full reference/selection
+mechanism see the [selection deep dive](selection-deep-dive.md).
 
 ---
 

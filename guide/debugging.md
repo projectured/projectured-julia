@@ -100,14 +100,14 @@ julia> clear_selection!(doc)
 julia> set_selection!(doc, some_path)
 ```
 
-The reference DSL is documented in [editor/reference.md](editor/reference.md);
-see [editor/selection.md](editor/selection.md) for how selections propagate
+The reference DSL is documented in [the reference guide](editor/reference.md);
+see [the selection guide](editor/selection.md) for how selections propagate
 through nested documents.
 
 ## Forcing reactive cells
 
 Every reactive value in the system is a `Cell` (see
-[reactive-cells.md](reactive-cells.md)). When something looks empty in the
+[reactive cells](reactive-cells.md)). When something looks empty in the
 REPL, it is usually because you are looking at the wrapper, not the value:
 
 ```julia
@@ -135,6 +135,6 @@ you need an on-disk fixture.
    and step through `projection_print` / `projection_read` /
    `evaluate_operation` by hand.
 5. Cross-reference with the test helpers documented in
-   [testing.md](testing.md) — `walk_printer_output`, `walk_reader_events`,
+   [the testing guide](testing.md) — `walk_printer_output`, `walk_reader_events`,
    `walk_repl_loop`, and `explore_selections` all take a `(document,
    projection)` pair and exercise one slice of the editor loop.

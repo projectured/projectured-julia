@@ -2,7 +2,7 @@
 
 This document distils the development priorities for ProjecturEd into three
 horizons. The detailed design notes and open questions for each item live in
-[plan/further-development.md](../plan/further-development.md).
+[the further development plan](../plan/further-development.md).
 
 The ordering principle: **deepen the vertical slice first** (make editing
 actually work end-to-end), **then widen** (more domains, more layouts, more

@@ -1,9 +1,9 @@
 # Design Decisions
 
 This document explains the *why* behind ProjecturEd's key architectural
-choices. For the *what* (module inventory, layer diagram) see
-[architecture.md](architecture.md). For the full reference/selection mechanism
-see [selection-deep-dive.md](selection-deep-dive.md).
+choices. For the *what* (module inventory, layer diagram) see the
+[architecture guide](architecture.md). For the full reference/selection mechanism
+see the [selection deep dive](selection-deep-dive.md).
 
 ---
 
@@ -124,7 +124,7 @@ This optimisation is valid for *leaf-to-leaf* projections where the input and
 output selection formats are identical. For compound projections (arrays,
 objects) each child document manages its own `selection` cell and
 `set_selection!` sets them individually. See
-[selection-deep-dive.md §Selection projection under recursion](selection-deep-dive.md#selection-projection-under-recursion).
+[Selection projection under recursion](selection-deep-dive.md#selection-projection-under-recursion).
 
 ## 8. `ProjectionReference` for projection-introduced elements
 

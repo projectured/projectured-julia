@@ -2,8 +2,8 @@
 
 This guide covers prerequisites, setup, and the REPL helpers you will use
 every day. For the conceptual foundation (what projectional editing is, the
-five core ideas, the key event walkthrough) see [concepts.md](concepts.md).
-For a guided tour of the examples see [examples-tour.md](examples-tour.md).
+five core ideas, the key event walkthrough) see [the concepts guide](concepts.md).
+For a guided tour of the examples see [the examples tour](examples-tour.md).
 
 ## Prerequisites
 
@@ -52,7 +52,7 @@ write_image_example("json", "/tmp/snapshot.bmp")
 write_image_example("widget", "/tmp/w.bmp"; width=1200, height=800)
 ```
 
-See [document/graphics.md](document/graphics.md) for the `write_image` API.
+See [the graphics guide](document/graphics.md) for the `write_image` API.
 
 ## Inspecting document structure
 
@@ -73,7 +73,7 @@ ref = @reference entries[1].value.value{3}
 evaluate_reference(editor.document, ref)
 ```
 
-See [editor/reference.md](editor/reference.md) for the full grammar
+See [the reference guide](editor/reference.md) for the full grammar
 (`.field`, `[i]`, `{k}`, `[i, j]`, `.field(expr)`, `.point(x, y)`,
 `.proj(p, sub)`).
 
@@ -87,7 +87,7 @@ test_readers()      # reader round-trips only
 test_selections()   # selection tests only
 ```
 
-See [testing.md](testing.md) for all per-layer helpers.
+See [the testing guide](testing.md) for all per-layer helpers.
 
 ## For AI assistants using MCP
 

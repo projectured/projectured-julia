@@ -195,12 +195,12 @@ necessary subset of the document tree.
 
 ## What to read next
 
-- **[examples-tour.md](examples-tour.md)** — see these concepts in action across
+- **[Examples tour](examples-tour.md)** — see these concepts in action across
   six concrete examples, from the simplest leaf case to a full workbench.
-- **[getting-started.md](getting-started.md)** — set up your environment and run
+- **[Getting started](getting-started.md)** — set up your environment and run
   your first example.
-- **[reactive-cells.md](reactive-cells.md)** — how the `Cell` system implements
+- **[Reactive cells](reactive-cells.md)** — how the `Cell` system implements
   the reactive incrementality described in Step 5–6 above.
-- **[projection-system.md](projection-system.md)** — the four interface functions
+- **[Projection system](projection-system.md)** — the four interface functions
   (`projection_print`, `projection_read`, `map_reference_forward`,
   `map_reference_backward`) and how compound projections use them.

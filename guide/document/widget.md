@@ -108,7 +108,7 @@ Widgets carry a `selection::Reference` field like every other Document.
 Selection paths typically descend into `content` for leaf widgets, into
 `children`/`tabs`/`panes` (collections) for containers, or to specific
 fields like `x_offset`/`y_offset` of a scroll pane. The standard rules in
-[editor/reference.md](../editor/reference.md) apply.
+[the reference guide](../editor/reference.md) apply.
 
 ## When to use widgets vs. graphics
 
@@ -120,5 +120,5 @@ fields like `x_offset`/`y_offset` of a scroll pane. The standard rules in
   through widgets only as a presentation layer; keep the source-of-truth
   document in its own semantic domain.
 
-The Workbench domain (see [workbench.md](workbench.md)) is the largest
+The Workbench domain (see [the workbench guide](workbench.md)) is the largest
 example of a widget consumer in ProjecturEd.

@@ -131,6 +131,6 @@ keep the SDL backend initialised between runs (`__init__` in
   every reachable state; small `state_count` numbers are often the symptom
   of a stuck navigator.
 
-See [debugging.md](debugging.md) for the matching REPL helpers
+See [the debugging guide](debugging.md) for the matching REPL helpers
 (`run_example`, `print_example`) that let you reproduce a failure
 interactively before reaching for the test functions.

@@ -98,7 +98,7 @@ end # module
 - `@document` makes `doc.title` read the cell value and `doc.title = v` write it.
 - `CellVector` wraps a `Vector{Cell}` reactively — length changes invalidate
   downstream computed cells.
-- See [reactive-cells.md](reactive-cells.md) and [macros.md](macros.md)
+- See [reactive cells](reactive-cells.md) and [macros](macros.md)
   for the cell system and `@document` macro.
 
 ---
@@ -277,8 +277,8 @@ end # module
   the reader may need to know which child IO map corresponds to a given child.
 - `RecursiveProjection(TypeDispatchingProjection(...))` is the standard
   pattern for domains with multiple types.
-- See [projection-system.md](projection-system.md) and
-  [selection-deep-dive.md](selection-deep-dive.md).
+- See [the projection system guide](projection-system.md) and
+  [the selection deep dive](selection-deep-dive.md).
 
 ---
 
@@ -417,5 +417,5 @@ BookmarkList
 
 For the next level of complexity — a domain with cross-references, a custom
 reader that handles structural events, or a `TableToGraphics`-style direct
-renderer — read [projection-system.md](projection-system.md) §"Writing a
+renderer — read [the projection system guide](projection-system.md) §"Writing a
 custom projection" and look at `MathToSyntax.jl` as a real-world reference.

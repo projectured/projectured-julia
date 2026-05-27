@@ -3,7 +3,7 @@
 This document explains the full reference/selection mechanism: what a reference
 is, how it is stored recursively across document nodes, how the printer projects
 it forward, and how the reader translates it backward. For a gentler
-introduction see [concepts.md §4 Selection](concepts.md).
+introduction see [§4 Selection in the concepts guide](concepts.md).
 
 ---
 
@@ -264,7 +264,7 @@ Input: `JsonObject` with `selection[] = .entries + [1] + .value + {4}`.
 ## 9. Selection path conventions by domain
 
 `[i]` is the i-th item (1-based), `{k}` is the cursor at boundary `k`
-(0-based). See [editor/reference.md](editor/reference.md) for the full
+(0-based). See [the reference guide](editor/reference.md) for the full
 reference grammar.
 
 | Domain | Path form | Meaning |

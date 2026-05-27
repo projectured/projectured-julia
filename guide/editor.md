@@ -66,7 +66,7 @@ defined per operation. For `ReplaceSelectionOperation` the implementation is
 `clear_selection!(document); set_selection!(document, op.path)`. For
 `QuitEditorOperation` it throws `QuitEditorException`. Other operations
 (e.g. `ScrollWidgetOperation`, `ReplaceFocusPartOperation`) mutate the
-document or projection state directly. See [operations.md](operations.md).
+document or projection state directly. See [the operations guide](operations.md).
 
 ### Print
 
@@ -110,7 +110,7 @@ a `finally` block.
 ## Devices and backends
 
 - `Device` is an abstract type. Concrete subtypes are `Window`, `Keyboard`,
-  and `Mouse` — see [devices-and-backends.md](devices-and-backends.md).
+  and `Mouse` — see [the devices and backends guide](devices-and-backends.md).
 - `Backend` is the abstraction over the display/input platform. The only
   current implementation is `SdlBackend`. The backend provides
   `measure_text`, `open_window!`, `close_window!`, `read_from_devices`,
@@ -157,4 +157,4 @@ If you introduce a new editing operation, you need to:
 3. Update the relevant projection's `projection_read` to produce the
    operation from the appropriate event.
 
-See [operations.md](operations.md) for examples.
+See [the operations guide](operations.md) for examples.

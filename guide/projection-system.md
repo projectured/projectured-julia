@@ -68,7 +68,7 @@ terms of these two functions, so getting them right gives you cursor
 navigation across the entire pipeline for free.
 
 The pattern-matching DSL `@reference_case` (see
-[editor/reference.md](editor/reference.md)) makes these methods readable:
+[the reference guide](editor/reference.md)) makes these methods readable:
 
 ```julia
 function map_reference_backward(::JsonBoolToSyntaxLeaf, iomap, reference)
@@ -96,7 +96,7 @@ walk the pipeline backward. `TextToGraphicsIoMap` carries a
 a character offset.
 
 The `@iomap` macro (parallel to `@document`) generates an IoMap struct whose
-`::Cell` fields are accessed transparently — see [macros.md](macros.md).
+`::Cell` fields are accessed transparently — see [the macros guide](macros.md).
 
 ## Projection categories
 
@@ -108,8 +108,8 @@ The `@iomap` macro (parallel to `@document`) generates an IoMap struct whose
 | **Higher-order** | `SequentialProjection`, `TypeDispatchingProjection`, `RecursiveProjection`, `PredicateDispatchingProjection`, `ReferenceDispatchingProjection`, `AlternativeProjection`, `NestingProjection` | Compose other projections |
 | **Compound** | `ApplyAtProjection`, `SortingAtProjection` | Convenience combinators built from higher-order primitives |
 
-See [higher-order-projections.md](higher-order-projections.md) and
-[generic-projections.md](generic-projections.md) for details.
+See [higher-order projections](higher-order-projections.md) and
+[generic projections](generic-projections.md) for details.
 
 ## The forward and reverse paths
 
@@ -169,7 +169,7 @@ recursively-projected input children. The extra requirements are:
 
 1. **Call `projection_print` on each child** via the `recursion` argument.
 2. **Store the child IO maps** in a shared reactive `Cell` (not inline in two
-   separate cells — see [selection-deep-dive.md §8](selection-deep-dive.md)).
+   separate cells — see [§8 of the selection deep dive](selection-deep-dive.md)).
 3. **Project the selection reactively** using the child IO maps.
 4. **Use `ChildrenIoMap`** rather than `SimpleIoMap` so the reader can locate
    the correct child IO map when translating a selection backward.
@@ -238,7 +238,7 @@ function map_reference_backward(::MyNodeProjection, iomap::ChildrenIoMap, refere
 end
 ```
 
-See [tutorial-new-domain.md](tutorial-new-domain.md) for a complete worked
+See [the tutorial](tutorial-new-domain.md) for a complete worked
 example with document types, example, and test.
 
 ## Recursion across projections
