@@ -187,17 +187,24 @@ Each syntax element becomes its text spans (open, value, close for leaves),
 with `TextNewline` separators between elements.
 """
 function projection_print(p::SyntaxListToText, ln::ListNode, recursion, reference)
-    out_head = _syntax_list_to_text_node(ln, recursion)
+    cache = IdDict{ListNode, ListNode}()
+    out_head = _syntax_list_to_text_node(ln, recursion, cache)
     SimpleIoMap(p, ln, TextText(out_head, Cell(nothing)))
 end
 
-function _syntax_list_to_text_node(input_node::ListNode, recursion)
-    # Render this syntax element to spans
+# `cache` maps each input ListNode to the first output node of its rendered
+# span chain.  This makes the projection idempotent under repeated traversal:
+# walking next then prev returns to the same object instead of materialising
+# a fresh prev-chain on every call.
+function _syntax_list_to_text_node(input_node::ListNode, recursion, cache::IdDict)
+    haskey(cache, input_node) && return cache[input_node]
+
     elem = input_node.value
     spans = _render_syntax_to_spans(elem)
 
-    # Build output ListNode chain: span1 → span2 → ... → spanN → TextNewline → (lazy next element)
     first_out = ListNode(spans[1])
+    cache[input_node] = first_out
+
     cur_out = first_out
     for i in 2:length(spans)
         next_out = ListNode(spans[i])
@@ -206,7 +213,6 @@ function _syntax_list_to_text_node(input_node::ListNode, recursion)
         cur_out = next_out
     end
 
-    # Append TextNewline, then lazy next element
     nl_node = ListNode(TextNewline(font=font_ubuntu_monospace_regular_24))
     setval!(getfield(cur_out, :next), nl_node)
     setval!(getfield(nl_node, :prev), cur_out)
@@ -214,58 +220,27 @@ function _syntax_list_to_text_node(input_node::ListNode, recursion)
     setfn!(getfield(nl_node, :next), () -> begin
         input_next = input_node.next
         input_next === nothing && return nothing
-        next_out = _syntax_list_to_text_node(input_next, recursion)
-        setval!(getfield(next_out, :prev), nl_node)
-        next_out
+        next_first = _syntax_list_to_text_node(input_next, recursion, cache)
+        setval!(getfield(next_first, :prev), nl_node)
+        next_first
     end)
 
-    # Lazy prev: link to previous element's chain (for bidirectional traversal)
     setfn!(getfield(first_out, :prev), () -> begin
         input_prev = input_node.prev
         input_prev === nothing && return nothing
-        prev_last = _syntax_list_to_text_node_prev(input_prev, recursion, first_out)
-        prev_last
+        prev_first = _syntax_list_to_text_node(input_prev, recursion, cache)
+        # Walk forward through the cached prev chain to its trailing nl_node.
+        cur = prev_first
+        while true
+            nxt = cur.next
+            nxt === nothing && break
+            cur = nxt
+        end
+        setval!(getfield(cur, :next), first_out)
+        cur
     end)
 
     first_out
-end
-
-"""
-    _syntax_list_to_text_node_prev(input_node, recursion, next_first) -> ListNode
-
-Build the text chain for `input_node` in the prev direction.
-Returns the *last* node of the chain (the TextNewline) which links back
-to `next_first`. The chain's first node has a lazy `prev` thunk for further
-backward traversal.
-"""
-function _syntax_list_to_text_node_prev(input_node::ListNode, recursion, next_first)
-    elem = input_node.value
-    spans = _render_syntax_to_spans(elem)
-
-    first_out = ListNode(spans[1])
-    cur_out = first_out
-    for i in 2:length(spans)
-        next_out = ListNode(spans[i])
-        setval!(getfield(cur_out, :next), next_out)
-        setval!(getfield(next_out, :prev), cur_out)
-        cur_out = next_out
-    end
-
-    # Append TextNewline as separator before next_first
-    nl_node = ListNode(TextNewline(font=font_ubuntu_monospace_regular_24))
-    setval!(getfield(cur_out, :next), nl_node)
-    setval!(getfield(nl_node, :prev), cur_out)
-    setval!(getfield(nl_node, :next), next_first)
-
-    # Lazy prev on first_out for further backward traversal
-    setfn!(getfield(first_out, :prev), () -> begin
-        input_prev = input_node.prev
-        input_prev === nothing && return nothing
-        prev_last = _syntax_list_to_text_node_prev(input_prev, recursion, first_out)
-        prev_last
-    end)
-
-    nl_node
 end
 
 function _render_syntax_to_spans(leaf::SyntaxLeaf)

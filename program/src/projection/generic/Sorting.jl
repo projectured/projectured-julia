@@ -87,7 +87,7 @@ function projection_print(p::SortingProjection, input, recursion, reference)
     SortingProjectionIoMap(p, input, output, perm, element_iomaps)
 end
 
-function map_reference_forward(::SortingProjection, iomap::SortingProjectionIoMap, reference)
+function map_reference_forward(p::SortingProjection, iomap::SortingProjectionIoMap, reference)
     @reference_case reference begin
         [i].rest... => begin
             n = length(iomap.input)
@@ -99,10 +99,11 @@ function map_reference_forward(::SortingProjection, iomap::SortingProjectionIoMa
             mapped_tail === nothing && return nothing
             ConcreteReferencePath(ElementReference(j), mapped_tail)
         end
+        _ => @invoke map_reference_forward(p::Projection, iomap, reference)
     end
 end
 
-function map_reference_backward(::SortingProjection, iomap::SortingProjectionIoMap, reference)
+function map_reference_backward(p::SortingProjection, iomap::SortingProjectionIoMap, reference)
     @reference_case reference begin
         [j].rest... => begin
             n = length(iomap.output)
@@ -112,6 +113,7 @@ function map_reference_backward(::SortingProjection, iomap::SortingProjectionIoM
             mapped_tail === nothing && return nothing
             ConcreteReferencePath(ElementReference(iomap.index_map[j]), mapped_tail)
         end
+        _ => @invoke map_reference_backward(p::Projection, iomap, reference)
     end
 end
 

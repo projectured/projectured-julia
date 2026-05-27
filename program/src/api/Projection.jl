@@ -54,9 +54,16 @@ function projection_read end
 Shared interface function for all projections. Each concrete projection type
 adds a method to this function.
 
-Translates `reference` from the projection's input domain to the output
-domain using the recorded `iomap`.  Returns `nothing` for references that
-have no image in the output (e.g. elements removed by a filtering projection).
+`reference` is an *input reference* — its steps are understood starting from
+`projection`'s input document. The returned reference is an *output reference*
+— its steps are understood starting from `projection`'s output document.
+Returns `nothing` for input references that have no image in the output (e.g.
+elements removed by a filtering projection).
+
+If the input reference begins with `ProjectionReference(projection, output_path)`,
+the step is stripped and `output_path` is returned directly — that step exists
+precisely to embed an already-translated output reference inside an input
+reference.
 """
 function map_reference_forward end
 
@@ -66,10 +73,17 @@ function map_reference_forward end
 Shared interface function for all projections. Each concrete projection type
 adds a method to this function.
 
-Translates `reference` from the projection's output domain back to the input
-domain using the recorded `iomap`.  Returns `nothing` for references that
-have no pre-image in the input (e.g. structural delimiters introduced by the
-projection).
+`reference` is an *output reference* — its steps are understood starting from
+`projection`'s output document. The returned reference is an *input reference*
+— its steps are understood starting from `projection`'s input document.
+Returns `nothing` for output references that have no pre-image in the input.
+
+When the output reference has no direct pre-image (e.g. it points at a
+projection-introduced delimiter), the input reference can be constructed as
+`closest_matched_input_prefix + ProjectionReference(projection, unmatched_output_suffix)`
+— i.e. wrap the unmatched suffix with this projection's own `proj` step so
+that `map_reference_forward` can later strip it and recover the original
+output reference.
 """
 function map_reference_backward end
 

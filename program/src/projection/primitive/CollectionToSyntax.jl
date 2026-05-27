@@ -20,7 +20,10 @@ import ..ColorModule: StyleColor, color_solarized_gray
 import ..IoMapModule: SimpleIoMap, ChildrenIoMap
 import ..IoMapApiModule: IoMap
 import ..ReferenceModule: ConcreteReferencePath, ElementReference, FieldReference, RangeReference,
+                          PositionReference, ProjectionReference, ReferencePath,
                           EmptyReferencePath, append_reference
+import ..OperationModule: ReplaceSelectionOperation
+import ..SyntaxToTextModule: SyntaxNodeToText, _syntax_to_flat
 export CollectionCellVectorToSyntax, CollectionListNodeToSyntax, CollectionToSyntax
 
 # ── CollectionCellVectorToSyntax ─────────────────────────────────────────────
@@ -56,6 +59,32 @@ function projection_print(p::CollectionCellVectorToSyntax, cv::CellVector, recur
         Cell(false),
         Cell(nothing))
     ChildrenIoMap(p, cv, node, child_iomaps)
+end
+
+# Maps a SyntaxNode path (children[i].rest) back to the CellVector domain.
+# Returns ConcreteReferencePath(ElementReference(child_i), rest) or nothing.
+function _translate_collection_path(cv::CellVector, path::ReferencePath)
+    path isa ConcreteReferencePath || return nothing
+    h = path.head
+    h isa FieldReference && h.name == "children" || return nothing
+    rest0 = path.tail
+    rest0 isa ConcreteReferencePath || return nothing
+    h2 = rest0.head
+    h2 isa RangeReference || return nothing
+    child_i = h2.start + 1
+    1 <= child_i <= length(cv) || return nothing
+    ConcreteReferencePath(ElementReference(child_i), rest0.tail)
+end
+
+function projection_read(p::CollectionCellVectorToSyntax,
+                          iomap::ChildrenIoMap,
+                          op::ReplaceSelectionOperation)
+    result = _translate_collection_path(iomap.input::CellVector, op.path)
+    result !== nothing && return ReplaceSelectionOperation(result)
+    flat = _syntax_to_flat(iomap.output::SyntaxNode, op.path, SyntaxNodeToText(), 0)
+    flat < 0 && return nothing
+    return ReplaceSelectionOperation(
+        ConcreteReferencePath(ProjectionReference(p, ConcreteReferencePath(PositionReference(flat)))))
 end
 
 # ── CollectionListNodeToSyntax ───────────────────────────────────────────────

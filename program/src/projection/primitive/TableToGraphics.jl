@@ -18,6 +18,7 @@ import ..IoMapModule: SimpleIoMap, ChildrenIoMap
 import ..ReferenceModule: ConcreteReferencePath, ElementReference, FieldReference, RangeReference, ReferencePath, append_reference
 import ..TypeDispatchingModule: TypeDispatchingProjection
 import ..CopyingProjectionModule: CopyingProjection
+import ..OperationModule: ReplaceSelectionOperation
 export TableTableToGraphicsCanvas, TableToGraphics
 
 # ── TableTableToGraphicsCanvas ──────────────────────────────────────────
@@ -43,6 +44,22 @@ function map_reference_forward(::TableTableToGraphicsCanvas, iomap, reference)
 end
 
 function map_reference_backward(::TableTableToGraphicsCanvas, iomap, reference)
+    return nothing
+end
+
+function projection_read(::TableTableToGraphicsCanvas, iomap::ChildrenIoMap, event)
+    iomaps = iomap.child_iomaps[]
+    for idx in 1:length(iomaps)
+        child_im = iomaps[idx]
+        child_im === nothing && continue
+        op = projection_read(child_im.projection, child_im, event)
+        if op isa ReplaceSelectionOperation
+            wrapped = ConcreteReferencePath(FieldReference("cells"),
+                          ConcreteReferencePath(ElementReference(idx),
+                              ConcreteReferencePath(FieldReference("content"), op.path)))
+            return ReplaceSelectionOperation(wrapped)
+        end
+    end
     return nothing
 end
 

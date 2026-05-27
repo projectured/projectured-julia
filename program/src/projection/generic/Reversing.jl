@@ -36,7 +36,7 @@ function projection_print(p::ReversingProjection, input, recursion, reference)
     ChildrenIoMap(p, input, reverse(input), child_iomaps)
 end
 
-function map_reference_forward(::ReversingProjection, iomap::ChildrenIoMap, reference)
+function map_reference_forward(p::ReversingProjection, iomap::ChildrenIoMap, reference)
     @reference_case reference begin
         [i].rest... => begin
             n = length(iomap.input)
@@ -46,10 +46,11 @@ function map_reference_forward(::ReversingProjection, iomap::ChildrenIoMap, refe
             mapped_tail === nothing && return nothing
             ConcreteReferencePath(ElementReference(n + 1 - i), mapped_tail)
         end
+        _ => @invoke map_reference_forward(p::Projection, iomap, reference)
     end
 end
 
-function map_reference_backward(::ReversingProjection, iomap::ChildrenIoMap, reference)
+function map_reference_backward(p::ReversingProjection, iomap::ChildrenIoMap, reference)
     @reference_case reference begin
         [i].rest... => begin
             n = length(iomap.output)
@@ -59,6 +60,7 @@ function map_reference_backward(::ReversingProjection, iomap::ChildrenIoMap, ref
             mapped_tail === nothing && return nothing
             ConcreteReferencePath(ElementReference(n + 1 - i), mapped_tail)
         end
+        _ => @invoke map_reference_backward(p::Projection, iomap, reference)
     end
 end
 

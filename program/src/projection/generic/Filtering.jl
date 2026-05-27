@@ -60,22 +60,24 @@ function projection_print(p::FilteringProjection, input, recursion, reference)
     FilteringProjectionIoMap(p, input, output, kept_indices)
 end
 
-function map_reference_forward(::FilteringProjection, iomap::FilteringProjectionIoMap, reference)
+function map_reference_forward(p::FilteringProjection, iomap::FilteringProjectionIoMap, reference)
     @reference_case reference begin
         [i].rest... => begin
             j = findfirst(==(i), iomap.kept_indices)
             j === nothing && return nothing
             ConcreteReferencePath(ElementReference(j), rest)
         end
+        _ => @invoke map_reference_forward(p::Projection, iomap, reference)
     end
 end
 
-function map_reference_backward(::FilteringProjection, iomap::FilteringProjectionIoMap, reference)
+function map_reference_backward(p::FilteringProjection, iomap::FilteringProjectionIoMap, reference)
     @reference_case reference begin
         [j].rest... => begin
             (j < 1 || j > length(iomap.kept_indices)) && return nothing
             ConcreteReferencePath(ElementReference(iomap.kept_indices[j]), rest)
         end
+        _ => @invoke map_reference_backward(p::Projection, iomap, reference)
     end
 end
 

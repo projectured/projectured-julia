@@ -69,6 +69,17 @@ Points to elements introduced by a projection (e.g. delimiters, brackets).
 ProjectionReference(projection, FieldReference("open") + PositionReference(0))
 ```
 
+## Input and Output References
+
+References are always interpreted relative to a particular document. When a projection is involved, every reference falls into one of two roles:
+
+- **Input reference** — a reference whose steps are to be understood starting from the *input* document of a projection.
+- **Output reference** — a reference whose steps are to be understood starting from the *output* document of a projection.
+
+`map_reference_forward` takes an input reference and returns an output reference. `map_reference_backward` takes an output reference and returns an input reference. These are the only two functions that translate between the two roles, and each projection defines its own rules for how the translation works.
+
+A `ProjectionReference(P, output_path)` *step* embeds an output reference inside an input reference: it says "from this position, jump through projection `P`, then continue with `output_path` in `P`'s output." This lets an input reference point at structural elements (delimiters, separators, decorations) that only exist in the output and have no direct counterpart in the input. Forward mapping through `P` strips the `proj(P, …)` step; backward mapping through `P`, for an output reference that has no pre-image in the input, can wrap the unmatched suffix with a `proj(P, …)` step to round-trip cleanly.
+
 ## Reference Paths
 
 Paths are immutable linked lists of steps:

@@ -25,16 +25,20 @@ end
 # sieve(stream, transform) returns a lazy stream of primes
 # where stream is a ListNode of integers starting from 2
 # transform is applied to each prime (e.g., identity for positive, negate for negative)
-function sieve(stream, transform::Function = identity)
+#
+# parent is the previous prime in the chain (nothing for the head).  We link
+# the child's `prev` back to its parent so the chain is a proper doubly-linked
+# list — walkers that cache by objectid converge after one traversal instead
+# of materialising a fresh prev-chain at every node.
+function sieve(stream, transform::Function = identity, parent=nothing)
     head_val = stream.value  # PrimitiveNumber
     head_num = head_val.value  # Extract actual integer
     # Filter out multiples of head from the rest of the stream
     filtered = lazy_filter(stream, x -> x.value % head_num != 0)
-    # Transform the head value and return it followed by sieve of filtered stream
     transformed_head = transform(head_val)
-    node = lazy_node(transformed_head, () -> sieve(filtered, transform))
-    # Set up prev to continue the sieve (for bidirectional traversal)
-    setfn!(getfield(node, :prev), () -> sieve(filtered, transform))
+    node = ListNode(transformed_head)
+    setfn!(getfield(node, :next), () -> sieve(filtered, transform, node))
+    parent !== nothing && setval!(getfield(node, :prev), parent)
     node
 end
 
