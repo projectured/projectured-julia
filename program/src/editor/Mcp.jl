@@ -12,6 +12,10 @@ module McpModule
 
 using ModelContextProtocol
 using ModelContextProtocol: HttpTransport, TextResourceContents
+import ..ToolRegistryModule: Tool, Resource,
+                              register_tool!, register_resource!,
+                              list_tools, list_resources,
+                              mcp_tools, mcp_resources
 
 export McpServer, mcp_start!, mcp_stop!,
        execute_julia_code, list_guides, read_guide,
@@ -328,101 +332,63 @@ function read_function_documentation(module_name, function_signature, class_name
 end
 
 # ═══════════════════════════════════════════════════════════════════════
-# Tool and resource handlers
-# ═══════════════════════════════════════════════════════════════════════
-
-function _handle_execute_julia_code(editor, params)
-    TextContent(text = execute_julia_code(editor, params["code"]))
-end
-
-function _provide_guides()
-    TextResourceContents(uri = "resource://guides", mime_type = "text/markdown", text = list_guides())
-end
-
-function _provide_modules()
-    TextResourceContents(uri = "resource://modules", mime_type = "text/markdown", text = list_modules())
-end
-
-function _provide_guide(name)
-    TextResourceContents(uri = "resource://guide/$name", mime_type = "text/markdown", text = read_guide(name))
-end
-
-function _provide_module_doc(name)
-    TextResourceContents(uri = "resource://module/$name", mime_type = "text/markdown", text = read_module_documentation(name))
-end
-
-function _provide_class_doc(mod_name, cls_name)
-    TextResourceContents(uri = "resource://class/$mod_name/$cls_name", mime_type = "text/markdown", text = read_class_documentation(mod_name, cls_name))
-end
-
-function _provide_function_doc(mod_name, fn_name)
-    TextResourceContents(uri = "resource://function/$mod_name/$fn_name", mime_type = "text/markdown", text = read_function_documentation(mod_name, fn_name))
-end
-
-# ═══════════════════════════════════════════════════════════════════════
 # Tool and resource registration
 # ═══════════════════════════════════════════════════════════════════════
 
-function _make_tools(editor)
-    [
-        MCPTool(
-            name        = "execute_julia_code",
-            description = "Execute arbitrary Julia code in the editor process. " *
-                          "The variable `editor` is bound to the running Editor instance " *
-                          "which holds `editor.document` and `editor.projection`.\n\n" *
-                          "Projectured is already imported with `using Projectured` before executing the code, " *
-                          "making all Projectured exports available. Do NOT add `using Projectured` to your code - " *
-                          "it is already included automatically.\n\n" *
-                          "Returns the repr of the last expression's value (if any), followed by any " *
-                          "captured stdout/stderr. There is no need to call print().\n\n" *
-                          "MANDATORY — read these resources BEFORE writing any code:\n" *
-                          "1. resource://guides\n" *
-                          "2. resource://modules\n" *
-                          "3. resource://guide/getting-started\n" *
-                          "4. resource://guide/editor/reference\n" *
-                          "5. resource://guide/editor/selection\n\n" *
-                          "NEVER guess names or signatures. Look them up.\n" *
-                          "NEVER call print(). NEVER include code comments.\n\n" *
-                          "Additional resources (via MCP list_resources):\n" *
-                          "- resource://guide/{guide_name}\n" *
-                          "- resource://module/{module_name}\n" *
-                          "- resource://class/{module_name}/{class_name}\n" *
-                          "- resource://function/{module_name}/{function_signature}",
-            parameters  = [
-                ToolParameter(
-                    name        = "code",
-                    type        = "string",
-                    description = "Julia source code to evaluate",
-                    required    = true,
-                ),
-            ],
-            handler = params -> _handle_execute_julia_code(editor, params),
-        ),
-    ]
-end
+"""
+    register_default_tools_and_resources!()
 
-function _make_resources()
-    resources = MCPResource[]
-
-    # Static list resources
-    push!(resources, MCPResource(
-        uri = "resource://guides",
-        name = "Documentation Guides",
-        description = "List all available documentation with a one-paragraph description for each guide. " *
-                      "Documentation files are markdown files containing tips and tricks for using ProjecturEd.",
-        mime_type = "text/markdown",
-        data_provider = _provide_guides,
-    ))
-    push!(resources, MCPResource(
-        uri = "resource://modules",
-        name = "ProjecturEd Modules",
-        description = "List all modules in the ProjecturEd codebase with one-paragraph documentation " *
-                      "for each module and a list of top-level classes (structs).",
-        mime_type = "text/markdown",
-        data_provider = _provide_modules,
+Populate the shared `ToolRegistry` with the editor's built-in tool
+(`execute_julia_code`) and the read-only documentation resources
+(guides, module/class/function docs). Idempotent — repeated calls
+replace entries rather than duplicating them.
+"""
+function register_default_tools_and_resources!()
+    register_tool!(Tool(
+        "execute_julia_code",
+        "Execute arbitrary Julia code in the editor process. " *
+        "The variable `editor` is bound to the running Editor instance " *
+        "which holds `editor.document` and `editor.projection`.\n\n" *
+        "Projectured is already imported with `using Projectured` before executing the code, " *
+        "making all Projectured exports available. Do NOT add `using Projectured` to your code - " *
+        "it is already included automatically.\n\n" *
+        "Returns the repr of the last expression's value (if any), followed by any " *
+        "captured stdout/stderr. There is no need to call print().\n\n" *
+        "MANDATORY — read these resources BEFORE writing any code:\n" *
+        "1. resource://guides\n" *
+        "2. resource://modules\n" *
+        "3. resource://guide/getting-started\n" *
+        "4. resource://guide/editor/reference\n" *
+        "5. resource://guide/editor/selection\n\n" *
+        "NEVER guess names or signatures. Look them up.\n" *
+        "NEVER call print(). NEVER include code comments.\n\n" *
+        "Additional resources (via MCP list_resources):\n" *
+        "- resource://guide/{guide_name}\n" *
+        "- resource://module/{module_name}\n" *
+        "- resource://class/{module_name}/{class_name}\n" *
+        "- resource://function/{module_name}/{function_signature}",
+        NamedTuple[
+            (name="code", type="string",
+             description="Julia source code to evaluate", required=true),
+        ],
+        (editor, args) -> execute_julia_code(editor, args["code"]),
     ))
 
-    # Individual guide resources (recursive)
+    register_resource!(Resource(
+        "resource://guides",
+        "Documentation Guides",
+        "List all available documentation with a one-paragraph description for each guide. " *
+        "Documentation files are markdown files containing tips and tricks for using ProjecturEd.",
+        list_guides,
+    ))
+    register_resource!(Resource(
+        "resource://modules",
+        "ProjecturEd Modules",
+        "List all modules in the ProjecturEd codebase with one-paragraph documentation " *
+        "for each module and a list of top-level classes (structs).",
+        list_modules,
+    ))
+
     doc_dir = joinpath(@__DIR__, "../../../guide")
     if isdir(doc_dir)
         for (root, dirs, files) in walkdir(doc_dir)
@@ -432,57 +398,59 @@ function _make_resources()
                 relpath = replace(filepath, doc_dir * "/" => "")
                 guide_name = replace(relpath, ".md" => "")
                 let gd_name = guide_name
-                    push!(resources, MCPResource(
-                        uri = "resource://guide/$gd_name",
-                        name = "Guide: $gd_name",
-                        description = "Full content of the $gd_name documentation guide.",
-                        mime_type = "text/markdown",
-                        data_provider = () -> _provide_guide(gd_name),
+                    register_resource!(Resource(
+                        "resource://guide/$gd_name",
+                        "Guide: $gd_name",
+                        "Full content of the $gd_name documentation guide.",
+                        () -> read_guide(gd_name),
                     ))
                 end
             end
         end
     end
 
-    # Individual module, class, and function resources via reflection
     proj = _projectured()
     for (mod_sym, mod) in _submodules(proj)
         let mn = String(mod_sym)
-            push!(resources, MCPResource(
-                uri = "resource://module/$mn",
-                name = "Module: $mn",
-                description = "Full documentation for the $mn module.",
-                mime_type = "text/markdown",
-                data_provider = () -> _provide_module_doc(mn),
+            register_resource!(Resource(
+                "resource://module/$mn",
+                "Module: $mn",
+                "Full documentation for the $mn module.",
+                () -> read_module_documentation(mn),
             ))
         end
-
         for (cls_sym, _) in _struct_types(mod)
             let mn = String(mod_sym), cn = String(cls_sym)
-                push!(resources, MCPResource(
-                    uri = "resource://class/$mn/$cn",
-                    name = "Class: $mn.$cn",
-                    description = "Full documentation for the $cn class in module $mn.",
-                    mime_type = "text/markdown",
-                    data_provider = () -> _provide_class_doc(mn, cn),
+                register_resource!(Resource(
+                    "resource://class/$mn/$cn",
+                    "Class: $mn.$cn",
+                    "Full documentation for the $cn class in module $mn.",
+                    () -> read_class_documentation(mn, cn),
                 ))
             end
         end
-
         for (fn_sym, _) in _module_functions(mod)
             let mn = String(mod_sym), fn = String(fn_sym)
-                push!(resources, MCPResource(
-                    uri = "resource://function/$mn/$fn",
-                    name = "Function: $mn.$fn",
-                    description = "Full documentation for function $fn in module $mn.",
-                    mime_type = "text/markdown",
-                    data_provider = () -> _provide_function_doc(mn, fn),
+                register_resource!(Resource(
+                    "resource://function/$mn/$fn",
+                    "Function: $mn.$fn",
+                    "Full documentation for function $fn in module $mn.",
+                    () -> read_function_documentation(mn, fn),
                 ))
             end
         end
     end
+    nothing
+end
 
-    return resources
+function _make_tools(editor)
+    register_default_tools_and_resources!()
+    mcp_tools(editor, list_tools())
+end
+
+function _make_resources()
+    register_default_tools_and_resources!()
+    mcp_resources(list_resources())
 end
 
 # ═══════════════════════════════════════════════════════════════════════

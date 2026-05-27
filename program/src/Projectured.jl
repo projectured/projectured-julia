@@ -44,6 +44,7 @@ include("document/FileSystem.jl")
 include("document/Clipboard.jl")
 include("document/Widget.jl")
 include("document/Book.jl")
+include("document/Conversation.jl")
 include("document/Workbench.jl")
 include("document/Image.jl")
 
@@ -93,6 +94,7 @@ include("projection/primitive/PrimitiveToSyntax.jl")
 include("projection/primitive/MathToSyntax.jl")
 include("projection/primitive/JuliaToSyntax.jl")
 include("projection/primitive/CollectionToSyntax.jl")
+include("projection/primitive/ConversationToWidget.jl")
 include("projection/primitive/WorkbenchToWidget.jl")
 
 # ── Compound projections ─────────────────────────────────────────────────
@@ -104,7 +106,10 @@ include("projection/compound/Generic.jl")
 
 include("device/Window.jl")
 include("backend/Sdl.jl")
+include("editor/ToolRegistry.jl")
+include("editor/Anthropic.jl")
 include("editor/Mcp.jl")
+include("editor/WorkbenchAssistant.jl")
 include("editor/Editor.jl")
 include("editor/Application.jl")
 
@@ -264,6 +269,37 @@ using .WorkbenchToWidgetModule: WorkbenchWorkbenchToWidgetShell,    WorkbenchWor
 using .GraphicsCachingModule: GraphicsCanvasToGraphicsImage, GraphicsCaching
 using .ApplicationModule: application
 using .McpModule: McpServer, mcp_start!, mcp_stop!
+using .ToolRegistryModule: Tool, Resource,
+                            register_tool!, register_tools!, list_tools, call_tool,
+                            register_resource!, register_resources!, list_resources, read_resource,
+                            anthropic_tool_schema, mcp_tools, mcp_resources
+using .AnthropicModule: stream_message
+using .ConversationModule: ConversationDocument, ConversationConversation,
+                            ConversationMessage,
+                            ConversationUserMessage, ConversationAssistantMessage,
+                            ConversationToolUseMessage, ConversationToolResultMessage,
+                            ConversationJuliaInputMessage, ConversationJuliaResultMessage,
+                            ConversationBlock,
+                            ConversationTextBlock, ConversationCodeBlock,
+                            ConversationHeadingBlock, ConversationListBlock,
+                            ConversationToolUseBlock
+using .ConversationToWidgetModule: ConversationToWidget,
+                                    ConversationConversationToWidgetComposite,
+                                    ConversationUserMessageToWidgetComposite,
+                                    ConversationAssistantMessageToWidgetComposite,
+                                    ConversationToolUseMessageToWidgetComposite,
+                                    ConversationToolResultMessageToWidgetComposite,
+                                    ConversationJuliaInputMessageToWidgetComposite,
+                                    ConversationJuliaResultMessageToWidgetComposite,
+                                    ConversationTextBlockToText,
+                                    ConversationCodeBlockToWidget,
+                                    ConversationHeadingBlockToText,
+                                    ConversationListBlockToWidgetComposite,
+                                    ConversationToolUseBlockToText
+using .WorkbenchAssistantModule: SubmitProseOperation, SubmitJuliaOperation,
+                                   ClearInputOperation, ResetConversationOperation,
+                                   build_messages, assistant_tool_schemas,
+                                   dispatch_assistant_tool, parse_markdown_blocks
 
 export @document, @projection, @iomap
 export Cell, setval!, setfn!, isuptodate, take_first_n
@@ -420,5 +456,35 @@ export WorkbenchWorkbenchToWidgetShell,    WorkbenchWorkbenchToWidgetShellIoMap,
        WorkbenchToWidget
 export application
 export McpServer, mcp_start!, mcp_stop!
+export Tool, Resource, register_tool!, register_tools!, list_tools, call_tool,
+       register_resource!, register_resources!, list_resources, read_resource,
+       anthropic_tool_schema, mcp_tools, mcp_resources
+export stream_message
+export ConversationDocument, ConversationConversation,
+       ConversationMessage,
+       ConversationUserMessage, ConversationAssistantMessage,
+       ConversationToolUseMessage, ConversationToolResultMessage,
+       ConversationJuliaInputMessage, ConversationJuliaResultMessage,
+       ConversationBlock,
+       ConversationTextBlock, ConversationCodeBlock,
+       ConversationHeadingBlock, ConversationListBlock,
+       ConversationToolUseBlock
+export ConversationToWidget,
+       ConversationConversationToWidgetComposite,
+       ConversationUserMessageToWidgetComposite,
+       ConversationAssistantMessageToWidgetComposite,
+       ConversationToolUseMessageToWidgetComposite,
+       ConversationToolResultMessageToWidgetComposite,
+       ConversationJuliaInputMessageToWidgetComposite,
+       ConversationJuliaResultMessageToWidgetComposite,
+       ConversationTextBlockToText,
+       ConversationCodeBlockToWidget,
+       ConversationHeadingBlockToText,
+       ConversationListBlockToWidgetComposite,
+       ConversationToolUseBlockToText
+export SubmitProseOperation, SubmitJuliaOperation,
+       ClearInputOperation, ResetConversationOperation,
+       build_messages, assistant_tool_schemas, dispatch_assistant_tool,
+       parse_markdown_blocks
 
 end # module Projectured

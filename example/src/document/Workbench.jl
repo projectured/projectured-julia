@@ -37,6 +37,7 @@ function make_workbench_document_example(; root=abspath(joinpath(@__DIR__, "../.
     descriptor = WorkbenchDescriptor(EmptyReferencePath())
 
     info_page = WorkbenchPage([
+        WorkbenchAssistant(),
         WorkbenchConsole(TextText(
             TextString("Welcome to ProjecturEd!", font_ubuntu_monospace_regular_24, color_default),
         )),
@@ -44,7 +45,6 @@ function make_workbench_document_example(; root=abspath(joinpath(@__DIR__, "../.
         WorkbenchOperator(),
         WorkbenchSearcher(),
         WorkbenchEvaluator(),
-        WorkbenchAssistant(),
     ])
 
     workbench = WorkbenchWorkbench(nav_page, edit_page, info_page)

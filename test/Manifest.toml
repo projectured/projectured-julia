@@ -2,7 +2,7 @@
 
 julia_version = "1.12.6"
 manifest_format = "2.0"
-project_hash = "5d3fcb84d2f788df5302264dece80416006a5166"
+project_hash = "4c56e2342087af9b3199c7055b80e18d1c6996ad"
 
 [[deps.ArgTools]]
 uuid = "0dad84c5-d112-42e6-8d28-ef12dabb789f"
@@ -504,7 +504,7 @@ uuid = "de0858da-6303-5e67-8744-51eddeeeb8d7"
 version = "1.11.0"
 
 [[deps.Projectured]]
-deps = ["Markdown", "ModelContextProtocol", "SimpleDirectMediaLayer"]
+deps = ["HTTP", "JSON3", "Markdown", "ModelContextProtocol", "SimpleDirectMediaLayer"]
 path = "../program"
 uuid = "92922de3-b970-4d9a-8b2a-9d6f361397b5"
 version = "0.1.0"

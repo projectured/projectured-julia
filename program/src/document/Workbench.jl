@@ -13,6 +13,7 @@ import ..ReactiveModule: Cell, setfn!, setval!
 import ..DocumentModule: Document, @document
 import ..CollectionModule: CellVector
 import ..TextModule: TextText
+import ..ConversationModule: ConversationConversation
 import ..ReferenceModule: Reference, ReferencePath
 export WorkbenchDocument, WorkbenchInsertion, WorkbenchForeign,
        WorkbenchWorkbench, WorkbenchPage,
@@ -254,30 +255,53 @@ end
 # ── WorkbenchAssistant ────────────────────────────────────────────────────────
 
 const WORKBENCH_ASSISTANT_TITLE = "Assistant"
+const DEFAULT_ASSISTANT_MODEL  = "claude-opus-4-7"
+const DEFAULT_ASSISTANT_SYSTEM = "You are Claude running inside the ProjecturEd editor. " *
+                                  "Use the available tools to inspect and modify the editor's document. " *
+                                  "Documentation is exposed as resources; call `list_resources` then " *
+                                  "`read_resource` to drill in. Read these resources before writing any code:\n" *
+                                  "1. resource://guides\n" *
+                                  "2. resource://modules\n" *
+                                  "3. resource://guide/getting-started\n" *
+                                  "4. resource://guide/editor/reference\n" *
+                                  "5. resource://guide/editor/selection"
 
 """
-    WorkbenchAssistant(content)
+    WorkbenchAssistant(; conversation, input, model, system, api_key, status)
 
-The assistant panel.  `content` holds the assistant toplevel document
-(not yet ported to Julia; typed as `Any`).  Its title is the class-level
-constant `"Assistant"`.
+The assistant panel. Holds the full chat history (`conversation`), the
+editable prompt (`input`), the Anthropic model id (`model`), the system
+prompt (`system`), the Anthropic API key (`api_key`), and a `status`
+symbol (`:idle`, `:streaming`, `:error`, ...).
 """
 @document struct WorkbenchAssistant <: WorkbenchDocument
-    content::Any
+    conversation::ConversationConversation
+    input::TextText
+    model::String
+    system::String
+    api_key::String
+    status::Symbol
     selection::Reference
 end
 
-function WorkbenchAssistant(content)
-    WorkbenchAssistant(Cell(content), Cell(nothing))
+function WorkbenchAssistant(; conversation::ConversationConversation = ConversationConversation(),
+                              input::TextText = TextText(),
+                              model::AbstractString = DEFAULT_ASSISTANT_MODEL,
+                              system::AbstractString = DEFAULT_ASSISTANT_SYSTEM,
+                              api_key::AbstractString = get(ENV, "ANTHROPIC_API_KEY", ""),
+                              status::Symbol = :idle)
+    WorkbenchAssistant(Cell(conversation), Cell(input),
+                       Cell(String(model)), Cell(String(system)),
+                       Cell(String(api_key)), Cell(status),
+                       Cell(nothing))
 end
 
-WorkbenchAssistant() = WorkbenchAssistant(nothing)
-
 title(::WorkbenchAssistant) = WORKBENCH_ASSISTANT_TITLE
-setfn!(a::WorkbenchAssistant, f::Function) = (setfn!(getfield(a, :content), f); a)
+setfn!(a::WorkbenchAssistant, f::Function) = (setfn!(getfield(a, :conversation), f); a)
 
 function Base.show(io::IO, a::WorkbenchAssistant)
-    print(io, "WorkbenchAssistant(content=", a.content, ")")
+    print(io, "WorkbenchAssistant(model=", repr(a.model),
+          ", status=:", a.status, ", conversation=", a.conversation, ")")
 end
 
 # ── WorkbenchEditor ──────────────────────────────────────────────────────────

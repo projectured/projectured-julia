@@ -24,16 +24,18 @@ import ..WorkbenchModule: WorkbenchDocument, WorkbenchWorkbench, WorkbenchPage,
                           WorkbenchOperator, WorkbenchSearcher, WorkbenchEvaluator,
                           WorkbenchAssistant,
                           WorkbenchEditor, title
-import ..WidgetModule: WidgetDocument, WidgetLabel, WidgetShell, WidgetSplitPane, WidgetTabbedPane,
+import ..WidgetModule: WidgetDocument, WidgetLabel, WidgetText, WidgetShell, WidgetSplitPane, WidgetTabbedPane,
                        WidgetScrollPane, WidgetComposite, Point2D, Inset, inset_default,
                        SelectTabOperation
 import ..TextModule: TextText, TextString
 import ..FontModule: font_ubuntu_monospace_regular_24
 import ..ColorModule: StyleColor, color_default
-import ..IoMapModule: SimpleIoMap, ContentIoMap
+import ..IoMapModule: SimpleIoMap, ContentIoMap, ChildrenIoMap
+import ..ReactiveModule: Cell
 import ..IoMapApiModule: IoMap
 import ..TypeDispatchingModule: TypeDispatchingProjection
 import ..OperationModule: ReplaceSelectionOperation
+import ..KeyboardModule: KeyDown
 import ..ReferenceModule: ReferencePath, ConcreteReferencePath, ElementReference, PositionReference, RangeReference, EmptyReferencePath, FieldReference, append_reference
 export WorkbenchWorkbenchToWidgetShell,    WorkbenchWorkbenchToWidgetShellIoMap,
        WorkbenchPageToWidgetTabbedPane,    WorkbenchPageToWidgetTabbedPaneIoMap,
@@ -191,12 +193,22 @@ end
 
 function projection_print(::WorkbenchAssistantToWidgetScrollPane,
                            a::WorkbenchAssistant, recursion, reference)
-    content_iomap = _recurse(recursion, a.content, append_reference(reference, FieldReference("content")))
-    scroll = WidgetScrollPane(content_iomap.output;
+    conv_iomap  = _recurse(recursion, a.conversation,
+                           append_reference(reference, FieldReference("conversation")))
+    input_iomap = _recurse(recursion, a.input,
+                           append_reference(reference, FieldReference("input")))
+    column = WidgetComposite(Point2D(0, 0),
+                             Any[_wrap_widget(conv_iomap.output),
+                                 _wrap_widget(input_iomap.output)];
+                             padding=_PAD5)
+    scroll = WidgetScrollPane(column;
                               size=Point2D(1000, 130),
                               padding=_PAD5, padding_color=_WHITE)
-    ContentIoMap(nothing, a, scroll, content_iomap)
+    ChildrenIoMap(nothing, a, scroll, Cell(Any[conv_iomap, input_iomap]))
 end
+
+_wrap_widget(w::WidgetDocument) = w
+_wrap_widget(x) = WidgetText(Point2D(0, 0), x)
 
 function projection_print(::WorkbenchEditorToWidgetScrollPane,
                            e::WorkbenchEditor, recursion, reference)
@@ -289,12 +301,9 @@ function map_reference_forward(::WorkbenchEvaluatorToWidgetScrollPane,
 end
 
 function map_reference_forward(::WorkbenchAssistantToWidgetScrollPane,
-                                iomap::ContentIoMap,
+                                iomap,
                                 reference)
-    reference isa ConcreteReferencePath || return nothing
-    h = reference.head
-    h isa FieldReference && h.name == "content" || return nothing
-    map_reference_forward(nothing, iomap.inner_iomap, reference.tail)
+    return nothing
 end
 
 function map_reference_forward(::WorkbenchEditorToWidgetScrollPane,
@@ -351,7 +360,7 @@ function map_reference_backward(::WorkbenchEvaluatorToWidgetScrollPane,
 end
 
 function map_reference_backward(::WorkbenchAssistantToWidgetScrollPane,
-                                 iomap::ContentIoMap,
+                                 iomap,
                                  reference)
     return nothing
 end
@@ -419,7 +428,7 @@ function projection_read(::WorkbenchEvaluatorToWidgetScrollPane,
 end
 
 function projection_read(::WorkbenchAssistantToWidgetScrollPane,
-                          iomap::ContentIoMap, op)
+                          iomap, op)
     op
 end
 
