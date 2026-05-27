@@ -1,4 +1,4 @@
-# ProjecturEd (predj)
+# ProjecturEd
 
 > **What if your editor understood the *structure* of what you're editing?**
 
@@ -84,7 +84,7 @@ ProjecturEd is not just a better JSON editor — it is an architecture for
 - **Live collaboration.** Structural operations on a well-defined model are the
   natural substrate for operational-transform or CRDT-based collaboration.
 
-See [guide/vision.md](guide/vision.md) for the full vision and a "Compared
+See [the vision guide](guide/vision.md) for the full vision and a "Compared
 to…" positioning relative to MPS, Lamdu, Hazel, Tree-sitter, and text editors.
 
 ## Prerequisites
@@ -110,8 +110,8 @@ julia> print_example("syntax")        # dump a projection's output to stdout
 julia> write_image_example("json", "/tmp/snapshot.bmp")   # save to file
 ```
 
-See [guide/debugging.md](guide/debugging.md) for the full REPL helper
-catalogue and [guide/testing.md](guide/testing.md) for running the test suite.
+See [the debugging guide](guide/debugging.md) for the full REPL helper
+catalogue and [the testing guide](guide/testing.md) for running the test suite.
 
 ## Repository layout
 
@@ -121,7 +121,7 @@ catalogue and [guide/testing.md](guide/testing.md) for running the test suite.
 | [example/src/](example/src/) | `ProjecturedExample` package — concrete examples and `run_example` / `print_example` / `write_image_example` helpers |
 | [example/workspace/](example/workspace/) | On-disk fixtures used by examples |
 | [test/src/](test/src/) | `ProjecturedTest` package — `test_all` and every per-layer helper |
-| [guide/](guide/) | All architecture and topic guides — see [guide/README.md](guide/README.md) for the reading-order index |
+| [guide/](guide/) | All architecture and topic guides — see [the guide index](guide/README.md) for the reading-order index |
 | [executable/](executable/) | Build configuration for a standalone executable |
 | [font/](font/), [image/](image/) | Bundled assets and screenshots |
 | [plan/](plan/) | Design notes and work-in-progress plans |
@@ -132,29 +132,29 @@ Three reading tracks — pick the one that matches your goal.
 
 ### New here? Start with
 
-1. [guide/concepts.md](guide/concepts.md) — plain-English introduction: what projectional editing is, the five core ideas, and a step-by-step walkthrough of what happens when you press a key.
-2. [guide/examples-tour.md](guide/examples-tour.md) — guided tour of six examples, from simplest to most complex; what to try and what each one demonstrates.
-3. [guide/getting-started.md](guide/getting-started.md) — prerequisites, setup, and the REPL helpers.
+1. [Concepts](guide/concepts.md) — plain-English introduction: what projectional editing is, the five core ideas, and a step-by-step walkthrough of what happens when you press a key.
+2. [Examples tour](guide/examples-tour.md) — guided tour of six examples, from simplest to most complex; what to try and what each one demonstrates.
+3. [Getting started](guide/getting-started.md) — prerequisites, setup, and the REPL helpers.
 
 ### Building something? Read next
 
-4. [guide/architecture.md](guide/architecture.md) — layer diagram, module inventory, and the projection pipeline.
-5. [guide/reactive-cells.md](guide/reactive-cells.md) — the `Cell` system that powers incrementality.
-6. [guide/macros.md](guide/macros.md) — `@document`, `@projection`, `@iomap` macros.
-7. [guide/projection-system.md](guide/projection-system.md) — the four projection interface functions and the printer/reader pair.
-8. [guide/tutorial-new-domain.md](guide/tutorial-new-domain.md) — step-by-step: add a new domain from scratch.
+4. [Architecture](guide/architecture.md) — layer diagram, module inventory, and the projection pipeline.
+5. [Reactive cells](guide/reactive-cells.md) — the `Cell` system that powers incrementality.
+6. [Macros](guide/macros.md) — `@document`, `@projection`, `@iomap` macros.
+7. [Projection system](guide/projection-system.md) — the four projection interface functions and the printer/reader pair.
+8. [Tutorial: new domain](guide/tutorial-new-domain.md) — step-by-step: add a new domain from scratch.
 
 ### Going deeper
 
-- [guide/higher-order-projections.md](guide/higher-order-projections.md) — `Sequential`, `Recursive`, the dispatchers, `Nesting`, `Alternative`.
-- [guide/generic-projections.md](guide/generic-projections.md) — `Preserving`, `Invariably`, `Copying`, `Sorting`, `Reversing`, `Focusing`.
-- [guide/operations.md](guide/operations.md) — what an operation is and how the reader chain produces them.
-- [guide/editor.md](guide/editor.md) — the REPL loop, event handling, and rendering pipeline.
-- [guide/editor/reference.md](guide/editor/reference.md) — reference paths and the `@reference` / `@reference_case` DSL.
-- [guide/editor/selection.md](guide/editor/selection.md) — how selection propagates through nested documents.
-- [guide/devices-and-backends.md](guide/devices-and-backends.md) — the `Backend`/`Device` split.
-- [guide/design-decisions.md](guide/design-decisions.md) — why pull-based reactivity, every-field-is-a-cell, shared selection, `ProjectionReference`.
-- [guide/selection-deep-dive.md](guide/selection-deep-dive.md) — the full reference/selection mechanism with worked examples.
+- [Higher-order projections](guide/higher-order-projections.md) — `Sequential`, `Recursive`, the dispatchers, `Nesting`, `Alternative`.
+- [Generic projections](guide/generic-projections.md) — `Preserving`, `Invariably`, `Copying`, `Sorting`, `Reversing`, `Focusing`.
+- [Operations](guide/operations.md) — what an operation is and how the reader chain produces them.
+- [Editor](guide/editor.md) — the REPL loop, event handling, and rendering pipeline.
+- [Reference guide](guide/editor/reference.md) — reference paths and the `@reference` / `@reference_case` DSL.
+- [Selection guide](guide/editor/selection.md) — how selection propagates through nested documents.
+- [Devices and backends](guide/devices-and-backends.md) — the `Backend`/`Device` split.
+- [Design decisions](guide/design-decisions.md) — why pull-based reactivity, every-field-is-a-cell, shared selection, `ProjectionReference`.
+- [Selection deep dive](guide/selection-deep-dive.md) — the full reference/selection mechanism with worked examples.
 
 ### Per-domain guides
 
@@ -162,12 +162,12 @@ Three reading tracks — pick the one that matches your goal.
 
 ### Working in the REPL
 
-- [guide/debugging.md](guide/debugging.md) — `run_example`, `print_example`, `write_image_example`, driving the printer/reader by hand, forcing reactive cells.
-- [guide/testing.md](guide/testing.md) — `test_all`, per-layer helpers, walker utilities.
+- [Debugging](guide/debugging.md) — `run_example`, `print_example`, `write_image_example`, driving the printer/reader by hand, forcing reactive cells.
+- [Testing](guide/testing.md) — `test_all`, per-layer helpers, walker utilities.
 
 ## Roadmap
 
-See [guide/roadmap.md](guide/roadmap.md) for near-, medium-, and long-term plans.
+See [the roadmap](guide/roadmap.md) for near-, medium-, and long-term plans.
 The three next priorities: character editing, mouse click-to-select, and undo/redo.
 
 ## Contributing

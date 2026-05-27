@@ -5,7 +5,7 @@
 > Everything here needs to be critically evaluated, refined, and adapted before
 > any of it gets implemented.
 
-Development directions for predj, organized by theme in roughly the order I
+Development directions for ProjecturEd, organized by theme in roughly the order I
 intend to tackle them. Each section includes open questions I need to resolve
 before committing effort.
 
@@ -253,7 +253,7 @@ incremental text search and a reader that maps edits back through the filter.
   `Image` — need to audit which of these are actually used by any projection
   pipeline end-to-end, and whether the unused ones are worth keeping or are
   just dead weight.
-- **Self-hosting** — editing predj's own source code would be the strongest
+- **Self-hosting** — editing ProjecturEd's own source code would be the strongest
   validation. If that's a goal, the Julia domain is the critical path.
 
 ---

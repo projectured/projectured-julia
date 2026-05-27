@@ -17,7 +17,7 @@ The executable is a simple command-line tool demonstrating Julia's native compil
 
 1. Navigate to the executable directory:
    ```bash
-   cd /home/levy/workspace/predj/executable
+   cd projectured/executable
    ```
 
 2. Run the build script:

@@ -19,16 +19,16 @@ Files: `guide/design.md`, `guide/document/syntax.md`
 
 ---
 
-## Step 2: Standardise project name to `predj`
+## Step 2: Standardise project name to `ProjecturEd`
 
 Files: `guide/design.md`, `guide/higher-order-projections.md`,
 `guide/document/collection.md`, `guide/document/workbench.md`
 
-- `design.md:1` title — change "pred" to "predj"
-- All body occurrences of "pred" referring to the project → "predj"
-- `higher-order-projections.md:9` — "pred" → "predj"
-- `collection.md:4` — "pred" → "predj"
-- `workbench.md:13` — "pred" → "predj"
+- `design.md:1` title — change "pred" to "ProjecturEd"
+- All body occurrences of "pred" referring to the project → "ProjecturEd"
+- `higher-order-projections.md:9` — "pred" → "ProjecturEd"
+- `collection.md:4` — "pred" → "ProjecturEd"
+- `workbench.md:13` — "pred" → "ProjecturEd"
 
 ---
 
@@ -240,4 +240,4 @@ After all fixes, grep for:
 - `StyledString` — should have zero hits in `guide/`
 - `cell::Cell` in JSON type descriptions — should say `value::String` etc.
 - `running::Bool` in Editor descriptions — should be gone
-- `pred ` (space after) — verify project name is consistently `predj`
+- `pred ` (space after) — verify project name is consistently `ProjecturEd`

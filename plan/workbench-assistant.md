@@ -4,9 +4,9 @@
 
 `WorkbenchAssistant` already exists as a placeholder ([program/src/document/Workbench.jl:265-281](../program/src/document/Workbench.jl#L265-L281)) with a single `content::Any` field defaulting to `nothing`. It is already wired into the workbench layout and the widget projection ([program/src/projection/primitive/WorkbenchToWidget.jl:192-199](../program/src/projection/primitive/WorkbenchToWidget.jl#L192-L199)) but has no real content.
 
-predj already runs an MCP **server** ([program/src/editor/Mcp.jl](../program/src/editor/Mcp.jl)) on port 9876 that lets *external* AI clients drive the editor. The goal of this work is the opposite direction: build an *internal* AI client — a chat surface inside predj where the user converses with Claude, Claude calls the same tools the MCP server exposes (without HTTP round-trip), and the user can interleave Julia code that runs locally and stays visible in Claude's history.
+ProjecturEd already runs an MCP **server** ([program/src/editor/Mcp.jl](../program/src/editor/Mcp.jl)) on port 9876 that lets *external* AI clients drive the editor. The goal of this work is the opposite direction: build an *internal* AI client — a chat surface inside ProjecturEd where the user converses with Claude, Claude calls the same tools the MCP server exposes (without HTTP round-trip), and the user can interleave Julia code that runs locally and stays visible in Claude's history.
 
-The whole conversation, including in-flight streaming, must be a real predj domain (cells, operations, projections, bidirectional reader), so selection and editing inside messages compose with the rest of the editor.
+The whole conversation, including in-flight streaming, must be a real ProjecturEd domain (cells, operations, projections, bidirectional reader), so selection and editing inside messages compose with the rest of the editor.
 
 ### Key decisions (resolved during interview)
 

@@ -1,4 +1,4 @@
-# ProjecturEd (predj)
+# ProjecturEd
 
 A Julia reimplementation of [ProjecturEd](https://github.com/projectured/projectured), a generic-purpose projectional editor. Documents are structured data (trees, ASTs, graphs) presented through bidirectional, composable projections; editing acts on the projection and is mapped back to the underlying domain.
 

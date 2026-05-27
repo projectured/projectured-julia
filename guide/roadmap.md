@@ -59,7 +59,7 @@ Once editing works, the natural expansions:
 
 Most domains have printers but no readers (navigation only). Priority order:
 - **Julia** — `JuliaToSyntax` printer exists; adding the reader is the path
-  to self-hosting (editing predj's own source code).
+  to self-hosting (editing ProjecturEd's own source code).
 - **Math** — compelling demo: edit `x + y * z` and see the AST update.
 - **XML** — wire the existing `XmlToSyntax` reader stubs.
 - **Table** — editable cells with column-header navigation.
@@ -114,8 +114,8 @@ a serialiser per domain plus a loader that reconstructs the reactive cell graph.
 
 ### 14. Self-hosting
 
-Edit predj's own source code using the Julia domain projection, running inside
-predj. This is the strongest validation of the architecture's generality and
+Edit ProjecturEd's own source code using the Julia domain projection, running inside
+ProjecturEd. This is the strongest validation of the architecture's generality and
 the primary long-term goal.
 
 ### 15. Plugin / package system

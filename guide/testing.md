@@ -7,7 +7,7 @@ hidden runner: anything `test_all` does is something you can do one piece
 at a time.
 
 ```sh
-cd predj
+cd projectured
 julia --project=.
 ```
 

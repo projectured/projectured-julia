@@ -7,7 +7,7 @@ so a single `julia --project=.` from the repo root gives you access to every
 public symbol used below.
 
 ```sh
-cd predj
+cd projectured
 julia --project=.
 ```
 
