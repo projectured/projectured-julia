@@ -8,17 +8,19 @@ with appropriate delimiters and colors.
 module PrimitiveToSyntaxModule
 
 import ..ProjectionApiModule: projection_print, projection_read, map_reference_forward, map_reference_backward, Projection
-import ..PrimitiveModule: PrimitiveDocument, PrimitiveBool, PrimitiveNumber, PrimitiveString
+import ..PrimitiveModule: PrimitiveDocument, PrimitiveBool, PrimitiveNumber, PrimitiveString,
+                          StringReplaceRangeOperation, NumberReplaceRangeOperation
 import ..SyntaxModule: SyntaxLeaf
 import ..TextModule: TextString
 import ..FontModule: StyleFont, font_ubuntu_monospace_regular_24
 import ..ColorModule: StyleColor, color_default, color_solarized_magenta, color_solarized_cyan, color_solarized_green, color_solarized_yellow
 import ..IoMapModule: SimpleIoMap
 import ..IoMapApiModule: IoMap
-import ..ReferenceModule: ConcreteReferencePath, FieldReference
+import ..ReferenceModule: ConcreteReferencePath, EmptyReferencePath, FieldReference, RangeReference
 import ..ReferenceBuilderModule: var"@reference"
 import ..ReferenceCaseModule: var"@reference_case"
 import ..OperationModule: ReplaceSelectionOperation
+import ..KeyboardModule: KeyDown, KeyPress
 export PrimitiveBoolToSyntaxLeaf, PrimitiveNumberToSyntaxLeaf, PrimitiveStringToSyntaxLeaf,
        PrimitiveToSyntax
 
@@ -132,6 +134,67 @@ function projection_read(p::PrimitiveStringToSyntaxLeaf, iomap::SimpleIoMap, op:
     else
         return ReplaceSelectionOperation(ConcreteReferencePath(ProjectionReference(p, path)))
     end
+end
+
+# Extract the `.value[range]` selection on a PrimitiveString as a
+# RangeReference, or return nothing if the selection is in a different shape.
+function _string_value_range(s::PrimitiveString)
+    sel = getfield(s, :selection)[]
+    sel isa ConcreteReferencePath || return nothing
+    head = sel.head
+    (head isa FieldReference && head.name == "value") || return nothing
+    inner = sel.tail
+    inner isa ConcreteReferencePath || return nothing
+    inner.head isa RangeReference || return nothing
+    inner.head
+end
+
+# Build a `.value[range]` reference path local to the PrimitiveString. The
+# caller is responsible for prepending any outer steps; for a single
+# PrimitiveString root, this path is already the full reference.
+function _string_value_path(range::RangeReference)
+    ConcreteReferencePath(FieldReference("value"),
+        ConcreteReferencePath(range, EmptyReferencePath()))
+end
+
+# KeyPress producer: printable character insertion / range replacement.
+# The reference is local to the PrimitiveString (no outer steps); translating
+# through enclosing projections for nested PrimitiveStrings is a follow-up.
+function projection_read(p::PrimitiveStringToSyntaxLeaf, iomap::SimpleIoMap, evt::KeyPress)
+    evt.modifiers.ctrl && return nothing
+    s = iomap.input
+    range = _string_value_range(s)
+    range === nothing && return nothing
+    StringReplaceRangeOperation(_string_value_path(range), evt.text)
+end
+
+# KeyDown producer: Backspace / Delete.
+function projection_read(p::PrimitiveStringToSyntaxLeaf, iomap::SimpleIoMap, evt::KeyDown)
+    s = iomap.input
+    range = _string_value_range(s)
+    range === nothing && return nothing
+    text = something(s.value, "")
+    n = length(text)
+    new_range = if evt.key == :backspace
+        if range.start != range.stop
+            range
+        elseif range.start > 0
+            RangeReference(range.start - 1, range.start)
+        else
+            return nothing
+        end
+    elseif evt.key == :delete
+        if range.start != range.stop
+            range
+        elseif range.stop < n
+            RangeReference(range.stop, range.stop + 1)
+        else
+            return nothing
+        end
+    else
+        return nothing
+    end
+    StringReplaceRangeOperation(_string_value_path(new_range), "")
 end
 
 # ── PrimitiveToSyntax (composite) ────────────────────────────────────────────

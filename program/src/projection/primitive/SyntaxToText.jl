@@ -19,6 +19,7 @@ import ..ReferenceModule: ConcreteReferencePath, ElementReference, PositionRefer
 import ..IoMapModule: SimpleIoMap
 import ..IoMapApiModule: IoMap
 import ..OperationModule: ReplaceSelectionOperation
+import ..KeyboardModule: KeyDown
 export SyntaxLeafToText, SyntaxNodeToText, SyntaxListToText, SyntaxToText,
        SyntaxNodeToTextIoMap, _syntax_to_flat
 
@@ -86,6 +87,11 @@ function projection_read(p::SyntaxLeafToText, iomap::SimpleIoMap, op::ReplaceSel
     input_path === nothing && return nothing
     return ReplaceSelectionOperation(input_path)
 end
+
+# Pass KeyDown events through so upstream projections (e.g.
+# PrimitiveStringToSyntaxLeaf) can react to Backspace/Delete. TextToGraphics
+# returns the raw KeyDown for keys it doesn't consume.
+projection_read(::SyntaxLeafToText, iomap::SimpleIoMap, evt::KeyDown) = evt
 
 # ── SyntaxNodeToText ───────────────────────────────────────────────────
 # For nodes with non-empty open/close delimiters (like { } or [ ]):

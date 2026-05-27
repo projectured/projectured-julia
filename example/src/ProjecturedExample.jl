@@ -24,6 +24,7 @@ include(joinpath(_EXAMPLE_DIR, "document", "Lazy.jl"))
 include(joinpath(_EXAMPLE_DIR, "document", "Math.jl"))
 include(joinpath(_EXAMPLE_DIR, "document", "Julia.jl"))
 include(joinpath(_EXAMPLE_DIR, "document", "Wrapper.jl"))
+include(joinpath(_EXAMPLE_DIR, "document", "Primitive.jl"))
 
 include(joinpath(_EXAMPLE_DIR, "projection", "Json.jl"))
 include(joinpath(_EXAMPLE_DIR, "projection", "Table.jl"))
@@ -49,6 +50,7 @@ include(joinpath(_EXAMPLE_DIR, "projection", "Math.jl"))
 include(joinpath(_EXAMPLE_DIR, "projection", "Julia.jl"))
 include(joinpath(_EXAMPLE_DIR, "projection", "Wrapper.jl"))
 include(joinpath(_EXAMPLE_DIR, "projection", "Graphics.jl"))
+include(joinpath(_EXAMPLE_DIR, "projection", "Primitive.jl"))
 
 include(joinpath(_EXAMPLE_DIR, "Examples.jl"))
 
@@ -81,6 +83,7 @@ export make_lazy_bidirectional_document_example, make_lazy_bidirectional_project
 export make_math_document_example, make_math_projection_example
 export make_julia_document_example, make_julia_projection_example
 export make_graphics_image_projection_example
+export make_primitive_string_document_example, make_primitive_string_projection_example
 
 export make_graphics_caching
 export make_scrolling_document, make_scrolling_projection
@@ -95,5 +98,6 @@ export lazy_example, lazy_bidirectional_example
 export math_example
 export julia_example
 export graphics_image_example
+export primitive_string_example
 
 end

@@ -10,7 +10,8 @@ module PrimitiveModule
 import ..ReactiveModule: Cell, setfn!, setval!
 import ..DocumentModule: Document, @document
 import ..OperationApiModule: Operation, evaluate_operation
-import ..ReferenceModule: Reference
+import ..ReferenceModule: Reference, ReferencePath, ConcreteReferencePath, EmptyReferencePath,
+                          ReferenceStep, FieldReference, RangeReference, evaluate_reference
 export PrimitiveDocument, PrimitiveInsertion, PrimitiveForeign, PrimitiveBool, PrimitiveNumber, PrimitiveString,
        NumberReplaceRangeOperation, StringReplaceRangeOperation,
        evaluate_operation,
@@ -85,48 +86,97 @@ PrimitiveString(value; selection=nothing) =
 # ── Operations ────────────────────────────────────────────────────────────────
 
 """
-    NumberReplaceRangeOperation(document, start_index, end_index, replacement)
+    NumberReplaceRangeOperation(reference, replacement)
 
-Replace characters in the string representation of `document`'s number value
-from `start_index` (1-based, inclusive) to `end_index` (1-based, exclusive)
-with `replacement`, then parse the result back into a number.
+Replace characters in the string representation of a `PrimitiveNumber`'s value.
+`reference` is a `ReferencePath` rooted at the editor's document whose terminal
+step is a `RangeReference(s, e)` (0-based boundaries) and whose penultimate
+step is `FieldReference("value")`. The path up to those two steps locates the
+target `PrimitiveNumber`. After evaluation the target's `selection` is updated
+to a zero-width cursor at `s + length(replacement)`.
+
 An empty result sets the value to `nothing`.
+
+Inter-string boundary behaviour: when the cursor sits exactly on the boundary
+between two adjacent `PrimitiveString` spans, the behaviour is undefined.
 """
 struct NumberReplaceRangeOperation <: Operation
-    document::PrimitiveNumber
-    start_index::Int
-    end_index::Int
+    reference::ReferencePath
     replacement::String
 end
 
 """
-    StringReplaceRangeOperation(document, start_index, end_index, replacement)
+    StringReplaceRangeOperation(reference, replacement)
 
-Replace characters in `document`'s string value from `start_index`
-(1-based, inclusive) to `end_index` (1-based, exclusive) with `replacement`.
+Replace characters in a `PrimitiveString`'s value. `reference` is a
+`ReferencePath` rooted at the editor's document whose terminal step is a
+`RangeReference(s, e)` (0-based boundaries) and whose penultimate step is
+`FieldReference("value")`. The path up to those two steps locates the target
+`PrimitiveString`. After evaluation the target's `selection` is updated to a
+zero-width cursor at `s + length(replacement)`.
+
+Inter-string boundary behaviour: when the cursor sits exactly on the boundary
+between two adjacent `PrimitiveString` spans, the behaviour is undefined.
 """
 struct StringReplaceRangeOperation <: Operation
-    document::PrimitiveString
-    start_index::Int
-    end_index::Int
+    reference::ReferencePath
     replacement::String
 end
 
 # ── Operation evaluation ──────────────────────────────────────────────────────
 
-function evaluate_operation(op::NumberReplaceRangeOperation, _document)
-    doc = op.document
-    old_num = doc.value
-    old_str = old_num === nothing ? "" : string(old_num)
-    new_str = old_str[1:op.start_index - 1] * op.replacement * old_str[op.end_index:end]
-    doc.value = isempty(new_str) ? nothing : tryparse(Float64, new_str)
+# Split `op.reference` into (parent_path, range_step) and verify the
+# penultimate step is FieldReference("value") and the terminal step is a
+# RangeReference. Throws if the shape is wrong.
+function _split_replace_reference(path::ReferencePath)
+    steps = ReferenceStep[]
+    cur = path
+    while cur isa ConcreteReferencePath
+        push!(steps, cur.head)
+        cur = cur.tail
+    end
+    length(steps) >= 2 ||
+        error("replace-range reference must have at least .value[range] suffix, got: $path")
+    value_step = steps[end - 1]
+    range_step = steps[end]
+    (value_step isa FieldReference && value_step.name == "value") ||
+        error("replace-range reference penultimate step must be FieldReference(\"value\"), got: $value_step")
+    range_step isa RangeReference ||
+        error("replace-range reference terminal step must be a RangeReference, got: $range_step")
+    parent_path = EmptyReferencePath()
+    for i in (length(steps) - 2):-1:1
+        parent_path = ConcreteReferencePath(steps[i], parent_path)
+    end
+    (parent_path, range_step)
 end
 
-function evaluate_operation(op::StringReplaceRangeOperation, _document)
-    doc = op.document
-    old_str = something(doc.value, "")
-    new_str = old_str[1:op.start_index - 1] * op.replacement * old_str[op.end_index:end]
-    doc.value = new_str
+# Apply the replacement to `old_str` between 0-based boundaries [s, e].
+function _apply_range_replace(old_str::AbstractString, s::Int, e::Int, replacement::AbstractString)
+    old_str[1:s] * replacement * old_str[e + 1:end]
+end
+
+function _new_cursor_selection(start::Int, replacement::AbstractString)
+    new_pos = start + length(replacement)
+    ConcreteReferencePath(FieldReference("value"),
+        ConcreteReferencePath(RangeReference(new_pos, new_pos), EmptyReferencePath()))
+end
+
+function evaluate_operation(op::NumberReplaceRangeOperation, document)
+    parent_path, range_step = _split_replace_reference(op.reference)
+    target = evaluate_reference(document, parent_path)::PrimitiveNumber
+    old_num = target.value
+    old_str = old_num === nothing ? "" : string(old_num)
+    new_str = _apply_range_replace(old_str, range_step.start, range_step.stop, op.replacement)
+    target.value = isempty(new_str) ? nothing : tryparse(Float64, new_str)
+    target.selection = _new_cursor_selection(range_step.start, op.replacement)
+end
+
+function evaluate_operation(op::StringReplaceRangeOperation, document)
+    parent_path, range_step = _split_replace_reference(op.reference)
+    target = evaluate_reference(document, parent_path)::PrimitiveString
+    old_str = something(target.value, "")
+    target.value = _apply_range_replace(old_str, range_step.start, range_step.stop, op.replacement)
+    target.selection = _new_cursor_selection(range_step.start, op.replacement)
 end
 
 # ── Sequence interface for PrimitiveString ────────────────────────────────────
