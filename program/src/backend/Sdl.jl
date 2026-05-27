@@ -210,29 +210,89 @@ end
     open_window!(::SdlBackend, window::Window) -> Window
 
 Create the native SDL window/renderer and store the handle.
+`SDL_WINDOW_ALLOW_HIGHDPI` is set so that on macOS Retina and native-Wayland
+SDL (SDL_VIDEODRIVER=wayland), `SDL_GetRendererOutputSize` returns physical
+pixels and the renderer-ratio scale detection can work.
 """
 function open_window!(::SdlBackend, window::Window)
     win = SDL_CreateWindow(window.title,
         SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED,
         Int32(window.width), Int32(window.height),
-        SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE)
+        SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE | UInt32(0x00002000))  # 0x00002000 = SDL_WINDOW_ALLOW_HIGHDPI
     @assert win != C_NULL "SDL window creation failed: $(unsafe_string(SDL_GetError()))"
 
     renderer = SDL_CreateRenderer(win, -1,
         SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC)
     @assert renderer != C_NULL "SDL renderer creation failed: $(unsafe_string(SDL_GetError()))"
 
-    _update_font_scale!(win)
+    _update_font_scale!(win, renderer)
 
     window.handle = SdlWindowHandle(win, renderer, Dict{Tuple{String,Int}, Ptr{TTF_Font}}())
     window
 end
 
-# Query physical DPI of the display this window is on and set the
-# module-wide font scale. 96 DPI is the SDL/Windows logical baseline; a
-# 144 DPI screen (typical "150%" laptop panel) yields scale ≈ 1.5.
-# Falls back to 1.0 if SDL can't report DPI (some Linux/Wayland setups).
-function _update_font_scale!(win::Ptr{SDL_Window})
+# Detect the effective display scale and update the module-wide font scale.
+#
+# Detection order (first match wins):
+#
+#   1. PROJECTURED_FONT_SCALE env var — explicit override, always respected.
+#
+#   2. SDL renderer-output / window-size ratio — works on macOS Retina and
+#      native-Wayland SDL (SDL_VIDEODRIVER=wayland, SDL >= 2.0.18) when the
+#      window is created with SDL_WINDOW_ALLOW_HIGHDPI.
+#
+#   3. Xft.dpi from X resources (`xrdb -query`) — the most reliable method on
+#      X11 and XWayland: GNOME always writes `Xft.dpi = 96 × scale` into the
+#      X resource database (e.g. 144 for 150%, 120 for 125%).  Only attempted
+#      when DISPLAY is set.
+#
+#   4. SDL_GetDisplayDPI / 96 — works on Windows; on Wayland the compositor
+#      hides the physical DPI so this returns ~1.0 and is a last resort.
+#
+# Falls back to the current _FONT_SCALE (default 1.0) if nothing fires.
+function _update_font_scale!(win::Ptr{SDL_Window}, renderer::Ptr{SDL_Renderer})
+    # 1. Explicit override.
+    env_val = get(ENV, "PROJECTURED_FONT_SCALE", "")
+    if !isempty(env_val)
+        scale = tryparse(Float64, env_val)
+        if scale !== nothing && scale > 0
+            _FONT_SCALE[] = scale
+            println("Font scale: $(_FONT_SCALE[]) (PROJECTURED_FONT_SCALE)")
+            return
+        end
+    end
+
+    # 2. SDL renderer output size vs logical window size.
+    dw = Ref{Cint}(0); dh = Ref{Cint}(0)
+    ww = Ref{Cint}(0); wh = Ref{Cint}(0)
+    SDL_GetRendererOutputSize(renderer, dw, dh)
+    SDL_GetWindowSize(win, ww, wh)
+    if ww[] > 0 && dw[] > ww[]
+        _FONT_SCALE[] = Float64(dw[]) / Float64(ww[])
+        println("Font scale: $(_FONT_SCALE[]) (SDL renderer ratio)")
+        return
+    end
+
+    # 3. Xft.dpi from X resources — GNOME sets this to 96 × scale on X11 and
+    #    XWayland.  Run xrdb only when a DISPLAY is available and xrdb exists.
+    if haskey(ENV, "DISPLAY")
+        try
+            out = readchomp(pipeline(`xrdb -query`, stderr=devnull))
+            m = match(r"(?:^|\n)Xft\.dpi:\s*(\d+(?:\.\d+)?)"i, out)
+            if m !== nothing
+                xft_dpi = parse(Float64, m.captures[1])
+                if xft_dpi > 0
+                    _FONT_SCALE[] = xft_dpi / 96.0
+                    println("Font scale: $(_FONT_SCALE[]) (Xft.dpi = $xft_dpi)")
+                    return
+                end
+            end
+        catch
+            # xrdb not installed or failed — fall through.
+        end
+    end
+
+    # 4. SDL DPI fallback (Windows / some X11 setups).
     display_index = SDL_GetWindowDisplayIndex(win)
     display_index < 0 && return
     ddpi = Ref{Cfloat}(0)
@@ -240,6 +300,7 @@ function _update_font_scale!(win::Ptr{SDL_Window})
     vdpi = Ref{Cfloat}(0)
     if SDL_GetDisplayDPI(display_index, ddpi, hdpi, vdpi) == 0 && ddpi[] > 0
         _FONT_SCALE[] = Float64(ddpi[]) / 96.0
+        println("Font scale: $(_FONT_SCALE[]) (SDL DPI = $(ddpi[]))")
     end
 end
 
