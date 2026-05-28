@@ -95,6 +95,7 @@ include("projection/primitive/PrimitiveToText.jl")
 include("projection/primitive/MathToSyntax.jl")
 include("projection/primitive/JuliaToSyntax.jl")
 include("projection/primitive/CollectionToSyntax.jl")
+include("projection/primitive/ConversationToSyntax.jl")
 include("projection/primitive/ConversationToWidget.jl")
 include("projection/primitive/WorkbenchToWidget.jl")
 
@@ -286,6 +287,19 @@ using .ConversationModule: ConversationDocument, ConversationConversation,
                             ConversationTextBlock, ConversationCodeBlock,
                             ConversationHeadingBlock, ConversationListBlock,
                             ConversationToolUseBlock
+using .ConversationToSyntaxModule: ConversationToSyntax,
+                                    ConversationConversationToSyntaxNode,
+                                    ConversationUserMessageToSyntaxNode,
+                                    ConversationAssistantMessageToSyntaxNode,
+                                    ConversationToolUseMessageToSyntaxLeaf,
+                                    ConversationToolResultMessageToSyntaxNode,
+                                    ConversationJuliaInputMessageToSyntaxNode,
+                                    ConversationJuliaResultMessageToSyntaxNode,
+                                    ConversationTextBlockToSyntaxLeaf,
+                                    ConversationCodeBlockToSyntaxNode,
+                                    ConversationHeadingBlockToSyntaxLeaf,
+                                    ConversationListBlockToSyntaxNode,
+                                    ConversationToolUseBlockToSyntaxLeaf
 using .ConversationToWidgetModule: ConversationToWidget,
                                     ConversationConversationToWidgetComposite,
                                     ConversationUserMessageToWidgetComposite,
@@ -474,6 +488,19 @@ export ConversationDocument, ConversationConversation,
        ConversationTextBlock, ConversationCodeBlock,
        ConversationHeadingBlock, ConversationListBlock,
        ConversationToolUseBlock
+export ConversationToSyntax,
+       ConversationConversationToSyntaxNode,
+       ConversationUserMessageToSyntaxNode,
+       ConversationAssistantMessageToSyntaxNode,
+       ConversationToolUseMessageToSyntaxLeaf,
+       ConversationToolResultMessageToSyntaxNode,
+       ConversationJuliaInputMessageToSyntaxNode,
+       ConversationJuliaResultMessageToSyntaxNode,
+       ConversationTextBlockToSyntaxLeaf,
+       ConversationCodeBlockToSyntaxNode,
+       ConversationHeadingBlockToSyntaxLeaf,
+       ConversationListBlockToSyntaxNode,
+       ConversationToolUseBlockToSyntaxLeaf
 export ConversationToWidget,
        ConversationConversationToWidgetComposite,
        ConversationUserMessageToWidgetComposite,

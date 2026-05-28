@@ -35,6 +35,8 @@ import ..ReactiveModule: Cell
 import ..IoMapApiModule: IoMap
 import ..TypeDispatchingModule: TypeDispatchingProjection
 import ..OperationModule: ReplaceSelectionOperation
+import ..OperationApiModule: Operation
+import ..PrimitiveModule: StringReplaceRangeOperation, NumberReplaceRangeOperation
 import ..KeyboardModule: KeyDown
 import ..ReferenceModule: ReferencePath, ConcreteReferencePath, ElementReference, PositionReference, RangeReference, EmptyReferencePath, FieldReference, append_reference
 export WorkbenchWorkbenchToWidgetShell,    WorkbenchWorkbenchToWidgetShellIoMap,
@@ -377,6 +379,7 @@ end
 
 function projection_read(::WorkbenchWorkbenchToWidgetShell,
                           iomap::WorkbenchWorkbenchToWidgetShellIoMap, op)
+    # 1. Tab-selection forwarding (e.g. a click that maps to selecting a tab).
     for (field_name, page_iomap) in (("navigation_page",  iomap.navigation_page_iomap),
                                       ("editing_page",     iomap.editing_page_iomap),
                                       ("information_page", iomap.information_page_iomap))
@@ -386,7 +389,51 @@ function projection_read(::WorkbenchWorkbenchToWidgetShell,
         return ReplaceSelectionOperation(
             ConcreteReferencePath(FieldReference(field_name), result.path))
     end
-    op
+    # 2. Route raw events (e.g. KeyPress / KeyDown) into each panel reader so
+    # focus-sensitive handlers (currently only the assistant) can pick them
+    # up. The first reader that returns an Operation wins. Path-bearing
+    # operations get prefixed with the panel's location so
+    # `evaluate_operation` can walk the path against the workbench root.
+    wb2w = WorkbenchToWidget()
+    for (field_name, page_iomap) in (("navigation_page",  iomap.navigation_page_iomap),
+                                      ("editing_page",     iomap.editing_page_iomap),
+                                      ("information_page", iomap.information_page_iomap))
+        page_iomap isa WorkbenchPageToWidgetTabbedPaneIoMap || continue
+        for (elem_idx, elem_iomap) in enumerate(page_iomap.element_iomaps)
+            result = projection_read(wb2w, elem_iomap, op)
+            result isa Operation || continue
+            prefix = (FieldReference(field_name),
+                      FieldReference("elements"),
+                      RangeReference(elem_idx - 1, elem_idx))
+            return _prefix_operation(result, prefix)
+        end
+    end
+    return nothing
+end
+
+# Prepend `prefix_steps` to the path inside `op`, if the op carries a path.
+# Operations that target a captured Julia value (e.g. SubmitProseOperation
+# holds its WorkbenchAssistant directly) need no prefixing.
+function _prefix_operation(op, prefix_steps::Tuple)
+    if op isa StringReplaceRangeOperation
+        return StringReplaceRangeOperation(_prepend_path(prefix_steps, op.reference),
+                                           op.replacement)
+    elseif op isa NumberReplaceRangeOperation
+        return NumberReplaceRangeOperation(_prepend_path(prefix_steps, op.reference),
+                                           op.replacement)
+    elseif op isa ReplaceSelectionOperation
+        return ReplaceSelectionOperation(_prepend_path(prefix_steps, op.path))
+    else
+        return op
+    end
+end
+
+function _prepend_path(steps::Tuple, path::ReferencePath)
+    result = path
+    for step in reverse(steps)
+        result = ConcreteReferencePath(step, result)
+    end
+    result
 end
 
 function projection_read(::WorkbenchPageToWidgetTabbedPane,

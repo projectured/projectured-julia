@@ -64,7 +64,12 @@ function read!(editor::Editor)
     elseif editor.iomap === nothing
         editor.operation = nothing
     else
-        editor.operation = projection_read(editor.projection, editor.iomap, event)
+        # Some projection readers (e.g. workbench panels) pass unhandled
+        # events through by returning `op` unchanged, which can be a raw
+        # KeyDown/MousePress rather than an Operation. Coerce to nothing
+        # so the strict `Union{Operation, Nothing}` field accepts it.
+        result = projection_read(editor.projection, editor.iomap, event)
+        editor.operation = result isa Operation ? result : nothing
     end
 end
 
