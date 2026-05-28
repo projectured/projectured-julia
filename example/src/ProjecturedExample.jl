@@ -92,6 +92,7 @@ export make_graphics_caching
 export make_scrolling_document, make_scrolling_projection
 export make_workbench_document, make_workbench_projection
 export Example, examples, run_example, print_example, write_image_example
+export generate_screenshots, update_guide_screenshots
 export json_example, json_sorted_example, json_null_example, json_string_example
 export xml_example, mixed_example, syntax_example, text_example
 export object_example, line_numbering_example, word_wrapping_example

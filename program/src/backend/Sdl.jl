@@ -30,12 +30,12 @@ export SdlBackend, sdl_measure_text, sdl_render_canvas, write_image, GraphicsCan
 """
     SdlBackend()
 
-SDL2 + SDL_ttf backend. The font measurement cache is shared across all
-windows. An internal `pending_events` queue holds synthesised events
-(e.g. `MousePress`) scheduled to be delivered on the next poll.
+SDL2 + SDL_ttf backend. Loaded TTF fonts are cached in the module-level
+[`_font_cache`](@ref), shared across windows, measurement, and offscreen
+image rendering. An internal `pending_events` queue holds synthesised
+events (e.g. `MousePress`) scheduled to be delivered on the next poll.
 """
 mutable struct SdlBackend <: Backend
-    font_cache::Dict{Tuple{String,Int}, Ptr{Nothing}}
     # Synthesised-event queue: drained before polling SDL.
     pending_events::Vector{Any}
     # State for MousePress synthesis.
@@ -45,11 +45,12 @@ mutable struct SdlBackend <: Backend
     last_down_time::Float64
 end
 
-SdlBackend() = SdlBackend(
-    Dict{Tuple{String,Int}, Ptr{Nothing}}(),
-    Any[],
-    :none, 0, 0, 0.0,
-)
+SdlBackend() = SdlBackend(Any[], :none, 0, 0, 0.0)
+
+# Module-level TTF font cache, keyed by (filename, scaled_size).
+# Shared by window rendering, offscreen image rendering, and text measurement.
+# Populated lazily by `_get_font`; freed by `quit!`.
+const _font_cache = Dict{Tuple{String,Int}, Ptr{TTF_Font}}()
 
 # ════════════════════════════════════════════════════════════════════════
 # Modifier extraction
@@ -203,7 +204,6 @@ end
 mutable struct SdlWindowHandle
     win::Ptr{SDL_Window}
     renderer::Ptr{SDL_Renderer}
-    font_cache::Dict{Tuple{String,Int}, Ptr{TTF_Font}}
 end
 
 """
@@ -227,7 +227,7 @@ function open_window!(::SdlBackend, window::Window)
 
     _update_font_scale!(win, renderer)
 
-    window.handle = SdlWindowHandle(win, renderer, Dict{Tuple{String,Int}, Ptr{TTF_Font}}())
+    window.handle = SdlWindowHandle(win, renderer)
     window
 end
 
@@ -307,14 +307,11 @@ end
 """
     close_window!(::SdlBackend, window::Window)
 
-Destroy the native SDL window/renderer and clear the font cache.
+Destroy the native SDL window/renderer. Loaded fonts persist in the
+module-level cache until `quit!`.
 """
 function close_window!(::SdlBackend, window::Window)
     h = window.handle::SdlWindowHandle
-    for (_, f) in h.font_cache
-        TTF_CloseFont(f)
-    end
-    empty!(h.font_cache)
     SDL_DestroyRenderer(h.renderer)
     SDL_DestroyWindow(h.win)
     window.handle = nothing
@@ -322,10 +319,10 @@ end
 
 # ── Font resolution ────────────────────────────────────────────────────
 
-function _get_font(h::SdlWindowHandle, font::StyleFont)
+function _get_font(font::StyleFont)
     size = font_scaled_size(font.size)
     key = (font.filename, size)
-    get!(h.font_cache, key) do
+    get!(_font_cache, key) do
         f = TTF_OpenFont(font.filename, size)
         @assert f != C_NULL "Font load failed: $(font.filename)@$(size)"
         f
@@ -338,7 +335,7 @@ function _render_element!(h::SdlWindowHandle, elem::GraphicsText, ox::Int, oy::I
     text = elem.text::AbstractString
     isempty(text) && return
 
-    font = _get_font(h, elem.font::StyleFont)
+    font = _get_font(elem.font::StyleFont)
     color = SDL_Color(elem.r, elem.g, elem.b, elem.a)
 
     surface = TTF_RenderUTF8_Blended(font, text, color)
@@ -547,19 +544,14 @@ end
     measure_text(backend::SdlBackend, text::AbstractString, font::StyleFont) -> (Int, Int)
 
 Return `(pixel_width, pixel_height)` of `text` rendered in `font`, using SDL_ttf.
-Font handles are cached in `backend.font_cache`.
+Font handles are cached in the module-level [`_font_cache`](@ref).
 """
-function measure_text(backend::SdlBackend, text::AbstractString, font::StyleFont)
+function measure_text(::SdlBackend, text::AbstractString, font::StyleFont)
     size = font_scaled_size(font.size)
     isempty(text) && return (0, size)
-    key = (font.filename, size)
-    cached_font = get!(backend.font_cache, key) do
-        f = TTF_OpenFont(font.filename, size)
-        @assert f != C_NULL "TTF measure: font load failed: $(font.filename)@$(size)"
-        Ptr{Nothing}(f)
-    end
+    cached_font = _get_font(font)
     w_ref, h_ref = Ref{Cint}(0), Ref{Cint}(0)
-    TTF_SizeUTF8(Ptr{TTF_Font}(cached_font), String(text), w_ref, h_ref)
+    TTF_SizeUTF8(cached_font, String(text), w_ref, h_ref)
     return (Int(w_ref[]), Int(h_ref[]))
 end
 
@@ -600,20 +592,21 @@ end
 """
     write_image(canvas::GraphicsCanvas, filename::AbstractString;
                 width::Integer = 800, height::Integer = 600,
-                background::NTuple{4,UInt8} = (0x00, 0x00, 0x00, 0xff)) -> ImageFile
+                background::NTuple{4,UInt8} = (0xfd, 0xf6, 0xe3, 0xff)) -> ImageFile
 
 Low-level overload. Render `canvas` to an offscreen SDL2 software renderer and
-save the result to `filename` (BMP format). Returns an `ImageFile` document.
+save the result to `filename`. Returns an `ImageFile` document.
 No window is required; SDL2 + SDL_ttf are initialized lazily.
 
-Supported extensions: `.bmp` (case-insensitive).
+Supported extensions (case-insensitive): `.bmp` (via `SDL_SaveBMP_RW`) and
+`.png` (via `IMG_SavePNG` from SDL2_image).
 
 Most callers should use `write_image(document, projection, filename)` instead.
 """
 function write_image(canvas::GraphicsCanvas, filename::AbstractString;
                      width::Integer = 800,
                      height::Integer = 600,
-                     background::NTuple{4,UInt8} = (0x00, 0x00, 0x00, 0xff))
+                     background::NTuple{4,UInt8} = (0xfd, 0xf6, 0xe3, 0xff))
     SDL_Init(SDL_INIT_VIDEO)
     TTF_Init()
 
@@ -625,7 +618,7 @@ function write_image(canvas::GraphicsCanvas, filename::AbstractString;
     renderer = SDL_CreateSoftwareRenderer(surface)
     @assert renderer != C_NULL "SDL software renderer creation failed: $(unsafe_string(SDL_GetError()))"
 
-    h = SdlWindowHandle(C_NULL, renderer, Dict{Tuple{String,Int}, Ptr{TTF_Font}}())
+    h = SdlWindowHandle(C_NULL, renderer)
     r, g, b, a = background
     SDL_SetRenderDrawColor(renderer, r, g, b, a)
     SDL_RenderClear(renderer)
@@ -637,15 +630,19 @@ function write_image(canvas::GraphicsCanvas, filename::AbstractString;
         rw = SDL_RWFromFile(filename, "wb")
         @assert rw != C_NULL "Failed to open output file: $filename"
         SDL_SaveBMP_RW(surface, rw, Int32(1))   # freedst=1 — SDL closes the RW handle
+    elseif ext == ".png"
+        if IMG_SavePNG(surface, filename) != 0
+            err = unsafe_string(SDL_GetError())
+            SDL_DestroyRenderer(renderer)
+            SDL_FreeSurface(surface)
+            error("write_image: IMG_SavePNG failed for $filename: $err")
+        end
     else
         SDL_DestroyRenderer(renderer)
         SDL_FreeSurface(surface)
-        error("write_image: unsupported format \"$ext\" (only .bmp is supported)")
+        error("write_image: unsupported format \"$ext\" (only .bmp and .png are supported)")
     end
 
-    for (_, font) in h.font_cache
-        TTF_CloseFont(font)
-    end
     SDL_DestroyRenderer(renderer)
     SDL_FreeSurface(surface)
 
@@ -655,7 +652,7 @@ end
 """
     write_image(document, projection, filename::AbstractString;
                 width::Integer = 800, height::Integer = 600,
-                background::NTuple{4,UInt8} = (0x00, 0x00, 0x00, 0xff)) -> ImageFile
+                background::NTuple{4,UInt8} = (0xfd, 0xf6, 0xe3, 0xff)) -> ImageFile
 
 Run `projection_print(projection, document)` to obtain a `GraphicsCanvas`,
 then render it offscreen and save to `filename` (BMP). The projection is
@@ -676,7 +673,7 @@ Throws if the projection output is not a `GraphicsCanvas`.
 function write_image(document, projection, filename::AbstractString;
                      width::Integer = 800,
                      height::Integer = 600,
-                     background::NTuple{4,UInt8} = (0x00, 0x00, 0x00, 0xff))
+                     background::NTuple{4,UInt8} = (0xfd, 0xf6, 0xe3, 0xff))
     iomap = projection_print(projection, document)
     canvas = iomap.output
     canvas isa GraphicsCanvas ||
@@ -686,7 +683,7 @@ end
 
 """
     GraphicsCanvasToImageFile(filename; width=800, height=600,
-                               background=(0x00,0x00,0x00,0xff))
+                               background=(0xfd,0xf6,0xe3,0xff))
 
 Printer-only projection. On `projection_print` it renders the input
 `GraphicsCanvas` offscreen and saves to `filename` (BMP). The `output` field
@@ -713,7 +710,7 @@ end
 function GraphicsCanvasToImageFile(filename::AbstractString;
                                     width::Integer = 800,
                                     height::Integer = 600,
-                                    background = (0x00, 0x00, 0x00, 0xff))
+                                    background = (0xfd, 0xf6, 0xe3, 0xff))
     GraphicsCanvasToImageFile(String(filename), Int(width), Int(height),
                                NTuple{4,UInt8}(background))
 end
@@ -743,12 +740,12 @@ function init!(::SdlBackend)
     SDL_StartTextInput()   # enable SDL_TEXTINPUT events (explicit for portability)
 end
 
-function quit!(backend::SdlBackend)
+function quit!(::SdlBackend)
     SDL_StopTextInput()
-    for font in values(backend.font_cache)
-        TTF_CloseFont(Ptr{TTF_Font}(font))
+    for font in values(_font_cache)
+        TTF_CloseFont(font)
     end
-    empty!(backend.font_cache)
+    empty!(_font_cache)
     TTF_Quit()
     SDL_Quit()
 end

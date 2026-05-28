@@ -107,3 +107,146 @@ function write_image_example(name="json", filename=tempname()*".bmp"; kwargs...)
     write_image_example(examples[idx], filename; kwargs...)
 end
 
+"""
+    generate_screenshots(; width=960, height=640,
+                          image_dir=joinpath(@__DIR__, "..", "..", "image", "example"))
+
+Generate a PNG screenshot for every example in `examples` into `image_dir`.
+Filename pattern: `{example-name-with-hyphens}.png`. One failure does not
+abort the batch.
+"""
+function generate_screenshots(; width=960, height=640,
+                              image_dir=joinpath(@__DIR__, "..", "..", "image", "example"))
+    mkpath(image_dir)
+    for ex in examples
+        safe_name = replace(ex.name, "_" => "-")
+        png = joinpath(image_dir, "$safe_name.png")
+        @info "Generating $(ex.name)..."
+        try
+            write_image_example(ex, png; width=width, height=height)
+            @info "  ✓ $png"
+        catch e
+            @warn "  ✗ $(ex.name): $e"
+        end
+    end
+end
+
+"""
+    update_guide_screenshots(; repo_root=joinpath(@__DIR__, "..", ".."))
+
+Inject `![...](...)` image references into the guide files and `README.md`.
+Idempotent: re-running produces no changes once images are in place.
+"""
+function update_guide_screenshots(; repo_root=joinpath(@__DIR__, "..", ".."))
+    _update_examples_tour(joinpath(repo_root, "guide", "examples-tour.md"))
+    _update_domain_guides(joinpath(repo_root, "guide", "document"))
+    _update_readme(joinpath(repo_root, "README.md"))
+end
+
+const _TOUR_HEADER_RE = r"^## \d+\. .*`run_example\(\"(\w+)\"\)`"
+
+function _example_title(name::AbstractString)
+    titlecase(replace(name, "_" => " "))
+end
+
+function _update_examples_tour(path::AbstractString)
+    isfile(path) || (@warn "Missing $path"; return)
+    lines = readlines(path; keep=false)
+    out = String[]
+    i = 1
+    while i <= length(lines)
+        line = lines[i]
+        push!(out, line)
+        m = match(_TOUR_HEADER_RE, line)
+        if m !== nothing
+            name = m.captures[1]
+            safe_name = replace(name, "_" => "-")
+            img_line = "![$(_example_title(name)) example](../image/example/$safe_name.png)"
+            j = i + 1
+            while j <= length(lines) && isempty(strip(lines[j]))
+                push!(out, lines[j])
+                j += 1
+            end
+            already_present = j <= length(lines) && startswith(strip(lines[j]), "![")
+            if !already_present
+                push!(out, img_line)
+                push!(out, "")
+            end
+            i = j
+            continue
+        end
+        i += 1
+    end
+    new_text = join(out, "\n") * "\n"
+    new_text = replace(new_text,
+        "Screenshots are in [image/](../image/)." =>
+        "Screenshots for each example are embedded inline below.")
+    if read(path, String) != new_text
+        write(path, new_text)
+    end
+end
+
+const _DOMAIN_GUIDE_EXAMPLE = Dict(
+    "json.md"       => "json",
+    "xml.md"        => "xml",
+    "text.md"       => "text",
+    "syntax.md"     => "syntax",
+    "graphics.md"   => "graphics_image",
+    "widget.md"     => "widget",
+    "workbench.md"  => "workbench",
+    "collection.md" => "collection",
+)
+
+function _update_domain_guides(dir::AbstractString)
+    isdir(dir) || (@warn "Missing $dir"; return)
+    for (filename, example_name) in _DOMAIN_GUIDE_EXAMPLE
+        path = joinpath(dir, filename)
+        isfile(path) || continue
+        lines = readlines(path; keep=false)
+        if any(l -> occursin("![", l), lines[1:min(end, 15)])
+            continue
+        end
+        heading_idx = findfirst(l -> startswith(l, "# "), lines)
+        heading_idx === nothing && continue
+        blank_idx = findnext(l -> isempty(strip(l)), lines, heading_idx + 1)
+        insert_after = blank_idx === nothing ? heading_idx : blank_idx
+        safe_name = replace(example_name, "_" => "-")
+        img_line = "![$(_example_title(example_name)) example](../../image/example/$safe_name.png)"
+        new_lines = vcat(
+            lines[1:insert_after],
+            [img_line, ""],
+            lines[insert_after+1:end],
+        )
+        new_text = join(new_lines, "\n") * "\n"
+        if read(path, String) != new_text
+            write(path, new_text)
+        end
+    end
+end
+
+const _README_SCREENSHOTS_BLOCK = """
+## Screenshots
+
+| JSON editor | Widget forms | Table view |
+|---|---|---|
+| ![JSON example](image/example/json.png) | ![Widget example](image/example/widget.png) | ![Table example](image/example/table.png) |
+
+| Syntax tree | Julia AST | Workbench |
+|---|---|---|
+| ![Syntax example](image/example/syntax.png) | ![Julia AST example](image/example/julia.png) | ![Workbench example](image/example/workbench.png) |
+"""
+
+function _update_readme(path::AbstractString)
+    isfile(path) || (@warn "Missing $path"; return)
+    text = read(path, String)
+    block_re = r"## Screenshots\n(?:.*\n)*?(?=\n## )"
+    new_text = if occursin(block_re, text)
+        replace(text, block_re => _README_SCREENSHOTS_BLOCK)
+    else
+        text
+    end
+    if new_text != text
+        write(path, new_text)
+    end
+end
+
