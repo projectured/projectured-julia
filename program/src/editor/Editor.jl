@@ -82,13 +82,6 @@ when it is non-nothing.
 function evaluate!(editor::Editor)
     editor.operation !== nothing && println("\r\e[K[operation] $(editor.operation)")
     evaluate_operation(editor.operation, editor.document)
-    # Structural changes (e.g. appending to a CellVector that backs a widget
-    # composite) don't propagate through the cached graphics tree on their
-    # own, because `WidgetCompositeToGraphicsCanvas` eagerly iterates
-    # `w.elements` at projection_print time. Invalidate the cached iomap
-    # after every non-nothing operation so `print!` re-projects on the next
-    # frame; cell-level reactivity then handles all value changes.
-    editor.operation === nothing || (editor.iomap = nothing)
 end
 
 """

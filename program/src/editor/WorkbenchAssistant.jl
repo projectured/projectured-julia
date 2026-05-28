@@ -294,15 +294,11 @@ function build_messages(conversation::ConversationConversation)
                 "content" => _assistant_content(m),
             ))
         elseif m isa ConversationToolUseMessage
-            # tool_use is folded into the preceding assistant message; if not
-            # already folded, append as a standalone assistant tool_use.
-            push!(out, Dict(
-                "role" => "assistant",
-                "content" => Any[Dict("type"  => "tool_use",
-                                       "id"    => m.id,
-                                       "name"  => m.name,
-                                       "input" => m.input)],
-            ))
+            # Skip: the tool_use block is already present in the preceding
+            # ConversationAssistantMessage's blocks (emitted by _assistant_content).
+            # This standalone message exists only so the UI can render the
+            # call's :running/:done status — sending it to Anthropic would
+            # duplicate the tool_use id and trigger a 400.
         elseif m isa ConversationToolResultMessage
             push!(out, Dict(
                 "role" => "user",

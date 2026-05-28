@@ -30,7 +30,36 @@ using Projectured: PrimitiveDocument, PrimitiveToSyntax, SyntaxToText,
                    TextToGraphics, ConversationToWidget, WorkbenchToWidget
 using Projectured: ConcreteReferencePath, FieldReference, RangeReference,
                    EmptyReferencePath
-using Projectured.WorkbenchAssistantModule: _text_to_string
+using Projectured: LlmBackend, FakeLlm
+using Projectured.McpModule: register_default_tools_and_resources!
+using Projectured.WorkbenchAssistantModule: _text_to_string, _run_agent_loop!
+import Projectured.LlmModule: stream_turn
+
+# A multi-turn scripted backend: each call to `stream_turn` consumes the
+# next vector of SSE events from `scripts`. Useful for testing tool-use
+# round-trips where turn N requests a tool and turn N+1 (after the agent
+# loop dispatches the tool and appends a result) emits the final reply.
+mutable struct ScriptedLlm <: LlmBackend
+    scripts::Vector{Vector{NamedTuple}}
+    cursor::Int
+end
+ScriptedLlm(scripts) = ScriptedLlm([Vector{NamedTuple}(s) for s in scripts], 0)
+
+function stream_turn(b::ScriptedLlm,
+                     _api_key::AbstractString,
+                     _model::AbstractString,
+                     _system::AbstractString,
+                     _messages::AbstractVector,
+                     _tools::AbstractVector;
+                     on_event::Function)
+    b.cursor += 1
+    b.cursor > length(b.scripts) &&
+        error("ScriptedLlm: exhausted at turn $(b.cursor) (have $(length(b.scripts)))")
+    for ev in b.scripts[b.cursor]
+        on_event(ev)
+    end
+    nothing
+end
 
 # ── Test fixture ────────────────────────────────────────────────────────
 
@@ -190,5 +219,109 @@ function test_assistant_mvp()
         _mvp_test_reactive_thunk()
         _mvp_test_scenes()
         _mvp_test_fake_llm_dispatch()
+        _mvp_test_tool_use_roundtrip()
+    end
+end
+
+# ── Tool-use round-trip ────────────────────────────────────────────────
+#
+# Exercises the full agent loop:
+#   turn 1: LLM requests `execute_julia_code({"code":"1+1"})`
+#       → agent loop dispatches via ToolRegistry → tool returns "2\n"
+#       → ConversationToolUseMessage + ConversationToolResultMessage appended
+#   turn 2: LLM emits a final text reply
+#       → ConversationAssistantMessage with a text block appended
+
+function _tool_use_script(tool_id::AbstractString, tool_name::AbstractString,
+                          input_json::AbstractString)
+    NamedTuple[
+        (type = :message_start, data = Dict{Symbol,Any}()),
+        (type = :content_block_start,
+         data = Dict{Symbol,Any}(:content_block =>
+                                  Dict{Symbol,Any}(:type => "tool_use",
+                                                    :id   => String(tool_id),
+                                                    :name => String(tool_name)))),
+        (type = :content_block_delta,
+         data = Dict{Symbol,Any}(:delta =>
+                                  Dict{Symbol,Any}(:type         => "input_json_delta",
+                                                    :partial_json => String(input_json)))),
+        (type = :content_block_stop, data = Dict{Symbol,Any}()),
+        (type = :message_delta,
+         data = Dict{Symbol,Any}(:delta =>
+                                  Dict{Symbol,Any}(:stop_reason => "tool_use"))),
+        (type = :message_stop, data = Dict{Symbol,Any}()),
+    ]
+end
+
+function _final_text_script(text::AbstractString)
+    NamedTuple[
+        (type = :message_start, data = Dict{Symbol,Any}()),
+        (type = :content_block_start,
+         data = Dict{Symbol,Any}(:content_block =>
+                                  Dict{Symbol,Any}(:type => "text"))),
+        (type = :content_block_delta,
+         data = Dict{Symbol,Any}(:delta =>
+                                  Dict{Symbol,Any}(:type => "text_delta",
+                                                    :text => String(text)))),
+        (type = :content_block_stop, data = Dict{Symbol,Any}()),
+        (type = :message_delta,
+         data = Dict{Symbol,Any}(:delta =>
+                                  Dict{Symbol,Any}(:stop_reason => "end_turn"))),
+        (type = :message_stop, data = Dict{Symbol,Any}()),
+    ]
+end
+
+function _mvp_test_tool_use_roundtrip()
+    @testset "Tool-use round-trip via ScriptedLlm" begin
+        # Make sure execute_julia_code is registered.
+        register_default_tools_and_resources!()
+
+        llm = ScriptedLlm([
+            _tool_use_script("tu_1", "execute_julia_code",
+                             """{"code":"1+1"}"""),
+            _final_text_script("Done."),
+        ])
+        a = WorkbenchAssistant(; llm = llm)
+        push!(a.conversation, ConversationUserMessage("compute 1+1"))
+
+        # Drive the agent loop synchronously (no @async) so we can assert
+        # the post-state immediately.
+        _run_agent_loop!(a)
+
+        msgs = a.conversation.messages
+        # Expected sequence:
+        #   1. user message ("compute 1+1")
+        #   2. assistant message with one ConversationToolUseBlock
+        #   3. ConversationToolUseMessage   (recording the dispatch)
+        #   4. ConversationToolResultMessage(content="2\n…")
+        #   5. assistant message with one ConversationTextBlock("Done.")
+        @test length(msgs) == 5
+
+        @test msgs[1] isa ConversationUserMessage
+        @test _text_to_string(msgs[1].text) == "compute 1+1"
+
+        @test msgs[2] isa ConversationAssistantMessage
+        @test length(msgs[2].blocks) == 1
+        tu_block = msgs[2].blocks[1]
+        @test tu_block isa ConversationToolUseBlock
+        @test tu_block.name == "execute_julia_code"
+        @test tu_block.id   == "tu_1"
+        # The agent loop parsed the input JSON delta into a Dict.
+        @test tu_block.input isa AbstractDict
+        @test get(tu_block.input, "code", nothing) == "1+1"
+
+        @test msgs[3] isa ConversationToolUseMessage
+        @test msgs[3].name == "execute_julia_code"
+
+        @test msgs[4] isa ConversationToolResultMessage
+        @test msgs[4].tool_use_id == "tu_1"
+        # The real `execute_julia_code` tool ran — `1+1` repr is "2".
+        @test occursin("2", _text_to_string(msgs[4].content))
+        @test msgs[4].is_error == false
+
+        @test msgs[5] isa ConversationAssistantMessage
+        @test length(msgs[5].blocks) == 1
+        @test msgs[5].blocks[1] isa ConversationTextBlock
+        @test _text_to_string(msgs[5].blocks[1].text) == "Done."
     end
 end

@@ -203,14 +203,14 @@ function projection_print(::WorkbenchAssistantToWidgetScrollPane,
     # Primitive→Syntax→Text→Graphics chain. This is also what makes the
     # `PrimitiveStringToSyntaxLeaf` reader receive `KeyPress` events.
     conv_pane  = WidgetScrollPane(a.conversation;
-                                  size=Point2D(1000, 400),
+                                  size=Point2D(1600, 1600),
                                   padding=_PAD5, padding_color=_WHITE)
     input_pane = WidgetScrollPane(a.input;
-                                  size=Point2D(1000, 200),
+                                  size=Point2D(1600, 200),
                                   padding=_PAD5, padding_color=_WHITE)
     column = WidgetSplitPane(:vertical,
                              WidgetDocument[conv_pane, input_pane];
-                             sizes=[800, 200])
+                             sizes=[1600, 200])
     SimpleIoMap(nothing, a, column)
 end
 
@@ -483,10 +483,13 @@ end
 
 function projection_read(::WorkbenchAssistantToWidgetScrollPane,
                           iomap, op)
-    # Return nothing for unhandled events so the Sequential walker keeps
-    # searching. The specific KeyPress/KeyDown methods live in
+    # Operations produced by an inner reader (e.g. ScrollWidgetOperation
+    # from the conversation scroll pane) pass through unchanged.
+    # Unhandled raw events return `nothing` so the Sequential walker
+    # keeps searching. The specific KeyPress / KeyDown handlers live in
     # `WorkbenchAssistantModule` (loaded later in the include chain) and
     # take precedence via multiple dispatch.
+    op isa Operation && return op
     nothing
 end
 

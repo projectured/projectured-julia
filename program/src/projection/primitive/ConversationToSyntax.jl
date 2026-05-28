@@ -153,9 +153,15 @@ end
 
 function projection_print(p::ConversationToolUseMessageToSyntaxLeaf,
                           m::ConversationToolUseMessage, recursion, reference)
-    leaf = SyntaxLeaf(_ts("[tool_use ", _FONT_IT, _DIM_COL),
-                      _ts("]", _FONT_IT, _DIM_COL),
-                      _ts(() -> string(m.name, " ", m.status), _FONT_IT, _DIM_COL))
+    # The same tool call already renders in the preceding assistant message's
+    # blocks (via ConversationToolUseBlockToSyntaxLeaf). This standalone
+    # message only carries live status — show it while the call is in flight,
+    # render empty once done so the conversation stays clean.
+    leaf = SyntaxLeaf(_empty_ts(), _empty_ts(),
+                      _ts(() -> m.status === :done ? "" :
+                                m.status === :running ? "  (running…)" :
+                                string("  (", m.status, ")"),
+                          _FONT_IT, _DIM_COL))
     SimpleIoMap(p, m, leaf)
 end
 
@@ -163,10 +169,10 @@ function projection_print(p::ConversationToolResultMessageToSyntaxNode,
                           m::ConversationToolResultMessage, recursion, reference)
     color = m.is_error ? _ERR_COL : _DIM_COL
     body_leaf = SyntaxLeaf(_empty_ts(), _empty_ts(),
-                           _ts(() -> _text_to_string(m.content), _FONT_IT, color))
+                           _ts(() -> _text_to_string(m.content), _FONT, color))
     children = CellVector(SyntaxDocument[body_leaf])
-    label = m.is_error ? "[tool_error] " : "[tool_result] "
-    node = SyntaxNode(_ts(label, _FONT_IT, color),
+    label = m.is_error ? "! " : "= "
+    node = SyntaxNode(_ts(label, _FONT_BOLD, color),
                       _empty_ts(), _empty_ts(),
                       children, 0, Cell(false), Cell(nothing))
     SimpleIoMap(p, m, node)
@@ -260,12 +266,49 @@ end
 
 function projection_print(p::ConversationToolUseBlockToSyntaxLeaf,
                           b::ConversationToolUseBlock, recursion, reference)
-    # Tool-use block name/id are immutable after the SSE
-    # `content_block_start`, so no thunk needed.
-    leaf = SyntaxLeaf(_ts("[tool_use ", _FONT_IT, _DIM_COL),
-                      _ts("]", _FONT_IT, _DIM_COL),
-                      _ts(string(b.name, " ", b.id), _FONT_IT, _DIM_COL))
+    # For `execute_julia_code` tool calls, render the code with the same
+    # "> <code>" prefix and green color the manual ALT+ENTER variant uses
+    # (ConversationJuliaInputMessage). This makes AI-initiated and manual
+    # Julia evals look the same in the conversation, paired with the
+    # "= <result>" line the tool result message produces.
+    if b.name == "execute_julia_code"
+        body_leaf = SyntaxLeaf(_empty_ts(), _empty_ts(),
+                               _ts(() -> begin
+                                       input = b.input
+                                       input isa AbstractDict && haskey(input, "code") ?
+                                           String(input["code"]) : ""
+                                   end,
+                                   _FONT, _CODE_COL))
+        children = CellVector(SyntaxDocument[body_leaf])
+        node = SyntaxNode(_ts("> ", _FONT_BOLD, _LABEL_COL),
+                          _empty_ts(), _empty_ts(),
+                          children, 0, Cell(false), Cell(nothing))
+        return SimpleIoMap(p, b, node)
+    end
+
+    # Other tools: surface the call inline, dropping the opaque tool_use id.
+    leaf = SyntaxLeaf(_ts("tool: ", _FONT_BOLD, _LABEL_COL),
+                      _empty_ts(),
+                      _ts(() -> string(b.name, "  ", _format_tool_input(b.name, b.input)),
+                          _FONT_IT, _DIM_COL))
     SimpleIoMap(p, b, leaf)
+end
+
+# Format a tool's input for inline display. Surfaces the salient argument
+# for tools we know about; otherwise prints a compact summary of the dict.
+function _format_tool_input(name::AbstractString, input)
+    input isa AbstractDict || return string(input)
+    if name == "execute_julia_code" && haskey(input, "code")
+        return String(input["code"])
+    elseif name == "read_resource" && haskey(input, "uri")
+        return String(input["uri"])
+    else
+        parts = String[]
+        for (k, v) in input
+            push!(parts, string(k, "=", v))
+        end
+        return join(parts, " ")
+    end
 end
 
 # ── Reference mapping (v1: not yet wired) ──────────────────────────────────
