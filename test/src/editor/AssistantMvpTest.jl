@@ -55,14 +55,28 @@ function _workbench_chain()
     RecursiveProjection(WorkbenchToWidget())
 end
 
-function make_assistant_mvp_setup()
-    a = WorkbenchAssistant()
+function make_assistant_mvp_setup(; reply::AbstractString = "Yes, sir!")
+    # Use FakeLlm so the agent loop runs without network and produces a
+    # deterministic reply.
+    a = WorkbenchAssistant(; llm = FakeLlm(reply))
     # Pre-seed selection so PrimitiveStringToSyntaxLeaf has a cursor to
     # work with on the first KeyPress.
     a.input.selection = ConcreteReferencePath(
         FieldReference("value"),
         ConcreteReferencePath(RangeReference(0, 0), EmptyReferencePath()))
     a
+end
+
+# After SubmitProseOperation launches `_run_agent_loop!` on an @async task,
+# spin until status returns to `:idle` (or until the deadline). Tests must
+# observe the post-stream state.
+function _mvp_wait_idle!(a::WorkbenchAssistant; timeout_seconds::Real = 2.0)
+    deadline = time() + timeout_seconds
+    while a.status === :streaming && time() < deadline
+        yield()
+        sleep(0.005)
+    end
+    a.status
 end
 
 # Type a string into the assistant input by feeding KeyPress events
@@ -124,9 +138,10 @@ function _mvp_test_scenes()
         @test a.input.value == "Hello"
         @test length(a.conversation) == 0
 
-        # Scene 2: Enter
+        # Scene 2: Enter — kicks off async _run_agent_loop! via FakeLlm
         op = _mvp_enter!(a)
         @test op isa SubmitProseOperation
+        @test _mvp_wait_idle!(a) === :idle
         @test length(a.conversation) == 2
         user_msg  = a.conversation.messages[1]
         reply_msg = a.conversation.messages[2]
@@ -136,7 +151,6 @@ function _mvp_test_scenes()
         @test length(reply_msg.blocks) == 1
         @test _text_to_string(reply_msg.blocks[1].text) == "Yes, sir!"
         @test a.input.value == ""
-        @test a.status === :idle
 
         # Scene 3: type "What?"
         _mvp_type!(a, "What?")
@@ -144,10 +158,24 @@ function _mvp_test_scenes()
 
         # Scene 4: Enter again
         _mvp_enter!(a)
+        @test _mvp_wait_idle!(a) === :idle
         @test length(a.conversation) == 4
         @test _text_to_string(a.conversation.messages[3].text) == "What?"
         @test _text_to_string(a.conversation.messages[4].blocks[1].text) == "Yes, sir!"
         @test a.input.value == ""
+    end
+end
+
+# Verify the FakeLlm backend can be swapped to produce a different canned
+# reply — proves the LlmBackend dispatch actually routes through.
+function _mvp_test_fake_llm_dispatch()
+    @testset "FakeLlm dispatch" begin
+        a = make_assistant_mvp_setup(; reply = "hi there")
+        _mvp_type!(a, "ping")
+        _mvp_enter!(a)
+        @test _mvp_wait_idle!(a) === :idle
+        @test length(a.conversation) == 2
+        @test _text_to_string(a.conversation.messages[end].blocks[end].text) == "hi there"
     end
 end
 
@@ -161,5 +189,6 @@ function test_assistant_mvp()
     @testset "Assistant MVP" begin
         _mvp_test_reactive_thunk()
         _mvp_test_scenes()
+        _mvp_test_fake_llm_dispatch()
     end
 end

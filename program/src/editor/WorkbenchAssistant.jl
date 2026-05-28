@@ -49,6 +49,7 @@ import ..ToolRegistryModule: list_tools, list_resources, call_tool, read_resourc
 import ..KeyboardModule: KeyPress
 import ..PrimitiveModule: StringReplaceRangeOperation
 import ..AnthropicModule: stream_message
+import ..LlmModule: LlmBackend, stream_turn
 import ..McpModule: execute_julia_code, register_default_tools_and_resources!
 
 using Markdown
@@ -174,14 +175,26 @@ function evaluate_operation(op::SubmitProseOperation, _document)
 
     push!(a.conversation, ConversationUserMessage(text))
     _set_input!(a, "")
+    a.status = :streaming
 
-    # ── MVP stub: canned reply, synchronous, no network. ─────────────────
-    # Swap this block for the real wiring (`a.status = :streaming` + an
-    # @async call to `_run_agent_loop!(a)`) once streaming is ready.
-    reply = ConversationAssistantMessage(stop_reason = :end_turn)
-    push!(reply, ConversationTextBlock("Yes, sir!"))
-    push!(a.conversation, reply)
-    a.status = :idle
+    # The agent loop dispatches through `a.llm::LlmBackend` — `FakeLlm`
+    # synthesises events in-process for tests / offline use; `AnthropicLlm`
+    # streams from Claude. The same `_handle_sse_event!` consumes both.
+    @async begin
+        try
+            _run_agent_loop!(a)
+        catch e
+            a.status = :error
+            err = sprint(showerror, e, catch_backtrace())
+            # Also dump to stderr so it's visible regardless of how the
+            # in-editor scroll pane sizes the result message.
+            @error "Assistant turn failed" exception = (e, catch_backtrace())
+            push!(a.conversation,
+                  ConversationToolResultMessage("error", err; is_error = true))
+        finally
+            a.status === :streaming && (a.status = :idle)
+        end
+    end
     nothing
 end
 
@@ -357,8 +370,9 @@ end
 # ═══════════════════════════════════════════════════════════════════════
 
 function _run_agent_loop!(a::WorkbenchAssistant)
-    isempty(a.api_key) && error("ANTHROPIC_API_KEY is not set")
-
+    # `AnthropicLlm.stream_turn` errors with a clear HTTP message if the
+    # API key is empty. `FakeLlm` doesn't need one. So leave validation
+    # to the backend.
     register_default_tools_and_resources!()
     tools = assistant_tool_schemas()
 
@@ -382,8 +396,8 @@ function _run_agent_loop!(a::WorkbenchAssistant)
             :stop_reason      => :end_turn,
         )
 
-        stream_message(a.api_key, a.model, a.system, msgs, tools;
-                       on_event = ev -> _handle_sse_event!(ev, a, assistant_msg, state))
+        stream_turn(a.llm, a.api_key, a.model, a.system, msgs, tools;
+                    on_event = ev -> _handle_sse_event!(ev, a, assistant_msg, state))
 
         assistant_msg.stop_reason = state[:stop_reason]
 

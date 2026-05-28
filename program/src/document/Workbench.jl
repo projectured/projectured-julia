@@ -15,6 +15,7 @@ import ..CollectionModule: CellVector
 import ..TextModule: TextText
 import ..PrimitiveModule: PrimitiveString
 import ..ConversationModule: ConversationConversation
+import ..LlmModule: LlmBackend, FakeLlm, AnthropicLlm
 import ..ReferenceModule: Reference, ReferencePath
 export WorkbenchDocument, WorkbenchInsertion, WorkbenchForeign,
        WorkbenchWorkbench, WorkbenchPage,
@@ -268,14 +269,18 @@ const DEFAULT_ASSISTANT_SYSTEM = "You are Claude running inside the ProjecturEd 
                                   "5. resource://guide/editor/selection"
 
 """
-    WorkbenchAssistant(; conversation, input, model, system, api_key, status)
+    WorkbenchAssistant(; conversation, input, model, system, api_key, status, llm)
 
 The assistant panel. Holds the full chat history (`conversation`), the
 editable prompt (`input`, a `PrimitiveString` so the existing text-edit
 projections route `KeyPress`/backspace/delete to it directly), the
 Anthropic model id (`model`), the system prompt (`system`), the Anthropic
-API key (`api_key`), and a `status` symbol (`:idle`, `:streaming`,
-`:error`, ...).
+API key (`api_key`), a `status` symbol (`:idle`, `:streaming`, `:error`,
+...), and a pluggable `llm::LlmBackend` that decides how submit turns are
+serviced (real Claude vs. a canned-reply fake).
+
+The default `llm` is `AnthropicLlm()` when `ANTHROPIC_API_KEY` is set,
+`FakeLlm()` otherwise — so `run_example(assistant_example)` works offline.
 """
 @document struct WorkbenchAssistant <: WorkbenchDocument
     conversation::ConversationConversation
@@ -284,6 +289,7 @@ API key (`api_key`), and a `status` symbol (`:idle`, `:streaming`,
     system::String
     api_key::String
     status::Symbol
+    llm::LlmBackend
     selection::Reference
 end
 
@@ -292,10 +298,12 @@ function WorkbenchAssistant(; conversation::ConversationConversation = Conversat
                               model::AbstractString = DEFAULT_ASSISTANT_MODEL,
                               system::AbstractString = DEFAULT_ASSISTANT_SYSTEM,
                               api_key::AbstractString = get(ENV, "ANTHROPIC_API_KEY", ""),
-                              status::Symbol = :idle)
+                              status::Symbol = :idle,
+                              llm::LlmBackend = isempty(api_key) ? FakeLlm() : AnthropicLlm())
     WorkbenchAssistant(Cell(conversation), Cell(input),
                        Cell(String(model)), Cell(String(system)),
                        Cell(String(api_key)), Cell(status),
+                       Cell(llm),
                        Cell(nothing))
 end
 

@@ -87,6 +87,12 @@ const _DIM_COL    = color_solarized_gray
 
 _ts(s::AbstractString) = TextString(String(s), _FONT, _TEXT_COL)
 _ts(s::AbstractString, font, color) = TextString(String(s), font, color)
+# Thunked variants: the leaf re-reads the closure each frame, registering
+# a dependency on whatever cells it touches. Use these for text whose
+# content changes after `projection_print` (e.g. streaming SSE deltas
+# that mutate a `ConversationTextBlock.text` in place).
+_ts(f::Function) = TextString(f, _FONT, _TEXT_COL)
+_ts(f::Function, font, color) = TextString(f, font, color)
 _empty_ts() = TextString("", _FONT, _TEXT_COL)
 
 # Flatten a TextText into a single rendered string (concatenates span content).
@@ -119,7 +125,7 @@ end
 function projection_print(p::ConversationUserMessageToSyntaxNode,
                           m::ConversationUserMessage, recursion, reference)
     body_leaf = SyntaxLeaf(_empty_ts(), _empty_ts(),
-                           _ts(_text_to_string(m.text)))
+                           _ts(() -> _text_to_string(m.text)))
     children = CellVector(SyntaxDocument[body_leaf])
     node = SyntaxNode(_ts("user: ", _FONT_BOLD, _LABEL_COL),
                       _empty_ts(), _empty_ts(),
@@ -149,7 +155,7 @@ function projection_print(p::ConversationToolUseMessageToSyntaxLeaf,
                           m::ConversationToolUseMessage, recursion, reference)
     leaf = SyntaxLeaf(_ts("[tool_use ", _FONT_IT, _DIM_COL),
                       _ts("]", _FONT_IT, _DIM_COL),
-                      _ts(string(m.name, " ", m.status), _FONT_IT, _DIM_COL))
+                      _ts(() -> string(m.name, " ", m.status), _FONT_IT, _DIM_COL))
     SimpleIoMap(p, m, leaf)
 end
 
@@ -157,7 +163,7 @@ function projection_print(p::ConversationToolResultMessageToSyntaxNode,
                           m::ConversationToolResultMessage, recursion, reference)
     color = m.is_error ? _ERR_COL : _DIM_COL
     body_leaf = SyntaxLeaf(_empty_ts(), _empty_ts(),
-                           _ts(_text_to_string(m.content), _FONT_IT, color))
+                           _ts(() -> _text_to_string(m.content), _FONT_IT, color))
     children = CellVector(SyntaxDocument[body_leaf])
     label = m.is_error ? "[tool_error] " : "[tool_result] "
     node = SyntaxNode(_ts(label, _FONT_IT, color),
@@ -170,9 +176,10 @@ end
 
 function projection_print(p::ConversationJuliaInputMessageToSyntaxNode,
                           m::ConversationJuliaInputMessage, recursion, reference)
-    code_str = hasproperty(m.code, :name) ? String(m.code.name) : string(m.code)
     body_leaf = SyntaxLeaf(_empty_ts(), _empty_ts(),
-                           _ts(code_str, _FONT, _CODE_COL))
+                           _ts(() -> hasproperty(m.code, :name) ?
+                                       String(m.code.name) : string(m.code),
+                               _FONT, _CODE_COL))
     children = CellVector(SyntaxDocument[body_leaf])
     node = SyntaxNode(_ts("> ", _FONT_BOLD, _LABEL_COL),
                       _empty_ts(), _empty_ts(),
@@ -184,7 +191,7 @@ function projection_print(p::ConversationJuliaResultMessageToSyntaxNode,
                           m::ConversationJuliaResultMessage, recursion, reference)
     color = m.is_error ? _ERR_COL : _TEXT_COL
     body_leaf = SyntaxLeaf(_empty_ts(), _empty_ts(),
-                           _ts(_text_to_string(m.output), _FONT, color))
+                           _ts(() -> _text_to_string(m.output), _FONT, color))
     children = CellVector(SyntaxDocument[body_leaf])
     node = SyntaxNode(_ts("= ", _FONT_BOLD, _DIM_COL),
                       _empty_ts(), _empty_ts(),
@@ -196,22 +203,28 @@ end
 
 function projection_print(p::ConversationTextBlockToSyntaxLeaf,
                           b::ConversationTextBlock, recursion, reference)
+    # Thunked: SSE deltas mutate `b.text` in place via
+    # `_append_text_delta!`; we need to re-read on every frame so tokens
+    # appear character-by-character.
     leaf = SyntaxLeaf(_empty_ts(), _empty_ts(),
-                      _ts(_text_to_string(b.text)))
+                      _ts(() -> _text_to_string(b.text)))
     SimpleIoMap(p, b, leaf)
 end
 
 function projection_print(p::ConversationCodeBlockToSyntaxNode,
                           b::ConversationCodeBlock, recursion, reference)
-    code_str = if b.body isa TextText
-        _text_to_string(b.body)
-    elseif hasproperty(b.body, :name)
-        String(b.body.name)
-    else
-        string(b.body)
+    body_thunk = () -> begin
+        body = b.body
+        if body isa TextText
+            _text_to_string(body)
+        elseif hasproperty(body, :name)
+            String(body.name)
+        else
+            string(body)
+        end
     end
     body_leaf = SyntaxLeaf(_empty_ts(), _empty_ts(),
-                           _ts(code_str, _FONT, _CODE_COL))
+                           _ts(body_thunk, _FONT, _CODE_COL))
     children = CellVector(SyntaxDocument[body_leaf])
     node = SyntaxNode(_ts(string("```", b.language, " "), _FONT_IT, _DIM_COL),
                       _ts("```", _FONT_IT, _DIM_COL),
@@ -222,9 +235,9 @@ end
 
 function projection_print(p::ConversationHeadingBlockToSyntaxLeaf,
                           b::ConversationHeadingBlock, recursion, reference)
-    prefix = repeat("#", b.level)
     leaf = SyntaxLeaf(_empty_ts(), _empty_ts(),
-                      _ts(string(prefix, " ", _text_to_string(b.text)),
+                      _ts(() -> string(repeat("#", b.level), " ",
+                                       _text_to_string(b.text)),
                           _FONT_BOLD, _TEXT_COL))
     SimpleIoMap(p, b, leaf)
 end
@@ -232,8 +245,12 @@ end
 function projection_print(p::ConversationListBlockToSyntaxNode,
                           b::ConversationListBlock, recursion, reference)
     items = CellVector(() -> SyntaxDocument[
-        SyntaxLeaf(_ts("- ", _FONT, _DIM_COL), _empty_ts(),
-                   _ts(_text_to_string(b.items[i])))
+        # Capture `item` per iteration; the leaf thunk reads it lazily so
+        # an item-text mutation refreshes without rebuilding the list.
+        let item = b.items[i]
+            SyntaxLeaf(_ts("- ", _FONT, _DIM_COL), _empty_ts(),
+                       _ts(() -> _text_to_string(item)))
+        end
         for i in eachindex(b.items)
     ])
     node = SyntaxNode(_empty_ts(), _empty_ts(), _empty_ts(),
@@ -243,6 +260,8 @@ end
 
 function projection_print(p::ConversationToolUseBlockToSyntaxLeaf,
                           b::ConversationToolUseBlock, recursion, reference)
+    # Tool-use block name/id are immutable after the SSE
+    # `content_block_start`, so no thunk needed.
     leaf = SyntaxLeaf(_ts("[tool_use ", _FONT_IT, _DIM_COL),
                       _ts("]", _FONT_IT, _DIM_COL),
                       _ts(string(b.name, " ", b.id), _FONT_IT, _DIM_COL))

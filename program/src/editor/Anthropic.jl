@@ -64,7 +64,9 @@ function stream_message(api_key::AbstractString,
         "accept"            => "text/event-stream",
     ]
 
-    HTTP.open("POST", base_url, headers; status_exception = false) do io
+    HTTP.open("POST", base_url, headers;
+              status_exception = false,
+              decompress       = false) do io
         write(io, payload)
         HTTP.closewrite(io)
 
@@ -75,39 +77,68 @@ function stream_message(api_key::AbstractString,
             error("Anthropic API error: HTTP $(io.message.status): $err_body")
         end
 
-        # Parse SSE: lines of "event: <name>" and "data: <json>",
-        # separated by blank lines.
-        event_name = ""
-        data_lines = String[]
+        # SSE parser. Read in chunks via `readavailable` (instead of
+        # `readline`, which warns about byte-by-byte reads on HTTP.Stream)
+        # and split on the event boundary "\n\n". A buffer carries any
+        # incomplete event across chunk boundaries.
         buf = IOBuffer()
         while !eof(io)
-            line = readline(io; keep = false)
-            if isempty(line)
-                # Dispatch accumulated event
-                if !isempty(data_lines)
-                    data_str = join(data_lines, "\n")
-                    parsed = try
-                        JSON3.read(data_str)
-                    catch
-                        nothing
-                    end
-                    if parsed !== nothing
-                        type_sym = Symbol(isempty(event_name) ?
-                                          get(parsed, :type, "") : event_name)
-                        on_event((type = type_sym, data = parsed))
-                    end
-                end
-                event_name = ""
-                empty!(data_lines)
-            elseif startswith(line, "event:")
+            chunk = try
+                readavailable(io)
+            catch e
+                # SSE streams may close abruptly after the last event;
+                # treat EOFError as a clean end-of-stream so the final
+                # message_stop (already dispatched) is the loop's exit.
+                e isa EOFError ? UInt8[] : rethrow()
+            end
+            isempty(chunk) && continue
+            write(buf, chunk)
+            _drain_sse_events!(buf, on_event)
+        end
+        # Flush any trailing partial event.
+        _drain_sse_events!(buf, on_event; final = true)
+        HTTP.closeread(io)
+    end
+    nothing
+end
+
+# Pull complete SSE events ("event: …\ndata: …\n\n") from `buf` and
+# dispatch each via `on_event`. `final=true` flushes the buffer tail
+# even if it doesn't end in the double-newline separator.
+function _drain_sse_events!(buf::IOBuffer, on_event::Function; final::Bool = false)
+    s = String(take!(buf))
+    isempty(s) && return
+    parts = split(s, "\n\n")
+    # The last part is incomplete unless we're flushing.
+    n = final ? length(parts) : length(parts) - 1
+    for i in 1:n
+        raw = parts[i]
+        isempty(raw) && continue
+        event_name = ""
+        data_lines = String[]
+        for line in split(raw, '\n')
+            if startswith(line, "event:")
                 event_name = strip(SubString(line, 7))
             elseif startswith(line, "data:")
                 push!(data_lines, String(strip(SubString(line, 6))))
             end
         end
-        HTTP.closeread(io)
+        isempty(data_lines) && continue
+        data_str = join(data_lines, "\n")
+        parsed = try
+            JSON3.read(data_str)
+        catch
+            nothing
+        end
+        parsed === nothing && continue
+        type_sym = Symbol(isempty(event_name) ?
+                          get(parsed, :type, "") : event_name)
+        on_event((type = type_sym, data = parsed))
     end
-    nothing
+    # Put the incomplete tail back for the next read.
+    if !final && length(parts) > n
+        write(buf, parts[end])
+    end
 end
 
 end # module

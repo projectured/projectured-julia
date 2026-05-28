@@ -206,11 +206,11 @@ function projection_print(::WorkbenchAssistantToWidgetScrollPane,
                                   size=Point2D(1000, 400),
                                   padding=_PAD5, padding_color=_WHITE)
     input_pane = WidgetScrollPane(a.input;
-                                  size=Point2D(1000, 40),
+                                  size=Point2D(1000, 200),
                                   padding=_PAD5, padding_color=_WHITE)
     column = WidgetSplitPane(:vertical,
                              WidgetDocument[conv_pane, input_pane];
-                             sizes=[400, 40])
+                             sizes=[800, 200])
     SimpleIoMap(nothing, a, column)
 end
 
@@ -389,7 +389,12 @@ function projection_read(::WorkbenchWorkbenchToWidgetShell,
         return ReplaceSelectionOperation(
             ConcreteReferencePath(FieldReference(field_name), result.path))
     end
-    # 2. Route raw events (e.g. KeyPress / KeyDown) into each panel reader so
+    # 2. If the op is already an Operation produced by an inner reader
+    # (e.g. `ScrollWidgetOperation` from `WidgetScrollPaneToGraphicsCanvas`),
+    # pass it through unchanged. These ops target widgets/documents
+    # directly, not document paths, so they need no further translation.
+    op isa Operation && return op
+    # 3. Route raw events (e.g. KeyPress / KeyDown) into each panel reader so
     # focus-sensitive handlers (currently only the assistant) can pick them
     # up. The first reader that returns an Operation wins. Path-bearing
     # operations get prefixed with the panel's location so

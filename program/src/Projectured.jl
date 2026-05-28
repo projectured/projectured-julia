@@ -45,6 +45,11 @@ include("document/Clipboard.jl")
 include("document/Widget.jl")
 include("document/Book.jl")
 include("document/Conversation.jl")
+# LLM backend (used as a field type by `WorkbenchAssistant`). Loads early
+# because no document or projection layer depends on it; it only needs
+# HTTP/JSON3 (external packages) and access to the Anthropic SSE client.
+include("editor/Anthropic.jl")
+include("editor/Llm.jl")
 include("document/Workbench.jl")
 include("document/Image.jl")
 
@@ -109,7 +114,6 @@ include("projection/compound/Generic.jl")
 include("device/Window.jl")
 include("backend/Sdl.jl")
 include("editor/ToolRegistry.jl")
-include("editor/Anthropic.jl")
 include("editor/Mcp.jl")
 include("editor/WorkbenchAssistant.jl")
 include("editor/Editor.jl")
@@ -278,6 +282,7 @@ using .ToolRegistryModule: Tool, Resource,
                             register_resource!, register_resources!, list_resources, read_resource,
                             anthropic_tool_schema, mcp_tools, mcp_resources
 using .AnthropicModule: stream_message
+using .LlmModule: LlmBackend, AnthropicLlm, FakeLlm, stream_turn
 using .ConversationModule: ConversationDocument, ConversationConversation,
                             ConversationMessage,
                             ConversationUserMessage, ConversationAssistantMessage,
@@ -479,6 +484,7 @@ export Tool, Resource, register_tool!, register_tools!, list_tools, call_tool,
        register_resource!, register_resources!, list_resources, read_resource,
        anthropic_tool_schema, mcp_tools, mcp_resources
 export stream_message
+export LlmBackend, AnthropicLlm, FakeLlm, stream_turn
 export ConversationDocument, ConversationConversation,
        ConversationMessage,
        ConversationUserMessage, ConversationAssistantMessage,
