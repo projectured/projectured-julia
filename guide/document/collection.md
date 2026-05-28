@@ -1,5 +1,7 @@
 # Collection Domain
 
+![Collection example](../../image/example/collection.png)
+
 The collection domain provides two generic, reactive container types used
 everywhere in ProjecturEd. They are defined in
 [program/src/document/Collection.jl](../../program/src/document/Collection.jl)

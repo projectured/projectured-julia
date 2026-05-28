@@ -1,5 +1,7 @@
 # Widget Domain
 
+![Widget example](../../image/example/widget.png)
+
 The widget domain is the UI layer that sits between domain-specific projections
 and the graphics domain. Widgets describe what a user interface looks like —
 labels, buttons, panes, scrollbars — in a backend-agnostic way. The

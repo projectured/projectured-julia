@@ -1,5 +1,7 @@
 # Workbench Domain
 
+![Workbench example](../../image/example/workbench.png)
+
 The workbench domain models an IDE-style workspace. It is implemented in
 [program/src/document/Workbench.jl](../../program/src/document/Workbench.jl)
 and rendered to widgets by

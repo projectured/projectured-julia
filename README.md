@@ -32,13 +32,13 @@ incrementally via a pull-based reactive cell system.
 
 ## Screenshots
 
-| JSON editor | Widget forms |
-|---|---|
-| ![JSON example](image/json-example.png) | ![Widget example](image/widget-example.png) |
+| JSON editor | Widget forms | Table view |
+|---|---|---|
+| ![JSON example](image/example/json.png) | ![Widget example](image/example/widget.png) | ![Table example](image/example/table.png) |
 
-| Table view | Julia AST |
-|---|---|
-| ![Table example](image/table-example.png) | ![Julia AST example](image/julia-example.png) |
+| Syntax tree | Julia AST | Workbench |
+|---|---|---|
+| ![Syntax example](image/example/syntax.png) | ![Julia AST example](image/example/julia.png) | ![Workbench example](image/example/workbench.png) |
 
 ## What can it do today?
 

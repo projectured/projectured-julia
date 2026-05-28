@@ -2,7 +2,7 @@
 
 This guide walks through six ProjecturEd examples in order of complexity.
 For each one: what it demonstrates, how to run it, what to try, and which
-concepts it illustrates. Screenshots are in [image/](../image/).
+concepts it illustrates. Screenshots for each example are embedded inline below.
 
 ## Running examples
 
@@ -24,6 +24,8 @@ Available names (see `examples` vector in `ProjecturedExample`):
 ---
 
 ## 1. JSON (`run_example("json")`)
+
+![Json example](../image/example/json.png)
 
 **What it demonstrates:** The foundational pipeline — the one every other
 domain is modelled after.
@@ -53,6 +55,8 @@ delimiters (`{`, `}`, `"`, `,`).
 
 ## 2. Syntax (`run_example("syntax")`)
 
+![Syntax example](../image/example/syntax.png)
+
 **What it demonstrates:** The *syntax* domain is the generic intermediate
 between semantic domains (JSON, XML, Math, Julia, …) and text. Using it
 directly shows how a `SyntaxNode` tree looks before and after the text
@@ -79,6 +83,8 @@ expression — and renders it as indented text.
 ---
 
 ## 3. Widget (`run_example("widget")`)
+
+![Widget example](../image/example/widget.png)
 
 **What it demonstrates:** A higher-level domain — widgets — sits *above* the
 text domain and has its own projection to graphics. The `WidgetToGraphics`
@@ -108,6 +114,8 @@ controls: a text box, a checkbox, and a button.
 
 ## 4. Table (`run_example("table")`)
 
+![Table example](../image/example/table.png)
+
 **What it demonstrates:** `TableToGraphics` is a *direct* projection — it skips
 the text intermediate and renders a 2-D grid directly to graphics primitives,
 using rectangle fills and positioned text.
@@ -132,6 +140,8 @@ The example shows a small data table with headers and typed cells.
 ---
 
 ## 5. Julia AST (`run_example("julia")`)
+
+![Julia example](../image/example/julia.png)
 
 **What it demonstrates:** Editing source code as an AST, not as text. The
 Julia domain provides types for identifiers, integers, binary operators,
@@ -160,6 +170,8 @@ nodes; the cursor understands the structure of the code.
 ---
 
 ## 6. Workbench (`run_example("workbench")`)
+
+![Workbench example](../image/example/workbench.png)
 
 **What it demonstrates:** The full IDE shell. The workbench is a compound
 document that wraps any other document in a structured editor environment with

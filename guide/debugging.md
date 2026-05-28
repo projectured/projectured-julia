@@ -119,6 +119,23 @@ The walker used by the test suite (`_walk!` in
 [test/src/editor/PrinterTest.jl](../test/src/editor/PrinterTest.jl)) is a
 good template if you need to dump every reachable cell of a tree.
 
+## Generating all screenshots
+
+To regenerate every example screenshot in `image/` and re-inject the image
+references into the guides and `README.md`:
+
+```julia
+julia> using ProjecturedExample
+julia> generate_screenshots()        # writes PNGs into image/
+julia> update_guide_screenshots()    # injects ![...] references into guides + README
+```
+
+Output goes to `image/` as PNG files in a single step — no external tools.
+Both functions accept keyword overrides: `width`, `height`, `image_dir` for
+`generate_screenshots`, and `repo_root` for `update_guide_screenshots`.
+`update_guide_screenshots` is idempotent — a second call produces no further
+changes.
+
 ## Workspace fixtures
 
 Sample documents live in [example/workspace/](../example/workspace/)
