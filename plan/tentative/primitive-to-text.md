@@ -67,24 +67,27 @@ Imports follow the same pattern as
 ### Output shape
 
 Each per-type projection emits a single `TextText` whose `elements` is a
-`CellVector` of one or three `TextString` spans:
+`CellVector` of one `TextString` span:
 
 | Projection | Spans (left to right) |
 |---|---|
 | `PrimitiveBoolToText` | `[ value ]` — single span containing `"true"` / `"false"` |
 | `PrimitiveNumberToText` | `[ value ]` — single span containing the number's string form (or empty) |
-| `PrimitiveStringToText` | `[ open_quote, value, close_quote ]` — three spans, matching `PrimitiveStringToSyntaxLeaf`'s structure |
+| `PrimitiveStringToText` | `[ value ]` — single span containing the raw string (no surrounding quote delimiters) |
 
-`PrimitiveBool`/`Number` use a one-span layout because they have no
-delimiters; `PrimitiveString` keeps the three-span layout so quotes can
-be styled independently (same as the SyntaxLeaf version).
+All three types use a one-span layout. `PrimitiveString` deliberately
+omits the open/close quote spans that `PrimitiveStringToSyntaxLeaf`
+emits: this projection is used in contexts (widget labels, conversation
+cells, inline scalars) where the string is rendered as plain text rather
+than as a syntactically quoted literal. If quotes are required, compose
+through `PrimitiveStringToSyntaxLeaf` + `SyntaxLeafToText` instead.
 
 The `TextText.elements` cell reads `b.value` / `n.value` / `s.value` so
 reactive updates flow through.
 
 The `TextText.selection` cell follows the same shape as
-`SyntaxLeafToText`'s output: `.elements[i].content[k]` where `i` is 1 for
-the single-span types and 1/2/3 for the string type's open/value/close.
+`SyntaxLeafToText`'s output: `.elements[1].content[k]` for all three
+types.
 
 ### Per-type projection structs
 
@@ -102,16 +105,10 @@ end
 PrimitiveNumberToText(; font=font_ubuntu_monospace_regular_24, color=color_solarized_magenta) = …
 
 struct PrimitiveStringToText <: Projection
-    quote_font::StyleFont
-    quote_color::StyleColor
-    value_font::StyleFont
-    value_color::StyleColor
+    font::StyleFont
+    color::StyleColor
 end
-PrimitiveStringToText(;
-    quote_font = font_ubuntu_monospace_regular_24,
-    quote_color = color_solarized_yellow,
-    value_font = font_ubuntu_monospace_regular_24,
-    value_color = color_solarized_green) = …
+PrimitiveStringToText(; font=font_ubuntu_monospace_regular_24, color=color_solarized_green) = …
 ```
 
 Field defaults match the colors currently used in `PrimitiveToSyntax.jl`
@@ -138,10 +135,8 @@ end
 
 ```julia
 function projection_print(p::PrimitiveStringToText, s::PrimitiveString, recursion, reference)
-    open  = TextString("\"", p.quote_font, p.quote_color)
-    value = TextString(() -> something(s.value, ""), p.value_font, p.value_color)
-    close = TextString("\"", p.quote_font, p.quote_color)
-    out = TextText(CellVector(() -> TextDocument[open, value, close]),
+    value = TextString(() -> something(s.value, ""), p.font, p.color)
+    out = TextText(CellVector(() -> TextDocument[value]),
                    Cell(() -> _string_to_text_selection(s)))
     SimpleIoMap(p, s, out)
 end
@@ -149,13 +144,13 @@ end
 
 The selection conversion helpers (`_bool_to_text_selection` etc.) translate
 `Primitive*.selection[]` (which is `.value[k]` or `.value[range]`) into
-the `TextText`-domain shape `.elements[i].content[k]`:
+the `TextText`-domain shape `.elements[1].content[k]`:
 
-| Primitive selection | Bool/Number output | String output |
-|---|---|---|
-| `nothing` | `nothing` | `nothing` |
-| `.value[k]` | `.elements[1].content[k]` | `.elements[2].content[k]` |
-| `.value[range]` | `.elements[1].content[range.start]` | `.elements[2].content[range.start]` |
+| Primitive selection | Output |
+|---|---|
+| `nothing` | `nothing` |
+| `.value[k]` | `.elements[1].content[k]` |
+| `.value[range]` | `.elements[1].content[range.start]` |
 
 (Range selections collapse to a cursor at `range.start` to match the
 existing `SyntaxLeafToText` behaviour.)
@@ -164,28 +159,17 @@ existing `SyntaxLeafToText` behaviour.)
 
 `map_reference_forward` / `map_reference_backward` translate between the
 primitive domain's `.value[k]` references and the text domain's
-`.elements[i].content[k]` paths.
-
-For `Bool`/`Number` (single value span at index 1):
+`.elements[1].content[k]` paths. All three types use the same single-span
+shape:
 
 ```julia
 forward:   .value[k]                → .elements[1].content[k]
 backward:  .elements[1].content[k]  → .value[k]
 ```
 
-For `String` (three spans: open=1, value=2, close=3):
-
-```julia
-forward:   .value[k]                → .elements[2].content[k]
-backward:  .elements[1].content[k]  → ProjectionReference(p, .open[k])  (cannot be authored on PrimitiveString directly)
-           .elements[2].content[k]  → .value[k]
-           .elements[3].content[k]  → ProjectionReference(p, .close[k])
-```
-
-The `ProjectionReference` wrapping for quote-only positions mirrors what
-`SyntaxLeafToText`'s reverse mapping does for `PS(p).open[k]` /
-`PS(p).close[k]` — a position that the upstream primitive cannot
-represent natively.
+Because no quote delimiters are emitted, every text-domain position
+corresponds directly to a primitive `.value[k]` position — no
+`ProjectionReference` wrapping is needed.
 
 ### `projection_read`
 
@@ -258,10 +242,8 @@ Add tests under `test/` that mirror the existing
    corresponding `TextString.content` (verify via the reactive
    walker helpers; see [guide/testing.md](../../guide/testing.md)).
 3. **Selection forward** — `.value[k]` on the primitive ⇒ correct
-   `.elements[i].content[k]` on the `TextText`.
-4. **Selection backward** — round-trip the above and confirm equality;
-   verify quote positions on `PrimitiveString` produce
-   `ProjectionReference`-wrapped paths.
+   `.elements[1].content[k]` on the `TextText`.
+4. **Selection backward** — round-trip the above and confirm equality.
 5. **KeyPress / KeyDown** on `PrimitiveStringToText` — produces
    `StringReplaceRangeOperation` with the expected `RangeReference`.
 

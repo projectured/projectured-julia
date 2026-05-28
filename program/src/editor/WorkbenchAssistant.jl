@@ -30,8 +30,10 @@ import ..OperationApiModule: Operation, evaluate_operation
 import ..ProjectionApiModule: projection_read
 import ..ReactiveModule: Cell
 import ..TextModule: TextText, TextString
+import ..PrimitiveModule: PrimitiveString
 import ..CollectionModule: CellVector
 import ..JuliaModule: JuliaDocument
+import ..ReferenceModule: ConcreteReferencePath, FieldReference, RangeReference, EmptyReferencePath
 import ..ConversationModule: ConversationConversation,
                               ConversationUserMessage, ConversationAssistantMessage,
                               ConversationToolUseMessage, ConversationToolResultMessage,
@@ -44,6 +46,8 @@ import ..WorkbenchToWidgetModule: WorkbenchAssistantToWidgetScrollPane
 import ..KeyboardModule: KeyDown
 import ..ToolRegistryModule: list_tools, list_resources, call_tool, read_resource,
                               anthropic_tool_schema, Tool
+import ..KeyboardModule: KeyPress
+import ..PrimitiveModule: StringReplaceRangeOperation
 import ..AnthropicModule: stream_message
 import ..McpModule: execute_julia_code, register_default_tools_and_resources!
 
@@ -112,8 +116,14 @@ function _text_to_string(t::TextText)
     String(take!(io))
 end
 
+_text_to_string(s::PrimitiveString) = something(s.value, "")
+
 function _set_input!(a::WorkbenchAssistant, s::AbstractString)
-    a.input = isempty(s) ? TextText() : TextText(TextString(String(s)))
+    a.input.value = String(s)
+    a.input.selection = ConcreteReferencePath(
+        FieldReference("value"),
+        ConcreteReferencePath(RangeReference(length(s), length(s)),
+                              EmptyReferencePath()))
     nothing
 end
 
@@ -164,21 +174,14 @@ function evaluate_operation(op::SubmitProseOperation, _document)
 
     push!(a.conversation, ConversationUserMessage(text))
     _set_input!(a, "")
-    a.status = :streaming
 
-    Threads.nthreads()  # no-op; keep @async semantics
-    @async begin
-        try
-            _run_agent_loop!(a)
-        catch e
-            a.status = :error
-            err_msg = sprint(showerror, e, catch_backtrace())
-            push!(a.conversation,
-                  ConversationToolResultMessage("error", err_msg; is_error = true))
-        finally
-            a.status === :streaming && (a.status = :idle)
-        end
-    end
+    # ── MVP stub: canned reply, synchronous, no network. ─────────────────
+    # Swap this block for the real wiring (`a.status = :streaming` + an
+    # @async call to `_run_agent_loop!(a)`) once streaming is ready.
+    reply = ConversationAssistantMessage(stop_reason = :end_turn)
+    push!(reply, ConversationTextBlock("Yes, sir!"))
+    push!(a.conversation, reply)
+    a.status = :idle
     nothing
 end
 
@@ -567,18 +570,86 @@ function _md_walk(io, x)
 end
 
 # ═══════════════════════════════════════════════════════════════════════
-# Keybindings (Enter → SubmitProse, Alt+Enter → SubmitJulia)
+# Assistant input event handling
 # ═══════════════════════════════════════════════════════════════════════
 # Additional methods on the existing `WorkbenchAssistantToWidgetScrollPane`
-# projection_read so the editor's read! loop can dispatch submit operations
-# when Enter / Alt+Enter is pressed on the assistant panel.
+# projection_read so the editor's read! loop dispatches:
+#
+#   Enter      → SubmitProseOperation
+#   Alt+Enter  → SubmitJuliaOperation
+#   KeyPress   → insert character into `assistant.input`
+#   Backspace  → delete char before cursor in `assistant.input`
+#   Delete     → delete char after cursor in `assistant.input`
+#
+# We translate KeyPress / Backspace / Delete directly into
+# `StringReplaceRangeOperation`s with paths rooted at the WorkbenchAssistant
+# (i.e. `.input.value[range]`) — the widget tree's default projection_read
+# does not route key events to nested document content, so we intercept
+# at the assistant layer. Cursor movement (arrow keys, home, end) is not
+# handled here yet; for the MVP, typing + backspace + Enter is sufficient.
+
+# Pull the current `.value[range]` cursor out of the assistant's input.
+function _input_range(a::WorkbenchAssistant)
+    sel = a.input.selection
+    sel isa ConcreteReferencePath || return nothing
+    h = sel.head
+    h isa FieldReference && h.name == "value" || return nothing
+    rest = sel.tail
+    rest isa ConcreteReferencePath || return nothing
+    r = rest.head
+    r isa RangeReference || return nothing
+    r
+end
+
+# Build a path rooted at WorkbenchAssistant: `.input.value[range]`.
+_input_path(range::RangeReference) =
+    ConcreteReferencePath(FieldReference("input"),
+        ConcreteReferencePath(FieldReference("value"),
+            ConcreteReferencePath(range, EmptyReferencePath())))
+
+function projection_read(::WorkbenchAssistantToWidgetScrollPane,
+                          iomap, evt::KeyPress)
+    iomap.input isa WorkbenchAssistant || return nothing
+    evt.modifiers.ctrl && return nothing
+    a = iomap.input::WorkbenchAssistant
+    range = _input_range(a)
+    range === nothing && return nothing
+    StringReplaceRangeOperation(_input_path(range), evt.text)
+end
 
 function projection_read(::WorkbenchAssistantToWidgetScrollPane,
                           iomap, evt::KeyDown)
     iomap.input isa WorkbenchAssistant || return nothing
-    evt.key === :return || return nothing
     a = iomap.input::WorkbenchAssistant
-    return evt.modifiers.alt ? SubmitJuliaOperation(a) : SubmitProseOperation(a)
+
+    if evt.key === :return
+        return evt.modifiers.alt ? SubmitJuliaOperation(a) : SubmitProseOperation(a)
+    end
+
+    range = _input_range(a)
+    range === nothing && return nothing
+    text = something(a.input.value, "")
+    n = length(text)
+    new_range = if evt.key === :backspace
+        if range.start != range.stop
+            range
+        elseif range.start > 0
+            RangeReference(range.start - 1, range.start)
+        else
+            return nothing
+        end
+    elseif evt.key === :delete
+        if range.start != range.stop
+            range
+        elseif range.stop < n
+            RangeReference(range.stop, range.stop + 1)
+        else
+            return nothing
+        end
+    else
+        return nothing
+    end
+    StringReplaceRangeOperation(_input_path(new_range), "")
 end
 
 end # module

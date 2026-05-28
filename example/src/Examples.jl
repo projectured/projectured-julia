@@ -37,6 +37,7 @@ const math_example           = Example("math",           make_math_document_exam
 const julia_example          = Example("julia",          make_julia_document_example,          make_julia_projection_example)
 const graphics_image_example = Example("graphics_image", make_json_document_example,           make_graphics_image_projection_example)
 const primitive_string_example = Example("primitive_string", make_primitive_string_document_example, make_primitive_string_projection_example)
+const assistant_example      = Example("assistant",      make_assistant_document_example,      make_assistant_projection_example)
 
 const examples = [
     json_example, json_sorted_example, json_null_example, json_string_example,
@@ -48,6 +49,7 @@ const examples = [
     julia_example,
     graphics_image_example,
     primitive_string_example,
+    assistant_example,
 ]
 
 function run_example(example::Example; width=2400, height=1600,

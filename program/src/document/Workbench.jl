@@ -13,6 +13,7 @@ import ..ReactiveModule: Cell, setfn!, setval!
 import ..DocumentModule: Document, @document
 import ..CollectionModule: CellVector
 import ..TextModule: TextText
+import ..PrimitiveModule: PrimitiveString
 import ..ConversationModule: ConversationConversation
 import ..ReferenceModule: Reference, ReferencePath
 export WorkbenchDocument, WorkbenchInsertion, WorkbenchForeign,
@@ -270,13 +271,15 @@ const DEFAULT_ASSISTANT_SYSTEM = "You are Claude running inside the ProjecturEd 
     WorkbenchAssistant(; conversation, input, model, system, api_key, status)
 
 The assistant panel. Holds the full chat history (`conversation`), the
-editable prompt (`input`), the Anthropic model id (`model`), the system
-prompt (`system`), the Anthropic API key (`api_key`), and a `status`
-symbol (`:idle`, `:streaming`, `:error`, ...).
+editable prompt (`input`, a `PrimitiveString` so the existing text-edit
+projections route `KeyPress`/backspace/delete to it directly), the
+Anthropic model id (`model`), the system prompt (`system`), the Anthropic
+API key (`api_key`), and a `status` symbol (`:idle`, `:streaming`,
+`:error`, ...).
 """
 @document struct WorkbenchAssistant <: WorkbenchDocument
     conversation::ConversationConversation
-    input::TextText
+    input::PrimitiveString
     model::String
     system::String
     api_key::String
@@ -285,7 +288,7 @@ symbol (`:idle`, `:streaming`, `:error`, ...).
 end
 
 function WorkbenchAssistant(; conversation::ConversationConversation = ConversationConversation(),
-                              input::TextText = TextText(),
+                              input::PrimitiveString = PrimitiveString(""),
                               model::AbstractString = DEFAULT_ASSISTANT_MODEL,
                               system::AbstractString = DEFAULT_ASSISTANT_SYSTEM,
                               api_key::AbstractString = get(ENV, "ANTHROPIC_API_KEY", ""),

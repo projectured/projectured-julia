@@ -36,8 +36,16 @@ function make_workbench_document_example(; root=abspath(joinpath(@__DIR__, "../.
 
     descriptor = WorkbenchDescriptor(EmptyReferencePath())
 
+    assistant = WorkbenchAssistant()
+    # Place a zero-width cursor inside the input so the first KeyPress lands
+    # there even before the user clicks. Once the input renders, the existing
+    # mouse-click chain keeps focus in sync.
+    assistant.input.selection = ConcreteReferencePath(
+        FieldReference("value"),
+        ConcreteReferencePath(RangeReference(0, 0), EmptyReferencePath()))
+
     info_page = WorkbenchPage([
-        WorkbenchAssistant(),
+        assistant,
         WorkbenchConsole(TextText(
             TextString("Welcome to ProjecturEd!", font_ubuntu_monospace_regular_24, color_default),
         )),

@@ -35,13 +35,15 @@ import ..ConversationModule: ConversationDocument, ConversationConversation,
                               ConversationTextBlock, ConversationCodeBlock,
                               ConversationHeadingBlock, ConversationListBlock,
                               ConversationToolUseBlock
-import ..WidgetModule: WidgetDocument, WidgetLabel, WidgetText, WidgetComposite, Point2D, Inset, inset_default
+import ..WidgetModule: WidgetDocument, WidgetLabel, WidgetText, WidgetComposite,
+                       WidgetScrollPane, Point2D, Inset, inset_default
 import ..TextModule: TextText, TextString
 import ..FontModule: font_ubuntu_monospace_regular_24
 import ..ColorModule: StyleColor, color_default
 import ..IoMapModule: SimpleIoMap, ContentIoMap, ChildrenIoMap
 import ..IoMapApiModule: IoMap
 import ..ReactiveModule: Cell
+import ..CollectionModule: CellVector
 import ..ReferenceModule: ReferencePath, ConcreteReferencePath, ElementReference,
                           PositionReference, RangeReference, EmptyReferencePath,
                           FieldReference, append_reference
@@ -79,42 +81,119 @@ struct ConversationToolUseBlockToText                  <: Projection end
 # ── Helpers ────────────────────────────────────────────────────────────────
 
 const _PAD5 = Inset(5, 5, 5, 5)
+# Approximate vertical pitch for a one-line widget (label, scroll-paned text,
+# nested message composite). WidgetComposite places every child at its own
+# (cox, coy) offset — children stack only if each carries its own Y position.
+const _ROW_H = 28
 
 _recurse(recursion, doc, reference) =
     (recursion !== nothing && doc isa ConversationDocument) ?
         projection_print(recursion, doc, recursion, reference) :
         SimpleIoMap(nothing, doc, doc)
 
-_label(text::AbstractString) =
-    WidgetLabel(Point2D(0, 0), TextText(TextString(String(text))))
+# WidgetLabel.content is rendered with `string(content)`, so pass a plain
+# String, not a TextText (otherwise we'd see `TextText([TextString(...)])`).
+_label(text::AbstractString) = WidgetLabel(Point2D(0, 0), String(text))
 
 _wrap_widget(w::WidgetDocument) = w
-_wrap_widget(x) = WidgetText(Point2D(0, 0), x)
+# Non-widget content (TextText, JuliaDocument, etc.) is embedded in a
+# WidgetScrollPane, which recurses its Document content through the outer
+# projection chain. (WidgetText would stringify instead.) A small viewport
+# keeps each item to one row.
+_wrap_widget(x) = WidgetScrollPane(x;
+                                   size=Point2D(800, _ROW_H),
+                                   padding=inset_default)
 
 _text_widget(s::AbstractString) =
-    WidgetText(Point2D(0, 0),
-               TextText(TextString(String(s), font_ubuntu_monospace_regular_24, color_default)))
+    WidgetScrollPane(TextText(TextString(String(s),
+                                         font_ubuntu_monospace_regular_24,
+                                         color_default));
+                     size=Point2D(800, _ROW_H),
+                     padding=inset_default)
+
+# Stack widgets vertically by setting each child's `position` to (0, y).
+# `WidgetCompositeToGraphicsCanvas` places every child at the same (cox, coy);
+# the child's own position is what produces the vertical offset.
+function _set_position!(w::WidgetDocument, x::Int, y::Int)
+    hasproperty(w, :position) && (w.position = Point2D(x, y))
+    w
+end
+_set_position!(w, _x, _y) = w  # no-op for anything without a position field
+
+# Approximate intrinsic height of a widget for vertical-stacking purposes.
+# A `WidgetComposite` is itself a stack, so its height is the sum of its
+# children's heights — recursive. Anything else is one row.
+function _widget_height(w::WidgetComposite)
+    h = 0
+    for child in w.elements
+        h += _widget_height(child)
+    end
+    max(h, _ROW_H)
+end
+_widget_height(w::WidgetScrollPane) =
+    (sz = w.size; sz isa Point2D ? Int(sz.y[]) : _ROW_H)
+_widget_height(_) = _ROW_H
+
+function _stack_vertical!(widgets::Vector)
+    y = 0
+    for w in widgets
+        _set_position!(w, 0, y)
+        y += _widget_height(w)
+    end
+    widgets
+end
 
 _compose(elements::Vector) =
-    WidgetComposite(Point2D(0, 0), Any[_wrap_widget(e) for e in elements]; padding=_PAD5)
+    WidgetComposite(Point2D(0, 0),
+                    _stack_vertical!(Any[_wrap_widget(e) for e in elements]);
+                    padding=_PAD5)
+
+# Reactive composite — the inner CellVector recomputes its elements each
+# time `cv.elements` is invalidated (i.e. whenever the source thunk's
+# dependencies change). Used by the conversation/assistant projections so
+# that pushing a message to the source CellVector lights up the renderer
+# without re-running `projection_print`.
+function _reactive_compose(f::Function)
+    elements_cv = CellVector(() -> _stack_vertical!(f()))
+    # Direct inner-constructor call; the @document macro wraps each raw
+    # value in `Cell` so the `elements_cv` ends up as `Cell{CellVector}`,
+    # matching the layout of an eagerly-built WidgetComposite.
+    WidgetComposite(
+        Point2D(0, 0),    # position
+        elements_cv,      # elements (CellVector, will be Cell-wrapped)
+        true,             # visible
+        inset_default,    # margin
+        nothing,          # margin_color
+        inset_default,    # border
+        nothing,          # border_color
+        _PAD5,            # padding
+        nothing,          # padding_color
+        nothing,          # selection
+    )
+end
 
 # ── projection_print: top-level conversation ────────────────────────────────
+# The widget's elements list is wrapped in a CellVector thunk so that
+# `push!(c.messages, …)` invalidates the inner cell and the next read of
+# `composite.elements` re-projects every message. This is what makes the
+# chat scroll-back update without re-running `projection_print`.
 
 function projection_print(::ConversationConversationToWidgetComposite,
                           c::ConversationConversation, recursion, reference)
-    child_iomaps = Any[]
-    widgets = Any[]
-    for i in eachindex(c.messages)
-        msg = c.messages[i]
-        child_ref = append_reference(reference,
-                                     FieldReference("messages"),
-                                     ElementReference(i))
-        iomap = _recurse(recursion, msg, child_ref)
-        push!(child_iomaps, iomap)
-        push!(widgets, iomap.output)
-    end
-    composite = _compose(widgets)
-    ChildrenIoMap(nothing, c, composite, Cell(child_iomaps))
+    rec, ref = recursion, reference
+    composite = _reactive_compose(() -> begin
+        msgs = c.messages
+        widgets = Any[]
+        for i in eachindex(msgs)
+            child_ref = append_reference(ref,
+                                         FieldReference("messages"),
+                                         ElementReference(i))
+            iomap = _recurse(rec, msgs[i], child_ref)
+            push!(widgets, _wrap_widget(iomap.output))
+        end
+        widgets
+    end)
+    SimpleIoMap(nothing, c, composite)
 end
 
 # ── projection_print: user message ──────────────────────────────────────────
@@ -131,24 +210,26 @@ function projection_print(::ConversationUserMessageToWidgetComposite,
 end
 
 # ── projection_print: assistant message ─────────────────────────────────────
+# Same reactive thunk pattern as the top-level conversation: pushing a
+# block (e.g. as streaming deltas arrive in the real wiring, or the canned
+# "Yes, sir!" in MVP) invalidates the cell and the next read re-projects.
 
 function projection_print(::ConversationAssistantMessageToWidgetComposite,
                           m::ConversationAssistantMessage, recursion, reference)
-    block_iomaps = Any[]
-    block_widgets = Any[]
-    for i in eachindex(m.blocks)
-        b = m.blocks[i]
-        block_ref = append_reference(reference,
-                                     FieldReference("blocks"),
-                                     ElementReference(i))
-        iomap = _recurse(recursion, b, block_ref)
-        push!(block_iomaps, iomap)
-        push!(block_widgets, iomap.output)
-    end
-    elements = Any[_label("assistant")]
-    append!(elements, block_widgets)
-    composite = _compose(elements)
-    ChildrenIoMap(nothing, m, composite, Cell(block_iomaps))
+    rec, ref = recursion, reference
+    composite = _reactive_compose(() -> begin
+        blocks = m.blocks
+        widgets = Any[_label("assistant")]
+        for i in eachindex(blocks)
+            block_ref = append_reference(ref,
+                                         FieldReference("blocks"),
+                                         ElementReference(i))
+            iomap = _recurse(rec, blocks[i], block_ref)
+            push!(widgets, _wrap_widget(iomap.output))
+        end
+        widgets
+    end)
+    SimpleIoMap(nothing, m, composite)
 end
 
 # ── projection_print: tool messages ─────────────────────────────────────────

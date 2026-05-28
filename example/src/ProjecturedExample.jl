@@ -19,6 +19,7 @@ include(joinpath(_EXAMPLE_DIR, "document", "FileSystem.jl"))
 include(joinpath(_EXAMPLE_DIR, "document", "Collection.jl"))
 include(joinpath(_EXAMPLE_DIR, "document", "Focusing.jl"))
 include(joinpath(_EXAMPLE_DIR, "document", "Workbench.jl"))
+include(joinpath(_EXAMPLE_DIR, "document", "Assistant.jl"))
 include(joinpath(_EXAMPLE_DIR, "document", "Table.jl"))
 include(joinpath(_EXAMPLE_DIR, "document", "Lazy.jl"))
 include(joinpath(_EXAMPLE_DIR, "document", "Math.jl"))
@@ -45,6 +46,7 @@ include(joinpath(_EXAMPLE_DIR, "projection", "Filtering.jl"))
 include(joinpath(_EXAMPLE_DIR, "projection", "Sorting.jl"))
 include(joinpath(_EXAMPLE_DIR, "projection", "Focusing.jl"))
 include(joinpath(_EXAMPLE_DIR, "projection", "Workbench.jl"))
+include(joinpath(_EXAMPLE_DIR, "projection", "Assistant.jl"))
 include(joinpath(_EXAMPLE_DIR, "projection", "Lazy.jl"))
 include(joinpath(_EXAMPLE_DIR, "projection", "Math.jl"))
 include(joinpath(_EXAMPLE_DIR, "projection", "Julia.jl"))
@@ -76,6 +78,7 @@ export make_filtering_projection_example
 export make_sorting_projection_example
 export make_focusing_document_example, make_focusing_projection_example
 export make_workbench_document_example, make_workbench_projection_example
+export make_assistant_document_example, make_assistant_projection_example
 export make_table_document_example, make_table_projection_example
 export make_math_table_document_example, make_math_table_projection_example
 export make_lazy_document_example, make_lazy_projection_example
@@ -99,5 +102,6 @@ export math_example
 export julia_example
 export graphics_image_example
 export primitive_string_example
+export assistant_example
 
 end

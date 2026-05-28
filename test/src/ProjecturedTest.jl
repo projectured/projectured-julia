@@ -21,6 +21,7 @@ include("document/CollectionTest.jl")
 include("document/PrimitiveTest.jl")
 include("projection/JsonToSyntaxTest.jl")
 include("projection/SyntaxToTextTest.jl")
+include("projection/PrimitiveToTextTest.jl")
 include("projection/TextToGraphicsTest.jl")
 include("projection/CopyingProjectionTest.jl")
 include("projection/GraphicsToFileTest.jl")
@@ -31,6 +32,7 @@ include("editor/ReaderTest.jl")
 include("editor/ReplTest.jl")
 include("editor/McpTest.jl")
 include("editor/MouseClickTest.jl")
+include("editor/AssistantMvpTest.jl")
 
 function test_documents()
     @testset "Documents" begin
@@ -48,6 +50,7 @@ function test_projections()
     @testset "Projections" begin
         test_json_to_syntax()
         test_syntax_to_text()
+        test_primitive_to_text()
         test_text_to_graphics()
         test_copying_projection()
         test_write_image()
@@ -64,6 +67,7 @@ function test_all()
     test_selections()
     test_repls()
     test_mcp_tools()
+    test_assistant_mvp()
     # TODO: re-enable when mouse click tests are fixed
     #test_mouse_clicks()
     end
@@ -71,12 +75,13 @@ end
 
 export test_all
 export test_cell, test_json, test_syntax, test_text, test_graphics, test_graphics_layout, test_collection, test_primitive
-export test_json_to_syntax, test_syntax_to_text, test_text_to_graphics, test_copying_projection, test_write_image
+export test_json_to_syntax, test_syntax_to_text, test_primitive_to_text, test_text_to_graphics, test_copying_projection, test_write_image
 export test_examples, test_selections
 export test_printer, test_printers, test_example, test_selection
 export explore_selections
 export test_reader, test_readers, walk_reader_events
 export test_repl, test_repls, walk_repl_loop
 export test_mouse_click_roundtrip, test_mouse_clicks
+export test_assistant_mvp, make_assistant_mvp_setup, make_assistant_mvp_projection
 
 end # module ProjecturedTest

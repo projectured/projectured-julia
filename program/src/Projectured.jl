@@ -91,6 +91,7 @@ include("projection/primitive/BookToSyntax.jl")
 include("projection/primitive/LineNumbering.jl")
 include("projection/primitive/WordWrapping.jl")
 include("projection/primitive/PrimitiveToSyntax.jl")
+include("projection/primitive/PrimitiveToText.jl")
 include("projection/primitive/MathToSyntax.jl")
 include("projection/primitive/JuliaToSyntax.jl")
 include("projection/primitive/CollectionToSyntax.jl")
@@ -235,6 +236,8 @@ using .SyntaxToTextModule: SyntaxToText, SyntaxNodeToTextIoMap,
                                        SyntaxLeafToText, SyntaxListToText
 using .PrimitiveToSyntaxModule: PrimitiveToSyntax, PrimitiveBoolToSyntaxLeaf,
                                  PrimitiveNumberToSyntaxLeaf, PrimitiveStringToSyntaxLeaf
+using .PrimitiveToTextModule: PrimitiveToText, PrimitiveBoolToText,
+                               PrimitiveNumberToText, PrimitiveStringToText
 using .MathToSyntaxModule: MathToSyntax, MathInsertionToSyntaxLeaf, MathVariableToSyntaxLeaf,
                             MathBinaryOperationToSyntaxNode, MathParenthesizedToSyntaxNode,
                             MathAssignmentToSyntaxNode
@@ -424,6 +427,8 @@ export WordWrapping, TextWordWrapping
 export SyntaxToText, SyntaxLeafToText, SyntaxListToText
 export PrimitiveToSyntax, PrimitiveBoolToSyntaxLeaf,
        PrimitiveNumberToSyntaxLeaf, PrimitiveStringToSyntaxLeaf
+export PrimitiveToText, PrimitiveBoolToText,
+       PrimitiveNumberToText, PrimitiveStringToText
 export MathToSyntax, MathInsertionToSyntaxLeaf, MathVariableToSyntaxLeaf,
        MathBinaryOperationToSyntaxNode, MathParenthesizedToSyntaxNode,
        MathAssignmentToSyntaxNode

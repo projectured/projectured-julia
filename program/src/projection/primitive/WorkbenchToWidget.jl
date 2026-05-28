@@ -193,22 +193,24 @@ end
 
 function projection_print(::WorkbenchAssistantToWidgetScrollPane,
                            a::WorkbenchAssistant, recursion, reference)
-    conv_iomap  = _recurse(recursion, a.conversation,
-                           append_reference(reference, FieldReference("conversation")))
-    input_iomap = _recurse(recursion, a.input,
-                           append_reference(reference, FieldReference("input")))
-    column = WidgetComposite(Point2D(0, 0),
-                             Any[_wrap_widget(conv_iomap.output),
-                                 _wrap_widget(input_iomap.output)];
-                             padding=_PAD5)
-    scroll = WidgetScrollPane(column;
-                              size=Point2D(1000, 130),
-                              padding=_PAD5, padding_color=_WHITE)
-    ChildrenIoMap(nothing, a, scroll, Cell(Any[conv_iomap, input_iomap]))
+    # Both children are WidgetScrollPanes whose `content` is the underlying
+    # document. `WidgetScrollPaneToGraphicsCanvas.projection_print` calls
+    # `projection_print(recursion, content, …)` directly, so the outer
+    # TypeDispatchingProjection routes `ConversationDocument` to
+    # `ConversationToWidget` and `PrimitiveDocument` (the input) to the
+    # Primitive→Syntax→Text→Graphics chain. This is also what makes the
+    # `PrimitiveStringToSyntaxLeaf` reader receive `KeyPress` events.
+    conv_pane  = WidgetScrollPane(a.conversation;
+                                  size=Point2D(1000, 400),
+                                  padding=_PAD5, padding_color=_WHITE)
+    input_pane = WidgetScrollPane(a.input;
+                                  size=Point2D(1000, 40),
+                                  padding=_PAD5, padding_color=_WHITE)
+    column = WidgetSplitPane(:vertical,
+                             WidgetDocument[conv_pane, input_pane];
+                             sizes=[400, 40])
+    SimpleIoMap(nothing, a, column)
 end
-
-_wrap_widget(w::WidgetDocument) = w
-_wrap_widget(x) = WidgetText(Point2D(0, 0), x)
 
 function projection_print(::WorkbenchEditorToWidgetScrollPane,
                            e::WorkbenchEditor, recursion, reference)
@@ -429,7 +431,11 @@ end
 
 function projection_read(::WorkbenchAssistantToWidgetScrollPane,
                           iomap, op)
-    op
+    # Return nothing for unhandled events so the Sequential walker keeps
+    # searching. The specific KeyPress/KeyDown methods live in
+    # `WorkbenchAssistantModule` (loaded later in the include chain) and
+    # take precedence via multiple dispatch.
+    nothing
 end
 
 function projection_read(::WorkbenchEditorToWidgetScrollPane,
