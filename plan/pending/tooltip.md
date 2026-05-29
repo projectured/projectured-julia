@@ -1,273 +1,310 @@
-# Arbitrary Tooltip Support via Multi-Output Projections
+# Arbitrary Tooltip Support on top of Multiple Windows
 
 > **Note:** This document was generated with AI assistance as a brainstorming
 > artifact. It is a collection of raw ideas and directions, not a specification.
 > Everything here needs to be critically evaluated, refined, and adapted before
 > any of it gets implemented.
 
+> **Prerequisite:** This plan assumes [multiple-windows.md](multiple-windows.md)
+> is implemented. `ScreenDocument` / `WindowDocument`, the backend window
+> reconciler, `EventEnvelope`, and the
+> `RecursiveProjection(TypeDispatchingProjection(...))` pipeline shape are taken
+> for granted here.
+
 ## Summary
 
-Extend the projection pipeline so that a single `projection_print` call can
-produce **multiple** `GraphicsCanvas` documents — one per SDL window. The
-editor's main window remains one output; additional outputs (tooltips, info
-panels, previews) are rendered into separate SDL windows that the backend
-manages independently. Tooltip content, positioning, and lifecycle are all
-controlled by projections — no special-case tooltip rendering code exists
-outside the projection system.
+A tooltip is just another `WindowDocument` with `style = :tooltip` that the
+pipeline emits when some trigger condition holds and omits otherwise. The
+backend reconciler already opens, moves, resizes, and closes the native window;
+this plan only has to answer three tooltip-specific questions:
+
+1. **When to show** — what condition makes a tooltip's `WindowDocument`
+   appear in the `ScreenDocument`.
+2. **What to show** — what document goes into its `content`, and which
+   projection renders it.
+3. **Where to place it** — how the `WindowDocument`'s `x`, `y`, `width`,
+   `height`, and `style` are derived from the current state (selection,
+   cursor position, content size).
+
+All three are expressible as a projection that takes a `ScreenDocument` in and
+emits a `ScreenDocument` out with zero or one extra `WindowDocument` appended.
+No new output type, no backend changes, no new event routing.
 
 ---
 
 ## Motivation
 
-Currently the pipeline is 1-document-in → 1-canvas-out:
+Before multiple windows, supporting tooltips meant inventing a multi-canvas
+output type *and* teaching the backend to manage extra windows. With multiple
+windows in place, the same need reduces to "emit one more
+`WindowDocument`" — a much smaller change that reuses the existing
+reconciliation, event envelope, and per-window style mechanisms.
 
-```
-document → projection_print → IoMap { input, output::GraphicsCanvas }
-                                          ↓
-                              write_to_devices → single SDL window
-```
+The goal of this plan is therefore narrower:
 
-This makes it impossible to show auxiliary information (type signatures,
-documentation, error messages, previews) in a separate floating window
-without bypassing the projection system entirely. By making the projection
-output a **named collection of canvases**, each canvas maps to a window,
-and tooltip logic lives inside projections where it belongs.
+- Give projections a clean way to add/remove a tooltip window.
+- Keep tooltip content, position, and trigger inside the projection layer,
+  not in the editor or the backend.
+- Stay consistent with the rule from multiple-windows.md that "every 'open
+  a window' feature is 'add a `WindowDocument`'".
 
 ---
 
 ## Design
 
-### Multi-canvas output
+### Tooltip as an appended `WindowDocument`
 
-Instead of `IoMap.output::GraphicsCanvas`, the pipeline produces a
-`MultiOutput`:
+Pipeline shape after multiple-windows:
 
-```julia
-struct MultiOutput
-    primary::GraphicsCanvas          # the main editor canvas (always present)
-    secondaries::Dict{Symbol, GraphicsCanvas}  # :tooltip, :preview, …
-end
+```
+ScreenDocument(input) → RecursiveProjection(TypeDispatchingProjection(
+    ScreenDocument => CopyingProjection(),
+    WindowDocument => CopyingProjection(),
+    Any            => domain_projection,
+)) → ScreenDocument(output, with each WindowDocument.content rendered)
 ```
 
-The backend's `write_to_devices` inspects the `MultiOutput`:
-- The `primary` canvas is rendered to the main `Window` (as today).
-- Each entry in `secondaries` is rendered to its corresponding secondary
-  window. If the window does not yet exist, the backend creates it; if the
-  canvas is `nothing` (or the key is absent), the backend hides/destroys
-  the secondary window.
-
-This keeps the existing single-output path working unchanged — a projection
-that returns a plain `GraphicsCanvas` is implicitly treated as
-`MultiOutput(canvas, Dict())` via a trivial adapter.
-
-### Tooltip projection
-
-A new **domain-preserving** projection on the Graphics domain:
+A tooltip is introduced by wrapping the `ScreenDocument` case so its output
+windows list gets an extra entry when triggered:
 
 ```julia
-struct TooltipProjection <: Projection
-    trigger::Function       # (document, selection) → Bool — when to show
-    content::Function       # (document, selection) → Document — what to show
-    inner_projection::Any   # projects tooltip content → GraphicsCanvas
-    position::Function      # (primary_canvas, selection) → (x, y) — where
-    delay_ms::Int           # hover delay before showing
-end
+projection = RecursiveProjection(
+    TypeDispatchingProjection(
+        ScreenDocument => TooltipDecoratorProjection(
+            inner    = CopyingProjection(),
+            trigger  = (screen, selection) -> ...,
+            content  = (screen, selection) -> ...,
+            position = (screen, selection) -> (x, y, w, h),
+            style    = :tooltip,
+            id       = :tooltip,
+            delay_ms = 300,
+        ),
+        WindowDocument => CopyingProjection(),
+        Any            => domain_projection,
+    )
+)
 ```
 
-This projection wraps the final graphics-producing step. Its printer:
-1. Runs the wrapped projection to get the primary `GraphicsCanvas`.
-2. Evaluates `trigger` against the current document + selection.
-3. If triggered, runs `content` to get a tooltip document, projects it
-   through `inner_projection` to get a tooltip `GraphicsCanvas`.
-4. Returns a `MultiOutput` with the primary canvas and the tooltip canvas
-   under `:tooltip`.
+`TooltipDecoratorProjection`'s printer:
 
-Its reader passes events through to the inner projection unchanged (the
-tooltip is read-only for now; interactive tooltips are a future extension).
+1. Runs `inner` to get the copied `ScreenDocument`.
+2. Evaluates `trigger` over the input + current selection.
+3. If triggered (and the show-delay timer has elapsed), builds a
+   `WindowDocument` whose `content` is the result of `content(...)`,
+   `style = :tooltip`, position from `position(...)`, and `id` as given.
+   Appends it to `windows`.
+4. If not triggered, omits the entry. The backend reconciler closes the
+   tooltip window on the next frame.
 
-### Window management in the backend
+Its reader is `inner`'s reader: tooltip windows are read-only in v1.
+Events arriving via an envelope whose `window_id == :tooltip` are dropped
+at the editor level.
 
-`SdlBackend` gains a registry of secondary windows:
+Crucially: `content(...)` returns a `Document`, not a `GraphicsCanvas`.
+The outer `RecursiveProjection(TypeDispatchingProjection(...))` projects it
+the same way as any other window's content — through the type dispatcher and,
+ultimately, `domain_projection` (or a different dispatcher entry, see below).
 
-```julia
-mutable struct SdlBackend <: Backend
-    font_cache::Dict{Tuple{String,Int}, Ptr{Nothing}}
-    secondary_windows::Dict{Symbol, Window}   # managed tooltip/preview windows
-end
-```
+### Hover vs selection as the trigger
 
-`write_to_devices` is extended:
+The selection cursor is already a first-class concept; the mouse pointer is
+not. Two natural sources for triggers:
 
-```julia
-function write_to_devices(backend::SdlBackend, devices, output)
-    canvas, secondaries = if output isa MultiOutput
-        output.primary, output.secondaries
-    else
-        output, Dict{Symbol, GraphicsCanvas}()
-    end
+- **Selection-based**: trigger fires when the caret has been on a particular
+  reference for `delay_ms`. Reuses existing selection plumbing; no new event
+  types. Less faithful to a "hover" UX but is what the user already controls.
+- **Pointer-based**: requires routing `MouseMotion` events into a hover-state
+  cell on the input `ScreenDocument` (e.g. `hovered::Reference`).
+  `read_from_devices` already emits motion; a `HoverTrackingProjection` reader
+  could maintain the cell.
 
-    # Render primary canvas to main window (unchanged)
-    for device in devices
-        device isa Window && write_to_device(backend, device, canvas)
-    end
+v1 picks selection-based. The trigger function signature stays
+`(screen, selection) -> Bool`. Pointer-based tooltips can be added later by
+swapping in a different trigger and feeding it a separately tracked
+`hovered` cell.
 
-    # Manage secondary windows
-    for (name, sec_canvas) in secondaries
-        _ensure_secondary_window!(backend, name, sec_canvas)
-    end
-    # Hide/destroy windows whose keys are no longer present
-    for name in keys(backend.secondary_windows)
-        if !haskey(secondaries, name)
-            _close_secondary_window!(backend, name)
-        end
-    end
-end
-```
+### Show delay
 
-Secondary windows are:
-- Borderless (SDL_WINDOW_BORDERLESS) for tooltip-style popups.
-- Always-on-top relative to the main window.
-- Positioned relative to the main window's screen coordinates (the
-  projection provides a logical position; the backend translates to screen
-  coordinates using `SDL_GetWindowPosition`).
+The trigger may flip rapidly while the user moves the caret. To avoid flicker:
 
-### Tooltip lifecycle
+- The decorator owns a `Cell{Union{Nothing,Float64}}` holding the wall-clock
+  timestamp at which `trigger` last became true.
+- On each `projection_print`:
+  - If `trigger` is false → clear the timestamp, omit the window.
+  - If `trigger` is true and the timestamp is `nothing` → set it to `time()`,
+    omit the window this frame.
+  - If `trigger` is true and `time() - timestamp >= delay_ms / 1000` →
+    emit the tooltip window.
+- The REPL's frame loop pulls `projection_print` on every iteration after
+  multiple-windows' "drain events per frame" change, so the tooltip naturally
+  appears on the first frame after the delay has elapsed.
 
-| State | Condition | Action |
-|-------|-----------|--------|
-| Hidden | `trigger` returns `false` | No `:tooltip` key in `secondaries` → window hidden/destroyed |
-| Pending | `trigger` returns `true`, timer < `delay_ms` | No window yet; timer ticking |
-| Shown | `trigger` returns `true`, timer ≥ `delay_ms` | `:tooltip` canvas present → window created/updated |
-| Dismissed | User presses Escape or moves selection away | `trigger` returns `false` → hidden |
+This is the "sample wall-clock in the printer" option from the original plan
+(option (a) of the old Open Questions). It is pragmatic but means the
+projection output depends on `time()`, which the reactive cell system
+otherwise does not see. Document the limitation; a `TimerCell` abstraction
+can be added later if it becomes a real problem.
 
-Timer state lives in a cell on the `TooltipProjection` struct (or in the
-IoMap) so it participates in the reactive system.
+### Position
 
-### Event routing for multi-window
+`position(screen, selection)` returns `(x, y, width, height)` in screen
+coordinates. The decorator needs:
 
-SDL delivers events tagged with a `windowID`. Currently `read_from_devices`
-ignores window IDs (there is only one window). With multiple windows:
+- The screen-coordinate position of the selection, which the IoMap's
+  `char_to_coord` already gives in window-local coordinates.
+- The main window's screen-coordinate origin, exposed by the backend via
+  something like `screen_origin(backend, id::Symbol)` — a small addition.
+- Clamping to screen bounds: callee's responsibility, or a shared helper.
 
-1. Events on the **primary** window are handled as today.
-2. Events on a **secondary** window are either:
-   - Ignored (tooltip is non-interactive, the default).
-   - Routed to the tooltip's own projection reader (future: interactive
-     tooltips with clickable links, scrollable content).
-3. Focus changes: clicking the tooltip window should not steal focus from
-   the main editor. Use `SDL_WINDOW_TOOLTIP` flag or re-focus the main
-   window on tooltip click.
+Width/height can be `0` (auto-size from content canvas — already supported
+by the multi-windows plan via `WindowDocument(width=0, height=0)`).
+
+### Style
+
+`WindowDocument.style = :tooltip` is already part of multiple-windows'
+schema. The backend's `_apply_style!(:tooltip, ...)` is the right place for
+borderless / always-on-top / non-focusable flags
+(`SDL_WINDOW_BORDERLESS`, `SDL_WINDOW_ALWAYS_ON_TOP`, `SDL_WINDOW_TOOLTIP`
+where supported). That belongs in the multiple-windows implementation rather
+than here; this plan just consumes the style.
+
+### Multiple simultaneous tooltips / preview panels
+
+Trivial under multi-windows: stack multiple `TooltipDecoratorProjection`s
+(each with its own `id` like `:type_tooltip`, `:error_tooltip`, `:preview`),
+or have one decorator return multiple appended windows. Each id is reconciled
+independently by the backend.
+
+### Per-tooltip content projections
+
+If the tooltip content needs a *different* projection than `domain_projection`
+(e.g. a JSON-path string is rendered by a text projection while the main
+window uses a tree projection), do not add new projection types. Instead,
+either:
+
+- Add another entry to the `TypeDispatchingProjection` keyed on the tooltip
+  content's concrete document type, or
+- Have `content(...)` return a document of a type that the dispatcher already
+  routes appropriately.
+
+This stays consistent with multiple-windows' "no per-window content
+projection dispatch in a new type".
 
 ---
 
 ## Implementation Steps
 
-### Step 1: `MultiOutput` type and backward-compatible adapter
+### Step 1 — `:tooltip` style on the backend
 
-- Define `MultiOutput` in a new or existing module.
-- Add a trivial conversion so existing projections that return a plain
-  `GraphicsCanvas` are wrapped transparently.
-- `write_to_devices` handles both `GraphicsCanvas` and `MultiOutput`.
-- **No behavioral change yet** — all existing examples continue to work.
+Pre-work in `SdlBackend._apply_style!`: borderless, always-on-top,
+non-focusable (where the platform allows). Add `screen_origin(backend, id)`
+or equivalent so tooltip positions can be expressed in screen coordinates
+relative to the main window.
 
-### Step 2: Secondary window management in `SdlBackend`
+Strictly speaking this belongs to multiple-windows; capture it here in case
+that plan does not land it.
 
-- Add `secondary_windows` field to `SdlBackend`.
-- Implement `_ensure_secondary_window!` (create or update) and
-  `_close_secondary_window!` (hide/destroy).
-- Secondary windows are borderless, positioned, and non-focusable.
-- Test by manually constructing a `MultiOutput` with a dummy tooltip canvas.
+### Step 2 — `TooltipDecoratorProjection` skeleton
 
-### Step 3: `TooltipProjection` — static tooltip
+- Struct with `inner`, `trigger`, `content`, `position`, `id`, `style`,
+  `delay_ms`, and the timestamp cell.
+- Printer: implement steps 1–4 of "Tooltip as an appended `WindowDocument`"
+  without delay logic (treat `delay_ms = 0`).
+- Reader: pass through to `inner`'s reader; drop envelopes whose
+  `window_id == id`.
+- Smoke test: a JSON example with a trigger that always returns `true`
+  showing the path of the selected node in a small window.
 
-- Implement the projection struct with `trigger`, `content`,
-  `inner_projection`, and `position`.
-- Printer: evaluate trigger, project tooltip content, produce `MultiOutput`.
-- Reader: pass-through to inner projection (tooltip non-interactive).
-- No delay logic yet — tooltip appears immediately when triggered.
-- Example: show the JSON path of the currently selected node.
+### Step 3 — Show delay
 
-### Step 4: Hover delay and dismissal
+- Add the timestamp cell; gate emission on elapsed time.
+- Verify with two example triggers: one that is always-on (window appears
+  after `delay_ms`), and one that flips on every selection move (no window
+  ever appears under reasonable mouse movement).
 
-- Add timer logic (a `Cell{Float64}` holding the timestamp when trigger
-  became true).
-- Printer suppresses the tooltip canvas until `delay_ms` has elapsed.
-- Dismissal clears the timer when trigger becomes false.
-- The REPL loop's `sleep(0.01)` provides the frame cadence; the tooltip
-  appears after enough frames have passed.
+### Step 4 — Position derivation
 
-### Step 5: Event routing with window IDs
+- Surface enough of the IoMap and backend window origin to compute
+  `(x, y)` near the selection's screen coordinates.
+- Clamp to screen bounds via SDL display info.
+- `(width, height) = (0, 0)` for auto-sizing.
 
-- Extend `read_from_devices` to tag events with the originating window ID.
-- Main window events continue to the projection reader.
-- Secondary window events are either discarded or (optionally) forwarded
-  to the tooltip's reader for interactive tooltips.
+### Step 5 — Example tooltips
 
-### Step 6: Tooltip positioning and sizing
+Each is just a different `content` + (possibly) dispatcher entry:
 
-- `position` function receives the primary canvas geometry and the current
-  selection's screen coordinates (from the IoMap's `char_to_coord`).
-- Tooltip window is placed near the cursor, clamped to screen bounds.
-- Tooltip canvas size determines window size (the window auto-sizes to fit
-  its content, or uses a configurable maximum with scroll).
+- **Path tooltip**: for the selected JSON node, show its JSON path as a
+  short string document.
+- **Type tooltip**: show inferred schema/type.
+- **Error tooltip**: show validation errors on a node.
+- **Documentation tooltip**: for a Julia function call node, show its
+  docstring (reuses any existing Julia documentation projection).
 
-### Step 7: Configurable tooltip projections (examples)
+### Step 6 — Multiple simultaneous tooltips
 
-- **Type tooltip**: for a JSON value, show its inferred schema.
-- **Error tooltip**: for a node with validation errors, show the error.
-- **Documentation tooltip**: for a Julia function call, show its docstring.
-- **Preview tooltip**: for an image path, show a rendered thumbnail.
+- Compose two `TooltipDecoratorProjection`s and verify the reconciler keeps
+  both windows open / closed independently.
+- Confirm id collisions are reported as bugs (multiple-windows step already
+  asserts this at the screen level).
 
-Each is a different `content` function + `inner_projection` pipeline,
-demonstrating the generality of the approach.
+### Step 7 — Optional: pointer-based hover
+
+- A `HoverTrackingProjection` whose reader updates a `hovered::Reference`
+  cell on the input `ScreenDocument` in response to `MouseMotion` envelopes
+  on the main window.
+- Tooltip triggers can then read `hovered` instead of `selection`.
+- Defer until selection-based tooltips are exercised in practice.
 
 ---
 
 ## Open Questions
 
-- **Multiple secondaries simultaneously** — can the editor show a tooltip
-  *and* a preview panel at the same time? The `Dict{Symbol, GraphicsCanvas}`
-  design supports this naturally, but managing overlapping popups adds UI
-  complexity (z-ordering, dismissal priority). Start with one tooltip and
-  generalize later.
+- **Where does the show-delay timestamp live?** On the
+  `TooltipDecoratorProjection` struct (per projection instance, leaks across
+  iomaps), in the iomap (rebuilt each frame, would need explicit carry), or
+  on the input `ScreenDocument` (intrusive). The first is the simplest and
+  matches how other projection state is held; reconsider only if it causes
+  trouble.
 
-- **Tooltip as a separate Editor** — should a tooltip have its own
-  read-eval-print loop (its own `Editor` struct with its own projection and
-  iomap)? This would make interactive tooltips straightforward (each tooltip
-  is a mini-editor) but adds complexity. For read-only tooltips, a
-  projection-only approach (no reader, no operations) is simpler.
+- **Time in the reactive system.** The cell graph is event-driven; sampling
+  `time()` in the printer breaks that purity. Acceptable for v1; a
+  `TimerCell` that self-invalidates after a duration is the principled fix
+  if frame cadence proves unreliable.
 
-- **Reactive timer** — the tooltip delay requires time awareness. The
-  reactive cell system is event-driven, not time-driven. Options:
-  (a) sample wall-clock time in the printer and invalidate on next frame;
-  (b) add a `TimerCell` concept that self-invalidates after a duration;
-  (c) handle the delay in the editor loop outside the projection. Option
-  (a) is simplest and fits the existing frame-based loop.
+- **Interactive tooltips.** v1 drops envelopes targeted at the tooltip
+  window. Interactive tooltips (click-through links, scroll) would either
+  forward those envelopes into a sub-projection rooted at the tooltip's
+  content (likely the right design, since the content is already a regular
+  document) or run the tooltip as its own `Editor`. The former is much
+  simpler and is preferred when v2 is needed.
 
-- **Platform differences** — SDL tooltip windows behave differently across
-  platforms (X11 vs Wayland vs macOS). `SDL_WINDOW_TOOLTIP` is an SDL hint
-  that may not be respected everywhere. Fallback: use a regular borderless
-  window with explicit repositioning.
+- **Pointer tracking precision.** SDL motion events are coarse; correctly
+  mapping them through the projection to a `Reference` in the input
+  document requires the same reverse-projection plumbing as
+  click-to-select. That plumbing already exists; the work is wiring it up
+  for motion as well as buttons.
 
-- **Projection composability** — `TooltipProjection` wraps the final step
-  of the pipeline. If multiple tooltip projections are composed (e.g.
-  type tooltip + error tooltip), they need to merge their secondary outputs.
-  A `MergeMultiOutputProjection` higher-order projection could combine
-  `Dict`s from multiple inner projections.
+- **Tooltip outliving its trigger.** If `content(...)` recomputes per frame
+  it stays in sync with whatever the trigger was based on. If the user
+  wants a "pinned" tooltip that survives selection changes, it becomes an
+  ordinary `WindowDocument` controlled by a different mechanism — out of
+  scope here.
 
 ---
 
-## Relationship to Existing Architecture
+## Relationship to the Multiple Windows Plan
 
-| Concept | Current | With Tooltips |
-|---------|---------|---------------|
-| `projection_print` output | `IoMap{…, GraphicsCanvas, …}` | `IoMap{…, MultiOutput, …}` |
-| `write_to_devices` | Renders one canvas to one window | Renders primary + secondaries to multiple windows |
-| `SdlBackend` | Stateless (font cache only) | Manages secondary window lifecycle |
-| `read_from_devices` | Ignores window IDs | Routes events by window ID |
-| Tooltip content | N/A (not supported) | A projection producing a `GraphicsCanvas` |
-| Tooltip trigger | N/A | A predicate on document + selection |
+| Concern | Multiple windows handles | This plan adds |
+|---------|--------------------------|----------------|
+| Multi-window output type | `ScreenDocument` / `WindowDocument` | — |
+| Opening / closing native windows | `write_to_devices(::ScreenDocument)` reconciler | — |
+| Per-window event routing | `EventEnvelope { window_id, event }` | Drops envelopes for tooltip window in v1 |
+| Per-window style | `WindowDocument.style` + `_apply_style!` | Defines `:tooltip` style semantics (borderless, on-top, non-focusable) |
+| Per-window position / size | `WindowDocument.x/y/width/height` | Tooltip-specific `position` function and screen-coordinate helper |
+| Trigger to show a window | Out of scope — push/remove `WindowDocument` | `TooltipDecoratorProjection.trigger` + show-delay timestamp |
+| What goes in the tooltip | Out of scope — any `Document` | `content` function returning a document; rendered via the existing type dispatcher |
+| Multiple tooltips at once | Trivial — multiple `WindowDocument`s | Compose multiple decorators |
 
-The change is **additive** — existing single-window pipelines work unchanged.
-The only breaking change is the type of `IoMap.output` widening from
-`GraphicsCanvas` to `Union{GraphicsCanvas, MultiOutput}`, which is handled
-by the adapter in step 1.
+Net effect: this plan goes from inventing a new output type + backend
+machinery to writing one new projection (`TooltipDecoratorProjection`) plus
+the `:tooltip` style hookup on the backend.

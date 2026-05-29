@@ -67,20 +67,30 @@ Signature becomes: `evaluate_operation(op::Operation)`.
   self-contained is easier to reason about than one that depends on external
   state passed at evaluation time.
 
+### Reader purity is preserved
+
+A natural worry is that making `ReplaceSelectionOperation` carry a document
+reference forces the reader to "know" the root document and therefore breaks
+reader purity. It does not.
+
+The reader already receives the document as input — `projection_read` is given
+the document it is reading against. Including that same document reference in
+the operation it returns is still a pure transformation: same inputs in, same
+operation value out. Purity is about determinism and absence of side effects,
+not about whether the output value happens to hold a reference to one of the
+inputs. The reader does not *capture mutable state*; it just *passes through*
+a reference that was handed to it.
+
+So the operations produced by the reader can carry the document when
+necessary (as `ReplaceSelectionOperation` would) or not (as all the others
+already do), and the reader remains pure either way.
+
 ### Arguments against
 
 - **Redundant reference storage.** The editor *already* holds the document.
   Putting it into every `ReplaceSelectionOperation` (the most common
-  operation) duplicates the reference.
-- **Reader must know the root document.** Today the reader pipeline produces
-  operations knowing nothing about the root document — it only knows about
-  paths. Making `ReplaceSelectionOperation` carry a document means the reader
-  (or something between reader and evaluator) must inject the document
-  reference. This either pushes complexity into readers or requires a
-  post-processing step.
-- **Breaks the reader's purity.** Readers are "purely functional" transforms
-  from events to operations. If they must capture a mutable document
-  reference, they are no longer pure in the same sense.
+  operation) duplicates the reference — though this is one pointer per
+  short-lived operation value, not meaningful overhead.
 
 ---
 
@@ -91,9 +101,6 @@ at evaluation time; operations remain lightweight value objects.
 
 ### Arguments for
 
-- **Reader stays pure.** Readers produce operations that describe *intent*
-  (a path to select) without needing a reference to the mutable document.
-  The editor binds the intent to the document at the last possible moment.
 - **Lighter operations.** `ReplaceSelectionOperation` is created on every
   keypress. Keeping it as just a `path` avoids carrying a document pointer
   that is always the same object.
@@ -104,6 +111,10 @@ at evaluation time; operations remain lightweight value objects.
 - **Matches the projection pipeline.** `projection_print(projection, input,
   recursion, reference)` also receives its document externally. Using the
   same pattern for evaluation keeps the architecture uniform.
+- **Command/invoker separation.** An operation describes *what* to do; the
+  editor (invoker) provides *where*. This separation is a stylistic
+  preference, not a purity requirement — Option A also works — but some
+  may find it clearer.
 
 ### Arguments against
 
@@ -133,34 +144,41 @@ This is a superset of Option B and aligns with the `ProjectionContext` plan.
 
 ## Recommendation
 
-**Option B (keep the `document` argument), with an eye toward Option C.**
+**Option A (remove the `document` argument; operations are self-contained).**
 
 Rationale:
 
-1. **`ReplaceSelectionOperation` is the dominant operation** — it fires on
-   every cursor movement. Making it self-contained means either the reader
-   must capture the root document (breaking reader purity) or a wrapper step
-   must inject it (adding mechanism for no gain).
+1. **Consistency wins.** 12 of 13 concrete operations already embed their
+   target. The `document` argument exists for exactly one operation. Aligning
+   that one with the rest gives every operation the same shape: a
+   self-describing command.
 
-2. **Reader purity matters.** The reader's job is to translate a device event
-   into a domain-level intent. The intent "select this path" is independent
-   of *which* document receives it. The editor binds intent to document.
-   This is the Command pattern: a command object describes *what*, the
-   invoker provides *where*.
+2. **Reader purity is not at risk.** The reader receives the document as
+   input and produces operations from it; passing that reference through into
+   the operation value is still a pure transformation. The earlier draft
+   over-weighted this concern.
 
-3. **The `_document` noise is cosmetic.** Julia's convention of prefixing
-   unused arguments with `_` already signals this. The cost is negligible
-   compared to the architectural benefits of a uniform signature.
+3. **Self-contained operations are easier to log, replay, serialise, and
+   undo.** Each operation entry stands on its own without needing an
+   ambient "current document" supplied at evaluation time.
 
-4. **Future undo/redo will need context.** When an operation log is added,
-   `evaluate_operation` will need access to the log or a transaction handle.
-   The second argument is the natural place for this, generalised as an
-   `EvaluationContext`.
+4. **The `_document` noise goes away.** 12 methods stop declaring a parameter
+   they never use.
+
+The remaining concerns — extension points for an evaluation context (undo
+log, transaction handle, timestamps) — can be added later as a separate
+argument *when actually needed*, without forcing every present-day operation
+to accept a document it ignores. Option C (an `EvaluationContext`) remains
+available as a future move if those needs materialise.
 
 ### Minimal action items
 
-- No signature change needed now.
-- When `ProjectionContext` lands, consider whether `EvaluationContext` should
-  share structure or remain separate (projection is read-only downward flow;
-  evaluation is write-side mutation — likely separate).
-- When undo/redo is added, promote `document` to `EvaluationContext`.
+- Change the signature of `evaluate_operation` in `api/Operation.jl` to
+  `evaluate_operation(operation::Operation)`.
+- Add a `document::Document` field to `ReplaceSelectionOperation`.
+- Update the reader pipeline that constructs `ReplaceSelectionOperation` to
+  pass the root document it already has access to.
+- Drop the `_document` parameter from the 12 methods that ignore it.
+- Update the editor's call site to `evaluate_operation(editor.operation)`.
+- If/when undo/redo or transactional evaluation lands, introduce an
+  `EvaluationContext` as a second argument at that point (Option C).
