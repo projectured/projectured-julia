@@ -235,7 +235,54 @@ The `@reference` macro provides a convenient DSL for building reference paths:
 # Complex paths
 @reference items[1].name
 # Equivalent to: ElementReference(1) + FieldReference("name")
+
+# Range references — explicit multi-element selection
+@reference items{s:e}
+# Equivalent to: RangeReference(s, e)
+# Prefer this form over the older two-arg `items[s, e]`.
+
+# Path-tail splice
+@reference value.^(tail)
+# Concatenates the spliced `ReferencePath` (or single `ReferenceStep`) onto
+# the prefix; useful for rebuilding paths like
+#   ConcreteReferencePath(FieldReference("value"), tail)
+# in projection mappers.
+
+# Splice at the front
+@reference ^(base).inner
+# Equivalent to: `_concat(base, @reference inner)`
+
+# Splice with a single step
+let s = FieldReference("foo")
+    @reference value.^(s)
+end
+# Equivalent to: FieldReference("value") + FieldReference("foo")
 ```
+
+The `^()` operator accepts either a `ReferencePath` (concatenated) or a
+`ReferenceStep` (wrapped into a one-step path then concatenated). It can
+appear at the front of a chain (`^(base).rest`) or at the tail
+(`prefix.^(tail)`). Mid-chain splices are not supported because the
+surrounding Julia surface syntax does not parse `prefix.^(x).suffix` the
+way the DSL would need.
+
+## Building Single Steps: `@step`
+
+The `@step` macro builds a single `ReferenceStep`, useful for passing to
+`append_reference` or any API that takes raw steps instead of full paths.
+
+```julia
+@step value              # FieldReference("value")
+@step xs[i]              # ElementReference(i)
+@step xs{k}              # PositionReference(k)
+@step xs{s:e}            # RangeReference(s, e)
+@step c.point(x, y)      # PointReference(x, y)
+@step config.field(name) # FieldReference(name)
+```
+
+The leading identifier (`xs`, `c`, `config`) is a placeholder — only the
+trailing operator determines the step's kind. For a bare symbol like
+`@step value`, the symbol itself becomes the field name.
 
 ## Reference Pattern Matching: `@reference_case`
 
@@ -245,6 +292,9 @@ The `@reference_case` macro provides pattern matching for reference paths:
 @reference_case reference begin
     # Cursor position pattern (0-based)
     value{k} => @reference value{k}
+
+    # Range pattern (matches any RangeReference and binds boundaries)
+    items{s:e} => ("range", s, e)
 
     # Wildcard pattern (matches anything)
     _ => "default"
@@ -266,6 +316,9 @@ Pattern syntax:
 - `"name"` or `0` — literal, matches specific value
 - `i::Int` — typed binder, captures with type check
 - `path...` — matches prefix and binds remaining tail
+- `{s:e}` — range pattern, matches any `RangeReference` (positions are
+  `RangeReference(k, k)`, so `{s:e}` will also match a position; list
+  more specific `{k}` patterns first if both are interesting)
 
 The `@reference_case` macro is commonly used in projection readers to translate output-domain references back to input-domain references.
 

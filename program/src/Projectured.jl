@@ -150,7 +150,7 @@ using .ReferenceModule: ConcreteReferencePath, ElementReference, PositionReferen
 using .DocumentApiModule: set_selection!, clear_selection!
 using .OperationModule: ReplaceSelectionOperation, QuitEditorOperation, replace_selection!
 using .ReferenceCaseModule: var"@reference_case", when, prefix
-using .ReferenceBuilderModule: var"@reference"
+using .ReferenceBuilderModule: var"@reference", var"@step"
 using .OperationApiModule: Operation, evaluate_operation
 using .JsonModule: JsonDocument, JsonInsertion, JsonForeign, JsonNull, JsonBool, JsonNumber, JsonString, JsonArray,
                    JsonObject, JsonObjectEntry, jsonvalue, entries
@@ -333,7 +333,7 @@ export ConcreteReferencePath, ElementReference, PositionReference, RangeReferenc
        reference_equal, is_prefix_of
 export set_selection!, clear_selection!, replace_selection!
 export @reference_case, when, prefix
-export @reference
+export @reference, @step
 export ReplaceSelectionOperation
 export JsonDocument, JsonInsertion, JsonForeign, JsonNull, JsonBool, JsonNumber, JsonString, JsonArray, JsonObject, JsonObjectEntry, jsonvalue, entries
 export TableDocument, TableCell, TableRow, TableColumn, TableTable

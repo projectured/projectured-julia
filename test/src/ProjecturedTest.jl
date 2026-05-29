@@ -3,7 +3,9 @@ module ProjecturedTest
 using Test
 using Projectured
 using ProjecturedExample
-using Projectured: ElementReference, RangeReference, color_red, color_blue, color_white, color_default, font_ubuntu_monospace_regular_24
+using Projectured: ElementReference, RangeReference, PositionReference, FieldReference, PointReference,
+                   ConcreteReferencePath, EmptyReferencePath,
+                   color_red, color_blue, color_white, color_default, font_ubuntu_monospace_regular_24
 
 const _test_backend = SdlBackend()
 
@@ -12,6 +14,7 @@ function __init__()
 end
 
 include("common/CellTest.jl")
+include("reference/ReferenceBuilderTest.jl")
 include("document/JsonTest.jl")
 include("document/SyntaxTest.jl")
 include("document/TextTest.jl")
@@ -60,6 +63,7 @@ end
 function test_all()
     @testset "Projectured" begin
     test_cell()
+    test_reference_builder()
     test_documents()
     test_projections()
     test_printers()
@@ -74,7 +78,8 @@ function test_all()
 end
 
 export test_all
-export test_cell, test_json, test_syntax, test_text, test_graphics, test_graphics_layout, test_collection, test_primitive
+export test_cell, test_reference_builder
+export test_json, test_syntax, test_text, test_graphics, test_graphics_layout, test_collection, test_primitive
 export test_json_to_syntax, test_syntax_to_text, test_primitive_to_text, test_text_to_graphics, test_copying_projection, test_write_image
 export test_examples, test_selections
 export test_printer, test_printers, test_example, test_selection

@@ -149,10 +149,10 @@ function _parse_path!(steps::Vector{PatStep}, ex)
         return steps
 
     elseif ex isa Expr && ex.head == :curly
-        # base{idx} — PositionReference (0-based)
+        # base{idx} — PositionReference (0-based), or base{s:e} — RangeReference
         length(ex.args) == 2 || error("only one-dimensional position patterns are supported: $ex")
         _parse_path!(steps, ex.args[1])
-        push!(steps, PSPosition(_parse_value(ex.args[2])))
+        push!(steps, _braces_pat(ex.args[2]))
         return steps
 
     elseif ex isa Expr && ex.head == :call
@@ -207,9 +207,9 @@ function _parse_path!(steps::Vector{PatStep}, ex)
         return steps
 
     elseif ex isa Expr && ex.head == :braces
-        # {i} as a relative subpath — PositionReference (0-based)
-        length(ex.args) == 1 || error("subpath braces syntax supports exactly one element, e.g. {0} or {k}: $ex")
-        push!(steps, PSPosition(_parse_value(ex.args[1])))
+        # {i} or {s:e} as a relative subpath
+        length(ex.args) == 1 || error("subpath braces syntax supports exactly one element, e.g. {0} or {0:k}: $ex")
+        push!(steps, _braces_pat(ex.args[1]))
         return steps
 
     elseif ex isa Expr && ex.head == :...
@@ -239,6 +239,15 @@ end
 function _parse_subpath(ex)
     ex isa Symbol && return PatStep[PSWholePathBind(ex)]
     return _parse_path(ex)
+end
+
+# Lower the inner expression of a `{...}` pattern to either a position or
+# range step.
+function _braces_pat(inner)
+    if inner isa Expr && inner.head == :call && length(inner.args) == 3 && inner.args[1] == :(:)
+        return PSRange(_parse_value(inner.args[2]), _parse_value(inner.args[3]))
+    end
+    return PSPosition(_parse_value(inner))
 end
 
 # ------------------------------------------------------------

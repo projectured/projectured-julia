@@ -1,7 +1,7 @@
 module ReferenceBuilderModule
 
 using ..ReferenceModule
-export @reference
+export @reference, @step
 
 # ------------------------------------------------------------
 # Parsing for constructor DSL
@@ -9,10 +9,16 @@ export @reference
 # Rootless forms:
 #   address.city
 #   items[i].name
+#   xs{s:e}
 #   config.field(fname)
 #   cursor.point(x, y)
 #   rendered.proj(p, [0])
 #   rendered.proj(p, token[i])
+#
+# Splicing:
+#   ^(expr)              — splice a ReferencePath or ReferenceStep at the front
+#   value.^(expr)        — splice at the end of a chain (parses as .^ broadcast)
+#   ^(expr).field        — splice followed by more steps
 #
 # Semantics:
 #   - top-level bare symbols in path position are literal field names
@@ -85,10 +91,10 @@ function _parse_build_path!(steps::Vector{BuildStep}, ex)
         return steps
 
     elseif ex isa Expr && ex.head == :curly
-        # base{idx} — PositionReference (0-based)
+        # base{idx} — PositionReference (0-based), or base{s:e} — RangeReference
         length(ex.args) == 2 || error("only one-dimensional position is supported in @reference: $ex")
         _parse_build_path!(steps, ex.args[1])
-        push!(steps, BSPosition(ex.args[2]))
+        push!(steps, _braces_step(ex.args[2], ex))
         return steps
 
     elseif ex isa Expr && ex.head == :call
@@ -98,6 +104,19 @@ function _parse_build_path!(steps::Vector{BuildStep}, ex)
             # Top-level: proj(projection, subpath)
             length(ex.args) == 3 || error(".proj(projection, outpath) expects exactly two arguments: $ex")
             push!(steps, BSProjection(ex.args[2], _parse_build_subpath(ex.args[3])))
+            return steps
+
+        elseif f == :(^)
+            # ^(expr) at path position — splice
+            length(ex.args) == 2 || error("^(expr) expects exactly one argument: $ex")
+            push!(steps, BSPathSplice(ex.args[2]))
+            return steps
+
+        elseif f == :.^ && length(ex.args) == 3
+            # base.^(expr) — Julia parses `base.^(expr)` as binary broadcast
+            # `.^`; we use it as "path-tail splice at the end of the chain"
+            _parse_build_path!(steps, ex.args[2])
+            push!(steps, BSPathSplice(ex.args[3]))
             return steps
 
         elseif f isa Expr && f.head == :. && f.args[2] isa QuoteNode
@@ -138,14 +157,22 @@ function _parse_build_path!(steps::Vector{BuildStep}, ex)
         return steps
 
     elseif ex isa Expr && ex.head == :braces
-        # {i} as a relative subpath — PositionReference (0-based)
-        length(ex.args) == 1 || error("subpath braces syntax supports exactly one element, e.g. {0} or {k}: $ex")
-        push!(steps, BSPosition(ex.args[1]))
+        # {i} or {s:e} as a relative subpath
+        length(ex.args) == 1 || error("subpath braces syntax supports exactly one element, e.g. {0} or {0:k}: $ex")
+        push!(steps, _braces_step(ex.args[1], ex))
         return steps
 
     else
         error("unsupported @reference syntax: $ex")
     end
+end
+
+# Lower the inner expression of `{...}` to either a position or range step.
+function _braces_step(inner, ctx)
+    if inner isa Expr && inner.head == :call && length(inner.args) == 3 && inner.args[1] == :(:)
+        return BSRange(inner.args[2], inner.args[3])
+    end
+    return BSPosition(inner)
 end
 
 function _parse_build_subpath(ex)
@@ -192,12 +219,56 @@ function _gen_build_step(step::BSProjection)
     return :(ReferenceModule.ProjectionReference($projex, $outpathex))
 end
 
+# Wrap a value so it can stand in as a ReferencePath: pass paths through,
+# wrap steps into a one-element path.
+_splice(p::ReferenceModule.ReferencePath) = p
+_splice(s::ReferenceModule.ReferenceStep) =
+    ReferenceModule.ConcreteReferencePath(s, ReferenceModule.EmptyReferencePath())
+
+# Concatenate two paths by walking the left and reusing the right's tail.
+_concat(::ReferenceModule.EmptyReferencePath, b::ReferenceModule.ReferencePath) = b
+_concat(a::ReferenceModule.ConcreteReferencePath, b::ReferenceModule.ReferencePath) =
+    ReferenceModule.ConcreteReferencePath(a.head, _concat(a.tail, b))
+
 function _gen_build_path(steps::Vector{BuildStep})
-    if length(steps) == 1 && steps[1] isa BSPathSplice
-        return _gen_build_step(steps[1])
+    # No steps → empty path.
+    if isempty(steps)
+        return :(ReferenceModule.EmptyReferencePath())
     end
-    stepexprs = [_gen_build_step(s) for s in steps]
-    return :(ReferenceModule.ReferencePath($(stepexprs...)))
+
+    # Fast path: no splices at all.
+    if !any(s -> s isa BSPathSplice, steps)
+        stepexprs = [_gen_build_step(s) for s in steps]
+        return :(ReferenceModule.ReferencePath($(stepexprs...)))
+    end
+
+    # Slice the chain at every splice and emit a `_concat` chain of literal
+    # `ReferencePath(...)` segments interleaved with `_splice(...)` of the
+    # spliced runtime values.
+    return _gen_concat_chain(steps)
+end
+
+function _gen_concat_chain(steps::Vector{BuildStep})
+    if isempty(steps)
+        return :(ReferenceModule.EmptyReferencePath())
+    end
+    if steps[1] isa BSPathSplice
+        head = :(ReferenceBuilderModule._splice($(_gen_build_step(steps[1]))))
+        tail = _gen_concat_chain(steps[2:end])
+        # _concat needs an EmptyReferencePath base case to short-circuit when
+        # there's nothing after the splice.
+        return :(ReferenceBuilderModule._concat($head, $tail))
+    end
+    # Gather a run of non-splice steps into a single literal ReferencePath.
+    i = findfirst(s -> s isa BSPathSplice, steps)
+    cutoff = i === nothing ? length(steps) + 1 : i
+    prefix = steps[1:cutoff-1]
+    prefix_expr = :(ReferenceModule.ReferencePath($([_gen_build_step(s) for s in prefix]...)))
+    if cutoff > length(steps)
+        return prefix_expr
+    end
+    tail = _gen_concat_chain(steps[cutoff:end])
+    return :(ReferenceBuilderModule._concat($prefix_expr, $tail))
 end
 
 macro reference()
@@ -207,6 +278,68 @@ end
 macro reference(ex)
     steps = _parse_build_path(ex)
     return _gen_build_path(steps)
+end
+
+# ------------------------------------------------------------
+# @step companion macro
+#
+# Builds a single ReferenceStep from a one-step DSL expression. Useful for
+# passing varargs to `append_reference`, or any other API that takes raw
+# steps rather than full paths.
+# ------------------------------------------------------------
+
+macro step(ex)
+    return _gen_build_step(_parse_step(ex))
+end
+
+# Parse a single-step expression. Unlike `_parse_build_path`, a leading
+# identifier in front of an operator (`xs[i]`, `xs{k}`, `c.point(x, y)`) is
+# treated as a placeholder; only when the whole expression is a bare symbol
+# (`value`) is it taken as a field name.
+function _parse_step(ex)
+    if ex isa Symbol
+        return BSField(String(ex))
+    elseif ex isa Expr && ex.head == :ref
+        if length(ex.args) == 2
+            return BSIndex(ex.args[2])
+        elseif length(ex.args) == 3
+            return BSRange(ex.args[2], ex.args[3])
+        else
+            error("indexing supports 1 or 2 dimensions in @step: $ex")
+        end
+    elseif ex isa Expr && ex.head == :curly
+        length(ex.args) == 2 || error("only one-dimensional position is supported in @step: $ex")
+        return _braces_step(ex.args[2], ex)
+    elseif ex isa Expr && ex.head == :vect
+        if length(ex.args) == 1
+            return BSIndex(ex.args[1])
+        elseif length(ex.args) == 2
+            return BSRange(ex.args[1], ex.args[2])
+        else
+            error("vector syntax supports 1 or 2 elements in @step: $ex")
+        end
+    elseif ex isa Expr && ex.head == :braces
+        length(ex.args) == 1 || error("braces syntax supports exactly one element in @step: $ex")
+        return _braces_step(ex.args[1], ex)
+    elseif ex isa Expr && ex.head == :call
+        f = ex.args[1]
+        if f isa Expr && f.head == :. && f.args[2] isa QuoteNode
+            opname = f.args[2].value
+            if opname == :field
+                length(ex.args) == 2 || error(".field(name) expects exactly one argument in @step: $ex")
+                return BSField(ex.args[2])
+            elseif opname == :point
+                length(ex.args) == 3 || error(".point(x, y) expects exactly two arguments in @step: $ex")
+                return BSPoint(ex.args[2], ex.args[3])
+            else
+                error("unsupported single-step operation .$opname(...) in @step: $ex")
+            end
+        else
+            error("unsupported call form in @step: $ex")
+        end
+    else
+        error("unsupported @step syntax: $ex")
+    end
 end
 
 end
