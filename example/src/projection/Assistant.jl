@@ -27,10 +27,13 @@ function make_assistant_projection_example(; measure=sdl_measure_text)
                                         RecursiveProjection(SyntaxToText()),
                                         TextToGraphics(measure=measure)),
             JuliaDocument        => make_julia_projection_example(measure=measure),
-            # Conversation → Syntax → Text → Graphics
+            # Conversation → Syntax → Text → Graphics.
+            # `indent_size=0` keeps newlines inside message bodies (e.g. the
+            # "user:\n> code" / "assistant:\n> code" two-line layout for code
+            # execution) aligned at column 0 with the surrounding messages.
             ConversationDocument => SequentialProjection(
                                         RecursiveProjection(ConversationToSyntax()),
-                                        RecursiveProjection(SyntaxToText()),
+                                        RecursiveProjection(SyntaxToText(indent_size=0)),
                                         TextToGraphics(measure=measure)),
         ],
     )))

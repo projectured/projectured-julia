@@ -15,7 +15,7 @@ function make_workbench_projection_example(; measure=sdl_measure_text)
             ListNode              => make_lazy_projection_example(measure=measure),
             CellVector            => make_collection_projection_example(measure=measure),
             PrimitiveDocument     => SequentialProjection(RecursiveProjection(PrimitiveToSyntax()), RecursiveProjection(SyntaxToText()), TextToGraphics(measure=measure)),
-            ConversationDocument  => SequentialProjection(RecursiveProjection(ConversationToSyntax()), RecursiveProjection(SyntaxToText()), TextToGraphics(measure=measure)),
+            ConversationDocument  => SequentialProjection(RecursiveProjection(ConversationToSyntax()), RecursiveProjection(SyntaxToText(indent_size=0)), TextToGraphics(measure=measure)),
         ],
     )))
     SequentialProjection(RecursiveProjection(WorkbenchToWidget()), combined_w2g)

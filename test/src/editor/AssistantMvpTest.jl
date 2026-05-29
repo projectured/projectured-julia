@@ -228,7 +228,9 @@ end
 # Exercises the full agent loop:
 #   turn 1: LLM requests `execute_julia_code({"code":"1+1"})`
 #       → agent loop dispatches via ToolRegistry → tool returns "2\n"
-#       → ConversationToolUseMessage + ConversationToolResultMessage appended
+#       → ConversationCodeExecution(:assistant, …) appended (which
+#         carries both the call and the result, plus the tool_use_id
+#         needed to round-trip back through Anthropic on the next turn)
 #   turn 2: LLM emits a final text reply
 #       → ConversationAssistantMessage with a text block appended
 
@@ -289,39 +291,33 @@ function _mvp_test_tool_use_roundtrip()
         _run_agent_loop!(a)
 
         msgs = a.conversation.messages
-        # Expected sequence:
+        # Expected sequence after the unified ConversationCodeExecution refactor:
         #   1. user message ("compute 1+1")
-        #   2. assistant message with one ConversationToolUseBlock
-        #   3. ConversationToolUseMessage   (recording the dispatch)
-        #   4. ConversationToolResultMessage(content="2\n…")
-        #   5. assistant message with one ConversationTextBlock("Done.")
-        @test length(msgs) == 5
+        #   2. assistant message (empty — the only content this turn was a
+        #      tool_use, which is now stored as a separate CodeExecution)
+        #   3. ConversationCodeExecution(:assistant, code="1+1", result≈"2")
+        #   4. assistant message with one ConversationTextBlock("Done.")
+        @test length(msgs) == 4
 
         @test msgs[1] isa ConversationUserMessage
         @test _text_to_string(msgs[1].text) == "compute 1+1"
 
         @test msgs[2] isa ConversationAssistantMessage
-        @test length(msgs[2].blocks) == 1
-        tu_block = msgs[2].blocks[1]
-        @test tu_block isa ConversationToolUseBlock
-        @test tu_block.name == "execute_julia_code"
-        @test tu_block.id   == "tu_1"
-        # The agent loop parsed the input JSON delta into a Dict.
-        @test tu_block.input isa AbstractDict
-        @test get(tu_block.input, "code", nothing) == "1+1"
+        # Tool-use blocks no longer live inside the assistant message; the
+        # AI's first turn here had no prose, so the message is empty.
+        @test length(msgs[2].blocks) == 0
 
-        @test msgs[3] isa ConversationToolUseMessage
-        @test msgs[3].name == "execute_julia_code"
-
-        @test msgs[4] isa ConversationToolResultMessage
-        @test msgs[4].tool_use_id == "tu_1"
+        @test msgs[3] isa ConversationCodeExecution
+        @test msgs[3].initiator   === :assistant
+        @test msgs[3].code        == "1+1"
+        @test msgs[3].tool_use_id == "tu_1"
         # The real `execute_julia_code` tool ran — `1+1` repr is "2".
-        @test occursin("2", _text_to_string(msgs[4].content))
-        @test msgs[4].is_error == false
+        @test occursin("2", msgs[3].result)
+        @test msgs[3].is_error == false
 
-        @test msgs[5] isa ConversationAssistantMessage
-        @test length(msgs[5].blocks) == 1
-        @test msgs[5].blocks[1] isa ConversationTextBlock
-        @test _text_to_string(msgs[5].blocks[1].text) == "Done."
+        @test msgs[4] isa ConversationAssistantMessage
+        @test length(msgs[4].blocks) == 1
+        @test msgs[4].blocks[1] isa ConversationTextBlock
+        @test _text_to_string(msgs[4].blocks[1].text) == "Done."
     end
 end

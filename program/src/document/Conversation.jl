@@ -9,19 +9,18 @@ the rest of the editor.
 Top-level type: `ConversationConversation` — a sequence of messages.
 
 Message subtypes (`ConversationMessage`):
-- `ConversationUserMessage`        — user prose (a `TextText`).
-- `ConversationAssistantMessage`   — assistant response composed of blocks.
-- `ConversationToolUseMessage`     — record that the assistant requested a tool call.
-- `ConversationToolResultMessage`  — output of a tool call.
-- `ConversationJuliaInputMessage`  — user-evaluated Julia code (a `JuliaDocument`).
-- `ConversationJuliaResultMessage` — output of a user-evaluated Julia run.
+- `ConversationUserMessage`      — user prose (a `TextText`).
+- `ConversationAssistantMessage` — assistant response composed of blocks.
+- `ConversationCodeExecution`    — a code run with both input and output,
+                                   tagged with the `initiator` that triggered
+                                   it (`:user` for ALT+ENTER, `:assistant`
+                                   for an AI `execute_julia_code` tool call).
 
 Block subtypes (`ConversationBlock`) live inside `ConversationAssistantMessage`:
 - `ConversationTextBlock`     — prose paragraph (a `TextText`).
 - `ConversationCodeBlock`     — fenced code; `body` is `JuliaDocument` for julia, `TextText` otherwise.
 - `ConversationHeadingBlock`  — heading at a given level.
 - `ConversationListBlock`     — bulleted list of `TextText`s.
-- `ConversationToolUseBlock`  — inline record of a tool_use content block.
 
 Status of an assistant turn is held by `ConversationAssistantMessage.stop_reason`.
 """
@@ -37,19 +36,15 @@ import ..ReferenceModule: Reference, ReferencePath
 export ConversationDocument, ConversationConversation,
        ConversationMessage,
        ConversationUserMessage, ConversationAssistantMessage,
-       ConversationToolUseMessage, ConversationToolResultMessage,
-       ConversationJuliaInputMessage, ConversationJuliaResultMessage,
+       ConversationCodeExecution,
        ConversationBlock,
        ConversationTextBlock, ConversationCodeBlock,
        ConversationHeadingBlock, ConversationListBlock,
-       ConversationToolUseBlock,
        IConversationConversation,
        IConversationUserMessage, IConversationAssistantMessage,
-       IConversationToolUseMessage, IConversationToolResultMessage,
-       IConversationJuliaInputMessage, IConversationJuliaResultMessage,
+       IConversationCodeExecution,
        IConversationTextBlock, IConversationCodeBlock,
-       IConversationHeadingBlock, IConversationListBlock,
-       IConversationToolUseBlock
+       IConversationHeadingBlock, IConversationListBlock
 
 # ── Abstract bases ──────────────────────────────────────────────────────────
 
@@ -119,22 +114,6 @@ ConversationListBlock() = ConversationListBlock(CellVector(), Cell(nothing))
 ConversationListBlock(items::Vector) =
     ConversationListBlock(CellVector(Cell[Cell(x) for x in items]), Cell(nothing))
 
-"""
-    ConversationToolUseBlock(id, name, input)
-
-Inline record of a Claude `tool_use` content block. `input` is the raw
-arguments dict (kept as `Any` to avoid forcing JSON conversion here).
-"""
-@document struct ConversationToolUseBlock <: ConversationBlock
-    id::String
-    name::String
-    input::Any
-    selection::Reference
-end
-
-ConversationToolUseBlock(id::AbstractString, name::AbstractString, input) =
-    ConversationToolUseBlock(Cell(String(id)), Cell(String(name)), Cell(input), Cell(nothing))
-
 # ── Messages ────────────────────────────────────────────────────────────────
 
 """
@@ -172,78 +151,42 @@ ConversationAssistantMessage(; blocks::Vector = ConversationBlock[],
                                  Cell(stop_reason), Cell(nothing))
 
 """
-    ConversationToolUseMessage(id, name, input; status=:pending)
+    ConversationCodeExecution(initiator, code, result; is_error=false, tool_use_id="")
 
-Free-standing record that Claude requested a tool call. `status` is one
-of `:pending`, `:running`, `:done`, `:error`.
+A single Julia execution unit pairing the input `code` and the resulting
+`result`. The originator of the call is recorded explicitly in
+`initiator`, which is either:
+
+  * `:user`      — triggered manually with ALT+ENTER. Serialised back to
+                   the API as a plain user text turn.
+  * `:assistant` — triggered by Claude calling the `execute_julia_code`
+                   tool. Serialised back as an `assistant` `tool_use`
+                   block plus a `user` `tool_result` block, using
+                   `tool_use_id` to pair them.
+
+The executor is fixed to Julia — `execute_julia_code` is the only
+execution tool the assistant exposes and ALT+ENTER goes through the same
+path, so there is no language to choose. `is_error` flags failed runs;
+`tool_use_id` is empty for `:user` and holds the Anthropic tool-use id
+for `:assistant`.
 """
-@document struct ConversationToolUseMessage <: ConversationMessage
-    id::String
-    name::String
-    input::Any
-    status::Symbol
-    selection::Reference
-end
-
-ConversationToolUseMessage(id::AbstractString, name::AbstractString, input;
-                           status::Symbol = :pending) =
-    ConversationToolUseMessage(Cell(String(id)), Cell(String(name)),
-                               Cell(input), Cell(status), Cell(nothing))
-
-"""
-    ConversationToolResultMessage(tool_use_id, content::TextText; is_error=false)
-
-The textual result of a tool call. `tool_use_id` matches the
-`ConversationToolUseMessage`/`ConversationToolUseBlock` it answers.
-"""
-@document struct ConversationToolResultMessage <: ConversationMessage
+@document struct ConversationCodeExecution <: ConversationMessage
+    initiator::Symbol
+    code::String
+    result::String
+    is_error::Bool
     tool_use_id::String
-    content::TextText
-    is_error::Bool
     selection::Reference
 end
 
-ConversationToolResultMessage(tool_use_id::AbstractString, content::TextText;
-                              is_error::Bool = false) =
-    ConversationToolResultMessage(Cell(String(tool_use_id)), Cell(content),
-                                  Cell(is_error), Cell(nothing))
-
-ConversationToolResultMessage(tool_use_id::AbstractString, s::AbstractString;
-                              is_error::Bool = false) =
-    ConversationToolResultMessage(Cell(String(tool_use_id)),
-                                  Cell(TextText(TextString(String(s)))),
-                                  Cell(is_error), Cell(nothing))
-
-"""
-    ConversationJuliaInputMessage(code::JuliaDocument)
-
-A Julia evaluation initiated by the user (Alt+Enter).
-"""
-@document struct ConversationJuliaInputMessage <: ConversationMessage
-    code::JuliaDocument
-    selection::Reference
-end
-
-ConversationJuliaInputMessage(code::JuliaDocument) =
-    ConversationJuliaInputMessage(Cell(code), Cell(nothing))
-
-"""
-    ConversationJuliaResultMessage(output::TextText; is_error=false)
-
-The output (stdout / stderr / repr) of a user-initiated Julia evaluation.
-"""
-@document struct ConversationJuliaResultMessage <: ConversationMessage
-    output::TextText
-    is_error::Bool
-    selection::Reference
-end
-
-ConversationJuliaResultMessage(output::TextText; is_error::Bool = false) =
-    ConversationJuliaResultMessage(Cell(output), Cell(is_error), Cell(nothing))
-
-ConversationJuliaResultMessage(s::AbstractString; is_error::Bool = false) =
-    ConversationJuliaResultMessage(Cell(TextText(TextString(String(s)))),
-                                   Cell(is_error), Cell(nothing))
+ConversationCodeExecution(initiator::Symbol,
+                          code::AbstractString, result::AbstractString;
+                          is_error::Bool = false,
+                          tool_use_id::AbstractString = "") =
+    ConversationCodeExecution(Cell(initiator),
+                              Cell(String(code)), Cell(String(result)),
+                              Cell(is_error), Cell(String(tool_use_id)),
+                              Cell(nothing))
 
 # ── Top-level conversation ──────────────────────────────────────────────────
 
@@ -307,17 +250,9 @@ Base.show(io::IO, m::ConversationUserMessage) =
 Base.show(io::IO, m::ConversationAssistantMessage) =
     print(io, "ConversationAssistantMessage(blocks=", length(m), ", stop_reason=:", m.stop_reason, ")")
 
-Base.show(io::IO, m::ConversationToolUseMessage) =
-    print(io, "ConversationToolUseMessage(name=", repr(m.name), ", status=:", m.status, ")")
-
-Base.show(io::IO, m::ConversationToolResultMessage) =
-    print(io, "ConversationToolResultMessage(tool_use_id=", repr(m.tool_use_id), ", is_error=", m.is_error, ")")
-
-Base.show(io::IO, m::ConversationJuliaInputMessage) =
-    print(io, "ConversationJuliaInputMessage(code=", m.code, ")")
-
-Base.show(io::IO, m::ConversationJuliaResultMessage) =
-    print(io, "ConversationJuliaResultMessage(is_error=", m.is_error, ")")
+Base.show(io::IO, m::ConversationCodeExecution) =
+    print(io, "ConversationCodeExecution(initiator=:", m.initiator,
+              ", is_error=", m.is_error, ")")
 
 Base.show(io::IO, b::ConversationTextBlock) =
     print(io, "ConversationTextBlock(", b.text, ")")
@@ -330,8 +265,5 @@ Base.show(io::IO, b::ConversationHeadingBlock) =
 
 Base.show(io::IO, b::ConversationListBlock) =
     print(io, "ConversationListBlock(items=", length(b.items), ")")
-
-Base.show(io::IO, b::ConversationToolUseBlock) =
-    print(io, "ConversationToolUseBlock(name=", repr(b.name), ")")
 
 end # module

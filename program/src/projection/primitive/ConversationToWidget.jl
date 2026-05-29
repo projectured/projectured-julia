@@ -4,19 +4,17 @@
 ConversationDocument → WidgetDocument projection. Maps the conversation
 document hierarchy into a vertical widget tree:
 
-    ConversationConversation         → WidgetComposite of message widgets
-    ConversationUserMessage          → WidgetComposite[label, body text]
-    ConversationAssistantMessage     → WidgetComposite[label, block widgets...]
-    ConversationToolUseMessage       → WidgetComposite[label, summary text]
-    ConversationToolResultMessage    → WidgetComposite[label, body text]
-    ConversationJuliaInputMessage    → WidgetComposite[label, projected julia]
-    ConversationJuliaResultMessage   → WidgetComposite[label, body text]
+    ConversationConversation        → WidgetComposite of message widgets
+    ConversationUserMessage         → WidgetComposite[label, body text]
+    ConversationAssistantMessage    → WidgetComposite[label, block widgets...]
+    ConversationCodeExecution       → WidgetComposite[label, code, result]
+                                       — one projection for both user
+                                         (ALT+ENTER) and AI (tool call) runs.
 
-    ConversationTextBlock            → TextText (recursed)
-    ConversationCodeBlock            → projected julia or monospace text
-    ConversationHeadingBlock         → bold TextText
-    ConversationListBlock            → WidgetComposite of bullet rows
-    ConversationToolUseBlock         → labeled summary TextText
+    ConversationTextBlock           → TextText (recursed)
+    ConversationCodeBlock           → projected julia or monospace text
+    ConversationHeadingBlock        → bold TextText
+    ConversationListBlock           → WidgetComposite of bullet rows
 
 The input editing surface lives on `WorkbenchAssistant` (not on the
 conversation) and is handled by `WorkbenchAssistantToWidgetScrollPane`,
@@ -29,12 +27,10 @@ import ..ProjectionApiModule: projection_print, projection_read,
 import ..ConversationModule: ConversationDocument, ConversationConversation,
                               ConversationMessage,
                               ConversationUserMessage, ConversationAssistantMessage,
-                              ConversationToolUseMessage, ConversationToolResultMessage,
-                              ConversationJuliaInputMessage, ConversationJuliaResultMessage,
+                              ConversationCodeExecution,
                               ConversationBlock,
                               ConversationTextBlock, ConversationCodeBlock,
-                              ConversationHeadingBlock, ConversationListBlock,
-                              ConversationToolUseBlock
+                              ConversationHeadingBlock, ConversationListBlock
 import ..WidgetModule: WidgetDocument, WidgetLabel, WidgetText, WidgetComposite,
                        WidgetScrollPane, Point2D, Inset, inset_default
 import ..TextModule: TextText, TextString
@@ -53,15 +49,11 @@ import ..TypeDispatchingModule: TypeDispatchingProjection
 export ConversationConversationToWidgetComposite,
        ConversationUserMessageToWidgetComposite,
        ConversationAssistantMessageToWidgetComposite,
-       ConversationToolUseMessageToWidgetComposite,
-       ConversationToolResultMessageToWidgetComposite,
-       ConversationJuliaInputMessageToWidgetComposite,
-       ConversationJuliaResultMessageToWidgetComposite,
+       ConversationCodeExecutionToWidgetComposite,
        ConversationTextBlockToText,
        ConversationCodeBlockToWidget,
        ConversationHeadingBlockToText,
        ConversationListBlockToWidgetComposite,
-       ConversationToolUseBlockToText,
        ConversationToWidget
 
 # ── Projection structs ──────────────────────────────────────────────────────
@@ -69,15 +61,11 @@ export ConversationConversationToWidgetComposite,
 struct ConversationConversationToWidgetComposite       <: Projection end
 struct ConversationUserMessageToWidgetComposite        <: Projection end
 struct ConversationAssistantMessageToWidgetComposite   <: Projection end
-struct ConversationToolUseMessageToWidgetComposite     <: Projection end
-struct ConversationToolResultMessageToWidgetComposite  <: Projection end
-struct ConversationJuliaInputMessageToWidgetComposite  <: Projection end
-struct ConversationJuliaResultMessageToWidgetComposite <: Projection end
+struct ConversationCodeExecutionToWidgetComposite      <: Projection end
 struct ConversationTextBlockToText                     <: Projection end
 struct ConversationCodeBlockToWidget                   <: Projection end
 struct ConversationHeadingBlockToText                  <: Projection end
 struct ConversationListBlockToWidgetComposite          <: Projection end
-struct ConversationToolUseBlockToText                  <: Projection end
 
 # ── Helpers ────────────────────────────────────────────────────────────────
 
@@ -229,51 +217,18 @@ function projection_print(::ConversationAssistantMessageToWidgetComposite,
     SimpleIoMap(nothing, m, composite)
 end
 
-# ── projection_print: tool messages ─────────────────────────────────────────
+# ── projection_print: code execution (user or AI) ──────────────────────────
 
-function projection_print(::ConversationToolUseMessageToWidgetComposite,
-                          m::ConversationToolUseMessage, recursion, reference)
-    summary = "tool_use $(m.name) [$(m.status)] $(m.id)"
+function projection_print(::ConversationCodeExecutionToWidgetComposite,
+                          m::ConversationCodeExecution, recursion, reference)
+    initiator = m.initiator === :assistant ? "assistant" : "user"
+    result_label = m.is_error ? "$(initiator): error" : "$(initiator): julia"
     composite = _compose(Any[
-        _label("tool use"),
-        _text_widget(summary),
+        _label(result_label),
+        _text_widget("> " * m.code),
+        _text_widget("= " * m.result),
     ])
     SimpleIoMap(nothing, m, composite)
-end
-
-function projection_print(::ConversationToolResultMessageToWidgetComposite,
-                          m::ConversationToolResultMessage, recursion, reference)
-    body_ref = @reference ^(reference).content
-    body_iomap = _recurse(recursion, m.content, body_ref)
-    composite = _compose(Any[
-        _label(m.is_error ? "tool result (error)" : "tool result"),
-        body_iomap.output,
-    ])
-    ContentIoMap(nothing, m, composite, body_iomap)
-end
-
-# ── projection_print: julia messages ────────────────────────────────────────
-
-function projection_print(::ConversationJuliaInputMessageToWidgetComposite,
-                          m::ConversationJuliaInputMessage, recursion, reference)
-    code_ref = @reference ^(reference).code
-    code_iomap = _recurse(recursion, m.code, code_ref)
-    composite = _compose(Any[
-        _label("julia input"),
-        code_iomap.output,
-    ])
-    ContentIoMap(nothing, m, composite, code_iomap)
-end
-
-function projection_print(::ConversationJuliaResultMessageToWidgetComposite,
-                          m::ConversationJuliaResultMessage, recursion, reference)
-    body_ref = @reference ^(reference).output
-    body_iomap = _recurse(recursion, m.output, body_ref)
-    composite = _compose(Any[
-        _label(m.is_error ? "julia error" : "julia result"),
-        body_iomap.output,
-    ])
-    ContentIoMap(nothing, m, composite, body_iomap)
 end
 
 # ── projection_print: blocks ────────────────────────────────────────────────
@@ -322,16 +277,6 @@ function projection_print(::ConversationListBlockToWidgetComposite,
     ChildrenIoMap(nothing, b, composite, Cell(item_iomaps))
 end
 
-function projection_print(::ConversationToolUseBlockToText,
-                          b::ConversationToolUseBlock, recursion, reference)
-    summary = "tool_use $(b.name) $(b.id)"
-    composite = _compose(Any[
-        _label("tool use"),
-        _text_widget(summary),
-    ])
-    SimpleIoMap(nothing, b, composite)
-end
-
 # ── map_reference_forward ───────────────────────────────────────────────────
 # Selection forwarding is intentionally minimal in v1; the projections
 # are structure-only and the inner iomap chains handle deep selections.
@@ -348,19 +293,7 @@ function map_reference_forward(::ConversationAssistantMessageToWidgetComposite, 
     return nothing
 end
 
-function map_reference_forward(::ConversationToolUseMessageToWidgetComposite, iomap, reference)
-    return nothing
-end
-
-function map_reference_forward(::ConversationToolResultMessageToWidgetComposite, iomap, reference)
-    return nothing
-end
-
-function map_reference_forward(::ConversationJuliaInputMessageToWidgetComposite, iomap, reference)
-    return nothing
-end
-
-function map_reference_forward(::ConversationJuliaResultMessageToWidgetComposite, iomap, reference)
+function map_reference_forward(::ConversationCodeExecutionToWidgetComposite, iomap, reference)
     return nothing
 end
 
@@ -380,24 +313,16 @@ function map_reference_forward(::ConversationListBlockToWidgetComposite, iomap, 
     return nothing
 end
 
-function map_reference_forward(::ConversationToolUseBlockToText, iomap, reference)
-    return nothing
-end
-
 # ── map_reference_backward ──────────────────────────────────────────────────
 
 map_reference_backward(::ConversationConversationToWidgetComposite, iomap, ref) = nothing
 map_reference_backward(::ConversationUserMessageToWidgetComposite, iomap, ref) = nothing
 map_reference_backward(::ConversationAssistantMessageToWidgetComposite, iomap, ref) = nothing
-map_reference_backward(::ConversationToolUseMessageToWidgetComposite, iomap, ref) = nothing
-map_reference_backward(::ConversationToolResultMessageToWidgetComposite, iomap, ref) = nothing
-map_reference_backward(::ConversationJuliaInputMessageToWidgetComposite, iomap, ref) = nothing
-map_reference_backward(::ConversationJuliaResultMessageToWidgetComposite, iomap, ref) = nothing
+map_reference_backward(::ConversationCodeExecutionToWidgetComposite, iomap, ref) = nothing
 map_reference_backward(::ConversationTextBlockToText, iomap, ref) = nothing
 map_reference_backward(::ConversationCodeBlockToWidget, iomap, ref) = nothing
 map_reference_backward(::ConversationHeadingBlockToText, iomap, ref) = nothing
 map_reference_backward(::ConversationListBlockToWidgetComposite, iomap, ref) = nothing
-map_reference_backward(::ConversationToolUseBlockToText, iomap, ref) = nothing
 
 # ── projection_read ─────────────────────────────────────────────────────────
 # Default: pass operations through unchanged.
@@ -405,15 +330,11 @@ map_reference_backward(::ConversationToolUseBlockToText, iomap, ref) = nothing
 projection_read(::ConversationConversationToWidgetComposite, iomap, op) = op
 projection_read(::ConversationUserMessageToWidgetComposite, iomap, op) = op
 projection_read(::ConversationAssistantMessageToWidgetComposite, iomap, op) = op
-projection_read(::ConversationToolUseMessageToWidgetComposite, iomap, op) = op
-projection_read(::ConversationToolResultMessageToWidgetComposite, iomap, op) = op
-projection_read(::ConversationJuliaInputMessageToWidgetComposite, iomap, op) = op
-projection_read(::ConversationJuliaResultMessageToWidgetComposite, iomap, op) = op
+projection_read(::ConversationCodeExecutionToWidgetComposite, iomap, op) = op
 projection_read(::ConversationTextBlockToText, iomap, op) = op
 projection_read(::ConversationCodeBlockToWidget, iomap, op) = op
 projection_read(::ConversationHeadingBlockToText, iomap, op) = op
 projection_read(::ConversationListBlockToWidgetComposite, iomap, op) = op
-projection_read(::ConversationToolUseBlockToText, iomap, op) = op
 
 # ── Factory ─────────────────────────────────────────────────────────────────
 
@@ -429,15 +350,11 @@ function ConversationToWidget()
         ConversationConversation        => ConversationConversationToWidgetComposite(),
         ConversationUserMessage         => ConversationUserMessageToWidgetComposite(),
         ConversationAssistantMessage    => ConversationAssistantMessageToWidgetComposite(),
-        ConversationToolUseMessage      => ConversationToolUseMessageToWidgetComposite(),
-        ConversationToolResultMessage   => ConversationToolResultMessageToWidgetComposite(),
-        ConversationJuliaInputMessage   => ConversationJuliaInputMessageToWidgetComposite(),
-        ConversationJuliaResultMessage  => ConversationJuliaResultMessageToWidgetComposite(),
+        ConversationCodeExecution       => ConversationCodeExecutionToWidgetComposite(),
         ConversationTextBlock           => ConversationTextBlockToText(),
         ConversationCodeBlock           => ConversationCodeBlockToWidget(),
         ConversationHeadingBlock        => ConversationHeadingBlockToText(),
         ConversationListBlock           => ConversationListBlockToWidgetComposite(),
-        ConversationToolUseBlock        => ConversationToolUseBlockToText(),
     )
 end
 

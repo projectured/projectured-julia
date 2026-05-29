@@ -38,11 +38,9 @@ import ..ReferenceCaseModule: var"@reference_case"
 import ..ReferenceBuilderModule: var"@reference"
 import ..ConversationModule: ConversationConversation,
                               ConversationUserMessage, ConversationAssistantMessage,
-                              ConversationToolUseMessage, ConversationToolResultMessage,
-                              ConversationJuliaInputMessage, ConversationJuliaResultMessage,
+                              ConversationCodeExecution,
                               ConversationTextBlock, ConversationCodeBlock,
-                              ConversationHeadingBlock, ConversationListBlock,
-                              ConversationToolUseBlock
+                              ConversationHeadingBlock, ConversationListBlock
 import ..WorkbenchModule: WorkbenchAssistant
 import ..WorkbenchToWidgetModule: WorkbenchAssistantToWidgetScrollPane
 import ..KeyboardModule: KeyDown
@@ -148,11 +146,6 @@ function evaluate_operation(op::SubmitJuliaOperation, _document)
     code = _text_to_string(a.input)
     isempty(strip(code)) && return nothing
 
-    # JuliaDocument is structural; for v1 we store the code as the JuliaIdentifier name
-    # so the projection has something to render. The eval uses the raw text.
-    julia_doc = _placeholder_julia_doc(code)
-    push!(a.conversation, ConversationJuliaInputMessage(julia_doc))
-
     # Make sure the editor's exec tool is registered (no-op if already done).
     register_default_tools_and_resources!()
     output = try
@@ -162,7 +155,7 @@ function evaluate_operation(op::SubmitJuliaOperation, _document)
     end
     is_error = occursin("ERROR", output) || occursin("Error", output)
     push!(a.conversation,
-          ConversationJuliaResultMessage(output; is_error = is_error))
+          ConversationCodeExecution(:user, code, output; is_error = is_error))
 
     _set_input!(a, "")
     nothing
@@ -189,8 +182,12 @@ function evaluate_operation(op::SubmitProseOperation, _document)
             # Also dump to stderr so it's visible regardless of how the
             # in-editor scroll pane sizes the result message.
             @error "Assistant turn failed" exception = (e, catch_backtrace())
+            # Surface the error in the conversation as an assistant prose turn
+            # so the user sees what went wrong inline.
             push!(a.conversation,
-                  ConversationToolResultMessage("error", err; is_error = true))
+                  ConversationAssistantMessage(blocks = [
+                      ConversationTextBlock("Error: " * err)
+                  ]))
         finally
             a.status === :streaming && (a.status = :idle)
         end
@@ -275,6 +272,23 @@ end
     build_messages(conversation::ConversationConversation) -> Vector{Dict}
 
 Walk the conversation and produce the JSON array Anthropic expects.
+
+Code executions are all stored as `ConversationCodeExecution`, with the
+originator carried on the `initiator` field:
+
+  * `:user`      (ALT+ENTER) → serialised as a single `user` text turn
+    ("I ran the following Julia code: …  Result: …"). Claude sees this
+    as the human reporting an execution they did themselves.
+
+  * `:assistant` (Claude calling `execute_julia_code`) → reassembled into
+    the Anthropic tool-use protocol shape: appended to the preceding
+    assistant message as a `tool_use` block (using `tool_use_id`), and
+    followed by a `user` turn whose `tool_result` block carries the
+    result. The id pairs the two so the API recognises the call.
+
+Keep the `initiator` distinction load-bearing here: collapsing user calls
+into the tool-use shape would tell Claude it had asked for a run it
+never requested.
 """
 function build_messages(conversation::ConversationConversation)
     out = Dict[]
@@ -288,44 +302,68 @@ function build_messages(conversation::ConversationConversation)
                 "content" => Any[Dict("type" => "text",
                                       "text" => _text_to_string(m.text))],
             ))
+            i += 1
         elseif m isa ConversationAssistantMessage
-            push!(out, Dict(
-                "role" => "assistant",
-                "content" => _assistant_content(m),
-            ))
-        elseif m isa ConversationToolUseMessage
-            # Skip: the tool_use block is already present in the preceding
-            # ConversationAssistantMessage's blocks (emitted by _assistant_content).
-            # This standalone message exists only so the UI can render the
-            # call's :running/:done status — sending it to Anthropic would
-            # duplicate the tool_use id and trigger a 400.
-        elseif m isa ConversationToolResultMessage
-            push!(out, Dict(
-                "role" => "user",
-                "content" => Any[Dict("type"        => "tool_result",
-                                       "tool_use_id" => m.tool_use_id,
-                                       "content"     => _text_to_string(m.content),
-                                       "is_error"    => m.is_error)],
-            ))
-        elseif m isa ConversationJuliaInputMessage
-            # Pair with the following ConversationJuliaResultMessage if present.
-            code = hasproperty(m.code, :name) ? m.code.name : string(m.code)
-            output = ""
-            if i + 1 <= length(msgs) && msgs[i + 1] isa ConversationJuliaResultMessage
-                output = _text_to_string(msgs[i + 1].output)
-                i += 1
+            content = _assistant_content(m)
+            # Look ahead: each consecutive :assistant CodeExecution belongs
+            # in this assistant turn as a tool_use block, with all their
+            # results forming the following user turn as tool_result blocks.
+            # This reconstructs the Anthropic protocol shape from the
+            # unified storage.
+            j = i + 1
+            while j <= length(msgs) &&
+                  msgs[j] isa ConversationCodeExecution &&
+                  msgs[j].initiator === :assistant
+                ce = msgs[j]
+                push!(content, Dict("type"  => "tool_use",
+                                     "id"    => ce.tool_use_id,
+                                     "name"  => "execute_julia_code",
+                                     "input" => Dict("code" => ce.code)))
+                j += 1
             end
-            text = "I ran the following Julia code:\n```julia\n" * code *
-                   "\n```\nResult:\n```\n" * output * "\n```"
-            push!(out, Dict("role" => "user",
-                            "content" => Any[Dict("type" => "text", "text" => text)]))
-        elseif m isa ConversationJuliaResultMessage
-            # Stray result (shouldn't usually happen); fold as plain user note.
-            text = "Julia result:\n```\n" * _text_to_string(m.output) * "\n```"
-            push!(out, Dict("role" => "user",
-                            "content" => Any[Dict("type" => "text", "text" => text)]))
+            # Anthropic rejects assistant turns with no content. Only fall
+            # back to a placeholder when there's neither text nor tool_use —
+            # an empty text block alongside a tool_use is also rejected
+            # ("text content blocks must be non-empty").
+            isempty(content) && push!(content, Dict("type" => "text", "text" => " "))
+            push!(out, Dict("role" => "assistant", "content" => content))
+            if j > i + 1
+                results = Any[]
+                for k in (i + 1):(j - 1)
+                    ce = msgs[k]
+                    push!(results, Dict("type"        => "tool_result",
+                                         "tool_use_id" => ce.tool_use_id,
+                                         "content"     => ce.result,
+                                         "is_error"    => ce.is_error))
+                end
+                push!(out, Dict("role" => "user", "content" => results))
+            end
+            i = j
+        elseif m isa ConversationCodeExecution
+            if m.initiator === :user
+                text = "I ran the following Julia code:\n```julia\n" * m.code *
+                       "\n```\nResult:\n```\n" * m.result * "\n```"
+                push!(out, Dict("role" => "user",
+                                "content" => Any[Dict("type" => "text", "text" => text)]))
+            else
+                # :assistant CodeExecution not preceded by an assistant
+                # message — emit a standalone assistant tool_use + user
+                # tool_result pair so the API contract still holds.
+                push!(out, Dict("role" => "assistant",
+                                "content" => Any[Dict("type"  => "tool_use",
+                                                       "id"    => m.tool_use_id,
+                                                       "name"  => "execute_julia_code",
+                                                       "input" => Dict("code" => m.code))]))
+                push!(out, Dict("role" => "user",
+                                "content" => Any[Dict("type"        => "tool_result",
+                                                       "tool_use_id" => m.tool_use_id,
+                                                       "content"     => m.result,
+                                                       "is_error"    => m.is_error)]))
+            end
+            i += 1
+        else
+            i += 1
         end
-        i += 1
     end
     out
 end
@@ -333,12 +371,7 @@ end
 function _assistant_content(m::ConversationAssistantMessage)
     content = Any[]
     for b in m.blocks
-        if b isa ConversationToolUseBlock
-            push!(content, Dict("type"  => "tool_use",
-                                 "id"    => b.id,
-                                 "name"  => b.name,
-                                 "input" => b.input))
-        elseif b isa ConversationTextBlock
+        if b isa ConversationTextBlock
             push!(content, Dict("type" => "text",
                                  "text" => _text_to_string(b.text)))
         elseif b isa ConversationHeadingBlock
@@ -357,13 +390,25 @@ function _assistant_content(m::ConversationAssistantMessage)
             push!(content, Dict("type" => "text", "text" => String(take!(io))))
         end
     end
-    isempty(content) && push!(content, Dict("type" => "text", "text" => ""))
+    # No empty-placeholder fallback here — `build_messages` adds one only
+    # after the tool_use lookahead has had a chance to fill the turn.
     content
 end
 
 # ═══════════════════════════════════════════════════════════════════════
 # Streaming agent loop
 # ═══════════════════════════════════════════════════════════════════════
+
+# In-flight record of a streaming tool_use block. Lives only on the agent
+# loop's state dict — once the stream's content_block_stop fires the
+# `input` JSON is finalised, and once the tool actually runs we package
+# everything into a `ConversationCodeExecution(:assistant, …)` pushed to
+# the conversation.
+mutable struct _PendingToolUse
+    id::String
+    name::String
+    input::Any
+end
 
 function _run_agent_loop!(a::WorkbenchAssistant)
     # `AnthropicLlm.stream_turn` errors with a clear HTTP message if the
@@ -374,7 +419,9 @@ function _run_agent_loop!(a::WorkbenchAssistant)
 
     while true
         # Append a fresh assistant message for this turn; the SSE handler
-        # fills its blocks as deltas arrive.
+        # fills its prose blocks as deltas arrive. Tool calls do NOT go
+        # into the assistant message — they end up as separate
+        # ConversationCodeExecution(:assistant) entries after the tool runs.
         assistant_msg = ConversationAssistantMessage()
         push!(a.conversation, assistant_msg)
 
@@ -385,10 +432,10 @@ function _run_agent_loop!(a::WorkbenchAssistant)
 
         # Live state for this turn
         state = Dict{Symbol,Any}(
-            :current_block    => nothing,   # ConversationBlock being filled
-            :current_index    => 0,         # index into `assistant_msg.blocks`
+            :current_block    => nothing,         # text block being filled
+            :current_tool     => nothing,         # _PendingToolUse being filled
             :tool_input_buf   => IOBuffer(),
-            :tool_use_blocks  => ConversationToolUseBlock[],
+            :pending_tools    => _PendingToolUse[],
             :stop_reason      => :end_turn,
         )
 
@@ -397,24 +444,28 @@ function _run_agent_loop!(a::WorkbenchAssistant)
 
         assistant_msg.stop_reason = state[:stop_reason]
 
-        # If Claude requested tool calls, run them, append tool_use + tool_result
-        # messages, and loop. Otherwise stop.
-        tool_blocks = state[:tool_use_blocks]::Vector{ConversationToolUseBlock}
-        if isempty(tool_blocks) || state[:stop_reason] !== :tool_use
+        pending = state[:pending_tools]::Vector{_PendingToolUse}
+        if isempty(pending) || state[:stop_reason] !== :tool_use
             return
         end
 
-        for tu in tool_blocks
-            push!(a.conversation,
-                  ConversationToolUseMessage(tu.id, tu.name, tu.input;
-                                             status = :running))
+        # Dispatch each tool and emit one ConversationCodeExecution(:assistant)
+        # per call. The code and result live together in one message and
+        # `tool_use_id` pairs the call with its API tool_use block when
+        # `build_messages` re-serialises the conversation for Claude.
+        for tu in pending
             output = try
                 dispatch_assistant_tool(tu.name, tu.input, nothing)
             catch e
                 sprint(showerror, e, catch_backtrace())
             end
+            code = tu.input isa AbstractDict && haskey(tu.input, "code") ?
+                       String(tu.input["code"]) : ""
+            is_err = occursin("ERROR", output) || occursin("Error", output)
             push!(a.conversation,
-                  ConversationToolResultMessage(tu.id, output))
+                  ConversationCodeExecution(:assistant, code, output;
+                                            is_error = is_err,
+                                            tool_use_id = tu.id))
         end
     end
 end
@@ -431,14 +482,11 @@ function _handle_sse_event!(ev, a, assistant_msg, state)
             push!(assistant_msg.blocks, Cell(tb))
             state[:current_block] = tb
         elseif block_type == "tool_use"
-            tb = ConversationToolUseBlock(
+            state[:current_tool] = _PendingToolUse(
                 String(get(block_data, :id, "")),
                 String(get(block_data, :name, "")),
                 Dict{String,Any}(),
             )
-            push!(assistant_msg.blocks, Cell(tb))
-            push!(state[:tool_use_blocks], tb)
-            state[:current_block] = tb
             state[:tool_input_buf] = IOBuffer()
         end
     elseif et === :content_block_delta
@@ -451,15 +499,18 @@ function _handle_sse_event!(ev, a, assistant_msg, state)
             print(state[:tool_input_buf], String(get(delta, :partial_json, "")))
         end
     elseif et === :content_block_stop
+        ct = state[:current_tool]
         cb = state[:current_block]
-        if cb isa ConversationToolUseBlock
+        if ct isa _PendingToolUse
             raw = String(take!(state[:tool_input_buf]))
             parsed = try
                 JSON3.read(raw, Dict{String,Any})
             catch
                 Dict{String,Any}()
             end
-            cb.input = parsed
+            ct.input = parsed
+            push!(state[:pending_tools], ct)
+            state[:current_tool] = nothing
         elseif cb isa ConversationTextBlock
             blocks = parse_markdown_blocks(_text_to_string(cb.text))
             if !isempty(blocks)
