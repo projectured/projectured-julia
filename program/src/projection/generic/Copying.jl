@@ -17,6 +17,7 @@ import ..DocumentModule: Document
 import ..ReferenceModule: ReferencePath, EmptyReferencePath, ConcreteReferencePath,
                           FieldReference, PositionReference, RangeReference,
                           ElementReference, append_reference, is_element_reference, head, tail
+import ..ReferenceBuilderModule: var"@reference"
 import ..CollectionModule: CellVector, ListNode
 import ..IoMapApiModule: IoMap
 
@@ -47,7 +48,7 @@ _unwrap(c::Cell) = c[]
 
 function projection_print(p::CopyingProjection, input::CellVector, recursion, reference)
     children = [projection_print(recursion, input[i], recursion,
-                    append_reference(reference, PositionReference(i)))
+                    @reference ^(reference){i})
                 for i in 1:length(input)]
     out_cells = Cell[Cell(im.output) for im in children]
     output = CellVector(out_cells)
@@ -65,7 +66,7 @@ end
 function _map_node(p::CopyingProjection, input_node::ListNode, recursion, reference, index::Int)
     # Project current element
     elem_iomap = projection_print(recursion, input_node.value, recursion,
-                     append_reference(reference, ElementReference(index)))
+                     @reference ^(reference)[index])
 
     # Create output node
     out_node = ListNode(elem_iomap.output)
@@ -97,7 +98,7 @@ end
 
 function projection_print(p::CopyingProjection, input::Vector{Cell}, recursion, reference)
     children = [projection_print(recursion, c[], recursion,
-                    append_reference(reference, PositionReference(i)))
+                    @reference ^(reference){i})
                 for (i, c) in enumerate(input)]
     out_cells = Cell[Cell(im.output) for im in children]
     output = CellVector(out_cells)
@@ -123,7 +124,7 @@ function projection_print(p::CopyingProjection, input, recursion, reference)
                 map_reference_forward(p, im, sel)
             end))
         elseif _is_doc_field(fv)
-            child_ref = append_reference(reference, FieldReference(string(nm)))
+            child_ref = @reference ^(reference).field(string(nm))
             im = projection_print(recursion, _unwrap(fv), recursion, child_ref)
             push!(children, im); push!(names, string(nm))
             push!(field_vals, im.output)
@@ -178,7 +179,7 @@ function _get_listnode_child_iomap(iomap::CopyingProjectionIoMap, index::Int)
     input_node = _walk_to_index(iomap.input::ListNode, index)
     input_node === nothing && return nothing
     return projection_print(iomap.recursion, input_node.value, iomap.recursion,
-               append_reference(iomap.base_reference, ElementReference(index)))
+               @reference ^(iomap.base_reference)[index])
 end
 
 function _walk_to_index(head_node::ListNode, index::Int)

@@ -208,27 +208,21 @@ end
 # fall back to nothing (no cursor on structural characters here).
 function projection_print(p::JsonArrayToSyntaxNode, j::JsonArray, recursion, reference)
     child_iomaps = Cell(() -> [projection_print(recursion, x, recursion,
-                                   append_reference(reference, FieldReference("elements"), ElementReference(i)))
+                                   @reference ^(reference).elements[i])
                                for (i, x) in enumerate(j)])
     sel = Cell(() -> begin
         path = j.selection
-        path isa ConcreteReferencePath || return nothing
-        h = path.head
-        if h isa FieldReference && h.name == "elements"
-            rest = path.tail
-            rest isa ConcreteReferencePath || return nothing
-            h2 = rest.head
-            h2 isa RangeReference || return nothing
-            child_i = h2.start + 1
-            iomaps = child_iomaps[]
-            child_i > length(iomaps) && return nothing
-            child_sel = iomaps[child_i].output.selection
-            child_sel === nothing && return nothing
-            return ConcreteReferencePath(FieldReference("children"), ConcreteReferencePath(ElementReference(child_i), child_sel))
-        elseif h isa ProjectionReference
-            return path
+        path isa ConcreteReferencePath && path.head isa ProjectionReference && return path
+        @reference_case path begin
+            elements{s:e}.rest... => begin
+                child_i = s + 1
+                iomaps = child_iomaps[]
+                child_i > length(iomaps) && return nothing
+                child_sel = iomaps[child_i].output.selection
+                child_sel === nothing && return nothing
+                @reference children[child_i].^(child_sel)
+            end
         end
-        return nothing
     end)
     node = SyntaxNode(
         TextString("[", p.delim_font, p.delim_color),
@@ -288,22 +282,16 @@ end
 # key leaf.  Structural positions ({, }, ,, :) fall back to ProjectionReference.
 function projection_print(p::JsonObjectToSyntaxNode, j::JsonObject, recursion, reference)
     # Use recursion projection to access entries field
-    entries_ref = append_reference(reference, FieldReference("entries"))
+    entries_ref = @reference ^(reference).entries
     entries_iomap = projection_print(recursion, j.entries.elements, recursion, entries_ref)
     projected_entries = entries_iomap.output
-    
+
     sel = Cell(() -> begin
         path = j.selection
-        path isa ConcreteReferencePath || return nothing
-        h = path.head
-        if h isa FieldReference && h.name == "entries"
-            rest = path.tail
-            rest isa ConcreteReferencePath || return nothing
-            return ConcreteReferencePath(FieldReference("children"), rest)
-        elseif h isa ProjectionReference
-            return path
+        path isa ConcreteReferencePath && path.head isa ProjectionReference && return path
+        @reference_case path begin
+            entries.rest... => rest isa ConcreteReferencePath ? (@reference children.^(rest)) : nothing
         end
-        return nothing
     end)
     node = SyntaxNode(
         TextString("{", p.delim_font, p.delim_color),
@@ -386,14 +374,9 @@ end
 function _entry_key_sel(entry_sel::Cell)
     Cell(() -> begin
         sel = entry_sel[]
-        sel isa ConcreteReferencePath || return nothing
-        h = sel.head
-        if h isa FieldReference && h.name == "key"
-            ConcreteReferencePath(FieldReference("value"), sel.tail)
-        elseif h isa ProjectionReference
-            sel
-        else
-            nothing
+        sel isa ConcreteReferencePath && sel.head isa ProjectionReference && return sel
+        @reference_case sel begin
+            key.rest... => @reference value.^(rest)
         end
     end)
 end
@@ -408,68 +391,44 @@ function _translate_json_path(v::JsonNull, path::ReferencePath)
 end
 
 function _translate_json_path(v::Union{JsonBool, JsonNumber, JsonString}, path::ReferencePath)
-    path isa ConcreteReferencePath || return nothing
-    h = path.head
-    h isa FieldReference && h.name == "value" || return nothing
-    return path
+    @reference_case path begin
+        value.rest... => path
+    end
 end
 
 function _translate_json_path(v::JsonArray, path::ReferencePath)
-    path isa ConcreteReferencePath || return nothing
-    h = path.head
-    h isa FieldReference && h.name == "children" || return nothing
-    rest0 = path.tail
-    rest0 isa ConcreteReferencePath || return nothing
-    h2 = rest0.head
-    h2 isa RangeReference || return nothing
-    child_i = h2.start + 1
-    1 <= child_i <= length(v) || return nothing
-    child = v[child_i]
-    rest = rest0.tail
-    translated = _translate_json_path(child, rest)
-    translated === nothing && return nothing
-    return ConcreteReferencePath(FieldReference("elements"),
-               ConcreteReferencePath(ElementReference(child_i), translated))
+    @reference_case path begin
+        children{s:e}.rest... => begin
+            child_i = s + 1
+            1 <= child_i <= length(v) || return nothing
+            translated = _translate_json_path(v[child_i], rest)
+            translated === nothing && return nothing
+            @reference elements[child_i].^(translated)
+        end
+    end
 end
 
 function _translate_json_path(v::JsonObject, path::ReferencePath)
-    path isa ConcreteReferencePath || return nothing
-    h1 = path.head
-    h1 isa FieldReference && h1.name == "children" || return nothing
-    rest0 = path.tail
-    rest0 isa ConcreteReferencePath || return nothing
-    hp = rest0.head
-    hp isa RangeReference || return nothing
-    pair_i = hp.start + 1
-    rest1 = rest0.tail
-    rest1 isa ConcreteReferencePath || return nothing
-    h2 = rest1.head
-    h2 isa FieldReference || return nothing
-    rest2 = rest1.tail
-    rest2 isa ConcreteReferencePath || return nothing
-    h3 = rest2.head
-    h3 isa RangeReference || return nothing
-    child_of_pair = h3.start + 1
-    es = entries(v)
-    pair_i <= length(es) || return nothing
-    entry = es[pair_i]
-    leaf_path = rest2.tail
-    if child_of_pair == 1
-        leaf_path isa ConcreteReferencePath || return nothing
-        lh = leaf_path.head
-        lh isa FieldReference && lh.name == "value" || return nothing
-        char_path = leaf_path.tail
-        return ConcreteReferencePath(FieldReference("entries"),
-                   ConcreteReferencePath(ElementReference(pair_i),
-                       ConcreteReferencePath(FieldReference("key"), char_path)))
-    elseif child_of_pair == 2
-        translated = _translate_json_path(entry.value, leaf_path)
-        translated === nothing && return nothing
-        return ConcreteReferencePath(FieldReference("entries"),
-                   ConcreteReferencePath(ElementReference(pair_i),
-                       ConcreteReferencePath(FieldReference("value"), translated)))
+    @reference_case path begin
+        children{s:e}.field(_).children{s2:e2}.leaf_path... => begin
+            pair_i = s + 1
+            child_of_pair = s2 + 1
+            es = entries(v)
+            pair_i <= length(es) || return nothing
+            entry = es[pair_i]
+            if child_of_pair == 1
+                @reference_case leaf_path begin
+                    value.char_path... => @reference entries[pair_i].key.^(char_path)
+                end
+            elseif child_of_pair == 2
+                translated = _translate_json_path(entry.value, leaf_path)
+                translated === nothing && return nothing
+                @reference entries[pair_i].value.^(translated)
+            else
+                nothing
+            end
+        end
     end
-    return nothing
 end
 
 function _translate_json_path(v, path)
@@ -484,60 +443,41 @@ function _forward_json_path(v::JsonNull, path::ReferencePath)
 end
 
 function _forward_json_path(v::Union{JsonBool, JsonNumber, JsonString}, path::ReferencePath)
-    path isa ConcreteReferencePath || return nothing
-    h = path.head
-    h isa FieldReference && h.name == "value" || return nothing
-    return path
+    @reference_case path begin
+        value.rest... => path
+    end
 end
 
 function _forward_json_path(v::JsonArray, path::ReferencePath)
-    path isa ConcreteReferencePath || return nothing
-    h = path.head
-    h isa FieldReference && h.name == "elements" || return nothing
-    rest = path.tail
-    rest isa ConcreteReferencePath || return nothing
-    h2 = rest.head
-    h2 isa RangeReference || return nothing
-    child_i = h2.start + 1
-    1 <= child_i <= length(v) || return nothing
-    child = v[child_i]
-    inner = _forward_json_path(child, rest.tail)
-    inner === nothing && return nothing
-    return ConcreteReferencePath(FieldReference("children"), ConcreteReferencePath(ElementReference(child_i), inner))
+    @reference_case path begin
+        elements{s:e}.rest... => begin
+            child_i = s + 1
+            1 <= child_i <= length(v) || return nothing
+            inner = _forward_json_path(v[child_i], rest)
+            inner === nothing && return nothing
+            @reference children[child_i].^(inner)
+        end
+    end
 end
 
 function _forward_json_path(v::JsonObject, path::ReferencePath)
-    path isa ConcreteReferencePath || return nothing
-    h1 = path.head
-    h1 isa FieldReference && h1.name == "entries" || return nothing
-    rest1 = path.tail
-    rest1 isa ConcreteReferencePath || return nothing
-    h2 = rest1.head
-    h2 isa RangeReference || return nothing
-    pair_i = h2.start + 1
-    es = entries(v)
-    pair_i > length(es) && return nothing
-    entry = es[pair_i]
-    rest2 = rest1.tail
-    rest2 isa ConcreteReferencePath || return nothing
-    h3 = rest2.head
-    h3 isa FieldReference || return nothing
-    inner = rest2.tail
-    if h3.name == "key"
-        return ConcreteReferencePath(FieldReference("children"),
-                   ConcreteReferencePath(ElementReference(pair_i),
-                       ConcreteReferencePath(FieldReference("children"),
-                           ConcreteReferencePath(ElementReference(1),
-                               ConcreteReferencePath(FieldReference("value"), inner)))))
-    elseif h3.name == "value"
-        translated = _forward_json_path(entry.value, inner)
-        translated === nothing && return nothing
-        return ConcreteReferencePath(FieldReference("children"),
-                   ConcreteReferencePath(ElementReference(pair_i),
-                       ConcreteReferencePath(FieldReference("children"),
-                           ConcreteReferencePath(ElementReference(2), translated))))
+    @reference_case path begin
+        entries{s:e}.key.inner... => begin
+            pair_i = s + 1
+            es = entries(v)
+            pair_i > length(es) && return nothing
+            @reference children[pair_i].children[1].value.^(inner)
+        end
+        entries{s:e}.value.inner... => begin
+            pair_i = s + 1
+            es = entries(v)
+            pair_i > length(es) && return nothing
+            entry = es[pair_i]
+            translated = _forward_json_path(entry.value, inner)
+            translated === nothing && return nothing
+            @reference children[pair_i].children[2].^(translated)
+        end
     end
-    return nothing
 end
 
 end # module

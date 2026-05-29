@@ -102,8 +102,8 @@ function map_reference_backward(::MathBinaryOperationToSyntaxNode, iomap::Childr
 end
 
 function projection_print(p::MathBinaryOperationToSyntaxNode, m::MathBinaryOperation, recursion, reference)
-    left_ref = append_reference(reference, FieldReference("left"))
-    right_ref = append_reference(reference, FieldReference("right"))
+    left_ref  = @reference ^(reference).left
+    right_ref = @reference ^(reference).right
     left_iomap = Cell(() -> projection_print(recursion, m.left, recursion, left_ref))
     right_iomap = Cell(() -> projection_print(recursion, m.right, recursion, right_ref))
 
@@ -174,7 +174,7 @@ function map_reference_backward(::MathParenthesizedToSyntaxNode, iomap::Children
 end
 
 function projection_print(p::MathParenthesizedToSyntaxNode, m::MathParenthesized, recursion, reference)
-    content_ref = append_reference(reference, FieldReference("content"))
+    content_ref = @reference ^(reference).content
     content_iomap = Cell(() -> projection_print(recursion, m.content, recursion, content_ref))
 
     sel = Cell(() -> begin
@@ -230,8 +230,8 @@ function map_reference_backward(::MathAssignmentToSyntaxNode, iomap::ChildrenIoM
 end
 
 function projection_print(p::MathAssignmentToSyntaxNode, m::MathAssignment, recursion, reference)
-    target_ref = append_reference(reference, FieldReference("target"))
-    value_ref = append_reference(reference, FieldReference("value"))
+    target_ref = @reference ^(reference).target
+    value_ref  = @reference ^(reference).value
     target_iomap = Cell(() -> projection_print(recursion, m.target, recursion, target_ref))
     value_iomap = Cell(() -> projection_print(recursion, m.value, recursion, value_ref))
 
@@ -300,77 +300,64 @@ end
 # ── Path translation (SyntaxDocument → Math domain) ──────────────────────────
 
 function _translate_binop_path(m::MathBinaryOperation, path::ReferencePath)
-    path isa ConcreteReferencePath || return nothing
-    h = path.head
-    h isa FieldReference && h.name == "children" || return nothing
-    rest = path.tail
-    rest isa ConcreteReferencePath || return nothing
-    h2 = rest.head
-    h2 isa RangeReference || return nothing
-    child_i = h2.start + 1
-    leaf_path = rest.tail
-    if child_i == 1
-        translated = _translate_math_path(m.left, leaf_path)
-        translated === nothing && return nothing
-        return ConcreteReferencePath(FieldReference("left"), translated)
-    elseif child_i == 3
-        translated = _translate_math_path(m.right, leaf_path)
-        translated === nothing && return nothing
-        return ConcreteReferencePath(FieldReference("right"), translated)
+    @reference_case path begin
+        children{s:_}.leaf_path... => begin
+            child_i = s + 1
+            if child_i == 1
+                translated = _translate_math_path(m.left, leaf_path)
+                translated === nothing && return nothing
+                @reference left.^(translated)
+            elseif child_i == 3
+                translated = _translate_math_path(m.right, leaf_path)
+                translated === nothing && return nothing
+                @reference right.^(translated)
+            else
+                nothing
+            end
+        end
     end
-    return nothing
 end
 
 function _translate_paren_path(m::MathParenthesized, path::ReferencePath)
-    path isa ConcreteReferencePath || return nothing
-    h = path.head
-    h isa FieldReference && h.name == "children" || return nothing
-    rest = path.tail
-    rest isa ConcreteReferencePath || return nothing
-    h2 = rest.head
-    h2 isa RangeReference || return nothing
-    child_i = h2.start + 1
-    child_i == 1 || return nothing
-    leaf_path = rest.tail
-    translated = _translate_math_path(m.content, leaf_path)
-    translated === nothing && return nothing
-    return ConcreteReferencePath(FieldReference("content"), translated)
+    @reference_case path begin
+        children{s:_}.leaf_path... => begin
+            s + 1 == 1 || return nothing
+            translated = _translate_math_path(m.content, leaf_path)
+            translated === nothing && return nothing
+            @reference content.^(translated)
+        end
+    end
 end
 
 function _translate_assign_path(m::MathAssignment, path::ReferencePath)
-    path isa ConcreteReferencePath || return nothing
-    h = path.head
-    h isa FieldReference && h.name == "children" || return nothing
-    rest = path.tail
-    rest isa ConcreteReferencePath || return nothing
-    h2 = rest.head
-    h2 isa RangeReference || return nothing
-    child_i = h2.start + 1
-    leaf_path = rest.tail
-    if child_i == 1
-        translated = _translate_math_path(m.target, leaf_path)
-        translated === nothing && return nothing
-        return ConcreteReferencePath(FieldReference("target"), translated)
-    elseif child_i == 3
-        translated = _translate_math_path(m.value, leaf_path)
-        translated === nothing && return nothing
-        return ConcreteReferencePath(FieldReference("value"), translated)
+    @reference_case path begin
+        children{s:_}.leaf_path... => begin
+            child_i = s + 1
+            if child_i == 1
+                translated = _translate_math_path(m.target, leaf_path)
+                translated === nothing && return nothing
+                @reference target.^(translated)
+            elseif child_i == 3
+                translated = _translate_math_path(m.value, leaf_path)
+                translated === nothing && return nothing
+                @reference value.^(translated)
+            else
+                nothing
+            end
+        end
     end
-    return nothing
 end
 
 function _translate_math_path(v::MathVariable, path::ReferencePath)
-    path isa ConcreteReferencePath || return nothing
-    h = path.head
-    h isa FieldReference && h.name == "value" || return nothing
-    return ConcreteReferencePath(FieldReference("name"), path.tail)
+    @reference_case path begin
+        value.rest... => @reference name.^(rest)
+    end
 end
 
 function _translate_math_path(v::PrimitiveNumber, path::ReferencePath)
-    path isa ConcreteReferencePath || return nothing
-    h = path.head
-    h isa FieldReference && h.name == "value" || return nothing
-    return path
+    @reference_case path begin
+        value.rest... => path
+    end
 end
 
 function _translate_math_path(v::MathBinaryOperation, path::ReferencePath)
@@ -392,63 +379,55 @@ end
 # ── Forward path translation (Math domain → SyntaxDocument) ──────────────────
 
 function _forward_math_path(v::MathVariable, path::ReferencePath)
-    path isa ConcreteReferencePath || return nothing
-    h = path.head
-    h isa FieldReference && h.name == "name" || return nothing
-    return ConcreteReferencePath(FieldReference("value"), path.tail)
+    @reference_case path begin
+        name.rest... => @reference value.^(rest)
+    end
 end
 
 function _forward_math_path(v::PrimitiveNumber, path::ReferencePath)
-    path isa ConcreteReferencePath || return nothing
-    h = path.head
-    h isa FieldReference && h.name == "value" || return nothing
-    return path
+    @reference_case path begin
+        value.rest... => path
+    end
 end
 
 function _forward_math_path(v::MathBinaryOperation, path::ReferencePath)
-    path isa ConcreteReferencePath || return nothing
-    h = path.head
-    h isa FieldReference || return nothing
-    if h.name == "left"
-        inner = _forward_math_path(v.left, path.tail)
-        inner === nothing && return nothing
-        return ConcreteReferencePath(FieldReference("children"),
-                   ConcreteReferencePath(ElementReference(1), inner))
-    elseif h.name == "right"
-        inner = _forward_math_path(v.right, path.tail)
-        inner === nothing && return nothing
-        return ConcreteReferencePath(FieldReference("children"),
-                   ConcreteReferencePath(ElementReference(3), inner))
+    @reference_case path begin
+        left.rest... => begin
+            inner = _forward_math_path(v.left, rest)
+            inner === nothing && return nothing
+            @reference children[1].^(inner)
+        end
+        right.rest... => begin
+            inner = _forward_math_path(v.right, rest)
+            inner === nothing && return nothing
+            @reference children[3].^(inner)
+        end
     end
-    return nothing
 end
 
 function _forward_math_path(v::MathParenthesized, path::ReferencePath)
-    path isa ConcreteReferencePath || return nothing
-    h = path.head
-    h isa FieldReference && h.name == "content" || return nothing
-    inner = _forward_math_path(v.content, path.tail)
-    inner === nothing && return nothing
-    return ConcreteReferencePath(FieldReference("children"),
-               ConcreteReferencePath(ElementReference(1), inner))
+    @reference_case path begin
+        content.rest... => begin
+            inner = _forward_math_path(v.content, rest)
+            inner === nothing && return nothing
+            @reference children[1].^(inner)
+        end
+    end
 end
 
 function _forward_math_path(v::MathAssignment, path::ReferencePath)
-    path isa ConcreteReferencePath || return nothing
-    h = path.head
-    h isa FieldReference || return nothing
-    if h.name == "target"
-        inner = _forward_math_path(v.target, path.tail)
-        inner === nothing && return nothing
-        return ConcreteReferencePath(FieldReference("children"),
-                   ConcreteReferencePath(ElementReference(1), inner))
-    elseif h.name == "value"
-        inner = _forward_math_path(v.value, path.tail)
-        inner === nothing && return nothing
-        return ConcreteReferencePath(FieldReference("children"),
-                   ConcreteReferencePath(ElementReference(3), inner))
+    @reference_case path begin
+        target.rest... => begin
+            inner = _forward_math_path(v.target, rest)
+            inner === nothing && return nothing
+            @reference children[1].^(inner)
+        end
+        value.rest... => begin
+            inner = _forward_math_path(v.value, rest)
+            inner === nothing && return nothing
+            @reference children[3].^(inner)
+        end
     end
-    return nothing
 end
 
 function _forward_math_path(v, path::ReferencePath)

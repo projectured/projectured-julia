@@ -22,6 +22,8 @@ import ..TypeDispatchingModule: TypeDispatchingProjection
 import ..IoMapModule: SimpleIoMap, ChildrenIoMap
 import ..ReferenceModule: ConcreteReferencePath, ElementReference, PositionReference, RangeReference, FieldReference,
                          ProjectionReference, ReferencePath, EmptyReferencePath, append_reference
+import ..ReferenceCaseModule: var"@reference_case"
+import ..ReferenceBuilderModule: var"@reference"
 import ..OperationModule: ReplaceSelectionOperation
 import ..SyntaxToTextModule: SyntaxNodeToText, _syntax_to_flat
 
@@ -58,23 +60,19 @@ BookBookToSyntaxNode(;
 
 function projection_print(p::BookBookToSyntaxNode, b::BookBook, recursion, reference)
     element_iomaps = Cell(() -> [projection_print(recursion, e, recursion,
-                                     append_reference(reference, FieldReference("elements"), ElementReference(i)))
+                                     @reference ^(reference).elements[i])
                                  for (i, e) in enumerate(b.elements)])
 
     title_sel = Cell(() -> begin
-        path = b.selection
-        path isa ConcreteReferencePath || return nothing
-        h = path.head
-        h isa FieldReference && h.name == "title" || return nothing
-        ConcreteReferencePath(FieldReference("value"), path.tail)
+        @reference_case b.selection begin
+            title.rest... => @reference value.^(rest)
+        end
     end)
 
     author_sel = Cell(() -> begin
-        path = b.selection
-        path isa ConcreteReferencePath || return nothing
-        h = path.head
-        h isa FieldReference && h.name == "author" || return nothing
-        ConcreteReferencePath(FieldReference("value"), path.tail)
+        @reference_case b.selection begin
+            author.rest... => @reference value.^(rest)
+        end
     end)
 
     title_leaf = SyntaxLeaf(TextString("", p.title_font, color_default), TextString("", p.title_font, color_default),
@@ -93,13 +91,11 @@ function projection_print(p::BookBookToSyntaxNode, b::BookBook, recursion, refer
         if name == "title"
             ts = title_sel[]
             ts === nothing && return nothing
-            ConcreteReferencePath(FieldReference("children"),
-                ConcreteReferencePath(ElementReference(1), ts))
+            @reference children[1].^(ts)
         elseif name == "author" && b.author !== nothing
             as_ = author_sel[]
             as_ === nothing && return nothing
-            ConcreteReferencePath(FieldReference("children"),
-                ConcreteReferencePath(ElementReference(2), as_))
+            @reference children[2].^(as_)
         elseif name == "elements"
             rest = path.tail
             rest isa ConcreteReferencePath || return nothing
@@ -111,8 +107,8 @@ function projection_print(p::BookBookToSyntaxNode, b::BookBook, recursion, refer
             child_i > length(iomaps) && return nothing
             child_sel = iomaps[child_i].output.selection
             child_sel === nothing && return nothing
-            ConcreteReferencePath(FieldReference("children"),
-                ConcreteReferencePath(ElementReference(child_i + offset), child_sel))
+            child_idx = child_i + offset
+            @reference children[child_idx].^(child_sel)
         else
             nothing
         end
@@ -183,21 +179,17 @@ BookChapterToSyntaxNode(;
 
 function projection_print(p::BookChapterToSyntaxNode, b::BookChapter, recursion, reference)
     element_iomaps = Cell(() -> [projection_print(recursion, e, recursion,
-                                     append_reference(reference, FieldReference("elements"), PositionReference(i)))
+                                     @reference ^(reference).elements{i})
                                  for (i, e) in enumerate(b.elements)])
 
     title_sel = Cell(() -> begin
-        path = b.selection
-        path isa ConcreteReferencePath || return nothing
-        h = path.head
-        h isa FieldReference && h.name == "title" || return nothing
-        rest = path.tail
-        rest isa ConcreteReferencePath || return nothing
-        h2 = rest.head
-        h2 isa RangeReference || return nothing
-        offset = let num = b.numbering; isempty(num) ? 0 : length(num) + 2 end
-        ConcreteReferencePath(FieldReference("value"),
-            ConcreteReferencePath(PositionReference(h2.start + offset), rest.tail))
+        @reference_case b.selection begin
+            title{s:_}.tail... => begin
+                offset = let num = b.numbering; isempty(num) ? 0 : length(num) + 2 end
+                adj = s + offset
+                @reference value{adj}.^(tail)
+            end
+        end
     end)
 
     title_leaf = SyntaxLeaf(TextString("", p.title_font, color_default), TextString("", p.title_font, color_default),
@@ -220,8 +212,7 @@ function projection_print(p::BookChapterToSyntaxNode, b::BookChapter, recursion,
         if name == "title"
             ts = title_sel[]
             ts === nothing && return nothing
-            ConcreteReferencePath(FieldReference("children"),
-                ConcreteReferencePath(PositionReference(1), ts))
+            @reference children{1}.^(ts)
         elseif name == "elements"
             rest = path.tail
             rest isa ConcreteReferencePath || return nothing
@@ -232,8 +223,8 @@ function projection_print(p::BookChapterToSyntaxNode, b::BookChapter, recursion,
             child_i > length(iomaps) && return nothing
             child_sel = iomaps[child_i].output.selection
             child_sel === nothing && return nothing
-            ConcreteReferencePath(FieldReference("children"),
-                ConcreteReferencePath(PositionReference(child_i + 1), child_sel))
+            child_idx = child_i + 1
+            @reference children{child_idx}.^(child_sel)
         else
             nothing
         end
@@ -290,11 +281,9 @@ BookParagraphToSyntaxLeaf(; font=font_ubuntu_monospace_regular_24,  color=color_
 
 function projection_print(p::BookParagraphToSyntaxLeaf, b::BookParagraph, recursion, reference)
     content_sel = Cell(() -> begin
-        path = b.selection
-        path isa ConcreteReferencePath || return nothing
-        h = path.head
-        h isa FieldReference && h.name == "content" || return nothing
-        ConcreteReferencePath(FieldReference("value"), path.tail)
+        @reference_case b.selection begin
+            content.rest... => @reference value.^(rest)
+        end
     end)
     leaf = SyntaxLeaf(TextString("", p.font, color_default), TextString("", p.font, color_default),
         TextString(() -> _render_paragraph_content(b.content), p.font, p.color),
@@ -339,30 +328,22 @@ BookListToSyntaxNode(; bullet_font=font_ubuntu_monospace_regular_24, bullet_colo
 
 function projection_print(p::BookListToSyntaxNode, b::BookList, recursion, reference)
     element_iomaps = Cell(() -> [projection_print(recursion, e, recursion,
-                                     append_reference(reference, FieldReference("elements"), PositionReference(i)))
+                                     @reference ^(reference).elements{i})
                                  for (i, e) in enumerate(b.elements)])
 
     sel = Cell(() -> begin
         path = b.selection
-        path isa ConcreteReferencePath || return nothing
-        h = path.head
-        if h isa ProjectionReference
-            return path
+        path isa ConcreteReferencePath && path.head isa ProjectionReference && return path
+        @reference_case path begin
+            elements{s:_}.rest... => begin
+                child_i = s + 1
+                iomaps  = element_iomaps[]
+                child_i > length(iomaps) && return nothing
+                child_sel = iomaps[child_i].output.selection
+                child_sel === nothing && return nothing
+                @reference children{child_i}.children{1}.^(child_sel)
+            end
         end
-        h isa FieldReference && h.name == "elements" || return nothing
-        rest = path.tail
-        rest isa ConcreteReferencePath || return nothing
-        h2 = rest.head
-        h2 isa RangeReference || return nothing
-        child_i = h2.start + 1
-        iomaps  = element_iomaps[]
-        child_i > length(iomaps) && return nothing
-        child_sel = iomaps[child_i].output.selection
-        child_sel === nothing && return nothing
-        ConcreteReferencePath(FieldReference("children"),
-            ConcreteReferencePath(PositionReference(child_i),
-                ConcreteReferencePath(FieldReference("children"),
-                    ConcreteReferencePath(PositionReference(1), child_sel))))
     end)
 
     children_cv = CellVector(() -> begin
@@ -419,11 +400,9 @@ BookPictureToSyntaxLeaf(; font=font_ubuntu_monospace_regular_24, color=color_sol
 
 function projection_print(p::BookPictureToSyntaxLeaf, b::BookPicture, recursion, reference)
     content_sel = Cell(() -> begin
-        path = b.selection
-        path isa ConcreteReferencePath || return nothing
-        h = path.head
-        h isa FieldReference && h.name == "content" || return nothing
-        ConcreteReferencePath(FieldReference("value"), path.tail)
+        @reference_case b.selection begin
+            content.rest... => @reference value.^(rest)
+        end
     end)
     leaf = SyntaxLeaf(TextString("", p.font, color_default), TextString("", p.font, color_default),
         TextString(() -> begin
@@ -480,207 +459,140 @@ end
 # child elements when needed, mirroring the _forward_json_path pattern.
 
 function _forward_book_path(b::BookBook, path::ReferencePath)
-    path isa ConcreteReferencePath || return nothing
-    h = path.head
-    h isa FieldReference || return nothing
-    name = h.name
-    rest = path.tail
-    if name == "title"
-        rest isa ConcreteReferencePath || return nothing
-        rest.head isa RangeReference || return nothing
-        return ConcreteReferencePath(FieldReference("children"),
-                   ConcreteReferencePath(PositionReference(1),
-                       ConcreteReferencePath(FieldReference("value"), rest)))
-    elseif name == "author" && b.author !== nothing
-        rest isa ConcreteReferencePath || return nothing
-        rest.head isa RangeReference || return nothing
-        return ConcreteReferencePath(FieldReference("children"),
-                   ConcreteReferencePath(PositionReference(2),
-                       ConcreteReferencePath(FieldReference("value"), rest)))
-    elseif name == "elements"
-        rest isa ConcreteReferencePath || return nothing
-        h2 = rest.head
-        h2 isa RangeReference || return nothing
-        child_i = h2.start + 1
-        elems = b.elements
-        child_i > length(elems) && return nothing
-        inner = _forward_book_path(elems[child_i], rest.tail)
-        inner === nothing && return nothing
-        offset = b.author !== nothing ? 3 : 2
-        return ConcreteReferencePath(FieldReference("children"),
-                   ConcreteReferencePath(PositionReference(child_i + offset), inner))
+    @reference_case path begin
+        title.rest...     => rest isa ConcreteReferencePath && rest.head isa RangeReference ? (@reference children{1}.value.^(rest)) : nothing
+        author.rest...    => (b.author !== nothing && rest isa ConcreteReferencePath && rest.head isa RangeReference) ? (@reference children{2}.value.^(rest)) : nothing
+        elements{s:_}.rest... => begin
+            child_i = s + 1
+            elems = b.elements
+            child_i > length(elems) && return nothing
+            inner = _forward_book_path(elems[child_i], rest)
+            inner === nothing && return nothing
+            offset = b.author !== nothing ? 3 : 2
+            child_idx = child_i + offset
+            @reference children{child_idx}.^(inner)
+        end
     end
-    return nothing
 end
 
 function _forward_book_path(b::BookChapter, path::ReferencePath)
-    path isa ConcreteReferencePath || return nothing
-    h = path.head
-    h isa FieldReference || return nothing
-    name = h.name
-    rest = path.tail
-    if name == "title"
-        rest isa ConcreteReferencePath || return nothing
-        h2 = rest.head
-        h2 isa RangeReference || return nothing
-        offset = let num = b.numbering; isempty(num) ? 0 : length(num) + 2 end
-        return ConcreteReferencePath(FieldReference("children"),
-                   ConcreteReferencePath(PositionReference(1),
-                       ConcreteReferencePath(FieldReference("value"),
-                           ConcreteReferencePath(PositionReference(h2.start + offset),
-                               rest.tail))))
-    elseif name == "elements"
-        rest isa ConcreteReferencePath || return nothing
-        h2 = rest.head
-        h2 isa RangeReference || return nothing
-        child_i = h2.start + 1
-        elems = b.elements
-        child_i > length(elems) && return nothing
-        inner = _forward_book_path(elems[child_i], rest.tail)
-        inner === nothing && return nothing
-        return ConcreteReferencePath(FieldReference("children"),
-                   ConcreteReferencePath(PositionReference(child_i + 1), inner))
+    @reference_case path begin
+        title{s:_}.rest... => begin
+            offset = let num = b.numbering; isempty(num) ? 0 : length(num) + 2 end
+            adj = s + offset
+            @reference children{1}.value{adj}.^(rest)
+        end
+        elements{s:_}.rest... => begin
+            child_i = s + 1
+            elems = b.elements
+            child_i > length(elems) && return nothing
+            inner = _forward_book_path(elems[child_i], rest)
+            inner === nothing && return nothing
+            child_idx = child_i + 1
+            @reference children{child_idx}.^(inner)
+        end
     end
-    return nothing
 end
 
 function _forward_book_path(b::BookParagraph, path::ReferencePath)
-    path isa ConcreteReferencePath || return nothing
-    h = path.head
-    h isa FieldReference && h.name == "content" || return nothing
-    return ConcreteReferencePath(FieldReference("value"), path.tail)
+    @reference_case path begin
+        content.rest... => @reference value.^(rest)
+    end
 end
 
 function _forward_book_path(b::BookList, path::ReferencePath)
-    path isa ConcreteReferencePath || return nothing
-    h = path.head
-    h isa FieldReference && h.name == "elements" || return nothing
-    rest = path.tail
-    rest isa ConcreteReferencePath || return nothing
-    h2 = rest.head
-    h2 isa RangeReference || return nothing
-    child_i = h2.start + 1
-    elems = b.elements
-    child_i > length(elems) && return nothing
-    inner = _forward_book_path(elems[child_i], rest.tail)
-    inner === nothing && return nothing
-    return ConcreteReferencePath(FieldReference("children"),
-               ConcreteReferencePath(PositionReference(child_i),
-                   ConcreteReferencePath(FieldReference("children"),
-                       ConcreteReferencePath(PositionReference(1), inner))))
+    @reference_case path begin
+        elements{s:_}.rest... => begin
+            child_i = s + 1
+            elems = b.elements
+            child_i > length(elems) && return nothing
+            inner = _forward_book_path(elems[child_i], rest)
+            inner === nothing && return nothing
+            @reference children{child_i}.children{1}.^(inner)
+        end
+    end
 end
 
 function _forward_book_path(b::BookPicture, path::ReferencePath)
-    path isa ConcreteReferencePath || return nothing
-    h = path.head
-    h isa FieldReference && h.name == "content" || return nothing
-    return ConcreteReferencePath(FieldReference("value"), path.tail)
+    @reference_case path begin
+        content.rest... => @reference value.^(rest)
+    end
 end
 
 function _backward_book_path(b::BookBook, path::ReferencePath)
-    path isa ConcreteReferencePath || return nothing
-    h = path.head
-    h isa FieldReference && h.name == "children" || return nothing
-    rest1 = path.tail
-    rest1 isa ConcreteReferencePath || return nothing
-    h2 = rest1.head
-    h2 isa RangeReference || return nothing
-    child_i = h2.start + 1
-    rest2 = rest1.tail
-    if child_i == 1
-        rest2 isa ConcreteReferencePath || return nothing
-        hv = rest2.head
-        hv isa FieldReference && hv.name == "value" || return nothing
-        return ConcreteReferencePath(FieldReference("title"), rest2.tail)
-    elseif child_i == 2 && b.author !== nothing
-        rest2 isa ConcreteReferencePath || return nothing
-        hv = rest2.head
-        hv isa FieldReference && hv.name == "value" || return nothing
-        return ConcreteReferencePath(FieldReference("author"), rest2.tail)
-    else
-        offset = b.author !== nothing ? 3 : 2
-        elem_i = child_i - offset
-        elem_i < 1 && return nothing
-        elems = b.elements
-        elem_i > length(elems) && return nothing
-        translated = _backward_book_path(elems[elem_i], rest2)
-        translated === nothing && return nothing
-        return ConcreteReferencePath(FieldReference("elements"),
-                   ConcreteReferencePath(PositionReference(elem_i), translated))
+    @reference_case path begin
+        children{s:_}.rest... => begin
+            child_i = s + 1
+            if child_i == 1
+                @reference_case rest begin
+                    value.tail... => @reference title.^(tail)
+                end
+            elseif child_i == 2 && b.author !== nothing
+                @reference_case rest begin
+                    value.tail... => @reference author.^(tail)
+                end
+            else
+                offset = b.author !== nothing ? 3 : 2
+                elem_i = child_i - offset
+                elem_i < 1 && return nothing
+                elems = b.elements
+                elem_i > length(elems) && return nothing
+                translated = _backward_book_path(elems[elem_i], rest)
+                translated === nothing && return nothing
+                @reference elements{elem_i}.^(translated)
+            end
+        end
     end
 end
 
 function _backward_book_path(b::BookChapter, path::ReferencePath)
-    path isa ConcreteReferencePath || return nothing
-    h = path.head
-    h isa FieldReference && h.name == "children" || return nothing
-    rest1 = path.tail
-    rest1 isa ConcreteReferencePath || return nothing
-    h2 = rest1.head
-    h2 isa RangeReference || return nothing
-    child_i = h2.start + 1
-    rest2 = rest1.tail
-    if child_i == 1
-        rest2 isa ConcreteReferencePath || return nothing
-        hv = rest2.head
-        hv isa FieldReference && hv.name == "value" || return nothing
-        rest3 = rest2.tail
-        rest3 isa ConcreteReferencePath || return nothing
-        h3 = rest3.head
-        h3 isa RangeReference || return nothing
-        offset = let num = b.numbering; isempty(num) ? 0 : length(num) + 2 end
-        adj = h3.start - offset
-        adj < 0 && return nothing
-        return ConcreteReferencePath(FieldReference("title"),
-                   ConcreteReferencePath(PositionReference(adj), rest3.tail))
-    else
-        elem_i = child_i - 1
-        elems = b.elements
-        elem_i > length(elems) && return nothing
-        translated = _backward_book_path(elems[elem_i], rest2)
-        translated === nothing && return nothing
-        return ConcreteReferencePath(FieldReference("elements"),
-                   ConcreteReferencePath(PositionReference(elem_i), translated))
+    @reference_case path begin
+        children{s:_}.rest... => begin
+            child_i = s + 1
+            if child_i == 1
+                @reference_case rest begin
+                    value{s2:_}.tail... => begin
+                        offset = let num = b.numbering; isempty(num) ? 0 : length(num) + 2 end
+                        adj = s2 - offset
+                        adj < 0 && return nothing
+                        @reference title{adj}.^(tail)
+                    end
+                end
+            else
+                elem_i = child_i - 1
+                elems = b.elements
+                elem_i > length(elems) && return nothing
+                translated = _backward_book_path(elems[elem_i], rest)
+                translated === nothing && return nothing
+                @reference elements{elem_i}.^(translated)
+            end
+        end
     end
 end
 
 function _backward_book_path(b::BookParagraph, path::ReferencePath)
-    path isa ConcreteReferencePath || return nothing
-    h = path.head
-    h isa FieldReference && h.name == "value" || return nothing
-    return ConcreteReferencePath(FieldReference("content"), path.tail)
+    @reference_case path begin
+        value.rest... => @reference content.^(rest)
+    end
 end
 
 function _backward_book_path(b::BookList, path::ReferencePath)
-    path isa ConcreteReferencePath || return nothing
-    h = path.head
-    h isa FieldReference && h.name == "children" || return nothing
-    rest1 = path.tail
-    rest1 isa ConcreteReferencePath || return nothing
-    h2 = rest1.head
-    h2 isa RangeReference || return nothing
-    child_i = h2.start + 1
-    rest2 = rest1.tail
-    rest2 isa ConcreteReferencePath || return nothing
-    hc = rest2.head
-    hc isa FieldReference && hc.name == "children" || return nothing
-    rest3 = rest2.tail
-    rest3 isa ConcreteReferencePath || return nothing
-    h3 = rest3.head
-    h3 isa RangeReference && h3.start == 1 || return nothing
-    elems = b.elements
-    child_i > length(elems) && return nothing
-    translated = _backward_book_path(elems[child_i], rest3.tail)
-    translated === nothing && return nothing
-    return ConcreteReferencePath(FieldReference("elements"),
-               ConcreteReferencePath(PositionReference(child_i), translated))
+    @reference_case path begin
+        children{s:_}.children{1}.tail... => begin
+            child_i = s + 1
+            elems = b.elements
+            child_i > length(elems) && return nothing
+            translated = _backward_book_path(elems[child_i], tail)
+            translated === nothing && return nothing
+            @reference elements{child_i}.^(translated)
+        end
+    end
 end
 
 function _backward_book_path(b::BookPicture, path::ReferencePath)
-    path isa ConcreteReferencePath || return nothing
-    h = path.head
-    h isa FieldReference && h.name == "value" || return nothing
-    return ConcreteReferencePath(FieldReference("content"), path.tail)
+    @reference_case path begin
+        value.rest... => @reference content.^(rest)
+    end
 end
 
 end # module

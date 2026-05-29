@@ -39,6 +39,7 @@ import ..OperationApiModule: Operation
 import ..PrimitiveModule: StringReplaceRangeOperation, NumberReplaceRangeOperation
 import ..KeyboardModule: KeyDown
 import ..ReferenceModule: ReferencePath, ConcreteReferencePath, ElementReference, PositionReference, RangeReference, EmptyReferencePath, FieldReference, append_reference
+import ..ReferenceBuilderModule: var"@reference"
 export WorkbenchWorkbenchToWidgetShell,    WorkbenchWorkbenchToWidgetShellIoMap,
        WorkbenchPageToWidgetTabbedPane,    WorkbenchPageToWidgetTabbedPaneIoMap,
        WorkbenchNavigatorToWidgetScrollPane, WorkbenchNavigatorToWidgetScrollPaneIoMap,
@@ -104,9 +105,9 @@ _title_widget(doc::WorkbenchDocument) = title(doc)
 
 function projection_print(::WorkbenchWorkbenchToWidgetShell,
                            w::WorkbenchWorkbench, recursion, reference)
-    nav_iomap  = _recurse(recursion, w.navigation_page,  append_reference(reference, FieldReference("navigation_page")))
-    edit_iomap = _recurse(recursion, w.editing_page,     append_reference(reference, FieldReference("editing_page")))
-    info_iomap = _recurse(recursion, w.information_page, append_reference(reference, FieldReference("information_page")))
+    nav_iomap  = _recurse(recursion, w.navigation_page,  @reference ^(reference).navigation_page)
+    edit_iomap = _recurse(recursion, w.editing_page,     @reference ^(reference).editing_page)
+    info_iomap = _recurse(recursion, w.information_page, @reference ^(reference).information_page)
     right_split = WidgetSplitPane(:vertical,
                                   WidgetDocument[edit_iomap.output, info_iomap.output];
                                   sizes=[800, 200])
@@ -122,7 +123,7 @@ end
 function projection_print(::WorkbenchPageToWidgetTabbedPane,
                            page::WorkbenchPage, recursion, reference)
     element_iomaps = Any[_recurse(recursion, page.elements[i],
-                             append_reference(reference, FieldReference("elements"), ElementReference(i)))
+                             @reference ^(reference).elements[i])
                          for i in eachindex(page.elements)]
     pairs = Any[(_title_widget(page.elements[i]), element_iomaps[i].output)
                 for i in eachindex(page.elements)]
@@ -149,7 +150,7 @@ end
 
 function projection_print(::WorkbenchConsoleToWidgetScrollPane,
                            c::WorkbenchConsole, recursion, reference)
-    content_iomap = _recurse(recursion, c.content, append_reference(reference, FieldReference("content")))
+    content_iomap = _recurse(recursion, c.content, @reference ^(reference).content)
     scroll = WidgetScrollPane(content_iomap.output;
                               size=Point2D(1000, 130),
                               padding=_PAD5, padding_color=_WHITE)
@@ -186,7 +187,7 @@ end
 
 function projection_print(::WorkbenchEvaluatorToWidgetScrollPane,
                            e::WorkbenchEvaluator, recursion, reference)
-    content_iomap = _recurse(recursion, e.content, append_reference(reference, FieldReference("content")))
+    content_iomap = _recurse(recursion, e.content, @reference ^(reference).content)
     scroll = WidgetScrollPane(content_iomap.output;
                               size=Point2D(1000, 130),
                               padding=_PAD5, padding_color=_WHITE)
@@ -216,7 +217,7 @@ end
 
 function projection_print(::WorkbenchEditorToWidgetScrollPane,
                            e::WorkbenchEditor, recursion, reference)
-    content_iomap = _recurse(recursion, e.content, append_reference(reference, FieldReference("content")))
+    content_iomap = _recurse(recursion, e.content, @reference ^(reference).content)
     scroll = WidgetScrollPane(content_iomap.output;
                               size=Point2D(1000, 700),
                               padding=_PAD5, padding_color=_WHITE)
@@ -447,11 +448,8 @@ function projection_read(::WorkbenchPageToWidgetTabbedPane,
     op.widget === iomap.output || return op
     idx = op.tab_index
     1 <= idx <= length(iomap.input.elements) || return op
-    getfield(iomap.output, :selection)[] =
-        ConcreteReferencePath(ElementReference(idx), EmptyReferencePath())
-    ReplaceSelectionOperation(
-        ConcreteReferencePath(FieldReference("elements"),
-            ConcreteReferencePath(ElementReference(idx), EmptyReferencePath())))
+    getfield(iomap.output, :selection)[] = @reference [idx]
+    ReplaceSelectionOperation(@reference elements[idx])
 end
 
 function projection_read(::WorkbenchNavigatorToWidgetScrollPane,

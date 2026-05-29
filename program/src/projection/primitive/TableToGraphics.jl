@@ -16,6 +16,7 @@ import ..GraphicsModule: GraphicsDocument, GraphicsCanvas, GraphicsRect, layout_
 import ..ColorModule: StyleColor, color_default, color_solarized_gray
 import ..IoMapModule: SimpleIoMap, ChildrenIoMap
 import ..ReferenceModule: ConcreteReferencePath, ElementReference, FieldReference, RangeReference, ReferencePath, append_reference
+import ..ReferenceBuilderModule: var"@reference"
 import ..TypeDispatchingModule: TypeDispatchingProjection
 import ..CopyingProjectionModule: CopyingProjection
 import ..OperationModule: ReplaceSelectionOperation
@@ -54,10 +55,7 @@ function projection_read(::TableTableToGraphicsCanvas, iomap::ChildrenIoMap, eve
         child_im === nothing && continue
         op = projection_read(child_im.projection, child_im, event)
         if op isa ReplaceSelectionOperation
-            wrapped = ConcreteReferencePath(FieldReference("cells"),
-                          ConcreteReferencePath(ElementReference(idx),
-                              ConcreteReferencePath(FieldReference("content"), op.path)))
-            return ReplaceSelectionOperation(wrapped)
+            return ReplaceSelectionOperation(@reference cells[idx].content.^(op.path))
         end
     end
     return nothing
@@ -75,9 +73,8 @@ function projection_print(p::TableTableToGraphicsCanvas, table::TableTable, recu
         iomaps = []
         for idx in 1:ncells
             cell = table.cells[idx]
-            cell_ref = append_reference(reference, FieldReference("cells"), ElementReference(idx))
             if cell isa TableCell && cell.content !== nothing
-                content_ref = append_reference(cell_ref, FieldReference("content"))
+                content_ref = @reference ^(reference).cells[idx].content
                 push!(iomaps, projection_print(recursion, cell.content, recursion, content_ref))
             else
                 push!(iomaps, nothing)
@@ -91,7 +88,7 @@ function projection_print(p::TableTableToGraphicsCanvas, table::TableTable, recu
         for idx in 1:ncols
             col = table.columns[idx]
             if col isa TableColumn && col.content !== nothing
-                col_ref = append_reference(reference, FieldReference("columns"), ElementReference(idx), FieldReference("content"))
+                col_ref = @reference ^(reference).columns[idx].content
                 push!(iomaps, projection_print(recursion, col.content, recursion, col_ref))
             else
                 push!(iomaps, nothing)
@@ -105,7 +102,7 @@ function projection_print(p::TableTableToGraphicsCanvas, table::TableTable, recu
         for idx in 1:nrows
             row = table.rows[idx]
             if row isa TableRow && row.content !== nothing
-                row_ref = append_reference(reference, FieldReference("rows"), ElementReference(idx), FieldReference("content"))
+                row_ref = @reference ^(reference).rows[idx].content
                 push!(iomaps, projection_print(recursion, row.content, recursion, row_ref))
             else
                 push!(iomaps, nothing)

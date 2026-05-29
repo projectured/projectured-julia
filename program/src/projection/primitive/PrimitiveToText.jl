@@ -20,63 +20,32 @@ import ..ColorModule: StyleColor, color_solarized_cyan, color_solarized_magenta,
 import ..IoMapModule: SimpleIoMap
 import ..ReferenceModule: ConcreteReferencePath, EmptyReferencePath, FieldReference, RangeReference,
                           ElementReference, PositionReference, ReferencePath
+import ..ReferenceCaseModule: var"@reference_case"
+import ..ReferenceBuilderModule: var"@reference"
 import ..OperationModule: ReplaceSelectionOperation
 import ..KeyboardModule: KeyDown, KeyPress
 import ..TypeDispatchingModule: TypeDispatchingProjection
 export PrimitiveBoolToText, PrimitiveNumberToText, PrimitiveStringToText, PrimitiveToText
 
 # Forward: .value[k] on the primitive → .elements[1].content[k] on the TextText.
+# Range selections collapse to a cursor at the range start.
 function _forward_value(reference)
-    reference isa ConcreteReferencePath || return nothing
-    h = reference.head
-    h isa FieldReference && h.name == "value" || return nothing
-    rest = reference.tail
-    rest isa ConcreteReferencePath || return nothing
-    inner = rest.head
-    inner isa RangeReference || return nothing
-    k = inner.start::Int
-    ReferencePath(FieldReference("elements"), ElementReference(1),
-                  FieldReference("content"), PositionReference(k))
+    @reference_case reference begin
+        value{s:e} => @reference elements[1].content{s}
+    end
 end
 
 # Backward: .elements[1].content[k] on the TextText → .value[k] on the primitive.
 function _backward_value(reference)
-    reference isa ConcreteReferencePath || return nothing
-    h1 = reference.head
-    h1 isa FieldReference && h1.name == "elements" || return nothing
-    t1 = reference.tail
-    t1 isa ConcreteReferencePath || return nothing
-    h2 = t1.head
-    h2 isa RangeReference || return nothing
-    h2.start + 1 == 1 || return nothing
-    t2 = t1.tail
-    t2 isa ConcreteReferencePath || return nothing
-    h3 = t2.head
-    h3 isa FieldReference && h3.name == "content" || return nothing
-    t3 = t2.tail
-    t3 isa ConcreteReferencePath || return nothing
-    h4 = t3.head
-    h4 isa RangeReference || return nothing
-    ConcreteReferencePath(FieldReference("value"),
-        ConcreteReferencePath(PositionReference(h4.start::Int)))
+    @reference_case reference begin
+        elements[1].content{s:e} => @reference value{s}
+    end
 end
 
 # Translates a PrimitiveDocument's `.value[k]` / `.value[range]` selection
 # into the single-span TextText shape `.elements[1].content[k]`. Range
 # selections collapse to a cursor at `range.start` (matching SyntaxLeafToText).
-function _value_selection_to_text(prim)
-    sel = getfield(prim, :selection)[]
-    sel isa ConcreteReferencePath || return nothing
-    h = sel.head
-    h isa FieldReference && h.name == "value" || return nothing
-    rest = sel.tail
-    rest isa ConcreteReferencePath || return nothing
-    inner = rest.head
-    inner isa RangeReference || return nothing
-    k = inner.start::Int
-    ReferencePath(FieldReference("elements"), ElementReference(1),
-                  FieldReference("content"), PositionReference(k))
-end
+_value_selection_to_text(prim) = _forward_value(getfield(prim, :selection)[])
 
 # ── PrimitiveBoolToText ──────────────────────────────────────────────────────
 
@@ -171,10 +140,7 @@ function _string_value_range(s::PrimitiveString)
     inner.head
 end
 
-function _string_value_path(range::RangeReference)
-    ConcreteReferencePath(FieldReference("value"),
-        ConcreteReferencePath(range, EmptyReferencePath()))
-end
+_string_value_path(range::RangeReference) = @reference value.^(range)
 
 function projection_read(p::PrimitiveStringToText, iomap::SimpleIoMap, evt::KeyPress)
     evt.modifiers.ctrl && return nothing

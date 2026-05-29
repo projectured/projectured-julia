@@ -34,6 +34,8 @@ import ..PrimitiveModule: PrimitiveString
 import ..CollectionModule: CellVector
 import ..JuliaModule: JuliaDocument
 import ..ReferenceModule: ConcreteReferencePath, FieldReference, RangeReference, EmptyReferencePath
+import ..ReferenceCaseModule: var"@reference_case"
+import ..ReferenceBuilderModule: var"@reference"
 import ..ConversationModule: ConversationConversation,
                               ConversationUserMessage, ConversationAssistantMessage,
                               ConversationToolUseMessage, ConversationToolResultMessage,
@@ -121,10 +123,8 @@ _text_to_string(s::PrimitiveString) = something(s.value, "")
 
 function _set_input!(a::WorkbenchAssistant, s::AbstractString)
     a.input.value = String(s)
-    a.input.selection = ConcreteReferencePath(
-        FieldReference("value"),
-        ConcreteReferencePath(RangeReference(length(s), length(s)),
-                              EmptyReferencePath()))
+    n = length(s)
+    a.input.selection = @reference value{n}
     nothing
 end
 
@@ -600,22 +600,13 @@ end
 
 # Pull the current `.value[range]` cursor out of the assistant's input.
 function _input_range(a::WorkbenchAssistant)
-    sel = a.input.selection
-    sel isa ConcreteReferencePath || return nothing
-    h = sel.head
-    h isa FieldReference && h.name == "value" || return nothing
-    rest = sel.tail
-    rest isa ConcreteReferencePath || return nothing
-    r = rest.head
-    r isa RangeReference || return nothing
-    r
+    @reference_case a.input.selection begin
+        value{s:e} => RangeReference(s, e)
+    end
 end
 
 # Build a path rooted at WorkbenchAssistant: `.input.value[range]`.
-_input_path(range::RangeReference) =
-    ConcreteReferencePath(FieldReference("input"),
-        ConcreteReferencePath(FieldReference("value"),
-            ConcreteReferencePath(range, EmptyReferencePath())))
+_input_path(range::RangeReference) = @reference input.value.^(range)
 
 function projection_read(::WorkbenchAssistantToWidgetScrollPane,
                           iomap, evt::KeyPress)

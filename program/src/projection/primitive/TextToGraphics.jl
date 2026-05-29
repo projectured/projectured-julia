@@ -22,6 +22,8 @@ import ..GraphicsModule: GraphicsText, GraphicsRect, GraphicsCanvas, layout_none
 import ..FontModule: StyleFont
 import ..ColorModule: StyleColor
 import ..ReferenceModule: ReferencePath, ConcreteReferencePath, ElementReference, PositionReference, RangeReference, PointReference, EmptyReferencePath, FieldReference, head, tail
+import ..ReferenceCaseModule: var"@reference_case"
+import ..ReferenceBuilderModule: var"@reference"
 import ..OperationModule: ReplaceSelectionOperation
 import ..KeyboardModule: KeyDown
 import ..IoMapApiModule: IoMap
@@ -562,35 +564,13 @@ end
 
 function _cursor_position(sel)
     sel === nothing && return nothing
-    sel isa EmptyReferencePath && return nothing
-    sel isa ConcreteReferencePath || return nothing
-    h1 = head(sel)
-    h1 isa FieldReference && h1.name == "elements" || return nothing
-    t1 = tail(sel)
-    t1 isa ConcreteReferencePath || return nothing
-    h2 = head(t1)
-    h2 isa RangeReference || return nothing
-    span_idx = h2.start + 1
-    t2 = tail(t1)
-    t2 isa ConcreteReferencePath || return nothing
-    h3 = head(t2)
-    h3 isa FieldReference && h3.name == "content" || return nothing
-    t3 = tail(t2)
-    t3 isa ConcreteReferencePath || return nothing
-    h4 = head(t3)
-    h4 isa RangeReference || return nothing
-    char_idx = h4.start::Int
-    return (span=span_idx, char=char_idx)
+    @reference_case sel begin
+        elements{s:_}.content{c:_} => (span=s + 1, char=c)
+    end
 end
 
-function _build_selection_path(span_idx::Int, char_idx::Int)
-    ReferencePath(
-        FieldReference("elements"),
-        ElementReference(span_idx),
-        FieldReference("content"),
-        PositionReference(char_idx)
-    )
-end
+_build_selection_path(span_idx::Int, char_idx::Int) =
+    @reference elements[span_idx].content{char_idx}
 
 function _make_sdl(text, x, y, font, r, g, b, a)
     GraphicsText(Cell(text), Cell(Int32(x)), Cell(Int32(y)),

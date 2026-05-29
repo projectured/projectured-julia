@@ -47,6 +47,7 @@ import ..CollectionModule: CellVector
 import ..ReferenceModule: ReferencePath, ConcreteReferencePath, ElementReference,
                           PositionReference, RangeReference, EmptyReferencePath,
                           FieldReference, append_reference
+import ..ReferenceBuilderModule: var"@reference"
 import ..TypeDispatchingModule: TypeDispatchingProjection
 
 export ConversationConversationToWidgetComposite,
@@ -185,9 +186,7 @@ function projection_print(::ConversationConversationToWidgetComposite,
         msgs = c.messages
         widgets = Any[]
         for i in eachindex(msgs)
-            child_ref = append_reference(ref,
-                                         FieldReference("messages"),
-                                         ElementReference(i))
+            child_ref = @reference ^(ref).messages[i]
             iomap = _recurse(rec, msgs[i], child_ref)
             push!(widgets, _wrap_widget(iomap.output))
         end
@@ -200,7 +199,7 @@ end
 
 function projection_print(::ConversationUserMessageToWidgetComposite,
                           m::ConversationUserMessage, recursion, reference)
-    body_ref = append_reference(reference, FieldReference("text"))
+    body_ref = @reference ^(reference).text
     body_iomap = _recurse(recursion, m.text, body_ref)
     composite = _compose(Any[
         _label("user"),
@@ -221,9 +220,7 @@ function projection_print(::ConversationAssistantMessageToWidgetComposite,
         blocks = m.blocks
         widgets = Any[_label("assistant")]
         for i in eachindex(blocks)
-            block_ref = append_reference(ref,
-                                         FieldReference("blocks"),
-                                         ElementReference(i))
+            block_ref = @reference ^(ref).blocks[i]
             iomap = _recurse(rec, blocks[i], block_ref)
             push!(widgets, _wrap_widget(iomap.output))
         end
@@ -246,7 +243,7 @@ end
 
 function projection_print(::ConversationToolResultMessageToWidgetComposite,
                           m::ConversationToolResultMessage, recursion, reference)
-    body_ref = append_reference(reference, FieldReference("content"))
+    body_ref = @reference ^(reference).content
     body_iomap = _recurse(recursion, m.content, body_ref)
     composite = _compose(Any[
         _label(m.is_error ? "tool result (error)" : "tool result"),
@@ -259,7 +256,7 @@ end
 
 function projection_print(::ConversationJuliaInputMessageToWidgetComposite,
                           m::ConversationJuliaInputMessage, recursion, reference)
-    code_ref = append_reference(reference, FieldReference("code"))
+    code_ref = @reference ^(reference).code
     code_iomap = _recurse(recursion, m.code, code_ref)
     composite = _compose(Any[
         _label("julia input"),
@@ -270,7 +267,7 @@ end
 
 function projection_print(::ConversationJuliaResultMessageToWidgetComposite,
                           m::ConversationJuliaResultMessage, recursion, reference)
-    body_ref = append_reference(reference, FieldReference("output"))
+    body_ref = @reference ^(reference).output
     body_iomap = _recurse(recursion, m.output, body_ref)
     composite = _compose(Any[
         _label(m.is_error ? "julia error" : "julia result"),
@@ -283,14 +280,14 @@ end
 
 function projection_print(::ConversationTextBlockToText,
                           b::ConversationTextBlock, recursion, reference)
-    text_ref = append_reference(reference, FieldReference("text"))
+    text_ref = @reference ^(reference).text
     inner = _recurse(recursion, b.text, text_ref)
     ContentIoMap(nothing, b, inner.output, inner)
 end
 
 function projection_print(::ConversationCodeBlockToWidget,
                           b::ConversationCodeBlock, recursion, reference)
-    body_ref = append_reference(reference, FieldReference("body"))
+    body_ref = @reference ^(reference).body
     inner = _recurse(recursion, b.body, body_ref)
     composite = _compose(Any[
         _label("code [$(b.language)]"),
@@ -301,7 +298,7 @@ end
 
 function projection_print(::ConversationHeadingBlockToText,
                           b::ConversationHeadingBlock, recursion, reference)
-    text_ref = append_reference(reference, FieldReference("text"))
+    text_ref = @reference ^(reference).text
     inner = _recurse(recursion, b.text, text_ref)
     composite = _compose(Any[
         _label("h$(b.level)"),
@@ -316,9 +313,7 @@ function projection_print(::ConversationListBlockToWidgetComposite,
     item_widgets = Any[]
     for i in eachindex(b.items)
         item = b.items[i]
-        item_ref = append_reference(reference,
-                                    FieldReference("items"),
-                                    ElementReference(i))
+        item_ref = @reference ^(reference).items[i]
         iomap = _recurse(recursion, item, item_ref)
         push!(item_iomaps, iomap)
         push!(item_widgets, iomap.output)

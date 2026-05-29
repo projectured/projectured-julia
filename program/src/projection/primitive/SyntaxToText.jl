@@ -16,6 +16,8 @@ import ..TextModule: TextText, TextString, TextNewline, TextDocument
 import ..FontModule: font_ubuntu_monospace_regular_24
 import ..TypeDispatchingModule: TypeDispatchingProjection
 import ..ReferenceModule: ConcreteReferencePath, ElementReference, PositionReference, RangeReference, FieldReference, ProjectionReference, EmptyReferencePath, ReferencePath
+import ..ReferenceCaseModule: var"@reference_case"
+import ..ReferenceBuilderModule: var"@reference"
 import ..IoMapModule: SimpleIoMap
 import ..IoMapApiModule: IoMap
 import ..OperationModule: ReplaceSelectionOperation
@@ -31,39 +33,22 @@ export SyntaxLeafToText, SyntaxNodeToText, SyntaxListToText, SyntaxToText,
 struct SyntaxLeafToText <: Projection end
 
 function map_reference_forward(::SyntaxLeafToText, iomap, reference)
-    reference isa ConcreteReferencePath || return nothing
-    h = reference.head
-    if h isa FieldReference
-        fname = h.name
-        rest = reference.tail
-        rest isa ConcreteReferencePath || return nothing
-        inner = rest.head
-        inner isa RangeReference || return nothing
-        k = inner.start::Int
-        span_idx = fname == "open" ? 1 : fname == "value" ? 2 : fname == "close" ? 3 : return nothing
-        return _text_elem_path(span_idx, k)
-    elseif h isa ProjectionReference
-        inner_path = h.output_path
-        inner_path isa ConcreteReferencePath || return nothing
-        field = inner_path.head
-        field isa FieldReference || return nothing
-        fname = field.name
-        rest2 = inner_path.tail
-        rest2 isa ConcreteReferencePath || return nothing
-        idx = rest2.head
-        idx isa RangeReference || return nothing
-        k = idx.start::Int
-        span_idx = fname == "open" ? 1 : fname == "close" ? 3 : return nothing
-        return _text_elem_path(span_idx, k)
+    @reference_case reference begin
+        open{s:_}                  => _text_elem_path(1, s)
+        value{s:_}                 => _text_elem_path(2, s)
+        close{s:_}                 => _text_elem_path(3, s)
+        proj(_, open{s:_})         => _text_elem_path(1, s)
+        proj(_, close{s:_})        => _text_elem_path(3, s)
     end
-    return nothing
 end
 
 function map_reference_backward(::SyntaxLeafToText, iomap, reference)
     span_idx, char_idx = _parse_text_elem_path(reference)
     span_idx === nothing && return nothing
-    fname = span_idx == 1 ? "open" : span_idx == 2 ? "value" : span_idx == 3 ? "close" : return nothing
-    return ConcreteReferencePath(FieldReference(fname), ConcreteReferencePath(PositionReference(char_idx)))
+    span_idx == 1 && return @reference open{char_idx}
+    span_idx == 2 && return @reference value{char_idx}
+    span_idx == 3 && return @reference close{char_idx}
+    return nothing
 end
 
 # Selection mapping (SyntaxLeaf → TextText, three spans: [open, value, close]):
@@ -528,23 +513,19 @@ function _pos_to_selection(leaf::SyntaxLeaf, local_pos::Int, ::SyntaxNodeToText,
     value_len   = length(leaf.value.content::AbstractString)
     close_start = open_len + value_len
     if local_pos < open_len
-        ConcreteReferencePath(FieldReference("open"),
-            ConcreteReferencePath(PositionReference(local_pos)))
+        @reference open{local_pos}
     elseif local_pos <= close_start
-        ConcreteReferencePath(FieldReference("value"),
-            ConcreteReferencePath(PositionReference(local_pos - open_len)))
+        @reference value{local_pos - open_len}
     else
-        ConcreteReferencePath(FieldReference("close"),
-            ConcreteReferencePath(PositionReference(local_pos - close_start)))
+        @reference close{local_pos - close_start}
     end
 end
 
 function _pos_to_selection(node::SyntaxNode, local_pos::Int, p::SyntaxNodeToText, depth::Int)
-    _proj(k) = ConcreteReferencePath(ProjectionReference(p, ConcreteReferencePath(PositionReference(k))))
+    _proj(k) = @reference proj(p, {k})
 
     open_len = length(node.open.content)
-    local_pos < open_len && return ConcreteReferencePath(FieldReference("open"),
-                                       ConcreteReferencePath(PositionReference(local_pos)))
+    local_pos < open_len && return @reference open{local_pos}
 
     children = node.children
     char_count = open_len
@@ -563,7 +544,7 @@ function _pos_to_selection(node::SyntaxNode, local_pos::Int, p::SyntaxNodeToText
             child_len = _subtree_len(child, p, child_depth)
             if char_count <= local_pos <= char_count + child_len
                 sel = _pos_to_selection(child, local_pos - char_count, p, child_depth)
-                return ConcreteReferencePath(FieldReference("children"), ConcreteReferencePath(ElementReference(i), sel))
+                return @reference children[i].^(sel)
             end
             char_count += child_len
         end
@@ -582,22 +563,19 @@ function _pos_to_selection(node::SyntaxNode, local_pos::Int, p::SyntaxNodeToText
             child_len = _subtree_len(child, p, depth)
             if char_count <= local_pos <= char_count + child_len
                 sel = _pos_to_selection(child, local_pos - char_count, p, depth)
-                return ConcreteReferencePath(FieldReference("children"), ConcreteReferencePath(ElementReference(i), sel))
+                return @reference children[i].^(sel)
             end
             char_count += child_len
         end
     end
 
     close_len = length(node.close.content)
-    local_pos < char_count + close_len && return ConcreteReferencePath(FieldReference("close"),
-                                                     ConcreteReferencePath(PositionReference(local_pos - char_count)))
+    local_pos < char_count + close_len && return @reference close{local_pos - char_count}
     return _proj(local_pos)
 end
 
-function _text_elem_path(span_idx::Int, char_idx::Int)
-    ReferencePath(FieldReference("elements"), ElementReference(span_idx),
-                  FieldReference("content"), PositionReference(char_idx))
-end
+_text_elem_path(span_idx::Int, char_idx::Int) =
+    @reference elements[span_idx].content{char_idx}
 
 function _parse_text_elem_path(path)
     path isa ConcreteReferencePath || return (nothing, nothing)

@@ -18,6 +18,8 @@ import ..SyntaxModule: SyntaxDocument, SyntaxLeaf, SyntaxNode
 import ..TypeDispatchingModule: TypeDispatchingProjection
 import ..IoMapModule: SimpleIoMap, ChildrenIoMap
 import ..ReferenceModule: ConcreteReferencePath, ElementReference, PositionReference, RangeReference, FieldReference, ProjectionReference, ReferencePath, EmptyReferencePath, append_reference
+import ..ReferenceCaseModule: var"@reference_case"
+import ..ReferenceBuilderModule: var"@reference"
 import ..OperationModule: ReplaceSelectionOperation
 import ..SyntaxToTextModule: SyntaxNodeToText, _syntax_to_flat
 export XmlInsertionToSyntaxLeaf, XmlTextToSyntaxLeaf, XmlElementToSyntaxNode, XmlToSyntax
@@ -51,17 +53,15 @@ end
 XmlTextToSyntaxLeaf(; font=font_ubuntu_monospace_regular_24, color=color_black) = XmlTextToSyntaxLeaf(font, color)
 
 function map_reference_forward(::XmlTextToSyntaxLeaf, iomap, reference)
-    reference isa ConcreteReferencePath || return nothing
-    h = reference.head
-    h isa FieldReference && h.name == "cell" || return nothing
-    return ConcreteReferencePath(FieldReference("value"), reference.tail)
+    @reference_case reference begin
+        cell.rest... => @reference value.^(rest)
+    end
 end
 
 function map_reference_backward(::XmlTextToSyntaxLeaf, iomap, reference)
-    reference isa ConcreteReferencePath || return nothing
-    h = reference.head
-    h isa FieldReference && h.name == "value" || return nothing
-    return ConcreteReferencePath(FieldReference("cell"), reference.tail)
+    @reference_case reference begin
+        value.rest... => @reference cell.^(rest)
+    end
 end
 
 function projection_read(p::XmlTextToSyntaxLeaf, iomap, op::ReplaceSelectionOperation)
@@ -69,23 +69,18 @@ function projection_read(p::XmlTextToSyntaxLeaf, iomap, op::ReplaceSelectionOper
     path isa ConcreteReferencePath || return nothing
     h = path.head
     if h isa FieldReference && h.name == "value"
-        return ReplaceSelectionOperation(ConcreteReferencePath(FieldReference("cell"), path.tail))
+        return ReplaceSelectionOperation(@reference cell.^(path.tail))
     else
-        return ReplaceSelectionOperation(ConcreteReferencePath(ProjectionReference(p, path)))
+        return ReplaceSelectionOperation(@reference proj(p, ^(path)))
     end
 end
 
 function _xml_text_sel(t::XmlText)
     Cell(() -> begin
         sel = t.selection
-        sel isa ConcreteReferencePath || return nothing
-        h = sel.head
-        if h isa FieldReference && h.name == "cell"
-            ConcreteReferencePath(FieldReference("value"), sel.tail)
-        elseif h isa ProjectionReference
-            sel
-        else
-            nothing
+        sel isa ConcreteReferencePath && sel.head isa ProjectionReference && return sel
+        @reference_case sel begin
+            cell.rest... => @reference value.^(rest)
         end
     end)
 end
@@ -149,31 +144,22 @@ end
 
 function projection_print(p::XmlElementToSyntaxNode, e::XmlElement, recursion, reference)
     child_iomaps = Cell(() -> [projection_print(recursion, child, recursion,
-                                   append_reference(reference, FieldReference("cell"), ElementReference(i)))
+                                   @reference ^(reference).cell[i])
                                for (i, child) in enumerate(e)])
 
     sel = Cell(() -> begin
         path = e.selection
-        path isa ConcreteReferencePath || return nothing
-        h = path.head
-        if h isa FieldReference && h.name == "cell"
-            rest = path.tail
-            rest isa ConcreteReferencePath || return nothing
-            h2 = rest.head
-            h2 isa RangeReference || return nothing
-            child_i = h2.start + 1
-            iomaps = child_iomaps[]
-            child_i > length(iomaps) && return nothing
-            child_sel = iomaps[child_i].output.selection
-            child_sel === nothing && return nothing
-            return ConcreteReferencePath(FieldReference("children"),
-                       ConcreteReferencePath(ElementReference(2),
-                           ConcreteReferencePath(FieldReference("children"),
-                               ConcreteReferencePath(ElementReference(child_i), child_sel))))
-        elseif h isa ProjectionReference
-            return path
+        path isa ConcreteReferencePath && path.head isa ProjectionReference && return path
+        @reference_case path begin
+            cell{s:_}.rest... => begin
+                child_i = s + 1
+                iomaps = child_iomaps[]
+                child_i > length(iomaps) && return nothing
+                child_sel = iomaps[child_i].output.selection
+                child_sel === nothing && return nothing
+                @reference children[2].children[child_i].^(child_sel)
+            end
         end
-        return nothing
     end)
 
     tag_leaf = SyntaxLeaf(
@@ -254,63 +240,41 @@ function _attr_node(a::XmlAttribute, p::XmlElementToSyntaxNode)
 end
 
 function _translate_xml_path(t::XmlText, path::ReferencePath)
-    path isa ConcreteReferencePath || return nothing
-    h = path.head
-    h isa FieldReference && h.name == "value" || return nothing
-    return ConcreteReferencePath(FieldReference("cell"), path.tail)
+    @reference_case path begin
+        value.rest... => @reference cell.^(rest)
+    end
 end
 
-function _translate_xml_path(e::XmlElement, path::ReferencePath)
-    path isa ConcreteReferencePath || return nothing
-    h = path.head
-    h isa FieldReference && h.name == "children" || return nothing
-    rest2 = path.tail
-    rest2 isa ConcreteReferencePath || return nothing
-    h2 = rest2.head
-    h2 isa RangeReference || return nothing
-    outer_child = h2.start + 1
-    outer_child == 2 || return nothing  # must be body_node (index 2)
-    rest3 = rest2.tail
-    rest3 isa ConcreteReferencePath || return nothing
-    h3 = rest3.head
-    h3 isa FieldReference || return nothing
-    rest4 = rest3.tail
-    rest4 isa ConcreteReferencePath || return nothing
-    h4 = rest4.head
-    h4 isa RangeReference || return nothing
-    child_i = h4.start + 1
-    1 <= child_i <= length(e) || return nothing
-    child = e[child_i]
-    translated = _translate_xml_path(child, rest4.tail)
-    translated === nothing && return nothing
-    return ConcreteReferencePath(FieldReference("cell"),
-               ConcreteReferencePath(ElementReference(child_i), translated))
+function _translate_xml_path(elem::XmlElement, path::ReferencePath)
+    @reference_case path begin
+        children{s:_}.field(_).children{s2:_}.tail... => begin
+            outer_child = s + 1
+            outer_child == 2 || return nothing  # must be body_node (index 2)
+            child_i = s2 + 1
+            1 <= child_i <= length(elem) || return nothing
+            translated = _translate_xml_path(elem[child_i], tail)
+            translated === nothing && return nothing
+            @reference cell[child_i].^(translated)
+        end
+    end
 end
 
 function _forward_xml_path(t::XmlText, path::ReferencePath)
-    path isa ConcreteReferencePath || return nothing
-    h = path.head
-    h isa FieldReference && h.name == "cell" || return nothing
-    return ConcreteReferencePath(FieldReference("value"), path.tail)
+    @reference_case path begin
+        cell.rest... => @reference value.^(rest)
+    end
 end
 
-function _forward_xml_path(e::XmlElement, path::ReferencePath)
-    path isa ConcreteReferencePath || return nothing
-    h = path.head
-    h isa FieldReference && h.name == "cell" || return nothing
-    rest = path.tail
-    rest isa ConcreteReferencePath || return nothing
-    h2 = rest.head
-    h2 isa RangeReference || return nothing
-    child_i = h2.start + 1
-    1 <= child_i <= length(e) || return nothing
-    child = e[child_i]
-    inner = _forward_xml_path(child, rest.tail)
-    inner === nothing && return nothing
-    return ConcreteReferencePath(FieldReference("children"),
-               ConcreteReferencePath(ElementReference(2),
-                   ConcreteReferencePath(FieldReference("children"),
-                       ConcreteReferencePath(ElementReference(child_i), inner))))
+function _forward_xml_path(elem::XmlElement, path::ReferencePath)
+    @reference_case path begin
+        cell{s:_}.rest... => begin
+            child_i = s + 1
+            1 <= child_i <= length(elem) || return nothing
+            inner = _forward_xml_path(elem[child_i], rest)
+            inner === nothing && return nothing
+            @reference children[2].children[child_i].^(inner)
+        end
+    end
 end
 
 function XmlToSyntax()
