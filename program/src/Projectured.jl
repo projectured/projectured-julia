@@ -118,7 +118,6 @@ include("editor/ToolRegistry.jl")
 include("editor/Mcp.jl")
 include("editor/WorkbenchAssistant.jl")
 include("editor/Editor.jl")
-include("editor/Application.jl")
 
 # ── Public API ────────────────────────────────────────────────────────────
 
@@ -279,7 +278,7 @@ using .WorkbenchToWidgetModule: WorkbenchWorkbenchToWidgetShell,    WorkbenchWor
                                 WorkbenchEditorToWidgetScrollPane,
                                 WorkbenchToWidget
 using .GraphicsCachingModule: GraphicsCanvasToGraphicsImage, GraphicsCaching
-using .ApplicationModule: application
+using .EditorModule: Editor, run!
 using .McpModule: McpServer, mcp_start!, mcp_stop!
 using .ToolRegistryModule: Tool, Resource,
                             register_tool!, register_tools!, list_tools, call_tool,
@@ -474,7 +473,7 @@ export WorkbenchWorkbenchToWidgetShell,    WorkbenchWorkbenchToWidgetShellIoMap,
        WorkbenchAssistantToWidgetScrollPane,
        WorkbenchEditorToWidgetScrollPane,
        WorkbenchToWidget
-export application
+export Editor, run!
 export McpServer, mcp_start!, mcp_stop!
 export Tool, Resource, register_tool!, register_tools!, list_tools, call_tool,
        register_resource!, register_resources!, list_resources, read_resource,

@@ -12,11 +12,13 @@ module EditorModule
 import ..ProjectionApiModule: Projection, projection_print, projection_read
 import ..IoMapApiModule: IoMap
 import ..DeviceModule: Device, read_from_devices, write_to_devices
-import ..BackendModule: Backend
-import ..ScreenModule: QuitEvent
+import ..BackendModule: Backend, init!, quit!
+import ..ScreenModule: Screen, QuitEvent
 import ..ScreenDocumentModule: EventEnvelope
 import ..ReactiveModule: perf_counters, perf_reset!, @perf_time
 import ..DocumentModule: Document
+import ..KeyboardModule: Keyboard
+import ..MouseModule: Mouse
 import ..OperationApiModule: Operation, evaluate_operation
 import ..OperationModule: ReplaceSelectionOperation, QuitEditorOperation
 import ..OperationModule: QuitEditorException
@@ -170,5 +172,30 @@ function run!(editor::Editor)
     end
 end
 
+"""
+    run!(backend::Backend, projection, document)
+
+Bootstrap overload: initialise the backend, wire up an `Editor` with
+the given projection and document, and run the read-eval-print loop
+above. The pipeline is expected to produce a `ScreenDocument` so the
+backend can reconcile native windows against it; pipelines whose
+output is a bare `GraphicsCanvas` go unrendered (use `write_image`
+for offscreen).
+
+Native windows are not pre-allocated here — the backend opens them
+on demand the first time `write_to_devices` sees a `ScreenDocument`
+output. `Editor.devices` only carries the hardware kinds the editor
+needs: `Screen`, `Keyboard`, `Mouse`.
+"""
+function run!(backend::Backend, projection, document)
+    init!(backend)
+    try
+        editor = Editor(backend, document, projection,
+                        Device[Screen(), Keyboard(), Mouse()])
+        run!(editor)
+    finally
+        quit!(backend)
+    end
+end
 
 end # module

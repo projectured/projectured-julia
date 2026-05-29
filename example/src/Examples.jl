@@ -87,7 +87,7 @@ function run_example(example::Example; width=2400, height=1600,
             Any            => projection,
         )
     )
-    application(SdlBackend(), composed, screen)
+    run!(SdlBackend(), composed, screen)
 end
 
 function run_example(name="json"; kwargs...)
