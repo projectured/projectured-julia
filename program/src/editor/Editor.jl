@@ -14,7 +14,7 @@ import ..IoMapApiModule: IoMap
 import ..DeviceModule: Device, read_from_devices, write_to_devices
 import ..BackendModule: Backend
 import ..WindowModule: QuitEvent
-import ..ReactiveModule: perf_counters, perf_reset!
+import ..ReactiveModule: perf_counters, perf_reset!, @perf_time
 import ..DocumentModule: Document
 import ..OperationApiModule: Operation, evaluate_operation
 import ..OperationModule: ReplaceSelectionOperation, QuitEditorOperation
@@ -107,7 +107,10 @@ when the editor processed a non-nothing operation.
 function perf!(editor::Editor)
     editor.operation === nothing && return
     c = perf_counters()
-    println("\r\e[K[perf] reads=$(c[:reads]) computes=$(c[:computes]) invalidations=$(c[:invalidations]) writes=$(c[:writes])")
+    rt = c[:read_time] / 1e6
+    et = c[:evaluate_time] / 1e6
+    pt = c[:print_time] / 1e6
+    println("\r\e[K[perf] reads=$(c[:reads]) computes=$(c[:computes]) invalidations=$(c[:invalidations]) writes=$(c[:writes]) read=$(round(rt; digits=2))ms eval=$(round(et; digits=2))ms print=$(round(pt; digits=2))ms")
 end
 
 # ── Main loop ──────────────────────────────────────────────────────────
@@ -128,9 +131,9 @@ function run!(editor::Editor)
     try
         while true
             perf_reset!()
-            read!(editor)
-            evaluate!(editor)
-            print!(editor)
+            @perf_time :read_time     read!(editor)
+            @perf_time :evaluate_time evaluate!(editor)
+            @perf_time :print_time    print!(editor)
             perf!(editor)
             sleep(0.01)
         end
