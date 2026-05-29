@@ -66,9 +66,28 @@ function run_example(example::Example; width=2400, height=1600,
     if caching
         projection = make_graphics_caching(projection)
     end
-    application(SdlBackend(), projection, document,
-                title = example.name,
-                width = width, height = height)
+    # Wrap the example's domain document in a one-window ScreenDocument so
+    # the SDL backend can reconcile a native window for it, and compose
+    # the example's projection with CopyingProjection at the Screen and
+    # WindowDocument layers so metadata is copied through and only the
+    # content is projected by `projection`.
+    screen = ScreenDocument([
+        WindowDocument(; id=:main, title=example.name,
+                        width=width, height=height,
+                        content=document),
+    ])
+    composed = RecursiveProjection(
+        TypeDispatchingProjection(
+            ScreenDocument => CopyingProjection(),
+            WindowDocument => CopyingProjection(),
+            # `windows::CellVector` is the bridge between ScreenDocument and
+            # the per-window CopyingProjection step — copy it too, otherwise
+            # it would fall through to the example projection.
+            CellVector     => CopyingProjection(),
+            Any            => projection,
+        )
+    )
+    application(SdlBackend(), composed, screen)
 end
 
 function run_example(name="json"; kwargs...)

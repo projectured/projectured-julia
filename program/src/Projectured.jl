@@ -52,6 +52,7 @@ include("editor/Anthropic.jl")
 include("editor/Llm.jl")
 include("document/Workbench.jl")
 include("document/Image.jl")
+include("document/Screen.jl")
 
 # ── Higher-order projections ──────────────────────────────────────────────
 
@@ -111,7 +112,7 @@ include("projection/compound/Generic.jl")
 
 # ── Devices, backend, and editor ──────────────────────────────────────────
 
-include("device/Window.jl")
+include("device/Screen.jl")
 include("backend/Sdl.jl")
 include("editor/ToolRegistry.jl")
 include("editor/Mcp.jl")
@@ -140,6 +141,7 @@ using .MathModule
 using .FontModule
 using .ColorModule
 using .ImageModule
+using .ScreenDocumentModule
 using .ReactiveModule: Cell, setval!, setfn!, isuptodate
 using .ProjectionApiModule: projection_print, projection_read, map_reference_forward, map_reference_backward, Projection
 using .ReferenceModule: ConcreteReferencePath, ElementReference, PositionReference, RangeReference, FieldReference,
@@ -175,10 +177,11 @@ using .GraphicsModule: GraphicsDocument, GraphicsInsertion, GraphicsForeign,
 using .ModifiersModule: Modifiers
 using .KeyboardModule: KeyDown, KeyUp, KeyPress, is_ctrl, is_shift, is_alt, is_meta
 using .MouseModule: MouseDown, MouseUp, MousePress, MouseMove, MouseScroll
-using .BackendModule: Backend, init!, quit!, open_window!, close_window!, measure_text
+using .BackendModule: Backend, init!, quit!, measure_text
 using .SdlBackendModule: SdlBackend, sdl_measure_text, sdl_render_canvas,
                           write_image, GraphicsCanvasToImageFile
 using .DeviceModule: Device, write_to_device, read_from_device, write_to_devices, read_from_devices
+using .ScreenModule: Screen, QuitEvent
 using .IoMapApiModule: IoMap
 using .IoMapModule: SimpleIoMap, ChildrenIoMap, ContentIoMap
 using .TypeDispatchingModule: TypeDispatchingProjection
@@ -234,6 +237,7 @@ using .WidgetModule: WidgetDocument, WidgetInsertion, WidgetForeign,
                      HideWidgetOperation, ShowWidgetOperation,
                      ScrollWidgetOperation, SelectTabOperation, SetScrollBarValueOperation
 using .ImageModule: ImageDocument, ImageInsertion, ImageForeign, ImageFile, ImageMemory
+using .ScreenDocumentModule: ScreenDocument, WindowDocument, EventEnvelope, WindowCloseRequest
 using .TextToStringModule: TextToString, TextTextToString, TextStringToString, TextNewlineToString
 using .TextLineNumberingModule: LineNumbering, TextLineNumbering
 using .TextWordWrappingModule: WordWrapping, TextWordWrapping
@@ -378,7 +382,8 @@ export GraphicsDocument, GraphicsInsertion, GraphicsForeign,
 export Modifiers
 export KeyDown, KeyUp, KeyPress, is_ctrl, is_shift, is_alt, is_meta
 export MouseDown, MouseUp, MousePress, MouseMove, MouseScroll
-export Backend, init!, quit!, open_window!, close_window!, measure_text
+export Backend, init!, quit!, measure_text
+export Screen
 export SdlBackend, sdl_measure_text, sdl_render_canvas, write_image, GraphicsCanvasToImageFile
 export Device, write_to_device, read_from_device, write_to_devices, read_from_devices
 export IoMap, SimpleIoMap, ChildrenIoMap, ContentIoMap
@@ -430,6 +435,7 @@ export WorkbenchDocument, WorkbenchInsertion, WorkbenchForeign,
        WorkbenchAssistant,
        WorkbenchEditor
 export ImageDocument, ImageInsertion, ImageForeign, ImageFile, ImageMemory
+export ScreenDocument, WindowDocument, EventEnvelope, WindowCloseRequest
 export TextToString, TextTextToString, TextStringToString, TextNewlineToString
 export LineNumbering, TextLineNumbering
 export WordWrapping, TextWordWrapping

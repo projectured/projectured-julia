@@ -8,7 +8,7 @@ etc.
 """
 module BackendModule
 
-export Backend, init!, quit!, open_window!, close_window!, measure_text
+export Backend, init!, quit!, measure_text
 
 """
     Backend
@@ -30,20 +30,6 @@ function init!(::Backend) end
 Tear down the backend and release resources.
 """
 function quit!(::Backend) end
-
-"""
-    open_window!(::Backend, window)
-
-Open a window using the backend.
-"""
-function open_window!(::Backend, window) end
-
-"""
-    close_window!(::Backend, window)
-
-Close a window using the backend.
-"""
-function close_window!(::Backend, window) end
 
 """
     measure_text(::Backend, text, font) -> (Int, Int)

@@ -13,7 +13,8 @@ import ..ProjectionApiModule: Projection, projection_print, projection_read
 import ..IoMapApiModule: IoMap
 import ..DeviceModule: Device, read_from_devices, write_to_devices
 import ..BackendModule: Backend
-import ..WindowModule: QuitEvent
+import ..ScreenModule: QuitEvent
+import ..ScreenDocumentModule: EventEnvelope
 import ..ReactiveModule: perf_counters, perf_reset!, @perf_time
 import ..DocumentModule: Document
 import ..OperationApiModule: Operation, evaluate_operation
@@ -48,28 +49,44 @@ Editor(backend, document, projection, devices) = Editor(backend, document, proje
 # ── Read-Eval-Print ──────────────────────────────────────────────────
 
 """
-    read!(editor::Editor)
+    read!(editor::Editor) -> Bool
 
-Poll input events via the backend. The backend returns backend-agnostic
-events (KeyDown, KeyUp, KeyPress, MouseDown, MouseUp, MousePress, MouseMove, MouseScroll, QuitEvent, …). Events are passed
-to the projection pipeline reader which translates them into domain-specific
-operations via the last stored IoMap. The result is stored in `editor.operation`.
+Poll the next input envelope via the backend and translate it into
+an operation. Returns `true` if an envelope was consumed (whether or
+not it produced an operation), `false` when the backend had nothing
+to deliver — used by `run!` to decide when to stop draining and
+repaint.
+
+The backend returns an `EventEnvelope` wrapping a backend-agnostic
+event (KeyDown, KeyUp, KeyPress, MouseDown, MouseUp, MousePress,
+MouseMove, MouseScroll, QuitEvent, WindowCloseRequest, …) together
+with the originating `WindowDocument.id`. The envelope is passed to
+the projection pipeline reader which translates it via the last
+stored IoMap. The result is stored in `editor.operation`.
 """
 function read!(editor::Editor)
-    event = read_from_devices(editor.backend, editor.devices)
-    if event === nothing
+    env = read_from_devices(editor.backend, editor.devices)
+    if env === nothing
         editor.operation = nothing
-    elseif event isa QuitEvent
+        return false
+    elseif env isa EventEnvelope && env.event isa QuitEvent
         editor.operation = QuitEditorOperation()
+        return true
     elseif editor.iomap === nothing
         editor.operation = nothing
+        return true
     else
+        # The envelope carries the window_id that the screen-level
+        # CopyingProjection uses to route to the right sub-iomap.
+        # Single-window pipelines whose readers don't care just look
+        # at env.event.
         # Some projection readers (e.g. workbench panels) pass unhandled
         # events through by returning `op` unchanged, which can be a raw
         # KeyDown/MousePress rather than an Operation. Coerce to nothing
         # so the strict `Union{Operation, Nothing}` field accepts it.
-        result = projection_read(editor.projection, editor.iomap, event)
+        result = projection_read(editor.projection, editor.iomap, env)
         editor.operation = result isa Operation ? result : nothing
+        return true
     end
 end
 
@@ -118,12 +135,14 @@ end
 """
     run!(editor::Editor)
 
-Execute the read-eval-print loop:
+Execute the read-eval-print loop. Each frame drains every available
+envelope from the backend (each routed to an operation and applied)
+and then repaints once. Draining avoids repaint starvation when one
+window emits a burst of events.
 
-    loop:
-      1. read!      — read device input into an operation
-      2. evaluate!  — apply the operation to the document
-      3. print!     — project the document to the output device
+    per frame:
+      1. drain envelopes — for each: read! → evaluate!
+      2. print!          — project the document to the output devices
 """
 function run!(editor::Editor)
     mcp = McpServer(editor)
@@ -131,10 +150,17 @@ function run!(editor::Editor)
     try
         while true
             perf_reset!()
-            @perf_time :read_time     read!(editor)
-            @perf_time :evaluate_time evaluate!(editor)
+            # Drain all pending envelopes this frame.
+            while true
+                consumed = false
+                @perf_time :read_time begin
+                    consumed = read!(editor)
+                end
+                consumed || break
+                @perf_time :evaluate_time evaluate!(editor)
+                perf!(editor)
+            end
             @perf_time :print_time    print!(editor)
-            perf!(editor)
             sleep(0.01)
         end
     catch e

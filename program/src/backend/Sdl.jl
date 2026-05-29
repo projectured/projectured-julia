@@ -7,13 +7,14 @@ module SdlBackendModule
 
 using SimpleDirectMediaLayer
 using SimpleDirectMediaLayer.LibSDL2
-import ..BackendModule: Backend, init!, quit!, open_window!, close_window!, measure_text
+import ..BackendModule: Backend, init!, quit!, measure_text
 import ..DeviceModule: Device, read_from_devices, write_to_devices, write_to_device
 import ..GraphicsModule: GraphicsCanvas, GraphicsText, GraphicsRect, GraphicsViewport, GraphicsImage,
                          GraphicsFence, LayoutDirection, layout_none, layout_horizontal, layout_vertical
 import ..CollectionModule: ListNode
 import ..FontModule: StyleFont, font_scaled_size, _FONT_SCALE
-import ..WindowModule: Window, QuitEvent
+import ..ScreenModule: Screen, QuitEvent
+import ..ScreenDocumentModule: ScreenDocument, WindowDocument, EventEnvelope, WindowCloseRequest
 import ..ModifiersModule: Modifiers
 import ..KeyboardModule: KeyDown, KeyUp, KeyPress
 import ..MouseModule: MouseDown, MouseUp, MousePress, MouseMove, MouseScroll
@@ -28,12 +29,39 @@ export SdlBackend, sdl_measure_text, sdl_render_canvas, write_image, GraphicsCan
 # ════════════════════════════════════════════════════════════════════════
 
 """
+    SdlWindowResources
+
+Backend-internal record of a live native SDL window plus the matching
+`WindowDocument.id` it mirrors. Stored in the backend's `windows`
+registry, keyed by `WindowDocument.id`.
+"""
+mutable struct SdlWindowResources
+    win::Ptr{SDL_Window}
+    renderer::Ptr{SDL_Renderer}
+    id::Symbol           # WindowDocument.id this resource mirrors
+    sdl_id::UInt32       # SDL_GetWindowID(win), cached for the reverse map
+    title::String        # last applied title — used to skip redundant SDL calls
+    width::Int           # last applied size
+    height::Int
+    x::Int               # last applied position (-1 = not yet positioned)
+    y::Int
+    style::Symbol        # last applied style
+    bg::NTuple{4,UInt8}  # last applied background
+end
+
+"""
     SdlBackend()
 
 SDL2 + SDL_ttf backend. Loaded TTF fonts are cached in the module-level
 [`_font_cache`](@ref), shared across windows, measurement, and offscreen
 image rendering. An internal `pending_events` queue holds synthesised
 events (e.g. `MousePress`) scheduled to be delivered on the next poll.
+
+`windows` is the live registry of native SDL windows, keyed by the
+`WindowDocument.id` they mirror. `window_ids` is the reverse map from
+SDL `windowID` to `WindowDocument.id`, used when translating raw SDL
+events into `EventEnvelope`s. Both are reconciled by
+`write_to_devices(::SdlBackend, devices, ::ScreenDocument)`.
 """
 mutable struct SdlBackend <: Backend
     # Synthesised-event queue: drained before polling SDL.
@@ -43,9 +71,14 @@ mutable struct SdlBackend <: Backend
     last_down_x::Int
     last_down_y::Int
     last_down_time::Float64
+    # Multi-window reconciliation state.
+    windows::Dict{Symbol, SdlWindowResources}
+    window_ids::Dict{UInt32, Symbol}
 end
 
-SdlBackend() = SdlBackend(Any[], :none, 0, 0, 0.0)
+SdlBackend() = SdlBackend(Any[], :none, 0, 0, 0.0,
+                          Dict{Symbol, SdlWindowResources}(),
+                          Dict{UInt32, Symbol}())
 
 # Module-level TTF font cache, keyed by (filename, scaled_size).
 # Shared by window rendering, offscreen image rendering, and text measurement.
@@ -196,29 +229,27 @@ function _held_button(bstate::UInt32)::Symbol
 end
 
 # ════════════════════════════════════════════════════════════════════════
-# Window
+# Native window lifecycle (internal helpers; driven by the reconciler in
+# `write_to_devices(::SdlBackend, devices, ::ScreenDocument)`).
 # ════════════════════════════════════════════════════════════════════════
 
-# ── Native handle stored in Window.handle ─────────────────────────────
+const _WINDOW_FLAGS_DEFAULT  = SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE | UInt32(0x00002000)  # 0x00002000 = SDL_WINDOW_ALLOW_HIGHDPI
+const _WINDOW_FLAGS_TOOLTIP  = SDL_WINDOW_SHOWN | UInt32(0x00000010) | UInt32(0x00000400) | UInt32(0x00002000)  # SDL_WINDOW_BORDERLESS | SDL_WINDOW_ALWAYS_ON_TOP
+const _WINDOW_FLAGS_FLOATING = SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE | UInt32(0x00000400) | UInt32(0x00002000)  # SDL_WINDOW_ALWAYS_ON_TOP
 
-mutable struct SdlWindowHandle
-    win::Ptr{SDL_Window}
-    renderer::Ptr{SDL_Renderer}
+function _window_flags(style::Symbol)
+    style === :tooltip  && return _WINDOW_FLAGS_TOOLTIP
+    style === :floating && return _WINDOW_FLAGS_FLOATING
+    return _WINDOW_FLAGS_DEFAULT
 end
 
-"""
-    open_window!(::SdlBackend, window::Window) -> Window
-
-Create the native SDL window/renderer and store the handle.
-`SDL_WINDOW_ALLOW_HIGHDPI` is set so that on macOS Retina and native-Wayland
-SDL (SDL_VIDEODRIVER=wayland), `SDL_GetRendererOutputSize` returns physical
-pixels and the renderer-ratio scale detection can work.
-"""
-function open_window!(::SdlBackend, window::Window)
-    win = SDL_CreateWindow(window.title,
-        SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED,
-        Int32(window.width), Int32(window.height),
-        SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE | UInt32(0x00002000))  # 0x00002000 = SDL_WINDOW_ALLOW_HIGHDPI
+# Open one native SDL window for a WindowDocument and return the resource record.
+function _open_native_window!(w::WindowDocument)
+    px = w.x < 0 ? SDL_WINDOWPOS_CENTERED : Int32(w.x)
+    py = w.y < 0 ? SDL_WINDOWPOS_CENTERED : Int32(w.y)
+    flags = _window_flags(w.style)
+    win = SDL_CreateWindow(w.title, px, py,
+        Int32(max(w.width, 1)), Int32(max(w.height, 1)), flags)
     @assert win != C_NULL "SDL window creation failed: $(unsafe_string(SDL_GetError()))"
 
     renderer = SDL_CreateRenderer(win, -1,
@@ -227,8 +258,10 @@ function open_window!(::SdlBackend, window::Window)
 
     _update_font_scale!(win, renderer)
 
-    window.handle = SdlWindowHandle(win, renderer)
-    window
+    sdl_id = UInt32(SDL_GetWindowID(win))
+    SdlWindowResources(win, renderer, w.id, sdl_id, w.title,
+                       Int(w.width), Int(w.height), Int(w.x), Int(w.y),
+                       w.style, w.bg)
 end
 
 # Detect the effective display scale and update the module-wide font scale.
@@ -304,17 +337,11 @@ function _update_font_scale!(win::Ptr{SDL_Window}, renderer::Ptr{SDL_Renderer})
     end
 end
 
-"""
-    close_window!(::SdlBackend, window::Window)
-
-Destroy the native SDL window/renderer. Loaded fonts persist in the
-module-level cache until `quit!`.
-"""
-function close_window!(::SdlBackend, window::Window)
-    h = window.handle::SdlWindowHandle
-    SDL_DestroyRenderer(h.renderer)
-    SDL_DestroyWindow(h.win)
-    window.handle = nothing
+# Destroy one native SDL window. Loaded fonts persist in the
+# module-level cache until `quit!`.
+function _close_native_window!(res::SdlWindowResources)
+    SDL_DestroyRenderer(res.renderer)
+    SDL_DestroyWindow(res.win)
 end
 
 # ── Font resolution ────────────────────────────────────────────────────
@@ -331,7 +358,7 @@ end
 
 # ── Render a single GraphicsText element ───────────────────────────────
 
-function _render_element!(h::SdlWindowHandle, elem::GraphicsText, ox::Int, oy::Int)
+function _render_element!(renderer::Ptr{SDL_Renderer}, elem::GraphicsText, ox::Int, oy::Int)
     text = elem.text::AbstractString
     isempty(text) && return
 
@@ -340,12 +367,12 @@ function _render_element!(h::SdlWindowHandle, elem::GraphicsText, ox::Int, oy::I
 
     surface = TTF_RenderUTF8_Blended(font, text, color)
     surface == C_NULL && return
-    texture = SDL_CreateTextureFromSurface(h.renderer, surface)
+    texture = SDL_CreateTextureFromSurface(renderer, surface)
 
     w_ref, h_ref = Ref{Cint}(0), Ref{Cint}(0)
     SDL_QueryTexture(texture, C_NULL, C_NULL, w_ref, h_ref)
     dest = Ref(SDL_Rect(elem.x + ox, elem.y + oy, w_ref[], h_ref[]))
-    SDL_RenderCopy(h.renderer, texture, C_NULL, dest)
+    SDL_RenderCopy(renderer, texture, C_NULL, dest)
 
     SDL_DestroyTexture(texture)
     SDL_FreeSurface(surface)
@@ -353,17 +380,17 @@ end
 
 # ── Render a GraphicsViewport element ────────────────────────────────
 
-function _render_viewport!(h::SdlWindowHandle, vp::GraphicsViewport, ox::Int, oy::Int)
+function _render_viewport!(renderer::Ptr{SDL_Renderer}, vp::GraphicsViewport, ox::Int, oy::Int)
     vx = Int(vp.x) + ox
     vy = Int(vp.y) + oy
     vw = Int(vp.w)
     vh = Int(vp.h)
     clip = Ref(SDL_Rect(Int32(vx), Int32(vy), Int32(vw), Int32(vh)))
-    SDL_RenderSetClipRect(h.renderer, clip)
+    SDL_RenderSetClipRect(renderer, clip)
     canvas = vp.content::GraphicsCanvas
     cx, cy = Int(canvas.x), Int(canvas.y)
-    _render_canvas!(h, canvas, vx + cx, vy + cy, vx + vw, vy + vh)
-    SDL_RenderSetClipRect(h.renderer, C_NULL)
+    _render_canvas!(renderer, canvas, vx + cx, vy + cy, vx + vw, vy + vh)
+    SDL_RenderSetClipRect(renderer, C_NULL)
 end
 
 # ── Render a GraphicsRect element ────────────────────────────────────
@@ -371,8 +398,8 @@ end
 _corner_inset(radius::Int, dy::Int) =
     dy >= radius ? 0 : radius - isqrt(radius * radius - (radius - dy) * (radius - dy))
 
-function _render_rect!(h::SdlWindowHandle, rect::GraphicsRect, ox::Int, oy::Int)
-    SDL_SetRenderDrawColor(h.renderer, rect.r, rect.g, rect.b, rect.a)
+function _render_rect!(renderer::Ptr{SDL_Renderer}, rect::GraphicsRect, ox::Int, oy::Int)
+    SDL_SetRenderDrawColor(renderer, rect.r, rect.g, rect.b, rect.a)
     x, y = Int(rect.x) + ox, Int(rect.y) + oy
     w, h_px = Int(rect.w), Int(rect.h)
     max_r = min(w ÷ 2, h_px ÷ 2)
@@ -382,7 +409,7 @@ function _render_rect!(h::SdlWindowHandle, rect::GraphicsRect, ox::Int, oy::Int)
     r_bl = clamp(Int(rect.radius_bl), 0, max_r)
     if (r_tl | r_tr | r_br | r_bl) == 0
         sdl_rect = Ref(SDL_Rect(Int32(x), Int32(y), Int32(w), Int32(h_px)))
-        SDL_RenderFillRect(h.renderer, sdl_rect)
+        SDL_RenderFillRect(renderer, sdl_rect)
         return
     end
     top_max = max(r_tl, r_tr)
@@ -390,7 +417,7 @@ function _render_rect!(h::SdlWindowHandle, rect::GraphicsRect, ox::Int, oy::Int)
     mid_h = h_px - top_max - bot_max
     if mid_h > 0
         mid = Ref(SDL_Rect(Int32(x), Int32(y + top_max), Int32(w), Int32(mid_h)))
-        SDL_RenderFillRect(h.renderer, mid)
+        SDL_RenderFillRect(renderer, mid)
     end
     for dy in 0:(top_max - 1)
         left = _corner_inset(r_tl, dy)
@@ -398,7 +425,7 @@ function _render_rect!(h::SdlWindowHandle, rect::GraphicsRect, ox::Int, oy::Int)
         span_w = w - left - right
         span_w <= 0 && continue
         row = Ref(SDL_Rect(Int32(x + left), Int32(y + dy), Int32(span_w), Int32(1)))
-        SDL_RenderFillRect(h.renderer, row)
+        SDL_RenderFillRect(renderer, row)
     end
     for dy in 0:(bot_max - 1)
         left = _corner_inset(r_bl, dy)
@@ -406,27 +433,27 @@ function _render_rect!(h::SdlWindowHandle, rect::GraphicsRect, ox::Int, oy::Int)
         span_w = w - left - right
         span_w <= 0 && continue
         row = Ref(SDL_Rect(Int32(x + left), Int32(y + h_px - 1 - dy), Int32(span_w), Int32(1)))
-        SDL_RenderFillRect(h.renderer, row)
+        SDL_RenderFillRect(renderer, row)
     end
 end
 
 # ── Render a GraphicsImage element ─────────────────────────────────────
 
-function _render_image!(h::SdlWindowHandle, img::GraphicsImage, ox::Int, oy::Int)
+function _render_image!(renderer::Ptr{SDL_Renderer}, img::GraphicsImage, ox::Int, oy::Int)
     data = img.data
     data === nothing && return
     if data isa Ptr
         dest = Ref(SDL_Rect(img.x + ox, img.y + oy, img.w, img.h))
-        SDL_RenderCopy(h.renderer, Ptr{SDL_Texture}(data), C_NULL, dest)
+        SDL_RenderCopy(renderer, Ptr{SDL_Texture}(data), C_NULL, dest)
     elseif data isa Vector{UInt8}
         w, h_px = Int(img.w), Int(img.h)
         surface = SDL_CreateRGBSurfaceFrom(
             pointer(data), Int32(w), Int32(h_px), Int32(32), Int32(w * 4),
             0x000000ff, 0x0000ff00, 0x00ff0000, 0xff000000)
         surface == C_NULL && return
-        texture = SDL_CreateTextureFromSurface(h.renderer, surface)
+        texture = SDL_CreateTextureFromSurface(renderer, surface)
         dest = Ref(SDL_Rect(img.x + ox, img.y + oy, img.w, img.h))
-        SDL_RenderCopy(h.renderer, texture, C_NULL, dest)
+        SDL_RenderCopy(renderer, texture, C_NULL, dest)
         SDL_DestroyTexture(texture)
         SDL_FreeSurface(surface)
     end
@@ -434,13 +461,13 @@ end
 
 # ── Dispatch over a heterogeneous element list ────────────────────────
 
-function _render_elements!(h::SdlWindowHandle, elements, ox::Int, oy::Int, vw::Int, vh::Int)
+function _render_elements!(renderer::Ptr{SDL_Renderer}, elements, ox::Int, oy::Int, vw::Int, vh::Int)
     for elem in elements
-        _dispatch_render_elem!(h, elem, ox, oy, vw, vh)
+        _dispatch_render_elem!(renderer, elem, ox, oy, vw, vh)
     end
 end
 
-function _render_canvas!(h::SdlWindowHandle, canvas::GraphicsCanvas, ox::Int, oy::Int, vw::Int, vh::Int)
+function _render_canvas!(renderer::Ptr{SDL_Renderer}, canvas::GraphicsCanvas, ox::Int, oy::Int, vw::Int, vh::Int)
     layout = canvas.layout
     elements = canvas.elements
     early_stop = !canvas.overlapping_elements && layout != layout_none
@@ -450,7 +477,7 @@ function _render_canvas!(h::SdlWindowHandle, canvas::GraphicsCanvas, ox::Int, oy
         while prev_node !== nothing
             elem = prev_node.value
             if !(elem isa GraphicsFence)
-                _dispatch_render_elem!(h, elem, ox, oy, vw, vh)
+                _dispatch_render_elem!(renderer, elem, ox, oy, vw, vh)
                 if early_stop
                     if layout == layout_vertical
                         ey = _render_elem_y(elem)
@@ -477,7 +504,7 @@ function _render_canvas!(h::SdlWindowHandle, canvas::GraphicsCanvas, ox::Int, oy
                         ex !== nothing && (ex + ox) > vw && break
                     end
                 end
-                _dispatch_render_elem!(h, elem, ox, oy, vw, vh)
+                _dispatch_render_elem!(renderer, elem, ox, oy, vw, vh)
             end
             node = node.next
         end
@@ -493,24 +520,24 @@ function _render_canvas!(h::SdlWindowHandle, canvas::GraphicsCanvas, ox::Int, oy
                     ex !== nothing && (ex + ox) > vw && break
                 end
             end
-            _dispatch_render_elem!(h, elem, ox, oy, vw, vh)
+            _dispatch_render_elem!(renderer, elem, ox, oy, vw, vh)
         end
     end
 end
 
-function _dispatch_render_elem!(h::SdlWindowHandle, elem, ox::Int, oy::Int, vw::Int, vh::Int)
+function _dispatch_render_elem!(renderer::Ptr{SDL_Renderer}, elem, ox::Int, oy::Int, vw::Int, vh::Int)
     if elem isa GraphicsText
-        _render_element!(h, elem, ox, oy)
+        _render_element!(renderer, elem, ox, oy)
     elseif elem isa GraphicsRect
-        _render_rect!(h, elem, ox, oy)
+        _render_rect!(renderer, elem, ox, oy)
     elseif elem isa GraphicsViewport
-        _render_viewport!(h, elem, ox, oy)
+        _render_viewport!(renderer, elem, ox, oy)
     elseif elem isa GraphicsImage
-        _render_image!(h, elem, ox, oy)
+        _render_image!(renderer, elem, ox, oy)
     elseif elem isa GraphicsCanvas
         # Nested canvas: offset by its position, remaining viewport
         cx, cy = Int(elem.x), Int(elem.y)
-        _render_canvas!(h, elem, ox + cx, oy + cy, vw - cx, vh - cy)
+        _render_canvas!(renderer, elem, ox + cx, oy + cy, vw - cx, vh - cy)
     end
     # GraphicsFence and unknown types are silently skipped
 end
@@ -518,22 +545,16 @@ end
 _render_elem_x(elem) = hasproperty(elem, :x) ? Int(elem.x) : nothing
 _render_elem_y(elem) = hasproperty(elem, :y) ? Int(elem.y) : nothing
 
-# ── write_to_device ───────────────────────────────────────────────────
+# ── Per-window paint ──────────────────────────────────────────────────
 
-"""
-    write_to_device(::SdlBackend, window::Window, canvas::GraphicsCanvas)
-
-Clear the window and paint every element in `canvas` via SDL.
-"""
-function write_to_device(::SdlBackend, window::Window, canvas::GraphicsCanvas)
-    h = window.handle::SdlWindowHandle
-    bg = window.bg
-    SDL_SetRenderDrawColor(h.renderer, bg[1], bg[2], bg[3], bg[4])
-    SDL_RenderClear(h.renderer)
-
-    _render_canvas!(h, canvas, 0, 0, window.width, window.height)
-
-    SDL_RenderPresent(h.renderer)
+# Clear and repaint one native window's canvas. Called by the
+# reconciler once per WindowDocument per frame.
+function _render_window!(res::SdlWindowResources, canvas::GraphicsCanvas)
+    bg = res.bg
+    SDL_SetRenderDrawColor(res.renderer, bg[1], bg[2], bg[3], bg[4])
+    SDL_RenderClear(res.renderer)
+    _render_canvas!(res.renderer, canvas, 0, 0, res.width, res.height)
+    SDL_RenderPresent(res.renderer)
 end
 
 # ════════════════════════════════════════════════════════════════════════
@@ -618,12 +639,11 @@ function write_image(canvas::GraphicsCanvas, filename::AbstractString;
     renderer = SDL_CreateSoftwareRenderer(surface)
     @assert renderer != C_NULL "SDL software renderer creation failed: $(unsafe_string(SDL_GetError()))"
 
-    h = SdlWindowHandle(C_NULL, renderer)
     r, g, b, a = background
     SDL_SetRenderDrawColor(renderer, r, g, b, a)
     SDL_RenderClear(renderer)
 
-    _render_canvas!(h, canvas, 0, 0, Int(width), Int(height))
+    _render_canvas!(renderer, canvas, 0, 0, Int(width), Int(height))
 
     ext = lowercase(splitext(filename)[2])
     if ext == ".bmp"
@@ -755,23 +775,27 @@ end
 # ════════════════════════════════════════════════════════════════════════
 
 """
-    read_from_devices(backend::SdlBackend, devices) -> event or nothing
+    read_from_devices(backend::SdlBackend, devices) -> EventEnvelope or nothing
 
-Poll the SDL event queue once and return a backend-agnostic event:
+Poll the SDL event queue once and return an `EventEnvelope` wrapping a
+backend-agnostic inner event:
 - Pending synthesised events (e.g. `MousePress`) are returned first.
-- `SDL_QUIT` / Escape          → `QuitEvent()`
-- `SDL_KEYDOWN`                → `KeyDown` (Escape → `QuitEvent()`)
-- `SDL_KEYUP`                  → `KeyUp`
-- `SDL_TEXTINPUT`              → `KeyPress` (decoded Unicode character)
-- `SDL_MOUSEBUTTONDOWN`        → `MouseDown`
-- `SDL_MOUSEBUTTONUP`          → `MouseUp`; also queues `MousePress` when
-                                 the button-up is close to the preceding
-                                 button-down (≤ 5 px, ≤ 300 ms).
-- `SDL_MOUSEMOTION` (btn held) → `MouseMove`
-- `SDL_MOUSEWHEEL`             → `MouseScroll`
+- `SDL_QUIT`                           → `EventEnvelope(:none, QuitEvent())`
+- `SDL_WINDOWEVENT_CLOSE` for a window → `EventEnvelope(<id>, WindowCloseRequest())`
+- `SDL_KEYDOWN`                        → `EventEnvelope(<id>, KeyDown)` (Escape → `QuitEvent()`)
+- `SDL_KEYUP`                          → `EventEnvelope(<id>, KeyUp)`
+- `SDL_TEXTINPUT`                      → `EventEnvelope(<id>, KeyPress)`
+- `SDL_MOUSEBUTTONDOWN`                → `EventEnvelope(<id>, MouseDown)`
+- `SDL_MOUSEBUTTONUP`                  → `EventEnvelope(<id>, MouseUp)`; also
+                                          queues a synthetic `MousePress` envelope
+                                          when the button-up matches the preceding
+                                          button-down (≤ 5 px, ≤ 300 ms).
+- `SDL_MOUSEMOTION` (btn held)         → `EventEnvelope(<id>, MouseMove)`
+- `SDL_MOUSEWHEEL`                     → `EventEnvelope(<id>, MouseScroll)`
 
-Motion events are forwarded only when a mouse button is held; idle motion
-is dropped to avoid flooding the projection pipeline.
+`<id>` is the `WindowDocument.id` of the originating window (looked up
+in `backend.window_ids`), or `:none` if the SDL event carries no window
+id or refers to a window the backend does not track.
 """
 function read_from_devices(backend::SdlBackend, devices)
     # Deliver any previously synthesised events before polling SDL.
@@ -785,78 +809,175 @@ function read_from_devices(backend::SdlBackend, devices)
         t = evt.type
 
         if t == SDL_QUIT
-            return QuitEvent()
+            return EventEnvelope(:none, QuitEvent())
+
+        elseif t == 0x00000200  # SDL_WINDOWEVENT
+            # event byte 1 = SDL_WindowEventID
+            sub = evt.window.event
+            wid = _lookup_window_id(backend, evt.window.windowID)
+            if sub == UInt8(14)  # SDL_WINDOWEVENT_CLOSE
+                return EventEnvelope(wid, WindowCloseRequest())
+            end
+            # Other window events are not currently surfaced; keep polling.
+            continue
 
         elseif t == SDL_KEYDOWN
             keysym = evt.key.keysym.sym
+            wid = _lookup_window_id(backend, evt.key.windowID)
             if keysym == Int32(27)  # SDLK_ESCAPE
-                return QuitEvent()
+                return EventEnvelope(:none, QuitEvent())
             end
             is_repeat = evt.key.repeat != 0
-            return sdl_to_keydown(keysym, evt.key.keysym.mod, is_repeat)
+            return EventEnvelope(wid, sdl_to_keydown(keysym, evt.key.keysym.mod, is_repeat))
 
         elseif t == 0x00000301  # SDL_KEYUP
-            return sdl_to_keyup(evt.key.keysym.sym, evt.key.keysym.mod)
+            wid = _lookup_window_id(backend, evt.key.windowID)
+            return EventEnvelope(wid, sdl_to_keyup(evt.key.keysym.sym, evt.key.keysym.mod))
 
         elseif t == 0x00000303  # SDL_TEXTINPUT
             kp = sdl_to_keypress(evt)
-            kp !== nothing && return kp
+            kp === nothing && continue
+            wid = _lookup_window_id(backend, evt.text.windowID)
+            return EventEnvelope(wid, kp)
 
         elseif t == 0x00000401  # SDL_MOUSEBUTTONDOWN
             button = _sdl_button_sym(evt.button.button)
             mods = _current_modifiers()
             x, y = Int(evt.button.x), Int(evt.button.y)
+            wid = _lookup_window_id(backend, evt.button.windowID)
             # Record for press synthesis.
             backend.last_down_button = button
             backend.last_down_x = x
             backend.last_down_y = y
             backend.last_down_time = time()
-            return MouseDown(button, x, y, mods)
+            return EventEnvelope(wid, MouseDown(button, x, y, mods))
 
         elseif t == 0x00000402  # SDL_MOUSEBUTTONUP
             button = _sdl_button_sym(evt.button.button)
             mods = _current_modifiers()
             x, y = Int(evt.button.x), Int(evt.button.y)
+            wid = _lookup_window_id(backend, evt.button.windowID)
             # Synthesise MousePress when this up matches the preceding down.
             if button == backend.last_down_button &&
                abs(x - backend.last_down_x) < 5 &&
                abs(y - backend.last_down_y) < 5 &&
                (time() - backend.last_down_time) < 0.3
-                push!(backend.pending_events, MousePress(button, x, y, mods))
+                push!(backend.pending_events,
+                      EventEnvelope(wid, MousePress(button, x, y, mods)))
             end
-            return MouseUp(button, x, y, mods)
+            return EventEnvelope(wid, MouseUp(button, x, y, mods))
 
-        elseif t == 0x00000200  # SDL_MOUSEMOTION
+        elseif t == 0x00000400  # SDL_MOUSEMOTION
             # Only forward motion while a button is held to avoid flooding.
             mx_ref, my_ref = Ref{Cint}(0), Ref{Cint}(0)
             bstate = UInt32(SDL_GetMouseState(mx_ref, my_ref))
             buttons = _held_button(bstate)
             buttons == :none && continue
             mods = _current_modifiers()
-            return MouseMove(Int(evt.motion.x), Int(evt.motion.y), buttons, mods)
+            wid = _lookup_window_id(backend, evt.motion.windowID)
+            return EventEnvelope(wid,
+                MouseMove(Int(evt.motion.x), Int(evt.motion.y), buttons, mods))
 
         elseif t == 0x00000403  # SDL_MOUSEWHEEL
             mx_ref, my_ref = Ref{Cint}(0), Ref{Cint}(0)
             SDL_GetMouseState(mx_ref, my_ref)
             mods = _current_modifiers()
-            return MouseScroll(Int(evt.wheel.x), Int(evt.wheel.y),
-                               Int(mx_ref[]), Int(my_ref[]), mods)
+            wid = _lookup_window_id(backend, evt.wheel.windowID)
+            return EventEnvelope(wid,
+                MouseScroll(Int(evt.wheel.x), Int(evt.wheel.y),
+                            Int(mx_ref[]), Int(my_ref[]), mods))
         end
     end
     return nothing
 end
 
-"""
-    write_to_devices(backend::SdlBackend, devices, canvas::GraphicsCanvas)
+# Map an SDL windowID to the matching WindowDocument.id, or :none when
+# the backend does not currently track that window.
+function _lookup_window_id(backend::SdlBackend, sdl_window_id)
+    sid = UInt32(sdl_window_id)
+    sid == UInt32(0) && return :none
+    return get(backend.window_ids, sid, :none)
+end
 
-Render `canvas` to every `Window` in `devices`.
+# ════════════════════════════════════════════════════════════════════════
+# ScreenDocument reconciliation
+# ════════════════════════════════════════════════════════════════════════
+
 """
-function write_to_devices(backend::SdlBackend, devices::Vector{Device}, canvas::GraphicsCanvas)
-    for device in devices
-        if device isa Window
-            write_to_device(backend, device, canvas)
+    write_to_devices(backend::SdlBackend, devices, screen::ScreenDocument)
+
+Reconcile live native SDL windows against the projection-output
+`ScreenDocument`. Windows whose id no longer appears are destroyed;
+new ids cause a window to be opened; existing windows have their
+geometry / title / style updated as needed, then repainted with the
+matching `WindowDocument.content` canvas.
+
+The reconciler ignores `devices` other than via the presence of at
+least one `Screen` entry — `Screen` itself carries no per-window
+state and exists only to indicate that the editor wants to render
+onto a display.
+"""
+function write_to_devices(backend::SdlBackend, devices::Vector{Device}, screen::ScreenDocument)
+    desired_ids = Set{Symbol}()
+    for w in screen.windows
+        w isa WindowDocument || continue
+        push!(desired_ids, w.id)
+    end
+
+    # Close windows whose document disappeared.
+    for id in collect(keys(backend.windows))
+        if !(id in desired_ids)
+            res = backend.windows[id]
+            delete!(backend.window_ids, res.sdl_id)
+            _close_native_window!(res)
+            delete!(backend.windows, id)
         end
     end
+
+    # Open / update / paint each desired window.
+    for w in screen.windows
+        w isa WindowDocument || continue
+        res = get(backend.windows, w.id, nothing)
+        if res === nothing
+            res = _open_native_window!(w)
+            backend.windows[w.id] = res
+            backend.window_ids[res.sdl_id] = res.id
+        else
+            _update_window_geometry!(res, w)
+        end
+        canvas = w.content
+        canvas isa GraphicsCanvas ||
+            error("write_to_devices: WindowDocument(id=:$(w.id)).content is $(typeof(canvas)), expected GraphicsCanvas")
+        _render_window!(res, canvas)
+    end
+end
+
+# Apply title / size / position / bg changes from a WindowDocument to
+# its native counterpart. Cached fields on SdlWindowResources avoid
+# redundant SDL calls when nothing changed.
+function _update_window_geometry!(res::SdlWindowResources, w::WindowDocument)
+    if w.title != res.title
+        SDL_SetWindowTitle(res.win, w.title)
+        res.title = String(w.title)
+    end
+    if w.width != res.width || w.height != res.height
+        SDL_SetWindowSize(res.win, Int32(max(w.width, 1)), Int32(max(w.height, 1)))
+        res.width = Int(w.width)
+        res.height = Int(w.height)
+    end
+    if (w.x >= 0 && w.x != res.x) || (w.y >= 0 && w.y != res.y)
+        px = w.x < 0 ? SDL_WINDOWPOS_CENTERED : Int32(w.x)
+        py = w.y < 0 ? SDL_WINDOWPOS_CENTERED : Int32(w.y)
+        SDL_SetWindowPosition(res.win, px, py)
+        res.x = Int(w.x)
+        res.y = Int(w.y)
+    end
+    if w.bg != res.bg
+        res.bg = w.bg
+    end
+    # style changes mid-life would require flag-bit toggles that SDL
+    # only partly supports; for now we just remember the latest value.
+    res.style = w.style
 end
 
 end # module

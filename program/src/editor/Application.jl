@@ -2,46 +2,42 @@
     ApplicationModule
 
 Top-level application entry point. Constructs a backend, initialises it,
-creates a window and devices, constructs the Editor, and enters the run!
-loop. Tears everything down cleanly on exit via the backend.
+wires up an `Editor` with the given projection and document, and enters
+the run! loop. Tears everything down cleanly on exit via the backend.
+
+Native windows are no longer pre-allocated here — they are opened on
+demand by the backend's `ScreenDocument` reconciler the first time
+`write_to_devices` sees a projection output containing
+`WindowDocument`s. `application` only ensures the editor has the
+input/output device kinds it needs: `Screen` (the display target),
+`Keyboard`, and `Mouse`.
 """
 module ApplicationModule
 
-import ..BackendModule: Backend, init!, quit!, open_window!, close_window!
+import ..BackendModule: Backend, init!, quit!
 import ..DeviceModule: Device
 import ..EditorModule: Editor, run!
 import ..KeyboardModule: Keyboard
 import ..MouseModule: Mouse
-import ..WindowModule: Window
+import ..ScreenModule: Screen
 
 export application
 
-# ═══════════════════════════════════════════════════════════════════════════
-# Configuration defaults
-# ═══════════════════════════════════════════════════════════════════════════
-
-const DEFAULT_TITLE     = "ProjecturEd"
-const DEFAULT_WIDTH     = 2400
-const DEFAULT_HEIGHT    = 1600
-
 """
-    application(backend, projection, document; title, width, height)
+    application(backend, projection, document)
 
-Initialise the backend, open a window, wire up an `Editor` with the
-given projection and document, and run the read-eval-print loop.
+Initialise the backend, wire up an `Editor` with the given projection
+and document, and run the read-eval-print loop. The pipeline is
+expected to produce a `ScreenDocument` so the backend can reconcile
+native windows against it; pipelines whose output is a bare
+`GraphicsCanvas` go unrendered (use `write_image` for offscreen).
 """
-function application(backend::Backend, projection, document;
-                     title::AbstractString,
-                     width::Integer,
-                     height::Integer)
+function application(backend::Backend, projection, document)
     init!(backend)
     try
-        window = Window(title, width, height)
-        open_window!(backend, window)
-        devices = Device[window, Keyboard(), Mouse()]
+        devices = Device[Screen(), Keyboard(), Mouse()]
         editor = Editor(backend, document, projection, devices)
         run!(editor)
-        close_window!(backend, window)
     finally
         quit!(backend)
     end

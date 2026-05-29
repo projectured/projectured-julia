@@ -20,6 +20,10 @@ import ..ReferenceModule: ReferencePath, EmptyReferencePath, ConcreteReferencePa
 import ..ReferenceBuilderModule: var"@reference"
 import ..CollectionModule: CellVector, ListNode
 import ..IoMapApiModule: IoMap
+import ..OperationApiModule: Operation
+import ..OperationModule: ReplaceSelectionOperation
+import ..PrimitiveModule: StringReplaceRangeOperation, NumberReplaceRangeOperation
+import ..ScreenDocumentModule: ScreenDocument, WindowDocument, EventEnvelope
 
 export CopyingProjection, CopyingProjectionIoMap
 
@@ -206,6 +210,77 @@ end
 
 function map_reference_forward(::CopyingProjection, iomap::CopyingProjectionIoMap, reference)
     _map_ref(map_reference_forward, iomap, reference)
+end
+
+# ── Event envelope routing ────────────────────────────────────────────────
+# When a ScreenDocument is being copied, the projection output is itself
+# a ScreenDocument with per-window content already projected through the
+# inner recursion. Events from the backend arrive tagged with the
+# originating window id; route each envelope to the matching
+# WindowDocument.content's sub-iomap so the inner projection's reader
+# sees the bare event. Operations the inner reader produces have paths
+# rooted at the inner content document; we prepend the steps that lead
+# from the ScreenDocument root down to that content so
+# `evaluate_operation` can walk them against the editor's root.
+
+function projection_read(p::CopyingProjection, iomap::CopyingProjectionIoMap, env::EventEnvelope)
+    input = iomap.input
+    if input isa ScreenDocument
+        # Find the windows-field child iomap (CellVector path).
+        windows_iomap = _struct_field_iomap(iomap, "windows")
+        windows_iomap === nothing && return nothing
+        windows_iomap.children isa Vector || return nothing
+        for (i, child) in enumerate(windows_iomap.children)
+            child_input = child.input
+            child_input isa WindowDocument || continue
+            child_input.id === env.window_id || continue
+            op = projection_read(child.projection, child, env)
+            return _prefix_op_with_steps(op,
+                (FieldReference("windows"), ElementReference(i)))
+        end
+        return nothing
+    elseif input isa WindowDocument
+        # We're inside the matching window: descend into the content field
+        # and hand the bare event to its reader.
+        content_iomap = _struct_field_iomap(iomap, "content")
+        content_iomap === nothing && return nothing
+        op = projection_read(content_iomap.projection, content_iomap, env.event)
+        return _prefix_op_with_steps(op, (FieldReference("content"),))
+    else
+        return nothing
+    end
+end
+
+function _struct_field_iomap(iomap::CopyingProjectionIoMap, name::AbstractString)
+    iomap.field_names isa Vector || return nothing
+    idx = findfirst(==(name), iomap.field_names)
+    idx === nothing && return nothing
+    return iomap.children[idx]
+end
+
+# Prepend `steps` to the reference path inside `op` (if the op carries one).
+# Operations that target a captured Julia value directly (e.g. workbench
+# tool ops that hold their target document) need no prefixing and are
+# returned unchanged. `nothing` passes through unchanged.
+function _prefix_op_with_steps(op, steps::Tuple)
+    op === nothing && return nothing
+    if op isa StringReplaceRangeOperation
+        return StringReplaceRangeOperation(_prepend_path(steps, op.reference), op.replacement)
+    elseif op isa NumberReplaceRangeOperation
+        return NumberReplaceRangeOperation(_prepend_path(steps, op.reference), op.replacement)
+    elseif op isa ReplaceSelectionOperation
+        return ReplaceSelectionOperation(_prepend_path(steps, op.path))
+    else
+        return op
+    end
+end
+
+function _prepend_path(steps::Tuple, path::ReferencePath)
+    result = path
+    for step in reverse(steps)
+        result = ConcreteReferencePath(step, result)
+    end
+    result
 end
 
 end # module
