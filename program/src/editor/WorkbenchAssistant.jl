@@ -444,6 +444,18 @@ function _run_agent_loop!(a::WorkbenchAssistant)
 
         assistant_msg.stop_reason = state[:stop_reason]
 
+        # If the turn produced no prose blocks (e.g. Claude went straight
+        # to a tool call), drop the placeholder so it doesn't render as an
+        # empty "assistant:" line in front of the CodeExecution that
+        # carries its own label. `build_messages` falls back to emitting
+        # the tool_use + tool_result standalone in that case.
+        if isempty(assistant_msg.blocks)
+            elems = getfield(a.conversation.messages, :elements)[]
+            if !isempty(elems) && elems[end][] === assistant_msg
+                deleteat!(a.conversation.messages, length(elems))
+            end
+        end
+
         pending = state[:pending_tools]::Vector{_PendingToolUse}
         if isempty(pending) || state[:stop_reason] !== :tool_use
             return

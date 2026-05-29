@@ -293,31 +293,26 @@ function _mvp_test_tool_use_roundtrip()
         msgs = a.conversation.messages
         # Expected sequence after the unified ConversationCodeExecution refactor:
         #   1. user message ("compute 1+1")
-        #   2. assistant message (empty — the only content this turn was a
-        #      tool_use, which is now stored as a separate CodeExecution)
-        #   3. ConversationCodeExecution(:assistant, code="1+1", result≈"2")
-        #   4. assistant message with one ConversationTextBlock("Done.")
-        @test length(msgs) == 4
+        #   2. ConversationCodeExecution(:assistant, code="1+1", result≈"2")
+        #      — the assistant turn 1 had only a tool_use (no prose), so the
+        #        empty placeholder ConversationAssistantMessage was dropped.
+        #   3. assistant message with one ConversationTextBlock("Done.") from turn 2.
+        @test length(msgs) == 3
 
         @test msgs[1] isa ConversationUserMessage
         @test _text_to_string(msgs[1].text) == "compute 1+1"
 
-        @test msgs[2] isa ConversationAssistantMessage
-        # Tool-use blocks no longer live inside the assistant message; the
-        # AI's first turn here had no prose, so the message is empty.
-        @test length(msgs[2].blocks) == 0
-
-        @test msgs[3] isa ConversationCodeExecution
-        @test msgs[3].initiator   === :assistant
-        @test msgs[3].code        == "1+1"
-        @test msgs[3].tool_use_id == "tu_1"
+        @test msgs[2] isa ConversationCodeExecution
+        @test msgs[2].initiator   === :assistant
+        @test msgs[2].code        == "1+1"
+        @test msgs[2].tool_use_id == "tu_1"
         # The real `execute_julia_code` tool ran — `1+1` repr is "2".
-        @test occursin("2", msgs[3].result)
-        @test msgs[3].is_error == false
+        @test occursin("2", msgs[2].result)
+        @test msgs[2].is_error == false
 
-        @test msgs[4] isa ConversationAssistantMessage
-        @test length(msgs[4].blocks) == 1
-        @test msgs[4].blocks[1] isa ConversationTextBlock
-        @test _text_to_string(msgs[4].blocks[1].text) == "Done."
+        @test msgs[3] isa ConversationAssistantMessage
+        @test length(msgs[3].blocks) == 1
+        @test msgs[3].blocks[1] isa ConversationTextBlock
+        @test _text_to_string(msgs[3].blocks[1].text) == "Done."
     end
 end
