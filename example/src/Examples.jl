@@ -52,41 +52,85 @@ const examples = [
     assistant_example,
 ]
 
-function run_example(example::Example; width=2400, height=1600,
+function run_example(example::Example; kwargs...)
+    run_example([example]; kwargs...)
+end
+
+"""
+    run_example(examples::Vector{Example}; width, height,
+                caching=false, scrolling=false, workbench=false, reset=false)
+
+Open one window per example, side by side. Each example contributes a
+`WindowDocument` with the example's domain document as content; the
+composed projection dispatches each window's content to that example's
+projection by content type. When several examples share a root
+content type (e.g. two JSON examples), the **first** example's
+projection wins for that type — the second window's content will
+also be rendered through it. Pick examples with distinct domains for
+the cleanest demo.
+"""
+function run_example(examples::Vector{Example}; width=2400, height=1600,
                      caching=false, scrolling=false, workbench=false, reset=false)
-    document = reset ? example.make_document() : example.document
-    projection = reset ? example.make_projection() : example.projection
-    if workbench
-        document = make_workbench_document(document; title=example.name)
-        projection = make_workbench_projection()
-    elseif scrolling
-        document = make_scrolling_document(document; width=width, height=height)
-        projection = make_scrolling_projection(projection)
+    isempty(examples) && error("run_example: empty examples vector")
+
+    # Prepare (document, projection) pairs with the same flags applied as
+    # the single-example path.
+    docs  = Any[]
+    projs = Any[]
+    for ex in examples
+        document   = reset ? ex.make_document()   : ex.document
+        projection = reset ? ex.make_projection() : ex.projection
+        if workbench
+            document   = make_workbench_document(document; title=ex.name)
+            projection = make_workbench_projection()
+        elseif scrolling
+            document   = make_scrolling_document(document; width=width, height=height)
+            projection = make_scrolling_projection(projection)
+        end
+        if caching
+            projection = make_graphics_caching(projection)
+        end
+        push!(docs, document)
+        push!(projs, projection)
     end
-    if caching
-        projection = make_graphics_caching(projection)
+
+    # Lay out the WindowDocuments side by side. Each example.name becomes
+    # the window id — must be unique within the screen, so duplicate
+    # names are an error.
+    seen_ids = Set{Symbol}()
+    windows = WindowDocument[]
+    for (i, ex) in enumerate(examples)
+        id = Symbol(ex.name)
+        id in seen_ids && error("run_example: duplicate example name :$id; window ids must be unique")
+        push!(seen_ids, id)
+        push!(windows, WindowDocument(;
+            id     = id,
+            title  = ex.name,
+            x      = 100 + (i - 1) * (width + 40),
+            y      = 100,
+            width  = width,
+            height = height,
+            content = docs[i],
+        ))
     end
-    # Wrap the example's domain document in a one-window ScreenDocument so
-    # the SDL backend can reconcile a native window for it, and compose
-    # the example's projection with CopyingProjection at the Screen and
-    # WindowDocument layers so metadata is copied through and only the
-    # content is projected by `projection`.
-    screen = ScreenDocument([
-        WindowDocument(; id=:main, title=example.name,
-                        width=width, height=height,
-                        content=document),
-    ])
-    composed = RecursiveProjection(
-        TypeDispatchingProjection(
-            ScreenDocument => CopyingProjection(),
-            WindowDocument => CopyingProjection(),
-            # `windows::CellVector` is the bridge between ScreenDocument and
-            # the per-window CopyingProjection step — copy it too, otherwise
-            # it would fall through to the example projection.
-            CellVector     => CopyingProjection(),
-            Any            => projection,
-        )
-    )
+    screen = ScreenDocument(windows)
+
+    # Build the type dispatcher. The Screen/Window/CellVector layers stay
+    # in CopyingProjection so metadata is preserved; one entry per unique
+    # content type routes that subtree to the example's projection.
+    dispatch_pairs = Pair{DataType, Any}[
+        ScreenDocument => CopyingProjection(),
+        WindowDocument => CopyingProjection(),
+        CellVector     => CopyingProjection(),
+    ]
+    seen_types = Set{DataType}()
+    for (doc, proj) in zip(docs, projs)
+        T = typeof(doc)
+        T in seen_types && continue
+        push!(seen_types, T)
+        push!(dispatch_pairs, T => proj)
+    end
+    composed = RecursiveProjection(TypeDispatchingProjection(dispatch_pairs))
     run!(SdlBackend(), composed, screen)
 end
 
@@ -97,6 +141,22 @@ function run_example(name="json"; kwargs...)
         error("Unknown example: \"$name\". Available: $available")
     end
     run_example(examples[idx]; kwargs...)
+end
+
+"""
+    run_example(names::Vector{<:AbstractString}; kwargs...)
+
+Convenience: look up each name in the global `examples` list and open
+them side by side. Same semantics as `run_example(::Vector{Example})`.
+"""
+function run_example(names::Vector{<:AbstractString}; kwargs...)
+    selected = Example[]
+    for name in names
+        idx = findfirst(ex -> ex.name == name, examples)
+        idx === nothing && error("Unknown example: \"$name\"")
+        push!(selected, examples[idx])
+    end
+    run_example(selected; kwargs...)
 end
 
 function print_example(example::Example)
