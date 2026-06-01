@@ -266,24 +266,20 @@ end
 
 # Detect the effective display scale and update the module-wide font scale.
 #
-# Detection order (first match wins):
+# Two-phase detection:
 #
-#   1. PROJECTURED_FONT_SCALE env var — explicit override, always respected.
+#   _detect_font_scale!() — called from init!, before any window exists:
+#     1. PROJECTURED_FONT_SCALE env var — explicit override, always respected.
+#     2. Xft.dpi from X resources — reliable on X11/XWayland (GNOME writes
+#        Xft.dpi = 96 × scale, e.g. 192 for 200%).
 #
-#   2. SDL renderer-output / window-size ratio — works on macOS Retina and
-#      native-Wayland SDL (SDL_VIDEODRIVER=wayland, SDL >= 2.0.18) when the
-#      window is created with SDL_WINDOW_ALLOW_HIGHDPI.
+#   _update_font_scale!(win, renderer) — called when a window opens, only if
+#   the early detection left _FONT_SCALE at the default 1.0:
+#     3. SDL renderer-output / window-size ratio — macOS Retina, native Wayland.
+#     4. SDL_GetDisplayDPI / 96 — Windows fallback.
 #
-#   3. Xft.dpi from X resources (`xrdb -query`) — the most reliable method on
-#      X11 and XWayland: GNOME always writes `Xft.dpi = 96 × scale` into the
-#      X resource database (e.g. 144 for 150%, 120 for 125%).  Only attempted
-#      when DISPLAY is set.
-#
-#   4. SDL_GetDisplayDPI / 96 — works on Windows; on Wayland the compositor
-#      hides the physical DPI so this returns ~1.0 and is a last resort.
-#
-# Falls back to the current _FONT_SCALE (default 1.0) if nothing fires.
-function _update_font_scale!(win::Ptr{SDL_Window}, renderer::Ptr{SDL_Renderer})
+# Falls back to _FONT_SCALE = 1.0 (no scaling) if nothing fires.
+function _detect_font_scale!()
     # 1. Explicit override.
     env_val = get(ENV, "PROJECTURED_FONT_SCALE", "")
     if !isempty(env_val)
@@ -291,22 +287,11 @@ function _update_font_scale!(win::Ptr{SDL_Window}, renderer::Ptr{SDL_Renderer})
         if scale !== nothing && scale > 0
             _FONT_SCALE[] = scale
             println("Font scale: $(_FONT_SCALE[]) (PROJECTURED_FONT_SCALE)")
-            return
+            return true
         end
     end
 
-    # 2. SDL renderer output size vs logical window size.
-    dw = Ref{Cint}(0); dh = Ref{Cint}(0)
-    ww = Ref{Cint}(0); wh = Ref{Cint}(0)
-    SDL_GetRendererOutputSize(renderer, dw, dh)
-    SDL_GetWindowSize(win, ww, wh)
-    if ww[] > 0 && dw[] > ww[]
-        _FONT_SCALE[] = Float64(dw[]) / Float64(ww[])
-        println("Font scale: $(_FONT_SCALE[]) (SDL renderer ratio)")
-        return
-    end
-
-    # 3. Xft.dpi from X resources — GNOME sets this to 96 × scale on X11 and
+    # 2. Xft.dpi from X resources — GNOME sets this to 96 × scale on X11 and
     #    XWayland.  Run xrdb only when a DISPLAY is available and xrdb exists.
     if haskey(ENV, "DISPLAY")
         try
@@ -317,7 +302,7 @@ function _update_font_scale!(win::Ptr{SDL_Window}, renderer::Ptr{SDL_Renderer})
                 if xft_dpi > 0
                     _FONT_SCALE[] = xft_dpi / 96.0
                     println("Font scale: $(_FONT_SCALE[]) (Xft.dpi = $xft_dpi)")
-                    return
+                    return true
                 end
             end
         catch
@@ -325,7 +310,25 @@ function _update_font_scale!(win::Ptr{SDL_Window}, renderer::Ptr{SDL_Renderer})
         end
     end
 
-    # 4. SDL DPI fallback (Windows / some X11 setups).
+    return false
+end
+
+function _update_font_scale!(win::Ptr{SDL_Window}, renderer::Ptr{SDL_Renderer})
+    # Skip if already resolved during init!.
+    _FONT_SCALE[] != 1.0 && return
+
+    # SDL renderer output size vs logical window size.
+    dw = Ref{Cint}(0); dh = Ref{Cint}(0)
+    ww = Ref{Cint}(0); wh = Ref{Cint}(0)
+    SDL_GetRendererOutputSize(renderer, dw, dh)
+    SDL_GetWindowSize(win, ww, wh)
+    if ww[] > 0 && dw[] > ww[]
+        _FONT_SCALE[] = Float64(dw[]) / Float64(ww[])
+        println("Font scale: $(_FONT_SCALE[]) (SDL renderer ratio)")
+        return
+    end
+
+    # SDL DPI fallback (Windows / some X11 setups).
     display_index = SDL_GetWindowDisplayIndex(win)
     display_index < 0 && return
     ddpi = Ref{Cfloat}(0)
@@ -758,6 +761,7 @@ function init!(::SdlBackend)
     @assert SDL_Init(SDL_INIT_VIDEO) == 0 "SDL init failed: $(unsafe_string(SDL_GetError()))"
     @assert TTF_Init() == 0 "TTF init failed: $(unsafe_string(SDL_GetError()))"
     SDL_StartTextInput()   # enable SDL_TEXTINPUT events (explicit for portability)
+    _detect_font_scale!()
 end
 
 function quit!(::SdlBackend)
