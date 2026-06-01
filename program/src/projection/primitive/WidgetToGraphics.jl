@@ -362,13 +362,15 @@ function projection_print(p::WidgetButtonToGraphicsCanvas, w::WidgetButton, recu
     sz  = w.size::Point2D
     cox, coy = _content_offset(w)
     tx, ty = _inset_total(w)
-    bw = Int(sz.x[])
-    bh = Int(sz.y[])
+    text = string(w.content)
+    tw, th = _text_size(p.measure, p.font, text)
+    bw = max(Int(sz.x[]), tw + tx)
+    bh = max(Int(sz.y[]), th + ty)
     cw = max(0, bw - tx)
     ch = max(0, bh - ty)
     elems = Any[]
     _push_box_rects!(elems, w, 0, 0, cw, ch)
-    _push_text!(elems, p.font, string(w.content), cox, coy, p.default_fg)
+    _push_text!(elems, p.font, text, cox, coy, p.default_fg)
     SimpleIoMap(p, w, _make_canvas(Int(pos.x[]), Int(pos.y[]), bw, bh, elems))
 end
 
