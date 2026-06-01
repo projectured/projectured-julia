@@ -20,7 +20,7 @@ Subtype this to register with the default `map_reference_forward`,
 abstract type Projection end
 
 """
-    projection_print(projection, input, recursion, reference) -> output
+    projection_print(projection, input, recursion, context::ProjectionContext) -> output
 
 Shared interface function for all projections. Each concrete projection
 type adds a method to this function. This allows compound projections
@@ -29,10 +29,13 @@ like `SequentialProjection` to compose arbitrary projections via dispatch.
 The `recursion` argument is a projection that can be used to call
 `projection_print` recursively on sub-documents.
 
-The `reference` argument is a `ReferencePath` that describes where `input`
-is located relative to the document root of the editor.  At the top level
-the editor passes `EmptyReferencePath()`; projections that recurse into
-child elements extend the path accordingly before each recursive call.
+The `context` argument is a `ProjectionContext` carrying the reference
+path (where `input` sits relative to the document root) plus optional
+downward-flowing fields — tree depth, parent-allocated available width/
+height, and an extensible `properties` Dict. At the top level the editor
+passes a fresh `ProjectionContext()`; projections that recurse into child
+elements call `child_context(ctx, steps...)` to extend the reference and
+bump the depth.
 """
 function projection_print end
 

@@ -16,6 +16,7 @@ import ..FontModule: StyleFont, font_ubuntu_monospace_regular_24
 import ..ReactiveModule: Cell
 import ..CollectionModule: CellVector
 import ..IoMapModule: SimpleIoMap
+import ..ProjectionContextModule: child_context
 export TextLineNumbering, LineNumbering
 
 # ── TextLineNumbering ──────────────────────────────────────────────────────
@@ -33,7 +34,7 @@ TextLineNumbering(; width::Int = 0, separator::String = " | ", font=font_ubuntu_
 # the output element list whenever the input spans change.  For each line
 # (delimited by TextNewline elements) a TextString prefix is inserted before
 # the first span on that line.
-function projection_print(p::TextLineNumbering, text::TextText, recursion, reference)
+function projection_print(p::TextLineNumbering, text::TextText, recursion, ctx)
     elements_cv = CellVector(() -> begin
         elems = text.elements
         n_newlines = count(e -> e isa TextNewline, elems)

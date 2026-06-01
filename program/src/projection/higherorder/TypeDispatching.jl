@@ -36,15 +36,15 @@ TypeDispatchingProjection(pairs::Pair...) =
     TypeDispatchingProjection(collect(Pair{DataType, Any}, pairs))
 
 """
-    projection_print(tdp::TypeDispatchingProjection, input, recursion, reference) -> output
+    projection_print(tdp::TypeDispatchingProjection, input, recursion, ctx) -> output
 
 Apply the projection whose type matches `input` first.
 Throws an error if no matching type is found.
 """
-function projection_print(tdp::TypeDispatchingProjection, input, recursion, reference)
+function projection_print(tdp::TypeDispatchingProjection, input, recursion, ctx)
     for (T, proj) in tdp.dispatch
         if input isa T
-            return projection_print(proj, input, recursion, reference)
+            return projection_print(proj, input, recursion, ctx)
         end
     end
     error("TypeDispatchingProjection: no projection registered for type $(typeof(input))")

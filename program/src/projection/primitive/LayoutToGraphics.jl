@@ -30,6 +30,7 @@ import ..MouseModule: MouseScroll, MousePress
 import ..ReferenceModule: ConcreteReferencePath, FieldReference, RangeReference
 import ..TypeDispatchingModule: TypeDispatchingProjection
 import ..ReferenceBuilderModule: var"@reference"
+import ..ProjectionContextModule: child_context
 export HorizontalLayoutToGraphicsCanvas, VerticalLayoutToGraphicsCanvas,
        GridLayoutToGraphicsCanvas, FlowLayoutToGraphicsCanvas,
        LayoutToGraphics
@@ -180,7 +181,7 @@ end
 # ── HorizontalLayout ───────────────────────────────────────────────────────
 
 function projection_print(p::HorizontalLayoutToGraphicsCanvas,
-                          doc::HorizontalLayout, recursion, reference)
+                          doc::HorizontalLayout, recursion, ctx)
     n = length(doc.children)
     if n == 0
         return ChildrenIoMap(p, doc, _empty_canvas(), Cell(Tuple{Cell,Cell,Any}[]))
@@ -189,7 +190,7 @@ function projection_print(p::HorizontalLayoutToGraphicsCanvas,
     child_iomaps = Any[]
     for i in 1:n
         cim = _recurse_child(recursion, doc.children[i],
-                             @reference ^(reference).children[i])
+                             child_context(ctx, @reference ^(ctx.reference).children[i]))
         push!(child_iomaps, cim)
     end
 
@@ -262,7 +263,7 @@ end
 # ── VerticalLayout ─────────────────────────────────────────────────────────
 
 function projection_print(p::VerticalLayoutToGraphicsCanvas,
-                          doc::VerticalLayout, recursion, reference)
+                          doc::VerticalLayout, recursion, ctx)
     n = length(doc.children)
     if n == 0
         return ChildrenIoMap(p, doc, _empty_canvas(), Cell(Tuple{Cell,Cell,Any}[]))
@@ -271,7 +272,7 @@ function projection_print(p::VerticalLayoutToGraphicsCanvas,
     child_iomaps = Any[]
     for i in 1:n
         cim = _recurse_child(recursion, doc.children[i],
-                             @reference ^(reference).children[i])
+                             child_context(ctx, @reference ^(ctx.reference).children[i]))
         push!(child_iomaps, cim)
     end
 
@@ -429,7 +430,7 @@ function _gl_child_y(i::Int, child_iomaps::Vector,
 end
 
 function projection_print(p::GridLayoutToGraphicsCanvas,
-                          doc::GridLayout, recursion, reference)
+                          doc::GridLayout, recursion, ctx)
     n = length(doc.children)
     if n == 0
         return ChildrenIoMap(p, doc, _empty_canvas(), Cell(Tuple{Cell,Cell,Any}[]))
@@ -438,7 +439,7 @@ function projection_print(p::GridLayoutToGraphicsCanvas,
     child_iomaps = Any[]
     for i in 1:n
         cim = _recurse_child(recursion, doc.children[i],
-                             @reference ^(reference).children[i])
+                             child_context(ctx, @reference ^(ctx.reference).children[i]))
         push!(child_iomaps, cim)
     end
 
@@ -620,7 +621,7 @@ function _fl_child_y(i::Int, child_iomaps::Vector, line_plan::Cell,
 end
 
 function projection_print(p::FlowLayoutToGraphicsCanvas,
-                          doc::FlowLayout, recursion, reference)
+                          doc::FlowLayout, recursion, ctx)
     n = length(doc.children)
     if n == 0
         return ChildrenIoMap(p, doc, _empty_canvas(), Cell(Tuple{Cell,Cell,Any}[]))
@@ -629,7 +630,7 @@ function projection_print(p::FlowLayoutToGraphicsCanvas,
     child_iomaps = Any[]
     for i in 1:n
         cim = _recurse_child(recursion, doc.children[i],
-                             @reference ^(reference).children[i])
+                             child_context(ctx, @reference ^(ctx.reference).children[i]))
         push!(child_iomaps, cim)
     end
 

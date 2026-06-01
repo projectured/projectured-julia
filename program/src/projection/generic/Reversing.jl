@@ -11,6 +11,7 @@ import ..IoMapModule: SimpleIoMap, ChildrenIoMap
 import ..ReactiveModule: Cell
 import ..ReferenceModule: ConcreteReferencePath, ElementReference, PositionReference, RangeReference, append_reference
 import ..ReferenceCaseModule: var"@reference_case"
+import ..ProjectionContextModule: child_context
 import ..PreservingProjectionModule: PreservingProjection
 export ReversingProjection
 
@@ -26,11 +27,11 @@ A generic projection that reverses the order of elements in the input collection
 """
 struct ReversingProjection <: Projection end
 
-function projection_print(p::ReversingProjection, input, recursion, reference)
+function projection_print(p::ReversingProjection, input, recursion, ctx)
     recursion = something(recursion, PreservingProjection())
     child_iomaps = Cell(() -> [
         projection_print(recursion, input[i], recursion,
-            append_reference(reference, PositionReference(i)))
+            child_context(ctx, PositionReference(i)))
         for i in 1:length(input)
     ])
     ChildrenIoMap(p, input, reverse(input), child_iomaps)

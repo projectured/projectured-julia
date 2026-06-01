@@ -14,6 +14,7 @@ import ..ReactiveModule: Cell
 import ..IoMapModule: SimpleIoMap
 import ..TypeDispatchingModule: TypeDispatchingProjection
 import ..ReferenceModule: ConcreteReferencePath, ElementReference, PositionReference, RangeReference, FieldReference, EmptyReferencePath, append_reference
+import ..ProjectionContextModule: child_context
 export TextTextToString, TextStringToString, TextNewlineToString, TextToString
 
 # ── TextStringToString ───────────────────────────────────────────────────────
@@ -28,7 +29,7 @@ function map_reference_backward(::TextStringToString, iomap, reference)
     return nothing
 end
 
-function projection_print(p::TextStringToString, ts::TextString, recursion, reference)
+function projection_print(p::TextStringToString, ts::TextString, recursion, ctx)
     SimpleIoMap(p, ts, Cell(() -> ts.content::AbstractString))
 end
 
@@ -48,7 +49,7 @@ function map_reference_backward(::TextNewlineToString, iomap, reference)
     return nothing
 end
 
-function projection_print(p::TextNewlineToString, tn::TextNewline, recursion, reference)
+function projection_print(p::TextNewlineToString, tn::TextNewline, recursion, ctx)
     SimpleIoMap(p, tn, Cell("\n"))
 end
 
@@ -70,9 +71,9 @@ end
 
 # Projection print: builds one child IoMap per element via recursion, then
 # combines their output cells into a single reactive Cell{String}.
-function projection_print(proj::TextTextToString, text::TextText, recursion, reference)
+function projection_print(proj::TextTextToString, text::TextText, recursion, ctx)
     child_iomaps = Cell(() -> [projection_print(recursion, elem, recursion,
-                                   append_reference(reference, FieldReference("elements"), ElementReference(i)))
+                                   child_context(ctx, FieldReference("elements"), ElementReference(i)))
                                for (i, elem) in enumerate(text.elements)])
     output = Cell(() -> begin
         buf = IOBuffer()

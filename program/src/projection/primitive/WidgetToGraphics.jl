@@ -37,6 +37,7 @@ import ..MouseModule: MouseScroll, MousePress
 import ..OperationModule: ReplaceSelectionOperation
 import ..ReferenceModule: ConcreteReferencePath, FieldReference, RangeReference
 import ..TypeDispatchingModule: TypeDispatchingProjection
+import ..ProjectionContextModule: child_context
 export WidgetLabelToGraphicsCanvas, WidgetTextToGraphicsCanvas,
        WidgetCheckboxToGraphicsCanvas, WidgetButtonToGraphicsCanvas,
        WidgetTooltipToGraphicsCanvas, WidgetMenuToGraphicsCanvas,
@@ -270,7 +271,7 @@ _route_click_to_children(child_entries::Vector, evt::MousePress) =
 
 # ── WidgetLabel ─────────────────────────────────────────────────────────────
 
-function projection_print(p::WidgetLabelToGraphicsCanvas, w::WidgetLabel, recursion, reference)
+function projection_print(p::WidgetLabelToGraphicsCanvas, w::WidgetLabel, recursion, ctx)
     w.visible == false && return SimpleIoMap(p, w, _empty_canvas())
     pos = w.position::Point2D
     cox, coy = _content_offset(w)
@@ -297,7 +298,7 @@ end
 
 # ── WidgetText ──────────────────────────────────────────────────────────────
 
-function projection_print(p::WidgetTextToGraphicsCanvas, w::WidgetText, recursion, reference)
+function projection_print(p::WidgetTextToGraphicsCanvas, w::WidgetText, recursion, ctx)
     w.visible == false && return SimpleIoMap(p, w, _empty_canvas())
     pos = w.position::Point2D
     cox, coy = _content_offset(w)
@@ -329,7 +330,7 @@ end
 
 # ── WidgetCheckbox ──────────────────────────────────────────────────────────
 
-function projection_print(p::WidgetCheckboxToGraphicsCanvas, w::WidgetCheckbox, recursion, reference)
+function projection_print(p::WidgetCheckboxToGraphicsCanvas, w::WidgetCheckbox, recursion, ctx)
     w.visible == false && return SimpleIoMap(p, w, _empty_canvas())
     pos = w.position::Point2D
     cox, coy = _content_offset(w)
@@ -356,7 +357,7 @@ end
 
 # ── WidgetButton ────────────────────────────────────────────────────────────
 
-function projection_print(p::WidgetButtonToGraphicsCanvas, w::WidgetButton, recursion, reference)
+function projection_print(p::WidgetButtonToGraphicsCanvas, w::WidgetButton, recursion, ctx)
     w.visible == false && return SimpleIoMap(p, w, _empty_canvas())
     pos = w.position::Point2D
     sz  = w.size::Point2D
@@ -388,7 +389,7 @@ end
 
 # ── WidgetTooltip ───────────────────────────────────────────────────────────
 
-function projection_print(p::WidgetTooltipToGraphicsCanvas, w::WidgetTooltip, recursion, reference)
+function projection_print(p::WidgetTooltipToGraphicsCanvas, w::WidgetTooltip, recursion, ctx)
     w.visible == false && return ChildrenIoMap(p, w, _empty_canvas(), Cell(Any[]))
     pos = w.position::Point2D
     sz  = w.size::Point2D
@@ -404,7 +405,7 @@ function projection_print(p::WidgetTooltipToGraphicsCanvas, w::WidgetTooltip, re
     if content isa AbstractString
         _push_text!(elems, p.font, content, cox, coy, p.default_fg)
     elseif content isa WidgetDocument
-        cim = projection_print(recursion, content, recursion, reference)
+        cim = projection_print(recursion, content, recursion, ctx)
         push!(child_iomaps, (cox, coy, cim))
         push!(elems, _make_canvas(cox, coy, Any[cim.output]))
     end
@@ -427,14 +428,14 @@ end
 
 # ── WidgetMenuItem ──────────────────────────────────────────────────────────
 
-function projection_print(p::WidgetMenuItemToGraphicsCanvas, w::WidgetMenuItem, recursion, reference)
+function projection_print(p::WidgetMenuItemToGraphicsCanvas, w::WidgetMenuItem, recursion, ctx)
     w.visible == false && return ChildrenIoMap(p, w, _empty_canvas(), Cell(Any[]))
     cox, coy = _content_offset(w)
     content = w.content
     child_iomaps = Any[]
     elems = Any[]
     if content isa WidgetDocument
-        cim = projection_print(recursion, content, recursion, reference)
+        cim = projection_print(recursion, content, recursion, ctx)
         push!(child_iomaps, (cox, coy, cim))
         push!(elems, _make_canvas(cox, coy, Any[cim.output]))
     else
@@ -462,7 +463,7 @@ end
 
 # ── WidgetMenu ──────────────────────────────────────────────────────────────
 
-function projection_print(p::WidgetMenuToGraphicsCanvas, w::WidgetMenu, recursion, reference)
+function projection_print(p::WidgetMenuToGraphicsCanvas, w::WidgetMenu, recursion, ctx)
     w.visible == false && return ChildrenIoMap(p, w, _empty_canvas(), Cell(Any[]))
     cox, coy = _content_offset(w)
     child_iomaps = Any[]
@@ -471,7 +472,7 @@ function projection_print(p::WidgetMenuToGraphicsCanvas, w::WidgetMenu, recursio
     _, item_h = p.measure("M", p.font)
     for item in w.elements
         item isa WidgetDocument || continue
-        cim = projection_print(recursion, item, recursion, reference)
+        cim = projection_print(recursion, item, recursion, ctx)
         push!(child_iomaps, (cox, y_cursor, cim))
         push!(elems, _make_canvas(cox, y_cursor, Any[cim.output]))
         y_cursor += item_h
@@ -495,7 +496,7 @@ end
 
 # ── WidgetComposite ─────────────────────────────────────────────────────────
 
-function projection_print(p::WidgetCompositeToGraphicsCanvas, w::WidgetComposite, recursion, reference)
+function projection_print(p::WidgetCompositeToGraphicsCanvas, w::WidgetComposite, recursion, ctx)
     w.visible == false && return ChildrenIoMap(p, w, _empty_canvas(), Cell(Any[]))
     pos = w.position::Point2D
     cox, coy = _content_offset(w)
@@ -503,7 +504,7 @@ function projection_print(p::WidgetCompositeToGraphicsCanvas, w::WidgetComposite
     elems = Any[]
     for child in w.elements
         child isa WidgetDocument || continue
-        cim = projection_print(recursion, child, recursion, reference)
+        cim = projection_print(recursion, child, recursion, ctx)
         push!(child_iomaps, (cox, coy, cim))
         push!(elems, _make_canvas(cox, coy, Any[cim.output]))
     end
@@ -526,7 +527,7 @@ end
 
 # ── WidgetShell ─────────────────────────────────────────────────────────────
 
-function projection_print(p::WidgetShellToGraphicsCanvas, w::WidgetShell, recursion, reference)
+function projection_print(p::WidgetShellToGraphicsCanvas, w::WidgetShell, recursion, ctx)
     w.visible == false && return ChildrenIoMap(p, w, _empty_canvas(), Cell(Any[]))
     cox, coy = _content_offset(w)
     elems = Any[]
@@ -540,7 +541,7 @@ function projection_print(p::WidgetShellToGraphicsCanvas, w::WidgetShell, recurs
     content_y = coy
     mb = w.menu_bar
     if mb isa WidgetDocument
-        cim = projection_print(recursion, mb, recursion, reference)
+        cim = projection_print(recursion, mb, recursion, ctx)
         push!(child_iomaps, (cox, content_y, cim))
         push!(elems, _make_canvas(cox, content_y, Any[cim.output]))
         _, menu_h = p.measure("M", p.font)
@@ -548,7 +549,7 @@ function projection_print(p::WidgetShellToGraphicsCanvas, w::WidgetShell, recurs
     end
     tb = w.toolbar
     if tb isa WidgetDocument
-        cim = projection_print(recursion, tb, recursion, reference)
+        cim = projection_print(recursion, tb, recursion, ctx)
         push!(child_iomaps, (cox, content_y, cim))
         push!(elems, _make_canvas(cox, content_y, Any[cim.output]))
         _, toolbar_h = p.measure("M", p.font)
@@ -556,13 +557,13 @@ function projection_print(p::WidgetShellToGraphicsCanvas, w::WidgetShell, recurs
     end
     content = w.content
     if content isa WidgetDocument
-        cim = projection_print(recursion, content, recursion, reference)
+        cim = projection_print(recursion, content, recursion, ctx)
         push!(child_iomaps, (cox, content_y, cim))
         push!(elems, _make_canvas(cox, content_y, Any[cim.output]))
     end
     tt = w.tooltip
     if tt isa WidgetDocument
-        cim = projection_print(recursion, tt, recursion, reference)
+        cim = projection_print(recursion, tt, recursion, ctx)
         push!(child_iomaps, (0, 0, cim))
         push!(elems, _make_canvas(0, 0, Any[cim.output]))
     end
@@ -586,7 +587,7 @@ end
 
 # ── WidgetTitlePane ─────────────────────────────────────────────────────────
 
-function projection_print(p::WidgetTitlePaneToGraphicsCanvas, w::WidgetTitlePane, recursion, reference)
+function projection_print(p::WidgetTitlePaneToGraphicsCanvas, w::WidgetTitlePane, recursion, ctx)
     w.visible == false && return ChildrenIoMap(p, w, _empty_canvas(), Cell(Any[]))
     cox, coy = _content_offset(w)
     elems = Any[]
@@ -602,7 +603,7 @@ function projection_print(p::WidgetTitlePaneToGraphicsCanvas, w::WidgetTitlePane
     content_y = coy + th
     content = w.content
     if content isa WidgetDocument
-        cim = projection_print(recursion, content, recursion, reference)
+        cim = projection_print(recursion, content, recursion, ctx)
         push!(child_iomaps, (cox, content_y, cim))
         push!(elems, _make_canvas(cox, content_y, Any[cim.output]))
     elseif content isa AbstractString
@@ -627,7 +628,7 @@ end
 
 # ── WidgetSplitPane ─────────────────────────────────────────────────────────
 
-function projection_print(p::WidgetSplitPaneToGraphicsCanvas, w::WidgetSplitPane, recursion, reference)
+function projection_print(p::WidgetSplitPaneToGraphicsCanvas, w::WidgetSplitPane, recursion, ctx)
     w.visible == false && return ChildrenIoMap(p, w, _empty_canvas(), Cell(Any[]))
     cox, coy = _content_offset(w)
     orientation = w.orientation::Symbol
@@ -641,7 +642,7 @@ function projection_print(p::WidgetSplitPaneToGraphicsCanvas, w::WidgetSplitPane
     n = length(w.elements)
     for (i, child) in enumerate(w.elements)
         child isa WidgetDocument || continue
-        cim = projection_print(recursion, child, recursion, reference)
+        cim = projection_print(recursion, child, recursion, ctx)
         if orientation === :horizontal
             push!(child_iomaps, (cox + cursor, coy, cim))
             push!(elems, _make_canvas(cox + cursor, coy, Any[cim.output]))
@@ -683,7 +684,7 @@ end
 
 # ── WidgetTabbedPane ────────────────────────────────────────────────────────
 
-function projection_print(p::WidgetTabbedPaneToGraphicsCanvas, w::WidgetTabbedPane, recursion, reference)
+function projection_print(p::WidgetTabbedPaneToGraphicsCanvas, w::WidgetTabbedPane, recursion, ctx)
     w.visible == false && return ChildrenIoMap(p, w, _empty_canvas(), Cell(Any[]))
     cox, coy = _content_offset(w)
     pairs = w.selector_element_pairs
@@ -743,7 +744,7 @@ function projection_print(p::WidgetTabbedPaneToGraphicsCanvas, w::WidgetTabbedPa
     for pair in pairs
         content = pair[2]
         if content !== nothing
-            cim = projection_print(recursion, content, recursion, reference)
+            cim = projection_print(recursion, content, recursion, ctx)
             push!(child_iomaps, (cox, coy + sel_h, cim))
             push!(all_cims, cim)
         else
@@ -819,7 +820,7 @@ end
 
 # ── WidgetScrollPane ────────────────────────────────────────────────────────
 
-function projection_print(p::WidgetScrollPaneToGraphicsCanvas, w::WidgetScrollPane, recursion, reference)
+function projection_print(p::WidgetScrollPaneToGraphicsCanvas, w::WidgetScrollPane, recursion, ctx)
     w.visible == false && return WidgetScrollPaneToGraphicsCanvasIoMap(p, w, _empty_canvas(), nothing)
     pos = w.position
     sz  = w.size
@@ -840,7 +841,7 @@ function projection_print(p::WidgetScrollPaneToGraphicsCanvas, w::WidgetScrollPa
     content_iomap = nothing
     content = w.content
     if content isa Document
-        content_iomap = projection_print(recursion, content, recursion, reference)
+        content_iomap = projection_print(recursion, content, recursion, ctx)
         inner_canvas = content_iomap.output::GraphicsCanvas
         inner_elems_cv = inner_canvas.elements
         push!(elems, GraphicsViewport(cox, coy, vw, vh,
@@ -874,7 +875,7 @@ end
 
 # ── WidgetToolbar ───────────────────────────────────────────────────────────
 
-function projection_print(p::WidgetToolbarToGraphicsCanvas, w::WidgetToolbar, recursion, reference)
+function projection_print(p::WidgetToolbarToGraphicsCanvas, w::WidgetToolbar, recursion, ctx)
     w.visible == false && return ChildrenIoMap(p, w, _empty_canvas(), Cell(Any[]))
     cox, coy = _content_offset(w)
     child_iomaps = Any[]
@@ -883,7 +884,7 @@ function projection_print(p::WidgetToolbarToGraphicsCanvas, w::WidgetToolbar, re
     item_gap = 4
     for item in w.elements
         item isa WidgetDocument || continue
-        cim = projection_print(recursion, item, recursion, reference)
+        cim = projection_print(recursion, item, recursion, ctx)
         push!(child_iomaps, (x_cursor, coy, cim))
         push!(elems, _make_canvas(x_cursor, coy, Any[cim.output]))
         content = hasproperty(item, :content) ? item.content : nothing
@@ -1023,8 +1024,8 @@ struct WidgetScrollPaneToGraphicsViewport <: Projection
     measure::Function
 end
 
-function projection_print(p::WidgetScrollPaneToGraphicsViewport, w::WidgetScrollPane, recursion, reference)
-    content_iomap = projection_print(recursion, w.content, recursion, reference)
+function projection_print(p::WidgetScrollPaneToGraphicsViewport, w::WidgetScrollPane, recursion, ctx)
+    content_iomap = projection_print(recursion, w.content, recursion, ctx)
     content_output = content_iomap.output::GraphicsCanvas
 
     pos = w.position

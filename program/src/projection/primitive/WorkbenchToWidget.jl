@@ -40,6 +40,7 @@ import ..PrimitiveModule: StringReplaceRangeOperation, NumberReplaceRangeOperati
 import ..KeyboardModule: KeyDown
 import ..ReferenceModule: ReferencePath, ConcreteReferencePath, ElementReference, PositionReference, RangeReference, EmptyReferencePath, FieldReference, append_reference
 import ..ReferenceBuilderModule: var"@reference"
+import ..ProjectionContextModule: child_context
 export WorkbenchWorkbenchToWidgetShell,    WorkbenchWorkbenchToWidgetShellIoMap,
        WorkbenchPageToWidgetTabbedPane,    WorkbenchPageToWidgetTabbedPaneIoMap,
        WorkbenchNavigatorToWidgetScrollPane, WorkbenchNavigatorToWidgetScrollPaneIoMap,
@@ -96,18 +97,18 @@ end
 const _PAD5  = Inset(5, 5, 5, 5)
 const _WHITE = StyleColor(255, 255, 255, 255)
 
-_recurse(recursion, doc, reference) =
-    (recursion !== nothing && doc isa WorkbenchDocument) ? projection_print(recursion, doc, recursion, reference) : SimpleIoMap(nothing, doc, doc)
+_recurse(recursion, doc, ctx) =
+    (recursion !== nothing && doc isa WorkbenchDocument) ? projection_print(recursion, doc, recursion, ctx) : SimpleIoMap(nothing, doc, doc)
 
 _title_widget(doc::WorkbenchDocument) = title(doc)
 
 # ── projection_print ──────────────────────────────────────────────────────────
 
 function projection_print(::WorkbenchWorkbenchToWidgetShell,
-                           w::WorkbenchWorkbench, recursion, reference)
-    nav_iomap  = _recurse(recursion, w.navigation_page,  @reference ^(reference).navigation_page)
-    edit_iomap = _recurse(recursion, w.editing_page,     @reference ^(reference).editing_page)
-    info_iomap = _recurse(recursion, w.information_page, @reference ^(reference).information_page)
+                           w::WorkbenchWorkbench, recursion, ctx)
+    nav_iomap  = _recurse(recursion, w.navigation_page,  child_context(ctx, @reference ^(ctx.reference).navigation_page))
+    edit_iomap = _recurse(recursion, w.editing_page,     child_context(ctx, @reference ^(ctx.reference).editing_page))
+    info_iomap = _recurse(recursion, w.information_page, child_context(ctx, @reference ^(ctx.reference).information_page))
     right_split = WidgetSplitPane(:vertical,
                                   WidgetDocument[edit_iomap.output, info_iomap.output];
                                   sizes=[800, 200])
@@ -121,9 +122,9 @@ function projection_print(::WorkbenchWorkbenchToWidgetShell,
 end
 
 function projection_print(::WorkbenchPageToWidgetTabbedPane,
-                           page::WorkbenchPage, recursion, reference)
+                           page::WorkbenchPage, recursion, ctx)
     element_iomaps = Any[_recurse(recursion, page.elements[i],
-                             @reference ^(reference).elements[i])
+                             child_context(ctx, @reference ^(ctx.reference).elements[i]))
                          for i in eachindex(page.elements)]
     pairs = Any[(_title_widget(page.elements[i]), element_iomaps[i].output)
                 for i in eachindex(page.elements)]
@@ -132,7 +133,7 @@ function projection_print(::WorkbenchPageToWidgetTabbedPane,
 end
 
 function projection_print(::WorkbenchNavigatorToWidgetScrollPane,
-                           nav::WorkbenchNavigator, recursion, reference)
+                           nav::WorkbenchNavigator, recursion, ctx)
     folder_iomaps = Any[]
     for i in eachindex(nav.folders)
         folder = nav.folders[i]
@@ -149,8 +150,8 @@ function projection_print(::WorkbenchNavigatorToWidgetScrollPane,
 end
 
 function projection_print(::WorkbenchConsoleToWidgetScrollPane,
-                           c::WorkbenchConsole, recursion, reference)
-    content_iomap = _recurse(recursion, c.content, @reference ^(reference).content)
+                           c::WorkbenchConsole, recursion, ctx)
+    content_iomap = _recurse(recursion, c.content, child_context(ctx, @reference ^(ctx.reference).content))
     scroll = WidgetScrollPane(content_iomap.output;
                               size=Point2D(1000, 130),
                               padding=_PAD5, padding_color=_WHITE)
@@ -158,7 +159,7 @@ function projection_print(::WorkbenchConsoleToWidgetScrollPane,
 end
 
 function projection_print(::WorkbenchDescriptorToWidgetScrollPane,
-                           d::WorkbenchDescriptor, recursion, reference)
+                           d::WorkbenchDescriptor, recursion, ctx)
     text = TextText(
         TextString(() -> string(d.content),
                    font_ubuntu_monospace_regular_24, color_default),
@@ -170,7 +171,7 @@ function projection_print(::WorkbenchDescriptorToWidgetScrollPane,
 end
 
 function projection_print(::WorkbenchOperatorToWidgetScrollPane,
-                           o::WorkbenchOperator, recursion, reference)
+                           o::WorkbenchOperator, recursion, ctx)
     scroll = WidgetScrollPane(nothing;
                               size=Point2D(1000, 130),
                               padding=_PAD5, padding_color=_WHITE)
@@ -178,7 +179,7 @@ function projection_print(::WorkbenchOperatorToWidgetScrollPane,
 end
 
 function projection_print(::WorkbenchSearcherToWidgetScrollPane,
-                           s::WorkbenchSearcher, recursion, reference)
+                           s::WorkbenchSearcher, recursion, ctx)
     scroll = WidgetScrollPane(nothing;
                               size=Point2D(1000, 130),
                               padding=_PAD5, padding_color=_WHITE)
@@ -186,8 +187,8 @@ function projection_print(::WorkbenchSearcherToWidgetScrollPane,
 end
 
 function projection_print(::WorkbenchEvaluatorToWidgetScrollPane,
-                           e::WorkbenchEvaluator, recursion, reference)
-    content_iomap = _recurse(recursion, e.content, @reference ^(reference).content)
+                           e::WorkbenchEvaluator, recursion, ctx)
+    content_iomap = _recurse(recursion, e.content, child_context(ctx, @reference ^(ctx.reference).content))
     scroll = WidgetScrollPane(content_iomap.output;
                               size=Point2D(1000, 130),
                               padding=_PAD5, padding_color=_WHITE)
@@ -195,7 +196,7 @@ function projection_print(::WorkbenchEvaluatorToWidgetScrollPane,
 end
 
 function projection_print(::WorkbenchAssistantToWidgetScrollPane,
-                           a::WorkbenchAssistant, recursion, reference)
+                           a::WorkbenchAssistant, recursion, ctx)
     # Both children are WidgetScrollPanes whose `content` is the underlying
     # document. `WidgetScrollPaneToGraphicsCanvas.projection_print` calls
     # `projection_print(recursion, content, …)` directly, so the outer
@@ -216,8 +217,8 @@ function projection_print(::WorkbenchAssistantToWidgetScrollPane,
 end
 
 function projection_print(::WorkbenchEditorToWidgetScrollPane,
-                           e::WorkbenchEditor, recursion, reference)
-    content_iomap = _recurse(recursion, e.content, @reference ^(reference).content)
+                           e::WorkbenchEditor, recursion, ctx)
+    content_iomap = _recurse(recursion, e.content, child_context(ctx, @reference ^(ctx.reference).content))
     scroll = WidgetScrollPane(content_iomap.output;
                               size=Point2D(1000, 700),
                               padding=_PAD5, padding_color=_WHITE)

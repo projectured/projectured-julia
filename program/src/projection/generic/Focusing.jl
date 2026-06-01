@@ -37,7 +37,7 @@ end
 FocusingProjection(; part_type=Any, part::ReferencePath=EmptyReferencePath()) =
     FocusingProjection(part_type, part, document -> evaluate_reference(document, part))
 
-function projection_print(p::FocusingProjection, input, recursion, reference)
+function projection_print(p::FocusingProjection, input, recursion, ctx)
     output = p.part_evaluator(input)
     SimpleIoMap(p, input, output)
 end

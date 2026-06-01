@@ -26,6 +26,7 @@ import ..ReferenceCaseModule: var"@reference_case"
 import ..ReferenceBuilderModule: var"@reference"
 import ..OperationModule: ReplaceSelectionOperation
 import ..SyntaxToTextModule: SyntaxNodeToText, _syntax_to_flat
+import ..ProjectionContextModule: child_context
 
 export BookBookToSyntaxNode, BookChapterToSyntaxNode, BookParagraphToSyntaxLeaf,
        BookListToSyntaxNode, BookPictureToSyntaxLeaf, BookToSyntax
@@ -58,9 +59,9 @@ BookBookToSyntaxNode(;
                          author_font, author_color)
 
 
-function projection_print(p::BookBookToSyntaxNode, b::BookBook, recursion, reference)
+function projection_print(p::BookBookToSyntaxNode, b::BookBook, recursion, ctx)
     element_iomaps = Cell(() -> [projection_print(recursion, e, recursion,
-                                     @reference ^(reference).elements[i])
+                                     child_context(ctx, @reference ^(ctx.reference).elements[i]))
                                  for (i, e) in enumerate(b.elements)])
 
     title_sel = Cell(() -> begin
@@ -177,9 +178,9 @@ BookChapterToSyntaxNode(;
     BookChapterToSyntaxNode(title_font, title_color, numbering_font, numbering_color)
 
 
-function projection_print(p::BookChapterToSyntaxNode, b::BookChapter, recursion, reference)
+function projection_print(p::BookChapterToSyntaxNode, b::BookChapter, recursion, ctx)
     element_iomaps = Cell(() -> [projection_print(recursion, e, recursion,
-                                     @reference ^(reference).elements{i})
+                                     child_context(ctx, @reference ^(ctx.reference).elements{i}))
                                  for (i, e) in enumerate(b.elements)])
 
     title_sel = Cell(() -> begin
@@ -279,7 +280,7 @@ BookParagraphToSyntaxLeaf(; font=font_ubuntu_monospace_regular_24,  color=color_
         placeholder_color=color_solarized_gray) =
     BookParagraphToSyntaxLeaf(font, color, placeholder_color)
 
-function projection_print(p::BookParagraphToSyntaxLeaf, b::BookParagraph, recursion, reference)
+function projection_print(p::BookParagraphToSyntaxLeaf, b::BookParagraph, recursion, ctx)
     content_sel = Cell(() -> begin
         @reference_case b.selection begin
             content.rest... => @reference value.^(rest)
@@ -326,9 +327,9 @@ BookListToSyntaxNode(; bullet_font=font_ubuntu_monospace_regular_24, bullet_colo
     BookListToSyntaxNode(bullet_font, bullet_color, indentation)
 
 
-function projection_print(p::BookListToSyntaxNode, b::BookList, recursion, reference)
+function projection_print(p::BookListToSyntaxNode, b::BookList, recursion, ctx)
     element_iomaps = Cell(() -> [projection_print(recursion, e, recursion,
-                                     @reference ^(reference).elements{i})
+                                     child_context(ctx, @reference ^(ctx.reference).elements{i}))
                                  for (i, e) in enumerate(b.elements)])
 
     sel = Cell(() -> begin
@@ -398,7 +399,7 @@ BookPictureToSyntaxLeaf(; font=font_ubuntu_monospace_regular_24, color=color_sol
         placeholder_color=color_solarized_gray) =
     BookPictureToSyntaxLeaf(font, color, placeholder_color)
 
-function projection_print(p::BookPictureToSyntaxLeaf, b::BookPicture, recursion, reference)
+function projection_print(p::BookPictureToSyntaxLeaf, b::BookPicture, recursion, ctx)
     content_sel = Cell(() -> begin
         @reference_case b.selection begin
             content.rest... => @reference value.^(rest)

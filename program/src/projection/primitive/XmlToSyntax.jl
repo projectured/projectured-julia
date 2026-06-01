@@ -20,6 +20,7 @@ import ..IoMapModule: SimpleIoMap, ChildrenIoMap
 import ..ReferenceModule: ConcreteReferencePath, ElementReference, PositionReference, RangeReference, FieldReference, ProjectionReference, ReferencePath, EmptyReferencePath, append_reference
 import ..ReferenceCaseModule: var"@reference_case"
 import ..ReferenceBuilderModule: var"@reference"
+import ..ProjectionContextModule: child_context
 import ..OperationModule: ReplaceSelectionOperation
 import ..SyntaxToTextModule: SyntaxNodeToText, _syntax_to_flat
 export XmlInsertionToSyntaxLeaf, XmlTextToSyntaxLeaf, XmlElementToSyntaxNode, XmlToSyntax
@@ -85,7 +86,7 @@ function _xml_text_sel(t::XmlText)
     end)
 end
 
-function projection_print(p::XmlTextToSyntaxLeaf, t::XmlText, recursion, reference)
+function projection_print(p::XmlTextToSyntaxLeaf, t::XmlText, recursion, ctx)
     output_selection = _xml_text_sel(t)
     SimpleIoMap(p, t, SyntaxLeaf(TextString("", p.font, color_default), TextString("", p.font, color_default), TextString(() -> t.cell, p.font, p.color), output_selection))
 end
@@ -98,7 +99,7 @@ struct XmlInsertionToSyntaxLeaf <: Projection
 end
 XmlInsertionToSyntaxLeaf(; font=font_ubuntu_monospace_regular_24, color=color_solarized_gray) = XmlInsertionToSyntaxLeaf(font, color)
 
-function projection_print(p::XmlInsertionToSyntaxLeaf, x::XmlInsertion, recursion, reference)
+function projection_print(p::XmlInsertionToSyntaxLeaf, x::XmlInsertion, recursion, ctx)
     output_selection = Cell(() -> map_reference_forward(p, nothing, x.selection))
     SimpleIoMap(p, x, SyntaxLeaf(TextString("", p.font, color_default), TextString("", p.font, color_default), TextString("insert XML here", p.font, p.color), output_selection))
 end
@@ -142,9 +143,10 @@ function projection_read(p::XmlElementToSyntaxNode, iomap::ChildrenIoMap, op::Re
     return ReplaceSelectionOperation(ConcreteReferencePath(ProjectionReference(p, ConcreteReferencePath(PositionReference(flat)))))
 end
 
-function projection_print(p::XmlElementToSyntaxNode, e::XmlElement, recursion, reference)
+function projection_print(p::XmlElementToSyntaxNode, e::XmlElement, recursion, ctx)
+    reference = ctx.reference
     child_iomaps = Cell(() -> [projection_print(recursion, child, recursion,
-                                   @reference ^(reference).cell[i])
+                                   child_context(ctx, @reference ^(reference).cell[i]))
                                for (i, child) in enumerate(e)])
 
     sel = Cell(() -> begin

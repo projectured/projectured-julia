@@ -24,6 +24,7 @@ import ..SyntaxModule: SyntaxDocument, SyntaxLeaf, SyntaxNode
 import ..TypeDispatchingModule: TypeDispatchingProjection
 import ..IoMapModule: SimpleIoMap, ChildrenIoMap
 import ..ReferenceModule: ConcreteReferencePath, ElementReference, PositionReference, RangeReference, FieldReference, ProjectionReference, append_reference
+import ..ProjectionContextModule: child_context
 export FileSystemFileToSyntaxLeaf, FileSystemDirectoryToSyntaxNode, FileSystemToSyntax
 
 # ── FileSystemFileToSyntaxLeaf ────────────────────────────────────────────────
@@ -35,7 +36,7 @@ end
 FileSystemFileToSyntaxLeaf(; font=font_ubuntu_monospace_regular_24, color=color_solarized_blue) =
     FileSystemFileToSyntaxLeaf(font, color)
 
-function projection_print(p::FileSystemFileToSyntaxLeaf, f::FileSystemFile, recursion, reference)
+function projection_print(p::FileSystemFileToSyntaxLeaf, f::FileSystemFile, recursion, ctx)
     SimpleIoMap(p, f, SyntaxLeaf(
         TextString("", p.font, color_default),
         TextString("", p.font, color_default),
@@ -62,9 +63,9 @@ FileSystemDirectoryToSyntaxNode(; name_font=font_ubuntu_monospace_bold_24, name_
     FileSystemDirectoryToSyntaxNode(name_font, name_color)
 
 
-function projection_print(p::FileSystemDirectoryToSyntaxNode, d::FileSystemDirectory, recursion, reference)
+function projection_print(p::FileSystemDirectoryToSyntaxNode, d::FileSystemDirectory, recursion, ctx)
     child_iomaps = Cell(() -> [projection_print(recursion, elem, recursion,
-                                   append_reference(reference, FieldReference("elements"), ElementReference(i)))
+                                   child_context(ctx, FieldReference("elements"), ElementReference(i)))
                                for (i, elem) in enumerate(d)])
 
     name_leaf = SyntaxLeaf(

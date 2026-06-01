@@ -23,6 +23,7 @@ import ..IoMapModule: SimpleIoMap, ChildrenIoMap
 import ..ReferenceModule: ConcreteReferencePath, ElementReference, PositionReference, RangeReference, FieldReference, ProjectionReference, ReferencePath, EmptyReferencePath, append_reference
 import ..ReferenceCaseModule: var"@reference_case"
 import ..ReferenceBuilderModule: var"@reference"
+import ..ProjectionContextModule: ProjectionContext, child_context
 import ..OperationModule: ReplaceSelectionOperation
 import ..SyntaxToTextModule: SyntaxNodeToText, _syntax_to_flat
 export JsonInsertionToSyntaxLeaf, JsonNullToSyntaxLeaf, JsonBoolToSyntaxLeaf, JsonNumberToSyntaxLeaf,
@@ -37,7 +38,7 @@ struct JsonNullToSyntaxLeaf <: Projection
 end
 JsonNullToSyntaxLeaf(; font=font_ubuntu_monospace_regular_24, color=color_solarized_magenta) = JsonNullToSyntaxLeaf(font, color)
 
-function projection_print(p::JsonNullToSyntaxLeaf, j::JsonNull, recursion, reference)
+function projection_print(p::JsonNullToSyntaxLeaf, j::JsonNull, recursion, ctx)
     output_selection = Cell(() -> map_reference_forward(p, nothing, j.selection))
     SimpleIoMap(p, j, SyntaxLeaf(TextString("", p.font, color_default), TextString("", p.font, color_default), TextString("null", p.font, p.color), output_selection))
 end
@@ -50,7 +51,7 @@ struct JsonInsertionToSyntaxLeaf <: Projection
 end
 JsonInsertionToSyntaxLeaf(; font=font_ubuntu_monospace_regular_24, color=color_solarized_gray) = JsonInsertionToSyntaxLeaf(font, color)
 
-function projection_print(p::JsonInsertionToSyntaxLeaf, j::JsonInsertion, recursion, reference)
+function projection_print(p::JsonInsertionToSyntaxLeaf, j::JsonInsertion, recursion, ctx)
     output_selection = Cell(() -> map_reference_forward(p, nothing, j.selection))
     SimpleIoMap(p, j, SyntaxLeaf(TextString("", p.font, color_default), TextString("", p.font, color_default), TextString("insert JSON here", p.font, p.color), output_selection))
 end
@@ -79,7 +80,7 @@ end
 # j.selection is shared directly with the leaf (same Cell).
 #   .value[k]     →  .value[k]   identity; shared cell
 #   anything else →  reader rejects (returns nothing)
-function projection_print(p::JsonBoolToSyntaxLeaf, j::JsonBool, recursion, reference)
+function projection_print(p::JsonBoolToSyntaxLeaf, j::JsonBool, recursion, ctx)
     SimpleIoMap(p, j, SyntaxLeaf(TextString("", p.font, color_default), TextString("", p.font, color_default), TextString(() -> j[] ? "true" : "false", p.font, p.color), getfield(j, :selection)))
 end
 
@@ -115,7 +116,7 @@ end
 # j.selection is shared directly with the leaf (same Cell).
 #   .value[k]     →  .value[k]   identity; shared cell
 #   anything else →  reader rejects (returns nothing)
-function projection_print(p::JsonNumberToSyntaxLeaf, j::JsonNumber, recursion, reference)
+function projection_print(p::JsonNumberToSyntaxLeaf, j::JsonNumber, recursion, ctx)
     SimpleIoMap(p, j, SyntaxLeaf(TextString("", p.font, color_default), TextString("", p.font, color_default), TextString(() -> string(j[]), p.font, p.color), getfield(j, :selection)))
 end
 
@@ -158,7 +159,7 @@ end
 #       content (exact when no escape sequences precede position k)
 # The surrounding quote characters are projection-introduced; there is no
 # input selection that maps to .open[k] or .close[k].
-function projection_print(p::JsonStringToSyntaxLeaf, j::JsonString, recursion, reference)
+function projection_print(p::JsonStringToSyntaxLeaf, j::JsonString, recursion, ctx)
     SimpleIoMap(p, j, SyntaxLeaf(
         TextString("\"", p.quote_font, p.quote_color),
         TextString("\"", p.quote_font, p.quote_color),
@@ -206,9 +207,10 @@ end
 # domain selection from child_iomaps[i+1].output.selection[], and prepends
 # [i] to produce the SyntaxNode-domain path.  Structural positions ([, ], ,)
 # fall back to nothing (no cursor on structural characters here).
-function projection_print(p::JsonArrayToSyntaxNode, j::JsonArray, recursion, reference)
+function projection_print(p::JsonArrayToSyntaxNode, j::JsonArray, recursion, ctx)
+    reference = ctx.reference
     child_iomaps = Cell(() -> [projection_print(recursion, x, recursion,
-                                   @reference ^(reference).elements[i])
+                                   child_context(ctx, @reference ^(reference).elements[i]))
                                for (i, x) in enumerate(j)])
     sel = Cell(() -> begin
         path = j.selection
@@ -280,10 +282,11 @@ end
 # pair_node uses e.selection so set_selection! propagates entry_sel into
 # it; _entry_key_sel(e.selection) then maps .key[k] → .value[k] for the
 # key leaf.  Structural positions ({, }, ,, :) fall back to ProjectionReference.
-function projection_print(p::JsonObjectToSyntaxNode, j::JsonObject, recursion, reference)
+function projection_print(p::JsonObjectToSyntaxNode, j::JsonObject, recursion, ctx)
+    reference = ctx.reference
     # Use recursion projection to access entries field
     entries_ref = @reference ^(reference).entries
-    entries_iomap = projection_print(recursion, j.entries.elements, recursion, entries_ref)
+    entries_iomap = projection_print(recursion, j.entries.elements, recursion, child_context(ctx, entries_ref))
     projected_entries = entries_iomap.output
 
     sel = Cell(() -> begin

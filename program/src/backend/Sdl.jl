@@ -739,7 +739,7 @@ function GraphicsCanvasToImageFile(filename::AbstractString;
 end
 
 function projection_print(p::GraphicsCanvasToImageFile,
-                           canvas::GraphicsCanvas, recursion, reference)
+                           canvas::GraphicsCanvas, recursion, ctx)
     output = write_image(canvas, p.filename;
                          width=p.width, height=p.height, background=p.background)
     SimpleIoMap(p, canvas, output)

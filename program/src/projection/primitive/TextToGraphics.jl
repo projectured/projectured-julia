@@ -190,10 +190,10 @@ relevant cell in the `TextText`, so:
   - structural changes (add/remove spans) also invalidate,
   - recomputation happens only when the `Cell` is read (lazy).
 """
-function projection_print(p::TextToGraphics, styled::TextText, recursion, reference)
+function projection_print(p::TextToGraphics, styled::TextText, recursion, ctx)
     # ListNode path: lazy paragraph-level mapping
     if styled.elements isa ListNode
-        return _print_listnode(p, styled, reference)
+        return _print_listnode(p, styled, ctx)
     end
     # CellVector path: eager word-wrap (existing)
     both = Cell(function ()
@@ -339,14 +339,14 @@ end
 # ── ListNode path: lazy paragraph-level mapping ──────────────────────
 
 """
-    _print_listnode(p, styled, reference)
+    _print_listnode(p, styled, ctx)
 
 When `TextText.elements` is a `ListNode`, produce a top-level
 `GraphicsCanvas` with `layout_vertical`, `overlapping_elements=false`,
 and a `ListNode` of sub-canvases — one per paragraph (spans between
 `TextNewline` nodes). Each paragraph is eagerly word-wrapped.
 """
-function _print_listnode(p::TextToGraphics, styled::TextText, reference)
+function _print_listnode(p::TextToGraphics, styled::TextText, ctx)
     head_node = styled.elements::ListNode
     output_head = _build_paragraph_node(p, head_node, 0)
     canvas = GraphicsCanvas(Int32(0), Int32(0), Int32(0), Int32(0), output_head, layout_vertical, false, Cell(nothing))

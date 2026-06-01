@@ -14,6 +14,7 @@ import ..CollectionModule: CellVector
 import ..ReferenceModule: ConcreteReferencePath, ElementReference, PositionReference, RangeReference, append_reference
 import ..ReferenceCaseModule: var"@reference_case"
 import ..ReferenceBuilderModule: var"@reference"
+import ..ProjectionContextModule: child_context
 import ..PreservingProjectionModule: PreservingProjection
 export SortingProjection, SortingProjectionIoMap
 
@@ -44,13 +45,13 @@ struct SortingProjectionIoMap <: IoMap
     element_iomaps::Cell
 end
 
-function projection_print(p::SortingProjection, input::CellVector, recursion, reference)
+function projection_print(p::SortingProjection, input::CellVector, recursion, ctx)
     recursion = something(recursion, PreservingProjection())
     n = length(input)
     perm = sortperm(1:n; by = i -> p.by(input[i]), lt=p.lt, rev=p.rev)
     # Recursively project each element (CellVector getindex already unwraps the Cell)
     children = [projection_print(recursion, input[i], recursion,
-                    @reference ^(reference){i})
+                    child_context(ctx, PositionReference(i)))
                 for i in 1:n]
     # Build output by arranging projected elements in sorted order
     out_cells = Cell[Cell(children[perm[j]].output) for j in 1:n]
@@ -60,13 +61,13 @@ function projection_print(p::SortingProjection, input::CellVector, recursion, re
     SortingProjectionIoMap(p, input, output, perm, element_iomaps)
 end
 
-function projection_print(p::SortingProjection, input::Vector{Cell}, recursion, reference)
+function projection_print(p::SortingProjection, input::Vector{Cell}, recursion, ctx)
     recursion = something(recursion, PreservingProjection())
     n = length(input)
     perm = sortperm(1:n; by = i -> p.by(input[i]), lt=p.lt, rev=p.rev)
     # Recursively project each element (unwrapping Cell like CopyingProjection does)
     children = [projection_print(recursion, c[], recursion,
-                    @reference ^(reference){i})
+                    child_context(ctx, PositionReference(i)))
                 for (i, c) in enumerate(input)]
     # Build output by arranging projected Cells in sorted order (no double-wrapping)
     output = [children[perm[j]].output for j in 1:n]
@@ -74,13 +75,13 @@ function projection_print(p::SortingProjection, input::Vector{Cell}, recursion, 
     SortingProjectionIoMap(p, input, output, perm, element_iomaps)
 end
 
-function projection_print(p::SortingProjection, input, recursion, reference)
+function projection_print(p::SortingProjection, input, recursion, ctx)
     recursion = something(recursion, PreservingProjection())
     n = length(input)
     perm = sortperm(1:n; by = i -> p.by(input[i]), lt=p.lt, rev=p.rev)
     # Recursively project each element
     children = [projection_print(recursion, input[i], recursion,
-                    @reference ^(reference){i})
+                    child_context(ctx, PositionReference(i)))
                 for i in 1:n]
     # Build output by arranging projected elements in sorted order
     output = [children[perm[j]].output for j in 1:n]

@@ -35,8 +35,8 @@ struct RecursiveProjection <: Projection
     child::Any
 end
 
-function projection_print(rp::RecursiveProjection, input, recursion, reference)
-    projection_print(rp.child, input, rp, reference)
+function projection_print(rp::RecursiveProjection, input, recursion, ctx)
+    projection_print(rp.child, input, rp, ctx)
 end
 
 # RecursiveProjection is a transparent wrapper — it returns the inner

@@ -52,14 +52,14 @@ AlternativeProjection(projections::Vector{Any}, index::Int=1) =
     AlternativeProjection(projections, Cell(index))
 
 """
-    projection_print(ap::AlternativeProjection, input, recursion, reference) -> AlternativeProjectionIoMap
+    projection_print(ap::AlternativeProjection, input, recursion, ctx) -> AlternativeProjectionIoMap
 
 Apply the projection at the current index, wrapping its IoMap so the reader
 knows which branch was active.
 """
-function projection_print(ap::AlternativeProjection, input, recursion, reference)
+function projection_print(ap::AlternativeProjection, input, recursion, ctx)
     i = ap.index[]
-    inner_iomap = projection_print(ap.projections[i], input, recursion, reference)
+    inner_iomap = projection_print(ap.projections[i], input, recursion, ctx)
     return AlternativeProjectionIoMap(ap, input, inner_iomap.output, i, inner_iomap)
 end
 

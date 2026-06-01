@@ -52,16 +52,16 @@ end
 SequentialProjection(ps...) = SequentialProjection(collect(Any, ps))
 
 """
-    projection_print(seq::SequentialProjection, input, recursion, reference) -> output
+    projection_print(seq::SequentialProjection, input, recursion, ctx) -> output
 
 Apply each projection in order, threading the reactive output of one
 as the input to the next.
 """
-function projection_print(seq::SequentialProjection, input, recursion, reference)
+function projection_print(seq::SequentialProjection, input, recursion, ctx)
     current = input
     step_iomaps = Any[]
     for p in seq.projections
-        iomap = projection_print(p, current, recursion, reference)
+        iomap = projection_print(p, current, recursion, ctx)
         push!(step_iomaps, iomap)
         current = iomap.output
     end

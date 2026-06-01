@@ -12,6 +12,7 @@ import ..TextModule: TextText, TextDocument, TextString, TextNewline
 import ..ReactiveModule: Cell
 import ..CollectionModule: CellVector
 import ..IoMapModule: SimpleIoMap
+import ..ProjectionContextModule: child_context
 export TextWordWrapping, WordWrapping
 
 # ── TextWordWrapping ────────────────────────────────────────────────────────
@@ -26,7 +27,7 @@ TextWordWrapping(; width::Int = 80) = TextWordWrapping(width)
 # the output element list whenever the input spans change.  TextString spans
 # are split at word boundaries when their content would push the column
 # offset past `width`; TextNewline elements reset the column counter.
-function projection_print(p::TextWordWrapping, text::TextText, recursion, reference)
+function projection_print(p::TextWordWrapping, text::TextText, recursion, ctx)
     elements_cv = CellVector(() -> begin
         elems = text.elements
         result = TextDocument[]

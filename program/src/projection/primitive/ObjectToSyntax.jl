@@ -19,6 +19,7 @@ import ..SyntaxModule: SyntaxDocument, SyntaxLeaf, SyntaxNode
 import ..TypeDispatchingModule: TypeDispatchingProjection
 import ..IoMapModule: SimpleIoMap
 import ..ReferenceModule: ConcreteReferencePath, ElementReference, PositionReference, RangeReference, FieldReference, EmptyReferencePath, append_reference
+import ..ProjectionContextModule: ProjectionContext, child_context
 import ..SyntaxToTextModule: SyntaxToText
 import ..TextToStringModule: TextToString
 import ..SequentialProjectionModule: SequentialProjection
@@ -38,7 +39,7 @@ end
 NothingToSyntaxLeaf(; font=font_ubuntu_monospace_regular_24, color=color_solarized_magenta, include_selection=false) =
     NothingToSyntaxLeaf(font, color, include_selection)
 
-function projection_print(p::NothingToSyntaxLeaf, ::Nothing, recursion, reference)
+function projection_print(p::NothingToSyntaxLeaf, ::Nothing, recursion, ctx)
     leaf = SyntaxLeaf(TextString("", p.font, color_default), TextString("", p.font, color_default), TextString("nothing", p.font, p.color))
     SimpleIoMap(p, nothing, leaf)
 end
@@ -53,7 +54,7 @@ end
 BoolToSyntaxLeaf(; font=font_ubuntu_monospace_regular_24, color=color_solarized_yellow, include_selection=false) =
     BoolToSyntaxLeaf(font, color, include_selection)
 
-function projection_print(p::BoolToSyntaxLeaf, b::Bool, recursion, reference)
+function projection_print(p::BoolToSyntaxLeaf, b::Bool, recursion, ctx)
     leaf = SyntaxLeaf(TextString("", p.font, color_default), TextString("", p.font, color_default), TextString(b ? "true" : "false", p.font, p.color))
     SimpleIoMap(p, b, leaf)
 end
@@ -68,7 +69,7 @@ end
 NumberToSyntaxLeaf(; font=font_ubuntu_monospace_regular_24, color=color_solarized_magenta, include_selection=false) =
     NumberToSyntaxLeaf(font, color, include_selection)
 
-function projection_print(p::NumberToSyntaxLeaf, n::Number, recursion, reference)
+function projection_print(p::NumberToSyntaxLeaf, n::Number, recursion, ctx)
     leaf = SyntaxLeaf(TextString("", p.font, color_default), TextString("", p.font, color_default), TextString(string(n), p.font, p.color))
     SimpleIoMap(p, n, leaf)
 end
@@ -87,7 +88,7 @@ StringToSyntaxLeaf(; quote_font=font_ubuntu_monospace_regular_24, quote_color=co
                      include_selection=false) =
     StringToSyntaxLeaf(quote_font, quote_color, value_font, value_color, include_selection)
 
-function projection_print(p::StringToSyntaxLeaf, s::AbstractString, recursion, reference)
+function projection_print(p::StringToSyntaxLeaf, s::AbstractString, recursion, ctx)
     leaf = SyntaxLeaf(
         TextString("\"", p.quote_font, p.quote_color),
         TextString("\"", p.quote_font, p.quote_color),
@@ -105,7 +106,7 @@ end
 SymbolToSyntaxLeaf(; font=font_ubuntu_monospace_regular_24, color=color_solarized_blue, include_selection=false) =
     SymbolToSyntaxLeaf(font, color, include_selection)
 
-function projection_print(p::SymbolToSyntaxLeaf, s::Symbol, recursion, reference)
+function projection_print(p::SymbolToSyntaxLeaf, s::Symbol, recursion, ctx)
     leaf = SyntaxLeaf(TextString("", p.font, color_default), TextString("", p.font, color_default), TextString(string(s), p.font, p.color))
     SimpleIoMap(p, s, leaf)
 end
@@ -124,7 +125,7 @@ CharToSyntaxLeaf(; quote_font=font_ubuntu_monospace_regular_24, quote_color=colo
                    include_selection=false) =
     CharToSyntaxLeaf(quote_font, quote_color, value_font, value_color, include_selection)
 
-function projection_print(p::CharToSyntaxLeaf, c::Char, recursion, reference)
+function projection_print(p::CharToSyntaxLeaf, c::Char, recursion, ctx)
     leaf = SyntaxLeaf(
         TextString("'", p.quote_font, p.quote_color),
         TextString("'", p.quote_font, p.quote_color),
@@ -137,9 +138,9 @@ end
 
 struct CellToSyntax <: Projection end
 
-function projection_print(::CellToSyntax, cell::Cell, recursion, reference)
+function projection_print(::CellToSyntax, cell::Cell, recursion, ctx)
     unwrapped = cell[]
-    projection_print(recursion, unwrapped, recursion, reference)
+    projection_print(recursion, unwrapped, recursion, ctx)
 end
 
 # ── ObjectNodeToSyntaxNode ───────────────────────────────────────────────────
@@ -179,7 +180,7 @@ ObjectNodeToSyntaxNode(; type_name_font=font_ubuntu_monospace_bold_24, type_name
                            undef_font, undef_color, include_selection,
                            open_delimiter, close_delimiter)
 
-function projection_print(p::ObjectNodeToSyntaxNode, obj, recursion, reference)
+function projection_print(p::ObjectNodeToSyntaxNode, obj, recursion, ctx)
     T = typeof(obj)
 
     # Special handling for Arrays: project elements directly
@@ -193,7 +194,7 @@ function projection_print(p::ObjectNodeToSyntaxNode, obj, recursion, reference)
         end
         element_nodes = SyntaxDocument[
             projection_print(recursion, obj[i], recursion,
-                           append_reference(reference, ElementReference(i))).output
+                           child_context(ctx, ElementReference(i))).output
             for i in eachindex(obj)
         ]
         node = SyntaxNode(p.open_delimiter, p.close_delimiter, " ",
@@ -220,7 +221,7 @@ function projection_print(p::ObjectNodeToSyntaxNode, obj, recursion, reference)
                            TextString(string(fn), p.field_name_font, p.field_name_color)),
                 isdefined(obj, fn) ?
                     projection_print(recursion, getfield(obj, fn), recursion,
-                                     append_reference(reference, FieldReference(string(fn)))).output :
+                                     child_context(ctx, FieldReference(string(fn)))).output :
                     SyntaxLeaf(TextString("", p.undef_font, color_default), TextString("", p.undef_font, color_default),
                                TextString("<undefined>", p.undef_font, p.undef_color))
             ];
@@ -295,7 +296,7 @@ function print_object(obj; include_selection=false, open_delimiter="", close_del
         RecursiveProjection(SyntaxToText()),
         RecursiveProjection(TextToString())
     )
-    iomap = projection_print(seq, obj, seq, EmptyReferencePath())
+    iomap = projection_print(seq, obj, seq, ProjectionContext())
     return iomap.output[]
 end
 

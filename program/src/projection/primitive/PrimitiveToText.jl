@@ -25,6 +25,7 @@ import ..ReferenceBuilderModule: var"@reference"
 import ..OperationModule: ReplaceSelectionOperation
 import ..KeyboardModule: KeyDown, KeyPress
 import ..TypeDispatchingModule: TypeDispatchingProjection
+import ..ProjectionContextModule: child_context
 export PrimitiveBoolToText, PrimitiveNumberToText, PrimitiveStringToText, PrimitiveToText
 
 # Forward: .value[k] on the primitive → .elements[1].content[k] on the TextText.
@@ -61,7 +62,7 @@ map_reference_forward(::PrimitiveBoolToText, iomap::SimpleIoMap, reference) =
 map_reference_backward(::PrimitiveBoolToText, iomap::SimpleIoMap, reference) =
     _backward_value(reference)
 
-function projection_print(p::PrimitiveBoolToText, b::PrimitiveBool, recursion, reference)
+function projection_print(p::PrimitiveBoolToText, b::PrimitiveBool, recursion, ctx)
     span = TextString(() -> string(b.value), p.font, p.color)
     out = TextText(CellVector(() -> TextDocument[span]),
                    Cell(() -> _value_selection_to_text(b)))
@@ -88,7 +89,7 @@ map_reference_forward(::PrimitiveNumberToText, iomap::SimpleIoMap, reference) =
 map_reference_backward(::PrimitiveNumberToText, iomap::SimpleIoMap, reference) =
     _backward_value(reference)
 
-function projection_print(p::PrimitiveNumberToText, n::PrimitiveNumber, recursion, reference)
+function projection_print(p::PrimitiveNumberToText, n::PrimitiveNumber, recursion, ctx)
     span = TextString(() -> string(something(n.value, "")), p.font, p.color)
     out = TextText(CellVector(() -> TextDocument[span]),
                    Cell(() -> _value_selection_to_text(n)))
@@ -115,7 +116,7 @@ map_reference_forward(::PrimitiveStringToText, iomap::SimpleIoMap, reference) =
 map_reference_backward(::PrimitiveStringToText, iomap::SimpleIoMap, reference) =
     _backward_value(reference)
 
-function projection_print(p::PrimitiveStringToText, s::PrimitiveString, recursion, reference)
+function projection_print(p::PrimitiveStringToText, s::PrimitiveString, recursion, ctx)
     span = TextString(() -> something(s.value, ""), p.font, p.color)
     out = TextText(CellVector(() -> TextDocument[span]),
                    Cell(() -> _value_selection_to_text(s)))

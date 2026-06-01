@@ -45,14 +45,14 @@ end
 NestingProjection(first_elem::Projection, rest...; recursion=nothing) =
     NestingProjection(Any[first_elem, rest...], recursion)
 
-function projection_print(np::NestingProjection, input, recursion, reference)
+function projection_print(np::NestingProjection, input, recursion, ctx)
     effective = np.recursion !== nothing ? np.recursion : recursion
     if !isempty(np.elements)
         inner = NestingProjection(np.elements[2:end], effective)
-        iomap = projection_print(np.elements[1], input, inner, reference)
+        iomap = projection_print(np.elements[1], input, inner, ctx)
         NestingProjectionIoMap(np, input, iomap.output, iomap)
     else
-        iomap = projection_print(effective, input, recursion, reference)
+        iomap = projection_print(effective, input, recursion, ctx)
         NestingProjectionIoMap(np, input, iomap.output, iomap)
     end
 end
