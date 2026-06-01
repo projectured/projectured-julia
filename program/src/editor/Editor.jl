@@ -135,7 +135,7 @@ end
 # ── Main loop ──────────────────────────────────────────────────────────
 
 """
-    run!(editor::Editor)
+    run!(editor::Editor; mcp::Bool=false)
 
 Execute the read-eval-print loop. Each frame drains every available
 envelope from the backend (each routed to an operation and applied)
@@ -145,10 +145,13 @@ window emits a burst of events.
     per frame:
       1. drain envelopes — for each: read! → evaluate!
       2. print!          — project the document to the output devices
+
+When `mcp=true`, an MCP server is started alongside the loop so external
+clients can drive the editor; off by default.
 """
-function run!(editor::Editor)
-    mcp = McpServer(editor)
-    mcp_start!(mcp)
+function run!(editor::Editor; mcp::Bool=false)
+    server = mcp ? McpServer(editor) : nothing
+    server === nothing || mcp_start!(server)
     try
         while true
             perf_reset!()
@@ -168,12 +171,12 @@ function run!(editor::Editor)
     catch e
         e isa QuitEditorException || rethrow()
     finally
-        mcp_stop!(mcp)
+        server === nothing || mcp_stop!(server)
     end
 end
 
 """
-    run!(backend::Backend, projection, document)
+    run!(backend::Backend, projection, document; mcp::Bool=false)
 
 Bootstrap overload: initialise the backend, wire up an `Editor` with
 the given projection and document, and run the read-eval-print loop
@@ -186,13 +189,15 @@ Native windows are not pre-allocated here — the backend opens them
 on demand the first time `write_to_devices` sees a `ScreenDocument`
 output. `Editor.devices` only carries the hardware kinds the editor
 needs: `Screen`, `Keyboard`, `Mouse`.
+
+Pass `mcp=true` to start an MCP server alongside the loop.
 """
-function run!(backend::Backend, projection, document)
+function run!(backend::Backend, projection, document; mcp::Bool=false)
     init!(backend)
     try
         editor = Editor(backend, document, projection,
                         Device[Screen(), Keyboard(), Mouse()])
-        run!(editor)
+        run!(editor; mcp=mcp)
     finally
         quit!(backend)
     end

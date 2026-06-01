@@ -24,6 +24,7 @@ import ..OperationApiModule: Operation
 import ..OperationModule: ReplaceSelectionOperation
 import ..PrimitiveModule: StringReplaceRangeOperation, NumberReplaceRangeOperation
 import ..ScreenDocumentModule: ScreenDocument, WindowDocument, EventEnvelope
+import ..ReferenceDispatchingModule: ReferenceDispatchingIoMap
 
 export CopyingProjection, CopyingProjectionIoMap
 
@@ -230,11 +231,11 @@ function projection_read(p::CopyingProjection, iomap::CopyingProjectionIoMap, en
         windows_iomap = _struct_field_iomap(iomap, "windows")
         windows_iomap === nothing && return nothing
         windows_iomap.children isa Vector || return nothing
-        for (i, child) in enumerate(windows_iomap.children)
-            child_input = child.input
+        for (i, raw_child) in enumerate(windows_iomap.children)
+            child_input = raw_child.input
             child_input isa WindowDocument || continue
             child_input.id === env.window_id || continue
-            op = projection_read(child.projection, child, env)
+            op = projection_read(raw_child.projection, raw_child, env)
             return _prefix_op_with_steps(op,
                 (FieldReference("windows"), ElementReference(i)))
         end
@@ -251,12 +252,18 @@ function projection_read(p::CopyingProjection, iomap::CopyingProjectionIoMap, en
     end
 end
 
+# Field-keyed lookup of a struct child iomap. Strips transparent wrappers
+# (e.g. ReferenceDispatchingIoMap) so the returned iomap is the actual
+# CopyingProjectionIoMap whose `.children` we want to walk further.
 function _struct_field_iomap(iomap::CopyingProjectionIoMap, name::AbstractString)
     iomap.field_names isa Vector || return nothing
     idx = findfirst(==(name), iomap.field_names)
     idx === nothing && return nothing
-    return iomap.children[idx]
+    return _unwrap_to_copying(iomap.children[idx])
 end
+
+_unwrap_to_copying(im) = im
+_unwrap_to_copying(im::ReferenceDispatchingIoMap) = _unwrap_to_copying(im.inner_iomap)
 
 # Prepend `steps` to the reference path inside `op` (if the op carries one).
 # Operations that target a captured Julia value directly (e.g. workbench

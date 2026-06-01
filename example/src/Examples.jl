@@ -63,11 +63,9 @@ end
 Open one window per example, side by side. Each example contributes a
 `WindowDocument` with the example's domain document as content; the
 composed projection dispatches each window's content to that example's
-projection by content type. When several examples share a root
-content type (e.g. two JSON examples), the **first** example's
-projection wins for that type — the second window's content will
-also be rendered through it. Pick examples with distinct domains for
-the cleanest demo.
+own projection by **reference path** (so two examples with the same
+content type — e.g. both JSON, both wrapped in `WidgetScrollPane` —
+still each render through their own pipeline).
 """
 function run_example(examples::Vector{Example}; width=2400, height=1600,
                      caching=false, scrolling=false, workbench=false, reset=false)
@@ -115,23 +113,43 @@ function run_example(examples::Vector{Example}; width=2400, height=1600,
     end
     screen = ScreenDocument(windows)
 
-    # Build the type dispatcher. The Screen/Window/CellVector layers stay
-    # in CopyingProjection so metadata is preserved; one entry per unique
-    # content type routes that subtree to the example's projection.
-    dispatch_pairs = Pair{DataType, Any}[
-        ScreenDocument => CopyingProjection(),
-        WindowDocument => CopyingProjection(),
-        CellVector     => CopyingProjection(),
-    ]
-    seen_types = Set{DataType}()
-    for (doc, proj) in zip(docs, projs)
-        T = typeof(doc)
-        T in seen_types && continue
-        push!(seen_types, T)
-        push!(dispatch_pairs, T => proj)
-    end
-    composed = RecursiveProjection(TypeDispatchingProjection(dispatch_pairs))
+    composed = _multi_window_projection(projs)
     run!(SdlBackend(), composed, screen)
+end
+
+# Build a projection that copies the ScreenDocument / WindowDocument spine
+# down to each `windows{i}.content` reference and applies the matching
+# example's projection only at that exact leaf. Dispatch by reference path
+# rather than content type so two examples with the same root document
+# type still each render through their own pipeline.
+#
+# CopyingProjection's CellVector path encodes element indices as
+# `PositionReference(i)` (the `{i}` form of `@reference`); the target
+# paths are constructed the same way so `reference_equal` works.
+function _multi_window_projection(projections::Vector)
+    n = length(projections)
+    targets = Vector{Any}(undef, n)
+    for i in 1:n
+        targets[i] = @reference windows{i}.content
+    end
+    return RecursiveProjection(ReferenceDispatchingProjection(ref -> begin
+        # Exact match — apply that window's example projection here. Wrap
+        # in NestingProjection so the inner projection's own recursion
+        # takes over for everything below this point; the outer recursion
+        # is shut off via PreservingProjection.
+        for i in 1:n
+            reference_equal(ref, targets[i]) || continue
+            return NestingProjection(projections[i];
+                                      recursion=PreservingProjection())
+        end
+        # Spine above any window's content target — copy through.
+        for t in targets
+            is_prefix_of(ref, t) || continue
+            return CopyingProjection()
+        end
+        # Anything else is outside the screen spine — preserve.
+        return PreservingProjection()
+    end))
 end
 
 function run_example(name="json"; kwargs...)
