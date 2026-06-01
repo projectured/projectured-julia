@@ -43,6 +43,7 @@ include("document/Xml.jl")
 include("document/FileSystem.jl")
 include("document/Clipboard.jl")
 include("document/Widget.jl")
+include("document/Layout.jl")
 include("document/Book.jl")
 include("document/Conversation.jl")
 # LLM backend (used as a field type by `WorkbenchAssistant`). Loads early
@@ -93,6 +94,7 @@ include("projection/primitive/FileSystemToSyntax.jl")
 include("projection/primitive/TextToString.jl")
 include("projection/primitive/ObjectToSyntax.jl")
 include("projection/primitive/WidgetToGraphics.jl")
+include("projection/primitive/LayoutToGraphics.jl")
 include("projection/primitive/BookToSyntax.jl")
 include("projection/primitive/LineNumbering.jl")
 include("projection/primitive/WordWrapping.jl")
@@ -235,6 +237,8 @@ using .WidgetModule: WidgetDocument, WidgetInsertion, WidgetForeign,
                      WidgetScrollPane, WidgetToolbar, WidgetScrollBar,
                      HideWidgetOperation, ShowWidgetOperation,
                      ScrollWidgetOperation, SelectTabOperation, SetScrollBarValueOperation
+using .LayoutModule: LayoutDocument,
+                     HorizontalLayout, VerticalLayout, GridLayout, FlowLayout
 using .ImageModule: ImageDocument, ImageInsertion, ImageForeign, ImageFile, ImageMemory
 using .ScreenDocumentModule: ScreenDocument, WindowDocument, EventEnvelope, WindowCloseRequest
 using .TextToStringModule: TextToString, TextTextToString, TextStringToString, TextNewlineToString
@@ -256,6 +260,11 @@ using .JuliaToSyntaxModule: JuliaToSyntax, JuliaIdentifierToSyntaxLeaf, JuliaInt
 using .CollectionToSyntaxModule: CollectionToSyntax, CollectionCellVectorToSyntax,
                                   CollectionListNodeToSyntax
 using .TextToGraphicsModule: TextToGraphics, TextToGraphicsIoMap
+using .LayoutToGraphicsModule: HorizontalLayoutToGraphicsCanvas,
+                               VerticalLayoutToGraphicsCanvas,
+                               GridLayoutToGraphicsCanvas,
+                               FlowLayoutToGraphicsCanvas,
+                               LayoutToGraphics
 using .WidgetToGraphicsModule: WidgetLabelToGraphicsCanvas, WidgetTextToGraphicsCanvas,
                                WidgetCheckboxToGraphicsCanvas, WidgetButtonToGraphicsCanvas,
                                WidgetTooltipToGraphicsCanvas, WidgetMenuToGraphicsCanvas,
@@ -461,6 +470,9 @@ export WidgetLabelToGraphicsCanvas, WidgetTextToGraphicsCanvas,
        WidgetSplitPaneToGraphicsCanvas, WidgetTabbedPaneToGraphicsCanvas,
        WidgetScrollPaneToGraphicsCanvas, WidgetScrollPaneToGraphicsCanvasIoMap
 export WidgetScrollPaneToGraphicsViewport, WidgetScrollPaneToGraphicsViewportIoMap
+export LayoutDocument, HorizontalLayout, VerticalLayout, GridLayout, FlowLayout
+export HorizontalLayoutToGraphicsCanvas, VerticalLayoutToGraphicsCanvas,
+       GridLayoutToGraphicsCanvas, FlowLayoutToGraphicsCanvas, LayoutToGraphics
 export GraphicsCanvasToGraphicsImage, GraphicsCaching
 export WorkbenchWorkbenchToWidgetShell,    WorkbenchWorkbenchToWidgetShellIoMap,
        WorkbenchPageToWidgetTabbedPane,    WorkbenchPageToWidgetTabbedPaneIoMap,

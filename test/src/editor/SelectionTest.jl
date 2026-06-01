@@ -102,8 +102,8 @@ end
 function test_selections()
     @testset "Selections" begin
         for example in examples
-            # Skip widget examples and workbench as they don't support selection navigation
-            example.name in ("widget", "widget_tabbed_pane", "workbench") && continue
+            # Skip widget / layout examples and workbench as they don't support selection navigation
+            example.name in ("widget", "widget_tabbed_pane", "layout", "workbench") && continue
             @testset "$(example.name)" begin
                 test_selection(example)
             end

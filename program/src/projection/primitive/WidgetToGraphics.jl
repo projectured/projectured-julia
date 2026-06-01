@@ -235,6 +235,12 @@ function _make_canvas(x::Int, y::Int, elems::Vector)
                    layout_none, true, Cell(nothing))
 end
 
+function _make_canvas(x::Int, y::Int, w::Int, h::Int, elems::Vector)
+    GraphicsCanvas(Int32(x), Int32(y), Int32(w), Int32(h),
+                   CellVector(Cell[Cell(e) for e in elems]),
+                   layout_none, true, Cell(nothing))
+end
+
 _empty_canvas() = GraphicsCanvas(Int32(0), Int32(0), Int32(0), Int32(0),
                                  CellVector(), layout_none, true, Cell(nothing))
 
@@ -270,10 +276,11 @@ function projection_print(p::WidgetLabelToGraphicsCanvas, w::WidgetLabel, recurs
     cox, coy = _content_offset(w)
     text = string(w.content)
     cw, ch = _text_size(p.measure, p.font, text)
+    tx, ty = _inset_total(w)
     elems = Any[]
     _push_box_rects!(elems, w, 0, 0, cw, ch)
     _push_text!(elems, p.font, text, cox, coy, p.default_fg)
-    SimpleIoMap(p, w, _make_canvas(Int(pos.x[]), Int(pos.y[]), elems))
+    SimpleIoMap(p, w, _make_canvas(Int(pos.x[]), Int(pos.y[]), cw + tx, ch + ty, elems))
 end
 
 function map_reference_forward(::WidgetLabelToGraphicsCanvas, iomap, reference)
@@ -296,6 +303,7 @@ function projection_print(p::WidgetTextToGraphicsCanvas, w::WidgetText, recursio
     cox, coy = _content_offset(w)
     text = string(w.content)
     cw, ch = _text_size(p.measure, p.font, text)
+    tx, ty = _inset_total(w)
     elems = Any[]
     cfc = w.content_fill_color
     if cfc isa StyleColor
@@ -304,7 +312,7 @@ function projection_print(p::WidgetTextToGraphicsCanvas, w::WidgetText, recursio
     end
     _push_box_rects!(elems, w, 0, 0, cw, ch)
     _push_text!(elems, p.font, text, cox, coy, p.default_fg)
-    SimpleIoMap(p, w, _make_canvas(Int(pos.x[]), Int(pos.y[]), elems))
+    SimpleIoMap(p, w, _make_canvas(Int(pos.x[]), Int(pos.y[]), cw + tx, ch + ty, elems))
 end
 
 function map_reference_forward(::WidgetTextToGraphicsCanvas, iomap, reference)
@@ -327,10 +335,11 @@ function projection_print(p::WidgetCheckboxToGraphicsCanvas, w::WidgetCheckbox, 
     cox, coy = _content_offset(w)
     text = w.content === true ? "[x]" : "[ ]"
     cw, ch = _text_size(p.measure, p.font, text)
+    tx, ty = _inset_total(w)
     elems = Any[]
     _push_box_rects!(elems, w, 0, 0, cw, ch)
     _push_text!(elems, p.font, text, cox, coy, p.default_fg)
-    SimpleIoMap(p, w, _make_canvas(Int(pos.x[]), Int(pos.y[]), elems))
+    SimpleIoMap(p, w, _make_canvas(Int(pos.x[]), Int(pos.y[]), cw + tx, ch + ty, elems))
 end
 
 function map_reference_forward(::WidgetCheckboxToGraphicsCanvas, iomap, reference)
@@ -353,12 +362,14 @@ function projection_print(p::WidgetButtonToGraphicsCanvas, w::WidgetButton, recu
     sz  = w.size::Point2D
     cox, coy = _content_offset(w)
     tx, ty = _inset_total(w)
-    cw = max(0, Int(sz.x[]) - tx)
-    ch = max(0, Int(sz.y[]) - ty)
+    bw = Int(sz.x[])
+    bh = Int(sz.y[])
+    cw = max(0, bw - tx)
+    ch = max(0, bh - ty)
     elems = Any[]
     _push_box_rects!(elems, w, 0, 0, cw, ch)
     _push_text!(elems, p.font, string(w.content), cox, coy, p.default_fg)
-    SimpleIoMap(p, w, _make_canvas(Int(pos.x[]), Int(pos.y[]), elems))
+    SimpleIoMap(p, w, _make_canvas(Int(pos.x[]), Int(pos.y[]), bw, bh, elems))
 end
 
 function map_reference_forward(::WidgetButtonToGraphicsCanvas, iomap, reference)
