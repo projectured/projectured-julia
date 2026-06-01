@@ -1,4 +1,4 @@
-# Widget Layout via Reactive Cells
+# Layout Allocation via Layout Documents
 
 > **Note:** This document was generated with AI assistance as a brainstorming
 > artifact. It is a collection of raw ideas and directions, not a specification.
@@ -7,623 +7,546 @@
 
 ## Summary
 
-Today every widget that has a `position::Point2D` and `size::Point2D`
-carries those as `Cell`s, but they're written once at construction time
-with hardcoded numbers (see [WorkbenchToWidget.jl:111-216](../../program/src/projection/primitive/WorkbenchToWidget.jl#L111-L216)).
-`WidgetSplitPane` doesn't have its own `size`; it walks a cursor through
-a `sizes::CellVector` of slot widths and stacks children at those
-offsets, never telling the children how big their slot is. So a
-1600-wide `WidgetScrollPane` inside a 200-wide split slot still renders
-at 1600.
+ProjecturEd already has intrinsic layout documents — `HorizontalLayout`,
+`VerticalLayout`, `GridLayout`, `FlowLayout` (see
+[layout-documents.md](../done/layout-documents.md)) — that stack children
+at their *natural* sizes by recursing first and then reading each child
+canvas's `w`/`h`. They cannot yet do *extrinsic* layout: split a fixed
+parent extent (a window, a pane) across children, or make a child *fill
+remaining space*. Today that gap is filled by widget-specific
+positioning — `WidgetSplitPane` walks a `sizes::CellVector` and never
+tells a child how big its slot is, so a 1600-wide `WidgetScrollPane` in a
+200-wide slot still renders at 1600.
 
-This plan introduces a small set of layout helpers in `WidgetModule`
-(`compute_extents`, `cumulative_offset`, `wire_split_h!`, `wire_split_v!`)
-and uses them **inline inside the projection that creates the widget
-tree** — `WorkbenchWorkbenchToWidgetShell.projection_print` and friends.
-Each helper wires the child's `position`/`size` cells as computed cells
-reading from the parent's geometry. Because cells track dependencies
-automatically, a single write to the root's size (window resize)
-invalidates the transitive set of position/size cells, which in turn
-invalidates the canvases that consumed them — incremental relayout
-falls out of the existing reactive plumbing described in
-[reactive-cells.md](../../guide/reactive-cells.md).
+This plan extends the existing layout documents with extrinsic
+allocation, built on two ideas:
 
-There is **no separate layout DSL**, no `LayoutSpec` value type, no
-`splith`/`splitv` constructors. Layout is just inline `Cell(() -> ...)`
-and `setfn!` calls inside the projection that already builds the widget
-tree. The reactive system *is* the DSL.
+1. A small **`LayoutConstraint`** wrapper document carries the per-child
+   degrees of freedom (`min` / `preferred` / `max` / `weight`, per axis)
+   so that widgets and canvases stay *pure intrinsic-size* types — no
+   layout policy pollutes them.
+2. A layout reads the **available space for itself** from its
+   [`ProjectionContext`](../tentative/projection-context.md), runs a
+   one-pass allocation over its children's constraints, and passes each
+   child's resolved extent *down* to that child through the same context.
+
+The two directions never collide: **intrinsic size flows up** through
+`canvas.w`/`.h`, **available size flows down** through the context. The
+decision is **per axis** — a layout given an available *width* but no
+available *height* allocates horizontally and stacks vertically by
+content (exactly what word wrap needs).
+
+There is **no widget-side wiring**: the previous `wire_split_h!` /
+`wire_split_v!` helpers and the practice of writing allocated sizes onto
+widget `size` cells are **dropped**. `WidgetSplitPane` becomes a
+constrained `HorizontalLayout` / `VerticalLayout`.
 
 ---
 
 ## Why this shape
 
-The projection system already re-runs `projection_print` when its input
-invalidates and caches the output via the iomap. That mechanism is the
-right place for "the widget tree gets rebuilt when something
-structural changes." A separate construction-time DSL would have
-duplicated that.
-
-- **No new types.** `Cell(() -> shell_size.x[] - 200)` is what a "30%
-  width minus 200" policy looks like. Helper functions encapsulate the
-  arithmetic; values flow through `Cell`s.
-- **No side effect during the *graphics* print.** The widget→graphics
-  printer (the per-frame inner loop) stays purely read-only. The
-  `setfn!` calls happen inside the upstream projection that *builds*
-  the widget tree — and they're safe there because they target cells
-  the same call just allocated, which have no downstream dependents at
-  the moment of wiring. (See "The wiring safety invariant" below.)
-- **Dynamic tree shape works for free.** Add a page to the workbench →
-  the workbench-to-widget projection re-runs → a new pane comes out
-  pre-wired. No external `layout!` call to remember.
-- **One source of truth.** The same `projection_print` that allocates
-  `WidgetSplitPane` chooses the slot policies and writes them into the
-  children's geometry cells. There's no chance of `WidgetSplitPane.sizes`
-  drifting from the child sizes — they're computed from the same input.
-- **Selection / iomap mapping stays consistent.** The widget tree and
-  its iomap are built in the same function, so slot reordering updates
-  both at once.
+- **Reuse the layout layer that already exists.** The intrinsic layout
+  documents already recurse, measure children, and emit a positioned
+  canvas. Extrinsic allocation is the same machinery with one extra
+  input (available space) and one extra output (per-child available
+  space). No second layout system.
+- **Keep documents pure.** A widget's `size` and a canvas's `w`/`h`
+  always mean *intrinsic* size. Layout policy lives in a separate
+  `LayoutConstraint` document, so `WidgetButton` / `WidgetLabel` / etc.
+  never grow layout fields, and a shared child can carry different
+  policies at different graph positions.
+- **One direction each.** Available space flows strictly *down* (context);
+  intrinsic size flows strictly *up* (`canvas.w`/`.h`). Nothing is ever
+  written back onto a child's intrinsic-size cell, so there is no
+  print-time side effect and no wiring-safety footgun.
+- **Incremental for free.** A window resize writes one root cell; the
+  allocation cells and the per-child available cells downstream of it
+  invalidate; the next print pulls the re-allocated, re-wrapped result.
+  No projection re-runs for a pure geometry change.
+- **Dynamic tree shape works for free.** Add a child → the layout
+  projection re-runs → a fresh allocation comes out. Same
+  rebuild-on-structural-change story the projection system already gives.
 
 ---
 
-## The helpers
+## Two channels: intrinsic up, available down
 
-A small module-internal API in `WidgetModule`. None of these are exported
-as a user-facing DSL — they're tools for *projection authors*.
+Layout needs two opposite-flowing channels, and they must stay distinct:
 
-### Size policies
+| Channel | Direction | Carrier | Meaning |
+|---|---|---|---|
+| **Intrinsic size** | child → parent (up) | `GraphicsCanvas.w`/`.h`, `WidgetXxx.size` | the content's *natural* size |
+| **Available size** | parent → child (down) | `ProjectionContext` property | the space the parent *allocated* |
 
-Plain immutable value types:
+Intrinsic-size cells are **never overwritten** with an allocated value.
+The allocation a layout computes for a child is pushed *down* to that
+child as a context property (`:available_width` / `:available_height`),
+never written onto the child's `size` or `canvas.w`/`.h`. The downward
+channel is owned by the
+[`ProjectionContext`](../tentative/projection-context.md) plan; this plan
+owns the *policy* (the `LayoutConstraint` document) and the *allocation*
+(the one-pass algorithm a layout runs).
 
-```julia
-abstract type SizePolicy end
-struct FixedSize   <: SizePolicy; px::Int       end   # exactly px pixels
-struct FractionSize <: SizePolicy; r::Float64   end   # r ∈ [0,1] of the parent's extent on the split axis
-struct FlexSize    <: SizePolicy; weight::Float64 end # default weight = 1.0
-```
+Because the channels are independent per axis, a layout can be extrinsic
+on one axis and intrinsic on the other. Word wrap is the canonical case:
+**width down** (the layout hands the child its allocated width), **height
+up** (the child wraps to that width and reports the resulting height via
+`canvas.h`). The reactive graph *is* the two-pass measure — no explicit
+measure/arrange phase.
 
-A projection that wants drag-to-resize stores a slot's policy in a
-`Cell{SizePolicy}` so a `ResizeSplitOperation` can write into it; a
-static layout passes plain `FixedSize(200)` values. `compute_extents`
-accepts either a `Vector{SizePolicy}` or a `Vector{Cell{SizePolicy}}`
-— in both cases its output is a `Vector{Cell{Int}}` and the dependency
-graph naturally tracks whichever the caller chose.
+## Layout constraints: the `LayoutConstraint` document
 
-### Allocator
-
-```julia
-"""
-Given a Cell{Int} carrying the parent's extent on the split axis and a
-list of slot policies + a fixed inter-slot gap, return one Cell{Int}
-per slot holding that slot's allocated pixel extent. The returned cells
-read `parent_extent` lazily, so the reactive engine invalidates only
-the slot extents that actually depend on it.
-"""
-compute_extents(parent_extent::Cell, policies::Vector, gap::Int) -> Vector{Cell{Int}}
-
-"""
-Given a vector of slot extents and a fixed inter-slot gap, return one
-Cell{Int} per slot holding that slot's pixel offset from the start of
-the parent's content area.
-"""
-cumulative_offset(extents::Vector{Cell{Int}}, gap::Int) -> Vector{Cell{Int}}
-```
-
-Allocation order, all integer pixels:
-
-1. `FixedSize` slots reserve their exact `px`.
-2. `FractionSize` slots reserve `round(r * available_extent)` of the
-   *full* parent extent (not what's left after Fixed).
-3. `FlexSize` slots share whatever is left, in proportion to `weight`.
-4. Overflow (Fixed+Fraction > parent) shrinks Flex first, then
-   proportionally squeezes Fractions. Underflow remainder goes to the
-   last Flex, or to the last Fraction if there's no Flex.
-
-### Wirers
+Per-child layout policy lives in a dedicated wrapper document, so it
+travels *with* the child in the document graph and keeps every other
+document free of layout fields:
 
 ```julia
-"""
-Wire each child widget's position/size cells so they describe a row of
-slots inside `parent_position` × `parent_size`. Children are laid out
-along the x axis; each fills the parent's y extent. `gap` reserves
-inter-slot pixels for splitter rects.
-
-Safe to call only on children whose position/size cells have no
-downstream dependents yet — i.e. children allocated in the same call
-as this wiring. See "The wiring safety invariant".
-"""
-function wire_split_h!(parent_position::Point2D,
-                       parent_size::Point2D,
-                       children::Vector{<:WidgetDocument},
-                       policies::Vector,
-                       gap::Int=0)
-    extents = compute_extents(getfield(parent_size, :x), policies, gap)
-    offsets = cumulative_offset(extents, gap)
-    for (i, child) in enumerate(children)
-        setfn!(getfield(getfield(child, :position), :x),
-               () -> parent_position.x[] + offsets[i][])
-        setfn!(getfield(getfield(child, :position), :y),
-               () -> parent_position.y[])
-        setfn!(getfield(getfield(child, :size), :x),
-               () -> extents[i][])
-        setfn!(getfield(getfield(child, :size), :y),
-               () -> parent_size.y[])
-    end
+@document struct LayoutConstraint <: Document
+    child::Document        # wrapped document (widget, layout, anything)
+    min_width::Cell        # Cell{Int};     default 0
+    preferred_width::Cell  # Cell{Int};     default = child's intrinsic w
+    max_width::Cell        # Cell{Int};     default typemax
+    weight_width::Cell     # Cell{Float64}; default 0.0
+    min_height::Cell
+    preferred_height::Cell
+    max_height::Cell
+    weight_height::Cell
+    selection::Reference
 end
-
-wire_split_v!(...)  # symmetric, swapping x ↔ y
 ```
 
-That's the whole "DSL". Two wirers, two allocator helpers, three
-policy types. Everything else is ordinary Julia inside a
-`projection_print`.
+**The point of a separate document is to keep every other document pure.**
+A widget's `size` and a `GraphicsCanvas`'s `w`/`h` always mean *intrinsic*
+size — the natural size of the content. They never carry layout policy.
+`min` / `preferred` / `max` / `weight` are layout concerns, so they live
+in the wrapper, not on `WidgetButton`, `WidgetLabel`, or the canvas. This
+also respects the DAG: the same child can be wrapped by two different
+`LayoutConstraint`s in two places, or wrapped in one place and bare in
+another.
+
+Each of the four is a `Cell`, so it can be a calculation —
+`preferred_width = Cell(() -> child_canvas.w[])` defers to the child's
+intrinsic width, and an explicit value overrides it. A bare (unwrapped)
+child behaves as `{min:0, preferred:intrinsic, max:∞, weight:0}`, so
+wrapping is opt-in and adds no boilerplate for the common case.
+
+The four degrees of freedom express the familiar sizing policies:
+
+| Policy | min | max | preferred | weight |
+|---|---|---|---|---|
+| `FixedSize(200)` | 200 | 200 | 200 | 0 |
+| `FractionSize(0.3)` | 0 | ∞ | `0.3 * parent` | 0 |
+| `FlexSize(1.0)` | 0 | ∞ | 0 | 1.0 |
+| intrinsic | `content_w` | `content_w` | `content_w` | 0 |
+| bounded flex | 100 | 400 | 0 | 1.0 |
+
+## The allocation algorithm (per axis, one pass)
+
+A layout runs the allocation **independently per axis**, on whichever
+axis it received available space for. For a main axis of extent
+`available` over children with inter-child `gap`:
+
+1. **Seed.** Give every child its `preferred`, clamped to `[min, max]`.
+2. **Slack.** `remaining = available - Σ actualᵢ - gaps`.
+3. **Grow** (`remaining > 0`): distribute to children with `weight > 0`
+   in proportion to weight, each capped at its `max`. Leftover (all
+   maxed out) is dropped — the layout under-fills.
+4. **Shrink** (`remaining < 0`): take from children with `weight > 0`
+   in proportion to weight, each floored at its `min`. If still over
+   budget (all minned out), overflow is allowed — clipping is the
+   parent's concern (e.g. a scroll pane).
+
+The output is one `actual` extent **cell** per child. Each step reads
+cells (`available`, the children's `min` / `preferred` / `max` /
+`weight`), so `actual` is itself a computed `Cell{Int}` — a change to the
+available extent or any constraint re-runs only the allocation, not the
+projection.
+
+**Cross axis.** On an axis the layout did *not* receive available space
+for, it falls back to the existing intrinsic behaviour (sum of preferred
+for the stacking axis, max of preferred for the cross axis) — the
+already-implemented layout-document math.
+
+**The invariant.** `actual` is **never** written back onto a child's
+intrinsic `size` / `w` / `h`. It is the layout's placement value, and —
+for children that must *adapt* to it (word wrap, scroll viewport) — it is
+handed to the child as `:available_width` / `:available_height` on the
+[context](../tentative/projection-context.md), never onto the document.
+
+## How a layout chooses intrinsic vs. extrinsic
+
+The choice is **per axis** and driven entirely by the context — there is
+no mode flag on the document:
+
+```julia
+function projection_print(p::HorizontalLayoutToGraphicsCanvas, doc, recursion, ctx)
+    avail_w = get_property(ctx, :available_width,  nothing)  # Cell{Int} or nothing
+    avail_h = get_property(ctx, :available_height, nothing)
+
+    # 1. Recurse first (unchanged): project each child to get its canvas,
+    #    its intrinsic w/h, and its LayoutConstraint (if wrapped).
+    children = collect_children(doc, recursion, ctx)
+
+    # 2. Main axis (x for a horizontal layout):
+    actual_w = avail_w === nothing ?
+        intrinsic_main(children) :              # sum of preferred — current behaviour
+        allocate(avail_w, children, doc.gap)    # one-pass allocation
+
+    # 3. Cross axis (y): intrinsic unless the layout got an available height.
+    ...
+end
+```
+
+- `avail_* === nothing` → the layout is intrinsic on that axis: it uses
+  the existing sum/max-of-preferred math from the layout-documents plan.
+- `avail_*` present → the layout allocates that extent across children
+  by their `LayoutConstraint`.
+
+A bare child (not wrapped in `LayoutConstraint`) contributes
+`{min 0, preferred = intrinsic, max ∞, weight 0}`, so an unconstrained
+extrinsic layout pins each child to its intrinsic size and leaves any
+slack unused — predictable and boilerplate-free.
+
+## Passing available size down to children
+
+After allocating, the layout hands each child its resolved extent on the
+context when it recurses — as a **`Cell`**, so the child can wire its own
+adaptive cells to it without re-projection:
+
+```julia
+for (i, child) in enumerate(children)
+    child_ctx = child_context(ctx, FieldReference("children"), RangeReference(i))
+    avail_w !== nothing && (child_ctx = with_property(child_ctx, :available_width,  actual_w[i]))
+    avail_h !== nothing && (child_ctx = with_property(child_ctx, :available_height, actual_h[i]))
+    cim = projection_print(recursion, child.doc, recursion, child_ctx)
+    # position the returned canvas at the running offset (unchanged math)
+end
+```
+
+The child reads `:available_width` if it cares (e.g. `TextToGraphics`
+uses it as the wrap threshold) and reports its resulting height back up
+via `canvas.h`, which the layout reads to place it on the cross axis.
+A child that ignores the property renders intrinsically — no opt-in cost.
 
 ---
 
 ## Example: the workbench shell
 
-Today's `WorkbenchWorkbenchToWidgetShell.projection_print` looks like
-[WorkbenchToWidget.jl:106-121](../../program/src/projection/primitive/WorkbenchToWidget.jl#L106-L121):
+Today the shell hardcodes split sizes
+([WorkbenchToWidget.jl:106-121](../../program/src/projection/primitive/WorkbenchToWidget.jl#L106-L121)).
+Under this plan the shell's content is a tree of layout documents whose
+children are wrapped in `LayoutConstraint` only where a non-default
+policy is needed:
 
 ```julia
-function projection_print(::WorkbenchWorkbenchToWidgetShell, w, recursion, reference)
-    nav_iomap  = _recurse(recursion, w.navigation_page,  …)
-    edit_iomap = _recurse(recursion, w.editing_page,     …)
-    info_iomap = _recurse(recursion, w.information_page, …)
-    right_split = WidgetSplitPane(:vertical,
-                                  WidgetDocument[edit_iomap.output, info_iomap.output];
-                                  sizes=[800, 200])
-    main_split  = WidgetSplitPane(:horizontal,
-                                  WidgetDocument[nav_iomap.output, right_split];
-                                  sizes=[200, 1000])
-    shell = WidgetShell(main_split;
-                        size=Point2D(1280, 720),
-                        border=_PAD5)
-    WorkbenchWorkbenchToWidgetShellIoMap(nothing, w, shell, nav_iomap, edit_iomap, info_iomap)
+function projection_print(::WorkbenchWorkbenchToWidgetShell, w, recursion, ctx)
+    # Right column: editor fills, info pane fixed 200 tall.
+    right = VerticalLayout([
+        LayoutConstraint(w.editing_page;     weight_height = Cell(1.0)),          # flex
+        LayoutConstraint(w.information_page; min_height = Cell(200),
+                                             max_height = Cell(200)),             # fixed 200
+    ]; gap = 3)
+
+    # Top level: navigator fixed 200 wide, right column fills.
+    main = HorizontalLayout([
+        LayoutConstraint(w.navigation_page; min_width = Cell(200), max_width = Cell(200)),
+        LayoutConstraint(right;             weight_width = Cell(1.0)),
+    ]; gap = 3)
+
+    shell = WidgetShell(main; border = _PAD5)
+
+    # Seed the root available size from the window (a fixed size today;
+    # WindowDocument.width/height once multiple-windows.md lands).
+    root_ctx = with_property(with_property(ctx,
+                   :available_width,  shell_w_cell),     # Cell(1280) today
+                   :available_height, shell_h_cell)      # Cell(720)  today
+    projection_print(recursion, shell, recursion, root_ctx)
 end
 ```
 
-After this plan:
-
-```julia
-function projection_print(::WorkbenchWorkbenchToWidgetShell, w, recursion, reference)
-    nav_iomap  = _recurse(recursion, w.navigation_page,  …)
-    edit_iomap = _recurse(recursion, w.editing_page,     …)
-    info_iomap = _recurse(recursion, w.information_page, …)
-
-    shell = WidgetShell(nothing; size=Point2D(1280, 720), border=_PAD5)
-
-    # Right column: editor on top (70%), info pane below (fixed 200).
-    right_split = WidgetSplitPane(:vertical,
-                                  WidgetDocument[edit_iomap.output, info_iomap.output])
-    wire_split_v!(right_split.position, right_split.size,
-                  [edit_iomap.output, info_iomap.output],
-                  [FlexSize(1.0), FixedSize(200)],
-                  3)  # 3px splitter gap
-
-    # Top-level: navigator left (fixed 200), right column right (flex).
-    main_split = WidgetSplitPane(:horizontal,
-                                 WidgetDocument[nav_iomap.output, right_split])
-    wire_split_h!(main_split.position, main_split.size,
-                  [nav_iomap.output, right_split],
-                  [FixedSize(200), FlexSize(1.0)],
-                  3)
-
-    # The main split fills the shell's content area.
-    wire_split_h!(shell.position, shell.size,
-                  [main_split],
-                  [FlexSize(1.0)])
-
-    shell.content = main_split
-
-    WorkbenchWorkbenchToWidgetShellIoMap(nothing, w, shell, nav_iomap, edit_iomap, info_iomap)
-end
-```
-
-A 30% / 70% horizontal split is one substitution — `FixedSize(200)`
-becomes `FractionSize(0.30)`, `FlexSize(1.0)` becomes `FractionSize(0.70)`.
-
-Selection mapping at [WorkbenchToWidget.jl:227-274](../../program/src/projection/primitive/WorkbenchToWidget.jl#L227-L274)
-is unaffected: the shell still contains a `WidgetSplitPane` whose
-`elements[1]` is the nav iomap output and `elements[2]` is the right
-split.
+- A 30% / 70% horizontal split is `weight_width = Cell(0.3)` /
+  `Cell(0.7)` on the two children (or `min = max = fraction` for hard
+  fractions).
+- `WidgetSplitPane` is gone — `main` and `right` *are* the splits.
+- Selection mapping routes through the layout's `children[i]` reference,
+  exactly as the already-implemented layout projections do — no special
+  case for splits.
 
 ---
 
-## How sizes and positions actually propagate
+## Reactivity and propagation
 
-`wire_split_h!` is the only place writes happen. Inside it:
-
-```julia
-extents[i] = Cell(() -> compute_slot_i_extent(parent_size.x[], policies, gap))
-offsets[i] = Cell(() -> sum(extents[1..i-1]) + i*gap)
-
-setfn!(child.position.x.cell, () -> parent_position.x[] + offsets[i][])
-setfn!(child.size.x.cell,     () -> extents[i][])
-```
-
-The dependency graph after wiring (for one child):
+All writes happen on the *intrinsic* (up) and *available* (down) cells;
+the layout never mutates a child's size. The dependency graph for one
+extrinsic axis:
 
 ```
-parent_size.x  ─┐
-                ├─→ extents[i] ─┬─→ offsets[i] ─→ child.position.x
-                │               │
-                │               └────────────────→ child.size.x
-                │
-parent_pos.x ───┼─────────────────────────────────→ child.position.x
+window_w (write)
+  └→ root :available_width cell
+       └→ layout allocate() → actual_w[i]      (one cell per child)
+            └→ child's :available_width         (context cell handed down)
+                 └→ child wrap_w → [re-wrap] → child canvas.h   (flows back up)
+                      └→ layout cross-axis placement → outer canvas
 ```
 
-A resize → write to `parent_size.x[]` → invalidates `extents[i]` and
-`offsets[i]` → invalidates `child.position.x` and `child.size.x` →
-invalidates whatever canvas read those cells. Recompute is pulled
-lazily on the next print, exactly as documented in
-[reactive-cells.md:46-55](../../guide/reactive-cells.md#L46-L55).
+A window resize writes one cell. The allocation cells, the per-child
+available cells, and any child cell that read them (wrap width, scroll
+viewport) invalidate; their dependents (re-wrapped `canvas.h`, the
+layout's placement cells) invalidate in turn. The next print pulls only
+the dirty subtree. No `projection_print` re-runs for a pure geometry
+change — structural changes (adding/removing a child) still re-run the
+layout projection, as in the layout-documents plan.
 
-### Window-size propagation
-
-The shell's `size::Point2D` is the root parent. Today it's a primitive
-cell set at construction. Once the multiple-windows plan lands
-([multiple-windows.md](multiple-windows.md)), `WindowDocument.width`
-and `.height` describe the OS window, and the natural follow-up is:
-
-```julia
-shell_size_x = Cell(() -> window_doc.width[])
-shell_size_y = Cell(() -> window_doc.height[])
-shell = WidgetShell(...; size=Point2D(shell_size_x, shell_size_y))
-```
-
-A SDL resize → backend writes into `window_doc.width[]` → shell size
-cells invalidate → split extents invalidate → child geometry
-invalidates → next print redraws only the dirty subtrees.
-
-No new mechanism is needed — the dependency graph the helpers build
-is the propagation path.
+Verify with `perf_counters()`
+([reactive-cells.md:58-63](../../guide/reactive-cells.md#L58-L63)) that a
+resize invalidates only the size-dependent cells, not the whole document.
 
 ---
 
-## The wiring safety invariant
+## Replacing `WidgetSplitPane`
 
-`setfn!` is documented as "switch this cell to a thunk; invalidate
-every downstream dependent." If the cell being wired already has
-dependents, those get invalidated immediately — a write that ripples.
-That would be a real side effect during print.
+`WidgetSplitPane` exists only to position a row/column of children at
+fixed offsets. A constrained `HorizontalLayout` / `VerticalLayout` does
+the same thing and more (it can flex, fill, and word-wrap its children),
+so the split pane is replaced rather than extended.
 
-The reason the helpers are safe is structural: each helper is called
-on **children allocated in the same `projection_print` call**. At the
-moment of `setfn!`, those cells have no downstream dependents yet —
-the downstream graphics projection hasn't seen them. `setfn!`'s
-invalidation walk visits an empty set. It's idempotent setup, not a
-propagating mutation.
+- **Static splits** → a `HorizontalLayout` / `VerticalLayout` whose
+  children are `LayoutConstraint`-wrapped with the desired weights or
+  fixed extents.
+- **Draggable splitter** → an operation, not a wiring call. Store the
+  draggable slot's `weight_width` (or `preferred_width`) as a writable
+  `Cell` on its `LayoutConstraint`; a `ResizeSplitOperation` writes the
+  new value; the allocation cells downstream pick it up and the geometry
+  re-flows. No projection re-run, no `setfn!` into a live tree.
+- **Splitter visuals** (the draggable bar between slots) → the layout
+  projection emits a thin `GraphicsRect` in each inter-child `gap`,
+  computed from the neighbouring children's placement cells.
 
-The rule for future projection authors:
-
-> `wire_split_h!` / `wire_split_v!` may only be called on widgets
-> constructed in the same `projection_print` invocation. Never reach
-> into a long-lived widget tree from inside a printer and rewire it.
-
-If a projection ever wants to mutate the wiring of an existing widget
-(e.g. swap a slot's policy at runtime), the right tool is *not*
-calling the wirer again — it's making the policy itself a
-`Cell{SizePolicy}` and writing into that cell. The wirer's existing
-extent thunks will pick the change up reactively.
-
-A defensive runtime check ("error if `setfn!` would invalidate a
-non-empty dependent set") could be added to the wirers themselves
-during development; remove for production.
+Because the split is now a layout document, it composes uniformly: a
+slot can hold another layout, a widget, a scroll pane, or any document
+with a `…ToGraphicsCanvas` projection — the same composition the
+layout-documents plan already provides.
 
 ---
 
-## What changes in the widget tree
+## What changes (and what doesn't)
 
-### `WidgetSplitPane`
+### New: the `LayoutConstraint` document
 
-Needs `position::Point2D` and `size::Point2D` of its own. Today it has
-neither — it has only orientation, elements, and `sizes`. Adding them
-is the minimum structural change.
+A new document type (above) plus a trivial projection: recurse into
+`child`, pass the context through unchanged, forward the child's canvas
+as its own output. The constraint values are read by the *parent*
+layout, not by the wrapper's own projection. Lives in `LayoutModule`
+alongside the existing layout documents.
 
-`sizes::CellVector` can either be kept as a redundant cache that the
-wirer writes into (so `WidgetSplitPaneToGraphicsCanvas` keeps reading
-it for splitter-bar placement) or removed in favour of having the
-projection compute splitter positions from `position`/`size` and the
-children's geometry. Start with "keep `sizes`, write to it from the
-wirer for splitter visuals"; remove as a follow-up cleanup.
+### Changed: the four layout projections read/write the context
+
+`HorizontalLayoutToGraphicsCanvas`, `VerticalLayoutToGraphicsCanvas`,
+`GridLayoutToGraphicsCanvas`, `FlowLayoutToGraphicsCanvas` each gain:
+per-axis reading of `:available_*` from their own context, the one-pass
+allocation when present, and handing each child its `actual` extent on
+the child's context. With no `:available_*` present they behave exactly
+as today (pure intrinsic).
 
 ### `WidgetScrollPane`
 
-Already has `position::Point2D` and `size::Point2D`. The wirer writes
-into both for the pane itself.
+A scroll pane gives its content an *unbounded* main axis but a *bounded*
+cross axis. So when it recurses into its content it sets only the
+cross-axis `:available_*` (the viewport extent) and leaves the scroll
+axis unset (intrinsic). The content's intrinsic extent on the scroll
+axis becomes the scrollable surface; the pane clips to its own `size`.
+No new field is required — the asymmetry is just which `:available_*` it
+passes.
 
-If a projection wants to lay out content *inside* a scroll pane that
-extends past the viewport, it needs an explicit "content surface"
-geometry to wire children against — the viewport size won't do,
-because that's what `Flex` would read and the content would never
-exceed the viewport. Add one field:
+### Unchanged
 
-```julia
-content_size::Point2D   # extent of the scrollable content surface
-```
-
-Defaults to `size` (a computed cell mirroring the pane's own size) so
-nothing changes for callers that don't need it. `WidgetScrollPaneToGraphicsCanvas`
-keeps using `size` for viewport clipping and doesn't need to change.
-
-### `WidgetShell`
-
-No structural change. `size` already exists; the wirer treats it as a
-root parent.
-
-### Other compound widgets
-
-`WidgetComposite`, `WidgetTitlePane`, `WidgetTabbedPane` are not in
-scope. They can adopt the same pattern (and the same wirers) when a
-caller needs it — none of them need it for the current workbench.
+`WidgetShell`, `WidgetButton`, `WidgetLabel`, and every other widget keep
+their current fields and projections. They gain nothing layout-specific;
+their `size` stays intrinsic. `WidgetSplitPane` is removed (see above).
 
 ---
 
 ## Implementation Steps
 
-### Step 1 — Add `position` and `size` to `WidgetSplitPane`
+### Step 1 — `LayoutConstraint` document
 
-- Edit the `@document struct WidgetSplitPane` in
-  [Widget.jl:554-566](../../program/src/document/Widget.jl#L554-L566)
-  to include `position::Point2D` and `size::Point2D`.
-- Update its constructor with default `Point2D(0,0)` for position and
-  `Point2D(0,0)` for size (the wirer overrides both immediately).
-- `WidgetSplitPaneToGraphicsCanvas.projection_print` doesn't need to
-  read them yet; the existing cursor-walks-`sizes` logic still works
-  unchanged in this step.
+- Add `LayoutConstraint` to `LayoutModule` (fields above), with
+  convenience constructors defaulting each field (`min=0`,
+  `preferred = Cell(() -> child_canvas.w[])` resolved lazily,
+  `max=typemax`, `weight=0.0`).
+- A trivial `LayoutConstraintToGraphicsCanvas` projection that forwards
+  the child's canvas and context unchanged.
 
-### Step 2 — `SizePolicy` and the allocator
+### Step 2 — The allocation helper
 
-- New file `program/src/document/WidgetLayout.jl` (or extend
-  `Widget.jl`) defining `SizePolicy`, `FixedSize`, `FractionSize`,
-  `FlexSize`, `compute_extents`, `cumulative_offset`.
-- Unit-test the allocator directly: given a parent extent cell and
-  a list of policies, assert each output cell holds the right pixel
-  count; mutate the parent extent and re-read.
+- A pure `allocate(available::Cell, children, gap) -> Vector{Cell{Int}}`
+  implementing the one-pass algorithm, returning one `actual` cell per
+  child. Reads each child's `min` / `preferred` / `max` / `weight`
+  (defaults for bare children).
+- Unit-test directly: given an available-extent cell and a set of
+  constraints, assert each `actual` cell; mutate the available cell and
+  re-read; mutate a weight and re-read.
 
-### Step 3 — Wirers
+### Step 3 — Per-axis context in the layout projections
 
-- `wire_split_h!`, `wire_split_v!` in the same module.
-- Each calls `compute_extents` + `cumulative_offset` once, then loops
-  over children calling four `setfn!`s per child.
-- Optional debug check: assert each cell being wired has an empty
-  dependent set at wire time.
+- In each `…LayoutToGraphicsCanvas`, read `:available_width` /
+  `:available_height` from the context; allocate on present axes, fall
+  back to intrinsic on absent axes.
+- Hand each child its `actual` extent on the child's context before
+  recursing. Position the returned canvases with the existing offset
+  math.
+- Confirm the intrinsic path is unchanged when no `:available_*` is
+  present (existing layout-document tests must still pass).
 
-### Step 4 — `WidgetScrollPane.content_size`
+### Step 4 — `WidgetScrollPane` passes cross-axis available only
 
-- Add the field; constructor defaults it to a computed cell that
-  mirrors `size`.
-- No change to `WidgetScrollPaneToGraphicsCanvas` needed.
+- When the scroll pane recurses into its content, set the cross-axis
+  `:available_*` to the viewport extent and leave the scroll axis unset.
+- No structural change to the widget.
 
-### Step 5 — Convert `WorkbenchToWidget`
+### Step 5 — Seed the root available size
 
-- Replace the hardcoded numbers in
-  [WorkbenchToWidget.jl:106-216](../../program/src/projection/primitive/WorkbenchToWidget.jl#L106-L216)
-  with `wire_split_h!` / `wire_split_v!` calls as shown in the
-  example above.
-- Pick policies that reproduce today's layout (`FixedSize(200)` /
-  `FlexSize(1.0)` etc.) so the first frame is pixel-equivalent.
-- Confirm `WorkbenchWorkbenchToWidgetShellIoMap`'s downstream
-  consumers (selection, reader) still resolve correctly.
+- The shell projection seeds `:available_width` / `:available_height`
+  from the window size (fixed today; `WindowDocument.width` / `.height`
+  once multiple-windows lands) before projecting its content.
 
-### Step 6 — Make the shell size reactive on window resize
+### Step 6 — Replace `WidgetSplitPane` in `WorkbenchToWidget`
 
-- Today: shell `size` is primitive `Point2D(1280, 720)`. The backend
-  can `setval!` into `shell.size.x` / `.y` on `SDL_WINDOWEVENT_RESIZED`.
-- Once `WindowDocument` lands, swap the primitive cells for computed
-  cells reading `window_doc.width` / `.height`.
-- Verify with `perf_counters()` (see
-  [reactive-cells.md:58-63](../../guide/reactive-cells.md#L58-L63))
-  that a resize invalidates only the cells that depend on size, not
-  the whole document.
+- Rebuild the workbench content as constrained `HorizontalLayout` /
+  `VerticalLayout` as in the example, picking weights / fixed extents
+  that reproduce today's pixels for the first frame.
+- Remove `WidgetSplitPane` and its projection once nothing references it.
+- Confirm selection / reader mapping resolves through the layouts'
+  `children[i]` references.
 
-### Step 7 — Splitter drag
+### Step 7 — Splitter drag (optional)
 
-- Define `ResizeSplitOperation(split::WidgetSplitPane, slot_index::Int, new_policy::SizePolicy)`.
-- For a split that wants to be draggable, store its policies as
-  `Cell{SizePolicy}` in the projection's iomap (so they survive across
-  projection re-runs) and pass them to the wirer as cells.
-- `WidgetSplitPaneToGraphicsCanvas.projection_read` recognises
-  splitter-rect hits and emits the operation.
-- The evaluator writes into the policy cell. The extent thunks pick
-  it up; geometry invalidates; redraw.
+- Make a draggable slot's `weight_*` (or `preferred_*`) a writable cell
+  on its `LayoutConstraint`. A `ResizeSplitOperation` writes it; the
+  allocation cells re-flow. The layout projection emits the splitter
+  rect in the gap and routes hits to the operation.
 
-### Step 8 — Optional cleanup: remove `WidgetSplitPane.sizes`
-
-- Once everyone goes through the wirers, `sizes` is redundant.
-- Migrate `WidgetSplitPaneToGraphicsCanvas` to compute splitter rect
-  positions from `position`, `size`, and child geometry instead of
-  from `sizes`.
-- Drop the field.
-
-### Step 9 — Tests
+### Step 8 — Tests
 
 - Allocator tests (Step 2).
-- A test that constructs the workbench shell and asserts each child's
-  `position`/`size` after `projection_print`.
-- A test that mutates the shell's size and re-reads every child cell;
-  asserts via `perf_counters()` that only the expected cells
-  invalidated.
-- A test for a 30%/70% split nested inside a 70%/30% split.
-- A test that adding a page to the workbench (re-running
-  `projection_print`) produces a wired pane.
+- Word-wrap test: a text child inside a width-constrained horizontal
+  layout re-wraps when the available width changes; assert via
+  `perf_counters()` that only the wrap/height cells invalidate.
+- A fixed + flex split that reproduces the workbench; mutate the root
+  available size and assert child extents.
+- Nested fractions (30/70 inside 70/30).
+- Structural: add a child → layout re-projects → fresh allocation.
 
 ---
 
 ## What is intentionally NOT here
 
-- **No `LayoutSpec`, no DSL value type, no `splith`/`splitv` sugar
-  constructors.** Layout is whatever Julia code the projection
-  author writes, with the wirer helpers doing the per-slot
-  arithmetic. The previous draft of this plan had a DSL; it was
-  redundant with the projection system's own
-  "rebuild-when-input-changes" mechanism.
-- **No measure/arrange two-pass layout.** This is a constraint-based
-  allocator over a tree the projection just built, not a
-  content-aware layout engine. A leaf that needs content-driven
-  sizing has the projection measure it and pass `FixedSize(measured_px)`.
-- **No min/max constraints.** `FixedSize`, `FractionSize`, `FlexSize`
-  only. Min/max can be added as a new policy type without changing
-  the wirer shape.
-- **No alignment / cross-axis policies.** Children always fill the
-  cross axis. Centring or trailing alignment is a follow-up.
+- **No new layout *primitive*.** Allocation rides on the four existing
+  layout documents; this plan adds policy (`LayoutConstraint`) and the
+  allocation pass, not new container types.
+- **No explicit measure/arrange two-pass.** Intrinsic-up + available-down
+  over reactive cells *is* the two pass; there is no separate measure
+  phase.
+- **No writing allocated size onto widgets.** The dropped wiring approach
+  did this; the invariant here is that intrinsic-size cells are
+  read-only to layout.
+- **No content-aware main-axis preferred that depends on the
+  allocation.** `preferred` on the main axis must be intrinsic (see the
+  cycle caveat below).
 - **No animation.** Cells either hold a value or don't.
 
 ---
 
 ## Limitations
 
-Most of the limitations listed in earlier drafts dissolved when the
-layout moved into the creating projection — dynamic tree shape, the
-double-`layout!` footgun, and the `sizes`/policy duplication are all
-gone. What's left is the irreducible cost of an integer-pixel
-constraint allocator.
-
-### No content-aware sizing (no measure/arrange)
-
-The allocator never inspects what a leaf *wants* to be.
-`FixedSize(80)` is 80 pixels even if the leaf's text needs 200;
-`FlexSize(1.0)` collapses to zero pixels if `FixedSize` siblings
-consume the parent extent. There is no `Auto` policy.
-
-For widgets whose natural size is content-driven (a `WidgetLabel`, a
-`WidgetButton` sized to its text), the *projection* measures and
-passes `FixedSize(measured_px)`. The measure function is already
-threaded through the projection (see
-[WidgetToGraphics.jl:226-228](../../program/src/projection/primitive/WidgetToGraphics.jl#L226-L228)),
-so this is mechanically easy; it's just one more thing the
-projection has to do.
-
 ### Fractions don't compose multiplicatively across nesting
 
-`FractionSize(0.30)` reads its parent's extent, not its grandparent's.
-A `wire_split_h!(...)` with two `FractionSize(0.5)` children inside a
-horizontal `FractionSize(0.30)` slot of a 1280-wide root gives each
-grandchild 192px — half of 384, not half of 1280. This is the natural
-meaning but catches people used to CSS Grid's `fr` units or to global
-percentage schemes.
+A `weight`/fraction reads its *parent's* allocated extent, not its
+grandparent's. Two `0.5`-weighted grandchildren inside a `0.30` slot of
+a 1280-wide root get half of 384, not half of 1280. Natural, but catches
+people used to global percentage schemes.
 
 ### Pixel rounding can leave 1px asymmetry
 
-Fractions produce floats; per-slot rounding can sum to one pixel less
-or more than the parent extent. The plan picks "residual goes to the
-last Flex; if no Flex, the last Fraction absorbs ±1px." Total stays
-exact; adjacent slots can have a single-pixel asymmetry under
-adversarial sizes. Visible only if you're looking for it.
+Weighted shares are floats; per-child rounding can sum to ±1px of the
+available extent. Pick a residual rule (e.g. the last weighted child
+absorbs the remainder). Total stays exact; adjacent slots can differ by
+a pixel under adversarial sizes.
 
-### Sub-pixel allocation under shrink
+### Overflow under shrink is clipping, not graceful
 
-When the parent extent is smaller than the sum of `FixedSize` slots,
-the allocator squeezes proportionally to integer pixels, which can
-collapse a `FixedSize(8)` to zero. There is no minimum-pixel floor.
-The shell is expected to be at least as wide as its Fixed total;
-below that, users get visual breakage rather than graceful overflow.
+When `available` is below the sum of `min`s, children stay at `min` and
+the layout overflows its box. Containing that is the parent's job (a
+scroll pane, or a larger window). There is no automatic squeeze below
+`min`.
 
-### No cross-axis policies; children always fill the cross axis
+### Main-axis `preferred` must stay intrinsic (cycle risk)
 
-A `wire_split_h!` child cannot ask to be 80% of the parent's height
-while siblings are 100%. Centring, trailing alignment, "fill less
-than 100% of the cross axis" — none of that is in the model. If a
-leaf needs cross-axis padding, it goes through its `margin`/`padding`
-inset fields, not through layout.
-
-### Unbounded `FlexSize` inside a `Scroll` has no reference frame
-
-`WidgetScrollPane.content_size` defaults to mirror `size` (the
-viewport). If a projection wires inner children with `FlexSize`
-against an unbounded content surface, there's no finite extent to
-flex against — `Flex` reads the viewport, content never grows.
-
-In practice an inner scrolled layout must either use `FixedSize`
-throughout, or have its `content_size` explicitly driven by some
-other cell (the total height of a virtual list, etc.). There is no
-"shrink-wrap to children" mode.
+If a child's main-axis `preferred` reads the *available* extent the
+layout is about to allocate from it, the dependency graph cycles. For
+text, "preferred width = natural single-line width" is safe. Keep that
+rule for any content that participates in main-axis allocation.
+Cross-axis preferred depending on the allocated main axis (e.g. wrapped
+height depending on width) is fine — that's the intended up-channel.
 
 ### Cell graph growth
 
-Each laid-out child adds at minimum 4 cells (px, py, sx, sy). Each
-split adds one extent cell and one offset cell per slot. A tree with
-N nodes adds ~6N cells. Cheap — the reactive engine is small — but
-invalidation walks scale with the dependent-set size. Measure with
-`perf_counters()` for very deep nesting.
+Each constrained child adds a handful of cells (the constraint fields +
+`actual`). A tree with N nodes adds O(N) cells; invalidation walks scale
+with dependent-set size. Measure with `perf_counters()` for very deep
+nesting.
 
 ### Resize during a print is best-effort
 
-The editor's main loop runs read → eval → print. A resize that fires
-between the read and the print uses whichever cell values were live
-when the print pulled. No atomic per-frame snapshot. The next frame
-catches up, invisible at 60fps but can briefly desync a single-frame
-screenshot.
+The main loop runs read → eval → print. A resize that fires between read
+and print uses whichever cell values were live when the print pulled.
+The next frame catches up — invisible at 60fps, but can briefly desync a
+single-frame screenshot.
 
-### The wiring safety invariant is a rule, not a check (by default)
+### Structural change re-projects the layout
 
-The wirers are safe because they target cells whose dependent set is
-empty at wire time. Calling a wirer on a widget that's *already* in a
-rendered tree would invalidate downstream during print — a real bug.
-The plan documents the rule; it doesn't enforce it. An optional
-runtime assertion in the wirers is cheap to add during development.
-
-### Re-running a projection rebuilds the widget tree
-
-When the workbench-to-widget projection re-runs (structural change
-upstream), it allocates new `WidgetSplitPane`s, new cells, new
-everything. Downstream iomap caches that pointed at the old widgets
-go stale; the whole subtree re-renders next print. This is correct
-and standard for ProjecturEd projections, but it means structural
-changes are *not* incremental at the widget level — only geometry
-changes are. If structural churn turns out to be frequent (e.g.
-animated pane appearance), more aggressive identity-preservation
-would be needed; out of scope for v1.
-
-### User-supplied policy cells can introduce cycles
-
-If a projection wires a policy `Cell{SizePolicy}` to read from a
-*downstream* cell (a child's measured size, say), it constructs a
-cycle. The reactive engine doesn't detect cycles; the next pull will
-loop. Policies should depend on upstream state only.
+Adding/removing a child re-runs the layout projection (fresh allocation,
+fresh cells) — correct and standard, but not incremental at the
+structural level. Only geometry changes (resize, drag) are incremental.
 
 ---
 
 ## Open Questions
 
-- **Should the wirers live in `WidgetModule` or a separate `WidgetLayoutModule`?**
-  Probably the latter; layout is a concern that builds on the widget
-  types but isn't part of them.
-- **Should `FractionSize` be "of the original parent extent" or "of
-  what remains after Fixed"?** Plan picks the first because 30%
-  means 30% of the whole. Worth confirming with a concrete example
-  before locking in.
-- **Granularity of cells.** Four cells per child (px, py, sx, sy)
-  lets the engine invalidate only the axis that changed. One
-  `Cell{Rect}` per child would be cheaper to allocate but coarser to
-  invalidate. Keep four for now.
-- **Should there be a debug-time check that wiring targets have empty
-  dependent sets?** Cheap, catches the one real footgun, can be
-  gated by a build flag.
-- **Per-window content projection.** Open from
-  [multiple-windows.md](multiple-windows.md); doesn't affect this
-  plan but the shell-size-from-`WindowDocument` wiring depends on
-  it landing.
+- **Where does `LayoutConstraint` live — `LayoutModule` or its own
+  module?** Probably `LayoutModule`, next to the layouts that consume it.
+- **Per-axis `weight` vs. a single value?** Per-axis (`weight_width` /
+  `weight_height`) lets a child flex horizontally but not vertically; a
+  single value is simpler. Plan picks per-axis.
+- **`preferred` default = intrinsic reads the child canvas.** The
+  wrapper's `preferred` cell closes over the child's projected canvas.
+  Confirm the recurse-first ordering makes that canvas available before
+  the parent reads `preferred`.
+- **Grid / Flow under available space.** This plan describes the
+  row/column case precisely; how `GridLayout` distributes available
+  width across columns (and `FlowLayout` across its fixed `max_width`)
+  needs its own short spec.
+- **Full `ProjectionContext` migration first?** Yes (decided): the
+  `:available_*` channel rides on the finished context. See
+  [projection-context.md](../tentative/projection-context.md).
 
 ---
 
 ## Relationship to Existing Architecture
 
-| Concept | Current | With layout helpers |
-|---------|---------|---------------------|
-| Where layout is set up | Hardcoded `Point2D(...)` in the projection that builds the widget tree | Same projection, but uses `wire_split_h!` / `wire_split_v!` over `SizePolicy` values instead of magic numbers |
-| `WidgetSplitPane.position` / `.size` | Don't exist | Added; act as the parent geometry for the wirer |
-| Child size inside `WidgetSplitPane` | Hardcoded on the child; `sizes[i]` placement only | Computed Cell derived from parent `size` + `SizePolicy` |
-| `WidgetShell.size` | Primitive cell, set at construction | Same. (Optionally a computed cell reading `WindowDocument.width/height` once multi-window lands.) |
-| Window resize → layout | Not propagated | Single primitive write → invalidates dependent cells → next print recomputes only what changed |
-| `WidgetSplitPane.sizes` | Authoritative for slot widths | Initially redundant (wirer writes into it for splitter visuals); removed in Step 8 |
-| `WidgetScrollPane.content_size` | Doesn't exist; nested layout reads `size` | New field; mirrors `size` by default, overridable for content larger than the viewport |
-| Layout DSL | — | None. Projection code uses `wire_split_h!` / `wire_split_v!` directly. |
-| New projection types | — | None. |
-| Dynamic tree shape | Not supported beyond what `projection_print` re-runs already give you | Same — and the wirers play nicely with it, since re-running the projection produces a freshly-wired tree |
+| Concept | Current | With layout allocation |
+|---------|---------|------------------------|
+| Layout layer | Intrinsic layout documents (positioning only) | Same documents, now also extrinsic via context-supplied available space |
+| Layout policy | None (or hardcoded `sizes` on `WidgetSplitPane`) | `LayoutConstraint` wrapper document (min/preferred/max/weight, per axis) |
+| Widget `size` / canvas `w`/`h` | Mixed meaning | Strictly *intrinsic*; never overwritten by layout |
+| Available space | Not represented | Flows down via `ProjectionContext` `:available_*` cells |
+| `WidgetSplitPane` | Walks a `sizes` cursor; children don't know their slot | Replaced by a constrained `HorizontalLayout` / `VerticalLayout` |
+| Window resize → layout | Not propagated | One root-cell write → allocation cells → child available cells → re-flow |
+| Splitter drag | — | Operation writes a `weight`/`preferred` cell on a `LayoutConstraint` |
+| New projection types | — | `LayoutConstraintToGraphicsCanvas` (trivial forwarder); the four layouts gain context handling |
 
-The change is fully additive on the document side (new fields on
-`WidgetSplitPane` and `WidgetScrollPane`) and zero on the graphics
-projection side. Existing pipelines keep working until a projection
-opts in by calling `wire_split_h!` / `wire_split_v!` instead of
-hardcoding sizes.
+This plan is additive on the document side (one new `LayoutConstraint`
+type) and a focused change on the projection side (the four layout
+projections read/write the context). Its one hard prerequisite is the
+`ProjectionContext` migration that carries the downward available-size
+channel.

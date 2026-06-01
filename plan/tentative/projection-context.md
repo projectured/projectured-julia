@@ -31,38 +31,64 @@ minimal change.
 
 ```julia
 struct ProjectionContext
-    reference::ReferencePath          # mandatory — existing behaviour
-    depth::Int                        # tree depth (0 = root)
-    parent_projection::Any            # the projection that created this ctx (or nothing)
-    properties::Dict{Symbol, Any}     # open-ended per-projection data
+    reference::ReferencePath                      # mandatory — existing behaviour
+    depth::Int                                    # tree depth (0 = root)
+    available_width::Union{Nothing, Cell{Int}}    # parent-allocated width (down), or nothing
+    available_height::Union{Nothing, Cell{Int}}   # parent-allocated height (down), or nothing
+    properties::Dict{Symbol, Any}                 # open-ended per-projection data
 end
 ```
+
+`available_width` / `available_height` are explicit, typed fields rather
+than `properties` keys because they are *universal* layout concerns that
+any container may set and any content may read — promoting them to fields
+keeps that path type-stable and avoids boxing the reactive `Cell` in
+`Any`. They are `Cell{Int}` (not plain `Int`) so the allocation can change
+reactively without re-projecting — see [The cell approach](#the-cell-approach-reactive-no-re-projection)
+below. (`Cell` is imported from `ReactiveModule`.)
 
 **Convenience constructor** preserving the old call pattern:
 
 ```julia
-ProjectionContext() = ProjectionContext(EmptyReferencePath(), 0, nothing, Dict{Symbol,Any}())
-ProjectionContext(ref::ReferencePath) = ProjectionContext(ref, 0, nothing, Dict{Symbol,Any}())
+ProjectionContext() =
+    ProjectionContext(EmptyReferencePath(), 0, nothing, nothing, Dict{Symbol,Any}())
+ProjectionContext(ref::ReferencePath) =
+    ProjectionContext(ref, 0, nothing, nothing, Dict{Symbol,Any}())
 ```
 
 **Builder helpers** so projections extend the context without knowing its
 full set of fields:
 
 ```julia
-# Extend reference + bump depth (most common case)
+# Extend reference + bump depth (most common case). The available-size
+# fields are inherited unchanged — a pass-through wrapper keeps the
+# parent's allocation; a layout overrides it explicitly with
+# `with_available_size` (below).
 function child_context(ctx::ProjectionContext, steps::ReferenceStep...)
     ProjectionContext(
         append_reference(ctx.reference, steps...),
         ctx.depth + 1,
-        ctx.parent_projection,
+        ctx.available_width,
+        ctx.available_height,
         copy(ctx.properties))
+end
+
+# Set / override the size allocated to a child. Either axis may be left
+# as-is by omitting the keyword. Values are `Cell{Int}` so the allocation
+# can change reactively without re-projecting (see below).
+function with_available_size(ctx::ProjectionContext;
+                             width::Union{Nothing, Cell{Int}}=ctx.available_width,
+                             height::Union{Nothing, Cell{Int}}=ctx.available_height)
+    ProjectionContext(ctx.reference, ctx.depth,
+                      width, height, ctx.properties)
 end
 
 # Set / override a property
 function with_property(ctx::ProjectionContext, key::Symbol, value)
     props = copy(ctx.properties)
     props[key] = value
-    ProjectionContext(ctx.reference, ctx.depth, ctx.parent_projection, props)
+    ProjectionContext(ctx.reference, ctx.depth,
+                      ctx.available_width, ctx.available_height, props)
 end
 
 # Read a property (with default)
@@ -111,20 +137,114 @@ function projection_print(p::JsonArrayToSyntaxNode, j::JsonArray, recursion, ctx
 end
 ```
 
-### 2. Available-width / layout constraints
+### 2. Available-size / layout constraints
 
-A parent projection (e.g. a table cell, a split pane, or a scroll
-container) knows how many pixels or columns are available. It can put
-`:available_width` into the context so that downstream projections adapt:
+A parent projection (a table cell, a split pane, a layout document, or a
+scroll container) knows how many pixels are available for a given child.
+It sets the context's `available_width` (and/or `available_height`) field
+so that downstream projections adapt:
 
 ```julia
-ctx = with_property(ctx, :available_width, 400)
-# child TextToGraphics reads:
-max_w = get_property(ctx, :available_width, p.max_width)
+ctx = with_available_size(ctx; width = Cell(() -> 400))
+# child TextToGraphics reads the field directly:
+max_w = ctx.available_width === nothing ? p.max_width : ctx.available_width[]
 ```
 
 This eliminates the need to hard-code `max_width` in `TextToGraphics` or
 thread it through multiple layers manually.
+
+#### Why the context is the only correct channel for available space
+
+Available space is **contextual**, not a property of the document. A
+document can appear at multiple positions in the object graph (the
+document graph is a DAG, not a tree), and each occurrence may be given a
+different amount of space by a different parent. Storing the allocation on
+the document would force one document to carry a single parent's
+allocation — wrong the moment it is shared.
+
+This is the *same* reason `reference` is contextual: the same document at
+two graph positions has two different references. Available space has the
+identical shape, so it belongs in the same per-invocation context that
+`reference` already lives in — not on the document, and not in the
+projection struct.
+
+#### Intrinsic up, available down
+
+Layout needs two opposite-flowing channels, and they must stay distinct:
+
+| Channel | Direction | Carrier | Meaning |
+|---|---|---|---|
+| **Intrinsic size** | child → parent (up) | `GraphicsCanvas.w`/`.h`, `WidgetXxx.size` | the content's *natural* size |
+| **Available size** | parent → child (down) | `ProjectionContext.available_width` / `.available_height` | the space the parent *allocated* |
+
+Intrinsic-size cells are never overwritten with an allocated value; the
+allocation flows only through the context. The layout-policy degrees of
+freedom (min / preferred / max / weight) and the allocation algorithm that
+*produces* the available size live in a separate `LayoutConstraint`
+document — see [widget-layout.md](../pending/widget-layout.md). **This plan
+owns only the downward channel** that carries the resulting available
+size to the child.
+
+#### The cell approach (reactive, no re-projection)
+
+The available-size fields are typed `Union{Nothing, Cell{Int}}` — a
+`Cell{Int}`, not a plain `Int`, for incremental relayout:
+
+```julia
+ctx = with_available_size(ctx; width = alloc_w_cell)   # alloc_w_cell::Cell{Int}
+```
+
+A plain value bakes the allocation into the projection output, so any
+change (window resize, sibling resize) forces the parent to re-project the
+child just to hand it a new number. A `Cell` instead lets the child *wire*
+its own adaptive cells to read the available-size cell, so the reactive
+engine propagates a change without re-running `projection_print`:
+
+```julia
+function projection_print(p::TextToGraphics, t, recursion, ctx)
+    avail_w = ctx.available_width                            # Cell{Int} or nothing
+    wrap_w  = avail_w === nothing ? Cell(() -> p.max_width) :
+                                    Cell(() -> avail_w[] - 2 * p.padding)
+    # text layout reads wrap_w[] to choose line breaks;
+    # output canvas.h is a computed cell over wrap_w → re-wraps lazily.
+end
+```
+
+Resize flow with the cell approach:
+
+```
+window_w (write) → alloc_w_cell → wrap_w → [re-wrap] → canvas.h → parent vertical layout
+```
+
+A single write to `window_w` invalidates exactly the cells downstream of
+the available-width cell. No projection re-runs; the next print pulls the
+re-wrapped result. This is the same incremental story the rest of the
+reactive system provides — the context cell just extends the dependency
+graph across the parent → child boundary.
+
+#### Worked example: word wrap
+
+Word wrap is the canonical case where **width is extrinsic (top-down) and
+height is intrinsic (bottom-up)**:
+
+1. Parent computes the child's allocated width as `alloc_w_cell`.
+2. Parent recurses with `with_available_size(ctx; width = alloc_w_cell)`.
+3. Child reads `ctx.available_width`, sets `wrap_w`, breaks lines at that
+   width.
+4. Child's `canvas.h` is a computed cell over `wrap_w` (more wrapping →
+   taller) — flowing back *up* via the intrinsic-size channel.
+5. Parent reads `canvas.h` to place the child vertically.
+
+The two channels carry the two axes: width down through the context,
+height up through `canvas.h`. The reactive graph *is* the two-pass
+measure — no explicit measure/arrange phase is needed.
+
+**Caveat — preferred-main-axis must stay intrinsic.** A child's preferred
+size on the *main* axis (flowing up) must not itself depend on the
+available size on that axis (flowing down), or the dependency graph
+cycles. For text, "preferred width = natural single-line width" is safe
+because it doesn't read the allocation. Keep that rule for any content
+that participates in main-axis allocation.
 
 ### 3. Theme / style inheritance
 
@@ -263,7 +383,8 @@ Once the plumbing is done, individual projections can opt in to context
 features incrementally:
 
 1. `depth` — add depth-based auto-collapse to `JsonArrayToSyntaxNode`.
-2. `:available_width` — have `WidgetToGraphics` set it for children.
+2. `available_width` / `available_height` — have `WidgetToGraphics` set them
+   for children via `with_available_size`.
 3. `:theme` — prototype a `ThemeProjection` higher-order wrapper.
 
 Each of these is an independent, additive change.
@@ -292,7 +413,7 @@ Each of these is an independent, additive change.
 |---|---|
 | Performance: `Dict` allocation per recursive call | Use `copy` only when a property is actually added; most calls just bump depth + extend reference. Consider a persistent/immutable dict later. |
 | API churn: every projection method signature changes | Phase 0 bridge (`to_context`) allows gradual migration; one module at a time. |
-| Over-engineering: properties bag becomes a grab-bag | Keep the named fields (`reference`, `depth`, `parent_projection`) for universal concerns; reserve `properties` for genuinely per-projection data. Establish conventions in the guide. |
+| Over-engineering: properties bag becomes a grab-bag | Keep the named fields (`reference`, `depth`, `available_width`, `available_height`) for universal concerns; reserve `properties` for genuinely per-projection data. Establish conventions in the guide. |
 | Breaking `ReferenceDispatchingProjection` | It reads `.reference` explicitly — after the change it reads `ctx.reference`. Mechanical. |
 
 ---
@@ -303,11 +424,15 @@ Each of these is an independent, additive change.
    for reactive invalidation. Mutable would avoid copies but risks
    accidental cross-contamination between branches.
 
-2. **Typed properties vs Dict?** A `Dict{Symbol,Any}` is maximally
-   flexible but loses type safety. An alternative is a type-parameterised
-   context or a chain-of-responsibility pattern (each projection wraps the
-   context in its own typed layer). Start with Dict, graduate to typed
-   layers if hot properties emerge.
+2. **Typed fields vs Dict?** A `Dict{Symbol,Any}` is maximally flexible
+   but loses type safety and boxes values in `Any`. The policy is to
+   *promote hot, universal properties to explicit typed fields* — which
+   is exactly what `available_width` / `available_height` are: typed
+   `Union{Nothing, Cell{Int}}` fields rather than `:available_width` /
+   `:available_height` Dict keys, so layout code stays type-stable and the
+   reactive cell isn't boxed. The `properties` Dict remains for genuinely
+   open-ended, per-projection data (theme, breadcrumbs, debug flags).
+   Promote any property to a field once it becomes hot or universal.
 
 3. **Should `recursion` also live in the context?** It's another piece of
    downward-flowing state. Merging it would simplify the signature to
@@ -320,7 +445,8 @@ Each of these is an independent, additive change.
 ## Summary
 
 Replace the bare `ReferencePath` 4th argument with a `ProjectionContext`
-that carries `reference` + `depth` + extensible `properties`. Migration
+that carries `reference` + `depth` + explicit `available_width` /
+`available_height` fields + an extensible `properties` Dict. Migration
 is mechanical (rename + wrap), risk is low (bridge type during transition),
 and the payoff is a clean channel for depth-aware rendering, layout
 constraints, theming, focus tracking, and diagnostics — all without
