@@ -11,7 +11,6 @@ is handled by the existing text-rendering machinery rather than a
 manual widget-position layout.
 """
 function make_assistant_projection_example(; measure=sdl_measure_text)
-    # Use the repo-bundled font (Tuffy isn't always installed system-wide).
     font = font_ubuntu_monospace_regular_24
     # Dark text — the SDL backend uses a cream background; the workbench's
     # default `(0xee, 0xee, 0xee, 0xff)` pale-gray is for dark themes only.

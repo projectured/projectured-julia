@@ -1,6 +1,6 @@
 
 function make_workbench_projection_example(; measure=sdl_measure_text)
-    font = StyleFont("/usr/share/fonts/truetype/tuffy/tuffy_regular.ttf", 24)
+    font = font_ubuntu_regular_24
     fg   = (0xee, 0xee, 0xee, 0xff)
     w2g  = WidgetToGraphics(font; measure=measure, default_fg=fg)
     combined_w2g = RecursiveProjection(TypeDispatchingProjection(vcat(

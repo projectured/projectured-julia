@@ -7,7 +7,7 @@ nodes to their `…ToGraphicsCanvas` projections and any other document
 (widgets in this example) to `WidgetToGraphics`.
 """
 function make_layout_projection_example(; measure=sdl_measure_text)
-    font = StyleFont("/usr/share/fonts/truetype/tuffy/tuffy_regular.ttf", 24)
+    font = font_ubuntu_regular_24
     # Dark foreground — this example renders directly onto the backend's
     # default (light) background, without a `WidgetShell` to provide a
     # dark fill behind it.

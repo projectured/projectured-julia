@@ -1,7 +1,7 @@
 
 function make_widget_projection_example(; measure=sdl_measure_text)
     SequentialProjection(
-        RecursiveProjection(WidgetToGraphics(StyleFont("/usr/share/fonts/truetype/tuffy/tuffy_regular.ttf", 24);
+        RecursiveProjection(WidgetToGraphics(font_ubuntu_regular_24;
                                              measure=measure,
                                              default_fg=(0xee, 0xee, 0xee, 0xff))),
     )
