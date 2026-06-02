@@ -7,10 +7,11 @@ EditorModule so the Editor type is available.
 module OperationModule
 
 import ..OperationApiModule: Operation, evaluate_operation
-import ..DocumentApiModule: clear_selection!, set_selection!
+import ..DocumentApiModule: Document, clear_selection!, set_selection!
 import ..ReferenceModule: ReferencePath, ConcreteReferencePath, FieldReference, RangeReference, is_element_reference
 import ..ReactiveModule: Cell
-export ReplaceSelectionOperation, QuitEditorOperation, QuitEditorException, replace_selection!
+export ReplaceSelectionOperation, QuitEditorOperation, QuitEditorException, replace_selection!,
+       OpenWindowOperation, CloseWindowOperation
 
 function evaluate_operation(op::Nothing, document) end
 
@@ -45,6 +46,55 @@ end
 function evaluate_operation(op::ReplaceSelectionOperation, document)
     clear_selection!(document)
     set_selection!(document, op.path)
+end
+
+"""
+    OpenWindowOperation(; id, title, x, y, width, height, bg, style, content)
+
+Operation that requests a new `WindowDocument` (with the given fields) be
+added to the screen. Produced by `TooltipDecoratorProjection` when a
+tooltip should become visible; intercepted by `WindowManagerProjection`,
+which appends (or updates) the matching `WindowDocument` on its input
+`ScreenDocument.windows`.
+
+The fields mirror `WindowDocument`'s schema 1:1 — the manager hands them
+straight through.
+"""
+struct OpenWindowOperation <: Operation
+    id::Symbol
+    title::String
+    x::Int
+    y::Int
+    width::Int
+    height::Int
+    bg::NTuple{4,UInt8}
+    style::Symbol
+    content::Document
+end
+
+OpenWindowOperation(; id::Symbol,
+                      title::AbstractString = "",
+                      x::Integer = -1,
+                      y::Integer = -1,
+                      width::Integer = 0,
+                      height::Integer = 0,
+                      bg::NTuple{4,Integer} = (UInt8(253), UInt8(246), UInt8(227), UInt8(255)),
+                      style::Symbol = :tooltip,
+                      content::Document) =
+    OpenWindowOperation(id, String(title), Int(x), Int(y), Int(width), Int(height),
+                        (UInt8(bg[1]), UInt8(bg[2]), UInt8(bg[3]), UInt8(bg[4])),
+                        style, content)
+
+"""
+    CloseWindowOperation(id)
+
+Operation that requests the `WindowDocument` with the matching `id` be
+removed from the screen. Produced by `TooltipDecoratorProjection` when a
+tooltip should disappear; intercepted by `WindowManagerProjection`.
+A close for an unknown id is silently ignored.
+"""
+struct CloseWindowOperation <: Operation
+    id::Symbol
 end
 
 """
