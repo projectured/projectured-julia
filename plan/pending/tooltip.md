@@ -13,22 +13,37 @@
 
 ## Summary
 
-A tooltip is just another `WindowDocument` with `style = :tooltip` that the
-pipeline emits when some trigger condition holds and omits otherwise. The
-backend reconciler already opens, moves, resizes, and closes the native window;
-this plan only has to answer three tooltip-specific questions:
+A tooltip is just another `WindowDocument` (with `style = :tooltip`) inside the
+`ScreenDocument.windows` list. The backend reconciler already opens, moves,
+resizes, and closes the native window once a `WindowDocument` is present;
+this plan's job is to decide **when to add and remove** that window — and to do
+it *through the existing operation pipeline*, not by mutating the projection
+output.
 
-1. **When to show** — what condition makes a tooltip's `WindowDocument`
-   appear in the `ScreenDocument`.
-2. **What to show** — what document goes into its `content`, and which
-   projection renders it.
-3. **Where to place it** — how the `WindowDocument`'s `x`, `y`, `width`,
-   `height`, and `style` are derived from the current state (selection,
-   cursor position, content size).
+Two new pieces:
 
-All three are expressible as a projection that takes a `ScreenDocument` in and
-emits a `ScreenDocument` out with zero or one extra `WindowDocument` appended.
-No new output type, no backend changes, no new event routing.
+1. **`TooltipSource`** — a document that wraps a child node and carries
+   tooltip metadata (content, style, id). Lives in the input tree at every
+   point where a tooltip *could* appear.
+2. **`TooltipDecoratorProjection`** — projects a `TooltipSource` by
+   transparently projecting its child, while its reader watches for the
+   trigger condition. When the tooltip should appear, the reader emits an
+   `OpenWindowOperation`; when it should disappear, a `CloseWindowOperation`.
+
+These operations climb up the reader chain (the standard "operations bubble
+up with reference-prefixing" mechanism) until they reach a
+**`WindowManagerProjection`** wrapping the `ScreenDocument` case of the type
+dispatcher. The manager intercepts them and applies them as mutations on the
+`ScreenDocument.windows` `CellVector` of its input — pushing a new
+`WindowDocument` for open, removing the matching one for close.
+
+The next frame, the printer runs over the now-modified input, the new
+`WindowDocument` flows through the existing pipeline, and the backend
+reconciler opens the native tooltip window. Closing is the symmetric path.
+
+Net effect: the tooltip is a normal `WindowDocument` produced by mutating
+input state, just like every other window. No printer-side appendage, no
+backend changes, no new event routing.
 
 ---
 
@@ -36,159 +51,305 @@ No new output type, no backend changes, no new event routing.
 
 Before multiple windows, supporting tooltips meant inventing a multi-canvas
 output type *and* teaching the backend to manage extra windows. With multiple
-windows in place, the same need reduces to "emit one more
-`WindowDocument`" — a much smaller change that reuses the existing
-reconciliation, event envelope, and per-window style mechanisms.
+windows in place, the same need reduces to "ensure a `WindowDocument` exists
+in `screen.windows` exactly when a tooltip should be visible".
 
-The goal of this plan is therefore narrower:
+A natural temptation is to do this by *appending a window in the printer* —
+have a decorator projection inject an extra `WindowDocument` into the output
+`ScreenDocument` when triggered. That works, but it splits state across two
+places (the input tree describes most of the windows, the printer fabricates
+the rest), and it makes printer output depend on out-of-band timer state.
 
-- Give projections a clean way to add/remove a tooltip window.
-- Keep tooltip content, position, and trigger inside the projection layer,
-  not in the editor or the backend.
+This plan goes the other way: keep all window state in the input document
+tree, and let the tooltip projection *request* a window via an operation.
+That matches how every other state change in the system already works —
+events become operations, operations mutate the input, the printer is a
+pure function of the input.
+
+Goals:
+
+- Give projections a clean way to ask for a tooltip window without owning
+  the window list.
+- Keep tooltip content, trigger, and position decisions inside the
+  projection layer, not in the editor or the backend.
 - Stay consistent with the rule from multiple-windows.md that "every 'open
-  a window' feature is 'add a `WindowDocument`'".
+  a window' feature is 'add a `WindowDocument` to the input'".
 
 ---
 
 ## Design
 
-### Tooltip as an appended `WindowDocument`
-
-Pipeline shape after multiple-windows:
-
-```
-ScreenDocument(input) → RecursiveProjection(TypeDispatchingProjection(
-    ScreenDocument => CopyingProjection(),
-    WindowDocument => CopyingProjection(),
-    Any            => domain_projection,
-)) → ScreenDocument(output, with each WindowDocument.content rendered)
-```
-
-A tooltip is introduced by wrapping the `ScreenDocument` case so its output
-windows list gets an extra entry when triggered:
+### Pipeline shape
 
 ```julia
 projection = RecursiveProjection(
     TypeDispatchingProjection(
-        ScreenDocument => TooltipDecoratorProjection(
+        ScreenDocument  => WindowManagerProjection(
+            inner = CopyingProjection(),
+        ),
+        WindowDocument  => CopyingProjection(),
+        TooltipSource => TooltipDecoratorProjection(
             inner    = CopyingProjection(),
-            trigger  = (screen, selection) -> ...,
-            content  = (screen, selection) -> ...,
-            position = (screen, selection) -> (x, y, w, h),
+            trigger  = (tooltip, selection, event) -> ...,
+            content  = (tooltip, selection) -> ...,
+            position = (tooltip, selection) -> (x, y, w, h),
             style    = :tooltip,
-            id       = :tooltip,
+            id       = (tooltip) -> :tooltip,
             delay_ms = 300,
         ),
-        WindowDocument => CopyingProjection(),
-        Any            => domain_projection,
+        Any             => domain_projection,
     )
 )
 ```
 
-`TooltipDecoratorProjection`'s printer:
+Two new projection types: `TooltipDecoratorProjection` (input
+`TooltipSource`) and `WindowManagerProjection` (input `ScreenDocument`).
+Their print sides are transparent passthroughs to `inner`; the interesting
+behaviour is on the reader side, where operations flow.
 
-1. Runs `inner` to get the copied `ScreenDocument`.
-2. Evaluates `trigger` over the input + current selection.
-3. If triggered (and the show-delay timer has elapsed), builds a
-   `WindowDocument` whose `content` is the result of `content(...)`,
-   `style = :tooltip`, position from `position(...)`, and `id` as given.
-   Appends it to `windows`.
-4. If not triggered, omits the entry. The backend reconciler closes the
-   tooltip window on the next frame.
+### `TooltipSource`
 
-Its reader is `inner`'s reader: tooltip windows are read-only in v1.
-Events arriving via an envelope whose `window_id == :tooltip` are dropped
-at the editor level.
+A new document type that wraps a child node and carries tooltip metadata:
 
-Crucially: `content(...)` returns a `Document`, not a `GraphicsCanvas`.
-The outer `RecursiveProjection(TypeDispatchingProjection(...))` projects it
-the same way as any other window's content — through the type dispatcher and,
-ultimately, `domain_projection` (or a different dispatcher entry, see below).
+```julia
+@document struct TooltipSource <: Document
+    child::Document         # the actual node being decorated
+    content::Document       # tooltip body (rendered like any other document)
+    style::Symbol           # forwarded to the eventual WindowDocument
+    id::Symbol              # backend window id (must be unique per screen)
+    selection::Reference
+end
+```
+
+Use sites wrap whichever sub-tree they want tooltipped:
+
+```julia
+JsonObject(...,
+    # wrap a property's value in a TooltipSource so hovering it pops a
+    # window showing its JSON path.
+    value = TooltipSource(
+        child   = original_value,
+        content = TextDocument("foo.bar.baz"),
+        style   = :tooltip,
+        id      = :path_tooltip,
+    ),
+)
+```
+
+`TooltipSource` is a *transparent wrapper* from the projection's point
+of view: its print output is whatever `child` projects to, so visually
+nothing changes when you wrap a node in one. Its purpose is to mark a
+sub-tree as a potential tooltip source and carry the metadata the decorator
+needs.
+
+### `TooltipDecoratorProjection`
+
+**Print side.** Delegates to `inner` (typically `CopyingProjection`) which
+recurses into `child` via the outer recursion. Output is the projected
+child — no window is added here. Tooltip metadata fields are not part of
+the visual output; they exist only for the reader.
+
+**Read side.** This is where the work happens. The reader observes the
+events being routed into this `TooltipSource`'s sub-tree (selection
+changes, mouse motion, frame ticks) and decides whether the tooltip should
+currently be open.
+
+State held on the projection instance (per-tooltip):
+
+```julia
+mutable struct TooltipDecoratorProjection <: Projection
+    inner::Projection
+    trigger::Function
+    content::Function
+    position::Function
+    style::Symbol
+    id_of::Function           # tooltip -> Symbol
+    delay_ms::Int
+    # transient state:
+    arm_time::Cell{Union{Nothing, Float64}}  # when trigger most recently turned on
+    is_open::Cell{Bool}                      # whether OpenWindowOperation has been emitted
+end
+```
+
+On each event arriving at the reader:
+
+1. Forward the event to `inner` first so child operations bubble up normally.
+2. Evaluate `trigger(tooltip, selection, event)`.
+3. State machine:
+   - `trigger == true`, `arm_time == nothing` → set `arm_time = time()`;
+     emit nothing (yet).
+   - `trigger == true`, `arm_time` set, `time() - arm_time >= delay_ms/1000`,
+     `is_open == false` → emit `OpenWindowOperation`, set `is_open = true`.
+   - `trigger == false`, `is_open == true` → emit `CloseWindowOperation`,
+     clear `arm_time`, set `is_open = false`.
+   - `trigger == false`, `is_open == false` → clear `arm_time`; emit nothing.
+4. If the child reader produced an operation, return that. If the decorator
+   itself produced an open/close, return that. (Composing both into a
+   single returned value is one of the open questions below — see
+   "Multiple ops per event".)
+
+The delay timer is driven by whatever events the projection sees. In
+practice the editor's frame loop produces enough events (or a periodic
+"tick") that the open transition fires on the first event after the delay
+elapses. See **Show delay** below.
+
+### `OpenWindowOperation` and `CloseWindowOperation`
+
+```julia
+struct OpenWindowOperation <: Operation
+    id::Symbol
+    title::String
+    x::Int
+    y::Int
+    width::Int
+    height::Int
+    bg::NTuple{4,UInt8}
+    style::Symbol
+    content::Document
+end
+
+struct CloseWindowOperation <: Operation
+    id::Symbol
+end
+```
+
+These are ordinary `Operation` subtypes. They climb up through the reader
+chain exactly like `ReplaceSelectionOperation` and the string-mutation ops
+already do. Each parent reader gets a chance to handle them; intermediate
+readers that don't know about them pass them through (with reference-path
+prefixing if the operation carried one — these don't, since they don't
+target a specific reference in the input tree).
+
+They eventually reach the top of the type-dispatcher pipeline. The
+`WindowManagerProjection` wrapping the `ScreenDocument` case intercepts
+them there.
+
+### `WindowManagerProjection`
+
+**Print side.** Pure passthrough to `inner` (typically the
+`CopyingProjection` that copies `ScreenDocument` through). No mutation of
+output.
+
+**Read side.** First, route the event to `inner` so child operations bubble
+up the normal way. Inspect the resulting operation:
+
+- `OpenWindowOperation` → construct a `WindowDocument` from its fields and
+  push it onto the input `ScreenDocument.windows` `CellVector`. Then
+  produce no further upward operation (the request has been served).
+- `CloseWindowOperation` → find the `WindowDocument` with matching `id` in
+  `windows` and remove it. Produce nothing upward.
+- Any other operation → pass through unchanged.
+
+If a tooltip with that `id` already exists when `OpenWindowOperation`
+arrives, the duplicate open is logged and ignored (or replaces the
+existing one — pick a convention; see open questions). Likewise a
+`CloseWindowOperation` for a missing `id` is a no-op with a debug log.
+
+The mutation is applied *immediately during reading*, which is the same
+mechanism the editor already uses to settle `ReplaceSelectionOperation`
+and friends. On the next frame the printer sees the updated input and
+the new `WindowDocument` flows through to the backend reconciler.
+
+### How events reach the tooltip projection
+
+`TooltipSource` sits somewhere inside a `WindowDocument.content`'s
+sub-tree. Events arrive at the editor's top-level read in an
+`EventEnvelope`; the `CopyingProjection` on `ScreenDocument` routes by
+`window_id` into the matching `WindowDocument.content` iomap; that iomap
+descends through the child structure until it reaches the
+`TooltipDecoratorProjection`'s iomap, which receives the bare event.
+
+Selection-based triggers work without extra machinery: a selection event
+that lands on the decorated child passes through the tooltip projection's
+reader, where the `trigger` function can inspect the selection vs. the
+tooltip's input reference and decide.
+
+Pointer-based triggers (true hover) require routing `MouseMotion` events
+into the tree by position the same way clicks already are. That plumbing
+is the same hover-precision problem the original plan flagged; treat it
+as out of scope for v1 (see Open Questions).
 
 ### Hover vs selection as the trigger
 
-The selection cursor is already a first-class concept; the mouse pointer is
-not. Two natural sources for triggers:
-
-- **Selection-based**: trigger fires when the caret has been on a particular
-  reference for `delay_ms`. Reuses existing selection plumbing; no new event
-  types. Less faithful to a "hover" UX but is what the user already controls.
-- **Pointer-based**: requires routing `MouseMotion` events into a hover-state
-  cell on the input `ScreenDocument` (e.g. `hovered::Reference`).
-  `read_from_devices` already emits motion; a `HoverTrackingProjection` reader
-  could maintain the cell.
-
-v1 picks selection-based. The trigger function signature stays
-`(screen, selection) -> Bool`. Pointer-based tooltips can be added later by
-swapping in a different trigger and feeding it a separately tracked
-`hovered` cell.
+Same as before: v1 uses selection-based triggers because the selection
+cursor is already a first-class concept, and pointer routing is the harder
+piece of work. The `trigger` callback signature is
+`(tooltip, selection, event) -> Bool` — projections that want hover
+behaviour can read a separate `hovered::Reference` cell once
+`HoverTrackingProjection` exists.
 
 ### Show delay
 
-The trigger may flip rapidly while the user moves the caret. To avoid flicker:
+The same wall-clock-in-the-reader mechanism the original plan described,
+just relocated from the printer to the reader (where it more naturally
+belongs now that the decision drives an operation, not output).
 
-- The decorator owns a `Cell{Union{Nothing,Float64}}` holding the wall-clock
-  timestamp at which `trigger` last became true.
-- On each `projection_print`:
-  - If `trigger` is false → clear the timestamp, omit the window.
-  - If `trigger` is true and the timestamp is `nothing` → set it to `time()`,
-    omit the window this frame.
-  - If `trigger` is true and `time() - timestamp >= delay_ms / 1000` →
-    emit the tooltip window.
-- The REPL's frame loop pulls `projection_print` on every iteration after
-  multiple-windows' "drain events per frame" change, so the tooltip naturally
-  appears on the first frame after the delay has elapsed.
+- `arm_time::Cell{Union{Nothing, Float64}}` is held on the projection
+  instance.
+- On every event reaching the reader, re-evaluate `trigger`; update
+  `arm_time` and `is_open` per the state machine above.
+- The editor's frame loop produces frequent enough events that
+  `time() >= arm_time + delay` is observed promptly. If the gap is too
+  large in practice, introduce a periodic frame-tick event (delivered to
+  all readers) or a proper `TimerCell` that self-invalidates after a
+  duration.
 
-This is the "sample wall-clock in the printer" option from the original plan
-(option (a) of the old Open Questions). It is pragmatic but means the
-projection output depends on `time()`, which the reactive cell system
-otherwise does not see. Document the limitation; a `TimerCell` abstraction
-can be added later if it becomes a real problem.
+Reading `time()` in the reader breaks reactive purity in the same way the
+original plan did in the printer. Same trade-off; document it.
 
 ### Position
 
-`position(screen, selection)` returns `(x, y, width, height)` in screen
-coordinates. The decorator needs:
+`position(tooltip, selection) -> (x, y, w, h)` runs at the moment the
+`OpenWindowOperation` is constructed. It needs:
 
-- The screen-coordinate position of the selection, which the IoMap's
-  `char_to_coord` already gives in window-local coordinates.
-- The main window's screen-coordinate origin, exposed by the backend via
-  something like `screen_origin(backend, id::Symbol)` — a small addition.
-- Clamping to screen bounds: callee's responsibility, or a shared helper.
+- The screen-coordinate position of whatever the tooltip is anchored to,
+  via `char_to_coord` on the relevant iomap.
+- The main window's screen-coordinate origin from the backend.
+- Clamping to screen bounds (helper).
 
-Width/height can be `0` (auto-size from content canvas — already supported
-by the multi-windows plan via `WindowDocument(width=0, height=0)`).
+`(width, height) = (0, 0)` triggers the backend's auto-sizing behaviour
+from `WindowDocument`.
+
+Because the position is baked into `OpenWindowOperation` at open time,
+moving the tooltip with the cursor (continuous re-positioning) requires
+either:
+
+- Re-issuing `OpenWindowOperation` with the new geometry (the manager
+  treats a duplicate `id` as "update geometry" rather than "open new"), or
+- An explicit `MoveWindowOperation(id, x, y, w, h)` for the in-between
+  case.
+
+Pick `MoveWindowOperation` if continuous tracking is needed in v1, else
+keep the API minimal.
 
 ### Style
 
 `WindowDocument.style = :tooltip` is already part of multiple-windows'
-schema. The backend's `_apply_style!(:tooltip, ...)` is the right place for
-borderless / always-on-top / non-focusable flags
-(`SDL_WINDOW_BORDERLESS`, `SDL_WINDOW_ALWAYS_ON_TOP`, `SDL_WINDOW_TOOLTIP`
-where supported). That belongs in the multiple-windows implementation rather
-than here; this plan just consumes the style.
+schema. The backend's `_apply_style!(:tooltip, ...)` handles borderless /
+always-on-top / non-focusable. The tooltip projection just forwards
+`style` to `OpenWindowOperation`.
 
 ### Multiple simultaneous tooltips / preview panels
 
-Trivial under multi-windows: stack multiple `TooltipDecoratorProjection`s
-(each with its own `id` like `:type_tooltip`, `:error_tooltip`, `:preview`),
-or have one decorator return multiple appended windows. Each id is reconciled
-independently by the backend.
+Multiple `TooltipSource` wrappers in the tree, each with its own `id`
+(e.g. `:type_tooltip`, `:error_tooltip`, `:preview`). Each
+`TooltipDecoratorProjection` instance independently emits its own
+`OpenWindowOperation` / `CloseWindowOperation`. The
+`WindowManagerProjection` maintains the windows list as the union of all
+open requests.
 
 ### Per-tooltip content projections
 
-If the tooltip content needs a *different* projection than `domain_projection`
-(e.g. a JSON-path string is rendered by a text projection while the main
-window uses a tree projection), do not add new projection types. Instead,
-either:
+`TooltipSource.content` is a `Document`. The
+`OpenWindowOperation.content` field carries a `Document`, which becomes
+the new `WindowDocument.content`. The outer
+`RecursiveProjection(TypeDispatchingProjection(...))` projects it through
+the existing dispatcher entries on the next frame — no per-window
+projection machinery needed.
 
-- Add another entry to the `TypeDispatchingProjection` keyed on the tooltip
-  content's concrete document type, or
-- Have `content(...)` return a document of a type that the dispatcher already
-  routes appropriately.
-
-This stays consistent with multiple-windows' "no per-window content
-projection dispatch in a new type".
+If the tooltip needs a different projection than the domain projection,
+add another entry to the dispatcher keyed on the tooltip content's
+concrete type, exactly as in multiple-windows.
 
 ---
 
@@ -204,34 +365,54 @@ relative to the main window.
 Strictly speaking this belongs to multiple-windows; capture it here in case
 that plan does not land it.
 
-### Step 2 — `TooltipDecoratorProjection` skeleton
+### Step 2 — `TooltipSource` and the operations
 
-- Struct with `inner`, `trigger`, `content`, `position`, `id`, `style`,
-  `delay_ms`, and the timestamp cell.
-- Printer: implement steps 1–4 of "Tooltip as an appended `WindowDocument`"
-  without delay logic (treat `delay_ms = 0`).
-- Reader: pass through to `inner`'s reader; drop envelopes whose
-  `window_id == id`.
-- Smoke test: a JSON example with a trigger that always returns `true`
-  showing the path of the selected node in a small window.
+- `@document struct TooltipSource` with `child`, `content`, `style`,
+  `id`, `selection` fields.
+- `OpenWindowOperation` and `CloseWindowOperation` structs.
+- Add the operations to whatever module owns the built-in operation set
+  (alongside `QuitEditorOperation`, `ReplaceSelectionOperation`).
 
-### Step 3 — Show delay
+### Step 3 — `WindowManagerProjection`
 
-- Add the timestamp cell; gate emission on elapsed time.
+- Struct with `inner::Projection`.
+- Printer: delegate to `inner`.
+- Reader: route to `inner`, then post-process the returned operation —
+  apply `OpenWindowOperation`/`CloseWindowOperation` to the input
+  `ScreenDocument.windows` and swallow them; pass other ops through.
+- Smoke test: call its reader with a fabricated `OpenWindowOperation` and
+  assert a `WindowDocument` appears on the input; then a
+  `CloseWindowOperation` and assert it disappears.
+
+### Step 4 — `TooltipDecoratorProjection` skeleton
+
+- Struct with `inner`, `trigger`, `content`, `position`, `style`, `id_of`,
+  `delay_ms`, and the `arm_time`/`is_open` cells.
+- Printer: delegate to `inner` projecting `child`.
+- Reader: implement the state machine without delay (`delay_ms = 0` path);
+  emit `OpenWindowOperation` / `CloseWindowOperation` based on
+  `trigger`.
+- Smoke test: a JSON example with `TooltipSource` wrapping a node and a
+  trigger that fires when the selection lands on it. Confirm a tooltip
+  window opens on selection and closes when selection moves away.
+
+### Step 5 — Show delay
+
+- Add the `arm_time` cell; gate `OpenWindowOperation` on elapsed time.
 - Verify with two example triggers: one that is always-on (window appears
   after `delay_ms`), and one that flips on every selection move (no window
   ever appears under reasonable mouse movement).
 
-### Step 4 — Position derivation
+### Step 6 — Position derivation
 
-- Surface enough of the IoMap and backend window origin to compute
-  `(x, y)` near the selection's screen coordinates.
+- Surface enough of the iomap and backend window origin to compute
+  `(x, y)` near the decorated node's screen coordinates.
 - Clamp to screen bounds via SDL display info.
 - `(width, height) = (0, 0)` for auto-sizing.
 
-### Step 5 — Example tooltips
+### Step 7 — Example tooltips
 
-Each is just a different `content` + (possibly) dispatcher entry:
+Each is a different `content` + (possibly) dispatcher entry:
 
 - **Path tooltip**: for the selected JSON node, show its JSON path as a
   short string document.
@@ -240,14 +421,13 @@ Each is just a different `content` + (possibly) dispatcher entry:
 - **Documentation tooltip**: for a Julia function call node, show its
   docstring (reuses any existing Julia documentation projection).
 
-### Step 6 — Multiple simultaneous tooltips
+### Step 8 — Multiple simultaneous tooltips
 
-- Compose two `TooltipDecoratorProjection`s and verify the reconciler keeps
-  both windows open / closed independently.
-- Confirm id collisions are reported as bugs (multiple-windows step already
-  asserts this at the screen level).
+- Two `TooltipSource` wrappers in different parts of the tree, each
+  with a distinct `id`. Verify the manager keeps both windows open /
+  closed independently and that the reconciler reflects the windows list.
 
-### Step 7 — Optional: pointer-based hover
+### Step 9 — Optional: pointer-based hover
 
 - A `HoverTrackingProjection` whose reader updates a `hovered::Reference`
   cell on the input `ScreenDocument` in response to `MouseMotion` envelopes
@@ -260,35 +440,64 @@ Each is just a different `content` + (possibly) dispatcher entry:
 ## Open Questions
 
 - **Where does the show-delay timestamp live?** On the
-  `TooltipDecoratorProjection` struct (per projection instance, leaks across
-  iomaps), in the iomap (rebuilt each frame, would need explicit carry), or
-  on the input `ScreenDocument` (intrusive). The first is the simplest and
-  matches how other projection state is held; reconsider only if it causes
-  trouble.
+  `TooltipDecoratorProjection` struct (per projection instance, leaks
+  across iomaps), in the iomap (rebuilt each frame, would need explicit
+  carry), or on the input `TooltipSource` (intrusive — would also
+  conveniently survive projection re-instantiation). The first is the
+  simplest and matches how other transient projection state would be
+  held; reconsider only if it causes trouble.
 
-- **Time in the reactive system.** The cell graph is event-driven; sampling
-  `time()` in the printer breaks that purity. Acceptable for v1; a
-  `TimerCell` that self-invalidates after a duration is the principled fix
-  if frame cadence proves unreliable.
+- **Time in the reactive system.** The cell graph is event-driven;
+  sampling `time()` in the reader breaks that purity. Acceptable for v1;
+  a `TimerCell` that self-invalidates after a duration is the principled
+  fix if frame cadence proves unreliable.
+
+- **Multiple ops per event.** Today's reader contract is one op per
+  reader call. If the child reader produces an op *and* the tooltip
+  decorator wants to emit an `OpenWindowOperation` on the same event,
+  one of them has to be deferred (or batched). Options: (a) priority —
+  tooltip ops are emitted only on events that the child didn't handle;
+  (b) extend the contract to return a list of operations; (c) queue the
+  tooltip op for the next event. (b) is the cleanest if other places
+  also start wanting it.
+
+- **Duplicate open / close.** `OpenWindowOperation` for an already-open
+  id: replace geometry vs. ignore vs. error. `CloseWindowOperation` for
+  an absent id: ignore vs. error. Defaults: replace-on-open (so geometry
+  updates are cheap) and ignore-on-close (so re-entry is robust).
+
+- **`MoveWindowOperation`.** Whether continuous tooltip re-positioning is
+  worth a third operation type, or whether re-issuing
+  `OpenWindowOperation` with the same id is good enough.
 
 - **Interactive tooltips.** v1 drops envelopes targeted at the tooltip
-  window. Interactive tooltips (click-through links, scroll) would either
-  forward those envelopes into a sub-projection rooted at the tooltip's
-  content (likely the right design, since the content is already a regular
-  document) or run the tooltip as its own `Editor`. The former is much
-  simpler and is preferred when v2 is needed.
+  window's content. Interactive tooltips would route those envelopes into
+  the same `WindowDocument.content` sub-iomap that any other window uses
+  — since the content is already a regular document, the existing
+  routing should work; the only question is whether the tooltip's
+  `is_open` state should react to focus/clicks. Defer until needed.
 
-- **Pointer tracking precision.** SDL motion events are coarse; correctly
-  mapping them through the projection to a `Reference` in the input
-  document requires the same reverse-projection plumbing as
-  click-to-select. That plumbing already exists; the work is wiring it up
-  for motion as well as buttons.
+- **Where the `TooltipSource` lives in the input tree.** Wrapping
+  individual nodes (`TooltipSource(child=...)`) is conceptually clean
+  but requires explicit decoration at every potential tooltip site —
+  intrusive for use cases like "tooltip on every JSON value". An
+  alternative is a single top-level `TooltipSource` that holds a
+  reference to the currently-anchored sub-tree; the trigger becomes a
+  comparison against the selection. Decide which use cases warrant
+  which shape (likely both, with different decorator subclasses).
 
-- **Tooltip outliving its trigger.** If `content(...)` recomputes per frame
-  it stays in sync with whatever the trigger was based on. If the user
-  wants a "pinned" tooltip that survives selection changes, it becomes an
-  ordinary `WindowDocument` controlled by a different mechanism — out of
-  scope here.
+- **Pointer tracking precision.** Same as the original plan: SDL motion
+  events are coarse; correctly mapping them through the projection to a
+  `Reference` requires the same reverse-projection plumbing as
+  click-to-select. The plumbing exists; the work is wiring it up for
+  motion as well as buttons.
+
+- **Tooltip outliving its trigger.** If `content(...)` is recomputed each
+  time `OpenWindowOperation` is built it stays in sync with whatever
+  the trigger saw. For a "pinned" tooltip that survives the trigger
+  going false, the decorator could promote the open window to an
+  ordinary `WindowDocument` (i.e. stop emitting `CloseWindowOperation`
+  for it) — out of scope here.
 
 ---
 
@@ -301,10 +510,15 @@ Each is just a different `content` + (possibly) dispatcher entry:
 | Per-window event routing | `EventEnvelope { window_id, event }` | Drops envelopes for tooltip window in v1 |
 | Per-window style | `WindowDocument.style` + `_apply_style!` | Defines `:tooltip` style semantics (borderless, on-top, non-focusable) |
 | Per-window position / size | `WindowDocument.x/y/width/height` | Tooltip-specific `position` function and screen-coordinate helper |
-| Trigger to show a window | Out of scope — push/remove `WindowDocument` | `TooltipDecoratorProjection.trigger` + show-delay timestamp |
-| What goes in the tooltip | Out of scope — any `Document` | `content` function returning a document; rendered via the existing type dispatcher |
-| Multiple tooltips at once | Trivial — multiple `WindowDocument`s | Compose multiple decorators |
+| Window list as state | `ScreenDocument.windows` `CellVector` | `WindowManagerProjection` mutates it in response to `Open`/`CloseWindowOperation` |
+| Trigger to show a window | Out of scope — push/remove `WindowDocument` | `TooltipDecoratorProjection.trigger` + show-delay timestamp + `OpenWindowOperation` |
+| What goes in the tooltip | Out of scope — any `Document` | `TooltipSource.content`, carried into `OpenWindowOperation.content` and rendered via the existing type dispatcher |
+| Multiple tooltips at once | Trivial — multiple `WindowDocument`s | Multiple `TooltipSource` wrappers, each with its own id |
 
-Net effect: this plan goes from inventing a new output type + backend
-machinery to writing one new projection (`TooltipDecoratorProjection`) plus
-the `:tooltip` style hookup on the backend.
+Net effect: this plan introduces a `TooltipSource` wrapper, a
+`TooltipDecoratorProjection` that watches its input and emits
+`OpenWindowOperation` / `CloseWindowOperation`, and a
+`WindowManagerProjection` that applies those operations to the
+`ScreenDocument.windows` list of its input. Tooltips become a side
+product of the same input → operation → input → printer loop that drives
+every other state change in the editor.
