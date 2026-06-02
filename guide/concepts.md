@@ -138,6 +138,83 @@ applies the final operation to the document.
 
 ---
 
+## Design principles: primitives, combinations, abstractions
+
+The expressive power of any compositional system depends on three things: its
+**primitive elements**, its **means of combination**, and its **means of
+abstraction**. ProjecturEd applies this triad twice — once to documents, once
+to projections — and the symmetry between the two is what makes the editor
+general rather than tied to any one domain or any one display.
+
+### Documents
+
+- **Primitive documents** are the atomic data types of a domain — `JsonString`,
+  `JsonNumber`, `TextString`, `SyntaxLeaf`, `GraphicsRect`. Each is small,
+  typed, and has a clear meaning inside its own domain.
+- **Combination** happens by nesting. A `JsonObject` holds entries that hold
+  strings and child documents; a `TextText` holds a vector of strings and
+  newlines; a `GraphicsCanvas` holds shapes. The recursive structure lets a
+  primitive grow into an arbitrarily large document without changing how its
+  parts behave.
+- **Abstraction** is ordinary Julia code. Any function that builds and returns
+  a document — a constructor for a settings object, a fixture builder for a
+  test, a generator that turns tabular data into a graph — is a domain-level
+  abstraction. There is no special template language; if you can write a
+  function, you can abstract a structural pattern.
+
+### Projections
+
+- **Primitive projections** transform one document type into one document type.
+  `JsonToSyntax`, `SyntaxToText`, `TextToGraphics`. Each is a printer/reader
+  pair with a single focused job.
+- **Combination** happens through higher-order projections.
+  `SequentialProjection` chains projections end-to-end; `NestingProjection`
+  embeds one domain inside another; sorting, filtering, and focusing
+  projections wrap an inner projection and modify its behaviour. The
+  combinators are themselves projections, so they compose freely with each
+  other. See [higher-order projections](higher-order-projections.md) for the
+  full catalogue.
+- **Abstraction** is again ordinary Julia code. A function that returns a
+  fully wired `SequentialProjection(...)` configured for a particular display
+  — a JSON viewer, a syntax-highlighted Lisp editor, a workbench pane — is a
+  projection-level abstraction. Whole families of editors are just functions
+  over projections.
+
+### Why the symmetry matters
+
+Most structured editors expose only one of these axes. A JSON-aware editor
+gives you primitive types and nesting but no abstraction over views. A
+templating engine gives you abstraction over output but only one fixed display
+of one fixed model. By treating documents and projections as values built from
+the same primitive/combine/abstract pattern, ProjecturEd lets you grow either
+dimension independently and combine them freely: a new domain immediately
+benefits from every existing higher-order projection, and a new higher-order
+projection immediately applies to every existing domain.
+
+### Lazy, incremental evaluation makes it tractable
+
+A compositional system pays a cost for its expressiveness: deep projection
+pipelines would re-derive a great deal of structure on every change if
+evaluated eagerly. ProjecturEd's reactive cell system makes this cost
+incremental — a cell recomputes only when one of its inputs has actually
+changed, and only when its value is next read. This guarantees two properties
+that the compositional design alone could not:
+
+- **Consistency.** Any view of the document is exactly what the current model
+  projects to. There is no manual cache to invalidate and no derived state
+  that can fall out of sync with its inputs.
+- **Performance.** Editing a single character in a large document reruns a
+  handful of cell computations, not the full projection chain. Pipelines can
+  be arbitrarily deep without the user paying for unchanged subtrees.
+
+The two ideas are mutually reinforcing: the compositional design would be
+unusable without incrementality, and the incrementality would be wasted on a
+non-compositional design. Together they are what let the editor stay both
+general and fast. See [reactive cells](reactive-cells.md) for the underlying
+mechanism.
+
+---
+
 ## A step-by-step walkthrough: what happens when you press →
 
 You are editing a JSON string `"hello"` and the cursor is between `l` and `l`
