@@ -37,7 +37,7 @@ end
 
 @testset "unsupported format raises error" begin
     canvas = GraphicsCanvas()
-    @test_throws ErrorException write_image(canvas, tempname() * ".png")
+    @test_throws ErrorException write_image(canvas, tempname() * ".jpg")
 end
 
 end # test_write_image

@@ -102,8 +102,10 @@ end
 function test_selections()
     @testset "Selections" begin
         for example in examples
-            # Skip widget / layout examples and workbench as they don't support selection navigation
-            example.name in ("widget", "widget_tabbed_pane", "layout", "workbench") && continue
+            # Skip widget / layout examples, workbench, and assistant — the
+            # widget-to-graphics layer doesn't route keyboard events to its
+            # children, so Ctrl+Home can't seed an initial selection.
+            example.name in ("widget", "widget_tabbed_pane", "layout", "workbench", "assistant") && continue
             @testset "$(example.name)" begin
                 test_selection(example)
             end
