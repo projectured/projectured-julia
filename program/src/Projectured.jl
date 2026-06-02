@@ -252,7 +252,9 @@ using .WidgetModule: WidgetDocument, WidgetInsertion, WidgetForeign,
                      HideWidgetOperation, ShowWidgetOperation,
                      ScrollWidgetOperation, SelectTabOperation, SetScrollBarValueOperation
 using .LayoutModule: LayoutDocument,
-                     HorizontalLayout, VerticalLayout, GridLayout, FlowLayout
+                     HorizontalLayout, VerticalLayout, GridLayout, FlowLayout,
+                     LayoutConstraint, allocate_axis,
+                     layout_min, layout_max, layout_preferred, layout_weight
 using .ImageModule: ImageDocument, ImageInsertion, ImageForeign, ImageFile, ImageMemory
 using .ScreenDocumentModule: ScreenDocument, WindowDocument, EventEnvelope, WindowCloseRequest
 using .TooltipDocumentModule: TooltipSource
@@ -280,6 +282,7 @@ using .LayoutToGraphicsModule: HorizontalLayoutToGraphicsCanvas,
                                VerticalLayoutToGraphicsCanvas,
                                GridLayoutToGraphicsCanvas,
                                FlowLayoutToGraphicsCanvas,
+                               LayoutConstraintToGraphicsCanvas,
                                LayoutToGraphics
 using .WidgetToGraphicsModule: WidgetLabelToGraphicsCanvas, WidgetTextToGraphicsCanvas,
                                WidgetCheckboxToGraphicsCanvas, WidgetButtonToGraphicsCanvas,
@@ -299,7 +302,7 @@ using .WorkbenchToWidgetModule: WorkbenchWorkbenchToWidgetShell,    WorkbenchWor
                                 WorkbenchOperatorToWidgetScrollPane,
                                 WorkbenchSearcherToWidgetScrollPane,
                                 WorkbenchEvaluatorToWidgetScrollPane,
-                                WorkbenchAssistantToWidgetScrollPane,
+                                WorkbenchAssistantToWidgetSplitPane,
                                 WorkbenchEditorToWidgetScrollPane,
                                 WorkbenchToWidget
 using .GraphicsCachingModule: GraphicsCanvasToGraphicsImage, GraphicsCaching
@@ -494,9 +497,11 @@ export WidgetLabelToGraphicsCanvas, WidgetTextToGraphicsCanvas,
        WidgetSplitPaneToGraphicsCanvas, WidgetTabbedPaneToGraphicsCanvas,
        WidgetScrollPaneToGraphicsCanvas, WidgetScrollPaneToGraphicsCanvasIoMap
 export WidgetScrollPaneToGraphicsViewport, WidgetScrollPaneToGraphicsViewportIoMap
-export LayoutDocument, HorizontalLayout, VerticalLayout, GridLayout, FlowLayout
+export LayoutDocument, HorizontalLayout, VerticalLayout, GridLayout, FlowLayout, LayoutConstraint
+export allocate_axis, layout_min, layout_max, layout_preferred, layout_weight
 export HorizontalLayoutToGraphicsCanvas, VerticalLayoutToGraphicsCanvas,
-       GridLayoutToGraphicsCanvas, FlowLayoutToGraphicsCanvas, LayoutToGraphics
+       GridLayoutToGraphicsCanvas, FlowLayoutToGraphicsCanvas,
+       LayoutConstraintToGraphicsCanvas, LayoutToGraphics
 export GraphicsCanvasToGraphicsImage, GraphicsCaching
 export WorkbenchWorkbenchToWidgetShell,    WorkbenchWorkbenchToWidgetShellIoMap,
        WorkbenchPageToWidgetTabbedPane,    WorkbenchPageToWidgetTabbedPaneIoMap,
@@ -506,7 +511,7 @@ export WorkbenchWorkbenchToWidgetShell,    WorkbenchWorkbenchToWidgetShellIoMap,
        WorkbenchOperatorToWidgetScrollPane,
        WorkbenchSearcherToWidgetScrollPane,
        WorkbenchEvaluatorToWidgetScrollPane,
-       WorkbenchAssistantToWidgetScrollPane,
+       WorkbenchAssistantToWidgetSplitPane,
        WorkbenchEditorToWidgetScrollPane,
        WorkbenchToWidget
 export Editor, run!

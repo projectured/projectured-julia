@@ -21,18 +21,21 @@ import ..ReactiveModule: Cell
 import ..ProjectionApiModule: projection_print, projection_read,
                                map_reference_forward, map_reference_backward, Projection
 import ..DocumentApiModule: Document
-import ..LayoutModule: HorizontalLayout, VerticalLayout, GridLayout, FlowLayout
+import ..LayoutModule: HorizontalLayout, VerticalLayout, GridLayout, FlowLayout,
+                       LayoutConstraint, allocate_axis,
+                       layout_min, layout_max, layout_preferred, layout_weight
 import ..CollectionModule: CellVector
 import ..GraphicsModule: GraphicsCanvas, layout_none, hit_element_at
-import ..IoMapModule: SimpleIoMap, ChildrenIoMap
+import ..IoMapModule: SimpleIoMap, ChildrenIoMap, ContentIoMap
 import ..IoMapApiModule: IoMap
 import ..MouseModule: MouseScroll, MousePress
 import ..ReferenceModule: ConcreteReferencePath, FieldReference, RangeReference
 import ..TypeDispatchingModule: TypeDispatchingProjection
 import ..ReferenceBuilderModule: var"@reference"
-import ..ProjectionContextModule: child_context
+import ..ProjectionContextModule: child_context, with_available_size
 export HorizontalLayoutToGraphicsCanvas, VerticalLayoutToGraphicsCanvas,
        GridLayoutToGraphicsCanvas, FlowLayoutToGraphicsCanvas,
+       LayoutConstraintToGraphicsCanvas,
        LayoutToGraphics
 
 # ── Projection structs ─────────────────────────────────────────────────────
@@ -41,6 +44,7 @@ struct HorizontalLayoutToGraphicsCanvas <: Projection end
 struct VerticalLayoutToGraphicsCanvas   <: Projection end
 struct GridLayoutToGraphicsCanvas       <: Projection end
 struct FlowLayoutToGraphicsCanvas       <: Projection end
+struct LayoutConstraintToGraphicsCanvas <: Projection end
 
 # ── Helpers ────────────────────────────────────────────────────────────────
 
@@ -113,6 +117,74 @@ function _child_h(cim)
     Int(c.h[])
 end
 
+# ── Allocation cell helpers ────────────────────────────────────────────────
+
+"""
+Build a `Cell{Vector{Int}}` that lazily computes the per-child allocation
+for one axis. The cell depends reactively on the available-extent cell,
+the gap cell, each child's intrinsic extent (via its canvas), and each
+constraint field read via `getproperty`.
+"""
+function _alloc_cell(available_cell::Cell, child_iomaps::Vector, child_docs::Vector,
+                     gap_cell::Cell, axis::Symbol)
+    n = length(child_iomaps)
+    Cell(function ()
+        avail = Int(available_cell[])
+        mins  = Vector{Int}(undef, n)
+        maxs  = Vector{Int}(undef, n)
+        prefs = Vector{Int}(undef, n)
+        wts   = Vector{Float64}(undef, n)
+        for i in 1:n
+            doc = child_docs[i]
+            intrinsic = axis === :x ? _child_w(child_iomaps[i]) : _child_h(child_iomaps[i])
+            mins[i]   = layout_min(doc, axis, intrinsic)
+            maxs[i]   = layout_max(doc, axis, intrinsic)
+            prefs[i]  = layout_preferred(doc, axis, intrinsic)
+            wts[i]    = layout_weight(doc, axis)
+        end
+        gap = Int(gap_cell[])
+        allocate_axis(avail, mins, maxs, prefs, wts, gap, n)
+    end)
+end
+
+# ── LayoutConstraint projection (trivial forwarder) ───────────────────────
+
+"""
+    LayoutConstraintToGraphicsCanvas
+
+Recurse into the wrapped child with the parent-provided context unchanged
+and forward the child's canvas as this projection's output. The constraint
+values are not consumed here — they are read by the *parent* layout when
+it allocates space across its children.
+"""
+function projection_print(p::LayoutConstraintToGraphicsCanvas,
+                          doc::LayoutConstraint, recursion, ctx)
+    child = doc.child
+    inner = recursion === nothing ?
+            SimpleIoMap(nothing, child, child) :
+            projection_print(recursion, child, recursion,
+                             child_context(ctx, @reference ^(ctx.reference).child))
+    output = inner.output isa GraphicsCanvas ? inner.output : _empty_canvas()
+    ContentIoMap(p, doc, output, inner)
+end
+
+function map_reference_forward(::LayoutConstraintToGraphicsCanvas, iomap::ContentIoMap, reference)
+    reference isa ConcreteReferencePath || return nothing
+    h = reference.head
+    h isa FieldReference && h.name == "child" || return nothing
+    map_reference_forward(iomap.inner_iomap.projection, iomap.inner_iomap, reference.tail)
+end
+
+function map_reference_backward(::LayoutConstraintToGraphicsCanvas, iomap, reference)
+    return nothing
+end
+
+function projection_read(::LayoutConstraintToGraphicsCanvas, iomap::ContentIoMap, evt)
+    inner = iomap.inner_iomap
+    inner === nothing && return nothing
+    projection_read(inner.projection, inner, evt)
+end
+
 """
 A reference of the form `children[i]/...` routes to the i-th child
 iomap's forward mapping.
@@ -141,6 +213,28 @@ function _hl_child_x_cell(i::Int, child_iomaps::Vector, gap_cell::Cell)
             x += _child_w(child_iomaps[j]) + gap_cell[]
         end
         Int32(x)
+    end)
+end
+
+"""Position helper for the main axis when extrinsic allocation is in effect."""
+function _hl_alloc_child_x_cell(i::Int, actual_w_cells::Vector{Cell}, gap_cell::Cell)
+    Cell(function ()
+        x = 0
+        for j in 1:(i-1)
+            x += Int(actual_w_cells[j][]) + gap_cell[]
+        end
+        Int32(x)
+    end)
+end
+
+"""Position helper for the main axis (y) of a VerticalLayout under extrinsic allocation."""
+function _vl_alloc_child_y_cell(i::Int, actual_h_cells::Vector{Cell}, gap_cell::Cell)
+    Cell(function ()
+        y = 0
+        for j in 1:(i-1)
+            y += Int(actual_h_cells[j][]) + gap_cell[]
+        end
+        Int32(y)
     end)
 end
 
@@ -187,39 +281,76 @@ function projection_print(p::HorizontalLayoutToGraphicsCanvas,
         return ChildrenIoMap(p, doc, _empty_canvas(), Cell(Tuple{Cell,Cell,Any}[]))
     end
 
+    gap_cell   = getfield(doc, :gap)
+    align_cell = getfield(doc, :vertical_align)
+    avail_w    = ctx.available_width
+    avail_h    = ctx.available_height
+
+    child_docs = Any[doc.children[i] for i in 1:n]
+
+    # Forward-declare per-child main-axis allocation cells so each child's
+    # downward context can close over them. The allocation cell itself is
+    # seeded after the iomaps exist (it reads child intrinsic widths).
+    actual_w_cells = Cell[]
+    alloc_w_ref = Ref{Union{Nothing,Cell}}(nothing)
+    if avail_w !== nothing
+        for i in 1:n
+            push!(actual_w_cells, Cell(() -> (alloc_w_ref[])[][i]))
+        end
+    end
+
     child_iomaps = Any[]
     for i in 1:n
-        cim = _recurse_child(recursion, doc.children[i],
-                             child_context(ctx, @reference ^(ctx.reference).children[i]))
+        cctx = child_context(ctx, @reference ^(ctx.reference).children[i])
+        # Main axis (x): per-child allocation.
+        # Cross axis (y): pass parent's available height through unchanged
+        # so adaptive children can stretch within it.
+        cw = avail_w === nothing ? nothing : actual_w_cells[i]
+        ch = avail_h
+        cctx = with_available_size(cctx; width=cw, height=ch)
+        cim = _recurse_child(recursion, doc.children[i], cctx)
         push!(child_iomaps, cim)
     end
 
-    gap_cell   = getfield(doc, :gap)
-    align_cell = getfield(doc, :vertical_align)
+    if avail_w !== nothing
+        alloc_w_ref[] = _alloc_cell(avail_w, child_iomaps, child_docs, gap_cell, :x)
+    end
 
-    outer_h = Cell(function ()
-        h = 0
-        for cim in child_iomaps
-            ch = _child_h(cim)
-            ch > h && (h = ch)
-        end
-        h
-    end)
+    outer_h = if avail_h === nothing
+        Cell(function ()
+            h = 0
+            for cim in child_iomaps
+                ch = _child_h(cim)
+                ch > h && (h = ch)
+            end
+            h
+        end)
+    else
+        Cell(() -> Int(avail_h[]))
+    end
 
-    outer_w = Cell(function ()
-        n2 = length(child_iomaps)
-        n2 == 0 && return 0
-        total = 0
-        for cim in child_iomaps
-            total += _child_w(cim)
-        end
-        total + (n2 - 1) * gap_cell[]
-    end)
+    outer_w = if avail_w === nothing
+        Cell(function ()
+            n2 = length(child_iomaps)
+            n2 == 0 && return 0
+            total = 0
+            for cim in child_iomaps
+                total += _child_w(cim)
+            end
+            total + (n2 - 1) * gap_cell[]
+        end)
+    else
+        Cell(() -> Int(avail_w[]))
+    end
 
     child_x = Cell[]
     child_y = Cell[]
     for i in 1:n
-        push!(child_x, _hl_child_x_cell(i, child_iomaps, gap_cell))
+        if avail_w === nothing
+            push!(child_x, _hl_child_x_cell(i, child_iomaps, gap_cell))
+        else
+            push!(child_x, _hl_alloc_child_x_cell(i, actual_w_cells, gap_cell))
+        end
         push!(child_y, _hl_child_y_cell(i, child_iomaps, outer_h, align_cell))
     end
 
@@ -269,40 +400,72 @@ function projection_print(p::VerticalLayoutToGraphicsCanvas,
         return ChildrenIoMap(p, doc, _empty_canvas(), Cell(Tuple{Cell,Cell,Any}[]))
     end
 
+    gap_cell   = getfield(doc, :gap)
+    align_cell = getfield(doc, :horizontal_align)
+    avail_w    = ctx.available_width
+    avail_h    = ctx.available_height
+
+    child_docs = Any[doc.children[i] for i in 1:n]
+
+    actual_h_cells = Cell[]
+    alloc_h_ref = Ref{Union{Nothing,Cell}}(nothing)
+    if avail_h !== nothing
+        for i in 1:n
+            push!(actual_h_cells, Cell(() -> (alloc_h_ref[])[][i]))
+        end
+    end
+
     child_iomaps = Any[]
     for i in 1:n
-        cim = _recurse_child(recursion, doc.children[i],
-                             child_context(ctx, @reference ^(ctx.reference).children[i]))
+        cctx = child_context(ctx, @reference ^(ctx.reference).children[i])
+        # Main axis (y) per-child allocation; cross axis (x) passthrough.
+        ch = avail_h === nothing ? nothing : actual_h_cells[i]
+        cw = avail_w
+        cctx = with_available_size(cctx; width=cw, height=ch)
+        cim = _recurse_child(recursion, doc.children[i], cctx)
         push!(child_iomaps, cim)
     end
 
-    gap_cell   = getfield(doc, :gap)
-    align_cell = getfield(doc, :horizontal_align)
+    if avail_h !== nothing
+        alloc_h_ref[] = _alloc_cell(avail_h, child_iomaps, child_docs, gap_cell, :y)
+    end
 
-    outer_w = Cell(function ()
-        w = 0
-        for cim in child_iomaps
-            cw = _child_w(cim)
-            cw > w && (w = cw)
-        end
-        w
-    end)
+    outer_w = if avail_w === nothing
+        Cell(function ()
+            w = 0
+            for cim in child_iomaps
+                cw = _child_w(cim)
+                cw > w && (w = cw)
+            end
+            w
+        end)
+    else
+        Cell(() -> Int(avail_w[]))
+    end
 
-    outer_h = Cell(function ()
-        n2 = length(child_iomaps)
-        n2 == 0 && return 0
-        total = 0
-        for cim in child_iomaps
-            total += _child_h(cim)
-        end
-        total + (n2 - 1) * gap_cell[]
-    end)
+    outer_h = if avail_h === nothing
+        Cell(function ()
+            n2 = length(child_iomaps)
+            n2 == 0 && return 0
+            total = 0
+            for cim in child_iomaps
+                total += _child_h(cim)
+            end
+            total + (n2 - 1) * gap_cell[]
+        end)
+    else
+        Cell(() -> Int(avail_h[]))
+    end
 
     child_x = Cell[]
     child_y = Cell[]
     for i in 1:n
         push!(child_x, _vl_child_x_cell(i, child_iomaps, outer_w, align_cell))
-        push!(child_y, _vl_child_y_cell(i, child_iomaps, gap_cell))
+        if avail_h === nothing
+            push!(child_y, _vl_child_y_cell(i, child_iomaps, gap_cell))
+        else
+            push!(child_y, _vl_alloc_child_y_cell(i, actual_h_cells, gap_cell))
+        end
     end
 
     wrapped = Any[]
@@ -728,6 +891,7 @@ function LayoutToGraphics()
         VerticalLayout   => VerticalLayoutToGraphicsCanvas(),
         GridLayout       => GridLayoutToGraphicsCanvas(),
         FlowLayout       => FlowLayoutToGraphicsCanvas(),
+        LayoutConstraint => LayoutConstraintToGraphicsCanvas(),
     )
 end
 

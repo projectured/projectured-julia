@@ -37,7 +37,9 @@ import ..MouseModule: MouseScroll, MousePress
 import ..OperationModule: ReplaceSelectionOperation
 import ..ReferenceModule: ConcreteReferencePath, FieldReference, RangeReference
 import ..TypeDispatchingModule: TypeDispatchingProjection
-import ..ProjectionContextModule: child_context
+import ..ProjectionContextModule: child_context, with_available_size
+import ..LayoutModule: LayoutConstraint, allocate_axis, layout_min, layout_max,
+                       layout_preferred, layout_weight
 export WidgetLabelToGraphicsCanvas, WidgetTextToGraphicsCanvas,
        WidgetCheckboxToGraphicsCanvas, WidgetButtonToGraphicsCanvas,
        WidgetTooltipToGraphicsCanvas, WidgetMenuToGraphicsCanvas,
@@ -557,7 +559,30 @@ function projection_print(p::WidgetShellToGraphicsCanvas, w::WidgetShell, recurs
     end
     content = w.content
     if content isa WidgetDocument
-        cim = projection_print(recursion, content, recursion, ctx)
+        # Seed available size on the context so that any layout/split
+        # descendant can allocate its slots within the shell's content
+        # area. Computed reactively from the shell's own `size` cell and
+        # box-model insets so a resize re-flows downstream automatically.
+        size_cell = getfield(w, :size)
+        margin_cell  = getfield(w, :margin)
+        border_cell  = getfield(w, :border)
+        padding_cell = getfield(w, :padding)
+        content_y_now = content_y
+        coy_now = coy
+        avail_w_cell = Cell(function ()
+            sz = size_cell[]
+            sz isa Point2D || return 0
+            tx, _ = _inset_total(w)
+            max(0, Int(sz.x[]) - tx)
+        end)
+        avail_h_cell = Cell(function ()
+            sz = size_cell[]
+            sz isa Point2D || return 0
+            _, ty = _inset_total(w)
+            max(0, Int(sz.y[]) - ty - (content_y_now - coy_now))
+        end)
+        content_ctx = with_available_size(ctx; width=avail_w_cell, height=avail_h_cell)
+        cim = projection_print(recursion, content, recursion, content_ctx)
         push!(child_iomaps, (cox, content_y, cim))
         push!(elems, _make_canvas(cox, content_y, Any[cim.output]))
     end
@@ -628,43 +653,219 @@ end
 
 # ── WidgetSplitPane ─────────────────────────────────────────────────────────
 
+# Peek through a transparent LayoutConstraint wrapper to the underlying
+# widget; split-pane treats the wrapper as opaque for layout policy but
+# projects the wrapped child directly so the wrapper's own projection is
+# not required to be registered in the dispatcher.
+_split_inner(elem) = elem isa LayoutConstraint ? elem.child : elem
+
+# Wrap a child canvas at the (x, y) given by two cells — same shape used
+# by the layout projections; local copy here to avoid a circular import
+# from LayoutToGraphics into this module.
+function _wrap_child_canvas(child::GraphicsCanvas, x_cell::Cell, y_cell::Cell)
+    GraphicsCanvas(x_cell, y_cell,
+                   Cell(Int32(0)), Cell(Int32(0)),
+                   CellVector(Cell[Cell(child)]),
+                   layout_none, true, Cell(nothing))
+end
+
+"""
+Per-slot intrinsic main-axis extent: read from the `LayoutConstraint`'s
+preferred when present, or fall back to the legacy `sizes` vector for
+backward compatibility, or to 200 px when neither is set.
+"""
+function _split_intrinsic(elem, sizes, i::Int, axis::Symbol)
+    intrinsic = (!isempty(sizes) && i <= length(sizes)) ? Int(sizes[i]) : 200
+    layout_preferred(elem, axis, intrinsic)
+end
+
 function projection_print(p::WidgetSplitPaneToGraphicsCanvas, w::WidgetSplitPane, recursion, ctx)
     w.visible == false && return ChildrenIoMap(p, w, _empty_canvas(), Cell(Any[]))
     cox, coy = _content_offset(w)
     orientation = w.orientation::Symbol
+    main_axis = orientation === :horizontal ? :x : :y
     sizes = w.sizes
-    child_iomaps = Any[]
-    elems = Any[]
-    cursor = 0
     splitter_thickness = 3
-    splitter_r, splitter_g, splitter_b, splitter_a = 0x88, 0x88, 0x88, 0xff
+    splitter_rgba = (0x88, 0x88, 0x88, 0xff)
     splitter_cross = 100000
-    n = length(w.elements)
-    for (i, child) in enumerate(w.elements)
-        child isa WidgetDocument || continue
-        cim = projection_print(recursion, child, recursion, ctx)
-        if orientation === :horizontal
-            push!(child_iomaps, (cox + cursor, coy, cim))
-            push!(elems, _make_canvas(cox + cursor, coy, Any[cim.output]))
-        else
-            push!(child_iomaps, (cox, coy + cursor, cim))
-            push!(elems, _make_canvas(cox, coy + cursor, Any[cim.output]))
+
+    # Keep only Document children; LayoutConstraint and bare widgets both
+    # work — the wrapper is transparent for projection (we recurse into
+    # `elem.child`) and consulted for sizing policy.
+    valid_elems = Any[]
+    for i in 1:length(w.elements)
+        elem = w.elements[i]
+        (elem isa LayoutConstraint || elem isa WidgetDocument) && push!(valid_elems, elem)
+    end
+    n = length(valid_elems)
+    n == 0 && return ChildrenIoMap(p, w, _make_canvas(0, 0, Any[]), Cell(Any[]))
+
+    avail_w = ctx.available_width
+    avail_h = ctx.available_height
+    avail_main = main_axis === :x ? avail_w : avail_h
+
+    # Per-slot main-axis size (Cell). When the parent gave us an allocation
+    # on the main axis, the slot is the per-child share of that allocation;
+    # otherwise the slot falls back to each child's intrinsic preferred
+    # extent. Built up-front so we can seed it into each child's available
+    # size before recursion — without it the child (typically a scroll
+    # pane) has no way to size its viewport to its slot.
+    alloc_main_ref = Ref{Union{Nothing,Cell}}(nothing)
+    slot_main = Cell[]
+    if avail_main !== nothing
+        for i in 1:n
+            push!(slot_main, Cell(() -> (alloc_main_ref[])[][i]))
         end
-        slot = (!isempty(sizes) && i <= length(sizes)) ? Int(sizes[i]) : 200
-        cursor += slot
-        if i < n
-            if orientation === :horizontal
-                push!(elems, GraphicsRect(cox + cursor - splitter_thickness, coy,
-                                          splitter_thickness, splitter_cross,
-                                          splitter_r, splitter_g, splitter_b, splitter_a))
-            else
-                push!(elems, GraphicsRect(cox, coy + cursor - splitter_thickness,
-                                          splitter_cross, splitter_thickness,
-                                          splitter_r, splitter_g, splitter_b, splitter_a))
-            end
+    else
+        for i in 1:n
+            elem = valid_elems[i]
+            push!(slot_main, Cell(() -> _split_intrinsic(elem, sizes, i, main_axis)))
         end
     end
-    ChildrenIoMap(p, w, _make_canvas(0, 0, elems), Cell(child_iomaps))
+
+    # Recurse into the wrapped widget (peeking through LayoutConstraint),
+    # passing the slot's main-axis extent down via context so the child can
+    # size itself to its slot.
+    inner_iomaps = Any[]
+    for i in 1:n
+        elem  = valid_elems[i]
+        inner = _split_inner(elem)
+        cell  = slot_main[i]
+        cctx  = main_axis === :x ?
+                with_available_size(ctx; width=cell) :
+                with_available_size(ctx; height=cell)
+        cim = projection_print(recursion, inner, recursion, cctx)
+        push!(inner_iomaps, cim)
+    end
+
+    # Build the main-axis allocation cell now that intrinsic widths are
+    # readable via the inner canvases. Falls back to legacy `sizes` when
+    # neither LayoutConstraint nor intrinsic preference is supplied.
+    if avail_main !== nothing
+        local_elems = valid_elems
+        local_cims  = inner_iomaps
+        axis        = main_axis
+        n_local     = n
+        sizes_local = sizes
+        alloc_main_ref[] = Cell(function ()
+            mins  = Vector{Int}(undef, n_local)
+            maxs  = Vector{Int}(undef, n_local)
+            prefs = Vector{Int}(undef, n_local)
+            wts   = Vector{Float64}(undef, n_local)
+            for i in 1:n_local
+                elem      = local_elems[i]
+                intrinsic = _split_intrinsic(elem, sizes_local, i, axis)
+                mins[i]   = layout_min(elem, axis, intrinsic)
+                maxs[i]   = layout_max(elem, axis, intrinsic)
+                prefs[i]  = intrinsic
+                wts[i]    = layout_weight(elem, axis)
+            end
+            allocate_axis(Int(avail_main[]), mins, maxs, prefs, wts,
+                          splitter_thickness, n_local)
+        end)
+    end
+
+    # Per-child top-left position cells (running cursor across the main axis).
+    child_x = Cell[]
+    child_y = Cell[]
+    for i in 1:n
+        if main_axis === :x
+            push!(child_x, Cell(function ()
+                x = cox
+                for j in 1:(i-1)
+                    x += Int(slot_main[j][]) + splitter_thickness
+                end
+                Int32(x)
+            end))
+            push!(child_y, Cell(Int32(coy)))
+        else
+            push!(child_x, Cell(Int32(cox)))
+            push!(child_y, Cell(function ()
+                y = coy
+                for j in 1:(i-1)
+                    y += Int(slot_main[j][]) + splitter_thickness
+                end
+                Int32(y)
+            end))
+        end
+    end
+
+    # Build the outer canvas elements as a CellVector so splitter positions
+    # and child wrappers re-flow reactively when slot sizes change.
+    outer_elements = CellVector(function ()
+        result = Any[]
+        for i in 1:n
+            cim = inner_iomaps[i]
+            cim.output isa GraphicsCanvas || continue
+            push!(result, _wrap_child_canvas(cim.output, child_x[i], child_y[i]))
+        end
+        if main_axis === :x
+            cursor = cox
+            for i in 1:(n-1)
+                cursor += Int(slot_main[i][])
+                push!(result, GraphicsRect(cursor, coy, splitter_thickness, splitter_cross,
+                                           splitter_rgba...))
+                cursor += splitter_thickness
+            end
+        else
+            cursor = coy
+            for i in 1:(n-1)
+                cursor += Int(slot_main[i][])
+                push!(result, GraphicsRect(cox, cursor, splitter_cross, splitter_thickness,
+                                           splitter_rgba...))
+                cursor += splitter_thickness
+            end
+        end
+        result
+    end)
+
+    # Outer canvas size: sum of slot main extents (+ splitters) on the
+    # main axis; max of child cross extents on the cross axis. If the
+    # parent gave us an available cross extent we report that instead so
+    # the slot fills the parent's allocation.
+    outer_main = Cell(function ()
+        total = 0
+        for i in 1:n
+            total += Int(slot_main[i][])
+        end
+        Int32(total + (n - 1) * splitter_thickness)
+    end)
+    outer_cross = if main_axis === :x
+        avail_h === nothing ?
+            Cell(function ()
+                h = 0
+                for cim in inner_iomaps
+                    ch = cim.output isa GraphicsCanvas ? Int(cim.output.h[]) : 0
+                    ch > h && (h = ch)
+                end
+                Int32(h)
+            end) :
+            Cell(() -> Int32(avail_h[]))
+    else
+        avail_w === nothing ?
+            Cell(function ()
+                wmax = 0
+                for cim in inner_iomaps
+                    cw = cim.output isa GraphicsCanvas ? Int(cim.output.w[]) : 0
+                    cw > wmax && (wmax = cw)
+                end
+                Int32(wmax)
+            end) :
+            Cell(() -> Int32(avail_w[]))
+    end
+    outer_w_cell = main_axis === :x ? outer_main : outer_cross
+    outer_h_cell = main_axis === :x ? outer_cross : outer_main
+
+    outer_canvas = GraphicsCanvas(Cell(Int32(0)), Cell(Int32(0)),
+                                  outer_w_cell, outer_h_cell,
+                                  outer_elements,
+                                  layout_none, true, Cell(nothing))
+
+    child_iomaps = Tuple{Cell,Cell,Any}[]
+    for i in 1:n
+        push!(child_iomaps, (child_x[i], child_y[i], inner_iomaps[i]))
+    end
+    ChildrenIoMap(p, w, outer_canvas, Cell(child_iomaps))
 end
 
 function map_reference_forward(::WidgetSplitPaneToGraphicsCanvas, iomap, reference)
@@ -677,8 +878,26 @@ end
 
 function projection_read(::WidgetSplitPaneToGraphicsCanvas, iomap::ChildrenIoMap, evt)
     child_iomaps = iomap.child_iomaps[]::Vector
-    evt isa MouseScroll && return _route_scroll_to_children(child_iomaps, evt)
-    evt isa MousePress  && return _route_click_to_children(child_iomaps, evt)
+    evt isa MouseScroll && return _route_split_event(child_iomaps, evt.x, evt.y,
+                                                     (x, y) -> MouseScroll(evt.dx, evt.dy, x, y))
+    evt isa MousePress  && return _route_split_event(child_iomaps, evt.x, evt.y,
+                                                     (x, y) -> MousePress(evt.button, x, y, evt.modifiers))
+    nothing
+end
+
+function _route_split_event(child_iomaps::Vector, x::Int, y::Int, make_evt)
+    for entry in child_iomaps
+        entry === nothing && continue
+        (x_cell, y_cell, cim) = entry::Tuple{Cell,Cell,Any}
+        canvas = cim.output
+        canvas isa GraphicsCanvas || continue
+        ox = Int(x_cell[])
+        oy = Int(y_cell[])
+        lx, ly = x - ox - Int(canvas.x), y - oy - Int(canvas.y)
+        hit_element_at(canvas, lx, ly) === nothing && continue
+        result = projection_read(cim.projection, cim, make_evt(lx, ly))
+        result !== nothing && return result
+    end
     nothing
 end
 
@@ -740,11 +959,23 @@ function projection_print(p::WidgetTabbedPaneToGraphicsCanvas, w::WidgetTabbedPa
         result
     end)
 
+    # Seed a reduced available extent for the tab content: subtract the
+    # tab strip height from the parent's available_height (if any) so the
+    # content area knows it lives below the bar.
+    avail_w = ctx.available_width
+    avail_h = ctx.available_height
+    content_ctx = if avail_h === nothing
+        ctx
+    else
+        sel_h_const = sel_h
+        avail_h_inner = Cell(() -> max(0, Int(avail_h[]) - sel_h_const))
+        with_available_size(ctx; width=avail_w, height=avail_h_inner)
+    end
     all_cims = Any[]
     for pair in pairs
         content = pair[2]
         if content !== nothing
-            cim = projection_print(recursion, content, recursion, ctx)
+            cim = projection_print(recursion, content, recursion, content_ctx)
             push!(child_iomaps, (cox, coy + sel_h, cim))
             push!(all_cims, cim)
         else
@@ -826,8 +1057,20 @@ function projection_print(p::WidgetScrollPaneToGraphicsCanvas, w::WidgetScrollPa
     sz  = w.size
     px = pos isa Point2D ? Int(pos.x[]) : 0
     py = pos isa Point2D ? Int(pos.y[]) : 0
-    vw = sz isa Point2D ? Int(sz.x[]) : 400
-    vh = sz isa Point2D ? Int(sz.y[]) : 300
+    # Viewport extent: prefer the parent-allocated extent on each axis
+    # (from the context) so the pane fits its slot in a layout; fall back
+    # to the widget's own `size` when the context didn't allocate. The
+    # extent is held as a `Cell` so reads are deferred — the parent
+    # layout may not have built its allocation cell yet when we recurse.
+    tx, ty = _inset_total(w)
+    avail_w = ctx.available_width
+    avail_h = ctx.available_height
+    vw_cell = avail_w !== nothing ?
+              Cell(() -> Int32(max(0, Int(avail_w[]) - tx))) :
+              Cell(Int32(sz isa Point2D ? Int(sz.x[]) : 400))
+    vh_cell = avail_h !== nothing ?
+              Cell(() -> Int32(max(0, Int(avail_h[]) - ty))) :
+              Cell(Int32(sz isa Point2D ? Int(sz.y[]) : 300))
     cox, coy = _content_offset(w)
     scroll_cell = getfield(w, :scroll_position)
     inner_x = Cell(() -> begin sp = scroll_cell[]::Point2D; Int32(-Int(sp.x[])) end)
@@ -836,18 +1079,28 @@ function projection_print(p::WidgetScrollPaneToGraphicsCanvas, w::WidgetScrollPa
     cfc = w.content_fill_color
     if cfc isa StyleColor
         r, g, b, a = _rgba(cfc)
-        push!(elems, GraphicsRect(cox, coy, vw, vh, r, g, b, a))
+        # Cell-backed rect so it tracks the viewport extent.
+        push!(elems, GraphicsRect(Cell(Int32(cox)), Cell(Int32(coy)), vw_cell, vh_cell,
+                                  Cell(UInt8(r)), Cell(UInt8(g)), Cell(UInt8(b)), Cell(UInt8(a)),
+                                  Cell(Int32(0)), Cell(Int32(0)),
+                                  Cell(Int32(0)), Cell(Int32(0)),
+                                  Cell(nothing)))
     end
+    # Recurse into the content with the viewport extent on each axis — the
+    # context cells are already deferred, so the recursion stays lazy.
     content_iomap = nothing
     content = w.content
     if content isa Document
-        content_iomap = projection_print(recursion, content, recursion, ctx)
+        content_ctx = with_available_size(ctx; width=vw_cell, height=vh_cell)
+        content_iomap = projection_print(recursion, content, recursion, content_ctx)
         inner_canvas = content_iomap.output::GraphicsCanvas
         inner_elems_cv = inner_canvas.elements
-        push!(elems, GraphicsViewport(cox, coy, vw, vh,
-                                      GraphicsCanvas(inner_x, inner_y, Int32(0), Int32(0),
-                                                     inner_elems_cv isa CellVector ? inner_elems_cv : CellVector(Cell[Cell(inner_canvas)]),
-                                                     layout_none, true, Cell(nothing))))
+        push!(elems, GraphicsViewport(Cell(Int32(cox)), Cell(Int32(coy)),
+                                      vw_cell, vh_cell,
+                                      Cell(GraphicsCanvas(inner_x, inner_y, Int32(0), Int32(0),
+                                                          inner_elems_cv isa CellVector ? inner_elems_cv : CellVector(Cell[Cell(inner_canvas)]),
+                                                          layout_none, true, Cell(nothing))),
+                                      Cell(nothing)))
     end
     WidgetScrollPaneToGraphicsCanvasIoMap(p, w, _make_canvas(px, py, elems), content_iomap)
 end

@@ -43,6 +43,7 @@ end
     op = projection_read(projection, iomap, EventEnvelope(:main, :tick))
     @test !(op isa Operation)
     @test length(screen.windows) == 2
+    @test length(iomap.output.windows) == 2          # output mirrors input
     tt_idx = findfirst(i -> screen.windows[i].id === source_id, 1:length(screen.windows))
     @test tt_idx !== nothing
     tt = screen.windows[tt_idx]
@@ -50,12 +51,14 @@ end
     @test tt.x == 10 && tt.y == 20 && tt.width == 300 && tt.height == 100
     @test tt.content isa PrimitiveString
     @test tt.content.value == "tooltip body"
+    @test iomap.output.windows[tt_idx].id === source_id
 end
 
 @testset "no-op when already open" begin
     op = projection_read(projection, iomap, EventEnvelope(:main, :tick))
     @test !(op isa Operation)
     @test length(screen.windows) == 2
+    @test length(iomap.output.windows) == 2
 end
 
 @testset "close on trigger off" begin
@@ -63,6 +66,7 @@ end
     op = projection_read(projection, iomap, EventEnvelope(:main, :tick))
     @test !(op isa Operation)
     @test length(screen.windows) == 1
+    @test length(iomap.output.windows) == 1
     @test screen.windows[1].id === :main
 end
 
@@ -71,7 +75,9 @@ end
     op = projection_read(projection, iomap, EventEnvelope(:main, :tick))
     @test !(op isa Operation)
     @test length(screen.windows) == 2
+    @test length(iomap.output.windows) == 2
     @test screen.windows[2].id === source_id
+    @test iomap.output.windows[2].id === source_id
 end
 
 end # @testset

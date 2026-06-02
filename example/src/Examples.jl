@@ -60,7 +60,8 @@ end
 
 """
     run_example(examples::Vector{Example}; width, height,
-                caching=false, scrolling=false, workbench=false, reset=false)
+                caching=false, scrolling=false, workbench=false, reset=false,
+                tooltip=false)
 
 Open one window per example, side by side. Each example contributes a
 `WindowDocument` with the example's domain document as content; the
@@ -68,10 +69,20 @@ composed projection dispatches each window's content to that example's
 own projection by **reference path** (so two examples with the same
 content type — e.g. both JSON, both wrapped in `WidgetScrollPane` —
 still each render through their own pipeline).
+
+When `tooltip=true`, each example's content is wrapped in a
+`TooltipSource`. While the user has a selection inside that example,
+a sibling tooltip window opens (id `:tooltip_<example-name>`) showing
+the selection's reference path via `ReferenceToText`. The tooltip
+closes when the selection is cleared.
 """
 function run_example(examples::Vector{Example}; width=2400, height=1600,
-                     caching=false, scrolling=false, workbench=false, reset=false)
+                     caching=false, scrolling=false, workbench=false, reset=false,
+                     tooltip=false)
     isempty(examples) && error("run_example: empty examples vector")
+    if tooltip && workbench
+        error("run_example: tooltip=true is not compatible with workbench=true")
+    end
 
     # Prepare (document, projection) pairs with the same flags applied as
     # the single-example path.
@@ -92,6 +103,16 @@ function run_example(examples::Vector{Example}; width=2400, height=1600,
         end
         push!(docs, document)
         push!(projs, projection)
+    end
+
+    # When the tooltip flag is on, wrap each window's content in a
+    # TooltipSource and pick the tooltip-aware multi-window projection.
+    if tooltip
+        tt_docs = Any[]
+        for (i, ex) in enumerate(examples)
+            push!(tt_docs, _make_tooltip_source(docs[i]; id = Symbol("tooltip_", ex.name)))
+        end
+        docs = tt_docs
     end
 
     # Lay out the WindowDocuments side by side. Each example.name becomes
@@ -115,7 +136,8 @@ function run_example(examples::Vector{Example}; width=2400, height=1600,
     end
     screen = ScreenDocument(windows)
 
-    composed = _multi_window_projection(projs)
+    composed = tooltip ? _multi_window_projection_tooltipped(projs) :
+                         _multi_window_projection(projs)
     run!(SdlBackend(), composed, screen)
 end
 
@@ -152,6 +174,66 @@ function _multi_window_projection(projections::Vector)
         # Anything else is outside the screen spine — preserve.
         return PreservingProjection()
     end))
+end
+
+# ── Tooltip variant ──────────────────────────────────────────────────────
+#
+# Wrap a domain document in a `TooltipSource` whose `content` is a
+# *reactive* `TextText`: the elements thunk re-reads `doc.selection`
+# every frame and rebuilds the colored spans via `ReferenceToText`. The
+# `TooltipDecoratorProjection` reader watches the wrapped document and
+# emits `OpenWindowOperation` / `CloseWindowOperation` as the selection
+# arrives / clears; the `WindowManagerProjection` applies those to the
+# screen.
+
+function _make_tooltip_source(doc; id::Symbol)
+    ref_proj = ReferenceToText()
+    content = TextText(() -> begin
+        sel = doc.selection
+        snapshot = projection_print(ref_proj, sel, nothing, ProjectionContext()).output
+        # Extract spans into a plain Vector so the outer CellVector can
+        # wrap each one in a fresh Cell on every recompute.
+        TextDocument[snapshot[i] for i in 1:length(snapshot)]
+    end)
+    TooltipSource(child = doc, content = content, style = :tooltip, id = id)
+end
+
+# Same shape as `_multi_window_projection` but with the four extra type
+# entries needed for tooltip support, sitting in front of the existing
+# reference-based dispatch for example content.
+function _multi_window_projection_tooltipped(projections::Vector; measure=sdl_measure_text)
+    n = length(projections)
+    targets = Vector{Any}(undef, n)
+    for i in 1:n
+        targets[i] = @reference windows{i}.content
+    end
+    decorator = TooltipDecoratorProjection(
+        trigger  = (source, _evt) -> source.child.selection !== nothing,
+        position = _ -> (100, 100, 1200, 200),
+        title    = "Selection",
+    )
+    ref_dispatch = ReferenceDispatchingProjection(ref -> begin
+        for i in 1:n
+            reference_equal(ref, targets[i]) || continue
+            return NestingProjection(projections[i];
+                                      recursion=PreservingProjection())
+        end
+        for t in targets
+            is_prefix_of(ref, t) || continue
+            return CopyingProjection()
+        end
+        return PreservingProjection()
+    end)
+    RecursiveProjection(
+        TypeDispatchingProjection(
+            ScreenDocument => WindowManagerProjection(inner = CopyingProjection()),
+            WindowDocument => CopyingProjection(),
+            CellVector     => CopyingProjection(),
+            TooltipSource  => decorator,
+            TextText       => TextToGraphics(measure=measure),
+            Any            => ref_dispatch,
+        ),
+    )
 end
 
 function run_example(name="json"; kwargs...)

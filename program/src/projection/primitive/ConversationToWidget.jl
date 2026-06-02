@@ -17,7 +17,7 @@ document hierarchy into a vertical widget tree:
     ConversationListBlock           → WidgetComposite of bullet rows
 
 The input editing surface lives on `WorkbenchAssistant` (not on the
-conversation) and is handled by `WorkbenchAssistantToWidgetScrollPane`,
+conversation) and is handled by `WorkbenchAssistantToWidgetSplitPane`,
 which stacks this conversation widget above the input row.
 """
 module ConversationToWidgetModule

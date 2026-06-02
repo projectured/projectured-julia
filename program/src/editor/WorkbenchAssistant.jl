@@ -42,7 +42,7 @@ import ..ConversationModule: ConversationConversation,
                               ConversationTextBlock, ConversationCodeBlock,
                               ConversationHeadingBlock, ConversationListBlock
 import ..WorkbenchModule: WorkbenchAssistant
-import ..WorkbenchToWidgetModule: WorkbenchAssistantToWidgetScrollPane
+import ..WorkbenchToWidgetModule: WorkbenchAssistantToWidgetSplitPane
 import ..KeyboardModule: KeyDown
 import ..ToolRegistryModule: list_tools, list_resources, call_tool, read_resource,
                               anthropic_tool_schema, Tool
@@ -645,7 +645,7 @@ end
 # ═══════════════════════════════════════════════════════════════════════
 # Assistant input event handling
 # ═══════════════════════════════════════════════════════════════════════
-# Additional methods on the existing `WorkbenchAssistantToWidgetScrollPane`
+# Additional methods on the existing `WorkbenchAssistantToWidgetSplitPane`
 # projection_read so the editor's read! loop dispatches:
 #
 #   Enter      → SubmitProseOperation
@@ -671,7 +671,7 @@ end
 # Build a path rooted at WorkbenchAssistant: `.input.value[range]`.
 _input_path(range::RangeReference) = @reference input.value.^(range)
 
-function projection_read(::WorkbenchAssistantToWidgetScrollPane,
+function projection_read(::WorkbenchAssistantToWidgetSplitPane,
                           iomap, evt::KeyPress)
     iomap.input isa WorkbenchAssistant || return nothing
     evt.modifiers.ctrl && return nothing
@@ -681,7 +681,7 @@ function projection_read(::WorkbenchAssistantToWidgetScrollPane,
     StringReplaceRangeOperation(_input_path(range), evt.text)
 end
 
-function projection_read(::WorkbenchAssistantToWidgetScrollPane,
+function projection_read(::WorkbenchAssistantToWidgetSplitPane,
                           iomap, evt::KeyDown)
     iomap.input isa WorkbenchAssistant || return nothing
     a = iomap.input::WorkbenchAssistant

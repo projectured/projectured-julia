@@ -214,9 +214,12 @@ function _syntax_list_to_text_node(input_node::ListNode, recursion, cache::IdDic
         input_prev = input_node.prev
         input_prev === nothing && return nothing
         prev_first = _syntax_list_to_text_node(input_prev, recursion, cache)
-        # Walk forward through the cached prev chain to its trailing nl_node.
+        # Walk forward through this paragraph's span chain to its trailing
+        # nl_node. Stop at the TextNewline rather than reading `cur.next`
+        # past it — nl_node.next is a lazy thunk that materialises the
+        # *next* paragraph, which for an infinite stream never terminates.
         cur = prev_first
-        while true
+        while !(cur.value isa TextNewline)
             nxt = cur.next
             nxt === nothing && break
             cur = nxt

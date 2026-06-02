@@ -12,7 +12,7 @@ hierarchy to a widget tree.
     WorkbenchOperator   → empty WidgetScrollPane
     WorkbenchSearcher   → empty WidgetScrollPane
     WorkbenchEvaluator  → WidgetScrollPane wrapping projected content
-    WorkbenchAssistant  → WidgetScrollPane wrapping projected content
+    WorkbenchAssistant  → WidgetSplitPane (vertical) of conversation + input WidgetScrollPanes
     WorkbenchEditor     → WidgetScrollPane wrapping projected content
 """
 module WorkbenchToWidgetModule
@@ -27,6 +27,7 @@ import ..WorkbenchModule: WorkbenchDocument, WorkbenchWorkbench, WorkbenchPage,
 import ..WidgetModule: WidgetDocument, WidgetLabel, WidgetText, WidgetShell, WidgetSplitPane, WidgetTabbedPane,
                        WidgetScrollPane, WidgetComposite, Point2D, Inset, inset_default,
                        SelectTabOperation
+import ..LayoutModule: LayoutConstraint
 import ..TextModule: TextText, TextString
 import ..FontModule: font_ubuntu_monospace_regular_24
 import ..ColorModule: StyleColor, color_default
@@ -49,7 +50,7 @@ export WorkbenchWorkbenchToWidgetShell,    WorkbenchWorkbenchToWidgetShellIoMap,
        WorkbenchOperatorToWidgetScrollPane,
        WorkbenchSearcherToWidgetScrollPane,
        WorkbenchEvaluatorToWidgetScrollPane,
-       WorkbenchAssistantToWidgetScrollPane,
+       WorkbenchAssistantToWidgetSplitPane,
        WorkbenchEditorToWidgetScrollPane,
        WorkbenchToWidget
 
@@ -63,7 +64,7 @@ struct WorkbenchDescriptorToWidgetScrollPane <: Projection end
 struct WorkbenchOperatorToWidgetScrollPane  <: Projection end
 struct WorkbenchSearcherToWidgetScrollPane  <: Projection end
 struct WorkbenchEvaluatorToWidgetScrollPane <: Projection end
-struct WorkbenchAssistantToWidgetScrollPane <: Projection end
+struct WorkbenchAssistantToWidgetSplitPane <: Projection end
 struct WorkbenchEditorToWidgetScrollPane    <: Projection end
 
 # ── IoMap structs ─────────────────────────────────────────────────────────────
@@ -109,12 +110,16 @@ function projection_print(::WorkbenchWorkbenchToWidgetShell,
     nav_iomap  = _recurse(recursion, w.navigation_page,  child_context(ctx, @reference ^(ctx.reference).navigation_page))
     edit_iomap = _recurse(recursion, w.editing_page,     child_context(ctx, @reference ^(ctx.reference).editing_page))
     info_iomap = _recurse(recursion, w.information_page, child_context(ctx, @reference ^(ctx.reference).information_page))
-    right_split = WidgetSplitPane(:vertical,
-                                  WidgetDocument[edit_iomap.output, info_iomap.output];
-                                  sizes=[800, 200])
-    main_split  = WidgetSplitPane(:horizontal,
-                                  WidgetDocument[nav_iomap.output, right_split];
-                                  sizes=[200, 1000])
+    # Right column: editor fills remaining height, info pane pinned to 200.
+    right_split = WidgetSplitPane(:vertical, Any[
+        LayoutConstraint(edit_iomap.output; weight_height=1.0),
+        LayoutConstraint(info_iomap.output; min_height=200, max_height=200),
+    ])
+    # Top level: navigator pinned to 200 wide, right column fills the rest.
+    main_split = WidgetSplitPane(:horizontal, Any[
+        LayoutConstraint(nav_iomap.output; min_width=200, max_width=200),
+        LayoutConstraint(right_split;      weight_width=1.0),
+    ])
     shell = WidgetShell(main_split;
                         size=Point2D(1280, 720),
                         border=_PAD5)
@@ -186,7 +191,7 @@ function projection_print(::WorkbenchEvaluatorToWidgetScrollPane,
     ContentIoMap(nothing, e, scroll, content_iomap)
 end
 
-function projection_print(::WorkbenchAssistantToWidgetScrollPane,
+function projection_print(::WorkbenchAssistantToWidgetSplitPane,
                            a::WorkbenchAssistant, recursion, ctx)
     # Both children are WidgetScrollPanes whose `content` is the underlying
     # document. `WidgetScrollPaneToGraphicsCanvas.projection_print` calls
@@ -199,11 +204,15 @@ function projection_print(::WorkbenchAssistantToWidgetScrollPane,
                                   size=Point2D(1600, 1600),
                                   padding=_PAD5, padding_color=_WHITE)
     input_pane = WidgetScrollPane(a.input;
-                                  size=Point2D(1600, 200),
+                                  size=Point2D(1600, 40),
                                   padding=_PAD5, padding_color=_WHITE)
-    column = WidgetSplitPane(:vertical,
-                             WidgetDocument[conv_pane, input_pane];
-                             sizes=[1600, 200])
+    # The input is a single-line PrimitiveString; pin it to one row so the
+    # conversation pane gets the remainder of the (already tight) info_page
+    # height instead of being squeezed to zero by the deficit-reduction pass.
+    column = WidgetSplitPane(:vertical, Any[
+        LayoutConstraint(conv_pane;  weight_height=1.0),
+        LayoutConstraint(input_pane; min_height=40, max_height=40),
+    ])
     SimpleIoMap(nothing, a, column)
 end
 
@@ -288,7 +297,7 @@ function map_reference_forward(::WorkbenchEvaluatorToWidgetScrollPane,
     map_reference_forward(nothing, iomap.inner_iomap, reference.tail)
 end
 
-function map_reference_forward(::WorkbenchAssistantToWidgetScrollPane,
+function map_reference_forward(::WorkbenchAssistantToWidgetSplitPane,
                                 iomap,
                                 reference)
     return nothing
@@ -347,7 +356,7 @@ function map_reference_backward(::WorkbenchEvaluatorToWidgetScrollPane,
     return nothing
 end
 
-function map_reference_backward(::WorkbenchAssistantToWidgetScrollPane,
+function map_reference_backward(::WorkbenchAssistantToWidgetSplitPane,
                                  iomap,
                                  reference)
     return nothing
@@ -462,7 +471,7 @@ function projection_read(::WorkbenchEvaluatorToWidgetScrollPane,
     op
 end
 
-function projection_read(::WorkbenchAssistantToWidgetScrollPane,
+function projection_read(::WorkbenchAssistantToWidgetSplitPane,
                           iomap, op)
     # Operations produced by an inner reader (e.g. ScrollWidgetOperation
     # from the conversation scroll pane) pass through unchanged.
@@ -502,7 +511,7 @@ function WorkbenchToWidget()
         WorkbenchOperator   => WorkbenchOperatorToWidgetScrollPane(),
         WorkbenchSearcher   => WorkbenchSearcherToWidgetScrollPane(),
         WorkbenchEvaluator  => WorkbenchEvaluatorToWidgetScrollPane(),
-        WorkbenchAssistant  => WorkbenchAssistantToWidgetScrollPane(),
+        WorkbenchAssistant  => WorkbenchAssistantToWidgetSplitPane(),
         WorkbenchEditor     => WorkbenchEditorToWidgetScrollPane(),
     )
 end

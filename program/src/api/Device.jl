@@ -14,7 +14,7 @@ export Device, write_to_device, read_from_device, write_to_devices, read_from_de
 """
     Device
 
-Abstract supertype for all I/O devices (windows, keyboards, mice, …).
+Abstract supertype for all I/O devices (screen, keyboard, mouse, …).
 """
 abstract type Device end
 

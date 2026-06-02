@@ -195,8 +195,8 @@ Pass `mcp=true` to start an MCP server alongside the loop.
 function run!(backend::Backend, projection, document; mcp::Bool=false)
     init!(backend)
     try
-        editor = Editor(backend, document, projection,
-                        Device[Screen(), Keyboard(), Mouse()])
+        devices = Device[Screen(), Keyboard(), Mouse()]
+        editor = Editor(backend, document, projection, devices)
         run!(editor; mcp=mcp)
     finally
         quit!(backend)

@@ -15,7 +15,7 @@
 # Typing goes through the standard `PrimitiveString → Syntax → Text →
 # Graphics` chain (PrimitiveStringToSyntaxLeaf catches `KeyPress`).
 # Enter goes through `WorkbenchToWidget` so the
-# `WorkbenchAssistantToWidgetScrollPane.projection_read` handler fires.
+# `WorkbenchAssistantToWidgetSplitPane.projection_read` handler fires.
 # The test deliberately does not wire the full assistant → graphics
 # chain — that path is exercised by the standalone assistant example
 # (see [`make_assistant_only_example`](../example/src/Examples.jl)).
@@ -78,7 +78,7 @@ function _input_chain()
 end
 
 # Chain that exercises the Enter keybinding. WorkbenchToWidget dispatches
-# WorkbenchAssistant to WorkbenchAssistantToWidgetScrollPane, whose
+# WorkbenchAssistant to WorkbenchAssistantToWidgetSplitPane, whose
 # projection_read for KeyDown :return returns SubmitProseOperation.
 function _workbench_chain()
     RecursiveProjection(WorkbenchToWidget())

@@ -18,7 +18,7 @@ import ..ReferenceModule: ReferencePath, EmptyReferencePath, ConcreteReferencePa
                           FieldReference, PositionReference, RangeReference,
                           ElementReference, append_reference, is_element_reference, head, tail
 import ..ReferenceBuilderModule: var"@reference"
-import ..ProjectionContextModule: ProjectionContext, child_context
+import ..ProjectionContextModule: ProjectionContext, child_context, with_available_size
 import ..CollectionModule: CellVector, ListNode
 import ..IoMapApiModule: IoMap
 import ..OperationApiModule: Operation
@@ -131,6 +131,17 @@ function projection_print(p::CopyingProjection, input, recursion, ctx)
             end))
         elseif _is_doc_field(fv)
             child_ctx = child_context(ctx, FieldReference(string(nm)))
+            # A WindowDocument is a natural source of layout extent: its
+            # `width`/`height` fields are the window's pixel size. Seed
+            # them on the context when descending into `content` so any
+            # layout-aware descendant (split/tabbed/scroll panes) can
+            # size itself to the window without needing a WidgetShell.
+            if input isa WindowDocument && nm == :content
+                w_cell = getfield(input, :width)
+                h_cell = getfield(input, :height)
+                child_ctx = with_available_size(child_ctx;
+                                                width=w_cell, height=h_cell)
+            end
             im = projection_print(recursion, _unwrap(fv), recursion, child_ctx)
             push!(children, im); push!(names, string(nm))
             push!(field_vals, im.output)

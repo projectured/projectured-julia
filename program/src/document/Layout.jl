@@ -21,7 +21,11 @@ import ..ReferenceModule: Reference
 
 export LayoutDocument,
        HorizontalLayout, VerticalLayout, GridLayout, FlowLayout,
-       IHorizontalLayout, IVerticalLayout, IGridLayout, IFlowLayout
+       LayoutConstraint,
+       allocate_axis,
+       layout_min, layout_max, layout_preferred, layout_weight,
+       IHorizontalLayout, IVerticalLayout, IGridLayout, IFlowLayout,
+       ILayoutConstraint
 
 # ── Abstract base ───────────────────────────────────────────────────────────
 
@@ -175,6 +179,204 @@ FlowLayout(; kwargs...) = FlowLayout(Any[]; kwargs...)
 function Base.show(io::IO, f::FlowLayout)
     print(io, "FlowLayout(n=", length(f.children),
           ", max_w=", f.max_width, ")")
+end
+
+# ── LayoutConstraint ────────────────────────────────────────────────────────
+
+"""
+    LayoutConstraint(child; min_width, preferred_width, max_width, weight_width,
+                            min_height, preferred_height, max_height, weight_height)
+
+A wrapper document that attaches per-child layout policy to `child` without
+polluting the child's own type with layout fields. A parent layout reads
+these values to allocate available space across its children; a bare
+(unwrapped) child uses the defaults (`min=0`, `preferred=intrinsic`,
+`max=∞`, `weight=0`).
+
+Each axis field is `nothing` by default. When `nothing`, the parent layout
+falls back to the bare-child interpretation for that field.
+"""
+@document struct LayoutConstraint <: Document
+    child::Document
+    min_width::Any
+    preferred_width::Any
+    max_width::Any
+    weight_width::Any
+    min_height::Any
+    preferred_height::Any
+    max_height::Any
+    weight_height::Any
+    selection::Reference
+end
+
+function LayoutConstraint(child::Document;
+                          min_width=nothing, preferred_width=nothing,
+                          max_width=nothing, weight_width=nothing,
+                          min_height=nothing, preferred_height=nothing,
+                          max_height=nothing, weight_height=nothing)
+    LayoutConstraint(Cell(child),
+                     Cell(min_width), Cell(preferred_width),
+                     Cell(max_width), Cell(weight_width),
+                     Cell(min_height), Cell(preferred_height),
+                     Cell(max_height), Cell(weight_height),
+                     Cell(nothing))
+end
+
+function Base.show(io::IO, c::LayoutConstraint)
+    print(io, "LayoutConstraint(child=", c.child, ")")
+end
+
+# ── Constraint reading helpers ───────────────────────────────────────────────
+
+"""
+    layout_min(doc, axis, intrinsic) -> Int
+
+Per-child minimum on `axis` (`:x` or `:y`). Reads through the
+`LayoutConstraint` wrapper when present; falls back to `0` for bare
+children.
+"""
+function layout_min(doc, axis::Symbol, intrinsic::Integer)
+    doc isa LayoutConstraint || return 0
+    v = axis === :x ? doc.min_width : doc.min_height
+    v === nothing ? 0 : Int(v)
+end
+
+"""
+    layout_max(doc, axis, intrinsic) -> Int
+
+Per-child maximum on `axis`. Falls back to `typemax(Int)` for bare children.
+"""
+function layout_max(doc, axis::Symbol, intrinsic::Integer)
+    doc isa LayoutConstraint || return typemax(Int)
+    v = axis === :x ? doc.max_width : doc.max_height
+    v === nothing ? typemax(Int) : Int(v)
+end
+
+"""
+    layout_preferred(doc, axis, intrinsic) -> Int
+
+Per-child preferred extent on `axis`. Falls back to the child's intrinsic
+extent (`intrinsic`) when the constraint is absent or `nothing`.
+"""
+function layout_preferred(doc, axis::Symbol, intrinsic::Integer)
+    doc isa LayoutConstraint || return Int(intrinsic)
+    v = axis === :x ? doc.preferred_width : doc.preferred_height
+    v === nothing ? Int(intrinsic) : Int(v)
+end
+
+"""
+    layout_weight(doc, axis) -> Float64
+
+Per-child weight on `axis`. Falls back to `0.0` for bare children.
+"""
+function layout_weight(doc, axis::Symbol)
+    doc isa LayoutConstraint || return 0.0
+    v = axis === :x ? doc.weight_width : doc.weight_height
+    v === nothing ? 0.0 : Float64(v)
+end
+
+# ── Allocation algorithm (per axis, one pass) ───────────────────────────────
+
+"""
+    allocate_axis(available, mins, maxs, prefs, weights, gap, n) -> Vector{Int}
+
+Pure allocator: distributes `available` extent across `n` children whose
+seed sizes are `prefs` clamped to `[mins, maxs]`. Inter-child `gap` is
+subtracted first. Slack > 0 is distributed in proportion to `weights`,
+each share capped at `maxs[i]`; slack < 0 is taken in proportion to
+`weights`, each draw floored at `mins[i]`. Returns one `Int` per child.
+
+Pixel rounding may leave ±1 px residual; the residual is absorbed by the
+last weighted child if any.
+"""
+function allocate_axis(available::Int, mins::Vector{Int}, maxs::Vector{Int},
+                       prefs::Vector{Int}, weights::Vector{Float64},
+                       gap::Int, n::Int)
+    actual = Vector{Int}(undef, n)
+    for i in 1:n
+        actual[i] = clamp(prefs[i], mins[i], maxs[i])
+    end
+    n == 0 && return actual
+    gaps_total = n > 1 ? (n - 1) * gap : 0
+    seed_total = sum(actual)
+    remaining  = available - seed_total - gaps_total
+
+    if remaining > 0
+        active = [i for i in 1:n if weights[i] > 0 && actual[i] < maxs[i]]
+        while !isempty(active) && remaining > 0
+            wsum = sum(weights[i] for i in active)
+            wsum > 0 || break
+            slack_in_pass = remaining
+            # Compute each child's tentative share against the slack at the
+            # *start* of this pass, then apply caps; redistribute residual
+            # in the next outer iteration. This gives proportional shares
+            # independent of iteration order.
+            shares = Dict{Int,Int}()
+            for i in active
+                shares[i] = Int(floor(slack_in_pass * weights[i] / wsum))
+            end
+            # Hand out the floored residual to the largest-weight child so
+            # the pass actually empties the slack on average.
+            assigned = sum(values(shares); init=0)
+            residual = slack_in_pass - assigned
+            if residual > 0
+                # Largest-weight active child absorbs the floor residual.
+                heaviest = active[1]
+                for i in active
+                    weights[i] > weights[heaviest] && (heaviest = i)
+                end
+                shares[heaviest] += residual
+            end
+            any_change = false
+            for i in copy(active)
+                room = maxs[i] - actual[i]
+                give = min(shares[i], room, remaining)
+                if give > 0
+                    actual[i] += give
+                    remaining -= give
+                    any_change = true
+                end
+                actual[i] >= maxs[i] && deleteat!(active, findfirst(==(i), active))
+                remaining <= 0 && break
+            end
+            any_change || break
+        end
+    elseif remaining < 0
+        deficit = -remaining
+        active = [i for i in 1:n if weights[i] > 0 && actual[i] > mins[i]]
+        while !isempty(active) && deficit > 0
+            wsum = sum(weights[i] for i in active)
+            wsum > 0 || break
+            deficit_in_pass = deficit
+            shares = Dict{Int,Int}()
+            for i in active
+                shares[i] = Int(floor(deficit_in_pass * weights[i] / wsum))
+            end
+            assigned = sum(values(shares); init=0)
+            residual = deficit_in_pass - assigned
+            if residual > 0
+                heaviest = active[1]
+                for i in active
+                    weights[i] > weights[heaviest] && (heaviest = i)
+                end
+                shares[heaviest] += residual
+            end
+            any_change = false
+            for i in copy(active)
+                room = actual[i] - mins[i]
+                take = min(shares[i], room, deficit)
+                if take > 0
+                    actual[i] -= take
+                    deficit   -= take
+                    any_change = true
+                end
+                actual[i] <= mins[i] && deleteat!(active, findfirst(==(i), active))
+                deficit <= 0 && break
+            end
+            any_change || break
+        end
+    end
+    actual
 end
 
 end # module
