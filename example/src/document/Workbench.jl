@@ -1,8 +1,10 @@
 function make_workbench_document_example(; root=abspath(joinpath(@__DIR__, "../..")))
-    fs_root = make_filesystem_pathname(root)
+    workspace = Workspace([
+        WorkspaceFolder(basename(root), root),
+    ])
 
     nav_page = WorkbenchPage([
-        WorkbenchNavigator([fs_root]),
+        WorkbenchNavigator(workspace),
     ])
 
     text_doc        = make_text_document_example()

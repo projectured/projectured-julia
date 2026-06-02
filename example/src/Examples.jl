@@ -24,6 +24,7 @@ const widget_tabbed_pane_example = Example("widget_tabbed_pane", make_widget_tab
 const layout_example         = Example("layout",         make_layout_document_example,         make_layout_projection_example)
 const book_example           = Example("book",           make_book_document_example,           make_book_projection_example)
 const filesystem_example     = Example("filesystem",     make_filesystem_document_example,     make_filesystem_projection_example)
+const navigator_example      = Example("navigator",      make_navigator_document_example,      make_navigator_projection_example)
 const collection_example     = Example("collection",     make_collection_document_example,     make_collection_projection_example)
 const reversing_example      = Example("reversing",      make_collection_document_example,     make_reversing_projection_example)
 const filtering_example      = Example("filtering",      make_collection_document_example,     make_filtering_projection_example)
@@ -44,7 +45,7 @@ const examples = [
     json_example, json_sorted_example, json_null_example, json_string_example,
     xml_example, mixed_example, syntax_example, text_example,
     object_example, line_numbering_example, word_wrapping_example,
-    widget_example, widget_tabbed_pane_example, layout_example, book_example, filesystem_example,
+    widget_example, widget_tabbed_pane_example, layout_example, book_example, filesystem_example, navigator_example,
     collection_example, reversing_example, filtering_example, sorting_example, focusing_example, table_example, math_table_example, workbench_example,
     math_example,
     julia_example,
