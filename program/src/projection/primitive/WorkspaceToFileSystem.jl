@@ -19,7 +19,7 @@ import ..CollectionModule: CellVector
 import ..ProjectionApiModule: projection_print, projection_read,
                                map_reference_forward, map_reference_backward, Projection
 import ..WorkspaceModule: WorkspaceDocument, Workspace, WorkspaceFolder
-import ..FileSystemModule: FileSystemDocument, FileSystemFile, FileSystemDirectory
+import ..FileSystemModule: FileSystemDocument, FileSystemFile, FileSystemDirectory, make_filesystem_pathname
 import ..IoMapModule: SimpleIoMap, ChildrenIoMap
 import ..IoMapApiModule: IoMap
 import ..TypeDispatchingModule: TypeDispatchingProjection
@@ -33,7 +33,7 @@ struct WorkspaceFolderToFileSystemDirectory <: Projection end
 
 function projection_print(p::WorkspaceFolderToFileSystemDirectory,
                            folder::WorkspaceFolder, recursion, ctx)
-    dir = _make_shallow_directory(folder.pathname)
+    dir = make_filesystem_pathname(folder.pathname)
     SimpleIoMap(p, folder, dir)
 end
 
@@ -76,30 +76,6 @@ function projection_read(::WorkspaceWorkspaceProjection, iomap, op)
     op
 end
 
-# ── Utility ──────────────────────────────────────────────────────────────────
-
-"""
-    _make_shallow_directory(pathname)
-
-Create a FileSystemDirectory with one level of children (files and
-subdirectories as leaves — subdirectories are FileSystemDirectory with
-empty children so they can be expanded later by the filesystem projection).
-"""
-function _make_shallow_directory(pathname::AbstractString)
-    p = String(pathname)
-    if !isdir(p)
-        return FileSystemFile(p)
-    end
-    children = FileSystemDocument[]
-    for entry in sort(readdir(p; join=true))
-        if isdir(entry)
-            push!(children, FileSystemDirectory(entry))
-        else
-            push!(children, FileSystemFile(entry))
-        end
-    end
-    FileSystemDirectory(p, children)
-end
 
 # ── Compound constructor ─────────────────────────────────────────────────────
 
