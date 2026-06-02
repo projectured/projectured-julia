@@ -134,19 +134,10 @@ end
 
 function projection_print(::WorkbenchNavigatorToWidgetScrollPane,
                            nav::WorkbenchNavigator, recursion, ctx)
-    folder_iomaps = Any[]
-    for i in eachindex(nav.folders)
-        folder = nav.folders[i]
-        name   = hasproperty(folder, :pathname) ? basename(folder.pathname) : string(folder)
-        label  = WidgetLabel(Point2D(0, 0), name)
-        push!(folder_iomaps, SimpleIoMap(nothing, folder, label))
-    end
-    composite = WidgetComposite(Point2D(0, 0),
-                                WidgetDocument[fm.output for fm in folder_iomaps])
-    scroll = WidgetScrollPane(composite;
+    scroll = WidgetScrollPane(nav.workspace;
                               size=Point2D(224, 655),
                               padding=_PAD5, padding_color=_WHITE)
-    WorkbenchNavigatorToWidgetScrollPaneIoMap(nothing, nav, scroll, folder_iomaps)
+    WorkbenchNavigatorToWidgetScrollPaneIoMap(nothing, nav, scroll, Any[])
 end
 
 function projection_print(::WorkbenchConsoleToWidgetScrollPane,
@@ -262,16 +253,7 @@ end
 function map_reference_forward(::WorkbenchNavigatorToWidgetScrollPane,
                                 iomap::WorkbenchNavigatorToWidgetScrollPaneIoMap,
                                 reference)
-    reference isa ConcreteReferencePath || return nothing
-    h = reference.head
-    h isa FieldReference && h.name == "folders" || return nothing
-    rest = reference.tail
-    rest isa ConcreteReferencePath || return nothing
-    h2 = rest.head
-    h2 isa RangeReference || return nothing
-    idx = h2.start + 1
-    1 <= idx <= length(iomap.folder_iomaps) || return nothing
-    map_reference_forward(nothing, iomap.folder_iomaps[idx], rest.tail)
+    return nothing
 end
 
 function map_reference_forward(::WorkbenchConsoleToWidgetScrollPane,

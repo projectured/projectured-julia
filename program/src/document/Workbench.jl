@@ -17,6 +17,7 @@ import ..PrimitiveModule: PrimitiveString
 import ..ConversationModule: ConversationConversation
 import ..LlmModule: LlmBackend, FakeLlm, AnthropicLlm
 import ..ReferenceModule: Reference, ReferencePath
+import ..WorkspaceModule: Workspace, WorkspaceFolder
 export WorkbenchDocument, WorkbenchInsertion, WorkbenchForeign,
        WorkbenchWorkbench, WorkbenchPage,
        WorkbenchNavigator, WorkbenchConsole, WorkbenchDescriptor,
@@ -106,27 +107,25 @@ end
 const WORKBENCH_NAVIGATOR_TITLE = "Navigator"
 
 """
-    WorkbenchNavigator(folders)
+    WorkbenchNavigator(workspace)
 
-The navigator panel.  `folders` is a sequence of file-system entries or
-document nodes.  Its title is the class-level constant `"Navigator"`.
+The navigator panel.  `workspace` is a `Workspace` document containing
+`WorkspaceFolder` entries.  Its title is the class-level constant `"Navigator"`.
 """
 @document struct WorkbenchNavigator <: WorkbenchDocument
-    folders::CellVector
+    workspace::Workspace
     selection::Reference
 end
 
-function WorkbenchNavigator(folders::Vector)
-    WorkbenchNavigator(CellVector(Cell[Cell(x) for x in folders]), Cell(nothing))
-end
+WorkbenchNavigator(workspace::Workspace) =
+    WorkbenchNavigator(Cell(workspace), Cell(nothing))
 
-WorkbenchNavigator() = WorkbenchNavigator(WorkbenchDocument[])
+WorkbenchNavigator() = WorkbenchNavigator(Workspace())
 
 title(::WorkbenchNavigator) = WORKBENCH_NAVIGATOR_TITLE
-setfn!(n::WorkbenchNavigator, f::Function) = (setfn!(getfield(n.folders, :elements), () -> Cell[Cell(x) for x in f()]); n)
 
 function Base.show(io::IO, n::WorkbenchNavigator)
-    print(io, "WorkbenchNavigator(folders=", length(n.folders), ")")
+    print(io, "WorkbenchNavigator(workspace=", n.workspace, ")")
 end
 
 # ── WorkbenchConsole ──────────────────────────────────────────────────────────

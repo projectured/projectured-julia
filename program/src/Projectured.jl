@@ -42,6 +42,7 @@ include("document/Julia.jl")
 include("document/Table.jl")
 include("document/Xml.jl")
 include("document/FileSystem.jl")
+include("document/Workspace.jl")
 include("document/Clipboard.jl")
 include("document/Widget.jl")
 include("document/Layout.jl")
@@ -55,6 +56,7 @@ include("editor/Llm.jl")
 include("document/Workbench.jl")
 include("document/Image.jl")
 include("document/Screen.jl")
+include("document/Tooltip.jl")
 
 # ── Higher-order projections ──────────────────────────────────────────────
 
@@ -65,6 +67,8 @@ include("projection/higherorder/Alternative.jl")
 include("projection/higherorder/PredicateDispatching.jl")
 include("projection/higherorder/ReferenceDispatching.jl")
 include("projection/higherorder/Nesting.jl")
+include("projection/higherorder/WindowManager.jl")
+include("projection/higherorder/TooltipDecorator.jl")
 
 # ── Generic projections ───────────────────────────────────────────────────
 
@@ -92,6 +96,7 @@ include("projection/primitive/JsonToSyntax.jl")
 include("projection/primitive/TableToGraphics.jl")
 include("projection/primitive/XmlToSyntax.jl")
 include("projection/primitive/FileSystemToSyntax.jl")
+include("projection/primitive/WorkspaceToFileSystem.jl")
 include("projection/primitive/TextToString.jl")
 include("projection/primitive/ObjectToSyntax.jl")
 include("projection/primitive/WidgetToGraphics.jl")
@@ -101,6 +106,7 @@ include("projection/primitive/LineNumbering.jl")
 include("projection/primitive/WordWrapping.jl")
 include("projection/primitive/PrimitiveToSyntax.jl")
 include("projection/primitive/PrimitiveToText.jl")
+include("projection/primitive/ReferenceToText.jl")
 include("projection/primitive/MathToSyntax.jl")
 include("projection/primitive/JuliaToSyntax.jl")
 include("projection/primitive/CollectionToSyntax.jl")
@@ -154,7 +160,8 @@ using .ReferenceModule: ConcreteReferencePath, ElementReference, PositionReferen
 using .ProjectionContextModule: ProjectionContext, child_context, with_available_size,
                                  with_property, get_property
 using .DocumentApiModule: set_selection!, clear_selection!
-using .OperationModule: ReplaceSelectionOperation, QuitEditorOperation, replace_selection!
+using .OperationModule: ReplaceSelectionOperation, QuitEditorOperation, replace_selection!,
+                        OpenWindowOperation, CloseWindowOperation
 using .ReferenceCaseModule: var"@reference_case", when, prefix
 using .ReferenceBuilderModule: var"@reference", var"@step"
 using .OperationApiModule: Operation, evaluate_operation
@@ -165,6 +172,7 @@ using .XmlModule: XmlDocument, XmlInsertion, XmlForeign, XmlText, XmlAttribute, 
                   setattr!, deleteattr!
 using .FileSystemModule: FileSystemDocument, FileSystemInsertion, FileSystemForeign,
                          FileSystemFile, FileSystemDirectory, make_filesystem_pathname
+using .WorkspaceModule: WorkspaceDocument, WorkspaceFolder, Workspace
 using .TextModule: TextDocument, TextInsertion, TextForeign, TextText, TextString, TextNewline
 using .PrimitiveModule: PrimitiveDocument, PrimitiveInsertion, PrimitiveForeign,
                         PrimitiveBool, PrimitiveNumber, PrimitiveString,
@@ -199,6 +207,8 @@ using .ReferenceDispatchingModule: ReferenceDispatchingProjection, ReferenceDisp
 using .HigherOrderCompoundModule: ApplyAtProjection
 using .GenericCompoundModule: SortingAtProjection
 using .NestingProjectionModule: NestingProjection, NestingProjectionIoMap
+using .WindowManagerProjectionModule: WindowManagerProjection, WindowManagerProjectionIoMap
+using .TooltipDecoratorProjectionModule: TooltipDecoratorProjection, TooltipDecoratorProjectionIoMap
 using .ReversingProjectionModule: ReversingProjection
 using .FilteringProjectionModule: FilteringProjection, FilteringProjectionIoMap
 using .SortingProjectionModule: SortingProjection, SortingProjectionIoMap
@@ -212,6 +222,7 @@ using .JsonToSyntaxModule: JsonToSyntax, JsonStringToSyntaxLeaf,
 using .TableToGraphicsModule: TableToGraphics, TableTableToGraphicsCanvas
 using .XmlToSyntaxModule: XmlToSyntax, XmlTextToSyntaxLeaf, XmlElementToSyntaxNode
 using .FileSystemToSyntaxModule: FileSystemFileToSyntaxLeaf, FileSystemDirectoryToSyntaxNode, FileSystemToSyntax
+using .WorkspaceToFileSystemModule: WorkspaceFolderToFileSystemDirectory, WorkspaceToFileSystem
 using .ObjectToSyntaxModule: ObjectToSyntax, NothingToSyntaxLeaf, BoolToSyntaxLeaf,
                               NumberToSyntaxLeaf, StringToSyntaxLeaf, SymbolToSyntaxLeaf,
                               CharToSyntaxLeaf, ObjectNodeToSyntaxNode, print_object
@@ -244,6 +255,7 @@ using .LayoutModule: LayoutDocument,
                      HorizontalLayout, VerticalLayout, GridLayout, FlowLayout
 using .ImageModule: ImageDocument, ImageInsertion, ImageForeign, ImageFile, ImageMemory
 using .ScreenDocumentModule: ScreenDocument, WindowDocument, EventEnvelope, WindowCloseRequest
+using .TooltipDocumentModule: TooltipSource
 using .TextToStringModule: TextToString, TextTextToString, TextStringToString, TextNewlineToString
 using .TextLineNumberingModule: LineNumbering, TextLineNumbering
 using .TextWordWrappingModule: WordWrapping, TextWordWrapping
@@ -253,6 +265,7 @@ using .PrimitiveToSyntaxModule: PrimitiveToSyntax, PrimitiveBoolToSyntaxLeaf,
                                  PrimitiveNumberToSyntaxLeaf, PrimitiveStringToSyntaxLeaf
 using .PrimitiveToTextModule: PrimitiveToText, PrimitiveBoolToText,
                                PrimitiveNumberToText, PrimitiveStringToText
+using .ReferenceToTextModule: ReferenceToText, ReferenceToHumanReadableText
 using .MathToSyntaxModule: MathToSyntax, MathInsertionToSyntaxLeaf, MathVariableToSyntaxLeaf,
                             MathBinaryOperationToSyntaxNode, MathParenthesizedToSyntaxNode,
                             MathAssignmentToSyntaxNode
@@ -341,10 +354,12 @@ export set_selection!, clear_selection!, replace_selection!
 export @reference_case, when, prefix
 export @reference, @step
 export ReplaceSelectionOperation
+export OpenWindowOperation, CloseWindowOperation
 export JsonDocument, JsonInsertion, JsonForeign, JsonNull, JsonBool, JsonNumber, JsonString, JsonArray, JsonObject, JsonObjectEntry, jsonvalue, entries
 export TableDocument, TableCell, TableRow, TableColumn, TableTable
 export XmlDocument, XmlInsertion, XmlForeign, XmlText, XmlAttribute, XmlElement, xmlattr, setattr!, deleteattr!
 export FileSystemDocument, FileSystemInsertion, FileSystemForeign, FileSystemFile, FileSystemDirectory, make_filesystem_pathname
+export WorkspaceDocument, WorkspaceFolder, Workspace
 export TextDocument, TextInsertion, TextForeign, TextText, TextString, TextNewline
 export StyleFont, make_style_font
 export font_inconsolata_regular_18
@@ -409,6 +424,8 @@ export ReferenceDispatchingProjection, ReferenceDispatchingIoMap
 export ApplyAtProjection
 export SortingAtProjection
 export NestingProjection, NestingProjectionIoMap
+export WindowManagerProjection, WindowManagerProjectionIoMap
+export TooltipDecoratorProjection, TooltipDecoratorProjectionIoMap
 export ReversingProjection
 export FilteringProjection, FilteringProjectionIoMap
 export SortingProjection, SortingProjectionIoMap
@@ -421,6 +438,7 @@ export JsonToSyntax, JsonStringToSyntaxLeaf,
 export TableToGraphics, TableTableToGraphicsCanvas
 export XmlToSyntax, XmlTextToSyntaxLeaf, XmlElementToSyntaxNode
 export FileSystemFileToSyntaxLeaf, FileSystemDirectoryToSyntaxNode, FileSystemToSyntax
+export WorkspaceFolderToFileSystemDirectory, WorkspaceToFileSystem
 export ObjectToSyntax, NothingToSyntaxLeaf, BoolToSyntaxLeaf,
        NumberToSyntaxLeaf, StringToSyntaxLeaf, SymbolToSyntaxLeaf,
        CharToSyntaxLeaf, ObjectNodeToSyntaxNode, print_object
@@ -448,6 +466,7 @@ export WorkbenchDocument, WorkbenchInsertion, WorkbenchForeign,
        WorkbenchEditor
 export ImageDocument, ImageInsertion, ImageForeign, ImageFile, ImageMemory
 export ScreenDocument, WindowDocument, EventEnvelope, WindowCloseRequest
+export TooltipSource
 export TextToString, TextTextToString, TextStringToString, TextNewlineToString
 export LineNumbering, TextLineNumbering
 export WordWrapping, TextWordWrapping
@@ -456,6 +475,7 @@ export PrimitiveToSyntax, PrimitiveBoolToSyntaxLeaf,
        PrimitiveNumberToSyntaxLeaf, PrimitiveStringToSyntaxLeaf
 export PrimitiveToText, PrimitiveBoolToText,
        PrimitiveNumberToText, PrimitiveStringToText
+export ReferenceToText, ReferenceToHumanReadableText
 export MathToSyntax, MathInsertionToSyntaxLeaf, MathVariableToSyntaxLeaf,
        MathBinaryOperationToSyntaxNode, MathParenthesizedToSyntaxNode,
        MathAssignmentToSyntaxNode
