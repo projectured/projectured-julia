@@ -1,11 +1,14 @@
 """
     TextToGraphicsModule
 
-Text → Graphics projection. Font-metric layout engine: word-wraps spans
-across lines and produces positioned render primitives plus a cursor
-rectangle. A coordinate table in the IoMap records the character range
-and pixel position of each segment. The reader handles keyboard navigation
-(arrow keys, home/end) and translates downstream mouse-click selections
+Text → Graphics projection. Pure layout pass: arranges already-wrapped spans
+left-to-right and breaks the line only on explicit `TextNewline` elements or
+embedded `\\n` characters. Word wrapping itself lives in `WordWrapping`,
+inserted upstream of `TextToGraphics` in the pipeline.
+
+A coordinate table in the IoMap records the character range and pixel
+position of each emitted segment. The reader uses it for keyboard navigation
+(arrow keys, home/end) and to translate downstream mouse-click selections
 into character positions.
 
 Text measurement is provided via the mandatory `measure(text, font) -> (w, h)`
@@ -30,17 +33,17 @@ import ..IoMapApiModule: IoMap
 export TextToGraphics, TextToGraphicsIoMap
 
 """
-    TextToGraphicsIoMap
+    SegCoord(span_idx, char_start, char_end, x, y, font, text)
 
-IoMap for `TextToGraphics`. `char_to_coord` holds one `SegCoord` per emitted
-text segment. `span_idx` is the 1-based index of the `TextString` element in
-the `TextText` elements vector. `char_start`/`char_end` are 0-based offsets
-local to that span (exclusive end). `(x, y)` are pixel coordinates.
+One entry per emitted text segment. `span_idx` is the 1-based index of the
+`TextString` element in the input `TextText`. `char_start`/`char_end` are
+0-based offsets local to that span (exclusive end). `(x, y)` are pixel
+coordinates of the segment's top-left.
 """
 struct SegCoord
-    span_idx::Int    # 1-based index in TextText.elements
-    char_start::Int  # 0-based, local to the span
-    char_end::Int    # exclusive, local to the span
+    span_idx::Int
+    char_start::Int
+    char_end::Int
     x::Int
     y::Int
     font::StyleFont
@@ -50,8 +53,8 @@ end
 """
     TextToGraphicsIoMap
 
-IoMap for `TextToGraphics`. `char_to_coord` holds one `SegCoord` per
-emitted text segment with character range, pixel position, font, and text.
+IoMap for `TextToGraphics`. `char_to_coord` holds one `SegCoord` per emitted
+text segment with character range, pixel position, font, and text.
 """
 struct TextToGraphicsIoMap <: IoMap
     projection::Any
@@ -63,14 +66,13 @@ end
 # ── Projection struct ──────────────────────────────────────────────────
 
 struct TextToGraphics <: Projection
-    max_width::Int
     start_x::Int
     start_y::Int
     measure::Function   # (text, font) -> (width, height)
 end
 
-function TextToGraphics(; max_width::Int=800, start_x::Int=0, start_y::Int=0, measure::Function)
-    TextToGraphics(max_width, start_x, start_y, measure)
+function TextToGraphics(; start_x::Int=0, start_y::Int=0, measure::Function)
+    TextToGraphics(start_x, start_y, measure)
 end
 
 function map_reference_forward(::TextToGraphics, iomap, reference)
@@ -176,26 +178,26 @@ function projection_read(p::TextToGraphics, iomap::TextToGraphicsIoMap, evt)
     return evt
 end
 
-# ── Word-wrap layout engine ─────────────────────────────────────────────
+# ── Layout engine (wrap-free) ──────────────────────────────────────────
 
 """
     projection_print(p::TextToGraphics, styled::TextText) -> Cell{Vector{GraphicsText}}
 
-Lazily transform a reactive `TextText` into a reactive list of `GraphicsText`
-primitives, applying word wrapping with newline support.
+Lay an already-wrapped `TextText` out into reactive `GraphicsText` primitives.
+Lines advance left-to-right; the line breaks come from `TextNewline` elements
+and from `\\n` characters embedded in `TextString` content. The wrap itself —
+splitting at word boundaries when text would overflow — is the job of
+`WordWrapping` upstream.
 
-The returned `Cell` holds a `Vector{GraphicsText}`.  Its thunk reads every
-relevant cell in the `TextText`, so:
-  - any text/font/color change invalidates the layout,
-  - structural changes (add/remove spans) also invalidate,
-  - recomputation happens only when the `Cell` is read (lazy).
+The returned `Cell` holds a `Vector{GraphicsText}`. Its thunk reads every
+relevant cell in the `TextText`, so any value or structural change
+invalidates the layout; recomputation happens only when the `Cell` is read.
 """
 function projection_print(p::TextToGraphics, styled::TextText, recursion, ctx)
     # ListNode path: lazy paragraph-level mapping
     if styled.elements isa ListNode
         return _print_listnode(p, styled, ctx)
     end
-    # CellVector path: eager word-wrap (existing)
     both = Cell(function ()
         result = Any[]
         coord_map = SegCoord[]
@@ -227,7 +229,7 @@ function projection_print(p::TextToGraphics, styled::TextText, recursion, ctx)
 
             lines = split(txt, '\n')
             for (li, line) in enumerate(lines)
-                # newline: carriage return
+                # Hard newline embedded in the span content.
                 if li > 1
                     # cursor BEFORE the \n (char_offset still points to \n pos)
                     if cursor_pos !== nothing && cursor_x < 0 &&
@@ -251,70 +253,24 @@ function projection_print(p::TextToGraphics, styled::TextText, recursion, ctx)
 
                 isempty(line) && continue
 
-                words = split(line, ' '; keepempty=true)
-                seg_buf = IOBuffer()
-                seg_x   = cx
+                # No wrap: emit the whole line as a single segment.
+                seg_w, seg_h = p.measure(line, sf)
+                line_h = max(line_h, seg_h)
+                seg_x = cx
                 seg_char_start = char_offset
-
-                for (wi, word) in enumerate(words)
-                    prefix = wi == 1 ? "" : " "
-                    candidate = prefix * word
-                    cand_w, cand_h = p.measure(candidate, sf)
-                    line_h = max(line_h, cand_h)
-
-                    # wrap if adding this word exceeds max_width
-                    # (but always place at least one word per line)
-                    if cx + cand_w > p.max_width && cx > p.start_x
-                        # emit accumulated segment
-                        seg_text = String(take!(seg_buf))
-                        if !isempty(seg_text)
-                            seg_len = length(seg_text)
-                            push!(result, _make_sdl(seg_text, seg_x, cy, sf, r, g, b, a))
-                            push!(coord_map, SegCoord(span_idx, seg_char_start, seg_char_start + seg_len, seg_x, cy, sf, seg_text))
-                            if cursor_pos !== nothing && cursor_x < 0 &&
-                               cursor_pos.span == span_idx &&
-                               cursor_pos.char >= seg_char_start && cursor_pos.char <= seg_char_start + seg_len
-                                local_pos = cursor_pos.char - seg_char_start
-                                cursor_x = seg_x + (local_pos > 0 ? p.measure(first(seg_text, local_pos), sf)[1] : 0)
-                                cursor_y = cy
-                                cursor_line_h = line_h
-                            end
-                            seg_char_start += seg_len
-                        end
-                        max_cx = max(max_cx, cx)
-                        cx   = p.start_x
-                        cy  += line_h
-                        line_h = 0
-                        seg_x = cx
-                        # place word without leading space on new line
-                        write(seg_buf, word)
-                        word_w, word_h = p.measure(word, sf)
-                        cx += word_w
-                        line_h = max(line_h, word_h)
-                    else
-                        write(seg_buf, candidate)
-                        cx += cand_w
-                    end
+                seg_len = length(line)
+                push!(result, _make_sdl(line, seg_x, cy, sf, r, g, b, a))
+                push!(coord_map, SegCoord(span_idx, seg_char_start, seg_char_start + seg_len, seg_x, cy, sf, line))
+                if cursor_pos !== nothing && cursor_x < 0 &&
+                   cursor_pos.span == span_idx &&
+                   cursor_pos.char >= seg_char_start && cursor_pos.char <= seg_char_start + seg_len
+                    local_pos = cursor_pos.char - seg_char_start
+                    cursor_x = seg_x + (local_pos > 0 ? p.measure(first(line, local_pos), sf)[1] : 0)
+                    cursor_y = cy
+                    cursor_line_h = line_h
                 end
-
-                # emit remaining segment
-                seg_text = String(take!(seg_buf))
-                if !isempty(seg_text)
-                    seg_len = length(seg_text)
-                    push!(result, _make_sdl(seg_text, seg_x, cy, sf, r, g, b, a))
-                    push!(coord_map, SegCoord(span_idx, seg_char_start, seg_char_start + seg_len, seg_x, cy, sf, seg_text))
-                    if cursor_pos !== nothing && cursor_x < 0 &&
-                       cursor_pos.span == span_idx &&
-                       cursor_pos.char >= seg_char_start && cursor_pos.char <= seg_char_start + seg_len
-                        local_pos = cursor_pos.char - seg_char_start
-                        cursor_x = seg_x + (local_pos > 0 ? p.measure(first(seg_text, local_pos), sf)[1] : 0)
-                        cursor_y = cy
-                        cursor_line_h = line_h
-                    end
-                    seg_char_start += seg_len
-                end
-
-                char_offset += length(line)
+                cx += seg_w
+                char_offset += seg_len
             end
         end
 
@@ -344,7 +300,8 @@ end
 When `TextText.elements` is a `ListNode`, produce a top-level
 `GraphicsCanvas` with `layout_vertical`, `overlapping_elements=false`,
 and a `ListNode` of sub-canvases — one per paragraph (spans between
-`TextNewline` nodes). Each paragraph is eagerly word-wrapped.
+`TextNewline` nodes). Each paragraph lays out left-to-right; word wrapping
+inside a paragraph is upstream's responsibility.
 """
 function _print_listnode(p::TextToGraphics, styled::TextText, ctx)
     head_node = styled.elements::ListNode
@@ -357,7 +314,7 @@ end
     _build_paragraph_node(p, input_node, y_offset) -> ListNode
 
 Starting from `input_node`, collect all spans until a `TextNewline` or
-end of list (one paragraph). Word-wrap them into a sub-`GraphicsCanvas`
+end of list (one paragraph). Lay them out into a sub-`GraphicsCanvas`
 at position `(0, y_offset)`. Return a `ListNode` whose value is that
 sub-canvas, with a lazy `next` thunk that builds the next paragraph.
 """
@@ -380,14 +337,11 @@ function _build_paragraph_node(p::TextToGraphics, input_node::ListNode, y_offset
         cur = next_node
     end
 
-    # Word-wrap the paragraph into a sub-canvas
-    sub_canvas = _wrap_paragraph(p, spans, y_offset)
+    sub_canvas = _layout_paragraph(p, spans, y_offset)
     para_height = _paragraph_height(p, spans)
 
-    # Create output node
     out_node = ListNode(sub_canvas)
 
-    # Lazy next: continue from the node after this paragraph
     next_input = cur
     setfn!(getfield(out_node, :next), () -> begin
         next_input === nothing && return nothing
@@ -396,7 +350,6 @@ function _build_paragraph_node(p::TextToGraphics, input_node::ListNode, y_offset
         next_out
     end)
 
-    # Lazy prev: build paragraph from prev-direction content
     setfn!(getfield(out_node, :prev), () -> begin
         prev_start = input_node.prev
         prev_start === nothing && return nothing
@@ -413,19 +366,17 @@ end
     _build_paragraph_node_prev(p, input_node_prev, y_offset) -> ListNode or nothing
 
 Starting from `input_node_prev` (the text node just before the current head),
-traverse backward collecting spans until a `TextNewline` or nothing (one paragraph).
-Word-wrap them into a sub-`GraphicsCanvas` at a negative y-offset. Return a `ListNode`
-whose value is that sub-canvas, with a lazy `prev` thunk for further backward traversal.
+traverse backward collecting spans until a `TextNewline` or nothing (one
+paragraph). Lay them out into a sub-`GraphicsCanvas` at a negative y-offset.
+Return a `ListNode` whose value is that sub-canvas, with a lazy `prev` thunk.
 """
 function _build_paragraph_node_prev(p::TextToGraphics, input_node_prev, y_offset::Int)
-    # If starting at a TextNewline, skip it (it's the separator)
     cur = input_node_prev
     if cur !== nothing && cur.value isa TextNewline
         cur = cur.prev
     end
     cur === nothing && return nothing
 
-    # Collect spans going backward until TextNewline or nothing
     spans_reversed = Any[]
     while cur !== nothing
         val = cur.value
@@ -438,21 +389,16 @@ function _build_paragraph_node_prev(p::TextToGraphics, input_node_prev, y_offset
 
     isempty(spans_reversed) && return nothing
 
-    # Reverse to get correct order
     spans = reverse(spans_reversed)
 
-    # Compute height and position above the current y_offset
     para_height = _paragraph_height(p, spans)
     new_y_offset = y_offset - para_height
 
-    # Word-wrap the paragraph into a sub-canvas
-    sub_canvas = _wrap_paragraph(p, spans, new_y_offset)
+    sub_canvas = _layout_paragraph(p, spans, new_y_offset)
 
-    # Create output node
     out_node = ListNode(sub_canvas)
 
-    # Lazy prev: continue backward from the TextNewline/nothing boundary
-    prev_boundary = cur  # TextNewline or nothing
+    prev_boundary = cur
     setfn!(getfield(out_node, :prev), () -> begin
         prev_boundary === nothing && return nothing
         prev_out = _build_paragraph_node_prev(p, prev_boundary, new_y_offset)
@@ -465,16 +411,15 @@ function _build_paragraph_node_prev(p::TextToGraphics, input_node_prev, y_offset
 end
 
 """
-    _wrap_paragraph(p, spans, y_offset) -> GraphicsCanvas
+    _layout_paragraph(p, spans, y_offset) -> GraphicsCanvas
 
-Eagerly word-wrap a list of `TextString` spans into `GraphicsText`
-elements within a sub-canvas positioned at `(0, y_offset)`.
-Element coordinates are relative to the sub-canvas origin.
+Lay out a list of `TextString` spans into `GraphicsText` elements within a
+sub-canvas positioned at `(0, y_offset)`. No wrap; each span goes down as a
+single segment, advancing the cursor on the line.
 """
-function _wrap_paragraph(p::TextToGraphics, spans::Vector, y_offset::Int)
+function _layout_paragraph(p::TextToGraphics, spans::Vector, y_offset::Int)
     result = Any[]
     cx = 0
-    cy = 0
     line_h = 0
 
     for span in spans
@@ -487,39 +432,10 @@ function _wrap_paragraph(p::TextToGraphics, spans::Vector, y_offset::Int)
 
         isempty(txt) && continue
 
-        words = split(txt, ' '; keepempty=true)
-        seg_buf = IOBuffer()
-        seg_x = cx
-
-        for (wi, word) in enumerate(words)
-            prefix = wi == 1 ? "" : " "
-            candidate = prefix * word
-            cand_w, cand_h = p.measure(candidate, sf)
-            line_h = max(line_h, cand_h)
-
-            if cx + cand_w > p.max_width && cx > 0
-                seg_text = String(take!(seg_buf))
-                if !isempty(seg_text)
-                    push!(result, _make_sdl(seg_text, seg_x, cy, sf, r, g, b, a))
-                end
-                cx = 0
-                cy += line_h
-                line_h = 0
-                seg_x = cx
-                write(seg_buf, word)
-                word_w, word_h = p.measure(word, sf)
-                cx += word_w
-                line_h = max(line_h, word_h)
-            else
-                write(seg_buf, candidate)
-                cx += cand_w
-            end
-        end
-
-        seg_text = String(take!(seg_buf))
-        if !isempty(seg_text)
-            push!(result, _make_sdl(seg_text, seg_x, cy, sf, r, g, b, a))
-        end
+        seg_w, seg_h = p.measure(txt, sf)
+        line_h = max(line_h, seg_h)
+        push!(result, _make_sdl(txt, cx, 0, sf, r, g, b, a))
+        cx += seg_w
     end
 
     GraphicsCanvas(Int32(0), Int32(y_offset), Int32(0), Int32(0), CellVector(Cell[Cell(e) for e in result]),
@@ -529,35 +445,20 @@ end
 """
     _paragraph_height(p, spans) -> Int
 
-Compute the pixel height a paragraph occupies after word-wrapping.
+Pixel height a paragraph occupies. With wrapping removed, this is just the
+max span height (one visual line per paragraph).
 """
 function _paragraph_height(p::TextToGraphics, spans::Vector)
-    cx = 0
-    total_h = 0
     line_h = 0
     for span in spans
         span isa TextString || continue
         txt = span.content::AbstractString
         sf  = span.font::StyleFont
         isempty(txt) && continue
-        words = split(txt, ' '; keepempty=true)
-        for (wi, word) in enumerate(words)
-            prefix = wi == 1 ? "" : " "
-            candidate = prefix * word
-            cand_w, cand_h = p.measure(candidate, sf)
-            line_h = max(line_h, cand_h)
-            if cx + cand_w > p.max_width && cx > 0
-                total_h += line_h
-                line_h = 0
-                word_w, word_h = p.measure(word, sf)
-                cx = word_w
-                line_h = max(line_h, word_h)
-            else
-                cx += cand_w
-            end
-        end
+        _, h = p.measure(txt, sf)
+        line_h = max(line_h, h)
     end
-    total_h + line_h
+    line_h
 end
 
 # ── Selection → cursor position ───────────────────────────────────────

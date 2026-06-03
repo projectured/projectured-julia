@@ -1,107 +1,279 @@
 """
-    TextWordWrappingModule
+    WordWrappingModule
 
-Text → Text projection. Word-wraps lines in a TextText document by splitting
-TextString spans at word boundaries and inserting TextNewline elements when
-the accumulated column width exceeds the configured limit.
+Text → Text projection. Pixel-accurate word wrapping: splits a TextString into
+sub-spans at word boundaries and inserts `TextNewline` elements where a word
+would push the column past the wrap width. The wrap width is taken from
+`ctx.available_width` when present (so a resize re-wraps reactively), falling
+back to the projection's `max_width`.
+
+Character preservation: the projection is structural only — every character of
+the input survives in the output, exactly once and in order. A space that
+lands at a wrap boundary stays as the last character of the previous visual
+line. This makes the projection invertible by a clean piecewise-linear offset
+table (`WordWrappingIoMap.segs`), used by selection mapping and the reader.
 """
-module TextWordWrappingModule
+module WordWrappingModule
 
 import ..ProjectionApiModule: projection_print, projection_read, map_reference_forward, map_reference_backward, Projection
 import ..TextModule: TextText, TextDocument, TextString, TextNewline
 import ..ReactiveModule: Cell
 import ..CollectionModule: CellVector
-import ..IoMapModule: SimpleIoMap
-import ..ProjectionContextModule: child_context
-export TextWordWrapping, WordWrapping
+import ..IoMapApiModule: IoMap
+import ..ProjectionContextModule: ProjectionContext
+import ..ReferenceModule: ConcreteReferencePath, RangeReference, FieldReference, EmptyReferencePath, ReferencePath
+import ..ReferenceCaseModule: var"@reference_case"
+import ..ReferenceBuilderModule: var"@reference"
+import ..OperationModule: ReplaceSelectionOperation
+export WordWrapping, WordWrappingIoMap, WrapSeg
 
-# ── TextWordWrapping ────────────────────────────────────────────────────────
+# ── Projection struct ───────────────────────────────────────────────────────
 
-struct TextWordWrapping <: Projection
-    width::Int   # column width; 0 = no wrapping
+"""
+    WordWrapping(; max_width=800, measure)
+
+Pixel-based word-wrap projection. `measure(text, font) -> (width, height)`
+matches the downstream `TextToGraphics` measurer so wrap points line up with
+layout. `max_width` is the pixel fallback used when no `available_width` is
+present on the context.
+"""
+struct WordWrapping <: Projection
+    max_width::Int
+    measure::Function
 end
 
-TextWordWrapping(; width::Int = 80) = TextWordWrapping(width)
+WordWrapping(; max_width::Int = 800, measure::Function) =
+    WordWrapping(max_width, measure)
 
-# Projection print: wraps input.elements in a reactive Cell that rebuilds
-# the output element list whenever the input spans change.  TextString spans
-# are split at word boundaries when their content would push the column
-# offset past `width`; TextNewline elements reset the column counter.
-function projection_print(p::TextWordWrapping, text::TextText, recursion, ctx)
-    elements_cv = CellVector(() -> begin
-        elems = text.elements
-        result = TextDocument[]
-        col = 0
-        for elem in elems
-            if elem isa TextNewline
-                push!(result, elem)
-                col = 0
-            elseif elem isa TextString
-                content = elem.content::AbstractString
-                col = _wrap_string!(result, elem, content, col, p.width)
+# ── Mapping table ───────────────────────────────────────────────────────────
+
+"""
+    WrapSeg(out_index, in_span, in_char_start, length)
+
+One entry per emitted output `TextString` sub-span. `out_index` is the 1-based
+position of the sub-span in `output.elements`. `in_span` is the 1-based index
+of the originating input span. `in_char_start` is the 0-based character offset
+of this sub-span within the input span; `length` is its character count.
+Inserted soft `TextNewline`s have no `WrapSeg`.
+"""
+struct WrapSeg
+    out_index::Int
+    in_span::Int
+    in_char_start::Int
+    length::Int
+end
+
+struct WordWrappingIoMap <: IoMap
+    projection::Any
+    input::TextText
+    output::TextText
+    segs::Cell  # Cell{Vector{WrapSeg}}
+end
+
+# ── Print ───────────────────────────────────────────────────────────────────
+
+function projection_print(p::WordWrapping, text::TextText, recursion, ctx)
+    wrap_w_cell = _wrap_width_cell(p, ctx)
+    measure_fn = p.measure
+    both = Cell(() -> _wrap(text, Int(wrap_w_cell[]), measure_fn))
+    elements_cv = CellVector(() -> both[][1])
+    segs_cell = Cell(() -> both[][2])
+    out_selection = Cell(() -> _forward_map(segs_cell[], text.selection))
+    output = TextText(elements_cv, out_selection)
+    WordWrappingIoMap(p, text, output, segs_cell)
+end
+
+function _wrap_width_cell(p::WordWrapping, ctx)
+    if ctx isa ProjectionContext && ctx.available_width !== nothing
+        aw = ctx.available_width
+        fallback = p.max_width
+        return Cell(() -> begin
+            v = aw[]
+            v isa Integer ? max(1, Int(v)) : fallback
+        end)
+    end
+    Cell(p.max_width)
+end
+
+# Returns (output_elements::Vector{TextDocument}, segs::Vector{WrapSeg}).
+function _wrap(text::TextText, wrap_w::Int, measure_fn::Function)
+    result = TextDocument[]
+    segs = WrapSeg[]
+    cx = 0
+    for (in_span, elem) in enumerate(text.elements)
+        if elem isa TextString
+            cx = _wrap_string!(result, segs, elem, in_span, cx, wrap_w, measure_fn)
+        elseif elem isa TextNewline
+            push!(result, elem)
+            cx = 0
+        else
+            push!(result, elem)
+        end
+    end
+    (result, segs)
+end
+
+# Wraps one input TextString span, appending output sub-spans (and soft
+# newlines) to `result` and the corresponding `WrapSeg` entries to `segs`.
+# Returns the updated column offset.
+function _wrap_string!(result::Vector{TextDocument}, segs::Vector{WrapSeg},
+                       original::TextString, in_span::Int,
+                       cx::Int, wrap_w::Int, measure_fn::Function)
+    content = original.content::AbstractString
+    isempty(content) && return cx
+    font = getfield(original, :font)[]
+    # Split on embedded \n first so hard newlines reset the column without
+    # leaving wrap math to chew through them as if they were horizontal.
+    in_char = 0          # 0-based offset within input span
+    sub_start = in_char  # input char offset where the current accumulating
+                         # output sub-span begins
+    buf = IOBuffer()
+    lines = split(content, '\n'; keepempty=true)
+    for (li, line) in enumerate(lines)
+        if li > 1
+            # Consume the '\n' as a character within the current sub-span.
+            # TextToGraphics handles embedded '\n' in a TextString as a hard
+            # line break, so cx resets without an extra TextNewline element.
+            print(buf, '\n')
+            in_char += 1
+            cx = 0
+        end
+        # Tokenize the line into words separated by single spaces.
+        words = split(line, ' '; keepempty=true)
+        for (wi, word) in enumerate(words)
+            sep = wi == 1 ? "" : " "
+            cand = sep * word
+            cand_w = first(measure_fn(cand, font))
+            if cx > 0 && wrap_w > 0 && cx + cand_w > wrap_w
+                # Wrap before this word. The leading space (if any) stays at
+                # the tail of the previous visual line so every input
+                # character has exactly one home in the output.
+                if !isempty(sep)
+                    print(buf, sep)
+                    in_char += length(sep)
+                end
+                _flush!(result, segs, original, in_span, sub_start, buf)
+                push!(result, _make_newline(original))
+                cx = 0
+                sub_start = in_char
+                print(buf, word)
+                in_char += length(word)
+                cx += first(measure_fn(word, font))
             else
-                push!(result, elem)
+                print(buf, cand)
+                in_char += length(cand)
+                cx += cand_w
             end
         end
-        result
-    end)
-    SimpleIoMap(p, text, TextText(elements_cv, Cell(nothing)))
+    end
+    _flush!(result, segs, original, in_span, sub_start, buf)
+    return cx
 end
 
-# ── Word-wrap helpers ───────────────────────────────────────────────────────
+function _flush!(result::Vector{TextDocument}, segs::Vector{WrapSeg},
+                 original::TextString, in_span::Int, sub_start::Int, buf::IOBuffer)
+    s = String(take!(buf))
+    isempty(s) && return
+    push!(result, _make_span(original, s))
+    push!(segs, WrapSeg(length(result), in_span, sub_start, length(s)))
+end
 
 function _make_span(original::TextString, content::String)
-    TextString(Cell(content), getfield(original, :font), getfield(original, :font_color),
-               getfield(original, :fill_color), getfield(original, :line_color), getfield(original, :padding), Cell(nothing))
+    TextString(Cell(content),
+               getfield(original, :font),
+               getfield(original, :font_color),
+               getfield(original, :fill_color),
+               getfield(original, :line_color),
+               getfield(original, :padding),
+               Cell(nothing))
 end
 
 function _make_newline(original::TextString)
-    TextNewline(font=original.font, font_color=original.font_color,
-                fill_color=original.fill_color, line_color=original.line_color,
+    TextNewline(font=original.font,
+                font_color=original.font_color,
+                fill_color=original.fill_color,
+                line_color=original.line_color,
                 padding=original.padding)
 end
 
-# Splits content into alternating runs of whitespace and non-whitespace.
-function _tokenize(content::AbstractString)
-    [m.match for m in eachmatch(r"\s+|\S+", content)]
-end
+# ── Selection / reference mapping ───────────────────────────────────────────
 
-# Appends word-wrapped spans derived from `original` to `result`, inserting
-# TextNewline elements when a word would push the column past `width`.
-# Spaces at the start of a line (after a wrap) are dropped.
-# Returns the updated column offset.
-function _wrap_string!(result::Vector{TextDocument}, original::TextString,
-                       content::AbstractString, col::Int, width::Int)
-    width <= 0 && (push!(result, original); return col + length(content))
-    isempty(content) && return col
-    buf = IOBuffer()
-    for token in _tokenize(content)
-        tlen = length(token)
-        if isspace(first(token))
-            col == 0 && continue           # drop leading spaces after a wrap
-            col + tlen > width && continue # drop trailing spaces before a wrap
-            print(buf, token)
-            col += tlen
-        else
-            if col > 0 && col + tlen > width
-                s = String(take!(buf))
-                !isempty(s) && push!(result, _make_span(original, s))
-                push!(result, _make_newline(original))
-                col = 0
+# Forward: rebuild an input cursor `elements[s].content{c}` against the
+# wrapped output by finding the sub-span the cursor falls into. At the exact
+# boundary between two consecutive sub-spans of the same input span (the
+# cursor sitting between a wrap), prefer the start of the next visual line —
+# matches the boundary-duplicate convention in TextToGraphics.
+function _forward_map(segs::Vector{WrapSeg}, sel)
+    sel === nothing && return nothing
+    parsed = _parse_text_elem_path(sel)
+    parsed === nothing && return nothing
+    in_span, in_char = parsed
+    best = nothing
+    for seg in segs
+        seg.in_span == in_span || continue
+        if seg.in_char_start <= in_char <= seg.in_char_start + seg.length
+            best = seg
+            # Prefer the start of the next sub-span when the cursor sits
+            # exactly at the boundary; this yields "start of next visual
+            # line" at a wrap.
+            if in_char == seg.in_char_start && seg.in_char_start != 0
+                break
             end
-            print(buf, token)
-            col += tlen
         end
     end
-    s = String(take!(buf))
-    !isempty(s) && push!(result, _make_span(original, s))
-    return col
+    best === nothing && return nothing
+    _text_elem_path(best.out_index, in_char - best.in_char_start)
 end
 
-# ── Compound convenience constructor ────────────────────────────────────────
+function map_reference_forward(p::WordWrapping, iomap::WordWrappingIoMap, reference)
+    _forward_map(iomap.segs[], reference)
+end
 
-function WordWrapping(; width::Int = 80)
-    TextWordWrapping(width=width)
+function map_reference_backward(p::WordWrapping, iomap::WordWrappingIoMap, reference)
+    parsed = _parse_text_elem_path(reference)
+    parsed === nothing && return nothing
+    out_span, out_char = parsed
+    segs = iomap.segs[]
+    for seg in segs
+        seg.out_index == out_span || continue
+        return _text_elem_path(seg.in_span, seg.in_char_start + out_char)
+    end
+    nothing
+end
+
+function projection_read(p::WordWrapping, iomap::WordWrappingIoMap, op::ReplaceSelectionOperation)
+    input_path = map_reference_backward(p, iomap, op.path)
+    input_path === nothing && return nothing
+    ReplaceSelectionOperation(input_path)
+end
+
+# Forward arbitrary events upstream (KeyDown / KeyPress / etc.) so projections
+# above WordWrapping keep getting a chance at them.
+projection_read(::WordWrapping, ::WordWrappingIoMap, op) = op
+
+# ── Path helpers ────────────────────────────────────────────────────────────
+
+_text_elem_path(span_idx::Int, char_idx::Int) =
+    @reference elements[span_idx].content{char_idx}
+
+function _parse_text_elem_path(path)
+    path isa ConcreteReferencePath || return nothing
+    h1 = path.head
+    h1 isa FieldReference && h1.name == "elements" || return nothing
+    t1 = path.tail
+    t1 isa ConcreteReferencePath || return nothing
+    h2 = t1.head
+    h2 isa RangeReference || return nothing
+    span_idx = h2.start + 1
+    t2 = t1.tail
+    t2 isa ConcreteReferencePath || return nothing
+    h3 = t2.head
+    h3 isa FieldReference && h3.name == "content" || return nothing
+    t3 = t2.tail
+    t3 isa ConcreteReferencePath || return nothing
+    h4 = t3.head
+    h4 isa RangeReference || return nothing
+    (span_idx, h4.start::Int)
 end
 
 end # module

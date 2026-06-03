@@ -3,11 +3,13 @@ _test_measure(cw, lh) = (text, font) -> (length(text) * cw, lh)
 
 @testset "TextToGraphics" begin
 
-# basic wrapping
+# basic layout (wrapping is now done by WordWrapping upstream)
 st_wrap = TextText(
     TextString("Hello world this is a long text", font_ubuntu_monospace_regular_24, color_red),
 )
-sdl_cell = projection_print(TextToGraphics(max_width=200, measure=_test_measure(10, 18)), st_wrap).output
+m = _test_measure(10, 18)
+chain = SequentialProjection(WordWrapping(max_width=200, measure=m), TextToGraphics(measure=m))
+sdl_cell = projection_print(chain, st_wrap).output
 sdl_items = sdl_cell.elements
 @test length(sdl_items) >= 2  # should wrap
 @test sdl_items[1].y == 0
@@ -17,7 +19,7 @@ sdl_items = sdl_cell.elements
 st_nl = TextText(
     TextString("line1\nline2\nline3", font_ubuntu_monospace_regular_24, color_white),
 )
-sdl_nl = projection_print(TextToGraphics(max_width=800, measure=_test_measure(10, 20)), st_nl).output
+sdl_nl = projection_print(TextToGraphics(measure=_test_measure(10, 20)), st_nl).output
 items_nl = sdl_nl.elements
 @test length(items_nl) == 3
 @test items_nl[1].text == "line1"
@@ -32,7 +34,7 @@ st_color = TextText(
     TextString("red text", font_ubuntu_monospace_regular_24, color_red),
     TextString(" blue text", font_ubuntu_monospace_regular_24, color_blue),
 )
-sdl_color = projection_print(TextToGraphics(max_width=800, measure=_test_measure(10, 48)), st_color).output
+sdl_color = projection_print(TextToGraphics(measure=_test_measure(10, 48)), st_color).output
 items_c = sdl_color.elements
 @test items_c[1].r == 0xff && items_c[1].g == 0x00  # red
 @test items_c[2].r == 0x00 && items_c[2].b == 0xff  # blue
@@ -45,7 +47,7 @@ items_c = sdl_color.elements
 st_react = TextText(
     TextString("short", font_ubuntu_monospace_regular_24, color_white),
 )
-sdl_react = projection_print(TextToGraphics(max_width=200, measure=_test_measure(10, 48)), st_react).output
+sdl_react = projection_print(TextToGraphics(measure=_test_measure(10, 48)), st_react).output
 _ = length(sdl_react.elements)
 @test isuptodate(getfield(sdl_react.elements, :elements))
 st_react[1].content = "changed"
@@ -55,7 +57,7 @@ items_r = sdl_react.elements
 
 # hex color parsing
 st_hex = TextText(TextString("hex", font_ubuntu_monospace_regular_24, StyleColor(1.0, 0.53, 0.0, 1.0)))
-sdl_hex = projection_print(TextToGraphics(max_width=800, measure=_test_measure(10, 48)), st_hex).output
+sdl_hex = projection_print(TextToGraphics(measure=_test_measure(10, 48)), st_hex).output
 h = sdl_hex.elements[1]
 @test h.r == 0xff
 @test h.g == 0x87  # rounding of 0.53 * 255
@@ -73,9 +75,8 @@ push!(node, TextString("Second paragraph", font_ubuntu_monospace_regular_24, col
 tt = TextText()
 tt.elements = node
 
-p = TextToGraphics(max_width=800, measure=_test_measure(10, 20))
-iomap = projection_print(p, tt, PreservingProjection(),
-                         Projectured.ReferenceModule.EmptyReferencePath())
+p = TextToGraphics(measure=_test_measure(10, 20))
+iomap = projection_print(p, tt, PreservingProjection(), ProjectionContext())
 canvas = iomap.output
 
 # Top-level canvas has ListNode elements, layout_vertical, non-overlapping
@@ -125,9 +126,8 @@ end)
 tt = TextText()
 tt.elements = node
 
-p = TextToGraphics(max_width=800, measure=_test_measure(10, 20))
-iomap = projection_print(p, tt, PreservingProjection(),
-                         Projectured.ReferenceModule.EmptyReferencePath())
+p = TextToGraphics(measure=_test_measure(10, 20))
+iomap = projection_print(p, tt, PreservingProjection(), ProjectionContext())
 
 # The first paragraph collects spans until it finds the TextNewline,
 # walking past it forces node2.next thunk to find where para 2 starts

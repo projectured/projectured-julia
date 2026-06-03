@@ -243,7 +243,7 @@ function _multi_window_projection_tooltipped(projections::Vector; measure=sdl_me
             WindowDocument => CopyingProjection(),
             CellVector     => CopyingProjection(),
             TooltipSource  => decorator,
-            TextText       => TextToGraphics(measure=measure),
+            TextText       => SequentialProjection(WordWrapping(measure=measure), TextToGraphics(measure=measure)),
             Any            => ref_dispatch,
         ),
     )

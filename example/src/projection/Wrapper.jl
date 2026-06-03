@@ -17,6 +17,7 @@ function make_introspection_projection(projection; measure=sdl_measure_text)
     object_chain = SequentialProjection(
         RecursiveProjection(ObjectToSyntax()),
         RecursiveProjection(SyntaxToText()),
+        WordWrapping(measure=measure),
         TextToGraphics(measure=measure),
     )
     # Dispatch: widget nodes render as widgets, EditorIntrospection wrappers
@@ -35,9 +36,9 @@ end
 
 function make_workbench_projection(; measure=sdl_measure_text,
                                    content_projections=Pair{DataType,Any}[
-                                       JsonDocument => SequentialProjection(RecursiveProjection(JsonToSyntax()), RecursiveProjection(SyntaxToText()), TextToGraphics(measure=measure)),
-                                       XmlDocument  => SequentialProjection(RecursiveProjection(XmlToSyntax()), RecursiveProjection(SyntaxToText()), TextToGraphics(measure=measure)),
-                                       TextDocument => TextToGraphics(measure=measure),
+                                       JsonDocument => SequentialProjection(RecursiveProjection(JsonToSyntax()), RecursiveProjection(SyntaxToText()), WordWrapping(measure=measure), TextToGraphics(measure=measure)),
+                                       XmlDocument  => SequentialProjection(RecursiveProjection(XmlToSyntax()), RecursiveProjection(SyntaxToText()), WordWrapping(measure=measure), TextToGraphics(measure=measure)),
+                                       TextDocument => SequentialProjection(WordWrapping(measure=measure), TextToGraphics(measure=measure)),
                                    ])
     font = font_ubuntu_monospace_regular_24
     fg   = (0xee, 0xee, 0xee, 0xff)

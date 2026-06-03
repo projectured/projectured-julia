@@ -261,7 +261,7 @@ using .ScreenDocumentModule: ScreenDocument, WindowDocument, EventEnvelope, Wind
 using .TooltipDocumentModule: TooltipSource
 using .TextToStringModule: TextToString, TextTextToString, TextStringToString, TextNewlineToString
 using .TextLineNumberingModule: LineNumbering, TextLineNumbering
-using .TextWordWrappingModule: WordWrapping, TextWordWrapping
+using .WordWrappingModule: WordWrapping, WordWrappingIoMap, WrapSeg
 using .SyntaxToTextModule: SyntaxToText, SyntaxNodeToTextIoMap,
                                        SyntaxLeafToText, SyntaxListToText
 using .PrimitiveToSyntaxModule: PrimitiveToSyntax, PrimitiveBoolToSyntaxLeaf,
@@ -474,7 +474,7 @@ export ScreenDocument, WindowDocument, EventEnvelope, WindowCloseRequest
 export TooltipSource
 export TextToString, TextTextToString, TextStringToString, TextNewlineToString
 export LineNumbering, TextLineNumbering
-export WordWrapping, TextWordWrapping
+export WordWrapping, WordWrappingIoMap, WrapSeg
 export SyntaxToText, SyntaxLeafToText, SyntaxListToText
 export PrimitiveToSyntax, PrimitiveBoolToSyntaxLeaf,
        PrimitiveNumberToSyntaxLeaf, PrimitiveStringToSyntaxLeaf

@@ -16,15 +16,16 @@ function make_assistant_projection_example(; measure=sdl_measure_text)
     # default `(0xee, 0xee, 0xee, 0xff)` pale-gray is for dark themes only.
     fg   = (0x22, 0x22, 0x22, 0xff)
     w2g  = WidgetToGraphics(font; measure=measure, default_fg=fg)
+    text_to_graphics = SequentialProjection(WordWrapping(measure=measure), TextToGraphics(measure=measure))
 
     inner_chain = RecursiveProjection(TypeDispatchingProjection(vcat(
         w2g.dispatch,
         Pair{DataType,Any}[
-            TextDocument         => TextToGraphics(measure=measure),
+            TextDocument         => text_to_graphics,
             PrimitiveDocument    => SequentialProjection(
                                         RecursiveProjection(PrimitiveToSyntax()),
                                         RecursiveProjection(SyntaxToText()),
-                                        TextToGraphics(measure=measure)),
+                                        text_to_graphics),
             JuliaDocument        => make_julia_projection_example(measure=measure),
             # Conversation → Syntax → Text → Graphics.
             # `indent_size=0` keeps newlines inside message bodies (e.g. the
@@ -33,7 +34,7 @@ function make_assistant_projection_example(; measure=sdl_measure_text)
             ConversationDocument => SequentialProjection(
                                         RecursiveProjection(ConversationToSyntax()),
                                         RecursiveProjection(SyntaxToText(indent_size=0)),
-                                        TextToGraphics(measure=measure)),
+                                        text_to_graphics),
         ],
     )))
 
