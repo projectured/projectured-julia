@@ -4,6 +4,7 @@ function make_workbench_projection_example(; measure=sdl_measure_text)
     fg   = (0xee, 0xee, 0xee, 0xff)
     w2g  = WidgetToGraphics(font; measure=measure, default_fg=fg)
     text_to_graphics = SequentialProjection(WordWrapping(measure=measure), TextToGraphics(measure=measure))
+    text_to_graphics_no_wrap = TextToGraphics(measure=measure)
     object_chain = SequentialProjection(
         RecursiveProjection(ObjectToSyntax()),
         RecursiveProjection(SyntaxToText()),
@@ -22,8 +23,8 @@ function make_workbench_projection_example(; measure=sdl_measure_text)
             CellVector            => make_collection_projection_example(measure=measure),
             PrimitiveDocument     => SequentialProjection(RecursiveProjection(PrimitiveToSyntax()), RecursiveProjection(SyntaxToText()), text_to_graphics),
             ConversationDocument  => SequentialProjection(RecursiveProjection(ConversationToSyntax()), RecursiveProjection(SyntaxToText(indent_size=0)), text_to_graphics),
-            WorkspaceDocument     => SequentialProjection(RecursiveProjection(WorkspaceToFileSystem()), RecursiveProjection(FileSystemToSyntax()), RecursiveProjection(SyntaxToText()), text_to_graphics),
-            FileSystemDocument    => SequentialProjection(RecursiveProjection(FileSystemToSyntax()), RecursiveProjection(SyntaxToText()), text_to_graphics),
+            WorkspaceDocument     => SequentialProjection(RecursiveProjection(WorkspaceToFileSystem()), RecursiveProjection(FileSystemToSyntax()), RecursiveProjection(SyntaxToText()), text_to_graphics_no_wrap),
+            FileSystemDocument    => SequentialProjection(RecursiveProjection(FileSystemToSyntax()), RecursiveProjection(SyntaxToText()), text_to_graphics_no_wrap),
             EditorIntrospection   => object_chain,
         ],
     )))
