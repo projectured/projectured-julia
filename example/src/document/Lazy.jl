@@ -141,27 +141,35 @@ function integers_from_bidirectional(n, direction)
     )
 end
 
+# Like `sieve`, but each successive prime is linked via `.prev` instead of
+# `.next`.  Used to build the negative half of the bidirectional example so
+# that walking `.prev` from one neg-prime node reaches the next neg-prime.
+# `child` is the node further toward the head (in the `.next` direction);
+# linking `node.next = child` makes the chain a proper doubly-linked list.
+function sieve_prev(stream, transform::Function = identity, child=nothing)
+    head_val = stream.value
+    head_num = head_val.value
+    filtered = lazy_filter(stream, x -> x.value % head_num != 0)
+    transformed_head = transform(head_val)
+    node = ListNode(transformed_head)
+    setfn!(getfield(node, :prev), () -> sieve_prev(filtered, transform, node))
+    child !== nothing && setval!(getfield(node, :next), child)
+    node
+end
+
 function make_lazy_bidirectional_document_example()
-    # Create center at 2, with bidirectional lazy sieve
-    # Positive direction: 2, 3, 5, 7, 11, ... (primes)
-    # Negative direction: -2, -3, -5, -7, -11, ... (negative primes)
+    # Center on 2.
+    #   Positive direction: 2, 3, 5, 7, 11, ...  (linked via .next)
+    #   Negative direction: -2, -3, -5, -7, ...  (linked via .prev)
 
-    # Generate positive primes using sieve with identity transform
-    pos_stream = integers_from(2)
-    pos_primes = sieve(pos_stream, identity)
+    pos_primes = sieve(integers_from(2), identity)
+    neg_primes = sieve_prev(integers_from(2), x -> PrimitiveNumber(-x.value))
 
-    # Generate negative primes using sieve with negate transform
-    neg_stream = integers_from(2)
-    neg_primes = sieve(neg_stream, x -> PrimitiveNumber(-x.value))
-
-    # Create head at 2 (shared by both directions)
-    head = ListNode(PrimitiveNumber(2))
-
-    # Link to positive primes in next direction
-    setfn!(getfield(head, :next), () -> pos_primes.next)
-
-    # Link to negative primes in prev direction
-    setfn!(getfield(head, :prev), () -> neg_primes)
+    # `pos_primes` already has value=2 and a lazy `.next` chain — use it
+    # directly as the head, then graft the neg chain onto its `.prev`.
+    head = pos_primes
+    setval!(getfield(head, :prev), neg_primes)
+    setval!(getfield(neg_primes, :next), head)
 
     head
 end
