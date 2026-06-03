@@ -2,10 +2,11 @@
     WorkbenchModule
 
 The workbench document domain. Models the IDE-level workbench structure:
-a top-level workbench split into three pages (navigation, editing,
-information) that each host a sequence of panels. Panels are the navigator,
-console, descriptor, operator, searcher, and evaluator. WorkbenchEntry
-represents a single open document with title, filename, and content.
+a top-level workbench split into four pages (navigation, editing,
+information, control) that each host a sequence of panels. Panels are
+the navigator, console, descriptor, operator, searcher, evaluator, and
+assistant. WorkbenchEntry represents a single open document with title,
+filename, and content.
 """
 module WorkbenchModule
 
@@ -71,29 +72,34 @@ WorkbenchPage() = WorkbenchPage(WorkbenchDocument[])
 # ── WorkbenchWorkbench ────────────────────────────────────────────────────────
 
 """
-    WorkbenchWorkbench(navigation_page, editing_page, information_page)
+    WorkbenchWorkbench(navigation_page, editing_page, information_page, control_page)
 
-The top-level workbench.  Holds three `WorkbenchPage` panels arranged as
-navigation, editing, and information columns.
+The top-level workbench. Holds four `WorkbenchPage` panels: navigation on the
+left, editing in the center, information across the bottom, and control on
+the right.
 """
 @document struct WorkbenchWorkbench <: WorkbenchDocument
     navigation_page::WorkbenchPage
     editing_page::WorkbenchPage
     information_page::WorkbenchPage
+    control_page::WorkbenchPage
     selection::Reference
 end
 
 function WorkbenchWorkbench(navigation_page::WorkbenchDocument,
                              editing_page::WorkbenchDocument,
-                             information_page::WorkbenchDocument)
+                             information_page::WorkbenchDocument,
+                             control_page::WorkbenchDocument = WorkbenchPage([]))
     WorkbenchWorkbench(Cell(navigation_page), Cell(editing_page),
-                       Cell(information_page), Cell(nothing))
+                       Cell(information_page), Cell(control_page),
+                       Cell(nothing))
 end
 
 function Base.show(io::IO, w::WorkbenchWorkbench)
     print(io, "WorkbenchWorkbench(navigation_page=", w.navigation_page,
           ", editing_page=", w.editing_page,
-          ", information_page=", w.information_page, ")")
+          ", information_page=", w.information_page,
+          ", control_page=", w.control_page, ")")
 end
 
 setfn!(p::WorkbenchPage, f::Function) = (setfn!(getfield(p.elements, :elements), () -> Cell[Cell(x) for x in f()]); p)

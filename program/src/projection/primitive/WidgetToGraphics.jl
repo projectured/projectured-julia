@@ -687,7 +687,6 @@ function projection_print(p::WidgetSplitPaneToGraphicsCanvas, w::WidgetSplitPane
     sizes = w.sizes
     splitter_thickness = 3
     splitter_rgba = (0x88, 0x88, 0x88, 0xff)
-    splitter_cross = 100000
 
     # Keep only Document children; LayoutConstraint and bare widgets both
     # work — the wrapper is transparent for projection (we recurse into
@@ -790,35 +789,6 @@ function projection_print(p::WidgetSplitPaneToGraphicsCanvas, w::WidgetSplitPane
         end
     end
 
-    # Build the outer canvas elements as a CellVector so splitter positions
-    # and child wrappers re-flow reactively when slot sizes change.
-    outer_elements = CellVector(function ()
-        result = Any[]
-        for i in 1:n
-            cim = inner_iomaps[i]
-            cim.output isa GraphicsCanvas || continue
-            push!(result, _wrap_child_canvas(cim.output, child_x[i], child_y[i]))
-        end
-        if main_axis === :x
-            cursor = cox
-            for i in 1:(n-1)
-                cursor += Int(slot_main[i][])
-                push!(result, GraphicsRect(cursor, coy, splitter_thickness, splitter_cross,
-                                           splitter_rgba...))
-                cursor += splitter_thickness
-            end
-        else
-            cursor = coy
-            for i in 1:(n-1)
-                cursor += Int(slot_main[i][])
-                push!(result, GraphicsRect(cox, cursor, splitter_cross, splitter_thickness,
-                                           splitter_rgba...))
-                cursor += splitter_thickness
-            end
-        end
-        result
-    end)
-
     # Outer canvas size: sum of slot main extents (+ splitters) on the
     # main axis; max of child cross extents on the cross axis. If the
     # parent gave us an available cross extent we report that instead so
@@ -855,6 +825,38 @@ function projection_print(p::WidgetSplitPaneToGraphicsCanvas, w::WidgetSplitPane
     end
     outer_w_cell = main_axis === :x ? outer_main : outer_cross
     outer_h_cell = main_axis === :x ? outer_cross : outer_main
+
+    # Build the outer canvas elements as a CellVector so splitter positions
+    # and child wrappers re-flow reactively when slot sizes change. The
+    # splitter's cross-axis extent tracks `outer_cross` so it spans exactly
+    # the pane's cross dimension instead of overflowing on a fixed length.
+    outer_elements = CellVector(function ()
+        result = Any[]
+        for i in 1:n
+            cim = inner_iomaps[i]
+            cim.output isa GraphicsCanvas || continue
+            push!(result, _wrap_child_canvas(cim.output, child_x[i], child_y[i]))
+        end
+        cross_extent = Int(outer_cross[])
+        if main_axis === :x
+            cursor = cox
+            for i in 1:(n-1)
+                cursor += Int(slot_main[i][])
+                push!(result, GraphicsRect(cursor, coy, splitter_thickness, cross_extent,
+                                           splitter_rgba...))
+                cursor += splitter_thickness
+            end
+        else
+            cursor = coy
+            for i in 1:(n-1)
+                cursor += Int(slot_main[i][])
+                push!(result, GraphicsRect(cox, cursor, cross_extent, splitter_thickness,
+                                           splitter_rgba...))
+                cursor += splitter_thickness
+            end
+        end
+        result
+    end)
 
     outer_canvas = GraphicsCanvas(Cell(Int32(0)), Cell(Int32(0)),
                                   outer_w_cell, outer_h_cell,

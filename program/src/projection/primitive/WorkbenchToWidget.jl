@@ -5,6 +5,8 @@ WorkbenchDocument → WidgetDocument projection. Maps the workbench document
 hierarchy to a widget tree.
 
     WorkbenchWorkbench  → WidgetShell containing a horizontal WidgetSplitPane
+                          (navigation | center | control), where the center
+                          is itself a vertical split of editing / information
     WorkbenchPage       → WidgetTabbedPane with one tab per panel
     WorkbenchNavigator  → WidgetScrollPane wrapping a WidgetComposite of folders
     WorkbenchConsole    → WidgetScrollPane wrapping projected content
@@ -76,6 +78,7 @@ struct WorkbenchWorkbenchToWidgetShellIoMap <: IoMap
     navigation_page_iomap::Any   # IoMap for navigation_page
     editing_page_iomap::Any      # IoMap for editing_page
     information_page_iomap::Any  # IoMap for information_page
+    control_page_iomap::Any      # IoMap for control_page
 end
 
 struct WorkbenchPageToWidgetTabbedPaneIoMap <: IoMap
@@ -110,21 +113,33 @@ function projection_print(::WorkbenchWorkbenchToWidgetShell,
     nav_iomap  = _recurse(recursion, w.navigation_page,  child_context(ctx, @reference ^(ctx.reference).navigation_page))
     edit_iomap = _recurse(recursion, w.editing_page,     child_context(ctx, @reference ^(ctx.reference).editing_page))
     info_iomap = _recurse(recursion, w.information_page, child_context(ctx, @reference ^(ctx.reference).information_page))
-    # Right column: editor fills remaining height, info pane pinned to 400 so
-    # the assistant's conversation + input split has usable room.
-    right_split = WidgetSplitPane(:vertical, Any[
+    ctrl_iomap = _recurse(recursion, w.control_page,     child_context(ctx, @reference ^(ctx.reference).control_page))
+    # Center column: editor fills remaining height, info pane pinned to 200.
+    center_split = WidgetSplitPane(:vertical, Any[
         LayoutConstraint(edit_iomap.output; weight_height=1.0),
-        LayoutConstraint(info_iomap.output; min_height=400, max_height=400),
+        LayoutConstraint(info_iomap.output; min_height=200, max_height=200),
     ])
-    # Top level: navigator pinned to 200 wide, right column fills the rest.
+    # Top level: navigator pinned to 200 wide on the left, control pinned to
+    # 400 wide on the right (room for the assistant's chat layout), center
+    # column fills the rest.
     main_split = WidgetSplitPane(:horizontal, Any[
-        LayoutConstraint(nav_iomap.output; min_width=200, max_width=200),
-        LayoutConstraint(right_split;      weight_width=1.0),
+        LayoutConstraint(nav_iomap.output;  min_width=200, max_width=200),
+        LayoutConstraint(center_split;      weight_width=1.0),
+        LayoutConstraint(ctrl_iomap.output; min_width=400, max_width=400),
     ])
+    # Track the window: the shell fills whatever extent the parent (the
+    # WindowDocument's CopyingProjection) seeded on the context, falling
+    # back to a sensible default when run outside a window.
+    aw, ah = ctx.available_width, ctx.available_height
+    shell_size = Point2D(
+        Cell(() -> aw === nothing ? 1280 : Int(aw[])),
+        Cell(() -> ah === nothing ? 720  : Int(ah[])),
+    )
     shell = WidgetShell(main_split;
-                        size=Point2D(1280, 720),
+                        size=shell_size,
                         border=_PAD5)
-    WorkbenchWorkbenchToWidgetShellIoMap(nothing, w, shell, nav_iomap, edit_iomap, info_iomap)
+    WorkbenchWorkbenchToWidgetShellIoMap(nothing, w, shell,
+                                         nav_iomap, edit_iomap, info_iomap, ctrl_iomap)
 end
 
 function projection_print(::WorkbenchPageToWidgetTabbedPane,
@@ -242,6 +257,8 @@ function map_reference_forward(::WorkbenchWorkbenchToWidgetShell,
         return map_reference_forward(nothing, iomap.editing_page_iomap, rest)
     elseif h.name == "information_page"
         return map_reference_forward(nothing, iomap.information_page_iomap, rest)
+    elseif h.name == "control_page"
+        return map_reference_forward(nothing, iomap.control_page_iomap, rest)
     end
     return nothing
 end
@@ -377,7 +394,8 @@ function projection_read(::WorkbenchWorkbenchToWidgetShell,
     # 1. Tab-selection forwarding (e.g. a click that maps to selecting a tab).
     for (field_name, page_iomap) in (("navigation_page",  iomap.navigation_page_iomap),
                                       ("editing_page",     iomap.editing_page_iomap),
-                                      ("information_page", iomap.information_page_iomap))
+                                      ("information_page", iomap.information_page_iomap),
+                                      ("control_page",     iomap.control_page_iomap))
         page_iomap isa WorkbenchPageToWidgetTabbedPaneIoMap || continue
         result = projection_read(WorkbenchPageToWidgetTabbedPane(), page_iomap, op)
         result isa ReplaceSelectionOperation || continue
@@ -397,7 +415,8 @@ function projection_read(::WorkbenchWorkbenchToWidgetShell,
     wb2w = WorkbenchToWidget()
     for (field_name, page_iomap) in (("navigation_page",  iomap.navigation_page_iomap),
                                       ("editing_page",     iomap.editing_page_iomap),
-                                      ("information_page", iomap.information_page_iomap))
+                                      ("information_page", iomap.information_page_iomap),
+                                      ("control_page",     iomap.control_page_iomap))
         page_iomap isa WorkbenchPageToWidgetTabbedPaneIoMap || continue
         for (elem_idx, elem_iomap) in enumerate(page_iomap.element_iomaps)
             result = projection_read(wb2w, elem_iomap, op)

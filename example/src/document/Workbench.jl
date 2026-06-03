@@ -1,12 +1,3 @@
-# Lightweight wrapper that escapes the workbench's type-dispatch path so an
-# arbitrary Julia value (the editor's document, projection, …) can be placed
-# inside a WorkbenchEditor without the workbench projection trying to render
-# it as a workbench node. Routed to the ObjectToSyntax chain in the
-# workbench projection example.
-struct EditorIntrospection
-    value::Any
-end
-
 function make_workbench_document_example(; root=abspath(joinpath(@__DIR__, "../..")))
     workspace = Workspace([
         WorkspaceFolder(basename(root), root),
@@ -66,7 +57,6 @@ function make_workbench_document_example(; root=abspath(joinpath(@__DIR__, "../.
         ConcreteReferencePath(RangeReference(0, 0), EmptyReferencePath()))
 
     info_page = WorkbenchPage([
-        assistant,
         WorkbenchConsole(TextText(
             TextString("Welcome to ProjecturEd!", font_ubuntu_monospace_regular_24, color_default),
         )),
@@ -76,7 +66,11 @@ function make_workbench_document_example(; root=abspath(joinpath(@__DIR__, "../.
         WorkbenchEvaluator(),
     ])
 
-    workbench = WorkbenchWorkbench(nav_page, edit_page, info_page)
+    control_page = WorkbenchPage([
+        assistant,
+    ])
+
+    workbench = WorkbenchWorkbench(nav_page, edit_page, info_page, control_page)
     setfn!(getfield(descriptor, :content), () -> workbench.selection)
     # Late-bind: the editor's `document` field is the workbench itself.
     setfn!(editor_document_view, () -> EditorIntrospection(workbench))
