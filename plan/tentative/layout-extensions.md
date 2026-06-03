@@ -118,12 +118,13 @@ selection / hit-testing / rendering after each migration.
   boundaries (grid lines, gutters, padding regions) over the output canvas,
   like a CSS dev-tools "show layout" mode. Cheap, useful for the
   developer-experience track.
-- **`ProjectionContext` integration.** Layouts want to push
-  `:available_width` / `:available_height` down to children so content
-  projections can adapt (e.g. word-wrap to available width instead of a
-  hard-coded `max_width`). This depends on the `ProjectionContext` plan and
-  is one of its strongest motivators. It would also unlock a "content-aware"
-  two-pass layout.
+- **`ProjectionContext` integration.** *Shipped.* `ProjectionContext` lives
+  at `program/src/context/ProjectionContext.jl` and threads
+  `available_width` / `available_height` to children via `child_context` /
+  `with_available_size`. Already consumed by `WidgetToGraphics` and the
+  word-wrapping path. Layout documents themselves do not yet push available
+  size to their children — that hookup remains, and would unlock a
+  "content-aware" two-pass layout.
 - **Animation / transitions.** None of the layouts tween between
   configurations (e.g. an element sliding from one row to another when its
   sort key changes). Would need a separate interpolating layer; out of
