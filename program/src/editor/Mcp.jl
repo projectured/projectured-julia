@@ -42,16 +42,17 @@ function McpServer(editor)
     srv = mcp_server(
         name        = "projectured",
         version     = "0.1.0",
-        description = "MCP server for ProjecturEd — a projectional editor built in Julia.\n\n" *
-                      "MANDATORY — read these resources BEFORE writing any code:\n" *
-                      "1. resource://guides\n" *
-                      "2. resource://modules\n" *
-                      "3. resource://guide/getting-started\n" *
-                      "4. resource://guide/editor/reference\n" *
-                      "5. resource://guide/editor/selection\n\n" *
-                      "Then drill into specific modules, classes, or functions as needed.\n\n" *
-                      "NEVER guess names or signatures. Look them up.\n" *
-                      "NEVER search in files, read files, or run shell commands — use MCP resources.",
+        description  = "MCP server for ProjecturEd — a projectional editor built in Julia.",
+        instructions = "MCP server for ProjecturEd — a projectional editor built in Julia.\n\n" *
+                       "MANDATORY — read these resources BEFORE writing any code:\n" *
+                       "1. resource://guides\n" *
+                       "2. resource://modules\n" *
+                       "3. resource://guide/getting-started\n" *
+                       "4. resource://guide/editor/reference\n" *
+                       "5. resource://guide/editor/selection\n\n" *
+                       "Then drill into specific modules, classes, or functions as needed.\n\n" *
+                       "NEVER guess names or signatures. Look them up.\n" *
+                       "NEVER search in files, read files, or run shell commands — use MCP resources.",
         resources   = _make_resources(),
     )
     McpServer(editor, srv, nothing)
