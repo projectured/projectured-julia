@@ -302,14 +302,14 @@ function write_image_example(name="json", filename=tempname()*".bmp"; kwargs...)
 end
 
 """
-    generate_screenshots(; width=960, height=640,
+    generate_screenshots(; width=1920, height=1080,
                           image_dir=joinpath(@__DIR__, "..", "..", "image", "example"))
 
 Generate a PNG screenshot for every example in `examples` into `image_dir`.
 Filename pattern: `{example-name-with-hyphens}.png`. One failure does not
 abort the batch.
 """
-function generate_screenshots(; width=960, height=640,
+function generate_screenshots(; width=1920, height=1080,
                               image_dir=joinpath(@__DIR__, "..", "..", "image", "example"))
     mkpath(image_dir)
     for ex in examples
