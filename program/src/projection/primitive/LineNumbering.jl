@@ -17,6 +17,10 @@ import ..ReactiveModule: Cell
 import ..CollectionModule: CellVector
 import ..IoMapModule: SimpleIoMap
 import ..ProjectionContextModule: child_context
+import ..ReferenceModule: ConcreteReferencePath, RangeReference, FieldReference, EmptyReferencePath
+import ..ReferenceBuilderModule: var"@reference"
+import ..OperationModule: ReplaceSelectionOperation
+import ..KeyboardModule: KeyDown
 export TextLineNumbering, LineNumbering
 
 # ── TextLineNumbering ──────────────────────────────────────────────────────
@@ -85,6 +89,75 @@ function _line_numbering_span(original::TextString, content::AbstractString)
                getfield(original, :line_color),
                getfield(original, :padding),
                Cell(nothing))
+end
+
+# Reader: map an output `.elements[out_span].content{char}` path back to the
+# matching input span. Prefix spans (added by this projection) have no
+# pre-image, so they round-trip to char 0 of the next real input span.
+function projection_read(p::TextLineNumbering, iomap::SimpleIoMap, op::ReplaceSelectionOperation)
+    out_span, out_char = _parse_text_elem_path(op.path)
+    out_span === nothing && return nothing
+    mapping = _output_to_input_map(iomap.input.elements)
+    out_span <= length(mapping) || return nothing
+    in_span, char_offset, is_prefix = mapping[out_span]
+    if is_prefix
+        next = findnext(t -> !t[3], mapping, out_span + 1)
+        next === nothing && return nothing
+        in_span, char_offset, _ = mapping[next]
+        out_char = 0
+    end
+    ReplaceSelectionOperation(@reference elements[in_span].content{char_offset + out_char})
+end
+
+projection_read(::TextLineNumbering, ::SimpleIoMap, evt::KeyDown) = evt
+
+# Walk the input element list mirroring the printer's prefix-insertion
+# logic. For each emitted output element, record the corresponding input
+# element index and char offset, or mark it as a projection-inserted prefix.
+function _output_to_input_map(input_elems)
+    result = Tuple{Int, Int, Bool}[]
+    push!(result, (0, 0, true))  # leading prefix
+    for (in_idx, elem) in enumerate(input_elems)
+        if elem isa TextNewline
+            push!(result, (in_idx, 0, false))
+            push!(result, (0, 0, true))
+        elseif elem isa TextString && occursin('\n', elem.content::AbstractString)
+            parts = split(elem.content::AbstractString, '\n')
+            char_offset = 0
+            for (i, part) in enumerate(parts)
+                if i < length(parts)
+                    push!(result, (in_idx, char_offset, false))
+                    char_offset += length(part) + 1
+                    push!(result, (0, 0, true))
+                elseif !isempty(part)
+                    push!(result, (in_idx, char_offset, false))
+                end
+            end
+        else
+            push!(result, (in_idx, 0, false))
+        end
+    end
+    result
+end
+
+function _parse_text_elem_path(path)
+    path isa ConcreteReferencePath || return (nothing, nothing)
+    h1 = path.head
+    (h1 isa FieldReference && h1.name == "elements") || return (nothing, nothing)
+    t1 = path.tail
+    t1 isa ConcreteReferencePath || return (nothing, nothing)
+    h2 = t1.head
+    h2 isa RangeReference || return (nothing, nothing)
+    span_idx = h2.start::Int + 1
+    t2 = t1.tail
+    t2 isa ConcreteReferencePath || return (nothing, nothing)
+    h3 = t2.head
+    (h3 isa FieldReference && h3.name == "content") || return (nothing, nothing)
+    t3 = t2.tail
+    t3 isa ConcreteReferencePath || return (nothing, nothing)
+    h4 = t3.head
+    h4 isa RangeReference || return (nothing, nothing)
+    (span_idx, h4.start::Int)
 end
 
 
