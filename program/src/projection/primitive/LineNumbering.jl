@@ -37,22 +37,54 @@ TextLineNumbering(; width::Int = 0, separator::String = " | ", font=font_ubuntu_
 function projection_print(p::TextLineNumbering, text::TextText, recursion, ctx)
     elements_cv = CellVector(() -> begin
         elems = text.elements
-        n_newlines = count(e -> e isa TextNewline, elems)
+        n_newlines = 0
+        for e in elems
+            if e isa TextNewline
+                n_newlines += 1
+            elseif e isa TextString
+                n_newlines += count(==('\n'), e.content::AbstractString)
+            end
+        end
         total_lines = n_newlines + 1
         w = p.width > 0 ? p.width : ndigits(total_lines)
+        prefix_color = StyleColor(88/255, 110/255, 117/255, 1.0)
+        make_prefix(n) = TextString(lpad(string(n), w) * p.separator, p.font, prefix_color)
         result = TextDocument[]
         line = 1
-        push!(result, TextString(lpad(string(line), w) * p.separator, p.font, StyleColor(88/255, 110/255, 117/255, 1.0)))
+        push!(result, make_prefix(line))
         for elem in elems
-            push!(result, elem)
             if elem isa TextNewline
+                push!(result, elem)
                 line += 1
-                push!(result, TextString(lpad(string(line), w) * p.separator, p.font, StyleColor(88/255, 110/255, 117/255, 1.0)))
+                push!(result, make_prefix(line))
+            elseif elem isa TextString && occursin('\n', elem.content::AbstractString)
+                parts = split(elem.content::AbstractString, '\n')
+                for (i, part) in enumerate(parts)
+                    if i < length(parts)
+                        push!(result, _line_numbering_span(elem, part * "\n"))
+                        line += 1
+                        push!(result, make_prefix(line))
+                    elseif !isempty(part)
+                        push!(result, _line_numbering_span(elem, part))
+                    end
+                end
+            else
+                push!(result, elem)
             end
         end
         result
     end)
     SimpleIoMap(p, text, TextText(elements_cv, Cell(nothing)))
+end
+
+function _line_numbering_span(original::TextString, content::AbstractString)
+    TextString(Cell(content),
+               getfield(original, :font),
+               getfield(original, :font_color),
+               getfield(original, :fill_color),
+               getfield(original, :line_color),
+               getfield(original, :padding),
+               Cell(nothing))
 end
 
 
