@@ -1309,7 +1309,9 @@ function projection_read(p::WidgetScrollPaneToGraphicsViewport, iomap::WidgetScr
         mx, my = evt.x, evt.y
         hit_element_at(iomap.output, mx, my) === nothing && return nothing
         _, scroll_step = p.measure("M", p.font)
-        if evt.dx != 0 && evt.dy == 0
+        if evt.modifiers.shift && evt.dx == 0
+            return ScrollWidgetOperation(iomap.input, Point2D(-evt.dy * scroll_step, 0))
+        elseif evt.dx != 0 && evt.dy == 0
             return ScrollWidgetOperation(iomap.input, Point2D(-evt.dx * scroll_step, 0))
         else
             return ScrollWidgetOperation(iomap.input, Point2D(0, -evt.dy * scroll_step))
