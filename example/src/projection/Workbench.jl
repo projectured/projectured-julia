@@ -3,6 +3,11 @@ function make_workbench_projection_example(; measure=sdl_measure_text)
     font = font_ubuntu_regular_24
     fg   = (0xee, 0xee, 0xee, 0xff)
     w2g  = WidgetToGraphics(font; measure=measure, default_fg=fg)
+    object_chain = SequentialProjection(
+        RecursiveProjection(ObjectToSyntax()),
+        RecursiveProjection(SyntaxToText()),
+        TextToGraphics(measure=measure),
+    )
     combined_w2g = RecursiveProjection(TypeDispatchingProjection(vcat(
         w2g.dispatch,
         Pair{DataType,Any}[
@@ -18,6 +23,7 @@ function make_workbench_projection_example(; measure=sdl_measure_text)
             ConversationDocument  => SequentialProjection(RecursiveProjection(ConversationToSyntax()), RecursiveProjection(SyntaxToText(indent_size=0)), TextToGraphics(measure=measure)),
             WorkspaceDocument     => SequentialProjection(RecursiveProjection(WorkspaceToFileSystem()), RecursiveProjection(FileSystemToSyntax()), RecursiveProjection(SyntaxToText()), TextToGraphics(measure=measure)),
             FileSystemDocument    => SequentialProjection(RecursiveProjection(FileSystemToSyntax()), RecursiveProjection(SyntaxToText()), TextToGraphics(measure=measure)),
+            EditorIntrospection   => object_chain,
         ],
     )))
     SequentialProjection(RecursiveProjection(WorkbenchToWidget()), combined_w2g)

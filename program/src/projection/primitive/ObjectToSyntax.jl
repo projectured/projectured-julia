@@ -19,7 +19,7 @@ import ..SyntaxModule: SyntaxDocument, SyntaxLeaf, SyntaxNode
 import ..TypeDispatchingModule: TypeDispatchingProjection
 import ..IoMapModule: SimpleIoMap
 import ..ReferenceModule: ConcreteReferencePath, ElementReference, PositionReference, RangeReference, FieldReference, EmptyReferencePath, append_reference
-import ..ProjectionContextModule: ProjectionContext, child_context
+import ..ProjectionContextModule: ProjectionContext, child_context, with_property, get_property
 import ..SyntaxToTextModule: SyntaxToText
 import ..TextToStringModule: TextToString
 import ..SequentialProjectionModule: SequentialProjection
@@ -136,9 +136,25 @@ end
 # ── CellToSyntax ─────────────────────────────────────────────────────────────
 # Unwraps a Cell and projects its contents transparently.
 
-struct CellToSyntax <: Projection end
+struct CellToSyntax <: Projection
+    cycle_font::StyleFont
+    cycle_color::StyleColor
+end
+CellToSyntax(; cycle_font=font_ubuntu_monospace_italic_24, cycle_color=color_solarized_gray) =
+    CellToSyntax(cycle_font, cycle_color)
 
-function projection_print(::CellToSyntax, cell::Cell, recursion, ctx)
+function projection_print(p::CellToSyntax, cell::Cell, recursion, ctx)
+    visited = get_property(ctx, :objects_seen, nothing)
+    if visited !== nothing && haskey(visited, cell)
+        cycle_leaf = SyntaxLeaf(
+            TextString("", p.cycle_font, color_default),
+            TextString("", p.cycle_font, color_default),
+            TextString("⟨cycle: Cell⟩", p.cycle_font, p.cycle_color))
+        return SimpleIoMap(p, cell, cycle_leaf)
+    end
+    new_visited = visited === nothing ? IdDict{Any,Bool}() : copy(visited)
+    new_visited[cell] = true
+    ctx = with_property(ctx, :objects_seen, new_visited)
     unwrapped = cell[]
     projection_print(recursion, unwrapped, recursion, ctx)
 end
@@ -182,6 +198,26 @@ ObjectNodeToSyntaxNode(; type_name_font=font_ubuntu_monospace_bold_24, type_name
 
 function projection_print(p::ObjectNodeToSyntaxNode, obj, recursion, ctx)
     T = typeof(obj)
+
+    # Cycle detection for mutable ancestors. Self-referential graphs (e.g.
+    # the workbench rendered inside one of its own pages) always close the
+    # loop through a mutable value — Julia immutables can't reference
+    # themselves directly. Tracking only mutables avoids false positives
+    # for value-equal immutable leaves (fonts, colors, TextStrings) that
+    # legitimately appear many times in the same tree.
+    if ismutable(obj)
+        visited = get_property(ctx, :objects_seen, nothing)
+        if visited !== nothing && haskey(visited, obj)
+            cycle_leaf = SyntaxLeaf(
+                TextString("", p.type_name_font, color_default),
+                TextString("", p.type_name_font, color_default),
+                TextString("⟨cycle: $(nameof(T))⟩", p.type_name_font, p.type_name_color))
+            return SimpleIoMap(p, obj, cycle_leaf)
+        end
+        new_visited = visited === nothing ? IdDict{Any,Bool}() : copy(visited)
+        new_visited[obj] = true
+        ctx = with_property(ctx, :objects_seen, new_visited)
+    end
 
     # Special handling for Arrays: project elements directly
     if obj isa AbstractArray

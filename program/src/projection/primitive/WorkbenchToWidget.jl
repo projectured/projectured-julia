@@ -110,10 +110,11 @@ function projection_print(::WorkbenchWorkbenchToWidgetShell,
     nav_iomap  = _recurse(recursion, w.navigation_page,  child_context(ctx, @reference ^(ctx.reference).navigation_page))
     edit_iomap = _recurse(recursion, w.editing_page,     child_context(ctx, @reference ^(ctx.reference).editing_page))
     info_iomap = _recurse(recursion, w.information_page, child_context(ctx, @reference ^(ctx.reference).information_page))
-    # Right column: editor fills remaining height, info pane pinned to 200.
+    # Right column: editor fills remaining height, info pane pinned to 400 so
+    # the assistant's conversation + input split has usable room.
     right_split = WidgetSplitPane(:vertical, Any[
         LayoutConstraint(edit_iomap.output; weight_height=1.0),
-        LayoutConstraint(info_iomap.output; min_height=200, max_height=200),
+        LayoutConstraint(info_iomap.output; min_height=400, max_height=400),
     ])
     # Top level: navigator pinned to 200 wide, right column fills the rest.
     main_split = WidgetSplitPane(:horizontal, Any[
@@ -204,14 +205,15 @@ function projection_print(::WorkbenchAssistantToWidgetSplitPane,
                                   size=Point2D(1600, 1600),
                                   padding=_PAD5, padding_color=_WHITE)
     input_pane = WidgetScrollPane(a.input;
-                                  size=Point2D(1600, 40),
+                                  size=Point2D(1600, 90),
                                   padding=_PAD5, padding_color=_WHITE)
-    # The input is a single-line PrimitiveString; pin it to one row so the
-    # conversation pane gets the remainder of the (already tight) info_page
-    # height instead of being squeezed to zero by the deficit-reduction pass.
+    # Line height with `font_ubuntu_monospace_regular_24` ≈ 30 px, so the
+    # input box reserves 1–6 rows (preferred 3); the conversation pane
+    # absorbs the remainder of the parent's available height.
     column = WidgetSplitPane(:vertical, Any[
         LayoutConstraint(conv_pane;  weight_height=1.0),
-        LayoutConstraint(input_pane; min_height=40, max_height=40),
+        LayoutConstraint(input_pane;
+                         min_height=30, preferred_height=90, max_height=180),
     ])
     SimpleIoMap(nothing, a, column)
 end

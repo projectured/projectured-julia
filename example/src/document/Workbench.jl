@@ -1,3 +1,12 @@
+# Lightweight wrapper that escapes the workbench's type-dispatch path so an
+# arbitrary Julia value (the editor's document, projection, …) can be placed
+# inside a WorkbenchEditor without the workbench projection trying to render
+# it as a workbench node. Routed to the ObjectToSyntax chain in the
+# workbench projection example.
+struct EditorIntrospection
+    value::Any
+end
+
 function make_workbench_document_example(; root=abspath(joinpath(@__DIR__, "../..")))
     workspace = Workspace([
         WorkspaceFolder(basename(root), root),
@@ -25,6 +34,14 @@ function make_workbench_document_example(; root=abspath(joinpath(@__DIR__, "../.
     #     "sorting"   => sorting_doc,
     # )
 
+    # Two introspection pages: one for the editor's document, one for the
+    # editor's projection. Bound lazily below — at this point the workbench
+    # (which IS the editor's document) hasn't been constructed yet.
+    editor_document_view   = WorkbenchEditor(EditorIntrospection(nothing);
+                                             title="editor.document",   filename="editor.document")
+    editor_projection_view = WorkbenchEditor(EditorIntrospection(make_workbench_projection_example());
+                                             title="editor.projection", filename="editor.projection")
+
     edit_page = WorkbenchPage([
         WorkbenchEditor(book_doc;        title="book",              filename="book"),
         WorkbenchEditor(text_doc;        title="readme.txt",        filename="readme.txt"),
@@ -34,6 +51,8 @@ function make_workbench_document_example(; root=abspath(joinpath(@__DIR__, "../.
         WorkbenchEditor(table_doc;       title="table.pred",        filename="table.pred"),
         # WorkbenchEditor(collections_doc; title="collections.pred",  filename="collection.pred"),
         WorkbenchEditor(lazy_doc;        title="lazyprimes.pred",   filename="lazyprimes.pred"),
+        editor_document_view,
+        editor_projection_view,
     ])
 
     descriptor = WorkbenchDescriptor(EmptyReferencePath())
@@ -59,5 +78,7 @@ function make_workbench_document_example(; root=abspath(joinpath(@__DIR__, "../.
 
     workbench = WorkbenchWorkbench(nav_page, edit_page, info_page)
     setfn!(getfield(descriptor, :content), () -> workbench.selection)
+    # Late-bind: the editor's `document` field is the workbench itself.
+    setfn!(editor_document_view, () -> EditorIntrospection(workbench))
     workbench
 end
