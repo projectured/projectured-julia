@@ -22,7 +22,27 @@ import ..ImageModule: ImageFile
 import ..ProjectionApiModule: projection_print, Projection
 import ..IoMapModule: SimpleIoMap
 
-export SdlBackend, sdl_measure_text, sdl_render_canvas, write_image, GraphicsCanvasToImageFile
+export SdlBackend, sdl_measure_text, sdl_render_canvas, sdl_display_size,
+       write_image, GraphicsCanvasToImageFile
+
+"""
+    sdl_display_size(; display::Integer=0) -> (width, height)
+
+Return the usable size in pixels of the given display (default 0). "Usable"
+means with OS-reserved areas like the taskbar / menu bar subtracted —
+the right thing for picking a default window size. Falls back to
+`(1280, 720)` if SDL cannot answer (no display, headless run, etc.).
+The video subsystem is initialized lazily; safe to call before `init!`.
+"""
+function sdl_display_size(; display::Integer=0)
+    SDL_Init(SDL_INIT_VIDEO) == 0 || return (1280, 720)
+    rect = Ref(SDL_Rect(Int32(0), Int32(0), Int32(0), Int32(0)))
+    rc = SDL_GetDisplayUsableBounds(Int32(display), rect)
+    if rc != 0 || rect[].w <= 0 || rect[].h <= 0
+        return (1280, 720)
+    end
+    (Int(rect[].w), Int(rect[].h))
+end
 
 # ════════════════════════════════════════════════════════════════════════
 # Backend

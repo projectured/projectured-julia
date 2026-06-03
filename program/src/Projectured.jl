@@ -191,6 +191,7 @@ using .KeyboardModule: KeyDown, KeyUp, KeyPress, is_ctrl, is_shift, is_alt, is_m
 using .MouseModule: MouseDown, MouseUp, MousePress, MouseMove, MouseScroll
 using .BackendModule: Backend, init!, quit!, measure_text
 using .SdlBackendModule: SdlBackend, sdl_measure_text, sdl_render_canvas,
+                          sdl_display_size,
                           write_image, GraphicsCanvasToImageFile
 using .DeviceModule: Device, write_to_device, read_from_device, write_to_devices, read_from_devices
 using .ScreenModule: Screen, QuitEvent
@@ -414,7 +415,8 @@ export KeyDown, KeyUp, KeyPress, is_ctrl, is_shift, is_alt, is_meta
 export MouseDown, MouseUp, MousePress, MouseMove, MouseScroll
 export Backend, init!, quit!, measure_text
 export Screen
-export SdlBackend, sdl_measure_text, sdl_render_canvas, write_image, GraphicsCanvasToImageFile
+export SdlBackend, sdl_measure_text, sdl_render_canvas, sdl_display_size,
+       write_image, GraphicsCanvasToImageFile
 export Device, write_to_device, read_from_device, write_to_devices, read_from_devices
 export IoMap, SimpleIoMap, ChildrenIoMap, ContentIoMap
 export TypeDispatchingProjection, RecursiveProjection

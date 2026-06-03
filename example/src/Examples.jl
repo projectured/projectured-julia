@@ -76,10 +76,15 @@ a sibling tooltip window opens (id `:tooltip_<example-name>`) showing
 the selection's reference path via `ReferenceToText`. The tooltip
 closes when the selection is cleared.
 """
-function run_example(examples::Vector{Example}; width=2400, height=1600,
+function run_example(examples::Vector{Example}; width=nothing, height=nothing,
                      caching=false, scrolling=false, workbench=false, reset=false,
                      tooltip=false)
     isempty(examples) && error("run_example: empty examples vector")
+    if width === nothing || height === nothing
+        sw, sh = sdl_display_size()
+        width  = something(width,  sw)
+        height = something(height, sh)
+    end
     if tooltip && workbench
         error("run_example: tooltip=true is not compatible with workbench=true")
     end
