@@ -31,7 +31,8 @@ export WorkbenchDocument, WorkbenchInsertion, WorkbenchForeign,
        IWorkbenchNavigator, IWorkbenchConsole, IWorkbenchDescriptor,
        IWorkbenchOperator, IWorkbenchSearcher, IWorkbenchEvaluator,
        IWorkbenchAssistant,
-       IWorkbenchEditor
+       IWorkbenchEditor,
+       DEFAULT_ASSISTANT_SYSTEM
 
 # ── WorkbenchDocument (abstract base) ────────────────────────────────────────
 
@@ -263,15 +264,26 @@ end
 
 const WORKBENCH_ASSISTANT_TITLE = "Assistant"
 const DEFAULT_ASSISTANT_MODEL  = "claude-opus-4-7"
-const DEFAULT_ASSISTANT_SYSTEM = "You are Claude running inside the ProjecturEd editor. " *
-                                  "Use the available tools to inspect and modify the editor's document. " *
-                                  "Documentation is exposed as resources; call `list_resources` then " *
-                                  "`read_resource` to drill in. Read these resources before writing any code:\n" *
+"""
+    DEFAULT_ASSISTANT_SYSTEM
+
+Shared system / instruction prompt for any AI assistant working against the
+editor: the `system` field of an in-editor `WorkbenchAssistant`, and the
+`instructions` field of the MCP server's `initialize` response. Keep the
+two sites in sync by sourcing both from this constant.
+"""
+const DEFAULT_ASSISTANT_SYSTEM = "You are Claude working inside the ProjecturEd editor — a projectional editor built in Julia.\n\n" *
+                                  "Use the available tools to inspect and modify the editor's document and projection. " *
+                                  "Documentation is exposed as resources; call `list_resources` then `read_resource` to drill in.\n\n" *
+                                  "MANDATORY — read these resources BEFORE writing any code:\n" *
                                   "1. resource://guides\n" *
                                   "2. resource://modules\n" *
                                   "3. resource://guide/getting-started\n" *
                                   "4. resource://guide/editor/reference\n" *
-                                  "5. resource://guide/editor/selection"
+                                  "5. resource://guide/editor/selection\n\n" *
+                                  "Then drill into specific modules, classes, or functions as needed.\n\n" *
+                                  "NEVER guess names or signatures. Look them up.\n" *
+                                  "NEVER search in files, read files, or run shell commands — use the editor's resources."
 
 """
     WorkbenchAssistant(; conversation, input, model, system, api_key, status, llm)

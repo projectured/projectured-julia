@@ -11,11 +11,12 @@ tools for AI-driven manipulation.
 module McpModule
 
 using ModelContextProtocol
-using ModelContextProtocol: HttpTransport, TextResourceContents
+using ModelContextProtocol: HttpTransport, TextResourceContents, ServerConfig
 import ..ToolRegistryModule: Tool, Resource,
                               register_tool!, register_resource!,
                               list_tools, list_resources,
                               mcp_tools, mcp_resources
+import ..WorkbenchModule: DEFAULT_ASSISTANT_SYSTEM
 
 export McpServer, mcp_start!, mcp_stop!,
        execute_julia_code, list_guides, read_guide,
@@ -42,18 +43,21 @@ function McpServer(editor)
     srv = mcp_server(
         name        = "projectured",
         version     = "0.1.0",
-        description  = "MCP server for ProjecturEd — a projectional editor built in Julia.",
-        instructions = "MCP server for ProjecturEd — a projectional editor built in Julia.\n\n" *
-                       "MANDATORY — read these resources BEFORE writing any code:\n" *
-                       "1. resource://guides\n" *
-                       "2. resource://modules\n" *
-                       "3. resource://guide/getting-started\n" *
-                       "4. resource://guide/editor/reference\n" *
-                       "5. resource://guide/editor/selection\n\n" *
-                       "Then drill into specific modules, classes, or functions as needed.\n\n" *
-                       "NEVER guess names or signatures. Look them up.\n" *
-                       "NEVER search in files, read files, or run shell commands — use MCP resources.",
+        description = "MCP server for ProjecturEd — a projectional editor built in Julia.",
         resources   = _make_resources(),
+    )
+    # `mcp_server` does not expose `instructions`, but `ServerConfig` does —
+    # and that's the field the MCP `initialize` handler delivers to clients,
+    # so the in-editor assistant and any external MCP client share the same
+    # prompt.
+    srv.config = ServerConfig(
+        name         = srv.config.name,
+        version      = srv.config.version,
+        description  = srv.config.description,
+        capabilities = srv.config.capabilities,
+        instructions = DEFAULT_ASSISTANT_SYSTEM,
+        title        = srv.config.title,
+        icons        = srv.config.icons,
     )
     McpServer(editor, srv, nothing)
 end
