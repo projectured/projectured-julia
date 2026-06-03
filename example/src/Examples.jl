@@ -61,7 +61,7 @@ end
 """
     run_example(examples::Vector{Example}; width, height,
                 caching=false, scrolling=false, workbench=false, reset=false,
-                tooltip=false)
+                tooltip=false, introspection=false)
 
 Open one window per example, side by side. Each example contributes a
 `WindowDocument` with the example's domain document as content; the
@@ -75,10 +75,15 @@ When `tooltip=true`, each example's content is wrapped in a
 a sibling tooltip window opens (id `:tooltip_<example-name>`) showing
 the selection's reference path via `ReferenceToText`. The tooltip
 closes when the selection is cleared.
+
+When `introspection=true`, each example's content is wrapped in a
+`WidgetTabbedPane` with three tabs: the original content (rendered with
+the example's own projection), the editor's document, and the editor's
+projection (both rendered generically via `ObjectToSyntax`).
 """
 function run_example(examples::Vector{Example}; width=nothing, height=nothing,
                      caching=false, scrolling=false, workbench=false, reset=false,
-                     tooltip=false)
+                     tooltip=false, introspection=false)
     isempty(examples) && error("run_example: empty examples vector")
     if width === nothing || height === nothing
         sw, sh = sdl_display_size()
@@ -102,6 +107,9 @@ function run_example(examples::Vector{Example}; width=nothing, height=nothing,
         elseif scrolling
             document   = make_scrolling_document(document; width=width, height=height)
             projection = make_scrolling_projection(projection)
+        elseif introspection
+            document   = make_introspection_document(document, projection; title=ex.name)
+            projection = make_introspection_projection(projection)
         end
         if caching
             projection = make_graphics_caching(projection)
