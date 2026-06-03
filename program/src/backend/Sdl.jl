@@ -907,9 +907,12 @@ function read_from_devices(backend::SdlBackend, devices)
             SDL_GetMouseState(mx_ref, my_ref)
             mods = _current_modifiers()
             wid = _lookup_window_id(backend, evt.wheel.windowID)
+            dx, dy = Int(evt.wheel.x), Int(evt.wheel.y)
+            if mods.shift && dx == 0
+                dx, dy = dy, 0
+            end
             return EventEnvelope(wid,
-                MouseScroll(Int(evt.wheel.x), Int(evt.wheel.y),
-                            Int(mx_ref[]), Int(my_ref[]), mods))
+                MouseScroll(dx, dy, Int(mx_ref[]), Int(my_ref[]), mods))
         end
     end
     return nothing
