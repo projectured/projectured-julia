@@ -20,6 +20,9 @@ import ..KeyboardModule: KeyDown, KeyUp, KeyPress
 import ..MouseModule: MouseDown, MouseUp, MousePress, MouseMove, MouseScroll
 import ..ImageModule: ImageFile
 import ..ProjectionApiModule: projection_print, Projection
+import ..ProjectionContextModule: ProjectionContext
+import ..ReactiveModule: Cell
+import ..ReferenceModule: EmptyReferencePath
 import ..IoMapModule: SimpleIoMap
 
 export SdlBackend, sdl_measure_text, sdl_render_canvas, sdl_display_size,
@@ -717,7 +720,10 @@ function write_image(document, projection, filename::AbstractString;
                      width::Integer = 800,
                      height::Integer = 600,
                      background::NTuple{4,UInt8} = (0xfd, 0xf6, 0xe3, 0xff))
-    iomap = projection_print(projection, document)
+    ctx = ProjectionContext(EmptyReferencePath(),
+                            Cell(Int(width)), Cell(Int(height)),
+                            Dict{Symbol,Any}())
+    iomap = projection_print(projection, document, nothing, ctx)
     canvas = iomap.output
     canvas isa GraphicsCanvas ||
         error("write_image: projection output is $(typeof(canvas)), expected GraphicsCanvas")

@@ -283,74 +283,44 @@ function projection_print(p::HorizontalLayoutToGraphicsCanvas,
 
     gap_cell   = getfield(doc, :gap)
     align_cell = getfield(doc, :vertical_align)
-    avail_w    = ctx.available_width
-    avail_h    = ctx.available_height
 
-    child_docs = Any[doc.children[i] for i in 1:n]
-
-    # Forward-declare per-child main-axis allocation cells so each child's
-    # downward context can close over them. The allocation cell itself is
-    # seeded after the iomaps exist (it reads child intrinsic widths).
-    actual_w_cells = Cell[]
-    alloc_w_ref = Ref{Union{Nothing,Cell}}(nothing)
-    if avail_w !== nothing
-        for i in 1:n
-            push!(actual_w_cells, Cell(() -> (alloc_w_ref[])[][i]))
-        end
-    end
-
+    # Strip avail before recursing into children: a layout's intrinsic size
+    # is computed from its children's intrinsic sizes, so children must not
+    # have an `available_*` cell that ultimately reads this layout's own
+    # outer size — that closes a feedback loop and stack-overflows when the
+    # reactive cell evaluates. The layout itself renders at its content
+    # size; outer fills (window shells, scroll panes, etc.) belong outside.
     child_iomaps = Any[]
     for i in 1:n
         cctx = child_context(ctx, @reference ^(ctx.reference).children[i])
-        # Main axis (x): per-child allocation.
-        # Cross axis (y): pass parent's available height through unchanged
-        # so adaptive children can stretch within it.
-        cw = avail_w === nothing ? nothing : actual_w_cells[i]
-        ch = avail_h
-        cctx = with_available_size(cctx; width=cw, height=ch)
+        cctx = with_available_size(cctx; width=nothing, height=nothing)
         cim = _recurse_child(recursion, doc.children[i], cctx)
         push!(child_iomaps, cim)
     end
 
-    if avail_w !== nothing
-        alloc_w_ref[] = _alloc_cell(avail_w, child_iomaps, child_docs, gap_cell, :x)
-    end
+    outer_h = Cell(function ()
+        h = 0
+        for cim in child_iomaps
+            ch = _child_h(cim)
+            ch > h && (h = ch)
+        end
+        h
+    end)
 
-    outer_h = if avail_h === nothing
-        Cell(function ()
-            h = 0
-            for cim in child_iomaps
-                ch = _child_h(cim)
-                ch > h && (h = ch)
-            end
-            h
-        end)
-    else
-        Cell(() -> Int(avail_h[]))
-    end
-
-    outer_w = if avail_w === nothing
-        Cell(function ()
-            n2 = length(child_iomaps)
-            n2 == 0 && return 0
-            total = 0
-            for cim in child_iomaps
-                total += _child_w(cim)
-            end
-            total + (n2 - 1) * gap_cell[]
-        end)
-    else
-        Cell(() -> Int(avail_w[]))
-    end
+    outer_w = Cell(function ()
+        n2 = length(child_iomaps)
+        n2 == 0 && return 0
+        total = 0
+        for cim in child_iomaps
+            total += _child_w(cim)
+        end
+        total + (n2 - 1) * gap_cell[]
+    end)
 
     child_x = Cell[]
     child_y = Cell[]
     for i in 1:n
-        if avail_w === nothing
-            push!(child_x, _hl_child_x_cell(i, child_iomaps, gap_cell))
-        else
-            push!(child_x, _hl_alloc_child_x_cell(i, actual_w_cells, gap_cell))
-        end
+        push!(child_x, _hl_child_x_cell(i, child_iomaps, gap_cell))
         push!(child_y, _hl_child_y_cell(i, child_iomaps, outer_h, align_cell))
     end
 
@@ -402,70 +372,42 @@ function projection_print(p::VerticalLayoutToGraphicsCanvas,
 
     gap_cell   = getfield(doc, :gap)
     align_cell = getfield(doc, :horizontal_align)
-    avail_w    = ctx.available_width
-    avail_h    = ctx.available_height
 
-    child_docs = Any[doc.children[i] for i in 1:n]
-
-    actual_h_cells = Cell[]
-    alloc_h_ref = Ref{Union{Nothing,Cell}}(nothing)
-    if avail_h !== nothing
-        for i in 1:n
-            push!(actual_h_cells, Cell(() -> (alloc_h_ref[])[][i]))
-        end
-    end
-
+    # See HorizontalLayoutToGraphicsCanvas: strip avail before recursing to
+    # avoid the cell-feedback cycle when a child layout reads its own
+    # avail-derived outer back into the parent's intrinsic computation.
     child_iomaps = Any[]
     for i in 1:n
         cctx = child_context(ctx, @reference ^(ctx.reference).children[i])
-        # Main axis (y) per-child allocation; cross axis (x) passthrough.
-        ch = avail_h === nothing ? nothing : actual_h_cells[i]
-        cw = avail_w
-        cctx = with_available_size(cctx; width=cw, height=ch)
+        cctx = with_available_size(cctx; width=nothing, height=nothing)
         cim = _recurse_child(recursion, doc.children[i], cctx)
         push!(child_iomaps, cim)
     end
 
-    if avail_h !== nothing
-        alloc_h_ref[] = _alloc_cell(avail_h, child_iomaps, child_docs, gap_cell, :y)
-    end
+    outer_w = Cell(function ()
+        w = 0
+        for cim in child_iomaps
+            cw = _child_w(cim)
+            cw > w && (w = cw)
+        end
+        w
+    end)
 
-    outer_w = if avail_w === nothing
-        Cell(function ()
-            w = 0
-            for cim in child_iomaps
-                cw = _child_w(cim)
-                cw > w && (w = cw)
-            end
-            w
-        end)
-    else
-        Cell(() -> Int(avail_w[]))
-    end
-
-    outer_h = if avail_h === nothing
-        Cell(function ()
-            n2 = length(child_iomaps)
-            n2 == 0 && return 0
-            total = 0
-            for cim in child_iomaps
-                total += _child_h(cim)
-            end
-            total + (n2 - 1) * gap_cell[]
-        end)
-    else
-        Cell(() -> Int(avail_h[]))
-    end
+    outer_h = Cell(function ()
+        n2 = length(child_iomaps)
+        n2 == 0 && return 0
+        total = 0
+        for cim in child_iomaps
+            total += _child_h(cim)
+        end
+        total + (n2 - 1) * gap_cell[]
+    end)
 
     child_x = Cell[]
     child_y = Cell[]
     for i in 1:n
         push!(child_x, _vl_child_x_cell(i, child_iomaps, outer_w, align_cell))
-        if avail_h === nothing
-            push!(child_y, _vl_child_y_cell(i, child_iomaps, gap_cell))
-        else
-            push!(child_y, _vl_alloc_child_y_cell(i, actual_h_cells, gap_cell))
-        end
+        push!(child_y, _vl_child_y_cell(i, child_iomaps, gap_cell))
     end
 
     wrapped = Any[]

@@ -73,8 +73,11 @@ still each render through their own pipeline).
 When `tooltip=true`, each example's content is wrapped in a
 `TooltipSource`. While the user has a selection inside that example,
 a sibling tooltip window opens (id `:tooltip_<example-name>`) showing
-the selection's reference path via `ReferenceToText`. The tooltip
-closes when the selection is cleared.
+the selection's reference path in two forms: the short, color-coded
+shape from `ReferenceToText` on the first line, followed by a blank
+line and the multi-line human-readable narrative from
+`ReferenceToHumanReadableText`. The tooltip closes when the selection
+is cleared.
 
 When `introspection=true`, each example's content is wrapped in a
 `WidgetTabbedPane` with three tabs: the original content (rendered with
@@ -200,13 +203,23 @@ end
 # screen.
 
 function _make_tooltip_source(doc; id::Symbol)
-    ref_proj = ReferenceToText()
+    short_proj = ReferenceToText()
+    long_proj  = ReferenceToHumanReadableText(doc)
     content = TextText(() -> begin
         sel = doc.selection
-        snapshot = projection_print(ref_proj, sel, nothing, ProjectionContext()).output
-        # Extract spans into a plain Vector so the outer CellVector can
-        # wrap each one in a fresh Cell on every recompute.
-        TextDocument[snapshot[i] for i in 1:length(snapshot)]
+        ctx = ProjectionContext()
+        short = projection_print(short_proj, sel, nothing, ctx).output
+        long  = projection_print(long_proj,  sel, nothing, ctx).output
+        spans = TextDocument[]
+        for i in 1:length(short)
+            push!(spans, short[i])
+        end
+        push!(spans, TextNewline(font=short_proj.font))
+        push!(spans, TextNewline(font=short_proj.font))
+        for i in 1:length(long)
+            push!(spans, long[i])
+        end
+        spans
     end)
     TooltipSource(child = doc, content = content, style = :tooltip, id = id)
 end
@@ -222,7 +235,7 @@ function _multi_window_projection_tooltipped(projections::Vector; measure=sdl_me
     end
     decorator = TooltipDecoratorProjection(
         trigger  = (source, _evt) -> source.child.selection !== nothing,
-        position = _ -> (100, 100, 1200, 200),
+        position = _ -> (100, 100, 1200, 600),
         title    = "Selection",
     )
     ref_dispatch = ReferenceDispatchingProjection(ref -> begin
