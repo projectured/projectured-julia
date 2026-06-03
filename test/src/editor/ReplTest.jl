@@ -29,7 +29,7 @@ function walk_repl_loop(document, projection)
         end
         op === nothing && continue
         try
-            evaluate_operation(op, document)
+            evaluate_operation((document=document,), op)
         catch e
             push!(errors, "evaluate_operation threw for $event: $e")
             continue

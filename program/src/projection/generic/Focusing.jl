@@ -62,7 +62,7 @@ struct ReplaceFocusPartOperation <: Operation
     part::ReferencePath
 end
 
-function evaluate_operation(op::ReplaceFocusPartOperation, document)
+function evaluate_operation(editor, op::ReplaceFocusPartOperation)
     op.projection.part = op.part
     op.projection.part_evaluator = document -> evaluate_reference(document, op.part)
 end

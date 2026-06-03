@@ -98,7 +98,7 @@ when it is non-nothing.
 """
 function evaluate!(editor::Editor)
     editor.operation !== nothing && println("\r\e[K[operation] $(editor.operation)")
-    evaluate_operation(editor.operation, editor.document)
+    evaluate_operation(editor, editor.operation)
 end
 
 """

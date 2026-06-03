@@ -130,18 +130,18 @@ end
 # evaluate_operation
 # ═══════════════════════════════════════════════════════════════════════
 
-function evaluate_operation(op::ClearInputOperation, _document)
+function evaluate_operation(editor, op::ClearInputOperation)
     _set_input!(op.assistant, "")
     nothing
 end
 
-function evaluate_operation(op::ResetConversationOperation, _document)
+function evaluate_operation(editor, op::ResetConversationOperation)
     op.assistant.conversation = ConversationConversation()
     _set_input!(op.assistant, "")
     nothing
 end
 
-function evaluate_operation(op::SubmitJuliaOperation, _document)
+function evaluate_operation(editor, op::SubmitJuliaOperation)
     a = op.assistant
     code = _text_to_string(a.input)
     isempty(strip(code)) && return nothing
@@ -149,7 +149,7 @@ function evaluate_operation(op::SubmitJuliaOperation, _document)
     # Make sure the editor's exec tool is registered (no-op if already done).
     register_default_tools_and_resources!()
     output = try
-        call_tool("execute_julia_code", Dict("code" => code), nothing)
+        call_tool("execute_julia_code", Dict("code" => code), editor)
     catch e
         sprint(showerror, e, catch_backtrace())
     end
@@ -161,7 +161,7 @@ function evaluate_operation(op::SubmitJuliaOperation, _document)
     nothing
 end
 
-function evaluate_operation(op::SubmitProseOperation, _document)
+function evaluate_operation(editor, op::SubmitProseOperation)
     a = op.assistant
     text = _text_to_string(a.input)
     isempty(strip(text)) && return nothing
@@ -175,7 +175,7 @@ function evaluate_operation(op::SubmitProseOperation, _document)
     # streams from Claude. The same `_handle_sse_event!` consumes both.
     @async begin
         try
-            _run_agent_loop!(a)
+            _run_agent_loop!(editor, a)
         catch e
             a.status = :error
             err = sprint(showerror, e, catch_backtrace())
@@ -410,7 +410,7 @@ mutable struct _PendingToolUse
     input::Any
 end
 
-function _run_agent_loop!(a::WorkbenchAssistant)
+function _run_agent_loop!(editor, a::WorkbenchAssistant)
     # `AnthropicLlm.stream_turn` errors with a clear HTTP message if the
     # API key is empty. `FakeLlm` doesn't need one. So leave validation
     # to the backend.
@@ -467,7 +467,7 @@ function _run_agent_loop!(a::WorkbenchAssistant)
         # `build_messages` re-serialises the conversation for Claude.
         for tu in pending
             output = try
-                dispatch_assistant_tool(tu.name, tu.input, nothing)
+                dispatch_assistant_tool(tu.name, tu.input, editor)
             catch e
                 sprint(showerror, e, catch_backtrace())
             end

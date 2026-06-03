@@ -116,7 +116,7 @@ function _mvp_type!(a::WorkbenchAssistant, s::AbstractString)
         iomap = projection_print(chain, a.input)
         op = projection_read(chain, iomap, KeyPress(c))
         op === nothing && continue
-        evaluate_operation(op, a.input)
+        evaluate_operation((document=a.input,), op)
     end
 end
 
@@ -126,7 +126,7 @@ function _mvp_enter!(a::WorkbenchAssistant)
     iomap = projection_print(chain, a)
     op = projection_read(chain, iomap, KeyDown(:return, Modifiers()))
     op === nothing && return nothing
-    evaluate_operation(op, a)
+    evaluate_operation((document=a,), op)
     op
 end
 
@@ -287,8 +287,11 @@ function _mvp_test_tool_use_roundtrip()
         push!(a.conversation, ConversationUserMessage("compute 1+1"))
 
         # Drive the agent loop synchronously (no @async) so we can assert
-        # the post-state immediately.
-        _run_agent_loop!(a)
+        # the post-state immediately. Stand-in editor mirrors the production
+        # `evaluate_operation(editor, op)` plumbing — the tool dispatch in
+        # the loop receives this as `editor` (the FakeLlm script's `1+1`
+        # doesn't read it, but the wiring is what's under test).
+        _run_agent_loop!((document=a,), a)
 
         msgs = a.conversation.messages
         # Expected sequence after the unified ConversationCodeExecution refactor:

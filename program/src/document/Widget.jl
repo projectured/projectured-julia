@@ -798,26 +798,26 @@ end
 
 Apply a widget operation.
 """
-function evaluate_operation(op::HideWidgetOperation, _document)
+function evaluate_operation(editor, op::HideWidgetOperation)
     op.widget.visible = false
 end
 
-function evaluate_operation(op::ShowWidgetOperation, _document)
+function evaluate_operation(editor, op::ShowWidgetOperation)
     op.widget.visible = true
 end
 
-function evaluate_operation(op::ScrollWidgetOperation, _document)
+function evaluate_operation(editor, op::ScrollWidgetOperation)
     sp = op.scroll_pane
     old = sp.scroll_position::Point2D
     delta = op.scroll_delta
     sp.scroll_position = Point2D(old.x[] + delta.x[], old.y[] + delta.y[])
 end
 
-function evaluate_operation(op::SetScrollBarValueOperation, _document)
+function evaluate_operation(editor, op::SetScrollBarValueOperation)
     op.scroll_bar.value = clamp(op.value, 0.0, 1.0)
 end
 
-function evaluate_operation(op::SelectTabOperation, _document)
+function evaluate_operation(editor, op::SelectTabOperation)
     op.widget.selection = ConcreteReferencePath(ElementReference(op.tab_index), EmptyReferencePath())
 end
 

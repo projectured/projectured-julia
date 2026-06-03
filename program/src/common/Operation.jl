@@ -13,10 +13,10 @@ import ..ReactiveModule: Cell
 export ReplaceSelectionOperation, QuitEditorOperation, QuitEditorException, replace_selection!,
        OpenWindowOperation, CloseWindowOperation
 
-function evaluate_operation(op::Nothing, document) end
+function evaluate_operation(editor, op::Nothing) end
 
 # Fallback for any other input (e.g., raw events returned by reader)
-function evaluate_operation(op, document) end
+function evaluate_operation(editor, op) end
 
 struct QuitEditorException <: Exception end
 
@@ -28,7 +28,7 @@ Produced when the user closes the window or presses Escape.
 """
 struct QuitEditorOperation <: Operation end
 
-function evaluate_operation(op::QuitEditorOperation, document)
+function evaluate_operation(editor, op::QuitEditorOperation)
     throw(QuitEditorException())
 end
 
@@ -43,7 +43,8 @@ struct ReplaceSelectionOperation <: Operation
     path::ReferencePath
 end
 
-function evaluate_operation(op::ReplaceSelectionOperation, document)
+function evaluate_operation(editor, op::ReplaceSelectionOperation)
+    document = editor.document
     clear_selection!(document)
     set_selection!(document, op.path)
 end

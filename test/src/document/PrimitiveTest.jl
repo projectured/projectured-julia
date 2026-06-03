@@ -28,7 +28,7 @@ function test_primitive()
 @testset "string insert at cursor" begin
     doc = PrimitiveString("ab")
     op = StringReplaceRangeOperation(_value_range_ref(0, 0), "x")
-    evaluate_operation(op, doc)
+    evaluate_operation((document=doc,), op)
     @test doc.value == "xab"
     range = _cursor_at(doc)
     @test range.start == 1 && range.stop == 1
@@ -37,7 +37,7 @@ end
 @testset "string insert in middle" begin
     doc = PrimitiveString("ac")
     op = StringReplaceRangeOperation(_value_range_ref(1, 1), "b")
-    evaluate_operation(op, doc)
+    evaluate_operation((document=doc,), op)
     @test doc.value == "abc"
     range = _cursor_at(doc)
     @test range.start == 2 && range.stop == 2
@@ -47,7 +47,7 @@ end
     doc = PrimitiveString("abc")
     # backspace at cursor position 2 deletes char at position 2 (1-based: 'b')
     op = StringReplaceRangeOperation(_value_range_ref(1, 2), "")
-    evaluate_operation(op, doc)
+    evaluate_operation((document=doc,), op)
     @test doc.value == "ac"
     range = _cursor_at(doc)
     @test range.start == 1 && range.stop == 1
@@ -57,7 +57,7 @@ end
     doc = PrimitiveString("abc")
     # delete at cursor position 1 removes char at index 2 ('b'); cursor stays at 1
     op = StringReplaceRangeOperation(_value_range_ref(1, 2), "")
-    evaluate_operation(op, doc)
+    evaluate_operation((document=doc,), op)
     @test doc.value == "ac"
     range = _cursor_at(doc)
     @test range.start == 1 && range.stop == 1
@@ -66,7 +66,7 @@ end
 @testset "string range replace substitutes selection" begin
     doc = PrimitiveString("abcdef")
     op = StringReplaceRangeOperation(_value_range_ref(1, 4), "XY")
-    evaluate_operation(op, doc)
+    evaluate_operation((document=doc,), op)
     @test doc.value == "aXYef"
     range = _cursor_at(doc)
     @test range.start == 3 && range.stop == 3
@@ -75,7 +75,7 @@ end
 @testset "string range delete with empty replacement" begin
     doc = PrimitiveString("abcdef")
     op = StringReplaceRangeOperation(_value_range_ref(2, 5), "")
-    evaluate_operation(op, doc)
+    evaluate_operation((document=doc,), op)
     @test doc.value == "abf"
     range = _cursor_at(doc)
     @test range.start == 2 && range.stop == 2
@@ -86,7 +86,7 @@ end
 @testset "number insert digit" begin
     doc = PrimitiveNumber(12)
     op = NumberReplaceRangeOperation(_value_range_ref(2, 2), "3")
-    evaluate_operation(op, doc)
+    evaluate_operation((document=doc,), op)
     @test doc.value == 123.0
     range = _cursor_at(doc)
     @test range.start == 3 && range.stop == 3
@@ -96,14 +96,14 @@ end
     doc = PrimitiveNumber(9)
     # delete the only digit
     op = NumberReplaceRangeOperation(_value_range_ref(0, 1), "")
-    evaluate_operation(op, doc)
+    evaluate_operation((document=doc,), op)
     @test doc.value === nothing
 end
 
 @testset "number non-parseable result becomes nothing" begin
     doc = PrimitiveNumber(1)
     op = NumberReplaceRangeOperation(_value_range_ref(1, 1), "x")
-    evaluate_operation(op, doc)
+    evaluate_operation((document=doc,), op)
     @test doc.value === nothing
 end
 

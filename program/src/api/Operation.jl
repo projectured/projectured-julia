@@ -19,10 +19,14 @@ by the reader side of the projection pipeline and applied by `evaluate_operation
 abstract type Operation end
 
 """
-    evaluate_operation(operation::Operation, document)
+    evaluate_operation(editor, operation::Operation)
 
-Apply `operation` to `document`. Concrete document types add methods to this
-function. The editor calls it after the reader pipeline produces an operation.
+Apply `operation` against `editor`. The editor is whatever object holds the
+mutable runtime state the operation needs — concretely an `EditorModule.Editor`
+in production, with `editor.document` carrying the root document. Concrete
+operations add methods reaching for whatever editor fields they need
+(`editor.document` is the most common). The editor calls this after the reader
+pipeline produces an operation.
 """
 function evaluate_operation end
 

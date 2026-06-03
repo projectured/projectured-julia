@@ -161,7 +161,8 @@ function _new_cursor_selection(start::Int, replacement::AbstractString)
         ConcreteReferencePath(RangeReference(new_pos, new_pos), EmptyReferencePath()))
 end
 
-function evaluate_operation(op::NumberReplaceRangeOperation, document)
+function evaluate_operation(editor, op::NumberReplaceRangeOperation)
+    document = editor.document
     parent_path, range_step = _split_replace_reference(op.reference)
     target = evaluate_reference(document, parent_path)::PrimitiveNumber
     old_num = target.value
@@ -171,7 +172,8 @@ function evaluate_operation(op::NumberReplaceRangeOperation, document)
     target.selection = _new_cursor_selection(range_step.start, op.replacement)
 end
 
-function evaluate_operation(op::StringReplaceRangeOperation, document)
+function evaluate_operation(editor, op::StringReplaceRangeOperation)
+    document = editor.document
     parent_path, range_step = _split_replace_reference(op.reference)
     target = evaluate_reference(document, parent_path)::PrimitiveString
     old_str = something(target.value, "")

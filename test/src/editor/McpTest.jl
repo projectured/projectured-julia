@@ -1,5 +1,9 @@
 using Test
 using Projectured.McpModule
+using Projectured.ToolRegistryModule: call_tool
+using Projectured.WorkbenchAssistantModule: SubmitJuliaOperation
+using Projectured: WorkbenchAssistant, evaluate_operation, ConcreteReferencePath,
+                   FieldReference, RangeReference, EmptyReferencePath, FakeLlm
 
 function test_list_guides()
     @testset "list_guides" begin
@@ -178,6 +182,42 @@ function test_execute_julia_code()
     end
 end
 
+# Reproduces the bug where ALT+ENTER → SubmitJuliaOperation → call_tool
+# used to pass `nothing` for editor, so the assistant saw `editor === nothing`
+# and any `editor.document` reach-through crashed with FieldError. Verifies
+# the workbench flow now forwards the live editor (or a stand-in carrying
+# `.document`) all the way to `execute_julia_code`'s `let editor = …`.
+function test_workbench_editor_reference()
+    @testset "workbench editor reference" begin
+        register_default_tools_and_resources!()
+
+        a = WorkbenchAssistant(; llm = FakeLlm("ok"))
+        a.input.value = "editor !== nothing"
+        a.input.selection = ConcreteReferencePath(
+            FieldReference("value"),
+            ConcreteReferencePath(RangeReference(0, length(a.input.value)),
+                                  EmptyReferencePath()))
+
+        stand_in = (document = a,)
+        evaluate_operation(stand_in, SubmitJuliaOperation(a))
+
+        @test length(a.conversation) == 1
+        exec = a.conversation.messages[1]
+        @test occursin("true", exec.result)
+        @test !exec.is_error
+
+        a.input.value = "editor.document isa Projectured.WorkbenchAssistant"
+        a.input.selection = ConcreteReferencePath(
+            FieldReference("value"),
+            ConcreteReferencePath(RangeReference(0, length(a.input.value)),
+                                  EmptyReferencePath()))
+        evaluate_operation(stand_in, SubmitJuliaOperation(a))
+        exec2 = a.conversation.messages[2]
+        @test occursin("true", exec2.result)
+        @test !exec2.is_error
+    end
+end
+
 function test_function_availability()
     @testset "function_availability" begin
         # Need a mock editor for this test
@@ -277,6 +317,7 @@ function test_mcp_tools()
         test_execute_julia_code()
         test_function_availability()
         test_base_extensions()
+        test_workbench_editor_reference()
     end
 end
 
@@ -285,3 +326,4 @@ export test_list_guides, test_read_guide
 export test_list_modules, test_list_classes, test_list_functions
 export test_read_module_documentation, test_read_class_documentation, test_read_function_documentation
 export test_execute_julia_code, test_function_availability, test_base_extensions
+export test_workbench_editor_reference

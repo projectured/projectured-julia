@@ -126,18 +126,18 @@ end
 
 # ── Operation evaluation ──────────────────────────────────────────────────────
 
-function evaluate_operation(op::LoadDocumentOperation, _document)
+function evaluate_operation(editor, op::LoadDocumentOperation)
     doc = op.document
     content = call_loader(op.filename)
     doc.content = content
     doc.selection = nothing
 end
 
-function evaluate_operation(op::SaveDocumentOperation, _document)
+function evaluate_operation(editor, op::SaveDocumentOperation)
     call_saver(op.filename, op.document.content)
 end
 
-function evaluate_operation(op::ExportDocumentOperation, _document)
+function evaluate_operation(editor, op::ExportDocumentOperation)
     open(op.filename, "w") do output
         print_document(op.document.content, output)
     end
