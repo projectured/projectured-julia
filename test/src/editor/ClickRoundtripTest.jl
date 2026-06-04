@@ -33,6 +33,11 @@ function _find_text_iomap(io)
             r = _find_text_iomap(s); r !== nothing && return r
         end
     end
+    if hasfield(typeof(io), :children) && io.children isa Vector
+        for c in io.children
+            r = _find_text_iomap(c); r !== nothing && return r
+        end
+    end
     hasfield(typeof(io), :inner_iomap) && return _find_text_iomap(io.inner_iomap)
     hasfield(typeof(io), :child_iomap) && return _find_text_iomap(io.child_iomap)
     nothing

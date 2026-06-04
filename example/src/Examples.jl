@@ -134,11 +134,30 @@ function run_example(examples::Vector{Example}; width=nothing, height=nothing,
     # Lay out the WindowDocuments side by side. Each example.name becomes
     # the window id — must be unique within the screen, so duplicate
     # names are an error.
+    screen = _build_screen_with_lifted_selection(examples, docs;
+                                                  width=width, height=height,
+                                                  tooltip=tooltip)
+
+    composed = tooltip ? _multi_window_projection_tooltipped(projs) :
+                         _multi_window_projection(projs)
+    run!(SdlBackend(), composed, screen)
+end
+
+# Build the multi-window `ScreenDocument` with windows arranged side by
+# side and — critically — lift each window's pre-set content selection up
+# to a screen-rooted path. Without the lift, `clear_selection!(screen)`
+# only walks the screen's selection path (initially `nothing`) and leaves
+# the inner document's stale leaf selection alone. The next click takes a
+# different branch via `set_selection!`, and `_collect_spans` then finds
+# *two* leaves with selections — it picks the first one and the cursor
+# appears stuck on the original branch.
+function _build_screen_with_lifted_selection(examples::Vector, docs;
+                                              width, height, tooltip::Bool)
     seen_ids = Set{Symbol}()
     windows = WindowDocument[]
     for (i, ex) in enumerate(examples)
         id = Symbol(ex.name)
-        id in seen_ids && error("run_example: duplicate example name :$id; window ids must be unique")
+        id in seen_ids && error("duplicate example name :$id; window ids must be unique")
         push!(seen_ids, id)
         push!(windows, WindowDocument(;
             id     = id,
@@ -152,9 +171,31 @@ function run_example(examples::Vector{Example}; width=nothing, height=nothing,
     end
     screen = ScreenDocument(windows)
 
-    composed = tooltip ? _multi_window_projection_tooltipped(projs) :
-                         _multi_window_projection(projs)
-    run!(SdlBackend(), composed, screen)
+    for (i, win) in enumerate(windows)
+        # For the tooltip variant the original document sits one level
+        # deeper, behind the TooltipSource wrapper's `child` field.
+        root_doc = tooltip ? win.content.child : win.content
+        inner_sel = getfield(root_doc, :selection)[]
+        inner_sel === nothing && continue
+        full_path = tooltip ?
+            (@reference windows[i].content.child.^(inner_sel)) :
+            (@reference windows[i].content.^(inner_sel))
+        set_selection!(screen, full_path)
+        break
+    end
+    return screen
+end
+
+# Test helper: wrap a single example exactly the way `run_example` does so
+# tests can drive sequential clicks against the same multi-window pipeline
+# the editor uses, without launching the SDL loop.
+function _wrap_examples_for_test(examples::Vector{Example};
+                                  width::Int=1200, height::Int=800,
+                                  tooltip::Bool=false)
+    docs = [ex.document for ex in examples]
+    _build_screen_with_lifted_selection(examples, docs;
+                                        width=width, height=height,
+                                        tooltip=tooltip)
 end
 
 # Build a projection that copies the ScreenDocument / WindowDocument spine
