@@ -33,9 +33,10 @@ Verified by reading the code, not by running:
   (`grep collapsed` over `program/src/projection/primitive/SyntaxToText.jl`
   returns no hits).
 - A dedicated [`SyntaxCollapsible`](../../program/src/document/Syntax.jl#L128)
-  wrapper exists with the same intent — also unused. The plan picks **one**
-  of the two representations (the field on the node) and removes the other
-  (§9).
+  wrapper exists with the same intent — also unused. This plan uses the
+  **field on the node** for the JSON / XML / Book / Syntax cases and leaves
+  `SyntaxCollapsible` in place for future use as a generic wrapper that adds
+  collapse to a document type which doesn't have the field itself.
 - `JsonObject` / `JsonArray` / `JsonObjectEntry`
   ([Json.jl#L177](../../program/src/document/Json.jl#L177),
    [Json.jl#L207](../../program/src/document/Json.jl#L207),
@@ -67,19 +68,42 @@ not need any other change.
 In the Syntax → Text projection, when a `SyntaxNode` has `collapsed == true`:
 
 ```
-<open><ellipsis><close>
+<marker?><open><ellipsis><close>
 ```
 
-`<ellipsis>` is a configurable `TextString` ("…" by default, styled with a
-muted color so it is visually distinct from real content). Examples:
+When `collapsed == false`:
 
-| Node                                  | Expanded                    | Collapsed   |
-|---------------------------------------|-----------------------------|-------------|
-| `JsonArray([1, 2, 3])`                | `[1, 2, 3]`                 | `[…]`       |
-| `JsonObject({"a":1, "b":2})`          | `{ "a": 1, "b": 2 }`        | `{…}`       |
-| `XmlElement(<div>…)`                  | `<div>…</div>`              | `<div>…</div>` *(see §1.1)* |
-| `BookChapter` with title + paragraphs | title \n paragraphs         | title \n `…`|
-| A `SyntaxNode` with empty delimiters  | `child₁<sep>child₂…`        | `…`         |
+```
+<marker?><open>… children …<close>
+```
+
+There are two projection-introduced spans, both configurable on the
+`SyntaxNodeToText` projection:
+
+- **`<ellipsis>`** — shown only in the collapsed render between open and
+  close. Default `"…"`, styled with a muted color.
+- **`<marker?>`** — an *optional inline expand/collapse marker* shown
+  before the open delimiter in **both** states. Two configurable
+  `TextString`s on the projection govern it:
+  - `expanded_marker` — shown when `!node.collapsed` (e.g. `"▾"`)
+  - `collapsed_marker` — shown when `node.collapsed` (e.g. `"▸"`)
+  Both default to the empty `TextString("")`. When a marker is empty,
+  no span is emitted and no IoMap entry is recorded — so existing
+  callers that don't opt in see no change in output.
+
+Examples (assuming markers `"▾"` / `"▸"` are configured):
+
+| Node                                  | Expanded                    | Collapsed     |
+|---------------------------------------|-----------------------------|---------------|
+| `JsonArray([1, 2, 3])`                | `▾[1, 2, 3]`                | `▸[…]`        |
+| `JsonObject({"a":1, "b":2})`          | `▾{ "a": 1, "b": 2 }`       | `▸{…}`        |
+| `XmlElement(<div>…)`                  | `▾<div>…</div>`             | `▸<div>…</div>` *(see §1.1)* |
+| `BookChapter` with title + paragraphs | `▾`title \n paragraphs      | `▸`title \n `…`|
+| A `SyntaxNode` with empty delimiters  | `▾`child₁`<sep>`child₂…     | `▸…`          |
+
+Without configured markers (defaults), the renders are the same minus the
+`▾`/`▸` glyph — i.e. existing behaviour for the expanded case and the
+plain `<open><ellipsis><close>` for the collapsed case.
 
 Notes:
 
@@ -87,8 +111,13 @@ Notes:
   collapsed node always fits on the line it starts on (modulo whatever line
   the open delimiter ended up on after word-wrap upstream).
 - A collapsed node is treated as a **leaf-shaped span** by the word-wrap
-  layer: open + ellipsis + close render as three contiguous spans with no
-  internal break opportunity.
+  layer: marker (if any) + open + ellipsis + close render as contiguous
+  spans with no internal break opportunity.
+- The marker is **eligible** only when the node is at least nominally
+  collapsible. The first slice's rule: emit the marker iff the projection's
+  marker `TextString` is non-empty *and* `length(node.children) > 0`. Empty
+  nodes (`[]`, `{}`, `<tag/>`) get no marker even when configured — the
+  fold gesture would have nothing to do.
 - Child cells are not read while collapsed (see §6). This keeps the
   reactive graph clean — collapsed subtrees do not re-render on child
   changes.
@@ -106,6 +135,25 @@ Leaves *can* carry the `collapsed` field too (it already exists on
 — leaves are usually short enough that folding them adds no value. The
 field stays for forward compatibility (a future "fold long string" feature)
 but no printer reads it in this plan. Decision is reversible; see §10.
+
+### 1.3 Marker placement
+
+The marker goes **before** the open delimiter, not after. Rationale:
+
+- "Before open" matches every code-editor convention (the gutter
+  triangle sits at the head of the foldable line). Visually, the
+  ellipsis is *inside* the brackets and the marker is *outside*.
+- "After open" would put the marker inside the delimited region, which
+  changes the apparent character offset of the first child by the marker
+  length — easy to misread, easy to mis-target by mouse click.
+- Putting the marker before open keeps a clean invariant for the
+  reader: every position before the marker's end is "marker territory",
+  every position from `open` onwards is the existing layout shifted by
+  the marker's length.
+
+A potential future variant — a marker on the *close* delimiter as well
+(e.g. `▾[1, 2, 3]▴`) — is out of scope. The single leading-marker design
+is what this plan ships.
 
 ---
 
@@ -168,61 +216,88 @@ operation pipeline. The pipeline gives us:
 
 ## 3. Syntax → Text printer changes
 
-### 3.1 Branching on `collapsed`
+### 3.1 Branching on `collapsed`, emitting the marker
 
 `SyntaxNodeToText.projection_print` today emits open, children-with-sep
-(and indent newlines when `node.indentation > 0`), then close. The change:
+(and indent newlines when `node.indentation > 0`), then close. The change
+adds two projection-introduced spans: the optional marker (in both states)
+and the ellipsis (collapsed only).
 
 ```julia
 spans = TextDocument[]
+marker = _active_marker(p, node)        # TextString or nothing
+marker !== nothing && push!(spans, marker)
 push!(spans, node.open)
 if node.collapsed
-    push!(spans, p.ellipsis_text)  # TextString configured on the projection
+    push!(spans, p.ellipsis_text)
 else
     # existing layout: children + sep + optional indent newlines
 end
 push!(spans, node.close)
 ```
 
-The `ellipsis_text` is a `TextString` field on the `SyntaxNodeToText`
-projection struct (default `"…"`, default styled with `color_solarized_gray`
-+ `font_ubuntu_monospace_regular_24`). Configurable per projection
-instance.
+`_active_marker(p, node)` returns:
+
+- `p.collapsed_marker` when `node.collapsed && !isempty(p.collapsed_marker.content) && length(node.children) > 0`
+- `p.expanded_marker`  when `!node.collapsed && !isempty(p.expanded_marker.content) && length(node.children) > 0`
+- `nothing` otherwise (the span is omitted entirely; the IoMap records `0`).
+
+Three new fields on `SyntaxNodeToText`, all `TextString`s with sensible
+defaults:
+
+- `ellipsis_text` — default `"…"`, styled with `color_solarized_gray`.
+- `expanded_marker` — default `TextString("")` (off).
+- `collapsed_marker` — default `TextString("")` (off).
+
+Markers are configurable per projection instance. The JSON / XML / Book
+hookups in §7 may or may not opt in — that's a per-domain styling choice,
+not part of this plan's required scope.
 
 ### 3.2 IoMap
 
-The ellipsis span is *projection-introduced* — there is no source position
-for it in the input `SyntaxNode`. Its index in the rendered `TextText` is
-recorded so the reader (§5) can recognise clicks on it. The simplest
-representation: a new field on `SyntaxNodeToTextIoMap`:
+Both projection-introduced spans (marker and ellipsis) are not derived
+from any source-domain position. Their indices in the rendered `TextText`
+are recorded so the reader (§5) can recognise clicks on them. Two new
+fields on `SyntaxNodeToTextIoMap`:
 
 ```julia
 struct SyntaxNodeToTextIoMap <: IoMap
     projection::Any
     input::SyntaxNode
     output::TextText
+    marker_index::Int     # 0 when no marker was emitted
     ellipsis_index::Int   # 0 when the node was expanded
 end
 ```
 
-`0` means "no ellipsis present"; any positive value points at
-`output.elements[ellipsis_index]`.
+`0` means "absent"; any positive value points at
+`output.elements[index]`.
 
-### 3.3 Span/flat calculation while collapsed
+### 3.3 Span/flat calculation
 
 `_subtree_len`, `_collect_spans`, and `_pos_to_selection` in
-`SyntaxToText.jl` must each check `node.collapsed` first:
+`SyntaxToText.jl` must account for the marker in both states and for the
+ellipsis in the collapsed state:
 
-- `_subtree_len(node)` collapsed = `length(open) + length(ellipsis) + length(close)`.
-- `_collect_spans` collapsed = `[open, ellipsis, close]`, no recursion.
-- `_pos_to_selection(node, k)` collapsed = the same `.open{k}` / `.close{k}`
-  cases as today for the delimiters; **a position in the ellipsis range
-  becomes a `ProjectionReference(p, {k_local})`** so the cursor has a
-  well-defined home there (see §4 for why this is the right choice).
+- `_subtree_len(node)` = `length(marker?) + length(open) + (collapsed ? length(ellipsis) : children_len) + length(close)`.
+- `_collect_spans` =
+  - collapsed: `[marker?, open, ellipsis, close]` (no recursion);
+  - expanded: `[marker?, open, child₁, sep, child₂, …, close]` (existing).
+- `_pos_to_selection(node, k)`:
+  - a position in the marker range → `ProjectionReference(p, {k_local})`;
+  - a position in the ellipsis range (collapsed) → `ProjectionReference(p, {k_local})`;
+  - delimiter / child / sep cases as today, but with all character offsets
+    shifted by `length(marker?)`.
+
+The marker and ellipsis both resolve to `ProjectionReference` paths
+because they have no source-domain coordinate. The reader (§5)
+distinguishes them by checking against `marker_index` and `ellipsis_index`
+on the IoMap before falling through.
 
 These branches are localised: every place that today reads
-`node.children` is gated on `!node.collapsed`. Searching for
-`node.children` in `SyntaxToText.jl` enumerates the call sites.
+`node.children` is gated on `!node.collapsed`, and every offset is
+prefixed by the marker length. Searching for `node.children` in
+`SyntaxToText.jl` enumerates the call sites.
 
 ### 3.4 Reactivity
 
@@ -273,24 +348,36 @@ the delimiters behave as today (cursor moves to that character).
 
 ### 5.1 `SyntaxNodeToText.projection_read`
 
-Two new cases, both checked before falling through to the existing
+Three new cases, all checked before falling through to the existing
 positional logic:
 
 ```julia
 function projection_read(p::SyntaxNodeToText, iomap::SyntaxNodeToTextIoMap, op::ReplaceSelectionOperation)
+    # Click on the inline marker (in either state) ⇒ toggle.
+    if iomap.marker_index > 0 && _path_targets_index(op.path, iomap.marker_index)
+        return ToggleCollapseOperation()
+    end
     # Click on the ellipsis while collapsed ⇒ expand.
-    if iomap.input.collapsed && _path_targets_ellipsis(op.path, iomap.ellipsis_index)
+    if iomap.input.collapsed && iomap.ellipsis_index > 0 &&
+            _path_targets_index(op.path, iomap.ellipsis_index)
         return ToggleCollapseOperation()
     end
     # ... existing behaviour: backward-map text position → syntax position
 end
 ```
 
-`_path_targets_ellipsis(path, idx)` returns true iff the leading
+`_path_targets_index(path, idx)` returns true iff the leading
 `ElementReference` (the `TextText` element index) equals `idx`. The
 returned `ToggleCollapseOperation` propagates up the chain unchanged: no
 upstream `*ToSyntax` projection rewrites it, so it reaches
 `apply_operation!` on the root document.
+
+The two-marker design means clicking the `▾` in `▾[1, 2, 3]` collapses
+the array, and clicking the `▸` in `▸[…]` expands it — both flow through
+the same `ToggleCollapseOperation` path. The ellipsis-click path remains
+as a separate, redundant entry point: it stays for users who learned the
+collapsed render before the marker was introduced and still expect the
+ellipsis itself to be clickable.
 
 ### 5.2 Keyboard
 
@@ -434,6 +521,18 @@ structure:
   expanded output.
 - Reactivity: register a `Cell.subscribe` on the output's spans cell,
   toggle `collapsed`, assert exactly one invalidation fires.
+- **Marker on**: configure `expanded_marker="▾"`, `collapsed_marker="▸"`;
+  assert the rendered string starts with `▾` when expanded, `▸` when
+  collapsed, and that `iomap.marker_index` points at element `1`.
+- **Marker off (default)**: assert no marker glyph appears in either
+  state and `iomap.marker_index == 0`.
+- **Empty-children edge case**: build a `SyntaxNode` with zero children;
+  with markers configured, assert no marker is emitted (per §1 rule).
+- **Offset shift**: with the marker on, walk every flat offset and
+  assert `_pos_to_selection` returns `ProjectionReference` in the marker
+  range, `.open{k - marker_len}` immediately after, child / sep / close
+  cases all consistent with their expanded forms shifted by the marker
+  length.
 
 ### 8.2 Reader unit tests
 (`test/src/projection/SyntaxToTextCollapseReadTest.jl`)
@@ -444,6 +543,12 @@ structure:
 - Synthesise a `Ctrl+.` `KeyDown` via `TextToGraphics`; assert the same.
 - After applying the operation, assert `node.collapsed[] == false` and
   the rendered string equals the expanded form.
+- **Marker click in expanded state**: configure `expanded_marker="▾"`;
+  synthesise a click on the marker glyph; assert
+  `ToggleCollapseOperation` is returned and applying it collapses the
+  node.
+- **Marker click in collapsed state**: configure `collapsed_marker="▸"`;
+  click on the marker; assert toggle.
 
 ### 8.3 End-to-end tests
 (`test/src/editor/CollapseRoundtripTest.jl`)
@@ -467,22 +572,32 @@ landed yet — track and defer.
 
 ---
 
-## 9. Cleanup: remove `SyntaxCollapsible`
+## 9. `SyntaxCollapsible` stays
 
-After §3 lands, `SyntaxCollapsible` is dead weight: a wrapper that does
-the same thing as the field on the node it wraps. Delete it:
+[`SyntaxCollapsible`](../../program/src/document/Syntax.jl#L128) is left
+in place. After §3 lands the two representations coexist and serve
+different purposes:
 
-- Remove the type from
-  [`Syntax.jl`](../../program/src/document/Syntax.jl#L128).
-- Remove the export and the `ISyntaxCollapsible` interface declaration.
-- `grep` for `SyntaxCollapsible` across `program/`, `example/`, `test/`,
-  `guide/` and remove any lingering references (the doc comment at
-  [`Syntax.jl#L12`](../../program/src/document/Syntax.jl#L12) needs an
-  edit too).
+- **Field on `SyntaxNode` / `SyntaxLeaf`** — the path used by every
+  domain that already carries a `collapsed::Cell` (JSON, XML, Book, raw
+  Syntax). This is what §3–§7 wire up.
+- **`SyntaxCollapsible` wrapper** — reserved for the case where the
+  upstream domain type does *not* have its own `collapsed` field but we
+  still want a fold gesture on its projected syntax. A future `*ToSyntax`
+  projection (or a higher-order wrapper) can emit
+  `SyntaxCollapsible(inner_syntax_doc)` to opt that subtree into the
+  fold machinery without modifying the upstream domain type.
 
-This is the only delete required. The "two ways to express the same
-thing" (field vs. wrapper) was already a latent footgun; collapsing the
-two into one is part of shipping the feature, not a separate refactor.
+What this plan does *not* do with `SyntaxCollapsible`:
+
+- It does not teach `SyntaxToText` to render the wrapper. That stays as
+  a follow-up — until a real consumer needs it, building the renderer
+  would be speculative.
+- No printer / reader changes for `SyntaxCollapsible` in this plan.
+
+The "two ways to express the same thing" is intentional: the field is
+for domains that own the state; the wrapper is for projections that
+need to introduce the state without owning the domain type.
 
 ---
 
@@ -514,11 +629,15 @@ two into one is part of shipping the feature, not a separate refactor.
 |---|---|---|
 | 1 | Add `ToggleCollapseOperation` + `_resolve_collapsible` + `apply_operation!` dispatch | existing tests; add a unit test for `_resolve_collapsible` |
 | 2 | Teach `SyntaxNodeToText` to honour `collapsed` (printer + ellipsis IoMap field) | `test_printers()`, new `SyntaxToTextCollapseTest` |
-| 3 | Teach `SyntaxNodeToText.projection_read` to translate ellipsis clicks into `ToggleCollapseOperation` | new `SyntaxToTextCollapseReadTest` |
-| 4 | Add `Ctrl+.` to `TextToGraphics.projection_read` | smoke via end-to-end test |
-| 5 | Hook `getfield(j, :collapsed)` into `JsonArrayToSyntaxNode` and `JsonObjectToSyntaxNode` | `test_selections()` for `json*` examples; new `CollapseRoundtripTest` for `json` |
-| 6 | Hook the same into `XmlElementToSyntaxNode` | `test_selections()` for `xml`; `CollapseRoundtripTest` for `xml` |
-| 7 | Remove `SyntaxCollapsible` (§9) | full suite |
+| 3 | Extend `SyntaxNodeToText` with optional `expanded_marker` / `collapsed_marker` (IoMap `marker_index`, offset shifts in `_subtree_len` / `_collect_spans` / `_pos_to_selection`) | `test_printers()`, marker cases of `SyntaxToTextCollapseTest` |
+| 4 | Teach `SyntaxNodeToText.projection_read` to translate ellipsis *and* marker clicks into `ToggleCollapseOperation` | new `SyntaxToTextCollapseReadTest` (including marker-click cases) |
+| 5 | Add `Ctrl+.` to `TextToGraphics.projection_read` | smoke via end-to-end test |
+| 6 | Hook `getfield(j, :collapsed)` into `JsonArrayToSyntaxNode` and `JsonObjectToSyntaxNode` | `test_selections()` for `json*` examples; new `CollapseRoundtripTest` for `json` |
+| 7 | Hook the same into `XmlElementToSyntaxNode` | `test_selections()` for `xml`; `CollapseRoundtripTest` for `xml` |
+
+The marker work in commit 3 is independent of the JSON/XML hookups in
+commits 6–7: those hookups don't configure markers themselves, leaving
+marker styling to whichever projection instance the editor assembles.
 
 Each commit ships green tests. If a commit reveals a deeper bug, stop
 and add a unit-level regression test before fixing — same rule as the
