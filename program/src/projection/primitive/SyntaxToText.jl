@@ -498,9 +498,9 @@ function _subtree_len(node::SyntaxNode, p::SyntaxNodeToText, depth::Int)
             n += 1 + child_depth * p.indent_size          # \n + indent
             n += _subtree_len(child, p, child_depth)
         end
-        if isempty(children)
-            n += 1 + depth * p.indent_size
-        end
+        # Trailing \n + indent emitted by the printer before the close
+        # delimiter, regardless of whether children was empty.
+        n += 1 + depth * p.indent_size
     else
         for (i, child) in enumerate(children)
             i > 1 && (n += length(node.sep.content))
@@ -551,11 +551,11 @@ function _pos_to_selection(node::SyntaxNode, local_pos::Int, p::SyntaxNodeToText
             end
             char_count += child_len
         end
-        if !isempty(children)
-            trail_len = 1 + depth * p.indent_size
-            local_pos < char_count + trail_len && return _proj(local_pos)
-            char_count += trail_len
-        end
+        # Trailing \n + indent before close. Always emitted by _collect_spans
+        # when indent=true, regardless of whether children was empty.
+        trail_len = 1 + depth * p.indent_size
+        local_pos < char_count + trail_len && return _proj(local_pos)
+        char_count += trail_len
     else
         for (i, child) in enumerate(children)
             if i > 1
@@ -602,13 +602,23 @@ end
 
 function _flat_to_text_elem_path(spans, flat_pos::Int)
     cumulative = 0
-    n = length(spans)
+    last_nonempty = nothing  # (span_idx, cumulative_at_start)
     for (i, s) in enumerate(spans)
         len = length((s::TextString).content::AbstractString)
-        if flat_pos < cumulative + len || i == n
+        if len > 0
+            last_nonempty = (i, cumulative)
+        end
+        if flat_pos < cumulative + len
             return _text_elem_path(i, flat_pos - cumulative)
         end
         cumulative += len
+    end
+    # flat_pos sits at the end of the concatenated content. Anchor it at
+    # the end of the last non-empty span so the cursor renderer (which only
+    # emits SegCoords for non-empty spans) can place the caret.
+    if last_nonempty !== nothing
+        i, c = last_nonempty
+        return _text_elem_path(i, flat_pos - c)
     end
     return nothing
 end

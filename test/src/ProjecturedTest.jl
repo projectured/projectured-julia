@@ -38,6 +38,7 @@ include("editor/ReaderTest.jl")
 include("editor/ReplTest.jl")
 include("editor/McpTest.jl")
 include("editor/MouseClickTest.jl")
+include("editor/ClickRoundtripTest.jl")
 include("editor/AssistantMvpTest.jl")
 
 function test_documents()
@@ -79,8 +80,10 @@ function test_all()
     test_repls()
     test_mcp_tools()
     test_assistant_mvp()
-    # TODO: re-enable when mouse click tests are fixed
-    #test_mouse_clicks()
+    test_mouse_clicks()
+    test_click_roundtrips()
+    test_text_nav_invariants_all()
+    test_json_content_clicks_clean_all()
     end
 end
 
@@ -94,6 +97,8 @@ export explore_selections
 export test_reader, test_readers, walk_reader_events
 export test_repl, test_repls, walk_repl_loop
 export test_mouse_click_roundtrip, test_mouse_clicks
+export test_click_roundtrip, test_click_roundtrips, test_text_nav_invariants, test_text_nav_invariants_all
+export test_json_content_clicks_clean, test_json_content_clicks_clean_all
 export test_assistant_mvp, make_assistant_mvp_setup, make_assistant_mvp_projection
 
 end # module ProjecturedTest

@@ -66,12 +66,24 @@ function projection_read(np::NestingProjection, iomap::NestingProjectionIoMap, e
     end
 end
 
-function map_reference_forward(::NestingProjection, iomap, reference)
-    return nothing
+function map_reference_forward(np::NestingProjection, iomap::NestingProjectionIoMap, reference)
+    if !isempty(np.elements)
+        map_reference_forward(np.elements[1], iomap.child_iomap, reference)
+    elseif np.recursion !== nothing
+        map_reference_forward(np.recursion, iomap.child_iomap, reference)
+    else
+        nothing
+    end
 end
 
-function map_reference_backward(::NestingProjection, iomap, reference)
-    return nothing
+function map_reference_backward(np::NestingProjection, iomap::NestingProjectionIoMap, reference)
+    if !isempty(np.elements)
+        map_reference_backward(np.elements[1], iomap.child_iomap, reference)
+    elseif np.recursion !== nothing
+        map_reference_backward(np.recursion, iomap.child_iomap, reference)
+    else
+        nothing
+    end
 end
 
 end # module

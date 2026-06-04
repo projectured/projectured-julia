@@ -22,13 +22,14 @@ import ..CollectionModule: CellVector, ListNode, CollectionDocument
 import ..ProjectionApiModule: projection_print, projection_read, map_reference_forward, map_reference_backward, Projection
 import ..TextModule: TextText, TextString, TextNewline, TextDocument
 import ..GraphicsModule: GraphicsText, GraphicsRect, GraphicsCanvas, layout_none, layout_vertical
-import ..FontModule: StyleFont
+import ..FontModule: StyleFont, font_scaled_size
 import ..ColorModule: StyleColor
 import ..ReferenceModule: ReferencePath, ConcreteReferencePath, ElementReference, PositionReference, RangeReference, PointReference, EmptyReferencePath, FieldReference, head, tail
 import ..ReferenceCaseModule: var"@reference_case"
 import ..ReferenceBuilderModule: var"@reference"
 import ..OperationModule: ReplaceSelectionOperation
 import ..KeyboardModule: KeyDown
+import ..MouseModule: MousePress
 import ..IoMapApiModule: IoMap
 export TextToGraphics, TextToGraphicsIoMap
 
@@ -85,6 +86,19 @@ end
 
 function projection_read(p::TextToGraphics, iomap::TextToGraphicsIoMap, op::ReplaceSelectionOperation)
     return _translate_click(p, iomap, op.path)
+end
+
+# Raw MousePress directly on the canvas (no GraphicsCanvasToGraphicsImage
+# step above us). Translate to a text-domain selection by picking the
+# segment that owns the click and the character offset within it.
+function projection_read(p::TextToGraphics, iomap::TextToGraphicsIoMap, evt::MousePress)
+    evt.button === :left || return nothing
+    coord_map = iomap.char_to_coord[]
+    isempty(coord_map) && return nothing
+    sc = _hit_segment(coord_map, evt.x, evt.y)
+    sc === nothing && return nothing
+    char_pos = _char_position_at_x(sc, evt.x, p.measure)
+    return ReplaceSelectionOperation(_build_selection_path(sc.span_idx, char_pos))
 end
 
 function projection_read(p::TextToGraphics, iomap::TextToGraphicsIoMap, evt)
@@ -531,6 +545,58 @@ function _translate_click(p::TextToGraphics, iomap::TextToGraphicsIoMap, path)
     seg = coord_map[i]
     char_pos = _char_position_at_x(seg, seg.x + rx, p.measure)
     return ReplaceSelectionOperation(_build_selection_path(seg.span_idx, char_pos))
+end
+
+# Pick the segment a (canvas-x, canvas-y) click landed on. Matches the
+# logic in GraphicsCanvasToGraphicsImage.projection_read for text elements:
+#   on a y-band that contains the click, pick the segment with the largest
+#   x ≤ click_x (i.e. the rightmost left-edge that still sits to the left
+#   of the click). If no band matches y, snap to the nearest line by y.
+function _hit_segment(coord_map::Vector{SegCoord}, x::Int, y::Int)
+    on_band = SegCoord[]
+    for sc in coord_map
+        fs = font_scaled_size(sc.font.size)
+        if y >= sc.y && y < sc.y + fs
+            push!(on_band, sc)
+        end
+    end
+
+    candidates = if !isempty(on_band)
+        on_band
+    else
+        # Snap to nearest line by y.
+        best_dy = typemax(Int)
+        best_y  = 0
+        for sc in coord_map
+            fs = font_scaled_size(sc.font.size)
+            dy = y < sc.y ? sc.y - y : (y >= sc.y + fs ? y - (sc.y + fs - 1) : 0)
+            if dy < best_dy
+                best_dy = dy
+                best_y  = sc.y
+            end
+        end
+        filter(sc -> sc.y == best_y, coord_map)
+    end
+
+    isempty(candidates) && return nothing
+
+    # Pick the segment with the largest x ≤ click_x.
+    best = candidates[1]
+    best_x = -1
+    for sc in candidates
+        sc.x <= x && sc.x > best_x || continue
+        best_x = sc.x
+        best   = sc
+    end
+
+    # Click is left of every segment on this line — fall back to the leftmost.
+    if best_x < 0
+        best = candidates[1]
+        for sc in candidates
+            sc.x < best.x && (best = sc)
+        end
+    end
+    best
 end
 
 end # module

@@ -413,7 +413,7 @@ end
 
 function _translate_json_path(v::JsonObject, path::ReferencePath)
     @reference_case path begin
-        children{s:e}.field(_).children{s2:e2}.leaf_path... => begin
+        children{s:e}.children{s2:e2}.leaf_path... => begin
             pair_i = s + 1
             child_of_pair = s2 + 1
             es = entries(v)

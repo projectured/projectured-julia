@@ -540,7 +540,7 @@ function _backward_book_path(b::BookBook, path::ReferencePath)
                 elem_i > length(elems) && return nothing
                 translated = _backward_book_path(elems[elem_i], rest)
                 translated === nothing && return nothing
-                @reference elements{elem_i}.^(translated)
+                @reference elements[elem_i].^(translated)
             end
         end
     end
@@ -565,7 +565,7 @@ function _backward_book_path(b::BookChapter, path::ReferencePath)
                 elem_i > length(elems) && return nothing
                 translated = _backward_book_path(elems[elem_i], rest)
                 translated === nothing && return nothing
-                @reference elements{elem_i}.^(translated)
+                @reference elements[elem_i].^(translated)
             end
         end
     end
@@ -585,7 +585,7 @@ function _backward_book_path(b::BookList, path::ReferencePath)
             child_i > length(elems) && return nothing
             translated = _backward_book_path(elems[child_i], tail)
             translated === nothing && return nothing
-            @reference elements{child_i}.^(translated)
+            @reference elements[child_i].^(translated)
         end
     end
 end
