@@ -28,7 +28,8 @@ import ..ReferenceModule: ReferencePath, ConcreteReferencePath, ElementReference
 import ..ReferenceCaseModule: var"@reference_case"
 import ..ReferenceBuilderModule: var"@reference"
 import ..OperationModule: ReplaceSelectionOperation
-import ..KeyboardModule: KeyDown
+import ..PrimitiveModule: StringReplaceRangeOperation
+import ..KeyboardModule: KeyDown, KeyPress
 import ..MouseModule: MousePress
 import ..IoMapApiModule: IoMap
 export TextToGraphics, TextToGraphicsIoMap
@@ -88,6 +89,92 @@ function projection_read(p::TextToGraphics, iomap::TextToGraphicsIoMap, op::Repl
     return _translate_click(p, iomap, op.path)
 end
 
+# KeyPress producer: emit a StringReplaceRangeOperation against the input
+# TextText's `.elements[i].content[range]` shape. The selection must already
+# carry the same shape (i.e. the cursor is positioned inside a TextString
+# span); other shapes return `nothing` so upstream projections still get a
+# chance.
+function projection_read(p::TextToGraphics, iomap::TextToGraphicsIoMap, evt::KeyPress)
+    evt.modifiers.ctrl && return nothing
+    rng = _text_selection_range(iomap.input)
+    rng === nothing && return nothing
+    span_idx, char_start, char_stop = rng
+    new_ref = _text_replace_path(span_idx, char_start, char_stop)
+    StringReplaceRangeOperation(new_ref, evt.text)
+end
+
+# KeyDown handler for Backspace / Delete. Emits a `StringReplaceRangeOperation`
+# against the input TextText's `.elements[i].content[range]` shape; other keys
+# fall through to the navigation method below (`projection_read(..., evt)`).
+function _key_delete_op(iomap::TextToGraphicsIoMap, evt::KeyDown)
+    (evt.key == :backspace || evt.key == :delete) || return nothing
+    rng = _text_selection_range(iomap.input)
+    rng === nothing && return nothing
+    span_idx, char_start, char_stop = rng
+    content = _span_content(iomap.input, span_idx)
+    content === nothing && return nothing
+    n = length(content)
+    new_range = if evt.key == :backspace
+        if char_start != char_stop
+            (char_start, char_stop)
+        elseif char_start > 0
+            (char_start - 1, char_start)
+        else
+            return nothing
+        end
+    else  # :delete
+        if char_start != char_stop
+            (char_start, char_stop)
+        elseif char_stop < n
+            (char_stop, char_stop + 1)
+        else
+            return nothing
+        end
+    end
+    new_ref = _text_replace_path(span_idx, new_range[1], new_range[2])
+    StringReplaceRangeOperation(new_ref, "")
+end
+
+# Extract the i-th span's content length when it's a TextString; nothing
+# otherwise.
+function _span_content(styled::TextText, span_idx::Int)
+    elements = styled.elements
+    (span_idx < 1 || span_idx > length(elements)) && return nothing
+    span = elements[span_idx]
+    span isa TextString || return nothing
+    span.content::AbstractString
+end
+
+# Parse `styled.selection[]` into (span_idx, char_start, char_stop) when it
+# matches `.elements[i].content[s:e]`, else return nothing.
+function _text_selection_range(styled::TextText)
+    sel = styled.selection
+    sel isa ConcreteReferencePath || return nothing
+    h1 = sel.head
+    (h1 isa FieldReference && h1.name == "elements") || return nothing
+    t1 = sel.tail
+    t1 isa ConcreteReferencePath || return nothing
+    h2 = t1.head
+    h2 isa RangeReference || return nothing
+    span_idx = h2.start + 1
+    t2 = t1.tail
+    t2 isa ConcreteReferencePath || return nothing
+    h3 = t2.head
+    (h3 isa FieldReference && h3.name == "content") || return nothing
+    t3 = t2.tail
+    t3 isa ConcreteReferencePath || return nothing
+    h4 = t3.head
+    h4 isa RangeReference || return nothing
+    (span_idx, h4.start::Int, h4.stop::Int)
+end
+
+function _text_replace_path(span_idx::Int, char_start::Int, char_stop::Int)
+    ConcreteReferencePath(FieldReference("elements"),
+        ConcreteReferencePath(RangeReference(span_idx - 1, span_idx),
+            ConcreteReferencePath(FieldReference("content"),
+                ConcreteReferencePath(RangeReference(char_start, char_stop), EmptyReferencePath()))))
+end
+
 # Raw MousePress directly on the canvas (no GraphicsCanvasToGraphicsImage
 # step above us). Translate to a text-domain selection by picking the
 # segment that owns the click and the character offset within it.
@@ -103,6 +190,8 @@ end
 
 function projection_read(p::TextToGraphics, iomap::TextToGraphicsIoMap, evt)
     evt isa KeyDown || return nothing
+    del_op = _key_delete_op(iomap, evt)
+    del_op === nothing || return del_op
     styled = iomap.input
     span_infos = [(elem_idx, length(span.content::AbstractString))
                   for (elem_idx, span) in enumerate(styled)

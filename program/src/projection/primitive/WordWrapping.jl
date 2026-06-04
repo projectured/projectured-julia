@@ -25,6 +25,7 @@ import ..ReferenceModule: ConcreteReferencePath, RangeReference, FieldReference,
 import ..ReferenceCaseModule: var"@reference_case"
 import ..ReferenceBuilderModule: var"@reference"
 import ..OperationModule: ReplaceSelectionOperation
+import ..PrimitiveModule: StringReplaceRangeOperation
 export WordWrapping, WordWrappingIoMap, WrapSeg
 
 # ── Projection struct ───────────────────────────────────────────────────────
@@ -247,6 +248,30 @@ function projection_read(p::WordWrapping, iomap::WordWrappingIoMap, op::ReplaceS
     ReplaceSelectionOperation(input_path)
 end
 
+# Translate a `StringReplaceRangeOperation` from the wrapped output domain
+# back to the unwrapped input domain. The output path is
+# `.elements[out_span].content[s:e]`; we look up the input span and shift
+# the character range by the sub-span's start offset. Ranges that span more
+# than one input span are rejected (return `nothing`) for now.
+function projection_read(p::WordWrapping, iomap::WordWrappingIoMap, op::StringReplaceRangeOperation)
+    parsed = _parse_text_elem_range(op.reference)
+    parsed === nothing && return nothing
+    out_span, char_start, char_stop = parsed
+    segs = iomap.segs[]
+    for seg in segs
+        seg.out_index == out_span || continue
+        new_start = seg.in_char_start + char_start
+        new_stop  = seg.in_char_start + char_stop
+        new_ref = ConcreteReferencePath(FieldReference("elements"),
+                      ConcreteReferencePath(RangeReference(seg.in_span - 1, seg.in_span),
+                          ConcreteReferencePath(FieldReference("content"),
+                              ConcreteReferencePath(RangeReference(new_start, new_stop),
+                                                    EmptyReferencePath()))))
+        return StringReplaceRangeOperation(new_ref, op.replacement)
+    end
+    nothing
+end
+
 # Forward arbitrary events upstream (KeyDown / KeyPress / etc.) so projections
 # above WordWrapping keep getting a chance at them.
 projection_read(::WordWrapping, ::WordWrappingIoMap, op) = op
@@ -274,6 +299,28 @@ function _parse_text_elem_path(path)
     h4 = t3.head
     h4 isa RangeReference || return nothing
     (span_idx, h4.start::Int)
+end
+
+# Like `_parse_text_elem_path` but returns the full `(span_idx, char_start,
+# char_stop)` of the terminal `RangeReference` instead of only its start.
+function _parse_text_elem_range(path)
+    path isa ConcreteReferencePath || return nothing
+    h1 = path.head
+    h1 isa FieldReference && h1.name == "elements" || return nothing
+    t1 = path.tail
+    t1 isa ConcreteReferencePath || return nothing
+    h2 = t1.head
+    h2 isa RangeReference || return nothing
+    span_idx = h2.start + 1
+    t2 = t1.tail
+    t2 isa ConcreteReferencePath || return nothing
+    h3 = t2.head
+    h3 isa FieldReference && h3.name == "content" || return nothing
+    t3 = t2.tail
+    t3 isa ConcreteReferencePath || return nothing
+    h4 = t3.head
+    h4 isa RangeReference || return nothing
+    (span_idx, h4.start::Int, h4.stop::Int)
 end
 
 end # module

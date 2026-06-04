@@ -25,6 +25,7 @@ import ..ReferenceCaseModule: var"@reference_case"
 import ..ReferenceBuilderModule: var"@reference"
 import ..ProjectionContextModule: ProjectionContext, child_context
 import ..OperationModule: ReplaceSelectionOperation
+import ..PrimitiveModule: StringReplaceRangeOperation, NumberReplaceRangeOperation
 import ..SyntaxToTextModule: SyntaxNodeToText, _syntax_to_flat
 export JsonInsertionToSyntaxLeaf, JsonNullToSyntaxLeaf, JsonBoolToSyntaxLeaf, JsonNumberToSyntaxLeaf,
        JsonStringToSyntaxLeaf, JsonArrayToSyntaxNode, JsonObjectToSyntaxNode,
@@ -128,6 +129,26 @@ function projection_read(::JsonNumberToSyntaxLeaf, iomap::SimpleIoMap, op::Repla
     return op                                         # value[k] → value[k]
 end
 
+# Editing into a JsonNumber's value rewires the string operation as a
+# NumberReplaceRangeOperation so the evaluator's tryparse logic kicks in.
+function projection_read(::JsonNumberToSyntaxLeaf, iomap::SimpleIoMap, op::StringReplaceRangeOperation)
+    path = op.reference
+    path isa ConcreteReferencePath || return nothing
+    h = path.head
+    (h isa FieldReference && h.name == "value") || return nothing
+    NumberReplaceRangeOperation(path, op.replacement)
+end
+
+# Symmetric identity for an already-typed NumberReplaceRangeOperation (no
+# upstream produces one today, but the chain is uniform).
+function projection_read(::JsonNumberToSyntaxLeaf, iomap::SimpleIoMap, op::NumberReplaceRangeOperation)
+    path = op.reference
+    path isa ConcreteReferencePath || return nothing
+    h = path.head
+    (h isa FieldReference && h.name == "value") || return nothing
+    op
+end
+
 # ── JsonStringToSyntaxLeaf ───────────────────────────────────────────────────
 
 struct JsonStringToSyntaxLeaf <: Projection
@@ -177,6 +198,18 @@ function projection_read(p::JsonStringToSyntaxLeaf, iomap::SimpleIoMap, op::Repl
     else
         return ReplaceSelectionOperation(ConcreteReferencePath(ProjectionReference(p, path)))  # open/close quote → PS
     end
+end
+
+# Editing into a JsonString's value is an identity translation — the syntax
+# leaf's value content is `json_escape(j[])`, so character offsets agree as
+# long as no escape sequences precede position k. Escape-aware mapping is
+# deferred (same caveat as `map_reference_*`).
+function projection_read(p::JsonStringToSyntaxLeaf, iomap::SimpleIoMap, op::StringReplaceRangeOperation)
+    path = op.reference
+    path isa ConcreteReferencePath || return nothing
+    h = path.head
+    (h isa FieldReference && h.name == "value") || return nothing
+    op
 end
 
 # ── JsonArrayToSyntaxNode ────────────────────────────────────────────────────
@@ -243,6 +276,12 @@ function projection_read(p::JsonArrayToSyntaxNode, iomap::ChildrenIoMap, op::Rep
     flat = _syntax_to_flat(iomap.output::SyntaxNode, op.path, SyntaxNodeToText(), 0)
     flat < 0 && return nothing
     return ReplaceSelectionOperation(ConcreteReferencePath(ProjectionReference(p, ConcreteReferencePath(PositionReference(flat)))))
+end
+
+function projection_read(p::JsonArrayToSyntaxNode, iomap::ChildrenIoMap, op::Union{StringReplaceRangeOperation, NumberReplaceRangeOperation})
+    new_ref = _translate_json_path(iomap.input::JsonArray, op.reference)
+    new_ref === nothing && return nothing
+    typeof(op)(new_ref, op.replacement)
 end
 
 # ── JsonObjectToSyntaxNode ───────────────────────────────────────────────────
@@ -332,6 +371,12 @@ function projection_read(p::JsonObjectToSyntaxNode, iomap::ChildrenIoMap, op::Re
     flat = _syntax_to_flat(iomap.output::SyntaxNode, op.path, SyntaxNodeToText(), 0)
     flat < 0 && return nothing
     return ReplaceSelectionOperation(ConcreteReferencePath(ProjectionReference(p, ConcreteReferencePath(PositionReference(flat)))))
+end
+
+function projection_read(p::JsonObjectToSyntaxNode, iomap::ChildrenIoMap, op::Union{StringReplaceRangeOperation, NumberReplaceRangeOperation})
+    new_ref = _translate_json_path(iomap.input::JsonObject, op.reference)
+    new_ref === nothing && return nothing
+    typeof(op)(new_ref, op.replacement)
 end
 
 # ── Compound convenience constructor ────────────────────────────────────────

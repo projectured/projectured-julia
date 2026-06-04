@@ -26,6 +26,7 @@ import ..TextModule: TextString
 import ..ReferenceModule: Reference
 import ..FontModule: font_ubuntu_monospace_regular_24
 import ..ColorModule: color_default
+import ..OperationApiModule: _apply_string_replace!
 export SyntaxNode, SyntaxLeaf, SyntaxDocument, SyntaxInsertion, SyntaxForeign, render, setfn!,
        SyntaxDelimitation, SyntaxIndentation, SyntaxCollapsible,
        SyntaxNavigation, SyntaxConcatenation, SyntaxSeparation,
@@ -301,6 +302,16 @@ SyntaxNode(open::AbstractString, close::AbstractString, sep::AbstractString;
 SyntaxNode(open::AbstractString, close::AbstractString, sep::AbstractString,
       f::Function; indentation::Int = 0) =
     SyntaxNode(TextString(open), TextString(close), TextString(sep), CellVector(f), indentation, false, nothing)
+
+# ── String-replace operation ────────────────────────────────────────────
+
+function _apply_string_replace!(target::SyntaxLeaf, field_name::AbstractString, s::Int, e::Int, replacement::AbstractString)
+    field_name in ("open", "value", "close") ||
+        error("SyntaxLeaf supports only fields 'open', 'value', 'close', got: $field_name")
+    span = getfield(target, Symbol(field_name))::TextString
+    old = span.content::AbstractString
+    span.content = old[1:s] * replacement * old[e + 1:end]
+end
 
 # ── Unparse (render to string) ──────────────────────────────────────────
 

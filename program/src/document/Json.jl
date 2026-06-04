@@ -26,6 +26,7 @@ import ..ReactiveModule: Cell, setfn!, setval!
 import ..DocumentModule: Document, @document
 import ..CollectionModule: CellVector
 import ..ReferenceModule: Reference, ReferencePath, ConcreteReferencePath, PositionReference, RangeReference, FieldReference, EmptyReferencePath
+import ..OperationApiModule: _apply_string_replace!, _apply_number_replace!
 export JsonDocument, JsonInsertion, JsonForeign, JsonNull, JsonBool, JsonNumber, JsonString, JsonArray, JsonObject, JsonObjectEntry, jsonvalue, entries, setfn!,
        IJsonInsertion, IJsonForeign, IJsonNull, IJsonBool, IJsonNumber, IJsonString, IJsonArray, IJsonObject, IJsonObjectEntry
 
@@ -407,6 +408,28 @@ function Base.get(j::JsonObject, key::AbstractString, default)
         e.key == key && return e.value
     end
     return default
+end
+
+# ── String / number replace operations ──────────────────────────────────
+
+function _apply_string_replace!(target::JsonString, field_name::AbstractString, s::Int, e::Int, replacement::AbstractString)
+    field_name == "value" || error("JsonString supports only field 'value', got: $field_name")
+    old = something(target.value, "")
+    target.value = old[1:s] * replacement * old[e + 1:end]
+end
+
+function _apply_string_replace!(target::JsonObjectEntry, field_name::AbstractString, s::Int, e::Int, replacement::AbstractString)
+    field_name == "key" || error("JsonObjectEntry supports only field 'key', got: $field_name")
+    old = something(target.key, "")
+    target.key = old[1:s] * replacement * old[e + 1:end]
+end
+
+function _apply_number_replace!(target::JsonNumber, field_name::AbstractString, s::Int, e::Int, replacement::AbstractString)
+    field_name == "value" || error("JsonNumber supports only field 'value', got: $field_name")
+    old_num = target.value
+    old_str = old_num === nothing ? "" : string(old_num)
+    new_str = old_str[1:s] * replacement * old_str[e + 1:end]
+    target.value = isempty(new_str) ? nothing : something(tryparse(Float64, new_str), nothing)
 end
 
 # ── Display ──────────────────────────────────────────────────────────────

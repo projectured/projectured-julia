@@ -31,6 +31,7 @@ import ..FontModule: StyleFont, font_ubuntu_monospace_regular_24
 import ..ColorModule: StyleColor, color_default
 import ..GeometryModule: Inset
 import ..ReferenceModule: Reference
+import ..OperationApiModule: _apply_string_replace!
 export TextDocument, TextInsertion, TextForeign, TextNewline, TextSpacing, TextString, TextGraphics, TextText, setfn!,
        ITextInsertion, ITextForeign, ITextNewline, ITextSpacing, ITextString, ITextGraphics, ITextText
 
@@ -261,6 +262,14 @@ end
 function Base.deleteat!(st::TextText, i)
     deleteat!(st.elements, i)
     return st
+end
+
+# ── String-replace operation ────────────────────────────────────────
+
+function _apply_string_replace!(target::TextString, field_name::AbstractString, s::Int, e::Int, replacement::AbstractString)
+    field_name == "content" || error("TextString supports only field 'content', got: $field_name")
+    old = target.content::AbstractString
+    target.content = old[1:s] * replacement * old[e + 1:end]
 end
 
 # ── setfn! delegation ───────────────────────────────────────────────

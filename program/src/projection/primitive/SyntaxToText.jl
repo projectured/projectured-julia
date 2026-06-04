@@ -21,6 +21,7 @@ import ..ReferenceBuilderModule: var"@reference"
 import ..IoMapModule: SimpleIoMap
 import ..IoMapApiModule: IoMap
 import ..OperationModule: ReplaceSelectionOperation
+import ..PrimitiveModule: StringReplaceRangeOperation
 import ..KeyboardModule: KeyDown
 export SyntaxLeafToText, SyntaxNodeToText, SyntaxListToText, SyntaxToText,
        SyntaxNodeToTextIoMap, _syntax_to_flat
@@ -71,6 +72,21 @@ function projection_read(p::SyntaxLeafToText, iomap::SimpleIoMap, op::ReplaceSel
     input_path = map_reference_backward(p, iomap, op.path)
     input_path === nothing && return nothing
     return ReplaceSelectionOperation(input_path)
+end
+
+# Translate a TextText-domain `StringReplaceRangeOperation` (referencing
+# `.elements[i].content[s:e]`) back to a SyntaxLeaf-domain op (`.value[s:e]`).
+# For now only spans the value span (i == 2); editing into the open/close
+# delimiter span is deferred — those are typically projection-introduced
+# characters that need a different kind of structural edit.
+function projection_read(p::SyntaxLeafToText, iomap::SimpleIoMap, op::StringReplaceRangeOperation)
+    parsed = _parse_text_elem_range(op.reference)
+    parsed === nothing && return nothing
+    span_idx, char_start, char_stop = parsed
+    span_idx == 2 || return nothing
+    new_ref = ConcreteReferencePath(FieldReference("value"),
+                  ConcreteReferencePath(RangeReference(char_start, char_stop), EmptyReferencePath()))
+    StringReplaceRangeOperation(new_ref, op.replacement)
 end
 
 # Pass KeyDown events through so upstream projections (e.g.
@@ -147,6 +163,62 @@ function projection_read(p::SyntaxNodeToText, iomap::SyntaxNodeToTextIoMap, op::
     input_path = map_reference_backward(p, iomap, op.path)
     input_path === nothing && return nothing
     return ReplaceSelectionOperation(input_path)
+end
+
+# Translate a flat-text `StringReplaceRangeOperation` to a SyntaxNode-domain
+# op rooted at the enclosing leaf. The start and stop offsets are mapped via
+# `_text_elem_path_to_flat` and `_pos_to_selection`; if both endpoints don't
+# resolve to the same leaf's `.value` field, the op is rejected.
+function projection_read(p::SyntaxNodeToText, iomap::SyntaxNodeToTextIoMap, op::StringReplaceRangeOperation)
+    parsed = _parse_text_elem_range(op.reference)
+    parsed === nothing && return nothing
+    span_idx, char_start, char_stop = parsed
+    spans = iomap.output.elements
+    flat_start = _text_elem_path_to_flat(spans, span_idx, char_start)
+    flat_stop  = _text_elem_path_to_flat(spans, span_idx, char_stop)
+    (flat_start < 0 || flat_stop < 0) && return nothing
+    start_sel = _pos_to_selection(iomap.input, flat_start, p, 0)
+    stop_sel  = _pos_to_selection(iomap.input, flat_stop,  p, 0)
+    new_ref = _join_leaf_range(start_sel, stop_sel)
+    new_ref === nothing && return nothing
+    StringReplaceRangeOperation(new_ref, op.replacement)
+end
+
+# Given two SyntaxNode-domain selection paths whose tails are `.value[k]`
+# inside the same leaf, build a single replace-range path whose tail is
+# `.value[s:e]`. Returns `nothing` if they don't share the same leaf or the
+# terminal field isn't `value`.
+function _join_leaf_range(start_path, stop_path)
+    (start_path === nothing || stop_path === nothing) && return nothing
+    start_path isa ConcreteReferencePath || return nothing
+    stop_path  isa ConcreteReferencePath || return nothing
+    h_start = start_path.head
+    h_stop  = stop_path.head
+    if h_start isa FieldReference && h_stop isa FieldReference
+        h_start.name == h_stop.name || return nothing
+        if h_start.name == "value"
+            t_start = start_path.tail
+            t_stop  = stop_path.tail
+            t_start isa ConcreteReferencePath || return nothing
+            t_stop  isa ConcreteReferencePath || return nothing
+            r_start = t_start.head
+            r_stop  = t_stop.head
+            (r_start isa RangeReference && r_stop isa RangeReference) || return nothing
+            return ConcreteReferencePath(FieldReference("value"),
+                ConcreteReferencePath(RangeReference(r_start.start::Int, r_stop.start::Int), EmptyReferencePath()))
+        else
+            # `children` field: recurse into the matching child index.
+            inner = _join_leaf_range(start_path.tail, stop_path.tail)
+            inner === nothing && return nothing
+            return ConcreteReferencePath(h_start, inner)
+        end
+    elseif h_start isa RangeReference && h_stop isa RangeReference
+        h_start == h_stop || return nothing
+        inner = _join_leaf_range(start_path.tail, stop_path.tail)
+        inner === nothing && return nothing
+        return ConcreteReferencePath(h_start, inner)
+    end
+    nothing
 end
 
 # ── SyntaxListToText ──────────────────────────────────────────────────
@@ -598,6 +670,28 @@ function _parse_text_elem_path(path)
     h4 = t3.head
     h4 isa RangeReference || return (nothing, nothing)
     return (span_idx, h4.start::Int)
+end
+
+# Like `_parse_text_elem_path` but returns the full `(span_idx, char_start,
+# char_stop)` of the terminal `RangeReference`. Returns `nothing` on mismatch.
+function _parse_text_elem_range(path)
+    path isa ConcreteReferencePath || return nothing
+    h1 = path.head
+    (h1 isa FieldReference && h1.name == "elements") || return nothing
+    t1 = path.tail
+    t1 isa ConcreteReferencePath || return nothing
+    h2 = t1.head
+    h2 isa RangeReference || return nothing
+    span_idx = h2.start + 1
+    t2 = t1.tail
+    t2 isa ConcreteReferencePath || return nothing
+    h3 = t2.head
+    (h3 isa FieldReference && h3.name == "content") || return nothing
+    t3 = t2.tail
+    t3 isa ConcreteReferencePath || return nothing
+    h4 = t3.head
+    h4 isa RangeReference || return nothing
+    return (span_idx, h4.start::Int, h4.stop::Int)
 end
 
 function _flat_to_text_elem_path(spans, flat_pos::Int)
