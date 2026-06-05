@@ -576,58 +576,82 @@ function _prepend_path(steps::Tuple, path::ReferencePath)
     result
 end
 
-function projection_read(::WorkbenchPageToWidgetTabbedPane,
+function projection_read(p::WorkbenchPageToWidgetTabbedPane,
                           iomap::WorkbenchPageToWidgetTabbedPaneIoMap, op)
-    op isa SelectTabOperation || return op
-    op.widget === iomap.output || return op
-    idx = op.tab_index
-    1 <= idx <= length(iomap.input.elements) || return op
-    getfield(iomap.output, :selection)[] = @reference [idx]
-    ReplaceSelectionOperation(@reference elements[idx])
+    # Convert a tab-strip click into a workbench-domain selection move.
+    if op isa SelectTabOperation
+        op.widget === iomap.output || return op
+        idx = op.tab_index
+        1 <= idx <= length(iomap.input.elements) || return op
+        getfield(iomap.output, :selection)[] = @reference [idx]
+        return ReplaceSelectionOperation(@reference elements[idx])
+    end
+    _retarget_panel_op(p, iomap, op)
 end
 
-function projection_read(::WorkbenchNavigatorToWidgetScrollPane,
+function projection_read(p::WorkbenchNavigatorToWidgetScrollPane,
                           iomap::WorkbenchNavigatorToWidgetScrollPaneIoMap, op)
-    op
+    _retarget_panel_op(p, iomap, op)
 end
 
-function projection_read(::WorkbenchConsoleToWidgetScrollPane,
+function projection_read(p::WorkbenchConsoleToWidgetScrollPane,
                           iomap::ContentIoMap, op)
-    op
+    _retarget_panel_op(p, iomap, op)
 end
 
-function projection_read(::WorkbenchDescriptorToWidgetScrollPane, iomap, op)
-    op
+function projection_read(p::WorkbenchDescriptorToWidgetScrollPane, iomap, op)
+    _retarget_panel_op(p, iomap, op)
 end
 
-function projection_read(::WorkbenchOperatorToWidgetScrollPane, iomap, op)
-    op
+function projection_read(p::WorkbenchOperatorToWidgetScrollPane, iomap, op)
+    _retarget_panel_op(p, iomap, op)
 end
 
-function projection_read(::WorkbenchSearcherToWidgetScrollPane, iomap, op)
-    op
+function projection_read(p::WorkbenchSearcherToWidgetScrollPane, iomap, op)
+    _retarget_panel_op(p, iomap, op)
 end
 
-function projection_read(::WorkbenchEvaluatorToWidgetScrollPane,
+function projection_read(p::WorkbenchEvaluatorToWidgetScrollPane,
                           iomap::ContentIoMap, op)
-    op
+    _retarget_panel_op(p, iomap, op)
 end
 
-function projection_read(::WorkbenchAssistantToWidgetSplitPane,
+function projection_read(p::WorkbenchAssistantToWidgetSplitPane,
                           iomap, op)
-    # Operations produced by an inner reader (e.g. ScrollWidgetOperation
-    # from the conversation scroll pane) pass through unchanged.
-    # Unhandled raw events return `nothing` so the Sequential walker
-    # keeps searching. The specific KeyPress / KeyDown handlers live in
+    # The specific KeyPress / KeyDown handlers live in
     # `WorkbenchAssistantModule` (loaded later in the include chain) and
-    # take precedence via multiple dispatch.
-    op isa Operation && return op
+    # take precedence via multiple dispatch. For everything else that
+    # reaches us, translate path-bearing ops to the assistant's input
+    # domain and let widget-target ops (e.g. ScrollWidgetOperation) pass
+    # through; unhandled raw events return `nothing`.
+    if op isa Operation
+        return _retarget_panel_op(p, iomap, op)
+    end
     nothing
 end
 
-function projection_read(::WorkbenchEditorToWidgetScrollPane,
+function projection_read(p::WorkbenchEditorToWidgetScrollPane,
                           iomap::ContentIoMap, op)
-    op
+    _retarget_panel_op(p, iomap, op)
+end
+
+# Translate a path-bearing op via `map_reference_backward`; pass other ops
+# through unchanged. Used by each workbench panel projection so the path
+# walks up into the workbench-domain reference space one layer at a time.
+function _retarget_panel_op(p, iomap, op)
+    op === nothing && return nothing
+    if op isa ReplaceSelectionOperation
+        new_path = map_reference_backward(p, iomap, op.path)
+        return new_path === nothing ? nothing : ReplaceSelectionOperation(new_path)
+    elseif op isa StringReplaceRangeOperation
+        new_ref = map_reference_backward(p, iomap, op.reference)
+        return new_ref === nothing ? nothing : StringReplaceRangeOperation(new_ref, op.replacement)
+    elseif op isa NumberReplaceRangeOperation
+        new_ref = map_reference_backward(p, iomap, op.reference)
+        return new_ref === nothing ? nothing : NumberReplaceRangeOperation(new_ref, op.replacement)
+    else
+        return op
+    end
 end
 
 # ── Factory ───────────────────────────────────────────────────────────────────

@@ -656,10 +656,30 @@ end
 
 function projection_read(p::WidgetShellToGraphicsCanvas, iomap::ChildrenIoMap, evt)
     child_iomaps = iomap.child_iomaps[]::Vector
-    op = evt isa MouseScroll ? _route_scroll_to_children(child_iomaps, evt) :
-         evt isa MousePress  ? _route_click_to_children(child_iomaps, evt)  :
-         nothing
+    op = if evt isa MouseScroll
+        _route_scroll_to_children(child_iomaps, evt)
+    elseif evt isa MousePress
+        _route_click_to_children(child_iomaps, evt)
+    else
+        # Forward keyboard (and other coordless) events to the wrapped
+        # child. The reader at the focused leaf returns an op; others
+        # return nothing.
+        _forward_to_children(child_iomaps, evt)
+    end
     _retarget_op(p, iomap, op)
+end
+
+# Forward a coordless event to each child entry's reader, returning the
+# first non-nothing result. Entries are `(x, y, cim)` tuples — coords are
+# ignored here.
+function _forward_to_children(child_entries::Vector, evt)
+    for entry in child_entries
+        entry === nothing && continue
+        (_, _, cim) = entry::Tuple{Int,Int,Any}
+        result = projection_read(cim.projection, cim, evt)
+        result !== nothing && return result
+    end
+    nothing
 end
 
 # ── WidgetTitlePane ─────────────────────────────────────────────────────────
@@ -948,7 +968,10 @@ function projection_read(p::WidgetSplitPaneToGraphicsCanvas, iomap::ChildrenIoMa
         _route_split_event(child_iomaps, evt.x, evt.y,
             (x, y) -> MousePress(evt.button, x, y, evt.modifiers))
     else
-        nothing
+        # Forward keyboard (and other coordless) events to each slot's
+        # child in order; the focused descendant returns an op while the
+        # rest return nothing.
+        _forward_split_event(child_iomaps, evt)
     end
     res === nothing && return nothing
     op, slot_idx = res
@@ -960,6 +983,19 @@ function projection_read(p::WidgetSplitPaneToGraphicsCanvas, iomap::ChildrenIoMa
             (FieldReference("elements"), RangeReference(slot_idx-1, slot_idx), FieldReference("child")) :
             (FieldReference("elements"), RangeReference(slot_idx-1, slot_idx))
     _prepend_steps_to_op(op, steps)
+end
+
+# Forward a coordless event through split-pane slots; entries are
+# `(x_cell, y_cell, cim)` tuples — coords are ignored here. Returns
+# `(op, slot_index)` for the first slot whose reader produced an op.
+function _forward_split_event(child_iomaps::Vector, evt)
+    for (i, entry) in enumerate(child_iomaps)
+        entry === nothing && continue
+        (_, _, cim) = entry::Tuple{Cell,Cell,Any}
+        result = projection_read(cim.projection, cim, evt)
+        result !== nothing && return (result, i)
+    end
+    nothing
 end
 
 function _route_split_event(child_iomaps::Vector, x::Int, y::Int, make_evt)
@@ -1118,7 +1154,11 @@ function projection_read(p::WidgetTabbedPaneToGraphicsCanvas, iomap::ChildrenIoM
         end
         return _tab_prefix(_route_active_tab(iomap, child_iomaps, evt))
     end
-    evt isa MouseScroll || return nothing
+    if evt isa MouseScroll
+        return _tab_prefix(_route_active_tab(iomap, child_iomaps, evt))
+    end
+    # Coordless events (KeyDown, KeyPress, …): forward to the active tab
+    # only; the focused leaf produces an op, others return nothing.
     _tab_prefix(_route_active_tab(iomap, child_iomaps, evt))
 end
 
@@ -1134,11 +1174,20 @@ function _route_active_tab(iomap::ChildrenIoMap, child_iomaps::Vector, evt)
     (ox, oy, cim) = entry::Tuple{Int,Int,Any}
     canvas = cim.output
     canvas isa GraphicsCanvas || return nothing
-    lx, ly = evt.x - ox - Int(canvas.x), evt.y - oy - Int(canvas.y)
-    hit_element_at(canvas, lx, ly) === nothing && return nothing
-    child_evt = evt isa MousePress  ? MousePress(evt.button, lx, ly, evt.modifiers) :
-                evt isa MouseScroll ? MouseScroll(evt.dx, evt.dy, lx, ly) :
-                evt
+    # Mouse events: translate coords into the tab's local frame and
+    # hit-test before forwarding. Coordless events (KeyDown, KeyPress, …)
+    # are forwarded as-is to the active tab's reader.
+    child_evt = if evt isa MousePress
+        lx, ly = evt.x - ox - Int(canvas.x), evt.y - oy - Int(canvas.y)
+        hit_element_at(canvas, lx, ly) === nothing && return nothing
+        MousePress(evt.button, lx, ly, evt.modifiers)
+    elseif evt isa MouseScroll
+        lx, ly = evt.x - ox - Int(canvas.x), evt.y - oy - Int(canvas.y)
+        hit_element_at(canvas, lx, ly) === nothing && return nothing
+        MouseScroll(evt.dx, evt.dy, lx, ly)
+    else
+        evt
+    end
     op = projection_read(cim.projection, cim, child_evt)
     op === nothing && return nothing
     (op, active_idx)
