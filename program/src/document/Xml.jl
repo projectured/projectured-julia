@@ -22,8 +22,8 @@ import ..ReactiveModule: Cell, setfn!, setval!
 import ..DocumentModule: Document, @document
 import ..CollectionModule: CellVector
 import ..ReferenceModule: Reference
-export XmlDocument, XmlInsertion, XmlForeign, XmlText, XmlAttribute, XmlElement, xmlattr, setattr!, deleteattr!, setfn!,
-       IXmlInsertion, IXmlForeign, IXmlText, IXmlAttribute, IXmlElement
+export XmlDocument, XmlInsertion, XmlText, XmlAttribute, XmlElement, xmlattr, setattr!, deleteattr!, setfn!,
+       IXmlInsertion, IXmlText, IXmlAttribute, IXmlElement
 
 """
     XmlDocument
@@ -52,12 +52,6 @@ editor to indicate where new content should be inserted.
 end
 
 XmlInsertion() = XmlInsertion(Cell(nothing), Cell(nothing))
-
-@document struct XmlForeign <: XmlDocument
-    value::Any
-    selection::Reference
-end
-XmlForeign(value) = XmlForeign(Cell(value), Cell(nothing))
 
 # ── Attribute ─────────────────────────────────────────────────────────────
 

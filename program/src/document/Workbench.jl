@@ -19,14 +19,14 @@ import ..ConversationModule: ConversationConversation
 import ..LlmModule: LlmBackend, FakeLlm, AnthropicLlm
 import ..ReferenceModule: Reference, ReferencePath
 import ..WorkspaceModule: Workspace, WorkspaceFolder
-export WorkbenchDocument, WorkbenchInsertion, WorkbenchForeign,
+export WorkbenchDocument, WorkbenchInsertion,
        WorkbenchWorkbench, WorkbenchPage,
        WorkbenchNavigator, WorkbenchConsole, WorkbenchDescriptor,
        WorkbenchOperator, WorkbenchSearcher, WorkbenchEvaluator,
        WorkbenchAssistant,
        WorkbenchEditor,
        title, setfn!,
-       IWorkbenchInsertion, IWorkbenchForeign,
+       IWorkbenchInsertion,
        IWorkbenchWorkbench, IWorkbenchPage,
        IWorkbenchNavigator, IWorkbenchConsole, IWorkbenchDescriptor,
        IWorkbenchOperator, IWorkbenchSearcher, IWorkbenchEvaluator,
@@ -38,19 +38,13 @@ export WorkbenchDocument, WorkbenchInsertion, WorkbenchForeign,
 
 abstract type WorkbenchDocument <: Document end
 
-# ── WorkbenchInsertion / WorkbenchForeign ───────────────────────────────
+# ── WorkbenchInsertion ───────────────────────────────────────────────────
 
 @document struct WorkbenchInsertion <: WorkbenchDocument
     value::Any
     selection::Reference
 end
 WorkbenchInsertion() = WorkbenchInsertion(Cell(nothing), Cell(nothing))
-
-@document struct WorkbenchForeign <: WorkbenchDocument
-    value::Any
-    selection::Reference
-end
-WorkbenchForeign(value) = WorkbenchForeign(Cell(value), Cell(nothing))
 
 # ── WorkbenchPage ─────────────────────────────────────────────────────────────
 

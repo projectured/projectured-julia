@@ -12,8 +12,8 @@ import ..ReactiveModule: Cell, setfn!, setval!
 import ..DocumentModule: Document, @document
 import ..CollectionModule: CellVector
 import ..ReferenceModule: Reference
-export BookDocument, BookInsertion, BookForeign, BookBook, BookChapter, BookParagraph, BookList, BookPicture, setfn!,
-       IBookInsertion, IBookForeign, IBookBook, IBookChapter, IBookParagraph, IBookList, IBookPicture
+export BookDocument, BookInsertion, BookBook, BookChapter, BookParagraph, BookList, BookPicture, setfn!,
+       IBookInsertion, IBookBook, IBookChapter, IBookParagraph, IBookList, IBookPicture
 
 # ── BookDocument (abstract base) ───────────────────────────────────────────────
 
@@ -25,19 +25,13 @@ carries a `collapsed::Cell` and a `selection::Reference`.
 """
 abstract type BookDocument <: Document end
 
-# ── BookInsertion / BookForeign ─────────────────────────────────────────
+# ── BookInsertion ───────────────────────────────────────────────────────
 
 @document struct BookInsertion <: BookDocument
     value::Any
     selection::Reference
 end
 BookInsertion() = BookInsertion(Cell(nothing), Cell(nothing))
-
-@document struct BookForeign <: BookDocument
-    value::Any
-    selection::Reference
-end
-BookForeign(value) = BookForeign(Cell(value), Cell(nothing))
 
 # ── BookBook ───────────────────────────────────────────────────────────────
 

@@ -27,10 +27,10 @@ import ..ReferenceModule: Reference
 import ..FontModule: font_ubuntu_monospace_regular_24
 import ..ColorModule: color_default
 import ..OperationApiModule: _apply_string_replace!
-export SyntaxNode, SyntaxLeaf, SyntaxDocument, SyntaxInsertion, SyntaxForeign, render, setfn!,
+export SyntaxNode, SyntaxLeaf, SyntaxDocument, SyntaxInsertion, render, setfn!,
        SyntaxDelimitation, SyntaxIndentation, SyntaxCollapsible,
        SyntaxNavigation, SyntaxConcatenation, SyntaxSeparation,
-       ISyntaxNode, ISyntaxLeaf, ISyntaxInsertion, ISyntaxForeign, ISyntaxDelimitation, ISyntaxIndentation,
+       ISyntaxNode, ISyntaxLeaf, ISyntaxInsertion, ISyntaxDelimitation, ISyntaxIndentation,
        ISyntaxCollapsible, ISyntaxNavigation, ISyntaxConcatenation, ISyntaxSeparation
 
 """
@@ -42,19 +42,13 @@ by the `Document` contract.
 """
 abstract type SyntaxDocument <: Document end
 
-# ── SyntaxInsertion / SyntaxForeign ───────────────────────────────────────
+# ── SyntaxInsertion ───────────────────────────────────────────────────────
 
 @document struct SyntaxInsertion <: SyntaxDocument
     value::Any
     selection::Reference
 end
 SyntaxInsertion() = SyntaxInsertion(Cell(nothing), Cell(nothing))
-
-@document struct SyntaxForeign <: SyntaxDocument
-    value::Any
-    selection::Reference
-end
-SyntaxForeign(value) = SyntaxForeign(Cell(value), Cell(nothing))
 
 # ── Intermediate document types ──────────────────────────────────────────
 

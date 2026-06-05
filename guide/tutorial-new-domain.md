@@ -34,26 +34,20 @@ import ..DocumentModule: Document, @document
 import ..CollectionModule: CellVector
 import ..ReferenceModule: Reference
 
-export BookmarkDocument, BookmarkInsertion, BookmarkForeign,
+export BookmarkDocument, BookmarkInsertion,
        BookmarkEntry, BookmarkList
 
 # ── Abstract base ──────────────────────────────────────────────────────────
 
 abstract type BookmarkDocument <: Document end
 
-# ── BookmarkInsertion / BookmarkForeign ────────────────────────────────────
+# ── BookmarkInsertion ──────────────────────────────────────────────────────
 
 @document struct BookmarkInsertion <: BookmarkDocument
     value::Any
     selection::Reference
 end
 BookmarkInsertion() = BookmarkInsertion(Cell(nothing), Cell(nothing))
-
-@document struct BookmarkForeign <: BookmarkDocument
-    value::Any
-    selection::Reference
-end
-BookmarkForeign(v) = BookmarkForeign(Cell(v), Cell(nothing))
 
 # ── BookmarkEntry ──────────────────────────────────────────────────────────
 
@@ -114,14 +108,14 @@ include("document/Bookmark.jl")
 Add a `using` line (near the `using .ImageModule:` block):
 
 ```julia
-using .BookmarkModule: BookmarkDocument, BookmarkInsertion, BookmarkForeign,
+using .BookmarkModule: BookmarkDocument, BookmarkInsertion,
                        BookmarkEntry, BookmarkList
 ```
 
 Add an `export` line:
 
 ```julia
-export BookmarkDocument, BookmarkInsertion, BookmarkForeign, BookmarkEntry, BookmarkList
+export BookmarkDocument, BookmarkInsertion, BookmarkEntry, BookmarkList
 ```
 
 ---
@@ -144,7 +138,7 @@ import ..ReactiveModule: Cell
 import ..CollectionModule: CellVector
 import ..ProjectionApiModule: projection_print, projection_read,
                                map_reference_forward, map_reference_backward, Projection
-import ..BookmarkModule: BookmarkDocument, BookmarkInsertion, BookmarkForeign,
+import ..BookmarkModule: BookmarkDocument, BookmarkInsertion,
                           BookmarkEntry, BookmarkList
 import ..TextModule: TextString
 import ..FontModule: font_ubuntu_monospace_regular_18

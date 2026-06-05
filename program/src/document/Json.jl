@@ -27,8 +27,8 @@ import ..DocumentModule: Document, @document
 import ..CollectionModule: CellVector
 import ..ReferenceModule: Reference, ReferencePath, ConcreteReferencePath, PositionReference, RangeReference, FieldReference, EmptyReferencePath
 import ..OperationApiModule: _apply_string_replace!, _apply_number_replace!
-export JsonDocument, JsonInsertion, JsonForeign, JsonNull, JsonBool, JsonNumber, JsonString, JsonArray, JsonObject, JsonObjectEntry, jsonvalue, entries, setfn!,
-       IJsonInsertion, IJsonForeign, IJsonNull, IJsonBool, IJsonNumber, IJsonString, IJsonArray, IJsonObject, IJsonObjectEntry
+export JsonDocument, JsonInsertion, JsonNull, JsonBool, JsonNumber, JsonString, JsonArray, JsonObject, JsonObjectEntry, jsonvalue, entries, setfn!,
+       IJsonInsertion, IJsonNull, IJsonBool, IJsonNumber, IJsonString, IJsonArray, IJsonObject, IJsonObjectEntry
 
 """
     JsonDocument
@@ -57,12 +57,6 @@ editor to indicate where new content should be inserted.
 end
 
 JsonInsertion() = JsonInsertion(Cell(nothing), Cell(nothing))
-
-@document struct JsonForeign <: JsonDocument
-    value::Any
-    selection::Reference
-end
-JsonForeign(value) = JsonForeign(Cell(value), Cell(nothing))
 
 # ── Primitives ───────────────────────────────────────────────────────────
 

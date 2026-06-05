@@ -32,8 +32,8 @@ import ..ColorModule: StyleColor, color_default
 import ..GeometryModule: Inset
 import ..ReferenceModule: Reference
 import ..OperationApiModule: _apply_string_replace!
-export TextDocument, TextInsertion, TextForeign, TextNewline, TextSpacing, TextString, TextGraphics, TextText, setfn!,
-       ITextInsertion, ITextForeign, ITextNewline, ITextSpacing, ITextString, ITextGraphics, ITextText
+export TextDocument, TextInsertion, TextNewline, TextSpacing, TextString, TextGraphics, TextText, setfn!,
+       ITextInsertion, ITextNewline, ITextSpacing, ITextString, ITextGraphics, ITextText
 
 # ── TextDocument (base) ───────────────────────────────────────────────────
 
@@ -53,12 +53,6 @@ abstract type TextDocument <: Document end
     selection::Reference
 end
 TextInsertion() = TextInsertion(Cell(nothing), Cell(nothing))
-
-@document struct TextForeign <: TextDocument
-    value::Any
-    selection::Reference
-end
-TextForeign(value) = TextForeign(Cell(value), Cell(nothing))
 
 # ── TextNewline ─────────────────────────────────────────────────────
 

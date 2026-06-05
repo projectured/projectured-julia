@@ -14,28 +14,22 @@ import ..OperationApiModule: Operation, evaluate_operation,
                               _apply_string_replace!, _apply_number_replace!
 import ..ReferenceModule: Reference, ReferencePath, ConcreteReferencePath, EmptyReferencePath,
                           ReferenceStep, FieldReference, RangeReference, evaluate_reference
-export PrimitiveDocument, PrimitiveInsertion, PrimitiveForeign, PrimitiveBool, PrimitiveNumber, PrimitiveString,
+export PrimitiveDocument, PrimitiveInsertion, PrimitiveBool, PrimitiveNumber, PrimitiveString,
        NumberReplaceRangeOperation, StringReplaceRangeOperation,
        evaluate_operation,
-       IPrimitiveInsertion, IPrimitiveForeign, IPrimitiveBool, IPrimitiveNumber, IPrimitiveString
+       IPrimitiveInsertion, IPrimitiveBool, IPrimitiveNumber, IPrimitiveString
 
 # ── Abstract base ─────────────────────────────────────────────────────────────
 
 abstract type PrimitiveDocument <: Document end
 
-# ── PrimitiveInsertion / PrimitiveForeign ───────────────────────────────────
+# ── PrimitiveInsertion ──────────────────────────────────────────────────────
 
 @document struct PrimitiveInsertion <: PrimitiveDocument
     value::Any
     selection::Reference
 end
 PrimitiveInsertion() = PrimitiveInsertion(Cell(nothing), Cell(nothing))
-
-@document struct PrimitiveForeign <: PrimitiveDocument
-    value::Any
-    selection::Reference
-end
-PrimitiveForeign(value) = PrimitiveForeign(Cell(value), Cell(nothing))
 
 # ── PrimitiveBool ─────────────────────────────────────────────────────────────
 

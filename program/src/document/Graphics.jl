@@ -21,28 +21,22 @@ import ..CollectionModule: CellVector, ListNode, CollectionDocument
 import ..FontModule: StyleFont, font_scaled_size
 import ..ReferenceModule: Reference
 export GraphicsDocument, LayoutDirection, layout_none, layout_horizontal, layout_vertical,
-       GraphicsInsertion, GraphicsForeign, GraphicsText, GraphicsRect, GraphicsCanvas, GraphicsViewport, GraphicsImage,
+       GraphicsInsertion, GraphicsText, GraphicsRect, GraphicsCanvas, GraphicsViewport, GraphicsImage,
        GraphicsFence, setfn!, hit_element_at,
-       IGraphicsInsertion, IGraphicsForeign, IGraphicsText, IGraphicsRect, IGraphicsCanvas, IGraphicsViewport, IGraphicsImage,
+       IGraphicsInsertion, IGraphicsText, IGraphicsRect, IGraphicsCanvas, IGraphicsViewport, IGraphicsImage,
        IGraphicsFence
 
 abstract type GraphicsDocument <: Document end
 
 @enum LayoutDirection layout_none layout_horizontal layout_vertical
 
-# ── GraphicsInsertion / GraphicsForeign ──────────────────────────────────
+# ── GraphicsInsertion ─────────────────────────────────────────────────────
 
 @document struct GraphicsInsertion <: GraphicsDocument
     value::Any
     selection::Reference
 end
 GraphicsInsertion() = GraphicsInsertion(Cell(nothing), Cell(nothing))
-
-@document struct GraphicsForeign <: GraphicsDocument
-    value::Any
-    selection::Reference
-end
-GraphicsForeign(value) = GraphicsForeign(Cell(value), Cell(nothing))
 
 # ── GraphicsText ───────────────────────────────────────────────────────
 

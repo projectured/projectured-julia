@@ -165,24 +165,24 @@ using .OperationModule: ReplaceSelectionOperation, QuitEditorOperation, replace_
 using .ReferenceCaseModule: var"@reference_case", when, prefix
 using .ReferenceBuilderModule: var"@reference", var"@step"
 using .OperationApiModule: Operation, evaluate_operation
-using .JsonModule: JsonDocument, JsonInsertion, JsonForeign, JsonNull, JsonBool, JsonNumber, JsonString, JsonArray,
+using .JsonModule: JsonDocument, JsonInsertion, JsonNull, JsonBool, JsonNumber, JsonString, JsonArray,
                    JsonObject, JsonObjectEntry, jsonvalue, entries
 using .TableModule: TableDocument, TableCell, TableRow, TableColumn, TableTable
-using .XmlModule: XmlDocument, XmlInsertion, XmlForeign, XmlText, XmlAttribute, XmlElement, xmlattr,
+using .XmlModule: XmlDocument, XmlInsertion, XmlText, XmlAttribute, XmlElement, xmlattr,
                   setattr!, deleteattr!
-using .FileSystemModule: FileSystemDocument, FileSystemInsertion, FileSystemForeign,
+using .FileSystemModule: FileSystemDocument, FileSystemInsertion,
                          FileSystemFile, FileSystemDirectory, make_filesystem_pathname
 using .WorkspaceModule: WorkspaceDocument, WorkspaceFolder, Workspace
-using .TextModule: TextDocument, TextInsertion, TextForeign, TextText, TextString, TextNewline
-using .PrimitiveModule: PrimitiveDocument, PrimitiveInsertion, PrimitiveForeign,
+using .TextModule: TextDocument, TextInsertion, TextText, TextString, TextNewline
+using .PrimitiveModule: PrimitiveDocument, PrimitiveInsertion,
                         PrimitiveBool, PrimitiveNumber, PrimitiveString,
                         NumberReplaceRangeOperation, StringReplaceRangeOperation
 using .MathModule: MathDocument, MathInsertion, MathVariable, MathBinaryOperation,
                    MathParenthesized, MathAssignment
 using .JuliaModule: JuliaDocument, JuliaIdentifier, JuliaInteger, JuliaBinaryOp, JuliaCall,
                     JuliaIf, JuliaFunction, JuliaBlock
-using .SyntaxModule: SyntaxDocument, SyntaxInsertion, SyntaxForeign, SyntaxLeaf, SyntaxNode, render
-using .GraphicsModule: GraphicsDocument, GraphicsInsertion, GraphicsForeign,
+using .SyntaxModule: SyntaxDocument, SyntaxInsertion, SyntaxLeaf, SyntaxNode, render
+using .GraphicsModule: GraphicsDocument, GraphicsInsertion,
                        GraphicsText, GraphicsRect, GraphicsCanvas, GraphicsViewport, GraphicsImage,
                        GraphicsFence, LayoutDirection, layout_none, layout_horizontal, layout_vertical,
                        hit_element_at
@@ -230,12 +230,12 @@ using .ObjectToSyntaxModule: ObjectToSyntax, NothingToSyntaxLeaf, BoolToSyntaxLe
 using .BookToSyntaxModule: BookBookToSyntaxNode, BookChapterToSyntaxNode,
                             BookParagraphToSyntaxLeaf, BookListToSyntaxNode,
                             BookPictureToSyntaxLeaf, BookToSyntax
-using .ClipboardModule: ClipboardDocument, ClipboardInsertion, ClipboardForeign,
+using .ClipboardModule: ClipboardDocument, ClipboardInsertion,
                         ClipboardSlice, ClipboardCollection
 using .CollectionModule: CellVector, ListNode, CollectionDocument, left_tail, right_tail, cell_at, take_first_n
-using .BookModule: BookDocument, BookInsertion, BookForeign,
+using .BookModule: BookDocument, BookInsertion,
                    BookBook, BookChapter, BookParagraph, BookList, BookPicture
-using .WorkbenchModule: WorkbenchDocument, WorkbenchInsertion, WorkbenchForeign,
+using .WorkbenchModule: WorkbenchDocument, WorkbenchInsertion,
                         WorkbenchWorkbench, WorkbenchPage,
                         WorkbenchNavigator, WorkbenchConsole, WorkbenchDescriptor,
                         WorkbenchOperator, WorkbenchSearcher, WorkbenchEvaluator,
@@ -245,7 +245,7 @@ using .ColorModule: StyleColor
 using .GeometryModule: Inset, Point2D,
                       inset_default, inset_size, inset_width, inset_height,
                       inset_top_left, inset_top_right, inset_bottom_left, inset_bottom_right
-using .WidgetModule: WidgetDocument, WidgetInsertion, WidgetForeign,
+using .WidgetModule: WidgetDocument, WidgetInsertion,
                      WidgetLabel, WidgetText, WidgetCheckbox, WidgetButton,
                      WidgetTooltip, WidgetMenu, WidgetMenuItem, WidgetComposite,
                      WidgetShell, WidgetTitlePane, WidgetSplitPane, WidgetTabbedPane,
@@ -256,7 +256,7 @@ using .LayoutModule: LayoutDocument,
                      HorizontalLayout, VerticalLayout, GridLayout, FlowLayout,
                      LayoutConstraint, allocate_axis,
                      layout_min, layout_max, layout_preferred, layout_weight
-using .ImageModule: ImageDocument, ImageInsertion, ImageForeign, ImageFile, ImageMemory
+using .ImageModule: ImageDocument, ImageInsertion, ImageFile, ImageMemory
 using .ScreenDocumentModule: ScreenDocument, WindowDocument, EventEnvelope, WindowCloseRequest
 using .TooltipDocumentModule: TooltipSource
 using .TextToStringModule: TextToString, TextTextToString, TextStringToString, TextNewlineToString
@@ -359,12 +359,12 @@ export @reference_case, when, prefix
 export @reference, @step
 export ReplaceSelectionOperation
 export OpenWindowOperation, CloseWindowOperation
-export JsonDocument, JsonInsertion, JsonForeign, JsonNull, JsonBool, JsonNumber, JsonString, JsonArray, JsonObject, JsonObjectEntry, jsonvalue, entries
+export JsonDocument, JsonInsertion, JsonNull, JsonBool, JsonNumber, JsonString, JsonArray, JsonObject, JsonObjectEntry, jsonvalue, entries
 export TableDocument, TableCell, TableRow, TableColumn, TableTable
-export XmlDocument, XmlInsertion, XmlForeign, XmlText, XmlAttribute, XmlElement, xmlattr, setattr!, deleteattr!
-export FileSystemDocument, FileSystemInsertion, FileSystemForeign, FileSystemFile, FileSystemDirectory, make_filesystem_pathname
+export XmlDocument, XmlInsertion, XmlText, XmlAttribute, XmlElement, xmlattr, setattr!, deleteattr!
+export FileSystemDocument, FileSystemInsertion, FileSystemFile, FileSystemDirectory, make_filesystem_pathname
 export WorkspaceDocument, WorkspaceFolder, Workspace
-export TextDocument, TextInsertion, TextForeign, TextText, TextString, TextNewline
+export TextDocument, TextInsertion, TextText, TextString, TextNewline
 export StyleFont, make_style_font
 export font_inconsolata_regular_18
 export font_ubuntu_monospace_regular_14, font_ubuntu_monospace_italic_14, font_ubuntu_monospace_bold_14
@@ -399,15 +399,15 @@ export font_liberation_serif_regular_24, font_liberation_serif_italic_24, font_l
 export font_liberation_serif_regular_30, font_liberation_serif_italic_30, font_liberation_serif_bold_30
 export font_liberation_serif_regular_36, font_liberation_serif_italic_36, font_liberation_serif_bold_36
 export font_liberation_serif_regular_42, font_liberation_serif_italic_42, font_liberation_serif_bold_42
-export PrimitiveDocument, PrimitiveInsertion, PrimitiveForeign,
+export PrimitiveDocument, PrimitiveInsertion,
        PrimitiveBool, PrimitiveNumber, PrimitiveString,
        NumberReplaceRangeOperation, StringReplaceRangeOperation
 export MathDocument, MathInsertion, MathVariable, MathBinaryOperation,
        MathParenthesized, MathAssignment
 export JuliaDocument, JuliaIdentifier, JuliaInteger, JuliaBinaryOp, JuliaCall,
        JuliaIf, JuliaFunction, JuliaBlock
-export SyntaxDocument, SyntaxInsertion, SyntaxForeign, SyntaxLeaf, SyntaxNode, render
-export GraphicsDocument, GraphicsInsertion, GraphicsForeign,
+export SyntaxDocument, SyntaxInsertion, SyntaxLeaf, SyntaxNode, render
+export GraphicsDocument, GraphicsInsertion,
        GraphicsText, GraphicsRect, GraphicsCanvas, GraphicsViewport, GraphicsImage,
        GraphicsFence, LayoutDirection, layout_none, layout_horizontal, layout_vertical, hit_element_at
 export Modifiers
@@ -450,10 +450,10 @@ export ObjectToSyntax, NothingToSyntaxLeaf, BoolToSyntaxLeaf,
 export BookBookToSyntaxNode, BookChapterToSyntaxNode,
        BookParagraphToSyntaxLeaf, BookListToSyntaxNode,
        BookPictureToSyntaxLeaf, BookToSyntax
-export ClipboardDocument, ClipboardInsertion, ClipboardForeign, ClipboardSlice, ClipboardCollection
+export ClipboardDocument, ClipboardInsertion, ClipboardSlice, ClipboardCollection
 export CellVector, ListNode, CollectionDocument, left_tail, right_tail, cell_at
 export Inset, StyleColor, Point2D, color_default
-export WidgetDocument, WidgetInsertion, WidgetForeign,
+export WidgetDocument, WidgetInsertion,
        WidgetLabel, WidgetText, WidgetCheckbox, WidgetButton,
        WidgetTooltip, WidgetMenu, WidgetMenuItem, WidgetComposite,
        WidgetShell, WidgetTitlePane, WidgetSplitPane, WidgetTabbedPane,
@@ -462,14 +462,14 @@ export HideWidgetOperation, ShowWidgetOperation, ScrollWidgetOperation, SelectTa
 export Operation, evaluate_operation
 export inset_default, inset_size, inset_width, inset_height,
        inset_top_left, inset_top_right, inset_bottom_left, inset_bottom_right
-export BookDocument, BookInsertion, BookForeign, BookBook, BookChapter, BookParagraph, BookList, BookPicture
-export WorkbenchDocument, WorkbenchInsertion, WorkbenchForeign,
+export BookDocument, BookInsertion, BookBook, BookChapter, BookParagraph, BookList, BookPicture
+export WorkbenchDocument, WorkbenchInsertion,
        WorkbenchWorkbench, WorkbenchPage,
        WorkbenchNavigator, WorkbenchConsole, WorkbenchDescriptor,
        WorkbenchOperator, WorkbenchSearcher, WorkbenchEvaluator,
        WorkbenchAssistant,
        WorkbenchEditor
-export ImageDocument, ImageInsertion, ImageForeign, ImageFile, ImageMemory
+export ImageDocument, ImageInsertion, ImageFile, ImageMemory
 export ScreenDocument, WindowDocument, EventEnvelope, WindowCloseRequest
 export TooltipSource
 export TextToString, TextTextToString, TextStringToString, TextNewlineToString

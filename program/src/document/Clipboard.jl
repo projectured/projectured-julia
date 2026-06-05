@@ -12,26 +12,20 @@ import ..ReactiveModule: Cell
 import ..DocumentModule: Document, @document
 import ..CollectionModule: CellVector
 import ..ReferenceModule: Reference
-export ClipboardDocument, ClipboardInsertion, ClipboardForeign, ClipboardSlice, ClipboardCollection,
-       IClipboardInsertion, IClipboardForeign, IClipboardSlice, IClipboardCollection
+export ClipboardDocument, ClipboardInsertion, ClipboardSlice, ClipboardCollection,
+       IClipboardInsertion, IClipboardSlice, IClipboardCollection
 
 # ── Abstract base ─────────────────────────────────────────────────────────────
 
 abstract type ClipboardDocument <: Document end
 
-# ── ClipboardInsertion / ClipboardForeign ─────────────────────────────────
+# ── ClipboardInsertion ─────────────────────────────────────────────────────
 
 @document struct ClipboardInsertion <: ClipboardDocument
     value::Any
     selection::Reference
 end
 ClipboardInsertion() = ClipboardInsertion(Cell(nothing), Cell(nothing))
-
-@document struct ClipboardForeign <: ClipboardDocument
-    value::Any
-    selection::Reference
-end
-ClipboardForeign(value) = ClipboardForeign(Cell(value), Cell(nothing))
 
 # ── ClipboardSlice ────────────────────────────────────────────────────────────
 

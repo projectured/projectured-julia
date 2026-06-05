@@ -13,24 +13,18 @@ import ..ReactiveModule: Cell
 import ..DocumentModule: Document, @document
 import ..CollectionModule: CellVector
 import ..ReferenceModule: Reference
-export FileSystemDocument, FileSystemInsertion, FileSystemForeign, FileSystemFile, FileSystemDirectory, make_filesystem_pathname,
-       IFileSystemInsertion, IFileSystemForeign, IFileSystemFile, IFileSystemDirectory
+export FileSystemDocument, FileSystemInsertion, FileSystemFile, FileSystemDirectory, make_filesystem_pathname,
+       IFileSystemInsertion, IFileSystemFile, IFileSystemDirectory
 
 abstract type FileSystemDocument <: Document end
 
-# ── FileSystemInsertion / FileSystemForeign ─────────────────────────────
+# ── FileSystemInsertion ─────────────────────────────────────────────────
 
 @document struct FileSystemInsertion <: FileSystemDocument
     value::Any
     selection::Reference
 end
 FileSystemInsertion() = FileSystemInsertion(Cell(nothing), Cell(nothing))
-
-@document struct FileSystemForeign <: FileSystemDocument
-    value::Any
-    selection::Reference
-end
-FileSystemForeign(value) = FileSystemForeign(Cell(value), Cell(nothing))
 
 # ── File ──────────────────────────────────────────────────────────────────────
 

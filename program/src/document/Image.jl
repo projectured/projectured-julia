@@ -9,8 +9,8 @@ module ImageModule
 import ..ReactiveModule: Cell, setfn!, setval!
 import ..DocumentModule: Document, @document
 import ..ReferenceModule: Reference
-export ImageDocument, ImageInsertion, ImageForeign, ImageFile, ImageMemory, setfn!,
-       IImageInsertion, IImageForeign, IImageFile, IImageMemory
+export ImageDocument, ImageInsertion, ImageFile, ImageMemory, setfn!,
+       IImageInsertion, IImageFile, IImageMemory
 
 # ── Abstract base ──────────────────────────────────────────────────────────
 
@@ -21,19 +21,13 @@ Abstract base type for all image documents.
 """
 abstract type ImageDocument <: Document end
 
-# ── ImageInsertion / ImageForeign ───────────────────────────────────────
+# ── ImageInsertion ───────────────────────────────────────────────────────
 
 @document struct ImageInsertion <: ImageDocument
     value::Any
     selection::Reference
 end
 ImageInsertion() = ImageInsertion(Cell(nothing), Cell(nothing))
-
-@document struct ImageForeign <: ImageDocument
-    value::Any
-    selection::Reference
-end
-ImageForeign(value) = ImageForeign(Cell(value), Cell(nothing))
 
 # ── ImageFile ──────────────────────────────────────────────────────────────
 

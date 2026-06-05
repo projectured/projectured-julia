@@ -18,7 +18,7 @@ import ..GeometryModule: Inset, Point2D, inset_default,
                         inset_size, inset_width, inset_height,
                         inset_top_left, inset_top_right, inset_bottom_left, inset_bottom_right
 export Inset, Point2D,
-       WidgetDocument, WidgetInsertion, WidgetForeign,
+       WidgetDocument, WidgetInsertion,
        WidgetLabel, WidgetText, WidgetCheckbox, WidgetButton,
        WidgetTooltip, WidgetMenu, WidgetMenuItem, WidgetComposite,
        WidgetShell, WidgetTitlePane, WidgetSplitPane, WidgetTabbedPane,
@@ -29,7 +29,7 @@ export Inset, Point2D,
        inset_default, inset_size, inset_width, inset_height,
        inset_top_left, inset_top_right, inset_bottom_left, inset_bottom_right,
        setfn!,
-       IWidgetInsertion, IWidgetForeign,
+       IWidgetInsertion,
        IWidgetLabel, IWidgetText, IWidgetCheckbox, IWidgetButton,
        IWidgetTooltip, IWidgetMenu, IWidgetMenuItem, IWidgetComposite,
        IWidgetShell, IWidgetTitlePane, IWidgetSplitPane, IWidgetTabbedPane,
@@ -48,19 +48,13 @@ plus its own positional / content fields and a `selection::Reference`.
 """
 abstract type WidgetDocument <: Document end
 
-# ── WidgetInsertion / WidgetForeign ─────────────────────────────────────
+# ── WidgetInsertion ─────────────────────────────────────────────────────
 
 @document struct WidgetInsertion <: WidgetDocument
     value::Any
     selection::Reference
 end
 WidgetInsertion() = WidgetInsertion(Cell(nothing), Cell(nothing))
-
-@document struct WidgetForeign <: WidgetDocument
-    value::Any
-    selection::Reference
-end
-WidgetForeign(value) = WidgetForeign(Cell(value), Cell(nothing))
 
 # ── WidgetLabel ────────────────────────────────────────────────────────────
 
