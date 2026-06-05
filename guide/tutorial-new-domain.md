@@ -156,8 +156,8 @@ import ..RecursiveProjectionModule: RecursiveProjection
 import ..SequentialProjectionModule: SequentialProjection
 import ..IoMapModule: SimpleIoMap, ChildrenIoMap
 import ..ReferenceModule: ConcreteReferencePath, ElementReference, FieldReference,
-                           PositionReference, ReferencePath, EmptyReferencePath,
-                           append_reference
+                           PositionReference, ReferencePath, EmptyReferencePath
+import ..ProjectionContextModule: ProjectionContext, child_context
 import ..ReferenceCaseModule: var"@reference_case"
 import ..ReferenceBuilderModule: var"@reference"
 import ..OperationModule: ReplaceSelectionOperation
@@ -171,7 +171,7 @@ const _font = font_ubuntu_monospace_regular_18
 struct BookmarkEntryToSyntaxNode <: Projection end
 
 function projection_print(p::BookmarkEntryToSyntaxNode,
-                           entry::BookmarkEntry, recursion, reference)
+                           entry::BookmarkEntry, recursion, ctx)
     title_leaf = SyntaxLeaf(
         TextString("▶ ", _font, color_solarized_blue),
         TextString("", _font, color_default),
@@ -207,11 +207,13 @@ end
 struct BookmarkListToSyntaxNode <: Projection end
 
 function projection_print(p::BookmarkListToSyntaxNode,
-                           list::BookmarkList, recursion, reference)
-    # Project each entry recursively
+                           list::BookmarkList, recursion, ctx)
+    # Project each entry recursively. `recursion` is threaded twice (projection
+    # to call + that call's own recursion arg); `child_context` extends the
+    # reference path to entry i.
     child_iomaps = Cell(() ->
         [projection_print(recursion, getfield(list, :entries)[][i][], recursion,
-                          append_reference(reference, ElementReference(Cell(i))))
+                          child_context(ctx, ElementReference(Cell(i))))
          for i in 1:length(list.entries)])
 
     children = Cell(() -> CellVector(Cell[Cell(m.output) for m in child_iomaps[]]))
@@ -358,7 +360,7 @@ function test_bookmark_to_syntax()
     entry = BookmarkEntry("Julia", "https://julialang.org")
     iomap = projection_print(BookmarkEntryToSyntaxNode(), entry,
                              PreservingProjection(),
-                             Projectured.ReferenceModule.EmptyReferencePath())
+                             Projectured.ProjectionContextModule.ProjectionContext())
     node = iomap.output
     @test node isa SyntaxNode
     # two children: title leaf and url leaf

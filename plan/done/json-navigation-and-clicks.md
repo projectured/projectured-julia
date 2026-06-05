@@ -487,3 +487,108 @@ SDL_VIDEODRIVER=dummy SDL_AUDIODRIVER=dummy julia --project=. \
 
 Zero `@warn`s, zero failures. Manual smoke on `run_example("json")` confirms
 the cursor follows the mouse and arrow keys behave as expected.
+
+---
+
+## 7. What actually landed (post-implementation notes)
+
+The plan as written assumed `JsonObjectToSyntaxNode` already produced
+clean back-translated paths. While implementing the slices we uncovered
+three additional bugs that had to be fixed for the JSON example to work
+end-to-end. The `test_click_roundtrip` test (Slice C2) accepted them
+because it only checks that the cursor *renders near* the click — it
+doesn't check that the produced path is semantically clean. A stricter
+`test_json_content_clicks_clean` test was added to guard against
+regression.
+
+### 7.1 `_translate_json_path(JsonObject, ...)` pattern mismatch
+
+[program/src/projection/primitive/JsonToSyntax.jl#L416](../../program/src/projection/primitive/JsonToSyntax.jl#L416)
+matched `children{s:e}.field(_).children{s2:e2}.leaf_path...` but the
+pair-node structure built by `JsonObjectToSyntaxNode.projection_print`
+puts the key leaf and the value subtree directly under
+`pair.children = [key_leaf, value_subtree]` — no `field(_)` step. Every
+click on a value inside a nested object (e.g. `"Wonderland"`) fell
+through to `_syntax_to_flat` and got wrapped in `proj(JsonObjectToSyntaxNode, {flat})`.
+Fix: `children{s:e}.children{s2:e2}.leaf_path...`.
+
+### 7.2 `NestingProjection.map_reference_*` returned `nothing`
+
+[program/src/projection/higherorder/Nesting.jl#L69](../../program/src/projection/higherorder/Nesting.jl#L69)
+had stub `map_reference_*` returning `nothing`. `json_sorted` wraps the
+top-level JSON pipeline in `SortingAtProjection`, which expands to
+`RecursiveProjection(ReferenceDispatchingProjection(… entries =>
+NestingProjection(SortingProjection, recursion=PreservingProjection)))`.
+At the screen level, `CopyingProjection._map_ref` walks struct fields
+via `map_reference_backward`. When it reached the `entries` field's
+child iomap (a `NestingProjectionIoMap`), it called
+`map_reference_backward(NestingProjection, …)` and got `nothing`,
+killing the chain. Without this fix the JSON pattern fix above broke
+`json_sorted`. Fix: `map_reference_forward/backward` delegate to inner.
+
+### 7.3 Initial selection not lifted to the screen
+
+[example/src/Examples.jl `run_example`](../../example/src/Examples.jl)
+wrapped each example's `document` (with its pre-set deep selection) in a
+`ScreenDocument`/`WindowDocument`, but never lifted the inner selection
+to a screen-rooted path. `screen.selection` stayed `nothing`. The
+editor's loop runs `clear_selection!(screen); set_selection!(screen, op.path)`
+on every click, and `clear_selection!` only walks the chain reachable
+from `screen.selection` — so the inner stale selection (e.g. on Alice)
+was never cleared. The next click took a different branch via
+`set_selection!`, leaving *two* leaves with non-`nothing` selections.
+`_collect_spans` iterates children left-to-right and picks the first
+cursor it finds, so the cursor appeared stuck on the original branch.
+
+Fix: after building the `ScreenDocument`, lift the first window's
+content selection by calling
+`set_selection!(screen, @reference windows[i].content.^(inner_sel))`
+(`.windows[i].content.child.^(inner_sel)` for the tooltip variant).
+This populates `screen.selection` so subsequent `clear_selection!`
+walks the full chain.
+
+### 7.4 Pre-existing bug found in `BookToSyntax._backward_book_path`
+
+Slice B's stricter offset accounting in `_subtree_len` /
+`_pos_to_selection` (always emit the trailing `\n + indent` before
+close, not just for empty children) made more positions reachable.
+That exposed a pre-existing path-shape bug: `_backward_book_path`
+emitted `elements{N}` (PositionReference, 0-based cursor semantics)
+where it should have emitted `elements[N]` (ElementReference, 1-based
+index semantics). `set_selection!` interprets RangeReference as
+`idx = h.start + 1`, so a "position 1" cursor was navigating to
+element 2, then a backward translation from a BookParagraph's
+`.value{k}` was applied to a BookList sibling. Fix: three `{elem_i}` →
+`[elem_i]` edits in `BookToSyntax.jl`.
+
+### 7.5 `_flat_to_text_elem_path` would anchor on empty spans
+
+For `JsonNull`, the rendered SyntaxLeaf has `open=""`, `value="null"`,
+`close=""`. A cursor at flat offset 4 (end of "null") was mapped to
+`.elements[3].content{0}` (the empty close span). `_collect_spans`'s
+cursor renderer only emits SegCoords for non-empty spans, so the
+cursor disappeared. Fix: when `flat_pos` lands at the boundary, anchor
+on the last non-empty span instead of advancing into an empty next
+span.
+
+### Tests added beyond the original slice plan
+
+- `test_json_content_clicks_clean_all()` — walks each JSON example's
+  rendered segments, picks the ones whose text matches a known content
+  string (a `JsonString`/`JsonNumber`/`JsonBool` value or an object
+  key), and asserts the resulting click path contains no
+  `ProjectionReference`. Catches §7.1 by construction.
+- `SyntaxToText flat-position round-trip` (unit-level): walks every
+  flat offset of three hand-built syntax trees and asserts
+  `_syntax_to_flat ∘ _pos_to_selection == identity`. Caught §7.4 and
+  the trailing-newline accounting bug.
+
+### Out-of-scope items still tracked
+
+- `TextToGraphics._print_listnode` ignores `char_to_coord` — `book`,
+  `conversation`, `assistant` examples skip click round-trip.
+- `SyntaxListToText` has no `map_reference_*`.
+- `object`, `math`, `julia` domain projections don't yet propagate
+  selection forward to the cursor cell.
+- `collection`, `reversing`, `filtering`, `sorting`: tracked in
+  [plan/pending/fix-selection-tests.md](../pending/fix-selection-tests.md).

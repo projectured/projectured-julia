@@ -54,14 +54,14 @@ the new outputs in place. Key behaviours:
   reference into the input is faithfully translated through the copied
   spine.
 
-The CopyingProjection's IoMap also stores `recursion` and `base_reference`
-so it can lazily project a ListNode child on demand when a backward
-reference points there.
+The CopyingProjection's IoMap also stores `recursion` and `base_ctx`
+(the `ProjectionContext`) so it can lazily project a ListNode child on demand
+when a backward reference points there.
 
 ## ReversingProjection
 
 ```julia
-projection_print(::ReversingProjection, input, recursion, reference)
+projection_print(::ReversingProjection, input, recursion, ctx)
 ```
 
 Reverses the elements. The reference map flips an index `i` to

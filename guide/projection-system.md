@@ -7,11 +7,22 @@ they make, flows through one or more projections.
 A projection has four entry points:
 
 ```julia
-projection_print(projection, input, recursion, reference) → iomap
-projection_read(projection, iomap, event_or_op)           → op_or_nothing
-map_reference_forward(projection, iomap, reference)       → output_ref_or_nothing
-map_reference_backward(projection, iomap, reference)      → input_ref_or_nothing
+projection_print(projection, input, recursion, context::ProjectionContext) → iomap
+projection_read(projection, iomap, event_or_op)                            → op_or_nothing
+map_reference_forward(projection, iomap, reference)                        → output_ref_or_nothing
+map_reference_backward(projection, iomap, reference)                       → input_ref_or_nothing
 ```
+
+The four functions come in two symmetric pairs, one per direction of data flow.
+Forward, `projection_print` produces the output **and** wires the cursor by
+calling `map_reference_forward`. Backward, `projection_read` consumes an
+output-domain event **and** maps the cursor by calling `map_reference_backward`.
+The rule of thumb that follows from this symmetry — and that the rest of this
+guide leans on — is:
+
+> **`projection_print` uses `map_reference_forward`; `projection_read` uses
+> `map_reference_backward`.** The two mappers are the single source of truth for
+> how a path crosses the projection, written once and reused on both sides.
 
 All four are generic functions declared in
 [program/src/api/Projection.jl](../program/src/api/Projection.jl) and dispatched on
@@ -30,31 +41,84 @@ The two extra arguments are essential:
 
 - **`recursion`** is the projection to call when descending into sub-documents
   (typically populated by `RecursiveProjection`, which passes *itself* so the
-  inner projection can recurse through the whole pipeline). When you are not
-  recursing, pass `nothing`.
-- **`reference`** is the `ReferencePath` from the editor's document root to the
-  *current* input. Each projection extends this path before recursing into a
-  child, so every projection knows where in the original document it sits.
-  The top-level call passes `EmptyReferencePath()`. This is what enables
-  [ReferenceDispatchingProjection](higher-order-projections.md) to switch
-  behaviour based on document-root-relative location.
+  inner projection can recurse through the whole pipeline). A leaf projection
+  that never descends ignores it. A node projection threads it **twice** — as
+  the projection to call *and* as that call's own `recursion` argument; see
+  [§ Recursion across projections](#recursion-across-projections).
+- **`context`** is a [`ProjectionContext`](../program/src/context/ProjectionContext.jl):
+  a downward-flowing, extensible struct carrying the `reference` path from the
+  editor's document root to the *current* input, plus optional layout extent
+  (`available_width`/`available_height`) and an open `properties` Dict. Each
+  projection extends the reference before recursing into a child by calling
+  `child_context(ctx, step…)` (or `child_context(ctx, full_path)`), so every
+  projection knows where in the original document it sits — which is what
+  enables [ReferenceDispatchingProjection](higher-order-projections.md) to
+  switch behaviour based on document-root-relative location. The top-level call
+  passes a fresh `ProjectionContext()` (whose reference is
+  `EmptyReferencePath()`).
 
 A two-argument convenience overload `projection_print(p, input)` is defined in
 [common/Projection.jl](../program/src/common/Projection.jl) and supplies
-`nothing` and `EmptyReferencePath()`. The editor uses this.
+`nothing` and a fresh `ProjectionContext()`. The editor uses this.
+
+**Wiring the selection.** The output document's `selection::Cell` is not a
+parameter — it is computed reactively. The canonical form maps the input
+selection forward through this projection's own mapper, so the path mapping is
+defined in exactly one place:
+
+```julia
+output.selection = Cell(() -> map_reference_forward(p, iomap, input.selection))
+```
+
+For a node projection the `iomap` does not exist yet when the cell is built; use
+the deferred-iomap trick (`iomap_cell = Cell(nothing)`; assign it after
+constructing the IoMap — see `CopyingProjection`). A leaf whose input and
+output selection formats are identical may instead *share* the same
+`selection::Cell` on both sides (`getfield(input, :selection)`); that shortcut
+is valid only leaf-to-leaf (see [§7 of the selection deep dive](selection-deep-dive.md)).
 
 ### `projection_read` — the reader
 
-Takes an event from the output domain (key press, mouse click, or an `Operation`
-produced by a downstream projection) and returns an `Operation` in the input
-domain — or `nothing` if this projection has nothing to say about the event.
-The last projection in a pipeline receives raw device events; every earlier
-projection receives the operation produced by its downstream neighbour.
+Takes either a raw device event (key press, mouse click) or an `Operation`
+produced by another projection, and returns an `Operation` in the input
+domain — or `nothing` if this projection has nothing to say about it. The
+editor hands the raw event to the **top-level** projection's `projection_read`;
+how it is routed from there is up to each projection. A `SequentialProjection`
+forwards it down its chain and threads the resulting operation back up through
+each earlier step; a routing projection instead dispatches it to the
+sub-projection of the relevant document part. It is entirely the projection's
+decision.
 
 The default `projection_read` (in `ProjectionModule`) handles
 `ReplaceSelectionOperation` by calling `map_reference_backward` on the path —
 so for most simple projections, only the two reference-mapping functions need
-methods.
+methods. When you do write a `projection_read`, these are the moves available,
+from the lightest touch to the most involved:
+
+- **Re-target the references.** Most often the incoming operation is the right
+  *kind* and only its references need moving from output to input coordinates
+  with `map_reference_backward` — rewrite the `.reference` of a
+  `StringReplaceRangeOperation` / `NumberReplaceRangeOperation`, or the `.path`
+  of a `ReplaceSelectionOperation` (what the default does), then rebuild the op.
+- **Convert to a different operation.** It is perfectly valid to turn the
+  incoming operation into a *completely different* one — retype it (e.g.
+  `JsonNumberToSyntaxLeaf` turns a `StringReplaceRangeOperation` into a
+  `NumberReplaceRangeOperation` so the evaluator re-parses the value), or
+  replace it outright with whatever operation expresses the same intent in this
+  projection's input domain.
+- **Recurse, then extend.** When `projection_print` descended into children,
+  mirror it: forward the event/operation to the matching child's
+  `projection_read`, take the operation it returns, and extend it to this
+  projection's context — typically by prepending the steps that reach the child
+  (see [§ Mapping references when the printer recurses](#mapping-references-when-the-printer-recurses)).
+- **Probe a child to decide.** A reader may *speculatively* recurse into a
+  document part's reader just to see what operation it would return, and use
+  that answer to decide its own final operation — e.g. to choose among
+  alternatives, or to act only when the child declines (returns `nothing`).
+
+Whichever moves it makes, a projection returns an `Operation` in its own input
+domain (or `nothing`); the operation the **top-level** projection ultimately
+returns is the final answer the editor applies to the document.
 
 ### `map_reference_forward` / `map_reference_backward` — the reference maps
 
@@ -77,6 +141,32 @@ function map_reference_backward(::JsonBoolToSyntaxLeaf, iomap, reference)
     end
 end
 ```
+
+Two principles keep these methods correct across the whole pipeline:
+
+- **Recurse in lockstep with the printer.** If `projection_print` recursed into
+  children, both mappers must recurse too: peel the steps that lead to a child,
+  delegate the remaining tail to that child projection's mapper, and prepend
+  the steps that reach the child. The two ways to *reach* the child mapper are
+  described in [§ Mapping references when the printer recurses](#mapping-references-when-the-printer-recurses).
+- **Cross domains as late as possible.** When an output reference points at
+  something the projection introduced (a delimiter, separator, bracket,
+  indentation), it has no input pre-image. Represent it by keeping input-domain
+  steps for as long as the path still has a pre-image, then wrapping *only the
+  genuinely output-only tail* in this projection's own step:
+
+  ```
+  matched_input_prefix + ProjectionReference(projection, unmatched_output_suffix)
+  ```
+
+  The path then reads like a sentence — input steps say where in the document
+  you are, and `ProjectionReference(projection, …)` marks the exact point where
+  you cross into something that exists only in `projection`'s output. Because
+  `map_reference_forward` strips that same step, the path round-trips cleanly.
+  (Some node projections take a coarser shortcut today — wrapping a single
+  flattened character offset `ProjectionReference(p, {flat})` when individual
+  structural positions are not separately addressable; prefer the fine-grained
+  form when the structure is available.)
 
 ## IoMap
 
@@ -121,21 +211,25 @@ JsonString ──JsonStringToSyntaxLeaf──► SyntaxLeaf ──SyntaxLeafToTe
    └─────────────────── projection_read chain ◄──── KeyPress / MouseClick ─────────────────┘
 ```
 
-Forward each step extends a `reference` argument so child projections know
-their position relative to the document root. Backward each step's IoMap is
-visited in reverse, with each projection's `projection_read` translating the
-operation a step closer to the document's domain.
+Forward, each step extends the `context`'s reference path (via
+`child_context`) so child projections know their position relative to the
+document root, and wires its output selection with `map_reference_forward`.
+Backward, each step's IoMap is visited in reverse, with each projection's
+`projection_read` translating the operation a step closer to the document's
+domain (via `map_reference_backward`).
 
 ## Writing a custom projection
 
 1. Define a struct that subtypes `Projection`. Use `@projection` if you have
    reactive Cell fields.
-2. Implement `projection_print(p, input, recursion, reference)` returning an
+2. Implement `projection_print(p, input, recursion, ctx)` returning an
    `IoMap`. Use `SimpleIoMap` for positional projections, or define your own
    IoMap struct (with `<: IoMap`) when you need to carry extra data.
 3. Implement `map_reference_forward` and `map_reference_backward` — usually
-   the cleanest way is `@reference_case`. The default `projection_read`
-   will then handle selection.
+   the cleanest way is `@reference_case`. `projection_print` wires its output
+   selection by calling `map_reference_forward`; the default `projection_read`
+   handles selection by calling `map_reference_backward`. Write the pair once
+   and both directions work.
 4. If your projection needs to respond to events other than selection moves
    (e.g. mouse scroll, type-to-edit), add a method to `projection_read`
    that returns the corresponding domain operation.
@@ -143,7 +237,7 @@ operation a step closer to the document's domain.
 ```julia
 struct MyProjection <: Projection end
 
-function projection_print(p::MyProjection, input, recursion, reference)
+function projection_print(p::MyProjection, input, recursion, ctx)
     output = transform(input)
     SimpleIoMap(p, input, output)
 end
@@ -167,22 +261,30 @@ A leaf projection maps one document value to one output value. A compound
 projection maps one input *node* to an output node whose children are the
 recursively-projected input children. The extra requirements are:
 
-1. **Call `projection_print` on each child** via the `recursion` argument.
+1. **Call `projection_print` on each child** via the `recursion` argument —
+   threading `recursion` twice (see [§ Recursion across projections](#recursion-across-projections)).
 2. **Store the child IO maps** in a shared reactive `Cell` (not inline in two
    separate cells — see [§8 of the selection deep dive](selection-deep-dive.md)).
-3. **Project the selection reactively** using the child IO maps.
-4. **Use `ChildrenIoMap`** rather than `SimpleIoMap` so the reader can locate
-   the correct child IO map when translating a selection backward.
+3. **Project the selection reactively.** Canonically this is
+   `Cell(() -> map_reference_forward(p, iomap, node.selection))` with the
+   deferred-iomap trick for the not-yet-built `iomap`. The inline form shown
+   below reads the child IO maps directly; it is equivalent when the mapper
+   would perform the same walk.
+4. **Use `ChildrenIoMap`** rather than `SimpleIoMap` so the reader and the
+   reference maps can locate the correct child IO map when translating
+   backward (see [§ Mapping references when the printer recurses](#mapping-references-when-the-printer-recurses)).
 
 ```julia
 struct MyNodeProjection <: Projection end
 
-function projection_print(p::MyNodeProjection, node::MyNode, recursion, reference)
-    # Step 1+2: project children, store IO maps in a shared cell
+function projection_print(p::MyNodeProjection, node::MyNode, recursion, ctx)
+    # Step 1+2: project children, store IO maps in a shared cell.
+    # `recursion` is threaded twice (projection to call + that call's own
+    # recursion arg); `child_context` extends the reference path to child i.
     child_iomaps = Cell(() -> [
         projection_print(recursion, getfield(node, :children)[][i][],
                          recursion,
-                         append_reference(reference, ElementReference(Cell(i))))
+                         child_context(ctx, ElementReference(Cell(i))))
         for i in 1:length(node.children)
     ])
 
@@ -244,12 +346,75 @@ example with document types, example, and test.
 ## Recursion across projections
 
 Whenever a node-shaped projection produces children, it should call
-`projection_print(recursion, child, recursion, child_ref)` where `child_ref`
-extends the current reference (`append_reference(reference, ...)`). This
-delegates back to whatever higher-order projection — typically `RecursiveProjection`
-wrapping a `TypeDispatchingProjection` — is driving the traversal. The
-node projection thus does not hard-code which inner projections handle each
-child type.
+`projection_print(recursion, child, recursion, child_ctx)` where `child_ctx`
+extends the current context (`child_context(ctx, <step to the child>)`). Note
+`recursion` appears **twice**, and this is deliberate: the first slot is the
+projection to invoke, the second is *that* call's own `recursion` argument.
+Both must be `recursion` (not `p`, not `nothing`) so the child re-enters the
+whole pipeline — typically a `RecursiveProjection` wrapping a
+`TypeDispatchingProjection` — rather than this one projection. The node
+projection thus does not hard-code which inner projections handle each child
+type. Get either slot wrong and heterogeneous recursion silently breaks: the
+child gets projected by the wrong projection, or not recursively at all.
+
+## Mapping references when the printer recurses
+
+When `projection_print` recurses into children, `map_reference_forward` and
+`map_reference_backward` must recurse in lockstep — the path mapping has to
+descend through exactly the structure the printer built. There are two schools
+for *reaching the child mapper*, and both are valid.
+
+**School A — delegate through the stored child IO maps.** Peel the step that
+selects a child, look up its IO map (stored by the printer in `ChildrenIoMap`
+or a bespoke field), and call the child projection's own mapper on the tail:
+
+```julia
+function map_reference_forward(::MyNodeProjection, iomap::ChildrenIoMap, reference)
+    @reference_case reference begin
+        children[i] + rest => begin
+            child = iomap.child_iomaps[][i]
+            inner = map_reference_forward(child.projection, child, rest)
+            inner === nothing ? nothing : (@reference children[i].^(inner))
+        end
+    end
+end
+```
+
+`CopyingProjection`, `SortingProjection`, and the `MyNodeProjection` example
+above use this school.
+
+**School B — re-walk the known input structure with type dispatch.** When the
+shape and child *types* are statically fixed, skip the stored IO maps and
+recurse over the input document directly, dispatching on each child's type:
+
+```julia
+function _forward(v::JsonArray, path)
+    @reference_case path begin
+        elements{s:e}.rest... => begin
+            i = s + 1
+            inner = _forward(v[i], rest)        # recurse on the input child
+            inner === nothing ? nothing : (@reference children[i].^(inner))
+        end
+    end
+end
+```
+
+`JsonArrayToSyntaxNode` and `JsonObjectToSyntaxNode` use this school (see
+`_forward_json_path` / `_translate_json_path` in
+[JsonToSyntax.jl](../program/src/projection/primitive/JsonToSyntax.jl)).
+
+**Which to use.**
+
+| Prefer School A (delegate through child IO maps) | Prefer School B (static structural walk) |
+|---|---|
+| Children are heterogeneous and the projection that handled each was chosen by a dispatcher (`TypeDispatchingProjection`, `AlternativeProjection`) | The child shape and types are fixed and known at the mapper site |
+| The child projection reorders / filters / transforms indices (sorting, reversing, filtering), so only *its* IO map knows the mapping | The mapping is a fixed structural rewrite the mapper can reproduce from the input alone |
+| You want the mapper to stay correct automatically as the inner pipeline changes | You accept keeping the mapper in sync with the printer by hand |
+
+School A is the safer default — it cannot drift from whatever projection
+actually ran. School B is leaner when the structure is rigid. Whichever you
+pick, the two directions must agree with each other *and* with how the printer
+wired the output selection.
 
 ## Type dispatching
 
