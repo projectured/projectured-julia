@@ -269,7 +269,10 @@ end
 function _apply_string_replace!(target::TextString, field_name::AbstractString, s::Int, e::Int, replacement::AbstractString)
     field_name == "content" || error("TextString supports only field 'content', got: $field_name")
     old = target.content::AbstractString
-    target.content = old[1:s] * replacement * old[e + 1:end]
+    n = length(old)
+    left  = s <= 0 ? "" : first(old, s)
+    right = e >= n ? "" : last(old, n - e)
+    target.content = String(left) * replacement * String(right)
 end
 
 # ── setfn! delegation ───────────────────────────────────────────────

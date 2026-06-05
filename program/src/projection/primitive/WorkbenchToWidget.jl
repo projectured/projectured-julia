@@ -43,6 +43,7 @@ import ..PrimitiveModule: StringReplaceRangeOperation, NumberReplaceRangeOperati
 import ..KeyboardModule: KeyDown
 import ..ReferenceModule: ReferencePath, ConcreteReferencePath, ElementReference, PositionReference, RangeReference, EmptyReferencePath, FieldReference, append_reference
 import ..ReferenceBuilderModule: var"@reference"
+import ..ReferenceCaseModule: var"@reference_case"
 import ..ProjectionContextModule: child_context
 export WorkbenchWorkbenchToWidgetShell,    WorkbenchWorkbenchToWidgetShellIoMap,
        WorkbenchPageToWidgetTabbedPane,    WorkbenchPageToWidgetTabbedPaneIoMap,
@@ -333,30 +334,56 @@ end
 
 # ── map_reference_backward ────────────────────────────────────────────────────
 
-function map_reference_backward(::WorkbenchWorkbenchToWidgetShell,
-                                 iomap::WorkbenchWorkbenchToWidgetShellIoMap,
-                                 reference)
-    return nothing
-end
+# ── map_reference_backward ──────────────────────────────────────────────
+#
+# Each panel projection translates a widget-domain reference (what the
+# combined widget→graphics chain produced) into a workbench-domain
+# reference rooted at this panel's input document. Widget-side readers
+# have already prepended their structural steps (`content` for a scroll
+# pane, `selector_element_pairs[i]` for a tabbed pane, `elements[i].child`
+# for a split pane slot wrapped in a LayoutConstraint); the panel
+# projections strip the widget naming and re-root with the panel's own
+# workbench field name. The default `projection_read` consults these
+# functions to translate `ReplaceSelectionOperation`, and custom
+# `projection_read` overrides below extend the same translation to
+# `StringReplaceRangeOperation` / `NumberReplaceRangeOperation`.
 
-function map_reference_backward(::WorkbenchPageToWidgetTabbedPane,
-                                 iomap::WorkbenchPageToWidgetTabbedPaneIoMap,
+function map_reference_backward(::WorkbenchEditorToWidgetScrollPane,
+                                 iomap::ContentIoMap,
                                  reference)
-    return nothing
+    @reference_case reference begin
+        content.rest... => @reference content.^(rest)
+    end
 end
 
 function map_reference_backward(::WorkbenchNavigatorToWidgetScrollPane,
                                  iomap::WorkbenchNavigatorToWidgetScrollPaneIoMap,
                                  reference)
-    return nothing
+    # WorkbenchNavigator stores the workspace in `.workspace`; the widget
+    # scroll pane wraps it as `.content`. Rewrite the field name.
+    @reference_case reference begin
+        content.rest... => @reference workspace.^(rest)
+    end
 end
 
 function map_reference_backward(::WorkbenchConsoleToWidgetScrollPane,
                                  iomap::ContentIoMap,
                                  reference)
-    return nothing
+    @reference_case reference begin
+        content.rest... => @reference content.^(rest)
+    end
 end
 
+function map_reference_backward(::WorkbenchEvaluatorToWidgetScrollPane,
+                                 iomap::ContentIoMap,
+                                 reference)
+    @reference_case reference begin
+        content.rest... => @reference content.^(rest)
+    end
+end
+
+# Descriptor/Operator/Searcher render empty or non-document content — no
+# referenceable structure to translate into.
 function map_reference_backward(::WorkbenchDescriptorToWidgetScrollPane, iomap, reference)
     return nothing
 end
@@ -369,49 +396,143 @@ function map_reference_backward(::WorkbenchSearcherToWidgetScrollPane, iomap, re
     return nothing
 end
 
-function map_reference_backward(::WorkbenchEvaluatorToWidgetScrollPane,
-                                 iomap::ContentIoMap,
-                                 reference)
-    return nothing
-end
-
 function map_reference_backward(::WorkbenchAssistantToWidgetSplitPane,
                                  iomap,
                                  reference)
-    return nothing
+    # The assistant projects to a vertical WidgetSplitPane with the
+    # conversation pane at slot 0 and the input pane at slot 1, each
+    # wrapped in a LayoutConstraint and then a WidgetScrollPane.
+    # So bubbled paths look like `elements[i].child.content.<rest>`.
+    @reference_case reference begin
+        elements{s:e}.child.content.rest... => begin
+            i = s + 1
+            if i == 1
+                @reference conversation.^(rest)
+            elseif i == 2
+                @reference input.^(rest)
+            else
+                nothing
+            end
+        end
+    end
 end
 
-function map_reference_backward(::WorkbenchEditorToWidgetScrollPane,
-                                 iomap::ContentIoMap,
+function map_reference_backward(::WorkbenchPageToWidgetTabbedPane,
+                                 iomap::WorkbenchPageToWidgetTabbedPaneIoMap,
                                  reference)
-    return nothing
+    # A WorkbenchPage projects to a WidgetTabbedPane whose
+    # `selector_element_pairs[i]` corresponds 1:1 with `elements[i]` of
+    # the page. Recurse via the matching element iomap so the panel's
+    # own backward map can re-root its slice of the path.
+    @reference_case reference begin
+        selector_element_pairs{s:e}.rest... => begin
+            i = s + 1
+            i <= length(iomap.element_iomaps) || return nothing
+            elem_im = iomap.element_iomaps[i]
+            inner = _panel_backward(elem_im, rest)
+            inner === nothing && return nothing
+            @reference elements[i].^(inner)
+        end
+    end
 end
+
+# Dispatch the panel iomap's backward map by the panel input document's
+# type. The panel iomaps were built by the WorkbenchToWidget factory which
+# stores `projection = nothing` on the per-panel IoMap structs, so we
+# can't dispatch on the stored projection — we dispatch on `input` type
+# instead.
+_panel_backward(elem_im, rest) = _panel_backward(elem_im.input, elem_im, rest)
+_panel_backward(::WorkbenchEditor,     im, ref) = map_reference_backward(WorkbenchEditorToWidgetScrollPane(),     im, ref)
+_panel_backward(::WorkbenchNavigator,  im, ref) = map_reference_backward(WorkbenchNavigatorToWidgetScrollPane(),  im, ref)
+_panel_backward(::WorkbenchConsole,    im, ref) = map_reference_backward(WorkbenchConsoleToWidgetScrollPane(),    im, ref)
+_panel_backward(::WorkbenchEvaluator,  im, ref) = map_reference_backward(WorkbenchEvaluatorToWidgetScrollPane(),  im, ref)
+_panel_backward(::WorkbenchDescriptor, im, ref) = map_reference_backward(WorkbenchDescriptorToWidgetScrollPane(), im, ref)
+_panel_backward(::WorkbenchOperator,   im, ref) = map_reference_backward(WorkbenchOperatorToWidgetScrollPane(),   im, ref)
+_panel_backward(::WorkbenchSearcher,   im, ref) = map_reference_backward(WorkbenchSearcherToWidgetScrollPane(),   im, ref)
+_panel_backward(::WorkbenchAssistant,  im, ref) = map_reference_backward(WorkbenchAssistantToWidgetSplitPane(),   im, ref)
+_panel_backward(_, _, _)                        = nothing
+
+function map_reference_backward(::WorkbenchWorkbenchToWidgetShell,
+                                 iomap::WorkbenchWorkbenchToWidgetShellIoMap,
+                                 reference)
+    # The workbench shell's widget tree is:
+    #   WidgetShell.content (horizontal WidgetSplitPane)
+    #     elements[0].child = nav page widget   ← navigation_page
+    #     elements[1].child = center (vertical WidgetSplitPane)
+    #       elements[0].child = edit page widget   ← editing_page
+    #       elements[1].child = info page widget   ← information_page
+    #     elements[2].child = ctrl page widget  ← control_page
+    @reference_case reference begin
+        content.elements{0:1}.child.rest... => begin
+            inner = _page_backward(iomap.navigation_page_iomap, rest)
+            inner === nothing && return nothing
+            @reference navigation_page.^(inner)
+        end
+        content.elements{1:2}.child.elements{0:1}.child.rest... => begin
+            inner = _page_backward(iomap.editing_page_iomap, rest)
+            inner === nothing && return nothing
+            @reference editing_page.^(inner)
+        end
+        content.elements{1:2}.child.elements{1:2}.child.rest... => begin
+            inner = _page_backward(iomap.information_page_iomap, rest)
+            inner === nothing && return nothing
+            @reference information_page.^(inner)
+        end
+        content.elements{2:3}.child.rest... => begin
+            inner = _page_backward(iomap.control_page_iomap, rest)
+            inner === nothing && return nothing
+            @reference control_page.^(inner)
+        end
+    end
+end
+
+_page_backward(page_iomap::WorkbenchPageToWidgetTabbedPaneIoMap, rest) =
+    map_reference_backward(WorkbenchPageToWidgetTabbedPane(), page_iomap, rest)
+_page_backward(_, _) = nothing
 
 # ── projection_read ───────────────────────────────────────────────────────────
 
-function projection_read(::WorkbenchWorkbenchToWidgetShell,
+function projection_read(p::WorkbenchWorkbenchToWidgetShell,
                           iomap::WorkbenchWorkbenchToWidgetShellIoMap, op)
-    # 1. Tab-selection forwarding (e.g. a click that maps to selecting a tab).
-    for (field_name, page_iomap) in (("navigation_page",  iomap.navigation_page_iomap),
-                                      ("editing_page",     iomap.editing_page_iomap),
-                                      ("information_page", iomap.information_page_iomap),
-                                      ("control_page",     iomap.control_page_iomap))
-        page_iomap isa WorkbenchPageToWidgetTabbedPaneIoMap || continue
-        result = projection_read(WorkbenchPageToWidgetTabbedPane(), page_iomap, op)
-        result isa ReplaceSelectionOperation || continue
-        return ReplaceSelectionOperation(
-            ConcreteReferencePath(FieldReference(field_name), result.path))
+    # 1. Tab-strip click: a SelectTabOperation produced by the widget
+    # tabbed pane. Find which page owns the tab strip (by matching
+    # `op.widget` against each page's output) and convert via the page
+    # reader, then re-root under that page's workbench field name.
+    if op isa SelectTabOperation
+        for (field_name, page_iomap) in (("navigation_page",  iomap.navigation_page_iomap),
+                                          ("editing_page",     iomap.editing_page_iomap),
+                                          ("information_page", iomap.information_page_iomap),
+                                          ("control_page",     iomap.control_page_iomap))
+            page_iomap isa WorkbenchPageToWidgetTabbedPaneIoMap || continue
+            result = projection_read(WorkbenchPageToWidgetTabbedPane(), page_iomap, op)
+            result isa ReplaceSelectionOperation || continue
+            return ReplaceSelectionOperation(
+                ConcreteReferencePath(FieldReference(field_name), result.path))
+        end
+        return nothing
     end
-    # 2. If the op is already an Operation produced by an inner reader
-    # (e.g. `ScrollWidgetOperation` from `WidgetScrollPaneToGraphicsCanvas`),
-    # pass it through unchanged. These ops target widgets/documents
-    # directly, not document paths, so they need no further translation.
+    # 2. Path-bearing op from a deeper reader: translate its widget-domain
+    # reference into workbench-domain via `map_reference_backward`.
+    if op isa ReplaceSelectionOperation
+        new_path = map_reference_backward(p, iomap, op.path)
+        return new_path === nothing ? nothing : ReplaceSelectionOperation(new_path)
+    end
+    if op isa StringReplaceRangeOperation
+        new_ref = map_reference_backward(p, iomap, op.reference)
+        return new_ref === nothing ? nothing : StringReplaceRangeOperation(new_ref, op.replacement)
+    end
+    if op isa NumberReplaceRangeOperation
+        new_ref = map_reference_backward(p, iomap, op.reference)
+        return new_ref === nothing ? nothing : NumberReplaceRangeOperation(new_ref, op.replacement)
+    end
+    # 3. Other operation types (e.g. ScrollWidgetOperation) target widgets
+    # directly, not paths — pass through.
     op isa Operation && return op
-    # 3. Route raw events (e.g. KeyPress / KeyDown) into each panel reader so
-    # focus-sensitive handlers (currently only the assistant) can pick them
-    # up. The first reader that returns an Operation wins. Path-bearing
-    # operations get prefixed with the panel's location so
-    # `evaluate_operation` can walk the path against the workbench root.
+    # 4. Raw events (KeyPress / KeyDown). Route them through each panel's
+    # reader so focus-sensitive handlers (currently only the assistant) can
+    # pick them up. Path-bearing results get re-rooted via the panel's
+    # location so `evaluate_operation` can walk the path against the
+    # workbench root.
     wb2w = WorkbenchToWidget()
     for (field_name, page_iomap) in (("navigation_page",  iomap.navigation_page_iomap),
                                       ("editing_page",     iomap.editing_page_iomap),

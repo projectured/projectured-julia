@@ -415,21 +415,29 @@ end
 function _apply_string_replace!(target::JsonString, field_name::AbstractString, s::Int, e::Int, replacement::AbstractString)
     field_name == "value" || error("JsonString supports only field 'value', got: $field_name")
     old = something(target.value, "")
-    target.value = old[1:s] * replacement * old[e + 1:end]
+    target.value = _slice_replace(old, s, e, replacement)
 end
 
 function _apply_string_replace!(target::JsonObjectEntry, field_name::AbstractString, s::Int, e::Int, replacement::AbstractString)
     field_name == "key" || error("JsonObjectEntry supports only field 'key', got: $field_name")
     old = something(target.key, "")
-    target.key = old[1:s] * replacement * old[e + 1:end]
+    target.key = _slice_replace(old, s, e, replacement)
 end
 
 function _apply_number_replace!(target::JsonNumber, field_name::AbstractString, s::Int, e::Int, replacement::AbstractString)
     field_name == "value" || error("JsonNumber supports only field 'value', got: $field_name")
     old_num = target.value
     old_str = old_num === nothing ? "" : string(old_num)
-    new_str = old_str[1:s] * replacement * old_str[e + 1:end]
+    new_str = _slice_replace(old_str, s, e, replacement)
     target.value = isempty(new_str) ? nothing : something(tryparse(Float64, new_str), nothing)
+end
+
+# Character-aware replacement helper (positions are 0-based char offsets).
+function _slice_replace(old::AbstractString, s::Int, e::Int, replacement::AbstractString)
+    n = length(old)
+    left  = s <= 0 ? "" : first(old, s)
+    right = e >= n ? "" : last(old, n - e)
+    String(left) * replacement * String(right)
 end
 
 # ── Display ──────────────────────────────────────────────────────────────

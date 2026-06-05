@@ -198,9 +198,13 @@ function _replace_selection_with_cursor!(document, op)
     set_selection!(document, new_path)
 end
 
-# Apply the replacement to `old_str` between 0-based boundaries [s, e].
+# Apply the replacement to `old_str` between 0-based **character** boundaries
+# [s, e]. Uses char-aware slicing so multi-byte characters survive intact.
 function _apply_range_replace(old_str::AbstractString, s::Int, e::Int, replacement::AbstractString)
-    old_str[1:s] * replacement * old_str[e + 1:end]
+    n = length(old_str)
+    left  = s <= 0 ? "" : first(old_str, s)
+    right = e >= n ? "" : last(old_str, n - e)
+    String(left) * replacement * String(right)
 end
 
 # ── Primitive domain implementations ─────────────────────────────────────────

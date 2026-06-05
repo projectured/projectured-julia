@@ -35,7 +35,8 @@ import ..IoMapModule: SimpleIoMap, ChildrenIoMap
 import ..IoMapApiModule: IoMap
 import ..MouseModule: MouseScroll, MousePress
 import ..OperationModule: ReplaceSelectionOperation
-import ..ReferenceModule: ConcreteReferencePath, FieldReference, RangeReference
+import ..PrimitiveModule: StringReplaceRangeOperation, NumberReplaceRangeOperation
+import ..ReferenceModule: ReferencePath, ConcreteReferencePath, FieldReference, RangeReference
 import ..TypeDispatchingModule: TypeDispatchingProjection
 import ..ProjectionContextModule: child_context, with_available_size
 import ..LayoutModule: LayoutConstraint, allocate_axis, layout_min, layout_max,
@@ -270,6 +271,52 @@ _route_scroll_to_children(child_entries::Vector, evt::MouseScroll) =
 _route_click_to_children(child_entries::Vector, evt::MousePress) =
     _route_to_children(child_entries, evt.x, evt.y,
         (x, y) -> MousePress(evt.button, x, y, evt.modifiers))
+
+# Translate a path-bearing op from `op`'s current domain (this projection's
+# child's input domain — what the bubbled-up reader returned) into this
+# projection's own input domain by running its reference through
+# `map_reference_backward`. Non-path-bearing ops (ScrollWidgetOperation,
+# SelectTabOperation, …) pass through unchanged; `nothing` passes through.
+# Returns `nothing` if the backward mapping rejects the reference.
+function _retarget_op(p, iomap, op)
+    op === nothing && return nothing
+    if op isa ReplaceSelectionOperation
+        new_ref = map_reference_backward(p, iomap, op.path)
+        return new_ref === nothing ? nothing : ReplaceSelectionOperation(new_ref)
+    elseif op isa StringReplaceRangeOperation
+        new_ref = map_reference_backward(p, iomap, op.reference)
+        return new_ref === nothing ? nothing : StringReplaceRangeOperation(new_ref, op.replacement)
+    elseif op isa NumberReplaceRangeOperation
+        new_ref = map_reference_backward(p, iomap, op.reference)
+        return new_ref === nothing ? nothing : NumberReplaceRangeOperation(new_ref, op.replacement)
+    else
+        return op
+    end
+end
+
+# Prepend a tuple of reference steps to the reference inside a path-bearing
+# operation. Used by readers that need to add several steps at once (e.g.
+# split pane: `elements[i].child`).
+function _prepend_steps_to_ref(ref::ReferencePath, steps::Tuple)
+    result = ref
+    for step in reverse(steps)
+        result = ConcreteReferencePath(step, result)
+    end
+    result
+end
+
+function _prepend_steps_to_op(op, steps::Tuple)
+    op === nothing && return nothing
+    if op isa ReplaceSelectionOperation
+        ReplaceSelectionOperation(_prepend_steps_to_ref(op.path, steps))
+    elseif op isa StringReplaceRangeOperation
+        StringReplaceRangeOperation(_prepend_steps_to_ref(op.reference, steps), op.replacement)
+    elseif op isa NumberReplaceRangeOperation
+        NumberReplaceRangeOperation(_prepend_steps_to_ref(op.reference, steps), op.replacement)
+    else
+        op
+    end
+end
 
 # ── WidgetLabel ─────────────────────────────────────────────────────────────
 
@@ -599,15 +646,20 @@ function map_reference_forward(::WidgetShellToGraphicsCanvas, iomap, reference)
     return nothing
 end
 
-function map_reference_backward(::WidgetShellToGraphicsCanvas, iomap, reference)
-    return nothing
+# The shell wraps a single child widget as its `.content` field. A path
+# coming up from the child's reader lives at `.content.<rest>` in the
+# shell's input domain.
+function map_reference_backward(p::WidgetShellToGraphicsCanvas, iomap::ChildrenIoMap, reference)
+    reference === nothing && return nothing
+    ConcreteReferencePath(FieldReference("content"), reference)
 end
 
-function projection_read(::WidgetShellToGraphicsCanvas, iomap::ChildrenIoMap, evt)
+function projection_read(p::WidgetShellToGraphicsCanvas, iomap::ChildrenIoMap, evt)
     child_iomaps = iomap.child_iomaps[]::Vector
-    evt isa MouseScroll && return _route_scroll_to_children(child_iomaps, evt)
-    evt isa MousePress  && return _route_click_to_children(child_iomaps, evt)
-    nothing
+    op = evt isa MouseScroll ? _route_scroll_to_children(child_iomaps, evt) :
+         evt isa MousePress  ? _route_click_to_children(child_iomaps, evt)  :
+         nothing
+    _retarget_op(p, iomap, op)
 end
 
 # ── WidgetTitlePane ─────────────────────────────────────────────────────────
@@ -874,21 +926,44 @@ function map_reference_forward(::WidgetSplitPaneToGraphicsCanvas, iomap, referen
     return nothing
 end
 
-function map_reference_backward(::WidgetSplitPaneToGraphicsCanvas, iomap, reference)
+# The split's input has `.elements[i]` (a CellVector). When the i-th slot
+# wraps the child in a LayoutConstraint, the projector recurses into
+# `.child` of the constraint; the backward map must account for that to
+# re-root the inner path.
+function map_reference_backward(p::WidgetSplitPaneToGraphicsCanvas, iomap::ChildrenIoMap, reference)
+    reference === nothing && return nothing
+    # Without a slot index this function can't disambiguate which child;
+    # leave path-bearing translation to `projection_read` (which tracks the
+    # slot it actually routed to). Cell-cursor mapping for the split's
+    # selection is not currently used.
     return nothing
 end
 
-function projection_read(::WidgetSplitPaneToGraphicsCanvas, iomap::ChildrenIoMap, evt)
+function projection_read(p::WidgetSplitPaneToGraphicsCanvas, iomap::ChildrenIoMap, evt)
     child_iomaps = iomap.child_iomaps[]::Vector
-    evt isa MouseScroll && return _route_split_event(child_iomaps, evt.x, evt.y,
-                                                     (x, y) -> MouseScroll(evt.dx, evt.dy, x, y))
-    evt isa MousePress  && return _route_split_event(child_iomaps, evt.x, evt.y,
-                                                     (x, y) -> MousePress(evt.button, x, y, evt.modifiers))
-    nothing
+    res = if evt isa MouseScroll
+        _route_split_event(child_iomaps, evt.x, evt.y,
+            (x, y) -> MouseScroll(evt.dx, evt.dy, x, y))
+    elseif evt isa MousePress
+        _route_split_event(child_iomaps, evt.x, evt.y,
+            (x, y) -> MousePress(evt.button, x, y, evt.modifiers))
+    else
+        nothing
+    end
+    res === nothing && return nothing
+    op, slot_idx = res
+    # The slot at `iomap.input.elements[slot_idx]` may be wrapped in a
+    # LayoutConstraint; if so, the projector descended into `.child`, and
+    # the backward path must walk through it.
+    elem = iomap.input.elements[slot_idx]
+    steps = elem isa LayoutConstraint ?
+            (FieldReference("elements"), RangeReference(slot_idx-1, slot_idx), FieldReference("child")) :
+            (FieldReference("elements"), RangeReference(slot_idx-1, slot_idx))
+    _prepend_steps_to_op(op, steps)
 end
 
 function _route_split_event(child_iomaps::Vector, x::Int, y::Int, make_evt)
-    for entry in child_iomaps
+    for (i, entry) in enumerate(child_iomaps)
         entry === nothing && continue
         (x_cell, y_cell, cim) = entry::Tuple{Cell,Cell,Any}
         canvas = cim.output
@@ -898,7 +973,7 @@ function _route_split_event(child_iomaps::Vector, x::Int, y::Int, make_evt)
         lx, ly = x - ox - Int(canvas.x), y - oy - Int(canvas.y)
         hit_element_at(canvas, lx, ly) === nothing && continue
         result = projection_read(cim.projection, cim, make_evt(lx, ly))
-        result !== nothing && return result
+        result !== nothing && return (result, i)
     end
     nothing
 end
@@ -1003,6 +1078,11 @@ function map_reference_forward(::WidgetTabbedPaneToGraphicsCanvas, iomap, refere
     return nothing
 end
 
+# A tabbed pane's input has `.selector_element_pairs[i]` (a Pair whose
+# second member is the i-th tab's content widget). The reader prepends
+# `selector_element_pairs[i]` to bubbled paths so the active tab is
+# encoded; upstream projections (e.g. `WorkbenchPageToWidgetTabbedPane`)
+# decode it. Without a slot index this generic mapper has nothing to add.
 function map_reference_backward(::WidgetTabbedPaneToGraphicsCanvas, iomap, reference)
     return nothing
 end
@@ -1011,7 +1091,10 @@ function projection_read(p::WidgetTabbedPaneToGraphicsCanvas, iomap::ChildrenIoM
     child_iomaps = iomap.child_iomaps[]::Vector
     if evt isa MousePress
         w = iomap.input
-        w isa WidgetTabbedPane || return _route_click_to_children(_active_tab_children(iomap, child_iomaps), evt)
+        if !(w isa WidgetTabbedPane)
+            res = _route_active_tab(iomap, child_iomaps, evt)
+            return _tab_prefix(res)
+        end
         cox, coy = _content_offset(w)
         pairs = w.selector_element_pairs
         if !isempty(pairs)
@@ -1033,22 +1116,57 @@ function projection_read(p::WidgetTabbedPaneToGraphicsCanvas, iomap::ChildrenIoM
                 tab_x += rw
             end
         end
-        return _route_click_to_children(_active_tab_children(iomap, child_iomaps), evt)
+        return _tab_prefix(_route_active_tab(iomap, child_iomaps, evt))
     end
     evt isa MouseScroll || return nothing
-    _route_scroll_to_children(_active_tab_children(iomap, child_iomaps), evt)
+    _tab_prefix(_route_active_tab(iomap, child_iomaps, evt))
 end
 
+# Returns (op, active_idx) — the index is the 1-based tab number so it can
+# be turned into `selector_element_pairs[idx]` via _tab_prefix below.
+function _route_active_tab(iomap::ChildrenIoMap, child_iomaps::Vector, evt)
+    w = iomap.input
+    w isa WidgetTabbedPane || return nothing
+    active_idx = _active_tab_index(w, length(child_iomaps))
+    active_idx == 0 && return nothing
+    entry = child_iomaps[active_idx]
+    entry === nothing && return nothing
+    (ox, oy, cim) = entry::Tuple{Int,Int,Any}
+    canvas = cim.output
+    canvas isa GraphicsCanvas || return nothing
+    lx, ly = evt.x - ox - Int(canvas.x), evt.y - oy - Int(canvas.y)
+    hit_element_at(canvas, lx, ly) === nothing && return nothing
+    child_evt = evt isa MousePress  ? MousePress(evt.button, lx, ly, evt.modifiers) :
+                evt isa MouseScroll ? MouseScroll(evt.dx, evt.dy, lx, ly) :
+                evt
+    op = projection_read(cim.projection, cim, child_evt)
+    op === nothing && return nothing
+    (op, active_idx)
+end
+
+function _active_tab_index(w::WidgetTabbedPane, n::Int)
+    n == 0 && return 0
+    sel = getfield(w, :selection)[]
+    sel isa ConcreteReferencePath || return 1
+    h = sel.head
+    h isa RangeReference || return 1
+    idx = h.start + 1
+    1 <= idx <= n ? idx : 1
+end
+
+function _tab_prefix(res)
+    res === nothing && return nothing
+    op, idx = res
+    _prepend_steps_to_op(op,
+        (FieldReference("selector_element_pairs"), RangeReference(idx-1, idx)))
+end
+
+# Kept for back-compat with any external callers.
 function _active_tab_children(iomap::ChildrenIoMap, child_iomaps::Vector)
     w = iomap.input
     w isa WidgetTabbedPane || return child_iomaps
-    sel = getfield(w, :selection)[]
-    sel isa ConcreteReferencePath || return isempty(child_iomaps) ? child_iomaps : child_iomaps[1:1]
-    h = sel.head
-    h isa RangeReference || return isempty(child_iomaps) ? child_iomaps : child_iomaps[1:1]
-    idx = h.start + 1
-    1 <= idx <= length(child_iomaps) || return child_iomaps[1:1]
-    child_iomaps[idx:idx]
+    idx = _active_tab_index(w, length(child_iomaps))
+    idx == 0 ? child_iomaps : child_iomaps[idx:idx]
 end
 
 # ── WidgetScrollPane ────────────────────────────────────────────────────────
@@ -1111,21 +1229,51 @@ function map_reference_forward(::WidgetScrollPaneToGraphicsCanvas, iomap, refere
     return nothing
 end
 
-function map_reference_backward(::WidgetScrollPaneToGraphicsCanvas, iomap, reference)
-    return nothing
+# The scroll pane wraps a single content document as its `.content` field.
+# A path arriving from the content's reader is already in the content's
+# input domain (the inner pipeline has already translated it); the scroll
+# pane's contribution is just to prepend `.content` to re-root it in the
+# scroll pane's own input domain.
+function map_reference_backward(::WidgetScrollPaneToGraphicsCanvas, iomap::WidgetScrollPaneToGraphicsCanvasIoMap, reference)
+    reference === nothing && return nothing
+    ConcreteReferencePath(FieldReference("content"), reference)
 end
 
 function projection_read(p::WidgetScrollPaneToGraphicsCanvas, iomap::WidgetScrollPaneToGraphicsCanvasIoMap, evt)
-    evt isa MouseScroll || return nothing
     canvas = iomap.output
-    # evt coords are already relative to canvas origin (parent routing subtracted position)
-    hit_element_at(canvas, evt.x, evt.y) === nothing && return nothing
-    _, scroll_step = p.measure("M", p.font)
-    if evt.dx != 0 && evt.dy == 0
-        return ScrollWidgetOperation(iomap.input, Point2D(-evt.dx * scroll_step, 0))
-    else
-        return ScrollWidgetOperation(iomap.input, Point2D(0, -evt.dy * scroll_step))
+    if evt isa MouseScroll
+        # evt coords are already relative to canvas origin (parent routing subtracted position)
+        hit_element_at(canvas, evt.x, evt.y) === nothing && return nothing
+        _, scroll_step = p.measure("M", p.font)
+        if evt.dx != 0 && evt.dy == 0
+            return ScrollWidgetOperation(iomap.input, Point2D(-evt.dx * scroll_step, 0))
+        else
+            return ScrollWidgetOperation(iomap.input, Point2D(0, -evt.dy * scroll_step))
+        end
     end
+    # Forward other events (MousePress, KeyDown, KeyPress) to the wrapped
+    # content. Coords for MousePress arrive relative to the scroll pane's
+    # canvas origin (parent routing has already subtracted the pane's own
+    # position); translate into the content's coordinate system by
+    # subtracting the content origin (cox, coy) and adding the current
+    # scroll offset. Any path-bearing op returned by the content's reader
+    # is in the content's input domain; map it through this projection's
+    # `map_reference_backward` to re-root it at `.content.<rest>` in the
+    # scroll pane's input domain.
+    content_iomap = iomap.content_iomap
+    content_iomap === nothing && return nothing
+    op = if evt isa MousePress
+        w = iomap.input
+        cox, coy = _content_offset(w)
+        sp = getfield(w, :scroll_position)[]::Point2D
+        sx, sy = Int(sp.x[]), Int(sp.y[])
+        lx, ly = evt.x - cox + sx, evt.y - coy + sy
+        projection_read(content_iomap.projection, content_iomap,
+                         MousePress(evt.button, lx, ly, evt.modifiers))
+    else
+        projection_read(content_iomap.projection, content_iomap, evt)
+    end
+    _retarget_op(p, iomap, op)
 end
 
 # ── WidgetToolbar ───────────────────────────────────────────────────────────
@@ -1318,15 +1466,16 @@ function projection_read(p::WidgetScrollPaneToGraphicsViewport, iomap::WidgetScr
     content_iomap = iomap.content_iomap
     content_iomap === nothing && return nothing
     op = projection_read(content_iomap.projection, content_iomap, evt)
-    op === nothing && return nothing
-    if op isa ReplaceSelectionOperation
-        return ReplaceSelectionOperation(ConcreteReferencePath(FieldReference("content"), op.path))
-    end
-    return op
+    return _retarget_op(p, iomap, op)
 end
 
 function map_reference_forward(::WidgetScrollPaneToGraphicsViewport, iomap, reference)
     return nothing
+end
+
+function map_reference_backward(::WidgetScrollPaneToGraphicsViewport, iomap::WidgetScrollPaneToGraphicsViewportIoMap, reference)
+    reference === nothing && return nothing
+    ConcreteReferencePath(FieldReference("content"), reference)
 end
 
 function map_reference_backward(::WidgetScrollPaneToGraphicsViewport, iomap, reference)
