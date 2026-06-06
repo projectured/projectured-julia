@@ -22,6 +22,7 @@ import ..ReferenceCaseModule: var"@reference_case"
 import ..ReferenceBuilderModule: var"@reference"
 import ..ProjectionContextModule: child_context
 import ..OperationModule: ReplaceSelectionOperation
+import ..PrimitiveModule: StringReplaceRangeOperation
 import ..SyntaxToTextModule: SyntaxNodeToText, _syntax_to_flat
 export XmlInsertionToSyntaxLeaf, XmlTextToSyntaxLeaf, XmlElementToSyntaxNode, XmlToSyntax
 
@@ -74,6 +75,14 @@ function projection_read(p::XmlTextToSyntaxLeaf, iomap, op::ReplaceSelectionOper
     else
         return ReplaceSelectionOperation(@reference proj(p, ^(path)))
     end
+end
+
+# Type-in: a syntax-domain `.value[s:e]` edit translates to the text node's
+# `.cell[s:e]` via the same map_reference_backward used for selection reads.
+function projection_read(p::XmlTextToSyntaxLeaf, iomap, op::StringReplaceRangeOperation)
+    new_ref = map_reference_backward(p, iomap, op.reference)
+    new_ref === nothing && return nothing
+    StringReplaceRangeOperation(new_ref, op.replacement)
 end
 
 function _xml_text_sel(t::XmlText)
@@ -169,6 +178,16 @@ function projection_read(p::XmlElementToSyntaxNode, iomap::ChildrenIoMap, op::Re
     flat = _syntax_to_flat(iomap.output::SyntaxNode, op.path, SyntaxNodeToText(), 0)
     flat < 0 && return nothing
     return ReplaceSelectionOperation(ConcreteReferencePath(ProjectionReference(p, ConcreteReferencePath(PositionReference(flat)))))
+end
+
+# Type-in: route a child's `.value[s:e]` edit back to `.cell[i].…` through the
+# stored child IO map (School A delegation), the same path map_reference_backward
+# uses for selection reads. Edits targeting projection-introduced spans (tag,
+# attributes, closing tag) fall through to nothing.
+function projection_read(p::XmlElementToSyntaxNode, iomap::ChildrenIoMap, op::StringReplaceRangeOperation)
+    new_ref = map_reference_backward(p, iomap, op.reference)
+    new_ref === nothing && return nothing
+    StringReplaceRangeOperation(new_ref, op.replacement)
 end
 
 function projection_print(p::XmlElementToSyntaxNode, e::XmlElement, recursion, ctx)

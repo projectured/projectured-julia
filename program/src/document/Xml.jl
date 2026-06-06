@@ -22,6 +22,7 @@ import ..ReactiveModule: Cell, setfn!, setval!
 import ..DocumentModule: Document, @document
 import ..CollectionModule: CellVector
 import ..ReferenceModule: Reference
+import ..OperationApiModule: _apply_string_replace!
 export XmlDocument, XmlInsertion, XmlText, XmlAttribute, XmlElement, xmlattr, setattr!, deleteattr!, setfn!,
        IXmlInsertion, IXmlText, IXmlAttribute, IXmlElement
 
@@ -256,6 +257,30 @@ function deleteattr!(e::XmlElement, name::AbstractString)
         e.attrs[i].name == name && deleteat!(e.attrs, i)
     end
     return e
+end
+
+# ── String-replace operation ────────────────────────────────────────────
+
+# Type-in target: the text content of a text node. The reference arriving from
+# XmlTextToSyntaxLeaf is `.cell[s:e]`, so `field_name` is always "cell".
+function _apply_string_replace!(target::XmlText, field_name::AbstractString, s::Int, e::Int, replacement::AbstractString)
+    field_name == "cell" || error("XmlText supports only field 'cell', got: $field_name")
+    target.cell = _xml_slice_replace(target.cell::AbstractString, s, e, replacement)
+end
+
+# Type-in target: an attribute value. Mirrors XmlText — the attribute value is a
+# plain `String` cell edited between 0-based character boundaries.
+function _apply_string_replace!(target::XmlAttribute, field_name::AbstractString, s::Int, e::Int, replacement::AbstractString)
+    field_name == "cell" || error("XmlAttribute supports only field 'cell', got: $field_name")
+    target.cell = _xml_slice_replace(target.cell::AbstractString, s, e, replacement)
+end
+
+# Character-aware replacement helper (positions are 0-based char offsets).
+function _xml_slice_replace(old::AbstractString, s::Int, e::Int, replacement::AbstractString)
+    n = length(old)
+    left  = s <= 0 ? "" : first(old, s)
+    right = e >= n ? "" : last(old, n - e)
+    String(left) * replacement * String(right)
 end
 
 # ── Display ───────────────────────────────────────────────────────────────

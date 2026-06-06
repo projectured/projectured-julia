@@ -28,6 +28,7 @@ import ..ReferenceModule: ConcreteReferencePath, ElementReference, PositionRefer
 import ..ReferenceCaseModule: var"@reference_case"
 import ..ReferenceBuilderModule: var"@reference"
 import ..OperationModule: ReplaceSelectionOperation
+import ..PrimitiveModule: StringReplaceRangeOperation
 import ..SyntaxToTextModule: SyntaxNodeToText, _syntax_to_flat
 import ..ProjectionContextModule: child_context
 
@@ -37,9 +38,9 @@ export BookBookToSyntaxNode, BookChapterToSyntaxNode, BookParagraphToSyntaxLeaf,
 # ── BookBookToSyntaxNode ──────────────────────────────────────────────────────
 #
 # Maps BookBook → SyntaxNode.  Children layout:
-#   [1]       title leaf
-#   [2]       author leaf  (only when b.author !== nothing)
-#   [offset…] recursively projected elements  (offset = 2 or 3)
+#   [1]            title leaf
+#   [2]            author leaf  (only when b.author !== nothing)
+#   [1+offset…]    recursively projected elements  (offset = 1 or 2)
 #
 # Selection forward mapping:
 #   .title[k]         → .children[1].value[k]
@@ -106,7 +107,7 @@ function projection_print(p::BookBookToSyntaxNode, b::BookBook, recursion, ctx)
             h2 = rest.head
             h2 isa RangeReference || return nothing
             child_i = h2.start + 1
-            offset = b.author !== nothing ? 3 : 2
+            offset = b.author !== nothing ? 2 : 1
             iomaps = element_iomaps[]
             child_i > length(iomaps) && return nothing
             child_sel = iomaps[child_i].output.selection
@@ -157,7 +158,7 @@ function map_reference_forward(p::BookBookToSyntaxNode,
             child = iomaps[child_i]
             inner = map_reference_forward(child.projection, child, rest)
             inner === nothing && return nothing
-            offset = b.author !== nothing ? 3 : 2
+            offset = b.author !== nothing ? 2 : 1
             child_idx = child_i + offset
             @reference children{child_idx}.^(inner)
         end
@@ -179,7 +180,7 @@ function map_reference_backward(p::BookBookToSyntaxNode,
                     value.tail... => @reference author.^(tail)
                 end
             else
-                offset = b.author !== nothing ? 3 : 2
+                offset = b.author !== nothing ? 2 : 1
                 elem_i = child_i - offset
                 elem_i < 1 && return nothing
                 iomaps = iomap.child_iomaps[]
@@ -200,6 +201,16 @@ function projection_read(p::BookBookToSyntaxNode,
     flat = _syntax_to_flat(iomap.output::SyntaxNode, op.path, SyntaxNodeToText(), 0)
     flat < 0 && return nothing
     return ReplaceSelectionOperation(ConcreteReferencePath(ProjectionReference(p, ConcreteReferencePath(PositionReference(flat)))))
+end
+
+# Type-in: translate a `.value[s:e]` / element `.…[s:e]` edit back to the book
+# domain (`.title`, `.author`, `.elements[i].…`) through map_reference_backward,
+# the single definition reused for selection reads.
+function projection_read(p::BookBookToSyntaxNode,
+                          iomap::ChildrenIoMap, op::StringReplaceRangeOperation)
+    new_ref = map_reference_backward(p, iomap, op.reference)
+    new_ref === nothing && return nothing
+    StringReplaceRangeOperation(new_ref, op.replacement)
 end
 
 # ── BookChapterToSyntaxNode ───────────────────────────────────────────────────
@@ -323,11 +334,12 @@ function map_reference_backward(p::BookChapterToSyntaxNode,
             child_i = s + 1
             if child_i == 1
                 @reference_case rest begin
-                    value{s2:_}.tail... => begin
+                    value{s2:e2}.tail... => begin
                         offset = let num = b.numbering; isempty(num) ? 0 : length(num) + 2 end
-                        adj = s2 - offset
-                        adj < 0 && return nothing
-                        @reference title{adj}.^(tail)
+                        adj_s = s2 - offset
+                        adj_e = e2 - offset
+                        adj_s < 0 && return nothing
+                        @reference title{adj_s:adj_e}.^(tail)
                     end
                 end
             else
@@ -350,6 +362,16 @@ function projection_read(p::BookChapterToSyntaxNode,
     flat = _syntax_to_flat(iomap.output::SyntaxNode, op.path, SyntaxNodeToText(), 0)
     flat < 0 && return nothing
     return ReplaceSelectionOperation(ConcreteReferencePath(ProjectionReference(p, ConcreteReferencePath(PositionReference(flat)))))
+end
+
+# Type-in: a `.value[s:e]` edit on the title leaf maps back to `.title[s':e']`
+# (shifted by the numbering prefix); element edits delegate through the child IO
+# maps. map_reference_backward owns the shift and the range stays intact.
+function projection_read(p::BookChapterToSyntaxNode,
+                          iomap::ChildrenIoMap, op::StringReplaceRangeOperation)
+    new_ref = map_reference_backward(p, iomap, op.reference)
+    new_ref === nothing && return nothing
+    StringReplaceRangeOperation(new_ref, op.replacement)
 end
 
 # ── BookParagraphToSyntaxLeaf ─────────────────────────────────────────────────
@@ -395,6 +417,13 @@ end
 function projection_read(p::BookParagraphToSyntaxLeaf, iomap::SimpleIoMap, op::ReplaceSelectionOperation)
     result = map_reference_backward(p, iomap, op.path)
     result !== nothing ? ReplaceSelectionOperation(result) : nothing
+end
+
+# Type-in: `.value[s:e]` → `.content[s:e]` (the paragraph's flat content range).
+function projection_read(p::BookParagraphToSyntaxLeaf, iomap::SimpleIoMap, op::StringReplaceRangeOperation)
+    new_ref = map_reference_backward(p, iomap, op.reference)
+    new_ref === nothing && return nothing
+    StringReplaceRangeOperation(new_ref, op.replacement)
 end
 
 # ── BookListToSyntaxNode ──────────────────────────────────────────────────────
@@ -476,7 +505,7 @@ end
 function map_reference_backward(p::BookListToSyntaxNode,
                                  iomap::ChildrenIoMap, reference)
     @reference_case reference begin
-        children{s:_}.children{1}.tail... => begin
+        children{s:_}.children[1].tail... => begin
             child_i = s + 1
             iomaps = iomap.child_iomaps[]
             child_i > length(iomaps) && return nothing
@@ -495,6 +524,15 @@ function projection_read(p::BookListToSyntaxNode,
     flat = _syntax_to_flat(iomap.output::SyntaxNode, op.path, SyntaxNodeToText(), 0)
     flat < 0 && return nothing
     return ReplaceSelectionOperation(ConcreteReferencePath(ProjectionReference(p, ConcreteReferencePath(PositionReference(flat)))))
+end
+
+# Type-in: each bullet wraps its element at `.children[i].children[1]`; the edit
+# delegates through the child IO map back to `.elements[i].…`.
+function projection_read(p::BookListToSyntaxNode,
+                          iomap::ChildrenIoMap, op::StringReplaceRangeOperation)
+    new_ref = map_reference_backward(p, iomap, op.reference)
+    new_ref === nothing && return nothing
+    StringReplaceRangeOperation(new_ref, op.replacement)
 end
 
 # ── BookPictureToSyntaxLeaf ───────────────────────────────────────────────────
@@ -544,6 +582,13 @@ end
 function projection_read(p::BookPictureToSyntaxLeaf, iomap::SimpleIoMap, op::ReplaceSelectionOperation)
     result = map_reference_backward(p, iomap, op.path)
     result !== nothing ? ReplaceSelectionOperation(result) : nothing
+end
+
+# Type-in: `.value[s:e]` → `.content[s:e]` (the picture path string range).
+function projection_read(p::BookPictureToSyntaxLeaf, iomap::SimpleIoMap, op::StringReplaceRangeOperation)
+    new_ref = map_reference_backward(p, iomap, op.reference)
+    new_ref === nothing && return nothing
+    StringReplaceRangeOperation(new_ref, op.replacement)
 end
 
 # ── Compound convenience constructor ─────────────────────────────────────────
