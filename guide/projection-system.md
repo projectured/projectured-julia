@@ -145,10 +145,11 @@ end
 Two principles keep these methods correct across the whole pipeline:
 
 - **Recurse in lockstep with the printer.** If `projection_print` recursed into
-  children, both mappers must recurse too: peel the steps that lead to a child,
-  delegate the remaining tail to that child projection's mapper, and prepend
-  the steps that reach the child. The two ways to *reach* the child mapper are
-  described in [§ Mapping references when the printer recurses](#mapping-references-when-the-printer-recurses).
+  children, both mappers must recurse too: peel only the step this projection
+  owns, look the child up in the stored child IO maps, delegate the remaining
+  tail to that child projection's own mapper, and prepend the steps that reach
+  the child. This is spelled out in
+  [§ Mapping references when the printer recurses](#mapping-references-when-the-printer-recurses).
 - **Cross domains as late as possible.** When an output reference points at
   something the projection introduced (a delimiter, separator, bracket,
   indentation), it has no input pre-image. Represent it by keeping input-domain
@@ -163,10 +164,11 @@ Two principles keep these methods correct across the whole pipeline:
   you are, and `ProjectionReference(projection, …)` marks the exact point where
   you cross into something that exists only in `projection`'s output. Because
   `map_reference_forward` strips that same step, the path round-trips cleanly.
-  (Some node projections take a coarser shortcut today — wrapping a single
-  flattened character offset `ProjectionReference(p, {flat})` when individual
-  structural positions are not separately addressable; prefer the fine-grained
-  form when the structure is available.)
+  (When a projection's introduced positions are not separately addressable — the
+  brackets and commas of a node, say — it is fine to collapse the whole group to a
+  single flattened character offset `ProjectionReference(p, {flat})`, which
+  `_syntax_to_flat` inverts; the `*ToSyntax` node readers use this for the
+  delimiters they own. Use the fine-grained form when individual positions matter.)
 
 ## IoMap
 
@@ -361,12 +363,10 @@ child gets projected by the wrong projection, or not recursively at all.
 
 When `projection_print` recurses into children, `map_reference_forward` and
 `map_reference_backward` must recurse in lockstep — the path mapping has to
-descend through exactly the structure the printer built. There are two schools
-for *reaching the child mapper*, and both are valid.
-
-**School A — delegate through the stored child IO maps.** Peel the step that
-selects a child, look up its IO map (stored by the printer in `ChildrenIoMap`
-or a bespoke field), and call the child projection's own mapper on the tail:
+descend through exactly the structure the printer built. **The rule (call it
+"School A"): peel only the one step this projection owns, then delegate the
+remaining tail to the child projection's own mapper, reached through the stored
+child IO maps.** A projection maps its *own* level and nothing below it.
 
 ```julia
 function map_reference_forward(::MyNodeProjection, iomap::ChildrenIoMap, reference)
@@ -380,41 +380,48 @@ function map_reference_forward(::MyNodeProjection, iomap::ChildrenIoMap, referen
 end
 ```
 
-`CopyingProjection`, `SortingProjection`, and the `MyNodeProjection` example
-above use this school.
+The backward direction is the mirror image: peel the output step, look the child
+up in the same `child_iomaps`, call its `map_reference_backward` on the tail, then
+prepend the input-domain step that reaches it.
 
-**School B — re-walk the known input structure with type dispatch.** When the
-shape and child *types* are statically fixed, skip the stored IO maps and
-recurse over the input document directly, dispatching on each child's type:
+Why delegate rather than recurse over the input document yourself? Because a node
+projection must **compose with any other domain in unforeseen ways** — its child
+could be rendered by a projection from a different domain. Delegating through the
+child IO map means the recursion follows whatever projection actually ran, so the
+mapper can never drift from the printer and never assumes what kind of document a
+child is. (This is also why the printer must *store* its child IO maps —
+[§ A compound projection](#a-compound-node-shaped-projection).)
 
-```julia
-function _forward(v::JsonArray, path)
-    @reference_case path begin
-        elements{s:e}.rest... => begin
-            i = s + 1
-            inner = _forward(v[i], rest)        # recurse on the input child
-            inner === nothing ? nothing : (@reference children[i].^(inner))
-        end
-    end
-end
-```
+Every `*ToSyntax` node projection follows this rule: `JsonArrayToSyntaxNode` /
+`JsonObjectToSyntaxNode`, `MathBinaryOperationToSyntaxNode` and its siblings,
+`XmlElementToSyntaxNode`, and `BookBookToSyntaxNode` /
+`BookChapterToSyntaxNode` / `BookListToSyntaxNode` — alongside `CopyingProjection`
+and `SortingProjection`. Each peels the one step it owns
+(`.elements[i] ↔ .children[i]`, `.left ↔ .children[1]`,
+`.cell[i] ↔ .children[3].children[i]`, …) and delegates the tail. Two things stay
+with the projection, because they are genuinely its own and have no child to
+delegate to:
 
-`JsonArrayToSyntaxNode` and `JsonObjectToSyntaxNode` use this school (see
-`_forward_json_path` / `_translate_json_path` in
-[JsonToSyntax.jl](../program/src/projection/primitive/JsonToSyntax.jl)).
+- **Projection-introduced output** — brackets, operators, the object key leaf, an
+  XML element's tag and attributes — is mapped by an explicit structural rewrite
+  the projection writes itself.
+- **Structural positions with no input pre-image** collapse to a flat offset
+  (`ProjectionReference(p, {flat})`, inverted by `_syntax_to_flat`).
 
-**Which to use.**
+When the child the printer recursed into went through a `CopyingProjection` (as
+`JsonObjectToSyntaxNode`'s entries do), reach its stored child IO map with
+`copying_field_iomap` / `copying_element_iomap` and delegate through that.
 
-| Prefer School A (delegate through child IO maps) | Prefer School B (static structural walk) |
-|---|---|
-| Children are heterogeneous and the projection that handled each was chosen by a dispatcher (`TypeDispatchingProjection`, `AlternativeProjection`) | The child shape and types are fixed and known at the mapper site |
-| The child projection reorders / filters / transforms indices (sorting, reversing, filtering), so only *its* IO map knows the mapping | The mapping is a fixed structural rewrite the mapper can reproduce from the input alone |
-| You want the mapper to stay correct automatically as the inner pipeline changes | You accept keeping the mapper in sync with the printer by hand |
-
-School A is the safer default — it cannot drift from whatever projection
-actually ran. School B is leaner when the structure is rigid. Whichever you
-pick, the two directions must agree with each other *and* with how the printer
-wired the output selection.
+> **Anti-pattern — re-walking the input by type (the former "School B").** Do
+> *not* implement the mapper by recursing over the input document and dispatching
+> on each child's concrete type (`_forward(v::SomeNode, …)` calling
+> `_forward(v.left, …)`). It duplicates every child's mapping logic, hard-codes
+> which domains a child may be, and drifts from the printer the moment the inner
+> pipeline changes. The codebase used to do this (`_forward_json_path`,
+> `_forward_math_path`, `_translate_xml_path`, `_forward_book_path`, …); all of it
+> was deleted in favour of the delegation rule above. Whatever you write, the two
+> directions must agree with each other *and* with how the printer wired the
+> output selection.
 
 ## Type dispatching
 

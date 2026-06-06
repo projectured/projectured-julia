@@ -158,11 +158,12 @@ its docstring), so getting it right gives the forward cursor mapping for free.
 - Express the cases with `@reference_case` (see
   [guide/editor/reference.md](../../../guide/editor/reference.md)).
 - **Recurse in lockstep with the printer.** If `projection_print` recursed into
-  children, so must this: peel the steps that lead to a child, then delegate the
-  remaining tail to that child projection's `map_reference_forward` — reached
-  either through the stored child IoMaps, or by re-walking the known input
-  structure with type dispatch (the two schools are compared in
-  [guide/projection-system.md](../../../guide/projection-system.md)).
+  children, so must this: peel only the steps this projection owns, look up the
+  child the peeled step selects in the **stored child IoMaps**, and delegate the
+  remaining tail to that child projection's own `map_reference_forward`. Do *not*
+  re-walk the input document dispatching on each child's concrete type — that
+  couples the projection to its children's domains and breaks composition with
+  other domains (see [guide/projection-system.md](../../../guide/projection-system.md)).
 - If the input reference begins with `ProjectionReference(projection, output_path)`,
   strip that step and return `output_path` directly — it exists precisely to
   embed an already-translated output reference inside an input reference, and
@@ -180,9 +181,11 @@ Returns `nothing` when the output reference has no pre-image in the input.
 This is the mapper `projection_read` uses (directly in the default method) to
 translate selections — and the one you reuse to re-target edit operations. Like
 its forward twin it must **recurse in lockstep with the printer**: peel the
-steps to a child, delegate the tail to that child projection's
-`map_reference_backward`, then prepend the input-domain steps that reach the
-child.
+output steps that lead to a child, look that child up in the **stored child
+IoMaps**, delegate the tail to its own `map_reference_backward`, then prepend the
+input-domain steps that reach the child. As in the forward direction, delegate
+through the child IoMap rather than dispatching on the child's concrete type, so
+the projection stays independent of whatever domain rendered each child.
 
 ## Positions with no input pre-image
 
@@ -198,10 +201,12 @@ The resulting path reads like a sentence: the input steps say where in the
 document you are, and the `ProjectionReference(projection, …)` step marks the
 exact point where you cross into something that exists only in `projection`'s
 output. Because `map_reference_forward` strips that same step, the path
-round-trips cleanly. (Some node projections currently take a coarser shortcut —
-wrapping a single flattened character offset, `ProjectionReference(p, {flat})`,
-when individual structural positions are not separately addressable; prefer the
-fine-grained form above when the structure is available.)
+round-trips cleanly. (When a projection's introduced positions are not separately
+addressable — the brackets/commas of a node, say — it is fine to collapse the
+whole group to a single flattened character offset, `ProjectionReference(p,
+{flat})`, which `_syntax_to_flat` inverts; the `*ToSyntax` node readers use this
+for the delimiters they own. Use the fine-grained form above when the individual
+positions matter.)
 """
 function map_reference_backward end
 

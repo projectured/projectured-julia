@@ -27,7 +27,7 @@ import ..PrimitiveModule: StringReplaceRangeOperation, NumberReplaceRangeOperati
 import ..ScreenDocumentModule: ScreenDocument, WindowDocument, EventEnvelope
 import ..ReferenceDispatchingModule: ReferenceDispatchingIoMap
 
-export CopyingProjection, CopyingProjectionIoMap
+export CopyingProjection, CopyingProjectionIoMap, copying_field_iomap, copying_element_iomap
 
 struct CopyingProjection <: Projection end
 
@@ -153,6 +153,38 @@ function projection_print(p::CopyingProjection, input, recursion, ctx)
     iomap = CopyingProjectionIoMap(p, input, output, children, names, nothing, nothing)
     iomap_cell[] = iomap
     return iomap
+end
+
+# ── Child IoMap accessors ─────────────────────────────────────────────────
+# A parent projection that lets CopyingProjection handle one of its document
+# parts (e.g. JsonObjectToSyntaxNode routes the object's entries through a
+# CopyingProjection) can reach the stored child IoMap to delegate its own
+# reference mapping through it — the School-A pattern. These accessors keep
+# that delegation from poking at CopyingProjectionIoMap's fields directly.
+
+"""
+    copying_field_iomap(iomap, name) -> child_iomap_or_nothing
+
+The child IoMap for the struct field `name`, or `nothing` if `iomap` is not a
+struct-shaped `CopyingProjectionIoMap` or has no projected field of that name.
+"""
+copying_field_iomap(::Any, ::AbstractString) = nothing
+function copying_field_iomap(iomap::CopyingProjectionIoMap, name::AbstractString)
+    iomap.field_names isa Vector || return nothing
+    idx = findfirst(==(name), iomap.field_names)
+    idx === nothing ? nothing : iomap.children[idx]
+end
+
+"""
+    copying_element_iomap(iomap, i) -> child_iomap_or_nothing
+
+The child IoMap for the 1-based element `i` of a vector-shaped
+`CopyingProjectionIoMap`, or `nothing` when out of range / not vector-shaped.
+"""
+copying_element_iomap(::Any, ::Integer) = nothing
+function copying_element_iomap(iomap::CopyingProjectionIoMap, i::Integer)
+    iomap.children isa Vector || return nothing
+    (1 <= i <= length(iomap.children)) ? iomap.children[i] : nothing
 end
 
 # ── Reference mapping helpers ─────────────────────────────────────────────

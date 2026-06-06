@@ -94,12 +94,47 @@ end
 MathBinaryOperationToSyntaxNode(; op_font=font_ubuntu_monospace_regular_24, op_color=color_solarized_cyan) =
     MathBinaryOperationToSyntaxNode(op_font, op_color)
 
-function map_reference_forward(::MathBinaryOperationToSyntaxNode, iomap::ChildrenIoMap, reference)
-    return _forward_math_path(iomap.input::MathBinaryOperation, reference)
+# Selection mapping (School A). The output node's children are
+# [left (index 1), operator leaf (index 2), right (index 3)]; the operator is
+# projection-introduced. .left / .right delegate the tail through the stored
+# child IO maps (child_iomaps = [left, right]) rather than re-walking math types.
+function map_reference_forward(p::MathBinaryOperationToSyntaxNode, iomap::ChildrenIoMap, reference)
+    @reference_case reference begin
+        left.rest... => begin
+            child = iomap.child_iomaps[][1]
+            inner = map_reference_forward(child.projection, child, rest)
+            inner === nothing && return nothing
+            @reference children[1].^(inner)
+        end
+        right.rest... => begin
+            child = iomap.child_iomaps[][2]
+            inner = map_reference_forward(child.projection, child, rest)
+            inner === nothing && return nothing
+            @reference children[3].^(inner)
+        end
+    end
 end
 
-function map_reference_backward(::MathBinaryOperationToSyntaxNode, iomap::ChildrenIoMap, reference)
-    return _translate_binop_path(iomap.input::MathBinaryOperation, reference)
+function map_reference_backward(p::MathBinaryOperationToSyntaxNode, iomap::ChildrenIoMap, reference)
+    @reference_case reference begin
+        children{s:_}.leaf_path... => begin
+            child_i = s + 1
+            cims = iomap.child_iomaps[]
+            if child_i == 1
+                child = cims[1]
+                translated = map_reference_backward(child.projection, child, leaf_path)
+                translated === nothing && return nothing
+                @reference left.^(translated)
+            elseif child_i == 3
+                child = cims[2]
+                translated = map_reference_backward(child.projection, child, leaf_path)
+                translated === nothing && return nothing
+                @reference right.^(translated)
+            else
+                nothing
+            end
+        end
+    end
 end
 
 function projection_print(p::MathBinaryOperationToSyntaxNode, m::MathBinaryOperation, recursion, ctx)
@@ -151,7 +186,7 @@ function projection_print(p::MathBinaryOperationToSyntaxNode, m::MathBinaryOpera
 end
 
 function projection_read(p::MathBinaryOperationToSyntaxNode, iomap::ChildrenIoMap, op::ReplaceSelectionOperation)
-    result = _translate_binop_path(iomap.input::MathBinaryOperation, op.path)
+    result = map_reference_backward(p, iomap, op.path)
     result !== nothing && return ReplaceSelectionOperation(result)
     flat = _syntax_to_flat(iomap.output::SyntaxNode, op.path, SyntaxNodeToText(), 0)
     flat < 0 && return nothing
@@ -167,12 +202,29 @@ end
 MathParenthesizedToSyntaxNode(; delim_font=font_ubuntu_monospace_regular_24, delim_color=color_solarized_gray) =
     MathParenthesizedToSyntaxNode(delim_font, delim_color)
 
-function map_reference_forward(::MathParenthesizedToSyntaxNode, iomap::ChildrenIoMap, reference)
-    return _forward_math_path(iomap.input::MathParenthesized, reference)
+# Selection mapping (School A). The single content child is output index 1; the
+# parentheses are projection-introduced. child_iomaps holds the one content IO map.
+function map_reference_forward(p::MathParenthesizedToSyntaxNode, iomap::ChildrenIoMap, reference)
+    @reference_case reference begin
+        content.rest... => begin
+            child = iomap.child_iomaps[]
+            inner = map_reference_forward(child.projection, child, rest)
+            inner === nothing && return nothing
+            @reference children[1].^(inner)
+        end
+    end
 end
 
-function map_reference_backward(::MathParenthesizedToSyntaxNode, iomap::ChildrenIoMap, reference)
-    return _translate_paren_path(iomap.input::MathParenthesized, reference)
+function map_reference_backward(p::MathParenthesizedToSyntaxNode, iomap::ChildrenIoMap, reference)
+    @reference_case reference begin
+        children{s:_}.leaf_path... => begin
+            s + 1 == 1 || return nothing
+            child = iomap.child_iomaps[]
+            translated = map_reference_backward(child.projection, child, leaf_path)
+            translated === nothing && return nothing
+            @reference content.^(translated)
+        end
+    end
 end
 
 function projection_print(p::MathParenthesizedToSyntaxNode, m::MathParenthesized, recursion, ctx)
@@ -208,7 +260,7 @@ function projection_print(p::MathParenthesizedToSyntaxNode, m::MathParenthesized
 end
 
 function projection_read(p::MathParenthesizedToSyntaxNode, iomap::ChildrenIoMap, op::ReplaceSelectionOperation)
-    result = _translate_paren_path(iomap.input::MathParenthesized, op.path)
+    result = map_reference_backward(p, iomap, op.path)
     result !== nothing && return ReplaceSelectionOperation(result)
     flat = _syntax_to_flat(iomap.output::SyntaxNode, op.path, SyntaxNodeToText(), 0)
     flat < 0 && return nothing
@@ -224,12 +276,46 @@ end
 MathAssignmentToSyntaxNode(; eq_font=font_ubuntu_monospace_regular_24, eq_color=color_solarized_yellow) =
     MathAssignmentToSyntaxNode(eq_font, eq_color)
 
-function map_reference_forward(::MathAssignmentToSyntaxNode, iomap::ChildrenIoMap, reference)
-    return _forward_math_path(iomap.input::MathAssignment, reference)
+# Selection mapping (School A). Output children are
+# [target (index 1), '=' leaf (index 2), value (index 3)]; the '=' is
+# projection-introduced. child_iomaps = [target, value].
+function map_reference_forward(p::MathAssignmentToSyntaxNode, iomap::ChildrenIoMap, reference)
+    @reference_case reference begin
+        target.rest... => begin
+            child = iomap.child_iomaps[][1]
+            inner = map_reference_forward(child.projection, child, rest)
+            inner === nothing && return nothing
+            @reference children[1].^(inner)
+        end
+        value.rest... => begin
+            child = iomap.child_iomaps[][2]
+            inner = map_reference_forward(child.projection, child, rest)
+            inner === nothing && return nothing
+            @reference children[3].^(inner)
+        end
+    end
 end
 
-function map_reference_backward(::MathAssignmentToSyntaxNode, iomap::ChildrenIoMap, reference)
-    return _translate_assign_path(iomap.input::MathAssignment, reference)
+function map_reference_backward(p::MathAssignmentToSyntaxNode, iomap::ChildrenIoMap, reference)
+    @reference_case reference begin
+        children{s:_}.leaf_path... => begin
+            child_i = s + 1
+            cims = iomap.child_iomaps[]
+            if child_i == 1
+                child = cims[1]
+                translated = map_reference_backward(child.projection, child, leaf_path)
+                translated === nothing && return nothing
+                @reference target.^(translated)
+            elseif child_i == 3
+                child = cims[2]
+                translated = map_reference_backward(child.projection, child, leaf_path)
+                translated === nothing && return nothing
+                @reference value.^(translated)
+            else
+                nothing
+            end
+        end
+    end
 end
 
 function projection_print(p::MathAssignmentToSyntaxNode, m::MathAssignment, recursion, ctx)
@@ -281,7 +367,7 @@ function projection_print(p::MathAssignmentToSyntaxNode, m::MathAssignment, recu
 end
 
 function projection_read(p::MathAssignmentToSyntaxNode, iomap::ChildrenIoMap, op::ReplaceSelectionOperation)
-    result = _translate_assign_path(iomap.input::MathAssignment, op.path)
+    result = map_reference_backward(p, iomap, op.path)
     result !== nothing && return ReplaceSelectionOperation(result)
     flat = _syntax_to_flat(iomap.output::SyntaxNode, op.path, SyntaxNodeToText(), 0)
     flat < 0 && return nothing
@@ -299,143 +385,6 @@ function MathToSyntax()
         MathAssignment       => MathAssignmentToSyntaxNode(),
         PrimitiveNumber      => PrimitiveNumberToSyntaxLeaf(),
     )
-end
-
-# ── Path translation (SyntaxDocument → Math domain) ──────────────────────────
-
-function _translate_binop_path(m::MathBinaryOperation, path::ReferencePath)
-    @reference_case path begin
-        children{s:_}.leaf_path... => begin
-            child_i = s + 1
-            if child_i == 1
-                translated = _translate_math_path(m.left, leaf_path)
-                translated === nothing && return nothing
-                @reference left.^(translated)
-            elseif child_i == 3
-                translated = _translate_math_path(m.right, leaf_path)
-                translated === nothing && return nothing
-                @reference right.^(translated)
-            else
-                nothing
-            end
-        end
-    end
-end
-
-function _translate_paren_path(m::MathParenthesized, path::ReferencePath)
-    @reference_case path begin
-        children{s:_}.leaf_path... => begin
-            s + 1 == 1 || return nothing
-            translated = _translate_math_path(m.content, leaf_path)
-            translated === nothing && return nothing
-            @reference content.^(translated)
-        end
-    end
-end
-
-function _translate_assign_path(m::MathAssignment, path::ReferencePath)
-    @reference_case path begin
-        children{s:_}.leaf_path... => begin
-            child_i = s + 1
-            if child_i == 1
-                translated = _translate_math_path(m.target, leaf_path)
-                translated === nothing && return nothing
-                @reference target.^(translated)
-            elseif child_i == 3
-                translated = _translate_math_path(m.value, leaf_path)
-                translated === nothing && return nothing
-                @reference value.^(translated)
-            else
-                nothing
-            end
-        end
-    end
-end
-
-function _translate_math_path(v::MathVariable, path::ReferencePath)
-    @reference_case path begin
-        value.rest... => @reference name.^(rest)
-    end
-end
-
-function _translate_math_path(v::PrimitiveNumber, path::ReferencePath)
-    @reference_case path begin
-        value.rest... => path
-    end
-end
-
-function _translate_math_path(v::MathBinaryOperation, path::ReferencePath)
-    return _translate_binop_path(v, path)
-end
-
-function _translate_math_path(v::MathParenthesized, path::ReferencePath)
-    return _translate_paren_path(v, path)
-end
-
-function _translate_math_path(v::MathAssignment, path::ReferencePath)
-    return _translate_assign_path(v, path)
-end
-
-function _translate_math_path(v, path::ReferencePath)
-    return nothing
-end
-
-# ── Forward path translation (Math domain → SyntaxDocument) ──────────────────
-
-function _forward_math_path(v::MathVariable, path::ReferencePath)
-    @reference_case path begin
-        name.rest... => @reference value.^(rest)
-    end
-end
-
-function _forward_math_path(v::PrimitiveNumber, path::ReferencePath)
-    @reference_case path begin
-        value.rest... => path
-    end
-end
-
-function _forward_math_path(v::MathBinaryOperation, path::ReferencePath)
-    @reference_case path begin
-        left.rest... => begin
-            inner = _forward_math_path(v.left, rest)
-            inner === nothing && return nothing
-            @reference children[1].^(inner)
-        end
-        right.rest... => begin
-            inner = _forward_math_path(v.right, rest)
-            inner === nothing && return nothing
-            @reference children[3].^(inner)
-        end
-    end
-end
-
-function _forward_math_path(v::MathParenthesized, path::ReferencePath)
-    @reference_case path begin
-        content.rest... => begin
-            inner = _forward_math_path(v.content, rest)
-            inner === nothing && return nothing
-            @reference children[1].^(inner)
-        end
-    end
-end
-
-function _forward_math_path(v::MathAssignment, path::ReferencePath)
-    @reference_case path begin
-        target.rest... => begin
-            inner = _forward_math_path(v.target, rest)
-            inner === nothing && return nothing
-            @reference children[1].^(inner)
-        end
-        value.rest... => begin
-            inner = _forward_math_path(v.value, rest)
-            inner === nothing && return nothing
-            @reference children[3].^(inner)
-        end
-    end
-end
-
-function _forward_math_path(v, path::ReferencePath)
-    return nothing
 end
 
 end # module

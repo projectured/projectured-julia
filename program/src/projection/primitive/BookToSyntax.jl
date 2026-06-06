@@ -4,8 +4,11 @@
 Book → SyntaxDocument projection. Maps each Book node type to a matching
 syntax tree shape. BookBook/BookChapter/BookList produce SyntaxNodes whose
 children are recursively projected sub-documents; BookParagraph and
-BookPicture produce SyntaxLeaf terminals. Reference tracking follows the
-same forward/backward pattern as JsonToSyntax.
+BookPicture produce SyntaxLeaf terminals. The node projections map references
+by peeling the one step they own (title/author/numbering structural rewrites)
+and delegating each element tail through the stored child IO maps, so they do
+not dispatch on the element types — see the "Mapping references when the printer
+recurses" section of guide/projection-system.md.
 """
 module BookToSyntaxModule
 
@@ -138,19 +141,61 @@ function projection_print(p::BookBookToSyntaxNode, b::BookBook, recursion, ctx)
     ChildrenIoMap(p, b, output, element_iomaps)
 end
 
-function map_reference_forward(::BookBookToSyntaxNode,
+# Selection mapping (School A). title/author are projection-introduced leaves
+# (structural rewrites); each element tail is delegated through the stored child
+# IO maps. Output child offset is 3 when an author leaf is present, else 2.
+function map_reference_forward(p::BookBookToSyntaxNode,
                                 iomap::ChildrenIoMap, reference)
-    return _forward_book_path(iomap.input, reference)
+    b = iomap.input
+    @reference_case reference begin
+        title.rest...     => rest isa ConcreteReferencePath && rest.head isa RangeReference ? (@reference children{1}.value.^(rest)) : nothing
+        author.rest...    => (b.author !== nothing && rest isa ConcreteReferencePath && rest.head isa RangeReference) ? (@reference children{2}.value.^(rest)) : nothing
+        elements{s:_}.rest... => begin
+            child_i = s + 1
+            iomaps = iomap.child_iomaps[]
+            child_i > length(iomaps) && return nothing
+            child = iomaps[child_i]
+            inner = map_reference_forward(child.projection, child, rest)
+            inner === nothing && return nothing
+            offset = b.author !== nothing ? 3 : 2
+            child_idx = child_i + offset
+            @reference children{child_idx}.^(inner)
+        end
+    end
 end
 
-function map_reference_backward(::BookBookToSyntaxNode,
+function map_reference_backward(p::BookBookToSyntaxNode,
                                  iomap::ChildrenIoMap, reference)
-    return _backward_book_path(iomap.input, reference)
+    b = iomap.input
+    @reference_case reference begin
+        children{s:_}.rest... => begin
+            child_i = s + 1
+            if child_i == 1
+                @reference_case rest begin
+                    value.tail... => @reference title.^(tail)
+                end
+            elseif child_i == 2 && b.author !== nothing
+                @reference_case rest begin
+                    value.tail... => @reference author.^(tail)
+                end
+            else
+                offset = b.author !== nothing ? 3 : 2
+                elem_i = child_i - offset
+                elem_i < 1 && return nothing
+                iomaps = iomap.child_iomaps[]
+                elem_i > length(iomaps) && return nothing
+                child = iomaps[elem_i]
+                translated = map_reference_backward(child.projection, child, rest)
+                translated === nothing && return nothing
+                @reference elements[elem_i].^(translated)
+            end
+        end
+    end
 end
 
 function projection_read(p::BookBookToSyntaxNode,
                           iomap::ChildrenIoMap, op::ReplaceSelectionOperation)
-    result = _backward_book_path(iomap.input, op.path)
+    result = map_reference_backward(p, iomap, op.path)
     result !== nothing && return ReplaceSelectionOperation(result)
     flat = _syntax_to_flat(iomap.output::SyntaxNode, op.path, SyntaxNodeToText(), 0)
     flat < 0 && return nothing
@@ -245,19 +290,62 @@ function projection_print(p::BookChapterToSyntaxNode, b::BookChapter, recursion,
     ChildrenIoMap(p, b, output, element_iomaps)
 end
 
-function map_reference_forward(::BookChapterToSyntaxNode,
+# Selection mapping (School A). The title leaf is projection-introduced and may
+# carry a numbering prefix, so title char offsets shift by length(numbering)+2;
+# each element tail is delegated through the stored child IO maps.
+function map_reference_forward(p::BookChapterToSyntaxNode,
                                 iomap::ChildrenIoMap, reference)
-    return _forward_book_path(iomap.input, reference)
+    b = iomap.input
+    @reference_case reference begin
+        title{s:_}.rest... => begin
+            offset = let num = b.numbering; isempty(num) ? 0 : length(num) + 2 end
+            adj = s + offset
+            @reference children{1}.value{adj}.^(rest)
+        end
+        elements{s:_}.rest... => begin
+            child_i = s + 1
+            iomaps = iomap.child_iomaps[]
+            child_i > length(iomaps) && return nothing
+            child = iomaps[child_i]
+            inner = map_reference_forward(child.projection, child, rest)
+            inner === nothing && return nothing
+            child_idx = child_i + 1
+            @reference children{child_idx}.^(inner)
+        end
+    end
 end
 
-function map_reference_backward(::BookChapterToSyntaxNode,
+function map_reference_backward(p::BookChapterToSyntaxNode,
                                  iomap::ChildrenIoMap, reference)
-    return _backward_book_path(iomap.input, reference)
+    b = iomap.input
+    @reference_case reference begin
+        children{s:_}.rest... => begin
+            child_i = s + 1
+            if child_i == 1
+                @reference_case rest begin
+                    value{s2:_}.tail... => begin
+                        offset = let num = b.numbering; isempty(num) ? 0 : length(num) + 2 end
+                        adj = s2 - offset
+                        adj < 0 && return nothing
+                        @reference title{adj}.^(tail)
+                    end
+                end
+            else
+                elem_i = child_i - 1
+                iomaps = iomap.child_iomaps[]
+                elem_i > length(iomaps) && return nothing
+                child = iomaps[elem_i]
+                translated = map_reference_backward(child.projection, child, rest)
+                translated === nothing && return nothing
+                @reference elements[elem_i].^(translated)
+            end
+        end
+    end
 end
 
 function projection_read(p::BookChapterToSyntaxNode,
                           iomap::ChildrenIoMap, op::ReplaceSelectionOperation)
-    result = _backward_book_path(iomap.input, op.path)
+    result = map_reference_backward(p, iomap, op.path)
     result !== nothing && return ReplaceSelectionOperation(result)
     flat = _syntax_to_flat(iomap.output::SyntaxNode, op.path, SyntaxNodeToText(), 0)
     flat < 0 && return nothing
@@ -293,15 +381,19 @@ function projection_print(p::BookParagraphToSyntaxLeaf, b::BookParagraph, recurs
 end
 
 function map_reference_forward(::BookParagraphToSyntaxLeaf, iomap::SimpleIoMap, reference)
-    return _forward_book_path(iomap.input, reference)
+    @reference_case reference begin
+        content.rest... => @reference value.^(rest)
+    end
 end
 
 function map_reference_backward(::BookParagraphToSyntaxLeaf, iomap::SimpleIoMap, reference)
-    return _backward_book_path(iomap.input, reference)
+    @reference_case reference begin
+        value.rest... => @reference content.^(rest)
+    end
 end
 
-function projection_read(::BookParagraphToSyntaxLeaf, iomap::SimpleIoMap, op::ReplaceSelectionOperation)
-    result = _backward_book_path(iomap.input, op.path)
+function projection_read(p::BookParagraphToSyntaxLeaf, iomap::SimpleIoMap, op::ReplaceSelectionOperation)
+    result = map_reference_backward(p, iomap, op.path)
     result !== nothing ? ReplaceSelectionOperation(result) : nothing
 end
 
@@ -363,19 +455,42 @@ function projection_print(p::BookListToSyntaxNode, b::BookList, recursion, ctx)
     ChildrenIoMap(p, b, output, element_iomaps)
 end
 
-function map_reference_forward(::BookListToSyntaxNode,
+# Selection mapping (School A). Each element i is wrapped in a bullet SyntaxNode
+# whose sole child (index 1) is the projected element, so .elements[i] maps to
+# .children[i].children[1] and the tail is delegated through the child IO map.
+function map_reference_forward(p::BookListToSyntaxNode,
                                 iomap::ChildrenIoMap, reference)
-    return _forward_book_path(iomap.input, reference)
+    @reference_case reference begin
+        elements{s:_}.rest... => begin
+            child_i = s + 1
+            iomaps = iomap.child_iomaps[]
+            child_i > length(iomaps) && return nothing
+            child = iomaps[child_i]
+            inner = map_reference_forward(child.projection, child, rest)
+            inner === nothing && return nothing
+            @reference children{child_i}.children{1}.^(inner)
+        end
+    end
 end
 
-function map_reference_backward(::BookListToSyntaxNode,
+function map_reference_backward(p::BookListToSyntaxNode,
                                  iomap::ChildrenIoMap, reference)
-    return _backward_book_path(iomap.input, reference)
+    @reference_case reference begin
+        children{s:_}.children{1}.tail... => begin
+            child_i = s + 1
+            iomaps = iomap.child_iomaps[]
+            child_i > length(iomaps) && return nothing
+            child = iomaps[child_i]
+            translated = map_reference_backward(child.projection, child, tail)
+            translated === nothing && return nothing
+            @reference elements[child_i].^(translated)
+        end
+    end
 end
 
 function projection_read(p::BookListToSyntaxNode,
                           iomap::ChildrenIoMap, op::ReplaceSelectionOperation)
-    result = _backward_book_path(iomap.input, op.path)
+    result = map_reference_backward(p, iomap, op.path)
     result !== nothing && return ReplaceSelectionOperation(result)
     flat = _syntax_to_flat(iomap.output::SyntaxNode, op.path, SyntaxNodeToText(), 0)
     flat < 0 && return nothing
@@ -415,15 +530,19 @@ function projection_print(p::BookPictureToSyntaxLeaf, b::BookPicture, recursion,
 end
 
 function map_reference_forward(::BookPictureToSyntaxLeaf, iomap::SimpleIoMap, reference)
-    return _forward_book_path(iomap.input, reference)
+    @reference_case reference begin
+        content.rest... => @reference value.^(rest)
+    end
 end
 
 function map_reference_backward(::BookPictureToSyntaxLeaf, iomap::SimpleIoMap, reference)
-    return _backward_book_path(iomap.input, reference)
+    @reference_case reference begin
+        value.rest... => @reference content.^(rest)
+    end
 end
 
-function projection_read(::BookPictureToSyntaxLeaf, iomap::SimpleIoMap, op::ReplaceSelectionOperation)
-    result = _backward_book_path(iomap.input, op.path)
+function projection_read(p::BookPictureToSyntaxLeaf, iomap::SimpleIoMap, op::ReplaceSelectionOperation)
+    result = map_reference_backward(p, iomap, op.path)
     result !== nothing ? ReplaceSelectionOperation(result) : nothing
 end
 
@@ -449,151 +568,6 @@ function _render_paragraph_content(content)
         span isa TextString && print(buf, span.content)
     end
     String(take!(buf))
-end
-
-# ── Type-dispatched reference helpers ────────────────────────────────────────
-#
-# _forward_book_path  — book-domain path  → syntax-domain path
-# _backward_book_path — syntax-domain path → book-domain path
-#
-# Each method dispatches on the concrete book document type and recurses into
-# child elements when needed, mirroring the _forward_json_path pattern.
-
-function _forward_book_path(b::BookBook, path::ReferencePath)
-    @reference_case path begin
-        title.rest...     => rest isa ConcreteReferencePath && rest.head isa RangeReference ? (@reference children{1}.value.^(rest)) : nothing
-        author.rest...    => (b.author !== nothing && rest isa ConcreteReferencePath && rest.head isa RangeReference) ? (@reference children{2}.value.^(rest)) : nothing
-        elements{s:_}.rest... => begin
-            child_i = s + 1
-            elems = b.elements
-            child_i > length(elems) && return nothing
-            inner = _forward_book_path(elems[child_i], rest)
-            inner === nothing && return nothing
-            offset = b.author !== nothing ? 3 : 2
-            child_idx = child_i + offset
-            @reference children{child_idx}.^(inner)
-        end
-    end
-end
-
-function _forward_book_path(b::BookChapter, path::ReferencePath)
-    @reference_case path begin
-        title{s:_}.rest... => begin
-            offset = let num = b.numbering; isempty(num) ? 0 : length(num) + 2 end
-            adj = s + offset
-            @reference children{1}.value{adj}.^(rest)
-        end
-        elements{s:_}.rest... => begin
-            child_i = s + 1
-            elems = b.elements
-            child_i > length(elems) && return nothing
-            inner = _forward_book_path(elems[child_i], rest)
-            inner === nothing && return nothing
-            child_idx = child_i + 1
-            @reference children{child_idx}.^(inner)
-        end
-    end
-end
-
-function _forward_book_path(b::BookParagraph, path::ReferencePath)
-    @reference_case path begin
-        content.rest... => @reference value.^(rest)
-    end
-end
-
-function _forward_book_path(b::BookList, path::ReferencePath)
-    @reference_case path begin
-        elements{s:_}.rest... => begin
-            child_i = s + 1
-            elems = b.elements
-            child_i > length(elems) && return nothing
-            inner = _forward_book_path(elems[child_i], rest)
-            inner === nothing && return nothing
-            @reference children{child_i}.children{1}.^(inner)
-        end
-    end
-end
-
-function _forward_book_path(b::BookPicture, path::ReferencePath)
-    @reference_case path begin
-        content.rest... => @reference value.^(rest)
-    end
-end
-
-function _backward_book_path(b::BookBook, path::ReferencePath)
-    @reference_case path begin
-        children{s:_}.rest... => begin
-            child_i = s + 1
-            if child_i == 1
-                @reference_case rest begin
-                    value.tail... => @reference title.^(tail)
-                end
-            elseif child_i == 2 && b.author !== nothing
-                @reference_case rest begin
-                    value.tail... => @reference author.^(tail)
-                end
-            else
-                offset = b.author !== nothing ? 3 : 2
-                elem_i = child_i - offset
-                elem_i < 1 && return nothing
-                elems = b.elements
-                elem_i > length(elems) && return nothing
-                translated = _backward_book_path(elems[elem_i], rest)
-                translated === nothing && return nothing
-                @reference elements[elem_i].^(translated)
-            end
-        end
-    end
-end
-
-function _backward_book_path(b::BookChapter, path::ReferencePath)
-    @reference_case path begin
-        children{s:_}.rest... => begin
-            child_i = s + 1
-            if child_i == 1
-                @reference_case rest begin
-                    value{s2:_}.tail... => begin
-                        offset = let num = b.numbering; isempty(num) ? 0 : length(num) + 2 end
-                        adj = s2 - offset
-                        adj < 0 && return nothing
-                        @reference title{adj}.^(tail)
-                    end
-                end
-            else
-                elem_i = child_i - 1
-                elems = b.elements
-                elem_i > length(elems) && return nothing
-                translated = _backward_book_path(elems[elem_i], rest)
-                translated === nothing && return nothing
-                @reference elements[elem_i].^(translated)
-            end
-        end
-    end
-end
-
-function _backward_book_path(b::BookParagraph, path::ReferencePath)
-    @reference_case path begin
-        value.rest... => @reference content.^(rest)
-    end
-end
-
-function _backward_book_path(b::BookList, path::ReferencePath)
-    @reference_case path begin
-        children{s:_}.children{1}.tail... => begin
-            child_i = s + 1
-            elems = b.elements
-            child_i > length(elems) && return nothing
-            translated = _backward_book_path(elems[child_i], tail)
-            translated === nothing && return nothing
-            @reference elements[child_i].^(translated)
-        end
-    end
-end
-
-function _backward_book_path(b::BookPicture, path::ReferencePath)
-    @reference_case path begin
-        value.rest... => @reference content.^(rest)
-    end
 end
 
 end # module

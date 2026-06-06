@@ -81,13 +81,13 @@ The generic implementation in `Reference.jl` walks the path step by step:
 `selection` on every *other* child before setting the selected one, ensuring
 stale selection state does not linger on siblings.
 
-**Example** — `JsonObject` with path `[1] + .value + {3}` (first entry's
-value, cursor at offset 3):
+**Example** — `JsonObject` with path `[1] + .value + .value + {3}` (first
+entry's value string, cursor at offset 3):
 
 ```
-JsonObject.selection[]              ← [1] + .value + {3}
-  └─ entries[1] (JsonObjectEntry).selection[]  ← .value + {3}
-       └─ value (JsonString).selection[]       ← {3}
+JsonObject.selection[]              ← [1] + .value + .value + {3}
+  └─ entries[1] (JsonObjectEntry).selection[]  ← .value + .value + {3}
+       └─ value (JsonString).selection[]       ← .value + {3}
 ```
 
 ---
@@ -96,7 +96,7 @@ JsonObject.selection[]              ← [1] + .value + {3}
 
 | Type | `selection` meaning |
 |---|---|
-| `JsonNull` / `JsonBool` / `JsonNumber` / `JsonString` | Path within this primitive — typically `{k}` for cursor at offset `k` |
+| `JsonNull` / `JsonBool` / `JsonNumber` / `JsonString` | Path within this primitive — typically `.value + {k}` for cursor at offset `k` in the value |
 | `JsonArray` | `[i] + <child path>` — into element `i` (1-based) |
 | `JsonObjectEntry` | `.key + {k}` (cursor in key) or `.value + <child path>` |
 | `JsonObject` | `[i] + <entry path>` — into entry `i` (1-based) |
@@ -244,19 +244,19 @@ cell exposes. The child IO maps must be computed in a single shared reactive
 `Cell`.
 
 **Concrete example — `JsonArrayToSyntaxNode`.**
-Input: `JsonArray` with `selection[] = .elements + [2] + {5}`.
+Input: `JsonArray` with `selection[] = .elements + [2] + .value + {5}`.
 
 1. Recurse → `child_iomaps[2]` holds the projected second element.
-2. Strip `.elements`, read `[2]` → child index `i = 2`.
-3. `child_iomaps[2].output.selection[]` → `.value + {5}` (Syntax domain).
+2. Strip `.elements`, read `[2]` → child index `i = 2`; element selection `.value + {5}`.
+3. Map the element forward → `.value + {5}` (Syntax domain).
 4. Prepend `[2]` → output selection = `[2] + .value + {5}`.
 
 **Concrete example — `JsonObjectToSyntaxNode`.**
-Input: `JsonObject` with `selection[] = .entries + [1] + .value + {4}`.
+Input: `JsonObject` with `selection[] = .entries + [1] + .value + .value + {4}`.
 
 1. Recurse per-entry → `pair_iomaps[1]` holds the projected first entry's pair node.
-2. Strip `.entries`, read `[1]` → entry index `i = 1`.
-3. `pair_iomaps[1].output.selection[]` → `[2] + .value + {4}` (Syntax domain, value child is index 2).
+2. Strip `.entries`, read `[1]` → entry index `i = 1`; entry selection `.value + .value + {4}`.
+3. Map the entry forward → `[2] + .value + {4}` (Syntax domain, value child is index 2).
 4. Prepend `[1]` → output selection = `[1] + [2] + .value + {4}`.
 
 ---
@@ -276,7 +276,7 @@ reference grammar.
 | `SyntaxNode` | `[i] + <child path>` | into child `i` |
 | `SyntaxNode` | `.open + {k}` / `.close + {k}` | cursor in delimiter span |
 | `SyntaxNode` | `ProjectionReference(p, {k})` | projection-introduced whitespace |
-| `JsonString` | `{k}` | cursor in the string value |
+| `JsonString` | `.value + {k}` | cursor in the string value |
 | `JsonString` | `ProjectionReference(p, .open + {k})` | cursor on `"` opening quote |
 | `JsonString` | `ProjectionReference(p, .close + {k})` | cursor on `"` closing quote |
 | `JsonArray` | `[i] + <element path>` | into element `i` |

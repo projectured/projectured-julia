@@ -127,16 +127,44 @@ XmlElementToSyntaxNode(;
                            quote_font, quote_color,
                            attr_value_font, attr_value_color)
 
-function map_reference_forward(::XmlElementToSyntaxNode, iomap::ChildrenIoMap, reference)
-    return _forward_xml_path(iomap.input::XmlElement, reference)
+# Selection mapping (School A). The output node's children are
+# [tag leaf (1), attrs node (2), body node (3), close leaf (4)]; the recursively
+# projected XML children live inside the body node, so .cell[i] maps to
+# .children[3].children[i] and the tail is delegated through the stored child IO
+# map — independent of what projection rendered each child. Tag, attributes, and
+# the closing tag are projection-introduced and fall back to the flat offset in
+# the reader.
+function map_reference_forward(p::XmlElementToSyntaxNode, iomap::ChildrenIoMap, reference)
+    @reference_case reference begin
+        cell{s:_}.rest... => begin
+            child_i = s + 1
+            iomaps = iomap.child_iomaps[]
+            1 <= child_i <= length(iomaps) || return nothing
+            child = iomaps[child_i]
+            inner = map_reference_forward(child.projection, child, rest)
+            inner === nothing && return nothing
+            @reference children[3].children[child_i].^(inner)
+        end
+    end
 end
 
-function map_reference_backward(::XmlElementToSyntaxNode, iomap::ChildrenIoMap, reference)
-    return _translate_xml_path(iomap.input::XmlElement, reference)
+function map_reference_backward(p::XmlElementToSyntaxNode, iomap::ChildrenIoMap, reference)
+    @reference_case reference begin
+        children{s:_}.children{s2:_}.tail... => begin
+            s + 1 == 3 || return nothing   # body node is child index 3
+            child_i = s2 + 1
+            iomaps = iomap.child_iomaps[]
+            1 <= child_i <= length(iomaps) || return nothing
+            child = iomaps[child_i]
+            translated = map_reference_backward(child.projection, child, tail)
+            translated === nothing && return nothing
+            @reference cell[child_i].^(translated)
+        end
+    end
 end
 
 function projection_read(p::XmlElementToSyntaxNode, iomap::ChildrenIoMap, op::ReplaceSelectionOperation)
-    result = _translate_xml_path(iomap.input::XmlElement, op.path)
+    result = map_reference_backward(p, iomap, op.path)
     result !== nothing && return ReplaceSelectionOperation(result)
     flat = _syntax_to_flat(iomap.output::SyntaxNode, op.path, SyntaxNodeToText(), 0)
     flat < 0 && return nothing
@@ -159,7 +187,7 @@ function projection_print(p::XmlElementToSyntaxNode, e::XmlElement, recursion, c
                 child_i > length(iomaps) && return nothing
                 child_sel = iomaps[child_i].output.selection
                 child_sel === nothing && return nothing
-                @reference children[2].children[child_i].^(child_sel)
+                @reference children[3].children[child_i].^(child_sel)
             end
         end
     end)
@@ -239,44 +267,6 @@ function _attr_node(a::XmlAttribute, p::XmlElementToSyntaxNode)
                 TextString(() -> xml_escape_attr(a.cell), p.attr_value_font, p.attr_value_color),
                 getfield(a, :selection)),
         ])
-end
-
-function _translate_xml_path(t::XmlText, path::ReferencePath)
-    @reference_case path begin
-        value.rest... => @reference cell.^(rest)
-    end
-end
-
-function _translate_xml_path(elem::XmlElement, path::ReferencePath)
-    @reference_case path begin
-        children{s:_}.field(_).children{s2:_}.tail... => begin
-            outer_child = s + 1
-            outer_child == 2 || return nothing  # must be body_node (index 2)
-            child_i = s2 + 1
-            1 <= child_i <= length(elem) || return nothing
-            translated = _translate_xml_path(elem[child_i], tail)
-            translated === nothing && return nothing
-            @reference cell[child_i].^(translated)
-        end
-    end
-end
-
-function _forward_xml_path(t::XmlText, path::ReferencePath)
-    @reference_case path begin
-        cell.rest... => @reference value.^(rest)
-    end
-end
-
-function _forward_xml_path(elem::XmlElement, path::ReferencePath)
-    @reference_case path begin
-        cell{s:_}.rest... => begin
-            child_i = s + 1
-            1 <= child_i <= length(elem) || return nothing
-            inner = _forward_xml_path(elem[child_i], rest)
-            inner === nothing && return nothing
-            @reference children[2].children[child_i].^(inner)
-        end
-    end
 end
 
 function XmlToSyntax()
