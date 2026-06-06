@@ -6,6 +6,8 @@ Documents are structured data — trees, ASTs, graphs — presented through
 bidirectional, composable projections: you edit the projection, and the edit is
 mapped back to the underlying data.
 
+![ProjecturEd workbench](image/example/workbench.png)
+
 ## Vision
 
 Three goals shape the design.
@@ -23,15 +25,17 @@ Three goals shape the design.
   domains. Both layers compose, which is what lets one mechanism cover JSON, XML,
   source code, prose, tables, and graphics.
 - **Performance via lazy, incremental updates.** A pull-based reactive cell
-  system recomputes only what a change affects. Projections are evaluated lazily
-  and the display updates incrementally, so editing stays responsive as documents
-  grow.
+  system recomputes only what a change affects, and projections are evaluated
+  lazily, so the display updates incrementally as you edit. Because only the
+  parts of a document that are actually viewed get forced, the same mechanism
+  handles very large documents — and, with lazy structures like `ListNode` whose
+  neighbours are re-projected on demand, even conceptually infinite ones: you can
+  project a finite slice of an unbounded list and edit it without materialising
+  the whole thing.
 
 ---
 
 ## AI-assisted editing
-
-![Workbench example](image/example/workbench.png)
 
 Open the assistant, type a request, and press **Enter**. Claude reads the live
 document structure, looks up the types and functions involved, writes Julia, and
@@ -158,9 +162,9 @@ the [Roadmap](guide/roadmap.md)).
 |---|---|---|
 | ![JSON example](image/example/json.png) | ![Widget example](image/example/widget.png) | ![Table example](image/example/table.png) |
 
-| Syntax tree | Julia AST | Assistant |
+| Syntax tree | Julia AST | Workbench |
 |---|---|---|
-| ![Syntax example](image/example/syntax.png) | ![Julia AST example](image/example/julia.png) | ![Assistant example](image/example/assistant.png) |
+| ![Syntax example](image/example/syntax.png) | ![Julia AST example](image/example/julia.png) | ![Workbench example](image/example/workbench.png) |
 
 ---
 
