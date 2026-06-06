@@ -1,72 +1,71 @@
 # ProjecturEd
 
-> **Stop editing by hand. Describe the change — and the AI rewrites the live model in Julia.**
+ProjecturEd is a generic-purpose projectional editor, reimplemented in Julia
+from [the original ProjecturEd](https://github.com/projectured/projectured).
+Documents are structured data — trees, ASTs, graphs — presented through
+bidirectional, composable projections: you edit the projection, and the edit is
+mapped back to the underlying data.
 
-ProjecturEd is a projectional editor where your work is **structured data**, not
-text — and a **built-in AI conversation** can read and rewrite *every part of
-it*: the document *and* the projection that renders it. It does this by
-executing Julia against the live editor, so the most tedious, repetitive,
-multi-step edits collapse into a single sentence. You ask; the AI turns the
-request into code and runs it.
+## Vision
 
-It is a Julia reimagining of [the original
-ProjecturEd](https://github.com/projectured/projectured), rebuilt around three
-ideas that reinforce each other:
+Three goals shape the design.
 
-- **Composable all the way down.** Documents are assembled from smaller
-  documents — any field can hold a primitive, a reactive collection, or another
-  domain entirely. Those documents are rendered through bidirectional,
-  composable projections, so views compose as freely as the data does. Every
-  edit maps back to a precise structural operation on the model — never a string
-  diff.
-- **A reflexive editor.** The editor exposes its own internals — modules, types,
-  functions, the live document tree, even the AI chat itself — as data the AI
-  can inspect and reshape. The editor reaches into itself on your behalf.
-- **AI-native by construction.** Because the model is the truth and the AI acts
-  on it through typed operations and Julia, its edits are always structurally
-  valid. No hallucinated line numbers, no patches that fail to apply.
+- **AI integration from the ground up.** A built-in AI conversation can read and
+  modify both the document and the projection by executing Julia against the
+  live editor. The intent is to move editing away from manual, keystroke- and
+  mouse-driven state manipulation: you describe a change and it is applied as a
+  structural operation. The conversation is itself a ProjecturEd document, so the
+  editor edits its own AI session with the same machinery it uses for your data.
+- **Expressiveness via composable documents and projections.** Documents are
+  built by nesting primitives, reactive collections, and other documents — any
+  field can hold another domain. Projections are composable functions over those
+  documents, so one document can be shown several ways and a single view can mix
+  domains. Both layers compose, which is what lets one mechanism cover JSON, XML,
+  source code, prose, tables, and graphics.
+- **Performance via lazy, incremental updates.** A pull-based reactive cell
+  system recomputes only what a change affects. Projections are evaluated lazily
+  and the display updates incrementally, so editing stays responsive as documents
+  grow.
 
 ---
 
-## Editing without the keyboard grind
+## AI-assisted editing
 
-![Assistant example](image/example/assistant.png)
+![Workbench example](image/example/workbench.png)
 
-Open the assistant, type what you want, press **Enter**. Claude reads the live
-document structure, looks up the real types and functions involved, writes
-Julia, and runs it against the editor — `editor.document` and
-`editor.projection` are bound in scope, so nothing is off-limits. Prefer to do
-it yourself? Press **Alt+Enter** to run a Julia fragment directly. Either way the
-run lands in the conversation as a first-class, re-readable code execution.
+Open the assistant, type a request, and press **Enter**. Claude reads the live
+document structure, looks up the types and functions involved, writes Julia, and
+runs it against the editor — `editor.document` and `editor.projection` are both
+bound in scope. To run code yourself, press **Alt+Enter** to evaluate a Julia
+fragment directly. Either way the run is recorded in the conversation as a
+re-readable code execution.
 
-The conversation is not a sidecar bolted onto the editor. It is a real
-ProjecturEd domain ([Conversation.jl](program/src/document/Conversation.jl)) —
-messages, streaming response blocks, and code executions are all structured
-documents, projected and selectable like everything else. **The editor edits
-its own AI session with the same machinery it uses to edit your data.** That is
-the reflexivity: there is no special case for "the AI part."
+The conversation is a real ProjecturEd domain
+([Conversation.jl](program/src/document/Conversation.jl)): messages, streaming
+response blocks, and code executions are all structured documents, projected and
+selectable like everything else. The editor edits its own AI session with the
+same machinery it uses to edit your data.
 
 Under the hood:
 
-- The AI's core tool, `execute_julia_code`, evaluates arbitrary Julia in-process
-  with `Projectured` preloaded and `editor` bound — its handler lives in
+- The AI's core tool, `execute_julia_code`, evaluates Julia in-process with
+  `Projectured` preloaded and `editor` bound — its handler lives in
   [Mcp.jl](program/src/editor/Mcp.jl).
-- Before writing code, the AI reads the editor's *own* guides, modules, classes,
-  and functions, exposed as resources, so it works from real signatures rather
-  than guesses (also in [Mcp.jl](program/src/editor/Mcp.jl)).
-- Two front doors, one tool registry: the in-editor assistant and an **external
-  MCP server** (`127.0.0.1:9876/mcp`) share the same tools
-  ([ToolRegistry.jl](program/src/editor/ToolRegistry.jl)), so any MCP client can
-  drive the editor too.
-- Real Claude (default `claude-opus-4-7`) when `ANTHROPIC_API_KEY` is set; a
-  deterministic offline backend otherwise — so the example runs with no key and
-  no network.
+- Before writing code, the AI reads the editor's own guides, modules, classes,
+  and functions, exposed as resources, so it works from real signatures
+  ([Mcp.jl](program/src/editor/Mcp.jl)).
+- The in-editor assistant and an external **MCP server** (`127.0.0.1:9876/mcp`)
+  share one tool registry
+  ([ToolRegistry.jl](program/src/editor/ToolRegistry.jl)), so an external MCP
+  client can drive the editor too.
+- The assistant uses Claude (default `claude-opus-4-7`) when `ANTHROPIC_API_KEY`
+  is set, and a deterministic offline backend otherwise, so the example runs
+  without a key or a network connection.
 
-> **Honest status.** The assistant and the MCP bridge work end-to-end today, but
-> they are new and evolving. Selection and cursor movement are solid across
-> every domain; full character-level *manual* editing is the next milestone (see
-> the [Roadmap](guide/roadmap.md)). The AI path is precisely what lets you get
-> real work done before that lands.
+> **Status.** The assistant and the MCP bridge work end-to-end, but are new and
+> still evolving. Selection and cursor movement work across every domain;
+> character-level manual editing is the next milestone (see the
+> [Roadmap](guide/roadmap.md)).
 
 ---
 
@@ -159,9 +158,9 @@ the [Roadmap](guide/roadmap.md)).
 |---|---|---|
 | ![JSON example](image/example/json.png) | ![Widget example](image/example/widget.png) | ![Table example](image/example/table.png) |
 
-| Syntax tree | Julia AST | Workbench |
+| Syntax tree | Julia AST | Assistant |
 |---|---|---|
-| ![Syntax example](image/example/syntax.png) | ![Julia AST example](image/example/julia.png) | ![Workbench example](image/example/workbench.png) |
+| ![Syntax example](image/example/syntax.png) | ![Julia AST example](image/example/julia.png) | ![Assistant example](image/example/assistant.png) |
 
 ---
 
@@ -193,32 +192,6 @@ julia> write_image_example("json", "/tmp/snapshot.bmp")   # save to file
 
 See the [debugging guide](guide/debugging.md) for the full REPL helper catalogue
 and the [testing guide](guide/testing.md) for running the test suite.
-
----
-
-## Vision
-
-ProjecturEd is not just a better JSON editor — it is an architecture for
-**universal structured editing**, with AI as a first-class operator:
-
-- **Describe-it editing.** Complex transformations become a request, not a
-  hundred keystrokes. The AI inspects the typed model, writes Julia, and applies
-  it — the keyboard/mouse grind becomes optional.
-- **A self-describing editor.** The editor hands the AI its own modules, types,
-  functions, guides, and live document tree, so the AI extends and reshapes the
-  editor from the inside.
-- **Any domain in ~100 lines.** Define your document types, write a projection
-  to the syntax domain, and you have a fully navigable, fully editable — and
-  AI-operable — view of your data.
-- **Multiple backends.** The projection pipeline is backend-agnostic. Terminal,
-  web, and IDE-plugin backends all receive the same `GraphicsCanvas`; only the
-  renderer changes.
-- **Mixed-domain documents & live collaboration.** Composable projections and
-  structural operations on a well-defined model are the natural substrate for
-  embedding domains within domains and for OT/CRDT-based collaboration.
-
-See [the vision guide](guide/vision.md) for the full picture and a "Compared
-to…" positioning relative to MPS, Lamdu, Hazel, Tree-sitter, and text editors.
 
 ---
 
