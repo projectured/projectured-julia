@@ -103,16 +103,24 @@ projection_read(::SyntaxLeafToText, iomap::SimpleIoMap, evt::KeyDown) = evt
 # TextText's spans cell, so structural changes trigger a rebuild.
 # Children are projected recursively via projection_print(recursion, ...).
 
+# Default rule for which nodes may carry an inline expand/collapse marker:
+# any node with at least one child. Projection instances can pass a custom
+# `marker_eligible` predicate to restrict this further (e.g. the filesystem
+# pipeline marks only directory header nodes, not the indented body wrapper).
+_default_marker_eligible(node) = length(node.children) > 0
+
 struct SyntaxNodeToText <: Projection
     indent_size::Int
     expanded_marker::TextString
     collapsed_marker::TextString
+    marker_eligible::Any
 end
 
 SyntaxNodeToText(; indent_size::Int = 2,
                    expanded_marker::TextString = TextString(""),
-                   collapsed_marker::TextString = TextString("")) =
-    SyntaxNodeToText(indent_size, expanded_marker, collapsed_marker)
+                   collapsed_marker::TextString = TextString(""),
+                   marker_eligible = _default_marker_eligible) =
+    SyntaxNodeToText(indent_size, expanded_marker, collapsed_marker, marker_eligible)
 
 struct SyntaxNodeToTextIoMap <: IoMap
     projection::Any
@@ -337,12 +345,14 @@ end
 
 function SyntaxToText(; indent_size::Int = 2,
                         expanded_marker::TextString = TextString(""),
-                        collapsed_marker::TextString = TextString(""))
+                        collapsed_marker::TextString = TextString(""),
+                        marker_eligible = _default_marker_eligible)
     TypeDispatchingProjection(
         SyntaxLeaf => SyntaxLeafToText(),
         SyntaxNode => SyntaxNodeToText(indent_size=indent_size,
                                        expanded_marker=expanded_marker,
-                                       collapsed_marker=collapsed_marker),
+                                       collapsed_marker=collapsed_marker,
+                                       marker_eligible=marker_eligible),
         ListNode   => SyntaxListToText(),
     )
 end
@@ -364,10 +374,11 @@ end
 #    collapsed → p.collapsed_marker  (e.g. "▸")
 # An empty configured marker (the default `TextString("")`) means "no marker":
 # no span is emitted and no offset is introduced, so callers that don't opt in
-# see byte-for-byte identical output. Empty nodes (no children) never get a
-# marker — the fold gesture would have nothing to act on.
+# see byte-for-byte identical output. Nodes the projection's `marker_eligible`
+# predicate rejects (by default, empty nodes) never get a marker — the fold
+# gesture would have nothing to act on.
 function _active_marker(p::SyntaxNodeToText, node::SyntaxNode)
-    length(node.children) > 0 || return nothing
+    p.marker_eligible(node) || return nothing
     m = node.collapsed ? p.collapsed_marker : p.expanded_marker
     isempty(m.content::AbstractString) ? nothing : m
 end
