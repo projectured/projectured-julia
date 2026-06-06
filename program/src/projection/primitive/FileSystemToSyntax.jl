@@ -10,6 +10,10 @@ tree shapes:
 The directory printer places a name leaf as children[1] and wraps all
 recursively-projected element outputs in a body SyntaxNode (indentation=2)
 as children[2], mirroring the Lisp file-system-to-syntax/indentation layout.
+
+When the downstream `SyntaxToText` is configured with expand/collapse markers,
+pass `marker_eligible = filesystem_marker_eligible` so the fold marker lands on
+the directory header node (the name line) and not on the indented body wrapper.
 """
 module FileSystemToSyntaxModule
 
@@ -25,7 +29,8 @@ import ..TypeDispatchingModule: TypeDispatchingProjection
 import ..IoMapModule: SimpleIoMap, ChildrenIoMap
 import ..ReferenceModule: ConcreteReferencePath, ElementReference, PositionReference, RangeReference, FieldReference, ProjectionReference, append_reference
 import ..ProjectionContextModule: child_context
-export FileSystemFileToSyntaxLeaf, FileSystemDirectoryToSyntaxNode, FileSystemToSyntax
+export FileSystemFileToSyntaxLeaf, FileSystemDirectoryToSyntaxNode, FileSystemToSyntax,
+       filesystem_marker_eligible
 
 # ── FileSystemFileToSyntaxLeaf ────────────────────────────────────────────────
 
@@ -117,6 +122,33 @@ function projection_print(p::FileSystemDirectoryToSyntaxNode, d::FileSystemDirec
         sel)
 
     ChildrenIoMap(p, d, node, child_iomaps)
+end
+
+# ── Marker eligibility ──────────────────────────────────────────────────────────
+#
+# `SyntaxNodeToText`'s default rule marks every node with children. A directory
+# is projected as a header node (the name leaf, at indentation 0) wrapping an
+# indented body node (indentation 2) that holds the entries — so the default
+# rule would mark BOTH, producing a stray marker on the indented block. This
+# predicate restricts the marker to a non-empty directory header node:
+#
+#   • indentation == 0          → the header node, not the indented body wrapper
+#   • children[2] is the body   → directory shape (name leaf + body node)
+#   • body has children         → non-empty: there is something to fold
+#
+"""
+    filesystem_marker_eligible(node::SyntaxNode) -> Bool
+
+Predicate for `SyntaxToText(marker_eligible = …)` so the expand/collapse marker
+lands on a non-empty directory header node and never on its indented body
+wrapper. See [`FileSystemDirectoryToSyntaxNode`](@ref).
+"""
+function filesystem_marker_eligible(node::SyntaxNode)
+    node.indentation == 0 || return false
+    children = node.children
+    length(children) >= 2 || return false
+    body = children[2]
+    body isa SyntaxNode && length(body.children) > 0
 end
 
 # ── Utility ───────────────────────────────────────────────────────────────────

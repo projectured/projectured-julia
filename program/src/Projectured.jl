@@ -222,7 +222,8 @@ using .JsonToSyntaxModule: JsonToSyntax, JsonStringToSyntaxLeaf,
                                JsonInsertionToSyntaxLeaf
 using .TableToGraphicsModule: TableToGraphics, TableTableToGraphicsCanvas
 using .XmlToSyntaxModule: XmlToSyntax, XmlTextToSyntaxLeaf, XmlElementToSyntaxNode
-using .FileSystemToSyntaxModule: FileSystemFileToSyntaxLeaf, FileSystemDirectoryToSyntaxNode, FileSystemToSyntax
+using .FileSystemToSyntaxModule: FileSystemFileToSyntaxLeaf, FileSystemDirectoryToSyntaxNode, FileSystemToSyntax,
+                                 filesystem_marker_eligible
 using .WorkspaceToFileSystemModule: WorkspaceFolderToFileSystemDirectory, WorkspaceToFileSystem
 using .ObjectToSyntaxModule: ObjectToSyntax, NothingToSyntaxLeaf, BoolToSyntaxLeaf,
                               NumberToSyntaxLeaf, StringToSyntaxLeaf, SymbolToSyntaxLeaf,
@@ -399,6 +400,21 @@ export font_liberation_serif_regular_24, font_liberation_serif_italic_24, font_l
 export font_liberation_serif_regular_30, font_liberation_serif_italic_30, font_liberation_serif_bold_30
 export font_liberation_serif_regular_36, font_liberation_serif_italic_36, font_liberation_serif_bold_36
 export font_liberation_serif_regular_42, font_liberation_serif_italic_42, font_liberation_serif_bold_42
+export font_dejavu_monospace_regular_14, font_dejavu_monospace_italic_14, font_dejavu_monospace_bold_14
+export font_dejavu_monospace_regular_16, font_dejavu_monospace_italic_16, font_dejavu_monospace_bold_16
+export font_dejavu_monospace_regular_18, font_dejavu_monospace_italic_18, font_dejavu_monospace_bold_18
+export font_dejavu_monospace_regular_20, font_dejavu_monospace_italic_20, font_dejavu_monospace_bold_20
+export font_dejavu_monospace_regular_22, font_dejavu_monospace_italic_22, font_dejavu_monospace_bold_22
+export font_dejavu_monospace_regular_24, font_dejavu_monospace_italic_24, font_dejavu_monospace_bold_24
+export font_dejavu_monospace_regular_36, font_dejavu_monospace_italic_36, font_dejavu_monospace_bold_36
+export font_dejavu_monospace_regular_48, font_dejavu_monospace_italic_48, font_dejavu_monospace_bold_48
+export font_dejavu_sans_regular_14, font_dejavu_sans_italic_14, font_dejavu_sans_bold_14
+export font_dejavu_sans_regular_16, font_dejavu_sans_italic_16, font_dejavu_sans_bold_16
+export font_dejavu_sans_regular_18, font_dejavu_sans_italic_18, font_dejavu_sans_bold_18
+export font_dejavu_sans_regular_20, font_dejavu_sans_italic_20, font_dejavu_sans_bold_20
+export font_dejavu_sans_regular_22, font_dejavu_sans_italic_22, font_dejavu_sans_bold_22
+export font_dejavu_sans_regular_24, font_dejavu_sans_italic_24, font_dejavu_sans_bold_24
+export font_dejavu_sans_regular_36, font_dejavu_sans_italic_36, font_dejavu_sans_bold_36
 export PrimitiveDocument, PrimitiveInsertion,
        PrimitiveBool, PrimitiveNumber, PrimitiveString,
        NumberReplaceRangeOperation, StringReplaceRangeOperation
@@ -442,7 +458,7 @@ export JsonToSyntax, JsonStringToSyntaxLeaf,
        JsonInsertionToSyntaxLeaf
 export TableToGraphics, TableTableToGraphicsCanvas
 export XmlToSyntax, XmlTextToSyntaxLeaf, XmlElementToSyntaxNode
-export FileSystemFileToSyntaxLeaf, FileSystemDirectoryToSyntaxNode, FileSystemToSyntax
+export FileSystemFileToSyntaxLeaf, FileSystemDirectoryToSyntaxNode, FileSystemToSyntax, filesystem_marker_eligible
 export WorkspaceFolderToFileSystemDirectory, WorkspaceToFileSystem
 export ObjectToSyntax, NothingToSyntaxLeaf, BoolToSyntaxLeaf,
        NumberToSyntaxLeaf, StringToSyntaxLeaf, SymbolToSyntaxLeaf,
