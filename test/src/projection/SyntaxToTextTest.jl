@@ -82,4 +82,71 @@ end # let
 
 end # @testset "SyntaxToText flat-position round-trip"
 
+@testset "SyntaxToText collapse/expand marker" begin
+
+# The inline expand/collapse marker is an optional projection-introduced span
+# rendered before the open delimiter in both states. Which glyph shows depends
+# on `node.collapsed`; an empty configured marker (the default) emits nothing.
+let
+_S2T = Projectured.SyntaxToTextModule
+mk(s) = TextString(s)
+
+node = SyntaxNode("[", "]", ", ",
+    SyntaxDocument[SyntaxLeaf("1"), SyntaxLeaf("2"), SyntaxLeaf("3")])
+
+p_off = _S2T.SyntaxNodeToText()
+p_on  = _S2T.SyntaxNodeToText(expanded_marker=mk("▾"), collapsed_marker=mk("▸"))
+
+pipe_off = RecursiveProjection(SyntaxToText())
+pipe_on  = RecursiveProjection(SyntaxToText(expanded_marker=mk("▾"), collapsed_marker=mk("▸")))
+
+# Marker off (default): byte-for-byte unchanged, no marker recorded.
+iomap_off = projection_print(pipe_off, node)
+@test join(s.content for s in iomap_off.output) == "[1, 2, 3]"
+@test iomap_off.marker_index[] == 0
+
+# Marker on, expanded: leading ▾ as element 1.
+node.collapsed = false
+iomap_x = projection_print(pipe_on, node)
+spans_x = [s.content for s in iomap_x.output]
+@test spans_x[1] == "▾"
+@test join(spans_x) == "▾[1, 2, 3]"
+@test iomap_x.marker_index[] == 1
+
+# Marker on, collapsed: the glyph swaps to ▸ (body rendering is unchanged in
+# this slice — only the marker reacts to `collapsed`).
+node.collapsed = true
+iomap_c = projection_print(pipe_on, node)
+spans_c = [s.content for s in iomap_c.output]
+@test spans_c[1] == "▸"
+@test iomap_c.marker_index[] == 1
+node.collapsed = false
+
+# Empty node: no marker even when configured (nothing to fold).
+empty_node = SyntaxNode("[", "]", ", ", SyntaxDocument[])
+iomap_e = projection_print(pipe_on, empty_node)
+@test join(s.content for s in iomap_e.output) == "[]"
+@test iomap_e.marker_index[] == 0
+
+# Offset shift: the marker adds exactly its length to the subtree, the marker
+# range maps to a projection-introduced position, and the round-trip identity
+# `_pos_to_selection ∘ _syntax_to_flat` still holds with the marker on.
+@test _S2T._subtree_len(node, p_on, 0) == _S2T._subtree_len(node, p_off, 0) + 1
+
+sel0 = _S2T._pos_to_selection(node, 0, p_on, 0)
+@test sel0.head isa _S2T.ProjectionReference
+
+# Position 1 (just past the one-char marker) is the open delimiter.
+sel1 = _S2T._pos_to_selection(node, 1, p_on, 0)
+@test sel1.head isa _S2T.FieldReference && sel1.head.name == "open"
+
+flat_len = _S2T._subtree_len(node, p_on, 0)
+for k in 0:flat_len
+    sel = _S2T._pos_to_selection(node, k, p_on, 0)
+    @test _S2T._syntax_to_flat(node, sel, p_on, 0) == k
+end
+end # let
+
+end # @testset "SyntaxToText collapse/expand marker"
+
 end # test_syntax_to_text

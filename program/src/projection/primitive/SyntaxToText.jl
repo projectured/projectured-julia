@@ -105,16 +105,24 @@ projection_read(::SyntaxLeafToText, iomap::SimpleIoMap, evt::KeyDown) = evt
 
 struct SyntaxNodeToText <: Projection
     indent_size::Int
+    expanded_marker::TextString
+    collapsed_marker::TextString
 end
 
-SyntaxNodeToText(; indent_size::Int = 2) =
-    SyntaxNodeToText(indent_size)
+SyntaxNodeToText(; indent_size::Int = 2,
+                   expanded_marker::TextString = TextString(""),
+                   collapsed_marker::TextString = TextString("")) =
+    SyntaxNodeToText(indent_size, expanded_marker, collapsed_marker)
 
 struct SyntaxNodeToTextIoMap <: IoMap
     projection::Any
     input::SyntaxNode
     output::TextText
     child_char_ranges::Cell
+    # Cell{Int}: index of the inline expand/collapse marker span in
+    # `output.elements` (always element 1 when present), or 0 when no marker
+    # was emitted. Recorded so the reader can recognise clicks on the marker.
+    marker_index::Cell
 end
 
 function map_reference_forward(p::SyntaxNodeToText, iomap::SyntaxNodeToTextIoMap, reference)
@@ -156,7 +164,8 @@ function projection_print(p::SyntaxNodeToText, node::SyntaxNode, recursion, ctx)
             _flat_to_text_elem_path(both[][1], cursor)
         end))
     child_ranges = Cell(() -> both[][3])
-    SyntaxNodeToTextIoMap(p, node, output, child_ranges)
+    marker_idx = Cell(() -> _active_marker(p, node) === nothing ? 0 : 1)
+    SyntaxNodeToTextIoMap(p, node, output, child_ranges, marker_idx)
 end
 
 function projection_read(p::SyntaxNodeToText, iomap::SyntaxNodeToTextIoMap, op::ReplaceSelectionOperation)
@@ -326,10 +335,14 @@ end
 
 # ── Compound convenience constructor ────────────────────────────────────────
 
-function SyntaxToText(; indent_size::Int = 2)
+function SyntaxToText(; indent_size::Int = 2,
+                        expanded_marker::TextString = TextString(""),
+                        collapsed_marker::TextString = TextString(""))
     TypeDispatchingProjection(
         SyntaxLeaf => SyntaxLeafToText(),
-        SyntaxNode => SyntaxNodeToText(indent_size=indent_size),
+        SyntaxNode => SyntaxNodeToText(indent_size=indent_size,
+                                       expanded_marker=expanded_marker,
+                                       collapsed_marker=collapsed_marker),
         ListNode   => SyntaxListToText(),
     )
 end
@@ -342,6 +355,28 @@ end
 
 function _newline_span()
     TextString("\n")
+end
+
+# The optional inline expand/collapse marker rendered immediately before the
+# open delimiter, in BOTH the expanded and collapsed states. Which glyph is
+# shown depends on `node.collapsed`:
+#   !collapsed → p.expanded_marker   (e.g. "▾")
+#    collapsed → p.collapsed_marker  (e.g. "▸")
+# An empty configured marker (the default `TextString("")`) means "no marker":
+# no span is emitted and no offset is introduced, so callers that don't opt in
+# see byte-for-byte identical output. Empty nodes (no children) never get a
+# marker — the fold gesture would have nothing to act on.
+function _active_marker(p::SyntaxNodeToText, node::SyntaxNode)
+    length(node.children) > 0 || return nothing
+    m = node.collapsed ? p.collapsed_marker : p.expanded_marker
+    isempty(m.content::AbstractString) ? nothing : m
+end
+
+# Character length of the active marker, or 0 when none is emitted. Every
+# offset in the rendered node is shifted right by this amount.
+function _marker_len(p::SyntaxNodeToText, node::SyntaxNode)
+    m = _active_marker(p, node)
+    m === nothing ? 0 : length(m.content::AbstractString)
 end
 
 # Reads leaf.selection[] (.open[k], .value[k], .close[k], or PS variants) and
@@ -416,7 +451,7 @@ function _syntax_to_flat(node::SyntaxNode, path::ReferencePath, p::SyntaxNodeToT
             idx = rest.head
             idx isa RangeReference || return -1
             k = idx.start::Int
-            fname == "open"  && return k
+            fname == "open"  && return _marker_len(p, node) + k
             return _subtree_len(node, p, depth) - length(node.close.content) + k
         elseif fname == "children"
             h2 = rest.head
@@ -425,7 +460,7 @@ function _syntax_to_flat(node::SyntaxNode, path::ReferencePath, p::SyntaxNodeToT
             children = node.children
             (1 <= child_i <= length(children)) || return -1
             rest2 = rest.tail
-            char_count = length(node.open.content)
+            char_count = _marker_len(p, node) + length(node.open.content)
             if node.indentation > 0
                 child_depth = depth + 1
                 for i in 1:child_i
@@ -489,6 +524,13 @@ function _collect_spans(node::SyntaxNode, p::SyntaxNodeToText, depth::Int, recur
     children = node.children
     open_str = node.open.content
     indent = node.indentation > 0
+
+    # optional inline expand/collapse marker, before the open delimiter
+    marker = _active_marker(p, node)
+    if marker !== nothing
+        push!(spans, marker)
+        char_count += _span_len(marker)
+    end
 
     # open delimiter
     push!(spans, node.open)
@@ -562,7 +604,7 @@ end
 
 function _subtree_len(node::SyntaxNode, p::SyntaxNodeToText, depth::Int)
     children = node.children
-    n = length(node.open.content)
+    n = _marker_len(p, node) + length(node.open.content)
     if node.indentation > 0
         child_depth = depth + 1
         for (i, child) in enumerate(children)
@@ -599,11 +641,17 @@ end
 function _pos_to_selection(node::SyntaxNode, local_pos::Int, p::SyntaxNodeToText, depth::Int)
     _proj(k) = @reference proj(p, {k})
 
+    # A position inside the leading marker has no source-domain coordinate;
+    # report it as a projection-introduced position. Everything from the open
+    # delimiter onwards is the existing layout shifted right by the marker.
+    marker_len = _marker_len(p, node)
+    local_pos < marker_len && return _proj(local_pos)
+
     open_len = length(node.open.content)
-    local_pos < open_len && return @reference open{local_pos}
+    local_pos < marker_len + open_len && return @reference open{local_pos - marker_len}
 
     children = node.children
-    char_count = open_len
+    char_count = marker_len + open_len
 
     if node.indentation > 0
         child_depth = depth + 1
