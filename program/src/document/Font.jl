@@ -39,7 +39,22 @@ export StyleFont, make_style_font, font_scaled_size, _FONT_SCALE, _FONT_DIR,
        font_liberation_serif_regular_24, font_liberation_serif_italic_24, font_liberation_serif_bold_24,
        font_liberation_serif_regular_30, font_liberation_serif_italic_30, font_liberation_serif_bold_30,
        font_liberation_serif_regular_36, font_liberation_serif_italic_36, font_liberation_serif_bold_36,
-       font_liberation_serif_regular_42, font_liberation_serif_italic_42, font_liberation_serif_bold_42
+       font_liberation_serif_regular_42, font_liberation_serif_italic_42, font_liberation_serif_bold_42,
+       font_dejavu_monospace_regular_14, font_dejavu_monospace_italic_14, font_dejavu_monospace_bold_14,
+       font_dejavu_monospace_regular_16, font_dejavu_monospace_italic_16, font_dejavu_monospace_bold_16,
+       font_dejavu_monospace_regular_18, font_dejavu_monospace_italic_18, font_dejavu_monospace_bold_18,
+       font_dejavu_monospace_regular_20, font_dejavu_monospace_italic_20, font_dejavu_monospace_bold_20,
+       font_dejavu_monospace_regular_22, font_dejavu_monospace_italic_22, font_dejavu_monospace_bold_22,
+       font_dejavu_monospace_regular_24, font_dejavu_monospace_italic_24, font_dejavu_monospace_bold_24,
+       font_dejavu_monospace_regular_36, font_dejavu_monospace_italic_36, font_dejavu_monospace_bold_36,
+       font_dejavu_monospace_regular_48, font_dejavu_monospace_italic_48, font_dejavu_monospace_bold_48,
+       font_dejavu_sans_regular_14, font_dejavu_sans_italic_14, font_dejavu_sans_bold_14,
+       font_dejavu_sans_regular_16, font_dejavu_sans_italic_16, font_dejavu_sans_bold_16,
+       font_dejavu_sans_regular_18, font_dejavu_sans_italic_18, font_dejavu_sans_bold_18,
+       font_dejavu_sans_regular_20, font_dejavu_sans_italic_20, font_dejavu_sans_bold_20,
+       font_dejavu_sans_regular_22, font_dejavu_sans_italic_22, font_dejavu_sans_bold_22,
+       font_dejavu_sans_regular_24, font_dejavu_sans_italic_24, font_dejavu_sans_bold_24,
+       font_dejavu_sans_regular_36, font_dejavu_sans_italic_36, font_dejavu_sans_bold_36
 
 # ── Document ──────────────────────────────────────────────────────────────────
 
@@ -215,5 +230,74 @@ const font_liberation_serif_bold_36    = StyleFont(joinpath(_FONT_DIR, "Liberati
 const font_liberation_serif_regular_42 = StyleFont(joinpath(_FONT_DIR, "LiberationSerif-Regular.ttf"), 42)
 const font_liberation_serif_italic_42  = StyleFont(joinpath(_FONT_DIR, "LiberationSerif-Italic.ttf"), 42)
 const font_liberation_serif_bold_42    = StyleFont(joinpath(_FONT_DIR, "LiberationSerif-Bold.ttf"), 42)
+
+# ── DejaVu monospace ────────────────────────────────────────────────────────────
+# Broad Unicode coverage (geometric shapes ▾▸▼►, arrows, emoticons ☺♥) absent
+# from the Ubuntu/Liberation faces. Used for the fold markers and anywhere a glyph
+# outside basic Latin must render under the monochrome SDL_ttf pipeline.
+
+const font_dejavu_monospace_regular_14 = StyleFont(joinpath(_FONT_DIR, "DejaVuSansMono.ttf"), 14)
+const font_dejavu_monospace_italic_14  = StyleFont(joinpath(_FONT_DIR, "DejaVuSansMono-Oblique.ttf"), 14)
+const font_dejavu_monospace_bold_14    = StyleFont(joinpath(_FONT_DIR, "DejaVuSansMono-Bold.ttf"), 14)
+
+const font_dejavu_monospace_regular_16 = StyleFont(joinpath(_FONT_DIR, "DejaVuSansMono.ttf"), 16)
+const font_dejavu_monospace_italic_16  = StyleFont(joinpath(_FONT_DIR, "DejaVuSansMono-Oblique.ttf"), 16)
+const font_dejavu_monospace_bold_16    = StyleFont(joinpath(_FONT_DIR, "DejaVuSansMono-Bold.ttf"), 16)
+
+const font_dejavu_monospace_regular_18 = StyleFont(joinpath(_FONT_DIR, "DejaVuSansMono.ttf"), 18)
+const font_dejavu_monospace_italic_18  = StyleFont(joinpath(_FONT_DIR, "DejaVuSansMono-Oblique.ttf"), 18)
+const font_dejavu_monospace_bold_18    = StyleFont(joinpath(_FONT_DIR, "DejaVuSansMono-Bold.ttf"), 18)
+
+const font_dejavu_monospace_regular_20 = StyleFont(joinpath(_FONT_DIR, "DejaVuSansMono.ttf"), 20)
+const font_dejavu_monospace_italic_20  = StyleFont(joinpath(_FONT_DIR, "DejaVuSansMono-Oblique.ttf"), 20)
+const font_dejavu_monospace_bold_20    = StyleFont(joinpath(_FONT_DIR, "DejaVuSansMono-Bold.ttf"), 20)
+
+const font_dejavu_monospace_regular_22 = StyleFont(joinpath(_FONT_DIR, "DejaVuSansMono.ttf"), 22)
+const font_dejavu_monospace_italic_22  = StyleFont(joinpath(_FONT_DIR, "DejaVuSansMono-Oblique.ttf"), 22)
+const font_dejavu_monospace_bold_22    = StyleFont(joinpath(_FONT_DIR, "DejaVuSansMono-Bold.ttf"), 22)
+
+const font_dejavu_monospace_regular_24 = StyleFont(joinpath(_FONT_DIR, "DejaVuSansMono.ttf"), 24)
+const font_dejavu_monospace_italic_24  = StyleFont(joinpath(_FONT_DIR, "DejaVuSansMono-Oblique.ttf"), 24)
+const font_dejavu_monospace_bold_24    = StyleFont(joinpath(_FONT_DIR, "DejaVuSansMono-Bold.ttf"), 24)
+
+const font_dejavu_monospace_regular_36 = StyleFont(joinpath(_FONT_DIR, "DejaVuSansMono.ttf"), 36)
+const font_dejavu_monospace_italic_36  = StyleFont(joinpath(_FONT_DIR, "DejaVuSansMono-Oblique.ttf"), 36)
+const font_dejavu_monospace_bold_36    = StyleFont(joinpath(_FONT_DIR, "DejaVuSansMono-Bold.ttf"), 36)
+
+const font_dejavu_monospace_regular_48 = StyleFont(joinpath(_FONT_DIR, "DejaVuSansMono.ttf"), 48)
+const font_dejavu_monospace_italic_48  = StyleFont(joinpath(_FONT_DIR, "DejaVuSansMono-Oblique.ttf"), 48)
+const font_dejavu_monospace_bold_48    = StyleFont(joinpath(_FONT_DIR, "DejaVuSansMono-Bold.ttf"), 48)
+
+# ── DejaVu sans ─────────────────────────────────────────────────────────────────
+# Proportional companion. Adds the modern Emoticons block (😀…) as monochrome
+# outlines on top of the symbol coverage above — for assistant/LLM text.
+
+const font_dejavu_sans_regular_14 = StyleFont(joinpath(_FONT_DIR, "DejaVuSans.ttf"), 14)
+const font_dejavu_sans_italic_14  = StyleFont(joinpath(_FONT_DIR, "DejaVuSans-Oblique.ttf"), 14)
+const font_dejavu_sans_bold_14    = StyleFont(joinpath(_FONT_DIR, "DejaVuSans-Bold.ttf"), 14)
+
+const font_dejavu_sans_regular_16 = StyleFont(joinpath(_FONT_DIR, "DejaVuSans.ttf"), 16)
+const font_dejavu_sans_italic_16  = StyleFont(joinpath(_FONT_DIR, "DejaVuSans-Oblique.ttf"), 16)
+const font_dejavu_sans_bold_16    = StyleFont(joinpath(_FONT_DIR, "DejaVuSans-Bold.ttf"), 16)
+
+const font_dejavu_sans_regular_18 = StyleFont(joinpath(_FONT_DIR, "DejaVuSans.ttf"), 18)
+const font_dejavu_sans_italic_18  = StyleFont(joinpath(_FONT_DIR, "DejaVuSans-Oblique.ttf"), 18)
+const font_dejavu_sans_bold_18    = StyleFont(joinpath(_FONT_DIR, "DejaVuSans-Bold.ttf"), 18)
+
+const font_dejavu_sans_regular_20 = StyleFont(joinpath(_FONT_DIR, "DejaVuSans.ttf"), 20)
+const font_dejavu_sans_italic_20  = StyleFont(joinpath(_FONT_DIR, "DejaVuSans-Oblique.ttf"), 20)
+const font_dejavu_sans_bold_20    = StyleFont(joinpath(_FONT_DIR, "DejaVuSans-Bold.ttf"), 20)
+
+const font_dejavu_sans_regular_22 = StyleFont(joinpath(_FONT_DIR, "DejaVuSans.ttf"), 22)
+const font_dejavu_sans_italic_22  = StyleFont(joinpath(_FONT_DIR, "DejaVuSans-Oblique.ttf"), 22)
+const font_dejavu_sans_bold_22    = StyleFont(joinpath(_FONT_DIR, "DejaVuSans-Bold.ttf"), 22)
+
+const font_dejavu_sans_regular_24 = StyleFont(joinpath(_FONT_DIR, "DejaVuSans.ttf"), 24)
+const font_dejavu_sans_italic_24  = StyleFont(joinpath(_FONT_DIR, "DejaVuSans-Oblique.ttf"), 24)
+const font_dejavu_sans_bold_24    = StyleFont(joinpath(_FONT_DIR, "DejaVuSans-Bold.ttf"), 24)
+
+const font_dejavu_sans_regular_36 = StyleFont(joinpath(_FONT_DIR, "DejaVuSans.ttf"), 36)
+const font_dejavu_sans_italic_36  = StyleFont(joinpath(_FONT_DIR, "DejaVuSans-Oblique.ttf"), 36)
+const font_dejavu_sans_bold_36    = StyleFont(joinpath(_FONT_DIR, "DejaVuSans-Bold.ttf"), 36)
 
 end # module
