@@ -22,6 +22,7 @@ include("document/GraphicsTest.jl")
 include("document/GraphicsLayoutTest.jl")
 include("document/LayoutAllocatorTest.jl")
 include("document/CollectionTest.jl")
+include("document/TabularTest.jl")
 include("document/PrimitiveTest.jl")
 include("projection/JsonToSyntaxTest.jl")
 include("projection/SyntaxToTextTest.jl")
@@ -54,6 +55,7 @@ function test_documents()
         test_layout_allocator()
         test_layout_constraint_helpers()
         test_collection()
+        test_tabular()
         test_primitive()
     end
 end
@@ -94,7 +96,7 @@ end
 
 export test_all
 export test_cell, test_reference_builder
-export test_json, test_syntax, test_text, test_graphics, test_graphics_layout, test_layout_allocator, test_layout_constraint_helpers, test_collection, test_primitive
+export test_json, test_syntax, test_text, test_graphics, test_graphics_layout, test_layout_allocator, test_layout_constraint_helpers, test_collection, test_tabular, test_primitive
 export test_json_to_syntax, test_syntax_to_text, test_primitive_to_text, test_text_to_graphics, test_word_wrapping, test_copying_projection, test_write_image, test_tooltip
 export test_examples, test_selections
 export test_printer, test_printers, test_example, test_selection
