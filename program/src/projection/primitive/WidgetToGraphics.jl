@@ -34,6 +34,7 @@ import ..FontModule: StyleFont
 import ..IoMapModule: SimpleIoMap, ChildrenIoMap
 import ..IoMapApiModule: IoMap
 import ..MouseModule: MouseScroll, MousePress
+import ..OperationApiModule: Operation
 import ..OperationModule: ReplaceSelectionOperation
 import ..PrimitiveModule: StringReplaceRangeOperation, NumberReplaceRangeOperation
 import ..ReferenceModule: ReferencePath, ConcreteReferencePath, FieldReference, RangeReference
@@ -670,14 +671,18 @@ function projection_read(p::WidgetShellToGraphicsCanvas, iomap::ChildrenIoMap, e
 end
 
 # Forward a coordless event to each child entry's reader, returning the
-# first non-nothing result. Entries are `(x, y, cim)` tuples — coords are
-# ignored here.
+# first child that produced an `Operation`. Entries are `(x, y, cim)` tuples —
+# coords are ignored here. A child has only *handled* the event if it returns
+# an `Operation`; readers that pass the raw event back through (the common
+# `projection_read(p, iomap, op) = op` passthrough) must not be mistaken for
+# handlers, otherwise a non-focused pane would swallow the keystroke before a
+# later, focused pane is reached.
 function _forward_to_children(child_entries::Vector, evt)
     for entry in child_entries
         entry === nothing && continue
         (_, _, cim) = entry::Tuple{Int,Int,Any}
         result = projection_read(cim.projection, cim, evt)
-        result !== nothing && return result
+        result isa Operation && return result
     end
     nothing
 end
@@ -968,10 +973,16 @@ function projection_read(p::WidgetSplitPaneToGraphicsCanvas, iomap::ChildrenIoMa
         _route_split_event(child_iomaps, evt.x, evt.y,
             (x, y) -> MousePress(evt.button, x, y, evt.modifiers))
     else
-        # Forward keyboard (and other coordless) events to each slot's
-        # child in order; the focused descendant returns an op while the
-        # rest return nothing.
-        _forward_split_event(child_iomaps, evt)
+        # Forward keyboard (and other coordless) events to the child the
+        # forward-projected selection points at, so the keystroke reaches the
+        # focused descendant rather than whichever slot happens to answer
+        # first. When the split carries no selection (e.g. a split built
+        # outside the workbench, where nothing forward-projects onto it),
+        # fall back to trying each slot in order.
+        slot = iomap.input isa WidgetSplitPane ?
+               _selected_split_slot(iomap.input, length(child_iomaps)) : 0
+        slot == 0 ? _forward_split_event(child_iomaps, evt) :
+                    _forward_split_event_slot(child_iomaps, evt, slot)
     end
     res === nothing && return nothing
     op, slot_idx = res
@@ -987,15 +998,42 @@ end
 
 # Forward a coordless event through split-pane slots; entries are
 # `(x_cell, y_cell, cim)` tuples — coords are ignored here. Returns
-# `(op, slot_index)` for the first slot whose reader produced an op.
+# `(op, slot_index)` for the first slot whose reader produced an `Operation`.
+# A slot that only passes the raw event back through (see `_forward_to_children`)
+# has not handled it, so the next slot still gets a chance.
 function _forward_split_event(child_iomaps::Vector, evt)
     for (i, entry) in enumerate(child_iomaps)
         entry === nothing && continue
         (_, _, cim) = entry::Tuple{Cell,Cell,Any}
         result = projection_read(cim.projection, cim, evt)
-        result !== nothing && return (result, i)
+        result isa Operation && return (result, i)
     end
     nothing
+end
+
+# The split slot the node's forward-projected selection points at. The
+# projected selection has the shape `elements[slot].child.<rest>`, so the
+# unit-range step right after the `elements` field names the slot. Returns 0
+# when the split carries no such selection (route by fallback then).
+function _selected_split_slot(w::WidgetSplitPane, n::Int)
+    sel = getfield(w, :selection)[]
+    sel isa ConcreteReferencePath || return 0
+    (sel.head isa FieldReference && sel.head.name == "elements") || return 0
+    t = sel.tail
+    (t isa ConcreteReferencePath && t.head isa RangeReference) || return 0
+    slot = t.head.start + 1
+    1 <= slot <= n ? slot : 0
+end
+
+# Forward a coordless event to the single split slot the selection points at,
+# returning `(op, slot)` only when that child produced an `Operation`.
+function _forward_split_event_slot(child_iomaps::Vector, evt, slot::Int)
+    (1 <= slot <= length(child_iomaps)) || return nothing
+    entry = child_iomaps[slot]
+    entry === nothing && return nothing
+    (_, _, cim) = entry::Tuple{Cell,Cell,Any}
+    result = projection_read(cim.projection, cim, evt)
+    result isa Operation ? (result, slot) : nothing
 end
 
 function _route_split_event(child_iomaps::Vector, x::Int, y::Int, make_evt)
@@ -1047,11 +1085,8 @@ function projection_print(p::WidgetTabbedPaneToGraphicsCanvas, w::WidgetTabbedPa
     sel_cell = getfield(w, :selection)
 
     _active_idx(sel) = begin
-        sel isa ConcreteReferencePath || return 1
-        h = sel.head
-        h isa RangeReference || return 1
-        i = h.start + 1
-        1 <= i <= length(tabs) ? i : 1
+        i = _tab_index_from_selection(sel, length(tabs))
+        i == 0 ? 1 : i
     end
 
     selector_cv = CellVector(() -> begin
@@ -1193,14 +1228,30 @@ function _route_active_tab(iomap::ChildrenIoMap, child_iomaps::Vector, evt)
     (op, active_idx)
 end
 
+# The 1-based tab a tabbed pane's selection points at, or 0 when there is no
+# tab selection. Accepts the forward-projected widget shape
+# `selector_element_pairs[i].<rest>` (written by the printer when the document
+# selection lands inside a tab) as well as the bare `[i]` shorthand a tab-strip
+# click writes.
+function _tab_index_from_selection(sel, n::Int)
+    sel isa ConcreteReferencePath || return 0
+    h = sel.head
+    if h isa FieldReference && h.name == "selector_element_pairs"
+        t = sel.tail
+        (t isa ConcreteReferencePath && t.head isa RangeReference) || return 0
+        i = t.head.start + 1
+    elseif h isa RangeReference
+        i = h.start + 1
+    else
+        return 0
+    end
+    1 <= i <= n ? i : 0
+end
+
 function _active_tab_index(w::WidgetTabbedPane, n::Int)
     n == 0 && return 0
-    sel = getfield(w, :selection)[]
-    sel isa ConcreteReferencePath || return 1
-    h = sel.head
-    h isa RangeReference || return 1
-    idx = h.start + 1
-    1 <= idx <= n ? idx : 1
+    i = _tab_index_from_selection(getfield(w, :selection)[], n)
+    i == 0 ? 1 : i
 end
 
 function _tab_prefix(res)

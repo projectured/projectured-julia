@@ -16,6 +16,15 @@ hierarchy to a widget tree.
     WorkbenchEvaluator  → WidgetScrollPane wrapping projected content
     WorkbenchAssistant  → WidgetSplitPane (vertical) of conversation + input WidgetScrollPanes
     WorkbenchEditor     → WidgetScrollPane wrapping projected content
+
+The printer also **forward-projects the workbench selection** onto the widget
+tree: each `map_reference_forward` method is the structure-complete inverse of
+the matching `map_reference_backward`, and `projection_print` wires the
+`selection` cells of the shell, the structural split panes, and the tabbed
+panes to it. That lets the widget readers route a keystroke to the child the
+selection points at (split panes via `_selected_split_slot`, tabbed panes by
+making the active tab follow the selection) instead of broadcasting to every
+pane. See the "Forward-Projecting Selection" section of guide/editor/selection.md.
 """
 module WorkbenchToWidgetModule
 
@@ -34,7 +43,7 @@ import ..TextModule: TextText, TextString
 import ..FontModule: font_ubuntu_monospace_regular_24
 import ..ColorModule: StyleColor, color_default
 import ..IoMapModule: SimpleIoMap, ContentIoMap, ChildrenIoMap
-import ..ReactiveModule: Cell
+import ..ReactiveModule: Cell, setfn!
 import ..IoMapApiModule: IoMap
 import ..TypeDispatchingModule: TypeDispatchingProjection
 import ..OperationModule: ReplaceSelectionOperation
@@ -107,6 +116,25 @@ _recurse(recursion, doc, ctx) =
 
 _title_widget(doc::WorkbenchDocument) = title(doc)
 
+# Strip a leading `FieldReference(name)` step from a forward-projected path;
+# `nothing` if it doesn't match. Used to re-root the shell's full widget-domain
+# selection onto the structural split panes it builds.
+function _strip_field(path, name::AbstractString)
+    path isa ConcreteReferencePath || return nothing
+    (path.head isa FieldReference && path.head.name == name) || return nothing
+    path.tail
+end
+
+# Strip a leading `elements[slot].child` (field, unit-range, field) from a
+# split pane's selection; `nothing` if the selection doesn't enter that slot.
+function _strip_split_child(path, slot::Int)
+    rest = _strip_field(path, "elements")
+    rest isa ConcreteReferencePath || return nothing
+    rest.head isa RangeReference || return nothing
+    (rest.head.start + 1) == slot || return nothing
+    _strip_field(rest.tail, "child")
+end
+
 # ── projection_print ──────────────────────────────────────────────────────────
 
 function projection_print(::WorkbenchWorkbenchToWidgetShell,
@@ -115,6 +143,19 @@ function projection_print(::WorkbenchWorkbenchToWidgetShell,
     edit_iomap = _recurse(recursion, w.editing_page,     child_context(ctx, @reference ^(ctx.reference).editing_page))
     info_iomap = _recurse(recursion, w.information_page, child_context(ctx, @reference ^(ctx.reference).information_page))
     ctrl_iomap = _recurse(recursion, w.control_page,     child_context(ctx, @reference ^(ctx.reference).control_page))
+
+    # Placeholder filled once the IoMap is built below, so the
+    # forward-projected selection cells can reference it.
+    iomap_cell = Cell(nothing)
+    wsel = getfield(w, :selection)
+    _shell_sel() = begin
+        im = iomap_cell[]
+        im === nothing && return nothing
+        sel = wsel[]
+        sel === nothing && return nothing
+        map_reference_forward(WorkbenchWorkbenchToWidgetShell(), im, sel)
+    end
+
     # Center column: editor fills remaining height, info pane pinned to 200.
     center_split = WidgetSplitPane(:vertical, Any[
         LayoutConstraint(edit_iomap.output; weight_height=1.0),
@@ -128,6 +169,16 @@ function projection_print(::WorkbenchWorkbenchToWidgetShell,
         LayoutConstraint(center_split;      weight_width=1.0),
         LayoutConstraint(ctrl_iomap.output; min_width=400, max_width=400),
     ])
+    # Forward-project the workbench selection onto the structural split panes
+    # so their coordless readers route the event to the focused child: the
+    # main split's selection is the shell selection without its leading
+    # `content` step; the center column's is the main split's without its
+    # `elements[2].child` (slot 2) step.
+    setfn!(getfield(main_split, :selection),
+           () -> _strip_field(_shell_sel(), "content"))
+    setfn!(getfield(center_split, :selection),
+           () -> _strip_split_child(_strip_field(_shell_sel(), "content"), 2))
+
     # Track the window: the shell fills whatever extent the parent (the
     # WindowDocument's CopyingProjection) seeded on the context, falling
     # back to a sensible default when run outside a window.
@@ -139,8 +190,12 @@ function projection_print(::WorkbenchWorkbenchToWidgetShell,
     shell = WidgetShell(main_split;
                         size=shell_size,
                         border=_PAD5)
-    WorkbenchWorkbenchToWidgetShellIoMap(nothing, w, shell,
-                                         nav_iomap, edit_iomap, info_iomap, ctrl_iomap)
+    setfn!(getfield(shell, :selection), _shell_sel)
+
+    iomap = WorkbenchWorkbenchToWidgetShellIoMap(nothing, w, shell,
+                                                 nav_iomap, edit_iomap, info_iomap, ctrl_iomap)
+    iomap_cell[] = iomap
+    iomap
 end
 
 function projection_print(::WorkbenchPageToWidgetTabbedPane,
@@ -151,7 +206,16 @@ function projection_print(::WorkbenchPageToWidgetTabbedPane,
     pairs = Any[(_title_widget(page.elements[i]), element_iomaps[i].output)
                 for i in eachindex(page.elements)]
     tabbed = WidgetTabbedPane(pairs; border=_PAD5)
-    WorkbenchPageToWidgetTabbedPaneIoMap(nothing, page, tabbed, element_iomaps)
+    iomap = WorkbenchPageToWidgetTabbedPaneIoMap(nothing, page, tabbed, element_iomaps)
+    # Forward-project the page's selection onto the tabbed pane so the active
+    # tab follows the document selection (and coordless events route to it).
+    psel = getfield(page, :selection)
+    setfn!(getfield(tabbed, :selection), () -> begin
+        sel = psel[]
+        sel === nothing && return nothing
+        map_reference_forward(WorkbenchPageToWidgetTabbedPane(), iomap, sel)
+    end)
+    iomap
 end
 
 function projection_print(::WorkbenchNavigatorToWidgetScrollPane,
@@ -243,94 +307,118 @@ function projection_print(::WorkbenchEditorToWidgetScrollPane,
     ContentIoMap(nothing, e, scroll, content_iomap)
 end
 
-# ── map_reference_forward ─────────────────────────────────────────────────────
+# ── map_reference_forward ──────────────────────────────────────────────
+#
+# Inverse of `map_reference_backward`: translate a workbench-domain
+# reference rooted at a node into the widget-domain reference that node's
+# projection produced. The printer wires each output widget node's
+# `selection` cell to `map_reference_forward(...)` of the corresponding
+# input node's selection (which `set_selection!` stores as a suffix at
+# every level), so the generated widget tree carries the forward-projected
+# selection at every level and each reader can forward an event to the
+# child the selection points to (see `_selected_split_slot` /
+# `_route_active_tab` in WidgetToGraphics). These are the precise inverses
+# of the structural steps the backward mappings strip; recall that the DSL
+# `[i]` is `RangeReference(i-1, i)`, the same shape the backward side
+# matches with `{i-1:i}`.
 
+# Forward an already-stripped tail through a page / panel iomap, dispatching
+# the way the backward side does — the per-node IoMaps store
+# `projection = nothing`, so recover the projection from the iomap / input
+# type rather than from the stored projection.
+_page_forward(page_iomap::WorkbenchPageToWidgetTabbedPaneIoMap, rest) =
+    map_reference_forward(WorkbenchPageToWidgetTabbedPane(), page_iomap, rest)
+_page_forward(_, _) = nothing
+
+_panel_forward(elem_im, rest) = _panel_forward(elem_im.input, elem_im, rest)
+_panel_forward(::WorkbenchEditor,    im, ref) = map_reference_forward(WorkbenchEditorToWidgetScrollPane(),    im, ref)
+_panel_forward(::WorkbenchNavigator, im, ref) = map_reference_forward(WorkbenchNavigatorToWidgetScrollPane(), im, ref)
+_panel_forward(::WorkbenchConsole,   im, ref) = map_reference_forward(WorkbenchConsoleToWidgetScrollPane(),   im, ref)
+_panel_forward(::WorkbenchEvaluator, im, ref) = map_reference_forward(WorkbenchEvaluatorToWidgetScrollPane(), im, ref)
+_panel_forward(::WorkbenchAssistant, im, ref) = map_reference_forward(WorkbenchAssistantToWidgetSplitPane(),  im, ref)
+_panel_forward(_, _, _)                       = nothing
+
+# WorkbenchWorkbench → WidgetShell(WidgetSplitPane(nav | center(edit|info) | ctrl)).
+# Mirror the structural steps stripped by `map_reference_backward` above:
+# the horizontal split's `elements[1|2|3].child`, and the center column's
+# nested `elements[1|2].child`. `something(_, EmptyReferencePath())` keeps a
+# selection that points only at a page (no deeper suffix) routable.
 function map_reference_forward(::WorkbenchWorkbenchToWidgetShell,
                                 iomap::WorkbenchWorkbenchToWidgetShellIoMap,
                                 reference)
-    reference isa ConcreteReferencePath || return nothing
-    h = reference.head
-    h isa FieldReference || return nothing
-    rest = reference.tail
-    if h.name == "navigation_page"
-        return map_reference_forward(nothing, iomap.navigation_page_iomap, rest)
-    elseif h.name == "editing_page"
-        return map_reference_forward(nothing, iomap.editing_page_iomap, rest)
-    elseif h.name == "information_page"
-        return map_reference_forward(nothing, iomap.information_page_iomap, rest)
-    elseif h.name == "control_page"
-        return map_reference_forward(nothing, iomap.control_page_iomap, rest)
+    @reference_case reference begin
+        navigation_page.rest... => begin
+            inner = something(_page_forward(iomap.navigation_page_iomap, rest), EmptyReferencePath())
+            @reference content.elements[1].child.^(inner)
+        end
+        editing_page.rest... => begin
+            inner = something(_page_forward(iomap.editing_page_iomap, rest), EmptyReferencePath())
+            @reference content.elements[2].child.elements[1].child.^(inner)
+        end
+        information_page.rest... => begin
+            inner = something(_page_forward(iomap.information_page_iomap, rest), EmptyReferencePath())
+            @reference content.elements[2].child.elements[2].child.^(inner)
+        end
+        control_page.rest... => begin
+            inner = something(_page_forward(iomap.control_page_iomap, rest), EmptyReferencePath())
+            @reference content.elements[3].child.^(inner)
+        end
     end
-    return nothing
 end
 
+# WorkbenchPage → WidgetTabbedPane: `elements[i]` ↔ `selector_element_pairs[i]`.
 function map_reference_forward(::WorkbenchPageToWidgetTabbedPane,
                                 iomap::WorkbenchPageToWidgetTabbedPaneIoMap,
                                 reference)
-    reference isa ConcreteReferencePath || return nothing
-    h = reference.head
-    h isa FieldReference && h.name == "elements" || return nothing
-    rest = reference.tail
-    rest isa ConcreteReferencePath || return nothing
-    h2 = rest.head
-    h2 isa RangeReference || return nothing
-    idx = h2.start + 1
-    1 <= idx <= length(iomap.element_iomaps) || return nothing
-    map_reference_forward(nothing, iomap.element_iomaps[idx], rest.tail)
+    @reference_case reference begin
+        elements[i].rest... => begin
+            (1 <= i <= length(iomap.element_iomaps)) || return nothing
+            inner = something(_panel_forward(iomap.element_iomaps[i], rest), EmptyReferencePath())
+            @reference selector_element_pairs[i].^(inner)
+        end
+    end
+end
+
+# Each panel renames its workbench field to the widget scroll pane's `content`
+# (the wrapped content document is opaque to this projection, so its own
+# selection suffix passes straight through).
+function map_reference_forward(::WorkbenchEditorToWidgetScrollPane, iomap::ContentIoMap, reference)
+    @reference_case reference begin
+        content.rest... => @reference content.^(rest)
+    end
 end
 
 function map_reference_forward(::WorkbenchNavigatorToWidgetScrollPane,
-                                iomap::WorkbenchNavigatorToWidgetScrollPaneIoMap,
-                                reference)
-    return nothing
+                                iomap::WorkbenchNavigatorToWidgetScrollPaneIoMap, reference)
+    @reference_case reference begin
+        workspace.rest... => @reference content.^(rest)
+    end
 end
 
-function map_reference_forward(::WorkbenchConsoleToWidgetScrollPane,
-                                iomap::ContentIoMap,
-                                reference)
-    reference isa ConcreteReferencePath || return nothing
-    h = reference.head
-    h isa FieldReference && h.name == "content" || return nothing
-    map_reference_forward(nothing, iomap.inner_iomap, reference.tail)
+function map_reference_forward(::WorkbenchConsoleToWidgetScrollPane, iomap::ContentIoMap, reference)
+    @reference_case reference begin
+        content.rest... => @reference content.^(rest)
+    end
 end
 
-function map_reference_forward(::WorkbenchDescriptorToWidgetScrollPane,
-                                iomap,
-                                reference)
-    return nothing
+function map_reference_forward(::WorkbenchEvaluatorToWidgetScrollPane, iomap::ContentIoMap, reference)
+    @reference_case reference begin
+        content.rest... => @reference content.^(rest)
+    end
 end
 
-function map_reference_forward(::WorkbenchOperatorToWidgetScrollPane, iomap, reference)
-    return nothing
+# Assistant → vertical WidgetSplitPane(conversation | input), each a scroll pane.
+function map_reference_forward(::WorkbenchAssistantToWidgetSplitPane, iomap, reference)
+    @reference_case reference begin
+        conversation.rest... => @reference elements[1].child.content.^(rest)
+        input.rest...        => @reference elements[2].child.content.^(rest)
+    end
 end
 
-function map_reference_forward(::WorkbenchSearcherToWidgetScrollPane, iomap, reference)
-    return nothing
-end
-
-function map_reference_forward(::WorkbenchEvaluatorToWidgetScrollPane,
-                                iomap::ContentIoMap,
-                                reference)
-    reference isa ConcreteReferencePath || return nothing
-    h = reference.head
-    h isa FieldReference && h.name == "content" || return nothing
-    map_reference_forward(nothing, iomap.inner_iomap, reference.tail)
-end
-
-function map_reference_forward(::WorkbenchAssistantToWidgetSplitPane,
-                                iomap,
-                                reference)
-    return nothing
-end
-
-function map_reference_forward(::WorkbenchEditorToWidgetScrollPane,
-                                iomap::ContentIoMap,
-                                reference)
-    reference isa ConcreteReferencePath || return nothing
-    h = reference.head
-    h isa FieldReference && h.name == "content" || return nothing
-    map_reference_forward(nothing, iomap.inner_iomap, reference.tail)
-end
+# Descriptor / Operator / Searcher render non-document content — nothing to project.
+map_reference_forward(::WorkbenchDescriptorToWidgetScrollPane, iomap, reference) = nothing
+map_reference_forward(::WorkbenchOperatorToWidgetScrollPane, iomap, reference) = nothing
+map_reference_forward(::WorkbenchSearcherToWidgetScrollPane, iomap, reference) = nothing
 
 # ── map_reference_backward ────────────────────────────────────────────────────
 
@@ -583,7 +671,9 @@ function projection_read(p::WorkbenchPageToWidgetTabbedPane,
         op.widget === iomap.output || return op
         idx = op.tab_index
         1 <= idx <= length(iomap.input.elements) || return op
-        getfield(iomap.output, :selection)[] = @reference [idx]
+        # The tabbed pane's active tab is a forward projection of the page
+        # selection (see projection_print), so moving the document selection
+        # to this element is enough — no imperative write to the widget cell.
         return ReplaceSelectionOperation(@reference elements[idx])
     end
     _retarget_panel_op(p, iomap, op)
