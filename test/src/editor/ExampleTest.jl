@@ -1,8 +1,10 @@
 function test_example(example::Example)
 @testset "Examples" begin
-    test_printer(example.name, example.document, example.projection)
-    test_reader(example.name, example.document, example.projection)
-    test_selection(example.name, example.document, example.projection)
+    test_printer(example)
+    test_reader(example)
+    test_repl(example)
+    test_selection(example)
+    test_typein(example)
 end
 end
 

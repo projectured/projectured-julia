@@ -16,7 +16,7 @@
 #   Wraps explore_selections in a @testset and asserts no errors occurred.
 # ═══════════════════════════════════════════════════════════════════════════
 
-function explore_selections(document, projection, initial_selection=nothing)
+function explore_selections(document, projection, initial_selection=nothing; onstate=nothing)
     nav_keys = [
         KeyDown(:left,  Modifiers()),
         KeyDown(:right, Modifiers()),
@@ -55,6 +55,7 @@ function explore_selections(document, projection, initial_selection=nothing)
         path_str = string(path)
         path_str in visited && continue
         push!(visited, path_str)
+        errs_before = length(errors)
 
         clear_selection!(document)
         set_selection!(document, path)
@@ -62,7 +63,9 @@ function explore_selections(document, projection, initial_selection=nothing)
         iomap = try
             projection_print(projection, document)
         catch e
-            push!(errors, "reprint at [$path_str] failed: $e")
+            msg = "reprint at [$path_str] failed: $e"
+            push!(errors, msg)
+            onstate === nothing || onstate(path, false, msg)
             continue
         end
         _walk!(iomap, Set{UInt64}(), errors)
@@ -79,18 +82,34 @@ function explore_selections(document, projection, initial_selection=nothing)
             new_str in visited && continue
             push!(queue, op.path)
         end
+
+        if onstate !== nothing
+            if length(errors) > errs_before
+                onstate(path, false, errors[errs_before + 1])
+            else
+                onstate(path, true, "")
+            end
+        end
     end
 
     (state_count=length(visited), errors=errors)
 end
 
+# One @test per reachable selection state.
 function test_selection(label, document, projection, initial_selection=nothing)
     @testset "$label" begin
-        result = explore_selections(document, projection, initial_selection)
-        for e in result.errors
-            @warn "[$label] $e"
+        result = explore_selections(document, projection, initial_selection;
+            onstate = (p, ok, msg) -> begin
+                ok || @warn "[$label] [$p] $msg"
+                @test ok
+            end)
+        # Seed failures (Ctrl+Home / initial print) leave no states to assert;
+        # surface their reasons and let the state-count check fail.
+        if result.state_count == 0
+            for e in result.errors
+                @warn "[$label] $e"
+            end
         end
-        @test isempty(result.errors)
         @test result.state_count > 0
     end
 end

@@ -37,6 +37,7 @@ include("editor/ExampleTest.jl")
 include("editor/SelectionTest.jl")
 include("editor/ReaderTest.jl")
 include("editor/ReplTest.jl")
+include("editor/TypeinTest.jl")
 include("editor/McpTest.jl")
 include("editor/MouseClickTest.jl")
 include("editor/ClickRoundtripTest.jl")
@@ -79,6 +80,7 @@ function test_all()
     test_readers()
     test_selections()
     test_repls()
+    test_typeins()
     test_mcp_tools()
     test_assistant_mvp()
     test_mouse_clicks()
@@ -97,6 +99,7 @@ export test_printer, test_printers, test_example, test_selection
 export explore_selections
 export test_reader, test_readers, walk_reader_events
 export test_repl, test_repls, walk_repl_loop
+export test_typein, test_typeins, walk_typein
 export test_mouse_click_roundtrip, test_mouse_clicks
 export test_click_roundtrip, test_click_roundtrips, test_text_nav_invariants, test_text_nav_invariants_all
 export test_json_content_clicks_clean, test_json_content_clicks_clean_all

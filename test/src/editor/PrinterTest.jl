@@ -37,8 +37,13 @@ end
 
 WalkStatus() = WalkStatus(false, false, 0, 0)
 
+# `oncell`, when supplied, is called once for every Cell forced (and every
+# field whose `getfield` throws) with `(ok::Bool, message::String)`.  It lets a
+# caller emit one assertion per reactive cell so the test count reflects the
+# whole recursive walk; default `nothing` keeps the plain error-collecting
+# behaviour used elsewhere (ReplTest / SelectionTest).
 function _walk!(x, visited::Set{UInt64}, errors::Vector{String},
-                status::WalkStatus=WalkStatus(), depth::Int=0)
+                status::WalkStatus=WalkStatus(), depth::Int=0; oncell=nothing)
     x === nothing        && return
     x isa Bool           && return
     x isa Number         && return
@@ -70,23 +75,28 @@ function _walk!(x, visited::Set{UInt64}, errors::Vector{String},
         val = try
             x[]
         catch e
-            push!(errors, "Cell[] threw: $e")
+            msg = "Cell[] threw: $e"
+            push!(errors, msg)
+            oncell === nothing || oncell(false, msg)
             return
         end
-        _walk!(val, visited, errors, status, depth + 1)
+        oncell === nothing || oncell(true, "")
+        _walk!(val, visited, errors, status, depth + 1; oncell=oncell)
     elseif x isa Vector
         for el in x
-            _walk!(el, visited, errors, status, depth + 1)
+            _walk!(el, visited, errors, status, depth + 1; oncell=oncell)
         end
     else
         for fname in fieldnames(typeof(x))
             fval = try
                 getfield(x, fname)
             catch e
-                push!(errors, "getfield($(typeof(x)), :$fname) threw: $e")
+                msg = "getfield($(typeof(x)), :$fname) threw: $e"
+                push!(errors, msg)
+                oncell === nothing || oncell(false, msg)
                 continue
             end
-            _walk!(fval, visited, errors, status, depth + 1)
+            _walk!(fval, visited, errors, status, depth + 1; oncell=oncell)
         end
     end
 end
@@ -117,19 +127,30 @@ end
 
 # ── Test helper ──────────────────────────────────────────────────────────────
 
+# One @test per forced cell, so the test count reflects the full reactive
+# walk rather than collapsing to a single isempty(errors) assertion.
 function test_printer(label, document, projection)
     @testset "$label" begin
-        errors, status = walk_printer_output(document, projection)
-        for e in errors
-            @warn "[$label] $e"
+        iomap = try
+            projection_print(projection, document)
+        catch e
+            @warn "[$label] projection_print threw: $e"
+            @test false
+            return
         end
+        status = WalkStatus()
+        errors = String[]
+        _walk!(iomap, Set{UInt64}(), errors, status;
+               oncell = (ok, msg) -> begin
+                   ok || @warn "[$label] $msg"
+                   @test ok
+               end)
         if status.depth_limit_hit
             @info "[$label] walk hit depth limit ($_WALK_MAX_DEPTH) at $(status.visited_count) nodes (max_depth=$(status.max_depth))"
         end
         if status.node_cap_hit
             @info "[$label] walk hit node cap ($_WALK_MAX_NODES) — structure too large or not properly graph-linked (max_depth=$(status.max_depth))"
         end
-        @test isempty(errors)
     end
 end
 

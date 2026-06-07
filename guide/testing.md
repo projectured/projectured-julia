@@ -42,6 +42,7 @@ sequence; pick the one you actually need and skip the rest.
 | `test_readers()` | Runs `test_reader` over every example. |
 | `test_selections()` | Runs `test_selection` over every example. |
 | `test_repls()` | Runs `test_repl` (full read-eval-print loop) over every example. |
+| `test_typeins()` | Runs `test_typein` (type a character into every string and check the edit) over the supported field-addressed examples. |
 | `test_mcp_tools()`, `test_mcp_resources()` | MCP server tools and resources. |
 | `test_mouse_clicks()` | Mouse-click round-tripping. Disabled in `test_all` until fixed. |
 
@@ -55,14 +56,22 @@ julia> test_printer(json_example)
 julia> test_reader(json_example)
 julia> test_selection(json_example)
 julia> test_repl(json_example)
+julia> test_typein(json_example)
 
 julia> ex = widget_example;
 julia> test_printer("widget", ex.document, ex.projection)
 ```
 
-`test_example(ex)` bundles printer + reader + selection for one example —
-useful when you have just added a new domain and want a single command to
-exercise it.
+`test_example(ex)` bundles printer + reader + repl + selection + typein for
+one example — useful when you have just added a new domain and want a single
+command to exercise it.
+
+Each example-level test emits **one `@test` per unit verified** rather than a
+single `isempty(errors)` assertion, so the pass count reflects the work done:
+`test_printer` asserts once per forced reactive cell, `test_reader`/`test_repl`
+once per event, `test_selection` once per reachable selection state, and
+`test_typein` once per string. A failing unit names the offending
+cell/event/state/reference in a `@warn`.
 
 ## The walker helpers (non-`@testset` variants)
 
@@ -77,6 +86,12 @@ every test has a sibling that does the same work without wrapping it in
 | `walk_reader_events(doc, proj)` | [ReaderTest.jl:32](../test/src/editor/ReaderTest.jl#L32) | Prints once, then fires every key / mouse event in `_ALL_READER_EVENTS` through `projection_read`. |
 | `walk_repl_loop(doc, proj)` | [ReplTest.jl:14](../test/src/editor/ReplTest.jl#L14) | The complete read → evaluate → reprint → walk cycle, repeated for every event. The closest thing to driving the real editor headlessly. |
 | `explore_selections(doc, proj[, initial])` | [SelectionTest.jl:19](../test/src/editor/SelectionTest.jl#L19) | BFS over reachable selection states using navigation keys. Returns `(state_count, errors)`. |
+| `walk_typein(doc, proj)` | [TypeinTest.jl](../test/src/editor/TypeinTest.jl) | Types a character into every reachable string and verifies the cursor renders and the edit lands. Returns one `(ref, ok, message)` result per string. |
+
+`walk_printer_output`, `walk_reader_events`, `walk_repl_loop`, and
+`explore_selections` keep their plain return values for REPL use; each also
+takes an optional callback (`oncell` / `onevent` / `onstate`) that the
+`test_*` wrappers use to emit one `@test` per unit.
 
 ```julia
 julia> errors = walk_printer_output(json_example.document, json_example.projection);
