@@ -92,6 +92,64 @@ This is exactly the read-eval-print loop from
 [program/src/editor/Editor.jl](../program/src/editor/Editor.jl), peeled
 apart so you can step through it one call at a time.
 
+## Tracing projection calls (event propagation)
+
+> ⚠️ **Not working on the current Julia (1.12).** The approach below relies on
+> [Cassette.jl](https://github.com/JuliaLabs/Cassette.jl), whose `overdub`
+> builds on `@generated` functions. Julia 1.12 changed the generated-function
+> contract ("generated functions must return `CodeInfo`"), so Cassette 0.3.14
+> errors at `overdub`. This is **documented here for when Cassette catches up**
+> (or we move to another engine); do not wire it into the package yet. See the
+> alternatives at the end of this section if you need tracing today.
+
+When you want to see *what reads what* — how a single event propagates down
+through the projection stack — point logging at the four projection interface
+generic functions (`projection_read`, `projection_print`,
+`map_reference_forward`, `map_reference_backward`). These are declared in
+[program/src/api/Projection.jl](../program/src/api/Projection.jl) and each
+projection adds its own method; the recursion happens peer-to-peer (a
+projection's `projection_read` calls `projection_read` on its children
+directly), so to see the whole tree you must instrument the generic function
+itself, not just the editor's top-level call.
+
+The intended tool is a Cassette `overdub` that logs every call to the selected
+functions as an indented tree, with **no edits to any projection method**:
+
+```julia
+julia> using Cassette, Projectured
+julia> using Projectured: KeyPress
+julia> Cassette.@context TraceCtx
+julia> const _depth = Ref(0)
+
+julia> function Cassette.prehook(::TraceCtx, ::typeof(Projectured.projection_read), p, iomap, x)
+           println("  "^_depth[], "→ read ", nameof(typeof(p)), "   <", nameof(typeof(x)), ">")
+           _depth[] += 1
+       end
+julia> Cassette.posthook(::TraceCtx, out, ::typeof(Projectured.projection_read), p, iomap, x) = (_depth[] -= 1)
+
+# wrap whatever triggers a read — a manual call, or the editor's read of one event:
+julia> ex = json_example; doc, proj = ex.document, ex.projection;
+julia> iomap = projection_print(proj, doc);
+julia> Cassette.overdub(TraceCtx(), () -> projection_read(proj, iomap, KeyPress(:right, false)))
+```
+
+You get an indented call tree of every read as the event flows through the
+stack. Add more `prehook`/`posthook` pairs for `projection_print` and the two
+reference mappers to watch the forward direction and the path mapping too.
+
+**Until Cassette works on 1.12**, two dependency-free fallbacks:
+
+- *Targeted `@debug`.* Drop `@debug "read" typeof(p) typeof(x)` into the
+  specific `projection_read` methods you suspect and run with
+  `JULIA_DEBUG=Projectured`. No automatic depth tree, but no machinery either.
+- *Funnel + toggle.* Rename the real `projection_read` methods to
+  `_projection_read` and make the public `projection_read` a thin logging
+  wrapper gated by a `TRACE[]` flag (with a depth counter for indentation).
+  This reproduces the indented-tree UX with zero dependencies and zero runtime
+  cost when off, at the price of a one-time mechanical refactor of the ~111
+  method heads. Worth doing if/when we want tracing as a permanent feature
+  rather than waiting on Cassette.
+
 ## Inspecting selection and references
 
 ```julia
