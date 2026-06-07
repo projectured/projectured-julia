@@ -137,14 +137,29 @@ XmlElementToSyntaxNode(;
                            attr_value_font, attr_value_color)
 
 # Selection mapping (School A). The output node's children are
-# [tag leaf (1), attrs node (2), body node (3), close leaf (4)]; the recursively
+# [tag leaf (1), attrs node (2), body node (3), close leaf (4)]. The recursively
 # projected XML children live inside the body node, so .cell[i] maps to
 # .children[3].children[i] and the tail is delegated through the stored child IO
-# map — independent of what projection rendered each child. Tag, attributes, and
-# the closing tag are projection-introduced and fall back to the flat offset in
-# the reader.
+# map — independent of what projection rendered each child. The tag and the
+# attributes are projection-introduced structure, so they map directly to their
+# fixed output positions:
+#   .tag[k]          → .children[1].value[k]
+#   .attrs[i].name[k] → .children[2].children[i].children[1].value[k]
+#   .attrs[i].cell[k] → .children[2].children[i].children[2].value[k]
+# The closing tag (child 4) renders the same .tag field but carries no cursor.
 function map_reference_forward(p::XmlElementToSyntaxNode, iomap::ChildrenIoMap, reference)
     @reference_case reference begin
+        tag.rest...        => @reference children[1].value.^(rest)
+        attrs{s:_}.name.rest... => begin
+            attr_i = s + 1
+            (1 <= attr_i <= length(iomap.input.attrs)) || return nothing
+            @reference children[2].children[attr_i].children[1].value.^(rest)
+        end
+        attrs{s:_}.cell.rest... => begin
+            attr_i = s + 1
+            (1 <= attr_i <= length(iomap.input.attrs)) || return nothing
+            @reference children[2].children[attr_i].children[2].value.^(rest)
+        end
         cell{s:_}.rest... => begin
             child_i = s + 1
             iomaps = iomap.child_iomaps[]
@@ -159,15 +174,50 @@ end
 
 function map_reference_backward(p::XmlElementToSyntaxNode, iomap::ChildrenIoMap, reference)
     @reference_case reference begin
-        children{s:_}.children{s2:_}.tail... => begin
-            s + 1 == 3 || return nothing   # body node is child index 3
-            child_i = s2 + 1
-            iomaps = iomap.child_iomaps[]
-            1 <= child_i <= length(iomaps) || return nothing
-            child = iomaps[child_i]
-            translated = map_reference_backward(child.projection, child, tail)
-            translated === nothing && return nothing
-            @reference cell[child_i].^(translated)
+        children{s:_}.rest... => begin
+            child_i = s + 1
+            if child_i == 1
+                # tag leaf: .value[k] → .tag[k]
+                @reference_case rest begin
+                    value.vtail... => @reference tag.^(vtail)
+                end
+            elseif child_i == 2
+                # attrs node: .children[i].children[j].value[k] →
+                #   .attrs[i].name[k]  (j == 1)  /  .attrs[i].cell[k]  (j == 2)
+                @reference_case rest begin
+                    children{ai:_}.children{lj:_}.ltail... => begin
+                        attr_i = ai + 1
+                        leaf_j = lj + 1
+                        (1 <= attr_i <= length(iomap.input.attrs)) || return nothing
+                        @reference_case ltail begin
+                            value.vtail... => begin
+                                if leaf_j == 1
+                                    @reference attrs[attr_i].name.^(vtail)
+                                elseif leaf_j == 2
+                                    @reference attrs[attr_i].cell.^(vtail)
+                                else
+                                    nothing
+                                end
+                            end
+                        end
+                    end
+                end
+            elseif child_i == 3
+                # body node: delegate each XML child through its stored IO map.
+                @reference_case rest begin
+                    children{s2:_}.tail... => begin
+                        child_j = s2 + 1
+                        iomaps = iomap.child_iomaps[]
+                        1 <= child_j <= length(iomaps) || return nothing
+                        child = iomaps[child_j]
+                        translated = map_reference_backward(child.projection, child, tail)
+                        translated === nothing && return nothing
+                        @reference cell[child_j].^(translated)
+                    end
+                end
+            else
+                nothing
+            end
         end
     end
 end
@@ -211,11 +261,19 @@ function projection_print(p::XmlElementToSyntaxNode, e::XmlElement, recursion, c
         end
     end)
 
+    # The opening tag carries the cursor for `.tag[k]` edits, mapped onto its
+    # own value span (`.tag[k]` → `.value[k]`). The closing tag renders the same
+    # field but never holds a cursor.
+    tag_sel = Cell(() -> begin
+        @reference_case e.selection begin
+            tag.rest... => @reference value.^(rest)
+        end
+    end)
     tag_leaf = SyntaxLeaf(
         TextString("<", p.delim_font, p.delim_color),
         TextString(() -> isempty(e.attrs) ? "" : " ", p.delim_font, p.delim_color),
-        TextString(e.tag, p.tag_font, p.tag_color),
-        getfield(e, :selection))
+        TextString(() -> e.tag, p.tag_font, p.tag_color),
+        tag_sel)
 
     attrs_node = SyntaxNode(
         TextString("", p.delim_font, color_default),
@@ -235,7 +293,7 @@ function projection_print(p::XmlElementToSyntaxNode, e::XmlElement, recursion, c
     close_leaf = SyntaxLeaf(
         TextString("</", p.delim_font, p.delim_color),
         TextString(">",  p.delim_font, p.delim_color),
-        TextString(e.tag, p.tag_font, p.tag_color))
+        TextString(() -> e.tag, p.tag_font, p.tag_color))
 
     ChildrenIoMap(p, e, SyntaxNode(
         TextString("", p.delim_font, color_default),
@@ -273,18 +331,35 @@ function xml_escape_attr(s::AbstractString)
     String(take!(buf))
 end
 
+# Each attribute renders as a two-leaf node `name = "value"`. The name leaf
+# carries the cursor for `.name[k]` edits and the value leaf for `.cell[k]`
+# edits, each mapped onto its own value span.
 function _attr_node(a::XmlAttribute, p::XmlElementToSyntaxNode)
+    name_sel = Cell(() -> begin
+        @reference_case a.selection begin
+            name.rest... => @reference value.^(rest)
+        end
+    end)
+    value_sel = Cell(() -> begin
+        @reference_case a.selection begin
+            cell.rest... => @reference value.^(rest)
+        end
+    end)
     SyntaxNode(
         TextString("", p.delim_font, color_default),
         TextString("", p.delim_font, color_default),
         TextString("=", p.delim_font, p.delim_color),
         SyntaxDocument[
-            SyntaxLeaf(TextString(a.name, p.attr_name_font, p.attr_name_color)),
+            SyntaxLeaf(
+                TextString("", p.attr_name_font, color_default),
+                TextString("", p.attr_name_font, color_default),
+                TextString(() -> a.name, p.attr_name_font, p.attr_name_color),
+                name_sel),
             SyntaxLeaf(
                 TextString("\"", p.quote_font, p.quote_color),
                 TextString("\"", p.quote_font, p.quote_color),
                 TextString(() -> xml_escape_attr(a.cell), p.attr_value_font, p.attr_value_color),
-                getfield(a, :selection)),
+                value_sel),
         ])
 end
 

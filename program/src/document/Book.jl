@@ -206,8 +206,13 @@ function _apply_string_replace!(target::BookBook, field_name::AbstractString, s:
 end
 
 function _apply_string_replace!(target::BookChapter, field_name::AbstractString, s::Int, e::Int, replacement::AbstractString)
-    field_name == "title" || error("BookChapter supports only field 'title', got: $field_name")
-    target.title = _book_slice_replace(target.title::AbstractString, s, e, replacement)
+    if field_name == "title"
+        target.title = _book_slice_replace(target.title::AbstractString, s, e, replacement)
+    elseif field_name == "numbering"
+        target.numbering = _book_slice_replace(target.numbering::AbstractString, s, e, replacement)
+    else
+        error("BookChapter supports only fields 'title', 'numbering', got: $field_name")
+    end
 end
 
 function _apply_string_replace!(target::BookParagraph, field_name::AbstractString, s::Int, e::Int, replacement::AbstractString)
@@ -222,9 +227,14 @@ function _apply_string_replace!(target::BookParagraph, field_name::AbstractStrin
 end
 
 function _apply_string_replace!(target::BookPicture, field_name::AbstractString, s::Int, e::Int, replacement::AbstractString)
-    field_name == "content" || error("BookPicture supports only field 'content', got: $field_name")
-    old = target.content === nothing ? "" : string(target.content)
-    target.content = _book_slice_replace(old, s, e, replacement)
+    if field_name == "content"
+        old = target.content === nothing ? "" : string(target.content)
+        target.content = _book_slice_replace(old, s, e, replacement)
+    elseif field_name == "title"
+        target.title = _book_slice_replace(target.title::AbstractString, s, e, replacement)
+    else
+        error("BookPicture supports only fields 'content', 'title', got: $field_name")
+    end
 end
 
 # Character-aware replacement helper (positions are 0-based char offsets).

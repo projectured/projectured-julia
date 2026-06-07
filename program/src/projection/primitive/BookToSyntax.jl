@@ -149,8 +149,8 @@ function map_reference_forward(p::BookBookToSyntaxNode,
                                 iomap::ChildrenIoMap, reference)
     b = iomap.input
     @reference_case reference begin
-        title.rest...     => rest isa ConcreteReferencePath && rest.head isa RangeReference ? (@reference children{1}.value.^(rest)) : nothing
-        author.rest...    => (b.author !== nothing && rest isa ConcreteReferencePath && rest.head isa RangeReference) ? (@reference children{2}.value.^(rest)) : nothing
+        title.rest...     => rest isa ConcreteReferencePath && rest.head isa RangeReference ? (@reference children[1].value.^(rest)) : nothing
+        author.rest...    => (b.author !== nothing && rest isa ConcreteReferencePath && rest.head isa RangeReference) ? (@reference children[2].value.^(rest)) : nothing
         elements{s:_}.rest... => begin
             child_i = s + 1
             iomaps = iomap.child_iomaps[]
@@ -160,7 +160,7 @@ function map_reference_forward(p::BookBookToSyntaxNode,
             inner === nothing && return nothing
             offset = b.author !== nothing ? 2 : 1
             child_idx = child_i + offset
-            @reference children{child_idx}.^(inner)
+            @reference children[child_idx].^(inner)
         end
     end
 end
@@ -239,6 +239,9 @@ function projection_print(p::BookChapterToSyntaxNode, b::BookChapter, recursion,
                                      child_context(ctx, @reference ^(ctx.reference).elements{i}))
                                  for (i, e) in enumerate(b.elements)])
 
+    # The title leaf renders "numbering  title" (when numbering is present), so a
+    # `.title[k]` cursor shifts right by length(numbering)+2 while a
+    # `.numbering[k]` cursor maps straight onto the value span's leading region.
     title_sel = Cell(() -> begin
         @reference_case b.selection begin
             title{s:_}.tail... => begin
@@ -246,6 +249,7 @@ function projection_print(p::BookChapterToSyntaxNode, b::BookChapter, recursion,
                 adj = s + offset
                 @reference value{adj}.^(tail)
             end
+            numbering{s:_}.tail... => @reference value{s}.^(tail)
         end
     end)
 
@@ -266,10 +270,10 @@ function projection_print(p::BookChapterToSyntaxNode, b::BookChapter, recursion,
         end
         h isa FieldReference || return nothing
         name = h.name
-        if name == "title"
+        if name == "title" || name == "numbering"
             ts = title_sel[]
             ts === nothing && return nothing
-            @reference children{1}.^(ts)
+            @reference children[1].^(ts)
         elseif name == "elements"
             rest = path.tail
             rest isa ConcreteReferencePath || return nothing
@@ -281,7 +285,7 @@ function projection_print(p::BookChapterToSyntaxNode, b::BookChapter, recursion,
             child_sel = iomaps[child_i].output.selection
             child_sel === nothing && return nothing
             child_idx = child_i + 1
-            @reference children{child_idx}.^(child_sel)
+            @reference children[child_idx].^(child_sel)
         else
             nothing
         end
@@ -311,8 +315,9 @@ function map_reference_forward(p::BookChapterToSyntaxNode,
         title{s:_}.rest... => begin
             offset = let num = b.numbering; isempty(num) ? 0 : length(num) + 2 end
             adj = s + offset
-            @reference children{1}.value{adj}.^(rest)
+            @reference children[1].value{adj}.^(rest)
         end
+        numbering{s:_}.rest... => @reference children[1].value{s}.^(rest)
         elements{s:_}.rest... => begin
             child_i = s + 1
             iomaps = iomap.child_iomaps[]
@@ -321,7 +326,7 @@ function map_reference_forward(p::BookChapterToSyntaxNode,
             inner = map_reference_forward(child.projection, child, rest)
             inner === nothing && return nothing
             child_idx = child_i + 1
-            @reference children{child_idx}.^(inner)
+            @reference children[child_idx].^(inner)
         end
     end
 end
@@ -335,11 +340,17 @@ function map_reference_backward(p::BookChapterToSyntaxNode,
             if child_i == 1
                 @reference_case rest begin
                     value{s2:e2}.tail... => begin
-                        offset = let num = b.numbering; isempty(num) ? 0 : length(num) + 2 end
-                        adj_s = s2 - offset
-                        adj_e = e2 - offset
-                        adj_s < 0 && return nothing
-                        @reference title{adj_s:adj_e}.^(tail)
+                        num = b.numbering
+                        if !isempty(num) && e2 <= length(num)
+                            # leading region of the value span is the numbering
+                            @reference numbering{s2:e2}.^(tail)
+                        else
+                            offset = isempty(num) ? 0 : length(num) + 2
+                            adj_s = s2 - offset
+                            adj_e = e2 - offset
+                            adj_s < 0 && return nothing
+                            @reference title{adj_s:adj_e}.^(tail)
+                        end
                     end
                 end
             else
@@ -463,7 +474,7 @@ function projection_print(p::BookListToSyntaxNode, b::BookList, recursion, ctx)
                 child_i > length(iomaps) && return nothing
                 child_sel = iomaps[child_i].output.selection
                 child_sel === nothing && return nothing
-                @reference children{child_i}.children{1}.^(child_sel)
+                @reference children[child_i].children[1].^(child_sel)
             end
         end
     end)
@@ -497,7 +508,7 @@ function map_reference_forward(p::BookListToSyntaxNode,
             child = iomaps[child_i]
             inner = map_reference_forward(child.projection, child, rest)
             inner === nothing && return nothing
-            @reference children{child_i}.children{1}.^(inner)
+            @reference children[child_i].children[1].^(inner)
         end
     end
 end
@@ -537,11 +548,13 @@ end
 
 # ── BookPictureToSyntaxLeaf ───────────────────────────────────────────────────
 #
-# Maps BookPicture → SyntaxLeaf.  The content (typically a file path string
-# or an image document) is shown as a plain string.  When content is nothing
-# or empty, a placeholder string is shown instead.
-#
-# Selection forward:  .content → .value
+# Maps BookPicture → SyntaxNode with two leaves: a caption leaf (the title) and
+# a content leaf (the file path / image). Both are editable; each maps onto its
+# own value span:
+#   .title[k]   → .children[1].value[k]
+#   .content[k] → .children[2].value[k]
+# An empty title renders a gray placeholder so the caption still has a cursor;
+# an empty content renders the path placeholder.
 
 struct BookPictureToSyntaxLeaf <: Projection
     font::StyleFont
@@ -553,29 +566,50 @@ BookPictureToSyntaxLeaf(; font=font_ubuntu_monospace_regular_24, color=color_sol
     BookPictureToSyntaxLeaf(font, color, placeholder_color)
 
 function projection_print(p::BookPictureToSyntaxLeaf, b::BookPicture, recursion, ctx)
+    title_sel = Cell(() -> begin
+        @reference_case b.selection begin
+            title.rest... => @reference value.^(rest)
+        end
+    end)
     content_sel = Cell(() -> begin
         @reference_case b.selection begin
             content.rest... => @reference value.^(rest)
         end
     end)
-    leaf = SyntaxLeaf(TextString("", p.font, color_default), TextString("", p.font, color_default),
+    title_leaf = SyntaxLeaf(TextString("", p.font, color_default), TextString("", p.font, color_default),
+        TextString(() -> begin
+            t = b.title
+            isempty(t) ? "untitled" : t
+        end, p.font, p.color),
+        0, Cell(false), title_sel)
+    content_leaf = SyntaxLeaf(TextString("", p.font, color_default), TextString("", p.font, color_default),
         TextString(() -> begin
             c = b.content
             c === nothing ? "enter picture path" : string(c)
         end, p.font, p.color),
         0, Cell(false), content_sel)
-    SimpleIoMap(p, b, leaf)
+    node = SyntaxNode(TextString("", p.font, color_default),
+                      TextString("", p.font, color_default),
+                      TextString(": ", p.font, p.placeholder_color),
+                      CellVector(Cell[Cell(title_leaf), Cell(content_leaf)]),
+                      0, Cell(false), Cell(nothing))
+    SimpleIoMap(p, b, node)
 end
 
 function map_reference_forward(::BookPictureToSyntaxLeaf, iomap::SimpleIoMap, reference)
     @reference_case reference begin
-        content.rest... => @reference value.^(rest)
+        title.rest...   => @reference children[1].value.^(rest)
+        content.rest... => @reference children[2].value.^(rest)
     end
 end
 
 function map_reference_backward(::BookPictureToSyntaxLeaf, iomap::SimpleIoMap, reference)
     @reference_case reference begin
-        value.rest... => @reference content.^(rest)
+        children{s:_}.value.rest... => begin
+            child_i = s + 1
+            child_i == 1 ? (@reference title.^(rest)) :
+            child_i == 2 ? (@reference content.^(rest)) : nothing
+        end
     end
 end
 

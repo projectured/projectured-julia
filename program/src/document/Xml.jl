@@ -268,11 +268,25 @@ function _apply_string_replace!(target::XmlText, field_name::AbstractString, s::
     target.cell = _xml_slice_replace(target.cell::AbstractString, s, e, replacement)
 end
 
-# Type-in target: an attribute value. Mirrors XmlText — the attribute value is a
-# plain `String` cell edited between 0-based character boundaries.
+# Type-in target: an attribute name or value. The reference arriving from
+# XmlElementToSyntaxNode is `.attrs[i].name[s:e]` or `.attrs[i].cell[s:e]`; both
+# are plain `String` cells edited between 0-based character boundaries.
 function _apply_string_replace!(target::XmlAttribute, field_name::AbstractString, s::Int, e::Int, replacement::AbstractString)
-    field_name == "cell" || error("XmlAttribute supports only field 'cell', got: $field_name")
-    target.cell = _xml_slice_replace(target.cell::AbstractString, s, e, replacement)
+    if field_name == "cell"
+        target.cell = _xml_slice_replace(target.cell::AbstractString, s, e, replacement)
+    elseif field_name == "name"
+        target.name = _xml_slice_replace(target.name::AbstractString, s, e, replacement)
+    else
+        error("XmlAttribute supports only fields 'cell', 'name', got: $field_name")
+    end
+end
+
+# Type-in target: an element's tag name. The reference arriving from
+# XmlElementToSyntaxNode is `.tag[s:e]`. The opening and closing tags both render
+# from this one field, so editing it updates both reactively.
+function _apply_string_replace!(target::XmlElement, field_name::AbstractString, s::Int, e::Int, replacement::AbstractString)
+    field_name == "tag" || error("XmlElement supports only field 'tag', got: $field_name")
+    target.tag = _xml_slice_replace(target.tag::AbstractString, s, e, replacement)
 end
 
 # Character-aware replacement helper (positions are 0-based char offsets).
