@@ -110,6 +110,47 @@ When a document is projected through multiple domains, the selection cell is sha
 # When editor.document.selection[] is updated, all projections see the change
 ```
 
+## Forward-Projecting Selection
+
+The selection lives on the **document root** as a complete path from that root
+(e.g. `.editing_page.elements[3].content.entries[1].value.value{2}`).
+`set_selection!` stores the suffix of that path at every node along the way, so
+each *domain* node knows where the selection is relative to itself.
+
+A projection's **printer** carries that knowledge across into the projected
+(output) tree: when it builds an output node, it wires the node's `selection`
+cell to `map_reference_forward(projection, iomap, input.selection)`. Because
+`map_reference_forward` is the inverse of `map_reference_backward`, the output
+node ends up holding the selection suffix *in its own (output-domain)
+coordinates*. Do this at every level and the whole projected tree carries the
+forward-projected selection, exactly mirroring how `set_selection!` distributes
+it across the domain tree. `CopyingProjection` does this generically; compound
+projections that introduce structure (e.g. `WorkbenchToWidget`, whose shell
+inserts split panes that have no domain counterpart) wire the selection cells
+explicitly in `projection_print`.
+
+### Selection-directed event routing
+
+Once every output node carries the forward-projected selection, a **reader**
+can consult its node's `selection` to decide which child to forward an event
+to — instead of broadcasting to every child and hoping the focused one
+answers. This is the usual desired behavior: a key event should be delivered
+to the child the selection points at.
+
+For example, in the widget tree the workbench projects to:
+
+- a `WidgetSplitPane` reads its `selection` head (`elements[slot].child.…`) and
+  forwards a keystroke only into `slot` (`_selected_split_slot` /
+  `_forward_split_event_slot`);
+- a `WidgetTabbedPane` makes its *active tab* the one the selection names
+  (`selector_element_pairs[i].…`), so the focused document tab follows the
+  selection and receives key events (`_tab_index_from_selection`).
+
+A node with no selection (e.g. a split pane built outside the workbench, where
+nothing forward-projects onto it) falls back to forwarding to each child in
+turn. Mouse events still hit-test by coordinate rather than following the
+selection — the selection only directs *coordless* events such as keystrokes.
+
 ## ProjectionReference in Selection
 
 When the cursor is on a projection-introduced element (like a quote delimiter), the selection path includes a `ProjectionReference` step. This allows the editor to represent positions that don't exist in the underlying document.

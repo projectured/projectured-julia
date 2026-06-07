@@ -77,6 +77,14 @@ output selection formats are identical may instead *share* the same
 `selection::Cell` on both sides (`getfield(input, :selection)`); that shortcut
 is valid only leaf-to-leaf (see [§7 of the selection deep dive](selection-deep-dive.md)).
 
+A compound projection that introduces *structural* output nodes with no input
+counterpart (e.g. `WorkbenchToWidget`, whose shell inserts split panes around
+the projected pages) wires those nodes' `selection` cells explicitly: it
+forward-projects the workbench selection and re-roots it onto each split with a
+small prefix strip. Once wired, those forward-projected selection cells let the
+reader route events by selection — see below and
+[the selection guide](editor/selection.md#forward-projecting-selection).
+
 ### `projection_read` — the reader
 
 Takes either a raw device event (key press, mouse click) or an `Operation`
@@ -115,6 +123,14 @@ from the lightest touch to the most involved:
   document part's reader just to see what operation it would return, and use
   that answer to decide its own final operation — e.g. to choose among
   alternatives, or to act only when the child declines (returns `nothing`).
+- **Route by selection.** When the printer forward-projected the selection onto
+  this node (see [Wiring the selection](#projection_print--the-printer)), a
+  reader can read its node's `selection` to forward a coordless event (a
+  keystroke) *only* to the child the selection points at, rather than
+  broadcasting to every child. This is the usual desired behavior — the
+  keystroke goes where the cursor is. The widget split pane and tabbed pane do
+  exactly this; see
+  [the selection guide](editor/selection.md#selection-directed-event-routing).
 
 Whichever moves it makes, a projection returns an `Operation` in its own input
 domain (or `nothing`); the operation the **top-level** projection ultimately
