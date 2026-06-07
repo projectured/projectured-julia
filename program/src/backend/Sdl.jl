@@ -177,6 +177,7 @@ function sdl_keysym_to_symbol(keysym::Int32)::Symbol
     # Misc
     keysym == Int32(27)         && return :escape
     keysym == Int32(32)         && return :space
+    keysym == Int32(46)         && return :period   # '.' — used by the Ctrl+. fold chord
     keysym == Int32(1073741881) && return :caps_lock
     # Modifier-only keys
     keysym == Int32(1073742048) && return :lctrl

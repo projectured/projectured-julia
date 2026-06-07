@@ -18,7 +18,7 @@ directly mirrors the input structure.
 module ProjectionModule
 
 import ..ProjectionApiModule: projection_print, projection_read, map_reference_forward, map_reference_backward, Projection
-import ..OperationModule: ReplaceSelectionOperation
+import ..OperationModule: ReplaceSelectionOperation, ToggleCollapseOperation
 import ..ReactiveModule: Cell
 import ..ReferenceModule: EmptyReferencePath
 import ..ProjectionContextModule: ProjectionContext
@@ -69,6 +69,10 @@ function projection_read(projection::Projection, iomap, operation)
         input_selection = map_reference_backward(projection, iomap, operation.path)
         input_selection === nothing && return nothing
         return ReplaceSelectionOperation(input_selection)
+    elseif operation isa ToggleCollapseOperation
+        # Collapse state lives at the syntax layer; every other projection
+        # forwards the operation up the chain unchanged.
+        return operation
     else
         return nothing
     end

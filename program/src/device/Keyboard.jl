@@ -44,7 +44,7 @@ Physical key-press event (fired on `SDL_KEYDOWN`).
   `:page_up`, `:page_down`
 - **Editing:** `:backspace`, `:delete`, `:return`, `:tab`, `:insert`
 - **Function:** `:f1`…`:f12`
-- **Misc:** `:escape`, `:space`, `:caps_lock`
+- **Misc:** `:escape`, `:space`, `:period`, `:caps_lock`
 - **Modifier-only:** `:lctrl`, `:rctrl`, `:lshift`, `:rshift`,
   `:lalt`, `:ralt`, `:lmeta`, `:rmeta`
 - **Printable fallback:** `:char` (physical key identity not important;

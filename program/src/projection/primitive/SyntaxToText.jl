@@ -13,14 +13,15 @@ import ..CollectionModule: CellVector, ListNode
 import ..ProjectionApiModule: projection_print, projection_read, map_reference_forward, map_reference_backward, Projection
 import ..SyntaxModule: SyntaxDocument, SyntaxLeaf, SyntaxNode
 import ..TextModule: TextText, TextString, TextNewline, TextDocument
-import ..FontModule: font_ubuntu_monospace_regular_24
+import ..FontModule: font_ubuntu_monospace_regular_24, font_dejavu_monospace_regular_24
+import ..ColorModule: color_solarized_gray
 import ..TypeDispatchingModule: TypeDispatchingProjection
 import ..ReferenceModule: ConcreteReferencePath, ElementReference, PositionReference, RangeReference, FieldReference, ProjectionReference, EmptyReferencePath, ReferencePath
 import ..ReferenceCaseModule: var"@reference_case"
 import ..ReferenceBuilderModule: var"@reference"
 import ..IoMapModule: SimpleIoMap
 import ..IoMapApiModule: IoMap
-import ..OperationModule: ReplaceSelectionOperation
+import ..OperationModule: ReplaceSelectionOperation, ToggleCollapseOperation
 import ..PrimitiveModule: StringReplaceRangeOperation
 import ..KeyboardModule: KeyDown
 export SyntaxLeafToText, SyntaxNodeToText, SyntaxListToText, SyntaxToText,
@@ -109,18 +110,25 @@ projection_read(::SyntaxLeafToText, iomap::SimpleIoMap, evt::KeyDown) = evt
 # pipeline marks only directory header nodes, not the indented body wrapper).
 _default_marker_eligible(node) = length(node.children) > 0
 
+# Default ellipsis glyph for a collapsed node's body. Uses the DejaVu mono
+# font (which carries the … glyph) and a muted gray so the placeholder reads
+# as projection chrome rather than content.
+_default_ellipsis() = TextString("…", font_dejavu_monospace_regular_24, color_solarized_gray)
+
 struct SyntaxNodeToText <: Projection
     indent_size::Int
     expanded_marker::TextString
     collapsed_marker::TextString
     marker_eligible::Any
+    ellipsis_text::TextString
 end
 
 SyntaxNodeToText(; indent_size::Int = 2,
                    expanded_marker::TextString = TextString(""),
                    collapsed_marker::TextString = TextString(""),
-                   marker_eligible = _default_marker_eligible) =
-    SyntaxNodeToText(indent_size, expanded_marker, collapsed_marker, marker_eligible)
+                   marker_eligible = _default_marker_eligible,
+                   ellipsis_text::TextString = _default_ellipsis()) =
+    SyntaxNodeToText(indent_size, expanded_marker, collapsed_marker, marker_eligible, ellipsis_text)
 
 struct SyntaxNodeToTextIoMap <: IoMap
     projection::Any
@@ -177,9 +185,32 @@ function projection_print(p::SyntaxNodeToText, node::SyntaxNode, recursion, ctx)
 end
 
 function projection_read(p::SyntaxNodeToText, iomap::SyntaxNodeToTextIoMap, op::ReplaceSelectionOperation)
+    # A click on a node's inline marker (either state) or on its collapsed
+    # ellipsis is a fold gesture, not a cursor move: reinterpret it as a
+    # toggle of that specific node before falling through to selection mapping.
+    # Only genuine pointer gestures count — keyboard navigation (Ctrl+Home,
+    # arrows) that happens to land on the marker must still place the cursor.
+    if op.from_click
+        flat = _click_flat_pos(iomap, op.path)
+        if flat >= 0
+            node = _node_at_collapse_glyph(iomap.input, flat, p, 0)
+            node !== nothing && return ToggleCollapseOperation(node)
+        end
+    end
     input_path = map_reference_backward(p, iomap, op.path)
     input_path === nothing && return nothing
     return ReplaceSelectionOperation(input_path)
+end
+
+# Keyboard fold (`Ctrl+.`): the operation arrives from below carrying no
+# target. Resolve it here — where both the syntax tree and its selection are
+# in hand — to the innermost collapsible node containing the cursor, then let
+# it propagate up unchanged. An already-targeted operation (e.g. a click
+# resolved above) passes through untouched.
+function projection_read(p::SyntaxNodeToText, iomap::SyntaxNodeToTextIoMap, op::ToggleCollapseOperation)
+    op.target === nothing || return op
+    target = _resolve_collapsible(iomap.input, iomap.input.selection)
+    return ToggleCollapseOperation(target)
 end
 
 # Translate a flat-text `StringReplaceRangeOperation` to a SyntaxNode-domain
@@ -346,13 +377,15 @@ end
 function SyntaxToText(; indent_size::Int = 2,
                         expanded_marker::TextString = TextString(""),
                         collapsed_marker::TextString = TextString(""),
-                        marker_eligible = _default_marker_eligible)
+                        marker_eligible = _default_marker_eligible,
+                        ellipsis_text::TextString = _default_ellipsis())
     TypeDispatchingProjection(
         SyntaxLeaf => SyntaxLeafToText(),
         SyntaxNode => SyntaxNodeToText(indent_size=indent_size,
                                        expanded_marker=expanded_marker,
                                        collapsed_marker=collapsed_marker,
-                                       marker_eligible=marker_eligible),
+                                       marker_eligible=marker_eligible,
+                                       ellipsis_text=ellipsis_text),
         ListNode   => SyntaxListToText(),
     )
 end
@@ -388,6 +421,13 @@ end
 function _marker_len(p::SyntaxNodeToText, node::SyntaxNode)
     m = _active_marker(p, node)
     m === nothing ? 0 : length(m.content::AbstractString)
+end
+
+# Character length of the collapsed-body placeholder (the ellipsis), or 0 for
+# a childless node — there is nothing to stand in for, so a collapsed empty
+# node renders as bare `<open><close>`. Only meaningful when `node.collapsed`.
+function _ellipsis_len(p::SyntaxNodeToText, node::SyntaxNode)
+    length(node.children) > 0 ? length(p.ellipsis_text.content::AbstractString) : 0
 end
 
 # Reads leaf.selection[] (.open[k], .value[k], .close[k], or PS variants) and
@@ -465,6 +505,9 @@ function _syntax_to_flat(node::SyntaxNode, path::ReferencePath, p::SyntaxNodeToT
             fname == "open"  && return _marker_len(p, node) + k
             return _subtree_len(node, p, depth) - length(node.close.content) + k
         elseif fname == "children"
+            # A collapsed node lays out no children, so a `.children[i]…`
+            # input reference has no image in the rendered text.
+            node.collapsed && return -1
             h2 = rest.head
             h2 isa RangeReference || return -1
             child_i = h2.start + 1
@@ -534,7 +577,6 @@ function _collect_spans(node::SyntaxNode, p::SyntaxNodeToText, depth::Int, recur
     char_count = 0
     children = node.children
     open_str = node.open.content
-    indent = node.indentation > 0
 
     # optional inline expand/collapse marker, before the open delimiter
     marker = _active_marker(p, node)
@@ -549,7 +591,16 @@ function _collect_spans(node::SyntaxNode, p::SyntaxNodeToText, depth::Int, recur
 
     child_ranges = UnitRange{Int}[]
 
-    if indent
+    if node.collapsed
+        # Collapsed body: a single ellipsis glyph stands in for the children,
+        # which are not laid out at all (their reactive subtree is pruned —
+        # editing inside a collapsed node triggers no re-render here). A
+        # childless node gets no ellipsis (nothing to fold).
+        if length(children) > 0
+            push!(spans, p.ellipsis_text)
+            char_count += _span_len(p.ellipsis_text)
+        end
+    elseif node.indentation > 0
         child_depth = depth + 1
         for (i, child) in enumerate(children)
             if i > 1
@@ -616,7 +667,9 @@ end
 function _subtree_len(node::SyntaxNode, p::SyntaxNodeToText, depth::Int)
     children = node.children
     n = _marker_len(p, node) + length(node.open.content)
-    if node.indentation > 0
+    if node.collapsed
+        n += _ellipsis_len(p, node)
+    elseif node.indentation > 0
         child_depth = depth + 1
         for (i, child) in enumerate(children)
             i > 1 && (n += length(node.sep.content))
@@ -664,6 +717,17 @@ function _pos_to_selection(node::SyntaxNode, local_pos::Int, p::SyntaxNodeToText
     children = node.children
     char_count = marker_len + open_len
 
+    if node.collapsed
+        # Collapsed layout: marker, open, ellipsis, close. The ellipsis is a
+        # projection-introduced glyph with no source-domain coordinate.
+        ell_len = _ellipsis_len(p, node)
+        local_pos < char_count + ell_len && return _proj(local_pos)
+        char_count += ell_len
+        close_len = length(node.close.content)
+        local_pos < char_count + close_len && return @reference close{local_pos - char_count}
+        return _proj(local_pos)
+    end
+
     if node.indentation > 0
         child_depth = depth + 1
         for (i, child) in enumerate(children)
@@ -706,6 +770,98 @@ function _pos_to_selection(node::SyntaxNode, local_pos::Int, p::SyntaxNodeToText
     close_len = length(node.close.content)
     local_pos < char_count + close_len && return @reference close{local_pos - char_count}
     return _proj(local_pos)
+end
+
+# ── Collapse hit-testing and resolution ──────────────────────────────────────
+
+# Walk the rendered layout to the SyntaxNode whose inline expand/collapse
+# marker — or, when that node is collapsed, its ellipsis glyph — occupies the
+# flat character offset `local_pos`. Returns `nothing` when the position is on
+# ordinary content/delimiters. The offset arithmetic mirrors `_pos_to_selection`.
+_node_at_collapse_glyph(::SyntaxLeaf, _local_pos::Int, ::SyntaxNodeToText, _depth::Int) = nothing
+
+function _node_at_collapse_glyph(node::SyntaxNode, local_pos::Int, p::SyntaxNodeToText, depth::Int)
+    marker_len = _marker_len(p, node)
+    # The marker occupies [0, marker_len) and toggles this node in either state.
+    local_pos < marker_len && return node
+
+    open_len = length(node.open.content)
+    char_count = marker_len + open_len
+
+    if node.collapsed
+        # Clicking the ellipsis expands the node; no children are rendered to
+        # descend into.
+        ell_len = _ellipsis_len(p, node)
+        (char_count <= local_pos < char_count + ell_len) && return node
+        return nothing
+    end
+
+    children = node.children
+    if node.indentation > 0
+        child_depth = depth + 1
+        for (i, child) in enumerate(children)
+            i > 1 && (char_count += length(node.sep.content))
+            char_count += 1 + child_depth * p.indent_size   # \n + indent
+            child_len = _subtree_len(child, p, child_depth)
+            if char_count <= local_pos <= char_count + child_len
+                return _node_at_collapse_glyph(child, local_pos - char_count, p, child_depth)
+            end
+            char_count += child_len
+        end
+    else
+        for (i, child) in enumerate(children)
+            i > 1 && (char_count += length(node.sep.content))
+            child_len = _subtree_len(child, p, depth)
+            if char_count <= local_pos <= char_count + child_len
+                return _node_at_collapse_glyph(child, local_pos - char_count, p, depth)
+            end
+            char_count += child_len
+        end
+    end
+    return nothing
+end
+
+# Innermost SyntaxNode along `path` (a selection rooted at `node`). Descends
+# through `.children[i]` steps as long as the child is itself a SyntaxNode,
+# stopping at the first leaf or non-child step. With no usable path the root
+# node is returned. This is the keyboard fold target: the most deeply nested
+# node that still contains the cursor — matching every editor's fold gesture.
+function _resolve_collapsible(node::SyntaxNode, path)
+    best = node
+    cur = node
+    p = path
+    while p isa ConcreteReferencePath
+        h = p.head
+        (h isa FieldReference && h.name == "children") || break
+        t = p.tail
+        t isa ConcreteReferencePath || break
+        idx = t.head
+        idx isa RangeReference || break
+        i = idx.start + 1
+        children = cur.children
+        (1 <= i <= length(children)) || break
+        child = children[i]
+        child isa SyntaxNode || break
+        best = child
+        cur = child
+        p = t.tail
+    end
+    best
+end
+
+# Flat character offset a click resolved to, or -1. Accepts the
+# `.elements[i].content{c}` shape produced by `TextToGraphics` and the bare
+# flat `{n}` shape, mirroring `map_reference_backward`.
+function _click_flat_pos(iomap::SyntaxNodeToTextIoMap, path)
+    if path isa ConcreteReferencePath
+        h = path.head
+        if h isa RangeReference && path.tail isa EmptyReferencePath
+            return h.start::Int
+        end
+    end
+    span_idx, char_idx = _parse_text_elem_path(path)
+    span_idx === nothing && return -1
+    _text_elem_path_to_flat(iomap.output.elements, span_idx, char_idx)
 end
 
 _text_elem_path(span_idx::Int, char_idx::Int) =

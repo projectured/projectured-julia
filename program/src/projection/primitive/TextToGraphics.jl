@@ -27,7 +27,7 @@ import ..ColorModule: StyleColor
 import ..ReferenceModule: ReferencePath, ConcreteReferencePath, ElementReference, PositionReference, RangeReference, PointReference, EmptyReferencePath, FieldReference, head, tail
 import ..ReferenceCaseModule: var"@reference_case"
 import ..ReferenceBuilderModule: var"@reference"
-import ..OperationModule: ReplaceSelectionOperation
+import ..OperationModule: ReplaceSelectionOperation, ToggleCollapseOperation
 import ..PrimitiveModule: StringReplaceRangeOperation
 import ..KeyboardModule: KeyDown, KeyPress
 import ..MouseModule: MousePress
@@ -185,11 +185,17 @@ function projection_read(p::TextToGraphics, iomap::TextToGraphicsIoMap, evt::Mou
     sc = _hit_segment(coord_map, evt.x, evt.y)
     sc === nothing && return nothing
     char_pos = _char_position_at_x(sc, evt.x, p.measure)
-    return ReplaceSelectionOperation(_build_selection_path(sc.span_idx, char_pos))
+    return ReplaceSelectionOperation(_build_selection_path(sc.span_idx, char_pos), true)
 end
 
 function projection_read(p::TextToGraphics, iomap::TextToGraphicsIoMap, evt)
     evt isa KeyDown || return nothing
+    # Fold chord: Ctrl+. toggles collapse of the innermost node containing the
+    # cursor. The empty-target operation is resolved upstream at the syntax
+    # layer (where the tree and selection live); we only recognise the chord.
+    if evt.key === :period && evt.modifiers.ctrl
+        return ToggleCollapseOperation()
+    end
     del_op = _key_delete_op(iomap, evt)
     del_op === nothing || return del_op
     styled = iomap.input
@@ -633,7 +639,7 @@ function _translate_click(p::TextToGraphics, iomap::TextToGraphicsIoMap, path)
     i > length(coord_map) && return nothing
     seg = coord_map[i]
     char_pos = _char_position_at_x(seg, seg.x + rx, p.measure)
-    return ReplaceSelectionOperation(_build_selection_path(seg.span_idx, char_pos))
+    return ReplaceSelectionOperation(_build_selection_path(seg.span_idx, char_pos), true)
 end
 
 # Pick the segment a (canvas-x, canvas-y) click landed on. Matches the

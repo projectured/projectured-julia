@@ -128,6 +128,11 @@ function test_click_roundtrip(label, document, projection)
                 cx = _seg_x_at(sc, k, measure) + 1
                 cy = sc.y + max(1, line_h ÷ 2)
                 op = projection_read(projection, iomap, MousePress(:left, cx, cy, Modifiers()))
+                # A click on an inline expand/collapse marker (or a collapsed
+                # ellipsis) is a fold gesture, not a cursor move: it yields a
+                # ToggleCollapseOperation. That is a legitimate outcome — skip
+                # the cursor round-trip for those glyphs.
+                op isa ToggleCollapseOperation && continue
                 if !(op isa ReplaceSelectionOperation)
                     push!(errors, "click ($cx,$cy) span=$(sc.span_idx) char=$k produced no ReplaceSelectionOperation")
                     continue

@@ -113,12 +113,13 @@ spans_x = [s.content for s in iomap_x.output]
 @test join(spans_x) == "▾[1, 2, 3]"
 @test iomap_x.marker_index[] == 1
 
-# Marker on, collapsed: the glyph swaps to ▸ (body rendering is unchanged in
-# this slice — only the marker reacts to `collapsed`).
+# Marker on, collapsed: the glyph swaps to ▸ and the body folds to a single
+# ellipsis between the delimiters — the children are not laid out.
 node.collapsed = true
 iomap_c = projection_print(pipe_on, node)
 spans_c = [s.content for s in iomap_c.output]
 @test spans_c[1] == "▸"
+@test join(spans_c) == "▸[…]"
 @test iomap_c.marker_index[] == 1
 node.collapsed = false
 
@@ -148,5 +149,60 @@ end
 end # let
 
 end # @testset "SyntaxToText collapse/expand marker"
+
+@testset "SyntaxToText collapsed body" begin
+
+# A collapsed SyntaxNode renders <marker?><open><ellipsis><close> with its
+# children pruned. The flat-position round-trip must still hold in the
+# collapsed state, and toggling back must restore the expanded output exactly.
+let
+_S2T = Projectured.SyntaxToTextModule
+mk(s) = TextString(s)
+
+node = SyntaxNode("[", "]", ", ",
+    SyntaxDocument[SyntaxLeaf("1"), SyntaxLeaf("2"), SyntaxLeaf("3")])
+pipe = RecursiveProjection(SyntaxToText())
+p    = _S2T.SyntaxNodeToText()
+
+# Expanded output, captured for the restoration check below.
+expanded = join(s.content for s in projection_print(pipe, node).output)
+@test expanded == "[1, 2, 3]"
+
+# Collapsed (no marker configured): open + ellipsis + close.
+node.collapsed = true
+collapsed = join(s.content for s in projection_print(pipe, node).output)
+@test collapsed == "[…]"
+
+# Flat-position round-trip holds while collapsed.
+flat_len = _S2T._subtree_len(node, p, 0)
+for k in 0:flat_len
+    sel = _S2T._pos_to_selection(node, k, p, 0)
+    @test _S2T._syntax_to_flat(node, sel, p, 0) == k
+end
+# The ellipsis (position after the open delimiter) has no source coordinate.
+@test _S2T._pos_to_selection(node, 1, p, 0).head isa _S2T.ProjectionReference
+# `.children[i]…` input references have no image while collapsed.
+@test _S2T._syntax_to_flat(node, (@reference children[1].value{0}), p, 0) == -1
+
+# Toggling back restores the expanded output byte-for-byte.
+node.collapsed = false
+@test join(s.content for s in projection_print(pipe, node).output) == expanded
+
+# Empty node: collapsing adds no ellipsis (nothing to fold).
+empty_node = SyntaxNode("[", "]", ", ", SyntaxDocument[])
+empty_node.collapsed = true
+@test join(s.content for s in projection_print(pipe, empty_node).output) == "[]"
+
+# Reactivity: toggling `collapsed` invalidates the output spans cell.
+react_node = SyntaxNode("[", "]", ", ", SyntaxDocument[SyntaxLeaf("x")])
+out = projection_print(pipe, react_node).output
+_ = [s.content for s in out]                       # force the spans cell
+@test isuptodate(getfield(out.elements, :elements))
+react_node.collapsed = true
+@test !isuptodate(getfield(out.elements, :elements))
+@test join(s.content for s in out) == "[…]"
+end # let
+
+end # @testset "SyntaxToText collapsed body"
 
 end # test_syntax_to_text

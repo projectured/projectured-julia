@@ -11,7 +11,7 @@ import ..DocumentApiModule: Document, clear_selection!, set_selection!
 import ..ReferenceModule: ReferencePath, ConcreteReferencePath, FieldReference, RangeReference, is_element_reference
 import ..ReactiveModule: Cell
 export ReplaceSelectionOperation, QuitEditorOperation, QuitEditorException, replace_selection!,
-       OpenWindowOperation, CloseWindowOperation
+       OpenWindowOperation, CloseWindowOperation, ToggleCollapseOperation
 
 function evaluate_operation(editor, op::Nothing) end
 
@@ -33,20 +33,64 @@ function evaluate_operation(editor, op::QuitEditorOperation)
 end
 
 """
-    ReplaceSelectionOperation(path)
+    ReplaceSelectionOperation(path; from_click=false)
 
 Operation that replaces the current selection with `path`.
 Produced by the reader side of the projection pipeline and applied to the
 document by `evaluate_operation` in the editor loop.
+
+`from_click` records that the selection originated from a pointer gesture
+(a mouse click) rather than keyboard navigation. A projection that gives a
+projection-introduced glyph a second, click-only meaning — e.g. the inline
+expand/collapse marker in `SyntaxNodeToText`, which toggles on click but must
+stay a plain cursor stop under `Ctrl+Home` / arrow keys — keys that behaviour
+off this flag. It is set by the click readers in `TextToGraphics` and defaults
+to `false` everywhere else, so keyboard-derived selections never trip it.
 """
 struct ReplaceSelectionOperation <: Operation
     path::ReferencePath
+    from_click::Bool
 end
+
+ReplaceSelectionOperation(path) = ReplaceSelectionOperation(path, false)
 
 function evaluate_operation(editor, op::ReplaceSelectionOperation)
     document = editor.document
     clear_selection!(document)
     set_selection!(document, op.path)
+end
+
+"""
+    ToggleCollapseOperation([target])
+
+Operation that flips the `collapsed` field of a single collapsible node.
+
+`target` is the node whose `collapsed` cell should be toggled, or `nothing`.
+A `nothing` target reaches the projection layer that owns the collapse state
+(`SyntaxNodeToText`), which resolves it to the **innermost** collapsible node
+containing the current selection before the operation propagates back up — so
+the editor only ever evaluates an operation with a concrete `target`.
+
+Two entry points produce it (see `SyntaxToText` / `TextToGraphics`):
+- a keyboard chord (`Ctrl+.`), which carries no target and is resolved from
+  the selection, and
+- a click on the inline expand/collapse marker (or the collapsed ellipsis),
+  which already carries the clicked node as its target.
+
+The operation only affects *rendering*: the source document is untouched, so a
+selection that pointed inside the just-collapsed subtree simply stops drawing a
+cursor until the node is expanded again.
+"""
+struct ToggleCollapseOperation <: Operation
+    target::Any
+end
+
+ToggleCollapseOperation() = ToggleCollapseOperation(nothing)
+
+function evaluate_operation(editor, op::ToggleCollapseOperation)
+    target = op.target
+    target === nothing && return
+    target.collapsed = !target.collapsed
 end
 
 """

@@ -161,7 +161,7 @@ using .ProjectionContextModule: ProjectionContext, child_context, with_available
                                  with_property, get_property
 using .DocumentApiModule: set_selection!, clear_selection!
 using .OperationModule: ReplaceSelectionOperation, QuitEditorOperation, replace_selection!,
-                        OpenWindowOperation, CloseWindowOperation
+                        OpenWindowOperation, CloseWindowOperation, ToggleCollapseOperation
 using .ReferenceCaseModule: var"@reference_case", when, prefix
 using .ReferenceBuilderModule: var"@reference", var"@step"
 using .OperationApiModule: Operation, evaluate_operation
@@ -358,7 +358,7 @@ export ProjectionContext, child_context, with_available_size, with_property, get
 export set_selection!, clear_selection!, replace_selection!
 export @reference_case, when, prefix
 export @reference, @step
-export ReplaceSelectionOperation
+export ReplaceSelectionOperation, ToggleCollapseOperation
 export OpenWindowOperation, CloseWindowOperation
 export JsonDocument, JsonInsertion, JsonNull, JsonBool, JsonNumber, JsonString, JsonArray, JsonObject, JsonObjectEntry, jsonvalue, entries
 export TableDocument, TableCell, TableRow, TableColumn, TableTable

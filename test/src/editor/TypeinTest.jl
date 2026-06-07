@@ -26,23 +26,37 @@ using Projectured: StringReplaceRangeOperation, evaluate_operation,
 using Projectured.ReactiveModule: Cell
 using Projectured.CollectionModule: CellVector
 using Projectured.FontModule: StyleFont
+using Projectured.TextModule: TextString, TextText
 
 # ── Document-graph walk ──────────────────────────────────────────────────────
 #
-# `_collect_string_refs` returns a ReferencePath for every String reachable
-# from `document`.  The walk descends every field via FieldReference, indexes
-# CellVector / Vector elements via RangeReference, and skips `selection`
-# fields (they hold reference paths, not document content).  An objectid set
-# guards against cycles.  The resulting path, navigated by `evaluate_reference`,
-# lands on the String value itself; appending a PositionReference turns it into
-# a cursor selection.
+# `_collect_string_refs` returns one *cursor target* for every editable String
+# reachable in the input/document domain.  The walk descends every field via
+# FieldReference, indexes CellVector / Vector elements via RangeReference, and
+# skips `selection` fields (they hold reference paths, not document content).
+# An objectid set guards against cycles.
+#
+# A cursor target is `(cursor, kind)`:
+#   * `cursor` is the ReferencePath the **cursor convention** anchors at —
+#     appending a PositionReference turns it into a cursor selection.
+#   * `kind` says where the editable characters live relative to `cursor`,
+#     so the test can read the string before/after the edit:
+#       :plain      — `cursor` resolves to the String itself.
+#       :textstring — `cursor` resolves to a `TextString`; the characters are
+#                     its `.content`. This is the document-domain `TextString`
+#                     case (e.g. `SyntaxLeaf.value`): the cursor convention is
+#                     `.value{k}`, one level above the raw `.content` String.
+#       :texttext   — `cursor` resolves to a `TextText`; the characters are the
+#                     flattened concatenation of its `TextString` spans, and the
+#                     cursor convention is a flat `.content{k}` offset across
+#                     them (e.g. `BookParagraph.content`).
 #
 # `StyleFont` is skipped: a font's `filename` is a String, but it is
 # presentation metadata attached to text spans, not editable document content,
 # so typing into it has no cursor to render.
 
 function _collect_string_refs(document)
-    refs = ReferencePath[]
+    refs = NamedTuple{(:cursor, :kind)}[]
     _walk_strings!(document, EmptyReferencePath(), Set{UInt64}(), refs)
     refs
 end
@@ -81,11 +95,37 @@ function _walk_strings!(node, path, visited, refs)
         fval = getfield(node, fname)
         val  = fval isa Cell ? fval[] : fval
         field_path = append_reference(path, FieldReference(string(fname)))
-        if val isa AbstractString
-            push!(refs, field_path)
+        if val isa TextString
+            # Document-domain TextString: cursor anchors at the field, the
+            # characters are its `.content`. Do not descend further.
+            push!(refs, (cursor=field_path, kind=:textstring))
+        elseif val isa TextText
+            # Document-domain TextText: cursor is a flat offset across spans,
+            # anchored at the field. Do not descend into the spans.
+            push!(refs, (cursor=field_path, kind=:texttext))
+        elseif val isa AbstractString
+            push!(refs, (cursor=field_path, kind=:plain))
         else
             _walk_strings!(val, field_path, visited, refs)
         end
+    end
+end
+
+# Read the current editable String for a cursor target, given its `kind`.
+function _read_target_string(document, target)
+    v = evaluate_reference(document, target.cursor)
+    if target.kind == :textstring
+        v isa TextString || return nothing
+        return v.content
+    elseif target.kind == :texttext
+        v isa TextText || return nothing
+        buf = IOBuffer()
+        for span in v
+            span isa TextString && print(buf, span.content)
+        end
+        return String(take!(buf))
+    else
+        return v
     end
 end
 
@@ -125,18 +165,19 @@ end
 
 # ── Walker ───────────────────────────────────────────────────────────────────
 
-# Run the full type-in cycle for the string at `sref`. Returns (ok, message);
-# `message` is empty on success and describes the first failed step otherwise.
-function _typein_one(document, projection, sref, ch)
+# Run the full type-in cycle for the cursor target `target`. Returns
+# (ok, message); `message` is empty on success and describes the first failed
+# step otherwise.
+function _typein_one(document, projection, target, ch)
     old = try
-        evaluate_reference(document, sref)
+        _read_target_string(document, target)
     catch e
-        return (false, "evaluate_reference threw: $e")
+        return (false, "reading target string threw: $e")
     end
-    old isa AbstractString || return (false, "reference did not resolve to a string: $(typeof(old))")
+    old isa AbstractString || return (false, "reference did not resolve to a string: $(old === nothing ? "nothing" : typeof(old))")
     n = length(old)
     k = min(1, n)                           # cursor one char into the string
-    sel = append_reference(sref, PositionReference(k))
+    sel = append_reference(target.cursor, PositionReference(k))
 
     # 1. Point the selection into this string.
     clear_selection!(document)
@@ -165,7 +206,7 @@ function _typein_one(document, projection, sref, ch)
 
     # 4. Evaluate the operation and 5. verify the input string changed.
     before = try
-        evaluate_reference(document, sref)
+        _read_target_string(document, target)
     catch e
         return (false, "re-read before edit threw: $e")
     end
@@ -175,7 +216,7 @@ function _typein_one(document, projection, sref, ch)
         return (false, "evaluate_operation threw: $e")
     end
     after = try
-        evaluate_reference(document, sref)
+        _read_target_string(document, target)
     catch e
         return (false, "re-read after edit threw: $e")
     end
@@ -197,15 +238,15 @@ on success.
 function walk_typein(document, projection; replacement::AbstractString="X")
     ch = string(first(replacement))
     clear_selection!(document)
-    refs = try
+    targets = try
         _collect_string_refs(document)
     catch e
         return [(ref=EmptyReferencePath(), ok=false, message="collecting string references threw: $e")]
     end
     results = NamedTuple{(:ref, :ok, :message)}[]
-    for sref in refs
-        ok, message = _typein_one(document, projection, sref, ch)
-        push!(results, (ref=sref, ok=ok, message=message))
+    for target in targets
+        ok, message = _typein_one(document, projection, target, ch)
+        push!(results, (ref=target.cursor, ok=ok, message=message))
     end
     results
 end

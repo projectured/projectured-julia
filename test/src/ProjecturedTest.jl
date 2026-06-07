@@ -41,6 +41,7 @@ include("editor/TypeinTest.jl")
 include("editor/McpTest.jl")
 include("editor/MouseClickTest.jl")
 include("editor/ClickRoundtripTest.jl")
+include("editor/CollapseRoundtripTest.jl")
 include("editor/AssistantMvpTest.jl")
 
 function test_documents()
@@ -87,6 +88,7 @@ function test_all()
     test_click_roundtrips()
     test_text_nav_invariants_all()
     test_json_content_clicks_clean_all()
+    test_collapse_roundtrip()
     end
 end
 
@@ -103,6 +105,7 @@ export test_typein, test_typeins, walk_typein
 export test_mouse_click_roundtrip, test_mouse_clicks
 export test_click_roundtrip, test_click_roundtrips, test_text_nav_invariants, test_text_nav_invariants_all
 export test_json_content_clicks_clean, test_json_content_clicks_clean_all
+export test_collapse_roundtrip
 export test_assistant_mvp, make_assistant_mvp_setup, make_assistant_mvp_projection
 
 end # module ProjecturedTest
