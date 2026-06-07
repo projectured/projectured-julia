@@ -30,3 +30,16 @@ When iterating in the REPL or running the test suite:
 
 - All indexing is 1-based (Julia convention).
 - Projections must be bidirectional: every printer needs a matching reader, and the IO map is what makes the inversion possible.
+
+## Testing a change
+
+When you change something and want to verify it, run the **smallest test that covers the change** — do not blindly run `test_all`. It is slow and its output floods the context with tokens.
+
+Pick the narrowest scope that exercises your change:
+
+- A single example: `test_printer(json_example)`, `test_reader(json_example)`, `test_selection(json_example)`, `test_repl(json_example)`, or `test_example(json_example)` for all three at once.
+- A single domain or pipeline stage: e.g. `test_json()`, `test_syntax()`, `test_json_to_syntax()`, `test_syntax_to_text()`.
+- The reactive primitive only: `test_cell()`.
+- Want errors back as a `Vector{String}` instead of `@testset` output (less noise, keeps going on failure): the walker helpers `walk_printer_output(doc, proj)`, `walk_repl_loop(doc, proj)`, `explore_selections(doc, proj)`.
+
+Running `test_all()` is usually not needed — the targeted test above is enough to verify a change. Only reach for the loop-over-every-example functions (`test_printers()` / `test_readers()` / `test_selections()` / `test_repls()`), and rarely `test_all()`, when you specifically want a broad sweep after the targeted test already passes. See [guide/testing.md](guide/testing.md) for the full table of test functions and which layer each one covers.
