@@ -155,11 +155,11 @@ using .ScreenDocumentModule
 using .ReactiveModule: Cell, setval!, setfn!, isuptodate
 using .ProjectionApiModule: projection_print, projection_read, map_reference_forward, map_reference_backward, Projection
 using .ReferenceModule: ConcreteReferencePath, ElementReference, PositionReference, RangeReference, FieldReference,
-                       TypeReference, FunctionReference, ProjectionReference, PointReference, SelfReference,
+                       TypeReference, FunctionReference, ProjectionReference, PointReference,
                        ReferencePath, EmptyReferencePath,
                        is_valid_reference, evaluate_reference, append_reference, collect_references,
                        is_element_reference, is_position_reference, is_range_reference,
-                       is_self_reference, reference_equal, is_prefix_of
+                       reference_equal, is_prefix_of
 using .ProjectionContextModule: ProjectionContext, child_context, with_available_size,
                                  with_property, get_property
 using .DocumentApiModule: set_selection!, clear_selection!
@@ -357,10 +357,10 @@ export @document, @projection, @iomap
 export Cell, setval!, setfn!, isuptodate, take_first_n
 export projection_print, projection_read, map_reference_forward, map_reference_backward, Projection
 export ConcreteReferencePath, ElementReference, PositionReference, RangeReference, FieldReference, TypeReference,
-       FunctionReference, ProjectionReference, PointReference, SelfReference, ReferencePath, EmptyReferencePath,
+       FunctionReference, ProjectionReference, PointReference, ReferencePath, EmptyReferencePath,
        is_valid_reference, evaluate_reference, append_reference, collect_references,
        is_element_reference, is_position_reference, is_range_reference,
-       is_self_reference, reference_equal, is_prefix_of
+       reference_equal, is_prefix_of
 export ProjectionContext, child_context, with_available_size, with_property, get_property
 export set_selection!, clear_selection!, replace_selection!
 export @reference_case, when, prefix

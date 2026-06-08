@@ -57,37 +57,44 @@ Not part of the first slice — the first slice is the data model and iomap plum
 
 ## First Slice (what to actually build first)
 
-**Status: done.** Decided on option (a), `SelfReference` (rendered `⊙`), as the
-whole-element marker. The data-model + iomap plumbing now carries `⊙` through the
-JSON → Syntax → Text chain in both directions. Tests live in
-`test/src/projection/SyntaxTreeSelectionTest.jl` (`test_syntax_tree_selection`).
+**Status: done.** Chose option (b) — the empty-path convention — over option (a)
+(`SelfReference`). A whole-element selection is **not a distinct reference step**;
+it is just a path that terminates *at* the element, i.e. an `EmptyReferencePath`
+(`∅`). Each node stores only its remaining path, so the one node whose `selection`
+cell holds `∅` is the wholly-selected one; ancestors hold a non-empty path routing
+down to it, and descendants hold `nothing`. A `SelfReference` marker was built
+first and then removed: it was an unnecessary extra degree of freedom, since tree
+position already disambiguates and `evaluate_reference(doc, ∅)` already returns the
+element. Tests: `test/src/projection/SyntaxTreeSelectionTest.jl`
+(`test_syntax_tree_selection`).
 
-1. ✅ Added the `SelfReference` step + `is_self_reference(path)` predicate in
-   `ReferenceModule`; `evaluate_reference` returns the element itself for a `⊙`
-   terminal. Exported from `Projectured`.
-2. ✅ `set_selection!` / `replace_selection!` / `clear_selection!` already accept
-   `⊙`-terminated paths: the terminal step falls through their `else` branch (no
-   child to recurse into), so no change was needed beyond confirming it.
-3. ✅ `SyntaxToText` printer + reader propagate and recover a *top-level*
-   whole-element selection (`⊙` on the `TextText`). The default
-   `map_reference_forward`/`backward` and every `Syntax*ToText` mapper pass `⊙`
-   through unchanged.
-4. ✅ `JsonToSyntax` end-to-end: selecting a `JsonArray` or `JsonObject` whole
-   propagates `⊙` to the rendered text and round-trips back. The leaf mappers
-   (`JsonBool/Number/String → SyntaxLeaf`) and the hand-rolled `JsonObject` `sel`
-   cell were extended to pass `⊙` through, so a *nested* whole-child selection
-   survives to the syntax level as `.children[i].⊙` and back to `.elements[i].⊙`.
-5. ✅ Tests added (forward/backward for array, object, leaf; the predicate;
-   `set_selection!`/`clear_selection!` acceptance; nested whole-child round-trip).
+1. ✅ No new reference type. `evaluate_reference(document, EmptyReferencePath())`
+   already returns the element itself — that *is* the whole-element semantics.
+2. ✅ `set_selection!` / `replace_selection!` / `clear_selection!` accept
+   `∅`-terminated paths with no change: the `∅` terminal falls through their
+   `path isa ConcreteReferencePath || return` guard (no child to recurse into).
+3. ✅ `@reference_case` gained a writable **empty-path pattern** `∅` (the macro
+   already matched zero-step patterns internally; there was just no surface
+   syntax). `∅ => @reference()` maps a whole-element selection through as
+   identity. The macro's no-match fallthrough is unchanged (`nothing`).
+4. ✅ Selection mappers carry `∅` both ways. `@reference_case`-based mappers use
+   the `∅ => @reference()` branch (default fwd, JSON leaf/array/object fwd+bwd,
+   `SyntaxLeafToText` fwd); the flat-offset mappers and printer cells keep a small
+   `x isa EmptyReferencePath && return @reference()` guard. A whole `JsonArray`/
+   `JsonObject`/`SyntaxLeaf` round-trips `∅`; a *nested* whole-child survives the
+   syntax level as `.children[i]` (terminating `∅`) and back to `.elements[i]`.
+5. ✅ Tests added (forward/backward for array, object, leaf; the empty-path
+   predicate; `set_selection!`/`clear_selection!` placing `∅` at the target node;
+   nested whole-child round-trip).
 
 ### Deferred (not in this slice)
 
 - **Text-range highlight for a nested child.** `SyntaxNodeToText` flattens all
-  children into one `TextText`, so a nested `.children[i].⊙` cannot be a `⊙` on
-  that text — it must become a *sub-range* spanning the child's open-delimiter
-  start to close-delimiter end (plan §5). `_syntax_to_flat` returns `-1` for a
-  `⊙` terminal today, so the nested case degrades to *no highlight* (graceful,
-  no crash) rather than rendering a range.
+  children into one `TextText`, so a nested `.children[i]` (terminating `∅`)
+  cannot be a `∅` on that text — it must become a *sub-range* spanning the
+  child's open-delimiter start to close-delimiter end (plan §5). `_syntax_to_flat`
+  returns `-1` for a `∅` terminal today, so the nested case degrades to *no
+  highlight* (graceful, no crash) rather than rendering a range.
 - **Visual highlighting in `TextToGraphics`.** The text→graphics layer renders a
   cursor (point), not a range box; drawing the highlight is part of the editor
   surface below.
@@ -96,6 +103,6 @@ JSON → Syntax → Text chain in both directions. Tests live in
 
 ## Open Questions
 
-- ~~Does `SelfReference` belong in `ReferenceModule`, or as a syntax-domain–specific step?~~ **Resolved:** generic, in `ReferenceModule` — the default `map_reference_forward`/`backward` pass it through, so any domain (XML, filesystem, …) inherits whole-element selection for free.
-- How should whole-element selection compose with `ProjectionReference` (projection-introduced delimiters)? Probably: `SelfReference` on a projection-introduced node is allowed and renders as that delimiter's range.
-- Interaction with `ContentIoMap` wrappers (`Dragging`, navigation overlays) — confirm they pass `SelfReference` through unchanged.
+- ~~Does whole-element selection need a dedicated reference step?~~ **Resolved: no.** It is the empty path (`∅`); the default `map_reference_forward`/`backward` and the `@reference_case` `∅` pattern pass it through, so any domain (XML, filesystem, …) inherits whole-element selection for free.
+- How should whole-element selection compose with `ProjectionReference` (projection-introduced delimiters)? Probably: an `∅` selection on a projection-introduced node is allowed and renders as that delimiter's range.
+- Interaction with `ContentIoMap` wrappers (`Dragging`, navigation overlays) — confirm they pass an `∅` selection through unchanged.

@@ -1,97 +1,95 @@
 # ═══════════════════════════════════════════════════════════════════════════
 # test/src/projection/SyntaxTreeSelectionTest.jl
 #
-# Whole-element ("self") selection across the JSON → Syntax → Text chain.
+# Whole-element ("tree") selection across the JSON → Syntax → Text chain.
 #
-# A whole-element selection is a reference path terminating in `SelfReference`
-# (rendered `⊙`): it selects an entire node/leaf as one unit rather than a
-# character cursor inside it. These tests pin the data-model + iomap plumbing:
-#   * the `is_self_reference` predicate,
-#   * `set_selection!`/`clear_selection!` accepting `⊙`-terminated paths,
-#   * forward propagation of a whole-element selection through the printer chain
-#     (JsonArray/JsonObject/SyntaxLeaf selected whole → `⊙` on the rendered text),
+# A whole-element selection is *not* a distinct reference step: it is simply a
+# path that terminates AT the element, i.e. an `EmptyReferencePath` (`∅`). Each
+# node stores only its remaining path, so the one node whose `selection` cell
+# holds `∅` is the wholly-selected one; its ancestors hold a non-empty path
+# routing down to it, and its descendants hold `nothing`. These tests pin:
+#   * `set_selection!`/`clear_selection!` placing `∅` at the right node,
+#   * forward propagation (JsonArray/JsonObject/SyntaxLeaf selected whole → `∅`
+#     on the rendered text),
 #   * backward recovery via `projection_read`,
-#   * nested whole-child selection surviving both directions at the syntax level
-#     (text-range highlighting of a nested child is deferred — it degrades to no
-#     highlight rather than crashing).
+#   * a nested whole-child selection surviving both directions at the syntax
+#     level as `.children[i]` (terminating `∅`); the text layer can't yet render
+#     a nested child as a sub-range, so it degrades to no highlight, not a crash.
 # ═══════════════════════════════════════════════════════════════════════════
 
 function test_syntax_tree_selection()
 @testset "SyntaxTreeSelection" begin
 
-# A path terminating in SelfReference == whole-element selection.
-whole = ConcreteReferencePath(SelfReference())
-# Walk a reference path to its terminal step.
-terminal(p) = (p isa ConcreteReferencePath && p.tail isa ConcreteReferencePath) ? terminal(p.tail) : p
+# Whole-element selection == a path that ends at the element.
+whole = EmptyReferencePath()
+selof(x) = getfield(x, :selection)[]
 
 j2s = RecursiveProjection(JsonToSyntax())
 s2t = RecursiveProjection(SyntaxToText())
 
-@testset "is_self_reference predicate" begin
-    @test is_self_reference(whole)
-    @test !is_self_reference(nothing)                 # empty cursor state
-    @test !is_self_reference(EmptyReferencePath())
-    @test !is_self_reference(@reference value{0})     # a character cursor
-    # A nested whole-child path is not itself a self-reference at the top, but
-    # terminates in one.
-    nested = ConcreteReferencePath(FieldReference("children"),
-                 ConcreteReferencePath(ElementReference(2), whole))
-    @test !is_self_reference(nested)
-    @test is_self_reference(terminal(nested))
+@testset "empty path is the whole-element marker" begin
+    # An empty path evaluates to the element itself.
+    arr = JsonArray([JsonNumber(1), JsonNumber(2)])
+    @test evaluate_reference(arr, whole) === arr
+    # A character cursor (`.value{0}`) is a non-empty path — clearly distinct.
+    @test !isempty(@reference value{0})
+    @test isempty(whole)
 end
 
-@testset "set/clear_selection! accept ⊙-terminated paths" begin
+@testset "set/clear_selection! place ∅ at the target node" begin
     leaf = SyntaxLeaf("\"", "\"", "hi")
     set_selection!(leaf, whole)
-    @test is_self_reference(getfield(leaf, :selection)[])
+    @test selof(leaf) isa EmptyReferencePath
     clear_selection!(leaf)
-    @test getfield(leaf, :selection)[] === nothing
+    @test selof(leaf) === nothing
 
-    # Nested: set_selection! routes the head step into the child and stores the
-    # full ⊙-terminated path on the array.
+    # Nested: the array holds `.elements[2]` (non-empty), the child holds ∅, and
+    # everything else is untouched — the tree-position invariant.
     arr = JsonArray([JsonNumber(1), JsonNumber(2)])
     nested = ConcreteReferencePath(FieldReference("elements"),
                  ConcreteReferencePath(ElementReference(2), whole))
     set_selection!(arr, nested)
-    @test is_self_reference(terminal(getfield(arr, :selection)[]))
-    @test is_self_reference(getfield(arr[2], :selection)[])  # ⊙ landed on child
+    @test selof(arr) isa ConcreteReferencePath          # ancestor: non-empty path
+    @test !isempty(selof(arr))
+    @test selof(arr[2]) isa EmptyReferencePath          # target: ∅
+    @test selof(arr[1]) === nothing                     # sibling: nothing
     clear_selection!(arr)
-    @test getfield(arr, :selection)[] === nothing
-    @test getfield(arr[2], :selection)[] === nothing
+    @test selof(arr) === nothing
+    @test selof(arr[2]) === nothing
 end
 
-@testset "forward: JsonArray whole → SyntaxNode ⊙ → Text ⊙" begin
+@testset "forward: JsonArray whole → SyntaxNode ∅ → Text ∅" begin
     arr = JsonArray([JsonNumber(1), JsonNumber(2)])
     set_selection!(arr, whole)
 
     node_io = projection_print(j2s, arr)
-    @test is_self_reference(node_io.output.selection)
+    @test node_io.output.selection isa EmptyReferencePath
 
     text_io = projection_print(s2t, node_io.output)
-    @test is_self_reference(text_io.output.selection)
+    @test text_io.output.selection isa EmptyReferencePath
     # The whole-element selection does not alter the rendered text.
     @test occursin("1", join(s.content for s in text_io.output))
 end
 
-@testset "forward: JsonObject whole → SyntaxNode ⊙ → Text ⊙" begin
+@testset "forward: JsonObject whole → SyntaxNode ∅ → Text ∅" begin
     obj = JsonObject("a" => 1)
     set_selection!(obj, whole)
 
     node_io = projection_print(j2s, obj)
-    @test is_self_reference(node_io.output.selection)
+    @test node_io.output.selection isa EmptyReferencePath
 
     text_io = projection_print(s2t, node_io.output)
-    @test is_self_reference(text_io.output.selection)
+    @test text_io.output.selection isa EmptyReferencePath
 end
 
-@testset "forward: SyntaxLeaf whole → Text ⊙" begin
+@testset "forward: SyntaxLeaf whole → Text ∅" begin
     leaf = SyntaxLeaf("\"", "\"", "hi")
     set_selection!(leaf, whole)
     text_io = projection_print(s2t, leaf)
-    @test is_self_reference(text_io.output.selection)
+    @test text_io.output.selection isa EmptyReferencePath
 end
 
-@testset "backward: ⊙ at Text → Syntax → JSON (array)" begin
+@testset "backward: ∅ at Text → Syntax → JSON (array)" begin
     arr = JsonArray([JsonNumber(1), JsonNumber(2)])
     set_selection!(arr, whole)
     node_io = projection_print(j2s, arr)
@@ -99,37 +97,36 @@ end
 
     op_syntax = projection_read(s2t, text_io, ReplaceSelectionOperation(whole))
     @test op_syntax isa ReplaceSelectionOperation
-    @test is_self_reference(op_syntax.path)
+    @test op_syntax.path isa EmptyReferencePath
 
     op_json = projection_read(j2s, node_io, op_syntax)
     @test op_json isa ReplaceSelectionOperation
-    @test is_self_reference(op_json.path)
+    @test op_json.path isa EmptyReferencePath
 end
 
 @testset "nested whole-child survives Syntax level, Text degrades cleanly" begin
     arr = JsonArray([JsonNumber(1), JsonNumber(2)])
-    # Select the 2nd element as a whole: .elements[2].⊙
+    # Select the 2nd element as a whole: .elements[2] (terminating ∅).
     nested = ConcreteReferencePath(FieldReference("elements"),
                  ConcreteReferencePath(ElementReference(2), whole))
     set_selection!(arr, nested)
 
-    # Forward: reaches the SyntaxNode as `.children[2].⊙` (terminates in ⊙ but is
-    # not a top-level self-reference).
+    # Forward: reaches the SyntaxNode as `.children[2]` (a complete path ending
+    # at the child — i.e. the child wholly selected).
     node_io = projection_print(j2s, arr)
-    nsel = node_io.output.selection
-    @test nsel isa ConcreteReferencePath
-    @test !is_self_reference(nsel)
-    @test is_self_reference(terminal(nsel))
+    expected_child = ConcreteReferencePath(FieldReference("children"),
+                         ConcreteReferencePath(ElementReference(2), EmptyReferencePath()))
+    @test reference_equal(node_io.output.selection, expected_child)
 
     # The text layer cannot yet render a nested child as a sub-range highlight
     # (deferred); it yields no selection rather than crashing.
     text_io = projection_print(s2t, node_io.output)
     @test text_io.output.selection === nothing
 
-    # Backward: `.children[2].⊙` maps back to `.elements[2].⊙` on the JSON array.
-    op_json = projection_read(j2s, node_io, ReplaceSelectionOperation(nsel))
+    # Backward: `.children[2]` maps back to `.elements[2]` on the JSON array.
+    op_json = projection_read(j2s, node_io, ReplaceSelectionOperation(node_io.output.selection))
     @test op_json isa ReplaceSelectionOperation
-    @test is_self_reference(terminal(op_json.path))
+    @test reference_equal(op_json.path, nested)
 end
 
 end # @testset "SyntaxTreeSelection"

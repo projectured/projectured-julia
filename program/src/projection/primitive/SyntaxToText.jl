@@ -16,7 +16,7 @@ import ..TextModule: TextText, TextString, TextNewline, TextDocument
 import ..FontModule: font_ubuntu_monospace_regular_24, font_dejavu_monospace_regular_24
 import ..ColorModule: color_solarized_gray
 import ..TypeDispatchingModule: TypeDispatchingProjection
-import ..ReferenceModule: ConcreteReferencePath, ElementReference, PositionReference, RangeReference, FieldReference, ProjectionReference, EmptyReferencePath, ReferencePath, SelfReference, is_self_reference
+import ..ReferenceModule: ConcreteReferencePath, ElementReference, PositionReference, RangeReference, FieldReference, ProjectionReference, EmptyReferencePath, ReferencePath
 import ..ReferenceCaseModule: var"@reference_case"
 import ..ReferenceBuilderModule: var"@reference"
 import ..IoMapModule: SimpleIoMap
@@ -35,8 +35,8 @@ export SyntaxLeafToText, SyntaxNodeToText, SyntaxListToText, SyntaxToText,
 struct SyntaxLeafToText <: Projection end
 
 function map_reference_forward(::SyntaxLeafToText, iomap, reference)
-    is_self_reference(reference) && return ConcreteReferencePath(SelfReference())
     @reference_case reference begin
+        ∅                          => @reference()
         open{s:_}                  => _text_elem_path(1, s)
         value{s:_}                 => _text_elem_path(2, s)
         close{s:_}                 => _text_elem_path(3, s)
@@ -46,7 +46,7 @@ function map_reference_forward(::SyntaxLeafToText, iomap, reference)
 end
 
 function map_reference_backward(::SyntaxLeafToText, iomap, reference)
-    is_self_reference(reference) && return ConcreteReferencePath(SelfReference())
+    reference isa EmptyReferencePath && return @reference()
     span_idx, char_idx = _parse_text_elem_path(reference)
     span_idx === nothing && return nothing
     span_idx == 1 && return @reference open{char_idx}
@@ -66,7 +66,7 @@ end
 function projection_print(p::SyntaxLeafToText, leaf::SyntaxLeaf, recursion, ctx)
     sel = Cell(() -> begin
         leaf_sel = leaf.selection
-        is_self_reference(leaf_sel) && return ConcreteReferencePath(SelfReference())
+        leaf_sel isa EmptyReferencePath && return @reference()
         c = _leaf_cursor(leaf)
         c < 0 ? nothing : _flat_to_text_elem_path([leaf.open, leaf.value, leaf.close], c)
     end)
@@ -146,14 +146,14 @@ struct SyntaxNodeToTextIoMap <: IoMap
 end
 
 function map_reference_forward(p::SyntaxNodeToText, iomap::SyntaxNodeToTextIoMap, reference)
-    is_self_reference(reference) && return ConcreteReferencePath(SelfReference())
+    reference isa EmptyReferencePath && return @reference()
     flat_pos = _syntax_to_flat(iomap.input, reference, p, 0)
     flat_pos < 0 && return nothing
     _flat_to_text_elem_path(iomap.output.elements, flat_pos)
 end
 
 function map_reference_backward(p::SyntaxNodeToText, iomap::SyntaxNodeToTextIoMap, reference)
-    is_self_reference(reference) && return ConcreteReferencePath(SelfReference())
+    reference isa EmptyReferencePath && return @reference()
     # Also accept bare flat char index: ConcreteReferencePath(PositionReference(n))
     if reference isa ConcreteReferencePath
         h = reference.head
@@ -182,7 +182,7 @@ function projection_print(p::SyntaxNodeToText, node::SyntaxNode, recursion, ctx)
         CellVector(() -> both[][1]),
         Cell(() -> begin
             node_sel = node.selection
-            is_self_reference(node_sel) && return ConcreteReferencePath(SelfReference())
+            node_sel isa EmptyReferencePath && return @reference()
             cursor = both[][2]
             cursor < 0 && return nothing
             _flat_to_text_elem_path(both[][1], cursor)
