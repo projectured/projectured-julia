@@ -101,8 +101,144 @@ element. Tests: `test/src/projection/SyntaxTreeSelectionTest.jl`
 - **Editor surface (plan §6):** expand/shrink keybindings, double/triple-click.
 - **Range / multi-element selection (plan §3).**
 
+## Visualization — Region box (design, not yet built)
+
+Decided during a design pass. How a whole-element selection is *drawn*, and where
+in the pipeline the highlight is introduced.
+
+### Rendering style: Region box
+One translucent, rounded `GraphicsRect` over the **bounding box** of the selected
+element's text. A single-line leaf gets a tight, exact box; a multi-line node gets
+a bounding box that hugs the indented `SyntaxIndentation` block (it over-covers
+interior trailing whitespace — accepted, reads as "the whole block"). Alternatives
+weighed and rejected: *text polygon* (per-line ragged tint — looks like a character
+drag-selection, not a structural pick); *gutter bar* (less precise about extent);
+*stroked outline* (needs a stroke primitive — `GraphicsRect` is fill-only). A
+structural selection should also read distinct from a future text-range selection
+(different colour).
+
+### Text-domain representation: two new flat-index steps
+**A `RangeReference` must NOT be reused** for these — that single-axis form is for a
+character range *within one span* (`elements[i].content[s:e]`). The multi-span Text
+forms get their own vocabulary. Two new `ReferenceStep`s, both carrying **two flat
+char indices** — offsets measured from the start of the `TextText`, counting straight
+through every span (0-based, half-open `[start, end)`, the same flat model
+`_syntax_to_flat` / `child_char_ranges` already use):
+
+```
+TextRectangularReference(start, end)   # → axis-aligned bounding box  (structural box)
+TextRangeReference(start, end)         # → ragged text-flow polygon   (char range; planned sibling)
+```
+
+Identical payload; the **type selects the geometry** at render time. `TextRangeReference`
+is the unrelated cross-span character-selection feature; we add it here only so the
+pair is coherent — this slice builds `TextRectangularReference`.
+
+Path shape: a single top-level step on the `TextText`, e.g.
+`ConcreteReferencePath(TextRectangularReference(start, end), ∅)` — *not* under
+`elements[i]`, since the offsets are flat across all spans, not into one element.
+
+Cases:
+
+- **Whole element at the top of what a projection prints** → already arrives as `∅`
+  on the whole `TextText`. `SyntaxLeafToText` (3 spans `[open, value, close]`) and
+  `SyntaxNodeToText` (flattened subtree) both already map a `∅` input selection
+  forward to `∅` output (SyntaxToText.jl:69, :185). So a single leaf or a top-of-subtree
+  node needs **no new step** — TextToGraphics normalizes `∅` to the full range `(0, N)`.
+
+- **A wholly-selected *nested* child** → what `∅` cannot express (it means the *whole*
+  TextText). The parent flattens its whole subtree into one `TextText`, so child *i*
+  occupies a flat char sub-range `[start, end)`. Emit
+  `TextRectangularReference(start, end)`. A distinct *type*, so it never collides with
+  `RangeReference`. This is the gap behind today's degrade where `map_reference_forward`
+  / `_syntax_to_flat` return `-1` for a `∅` terminal (SyntaxToText.jl:148-153).
+
+**Why this is not the deleted `SelfReference` marker.** `SelfReference` was redundant
+because the document tree still held the node to disambiguate. Here, flattening into
+one `TextText` *destroys* the per-child grouping, so `TextRectangularReference`
+re-supplies information that is otherwise absent in the flat domain — it carries data
+(the flat extent), not redundancy, and lives only at the Text layer. (The alternative
+that would let `∅` work everywhere is to stop flattening — emit a nested `TextText`
+per syntactic child so `∅` on a sub-`TextText` means "box" — but that is a large
+restructure of `_collect_spans` + TextToGraphics layout; rejected unless we want it.)
+
+**Producing it.** No new bookkeeping: `child_char_ranges` (SyntaxToText.jl:141, :190)
+*already* holds each child's flat char range, and `_syntax_to_flat` already walks the
+path to a descendant. When the addressed descendant's selection terminates in `∅`,
+extend `_syntax_to_flat` to return that descendant's flat range `[start, end)` (today
+it returns a single cursor offset, `-1` for `∅`) and have the `selection` cell emit
+`TextRectangularReference(start, end)`. Because it tracks the child's exact flat
+extent, the box hugs the child and excludes the parent's separators/indent.
+
+**Plumbing.** `set_selection!` must treat `TextRectangularReference` /
+`TextRangeReference` as terminal ("don't navigate into a child", like
+`PositionReference` / `ProjectionReference`); the `@reference` builder and
+`@reference_case` need surface syntax for them if mappers are to construct/match them.
+
+### Where the rectangle is introduced
+`TextToGraphics.projection_print`, inside the `both` cell — the *same* site and
+reason as the cursor rect. It is the only layer with pixels: each `SegCoord`
+carries measured `x/y/width/height`; nothing upstream (JSON, Syntax) knows pixels,
+they carry only the selection *path*. Mechanics: `_selection_range(styled.selection)`
+normalizes both box forms to a flat char range — `∅` ⇒ whole text `(0, N)`;
+`TextRectangularReference(start, end)` ⇒ `(start, end)` — converts the two flat
+offsets to pixel positions with the existing per-segment measurement, gathers the
+covered `SegCoord`s, and computes the bounding box `x0=min(x), y0=min(y), x1=max(x+w),
+y1=max(y+h)`; emit `GraphicsRect(x0, y0, x1-x0, y1-y0, accent, alpha≈50, radius≈4)`.
+Branch at the draw site: a box selection (`∅` / `TextRectangularReference`) ⇒ box and
+no cursor; a point (`content{k}`) ⇒ cursor exactly as today (they are mutually
+exclusive). A future `TextRangeReference(start, end)` reuses the same flat→pixel
+conversion but paints the ragged per-line polygon instead of the bounding box.
+
+### Layering: a separate canvas so the text elements aren't disturbed
+The highlight goes in its **own `GraphicsCanvas` layer**, *not* interleaved into the
+text segment list. `TextToGraphics` emits a parent canvas =
+`[highlight_layer (behind), text_layer (front)]`; the text layer is byte-for-byte
+today's canvas, so `char_to_coord` ↔ element-index alignment stays pristine and
+keyboard nav / `_text_selection_range` / `_hit_segment` are untouched.
+
+Precedent: `GraphicsCanvasToGraphicsImage.projection_print` already prepends a
+checker-board background to its *output* (`vcat(bg_rects, orig_cells)`) while its
+reader hit-tests the *input* canvas — so output-side decoration provably never
+disturbs text indexing. The highlight follows the same layers pattern, but is
+produced by `TextToGraphics` because only it can turn the selection range into
+pixels.
+
+### Hit testing: respect Z order
+The backend paints `for elem in elements` in list order (`Sdl.jl`), so Z = list
+order and the last element is topmost. The highlight layer sits *behind* the text
+layer, so hit-testing must be **topmost-first**: replace the type-priority scan in
+`GraphicsCanvasToGraphicsImage.projection_read` (all `GraphicsRect`s, then all
+`GraphicsText`s) with a single reverse scan returning the first element whose real
+bounds contain the click. A click on a glyph then lands on the text painted on top
+of the highlight — no swallowing, no need for a per-element "decoration" flag. This
+also subsumes the original "rects first (e.g. cursor)" intent (an interactive rect
+placed on top is topmost → hit first) and fixes the latent cursor-click no-op.
+
+Open implementation details:
+- With the extra parent canvas, `_translate_click` must strip one leading
+  `ElementReference` (parent → text-child) before the `char_to_coord` lookup.
+- Confirm how the recursive canvas read (`CopyingProjection`) dispatches a
+  `MousePress` among overlapping sibling layers — it must prefer the front (text)
+  layer (same topmost-first principle, applied one level up).
+
+### Build slices
+1. **Single-line leaf / top-of-subtree (rides `∅`).** No new step: the forward
+   mapping already emits `∅` (SyntaxToText.jl:69, :185). TextToGraphics learns
+   `selection isa EmptyReferencePath` ⇒ box over all `SegCoord`s, in its own
+   highlight layer, with Z-ordered hit test. Smallest end-to-end proof
+   (string → leaf → text → graphics).
+2. **Nested child (introduces `TextRectangularReference`).** Add the new step; extend
+   `_syntax_to_flat` to return the descendant's flat range `[start, end)` so the
+   `selection` cell emits `TextRectangularReference(start, end)` (no new bookkeeping —
+   `child_char_ranges` already holds the flat extent). TextToGraphics gains the
+   `TextRectangularReference` branch (`∅` and `TextRectangularReference` share the
+   same box renderer). Same graphics, no new layout.
+- The `ListNode` path (`_print_listnode`) draws no selection chrome today and uses
+  an empty coord map — wrapped/paragraph text needs the same layer treatment later.
+
 ## Open Questions
 
-- ~~Does whole-element selection need a dedicated reference step?~~ **Resolved: no.** It is the empty path (`∅`); the default `map_reference_forward`/`backward` and the `@reference_case` `∅` pattern pass it through, so any domain (XML, filesystem, …) inherits whole-element selection for free.
+- ~~Does whole-element selection need a dedicated reference step?~~ **Resolved at the document/syntax level: no** — it is the empty path (`∅`); the default `map_reference_forward`/`backward` and the `@reference_case` `∅` pattern pass it through, so any domain (XML, filesystem, …) inherits whole-element selection for free. **But the Text layer is the exception:** because `SyntaxNodeToText` flattens a subtree into one flat `TextText`, a wholly-selected *nested child* is a contiguous span sub-range that `∅` cannot name, so it does need the dedicated `TextRectangularReference(start, end)` step (flat char offsets across all spans; see the Visualization section). `∅` still covers the whole-`TextText` case.
 - How should whole-element selection compose with `ProjectionReference` (projection-introduced delimiters)? Probably: an `∅` selection on a projection-introduced node is allowed and renders as that delimiter's range.
 - Interaction with `ContentIoMap` wrappers (`Dragging`, navigation overlays) — confirm they pass an `∅` selection through unchanged.
