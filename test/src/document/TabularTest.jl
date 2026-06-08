@@ -129,5 +129,21 @@ end
     @test tabular_cell(inner_grid, 1, 2).content == "y"
 end
 
+# ── T10: show (TAB-delimited printer) ────────────────────────────────────
+
+@testset "T10 show" begin
+    g = make_person_grid()
+    @test sprint(show, tabular_cell(g, 1, 1)) == "\"Alice\""
+    @test sprint(show, tabular_cell(g, 1, 2)) == "30"
+    @test sprint(show, g.rows[1]) == "\"Alice\"\t30\t\"London\"\t\"alice@example.com\""
+    lines = split(sprint(show, g), '\n')
+    @test length(lines) == 3
+    @test startswith(lines[1], "\"Alice\"")
+    @test startswith(lines[2], "\"Bob\"")
+    @test startswith(lines[3], "\"Carol\"")
+    inner = TabularGrid(CellVector([TabularRow(CellVector([TabularCell("x")]))]), 1)
+    @test sprint(show, TabularCell(inner)) == "<TabularGrid>"
+end
+
 end # @testset "Tabular"
 end # test_tabular

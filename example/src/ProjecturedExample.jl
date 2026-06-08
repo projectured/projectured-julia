@@ -23,6 +23,7 @@ include(joinpath(_EXAMPLE_DIR, "document", "Focusing.jl"))
 include(joinpath(_EXAMPLE_DIR, "document", "Workbench.jl"))
 include(joinpath(_EXAMPLE_DIR, "document", "Assistant.jl"))
 include(joinpath(_EXAMPLE_DIR, "document", "Table.jl"))
+include(joinpath(_EXAMPLE_DIR, "document", "Tabular.jl"))
 include(joinpath(_EXAMPLE_DIR, "document", "Lazy.jl"))
 include(joinpath(_EXAMPLE_DIR, "document", "Math.jl"))
 include(joinpath(_EXAMPLE_DIR, "document", "Julia.jl"))
@@ -86,6 +87,7 @@ export make_focusing_document_example, make_focusing_projection_example
 export make_workbench_document_example, make_workbench_projection_example
 export make_assistant_document_example, make_assistant_projection_example
 export make_table_document_example, make_table_projection_example
+export make_tabular_document_example
 export make_math_table_document_example, make_math_table_projection_example
 export make_lazy_document_example, make_lazy_projection_example
 export make_lazy_bidirectional_document_example, make_lazy_bidirectional_projection_example

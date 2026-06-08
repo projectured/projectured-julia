@@ -173,4 +173,27 @@ function delete_column!(g::TabularGrid, c::Int)
     g.col_count = g.col_count - 1
 end
 
+# ── Display ──────────────────────────────────────────────────────────────────
+
+function Base.show(io::IO, c::TabularCell)
+    content = c.content
+    content isa TabularGrid ? print(io, "<TabularGrid>") : show(io, content)
+end
+
+function Base.show(io::IO, r::TabularRow)
+    ncells = length(r.cells)
+    for i in 1:ncells
+        i > 1 && print(io, '\t')
+        show(io, r.cells[i])
+    end
+end
+
+function Base.show(io::IO, g::TabularGrid)
+    nrows = length(g.rows)
+    for i in 1:nrows
+        i > 1 && print(io, '\n')
+        show(io, g.rows[i])
+    end
+end
+
 end # module
