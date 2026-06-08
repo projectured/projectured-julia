@@ -7,3 +7,38 @@ function make_text_document_example()
     set_selection!(document, @reference elements[1].content{3})
     document
 end
+
+# Inline images (and icons) flowing with text. A large image and a small icon
+# sit on the same baseline as the surrounding words; the line grows to the
+# tallest glyph and the cursor can land before or after each image.
+function make_text_with_image_example()
+    regular = font_ubuntu_monospace_regular_24
+    photo = _load_inline_image("projectured.png")
+    icon  = _load_inline_image("file.png")
+    document = TextText(
+        TextString("Inline images flow with text ", regular, color_default),
+        TextGraphics(photo, 64, 64),
+        TextString(" and small icons ", regular, color_default),
+        TextGraphics(icon, 24, 24),
+        TextString(" sit on the same line as the surrounding words. The line height grows to fit the tallest glyph, and the cursor can be placed before or after each image.", regular, color_default),
+    )
+    set_selection!(document, @reference elements[1].content{3})
+    document
+end
+
+# Build an ImageFile whose decoded RGBA pixels are produced lazily — the
+# decode thunk runs only when the image is actually rendered (when an SDL
+# video context exists), so constructing the example document never touches
+# SDL. A decode failure degrades to `nothing` rather than throwing.
+function _load_inline_image(name::AbstractString)
+    path = joinpath(@__DIR__, "..", "..", "..", "image", name)
+    img = ImageFile(path)
+    setfn!(getfield(img, :raw), () -> begin
+        try
+            sdl_decode_image(path)
+        catch
+            nothing
+        end
+    end)
+    img
+end

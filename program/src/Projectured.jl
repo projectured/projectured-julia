@@ -155,10 +155,11 @@ using .ScreenDocumentModule
 using .ReactiveModule: Cell, setval!, setfn!, isuptodate
 using .ProjectionApiModule: projection_print, projection_read, map_reference_forward, map_reference_backward, Projection
 using .ReferenceModule: ConcreteReferencePath, ElementReference, PositionReference, RangeReference, FieldReference,
-                       TypeReference, FunctionReference, ProjectionReference, ReferencePath, EmptyReferencePath,
+                       TypeReference, FunctionReference, ProjectionReference, PointReference, SelfReference,
+                       ReferencePath, EmptyReferencePath,
                        is_valid_reference, evaluate_reference, append_reference, collect_references,
                        is_element_reference, is_position_reference, is_range_reference,
-                       reference_equal, is_prefix_of
+                       is_self_reference, reference_equal, is_prefix_of
 using .ProjectionContextModule: ProjectionContext, child_context, with_available_size,
                                  with_property, get_property
 using .DocumentApiModule: set_selection!, clear_selection!
@@ -178,7 +179,7 @@ using .XmlModule: XmlDocument, XmlInsertion, XmlText, XmlAttribute, XmlElement, 
 using .FileSystemModule: FileSystemDocument, FileSystemInsertion,
                          FileSystemFile, FileSystemDirectory, make_filesystem_pathname
 using .WorkspaceModule: WorkspaceDocument, WorkspaceFolder, Workspace
-using .TextModule: TextDocument, TextInsertion, TextText, TextString, TextNewline
+using .TextModule: TextDocument, TextInsertion, TextText, TextString, TextNewline, TextGraphics
 using .PrimitiveModule: PrimitiveDocument, PrimitiveInsertion,
                         PrimitiveBool, PrimitiveNumber, PrimitiveString,
                         NumberReplaceRangeOperation, StringReplaceRangeOperation
@@ -197,7 +198,8 @@ using .MouseModule: MouseDown, MouseUp, MousePress, MouseMove, MouseScroll
 using .BackendModule: Backend, init!, quit!, measure_text
 using .SdlBackendModule: SdlBackend, sdl_measure_text, sdl_render_canvas,
                           sdl_display_size,
-                          write_image, GraphicsCanvasToImageFile
+                          write_image, GraphicsCanvasToImageFile,
+                          sdl_decode_image, decode_image_file!
 using .DeviceModule: Device, write_to_device, read_from_device, write_to_devices, read_from_devices
 using .ScreenModule: Screen, QuitEvent
 using .IoMapApiModule: IoMap
@@ -355,10 +357,10 @@ export @document, @projection, @iomap
 export Cell, setval!, setfn!, isuptodate, take_first_n
 export projection_print, projection_read, map_reference_forward, map_reference_backward, Projection
 export ConcreteReferencePath, ElementReference, PositionReference, RangeReference, FieldReference, TypeReference,
-       FunctionReference, ProjectionReference, ReferencePath, EmptyReferencePath, is_valid_reference,
-       evaluate_reference, append_reference, collect_references,
+       FunctionReference, ProjectionReference, PointReference, SelfReference, ReferencePath, EmptyReferencePath,
+       is_valid_reference, evaluate_reference, append_reference, collect_references,
        is_element_reference, is_position_reference, is_range_reference,
-       reference_equal, is_prefix_of
+       is_self_reference, reference_equal, is_prefix_of
 export ProjectionContext, child_context, with_available_size, with_property, get_property
 export set_selection!, clear_selection!, replace_selection!
 export @reference_case, when, prefix
@@ -373,7 +375,7 @@ export TableDocument, TableCell, TableRow, TableColumn, TableTable
 export XmlDocument, XmlInsertion, XmlText, XmlAttribute, XmlElement, xmlattr, setattr!, deleteattr!
 export FileSystemDocument, FileSystemInsertion, FileSystemFile, FileSystemDirectory, make_filesystem_pathname
 export WorkspaceDocument, WorkspaceFolder, Workspace
-export TextDocument, TextInsertion, TextText, TextString, TextNewline
+export TextDocument, TextInsertion, TextText, TextString, TextNewline, TextGraphics
 export StyleFont, make_style_font
 export font_inconsolata_regular_18
 export font_ubuntu_monospace_regular_14, font_ubuntu_monospace_italic_14, font_ubuntu_monospace_bold_14
@@ -440,7 +442,7 @@ export MouseDown, MouseUp, MousePress, MouseMove, MouseScroll
 export Backend, init!, quit!, measure_text
 export Screen
 export SdlBackend, sdl_measure_text, sdl_render_canvas, sdl_display_size,
-       write_image, GraphicsCanvasToImageFile
+       write_image, GraphicsCanvasToImageFile, sdl_decode_image, decode_image_file!
 export Device, write_to_device, read_from_device, write_to_devices, read_from_devices
 export IoMap, SimpleIoMap, ChildrenIoMap, ContentIoMap
 export TypeDispatchingProjection, RecursiveProjection

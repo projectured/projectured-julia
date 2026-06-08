@@ -27,6 +27,7 @@ using Projectured.ReactiveModule: Cell
 using Projectured.CollectionModule: CellVector
 using Projectured.FontModule: StyleFont
 using Projectured.TextModule: TextString, TextText
+using Projectured.SyntaxModule: SyntaxNode
 
 # ── Document-graph walk ──────────────────────────────────────────────────────
 #
@@ -92,6 +93,10 @@ function _walk_strings!(node, path, visited, refs)
     isstructtype(typeof(node)) || return
     for fname in fieldnames(typeof(node))
         fname === :selection && continue
+        # A SyntaxNode with fewer than two children renders no separator, so its
+        # `sep` field has no on-screen cursor position — there is nothing to
+        # separate, hence nothing to type into.
+        (node isa SyntaxNode && fname === :sep && length(node.children) < 2) && continue
         fval = getfield(node, fname)
         val  = fval isa Cell ? fval[] : fval
         field_path = append_reference(path, FieldReference(string(fname)))
@@ -274,13 +279,12 @@ end
 
 function test_typeins()
     @testset "Typeins" begin
-        # The walk builds input-domain selection paths by field/index name, so
-        # it matches the selection convention for the field-addressed text
-        # domains (JSON keys/values, Text spans). Domains whose editable string
-        # sits one level below the cursor convention (e.g. SyntaxLeaf's
-        # TextString span), or whose projection lacks a string-edit reader
-        # (sorting/primitive/object), are covered elsewhere.
-        for name in ("json", "json_string", "text")
+        # The walk builds input-domain cursor targets by field/index name and
+        # anchors them at the right slot for each domain's selection convention,
+        # including document-domain `TextString` (e.g. `SyntaxLeaf.value`) and
+        # `TextText` (e.g. `BookParagraph.content`). Domains whose projection has
+        # no string-edit reader (sorting/primitive/object) are covered elsewhere.
+        for name in ("json", "json_string", "text", "xml", "book", "syntax")
             idx = findfirst(e -> e.name == name, examples)
             idx === nothing && continue
             ex = examples[idx]

@@ -165,25 +165,31 @@ TextString(content::Function, font::StyleFont, font_color::StyleColor) =
 """
     TextGraphics
 
-Embeds a graphics document within text. This allows mixing graphical elements
-with text spans. The content can be any `Document` type (e.g., `GraphicsCanvas`).
+Embeds a graphics document (typically an `ImageDocument`) within text as an
+inline image or icon. The image flows as a single unbreakable glyph: it
+contributes its height to the line and occupies one atomic cursor position.
 
 # Fields
 
-- `content::Cell` — holds the embedded `Document`
-- `font::Cell{StyleFont}` — font specification
-- `font_color::Cell` — text color
+- `content::Cell` — holds the embedded `Document` (e.g. `ImageFile`, `ImageMemory`)
+- `width::Cell{Int32}` — display width in pixels
+- `height::Cell{Int32}` — display height in pixels
+- `font::Cell{StyleFont}` — font specification (unused for images, kept for uniformity)
+- `font_color::Cell` — text color (unused for images)
 - `fill_color::Cell` — background fill color
 - `line_color::Cell` — border/line color
 - `padding::Cell` — inset/padding value
 - `selection::Reference` — holds the ReferencePath for cursor position
 
-# Constructor
+# Constructors
 
-- `TextGraphics(content; font, font_color="", fill_color=nothing, line_color=nothing, padding=nothing)`
+- `TextGraphics(content, width, height; font, font_color, fill_color, line_color, padding)`
+- `TextGraphics(content; font, font_color, fill_color, line_color, padding)` — zero size
 """
 @document struct TextGraphics <: TextDocument
     content::Document
+    width::Int32
+    height::Int32
     font::StyleFont
     font_color::StyleColor
     fill_color::StyleColor
@@ -192,8 +198,11 @@ with text spans. The content can be any `Document` type (e.g., `GraphicsCanvas`)
     selection::Reference
 end
 
+TextGraphics(content, width::Integer, height::Integer; font=font_ubuntu_monospace_regular_24, font_color="", fill_color=nothing, line_color=nothing, padding=nothing) =
+    TextGraphics(Cell(content), Cell(Int32(width)), Cell(Int32(height)), Cell(font), Cell(font_color), Cell(fill_color), Cell(line_color), Cell(padding), Cell(nothing))
+
 TextGraphics(content; font, font_color="", fill_color=nothing, line_color=nothing, padding=nothing) =
-    TextGraphics(Cell(content), Cell(font), Cell(font_color), Cell(fill_color), Cell(line_color), Cell(padding), Cell(nothing))
+    TextGraphics(Cell(content), Cell(Int32(0)), Cell(Int32(0)), Cell(font), Cell(font_color), Cell(fill_color), Cell(line_color), Cell(padding), Cell(nothing))
 
 # ── TextText ───────────────────────────────────────────────────────────
 

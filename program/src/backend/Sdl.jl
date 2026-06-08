@@ -26,7 +26,8 @@ import ..ReferenceModule: EmptyReferencePath
 import ..IoMapModule: SimpleIoMap
 
 export SdlBackend, sdl_measure_text, sdl_render_canvas, sdl_display_size,
-       write_image, GraphicsCanvasToImageFile
+       write_image, GraphicsCanvasToImageFile,
+       sdl_decode_image, decode_image_file!
 
 """
     sdl_display_size(; display::Integer=0) -> (width, height)
@@ -472,18 +473,36 @@ function _render_image!(renderer::Ptr{SDL_Renderer}, img::GraphicsImage, ox::Int
     if data isa Ptr
         dest = Ref(SDL_Rect(img.x + ox, img.y + oy, img.w, img.h))
         SDL_RenderCopy(renderer, Ptr{SDL_Texture}(data), C_NULL, dest)
+    elseif data isa Tuple && length(data) == 3 && data[1] isa Vector{UInt8}
+        # Decoded image carrying its own native size: (pixels, nw, nh).
+        # Build the surface at the native resolution and let SDL_RenderCopy
+        # scale it into the span's display box (img.w × img.h).
+        buf, nw, nh = data[1]::Vector{UInt8}, Int(data[2]), Int(data[3])
+        _blit_rgba!(renderer, buf, nw, nh, img.x + ox, img.y + oy, Int(img.w), Int(img.h))
     elseif data isa Vector{UInt8}
-        w, h_px = Int(img.w), Int(img.h)
-        surface = SDL_CreateRGBSurfaceFrom(
-            pointer(data), Int32(w), Int32(h_px), Int32(32), Int32(w * 4),
-            0x000000ff, 0x0000ff00, 0x00ff0000, 0xff000000)
-        surface == C_NULL && return
-        texture = SDL_CreateTextureFromSurface(renderer, surface)
-        dest = Ref(SDL_Rect(img.x + ox, img.y + oy, img.w, img.h))
+        # Bare buffer with no native size: assume it already matches the
+        # display box (img.w × img.h).
+        _blit_rgba!(renderer, data, Int(img.w), Int(img.h), img.x + ox, img.y + oy, Int(img.w), Int(img.h))
+    end
+end
+
+# Create an RGBA32 surface from `buf` (row-major, `src_w × src_h`), upload it
+# as a texture, and copy it into the destination rect `(dx, dy, dw, dh)`,
+# scaling as needed. `buf` must hold at least `src_w * src_h * 4` bytes.
+function _blit_rgba!(renderer::Ptr{SDL_Renderer}, buf::Vector{UInt8},
+                     src_w::Int, src_h::Int, dx::Int, dy::Int, dw::Int, dh::Int)
+    (src_w <= 0 || src_h <= 0) && return
+    surface = SDL_CreateRGBSurfaceFrom(
+        pointer(buf), Int32(src_w), Int32(src_h), Int32(32), Int32(src_w * 4),
+        0x000000ff, 0x0000ff00, 0x00ff0000, 0xff000000)
+    surface == C_NULL && return
+    texture = SDL_CreateTextureFromSurface(renderer, surface)
+    if texture != C_NULL
+        dest = Ref(SDL_Rect(dx, dy, dw, dh))
         SDL_RenderCopy(renderer, texture, C_NULL, dest)
         SDL_DestroyTexture(texture)
-        SDL_FreeSurface(surface)
     end
+    SDL_FreeSurface(surface)
 end
 
 # ── Dispatch over a heterogeneous element list ────────────────────────
@@ -1012,6 +1031,62 @@ function _update_window_geometry!(res::SdlWindowResources, w::WindowDocument)
     # style changes mid-life would require flag-bit toggles that SDL
     # only partly supports; for now we just remember the latest value.
     res.style = w.style
+end
+
+# ════════════════════════════════════════════════════════════════════════
+# Image decoding (IMG_Load)
+# ════════════════════════════════════════════════════════════════════════
+
+"""
+    sdl_decode_image(filename::AbstractString) -> (data::Vector{UInt8}, width::Int32, height::Int32)
+
+Load an image file (PNG, JPEG, BMP, etc.) via SDL2_image's `IMG_Load`,
+convert to RGBA32 row-major pixel format, and return the raw bytes plus
+the image dimensions. The returned `data` is suitable for passing to
+`GraphicsImage` / `_render_image!`.
+
+Throws on failure (file not found, unsupported format, etc.).
+"""
+function sdl_decode_image(filename::AbstractString)
+    SDL_Init(SDL_INIT_VIDEO)
+    surface = IMG_Load(filename)
+    surface == C_NULL && error("sdl_decode_image: failed to load '$filename': $(unsafe_string(SDL_GetError()))")
+
+    # Convert to RGBA32 (R=byte0, G=byte1, B=byte2, A=byte3 on little-endian)
+    rgba_surface = SDL_ConvertSurfaceFormat(surface, UInt32(SDL_PIXELFORMAT_RGBA32), UInt32(0))
+    SDL_FreeSurface(surface)
+    rgba_surface == C_NULL && error("sdl_decode_image: format conversion failed: $(unsafe_string(SDL_GetError()))")
+
+    s = unsafe_load(rgba_surface)
+    w = Int32(s.w)
+    h = Int32(s.h)
+    pitch = Int(s.pitch)
+    expected_pitch = Int(w) * 4
+
+    # Copy pixel data row by row (pitch may include padding)
+    data = Vector{UInt8}(undef, Int(w) * Int(h) * 4)
+    for row in 0:(Int(h) - 1)
+        src_ptr = s.pixels + row * pitch
+        dst_offset = row * expected_pitch + 1
+        unsafe_copyto!(pointer(data, dst_offset), Ptr{UInt8}(src_ptr), expected_pitch)
+    end
+
+    SDL_FreeSurface(rgba_surface)
+    (data, w, h)
+end
+
+"""
+    decode_image_file!(img::ImageFile)
+
+Decode `img.filename` via SDL2_image and populate `img.raw` with a tuple
+`(data::Vector{UInt8}, width::Int32, height::Int32)`.
+"""
+function decode_image_file!(img::ImageFile)
+    fn = img.filename::AbstractString
+    isempty(fn) && return img
+    result = sdl_decode_image(fn)
+    img.raw = result
+    img
 end
 
 end # module

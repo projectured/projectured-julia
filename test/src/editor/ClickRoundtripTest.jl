@@ -121,9 +121,20 @@ function test_click_roundtrip(label, document, projection)
             return
         end
 
+        # Vertical tolerance must follow the *actual* line height, not just the
+        # font height: an inline image makes its line taller than the font, so a
+        # boundary-duplicate cursor that snaps to the next visual line sits more
+        # than one font height away. Index the tallest segment on each y-row.
+        line_height_at = Dict{Int,Int}()
+        for c in coords
+            h = max(font_scaled_size(c.font.size), c.height)
+            line_height_at[c.y] = max(get(line_height_at, c.y, 0), h)
+        end
+
         errors = String[]
         for sc in coords
             line_h = font_scaled_size(sc.font.size)
+            band_h = get(line_height_at, sc.y, line_h)
             for k in sc.char_start:sc.char_end
                 cx = _seg_x_at(sc, k, measure) + 1
                 cy = sc.y + max(1, line_h ÷ 2)
@@ -154,8 +165,8 @@ function test_click_roundtrip(label, document, projection)
                 # Vertical: cursor on the clicked band, or exactly one band away
                 # (the line-boundary cursor-rendering ambiguity).
                 dy = abs(Int(cursor.y) - sc.y)
-                if dy > line_h
-                    push!(errors, "click ($cx,$cy) → cursor ($(cursor.x),$(cursor.y)) dy=$dy > line_h=$line_h")
+                if dy > band_h
+                    push!(errors, "click ($cx,$cy) → cursor ($(cursor.x),$(cursor.y)) dy=$dy > band_h=$band_h")
                 end
             end
         end

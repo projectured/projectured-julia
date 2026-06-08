@@ -16,7 +16,7 @@ table (`WordWrappingIoMap.segs`), used by selection mapping and the reader.
 module WordWrappingModule
 
 import ..ProjectionApiModule: projection_print, projection_read, map_reference_forward, map_reference_backward, Projection
-import ..TextModule: TextText, TextDocument, TextString, TextNewline
+import ..TextModule: TextText, TextDocument, TextString, TextNewline, TextGraphics
 import ..ReactiveModule: Cell
 import ..CollectionModule: CellVector
 import ..IoMapApiModule: IoMap
@@ -107,6 +107,8 @@ function _wrap(text::TextText, wrap_w::Int, measure_fn::Function)
         elseif elem isa TextNewline
             push!(result, elem)
             cx = 0
+        elseif elem isa TextGraphics
+            cx = _wrap_graphics!(result, segs, elem, in_span, cx, wrap_w)
         else
             push!(result, elem)
         end
@@ -169,6 +171,32 @@ function _wrap_string!(result::Vector{TextDocument}, segs::Vector{WrapSeg},
     end
     _flush!(result, segs, original, in_span, sub_start, buf)
     return cx
+end
+
+# Place a TextGraphics image as a single unbreakable token. If it would
+# overflow the current visual line, insert a soft TextNewline before it so the
+# image drops whole onto the next line (it is never split). The image keeps its
+# single atomic cursor range [0, 1), recorded as a zero-based WrapSeg so
+# selection mapping can locate it in the wrapped output. Returns the updated
+# column offset.
+function _wrap_graphics!(result::Vector{TextDocument}, segs::Vector{WrapSeg},
+                         image::TextGraphics, in_span::Int, cx::Int, wrap_w::Int)
+    img_w = Int(image.width::Int32)
+    if cx > 0 && wrap_w > 0 && cx + img_w > wrap_w
+        push!(result, _make_image_newline(image))
+        cx = 0
+    end
+    push!(result, image)
+    push!(segs, WrapSeg(length(result), in_span, 0, 1))
+    return cx + img_w
+end
+
+function _make_image_newline(image::TextGraphics)
+    TextNewline(font=image.font,
+                font_color=image.font_color,
+                fill_color=image.fill_color,
+                line_color=image.line_color,
+                padding=image.padding)
 end
 
 function _flush!(result::Vector{TextDocument}, segs::Vector{WrapSeg},

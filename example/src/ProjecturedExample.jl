@@ -67,7 +67,7 @@ export make_json_string_document_example, make_json_string_projection_example
 export make_xml_document_example, make_xml_projection_example
 export make_mixed_document_example, make_mixed_projection_example
 export make_syntax_document_example, make_syntax_projection_example
-export make_text_document_example, make_text_projection_example
+export make_text_document_example, make_text_projection_example, make_text_with_image_example
 export make_object_document_example, make_object_projection_example
 export make_line_numbering_document_example, make_line_numbering_projection_example
 export make_text_to_string_document_example, make_text_to_string_projection_example
@@ -101,7 +101,7 @@ export make_introspection_document, make_introspection_projection, EditorIntrosp
 export Example, examples, run_example, print_example, write_image_example
 export generate_screenshots, update_guide_screenshots
 export json_example, json_sorted_example, json_null_example, json_string_example
-export xml_example, mixed_example, syntax_example, text_example
+export xml_example, mixed_example, syntax_example, text_example, text_with_image_example
 export object_example, line_numbering_example, word_wrapping_example
 export widget_example, widget_tabbed_pane_example, layout_example, book_example, filesystem_example, navigator_example
 export collection_example, reversing_example, filtering_example, sorting_example, focusing_example, table_example, math_table_example, workbench_example

@@ -141,4 +141,61 @@ next_node = iomap.output.elements.next
 
 end # @testset "TextToGraphics ListNode lazy evaluation"
 
+@testset "TextToGraphics inline image" begin
+
+m = _test_measure(10, 18)
+st = TextText(
+    TextString("ab", font_ubuntu_monospace_regular_24, color_white),
+    TextGraphics(ImageMemory(nothing), 64, 64),
+    TextString("cd", font_ubuntu_monospace_regular_24, color_white),
+)
+canvas = projection_print(TextToGraphics(measure=m), st).output
+items = [canvas.elements[i] for i in 1:length(canvas.elements)]
+
+# Exactly one GraphicsImage, at the expected box (after "ab" = 20px).
+imgs = filter(e -> e isa GraphicsImage, items)
+@test length(imgs) == 1
+gi = imgs[1]
+@test gi.x == 20
+@test gi.y == 0
+@test gi.w == 64
+@test gi.h == 64
+
+# Line height follows the image height.
+@test canvas.h >= 64
+
+# Surrounding text flows before/after the image on the same line.
+texts = filter(e -> e isa GraphicsText, items)
+@test length(texts) == 2
+@test texts[1].text == "ab" && texts[1].x == 0
+@test texts[2].text == "cd" && texts[2].x == 20 + 64
+
+end # @testset "TextToGraphics inline image"
+
+@testset "TextToGraphics inline image hit-test" begin
+
+m = _test_measure(10, 18)
+p = TextToGraphics(measure=m)
+st = TextText(
+    TextString("ab", font_ubuntu_monospace_regular_24, color_white),
+    TextGraphics(ImageMemory(nothing), 64, 64),
+    TextString("cd", font_ubuntu_monospace_regular_24, color_white),
+)
+iomap = projection_print(p, st)
+
+# A click path encodes (segment-index → pixel offset). The image is the 2nd
+# emitted segment; rx<32 is its left half, rx>=32 its right half.
+click(rx) = ReplaceSelectionOperation(
+    ConcreteReferencePath(RangeReference(1, 2),
+        ConcreteReferencePath(PointReference(rx, 0), EmptyReferencePath())))
+left  = projection_read(p, iomap, click(10))
+right = projection_read(p, iomap, click(50))
+@test left isa ReplaceSelectionOperation
+@test right isa ReplaceSelectionOperation
+# Left half → cursor before the image (content{0}); right half → after ({1}).
+@test reference_equal(left.path,  Projectured.TextToGraphicsModule._build_selection_path(2, 0))
+@test reference_equal(right.path, Projectured.TextToGraphicsModule._build_selection_path(2, 1))
+
+end # @testset "TextToGraphics inline image hit-test"
+
 end # test_text_to_graphics

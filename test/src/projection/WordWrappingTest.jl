@@ -72,4 +72,64 @@ joined = join((elem.content for elem in out.elements if elem isa TextString), ""
 
 end # @testset "WordWrapping reads available_width from context"
 
+@testset "WordWrapping image is an unbreakable token" begin
+
+m = _test_measure(10, 18)
+# "abcdef" is 60px wide; the image is 64px; wrap width 80. The string fits
+# (cx=60) but 60+64 > 80, so a soft TextNewline must be inserted *before*
+# the image, dropping it whole onto the next line (never split).
+input = TextText(
+    TextString("abcdef", font_ubuntu_monospace_regular_24, color_default),
+    TextGraphics(ImageMemory(nothing), 64, 64),
+)
+out = projection_print(WordWrapping(max_width=80, measure=m), input).output
+els = [out.elements[i] for i in 1:length(out.elements)]
+
+@test count(e -> e isa TextNewline, els) == 1
+nl_idx  = findfirst(e -> e isa TextNewline, els)
+img_idx = findfirst(e -> e isa TextGraphics, els)
+@test nl_idx !== nothing && img_idx !== nothing
+@test nl_idx < img_idx                 # newline precedes the image
+@test els[img_idx].width == 64         # image passed through unchanged
+
+end # @testset "WordWrapping image unbreakable"
+
+@testset "WordWrapping image that fits stays on the line" begin
+
+m = _test_measure(10, 18)
+# Short string (20px) + 40px image under a generous wrap width: no newline.
+input = TextText(
+    TextString("ab", font_ubuntu_monospace_regular_24, color_default),
+    TextGraphics(ImageMemory(nothing), 40, 40),
+)
+out = projection_print(WordWrapping(max_width=1000, measure=m), input).output
+els = [out.elements[i] for i in 1:length(out.elements)]
+@test count(e -> e isa TextNewline, els) == 0
+@test any(e -> e isa TextGraphics, els)
+
+end # @testset "WordWrapping image fits"
+
+@testset "WordWrapping image selection round-trips" begin
+
+m = _test_measure(10, 18)
+input = TextText(
+    TextString("abcdef", font_ubuntu_monospace_regular_24, color_default),
+    TextGraphics(ImageMemory(nothing), 64, 64),
+)
+proj  = WordWrapping(max_width=80, measure=m)
+iomap = projection_print(proj, input)
+# The image is input span 2; its atomic positions {0} and {1} must survive
+# the forward/backward mapping even though a soft newline shifted its index.
+for c in (0, 1)
+    in_ref = ConcreteReferencePath(FieldReference("elements"),
+        ConcreteReferencePath(RangeReference(1, 2),
+            ConcreteReferencePath(FieldReference("content"),
+                ConcreteReferencePath(RangeReference(c, c), EmptyReferencePath()))))
+    out_ref = map_reference_forward(proj, iomap, in_ref)
+    @test out_ref !== nothing
+    @test map_reference_backward(proj, iomap, out_ref) !== nothing
+end
+
+end # @testset "WordWrapping image selection round-trips"
+
 end # test_word_wrapping

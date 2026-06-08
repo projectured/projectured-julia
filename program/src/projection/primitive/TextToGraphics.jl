@@ -20,8 +20,9 @@ module TextToGraphicsModule
 import ..ReactiveModule: Cell, setfn!, setval!
 import ..CollectionModule: CellVector, ListNode, CollectionDocument
 import ..ProjectionApiModule: projection_print, projection_read, map_reference_forward, map_reference_backward, Projection
-import ..TextModule: TextText, TextString, TextNewline, TextDocument
-import ..GraphicsModule: GraphicsText, GraphicsRect, GraphicsCanvas, layout_none, layout_vertical
+import ..TextModule: TextText, TextString, TextNewline, TextGraphics, TextDocument
+import ..GraphicsModule: GraphicsText, GraphicsRect, GraphicsImage, GraphicsCanvas, layout_none, layout_vertical
+import ..ImageModule: ImageDocument
 import ..FontModule: StyleFont, font_scaled_size
 import ..ColorModule: StyleColor
 import ..ReferenceModule: ReferencePath, ConcreteReferencePath, ElementReference, PositionReference, RangeReference, PointReference, EmptyReferencePath, FieldReference, head, tail
@@ -35,12 +36,16 @@ import ..IoMapApiModule: IoMap
 export TextToGraphics, TextToGraphicsIoMap
 
 """
-    SegCoord(span_idx, char_start, char_end, x, y, font, text)
+    SegCoord(span_idx, char_start, char_end, x, y, font, text, width, height)
 
 One entry per emitted text segment. `span_idx` is the 1-based index of the
 `TextString` element in the input `TextText`. `char_start`/`char_end` are
 0-based offsets local to that span (exclusive end). `(x, y)` are pixel
-coordinates of the segment's top-left.
+coordinates of the segment's top-left. `width`/`height` are the segment's
+pixel box; for an inline image span (`TextGraphics` — empty `text`, range
+`[0, 1)`) they carry the image size so hit-testing splits on the real
+left/right halves, the cursor sits at `x + width`, and the clickable y-band
+covers the whole image.
 """
 struct SegCoord
     span_idx::Int
@@ -50,6 +55,8 @@ struct SegCoord
     y::Int
     font::StyleFont
     text::String
+    width::Int
+    height::Int
 end
 
 """
@@ -327,6 +334,29 @@ function projection_print(p::TextToGraphics, styled::TextText, recursion, ctx)
                 line_h = 0
                 continue
             end
+            if span isa TextGraphics
+                img_w = Int(span.width::Int32)
+                img_h = Int(span.height::Int32)
+                # Extract raw pixel data from the embedded ImageDocument
+                img_data = _extract_image_data(span)
+                push!(result, GraphicsImage(cx, cy, img_w, img_h, img_data))
+                # Record a SegCoord for hit-testing: atomic position (0..1)
+                push!(coord_map, SegCoord(elem_idx, 0, 1, cx, cy, span.font::StyleFont, "", img_w, img_h))
+                line_h = max(line_h, img_h)
+                # Handle cursor at this image span
+                if cursor_pos !== nothing && cursor_x < 0 &&
+                   cursor_pos.span == elem_idx
+                    if cursor_pos.char == 0
+                        cursor_x = cx
+                    else
+                        cursor_x = cx + img_w
+                    end
+                    cursor_y = cy
+                    cursor_line_h = line_h
+                end
+                cx += img_w
+                continue
+            end
             span isa TextString || continue
             span_idx = elem_idx                            # 1-based index in elements
             char_offset = 0                               # local offset within this span
@@ -369,7 +399,7 @@ function projection_print(p::TextToGraphics, styled::TextText, recursion, ctx)
                 seg_char_start = char_offset
                 seg_len = length(line)
                 push!(result, _make_sdl(line, seg_x, cy, sf, r, g, b, a))
-                push!(coord_map, SegCoord(span_idx, seg_char_start, seg_char_start + seg_len, seg_x, cy, sf, line))
+                push!(coord_map, SegCoord(span_idx, seg_char_start, seg_char_start + seg_len, seg_x, cy, sf, line, seg_w, seg_h))
                 if cursor_pos !== nothing && cursor_x < 0 &&
                    cursor_pos.span == span_idx &&
                    cursor_pos.char >= seg_char_start && cursor_pos.char <= seg_char_start + seg_len
@@ -594,12 +624,19 @@ end
 function _seg_cursor_x(sc::SegCoord, cursor_pos::Int, measure::Function)
     local_pos = cursor_pos - sc.char_start
     local_pos <= 0 && return sc.x
+    # Image segment: char_end=1 means "after the image" → right edge at x+width.
+    isempty(sc.text) && return sc.x + sc.width
     prefix = first(sc.text, min(local_pos, length(sc.text)))
     sc.x + measure(prefix, sc.font)[1]
 end
 
 function _char_position_at_x(sc::SegCoord, target_x::Int, measure::Function)
     txt = sc.text
+    # Image segment: binary left/right half decision about the image box.
+    if isempty(txt) && sc.char_start == 0 && sc.char_end == 1
+        mid = sc.x + sc.width ÷ 2
+        return target_x < mid ? 0 : 1
+    end
     best_k    = 0
     best_dist = abs(sc.x - target_x)
     for k in 1:length(txt)
@@ -650,7 +687,7 @@ end
 function _hit_segment(coord_map::Vector{SegCoord}, x::Int, y::Int)
     on_band = SegCoord[]
     for sc in coord_map
-        fs = font_scaled_size(sc.font.size)
+        fs = _seg_band_height(sc)
         if y >= sc.y && y < sc.y + fs
             push!(on_band, sc)
         end
@@ -663,7 +700,7 @@ function _hit_segment(coord_map::Vector{SegCoord}, x::Int, y::Int)
         best_dy = typemax(Int)
         best_y  = 0
         for sc in coord_map
-            fs = font_scaled_size(sc.font.size)
+            fs = _seg_band_height(sc)
             dy = y < sc.y ? sc.y - y : (y >= sc.y + fs ? y - (sc.y + fs - 1) : 0)
             if dy < best_dy
                 best_dy = dy
@@ -693,5 +730,44 @@ function _hit_segment(coord_map::Vector{SegCoord}, x::Int, y::Int)
     end
     best
 end
+
+# ── Image helpers ────────────────────────────────────────────────────────
+
+"""
+    _extract_image_data(span::TextGraphics)
+
+Extract the decoded image from a `TextGraphics` span's embedded document.
+Returns whatever the content's `.raw` cell holds, untouched:
+
+- a `(pixels::Vector{UInt8}, native_w, native_h)` tuple from the decoder —
+  the native size travels with the bytes so the backend can build the
+  surface correctly and scale it to the span's display box,
+- a bare `Vector{UInt8}` or cached texture `Ptr`,
+- or `nothing` until the image is decoded.
+"""
+function _extract_image_data(span::TextGraphics)
+    content = span.content
+    content === nothing && return nothing
+    hasproperty(content, :raw) ? content.raw : nothing
+end
+
+"""
+    _is_image_seg(sc::SegCoord) -> Bool
+
+Returns true when the `SegCoord` represents an inline image (TextGraphics)
+rather than a text segment. Image segments have empty text and span [0,1).
+"""
+_is_image_seg(sc::SegCoord) = isempty(sc.text) && sc.char_start == 0 && sc.char_end == 1
+
+"""
+    _seg_band_height(sc::SegCoord) -> Int
+
+Vertical extent of a segment's clickable y-band. Text segments use the
+scaled font size (unchanged); an inline image extends its band over the
+whole image height so a click anywhere on a tall image still lands on it.
+"""
+_seg_band_height(sc::SegCoord) =
+    _is_image_seg(sc) ? max(font_scaled_size(sc.font.size), sc.height) :
+                        font_scaled_size(sc.font.size)
 
 end # module
