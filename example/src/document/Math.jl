@@ -8,6 +8,5 @@ function make_math_document_example()
                     MathBinaryOperation(:*, PrimitiveNumber(3), MathVariable("A")),
                     MathVariable("B"))),
             PrimitiveNumber(2)))
-    set_selection!(document, @reference target.name{1})
     document
 end

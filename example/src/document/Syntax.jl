@@ -21,6 +21,5 @@ function make_syntax_document_example()
             ]),
         ]),
     ]; indentation=1)
-    set_selection!(document, @reference children[2].value{1})
     document
 end

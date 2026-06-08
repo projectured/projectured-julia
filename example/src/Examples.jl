@@ -62,7 +62,7 @@ end
 """
     run_example(examples::Vector{Example}; width, height,
                 caching=false, scrolling=false, workbench=false, reset=false,
-                tooltip=false, introspection=false)
+                tooltip=false, introspection=false, selection=nothing)
 
 Open one window per example, side by side. Each example contributes a
 `WindowDocument` with the example's domain document as content; the
@@ -70,6 +70,12 @@ composed projection dispatches each window's content to that example's
 own projection by **reference path** (so two examples with the same
 content type — e.g. both JSON, both wrapped in `WidgetScrollPane` —
 still each render through their own pipeline).
+
+Examples no longer carry a pre-set selection. Pass `selection` (a
+reference path, e.g. `@reference entries[1].value.value{2}`) to seed the
+initial selection; it is applied to the first example's bare domain
+document and then lifted to a screen-rooted path (see below). When
+`selection === nothing` (the default) the editor opens with no selection.
 
 When `tooltip=true`, each example's content is wrapped in a
 `TooltipSource`. While the user has a selection inside that example,
@@ -87,7 +93,7 @@ projection (both rendered generically via `ObjectToSyntax`).
 """
 function run_example(examples::Vector{Example}; width=nothing, height=nothing,
                      caching=false, scrolling=false, workbench=false, reset=false,
-                     tooltip=false, introspection=false)
+                     tooltip=false, introspection=false, selection=nothing)
     isempty(examples) && error("run_example: empty examples vector")
     if width === nothing || height === nothing
         sw, sh = sdl_display_size()
@@ -102,9 +108,15 @@ function run_example(examples::Vector{Example}; width=nothing, height=nothing,
     # the single-example path.
     docs  = Any[]
     projs = Any[]
-    for ex in examples
+    for (i, ex) in enumerate(examples)
         document   = reset ? ex.make_document()   : ex.document
         projection = reset ? ex.make_projection() : ex.projection
+        # Apply a caller-supplied selection to the first example's bare domain
+        # document, before any workbench/scrolling/introspection wrapping. The
+        # selection-lifting step below then promotes it to a screen-rooted path.
+        if selection !== nothing && i == 1
+            set_selection!(document, selection)
+        end
         if workbench
             document   = make_workbench_document(document; title=ex.name)
             projection = make_workbench_projection()
@@ -153,14 +165,15 @@ function run_example(examples::Vector{Example}; width=nothing, height=nothing,
     end
     screen = ScreenDocument(windows)
 
-    # Lift the first window-content's pre-set selection (set by the
-    # example's `make_document`) to a screen-rooted path. Without this,
-    # the screen and intermediate WindowDocument keep `selection = nothing`
-    # while the inner document carries a deep selection. The next click
-    # then traverses a different branch via `set_selection!` and the
-    # stale leaf selection on the original branch is never cleared —
-    # `_collect_spans` walks both branches and picks the first cursor it
-    # finds, which makes new clicks appear to be ignored.
+    # Lift the first window-content's selection (seeded from the `selection`
+    # keyword above) to a screen-rooted path. Without this, the screen and
+    # intermediate WindowDocument keep `selection = nothing` while the inner
+    # document carries a deep selection. The next click then traverses a
+    # different branch via `set_selection!` and the stale leaf selection on
+    # the original branch is never cleared — `_collect_spans` walks both
+    # branches and picks the first cursor it finds, which makes new clicks
+    # appear to be ignored. When no `selection` was passed every document
+    # keeps `selection = nothing` and this loop is a no-op.
     for (i, win) in enumerate(windows)
         # For the tooltip variant the original document sits one level
         # deeper, behind the TooltipSource wrapper's `child` field.

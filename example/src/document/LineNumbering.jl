@@ -13,6 +13,5 @@ function make_line_numbering_document_example()
         newline,
         TextString("ut aliquip ex ea commodo consequat.", font_ubuntu_monospace_regular_24, color_default),
     )
-    set_selection!(document, @reference elements[3].content{10})
     return document
 end

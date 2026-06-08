@@ -25,7 +25,6 @@ function make_json_document_example()
         ),
         "placeholder" => JsonInsertion(),
     )
-    set_selection!(document, @reference entries[1].value.value{2})
     document
 end
 
@@ -35,6 +34,5 @@ end
 
 function make_json_string_document_example()
     document = JsonString("Hello, world")
-    set_selection!(document, @reference value{1})
     document
 end

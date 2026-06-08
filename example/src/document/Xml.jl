@@ -35,6 +35,5 @@ function make_xml_document_example()
             XmlInsertion(),
         ])
 
-    # set_selection!(document, @reference [1].genre[2])
     document
 end

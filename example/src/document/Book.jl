@@ -68,6 +68,5 @@ function make_book_document_example()
         author="The Projectured Authors",
     )
 
-    set_selection!(document, @reference title{1})
     document
 end
