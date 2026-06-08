@@ -279,6 +279,12 @@ function _parse_rule(ex)
     elseif lhs === :_
         pat = PatStep[PSWholePathBind(:_)]
         return (:exact, pat, nothing, rhs)
+    elseif lhs === :∅
+        # Empty-path pattern: matches a reference that terminates *at* the
+        # element itself — a whole-element ("tree") selection. Compiles to a
+        # zero-step exact match (`_ref_input isa EmptyReferencePath`). This only
+        # adds a writable pattern; the no-match fallthrough is still `nothing`.
+        return (:exact, PatStep[], nothing, rhs)
     else
         pat = _parse_path(lhs)
         return (:exact, pat, nothing, rhs)
