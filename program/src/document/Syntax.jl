@@ -310,6 +310,17 @@ function _apply_string_replace!(target::SyntaxLeaf, field_name::AbstractString, 
     span.content = String(left) * replacement * String(right)
 end
 
+function _apply_string_replace!(target::SyntaxNode, field_name::AbstractString, s::Int, e::Int, replacement::AbstractString)
+    field_name in ("open", "close", "sep") ||
+        error("SyntaxNode supports only fields 'open', 'close', 'sep', got: $field_name")
+    span = getproperty(target, Symbol(field_name))::TextString
+    old = span.content::AbstractString
+    n = length(old)
+    left  = s <= 0 ? "" : first(old, s)
+    right = e >= n ? "" : last(old, n - e)
+    span.content = String(left) * replacement * String(right)
+end
+
 # ── Unparse (render to string) ──────────────────────────────────────────
 
 """

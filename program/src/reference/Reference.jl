@@ -24,10 +24,10 @@ module ReferenceModule
 
 import ..ReactiveModule: Cell
 import ..DocumentModule: @document
-export Reference, ReferenceStep, ElementReference, PositionReference, RangeReference, FieldReference, TypeReference, FunctionReference, ProjectionReference, PointReference, ReferencePath, EmptyReferencePath, ConcreteReferencePath, append_reference, evaluate_reference, is_valid_reference, collect_references,
+export Reference, ReferenceStep, ElementReference, PositionReference, RangeReference, FieldReference, TypeReference, FunctionReference, ProjectionReference, PointReference, SelfReference, ReferencePath, EmptyReferencePath, ConcreteReferencePath, append_reference, evaluate_reference, is_valid_reference, collect_references,
        is_element_reference, is_position_reference, is_range_reference,
        IRangeReference, IFieldReference, IConcreteReferencePath, IPointReference,
-       reference_equal, is_prefix_of
+       reference_equal, is_prefix_of, is_self_reference
 
 # ── ReferenceStep ─────────────────────────────────────────────────────
 
@@ -188,6 +188,33 @@ end
 
 PointReference(x::Int, y::Int) = PointReference(Cell(x), Cell(y))
 
+"""
+    SelfReference()
+
+A terminal reference step meaning "this element as a whole". A selection
+path ending in `ConcreteReferencePath(SelfReference(), EmptyReferencePath())`
+denotes whole-element selection — the entire node/leaf is selected as one
+unit rather than a character cursor inside it.
+
+Used for:
+- range edits (cut/copy/paste a subtree)
+- structural navigation (expand/shrink selection to enclosing node)
+- visual highlighting of the active subtree
+- mapping selections cleanly between domains
+"""
+struct SelfReference <: ReferenceStep end
+
+"True when a path denotes a whole-element selection (terminates with SelfReference)."
+function is_self_reference(path::ReferencePath)
+    path isa ConcreteReferencePath || return false
+    path.head isa SelfReference && path.tail isa EmptyReferencePath
+end
+
+# A missing selection / reference (the empty cursor state, stored as `nothing`)
+# is never a self-reference. Callers pass selection values straight through, so
+# accept `nothing` rather than forcing each call site to guard it.
+is_self_reference(::Nothing) = false
+
 # ── Convenience constructors ─────────────────────────────────────────────
 
 ConcreteReferencePath(head::ReferenceStep) = ConcreteReferencePath(Cell(head), Cell(EmptyReferencePath()))
@@ -253,6 +280,10 @@ function Base.show(io::IO, s::PointReference)
     print(io, "@(", s.x, ",", s.y, ")")
 end
 
+function Base.show(io::IO, ::SelfReference)
+    print(io, "⊙")
+end
+
 function Base.show(io::IO, ::EmptyReferencePath)
     print(io, "∅")
 end
@@ -271,6 +302,7 @@ Base.:(==)(a::FunctionReference,   b::FunctionReference)   = a.f        === b.f
 Base.:(==)(a::TypeReference,       b::TypeReference)       = a.type     === b.type
 Base.:(==)(a::ProjectionReference, b::ProjectionReference) = a.projection === b.projection && a.output_path == b.output_path
 Base.:(==)(a::PointReference,      b::PointReference)      = a.x == b.x && a.y == b.y
+Base.:(==)(::SelfReference,        ::SelfReference)        = true
 Base.:(==)(::ReferenceStep,        ::ReferenceStep)        = false
 
 Base.:(==)(::EmptyReferencePath,   ::EmptyReferencePath)   = true
@@ -368,6 +400,8 @@ end
 function evaluate_reference(document, path::ConcreteReferencePath)
     step = path.head
     rest = path.tail
+    # SelfReference means "this element as a whole" — return the document itself.
+    step isa SelfReference && return document
     child = if step isa RangeReference
         if is_element_reference(step)
             document[step.start + 1]

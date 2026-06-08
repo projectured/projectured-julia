@@ -20,7 +20,7 @@ import ..SyntaxModule: SyntaxDocument, SyntaxLeaf, SyntaxNode
 import ..TypeDispatchingModule: TypeDispatchingProjection
 import ..CopyingProjectionModule: CopyingProjection, copying_field_iomap
 import ..IoMapModule: SimpleIoMap, ChildrenIoMap
-import ..ReferenceModule: ConcreteReferencePath, ElementReference, PositionReference, RangeReference, FieldReference, ProjectionReference, ReferencePath, EmptyReferencePath, append_reference
+import ..ReferenceModule: ConcreteReferencePath, ElementReference, PositionReference, RangeReference, FieldReference, ProjectionReference, ReferencePath, EmptyReferencePath, append_reference, SelfReference, is_self_reference
 import ..ReferenceCaseModule: var"@reference_case"
 import ..ReferenceBuilderModule: var"@reference"
 import ..ProjectionContextModule: ProjectionContext, child_context
@@ -78,12 +78,14 @@ end
 JsonBoolToSyntaxLeaf(; font=font_ubuntu_monospace_regular_24, color=color_solarized_yellow) = JsonBoolToSyntaxLeaf(font, color)
 
 function map_reference_forward(::JsonBoolToSyntaxLeaf, iomap::SimpleIoMap, reference)
+    is_self_reference(reference) && return ConcreteReferencePath(SelfReference())
     @reference_case reference begin
         value{s:e} => @reference value{s:e}
     end
 end
 
 function map_reference_backward(::JsonBoolToSyntaxLeaf, iomap::SimpleIoMap, reference)
+    is_self_reference(reference) && return ConcreteReferencePath(SelfReference())
     @reference_case reference begin
         value{s:e} => @reference value{s:e}
     end
@@ -107,12 +109,14 @@ end
 JsonNumberToSyntaxLeaf(; font=font_ubuntu_monospace_regular_24, color=color_solarized_magenta) = JsonNumberToSyntaxLeaf(font, color)
 
 function map_reference_forward(::JsonNumberToSyntaxLeaf, iomap::SimpleIoMap, reference)
+    is_self_reference(reference) && return ConcreteReferencePath(SelfReference())
     @reference_case reference begin
         value{s:e} => @reference value{s:e}
     end
 end
 
 function map_reference_backward(::JsonNumberToSyntaxLeaf, iomap::SimpleIoMap, reference)
+    is_self_reference(reference) && return ConcreteReferencePath(SelfReference())
     @reference_case reference begin
         value{s:e} => @reference value{s:e}
     end
@@ -156,6 +160,7 @@ JsonStringToSyntaxLeaf(; quote_font=font_ubuntu_monospace_regular_24, quote_colo
 # reference. The unwrap matters once a parent delegates here under School A — a
 # quote selection on a nested string round-trips as proj(p, open) → open.
 function map_reference_forward(p::JsonStringToSyntaxLeaf, iomap::SimpleIoMap, reference)
+    is_self_reference(reference) && return ConcreteReferencePath(SelfReference())
     @reference_case reference begin
         proj(^(p), inner) => inner
         value{s:e} => @reference value{s:e}
@@ -170,6 +175,7 @@ end
 # .value reference passes through unchanged (identity character offsets, exact
 # when no escape sequences precede the position).
 function map_reference_backward(p::JsonStringToSyntaxLeaf, iomap::SimpleIoMap, reference)
+    is_self_reference(reference) && return ConcreteReferencePath(SelfReference())
     @reference_case reference begin
         value{s:e} => @reference value{s:e}
         open{s:e}  => ConcreteReferencePath(ProjectionReference(p, reference))
@@ -222,6 +228,7 @@ JsonArrayToSyntaxNode(; delim_font=font_ubuntu_monospace_bold_24, delim_color=co
 # comma, or flattened structural offset); forward keeps it wrapped so the
 # SyntaxNode renderer can interpret the embedded output position.
 function map_reference_forward(p::JsonArrayToSyntaxNode, iomap::ChildrenIoMap, reference)
+    is_self_reference(reference) && return ConcreteReferencePath(SelfReference())
     @reference_case reference begin
         proj(^(p), _) => reference
         elements{s:e}.rest... => begin
@@ -237,6 +244,7 @@ function map_reference_forward(p::JsonArrayToSyntaxNode, iomap::ChildrenIoMap, r
 end
 
 function map_reference_backward(p::JsonArrayToSyntaxNode, iomap::ChildrenIoMap, reference)
+    is_self_reference(reference) && return ConcreteReferencePath(SelfReference())
     @reference_case reference begin
         children{s:e}.rest... => begin
             child_i = s + 1
@@ -335,6 +343,7 @@ JsonObjectToSyntaxNode(; delim_font=font_ubuntu_monospace_bold_24, delim_color=c
 # whatever projection actually ran. A `proj(p, …)` head is this projection's own
 # introduced output ({, }, :, separators, flattened offset) and passes through.
 function map_reference_forward(p::JsonObjectToSyntaxNode, iomap::ChildrenIoMap, reference)
+    is_self_reference(reference) && return ConcreteReferencePath(SelfReference())
     @reference_case reference begin
         proj(^(p), _) => reference
         entries{s:e}.key.inner... => begin
@@ -357,6 +366,7 @@ function map_reference_forward(p::JsonObjectToSyntaxNode, iomap::ChildrenIoMap, 
 end
 
 function map_reference_backward(p::JsonObjectToSyntaxNode, iomap::ChildrenIoMap, reference)
+    is_self_reference(reference) && return ConcreteReferencePath(SelfReference())
     @reference_case reference begin
         children{s:e}.children{s2:e2}.leaf_path... => begin
             pair_i = s + 1
@@ -410,6 +420,7 @@ function projection_print(p::JsonObjectToSyntaxNode, j::JsonObject, recursion, c
 
     sel = Cell(() -> begin
         path = j.selection
+        is_self_reference(path) && return ConcreteReferencePath(SelfReference())
         path isa ConcreteReferencePath && path.head isa ProjectionReference && return path
         @reference_case path begin
             entries.rest... => rest isa ConcreteReferencePath ? (@reference children.^(rest)) : nothing

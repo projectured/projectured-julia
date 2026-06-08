@@ -16,7 +16,7 @@ import ..TextModule: TextText, TextString, TextNewline, TextDocument
 import ..FontModule: font_ubuntu_monospace_regular_24, font_dejavu_monospace_regular_24
 import ..ColorModule: color_solarized_gray
 import ..TypeDispatchingModule: TypeDispatchingProjection
-import ..ReferenceModule: ConcreteReferencePath, ElementReference, PositionReference, RangeReference, FieldReference, ProjectionReference, EmptyReferencePath, ReferencePath
+import ..ReferenceModule: ConcreteReferencePath, ElementReference, PositionReference, RangeReference, FieldReference, ProjectionReference, EmptyReferencePath, ReferencePath, SelfReference, is_self_reference
 import ..ReferenceCaseModule: var"@reference_case"
 import ..ReferenceBuilderModule: var"@reference"
 import ..IoMapModule: SimpleIoMap
@@ -35,6 +35,7 @@ export SyntaxLeafToText, SyntaxNodeToText, SyntaxListToText, SyntaxToText,
 struct SyntaxLeafToText <: Projection end
 
 function map_reference_forward(::SyntaxLeafToText, iomap, reference)
+    is_self_reference(reference) && return ConcreteReferencePath(SelfReference())
     @reference_case reference begin
         open{s:_}                  => _text_elem_path(1, s)
         value{s:_}                 => _text_elem_path(2, s)
@@ -45,6 +46,7 @@ function map_reference_forward(::SyntaxLeafToText, iomap, reference)
 end
 
 function map_reference_backward(::SyntaxLeafToText, iomap, reference)
+    is_self_reference(reference) && return ConcreteReferencePath(SelfReference())
     span_idx, char_idx = _parse_text_elem_path(reference)
     span_idx === nothing && return nothing
     span_idx == 1 && return @reference open{char_idx}
@@ -63,6 +65,8 @@ end
 #   anything else  →  no cursor
 function projection_print(p::SyntaxLeafToText, leaf::SyntaxLeaf, recursion, ctx)
     sel = Cell(() -> begin
+        leaf_sel = leaf.selection
+        is_self_reference(leaf_sel) && return ConcreteReferencePath(SelfReference())
         c = _leaf_cursor(leaf)
         c < 0 ? nothing : _flat_to_text_elem_path([leaf.open, leaf.value, leaf.close], c)
     end)
@@ -142,12 +146,14 @@ struct SyntaxNodeToTextIoMap <: IoMap
 end
 
 function map_reference_forward(p::SyntaxNodeToText, iomap::SyntaxNodeToTextIoMap, reference)
+    is_self_reference(reference) && return ConcreteReferencePath(SelfReference())
     flat_pos = _syntax_to_flat(iomap.input, reference, p, 0)
     flat_pos < 0 && return nothing
     _flat_to_text_elem_path(iomap.output.elements, flat_pos)
 end
 
 function map_reference_backward(p::SyntaxNodeToText, iomap::SyntaxNodeToTextIoMap, reference)
+    is_self_reference(reference) && return ConcreteReferencePath(SelfReference())
     # Also accept bare flat char index: ConcreteReferencePath(PositionReference(n))
     if reference isa ConcreteReferencePath
         h = reference.head
@@ -175,6 +181,8 @@ function projection_print(p::SyntaxNodeToText, node::SyntaxNode, recursion, ctx)
     output = TextText(
         CellVector(() -> both[][1]),
         Cell(() -> begin
+            node_sel = node.selection
+            is_self_reference(node_sel) && return ConcreteReferencePath(SelfReference())
             cursor = both[][2]
             cursor < 0 && return nothing
             _flat_to_text_elem_path(both[][1], cursor)
@@ -225,11 +233,45 @@ function projection_read(p::SyntaxNodeToText, iomap::SyntaxNodeToTextIoMap, op::
     flat_start = _text_elem_path_to_flat(spans, span_idx, char_start)
     flat_stop  = _text_elem_path_to_flat(spans, span_idx, char_stop)
     (flat_start < 0 || flat_stop < 0) && return nothing
+
+    # Input-selection disambiguation. The collision between, say, an empty
+    # opening delimiter and the start of the content is a real layout ambiguity
+    # that the flat offset cannot resolve (and must not be resolved by carrying
+    # span identity downstream — a later projection may coalesce the spans). But
+    # for a zero-width insert the edit target is exactly wherever the cursor sits,
+    # and the cursor's source-of-truth is the *input-domain* selection that was
+    # set. When that selection names a concrete string slot
+    # (`.open`/`.value`/`.close`/`.sep`, possibly under `.children[i]`) whose flat
+    # position matches the edit, edit that slot directly. The on-screen caret may
+    # still sit at the visually-identical collapsed pixel; only the edit is
+    # disambiguated. This costs nothing in the unambiguous case (the input
+    # selection then already equals what the flat mapping would produce).
+    if flat_start == flat_stop
+        sel = iomap.input.selection
+        if sel isa ConcreteReferencePath && _ends_in_field_range(sel) &&
+           _syntax_to_flat(iomap.input, sel, p, 0) == flat_start
+            return StringReplaceRangeOperation(sel, op.replacement)
+        end
+    end
+
     start_sel = _pos_to_selection(iomap.input, flat_start, p, 0)
     stop_sel  = _pos_to_selection(iomap.input, flat_stop,  p, 0)
     new_ref = _join_leaf_range(start_sel, stop_sel)
     new_ref === nothing && return nothing
     StringReplaceRangeOperation(new_ref, op.replacement)
+end
+
+# True iff `path` ends in `.<field>[range]` — the shape a
+# StringReplaceRangeOperation reference must have for `_split_replace_reference`.
+function _ends_in_field_range(path)
+    path isa ConcreteReferencePath || return false
+    penult = nothing
+    cur = path
+    while cur.tail isa ConcreteReferencePath
+        penult = cur.head
+        cur = cur.tail
+    end
+    penult isa FieldReference && cur.head isa RangeReference
 end
 
 # Given two SyntaxNode-domain selection paths whose tails are `.value[k]`
@@ -504,6 +546,24 @@ function _syntax_to_flat(node::SyntaxNode, path::ReferencePath, p::SyntaxNodeToT
             k = idx.start::Int
             fname == "open"  && return _marker_len(p, node) + k
             return _subtree_len(node, p, depth) - length(node.close.content) + k
+        elseif fname == "sep"
+            # The separator renders between every pair of children; the cursor is
+            # placed at its first occurrence (after child 1, before child 2).
+            idx = rest.head
+            idx isa RangeReference || return -1
+            k = idx.start::Int
+            node.collapsed && return -1
+            children = node.children
+            length(children) >= 2 || return -1
+            char_count = _marker_len(p, node) + length(node.open.content)
+            if node.indentation > 0
+                child_depth = depth + 1
+                char_count += 1 + child_depth * p.indent_size
+                char_count += _subtree_len(children[1], p, child_depth)
+            else
+                char_count += _subtree_len(children[1], p, depth)
+            end
+            return char_count + k
         elseif fname == "children"
             # A collapsed node lays out no children, so a `.children[i]…`
             # input reference has no image in the rendered text.

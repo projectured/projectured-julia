@@ -20,7 +20,7 @@ module ProjectionModule
 import ..ProjectionApiModule: projection_print, projection_read, map_reference_forward, map_reference_backward, Projection
 import ..OperationModule: ReplaceSelectionOperation, ToggleCollapseOperation
 import ..ReactiveModule: Cell
-import ..ReferenceModule: EmptyReferencePath
+import ..ReferenceModule: EmptyReferencePath, ConcreteReferencePath, SelfReference, is_self_reference
 import ..ProjectionContextModule: ProjectionContext
 import ..ReferenceCaseModule: var"@reference_case"
 import ..ReferenceBuilderModule: var"@reference"
@@ -39,6 +39,7 @@ wrapper from a reference, returning the inner reference path. This works
 for simple projections where output elements directly correspond to input elements.
 """
 function map_reference_forward(projection::Projection, iomap, reference)
+    is_self_reference(reference) && return ConcreteReferencePath(SelfReference())
     @reference_case reference begin
         proj(^(projection), inner) => inner
     end
@@ -53,6 +54,7 @@ the projection. This works for simple projections where input elements
 directly correspond to output elements.
 """
 function map_reference_backward(projection::Projection, iomap, reference)
+    is_self_reference(reference) && return ConcreteReferencePath(SelfReference())
     @reference proj(projection, ^(reference))
 end
 
