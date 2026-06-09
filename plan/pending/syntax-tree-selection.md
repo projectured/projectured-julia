@@ -237,6 +237,35 @@ Open implementation details:
 - The `ListNode` path (`_print_listnode`) draws no selection chrome today and uses
   an empty coord map — wrapped/paragraph text needs the same layer treatment later.
 
+## Interaction: Creating & Navigating Tree Selections
+
+### Entering tree selection mode
+
+- **Alt + mouse click** → select the innermost syntax tree node at the click
+  position. The click's pixel coordinates are resolved to a character position
+  (existing `_translate_click` / `_hit_segment` path), then walked upward
+  through the syntax tree to find the tightest enclosing `SyntaxLeaf` or
+  `SyntaxNode`. That node receives `∅` as its selection, producing a
+  whole-element highlight.
+
+### Navigating within tree selection mode (Alt + cursor keys)
+
+Once a node is selected (its `selection` is `∅`):
+
+- **Alt + ↑** — move selection one level up to the parent node.
+- **Alt + ↓** — move selection one level down to the first child.
+- **Alt + ←** — move selection to the previous sibling (same parent, index − 1).
+- **Alt + →** — move selection to the next sibling (same parent, index + 1).
+
+At boundaries (no parent / no child / first or last sibling) the selection
+stays unchanged (no wrap-around).
+
+### Leaving tree selection mode
+
+Any regular keystroke, mouse click (without Alt), or cursor movement
+(without Alt) exits tree selection mode and places a normal cursor at the
+appropriate position within the formerly-selected node.
+
 ## Open Questions
 
 - ~~Does whole-element selection need a dedicated reference step?~~ **Resolved at the document/syntax level: no** — it is the empty path (`∅`); the default `map_reference_forward`/`backward` and the `@reference_case` `∅` pattern pass it through, so any domain (XML, filesystem, …) inherits whole-element selection for free. **But the Text layer is the exception:** because `SyntaxNodeToText` flattens a subtree into one flat `TextText`, a wholly-selected *nested child* is a contiguous span sub-range that `∅` cannot name, so it does need the dedicated `TextRectangularReference(start, end)` step (flat char offsets across all spans; see the Visualization section). `∅` still covers the whole-`TextText` case.

@@ -130,14 +130,17 @@ function projection_read(::GraphicsCanvasToGraphicsImage, iomap::SimpleIoMap, ev
     canvas = iomap.input
     elems  = canvas.elements
 
+    alt = evt.modifiers.alt
+
     # Check precise-bounds rects first (e.g. cursor highlights)
     for (i, elem) in enumerate(elems)
         elem isa GraphicsRect || continue
         _rect_hit(elem, evt.x, evt.y) || continue
         ox, oy = Int(elem.x), Int(elem.y)
-        return ReplaceSelectionOperation(
-            ConcreteReferencePath(ElementReference(i),
-                ConcreteReferencePath(PointReference(evt.x - ox, evt.y - oy))))
+        path = alt ? ConcreteReferencePath(ElementReference(i)) :
+                     ConcreteReferencePath(ElementReference(i),
+                         ConcreteReferencePath(PointReference(evt.x - ox, evt.y - oy)))
+        return ReplaceSelectionOperation(path)
     end
 
     # For text elements: pick the segment with the largest x ≤ click_x
@@ -155,9 +158,10 @@ function projection_read(::GraphicsCanvasToGraphicsImage, iomap::SimpleIoMap, ev
     best_i === nothing && return nothing
     elem = elems[best_i]
     ox, oy = Int(elem.x), Int(elem.y)
-    return ReplaceSelectionOperation(
-        ConcreteReferencePath(ElementReference(best_i),
-            ConcreteReferencePath(PointReference(evt.x - ox, evt.y - oy))))
+    path = alt ? ConcreteReferencePath(ElementReference(best_i)) :
+                 ConcreteReferencePath(ElementReference(best_i),
+                     ConcreteReferencePath(PointReference(evt.x - ox, evt.y - oy)))
+    return ReplaceSelectionOperation(path)
 end
 
 # ── Compound convenience constructor ────────────────────────────────────────

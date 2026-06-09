@@ -21,7 +21,7 @@ import ..ReferenceCaseModule: var"@reference_case"
 import ..ReferenceBuilderModule: var"@reference"
 import ..IoMapModule: SimpleIoMap
 import ..IoMapApiModule: IoMap
-import ..OperationModule: ReplaceSelectionOperation, ToggleCollapseOperation
+import ..OperationModule: ReplaceSelectionOperation, ToggleCollapseOperation, TreeNavigateOperation
 import ..PrimitiveModule: StringReplaceRangeOperation
 import ..KeyboardModule: KeyDown
 export SyntaxLeafToText, SyntaxNodeToText, SyntaxListToText, SyntaxToText,
@@ -47,6 +47,8 @@ end
 
 function map_reference_backward(::SyntaxLeafToText, iomap, reference)
     reference isa EmptyReferencePath && return @reference()
+    # Tree selection path: .elements[i]∅ → select the whole leaf
+    _parse_tree_elem_path(reference) !== nothing && return @reference()
     span_idx, char_idx = _parse_text_elem_path(reference)
     span_idx === nothing && return nothing
     span_idx == 1 && return @reference open{char_idx}
@@ -161,6 +163,13 @@ function map_reference_backward(p::SyntaxNodeToText, iomap::SyntaxNodeToTextIoMa
             return _pos_to_selection(iomap.input, h.start::Int, p, 0)
         end
     end
+    # Tree selection path: .elements[i]∅ (no .content{k})
+    tree_span = _parse_tree_elem_path(reference)
+    if tree_span !== nothing
+        flat_pos = _text_elem_path_to_flat(iomap.output.elements, tree_span, 0)
+        flat_pos < 0 && return nothing
+        return _pos_to_tree_selection(iomap.input, flat_pos, p, 0)
+    end
     span_idx, char_idx = _parse_text_elem_path(reference)
     span_idx === nothing && return nothing
     flat_pos = _text_elem_path_to_flat(iomap.output.elements, span_idx, char_idx)
@@ -227,6 +236,77 @@ function projection_read(p::SyntaxNodeToText, iomap::SyntaxNodeToTextIoMap, op::
     op.target === nothing || return op
     target = _resolve_collapsible(iomap.input, iomap.input.selection)
     return ToggleCollapseOperation(target)
+end
+
+# Alt+arrow tree navigation: manipulate the current selection path.
+# The selection on the root node is a path like `.children[i].children[j]…∅`.
+# - :up    → drop the last `.children[k]` step (select parent)
+# - :down  → append `.children[1]` (select first child)
+# - :left  → decrement the last child index
+# - :right → increment the last child index
+function projection_read(p::SyntaxNodeToText, iomap::SyntaxNodeToTextIoMap, op::TreeNavigateOperation)
+    sel = iomap.input.selection
+    new_path = _tree_navigate(iomap.input, sel, op.direction)
+    new_path === nothing && return nothing
+    ReplaceSelectionOperation(new_path)
+end
+
+function _tree_navigate(node::SyntaxNode, sel, direction::Symbol)
+    # sel must be a tree selection (path of .children[i] steps ending in ∅)
+    sel === nothing && return nothing
+
+    # ∅ on the root node: this node is wholly selected
+    if sel isa EmptyReferencePath
+        if direction === :up
+            return nothing  # no parent at this level; propagate up
+        elseif direction === :down
+            children = node.children
+            length(children) > 0 || return EmptyReferencePath()
+            return @reference children[1]
+        else
+            return nothing  # left/right need a parent; propagate up
+        end
+    end
+
+    sel isa ConcreteReferencePath || return nothing
+    h = sel.head
+    h isa FieldReference && h.name == "children" || return nothing
+    rest = sel.tail
+    rest isa ConcreteReferencePath || return nothing
+    h2 = rest.head
+    h2 isa RangeReference || return nothing
+    child_idx = h2.start + 1  # 1-based
+    children = node.children
+    (1 <= child_idx <= length(children)) || return nothing
+    child_rest = rest.tail
+
+    if child_rest isa EmptyReferencePath
+        # The selected node is children[child_idx]
+        if direction === :up
+            return EmptyReferencePath()  # select the current node
+        elseif direction === :down
+            child = children[child_idx]
+            if child isa SyntaxNode && length(child.children) > 0
+                return @reference children[child_idx].children[1]
+            end
+            return sel  # leaf or no children — stay
+        elseif direction === :left
+            child_idx > 1 || return sel  # already first
+            return @reference children[child_idx - 1]
+        elseif direction === :right
+            child_idx < length(children) || return sel  # already last
+            return @reference children[child_idx + 1]
+        end
+    else
+        # Recurse into the child
+        child = children[child_idx]
+        child isa SyntaxNode || return sel
+        inner = _tree_navigate(child, child_rest, direction)
+        inner === nothing && return nothing
+        return ConcreteReferencePath(FieldReference("children"),
+                   ConcreteReferencePath(RangeReference(child_idx - 1, child_idx), inner))
+    end
+    return nothing
 end
 
 # Translate a flat-text `StringReplaceRangeOperation` to a SyntaxNode-domain
@@ -816,6 +896,62 @@ function _subtree_len(node::SyntaxNode, p::SyntaxNodeToText, depth::Int)
     return n
 end
 
+# ── Tree selection (Alt+click) ─────────────────────────────────────────────
+# Like _pos_to_selection but returns ∅ at leaves (whole-element selection on
+# the innermost node). Structural positions (newlines, indentation, sep)
+# select the nearest child.
+
+_pos_to_tree_selection(::SyntaxLeaf, _pos::Int, ::SyntaxNodeToText, _depth::Int) = EmptyReferencePath()
+
+function _pos_to_tree_selection(node::SyntaxNode, local_pos::Int, p::SyntaxNodeToText, depth::Int)
+    marker_len = _marker_len(p, node)
+    local_pos < marker_len && return EmptyReferencePath()
+
+    open_len = length(node.open.content)
+    local_pos < marker_len + open_len && return EmptyReferencePath()
+
+    children = node.children
+    char_count = marker_len + open_len
+
+    if node.collapsed
+        return EmptyReferencePath()
+    end
+
+    if node.indentation > 0
+        child_depth = depth + 1
+        for (i, child) in enumerate(children)
+            if i > 1
+                sep_len = length(node.sep.content)
+                char_count += sep_len
+            end
+            struct_len = 1 + child_depth * p.indent_size
+            char_count += struct_len
+            child_len = _subtree_len(child, p, child_depth)
+            if char_count <= local_pos < char_count + child_len
+                sel = _pos_to_tree_selection(child, local_pos - char_count, p, child_depth)
+                return @reference children[i].^(sel)
+            end
+            char_count += child_len
+        end
+    else
+        for (i, child) in enumerate(children)
+            if i > 1
+                sep_len = length(node.sep.content)
+                char_count += sep_len
+            end
+            child_len = _subtree_len(child, p, depth)
+            if char_count <= local_pos < char_count + child_len
+                sel = _pos_to_tree_selection(child, local_pos - char_count, p, depth)
+                return @reference children[i].^(sel)
+            end
+            char_count += child_len
+        end
+    end
+
+    # close delimiter or trailing structural — select the node itself
+    return EmptyReferencePath()
+end
+
 function _pos_to_selection(leaf::SyntaxLeaf, local_pos::Int, ::SyntaxNodeToText, _depth::Int)
     open_len    = length(leaf.open.content::AbstractString)
     value_len   = length(leaf.value.content::AbstractString)
@@ -993,6 +1129,20 @@ end
 
 _text_elem_path(span_idx::Int, char_idx::Int) =
     @reference elements[span_idx].content{char_idx}
+
+# Parse a tree selection path: .elements[i]∅  (element ref without .content{k}).
+# Returns span_idx (1-based) or nothing.
+function _parse_tree_elem_path(path)
+    path isa ConcreteReferencePath || return nothing
+    h1 = path.head
+    h1 isa FieldReference && h1.name == "elements" || return nothing
+    t1 = path.tail
+    t1 isa ConcreteReferencePath || return nothing
+    h2 = t1.head
+    h2 isa RangeReference || return nothing
+    t1.tail isa EmptyReferencePath || return nothing
+    return h2.start + 1
+end
 
 function _parse_text_elem_path(path)
     path isa ConcreteReferencePath || return (nothing, nothing)

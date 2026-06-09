@@ -11,7 +11,7 @@ import ..DocumentApiModule: Document, clear_selection!, set_selection!
 import ..ReferenceModule: ReferencePath, ConcreteReferencePath, FieldReference, RangeReference, is_element_reference
 import ..ReactiveModule: Cell
 export ReplaceSelectionOperation, QuitEditorOperation, QuitEditorException, replace_selection!,
-       OpenWindowOperation, CloseWindowOperation, ToggleCollapseOperation
+       OpenWindowOperation, CloseWindowOperation, ToggleCollapseOperation, TreeNavigateOperation
 
 function evaluate_operation(editor, op::Nothing) end
 
@@ -91,6 +91,28 @@ function evaluate_operation(editor, op::ToggleCollapseOperation)
     target = op.target
     target === nothing && return
     target.collapsed = !target.collapsed
+end
+
+"""
+    TreeNavigateOperation(direction)
+
+Operation that navigates the tree selection. `direction` is one of:
+- `:up`    — select the parent node
+- `:down`  — select the first child
+- `:left`  — select the previous sibling
+- `:right` — select the next sibling
+
+Produced by the text-to-graphics layer when Alt+arrow is pressed.
+Resolved at the syntax layer where the tree structure is available.
+"""
+struct TreeNavigateOperation <: Operation
+    direction::Symbol
+end
+
+function evaluate_operation(editor, op::TreeNavigateOperation)
+    # Resolved upstream at the syntax layer; if it reaches the editor
+    # unresolved, it becomes a ReplaceSelectionOperation which is evaluated
+    # normally. This fallback is a no-op.
 end
 
 """

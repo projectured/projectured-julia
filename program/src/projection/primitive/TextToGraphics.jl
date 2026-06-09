@@ -28,7 +28,7 @@ import ..ColorModule: StyleColor
 import ..ReferenceModule: ReferencePath, ConcreteReferencePath, ElementReference, PositionReference, RangeReference, PointReference, EmptyReferencePath, FieldReference, TextRectangularReference, head, tail
 import ..ReferenceCaseModule: var"@reference_case"
 import ..ReferenceBuilderModule: var"@reference"
-import ..OperationModule: ReplaceSelectionOperation, ToggleCollapseOperation
+import ..OperationModule: ReplaceSelectionOperation, ToggleCollapseOperation, TreeNavigateOperation
 import ..PrimitiveModule: StringReplaceRangeOperation
 import ..KeyboardModule: KeyDown, KeyPress
 import ..MouseModule: MousePress
@@ -192,6 +192,9 @@ function projection_read(p::TextToGraphics, iomap::TextToGraphicsIoMap, evt::Mou
     isempty(coord_map) && return nothing
     sc = _hit_segment(coord_map, evt.x, evt.y)
     sc === nothing && return nothing
+    if evt.modifiers.alt
+        return ReplaceSelectionOperation(_build_tree_selection_path(sc.span_idx), true)
+    end
     char_pos = _char_position_at_x(sc, evt.x, p.measure)
     return ReplaceSelectionOperation(_build_selection_path(sc.span_idx, char_pos), true)
 end
@@ -203,6 +206,10 @@ function projection_read(p::TextToGraphics, iomap::TextToGraphicsIoMap, evt)
     # layer (where the tree and selection live); we only recognise the chord.
     if evt.key === :period && evt.modifiers.ctrl
         return ToggleCollapseOperation()
+    end
+    # Alt+arrow: tree selection navigation
+    if evt.modifiers.alt && evt.key in (:up, :down, :left, :right)
+        return TreeNavigateOperation(evt.key)
     end
     del_op = _key_delete_op(iomap, evt)
     del_op === nothing || return del_op
@@ -632,6 +639,9 @@ end
 _build_selection_path(span_idx::Int, char_idx::Int) =
     @reference elements[span_idx].content{char_idx}
 
+_build_tree_selection_path(span_idx::Int) =
+    @reference elements[span_idx]
+
 function _make_sdl(text, x, y, font, r, g, b, a)
     GraphicsText(Cell(text), Cell(Int32(x)), Cell(Int32(y)),
                 Cell(font),
@@ -688,16 +698,23 @@ function _translate_click(p::TextToGraphics, iomap::TextToGraphicsIoMap, path)
     h1 isa RangeReference || return nothing
     i  = h1.start + 1
     rest = tail(path)
+
+    # Adjust for highlight rects prepended before text segments
+    hl_off = iomap.highlight_offset[]
+    i -= hl_off
+    coord_map = iomap.char_to_coord[]
+    (i < 1 || i > length(coord_map)) && return nothing
+    seg = coord_map[i]
+
+    # Alt+click: element-only path (no PointReference) → tree selection
+    if rest isa EmptyReferencePath
+        return ReplaceSelectionOperation(_build_tree_selection_path(seg.span_idx), true)
+    end
+
     rest isa ConcreteReferencePath || return nothing
     h2 = head(rest)
     h2 isa PointReference || return nothing
     rx = h2.x::Int
-    coord_map = iomap.char_to_coord[]
-    # Adjust for highlight rects prepended before text segments
-    hl_off = iomap.highlight_offset[]
-    i -= hl_off
-    (i < 1 || i > length(coord_map)) && return nothing
-    seg = coord_map[i]
     char_pos = _char_position_at_x(seg, seg.x + rx, p.measure)
     return ReplaceSelectionOperation(_build_selection_path(seg.span_idx, char_pos), true)
 end
