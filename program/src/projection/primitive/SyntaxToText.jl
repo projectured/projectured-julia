@@ -16,7 +16,7 @@ import ..TextModule: TextText, TextString, TextNewline, TextDocument
 import ..FontModule: font_ubuntu_monospace_regular_24, font_dejavu_monospace_regular_24
 import ..ColorModule: color_solarized_gray
 import ..TypeDispatchingModule: TypeDispatchingProjection
-import ..ReferenceModule: ConcreteReferencePath, ElementReference, PositionReference, RangeReference, FieldReference, ProjectionReference, EmptyReferencePath, ReferencePath
+import ..ReferenceModule: ConcreteReferencePath, ElementReference, PositionReference, RangeReference, FieldReference, ProjectionReference, EmptyReferencePath, ReferencePath, TextRectangularReference
 import ..ReferenceCaseModule: var"@reference_case"
 import ..ReferenceBuilderModule: var"@reference"
 import ..IoMapModule: SimpleIoMap
@@ -183,6 +183,14 @@ function projection_print(p::SyntaxNodeToText, node::SyntaxNode, recursion, ctx)
         Cell(() -> begin
             node_sel = node.selection
             node_sel isa EmptyReferencePath && return @reference()
+            # Detect nested child whole-element selection (.children[i]…∅)
+            # and emit a TextRectangularReference carrying the child's flat range.
+            flat_range = node_sel isa ReferencePath ? _syntax_to_flat_range(node, node_sel, p, 0) : nothing
+            if flat_range !== nothing
+                return ConcreteReferencePath(
+                    TextRectangularReference(flat_range[1], flat_range[2]),
+                    EmptyReferencePath())
+            end
             cursor = both[][2]
             cursor < 0 && return nothing
             _flat_to_text_elem_path(both[][1], cursor)
@@ -616,6 +624,65 @@ function _structural_cursor(node::SyntaxNode, p::SyntaxNodeToText, depth::Int)
     sel = node.selection
     sel === nothing && return -1
     _syntax_to_flat(node, sel, p, depth)
+end
+
+# ── Flat range for whole-element selections ──────────────────────────────
+# Like _syntax_to_flat but returns the (start, stop) character range when
+# the path terminates in ∅ (a whole-element selection). Returns nothing
+# when the path is a normal cursor or doesn't match.
+
+function _syntax_to_flat_range(leaf::SyntaxLeaf, ::EmptyReferencePath, p::SyntaxNodeToText, depth::Int)
+    (0, _subtree_len(leaf, p, depth))
+end
+
+function _syntax_to_flat_range(leaf::SyntaxLeaf, ::ConcreteReferencePath, ::SyntaxNodeToText, ::Int)
+    nothing
+end
+
+function _syntax_to_flat_range(node::SyntaxNode, ::EmptyReferencePath, p::SyntaxNodeToText, depth::Int)
+    (0, _subtree_len(node, p, depth))
+end
+
+function _syntax_to_flat_range(node::SyntaxNode, path::ConcreteReferencePath, p::SyntaxNodeToText, depth::Int)
+    h = path.head
+    h isa FieldReference || return nothing
+    h.name == "children" || return nothing
+    node.collapsed && return nothing
+    rest = path.tail
+    rest isa ConcreteReferencePath || return nothing
+    h2 = rest.head
+    h2 isa RangeReference || return nothing
+    child_i = h2.start + 1
+    children = node.children
+    (1 <= child_i <= length(children)) || return nothing
+    rest2 = rest.tail
+
+    # Accumulate the flat offset up to child_i
+    char_count = _marker_len(p, node) + length(node.open.content)
+    if node.indentation > 0
+        child_depth = depth + 1
+        for i in 1:child_i
+            i > 1 && (char_count += length(node.sep.content))
+            char_count += 1 + child_depth * p.indent_size
+            if i == child_i
+                inner = _syntax_to_flat_range(children[i], rest2, p, child_depth)
+                inner === nothing && return nothing
+                return (char_count + inner[1], char_count + inner[2])
+            end
+            char_count += _subtree_len(children[i], p, child_depth)
+        end
+    else
+        for i in 1:child_i
+            i > 1 && (char_count += length(node.sep.content))
+            if i == child_i
+                inner = _syntax_to_flat_range(children[i], rest2, p, depth)
+                inner === nothing && return nothing
+                return (char_count + inner[1], char_count + inner[2])
+            end
+            char_count += _subtree_len(children[i], p, depth)
+        end
+    end
+    return nothing
 end
 
 function _collect_child_spans(leaf::SyntaxLeaf, p::SyntaxNodeToText, depth::Int, recursion)

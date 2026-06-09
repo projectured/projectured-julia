@@ -25,7 +25,7 @@ import ..GraphicsModule: GraphicsText, GraphicsRect, GraphicsImage, GraphicsCanv
 import ..ImageModule: ImageDocument
 import ..FontModule: StyleFont, font_scaled_size
 import ..ColorModule: StyleColor
-import ..ReferenceModule: ReferencePath, ConcreteReferencePath, ElementReference, PositionReference, RangeReference, PointReference, EmptyReferencePath, FieldReference, head, tail
+import ..ReferenceModule: ReferencePath, ConcreteReferencePath, ElementReference, PositionReference, RangeReference, PointReference, EmptyReferencePath, FieldReference, TextRectangularReference, head, tail
 import ..ReferenceCaseModule: var"@reference_case"
 import ..ReferenceBuilderModule: var"@reference"
 import ..OperationModule: ReplaceSelectionOperation, ToggleCollapseOperation
@@ -70,6 +70,7 @@ struct TextToGraphicsIoMap <: IoMap
     input::TextText
     output::GraphicsCanvas
     char_to_coord::Cell  # Cell{Vector{SegCoord}}
+    highlight_offset::Cell  # Cell{Int} — number of highlight rects prepended before text segments
 end
 
 # ── Projection struct ──────────────────────────────────────────────────
@@ -317,6 +318,8 @@ function projection_print(p::TextToGraphics, styled::TextText, recursion, ctx)
     both = Cell(function ()
         result = Any[]
         coord_map = SegCoord[]
+        span_flat_offsets = Dict{Int,Int}()  # elem_idx → cumulative flat char offset
+        cumulative_flat = 0
         cx = p.start_x
         cy = p.start_y
         max_cx = cx
@@ -328,6 +331,7 @@ function projection_print(p::TextToGraphics, styled::TextText, recursion, ctx)
         cursor_line_h = 0
 
         for (elem_idx, span) in enumerate(styled)         # reads styled.elements cell
+            span_flat_offsets[elem_idx] = cumulative_flat
             if span isa TextNewline
                 cx = p.start_x
                 cy += line_h
@@ -342,6 +346,7 @@ function projection_print(p::TextToGraphics, styled::TextText, recursion, ctx)
                 push!(result, GraphicsImage(cx, cy, img_w, img_h, img_data))
                 # Record a SegCoord for hit-testing: atomic position (0..1)
                 push!(coord_map, SegCoord(elem_idx, 0, 1, cx, cy, span.font::StyleFont, "", img_w, img_h))
+                cumulative_flat += 1  # image spans occupy 1 char in the flat space
                 line_h = max(line_h, img_h)
                 # Handle cursor at this image span
                 if cursor_pos !== nothing && cursor_x < 0 &&
@@ -361,6 +366,7 @@ function projection_print(p::TextToGraphics, styled::TextText, recursion, ctx)
             span_idx = elem_idx                            # 1-based index in elements
             char_offset = 0                               # local offset within this span
             txt  = span.content::AbstractString             # reads span content cell
+            cumulative_flat += length(txt)
             sf   = span.font::StyleFont                     # reads span font cell
             col  = span.font_color::StyleColor              # reads span font_color cell
 
@@ -413,6 +419,19 @@ function projection_print(p::TextToGraphics, styled::TextText, recursion, ctx)
             end
         end
 
+        # ── Highlight box for whole-element / rectangular selections ────────
+        highlight_count = 0
+        sel = styled.selection
+        hl_range = _highlight_char_range(sel, coord_map)
+        if hl_range !== nothing
+            hl_start, hl_stop = hl_range
+            hl_rect = _compute_highlight_rect(coord_map, span_flat_offsets, hl_start, hl_stop, p)
+            if hl_rect !== nothing
+                pushfirst!(result, hl_rect)
+                highlight_count = 1
+            end
+        end
+
         # Emit cursor line
         if cursor_x >= 0
             push!(result, GraphicsRect(cursor_x, cursor_y, 2, max(cursor_line_h, 1),
@@ -422,13 +441,14 @@ function projection_print(p::TextToGraphics, styled::TextText, recursion, ctx)
         max_cx = max(max_cx, cx)
         total_w = max_cx
         total_h = cy + line_h
-        return (result, coord_map, total_w, total_h)
+        return (result, coord_map, total_w, total_h, highlight_count)
     end)
     char_to_coord = Cell(() -> both[][2])
+    highlight_offset = Cell(() -> both[][5])
     canvas_w = Cell(() -> Int32(both[][3]))
     canvas_h = Cell(() -> Int32(both[][4]))
     canvas = GraphicsCanvas(Cell(Int32(0)), Cell(Int32(0)), canvas_w, canvas_h, CellVector(() -> both[][1]), layout_none, false, Cell(nothing))
-    TextToGraphicsIoMap(p, styled, canvas, char_to_coord)
+    TextToGraphicsIoMap(p, styled, canvas, char_to_coord, highlight_offset)
 end
 
 # ── ListNode path: lazy paragraph-level mapping ──────────────────────
@@ -446,7 +466,7 @@ function _print_listnode(p::TextToGraphics, styled::TextText, ctx)
     head_node = styled.elements::ListNode
     output_head = _build_paragraph_node(p, head_node, 0)
     canvas = GraphicsCanvas(Int32(0), Int32(0), Int32(0), Int32(0), output_head, layout_vertical, false, Cell(nothing))
-    TextToGraphicsIoMap(p, styled, canvas, Cell(SegCoord[]))
+    TextToGraphicsIoMap(p, styled, canvas, Cell(SegCoord[]), Cell(0))
 end
 
 """
@@ -673,7 +693,10 @@ function _translate_click(p::TextToGraphics, iomap::TextToGraphicsIoMap, path)
     h2 isa PointReference || return nothing
     rx = h2.x::Int
     coord_map = iomap.char_to_coord[]
-    i > length(coord_map) && return nothing
+    # Adjust for highlight rects prepended before text segments
+    hl_off = iomap.highlight_offset[]
+    i -= hl_off
+    (i < 1 || i > length(coord_map)) && return nothing
     seg = coord_map[i]
     char_pos = _char_position_at_x(seg, seg.x + rx, p.measure)
     return ReplaceSelectionOperation(_build_selection_path(seg.span_idx, char_pos), true)
@@ -729,6 +752,68 @@ function _hit_segment(coord_map::Vector{SegCoord}, x::Int, y::Int)
         end
     end
     best
+end
+
+# ── Highlight helpers ─────────────────────────────────────────────────────
+
+"""
+    _highlight_char_range(sel, coord_map) -> (start, stop) or nothing
+
+Extract the flat character range for a box selection from the TextText's
+selection. Recognized shapes:
+- `EmptyReferencePath` (∅) → highlight the full extent `(0, N)` where N is
+  the total character count across all segments.
+- `ConcreteReferencePath(TextRectangularReference(s, e), ∅)` → `(s, e)`.
+Returns `nothing` for any other selection shape (normal cursor, etc.).
+"""
+function _highlight_char_range(sel, coord_map::Vector{SegCoord})
+    if sel isa EmptyReferencePath
+        isempty(coord_map) && return nothing
+        # Cover all segments: use a large sentinel that exceeds any absolute offset.
+        return (0, typemax(Int) >> 1)
+    end
+    sel isa ConcreteReferencePath || return nothing
+    h = sel.head
+    h isa TextRectangularReference || return nothing
+    sel.tail isa EmptyReferencePath || return nothing
+    return (h.start, h.stop)
+end
+
+"""
+    _compute_highlight_rect(coord_map, hl_start, hl_stop, p) -> GraphicsRect or nothing
+
+Compute the bounding box over all `SegCoord`s whose character range overlaps
+`[hl_start, hl_stop)`. Returns a semi-transparent `GraphicsRect` with rounded
+corners, or `nothing` when no segment overlaps the range.
+"""
+function _compute_highlight_rect(coord_map::Vector{SegCoord}, span_flat_offsets::Dict{Int,Int}, hl_start::Int, hl_stop::Int, p::TextToGraphics)
+    x0, y0 = typemax(Int), typemax(Int)
+    x1, y1 = 0, 0
+    found = false
+    for sc in coord_map
+        base = get(span_flat_offsets, sc.span_idx, 0)
+        abs_start = base + sc.char_start
+        abs_end = base + sc.char_end
+        # Check overlap with [hl_start, hl_stop)
+        (abs_end <= hl_start || abs_start >= hl_stop) && continue
+        # Compute the pixel sub-range within this segment that's highlighted
+        seg_hl_start = max(hl_start, abs_start) - base
+        seg_hl_end = min(hl_stop, abs_end) - base
+        px_left = _seg_cursor_x(sc, seg_hl_start, p.measure)
+        px_right = _seg_cursor_x(sc, seg_hl_end, p.measure)
+        fs = font_scaled_size(sc.font.size)
+        x0 = min(x0, px_left)
+        y0 = min(y0, sc.y)
+        x1 = max(x1, px_right)
+        y1 = max(y1, sc.y + fs)
+        found = true
+    end
+    found || return nothing
+    w = x1 - x0
+    h = y1 - y0
+    (w <= 0 || h <= 0) && return nothing
+    # Accent colour: a light blue with ~25% alpha
+    GraphicsRect(x0, y0, w, h, 0x88, 0xbb, 0xee, 0x40, 4)
 end
 
 # ── Image helpers ────────────────────────────────────────────────────────

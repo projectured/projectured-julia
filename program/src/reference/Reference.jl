@@ -24,7 +24,7 @@ module ReferenceModule
 
 import ..ReactiveModule: Cell
 import ..DocumentModule: @document
-export Reference, ReferenceStep, ElementReference, PositionReference, RangeReference, FieldReference, TypeReference, FunctionReference, ProjectionReference, PointReference, ReferencePath, EmptyReferencePath, ConcreteReferencePath, append_reference, evaluate_reference, is_valid_reference, collect_references,
+export Reference, ReferenceStep, ElementReference, PositionReference, RangeReference, FieldReference, TypeReference, FunctionReference, ProjectionReference, PointReference, TextRectangularReference, ReferencePath, EmptyReferencePath, ConcreteReferencePath, append_reference, evaluate_reference, is_valid_reference, collect_references,
        is_element_reference, is_position_reference, is_range_reference,
        IRangeReference, IFieldReference, IConcreteReferencePath, IPointReference,
        reference_equal, is_prefix_of
@@ -188,6 +188,20 @@ end
 
 PointReference(x::Int, y::Int) = PointReference(Cell(x), Cell(y))
 
+"""
+    TextRectangularReference(start, stop)
+
+A reference step representing an axis-aligned bounding box highlight in the
+text domain. `start` and `stop` are flat 0-based character offsets into the
+concatenated text of a `TextText`. Used by the syntax-to-text layer to
+communicate a nested child's whole-element selection as a character range
+to the text-to-graphics layer, which renders it as a translucent rectangle.
+"""
+struct TextRectangularReference <: ReferenceStep
+    start::Int
+    stop::Int
+end
+
 # Whole-element ("tree") selection is not a distinct reference step: it is just
 # a path that terminates *at* the element, i.e. an `EmptyReferencePath`. The one
 # node holding `∅` in its `selection` cell is the wholly-selected one; its
@@ -260,6 +274,10 @@ function Base.show(io::IO, s::PointReference)
     print(io, "@(", s.x, ",", s.y, ")")
 end
 
+function Base.show(io::IO, s::TextRectangularReference)
+    print(io, "▭(", s.start, ":", s.stop, ")")
+end
+
 function Base.show(io::IO, ::EmptyReferencePath)
     print(io, "∅")
 end
@@ -278,6 +296,7 @@ Base.:(==)(a::FunctionReference,   b::FunctionReference)   = a.f        === b.f
 Base.:(==)(a::TypeReference,       b::TypeReference)       = a.type     === b.type
 Base.:(==)(a::ProjectionReference, b::ProjectionReference) = a.projection === b.projection && a.output_path == b.output_path
 Base.:(==)(a::PointReference,      b::PointReference)      = a.x == b.x && a.y == b.y
+Base.:(==)(a::TextRectangularReference, b::TextRectangularReference) = a.start == b.start && a.stop == b.stop
 Base.:(==)(::ReferenceStep,        ::ReferenceStep)        = false
 
 Base.:(==)(::EmptyReferencePath,   ::EmptyReferencePath)   = true

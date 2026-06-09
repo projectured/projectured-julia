@@ -156,6 +156,7 @@ using .ReactiveModule: Cell, setval!, setfn!, isuptodate
 using .ProjectionApiModule: projection_print, projection_read, map_reference_forward, map_reference_backward, Projection
 using .ReferenceModule: ConcreteReferencePath, ElementReference, PositionReference, RangeReference, FieldReference,
                        TypeReference, FunctionReference, ProjectionReference, PointReference,
+                       TextRectangularReference,
                        ReferencePath, EmptyReferencePath,
                        is_valid_reference, evaluate_reference, append_reference, collect_references,
                        is_element_reference, is_position_reference, is_range_reference,

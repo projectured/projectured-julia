@@ -4,6 +4,7 @@ using Test
 using Projectured
 using ProjecturedExample
 using Projectured: ElementReference, RangeReference, PositionReference, FieldReference, PointReference,
+                   TextRectangularReference,
                    ConcreteReferencePath, EmptyReferencePath,
                    color_red, color_blue, color_white, color_default, font_ubuntu_monospace_regular_24
 
