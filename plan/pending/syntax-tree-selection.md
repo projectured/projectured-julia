@@ -55,6 +55,11 @@ This is symmetric to (4): the iomap must carry `SelfReference` in both direction
 
 Not part of the first slice — the first slice is the data model and iomap plumbing.
 
+> **Built (with different bindings).** The realized editor surface uses **Alt+click**
+> to select the innermost node and **Alt+arrows** / **Ctrl+Alt+Home** to navigate,
+> rather than the Ctrl+Shift / double-/triple-click scheme sketched here. See the
+> "Interaction" section below for the implemented bindings.
+
 ## First Slice (what to actually build first)
 
 **Status: done.** Chose option (b) — the empty-path convention — over option (a)
@@ -87,24 +92,39 @@ element. Tests: `test/src/projection/SyntaxTreeSelectionTest.jl`
    predicate; `set_selection!`/`clear_selection!` placing `∅` at the target node;
    nested whole-child round-trip).
 
-### Deferred (not in this slice)
+### Later slices — status
 
-- **Text-range highlight for a nested child.** `SyntaxNodeToText` flattens all
-  children into one `TextText`, so a nested `.children[i]` (terminating `∅`)
-  cannot be a `∅` on that text — it must become a *sub-range* spanning the
-  child's open-delimiter start to close-delimiter end (plan §5). `_syntax_to_flat`
-  returns `-1` for a `∅` terminal today, so the nested case degrades to *no
-  highlight* (graceful, no crash) rather than rendering a range.
-- **Visual highlighting in `TextToGraphics`.** The text→graphics layer renders a
-  cursor (point), not a range box; drawing the highlight is part of the editor
-  surface below.
-- **Editor surface (plan §6):** expand/shrink keybindings, double/triple-click.
-- **Range / multi-element selection (plan §3).**
+- ✅ **Text-range highlight for a nested child** — built. `_syntax_to_flat` now
+  returns a wholly-selected descendant's flat range, and `SyntaxNodeToText`'s
+  selection cell emits `ConcreteReferencePath(TextRectangularReference(start,
+  stop), ∅)` for a nested `.children[i]` selection (SyntaxToText.jl). See
+  "Visualization — Region box" below.
+- ✅ **Visual highlighting in `TextToGraphics`** — built. The region box is drawn
+  in its own highlight layer; `_selection_range` normalizes `∅` ⇒ `(0, N)` and
+  `TextRectangularReference(s, e)` ⇒ `(s, e)`, then paints a translucent
+  `GraphicsRect` over the covered segments' bounding box.
+- ✅ **Editor surface (navigation flavour)** — built. Alt+click selects the
+  innermost node; Alt+↑/↓/←/→ move to parent / first child / previous / next
+  sibling; Ctrl+Alt+Home selects the root — all via `TreeNavigateOperation`,
+  produced by `TextToGraphics` and resolved at the syntax layer (`_tree_navigate`
+  in SyntaxToText.jl). Any non-Alt keystroke/click drops back to a normal cursor.
+  Tests: `SyntaxTreeNavigationTest.jl` (`test_tree_navigation[s]`,
+  `explore_tree_selections`); `SyntaxTreeSelectionTest.jl` updated for the box.
+- ⏳ **Range / multi-element selection (plan §3)** — still deferred.
+  `TextRangeReference` (the ragged cross-span char-range sibling of
+  `TextRectangularReference`) is named in the design but not built.
+- ⏳ **Wrapped/paragraph text (`ListNode` / `_print_listnode`)** — still draws no
+  selection chrome and uses an empty coord map; needs the same highlight-layer
+  treatment later.
 
-## Visualization — Region box (design, not yet built)
+## Visualization — Region box (✅ built)
 
-Decided during a design pass. How a whole-element selection is *drawn*, and where
-in the pipeline the highlight is introduced.
+How a whole-element selection is *drawn*, and where in the pipeline the highlight
+is introduced. **Status: implemented** as described below — `TextRectangularReference`
+exists (Reference.jl), `SyntaxNodeToText` emits it for nested children,
+`TextToGraphics` renders the translucent `GraphicsRect` in a dedicated highlight
+layer, and the Z-ordered hit test landed alongside it. The design notes are kept
+for rationale.
 
 ### Rendering style: Region box
 One translucent, rounded `GraphicsRect` over the **bounding box** of the selected
@@ -222,7 +242,7 @@ Open implementation details:
   `MousePress` among overlapping sibling layers — it must prefer the front (text)
   layer (same topmost-first principle, applied one level up).
 
-### Build slices
+### Build slices (✅ 1 and 2 done)
 1. **Single-line leaf / top-of-subtree (rides `∅`).** No new step: the forward
    mapping already emits `∅` (SyntaxToText.jl:69, :185). TextToGraphics learns
    `selection isa EmptyReferencePath` ⇒ box over all `SegCoord`s, in its own
@@ -237,7 +257,12 @@ Open implementation details:
 - The `ListNode` path (`_print_listnode`) draws no selection chrome today and uses
   an empty coord map — wrapped/paragraph text needs the same layer treatment later.
 
-## Interaction: Creating & Navigating Tree Selections
+## Interaction: Creating & Navigating Tree Selections (✅ built)
+
+Implemented via `TreeNavigateOperation(direction)` (Operation.jl): `TextToGraphics`
+recognises the Alt chords and emits the operation; `SyntaxNodeToText.projection_read`
+resolves it against the live tree (`_tree_navigate`). Alt+click is recognised in
+the click reader (`_build_tree_selection_path`). Tests in `SyntaxTreeNavigationTest.jl`.
 
 ### Entering tree selection mode
 
@@ -256,6 +281,7 @@ Once a node is selected (its `selection` is `∅`):
 - **Alt + ↓** — move selection one level down to the first child.
 - **Alt + ←** — move selection to the previous sibling (same parent, index − 1).
 - **Alt + →** — move selection to the next sibling (same parent, index + 1).
+- **Ctrl + Alt + Home** — select the root node (`TreeNavigateOperation(:root)`).
 
 At boundaries (no parent / no child / first or last sibling) the selection
 stays unchanged (no wrap-around).
