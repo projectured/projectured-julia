@@ -193,10 +193,10 @@ function projection_read(p::TextToGraphics, iomap::TextToGraphicsIoMap, evt::Mou
     sc = _hit_segment(coord_map, evt.x, evt.y)
     sc === nothing && return nothing
     if evt.modifiers.alt
-        return ReplaceSelectionOperation(_build_tree_selection_path(sc.span_idx), true)
+        return ReplaceSelectionOperation(_build_tree_selection_path(sc.span_idx))
     end
     char_pos = _char_position_at_x(sc, evt.x, p.measure)
-    return ReplaceSelectionOperation(_build_selection_path(sc.span_idx, char_pos), true)
+    return ReplaceSelectionOperation(_build_selection_path(sc.span_idx, char_pos))
 end
 
 function projection_read(p::TextToGraphics, iomap::TextToGraphicsIoMap, evt)
@@ -711,7 +711,7 @@ function _translate_click(p::TextToGraphics, iomap::TextToGraphicsIoMap, path)
 
     # Alt+click: element-only path (no PointReference) → tree selection
     if rest isa EmptyReferencePath
-        return ReplaceSelectionOperation(_build_tree_selection_path(seg.span_idx), true)
+        return ReplaceSelectionOperation(_build_tree_selection_path(seg.span_idx))
     end
 
     rest isa ConcreteReferencePath || return nothing
@@ -719,7 +719,7 @@ function _translate_click(p::TextToGraphics, iomap::TextToGraphicsIoMap, path)
     h2 isa PointReference || return nothing
     rx = h2.x::Int
     char_pos = _char_position_at_x(seg, seg.x + rx, p.measure)
-    return ReplaceSelectionOperation(_build_selection_path(seg.span_idx, char_pos), true)
+    return ReplaceSelectionOperation(_build_selection_path(seg.span_idx, char_pos))
 end
 
 # Pick the segment a (canvas-x, canvas-y) click landed on. Matches the

@@ -33,26 +33,22 @@ function evaluate_operation(editor, op::QuitEditorOperation)
 end
 
 """
-    ReplaceSelectionOperation(path; from_click=false)
+    ReplaceSelectionOperation(path)
 
 Operation that replaces the current selection with `path`.
 Produced by the reader side of the projection pipeline and applied to the
 document by `evaluate_operation` in the editor loop.
 
-`from_click` records that the selection originated from a pointer gesture
-(a mouse click) rather than keyboard navigation. A projection that gives a
-projection-introduced glyph a second, click-only meaning — e.g. the inline
-expand/collapse marker in `SyntaxNodeToText`, which toggles on click but must
-stay a plain cursor stop under `Ctrl+Home` / arrow keys — keys that behaviour
-off this flag. It is set by the click readers in `TextToGraphics` and defaults
-to `false` everywhere else, so keyboard-derived selections never trip it.
+Click-versus-keyboard disambiguation no longer rides on this operation: a
+projection that gives a projection-introduced glyph a second, click-only meaning
+— e.g. the inline expand/collapse marker in `SyntaxNodeToText`, which toggles on
+click but must stay a plain cursor stop under `Ctrl+Home` / arrow keys — keys
+that behaviour off the originating gesture (`change.gesture isa MousePress`),
+which now rides through the reader chain in the `Change`.
 """
 struct ReplaceSelectionOperation <: Operation
     path::ReferencePath
-    from_click::Bool
 end
-
-ReplaceSelectionOperation(path) = ReplaceSelectionOperation(path, false)
 
 function evaluate_operation(editor, op::ReplaceSelectionOperation)
     document = editor.document

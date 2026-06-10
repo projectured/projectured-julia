@@ -10,7 +10,7 @@ module SyntaxToTextModule
 
 import ..ReactiveModule: Cell, setfn!, setval!
 import ..CollectionModule: CellVector, ListNode
-import ..ProjectionApiModule: projection_print, projection_read, map_reference_forward, map_reference_backward, Projection
+import ..ProjectionApiModule: projection_print, projection_read, map_reference_forward, map_reference_backward, Projection, Change
 import ..SyntaxModule: SyntaxDocument, SyntaxLeaf, SyntaxNode
 import ..TextModule: TextText, TextString, TextNewline, TextDocument
 import ..FontModule: font_ubuntu_monospace_regular_24, font_dejavu_monospace_regular_24
@@ -24,6 +24,7 @@ import ..IoMapApiModule: IoMap
 import ..OperationModule: ReplaceSelectionOperation, ToggleCollapseOperation
 import ..PrimitiveModule: StringReplaceRangeOperation
 import ..KeyboardModule: KeyDown
+import ..MouseModule: MousePress
 export SyntaxLeafToText, SyntaxNodeToText, SyntaxListToText, SyntaxToText,
        SyntaxNodeToTextIoMap, _syntax_to_flat
 
@@ -209,19 +210,28 @@ function projection_print(p::SyntaxNodeToText, recursion, node::SyntaxNode, ctx)
     SyntaxNodeToTextIoMap(p, node, output, child_ranges, marker_idx)
 end
 
-function projection_read(p::SyntaxNodeToText, iomap::SyntaxNodeToTextIoMap, op::ReplaceSelectionOperation)
-    # A click on a node's inline marker (either state) or on its collapsed
-    # ellipsis is a fold gesture, not a cursor move: reinterpret it as a
-    # toggle of that specific node before falling through to selection mapping.
-    # Only genuine pointer gestures count — keyboard navigation (Ctrl+Home,
-    # arrows) that happens to land on the marker must still place the cursor.
-    if op.from_click
+# Gesture-aware reader. A click on a node's inline marker (either state) or on
+# its collapsed ellipsis is a fold gesture, not a cursor move: reinterpret it as
+# a toggle of that specific node before falling through to selection mapping.
+# Only genuine pointer gestures count — keyboard navigation (Ctrl+Home, arrows)
+# that happens to land on the marker must still place the cursor, so this keys off
+# `change.gesture isa MousePress` (the Lisp `(typep -gesture- 'gesture/mouse/click)`).
+function projection_read(p::SyntaxNodeToText, recursion, change::Change, iomap::SyntaxNodeToTextIoMap)
+    op = change.operation
+    if op isa ReplaceSelectionOperation && change.gesture isa MousePress
         flat = _click_flat_pos(iomap, op.path)
         if flat >= 0
             node = _node_at_collapse_glyph(iomap.input, flat, p, 0)
-            node !== nothing && return ToggleCollapseOperation(node)
+            node !== nothing && return Change(change.gesture, ToggleCollapseOperation(node))
         end
     end
+    # Everything else (keyboard, non-marker clicks, other operations) falls
+    # through to the operation-typed readers below.
+    payload = op === nothing ? change.gesture : op
+    return Change(change.gesture, projection_read(p, iomap, payload))
+end
+
+function projection_read(p::SyntaxNodeToText, iomap::SyntaxNodeToTextIoMap, op::ReplaceSelectionOperation)
     input_path = map_reference_backward(p, iomap, op.path)
     input_path === nothing && return nothing
     return ReplaceSelectionOperation(input_path)
