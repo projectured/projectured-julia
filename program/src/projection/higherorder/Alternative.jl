@@ -7,7 +7,7 @@ switches which branch is active on the next projection_print call.
 """
 module AlternativeProjectionModule
 
-import ..ProjectionApiModule: projection_print, projection_read, map_reference_forward, map_reference_backward, Projection
+import ..ProjectionApiModule: projection_print, projection_read, map_reference_forward, map_reference_backward, Projection, Change, as_change
 import ..ReactiveModule: Cell
 import ..IoMapApiModule: IoMap
 export AlternativeProjection, AlternativeProjectionIoMap
@@ -68,9 +68,11 @@ end
 
 Delegate to the same branch that was active when the IoMap was produced.
 """
-function projection_read(ap::AlternativeProjection, iomap::AlternativeProjectionIoMap, event)
-    return projection_read(ap.projections[iomap.index], iomap.inner_iomap, event)
-end
+projection_read(ap::AlternativeProjection, recursion, change::Change, iomap::AlternativeProjectionIoMap) =
+    projection_read(ap.projections[iomap.index], recursion, change, iomap.inner_iomap)
+
+projection_read(ap::AlternativeProjection, iomap::AlternativeProjectionIoMap, payload) =
+    projection_read(ap, nothing, as_change(payload), iomap).operation
 
 function map_reference_forward(::AlternativeProjection, iomap, reference)
     return nothing

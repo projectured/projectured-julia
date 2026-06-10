@@ -8,7 +8,7 @@ input domain one step at a time.
 """
 module SequentialProjectionModule
 
-import ..ProjectionApiModule: projection_print, projection_read, map_reference_forward, map_reference_backward, Projection
+import ..ProjectionApiModule: projection_print, projection_read, map_reference_forward, map_reference_backward, Projection, Change, as_change
 import ..IoMapModule: SimpleIoMap
 import ..IoMapApiModule: IoMap
 export SequentialProjection, SequentialProjectionIoMap
@@ -69,27 +69,34 @@ function projection_print(seq::SequentialProjection, recursion, input, ctx)
 end
 
 """
-    projection_read(seq::SequentialProjection, iomap::SequentialProjectionIoMap, event)
+    projection_read(seq::SequentialProjection, recursion, change::Change, iomap::SequentialProjectionIoMap)
 
-Try each step from last to first until one handles `event` (returns non-nothing).
-Then walk backwards through all earlier steps, translating the operation into
-each step's input domain.  Short-circuits if any step returns `nothing`.
+Thread one `Change` through the chain. Search the steps from last to first until
+one produces an operation (a change whose `operation !== nothing`), then walk
+backwards through the earlier steps translating that change into each step's input
+domain. The gesture rides along for free — it is a field of the threaded `Change`,
+constant at every step. A nothing-change short-circuits.
 """
-function projection_read(seq::SequentialProjection, iomap::SequentialProjectionIoMap, event)
+function projection_read(seq::SequentialProjection, recursion, change::Change, iomap::SequentialProjectionIoMap)
     n = length(seq.projections)
     start_i = n
-    op = projection_read(seq.projections[n], iomap.step_iomaps[n], event)
-    while op === nothing && start_i > 1
+    out = projection_read(seq.projections[n], recursion, change, iomap.step_iomaps[n])
+    while out.operation === nothing && start_i > 1
         start_i -= 1
-        op = projection_read(seq.projections[start_i], iomap.step_iomaps[start_i], event)
+        out = projection_read(seq.projections[start_i], recursion, change, iomap.step_iomaps[start_i])
     end
-    op === nothing && return nothing
+    out.operation === nothing && return out
     for i in (start_i-1):-1:1
-        op === nothing && return nothing
-        op = projection_read(seq.projections[i], iomap.step_iomaps[i], op)
+        out.operation === nothing && return out
+        out = projection_read(seq.projections[i], recursion, out, iomap.step_iomaps[i])
     end
-    return op
+    return out
 end
+
+# 3-arg compatibility shim: legacy callers (tests, hit-test recursion) that pass a
+# bare event/operation get it wrapped into a Change and the operation back.
+projection_read(seq::SequentialProjection, iomap::SequentialProjectionIoMap, payload) =
+    projection_read(seq, nothing, as_change(payload), iomap).operation
 
 function map_reference_forward(::SequentialProjection, iomap, reference)
     return nothing

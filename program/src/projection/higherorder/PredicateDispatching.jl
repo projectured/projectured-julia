@@ -9,7 +9,7 @@ sufficient discriminator.
 """
 module PredicateDispatchingModule
 
-import ..ProjectionApiModule: projection_print, projection_read, map_reference_forward, map_reference_backward, Projection
+import ..ProjectionApiModule: projection_print, projection_read, map_reference_forward, map_reference_backward, Projection, Change, as_change
 export PredicateDispatchingProjection
 
 """
@@ -53,14 +53,17 @@ end
 # PredicateDispatchingProjection is a transparent wrapper — it returns the
 # inner projection's IoMap directly, so input/output fields are already correct.
 
-function projection_read(pdp::PredicateDispatchingProjection, iomap, op)
+function projection_read(pdp::PredicateDispatchingProjection, recursion, change::Change, iomap)
     for (pred, proj) in pdp.dispatch
         if pred(iomap.input)
-            return projection_read(proj, iomap, op)
+            return projection_read(proj, recursion, change, iomap)
         end
     end
-    return nothing
+    return Change(change.gesture, nothing)
 end
+
+projection_read(pdp::PredicateDispatchingProjection, iomap, payload) =
+    projection_read(pdp, nothing, as_change(payload), iomap).operation
 
 function map_reference_forward(::PredicateDispatchingProjection, iomap, reference)
     return nothing

@@ -8,7 +8,7 @@ across individual projection methods.
 """
 module TypeDispatchingModule
 
-import ..ProjectionApiModule: projection_print, projection_read, map_reference_forward, map_reference_backward, Projection
+import ..ProjectionApiModule: projection_print, projection_read, map_reference_forward, map_reference_backward, Projection, Change, as_change
 export TypeDispatchingProjection
 
 """
@@ -53,14 +53,17 @@ end
 # TypeDispatchingProjection is a transparent wrapper — it returns the inner
 # projection's IoMap directly, so input/output fields are already correct.
 
-function projection_read(tdp::TypeDispatchingProjection, iomap, op)
+function projection_read(tdp::TypeDispatchingProjection, recursion, change::Change, iomap)
     for (T, proj) in tdp.dispatch
         if iomap.input isa T
-            return projection_read(proj, iomap, op)
+            return projection_read(proj, recursion, change, iomap)
         end
     end
-    return nothing
+    return Change(change.gesture, nothing)
 end
+
+projection_read(tdp::TypeDispatchingProjection, iomap, payload) =
+    projection_read(tdp, nothing, as_change(payload), iomap).operation
 
 function map_reference_forward(::TypeDispatchingProjection, iomap, reference)
     return nothing

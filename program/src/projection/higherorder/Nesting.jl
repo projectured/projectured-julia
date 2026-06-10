@@ -13,7 +13,7 @@ Mirrors the design of `nesting.lisp` in the Common Lisp codebase.
 """
 module NestingProjectionModule
 
-import ..ProjectionApiModule: projection_print, projection_read, map_reference_forward, map_reference_backward, Projection
+import ..ProjectionApiModule: projection_print, projection_read, map_reference_forward, map_reference_backward, Projection, Change, as_change
 import ..IoMapApiModule: IoMap
 export NestingProjection, NestingProjectionIoMap
 
@@ -57,14 +57,17 @@ function projection_print(np::NestingProjection, recursion, input, ctx)
     end
 end
 
-function projection_read(np::NestingProjection, iomap::NestingProjectionIoMap, event)
+function projection_read(np::NestingProjection, recursion, change::Change, iomap::NestingProjectionIoMap)
     if !isempty(np.elements)
-        projection_read(np.elements[1], iomap.child_iomap, event)
+        projection_read(np.elements[1], recursion, change, iomap.child_iomap)
     else
-        np.recursion === nothing && return nothing
-        projection_read(np.recursion, iomap.child_iomap, event)
+        np.recursion === nothing && return Change(change.gesture, nothing)
+        projection_read(np.recursion, recursion, change, iomap.child_iomap)
     end
 end
+
+projection_read(np::NestingProjection, iomap::NestingProjectionIoMap, payload) =
+    projection_read(np, nothing, as_change(payload), iomap).operation
 
 function map_reference_forward(np::NestingProjection, iomap::NestingProjectionIoMap, reference)
     if !isempty(np.elements)

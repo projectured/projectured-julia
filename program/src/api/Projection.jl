@@ -25,7 +25,8 @@ for the selection mechanism.
 """
 module ProjectionApiModule
 
-export projection_print, projection_read, map_reference_forward, map_reference_backward, Projection
+export projection_print, projection_read, map_reference_forward, map_reference_backward, Projection,
+       Change, as_change
 
 """
     Projection
@@ -36,6 +37,45 @@ Subtype this to register with the default `map_reference_forward`,
 `ProjectionModule`, `program/src/common/Projection.jl`).
 """
 abstract type Projection end
+
+"""
+    Change(gesture, operation = nothing)
+
+The backward-flowing unit of the reader pipeline — the symmetric dual of the
+document that flows forward through the printer. It carries the same user change
+in two coordinate frames:
+
+- `gesture` — the originating input (a device event such as `MousePress`/`KeyDown`,
+  or an `EventEnvelope` at the screen layer). **Invariant**: it is threaded
+  unchanged through the whole reader chain, so any reader can inspect *what the
+  user did*, not just what it currently means.
+- `operation` — the change expressed in the current projection's input domain.
+  Starts as `nothing` (a "nothing-change") and is filled in / re-mapped by the
+  readers as the change travels one domain inward at each step.
+
+A reader returns a `Change`: it either keeps `operation === nothing` (it had
+nothing to say) or returns a fresh `Change` with the gesture preserved and a real
+operation swapped in (cf. Lisp's `clone-command`).
+"""
+struct Change
+    gesture::Any
+    operation::Any
+end
+
+Change(gesture) = Change(gesture, nothing)
+
+"""
+    as_change(payload) -> Change
+
+Wrap a legacy reader payload (a raw gesture/event, an `EventEnvelope`, or a
+backward-threaded operation) into a `Change`. Used by the 3-argument
+compatibility shims so existing 3-arg `projection_read(projection, iomap, x)`
+call sites keep working against the 4-arg `Change` interface. The payload goes in
+the gesture slot; the generic reader bridge falls back to the gesture slot
+whenever the operation slot is empty, so an operation passed this way is still
+applied correctly.
+"""
+as_change(payload) = payload isa Change ? payload : Change(payload, nothing)
 
 """
     projection_print(projection, recursion, input, context::PrinterContext) -> iomap
@@ -94,11 +134,22 @@ recurses. Each concrete projection adds a method; compound projections such as
 function projection_print end
 
 """
-    projection_read(projection, iomap, event_or_op) -> op_or_nothing
+    projection_read(projection, recursion, change::Change, iomap) -> Change
 
-Backward half of a projection: turn an output-domain gesture into an
-input-domain `Operation`, or `nothing` if this projection has nothing to say
-about it.
+Backward half of a projection — the symmetric dual of `projection_print`: both
+read `(projection, recursion, payload, context)`. The payload is a `Change`
+(gesture + operation); the context is the printer's `iomap` (the correspondence
+that the forward pass recorded). The reader turns an output-domain change into an
+input-domain one, returning a `Change` whose `operation` is filled in / re-mapped
+and whose `gesture` is preserved, or a nothing-change (`operation === nothing`) if
+this projection has nothing to say about it.
+
+Most projections need no `projection_read` method at all: the generic bridge in
+`ProjectionModule` unwraps the `Change` and dispatches the legacy 3-arg
+`projection_read(projection, iomap, event_or_op)` on the gesture (when no
+operation has been produced yet) or the operation, then re-wraps the result with
+the gesture preserved. Leaf projections therefore keep their 3-arg methods; only
+compound projections that thread the change to children override the 4-arg form.
 
 The editor hands the raw device event (key press, mouse click) to the
 **top-level** projection's `projection_read`; from there, routing is entirely

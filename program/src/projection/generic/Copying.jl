@@ -11,7 +11,7 @@ child iomaps so that map_reference_backward can delegate through them
 """
 module CopyingProjectionModule
 
-import ..ProjectionApiModule: projection_print, projection_read, map_reference_forward, map_reference_backward, Projection
+import ..ProjectionApiModule: projection_print, projection_read, map_reference_forward, map_reference_backward, Projection, Change, as_change
 import ..ReactiveModule: Cell, setfn!, setval!
 import ..DocumentModule: Document
 import ..ReferenceModule: ReferencePath, EmptyReferencePath, ConcreteReferencePath,
@@ -268,33 +268,50 @@ end
 # from the ScreenDocument root down to that content so
 # `evaluate_operation` can walk them against the editor's root.
 
-function projection_read(p::CopyingProjection, iomap::CopyingProjectionIoMap, env::EventEnvelope)
-    input = iomap.input
-    if input isa ScreenDocument
-        # Find the windows-field child iomap (CellVector path).
-        windows_iomap = _struct_field_iomap(iomap, "windows")
-        windows_iomap === nothing && return nothing
-        windows_iomap.children isa Vector || return nothing
-        for (i, raw_child) in enumerate(windows_iomap.children)
-            child_input = raw_child.input
-            child_input isa WindowDocument || continue
-            child_input.id === env.window_id || continue
-            op = projection_read(raw_child.projection, raw_child, env)
-            return _prefix_op_with_steps(op,
-                (FieldReference("windows"), ElementReference(i)))
+function projection_read(p::CopyingProjection, recursion, change::Change, iomap::CopyingProjectionIoMap)
+    env = change.gesture
+    if env isa EventEnvelope
+        input = iomap.input
+        if input isa ScreenDocument
+            # Find the windows-field child iomap (CellVector path).
+            windows_iomap = _struct_field_iomap(iomap, "windows")
+            (windows_iomap === nothing || !(windows_iomap.children isa Vector)) &&
+                return Change(change.gesture, nothing)
+            for (i, raw_child) in enumerate(windows_iomap.children)
+                child_input = raw_child.input
+                child_input isa WindowDocument || continue
+                child_input.id === env.window_id || continue
+                # raw_child is the copied WindowDocument; recurse with the same
+                # envelope so the WindowDocument branch below handles the content.
+                inner = projection_read(raw_child.projection, recursion, change, raw_child)
+                op = _prefix_op_with_steps(inner.operation,
+                    (FieldReference("windows"), ElementReference(i)))
+                return Change(change.gesture, op)
+            end
+            return Change(change.gesture, nothing)
+        elseif input isa WindowDocument
+            # We're inside the matching window: descend into the content field
+            # and hand the bare event (as a fresh Change) to its reader.
+            content_iomap = _struct_field_iomap(iomap, "content")
+            content_iomap === nothing && return Change(change.gesture, nothing)
+            inner = projection_read(content_iomap.projection, recursion,
+                                    Change(env.event, nothing), content_iomap)
+            op = _prefix_op_with_steps(inner.operation, (FieldReference("content"),))
+            return Change(change.gesture, op)
+        else
+            return Change(change.gesture, nothing)
         end
-        return nothing
-    elseif input isa WindowDocument
-        # We're inside the matching window: descend into the content field
-        # and hand the bare event to its reader.
-        content_iomap = _struct_field_iomap(iomap, "content")
-        content_iomap === nothing && return nothing
-        op = projection_read(content_iomap.projection, content_iomap, env.event)
-        return _prefix_op_with_steps(op, (FieldReference("content"),))
     else
-        return nothing
+        # Non-envelope change (an operation threaded up through a document-copy
+        # stage): fall back to the generic per-reference mapping.
+        payload = change.operation === nothing ? change.gesture : change.operation
+        return Change(change.gesture, projection_read(p, iomap, payload))
     end
 end
+
+# 3-arg compatibility entry for callers that hand a bare envelope.
+projection_read(p::CopyingProjection, iomap::CopyingProjectionIoMap, env::EventEnvelope) =
+    projection_read(p, nothing, Change(env, nothing), iomap).operation
 
 # Field-keyed lookup of a struct child iomap. Strips transparent wrappers
 # (e.g. ReferenceDispatchingIoMap) so the returned iomap is the actual

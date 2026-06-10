@@ -17,7 +17,7 @@ directly mirrors the input structure.
 """
 module ProjectionModule
 
-import ..ProjectionApiModule: projection_print, projection_read, map_reference_forward, map_reference_backward, Projection
+import ..ProjectionApiModule: projection_print, projection_read, map_reference_forward, map_reference_backward, Projection, Change
 import ..OperationModule: ReplaceSelectionOperation, ToggleCollapseOperation
 import ..ReactiveModule: Cell
 import ..ReferenceModule: EmptyReferencePath
@@ -78,6 +78,23 @@ function projection_read(projection::Projection, iomap, operation)
     else
         return nothing
     end
+end
+
+"""
+    projection_read(p::Projection, recursion, change::Change, iomap)
+
+Generic bridge from the symmetric 4-arg `Change` interface to the legacy 3-arg
+reader. For any projection without its own 4-arg method, unwrap the `Change` and
+dispatch the legacy `projection_read(p, iomap, payload)` on the operation (when one
+has already been produced) or otherwise the gesture (the gesture→operation stage),
+then re-wrap the result as a `Change` with the gesture preserved. Compound
+projections that must thread the change to their children override this with a
+4-arg method of their own.
+"""
+function projection_read(p::Projection, recursion, change::Change, iomap)
+    payload = change.operation === nothing ? change.gesture : change.operation
+    op = projection_read(p, iomap, payload)
+    return Change(change.gesture, op)
 end
 
 """

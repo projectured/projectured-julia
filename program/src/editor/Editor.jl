@@ -9,7 +9,7 @@ the current coordinate mapping.
 """
 module EditorModule
 
-import ..ProjectionApiModule: Projection, projection_print, projection_read
+import ..ProjectionApiModule: Projection, projection_print, projection_read, Change
 import ..IoMapApiModule: IoMap
 import ..DeviceModule: Device, read_from_devices, write_to_devices
 import ..BackendModule: Backend, init!, quit!
@@ -81,9 +81,12 @@ function read!(editor::Editor)
         elseif editor.iomap === nothing
             continue
         else
-            result = projection_read(editor.projection, editor.iomap, env)
-            if result isa Operation
-                editor.operation = result
+            # Seed a nothing-change carrying the gesture (the envelope) and read
+            # back the operation the reader pipeline produced.
+            change = projection_read(editor.projection, nothing, Change(env, nothing), editor.iomap)
+            op = change isa Change ? change.operation : change
+            if op isa Operation
+                editor.operation = op
                 return true
             end
         end

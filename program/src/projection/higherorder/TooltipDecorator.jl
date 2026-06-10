@@ -18,7 +18,7 @@ sources independently.
 """
 module TooltipDecoratorProjectionModule
 
-import ..ProjectionApiModule: projection_print, projection_read, map_reference_forward, map_reference_backward, Projection
+import ..ProjectionApiModule: projection_print, projection_read, map_reference_forward, map_reference_backward, Projection, Change, as_change
 import ..IoMapApiModule: IoMap
 import ..ReactiveModule: Cell
 import ..ReferenceModule: ReferencePath, ConcreteReferencePath, FieldReference, head, tail
@@ -80,8 +80,9 @@ end
 
 # ── Reader ────────────────────────────────────────────────────────────────
 
-function projection_read(p::TooltipDecoratorProjection, iomap::TooltipDecoratorProjectionIoMap, event)
-    child_op = projection_read(iomap.child_iomap.projection, iomap.child_iomap, event)
+function projection_read(p::TooltipDecoratorProjection, recursion, change::Change, iomap::TooltipDecoratorProjectionIoMap)
+    event = change.gesture
+    child_op = projection_read(iomap.child_iomap.projection, recursion, change, iomap.child_iomap).operation
 
     source = iomap.input::TooltipSource
     fired = p.trigger(source, event)::Bool
@@ -122,12 +123,15 @@ function projection_read(p::TooltipDecoratorProjection, iomap::TooltipDecoratorP
             is_open = false
         end
         p.state[sid] = (arm_time, is_open)
-        return decorator_op
+        return Change(change.gesture, decorator_op)
     end
 
     p.state[sid] = (arm_time, is_open)
-    return child_op
+    return Change(change.gesture, child_op)
 end
+
+projection_read(p::TooltipDecoratorProjection, iomap::TooltipDecoratorProjectionIoMap, payload) =
+    projection_read(p, nothing, as_change(payload), iomap).operation
 
 # ── Reference mapping ────────────────────────────────────────────────────
 # The decorator's output is the child's output (the TooltipSource's

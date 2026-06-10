@@ -8,7 +8,7 @@ step, enabling self-referential tree traversal.
 """
 module RecursiveProjectionModule
 
-import ..ProjectionApiModule: projection_print, projection_read, map_reference_forward, map_reference_backward, Projection
+import ..ProjectionApiModule: projection_print, projection_read, map_reference_forward, map_reference_backward, Projection, Change, as_change
 export RecursiveProjection
 
 """
@@ -42,9 +42,13 @@ end
 # RecursiveProjection is a transparent wrapper — it returns the inner
 # projection's IoMap directly, so input/output fields are already correct.
 
-function projection_read(rp::RecursiveProjection, iomap, op)
-    projection_read(rp.child, iomap, op)
-end
+# Pass self as the recursion so a node reader inside the child re-enters this
+# wrapper (symmetric with the printer, which passes `rp` as recursion too).
+projection_read(rp::RecursiveProjection, recursion, change::Change, iomap) =
+    projection_read(rp.child, rp, change, iomap)
+
+projection_read(rp::RecursiveProjection, iomap, payload) =
+    projection_read(rp, nothing, as_change(payload), iomap).operation
 
 function map_reference_forward(::RecursiveProjection, iomap, reference)
     return nothing

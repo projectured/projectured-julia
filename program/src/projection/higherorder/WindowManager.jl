@@ -22,7 +22,7 @@ recursion on each new window to produce the output side.
 """
 module WindowManagerProjectionModule
 
-import ..ProjectionApiModule: projection_print, projection_read, map_reference_forward, map_reference_backward, Projection
+import ..ProjectionApiModule: projection_print, projection_read, map_reference_forward, map_reference_backward, Projection, Change, as_change
 import ..IoMapApiModule: IoMap
 import ..ReactiveModule: Cell
 import ..ScreenDocumentModule: ScreenDocument, WindowDocument
@@ -61,18 +61,22 @@ end
 
 # ── Reader ────────────────────────────────────────────────────────────────
 
-function projection_read(p::WindowManagerProjection, iomap::WindowManagerProjectionIoMap, event_or_op)
-    op = projection_read(p.inner, iomap.inner_iomap, event_or_op)
+function projection_read(p::WindowManagerProjection, recursion, change::Change, iomap::WindowManagerProjectionIoMap)
+    inner = projection_read(p.inner, recursion, change, iomap.inner_iomap)
+    op = inner.operation
     if op isa OpenWindowOperation
         _apply_open!(iomap, op)
-        return nothing
+        return Change(change.gesture, nothing)
     elseif op isa CloseWindowOperation
         _apply_close!(iomap, op)
-        return nothing
+        return Change(change.gesture, nothing)
     else
-        return op
+        return inner
     end
 end
+
+projection_read(p::WindowManagerProjection, iomap::WindowManagerProjectionIoMap, payload) =
+    projection_read(p, nothing, as_change(payload), iomap).operation
 
 # Apply Open: add a new window (or update an existing one with the same
 # id) on both the input and the output. The output side requires
