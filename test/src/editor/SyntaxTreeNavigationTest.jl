@@ -4,8 +4,8 @@
 # Exhaustive tree-selection-state exploration via BFS.
 #
 # explore_tree_selections(document, projection)
-#   Begins with Ctrl+Alt+Home (→ TreeNavigateOperation(:root), resolved to
-#   ∅ at the syntax layer).  From there every reachable tree-selection state
+#   Begins with Ctrl+Alt+Home (recognised and resolved at the syntax layer,
+#   selecting the root ∅).  From there every reachable tree-selection state
 #   is explored by trying the four Alt+arrow keys (:up, :down, :left,
 #   :right) at each state.  Each state is visited exactly once (keyed by
 #   its path string).  At every state:
@@ -29,7 +29,7 @@ function explore_tree_selections(document, projection; onstate=nothing)
     visited = Set{String}()
     errors  = String[]
 
-    # Seed: Ctrl+Alt+Home → TreeNavigateOperation(:root) → ∅
+    # Seed: Ctrl+Alt+Home → ReplaceSelectionOperation(∅), resolved at syntax layer
     clear_selection!(document)
     iomap = try
         projection_print(projection, document)

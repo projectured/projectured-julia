@@ -21,7 +21,7 @@ import ..ReferenceCaseModule: var"@reference_case"
 import ..ReferenceBuilderModule: var"@reference"
 import ..IoMapModule: SimpleIoMap
 import ..IoMapApiModule: IoMap
-import ..OperationModule: ReplaceSelectionOperation, ToggleCollapseOperation, TreeNavigateOperation
+import ..OperationModule: ReplaceSelectionOperation, ToggleCollapseOperation
 import ..PrimitiveModule: StringReplaceRangeOperation
 import ..KeyboardModule: KeyDown
 export SyntaxLeafToText, SyntaxNodeToText, SyntaxListToText, SyntaxToText,
@@ -238,19 +238,23 @@ function projection_read(p::SyntaxNodeToText, iomap::SyntaxNodeToTextIoMap, op::
     return ToggleCollapseOperation(target)
 end
 
-# Alt+arrow tree navigation: manipulate the current selection path.
-# The selection on the root node is a path like `.children[i].children[j]…∅`.
-# - :up    → drop the last `.children[k]` step (select parent)
-# - :down  → append `.children[1]` (select first child)
-# - :left  → decrement the last child index
-# - :right → increment the last child index
-function projection_read(p::SyntaxNodeToText, iomap::SyntaxNodeToTextIoMap, op::TreeNavigateOperation)
-    # :root — unconditionally select the root node
-    if op.direction === :root
+# Tree-selection navigation by keyboard. The raw key event falls through the
+# graphics/text layers (TextToGraphics declines alt-modified navigation keys)
+# and is recognised here, where the syntax tree and its selection are in hand —
+# so recognition and resolution live in one place and no courier operation is
+# needed. The selection on the root node is a path like `.children[i].children[j]…∅`.
+# - Ctrl+Alt+Home → select the root node (∅)
+# - Alt+:up    → drop the last `.children[k]` step (select parent)
+# - Alt+:down  → append `.children[1]` (select first child)
+# - Alt+:left  → decrement the last child index
+# - Alt+:right → increment the last child index
+function projection_read(p::SyntaxNodeToText, iomap::SyntaxNodeToTextIoMap, evt::KeyDown)
+    if evt.key === :home && evt.modifiers.ctrl && evt.modifiers.alt
         return ReplaceSelectionOperation(EmptyReferencePath())
     end
+    evt.modifiers.alt && evt.key in (:up, :down, :left, :right) || return nothing
     sel = iomap.input.selection
-    new_path = _tree_navigate(iomap.input, sel, op.direction)
+    new_path = _tree_navigate(iomap.input, sel, evt.key)
     new_path === nothing && return nothing
     ReplaceSelectionOperation(new_path)
 end

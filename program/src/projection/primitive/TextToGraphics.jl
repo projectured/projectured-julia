@@ -28,7 +28,7 @@ import ..ColorModule: StyleColor
 import ..ReferenceModule: ReferencePath, ConcreteReferencePath, ElementReference, PositionReference, RangeReference, PointReference, EmptyReferencePath, FieldReference, TextRectangularReference, head, tail
 import ..ReferenceCaseModule: var"@reference_case"
 import ..ReferenceBuilderModule: var"@reference"
-import ..OperationModule: ReplaceSelectionOperation, ToggleCollapseOperation, TreeNavigateOperation
+import ..OperationModule: ReplaceSelectionOperation, ToggleCollapseOperation
 import ..PrimitiveModule: StringReplaceRangeOperation
 import ..KeyboardModule: KeyDown, KeyPress
 import ..MouseModule: MousePress
@@ -207,13 +207,12 @@ function projection_read(p::TextToGraphics, iomap::TextToGraphicsIoMap, evt)
     if evt.key === :period && evt.modifiers.ctrl
         return ToggleCollapseOperation()
     end
-    # Ctrl+Alt+Home: select the root of the tree
-    if evt.modifiers.alt && evt.modifiers.ctrl && evt.key === :home
-        return TreeNavigateOperation(:root)
-    end
-    # Alt+arrow: tree selection navigation
-    if evt.modifiers.alt && evt.key in (:up, :down, :left, :right)
-        return TreeNavigateOperation(evt.key)
+    # Alt-modified navigation keys (arrows, Home) are tree-navigation gestures.
+    # This layer handles only character/line cursor motion within flat text, so
+    # decline them: returning nothing lets the raw event fall through the chain
+    # to SyntaxNodeToText, which owns the tree structure and resolves them.
+    if evt.modifiers.alt && evt.key in (:up, :down, :left, :right, :home)
+        return nothing
     end
     del_op = _key_delete_op(iomap, evt)
     del_op === nothing || return del_op

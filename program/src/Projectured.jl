@@ -166,7 +166,7 @@ using .ProjectionContextModule: ProjectionContext, child_context, with_available
                                  with_property, get_property
 using .DocumentApiModule: set_selection!, clear_selection!
 using .OperationModule: ReplaceSelectionOperation, QuitEditorOperation, replace_selection!,
-                        OpenWindowOperation, CloseWindowOperation, TreeNavigateOperation
+                        OpenWindowOperation, CloseWindowOperation
 using .ReferenceCaseModule: var"@reference_case", when, prefix
 using .EventCaseModule: var"@event_case"
 using .ReferenceBuilderModule: var"@reference", var"@step"
