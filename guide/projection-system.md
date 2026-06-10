@@ -7,7 +7,7 @@ they make, flows through one or more projections.
 A projection has four entry points:
 
 ```julia
-projection_print(projection, input, recursion, context::ProjectionContext) → iomap
+projection_print(projection, input, recursion, context::PrinterContext) → iomap
 projection_read(projection, iomap, event_or_op)                            → op_or_nothing
 map_reference_forward(projection, iomap, reference)                        → output_ref_or_nothing
 map_reference_backward(projection, iomap, reference)                       → input_ref_or_nothing
@@ -45,7 +45,7 @@ The two extra arguments are essential:
   that never descends ignores it. A node projection threads it **twice** — as
   the projection to call *and* as that call's own `recursion` argument; see
   [§ Recursion across projections](#recursion-across-projections).
-- **`context`** is a [`ProjectionContext`](../program/src/context/ProjectionContext.jl):
+- **`context`** is a [`PrinterContext`](../program/src/context/PrinterContext.jl):
   a downward-flowing, extensible struct carrying the `reference` path from the
   editor's document root to the *current* input, plus optional layout extent
   (`available_width`/`available_height`) and an open `properties` Dict. Each
@@ -54,12 +54,12 @@ The two extra arguments are essential:
   projection knows where in the original document it sits — which is what
   enables [ReferenceDispatchingProjection](higher-order-projections.md) to
   switch behaviour based on document-root-relative location. The top-level call
-  passes a fresh `ProjectionContext()` (whose reference is
+  passes a fresh `PrinterContext()` (whose reference is
   `EmptyReferencePath()`).
 
 A two-argument convenience overload `projection_print(p, input)` is defined in
 [common/Projection.jl](../program/src/common/Projection.jl) and supplies
-`nothing` and a fresh `ProjectionContext()`. The editor uses this.
+`nothing` and a fresh `PrinterContext()`. The editor uses this.
 
 **Wiring the selection.** The output document's `selection::Cell` is not a
 parameter — it is computed reactively. The canonical form maps the input

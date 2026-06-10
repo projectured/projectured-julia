@@ -137,7 +137,7 @@ function _mvp_test_reactive_thunk()
         c = ConversationConversation()
         push!(c, ConversationUserMessage("first"))
         proj = RecursiveProjection(ConversationToWidget())
-        io = projection_print(proj, c, proj, ProjectionContext())
+        io = projection_print(proj, c, proj, PrinterContext())
         @test io.output isa WidgetComposite
         n0 = length(io.output.elements)
         # Load-bearing: pushing a new message must show up in the
@@ -148,7 +148,7 @@ function _mvp_test_reactive_thunk()
         # Same thunk treatment for assistant message blocks.
         reply = ConversationAssistantMessage(stop_reason = :end_turn)
         push!(c, reply)
-        io2 = projection_print(proj, c, proj, ProjectionContext())
+        io2 = projection_print(proj, c, proj, PrinterContext())
         reply_widget = io2.output.elements[end]
         b0 = length(reply_widget.elements)
         push!(reply, ConversationTextBlock("delta"))

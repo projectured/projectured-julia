@@ -42,7 +42,7 @@ import ..ColorModule: color_default,
 import ..SyntaxModule: SyntaxDocument, SyntaxLeaf, SyntaxNode
 import ..TypeDispatchingModule: TypeDispatchingProjection
 import ..IoMapModule: SimpleIoMap
-import ..ProjectionContextModule: child_context
+import ..PrinterContextModule: child_context
 
 export ConversationConversationToSyntaxNode,
        ConversationUserMessageToSyntaxNode,

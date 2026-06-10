@@ -201,7 +201,7 @@ end
 
 import ..TypeDispatchingModule: TypeDispatchingProjection
 import ..ReferenceModule: ProjectionReference
-import ..ProjectionContextModule: child_context
+import ..PrinterContextModule: child_context
 
 """
     PrimitiveToSyntax()

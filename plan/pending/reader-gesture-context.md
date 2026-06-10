@@ -1,4 +1,4 @@
-# Make the originating gesture available to every projection reader
+# Make the reader symmetric with the printer: a `Change` flows backward
 
 Right now a projection reader sees **either** the raw input event **or** a
 backward-mapped operation — never both. The reader chain in
@@ -10,169 +10,264 @@ So by the time a click-derived `ReplaceSelectionOperation` reaches
 `SyntaxToText` on the backward walk, the original `MousePress` (and its
 modifiers) is gone.
 
-This plan adds the missing capability: **the originating gesture should ride
-through the whole reader chain alongside the operation**, so any reader can
-inspect *what the user did* while transforming *what it means*. It is the
-prerequisite for finishing the mouse side of tree navigation — see
+The fix is not a side-channel argument — it is to make the **reader's unit
+symmetric with the printer's**. The printer transforms a *document*; the reader
+transforms a *change*. A change is a first-class object carrying **both** the
+originating **gesture** (invariant — the raw input, constant through the chain)
+**and** the **operation** (the part that gets produced and transformed). Any
+reader, anywhere in the pipeline, can then inspect *what the user did* while
+transforming *what it means*. This is the prerequisite for finishing the mouse
+side of tree navigation — see
 [`finish-syntax-tree-navigation.md`](finish-syntax-tree-navigation.md).
 
-## Why — what the Lisp original does
+## The decided interface
+
+Both halves of a projection take the same shape — `(projection, recursion,
+payload, context)` — differing only in what flows and what the context is:
+
+```julia
+projection_print(projection, recursion, document, context::PrinterContext) -> IoMap
+projection_read (projection, recursion, change,   context::IoMap)          -> Change
+```
+
+| arg / role | Forward (`projection_print`) | Backward (`projection_read`) |
+|---|---|---|
+| payload (3rd) | the **document** (transformed value) | the **change** (transformed delta) |
+| context (4th) | **`PrinterContext`** — where input sits + layout | the **`IoMap`** — the correspondence built by the printer |
+| returns | an **`IoMap`** (output document + child iomaps) | a **`Change`** (operation filled in / re-mapped, gesture kept) |
+| flows step→step | `iomap.output` (the next document) | the `Change` (the next-domain delta) |
+
+The `IoMap` is the **pivot**, not a unit: built on the forward pass, consumed on
+the backward pass. The document↔change pair are the duals; the iomap stands
+outside that pair as the shared scaffold both lean on (the bidirectional-lens
+fact that `get`/print establishes the correspondence and `put`/read reuses it).
+
+### `Change` — the backward payload
+
+```julia
+struct Change
+    gesture     # invariant cause; constant through the chain (may be the raw event for now)
+    operation   # current-domain delta; `nothing` until a reader fills it in
+end
+```
+
+- The read **starts from `Change(gesture, nothing)`** — the gesture wrapped in a
+  do-nothing operation (Lisp's `make-nothing-command`,
+  [`command.lisp:30`](../../../projectured-lisp/source/editor/command.lisp#L30)).
+- A reader that acts returns a **fresh** `Change` that **keeps the gesture** and
+  swaps in a real operation (Lisp's `clone-command`,
+  [`command.lisp:33-35`](../../../projectured-lisp/source/editor/command.lisp#L33-L35)).
+- A reader with nothing to say returns the change **unchanged** (still
+  `operation === nothing`) — the nothing-change passes through.
+- `read!` reads back `change.operation` at the boundary.
+
+The `gesture` field initially just holds the existing event structs the backend
+already produces (`MousePress`, `KeyDown`, …; clicks are already synthesised in
+[`Sdl.jl`](../../program/src/backend/Sdl.jl) → `MousePress`). A dedicated
+`Gesture` type unifying them (mirroring Lisp's `gesture/*` classes,
+[`gesture.lisp:12-48`](../../../projectured-lisp/source/editor/gesture.lisp#L12-L48))
+can come later — it is not required here.
+
+### Context rename: `ProjectionContext` → `PrinterContext`
+
+The forward context type is renamed for symmetry — it is the **printer's**
+context (the reader's context is the `IoMap`). Rename the struct and its module
+in [`ProjectionContext.jl`](../../program/src/context/ProjectionContext.jl)
+(`ProjectionContext` → `PrinterContext`, `ProjectionContextModule` →
+`PrinterContextModule`) and update every import/usage. Behaviour is unchanged;
+this is a mechanical rename. The reader context keeps the name `IoMap` (it is the
+printer's output record; "ReaderContext" would lose that meaning) — the symmetry
+is in the **slot and role**, not the type name.
+
+## Why this is the symmetric design — what the Lisp original does
 
 In ProjecturEd-Lisp the unit that flows through the reader chain is a
-**command**, not a bare operation:
+**command**, not a bare operation
+([`command.lisp:12-18`](../../../projectured-lisp/source/editor/command.lisp#L12-L18)),
+and the printer/reader signatures are deliberately parallel:
 
 ```lisp
-(def class* command ()
-  ((gesture :type gesture)        ; the raw input — constant through the chain
-   (operation :type operation)    ; what to do — filled in / transformed
-   (domain ...) (description ...) (icon ...) (accessible ...)))
+(printer -projection- -recursion- -input- -input-reference-)  ; -> iomap
+(reader  -projection- -recursion- -input- -printer-iomap-)    ; -> command
 ```
-([`command.lisp:12-18`](../../../projectured-lisp/source/editor/command.lisp#L12-L18))
+([`printer.lisp:17`](../../../projectured-lisp/source/editor/printer.lisp#L17),
+[`reader.lisp:17`](../../../projectured-lisp/source/editor/reader.lisp#L17))
 
-The read starts from `make-nothing-command(gesture)` — the gesture wrapped in
-a "Does nothing" operation ([`command.lisp:30`](../../../projectured-lisp/source/editor/command.lisp#L30)).
-Every reader receives that command as `-input-` and exposes
-`-gesture- = (gesture-of -input-)` ([`reader.lisp:19-21`](../../../projectured-lisp/source/editor/reader.lisp#L19-L21)).
-A reader that acts returns a **fresh** command via `clone-command`, which
-**keeps the gesture** and only swaps in a real operation
-([`command.lisp:33-35`](../../../projectured-lisp/source/editor/command.lisp#L33-L35)).
-`merge-commands` then picks the first command carrying a real operation
+Every reader exposes `-gesture- = (gesture-of -input-)`
+([`reader.lisp:19-21`](../../../projectured-lisp/source/editor/reader.lisp#L19-L21)),
+so the gesture is a **constant context available at every layer** while the
+operation is the part produced and mapped. `merge-commands` picks the first
+command carrying a real operation
 ([`command.lisp:46-59`](../../../projectured-lisp/source/editor/command.lisp#L46-L59)).
-
-Net effect: the gesture is a **constant context** available at every layer;
-the operation is the part that gets produced and mapped. That is exactly the
-piece the Julia pipeline lacks. Concretely it lets the syntax reader do things
-like ([`syntax-to-text.lisp:1236-1246`](../../../projectured-lisp/source/projection/primitive/syntax-to-text.lisp#L1236-L1246)):
+Concretely it lets the syntax reader do
+([`syntax-to-text.lisp:1236-1246`](../../../projectured-lisp/source/projection/primitive/syntax-to-text.lisp#L1236-L1246)):
 
 ```lisp
-(if (and (typep -gesture- 'gesture/mouse/click)        ; raw gesture
+(if (and (typep -gesture- 'gesture/mouse/click)         ; raw gesture
          (typep operation 'operation/replace-selection) ; backward-mapped op
-         (equal (selection-of operation) selection))    ; current selection
+         (equal (selection-of operation) selection))     ; current selection
     (promote-to-whole-node)
     operation)
 ```
 
-## The Julia structural constraint
+The Julia port adds the one thing the pipeline lacks (the gesture) by adopting
+the whole symmetric shape rather than smuggling it.
 
-Lisp has **one reader per projection** and inspects gesture/operation
-*inside* it (`gesture-case`, `reference-case`). Julia uses **multiple
-dispatch on the operation's type**:
-`projection_read(p, iomap, op::ReplaceSelectionOperation)`,
-`projection_read(p, iomap, evt::KeyDown)`, etc. That difference is what makes
-the port a real design choice, captured as the two options below.
+## What changes, concretely
 
-Reference points in the current Julia code:
-- Top-level entry: `read!` passes the event into the pipeline reader and reads
-  back `editor.operation` ([`Editor.jl:72-91`](../../program/src/editor/Editor.jl#L72-L91)).
-  (The `EventEnvelope` is unwrapped to a raw event upstream at the screen layer —
-  [`Copying.jl:271-292`](../../program/src/projection/generic/Copying.jl#L271-L292).)
-- The default reader handles `ReplaceSelectionOperation` / `ToggleCollapseOperation`
-  and returns `nothing` otherwise ([`Projection.jl:69-81`](../../program/src/common/Projection.jl#L69-L81)).
-- Transparent wrappers forward whatever they get:
-  [`Recursive.jl:45-47`](../../program/src/projection/higherorder/Recursive.jl#L45-L47),
-  [`TypeDispatching.jl:56-63`](../../program/src/projection/higherorder/TypeDispatching.jl#L56-L63).
+1. **`Change` type + `PrinterContext` rename** as above.
 
----
-
-## Option A — literal command wrapper (most faithful)
-
-Introduce a `Command{gesture, operation}` and flow it through the reader chain,
-mirroring Lisp 1:1.
-
-- New `struct Command; gesture; operation; end` (operation may be `nothing`).
-- `read!` seeds `Command(event, nothing)`; after the read it uses
-  `command.operation`.
-- `projection_read(projection, iomap, cmd::Command) -> Command` everywhere; each
-  reader inspects `cmd.gesture` and/or `cmd.operation` and returns a `Command`
-  with the gesture preserved.
-
-**Cost.** Julia readers stop dispatching on operation type — every
-`projection_read(p, iomap, op::SomeOp)` becomes one `cmd::Command` method with
-an internal `if cmd.operation isa …` / `if cmd.gesture isa …` ladder. That is a
-large, cross-cutting rewrite of every projection's reader and discards the
-multiple-dispatch structure the codebase is built on. It also changes the
-`read!` boundary (unwrap `.operation`).
-
-**Pro.** Exactly the original architecture; `merge-commands`-style composition
-and per-command metadata (domain/description, useful later for a command
-palette / context help — cf. [`gesture-help.md`](../tentative/gesture-help.md))
-become natural.
-
-## Option B — thread the gesture as reader context (keeps dispatch)
-
-Keep operation-type dispatch; pass the originating gesture as an extra,
-optional argument that is available to any reader that wants it.
-
-1. Generic fallback so existing readers are untouched
-   ([`Projection.jl`](../../program/src/common/Projection.jl)):
+2. **Editor boundary** ([`Editor.jl:72-91`](../../program/src/editor/Editor.jl#L72-L91)).
+   Seed `Change(gesture, nothing)` and read back `.operation`:
    ```julia
-   projection_read(p, iomap, op, gesture) = projection_read(p, iomap, op)
+   change = projection_read(editor.projection, editor.projection,
+                            Change(gesture, nothing), editor.iomap)
+   change.operation isa Operation && (editor.operation = change.operation; return true)
    ```
-2. `Sequential` threads it through the **backward** walk only (the forward/while
-   phase already passes the raw event, so keyboard handling is unchanged):
+   The `EventEnvelope` (window_id + event) is a transport wrapper handled at the
+   screen layer: `CopyingProjection` keeps routing by `window_id`, and the point
+   where it currently unwraps `env.event`
+   ([`Copying.jl:292`](../../program/src/projection/generic/Copying.jl#L292))
+   becomes where it seeds `Change(env.event, nothing)` for the inner content
+   reader. From a window's content inward the gesture is invariant.
+
+3. **`Sequential`** ([`Sequential.jl:78-92`](../../program/src/projection/higherorder/Sequential.jl#L78-L92))
+   threads **one `Change`** through both phases, which *removes* today's
+   event-vs-operation asymmetry:
    ```julia
-   op = projection_read(seq.projections[i], iomap.step_iomaps[i], op, event)
+   function projection_read(seq::SequentialProjection, recursion, change::Change, iomap::SequentialProjectionIoMap)
+       n = length(seq.projections); i = n
+       out = projection_read(seq.projections[n], recursion, change, iomap.step_iomaps[n])
+       while out.operation === nothing && i > 1            # search last→first for the converter
+           i -= 1
+           out = projection_read(seq.projections[i], recursion, change, iomap.step_iomaps[i])
+       end
+       out.operation === nothing && return change          # nothing-change passes through
+       for j in (i-1):-1:1                                  # translate inward
+           out = projection_read(seq.projections[j], recursion, out, iomap.step_iomaps[j])
+           out.operation === nothing && return change
+       end
+       return out
+   end
    ```
-   Add a 4-arg `Sequential` method too, for nested sequentials.
-3. `Recursive` / `TypeDispatching` gain 4-arg forwarders so the gesture reaches
-   the leaf projection.
-4. A reader that needs it overrides the 4-arg form, e.g.
-   `projection_read(p::SyntaxNodeToText, iomap, op::ReplaceSelectionOperation, gesture)`.
+   The gesture is constant for free — it is a field of the threaded `Change`, not
+   a separate argument every combinator must remember to forward.
 
-**Cost.** A handful (~5) of contained method additions; one extra argument on a
-seldom-overridden path. The `read!` boundary and return type are unchanged.
+4. **`recursion` becomes load-bearing for the reader too.** `Recursive` passes
+   itself as `recursion` (mirroring its printer,
+   [`Recursive.jl:38-47`](../../program/src/projection/higherorder/Recursive.jl#L38-L47)):
+   ```julia
+   projection_read(rp::RecursiveProjection, recursion, change::Change, iomap) =
+       projection_read(rp.child, rp, change, iomap)
+   ```
+   A node reader that descends into a child then recurses via
+   `projection_read(recursion, recursion, child_change, child_iomap)` — re-entering
+   the whole pipeline (`Recursive`→`TypeDispatching`) exactly as the printer does,
+   instead of reaching into the child iomap's stored projection
+   ([`Copying.jl:282`](../../program/src/projection/generic/Copying.jl#L282)).
+   `TypeDispatching`
+   ([`TypeDispatching.jl:56-63`](../../program/src/projection/higherorder/TypeDispatching.jl#L56-L63))
+   forwards `recursion` + `change` and returns the nothing-change when no branch
+   matches.
 
-**Pro.** Idiomatic Julia; preserves multiple dispatch; minimal blast radius.
+5. **Printer argument reorder** so both halves read `(projection, recursion,
+   payload, context)`. Every `projection_print(p, input, recursion, ctx)` becomes
+   `projection_print(p, recursion, input, ctx)`. Pure mechanical churn, no
+   behaviour change — best done as one isolated sweep (its own phase below).
+   Provide a 3-arg `projection_read(p, change, iomap)` convenience supplying
+   `recursion = nothing`, mirroring the existing 2-arg `projection_print(p, input)`.
 
-**Con vs A.** No first-class `Command` object, so the metadata/`merge-commands`
-machinery is not gained here (can be added later independently if a command
-palette is ever wanted).
+## Migration: keeping multiple dispatch under the symmetric façade
 
----
+The public interface dispatches on `change::Change` (one type), so the per-
+operation-type method dispatch the codebase uses today does not come for free.
+Recover it with a **default that fans out on the change's parts**, so existing
+readers migrate mechanically:
 
-## Recommendation
+```julia
+# Symmetric default for any Projection: re-dispatch on operation (+ gesture),
+# re-wrap keeping the gesture. Lives in ProjectionModule, replacing Projection.jl:69-81.
+function projection_read(p::Projection, recursion, change::Change, iomap)
+    op = projection_read(p, recursion, change.gesture, change.operation, iomap)
+    return Change(change.gesture, op)
+end
 
-**Option B**, unless we specifically want the `Command` object for a future
-command-palette / context-help feature. B delivers the only thing the tree-nav
-work needs — *the gesture available in the reader* — at a fraction of the churn.
-**This is the open decision (the user is undecided).**
+# 5-arg fan-out: default ignores the gesture and keeps today's op-typed methods.
+projection_read(p, recursion, gesture, operation, iomap) =
+    projection_read(p, recursion, operation, iomap)
+```
 
-## Payoff once either lands
+- A projection that only re-maps selections needs **no reader** — the default's
+  `ReplaceSelectionOperation` / `ToggleCollapseOperation` handling
+  ([`Projection.jl:69-81`](../../program/src/common/Projection.jl#L69-L81)) moves
+  into this method unchanged.
+- An existing op-typed reader keeps its body and only gains the `recursion` arg:
+  `projection_read(p::Foo, recursion, op::SomeOp, iomap)`.
+- A **gesture-aware** reader overrides the 5-arg form for its op type — this is
+  Lisp's `gesture-case`, expressed through Julia dispatch:
+  ```julia
+  projection_read(p::SyntaxNodeToText, recursion, g::MousePress, op::ReplaceSelectionOperation, iomap) = …
+  ```
+- The graphics-layer readers that today dispatch on a raw event (e.g.
+  `TextToGraphics`'s `MousePress` handler) become the
+  `operation === nothing` + gesture-typed converters — the explicit
+  gesture→operation step at the chain's outer end.
 
-With the gesture reachable in `SyntaxToText`, the ad-hoc carrier can go away:
+This honours the symmetric public contract while leaving the multiple-dispatch
+structure the codebase is built on intact.
+
+## Phasing
+
+Each phase compiles and tests green on its own:
+
+1. **Rename** `ProjectionContext` → `PrinterContext` (mechanical, isolated).
+2. **Reorder** printer args to `(projection, recursion, input, ctx)` (mechanical,
+   no behaviour change).
+3. **Introduce `Change`** + the symmetric reader signature + the fan-out default;
+   thread it through `Sequential` / `Recursive` / `TypeDispatching` / `Copying`
+   and the `read!` boundary. Existing readers gain `recursion`; behaviour
+   unchanged because no reader consults the gesture yet.
+4. **Consume the gesture** in `SyntaxToText` and finish mouse tree-nav (the
+   sibling plan), removing the ad-hoc carriers below.
+
+## Payoff once phase 3 lands
 
 - The `from_click::Bool` flag on `ReplaceSelectionOperation`
   ([`Operation.jl:35-61`](../../program/src/common/Operation.jl#L35-L61)) — today
   the only way click-ness reaches the syntax layer — collapses to a direct
-  `gesture isa MousePress` check, exactly Lisp's `(typep -gesture- 'gesture/mouse/click)`.
-  Its sole consumer is the marker-toggle disambiguation in `SyntaxToText`'s
-  `ReplaceSelectionOperation` reader.
-- The mouse half of tree navigation can move entirely into `SyntaxToText`
+  `change.gesture isa MousePress` check, exactly Lisp's
+  `(typep -gesture- 'gesture/mouse/click)`. Its sole consumer is the marker-toggle
+  disambiguation in `SyntaxToText`'s `ReplaceSelectionOperation` reader.
+- The mouse half of tree navigation moves entirely into `SyntaxToText`
   (see the sibling plan).
+- Per-`Change` metadata (`domain`/`description`/`icon`, the command-palette /
+  context-help fields Lisp's `command` carries) can be added as fields later
+  **without touching the interface** — cf.
+  [`gesture-help.md`](../tentative/gesture-help.md).
 
 ## Testing
 
 - `test_cell()` is unaffected; the change is in the reader plumbing.
-- Reader/selection/repl coverage is what exercises this: `test_reader(json_example)`,
+- Reader/selection/repl coverage exercises this: `test_reader(json_example)`,
   `test_selection(json_example)`, `test_repl(json_example)`, plus
   `test_text_to_graphics()`. Click round-trips:
   [`ClickRoundtripTest.jl`](../../test/src/editor/ClickRoundtripTest.jl),
   [`MouseClickTest.jl`](../../test/src/editor/MouseClickTest.jl).
 - Broad sweeps (`test_readers()` / `test_selections()` / `test_repls()`) only as a
   final check — per [`CLAUDE.md`](../../CLAUDE.md).
-- For Option B specifically, add a focused test that a click-derived
-  `ReplaceSelectionOperation` reaches a 4-arg `SyntaxNodeToText` reader carrying
-  the `MousePress` gesture.
+- Phase 4 test: a click-derived `ReplaceSelectionOperation` reaches the
+  `SyntaxNodeToText` reader carrying the `MousePress` in `change.gesture`.
 
-## Open decisions
+## Open questions
 
-1. **A (command wrapper) vs B (threaded gesture context).** Undecided.
-   Recommendation: B.
-2. If B: extra **positional** arg (chosen above, plays well with dispatch) vs a
-   keyword arg (awkward with multiple dispatch — rejected unless a reason emerges).
-3. Whether to also **remove `from_click`** as part of this change or in the
-   tree-navigation finish plan (it is listed there to keep this plan
-   mechanism-only).
+1. **Type name `Change` vs `Command`.** `Change` matches the document↔change
+   framing; `Command` matches Lisp and reads better once the palette metadata is
+   added. Recommendation: `Change` now, revisit if/when metadata fields land.
+2. **Reader `recursion` vs deriving it from the iomap.** Included for symmetry and
+   to give node readers the same recursion handle the printer has (§4); the child
+   iomap's stored projection could serve instead. Recommendation: include it.
+3. **Remove `from_click`** in this change or in the tree-navigation finish plan.
+   Listed in *Payoff* but mechanically belongs with phase 4.
 
 ## Relationship to other plans
 

@@ -20,7 +20,7 @@ import ..TextModule: TextText, TextDocument, TextString, TextNewline, TextGraphi
 import ..ReactiveModule: Cell
 import ..CollectionModule: CellVector
 import ..IoMapApiModule: IoMap
-import ..ProjectionContextModule: ProjectionContext
+import ..PrinterContextModule: PrinterContext
 import ..ReferenceModule: ConcreteReferencePath, RangeReference, FieldReference, EmptyReferencePath, ReferencePath
 import ..ReferenceCaseModule: var"@reference_case"
 import ..ReferenceBuilderModule: var"@reference"
@@ -85,7 +85,7 @@ function projection_print(p::WordWrapping, text::TextText, recursion, ctx)
 end
 
 function _wrap_width_cell(p::WordWrapping, ctx)
-    if ctx isa ProjectionContext && ctx.available_width !== nothing
+    if ctx isa PrinterContext && ctx.available_width !== nothing
         aw = ctx.available_width
         fallback = p.max_width
         return Cell(() -> begin

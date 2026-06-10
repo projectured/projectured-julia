@@ -20,7 +20,7 @@ import ..KeyboardModule: KeyDown, KeyUp, KeyPress
 import ..MouseModule: MouseDown, MouseUp, MousePress, MouseMove, MouseScroll
 import ..ImageModule: ImageFile
 import ..ProjectionApiModule: projection_print, Projection
-import ..ProjectionContextModule: ProjectionContext
+import ..PrinterContextModule: PrinterContext
 import ..ReactiveModule: Cell
 import ..ReferenceModule: EmptyReferencePath
 import ..IoMapModule: SimpleIoMap
@@ -786,7 +786,7 @@ function write_image(document, projection, filename::AbstractString;
                      width::Integer = 800,
                      height::Integer = 600,
                      background::NTuple{4,UInt8} = (0xfd, 0xf6, 0xe3, 0xff))
-    ctx = ProjectionContext(EmptyReferencePath(),
+    ctx = PrinterContext(EmptyReferencePath(),
                             Cell(Int(width)), Cell(Int(height)),
                             Dict{Symbol,Any}())
     iomap = projection_print(projection, document, nothing, ctx)

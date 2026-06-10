@@ -55,7 +55,7 @@ the new outputs in place. Key behaviours:
   spine.
 
 The CopyingProjection's IoMap also stores `recursion` and `base_ctx`
-(the `ProjectionContext`) so it can lazily project a ListNode child on demand
+(the `PrinterContext`) so it can lazily project a ListNode child on demand
 when a backward reference points there.
 
 ## ReversingProjection

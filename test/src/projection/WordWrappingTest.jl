@@ -62,7 +62,7 @@ m = _test_measure(10, 18)
 # Construct with a generous max_width fallback; the context value should win.
 proj = WordWrapping(max_width=10_000, measure=m)
 avail = Cell(60)  # 60px ≈ 6 chars per line
-ctx = with_available_size(ProjectionContext(); width=avail)
+ctx = with_available_size(PrinterContext(); width=avail)
 iomap = projection_print(proj, input, nothing, ctx)
 out = iomap.output
 

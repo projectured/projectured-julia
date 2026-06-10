@@ -14,7 +14,7 @@ import ..ReactiveModule: Cell
 import ..IoMapModule: SimpleIoMap
 import ..TypeDispatchingModule: TypeDispatchingProjection
 import ..ReferenceModule: ConcreteReferencePath, ElementReference, PositionReference, RangeReference, FieldReference, EmptyReferencePath, append_reference
-import ..ProjectionContextModule: child_context
+import ..PrinterContextModule: child_context
 export TextTextToString, TextStringToString, TextNewlineToString, TextToString
 
 # ── TextStringToString ───────────────────────────────────────────────────────

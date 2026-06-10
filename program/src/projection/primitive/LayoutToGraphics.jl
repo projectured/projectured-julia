@@ -32,7 +32,7 @@ import ..MouseModule: MouseScroll, MousePress
 import ..ReferenceModule: ConcreteReferencePath, FieldReference, RangeReference
 import ..TypeDispatchingModule: TypeDispatchingProjection
 import ..ReferenceBuilderModule: var"@reference"
-import ..ProjectionContextModule: child_context, with_available_size
+import ..PrinterContextModule: child_context, with_available_size
 export HorizontalLayoutToGraphicsCanvas, VerticalLayoutToGraphicsCanvas,
        GridLayoutToGraphicsCanvas, FlowLayoutToGraphicsCanvas,
        LayoutConstraintToGraphicsCanvas,

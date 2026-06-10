@@ -39,7 +39,7 @@ import ..OperationModule: ReplaceSelectionOperation
 import ..PrimitiveModule: StringReplaceRangeOperation, NumberReplaceRangeOperation
 import ..ReferenceModule: ReferencePath, ConcreteReferencePath, FieldReference, RangeReference
 import ..TypeDispatchingModule: TypeDispatchingProjection
-import ..ProjectionContextModule: child_context, with_available_size
+import ..PrinterContextModule: child_context, with_available_size
 import ..LayoutModule: LayoutConstraint, allocate_axis, layout_min, layout_max,
                        layout_preferred, layout_weight
 export WidgetLabelToGraphicsCanvas, WidgetTextToGraphicsCanvas,

@@ -17,7 +17,7 @@ import ..ColorModule: StyleColor, color_default, color_solarized_gray
 import ..IoMapModule: SimpleIoMap, ChildrenIoMap
 import ..ReferenceModule: ConcreteReferencePath, ElementReference, FieldReference, RangeReference, ReferencePath, append_reference
 import ..ReferenceBuilderModule: var"@reference"
-import ..ProjectionContextModule: child_context
+import ..PrinterContextModule: child_context
 import ..TypeDispatchingModule: TypeDispatchingProjection
 import ..CopyingProjectionModule: CopyingProjection
 import ..OperationModule: ReplaceSelectionOperation

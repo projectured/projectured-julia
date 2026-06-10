@@ -14,7 +14,7 @@ import ..CollectionModule: CellVector
 import ..ReferenceModule: ConcreteReferencePath, ElementReference, PositionReference, RangeReference, append_reference
 import ..ReferenceCaseModule: var"@reference_case"
 import ..ReferenceBuilderModule: var"@reference"
-import ..ProjectionContextModule: child_context
+import ..PrinterContextModule: child_context
 import ..PreservingProjectionModule: PreservingProjection
 export SortingProjection, SortingProjectionIoMap
 

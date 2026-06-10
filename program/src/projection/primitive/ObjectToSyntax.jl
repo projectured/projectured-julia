@@ -19,7 +19,7 @@ import ..SyntaxModule: SyntaxDocument, SyntaxLeaf, SyntaxNode
 import ..TypeDispatchingModule: TypeDispatchingProjection
 import ..IoMapModule: SimpleIoMap
 import ..ReferenceModule: ConcreteReferencePath, ElementReference, PositionReference, RangeReference, FieldReference, EmptyReferencePath, append_reference
-import ..ProjectionContextModule: ProjectionContext, child_context, with_property, get_property
+import ..PrinterContextModule: PrinterContext, child_context, with_property, get_property
 import ..SyntaxToTextModule: SyntaxToText
 import ..TextToStringModule: TextToString
 import ..SequentialProjectionModule: SequentialProjection
@@ -332,7 +332,7 @@ function print_object(obj; include_selection=false, open_delimiter="", close_del
         RecursiveProjection(SyntaxToText()),
         RecursiveProjection(TextToString())
     )
-    iomap = projection_print(seq, obj, seq, ProjectionContext())
+    iomap = projection_print(seq, obj, seq, PrinterContext())
     return iomap.output[]
 end
 

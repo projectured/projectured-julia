@@ -26,7 +26,7 @@ include("common/IoMap.jl")
 include("reference/Reference.jl")
 include("reference/ReferenceCase.jl")
 include("reference/ReferenceBuilder.jl")
-include("context/ProjectionContext.jl")
+include("context/PrinterContext.jl")
 include("common/Operation.jl")
 include("document/Collection.jl")
 include("document/Font.jl")
@@ -162,7 +162,7 @@ using .ReferenceModule: ConcreteReferencePath, ElementReference, PositionReferen
                        is_valid_reference, evaluate_reference, append_reference, collect_references,
                        is_element_reference, is_position_reference, is_range_reference,
                        reference_equal, is_prefix_of
-using .ProjectionContextModule: ProjectionContext, child_context, with_available_size,
+using .PrinterContextModule: PrinterContext, child_context, with_available_size,
                                  with_property, get_property
 using .DocumentApiModule: set_selection!, clear_selection!
 using .OperationModule: ReplaceSelectionOperation, QuitEditorOperation, replace_selection!,
@@ -364,7 +364,7 @@ export ConcreteReferencePath, ElementReference, PositionReference, RangeReferenc
        is_valid_reference, evaluate_reference, append_reference, collect_references,
        is_element_reference, is_position_reference, is_range_reference,
        reference_equal, is_prefix_of
-export ProjectionContext, child_context, with_available_size, with_property, get_property
+export PrinterContext, child_context, with_available_size, with_property, get_property
 export set_selection!, clear_selection!, replace_selection!
 export @reference_case, when, prefix
 export @event_case

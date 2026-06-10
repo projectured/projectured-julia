@@ -76,7 +76,7 @@ tt = TextText()
 tt.elements = node
 
 p = TextToGraphics(measure=_test_measure(10, 20))
-iomap = projection_print(p, tt, PreservingProjection(), ProjectionContext())
+iomap = projection_print(p, tt, PreservingProjection(), PrinterContext())
 canvas = iomap.output
 
 # Top-level canvas has ListNode elements, layout_vertical, non-overlapping
@@ -127,7 +127,7 @@ tt = TextText()
 tt.elements = node
 
 p = TextToGraphics(measure=_test_measure(10, 20))
-iomap = projection_print(p, tt, PreservingProjection(), ProjectionContext())
+iomap = projection_print(p, tt, PreservingProjection(), PrinterContext())
 
 # The first paragraph collects spans until it finds the TextNewline,
 # walking past it forces node2.next thunk to find where para 2 starts

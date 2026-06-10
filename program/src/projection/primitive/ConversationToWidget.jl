@@ -45,7 +45,7 @@ import ..ReferenceModule: ReferencePath, ConcreteReferencePath, ElementReference
                           FieldReference, append_reference
 import ..ReferenceBuilderModule: var"@reference"
 import ..TypeDispatchingModule: TypeDispatchingProjection
-import ..ProjectionContextModule: child_context
+import ..PrinterContextModule: child_context
 
 export ConversationConversationToWidgetComposite,
        ConversationUserMessageToWidgetComposite,

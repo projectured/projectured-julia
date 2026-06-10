@@ -151,7 +151,7 @@ import ..SequentialProjectionModule: SequentialProjection
 import ..IoMapModule: SimpleIoMap, ChildrenIoMap
 import ..ReferenceModule: ConcreteReferencePath, ElementReference, FieldReference,
                            PositionReference, ReferencePath, EmptyReferencePath
-import ..ProjectionContextModule: ProjectionContext, child_context
+import ..PrinterContextModule: PrinterContext, child_context
 import ..ReferenceCaseModule: var"@reference_case"
 import ..ReferenceBuilderModule: var"@reference"
 import ..OperationModule: ReplaceSelectionOperation
@@ -354,7 +354,7 @@ function test_bookmark_to_syntax()
     entry = BookmarkEntry("Julia", "https://julialang.org")
     iomap = projection_print(BookmarkEntryToSyntaxNode(), entry,
                              PreservingProjection(),
-                             Projectured.ProjectionContextModule.ProjectionContext())
+                             Projectured.PrinterContextModule.PrinterContext())
     node = iomap.output
     @test node isa SyntaxNode
     # two children: title leaf and url leaf

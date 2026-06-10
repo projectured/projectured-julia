@@ -18,7 +18,7 @@ import ..ReferenceModule: ReferencePath, EmptyReferencePath, ConcreteReferencePa
                           FieldReference, PositionReference, RangeReference,
                           ElementReference, append_reference, is_element_reference, head, tail
 import ..ReferenceBuilderModule: var"@reference"
-import ..ProjectionContextModule: ProjectionContext, child_context, with_available_size
+import ..PrinterContextModule: PrinterContext, child_context, with_available_size
 import ..CollectionModule: CellVector, ListNode
 import ..IoMapApiModule: IoMap
 import ..OperationApiModule: Operation
@@ -40,7 +40,7 @@ struct CopyingProjectionIoMap <: IoMap
     children::Any        # Vector of child iomaps (CellVector/struct) or nothing (ListNode)
     field_names::Any     # Vector{String} for struct; nothing otherwise
     recursion::Any       # stored for lazy ListNode reference mapping
-    base_ctx::Any        # stored ProjectionContext for lazy ListNode reference mapping
+    base_ctx::Any        # stored PrinterContext for lazy ListNode reference mapping
 end
 
 # ── Helpers ───────────────────────────────────────────────────────────────

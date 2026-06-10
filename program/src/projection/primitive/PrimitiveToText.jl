@@ -25,7 +25,7 @@ import ..ReferenceBuilderModule: var"@reference"
 import ..OperationModule: ReplaceSelectionOperation
 import ..KeyboardModule: KeyDown, KeyPress
 import ..TypeDispatchingModule: TypeDispatchingProjection
-import ..ProjectionContextModule: child_context
+import ..PrinterContextModule: child_context
 export PrimitiveBoolToText, PrimitiveNumberToText, PrimitiveStringToText, PrimitiveToText
 
 # Forward: .value[k] on the primitive → .elements[1].content[k] on the TextText.

@@ -11,7 +11,7 @@ import ..IoMapModule: SimpleIoMap, ChildrenIoMap
 import ..ReactiveModule: Cell
 import ..ReferenceModule: ConcreteReferencePath, ElementReference, PositionReference, RangeReference, append_reference
 import ..ReferenceCaseModule: var"@reference_case"
-import ..ProjectionContextModule: child_context
+import ..PrinterContextModule: child_context
 import ..PreservingProjectionModule: PreservingProjection
 export ReversingProjection
 

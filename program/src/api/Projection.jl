@@ -38,7 +38,7 @@ Subtype this to register with the default `map_reference_forward`,
 abstract type Projection end
 
 """
-    projection_print(projection, input, recursion, context::ProjectionContext) -> iomap
+    projection_print(projection, input, recursion, context::PrinterContext) -> iomap
 
 Forward half of a projection: transform `input` from this projection's input
 domain into its output domain. Returns an `IoMap` recording `projection`,
@@ -60,12 +60,12 @@ recurses. Each concrete projection adds a method; compound projections such as
   Passing `projection` or `nothing` in either slot silently breaks
   heterogeneous recursion. The 2-arg overload `projection_print(p, input)`
   supplies `nothing`.
-- `context::ProjectionContext` — downward-flowing per-invocation data: a
+- `context::PrinterContext` — downward-flowing per-invocation data: a
   `reference` path locating `input` relative to the document root, plus
   optional layout extent (`available_width`/`available_height`) and an
   extensible `properties` Dict. Extend it for a child with
   `child_context(ctx, step…)` (or `child_context(ctx, full_path)`) before
-  recursing; the top level passes a fresh `ProjectionContext()`.
+  recursing; the top level passes a fresh `PrinterContext()`.
 
 # Implementing a printer
 1. Build the output document from `input`.

@@ -139,7 +139,7 @@ end
 # ── CollectionToSyntax (composite) ───────────────────────────────────────────
 
 import ..TypeDispatchingModule: TypeDispatchingProjection
-import ..ProjectionContextModule: child_context
+import ..PrinterContextModule: child_context
 
 """
     CollectionToSyntax()

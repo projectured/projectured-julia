@@ -21,14 +21,14 @@ import ..ProjectionApiModule: projection_print, projection_read, map_reference_f
 import ..OperationModule: ReplaceSelectionOperation, ToggleCollapseOperation
 import ..ReactiveModule: Cell
 import ..ReferenceModule: EmptyReferencePath
-import ..ProjectionContextModule: ProjectionContext
+import ..PrinterContextModule: PrinterContext
 import ..ReferenceCaseModule: var"@reference_case"
 import ..ReferenceBuilderModule: var"@reference"
 
 export @projection
 
 function projection_print(projection, input)
-    projection_print(projection, input, nothing, ProjectionContext())
+    projection_print(projection, input, nothing, PrinterContext())
 end
 
 """

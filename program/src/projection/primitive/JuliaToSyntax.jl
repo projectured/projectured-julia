@@ -36,7 +36,7 @@ import ..IoMapApiModule: IoMap
 import ..ReferenceModule: ConcreteReferencePath, ElementReference, PositionReference, RangeReference,
                           FieldReference, ProjectionReference, ReferencePath, EmptyReferencePath, append_reference
 import ..ReferenceBuilderModule: var"@reference"
-import ..ProjectionContextModule: child_context
+import ..PrinterContextModule: child_context
 import ..OperationModule: ReplaceSelectionOperation
 export JuliaIdentifierToSyntaxLeaf, JuliaIntegerToSyntaxLeaf,
        JuliaFloatToSyntaxLeaf, JuliaStringToSyntaxLeaf, JuliaBoolToSyntaxLeaf,

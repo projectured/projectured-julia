@@ -24,7 +24,7 @@ import ..IoMapModule: SimpleIoMap, ChildrenIoMap
 import ..IoMapApiModule: IoMap
 import ..TypeDispatchingModule: TypeDispatchingProjection
 import ..ReferenceModule: ConcreteReferencePath, ElementReference, FieldReference
-import ..ProjectionContextModule: child_context
+import ..PrinterContextModule: child_context
 export WorkspaceFolderToFileSystemDirectory, WorkspaceToFileSystem
 
 # ── WorkspaceFolderToFileSystemDirectory ─────────────────────────────────────

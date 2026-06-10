@@ -242,7 +242,7 @@ function _make_tooltip_source(doc; id::Symbol)
     long_proj  = ReferenceToHumanReadableText(doc)
     content = TextText(() -> begin
         sel = doc.selection
-        ctx = ProjectionContext()
+        ctx = PrinterContext()
         short = projection_print(short_proj, sel, nothing, ctx).output
         long  = projection_print(long_proj,  sel, nothing, ctx).output
         spans = TextDocument[]
