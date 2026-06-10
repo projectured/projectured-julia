@@ -207,6 +207,10 @@ function projection_read(p::TextToGraphics, iomap::TextToGraphicsIoMap, evt)
     if evt.key === :period && evt.modifiers.ctrl
         return ToggleCollapseOperation()
     end
+    # Ctrl+Alt+Home: select the root of the tree
+    if evt.modifiers.alt && evt.modifiers.ctrl && evt.key === :home
+        return TreeNavigateOperation(:root)
+    end
     # Alt+arrow: tree selection navigation
     if evt.modifiers.alt && evt.key in (:up, :down, :left, :right)
         return TreeNavigateOperation(evt.key)

@@ -97,12 +97,13 @@ end
     TreeNavigateOperation(direction)
 
 Operation that navigates the tree selection. `direction` is one of:
+- `:root`  — select the root node (Ctrl+Alt+Home)
 - `:up`    — select the parent node
 - `:down`  — select the first child
 - `:left`  — select the previous sibling
 - `:right` — select the next sibling
 
-Produced by the text-to-graphics layer when Alt+arrow is pressed.
+Produced by the text-to-graphics layer when Alt+arrow/Home is pressed.
 Resolved at the syntax layer where the tree structure is available.
 """
 struct TreeNavigateOperation <: Operation

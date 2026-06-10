@@ -45,6 +45,7 @@ include("editor/McpTest.jl")
 include("editor/MouseClickTest.jl")
 include("editor/ClickRoundtripTest.jl")
 include("editor/CollapseRoundtripTest.jl")
+include("editor/SyntaxTreeNavigationTest.jl")
 include("editor/AssistantMvpTest.jl")
 
 function test_documents()
@@ -94,6 +95,7 @@ function test_all()
     test_text_nav_invariants_all()
     test_json_content_clicks_clean_all()
     test_collapse_roundtrip()
+    test_tree_navigations()
     end
 end
 
@@ -111,6 +113,7 @@ export test_mouse_click_roundtrip, test_mouse_clicks
 export test_click_roundtrip, test_click_roundtrips, test_text_nav_invariants, test_text_nav_invariants_all
 export test_json_content_clicks_clean, test_json_content_clicks_clean_all
 export test_collapse_roundtrip
+export test_tree_navigation, test_tree_navigations, explore_tree_selections
 export test_assistant_mvp, make_assistant_mvp_setup, make_assistant_mvp_projection
 
 end # module ProjecturedTest

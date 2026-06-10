@@ -245,6 +245,10 @@ end
 # - :left  → decrement the last child index
 # - :right → increment the last child index
 function projection_read(p::SyntaxNodeToText, iomap::SyntaxNodeToTextIoMap, op::TreeNavigateOperation)
+    # :root — unconditionally select the root node
+    if op.direction === :root
+        return ReplaceSelectionOperation(EmptyReferencePath())
+    end
     sel = iomap.input.selection
     new_path = _tree_navigate(iomap.input, sel, op.direction)
     new_path === nothing && return nothing

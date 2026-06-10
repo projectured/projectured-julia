@@ -20,7 +20,7 @@ import ..SyntaxModule: SyntaxDocument, SyntaxLeaf, SyntaxNode
 import ..TypeDispatchingModule: TypeDispatchingProjection
 import ..CopyingProjectionModule: CopyingProjection, copying_field_iomap
 import ..IoMapModule: SimpleIoMap, ChildrenIoMap
-import ..ReferenceModule: ConcreteReferencePath, ElementReference, PositionReference, RangeReference, FieldReference, ProjectionReference, ReferencePath, append_reference
+import ..ReferenceModule: ConcreteReferencePath, ElementReference, PositionReference, RangeReference, FieldReference, ProjectionReference, ReferencePath, EmptyReferencePath, append_reference
 import ..ReferenceCaseModule: var"@reference_case"
 import ..ReferenceBuilderModule: var"@reference"
 import ..ProjectionContextModule: ProjectionContext, child_context
@@ -346,21 +346,26 @@ function map_reference_forward(p::JsonObjectToSyntaxNode, iomap::ChildrenIoMap, 
     @reference_case reference begin
         ∅ => @reference()
         proj(^(p), _) => reference
-        entries{s:e}.key.inner... => begin
+        entries{s:e}.rest... => begin
             pair_i = s + 1
             vioms = iomap.child_iomaps[]
             1 <= pair_i <= length(vioms) || return nothing
-            @reference children[pair_i].children[1].value.^(inner)
-        end
-        entries{s:e}.value.inner... => begin
-            pair_i = s + 1
-            vioms = iomap.child_iomaps[]
-            1 <= pair_i <= length(vioms) || return nothing
-            child = vioms[pair_i]
-            child === nothing && return nothing
-            translated = map_reference_forward(child.projection, child, inner)
-            translated === nothing && return nothing
-            @reference children[pair_i].children[2].^(translated)
+            # Whole entry: .entries[j]∅ → .children[j]∅
+            rest isa EmptyReferencePath && return @reference children[pair_i]
+            @reference_case rest begin
+                key.inner... => begin
+                    # Whole key: .entries[j].key∅ → .children[j].children[1]∅
+                    inner isa EmptyReferencePath && return @reference children[pair_i].children[1]
+                    @reference children[pair_i].children[1].value.^(inner)
+                end
+                value.inner... => begin
+                    child = vioms[pair_i]
+                    child === nothing && return nothing
+                    translated = map_reference_forward(child.projection, child, inner)
+                    translated === nothing && return nothing
+                    @reference children[pair_i].children[2].^(translated)
+                end
+            end
         end
     end
 end
@@ -368,23 +373,31 @@ end
 function map_reference_backward(p::JsonObjectToSyntaxNode, iomap::ChildrenIoMap, reference)
     @reference_case reference begin
         ∅ => @reference()
-        children{s:e}.children{s2:e2}.leaf_path... => begin
+        children{s:e}.rest... => begin
             pair_i = s + 1
-            child_of_pair = s2 + 1
             vioms = iomap.child_iomaps[]
             1 <= pair_i <= length(vioms) || return nothing
-            if child_of_pair == 1
-                @reference_case leaf_path begin
-                    value.char_path... => @reference entries[pair_i].key.^(char_path)
+            # Whole pair node: .children[j]∅ → .entries[j]∅
+            rest isa EmptyReferencePath && return @reference entries[pair_i]
+            @reference_case rest begin
+                children{s2:e2}.leaf_path... => begin
+                    child_of_pair = s2 + 1
+                    if child_of_pair == 1
+                        # Whole key leaf: .children[j].children[1]∅ → .entries[j].key∅
+                        leaf_path isa EmptyReferencePath && return @reference entries[pair_i].key
+                        @reference_case leaf_path begin
+                            value.char_path... => @reference entries[pair_i].key.^(char_path)
+                        end
+                    elseif child_of_pair == 2
+                        child = vioms[pair_i]
+                        child === nothing && return nothing
+                        translated = map_reference_backward(child.projection, child, leaf_path)
+                        translated === nothing && return nothing
+                        @reference entries[pair_i].value.^(translated)
+                    else
+                        nothing
+                    end
                 end
-            elseif child_of_pair == 2
-                child = vioms[pair_i]
-                child === nothing && return nothing
-                translated = map_reference_backward(child.projection, child, leaf_path)
-                translated === nothing && return nothing
-                @reference entries[pair_i].value.^(translated)
-            else
-                nothing
             end
         end
     end
