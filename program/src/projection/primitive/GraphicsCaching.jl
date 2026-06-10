@@ -130,16 +130,15 @@ function projection_read(::GraphicsCanvasToGraphicsImage, iomap::SimpleIoMap, ev
     canvas = iomap.input
     elems  = canvas.elements
 
-    alt = evt.modifiers.alt
-
+    # Always emit a plain click (element + pixel offset). Whole-element promotion
+    # (Alt+click) is decided in SyntaxToText off the originating gesture.
     # Check precise-bounds rects first (e.g. cursor highlights)
     for (i, elem) in enumerate(elems)
         elem isa GraphicsRect || continue
         _rect_hit(elem, evt.x, evt.y) || continue
         ox, oy = Int(elem.x), Int(elem.y)
-        path = alt ? ConcreteReferencePath(ElementReference(i)) :
-                     ConcreteReferencePath(ElementReference(i),
-                         ConcreteReferencePath(PointReference(evt.x - ox, evt.y - oy)))
+        path = ConcreteReferencePath(ElementReference(i),
+                   ConcreteReferencePath(PointReference(evt.x - ox, evt.y - oy)))
         return ReplaceSelectionOperation(path)
     end
 
@@ -158,9 +157,8 @@ function projection_read(::GraphicsCanvasToGraphicsImage, iomap::SimpleIoMap, ev
     best_i === nothing && return nothing
     elem = elems[best_i]
     ox, oy = Int(elem.x), Int(elem.y)
-    path = alt ? ConcreteReferencePath(ElementReference(best_i)) :
-                 ConcreteReferencePath(ElementReference(best_i),
-                     ConcreteReferencePath(PointReference(evt.x - ox, evt.y - oy)))
+    path = ConcreteReferencePath(ElementReference(best_i),
+               ConcreteReferencePath(PointReference(evt.x - ox, evt.y - oy)))
     return ReplaceSelectionOperation(path)
 end
 

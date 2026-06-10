@@ -210,25 +210,33 @@ function projection_print(p::SyntaxNodeToText, recursion, node::SyntaxNode, ctx)
     SyntaxNodeToTextIoMap(p, node, output, child_ranges, marker_idx)
 end
 
-# Gesture-aware reader. A click on a node's inline marker (either state) or on
-# its collapsed ellipsis is a fold gesture, not a cursor move: reinterpret it as
-# a toggle of that specific node before falling through to selection mapping.
-# Only genuine pointer gestures count — keyboard navigation (Ctrl+Home, arrows)
-# that happens to land on the marker must still place the cursor, so this keys off
-# `change.gesture isa MousePress` (the Lisp `(typep -gesture- 'gesture/mouse/click)`).
+# Gesture-aware reader. With the originating gesture in hand, all pointer-driven
+# tree behaviour is resolved here — the text/graphics layers below stay dumb and
+# emit only a plain character cursor. Two click reinterpretations, keyed off
+# `change.gesture isa MousePress` (the Lisp `(typep -gesture- 'gesture/mouse/click)`)
+# so keyboard navigation that lands on the same glyph still places the cursor:
+#   1. A click on a node's inline marker (either state) or its collapsed ellipsis
+#      is a fold gesture → toggle that specific node.
+#   2. Alt+click promotes the mapped position to a whole-element (tree) selection
+#      on the enclosing node — the mouse half of tree navigation.
 function projection_read(p::SyntaxNodeToText, recursion, change::Change, iomap::SyntaxNodeToTextIoMap)
     op = change.operation
-    if op isa ReplaceSelectionOperation && change.gesture isa MousePress
+    gesture = change.gesture
+    if op isa ReplaceSelectionOperation && gesture isa MousePress
         flat = _click_flat_pos(iomap, op.path)
         if flat >= 0
             node = _node_at_collapse_glyph(iomap.input, flat, p, 0)
-            node !== nothing && return Change(change.gesture, ToggleCollapseOperation(node))
+            node !== nothing && return Change(gesture, ToggleCollapseOperation(node))
+            if gesture.modifiers.alt
+                tree_sel = _pos_to_tree_selection(iomap.input, flat, p, 0)
+                return Change(gesture, ReplaceSelectionOperation(tree_sel))
+            end
         end
     end
-    # Everything else (keyboard, non-marker clicks, other operations) falls
-    # through to the operation-typed readers below.
-    payload = op === nothing ? change.gesture : op
-    return Change(change.gesture, projection_read(p, iomap, payload))
+    # Everything else (keyboard, plain clicks, other operations) falls through to
+    # the operation-typed readers below.
+    payload = op === nothing ? gesture : op
+    return Change(gesture, projection_read(p, iomap, payload))
 end
 
 function projection_read(p::SyntaxNodeToText, iomap::SyntaxNodeToTextIoMap, op::ReplaceSelectionOperation)

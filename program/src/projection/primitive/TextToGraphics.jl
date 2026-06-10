@@ -192,9 +192,8 @@ function projection_read(p::TextToGraphics, iomap::TextToGraphicsIoMap, evt::Mou
     isempty(coord_map) && return nothing
     sc = _hit_segment(coord_map, evt.x, evt.y)
     sc === nothing && return nothing
-    if evt.modifiers.alt
-        return ReplaceSelectionOperation(_build_tree_selection_path(sc.span_idx))
-    end
+    # A click always becomes a plain character cursor; whole-element promotion
+    # (Alt+click) is decided in SyntaxToText, where the tree is in hand.
     char_pos = _char_position_at_x(sc, evt.x, p.measure)
     return ReplaceSelectionOperation(_build_selection_path(sc.span_idx, char_pos))
 end
@@ -642,9 +641,6 @@ end
 _build_selection_path(span_idx::Int, char_idx::Int) =
     @reference elements[span_idx].content{char_idx}
 
-_build_tree_selection_path(span_idx::Int) =
-    @reference elements[span_idx]
-
 function _make_sdl(text, x, y, font, r, g, b, a)
     GraphicsText(Cell(text), Cell(Int32(x)), Cell(Int32(y)),
                 Cell(font),
@@ -708,11 +704,6 @@ function _translate_click(p::TextToGraphics, iomap::TextToGraphicsIoMap, path)
     coord_map = iomap.char_to_coord[]
     (i < 1 || i > length(coord_map)) && return nothing
     seg = coord_map[i]
-
-    # Alt+click: element-only path (no PointReference) → tree selection
-    if rest isa EmptyReferencePath
-        return ReplaceSelectionOperation(_build_tree_selection_path(seg.span_idx))
-    end
 
     rest isa ConcreteReferencePath || return nothing
     h2 = head(rest)
