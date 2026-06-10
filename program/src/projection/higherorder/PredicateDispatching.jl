@@ -36,15 +36,15 @@ PredicateDispatchingProjection(pairs::Pair...) =
     PredicateDispatchingProjection(collect(Pair{Any, Any}, pairs))
 
 """
-    projection_print(pdp::PredicateDispatchingProjection, input, recursion, ctx) -> output
+    projection_print(pdp::PredicateDispatchingProjection, recursion, input, ctx) -> output
 
 Apply the projection whose predicate matches `input` first.
 Throws an error if no predicate matches.
 """
-function projection_print(pdp::PredicateDispatchingProjection, input, recursion, ctx)
+function projection_print(pdp::PredicateDispatchingProjection, recursion, input, ctx)
     for (pred, proj) in pdp.dispatch
         if pred(input)
-            return projection_print(proj, input, recursion, ctx)
+            return projection_print(proj, recursion, input, ctx)
         end
     end
     error("PredicateDispatchingProjection: no predicate matched for input $(typeof(input))")

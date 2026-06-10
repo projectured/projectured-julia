@@ -17,7 +17,7 @@ export RecursiveProjection
 A compound projection that wraps a child projection and passes itself
 as the `recursion` argument when calling `projection_print` on the child.
 This enables the child projection (and any projections it delegates to)
-to call `projection_print(recursion, sub_input, recursion)` to recurse
+to call `projection_print(recursion, recursion, sub_input)` to recurse
 back through this same wrapper.
 
 # Example
@@ -35,8 +35,8 @@ struct RecursiveProjection <: Projection
     child::Any
 end
 
-function projection_print(rp::RecursiveProjection, input, recursion, ctx)
-    projection_print(rp.child, input, rp, ctx)
+function projection_print(rp::RecursiveProjection, recursion, input, ctx)
+    projection_print(rp.child, rp, input, ctx)
 end
 
 # RecursiveProjection is a transparent wrapper — it returns the inner

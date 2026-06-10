@@ -52,8 +52,8 @@ _unwrap(c::Cell) = c[]
 
 # ── projection_print ──────────────────────────────────────────────────────
 
-function projection_print(p::CopyingProjection, input::CellVector, recursion, ctx)
-    children = [projection_print(recursion, input[i], recursion,
+function projection_print(p::CopyingProjection, recursion, input::CellVector, ctx)
+    children = [projection_print(recursion, recursion, input[i],
                     child_context(ctx, PositionReference(i)))
                 for i in 1:length(input)]
     out_cells = Cell[Cell(im.output) for im in children]
@@ -64,14 +64,14 @@ end
 
 # ── ListNode path (lazy) ─────────────────────────────────────────────────
 
-function projection_print(p::CopyingProjection, input::ListNode, recursion, ctx)
+function projection_print(p::CopyingProjection, recursion, input::ListNode, ctx)
     output_head = _map_node(p, input, recursion, ctx, 1)
     CopyingProjectionIoMap(p, input, output_head, nothing, nothing, recursion, ctx)
 end
 
 function _map_node(p::CopyingProjection, input_node::ListNode, recursion, ctx, index::Int)
     # Project current element
-    elem_iomap = projection_print(recursion, input_node.value, recursion,
+    elem_iomap = projection_print(recursion, recursion, input_node.value,
                      child_context(ctx, ElementReference(index)))
 
     # Create output node
@@ -102,8 +102,8 @@ end
 
 # ── Vector{Cell} and struct paths ─────────────────────────────────────────
 
-function projection_print(p::CopyingProjection, input::Vector{Cell}, recursion, ctx)
-    children = [projection_print(recursion, c[], recursion,
+function projection_print(p::CopyingProjection, recursion, input::Vector{Cell}, ctx)
+    children = [projection_print(recursion, recursion, c[],
                     child_context(ctx, PositionReference(i)))
                 for (i, c) in enumerate(input)]
     out_cells = Cell[Cell(im.output) for im in children]
@@ -111,7 +111,7 @@ function projection_print(p::CopyingProjection, input::Vector{Cell}, recursion, 
     CopyingProjectionIoMap(p, input, output, children, nothing, nothing, nothing)
 end
 
-function projection_print(p::CopyingProjection, input, recursion, ctx)
+function projection_print(p::CopyingProjection, recursion, input, ctx)
     input isa Document || return CopyingProjectionIoMap(p, input, input, Any[], nothing, nothing, nothing)
     T = typeof(input)
     all_names = fieldnames(T)
@@ -142,7 +142,7 @@ function projection_print(p::CopyingProjection, input, recursion, ctx)
                 child_ctx = with_available_size(child_ctx;
                                                 width=w_cell, height=h_cell)
             end
-            im = projection_print(recursion, _unwrap(fv), recursion, child_ctx)
+            im = projection_print(recursion, recursion, _unwrap(fv), child_ctx)
             push!(children, im); push!(names, string(nm))
             push!(field_vals, im.output)
         else
@@ -227,7 +227,7 @@ end
 function _get_listnode_child_iomap(iomap::CopyingProjectionIoMap, index::Int)
     input_node = _walk_to_index(iomap.input::ListNode, index)
     input_node === nothing && return nothing
-    return projection_print(iomap.recursion, input_node.value, iomap.recursion,
+    return projection_print(iomap.recursion, iomap.recursion, input_node.value,
                child_context(iomap.base_ctx, ElementReference(index)))
 end
 

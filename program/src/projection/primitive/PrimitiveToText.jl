@@ -62,7 +62,7 @@ map_reference_forward(::PrimitiveBoolToText, iomap::SimpleIoMap, reference) =
 map_reference_backward(::PrimitiveBoolToText, iomap::SimpleIoMap, reference) =
     _backward_value(reference)
 
-function projection_print(p::PrimitiveBoolToText, b::PrimitiveBool, recursion, ctx)
+function projection_print(p::PrimitiveBoolToText, recursion, b::PrimitiveBool, ctx)
     span = TextString(() -> string(b.value), p.font, p.color)
     out = TextText(CellVector(() -> TextDocument[span]),
                    Cell(() -> _value_selection_to_text(b)))
@@ -89,7 +89,7 @@ map_reference_forward(::PrimitiveNumberToText, iomap::SimpleIoMap, reference) =
 map_reference_backward(::PrimitiveNumberToText, iomap::SimpleIoMap, reference) =
     _backward_value(reference)
 
-function projection_print(p::PrimitiveNumberToText, n::PrimitiveNumber, recursion, ctx)
+function projection_print(p::PrimitiveNumberToText, recursion, n::PrimitiveNumber, ctx)
     span = TextString(() -> string(something(n.value, "")), p.font, p.color)
     out = TextText(CellVector(() -> TextDocument[span]),
                    Cell(() -> _value_selection_to_text(n)))
@@ -116,7 +116,7 @@ map_reference_forward(::PrimitiveStringToText, iomap::SimpleIoMap, reference) =
 map_reference_backward(::PrimitiveStringToText, iomap::SimpleIoMap, reference) =
     _backward_value(reference)
 
-function projection_print(p::PrimitiveStringToText, s::PrimitiveString, recursion, ctx)
+function projection_print(p::PrimitiveStringToText, recursion, s::PrimitiveString, ctx)
     span = TextString(() -> something(s.value, ""), p.font, p.color)
     out = TextText(CellVector(() -> TextDocument[span]),
                    Cell(() -> _value_selection_to_text(s)))

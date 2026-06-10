@@ -156,13 +156,13 @@ function _short_text(p::ReferenceToText, ref)
     TextText(spans...)
 end
 
-projection_print(p::ReferenceToText, ::Nothing, recursion, ctx) =
+projection_print(p::ReferenceToText, recursion, ::Nothing, ctx) =
     SimpleIoMap(p, nothing, _short_text(p, nothing))
 
-projection_print(p::ReferenceToText, ref::EmptyReferencePath, recursion, ctx) =
+projection_print(p::ReferenceToText, recursion, ref::EmptyReferencePath, ctx) =
     SimpleIoMap(p, ref, _short_text(p, ref))
 
-projection_print(p::ReferenceToText, ref::ConcreteReferencePath, recursion, ctx) =
+projection_print(p::ReferenceToText, recursion, ref::ConcreteReferencePath, ctx) =
     SimpleIoMap(p, ref, _short_text(p, ref))
 
 # ─────────────────────────────────────────────────────────────────────────
@@ -338,13 +338,13 @@ function _long_text(p::ReferenceToHumanReadableText, ref)
     TextText(spans...)
 end
 
-projection_print(p::ReferenceToHumanReadableText, ::Nothing, recursion, ctx) =
+projection_print(p::ReferenceToHumanReadableText, recursion, ::Nothing, ctx) =
     SimpleIoMap(p, nothing, _long_text(p, nothing))
 
-projection_print(p::ReferenceToHumanReadableText, ref::EmptyReferencePath, recursion, ctx) =
+projection_print(p::ReferenceToHumanReadableText, recursion, ref::EmptyReferencePath, ctx) =
     SimpleIoMap(p, ref, _long_text(p, ref))
 
-projection_print(p::ReferenceToHumanReadableText, ref::ConcreteReferencePath, recursion, ctx) =
+projection_print(p::ReferenceToHumanReadableText, recursion, ref::ConcreteReferencePath, ctx) =
     SimpleIoMap(p, ref, _long_text(p, ref))
 
 end # module

@@ -105,7 +105,7 @@ function _make_checker_background(canvas::GraphicsCanvas)
     rects
 end
 
-function projection_print(p::GraphicsCanvasToGraphicsImage, canvas::GraphicsCanvas, recursion, ctx)
+function projection_print(p::GraphicsCanvasToGraphicsImage, recursion, canvas::GraphicsCanvas, ctx)
     bg_rects = _make_checker_background(canvas)
     orig_cv = canvas.elements::CellVector
     orig_elements_cell = getfield(orig_cv, :elements)

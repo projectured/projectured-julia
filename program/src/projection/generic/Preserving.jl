@@ -13,7 +13,7 @@ export PreservingProjection
 
 struct PreservingProjection <: Projection end
 
-function projection_print(projection::PreservingProjection, input, recursion, ctx)
+function projection_print(projection::PreservingProjection, recursion, input, ctx)
     SimpleIoMap(projection, input, input)
 end
 

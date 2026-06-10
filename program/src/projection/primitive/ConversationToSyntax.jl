@@ -101,9 +101,9 @@ _text_to_string(s::AbstractString) = String(s)
 # ── Top-level conversation: one message per line ───────────────────────────
 
 function projection_print(p::ConversationConversationToSyntaxNode,
-                          c::ConversationConversation, recursion, ctx)
+                          recursion, c::ConversationConversation, ctx)
     children = CellVector(() -> SyntaxDocument[
-        projection_print(recursion, c.messages[i], recursion, ctx).output
+        projection_print(recursion, recursion, c.messages[i], ctx).output
         for i in eachindex(c.messages)
     ])
     node = SyntaxNode(_empty_ts(), _empty_ts(), _empty_ts(),
@@ -114,7 +114,7 @@ end
 # ── User message: "user: <body>" on one line ───────────────────────────────
 
 function projection_print(p::ConversationUserMessageToSyntaxNode,
-                          m::ConversationUserMessage, recursion, ctx)
+                          recursion, m::ConversationUserMessage, ctx)
     body_leaf = SyntaxLeaf(_empty_ts(), _empty_ts(),
                            _ts(() -> _text_to_string(m.text)))
     children = CellVector(SyntaxDocument[body_leaf])
@@ -129,9 +129,9 @@ end
 # SyntaxNode's own indentation handles wrapping at the SyntaxToText layer.
 
 function projection_print(p::ConversationAssistantMessageToSyntaxNode,
-                          m::ConversationAssistantMessage, recursion, ctx)
+                          recursion, m::ConversationAssistantMessage, ctx)
     block_children = CellVector(() -> SyntaxDocument[
-        projection_print(recursion, m.blocks[i], recursion, ctx).output
+        projection_print(recursion, recursion, m.blocks[i], ctx).output
         for i in eachindex(m.blocks)
     ])
     # `assistant:` on its own line, blocks stacked below separated by newlines
@@ -152,7 +152,7 @@ end
 #
 # `initiator` carries which side ran it (`:user` or `:assistant`).
 function projection_print(p::ConversationCodeExecutionToSyntaxNode,
-                          m::ConversationCodeExecution, recursion, ctx)
+                          recursion, m::ConversationCodeExecution, ctx)
     label_prefix = () -> string(m.initiator === :assistant ? "assistant" : "user",
                                 ":\n> ")
     code_leaf = SyntaxLeaf(_ts(label_prefix, _FONT_BOLD, _LABEL_COL),
@@ -172,7 +172,7 @@ end
 # ── Blocks ─────────────────────────────────────────────────────────────────
 
 function projection_print(p::ConversationTextBlockToSyntaxLeaf,
-                          b::ConversationTextBlock, recursion, ctx)
+                          recursion, b::ConversationTextBlock, ctx)
     # Thunked: SSE deltas mutate `b.text` in place via
     # `_append_text_delta!`; we need to re-read on every frame so tokens
     # appear character-by-character.
@@ -182,7 +182,7 @@ function projection_print(p::ConversationTextBlockToSyntaxLeaf,
 end
 
 function projection_print(p::ConversationCodeBlockToSyntaxNode,
-                          b::ConversationCodeBlock, recursion, ctx)
+                          recursion, b::ConversationCodeBlock, ctx)
     body_thunk = () -> begin
         body = b.body
         if body isa TextText
@@ -204,7 +204,7 @@ function projection_print(p::ConversationCodeBlockToSyntaxNode,
 end
 
 function projection_print(p::ConversationHeadingBlockToSyntaxLeaf,
-                          b::ConversationHeadingBlock, recursion, ctx)
+                          recursion, b::ConversationHeadingBlock, ctx)
     leaf = SyntaxLeaf(_empty_ts(), _empty_ts(),
                       _ts(() -> string(repeat("#", b.level), " ",
                                        _text_to_string(b.text)),
@@ -213,7 +213,7 @@ function projection_print(p::ConversationHeadingBlockToSyntaxLeaf,
 end
 
 function projection_print(p::ConversationListBlockToSyntaxNode,
-                          b::ConversationListBlock, recursion, ctx)
+                          recursion, b::ConversationListBlock, ctx)
     items = CellVector(() -> SyntaxDocument[
         # Capture `item` per iteration; the leaf thunk reads it lazily so
         # an item-text mutation refreshes without rebuilding the list.

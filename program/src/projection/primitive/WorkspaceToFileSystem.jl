@@ -32,7 +32,7 @@ export WorkspaceFolderToFileSystemDirectory, WorkspaceToFileSystem
 struct WorkspaceFolderToFileSystemDirectory <: Projection end
 
 function projection_print(p::WorkspaceFolderToFileSystemDirectory,
-                           folder::WorkspaceFolder, recursion, ctx)
+                           recursion, folder::WorkspaceFolder, ctx)
     dir = make_filesystem_pathname(folder.pathname)
     SimpleIoMap(p, folder, dir)
 end
@@ -54,8 +54,8 @@ end
 struct WorkspaceWorkspaceProjection <: Projection end
 
 function projection_print(p::WorkspaceWorkspaceProjection,
-                           w::Workspace, recursion, ctx)
-    child_iomaps = [projection_print(recursion, elem, recursion,
+                           recursion, w::Workspace, ctx)
+    child_iomaps = [projection_print(recursion, recursion, elem,
                                    child_context(ctx, FieldReference("folders"), ElementReference(i)))
                     for (i, elem) in enumerate(w)]
     # The output is the first folder's output for single-root workspaces.

@@ -46,8 +46,8 @@ function map_reference_backward(::CollectionCellVectorToSyntax, iomap, reference
     return nothing
 end
 
-function projection_print(p::CollectionCellVectorToSyntax, cv::CellVector, recursion, ctx)
-    child_iomaps = Cell(() -> [projection_print(recursion, x, recursion,
+function projection_print(p::CollectionCellVectorToSyntax, recursion, cv::CellVector, ctx)
+    child_iomaps = Cell(() -> [projection_print(recursion, recursion, x,
                                    child_context(ctx, ElementReference(i)))
                                for (i, x) in enumerate(cv)])
     node = SyntaxNode(
@@ -100,19 +100,19 @@ function map_reference_backward(::CollectionListNodeToSyntax, iomap, reference)
 end
 
 """
-    projection_print(::CollectionListNodeToSyntax, ln::ListNode, recursion, ctx)
+    projection_print(::CollectionListNodeToSyntax, recursion, ln::ListNode, ctx)
 
 Maps each element in the `ListNode` through `recursion` lazily.
 The output is a `ListNode(projected)` preserving the lazy structure.
 """
-function projection_print(p::CollectionListNodeToSyntax, ln::ListNode, recursion, ctx)
+function projection_print(p::CollectionListNodeToSyntax, recursion, ln::ListNode, ctx)
     out_head = _map_listnode(recursion, ln, ctx, 1)
     SimpleIoMap(p, ln, out_head)
 end
 
 function _map_listnode(recursion, input_node::ListNode, ctx, index::Int)
     child_ctx = child_context(ctx, ElementReference(index))
-    child_iomap = projection_print(recursion, input_node.value, recursion, child_ctx)
+    child_iomap = projection_print(recursion, recursion, input_node.value, child_ctx)
     out_node = ListNode(child_iomap.output)
 
     # Lazy next

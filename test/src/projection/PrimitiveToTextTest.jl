@@ -30,7 +30,7 @@ function test_primitive_to_text()
 @testset "bool prints single span" begin
     b = PrimitiveBool(true)
     p = PrimitiveBoolToText()
-    out = projection_print(p, b, nothing, nothing).output
+    out = projection_print(p, nothing, b, nothing).output
     @test out isa TextText
     @test length(out) == 1
     @test out[1].content == "true"
@@ -41,7 +41,7 @@ end
 @testset "bool reacts to value change" begin
     b = PrimitiveBool(true)
     p = PrimitiveBoolToText()
-    out = projection_print(p, b, nothing, nothing).output
+    out = projection_print(p, nothing, b, nothing).output
     @test out[1].content == "true"
     b.value = false
     @test out[1].content == "false"
@@ -52,7 +52,7 @@ end
 @testset "number prints single span" begin
     n = PrimitiveNumber(42)
     p = PrimitiveNumberToText()
-    out = projection_print(p, n, nothing, nothing).output
+    out = projection_print(p, nothing, n, nothing).output
     @test length(out) == 1
     @test out[1].content == "42"
     @test out[1].font_color == color_solarized_magenta
@@ -61,7 +61,7 @@ end
 @testset "number nothing prints empty" begin
     n = PrimitiveNumber(nothing)
     p = PrimitiveNumberToText()
-    out = projection_print(p, n, nothing, nothing).output
+    out = projection_print(p, nothing, n, nothing).output
     @test out[1].content == ""
 end
 
@@ -70,7 +70,7 @@ end
 @testset "string prints single span (no quotes)" begin
     s = PrimitiveString("hi")
     p = PrimitiveStringToText()
-    out = projection_print(p, s, nothing, nothing).output
+    out = projection_print(p, nothing, s, nothing).output
     @test length(out) == 1
     @test out[1].content == "hi"
     @test out[1].font_color == color_solarized_green
@@ -79,7 +79,7 @@ end
 @testset "string reacts to value change" begin
     s = PrimitiveString("hi")
     p = PrimitiveStringToText()
-    out = projection_print(p, s, nothing, nothing).output
+    out = projection_print(p, nothing, s, nothing).output
     @test out[1].content == "hi"
     s.value = "world"
     @test out[1].content == "world"
@@ -91,7 +91,7 @@ end
     s = PrimitiveString("abc")
     set_selection!(s, _value_range(2, 2))
     p = PrimitiveStringToText()
-    out = projection_print(p, s, nothing, nothing).output
+    out = projection_print(p, nothing, s, nothing).output
     sel = out.selection
     @test sel isa ConcreteReferencePath
     @test sel.head isa FieldReference && sel.head.name == "elements"
@@ -110,7 +110,7 @@ end
 @testset "map_reference_forward .value[k]" begin
     s = PrimitiveString("abc")
     p = PrimitiveStringToText()
-    iomap = projection_print(p, s, nothing, nothing)
+    iomap = projection_print(p, nothing, s, nothing)
     out = map_reference_forward(p, iomap, _value_range(2, 2))
     @test out isa ConcreteReferencePath
     @test out.head isa FieldReference && out.head.name == "elements"
@@ -119,7 +119,7 @@ end
 @testset "map_reference_backward .elements[1].content[k]" begin
     s = PrimitiveString("abc")
     p = PrimitiveStringToText()
-    iomap = projection_print(p, s, nothing, nothing)
+    iomap = projection_print(p, nothing, s, nothing)
     inp = map_reference_backward(p, iomap, _elem_content_pos(1, 2))
     @test inp isa ConcreteReferencePath
     @test inp.head isa FieldReference && inp.head.name == "value"
@@ -192,9 +192,9 @@ end
 
 @testset "PrimitiveToText composite dispatches per type" begin
     p = PrimitiveToText()
-    @test projection_print(p, PrimitiveBool(true), nothing, nothing).output isa TextText
-    @test projection_print(p, PrimitiveNumber(7), nothing, nothing).output isa TextText
-    @test projection_print(p, PrimitiveString("x"), nothing, nothing).output isa TextText
+    @test projection_print(p, nothing, PrimitiveBool(true), nothing).output isa TextText
+    @test projection_print(p, nothing, PrimitiveNumber(7), nothing).output isa TextText
+    @test projection_print(p, nothing, PrimitiveString("x"), nothing).output isa TextText
 end
 
 end # @testset

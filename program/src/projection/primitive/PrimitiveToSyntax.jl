@@ -45,7 +45,7 @@ function map_reference_backward(::PrimitiveBoolToSyntaxLeaf, iomap::SimpleIoMap,
     end
 end
 
-function projection_print(p::PrimitiveBoolToSyntaxLeaf, b::PrimitiveBool, recursion, ctx)
+function projection_print(p::PrimitiveBoolToSyntaxLeaf, recursion, b::PrimitiveBool, ctx)
     SimpleIoMap(p, b, SyntaxLeaf(TextString("", p.font, color_default), TextString("", p.font, color_default),
                                   TextString(() -> string(b.value), p.font, p.color), getfield(b, :selection)))
 end
@@ -79,7 +79,7 @@ function map_reference_backward(::PrimitiveNumberToSyntaxLeaf, iomap::SimpleIoMa
     end
 end
 
-function projection_print(p::PrimitiveNumberToSyntaxLeaf, n::PrimitiveNumber, recursion, ctx)
+function projection_print(p::PrimitiveNumberToSyntaxLeaf, recursion, n::PrimitiveNumber, ctx)
     SimpleIoMap(p, n, SyntaxLeaf(TextString("", p.font, color_default), TextString("", p.font, color_default),
                                   TextString(() -> string(n.value), p.font, p.color), getfield(n, :selection)))
 end
@@ -116,7 +116,7 @@ function map_reference_backward(::PrimitiveStringToSyntaxLeaf, iomap::SimpleIoMa
     end
 end
 
-function projection_print(p::PrimitiveStringToSyntaxLeaf, s::PrimitiveString, recursion, ctx)
+function projection_print(p::PrimitiveStringToSyntaxLeaf, recursion, s::PrimitiveString, ctx)
     SimpleIoMap(p, s, SyntaxLeaf(
         TextString("\"", p.quote_font, p.quote_color),
         TextString("\"", p.quote_font, p.quote_color),

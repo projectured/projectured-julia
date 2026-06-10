@@ -25,7 +25,7 @@ type is a subtype of `part_type` may be targeted.
 # Example
 
     fp = FocusingProjection(part_type=Vector, part=ReferencePath(PositionReference(1)))
-    iomap = projection_print(fp, [[1, 2], [3, 4]], nothing, nothing)
+    iomap = projection_print(fp, nothing, [[1, 2], [3, 4]], nothing)
     iomap.output  # [1, 2]
 """
 mutable struct FocusingProjection <: Projection
@@ -37,7 +37,7 @@ end
 FocusingProjection(; part_type=Any, part::ReferencePath=EmptyReferencePath()) =
     FocusingProjection(part_type, part, document -> evaluate_reference(document, part))
 
-function projection_print(p::FocusingProjection, input, recursion, ctx)
+function projection_print(p::FocusingProjection, recursion, input, ctx)
     output = p.part_evaluator(input)
     SimpleIoMap(p, input, output)
 end

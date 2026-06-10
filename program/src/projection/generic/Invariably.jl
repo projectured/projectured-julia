@@ -15,7 +15,7 @@ struct InvariablyProjection <: Projection
     output::Any
 end
 
-function projection_print(p::InvariablyProjection, input, recursion, ctx)
+function projection_print(p::InvariablyProjection, recursion, input, ctx)
     SimpleIoMap(p, input, p.output)
 end
 

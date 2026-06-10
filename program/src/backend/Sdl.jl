@@ -789,7 +789,7 @@ function write_image(document, projection, filename::AbstractString;
     ctx = PrinterContext(EmptyReferencePath(),
                             Cell(Int(width)), Cell(Int(height)),
                             Dict{Symbol,Any}())
-    iomap = projection_print(projection, document, nothing, ctx)
+    iomap = projection_print(projection, nothing, document, ctx)
     canvas = iomap.output
     canvas isa GraphicsCanvas ||
         error("write_image: projection output is $(typeof(canvas)), expected GraphicsCanvas")
@@ -831,7 +831,7 @@ function GraphicsCanvasToImageFile(filename::AbstractString;
 end
 
 function projection_print(p::GraphicsCanvasToImageFile,
-                           canvas::GraphicsCanvas, recursion, ctx)
+                           recursion, canvas::GraphicsCanvas, ctx)
     output = write_image(canvas, p.filename;
                          width=p.width, height=p.height, background=p.background)
     SimpleIoMap(p, canvas, output)

@@ -42,7 +42,7 @@ end
 MathInsertionToSyntaxLeaf(; font=font_ubuntu_monospace_regular_24, color=color_solarized_gray) =
     MathInsertionToSyntaxLeaf(font, color)
 
-function projection_print(p::MathInsertionToSyntaxLeaf, m::MathInsertion, recursion, ctx)
+function projection_print(p::MathInsertionToSyntaxLeaf, recursion, m::MathInsertion, ctx)
     output_selection = Cell(() -> map_reference_forward(p, nothing, m.selection))
     SimpleIoMap(p, m, SyntaxLeaf(TextString("", p.font, color_default), TextString("", p.font, color_default),
                                   TextString("⌷", p.font, p.color), output_selection))
@@ -69,7 +69,7 @@ function map_reference_backward(::MathVariableToSyntaxLeaf, iomap::SimpleIoMap, 
     end
 end
 
-function projection_print(p::MathVariableToSyntaxLeaf, v::MathVariable, recursion, ctx)
+function projection_print(p::MathVariableToSyntaxLeaf, recursion, v::MathVariable, ctx)
     SimpleIoMap(p, v, SyntaxLeaf(
         TextString("", p.font, color_default),
         TextString("", p.font, color_default),
@@ -137,12 +137,12 @@ function map_reference_backward(p::MathBinaryOperationToSyntaxNode, iomap::Child
     end
 end
 
-function projection_print(p::MathBinaryOperationToSyntaxNode, m::MathBinaryOperation, recursion, ctx)
+function projection_print(p::MathBinaryOperationToSyntaxNode, recursion, m::MathBinaryOperation, ctx)
     reference = ctx.reference
     left_ctx  = child_context(ctx, @reference ^(reference).left)
     right_ctx = child_context(ctx, @reference ^(reference).right)
-    left_iomap = Cell(() -> projection_print(recursion, m.left, recursion, left_ctx))
-    right_iomap = Cell(() -> projection_print(recursion, m.right, recursion, right_ctx))
+    left_iomap = Cell(() -> projection_print(recursion, recursion, m.left, left_ctx))
+    right_iomap = Cell(() -> projection_print(recursion, recursion, m.right, right_ctx))
 
     op_leaf = SyntaxLeaf(
         TextString("", p.op_font, color_default),
@@ -227,10 +227,10 @@ function map_reference_backward(p::MathParenthesizedToSyntaxNode, iomap::Childre
     end
 end
 
-function projection_print(p::MathParenthesizedToSyntaxNode, m::MathParenthesized, recursion, ctx)
+function projection_print(p::MathParenthesizedToSyntaxNode, recursion, m::MathParenthesized, ctx)
     reference = ctx.reference
     content_ctx = child_context(ctx, @reference ^(reference).content)
-    content_iomap = Cell(() -> projection_print(recursion, m.content, recursion, content_ctx))
+    content_iomap = Cell(() -> projection_print(recursion, recursion, m.content, content_ctx))
 
     sel = Cell(() -> begin
         path = m.selection
@@ -318,12 +318,12 @@ function map_reference_backward(p::MathAssignmentToSyntaxNode, iomap::ChildrenIo
     end
 end
 
-function projection_print(p::MathAssignmentToSyntaxNode, m::MathAssignment, recursion, ctx)
+function projection_print(p::MathAssignmentToSyntaxNode, recursion, m::MathAssignment, ctx)
     reference = ctx.reference
     target_ctx = child_context(ctx, @reference ^(reference).target)
     value_ctx  = child_context(ctx, @reference ^(reference).value)
-    target_iomap = Cell(() -> projection_print(recursion, m.target, recursion, target_ctx))
-    value_iomap = Cell(() -> projection_print(recursion, m.value, recursion, value_ctx))
+    target_iomap = Cell(() -> projection_print(recursion, recursion, m.target, target_ctx))
+    value_iomap = Cell(() -> projection_print(recursion, recursion, m.value, value_ctx))
 
     eq_leaf = SyntaxLeaf(
         TextString("", p.eq_font, color_default),

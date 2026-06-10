@@ -78,7 +78,7 @@ const _ROW_H = 28
 
 _recurse(recursion, doc, ctx) =
     (recursion !== nothing && doc isa ConversationDocument) ?
-        projection_print(recursion, doc, recursion, ctx) :
+        projection_print(recursion, recursion, doc, ctx) :
         SimpleIoMap(nothing, doc, doc)
 
 # WidgetLabel.content is rendered with `string(content)`, so pass a plain
@@ -169,7 +169,7 @@ end
 # chat scroll-back update without re-running `projection_print`.
 
 function projection_print(::ConversationConversationToWidgetComposite,
-                          c::ConversationConversation, recursion, ctx)
+                          recursion, c::ConversationConversation, ctx)
     rec, ref = recursion, ctx.reference
     composite = _reactive_compose(() -> begin
         msgs = c.messages
@@ -187,7 +187,7 @@ end
 # ── projection_print: user message ──────────────────────────────────────────
 
 function projection_print(::ConversationUserMessageToWidgetComposite,
-                          m::ConversationUserMessage, recursion, ctx)
+                          recursion, m::ConversationUserMessage, ctx)
     body_ref = child_context(ctx, @reference ^(ctx.reference).text)
     body_iomap = _recurse(recursion, m.text, body_ref)
     composite = _compose(Any[
@@ -203,7 +203,7 @@ end
 # "Yes, sir!" in MVP) invalidates the cell and the next read re-projects.
 
 function projection_print(::ConversationAssistantMessageToWidgetComposite,
-                          m::ConversationAssistantMessage, recursion, ctx)
+                          recursion, m::ConversationAssistantMessage, ctx)
     rec, ref = recursion, ctx.reference
     composite = _reactive_compose(() -> begin
         blocks = m.blocks
@@ -221,7 +221,7 @@ end
 # ── projection_print: code execution (user or AI) ──────────────────────────
 
 function projection_print(::ConversationCodeExecutionToWidgetComposite,
-                          m::ConversationCodeExecution, recursion, ctx)
+                          recursion, m::ConversationCodeExecution, ctx)
     initiator = m.initiator === :assistant ? "assistant" : "user"
     result_label = m.is_error ? "$(initiator): error" : "$(initiator): julia"
     composite = _compose(Any[
@@ -235,14 +235,14 @@ end
 # ── projection_print: blocks ────────────────────────────────────────────────
 
 function projection_print(::ConversationTextBlockToText,
-                          b::ConversationTextBlock, recursion, ctx)
+                          recursion, b::ConversationTextBlock, ctx)
     text_ref = child_context(ctx, @reference ^(ctx.reference).text)
     inner = _recurse(recursion, b.text, text_ref)
     ContentIoMap(nothing, b, inner.output, inner)
 end
 
 function projection_print(::ConversationCodeBlockToWidget,
-                          b::ConversationCodeBlock, recursion, ctx)
+                          recursion, b::ConversationCodeBlock, ctx)
     body_ref = child_context(ctx, @reference ^(ctx.reference).body)
     inner = _recurse(recursion, b.body, body_ref)
     composite = _compose(Any[
@@ -253,7 +253,7 @@ function projection_print(::ConversationCodeBlockToWidget,
 end
 
 function projection_print(::ConversationHeadingBlockToText,
-                          b::ConversationHeadingBlock, recursion, ctx)
+                          recursion, b::ConversationHeadingBlock, ctx)
     text_ref = child_context(ctx, @reference ^(ctx.reference).text)
     inner = _recurse(recursion, b.text, text_ref)
     composite = _compose(Any[
@@ -264,7 +264,7 @@ function projection_print(::ConversationHeadingBlockToText,
 end
 
 function projection_print(::ConversationListBlockToWidgetComposite,
-                          b::ConversationListBlock, recursion, ctx)
+                          recursion, b::ConversationListBlock, ctx)
     item_iomaps = Any[]
     item_widgets = Any[]
     for i in eachindex(b.items)

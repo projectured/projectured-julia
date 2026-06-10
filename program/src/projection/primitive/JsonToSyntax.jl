@@ -47,7 +47,7 @@ JsonNullToSyntaxLeaf(; font=font_ubuntu_monospace_regular_24, color=color_solari
 # output selection formats differ (proj-wrapped vs. bare), so the shared-cell
 # shortcut does not apply. The default mapper ignores the iomap, so it is passed
 # as nothing.
-function projection_print(p::JsonNullToSyntaxLeaf, j::JsonNull, recursion, ctx)
+function projection_print(p::JsonNullToSyntaxLeaf, recursion, j::JsonNull, ctx)
     output_selection = Cell(() -> map_reference_forward(p, nothing, j.selection))
     SimpleIoMap(p, j, SyntaxLeaf(TextString("", p.font, color_default), TextString("", p.font, color_default), TextString("null", p.font, p.color), output_selection))
 end
@@ -64,7 +64,7 @@ JsonInsertionToSyntaxLeaf(; font=font_ubuntu_monospace_regular_24, color=color_s
 # "insert JSON here" is a projection-introduced placeholder with no editable
 # input value, so the default proj-unwrapping forward mapper is correct and the
 # shared-cell shortcut does not apply. The real iomap is threaded canonically.
-function projection_print(p::JsonInsertionToSyntaxLeaf, j::JsonInsertion, recursion, ctx)
+function projection_print(p::JsonInsertionToSyntaxLeaf, recursion, j::JsonInsertion, ctx)
     output_selection = Cell(() -> map_reference_forward(p, nothing, j.selection))
     SimpleIoMap(p, j, SyntaxLeaf(TextString("", p.font, color_default), TextString("", p.font, color_default), TextString("insert JSON here", p.font, p.color), output_selection))
 end
@@ -96,7 +96,7 @@ end
 # identity-maps on both sides with no wiring. Selection reads are handled by
 # the default projection_read, which routes the path through the identity
 # map_reference_backward above — no bespoke reader is needed.
-function projection_print(p::JsonBoolToSyntaxLeaf, j::JsonBool, recursion, ctx)
+function projection_print(p::JsonBoolToSyntaxLeaf, recursion, j::JsonBool, ctx)
     SimpleIoMap(p, j, SyntaxLeaf(TextString("", p.font, color_default), TextString("", p.font, color_default), TextString(() -> j[] ? "true" : "false", p.font, p.color), getfield(j, :selection)))
 end
 
@@ -127,7 +127,7 @@ end
 # identity-maps on both sides. Selection reads use the default projection_read
 # (routed through the identity map_reference_backward); only the value-editing
 # path below needs a bespoke reader.
-function projection_print(p::JsonNumberToSyntaxLeaf, j::JsonNumber, recursion, ctx)
+function projection_print(p::JsonNumberToSyntaxLeaf, recursion, j::JsonNumber, ctx)
     SimpleIoMap(p, j, SyntaxLeaf(TextString("", p.font, color_default), TextString("", p.font, color_default), TextString(() -> string(j[]), p.font, p.color), getfield(j, :selection)))
 end
 
@@ -188,7 +188,7 @@ end
 # the default projection_read, which routes the output path through
 # map_reference_backward above — .value passes through; the surrounding quotes
 # wrap into a ProjectionReference. Only value editing needs a bespoke reader.
-function projection_print(p::JsonStringToSyntaxLeaf, j::JsonString, recursion, ctx)
+function projection_print(p::JsonStringToSyntaxLeaf, recursion, j::JsonString, ctx)
     SimpleIoMap(p, j, SyntaxLeaf(
         TextString("\"", p.quote_font, p.quote_color),
         TextString("\"", p.quote_font, p.quote_color),
@@ -267,9 +267,9 @@ end
 # through child_iomaps), the single definition reused on both sides. The
 # not-yet-built iomap is supplied via the deferred-iomap trick (iomap_cell), as
 # in CopyingProjection.
-function projection_print(p::JsonArrayToSyntaxNode, j::JsonArray, recursion, ctx)
+function projection_print(p::JsonArrayToSyntaxNode, recursion, j::JsonArray, ctx)
     reference = ctx.reference
-    child_iomaps = Cell(() -> [projection_print(recursion, x, recursion,
+    child_iomaps = Cell(() -> [projection_print(recursion, recursion, x,
                                    child_context(ctx, @reference ^(reference).elements[i]))
                                for (i, x) in enumerate(j)])
     iomap_cell = Cell(nothing)
@@ -415,11 +415,11 @@ end
 # key leaf.  Structural positions ({, }, ,, :) fall back to ProjectionReference.
 # The reference maps use School A (delegating each value tail through the stored
 # per-entry value IO map), so the result is a ChildrenIoMap carrying those maps.
-function projection_print(p::JsonObjectToSyntaxNode, j::JsonObject, recursion, ctx)
+function projection_print(p::JsonObjectToSyntaxNode, recursion, j::JsonObject, ctx)
     reference = ctx.reference
     # Use recursion projection to access entries field
     entries_ref = @reference ^(reference).entries
-    entries_iomap = projection_print(recursion, j.entries.elements, recursion, child_context(ctx, entries_ref))
+    entries_iomap = projection_print(recursion, recursion, j.entries.elements, child_context(ctx, entries_ref))
     projected_entries = entries_iomap.output
 
     # School-A delegation handle: the per-entry value IO map. Each entry is

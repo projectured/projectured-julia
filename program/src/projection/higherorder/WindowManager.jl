@@ -54,8 +54,8 @@ end
 
 # ── Printer (passthrough; remembers recursion + ctx for the reader) ──────
 
-function projection_print(p::WindowManagerProjection, input, recursion, ctx)
-    inner_iomap = projection_print(p.inner, input, recursion, ctx)
+function projection_print(p::WindowManagerProjection, recursion, input, ctx)
+    inner_iomap = projection_print(p.inner, recursion, input, ctx)
     WindowManagerProjectionIoMap(p, input, inner_iomap.output, inner_iomap, recursion, ctx)
 end
 
@@ -111,7 +111,7 @@ function _apply_open!(iomap::WindowManagerProjectionIoMap, op::OpenWindowOperati
                               width=op.width, height=op.height,
                               bg=op.bg, style=op.style,
                               content=op.content)
-    new_iomap = projection_print(iomap.recursion, new_in, iomap.recursion, iomap.ctx)
+    new_iomap = projection_print(iomap.recursion, iomap.recursion, new_in, iomap.ctx)
     new_out = new_iomap.output
 
     push!(in_wins, Cell(new_in))
@@ -130,7 +130,7 @@ function _update_window!(w::WindowDocument, op::OpenWindowOperation;
     w.style  = op.style
     if project_content
         # Re-project the new content for the output side.
-        content_iomap = projection_print(recursion, op.content, recursion, ctx)
+        content_iomap = projection_print(recursion, recursion, op.content, ctx)
         w.content = content_iomap.output
     else
         w.content = op.content

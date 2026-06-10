@@ -243,8 +243,8 @@ function _make_tooltip_source(doc; id::Symbol)
     content = TextText(() -> begin
         sel = doc.selection
         ctx = PrinterContext()
-        short = projection_print(short_proj, sel, nothing, ctx).output
-        long  = projection_print(long_proj,  sel, nothing, ctx).output
+        short = projection_print(short_proj, nothing, sel, ctx).output
+        long  = projection_print(long_proj,  nothing, sel, ctx).output
         spans = TextDocument[]
         for i in 1:length(short)
             push!(spans, short[i])

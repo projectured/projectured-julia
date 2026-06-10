@@ -39,7 +39,7 @@ end
 FilteringProjection(; predicate::Function=Returns(true)) =
     FilteringProjection(predicate)
 
-function projection_print(p::FilteringProjection, input::CellVector, recursion, ctx)
+function projection_print(p::FilteringProjection, recursion, input::CellVector, ctx)
     n = length(input)
     kept_indices = Int[i for i in 1:n if p.predicate(input[i])]
     out_cells = Cell[Cell(input[i]) for i in kept_indices]
@@ -48,13 +48,13 @@ function projection_print(p::FilteringProjection, input::CellVector, recursion, 
     FilteringProjectionIoMap(p, input, output, kept_indices)
 end
 
-function projection_print(p::FilteringProjection, input::Vector{Cell}, recursion, ctx)
+function projection_print(p::FilteringProjection, recursion, input::Vector{Cell}, ctx)
     kept_indices = Int[i for (i, c) in enumerate(input) if p.predicate(c)]
     output = Cell[input[i] for i in kept_indices]
     FilteringProjectionIoMap(p, input, output, kept_indices)
 end
 
-function projection_print(p::FilteringProjection, input, recursion, ctx)
+function projection_print(p::FilteringProjection, recursion, input, ctx)
     kept_indices = findall(p.predicate, input)
     output = input[kept_indices]
     FilteringProjectionIoMap(p, input, output, kept_indices)

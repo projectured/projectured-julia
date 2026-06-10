@@ -73,8 +73,8 @@ TooltipDecoratorProjection(; trigger::Function,
 
 # ── Printer (transparent) ─────────────────────────────────────────────────
 
-function projection_print(p::TooltipDecoratorProjection, input::TooltipSource, recursion, ctx)
-    child_iomap = projection_print(recursion, input.child, recursion, ctx)
+function projection_print(p::TooltipDecoratorProjection, recursion, input::TooltipSource, ctx)
+    child_iomap = projection_print(recursion, recursion, input.child, ctx)
     TooltipDecoratorProjectionIoMap(p, input, child_iomap.output, child_iomap)
 end
 

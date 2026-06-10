@@ -66,7 +66,7 @@ end
 _output_w(im) = im === nothing ? 0 : (let o = im.output; o isa GraphicsCanvas ? Int(o.w) : 0 end)
 _output_h(im) = im === nothing ? 0 : (let o = im.output; o isa GraphicsCanvas ? Int(o.h) : 0 end)
 
-function projection_print(p::TableTableToGraphicsCanvas, table::TableTable, recursion, ctx)
+function projection_print(p::TableTableToGraphicsCanvas, recursion, table::TableTable, ctx)
     reference = ctx.reference
     child_iomaps = Cell(() -> begin
         nrows = length(table.rows)
@@ -77,7 +77,7 @@ function projection_print(p::TableTableToGraphicsCanvas, table::TableTable, recu
             cell = table.cells[idx]
             if cell isa TableCell && cell.content !== nothing
                 content_ref = @reference ^(reference).cells[idx].content
-                push!(iomaps, projection_print(recursion, cell.content, recursion, child_context(ctx, content_ref)))
+                push!(iomaps, projection_print(recursion, recursion, cell.content, child_context(ctx, content_ref)))
             else
                 push!(iomaps, nothing)
             end
@@ -91,7 +91,7 @@ function projection_print(p::TableTableToGraphicsCanvas, table::TableTable, recu
             col = table.columns[idx]
             if col isa TableColumn && col.content !== nothing
                 col_ref = @reference ^(reference).columns[idx].content
-                push!(iomaps, projection_print(recursion, col.content, recursion, child_context(ctx, col_ref)))
+                push!(iomaps, projection_print(recursion, recursion, col.content, child_context(ctx, col_ref)))
             else
                 push!(iomaps, nothing)
             end
@@ -105,7 +105,7 @@ function projection_print(p::TableTableToGraphicsCanvas, table::TableTable, recu
             row = table.rows[idx]
             if row isa TableRow && row.content !== nothing
                 row_ref = @reference ^(reference).rows[idx].content
-                push!(iomaps, projection_print(recursion, row.content, recursion, child_context(ctx, row_ref)))
+                push!(iomaps, projection_print(recursion, recursion, row.content, child_context(ctx, row_ref)))
             else
                 push!(iomaps, nothing)
             end

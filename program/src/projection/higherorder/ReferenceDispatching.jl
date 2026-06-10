@@ -75,9 +75,9 @@ struct ReferenceDispatchingIoMap <: IoMap
     inner_iomap::Any      # the iomap returned by the dispatched inner projection
 end
 
-function projection_print(rdp::ReferenceDispatchingProjection, input, recursion, ctx)
+function projection_print(rdp::ReferenceDispatchingProjection, recursion, input, ctx)
     proj = _dispatch_proj(rdp, ctx.reference)
-    inner = projection_print(proj, input, recursion, ctx)
+    inner = projection_print(proj, recursion, input, ctx)
     ReferenceDispatchingIoMap(rdp, input, inner.output, ctx.reference, inner)
 end
 

@@ -38,7 +38,7 @@ Subtype this to register with the default `map_reference_forward`,
 abstract type Projection end
 
 """
-    projection_print(projection, input, recursion, context::PrinterContext) -> iomap
+    projection_print(projection, recursion, input, context::PrinterContext) -> iomap
 
 Forward half of a projection: transform `input` from this projection's input
 domain into its output domain. Returns an `IoMap` recording `projection`,
@@ -53,7 +53,7 @@ recurses. Each concrete projection adds a method; compound projections such as
   **twice** — as the projection to call *and* as that call's own `recursion`
   argument:
 
-      projection_print(recursion, child, recursion, child_ctx)
+      projection_print(recursion, recursion, child, child_ctx)
 
   so the child re-enters the whole pipeline (normally a `RecursiveProjection`
   wrapping a `TypeDispatchingProjection`) instead of this single projection.

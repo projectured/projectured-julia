@@ -39,7 +39,7 @@ end
 NothingToSyntaxLeaf(; font=font_ubuntu_monospace_regular_24, color=color_solarized_magenta, include_selection=false) =
     NothingToSyntaxLeaf(font, color, include_selection)
 
-function projection_print(p::NothingToSyntaxLeaf, ::Nothing, recursion, ctx)
+function projection_print(p::NothingToSyntaxLeaf, recursion, ::Nothing, ctx)
     leaf = SyntaxLeaf(TextString("", p.font, color_default), TextString("", p.font, color_default), TextString("nothing", p.font, p.color))
     SimpleIoMap(p, nothing, leaf)
 end
@@ -54,7 +54,7 @@ end
 BoolToSyntaxLeaf(; font=font_ubuntu_monospace_regular_24, color=color_solarized_yellow, include_selection=false) =
     BoolToSyntaxLeaf(font, color, include_selection)
 
-function projection_print(p::BoolToSyntaxLeaf, b::Bool, recursion, ctx)
+function projection_print(p::BoolToSyntaxLeaf, recursion, b::Bool, ctx)
     leaf = SyntaxLeaf(TextString("", p.font, color_default), TextString("", p.font, color_default), TextString(b ? "true" : "false", p.font, p.color))
     SimpleIoMap(p, b, leaf)
 end
@@ -69,7 +69,7 @@ end
 NumberToSyntaxLeaf(; font=font_ubuntu_monospace_regular_24, color=color_solarized_magenta, include_selection=false) =
     NumberToSyntaxLeaf(font, color, include_selection)
 
-function projection_print(p::NumberToSyntaxLeaf, n::Number, recursion, ctx)
+function projection_print(p::NumberToSyntaxLeaf, recursion, n::Number, ctx)
     leaf = SyntaxLeaf(TextString("", p.font, color_default), TextString("", p.font, color_default), TextString(string(n), p.font, p.color))
     SimpleIoMap(p, n, leaf)
 end
@@ -88,7 +88,7 @@ StringToSyntaxLeaf(; quote_font=font_ubuntu_monospace_regular_24, quote_color=co
                      include_selection=false) =
     StringToSyntaxLeaf(quote_font, quote_color, value_font, value_color, include_selection)
 
-function projection_print(p::StringToSyntaxLeaf, s::AbstractString, recursion, ctx)
+function projection_print(p::StringToSyntaxLeaf, recursion, s::AbstractString, ctx)
     leaf = SyntaxLeaf(
         TextString("\"", p.quote_font, p.quote_color),
         TextString("\"", p.quote_font, p.quote_color),
@@ -106,7 +106,7 @@ end
 SymbolToSyntaxLeaf(; font=font_ubuntu_monospace_regular_24, color=color_solarized_blue, include_selection=false) =
     SymbolToSyntaxLeaf(font, color, include_selection)
 
-function projection_print(p::SymbolToSyntaxLeaf, s::Symbol, recursion, ctx)
+function projection_print(p::SymbolToSyntaxLeaf, recursion, s::Symbol, ctx)
     leaf = SyntaxLeaf(TextString("", p.font, color_default), TextString("", p.font, color_default), TextString(string(s), p.font, p.color))
     SimpleIoMap(p, s, leaf)
 end
@@ -125,7 +125,7 @@ CharToSyntaxLeaf(; quote_font=font_ubuntu_monospace_regular_24, quote_color=colo
                    include_selection=false) =
     CharToSyntaxLeaf(quote_font, quote_color, value_font, value_color, include_selection)
 
-function projection_print(p::CharToSyntaxLeaf, c::Char, recursion, ctx)
+function projection_print(p::CharToSyntaxLeaf, recursion, c::Char, ctx)
     leaf = SyntaxLeaf(
         TextString("'", p.quote_font, p.quote_color),
         TextString("'", p.quote_font, p.quote_color),
@@ -143,7 +143,7 @@ end
 CellToSyntax(; cycle_font=font_ubuntu_monospace_italic_24, cycle_color=color_solarized_gray) =
     CellToSyntax(cycle_font, cycle_color)
 
-function projection_print(p::CellToSyntax, cell::Cell, recursion, ctx)
+function projection_print(p::CellToSyntax, recursion, cell::Cell, ctx)
     visited = get_property(ctx, :objects_seen, nothing)
     if visited !== nothing && haskey(visited, cell)
         cycle_leaf = SyntaxLeaf(
@@ -156,7 +156,7 @@ function projection_print(p::CellToSyntax, cell::Cell, recursion, ctx)
     new_visited[cell] = true
     ctx = with_property(ctx, :objects_seen, new_visited)
     unwrapped = cell[]
-    projection_print(recursion, unwrapped, recursion, ctx)
+    projection_print(recursion, recursion, unwrapped, ctx)
 end
 
 # ── ObjectNodeToSyntaxNode ───────────────────────────────────────────────────
@@ -196,7 +196,7 @@ ObjectNodeToSyntaxNode(; type_name_font=font_ubuntu_monospace_bold_24, type_name
                            undef_font, undef_color, include_selection,
                            open_delimiter, close_delimiter)
 
-function projection_print(p::ObjectNodeToSyntaxNode, obj, recursion, ctx)
+function projection_print(p::ObjectNodeToSyntaxNode, recursion, obj, ctx)
     T = typeof(obj)
 
     # Cycle detection for mutable ancestors. Self-referential graphs (e.g.
@@ -229,7 +229,7 @@ function projection_print(p::ObjectNodeToSyntaxNode, obj, recursion, ctx)
             return SimpleIoMap(p, obj, type_leaf)
         end
         element_nodes = SyntaxDocument[
-            projection_print(recursion, obj[i], recursion,
+            projection_print(recursion, recursion, obj[i],
                            child_context(ctx, ElementReference(i))).output
             for i in eachindex(obj)
         ]
@@ -256,7 +256,7 @@ function projection_print(p::ObjectNodeToSyntaxNode, obj, recursion, ctx)
                 SyntaxLeaf(TextString("", p.field_name_font, color_default), TextString("", p.field_name_font, color_default),
                            TextString(string(fn), p.field_name_font, p.field_name_color)),
                 isdefined(obj, fn) ?
-                    projection_print(recursion, getfield(obj, fn), recursion,
+                    projection_print(recursion, recursion, getfield(obj, fn),
                                      child_context(ctx, FieldReference(string(fn)))).output :
                     SyntaxLeaf(TextString("", p.undef_font, color_default), TextString("", p.undef_font, color_default),
                                TextString("<undefined>", p.undef_font, p.undef_color))
@@ -332,7 +332,7 @@ function print_object(obj; include_selection=false, open_delimiter="", close_del
         RecursiveProjection(SyntaxToText()),
         RecursiveProjection(TextToString())
     )
-    iomap = projection_print(seq, obj, seq, PrinterContext())
+    iomap = projection_print(seq, seq, obj, PrinterContext())
     return iomap.output[]
 end
 

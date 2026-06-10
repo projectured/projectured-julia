@@ -95,7 +95,7 @@ function _xml_text_sel(t::XmlText)
     end)
 end
 
-function projection_print(p::XmlTextToSyntaxLeaf, t::XmlText, recursion, ctx)
+function projection_print(p::XmlTextToSyntaxLeaf, recursion, t::XmlText, ctx)
     output_selection = _xml_text_sel(t)
     SimpleIoMap(p, t, SyntaxLeaf(TextString("", p.font, color_default), TextString("", p.font, color_default), TextString(() -> t.cell, p.font, p.color), output_selection))
 end
@@ -108,7 +108,7 @@ struct XmlInsertionToSyntaxLeaf <: Projection
 end
 XmlInsertionToSyntaxLeaf(; font=font_ubuntu_monospace_regular_24, color=color_solarized_gray) = XmlInsertionToSyntaxLeaf(font, color)
 
-function projection_print(p::XmlInsertionToSyntaxLeaf, x::XmlInsertion, recursion, ctx)
+function projection_print(p::XmlInsertionToSyntaxLeaf, recursion, x::XmlInsertion, ctx)
     output_selection = Cell(() -> map_reference_forward(p, nothing, x.selection))
     SimpleIoMap(p, x, SyntaxLeaf(TextString("", p.font, color_default), TextString("", p.font, color_default), TextString("insert XML here", p.font, p.color), output_selection))
 end
@@ -240,9 +240,9 @@ function projection_read(p::XmlElementToSyntaxNode, iomap::ChildrenIoMap, op::St
     StringReplaceRangeOperation(new_ref, op.replacement)
 end
 
-function projection_print(p::XmlElementToSyntaxNode, e::XmlElement, recursion, ctx)
+function projection_print(p::XmlElementToSyntaxNode, recursion, e::XmlElement, ctx)
     reference = ctx.reference
-    child_iomaps = Cell(() -> [projection_print(recursion, child, recursion,
+    child_iomaps = Cell(() -> [projection_print(recursion, recursion, child,
                                    child_context(ctx, @reference ^(reference).cell[i]))
                                for (i, child) in enumerate(e)])
 

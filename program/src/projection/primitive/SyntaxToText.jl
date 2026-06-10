@@ -65,7 +65,7 @@ end
 #   PS(p).open[k]  →  .elements[1]
 #   PS(p).close[k] →  .elements[3]
 #   anything else  →  no cursor
-function projection_print(p::SyntaxLeafToText, leaf::SyntaxLeaf, recursion, ctx)
+function projection_print(p::SyntaxLeafToText, recursion, leaf::SyntaxLeaf, ctx)
     sel = Cell(() -> begin
         leaf_sel = leaf.selection
         leaf_sel isa EmptyReferencePath && return @reference()
@@ -185,7 +185,7 @@ end
 #        .open[k]      →  .elements at char k of the open span
 #        .close[k]     →  .elements at char k of the close span
 #        .children[i]  →  .elements at offset of child i + child's cursor
-function projection_print(p::SyntaxNodeToText, node::SyntaxNode, recursion, ctx)
+function projection_print(p::SyntaxNodeToText, recursion, node::SyntaxNode, ctx)
     both = Cell(() -> _collect_spans(node, p, 0, recursion))
     output = TextText(
         CellVector(() -> both[][1]),
@@ -423,13 +423,13 @@ function map_reference_backward(::SyntaxListToText, iomap, reference)
 end
 
 """
-    projection_print(::SyntaxListToText, ln::ListNode, recursion, ctx)
+    projection_print(::SyntaxListToText, recursion, ln::ListNode, ctx)
 
 Convert a `ListNode(SyntaxDocument)` to a `TextText` with `ListNode` elements.
 Each syntax element becomes its text spans (open, value, close for leaves),
 with `TextNewline` separators between elements.
 """
-function projection_print(p::SyntaxListToText, ln::ListNode, recursion, ctx)
+function projection_print(p::SyntaxListToText, recursion, ln::ListNode, ctx)
     cache = IdDict{ListNode, ListNode}()
     out_head = _syntax_list_to_text_node(ln, recursion, cache)
     SimpleIoMap(p, ln, TextText(out_head, Cell(nothing)))

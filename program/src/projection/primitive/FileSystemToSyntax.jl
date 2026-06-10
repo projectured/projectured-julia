@@ -41,7 +41,7 @@ end
 FileSystemFileToSyntaxLeaf(; font=font_ubuntu_monospace_regular_24, color=color_solarized_blue) =
     FileSystemFileToSyntaxLeaf(font, color)
 
-function projection_print(p::FileSystemFileToSyntaxLeaf, f::FileSystemFile, recursion, ctx)
+function projection_print(p::FileSystemFileToSyntaxLeaf, recursion, f::FileSystemFile, ctx)
     SimpleIoMap(p, f, SyntaxLeaf(
         TextString("", p.font, color_default),
         TextString("", p.font, color_default),
@@ -68,8 +68,8 @@ FileSystemDirectoryToSyntaxNode(; name_font=font_ubuntu_monospace_bold_24, name_
     FileSystemDirectoryToSyntaxNode(name_font, name_color)
 
 
-function projection_print(p::FileSystemDirectoryToSyntaxNode, d::FileSystemDirectory, recursion, ctx)
-    child_iomaps = Cell(() -> [projection_print(recursion, elem, recursion,
+function projection_print(p::FileSystemDirectoryToSyntaxNode, recursion, d::FileSystemDirectory, ctx)
+    child_iomaps = Cell(() -> [projection_print(recursion, recursion, elem,
                                    child_context(ctx, FieldReference("elements"), ElementReference(i)))
                                for (i, elem) in enumerate(d)])
 

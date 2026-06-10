@@ -97,7 +97,7 @@ Recurse into a child document via the dispatcher.
 """
 function _recurse_child(recursion, child, ref)
     recursion === nothing && return SimpleIoMap(nothing, child, child)
-    return projection_print(recursion, child, recursion, ref)
+    return projection_print(recursion, recursion, child, ref)
 end
 
 """
@@ -158,11 +158,11 @@ values are not consumed here — they are read by the *parent* layout when
 it allocates space across its children.
 """
 function projection_print(p::LayoutConstraintToGraphicsCanvas,
-                          doc::LayoutConstraint, recursion, ctx)
+                          recursion, doc::LayoutConstraint, ctx)
     child = doc.child
     inner = recursion === nothing ?
             SimpleIoMap(nothing, child, child) :
-            projection_print(recursion, child, recursion,
+            projection_print(recursion, recursion, child,
                              child_context(ctx, @reference ^(ctx.reference).child))
     output = inner.output isa GraphicsCanvas ? inner.output : _empty_canvas()
     ContentIoMap(p, doc, output, inner)
@@ -275,7 +275,7 @@ end
 # ── HorizontalLayout ───────────────────────────────────────────────────────
 
 function projection_print(p::HorizontalLayoutToGraphicsCanvas,
-                          doc::HorizontalLayout, recursion, ctx)
+                          recursion, doc::HorizontalLayout, ctx)
     n = length(doc.children)
     if n == 0
         return ChildrenIoMap(p, doc, _empty_canvas(), Cell(Tuple{Cell,Cell,Any}[]))
@@ -364,7 +364,7 @@ end
 # ── VerticalLayout ─────────────────────────────────────────────────────────
 
 function projection_print(p::VerticalLayoutToGraphicsCanvas,
-                          doc::VerticalLayout, recursion, ctx)
+                          recursion, doc::VerticalLayout, ctx)
     n = length(doc.children)
     if n == 0
         return ChildrenIoMap(p, doc, _empty_canvas(), Cell(Tuple{Cell,Cell,Any}[]))
@@ -535,7 +535,7 @@ function _gl_child_y(i::Int, child_iomaps::Vector,
 end
 
 function projection_print(p::GridLayoutToGraphicsCanvas,
-                          doc::GridLayout, recursion, ctx)
+                          recursion, doc::GridLayout, ctx)
     n = length(doc.children)
     if n == 0
         return ChildrenIoMap(p, doc, _empty_canvas(), Cell(Tuple{Cell,Cell,Any}[]))
@@ -726,7 +726,7 @@ function _fl_child_y(i::Int, child_iomaps::Vector, line_plan::Cell,
 end
 
 function projection_print(p::FlowLayoutToGraphicsCanvas,
-                          doc::FlowLayout, recursion, ctx)
+                          recursion, doc::FlowLayout, ctx)
     n = length(doc.children)
     if n == 0
         return ChildrenIoMap(p, doc, _empty_canvas(), Cell(Tuple{Cell,Cell,Any}[]))

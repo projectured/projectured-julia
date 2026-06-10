@@ -46,7 +46,7 @@ end
 @testset "PreservingProjection" begin
     canvas = GraphicsCanvas([GraphicsText("a", 0, 0, font_ubuntu_monospace_regular_24)])
     proj = PreservingProjection()
-    iomap = projection_print(proj, canvas, nothing, nothing)
+    iomap = projection_print(proj, nothing, canvas, nothing)
     @test iomap.input === canvas
     @test iomap.output === canvas
 end

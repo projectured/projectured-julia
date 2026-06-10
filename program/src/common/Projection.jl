@@ -28,7 +28,7 @@ import ..ReferenceBuilderModule: var"@reference"
 export @projection
 
 function projection_print(projection, input)
-    projection_print(projection, input, nothing, PrinterContext())
+    projection_print(projection, nothing, input, PrinterContext())
 end
 
 """

@@ -63,7 +63,7 @@ m = _test_measure(10, 18)
 proj = WordWrapping(max_width=10_000, measure=m)
 avail = Cell(60)  # 60px ≈ 6 chars per line
 ctx = with_available_size(PrinterContext(); width=avail)
-iomap = projection_print(proj, input, nothing, ctx)
+iomap = projection_print(proj, nothing, input, ctx)
 out = iomap.output
 
 joined = join((elem.content for elem in out.elements if elem isa TextString), "")

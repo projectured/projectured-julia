@@ -320,7 +320,7 @@ The returned `Cell` holds a `Vector{GraphicsText}`. Its thunk reads every
 relevant cell in the `TextText`, so any value or structural change
 invalidates the layout; recomputation happens only when the `Cell` is read.
 """
-function projection_print(p::TextToGraphics, styled::TextText, recursion, ctx)
+function projection_print(p::TextToGraphics, recursion, styled::TextText, ctx)
     # ListNode path: lazy paragraph-level mapping
     if styled.elements isa ListNode
         return _print_listnode(p, styled, ctx)

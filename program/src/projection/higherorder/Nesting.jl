@@ -29,13 +29,13 @@ end
 
 A compound projection that applies projections in a nesting (recursive)
 fashion rather than sequentially. The first element handles the outer
-structure and can call `projection_print(recursion, content, ...)` to
+structure and can call `projection_print(recursion, recursion, content, ...)` to
 project nested content through the remaining elements.
 
 # Example
 
     np = NestingProjection(outer_projection, inner_projection)
-    result = projection_print(np, input, recursion, reference)
+    result = projection_print(np, recursion, input, reference)
 """
 struct NestingProjection <: Projection
     elements::Vector{Any}
@@ -45,14 +45,14 @@ end
 NestingProjection(first_elem::Projection, rest...; recursion=nothing) =
     NestingProjection(Any[first_elem, rest...], recursion)
 
-function projection_print(np::NestingProjection, input, recursion, ctx)
+function projection_print(np::NestingProjection, recursion, input, ctx)
     effective = np.recursion !== nothing ? np.recursion : recursion
     if !isempty(np.elements)
         inner = NestingProjection(np.elements[2:end], effective)
-        iomap = projection_print(np.elements[1], input, inner, ctx)
+        iomap = projection_print(np.elements[1], inner, input, ctx)
         NestingProjectionIoMap(np, input, iomap.output, iomap)
     else
-        iomap = projection_print(effective, input, recursion, ctx)
+        iomap = projection_print(effective, recursion, input, ctx)
         NestingProjectionIoMap(np, input, iomap.output, iomap)
     end
 end

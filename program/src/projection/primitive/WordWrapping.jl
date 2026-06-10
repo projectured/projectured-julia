@@ -73,7 +73,7 @@ end
 
 # ── Print ───────────────────────────────────────────────────────────────────
 
-function projection_print(p::WordWrapping, text::TextText, recursion, ctx)
+function projection_print(p::WordWrapping, recursion, text::TextText, ctx)
     wrap_w_cell = _wrap_width_cell(p, ctx)
     measure_fn = p.measure
     both = Cell(() -> _wrap(text, Int(wrap_w_cell[]), measure_fn))

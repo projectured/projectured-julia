@@ -27,10 +27,10 @@ A generic projection that reverses the order of elements in the input collection
 """
 struct ReversingProjection <: Projection end
 
-function projection_print(p::ReversingProjection, input, recursion, ctx)
+function projection_print(p::ReversingProjection, recursion, input, ctx)
     recursion = something(recursion, PreservingProjection())
     child_iomaps = Cell(() -> [
-        projection_print(recursion, input[i], recursion,
+        projection_print(recursion, recursion, input[i],
             child_context(ctx, PositionReference(i)))
         for i in 1:length(input)
     ])
