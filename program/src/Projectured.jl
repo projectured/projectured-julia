@@ -86,6 +86,7 @@ include("projection/generic/Invariably.jl")
 include("device/Modifiers.jl")
 include("device/Keyboard.jl")
 include("device/Mouse.jl")
+include("device/EventCase.jl")
 include("projection/generic/Focusing.jl")
 
 # ── Primitive projections ─────────────────────────────────────────────────
@@ -167,6 +168,7 @@ using .DocumentApiModule: set_selection!, clear_selection!
 using .OperationModule: ReplaceSelectionOperation, QuitEditorOperation, replace_selection!,
                         OpenWindowOperation, CloseWindowOperation, TreeNavigateOperation
 using .ReferenceCaseModule: var"@reference_case", when, prefix
+using .EventCaseModule: var"@event_case"
 using .ReferenceBuilderModule: var"@reference", var"@step"
 using .OperationApiModule: Operation, evaluate_operation
 using .JsonModule: JsonDocument, JsonInsertion, JsonNull, JsonBool, JsonNumber, JsonString, JsonArray,
@@ -365,6 +367,7 @@ export ConcreteReferencePath, ElementReference, PositionReference, RangeReferenc
 export ProjectionContext, child_context, with_available_size, with_property, get_property
 export set_selection!, clear_selection!, replace_selection!
 export @reference_case, when, prefix
+export @event_case
 export @reference, @step
 export ReplaceSelectionOperation
 export OpenWindowOperation, CloseWindowOperation
