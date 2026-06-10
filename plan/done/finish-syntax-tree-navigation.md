@@ -2,8 +2,8 @@
 
 **Status: done.** Tree-selection navigation now lives entirely in `SyntaxToText`,
 where the tree and selection are in hand — no courier operation, no tree intent
-encoded in the text/graphics path. This was the "Interaction" slice of
-[`syntax-tree-selection.md`](../pending/syntax-tree-selection.md).
+encoded in the text/graphics path. This was the "Interaction" slice of the
+whole-element selection feature ([`syntax-tree-selection.md`](syntax-tree-selection.md)).
 
 ## What shipped
 
@@ -61,8 +61,11 @@ so the lower layers no longer encode tree intent in the path.
 
 ## Follow-ups
 
-- **Master plan updated:** [`syntax-tree-selection.md`](../pending/syntax-tree-selection.md)
-  §"Later slices" and §"Interaction" now describe the gesture-in-reader mechanism.
+- **Master plan split:** the built whole-element feature — including this
+  gesture-in-reader interaction — is recorded in
+  [`syntax-tree-selection.md`](syntax-tree-selection.md); the deferred
+  range/multi-element and `ListNode`-highlight slices stay in
+  [`../pending/syntax-tree-selection.md`](../pending/syntax-tree-selection.md).
 - **Unblocks** Phase 3 of [`event-case-migration.md`](../pending/event-case-migration.md):
   the now-stable `TextToGraphics` / `SyntaxToText` readers can migrate to
   `@event_case`.
