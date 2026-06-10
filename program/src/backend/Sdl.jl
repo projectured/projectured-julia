@@ -29,6 +29,37 @@ export SdlBackend, sdl_measure_text, sdl_render_canvas, sdl_display_size,
        write_image, GraphicsCanvasToImageFile,
        sdl_decode_image, decode_image_file!
 
+# Pixel size of the primary monitor from xrandr's RandR 1.5
+# `--listmonitors`. SDL can fold a multi-monitor X screen into a single
+# "display" whose bounds span every monitor, hiding the per-monitor layout;
+# xrandr still reports each monitor's own pixel size. Returns `(width,
+# height)` for the monitor flagged primary (`*`), falling back to the first
+# listed monitor. Returns `nothing` when DISPLAY is unset, xrandr is missing
+# or unparseable, or — with `require_multi=true` — fewer than two monitors
+# are present (so genuinely single-monitor setups keep SDL's usable bounds).
+function _x11_primary_monitor_size(; require_multi::Bool=false)
+    haskey(ENV, "DISPLAY") || return nothing
+    try
+        out = readchomp(pipeline(`xrandr --listmonitors`, stderr=devnull))
+        mons = Tuple{Int,Int}[]
+        primary = nothing
+        for line in split(out, '\n')
+            # e.g. " 0: +*DP-2 5120/600x2880/340+0+0  DP-2"
+            m = match(r"^\s*\d+:\s+\+(\*?)\S+\s+(\d+)/\d+x(\d+)/\d+", line)
+            m === nothing && continue
+            wh = (parse(Int, m.captures[2]), parse(Int, m.captures[3]))
+            push!(mons, wh)
+            m.captures[1] == "*" && primary === nothing && (primary = wh)
+        end
+        isempty(mons) && return nothing
+        require_multi && length(mons) < 2 && return nothing
+        return primary === nothing ? mons[1] : primary
+    catch
+        # xrandr not installed, no RandR 1.5, or parse failure — fall through.
+        return nothing
+    end
+end
+
 """
     sdl_display_size(; display::Integer=0) -> (width, height)
 
@@ -37,9 +68,24 @@ means with OS-reserved areas like the taskbar / menu bar subtracted —
 the right thing for picking a default window size. Falls back to
 `(1280, 720)` if SDL cannot answer (no display, headless run, etc.).
 The video subsystem is initialized lazily; safe to call before `init!`.
+
+On X11 SDL sometimes folds a multi-monitor screen into a single "display"
+whose bounds span every monitor (e.g. 7290×4032 across two), which would
+size the default window to the whole desktop. When SDL reports one display
+but xrandr sees several, the primary monitor's size from xrandr is used
+instead so the default fills one monitor, not the span.
 """
 function sdl_display_size(; display::Integer=0)
     SDL_Init(SDL_INIT_VIDEO) == 0 || return (1280, 720)
+
+    # Detect the SDL-collapses-multiple-monitors case and prefer the real
+    # primary-monitor size. Only when SDL reports a single display (so we do
+    # not override a setup where SDL already enumerates monitors correctly).
+    if display == 0 && SDL_GetNumVideoDisplays() <= 1
+        mon = _x11_primary_monitor_size(; require_multi=true)
+        mon === nothing || return mon
+    end
+
     rect = Ref(SDL_Rect(Int32(0), Int32(0), Int32(0), Int32(0)))
     rc = SDL_GetDisplayUsableBounds(Int32(display), rect)
     if rc != 0 || rect[].w <= 0 || rect[].h <= 0
