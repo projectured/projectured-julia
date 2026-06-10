@@ -116,11 +116,14 @@ element. Tests: `test/src/projection/SyntaxTreeSelectionTest.jl`
     navigation keys so the event falls through the chain. This fixed navigation
     in pipelines with intermediate projections (e.g. `julia`, which has
     `LineNumbering` between the layers).
-  - **Mouse (pending move):** Alt+click still builds a text whole-element path
-    (`_build_tree_selection_path` in TextToGraphics) that `SyntaxToText` inverts.
-    Moving this promotion into the syntax reader is tracked in
-    [finish-syntax-tree-navigation.md](finish-syntax-tree-navigation.md), which
-    depends on [reader-gesture-context.md](reader-gesture-context.md).
+  - **Mouse mechanism (commit `027628c`):** Alt+click promotion now lives in
+    `SyntaxNodeToText`'s reader, alongside the keyboard half. With the originating
+    gesture threaded through the reader chain (see
+    [reader-gesture-context.md](../done/reader-gesture-context.md)), the
+    text/graphics layers stay dumb — `GraphicsCaching` and `TextToGraphics` always
+    emit a plain character cursor — and `SyntaxToText` promotes to a whole-element
+    selection when `change.gesture isa MousePress && gesture.modifiers.alt`,
+    reusing `_pos_to_tree_selection`. `_build_tree_selection_path` is gone.
 - ⏳ **Range / multi-element selection (plan §3)** — still deferred.
   `TextRangeReference` (the ragged cross-span char-range sibling of
   `TextRectangularReference`) is named in the design but not built.
@@ -270,14 +273,19 @@ Open implementation details:
 
 ## Interaction: Creating & Navigating Tree Selections (✅ built)
 
-Keyboard navigation is recognized **and** resolved in `SyntaxNodeToText`'s
-`KeyDown` reader against the live tree (`_tree_navigate`); `TextToGraphics`
-declines the Alt chords so the raw event falls through. There is **no courier
-operation** — `TreeNavigateOperation` was removed in commit `f74e1a0`. Alt+click
-is still recognized in `TextToGraphics`'s click reader
-(`_build_tree_selection_path`), pending the move into the syntax reader tracked
-in [finish-syntax-tree-navigation.md](finish-syntax-tree-navigation.md). Tests in
-`SyntaxTreeNavigationTest.jl`.
+Both halves of tree navigation are now recognized **and** resolved in
+`SyntaxNodeToText`'s reader against the live tree — there is **no courier
+operation** (`TreeNavigateOperation` was removed in commit `f74e1a0`):
+
+- **Keyboard:** the `KeyDown` reader resolves the Alt chords via `_tree_navigate`;
+  `TextToGraphics` declines the Alt navigation keys so the raw event falls through.
+- **Mouse (commit `027628c`):** the gesture-aware `Change` reader promotes a
+  mapped Alt+click to a whole-element selection via `_pos_to_tree_selection`. The
+  text/graphics layers below stay dumb (plain character cursor) and the Alt
+  modifier reaches the syntax reader through the threaded gesture (see
+  [reader-gesture-context.md](../done/reader-gesture-context.md)).
+
+Tests in `SyntaxTreeNavigationTest.jl`.
 
 ### Entering tree selection mode
 

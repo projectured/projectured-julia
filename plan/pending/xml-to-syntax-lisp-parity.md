@@ -68,7 +68,7 @@ This plan does **not** re-specify the shared machinery; it depends on it:
   of scope here** beyond noting the XML call sites (§1).
 - **Event routing** — getting a raw `KeyPress`/`KeyDown` to a projection's
   reader so it can emit a structural operation — is
-  [reader-gesture-context.md](reader-gesture-context.md) +
+  [reader-gesture-context.md](../done/reader-gesture-context.md) +
   [text-syntax-json-typein.md](text-syntax-json-typein.md) Phase 3. **Out of
   scope here**; this plan adds XML-specific reader methods on top (§2).
 - **The placeholder / default-text mechanism** is
@@ -131,7 +131,7 @@ walks steps last→first until one returns non-`nothing`; unhandled keys propaga
 up. Each XML command therefore becomes a
 `projection_read(::Xml…ToSyntax…, iomap, ::KeyPress)` / `::KeyDown` method on the
 XML projection. **This is a dependency on the typein/gesture-routing work
-landing first** ([reader-gesture-context.md](reader-gesture-context.md)); this
+landing first** ([reader-gesture-context.md](../done/reader-gesture-context.md)); this
 plan adds the XML reader methods.
 
 Gating subtlety the Lisp handles and we must too: a creation command (`<`, `"`,
@@ -336,7 +336,7 @@ Run with `test_reader(xml_example)` / `test_selection(xml_example)` /
 ## 9. Out of scope
 
 - The shared structural operations themselves → [json-to-syntax-lisp-parity.md §1](json-to-syntax-lisp-parity.md).
-- The event-routing / gesture mechanism → [reader-gesture-context.md](reader-gesture-context.md), [text-syntax-json-typein.md](text-syntax-json-typein.md).
+- The event-routing / gesture mechanism → [reader-gesture-context.md](../done/reader-gesture-context.md), [text-syntax-json-typein.md](text-syntax-json-typein.md).
 - The placeholder mechanism's implementation → [json-to-syntax-lisp-parity.md §4](json-to-syntax-lisp-parity.md) (this plan only lists the XML strings).
 - Collapse wiring & rendering → [collapse-expand-syntax-nodes.md](collapse-expand-syntax-nodes.md).
 - Undo/redo — but `CollectionInsert/Delete` are designed with inverses so it can build on them.

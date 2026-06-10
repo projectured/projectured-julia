@@ -163,6 +163,6 @@ palette / context help) can be added as fields later without changing the interf
 ## Follow-ups unblocked
 
 - The mouse half of tree navigation can move further into `SyntaxToText`
-  (see [`finish-syntax-tree-navigation.md`](../pending/finish-syntax-tree-navigation.md)).
+  (see [`finish-syntax-tree-navigation.md`](finish-syntax-tree-navigation.md)).
 - Phase 3 of [`event-case-migration.md`](../pending/event-case-migration.md) touches
   the same readers; migrate them to `@event_case` next.
