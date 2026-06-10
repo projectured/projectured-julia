@@ -105,11 +105,22 @@ element. Tests: `test/src/projection/SyntaxTreeSelectionTest.jl`
   `GraphicsRect` over the covered segments' bounding box.
 - ✅ **Editor surface (navigation flavour)** — built. Alt+click selects the
   innermost node; Alt+↑/↓/←/→ move to parent / first child / previous / next
-  sibling; Ctrl+Alt+Home selects the root — all via `TreeNavigateOperation`,
-  produced by `TextToGraphics` and resolved at the syntax layer (`_tree_navigate`
-  in SyntaxToText.jl). Any non-Alt keystroke/click drops back to a normal cursor.
-  Tests: `SyntaxTreeNavigationTest.jl` (`test_tree_navigation[s]`,
-  `explore_tree_selections`); `SyntaxTreeSelectionTest.jl` updated for the box.
+  sibling; Ctrl+Alt+Home selects the root. Any non-Alt keystroke/click drops
+  back to a normal cursor. Tests: `SyntaxTreeNavigationTest.jl`
+  (`test_tree_navigation[s]`, `explore_tree_selections`);
+  `SyntaxTreeSelectionTest.jl` updated for the box.
+  - **Keyboard mechanism (updated, commit `f74e1a0`):** the `TreeNavigateOperation`
+    courier was **removed**. The raw key event is recognized *and* resolved in
+    one place — `SyntaxToText`'s `KeyDown` reader, where the tree and selection
+    are in hand (`_tree_navigate`). `TextToGraphics` declines alt-modified
+    navigation keys so the event falls through the chain. This fixed navigation
+    in pipelines with intermediate projections (e.g. `julia`, which has
+    `LineNumbering` between the layers).
+  - **Mouse (pending move):** Alt+click still builds a text whole-element path
+    (`_build_tree_selection_path` in TextToGraphics) that `SyntaxToText` inverts.
+    Moving this promotion into the syntax reader is tracked in
+    [finish-syntax-tree-navigation.md](finish-syntax-tree-navigation.md), which
+    depends on [reader-gesture-context.md](reader-gesture-context.md).
 - ⏳ **Range / multi-element selection (plan §3)** — still deferred.
   `TextRangeReference` (the ragged cross-span char-range sibling of
   `TextRectangularReference`) is named in the design but not built.
@@ -259,10 +270,14 @@ Open implementation details:
 
 ## Interaction: Creating & Navigating Tree Selections (✅ built)
 
-Implemented via `TreeNavigateOperation(direction)` (Operation.jl): `TextToGraphics`
-recognises the Alt chords and emits the operation; `SyntaxNodeToText.projection_read`
-resolves it against the live tree (`_tree_navigate`). Alt+click is recognised in
-the click reader (`_build_tree_selection_path`). Tests in `SyntaxTreeNavigationTest.jl`.
+Keyboard navigation is recognized **and** resolved in `SyntaxNodeToText`'s
+`KeyDown` reader against the live tree (`_tree_navigate`); `TextToGraphics`
+declines the Alt chords so the raw event falls through. There is **no courier
+operation** — `TreeNavigateOperation` was removed in commit `f74e1a0`. Alt+click
+is still recognized in `TextToGraphics`'s click reader
+(`_build_tree_selection_path`), pending the move into the syntax reader tracked
+in [finish-syntax-tree-navigation.md](finish-syntax-tree-navigation.md). Tests in
+`SyntaxTreeNavigationTest.jl`.
 
 ### Entering tree selection mode
 
@@ -281,7 +296,8 @@ Once a node is selected (its `selection` is `∅`):
 - **Alt + ↓** — move selection one level down to the first child.
 - **Alt + ←** — move selection to the previous sibling (same parent, index − 1).
 - **Alt + →** — move selection to the next sibling (same parent, index + 1).
-- **Ctrl + Alt + Home** — select the root node (`TreeNavigateOperation(:root)`).
+- **Ctrl + Alt + Home** — select the root node (`Ctrl+Alt+Home` in the
+  `SyntaxNodeToText` `KeyDown` reader → `ReplaceSelectionOperation(∅)`).
 
 At boundaries (no parent / no child / first or last sibling) the selection
 stays unchanged (no wrap-around).
