@@ -67,6 +67,24 @@ db_query(adapter, table::String, ::Type{T};
 db_execute_raw(adapter, sql::String, ::Type{T}; params=())::T where T
 ```
 
+**`Base.show` for `RawDatabaseResult`** — tab-delimited text, header row first:
+
+```julia
+function Base.show(io::IO, r::RawDatabaseResult)
+    println(io, join(r.columns, "\t"))
+    for row in r.rows
+        println(io, join(string.(row), "\t"))
+    end
+end
+```
+
+Output example for a two-column, two-row result:
+```
+name\tage
+Alice\t30
+Bob\t25
+```
+
 **Supported targets** (dispatched in Phase 3):
 
 | Target type | Result shape |
@@ -220,6 +238,8 @@ Tests require a live PostgreSQL instance. Use a dedicated test database (`projec
 **T8 — Delete** — `db_delete!(adapter, "persons", "name = 'Alice'")` returns 1; subsequent query grid has only 1 row (header).
 
 **T9 — `db_execute_raw` into `RawDatabaseResult`** — `db_execute_raw(adapter, "SELECT count(*) FROM persons", RawDatabaseResult)` returns a `RawDatabaseResult` with one row.
+
+**T10 — `show` tab-delimited** — `sprint(show, RawDatabaseResult(["name", "age"], [["Alice", 30], ["Bob", 25]]))` equals `"name\tage\nAlice\t30\nBob\t25\n"`; no live DB required.
 
 ### Wiring
 

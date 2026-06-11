@@ -40,6 +40,8 @@ include("document/Json.jl")
 include("document/Math.jl")
 include("document/Julia.jl")
 include("document/Tabular.jl")
+include("document/Database.jl")
+include("document/DbCatalog.jl")
 include("document/Table.jl")
 include("document/Xml.jl")
 include("document/FileSystem.jl")
@@ -126,7 +128,11 @@ include("projection/compound/Generic.jl")
 # ── Devices, backend, and editor ──────────────────────────────────────────
 
 include("device/Screen.jl")
-include("backend/Sdl.jl")
+include("external/Database.jl")
+include("external/DatabaseTabular.jl")
+include("projection/primitive/DatabaseTableToTabularGrid.jl")
+include("projection/primitive/DbCatalogToChildren.jl")
+include("projection/primitive/DbCatalogTableToTabularGrid.jl")
 include("editor/ToolRegistry.jl")
 include("editor/Mcp.jl")
 include("editor/WorkbenchAssistant.jl")
@@ -179,6 +185,22 @@ using .JsonModule: JsonDocument, JsonInsertion, JsonNull, JsonBool, JsonNumber, 
 using .TabularModule: TabularDocument, TabularCell, TabularRow, TabularGrid,
                       tabular_cell, tabular_column,
                       insert_row!, delete_row!, insert_column!, delete_column!
+using .DatabaseDocumentModule: DatabaseDocument, DatabaseTable,
+                               DatabaseUpdateOperation, DatabaseInsertOperation
+using .DatabaseModule: DatabaseAdapter, RawDatabaseResult, PostgresDatabaseAdapter,
+                       db_connect!, db_close!, db_alive,
+                       db_rowid_column,
+                       db_query, db_execute_raw,
+                       db_insert!, db_update!, db_delete!,
+                       db_catalog_databases, db_catalog_schemas, db_catalog_tables, db_catalog_columns
+using .DatabaseTableToTabularGridModule: DatabaseTableIoMap, DatabaseTableToTabularGrid
+using .DbCatalogDocumentModule: DbCatalogDocument,
+                                DbCatalogConnection, DbCatalogDatabase, DbCatalogSchema,
+                                DbCatalogTable, DbCatalogColumn
+using .DbCatalogToChildrenModule: DbCatalogConnectionToChildren, DbCatalogDatabaseToChildren,
+                                   DbCatalogSchemaToChildren, DbCatalogTableToChildren
+using .DbCatalogTableToTabularGridModule: DbCatalogTableIoMap, DbCatalogTableToTabularGrid,
+                                          DbCatalogUpdateOperation
 using .TableModule: TableDocument, TableCell, TableRow, TableColumn, TableTable
 using .XmlModule: XmlDocument, XmlInsertion, XmlText, XmlAttribute, XmlElement, xmlattr,
                   setattr!, deleteattr!
@@ -202,10 +224,20 @@ using .ModifiersModule: Modifiers
 using .KeyboardModule: KeyDown, KeyUp, KeyPress, is_ctrl, is_shift, is_alt, is_meta
 using .MouseModule: MouseDown, MouseUp, MousePress, MouseMove, MouseScroll
 using .BackendModule: Backend, init!, quit!, measure_text
-using .SdlBackendModule: SdlBackend, sdl_measure_text, sdl_render_canvas,
-                          sdl_display_size,
-                          write_image, GraphicsCanvasToImageFile,
-                          sdl_decode_image, decode_image_file!
+
+# SDL stubs — zero-method generics. SdlExt adds real methods when
+# SimpleDirectMediaLayer is loaded alongside Projectured.
+function sdl_measure_text end
+function sdl_render_canvas end
+function sdl_display_size end
+function sdl_decode_image end
+function decode_image_file! end
+function write_image end
+mutable struct SdlBackend <: Backend
+    SdlBackend() = new()
+end
+struct GraphicsCanvasToImageFile end
+
 using .DeviceModule: Device, write_to_device, read_from_device, write_to_devices, read_from_devices
 using .ScreenModule: Screen, QuitEvent
 using .IoMapApiModule: IoMap
@@ -381,6 +413,18 @@ export JsonDocument, JsonInsertion, JsonNull, JsonBool, JsonNumber, JsonString, 
 export TabularDocument, TabularCell, TabularRow, TabularGrid,
        tabular_cell, tabular_column,
        insert_row!, delete_row!, insert_column!, delete_column!
+export DatabaseDocument, DatabaseTable, DatabaseUpdateOperation, DatabaseInsertOperation
+export DatabaseAdapter, RawDatabaseResult, PostgresDatabaseAdapter,
+       db_connect!, db_close!, db_alive, db_rowid_column,
+       db_query, db_execute_raw, db_insert!, db_update!, db_delete!,
+       db_catalog_databases, db_catalog_schemas, db_catalog_tables, db_catalog_columns
+export DatabaseTableIoMap, DatabaseTableToTabularGrid
+export DbCatalogDocument,
+       DbCatalogConnection, DbCatalogDatabase, DbCatalogSchema,
+       DbCatalogTable, DbCatalogColumn
+export DbCatalogConnectionToChildren, DbCatalogDatabaseToChildren,
+       DbCatalogSchemaToChildren, DbCatalogTableToChildren
+export DbCatalogTableIoMap, DbCatalogTableToTabularGrid, DbCatalogUpdateOperation
 export TableDocument, TableCell, TableRow, TableColumn, TableTable
 export XmlDocument, XmlInsertion, XmlText, XmlAttribute, XmlElement, xmlattr, setattr!, deleteattr!
 export FileSystemDocument, FileSystemInsertion, FileSystemFile, FileSystemDirectory, make_filesystem_pathname

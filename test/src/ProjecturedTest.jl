@@ -53,6 +53,10 @@ include("editor/ClickRoundtripTest.jl")
 include("editor/CollapseRoundtripTest.jl")
 include("editor/SyntaxTreeNavigationTest.jl")
 include("editor/AssistantMvpTest.jl")
+include("external/DatabaseTest.jl")
+include("external/DatabaseTabularTest.jl")
+include("external/DbCatalogTest.jl")
+include("external/DbCatalogTabularTest.jl")
 
 function test_documents()
     @testset "Documents" begin
@@ -110,6 +114,7 @@ function test_all()
     test_collapse_roundtrip()
     test_tree_navigations()
     test_table_navigation()
+    test_database_no_db()
     end
 end
 
@@ -143,5 +148,7 @@ export test_json_content_clicks_clean, test_json_content_clicks_clean_all
 export test_collapse_roundtrip
 export test_tree_navigation, test_tree_navigations, explore_tree_selections
 export test_assistant_mvp, make_assistant_mvp_setup, make_assistant_mvp_projection
+export test_database_connection, test_database, test_database_no_db, test_database_tabular
+export test_db_catalog, test_db_catalog_tabular
 
 end # module ProjecturedTest
