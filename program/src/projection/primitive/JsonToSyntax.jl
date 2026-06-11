@@ -129,7 +129,8 @@ end
 # (routed through the identity map_reference_backward); only the value-editing
 # path below needs a bespoke reader.
 function projection_print(p::JsonNumberToSyntaxLeaf, recursion, j::JsonNumber, ctx)
-    SimpleIoMap(p, j, SyntaxLeaf(TextString("", p.font, color_default), TextString("", p.font, color_default), TextString(() -> string(j[]), p.font, p.color), getfield(j, :selection)))
+    value = _hinted_text(() -> string(j[]), () -> j[] === nothing, "enter json number", p.font, p.color)
+    SimpleIoMap(p, j, SyntaxLeaf(TextString("", p.font, color_default), TextString("", p.font, color_default), value, getfield(j, :selection)))
 end
 
 # Editing into a JsonNumber's value rewires the string operation as a
@@ -190,10 +191,11 @@ end
 # map_reference_backward above — .value passes through; the surrounding quotes
 # wrap into a ProjectionReference. Only value editing needs a bespoke reader.
 function projection_print(p::JsonStringToSyntaxLeaf, recursion, j::JsonString, ctx)
+    value = _hinted_text(() -> json_escape(j[]), () -> isempty(j[]), "enter json string", p.value_font, p.value_color)
     SimpleIoMap(p, j, SyntaxLeaf(
         TextString("\"", p.quote_font, p.quote_color),
         TextString("\"", p.quote_font, p.quote_color),
-        TextString(() -> json_escape(j[]), p.value_font, p.value_color),
+        value,
         getfield(j, :selection)))
 end
 
@@ -454,7 +456,7 @@ function projection_print(p::JsonObjectToSyntaxNode, recursion, j::JsonObject, c
                         Cell(SyntaxLeaf(
                             TextString("\"", p.key_font, p.key_color),
                             TextString("\"", p.key_font, p.key_color),
-                            TextString(json_escape(e.key), p.key_font, p.key_color),
+                            _hinted_text(() -> json_escape(e.key), () -> isempty(e.key), "enter key", p.key_font, p.key_color),
                             _entry_key_sel(getfield(e, :selection)))),
                         getfield(e, :value)
                     ]),
@@ -636,6 +638,19 @@ function JsonToSyntax()
 end
 
 # ── Utility ──────────────────────────────────────────────────────────────────
+
+# Render a value leaf, falling back to a muted placeholder hint when the value is
+# empty (Lisp `text/make-default-text`). The hint is just an ordinary TextString —
+# no special field — distinguished only by colour, and both content and colour
+# recompute reactively with the value, so the hint vanishes the instant the user
+# types. (Same shape JsonInsertion already uses for its "insert JSON here" hint.)
+function _hinted_text(content_thunk, empty_thunk, placeholder::AbstractString, font::StyleFont, color::StyleColor)
+    TextString(
+        Cell(() -> empty_thunk() ? placeholder : content_thunk()),
+        Cell(font),
+        Cell(() -> empty_thunk() ? color_solarized_gray : color),
+        Cell(nothing), Cell(nothing), Cell(nothing), Cell(nothing))
+end
 
 function json_escape(s::AbstractString)
     buf = IOBuffer()

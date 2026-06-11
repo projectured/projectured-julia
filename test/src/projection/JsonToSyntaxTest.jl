@@ -139,5 +139,17 @@ end
     @test read_key(obj, whole, KeyDown(:tab, Modifiers())) === nothing
 end
 
+@testset "empty values render a muted placeholder hint" begin
+    rp = RecursiveProjection(JsonToSyntax())
+    rendr(d) = render(projection_print(rp, d).output)
+    @test rendr(JsonString("")) == "\"enter json string\""
+    emptynum = JsonNumber(0); emptynum.value = nothing
+    @test rendr(emptynum) == "enter json number"
+    @test occursin("enter key", rendr(JsonObject("" => JsonInsertion())))
+    # The hint is just content — a real value replaces it entirely.
+    @test rendr(JsonString("hi")) == "\"hi\""
+    @test rendr(JsonNumber(7)) == "7"
+end
+
 end # @testset "JsonToSyntax reader commands"
 end # test_json_to_syntax_reader

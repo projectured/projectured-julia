@@ -1,5 +1,15 @@
 # Bringing `XmlToSyntax` up to the Lisp reference's capabilities
 
+> **Status (2026-06-11): Phases 1–4 complete; Phase 5 blocked; Phase 6 resolved.**
+> The XML authoring reader command set (insertion replace, element structural
+> insert, attribute insert + `=` navigation, generic insertion) is implemented
+> in [`XmlToSyntax.jl`](../../program/src/projection/primitive/XmlToSyntax.jl)
+> and covered by [`XmlToSyntaxTest.jl`](../../test/src/projection/XmlToSyntaxTest.jl)
+> (7 printer + 32 reader assertions, all green; full `test_printers/readers/selections`
+> sweeps green). **Phase 5 (placeholders) remains outstanding** — it depends on
+> the JSON plan §4 placeholder mechanism, which is not yet landed. See the
+> per-section `✅ / ⏸ / ⏭` markers below.
+
 ## Origin
 
 This plan comes from comparing the Julia
@@ -90,7 +100,12 @@ What remains — and what this plan covers:
 
 ---
 
-## 1. Structural operations (shared prerequisite — see JSON plan §1)
+## 1. Structural operations (shared prerequisite — see JSON plan §1) — ✅ landed
+
+> `ReplaceDocumentOperation`, `CollectionInsertOperation`, `CollectionDeleteOperation`
+> are present in [`Operation.jl`](../../program/src/common/Operation.jl); the XML
+> readers emit them. No new operation types were needed here.
+
 
 Today the only document-mutating operations are `ReplaceSelectionOperation`
 ([Operation.jl:50](../../program/src/common/Operation.jl#L50)),
@@ -149,7 +164,7 @@ All methods live in
 [`XmlToSyntax.jl`](../../program/src/projection/primitive/XmlToSyntax.jl),
 alongside the existing `projection_read` methods.
 
-### 3.1 Insertion replace (`xml/insertion->syntax/leaf` reader)
+### 3.1 Insertion replace (`xml/insertion->syntax/leaf` reader) — ✅ done
 
 `XmlInsertionToSyntaxLeaf` currently has **no reader**
 ([XmlToSyntax.jl:103-114](../../program/src/projection/primitive/XmlToSyntax.jl#L103-L114)).
@@ -166,7 +181,7 @@ The text replacement pre-selects `.cell[0:0]`; the element replacement
 pre-selects `.tag[0:0]` (Julia constructors: [Xml.jl:125](../../program/src/document/Xml.jl#L125),
 [Xml.jl:165](../../program/src/document/Xml.jl#L165)).
 
-### 3.2 Element structural insert (`xml/element->syntax/node` reader)
+### 3.2 Element structural insert (`xml/element->syntax/node` reader) — ✅ done
 
 On `XmlElementToSyntaxNode`
 ([XmlToSyntax.jl:225](../../program/src/projection/primitive/XmlToSyntax.jl#L225)),
@@ -191,7 +206,7 @@ Notes:
 - Index is `length(e.cell)` (or `length(e.attrs)`) — append at the end, as the
   Lisp does.
 
-### 3.3 Attribute `=` navigation — and the missing attribute projection
+### 3.3 Attribute `=` navigation — and the missing attribute projection — ✅ done (option a)
 
 The Lisp models attributes as a **separate projection**
 `xml/attribute->syntax/node` with its own reader, whose `=` command moves the
@@ -221,7 +236,14 @@ decision in the code comment either way.
 
 ---
 
-## 4. Placeholder / default text (shared mechanism — see JSON plan §4)
+## 4. Placeholder / default text (shared mechanism — see JSON plan §4) — ⏸ blocked
+
+> **Not done.** This reuses the JSON plan §4 placeholder mechanism, which has
+> **not** landed: `JsonInsertion` still hardcodes `"insert JSON here"` and
+> `TextString` has no `placeholder` field. Per §9 the mechanism's implementation
+> is out of scope here. Once it lands, wire the four XML strings below (the XML
+> insertion still hardcodes `"insert XML here"` as content meanwhile).
+
 
 The Lisp `text/make-default-text value placeholder …` shows a muted hint when
 the field is empty. Julia hardcodes `"insert XML here"` as *content* for the
@@ -246,11 +268,12 @@ an emptiness flag the reader can test) for:
 
 Lower priority; each is independent and small.
 
-### 5.1 Attribute projection (see §3.3)
+### 5.1 Attribute projection (see §3.3) — ✅ done (kept inline, option a)
 Inline `_attr_node` vs. a real `XmlAttributeToSyntaxNode`. The `=` command (a)
-keeps it inline; (b) is the faithful refactor. **Decide in §3.3; default (a).**
+keeps it inline; (b) is the faithful refactor. **Chose (a)**; the decision is
+recorded in the `_xml_attr_equals` comment.
 
-### 5.2 End-tag editing
+### 5.2 End-tag editing — ✅ resolved (display-only)
 The Lisp maps end-tag edits to `xml/end-tag`
 ([xml-to-syntax.lisp:390-397](../../../projectured-lisp/source/projection/primitive/xml-to-syntax.lisp#L390-L397)).
 Julia renders the closing tag from the same `e.tag` field but the closing-tag
@@ -260,10 +283,10 @@ falls through to `nothing`
 Since `_apply_string_replace!(::XmlElement, "tag", …)` already updates both tags
 reactively ([Xml.jl:287-290](../../program/src/document/Xml.jl#L287-L290)),
 either route child-4 value edits to `.tag` too, or document that the end tag is
-display-only and edited via the start tag. **Likely a one-line backward-mapper
-addition; decide when implementing.**
+display-only and edited via the start tag. **Chose display-only**; recorded as a
+comment on the `child_i == 4` fall-through in `map_reference_backward`.
 
-### 5.3 Indentation parity
+### 5.3 Indentation parity — ⏭ won't-do (cosmetic)
 The Lisp indents deep element children by 2 and gives the closing tag
 indentation 0 ([xml-to-syntax.lisp:279-285](../../../projectured-lisp/source/projection/primitive/xml-to-syntax.lisp#L279-L285));
 Julia's body node uses `indentation = 1`
@@ -274,21 +297,28 @@ Cosmetic only; round-trips fine. **Defer / likely won't-do.**
 
 ## 6. Phasing
 
-| Phase | Deliverable | Depends on |
-|-------|-------------|-----------|
-| 1 | XML insertion reader (`"`/`<` → `ReplaceDocumentOperation`) (§3.1) | JSON plan §1 op + §2 routing |
-| 2 | Element structural insert: `<`, `"` children (§3.2) | Phase 1; `CollectionInsertOperation` |
-| 3 | Space → attribute insert (§3.2) + `=` name→value navigation (§3.3a) | Phase 2 |
-| 4 | Insert key → generic insertion child (§3.2) | Phase 2 |
-| 5 | Placeholders / default text (§4) | JSON plan §4 mechanism |
-| 6 | Fidelity nits (§5) as separate commits, each optional | none |
+| Phase | Deliverable | Depends on | Status |
+|-------|-------------|-----------|--------|
+| 1 | XML insertion reader (`"`/`<` → `ReplaceDocumentOperation`) (§3.1) | JSON plan §1 op + §2 routing | ✅ done |
+| 2 | Element structural insert: `<`, `"` children (§3.2) | Phase 1; `CollectionInsertOperation` | ✅ done |
+| 3 | Space → attribute insert (§3.2) + `=` name→value navigation (§3.3a) | Phase 2 | ✅ done |
+| 4 | Insert key → generic insertion child (§3.2) | Phase 2 | ✅ done |
+| 5 | Placeholders / default text (§4) | JSON plan §4 mechanism | ⏸ blocked (mechanism not landed) |
+| 6 | Fidelity nits (§5) as separate commits, each optional | none | ✅ resolved (§5.1/§5.2 done, §5.3 won't-do) |
 
 Phases 1–4 are the substance (the Lisp reader). Phase 5 is independent. Phase 6
 items are individually optional.
 
 ---
 
-## 7. Tests
+## 7. Tests — ✅ done (placeholder test pending Phase 5)
+
+> Created [`XmlToSyntaxTest.jl`](../../test/src/projection/XmlToSyntaxTest.jl)
+> with `test_xml_to_syntax()` (printer) + `test_xml_to_syntax_reader()` (reader),
+> registered in [`ProjecturedTest.jl`](../../test/src/ProjecturedTest.jl) next to
+> the JSON ones. All reader sections below are covered (insertion replace, element
+> insert, attribute insert + gating, `=` navigation). The **placeholder** test is
+> deferred with Phase 5.
 
 There is **no** `XmlToSyntaxTest.jl` today (only
 [`JsonToSyntaxTest.jl`](../../test/src/projection/JsonToSyntaxTest.jl)). Create
@@ -321,7 +351,13 @@ Run with `test_reader(xml_example)` / `test_selection(xml_example)` /
 
 ---
 
-## 8. Acceptance
+## 8. Acceptance — ◑ mostly met
+
+> Reader command set and tests are in place; `test_printers()`, `test_readers()`,
+> `test_selections()` are all green with no new warnings. The live
+> `run_example("xml")` authoring flow depends on the delegated event-routing layer
+> (a `KeyPress` at a character cursor is consumed by `TextToGraphics` first), and
+> placeholder hints await Phase 5.
 
 `run_example("xml")` supports authoring a document from scratch:
 
