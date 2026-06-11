@@ -257,21 +257,32 @@ function projection_read(p::SyntaxNodeToText, iomap::SyntaxNodeToTextIoMap, op::
 end
 
 # Tree-selection navigation by keyboard. The raw key event falls through the
-# graphics/text layers (TextToGraphics declines alt-modified navigation keys)
-# and is recognised here, where the syntax tree and its selection are in hand —
-# so recognition and resolution live in one place and no courier operation is
+# graphics/text layers (TextToGraphics declines alt-modified navigation keys,
+# and plain arrows whenever the selection is already structural) and is
+# recognised here, where the syntax tree and its selection are in hand — so
+# recognition and resolution live in one place and no courier operation is
 # needed. The selection on the root node is a path like `.children[i].children[j]…∅`.
 # - Ctrl+Alt+Home → select the root node (∅)
-# - Alt+:up    → drop the last `.children[k]` step (select parent)
-# - Alt+:down  → append `.children[1]` (select first child)
-# - Alt+:left  → decrement the last child index
-# - Alt+:right → increment the last child index
+# - Ctrl+Space    → toggle structural ⇄ text (character-cursor) mode
+# - :up    → drop the last `.children[k]` step (select parent)
+# - :down  → append `.children[1]` (select first child)
+# - :left  → decrement the last child index
+# - :right → increment the last child index
+# Arrows require Alt only to *enter* structural mode from a character cursor;
+# once a whole element is selected, plain arrows continue node-to-node movement.
 function projection_read(p::SyntaxNodeToText, iomap::SyntaxNodeToTextIoMap, evt::KeyDown)
     if evt.key === :home && evt.modifiers.ctrl && evt.modifiers.alt
         return ReplaceSelectionOperation(EmptyReferencePath())
     end
-    evt.modifiers.alt && evt.key in (:up, :down, :left, :right) || return nothing
     sel = iomap.input.selection
+    if evt.key === :space && evt.modifiers.ctrl
+        new_path = _is_tree_selection(sel) ? _descend_to_text_cursor(iomap.input, sel) :
+                                             _promote_to_structural(sel)
+        new_path === nothing && return nothing
+        return ReplaceSelectionOperation(new_path)
+    end
+    evt.key in (:up, :down, :left, :right) || return nothing
+    (evt.modifiers.alt || _is_tree_selection(sel)) || return nothing
     new_path = _tree_navigate(iomap.input, sel, evt.key)
     new_path === nothing && return nothing
     ReplaceSelectionOperation(new_path)
@@ -333,6 +344,83 @@ function _tree_navigate(node::SyntaxNode, sel, direction::Symbol)
                    ConcreteReferencePath(RangeReference(child_idx - 1, child_idx), inner))
     end
     return nothing
+end
+
+# A selection is "structural" (a whole-element / tree selection) when it is `∅`
+# on the root, or a chain of `.children[i]` steps ending in `∅`. A character
+# cursor differs by terminating in a leaf field step (`.value{k}` / `.open{k}`
+# / `.close{k}`), which breaks the all-`children` requirement here.
+_is_tree_selection(::EmptyReferencePath) = true
+function _is_tree_selection(sel)
+    sel isa ConcreteReferencePath || return false
+    h = sel.head
+    h isa FieldReference && h.name == "children" || return false
+    t = sel.tail
+    t isa ConcreteReferencePath || return false
+    t.head isa RangeReference || return false
+    _is_tree_selection(t.tail)
+end
+
+# Text → structural (Ctrl+Space): promote a character cursor to the whole
+# element that contains it. Keep every leading `.children[i]` step and drop the
+# trailing leaf-field cursor (`.value{k}` …), appending `∅`. A cursor on the
+# root node's own delimiter (no `.children` prefix) promotes to the root (`∅`).
+function _promote_to_structural(sel)
+    pairs = RangeReference[]
+    cur = sel
+    while cur isa ConcreteReferencePath
+        h = cur.head
+        (h isa FieldReference && h.name == "children") || break
+        t = cur.tail
+        t isa ConcreteReferencePath || break
+        h2 = t.head
+        h2 isa RangeReference || break
+        push!(pairs, h2)
+        cur = t.tail
+    end
+    path = EmptyReferencePath()
+    for h2 in Iterators.reverse(pairs)
+        path = ConcreteReferencePath(FieldReference("children"),
+                   ConcreteReferencePath(h2, path))
+    end
+    return path
+end
+
+# Structural → text (Ctrl+Space): from a whole-element tree selection, walk the
+# `.children[i]` path to the selected element, then descend to its first leaf
+# and place a character cursor at the start of that leaf's value (`…value{0}`).
+# Returns nothing if a node along the way has no children (no leaf to land on).
+function _descend_to_text_cursor(node::SyntaxNode, sel)
+    indices = Int[]
+    cur = node
+    p = sel
+    while p isa ConcreteReferencePath
+        h = p.head
+        (h isa FieldReference && h.name == "children") || return nothing
+        t = p.tail
+        t isa ConcreteReferencePath || return nothing
+        h2 = t.head
+        h2 isa RangeReference || return nothing
+        i = h2.start + 1
+        children = cur.children
+        (1 <= i <= length(children)) || return nothing
+        push!(indices, i)
+        cur = children[i]
+        p = t.tail
+    end
+    while cur isa SyntaxNode
+        isempty(cur.children) && return nothing
+        push!(indices, 1)
+        cur = cur.children[1]
+    end
+    cur isa SyntaxLeaf || return nothing
+    path = ConcreteReferencePath(FieldReference("value"),
+               ConcreteReferencePath(RangeReference(0, 0), EmptyReferencePath()))
+    for i in Iterators.reverse(indices)
+        path = ConcreteReferencePath(FieldReference("children"),
+                   ConcreteReferencePath(RangeReference(i - 1, i), path))
+    end
+    return path
 end
 
 # Translate a flat-text `StringReplaceRangeOperation` to a SyntaxNode-domain

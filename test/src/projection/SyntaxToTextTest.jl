@@ -205,4 +205,75 @@ end # let
 
 end # @testset "SyntaxToText collapsed body"
 
+@testset "SyntaxToText plain-arrow navigation & Ctrl+Space toggle" begin
+let
+s2st = RecursiveProjection(SyntaxToText())
+# Two leaves under an indented array, mirroring the `syntax` example.
+node = SyntaxNode("[", "]", ", ",
+    SyntaxDocument[
+        SyntaxLeaf("\"", "\"", "hello"),
+        SyntaxLeaf("\"", "\"", "world"),
+    ]; indentation=1)
+
+# Drive the SyntaxNodeToText reader with `sel` as the current selection.
+read_key(sel, key, mods=Modifiers()) = begin
+    clear_selection!(node)
+    set_selection!(node, sel)
+    io = projection_print(s2st, node)
+    projection_read(s2st, io, KeyDown(key, mods))
+end
+op_path(sel, key, mods=Modifiers()) = begin
+    op = read_key(sel, key, mods)
+    op isa ReplaceSelectionOperation ? op.path : op
+end
+
+root   = EmptyReferencePath()
+child1 = @reference children[1]            # .children[1]∅
+child2 = @reference children[2]            # .children[2]∅
+
+@testset "plain arrows drive the tree once a whole element is selected" begin
+    @test reference_equal(op_path(root,   :down),  child1)   # root → first child
+    @test reference_equal(op_path(child1, :right), child2)   # next sibling
+    @test reference_equal(op_path(child2, :left),  child1)   # previous sibling
+    @test reference_equal(op_path(child1, :up),    root)     # child → parent
+end
+
+@testset "plain arrows match their Alt counterparts in structural mode" begin
+    alt = Modifiers(alt=true)
+    for (sel, key) in ((root, :down), (child1, :right), (child2, :left), (child1, :up))
+        @test reference_equal(op_path(sel, key), op_path(sel, key, alt))
+    end
+end
+
+@testset "edges no-op" begin
+    # :up at the root has no parent → the reader declines (nothing).
+    @test read_key(root, :up) === nothing
+    # :left at the first sibling / :right at the last stay put (same path).
+    @test reference_equal(op_path(child1, :left),  child1)
+    @test reference_equal(op_path(child2, :right), child2)
+end
+
+@testset "plain arrows with a character cursor are not tree navigation" begin
+    # A character cursor inside a leaf must fall through (the text layer keeps
+    # character motion); the syntax reader declines without Alt.
+    cursor = @reference children[1].value{2}
+    @test read_key(cursor, :down)  === nothing
+    @test read_key(cursor, :right) === nothing
+end
+
+@testset "Ctrl+Space toggles structural ⇄ text" begin
+    ctrl = Modifiers(ctrl=true)
+    # text → structural: promote a leaf cursor to the whole leaf.
+    cursor = @reference children[1].value{2}
+    promoted = op_path(cursor, :space, ctrl)
+    @test reference_equal(promoted, child1)
+    # structural → text: descend to the first leaf's value start.
+    descended = op_path(child1, :space, ctrl)
+    @test reference_equal(descended, (@reference children[1].value{0}))
+    # round-trip lands back in the same leaf (at its start — stateless).
+    @test reference_equal(op_path(promoted, :space, ctrl), descended)
+end
+end # let
+end # @testset "SyntaxToText plain-arrow navigation & Ctrl+Space toggle"
+
 end # test_syntax_to_text

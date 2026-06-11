@@ -213,6 +213,13 @@ function projection_read(p::TextToGraphics, iomap::TextToGraphicsIoMap, evt)
     if evt.modifiers.alt && evt.key in (:up, :down, :left, :right, :home)
         return nothing
     end
+    # In structural mode (a whole-element / rectangular selection) plain arrows
+    # are tree navigation too — there is no character cursor to move, so decline
+    # them and let SyntaxNodeToText step between nodes. Home keeps its text
+    # meaning, so it is deliberately excluded here.
+    if evt.key in (:up, :down, :left, :right) && _is_structural_selection(iomap.input.selection)
+        return nothing
+    end
     del_op = _key_delete_op(iomap, evt)
     del_op === nothing || return del_op
     styled = iomap.input
@@ -637,6 +644,12 @@ function _cursor_position(sel)
         elements{s:_}.content{c:_} => (span=s + 1, char=c)
     end
 end
+
+# A whole-element selection projects to either `∅` (the root element) or a
+# `TextRectangularReference` box; both mean "structural mode" at this layer.
+_is_structural_selection(sel) =
+    sel isa EmptyReferencePath ||
+    (sel isa ConcreteReferencePath && sel.head isa TextRectangularReference)
 
 _build_selection_path(span_idx::Int, char_idx::Int) =
     @reference elements[span_idx].content{char_idx}
