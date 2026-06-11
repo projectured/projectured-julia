@@ -33,6 +33,20 @@ function _make_test_adapter()
         rowid_column="ctid")
 end
 
+# Connection spec for the catalog / SQL projection tests. These drive the
+# database through an OdbcConnectionPool rather than a bare adapter.
+function _make_test_instance()
+    DatabaseInstance(
+        database=get(ENV, "PGDATABASE", "projectured_test"),
+        host=get(ENV, "PGHOST", "localhost"),
+        port=parse(Int, get(ENV, "PGPORT", "5432")),
+        credentials=DatabaseCredentials(
+            user=get(ENV, "PGUSER", "projectured"),
+            password=get(ENV, "PGPASSWORD", "projectured")))
+end
+
+_make_test_pool() = OdbcConnectionPool(rowid_column="ctid")
+
 function _setup_persons_table(adapter)
     db_execute_raw(adapter,
         "DROP TABLE IF EXISTS persons", RawDatabaseResult)

@@ -1,10 +1,15 @@
 using Test
 using Projectured
 
-# Read-only live-DB tests (T1–T6) for the DbCatalog hierarchy.
+# Read-only live-DB tests for the DbCatalog hierarchy.
 # No tables are created or modified — all queries target system catalogs.
+#
+# The catalog tree is now a pure data structure built by the
+# DatabaseInstanceToDbCatalog projection from a DatabaseInstance, querying the
+# database through an OdbcConnectionPool. The low-level db_catalog_* API still
+# operates on a bare adapter and is tested directly.
 
-# ── Catalog API tests ──────────────────────────────────────────────────────────
+# ── Catalog API tests (low-level, on a bare adapter) ────────────────────────────
 
 function test_db_catalog_databases(adapter)
     @testset "T1 — db_catalog_databases" begin
@@ -44,116 +49,94 @@ function test_db_catalog_columns(adapter)
     end
 end
 
-# ── Document + show tests ──────────────────────────────────────────────────────
+# ── Document + show tests (pure values, no DB) ──────────────────────────────────
 
-function test_db_catalog_document_show(adapter)
+function test_db_catalog_document_show()
     @testset "T5 — document show (simple)" begin
-        conn = DbCatalogConnection(adapter)
-        @test sprint(show, conn) == "DbCatalogConnection($(conn.host):$(conn.port))"
-        db = DbCatalogDatabase(conn, "mydb")
+        rdbms = DbCatalogRdbms("localhost", 5432, CellVector())
+        @test sprint(show, rdbms) == "DbCatalogRdbms(localhost:5432)"
+        db = DbCatalogDatabase("mydb", CellVector())
         @test sprint(show, db) == "DbCatalogDatabase(mydb)"
-        schema = DbCatalogSchema(db, "public")
+        schema = DbCatalogSchema("public", CellVector())
         @test sprint(show, schema) == "DbCatalogSchema(public)"
-        table = DbCatalogTable(schema, "persons")
+        table = DbCatalogTable("persons", CellVector())
         @test sprint(show, table) == "DbCatalogTable(persons)"
-        col = DbCatalogColumn(table, "name", "text")
+        col = DbCatalogColumn("name", "text")
         @test sprint(show, col) == "DbCatalogColumn(name::text)"
     end
 end
 
-# ── Projection tests ───────────────────────────────────────────────────────────
+# ── Projection tests — DatabaseInstanceToDbCatalog (live DB) ────────────────────
 
-function test_db_catalog_projection_print(adapter)
-    @testset "T6 — DbCatalogConnectionToChildren projection_print" begin
-        conn  = DbCatalogConnection(adapter)
-        p     = DbCatalogConnectionToChildren()
-        iomap = projection_print(p, conn)
-        @test iomap.output isa CellVector
-        dbs = collect(iomap.output)
-        @test all(d -> d isa DbCatalogDatabase, dbs)
-        @info "Projected databases: $dbs"
-    end
-end
-
-# ── Projection hierarchy tests (P1–P5) ────────────────────────────────────────
-
-function test_db_catalog_projection_connection(adapter)
-    @testset "P1 — DbCatalogConnectionToChildren" begin
-        conn  = DbCatalogConnection(adapter)
-        iomap = projection_print(DbCatalogConnectionToChildren(), conn)
-        dbs   = collect(iomap.output)
+function test_db_catalog_projection_rdbms(instance, pool)
+    @testset "P1 — DatabaseInstanceToDbCatalog produces an Rdbms tree" begin
+        rdbms = projection_print(DatabaseInstanceToDbCatalog(pool), instance).output
+        @test rdbms isa DbCatalogRdbms
+        @test rdbms.databases isa CellVector
+        dbs = collect(rdbms.databases)
         @test all(d -> d isa DbCatalogDatabase, dbs)
         @test any(d -> d.name == "projectured_test", dbs)
     end
 end
 
-function test_db_catalog_projection_database(adapter)
-    @testset "P2 — DbCatalogDatabaseToChildren" begin
-        conn    = DbCatalogConnection(adapter)
-        db      = DbCatalogDatabase(conn, "projectured_test")
-        iomap   = projection_print(DbCatalogDatabaseToChildren(), db)
-        schemas = collect(iomap.output)
+function _force_persons_table(instance, pool)
+    rdbms  = projection_print(DatabaseInstanceToDbCatalog(pool), instance).output
+    db     = first(filter(d -> d.name == "projectured_test", collect(rdbms.databases)))
+    schema = first(filter(s -> s.name == "public", collect(db.schemas)))
+    table  = first(filter(t -> t.name == "persons", collect(schema.tables)))
+    rdbms, db, schema, table
+end
+
+function test_db_catalog_projection_database(instance, pool)
+    @testset "P2 — database level expands to schemas" begin
+        rdbms = projection_print(DatabaseInstanceToDbCatalog(pool), instance).output
+        db = first(filter(d -> d.name == "projectured_test", collect(rdbms.databases)))
+        schemas = collect(db.schemas)
         @test all(s -> s isa DbCatalogSchema, schemas)
         @test any(s -> s.name == "public", schemas)
     end
 end
 
-function test_db_catalog_projection_schema(adapter)
-    @testset "P3 — DbCatalogSchemaToChildren" begin
-        conn   = DbCatalogConnection(adapter)
-        db     = DbCatalogDatabase(conn, "projectured_test")
-        schema = DbCatalogSchema(db, "public")
-        iomap  = projection_print(DbCatalogSchemaToChildren(), schema)
-        tables = collect(iomap.output)
+function test_db_catalog_projection_schema(instance, pool)
+    @testset "P3 — schema level expands to tables" begin
+        _, _, schema, _ = _force_persons_table(instance, pool)
+        tables = collect(schema.tables)
         @test all(t -> t isa DbCatalogTable, tables)
         @test any(t -> t.name == "persons", tables)
     end
 end
 
-function test_db_catalog_projection_table(adapter)
-    @testset "P4 — DbCatalogTableToChildren" begin
-        conn   = DbCatalogConnection(adapter)
-        db     = DbCatalogDatabase(conn, "projectured_test")
-        schema = DbCatalogSchema(db, "public")
-        table  = DbCatalogTable(schema, "persons")
-        iomap  = projection_print(DbCatalogTableToChildren(), table)
-        cols   = collect(iomap.output)
+function test_db_catalog_projection_table(instance, pool)
+    @testset "P4 — table level expands to columns" begin
+        _, _, _, table = _force_persons_table(instance, pool)
+        cols = collect(table.columns)
         @test all(c -> c isa DbCatalogColumn, cols)
-        @test any(c -> c.name == "name"  && c.data_type == "text",    cols)
-        @test any(c -> c.name == "age"   && c.data_type == "integer", cols)
+        @test any(c -> c.name == "name" && c.data_type == "text",    cols)
+        @test any(c -> c.name == "age"  && c.data_type == "integer", cols)
     end
 end
 
-function test_db_catalog_projection_full(adapter)
+function test_db_catalog_projection_full(instance, pool)
     @testset "P5 — full hierarchy expansion" begin
-        conn = DbCatalogConnection(adapter)
-
-        dbs = collect(projection_print(DbCatalogConnectionToChildren(), conn).output)
-        @test all(d -> d isa DbCatalogDatabase, dbs)
-        db = first(filter(d -> d.name == "projectured_test", dbs))
-        @test db isa DbCatalogDatabase
-
-        schemas = collect(projection_print(DbCatalogDatabaseToChildren(), db).output)
-        @test all(s -> s isa DbCatalogSchema, schemas)
-        schema = first(filter(s -> s.name == "public", schemas))
+        rdbms, db, schema, table = _force_persons_table(instance, pool)
+        @test rdbms  isa DbCatalogRdbms
+        @test db     isa DbCatalogDatabase
         @test schema isa DbCatalogSchema
-
-        tables = collect(projection_print(DbCatalogSchemaToChildren(), schema).output)
-        @test all(t -> t isa DbCatalogTable, tables)
-        table = first(filter(t -> t.name == "persons", tables))
-        @test table isa DbCatalogTable
-
-        cols = collect(projection_print(DbCatalogTableToChildren(), table).output)
-        @test all(c -> c isa DbCatalogColumn, cols)
-        @test any(c -> c.name == "name"  && c.data_type == "text",    cols)
-        @test any(c -> c.name == "age"   && c.data_type == "integer", cols)
+        @test table  isa DbCatalogTable
+        cols = collect(table.columns)
+        @test any(c -> c.name == "name" && c.data_type == "text",    cols)
+        @test any(c -> c.name == "age"  && c.data_type == "integer", cols)
     end
 end
 
 # ── Entry point ────────────────────────────────────────────────────────────────
 
 function test_db_catalog(; skip_if_no_db=true)
-    adapter = _make_test_adapter()
+    test_db_catalog_document_show()
+
+    adapter  = _make_test_adapter()
+    instance = _make_test_instance()
+    pool     = _make_test_pool()
     can_connect = try
         db_connect!(adapter)
         true
@@ -170,15 +153,14 @@ function test_db_catalog(; skip_if_no_db=true)
             test_db_catalog_schemas(adapter)
             test_db_catalog_tables(adapter)
             test_db_catalog_columns(adapter)
-            test_db_catalog_document_show(adapter)
-            test_db_catalog_projection_print(adapter)
-            test_db_catalog_projection_connection(adapter)
-            test_db_catalog_projection_database(adapter)
-            test_db_catalog_projection_schema(adapter)
-            test_db_catalog_projection_table(adapter)
-            test_db_catalog_projection_full(adapter)
+            test_db_catalog_projection_rdbms(instance, pool)
+            test_db_catalog_projection_database(instance, pool)
+            test_db_catalog_projection_schema(instance, pool)
+            test_db_catalog_projection_table(instance, pool)
+            test_db_catalog_projection_full(instance, pool)
         finally
             db_close!(adapter)
+            close_pool!(pool)
         end
     end
 end

@@ -1,32 +1,30 @@
 using Test
 using Projectured
 
-# Read-only tests for DbCatalogToJson projection.
-# Tests that each DbCatalog document type projects to a JsonObject
-# containing only its data fields (excluding parent references and selection).
+# Tests for DbCatalogToJson projection. Pure construction — no live DB needed.
+# Each DbCatalog document type projects to a JsonObject containing only its own
+# data fields (excluding child collections and selection).
 
-# ── DbCatalogConnectionToJson tests ─────────────────────────────────────────────
+# ── DbCatalogRdbmsToJson tests ───────────────────────────────────────────────────
 
-function test_db_catalog_connection_to_json(; show_detail=false)
-    @testset "DbCatalogConnectionToJson" begin
-        adapter = OdbcDatabaseAdapter(dsn="Driver={PostgreSQL Unicode};Server=localhost;Port=5432;Database=test;Uid=test;Pwd=test;", rowid_column="ctid")
-        conn = DbCatalogConnection(adapter; host="myhost", port=5433)
-        
-        iomap = projection_print(DbCatalogConnectionToJson(), conn)
+function test_db_catalog_rdbms_to_json(; show_detail=false)
+    @testset "DbCatalogRdbmsToJson" begin
+        rdbms = DbCatalogRdbms("myhost", 5433, CellVector())
+
+        iomap = projection_print(DbCatalogRdbmsToJson(), rdbms)
         @test iomap.output isa JsonObject
-        
+
         obj = iomap.output
         if show_detail
-            println("  Connection JSON: ", obj)
+            println("  Rdbms JSON: ", obj)
         end
         @test haskey(obj, "host")
         @test haskey(obj, "port")
         @test obj["host"][] == "myhost"
         @test obj["port"][] == 5433
-        
-        # Verify no parent references or selection fields
-        @test !haskey(obj, "adapter")
-        @test !haskey(obj, "connection")
+
+        # Verify no child collections or selection fields
+        @test !haskey(obj, "databases")
         @test !haskey(obj, "selection")
     end
 end
@@ -35,22 +33,19 @@ end
 
 function test_db_catalog_database_to_json(; show_detail=false)
     @testset "DbCatalogDatabaseToJson" begin
-        adapter = OdbcDatabaseAdapter(dsn="Driver={PostgreSQL Unicode};Server=localhost;Port=5432;Database=test;Uid=test;Pwd=test;", rowid_column="ctid")
-        conn = DbCatalogConnection(adapter)
-        db = DbCatalogDatabase(conn, "mydb")
-        
+        db = DbCatalogDatabase("mydb", CellVector())
+
         iomap = projection_print(DbCatalogDatabaseToJson(), db)
         @test iomap.output isa JsonObject
-        
+
         obj = iomap.output
         if show_detail
             println("  Database JSON: ", obj)
         end
         @test haskey(obj, "name")
         @test obj["name"][] == "mydb"
-        
-        # Verify no parent references or selection fields
-        @test !haskey(obj, "connection")
+
+        @test !haskey(obj, "schemas")
         @test !haskey(obj, "selection")
     end
 end
@@ -59,23 +54,19 @@ end
 
 function test_db_catalog_schema_to_json(; show_detail=false)
     @testset "DbCatalogSchemaToJson" begin
-        adapter = OdbcDatabaseAdapter(dsn="Driver={PostgreSQL Unicode};Server=localhost;Port=5432;Database=test;Uid=test;Pwd=test;", rowid_column="ctid")
-        conn = DbCatalogConnection(adapter)
-        db = DbCatalogDatabase(conn, "mydb")
-        schema = DbCatalogSchema(db, "public")
-        
+        schema = DbCatalogSchema("public", CellVector())
+
         iomap = projection_print(DbCatalogSchemaToJson(), schema)
         @test iomap.output isa JsonObject
-        
+
         obj = iomap.output
         if show_detail
             println("  Schema JSON: ", obj)
         end
         @test haskey(obj, "name")
         @test obj["name"][] == "public"
-        
-        # Verify no parent references or selection fields
-        @test !haskey(obj, "database")
+
+        @test !haskey(obj, "tables")
         @test !haskey(obj, "selection")
     end
 end
@@ -84,24 +75,19 @@ end
 
 function test_db_catalog_table_to_json(; show_detail=false)
     @testset "DbCatalogTableToJson" begin
-        adapter = OdbcDatabaseAdapter(dsn="Driver={PostgreSQL Unicode};Server=localhost;Port=5432;Database=test;Uid=test;Pwd=test;", rowid_column="ctid")
-        conn = DbCatalogConnection(adapter)
-        db = DbCatalogDatabase(conn, "mydb")
-        schema = DbCatalogSchema(db, "public")
-        table = DbCatalogTable(schema, "persons")
-        
+        table = DbCatalogTable("persons", CellVector())
+
         iomap = projection_print(DbCatalogTableToJson(), table)
         @test iomap.output isa JsonObject
-        
+
         obj = iomap.output
         if show_detail
             println("  Table JSON: ", obj)
         end
         @test haskey(obj, "name")
         @test obj["name"][] == "persons"
-        
-        # Verify no parent references or selection fields
-        @test !haskey(obj, "schema")
+
+        @test !haskey(obj, "columns")
         @test !haskey(obj, "selection")
     end
 end
@@ -110,16 +96,11 @@ end
 
 function test_db_catalog_column_to_json(; show_detail=false)
     @testset "DbCatalogColumnToJson" begin
-        adapter = OdbcDatabaseAdapter(dsn="Driver={PostgreSQL Unicode};Server=localhost;Port=5432;Database=test;Uid=test;Pwd=test;", rowid_column="ctid")
-        conn = DbCatalogConnection(adapter)
-        db = DbCatalogDatabase(conn, "mydb")
-        schema = DbCatalogSchema(db, "public")
-        table = DbCatalogTable(schema, "persons")
-        col = DbCatalogColumn(table, "name", "text")
-        
+        col = DbCatalogColumn("name", "text")
+
         iomap = projection_print(DbCatalogColumnToJson(), col)
         @test iomap.output isa JsonObject
-        
+
         obj = iomap.output
         if show_detail
             println("  Column JSON: ", obj)
@@ -128,9 +109,7 @@ function test_db_catalog_column_to_json(; show_detail=false)
         @test haskey(obj, "data_type")
         @test obj["name"][] == "name"
         @test obj["data_type"][] == "text"
-        
-        # Verify no parent references or selection fields
-        @test !haskey(obj, "table")
+
         @test !haskey(obj, "selection")
     end
 end
@@ -139,31 +118,29 @@ end
 
 function test_db_catalog_to_json_dispatch(; show_detail=false)
     @testset "DbCatalogToJson type dispatching" begin
-        adapter = OdbcDatabaseAdapter(dsn="Driver={PostgreSQL Unicode};Server=localhost;Port=5432;Database=test;Uid=test;Pwd=test;", rowid_column="ctid")
         p = DbCatalogToJson()
-        
-        # Test dispatch for each type
-        conn = DbCatalogConnection(adapter; host="testhost", port=5432)
-        iomap1 = projection_print(p, conn)
+
+        rdbms = DbCatalogRdbms("testhost", 5432, CellVector())
+        iomap1 = projection_print(p, rdbms)
         @test iomap1.output isa JsonObject
         @test iomap1.output["host"][] == "testhost"
-        
-        db = DbCatalogDatabase(conn, "testdb")
+
+        db = DbCatalogDatabase("testdb", CellVector())
         iomap2 = projection_print(p, db)
         @test iomap2.output isa JsonObject
         @test iomap2.output["name"][] == "testdb"
-        
-        schema = DbCatalogSchema(db, "public")
+
+        schema = DbCatalogSchema("public", CellVector())
         iomap3 = projection_print(p, schema)
         @test iomap3.output isa JsonObject
         @test iomap3.output["name"][] == "public"
-        
-        table = DbCatalogTable(schema, "persons")
+
+        table = DbCatalogTable("persons", CellVector())
         iomap4 = projection_print(p, table)
         @test iomap4.output isa JsonObject
         @test iomap4.output["name"][] == "persons"
-        
-        col = DbCatalogColumn(table, "age", "integer")
+
+        col = DbCatalogColumn("age", "integer")
         iomap5 = projection_print(p, col)
         @test iomap5.output isa JsonObject
         @test iomap5.output["name"][] == "age"
@@ -175,7 +152,7 @@ end
 
 function test_db_catalog_json(; show_detail=false)
     @testset "DbCatalogToJson projection" begin
-        test_db_catalog_connection_to_json(show_detail=show_detail)
+        test_db_catalog_rdbms_to_json(show_detail=show_detail)
         test_db_catalog_database_to_json(show_detail=show_detail)
         test_db_catalog_schema_to_json(show_detail=show_detail)
         test_db_catalog_table_to_json(show_detail=show_detail)

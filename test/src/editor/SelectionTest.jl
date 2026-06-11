@@ -124,7 +124,12 @@ function test_selections()
             # Skip widget / layout examples, workbench, and assistant — the
             # widget-to-graphics layer doesn't route keyboard events to its
             # children, so Ctrl+Home can't seed an initial selection.
-            example.name in ("widget", "widget_tabbed_pane", "layout", "workbench", "assistant") && continue
+            #
+            # Skip the database-backed catalog / SQL examples too: their
+            # projections are read-only (v1), so they map no references back and
+            # Ctrl+Home can't seed a selection.
+            example.name in ("widget", "widget_tabbed_pane", "layout", "workbench", "assistant",
+                             "dbcatalog", "sql_syntax", "sql_table") && continue
             @testset "$(example.name)" begin
                 test_selection(example)
             end
