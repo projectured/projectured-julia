@@ -30,7 +30,7 @@ import ..SyntaxModule: SyntaxDocument, SyntaxLeaf, SyntaxNode
 import ..TypeDispatchingModule: TypeDispatchingProjection
 import ..IoMapModule: SimpleIoMap, ChildrenIoMap
 import ..ReferenceModule: ConcreteReferencePath, ElementReference, PositionReference, RangeReference, FieldReference, ProjectionReference, append_reference
-import ..ProjectionContextModule: child_context
+import ..PrinterContextModule: child_context
 export DbCatalogColumnToSyntaxLeaf, DbCatalogTableToSyntaxNode, DbCatalogSchemaToSyntaxNode,
        DbCatalogDatabaseToSyntaxNode, DbCatalogConnectionToSyntaxNode, DbCatalogToSyntax,
        dbcatalog_marker_eligible
@@ -44,7 +44,7 @@ end
 DbCatalogColumnToSyntaxLeaf(; font=font_ubuntu_monospace_regular_24, color=color_solarized_magenta) =
     DbCatalogColumnToSyntaxLeaf(font, color)
 
-function projection_print(p::DbCatalogColumnToSyntaxLeaf, col::DbCatalogColumn, recursion, ctx)
+function projection_print(p::DbCatalogColumnToSyntaxLeaf, recursion, col::DbCatalogColumn, ctx)
     SimpleIoMap(p, col, SyntaxLeaf(
         TextString("", p.font, color_default),
         TextString("", p.font, color_default),
@@ -71,11 +71,11 @@ end
 DbCatalogTableToSyntaxNode(; name_font=font_ubuntu_monospace_bold_24, name_color=color_solarized_green) =
     DbCatalogTableToSyntaxNode(name_font, name_color)
 
-function projection_print(p::DbCatalogTableToSyntaxNode, table::DbCatalogTable, recursion, ctx)
+function projection_print(p::DbCatalogTableToSyntaxNode, recursion, table::DbCatalogTable, ctx)
     # Get children via DbCatalogTableToChildren
-    children_iomap = projection_print(DbCatalogTableToChildren(), table, recursion, ctx)
+    children_iomap = projection_print(DbCatalogTableToChildren(), recursion, table, ctx)
     child_iomaps = Cell(() -> begin
-        [projection_print(recursion, elem, recursion, child_context(ctx, ElementReference(i)))
+        [projection_print(recursion, recursion, elem, child_context(ctx, ElementReference(i)))
          for (i, elem) in enumerate(children_iomap.output)]
     end)
 
@@ -135,11 +135,11 @@ end
 DbCatalogSchemaToSyntaxNode(; name_font=font_ubuntu_monospace_bold_24, name_color=color_solarized_blue) =
     DbCatalogSchemaToSyntaxNode(name_font, name_color)
 
-function projection_print(p::DbCatalogSchemaToSyntaxNode, schema::DbCatalogSchema, recursion, ctx)
+function projection_print(p::DbCatalogSchemaToSyntaxNode, recursion, schema::DbCatalogSchema, ctx)
     # Get children via DbCatalogSchemaToChildren
-    children_iomap = projection_print(DbCatalogSchemaToChildren(), schema, recursion, ctx)
+    children_iomap = projection_print(DbCatalogSchemaToChildren(), recursion, schema, ctx)
     child_iomaps = Cell(() -> begin
-        [projection_print(recursion, elem, recursion, child_context(ctx, ElementReference(i)))
+        [projection_print(recursion, recursion, elem, child_context(ctx, ElementReference(i)))
          for (i, elem) in enumerate(children_iomap.output)]
     end)
 
@@ -199,11 +199,11 @@ end
 DbCatalogDatabaseToSyntaxNode(; name_font=font_ubuntu_monospace_bold_24, name_color=color_solarized_red) =
     DbCatalogDatabaseToSyntaxNode(name_font, name_color)
 
-function projection_print(p::DbCatalogDatabaseToSyntaxNode, db::DbCatalogDatabase, recursion, ctx)
+function projection_print(p::DbCatalogDatabaseToSyntaxNode, recursion, db::DbCatalogDatabase, ctx)
     # Get children via DbCatalogDatabaseToChildren
-    children_iomap = projection_print(DbCatalogDatabaseToChildren(), db, recursion, ctx)
+    children_iomap = projection_print(DbCatalogDatabaseToChildren(), recursion, db, ctx)
     child_iomaps = Cell(() -> begin
-        [projection_print(recursion, elem, recursion, child_context(ctx, ElementReference(i)))
+        [projection_print(recursion, recursion, elem, child_context(ctx, ElementReference(i)))
          for (i, elem) in enumerate(children_iomap.output)]
     end)
 
@@ -263,11 +263,11 @@ end
 DbCatalogConnectionToSyntaxNode(; name_font=font_ubuntu_monospace_bold_24, name_color=color_solarized_red) =
     DbCatalogConnectionToSyntaxNode(name_font, name_color)
 
-function projection_print(p::DbCatalogConnectionToSyntaxNode, conn::DbCatalogConnection, recursion, ctx)
+function projection_print(p::DbCatalogConnectionToSyntaxNode, recursion, conn::DbCatalogConnection, ctx)
     # Get children via DbCatalogConnectionToChildren
-    children_iomap = projection_print(DbCatalogConnectionToChildren(), conn, recursion, ctx)
+    children_iomap = projection_print(DbCatalogConnectionToChildren(), recursion, conn, ctx)
     child_iomaps = Cell(() -> begin
-        [projection_print(recursion, elem, recursion, child_context(ctx, ElementReference(i)))
+        [projection_print(recursion, recursion, elem, child_context(ctx, ElementReference(i)))
          for (i, elem) in enumerate(children_iomap.output)]
     end)
 

@@ -33,7 +33,7 @@ export DbCatalogConnectionToChildren, DbCatalogDatabaseToChildren,
 struct DbCatalogConnectionToChildren <: Projection end
 
 function projection_print(p::DbCatalogConnectionToChildren,
-                           conn::DbCatalogConnection, recursion, ctx)
+                           recursion, conn::DbCatalogConnection, ctx)
     children = CellVector(() -> begin
         names = db_catalog_databases(conn.adapter)
         [DbCatalogDatabase(conn, n) for n in names]
@@ -50,7 +50,7 @@ projection_read(::DbCatalogConnectionToChildren, iomap, op) = nothing
 struct DbCatalogDatabaseToChildren <: Projection end
 
 function projection_print(p::DbCatalogDatabaseToChildren,
-                           db::DbCatalogDatabase, recursion, ctx)
+                           recursion, db::DbCatalogDatabase, ctx)
     children = CellVector(() -> begin
         adapter = db.connection.adapter
         names = db_catalog_schemas(adapter, db.name)
@@ -68,7 +68,7 @@ projection_read(::DbCatalogDatabaseToChildren, iomap, op) = nothing
 struct DbCatalogSchemaToChildren <: Projection end
 
 function projection_print(p::DbCatalogSchemaToChildren,
-                           schema::DbCatalogSchema, recursion, ctx)
+                           recursion, schema::DbCatalogSchema, ctx)
     children = CellVector(() -> begin
         adapter = schema.database.connection.adapter
         names = db_catalog_tables(adapter, schema.name)
@@ -86,7 +86,7 @@ projection_read(::DbCatalogSchemaToChildren, iomap, op) = nothing
 struct DbCatalogTableToChildren <: Projection end
 
 function projection_print(p::DbCatalogTableToChildren,
-                           table::DbCatalogTable, recursion, ctx)
+                           recursion, table::DbCatalogTable, ctx)
     children = CellVector(() -> begin
         adapter = table.schema.database.connection.adapter
         schema_name = table.schema.name

@@ -9,7 +9,7 @@ using Projectured
 
 function test_db_catalog_connection_to_json(; show_detail=false)
     @testset "DbCatalogConnectionToJson" begin
-        adapter = PostgresDatabaseAdapter(dbname="test", user="test", password="test")
+        adapter = OdbcDatabaseAdapter(dsn="Driver={PostgreSQL Unicode};Server=localhost;Port=5432;Database=test;Uid=test;Pwd=test;", rowid_column="ctid")
         conn = DbCatalogConnection(adapter; host="myhost", port=5433)
         
         iomap = projection_print(DbCatalogConnectionToJson(), conn)
@@ -35,7 +35,7 @@ end
 
 function test_db_catalog_database_to_json(; show_detail=false)
     @testset "DbCatalogDatabaseToJson" begin
-        adapter = PostgresDatabaseAdapter(dbname="test", user="test", password="test")
+        adapter = OdbcDatabaseAdapter(dsn="Driver={PostgreSQL Unicode};Server=localhost;Port=5432;Database=test;Uid=test;Pwd=test;", rowid_column="ctid")
         conn = DbCatalogConnection(adapter)
         db = DbCatalogDatabase(conn, "mydb")
         
@@ -59,7 +59,7 @@ end
 
 function test_db_catalog_schema_to_json(; show_detail=false)
     @testset "DbCatalogSchemaToJson" begin
-        adapter = PostgresDatabaseAdapter(dbname="test", user="test", password="test")
+        adapter = OdbcDatabaseAdapter(dsn="Driver={PostgreSQL Unicode};Server=localhost;Port=5432;Database=test;Uid=test;Pwd=test;", rowid_column="ctid")
         conn = DbCatalogConnection(adapter)
         db = DbCatalogDatabase(conn, "mydb")
         schema = DbCatalogSchema(db, "public")
@@ -84,7 +84,7 @@ end
 
 function test_db_catalog_table_to_json(; show_detail=false)
     @testset "DbCatalogTableToJson" begin
-        adapter = PostgresDatabaseAdapter(dbname="test", user="test", password="test")
+        adapter = OdbcDatabaseAdapter(dsn="Driver={PostgreSQL Unicode};Server=localhost;Port=5432;Database=test;Uid=test;Pwd=test;", rowid_column="ctid")
         conn = DbCatalogConnection(adapter)
         db = DbCatalogDatabase(conn, "mydb")
         schema = DbCatalogSchema(db, "public")
@@ -110,7 +110,7 @@ end
 
 function test_db_catalog_column_to_json(; show_detail=false)
     @testset "DbCatalogColumnToJson" begin
-        adapter = PostgresDatabaseAdapter(dbname="test", user="test", password="test")
+        adapter = OdbcDatabaseAdapter(dsn="Driver={PostgreSQL Unicode};Server=localhost;Port=5432;Database=test;Uid=test;Pwd=test;", rowid_column="ctid")
         conn = DbCatalogConnection(adapter)
         db = DbCatalogDatabase(conn, "mydb")
         schema = DbCatalogSchema(db, "public")
@@ -139,7 +139,7 @@ end
 
 function test_db_catalog_to_json_dispatch(; show_detail=false)
     @testset "DbCatalogToJson type dispatching" begin
-        adapter = PostgresDatabaseAdapter(dbname="test", user="test", password="test")
+        adapter = OdbcDatabaseAdapter(dsn="Driver={PostgreSQL Unicode};Server=localhost;Port=5432;Database=test;Uid=test;Pwd=test;", rowid_column="ctid")
         p = DbCatalogToJson()
         
         # Test dispatch for each type

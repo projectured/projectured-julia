@@ -98,7 +98,7 @@ function test_database_tabular(; skip_if_no_db=true)
         db_connect!(adapter)
         true
     catch e
-        skip_if_no_db && @info "Skipping live-DB tabular tests (PostgreSQL unavailable): $e"
+        skip_if_no_db && @info "Skipping live-DB tabular tests (ODBC DSN unavailable): $e"
         false
     end
 

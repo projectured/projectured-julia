@@ -9,14 +9,15 @@ captures `ctid` values in the returned `DatabaseTableIoMap` so the reader
 can map cell edits back to `DatabaseUpdateOperation` without re-querying.
 
 Depends on:
-- `DatabaseModule`         — adapter type, `db_update!`, `db_insert!`, LibPQ access
+- `DatabaseModule`         — adapter type, `db_update!`, `db_insert!`
 - `DatabaseDocumentModule` — `DatabaseTable`, `DatabaseUpdateOperation`, `DatabaseInsertOperation`
 - `TabularModule`          — `TabularGrid`, `TabularRow`, `TabularCell`
 """
 module DatabaseTableToTabularGridModule
 
-import LibPQ
-import ..DatabaseModule: PostgresDatabaseAdapter, db_update!, db_insert!
+import DBInterface
+import Tables
+import ..DatabaseModule: OdbcDatabaseAdapter, db_update!, db_insert!
 import ..DatabaseDocumentModule: DatabaseTable,
                                   DatabaseUpdateOperation, DatabaseInsertOperation
 import ..TabularModule: TabularGrid, TabularRow, TabularCell
@@ -76,15 +77,16 @@ function _query_with_ctid(adapter, table, columns, where_clause, limit)
     sql = "SELECT ctid, $(col_part) FROM \"$(table)\""
     where_clause !== nothing && (sql *= " WHERE $(where_clause)")
     limit        !== nothing && (sql *= " LIMIT $(limit)")
-    result   = LibPQ.execute(adapter._conn, sql)
-    all_cols = String[String(n) for n in LibPQ.column_names(result)]
+    ct = Tables.columntable(DBInterface.execute(adapter._conn, sql))
+    all_cols = String[String(n) for n in propertynames(ct)]
     ctid_idx = findfirst(==("ctid"), all_cols)
     col_names   = String[c for (i, c) in enumerate(all_cols) if i != ctid_idx]
+    nrows       = isempty(all_cols) ? 0 : length(ct[1])
     ctid_values = Any[]
     data_rows   = Vector{Vector{Any}}()
-    for row in result
-        push!(ctid_values, row[ctid_idx])
-        push!(data_rows, Any[row[i] for i in 1:length(all_cols) if i != ctid_idx])
+    for r in 1:nrows
+        push!(ctid_values, ct[ctid_idx][r])
+        push!(data_rows, Any[ct[i][r] for i in 1:length(all_cols) if i != ctid_idx])
     end
     col_names, ctid_values, data_rows
 end
@@ -155,8 +157,8 @@ end
 # ── projection_print ──────────────────────────────────────────────────────────
 
 function projection_print(p::DatabaseTableToTabularGrid,
-                           doc::DatabaseTable,
-                           recursion, ctx)
+                           recursion,
+                           doc::DatabaseTable, ctx)
     raw = Cell(() -> _query_with_ctid(doc.adapter, doc.table,
                                       doc.columns, doc.where_clause, doc.limit))
     col_names_cell   = Cell(() -> raw[][1])

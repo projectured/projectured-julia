@@ -190,7 +190,7 @@ using .TabularModule: TabularDocument, TabularCell, TabularRow, TabularGrid,
                       insert_row!, delete_row!, insert_column!, delete_column!
 using .DatabaseDocumentModule: DatabaseDocument, DatabaseTable,
                                DatabaseUpdateOperation, DatabaseInsertOperation
-using .DatabaseModule: DatabaseAdapter, RawDatabaseResult, PostgresDatabaseAdapter,
+using .DatabaseModule: DatabaseAdapter, RawDatabaseResult, OdbcDatabaseAdapter,
                        db_connect!, db_close!, db_alive,
                        db_rowid_column,
                        db_query, db_execute_raw,
@@ -415,7 +415,7 @@ export TabularDocument, TabularCell, TabularRow, TabularGrid,
        tabular_cell, tabular_column,
        insert_row!, delete_row!, insert_column!, delete_column!
 export DatabaseDocument, DatabaseTable, DatabaseUpdateOperation, DatabaseInsertOperation
-export DatabaseAdapter, RawDatabaseResult, PostgresDatabaseAdapter,
+export DatabaseAdapter, RawDatabaseResult, OdbcDatabaseAdapter,
        db_connect!, db_close!, db_alive, db_rowid_column,
        db_query, db_execute_raw, db_insert!, db_update!, db_delete!,
        db_catalog_databases, db_catalog_schemas, db_catalog_tables, db_catalog_columns

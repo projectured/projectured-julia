@@ -56,7 +56,7 @@ function test_db_catalog_tabular(; skip_if_no_db=true, show_detail=false)
         db_connect!(adapter)
         true
     catch e
-        skip_if_no_db && @info "Skipping DbCatalogTabular tests (PostgreSQL unavailable): $e"
+        skip_if_no_db && @info "Skipping DbCatalogTabular tests (ODBC DSN unavailable): $e"
         false
     end
 

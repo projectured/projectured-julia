@@ -2,8 +2,10 @@
     DatabaseModule
 
 Generic database access layer. Defines the abstract `DatabaseAdapter`
-interface and `RawDatabaseResult`, with `PostgresDatabaseAdapter` as the
-first concrete implementation using `LibPQ.jl`.
+interface and `RawDatabaseResult`, with `OdbcDatabaseAdapter` as the
+first concrete implementation using `ODBC.jl`. ODBC is a universal standard:
+a single adapter talks to PostgreSQL, SQL Server, MySQL, Oracle, SQLite, and
+more by varying only the connection string.
 
 ## Query API
 
@@ -15,15 +17,18 @@ implemented here. The `TabularGrid` target lives in the bridge module
 
 ## Dependencies (program/Project.toml)
 
-    LibPQ = "194296ae-ab2e-5f79-8cd4-7183a0a5a0d1"
+    ODBC = "be6f12e9-ca4f-5eb2-a339-a4f995cc0291"
+    DBInterface = "a10d1c49-ce27-4219-8d33-6db1a4562965"
 """
 module DatabaseModule
 
-import LibPQ
+import ODBC
+import DBInterface
+import Tables
 
 export DatabaseAdapter,
        RawDatabaseResult,
-       PostgresDatabaseAdapter,
+       OdbcDatabaseAdapter,
        db_connect!, db_close!, db_alive,
        db_rowid_column,
        db_query, db_execute_raw,
@@ -59,8 +64,9 @@ end
 Return the name of the technical row-identity column for this adapter.
 Used by the projection bridge to identify rows without knowing business keys.
 
-- `PostgresDatabaseAdapter` → `"ctid"`
-- Future `SQLiteDatabaseAdapter` → `"rowid"`
+There is no universal row-identity column across databases, so this is a
+constructor parameter on `OdbcDatabaseAdapter` (e.g. `"ctid"` for PostgreSQL,
+`"rowid"` for SQLite).
 """
 function db_rowid_column(adapter::DatabaseAdapter)::String
     error("db_rowid_column not implemented for $(typeof(adapter))")
@@ -199,155 +205,179 @@ function _build_select(table::String, columns, where_clause, limit)
     sql, params
 end
 
-function _col_names(result)
-    String[String(n) for n in LibPQ.column_names(result)]
-end
-
-function _materialize_rows(result, col_names)
-    n = length(col_names)
-    rows = Vector{Vector{Any}}()
-    for row in result
-        push!(rows, Any[row[i] for i in 1:n])
+# An `ODBC.Cursor` is a Tables.jl *source*, not a row iterator: it implements
+# neither `iterate` nor `length`. We materialize it through `Tables.columntable`
+# — a NamedTuple of column vectors — which exposes the column names via
+# `propertynames` and preserves the schema even when the result is empty.
+function _materialize(cursor)
+    ct = Tables.columntable(cursor)
+    col_names = String[String(n) for n in propertynames(ct)]
+    ncols = length(col_names)
+    nrows = ncols == 0 ? 0 : length(ct[1])
+    rows = Vector{Vector{Any}}(undef, nrows)
+    for i in 1:nrows
+        rows[i] = Any[ct[j][i] for j in 1:ncols]
     end
-    rows
+    col_names, rows
 end
 
-# ── PostgresDatabaseAdapter ───────────────────────────────────────────────────
+# ── OdbcDatabaseAdapter ───────────────────────────────────────────────────────
 
 """
-    PostgresDatabaseAdapter
+    OdbcDatabaseAdapter
 
-PostgreSQL adapter using LibPQ.jl. Implements `DatabaseAdapter` with
-`ctid` as the technical row identifier.
+Universal database adapter using ODBC.jl. Implements `DatabaseAdapter` over any
+ODBC-reachable database (PostgreSQL, SQL Server, MySQL, Oracle, SQLite, …) by
+varying only the connection string.
 
 # Constructors
 
-    PostgresDatabaseAdapter(; host, port, dbname, user, password)
+    OdbcDatabaseAdapter(; dsn, rowid_column="rowid")
+
+`dsn` is a full ODBC connection string. `rowid_column` is the technical
+row-identity column for the target database — PostgreSQL users pass `"ctid"`,
+SQLite users `"rowid"`.
+
+```julia
+OdbcDatabaseAdapter(
+    dsn="Driver={PostgreSQL Unicode};Server=localhost;Port=5432;" *
+        "Database=mydb;Uid=user;Pwd=pass;",
+    rowid_column="ctid")
+```
 """
-mutable struct PostgresDatabaseAdapter <: DatabaseAdapter
-    host::String
-    port::Int
-    dbname::String
-    user::String
-    password::String
-    _conn::Union{Nothing, LibPQ.Connection}
+mutable struct OdbcDatabaseAdapter <: DatabaseAdapter
+    dsn::String                         # ODBC connection string
+    rowid_column::String                # configurable; no universal ctid equivalent
+    _conn::Union{Nothing, ODBC.Connection}
 end
 
-PostgresDatabaseAdapter(; host::AbstractString="localhost",
-                          port::Integer=5432,
-                          dbname::AbstractString,
-                          user::AbstractString,
-                          password::AbstractString) =
-    PostgresDatabaseAdapter(String(host), Int(port), String(dbname),
-                            String(user), String(password), nothing)
+OdbcDatabaseAdapter(; dsn::AbstractString,
+                      rowid_column::AbstractString="rowid") =
+    OdbcDatabaseAdapter(String(dsn), String(rowid_column), nothing)
 
-function db_connect!(adapter::PostgresDatabaseAdapter)
-    dsn = "host=$(adapter.host) port=$(adapter.port) " *
-          "dbname=$(adapter.dbname) user=$(adapter.user) " *
-          "password=$(adapter.password)"
-    adapter._conn = LibPQ.Connection(dsn)
+function db_connect!(adapter::OdbcDatabaseAdapter)
+    adapter._conn = ODBC.Connection(adapter.dsn)
     return adapter
 end
 
-function db_close!(adapter::PostgresDatabaseAdapter)
+function db_close!(adapter::OdbcDatabaseAdapter)
     if adapter._conn !== nothing
-        close(adapter._conn)
+        DBInterface.close!(adapter._conn)
         adapter._conn = nothing
     end
     return adapter
 end
 
-function db_alive(adapter::PostgresDatabaseAdapter)::Bool
+function db_alive(adapter::OdbcDatabaseAdapter)::Bool
     adapter._conn === nothing && return false
     try
-        LibPQ.execute(adapter._conn, "SELECT 1")
+        DBInterface.execute(adapter._conn, "SELECT 1")
         return true
     catch
         return false
     end
 end
 
-db_rowid_column(::PostgresDatabaseAdapter) = "ctid"
+db_rowid_column(adapter::OdbcDatabaseAdapter) = adapter.rowid_column
 
-# ── PostgresDatabaseAdapter — RawDatabaseResult target ───────────────────────
+# ── OdbcDatabaseAdapter — RawDatabaseResult target ───────────────────────────
 
-function db_query(adapter::PostgresDatabaseAdapter, table::String,
+function db_query(adapter::OdbcDatabaseAdapter, table::String,
                   ::Type{RawDatabaseResult};
                   columns=nothing, where=nothing, limit=nothing)::RawDatabaseResult
     sql, _ = _build_select(table, columns, where, limit)
-    result = LibPQ.execute(adapter._conn, sql)
-    col_names = _col_names(result)
-    RawDatabaseResult(col_names, _materialize_rows(result, col_names))
+    cursor = DBInterface.execute(adapter._conn, sql)
+    col_names, rows = _materialize(cursor)
+    RawDatabaseResult(col_names, rows)
 end
 
-function db_execute_raw(adapter::PostgresDatabaseAdapter, sql::String,
+function db_execute_raw(adapter::OdbcDatabaseAdapter, sql::String,
                         ::Type{RawDatabaseResult};
                         params=())::RawDatabaseResult
-    result = LibPQ.execute(adapter._conn, sql, collect(params))
-    col_names = _col_names(result)
-    RawDatabaseResult(col_names, _materialize_rows(result, col_names))
+    cursor = DBInterface.execute(adapter._conn, sql, collect(params))
+    col_names, rows = _materialize(cursor)
+    RawDatabaseResult(col_names, rows)
 end
 
-# ── PostgresDatabaseAdapter — mutations ───────────────────────────────────────
+# ── OdbcDatabaseAdapter — mutations ───────────────────────────────────────────
 
-function db_insert!(adapter::PostgresDatabaseAdapter,
+function db_insert!(adapter::OdbcDatabaseAdapter,
                     table::String, row::AbstractDict)::Int
     cols = collect(keys(row))
     vals = collect(values(row))
-    placeholders = join(["\$$(i)" for i in 1:length(cols)], ", ")
+    placeholders = join(fill("?", length(cols)), ", ")
     col_list = join(["\"$(c)\"" for c in cols], ", ")
     sql = "INSERT INTO \"$(table)\" ($(col_list)) VALUES ($(placeholders))"
-    result = LibPQ.execute(adapter._conn, sql, vals)
-    LibPQ.num_affected_rows(result)
+    cursor = DBInterface.execute(adapter._conn, sql, vals)
+    DBInterface.rowcount(cursor)
 end
 
-function db_update!(adapter::PostgresDatabaseAdapter,
+function db_update!(adapter::OdbcDatabaseAdapter,
                     table::String, row::AbstractDict, where::String)::Int
     cols = collect(keys(row))
     vals = collect(values(row))
-    set_clause = join(["\"$(c)\" = \$$(i)" for (i, c) in enumerate(cols)], ", ")
+    set_clause = join(["\"$(c)\" = ?" for c in cols], ", ")
     sql = "UPDATE \"$(table)\" SET $(set_clause) WHERE $(where)"
-    result = LibPQ.execute(adapter._conn, sql, vals)
-    LibPQ.num_affected_rows(result)
+    cursor = DBInterface.execute(adapter._conn, sql, vals)
+    DBInterface.rowcount(cursor)
 end
 
-function db_delete!(adapter::PostgresDatabaseAdapter,
+function db_delete!(adapter::OdbcDatabaseAdapter,
                     table::String, where::String)::Int
     sql = "DELETE FROM \"$(table)\" WHERE $(where)"
-    result = LibPQ.execute(adapter._conn, sql)
-    LibPQ.num_affected_rows(result)
+    cursor = DBInterface.execute(adapter._conn, sql)
+    DBInterface.rowcount(cursor)
 end
 
-# ── PostgresDatabaseAdapter — catalog queries ────────────────────────────────
+# ── OdbcDatabaseAdapter — catalog queries ────────────────────────────────────
 
-function db_catalog_databases(adapter::PostgresDatabaseAdapter)::Vector{String}
-    result = LibPQ.execute(adapter._conn,
-        "SELECT datname FROM pg_database WHERE datistemplate = false ORDER BY datname")
-    String[row[1] for row in result]
+function db_catalog_databases(adapter::OdbcDatabaseAdapter)::Vector{String}
+    if adapter._conn === nothing || !db_alive(adapter)
+        db_connect!(adapter)
+    end
+    cursor = DBInterface.execute(adapter._conn,
+        "SELECT DISTINCT table_catalog FROM information_schema.tables " *
+        "ORDER BY table_catalog")
+    _, rows = _materialize(cursor)
+    String[String(row[1]) for row in rows]
 end
 
-function db_catalog_schemas(adapter::PostgresDatabaseAdapter, database::String)::Vector{String}
-    result = LibPQ.execute(adapter._conn,
-        "SELECT nspname FROM pg_namespace " *
-        "WHERE nspname NOT LIKE 'pg_%' AND nspname <> 'information_schema' " *
-        "ORDER BY nspname")
-    String[row[1] for row in result]
+function db_catalog_schemas(adapter::OdbcDatabaseAdapter, database::String)::Vector{String}
+    if adapter._conn === nothing || !db_alive(adapter)
+        db_connect!(adapter)
+    end
+    cursor = DBInterface.execute(adapter._conn,
+        "SELECT schema_name FROM information_schema.schemata " *
+        "WHERE schema_name NOT LIKE 'pg_%' AND schema_name <> 'information_schema' " *
+        "ORDER BY schema_name")
+    _, rows = _materialize(cursor)
+    String[String(row[1]) for row in rows]
 end
 
-function db_catalog_tables(adapter::PostgresDatabaseAdapter, schema::String)::Vector{String}
-    result = LibPQ.execute(adapter._conn,
-        "SELECT tablename FROM pg_tables WHERE schemaname = \$1 ORDER BY tablename",
+function db_catalog_tables(adapter::OdbcDatabaseAdapter, schema::String)::Vector{String}
+    if adapter._conn === nothing || !db_alive(adapter)
+        db_connect!(adapter)
+    end
+    cursor = DBInterface.execute(adapter._conn,
+        "SELECT table_name FROM information_schema.tables " *
+        "WHERE table_schema = ? AND table_type = 'BASE TABLE' " *
+        "ORDER BY table_name",
         [schema])
-    String[row[1] for row in result]
+    _, rows = _materialize(cursor)
+    String[String(row[1]) for row in rows]
 end
 
-function db_catalog_columns(adapter::PostgresDatabaseAdapter,
+function db_catalog_columns(adapter::OdbcDatabaseAdapter,
                              schema::String, table::String)
-    result = LibPQ.execute(adapter._conn,
+    if adapter._conn === nothing || !db_alive(adapter)
+        db_connect!(adapter)
+    end
+    cursor = DBInterface.execute(adapter._conn,
         "SELECT column_name, data_type FROM information_schema.columns " *
-        "WHERE table_schema = \$1 AND table_name = \$2 ORDER BY ordinal_position",
+        "WHERE table_schema = ? AND table_name = ? ORDER BY ordinal_position",
         [schema, table])
-    [(name=String(row[1]), data_type=String(row[2])) for row in result]
+    _, rows = _materialize(cursor)
+    [(name=String(row[1]), data_type=String(row[2])) for row in rows]
 end
 
 end # module

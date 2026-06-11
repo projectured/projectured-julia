@@ -24,9 +24,13 @@ end
 # ── Live-DB helpers (also used by DatabaseTabularTest) ────────────────────────
 
 function _make_test_adapter()
-    PostgresDatabaseAdapter(dbname="projectured_test",
-                            user=get(ENV, "PGUSER", "postgres"),
-                            password=get(ENV, "PGPASSWORD", "projectured"))
+    OdbcDatabaseAdapter(
+        dsn=get(ENV, "TEST_ODBC_DSN",
+                "Driver={PostgreSQL Unicode};Server=localhost;Port=5432;" *
+                "Database=projectured_test;" *
+                "Uid=$(get(ENV, "PGUSER", "projectured"));" *
+                "Pwd=$(get(ENV, "PGPASSWORD", "projectured"));"),
+        rowid_column="ctid")
 end
 
 function _setup_persons_table(adapter)
@@ -133,7 +137,7 @@ function test_database(; skip_if_no_db=true)
         db_connect!(adapter)
         true
     catch e
-        skip_if_no_db && @info "Skipping live-DB tests (PostgreSQL unavailable): $e"
+        skip_if_no_db && @info "Skipping live-DB tests (ODBC DSN unavailable): $e"
         false
     end
 

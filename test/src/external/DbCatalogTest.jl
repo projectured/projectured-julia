@@ -49,7 +49,7 @@ end
 function test_db_catalog_document_show(adapter)
     @testset "T5 — document show (simple)" begin
         conn = DbCatalogConnection(adapter)
-        @test sprint(show, conn) == "DbCatalogConnection($(adapter.host):$(adapter.port))"
+        @test sprint(show, conn) == "DbCatalogConnection($(conn.host):$(conn.port))"
         db = DbCatalogDatabase(conn, "mydb")
         @test sprint(show, db) == "DbCatalogDatabase(mydb)"
         schema = DbCatalogSchema(db, "public")
@@ -158,7 +158,7 @@ function test_db_catalog(; skip_if_no_db=true)
         db_connect!(adapter)
         true
     catch e
-        skip_if_no_db && @info "Skipping DbCatalog tests (PostgreSQL unavailable): $e"
+        skip_if_no_db && @info "Skipping DbCatalog tests (ODBC DSN unavailable): $e"
         false
     end
 

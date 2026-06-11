@@ -14,7 +14,8 @@ counterpart of `DatabaseUpdateOperation`.
 """
 module DbCatalogTableToTabularGridModule
 
-import LibPQ
+import DBInterface
+import Tables
 import ..DbCatalogDocumentModule: DbCatalogTable
 import ..TabularModule: TabularGrid, TabularRow, TabularCell
 import ..CollectionModule: CellVector
@@ -87,15 +88,16 @@ struct DbCatalogTableToTabularGrid <: Projection end
 
 function _query_with_ctid(adapter, schema, table)
     sql = "SELECT ctid, * FROM \"$(schema)\".\"$(table)\""
-    result   = LibPQ.execute(adapter._conn, sql)
-    all_cols = String[String(n) for n in LibPQ.column_names(result)]
+    ct = Tables.columntable(DBInterface.execute(adapter._conn, sql))
+    all_cols = String[String(n) for n in propertynames(ct)]
     ctid_idx = findfirst(==("ctid"), all_cols)
     col_names   = String[c for (i, c) in enumerate(all_cols) if i != ctid_idx]
+    nrows       = isempty(all_cols) ? 0 : length(ct[1])
     ctid_values = Any[]
     data_rows   = Vector{Vector{Any}}()
-    for row in result
-        push!(ctid_values, row[ctid_idx])
-        push!(data_rows, Any[row[i] for i in 1:length(all_cols) if i != ctid_idx])
+    for r in 1:nrows
+        push!(ctid_values, ct[ctid_idx][r])
+        push!(data_rows, Any[ct[i][r] for i in 1:length(all_cols) if i != ctid_idx])
     end
     col_names, ctid_values, data_rows
 end
@@ -166,8 +168,8 @@ end
 # ── projection_print ──────────────────────────────────────────────────────────
 
 function projection_print(p::DbCatalogTableToTabularGrid,
-                           doc::DbCatalogTable,
-                           recursion, ctx)
+                           recursion,
+                           doc::DbCatalogTable, ctx)
     adapter     = doc.schema.database.connection.adapter
     schema_name = doc.schema.name
     table_name  = doc.name
@@ -242,9 +244,9 @@ end
 
 function evaluate_operation(editor, op::DbCatalogUpdateOperation)
     sql = "UPDATE \"$(op.schema)\".\"$(op.table)\" " *
-          "SET \"$(op.column)\" = \$1 " *
+          "SET \"$(op.column)\" = ? " *
           "WHERE ctid = '$(op.ctid)'::tid"
-    LibPQ.execute(op.adapter._conn, sql, Any[op.new_value])
+    DBInterface.execute(op.adapter._conn, sql, [op.new_value])
     nothing
 end
 

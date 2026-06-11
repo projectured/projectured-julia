@@ -23,7 +23,7 @@ export DbCatalogConnectionToJson, DbCatalogDatabaseToJson, DbCatalogSchemaToJson
 
 struct DbCatalogConnectionToJson <: Projection end
 
-function projection_print(p::DbCatalogConnectionToJson, conn::DbCatalogConnection, recursion, ctx)
+function projection_print(p::DbCatalogConnectionToJson, recursion, conn::DbCatalogConnection, ctx)
     obj = JsonObject(
         "host" => JsonString(conn.host),
         "port" => JsonNumber(conn.port)
@@ -39,7 +39,7 @@ projection_read(::DbCatalogConnectionToJson, iomap, op) = nothing
 
 struct DbCatalogDatabaseToJson <: Projection end
 
-function projection_print(p::DbCatalogDatabaseToJson, db::DbCatalogDatabase, recursion, ctx)
+function projection_print(p::DbCatalogDatabaseToJson, recursion, db::DbCatalogDatabase, ctx)
     obj = JsonObject(
         "name" => JsonString(db.name)
     )
@@ -54,7 +54,7 @@ projection_read(::DbCatalogDatabaseToJson, iomap, op) = nothing
 
 struct DbCatalogSchemaToJson <: Projection end
 
-function projection_print(p::DbCatalogSchemaToJson, schema::DbCatalogSchema, recursion, ctx)
+function projection_print(p::DbCatalogSchemaToJson, recursion, schema::DbCatalogSchema, ctx)
     obj = JsonObject(
         "name" => JsonString(schema.name)
     )
@@ -69,7 +69,7 @@ projection_read(::DbCatalogSchemaToJson, iomap, op) = nothing
 
 struct DbCatalogTableToJson <: Projection end
 
-function projection_print(p::DbCatalogTableToJson, table::DbCatalogTable, recursion, ctx)
+function projection_print(p::DbCatalogTableToJson, recursion, table::DbCatalogTable, ctx)
     obj = JsonObject(
         "name" => JsonString(table.name)
     )
@@ -84,7 +84,7 @@ projection_read(::DbCatalogTableToJson, iomap, op) = nothing
 
 struct DbCatalogColumnToJson <: Projection end
 
-function projection_print(p::DbCatalogColumnToJson, col::DbCatalogColumn, recursion, ctx)
+function projection_print(p::DbCatalogColumnToJson, recursion, col::DbCatalogColumn, ctx)
     obj = JsonObject(
         "name" => JsonString(col.name),
         "data_type" => JsonString(col.data_type)

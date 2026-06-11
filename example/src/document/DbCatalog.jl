@@ -1,17 +1,22 @@
 function make_dbcatalog_document_example(;
         dbname=get(ENV, "PGDATABASE", "projectured_test"),
-        user=get(ENV, "PGUSER", "postgres"),
+        user=get(ENV, "PGUSER", "projectured"),
         password=get(ENV, "PGPASSWORD", "projectured"),
         host=get(ENV, "PGHOST", "localhost"),
         port=parse(Int, get(ENV, "PGPORT", "5432")))
-    adapter = PostgresDatabaseAdapter(dbname=dbname, user=user, password=password, host=host, port=port)
+    dsn = get(ENV, "TEST_ODBC_DSN",
+              "Driver={PostgreSQL Unicode};Server=$(host);Port=$(port);" *
+              "Database=$(dbname);Uid=$(user);Pwd=$(password);")
+    adapter = OdbcDatabaseAdapter(dsn=dsn, rowid_column="ctid")
+    conn = DbCatalogConnection(adapter; host=host, port=port)
+    # Connect eagerly when a database is reachable, but never throw: this maker
+    # runs at module-load / precompile time (the `Example` constructor calls it),
+    # and precompilation must not depend on a live database or ODBC driver.
     try
         db_connect!(adapter)
-        conn = DbCatalogConnection(adapter)
-        return conn
     catch e
-        @warn "Failed to connect to database for DbCatalog example: $e"
-        @warn "Set PGDATABASE, PGUSER, PGPASSWORD, PGHOST, and PGPORT environment variables to configure the connection"
-        rethrow(e)
+        @warn "DbCatalog example: database unavailable, catalog will be empty until connected: $e"
+        @warn "Set PGDATABASE, PGUSER, PGPASSWORD, PGHOST, PGPORT (or TEST_ODBC_DSN) to configure the connection"
     end
+    return conn
 end
