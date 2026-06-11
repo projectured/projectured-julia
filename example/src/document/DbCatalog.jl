@@ -4,19 +4,14 @@ function make_dbcatalog_document_example(;
         password=get(ENV, "PGPASSWORD", "projectured"),
         host=get(ENV, "PGHOST", "localhost"),
         port=parse(Int, get(ENV, "PGPORT", "5432")))
-    dsn = get(ENV, "TEST_ODBC_DSN",
-              "Driver={PostgreSQL Unicode};Server=$(host);Port=$(port);" *
-              "Database=$(dbname);Uid=$(user);Pwd=$(password);")
-    adapter = OdbcDatabaseAdapter(dsn=dsn, rowid_column="ctid")
-    conn = DbCatalogConnection(adapter; host=host, port=port)
-    # Connect eagerly when a database is reachable, but never throw: this maker
-    # runs at module-load / precompile time (the `Example` constructor calls it),
-    # and precompilation must not depend on a live database or ODBC driver.
-    try
-        db_connect!(adapter)
-    catch e
-        @warn "DbCatalog example: database unavailable, catalog will be empty until connected: $e"
-        @warn "Set PGDATABASE, PGUSER, PGPASSWORD, PGHOST, PGPORT (or TEST_ODBC_DSN) to configure the connection"
-    end
-    return conn
+    # The catalog document is just a connection spec. No connection is opened
+    # here — the DatabaseInstanceToDbCatalog projection queries the database
+    # lazily (through its connection pool) when the tree is first forced, so
+    # this maker stays safe to run at module-load / precompile time.
+    DatabaseInstance(
+        database=dbname,
+        host=host,
+        port=port,
+        credentials=DatabaseCredentials(user=user, password=password),
+    )
 end

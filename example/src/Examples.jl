@@ -44,6 +44,8 @@ const graphics_image_example = Example("graphics_image", make_json_document_exam
 const primitive_string_example = Example("primitive_string", make_primitive_string_document_example, make_primitive_string_projection_example)
 const assistant_example      = Example("assistant",      make_assistant_document_example,      make_assistant_projection_example)
 const dbcatalog_example      = Example("dbcatalog",      make_dbcatalog_document_example,      make_dbcatalog_projection_example)
+const sql_syntax_example     = Example("sql_syntax",     make_sql_document_example,            make_sql_syntax_projection_example)
+const sql_table_example      = Example("sql_table",      make_sql_document_example,            make_sql_table_projection_example)
 
 const examples = [
     json_example, json_sorted_example, json_null_example, json_string_example,
@@ -57,6 +59,8 @@ const examples = [
     primitive_string_example,
     assistant_example,
     dbcatalog_example,
+    sql_syntax_example,
+    sql_table_example,
 ]
 
 function run_example(example::Example; kwargs...)

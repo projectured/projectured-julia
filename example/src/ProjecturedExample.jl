@@ -32,6 +32,8 @@ include(joinpath(_EXAMPLE_DIR, "document", "Julia.jl"))
 include(joinpath(_EXAMPLE_DIR, "document", "Wrapper.jl"))
 include(joinpath(_EXAMPLE_DIR, "document", "Primitive.jl"))
 include(joinpath(_EXAMPLE_DIR, "document", "DbCatalog.jl"))
+include(joinpath(_EXAMPLE_DIR, "document", "DatabaseInstance.jl"))
+include(joinpath(_EXAMPLE_DIR, "document", "Sql.jl"))
 
 include(joinpath(_EXAMPLE_DIR, "projection", "Json.jl"))
 include(joinpath(_EXAMPLE_DIR, "projection", "Table.jl"))
@@ -64,6 +66,7 @@ include(joinpath(_EXAMPLE_DIR, "projection", "Wrapper.jl"))
 include(joinpath(_EXAMPLE_DIR, "projection", "Graphics.jl"))
 include(joinpath(_EXAMPLE_DIR, "projection", "Primitive.jl"))
 include(joinpath(_EXAMPLE_DIR, "projection", "DbCatalog.jl"))
+include(joinpath(_EXAMPLE_DIR, "projection", "Sql.jl"))
 
 include(joinpath(_EXAMPLE_DIR, "Examples.jl"))
 
@@ -104,6 +107,8 @@ export make_julia_document_example, make_julia_projection_example
 export make_graphics_image_projection_example
 export make_primitive_string_document_example, make_primitive_string_projection_example
 export make_dbcatalog_document_example, make_dbcatalog_projection_example
+export make_database_instance_document_example
+export make_sql_document_example, make_sql_syntax_projection_example, make_sql_table_projection_example
 
 export make_graphics_caching
 export make_scrolling_document, make_scrolling_projection
@@ -123,5 +128,7 @@ export graphics_image_example
 export primitive_string_example
 export assistant_example
 export dbcatalog_example
+export sql_syntax_example
+export sql_table_example
 
 end
