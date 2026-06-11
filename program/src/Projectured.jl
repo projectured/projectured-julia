@@ -107,6 +107,7 @@ include("projection/primitive/BookToSyntax.jl")
 include("projection/primitive/LineNumbering.jl")
 include("projection/primitive/WordWrapping.jl")
 include("projection/primitive/TextFiltering.jl")
+include("projection/primitive/TextHighlighting.jl")
 include("projection/primitive/PrimitiveToSyntax.jl")
 include("projection/primitive/PrimitiveToText.jl")
 include("projection/primitive/ReferenceToText.jl")
@@ -167,7 +168,8 @@ using .PrinterContextModule: PrinterContext, child_context, with_available_size,
                                  with_property, get_property
 using .DocumentApiModule: set_selection!, clear_selection!
 using .OperationModule: ReplaceSelectionOperation, QuitEditorOperation, replace_selection!,
-                        OpenWindowOperation, CloseWindowOperation, ToggleCollapseOperation
+                        OpenWindowOperation, CloseWindowOperation, ToggleCollapseOperation,
+                        ReplaceDocumentOperation, CollectionInsertOperation, CollectionDeleteOperation
 using .ReferenceCaseModule: var"@reference_case", when, prefix
 using .EventCaseModule: var"@event_case"
 using .ReferenceBuilderModule: var"@reference", var"@step"
@@ -275,6 +277,7 @@ using .TextToStringModule: TextToString, TextTextToString, TextStringToString, T
 using .TextLineNumberingModule: LineNumbering, TextLineNumbering
 using .WordWrappingModule: WordWrapping, WordWrappingIoMap, WrapSeg
 using .TextFilteringModule: TextFiltering, TextFilteringIoMap
+using .TextHighlightingModule: TextHighlighting, TextHighlightingIoMap, HighlightSeg
 using .SyntaxToTextModule: SyntaxToText, SyntaxNodeToTextIoMap,
                                        SyntaxLeafToText, SyntaxListToText
 using .PrimitiveToSyntaxModule: PrimitiveToSyntax, PrimitiveBoolToSyntaxLeaf,
@@ -372,6 +375,7 @@ export @reference_case, when, prefix
 export @event_case
 export @reference, @step
 export ReplaceSelectionOperation, ToggleCollapseOperation
+export ReplaceDocumentOperation, CollectionInsertOperation, CollectionDeleteOperation
 export OpenWindowOperation, CloseWindowOperation
 export JsonDocument, JsonInsertion, JsonNull, JsonBool, JsonNumber, JsonString, JsonArray, JsonObject, JsonObjectEntry, jsonvalue, entries
 export TabularDocument, TabularCell, TabularRow, TabularGrid,
@@ -508,6 +512,7 @@ export TextToString, TextTextToString, TextStringToString, TextNewlineToString
 export LineNumbering, TextLineNumbering
 export WordWrapping, WordWrappingIoMap, WrapSeg
 export TextFiltering, TextFilteringIoMap
+export TextHighlighting, TextHighlightingIoMap, HighlightSeg
 export SyntaxToText, SyntaxLeafToText, SyntaxListToText
 export PrimitiveToSyntax, PrimitiveBoolToSyntaxLeaf,
        PrimitiveNumberToSyntaxLeaf, PrimitiveStringToSyntaxLeaf

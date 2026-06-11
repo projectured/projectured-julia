@@ -11,6 +11,15 @@
 # the most recent projection_print, mirroring the real editor loop.
 # ═══════════════════════════════════════════════════════════════════════════
 
+# A minimal stand-in for the mutable `Editor`: operations such as
+# `ReplaceDocumentOperation` may rebind `.document` (a whole-document swap) and
+# null `.iomap`, exactly as the real editor loop allows. The harness re-reads
+# `.document` after each operation so a root swap is picked up by the next print.
+mutable struct _ReplEditor
+    document::Any
+    iomap::Any
+end
+
 # If `onevent` is supplied it is called once per event with
 # `(event, ok::Bool, message::String)` summarising that event's full
 # read → evaluate → reprint → walk cycle, letting a caller emit one assertion
@@ -40,7 +49,9 @@ function walk_repl_loop(document, projection; onevent=nothing)
             continue
         end
         try
-            evaluate_operation((document=document,), op)
+            ed = _ReplEditor(document, iomap)
+            evaluate_operation(ed, op)
+            document = ed.document   # pick up a whole-document swap
         catch e
             msg = "evaluate_operation threw for $event: $e"
             push!(errors, msg)

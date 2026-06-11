@@ -220,6 +220,14 @@ function projection_read(p::TextToGraphics, iomap::TextToGraphicsIoMap, evt)
     if evt.key in (:up, :down, :left, :right) && _is_structural_selection(iomap.input.selection)
         return nothing
     end
+    # Tab has no character-cursor meaning at this layer. Decline it (return
+    # nothing, not the raw event) so the Change-threaded reader chain keeps walking
+    # inward — the JSON reader uses Tab for key→value navigation. Returning the
+    # event here would fill the Change's operation slot and short-circuit the chain
+    # before the upper layers run.
+    if evt.key === :tab
+        return nothing
+    end
     del_op = _key_delete_op(iomap, evt)
     del_op === nothing || return del_op
     styled = iomap.input
@@ -420,6 +428,7 @@ function projection_print(p::TextToGraphics, recursion, styled::TextText, ctx)
                 seg_x = cx
                 seg_char_start = char_offset
                 seg_len = length(line)
+                _push_fill_rect!(result, span, seg_x, cy, seg_w, seg_h)
                 push!(result, _make_sdl(line, seg_x, cy, sf, r, g, b, a))
                 push!(coord_map, SegCoord(span_idx, seg_char_start, seg_char_start + seg_len, seg_x, cy, sf, line, seg_w, seg_h))
                 if cursor_pos !== nothing && cursor_x < 0 &&
@@ -609,6 +618,7 @@ function _layout_paragraph(p::TextToGraphics, spans::Vector, y_offset::Int)
 
         seg_w, seg_h = p.measure(txt, sf)
         line_h = max(line_h, seg_h)
+        _push_fill_rect!(result, span, cx, 0, seg_w, seg_h)
         push!(result, _make_sdl(txt, cx, 0, sf, r, g, b, a))
         cx += seg_w
     end
@@ -659,6 +669,20 @@ function _make_sdl(text, x, y, font, r, g, b, a)
                 Cell(font),
                 Cell(UInt8(r)), Cell(UInt8(g)), Cell(UInt8(b)), Cell(UInt8(a)),
                 Cell(nothing))
+end
+
+# If `span` carries a background `fill_color` (a `StyleColor`, not the default
+# `nothing`), emit a `GraphicsRect` covering the segment box. Caller pushes this
+# before the span's `GraphicsText` so it paints behind. No-op for the default
+# `nothing` fill, so existing documents render unchanged.
+function _push_fill_rect!(result, span, x::Integer, y::Integer, w::Integer, h::Integer)
+    fill = span.fill_color
+    fill isa StyleColor || return
+    fr = UInt8(round(fill.red * 255))
+    fg = UInt8(round(fill.green * 255))
+    fb = UInt8(round(fill.blue * 255))
+    fa = UInt8(round(fill.alpha * 255))
+    push!(result, GraphicsRect(Int(x), Int(y), Int(w), Int(h), fr, fg, fb, fa))
 end
 
 # ── Reader helpers ──────────────────────────────────────────────────────

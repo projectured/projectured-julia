@@ -418,12 +418,22 @@ function _apply_string_replace!(target::JsonObjectEntry, field_name::AbstractStr
     target.key = _slice_replace(old, s, e, replacement)
 end
 
+# A string-domain edit can reach a JsonNumber when it is threaded back through a
+# parent array/object reader (which preserves the operation type rather than
+# re-dispatching to the leaf's JsonNumber→NumberReplaceRange conversion). Editing
+# a number's text means "reparse it", so treat the string edit as a number edit.
+_apply_string_replace!(target::JsonNumber, field_name::AbstractString, s::Int, e::Int, replacement::AbstractString) =
+    _apply_number_replace!(target, field_name, s, e, replacement)
+
 function _apply_number_replace!(target::JsonNumber, field_name::AbstractString, s::Int, e::Int, replacement::AbstractString)
     field_name == "value" || error("JsonNumber supports only field 'value', got: $field_name")
     old_num = target.value
     old_str = old_num === nothing ? "" : string(old_num)
     new_str = _slice_replace(old_str, s, e, replacement)
-    target.value = isempty(new_str) ? nothing : something(tryparse(Float64, new_str), nothing)
+    # tryparse returns `nothing` for unparseable input; the value Cell accepts it
+    # (mirrors PrimitiveModule._apply_number_replace!). Do not wrap in `something`
+    # — `something(nothing, nothing)` throws.
+    target.value = isempty(new_str) ? nothing : tryparse(Float64, new_str)
 end
 
 # Character-aware replacement helper (positions are 0-based char offsets).

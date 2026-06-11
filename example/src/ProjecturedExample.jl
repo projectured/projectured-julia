@@ -14,6 +14,7 @@ include(joinpath(_EXAMPLE_DIR, "document", "LineNumbering.jl"))
 include(joinpath(_EXAMPLE_DIR, "document", "TextToString.jl"))
 include(joinpath(_EXAMPLE_DIR, "document", "WordWrapping.jl"))
 include(joinpath(_EXAMPLE_DIR, "document", "TextFiltering.jl"))
+include(joinpath(_EXAMPLE_DIR, "document", "TextHighlighting.jl"))
 include(joinpath(_EXAMPLE_DIR, "document", "Widget.jl"))
 include(joinpath(_EXAMPLE_DIR, "document", "Layout.jl"))
 include(joinpath(_EXAMPLE_DIR, "document", "Book.jl"))
@@ -42,6 +43,7 @@ include(joinpath(_EXAMPLE_DIR, "projection", "LineNumbering.jl"))
 include(joinpath(_EXAMPLE_DIR, "projection", "TextToString.jl"))
 include(joinpath(_EXAMPLE_DIR, "projection", "WordWrapping.jl"))
 include(joinpath(_EXAMPLE_DIR, "projection", "TextFiltering.jl"))
+include(joinpath(_EXAMPLE_DIR, "projection", "TextHighlighting.jl"))
 include(joinpath(_EXAMPLE_DIR, "projection", "Widget.jl"))
 include(joinpath(_EXAMPLE_DIR, "projection", "Layout.jl"))
 include(joinpath(_EXAMPLE_DIR, "projection", "Book.jl"))
@@ -76,6 +78,7 @@ export make_line_numbering_document_example, make_line_numbering_projection_exam
 export make_text_to_string_document_example, make_text_to_string_projection_example
 export make_word_wrapping_document_example, make_word_wrapping_projection_example
 export make_text_filtering_document_example, make_text_filtering_projection_example
+export make_text_highlighting_document_example, make_text_highlighting_projection_example
 export make_widget_document_example, make_widget_projection_example
 export make_widget_tabbed_pane_document_example
 export make_layout_document_example, make_layout_projection_example
@@ -107,7 +110,7 @@ export Example, examples, run_example, print_example, write_image_example
 export generate_screenshots, update_guide_screenshots
 export json_example, json_sorted_example, json_null_example, json_string_example
 export xml_example, mixed_example, syntax_example, text_example, text_with_image_example
-export object_example, line_numbering_example, word_wrapping_example, text_filtering_example
+export object_example, line_numbering_example, word_wrapping_example, text_filtering_example, text_highlighting_example
 export widget_example, widget_tabbed_pane_example, layout_example, book_example, filesystem_example, navigator_example
 export collection_example, reversing_example, filtering_example, sorting_example, focusing_example, table_example, math_table_example, workbench_example
 export lazy_example, lazy_bidirectional_example

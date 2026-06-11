@@ -17,12 +17,13 @@ import ..ColorModule: StyleColor, color_black, color_default, color_solarized_bl
 import ..SyntaxModule: SyntaxDocument, SyntaxLeaf, SyntaxNode
 import ..TypeDispatchingModule: TypeDispatchingProjection
 import ..IoMapModule: SimpleIoMap, ChildrenIoMap
-import ..ReferenceModule: ConcreteReferencePath, ElementReference, PositionReference, RangeReference, FieldReference, ProjectionReference, ReferencePath, EmptyReferencePath, append_reference
+import ..ReferenceModule: ConcreteReferencePath, ElementReference, PositionReference, RangeReference, FieldReference, ProjectionReference, ReferencePath, EmptyReferencePath, append_reference, evaluate_reference
 import ..ReferenceCaseModule: var"@reference_case"
 import ..ReferenceBuilderModule: var"@reference"
 import ..PrinterContextModule: child_context
-import ..OperationModule: ReplaceSelectionOperation
+import ..OperationModule: ReplaceSelectionOperation, ReplaceDocumentOperation, CollectionInsertOperation
 import ..PrimitiveModule: StringReplaceRangeOperation
+import ..KeyboardModule: KeyPress, KeyDown
 import ..SyntaxToTextModule: SyntaxNodeToText, _syntax_to_flat
 export XmlInsertionToSyntaxLeaf, XmlTextToSyntaxLeaf, XmlElementToSyntaxNode, XmlToSyntax
 
@@ -216,6 +217,12 @@ function map_reference_backward(p::XmlElementToSyntaxNode, iomap::ChildrenIoMap,
                     end
                 end
             else
+                # child 4 is the closing tag. It renders the same `.tag` field
+                # as the start tag (child 1), which already updates both tags
+                # reactively (`_apply_string_replace!(::XmlElement, "tag", …)`),
+                # so the end tag is intentionally display-only: it carries no
+                # cursor forward and no edit maps back through it. Edit the tag
+                # via the start tag instead (plan §5.2, "display-only" option).
                 nothing
             end
         end
@@ -361,6 +368,125 @@ function _attr_node(a::XmlAttribute, p::XmlElementToSyntaxNode)
                 TextString(() -> xml_escape_attr(a.cell), p.attr_value_font, p.attr_value_color),
                 value_sel),
         ])
+end
+
+# ── Reader: the XML authoring command set ───────────────────────────────────
+#
+# These mirror the Lisp xml/insertion, xml/element and xml/attribute readers
+# (xml-to-syntax.lisp:296-448). They run only when a *raw* key gesture reaches
+# the XML layer — i.e. the cursor is on a whole XML node (structural mode), not a
+# character cursor inside editable text. A character cursor is consumed
+# downstream by TextToGraphics (which emits a StringReplaceRangeOperation the
+# typein path threads back up), so a printable key never reaches these readers
+# while text is being edited; the gating Lisp does in its readers falls out for
+# free, and we add only the per-command selection gating it still needs (Space).
+#
+# Only the *root* XML projection's reader runs for a gesture (TypeDispatching
+# dispatches on the root document's type), so each method reads its own
+# `iomap.input.selection` — a full path from the root — and emits an operation
+# whose path is relative to the root. The element reader therefore handles both
+# its own structural inserts and (via the shared `_xml_read_command`) the
+# type-to-replace of a *selected child* insertion, the way the JSON readers do.
+
+# Set a fresh replacement document's initial (self-relative) selection so the
+# evaluator can drop the cursor inside it after the swap.
+_xml_sel!(doc, path) = (getfield(doc, :selection)[] = path; doc)
+
+# The insertion type-to-replace command (Lisp xml/insertion reader, :298-316):
+# `"` replaces the selected node with an empty text node (cursor in its value),
+# `<` with an empty element (cursor in its start tag). It fires only when the
+# *selected target* is an `XmlInsertion` placeholder — so the element reader can
+# reuse it to replace a selected child insertion without clashing with its own
+# `<`/`"` child-insert commands, which act on the element node itself. Unlike
+# JSON's `json/read-command`, XML's `<`/`"` do not replace an existing text or
+# element; only an insertion is replaceable.
+function _xml_read_command(input, evt::KeyPress)
+    evt.modifiers.ctrl && return nothing
+    ch = evt.char
+    (ch == '"' || ch == '<') || return nothing
+    sel = getfield(input, :selection)[]
+    sel === nothing && return nothing
+    target = try evaluate_reference(input, sel) catch; nothing end
+    target isa XmlInsertion || return nothing
+    newdoc = ch == '"' ? _xml_sel!(XmlText(""), @reference cell{0}) :
+                         _xml_sel!(XmlElement(""), @reference tag{0})
+    ReplaceDocumentOperation(sel, newdoc)
+end
+
+# Append a child to an element's `.cell` and drop the cursor into it, ready to
+# author (Lisp xml/element reader `<`/`"`, :427-446). Append at the end (index
+# `length(e.cell)`), as the Lisp does.
+function _xml_child_element_insert(e::XmlElement)
+    n = length(e.cell)
+    CollectionInsertOperation(@reference(cell), n, Any[XmlElement("")],
+                              @reference cell[n + 1].tag{0})
+end
+function _xml_child_text_insert(e::XmlElement)
+    n = length(e.cell)
+    CollectionInsertOperation(@reference(cell), n, Any[XmlText("")],
+                              @reference cell[n + 1].cell{0})
+end
+
+# Insert key: a generic insertion child, selected whole so the next `<`/`"`
+# type-to-replaces it (Lisp xml/element reader Insert, :400-409). Julia has only
+# `XmlInsertion`, so it stands in for the Lisp generic `document/insertion`.
+function _xml_generic_insert(e::XmlElement)
+    n = length(e.cell)
+    CollectionInsertOperation(@reference(cell), n, Any[XmlInsertion()],
+                              @reference cell[n + 1])
+end
+
+# Space gating (Lisp xml/element reader, :412-418): a new attribute is inserted
+# only when the cursor is on the element node itself, in its start tag, or in an
+# existing attribute — never while editing a child node.
+function _xml_in_attr_context(sel)
+    sel === nothing && return false
+    sel isa EmptyReferencePath && return true
+    sel isa ConcreteReferencePath || return false
+    h = sel.head
+    h isa ProjectionReference && return true
+    if h isa FieldReference
+        return h.name == "tag" || h.name == "attrs"
+    end
+    return false
+end
+
+function _xml_attr_insert(e::XmlElement)
+    _xml_in_attr_context(getfield(e, :selection)[]) || return nothing
+    n = length(e.attrs)
+    CollectionInsertOperation(@reference(attrs), n, Any[XmlAttribute("", "")],
+                              @reference attrs[n + 1].name{0})
+end
+
+# `=` moves the cursor from an attribute name to its value (decision §3.3a: kept
+# inline in the element reader rather than introducing a separate
+# XmlAttributeToSyntaxNode projection; Lisp xml/attribute reader, :360-367).
+function _xml_attr_equals(e::XmlElement)
+    sel = getfield(e, :selection)[]
+    sel === nothing && return nothing
+    @reference_case sel begin
+        attrs{s:_}.name.rest... => ReplaceSelectionOperation(@reference attrs[s + 1].cell{0})
+    end
+end
+
+projection_read(p::XmlInsertionToSyntaxLeaf, iomap::SimpleIoMap, evt::KeyPress) =
+    _xml_read_command(iomap.input, evt)
+
+function projection_read(p::XmlElementToSyntaxNode, iomap::ChildrenIoMap, evt::KeyPress)
+    cmd = _xml_read_command(iomap.input, evt)
+    cmd !== nothing && return cmd
+    e = iomap.input
+    ch = evt.char
+    ch == '<' && return _xml_child_element_insert(e)
+    ch == '"' && return _xml_child_text_insert(e)
+    ch == '=' && return _xml_attr_equals(e)
+    return nothing
+end
+
+function projection_read(p::XmlElementToSyntaxNode, iomap::ChildrenIoMap, evt::KeyDown)
+    evt.key === :space  && return _xml_attr_insert(iomap.input)
+    evt.key === :insert && return _xml_generic_insert(iomap.input)
+    return nothing
 end
 
 function XmlToSyntax()

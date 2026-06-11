@@ -20,12 +20,13 @@ import ..SyntaxModule: SyntaxDocument, SyntaxLeaf, SyntaxNode
 import ..TypeDispatchingModule: TypeDispatchingProjection
 import ..CopyingProjectionModule: CopyingProjection, copying_field_iomap
 import ..IoMapModule: SimpleIoMap, ChildrenIoMap
-import ..ReferenceModule: ConcreteReferencePath, ElementReference, PositionReference, RangeReference, FieldReference, ProjectionReference, ReferencePath, EmptyReferencePath, append_reference
+import ..ReferenceModule: ConcreteReferencePath, ElementReference, PositionReference, RangeReference, FieldReference, ProjectionReference, ReferencePath, EmptyReferencePath, append_reference, evaluate_reference
 import ..ReferenceCaseModule: var"@reference_case"
 import ..ReferenceBuilderModule: var"@reference"
 import ..PrinterContextModule: PrinterContext, child_context
-import ..OperationModule: ReplaceSelectionOperation
+import ..OperationModule: ReplaceSelectionOperation, ReplaceDocumentOperation, CollectionInsertOperation
 import ..PrimitiveModule: StringReplaceRangeOperation, NumberReplaceRangeOperation
+import ..KeyboardModule: KeyPress, KeyDown
 import ..SyntaxToTextModule: SyntaxNodeToText, _syntax_to_flat
 export JsonInsertionToSyntaxLeaf, JsonNullToSyntaxLeaf, JsonBoolToSyntaxLeaf, JsonNumberToSyntaxLeaf,
        JsonStringToSyntaxLeaf, JsonArrayToSyntaxNode, JsonObjectToSyntaxNode,
@@ -485,6 +486,138 @@ function projection_read(p::JsonObjectToSyntaxNode, iomap::ChildrenIoMap, op::Un
     new_ref === nothing && return nothing
     typeof(op)(new_ref, op.replacement)
 end
+
+# ── Reader: the JSON authoring command set ──────────────────────────────────
+#
+# These mirror the Lisp `json/read-command` and the array/object/object-entry
+# readers (json-to-syntax.lisp:424-628). They run only when a *raw* key gesture
+# reaches the JSON layer — i.e. the cursor is on a whole JSON value (structural
+# mode), not a character cursor inside a string/number. A character cursor is
+# consumed downstream by TextToGraphics (which emits a StringReplaceRangeOperation
+# the typein path threads back up), so the gating Lisp does with
+# `(not (typep printer-input 'json/number))` falls out for free; we still guard
+# the digit case explicitly to match.
+#
+# Only the *root* JSON projection's reader runs for a gesture (TypeDispatching
+# dispatches on the root document's type), so each method reads its own
+# `iomap.input.selection` — a full path from the root — and emits an operation
+# whose path is relative to the root. This is why every JSON projection carries
+# the type-to-replace command: any of them can be the whole document.
+
+# Set a fresh replacement document's initial (self-relative) selection so the
+# evaluator can drop the cursor inside it after the swap.
+_sel!(doc, path) = (getfield(doc, :selection)[] = path; doc)
+
+# A character cursor is a path ending in `…<value|key>{k}` — a RangeReference
+# step preceded by the value/key field. A whole-element selection ends in ∅.
+function _is_char_cursor(sel)
+    prev = nothing
+    cur = sel
+    while cur isa ConcreteReferencePath
+        if cur.tail isa EmptyReferencePath
+            return cur.head isa RangeReference && prev isa FieldReference &&
+                   (prev.name == "value" || prev.name == "key")
+        end
+        prev = cur.head
+        cur = cur.tail
+    end
+    return false
+end
+
+# The `json/read-command` table: a printable key on a whole-element selection
+# replaces the selected value with a freshly-built one whose cursor is pre-placed
+# for continued authoring.
+function _json_read_command(input, evt::KeyPress)
+    evt.modifiers.ctrl && return nothing
+    sel = getfield(input, :selection)[]
+    sel === nothing && return nothing
+    _is_char_cursor(sel) && return nothing
+    target = try evaluate_reference(input, sel) catch; nothing end
+    target === nothing && return nothing
+    # A JsonObjectEntry is a key/value *wrapper*, not a replaceable JSON value —
+    # swapping it for a scalar would corrupt the enclosing object (its printer
+    # reads `entry.key`). The replaceable targets are values, array elements, and
+    # the root. (Selection-state gating, plan §2.)
+    target isa JsonObjectEntry && return nothing
+    ch = evt.char
+    newdoc = if ch == 'n'
+        _sel!(JsonNull(), EmptyReferencePath())
+    elseif ch == 'f'
+        _sel!(JsonBool(false), EmptyReferencePath())
+    elseif ch == 't'
+        _sel!(JsonBool(true), EmptyReferencePath())
+    elseif ch == '"'
+        _sel!(JsonString(""), @reference value{0})
+    elseif ch == '['
+        _sel!(JsonArray([JsonInsertion()]), @reference elements[1])
+    elseif ch == ':'
+        _sel!(JsonObjectEntry("", JsonInsertion()), @reference key{0})
+    elseif ch == '{'
+        _sel!(JsonObject(() -> [JsonObjectEntry("", JsonInsertion())]), @reference entries[1].key{0})
+    elseif isdigit(ch)
+        # Don't reinvent a number the user is already editing — let the typein
+        # path own it (Lisp `(not (typep printer-input 'json/number))`).
+        target isa JsonNumber && return nothing
+        _sel!(JsonNumber(parse(Int, string(ch))), @reference value{1})
+    else
+        return nothing
+    end
+    ReplaceDocumentOperation(sel, newdoc)
+end
+
+# Append a JsonInsertion to an array's elements and select it whole, ready to be
+# type-to-replaced (Lisp json/array reader `,` / Insert, :550-569).
+function _array_insert(input::JsonArray)
+    n = length(input)
+    CollectionInsertOperation(@reference(elements), n, Any[JsonInsertion()],
+                              @reference elements[n + 1])
+end
+
+# Append an empty entry to an object's entries and select its key for typing
+# (Lisp json/object reader `,` / Insert, :607-626).
+function _object_insert(input::JsonObject)
+    n = length(input)
+    CollectionInsertOperation(@reference(entries), n,
+                              Any[JsonObjectEntry("", JsonInsertion())],
+                              @reference entries[n + 1].key{0})
+end
+
+# Tab moves the cursor from an entry's key to its value, selected whole so the
+# next keystroke type-to-replaces it (Lisp json/object-entry reader, :587-600).
+function _object_tab(input::JsonObject)
+    sel = getfield(input, :selection)[]
+    sel === nothing && return nothing
+    @reference_case sel begin
+        entries{s:e}.rest... => begin
+            i = s + 1
+            @reference_case rest begin
+                key.inner... => ReplaceSelectionOperation(@reference entries[i].value)
+            end
+        end
+    end
+end
+
+projection_read(p::JsonInsertionToSyntaxLeaf, iomap::SimpleIoMap, evt::KeyPress) = _json_read_command(iomap.input, evt)
+projection_read(p::JsonNullToSyntaxLeaf,      iomap::SimpleIoMap, evt::KeyPress) = _json_read_command(iomap.input, evt)
+projection_read(p::JsonBoolToSyntaxLeaf,      iomap::SimpleIoMap, evt::KeyPress) = _json_read_command(iomap.input, evt)
+projection_read(p::JsonNumberToSyntaxLeaf,    iomap::SimpleIoMap, evt::KeyPress) = _json_read_command(iomap.input, evt)
+projection_read(p::JsonStringToSyntaxLeaf,    iomap::SimpleIoMap, evt::KeyPress) = _json_read_command(iomap.input, evt)
+
+function projection_read(p::JsonArrayToSyntaxNode, iomap::ChildrenIoMap, evt::KeyPress)
+    evt.char == ',' && return _array_insert(iomap.input)
+    _json_read_command(iomap.input, evt)
+end
+
+function projection_read(p::JsonObjectToSyntaxNode, iomap::ChildrenIoMap, evt::KeyPress)
+    evt.char == ',' && return _object_insert(iomap.input)
+    _json_read_command(iomap.input, evt)
+end
+# Tab moves key→value (§3.3). The Insert-key "generic insertion" variant of the
+# Lisp readers is deferred: the shared TextToGraphics layer would have to route
+# Insert inward for every domain, and doing so surfaces an unrelated typein bug
+# in the XML element reader. `,` already provides structural insert here.
+projection_read(p::JsonObjectToSyntaxNode, iomap::ChildrenIoMap, evt::KeyDown) =
+    evt.key === :tab ? _object_tab(iomap.input) : nothing
 
 # ── Compound convenience constructor ────────────────────────────────────────
 

@@ -8,10 +8,11 @@ module OperationModule
 
 import ..OperationApiModule: Operation, evaluate_operation
 import ..DocumentApiModule: Document, clear_selection!, set_selection!
-import ..ReferenceModule: ReferencePath, ConcreteReferencePath, FieldReference, RangeReference, is_element_reference
+import ..ReferenceModule: ReferencePath, ConcreteReferencePath, EmptyReferencePath, FieldReference, RangeReference, is_element_reference, evaluate_reference
 import ..ReactiveModule: Cell
 export ReplaceSelectionOperation, QuitEditorOperation, QuitEditorException, replace_selection!,
-       OpenWindowOperation, CloseWindowOperation, ToggleCollapseOperation
+       OpenWindowOperation, CloseWindowOperation, ToggleCollapseOperation,
+       ReplaceDocumentOperation, CollectionInsertOperation, CollectionDeleteOperation
 
 function evaluate_operation(editor, op::Nothing) end
 
@@ -54,6 +55,132 @@ function evaluate_operation(editor, op::ReplaceSelectionOperation)
     document = editor.document
     clear_selection!(document)
     set_selection!(document, op.path)
+end
+
+"""
+    ReplaceDocumentOperation(path, document)
+
+Replace the document currently selected at `path` (a `ReferencePath` rooted at
+`editor.document`) with `document`. This is the structural analogue of the
+primitive replace-range operations: instead of editing the text inside a value,
+it swaps the value itself — the move every JSON `json/read-command`
+type-to-replace gesture makes (`[` → array, `{` → object, digit → number, …).
+
+`document` carries its own initial selection (in its `selection` field, relative
+to itself); after the swap the editor selection becomes `path ⧺ document.selection`
+so the cursor lands inside the freshly-created value.
+
+An empty `path` replaces the whole root: `editor.document` is rebound and the
+cached iomap is dropped so the next `print!` rebuilds the projection on the new
+root (a wholesale root swap is not reactive — every nested swap writes into a
+`Cell` and stays incremental).
+"""
+struct ReplaceDocumentOperation <: Operation
+    path::ReferencePath
+    document::Document
+end
+
+function evaluate_operation(editor, op::ReplaceDocumentOperation)
+    new_doc = op.document
+    inner_sel = getfield(new_doc, :selection)[]
+    inner_sel === nothing && (inner_sel = EmptyReferencePath())
+    if op.path isa EmptyReferencePath
+        editor.document = new_doc
+        editor.iomap = nothing
+        replace_selection!(new_doc, inner_sel)
+        return
+    end
+    parent_path, terminal = _split_terminal_step(op.path)
+    parent = evaluate_reference(editor.document, parent_path)
+    _write_document_slot!(parent, terminal, new_doc)
+    replace_selection!(editor.document, _concat_paths(op.path, inner_sel))
+end
+
+# Concatenate two reference *paths* (vs. `append_reference`, which appends raw
+# *steps* — splicing a whole path there would wrongly lodge a ReferencePath where
+# a ReferenceStep belongs).
+_concat_paths(::EmptyReferencePath, b::ReferencePath) = b
+_concat_paths(a::ConcreteReferencePath, b::ReferencePath) =
+    ConcreteReferencePath(a.head, _concat_paths(a.tail, b))
+
+# Split a non-empty path into (everything-but-last-step, last-step).
+function _split_terminal_step(path::ConcreteReferencePath)
+    steps = []
+    cur = path
+    while cur isa ConcreteReferencePath
+        push!(steps, cur.head)
+        cur = cur.tail
+    end
+    terminal = steps[end]
+    prefix = EmptyReferencePath()
+    for i in (length(steps) - 1):-1:1
+        prefix = ConcreteReferencePath(steps[i], prefix)
+    end
+    (prefix, terminal)
+end
+
+# Write `new_doc` into the slot `step` selects on `parent`. A FieldReference
+# names a `Cell`-backed document field (e.g. `JsonObjectEntry.value`); a
+# RangeReference selects an element of a sequence container (`CellVector`).
+function _write_document_slot!(parent, step::FieldReference, new_doc)
+    f = getfield(parent, Symbol(step.name))
+    f isa Cell || error("ReplaceDocumentOperation: field $(step.name) of $(typeof(parent)) is not a Cell")
+    f[] = new_doc
+end
+
+function _write_document_slot!(parent, step::RangeReference, new_doc)
+    parent[step.start + 1] = new_doc
+end
+
+"""
+    CollectionInsertOperation(path, index, items[, selection])
+
+Insert each of `items` into the sequence container at `path` (a `CellVector`
+such as a JSON array's `.elements` or object's `.entries`), starting at the
+0-based `index`. When `selection` is non-`nothing` the editor selection is moved
+there afterwards (the reader uses this to drop the cursor into the new element —
+matching the Lisp `make-operation/compound` of a sequence insert plus a
+replace-selection).
+"""
+struct CollectionInsertOperation <: Operation
+    path::ReferencePath
+    index::Int
+    items::Vector{Any}
+    selection::Union{ReferencePath, Nothing}
+end
+
+CollectionInsertOperation(path, index, items) =
+    CollectionInsertOperation(path, index, Vector{Any}(items), nothing)
+
+function evaluate_operation(editor, op::CollectionInsertOperation)
+    container = evaluate_reference(editor.document, op.path)
+    for (k, item) in enumerate(op.items)
+        insert!(container, op.index + k, Cell(item))
+    end
+    op.selection === nothing && return
+    replace_selection!(editor.document, op.selection)
+end
+
+"""
+    CollectionDeleteOperation(path, index, count)
+
+Remove `count` elements from the sequence container at `path`, starting at the
+0-based `index`. The defined inverse of `CollectionInsertOperation`, so undo can
+build on the pair.
+"""
+struct CollectionDeleteOperation <: Operation
+    path::ReferencePath
+    index::Int
+    count::Int
+end
+
+CollectionDeleteOperation(path, index) = CollectionDeleteOperation(path, index, 1)
+
+function evaluate_operation(editor, op::CollectionDeleteOperation)
+    container = evaluate_reference(editor.document, op.path)
+    for _ in 1:op.count
+        deleteat!(container, op.index + 1)
+    end
 end
 
 """

@@ -198,4 +198,30 @@ right = projection_read(p, iomap, click(50))
 
 end # @testset "TextToGraphics inline image hit-test"
 
+@testset "TextToGraphics renders fill_color as a background rect" begin
+
+m = _test_measure(10, 18)
+hl = TextString("hi", font_ubuntu_monospace_regular_24, color_red)
+hl.fill_color = color_blue              # a highlighted span opts into a swatch
+plain = TextString("xy", font_ubuntu_monospace_regular_24, color_red)
+st = TextText(hl, plain)
+canvas = projection_print(TextToGraphics(measure=m), st).output
+items = [canvas.elements[i] for i in 1:length(canvas.elements)]
+
+# Exactly one rect — the filled span; the default-`nothing` span gets none.
+rects = filter(e -> e isa GraphicsRect, items)
+@test length(rects) == 1
+rect = rects[1]
+@test rect.x == 0 && rect.y == 0
+@test rect.w == 20 && rect.h == 18      # tight measured box of "hi"
+@test rect.r == 0x00 && rect.g == 0x00 && rect.b == 0xff   # blue fill
+
+# The rect is drawn before its text, so it paints behind.
+rect_idx = findfirst(e -> e isa GraphicsRect, items)
+hi_idx   = findfirst(e -> e isa GraphicsText && e.text == "hi", items)
+@test rect_idx !== nothing && hi_idx !== nothing
+@test rect_idx < hi_idx
+
+end # @testset "TextToGraphics fill_color rect"
+
 end # test_text_to_graphics
