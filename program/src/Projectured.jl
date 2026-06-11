@@ -106,6 +106,7 @@ include("projection/primitive/LayoutToGraphics.jl")
 include("projection/primitive/BookToSyntax.jl")
 include("projection/primitive/LineNumbering.jl")
 include("projection/primitive/WordWrapping.jl")
+include("projection/primitive/TextFiltering.jl")
 include("projection/primitive/PrimitiveToSyntax.jl")
 include("projection/primitive/PrimitiveToText.jl")
 include("projection/primitive/ReferenceToText.jl")
@@ -273,6 +274,7 @@ using .TooltipDocumentModule: TooltipSource
 using .TextToStringModule: TextToString, TextTextToString, TextStringToString, TextNewlineToString
 using .TextLineNumberingModule: LineNumbering, TextLineNumbering
 using .WordWrappingModule: WordWrapping, WordWrappingIoMap, WrapSeg
+using .TextFilteringModule: TextFiltering, TextFilteringIoMap
 using .SyntaxToTextModule: SyntaxToText, SyntaxNodeToTextIoMap,
                                        SyntaxLeafToText, SyntaxListToText
 using .PrimitiveToSyntaxModule: PrimitiveToSyntax, PrimitiveBoolToSyntaxLeaf,
@@ -505,6 +507,7 @@ export TooltipSource
 export TextToString, TextTextToString, TextStringToString, TextNewlineToString
 export LineNumbering, TextLineNumbering
 export WordWrapping, WordWrappingIoMap, WrapSeg
+export TextFiltering, TextFilteringIoMap
 export SyntaxToText, SyntaxLeafToText, SyntaxListToText
 export PrimitiveToSyntax, PrimitiveBoolToSyntaxLeaf,
        PrimitiveNumberToSyntaxLeaf, PrimitiveStringToSyntaxLeaf

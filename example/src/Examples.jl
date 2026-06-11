@@ -20,6 +20,7 @@ const text_with_image_example = Example("text_with_image", make_text_with_image_
 const object_example         = Example("object",         make_object_document_example,         make_object_projection_example)
 const line_numbering_example = Example("line_numbering", make_line_numbering_document_example, make_line_numbering_projection_example)
 const word_wrapping_example  = Example("word_wrapping",  make_word_wrapping_document_example,  make_word_wrapping_projection_example)
+const text_filtering_example = Example("text_filtering", make_text_filtering_document_example, make_text_filtering_projection_example)
 const widget_example         = Example("widget",         make_widget_document_example,         make_widget_projection_example)
 const widget_tabbed_pane_example = Example("widget_tabbed_pane", make_widget_tabbed_pane_document_example, make_widget_projection_example)
 const layout_example         = Example("layout",         make_layout_document_example,         make_layout_projection_example)
@@ -45,7 +46,7 @@ const assistant_example      = Example("assistant",      make_assistant_document
 const examples = [
     json_example, json_sorted_example, json_null_example, json_string_example,
     xml_example, mixed_example, syntax_example, text_example, text_with_image_example,
-    object_example, line_numbering_example, word_wrapping_example,
+    object_example, line_numbering_example, word_wrapping_example, text_filtering_example,
     widget_example, widget_tabbed_pane_example, layout_example, book_example, filesystem_example, navigator_example,
     collection_example, reversing_example, filtering_example, sorting_example, focusing_example, table_example, math_table_example, workbench_example,
     math_example,
