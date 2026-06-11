@@ -42,6 +42,8 @@ include("document/Julia.jl")
 include("document/Tabular.jl")
 include("document/Database.jl")
 include("document/DbCatalog.jl")
+include("document/DatabaseInstance.jl")
+include("document/Sql.jl")
 include("document/Table.jl")
 include("document/Xml.jl")
 include("document/FileSystem.jl")
@@ -115,6 +117,7 @@ include("projection/primitive/PrimitiveToText.jl")
 include("projection/primitive/ReferenceToText.jl")
 include("projection/primitive/MathToSyntax.jl")
 include("projection/primitive/JuliaToSyntax.jl")
+include("projection/primitive/SqlToSyntax.jl")
 include("projection/primitive/CollectionToSyntax.jl")
 include("projection/primitive/ConversationToSyntax.jl")
 include("projection/primitive/ConversationToWidget.jl")
@@ -130,10 +133,12 @@ include("projection/compound/Generic.jl")
 include("device/Screen.jl")
 include("backend/Sdl.jl")
 include("external/Database.jl")
+include("external/ConnectionPool.jl")
 include("external/DatabaseTabular.jl")
 include("projection/primitive/DatabaseTableToTabularGrid.jl")
-include("projection/primitive/DbCatalogToChildren.jl")
-include("projection/primitive/DbCatalogTableToTabularGrid.jl")
+include("projection/primitive/DatabaseInstanceToDbCatalog.jl")
+include("projection/primitive/SqlToCellTable.jl")
+include("projection/primitive/CellTableToTable.jl")
 include("projection/primitive/DbCatalogToJson.jl")
 include("projection/primitive/DbCatalogToSyntax.jl")
 include("editor/ToolRegistry.jl")
@@ -197,19 +202,22 @@ using .DatabaseModule: DatabaseAdapter, RawDatabaseResult, OdbcDatabaseAdapter,
                        db_insert!, db_update!, db_delete!,
                        db_catalog_databases, db_catalog_schemas, db_catalog_tables, db_catalog_columns
 using .DatabaseTableToTabularGridModule: DatabaseTableIoMap, DatabaseTableToTabularGrid
+using .DatabaseInstanceDocumentModule: DatabaseInstanceDocument, DatabaseInstance, DatabaseCredentials
+using .ConnectionPoolModule: OdbcConnectionPool, with_connection, dsn_for, close_pool!
+using .SqlDocumentModule: SqlDocument, SqlStatement, SqlSelectStatement,
+                          SqlAllColumns, SqlTableReference, render_sql
 using .DbCatalogDocumentModule: DbCatalogDocument,
-                                DbCatalogConnection, DbCatalogDatabase, DbCatalogSchema,
+                                DbCatalogRdbms, DbCatalogDatabase, DbCatalogSchema,
                                 DbCatalogTable, DbCatalogColumn
-using .DbCatalogToChildrenModule: DbCatalogConnectionToChildren, DbCatalogDatabaseToChildren,
-                                   DbCatalogSchemaToChildren, DbCatalogTableToChildren
-using .DbCatalogTableToTabularGridModule: DbCatalogTableIoMap, DbCatalogTableToTabularGrid,
-                                          DbCatalogUpdateOperation
-using .DbCatalogToJsonModule: DbCatalogConnectionToJson, DbCatalogDatabaseToJson,
+using .DatabaseInstanceToDbCatalogModule: DatabaseInstanceToDbCatalog
+using .SqlToCellTableModule: SqlToCellTable
+using .CellTableToTableModule: CellTableToTable
+using .DbCatalogToJsonModule: DbCatalogRdbmsToJson, DbCatalogDatabaseToJson,
                                DbCatalogSchemaToJson, DbCatalogTableToJson, DbCatalogColumnToJson,
                                DbCatalogToJson
 using .DbCatalogToSyntaxModule: DbCatalogColumnToSyntaxLeaf, DbCatalogTableToSyntaxNode,
                                 DbCatalogSchemaToSyntaxNode, DbCatalogDatabaseToSyntaxNode,
-                                DbCatalogConnectionToSyntaxNode, DbCatalogToSyntax,
+                                DbCatalogRdbmsToSyntaxNode, DbCatalogToSyntax,
                                 dbcatalog_marker_eligible
 using .TableModule: TableDocument, TableCell, TableRow, TableColumn, TableTable
 using .XmlModule: XmlDocument, XmlInsertion, XmlText, XmlAttribute, XmlElement, xmlattr,
@@ -279,7 +287,7 @@ using .BookToSyntaxModule: BookBookToSyntaxNode, BookChapterToSyntaxNode,
                             BookPictureToSyntaxLeaf, BookToSyntax
 using .ClipboardModule: ClipboardDocument, ClipboardInsertion,
                         ClipboardSlice, ClipboardCollection
-using .CollectionModule: CellVector, ListNode, CollectionDocument, left_tail, right_tail, cell_at, take_first_n
+using .CollectionModule: CellVector, CellMatrix, CellTable, ListNode, CollectionDocument, left_tail, right_tail, cell_at, take_first_n
 using .BookModule: BookDocument, BookInsertion,
                    BookBook, BookChapter, BookParagraph, BookList, BookPicture
 using .WorkbenchModule: WorkbenchDocument, WorkbenchInsertion,
@@ -321,6 +329,8 @@ using .ReferenceToTextModule: ReferenceToText, ReferenceToHumanReadableText
 using .MathToSyntaxModule: MathToSyntax, MathInsertionToSyntaxLeaf, MathVariableToSyntaxLeaf,
                             MathBinaryOperationToSyntaxNode, MathParenthesizedToSyntaxNode,
                             MathAssignmentToSyntaxNode
+using .SqlToSyntaxModule: SqlToSyntax, SqlAllColumnsToSyntaxLeaf,
+                          SqlTableReferenceToSyntaxLeaf, SqlSelectStatementToSyntaxNode
 using .JuliaToSyntaxModule: JuliaToSyntax, JuliaIdentifierToSyntaxLeaf, JuliaIntegerToSyntaxLeaf,
                              JuliaBinaryOpToSyntaxNode, JuliaCallToSyntaxNode,
                              JuliaIfToSyntaxNode, JuliaFunctionToSyntaxNode,
@@ -420,18 +430,21 @@ export DatabaseAdapter, RawDatabaseResult, OdbcDatabaseAdapter,
        db_query, db_execute_raw, db_insert!, db_update!, db_delete!,
        db_catalog_databases, db_catalog_schemas, db_catalog_tables, db_catalog_columns
 export DatabaseTableIoMap, DatabaseTableToTabularGrid
+export DatabaseInstanceDocument, DatabaseInstance, DatabaseCredentials
+export OdbcConnectionPool, with_connection, dsn_for, close_pool!
+export SqlDocument, SqlStatement, SqlSelectStatement, SqlAllColumns, SqlTableReference, render_sql
+export SqlToSyntax, SqlAllColumnsToSyntaxLeaf, SqlTableReferenceToSyntaxLeaf, SqlSelectStatementToSyntaxNode
 export DbCatalogDocument,
-       DbCatalogConnection, DbCatalogDatabase, DbCatalogSchema,
+       DbCatalogRdbms, DbCatalogDatabase, DbCatalogSchema,
        DbCatalogTable, DbCatalogColumn
-export DbCatalogConnectionToChildren, DbCatalogDatabaseToChildren,
-       DbCatalogSchemaToChildren, DbCatalogTableToChildren
-export DbCatalogTableIoMap, DbCatalogTableToTabularGrid, DbCatalogUpdateOperation
-export DbCatalogConnectionToJson, DbCatalogDatabaseToJson,
+export DatabaseInstanceToDbCatalog
+export SqlToCellTable, CellTableToTable
+export DbCatalogRdbmsToJson, DbCatalogDatabaseToJson,
        DbCatalogSchemaToJson, DbCatalogTableToJson, DbCatalogColumnToJson,
        DbCatalogToJson
 export DbCatalogColumnToSyntaxLeaf, DbCatalogTableToSyntaxNode,
        DbCatalogSchemaToSyntaxNode, DbCatalogDatabaseToSyntaxNode,
-       DbCatalogConnectionToSyntaxNode, DbCatalogToSyntax,
+       DbCatalogRdbmsToSyntaxNode, DbCatalogToSyntax,
        dbcatalog_marker_eligible
 export TableDocument, TableCell, TableRow, TableColumn, TableTable
 export XmlDocument, XmlInsertion, XmlText, XmlAttribute, XmlElement, xmlattr, setattr!, deleteattr!
@@ -539,7 +552,7 @@ export BookBookToSyntaxNode, BookChapterToSyntaxNode,
        BookParagraphToSyntaxLeaf, BookListToSyntaxNode,
        BookPictureToSyntaxLeaf, BookToSyntax
 export ClipboardDocument, ClipboardInsertion, ClipboardSlice, ClipboardCollection
-export CellVector, ListNode, CollectionDocument, left_tail, right_tail, cell_at
+export CellVector, CellMatrix, CellTable, ListNode, CollectionDocument, left_tail, right_tail, cell_at
 export Inset, StyleColor, Point2D, color_default
 export WidgetDocument, WidgetInsertion,
        WidgetLabel, WidgetText, WidgetCheckbox, WidgetButton,

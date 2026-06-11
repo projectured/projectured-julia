@@ -2,7 +2,7 @@
     DbCatalogDocumentModule
 
 Document hierarchy modelling the PostgreSQL catalog tree:
-`DbCatalogConnection → DbCatalogDatabase → DbCatalogSchema → DbCatalogTable → DbCatalogColumn`
+`DbCatalogRdbms → DbCatalogDatabase → DbCatalogSchema → DbCatalogTable → DbCatalogColumn`
 
 No global state — constructors are plain wrappers with no side effects.
 """
@@ -10,62 +10,68 @@ module DbCatalogDocumentModule
 
 import ..ReactiveModule: Cell
 import ..DocumentModule: Document, @document
+import ..CollectionModule: CellVector
 import ..ReferenceModule: Reference
 
 export DbCatalogDocument,
-       DbCatalogConnection, DbCatalogDatabase, DbCatalogSchema,
+       DbCatalogRdbms, DbCatalogDatabase, DbCatalogSchema,
        DbCatalogTable, DbCatalogColumn
 
 abstract type DbCatalogDocument <: Document end
 
-@document struct DbCatalogConnection <: DbCatalogDocument
-    adapter::Any
+@document struct DbCatalogRdbms <: DbCatalogDocument
     host::String
     port::Int
+    databases::CellVector
     selection::Reference
 end
 
 @document struct DbCatalogDatabase <: DbCatalogDocument
-    connection::DbCatalogConnection
     name::String
+    schemas::CellVector
     selection::Reference
 end
 
 @document struct DbCatalogSchema <: DbCatalogDocument
-    database::DbCatalogDatabase
     name::String
+    tables::CellVector
     selection::Reference
 end
 
 @document struct DbCatalogTable <: DbCatalogDocument
-    schema::DbCatalogSchema
     name::String
+    columns::CellVector
     selection::Reference
 end
 
 @document struct DbCatalogColumn <: DbCatalogDocument
-    table::DbCatalogTable
     name::String
     data_type::String
     selection::Reference
 end
 
 # Constructors
-DbCatalogConnection(adapter; host="localhost", port=5432) =
-    DbCatalogConnection(Cell(adapter), Cell(host), Cell(port), Cell(nothing))
-DbCatalogDatabase(connection, name) =
-    DbCatalogDatabase(Cell(connection), Cell(name), Cell(nothing))
-DbCatalogSchema(database, name) =
-    DbCatalogSchema(Cell(database), Cell(name), Cell(nothing))
-DbCatalogTable(schema, name) =
-    DbCatalogTable(Cell(schema), Cell(name), Cell(nothing))
-DbCatalogColumn(table, name, data_type) =
-    DbCatalogColumn(Cell(table), Cell(name), Cell(data_type), Cell(nothing))
+#
+# The catalog is a pure data tree: each node owns its children as a CellVector
+# (no adapter, no parent pointers). The `databases`/`schemas`/`tables`/`columns`
+# child collections are populated lazily by the `DatabaseInstanceToDbCatalog`
+# projection. The `@document` inner constructor auto-wraps raw values in Cells,
+# so these convenience constructors just supply a default empty selection.
+DbCatalogRdbms(host, port, databases) =
+    DbCatalogRdbms(host, port, databases, Cell(nothing))
+DbCatalogDatabase(name, schemas) =
+    DbCatalogDatabase(name, schemas, Cell(nothing))
+DbCatalogSchema(name, tables) =
+    DbCatalogSchema(name, tables, Cell(nothing))
+DbCatalogTable(name, columns) =
+    DbCatalogTable(name, columns, Cell(nothing))
+DbCatalogColumn(name, data_type) =
+    DbCatalogColumn(name, data_type, Cell(nothing))
 
 # ── Base.show ─────────────────────────────────────────────────────────────────
 
-Base.show(io::IO, conn::DbCatalogConnection) =
-    print(io, "DbCatalogConnection(", conn.host, ":", conn.port, ")")
+Base.show(io::IO, conn::DbCatalogRdbms) =
+    print(io, "DbCatalogRdbms(", conn.host, ":", conn.port, ")")
 Base.show(io::IO, db::DbCatalogDatabase) =
     print(io, "DbCatalogDatabase(", db.name, ")")
 Base.show(io::IO, schema::DbCatalogSchema) =

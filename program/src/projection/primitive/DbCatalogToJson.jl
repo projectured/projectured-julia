@@ -8,7 +8,7 @@ selection fields). Read-only projection with no reference mapping or read suppor
 module DbCatalogToJsonModule
 
 import ..ReactiveModule: Cell
-import ..DbCatalogDocumentModule: DbCatalogDocument, DbCatalogConnection, DbCatalogDatabase,
+import ..DbCatalogDocumentModule: DbCatalogDocument, DbCatalogRdbms, DbCatalogDatabase,
                                    DbCatalogSchema, DbCatalogTable, DbCatalogColumn
 import ..JsonModule: JsonObject, JsonString, JsonNumber
 import ..ProjectionApiModule: projection_print, projection_read,
@@ -16,24 +16,24 @@ import ..ProjectionApiModule: projection_print, projection_read,
 import ..IoMapModule: SimpleIoMap
 import ..TypeDispatchingModule: TypeDispatchingProjection
 
-export DbCatalogConnectionToJson, DbCatalogDatabaseToJson, DbCatalogSchemaToJson,
+export DbCatalogRdbmsToJson, DbCatalogDatabaseToJson, DbCatalogSchemaToJson,
        DbCatalogTableToJson, DbCatalogColumnToJson, DbCatalogToJson
 
-# ── DbCatalogConnectionToJson ───────────────────────────────────────────────────
+# ── DbCatalogRdbmsToJson ────────────────────────────────────────────────────────
 
-struct DbCatalogConnectionToJson <: Projection end
+struct DbCatalogRdbmsToJson <: Projection end
 
-function projection_print(p::DbCatalogConnectionToJson, recursion, conn::DbCatalogConnection, ctx)
+function projection_print(p::DbCatalogRdbmsToJson, recursion, rdbms::DbCatalogRdbms, ctx)
     obj = JsonObject(
-        "host" => JsonString(conn.host),
-        "port" => JsonNumber(conn.port)
+        "host" => JsonString(rdbms.host),
+        "port" => JsonNumber(rdbms.port)
     )
-    SimpleIoMap(p, conn, obj)
+    SimpleIoMap(p, rdbms, obj)
 end
 
-map_reference_forward(::DbCatalogConnectionToJson, iomap, ref) = nothing
-map_reference_backward(::DbCatalogConnectionToJson, iomap, ref) = nothing
-projection_read(::DbCatalogConnectionToJson, iomap, op) = nothing
+map_reference_forward(::DbCatalogRdbmsToJson, iomap, ref) = nothing
+map_reference_backward(::DbCatalogRdbmsToJson, iomap, ref) = nothing
+projection_read(::DbCatalogRdbmsToJson, iomap, op) = nothing
 
 # ── DbCatalogDatabaseToJson ────────────────────────────────────────────────────
 
@@ -100,7 +100,7 @@ projection_read(::DbCatalogColumnToJson, iomap, op) = nothing
 
 function DbCatalogToJson()
     TypeDispatchingProjection(
-        DbCatalogConnection => DbCatalogConnectionToJson(),
+        DbCatalogRdbms => DbCatalogRdbmsToJson(),
         DbCatalogDatabase => DbCatalogDatabaseToJson(),
         DbCatalogSchema => DbCatalogSchemaToJson(),
         DbCatalogTable => DbCatalogTableToJson(),
