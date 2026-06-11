@@ -29,6 +29,8 @@ include("document/PrimitiveTest.jl")
 include("projection/JsonToSyntaxTest.jl")
 include("projection/SyntaxToTextTest.jl")
 include("projection/SyntaxTreeSelectionTest.jl")
+include("projection/TableSelectionTest.jl")
+include("projection/TableNavigationTest.jl")
 include("projection/FileSystemToSyntaxTest.jl")
 include("projection/PrimitiveToTextTest.jl")
 include("projection/TextToGraphicsTest.jl")
@@ -69,6 +71,7 @@ function test_projections()
         test_json_to_syntax()
         test_syntax_to_text()
         test_syntax_tree_selection()
+        test_table_selection()
         test_primitive_to_text()
         test_text_to_graphics()
         test_word_wrapping()
@@ -98,6 +101,20 @@ function test_all()
     test_json_content_clicks_clean_all()
     test_collapse_roundtrip()
     test_tree_navigations()
+    test_table_navigation()
+    end
+end
+
+"""
+    test_table()
+
+Narrow runner for the table selection + grid-navigation suites
+(`test_table_selection` and `test_table_navigation`).
+"""
+function test_table()
+    @testset "Table" begin
+        test_table_selection()
+        test_table_navigation()
     end
 end
 
@@ -105,6 +122,7 @@ export test_all
 export test_cell, test_reference_builder, test_event_case
 export test_json, test_syntax, test_text, test_graphics, test_graphics_layout, test_layout_allocator, test_layout_constraint_helpers, test_collection, test_tabular, test_primitive
 export test_json_to_syntax, test_syntax_to_text, test_syntax_tree_selection, test_primitive_to_text, test_text_to_graphics, test_word_wrapping, test_copying_projection, test_write_image, test_tooltip
+export test_table, test_table_selection, test_table_navigation, explore_table_selections
 export test_examples, test_selections
 export test_printer, test_printers, test_example, test_selection
 export explore_selections
