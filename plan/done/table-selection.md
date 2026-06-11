@@ -34,12 +34,16 @@ All in `TableTableToGraphicsCanvas` (`program/src/projection/primitive/TableToGr
   content with translated coordinates (replacing the old dispatch-to-every-cell
   routing). Left clicks resolve entirely here.
 - **Keyboard navigation (phase 3).** Resolved against the live table in the same
-  reader, no courier operation: `Ctrl+Alt+Home` → table; `Alt`+arrows → grid move
-  with promotion + edge clamping (and row/column axis stepping / narrowing);
-  `Shift+Space` / `Ctrl+Space` → widen the active cell to its row / column;
-  `Enter` → narrow a row/column to its first cell, or drop a whole cell into a
-  real content character cursor (obtained from the content pipeline's `Ctrl+Home`).
-  Plain unmodified arrows are *not* consumed, so they keep editing cell text.
+  reader, no courier operation: `Ctrl+Alt+Home` → table; arrows → grid move with
+  edge clamping (row/column axis stepping / narrowing); `Shift+Space` /
+  `Ctrl+Space` → widen the active cell to its row / column; `Enter` → narrow a
+  row/column to its first cell, or drop a whole cell into a real content
+  character cursor (obtained from the content pipeline's `Ctrl+Home`).
+  **Once a whole cell / row / column is already selected (structural mode) plain
+  unmodified arrows drive the grid — no `Alt` needed.** `Alt` is only required to
+  *enter* grid mode from a character cursor inside cell text (it promotes the
+  cursor to its whole cell, then moves); a plain arrow on an in-cell cursor keeps
+  editing the text.
 - **Tests.** `test/src/projection/TableSelectionTest.jl` (`test_table_selection`)
   and `test/src/projection/TableNavigationTest.jl` (`test_table_navigation`,
   `explore_table_selections`), registered in `ProjecturedTest` and runnable via
@@ -184,6 +188,13 @@ pixel region doesn't exist and those gestures are simply unavailable (a click
 there lands on the nearest data cell as today).
 
 ## 4. Gestures — navigating selections (keyboard)
+
+> **Shipped refinement.** The table below was written in the original Alt-only
+> idiom. As shipped, the `Alt` in every **arrow** row is required *only* when the
+> selection is still a character cursor inside cell text (Alt promotes it into the
+> grid). **Once a whole cell / row / column is selected, the plain unmodified
+> arrows do the same moves — no `Alt`.** The `Shift+Space` / `Ctrl+Space` /
+> `Ctrl+Alt+Home` chords are unchanged.
 
 Mirror `SyntaxNodeToText`'s navigation idiom (**Alt+arrows** structural, plain
 arrows stay character-level inside the cell text) and add the two universal

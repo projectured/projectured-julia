@@ -512,8 +512,10 @@ end
 # ── Reading (keyboard navigation) ───────────────────────────────────────
 # Resolve a navigation chord against the live table and its selection. Returns
 # a ReplaceSelectionOperation or nothing (decline → fall through to per-cell
-# editing). Plain unmodified arrows are *not* consumed here, so they keep
-# editing cell text via the existing per-child routing.
+# editing). Plain unmodified arrows drive the grid only when a whole cell / row
+# / column is already selected; on an in-cell character cursor they are *not*
+# consumed here, so they keep editing cell text via the existing per-child
+# routing.
 function _key_navigate(iomap::TableTableToGraphicsCanvasIoMap, evt::KeyDown, geom::TableGeometry)
     nrows, ncols = geom.nrows, geom.ncols
     (nrows == 0 || ncols == 0) && return nothing
@@ -554,10 +556,14 @@ function _key_navigate(iomap::TableTableToGraphicsCanvasIoMap, evt::KeyDown, geo
         end
     end
 
-    # Alt+arrows: grid navigation. Whole row / column step along their axis or
-    # narrow to a cell; otherwise (whole cell or in-cell cursor) promote to the
-    # whole cell and move one step with edge clamping.
-    if evt.modifiers.alt && evt.key in (:up, :down, :left, :right)
+    # Arrow grid navigation. Once a whole cell / row / column is already
+    # selected (structural mode) plain unmodified arrows drive the grid — no Alt
+    # needed. Alt is only required to *enter* grid mode from a character cursor
+    # inside cell text (it promotes the cursor to its whole cell, then moves);
+    # without it a plain arrow on an in-cell cursor keeps editing the text.
+    # Whole row / column step along their axis or narrow to a cell; a whole cell
+    # (or an Alt-promoted cursor) moves one step with edge clamping.
+    if (evt.modifiers.alt || shape !== nothing) && evt.key in (:up, :down, :left, :right)
         if shape !== nothing && shape[1] === :row
             r = shape[2]
             if evt.key === :up

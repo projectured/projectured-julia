@@ -20,7 +20,16 @@
 # ═══════════════════════════════════════════════════════════════════════════
 
 function explore_table_selections(document, projection; onstate=nothing)
+    # Structural navigation only: plain arrows (which drive the grid once a whole
+    # cell / row / column is selected), the Alt variants, the widen chords and
+    # Enter. Content cursors (`.cells[idx].content.…`) are reached via Enter but
+    # not enqueued — exploring character-level motion inside every cell is the
+    # text layer's concern, not this structural walker's.
     nav_keys = [
+        KeyDown(:up,    Modifiers()),
+        KeyDown(:down,  Modifiers()),
+        KeyDown(:left,  Modifiers()),
+        KeyDown(:right, Modifiers()),
         KeyDown(:up,    Modifiers(alt=true)),
         KeyDown(:down,  Modifiers(alt=true)),
         KeyDown(:left,  Modifiers(alt=true)),
@@ -40,7 +49,9 @@ function explore_table_selections(document, projection; onstate=nothing)
         return (state_count=0, errors=["projection_print failed: $e"])
     end
 
-    # Seed: Ctrl+Alt+Home → ReplaceSelectionOperation(∅) (whole table).
+    # Seed: Ctrl+Alt+Home → ∅ (whole table), plus the first data cell so the BFS
+    # can actually traverse the grid (arrows on the bare table have no active
+    # cell to move).
     op = try
         projection_read(projection, iomap, KeyDown(:home, Modifiers(ctrl=true, alt=true)))
     catch e
@@ -48,7 +59,7 @@ function explore_table_selections(document, projection; onstate=nothing)
     end
     op isa ReplaceSelectionOperation || return (state_count=0, errors=["Ctrl+Alt+Home returned $(typeof(op))"])
 
-    queue = Any[op.path]
+    queue = Any[op.path, @reference cells[1]]
 
     while !isempty(queue)
         path = popfirst!(queue)
@@ -79,6 +90,9 @@ function explore_table_selections(document, projection; onstate=nothing)
             end
             op isa ReplaceSelectionOperation || continue
             new_str = string(op.path)
+            # Stay in structural space: an Enter into cell content is a valid
+            # outcome, but its character cursor is not a tree-selection state.
+            occursin(".content", new_str) && continue
             new_str in visited && continue
             push!(queue, op.path)
         end
@@ -142,35 +156,42 @@ end
     # Ctrl+Alt+Home → whole table from anywhere.
     @test nav(KeyDown(:home, Modifiers(ctrl=true, alt=true)), @reference cells[5]) == "∅"
 
-    # Alt+arrows from a whole cell move the active cell with edge clamping.
-    @test nav(KeyDown(:down,  Modifiers(alt=true)), @reference cells[5]) == ".cells[8]"
-    @test nav(KeyDown(:up,    Modifiers(alt=true)), @reference cells[5]) == ".cells[2]"
-    @test nav(KeyDown(:left,  Modifiers(alt=true)), @reference cells[5]) == ".cells[4]"
-    @test nav(KeyDown(:right, Modifiers(alt=true)), @reference cells[5]) == ".cells[6]"
-    @test nav(KeyDown(:up,    Modifiers(alt=true)), @reference cells[2]) == ".cells[2]"   # clamp top
-    @test nav(KeyDown(:right, Modifiers(alt=true)), @reference cells[3]) == ".cells[3]"   # clamp right
+    # Plain (unmodified) arrows move the active cell once a whole cell is already
+    # selected — no Alt needed in structural mode — with edge clamping.
+    @test nav(KeyDown(:down,  Modifiers()), @reference cells[5]) == ".cells[8]"
+    @test nav(KeyDown(:up,    Modifiers()), @reference cells[5]) == ".cells[2]"
+    @test nav(KeyDown(:left,  Modifiers()), @reference cells[5]) == ".cells[4]"
+    @test nav(KeyDown(:right, Modifiers()), @reference cells[5]) == ".cells[6]"
+    @test nav(KeyDown(:up,    Modifiers()), @reference cells[2]) == ".cells[2]"   # clamp top
+    @test nav(KeyDown(:right, Modifiers()), @reference cells[3]) == ".cells[3]"   # clamp right
 
-    # Alt+arrow from an in-cell cursor first promotes to the whole cell, then moves.
+    # Alt+arrows still navigate from a whole cell too.
+    @test nav(KeyDown(:down,  Modifiers(alt=true)), @reference cells[5]) == ".cells[8]"
+
+    # On an in-cell cursor a *plain* arrow keeps editing the text (declined here →
+    # routed into content), while Alt+arrow first promotes to the whole cell.
     incell = ConcreteReferencePath(FieldReference("cells"),
                  ConcreteReferencePath(ElementReference(5),
                      ConcreteReferencePath(FieldReference("content"), EmptyReferencePath())))
     @test nav(KeyDown(:down, Modifiers(alt=true)), incell) == ".cells[8]"
+    @test !startswith(nav(KeyDown(:down, Modifiers()), incell), ".cells[8]")
 
     # Shift+Space / Ctrl+Space widen the active cell to its row / column.
     @test nav(KeyDown(:space, Modifiers(shift=true)), @reference cells[5]) == ".rows[2]"
     @test nav(KeyDown(:space, Modifiers(ctrl=true)),  @reference cells[5]) == ".columns[2]"
 
-    # A whole row steps between rows and narrows to its first cell.
-    @test nav(KeyDown(:down,  Modifiers(alt=true)), @reference rows[2]) == ".rows[3]"
-    @test nav(KeyDown(:up,    Modifiers(alt=true)), @reference rows[2]) == ".rows[1]"
-    @test nav(KeyDown(:right, Modifiers(alt=true)), @reference rows[2]) == ".cells[4]"
-    @test nav(KeyDown(:return, Modifiers()),        @reference rows[2]) == ".cells[4]"
+    # A whole row steps between rows and narrows to its first cell — plain arrows
+    # suffice in structural mode.
+    @test nav(KeyDown(:down,  Modifiers()), @reference rows[2]) == ".rows[3]"
+    @test nav(KeyDown(:up,    Modifiers()), @reference rows[2]) == ".rows[1]"
+    @test nav(KeyDown(:right, Modifiers()), @reference rows[2]) == ".cells[4]"
+    @test nav(KeyDown(:return, Modifiers()), @reference rows[2]) == ".cells[4]"
 
     # A whole column steps between columns and narrows to its first cell.
-    @test nav(KeyDown(:right, Modifiers(alt=true)), @reference columns[2]) == ".columns[3]"
-    @test nav(KeyDown(:left,  Modifiers(alt=true)), @reference columns[2]) == ".columns[1]"
-    @test nav(KeyDown(:down,  Modifiers(alt=true)), @reference columns[2]) == ".cells[2]"
-    @test nav(KeyDown(:return, Modifiers()),        @reference columns[2]) == ".cells[2]"
+    @test nav(KeyDown(:right, Modifiers()), @reference columns[2]) == ".columns[3]"
+    @test nav(KeyDown(:left,  Modifiers()), @reference columns[2]) == ".columns[1]"
+    @test nav(KeyDown(:down,  Modifiers()), @reference columns[2]) == ".cells[2]"
+    @test nav(KeyDown(:return, Modifiers()), @reference columns[2]) == ".cells[2]"
 
     # Enter on a whole cell drops a real character cursor into its content.
     @test startswith(nav(KeyDown(:return, Modifiers()), @reference cells[5]), ".cells[5].content")
