@@ -128,6 +128,7 @@ include("projection/compound/Generic.jl")
 # ── Devices, backend, and editor ──────────────────────────────────────────
 
 include("device/Screen.jl")
+include("backend/Sdl.jl")
 include("external/Database.jl")
 include("external/DatabaseTabular.jl")
 include("projection/primitive/DatabaseTableToTabularGrid.jl")
@@ -233,19 +234,10 @@ using .ModifiersModule: Modifiers
 using .KeyboardModule: KeyDown, KeyUp, KeyPress, is_ctrl, is_shift, is_alt, is_meta
 using .MouseModule: MouseDown, MouseUp, MousePress, MouseMove, MouseScroll
 using .BackendModule: Backend, init!, quit!, measure_text
-
-# SDL stubs — zero-method generics. SdlExt adds real methods when
-# SimpleDirectMediaLayer is loaded alongside Projectured.
-function sdl_measure_text end
-function sdl_render_canvas end
-function sdl_display_size end
-function sdl_decode_image end
-function decode_image_file! end
-function write_image end
-mutable struct SdlBackend <: Backend
-    SdlBackend() = new()
-end
-struct GraphicsCanvasToImageFile end
+using .SdlBackendModule: SdlBackend, sdl_measure_text, sdl_render_canvas,
+                          sdl_display_size,
+                          write_image, GraphicsCanvasToImageFile,
+                          sdl_decode_image, decode_image_file!
 
 using .DeviceModule: Device, write_to_device, read_from_device, write_to_devices, read_from_devices
 using .ScreenModule: Screen, QuitEvent
