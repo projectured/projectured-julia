@@ -57,6 +57,8 @@ include("external/DatabaseTest.jl")
 include("external/DatabaseTabularTest.jl")
 include("external/DbCatalogTest.jl")
 include("external/DbCatalogTabularTest.jl")
+include("external/DbCatalogJsonTest.jl")
+include("external/DbCatalogSyntaxTest.jl")
 
 function test_documents()
     @testset "Documents" begin
@@ -149,6 +151,6 @@ export test_collapse_roundtrip
 export test_tree_navigation, test_tree_navigations, explore_tree_selections
 export test_assistant_mvp, make_assistant_mvp_setup, make_assistant_mvp_projection
 export test_database_connection, test_database, test_database_no_db, test_database_tabular
-export test_db_catalog, test_db_catalog_tabular
+export test_db_catalog, test_db_catalog_tabular, test_db_catalog_json, test_db_catalog_syntax
 
 end # module ProjecturedTest

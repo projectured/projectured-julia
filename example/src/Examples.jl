@@ -43,6 +43,7 @@ const julia_example          = Example("julia",          make_julia_document_exa
 const graphics_image_example = Example("graphics_image", make_json_document_example,           make_graphics_image_projection_example)
 const primitive_string_example = Example("primitive_string", make_primitive_string_document_example, make_primitive_string_projection_example)
 const assistant_example      = Example("assistant",      make_assistant_document_example,      make_assistant_projection_example)
+const dbcatalog_example      = Example("dbcatalog",      make_dbcatalog_document_example,      make_dbcatalog_projection_example)
 
 const examples = [
     json_example, json_sorted_example, json_null_example, json_string_example,
@@ -55,6 +56,7 @@ const examples = [
     graphics_image_example,
     primitive_string_example,
     assistant_example,
+    dbcatalog_example,
 ]
 
 function run_example(example::Example; kwargs...)

@@ -133,6 +133,8 @@ include("external/DatabaseTabular.jl")
 include("projection/primitive/DatabaseTableToTabularGrid.jl")
 include("projection/primitive/DbCatalogToChildren.jl")
 include("projection/primitive/DbCatalogTableToTabularGrid.jl")
+include("projection/primitive/DbCatalogToJson.jl")
+include("projection/primitive/DbCatalogToSyntax.jl")
 include("editor/ToolRegistry.jl")
 include("editor/Mcp.jl")
 include("editor/WorkbenchAssistant.jl")
@@ -201,6 +203,13 @@ using .DbCatalogToChildrenModule: DbCatalogConnectionToChildren, DbCatalogDataba
                                    DbCatalogSchemaToChildren, DbCatalogTableToChildren
 using .DbCatalogTableToTabularGridModule: DbCatalogTableIoMap, DbCatalogTableToTabularGrid,
                                           DbCatalogUpdateOperation
+using .DbCatalogToJsonModule: DbCatalogConnectionToJson, DbCatalogDatabaseToJson,
+                               DbCatalogSchemaToJson, DbCatalogTableToJson, DbCatalogColumnToJson,
+                               DbCatalogToJson
+using .DbCatalogToSyntaxModule: DbCatalogColumnToSyntaxLeaf, DbCatalogTableToSyntaxNode,
+                                DbCatalogSchemaToSyntaxNode, DbCatalogDatabaseToSyntaxNode,
+                                DbCatalogConnectionToSyntaxNode, DbCatalogToSyntax,
+                                dbcatalog_marker_eligible
 using .TableModule: TableDocument, TableCell, TableRow, TableColumn, TableTable
 using .XmlModule: XmlDocument, XmlInsertion, XmlText, XmlAttribute, XmlElement, xmlattr,
                   setattr!, deleteattr!
@@ -425,6 +434,13 @@ export DbCatalogDocument,
 export DbCatalogConnectionToChildren, DbCatalogDatabaseToChildren,
        DbCatalogSchemaToChildren, DbCatalogTableToChildren
 export DbCatalogTableIoMap, DbCatalogTableToTabularGrid, DbCatalogUpdateOperation
+export DbCatalogConnectionToJson, DbCatalogDatabaseToJson,
+       DbCatalogSchemaToJson, DbCatalogTableToJson, DbCatalogColumnToJson,
+       DbCatalogToJson
+export DbCatalogColumnToSyntaxLeaf, DbCatalogTableToSyntaxNode,
+       DbCatalogSchemaToSyntaxNode, DbCatalogDatabaseToSyntaxNode,
+       DbCatalogConnectionToSyntaxNode, DbCatalogToSyntax,
+       dbcatalog_marker_eligible
 export TableDocument, TableCell, TableRow, TableColumn, TableTable
 export XmlDocument, XmlInsertion, XmlText, XmlAttribute, XmlElement, xmlattr, setattr!, deleteattr!
 export FileSystemDocument, FileSystemInsertion, FileSystemFile, FileSystemDirectory, make_filesystem_pathname
