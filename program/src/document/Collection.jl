@@ -1,18 +1,22 @@
 """
     CollectionModule
 
-Generic reactive collection document types. Two structural shapes: an indexed
-growable vector (each slot is a reactive Cell), and a doubly-linked list with
-a fixed head and two unlimited tails. Per-slot reactivity means a change to
-one element invalidates only that slot's dependents, not the entire collection.
+Generic reactive collection document types. Four structural shapes: an indexed
+growable vector (each slot is a reactive Cell), a dense rectangular matrix of
+reactive Cells, a table (CellVector of CellVector rows) optimised for row
+insert/delete, and a doubly-linked list with a fixed head and two unlimited
+tails. Per-slot reactivity means a change to one element invalidates only that
+slot's dependents, not the entire collection.
 """
 module CollectionModule
 
 import ..ReactiveModule: Cell, setfn!, setval!
 import ..DocumentModule: Document, @document
 import ..ReferenceModule: Reference
-export CellVector, ListNode, CollectionDocument, left_tail, right_tail, cell_at, take_first_n,
-       ICellVector, IListNode
+export CellVector, CellMatrix, CellTable, ListNode, CollectionDocument,
+       left_tail, right_tail, cell_at, take_first_n,
+       insertrow!, insertcol!, deleterow!, deletecol!, insertrow, deleterow,
+       ICellVector, ICellMatrix, ICellTable, IListNode
 
 # ── CellVector ────────────────────────────────────────────────────────────
 # A vector document where each slot is a reactive Cell.
@@ -105,6 +109,172 @@ end
 
 Base.show(io::IO, cv::CellVector) =
     print(io, "CellVector(", length(cv), " slots)")
+
+# ── CellMatrix ────────────────────────────────────────────────────────────
+# A dense rectangular matrix where each slot is a reactive Cell.
+# Structural mutations (insert/delete row/column) reallocate the underlying
+# Matrix{Cell}, but Cell references remain stable.
+
+@document struct CellMatrix <: Document
+    elements::Matrix{Cell}
+    selection::Reference
+end
+
+CellMatrix() =
+    CellMatrix(Cell(Matrix{Cell}(undef, 0, 0)), Cell(nothing))
+
+CellMatrix(cells::Matrix{Cell}) =
+    CellMatrix(Cell(copy(cells)), Cell(nothing))
+
+CellMatrix(nrows::Integer, ncols::Integer) =
+    CellMatrix(Cell([Cell(nothing) for _ in 1:nrows, _ in 1:ncols]), Cell(nothing))
+
+CellMatrix(items::AbstractMatrix) =
+    CellMatrix(Cell([Cell(items[r, c]) for r in 1:size(items, 1), c in 1:size(items, 2)]), Cell(nothing))
+
+function CellMatrix(f::Function)
+    cm = CellMatrix(Cell(Matrix{Cell}(undef, 0, 0)), Cell(nothing))
+    setfn!(getfield(cm, :elements), () -> [Cell(x) for x in f()])
+    cm
+end
+
+_elems(cm::CellMatrix) = cm.elements::Matrix{Cell}
+
+Base.size(cm::CellMatrix)                        = size(_elems(cm))
+Base.size(cm::CellMatrix, d::Integer)            = size(_elems(cm), d)
+Base.length(cm::CellMatrix)                      = length(_elems(cm))
+Base.isempty(cm::CellMatrix)                     = isempty(_elems(cm))
+Base.eachindex(cm::CellMatrix)                   = CartesianIndices(_elems(cm))
+
+function Base.iterate(cm::CellMatrix, s...)
+    r = iterate(_elems(cm), s...)
+    r === nothing && return nothing
+    (cell, state) = r
+    (cell[], state)
+end
+
+Base.getindex(cm::CellMatrix, r::Integer, c::Integer) = _elems(cm)[r, c][]
+cell_at(cm::CellMatrix, r::Integer, c::Integer)       = _elems(cm)[r, c]
+
+function Base.setindex!(cm::CellMatrix, val, r::Integer, c::Integer)
+    _elems(cm)[r, c][] = val
+    return val
+end
+
+function Base.setindex!(cm::CellMatrix, cell::Cell, r::Integer, c::Integer)
+    elems = _elems(cm)
+    elems[r, c] = cell
+    cm.elements = elems
+    return cell
+end
+
+function insertrow!(cm::CellMatrix, r::Integer, cells::Vector{Cell})
+    elems = _elems(cm)
+    nrows, ncols = size(elems)
+    length(cells) == ncols || throw(DimensionMismatch("expected $ncols cells, got $(length(cells))"))
+    new_elems = Matrix{Cell}(undef, nrows + 1, ncols)
+    new_elems[1:r-1, :]   = @view elems[1:r-1, :]
+    new_elems[r, :]        = cells
+    new_elems[r+1:end, :]  = @view elems[r:end, :]
+    cm.elements = new_elems
+    return cm
+end
+
+function insertcol!(cm::CellMatrix, c::Integer, cells::Vector{Cell})
+    elems = _elems(cm)
+    nrows, ncols = size(elems)
+    length(cells) == nrows || throw(DimensionMismatch("expected $nrows cells, got $(length(cells))"))
+    new_elems = Matrix{Cell}(undef, nrows, ncols + 1)
+    new_elems[:, 1:c-1]   = @view elems[:, 1:c-1]
+    new_elems[:, c]        = cells
+    new_elems[:, c+1:end]  = @view elems[:, c:end]
+    cm.elements = new_elems
+    return cm
+end
+
+function deleterow!(cm::CellMatrix, r::Integer)
+    elems = _elems(cm)
+    nrows, ncols = size(elems)
+    new_elems = Matrix{Cell}(undef, nrows - 1, ncols)
+    new_elems[1:r-1, :]  = @view elems[1:r-1, :]
+    new_elems[r:end, :]   = @view elems[r+1:end, :]
+    cm.elements = new_elems
+    return cm
+end
+
+function deletecol!(cm::CellMatrix, c::Integer)
+    elems = _elems(cm)
+    nrows, ncols = size(elems)
+    new_elems = Matrix{Cell}(undef, nrows, ncols - 1)
+    new_elems[:, 1:c-1]  = @view elems[:, 1:c-1]
+    new_elems[:, c:end]   = @view elems[:, c+1:end]
+    cm.elements = new_elems
+    return cm
+end
+
+Base.show(io::IO, cm::CellMatrix) =
+    print(io, "CellMatrix(", size(cm, 1), "×", size(cm, 2), " slots)")
+
+# ── CellTable ─────────────────────────────────────────────────────────────
+# A table stored as a CellVector of CellVector rows. Row insert/delete is
+# O(nrows) — the same cost as CellVector.insert! — without copying every
+# cell in the matrix. Column access requires iterating rows.
+
+@document struct CellTable <: Document
+    rows::CellVector
+    selection::Reference
+end
+
+CellTable() = CellTable(Cell(CellVector()), Cell(nothing))
+
+CellTable(nrows::Integer, ncols::Integer) =
+    CellTable(Cell(CellVector(Cell[Cell(CellVector(ncols)) for _ in 1:nrows])), Cell(nothing))
+
+function CellTable(items::AbstractMatrix)
+    nr, nc = size(items)
+    rows = CellVector(Cell[Cell(CellVector([items[r, c] for c in 1:nc])) for r in 1:nr])
+    CellTable(Cell(rows), Cell(nothing))
+end
+
+Base.size(ct::CellTable) = (length(ct.rows), isempty(ct.rows) ? 0 : length(ct.rows[1]::CellVector))
+Base.size(ct::CellTable, d::Integer) = size(ct)[d]
+Base.length(ct::CellTable) = length(ct.rows)
+Base.isempty(ct::CellTable) = isempty(ct.rows)
+
+Base.getindex(ct::CellTable, r::Integer, c::Integer) = (ct.rows[r]::CellVector)[c]
+cell_at(ct::CellTable, r::Integer, c::Integer) = cell_at(ct.rows[r]::CellVector, c)
+
+function Base.setindex!(ct::CellTable, val, r::Integer, c::Integer)
+    (ct.rows[r]::CellVector)[c] = val
+    return val
+end
+
+function insertrow(ct::CellTable, r::Integer, row::CellVector)
+    insert!(ct.rows, r, Cell(row))
+    return ct
+end
+
+function insertrow(ct::CellTable, r::Integer, items::AbstractVector)
+    insert!(ct.rows, r, Cell(CellVector(items)))
+    return ct
+end
+
+function deleterow(ct::CellTable, r::Integer)
+    deleteat!(ct.rows, r)
+    return ct
+end
+
+function Base.iterate(ct::CellTable, s...)
+    r = iterate(ct.rows, s...)
+    r === nothing && return nothing
+    (row, state) = r
+    (row::CellVector, state)
+end
+
+Base.show(io::IO, ct::CellTable) = begin
+    nr, nc = size(ct)
+    print(io, "CellTable(", nr, "×", nc, " slots)")
+end
 
 # ── ListNode ──────────────────────────────────────────────────────────────
 # A doubly-linked list node. The node you hold IS the head (middle of the
@@ -263,6 +433,6 @@ Type alias representing the union of supported collection types.
 Documents use either `CellVector` (finite, eager) or `ListNode`
 (potentially infinite, lazy).
 """
-const CollectionDocument = Union{CellVector, ListNode}
+const CollectionDocument = Union{CellVector, CellMatrix, CellTable, ListNode}
 
 end # module
