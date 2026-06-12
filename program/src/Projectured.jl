@@ -317,6 +317,8 @@ using .WidgetModule: WidgetDocument, WidgetInsertion,
                      WidgetScrollPane, WidgetToolbar, WidgetScrollBar,
                      WidgetBadge, WidgetSeparator, WidgetCard, WidgetSwitch, WidgetProgress,
                      WidgetSlider, WidgetRadioGroup, WidgetAvatar, WidgetAlert, WidgetSkeleton,
+                     WidgetToggle, WidgetToggleGroup, WidgetSelect, WidgetTextarea, WidgetAccordion,
+                     WidgetTable, WidgetTree,
                      HideWidgetOperation, ShowWidgetOperation,
                      ScrollWidgetOperation, SelectTabOperation, SetScrollBarValueOperation
 using .LayoutModule: LayoutDocument,
@@ -575,7 +577,9 @@ export WidgetDocument, WidgetInsertion,
        WidgetShell, WidgetTitlePane, WidgetSplitPane, WidgetTabbedPane,
        WidgetScrollPane, WidgetToolbar, WidgetScrollBar,
        WidgetBadge, WidgetSeparator, WidgetCard, WidgetSwitch, WidgetProgress,
-       WidgetSlider, WidgetRadioGroup, WidgetAvatar, WidgetAlert, WidgetSkeleton
+       WidgetSlider, WidgetRadioGroup, WidgetAvatar, WidgetAlert, WidgetSkeleton,
+       WidgetToggle, WidgetToggleGroup, WidgetSelect, WidgetTextarea, WidgetAccordion,
+       WidgetTable, WidgetTree
 export HideWidgetOperation, ShowWidgetOperation, ScrollWidgetOperation, SelectTabOperation, SetScrollBarValueOperation
 export Operation, evaluate_operation
 export inset_default, inset_size, inset_width, inset_height,

@@ -41,9 +41,78 @@ All widgets subtype the abstract `WidgetDocument` (which subtypes `Document`).
 | `WidgetToolbar(children)` | Horizontal toolbar |
 | `WidgetMenu(items)` | Dropdown/menu |
 
+**Extension widgets** (printer-only for now — their readers are no-ops). Colors,
+radius and spacing come entirely from the theme (see below), so they carry only
+the fields they need plus `visible`/`selection`:
+
+| Widget | Purpose |
+|---|---|
+| `WidgetBadge(position, content; variant)` | Pill label (`:default`/`:secondary`/`:destructive`/`:outline`) |
+| `WidgetSeparator(position; orientation, length)` | Hairline divider |
+| `WidgetCard(position; title, description, content, footer)` | Bordered surface with header/body/footer |
+| `WidgetSwitch(position, checked)` | On/off switch (track + knob) |
+| `WidgetProgress(position, value)` | Progress bar (`value ∈ [0,1]`) |
+| `WidgetSlider(position, value)` | Slider (track + knob) |
+| `WidgetRadioGroup(position, options; selected)` | Vertical radio options |
+| `WidgetAvatar(position, initials; size)` | Circular initials avatar |
+| `WidgetAlert(position, title, description; variant)` | Callout (`:default`/`:destructive`) |
+| `WidgetSkeleton(position; width, height)` | Loading placeholder |
+| `WidgetToggle(position, content; pressed)` | Two-state toggle button |
+| `WidgetToggleGroup(position, options; selected)` | Segmented control |
+| `WidgetSelect(position, value; width)` | Closed select / combobox |
+| `WidgetTextarea(position, content; width, rows)` | Multi-line text surface |
+| `WidgetAccordion(position, items; expanded)` | Expandable sections |
+| `WidgetTable(position, headers, rows)` | Data table with hairline rows |
+| `WidgetTree(position, roots)` | Indented outline / tree view |
+
+Each has a minimal isolated example — e.g. `run_example(widget_table_example)`,
+`write_image_example(widget_tree_example, "tree.png")`.
+
+## Gallery
+
+Every widget has a minimal isolated example, rendered below.
+
+### Core widgets
+
+| | | |
+|---|---|---|
+| **Label**<br>![](../../image/example/widget-label.png) | **Text (input)**<br>![](../../image/example/widget-text.png) | **Checkbox**<br>![](../../image/example/widget-checkbox.png) |
+| **Button**<br>![](../../image/example/widget-button.png) | **Tooltip**<br>![](../../image/example/widget-tooltip.png) | **Menu item**<br>![](../../image/example/widget-menu-item.png) |
+| **Menu**<br>![](../../image/example/widget-menu.png) | **Toolbar**<br>![](../../image/example/widget-toolbar.png) | **Composite**<br>![](../../image/example/widget-composite.png) |
+| **Title pane**<br>![](../../image/example/widget-title-pane.png) | **Split pane**<br>![](../../image/example/widget-split-pane.png) | **Scroll bar**<br>![](../../image/example/widget-scroll-bar.png) |
+| **Scroll pane**<br>![](../../image/example/widget-scroll-pane.png) | **Shell**<br>![](../../image/example/widget-shell.png) | **Tabbed pane**<br>![](../../image/example/widget-tabbed-pane.png) |
+
+### Extension widgets
+
+| | | |
+|---|---|---|
+| **Badge**<br>![](../../image/example/widget-badge.png) | **Separator**<br>![](../../image/example/widget-separator.png) | **Card**<br>![](../../image/example/widget-card.png) |
+| **Switch**<br>![](../../image/example/widget-switch.png) | **Progress**<br>![](../../image/example/widget-progress.png) | **Slider**<br>![](../../image/example/widget-slider.png) |
+| **Radio group**<br>![](../../image/example/widget-radio-group.png) | **Avatar**<br>![](../../image/example/widget-avatar.png) | **Alert**<br>![](../../image/example/widget-alert.png) |
+| **Skeleton**<br>![](../../image/example/widget-skeleton.png) | **Toggle**<br>![](../../image/example/widget-toggle.png) | **Toggle group**<br>![](../../image/example/widget-toggle-group.png) |
+| **Select**<br>![](../../image/example/widget-select.png) | **Textarea**<br>![](../../image/example/widget-textarea.png) | **Accordion**<br>![](../../image/example/widget-accordion.png) |
+| **Table**<br>![](../../image/example/widget-table.png) | **Tree**<br>![](../../image/example/widget-tree.png) | |
+
+## Theme
+
+Widget look & feel is driven by a single `WidgetTheme` token object (a neutral
+zinc palette: `background`, `foreground`, `card`, `muted`, `primary`,
+`destructive`, `border`, `input`, `ring`, `radius`, …). It is the source of
+truth — individual widgets should not carry their own colors. Two presets ship:
+`widget_theme_light()` (the default) and `widget_theme_dark()`. Pass one to the
+projection factory:
+
+```julia
+WidgetToGraphics(font; measure=sdl_measure_text, theme=widget_theme_dark())
+```
+
+The renderer leans on graphics primitives that anti-alias cleanly: `GraphicsRect`
+(per-corner radius + optional `border_width`/`border_color`), `GraphicsLine`, and
+`GraphicsCircle`. Offscreen `write_image` supersamples (2×) for smooth output.
+
 ## Shared visual fields
 
-Every widget carries seven base styling fields:
+The original widgets carry seven base styling fields:
 
 - `visible::Bool` — show/hide
 - `margin::Inset`, `margin_color::StyleColor` — outer margin

@@ -49,6 +49,13 @@ const widget_radio_group_example = Example("widget_radio_group", make_widget_rad
 const widget_avatar_example      = Example("widget_avatar",      make_widget_avatar_document_example,      make_widget_projection_example)
 const widget_alert_example       = Example("widget_alert",       make_widget_alert_document_example,       make_widget_projection_example)
 const widget_skeleton_example    = Example("widget_skeleton",    make_widget_skeleton_document_example,    make_widget_projection_example)
+const widget_toggle_example      = Example("widget_toggle",      make_widget_toggle_document_example,      make_widget_projection_example)
+const widget_toggle_group_example = Example("widget_toggle_group", make_widget_toggle_group_document_example, make_widget_projection_example)
+const widget_select_example      = Example("widget_select",      make_widget_select_document_example,      make_widget_projection_example)
+const widget_textarea_example    = Example("widget_textarea",    make_widget_textarea_document_example,    make_widget_projection_example)
+const widget_accordion_example   = Example("widget_accordion",   make_widget_accordion_document_example,   make_widget_projection_example)
+const widget_table_example       = Example("widget_table",       make_widget_table_document_example,       make_widget_projection_example)
+const widget_tree_example        = Example("widget_tree",        make_widget_tree_document_example,        make_widget_projection_example)
 const layout_example         = Example("layout",         make_layout_document_example,         make_layout_projection_example)
 const book_example           = Example("book",           make_book_document_example,           make_book_projection_example)
 const filesystem_example     = Example("filesystem",     make_filesystem_document_example,     make_filesystem_projection_example)
@@ -86,6 +93,8 @@ const examples = [
     widget_badge_example, widget_separator_example, widget_card_example, widget_switch_example,
     widget_progress_example, widget_slider_example, widget_radio_group_example,
     widget_avatar_example, widget_alert_example, widget_skeleton_example,
+    widget_toggle_example, widget_toggle_group_example, widget_select_example,
+    widget_textarea_example, widget_accordion_example, widget_table_example, widget_tree_example,
     layout_example, book_example, filesystem_example, navigator_example,
     collection_example, reversing_example, filtering_example, searching_example, sorting_example, focusing_example, table_example, math_table_example, workbench_example,
     math_example,

@@ -92,7 +92,7 @@ corners; per-corner keyword arguments override it.
 
 An optional `border_width` (pixels) + `border_color` (an `(r,g,b,a)` tuple,
 0–255) paints a rounded outline *inside* the rect, so a single primitive can
-express the shadcn "rounded fill + 1px outline" idiom without stacking rects.
+express the "rounded fill + 1px outline" idiom without stacking rects.
 Each field is a `Cell`.
 """
 @document struct GraphicsRect <: GraphicsDocument

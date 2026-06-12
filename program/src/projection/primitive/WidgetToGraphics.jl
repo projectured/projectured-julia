@@ -32,6 +32,8 @@ import ..WidgetModule: WidgetDocument, WidgetLabel, WidgetText, WidgetCheckbox,
                        WidgetTabbedPane, WidgetScrollPane, WidgetToolbar, WidgetScrollBar,
                        WidgetBadge, WidgetSeparator, WidgetCard, WidgetSwitch, WidgetProgress,
                        WidgetSlider, WidgetRadioGroup, WidgetAvatar, WidgetAlert, WidgetSkeleton,
+                       WidgetToggle, WidgetToggleGroup, WidgetSelect, WidgetTextarea, WidgetAccordion,
+                       WidgetTable, WidgetTree,
                        Inset, Point2D,
                        ScrollWidgetOperation, SelectTabOperation, SetScrollBarValueOperation
 import ..CollectionModule: CellVector, CollectionDocument
@@ -61,12 +63,12 @@ export WidgetLabelToGraphicsCanvas, WidgetTextToGraphicsCanvas,
        WidgetToGraphics, WidgetTheme, widget_theme_light, widget_theme_dark,
        WidgetScrollPaneToGraphicsViewport, WidgetScrollPaneToGraphicsViewportIoMap
 
-# ── Theme (shadcn/ui design tokens) ─────────────────────────────────────────
+# ── Theme (design tokens) ─────────────────────────────────────────
 
 """
     WidgetTheme
 
-shadcn/ui design tokens shared by every widget renderer. Colors are
+Design tokens shared by every widget renderer. Colors are
 `StyleColor`s; `radius` and the `pad_*` spacings are *logical* pixels (scaled by
 the font scale at render time via `_sc`). The theme is the single source of
 truth for widget look & feel — individual documents should not carry their own
@@ -103,7 +105,7 @@ end
 """
     widget_theme_light(; font=font_ubuntu_regular_24) -> WidgetTheme
 
-The default light theme (shadcn's zinc palette on a white background).
+The default light theme (a neutral zinc palette on a white background).
 """
 function widget_theme_light(; font::StyleFont=font_ubuntu_regular_24)
     WidgetTheme(
@@ -1373,7 +1375,7 @@ function projection_print(p::WidgetTabbedPaneToGraphicsCanvas, recursion, w::Wid
         result = Any[]
         tab_radius = _sc(p.theme.radius)
         strip_w = isempty(tab_xs) ? 0 : (tab_xs[end] + tab_rws[end] - cox)
-        # Muted track behind the whole tab row (shadcn TabsList).
+        # Muted track behind the whole tab row.
         _push_panel!(result, cox, coy, strip_w, sel_h; fill=p.theme.muted, radius=tab_radius)
         for i in eachindex(tabs)
             label, _, _ = tabs[i]
@@ -1761,7 +1763,7 @@ function projection_read(::WidgetScrollBarToGraphicsCanvas, iomap::SimpleIoMap, 
 end
 
 # ════════════════════════════════════════════════════════════════════════════
-# shadcn/ui extension widgets — printer-only (no-op readers)
+# Extension widgets — printer-only (no-op readers)
 # ════════════════════════════════════════════════════════════════════════════
 
 # A no-op reader trio shared by every extension widget (printer-only for now).
@@ -2080,6 +2082,287 @@ function projection_print(p::WidgetSkeletonToGraphicsCanvas, recursion, w::Widge
 end
 @_printer_only WidgetSkeletonToGraphicsCanvas
 
+# Push a small chevron (two AA strokes) centered at (cx, cy). `dir` ∈ :down :right.
+function _push_chevron!(elems::Vector, cx::Int, cy::Int, s::Int, dir::Symbol, color::StyleColor)
+    r, g, b, a = _rgba(color)
+    w = max(1, _sc(2))
+    if dir === :right
+        push!(elems, GraphicsLine(cx - s ÷ 2, cy - s, cx + s ÷ 2, cy, r, g, b, a; width=w))
+        push!(elems, GraphicsLine(cx + s ÷ 2, cy, cx - s ÷ 2, cy + s, r, g, b, a; width=w))
+    else
+        push!(elems, GraphicsLine(cx - s, cy - s ÷ 2, cx, cy + s ÷ 2, r, g, b, a; width=w))
+        push!(elems, GraphicsLine(cx, cy + s ÷ 2, cx + s, cy - s ÷ 2, r, g, b, a; width=w))
+    end
+end
+
+# ── WidgetToggle ────────────────────────────────────────────────────────────
+
+struct WidgetToggleToGraphicsCanvas <: Projection
+    font::StyleFont
+    measure::Function
+    theme::WidgetTheme
+end
+
+function projection_print(p::WidgetToggleToGraphicsCanvas, recursion, w::WidgetToggle, ctx)
+    w.visible == false && return SimpleIoMap(p, w, _empty_canvas())
+    pos = w.position::Point2D
+    th  = p.theme
+    text = string(w.content)
+    on  = w.pressed === true
+    pad_x, pad_y = _sc(th.pad_x), _sc(th.pad_y)
+    tw, tht = _text_size(p.measure, p.font, text)
+    cw, ch = tw + 2pad_x, tht + 2pad_y
+    fill   = on ? th.accent : th.background
+    fg     = on ? th.accent_foreground : th.foreground
+    border = on ? nothing : th.border
+    bw = border !== nothing ? max(1, _sc(1)) : 0
+    elems = Any[]
+    _push_panel!(elems, 0, 0, cw, ch; fill=fill, border=border, border_w=bw, radius=_sc(th.radius))
+    fr, fg2, fb, fa = _rgbai(fg)
+    push!(elems, GraphicsText(text, (cw - tw) ÷ 2, (ch - tht) ÷ 2, p.font, fr, fg2, fb, fa))
+    SimpleIoMap(p, w, _make_canvas(Int(pos.x[]), Int(pos.y[]), cw, ch, elems))
+end
+@_printer_only WidgetToggleToGraphicsCanvas
+
+# ── WidgetToggleGroup ───────────────────────────────────────────────────────
+
+struct WidgetToggleGroupToGraphicsCanvas <: Projection
+    font::StyleFont
+    measure::Function
+    theme::WidgetTheme
+end
+
+function projection_print(p::WidgetToggleGroupToGraphicsCanvas, recursion, w::WidgetToggleGroup, ctx)
+    w.visible == false && return SimpleIoMap(p, w, _empty_canvas())
+    pos = w.position::Point2D
+    th  = p.theme
+    selected = Int(w.selected)
+    pad_x, pad_y = _sc(th.pad_x), _sc(th.pad_y)
+    labels = [string(o) for o in w.options]
+    _, mh = _text_size(p.measure, p.font, "M")
+    seg_ws = [(_text_size(p.measure, p.font, l)[1] + 2pad_x) for l in labels]
+    ch = mh + 2pad_y
+    cw = sum(seg_ws; init=0)
+    radius = _sc(th.radius)
+    elems = Any[]
+    # Outer container (muted track + border).
+    _push_panel!(elems, 0, 0, cw, ch; fill=th.muted, border=th.border,
+                 border_w=max(1, _sc(1)), radius=radius)
+    x = 0
+    for i in eachindex(labels)
+        sw = seg_ws[i]
+        if i == selected
+            _push_panel!(elems, x + _sc(2), _sc(2), sw - _sc(4), ch - _sc(4);
+                         fill=th.background, radius=max(0, radius - _sc(2)))
+        end
+        tw, tht = _text_size(p.measure, p.font, labels[i])
+        fg = i == selected ? th.foreground : th.muted_foreground
+        fr, fg2, fb, fa = _rgbai(fg)
+        push!(elems, GraphicsText(labels[i], x + (sw - tw) ÷ 2, (ch - tht) ÷ 2, p.font, fr, fg2, fb, fa))
+        x += sw
+    end
+    SimpleIoMap(p, w, _make_canvas(Int(pos.x[]), Int(pos.y[]), cw, ch, elems))
+end
+@_printer_only WidgetToggleGroupToGraphicsCanvas
+
+# ── WidgetSelect ────────────────────────────────────────────────────────────
+
+struct WidgetSelectToGraphicsCanvas <: Projection
+    font::StyleFont
+    measure::Function
+    theme::WidgetTheme
+end
+
+function projection_print(p::WidgetSelectToGraphicsCanvas, recursion, w::WidgetSelect, ctx)
+    w.visible == false && return SimpleIoMap(p, w, _empty_canvas())
+    pos = w.position::Point2D
+    th  = p.theme
+    text = string(w.value)
+    W = _sc(Int(w.width))
+    pad_x, pad_y = _sc(th.pad_x), _sc(th.pad_y)
+    _, tht = _text_size(p.measure, p.font, text)
+    ch = tht + 2pad_y
+    elems = Any[]
+    _push_panel!(elems, 0, 0, W, ch; fill=th.background, border=th.input,
+                 border_w=max(1, _sc(1)), radius=_sc(th.radius))
+    fr, fg, fb, fa = _rgbai(th.foreground)
+    push!(elems, GraphicsText(text, pad_x, (ch - tht) ÷ 2, p.font, fr, fg, fb, fa))
+    _push_chevron!(elems, W - pad_x - _sc(4), ch ÷ 2, _sc(4), :down, th.muted_foreground)
+    SimpleIoMap(p, w, _make_canvas(Int(pos.x[]), Int(pos.y[]), W, ch, elems))
+end
+@_printer_only WidgetSelectToGraphicsCanvas
+
+# ── WidgetTextarea ──────────────────────────────────────────────────────────
+
+struct WidgetTextareaToGraphicsCanvas <: Projection
+    font::StyleFont
+    measure::Function
+    theme::WidgetTheme
+end
+
+function projection_print(p::WidgetTextareaToGraphicsCanvas, recursion, w::WidgetTextarea, ctx)
+    w.visible == false && return SimpleIoMap(p, w, _empty_canvas())
+    pos = w.position::Point2D
+    th  = p.theme
+    W = _sc(Int(w.width))
+    pad_x, pad_y = _sc(th.pad_x), _sc(th.pad_y)
+    lines = split(string(w.content), '\n')
+    _, lh = _text_size(p.measure, p.font, "M")
+    nrows = max(Int(w.rows), length(lines))
+    H = nrows * lh + 2pad_y
+    elems = Any[]
+    _push_panel!(elems, 0, 0, W, H; fill=th.background, border=th.input,
+                 border_w=max(1, _sc(1)), radius=_sc(th.radius))
+    fr, fg, fb, fa = _rgbai(th.foreground)
+    for (i, line) in enumerate(lines)
+        push!(elems, GraphicsText(String(line), pad_x, pad_y + (i - 1) * lh, p.font, fr, fg, fb, fa))
+    end
+    SimpleIoMap(p, w, _make_canvas(Int(pos.x[]), Int(pos.y[]), W, H, elems))
+end
+@_printer_only WidgetTextareaToGraphicsCanvas
+
+# ── WidgetAccordion ─────────────────────────────────────────────────────────
+
+struct WidgetAccordionToGraphicsCanvas <: Projection
+    font::StyleFont
+    measure::Function
+    theme::WidgetTheme
+end
+
+function projection_print(p::WidgetAccordionToGraphicsCanvas, recursion, w::WidgetAccordion, ctx)
+    w.visible == false && return SimpleIoMap(p, w, _empty_canvas())
+    pos = w.position::Point2D
+    th  = p.theme
+    W = _sc(Int(w.width))
+    expanded = Int(w.expanded)
+    pad_x, pad_y = _sc(th.pad_x), _sc(10)
+    elems = Any[]
+    y = 0
+    brc = _rgba(th.border)
+    for (i, item) in enumerate(w.items)
+        title = string(item[1])
+        body  = length(item) >= 2 ? string(item[2]) : ""
+        _, hh = _text_size(p.measure, th.font_bold, title)
+        row_h = hh + 2pad_y
+        fr, fg, fb, fa = _rgbai(th.foreground)
+        push!(elems, GraphicsText(title, pad_x, y + pad_y, th.font_bold, fr, fg, fb, fa))
+        _push_chevron!(elems, W - pad_x - _sc(4), y + row_h ÷ 2, _sc(4),
+                       i == expanded ? :down : :right, th.muted_foreground)
+        y += row_h
+        if i == expanded && !isempty(body)
+            _, bh = _text_size(p.measure, th.font_small, body)
+            mr, mg, mb, ma = _rgbai(th.muted_foreground)
+            push!(elems, GraphicsText(body, pad_x, y + _sc(2), th.font_small, mr, mg, mb, ma))
+            y += bh + pad_y
+        end
+        push!(elems, GraphicsLine(0, y, W, y, brc[1], brc[2], brc[3], brc[4]; width=max(1, _sc(1))))
+    end
+    SimpleIoMap(p, w, _make_canvas(Int(pos.x[]), Int(pos.y[]), W, y, elems))
+end
+@_printer_only WidgetAccordionToGraphicsCanvas
+
+# ── WidgetTable ─────────────────────────────────────────────────────────────
+
+struct WidgetTableToGraphicsCanvas <: Projection
+    font::StyleFont
+    measure::Function
+    theme::WidgetTheme
+end
+
+function projection_print(p::WidgetTableToGraphicsCanvas, recursion, w::WidgetTable, ctx)
+    w.visible == false && return SimpleIoMap(p, w, _empty_canvas())
+    pos = w.position::Point2D
+    th  = p.theme
+    headers = [string(h) for h in w.headers]
+    rows = [Any[c for c in r] for r in w.rows]
+    ncol = length(headers)
+    cpx, cpy = _sc(12), _sc(8)
+    _, lh = _text_size(p.measure, p.font, "M")
+    row_h = lh + 2cpy
+    # Column widths from header + body content.
+    colw = zeros(Int, ncol)
+    for j in 1:ncol
+        wj = _text_size(p.measure, th.font_small, headers[j])[1]
+        for r in rows
+            j <= length(r) && (wj = max(wj, _text_size(p.measure, p.font, string(r[j]))[1]))
+        end
+        colw[j] = wj + 2cpx
+    end
+    W = sum(colw; init=0)
+    elems = Any[]
+    brc = _rgba(th.border)
+    # Header row (muted foreground) + underline.
+    x = 0
+    for j in 1:ncol
+        mr, mg, mb, ma = _rgbai(th.muted_foreground)
+        push!(elems, GraphicsText(headers[j], x + cpx, cpy, th.font_small, mr, mg, mb, ma))
+        x += colw[j]
+    end
+    y = row_h
+    push!(elems, GraphicsLine(0, y, W, y, brc[1], brc[2], brc[3], brc[4]; width=max(1, _sc(1))))
+    # Body rows.
+    fr, fg, fb, fa = _rgbai(th.foreground)
+    for r in rows
+        x = 0
+        for j in 1:ncol
+            cell = j <= length(r) ? string(r[j]) : ""
+            push!(elems, GraphicsText(cell, x + cpx, y + cpy, p.font, fr, fg, fb, fa))
+            x += colw[j]
+        end
+        y += row_h
+        push!(elems, GraphicsLine(0, y, W, y, brc[1], brc[2], brc[3], brc[4]; width=max(1, _sc(1))))
+    end
+    SimpleIoMap(p, w, _make_canvas(Int(pos.x[]), Int(pos.y[]), W, y, elems))
+end
+@_printer_only WidgetTableToGraphicsCanvas
+
+# ── WidgetTree ──────────────────────────────────────────────────────────────
+
+struct WidgetTreeToGraphicsCanvas <: Projection
+    font::StyleFont
+    measure::Function
+    theme::WidgetTheme
+end
+
+# A node is either a leaf label (String) or a (label, children::Vector) tuple.
+_tree_children(node) = (node isa Tuple && length(node) >= 2 && node[2] isa AbstractVector) ? node[2] : nothing
+_tree_label(node)    = node isa Tuple ? string(node[1]) : string(node)
+
+function projection_print(p::WidgetTreeToGraphicsCanvas, recursion, w::WidgetTree, ctx)
+    w.visible == false && return SimpleIoMap(p, w, _empty_canvas())
+    pos = w.position::Point2D
+    th  = p.theme
+    indent, chev_w = _sc(22), _sc(18)
+    _, lh = _text_size(p.measure, p.font, "M")
+    row_h = lh + 2 * _sc(4)
+    elems = Any[]
+    maxw = Ref(0)
+    yref = Ref(0)
+    fr, fg, fb, fa = _rgbai(th.foreground)
+    function walk(node, depth)
+        x = depth * indent
+        kids = _tree_children(node)
+        label = _tree_label(node)
+        if kids !== nothing && !isempty(kids)
+            _push_chevron!(elems, x + chev_w ÷ 2, yref[] + row_h ÷ 2, _sc(4), :down, th.muted_foreground)
+        end
+        lw, _ = _text_size(p.measure, p.font, label)
+        push!(elems, GraphicsText(label, x + chev_w, yref[] + _sc(4), p.font, fr, fg, fb, fa))
+        maxw[] = max(maxw[], x + chev_w + lw)
+        yref[] += row_h
+        if kids !== nothing
+            for c in kids
+                walk(c, depth + 1)
+            end
+        end
+    end
+    for n in w.roots
+        walk(n, 0)
+    end
+    SimpleIoMap(p, w, _make_canvas(Int(pos.x[]), Int(pos.y[]), maxw[], yref[], elems))
+end
+@_printer_only WidgetTreeToGraphicsCanvas
+
 # ── Factory ────────────────────────────────────────────────────────────────
 
 """
@@ -2118,6 +2401,13 @@ function WidgetToGraphics(font::StyleFont; measure::Function,
         WidgetAvatar     => WidgetAvatarToGraphicsCanvas(font, measure, theme),
         WidgetAlert      => WidgetAlertToGraphicsCanvas(font, measure, theme),
         WidgetSkeleton   => WidgetSkeletonToGraphicsCanvas(theme),
+        WidgetToggle      => WidgetToggleToGraphicsCanvas(font, measure, theme),
+        WidgetToggleGroup => WidgetToggleGroupToGraphicsCanvas(font, measure, theme),
+        WidgetSelect      => WidgetSelectToGraphicsCanvas(font, measure, theme),
+        WidgetTextarea    => WidgetTextareaToGraphicsCanvas(font, measure, theme),
+        WidgetAccordion   => WidgetAccordionToGraphicsCanvas(font, measure, theme),
+        WidgetTable       => WidgetTableToGraphicsCanvas(font, measure, theme),
+        WidgetTree        => WidgetTreeToGraphicsCanvas(font, measure, theme),
     )
 end
 

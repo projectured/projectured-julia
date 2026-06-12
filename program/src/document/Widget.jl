@@ -25,6 +25,8 @@ export Inset, Point2D,
        WidgetScrollPane, WidgetToolbar, WidgetScrollBar,
        WidgetBadge, WidgetSeparator, WidgetCard, WidgetSwitch, WidgetProgress,
        WidgetSlider, WidgetRadioGroup, WidgetAvatar, WidgetAlert, WidgetSkeleton,
+       WidgetToggle, WidgetToggleGroup, WidgetSelect, WidgetTextarea, WidgetAccordion,
+       WidgetTable, WidgetTree,
        HideWidgetOperation, ShowWidgetOperation, ScrollWidgetOperation, SelectTabOperation,
        SetScrollBarValueOperation,
        evaluate_operation,
@@ -37,7 +39,9 @@ export Inset, Point2D,
        IWidgetShell, IWidgetTitlePane, IWidgetSplitPane, IWidgetTabbedPane,
        IWidgetScrollPane, IWidgetToolbar, IWidgetScrollBar,
        IWidgetBadge, IWidgetSeparator, IWidgetCard, IWidgetSwitch, IWidgetProgress,
-       IWidgetSlider, IWidgetRadioGroup, IWidgetAvatar, IWidgetAlert, IWidgetSkeleton
+       IWidgetSlider, IWidgetRadioGroup, IWidgetAvatar, IWidgetAlert, IWidgetSkeleton,
+       IWidgetToggle, IWidgetToggleGroup, IWidgetSelect, IWidgetTextarea, IWidgetAccordion,
+       IWidgetTable, IWidgetTree
 
 # ── WidgetDocument (abstract base) ─────────────────────────────────────────────────
 
@@ -735,7 +739,7 @@ function Base.show(io::IO, w::WidgetScrollBar)
 end
 
 # ════════════════════════════════════════════════════════════════════════════
-# shadcn/ui extension widgets (printer-only for now; readers are no-ops)
+# Extension widgets (printer-only for now; readers are no-ops)
 #
 # These carry only the fields they need plus `visible` and `selection` — colors,
 # radius and spacing all come from the WidgetTheme at render time, so they don't
@@ -935,6 +939,147 @@ end
 WidgetSkeleton(position::Point2D; width::Integer=240, height::Integer=20, visible::Bool=true) =
     WidgetSkeleton(Cell(position), Cell(Int(width)), Cell(Int(height)), Cell(visible), Cell(nothing))
 Base.show(io::IO, w::WidgetSkeleton) = print(io, "WidgetSkeleton(", w.width, "×", w.height, ")")
+
+# ── WidgetToggle ────────────────────────────────────────────────────────────
+
+"""
+    WidgetToggle(position, content; pressed=false)
+
+A two-state toggle button (pressed = accent surface).
+"""
+@document struct WidgetToggle <: WidgetDocument
+    position::Point2D
+    content::Any
+    pressed::Bool
+    visible::Bool
+    selection::Reference
+end
+WidgetToggle(position::Point2D, content; pressed::Bool=false, visible::Bool=true) =
+    WidgetToggle(Cell(position), Cell(content), Cell(pressed), Cell(visible), Cell(nothing))
+Base.show(io::IO, w::WidgetToggle) = print(io, "WidgetToggle(", w.content, ", ", w.pressed, ")")
+
+# ── WidgetToggleGroup ───────────────────────────────────────────────────────
+
+"""
+    WidgetToggleGroup(position, options; selected=1)
+
+A segmented control: a row of options with one selected segment.
+"""
+@document struct WidgetToggleGroup <: WidgetDocument
+    position::Point2D
+    options::CellVector
+    selected::Int
+    visible::Bool
+    selection::Reference
+end
+WidgetToggleGroup(position::Point2D, options::Vector; selected::Integer=1, visible::Bool=true) =
+    WidgetToggleGroup(Cell(position), CellVector(Cell[Cell(o) for o in options]),
+                      Cell(Int(selected)), Cell(visible), Cell(nothing))
+Base.show(io::IO, w::WidgetToggleGroup) = print(io, "WidgetToggleGroup(", length(w.options), ")")
+
+# ── WidgetSelect ────────────────────────────────────────────────────────────
+
+"""
+    WidgetSelect(position, value; width=220)
+
+A closed select / combobox: an input-like box showing `value` with a trailing
+chevron (the dropdown itself is a reader concern, out of scope here).
+"""
+@document struct WidgetSelect <: WidgetDocument
+    position::Point2D
+    value::Any
+    width::Int
+    visible::Bool
+    selection::Reference
+end
+WidgetSelect(position::Point2D, value; width::Integer=220, visible::Bool=true) =
+    WidgetSelect(Cell(position), Cell(value), Cell(Int(width)), Cell(visible), Cell(nothing))
+Base.show(io::IO, w::WidgetSelect) = print(io, "WidgetSelect(", w.value, ")")
+
+# ── WidgetTextarea ──────────────────────────────────────────────────────────
+
+"""
+    WidgetTextarea(position, content; width=320, rows=4)
+
+A multi-line text surface. `content` is a string (newlines split into rows).
+"""
+@document struct WidgetTextarea <: WidgetDocument
+    position::Point2D
+    content::Any
+    width::Int
+    rows::Int
+    visible::Bool
+    selection::Reference
+end
+WidgetTextarea(position::Point2D, content; width::Integer=320, rows::Integer=4, visible::Bool=true) =
+    WidgetTextarea(Cell(position), Cell(content), Cell(Int(width)), Cell(Int(rows)),
+                   Cell(visible), Cell(nothing))
+Base.show(io::IO, w::WidgetTextarea) = print(io, "WidgetTextarea(rows=", w.rows, ")")
+
+# ── WidgetAccordion ─────────────────────────────────────────────────────────
+
+"""
+    WidgetAccordion(position, items; expanded=1, width=360)
+
+A vertical accordion. `items` is a `Vector` of `(title, body)` tuples;
+`expanded` is the 1-based index of the open item (0 = all collapsed).
+"""
+@document struct WidgetAccordion <: WidgetDocument
+    position::Point2D
+    items::CellVector
+    expanded::Int
+    width::Int
+    visible::Bool
+    selection::Reference
+end
+WidgetAccordion(position::Point2D, items::Vector; expanded::Integer=1, width::Integer=360, visible::Bool=true) =
+    WidgetAccordion(Cell(position), CellVector(Cell[Cell(it) for it in items]),
+                    Cell(Int(expanded)), Cell(Int(width)), Cell(visible), Cell(nothing))
+Base.show(io::IO, w::WidgetAccordion) = print(io, "WidgetAccordion(", length(w.items), ")")
+
+# ── WidgetTable ─────────────────────────────────────────────────────────────
+
+"""
+    WidgetTable(position, headers, rows)
+
+A data table: a header row over body rows separated by hairline
+rules. `headers` is a `Vector` of column titles; `rows` is a `Vector` of rows,
+each a `Vector` of cell values. (Compare `TableTable`, the spreadsheet domain —
+this is the widget-styled presentation variant.)
+"""
+@document struct WidgetTable <: WidgetDocument
+    position::Point2D
+    headers::CellVector
+    rows::CellVector
+    visible::Bool
+    selection::Reference
+end
+WidgetTable(position::Point2D, headers::Vector, rows::Vector; visible::Bool=true) =
+    WidgetTable(Cell(position),
+                CellVector(Cell[Cell(h) for h in headers]),
+                CellVector(Cell[Cell(r) for r in rows]),
+                Cell(visible), Cell(nothing))
+Base.show(io::IO, w::WidgetTable) = print(io, "WidgetTable(", length(w.headers), "×", length(w.rows), ")")
+
+# ── WidgetTree ──────────────────────────────────────────────────────────────
+
+"""
+    WidgetTree(position, roots)
+
+A tree / outline view. `roots` is a `Vector` of nodes, where each node is either
+a leaf label (`String`) or a `(label, children::Vector)` tuple. Parent nodes get
+an expand chevron; children are indented. (A widget-styled counterpart to the
+file-system / navigator trees.)
+"""
+@document struct WidgetTree <: WidgetDocument
+    position::Point2D
+    roots::CellVector
+    visible::Bool
+    selection::Reference
+end
+WidgetTree(position::Point2D, roots::Vector; visible::Bool=true) =
+    WidgetTree(Cell(position), CellVector(Cell[Cell(n) for n in roots]), Cell(visible), Cell(nothing))
+Base.show(io::IO, w::WidgetTree) = print(io, "WidgetTree(", length(w.roots), ")")
 
 # ── Operations ─────────────────────────────────────────────────────────────
 

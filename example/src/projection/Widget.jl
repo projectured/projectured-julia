@@ -1,6 +1,6 @@
 
 # The standard widget projection: recursively dispatches every widget node
-# through WidgetToGraphics. The shadcn light theme drives all colors, radius and
+# through WidgetToGraphics. The light theme drives all colors, radius and
 # spacing — see WidgetTheme. Use this for every per-widget example whose content
 # is a plain string (label, checkbox, button, menu, composite, panes, …).
 function make_widget_projection_example(; measure=sdl_measure_text)

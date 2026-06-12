@@ -1,26 +1,18 @@
 function make_widget_document_example(; width=1024, height=768, line_height=56)
-    # ── Form tab ──────────────────────────────────────────────────────────────
-    field_color  = StyleColor(50/255,  50/255,  80/255,  1.0)
+    # All colors come from the widget theme — this gallery only positions widgets.
     field_border = Inset(1, 1, 1, 1)
-    field_border_color = StyleColor(100/255, 120/255, 200/255, 1.0)
 
+    # ── Form tab ──────────────────────────────────────────────────────────────
     name_label  = WidgetLabel(Point2D(0,           0),           "Username:")
-    name_field  = WidgetText( Point2D(280,          0),           "alice";
-                              content_fill_color=field_color,
-                              border=field_border, border_color=field_border_color)
+    name_field  = WidgetText( Point2D(280,          0),           "alice"; border=field_border)
 
     email_label = WidgetLabel(Point2D(0,           line_height), "Email:")
-    email_field = WidgetText( Point2D(280,          line_height), "alice@example.com";
-                              content_fill_color=field_color,
-                              border=field_border, border_color=field_border_color)
+    email_field = WidgetText( Point2D(280,          line_height), "alice@example.com"; border=field_border)
 
     notify_check = WidgetCheckbox(Point2D(0,   2 * line_height), true)
     notify_label = WidgetLabel(  Point2D(100,  2 * line_height), "Enable notifications")
 
-    save_btn = WidgetButton(Point2D(0, 3 * line_height), Point2D(180, line_height), "Save";
-                            border=Inset(1, 1, 1, 1),
-                            border_color=StyleColor(80/255, 160/255, 80/255, 1.0),
-                            padding=Inset(4, 4, 8, 8))
+    save_btn = WidgetButton(Point2D(0, 3 * line_height), Point2D(180, line_height), "Save")
 
     form_composite = WidgetComposite(Point2D(16, 16), Any[
         name_label,  name_field,
@@ -30,8 +22,7 @@ function make_widget_document_example(; width=1024, height=768, line_height=56)
     ])
 
     form_scroll = WidgetScrollPane(form_composite;
-                                   size=Point2D(width - 2, height - 80),
-                                   content_fill_color=StyleColor(28/255, 28/255, 40/255, 1.0))
+                                   size=Point2D(width - 2, height - 80))
 
     # ── List tab ──────────────────────────────────────────────────────────────
     item_labels = [WidgetLabel(Point2D(4, (i - 1) * line_height), "Item $i")
@@ -41,31 +32,21 @@ function make_widget_document_example(; width=1024, height=768, line_height=56)
 
     list_scroll = WidgetScrollPane(list_composite;
                                    size=Point2D(width - 2, height - 80),
-                                   content_fill_color=StyleColor(28/255, 28/255, 40/255, 1.0),
-                                   border=Inset(1, 1, 1, 1),
-                                   border_color=StyleColor(80/255, 80/255, 120/255, 1.0))
+                                   border=Inset(1, 1, 1, 1))
 
     # ── Layout tab ────────────────────────────────────────────────────────────
-    panel_fill  = StyleColor(22/255, 30/255, 50/255, 1.0)
-    title_fill  = StyleColor(50/255, 80/255, 140/255, 1.0)
     left_labels = [WidgetLabel(Point2D(4, (i - 1) * line_height), "Left item $i")
                    for i in 1:8]
     right_labels = [WidgetLabel(Point2D(4, (i - 1) * line_height), "Right item $i")
                     for i in 1:8]
 
     left_scroll  = WidgetScrollPane(WidgetComposite(Point2D(0, 0), Any[left_labels...]);
-                                    size=Point2D(div(width, 2) - 4, height - 120),
-                                    content_fill_color=panel_fill)
+                                    size=Point2D(div(width, 2) - 4, height - 120))
     right_scroll = WidgetScrollPane(WidgetComposite(Point2D(0, 0), Any[right_labels...]);
-                                    size=Point2D(div(width, 2) - 4, height - 120),
-                                    content_fill_color=panel_fill)
+                                    size=Point2D(div(width, 2) - 4, height - 120))
 
-    left_pane  = WidgetTitlePane("Navigation", left_scroll;
-                                 title_fill_color=title_fill,
-                                 padding=Inset(4, 4, 4, 4))
-    right_pane = WidgetTitlePane("Details", right_scroll;
-                                 title_fill_color=title_fill,
-                                 padding=Inset(4, 4, 4, 4))
+    left_pane  = WidgetTitlePane("Navigation", left_scroll; padding=Inset(4, 4, 4, 4))
+    right_pane = WidgetTitlePane("Details", right_scroll; padding=Inset(4, 4, 4, 4))
 
     layout_split = WidgetSplitPane(:horizontal, Any[left_pane, right_pane];
                                    sizes=[div(width, 2), div(width, 2)])
@@ -82,8 +63,7 @@ function make_widget_document_example(; width=1024, height=768, line_height=56)
 
     controls_composite = WidgetComposite(Point2D(0, 0), Any[h_bar, v_bar])
     controls_scroll = WidgetScrollPane(controls_composite;
-                                       size=Point2D(width - 2, height - 80),
-                                       content_fill_color=StyleColor(28/255, 28/255, 40/255, 1.0))
+                                       size=Point2D(width - 2, height - 80))
 
     # ── Tabbed content ────────────────────────────────────────────────────────
     tabs = WidgetTabbedPane([
@@ -101,8 +81,7 @@ function make_widget_document_example(; width=1024, height=768, line_height=56)
         WidgetMenuItem("|"),
         WidgetMenuItem("Undo"),
         WidgetMenuItem("Redo"),
-    ]; padding=Inset(4, 4, 4, 4),
-       padding_color=StyleColor(40/255, 40/255, 56/255, 1.0))
+    ]; padding=Inset(4, 4, 4, 4))
 
     # ── Menu bar ──────────────────────────────────────────────────────────────
     menu_bar = WidgetMenu([
@@ -121,7 +100,6 @@ function make_widget_document_example(; width=1024, height=768, line_height=56)
                 menu_bar=menu_bar,
                 toolbar=toolbar,
                 tooltip=tip,
-                content_fill_color=StyleColor(28/255, 28/255, 38/255, 1.0),
                 size=Point2D(width, height))
 end
 
@@ -255,12 +233,10 @@ function make_widget_tabbed_pane_document_example(; width=600, height=400)
         ("Gamma", tab_gamma),
     ])
 
-    WidgetShell(tabs;
-                content_fill_color=StyleColor(28/255, 28/255, 38/255, 1.0),
-                size=Point2D(width, height))
+    WidgetShell(tabs; size=Point2D(width, height))
 end
 
-# ── shadcn/ui extension widgets ──────────────────────────────────────────────
+# ── Extension widgets ──────────────────────────────────────────────
 # Each shows one new widget (some with several states) so its behavior can be
 # tested in isolation with make_widget_projection_example.
 
@@ -328,4 +304,50 @@ make_widget_skeleton_document_example() =
         WidgetSkeleton(Point2D(0,  0); width=260, height=20),
         WidgetSkeleton(Point2D(0, 36); width=200, height=20),
         WidgetSkeleton(Point2D(0, 72); width=230, height=20),
+    ])
+
+# WidgetToggle — a pressed and an unpressed toggle.
+make_widget_toggle_document_example() =
+    WidgetComposite(Point2D(40, 40), Any[
+        WidgetToggle(Point2D(0,  0), "Bold";   pressed=true),
+        WidgetToggle(Point2D(0, 52), "Italic"; pressed=false),
+    ])
+
+# WidgetToggleGroup — a three-segment control with the middle selected.
+make_widget_toggle_group_document_example() =
+    WidgetToggleGroup(Point2D(40, 40), ["Left", "Center", "Right"]; selected=2)
+
+# WidgetSelect — a closed select showing a value + chevron.
+make_widget_select_document_example() =
+    WidgetSelect(Point2D(40, 40), "Apple"; width=220)
+
+# WidgetTextarea — a multi-line text surface.
+make_widget_textarea_document_example() =
+    WidgetTextarea(Point2D(40, 40),
+                   "Type your message here.\nIt can span several lines."; width=340, rows=4)
+
+# WidgetAccordion — two items, the first expanded.
+make_widget_accordion_document_example() =
+    WidgetAccordion(Point2D(40, 40), [
+        ("Is it accessible?", "Yes. It adheres to the WAI-ARIA design pattern."),
+        ("Is it styled?",     "Yes. It comes with default styles that match the theme."),
+    ]; expanded=1)
+
+# WidgetTable — a data table.
+make_widget_table_document_example() =
+    WidgetTable(Point2D(40, 40),
+                ["Invoice", "Status", "Method", "Amount"],
+                [["INV001", "Paid",    "Credit Card", "\$250.00"],
+                 ["INV002", "Pending", "PayPal",      "\$150.00"],
+                 ["INV003", "Unpaid",  "Bank Transfer", "\$350.00"]])
+
+# WidgetTree — a nested outline with expand chevrons.
+make_widget_tree_document_example() =
+    WidgetTree(Point2D(40, 40), Any[
+        ("src", Any[
+            ("components", Any["button.jl", "card.jl", "table.jl"]),
+            "app.jl",
+        ]),
+        ("test", Any["runtests.jl"]),
+        "README.md",
     ])

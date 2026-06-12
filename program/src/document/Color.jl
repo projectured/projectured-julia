@@ -147,8 +147,8 @@ const color_pastel_silver      = _color(189, 195, 199)
 const color_pastel_concrete    = _color(149, 165, 166)
 const color_pastel_asbestos    = _color(127, 140, 141)
 
-# ── shadcn / Tailwind zinc ramp ─────────────────────────────────────────────────
-# Neutral palette used by the widget theme (see WidgetTheme). Plus the shadcn
+# ── Zinc neutral ramp (Tailwind) ─────────────────────────────────────────────────
+# Neutral palette used by the widget theme (see WidgetTheme). Plus the
 # accent reds used for the "destructive" token.
 
 const color_zinc_50  = _color(250, 250, 250)
