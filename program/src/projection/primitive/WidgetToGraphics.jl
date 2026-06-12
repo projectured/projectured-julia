@@ -34,6 +34,7 @@ import ..FontModule: StyleFont
 import ..IoMapModule: SimpleIoMap, ChildrenIoMap
 import ..IoMapApiModule: IoMap
 import ..MouseModule: MouseScroll, MousePress
+import ..EventCaseModule: var"@event_case"
 import ..OperationApiModule: Operation
 import ..OperationModule: ReplaceSelectionOperation
 import ..PrimitiveModule: StringReplaceRangeOperation, NumberReplaceRangeOperation
@@ -657,15 +658,13 @@ end
 
 function projection_read(p::WidgetShellToGraphicsCanvas, iomap::ChildrenIoMap, evt)
     child_iomaps = iomap.child_iomaps[]::Vector
-    op = if evt isa MouseScroll
-        _route_scroll_to_children(child_iomaps, evt)
-    elseif evt isa MousePress
-        _route_click_to_children(child_iomaps, evt)
-    else
+    op = @event_case evt begin
+        MouseScroll => _route_scroll_to_children(child_iomaps, evt)
+        MousePress  => _route_click_to_children(child_iomaps, evt)
         # Forward keyboard (and other coordless) events to the wrapped
         # child. The reader at the focused leaf returns an op; others
         # return nothing.
-        _forward_to_children(child_iomaps, evt)
+        _           => _forward_to_children(child_iomaps, evt)
     end
     _retarget_op(p, iomap, op)
 end
@@ -966,23 +965,23 @@ end
 
 function projection_read(p::WidgetSplitPaneToGraphicsCanvas, iomap::ChildrenIoMap, evt)
     child_iomaps = iomap.child_iomaps[]::Vector
-    res = if evt isa MouseScroll
-        _route_split_event(child_iomaps, evt.x, evt.y,
+    res = @event_case evt begin
+        MouseScroll => _route_split_event(child_iomaps, evt.x, evt.y,
             (x, y) -> MouseScroll(evt.dx, evt.dy, x, y))
-    elseif evt isa MousePress
-        _route_split_event(child_iomaps, evt.x, evt.y,
+        MousePress => _route_split_event(child_iomaps, evt.x, evt.y,
             (x, y) -> MousePress(evt.button, x, y, evt.modifiers))
-    else
-        # Forward keyboard (and other coordless) events to the child the
-        # forward-projected selection points at, so the keystroke reaches the
-        # focused descendant rather than whichever slot happens to answer
-        # first. When the split carries no selection (e.g. a split built
-        # outside the workbench, where nothing forward-projects onto it),
-        # fall back to trying each slot in order.
-        slot = iomap.input isa WidgetSplitPane ?
-               _selected_split_slot(iomap.input, length(child_iomaps)) : 0
-        slot == 0 ? _forward_split_event(child_iomaps, evt) :
-                    _forward_split_event_slot(child_iomaps, evt, slot)
+        _ => begin
+            # Forward keyboard (and other coordless) events to the child the
+            # forward-projected selection points at, so the keystroke reaches the
+            # focused descendant rather than whichever slot happens to answer
+            # first. When the split carries no selection (e.g. a split built
+            # outside the workbench, where nothing forward-projects onto it),
+            # fall back to trying each slot in order.
+            slot = iomap.input isa WidgetSplitPane ?
+                   _selected_split_slot(iomap.input, length(child_iomaps)) : 0
+            slot == 0 ? _forward_split_event(child_iomaps, evt) :
+                        _forward_split_event_slot(child_iomaps, evt, slot)
+        end
     end
     res === nothing && return nothing
     op, slot_idx = res
@@ -1212,16 +1211,18 @@ function _route_active_tab(iomap::ChildrenIoMap, child_iomaps::Vector, evt)
     # Mouse events: translate coords into the tab's local frame and
     # hit-test before forwarding. Coordless events (KeyDown, KeyPress, …)
     # are forwarded as-is to the active tab's reader.
-    child_evt = if evt isa MousePress
-        lx, ly = evt.x - ox - Int(canvas.x), evt.y - oy - Int(canvas.y)
-        hit_element_at(canvas, lx, ly) === nothing && return nothing
-        MousePress(evt.button, lx, ly, evt.modifiers)
-    elseif evt isa MouseScroll
-        lx, ly = evt.x - ox - Int(canvas.x), evt.y - oy - Int(canvas.y)
-        hit_element_at(canvas, lx, ly) === nothing && return nothing
-        MouseScroll(evt.dx, evt.dy, lx, ly)
-    else
-        evt
+    child_evt = @event_case evt begin
+        MousePress(button, x, y) => begin
+            lx, ly = x - ox - Int(canvas.x), y - oy - Int(canvas.y)
+            hit_element_at(canvas, lx, ly) === nothing && return nothing
+            MousePress(button, lx, ly, evt.modifiers)
+        end
+        MouseScroll(dx, dy, x, y) => begin
+            lx, ly = x - ox - Int(canvas.x), y - oy - Int(canvas.y)
+            hit_element_at(canvas, lx, ly) === nothing && return nothing
+            MouseScroll(dx, dy, lx, ly)
+        end
+        _ => evt
     end
     op = projection_read(cim.projection, cim, child_evt)
     op === nothing && return nothing
@@ -1341,14 +1342,14 @@ end
 
 function projection_read(p::WidgetScrollPaneToGraphicsCanvas, iomap::WidgetScrollPaneToGraphicsCanvasIoMap, evt)
     canvas = iomap.output
-    if evt isa MouseScroll
-        # evt coords are already relative to canvas origin (parent routing subtracted position)
-        hit_element_at(canvas, evt.x, evt.y) === nothing && return nothing
-        _, scroll_step = p.measure("M", p.font)
-        if evt.dx != 0 && evt.dy == 0
-            return ScrollWidgetOperation(iomap.input, Point2D(-evt.dx * scroll_step, 0))
-        else
-            return ScrollWidgetOperation(iomap.input, Point2D(0, -evt.dy * scroll_step))
+    @event_case evt begin
+        MouseScroll(dx, dy, x, y) => begin
+            # evt coords are already relative to canvas origin (parent routing subtracted position)
+            hit_element_at(canvas, x, y) === nothing && return nothing
+            _, scroll_step = p.measure("M", p.font)
+            return dx != 0 && dy == 0 ?
+                ScrollWidgetOperation(iomap.input, Point2D(-dx * scroll_step, 0)) :
+                ScrollWidgetOperation(iomap.input, Point2D(0, -dy * scroll_step))
         end
     end
     # Forward other events (MousePress, KeyDown, KeyPress) to the wrapped
@@ -1362,16 +1363,17 @@ function projection_read(p::WidgetScrollPaneToGraphicsCanvas, iomap::WidgetScrol
     # scroll pane's input domain.
     content_iomap = iomap.content_iomap
     content_iomap === nothing && return nothing
-    op = if evt isa MousePress
-        w = iomap.input
-        cox, coy = _content_offset(w)
-        sp = getfield(w, :scroll_position)[]::Point2D
-        sx, sy = Int(sp.x[]), Int(sp.y[])
-        lx, ly = evt.x - cox + sx, evt.y - coy + sy
-        projection_read(content_iomap.projection, content_iomap,
-                         MousePress(evt.button, lx, ly, evt.modifiers))
-    else
-        projection_read(content_iomap.projection, content_iomap, evt)
+    op = @event_case evt begin
+        MousePress(button, x, y) => begin
+            w = iomap.input
+            cox, coy = _content_offset(w)
+            sp = getfield(w, :scroll_position)[]::Point2D
+            sx, sy = Int(sp.x[]), Int(sp.y[])
+            lx, ly = x - cox + sx, y - coy + sy
+            projection_read(content_iomap.projection, content_iomap,
+                             MousePress(button, lx, ly, evt.modifiers))
+        end
+        _ => projection_read(content_iomap.projection, content_iomap, evt)
     end
     _retarget_op(p, iomap, op)
 end
