@@ -309,7 +309,7 @@ function db_insert!(adapter::OdbcDatabaseAdapter,
     col_list = join(["\"$(c)\"" for c in cols], ", ")
     sql = "INSERT INTO \"$(table)\" ($(col_list)) VALUES ($(placeholders))"
     cursor = DBInterface.execute(adapter._conn, sql, vals)
-    DBInterface.rowcount(cursor)
+    cursor.rows
 end
 
 function db_update!(adapter::OdbcDatabaseAdapter,
@@ -319,14 +319,14 @@ function db_update!(adapter::OdbcDatabaseAdapter,
     set_clause = join(["\"$(c)\" = ?" for c in cols], ", ")
     sql = "UPDATE \"$(table)\" SET $(set_clause) WHERE $(where)"
     cursor = DBInterface.execute(adapter._conn, sql, vals)
-    DBInterface.rowcount(cursor)
+    cursor.rows
 end
 
 function db_delete!(adapter::OdbcDatabaseAdapter,
                     table::String, where::String)::Int
     sql = "DELETE FROM \"$(table)\" WHERE $(where)"
     cursor = DBInterface.execute(adapter._conn, sql)
-    DBInterface.rowcount(cursor)
+    cursor.rows
 end
 
 # ── OdbcDatabaseAdapter — catalog queries ────────────────────────────────────
@@ -360,9 +360,8 @@ function db_catalog_tables(adapter::OdbcDatabaseAdapter, schema::String)::Vector
     end
     cursor = DBInterface.execute(adapter._conn,
         "SELECT table_name FROM information_schema.tables " *
-        "WHERE table_schema = ? AND table_type = 'BASE TABLE' " *
-        "ORDER BY table_name",
-        [schema])
+        "WHERE table_schema = '$(schema)' AND table_type = 'BASE TABLE' " *
+        "ORDER BY table_name")
     _, rows = _materialize(cursor)
     String[String(row[1]) for row in rows]
 end
@@ -374,8 +373,7 @@ function db_catalog_columns(adapter::OdbcDatabaseAdapter,
     end
     cursor = DBInterface.execute(adapter._conn,
         "SELECT column_name, data_type FROM information_schema.columns " *
-        "WHERE table_schema = ? AND table_name = ? ORDER BY ordinal_position",
-        [schema, table])
+        "WHERE table_schema = '$(schema)' AND table_name = '$(table)' ORDER BY ordinal_position")
     _, rows = _materialize(cursor)
     [(name=String(row[1]), data_type=String(row[2])) for row in rows]
 end

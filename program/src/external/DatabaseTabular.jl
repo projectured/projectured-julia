@@ -36,12 +36,12 @@ function db_query(adapter::OdbcDatabaseAdapter, table::String,
     col_count = length(col_names)
     nrows = col_count == 0 ? 0 : length(ct[1])
     header = Cell(TabularRow(CellVector(
-        Cell[Cell(TabularCell(Cell(name))) for name in col_names])))
+        Cell[Cell(TabularCell(name)) for name in col_names])))
     data_rows = Cell[]
     for r in 1:nrows
         vals = Any[ct[j][r] for j in 1:col_count]
         push!(data_rows, Cell(TabularRow(CellVector(
-            Cell[Cell(TabularCell(Cell(v))) for v in vals]))))
+            Cell[Cell(TabularCell(v)) for v in vals]))))
     end
     TabularGrid(CellVector(vcat([header], data_rows)), col_count)
 end
