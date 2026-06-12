@@ -54,17 +54,32 @@ Implemented and unit-tested:
   `case_insensitive` / `invert` cell live. Regression: readers / repls /
   selections sweeps all clean.
 
-Deferred: **editable pattern (text) control.** Boolean controls work because a
-click is a stateless identity op (`ReplaceReferencedValue`). A *text* control
-needs a persistent caret, but the control bar has no input-document backing for
-that cursor state (it is pure projection output), and key events route by the
-input-document selection — which the control bar lacks. Making the pattern field
-editable therefore needs either a local focus model for the control bar (a
-"focused control" + an `Edit…`-against-a-carried-root operation) or promoting the
-parameters to first-class documents in the input tree. Until then, set the
-pattern programmatically (`TextHighlighting("dolor")`) and toggle flags by click.
-v1 reference mapping through the configuring split pane is `nothing` (no cursor
-mapping through the control bar).
+- **Editable pattern (text) control — done.** `ObjectToWidget` renders a String
+  field as an editable `WidgetText` whose `TextText` content is a reactive,
+  read-only view of the parameter cell, with the caret pinned to the end. A
+  Text-domain edit bubbles up; the reader **converts it to the input domain** —
+  `ReplaceReferencedValue(object, field, new_value)`, computing the value by
+  applying the character-range edit to the field's current string (no special
+  wrapper operation). Keys reach the field via the existing fallback routing, so
+  typing appends and backspace deletes, live. PCP strips its control split-slot
+  and forwards control text edits to the control reader; control clicks
+  (`ReplaceSelectionOperation`) are consumed. Verified end-to-end:
+  `run_example(text_example; text_highlighting=true)` — type/backspace edits the
+  pattern and re-highlights live; the `case_insensitive` checkbox toggles.
+- **Control text color** fixed to dark (`0x22…`) for the light example background.
+
+Limitation: without a focus model, typing always edits the *first* editable text
+field (fine for the search box and the `object_to_widget` example, which each
+have one). Mid-string caret positioning by click is not yet supported (caret is
+pinned to end). v1 reference mapping through the configuring split pane is
+`nothing` (no cursor mapping through the control bar).
+
+## ObjectToWidget example
+
+`run_example(object_to_widget_example)` — a `SearchSettings` document (one
+`String` + two `Bool` fields) projected through `ObjectToWidget` into an editable
+form: type to edit the query, click to toggle the checkboxes. Edits write back to
+the object's field cells via `ReplaceReferencedValue`.
 
 ## Stage 1 scope
 

@@ -18,6 +18,7 @@ const syntax_example         = Example("syntax",         make_syntax_document_ex
 const text_example           = Example("text",           make_text_document_example,           make_text_projection_example)
 const text_with_image_example = Example("text_with_image", make_text_with_image_example,       make_text_projection_example)
 const object_example         = Example("object",         make_object_document_example,         make_object_projection_example)
+const object_to_widget_example = Example("object_to_widget", make_object_to_widget_document_example, make_object_to_widget_projection_example)
 const line_numbering_example = Example("line_numbering", make_line_numbering_document_example, make_line_numbering_projection_example)
 const word_wrapping_example  = Example("word_wrapping",  make_word_wrapping_document_example,  make_word_wrapping_projection_example)
 const text_filtering_example = Example("text_filtering", make_text_filtering_document_example, make_text_filtering_projection_example)
@@ -65,7 +66,7 @@ const sql_table_example      = Example("sql_table",      make_sql_document_examp
 const examples = [
     json_example, json_sorted_example, json_null_example, json_string_example,
     xml_example, mixed_example, syntax_example, text_example, text_with_image_example,
-    object_example, line_numbering_example, word_wrapping_example, text_filtering_example, text_highlighting_example,
+    object_example, object_to_widget_example, line_numbering_example, word_wrapping_example, text_filtering_example, text_highlighting_example,
     widget_example,
     widget_label_example, widget_text_example, widget_checkbox_example, widget_button_example,
     widget_tooltip_example, widget_menu_item_example, widget_menu_example, widget_toolbar_example,
