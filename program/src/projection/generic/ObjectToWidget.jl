@@ -38,7 +38,7 @@ import ..FontModule: StyleFont, font_ubuntu_monospace_regular_24
 import ..ColorModule: StyleColor, color_default
 import ..ReferenceModule: ReferencePath, ConcreteReferencePath, EmptyReferencePath,
                           FieldReference, RangeReference
-import ..OperationModule: ReplaceReferencedValue
+import ..OperationModule: ReplaceReferencedValue, ReplaceSelectionOperation
 import ..PrimitiveModule: StringReplaceRangeOperation
 
 export ObjectToWidget, ObjectToWidgetIoMap
@@ -183,6 +183,12 @@ function projection_read(p::ObjectToWidget, iomap::ObjectToWidgetIoMap, op::Stri
     ReplaceReferencedValue(iomap.input,
         ConcreteReferencePath(FieldReference(nm), EmptyReferencePath()), newval)
 end
+
+# A click on a control arrives as a ReplaceSelectionOperation rooted at the
+# widget output. The control caret is a derived view (pinned to the text end),
+# so there is no object-domain selection to set; consume it rather than letting
+# it reach the object (which has no widget-shaped reference path).
+projection_read(::ObjectToWidget, ::ObjectToWidgetIoMap, ::ReplaceSelectionOperation) = nothing
 
 projection_read(::ObjectToWidget, ::ObjectToWidgetIoMap, op) = op
 
