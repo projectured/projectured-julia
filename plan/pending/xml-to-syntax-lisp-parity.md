@@ -1,14 +1,18 @@
 # Bringing `XmlToSyntax` up to the Lisp reference's capabilities
 
-> **Status (2026-06-11): Phases 1–4 complete; Phase 5 blocked; Phase 6 resolved.**
+> **Status (updated): Phases 1–4 complete; Phase 5 outstanding (now unblocked);
+> Phase 6 resolved.**
 > The XML authoring reader command set (insertion replace, element structural
 > insert, attribute insert + `=` navigation, generic insertion) is implemented
 > in [`XmlToSyntax.jl`](../../program/src/projection/primitive/XmlToSyntax.jl)
 > and covered by [`XmlToSyntaxTest.jl`](../../test/src/projection/XmlToSyntaxTest.jl)
 > (7 printer + 32 reader assertions, all green; full `test_printers/readers/selections`
-> sweeps green). **Phase 5 (placeholders) remains outstanding** — it depends on
-> the JSON plan §4 placeholder mechanism, which is not yet landed. See the
-> per-section `✅ / ⏸ / ⏭` markers below.
+> sweeps green). **Phase 5 (placeholders) is the only remaining work.** It is no
+> longer blocked: the JSON plan §4 placeholder mechanism **has landed** as the
+> `_hinted_text` helper in
+> [`JsonToSyntax.jl`](../../program/src/projection/primitive/JsonToSyntax.jl)
+> (used for "enter json number/string/key"). Phase 5 is now just wiring the four
+> XML strings below through the same helper. See the per-section markers below.
 
 ## Origin
 
@@ -236,13 +240,16 @@ decision in the code comment either way.
 
 ---
 
-## 4. Placeholder / default text (shared mechanism — see JSON plan §4) — ⏸ blocked
+## 4. Placeholder / default text (shared mechanism — see JSON plan §4) — ⏳ remaining (unblocked)
 
-> **Not done.** This reuses the JSON plan §4 placeholder mechanism, which has
-> **not** landed: `JsonInsertion` still hardcodes `"insert JSON here"` and
-> `TextString` has no `placeholder` field. Per §9 the mechanism's implementation
-> is out of scope here. Once it lands, wire the four XML strings below (the XML
-> insertion still hardcodes `"insert XML here"` as content meanwhile).
+> **Not done, but no longer blocked.** The shared placeholder mechanism has
+> landed as `_hinted_text` in
+> [`JsonToSyntax.jl`](../../program/src/projection/primitive/JsonToSyntax.jl)
+> (a computed-content `TextString` that shows a muted hint iff the live content is
+> empty). XML still hardcodes `"insert XML here"` and renders empty
+> tags/text/attrs blank. Remaining work: route the four XML leaves below through
+> the same hinted-text approach (lift `_hinted_text` to a shared spot or copy the
+> pattern), and add the deferred placeholder test (§7).
 
 
 The Lisp `text/make-default-text value placeholder …` shows a muted hint when
@@ -303,7 +310,7 @@ Cosmetic only; round-trips fine. **Defer / likely won't-do.**
 | 2 | Element structural insert: `<`, `"` children (§3.2) | Phase 1; `CollectionInsertOperation` | ✅ done |
 | 3 | Space → attribute insert (§3.2) + `=` name→value navigation (§3.3a) | Phase 2 | ✅ done |
 | 4 | Insert key → generic insertion child (§3.2) | Phase 2 | ✅ done |
-| 5 | Placeholders / default text (§4) | JSON plan §4 mechanism | ⏸ blocked (mechanism not landed) |
+| 5 | Placeholders / default text (§4) | `_hinted_text` (landed) | ⏳ remaining (unblocked) |
 | 6 | Fidelity nits (§5) as separate commits, each optional | none | ✅ resolved (§5.1/§5.2 done, §5.3 won't-do) |
 
 Phases 1–4 are the substance (the Lisp reader). Phase 5 is independent. Phase 6
