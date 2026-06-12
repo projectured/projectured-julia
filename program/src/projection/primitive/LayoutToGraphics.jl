@@ -29,6 +29,7 @@ import ..GraphicsModule: GraphicsCanvas, layout_none, hit_element_at
 import ..IoMapModule: SimpleIoMap, ChildrenIoMap, ContentIoMap
 import ..IoMapApiModule: IoMap
 import ..MouseModule: MouseScroll, MousePress
+import ..EventCaseModule: var"@event_case"
 import ..ReferenceModule: ConcreteReferencePath, FieldReference, RangeReference
 import ..TypeDispatchingModule: TypeDispatchingProjection
 import ..ReferenceBuilderModule: var"@reference"
@@ -91,6 +92,15 @@ _route_scroll(entries, evt::MouseScroll) =
 _route_click(entries, evt::MousePress) =
     _route_to_children(entries, evt.x, evt.y,
         (x, y) -> MousePress(evt.button, x, y, evt.modifiers))
+
+# Mouse routing shared by every *LayoutToGraphicsCanvas reader: clicks and
+# scrolls go to the laid-out children; all other events fall through to
+# `nothing`. The reader bodies differ only by projection type, so they all
+# delegate here.
+_route_layout_event(entries::Vector, evt) = @event_case evt begin
+    MousePress  => _route_click(entries, evt)
+    MouseScroll => _route_scroll(entries, evt)
+end
 
 """
 Recurse into a child document via the dispatcher.
@@ -355,10 +365,7 @@ function map_reference_backward(::HorizontalLayoutToGraphicsCanvas, iomap, refer
 end
 
 function projection_read(::HorizontalLayoutToGraphicsCanvas, iomap::ChildrenIoMap, evt)
-    entries = iomap.child_iomaps[]::Vector
-    evt isa MousePress  && return _route_click(entries, evt)
-    evt isa MouseScroll && return _route_scroll(entries, evt)
-    nothing
+    _route_layout_event(iomap.child_iomaps[]::Vector, evt)
 end
 
 # ── VerticalLayout ─────────────────────────────────────────────────────────
@@ -440,10 +447,7 @@ function map_reference_backward(::VerticalLayoutToGraphicsCanvas, iomap, referen
 end
 
 function projection_read(::VerticalLayoutToGraphicsCanvas, iomap::ChildrenIoMap, evt)
-    entries = iomap.child_iomaps[]::Vector
-    evt isa MousePress  && return _route_click(entries, evt)
-    evt isa MouseScroll && return _route_scroll(entries, evt)
-    nothing
+    _route_layout_event(iomap.child_iomaps[]::Vector, evt)
 end
 
 # ── GridLayout ─────────────────────────────────────────────────────────────
@@ -626,10 +630,7 @@ function map_reference_backward(::GridLayoutToGraphicsCanvas, iomap, reference)
 end
 
 function projection_read(::GridLayoutToGraphicsCanvas, iomap::ChildrenIoMap, evt)
-    entries = iomap.child_iomaps[]::Vector
-    evt isa MousePress  && return _route_click(entries, evt)
-    evt isa MouseScroll && return _route_scroll(entries, evt)
-    nothing
+    _route_layout_event(iomap.child_iomaps[]::Vector, evt)
 end
 
 # ── FlowLayout ─────────────────────────────────────────────────────────────
@@ -812,10 +813,7 @@ function map_reference_backward(::FlowLayoutToGraphicsCanvas, iomap, reference)
 end
 
 function projection_read(::FlowLayoutToGraphicsCanvas, iomap::ChildrenIoMap, evt)
-    entries = iomap.child_iomaps[]::Vector
-    evt isa MousePress  && return _route_click(entries, evt)
-    evt isa MouseScroll && return _route_scroll(entries, evt)
-    nothing
+    _route_layout_event(iomap.child_iomaps[]::Vector, evt)
 end
 
 # ── Factory ────────────────────────────────────────────────────────────────
