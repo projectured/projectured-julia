@@ -1,5 +1,16 @@
 # DbCatalog
 
+> **OBSOLETE (superseded).** This plan describes the original catalog model —
+> `DbCatalogConnection → … → DbCatalogColumn` with a parent-pointer + embedded
+> adapter and per-level `*ToChildren` projections. That model was implemented and
+> then **replaced** by the refactor in
+> [`../done/database-instance-catalog-sql.md`](../done/database-instance-catalog-sql.md):
+> the top node is now `DatabaseInstance`-driven (`DatabaseInstanceToDbCatalog`)
+> over a pure nested tree, `DbCatalogToChildren.jl` was deleted, and the consumer
+> projections are `DbCatalogToSyntax` / `DbCatalogToJson`. The live catalog query
+> API (`db_catalog_databases/schemas/tables/columns`) and the document types
+> survive in the new model. Kept for historical reference only.
+
 Models the PostgreSQL catalog tree as a Projectured document hierarchy, enabling hierarchy-expanding projections over live database metadata.
 
 ## Document hierarchy
