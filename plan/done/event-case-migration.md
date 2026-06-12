@@ -1,5 +1,23 @@
 # Migrate event dispatch to `@event_case`
 
+> **Status: done — all three phases shipped.** Phase 1: `Focusing`,
+> `PrimitiveToSyntax`, `PrimitiveToText`, `WorkbenchAssistant`. Phase 2:
+> `WidgetToGraphics` (four routing tables) and `LayoutToGraphics` (one shared
+> `_route_layout_event` helper for the four identical layout readers). Phase 3:
+> `TextToGraphics` (chord/decline/navigation + backspace/delete) and
+> `SyntaxToText` (tree-navigation table). Modifier policy settled per site:
+> deliberate ctrl chords adopt **exact** matching (`KeyDown(:period; ctrl)`,
+> Ctrl+Home/End); the alt/structural decline guards and the
+> Ctrl+Alt+Home/Ctrl+Space chords in `SyntaxToText` stay **loose** (via
+> `when`-guards) so any alt-modified or structural arrow remains a tree gesture
+> — matching the plan's "readability, not behaviour change" directive. Every
+> migrated reader passes its reader/repl/selection (and where relevant
+> tree-navigation/click-roundtrip) test; one file per commit. Pre-existing
+> branch failures (`dbcatalog`/`sql_syntax` click roundtrips, widget-example
+> selection `state_count`, the unicode text-selection ordering bug, and the
+> assistant-MVP scenes) were confirmed present on baseline and left untouched.
+
+
 The `@event_case` macro already exists and is tested — see
 [`program/src/device/EventCase.jl`](../../program/src/device/EventCase.jl)
 and [`test/src/device/EventCaseTest.jl`](../../test/src/device/EventCaseTest.jl).
