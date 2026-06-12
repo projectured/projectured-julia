@@ -21,6 +21,7 @@ import ..ReferenceBuilderModule: var"@reference"
 import ..ReferenceCaseModule: var"@reference_case"
 import ..OperationModule: ReplaceSelectionOperation
 import ..KeyboardModule: KeyDown, KeyPress
+import ..EventCaseModule: var"@event_case"
 export PrimitiveBoolToSyntaxLeaf, PrimitiveNumberToSyntaxLeaf, PrimitiveStringToSyntaxLeaf,
        PrimitiveToSyntax
 
@@ -175,25 +176,27 @@ function projection_read(p::PrimitiveStringToSyntaxLeaf, iomap::SimpleIoMap, evt
     range === nothing && return nothing
     text = something(s.value, "")
     n = length(text)
-    new_range = if evt.key == :backspace
-        if range.start != range.stop
-            range
-        elseif range.start > 0
-            RangeReference(range.start - 1, range.start)
-        else
-            return nothing
+    new_range = @event_case evt begin
+        KeyDown(:backspace) => begin
+            if range.start != range.stop
+                range
+            elseif range.start > 0
+                RangeReference(range.start - 1, range.start)
+            else
+                return nothing
+            end
         end
-    elseif evt.key == :delete
-        if range.start != range.stop
-            range
-        elseif range.stop < n
-            RangeReference(range.stop, range.stop + 1)
-        else
-            return nothing
+        KeyDown(:delete) => begin
+            if range.start != range.stop
+                range
+            elseif range.stop < n
+                RangeReference(range.stop, range.stop + 1)
+            else
+                return nothing
+            end
         end
-    else
-        return nothing
     end
+    new_range === nothing && return nothing
     StringReplaceRangeOperation(_string_value_path(new_range), "")
 end
 
