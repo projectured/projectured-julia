@@ -47,6 +47,7 @@ import ..KeyboardModule: KeyDown
 import ..ToolRegistryModule: list_tools, list_resources, call_tool, read_resource,
                               anthropic_tool_schema, Tool
 import ..KeyboardModule: KeyPress
+import ..EventCaseModule: var"@event_case"
 import ..PrimitiveModule: StringReplaceRangeOperation
 import ..AnthropicModule: stream_message
 import ..LlmModule: LlmBackend, stream_turn
@@ -686,33 +687,37 @@ function projection_read(::WorkbenchAssistantToWidgetSplitPane,
     iomap.input isa WorkbenchAssistant || return nothing
     a = iomap.input::WorkbenchAssistant
 
-    if evt.key === :return
-        return evt.modifiers.alt ? SubmitJuliaOperation(a) : SubmitProseOperation(a)
+    submit = @event_case evt begin
+        KeyDown(:return; alt) => SubmitJuliaOperation(a)
+        KeyDown(:return)      => SubmitProseOperation(a)
     end
+    submit === nothing || return submit
 
     range = _input_range(a)
     range === nothing && return nothing
     text = something(a.input.value, "")
     n = length(text)
-    new_range = if evt.key === :backspace
-        if range.start != range.stop
-            range
-        elseif range.start > 0
-            RangeReference(range.start - 1, range.start)
-        else
-            return nothing
+    new_range = @event_case evt begin
+        KeyDown(:backspace) => begin
+            if range.start != range.stop
+                range
+            elseif range.start > 0
+                RangeReference(range.start - 1, range.start)
+            else
+                return nothing
+            end
         end
-    elseif evt.key === :delete
-        if range.start != range.stop
-            range
-        elseif range.stop < n
-            RangeReference(range.stop, range.stop + 1)
-        else
-            return nothing
+        KeyDown(:delete) => begin
+            if range.start != range.stop
+                range
+            elseif range.stop < n
+                RangeReference(range.stop, range.stop + 1)
+            else
+                return nothing
+            end
         end
-    else
-        return nothing
     end
+    new_range === nothing && return nothing
     StringReplaceRangeOperation(_input_path(new_range), "")
 end
 
