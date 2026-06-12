@@ -21,9 +21,11 @@ import ..CollectionModule: CellVector, ListNode, CollectionDocument
 import ..FontModule: StyleFont, font_scaled_size
 import ..ReferenceModule: Reference
 export GraphicsDocument, LayoutDirection, layout_none, layout_horizontal, layout_vertical,
-       GraphicsInsertion, GraphicsText, GraphicsRect, GraphicsCanvas, GraphicsViewport, GraphicsImage,
+       GraphicsInsertion, GraphicsText, GraphicsRect, GraphicsLine, GraphicsCircle,
+       GraphicsCanvas, GraphicsViewport, GraphicsImage,
        GraphicsFence, setfn!, hit_element_at,
-       IGraphicsInsertion, IGraphicsText, IGraphicsRect, IGraphicsCanvas, IGraphicsViewport, IGraphicsImage,
+       IGraphicsInsertion, IGraphicsText, IGraphicsRect, IGraphicsLine, IGraphicsCircle,
+       IGraphicsCanvas, IGraphicsViewport, IGraphicsImage,
        IGraphicsFence
 
 abstract type GraphicsDocument <: Document end
@@ -80,12 +82,17 @@ end
 """
     GraphicsRect(x, y, w, h, r, g, b, a, radius=0;
                  radius_tl=radius, radius_tr=radius,
-                 radius_br=radius, radius_bl=radius)
+                 radius_br=radius, radius_bl=radius,
+                 border_width=0, border_color=nothing)
 
 A reactive filled rectangle for rendering (e.g. cursor lines, highlights).
 Each corner has an independent radius in pixels (`0` means a square
 corner). The positional `radius` is a shorthand that applies to all four
 corners; per-corner keyword arguments override it.
+
+An optional `border_width` (pixels) + `border_color` (an `(r,g,b,a)` tuple,
+0–255) paints a rounded outline *inside* the rect, so a single primitive can
+express the shadcn "rounded fill + 1px outline" idiom without stacking rects.
 Each field is a `Cell`.
 """
 @document struct GraphicsRect <: GraphicsDocument
@@ -101,18 +108,30 @@ Each field is a `Cell`.
     radius_tr::Int32
     radius_br::Int32
     radius_bl::Int32
+    border_width::Int32
+    border_r::UInt8
+    border_g::UInt8
+    border_b::UInt8
+    border_a::UInt8
     selection::Reference
 end
+
+_norm_rgba(::Nothing) = (UInt8(0), UInt8(0), UInt8(0), UInt8(0))
+_norm_rgba(c::NTuple{4,<:Integer}) = (UInt8(c[1]), UInt8(c[2]), UInt8(c[3]), UInt8(c[4]))
 
 function GraphicsRect(x::Integer, y::Integer, w::Integer, h::Integer,
                       r::Integer=255, g::Integer=255, b::Integer=255, a::Integer=255,
                       radius::Integer=0;
                       radius_tl::Integer=radius, radius_tr::Integer=radius,
-                      radius_br::Integer=radius, radius_bl::Integer=radius)
+                      radius_br::Integer=radius, radius_bl::Integer=radius,
+                      border_width::Integer=0, border_color=nothing)
+    br, bg, bb, ba = _norm_rgba(border_color)
     GraphicsRect(Cell(Int32(x)), Cell(Int32(y)), Cell(Int32(w)), Cell(Int32(h)),
                  Cell(UInt8(r)), Cell(UInt8(g)), Cell(UInt8(b)), Cell(UInt8(a)),
                  Cell(Int32(radius_tl)), Cell(Int32(radius_tr)),
                  Cell(Int32(radius_br)), Cell(Int32(radius_bl)),
+                 Cell(Int32(border_width)),
+                 Cell(br), Cell(bg), Cell(bb), Cell(ba),
                  Cell(nothing))
 end
 
@@ -121,7 +140,85 @@ function Base.show(io::IO, r::GraphicsRect)
           ", w=", r.w, ", h=", r.h,
           ", rgba=(", r.r, ",", r.g, ",", r.b, ",", r.a, ")",
           ", radius=(tl=", r.radius_tl, ",tr=", r.radius_tr,
-          ",br=", r.radius_br, ",bl=", r.radius_bl, "))")
+          ",br=", r.radius_br, ",bl=", r.radius_bl, ")",
+          ", border=(", r.border_width, ",rgba=(", r.border_r, ",", r.border_g,
+          ",", r.border_b, ",", r.border_a, ")))")
+end
+
+# ── GraphicsLine ───────────────────────────────────────────────────────────
+
+"""
+    GraphicsLine(x1, y1, x2, y2, r, g, b, a; width=1)
+
+A reactive straight line from `(x1,y1)` to `(x2,y2)` in color `(r,g,b,a)` with
+the given stroke `width`. Axis-aligned lines (separators, rules) render as a
+crisp filled span; diagonal lines render anti-aliased.
+"""
+@document struct GraphicsLine <: GraphicsDocument
+    x1::Int32
+    y1::Int32
+    x2::Int32
+    y2::Int32
+    r::UInt8
+    g::UInt8
+    b::UInt8
+    a::UInt8
+    width::Int32
+    selection::Reference
+end
+
+function GraphicsLine(x1::Integer, y1::Integer, x2::Integer, y2::Integer,
+                      r::Integer=0, g::Integer=0, b::Integer=0, a::Integer=255;
+                      width::Integer=1)
+    GraphicsLine(Cell(Int32(x1)), Cell(Int32(y1)), Cell(Int32(x2)), Cell(Int32(y2)),
+                 Cell(UInt8(r)), Cell(UInt8(g)), Cell(UInt8(b)), Cell(UInt8(a)),
+                 Cell(Int32(width)), Cell(nothing))
+end
+
+function Base.show(io::IO, l::GraphicsLine)
+    print(io, "GraphicsLine((", l.x1, ",", l.y1, ")→(", l.x2, ",", l.y2, ")",
+          ", rgba=(", l.r, ",", l.g, ",", l.b, ",", l.a, "), width=", l.width, ")")
+end
+
+# ── GraphicsCircle ─────────────────────────────────────────────────────────
+
+"""
+    GraphicsCircle(cx, cy, radius, r, g, b, a; border_width=0, border_color=nothing)
+
+A reactive filled circle centered at `(cx,cy)`. Optional anti-aliased outline
+via `border_width` + `border_color` (an `(r,g,b,a)` tuple). Used for avatars,
+radio dots, switch knobs and slider thumbs.
+"""
+@document struct GraphicsCircle <: GraphicsDocument
+    cx::Int32
+    cy::Int32
+    radius::Int32
+    r::UInt8
+    g::UInt8
+    b::UInt8
+    a::UInt8
+    border_width::Int32
+    border_r::UInt8
+    border_g::UInt8
+    border_b::UInt8
+    border_a::UInt8
+    selection::Reference
+end
+
+function GraphicsCircle(cx::Integer, cy::Integer, radius::Integer,
+                        r::Integer=0, g::Integer=0, b::Integer=0, a::Integer=255;
+                        border_width::Integer=0, border_color=nothing)
+    bor, bog, bob, boa = _norm_rgba(border_color)
+    GraphicsCircle(Cell(Int32(cx)), Cell(Int32(cy)), Cell(Int32(radius)),
+                   Cell(UInt8(r)), Cell(UInt8(g)), Cell(UInt8(b)), Cell(UInt8(a)),
+                   Cell(Int32(border_width)),
+                   Cell(bor), Cell(bog), Cell(bob), Cell(boa),
+                   Cell(nothing))
+end
+
+function Base.show(io::IO, c::GraphicsCircle)
+    print(io, "GraphicsCircle(c=(", c.cx, ",", c.cy, "), r=", c.radius,
+          ", rgba=(", c.r, ",", c.g, ",", c.b, ",", c.a, "))")
 end
 
 # ── Canvas ───────────────────────────────────────────────────────────────
@@ -327,6 +424,15 @@ function _hit_test_element(elem, x::Int, y::Int)
         ex, ey = Int(elem.x), Int(elem.y)
         fs = font_scaled_size(elem.font.size)
         x >= ex && y >= ey && y < ey + fs
+    elseif elem isa GraphicsCircle
+        dx, dy = x - Int(elem.cx), y - Int(elem.cy)
+        rad = Int(elem.radius)
+        dx * dx + dy * dy <= rad * rad
+    elseif elem isa GraphicsLine
+        lx = min(Int(elem.x1), Int(elem.x2)); ly = min(Int(elem.y1), Int(elem.y2))
+        lw = abs(Int(elem.x2) - Int(elem.x1)); lh = abs(Int(elem.y2) - Int(elem.y1))
+        hw = max(1, Int(elem.width))
+        x >= lx - hw && x <= lx + lw + hw && y >= ly - hw && y <= ly + lh + hw
     elseif elem isa GraphicsCanvas
         # Delegate hit test into the nested canvas (coordinates relative to canvas origin)
         cx, cy = Int(elem.x), Int(elem.y)

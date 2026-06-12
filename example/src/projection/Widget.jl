@@ -1,12 +1,11 @@
 
 # The standard widget projection: recursively dispatches every widget node
-# through WidgetToGraphics. Use this for every per-widget example whose content
+# through WidgetToGraphics. The shadcn light theme drives all colors, radius and
+# spacing — see WidgetTheme. Use this for every per-widget example whose content
 # is a plain string (label, checkbox, button, menu, composite, panes, …).
 function make_widget_projection_example(; measure=sdl_measure_text)
     SequentialProjection(
-        RecursiveProjection(WidgetToGraphics(font_ubuntu_regular_24;
-                                             measure=measure,
-                                             default_fg=(0xee, 0xee, 0xee, 0xff))),
+        RecursiveProjection(WidgetToGraphics(font_ubuntu_regular_24; measure=measure)),
     )
 end
 
@@ -17,8 +16,7 @@ end
 # references backward (see make_widget_text_document_example).
 function make_widget_text_projection_example(; measure=sdl_measure_text)
     font = font_ubuntu_monospace_regular_24
-    fg   = (0x22, 0x22, 0x22, 0xff)   # dark text for the light example background
-    w2g  = WidgetToGraphics(font; measure=measure, default_fg=fg)
+    w2g  = WidgetToGraphics(font; measure=measure)
     RecursiveProjection(TypeDispatchingProjection(vcat(
         w2g.dispatch,
         Pair{DataType,Any}[

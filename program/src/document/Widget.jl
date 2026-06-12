@@ -23,6 +23,8 @@ export Inset, Point2D,
        WidgetTooltip, WidgetMenu, WidgetMenuItem, WidgetComposite,
        WidgetShell, WidgetTitlePane, WidgetSplitPane, WidgetTabbedPane,
        WidgetScrollPane, WidgetToolbar, WidgetScrollBar,
+       WidgetBadge, WidgetSeparator, WidgetCard, WidgetSwitch, WidgetProgress,
+       WidgetSlider, WidgetRadioGroup, WidgetAvatar, WidgetAlert, WidgetSkeleton,
        HideWidgetOperation, ShowWidgetOperation, ScrollWidgetOperation, SelectTabOperation,
        SetScrollBarValueOperation,
        evaluate_operation,
@@ -33,7 +35,9 @@ export Inset, Point2D,
        IWidgetLabel, IWidgetText, IWidgetCheckbox, IWidgetButton,
        IWidgetTooltip, IWidgetMenu, IWidgetMenuItem, IWidgetComposite,
        IWidgetShell, IWidgetTitlePane, IWidgetSplitPane, IWidgetTabbedPane,
-       IWidgetScrollPane, IWidgetToolbar, IWidgetScrollBar
+       IWidgetScrollPane, IWidgetToolbar, IWidgetScrollBar,
+       IWidgetBadge, IWidgetSeparator, IWidgetCard, IWidgetSwitch, IWidgetProgress,
+       IWidgetSlider, IWidgetRadioGroup, IWidgetAvatar, IWidgetAlert, IWidgetSkeleton
 
 # ── WidgetDocument (abstract base) ─────────────────────────────────────────────────
 
@@ -729,6 +733,208 @@ function Base.show(io::IO, w::WidgetScrollBar)
     print(io, "WidgetScrollBar(orientation=", w.orientation,
           ", value=", w.value, ")")
 end
+
+# ════════════════════════════════════════════════════════════════════════════
+# shadcn/ui extension widgets (printer-only for now; readers are no-ops)
+#
+# These carry only the fields they need plus `visible` and `selection` — colors,
+# radius and spacing all come from the WidgetTheme at render time, so they don't
+# replicate the box-model fields of the older widgets.
+# ════════════════════════════════════════════════════════════════════════════
+
+# ── WidgetBadge ─────────────────────────────────────────────────────────────
+
+"""
+    WidgetBadge(position, content; variant=:default)
+
+A small pill-shaped status label. `variant` ∈
+`:default | :secondary | :destructive | :outline`.
+"""
+@document struct WidgetBadge <: WidgetDocument
+    position::Point2D
+    content::Any
+    variant::Symbol
+    visible::Bool
+    selection::Reference
+end
+WidgetBadge(position::Point2D, content; variant::Symbol=:default, visible::Bool=true) =
+    WidgetBadge(Cell(position), Cell(content), Cell(variant), Cell(visible), Cell(nothing))
+Base.show(io::IO, w::WidgetBadge) = print(io, "WidgetBadge(", w.content, ", ", w.variant, ")")
+
+# ── WidgetSeparator ─────────────────────────────────────────────────────────
+
+"""
+    WidgetSeparator(position; orientation=:horizontal, length=200)
+
+A 1px divider rule.
+"""
+@document struct WidgetSeparator <: WidgetDocument
+    position::Point2D
+    orientation::Symbol
+    length::Int
+    visible::Bool
+    selection::Reference
+end
+WidgetSeparator(position::Point2D; orientation::Symbol=:horizontal,
+                length::Integer=200, visible::Bool=true) =
+    WidgetSeparator(Cell(position), Cell(orientation), Cell(Int(length)), Cell(visible), Cell(nothing))
+Base.show(io::IO, w::WidgetSeparator) = print(io, "WidgetSeparator(", w.orientation, ")")
+
+# ── WidgetCard ──────────────────────────────────────────────────────────────
+
+"""
+    WidgetCard(position; title, description, content, footer, width=320)
+
+A rounded, bordered surface with an optional title / description header, a
+content body and an optional footer, stacked vertically.
+"""
+@document struct WidgetCard <: WidgetDocument
+    position::Point2D
+    title::Any
+    description::Any
+    content::Any
+    footer::Any
+    width::Int
+    visible::Bool
+    selection::Reference
+end
+WidgetCard(position::Point2D; title=nothing, description=nothing, content=nothing,
+           footer=nothing, width::Integer=320, visible::Bool=true) =
+    WidgetCard(Cell(position), Cell(title), Cell(description), Cell(content),
+               Cell(footer), Cell(Int(width)), Cell(visible), Cell(nothing))
+Base.show(io::IO, w::WidgetCard) = print(io, "WidgetCard(", w.title, ")")
+
+# ── WidgetSwitch ────────────────────────────────────────────────────────────
+
+"""
+    WidgetSwitch(position, checked)
+
+An on/off toggle switch (rounded track + knob).
+"""
+@document struct WidgetSwitch <: WidgetDocument
+    position::Point2D
+    checked::Bool
+    visible::Bool
+    selection::Reference
+end
+WidgetSwitch(position::Point2D, checked::Bool=false; visible::Bool=true) =
+    WidgetSwitch(Cell(position), Cell(checked), Cell(visible), Cell(nothing))
+Base.show(io::IO, w::WidgetSwitch) = print(io, "WidgetSwitch(", w.checked, ")")
+
+# ── WidgetProgress ──────────────────────────────────────────────────────────
+
+"""
+    WidgetProgress(position, value; width=240)
+
+A horizontal progress bar. `value` ∈ [0, 1].
+"""
+@document struct WidgetProgress <: WidgetDocument
+    position::Point2D
+    value::Float64
+    width::Int
+    visible::Bool
+    selection::Reference
+end
+WidgetProgress(position::Point2D, value::Real=0.0; width::Integer=240, visible::Bool=true) =
+    WidgetProgress(Cell(position), Cell(Float64(value)), Cell(Int(width)), Cell(visible), Cell(nothing))
+Base.show(io::IO, w::WidgetProgress) = print(io, "WidgetProgress(", w.value, ")")
+
+# ── WidgetSlider ────────────────────────────────────────────────────────────
+
+"""
+    WidgetSlider(position, value; width=240)
+
+A slider with a track, filled portion and a draggable knob. `value` ∈ [0, 1].
+"""
+@document struct WidgetSlider <: WidgetDocument
+    position::Point2D
+    value::Float64
+    width::Int
+    visible::Bool
+    selection::Reference
+end
+WidgetSlider(position::Point2D, value::Real=0.5; width::Integer=240, visible::Bool=true) =
+    WidgetSlider(Cell(position), Cell(Float64(value)), Cell(Int(width)), Cell(visible), Cell(nothing))
+Base.show(io::IO, w::WidgetSlider) = print(io, "WidgetSlider(", w.value, ")")
+
+# ── WidgetRadioGroup ────────────────────────────────────────────────────────
+
+"""
+    WidgetRadioGroup(position, options; selected=1)
+
+A vertical group of radio options (`options` is a `Vector` of labels);
+`selected` is the 1-based selected index.
+"""
+@document struct WidgetRadioGroup <: WidgetDocument
+    position::Point2D
+    options::CellVector
+    selected::Int
+    visible::Bool
+    selection::Reference
+end
+WidgetRadioGroup(position::Point2D, options::Vector; selected::Integer=1, visible::Bool=true) =
+    WidgetRadioGroup(Cell(position), CellVector(Cell[Cell(o) for o in options]),
+                     Cell(Int(selected)), Cell(visible), Cell(nothing))
+Base.show(io::IO, w::WidgetRadioGroup) = print(io, "WidgetRadioGroup(", length(w.options), ")")
+
+# ── WidgetAvatar ────────────────────────────────────────────────────────────
+
+"""
+    WidgetAvatar(position, initials; size=64)
+
+A circular avatar showing initials (image-clipping is future work).
+"""
+@document struct WidgetAvatar <: WidgetDocument
+    position::Point2D
+    initials::Any
+    size::Int
+    visible::Bool
+    selection::Reference
+end
+WidgetAvatar(position::Point2D, initials; size::Integer=64, visible::Bool=true) =
+    WidgetAvatar(Cell(position), Cell(initials), Cell(Int(size)), Cell(visible), Cell(nothing))
+Base.show(io::IO, w::WidgetAvatar) = print(io, "WidgetAvatar(", w.initials, ")")
+
+# ── WidgetAlert ─────────────────────────────────────────────────────────────
+
+"""
+    WidgetAlert(position, title, description; variant=:default, width=360)
+
+A rounded, bordered callout with a bold title and muted description.
+`variant` ∈ `:default | :destructive`.
+"""
+@document struct WidgetAlert <: WidgetDocument
+    position::Point2D
+    title::Any
+    description::Any
+    variant::Symbol
+    width::Int
+    visible::Bool
+    selection::Reference
+end
+WidgetAlert(position::Point2D, title, description=nothing;
+            variant::Symbol=:default, width::Integer=360, visible::Bool=true) =
+    WidgetAlert(Cell(position), Cell(title), Cell(description), Cell(variant),
+                Cell(Int(width)), Cell(visible), Cell(nothing))
+Base.show(io::IO, w::WidgetAlert) = print(io, "WidgetAlert(", w.title, ")")
+
+# ── WidgetSkeleton ──────────────────────────────────────────────────────────
+
+"""
+    WidgetSkeleton(position; width=240, height=20)
+
+A muted rounded placeholder block for loading states.
+"""
+@document struct WidgetSkeleton <: WidgetDocument
+    position::Point2D
+    width::Int
+    height::Int
+    visible::Bool
+    selection::Reference
+end
+WidgetSkeleton(position::Point2D; width::Integer=240, height::Integer=20, visible::Bool=true) =
+    WidgetSkeleton(Cell(position), Cell(Int(width)), Cell(Int(height)), Cell(visible), Cell(nothing))
+Base.show(io::IO, w::WidgetSkeleton) = print(io, "WidgetSkeleton(", w.width, "×", w.height, ")")
 
 # ── Operations ─────────────────────────────────────────────────────────────
 

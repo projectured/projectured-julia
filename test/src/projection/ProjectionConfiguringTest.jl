@@ -76,7 +76,7 @@ end # @testset
 
     inner = TextFiltering()                       # case_insensitive=false, invert=false
     pcp   = ProjectionConfiguringProjection(inner=inner)
-    w2g   = WidgetToGraphics(font; measure=stub, default_fg=fg)
+    w2g   = WidgetToGraphics(font; measure=stub)
     renderer = RecursiveProjection(TypeDispatchingProjection(vcat(
         w2g.dispatch,
         Pair{DataType,Any}[TextText => TextToGraphics(measure=stub)])))
@@ -109,7 +109,7 @@ end # @testset
 
     inner = TextHighlighting("dolor")
     pcp   = ProjectionConfiguringProjection(inner=inner)
-    w2g   = WidgetToGraphics(font; measure=stub, default_fg=(0x22, 0x22, 0x22, 0xff))
+    w2g   = WidgetToGraphics(font; measure=stub)
     renderer = RecursiveProjection(TypeDispatchingProjection(vcat(
         w2g.dispatch,
         Pair{DataType,Any}[TextText => TextToGraphics(measure=stub)])))

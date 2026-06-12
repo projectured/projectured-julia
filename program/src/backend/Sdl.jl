@@ -9,7 +9,7 @@ using SimpleDirectMediaLayer
 using SimpleDirectMediaLayer.LibSDL2
 import ..BackendModule: Backend, init!, quit!, measure_text
 import ..DeviceModule: Device, read_from_devices, write_to_devices, write_to_device
-import ..GraphicsModule: GraphicsCanvas, GraphicsText, GraphicsRect, GraphicsViewport, GraphicsImage,
+import ..GraphicsModule: GraphicsCanvas, GraphicsText, GraphicsRect, GraphicsLine, GraphicsCircle, GraphicsViewport, GraphicsImage,
                          GraphicsFence, LayoutDirection, layout_none, layout_horizontal, layout_vertical
 import ..CollectionModule: ListNode
 import ..FontModule: StyleFont, font_scaled_size, _FONT_SCALE
@@ -326,6 +326,7 @@ function _open_native_window!(w::WindowDocument)
     renderer = SDL_CreateRenderer(win, -1,
         SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC)
     @assert renderer != C_NULL "SDL renderer creation failed: $(unsafe_string(SDL_GetError()))"
+    SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND)
 
     _update_font_scale!(win, renderer)
 
@@ -472,15 +473,14 @@ end
 _corner_inset(radius::Int, dy::Int) =
     dy >= radius ? 0 : radius - isqrt(radius * radius - (radius - dy) * (radius - dy))
 
-function _render_rect!(renderer::Ptr{SDL_Renderer}, rect::GraphicsRect, ox::Int, oy::Int)
-    SDL_SetRenderDrawColor(renderer, rect.r, rect.g, rect.b, rect.a)
-    x, y = Int(rect.x) + ox, Int(rect.y) + oy
-    w, h_px = Int(rect.w), Int(rect.h)
+# Fill a rounded rectangle (per-corner radii) at integer pixel coordinates with
+# the renderer's current draw color. Shared by GraphicsRect fill and border.
+function _fill_rounded!(renderer::Ptr{SDL_Renderer}, x::Int, y::Int, w::Int, h_px::Int,
+                        r_tl::Int, r_tr::Int, r_br::Int, r_bl::Int)
+    (w <= 0 || h_px <= 0) && return
     max_r = min(w ÷ 2, h_px ÷ 2)
-    r_tl = clamp(Int(rect.radius_tl), 0, max_r)
-    r_tr = clamp(Int(rect.radius_tr), 0, max_r)
-    r_br = clamp(Int(rect.radius_br), 0, max_r)
-    r_bl = clamp(Int(rect.radius_bl), 0, max_r)
+    r_tl = clamp(r_tl, 0, max_r); r_tr = clamp(r_tr, 0, max_r)
+    r_br = clamp(r_br, 0, max_r); r_bl = clamp(r_bl, 0, max_r)
     if (r_tl | r_tr | r_br | r_bl) == 0
         sdl_rect = Ref(SDL_Rect(Int32(x), Int32(y), Int32(w), Int32(h_px)))
         SDL_RenderFillRect(renderer, sdl_rect)
@@ -508,6 +508,80 @@ function _render_rect!(renderer::Ptr{SDL_Renderer}, rect::GraphicsRect, ox::Int,
         span_w <= 0 && continue
         row = Ref(SDL_Rect(Int32(x + left), Int32(y + h_px - 1 - dy), Int32(span_w), Int32(1)))
         SDL_RenderFillRect(renderer, row)
+    end
+end
+
+function _render_rect!(renderer::Ptr{SDL_Renderer}, rect::GraphicsRect, ox::Int, oy::Int)
+    x, y = Int(rect.x) + ox, Int(rect.y) + oy
+    w, h_px = Int(rect.w), Int(rect.h)
+    r_tl, r_tr = Int(rect.radius_tl), Int(rect.radius_tr)
+    r_br, r_bl = Int(rect.radius_br), Int(rect.radius_bl)
+    bw = Int(rect.border_width)
+    if bw > 0 && rect.border_a > 0
+        # Outer border-colored rounded rect, then the fill inset by the border
+        # width (radii shrink to stay concentric).
+        SDL_SetRenderDrawColor(renderer, rect.border_r, rect.border_g, rect.border_b, rect.border_a)
+        _fill_rounded!(renderer, x, y, w, h_px, r_tl, r_tr, r_br, r_bl)
+        if rect.a > 0
+            SDL_SetRenderDrawColor(renderer, rect.r, rect.g, rect.b, rect.a)
+            _fill_rounded!(renderer, x + bw, y + bw, w - 2bw, h_px - 2bw,
+                           max(0, r_tl - bw), max(0, r_tr - bw),
+                           max(0, r_br - bw), max(0, r_bl - bw))
+        end
+    else
+        SDL_SetRenderDrawColor(renderer, rect.r, rect.g, rect.b, rect.a)
+        _fill_rounded!(renderer, x, y, w, h_px, r_tl, r_tr, r_br, r_bl)
+    end
+end
+
+# ── Render a GraphicsLine element ────────────────────────────────────
+
+function _render_line!(renderer::Ptr{SDL_Renderer}, line::GraphicsLine, ox::Int, oy::Int)
+    SDL_SetRenderDrawColor(renderer, line.r, line.g, line.b, line.a)
+    x1, y1 = Int(line.x1) + ox, Int(line.y1) + oy
+    x2, y2 = Int(line.x2) + ox, Int(line.y2) + oy
+    wdt = max(1, Int(line.width))
+    if y1 == y2          # horizontal rule
+        SDL_RenderFillRect(renderer, Ref(SDL_Rect(Int32(min(x1, x2)), Int32(y1 - wdt ÷ 2),
+                                                  Int32(abs(x2 - x1) + 1), Int32(wdt))))
+    elseif x1 == x2      # vertical rule
+        SDL_RenderFillRect(renderer, Ref(SDL_Rect(Int32(x1 - wdt ÷ 2), Int32(min(y1, y2)),
+                                                  Int32(wdt), Int32(abs(y2 - y1) + 1))))
+    else                 # diagonal: stamp the stroke width along the line
+        for o in -(wdt ÷ 2):(wdt - 1 - wdt ÷ 2)
+            SDL_RenderDrawLine(renderer, Int32(x1), Int32(y1 + o), Int32(x2), Int32(y2 + o))
+            SDL_RenderDrawLine(renderer, Int32(x1 + o), Int32(y1), Int32(x2 + o), Int32(y2))
+        end
+    end
+end
+
+# ── Render a GraphicsCircle element ──────────────────────────────────
+
+# Fill a disc of `rad` centered at (cx,cy) using the current draw color.
+function _fill_disc!(renderer::Ptr{SDL_Renderer}, cx::Int, cy::Int, rad::Int)
+    rad <= 0 && return
+    for dy in -rad:rad
+        dx = isqrt(max(0, rad * rad - dy * dy))
+        dx <= 0 && continue
+        SDL_RenderFillRect(renderer, Ref(SDL_Rect(Int32(cx - dx), Int32(cy + dy),
+                                                  Int32(2dx), Int32(1))))
+    end
+end
+
+function _render_circle!(renderer::Ptr{SDL_Renderer}, circ::GraphicsCircle, ox::Int, oy::Int)
+    cx, cy = Int(circ.cx) + ox, Int(circ.cy) + oy
+    rad = Int(circ.radius)
+    bw = Int(circ.border_width)
+    if bw > 0 && circ.border_a > 0
+        SDL_SetRenderDrawColor(renderer, circ.border_r, circ.border_g, circ.border_b, circ.border_a)
+        _fill_disc!(renderer, cx, cy, rad)
+        if circ.a > 0
+            SDL_SetRenderDrawColor(renderer, circ.r, circ.g, circ.b, circ.a)
+            _fill_disc!(renderer, cx, cy, rad - bw)
+        end
+    else
+        SDL_SetRenderDrawColor(renderer, circ.r, circ.g, circ.b, circ.a)
+        _fill_disc!(renderer, cx, cy, rad)
     end
 end
 
@@ -622,6 +696,10 @@ function _dispatch_render_elem!(renderer::Ptr{SDL_Renderer}, elem, ox::Int, oy::
         _render_element!(renderer, elem, ox, oy)
     elseif elem isa GraphicsRect
         _render_rect!(renderer, elem, ox, oy)
+    elseif elem isa GraphicsLine
+        _render_line!(renderer, elem, ox, oy)
+    elseif elem isa GraphicsCircle
+        _render_circle!(renderer, elem, ox, oy)
     elseif elem isa GraphicsViewport
         _render_viewport!(renderer, elem, ox, oy)
     elseif elem isa GraphicsImage
@@ -716,26 +794,70 @@ Supported extensions (case-insensitive): `.bmp` (via `SDL_SaveBMP_RW`) and
 
 Most callers should use `write_image(document, projection, filename)` instead.
 """
+# Box-downsample a 32-bit ARGB software `big` surface (S× oversized) into a fresh
+# `width × height` surface by averaging each S×S block — true anti-aliasing,
+# independent of SDL's software scaler. Returns the new surface (caller frees).
+function _downsample_surface(big::Ptr{SDL_Surface}, width::Int, height::Int, S::Int)
+    bs = unsafe_load(big)
+    bigpix = Ptr{UInt32}(bs.pixels)
+    bigstride = Int(bs.pitch) ÷ 4
+    small = SDL_CreateRGBSurface(UInt32(0), Int32(width), Int32(height), Int32(32),
+                                 UInt32(0x00FF0000), UInt32(0x0000FF00),
+                                 UInt32(0x000000FF), UInt32(0xFF000000))
+    @assert small != C_NULL "SDL downsample surface creation failed"
+    ss = unsafe_load(small)
+    smallpix = Ptr{UInt32}(ss.pixels)
+    smallstride = Int(ss.pitch) ÷ 4
+    n = S * S
+    for yy in 0:(height - 1)
+        for xx in 0:(width - 1)
+            ar = ag = ab = aa = 0
+            for sy in 0:(S - 1), sx in 0:(S - 1)
+                px = unsafe_load(bigpix, (yy * S + sy) * bigstride + (xx * S + sx) + 1)
+                aa += Int((px >> 24) & 0xff); ar += Int((px >> 16) & 0xff)
+                ag += Int((px >> 8) & 0xff);  ab += Int(px & 0xff)
+            end
+            outp = (UInt32(aa ÷ n) << 24) | (UInt32(ar ÷ n) << 16) |
+                   (UInt32(ag ÷ n) << 8)  |  UInt32(ab ÷ n)
+            unsafe_store!(smallpix, outp, yy * smallstride + xx + 1)
+        end
+    end
+    small
+end
+
 function write_image(canvas::GraphicsCanvas, filename::AbstractString;
                      width::Integer = 800,
                      height::Integer = 600,
-                     background::NTuple{4,UInt8} = (0xfd, 0xf6, 0xe3, 0xff))
+                     background::NTuple{4,UInt8} = (0xfd, 0xf6, 0xe3, 0xff),
+                     supersample::Integer = 2)
     SDL_Init(SDL_INIT_VIDEO)
     TTF_Init()
 
-    surface = SDL_CreateRGBSurface(UInt32(0), Int32(width), Int32(height), Int32(32),
+    S = max(1, Int(supersample))
+    surface = SDL_CreateRGBSurface(UInt32(0), Int32(width * S), Int32(height * S), Int32(32),
                                    UInt32(0x00FF0000), UInt32(0x0000FF00),
                                    UInt32(0x000000FF), UInt32(0xFF000000))
     @assert surface != C_NULL "SDL surface creation failed: $(unsafe_string(SDL_GetError()))"
 
     renderer = SDL_CreateSoftwareRenderer(surface)
     @assert renderer != C_NULL "SDL software renderer creation failed: $(unsafe_string(SDL_GetError()))"
+    SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND)
+    S > 1 && SDL_RenderSetScale(renderer, Float32(S), Float32(S))
 
     r, g, b, a = background
     SDL_SetRenderDrawColor(renderer, r, g, b, a)
     SDL_RenderClear(renderer)
 
     _render_canvas!(renderer, canvas, 0, 0, Int(width), Int(height))
+
+    # Downsample the oversized surface for anti-aliasing.
+    out_surface = S > 1 ? _downsample_surface(surface, Int(width), Int(height), S) : surface
+    if out_surface !== surface
+        SDL_DestroyRenderer(renderer)
+        SDL_FreeSurface(surface)
+        surface = out_surface
+        renderer = C_NULL
+    end
 
     ext = lowercase(splitext(filename)[2])
     if ext == ".bmp"
@@ -785,7 +907,12 @@ Throws if the projection output is not a `GraphicsCanvas`.
 function write_image(document, projection, filename::AbstractString;
                      width::Integer = 800,
                      height::Integer = 600,
-                     background::NTuple{4,UInt8} = (0xfd, 0xf6, 0xe3, 0xff))
+                     background::NTuple{4,UInt8} = (0xfd, 0xf6, 0xe3, 0xff),
+                     supersample::Integer = 2)
+    # Initialize before printing: the projection measures text (opening fonts),
+    # which requires SDL_ttf to be up.
+    SDL_Init(SDL_INIT_VIDEO)
+    TTF_Init()
     ctx = PrinterContext(EmptyReferencePath(),
                             Cell(Int(width)), Cell(Int(height)),
                             Dict{Symbol,Any}())
@@ -793,7 +920,8 @@ function write_image(document, projection, filename::AbstractString;
     canvas = iomap.output
     canvas isa GraphicsCanvas ||
         error("write_image: projection output is $(typeof(canvas)), expected GraphicsCanvas")
-    write_image(canvas, filename; width=width, height=height, background=background)
+    write_image(canvas, filename; width=width, height=height,
+                background=background, supersample=supersample)
 end
 
 """

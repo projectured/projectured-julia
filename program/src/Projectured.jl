@@ -242,7 +242,7 @@ using .JuliaModule: JuliaDocument, JuliaIdentifier, JuliaInteger, JuliaBinaryOp,
                     JuliaIf, JuliaFunction, JuliaBlock
 using .SyntaxModule: SyntaxDocument, SyntaxInsertion, SyntaxLeaf, SyntaxNode, render
 using .GraphicsModule: GraphicsDocument, GraphicsInsertion,
-                       GraphicsText, GraphicsRect, GraphicsCanvas, GraphicsViewport, GraphicsImage,
+                       GraphicsText, GraphicsRect, GraphicsLine, GraphicsCircle, GraphicsCanvas, GraphicsViewport, GraphicsImage,
                        GraphicsFence, LayoutDirection, layout_none, layout_horizontal, layout_vertical,
                        hit_element_at
 using .ModifiersModule: Modifiers
@@ -315,6 +315,8 @@ using .WidgetModule: WidgetDocument, WidgetInsertion,
                      WidgetTooltip, WidgetMenu, WidgetMenuItem, WidgetComposite,
                      WidgetShell, WidgetTitlePane, WidgetSplitPane, WidgetTabbedPane,
                      WidgetScrollPane, WidgetToolbar, WidgetScrollBar,
+                     WidgetBadge, WidgetSeparator, WidgetCard, WidgetSwitch, WidgetProgress,
+                     WidgetSlider, WidgetRadioGroup, WidgetAvatar, WidgetAlert, WidgetSkeleton,
                      HideWidgetOperation, ShowWidgetOperation,
                      ScrollWidgetOperation, SelectTabOperation, SetScrollBarValueOperation
 using .LayoutModule: LayoutDocument,
@@ -362,7 +364,7 @@ using .WidgetToGraphicsModule: WidgetLabelToGraphicsCanvas, WidgetTextToGraphics
                                WidgetSplitPaneToGraphicsCanvas, WidgetTabbedPaneToGraphicsCanvas,
                                WidgetScrollPaneToGraphicsCanvas, WidgetScrollPaneToGraphicsCanvasIoMap,
                                WidgetToolbarToGraphicsCanvas, WidgetScrollBarToGraphicsCanvas,
-                               WidgetToGraphics,
+                               WidgetToGraphics, WidgetTheme, widget_theme_light, widget_theme_dark,
                                WidgetScrollPaneToGraphicsViewport, WidgetScrollPaneToGraphicsViewportIoMap
 using .WorkbenchToWidgetModule: WorkbenchWorkbenchToWidgetShell,    WorkbenchWorkbenchToWidgetShellIoMap,
                                 WorkbenchPageToWidgetTabbedPane,    WorkbenchPageToWidgetTabbedPaneIoMap,
@@ -519,7 +521,7 @@ export JuliaDocument, JuliaIdentifier, JuliaInteger, JuliaBinaryOp, JuliaCall,
        JuliaIf, JuliaFunction, JuliaBlock
 export SyntaxDocument, SyntaxInsertion, SyntaxLeaf, SyntaxNode, render
 export GraphicsDocument, GraphicsInsertion,
-       GraphicsText, GraphicsRect, GraphicsCanvas, GraphicsViewport, GraphicsImage,
+       GraphicsText, GraphicsRect, GraphicsLine, GraphicsCircle, GraphicsCanvas, GraphicsViewport, GraphicsImage,
        GraphicsFence, LayoutDirection, layout_none, layout_horizontal, layout_vertical, hit_element_at
 export Modifiers
 export KeyDown, KeyUp, KeyPress, is_ctrl, is_shift, is_alt, is_meta
@@ -571,7 +573,9 @@ export WidgetDocument, WidgetInsertion,
        WidgetLabel, WidgetText, WidgetCheckbox, WidgetButton,
        WidgetTooltip, WidgetMenu, WidgetMenuItem, WidgetComposite,
        WidgetShell, WidgetTitlePane, WidgetSplitPane, WidgetTabbedPane,
-       WidgetScrollPane, WidgetToolbar, WidgetScrollBar
+       WidgetScrollPane, WidgetToolbar, WidgetScrollBar,
+       WidgetBadge, WidgetSeparator, WidgetCard, WidgetSwitch, WidgetProgress,
+       WidgetSlider, WidgetRadioGroup, WidgetAvatar, WidgetAlert, WidgetSkeleton
 export HideWidgetOperation, ShowWidgetOperation, ScrollWidgetOperation, SelectTabOperation, SetScrollBarValueOperation
 export Operation, evaluate_operation
 export inset_default, inset_size, inset_width, inset_height,
@@ -605,7 +609,7 @@ export JuliaToSyntax, JuliaIdentifierToSyntaxLeaf, JuliaIntegerToSyntaxLeaf,
        JuliaIfToSyntaxNode, JuliaFunctionToSyntaxNode,
        JuliaBlockToSyntaxNode
 export CollectionToSyntax, CollectionCellVectorToSyntax, CollectionListNodeToSyntax
-export TextToGraphics, WidgetToGraphics
+export TextToGraphics, WidgetToGraphics, WidgetTheme, widget_theme_light, widget_theme_dark
 export SyntaxNodeToTextIoMap, TextToGraphicsIoMap
 export WidgetLabelToGraphicsCanvas, WidgetTextToGraphicsCanvas,
        WidgetCheckboxToGraphicsCanvas, WidgetButtonToGraphicsCanvas,

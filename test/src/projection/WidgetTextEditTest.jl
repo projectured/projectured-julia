@@ -16,7 +16,7 @@ end
 # Combined renderer: widget nodes via WidgetToGraphics, the recursed TextText via
 # TextToGraphics.
 function _proj()
-    w2g = WidgetToGraphics(_font; measure=_stub, default_fg=(0xee, 0xee, 0xee, 0xff))
+    w2g = WidgetToGraphics(_font; measure=_stub)
     RecursiveProjection(TypeDispatchingProjection(vcat(
         w2g.dispatch,
         Pair{DataType,Any}[TextText => TextToGraphics(measure=_stub)],

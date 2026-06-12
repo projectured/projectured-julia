@@ -32,7 +32,11 @@ export StyleColor, make_style_color,
        color_pastel_carrot, color_pastel_pumpkin,
        color_pastel_alizarin, color_pastel_pomegranate,
        color_pastel_clouds, color_pastel_silver,
-       color_pastel_concrete, color_pastel_asbestos
+       color_pastel_concrete, color_pastel_asbestos,
+       color_zinc_50, color_zinc_100, color_zinc_200, color_zinc_300,
+       color_zinc_400, color_zinc_500, color_zinc_600, color_zinc_700,
+       color_zinc_800, color_zinc_900, color_zinc_950,
+       color_destructive, color_destructive_fg
 
 # ── Document ──────────────────────────────────────────────────────────────────
 
@@ -142,6 +146,24 @@ const color_pastel_silver      = _color(189, 195, 199)
 
 const color_pastel_concrete    = _color(149, 165, 166)
 const color_pastel_asbestos    = _color(127, 140, 141)
+
+# ── shadcn / Tailwind zinc ramp ─────────────────────────────────────────────────
+# Neutral palette used by the widget theme (see WidgetTheme). Plus the shadcn
+# accent reds used for the "destructive" token.
+
+const color_zinc_50  = _color(250, 250, 250)
+const color_zinc_100 = _color(244, 244, 245)
+const color_zinc_200 = _color(228, 228, 231)
+const color_zinc_300 = _color(212, 212, 216)
+const color_zinc_400 = _color(161, 161, 170)
+const color_zinc_500 = _color(113, 113, 122)
+const color_zinc_600 = _color(82,  82,  91)
+const color_zinc_700 = _color(63,  63,  70)
+const color_zinc_800 = _color(39,  39,  42)
+const color_zinc_900 = _color(24,  24,  27)
+const color_zinc_950 = _color(9,   9,   11)
+const color_destructive       = _color(239, 68, 68)   # red-500
+const color_destructive_fg    = _color(250, 250, 250)
 
 # ── Named ─────────────────────────────────────────────────────────────────────
 # http://en.wikipedia.org/wiki/List_of_colors_(compact)

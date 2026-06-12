@@ -39,6 +39,16 @@ const widget_scroll_bar_example  = Example("widget_scroll_bar",  make_widget_scr
 const widget_scroll_pane_example = Example("widget_scroll_pane", make_widget_scroll_pane_document_example, make_widget_projection_example)
 const widget_shell_example       = Example("widget_shell",       make_widget_shell_document_example,       make_widget_projection_example)
 const widget_tabbed_pane_example = Example("widget_tabbed_pane", make_widget_tabbed_pane_document_example, make_widget_projection_example)
+const widget_badge_example       = Example("widget_badge",       make_widget_badge_document_example,       make_widget_projection_example)
+const widget_separator_example   = Example("widget_separator",   make_widget_separator_document_example,   make_widget_projection_example)
+const widget_card_example        = Example("widget_card",        make_widget_card_document_example,        make_widget_projection_example)
+const widget_switch_example      = Example("widget_switch",      make_widget_switch_document_example,      make_widget_projection_example)
+const widget_progress_example    = Example("widget_progress",    make_widget_progress_document_example,    make_widget_projection_example)
+const widget_slider_example      = Example("widget_slider",      make_widget_slider_document_example,      make_widget_projection_example)
+const widget_radio_group_example = Example("widget_radio_group", make_widget_radio_group_document_example, make_widget_projection_example)
+const widget_avatar_example      = Example("widget_avatar",      make_widget_avatar_document_example,      make_widget_projection_example)
+const widget_alert_example       = Example("widget_alert",       make_widget_alert_document_example,       make_widget_projection_example)
+const widget_skeleton_example    = Example("widget_skeleton",    make_widget_skeleton_document_example,    make_widget_projection_example)
 const layout_example         = Example("layout",         make_layout_document_example,         make_layout_projection_example)
 const book_example           = Example("book",           make_book_document_example,           make_book_projection_example)
 const filesystem_example     = Example("filesystem",     make_filesystem_document_example,     make_filesystem_projection_example)
@@ -73,6 +83,9 @@ const examples = [
     widget_composite_example, widget_title_pane_example, widget_split_pane_example,
     widget_scroll_bar_example, widget_scroll_pane_example, widget_shell_example,
     widget_tabbed_pane_example,
+    widget_badge_example, widget_separator_example, widget_card_example, widget_switch_example,
+    widget_progress_example, widget_slider_example, widget_radio_group_example,
+    widget_avatar_example, widget_alert_example, widget_skeleton_example,
     layout_example, book_example, filesystem_example, navigator_example,
     collection_example, reversing_example, filtering_example, searching_example, sorting_example, focusing_example, table_example, math_table_example, workbench_example,
     math_example,

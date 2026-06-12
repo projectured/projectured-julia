@@ -15,7 +15,7 @@ function make_assistant_projection_example(; measure=sdl_measure_text)
     # Dark text — the SDL backend uses a cream background; the workbench's
     # default `(0xee, 0xee, 0xee, 0xff)` pale-gray is for dark themes only.
     fg   = (0x22, 0x22, 0x22, 0xff)
-    w2g  = WidgetToGraphics(font; measure=measure, default_fg=fg)
+    w2g  = WidgetToGraphics(font; measure=measure)
     text_to_graphics = SequentialProjection(WordWrapping(measure=measure), TextToGraphics(measure=measure))
 
     inner_chain = RecursiveProjection(TypeDispatchingProjection(vcat(

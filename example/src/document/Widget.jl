@@ -259,3 +259,73 @@ function make_widget_tabbed_pane_document_example(; width=600, height=400)
                 content_fill_color=StyleColor(28/255, 28/255, 38/255, 1.0),
                 size=Point2D(width, height))
 end
+
+# ── shadcn/ui extension widgets ──────────────────────────────────────────────
+# Each shows one new widget (some with several states) so its behavior can be
+# tested in isolation with make_widget_projection_example.
+
+# WidgetBadge — the four variants stacked.
+make_widget_badge_document_example() =
+    WidgetComposite(Point2D(40, 40), Any[
+        WidgetBadge(Point2D(0,   0), "Default"),
+        WidgetBadge(Point2D(0,  44), "Secondary";   variant=:secondary),
+        WidgetBadge(Point2D(0,  88), "Destructive"; variant=:destructive),
+        WidgetBadge(Point2D(0, 132), "Outline";     variant=:outline),
+    ])
+
+# WidgetSeparator — a rule between two labels.
+make_widget_separator_document_example() =
+    WidgetComposite(Point2D(40, 40), Any[
+        WidgetLabel(Point2D(0,  0), "Above the rule"),
+        WidgetSeparator(Point2D(0, 44); length=260),
+        WidgetLabel(Point2D(0, 64), "Below the rule"),
+    ])
+
+# WidgetCard — title + description + body + footer.
+make_widget_card_document_example() =
+    WidgetCard(Point2D(40, 40);
+               title="Create project",
+               description="Deploy your new project in one click.",
+               content="Name and framework go here.",
+               footer="You can change this later.")
+
+# WidgetSwitch — on and off.
+make_widget_switch_document_example() =
+    WidgetComposite(Point2D(40, 40), Any[
+        WidgetSwitch(Point2D(0,  0), true),
+        WidgetSwitch(Point2D(0, 44), false),
+    ])
+
+# WidgetProgress — a 60% bar.
+make_widget_progress_document_example() =
+    WidgetProgress(Point2D(40, 40), 0.6; width=260)
+
+# WidgetSlider — a knob at 40%.
+make_widget_slider_document_example() =
+    WidgetSlider(Point2D(40, 40), 0.4; width=260)
+
+# WidgetRadioGroup — three options, the middle one selected.
+make_widget_radio_group_document_example() =
+    WidgetRadioGroup(Point2D(40, 40), ["Default", "Comfortable", "Compact"]; selected=2)
+
+# WidgetAvatar — initials in a circle.
+make_widget_avatar_document_example() =
+    WidgetAvatar(Point2D(40, 40), "JD"; size=64)
+
+# WidgetAlert — default and destructive variants.
+make_widget_alert_document_example() =
+    WidgetComposite(Point2D(40, 40), Any[
+        WidgetAlert(Point2D(0,   0), "Heads up!",
+                    "You can add components to your app using the CLI."),
+        WidgetAlert(Point2D(0, 110), "Something went wrong",
+                    "Your session has expired. Please log in again.";
+                    variant=:destructive),
+    ])
+
+# WidgetSkeleton — loading placeholders.
+make_widget_skeleton_document_example() =
+    WidgetComposite(Point2D(40, 40), Any[
+        WidgetSkeleton(Point2D(0,  0); width=260, height=20),
+        WidgetSkeleton(Point2D(0, 36); width=200, height=20),
+        WidgetSkeleton(Point2D(0, 72); width=230, height=20),
+    ])

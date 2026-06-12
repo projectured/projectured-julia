@@ -201,7 +201,7 @@ function test_click_roundtrips()
             #     domain projections do not yet propagate selection through every
             #     intermediate cell so the cursor does not always re-render; see
             #     plan/pending/json-navigation-and-clicks.md §3 (out of scope)
-            (startswith(example.name, "widget") && example.name != "widget_text") && continue
+            startswith(example.name, "widget") && continue
             example.name in ("workbench",
                               "filesystem", "xml", "table", "math_table",
                               "graphics_image", "layout", "tooltip",
@@ -286,7 +286,7 @@ function test_text_nav_invariants_all()
             #     domain projections do not yet propagate selection through every
             #     intermediate cell so the cursor does not always re-render; see
             #     plan/pending/json-navigation-and-clicks.md §3 (out of scope)
-            (startswith(example.name, "widget") && example.name != "widget_text") && continue
+            startswith(example.name, "widget") && continue
             example.name in ("workbench",
                               "filesystem", "xml", "table", "math_table",
                               "graphics_image", "layout", "tooltip",

@@ -18,7 +18,7 @@ function make_layout_projection_example(; measure=sdl_measure_text)
             VerticalLayout   => VerticalLayoutToGraphicsCanvas(),
             GridLayout       => GridLayoutToGraphicsCanvas(),
             FlowLayout       => FlowLayoutToGraphicsCanvas(),
-            Any              => WidgetToGraphics(font; measure=measure, default_fg=fg),
+            Any              => WidgetToGraphics(font; measure=measure),
         )),
     )
 end

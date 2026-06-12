@@ -13,7 +13,7 @@ end
 function make_introspection_projection(projection; measure=sdl_measure_text)
     font = font_ubuntu_monospace_regular_24
     fg   = (0xee, 0xee, 0xee, 0xff)
-    w2g  = WidgetToGraphics(font; measure=measure, default_fg=fg)
+    w2g  = WidgetToGraphics(font; measure=measure)
     object_chain = SequentialProjection(
         RecursiveProjection(ObjectToSyntax()),
         RecursiveProjection(SyntaxToText()),
@@ -44,7 +44,7 @@ function make_text_configuring_projection(inner_text_projection;
                                           measure=sdl_measure_text,
                                           font=font_ubuntu_monospace_regular_24)
     fg  = (0x22, 0x22, 0x22, 0xff)   # dark text for the light example background
-    w2g = WidgetToGraphics(font; measure=measure, default_fg=fg)
+    w2g = WidgetToGraphics(font; measure=measure)
     renderer = RecursiveProjection(TypeDispatchingProjection(vcat(
         w2g.dispatch,
         Pair{DataType,Any}[
@@ -67,7 +67,7 @@ function make_workbench_projection(; measure=sdl_measure_text,
                                    ])
     font = font_ubuntu_monospace_regular_24
     fg   = (0xee, 0xee, 0xee, 0xff)
-    w2g  = WidgetToGraphics(font; measure=measure, default_fg=fg)
+    w2g  = WidgetToGraphics(font; measure=measure)
     combined_w2g = RecursiveProjection(TypeDispatchingProjection(vcat(
         w2g.dispatch,
         content_projections,

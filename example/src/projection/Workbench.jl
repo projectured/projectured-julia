@@ -2,7 +2,7 @@
 function make_workbench_projection_example(; measure=sdl_measure_text)
     font = font_ubuntu_regular_24
     fg   = (0xee, 0xee, 0xee, 0xff)
-    w2g  = WidgetToGraphics(font; measure=measure, default_fg=fg)
+    w2g  = WidgetToGraphics(font; measure=measure)
     text_to_graphics = SequentialProjection(WordWrapping(measure=measure), TextToGraphics(measure=measure))
     text_to_graphics_no_wrap = TextToGraphics(measure=measure)
     object_chain = SequentialProjection(

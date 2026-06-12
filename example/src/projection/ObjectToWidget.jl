@@ -6,7 +6,7 @@
 function make_object_to_widget_projection_example(; measure=sdl_measure_text)
     font = font_ubuntu_monospace_regular_24
     fg   = (0x22, 0x22, 0x22, 0xff)
-    w2g  = WidgetToGraphics(font; measure=measure, default_fg=fg)
+    w2g  = WidgetToGraphics(font; measure=measure)
     SequentialProjection(
         ObjectToWidget(font=font, color=color_default),
         RecursiveProjection(TypeDispatchingProjection(vcat(
