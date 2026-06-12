@@ -24,6 +24,7 @@ import ..IoMapApiModule: IoMap
 import ..OperationModule: ReplaceSelectionOperation, ToggleCollapseOperation
 import ..PrimitiveModule: StringReplaceRangeOperation
 import ..KeyboardModule: KeyDown
+import ..EventCaseModule: var"@event_case"
 import ..MouseModule: MousePress
 export SyntaxLeafToText, SyntaxNodeToText, SyntaxListToText, SyntaxToText,
        SyntaxNodeToTextIoMap, _syntax_to_flat
@@ -271,21 +272,31 @@ end
 # Arrows require Alt only to *enter* structural mode from a character cursor;
 # once a whole element is selected, plain arrows continue node-to-node movement.
 function projection_read(p::SyntaxNodeToText, iomap::SyntaxNodeToTextIoMap, evt::KeyDown)
-    if evt.key === :home && evt.modifiers.ctrl && evt.modifiers.alt
-        return ReplaceSelectionOperation(EmptyReferencePath())
-    end
     sel = iomap.input.selection
-    if evt.key === :space && evt.modifiers.ctrl
-        new_path = _is_tree_selection(sel) ? _descend_to_text_cursor(iomap.input, sel) :
-                                             _promote_to_structural(sel)
-        new_path === nothing && return nothing
-        return ReplaceSelectionOperation(new_path)
+    # Loose modifier guards (via when) preserve the pre-migration behaviour:
+    # the chords ignore unlisted modifiers, and an arrow navigates whenever it
+    # is alt-modified or the selection is already structural.
+    @event_case evt begin
+        # Ctrl+Alt+Home → select the root node (∅).
+        when(KeyDown(:home), evt.modifiers.ctrl && evt.modifiers.alt) =>
+            return ReplaceSelectionOperation(EmptyReferencePath())
+        # Ctrl+Space → toggle structural ⇄ text (character-cursor) mode.
+        when(KeyDown(:space), evt.modifiers.ctrl) => begin
+            new_path = _is_tree_selection(sel) ? _descend_to_text_cursor(iomap.input, sel) :
+                                                 _promote_to_structural(sel)
+            new_path === nothing && return nothing
+            return ReplaceSelectionOperation(new_path)
+        end
+        # Arrows move node-to-node, but only to *enter* structural mode from a
+        # character cursor (Alt held) or once a whole element is already selected.
+        when(KeyDown(k), k in (:up, :down, :left, :right) &&
+                         (evt.modifiers.alt || _is_tree_selection(sel))) => begin
+            new_path = _tree_navigate(iomap.input, sel, k)
+            new_path === nothing && return nothing
+            return ReplaceSelectionOperation(new_path)
+        end
     end
-    evt.key in (:up, :down, :left, :right) || return nothing
-    (evt.modifiers.alt || _is_tree_selection(sel)) || return nothing
-    new_path = _tree_navigate(iomap.input, sel, evt.key)
-    new_path === nothing && return nothing
-    ReplaceSelectionOperation(new_path)
+    return nothing
 end
 
 function _tree_navigate(node::SyntaxNode, sel, direction::Symbol)
