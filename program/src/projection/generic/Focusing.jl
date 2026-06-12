@@ -11,7 +11,8 @@ import ..OperationApiModule: Operation, evaluate_operation
 import ..OperationModule: ReplaceSelectionOperation
 import ..ReferenceModule: ReferencePath, ConcreteReferencePath, EmptyReferencePath, evaluate_reference, append_reference
 import ..IoMapModule: SimpleIoMap
-import ..KeyboardModule: KeyDown, is_ctrl
+import ..KeyboardModule: KeyDown
+import ..EventCaseModule: var"@event_case"
 
 export FocusingProjection, ReplaceFocusPartOperation
 
@@ -67,16 +68,19 @@ function evaluate_operation(editor, op::ReplaceFocusPartOperation)
     op.projection.part_evaluator = document -> evaluate_reference(document, op.part)
 end
 
+function projection_read(p::FocusingProjection, iomap::SimpleIoMap, event::ReplaceSelectionOperation)
+    input_selection = map_reference_backward(p, iomap, event.path)
+    input_selection === nothing && return nothing
+    return ReplaceSelectionOperation(input_selection)
+end
+
 function projection_read(p::FocusingProjection, iomap::SimpleIoMap, event)
-    if event isa ReplaceSelectionOperation
-        input_selection = map_reference_backward(p, iomap, event.path)
-        input_selection === nothing && return nothing
-        return ReplaceSelectionOperation(input_selection)
-    elseif event isa KeyDown && is_ctrl(event)
-        if event.key == :comma
+    @event_case event begin
+        KeyDown(:comma; ctrl) => begin
             isempty(p.part) && return nothing
             return ReplaceFocusPartOperation(p, _drop_last(p.part))
-        elseif event.key == :period
+        end
+        KeyDown(:period; ctrl) => begin
             hasproperty(iomap.input, :selection) || return nothing
             sel = iomap.input.selection
             (sel === nothing || isempty(sel)) && return nothing
@@ -85,7 +89,6 @@ function projection_read(p::FocusingProjection, iomap::SimpleIoMap, event)
             return ReplaceFocusPartOperation(p, new_part)
         end
     end
-    return nothing
 end
 
 function _concat_path(prefix::EmptyReferencePath, suffix::ReferencePath)
