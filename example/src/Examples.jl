@@ -23,6 +23,20 @@ const word_wrapping_example  = Example("word_wrapping",  make_word_wrapping_docu
 const text_filtering_example = Example("text_filtering", make_text_filtering_document_example, make_text_filtering_projection_example)
 const text_highlighting_example = Example("text_highlighting", make_text_highlighting_document_example, make_text_highlighting_projection_example)
 const widget_example         = Example("widget",         make_widget_document_example,         make_widget_projection_example)
+const widget_label_example       = Example("widget_label",       make_widget_label_document_example,       make_widget_projection_example)
+const widget_text_example        = Example("widget_text",        make_widget_text_document_example,        make_widget_text_projection_example)
+const widget_checkbox_example    = Example("widget_checkbox",    make_widget_checkbox_document_example,    make_widget_projection_example)
+const widget_button_example      = Example("widget_button",      make_widget_button_document_example,      make_widget_projection_example)
+const widget_tooltip_example     = Example("widget_tooltip",     make_widget_tooltip_document_example,     make_widget_projection_example)
+const widget_menu_item_example   = Example("widget_menu_item",   make_widget_menu_item_document_example,   make_widget_projection_example)
+const widget_menu_example        = Example("widget_menu",        make_widget_menu_document_example,        make_widget_projection_example)
+const widget_toolbar_example     = Example("widget_toolbar",     make_widget_toolbar_document_example,     make_widget_projection_example)
+const widget_composite_example   = Example("widget_composite",   make_widget_composite_document_example,   make_widget_projection_example)
+const widget_title_pane_example  = Example("widget_title_pane",  make_widget_title_pane_document_example,  make_widget_projection_example)
+const widget_split_pane_example  = Example("widget_split_pane",  make_widget_split_pane_document_example,  make_widget_projection_example)
+const widget_scroll_bar_example  = Example("widget_scroll_bar",  make_widget_scroll_bar_document_example,  make_widget_projection_example)
+const widget_scroll_pane_example = Example("widget_scroll_pane", make_widget_scroll_pane_document_example, make_widget_projection_example)
+const widget_shell_example       = Example("widget_shell",       make_widget_shell_document_example,       make_widget_projection_example)
 const widget_tabbed_pane_example = Example("widget_tabbed_pane", make_widget_tabbed_pane_document_example, make_widget_projection_example)
 const layout_example         = Example("layout",         make_layout_document_example,         make_layout_projection_example)
 const book_example           = Example("book",           make_book_document_example,           make_book_projection_example)
@@ -52,7 +66,13 @@ const examples = [
     json_example, json_sorted_example, json_null_example, json_string_example,
     xml_example, mixed_example, syntax_example, text_example, text_with_image_example,
     object_example, line_numbering_example, word_wrapping_example, text_filtering_example, text_highlighting_example,
-    widget_example, widget_tabbed_pane_example, layout_example, book_example, filesystem_example, navigator_example,
+    widget_example,
+    widget_label_example, widget_text_example, widget_checkbox_example, widget_button_example,
+    widget_tooltip_example, widget_menu_item_example, widget_menu_example, widget_toolbar_example,
+    widget_composite_example, widget_title_pane_example, widget_split_pane_example,
+    widget_scroll_bar_example, widget_scroll_pane_example, widget_shell_example,
+    widget_tabbed_pane_example,
+    layout_example, book_example, filesystem_example, navigator_example,
     collection_example, reversing_example, filtering_example, searching_example, sorting_example, focusing_example, table_example, math_table_example, workbench_example,
     math_example,
     julia_example,
@@ -99,11 +119,22 @@ When `introspection=true`, each example's content is wrapped in a
 `WidgetTabbedPane` with three tabs: the original content (rendered with
 the example's own projection), the editor's document, and the editor's
 projection (both rendered generically via `ObjectToSyntax`).
+
+When `text_highlighting=true` (or `text_filtering=true`), the example's
+projection is replaced by a `ProjectionConfiguringProjection` that stacks an
+editable control bar for a `TextHighlighting` (resp. `TextFiltering`)
+projection above the projected text. Editing the controls re-highlights /
+re-filters live; `Ctrl+F` toggles the bar, `Escape` hides it. Expects a
+`TextText` document (the text examples). The two flags are mutually exclusive.
 """
 function run_example(examples::Vector{Example}; width=nothing, height=nothing,
                      caching=false, scrolling=false, workbench=false, reset=false,
-                     tooltip=false, introspection=false, selection=nothing)
+                     tooltip=false, introspection=false,
+                     text_filtering=false, text_highlighting=false, selection=nothing)
     isempty(examples) && error("run_example: empty examples vector")
+    if text_filtering && text_highlighting
+        error("run_example: text_filtering and text_highlighting are mutually exclusive")
+    end
     if width === nothing || height === nothing
         sw, sh = sdl_display_size()
         width  = something(width,  sw)
@@ -135,6 +166,14 @@ function run_example(examples::Vector{Example}; width=nothing, height=nothing,
         elseif introspection
             document   = make_introspection_document(document, projection; title=ex.name)
             projection = make_introspection_projection(projection)
+        elseif text_highlighting
+            # Stack a TextHighlighting control bar above the (text) document; the
+            # example's own projection is replaced by the configuring pipeline.
+            # A default pattern makes the highlight (and the case_insensitive
+            # toggle's effect) visible out of the box. Expects a TextText document.
+            projection = make_text_configuring_projection(TextHighlighting("dolor"))
+        elseif text_filtering
+            projection = make_text_configuring_projection(TextFiltering("dolor"))
         end
         if caching
             projection = make_graphics_caching(projection)

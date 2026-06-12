@@ -45,15 +45,31 @@ lines (`grep -v`). Regex flags (case-insensitivity, multiline, …) live in the
 `Regex` the caller builds — the projection does not interpret them.
 """
 struct TextFiltering <: Projection
-    pattern::Cell    # Cell{Union{Regex,Nothing}} — reactive; nothing = keep all
-    invert::Bool
+    pattern::Cell          # Cell holding the source String | Regex | nothing — reactive
+    case_insensitive::Cell # Cell{Bool} — reactive; adds the `i` flag when a source String is compiled
+    invert::Cell           # Cell{Bool} — reactive; keep the *non*-matching lines (grep -v)
 end
 
-TextFiltering(pattern::Cell; invert::Bool=false) = TextFiltering(pattern, invert)
-TextFiltering(pattern::Regex; invert::Bool=false) = TextFiltering(Cell(pattern), invert)
-TextFiltering(pattern::AbstractString; invert::Bool=false) = TextFiltering(Cell(Regex(pattern)), invert)
-TextFiltering(; pattern=nothing, invert::Bool=false) =
-    TextFiltering(pattern isa Cell ? pattern : Cell(pattern), invert)
+TextFiltering(pattern::Cell; case_insensitive=false, invert=false) =
+    TextFiltering(pattern,
+                  case_insensitive isa Cell ? case_insensitive : Cell(case_insensitive),
+                  invert isa Cell ? invert : Cell(invert))
+TextFiltering(pattern::Regex; kw...) = TextFiltering(Cell(pattern); kw...)
+TextFiltering(pattern::AbstractString; kw...) = TextFiltering(Cell(String(pattern)); kw...)
+TextFiltering(; pattern=nothing, kw...) =
+    TextFiltering(pattern isa Cell ? pattern : Cell(pattern); kw...)
+
+# Normalise the (reactive) pattern cell value into the `Union{Regex,Nothing}` the
+# filter consumes. `nothing` / empty source ⇒ keep every line (pass-through); a
+# source `String` is compiled (with the `i` flag when `case_insensitive`); a `Regex`
+# is used verbatim — flags it carries win, so it ignores `case_insensitive`.
+function _effective_pattern(value, case_insensitive::Bool)
+    value === nothing && return nothing
+    value isa Regex && return value
+    s = String(value)
+    isempty(s) && return nothing
+    case_insensitive ? Regex(s, "i") : Regex(s)
+end
 
 # ── IoMap ───────────────────────────────────────────────────────────────────
 
@@ -75,8 +91,9 @@ end
 
 function projection_print(p::TextFiltering, recursion, text::TextText, ctx)
     pattern_cell = p.pattern
-    invert = p.invert
-    both = Cell(() -> _filter(text, pattern_cell[], invert))   # (elements, kept)
+    ci_cell = p.case_insensitive
+    invert_cell = p.invert
+    both = Cell(() -> _filter(text, _effective_pattern(pattern_cell[], ci_cell[]), invert_cell[]))   # (elements, kept)
     elements_cv = CellVector(() -> both[][1])
     kept_cell = Cell(() -> both[][2])
     out_selection = Cell(() -> _forward_map(kept_cell[], text.selection))

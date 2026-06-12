@@ -85,6 +85,7 @@ include("projection/generic/Searching.jl")
 include("projection/generic/Sorting.jl")
 include("projection/generic/Copying.jl")
 include("projection/generic/Invariably.jl")
+include("projection/generic/ObjectToWidget.jl")
 
 # ── Devices (needed by projections) ──────────────────────────────────────
 
@@ -93,6 +94,11 @@ include("device/Keyboard.jl")
 include("device/Mouse.jl")
 include("device/EventCase.jl")
 include("projection/generic/Focusing.jl")
+
+# Higher-order projection that depends on ObjectToWidget (generic) and the
+# keyboard device, so it is included here rather than with the other
+# higher-order projections above.
+include("projection/higherorder/ProjectionConfiguring.jl")
 
 # ── Primitive projections ─────────────────────────────────────────────────
 
@@ -184,7 +190,7 @@ using .PrinterContextModule: PrinterContext, child_context, with_available_size,
 using .DocumentApiModule: set_selection!, clear_selection!
 using .OperationModule: ReplaceSelectionOperation, QuitEditorOperation, replace_selection!,
                         OpenWindowOperation, CloseWindowOperation, ToggleCollapseOperation,
-                        ReplaceDocumentOperation, CollectionInsertOperation, CollectionDeleteOperation
+                        ReplaceDocumentOperation, ReplaceReferencedValue, CollectionInsertOperation, CollectionDeleteOperation
 using .ReferenceCaseModule: var"@reference_case", when, prefix
 using .EventCaseModule: var"@event_case"
 using .ReferenceBuilderModule: var"@reference", var"@step"
@@ -268,6 +274,8 @@ using .TooltipDecoratorProjectionModule: TooltipDecoratorProjection, TooltipDeco
 using .ReversingProjectionModule: ReversingProjection
 using .FilteringProjectionModule: FilteringProjection, FilteringProjectionIoMap
 using .SearchingProjectionModule: SearchingProjection, SearchingProjectionIoMap
+using .ObjectToWidgetModule: ObjectToWidget, ObjectToWidgetIoMap
+using .ProjectionConfiguringProjectionModule: ProjectionConfiguringProjection, ProjectionConfiguringProjectionIoMap
 using .SortingProjectionModule: SortingProjection, SortingProjectionIoMap
 using .CopyingProjectionModule: CopyingProjection, CopyingProjectionIoMap
 using .FocusingProjectionModule: FocusingProjection, ReplaceFocusPartOperation
@@ -420,7 +428,7 @@ export @reference_case, when, prefix
 export @event_case
 export @reference, @step
 export ReplaceSelectionOperation, ToggleCollapseOperation
-export ReplaceDocumentOperation, CollectionInsertOperation, CollectionDeleteOperation
+export ReplaceDocumentOperation, ReplaceReferencedValue, CollectionInsertOperation, CollectionDeleteOperation
 export OpenWindowOperation, CloseWindowOperation
 export JsonDocument, JsonInsertion, JsonNull, JsonBool, JsonNumber, JsonString, JsonArray, JsonObject, JsonObjectEntry, jsonvalue, entries
 export TabularDocument, TabularCell, TabularRow, TabularGrid,
@@ -536,6 +544,8 @@ export WindowManagerProjection, WindowManagerProjectionIoMap
 export TooltipDecoratorProjection, TooltipDecoratorProjectionIoMap
 export ReversingProjection
 export FilteringProjection, FilteringProjectionIoMap
+export ObjectToWidget, ObjectToWidgetIoMap
+export ProjectionConfiguringProjection, ProjectionConfiguringProjectionIoMap
 export SearchingProjection, SearchingProjectionIoMap
 export SortingProjection, SortingProjectionIoMap
 export CopyingProjection, CopyingProjectionIoMap

@@ -116,7 +116,8 @@ function test_tree_navigations()
     # support tree navigation — Ctrl+Alt+Home must produce a result.
     @testset "TreeNavigation" begin
         for example in examples
-            example.name in ("widget", "widget_tabbed_pane", "layout",
+            (startswith(example.name, "widget") && example.name != "widget_text") && continue
+            example.name in ("layout",
                              "workbench", "assistant",
                              "text", "text_with_image", "graphics_image",
                              "lazy", "lazy_bidirectional") && continue

@@ -105,4 +105,26 @@ end # @testset
 
 end # @testset
 
+@testset "TextFiltering string source, case_insensitive and reactive invert" begin
+
+    # String source compiles to a Regex; empty source keeps everything.
+    iomap = projection_print(TextFiltering("dolor"), _fixture())
+    @test iomap.kept[] == [1, 2, 5]
+
+    # case_insensitive adds the `i` flag.
+    ci = Cell(false)
+    iomap2 = projection_print(TextFiltering(Cell("DOLOR"); case_insensitive=ci), _fixture())
+    @test iomap2.kept[] == Int[]             # case-sensitive: no line matches "DOLOR"
+    ci[] = true
+    @test iomap2.kept[] == [1, 2, 5]         # now the dolor lines match
+
+    # invert is now a reactive Cell.
+    inv = Cell(false)
+    iomap3 = projection_print(TextFiltering(Cell("dolor"); invert=inv), _fixture())
+    @test iomap3.kept[] == [1, 2, 5]
+    inv[] = true
+    @test iomap3.kept[] == [3, 4]            # keep the complement
+
+end # @testset
+
 end # test_text_filtering

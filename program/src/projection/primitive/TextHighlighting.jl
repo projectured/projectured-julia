@@ -44,15 +44,29 @@ sub-spans (glyph color is left untouched so matched text stays readable). Regex
 flags live in the `Regex` the caller builds.
 """
 struct TextHighlighting <: Projection
-    pattern::Cell    # Cell{Union{Regex,Nothing}} — reactive; nothing = no highlights
+    pattern::Cell          # Cell holding the source String | Regex | nothing — reactive
+    case_insensitive::Cell # Cell{Bool} — reactive; adds the `i` flag when a source String is compiled
     color::StyleColor
 end
 
-TextHighlighting(pattern::Cell; color::StyleColor=color_yellow) = TextHighlighting(pattern, color)
-TextHighlighting(pattern::Regex; color::StyleColor=color_yellow) = TextHighlighting(Cell(pattern), color)
-TextHighlighting(pattern::AbstractString; color::StyleColor=color_yellow) = TextHighlighting(Cell(Regex(pattern)), color)
-TextHighlighting(; pattern=nothing, color::StyleColor=color_yellow) =
-    TextHighlighting(pattern isa Cell ? pattern : Cell(pattern), color)
+TextHighlighting(pattern::Cell; case_insensitive=false, color::StyleColor=color_yellow) =
+    TextHighlighting(pattern, case_insensitive isa Cell ? case_insensitive : Cell(case_insensitive), color)
+TextHighlighting(pattern::Regex; kw...) = TextHighlighting(Cell(pattern); kw...)
+TextHighlighting(pattern::AbstractString; kw...) = TextHighlighting(Cell(String(pattern)); kw...)
+TextHighlighting(; pattern=nothing, kw...) =
+    TextHighlighting(pattern isa Cell ? pattern : Cell(pattern); kw...)
+
+# Normalise the (reactive) pattern cell value into the `Union{Regex,Nothing}` the
+# highlighter consumes. `nothing` / empty source ⇒ no highlights (pass-through); a
+# source `String` is compiled (with the `i` flag when `case_insensitive`); a `Regex`
+# is used verbatim — flags it carries win, so it ignores `case_insensitive`.
+function _effective_pattern(value, case_insensitive::Bool)
+    value === nothing && return nothing
+    value isa Regex && return value
+    s = String(value)
+    isempty(s) && return nothing
+    case_insensitive ? Regex(s, "i") : Regex(s)
+end
 
 # ── Mapping table ───────────────────────────────────────────────────────────
 
@@ -82,8 +96,9 @@ end
 
 function projection_print(p::TextHighlighting, recursion, text::TextText, ctx)
     pattern_cell = p.pattern
+    ci_cell = p.case_insensitive
     color = p.color
-    both = Cell(() -> _highlight(text, pattern_cell[], color))   # (elements, segs)
+    both = Cell(() -> _highlight(text, _effective_pattern(pattern_cell[], ci_cell[]), color))   # (elements, segs)
     elements_cv = CellVector(() -> both[][1])
     segs_cell = Cell(() -> both[][2])
     out_selection = Cell(() -> _forward_map(segs_cell[], text.selection))

@@ -12,7 +12,7 @@ import ..ReferenceModule: ReferencePath, ConcreteReferencePath, EmptyReferencePa
 import ..ReactiveModule: Cell
 export ReplaceSelectionOperation, QuitEditorOperation, QuitEditorException, replace_selection!,
        OpenWindowOperation, CloseWindowOperation, ToggleCollapseOperation,
-       ReplaceDocumentOperation, CollectionInsertOperation, CollectionDeleteOperation
+       ReplaceDocumentOperation, ReplaceReferencedValue, CollectionInsertOperation, CollectionDeleteOperation
 
 function evaluate_operation(editor, op::Nothing) end
 
@@ -130,6 +130,42 @@ end
 
 function _write_document_slot!(parent, step::RangeReference, new_doc)
     parent[step.start + 1] = new_doc
+end
+
+"""
+    ReplaceReferencedValue(document, reference, value)
+
+Set the scalar `value` at `reference` (a `ReferencePath`) resolved against the
+explicit root `document`. Unlike `ReplaceDocumentOperation`, the root is carried
+by the operation rather than being `editor.document`, so this works on objects
+that do not live in the document tree — notably a projection's own reactive
+parameter `Cell`s (the controls produced by `ObjectToWidget` edit these).
+
+It is `ReplaceDocumentOperation` generalised: an explicit root + a field
+reference + a plain value, reusing the same terminal-slot-write split.
+"""
+struct ReplaceReferencedValue <: Operation
+    document::Any
+    reference::ReferencePath
+    value::Any
+end
+
+function evaluate_operation(editor, op::ReplaceReferencedValue)
+    if op.reference isa EmptyReferencePath
+        error("ReplaceReferencedValue: empty reference has no slot to write")
+    end
+    parent_path, terminal = _split_terminal_step(op.reference)
+    parent = parent_path isa EmptyReferencePath ? op.document :
+             evaluate_reference(op.document, parent_path)
+    _write_value_slot!(parent, terminal, op.value)
+end
+
+# Write a scalar `value` into the slot `step` selects on `parent`. The scalar
+# twin of `_write_document_slot!`: a `FieldReference` names a `Cell`-backed field.
+function _write_value_slot!(parent, step::FieldReference, value)
+    f = getfield(parent, Symbol(step.name))
+    f isa Cell || error("ReplaceReferencedValue: field $(step.name) of $(typeof(parent)) is not a Cell")
+    f[] = value
 end
 
 """

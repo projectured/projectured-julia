@@ -109,4 +109,26 @@ end # @testset
 
 end # @testset
 
+@testset "TextHighlighting string source + case_insensitive flag" begin
+
+    # A plain String source is compiled to a Regex; empty source = no highlights.
+    out = projection_print(TextHighlighting("alpha", color=color_red),
+                           TextText(TextString("alpha beta", _font, color_default))).output
+    @test _contents(out) == ["alpha", " beta"]
+
+    # case_insensitive adds the `i` flag when the source String is compiled.
+    ci = Cell(false)
+    src = Cell("ALPHA")
+    out2 = projection_print(TextHighlighting(src; case_insensitive=ci, color=color_red),
+                            TextText(TextString("alpha beta", _font, color_default))).output
+    @test _contents(out2) == ["alpha beta"]    # case-sensitive: no match
+    ci[] = true
+    @test _contents(out2) == ["alpha", " beta"] # now matches
+
+    # Empty source string is a pass-through.
+    src[] = ""
+    @test _contents(out2) == ["alpha beta"]
+
+end # @testset
+
 end # test_text_highlighting

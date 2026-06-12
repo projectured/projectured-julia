@@ -34,6 +34,29 @@ function make_introspection_projection(projection; measure=sdl_measure_text)
     )))
 end
 
+# Wrap a Text→Text projection (TextHighlighting / TextFiltering) in a
+# ProjectionConfiguringProjection so a control bar for its parameters stacks
+# above the projected text, then render the resulting widget+text tree. The
+# combined renderer dispatches widget nodes through WidgetToGraphics and the
+# projected `TextText` slot through TextToGraphics — the introspection pattern.
+# Expects a TextText document (the text examples).
+function make_text_configuring_projection(inner_text_projection;
+                                          measure=sdl_measure_text,
+                                          font=font_ubuntu_monospace_regular_24)
+    fg  = (0x22, 0x22, 0x22, 0xff)   # dark text for the light example background
+    w2g = WidgetToGraphics(font; measure=measure, default_fg=fg)
+    renderer = RecursiveProjection(TypeDispatchingProjection(vcat(
+        w2g.dispatch,
+        Pair{DataType,Any}[
+            TextText => TextToGraphics(measure=measure),
+        ],
+    )))
+    SequentialProjection(
+        ProjectionConfiguringProjection(inner=inner_text_projection),
+        renderer,
+    )
+end
+
 function make_workbench_projection(; measure=sdl_measure_text,
                                    content_projections=Pair{DataType,Any}[
                                        JsonDocument         => SequentialProjection(RecursiveProjection(JsonToSyntax()), RecursiveProjection(SyntaxToText()), WordWrapping(measure=measure), TextToGraphics(measure=measure)),

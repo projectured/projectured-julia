@@ -304,7 +304,8 @@ function test_mouse_clicks()
             # or whose domain projections do not yet propagate selection forward
             # to render a cursor. See plan/pending/json-navigation-and-clicks.md
             # §3 for the follow-ups that unlock the rest.
-            example.name in ("widget", "widget_tabbed_pane", "workbench",
+            (startswith(example.name, "widget") && example.name != "widget_text") && continue
+            example.name in ("workbench",
                               "filesystem", "xml", "table", "math_table",
                               "graphics_image", "layout", "tooltip",
                               "navigator", "assistant",

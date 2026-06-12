@@ -128,7 +128,10 @@ function test_selections()
             # Skip the database-backed catalog / SQL examples too: their
             # projections are read-only (v1), so they map no references back and
             # Ctrl+Home can't seed a selection.
-            example.name in ("widget", "widget_tabbed_pane", "layout", "workbench", "assistant",
+            # Skip every widget example except the editable widget_text, whose
+            # content recurses through TextToGraphics and so seeds a selection.
+            (startswith(example.name, "widget") && example.name != "widget_text") && continue
+            example.name in ("layout", "workbench", "assistant",
                              "dbcatalog", "sql_syntax", "sql_table") && continue
             @testset "$(example.name)" begin
                 test_selection(example)

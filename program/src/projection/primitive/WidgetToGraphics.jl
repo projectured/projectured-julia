@@ -36,9 +36,9 @@ import ..IoMapApiModule: IoMap
 import ..MouseModule: MouseScroll, MousePress
 import ..EventCaseModule: var"@event_case"
 import ..OperationApiModule: Operation
-import ..OperationModule: ReplaceSelectionOperation
+import ..OperationModule: ReplaceSelectionOperation, ReplaceReferencedValue
 import ..PrimitiveModule: StringReplaceRangeOperation, NumberReplaceRangeOperation
-import ..ReferenceModule: ReferencePath, ConcreteReferencePath, FieldReference, RangeReference
+import ..ReferenceModule: ReferencePath, ConcreteReferencePath, FieldReference, RangeReference, EmptyReferencePath
 import ..TypeDispatchingModule: TypeDispatchingProjection
 import ..PrinterContextModule: child_context, with_available_size
 import ..LayoutModule: LayoutConstraint, allocate_axis, layout_min, layout_max,
@@ -349,11 +349,46 @@ end
 
 # ── WidgetText ──────────────────────────────────────────────────────────────
 
+# IoMap for an *editable* WidgetText: its `content` is a Document (typically a
+# `TextText`) recursed through the Text domain, so all caret navigation and text
+# editing is produced by `TextToGraphics`. The widget only re-roots the resulting
+# operations by prepending `content` (see `map_reference_backward`).
+struct WidgetTextToGraphicsCanvasIoMap <: IoMap
+    projection::Any
+    input::WidgetText
+    output::GraphicsCanvas
+    content_iomap::Any
+end
+
 function projection_print(p::WidgetTextToGraphicsCanvas, recursion, w::WidgetText, ctx)
     w.visible == false && return SimpleIoMap(p, w, _empty_canvas())
     pos = w.position::Point2D
     cox, coy = _content_offset(w)
-    text = string(w.content)
+
+    # Editable form: a Document content (e.g. a TextText) is recursed through the
+    # outer projection chain (which routes it to TextToGraphics). Navigation and
+    # editing operations then originate in the Text domain; this projection just
+    # maps them backward. Mirrors WidgetScrollPane's content recursion.
+    content = w.content
+    if content isa Document
+        content_iomap = projection_print(recursion, recursion, content, ctx)
+        inner = content_iomap.output::GraphicsCanvas
+        iw, ih = Int(inner.w[]), Int(inner.h[])
+        elems = Any[]
+        cfc = w.content_fill_color
+        if cfc isa StyleColor
+            r, g, b, a = _rgba(cfc)
+            push!(elems, GraphicsRect(cox, coy, iw, ih, r, g, b, a))
+        end
+        _push_box_rects!(elems, w, 0, 0, iw, ih)
+        push!(elems, _make_canvas(cox, coy, Any[inner]))
+        tx, ty = _inset_total(w)
+        canvas = _make_canvas(Int(pos.x[]), Int(pos.y[]), iw + tx, ih + ty, elems)
+        return WidgetTextToGraphicsCanvasIoMap(p, w, canvas, content_iomap)
+    end
+
+    # Non-editable form: a plain value is stringified (label-like).
+    text = string(content)
     cw, ch = _text_size(p.measure, p.font, text)
     tx, ty = _inset_total(w)
     elems = Any[]
@@ -375,8 +410,33 @@ function map_reference_backward(::WidgetTextToGraphicsCanvas, iomap, reference)
     return nothing
 end
 
+# Re-root a content-domain reference (already translated by the inner Text-domain
+# reader) into this widget's domain by prepending `.content`. Same contribution
+# WidgetScrollPane makes for its wrapped document.
+function map_reference_backward(::WidgetTextToGraphicsCanvas, iomap::WidgetTextToGraphicsCanvasIoMap, reference)
+    reference === nothing && return nothing
+    ConcreteReferencePath(FieldReference("content"), reference)
+end
+
 function projection_read(::WidgetTextToGraphicsCanvas, iomap::SimpleIoMap, evt)
     return nothing
+end
+
+# Delegate every event to the recursed content (Text domain), then re-root the
+# returned path-bearing operation through `map_reference_backward`. MousePress is
+# translated into the content's coordinate frame first.
+function projection_read(p::WidgetTextToGraphicsCanvas, iomap::WidgetTextToGraphicsCanvasIoMap, evt)
+    content_iomap = iomap.content_iomap
+    content_iomap === nothing && return nothing
+    op = @event_case evt begin
+        MousePress(button, x, y) => begin
+            cox, coy = _content_offset(iomap.input)
+            projection_read(content_iomap.projection, content_iomap,
+                            MousePress(button, x - cox, y - coy, evt.modifiers))
+        end
+        _ => projection_read(content_iomap.projection, content_iomap, evt)
+    end
+    _retarget_op(p, iomap, op)
 end
 
 # ── WidgetCheckbox ──────────────────────────────────────────────────────────
@@ -400,6 +460,17 @@ end
 
 function map_reference_backward(::WidgetCheckboxToGraphicsCanvas, iomap, reference)
     return nothing
+end
+
+# A click toggles the checkbox. By convention a leaf control reports an edit as
+# `ReplaceReferencedValue(self, content, new_value)`; a configuring projection
+# (ObjectToWidget) intercepts it by control identity and redirects it onto the
+# bound parameter cell. A bare click that does not reach here leaves the value
+# unchanged.
+function projection_read(::WidgetCheckboxToGraphicsCanvas, iomap::SimpleIoMap, evt::MousePress)
+    w = iomap.input
+    new_value = !(w.content === true)
+    ReplaceReferencedValue(w, ConcreteReferencePath(FieldReference("content"), EmptyReferencePath()), new_value)
 end
 
 function projection_read(::WidgetCheckboxToGraphicsCanvas, iomap::SimpleIoMap, evt)
@@ -570,10 +641,79 @@ function map_reference_backward(::WidgetCompositeToGraphicsCanvas, iomap, refere
     return nothing
 end
 
-function projection_read(::WidgetCompositeToGraphicsCanvas, iomap::ChildrenIoMap, evt)
-    evt isa MouseScroll || return nothing
+# Route events to composite children and re-root the returned op. A MousePress
+# is hit-tested against each child canvas; a coordless event (KeyPress/KeyDown)
+# goes to the child the composite's selection points at, falling back to trying
+# each child. The op a child returns is re-rooted by prepending `elements[i]` —
+# the same scheme WidgetSplitPane uses. Identity-bearing ops (ReplaceReferencedValue
+# from a control) pass through `_prepend_steps_to_op` unchanged.
+function projection_read(p::WidgetCompositeToGraphicsCanvas, iomap::ChildrenIoMap, evt)
     child_iomaps = iomap.child_iomaps[]::Vector
-    _route_scroll_to_children(child_iomaps, evt)
+    res = @event_case evt begin
+        MouseScroll => _route_composite_event(child_iomaps, evt.x, evt.y,
+            (x, y) -> MouseScroll(evt.dx, evt.dy, x, y))
+        MousePress => _route_composite_event(child_iomaps, evt.x, evt.y,
+            (x, y) -> MousePress(evt.button, x, y, evt.modifiers))
+        _ => begin
+            slot = iomap.input isa WidgetComposite ?
+                   _selected_composite_slot(iomap.input, length(child_iomaps)) : 0
+            slot == 0 ? _forward_composite_event(child_iomaps, evt) :
+                        _forward_composite_event_slot(child_iomaps, evt, slot)
+        end
+    end
+    res === nothing && return nothing
+    op, slot_idx = res
+    _prepend_steps_to_op(op, (FieldReference("elements"), RangeReference(slot_idx - 1, slot_idx)))
+end
+
+# Hit-test a coordinate event against each child canvas; returns `(op, i)` for
+# the first child that produced a non-nothing result.
+function _route_composite_event(child_iomaps::Vector, x::Int, y::Int, make_evt)
+    for (i, entry) in enumerate(child_iomaps)
+        entry === nothing && continue
+        (ox, oy, cim) = entry::Tuple{Int,Int,Any}
+        canvas = cim.output
+        canvas isa GraphicsCanvas || continue
+        lx, ly = x - ox - Int(canvas.x), y - oy - Int(canvas.y)
+        hit_element_at(canvas, lx, ly) === nothing && continue
+        result = projection_read(cim.projection, cim, make_evt(lx, ly))
+        result !== nothing && return (result, i)
+    end
+    nothing
+end
+
+# Forward a coordless event through children in order; `(op, i)` for the first
+# that produced an Operation (a passthrough of the raw event doesn't count).
+function _forward_composite_event(child_iomaps::Vector, evt)
+    for (i, entry) in enumerate(child_iomaps)
+        entry === nothing && continue
+        (_, _, cim) = entry::Tuple{Int,Int,Any}
+        result = projection_read(cim.projection, cim, evt)
+        result isa Operation && return (result, i)
+    end
+    nothing
+end
+
+# Forward a coordless event to the single child the selection points at.
+function _forward_composite_event_slot(child_iomaps::Vector, evt, slot::Int)
+    (1 <= slot <= length(child_iomaps)) || return nothing
+    entry = child_iomaps[slot]
+    entry === nothing && return nothing
+    (_, _, cim) = entry::Tuple{Int,Int,Any}
+    result = projection_read(cim.projection, cim, evt)
+    result isa Operation ? (result, slot) : nothing
+end
+
+# The child slot the composite's selection (`elements[slot].<rest>`) points at,
+# or 0 when it carries no such selection.
+function _selected_composite_slot(w::WidgetComposite, n::Int)
+    sel = getfield(w, :selection)[]
+    sel isa ConcreteReferencePath || return 0
+    (sel.head isa FieldReference && sel.head.name == "elements") || return 0
+    t = sel.tail
+    (t isa ConcreteReferencePath && t.head isa RangeReference) || return 0
+    slot = t.head.start + 1
+    1 <= slot <= n ? slot : 0
 end
 
 # ── WidgetShell ─────────────────────────────────────────────────────────────
