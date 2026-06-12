@@ -81,6 +81,7 @@ include("common/Projection.jl")
 include("projection/generic/Preserving.jl")
 include("projection/generic/Reversing.jl")
 include("projection/generic/Filtering.jl")
+include("projection/generic/Searching.jl")
 include("projection/generic/Sorting.jl")
 include("projection/generic/Copying.jl")
 include("projection/generic/Invariably.jl")
@@ -266,6 +267,7 @@ using .WindowManagerProjectionModule: WindowManagerProjection, WindowManagerProj
 using .TooltipDecoratorProjectionModule: TooltipDecoratorProjection, TooltipDecoratorProjectionIoMap
 using .ReversingProjectionModule: ReversingProjection
 using .FilteringProjectionModule: FilteringProjection, FilteringProjectionIoMap
+using .SearchingProjectionModule: SearchingProjection, SearchingProjectionIoMap
 using .SortingProjectionModule: SortingProjection, SortingProjectionIoMap
 using .CopyingProjectionModule: CopyingProjection, CopyingProjectionIoMap
 using .FocusingProjectionModule: FocusingProjection, ReplaceFocusPartOperation
@@ -534,6 +536,7 @@ export WindowManagerProjection, WindowManagerProjectionIoMap
 export TooltipDecoratorProjection, TooltipDecoratorProjectionIoMap
 export ReversingProjection
 export FilteringProjection, FilteringProjectionIoMap
+export SearchingProjection, SearchingProjectionIoMap
 export SortingProjection, SortingProjectionIoMap
 export CopyingProjection, CopyingProjectionIoMap
 export FocusingProjection, ReplaceFocusPartOperation

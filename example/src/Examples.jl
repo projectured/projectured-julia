@@ -31,6 +31,7 @@ const navigator_example      = Example("navigator",      make_navigator_document
 const collection_example     = Example("collection",     make_collection_document_example,     make_collection_projection_example)
 const reversing_example      = Example("reversing",      make_collection_document_example,     make_reversing_projection_example)
 const filtering_example      = Example("filtering",      make_collection_document_example,     make_filtering_projection_example)
+const searching_example      = Example("searching",      make_collection_document_example,     make_searching_projection_example)
 const sorting_example        = Example("sorting",        make_collection_document_example,     make_sorting_projection_example)
 const focusing_example       = Example("focusing",       make_focusing_document_example,       make_focusing_projection_example)
 const table_example          = Example("table",          make_table_document_example,          make_table_projection_example)
@@ -52,7 +53,7 @@ const examples = [
     xml_example, mixed_example, syntax_example, text_example, text_with_image_example,
     object_example, line_numbering_example, word_wrapping_example, text_filtering_example, text_highlighting_example,
     widget_example, widget_tabbed_pane_example, layout_example, book_example, filesystem_example, navigator_example,
-    collection_example, reversing_example, filtering_example, sorting_example, focusing_example, table_example, math_table_example, workbench_example,
+    collection_example, reversing_example, filtering_example, searching_example, sorting_example, focusing_example, table_example, math_table_example, workbench_example,
     math_example,
     julia_example,
     graphics_image_example,

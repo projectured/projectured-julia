@@ -55,6 +55,7 @@ include(joinpath(_EXAMPLE_DIR, "projection", "Navigator.jl"))
 include(joinpath(_EXAMPLE_DIR, "projection", "Collection.jl"))
 include(joinpath(_EXAMPLE_DIR, "projection", "Reversing.jl"))
 include(joinpath(_EXAMPLE_DIR, "projection", "Filtering.jl"))
+include(joinpath(_EXAMPLE_DIR, "projection", "Searching.jl"))
 include(joinpath(_EXAMPLE_DIR, "projection", "Sorting.jl"))
 include(joinpath(_EXAMPLE_DIR, "projection", "Focusing.jl"))
 include(joinpath(_EXAMPLE_DIR, "projection", "Workbench.jl"))
@@ -93,6 +94,7 @@ export make_navigator_document_example, make_navigator_projection_example
 export make_collection_document_example, make_collection_projection_example
 export make_reversing_projection_example
 export make_filtering_projection_example
+export make_searching_projection_example
 export make_sorting_projection_example
 export make_focusing_document_example, make_focusing_projection_example
 export make_workbench_document_example, make_workbench_projection_example
@@ -120,7 +122,7 @@ export json_example, json_sorted_example, json_null_example, json_string_example
 export xml_example, mixed_example, syntax_example, text_example, text_with_image_example
 export object_example, line_numbering_example, word_wrapping_example, text_filtering_example, text_highlighting_example
 export widget_example, widget_tabbed_pane_example, layout_example, book_example, filesystem_example, navigator_example
-export collection_example, reversing_example, filtering_example, sorting_example, focusing_example, table_example, math_table_example, workbench_example
+export collection_example, reversing_example, filtering_example, searching_example, sorting_example, focusing_example, table_example, math_table_example, workbench_example
 export lazy_example, lazy_bidirectional_example
 export math_example
 export julia_example
