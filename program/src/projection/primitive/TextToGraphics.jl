@@ -32,6 +32,7 @@ import ..OperationModule: ReplaceSelectionOperation, ToggleCollapseOperation
 import ..PrimitiveModule: StringReplaceRangeOperation
 import ..KeyboardModule: KeyDown, KeyPress
 import ..MouseModule: MousePress
+import ..EventCaseModule: var"@event_case"
 import ..IoMapApiModule: IoMap
 export TextToGraphics, TextToGraphicsIoMap
 
@@ -122,23 +123,27 @@ function _key_delete_op(iomap::TextToGraphicsIoMap, evt::KeyDown)
     content = _span_content(iomap.input, span_idx)
     content === nothing && return nothing
     n = length(content)
-    new_range = if evt.key == :backspace
-        if char_start != char_stop
-            (char_start, char_stop)
-        elseif char_start > 0
-            (char_start - 1, char_start)
-        else
-            return nothing
+    new_range = @event_case evt begin
+        KeyDown(:backspace) => begin
+            if char_start != char_stop
+                (char_start, char_stop)
+            elseif char_start > 0
+                (char_start - 1, char_start)
+            else
+                return nothing
+            end
         end
-    else  # :delete
-        if char_start != char_stop
-            (char_start, char_stop)
-        elseif char_stop < n
-            (char_stop, char_stop + 1)
-        else
-            return nothing
+        KeyDown(:delete) => begin
+            if char_start != char_stop
+                (char_start, char_stop)
+            elseif char_stop < n
+                (char_stop, char_stop + 1)
+            else
+                return nothing
+            end
         end
     end
+    new_range === nothing && return nothing
     new_ref = _text_replace_path(span_idx, new_range[1], new_range[2])
     StringReplaceRangeOperation(new_ref, "")
 end
@@ -200,34 +205,34 @@ end
 
 function projection_read(p::TextToGraphics, iomap::TextToGraphicsIoMap, evt)
     evt isa KeyDown || return nothing
-    # Fold chord: Ctrl+. toggles collapse of the innermost node containing the
-    # cursor. The empty-target operation is resolved upstream at the syntax
-    # layer (where the tree and selection live); we only recognise the chord.
-    if evt.key === :period && evt.modifiers.ctrl
-        return ToggleCollapseOperation()
+    # Chords and tree-navigation gestures are recognised (or declined) before we
+    # touch the character cursor.
+    early = @event_case evt begin
+        # Fold chord: Ctrl+. toggles collapse of the innermost node containing
+        # the cursor. The empty-target operation is resolved upstream at the
+        # syntax layer (where the tree and selection live); we only recognise it.
+        KeyDown(:period; ctrl) => ToggleCollapseOperation()
+        # Alt-modified navigation keys (arrows, Home) are tree-navigation
+        # gestures. This layer handles only character/line cursor motion within
+        # flat text, so decline them: returning nothing lets the raw event fall
+        # through the chain to SyntaxNodeToText, which owns the tree structure.
+        # Loose alt (any extra modifiers) keeps every alt-arrow a tree gesture.
+        when(KeyDown(k), evt.modifiers.alt && k in (:up, :down, :left, :right, :home)) => return nothing
+        # In structural mode (a whole-element / rectangular selection) plain
+        # arrows are tree navigation too — there is no character cursor to move,
+        # so decline them and let SyntaxNodeToText step between nodes. Home keeps
+        # its text meaning, so it is deliberately excluded here.
+        when(KeyDown(k), k in (:up, :down, :left, :right) &&
+                         _is_structural_selection(iomap.input.selection)) => return nothing
+        # Tab has no character-cursor meaning at this layer. Decline it (return
+        # nothing, not the raw event) so the Change-threaded reader chain keeps
+        # walking inward — the JSON reader uses Tab for key→value navigation.
+        # Returning the event here would fill the Change's operation slot and
+        # short-circuit the chain before the upper layers run.
+        KeyDown(:tab) => return nothing
     end
-    # Alt-modified navigation keys (arrows, Home) are tree-navigation gestures.
-    # This layer handles only character/line cursor motion within flat text, so
-    # decline them: returning nothing lets the raw event fall through the chain
-    # to SyntaxNodeToText, which owns the tree structure and resolves them.
-    if evt.modifiers.alt && evt.key in (:up, :down, :left, :right, :home)
-        return nothing
-    end
-    # In structural mode (a whole-element / rectangular selection) plain arrows
-    # are tree navigation too — there is no character cursor to move, so decline
-    # them and let SyntaxNodeToText step between nodes. Home keeps its text
-    # meaning, so it is deliberately excluded here.
-    if evt.key in (:up, :down, :left, :right) && _is_structural_selection(iomap.input.selection)
-        return nothing
-    end
-    # Tab has no character-cursor meaning at this layer. Decline it (return
-    # nothing, not the raw event) so the Change-threaded reader chain keeps walking
-    # inward — the JSON reader uses Tab for key→value navigation. Returning the
-    # event here would fill the Change's operation slot and short-circuit the chain
-    # before the upper layers run.
-    if evt.key === :tab
-        return nothing
-    end
+    early === nothing || return early
+
     del_op = _key_delete_op(iomap, evt)
     del_op === nothing || return del_op
     styled = iomap.input
@@ -236,85 +241,88 @@ function projection_read(p::TextToGraphics, iomap::TextToGraphicsIoMap, evt)
                   if span isa TextString]
     isempty(span_infos) && return nothing
 
-    if evt.key == :home && evt.modifiers.ctrl
-        first = span_infos[1]
-        return ReplaceSelectionOperation(_build_selection_path(first[1], 0))
-    elseif evt.key == :end && evt.modifiers.ctrl
-        last = span_infos[end]
-        return ReplaceSelectionOperation(_build_selection_path(last[1], last[2]))
+    jump = @event_case evt begin
+        KeyDown(:home; ctrl) => ReplaceSelectionOperation(_build_selection_path(span_infos[1][1], 0))
+        KeyDown(:end; ctrl)  => ReplaceSelectionOperation(_build_selection_path(span_infos[end][1], span_infos[end][2]))
     end
+    jump === nothing || return jump
 
     current = _cursor_position(styled.selection)
     current === nothing && return nothing
 
-    if evt.key == :left
-        span_idx, char_idx = current.span, current.char
-        if char_idx > 0
-            return ReplaceSelectionOperation(_build_selection_path(span_idx, char_idx - 1))
-        else
+    @event_case evt begin
+        KeyDown(:left) => begin
+            span_idx, char_idx = current.span, current.char
+            if char_idx > 0
+                return ReplaceSelectionOperation(_build_selection_path(span_idx, char_idx - 1))
+            else
+                pos = findfirst(si -> si[1] == span_idx, span_infos)
+                if pos === nothing || pos == 1
+                    return ReplaceSelectionOperation(_build_selection_path(span_idx, 0))  # clamp
+                end
+                prev = span_infos[pos - 1]
+                # Use prev[2]-1 to skip the boundary duplicate (prev[2] == current (span,0) visually)
+                return ReplaceSelectionOperation(_build_selection_path(prev[1], max(0, prev[2] - 1)))
+            end
+        end
+        KeyDown(:right) => begin
+            span_idx, char_idx = current.span, current.char
             pos = findfirst(si -> si[1] == span_idx, span_infos)
-            if pos === nothing || pos == 1
-                return ReplaceSelectionOperation(_build_selection_path(span_idx, 0))  # clamp
-            end
-            prev = span_infos[pos - 1]
-            # Use prev[2]-1 to skip the boundary duplicate (prev[2] == current (span,0) visually)
-            return ReplaceSelectionOperation(_build_selection_path(prev[1], max(0, prev[2] - 1)))
-        end
-    elseif evt.key == :right
-        span_idx, char_idx = current.span, current.char
-        pos = findfirst(si -> si[1] == span_idx, span_infos)
-        pos === nothing && return ReplaceSelectionOperation(_build_selection_path(span_idx, char_idx))  # clamp
-        span_len = span_infos[pos][2]
-        if char_idx < span_len
-            return ReplaceSelectionOperation(_build_selection_path(span_idx, char_idx + 1))
-        else
-            if pos == length(span_infos)
-                return ReplaceSelectionOperation(_build_selection_path(span_idx, char_idx))  # clamp
-            end
-            next = span_infos[pos + 1]
-            # Use char 1 to skip the boundary duplicate (char 0 == current (span,span_len) visually)
-            return ReplaceSelectionOperation(_build_selection_path(next[1], next[2] > 0 ? 1 : 0))
-        end
-    elseif evt.key == :home || evt.key == :end
-        coord_map = iomap.char_to_coord[]
-        isempty(coord_map) && return nothing
-        seg_idx = findfirst(sc -> sc.span_idx == current.span && sc.char_start <= current.char <= sc.char_end, coord_map)
-        seg_idx === nothing && return nothing
-        current_y = coord_map[seg_idx].y
-        line_segs = filter(sc -> sc.y == current_y, coord_map)
-        sc = evt.key == :home ? line_segs[1] : line_segs[end]
-        new_char = evt.key == :home ? sc.char_start : sc.char_end
-        return ReplaceSelectionOperation(_build_selection_path(sc.span_idx, new_char))
-    elseif evt.key == :up || evt.key == :down
-        coord_map = iomap.char_to_coord[]
-        isempty(coord_map) && return nothing
-        seg_idx = findfirst(sc -> sc.span_idx == current.span && sc.char_start <= current.char <= sc.char_end, coord_map)
-        seg_idx === nothing && return nothing
-        cur_sc   = coord_map[seg_idx]
-        cursor_x = _seg_cursor_x(cur_sc, current.char, p.measure)
-        current_y = cur_sc.y
-        target_segs = if evt.key == :up
-            ys = [sc.y for sc in coord_map if sc.y < current_y]
-            isempty(ys) ? SegCoord[] : filter(sc -> sc.y == maximum(ys), coord_map)
-        else
-            ys = [sc.y for sc in coord_map if sc.y > current_y]
-            isempty(ys) ? SegCoord[] : filter(sc -> sc.y == minimum(ys), coord_map)
-        end
-        isempty(target_segs) && return nothing
-        best_sc   = target_segs[1]
-        best_pos  = best_sc.char_start
-        best_dist = typemax(Int)
-        for sc in target_segs
-            pos  = _char_position_at_x(sc, cursor_x, p.measure)
-            xpos = _seg_cursor_x(sc, pos, p.measure)
-            d    = abs(xpos - cursor_x)
-            if d < best_dist
-                best_dist = d
-                best_pos  = pos
-                best_sc   = sc
+            pos === nothing && return ReplaceSelectionOperation(_build_selection_path(span_idx, char_idx))  # clamp
+            span_len = span_infos[pos][2]
+            if char_idx < span_len
+                return ReplaceSelectionOperation(_build_selection_path(span_idx, char_idx + 1))
+            else
+                if pos == length(span_infos)
+                    return ReplaceSelectionOperation(_build_selection_path(span_idx, char_idx))  # clamp
+                end
+                next = span_infos[pos + 1]
+                # Use char 1 to skip the boundary duplicate (char 0 == current (span,span_len) visually)
+                return ReplaceSelectionOperation(_build_selection_path(next[1], next[2] > 0 ? 1 : 0))
             end
         end
-        return ReplaceSelectionOperation(_build_selection_path(best_sc.span_idx, best_pos))
+        when(KeyDown(k), k === :home || k === :end) => begin
+            coord_map = iomap.char_to_coord[]
+            isempty(coord_map) && return nothing
+            seg_idx = findfirst(sc -> sc.span_idx == current.span && sc.char_start <= current.char <= sc.char_end, coord_map)
+            seg_idx === nothing && return nothing
+            current_y = coord_map[seg_idx].y
+            line_segs = filter(sc -> sc.y == current_y, coord_map)
+            sc = k === :home ? line_segs[1] : line_segs[end]
+            new_char = k === :home ? sc.char_start : sc.char_end
+            return ReplaceSelectionOperation(_build_selection_path(sc.span_idx, new_char))
+        end
+        when(KeyDown(k), k === :up || k === :down) => begin
+            coord_map = iomap.char_to_coord[]
+            isempty(coord_map) && return nothing
+            seg_idx = findfirst(sc -> sc.span_idx == current.span && sc.char_start <= current.char <= sc.char_end, coord_map)
+            seg_idx === nothing && return nothing
+            cur_sc   = coord_map[seg_idx]
+            cursor_x = _seg_cursor_x(cur_sc, current.char, p.measure)
+            current_y = cur_sc.y
+            target_segs = if k === :up
+                ys = [sc.y for sc in coord_map if sc.y < current_y]
+                isempty(ys) ? SegCoord[] : filter(sc -> sc.y == maximum(ys), coord_map)
+            else
+                ys = [sc.y for sc in coord_map if sc.y > current_y]
+                isempty(ys) ? SegCoord[] : filter(sc -> sc.y == minimum(ys), coord_map)
+            end
+            isempty(target_segs) && return nothing
+            best_sc   = target_segs[1]
+            best_pos  = best_sc.char_start
+            best_dist = typemax(Int)
+            for sc in target_segs
+                pos  = _char_position_at_x(sc, cursor_x, p.measure)
+                xpos = _seg_cursor_x(sc, pos, p.measure)
+                d    = abs(xpos - cursor_x)
+                if d < best_dist
+                    best_dist = d
+                    best_pos  = pos
+                    best_sc   = sc
+                end
+            end
+            return ReplaceSelectionOperation(_build_selection_path(best_sc.span_idx, best_pos))
+        end
     end
     return evt
 end
