@@ -573,7 +573,7 @@ uuid = "de0858da-6303-5e67-8744-51eddeeeb8d7"
 version = "1.11.0"
 
 [[deps.Projectured]]
-deps = ["DBInterface", "HTTP", "JSON3", "Markdown", "ModelContextProtocol", "ODBC", "SimpleDirectMediaLayer", "Tables"]
+deps = ["DBInterface", "HTTP", "JSON3", "Markdown", "ModelContextProtocol", "ODBC", "SDL2_jll", "SimpleDirectMediaLayer", "Tables"]
 path = "."
 uuid = "92922de3-b970-4d9a-8b2a-9d6f361397b5"
 version = "0.1.0"
