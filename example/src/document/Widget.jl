@@ -111,6 +111,11 @@ end
 # be tested in isolation. Pair each with make_widget_projection_example, except
 # the editable text widget, which needs make_widget_text_projection_example.
 
+# Layout offsets are authored in logical pixels. The widget projection scales
+# every widget's position by the font scale at render time, so these stay
+# logical here (scaling them now would double-count on hi-dpi displays).
+_wy(px::Integer) = px
+
 # WidgetLabel — a positioned, non-interactive label.
 make_widget_label_document_example() =
     WidgetLabel(Point2D(40, 40), "Hello, label")
@@ -124,8 +129,7 @@ function make_widget_text_document_example()
     content = TextText(TextString("edit me", font_ubuntu_monospace_regular_24, color_default))
     WidgetText(Point2D(40, 40), content;
                border=Inset(1, 1, 1, 1),
-               border_color=color_default,
-               padding=Inset(4, 4, 4, 4))
+               padding=Inset(8, 8, 12, 12))
 end
 
 # WidgetCheckbox — a checkbox; content is the boolean checked state.
@@ -165,21 +169,18 @@ make_widget_toolbar_document_example() =
 # WidgetComposite — a positioned container of child widgets.
 make_widget_composite_document_example() =
     WidgetComposite(Point2D(40, 40), Any[
-        WidgetLabel(Point2D(0,   0), "First"),
-        WidgetLabel(Point2D(0,  56), "Second"),
-        WidgetLabel(Point2D(0, 112), "Third"),
+        WidgetLabel(Point2D(0, _wy(0)),  "First"),
+        WidgetLabel(Point2D(0, _wy(40)), "Second"),
+        WidgetLabel(Point2D(0, _wy(80)), "Third"),
     ])
 
 # WidgetTitlePane — a pane with a title bar and a content area.
 function make_widget_title_pane_document_example()
-    body = WidgetComposite(Point2D(8, 8), Any[
-        WidgetLabel(Point2D(0,  0), "Detail one"),
-        WidgetLabel(Point2D(0, 56), "Detail two"),
+    body = WidgetComposite(Point2D(0, 0), Any[
+        WidgetLabel(Point2D(0, _wy(0)),  "Detail one"),
+        WidgetLabel(Point2D(0, _wy(40)), "Detail two"),
     ])
-    WidgetTitlePane("Details", body;
-                    title_fill_color=StyleColor(50/255, 80/255, 140/255, 1.0),
-                    content_fill_color=StyleColor(22/255, 30/255, 50/255, 1.0),
-                    padding=Inset(4, 4, 4, 4))
+    WidgetTitlePane("Details", body; padding=Inset(4, 4, 4, 4))
 end
 
 # WidgetSplitPane — two child panes divided along an axis.
@@ -196,20 +197,18 @@ make_widget_scroll_bar_document_example() =
                     position=Point2D(40, 40), size=Point2D(20, 300))
 
 # WidgetScrollPane — a scrollable viewport over an over-tall composite.
-function make_widget_scroll_pane_document_example(; width=400, height=300, line_height=56)
-    items = [WidgetLabel(Point2D(4, (i - 1) * line_height), "Item $i") for i in 1:20]
+function make_widget_scroll_pane_document_example(; width=400, height=300, line_height=40)
+    items = [WidgetLabel(Point2D(4, _wy((i - 1) * line_height)), "Item $i") for i in 1:20]
     WidgetScrollPane(WidgetComposite(Point2D(0, 0), Any[items...]);
                      size=Point2D(width, height),
-                     content_fill_color=StyleColor(28/255, 28/255, 40/255, 1.0),
-                     border=Inset(1, 1, 1, 1),
-                     border_color=StyleColor(80/255, 80/255, 120/255, 1.0))
+                     border=Inset(1, 1, 1, 1))
 end
 
 # WidgetShell — a top-level window shell with a menu bar and toolbar.
 function make_widget_shell_document_example(; width=600, height=400)
     content = WidgetComposite(Point2D(16, 16), Any[
-        WidgetLabel(Point2D(0,  0), "Inside a shell"),
-        WidgetLabel(Point2D(0, 56), "with a menu bar and toolbar"),
+        WidgetLabel(Point2D(0, _wy(0)),  "Inside a shell"),
+        WidgetLabel(Point2D(0, _wy(40)), "with a menu bar and toolbar"),
     ])
     menu_bar = WidgetMenu([WidgetMenuItem("File"), WidgetMenuItem("Edit"),
                            WidgetMenuItem("Help")])
@@ -217,7 +216,6 @@ function make_widget_shell_document_example(; width=600, height=400)
                               WidgetMenuItem("Save")]; padding=Inset(4, 4, 4, 4))
     WidgetShell(content;
                 menu_bar=menu_bar, toolbar=toolbar,
-                content_fill_color=StyleColor(28/255, 28/255, 38/255, 1.0),
                 size=Point2D(width, height))
 end
 
@@ -243,18 +241,18 @@ end
 # WidgetBadge — the four variants stacked.
 make_widget_badge_document_example() =
     WidgetComposite(Point2D(40, 40), Any[
-        WidgetBadge(Point2D(0,   0), "Default"),
-        WidgetBadge(Point2D(0,  44), "Secondary";   variant=:secondary),
-        WidgetBadge(Point2D(0,  88), "Destructive"; variant=:destructive),
-        WidgetBadge(Point2D(0, 132), "Outline";     variant=:outline),
+        WidgetBadge(Point2D(0, _wy(0)),  "Default"),
+        WidgetBadge(Point2D(0, _wy(36)), "Secondary";   variant=:secondary),
+        WidgetBadge(Point2D(0, _wy(72)), "Destructive"; variant=:destructive),
+        WidgetBadge(Point2D(0, _wy(108)), "Outline";    variant=:outline),
     ])
 
 # WidgetSeparator — a rule between two labels.
 make_widget_separator_document_example() =
     WidgetComposite(Point2D(40, 40), Any[
-        WidgetLabel(Point2D(0,  0), "Above the rule"),
-        WidgetSeparator(Point2D(0, 44); length=260),
-        WidgetLabel(Point2D(0, 64), "Below the rule"),
+        WidgetLabel(Point2D(0, _wy(0)),  "Above the rule"),
+        WidgetSeparator(Point2D(0, _wy(36)); length=260),
+        WidgetLabel(Point2D(0, _wy(52)), "Below the rule"),
     ])
 
 # WidgetCard — title + description + body + footer.
@@ -268,8 +266,8 @@ make_widget_card_document_example() =
 # WidgetSwitch — on and off.
 make_widget_switch_document_example() =
     WidgetComposite(Point2D(40, 40), Any[
-        WidgetSwitch(Point2D(0,  0), true),
-        WidgetSwitch(Point2D(0, 44), false),
+        WidgetSwitch(Point2D(0, _wy(0)),  true),
+        WidgetSwitch(Point2D(0, _wy(36)), false),
     ])
 
 # WidgetProgress — a 60% bar.
@@ -291,9 +289,9 @@ make_widget_avatar_document_example() =
 # WidgetAlert — default and destructive variants.
 make_widget_alert_document_example() =
     WidgetComposite(Point2D(40, 40), Any[
-        WidgetAlert(Point2D(0,   0), "Heads up!",
+        WidgetAlert(Point2D(0, _wy(0)), "Heads up!",
                     "You can add components to your app using the CLI."),
-        WidgetAlert(Point2D(0, 110), "Something went wrong",
+        WidgetAlert(Point2D(0, _wy(96)), "Something went wrong",
                     "Your session has expired. Please log in again.";
                     variant=:destructive),
     ])
@@ -301,16 +299,16 @@ make_widget_alert_document_example() =
 # WidgetSkeleton — loading placeholders.
 make_widget_skeleton_document_example() =
     WidgetComposite(Point2D(40, 40), Any[
-        WidgetSkeleton(Point2D(0,  0); width=260, height=20),
-        WidgetSkeleton(Point2D(0, 36); width=200, height=20),
-        WidgetSkeleton(Point2D(0, 72); width=230, height=20),
+        WidgetSkeleton(Point2D(0, _wy(0));  width=260, height=20),
+        WidgetSkeleton(Point2D(0, _wy(32)); width=200, height=20),
+        WidgetSkeleton(Point2D(0, _wy(64)); width=230, height=20),
     ])
 
 # WidgetToggle — a pressed and an unpressed toggle.
 make_widget_toggle_document_example() =
     WidgetComposite(Point2D(40, 40), Any[
-        WidgetToggle(Point2D(0,  0), "Bold";   pressed=true),
-        WidgetToggle(Point2D(0, 52), "Italic"; pressed=false),
+        WidgetToggle(Point2D(0, _wy(0)),  "Bold";   pressed=true),
+        WidgetToggle(Point2D(0, _wy(44)), "Italic"; pressed=false),
     ])
 
 # WidgetToggleGroup — a three-segment control with the middle selected.

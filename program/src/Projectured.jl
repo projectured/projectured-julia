@@ -465,7 +465,7 @@ export XmlDocument, XmlInsertion, XmlText, XmlAttribute, XmlElement, xmlattr, se
 export FileSystemDocument, FileSystemInsertion, FileSystemFile, FileSystemDirectory, make_filesystem_pathname
 export WorkspaceDocument, WorkspaceFolder, Workspace
 export TextDocument, TextInsertion, TextText, TextString, TextNewline, TextGraphics
-export StyleFont, make_style_font
+export StyleFont, make_style_font, font_scaled_size
 export font_inconsolata_regular_18
 export font_ubuntu_monospace_regular_14, font_ubuntu_monospace_italic_14, font_ubuntu_monospace_bold_14
 export font_ubuntu_monospace_regular_16, font_ubuntu_monospace_italic_16, font_ubuntu_monospace_bold_16

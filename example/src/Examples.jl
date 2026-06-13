@@ -428,15 +428,20 @@ Generate a PNG screenshot for every example in `examples` into `image_dir`.
 Filename pattern: `{example-name-with-hyphens}.png`. One failure does not
 abort the batch.
 """
-function generate_screenshots(; width=1920, height=1080,
+function generate_screenshots(; width=1920, height=1080, supersample=3,
                               image_dir=joinpath(@__DIR__, "..", "..", "image", "example"))
     mkpath(image_dir)
+    white = (0xff, 0xff, 0xff, 0xff)
     for ex in examples
         safe_name = replace(ex.name, "_" => "-")
         png = joinpath(image_dir, "$safe_name.png")
         @info "Generating $(ex.name)..."
+        # Widgets render on the light theme background, so screenshot them on
+        # white rather than the default solarized canvas.
+        bg = startswith(ex.name, "widget") ? white : (0xfd, 0xf6, 0xe3, 0xff)
         try
-            write_image_example(ex, png; width=width, height=height)
+            write_image_example(ex, png; width=width, height=height,
+                                background=bg, supersample=supersample)
             @info "  ✓ $png"
         catch e
             @warn "  ✗ $(ex.name): $e"

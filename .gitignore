@@ -1,2 +1,5 @@
 executable/build
 *.log
+
+# Local-only baseline reference screenshots (third-party docs captures)
+image/baseline-shadcn/

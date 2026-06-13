@@ -147,6 +147,12 @@ end
 # radius track the text size on hi-dpi displays.
 _sc(px::Integer) = font_scaled_size(px)
 
+# A widget's authored `position` is in logical pixels, like insets — scale it at
+# render time (NOT at document-construction time, which happens during
+# precompilation when the font scale is still 1.0) so stacked widgets keep their
+# spacing on hi-dpi displays.
+_origin(pos::Point2D) = (_sc(Int(pos.x[])), _sc(Int(pos.y[])))
+
 # (r,g,b,a) tuple of integers for a StyleColor, for GraphicsRect/Circle kwargs.
 _rgbai(c::StyleColor) = (Int(round(c.red * 255)), Int(round(c.green * 255)),
                          Int(round(c.blue * 255)), Int(round(c.alpha * 255)))
@@ -181,7 +187,7 @@ function _styled_text_control(p, pos::Point2D, text::AbstractString;
     _push_panel!(elems, 0, 0, cw, ch; fill=fill, border=border, border_w=border_w, radius=radius)
     fr, fg2, fb, fa = _rgbai(fg)
     push!(elems, GraphicsText(text, tx, ty, font, fr, fg2, fb, fa))
-    _make_canvas(Int(pos.x[]), Int(pos.y[]), cw, ch, elems)
+    _make_canvas(_origin(pos)..., cw, ch, elems)
 end
 
 # Draw a themed rounded surface (fill + optional outline) covering a widget's
@@ -296,30 +302,34 @@ _rgba(c::StyleColor) = (UInt8(round(c.red * 255)), UInt8(round(c.green * 255)), 
 
 # ── Box model helpers ──────────────────────────────────────────────────────
 
+# Box-model insets are authored in logical pixels; scale them by the font scale
+# so padding/border track the (also-scaled) text size on hi-dpi displays. The
+# reader uses the same offsets, so click mapping stays in sync.
 """
 Return the (x, y) content-area offset from the widget's outer top-left corner,
-i.e. margin + border + padding on each axis.
+i.e. margin + border + padding on each axis (font-scaled).
 """
 function _content_offset(w::WidgetDocument)
     m   = w.margin::Inset
     brd = w.border::Inset
     pad = w.padding::Inset
-    ox = Int(m.left[]) + Int(brd.left[]) + Int(pad.left[])
-    oy = Int(m.top[])  + Int(brd.top[])  + Int(pad.top[])
+    ox = _sc(Int(m.left[]) + Int(brd.left[]) + Int(pad.left[]))
+    oy = _sc(Int(m.top[])  + Int(brd.top[])  + Int(pad.top[]))
     (ox, oy)
 end
 
 """
-Return the total (horizontal, vertical) space consumed by all box-model layers.
+Return the total (horizontal, vertical) space consumed by all box-model layers
+(font-scaled).
 """
 function _inset_total(w::WidgetDocument)
     m   = w.margin::Inset
     brd = w.border::Inset
     pad = w.padding::Inset
-    tx = Int(m.left[]) + Int(m.right[]) + Int(brd.left[]) + Int(brd.right[]) +
-         Int(pad.left[]) + Int(pad.right[])
-    ty = Int(m.top[])  + Int(m.bottom[]) + Int(brd.top[])  + Int(brd.bottom[]) +
-         Int(pad.top[])  + Int(pad.bottom[])
+    tx = _sc(Int(m.left[]) + Int(m.right[]) + Int(brd.left[]) + Int(brd.right[]) +
+             Int(pad.left[]) + Int(pad.right[]))
+    ty = _sc(Int(m.top[])  + Int(m.bottom[]) + Int(brd.top[])  + Int(brd.bottom[]) +
+             Int(pad.top[])  + Int(pad.bottom[]))
     (tx, ty)
 end
 
@@ -476,7 +486,7 @@ function projection_print(p::WidgetLabelToGraphicsCanvas, recursion, w::WidgetLa
     cw, ch = _text_size(p.measure, p.font, text)
     elems = Any[]
     _push_text!(elems, p.font, text, 0, 0, _rgba(p.theme.foreground))
-    SimpleIoMap(p, w, _make_canvas(Int(pos.x[]), Int(pos.y[]), cw, ch, elems))
+    SimpleIoMap(p, w, _make_canvas(_origin(pos)..., cw, ch, elems))
 end
 
 function map_reference_forward(::WidgetLabelToGraphicsCanvas, iomap, reference)
@@ -524,7 +534,7 @@ function projection_print(p::WidgetTextToGraphicsCanvas, recursion, w::WidgetTex
         _push_box!(elems, w, iw, ih; fill=p.theme.background, border=p.theme.input, radius=radius)
         push!(elems, _make_canvas(cox, coy, Any[inner]))
         tx, ty = _inset_total(w)
-        canvas = _make_canvas(Int(pos.x[]), Int(pos.y[]), iw + tx, ih + ty, elems)
+        canvas = _make_canvas(_origin(pos)..., iw + tx, ih + ty, elems)
         return WidgetTextToGraphicsCanvasIoMap(p, w, canvas, content_iomap)
     end
 
@@ -535,7 +545,7 @@ function projection_print(p::WidgetTextToGraphicsCanvas, recursion, w::WidgetTex
     elems = Any[]
     _push_box!(elems, w, cw, ch; fill=p.theme.background, border=p.theme.input, radius=radius)
     _push_text!(elems, p.font, text, cox, coy, _rgba(p.theme.foreground))
-    SimpleIoMap(p, w, _make_canvas(Int(pos.x[]), Int(pos.y[]), cw + tx, ch + ty, elems))
+    SimpleIoMap(p, w, _make_canvas(_origin(pos)..., cw + tx, ch + ty, elems))
 end
 
 function map_reference_forward(::WidgetTextToGraphicsCanvas, iomap, reference)
@@ -598,7 +608,7 @@ function projection_print(p::WidgetCheckboxToGraphicsCanvas, recursion, w::Widge
         _push_panel!(elems, 0, 0, s, s; fill=p.theme.background,
                      border=p.theme.input, border_w=bw, radius=rad)
     end
-    SimpleIoMap(p, w, _make_canvas(Int(pos.x[]), Int(pos.y[]), s, s, elems))
+    SimpleIoMap(p, w, _make_canvas(_origin(pos)..., s, s, elems))
 end
 
 function map_reference_forward(::WidgetCheckboxToGraphicsCanvas, iomap, reference)
@@ -639,10 +649,15 @@ function projection_print(p::WidgetButtonToGraphicsCanvas, recursion, w::WidgetB
     bh = max(Int(sz.y[]), th + 2pad_y)
     radius = _sc(p.theme.radius)
     elems = Any[]
-    _push_panel!(elems, 0, 0, bw, bh; fill=p.theme.primary, radius=radius)
-    fr, fg, fb, fa = _rgbai(p.theme.primary_foreground)
+    # Default button: light surface, subtle border, soft shadow, dark label —
+    # matching the shadcn default button. A faint offset rect approximates the
+    # shadow-sm drop shadow.
+    push!(elems, GraphicsRect(0, _sc(2), bw, bh, 0x00, 0x00, 0x00, 0x14, radius))
+    _push_panel!(elems, 0, 0, bw, bh; fill=p.theme.background,
+                 border=p.theme.border, border_w=max(1, _sc(1)), radius=radius)
+    fr, fg, fb, fa = _rgbai(p.theme.foreground)
     push!(elems, GraphicsText(text, (bw - tw) ÷ 2, (bh - th) ÷ 2, p.font, fr, fg, fb, fa))
-    SimpleIoMap(p, w, _make_canvas(Int(pos.x[]), Int(pos.y[]), bw, bh, elems))
+    SimpleIoMap(p, w, _make_canvas(_origin(pos)..., bw, bh, elems))
 end
 
 function map_reference_forward(::WidgetButtonToGraphicsCanvas, iomap, reference)
@@ -662,24 +677,34 @@ end
 function projection_print(p::WidgetTooltipToGraphicsCanvas, recursion, w::WidgetTooltip, ctx)
     w.visible == false && return ChildrenIoMap(p, w, _empty_canvas(), Cell(Any[]))
     pos = w.position::Point2D
-    sz  = w.size::Point2D
     cox, coy = _content_offset(w)
-    vw, vh = Int(sz.x[]), Int(sz.y[])
     tx, ty = _inset_total(w)
-    cw, ch = max(0, vw - tx), max(0, vh - ty)
-    elems = Any[]
-    _push_panel!(elems, 0, 0, vw, vh; fill=p.theme.popover,
-                 border=p.theme.border, border_w=max(1, _sc(1)), radius=_sc(p.theme.radius))
+    # Use sensible default padding when the document specifies none, so the box
+    # never hugs the text.
+    cox = max(cox, _sc(p.theme.pad_x)); coy = max(coy, _sc(p.theme.pad_y))
+    txp = max(tx, 2 * _sc(p.theme.pad_x)); typ = max(ty, 2 * _sc(p.theme.pad_y))
     child_iomaps = Any[]
     content = w.content
+    elems = Any[]
+    # Size the box to its content (at least the requested size).
+    cw, ch = 0, 0
+    body = Any[]
     if content isa AbstractString
-        _push_text!(elems, p.font, content, cox, coy, _rgba(p.theme.popover_foreground))
+        cw, ch = _text_size(p.measure, p.font, content)
+        _push_text!(body, p.font, content, cox, coy, _rgba(p.theme.popover_foreground))
     elseif content isa WidgetDocument
         cim = projection_print(recursion, recursion, content, ctx)
+        inner = cim.output
+        cw, ch = inner isa GraphicsCanvas ? (Int(inner.w[]), Int(inner.h[])) : (0, 0)
         push!(child_iomaps, (cox, coy, cim))
-        push!(elems, _make_canvas(cox, coy, Any[cim.output]))
+        push!(body, _make_canvas(cox, coy, Any[inner]))
     end
-    ChildrenIoMap(p, w, _make_canvas(Int(pos.x[]), Int(pos.y[]), elems), Cell(child_iomaps))
+    vw = cw + txp
+    vh = ch + typ
+    _push_panel!(elems, 0, 0, vw, vh; fill=p.theme.popover,
+                 border=p.theme.border, border_w=max(1, _sc(1)), radius=_sc(p.theme.radius))
+    append!(elems, body)
+    ChildrenIoMap(p, w, _make_canvas(_origin(pos)..., vw, vh, elems), Cell(child_iomaps))
 end
 
 function map_reference_forward(::WidgetTooltipToGraphicsCanvas, iomap, reference)
@@ -777,7 +802,7 @@ function projection_print(p::WidgetCompositeToGraphicsCanvas, recursion, w::Widg
         push!(child_iomaps, (cox, coy, cim))
         push!(elems, _make_canvas(cox, coy, Any[cim.output]))
     end
-    ChildrenIoMap(p, w, _make_canvas(Int(pos.x[]), Int(pos.y[]), elems), Cell(child_iomaps))
+    ChildrenIoMap(p, w, _make_canvas(_origin(pos)..., elems), Cell(child_iomaps))
 end
 
 function map_reference_forward(::WidgetCompositeToGraphicsCanvas, iomap, reference)
@@ -1560,8 +1585,8 @@ function projection_print(p::WidgetScrollPaneToGraphicsCanvas, recursion, w::Wid
     w.visible == false && return WidgetScrollPaneToGraphicsCanvasIoMap(p, w, _empty_canvas(), nothing)
     pos = w.position
     sz  = w.size
-    px = pos isa Point2D ? Int(pos.x[]) : 0
-    py = pos isa Point2D ? Int(pos.y[]) : 0
+    px = pos isa Point2D ? _sc(Int(pos.x[])) : 0
+    py = pos isa Point2D ? _sc(Int(pos.y[])) : 0
     # Viewport extent: prefer the parent-allocated extent on each axis
     # (from the context) so the pane fits its slot in a layout; fall back
     # to the widget's own `size` when the context didn't allocate. The
@@ -1705,8 +1730,8 @@ function projection_print(p::WidgetScrollBarToGraphicsCanvas, _, w::WidgetScroll
     w.visible == false && return SimpleIoMap(p, w, _empty_canvas())
     pos = w.position
     sz  = w.size
-    px = pos isa Point2D ? Int(pos.x[]) : 0
-    py = pos isa Point2D ? Int(pos.y[]) : 0
+    px = pos isa Point2D ? _sc(Int(pos.x[])) : 0
+    py = pos isa Point2D ? _sc(Int(pos.y[])) : 0
     bw = sz  isa Point2D ? Int(sz.x[])  : 200
     bh = sz  isa Point2D ? Int(sz.y[])  : 16
     cox, coy = _content_offset(w)
@@ -1805,7 +1830,7 @@ function projection_print(p::WidgetBadgeToGraphicsCanvas, recursion, w::WidgetBa
     _push_panel!(elems, 0, 0, cw, ch; fill=fill, border=border, border_w=bw, radius=ch ÷ 2)
     fr, fg2, fb, fa = _rgbai(fg)
     push!(elems, GraphicsText(text, pad_x, (ch - tht) ÷ 2, th.font_small, fr, fg2, fb, fa))
-    SimpleIoMap(p, w, _make_canvas(Int(pos.x[]), Int(pos.y[]), cw, ch, elems))
+    SimpleIoMap(p, w, _make_canvas(_origin(pos)..., cw, ch, elems))
 end
 @_printer_only WidgetBadgeToGraphicsCanvas
 
@@ -1824,10 +1849,10 @@ function projection_print(p::WidgetSeparatorToGraphicsCanvas, recursion, w::Widg
     elems = Any[]
     if w.orientation === :vertical
         push!(elems, GraphicsLine(0, 0, 0, L, r, g, b, a; width=thick))
-        SimpleIoMap(p, w, _make_canvas(Int(pos.x[]), Int(pos.y[]), thick, L, elems))
+        SimpleIoMap(p, w, _make_canvas(_origin(pos)..., thick, L, elems))
     else
         push!(elems, GraphicsLine(0, 0, L, 0, r, g, b, a; width=thick))
-        SimpleIoMap(p, w, _make_canvas(Int(pos.x[]), Int(pos.y[]), L, thick, elems))
+        SimpleIoMap(p, w, _make_canvas(_origin(pos)..., L, thick, elems))
     end
 end
 @_printer_only WidgetSeparatorToGraphicsCanvas
@@ -1844,22 +1869,22 @@ function projection_print(p::WidgetCardToGraphicsCanvas, recursion, w::WidgetCar
     w.visible == false && return ChildrenIoMap(p, w, _empty_canvas(), Cell(Any[]))
     pos = w.position::Point2D
     th  = p.theme
-    cw  = _sc(Int(w.width))
     pad = _sc(16)
     elems = Any[]
     child_iomaps = Any[]
+    mw = 0   # widest content row, to size the card to its content
     y = pad
     if w.title !== nothing
         ttxt = string(w.title)
-        _, thh = _text_size(p.measure, th.font_bold, ttxt)
+        tww, thh = _text_size(p.measure, th.font_bold, ttxt)
         _push_text!(elems, th.font_bold, ttxt, pad, y, _rgba(th.foreground))
-        y += thh + _sc(4)
+        mw = max(mw, tww); y += thh + _sc(4)
     end
     if w.description !== nothing
         dtxt = string(w.description)
-        _, dhh = _text_size(p.measure, th.font_small, dtxt)
+        dww, dhh = _text_size(p.measure, th.font_small, dtxt)
         _push_text!(elems, th.font_small, dtxt, pad, y, _rgba(th.muted_foreground))
-        y += dhh + _sc(10)
+        mw = max(mw, dww); y += dhh + _sc(10)
     end
     content = w.content
     if content isa WidgetDocument
@@ -1867,25 +1892,27 @@ function projection_print(p::WidgetCardToGraphicsCanvas, recursion, w::WidgetCar
         push!(child_iomaps, (pad, y, cim))
         push!(elems, _make_canvas(pad, y, Any[cim.output]))
         inner = cim.output
+        inner isa GraphicsCanvas && (mw = max(mw, Int(inner.w[])))
         y += inner isa GraphicsCanvas ? Int(inner.h[]) + _sc(10) : _sc(10)
     elseif content isa AbstractString
-        _, chh = _text_size(p.measure, th.font, content)
+        cww, chh = _text_size(p.measure, th.font, content)
         _push_text!(elems, th.font, content, pad, y, _rgba(th.card_foreground))
-        y += chh + _sc(10)
+        mw = max(mw, cww); y += chh + _sc(10)
     end
     if w.footer !== nothing
         ftxt = string(w.footer)
-        _, fhh = _text_size(p.measure, th.font_small, ftxt)
+        fww, fhh = _text_size(p.measure, th.font_small, ftxt)
         _push_text!(elems, th.font_small, ftxt, pad, y, _rgba(th.muted_foreground))
-        y += fhh
+        mw = max(mw, fww); y += fhh
     end
+    cw = max(_sc(Int(w.width)), mw + 2pad)
     ch = y + pad
     # Card surface drawn first (behind content).
     surface = Any[]
     _push_panel!(surface, 0, 0, cw, ch; fill=th.card, border=th.border,
                  border_w=max(1, _sc(1)), radius=_sc(th.radius))
     append!(surface, elems)
-    ChildrenIoMap(p, w, _make_canvas(Int(pos.x[]), Int(pos.y[]), cw, ch, surface), Cell(child_iomaps))
+    ChildrenIoMap(p, w, _make_canvas(_origin(pos)..., cw, ch, surface), Cell(child_iomaps))
 end
 @_printer_only WidgetCardToGraphicsCanvas
 
@@ -1910,7 +1937,7 @@ function projection_print(p::WidgetSwitchToGraphicsCanvas, recursion, w::WidgetS
     kr1, kg1, kb1, ka1 = _rgbai(color_white)
     push!(elems, GraphicsCircle(kcx, h ÷ 2, kr, kr1, kg1, kb1, ka1;
                                 border_width=max(1, _sc(1)), border_color=_rgbai(p.theme.border)))
-    SimpleIoMap(p, w, _make_canvas(Int(pos.x[]), Int(pos.y[]), wd, h, elems))
+    SimpleIoMap(p, w, _make_canvas(_origin(pos)..., wd, h, elems))
 end
 @_printer_only WidgetSwitchToGraphicsCanvas
 
@@ -1933,7 +1960,7 @@ function projection_print(p::WidgetProgressToGraphicsCanvas, recursion, w::Widge
         pr, pg, pb, pa = _rgba(p.theme.primary)
         push!(elems, GraphicsRect(0, 0, fw, H, pr, pg, pb, pa, H ÷ 2))
     end
-    SimpleIoMap(p, w, _make_canvas(Int(pos.x[]), Int(pos.y[]), W, H, elems))
+    SimpleIoMap(p, w, _make_canvas(_origin(pos)..., W, H, elems))
 end
 @_printer_only WidgetProgressToGraphicsCanvas
 
@@ -1959,7 +1986,7 @@ function projection_print(p::WidgetSliderToGraphicsCanvas, recursion, w::WidgetS
     kr1, kg1, kb1, ka1 = _rgbai(color_white)
     push!(elems, GraphicsCircle(fw, cy, _sc(9), kr1, kg1, kb1, ka1;
                                 border_width=max(1, _sc(2)), border_color=_rgbai(p.theme.primary)))
-    SimpleIoMap(p, w, _make_canvas(Int(pos.x[]), Int(pos.y[]), W, H, elems))
+    SimpleIoMap(p, w, _make_canvas(_origin(pos)..., W, H, elems))
 end
 @_printer_only WidgetSliderToGraphicsCanvas
 
@@ -1999,7 +2026,7 @@ function projection_print(p::WidgetRadioGroupToGraphicsCanvas, recursion, w::Wid
         max_w = max(max_w, diam + gap + lw)
         y += rh + row_gap
     end
-    SimpleIoMap(p, w, _make_canvas(Int(pos.x[]), Int(pos.y[]), max_w, max(0, y - row_gap), elems))
+    SimpleIoMap(p, w, _make_canvas(_origin(pos)..., max_w, max(0, y - row_gap), elems))
 end
 @_printer_only WidgetRadioGroupToGraphicsCanvas
 
@@ -2023,7 +2050,7 @@ function projection_print(p::WidgetAvatarToGraphicsCanvas, recursion, w::WidgetA
     iw, ih = _text_size(p.measure, th.font, initials)
     fr, fg, fb, fa = _rgbai(th.muted_foreground)
     push!(elems, GraphicsText(initials, r - iw ÷ 2, r - ih ÷ 2, th.font, fr, fg, fb, fa))
-    SimpleIoMap(p, w, _make_canvas(Int(pos.x[]), Int(pos.y[]), sz, sz, elems))
+    SimpleIoMap(p, w, _make_canvas(_origin(pos)..., sz, sz, elems))
 end
 @_printer_only WidgetAvatarToGraphicsCanvas
 
@@ -2040,29 +2067,30 @@ function projection_print(p::WidgetAlertToGraphicsCanvas, recursion, w::WidgetAl
     pos = w.position::Point2D
     th  = p.theme
     destructive = w.variant === :destructive
-    W   = _sc(Int(w.width))
     pad = _sc(14)
     title_fg = destructive ? th.destructive : th.foreground
     border   = destructive ? th.destructive : th.border
     elems = Any[]
+    mw = 0
     y = pad
     ttxt = string(w.title)
-    _, thh = _text_size(p.measure, th.font_bold, ttxt)
+    tww, thh = _text_size(p.measure, th.font_bold, ttxt)
     _push_text!(elems, th.font_bold, ttxt, pad, y, _rgba(title_fg))
-    y += thh
+    mw = max(mw, tww); y += thh
     if w.description !== nothing
         y += _sc(4)
         dtxt = string(w.description)
-        _, dhh = _text_size(p.measure, th.font_small, dtxt)
+        dww, dhh = _text_size(p.measure, th.font_small, dtxt)
         _push_text!(elems, th.font_small, dtxt, pad, y, _rgba(th.muted_foreground))
-        y += dhh
+        mw = max(mw, dww); y += dhh
     end
+    W  = max(_sc(Int(w.width)), mw + 2pad)
     ch = y + pad
     surface = Any[]
     _push_panel!(surface, 0, 0, W, ch; fill=th.background, border=border,
                  border_w=max(1, _sc(1)), radius=_sc(th.radius))
     append!(surface, elems)
-    SimpleIoMap(p, w, _make_canvas(Int(pos.x[]), Int(pos.y[]), W, ch, surface))
+    SimpleIoMap(p, w, _make_canvas(_origin(pos)..., W, ch, surface))
 end
 @_printer_only WidgetAlertToGraphicsCanvas
 
@@ -2078,7 +2106,7 @@ function projection_print(p::WidgetSkeletonToGraphicsCanvas, recursion, w::Widge
     W, H = _sc(Int(w.width)), _sc(Int(w.height))
     r, g, b, a = _rgba(p.theme.muted)
     elems = Any[GraphicsRect(0, 0, W, H, r, g, b, a, _sc(6))]
-    SimpleIoMap(p, w, _make_canvas(Int(pos.x[]), Int(pos.y[]), W, H, elems))
+    SimpleIoMap(p, w, _make_canvas(_origin(pos)..., W, H, elems))
 end
 @_printer_only WidgetSkeletonToGraphicsCanvas
 
@@ -2120,7 +2148,7 @@ function projection_print(p::WidgetToggleToGraphicsCanvas, recursion, w::WidgetT
     _push_panel!(elems, 0, 0, cw, ch; fill=fill, border=border, border_w=bw, radius=_sc(th.radius))
     fr, fg2, fb, fa = _rgbai(fg)
     push!(elems, GraphicsText(text, (cw - tw) ÷ 2, (ch - tht) ÷ 2, p.font, fr, fg2, fb, fa))
-    SimpleIoMap(p, w, _make_canvas(Int(pos.x[]), Int(pos.y[]), cw, ch, elems))
+    SimpleIoMap(p, w, _make_canvas(_origin(pos)..., cw, ch, elems))
 end
 @_printer_only WidgetToggleToGraphicsCanvas
 
@@ -2161,7 +2189,7 @@ function projection_print(p::WidgetToggleGroupToGraphicsCanvas, recursion, w::Wi
         push!(elems, GraphicsText(labels[i], x + (sw - tw) ÷ 2, (ch - tht) ÷ 2, p.font, fr, fg2, fb, fa))
         x += sw
     end
-    SimpleIoMap(p, w, _make_canvas(Int(pos.x[]), Int(pos.y[]), cw, ch, elems))
+    SimpleIoMap(p, w, _make_canvas(_origin(pos)..., cw, ch, elems))
 end
 @_printer_only WidgetToggleGroupToGraphicsCanvas
 
@@ -2188,7 +2216,7 @@ function projection_print(p::WidgetSelectToGraphicsCanvas, recursion, w::WidgetS
     fr, fg, fb, fa = _rgbai(th.foreground)
     push!(elems, GraphicsText(text, pad_x, (ch - tht) ÷ 2, p.font, fr, fg, fb, fa))
     _push_chevron!(elems, W - pad_x - _sc(4), ch ÷ 2, _sc(4), :down, th.muted_foreground)
-    SimpleIoMap(p, w, _make_canvas(Int(pos.x[]), Int(pos.y[]), W, ch, elems))
+    SimpleIoMap(p, w, _make_canvas(_origin(pos)..., W, ch, elems))
 end
 @_printer_only WidgetSelectToGraphicsCanvas
 
@@ -2217,7 +2245,7 @@ function projection_print(p::WidgetTextareaToGraphicsCanvas, recursion, w::Widge
     for (i, line) in enumerate(lines)
         push!(elems, GraphicsText(String(line), pad_x, pad_y + (i - 1) * lh, p.font, fr, fg, fb, fa))
     end
-    SimpleIoMap(p, w, _make_canvas(Int(pos.x[]), Int(pos.y[]), W, H, elems))
+    SimpleIoMap(p, w, _make_canvas(_origin(pos)..., W, H, elems))
 end
 @_printer_only WidgetTextareaToGraphicsCanvas
 
@@ -2257,7 +2285,7 @@ function projection_print(p::WidgetAccordionToGraphicsCanvas, recursion, w::Widg
         end
         push!(elems, GraphicsLine(0, y, W, y, brc[1], brc[2], brc[3], brc[4]; width=max(1, _sc(1))))
     end
-    SimpleIoMap(p, w, _make_canvas(Int(pos.x[]), Int(pos.y[]), W, y, elems))
+    SimpleIoMap(p, w, _make_canvas(_origin(pos)..., W, y, elems))
 end
 @_printer_only WidgetAccordionToGraphicsCanvas
 
@@ -2312,7 +2340,7 @@ function projection_print(p::WidgetTableToGraphicsCanvas, recursion, w::WidgetTa
         y += row_h
         push!(elems, GraphicsLine(0, y, W, y, brc[1], brc[2], brc[3], brc[4]; width=max(1, _sc(1))))
     end
-    SimpleIoMap(p, w, _make_canvas(Int(pos.x[]), Int(pos.y[]), W, y, elems))
+    SimpleIoMap(p, w, _make_canvas(_origin(pos)..., W, y, elems))
 end
 @_printer_only WidgetTableToGraphicsCanvas
 
@@ -2359,7 +2387,7 @@ function projection_print(p::WidgetTreeToGraphicsCanvas, recursion, w::WidgetTre
     for n in w.roots
         walk(n, 0)
     end
-    SimpleIoMap(p, w, _make_canvas(Int(pos.x[]), Int(pos.y[]), maxw[], yref[], elems))
+    SimpleIoMap(p, w, _make_canvas(_origin(pos)..., maxw[], yref[], elems))
 end
 @_printer_only WidgetTreeToGraphicsCanvas
 
@@ -2438,8 +2466,8 @@ function projection_print(p::WidgetScrollPaneToGraphicsViewport, recursion, w::W
 
     pos = w.position
     sz  = w.size
-    bx = pos isa Point2D ? Int(pos.x[]) : 0
-    by = pos isa Point2D ? Int(pos.y[]) : 0
+    bx = pos isa Point2D ? _sc(Int(pos.x[])) : 0
+    by = pos isa Point2D ? _sc(Int(pos.y[])) : 0
     vw = sz isa Point2D ? Int(sz.x[]) : 400
     vh = sz isa Point2D ? Int(sz.y[]) : 300
     scroll_cell = getfield(w, :scroll_position)

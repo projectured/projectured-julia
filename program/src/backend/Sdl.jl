@@ -117,6 +117,10 @@ mutable struct SdlWindowResources
     y::Int
     style::Symbol        # last applied style
     bg::NTuple{4,UInt8}  # last applied background
+    ss::Int              # supersample factor for anti-aliasing (1 = off)
+    target::Ptr{SDL_Texture}  # offscreen SSAA render target (C_NULL until created)
+    target_w::Int        # current target texture size (device px)
+    target_h::Int
 end
 
 """
@@ -323,6 +327,8 @@ function _open_native_window!(w::WindowDocument)
         Int32(max(w.width, 1)), Int32(max(w.height, 1)), flags)
     @assert win != C_NULL "SDL window creation failed: $(unsafe_string(SDL_GetError()))"
 
+    # Linear filtering so the supersampled target downsamples smoothly.
+    SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "1")
     renderer = SDL_CreateRenderer(win, -1,
         SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC)
     @assert renderer != C_NULL "SDL renderer creation failed: $(unsafe_string(SDL_GetError()))"
@@ -333,7 +339,15 @@ function _open_native_window!(w::WindowDocument)
     sdl_id = UInt32(SDL_GetWindowID(win))
     SdlWindowResources(win, renderer, w.id, sdl_id, w.title,
                        Int(w.width), Int(w.height), Int(w.x), Int(w.y),
-                       w.style, w.bg)
+                       w.style, w.bg, _window_supersample(), C_NULL, 0, 0)
+end
+
+# Supersample factor for live windows (anti-aliasing). Override with the
+# PROJECTURED_SUPERSAMPLE env var; default 2. 1 disables it.
+function _window_supersample()
+    v = get(ENV, "PROJECTURED_SUPERSAMPLE", "")
+    s = tryparse(Int, v)
+    s === nothing ? 2 : clamp(s, 1, 4)
 end
 
 # Detect the effective display scale and update the module-wide font scale.
@@ -415,6 +429,7 @@ end
 # Destroy one native SDL window. Loaded fonts persist in the
 # module-level cache until `quit!`.
 function _close_native_window!(res::SdlWindowResources)
+    res.target != C_NULL && SDL_DestroyTexture(res.target)
     SDL_DestroyRenderer(res.renderer)
     SDL_DestroyWindow(res.win)
 end
@@ -719,8 +734,39 @@ _render_elem_y(elem) = hasproperty(elem, :y) ? Int(elem.y) : nothing
 
 # Clear and repaint one native window's canvas. Called by the
 # reconciler once per WindowDocument per frame.
+# Ensure the SSAA render target exists and matches `width*ss × height*ss`,
+# recreating it on size change. Returns true if a usable target is in place.
+function _ensure_ss_target!(res::SdlWindowResources)
+    tw, th = res.width * res.ss, res.height * res.ss
+    (tw <= 0 || th <= 0) && return false
+    if res.target != C_NULL && (res.target_w != tw || res.target_h != th)
+        SDL_DestroyTexture(res.target); res.target = C_NULL
+    end
+    if res.target == C_NULL
+        res.target = SDL_CreateTexture(res.renderer, UInt32(SDL_PIXELFORMAT_RGBA8888),
+                                       Int32(SDL_TEXTUREACCESS_TARGET), Int32(tw), Int32(th))
+        res.target == C_NULL && return false
+        res.target_w, res.target_h = tw, th
+    end
+    true
+end
+
 function _render_window!(res::SdlWindowResources, canvas::GraphicsCanvas)
     bg = res.bg
+    if res.ss > 1 && _ensure_ss_target!(res)
+        # Render the frame into an oversized offscreen target, then copy it down
+        # to the window with linear filtering — supersampled anti-aliasing.
+        SDL_SetRenderTarget(res.renderer, res.target)
+        SDL_RenderSetScale(res.renderer, Float32(res.ss), Float32(res.ss))
+        SDL_SetRenderDrawColor(res.renderer, bg[1], bg[2], bg[3], bg[4])
+        SDL_RenderClear(res.renderer)
+        _render_canvas!(res.renderer, canvas, 0, 0, res.width, res.height)
+        SDL_RenderSetScale(res.renderer, 1.0f0, 1.0f0)
+        SDL_SetRenderTarget(res.renderer, C_NULL)
+        SDL_RenderCopy(res.renderer, res.target, C_NULL, C_NULL)
+        SDL_RenderPresent(res.renderer)
+        return
+    end
     SDL_SetRenderDrawColor(res.renderer, bg[1], bg[2], bg[3], bg[4])
     SDL_RenderClear(res.renderer)
     _render_canvas!(res.renderer, canvas, 0, 0, res.width, res.height)
