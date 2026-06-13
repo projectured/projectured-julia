@@ -11,7 +11,7 @@ import ..DocumentApiModule: Document, clear_selection!, set_selection!
 import ..ReferenceModule: ReferencePath, ConcreteReferencePath, EmptyReferencePath, FieldReference, RangeReference, is_element_reference, evaluate_reference
 import ..ReactiveModule: Cell
 export ReplaceSelectionOperation, QuitEditorOperation, QuitEditorException, replace_selection!,
-       OpenWindowOperation, CloseWindowOperation, ToggleCollapseOperation,
+       OpenWindowOperation, CloseWindowOperation, ResizeWindowOperation, ToggleCollapseOperation,
        ReplaceDocumentOperation, ReplaceReferencedValue, CollectionInsertOperation, CollectionDeleteOperation
 
 function evaluate_operation(editor, op::Nothing) end
@@ -299,6 +299,33 @@ A close for an unknown id is silently ignored.
 """
 struct CloseWindowOperation <: Operation
     id::Symbol
+end
+
+"""
+    ResizeWindowOperation(target, width, height)
+
+Set the `width`/`height` cells of `target` (a `WindowDocument`) to a new pixel
+size. Produced by `WindowManagerProjection` when the user resizes the native
+window frame. Because those cells are the
+`available_width`/`available_height` the printer threads into the window's
+content, writing them re-lays-out the content reactively — no re-projection.
+The output `WindowDocument` shares the same cells (a `CopyingProjection`
+property), so the backend reconciler also sees the new size on the next frame.
+
+Carries the target document directly (like `ToggleCollapseOperation`), so it
+bubbles up through every reader layer unchanged and is applied by the editor's
+`evaluate_operation`.
+"""
+struct ResizeWindowOperation <: Operation
+    target::Any
+    width::Int
+    height::Int
+end
+
+function evaluate_operation(editor, op::ResizeWindowOperation)
+    op.target === nothing && return
+    op.target.width = op.width
+    op.target.height = op.height
 end
 
 """

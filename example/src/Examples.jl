@@ -288,6 +288,12 @@ function _multi_window_projection(projections::Vector)
             return NestingProjection(projections[i];
                                       recursion=PreservingProjection())
         end
+        # The ScreenDocument root is the window-management seam: route it
+        # through WindowManagerProjection so window events (resize, and any
+        # open/close) are owned there. Its printer is a passthrough, so the
+        # rest of the spine dispatches exactly as the CopyingProjection case.
+        ref isa EmptyReferencePath &&
+            return WindowManagerProjection(inner = CopyingProjection())
         # Spine above any window's content target — copy through.
         for t in targets
             is_prefix_of(ref, t) || continue

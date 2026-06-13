@@ -25,8 +25,8 @@ module WindowManagerProjectionModule
 import ..ProjectionApiModule: projection_print, projection_read, map_reference_forward, map_reference_backward, Projection, Change, as_change
 import ..IoMapApiModule: IoMap
 import ..ReactiveModule: Cell
-import ..ScreenDocumentModule: ScreenDocument, WindowDocument
-import ..OperationModule: OpenWindowOperation, CloseWindowOperation
+import ..ScreenDocumentModule: ScreenDocument, WindowDocument, EventEnvelope, WindowResizeEvent
+import ..OperationModule: OpenWindowOperation, CloseWindowOperation, ResizeWindowOperation
 
 export WindowManagerProjection, WindowManagerProjectionIoMap
 
@@ -62,6 +62,17 @@ end
 # ── Reader ────────────────────────────────────────────────────────────────
 
 function projection_read(p::WindowManagerProjection, recursion, change::Change, iomap::WindowManagerProjectionIoMap)
+    # A window resize is a window-management concern owned here: resolve the
+    # window by id (no coordinate mapping needed) and emit a
+    # ResizeWindowOperation, before the inner copier ever sees the envelope.
+    env = change.gesture
+    if env isa EventEnvelope && env.event isa WindowResizeEvent
+        win = _find_window(iomap.input, env.window_id)
+        win === nothing && return Change(change.gesture, nothing)
+        return Change(change.gesture,
+                      ResizeWindowOperation(win, env.event.width, env.event.height))
+    end
+
     inner = projection_read(p.inner, recursion, change, iomap.inner_iomap)
     op = inner.operation
     if op isa OpenWindowOperation
@@ -159,6 +170,15 @@ function _apply_close!(iomap::WindowManagerProjectionIoMap, op::CloseWindowOpera
         i <= length(out_wins) && deleteat!(out_wins, i)
         return
     end
+end
+
+# Find the WindowDocument with the given id on the manager's input screen.
+function _find_window(screen, id::Symbol)
+    screen isa ScreenDocument || return nothing
+    for w in screen.windows
+        w isa WindowDocument && w.id === id && return w
+    end
+    nothing
 end
 
 # ── Reference mapping (passthrough) ──────────────────────────────────────

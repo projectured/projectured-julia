@@ -189,7 +189,7 @@ using .PrinterContextModule: PrinterContext, child_context, with_available_size,
                                  with_property, get_property
 using .DocumentApiModule: set_selection!, clear_selection!
 using .OperationModule: ReplaceSelectionOperation, QuitEditorOperation, replace_selection!,
-                        OpenWindowOperation, CloseWindowOperation, ToggleCollapseOperation,
+                        OpenWindowOperation, CloseWindowOperation, ResizeWindowOperation, ToggleCollapseOperation,
                         ReplaceDocumentOperation, ReplaceReferencedValue, CollectionInsertOperation, CollectionDeleteOperation
 using .ReferenceCaseModule: var"@reference_case", when, prefix
 using .EventCaseModule: var"@event_case"
@@ -326,7 +326,7 @@ using .LayoutModule: LayoutDocument,
                      LayoutConstraint, allocate_axis,
                      layout_min, layout_max, layout_preferred, layout_weight
 using .ImageModule: ImageDocument, ImageInsertion, ImageFile, ImageMemory
-using .ScreenDocumentModule: ScreenDocument, WindowDocument, EventEnvelope, WindowCloseRequest
+using .ScreenDocumentModule: ScreenDocument, WindowDocument, EventEnvelope, WindowCloseRequest, WindowResizeEvent
 using .TooltipDocumentModule: TooltipSource
 using .TextToStringModule: TextToString, TextTextToString, TextStringToString, TextNewlineToString
 using .TextLineNumberingModule: LineNumbering, TextLineNumbering
@@ -433,7 +433,7 @@ export @event_case
 export @reference, @step
 export ReplaceSelectionOperation, ToggleCollapseOperation
 export ReplaceDocumentOperation, ReplaceReferencedValue, CollectionInsertOperation, CollectionDeleteOperation
-export OpenWindowOperation, CloseWindowOperation
+export OpenWindowOperation, CloseWindowOperation, ResizeWindowOperation
 export JsonDocument, JsonInsertion, JsonNull, JsonBool, JsonNumber, JsonString, JsonArray, JsonObject, JsonObjectEntry, jsonvalue, entries
 export TabularDocument, TabularCell, TabularRow, TabularGrid,
        tabular_cell, tabular_column,
@@ -592,7 +592,7 @@ export WorkbenchDocument, WorkbenchInsertion,
        WorkbenchAssistant,
        WorkbenchEditor
 export ImageDocument, ImageInsertion, ImageFile, ImageMemory
-export ScreenDocument, WindowDocument, EventEnvelope, WindowCloseRequest
+export ScreenDocument, WindowDocument, EventEnvelope, WindowCloseRequest, WindowResizeEvent
 export TooltipSource
 export TextToString, TextTextToString, TextStringToString, TextNewlineToString
 export LineNumbering, TextLineNumbering

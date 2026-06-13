@@ -30,7 +30,7 @@ import ..CollectionModule: CellVector
 import ..ReferenceModule: Reference
 
 export ScreenDocument, WindowDocument, EventEnvelope, WindowCloseRequest,
-       IScreenDocument, IWindowDocument
+       WindowResizeEvent, IScreenDocument, IWindowDocument
 
 # ── ScreenDocument ────────────────────────────────────────────────────────
 
@@ -137,6 +137,23 @@ translate it into a document mutation that removes the matching
 `WindowDocument` from `ScreenDocument.windows`.
 """
 struct WindowCloseRequest end
+
+# ── WindowResizeEvent ─────────────────────────────────────────────────────
+
+"""
+    WindowResizeEvent(width, height)
+
+Inner event carried by an `EventEnvelope` when the user resizes a window's
+native frame (`SDL_WINDOWEVENT_RESIZED`). `width`/`height` are the new pixel
+size of the window's content area. `WindowManagerProjection`'s reader
+translates it into a `ResizeWindowOperation` that writes the new size into the
+matching `WindowDocument`'s `width`/`height` cells — which the printer reads
+as the available layout extent, so the content re-lays-out reactively.
+"""
+struct WindowResizeEvent
+    width::Int
+    height::Int
+end
 
 # ── Display ───────────────────────────────────────────────────────────────
 

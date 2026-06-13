@@ -14,7 +14,7 @@ import ..GraphicsModule: GraphicsCanvas, GraphicsText, GraphicsRect, GraphicsLin
 import ..CollectionModule: ListNode
 import ..FontModule: StyleFont, font_scaled_size, _FONT_SCALE
 import ..ScreenModule: Screen, QuitEvent
-import ..ScreenDocumentModule: ScreenDocument, WindowDocument, EventEnvelope, WindowCloseRequest
+import ..ScreenDocumentModule: ScreenDocument, WindowDocument, EventEnvelope, WindowCloseRequest, WindowResizeEvent
 import ..ModifiersModule: Modifiers
 import ..KeyboardModule: KeyDown, KeyUp, KeyPress
 import ..MouseModule: MouseDown, MouseUp, MousePress, MouseMove, MouseScroll
@@ -1155,6 +1155,7 @@ backend-agnostic inner event:
 - Pending synthesised events (e.g. `MousePress`) are returned first.
 - `SDL_QUIT`                           → `EventEnvelope(:none, QuitEvent())`
 - `SDL_WINDOWEVENT_CLOSE` for a window → `EventEnvelope(<id>, WindowCloseRequest())`
+- `SDL_WINDOWEVENT_RESIZED`            → `EventEnvelope(<id>, WindowResizeEvent(w, h))`
 - `SDL_KEYDOWN`                        → `EventEnvelope(<id>, KeyDown)` (Escape → `QuitEvent()`)
 - `SDL_KEYUP`                          → `EventEnvelope(<id>, KeyUp)`
 - `SDL_TEXTINPUT`                      → `EventEnvelope(<id>, KeyPress)`
@@ -1190,6 +1191,18 @@ function read_from_devices(backend::SdlBackend, devices)
             wid = _lookup_window_id(backend, evt.window.windowID)
             if sub == UInt8(14)  # SDL_WINDOWEVENT_CLOSE
                 return EventEnvelope(wid, WindowCloseRequest())
+            elseif sub == UInt8(5)  # SDL_WINDOWEVENT_RESIZED (external/user only)
+                nw = Int(evt.window.data1)
+                nh = Int(evt.window.data2)
+                # Mark the resource as already at this size so the reconciler's
+                # _update_window_geometry! doesn't issue a redundant
+                # SDL_SetWindowSize back at the OS (which would fight the drag).
+                res = get(backend.windows, wid, nothing)
+                if res !== nothing
+                    res.width = nw
+                    res.height = nh
+                end
+                return EventEnvelope(wid, WindowResizeEvent(nw, nh))
             end
             # Other window events are not currently surfaced; keep polling.
             continue
