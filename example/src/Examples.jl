@@ -409,9 +409,11 @@ function print_example(name="json")
 end
 
 function write_image_example(example::Example, filename;
-                              width=1200, height=800, kwargs...)
+                              width=nothing, height=nothing,
+                              max_width=1200, max_height=800, kwargs...)
     write_image(example.document, example.projection, filename;
-                width=width, height=height, kwargs...)
+                width=width, height=height,
+                max_width=max_width, max_height=max_height, kwargs...)
 end
 
 function write_image_example(name="json", filename=tempname()*".bmp"; kwargs...)
@@ -421,18 +423,30 @@ function write_image_example(name="json", filename=tempname()*".bmp"; kwargs...)
 end
 
 """
-    generate_screenshots(; width=1920, height=1080,
-                          image_dir=joinpath(@__DIR__, "..", "..", "image", "example"))
+    generate_example_screenshots(; filter=nothing, max_width=1920, max_height=1080,
+                                 image_dir=joinpath(@__DIR__, "..", "..", "image", "example"))
 
 Generate a PNG screenshot for every example in `examples` into `image_dir`.
 Filename pattern: `{example-name-with-hyphens}.png`. One failure does not
 abort the batch.
+
+Each screenshot is sized to its content, capped at `max_width`/`max_height`, so
+compact examples (e.g. individual widgets) produce small images rather than a
+fixed full-screen canvas.
+
+Pass `filter` (a `Regex` or string compiled to one with `occursin`) to restrict
+generation to examples whose name matches, e.g. `filter=r"^widget"` regenerates
+only the widget screenshots.
 """
-function generate_screenshots(; width=1920, height=1080, supersample=3,
-                              image_dir=joinpath(@__DIR__, "..", "..", "image", "example"))
+function generate_example_screenshots(; filter=nothing, max_width=1920, max_height=1080, supersample=3,
+                                      image_dir=joinpath(@__DIR__, "..", "..", "image", "example"))
     mkpath(image_dir)
     white = (0xff, 0xff, 0xff, 0xff)
+    pattern = filter isa AbstractString ? Regex(filter) : filter
     for ex in examples
+        if pattern !== nothing && !occursin(pattern, ex.name)
+            continue
+        end
         safe_name = replace(ex.name, "_" => "-")
         png = joinpath(image_dir, "$safe_name.png")
         @info "Generating $(ex.name)..."
@@ -440,7 +454,7 @@ function generate_screenshots(; width=1920, height=1080, supersample=3,
         # white rather than the default solarized canvas.
         bg = startswith(ex.name, "widget") ? white : (0xfd, 0xf6, 0xe3, 0xff)
         try
-            write_image_example(ex, png; width=width, height=height,
+            write_image_example(ex, png; max_width=max_width, max_height=max_height,
                                 background=bg, supersample=supersample)
             @info "  ✓ $png"
         catch e

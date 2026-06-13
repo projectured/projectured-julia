@@ -929,15 +929,91 @@ function write_image(canvas::GraphicsCanvas, filename::AbstractString;
     ImageFile(filename)
 end
 
+# ── Content bounds ──────────────────────────────────────────────────────
+#
+# Compute the axis-aligned bounding box, in absolute pixels, of everything a
+# canvas would draw. Offsets accumulate through nested canvases exactly as
+# `_dispatch_render_elem!` renders them, so the result is the natural extent of
+# the laid-out content. `write_image` uses this to size an output image to the
+# content when no explicit width/height is requested. `measure(text, font)`
+# returns the pixel `(width, height)` of a text element.
+
+function _canvas_content_bounds(canvas::GraphicsCanvas; measure = sdl_measure_text)
+    minx = Ref(typemax(Int)); miny = Ref(typemax(Int))
+    maxx = Ref(typemin(Int)); maxy = Ref(typemin(Int))
+    _accumulate_bounds!(canvas, 0, 0, measure, minx, miny, maxx, maxy)
+    maxx[] == typemin(Int) && return (0, 0, 0, 0)   # empty canvas
+    (minx[], miny[], maxx[], maxy[])
+end
+
+function _accumulate_bounds!(canvas::GraphicsCanvas, ox::Int, oy::Int, measure,
+                             minx, miny, maxx, maxy)
+    for elem in canvas.elements
+        _bounds_elem!(elem, ox, oy, measure, minx, miny, maxx, maxy)
+    end
+end
+
+function _bounds_extend!(minx, miny, maxx, maxy, x0::Int, y0::Int, x1::Int, y1::Int)
+    minx[] = min(minx[], x0); miny[] = min(miny[], y0)
+    maxx[] = max(maxx[], x1); maxy[] = max(maxy[], y1)
+    nothing
+end
+
+function _bounds_elem!(elem, ox::Int, oy::Int, measure, minx, miny, maxx, maxy)
+    if elem isa GraphicsText
+        x, y = ox + Int(elem.x), oy + Int(elem.y)
+        w, _ = measure(elem.text, elem.font)
+        h = font_scaled_size(elem.font.size)
+        _bounds_extend!(minx, miny, maxx, maxy, x, y, x + Int(w), y + h)
+    elseif elem isa GraphicsRect
+        x, y = ox + Int(elem.x), oy + Int(elem.y)
+        _bounds_extend!(minx, miny, maxx, maxy, x, y, x + Int(elem.w), y + Int(elem.h))
+    elseif elem isa GraphicsImage
+        x, y = ox + Int(elem.x), oy + Int(elem.y)
+        _bounds_extend!(minx, miny, maxx, maxy, x, y, x + Int(elem.w), y + Int(elem.h))
+    elseif elem isa GraphicsViewport
+        # A viewport clips its content, so its extent is its declared box.
+        x, y = ox + Int(elem.x), oy + Int(elem.y)
+        _bounds_extend!(minx, miny, maxx, maxy, x, y, x + Int(elem.w), y + Int(elem.h))
+    elseif elem isa GraphicsLine
+        hw = max(1, Int(elem.width))
+        x0 = ox + min(Int(elem.x1), Int(elem.x2)) - hw
+        y0 = oy + min(Int(elem.y1), Int(elem.y2)) - hw
+        x1 = ox + max(Int(elem.x1), Int(elem.x2)) + hw
+        y1 = oy + max(Int(elem.y1), Int(elem.y2)) + hw
+        _bounds_extend!(minx, miny, maxx, maxy, x0, y0, x1, y1)
+    elseif elem isa GraphicsCircle
+        rad = Int(elem.radius) + Int(elem.border_width)
+        cx, cy = ox + Int(elem.cx), oy + Int(elem.cy)
+        _bounds_extend!(minx, miny, maxx, maxy, cx - rad, cy - rad, cx + rad, cy + rad)
+    elseif elem isa GraphicsCanvas
+        _accumulate_bounds!(elem, ox + Int(elem.x), oy + Int(elem.y), measure,
+                            minx, miny, maxx, maxy)
+    end
+    # GraphicsFence and unknown types contribute nothing.
+end
+
 """
     write_image(document, projection, filename::AbstractString;
-                width::Integer = 800, height::Integer = 600,
+                width=nothing, height=nothing,
+                max_width::Integer = 1200, max_height::Integer = 800,
                 background::NTuple{4,UInt8} = (0xfd, 0xf6, 0xe3, 0xff)) -> ImageFile
 
 Run `projection_print(projection, document)` to obtain a `GraphicsCanvas`,
-then render it offscreen and save to `filename` (BMP). The projection is
-provided by the caller, typically the same pipeline used to open a live editor
-window. Returns an `ImageFile` pointing at the saved file.
+render it offscreen and save to `filename` (BMP or PNG). Returns an `ImageFile`.
+
+Image sizing, per axis:
+
+- If `width` (resp. `height`) is given, the image is exactly that size and the
+  content is laid out within it (the classic fixed-size behavior).
+- If it is omitted, the content is first laid out *unbounded* and the image is
+  sized to its natural extent. Should that extent exceed `max_width`
+  (resp. `max_height`), the axis is capped at the max and the content is
+  re-printed so the layout can reflow (e.g. word wrapping), then the image is
+  sized to the now-bounded content.
+
+So an omitted axis yields an image that hugs the content, never larger than the
+corresponding `max_*`.
 
 ```julia
 proj = SequentialProjection(
@@ -945,28 +1021,55 @@ proj = SequentialProjection(
     RecursiveProjection(SyntaxToText()),
     TextToGraphics(measure=sdl_measure_text),
 )
-write_image(doc, proj, "snapshot.bmp"; width=1200, height=800)
+write_image(doc, proj, "snapshot.png")                          # fits content ≤ 1200×800
+write_image(doc, proj, "snapshot.png"; width=1200, height=800)  # fixed 1200×800
 ```
 
 Throws if the projection output is not a `GraphicsCanvas`.
 """
 function write_image(document, projection, filename::AbstractString;
-                     width::Integer = 800,
-                     height::Integer = 600,
+                     width::Union{Nothing,Integer} = nothing,
+                     height::Union{Nothing,Integer} = nothing,
+                     max_width::Integer = 1200,
+                     max_height::Integer = 800,
                      background::NTuple{4,UInt8} = (0xfd, 0xf6, 0xe3, 0xff),
                      supersample::Integer = 2)
     # Initialize before printing: the projection measures text (opening fonts),
     # which requires SDL_ttf to be up.
     SDL_Init(SDL_INIT_VIDEO)
     TTF_Init()
-    ctx = PrinterContext(EmptyReferencePath(),
-                            Cell(Int(width)), Cell(Int(height)),
-                            Dict{Symbol,Any}())
-    iomap = projection_print(projection, nothing, document, ctx)
-    canvas = iomap.output
-    canvas isa GraphicsCanvas ||
-        error("write_image: projection output is $(typeof(canvas)), expected GraphicsCanvas")
-    write_image(canvas, filename; width=width, height=height,
+
+    print_canvas = (aw, ah) -> begin
+        ctx = PrinterContext(EmptyReferencePath(), aw, ah, Dict{Symbol,Any}())
+        iomap = projection_print(projection, nothing, document, ctx)
+        canvas = iomap.output
+        canvas isa GraphicsCanvas ||
+            error("write_image: projection output is $(typeof(canvas)), expected GraphicsCanvas")
+        canvas
+    end
+
+    # Pass 1: constrain only the explicitly-given axes; leave omitted axes
+    # unbounded so the content lays out at its natural size.
+    aw = width  === nothing ? nothing : Cell(Int(width))
+    ah = height === nothing ? nothing : Cell(Int(height))
+    canvas = print_canvas(aw, ah)
+    _, _, nw, nh = _canvas_content_bounds(canvas)
+
+    # Pass 2: if an omitted axis overran its max, cap it at max and re-print so
+    # the layout can reflow (e.g. word wrapping), then re-measure.
+    cap_w = width  === nothing && nw > max_width
+    cap_h = height === nothing && nh > max_height
+    if cap_w || cap_h
+        aw2 = cap_w ? Cell(Int(max_width))  : aw
+        ah2 = cap_h ? Cell(Int(max_height)) : ah
+        canvas = print_canvas(aw2, ah2)
+        _, _, nw, nh = _canvas_content_bounds(canvas)
+    end
+
+    out_w = width  === nothing ? clamp(nw, 1, Int(max_width))  : Int(width)
+    out_h = height === nothing ? clamp(nh, 1, Int(max_height)) : Int(height)
+
+    write_image(canvas, filename; width=out_w, height=out_h,
                 background=background, supersample=supersample)
 end
 

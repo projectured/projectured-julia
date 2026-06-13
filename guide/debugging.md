@@ -184,13 +184,15 @@ references into the guides and `README.md`:
 
 ```julia
 julia> using ProjecturedExample
-julia> generate_screenshots()        # writes PNGs into image/
+julia> generate_example_screenshots()        # writes PNGs into image/
 julia> update_guide_screenshots()    # injects ![...] references into guides + README
 ```
 
 Output goes to `image/` as PNG files in a single step — no external tools.
-Both functions accept keyword overrides: `width`, `height`, `image_dir` for
-`generate_screenshots`, and `repo_root` for `update_guide_screenshots`.
+Both functions accept keyword overrides: `width`, `height`, `image_dir` and
+`filter` (a `Regex`/string limiting which examples are regenerated, e.g.
+`filter=r"^widget"`) for `generate_example_screenshots`, and `repo_root` for
+`update_guide_screenshots`.
 `update_guide_screenshots` is idempotent — a second call produces no further
 changes.
 

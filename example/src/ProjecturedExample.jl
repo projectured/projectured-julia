@@ -138,7 +138,7 @@ export make_workbench_document, make_workbench_projection
 export make_introspection_document, make_introspection_projection, EditorIntrospection
 export make_text_configuring_projection
 export Example, examples, run_example, print_example, write_image_example
-export generate_screenshots, update_guide_screenshots
+export generate_example_screenshots, update_guide_screenshots
 export json_example, json_sorted_example, json_null_example, json_string_example
 export xml_example, mixed_example, syntax_example, text_example, text_with_image_example
 export object_example, object_to_widget_example, line_numbering_example, word_wrapping_example, text_filtering_example, text_highlighting_example

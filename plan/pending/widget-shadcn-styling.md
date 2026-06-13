@@ -266,7 +266,7 @@ Use the existing image pipeline as the before/after diff tool (per the hint to
 "see `write_image`"):
 
 - `write_image_example(widget_button_example, "out/widget_button.png")` renders
-  one widget to a PNG; `generate_screenshots()` does the whole `examples` list.
+  one widget to a PNG; `generate_example_screenshots()` does the whole `examples` list.
   Offscreen SDL rendering works in the test env (the suite prints a font scale),
   so this is our visual regression channel.
 - Workflow per phase: snapshot the affected per-widget examples **before** the
@@ -293,7 +293,7 @@ Use the existing image pipeline as the before/after diff tool (per the hint to
 3. **New widgets Tier 1** (Part B) — document struct + printer + example + image
    per widget, again one at a time.
 4. **New widgets Tier 2**.
-5. **Docs** — refresh `image/example/*` via `generate_screenshots()`, update the
+5. **Docs** — refresh `image/example/*` via `generate_example_screenshots()`, update the
    widget guide (`guide/document/widget.md`) and examples tour.
 
 Gradients, shadows, ellipsis-truncation, and rounded clipping are **opt-in
