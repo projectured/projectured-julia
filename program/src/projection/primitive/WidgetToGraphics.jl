@@ -34,7 +34,7 @@ import ..WidgetModule: WidgetDocument, WidgetLabel, WidgetText, WidgetCheckbox,
                        WidgetSlider, WidgetRadioGroup, WidgetAvatar, WidgetAlert, WidgetSkeleton,
                        WidgetToggle, WidgetToggleGroup, WidgetSelect, WidgetTextarea, WidgetAccordion,
                        WidgetTable, WidgetTree,
-                       Inset, Point2D,
+                       Inset, Point2D, inset_default,
                        ScrollWidgetOperation, SelectTabOperation, SetScrollBarValueOperation
 import ..CollectionModule: CellVector, CollectionDocument
 import ..GraphicsModule: GraphicsText, GraphicsRect, GraphicsLine, GraphicsCircle, GraphicsCanvas, GraphicsViewport, hit_element_at, layout_none
@@ -68,13 +68,28 @@ export WidgetLabelToGraphicsCanvas, WidgetTextToGraphicsCanvas,
 """
     WidgetTheme
 
-Design tokens shared by every widget renderer. Colors are
-`StyleColor`s; `radius` and the `pad_*` spacings are *logical* pixels (scaled by
-the font scale at render time via `_sc`). The theme is the single source of
-truth for widget look & feel — individual documents should not carry their own
-colors. See [`widget_theme_light`](@ref) / [`widget_theme_dark`](@ref).
+Design tokens shared by every widget renderer — the single source of truth for
+widget look & feel. Colors are `StyleColor`s; every spacing / sizing token is a
+*logical* pixel value scaled by the font scale at render time via `_sc`, so a
+widget renderer should never carry its own literal dimension. The fields fall
+into four groups:
+
+- **Palette** — `background … ring` plus `track_off` (the switch's off-track).
+- **Type & base spacing** — `font*`, `radius`, `pad_x`, `pad_y`.
+- **Generic layout** — `gap`, `row_gap`, `title_gap`, `border_width`, `stroke`,
+  `tab_pad`, `seg_inset`.
+- **Control & component dimensions** — checkbox / switch / slider / progress /
+  radio / scrollbar sizes and the per-component paddings, indents and radii.
+- **Box model** — `inset`, the themed default margin/border/padding (zero by
+  default, so `inset_default` can be replaced by a theme without per-widget
+  overrides).
+
+Spacing tokens are palette-independent, so both presets share them via
+[`_widget_theme`](@ref); only colors and fonts differ. See
+[`widget_theme_light`](@ref) / [`widget_theme_dark`](@ref).
 """
 struct WidgetTheme
+    # ── Palette ──
     background::StyleColor
     foreground::StyleColor
     card::StyleColor
@@ -94,12 +109,84 @@ struct WidgetTheme
     border::StyleColor
     input::StyleColor
     ring::StyleColor
+    track_off::StyleColor   # switch off-track fill
+    # ── Type & base spacing ──
     radius::Int
     font::StyleFont
     font_bold::StyleFont
     font_small::StyleFont
     pad_x::Int
     pad_y::Int
+    # ── Generic layout ──
+    gap::Int            # inter-item gap (toolbar items, shell bands)
+    row_gap::Int        # vertical gap between stacked rows
+    title_gap::Int      # gap below a title/header
+    border_width::Int   # hairline: border / splitter / separator / table rules
+    stroke::Int         # icon stroke (checkmark, chevron, radio ring, knob ring)
+    tab_pad::Int        # tab inner padding (printer + hit-test)
+    seg_inset::Int      # selected-segment inset (toggle group)
+    # ── Control & component dimensions ──
+    checkbox_size::Int
+    switch_w::Int
+    switch_h::Int
+    switch_pad::Int
+    progress_h::Int
+    slider_h::Int
+    track::Int          # slider track thickness
+    knob_radius::Int
+    radio_size::Int
+    radio_gap::Int      # dot → label gap
+    radio_dot::Int      # selected inner dot radius
+    thumb_min::Int      # minimum scroll-bar thumb extent
+    badge_pad_x::Int
+    badge_pad_y::Int
+    card_pad::Int
+    card_gap::Int       # gap between card sections
+    card_title_gap::Int # gap below the card title
+    alert_pad::Int
+    alert_gap::Int      # gap below the alert title
+    table_pad_x::Int
+    table_pad_y::Int
+    tree_indent::Int
+    tree_chevron::Int   # tree chevron column width
+    tree_row_pad::Int   # tree row vertical padding
+    chevron::Int        # chevron half-size
+    skeleton_radius::Int
+    shadow_offset::Int  # button drop-shadow y-offset
+    accordion_pad_y::Int
+    accordion_body_gap::Int
+    # ── Box model ──
+    inset::Inset        # themed default margin/border/padding
+end
+
+"""
+    _widget_theme(; <palette colors>, font, font_bold, font_small) -> WidgetTheme
+
+Build a theme from a color palette and fonts, filling in the palette-independent
+spacing / sizing tokens with their shared defaults. Both presets funnel through
+here so the geometry is defined in exactly one place; preserve the values when
+editing — they match the original per-widget literals so rendering is stable.
+"""
+function _widget_theme(; background, foreground, card, card_foreground, popover,
+                         popover_foreground, muted, muted_foreground, primary,
+                         primary_foreground, secondary, secondary_foreground,
+                         accent, accent_foreground, destructive, destructive_foreground,
+                         border, input, ring, track_off,
+                         font, font_bold, font_small)
+    WidgetTheme(
+        background, foreground, card, card_foreground, popover, popover_foreground,
+        muted, muted_foreground, primary, primary_foreground, secondary, secondary_foreground,
+        accent, accent_foreground, destructive, destructive_foreground, border, input, ring, track_off,
+        # type & base spacing
+        8, font, font_bold, font_small, 14, 9,
+        # generic layout: gap row_gap title_gap border_width stroke tab_pad seg_inset
+        4, 12, 6, 1, 2, 4, 2,
+        # control sizes: checkbox switch_w switch_h switch_pad progress_h slider_h track knob radio radio_gap radio_dot thumb_min
+        18, 44, 24, 3, 8, 24, 4, 9, 18, 10, 5, 8,
+        # components: badge_x badge_y card_pad card_gap card_title_gap alert_pad alert_gap table_x table_y tree_indent tree_chevron tree_row_pad chevron skeleton_radius shadow_offset accordion_pad_y accordion_body_gap
+        10, 3, 16, 10, 4, 14, 4, 12, 8, 22, 18, 4, 4, 6, 2, 10, 2,
+        # box model
+        inset_default)
 end
 
 """
@@ -108,17 +195,18 @@ end
 The default light theme (a neutral zinc palette on a white background).
 """
 function widget_theme_light(; font::StyleFont=font_ubuntu_regular_24)
-    WidgetTheme(
-        color_white,        color_zinc_950,     # background / foreground
-        color_white,        color_zinc_950,     # card
-        color_white,        color_zinc_950,     # popover
-        color_zinc_100,     color_zinc_500,     # muted / muted_foreground
-        color_zinc_900,     color_zinc_50,      # primary / on-primary
-        color_zinc_100,     color_zinc_900,     # secondary
-        color_zinc_100,     color_zinc_900,     # accent
-        color_destructive,  color_destructive_fg,
-        color_zinc_200,     color_zinc_200,     color_zinc_400,  # border / input / ring
-        8, font, font_ubuntu_bold_24, font_ubuntu_regular_18, 14, 9)
+    _widget_theme(
+        background=color_white,       foreground=color_zinc_950,
+        card=color_white,             card_foreground=color_zinc_950,
+        popover=color_white,          popover_foreground=color_zinc_950,
+        muted=color_zinc_100,         muted_foreground=color_zinc_500,
+        primary=color_zinc_900,       primary_foreground=color_zinc_50,
+        secondary=color_zinc_100,     secondary_foreground=color_zinc_900,
+        accent=color_zinc_100,        accent_foreground=color_zinc_900,
+        destructive=color_destructive, destructive_foreground=color_destructive_fg,
+        border=color_zinc_200,        input=color_zinc_200,    ring=color_zinc_400,
+        track_off=color_zinc_300,
+        font=font, font_bold=font_ubuntu_bold_24, font_small=font_ubuntu_regular_18)
 end
 
 """
@@ -128,17 +216,18 @@ The dark theme (zinc-950 surfaces). Ships alongside the light default; the
 editor chrome can opt in.
 """
 function widget_theme_dark(; font::StyleFont=font_ubuntu_regular_24)
-    WidgetTheme(
-        color_zinc_950,     color_zinc_50,
-        color_zinc_900,     color_zinc_50,
-        color_zinc_900,     color_zinc_50,
-        color_zinc_800,     color_zinc_400,
-        color_zinc_50,      color_zinc_900,
-        color_zinc_800,     color_zinc_50,
-        color_zinc_800,     color_zinc_50,
-        color_destructive,  color_destructive_fg,
-        color_zinc_800,     color_zinc_800,     color_zinc_600,
-        8, font, font_ubuntu_bold_24, font_ubuntu_regular_18, 14, 9)
+    _widget_theme(
+        background=color_zinc_950,    foreground=color_zinc_50,
+        card=color_zinc_900,          card_foreground=color_zinc_50,
+        popover=color_zinc_900,       popover_foreground=color_zinc_50,
+        muted=color_zinc_800,         muted_foreground=color_zinc_400,
+        primary=color_zinc_50,        primary_foreground=color_zinc_900,
+        secondary=color_zinc_800,     secondary_foreground=color_zinc_50,
+        accent=color_zinc_800,        accent_foreground=color_zinc_50,
+        destructive=color_destructive, destructive_foreground=color_destructive_fg,
+        border=color_zinc_800,        input=color_zinc_800,    ring=color_zinc_600,
+        track_off=color_zinc_700,
+        font=font, font_bold=font_ubuntu_bold_24, font_small=font_ubuntu_regular_18)
 end
 
 # ── Styling helpers ─────────────────────────────────────────────────────────
@@ -390,6 +479,25 @@ function _text_size(measure::Function, font::StyleFont, text::AbstractString)
     measure(text, font)
 end
 
+# ── Width resolution (content-aware + layout-aware) ─────────────────────────
+
+# Resolve the rendered width for a width-bearing widget. The authored `intrinsic`
+# width (already font-scaled) is treated as a *minimum*, not a hard size:
+#
+#   - when a parent layout seeded `available_width` on the context, fill that
+#     allocation (so the widget participates in automatic layout);
+#   - otherwise fall back to the intrinsic minimum;
+#   - in both cases never go narrower than `content_min` (the measured content
+#     plus its padding), so text/content is never clipped.
+#
+# `content_min` defaults to 0 for widgets with no measurable content (progress,
+# slider, skeleton), which then size purely from the allocation/intrinsic.
+function _resolve_width(ctx, intrinsic::Int, content_min::Int=0)
+    avail = ctx === nothing ? nothing : ctx.available_width
+    base = avail !== nothing ? max(0, Int(avail[])) : intrinsic
+    max(base, content_min)
+end
+
 # ── Canvas construction helper ─────────────────────────────────────────────
 
 function _make_canvas(x::Int, y::Int, elems::Vector)
@@ -591,9 +699,9 @@ function projection_print(p::WidgetCheckboxToGraphicsCanvas, recursion, w::Widge
     w.visible == false && return SimpleIoMap(p, w, _empty_canvas())
     pos = w.position::Point2D
     checked = w.content === true
-    s   = _sc(18)            # box size
-    rad = _sc(4)
-    bw  = max(1, _sc(2))     # outline / stroke width
+    s   = _sc(p.theme.checkbox_size)   # box size
+    rad = _sc(p.theme.radius ÷ 2)
+    bw  = max(1, _sc(p.theme.stroke))  # outline / stroke width
     elems = Any[]
     if checked
         _push_panel!(elems, 0, 0, s, s; fill=p.theme.primary, radius=rad)
@@ -652,9 +760,9 @@ function projection_print(p::WidgetButtonToGraphicsCanvas, recursion, w::WidgetB
     # Default button: light surface, subtle border, soft shadow, dark label —
     # matching the shadcn default button. A faint offset rect approximates the
     # shadow-sm drop shadow.
-    push!(elems, GraphicsRect(0, _sc(2), bw, bh, 0x00, 0x00, 0x00, 0x14, radius))
+    push!(elems, GraphicsRect(0, _sc(p.theme.shadow_offset), bw, bh, 0x00, 0x00, 0x00, 0x14, radius))
     _push_panel!(elems, 0, 0, bw, bh; fill=p.theme.background,
-                 border=p.theme.border, border_w=max(1, _sc(1)), radius=radius)
+                 border=p.theme.border, border_w=max(1, _sc(p.theme.border_width)), radius=radius)
     fr, fg, fb, fa = _rgbai(p.theme.foreground)
     push!(elems, GraphicsText(text, (bw - tw) ÷ 2, (bh - th) ÷ 2, p.font, fr, fg, fb, fa))
     SimpleIoMap(p, w, _make_canvas(_origin(pos)..., bw, bh, elems))
@@ -702,7 +810,7 @@ function projection_print(p::WidgetTooltipToGraphicsCanvas, recursion, w::Widget
     vw = cw + txp
     vh = ch + typ
     _push_panel!(elems, 0, 0, vw, vh; fill=p.theme.popover,
-                 border=p.theme.border, border_w=max(1, _sc(1)), radius=_sc(p.theme.radius))
+                 border=p.theme.border, border_w=max(1, _sc(p.theme.border_width)), radius=_sc(p.theme.radius))
     append!(elems, body)
     ChildrenIoMap(p, w, _make_canvas(_origin(pos)..., vw, vh, elems), Cell(child_iomaps))
 end
@@ -915,7 +1023,7 @@ function projection_print(p::WidgetShellToGraphicsCanvas, recursion, w::WidgetSh
         push!(child_iomaps, (cox, content_y, cim))
         push!(elems, _make_canvas(cox, content_y, Any[cim.output]))
         _, toolbar_h = p.measure("M", p.font)
-        content_y += toolbar_h + 4
+        content_y += toolbar_h + p.theme.gap
     end
     content = w.content
     if content isa WidgetDocument
@@ -1008,7 +1116,7 @@ function projection_print(p::WidgetTitlePaneToGraphicsCanvas, recursion, w::Widg
     tw, th = _text_size(p.measure, p.theme.font_bold, title_text)
     # Card-like: bold title in foreground, body in card_foreground.
     _push_text!(elems, p.theme.font_bold, title_text, cox, coy, _rgba(p.theme.foreground))
-    content_y = coy + th + _sc(6)
+    content_y = coy + th + _sc(p.theme.title_gap)
     content = w.content
     if content isa WidgetDocument
         cim = projection_print(recursion, recursion, content, ctx)
@@ -1068,7 +1176,7 @@ function projection_print(p::WidgetSplitPaneToGraphicsCanvas, recursion, w::Widg
     orientation = w.orientation::Symbol
     main_axis = orientation === :horizontal ? :x : :y
     sizes = w.sizes
-    splitter_thickness = max(1, _sc(1))
+    splitter_thickness = max(1, _sc(p.theme.border_width))
     splitter_rgba = _rgba(p.theme.border)
 
     # Keep only Document children; LayoutConstraint and bare widgets both
@@ -1369,7 +1477,7 @@ function projection_print(p::WidgetTabbedPaneToGraphicsCanvas, recursion, w::Wid
         return ChildrenIoMap(p, w, _empty_canvas(), Cell(child_iomaps))
     end
 
-    sel_pad = 4
+    sel_pad = p.theme.tab_pad
     tabs = Any[]
     for pair in pairs
         label = string(pair[1])
@@ -1477,7 +1585,7 @@ function projection_read(p::WidgetTabbedPaneToGraphicsCanvas, iomap::ChildrenIoM
         cox, coy = _content_offset(w)
         pairs = w.selector_element_pairs
         if !isempty(pairs)
-            sel_pad = 4
+            sel_pad = p.theme.tab_pad
             sizes = Tuple{Int,Int}[]
             tab_h = 0
             for pair in pairs
@@ -1697,7 +1805,7 @@ function projection_print(p::WidgetToolbarToGraphicsCanvas, recursion, w::Widget
     child_iomaps = Any[]
     elems = Any[]
     x_cursor = cox
-    item_gap = 4
+    item_gap = p.theme.gap
     for item in w.elements
         item isa WidgetDocument || continue
         cim = projection_print(recursion, recursion, item, ctx)
@@ -1746,11 +1854,11 @@ function projection_print(p::WidgetScrollBarToGraphicsCanvas, _, w::WidgetScroll
     thumb_sz = clamp(Float64(w.thumb_size), 0.05, 1.0)
     hr, hg, hb, ha = _rgba(p.theme.border)
     if w.orientation === :horizontal
-        tw = max(8, Int(round(thumb_sz * cw)))
+        tw = max(p.theme.thumb_min, Int(round(thumb_sz * cw)))
         tx_pos = cox + Int(round(value * (cw - tw)))
         push!(elems, GraphicsRect(tx_pos, coy, tw, ch, hr, hg, hb, ha, ch ÷ 2))
     else
-        th = max(8, Int(round(thumb_sz * ch)))
+        th = max(p.theme.thumb_min, Int(round(thumb_sz * ch)))
         ty_pos = coy + Int(round(value * (ch - th)))
         push!(elems, GraphicsRect(cox, ty_pos, cw, th, hr, hg, hb, ha, cw ÷ 2))
     end
@@ -1765,7 +1873,7 @@ function map_reference_backward(::WidgetScrollBarToGraphicsCanvas, iomap, refere
     return nothing
 end
 
-function projection_read(::WidgetScrollBarToGraphicsCanvas, iomap::SimpleIoMap, evt)
+function projection_read(p::WidgetScrollBarToGraphicsCanvas, iomap::SimpleIoMap, evt)
     evt isa MousePress || return nothing
     w = iomap.input
     w isa WidgetScrollBar || return nothing
@@ -1778,10 +1886,10 @@ function projection_read(::WidgetScrollBarToGraphicsCanvas, iomap::SimpleIoMap, 
     ch = max(1, bh - ty)
     thumb_sz = clamp(Float64(w.thumb_size), 0.05, 1.0)
     if w.orientation === :horizontal
-        tw = max(8, Int(round(thumb_sz * cw)))
+        tw = max(p.theme.thumb_min, Int(round(thumb_sz * cw)))
         new_value = clamp(Float64(evt.x - cox - div(tw, 2)) / max(1, cw - tw), 0.0, 1.0)
     else
-        th = max(8, Int(round(thumb_sz * ch)))
+        th = max(p.theme.thumb_min, Int(round(thumb_sz * ch)))
         new_value = clamp(Float64(evt.y - coy - div(th, 2)) / max(1, ch - th), 0.0, 1.0)
     end
     SetScrollBarValueOperation(w, new_value)
@@ -1822,10 +1930,10 @@ function projection_print(p::WidgetBadgeToGraphicsCanvas, recursion, w::WidgetBa
     else
         (th.primary, th.primary_foreground, nothing)
     end
-    pad_x, pad_y = _sc(10), _sc(3)
+    pad_x, pad_y = _sc(th.badge_pad_x), _sc(th.badge_pad_y)
     tw, tht = _text_size(p.measure, th.font_small, text)
     cw, ch = tw + 2pad_x, tht + 2pad_y
-    bw = border !== nothing ? max(1, _sc(1)) : 0
+    bw = border !== nothing ? max(1, _sc(th.border_width)) : 0
     elems = Any[]
     _push_panel!(elems, 0, 0, cw, ch; fill=fill, border=border, border_w=bw, radius=ch ÷ 2)
     fr, fg2, fb, fa = _rgbai(fg)
@@ -1845,7 +1953,7 @@ function projection_print(p::WidgetSeparatorToGraphicsCanvas, recursion, w::Widg
     pos = w.position::Point2D
     L = _sc(Int(w.length))
     r, g, b, a = _rgba(p.theme.border)
-    thick = max(1, _sc(1))
+    thick = max(1, _sc(p.theme.border_width))
     elems = Any[]
     if w.orientation === :vertical
         push!(elems, GraphicsLine(0, 0, 0, L, r, g, b, a; width=thick))
@@ -1869,7 +1977,7 @@ function projection_print(p::WidgetCardToGraphicsCanvas, recursion, w::WidgetCar
     w.visible == false && return ChildrenIoMap(p, w, _empty_canvas(), Cell(Any[]))
     pos = w.position::Point2D
     th  = p.theme
-    pad = _sc(16)
+    pad = _sc(th.card_pad)
     elems = Any[]
     child_iomaps = Any[]
     mw = 0   # widest content row, to size the card to its content
@@ -1878,13 +1986,13 @@ function projection_print(p::WidgetCardToGraphicsCanvas, recursion, w::WidgetCar
         ttxt = string(w.title)
         tww, thh = _text_size(p.measure, th.font_bold, ttxt)
         _push_text!(elems, th.font_bold, ttxt, pad, y, _rgba(th.foreground))
-        mw = max(mw, tww); y += thh + _sc(4)
+        mw = max(mw, tww); y += thh + _sc(th.card_title_gap)
     end
     if w.description !== nothing
         dtxt = string(w.description)
         dww, dhh = _text_size(p.measure, th.font_small, dtxt)
         _push_text!(elems, th.font_small, dtxt, pad, y, _rgba(th.muted_foreground))
-        mw = max(mw, dww); y += dhh + _sc(10)
+        mw = max(mw, dww); y += dhh + _sc(th.card_gap)
     end
     content = w.content
     if content isa WidgetDocument
@@ -1893,11 +2001,11 @@ function projection_print(p::WidgetCardToGraphicsCanvas, recursion, w::WidgetCar
         push!(elems, _make_canvas(pad, y, Any[cim.output]))
         inner = cim.output
         inner isa GraphicsCanvas && (mw = max(mw, Int(inner.w[])))
-        y += inner isa GraphicsCanvas ? Int(inner.h[]) + _sc(10) : _sc(10)
+        y += inner isa GraphicsCanvas ? Int(inner.h[]) + _sc(th.card_gap) : _sc(th.card_gap)
     elseif content isa AbstractString
         cww, chh = _text_size(p.measure, th.font, content)
         _push_text!(elems, th.font, content, pad, y, _rgba(th.card_foreground))
-        mw = max(mw, cww); y += chh + _sc(10)
+        mw = max(mw, cww); y += chh + _sc(th.card_gap)
     end
     if w.footer !== nothing
         ftxt = string(w.footer)
@@ -1905,12 +2013,12 @@ function projection_print(p::WidgetCardToGraphicsCanvas, recursion, w::WidgetCar
         _push_text!(elems, th.font_small, ftxt, pad, y, _rgba(th.muted_foreground))
         mw = max(mw, fww); y += fhh
     end
-    cw = max(_sc(Int(w.width)), mw + 2pad)
+    cw = _resolve_width(ctx, _sc(Int(w.width)), mw + 2pad)
     ch = y + pad
     # Card surface drawn first (behind content).
     surface = Any[]
     _push_panel!(surface, 0, 0, cw, ch; fill=th.card, border=th.border,
-                 border_w=max(1, _sc(1)), radius=_sc(th.radius))
+                 border_w=max(1, _sc(th.border_width)), radius=_sc(th.radius))
     append!(surface, elems)
     ChildrenIoMap(p, w, _make_canvas(_origin(pos)..., cw, ch, surface), Cell(child_iomaps))
 end
@@ -1926,17 +2034,17 @@ function projection_print(p::WidgetSwitchToGraphicsCanvas, recursion, w::WidgetS
     w.visible == false && return SimpleIoMap(p, w, _empty_canvas())
     pos = w.position::Point2D
     on  = w.checked === true
-    h, wd = _sc(24), _sc(44)
+    h, wd = _sc(p.theme.switch_h), _sc(p.theme.switch_w)
     elems = Any[]
-    track = on ? p.theme.primary : color_zinc_300
+    track = on ? p.theme.primary : p.theme.track_off
     tr, tg, tb, ta = _rgba(track)
     push!(elems, GraphicsRect(0, 0, wd, h, tr, tg, tb, ta, h ÷ 2))
-    pad = _sc(3)
+    pad = _sc(p.theme.switch_pad)
     kr  = (h - 2pad) ÷ 2
     kcx = on ? (wd - pad - kr) : (pad + kr)
     kr1, kg1, kb1, ka1 = _rgbai(color_white)
     push!(elems, GraphicsCircle(kcx, h ÷ 2, kr, kr1, kg1, kb1, ka1;
-                                border_width=max(1, _sc(1)), border_color=_rgbai(p.theme.border)))
+                                border_width=max(1, _sc(p.theme.border_width)), border_color=_rgbai(p.theme.border)))
     SimpleIoMap(p, w, _make_canvas(_origin(pos)..., wd, h, elems))
 end
 @_printer_only WidgetSwitchToGraphicsCanvas
@@ -1951,7 +2059,7 @@ function projection_print(p::WidgetProgressToGraphicsCanvas, recursion, w::Widge
     w.visible == false && return SimpleIoMap(p, w, _empty_canvas())
     pos = w.position::Point2D
     value = clamp(Float64(w.value), 0.0, 1.0)
-    W, H = _sc(Int(w.width)), _sc(8)
+    W, H = _resolve_width(ctx, _sc(Int(w.width))), _sc(p.theme.progress_h)
     elems = Any[]
     tr, tg, tb, ta = _rgba(p.theme.muted)
     push!(elems, GraphicsRect(0, 0, W, H, tr, tg, tb, ta, H ÷ 2))
@@ -1974,9 +2082,9 @@ function projection_print(p::WidgetSliderToGraphicsCanvas, recursion, w::WidgetS
     w.visible == false && return SimpleIoMap(p, w, _empty_canvas())
     pos = w.position::Point2D
     value = clamp(Float64(w.value), 0.0, 1.0)
-    W, H = _sc(Int(w.width)), _sc(24)
+    W, H = _resolve_width(ctx, _sc(Int(w.width))), _sc(p.theme.slider_h)
     cy = H ÷ 2
-    tk = _sc(4)
+    tk = _sc(p.theme.track)
     fw = round(Int, value * W)
     elems = Any[]
     tr, tg, tb, ta = _rgba(p.theme.muted)
@@ -1984,8 +2092,8 @@ function projection_print(p::WidgetSliderToGraphicsCanvas, recursion, w::WidgetS
     pr, pg, pb, pa = _rgba(p.theme.primary)
     fw > 0 && push!(elems, GraphicsRect(0, cy - tk ÷ 2, fw, tk, pr, pg, pb, pa, tk ÷ 2))
     kr1, kg1, kb1, ka1 = _rgbai(color_white)
-    push!(elems, GraphicsCircle(fw, cy, _sc(9), kr1, kg1, kb1, ka1;
-                                border_width=max(1, _sc(2)), border_color=_rgbai(p.theme.primary)))
+    push!(elems, GraphicsCircle(fw, cy, _sc(p.theme.knob_radius), kr1, kg1, kb1, ka1;
+                                border_width=max(1, _sc(p.theme.stroke)), border_color=_rgbai(p.theme.primary)))
     SimpleIoMap(p, w, _make_canvas(_origin(pos)..., W, H, elems))
 end
 @_printer_only WidgetSliderToGraphicsCanvas
@@ -2003,9 +2111,9 @@ function projection_print(p::WidgetRadioGroupToGraphicsCanvas, recursion, w::Wid
     pos = w.position::Point2D
     th  = p.theme
     selected = Int(w.selected)
-    diam = _sc(18)
-    gap  = _sc(10)
-    row_gap = _sc(12)
+    diam = _sc(th.radio_size)
+    gap  = _sc(th.radio_gap)
+    row_gap = _sc(th.row_gap)
     elems = Any[]
     y = 0
     max_w = 0
@@ -2016,11 +2124,11 @@ function projection_print(p::WidgetRadioGroupToGraphicsCanvas, recursion, w::Wid
         cyr = y + rh ÷ 2
         if i == selected
             push!(elems, GraphicsCircle(diam ÷ 2, cyr, diam ÷ 2, _rgbai(th.background)...;
-                                        border_width=max(1, _sc(2)), border_color=_rgbai(th.primary)))
-            push!(elems, GraphicsCircle(diam ÷ 2, cyr, _sc(5), _rgbai(th.primary)...))
+                                        border_width=max(1, _sc(th.stroke)), border_color=_rgbai(th.primary)))
+            push!(elems, GraphicsCircle(diam ÷ 2, cyr, _sc(th.radio_dot), _rgbai(th.primary)...))
         else
             push!(elems, GraphicsCircle(diam ÷ 2, cyr, diam ÷ 2, _rgbai(th.background)...;
-                                        border_width=max(1, _sc(2)), border_color=_rgbai(th.input)))
+                                        border_width=max(1, _sc(th.stroke)), border_color=_rgbai(th.input)))
         end
         _push_text!(elems, th.font, label, diam + gap, y + (rh - lh) ÷ 2, _rgba(th.foreground))
         max_w = max(max_w, diam + gap + lw)
@@ -2067,7 +2175,7 @@ function projection_print(p::WidgetAlertToGraphicsCanvas, recursion, w::WidgetAl
     pos = w.position::Point2D
     th  = p.theme
     destructive = w.variant === :destructive
-    pad = _sc(14)
+    pad = _sc(th.alert_pad)
     title_fg = destructive ? th.destructive : th.foreground
     border   = destructive ? th.destructive : th.border
     elems = Any[]
@@ -2078,17 +2186,17 @@ function projection_print(p::WidgetAlertToGraphicsCanvas, recursion, w::WidgetAl
     _push_text!(elems, th.font_bold, ttxt, pad, y, _rgba(title_fg))
     mw = max(mw, tww); y += thh
     if w.description !== nothing
-        y += _sc(4)
+        y += _sc(th.alert_gap)
         dtxt = string(w.description)
         dww, dhh = _text_size(p.measure, th.font_small, dtxt)
         _push_text!(elems, th.font_small, dtxt, pad, y, _rgba(th.muted_foreground))
         mw = max(mw, dww); y += dhh
     end
-    W  = max(_sc(Int(w.width)), mw + 2pad)
+    W  = _resolve_width(ctx, _sc(Int(w.width)), mw + 2pad)
     ch = y + pad
     surface = Any[]
     _push_panel!(surface, 0, 0, W, ch; fill=th.background, border=border,
-                 border_w=max(1, _sc(1)), radius=_sc(th.radius))
+                 border_w=max(1, _sc(th.border_width)), radius=_sc(th.radius))
     append!(surface, elems)
     SimpleIoMap(p, w, _make_canvas(_origin(pos)..., W, ch, surface))
 end
@@ -2103,17 +2211,19 @@ end
 function projection_print(p::WidgetSkeletonToGraphicsCanvas, recursion, w::WidgetSkeleton, ctx)
     w.visible == false && return SimpleIoMap(p, w, _empty_canvas())
     pos = w.position::Point2D
-    W, H = _sc(Int(w.width)), _sc(Int(w.height))
+    W, H = _resolve_width(ctx, _sc(Int(w.width))), _sc(Int(w.height))
     r, g, b, a = _rgba(p.theme.muted)
-    elems = Any[GraphicsRect(0, 0, W, H, r, g, b, a, _sc(6))]
+    elems = Any[GraphicsRect(0, 0, W, H, r, g, b, a, _sc(p.theme.skeleton_radius))]
     SimpleIoMap(p, w, _make_canvas(_origin(pos)..., W, H, elems))
 end
 @_printer_only WidgetSkeletonToGraphicsCanvas
 
 # Push a small chevron (two AA strokes) centered at (cx, cy). `dir` ∈ :down :right.
-function _push_chevron!(elems::Vector, cx::Int, cy::Int, s::Int, dir::Symbol, color::StyleColor)
+# `stroke` is the line width; callers pass the theme's icon stroke.
+function _push_chevron!(elems::Vector, cx::Int, cy::Int, s::Int, dir::Symbol, color::StyleColor;
+                        stroke::Int=max(1, _sc(2)))
     r, g, b, a = _rgba(color)
-    w = max(1, _sc(2))
+    w = stroke
     if dir === :right
         push!(elems, GraphicsLine(cx - s ÷ 2, cy - s, cx + s ÷ 2, cy, r, g, b, a; width=w))
         push!(elems, GraphicsLine(cx + s ÷ 2, cy, cx - s ÷ 2, cy + s, r, g, b, a; width=w))
@@ -2143,7 +2253,7 @@ function projection_print(p::WidgetToggleToGraphicsCanvas, recursion, w::WidgetT
     fill   = on ? th.accent : th.background
     fg     = on ? th.accent_foreground : th.foreground
     border = on ? nothing : th.border
-    bw = border !== nothing ? max(1, _sc(1)) : 0
+    bw = border !== nothing ? max(1, _sc(th.border_width)) : 0
     elems = Any[]
     _push_panel!(elems, 0, 0, cw, ch; fill=fill, border=border, border_w=bw, radius=_sc(th.radius))
     fr, fg2, fb, fa = _rgbai(fg)
@@ -2175,13 +2285,14 @@ function projection_print(p::WidgetToggleGroupToGraphicsCanvas, recursion, w::Wi
     elems = Any[]
     # Outer container (muted track + border).
     _push_panel!(elems, 0, 0, cw, ch; fill=th.muted, border=th.border,
-                 border_w=max(1, _sc(1)), radius=radius)
+                 border_w=max(1, _sc(th.border_width)), radius=radius)
     x = 0
     for i in eachindex(labels)
         sw = seg_ws[i]
         if i == selected
-            _push_panel!(elems, x + _sc(2), _sc(2), sw - _sc(4), ch - _sc(4);
-                         fill=th.background, radius=max(0, radius - _sc(2)))
+            _push_panel!(elems, x + _sc(th.seg_inset), _sc(th.seg_inset),
+                         sw - _sc(2 * th.seg_inset), ch - _sc(2 * th.seg_inset);
+                         fill=th.background, radius=max(0, radius - _sc(th.seg_inset)))
         end
         tw, tht = _text_size(p.measure, p.font, labels[i])
         fg = i == selected ? th.foreground : th.muted_foreground
@@ -2206,16 +2317,19 @@ function projection_print(p::WidgetSelectToGraphicsCanvas, recursion, w::WidgetS
     pos = w.position::Point2D
     th  = p.theme
     text = string(w.value)
-    W = _sc(Int(w.width))
     pad_x, pad_y = _sc(th.pad_x), _sc(th.pad_y)
-    _, tht = _text_size(p.measure, p.font, text)
+    tw, tht = _text_size(p.measure, p.font, text)
+    # Fit the value text, a gap, the trailing chevron and both paddings.
+    content_min = 2pad_x + tw + _sc(th.gap) + 2 * _sc(th.chevron)
+    W = _resolve_width(ctx, _sc(Int(w.width)), content_min)
     ch = tht + 2pad_y
     elems = Any[]
     _push_panel!(elems, 0, 0, W, ch; fill=th.background, border=th.input,
-                 border_w=max(1, _sc(1)), radius=_sc(th.radius))
+                 border_w=max(1, _sc(th.border_width)), radius=_sc(th.radius))
     fr, fg, fb, fa = _rgbai(th.foreground)
     push!(elems, GraphicsText(text, pad_x, (ch - tht) ÷ 2, p.font, fr, fg, fb, fa))
-    _push_chevron!(elems, W - pad_x - _sc(4), ch ÷ 2, _sc(4), :down, th.muted_foreground)
+    _push_chevron!(elems, W - pad_x - _sc(th.chevron), ch ÷ 2, _sc(th.chevron), :down,
+                   th.muted_foreground; stroke=max(1, _sc(th.stroke)))
     SimpleIoMap(p, w, _make_canvas(_origin(pos)..., W, ch, elems))
 end
 @_printer_only WidgetSelectToGraphicsCanvas
@@ -2232,15 +2346,16 @@ function projection_print(p::WidgetTextareaToGraphicsCanvas, recursion, w::Widge
     w.visible == false && return SimpleIoMap(p, w, _empty_canvas())
     pos = w.position::Point2D
     th  = p.theme
-    W = _sc(Int(w.width))
     pad_x, pad_y = _sc(th.pad_x), _sc(th.pad_y)
     lines = split(string(w.content), '\n')
     _, lh = _text_size(p.measure, p.font, "M")
     nrows = max(Int(w.rows), length(lines))
     H = nrows * lh + 2pad_y
+    maxlw = isempty(lines) ? 0 : maximum(_text_size(p.measure, p.font, String(l))[1] for l in lines)
+    W = _resolve_width(ctx, _sc(Int(w.width)), maxlw + 2pad_x)
     elems = Any[]
     _push_panel!(elems, 0, 0, W, H; fill=th.background, border=th.input,
-                 border_w=max(1, _sc(1)), radius=_sc(th.radius))
+                 border_w=max(1, _sc(th.border_width)), radius=_sc(th.radius))
     fr, fg, fb, fa = _rgbai(th.foreground)
     for (i, line) in enumerate(lines)
         push!(elems, GraphicsText(String(line), pad_x, pad_y + (i - 1) * lh, p.font, fr, fg, fb, fa))
@@ -2261,9 +2376,20 @@ function projection_print(p::WidgetAccordionToGraphicsCanvas, recursion, w::Widg
     w.visible == false && return SimpleIoMap(p, w, _empty_canvas())
     pos = w.position::Point2D
     th  = p.theme
-    W = _sc(Int(w.width))
     expanded = Int(w.expanded)
-    pad_x, pad_y = _sc(th.pad_x), _sc(10)
+    pad_x, pad_y = _sc(th.pad_x), _sc(th.accordion_pad_y)
+    # Size to content: widest title (leaving room for the trailing chevron) and
+    # the widest visible (expanded) body. The authored width is the minimum.
+    title_min = 0; body_min = 0
+    for (i, item) in enumerate(w.items)
+        title_min = max(title_min, _text_size(p.measure, th.font_bold, string(item[1]))[1])
+        if i == expanded && length(item) >= 2
+            body_min = max(body_min, _text_size(p.measure, th.font_small, string(item[2]))[1])
+        end
+    end
+    content_min = max(2pad_x + title_min + _sc(th.gap) + 2 * _sc(th.chevron),
+                      2pad_x + body_min)
+    W = _resolve_width(ctx, _sc(Int(w.width)), content_min)
     elems = Any[]
     y = 0
     brc = _rgba(th.border)
@@ -2274,16 +2400,16 @@ function projection_print(p::WidgetAccordionToGraphicsCanvas, recursion, w::Widg
         row_h = hh + 2pad_y
         fr, fg, fb, fa = _rgbai(th.foreground)
         push!(elems, GraphicsText(title, pad_x, y + pad_y, th.font_bold, fr, fg, fb, fa))
-        _push_chevron!(elems, W - pad_x - _sc(4), y + row_h ÷ 2, _sc(4),
-                       i == expanded ? :down : :right, th.muted_foreground)
+        _push_chevron!(elems, W - pad_x - _sc(th.chevron), y + row_h ÷ 2, _sc(th.chevron),
+                       i == expanded ? :down : :right, th.muted_foreground; stroke=max(1, _sc(th.stroke)))
         y += row_h
         if i == expanded && !isempty(body)
             _, bh = _text_size(p.measure, th.font_small, body)
             mr, mg, mb, ma = _rgbai(th.muted_foreground)
-            push!(elems, GraphicsText(body, pad_x, y + _sc(2), th.font_small, mr, mg, mb, ma))
+            push!(elems, GraphicsText(body, pad_x, y + _sc(th.accordion_body_gap), th.font_small, mr, mg, mb, ma))
             y += bh + pad_y
         end
-        push!(elems, GraphicsLine(0, y, W, y, brc[1], brc[2], brc[3], brc[4]; width=max(1, _sc(1))))
+        push!(elems, GraphicsLine(0, y, W, y, brc[1], brc[2], brc[3], brc[4]; width=max(1, _sc(th.border_width))))
     end
     SimpleIoMap(p, w, _make_canvas(_origin(pos)..., W, y, elems))
 end
@@ -2304,7 +2430,7 @@ function projection_print(p::WidgetTableToGraphicsCanvas, recursion, w::WidgetTa
     headers = [string(h) for h in w.headers]
     rows = [Any[c for c in r] for r in w.rows]
     ncol = length(headers)
-    cpx, cpy = _sc(12), _sc(8)
+    cpx, cpy = _sc(th.table_pad_x), _sc(th.table_pad_y)
     _, lh = _text_size(p.measure, p.font, "M")
     row_h = lh + 2cpy
     # Column widths from header + body content.
@@ -2327,7 +2453,7 @@ function projection_print(p::WidgetTableToGraphicsCanvas, recursion, w::WidgetTa
         x += colw[j]
     end
     y = row_h
-    push!(elems, GraphicsLine(0, y, W, y, brc[1], brc[2], brc[3], brc[4]; width=max(1, _sc(1))))
+    push!(elems, GraphicsLine(0, y, W, y, brc[1], brc[2], brc[3], brc[4]; width=max(1, _sc(th.border_width))))
     # Body rows.
     fr, fg, fb, fa = _rgbai(th.foreground)
     for r in rows
@@ -2338,7 +2464,7 @@ function projection_print(p::WidgetTableToGraphicsCanvas, recursion, w::WidgetTa
             x += colw[j]
         end
         y += row_h
-        push!(elems, GraphicsLine(0, y, W, y, brc[1], brc[2], brc[3], brc[4]; width=max(1, _sc(1))))
+        push!(elems, GraphicsLine(0, y, W, y, brc[1], brc[2], brc[3], brc[4]; width=max(1, _sc(th.border_width))))
     end
     SimpleIoMap(p, w, _make_canvas(_origin(pos)..., W, y, elems))
 end
@@ -2360,9 +2486,9 @@ function projection_print(p::WidgetTreeToGraphicsCanvas, recursion, w::WidgetTre
     w.visible == false && return SimpleIoMap(p, w, _empty_canvas())
     pos = w.position::Point2D
     th  = p.theme
-    indent, chev_w = _sc(22), _sc(18)
+    indent, chev_w = _sc(th.tree_indent), _sc(th.tree_chevron)
     _, lh = _text_size(p.measure, p.font, "M")
-    row_h = lh + 2 * _sc(4)
+    row_h = lh + 2 * _sc(th.tree_row_pad)
     elems = Any[]
     maxw = Ref(0)
     yref = Ref(0)
@@ -2372,10 +2498,11 @@ function projection_print(p::WidgetTreeToGraphicsCanvas, recursion, w::WidgetTre
         kids = _tree_children(node)
         label = _tree_label(node)
         if kids !== nothing && !isempty(kids)
-            _push_chevron!(elems, x + chev_w ÷ 2, yref[] + row_h ÷ 2, _sc(4), :down, th.muted_foreground)
+            _push_chevron!(elems, x + chev_w ÷ 2, yref[] + row_h ÷ 2, _sc(th.chevron), :down,
+                           th.muted_foreground; stroke=max(1, _sc(th.stroke)))
         end
         lw, _ = _text_size(p.measure, p.font, label)
-        push!(elems, GraphicsText(label, x + chev_w, yref[] + _sc(4), p.font, fr, fg, fb, fa))
+        push!(elems, GraphicsText(label, x + chev_w, yref[] + _sc(th.tree_row_pad), p.font, fr, fg, fb, fa))
         maxw[] = max(maxw[], x + chev_w + lw)
         yref[] += row_h
         if kids !== nothing
