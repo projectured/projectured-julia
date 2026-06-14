@@ -142,6 +142,7 @@ export make_dbcatalog_document_example, make_dbcatalog_projection_example
 export make_database_adapter_example, setup_persons_table, teardown_persons_table
 export make_database_instance_document_example
 export make_sql_document_example, make_sql_syntax_projection_example, make_sql_table_projection_example
+export make_sql_nested_document_example, make_sql_nested_syntax_projection_example
 
 export make_graphics_caching
 export make_scrolling_document, make_scrolling_projection
@@ -181,6 +182,7 @@ export conversation_widget_example
 export conversation_editor_example
 export dbcatalog_example
 export sql_syntax_example
+export sql_nested_syntax_example
 export sql_table_example
 export make_ini_document_example, make_ini_projection_example
 export ini_example

@@ -96,6 +96,7 @@ const conversation_widget_example = Example("conversation_widget", make_conversa
 const conversation_editor_example = Example("conversation_editor", make_conversation_editor_document_example, make_conversation_editor_projection_example; render_width=1200, render_height=400)
 const dbcatalog_example      = Example("dbcatalog",      make_dbcatalog_document_example,      make_dbcatalog_projection_example)
 const sql_syntax_example     = Example("sql_syntax",     make_sql_document_example,            make_sql_syntax_projection_example)
+const sql_nested_syntax_example = Example("sql_nested_syntax", make_sql_nested_document_example, make_sql_nested_syntax_projection_example)
 const sql_table_example      = Example("sql_table",      make_sql_document_example,            make_sql_table_projection_example)
 const ini_example            = Example("ini",             make_ini_document_example,            make_ini_projection_example)
 const ned_example            = Example("ned",             make_ned_document_example,            make_ned_projection_example)
@@ -140,6 +141,7 @@ const examples = [
     conversation_editor_example,
     dbcatalog_example,
     sql_syntax_example,
+    sql_nested_syntax_example,
     sql_table_example,
     ini_example,
     ned_example,

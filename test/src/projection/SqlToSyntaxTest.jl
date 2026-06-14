@@ -15,7 +15,7 @@ function test_sql_to_syntax()
             RecursiveProjection(SqlToSyntax()),
             RecursiveProjection(SyntaxToText()))
         out = projection_print(pipe, stmt).output
-        @test join(s.content for s in out) == "SELECT * FROM persons"
+        @test join(s.content for s in out) == "SELECT \n  *\nFROM \n  persons\n"
 
         # Top-level dispatch produces a SyntaxNode
         node = projection_print(RecursiveProjection(SqlToSyntax()), stmt).output

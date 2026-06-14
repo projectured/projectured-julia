@@ -1,10 +1,16 @@
 # Bound SQL statement document model
 
 Combines a database-agnostic `SqlStatement` document tree with a `DbCatalog`
-schema to produce a `BoundSqlStatement` document tree. The bound tree mirrors
-the structure of `SqlStatement` exactly; enrichment slots (`DbCatalogTable?`,
-`DbCatalogColumn?`) appear at the nodes where catalog identity is meaningful.
-Slots start as `nothing`; the binding projection populates them.
+schema to produce a `BoundSqlStatement` document tree. The projection reuses
+the existing `Sql*` structural containers (`SqlSelectClause`, `SqlFromClause`,
+`SqlFromItem`, `SqlJoinSegment`, `SqlSelectItem`) and replaces only the
+catalog-meaningful leaf nodes with `BoundSql*` enrichment nodes. Enrichment
+slots (`DbCatalogTable?`, `DbCatalogColumn?`) start as `nothing`; the binding
+projection populates them.
+
+`@document` fields are `Cell`-wrapped `Any` at runtime — declared type
+annotations are documentary, not enforced — so `BoundSql*` leaf nodes sit in
+the same structural positions as their `Sql*` counterparts without type errors.
 
 ---
 
@@ -34,19 +40,18 @@ reusable across statements.
 
 ## 1. Document hierarchy
 
-### Abstract types
+### New abstract types
 
 ```
-BoundSqlDocument (abstract)
-├── BoundSqlStatement (abstract)
-├── BoundSqlSelectExpression (abstract)
-└── BoundSqlFromBaseItem (abstract)
+BoundSqlStatement (abstract)
+BoundSqlSelectExpression (abstract)
+BoundSqlFromBaseItem (abstract)
 ```
 
 ### Enrichment leaf nodes
 
-These are the only nodes that carry new catalog fields. The original `Sql*`
-document is kept as `sql` for rendering fallback and provenance.
+Four new concrete types — the only nodes that carry new catalog fields.
+Each wraps its original `Sql*` document for rendering fallback and provenance.
 
 ```
 BoundSqlTableExpression <: BoundSqlFromBaseItem
@@ -66,42 +71,22 @@ BoundSqlAllColumns <: BoundSqlSelectExpression
     catalog_table : DbCatalogTable | nothing   -- table resolved from qualifier
 ```
 
-### Structural wrapper nodes
-
-Structural nodes carry only the fields that differ from the `SqlStatement`
-side. Fields that carry no catalog-bindable content are included directly.
+### Top-level statement
 
 ```
-BoundSqlJoinSegment
-    join_type : SqlJoinType          -- unchanged; no catalog binding
-    from_item : BoundSqlFromBaseItem -- enriched
-    condition : SqlJoinCondition | nothing  -- unchanged
-
-BoundSqlFromItem
-    base_item : BoundSqlFromBaseItem
-    joins     : [BoundSqlJoinSegment]
-
-BoundSqlFromClause
-    items : [BoundSqlFromItem]
-
-BoundSqlSelectItem
-    expression   : BoundSqlSelectExpression
-    column_alias : SqlColumnAlias | nothing   -- unchanged
-
-BoundSqlSelectClause
-    distinct : SqlDistinct | nothing  -- unchanged
-    items    : [BoundSqlSelectItem]
-
 BoundSqlSelectStatement <: BoundSqlStatement
-    sql           : SqlSelectStatement    -- original; full provenance
-    select_clause : BoundSqlSelectClause
-    from_clause   : BoundSqlFromClause
-    where_clause  : SqlWhereClause        -- unchanged; no binding in WHERE yet
+    sql           : SqlSelectStatement   -- original; full provenance
+    select_clause : SqlSelectClause      -- new instance; items hold BoundSql* expressions
+    from_clause   : SqlFromClause        -- new instance; items hold SqlFromItem with BoundSql* base_items
+    selection     : Reference
 ```
 
-`SqlWhereClause`, `SqlJoinCondition`, `SqlJoinType`, `SqlColumnAlias`, and
-`SqlTableAlias` are reused unchanged — they carry no catalog-bindable identifiers
-in the current scope.
+`where_clause` is accessed from `sql.where_clause` directly — no binding in
+WHERE yet. All other `Sql*` structural containers (`SqlSelectClause`,
+`SqlFromClause`, `SqlFromItem`, `SqlJoinSegment`, `SqlSelectItem`) and leaf
+types (`SqlWhereClause`, `SqlJoinCondition`, `SqlJoinType`, `SqlColumnAlias`,
+`SqlTableAlias`) are reused unchanged — only new instances are created by the
+projection, replacing `Sql*` leaf nodes with `BoundSql*` where applicable.
 
 ---
 
@@ -118,31 +103,28 @@ the bound tree looks like:
 ```julia
 BoundSqlSelectStatement(
     sql = <original SqlSelectStatement>,
-    select_clause = BoundSqlSelectClause(
-        distinct = nothing,
-        items = [BoundSqlSelectItem(
-            expression   = BoundSqlColumnReference(
+    select_clause = SqlSelectClause(
+        SqlSelectItem(
+            BoundSqlColumnReference(
                 sql            = SqlColumnReference(SqlTableAlias("sub"), SqlColumnName("person_name")),
-                catalog_column = nothing),   # <── populated by SqlToBoundSql
-            column_alias = nothing)]),
-    from_clause = BoundSqlFromClause(items = [BoundSqlFromItem(
-        base_item = BoundSqlSubqueryFromItem(
-            sql = SqlSubqueryFromItem(<subquery>, SqlTableAlias("sub")),
-            subquery = BoundSqlSelectStatement(
-                sql = <inner SqlSelectStatement>,
-                select_clause = BoundSqlSelectClause(items = [BoundSqlSelectItem(
-                    expression   = BoundSqlColumnReference(
-                        sql            = SqlColumnReference(SqlColumnName("name")),
-                        catalog_column = nothing),   # <── populated
-                    column_alias = SqlColumnAlias("person_name"))]),
-                from_clause = BoundSqlFromClause(items = [BoundSqlFromItem(
-                    base_item = BoundSqlTableExpression(
-                        sql           = SqlTableExpression(SqlTableName("persons")),
-                        catalog_table = nothing),    # <── populated
-                    joins = [])]),
-                where_clause = SqlWhereClause())),
-        joins = [])]),
-    where_clause = SqlWhereClause())
+                catalog_column = nothing))),   # <── populated by SqlToBoundSql
+    from_clause = SqlFromClause(
+        SqlFromItem(
+            BoundSqlSubqueryFromItem(
+                sql = SqlSubqueryFromItem(<subquery>, SqlTableAlias("sub")),
+                subquery = BoundSqlSelectStatement(
+                    sql = <inner SqlSelectStatement>,
+                    select_clause = SqlSelectClause(
+                        SqlSelectItem(
+                            BoundSqlColumnReference(
+                                sql            = SqlColumnReference(SqlColumnName("name")),
+                                catalog_column = nothing),   # <── populated
+                            SqlColumnAlias("person_name"))),
+                    from_clause = SqlFromClause(
+                        SqlFromItem(
+                            BoundSqlTableExpression(
+                                sql           = SqlTableExpression(SqlTableName("persons")),
+                                catalog_table = nothing)))))))  # <── populated
 ```
 
 ---
@@ -157,8 +139,11 @@ Included after `Sql.jl` and `DbCatalog.jl` in `program/src/Projectured.jl`.
 Imports: `SqlDocumentModule` (all wrapped `Sql*` types), `DbCatalogDocumentModule`
 (`DbCatalogTable`, `DbCatalogColumn`).
 
-Exports: all `BoundSql*` types and their `IBoundSql*` interface wrappers,
-plus convenience constructors.
+Exports: abstract types `BoundSqlStatement`, `BoundSqlSelectExpression`,
+`BoundSqlFromBaseItem`; concrete types `BoundSqlTableExpression`,
+`BoundSqlSubqueryFromItem`, `BoundSqlColumnReference`, `BoundSqlAllColumns`,
+`BoundSqlSelectStatement`; their `IBoundSql*` interface wrappers; and
+convenience constructors.
 
 ---
 
@@ -183,14 +168,15 @@ Bottom-up (subqueries before enclosing query):
 
 1. Build a `String → DbCatalogTable` map from `catalog_schema.tables`.
 2. Build a `(table_name, column_name) → DbCatalogColumn` map from each table's `columns`.
-3. For each `SqlFromItem` in `from_clause`:
-   - `SqlTableExpression` → `BoundSqlTableExpression(sql, lookup(table_name))`
-   - `SqlSubqueryFromItem` → recurse first; `BoundSqlSubqueryFromItem(sql, bound_subquery)`
-   - Each join: `BoundSqlJoinSegment(join_type, bound_from_item, condition)`
-4. For each `SqlSelectItem` in `select_clause`:
-   - `SqlColumnReference` → `BoundSqlColumnReference(sql, lookup(qualifier, column_name))`
-   - `SqlAllColumns` → `BoundSqlAllColumns(sql, lookup(qualifier))`
-5. Return `BoundSqlSelectStatement(sql, bound_select_clause, bound_from_clause, where_clause)`.
+3. For each `SqlFromItem` in `from_clause.items`, build a new `SqlFromItem`:
+   - `SqlTableExpression` base_item → `BoundSqlTableExpression(sql, lookup(table_name))`
+   - `SqlSubqueryFromItem` base_item → recurse first; `BoundSqlSubqueryFromItem(sql, bound_subquery)`
+   - Each join: new `SqlJoinSegment` with the same join_type/condition and a
+     bound `from_item` using the same rules above.
+4. For each `SqlSelectItem` in `select_clause.items`, build a new `SqlSelectItem`:
+   - `SqlColumnReference` expression → `BoundSqlColumnReference(sql, lookup(qualifier, column_name))`
+   - `SqlAllColumns` expression → `BoundSqlAllColumns(sql, lookup(qualifier))`
+5. Return `BoundSqlSelectStatement(sql, new SqlSelectClause(...), new SqlFromClause(...))`.
 
 Read-only v1: no `projection_read`, no reference mapping.
 
@@ -208,8 +194,9 @@ Read-only v1: no `projection_read`, no reference mapping.
 
 ## 6. Implementation steps
 
-1. **Create `program/src/document/BoundSql.jl`** — all `BoundSql*` structs and
-   convenience constructors with default `nothing` catalog slots.
+1. **Create `program/src/document/BoundSql.jl`** — 3 abstract types, 4 enrichment
+   leaf structs, `BoundSqlSelectStatement`; convenience constructors with default
+   `nothing` catalog slots.
 2. **Wire into `program/src/Projectured.jl`** — include after `Sql.jl` / `DbCatalog.jl`;
    add exports.
 3. **Write document tests** in `test/src/document/BoundSqlDocumentTest.jl` —

@@ -6,6 +6,14 @@ function make_sql_syntax_projection_example(; measure=sdl_measure_text)
     )
 end
 
+function make_sql_nested_syntax_projection_example(; measure=sdl_measure_text)
+    SequentialProjection(
+        RecursiveProjection(SqlToSyntax()),
+        RecursiveProjection(SyntaxToText()),
+        TextToGraphics(measure=measure),
+    )
+end
+
 function make_sql_table_projection_example(; measure=sdl_measure_text,
                                              pool=OdbcConnectionPool(),
                                              instance=make_database_instance_document_example())
