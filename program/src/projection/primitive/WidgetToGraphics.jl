@@ -71,25 +71,26 @@ export WidgetLabelToGraphicsCanvas, WidgetTextToGraphicsCanvas,
 """
     WidgetTheme
 
-Design tokens shared by every widget renderer — the single source of truth for
-widget look & feel. Colors are `StyleColor`s; every spacing / sizing token is a
-*logical* pixel value scaled by the font scale at render time via `_sc`, so a
-widget renderer should never carry its own literal dimension. The fields fall
-into four groups:
+The **small shared core** of design tokens — only the cross-cutting values read
+by many widgets. Each widget projection owns its own style parameters (full
+names, compound types) and the `WidgetToGraphics` factory supplies them, deriving
+the shared ones from this theme and providing the widget-specific dimensions
+(switch size, tree indent, card padding, …) as per-widget defaults at the call
+site. So this theme is the *palette + scale*; a different look is a different
+factory, not a bigger theme. The fields:
 
 - **Palette** — `background … ring` plus `track_off` (the switch's off-track).
 - **Type & base spacing** — `font*`, `radius`, `pad_x`, `pad_y`.
-- **Generic layout** — `gap`, `row_gap`, `title_gap`, `border_width`, `stroke`,
-  `tab_pad`, `seg_inset`.
-- **Control & component dimensions** — checkbox / switch / slider / progress /
-  radio / scrollbar sizes and the per-component paddings, indents and radii.
-- **Box model** — `inset`, the themed default margin/border/padding (zero by
-  default, so `inset_default` can be replaced by a theme without per-widget
-  overrides).
+- **Shared layout** — `gap`, `border_width`, `stroke`, `chevron` (each read by
+  several widgets; the source of fan-out).
+- **Box model** — `inset`, the themed default margin/border/padding.
+- **Text styles** — `body_text` / `title_text` / `caption_text` / `label_text`
+  (`StyleText`, bundling font + color).
 
-Spacing tokens are palette-independent, so both presets share them via
-[`_widget_theme`](@ref); only colors and fonts differ. See
-[`widget_theme_light`](@ref) / [`widget_theme_dark`](@ref).
+Spacing tokens are *logical* pixels scaled at render time via `_sc`. They are
+palette-independent, so both presets share them via [`_widget_theme`](@ref);
+only colors and fonts differ. See [`widget_theme_light`](@ref) /
+[`widget_theme_dark`](@ref).
 """
 struct WidgetTheme
     # ── Palette ──
@@ -120,44 +121,13 @@ struct WidgetTheme
     font_small::StyleFont
     pad_x::Int
     pad_y::Int
-    # ── Generic layout ──
-    gap::Int            # inter-item gap (toolbar items, shell bands)
-    row_gap::Int        # vertical gap between stacked rows
-    title_gap::Int      # gap below a title/header
+    # ── Shared layout tokens (each read by several widgets; the source of
+    #    fan-out — widget-specific dimensions live on their projections,
+    #    supplied as factory defaults, not here). ──
+    gap::Int            # inter-item gap (toolbar items, shell bands, select, accordion)
     border_width::Int   # hairline: border / splitter / separator / table rules
     stroke::Int         # icon stroke (checkmark, chevron, radio ring, knob ring)
-    tab_pad::Int        # tab inner padding (printer + hit-test)
-    seg_inset::Int      # selected-segment inset (toggle group)
-    # ── Control & component dimensions ──
-    checkbox_size::Int
-    switch_w::Int
-    switch_h::Int
-    switch_pad::Int
-    progress_h::Int
-    slider_h::Int
-    track::Int          # slider track thickness
-    knob_radius::Int
-    radio_size::Int
-    radio_gap::Int      # dot → label gap
-    radio_dot::Int      # selected inner dot radius
-    thumb_min::Int      # minimum scroll-bar thumb extent
-    badge_pad_x::Int
-    badge_pad_y::Int
-    card_pad::Int
-    card_gap::Int       # gap between card sections
-    card_title_gap::Int # gap below the card title
-    alert_pad::Int
-    alert_gap::Int      # gap below the alert title
-    table_pad_x::Int
-    table_pad_y::Int
-    tree_indent::Int
-    tree_chevron::Int   # tree chevron column width
-    tree_row_pad::Int   # tree row vertical padding
-    chevron::Int        # chevron half-size
-    skeleton_radius::Int
-    shadow_offset::Int  # button drop-shadow y-offset
-    accordion_pad_y::Int
-    accordion_body_gap::Int
+    chevron::Int        # chevron half-size (select, accordion, tree)
     # ── Box model ──
     inset::Inset        # themed default margin/border/padding
     # ── Semantic text styles (font + color) ──
@@ -185,14 +155,10 @@ function _widget_theme(; background, foreground, card, card_foreground, popover,
         background, foreground, card, card_foreground, popover, popover_foreground,
         muted, muted_foreground, primary, primary_foreground, secondary, secondary_foreground,
         accent, accent_foreground, destructive, destructive_foreground, border, input, ring, track_off,
-        # type & base spacing
+        # type & base spacing: radius, fonts, pad_x, pad_y
         8, font, font_bold, font_small, 14, 9,
-        # generic layout: gap row_gap title_gap border_width stroke tab_pad seg_inset
-        4, 12, 6, 1, 2, 4, 2,
-        # control sizes: checkbox switch_w switch_h switch_pad progress_h slider_h track knob radio radio_gap radio_dot thumb_min
-        18, 44, 24, 3, 8, 24, 4, 9, 18, 10, 5, 8,
-        # components: badge_x badge_y card_pad card_gap card_title_gap alert_pad alert_gap table_x table_y tree_indent tree_chevron tree_row_pad chevron skeleton_radius shadow_offset accordion_pad_y accordion_body_gap
-        10, 3, 16, 10, 4, 14, 4, 12, 8, 22, 18, 4, 4, 6, 2, 10, 2,
+        # shared layout: gap border_width stroke chevron
+        4, 1, 2, 4,
         # box model
         inset_default,
         # semantic text styles: body / title / caption / label
@@ -2652,14 +2618,14 @@ function WidgetToGraphics(font::StyleFont; measure::Function,
         WidgetLabel      => WidgetLabelToGraphicsCanvas(measurer, theme.body_text),
         WidgetText       => WidgetTextToGraphicsCanvas(measurer, theme.body_text, theme.background, theme.input, theme.radius),
         WidgetCheckbox   => WidgetCheckboxToGraphicsCanvas(
-            theme.checkbox_size, theme.radius ÷ 2,
+            18, theme.radius ÷ 2,
             theme.primary, StyleStroke(theme.primary_foreground, theme.stroke),
             theme.background, StyleStroke(theme.input, theme.stroke)),
         WidgetButton     => WidgetButtonToGraphicsCanvas(
             measurer, theme.label_text, theme.background,
             StyleStroke(theme.border, theme.border_width),
             Inset(theme.pad_y, theme.pad_y, theme.pad_x, theme.pad_x),
-            theme.radius, theme.shadow_offset),
+            theme.radius, 2),
         WidgetTooltip    => WidgetTooltipToGraphicsCanvas(measurer, StyleText(theme.font, theme.popover_foreground),
             theme.popover, StyleStroke(theme.border, theme.border_width), theme.radius,
             Inset(theme.pad_y, theme.pad_y, theme.pad_x, theme.pad_x)),
@@ -2668,15 +2634,15 @@ function WidgetToGraphics(font::StyleFont; measure::Function,
         WidgetComposite  => WidgetCompositeToGraphicsCanvas(),
         WidgetShell      => WidgetShellToGraphicsCanvas(measurer, theme.font, theme.background, theme.gap),
         WidgetTitlePane  => WidgetTitlePaneToGraphicsCanvas(measurer,
-            StyleText(theme.font_bold, theme.foreground), StyleText(theme.font, theme.card_foreground), theme.title_gap),
+            StyleText(theme.font_bold, theme.foreground), StyleText(theme.font, theme.card_foreground), 6),
         WidgetSplitPane  => WidgetSplitPaneToGraphicsCanvas(StyleStroke(theme.border, theme.border_width)),
-        WidgetTabbedPane => WidgetTabbedPaneToGraphicsCanvas(measurer, theme.font, theme.tab_pad, theme.radius,
+        WidgetTabbedPane => WidgetTabbedPaneToGraphicsCanvas(measurer, theme.font, 4, theme.radius,
             theme.muted, theme.background, theme.foreground, theme.muted_foreground),
         WidgetScrollPane => WidgetScrollPaneToGraphicsCanvas(measurer, theme.font, theme.background),
         WidgetToolbar    => WidgetToolbarToGraphicsCanvas(measurer, theme.font, theme.gap),
-        WidgetScrollBar  => WidgetScrollBarToGraphicsCanvas(theme.muted, theme.border, theme.thumb_min),
+        WidgetScrollBar  => WidgetScrollBarToGraphicsCanvas(theme.muted, theme.border, 8),
         WidgetBadge      => WidgetBadgeToGraphicsCanvas(measurer, theme.font_small,
-            Inset(theme.badge_pad_y, theme.badge_pad_y, theme.badge_pad_x, theme.badge_pad_x), theme.border_width,
+            Inset(3, 3, 10, 10), theme.border_width,
             theme.primary, theme.primary_foreground,
             theme.secondary, theme.secondary_foreground,
             theme.destructive, theme.destructive_foreground,
@@ -2686,32 +2652,32 @@ function WidgetToGraphics(font::StyleFont; measure::Function,
             StyleText(theme.font_bold, theme.foreground), StyleText(theme.font_small, theme.muted_foreground),
             StyleText(theme.font, theme.card_foreground), StyleText(theme.font_small, theme.muted_foreground),
             theme.card, StyleStroke(theme.border, theme.border_width), theme.radius,
-            theme.card_pad, theme.card_title_gap, theme.card_gap),
+            16, 4, 10),
         WidgetSwitch     => WidgetSwitchToGraphicsCanvas(
-            Point2D(theme.switch_w, theme.switch_h), theme.switch_pad,
+            Point2D(44, 24), 3,
             color_white, StyleStroke(theme.border, theme.border_width),
             theme.primary, theme.track_off),
-        WidgetProgress   => WidgetProgressToGraphicsCanvas(theme.progress_h, theme.muted, theme.primary),
+        WidgetProgress   => WidgetProgressToGraphicsCanvas(8, theme.muted, theme.primary),
         WidgetSlider     => WidgetSliderToGraphicsCanvas(
-            theme.slider_h, theme.track, theme.knob_radius,
+            24, 4, 9,
             color_white, StyleStroke(theme.primary, theme.stroke),
             theme.muted, theme.primary),
         WidgetRadioGroup => WidgetRadioGroupToGraphicsCanvas(measurer, StyleText(theme.font, theme.foreground),
-            theme.radio_size, theme.radio_gap, theme.row_gap, theme.radio_dot,
+            18, 10, 12, 5,
             theme.background, StyleStroke(theme.primary, theme.stroke), StyleStroke(theme.input, theme.stroke),
             theme.primary),
         WidgetAvatar     => WidgetAvatarToGraphicsCanvas(measurer, StyleText(theme.font, theme.muted_foreground), theme.muted),
         WidgetAlert      => WidgetAlertToGraphicsCanvas(measurer, theme.font_bold,
             StyleText(theme.font_small, theme.muted_foreground), theme.background,
-            theme.alert_pad, theme.alert_gap, theme.radius, theme.border_width,
+            14, 4, theme.radius, theme.border_width,
             theme.foreground, theme.border, theme.destructive),
-        WidgetSkeleton   => WidgetSkeletonToGraphicsCanvas(theme.muted, theme.skeleton_radius),
+        WidgetSkeleton   => WidgetSkeletonToGraphicsCanvas(theme.muted, 6),
         WidgetToggle      => WidgetToggleToGraphicsCanvas(measurer, theme.font,
             Inset(theme.pad_y, theme.pad_y, theme.pad_x, theme.pad_x), theme.radius,
             StyleStroke(theme.border, theme.border_width),
             theme.accent, theme.accent_foreground, theme.background, theme.foreground),
         WidgetToggleGroup => WidgetToggleGroupToGraphicsCanvas(measurer, theme.font,
-            Inset(theme.pad_y, theme.pad_y, theme.pad_x, theme.pad_x), theme.radius, theme.seg_inset,
+            Inset(theme.pad_y, theme.pad_y, theme.pad_x, theme.pad_x), theme.radius, 2,
             StyleStroke(theme.border, theme.border_width),
             theme.muted, theme.background, theme.foreground, theme.muted_foreground),
         WidgetSelect      => WidgetSelectToGraphicsCanvas(measurer, theme.body_text, theme.background,
@@ -2724,14 +2690,14 @@ function WidgetToGraphics(font::StyleFont; measure::Function,
         WidgetAccordion   => WidgetAccordionToGraphicsCanvas(measurer,
             StyleText(theme.font_bold, theme.foreground), StyleText(theme.font_small, theme.muted_foreground),
             StyleStroke(theme.border, theme.border_width),
-            Inset(theme.accordion_pad_y, theme.accordion_pad_y, theme.pad_x, theme.pad_x),
-            theme.gap, theme.accordion_body_gap, StyleStroke(theme.muted_foreground, theme.stroke), theme.chevron),
+            Inset(10, 10, theme.pad_x, theme.pad_x),
+            theme.gap, 2, StyleStroke(theme.muted_foreground, theme.stroke), theme.chevron),
         WidgetTable       => WidgetTableToGraphicsCanvas(measurer,
             StyleText(theme.font, theme.foreground), StyleText(theme.font_small, theme.muted_foreground),
             StyleStroke(theme.border, theme.border_width),
-            Inset(theme.table_pad_y, theme.table_pad_y, theme.table_pad_x, theme.table_pad_x)),
+            Inset(8, 8, 12, 12)),
         WidgetTree        => WidgetTreeToGraphicsCanvas(measurer, StyleText(theme.font, theme.foreground),
-            theme.tree_indent, theme.tree_chevron, theme.tree_row_pad,
+            22, 18, 4,
             StyleStroke(theme.muted_foreground, theme.stroke), theme.chevron),
     )
 end
