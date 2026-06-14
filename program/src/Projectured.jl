@@ -55,6 +55,8 @@ include("document/Widget.jl")
 include("document/Layout.jl")
 include("document/Book.jl")
 include("document/Conversation.jl")
+include("document/Ini.jl")
+include("parser/IniParser.jl")
 # LLM backend (used as a field type by `WorkbenchAssistant`). Loads early
 # because no document or projection layer depends on it; it only needs
 # HTTP/JSON3 (external packages) and access to the Anthropic SSE client.
@@ -304,6 +306,9 @@ using .ClipboardModule: ClipboardDocument, ClipboardInsertion,
 using .CollectionModule: CellVector, CellMatrix, CellTable, ListNode, CollectionDocument, left_tail, right_tail, cell_at, take_first_n
 using .BookModule: BookDocument, BookInsertion,
                    BookBook, BookChapter, BookParagraph, BookList, BookPicture
+using .IniModule: IniDocument, IniInsertion, IniComment, IniInclude,
+                  IniConfigOption, IniParamAssignment, IniSection, IniFile
+using .IniParserModule: iniparse, iniparse_file
 using .WorkbenchModule: WorkbenchDocument, WorkbenchInsertion,
                         WorkbenchWorkbench, WorkbenchPage,
                         WorkbenchNavigator, WorkbenchConsole, WorkbenchDescriptor,
