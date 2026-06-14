@@ -271,27 +271,6 @@ function _push_panel!(elems::Vector, x::Int, y::Int, cw::Int, ch::Int;
     end
 end
 
-# A simple themed text control (label/button/input/badge): a rounded box sized to
-# the text plus padding, with the text aligned :left or :center. Returns the
-# GraphicsCanvas positioned at `pos`.
-function _styled_text_control(p, pos::Point2D, text::AbstractString;
-                              fill::StyleColor, fg::StyleColor,
-                              border=nothing, border_w::Int=0, radius::Int=0,
-                              pad_x::Int=_sc(p.theme.pad_x), pad_y::Int=_sc(p.theme.pad_y),
-                              align::Symbol=:left, min_w::Int=0, min_h::Int=0,
-                              font::StyleFont=p.font)
-    tw, th = _text_size(p.measure, font, text)
-    cw = max(min_w, tw + 2pad_x)
-    ch = max(min_h, th + 2pad_y)
-    tx = align === :center ? (cw - tw) ÷ 2 : pad_x
-    ty = (ch - th) ÷ 2
-    elems = Any[]
-    _push_panel!(elems, 0, 0, cw, ch; fill=fill, border=border, border_w=border_w, radius=radius)
-    fr, fg2, fb, fa = _rgbai(fg)
-    push!(elems, GraphicsText(text, tx, ty, font, fr, fg2, fb, fa))
-    _make_canvas(_origin(pos)..., cw, ch, elems)
-end
-
 # Draw a themed rounded surface (fill + optional outline) covering a widget's
 # full box (content size `cw×ch` plus its box-model insets), reusing the widget's
 # geometry so print and reader stay in sync. The outline width is the document's
@@ -312,10 +291,12 @@ end
     text::StyleText        # font + color of the label
 end
 
-struct WidgetTextToGraphicsCanvas <: Projection
-    font::StyleFont
+@projection struct WidgetTextToGraphicsCanvas <: Projection
     measure::Function
-    theme::WidgetTheme
+    text::StyleText            # font + color of the non-editable form
+    background_color::StyleColor
+    border_color::StyleColor    # input outline
+    corner_radius::Int
 end
 
 @projection struct WidgetCheckboxToGraphicsCanvas <: Projection
@@ -378,20 +359,25 @@ end
     title_gap::Int
 end
 
-struct WidgetSplitPaneToGraphicsCanvas <: Projection
-    theme::WidgetTheme
+@projection struct WidgetSplitPaneToGraphicsCanvas <: Projection
+    splitter::StyleStroke    # divider color + thickness
 end
 
-struct WidgetTabbedPaneToGraphicsCanvas <: Projection
-    font::StyleFont
+@projection struct WidgetTabbedPaneToGraphicsCanvas <: Projection
     measure::Function
-    theme::WidgetTheme
+    font::StyleFont
+    tab_padding::Int
+    corner_radius::Int
+    track_color::StyleColor          # muted tab strip
+    active_color::StyleColor         # raised active-tab fill
+    active_foreground::StyleColor
+    inactive_foreground::StyleColor
 end
 
-struct WidgetScrollPaneToGraphicsCanvas <: Projection
-    font::StyleFont
+@projection struct WidgetScrollPaneToGraphicsCanvas <: Projection
     measure::Function
-    theme::WidgetTheme
+    font::StyleFont                  # measures the scroll step
+    background_color::StyleColor      # default viewport fill
 end
 
 @projection struct WidgetToolbarToGraphicsCanvas <: Projection
@@ -670,7 +656,7 @@ function projection_print(p::WidgetTextToGraphicsCanvas, recursion, w::WidgetTex
     # outer projection chain (which routes it to TextToGraphics). Navigation and
     # editing operations then originate in the Text domain; this projection just
     # maps them backward. Mirrors WidgetScrollPane's content recursion.
-    radius = _sc(p.theme.radius)
+    radius = _sc(p.corner_radius)
     content = w.content
     if content isa Document
         content_iomap = projection_print(recursion, recursion, content, ctx)
@@ -678,7 +664,7 @@ function projection_print(p::WidgetTextToGraphicsCanvas, recursion, w::WidgetTex
         iw, ih = Int(inner.w[]), Int(inner.h[])
         elems = Any[]
         # Themed input surface: background fill + input outline + rounded corners.
-        _push_box!(elems, w, iw, ih; fill=p.theme.background, border=p.theme.input, radius=radius)
+        _push_box!(elems, w, iw, ih; fill=p.background_color, border=p.border_color, radius=radius)
         push!(elems, _make_canvas(cox, coy, Any[inner]))
         tx, ty = _inset_total(w)
         canvas = _make_canvas(_origin(pos)..., iw + tx, ih + ty, elems)
@@ -687,11 +673,11 @@ function projection_print(p::WidgetTextToGraphicsCanvas, recursion, w::WidgetTex
 
     # Non-editable form: a plain value is stringified (input-like).
     text = string(content)
-    cw, ch = _text_size(p.measure, p.font, text)
+    cw, ch = _text_size(p.measure, p.text.font, text)
     tx, ty = _inset_total(w)
     elems = Any[]
-    _push_box!(elems, w, cw, ch; fill=p.theme.background, border=p.theme.input, radius=radius)
-    _push_text!(elems, p.font, text, cox, coy, _rgba(p.theme.foreground))
+    _push_box!(elems, w, cw, ch; fill=p.background_color, border=p.border_color, radius=radius)
+    _push_text!(elems, p.text.font, text, cox, coy, _rgba(p.text.color))
     SimpleIoMap(p, w, _make_canvas(_origin(pos)..., cw + tx, ch + ty, elems))
 end
 
@@ -1217,8 +1203,8 @@ function projection_print(p::WidgetSplitPaneToGraphicsCanvas, recursion, w::Widg
     orientation = w.orientation::Symbol
     main_axis = orientation === :horizontal ? :x : :y
     sizes = w.sizes
-    splitter_thickness = max(1, _sc(p.theme.border_width))
-    splitter_rgba = _rgba(p.theme.border)
+    splitter_thickness = max(1, _sc(p.splitter.width))
+    splitter_rgba = _rgba(p.splitter.color)
 
     # Keep only Document children; LayoutConstraint and bare widgets both
     # work — the wrapper is transparent for projection (we recurse into
@@ -1518,7 +1504,7 @@ function projection_print(p::WidgetTabbedPaneToGraphicsCanvas, recursion, w::Wid
         return ChildrenIoMap(p, w, _empty_canvas(), Cell(child_iomaps))
     end
 
-    sel_pad = p.theme.tab_pad
+    sel_pad = p.tab_padding
     tabs = Any[]
     for pair in pairs
         label = string(pair[1])
@@ -1547,18 +1533,18 @@ function projection_print(p::WidgetTabbedPaneToGraphicsCanvas, recursion, w::Wid
     selector_cv = CellVector(() -> begin
         active = _active_idx(sel_cell[])
         result = Any[]
-        tab_radius = _sc(p.theme.radius)
+        tab_radius = _sc(p.corner_radius)
         strip_w = isempty(tab_xs) ? 0 : (tab_xs[end] + tab_rws[end] - cox)
         # Muted track behind the whole tab row.
-        _push_panel!(result, cox, coy, strip_w, sel_h; fill=p.theme.muted, radius=tab_radius)
+        _push_panel!(result, cox, coy, strip_w, sel_h; fill=p.track_color, radius=tab_radius)
         for i in eachindex(tabs)
             label, _, _ = tabs[i]
             tx, rw = tab_xs[i], tab_rws[i]
             if i == active
                 # Active tab: a raised background pill.
-                _push_panel!(result, tx, coy, rw, sel_h; fill=p.theme.background, radius=tab_radius)
+                _push_panel!(result, tx, coy, rw, sel_h; fill=p.active_color, radius=tab_radius)
             end
-            fg = i == active ? p.theme.foreground : p.theme.muted_foreground
+            fg = i == active ? p.active_foreground : p.inactive_foreground
             _push_text!(result, p.font, label, tx + sel_pad, coy + sel_pad, _rgba(fg))
         end
         result
@@ -1626,7 +1612,7 @@ function projection_read(p::WidgetTabbedPaneToGraphicsCanvas, iomap::ChildrenIoM
         cox, coy = _content_offset(w)
         pairs = w.selector_element_pairs
         if !isempty(pairs)
-            sel_pad = p.theme.tab_pad
+            sel_pad = p.tab_padding
             sizes = Tuple{Int,Int}[]
             tab_h = 0
             for pair in pairs
@@ -1756,7 +1742,7 @@ function projection_print(p::WidgetScrollPaneToGraphicsCanvas, recursion, w::Wid
     inner_y = Cell(() -> begin sp = scroll_cell[]::Point2D; Int32(-Int(sp.y[])) end)
     elems = Any[]
     cfc = w.content_fill_color
-    bgc = cfc isa StyleColor ? cfc : p.theme.background
+    bgc = cfc isa StyleColor ? cfc : p.background_color
     let (r, g, b, a) = _rgba(bgc)
         # Cell-backed rect so it tracks the viewport extent.
         push!(elems, GraphicsRect(Cell(Int32(cox)), Cell(Int32(coy)), vw_cell, vh_cell,
@@ -2664,7 +2650,7 @@ function WidgetToGraphics(font::StyleFont; measure::Function,
     measurer = TextMeasurer(measure)
     TypeDispatchingProjection(
         WidgetLabel      => WidgetLabelToGraphicsCanvas(measurer, theme.body_text),
-        WidgetText       => WidgetTextToGraphicsCanvas(font, measure, theme),
+        WidgetText       => WidgetTextToGraphicsCanvas(measurer, theme.body_text, theme.background, theme.input, theme.radius),
         WidgetCheckbox   => WidgetCheckboxToGraphicsCanvas(
             theme.checkbox_size, theme.radius ÷ 2,
             theme.primary, StyleStroke(theme.primary_foreground, theme.stroke),
@@ -2683,9 +2669,10 @@ function WidgetToGraphics(font::StyleFont; measure::Function,
         WidgetShell      => WidgetShellToGraphicsCanvas(measurer, theme.font, theme.background, theme.gap),
         WidgetTitlePane  => WidgetTitlePaneToGraphicsCanvas(measurer,
             StyleText(theme.font_bold, theme.foreground), StyleText(theme.font, theme.card_foreground), theme.title_gap),
-        WidgetSplitPane  => WidgetSplitPaneToGraphicsCanvas(theme),
-        WidgetTabbedPane => WidgetTabbedPaneToGraphicsCanvas(font, measure, theme),
-        WidgetScrollPane => WidgetScrollPaneToGraphicsCanvas(font, measure, theme),
+        WidgetSplitPane  => WidgetSplitPaneToGraphicsCanvas(StyleStroke(theme.border, theme.border_width)),
+        WidgetTabbedPane => WidgetTabbedPaneToGraphicsCanvas(measurer, theme.font, theme.tab_pad, theme.radius,
+            theme.muted, theme.background, theme.foreground, theme.muted_foreground),
+        WidgetScrollPane => WidgetScrollPaneToGraphicsCanvas(measurer, theme.font, theme.background),
         WidgetToolbar    => WidgetToolbarToGraphicsCanvas(measurer, theme.font, theme.gap),
         WidgetScrollBar  => WidgetScrollBarToGraphicsCanvas(theme.muted, theme.border, theme.thumb_min),
         WidgetBadge      => WidgetBadgeToGraphicsCanvas(measurer, theme.font_small,
