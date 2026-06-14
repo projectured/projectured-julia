@@ -20,6 +20,7 @@ module WidgetToGraphicsModule
 import ..ReactiveModule: Cell
 import ..ProjectionApiModule: projection_print, projection_read,
                                map_reference_forward, map_reference_backward, Projection
+import ..ProjectionModule: var"@projection"
 import ..DocumentApiModule: Document
 import ..ColorModule: StyleColor,
                       color_white, color_zinc_50, color_zinc_100, color_zinc_200,
@@ -305,10 +306,9 @@ end
 
 # ── Projection structs ─────────────────────────────────────────────────────
 
-struct WidgetLabelToGraphicsCanvas <: Projection
-    font::StyleFont
+@projection struct WidgetLabelToGraphicsCanvas <: Projection
     measure::Function
-    theme::WidgetTheme
+    text::StyleText        # font + color of the label
 end
 
 struct WidgetTextToGraphicsCanvas <: Projection
@@ -317,16 +317,23 @@ struct WidgetTextToGraphicsCanvas <: Projection
     theme::WidgetTheme
 end
 
-struct WidgetCheckboxToGraphicsCanvas <: Projection
-    font::StyleFont
-    measure::Function
-    theme::WidgetTheme
+@projection struct WidgetCheckboxToGraphicsCanvas <: Projection
+    box_size::Int
+    corner_radius::Int
+    stroke_width::Int
+    checked_color::StyleColor      # filled box when checked
+    check_mark_color::StyleColor   # the tick
+    background_color::StyleColor   # empty box fill
+    border_color::StyleColor       # empty box outline
 end
 
 # Style parameters owned by the button projection (hybrid model, §8 of the plan):
 # fed from the theme by the `WidgetToGraphics` factory, full names + compound
 # types, so the renderer reads `p.<field>` directly with no `p.theme.*`.
-struct WidgetButtonToGraphicsCanvas <: Projection
+# `@projection` Cell-wraps every field (so each is live-editable via
+# ObjectToWidget and linkable by sharing a Cell) while keeping `p.field`
+# transparent; the factory may pass plain values or Cells.
+@projection struct WidgetButtonToGraphicsCanvas <: Projection
     measure::Function
     label::StyleText            # font + color of the button text
     background_color::StyleColor
@@ -494,7 +501,16 @@ function _push_text!(elems::Vector, font::StyleFont, text::AbstractString,
     push!(elems, GraphicsText(text, x, y, font, r, g, b, a))
 end
 
-function _text_size(measure::Function, font::StyleFont, text::AbstractString)
+# A callable wrapper so the backend text-measure function can be stored as a
+# plain *value* inside a `@projection` Cell — a bare `Function` would be taken as
+# a thunk (computed cell) and invoked with zero args. Call it exactly like the
+# underlying `measure(text, font)`.
+struct TextMeasurer
+    measure::Function
+end
+(measurer::TextMeasurer)(text, font) = measurer.measure(text, font)
+
+function _text_size(measure, font::StyleFont, text::AbstractString)
     measure(text, font)
 end
 
@@ -608,12 +624,12 @@ end
 
 function projection_print(p::WidgetLabelToGraphicsCanvas, recursion, w::WidgetLabel, ctx)
     w.visible == false && return SimpleIoMap(p, w, _empty_canvas())
-    pos = w.position::Point2D
-    text = string(w.content)
-    cw, ch = _text_size(p.measure, p.font, text)
-    elems = Any[]
-    _push_text!(elems, p.font, text, 0, 0, _rgba(p.theme.foreground))
-    SimpleIoMap(p, w, _make_canvas(_origin(pos)..., cw, ch, elems))
+    position = w.position::Point2D
+    content = string(w.content)
+    content_width, content_height = _text_size(p.measure, p.text.font, content)
+    elements = Any[]
+    _push_text!(elements, p.text.font, content, 0, 0, _rgba(p.text.color))
+    SimpleIoMap(p, w, _make_canvas(_origin(position)..., content_width, content_height, elements))
 end
 
 function map_reference_forward(::WidgetLabelToGraphicsCanvas, iomap, reference)
@@ -716,26 +732,26 @@ end
 
 function projection_print(p::WidgetCheckboxToGraphicsCanvas, recursion, w::WidgetCheckbox, ctx)
     w.visible == false && return SimpleIoMap(p, w, _empty_canvas())
-    pos = w.position::Point2D
+    position = w.position::Point2D
     checked = w.content === true
-    s   = _sc(p.theme.checkbox_size)   # box size
-    rad = _sc(p.theme.radius ÷ 2)
-    bw  = max(1, _sc(p.theme.stroke))  # outline / stroke width
-    elems = Any[]
+    box_size = _sc(p.box_size)
+    corner_radius = _sc(p.corner_radius)
+    stroke_width  = max(1, _sc(p.stroke_width))
+    elements = Any[]
     if checked
-        _push_panel!(elems, 0, 0, s, s; fill=p.theme.primary, radius=rad)
-        fr, fg, fb, fa = _rgbai(p.theme.primary_foreground)
+        _push_panel!(elements, 0, 0, box_size, box_size; fill=p.checked_color, radius=corner_radius)
+        red, green, blue, alpha = _rgbai(p.check_mark_color)
         # Crisp two-stroke checkmark instead of a glyph.
-        x1, y1 = round(Int, 0.22s), round(Int, 0.52s)
-        x2, y2 = round(Int, 0.42s), round(Int, 0.70s)
-        x3, y3 = round(Int, 0.78s), round(Int, 0.30s)
-        push!(elems, GraphicsLine(x1, y1, x2, y2, fr, fg, fb, fa; width=bw))
-        push!(elems, GraphicsLine(x2, y2, x3, y3, fr, fg, fb, fa; width=bw))
+        x1, y1 = round(Int, 0.22box_size), round(Int, 0.52box_size)
+        x2, y2 = round(Int, 0.42box_size), round(Int, 0.70box_size)
+        x3, y3 = round(Int, 0.78box_size), round(Int, 0.30box_size)
+        push!(elements, GraphicsLine(x1, y1, x2, y2, red, green, blue, alpha; width=stroke_width))
+        push!(elements, GraphicsLine(x2, y2, x3, y3, red, green, blue, alpha; width=stroke_width))
     else
-        _push_panel!(elems, 0, 0, s, s; fill=p.theme.background,
-                     border=p.theme.input, border_w=bw, radius=rad)
+        _push_panel!(elements, 0, 0, box_size, box_size; fill=p.background_color,
+                     border=p.border_color, border_w=stroke_width, radius=corner_radius)
     end
-    SimpleIoMap(p, w, _make_canvas(_origin(pos)..., s, s, elems))
+    SimpleIoMap(p, w, _make_canvas(_origin(position)..., box_size, box_size, elements))
 end
 
 function map_reference_forward(::WidgetCheckboxToGraphicsCanvas, iomap, reference)
@@ -2549,12 +2565,17 @@ source of truth for colors, radius, and spacing. Defaults to the light theme.
 """
 function WidgetToGraphics(font::StyleFont; measure::Function,
                           theme::WidgetTheme=widget_theme_light(font=font))
+    # Wrapped measure for the `@projection`-based widget projections, which store
+    # their fields in Cells (a bare Function would be read as a thunk).
+    measurer = TextMeasurer(measure)
     TypeDispatchingProjection(
-        WidgetLabel      => WidgetLabelToGraphicsCanvas(font, measure, theme),
+        WidgetLabel      => WidgetLabelToGraphicsCanvas(measurer, theme.body_text),
         WidgetText       => WidgetTextToGraphicsCanvas(font, measure, theme),
-        WidgetCheckbox   => WidgetCheckboxToGraphicsCanvas(font, measure, theme),
+        WidgetCheckbox   => WidgetCheckboxToGraphicsCanvas(
+            theme.checkbox_size, theme.radius ÷ 2, theme.stroke,
+            theme.primary, theme.primary_foreground, theme.background, theme.input),
         WidgetButton     => WidgetButtonToGraphicsCanvas(
-            measure, theme.label_text, theme.background, theme.border,
+            measurer, theme.label_text, theme.background, theme.border,
             Inset(theme.pad_y, theme.pad_y, theme.pad_x, theme.pad_x),
             theme.radius, theme.border_width, theme.shadow_offset),
         WidgetTooltip    => WidgetTooltipToGraphicsCanvas(font, measure, theme),
