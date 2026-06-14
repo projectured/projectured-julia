@@ -31,6 +31,7 @@ include("common/Operation.jl")
 include("document/Collection.jl")
 include("document/Font.jl")
 include("document/Color.jl")
+include("document/StyleText.jl")
 include("document/Geometry.jl")
 include("document/Text.jl")
 include("document/Primitive.jl")
@@ -174,6 +175,7 @@ using .PrimitiveModule
 using .MathModule
 using .FontModule
 using .ColorModule
+using .StyleTextModule
 using .ImageModule
 using .ScreenDocumentModule
 using .ReactiveModule: Cell, setval!, setfn!, isuptodate

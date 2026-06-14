@@ -40,6 +40,7 @@ import ..CollectionModule: CellVector, CollectionDocument
 import ..GraphicsModule: GraphicsText, GraphicsRect, GraphicsLine, GraphicsCircle, GraphicsCanvas, GraphicsViewport, hit_element_at, layout_none
 import ..FontModule: StyleFont, font_scaled_size,
                      font_ubuntu_regular_18, font_ubuntu_regular_24, font_ubuntu_bold_24
+import ..StyleTextModule: StyleText
 import ..IoMapModule: SimpleIoMap, ChildrenIoMap
 import ..IoMapApiModule: IoMap
 import ..MouseModule: MouseScroll, MousePress
@@ -157,6 +158,11 @@ struct WidgetTheme
     accordion_body_gap::Int
     # ── Box model ──
     inset::Inset        # themed default margin/border/padding
+    # ── Semantic text styles (font + color) ──
+    body_text::StyleText      # regular foreground text
+    title_text::StyleText     # bold foreground heading
+    caption_text::StyleText    # small muted text
+    label_text::StyleText      # control labels (regular foreground)
 end
 
 """
@@ -186,7 +192,12 @@ function _widget_theme(; background, foreground, card, card_foreground, popover,
         # components: badge_x badge_y card_pad card_gap card_title_gap alert_pad alert_gap table_x table_y tree_indent tree_chevron tree_row_pad chevron skeleton_radius shadow_offset accordion_pad_y accordion_body_gap
         10, 3, 16, 10, 4, 14, 4, 12, 8, 22, 18, 4, 4, 6, 2, 10, 2,
         # box model
-        inset_default)
+        inset_default,
+        # semantic text styles: body / title / caption / label
+        StyleText(font, foreground),
+        StyleText(font_bold, foreground),
+        StyleText(font_small, muted_foreground),
+        StyleText(font, foreground))
 end
 
 """
@@ -312,10 +323,18 @@ struct WidgetCheckboxToGraphicsCanvas <: Projection
     theme::WidgetTheme
 end
 
+# Style parameters owned by the button projection (hybrid model, §8 of the plan):
+# fed from the theme by the `WidgetToGraphics` factory, full names + compound
+# types, so the renderer reads `p.<field>` directly with no `p.theme.*`.
 struct WidgetButtonToGraphicsCanvas <: Projection
-    font::StyleFont
     measure::Function
-    theme::WidgetTheme
+    label::StyleText            # font + color of the button text
+    background_color::StyleColor
+    border_color::StyleColor
+    padding::Inset              # content padding (was pad_x / pad_y)
+    corner_radius::Int
+    border_width::Int
+    shadow_offset::Int
 end
 
 struct WidgetTooltipToGraphicsCanvas <: Projection
@@ -746,26 +765,26 @@ end
 
 function projection_print(p::WidgetButtonToGraphicsCanvas, recursion, w::WidgetButton, ctx)
     w.visible == false && return SimpleIoMap(p, w, _empty_canvas())
-    pos = w.position::Point2D
-    sz  = w.size::Point2D
-    cox, coy = _content_offset(w)
-    tx, ty = _inset_total(w)
-    text = string(w.content)
-    tw, th = _text_size(p.measure, p.font, text)
-    pad_x, pad_y = _sc(p.theme.pad_x), _sc(p.theme.pad_y)
-    bw = max(Int(sz.x[]), tw + 2pad_x)
-    bh = max(Int(sz.y[]), th + 2pad_y)
-    radius = _sc(p.theme.radius)
-    elems = Any[]
+    position = w.position::Point2D
+    minimum_size = w.size::Point2D
+    label = string(w.content)
+    text_width, text_height = _text_size(p.measure, p.label.font, label)
+    padding_x = _sc(Int(p.padding.left[]))
+    padding_y = _sc(Int(p.padding.top[]))
+    button_width  = max(Int(minimum_size.x[]), text_width + 2padding_x)
+    button_height = max(Int(minimum_size.y[]), text_height + 2padding_y)
+    corner_radius = _sc(p.corner_radius)
+    elements = Any[]
     # Default button: light surface, subtle border, soft shadow, dark label —
     # matching the shadcn default button. A faint offset rect approximates the
     # shadow-sm drop shadow.
-    push!(elems, GraphicsRect(0, _sc(p.theme.shadow_offset), bw, bh, 0x00, 0x00, 0x00, 0x14, radius))
-    _push_panel!(elems, 0, 0, bw, bh; fill=p.theme.background,
-                 border=p.theme.border, border_w=max(1, _sc(p.theme.border_width)), radius=radius)
-    fr, fg, fb, fa = _rgbai(p.theme.foreground)
-    push!(elems, GraphicsText(text, (bw - tw) ÷ 2, (bh - th) ÷ 2, p.font, fr, fg, fb, fa))
-    SimpleIoMap(p, w, _make_canvas(_origin(pos)..., bw, bh, elems))
+    push!(elements, GraphicsRect(0, _sc(p.shadow_offset), button_width, button_height, 0x00, 0x00, 0x00, 0x14, corner_radius))
+    _push_panel!(elements, 0, 0, button_width, button_height; fill=p.background_color,
+                 border=p.border_color, border_w=max(1, _sc(p.border_width)), radius=corner_radius)
+    red, green, blue, alpha = _rgbai(p.label.color)
+    push!(elements, GraphicsText(label, (button_width - text_width) ÷ 2, (button_height - text_height) ÷ 2,
+                                 p.label.font, red, green, blue, alpha))
+    SimpleIoMap(p, w, _make_canvas(_origin(position)..., button_width, button_height, elements))
 end
 
 function map_reference_forward(::WidgetButtonToGraphicsCanvas, iomap, reference)
@@ -2534,7 +2553,10 @@ function WidgetToGraphics(font::StyleFont; measure::Function,
         WidgetLabel      => WidgetLabelToGraphicsCanvas(font, measure, theme),
         WidgetText       => WidgetTextToGraphicsCanvas(font, measure, theme),
         WidgetCheckbox   => WidgetCheckboxToGraphicsCanvas(font, measure, theme),
-        WidgetButton     => WidgetButtonToGraphicsCanvas(font, measure, theme),
+        WidgetButton     => WidgetButtonToGraphicsCanvas(
+            measure, theme.label_text, theme.background, theme.border,
+            Inset(theme.pad_y, theme.pad_y, theme.pad_x, theme.pad_x),
+            theme.radius, theme.border_width, theme.shadow_offset),
         WidgetTooltip    => WidgetTooltipToGraphicsCanvas(font, measure, theme),
         WidgetMenu       => WidgetMenuToGraphicsCanvas(font, measure, theme),
         WidgetMenuItem   => WidgetMenuItemToGraphicsCanvas(font, measure, theme),
