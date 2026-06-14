@@ -2442,116 +2442,130 @@ end
 
 # ── WidgetAccordion ─────────────────────────────────────────────────────────
 
-struct WidgetAccordionToGraphicsCanvas <: Projection
-    font::StyleFont
+@projection struct WidgetAccordionToGraphicsCanvas <: Projection
     measure::Function
-    theme::WidgetTheme
+    title_text::StyleText        # bold title
+    body_text::StyleText          # muted body
+    rule::StyleStroke             # hairline between items
+    padding::Inset                # horizontal + vertical row padding
+    gap::Int                      # space before the trailing chevron
+    body_gap::Int                 # gap above the expanded body
+    chevron::StyleStroke          # chevron color + width
+    chevron_size::Int
 end
 
 function projection_print(p::WidgetAccordionToGraphicsCanvas, recursion, w::WidgetAccordion, ctx)
     w.visible == false && return SimpleIoMap(p, w, _empty_canvas())
-    pos = w.position::Point2D
-    th  = p.theme
+    position = w.position::Point2D
     expanded = Int(w.expanded)
-    pad_x, pad_y = _sc(th.pad_x), _sc(th.accordion_pad_y)
+    padding_x = _sc(Int(p.padding.left[]))
+    padding_y = _sc(Int(p.padding.top[]))
+    chevron_size = _sc(p.chevron_size)
     # Size to content: widest title (leaving room for the trailing chevron) and
     # the widest visible (expanded) body. The authored width is the minimum.
     title_min = 0; body_min = 0
     for (i, item) in enumerate(w.items)
-        title_min = max(title_min, _text_size(p.measure, th.font_bold, string(item[1]))[1])
+        title_min = max(title_min, _text_size(p.measure, p.title_text.font, string(item[1]))[1])
         if i == expanded && length(item) >= 2
-            body_min = max(body_min, _text_size(p.measure, th.font_small, string(item[2]))[1])
+            body_min = max(body_min, _text_size(p.measure, p.body_text.font, string(item[2]))[1])
         end
     end
-    content_min = max(2pad_x + title_min + _sc(th.gap) + 2 * _sc(th.chevron),
-                      2pad_x + body_min)
-    W = _resolve_width(ctx, _sc(Int(w.width)), content_min)
-    elems = Any[]
+    content_min = max(2padding_x + title_min + _sc(p.gap) + 2chevron_size, 2padding_x + body_min)
+    accordion_width = _resolve_width(ctx, _sc(Int(w.width)), content_min)
+    elements = Any[]
     y = 0
-    brc = _rgba(th.border)
+    rule_red, rule_green, rule_blue, rule_alpha = _rgba(p.rule.color)
+    rule_width = max(1, _sc(p.rule.width))
+    title_red, title_green, title_blue, title_alpha = _rgbai(p.title_text.color)
+    body_red, body_green, body_blue, body_alpha = _rgbai(p.body_text.color)
     for (i, item) in enumerate(w.items)
         title = string(item[1])
         body  = length(item) >= 2 ? string(item[2]) : ""
-        _, hh = _text_size(p.measure, th.font_bold, title)
-        row_h = hh + 2pad_y
-        fr, fg, fb, fa = _rgbai(th.foreground)
-        push!(elems, GraphicsText(title, pad_x, y + pad_y, th.font_bold, fr, fg, fb, fa))
-        _push_chevron!(elems, W - pad_x - _sc(th.chevron), y + row_h ÷ 2, _sc(th.chevron),
-                       i == expanded ? :down : :right, th.muted_foreground; stroke=max(1, _sc(th.stroke)))
-        y += row_h
+        _, title_height = _text_size(p.measure, p.title_text.font, title)
+        row_height = title_height + 2padding_y
+        push!(elements, GraphicsText(title, padding_x, y + padding_y, p.title_text.font, title_red, title_green, title_blue, title_alpha))
+        _push_chevron!(elements, accordion_width - padding_x - chevron_size, y + row_height ÷ 2, chevron_size,
+                       i == expanded ? :down : :right, p.chevron.color; stroke=max(1, _sc(p.chevron.width)))
+        y += row_height
         if i == expanded && !isempty(body)
-            _, bh = _text_size(p.measure, th.font_small, body)
-            mr, mg, mb, ma = _rgbai(th.muted_foreground)
-            push!(elems, GraphicsText(body, pad_x, y + _sc(th.accordion_body_gap), th.font_small, mr, mg, mb, ma))
-            y += bh + pad_y
+            _, body_height = _text_size(p.measure, p.body_text.font, body)
+            push!(elements, GraphicsText(body, padding_x, y + _sc(p.body_gap), p.body_text.font, body_red, body_green, body_blue, body_alpha))
+            y += body_height + padding_y
         end
-        push!(elems, GraphicsLine(0, y, W, y, brc[1], brc[2], brc[3], brc[4]; width=max(1, _sc(th.border_width))))
+        push!(elements, GraphicsLine(0, y, accordion_width, y, rule_red, rule_green, rule_blue, rule_alpha; width=rule_width))
     end
-    SimpleIoMap(p, w, _make_canvas(_origin(pos)..., W, y, elems))
+    SimpleIoMap(p, w, _make_canvas(_origin(position)..., accordion_width, y, elements))
 end
 @_printer_only WidgetAccordionToGraphicsCanvas
 
 # ── WidgetTable ─────────────────────────────────────────────────────────────
 
-struct WidgetTableToGraphicsCanvas <: Projection
-    font::StyleFont
+@projection struct WidgetTableToGraphicsCanvas <: Projection
     measure::Function
-    theme::WidgetTheme
+    cell_text::StyleText         # body cells
+    header_text::StyleText        # header row
+    rule::StyleStroke             # horizontal hairlines
+    cell_padding::Inset
 end
 
 function projection_print(p::WidgetTableToGraphicsCanvas, recursion, w::WidgetTable, ctx)
     w.visible == false && return SimpleIoMap(p, w, _empty_canvas())
-    pos = w.position::Point2D
-    th  = p.theme
+    position = w.position::Point2D
     headers = [string(h) for h in w.headers]
     rows = [Any[c for c in r] for r in w.rows]
-    ncol = length(headers)
-    cpx, cpy = _sc(th.table_pad_x), _sc(th.table_pad_y)
-    _, lh = _text_size(p.measure, p.font, "M")
-    row_h = lh + 2cpy
+    column_count = length(headers)
+    cell_padding_x = _sc(Int(p.cell_padding.left[]))
+    cell_padding_y = _sc(Int(p.cell_padding.top[]))
+    _, line_height = _text_size(p.measure, p.cell_text.font, "M")
+    row_height = line_height + 2cell_padding_y
     # Column widths from header + body content.
-    colw = zeros(Int, ncol)
-    for j in 1:ncol
-        wj = _text_size(p.measure, th.font_small, headers[j])[1]
+    column_widths = zeros(Int, column_count)
+    for j in 1:column_count
+        width_j = _text_size(p.measure, p.header_text.font, headers[j])[1]
         for r in rows
-            j <= length(r) && (wj = max(wj, _text_size(p.measure, p.font, string(r[j]))[1]))
+            j <= length(r) && (width_j = max(width_j, _text_size(p.measure, p.cell_text.font, string(r[j]))[1]))
         end
-        colw[j] = wj + 2cpx
+        column_widths[j] = width_j + 2cell_padding_x
     end
-    W = sum(colw; init=0)
-    elems = Any[]
-    brc = _rgba(th.border)
-    # Header row (muted foreground) + underline.
+    table_width = sum(column_widths; init=0)
+    elements = Any[]
+    rule_red, rule_green, rule_blue, rule_alpha = _rgba(p.rule.color)
+    rule_width = max(1, _sc(p.rule.width))
+    # Header row + underline.
+    header_red, header_green, header_blue, header_alpha = _rgbai(p.header_text.color)
     x = 0
-    for j in 1:ncol
-        mr, mg, mb, ma = _rgbai(th.muted_foreground)
-        push!(elems, GraphicsText(headers[j], x + cpx, cpy, th.font_small, mr, mg, mb, ma))
-        x += colw[j]
+    for j in 1:column_count
+        push!(elements, GraphicsText(headers[j], x + cell_padding_x, cell_padding_y, p.header_text.font, header_red, header_green, header_blue, header_alpha))
+        x += column_widths[j]
     end
-    y = row_h
-    push!(elems, GraphicsLine(0, y, W, y, brc[1], brc[2], brc[3], brc[4]; width=max(1, _sc(th.border_width))))
+    y = row_height
+    push!(elements, GraphicsLine(0, y, table_width, y, rule_red, rule_green, rule_blue, rule_alpha; width=rule_width))
     # Body rows.
-    fr, fg, fb, fa = _rgbai(th.foreground)
+    cell_red, cell_green, cell_blue, cell_alpha = _rgbai(p.cell_text.color)
     for r in rows
         x = 0
-        for j in 1:ncol
+        for j in 1:column_count
             cell = j <= length(r) ? string(r[j]) : ""
-            push!(elems, GraphicsText(cell, x + cpx, y + cpy, p.font, fr, fg, fb, fa))
-            x += colw[j]
+            push!(elements, GraphicsText(cell, x + cell_padding_x, y + cell_padding_y, p.cell_text.font, cell_red, cell_green, cell_blue, cell_alpha))
+            x += column_widths[j]
         end
-        y += row_h
-        push!(elems, GraphicsLine(0, y, W, y, brc[1], brc[2], brc[3], brc[4]; width=max(1, _sc(th.border_width))))
+        y += row_height
+        push!(elements, GraphicsLine(0, y, table_width, y, rule_red, rule_green, rule_blue, rule_alpha; width=rule_width))
     end
-    SimpleIoMap(p, w, _make_canvas(_origin(pos)..., W, y, elems))
+    SimpleIoMap(p, w, _make_canvas(_origin(position)..., table_width, y, elements))
 end
 @_printer_only WidgetTableToGraphicsCanvas
 
 # ── WidgetTree ──────────────────────────────────────────────────────────────
 
-struct WidgetTreeToGraphicsCanvas <: Projection
-    font::StyleFont
+@projection struct WidgetTreeToGraphicsCanvas <: Projection
     measure::Function
-    theme::WidgetTheme
+    label_text::StyleText         # node labels
+    indent::Int                   # per-depth horizontal step
+    chevron_column::Int           # width reserved for the expand chevron
+    row_padding::Int              # vertical padding per row
+    chevron::StyleStroke          # chevron color + width
+    chevron_size::Int
 end
 
 # A node is either a leaf label (String) or a (label, children::Vector) tuple.
@@ -2560,27 +2574,28 @@ _tree_label(node)    = node isa Tuple ? string(node[1]) : string(node)
 
 function projection_print(p::WidgetTreeToGraphicsCanvas, recursion, w::WidgetTree, ctx)
     w.visible == false && return SimpleIoMap(p, w, _empty_canvas())
-    pos = w.position::Point2D
-    th  = p.theme
-    indent, chev_w = _sc(th.tree_indent), _sc(th.tree_chevron)
-    _, lh = _text_size(p.measure, p.font, "M")
-    row_h = lh + 2 * _sc(th.tree_row_pad)
-    elems = Any[]
-    maxw = Ref(0)
-    yref = Ref(0)
-    fr, fg, fb, fa = _rgbai(th.foreground)
+    position = w.position::Point2D
+    indent = _sc(p.indent)
+    chevron_column = _sc(p.chevron_column)
+    chevron_size = _sc(p.chevron_size)
+    _, line_height = _text_size(p.measure, p.label_text.font, "M")
+    row_height = line_height + 2 * _sc(p.row_padding)
+    elements = Any[]
+    max_width = Ref(0)
+    y_cursor = Ref(0)
+    label_red, label_green, label_blue, label_alpha = _rgbai(p.label_text.color)
     function walk(node, depth)
         x = depth * indent
         kids = _tree_children(node)
         label = _tree_label(node)
         if kids !== nothing && !isempty(kids)
-            _push_chevron!(elems, x + chev_w ÷ 2, yref[] + row_h ÷ 2, _sc(th.chevron), :down,
-                           th.muted_foreground; stroke=max(1, _sc(th.stroke)))
+            _push_chevron!(elements, x + chevron_column ÷ 2, y_cursor[] + row_height ÷ 2, chevron_size, :down,
+                           p.chevron.color; stroke=max(1, _sc(p.chevron.width)))
         end
-        lw, _ = _text_size(p.measure, p.font, label)
-        push!(elems, GraphicsText(label, x + chev_w, yref[] + _sc(th.tree_row_pad), p.font, fr, fg, fb, fa))
-        maxw[] = max(maxw[], x + chev_w + lw)
-        yref[] += row_h
+        label_width, _ = _text_size(p.measure, p.label_text.font, label)
+        push!(elements, GraphicsText(label, x + chevron_column, y_cursor[] + _sc(p.row_padding), p.label_text.font, label_red, label_green, label_blue, label_alpha))
+        max_width[] = max(max_width[], x + chevron_column + label_width)
+        y_cursor[] += row_height
         if kids !== nothing
             for c in kids
                 walk(c, depth + 1)
@@ -2590,7 +2605,7 @@ function projection_print(p::WidgetTreeToGraphicsCanvas, recursion, w::WidgetTre
     for n in w.roots
         walk(n, 0)
     end
-    SimpleIoMap(p, w, _make_canvas(_origin(pos)..., maxw[], yref[], elems))
+    SimpleIoMap(p, w, _make_canvas(_origin(position)..., max_width[], y_cursor[], elements))
 end
 @_printer_only WidgetTreeToGraphicsCanvas
 
@@ -2663,9 +2678,18 @@ function WidgetToGraphics(font::StyleFont; measure::Function,
         WidgetTextarea    => WidgetTextareaToGraphicsCanvas(measurer, theme.body_text, theme.background,
             StyleStroke(theme.input, theme.border_width),
             Inset(theme.pad_y, theme.pad_y, theme.pad_x, theme.pad_x), theme.radius),
-        WidgetAccordion   => WidgetAccordionToGraphicsCanvas(font, measure, theme),
-        WidgetTable       => WidgetTableToGraphicsCanvas(font, measure, theme),
-        WidgetTree        => WidgetTreeToGraphicsCanvas(font, measure, theme),
+        WidgetAccordion   => WidgetAccordionToGraphicsCanvas(measurer,
+            StyleText(theme.font_bold, theme.foreground), StyleText(theme.font_small, theme.muted_foreground),
+            StyleStroke(theme.border, theme.border_width),
+            Inset(theme.accordion_pad_y, theme.accordion_pad_y, theme.pad_x, theme.pad_x),
+            theme.gap, theme.accordion_body_gap, StyleStroke(theme.muted_foreground, theme.stroke), theme.chevron),
+        WidgetTable       => WidgetTableToGraphicsCanvas(measurer,
+            StyleText(theme.font, theme.foreground), StyleText(theme.font_small, theme.muted_foreground),
+            StyleStroke(theme.border, theme.border_width),
+            Inset(theme.table_pad_y, theme.table_pad_y, theme.table_pad_x, theme.table_pad_x)),
+        WidgetTree        => WidgetTreeToGraphicsCanvas(measurer, StyleText(theme.font, theme.foreground),
+            theme.tree_indent, theme.tree_chevron, theme.tree_row_pad,
+            StyleStroke(theme.muted_foreground, theme.stroke), theme.chevron),
     )
 end
 
