@@ -23,7 +23,20 @@ function test_sql_to_syntax()
 
         # Leaf projections produce SyntaxLeaf nodes
         @test projection_print(SqlAllColumnsToSyntaxLeaf(), SqlAllColumns()).output isa SyntaxLeaf
-        @test projection_print(SqlTableReferenceToSyntaxLeaf(), SqlTableReference("t")).output isa SyntaxLeaf
+        @test projection_print(SqlTableExpressionToSyntaxLeaf(), SqlTableExpression("t")).output isa SyntaxLeaf
+        @test projection_print(SqlColumnReferenceToSyntaxLeaf(), SqlColumnReference("id")).output isa SyntaxLeaf
+
+        # render_sql covers new types
+        @test render_sql(SqlAllColumns()) == "*"
+        @test render_sql(SqlAllColumns(SqlTableAlias("t"))) == "t.*"
+        @test render_sql(SqlColumnReference("id")) == "id"
+        @test render_sql(SqlTableExpression(SqlTableName("public", "users"), SqlTableAlias("u"))) ==
+              "\"public\".\"users\" AS u"
+        @test render_sql(SqlSelectStatement("persons")) == "SELECT * FROM \"persons\""
+
+        # Stubs compile
+        @test SqlInsertStatement() isa SqlInsertStatement
+        @test SqlUpdateStatement() isa SqlUpdateStatement
     end
 end
 

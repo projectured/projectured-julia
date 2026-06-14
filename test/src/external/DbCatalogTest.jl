@@ -149,6 +149,7 @@ function test_db_catalog(; skip_if_no_db=true)
 
     @testset "DbCatalog (live DB, read-only)" begin
         try
+            setup_persons_table(adapter)
             test_db_catalog_databases(adapter)
             test_db_catalog_schemas(adapter)
             test_db_catalog_tables(adapter)

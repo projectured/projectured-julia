@@ -244,7 +244,20 @@ end
 
 # ── Entry point ────────────────────────────────────────────────────────────────
 
-function test_db_catalog_syntax(; show_detail=false)
+function test_db_catalog_syntax(; show_detail=false, skip_if_no_db=true)
+    adapter = _make_test_adapter()
+    can_connect = try
+        db_connect!(adapter)
+        true
+    catch e
+        skip_if_no_db && @info "Skipping DbCatalogSyntax tests (ODBC DSN unavailable): $e"
+        false
+    end
+    if can_connect
+        setup_persons_table(adapter)
+        db_close!(adapter)
+    end
+
     @testset "DbCatalogToSyntax projection" begin
         test_db_catalog_column_to_syntax(show_detail=show_detail)
         test_db_catalog_table_to_syntax(show_detail=show_detail)

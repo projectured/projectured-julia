@@ -65,6 +65,7 @@ function test_db_catalog_tabular(; skip_if_no_db=true, show_detail=false)
 
     @testset "DbCatalogTabular (live DB) — SQL result path" begin
         try
+            setup_persons_table(adapter)
             test_sql_to_cell_table(instance, pool; show_detail)
             test_cell_table_to_table(instance, pool)
         finally

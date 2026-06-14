@@ -31,6 +31,7 @@ include("document/PrimitiveTest.jl")
 include("document/IniTest.jl")
 include("document/NedTest.jl")
 include("document/JsonParserTest.jl")
+include("document/SqlDocumentTest.jl")
 include("projection/JsonToSyntaxTest.jl")
 include("projection/SqlToSyntaxTest.jl")
 include("projection/XmlToSyntaxTest.jl")
@@ -99,6 +100,7 @@ function test_documents()
         test_ned_parser()
         test_json_parser()
         test_xml_parser()
+        test_sql_document()
     end
 end
 

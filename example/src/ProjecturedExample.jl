@@ -34,6 +34,7 @@ include(joinpath(_EXAMPLE_DIR, "document", "Julia.jl"))
 include(joinpath(_EXAMPLE_DIR, "document", "Wrapper.jl"))
 include(joinpath(_EXAMPLE_DIR, "document", "Primitive.jl"))
 include(joinpath(_EXAMPLE_DIR, "document", "DbCatalog.jl"))
+include(joinpath(_EXAMPLE_DIR, "document", "Database.jl"))
 include(joinpath(_EXAMPLE_DIR, "document", "DatabaseInstance.jl"))
 include(joinpath(_EXAMPLE_DIR, "document", "Sql.jl"))
 include(joinpath(_EXAMPLE_DIR, "document", "Ini.jl"))
@@ -138,6 +139,7 @@ export make_julia_document_example, make_julia_projection_example
 export make_graphics_image_projection_example
 export make_primitive_string_document_example, make_primitive_string_projection_example
 export make_dbcatalog_document_example, make_dbcatalog_projection_example
+export make_database_adapter_example, setup_persons_table, teardown_persons_table
 export make_database_instance_document_example
 export make_sql_document_example, make_sql_syntax_projection_example, make_sql_table_projection_example
 

@@ -247,8 +247,22 @@ using .DatabaseModule: DatabaseAdapter, RawDatabaseResult, OdbcDatabaseAdapter,
 using .DatabaseTableToTabularGridModule: DatabaseTableIoMap, DatabaseTableToTabularGrid
 using .DatabaseInstanceDocumentModule: DatabaseInstanceDocument, DatabaseInstance, DatabaseCredentials
 using .ConnectionPoolModule: OdbcConnectionPool, with_connection, dsn_for, close_pool!
-using .SqlDocumentModule: SqlDocument, SqlStatement, SqlSelectStatement,
-                          SqlAllColumns, SqlTableReference, render_sql
+using .SqlDocumentModule: SqlDocument, SqlStatement,
+                          SqlSelectExpression, SqlFromBaseItem, SqlJoinType, SqlJoinCondition,
+                          SqlJoinConditionExpression, SqlWhereCondition,
+                          SqlTableName, SqlTableAlias, SqlColumnName, SqlColumnAlias,
+                          SqlDistinct, SqlAllColumns, SqlColumnReference,
+                          SqlSelectItem, SqlSelectClause, SqlWhereClause,
+                          SqlInnerJoin, SqlLeftOuterJoin, SqlRightOuterJoin,
+                          SqlFullOuterJoin, SqlCrossJoin,
+                          SqlJoinOnCondition, SqlJoinUsingCondition,
+                          SqlTableExpression, SqlJoinSegment, SqlFromItem, SqlFromClause,
+                          SqlSelectStatement, SqlSubqueryFromItem,
+                          SqlInsertStatement, SqlUpdateStatement,
+                          SqlBooleanExpression,
+                          SqlScalarValue, SqlComparison,
+                          SqlAnd, SqlOr, SqlNot,
+                          render_sql, resolve_sql_names!
 using .DbCatalogDocumentModule: DbCatalogDocument,
                                 DbCatalogRdbms, DbCatalogDatabase, DbCatalogSchema,
                                 DbCatalogTable, DbCatalogColumn
@@ -414,8 +428,12 @@ using .ReferenceToTextModule: ReferenceToText, ReferenceToHumanReadableText
 using .MathToSyntaxModule: MathToSyntax, MathInsertionToSyntaxLeaf, MathVariableToSyntaxLeaf,
                             MathBinaryOperationToSyntaxNode, MathParenthesizedToSyntaxNode,
                             MathAssignmentToSyntaxNode
-using .SqlToSyntaxModule: SqlToSyntax, SqlAllColumnsToSyntaxLeaf,
-                          SqlTableReferenceToSyntaxLeaf, SqlSelectStatementToSyntaxNode
+using .SqlToSyntaxModule: SqlToSyntax, SqlAllColumnsToSyntaxLeaf, SqlColumnReferenceToSyntaxLeaf,
+                          SqlTableExpressionToSyntaxLeaf, SqlJoinTypeToSyntaxLeaf,
+                          SqlSelectItemToSyntaxNode, SqlSelectClauseToSyntaxNode,
+                          SqlFromItemToSyntaxNode, SqlFromClauseToSyntaxNode,
+                          SqlJoinSegmentToSyntaxNode, SqlWhereClauseToSyntaxNode,
+                          SqlSelectStatementToSyntaxNode
 using .JuliaToSyntaxModule: JuliaToSyntax, JuliaIdentifierToSyntaxLeaf, JuliaIntegerToSyntaxLeaf,
                              JuliaBinaryOpToSyntaxNode, JuliaCallToSyntaxNode,
                              JuliaIfToSyntaxNode, JuliaFunctionToSyntaxNode,
@@ -520,8 +538,28 @@ export DatabaseAdapter, RawDatabaseResult, OdbcDatabaseAdapter,
 export DatabaseTableIoMap, DatabaseTableToTabularGrid
 export DatabaseInstanceDocument, DatabaseInstance, DatabaseCredentials
 export OdbcConnectionPool, with_connection, dsn_for, close_pool!
-export SqlDocument, SqlStatement, SqlSelectStatement, SqlAllColumns, SqlTableReference, render_sql
-export SqlToSyntax, SqlAllColumnsToSyntaxLeaf, SqlTableReferenceToSyntaxLeaf, SqlSelectStatementToSyntaxNode
+export SqlDocument, SqlStatement,
+       SqlSelectExpression, SqlFromBaseItem, SqlJoinType, SqlJoinCondition,
+       SqlJoinConditionExpression, SqlWhereCondition,
+       SqlTableName, SqlTableAlias, SqlColumnName, SqlColumnAlias,
+       SqlDistinct, SqlAllColumns, SqlColumnReference,
+       SqlSelectItem, SqlSelectClause, SqlWhereClause,
+       SqlInnerJoin, SqlLeftOuterJoin, SqlRightOuterJoin,
+       SqlFullOuterJoin, SqlCrossJoin,
+       SqlJoinOnCondition, SqlJoinUsingCondition,
+       SqlTableExpression, SqlJoinSegment, SqlFromItem, SqlFromClause,
+       SqlSelectStatement, SqlSubqueryFromItem,
+       SqlInsertStatement, SqlUpdateStatement,
+       SqlBooleanExpression,
+       SqlScalarValue, SqlComparison,
+       SqlAnd, SqlOr, SqlNot,
+       render_sql, resolve_sql_names!
+export SqlToSyntax, SqlAllColumnsToSyntaxLeaf, SqlColumnReferenceToSyntaxLeaf,
+       SqlTableExpressionToSyntaxLeaf, SqlJoinTypeToSyntaxLeaf,
+       SqlSelectItemToSyntaxNode, SqlSelectClauseToSyntaxNode,
+       SqlFromItemToSyntaxNode, SqlFromClauseToSyntaxNode,
+       SqlJoinSegmentToSyntaxNode, SqlWhereClauseToSyntaxNode,
+       SqlSelectStatementToSyntaxNode
 export DbCatalogDocument,
        DbCatalogRdbms, DbCatalogDatabase, DbCatalogSchema,
        DbCatalogTable, DbCatalogColumn
