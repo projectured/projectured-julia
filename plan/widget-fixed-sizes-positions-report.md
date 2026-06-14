@@ -487,7 +487,23 @@ duplicate-constant problem from §7E).
 > `VerticalLayout` (`0ee487d`), and `ObjectToWidget` → `GridLayout` (`a2a2709`).
 > Verified: layout/allocator/object-to-widget unit tests, the AssistantMvp
 > reactive-thunk test, and an end-to-end keypress roundtrip writing back to the
-> bound field cell. **Step 4 (§7D, fold fallback sizes) remains.**
+> bound field cell.
+>
+> **Step 4 (§7D) — done (`9242511`), value-preserving.** The scattered fixed
+> sizes were hoisted into named, documented layout tokens rather than removed:
+> `WorkbenchToWidget` gained a "workbench layout tokens" block (pinned
+> nav/control/info bands, shell window fallback, assistant input band, per-pane
+> fallback viewport sizes), and `WidgetToGraphics` named its scroll/scrollbar/
+> split-slot fallbacks (killing the §7E printer↔reader duplication of the scroll
+> bar track size). Investigation showed these per-pane sizes are **genuine
+> standalone-render fallbacks** (the navigator/assistant baselines render a pane
+> in isolation), not dead code — inside the full workbench each pane is already
+> sized by its split/tab parent's `available_*` allocation. So "fold into the
+> allocation path" here means *centralize + name* the fallbacks (and let a future
+> workbench style override them); fully eliminating them would require seeding
+> `available_*` in the standalone examples and re-baselining their images, a
+> deliberate visual change deferred until wanted. Verified pixel-stable via the
+> workbench/navigator/assistant/widget printer tests.
 
 ### 9.0 Decisions taken (2026-06-14)
 
