@@ -2285,132 +2285,158 @@ end
 
 # ── WidgetToggle ────────────────────────────────────────────────────────────
 
-struct WidgetToggleToGraphicsCanvas <: Projection
-    font::StyleFont
+@projection struct WidgetToggleToGraphicsCanvas <: Projection
     measure::Function
-    theme::WidgetTheme
+    font::StyleFont
+    padding::Inset
+    corner_radius::Int
+    border::StyleStroke              # outline (drawn only when released)
+    pressed_fill::StyleColor
+    pressed_foreground::StyleColor
+    released_fill::StyleColor
+    released_foreground::StyleColor
 end
 
 function projection_print(p::WidgetToggleToGraphicsCanvas, recursion, w::WidgetToggle, ctx)
     w.visible == false && return SimpleIoMap(p, w, _empty_canvas())
-    pos = w.position::Point2D
-    th  = p.theme
+    position = w.position::Point2D
     text = string(w.content)
     on  = w.pressed === true
-    pad_x, pad_y = _sc(th.pad_x), _sc(th.pad_y)
-    tw, tht = _text_size(p.measure, p.font, text)
-    cw, ch = tw + 2pad_x, tht + 2pad_y
-    fill   = on ? th.accent : th.background
-    fg     = on ? th.accent_foreground : th.foreground
-    border = on ? nothing : th.border
-    bw = border !== nothing ? max(1, _sc(th.border_width)) : 0
-    elems = Any[]
-    _push_panel!(elems, 0, 0, cw, ch; fill=fill, border=border, border_w=bw, radius=_sc(th.radius))
-    fr, fg2, fb, fa = _rgbai(fg)
-    push!(elems, GraphicsText(text, (cw - tw) ÷ 2, (ch - tht) ÷ 2, p.font, fr, fg2, fb, fa))
-    SimpleIoMap(p, w, _make_canvas(_origin(pos)..., cw, ch, elems))
+    padding_x = _sc(Int(p.padding.left[]))
+    padding_y = _sc(Int(p.padding.top[]))
+    text_width, text_height = _text_size(p.measure, p.font, text)
+    control_width  = text_width + 2padding_x
+    control_height = text_height + 2padding_y
+    fill       = on ? p.pressed_fill : p.released_fill
+    foreground = on ? p.pressed_foreground : p.released_foreground
+    border_color = on ? nothing : p.border.color
+    border_width = on ? 0 : max(1, _sc(p.border.width))
+    elements = Any[]
+    _push_panel!(elements, 0, 0, control_width, control_height; fill=fill, border=border_color,
+                 border_w=border_width, radius=_sc(p.corner_radius))
+    red, green, blue, alpha = _rgbai(foreground)
+    push!(elements, GraphicsText(text, (control_width - text_width) ÷ 2, (control_height - text_height) ÷ 2, p.font, red, green, blue, alpha))
+    SimpleIoMap(p, w, _make_canvas(_origin(position)..., control_width, control_height, elements))
 end
 @_printer_only WidgetToggleToGraphicsCanvas
 
 # ── WidgetToggleGroup ───────────────────────────────────────────────────────
 
-struct WidgetToggleGroupToGraphicsCanvas <: Projection
-    font::StyleFont
+@projection struct WidgetToggleGroupToGraphicsCanvas <: Projection
     measure::Function
-    theme::WidgetTheme
+    font::StyleFont
+    padding::Inset
+    corner_radius::Int
+    segment_inset::Int
+    border::StyleStroke
+    track_color::StyleColor            # outer container fill
+    selected_fill::StyleColor          # raised segment fill
+    selected_foreground::StyleColor
+    unselected_foreground::StyleColor
 end
 
 function projection_print(p::WidgetToggleGroupToGraphicsCanvas, recursion, w::WidgetToggleGroup, ctx)
     w.visible == false && return SimpleIoMap(p, w, _empty_canvas())
-    pos = w.position::Point2D
-    th  = p.theme
+    position = w.position::Point2D
     selected = Int(w.selected)
-    pad_x, pad_y = _sc(th.pad_x), _sc(th.pad_y)
+    padding_x = _sc(Int(p.padding.left[]))
+    padding_y = _sc(Int(p.padding.top[]))
     labels = [string(o) for o in w.options]
-    _, mh = _text_size(p.measure, p.font, "M")
-    seg_ws = [(_text_size(p.measure, p.font, l)[1] + 2pad_x) for l in labels]
-    ch = mh + 2pad_y
-    cw = sum(seg_ws; init=0)
-    radius = _sc(th.radius)
-    elems = Any[]
-    # Outer container (muted track + border).
-    _push_panel!(elems, 0, 0, cw, ch; fill=th.muted, border=th.border,
-                 border_w=max(1, _sc(th.border_width)), radius=radius)
+    _, text_height = _text_size(p.measure, p.font, "M")
+    segment_widths = [(_text_size(p.measure, p.font, l)[1] + 2padding_x) for l in labels]
+    control_height = text_height + 2padding_y
+    control_width  = sum(segment_widths; init=0)
+    corner_radius = _sc(p.corner_radius)
+    segment_inset = _sc(p.segment_inset)
+    elements = Any[]
+    # Outer container (track + border).
+    _push_panel!(elements, 0, 0, control_width, control_height; fill=p.track_color, border=p.border.color,
+                 border_w=max(1, _sc(p.border.width)), radius=corner_radius)
     x = 0
     for i in eachindex(labels)
-        sw = seg_ws[i]
+        segment_width = segment_widths[i]
         if i == selected
-            _push_panel!(elems, x + _sc(th.seg_inset), _sc(th.seg_inset),
-                         sw - _sc(2 * th.seg_inset), ch - _sc(2 * th.seg_inset);
-                         fill=th.background, radius=max(0, radius - _sc(th.seg_inset)))
+            _push_panel!(elements, x + segment_inset, segment_inset,
+                         segment_width - 2segment_inset, control_height - 2segment_inset;
+                         fill=p.selected_fill, radius=max(0, corner_radius - segment_inset))
         end
-        tw, tht = _text_size(p.measure, p.font, labels[i])
-        fg = i == selected ? th.foreground : th.muted_foreground
-        fr, fg2, fb, fa = _rgbai(fg)
-        push!(elems, GraphicsText(labels[i], x + (sw - tw) ÷ 2, (ch - tht) ÷ 2, p.font, fr, fg2, fb, fa))
-        x += sw
+        text_width, segment_text_height = _text_size(p.measure, p.font, labels[i])
+        foreground = i == selected ? p.selected_foreground : p.unselected_foreground
+        red, green, blue, alpha = _rgbai(foreground)
+        push!(elements, GraphicsText(labels[i], x + (segment_width - text_width) ÷ 2, (control_height - segment_text_height) ÷ 2, p.font, red, green, blue, alpha))
+        x += segment_width
     end
-    SimpleIoMap(p, w, _make_canvas(_origin(pos)..., cw, ch, elems))
+    SimpleIoMap(p, w, _make_canvas(_origin(position)..., control_width, control_height, elements))
 end
 @_printer_only WidgetToggleGroupToGraphicsCanvas
 
 # ── WidgetSelect ────────────────────────────────────────────────────────────
 
-struct WidgetSelectToGraphicsCanvas <: Projection
-    font::StyleFont
+@projection struct WidgetSelectToGraphicsCanvas <: Projection
     measure::Function
-    theme::WidgetTheme
+    text::StyleText            # value font + color
+    background_color::StyleColor
+    border::StyleStroke         # input outline
+    padding::Inset
+    corner_radius::Int
+    gap::Int                   # space between value and chevron
+    chevron::StyleStroke        # chevron color + width
+    chevron_size::Int
 end
 
 function projection_print(p::WidgetSelectToGraphicsCanvas, recursion, w::WidgetSelect, ctx)
     w.visible == false && return SimpleIoMap(p, w, _empty_canvas())
-    pos = w.position::Point2D
-    th  = p.theme
+    position = w.position::Point2D
     text = string(w.value)
-    pad_x, pad_y = _sc(th.pad_x), _sc(th.pad_y)
-    tw, tht = _text_size(p.measure, p.font, text)
+    padding_x = _sc(Int(p.padding.left[]))
+    padding_y = _sc(Int(p.padding.top[]))
+    text_width, text_height = _text_size(p.measure, p.text.font, text)
+    chevron_size = _sc(p.chevron_size)
     # Fit the value text, a gap, the trailing chevron and both paddings.
-    content_min = 2pad_x + tw + _sc(th.gap) + 2 * _sc(th.chevron)
-    W = _resolve_width(ctx, _sc(Int(w.width)), content_min)
-    ch = tht + 2pad_y
-    elems = Any[]
-    _push_panel!(elems, 0, 0, W, ch; fill=th.background, border=th.input,
-                 border_w=max(1, _sc(th.border_width)), radius=_sc(th.radius))
-    fr, fg, fb, fa = _rgbai(th.foreground)
-    push!(elems, GraphicsText(text, pad_x, (ch - tht) ÷ 2, p.font, fr, fg, fb, fa))
-    _push_chevron!(elems, W - pad_x - _sc(th.chevron), ch ÷ 2, _sc(th.chevron), :down,
-                   th.muted_foreground; stroke=max(1, _sc(th.stroke)))
-    SimpleIoMap(p, w, _make_canvas(_origin(pos)..., W, ch, elems))
+    content_min = 2padding_x + text_width + _sc(p.gap) + 2chevron_size
+    control_width = _resolve_width(ctx, _sc(Int(w.width)), content_min)
+    control_height = text_height + 2padding_y
+    elements = Any[]
+    _push_panel!(elements, 0, 0, control_width, control_height; fill=p.background_color, border=p.border.color,
+                 border_w=max(1, _sc(p.border.width)), radius=_sc(p.corner_radius))
+    red, green, blue, alpha = _rgbai(p.text.color)
+    push!(elements, GraphicsText(text, padding_x, (control_height - text_height) ÷ 2, p.text.font, red, green, blue, alpha))
+    _push_chevron!(elements, control_width - padding_x - chevron_size, control_height ÷ 2, chevron_size, :down,
+                   p.chevron.color; stroke=max(1, _sc(p.chevron.width)))
+    SimpleIoMap(p, w, _make_canvas(_origin(position)..., control_width, control_height, elements))
 end
 @_printer_only WidgetSelectToGraphicsCanvas
 
 # ── WidgetTextarea ──────────────────────────────────────────────────────────
 
-struct WidgetTextareaToGraphicsCanvas <: Projection
-    font::StyleFont
+@projection struct WidgetTextareaToGraphicsCanvas <: Projection
     measure::Function
-    theme::WidgetTheme
+    text::StyleText            # content font + color
+    background_color::StyleColor
+    border::StyleStroke         # input outline
+    padding::Inset
+    corner_radius::Int
 end
 
 function projection_print(p::WidgetTextareaToGraphicsCanvas, recursion, w::WidgetTextarea, ctx)
     w.visible == false && return SimpleIoMap(p, w, _empty_canvas())
-    pos = w.position::Point2D
-    th  = p.theme
-    pad_x, pad_y = _sc(th.pad_x), _sc(th.pad_y)
+    position = w.position::Point2D
+    padding_x = _sc(Int(p.padding.left[]))
+    padding_y = _sc(Int(p.padding.top[]))
     lines = split(string(w.content), '\n')
-    _, lh = _text_size(p.measure, p.font, "M")
-    nrows = max(Int(w.rows), length(lines))
-    H = nrows * lh + 2pad_y
-    maxlw = isempty(lines) ? 0 : maximum(_text_size(p.measure, p.font, String(l))[1] for l in lines)
-    W = _resolve_width(ctx, _sc(Int(w.width)), maxlw + 2pad_x)
-    elems = Any[]
-    _push_panel!(elems, 0, 0, W, H; fill=th.background, border=th.input,
-                 border_w=max(1, _sc(th.border_width)), radius=_sc(th.radius))
-    fr, fg, fb, fa = _rgbai(th.foreground)
+    _, line_height = _text_size(p.measure, p.text.font, "M")
+    row_count = max(Int(w.rows), length(lines))
+    area_height = row_count * line_height + 2padding_y
+    longest_line = isempty(lines) ? 0 : maximum(_text_size(p.measure, p.text.font, String(l))[1] for l in lines)
+    area_width = _resolve_width(ctx, _sc(Int(w.width)), longest_line + 2padding_x)
+    elements = Any[]
+    _push_panel!(elements, 0, 0, area_width, area_height; fill=p.background_color, border=p.border.color,
+                 border_w=max(1, _sc(p.border.width)), radius=_sc(p.corner_radius))
+    red, green, blue, alpha = _rgbai(p.text.color)
     for (i, line) in enumerate(lines)
-        push!(elems, GraphicsText(String(line), pad_x, pad_y + (i - 1) * lh, p.font, fr, fg, fb, fa))
+        push!(elements, GraphicsText(String(line), padding_x, padding_y + (i - 1) * line_height, p.text.font, red, green, blue, alpha))
     end
-    SimpleIoMap(p, w, _make_canvas(_origin(pos)..., W, H, elems))
+    SimpleIoMap(p, w, _make_canvas(_origin(position)..., area_width, area_height, elements))
 end
 @_printer_only WidgetTextareaToGraphicsCanvas
 
@@ -2622,10 +2648,21 @@ function WidgetToGraphics(font::StyleFont; measure::Function,
         WidgetAvatar     => WidgetAvatarToGraphicsCanvas(measurer, StyleText(theme.font, theme.muted_foreground), theme.muted),
         WidgetAlert      => WidgetAlertToGraphicsCanvas(font, measure, theme),
         WidgetSkeleton   => WidgetSkeletonToGraphicsCanvas(theme.muted, theme.skeleton_radius),
-        WidgetToggle      => WidgetToggleToGraphicsCanvas(font, measure, theme),
-        WidgetToggleGroup => WidgetToggleGroupToGraphicsCanvas(font, measure, theme),
-        WidgetSelect      => WidgetSelectToGraphicsCanvas(font, measure, theme),
-        WidgetTextarea    => WidgetTextareaToGraphicsCanvas(font, measure, theme),
+        WidgetToggle      => WidgetToggleToGraphicsCanvas(measurer, theme.font,
+            Inset(theme.pad_y, theme.pad_y, theme.pad_x, theme.pad_x), theme.radius,
+            StyleStroke(theme.border, theme.border_width),
+            theme.accent, theme.accent_foreground, theme.background, theme.foreground),
+        WidgetToggleGroup => WidgetToggleGroupToGraphicsCanvas(measurer, theme.font,
+            Inset(theme.pad_y, theme.pad_y, theme.pad_x, theme.pad_x), theme.radius, theme.seg_inset,
+            StyleStroke(theme.border, theme.border_width),
+            theme.muted, theme.background, theme.foreground, theme.muted_foreground),
+        WidgetSelect      => WidgetSelectToGraphicsCanvas(measurer, theme.body_text, theme.background,
+            StyleStroke(theme.input, theme.border_width),
+            Inset(theme.pad_y, theme.pad_y, theme.pad_x, theme.pad_x), theme.radius,
+            theme.gap, StyleStroke(theme.muted_foreground, theme.stroke), theme.chevron),
+        WidgetTextarea    => WidgetTextareaToGraphicsCanvas(measurer, theme.body_text, theme.background,
+            StyleStroke(theme.input, theme.border_width),
+            Inset(theme.pad_y, theme.pad_y, theme.pad_x, theme.pad_x), theme.radius),
         WidgetAccordion   => WidgetAccordionToGraphicsCanvas(font, measure, theme),
         WidgetTable       => WidgetTableToGraphicsCanvas(font, measure, theme),
         WidgetTree        => WidgetTreeToGraphicsCanvas(font, measure, theme),
