@@ -489,21 +489,30 @@ duplicate-constant problem from §7E).
 > reactive-thunk test, and an end-to-end keypress roundtrip writing back to the
 > bound field cell.
 >
-> **Step 4 (§7D) — done (`9242511`), value-preserving.** The scattered fixed
-> sizes were hoisted into named, documented layout tokens rather than removed:
-> `WorkbenchToWidget` gained a "workbench layout tokens" block (pinned
-> nav/control/info bands, shell window fallback, assistant input band, per-pane
-> fallback viewport sizes), and `WidgetToGraphics` named its scroll/scrollbar/
-> split-slot fallbacks (killing the §7E printer↔reader duplication of the scroll
-> bar track size). Investigation showed these per-pane sizes are **genuine
-> standalone-render fallbacks** (the navigator/assistant baselines render a pane
-> in isolation), not dead code — inside the full workbench each pane is already
-> sized by its split/tab parent's `available_*` allocation. So "fold into the
-> allocation path" here means *centralize + name* the fallbacks (and let a future
-> workbench style override them); fully eliminating them would require seeding
-> `available_*` in the standalone examples and re-baselining their images, a
-> deliberate visual change deferred until wanted. Verified pixel-stable via the
-> workbench/navigator/assistant/widget printer tests.
+> **Step 4 (§7D) — done in two parts.**
+>
+> *Part 1 (`9242511`), value-preserving:* `WidgetToGraphics` named its
+> scroll/scrollbar/split-slot fallbacks (killing the §7E printer↔reader
+> duplication of the scroll bar track size), and the scattered `WorkbenchToWidget`
+> numbers were first hoisted into a named-token block.
+>
+> *Part 2 — the real fix:* per the directive "once we have layout constraints,
+> fixed sizes are useless; each workbench pane should specify only a minimum and
+> maybe a weight." Every workbench `WidgetScrollPane` **lost its fixed `size=`**
+> entirely. Each split child now states only a `min` (+ `preferred = min` so it
+> sits at its floor) and a `weight`: main areas (editor, conversation, center
+> column) take the large weight, the surrounding side panels (nav, control, info)
+> a small one, so the side panels grow *a bit* with the window but always less
+> than the main area. The pinned `min=max` columns and the per-pane fallback
+> viewport sizes are **gone**.
+>
+> This changed the workbench layout (side columns now grow), so `workbench.png`
+> was re-baselined. The standalone `assistant` example has no window to fill, so
+> it would collapse to its (near-empty) content; the display size for *that*
+> screenshot now lives on the `Example` (`render_width`/`render_height`) — a
+> presentation choice — not as a fixed size in the projection. `assistant.png`
+> re-baselined to match its prior presentation. Verified: workbench / assistant /
+> navigator / widget printer tests pass.
 
 ### 9.0 Decisions taken (2026-06-14)
 

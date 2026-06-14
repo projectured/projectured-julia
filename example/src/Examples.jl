@@ -4,8 +4,16 @@ struct Example
     make_projection
     document
     projection
-    Example(name, make_document, make_projection) =
-        new(name, make_document, make_projection, make_document(), make_projection())
+    # Optional presentation size for the screenshot harness. Most examples size
+    # to their content; a few (e.g. the standalone assistant, which has no window
+    # to fill) need a display width seeded so they render at a useful size. This
+    # is a *presentation* choice and lives here, not as a fixed size baked into
+    # the projection.
+    render_width
+    render_height
+    Example(name, make_document, make_projection; render_width=nothing, render_height=nothing) =
+        new(name, make_document, make_projection, make_document(), make_projection(),
+            render_width, render_height)
 end
 
 const json_example           = Example("json",           make_json_document_example,           make_json_projection_example)
@@ -75,7 +83,8 @@ const math_example           = Example("math",           make_math_document_exam
 const julia_example          = Example("julia",          make_julia_document_example,          make_julia_projection_example)
 const graphics_image_example = Example("graphics_image", make_json_document_example,           make_graphics_image_projection_example)
 const primitive_string_example = Example("primitive_string", make_primitive_string_document_example, make_primitive_string_projection_example)
-const assistant_example      = Example("assistant",      make_assistant_document_example,      make_assistant_projection_example)
+const assistant_example      = Example("assistant",      make_assistant_document_example,      make_assistant_projection_example;
+                                       render_width=1600, render_height=283)
 const dbcatalog_example      = Example("dbcatalog",      make_dbcatalog_document_example,      make_dbcatalog_projection_example)
 const sql_syntax_example     = Example("sql_syntax",     make_sql_document_example,            make_sql_syntax_projection_example)
 const sql_table_example      = Example("sql_table",      make_sql_document_example,            make_sql_table_projection_example)
@@ -460,7 +469,8 @@ function generate_example_screenshots(; filter=nothing, max_width=1920, max_heig
         # white rather than the default solarized canvas.
         bg = startswith(ex.name, "widget") ? white : (0xfd, 0xf6, 0xe3, 0xff)
         try
-            write_image_example(ex, png; max_width=max_width, max_height=max_height,
+            write_image_example(ex, png; width=ex.render_width, height=ex.render_height,
+                                max_width=max_width, max_height=max_height,
                                 background=bg, supersample=supersample)
             @info "  ✓ $png"
         catch e
