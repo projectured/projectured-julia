@@ -219,8 +219,7 @@ function projection_print(::WorkbenchWorkbenchToWidgetShell,
         Cell(() -> ah === nothing ? _SHELL_FALLBACK_HEIGHT : Int(ah[])),
     )
     shell = WidgetShell(main_split;
-                        size=shell_size,
-                        border=_PAD5)
+                        size=shell_size)
     setfn!(getfield(shell, :selection), _shell_sel)
 
     iomap = WorkbenchWorkbenchToWidgetShellIoMap(nothing, w, shell,
