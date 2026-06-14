@@ -111,6 +111,43 @@ end
 const _PAD5  = Inset(5, 5, 5, 5)
 const _WHITE = StyleColor(255, 255, 255, 255)
 
+# ── Workbench layout tokens ───────────────────────────────────────────────
+# Fixed layout *policy* for the IDE chrome. Two kinds:
+#
+#  - Pinned bands/columns (`_NAV_COLUMN_WIDTH`, `_CONTROL_COLUMN_WIDTH`,
+#    `_INFO_BAND_HEIGHT`, the input band) are genuine layout decisions fed to
+#    the split panes' `LayoutConstraint`s.
+#  - Per-pane fallback viewport sizes (`*_FALLBACK_*`) only take effect when a
+#    pane is rendered *outside* an allocating parent (standalone examples /
+#    isolated printer tests). Inside the full workbench every pane is sized by
+#    its split/tab parent's allocation (available_width/height), so these are
+#    the fallback, not the live size.
+#
+# They live here as named tokens (rather than inline literals scattered across
+# the panel printers) so the workbench's geometry is stated in one place and a
+# future workbench style could override it. Fresh `Point2D`s are built per call
+# site to avoid aliasing a shared size cell across panes.
+const _NAV_COLUMN_WIDTH      = 200   # pinned navigation column (left)
+const _CONTROL_COLUMN_WIDTH  = 400   # pinned control column (right; assistant chat)
+const _INFO_BAND_HEIGHT      = 200   # pinned information row in the center column
+const _SHELL_FALLBACK_WIDTH  = 1280  # window width when run outside a window
+const _SHELL_FALLBACK_HEIGHT = 720   # window height when run outside a window
+# Assistant input band: ≈1–6 monospace rows, preferred 3 (line height ≈30 px).
+const _INPUT_BAND_MIN        = 30
+const _INPUT_BAND_PREFERRED  = 90
+const _INPUT_BAND_MAX        = 180
+# Per-pane fallback viewport sizes (width, height) for standalone rendering.
+const _NAVIGATOR_FALLBACK_WIDTH    = 224
+const _NAVIGATOR_FALLBACK_HEIGHT   = 655
+const _PANEL_FALLBACK_WIDTH        = 1000  # console / descriptor / operator / searcher / evaluator
+const _PANEL_FALLBACK_HEIGHT       = 130
+const _EDITOR_FALLBACK_WIDTH       = 1000
+const _EDITOR_FALLBACK_HEIGHT      = 700
+const _CONVERSATION_FALLBACK_WIDTH = 1600
+const _CONVERSATION_FALLBACK_HEIGHT = 1600
+const _INPUT_FALLBACK_WIDTH        = 1600
+const _INPUT_FALLBACK_HEIGHT       = 90
+
 _recurse(recursion, doc, ctx) =
     (recursion !== nothing && doc isa WorkbenchDocument) ? projection_print(recursion, recursion, doc, ctx) : SimpleIoMap(nothing, doc, doc)
 
@@ -159,15 +196,17 @@ function projection_print(::WorkbenchWorkbenchToWidgetShell,
     # Center column: editor fills remaining height, info pane pinned to 200.
     center_split = WidgetSplitPane(:vertical, Any[
         LayoutConstraint(edit_iomap.output; weight_height=1.0),
-        LayoutConstraint(info_iomap.output; min_height=200, max_height=200),
+        LayoutConstraint(info_iomap.output;
+                         min_height=_INFO_BAND_HEIGHT, max_height=_INFO_BAND_HEIGHT),
     ])
-    # Top level: navigator pinned to 200 wide on the left, control pinned to
-    # 400 wide on the right (room for the assistant's chat layout), center
-    # column fills the rest.
+    # Top level: navigator pinned on the left, control pinned on the right
+    # (room for the assistant's chat layout), center column fills the rest.
     main_split = WidgetSplitPane(:horizontal, Any[
-        LayoutConstraint(nav_iomap.output;  min_width=200, max_width=200),
+        LayoutConstraint(nav_iomap.output;
+                         min_width=_NAV_COLUMN_WIDTH, max_width=_NAV_COLUMN_WIDTH),
         LayoutConstraint(center_split;      weight_width=1.0),
-        LayoutConstraint(ctrl_iomap.output; min_width=400, max_width=400),
+        LayoutConstraint(ctrl_iomap.output;
+                         min_width=_CONTROL_COLUMN_WIDTH, max_width=_CONTROL_COLUMN_WIDTH),
     ])
     # Forward-project the workbench selection onto the structural split panes
     # so their coordless readers route the event to the focused child: the
@@ -184,8 +223,8 @@ function projection_print(::WorkbenchWorkbenchToWidgetShell,
     # back to a sensible default when run outside a window.
     aw, ah = ctx.available_width, ctx.available_height
     shell_size = Point2D(
-        Cell(() -> aw === nothing ? 1280 : Int(aw[])),
-        Cell(() -> ah === nothing ? 720  : Int(ah[])),
+        Cell(() -> aw === nothing ? _SHELL_FALLBACK_WIDTH  : Int(aw[])),
+        Cell(() -> ah === nothing ? _SHELL_FALLBACK_HEIGHT : Int(ah[])),
     )
     shell = WidgetShell(main_split;
                         size=shell_size,
@@ -221,7 +260,7 @@ end
 function projection_print(::WorkbenchNavigatorToWidgetScrollPane,
                            recursion, nav::WorkbenchNavigator, ctx)
     scroll = WidgetScrollPane(nav.workspace;
-                              size=Point2D(224, 655),
+                              size=Point2D(_NAVIGATOR_FALLBACK_WIDTH, _NAVIGATOR_FALLBACK_HEIGHT),
                               padding=_PAD5, padding_color=_WHITE)
     WorkbenchNavigatorToWidgetScrollPaneIoMap(nothing, nav, scroll, Any[])
 end
@@ -230,7 +269,7 @@ function projection_print(::WorkbenchConsoleToWidgetScrollPane,
                            recursion, c::WorkbenchConsole, ctx)
     content_iomap = _recurse(recursion, c.content, child_context(ctx, @reference ^(ctx.reference).content))
     scroll = WidgetScrollPane(content_iomap.output;
-                              size=Point2D(1000, 130),
+                              size=Point2D(_PANEL_FALLBACK_WIDTH, _PANEL_FALLBACK_HEIGHT),
                               padding=_PAD5, padding_color=_WHITE)
     ContentIoMap(nothing, c, scroll, content_iomap)
 end
@@ -242,7 +281,7 @@ function projection_print(::WorkbenchDescriptorToWidgetScrollPane,
                    font_ubuntu_monospace_regular_24, color_default),
     )
     scroll = WidgetScrollPane(text;
-                              size=Point2D(1000, 130),
+                              size=Point2D(_PANEL_FALLBACK_WIDTH, _PANEL_FALLBACK_HEIGHT),
                               padding=_PAD5, padding_color=_WHITE)
     SimpleIoMap(nothing, d, scroll)
 end
@@ -250,7 +289,7 @@ end
 function projection_print(::WorkbenchOperatorToWidgetScrollPane,
                            recursion, o::WorkbenchOperator, ctx)
     scroll = WidgetScrollPane(nothing;
-                              size=Point2D(1000, 130),
+                              size=Point2D(_PANEL_FALLBACK_WIDTH, _PANEL_FALLBACK_HEIGHT),
                               padding=_PAD5, padding_color=_WHITE)
     SimpleIoMap(nothing, o, scroll)
 end
@@ -258,7 +297,7 @@ end
 function projection_print(::WorkbenchSearcherToWidgetScrollPane,
                            recursion, s::WorkbenchSearcher, ctx)
     scroll = WidgetScrollPane(nothing;
-                              size=Point2D(1000, 130),
+                              size=Point2D(_PANEL_FALLBACK_WIDTH, _PANEL_FALLBACK_HEIGHT),
                               padding=_PAD5, padding_color=_WHITE)
     SimpleIoMap(nothing, s, scroll)
 end
@@ -267,7 +306,7 @@ function projection_print(::WorkbenchEvaluatorToWidgetScrollPane,
                            recursion, e::WorkbenchEvaluator, ctx)
     content_iomap = _recurse(recursion, e.content, child_context(ctx, @reference ^(ctx.reference).content))
     scroll = WidgetScrollPane(content_iomap.output;
-                              size=Point2D(1000, 130),
+                              size=Point2D(_PANEL_FALLBACK_WIDTH, _PANEL_FALLBACK_HEIGHT),
                               padding=_PAD5, padding_color=_WHITE)
     ContentIoMap(nothing, e, scroll, content_iomap)
 end
@@ -282,10 +321,10 @@ function projection_print(::WorkbenchAssistantToWidgetSplitPane,
     # Primitive→Syntax→Text→Graphics chain. This is also what makes the
     # `PrimitiveStringToSyntaxLeaf` reader receive `KeyPress` events.
     conv_pane  = WidgetScrollPane(a.conversation;
-                                  size=Point2D(1600, 1600),
+                                  size=Point2D(_CONVERSATION_FALLBACK_WIDTH, _CONVERSATION_FALLBACK_HEIGHT),
                                   padding=_PAD5, padding_color=_WHITE)
     input_pane = WidgetScrollPane(a.input;
-                                  size=Point2D(1600, 90),
+                                  size=Point2D(_INPUT_FALLBACK_WIDTH, _INPUT_FALLBACK_HEIGHT),
                                   padding=_PAD5, padding_color=_WHITE)
     # Line height with `font_ubuntu_monospace_regular_24` ≈ 30 px, so the
     # input box reserves 1–6 rows (preferred 3); the conversation pane
@@ -293,7 +332,9 @@ function projection_print(::WorkbenchAssistantToWidgetSplitPane,
     column = WidgetSplitPane(:vertical, Any[
         LayoutConstraint(conv_pane;  weight_height=1.0),
         LayoutConstraint(input_pane;
-                         min_height=30, preferred_height=90, max_height=180),
+                         min_height=_INPUT_BAND_MIN,
+                         preferred_height=_INPUT_BAND_PREFERRED,
+                         max_height=_INPUT_BAND_MAX),
     ])
     SimpleIoMap(nothing, a, column)
 end
@@ -302,7 +343,7 @@ function projection_print(::WorkbenchEditorToWidgetScrollPane,
                            recursion, e::WorkbenchEditor, ctx)
     content_iomap = _recurse(recursion, e.content, child_context(ctx, @reference ^(ctx.reference).content))
     scroll = WidgetScrollPane(content_iomap.output;
-                              size=Point2D(1000, 700),
+                              size=Point2D(_EDITOR_FALLBACK_WIDTH, _EDITOR_FALLBACK_HEIGHT),
                               padding=_PAD5, padding_color=_WHITE)
     ContentIoMap(nothing, e, scroll, content_iomap)
 end

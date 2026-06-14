@@ -212,6 +212,17 @@ end
 
 # ── Styling helpers ─────────────────────────────────────────────────────────
 
+# Fallback viewport / track extents used only when a widget carries no `size`
+# *and* its parent allocated no `available_*` extent (isolated rendering). Named
+# here so the value is stated once — in particular the scroll bar's track size
+# was previously duplicated between its printer and its hit-test reader (a drift
+# risk); both now read these.
+const _SCROLL_FALLBACK_WIDTH  = 400   # WidgetScrollPane / ScrollViewport viewport
+const _SCROLL_FALLBACK_HEIGHT = 300
+const _SCROLLBAR_FALLBACK_LENGTH    = 200  # scroll bar track (long axis)
+const _SCROLLBAR_FALLBACK_THICKNESS = 16   # scroll bar track (short axis)
+const _SPLIT_SLOT_FALLBACK    = 200   # per-slot main-axis extent, no constraint/sizes
+
 # Scale a logical pixel measurement by the current font scale, so spacing /
 # radius track the text size on hi-dpi displays.
 _sc(px::Integer) = font_scaled_size(px)
@@ -1140,7 +1151,7 @@ preferred when present, or fall back to the legacy `sizes` vector for
 backward compatibility, or to 200 px when neither is set.
 """
 function _split_intrinsic(elem, sizes, i::Int, axis::Symbol)
-    intrinsic = (!isempty(sizes) && i <= length(sizes)) ? Int(sizes[i]) : 200
+    intrinsic = (!isempty(sizes) && i <= length(sizes)) ? Int(sizes[i]) : _SPLIT_SLOT_FALLBACK
     layout_preferred(elem, axis, intrinsic)
 end
 
@@ -1679,10 +1690,10 @@ function projection_print(p::WidgetScrollPaneToGraphicsCanvas, recursion, w::Wid
     avail_h = ctx.available_height
     vw_cell = avail_w !== nothing ?
               Cell(() -> Int32(max(0, Int(avail_w[]) - tx))) :
-              Cell(Int32(sz isa Point2D ? Int(sz.x[]) : 400))
+              Cell(Int32(sz isa Point2D ? Int(sz.x[]) : _SCROLL_FALLBACK_WIDTH))
     vh_cell = avail_h !== nothing ?
               Cell(() -> Int32(max(0, Int(avail_h[]) - ty))) :
-              Cell(Int32(sz isa Point2D ? Int(sz.y[]) : 300))
+              Cell(Int32(sz isa Point2D ? Int(sz.y[]) : _SCROLL_FALLBACK_HEIGHT))
     cox, coy = _content_offset(w)
     scroll_cell = getfield(w, :scroll_position)
     inner_x = Cell(() -> begin sp = scroll_cell[]::Point2D; Int32(-Int(sp.x[])) end)
@@ -1814,8 +1825,8 @@ function projection_print(p::WidgetScrollBarToGraphicsCanvas, _, w::WidgetScroll
     sz  = w.size
     px = pos isa Point2D ? _sc(Int(pos.x[])) : 0
     py = pos isa Point2D ? _sc(Int(pos.y[])) : 0
-    bw = sz  isa Point2D ? Int(sz.x[])  : 200
-    bh = sz  isa Point2D ? Int(sz.y[])  : 16
+    bw = sz  isa Point2D ? Int(sz.x[])  : _SCROLLBAR_FALLBACK_LENGTH
+    bh = sz  isa Point2D ? Int(sz.y[])  : _SCROLLBAR_FALLBACK_THICKNESS
     cox, coy = _content_offset(w)
     tx, ty = _inset_total(w)
     cw = max(1, bw - tx)
@@ -1852,8 +1863,8 @@ function projection_read(p::WidgetScrollBarToGraphicsCanvas, iomap::SimpleIoMap,
     w = iomap.input
     w isa WidgetScrollBar || return nothing
     sz  = w.size
-    bw = sz isa Point2D ? Int(sz.x[]) : 200
-    bh = sz isa Point2D ? Int(sz.y[]) : 16
+    bw = sz isa Point2D ? Int(sz.x[]) : _SCROLLBAR_FALLBACK_LENGTH
+    bh = sz isa Point2D ? Int(sz.y[]) : _SCROLLBAR_FALLBACK_THICKNESS
     cox, coy = _content_offset(w)
     tx, ty = _inset_total(w)
     cw = max(1, bw - tx)
@@ -2712,8 +2723,8 @@ function projection_print(p::WidgetScrollPaneToGraphicsViewport, recursion, w::W
     sz  = w.size
     bx = pos isa Point2D ? _sc(Int(pos.x[])) : 0
     by = pos isa Point2D ? _sc(Int(pos.y[])) : 0
-    vw = sz isa Point2D ? Int(sz.x[]) : 400
-    vh = sz isa Point2D ? Int(sz.y[]) : 300
+    vw = sz isa Point2D ? Int(sz.x[]) : _SCROLL_FALLBACK_WIDTH
+    vh = sz isa Point2D ? Int(sz.y[]) : _SCROLL_FALLBACK_HEIGHT
     scroll_cell = getfield(w, :scroll_position)
     inner_x = Cell(() -> begin sp = scroll_cell[]::Point2D; Int32(-Int(sp.x[])) end)
     inner_y = Cell(() -> begin sp = scroll_cell[]::Point2D; Int32(-Int(sp.y[])) end)
