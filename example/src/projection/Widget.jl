@@ -4,8 +4,15 @@
 # spacing — see WidgetTheme. Use this for every per-widget example whose content
 # is a plain string (label, checkbox, button, menu, composite, panes, …).
 function make_widget_projection_example(; measure=sdl_measure_text)
+    w2g = WidgetToGraphics(font_ubuntu_regular_24; measure=measure)
+    # Several examples stack their variants with a VerticalLayout instead of
+    # hand-positioned WidgetComposite children, so the renderer dispatches layout
+    # nodes to LayoutToGraphics and widgets to WidgetToGraphics.
     SequentialProjection(
-        RecursiveProjection(WidgetToGraphics(font_ubuntu_regular_24; measure=measure)),
+        RecursiveProjection(TypeDispatchingProjection(vcat(
+            LayoutToGraphics().dispatch,
+            w2g.dispatch,
+        ))),
     )
 end
 

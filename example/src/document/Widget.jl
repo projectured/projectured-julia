@@ -174,7 +174,9 @@ make_widget_composite_document_example() =
         WidgetLabel(Point2D(0, _wy(80)), "Third"),
     ])
 
-# WidgetTitlePane — a pane with a title bar and a content area.
+# WidgetTitlePane — a pane with a title bar and a content area. The body stays a
+# positioned WidgetComposite: WidgetTitlePane places its content as a positioned
+# widget, so a (position-less) layout child is not the right fit here.
 function make_widget_title_pane_document_example()
     body = WidgetComposite(Point2D(0, 0), Any[
         WidgetLabel(Point2D(0, _wy(0)),  "Detail one"),
@@ -206,6 +208,9 @@ end
 
 # WidgetShell — a top-level window shell with a menu bar and toolbar.
 function make_widget_shell_document_example(; width=600, height=400)
+    # Content stays a positioned WidgetComposite: WidgetShell places its content
+    # as a positioned widget below the menu/toolbar bands, so a position-less
+    # layout child is not the right fit here.
     content = WidgetComposite(Point2D(16, 16), Any[
         WidgetLabel(Point2D(0, _wy(0)),  "Inside a shell"),
         WidgetLabel(Point2D(0, _wy(40)), "with a menu bar and toolbar"),
@@ -238,22 +243,23 @@ end
 # Each shows one new widget (some with several states) so its behavior can be
 # tested in isolation with make_widget_projection_example.
 
-# WidgetBadge — the four variants stacked.
+# WidgetBadge — the four variants stacked by a VerticalLayout (no hand-placed
+# offsets; the layout spaces them from their intrinsic heights + a gap).
 make_widget_badge_document_example() =
-    WidgetComposite(Point2D(40, 40), Any[
-        WidgetBadge(Point2D(0, _wy(0)),  "Default"),
-        WidgetBadge(Point2D(0, _wy(36)), "Secondary";   variant=:secondary),
-        WidgetBadge(Point2D(0, _wy(72)), "Destructive"; variant=:destructive),
-        WidgetBadge(Point2D(0, _wy(108)), "Outline";    variant=:outline),
-    ])
+    VerticalLayout(Any[
+        WidgetBadge(Point2D(0, 0), "Default"),
+        WidgetBadge(Point2D(0, 0), "Secondary";   variant=:secondary),
+        WidgetBadge(Point2D(0, 0), "Destructive"; variant=:destructive),
+        WidgetBadge(Point2D(0, 0), "Outline";     variant=:outline),
+    ]; gap=12)
 
-# WidgetSeparator — a rule between two labels.
+# WidgetSeparator — a rule between two labels, stacked by a VerticalLayout.
 make_widget_separator_document_example() =
-    WidgetComposite(Point2D(40, 40), Any[
-        WidgetLabel(Point2D(0, _wy(0)),  "Above the rule"),
-        WidgetSeparator(Point2D(0, _wy(36)); length=260),
-        WidgetLabel(Point2D(0, _wy(52)), "Below the rule"),
-    ])
+    VerticalLayout(Any[
+        WidgetLabel(Point2D(0, 0), "Above the rule"),
+        WidgetSeparator(Point2D(0, 0); length=260),
+        WidgetLabel(Point2D(0, 0), "Below the rule"),
+    ]; gap=12)
 
 # WidgetCard — title + description + body + footer.
 make_widget_card_document_example() =
@@ -263,12 +269,12 @@ make_widget_card_document_example() =
                content="Name and framework go here.",
                footer="You can change this later.")
 
-# WidgetSwitch — on and off.
+# WidgetSwitch — on and off, stacked by a VerticalLayout.
 make_widget_switch_document_example() =
-    WidgetComposite(Point2D(40, 40), Any[
-        WidgetSwitch(Point2D(0, _wy(0)),  true),
-        WidgetSwitch(Point2D(0, _wy(36)), false),
-    ])
+    VerticalLayout(Any[
+        WidgetSwitch(Point2D(0, 0), true),
+        WidgetSwitch(Point2D(0, 0), false),
+    ]; gap=12)
 
 # WidgetProgress — a 60% bar.
 make_widget_progress_document_example() =
@@ -286,30 +292,31 @@ make_widget_radio_group_document_example() =
 make_widget_avatar_document_example() =
     WidgetAvatar(Point2D(40, 40), "JD"; size=64)
 
-# WidgetAlert — default and destructive variants.
+# WidgetAlert — default and destructive variants, stacked by a VerticalLayout
+# (the gap is uniform regardless of how tall each alert's text wraps).
 make_widget_alert_document_example() =
-    WidgetComposite(Point2D(40, 40), Any[
-        WidgetAlert(Point2D(0, _wy(0)), "Heads up!",
+    VerticalLayout(Any[
+        WidgetAlert(Point2D(0, 0), "Heads up!",
                     "You can add components to your app using the CLI."),
-        WidgetAlert(Point2D(0, _wy(96)), "Something went wrong",
+        WidgetAlert(Point2D(0, 0), "Something went wrong",
                     "Your session has expired. Please log in again.";
                     variant=:destructive),
-    ])
+    ]; gap=12)
 
-# WidgetSkeleton — loading placeholders.
+# WidgetSkeleton — loading placeholders, stacked by a VerticalLayout.
 make_widget_skeleton_document_example() =
-    WidgetComposite(Point2D(40, 40), Any[
-        WidgetSkeleton(Point2D(0, _wy(0));  width=260, height=20),
-        WidgetSkeleton(Point2D(0, _wy(32)); width=200, height=20),
-        WidgetSkeleton(Point2D(0, _wy(64)); width=230, height=20),
-    ])
+    VerticalLayout(Any[
+        WidgetSkeleton(Point2D(0, 0); width=260, height=20),
+        WidgetSkeleton(Point2D(0, 0); width=200, height=20),
+        WidgetSkeleton(Point2D(0, 0); width=230, height=20),
+    ]; gap=12)
 
-# WidgetToggle — a pressed and an unpressed toggle.
+# WidgetToggle — a pressed and an unpressed toggle, stacked by a VerticalLayout.
 make_widget_toggle_document_example() =
-    WidgetComposite(Point2D(40, 40), Any[
-        WidgetToggle(Point2D(0, _wy(0)),  "Bold";   pressed=true),
-        WidgetToggle(Point2D(0, _wy(44)), "Italic"; pressed=false),
-    ])
+    VerticalLayout(Any[
+        WidgetToggle(Point2D(0, 0), "Bold";   pressed=true),
+        WidgetToggle(Point2D(0, 0), "Italic"; pressed=false),
+    ]; gap=12)
 
 # WidgetToggleGroup — a three-segment control with the middle selected.
 make_widget_toggle_group_document_example() =
