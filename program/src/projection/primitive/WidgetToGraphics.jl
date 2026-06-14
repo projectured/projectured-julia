@@ -42,6 +42,7 @@ import ..GraphicsModule: GraphicsText, GraphicsRect, GraphicsLine, GraphicsCircl
 import ..FontModule: StyleFont, font_scaled_size,
                      font_ubuntu_regular_18, font_ubuntu_regular_24, font_ubuntu_bold_24
 import ..StyleTextModule: StyleText
+import ..StyleStrokeModule: StyleStroke
 import ..IoMapModule: SimpleIoMap, ChildrenIoMap
 import ..IoMapApiModule: IoMap
 import ..MouseModule: MouseScroll, MousePress
@@ -320,11 +321,10 @@ end
 @projection struct WidgetCheckboxToGraphicsCanvas <: Projection
     box_size::Int
     corner_radius::Int
-    stroke_width::Int
     checked_color::StyleColor      # filled box when checked
-    check_mark_color::StyleColor   # the tick
+    check::StyleStroke             # the tick (color + width)
     background_color::StyleColor   # empty box fill
-    border_color::StyleColor       # empty box outline
+    outline::StyleStroke           # empty box outline (color + width)
 end
 
 # Style parameters owned by the button projection (hybrid model, §8 of the plan):
@@ -337,10 +337,9 @@ end
     measure::Function
     label::StyleText            # font + color of the button text
     background_color::StyleColor
-    border_color::StyleColor
+    border::StyleStroke         # outline color + width
     padding::Inset              # content padding (was pad_x / pad_y)
     corner_radius::Int
-    border_width::Int
     shadow_offset::Int
 end
 
@@ -736,20 +735,20 @@ function projection_print(p::WidgetCheckboxToGraphicsCanvas, recursion, w::Widge
     checked = w.content === true
     box_size = _sc(p.box_size)
     corner_radius = _sc(p.corner_radius)
-    stroke_width  = max(1, _sc(p.stroke_width))
     elements = Any[]
     if checked
         _push_panel!(elements, 0, 0, box_size, box_size; fill=p.checked_color, radius=corner_radius)
-        red, green, blue, alpha = _rgbai(p.check_mark_color)
+        red, green, blue, alpha = _rgbai(p.check.color)
+        check_width = max(1, _sc(p.check.width))
         # Crisp two-stroke checkmark instead of a glyph.
         x1, y1 = round(Int, 0.22box_size), round(Int, 0.52box_size)
         x2, y2 = round(Int, 0.42box_size), round(Int, 0.70box_size)
         x3, y3 = round(Int, 0.78box_size), round(Int, 0.30box_size)
-        push!(elements, GraphicsLine(x1, y1, x2, y2, red, green, blue, alpha; width=stroke_width))
-        push!(elements, GraphicsLine(x2, y2, x3, y3, red, green, blue, alpha; width=stroke_width))
+        push!(elements, GraphicsLine(x1, y1, x2, y2, red, green, blue, alpha; width=check_width))
+        push!(elements, GraphicsLine(x2, y2, x3, y3, red, green, blue, alpha; width=check_width))
     else
         _push_panel!(elements, 0, 0, box_size, box_size; fill=p.background_color,
-                     border=p.border_color, border_w=stroke_width, radius=corner_radius)
+                     border=p.outline.color, border_w=max(1, _sc(p.outline.width)), radius=corner_radius)
     end
     SimpleIoMap(p, w, _make_canvas(_origin(position)..., box_size, box_size, elements))
 end
@@ -796,7 +795,7 @@ function projection_print(p::WidgetButtonToGraphicsCanvas, recursion, w::WidgetB
     # shadow-sm drop shadow.
     push!(elements, GraphicsRect(0, _sc(p.shadow_offset), button_width, button_height, 0x00, 0x00, 0x00, 0x14, corner_radius))
     _push_panel!(elements, 0, 0, button_width, button_height; fill=p.background_color,
-                 border=p.border_color, border_w=max(1, _sc(p.border_width)), radius=corner_radius)
+                 border=p.border.color, border_w=max(1, _sc(p.border.width)), radius=corner_radius)
     red, green, blue, alpha = _rgbai(p.label.color)
     push!(elements, GraphicsText(label, (button_width - text_width) ÷ 2, (button_height - text_height) ÷ 2,
                                  p.label.font, red, green, blue, alpha))
@@ -1979,23 +1978,23 @@ end
 
 # ── WidgetSeparator ─────────────────────────────────────────────────────────
 
-struct WidgetSeparatorToGraphicsCanvas <: Projection
-    theme::WidgetTheme
+@projection struct WidgetSeparatorToGraphicsCanvas <: Projection
+    stroke::StyleStroke    # color + width of the rule
 end
 
 function projection_print(p::WidgetSeparatorToGraphicsCanvas, recursion, w::WidgetSeparator, ctx)
     w.visible == false && return SimpleIoMap(p, w, _empty_canvas())
-    pos = w.position::Point2D
-    L = _sc(Int(w.length))
-    r, g, b, a = _rgba(p.theme.border)
-    thick = max(1, _sc(p.theme.border_width))
-    elems = Any[]
+    position = w.position::Point2D
+    rule_length = _sc(Int(w.length))
+    red, green, blue, alpha = _rgba(p.stroke.color)
+    thickness = max(1, _sc(p.stroke.width))
+    elements = Any[]
     if w.orientation === :vertical
-        push!(elems, GraphicsLine(0, 0, 0, L, r, g, b, a; width=thick))
-        SimpleIoMap(p, w, _make_canvas(_origin(pos)..., thick, L, elems))
+        push!(elements, GraphicsLine(0, 0, 0, rule_length, red, green, blue, alpha; width=thickness))
+        SimpleIoMap(p, w, _make_canvas(_origin(position)..., thickness, rule_length, elements))
     else
-        push!(elems, GraphicsLine(0, 0, L, 0, r, g, b, a; width=thick))
-        SimpleIoMap(p, w, _make_canvas(_origin(pos)..., L, thick, elems))
+        push!(elements, GraphicsLine(0, 0, rule_length, 0, red, green, blue, alpha; width=thickness))
+        SimpleIoMap(p, w, _make_canvas(_origin(position)..., rule_length, thickness, elements))
     end
 end
 @_printer_only WidgetSeparatorToGraphicsCanvas
@@ -2061,75 +2060,90 @@ end
 
 # ── WidgetSwitch ────────────────────────────────────────────────────────────
 
-struct WidgetSwitchToGraphicsCanvas <: Projection
-    theme::WidgetTheme
+@projection struct WidgetSwitchToGraphicsCanvas <: Projection
+    track_size::Point2D        # width × height of the track
+    knob_padding::Int          # inset of the knob from the track edge
+    knob_color::StyleColor     # knob fill
+    knob_border::StyleStroke   # knob outline (color + width)
+    on_color::StyleColor       # track fill when checked
+    off_color::StyleColor      # track fill when unchecked
 end
 
 function projection_print(p::WidgetSwitchToGraphicsCanvas, recursion, w::WidgetSwitch, ctx)
     w.visible == false && return SimpleIoMap(p, w, _empty_canvas())
-    pos = w.position::Point2D
+    position = w.position::Point2D
     on  = w.checked === true
-    h, wd = _sc(p.theme.switch_h), _sc(p.theme.switch_w)
-    elems = Any[]
-    track = on ? p.theme.primary : p.theme.track_off
-    tr, tg, tb, ta = _rgba(track)
-    push!(elems, GraphicsRect(0, 0, wd, h, tr, tg, tb, ta, h ÷ 2))
-    pad = _sc(p.theme.switch_pad)
-    kr  = (h - 2pad) ÷ 2
-    kcx = on ? (wd - pad - kr) : (pad + kr)
-    kr1, kg1, kb1, ka1 = _rgbai(color_white)
-    push!(elems, GraphicsCircle(kcx, h ÷ 2, kr, kr1, kg1, kb1, ka1;
-                                border_width=max(1, _sc(p.theme.border_width)), border_color=_rgbai(p.theme.border)))
-    SimpleIoMap(p, w, _make_canvas(_origin(pos)..., wd, h, elems))
+    track_width  = _sc(Int(p.track_size.x[]))
+    track_height = _sc(Int(p.track_size.y[]))
+    elements = Any[]
+    track_red, track_green, track_blue, track_alpha = _rgba(on ? p.on_color : p.off_color)
+    push!(elements, GraphicsRect(0, 0, track_width, track_height, track_red, track_green, track_blue, track_alpha, track_height ÷ 2))
+    knob_padding = _sc(p.knob_padding)
+    knob_radius  = (track_height - 2knob_padding) ÷ 2
+    knob_center_x = on ? (track_width - knob_padding - knob_radius) : (knob_padding + knob_radius)
+    knob_red, knob_green, knob_blue, knob_alpha = _rgbai(p.knob_color)
+    push!(elements, GraphicsCircle(knob_center_x, track_height ÷ 2, knob_radius, knob_red, knob_green, knob_blue, knob_alpha;
+                                   border_width=max(1, _sc(p.knob_border.width)), border_color=_rgbai(p.knob_border.color)))
+    SimpleIoMap(p, w, _make_canvas(_origin(position)..., track_width, track_height, elements))
 end
 @_printer_only WidgetSwitchToGraphicsCanvas
 
 # ── WidgetProgress ──────────────────────────────────────────────────────────
 
-struct WidgetProgressToGraphicsCanvas <: Projection
-    theme::WidgetTheme
+@projection struct WidgetProgressToGraphicsCanvas <: Projection
+    bar_height::Int
+    track_color::StyleColor    # unfilled track
+    fill_color::StyleColor     # filled portion
 end
 
 function projection_print(p::WidgetProgressToGraphicsCanvas, recursion, w::WidgetProgress, ctx)
     w.visible == false && return SimpleIoMap(p, w, _empty_canvas())
-    pos = w.position::Point2D
+    position = w.position::Point2D
     value = clamp(Float64(w.value), 0.0, 1.0)
-    W, H = _resolve_width(ctx, _sc(Int(w.width))), _sc(p.theme.progress_h)
-    elems = Any[]
-    tr, tg, tb, ta = _rgba(p.theme.muted)
-    push!(elems, GraphicsRect(0, 0, W, H, tr, tg, tb, ta, H ÷ 2))
-    fw = round(Int, value * W)
-    if fw > 0
-        pr, pg, pb, pa = _rgba(p.theme.primary)
-        push!(elems, GraphicsRect(0, 0, fw, H, pr, pg, pb, pa, H ÷ 2))
+    bar_width  = _resolve_width(ctx, _sc(Int(w.width)))
+    bar_height = _sc(p.bar_height)
+    elements = Any[]
+    track_red, track_green, track_blue, track_alpha = _rgba(p.track_color)
+    push!(elements, GraphicsRect(0, 0, bar_width, bar_height, track_red, track_green, track_blue, track_alpha, bar_height ÷ 2))
+    filled_width = round(Int, value * bar_width)
+    if filled_width > 0
+        fill_red, fill_green, fill_blue, fill_alpha = _rgba(p.fill_color)
+        push!(elements, GraphicsRect(0, 0, filled_width, bar_height, fill_red, fill_green, fill_blue, fill_alpha, bar_height ÷ 2))
     end
-    SimpleIoMap(p, w, _make_canvas(_origin(pos)..., W, H, elems))
+    SimpleIoMap(p, w, _make_canvas(_origin(position)..., bar_width, bar_height, elements))
 end
 @_printer_only WidgetProgressToGraphicsCanvas
 
 # ── WidgetSlider ────────────────────────────────────────────────────────────
 
-struct WidgetSliderToGraphicsCanvas <: Projection
-    theme::WidgetTheme
+@projection struct WidgetSliderToGraphicsCanvas <: Projection
+    height::Int                 # control height
+    track_thickness::Int
+    knob_radius::Int
+    knob_color::StyleColor      # knob fill
+    knob_border::StyleStroke    # knob outline (color + width)
+    track_color::StyleColor     # unfilled track
+    fill_color::StyleColor      # filled portion
 end
 
 function projection_print(p::WidgetSliderToGraphicsCanvas, recursion, w::WidgetSlider, ctx)
     w.visible == false && return SimpleIoMap(p, w, _empty_canvas())
-    pos = w.position::Point2D
+    position = w.position::Point2D
     value = clamp(Float64(w.value), 0.0, 1.0)
-    W, H = _resolve_width(ctx, _sc(Int(w.width))), _sc(p.theme.slider_h)
-    cy = H ÷ 2
-    tk = _sc(p.theme.track)
-    fw = round(Int, value * W)
-    elems = Any[]
-    tr, tg, tb, ta = _rgba(p.theme.muted)
-    push!(elems, GraphicsRect(0, cy - tk ÷ 2, W, tk, tr, tg, tb, ta, tk ÷ 2))
-    pr, pg, pb, pa = _rgba(p.theme.primary)
-    fw > 0 && push!(elems, GraphicsRect(0, cy - tk ÷ 2, fw, tk, pr, pg, pb, pa, tk ÷ 2))
-    kr1, kg1, kb1, ka1 = _rgbai(color_white)
-    push!(elems, GraphicsCircle(fw, cy, _sc(p.theme.knob_radius), kr1, kg1, kb1, ka1;
-                                border_width=max(1, _sc(p.theme.stroke)), border_color=_rgbai(p.theme.primary)))
-    SimpleIoMap(p, w, _make_canvas(_origin(pos)..., W, H, elems))
+    slider_width  = _resolve_width(ctx, _sc(Int(w.width)))
+    slider_height = _sc(p.height)
+    center_y = slider_height ÷ 2
+    track_thickness = _sc(p.track_thickness)
+    filled_width = round(Int, value * slider_width)
+    elements = Any[]
+    track_red, track_green, track_blue, track_alpha = _rgba(p.track_color)
+    push!(elements, GraphicsRect(0, center_y - track_thickness ÷ 2, slider_width, track_thickness, track_red, track_green, track_blue, track_alpha, track_thickness ÷ 2))
+    fill_red, fill_green, fill_blue, fill_alpha = _rgba(p.fill_color)
+    filled_width > 0 && push!(elements, GraphicsRect(0, center_y - track_thickness ÷ 2, filled_width, track_thickness, fill_red, fill_green, fill_blue, fill_alpha, track_thickness ÷ 2))
+    knob_red, knob_green, knob_blue, knob_alpha = _rgbai(p.knob_color)
+    push!(elements, GraphicsCircle(filled_width, center_y, _sc(p.knob_radius), knob_red, knob_green, knob_blue, knob_alpha;
+                                   border_width=max(1, _sc(p.knob_border.width)), border_color=_rgbai(p.knob_border.color)))
+    SimpleIoMap(p, w, _make_canvas(_origin(position)..., slider_width, slider_height, elements))
 end
 @_printer_only WidgetSliderToGraphicsCanvas
 
@@ -2175,25 +2189,24 @@ end
 
 # ── WidgetAvatar ────────────────────────────────────────────────────────────
 
-struct WidgetAvatarToGraphicsCanvas <: Projection
-    font::StyleFont
+@projection struct WidgetAvatarToGraphicsCanvas <: Projection
     measure::Function
-    theme::WidgetTheme
+    initials::StyleText          # font + color of the initials
+    background_color::StyleColor  # circle fill
 end
 
 function projection_print(p::WidgetAvatarToGraphicsCanvas, recursion, w::WidgetAvatar, ctx)
     w.visible == false && return SimpleIoMap(p, w, _empty_canvas())
-    pos = w.position::Point2D
-    th  = p.theme
-    sz  = _sc(Int(w.size))
-    r   = sz ÷ 2
+    position = w.position::Point2D
+    size = _sc(Int(w.size))
+    radius = size ÷ 2
     initials = string(w.initials)
-    elems = Any[]
-    push!(elems, GraphicsCircle(r, r, r, _rgbai(th.muted)...))
-    iw, ih = _text_size(p.measure, th.font, initials)
-    fr, fg, fb, fa = _rgbai(th.muted_foreground)
-    push!(elems, GraphicsText(initials, r - iw ÷ 2, r - ih ÷ 2, th.font, fr, fg, fb, fa))
-    SimpleIoMap(p, w, _make_canvas(_origin(pos)..., sz, sz, elems))
+    elements = Any[]
+    push!(elements, GraphicsCircle(radius, radius, radius, _rgbai(p.background_color)...))
+    initials_width, initials_height = _text_size(p.measure, p.initials.font, initials)
+    red, green, blue, alpha = _rgbai(p.initials.color)
+    push!(elements, GraphicsText(initials, radius - initials_width ÷ 2, radius - initials_height ÷ 2, p.initials.font, red, green, blue, alpha))
+    SimpleIoMap(p, w, _make_canvas(_origin(position)..., size, size, elements))
 end
 @_printer_only WidgetAvatarToGraphicsCanvas
 
@@ -2239,17 +2252,19 @@ end
 
 # ── WidgetSkeleton ──────────────────────────────────────────────────────────
 
-struct WidgetSkeletonToGraphicsCanvas <: Projection
-    theme::WidgetTheme
+@projection struct WidgetSkeletonToGraphicsCanvas <: Projection
+    fill_color::StyleColor
+    corner_radius::Int
 end
 
 function projection_print(p::WidgetSkeletonToGraphicsCanvas, recursion, w::WidgetSkeleton, ctx)
     w.visible == false && return SimpleIoMap(p, w, _empty_canvas())
-    pos = w.position::Point2D
-    W, H = _resolve_width(ctx, _sc(Int(w.width))), _sc(Int(w.height))
-    r, g, b, a = _rgba(p.theme.muted)
-    elems = Any[GraphicsRect(0, 0, W, H, r, g, b, a, _sc(p.theme.skeleton_radius))]
-    SimpleIoMap(p, w, _make_canvas(_origin(pos)..., W, H, elems))
+    position = w.position::Point2D
+    block_width  = _resolve_width(ctx, _sc(Int(w.width)))
+    block_height = _sc(Int(w.height))
+    red, green, blue, alpha = _rgba(p.fill_color)
+    elements = Any[GraphicsRect(0, 0, block_width, block_height, red, green, blue, alpha, _sc(p.corner_radius))]
+    SimpleIoMap(p, w, _make_canvas(_origin(position)..., block_width, block_height, elements))
 end
 @_printer_only WidgetSkeletonToGraphicsCanvas
 
@@ -2572,12 +2587,14 @@ function WidgetToGraphics(font::StyleFont; measure::Function,
         WidgetLabel      => WidgetLabelToGraphicsCanvas(measurer, theme.body_text),
         WidgetText       => WidgetTextToGraphicsCanvas(font, measure, theme),
         WidgetCheckbox   => WidgetCheckboxToGraphicsCanvas(
-            theme.checkbox_size, theme.radius ÷ 2, theme.stroke,
-            theme.primary, theme.primary_foreground, theme.background, theme.input),
+            theme.checkbox_size, theme.radius ÷ 2,
+            theme.primary, StyleStroke(theme.primary_foreground, theme.stroke),
+            theme.background, StyleStroke(theme.input, theme.stroke)),
         WidgetButton     => WidgetButtonToGraphicsCanvas(
-            measurer, theme.label_text, theme.background, theme.border,
+            measurer, theme.label_text, theme.background,
+            StyleStroke(theme.border, theme.border_width),
             Inset(theme.pad_y, theme.pad_y, theme.pad_x, theme.pad_x),
-            theme.radius, theme.border_width, theme.shadow_offset),
+            theme.radius, theme.shadow_offset),
         WidgetTooltip    => WidgetTooltipToGraphicsCanvas(font, measure, theme),
         WidgetMenu       => WidgetMenuToGraphicsCanvas(font, measure, theme),
         WidgetMenuItem   => WidgetMenuItemToGraphicsCanvas(font, measure, theme),
@@ -2590,15 +2607,21 @@ function WidgetToGraphics(font::StyleFont; measure::Function,
         WidgetToolbar    => WidgetToolbarToGraphicsCanvas(font, measure, theme),
         WidgetScrollBar  => WidgetScrollBarToGraphicsCanvas(theme),
         WidgetBadge      => WidgetBadgeToGraphicsCanvas(font, measure, theme),
-        WidgetSeparator  => WidgetSeparatorToGraphicsCanvas(theme),
+        WidgetSeparator  => WidgetSeparatorToGraphicsCanvas(StyleStroke(theme.border, theme.border_width)),
         WidgetCard       => WidgetCardToGraphicsCanvas(font, measure, theme),
-        WidgetSwitch     => WidgetSwitchToGraphicsCanvas(theme),
-        WidgetProgress   => WidgetProgressToGraphicsCanvas(theme),
-        WidgetSlider     => WidgetSliderToGraphicsCanvas(theme),
+        WidgetSwitch     => WidgetSwitchToGraphicsCanvas(
+            Point2D(theme.switch_w, theme.switch_h), theme.switch_pad,
+            color_white, StyleStroke(theme.border, theme.border_width),
+            theme.primary, theme.track_off),
+        WidgetProgress   => WidgetProgressToGraphicsCanvas(theme.progress_h, theme.muted, theme.primary),
+        WidgetSlider     => WidgetSliderToGraphicsCanvas(
+            theme.slider_h, theme.track, theme.knob_radius,
+            color_white, StyleStroke(theme.primary, theme.stroke),
+            theme.muted, theme.primary),
         WidgetRadioGroup => WidgetRadioGroupToGraphicsCanvas(font, measure, theme),
-        WidgetAvatar     => WidgetAvatarToGraphicsCanvas(font, measure, theme),
+        WidgetAvatar     => WidgetAvatarToGraphicsCanvas(measurer, StyleText(theme.font, theme.muted_foreground), theme.muted),
         WidgetAlert      => WidgetAlertToGraphicsCanvas(font, measure, theme),
-        WidgetSkeleton   => WidgetSkeletonToGraphicsCanvas(theme),
+        WidgetSkeleton   => WidgetSkeletonToGraphicsCanvas(theme.muted, theme.skeleton_radius),
         WidgetToggle      => WidgetToggleToGraphicsCanvas(font, measure, theme),
         WidgetToggleGroup => WidgetToggleGroupToGraphicsCanvas(font, measure, theme),
         WidgetSelect      => WidgetSelectToGraphicsCanvas(font, measure, theme),
