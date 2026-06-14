@@ -481,10 +481,13 @@ duplicate-constant problem from §7E).
 
 ## 9. Step 3 implementation plan — edit-transparent layouts (FOR REVIEW)
 
-> **Status:** §8 (hybrid theme split) is **done and committed** (`db1c41a`).
-> This section is the concrete plan for the original §7 **step 3** (manual
-> stacking → layout documents), revised per the decisions below. **Not yet
-> implemented — written for review.**
+> **Status:** §8 (hybrid theme split) is done (`db1c41a`). Step 3 below is now
+> **implemented and committed** in three steps: edit-transparent layout readers
+> + shared re-rooting helper (`47af99e`), `ConversationToWidget` →
+> `VerticalLayout` (`0ee487d`), and `ObjectToWidget` → `GridLayout` (`a2a2709`).
+> Verified: layout/allocator/object-to-widget unit tests, the AssistantMvp
+> reactive-thunk test, and an end-to-end keypress roundtrip writing back to the
+> bound field cell. **Step 4 (§7D, fold fallback sizes) remains.**
 
 ### 9.0 Decisions taken (2026-06-14)
 
