@@ -63,11 +63,14 @@ end
 """
     sdl_display_size(; display::Integer=0) -> (width, height)
 
-Return the usable size in pixels of the given display (default 0). "Usable"
-means with OS-reserved areas like the taskbar / menu bar subtracted —
-the right thing for picking a default window size. Falls back to
-`(1280, 720)` if SDL cannot answer (no display, headless run, etc.).
-The video subsystem is initialized lazily; safe to call before `init!`.
+Return the usable size of the given display (default 0) in **logical** pixels —
+the coordinate space window sizes are authored in. "Usable" means with
+OS-reserved areas like the taskbar / menu bar subtracted; the right thing for
+picking a default window size. The monitor's device-pixel size is divided by
+[`_DISPLAY_SCALE`](@ref) so that a window sized to it fills exactly one monitor
+once the backend scales it back to device pixels. Falls back to `(1280, 720)`
+if SDL cannot answer (no display, headless run, etc.). The video subsystem and
+the display scale are initialized lazily; safe to call before `init!`.
 
 On X11 SDL sometimes folds a multi-monitor screen into a single "display"
 whose bounds span every monitor (e.g. 7290×4032 across two), which would
@@ -77,13 +80,16 @@ instead so the default fills one monitor, not the span.
 """
 function sdl_display_size(; display::Integer=0)
     SDL_Init(SDL_INIT_VIDEO) == 0 || return (1280, 720)
+    # Ensure the scale is known before converting device → logical, since this
+    # may run before `init!` (early detection is window-free: env + Xft.dpi).
+    _DISPLAY_SCALE[] == 1.0 && _detect_display_scale!()
 
     # Detect the SDL-collapses-multiple-monitors case and prefer the real
     # primary-monitor size. Only when SDL reports a single display (so we do
     # not override a setup where SDL already enumerates monitors correctly).
     if display == 0 && SDL_GetNumVideoDisplays() <= 1
         mon = _x11_primary_monitor_size(; require_multi=true)
-        mon === nothing || return mon
+        mon === nothing || return (_to_logical(mon[1]), _to_logical(mon[2]))
     end
 
     rect = Ref(SDL_Rect(Int32(0), Int32(0), Int32(0), Int32(0)))
@@ -91,7 +97,7 @@ function sdl_display_size(; display::Integer=0)
     if rc != 0 || rect[].w <= 0 || rect[].h <= 0
         return (1280, 720)
     end
-    (Int(rect[].w), Int(rect[].h))
+    (_to_logical(Int(rect[].w)), _to_logical(Int(rect[].h)))
 end
 
 # ════════════════════════════════════════════════════════════════════════
