@@ -343,36 +343,39 @@ end
     shadow_offset::Int
 end
 
-struct WidgetTooltipToGraphicsCanvas <: Projection
-    font::StyleFont
+@projection struct WidgetTooltipToGraphicsCanvas <: Projection
     measure::Function
-    theme::WidgetTheme
+    text::StyleText             # font + popover foreground
+    surface_color::StyleColor    # popover fill
+    border::StyleStroke
+    corner_radius::Int
+    default_padding::Inset       # fallback padding when the document specifies none
 end
 
-struct WidgetMenuToGraphicsCanvas <: Projection
-    font::StyleFont
+@projection struct WidgetMenuToGraphicsCanvas <: Projection
     measure::Function
-    theme::WidgetTheme
+    font::StyleFont             # used to measure the per-item row height
 end
 
-struct WidgetMenuItemToGraphicsCanvas <: Projection
-    font::StyleFont
+@projection struct WidgetMenuItemToGraphicsCanvas <: Projection
     measure::Function
-    theme::WidgetTheme
+    text::StyleText             # font + foreground
 end
 
 struct WidgetCompositeToGraphicsCanvas <: Projection end
 
-struct WidgetShellToGraphicsCanvas <: Projection
-    font::StyleFont
+@projection struct WidgetShellToGraphicsCanvas <: Projection
     measure::Function
-    theme::WidgetTheme
+    font::StyleFont             # measures the menu/toolbar band heights
+    background_color::StyleColor
+    band_gap::Int               # gap below the toolbar band
 end
 
-struct WidgetTitlePaneToGraphicsCanvas <: Projection
-    font::StyleFont
+@projection struct WidgetTitlePaneToGraphicsCanvas <: Projection
     measure::Function
-    theme::WidgetTheme
+    title_text::StyleText        # bold title
+    content_text::StyleText      # string-content body
+    title_gap::Int
 end
 
 struct WidgetSplitPaneToGraphicsCanvas <: Projection
@@ -391,14 +394,16 @@ struct WidgetScrollPaneToGraphicsCanvas <: Projection
     theme::WidgetTheme
 end
 
-struct WidgetToolbarToGraphicsCanvas <: Projection
-    font::StyleFont
+@projection struct WidgetToolbarToGraphicsCanvas <: Projection
     measure::Function
-    theme::WidgetTheme
+    font::StyleFont          # measures each item's advance
+    item_gap::Int
 end
 
-struct WidgetScrollBarToGraphicsCanvas <: Projection
-    theme::WidgetTheme
+@projection struct WidgetScrollBarToGraphicsCanvas <: Projection
+    track_color::StyleColor       # rail fill
+    thumb_color::StyleColor       # thumb fill
+    minimum_thumb_length::Int
 end
 
 # ── IoMap for WidgetScrollPane ─────────────────────────────────────────────
@@ -823,8 +828,10 @@ function projection_print(p::WidgetTooltipToGraphicsCanvas, recursion, w::Widget
     tx, ty = _inset_total(w)
     # Use sensible default padding when the document specifies none, so the box
     # never hugs the text.
-    cox = max(cox, _sc(p.theme.pad_x)); coy = max(coy, _sc(p.theme.pad_y))
-    txp = max(tx, 2 * _sc(p.theme.pad_x)); typ = max(ty, 2 * _sc(p.theme.pad_y))
+    default_padding_x = _sc(Int(p.default_padding.left[]))
+    default_padding_y = _sc(Int(p.default_padding.top[]))
+    cox = max(cox, default_padding_x); coy = max(coy, default_padding_y)
+    txp = max(tx, 2default_padding_x); typ = max(ty, 2default_padding_y)
     child_iomaps = Any[]
     content = w.content
     elems = Any[]
@@ -832,8 +839,8 @@ function projection_print(p::WidgetTooltipToGraphicsCanvas, recursion, w::Widget
     cw, ch = 0, 0
     body = Any[]
     if content isa AbstractString
-        cw, ch = _text_size(p.measure, p.font, content)
-        _push_text!(body, p.font, content, cox, coy, _rgba(p.theme.popover_foreground))
+        cw, ch = _text_size(p.measure, p.text.font, content)
+        _push_text!(body, p.text.font, content, cox, coy, _rgba(p.text.color))
     elseif content isa WidgetDocument
         cim = projection_print(recursion, recursion, content, ctx)
         inner = cim.output
@@ -843,8 +850,8 @@ function projection_print(p::WidgetTooltipToGraphicsCanvas, recursion, w::Widget
     end
     vw = cw + txp
     vh = ch + typ
-    _push_panel!(elems, 0, 0, vw, vh; fill=p.theme.popover,
-                 border=p.theme.border, border_w=max(1, _sc(p.theme.border_width)), radius=_sc(p.theme.radius))
+    _push_panel!(elems, 0, 0, vw, vh; fill=p.surface_color,
+                 border=p.border.color, border_w=max(1, _sc(p.border.width)), radius=_sc(p.corner_radius))
     append!(elems, body)
     ChildrenIoMap(p, w, _make_canvas(_origin(pos)..., vw, vh, elems), Cell(child_iomaps))
 end
@@ -877,8 +884,8 @@ function projection_print(p::WidgetMenuItemToGraphicsCanvas, recursion, w::Widge
         push!(elems, _make_canvas(cox, coy, Any[cim.output]))
     else
         text = string(content)
-        cw, ch = _text_size(p.measure, p.font, text)
-        _push_text!(elems, p.font, text, cox, coy, _rgba(p.theme.foreground))
+        cw, ch = _text_size(p.measure, p.text.font, text)
+        _push_text!(elems, p.text.font, text, cox, coy, _rgba(p.text.color))
     end
     ChildrenIoMap(p, w, _make_canvas(0, 0, elems), Cell(child_iomaps))
 end
@@ -1039,7 +1046,7 @@ function projection_print(p::WidgetShellToGraphicsCanvas, recursion, w::WidgetSh
     child_iomaps = Any[]
     sz  = w.size
     if sz isa Point2D
-        r, g, b, a = _rgba(p.theme.background)
+        r, g, b, a = _rgba(p.background_color)
         push!(elems, GraphicsRect(cox, coy, Int(sz.x[]), Int(sz.y[]), r, g, b, a))
     end
     content_y = coy
@@ -1057,7 +1064,7 @@ function projection_print(p::WidgetShellToGraphicsCanvas, recursion, w::WidgetSh
         push!(child_iomaps, (cox, content_y, cim))
         push!(elems, _make_canvas(cox, content_y, Any[cim.output]))
         _, toolbar_h = p.measure("M", p.font)
-        content_y += toolbar_h + p.theme.gap
+        content_y += toolbar_h + p.band_gap
     end
     content = w.content
     if content isa WidgetDocument
@@ -1146,18 +1153,18 @@ function projection_print(p::WidgetTitlePaneToGraphicsCanvas, recursion, w::Widg
     cox, coy = _content_offset(w)
     elems = Any[]
     child_iomaps = Any[]
-    title_text = string(w.title)
-    tw, th = _text_size(p.measure, p.theme.font_bold, title_text)
-    # Card-like: bold title in foreground, body in card_foreground.
-    _push_text!(elems, p.theme.font_bold, title_text, cox, coy, _rgba(p.theme.foreground))
-    content_y = coy + th + _sc(p.theme.title_gap)
+    title = string(w.title)
+    tw, th = _text_size(p.measure, p.title_text.font, title)
+    # Card-like: bold title, body in the content style.
+    _push_text!(elems, p.title_text.font, title, cox, coy, _rgba(p.title_text.color))
+    content_y = coy + th + _sc(p.title_gap)
     content = w.content
     if content isa WidgetDocument
         cim = projection_print(recursion, recursion, content, ctx)
         push!(child_iomaps, (cox, content_y, cim))
         push!(elems, _make_canvas(cox, content_y, Any[cim.output]))
     elseif content isa AbstractString
-        _push_text!(elems, p.font, content, cox, content_y, _rgba(p.theme.card_foreground))
+        _push_text!(elems, p.content_text.font, content, cox, content_y, _rgba(p.content_text.color))
     end
     ChildrenIoMap(p, w, _make_canvas(0, 0, elems), Cell(child_iomaps))
 end
@@ -1839,7 +1846,7 @@ function projection_print(p::WidgetToolbarToGraphicsCanvas, recursion, w::Widget
     child_iomaps = Any[]
     elems = Any[]
     x_cursor = cox
-    item_gap = p.theme.gap
+    item_gap = p.item_gap
     for item in w.elements
         item isa WidgetDocument || continue
         cim = projection_print(recursion, recursion, item, ctx)
@@ -1881,18 +1888,18 @@ function projection_print(p::WidgetScrollBarToGraphicsCanvas, _, w::WidgetScroll
     cw = max(1, bw - tx)
     ch = max(1, bh - ty)
     elems = Any[]
-    tr, tg, tb, ta = _rgba(p.theme.muted)
+    tr, tg, tb, ta = _rgba(p.track_color)
     trad = min(cw, ch) ÷ 2
     push!(elems, GraphicsRect(cox, coy, cw, ch, tr, tg, tb, ta, trad))
     value    = clamp(Float64(w.value),     0.0, 1.0)
     thumb_sz = clamp(Float64(w.thumb_size), 0.05, 1.0)
-    hr, hg, hb, ha = _rgba(p.theme.border)
+    hr, hg, hb, ha = _rgba(p.thumb_color)
     if w.orientation === :horizontal
-        tw = max(p.theme.thumb_min, Int(round(thumb_sz * cw)))
+        tw = max(p.minimum_thumb_length, Int(round(thumb_sz * cw)))
         tx_pos = cox + Int(round(value * (cw - tw)))
         push!(elems, GraphicsRect(tx_pos, coy, tw, ch, hr, hg, hb, ha, ch ÷ 2))
     else
-        th = max(p.theme.thumb_min, Int(round(thumb_sz * ch)))
+        th = max(p.minimum_thumb_length, Int(round(thumb_sz * ch)))
         ty_pos = coy + Int(round(value * (ch - th)))
         push!(elems, GraphicsRect(cox, ty_pos, cw, th, hr, hg, hb, ha, cw ÷ 2))
     end
@@ -1920,10 +1927,10 @@ function projection_read(p::WidgetScrollBarToGraphicsCanvas, iomap::SimpleIoMap,
     ch = max(1, bh - ty)
     thumb_sz = clamp(Float64(w.thumb_size), 0.05, 1.0)
     if w.orientation === :horizontal
-        tw = max(p.theme.thumb_min, Int(round(thumb_sz * cw)))
+        tw = max(p.minimum_thumb_length, Int(round(thumb_sz * cw)))
         new_value = clamp(Float64(evt.x - cox - div(tw, 2)) / max(1, cw - tw), 0.0, 1.0)
     else
-        th = max(p.theme.thumb_min, Int(round(thumb_sz * ch)))
+        th = max(p.minimum_thumb_length, Int(round(thumb_sz * ch)))
         new_value = clamp(Float64(evt.y - coy - div(th, 2)) / max(1, ch - th), 0.0, 1.0)
     end
     SetScrollBarValueOperation(w, new_value)
@@ -2667,17 +2674,20 @@ function WidgetToGraphics(font::StyleFont; measure::Function,
             StyleStroke(theme.border, theme.border_width),
             Inset(theme.pad_y, theme.pad_y, theme.pad_x, theme.pad_x),
             theme.radius, theme.shadow_offset),
-        WidgetTooltip    => WidgetTooltipToGraphicsCanvas(font, measure, theme),
-        WidgetMenu       => WidgetMenuToGraphicsCanvas(font, measure, theme),
-        WidgetMenuItem   => WidgetMenuItemToGraphicsCanvas(font, measure, theme),
+        WidgetTooltip    => WidgetTooltipToGraphicsCanvas(measurer, StyleText(theme.font, theme.popover_foreground),
+            theme.popover, StyleStroke(theme.border, theme.border_width), theme.radius,
+            Inset(theme.pad_y, theme.pad_y, theme.pad_x, theme.pad_x)),
+        WidgetMenu       => WidgetMenuToGraphicsCanvas(measurer, theme.font),
+        WidgetMenuItem   => WidgetMenuItemToGraphicsCanvas(measurer, theme.body_text),
         WidgetComposite  => WidgetCompositeToGraphicsCanvas(),
-        WidgetShell      => WidgetShellToGraphicsCanvas(font, measure, theme),
-        WidgetTitlePane  => WidgetTitlePaneToGraphicsCanvas(font, measure, theme),
+        WidgetShell      => WidgetShellToGraphicsCanvas(measurer, theme.font, theme.background, theme.gap),
+        WidgetTitlePane  => WidgetTitlePaneToGraphicsCanvas(measurer,
+            StyleText(theme.font_bold, theme.foreground), StyleText(theme.font, theme.card_foreground), theme.title_gap),
         WidgetSplitPane  => WidgetSplitPaneToGraphicsCanvas(theme),
         WidgetTabbedPane => WidgetTabbedPaneToGraphicsCanvas(font, measure, theme),
         WidgetScrollPane => WidgetScrollPaneToGraphicsCanvas(font, measure, theme),
-        WidgetToolbar    => WidgetToolbarToGraphicsCanvas(font, measure, theme),
-        WidgetScrollBar  => WidgetScrollBarToGraphicsCanvas(theme),
+        WidgetToolbar    => WidgetToolbarToGraphicsCanvas(measurer, theme.font, theme.gap),
+        WidgetScrollBar  => WidgetScrollBarToGraphicsCanvas(theme.muted, theme.border, theme.thumb_min),
         WidgetBadge      => WidgetBadgeToGraphicsCanvas(measurer, theme.font_small,
             Inset(theme.badge_pad_y, theme.badge_pad_y, theme.badge_pad_x, theme.badge_pad_x), theme.border_width,
             theme.primary, theme.primary_foreground,
