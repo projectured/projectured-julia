@@ -25,7 +25,6 @@ import ..PreservingProjectionModule: PreservingProjection
 import ..ReferenceModule: ConcreteReferencePath, ElementReference, PositionReference, RangeReference, PointReference
 import ..OperationModule: ReplaceSelectionOperation
 import ..MouseModule: MousePress
-import ..FontModule: font_scaled_size
 export GraphicsCanvasToGraphicsImage, GraphicsCaching
 
 # ── Predicates ──────────────────────────────────────────────────────────────
@@ -68,7 +67,7 @@ function _compute_bounds(canvas::GraphicsCanvas)
     min_x, min_y, max_x, max_y = typemax(Int), typemax(Int), 0, 0
     for elem in canvas.elements
         if elem isa GraphicsText
-            x, y, fs = Int(elem.x), Int(elem.y), font_scaled_size(elem.font.size)
+            x, y, fs = Int(elem.x), Int(elem.y), elem.font.size
             min_x = min(min_x, x)
             min_y = min(min_y, y)
             max_x = max(max_x, x + 200)  # approximate width
@@ -148,7 +147,7 @@ function projection_read(::GraphicsCanvasToGraphicsImage, iomap::SimpleIoMap, ev
     best_x  = -1
     for (i, elem) in enumerate(elems)
         elem isa GraphicsText || continue
-        x, y, fs = Int(elem.x), Int(elem.y), font_scaled_size(elem.font.size)
+        x, y, fs = Int(elem.x), Int(elem.y), elem.font.size
         evt.y >= y && evt.y < y + fs || continue
         x <= evt.x && x > best_x || continue
         best_x = x

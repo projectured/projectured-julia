@@ -12,7 +12,7 @@ import ..DeviceModule: Device, read_from_devices, write_to_devices, write_to_dev
 import ..GraphicsModule: GraphicsCanvas, GraphicsText, GraphicsRect, GraphicsLine, GraphicsCircle, GraphicsViewport, GraphicsImage,
                          GraphicsFence, LayoutDirection, layout_none, layout_horizontal, layout_vertical
 import ..CollectionModule: ListNode
-import ..FontModule: StyleFont, font_scaled_size, _FONT_SCALE
+import ..FontModule: StyleFont, font_scaled_size, _DISPLAY_SCALE
 import ..ScreenModule: Screen, QuitEvent
 import ..ScreenDocumentModule: ScreenDocument, WindowDocument, EventEnvelope, WindowCloseRequest, WindowResizeEvent
 import ..ModifiersModule: Modifiers
@@ -323,8 +323,9 @@ function _open_native_window!(w::WindowDocument)
     px = w.x < 0 ? SDL_WINDOWPOS_CENTERED : Int32(w.x)
     py = w.y < 0 ? SDL_WINDOWPOS_CENTERED : Int32(w.y)
     flags = _window_flags(w.style)
+    # WindowDocument sizes are logical; the native window is device pixels.
     win = SDL_CreateWindow(w.title, px, py,
-        Int32(max(w.width, 1)), Int32(max(w.height, 1)), flags)
+        Int32(max(_to_device(w.width), 1)), Int32(max(_to_device(w.height), 1)), flags)
     @assert win != C_NULL "SDL window creation failed: $(unsafe_string(SDL_GetError()))"
 
     # Linear filtering so the supersampled target downsamples smoothly.
@@ -334,7 +335,7 @@ function _open_native_window!(w::WindowDocument)
     @assert renderer != C_NULL "SDL renderer creation failed: $(unsafe_string(SDL_GetError()))"
     SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND)
 
-    _update_font_scale!(win, renderer)
+    _update_display_scale!(win, renderer)
 
     sdl_id = UInt32(SDL_GetWindowID(win))
     SdlWindowResources(win, renderer, w.id, sdl_id, w.title,
@@ -350,29 +351,39 @@ function _window_supersample()
     s === nothing ? 2 : clamp(s, 1, 4)
 end
 
+# ── Logical ↔ device pixel conversion ──────────────────────────────────
+#
+# Layout, documents and events are all in *logical* pixels; the window's
+# backbuffer and the OS are in *device* pixels. These convert across the
+# `_DISPLAY_SCALE` boundary. `_to_device` sizes native windows / SSAA targets;
+# `_to_logical` maps incoming device-space input (mouse, resize) back to the
+# logical space everything else lives in.
+_to_device(px) = round(Int, px * _DISPLAY_SCALE[])
+_to_logical(px) = round(Int, px / _DISPLAY_SCALE[])
+
 # Detect the effective display scale and update the module-wide font scale.
 #
 # Two-phase detection:
 #
-#   _detect_font_scale!() — called from init!, before any window exists:
-#     1. PROJECTURED_FONT_SCALE env var — explicit override, always respected.
+#   _detect_display_scale!() — called from init!, before any window exists:
+#     1. PROJECTURED_DISPLAY_SCALE env var — explicit override, always respected.
 #     2. Xft.dpi from X resources — reliable on X11/XWayland (GNOME writes
 #        Xft.dpi = 96 × scale, e.g. 192 for 200%).
 #
-#   _update_font_scale!(win, renderer) — called when a window opens, only if
-#   the early detection left _FONT_SCALE at the default 1.0:
+#   _update_display_scale!(win, renderer) — called when a window opens, only if
+#   the early detection left _DISPLAY_SCALE at the default 1.0:
 #     3. SDL renderer-output / window-size ratio — macOS Retina, native Wayland.
 #     4. SDL_GetDisplayDPI / 96 — Windows fallback.
 #
-# Falls back to _FONT_SCALE = 1.0 (no scaling) if nothing fires.
-function _detect_font_scale!()
+# Falls back to _DISPLAY_SCALE = 1.0 (no scaling) if nothing fires.
+function _detect_display_scale!()
     # 1. Explicit override.
-    env_val = get(ENV, "PROJECTURED_FONT_SCALE", "")
+    env_val = get(ENV, "PROJECTURED_DISPLAY_SCALE", "")
     if !isempty(env_val)
         scale = tryparse(Float64, env_val)
         if scale !== nothing && scale > 0
-            _FONT_SCALE[] = scale
-            println("Font scale: $(_FONT_SCALE[]) (PROJECTURED_FONT_SCALE)")
+            _DISPLAY_SCALE[] = scale
+            println("Display scale: $(_DISPLAY_SCALE[]) (PROJECTURED_DISPLAY_SCALE)")
             return true
         end
     end
@@ -386,8 +397,8 @@ function _detect_font_scale!()
             if m !== nothing
                 xft_dpi = parse(Float64, m.captures[1])
                 if xft_dpi > 0
-                    _FONT_SCALE[] = xft_dpi / 96.0
-                    println("Font scale: $(_FONT_SCALE[]) (Xft.dpi = $xft_dpi)")
+                    _DISPLAY_SCALE[] = xft_dpi / 96.0
+                    println("Display scale: $(_DISPLAY_SCALE[]) (Xft.dpi = $xft_dpi)")
                     return true
                 end
             end
@@ -399,9 +410,9 @@ function _detect_font_scale!()
     return false
 end
 
-function _update_font_scale!(win::Ptr{SDL_Window}, renderer::Ptr{SDL_Renderer})
+function _update_display_scale!(win::Ptr{SDL_Window}, renderer::Ptr{SDL_Renderer})
     # Skip if already resolved during init!.
-    _FONT_SCALE[] != 1.0 && return
+    _DISPLAY_SCALE[] != 1.0 && return
 
     # SDL renderer output size vs logical window size.
     dw = Ref{Cint}(0); dh = Ref{Cint}(0)
@@ -409,8 +420,8 @@ function _update_font_scale!(win::Ptr{SDL_Window}, renderer::Ptr{SDL_Renderer})
     SDL_GetRendererOutputSize(renderer, dw, dh)
     SDL_GetWindowSize(win, ww, wh)
     if ww[] > 0 && dw[] > ww[]
-        _FONT_SCALE[] = Float64(dw[]) / Float64(ww[])
-        println("Font scale: $(_FONT_SCALE[]) (SDL renderer ratio)")
+        _DISPLAY_SCALE[] = Float64(dw[]) / Float64(ww[])
+        println("Display scale: $(_DISPLAY_SCALE[]) (SDL renderer ratio)")
         return
     end
 
@@ -421,8 +432,8 @@ function _update_font_scale!(win::Ptr{SDL_Window}, renderer::Ptr{SDL_Renderer})
     hdpi = Ref{Cfloat}(0)
     vdpi = Ref{Cfloat}(0)
     if SDL_GetDisplayDPI(display_index, ddpi, hdpi, vdpi) == 0 && ddpi[] > 0
-        _FONT_SCALE[] = Float64(ddpi[]) / 96.0
-        println("Font scale: $(_FONT_SCALE[]) (SDL DPI = $(ddpi[]))")
+        _DISPLAY_SCALE[] = Float64(ddpi[]) / 96.0
+        println("Display scale: $(_DISPLAY_SCALE[]) (SDL DPI = $(ddpi[]))")
     end
 end
 
@@ -459,9 +470,13 @@ function _render_element!(renderer::Ptr{SDL_Renderer}, elem::GraphicsText, ox::I
     surface == C_NULL && return
     texture = SDL_CreateTextureFromSurface(renderer, surface)
 
+    # The glyph texture is rasterized at device size; the destination rect is in
+    # logical pixels (= device size ÷ scale). The renderer scale then maps it
+    # back to device pixels, so the texture lands 1:1 and stays crisp.
     w_ref, h_ref = Ref{Cint}(0), Ref{Cint}(0)
     SDL_QueryTexture(texture, C_NULL, C_NULL, w_ref, h_ref)
-    dest = Ref(SDL_Rect(elem.x + ox, elem.y + oy, w_ref[], h_ref[]))
+    dest = Ref(SDL_Rect(elem.x + ox, elem.y + oy,
+                        Int32(_to_logical(Int(w_ref[]))), Int32(_to_logical(Int(h_ref[])))))
     SDL_RenderCopy(renderer, texture, C_NULL, dest)
 
     SDL_DestroyTexture(texture)
@@ -734,10 +749,11 @@ _render_elem_y(elem) = hasproperty(elem, :y) ? Int(elem.y) : nothing
 
 # Clear and repaint one native window's canvas. Called by the
 # reconciler once per WindowDocument per frame.
-# Ensure the SSAA render target exists and matches `width*ss × height*ss`,
-# recreating it on size change. Returns true if a usable target is in place.
+# Ensure the SSAA render target exists and matches the device backbuffer size
+# times the supersample factor (`width*scale*ss × height*scale*ss`), recreating
+# it on size change. Returns true if a usable target is in place.
 function _ensure_ss_target!(res::SdlWindowResources)
-    tw, th = res.width * res.ss, res.height * res.ss
+    tw, th = _to_device(res.width) * res.ss, _to_device(res.height) * res.ss
     (tw <= 0 || th <= 0) && return false
     if res.target != C_NULL && (res.target_w != tw || res.target_h != th)
         SDL_DestroyTexture(res.target); res.target = C_NULL
@@ -753,11 +769,14 @@ end
 
 function _render_window!(res::SdlWindowResources, canvas::GraphicsCanvas)
     bg = res.bg
+    # The canvas is in logical pixels; the renderer scale maps it to device
+    # pixels. Supersampling (ss) composes with the display scale as one factor.
+    scale = Float32(_DISPLAY_SCALE[])
     if res.ss > 1 && _ensure_ss_target!(res)
         # Render the frame into an oversized offscreen target, then copy it down
         # to the window with linear filtering — supersampled anti-aliasing.
         SDL_SetRenderTarget(res.renderer, res.target)
-        SDL_RenderSetScale(res.renderer, Float32(res.ss), Float32(res.ss))
+        SDL_RenderSetScale(res.renderer, Float32(res.ss) * scale, Float32(res.ss) * scale)
         SDL_SetRenderDrawColor(res.renderer, bg[1], bg[2], bg[3], bg[4])
         SDL_RenderClear(res.renderer)
         _render_canvas!(res.renderer, canvas, 0, 0, res.width, res.height)
@@ -767,9 +786,11 @@ function _render_window!(res::SdlWindowResources, canvas::GraphicsCanvas)
         SDL_RenderPresent(res.renderer)
         return
     end
+    SDL_RenderSetScale(res.renderer, scale, scale)
     SDL_SetRenderDrawColor(res.renderer, bg[1], bg[2], bg[3], bg[4])
     SDL_RenderClear(res.renderer)
     _render_canvas!(res.renderer, canvas, 0, 0, res.width, res.height)
+    SDL_RenderSetScale(res.renderer, 1.0f0, 1.0f0)
     SDL_RenderPresent(res.renderer)
 end
 
@@ -780,16 +801,18 @@ end
 """
     measure_text(backend::SdlBackend, text::AbstractString, font::StyleFont) -> (Int, Int)
 
-Return `(pixel_width, pixel_height)` of `text` rendered in `font`, using SDL_ttf.
-Font handles are cached in the module-level [`_font_cache`](@ref).
+Return the `(width, height)` of `text` rendered in `font`, in **logical**
+pixels — the space all layout lives in. The glyphs are rasterized at device
+size (for crispness) and the device measurement is divided back by
+[`_DISPLAY_SCALE`](@ref). Font handles are cached in the module-level
+[`_font_cache`](@ref).
 """
 function measure_text(::SdlBackend, text::AbstractString, font::StyleFont)
-    size = font_scaled_size(font.size)
-    isempty(text) && return (0, size)
+    isempty(text) && return (0, font.size)
     cached_font = _get_font(font)
     w_ref, h_ref = Ref{Cint}(0), Ref{Cint}(0)
     TTF_SizeUTF8(cached_font, String(text), w_ref, h_ref)
-    return (Int(w_ref[]), Int(h_ref[]))
+    return (_to_logical(Int(w_ref[])), _to_logical(Int(h_ref[])))
 end
 
 # ── Standalone convenience function ──────────────────────────────────
@@ -963,7 +986,7 @@ function _bounds_elem!(elem, ox::Int, oy::Int, measure, minx, miny, maxx, maxy)
     if elem isa GraphicsText
         x, y = ox + Int(elem.x), oy + Int(elem.y)
         w, _ = measure(elem.text, elem.font)
-        h = font_scaled_size(elem.font.size)
+        h = elem.font.size
         _bounds_extend!(minx, miny, maxx, maxy, x, y, x + Int(w), y + h)
     elseif elem isa GraphicsRect
         x, y = ox + Int(elem.x), oy + Int(elem.y)
@@ -1130,7 +1153,7 @@ function init!(::SdlBackend)
     @assert SDL_Init(SDL_INIT_VIDEO) == 0 "SDL init failed: $(unsafe_string(SDL_GetError()))"
     @assert TTF_Init() == 0 "TTF init failed: $(unsafe_string(SDL_GetError()))"
     SDL_StartTextInput()   # enable SDL_TEXTINPUT events (explicit for portability)
-    _detect_font_scale!()
+    _detect_display_scale!()
 end
 
 function quit!(::SdlBackend)
@@ -1192,8 +1215,9 @@ function read_from_devices(backend::SdlBackend, devices)
             if sub == UInt8(14)  # SDL_WINDOWEVENT_CLOSE
                 return EventEnvelope(wid, WindowCloseRequest())
             elseif sub == UInt8(5)  # SDL_WINDOWEVENT_RESIZED (external/user only)
-                nw = Int(evt.window.data1)
-                nh = Int(evt.window.data2)
+                # SDL reports device pixels; the document works in logical pixels.
+                nw = _to_logical(Int(evt.window.data1))
+                nh = _to_logical(Int(evt.window.data2))
                 # Mark the resource as already at this size so the reconciler's
                 # _update_window_geometry! doesn't issue a redundant
                 # SDL_SetWindowSize back at the OS (which would fight the drag).
@@ -1229,7 +1253,7 @@ function read_from_devices(backend::SdlBackend, devices)
         elseif t == 0x00000401  # SDL_MOUSEBUTTONDOWN
             button = _sdl_button_sym(evt.button.button)
             mods = _current_modifiers()
-            x, y = Int(evt.button.x), Int(evt.button.y)
+            x, y = _to_logical(Int(evt.button.x)), _to_logical(Int(evt.button.y))
             wid = _lookup_window_id(backend, evt.button.windowID)
             # Record for press synthesis.
             backend.last_down_button = button
@@ -1241,7 +1265,7 @@ function read_from_devices(backend::SdlBackend, devices)
         elseif t == 0x00000402  # SDL_MOUSEBUTTONUP
             button = _sdl_button_sym(evt.button.button)
             mods = _current_modifiers()
-            x, y = Int(evt.button.x), Int(evt.button.y)
+            x, y = _to_logical(Int(evt.button.x)), _to_logical(Int(evt.button.y))
             wid = _lookup_window_id(backend, evt.button.windowID)
             # Synthesise MousePress when this up matches the preceding down.
             if button == backend.last_down_button &&
@@ -1262,7 +1286,8 @@ function read_from_devices(backend::SdlBackend, devices)
             mods = _current_modifiers()
             wid = _lookup_window_id(backend, evt.motion.windowID)
             return EventEnvelope(wid,
-                MouseMove(Int(evt.motion.x), Int(evt.motion.y), buttons, mods))
+                MouseMove(_to_logical(Int(evt.motion.x)), _to_logical(Int(evt.motion.y)),
+                          buttons, mods))
 
         elseif t == 0x00000403  # SDL_MOUSEWHEEL
             mx_ref, my_ref = Ref{Cint}(0), Ref{Cint}(0)
@@ -1274,7 +1299,7 @@ function read_from_devices(backend::SdlBackend, devices)
                 dx, dy = dy, 0
             end
             return EventEnvelope(wid,
-                MouseScroll(dx, dy, Int(mx_ref[]), Int(my_ref[]), mods))
+                MouseScroll(dx, dy, _to_logical(Int(mx_ref[])), _to_logical(Int(my_ref[])), mods))
         end
     end
     return nothing
@@ -1350,7 +1375,8 @@ function _update_window_geometry!(res::SdlWindowResources, w::WindowDocument)
         res.title = String(w.title)
     end
     if w.width != res.width || w.height != res.height
-        SDL_SetWindowSize(res.win, Int32(max(w.width, 1)), Int32(max(w.height, 1)))
+        SDL_SetWindowSize(res.win, Int32(max(_to_device(w.width), 1)),
+                                   Int32(max(_to_device(w.height), 1)))
         res.width = Int(w.width)
         res.height = Int(w.height)
     end

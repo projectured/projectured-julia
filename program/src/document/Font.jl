@@ -6,7 +6,7 @@ file path and a point size.
 """
 module FontModule
 
-export StyleFont, make_style_font, font_scaled_size, _FONT_SCALE, _FONT_DIR,
+export StyleFont, make_style_font, font_scaled_size, _DISPLAY_SCALE, _FONT_DIR,
        font_inconsolata_regular_18,
        font_ubuntu_monospace_regular_14, font_ubuntu_monospace_italic_14, font_ubuntu_monospace_bold_14,
        font_ubuntu_monospace_regular_16, font_ubuntu_monospace_italic_16, font_ubuntu_monospace_bold_16,
@@ -72,20 +72,31 @@ end
 
 make_style_font(filename::AbstractString, size::Integer) = StyleFont(filename, size)
 
-# ── DPI-based font scale ──────────────────────────────────────────────────────
+# ── Global display scale (logical → device) ────────────────────────────────────
 
-# Multiplier applied to every StyleFont.size before opening, measuring, or
-# hit-testing, so that named fonts (e.g. `font_*_24`) look ~the same physical
-# size on every display. Set by the SDL backend from SDL_GetDisplayDPI at
-# window open; defaults to 1.0 (no scaling).
-const _FONT_SCALE = Ref(1.0)
+# The single factor that maps the editor's *logical* pixel coordinate space —
+# which every document, projection and selection is authored and computed in —
+# to *device* pixels on screen. It is NOT a font-only knob: the SDL backend
+# applies it uniformly to all geometry (sizes, widths, positions) at the render
+# boundary via `SDL_RenderSetScale`, so a logical `font_*_24` glyph and the box
+# around it occupy the same physical size on every display.
+#
+# Set by the SDL backend from the display DPI at window open; defaults to 1.0
+# (no scaling). Layout code never reads this — it works purely in logical
+# pixels. Only the backend reads it, in exactly three roles: rasterizing glyphs
+# at device size, converting device-space input (mouse/window) back to logical,
+# and scaling the renderer.
+const _DISPLAY_SCALE = Ref(1.0)
 
 """
     font_scaled_size(size::Integer) -> Int
 
-Logical font size multiplied by the current display-DPI font scale.
+Device-pixel size at which a logical font `size` must be *rasterized* so that,
+once the renderer is scaled by [`_DISPLAY_SCALE`](@ref), the glyph lands 1:1 on
+device pixels and stays crisp. Backend-only: layout measures and positions text
+in logical pixels (plain `font.size`), never through this.
 """
-font_scaled_size(size::Integer) = max(1, round(Int, size * _FONT_SCALE[]))
+font_scaled_size(size::Integer) = max(1, round(Int, size * _DISPLAY_SCALE[]))
 
 # ── Font directory ─────────────────────────────────────────────────────────────
 

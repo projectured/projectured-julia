@@ -39,7 +39,7 @@ import ..WidgetModule: WidgetDocument, WidgetLabel, WidgetText, WidgetCheckbox,
                        ScrollWidgetOperation, SelectTabOperation, SetScrollBarValueOperation
 import ..CollectionModule: CellVector, CollectionDocument
 import ..GraphicsModule: GraphicsText, GraphicsRect, GraphicsLine, GraphicsCircle, GraphicsCanvas, GraphicsViewport, hit_element_at, layout_none
-import ..FontModule: StyleFont, font_scaled_size,
+import ..FontModule: StyleFont,
                      font_ubuntu_regular_18, font_ubuntu_regular_24, font_ubuntu_bold_24
 import ..StyleTextModule: StyleText
 import ..StyleStrokeModule: StyleStroke
@@ -223,15 +223,14 @@ const _SCROLLBAR_FALLBACK_LENGTH    = 200  # scroll bar track (long axis)
 const _SCROLLBAR_FALLBACK_THICKNESS = 16   # scroll bar track (short axis)
 const _SPLIT_SLOT_FALLBACK    = 200   # per-slot main-axis extent, no constraint/sizes
 
-# Scale a logical pixel measurement by the current font scale, so spacing /
-# radius track the text size on hi-dpi displays.
-_sc(px::Integer) = font_scaled_size(px)
+# All widget geometry — spacing, radii, insets, positions — is in logical
+# pixels. The single global `_DISPLAY_SCALE` is applied uniformly at the SDL
+# render boundary, so the projection layer never scales: `_sc`/`_origin` are
+# identity markers that document "this number is a logical pixel measurement".
+_sc(px::Integer) = Int(px)
 
-# A widget's authored `position` is in logical pixels, like insets — scale it at
-# render time (NOT at document-construction time, which happens during
-# precompilation when the font scale is still 1.0) so stacked widgets keep their
-# spacing on hi-dpi displays.
-_origin(pos::Point2D) = (_sc(Int(pos.x[])), _sc(Int(pos.y[])))
+# A widget's authored `position` is in logical pixels, like insets.
+_origin(pos::Point2D) = (Int(pos.x[]), Int(pos.y[]))
 
 # (r,g,b,a) tuple of integers for a StyleColor, for GraphicsRect/Circle kwargs.
 _rgbai(c::StyleColor) = (Int(round(c.red * 255)), Int(round(c.green * 255)),

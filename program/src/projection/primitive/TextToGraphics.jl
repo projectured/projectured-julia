@@ -23,7 +23,7 @@ import ..ProjectionApiModule: projection_print, projection_read, map_reference_f
 import ..TextModule: TextText, TextString, TextNewline, TextGraphics, TextDocument
 import ..GraphicsModule: GraphicsText, GraphicsRect, GraphicsImage, GraphicsCanvas, layout_none, layout_vertical
 import ..ImageModule: ImageDocument
-import ..FontModule: StyleFont, font_scaled_size
+import ..FontModule: StyleFont
 import ..ColorModule: StyleColor
 import ..ReferenceModule: ReferencePath, ConcreteReferencePath, ElementReference, PositionReference, RangeReference, PointReference, EmptyReferencePath, FieldReference, TextRectangularReference, head, tail
 import ..ReferenceCaseModule: var"@reference_case"
@@ -857,7 +857,7 @@ function _compute_highlight_rect(coord_map::Vector{SegCoord}, span_flat_offsets:
         seg_hl_end = min(hl_stop, abs_end) - base
         px_left = _seg_cursor_x(sc, seg_hl_start, p.measure)
         px_right = _seg_cursor_x(sc, seg_hl_end, p.measure)
-        fs = font_scaled_size(sc.font.size)
+        fs = sc.font.size
         x0 = min(x0, px_left)
         y0 = min(y0, sc.y)
         x1 = max(x1, px_right)
@@ -904,11 +904,11 @@ _is_image_seg(sc::SegCoord) = isempty(sc.text) && sc.char_start == 0 && sc.char_
     _seg_band_height(sc::SegCoord) -> Int
 
 Vertical extent of a segment's clickable y-band. Text segments use the
-scaled font size (unchanged); an inline image extends its band over the
-whole image height so a click anywhere on a tall image still lands on it.
+logical font size; an inline image extends its band over the whole image
+height so a click anywhere on a tall image still lands on it.
 """
 _seg_band_height(sc::SegCoord) =
-    _is_image_seg(sc) ? max(font_scaled_size(sc.font.size), sc.height) :
-                        font_scaled_size(sc.font.size)
+    _is_image_seg(sc) ? max(sc.font.size, sc.height) :
+                        sc.font.size
 
 end # module

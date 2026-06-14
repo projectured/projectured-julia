@@ -22,7 +22,6 @@ using Projectured: ReplaceSelectionOperation, set_selection!, clear_selection!,
                     ConcreteReferencePath, ProjectionReference, EmptyReferencePath
 using Projectured.ReferenceModule: head, tail
 using Projectured.TextToGraphicsModule: TextToGraphicsIoMap, SegCoord
-using Projectured.FontModule: font_scaled_size
 
 # ── IoMap traversal helpers ────────────────────────────────────────────────
 
@@ -127,13 +126,13 @@ function test_click_roundtrip(label, document, projection)
         # than one font height away. Index the tallest segment on each y-row.
         line_height_at = Dict{Int,Int}()
         for c in coords
-            h = max(font_scaled_size(c.font.size), c.height)
+            h = max(c.font.size, c.height)
             line_height_at[c.y] = max(get(line_height_at, c.y, 0), h)
         end
 
         errors = String[]
         for sc in coords
-            line_h = font_scaled_size(sc.font.size)
+            line_h = sc.font.size
             band_h = get(line_height_at, sc.y, line_h)
             for k in sc.char_start:sc.char_end
                 cx = _seg_x_at(sc, k, measure) + 1
@@ -339,7 +338,7 @@ function test_json_content_clicks_clean(label, document, projection)
         errors = String[]
         for sc in coords
             sc.text in content_strings || continue
-            line_h = font_scaled_size(sc.font.size)
+            line_h = sc.font.size
             # Click in the middle of the segment, well inside content.
             cx = sc.x + max(1, (_seg_x_at(sc, sc.char_end, measure) - sc.x) ÷ 2)
             cy = sc.y + max(1, line_h ÷ 2)

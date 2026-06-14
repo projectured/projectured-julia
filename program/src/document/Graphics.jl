@@ -18,7 +18,7 @@ module GraphicsModule
 import ..ReactiveModule: Cell, setfn!, setval!
 import ..DocumentModule: Document, @document
 import ..CollectionModule: CellVector, ListNode, CollectionDocument
-import ..FontModule: StyleFont, font_scaled_size
+import ..FontModule: StyleFont
 import ..ReferenceModule: Reference
 export GraphicsDocument, LayoutDirection, layout_none, layout_horizontal, layout_vertical,
        GraphicsInsertion, GraphicsText, GraphicsRect, GraphicsLine, GraphicsCircle,
@@ -422,7 +422,7 @@ function _hit_test_element(elem, x::Int, y::Int)
         _rect_hit(elem, x, y)
     elseif elem isa GraphicsText
         ex, ey = Int(elem.x), Int(elem.y)
-        fs = font_scaled_size(elem.font.size)
+        fs = elem.font.size
         x >= ex && y >= ey && y < ey + fs
     elseif elem isa GraphicsCircle
         dx, dy = x - Int(elem.cx), y - Int(elem.cy)

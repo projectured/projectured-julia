@@ -1,7 +1,66 @@
 # Make the display scale truly global (logical pixels everywhere)
 
 **Date:** 2026-06-14
-**Status:** pending — design + step plan, not yet implemented.
+**Status:** ✅ implemented 2026-06-14 (boundary approach). See "Implementation
+notes" below for what shipped and where it diverged from this plan.
+
+## Implementation notes (what shipped)
+
+Chosen approach: **boundary** — one logical coordinate space everywhere, a
+single `_DISPLAY_SCALE` (logical→device) applied at the SDL edge. (The
+"uniform single-space / keep everything physical" alternative was rejected: the
+boundary model is the correct, future-proof one.)
+
+Changes:
+
+- **`_FONT_SCALE` → `_DISPLAY_SCALE`** ([Font.jl](../../program/src/document/Font.jl)),
+  reframed as the global logical→device factor; env var
+  `PROJECTURED_FONT_SCALE` → `PROJECTURED_DISPLAY_SCALE`; detection functions
+  `_detect_font_scale!`/`_update_font_scale!` → `_detect_display_scale!`/
+  `_update_display_scale!`. `font_scaled_size` kept, now **backend-only** (glyph
+  rasterization in `_get_font`).
+- **Layout is fully logical:** removed `font_scaled_size` from
+  [TextToGraphics.jl](../../program/src/projection/primitive/TextToGraphics.jl)
+  (highlight/band heights → plain `font.size`),
+  [Graphics.jl](../../program/src/document/Graphics.jl) hit-test,
+  [GraphicsCaching.jl](../../program/src/projection/primitive/GraphicsCaching.jl)
+  bounds. In
+  [WidgetToGraphics.jl](../../program/src/projection/primitive/WidgetToGraphics.jl),
+  `_sc`/`_origin` were made **identity markers** (kept, not deleted — they
+  document "this is a logical-pixel measurement" across ~100 call sites; far
+  less churn than deleting, same runtime).
+- **Measurement is logical** ([Sdl.jl](../../program/src/backend/Sdl.jl)
+  `measure_text`): rasterize at device size, divide back by `_DISPLAY_SCALE`
+  (option A). No caret drift in practice — advance and drawn-width both derive
+  from the same divided value, so they stay consistent; round-trip tests pass at
+  scale 2.
+- **Backend scales once at the boundary:** `_render_window!` sets
+  `RenderSetScale(ss * scale)`; the SSAA target is sized in device pixels
+  (`_to_device(width) * ss`); `GraphicsText` dest rects are logical
+  (`device ÷ scale`) so the device-size glyph texture lands 1:1.
+- **Device↔logical at the edges:** `_to_device`/`_to_logical` helpers. Native
+  window create/resize use device pixels; incoming mouse + resize events are
+  converted back to logical.
+- **Tests:** [ClickRoundtripTest.jl](../../test/src/editor/ClickRoundtripTest.jl)
+  expectations switched to logical `font.size`.
+
+Verification: full sweep (`test_printers/readers/selections/repls`,
+`test_click_roundtrip`, `test_write_image`, `test_event_case`,
+`test_mouse_clicks`, `test_cell`) — **zero regressions** (the two failures seen,
+`object_to_widget` selection and `searching` mouse-click, reproduce identically
+on the clean tree and are unrelated). The projected canvas geometry is now
+**identical at scale 1, 2 and 3** (json_example: 396×624 at every scale),
+proving the scale no longer leaks into layout.
+
+Known follow-up (not blocking, single testable platform is X11/Xft here):
+auto-HiDPI-density platforms (macOS Retina, native Wayland) where SDL itself
+provides the extra pixels need the renderer-ratio detection path to *not* also
+enlarge the window — the single-factor model currently assumes SDL window/mouse
+coords are in device pixels (true on X11). Revisit when targeting those.
+
+---
+
+## Original plan
 
 ## Problem
 
