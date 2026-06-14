@@ -11,9 +11,11 @@ _content_ref() = ConcreteReferencePath(FieldReference("content"), EmptyReference
     iomap = projection_print(ObjectToWidget(), proj)
     out = iomap.output
 
-    # Two rows: pattern (String → WidgetText) and case_insensitive (Bool →
-    # WidgetCheckbox); the StyleColor `color` field is skipped.
-    @test length(out.elements) == 2
+    # Two rows of a 2-column (label | control) grid → 4 children: pattern
+    # (String → WidgetText) and case_insensitive (Bool → WidgetCheckbox); the
+    # StyleColor `color` field is skipped.
+    @test out isa GridLayout
+    @test length(out.children) == 4
     @test [nm for (_, nm) in iomap.controls] == ["pattern", "case_insensitive"]
     @test iomap.controls[1][1] isa WidgetText
     @test iomap.controls[2][1] isa WidgetCheckbox
@@ -30,17 +32,16 @@ end # @testset
     iomap = projection_print(ObjectToWidget(), proj)
 
     # A Text-domain edit on the pattern control: insert "X" at the end (caret at
-    # char 5 of "dolor"). Reference is rooted at the ObjectToWidget output:
-    # elements[row=1].elements[2].content.elements[1].content[5:5].
-    ref = ConcreteReferencePath(FieldReference("elements"),
-            ConcreteReferencePath(RangeReference(0, 1),
-              ConcreteReferencePath(FieldReference("elements"),
-                ConcreteReferencePath(RangeReference(1, 2),
-                  ConcreteReferencePath(FieldReference("content"),
-                    ConcreteReferencePath(FieldReference("elements"),
-                      ConcreteReferencePath(RangeReference(0, 1),
-                        ConcreteReferencePath(FieldReference("content"),
-                          ConcreteReferencePath(RangeReference(5, 5), EmptyReferencePath())))))))))
+    # char 5 of "dolor"). Reference is rooted at the grid output: the pattern
+    # control is grid child 2 (row 1) → 0-based children[1], then into the
+    # WidgetText's TextText: children[1].content.elements[1].content[5:5].
+    ref = ConcreteReferencePath(FieldReference("children"),
+            ConcreteReferencePath(RangeReference(1, 2),
+              ConcreteReferencePath(FieldReference("content"),
+                ConcreteReferencePath(FieldReference("elements"),
+                  ConcreteReferencePath(RangeReference(0, 1),
+                    ConcreteReferencePath(FieldReference("content"),
+                      ConcreteReferencePath(RangeReference(5, 5), EmptyReferencePath())))))))
     op = projection_read(ObjectToWidget(), iomap, StringReplaceRangeOperation(ref, "X"))
     @test op isa ReplaceReferencedValue
     @test op.document === proj

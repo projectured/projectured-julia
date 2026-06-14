@@ -33,6 +33,7 @@ import ..IoMapApiModule: IoMap
 import ..ReactiveModule: Cell, setfn!
 import ..WidgetModule: WidgetDocument, WidgetLabel, WidgetText, WidgetCheckbox,
                        WidgetComposite, Point2D
+import ..LayoutModule: GridLayout
 import ..TextModule: TextText, TextString
 import ..FontModule: StyleFont, font_ubuntu_monospace_regular_24
 import ..ColorModule: StyleColor, color_default
@@ -78,26 +79,30 @@ ObjectToWidget(; fields=nothing,
                font::StyleFont=font_ubuntu_monospace_regular_24,
                color::StyleColor=color_default) = ObjectToWidget(fields, font, color)
 
-# Vertical pitch of one control row and the x where the control sits after its
-# label. Approximate — the widget→graphics layer does the real measuring.
-const _ROW_H = 28
-const _CONTROL_X = 160
+# Inter-column / inter-row gaps for the parameter form. The label column width
+# and row heights are content-driven by GridLayout (no _CONTROL_X / _ROW_H
+# estimates); only these spacing tokens remain fixed.
+const _COLUMN_GAP = 12
+const _ROW_GAP = 6
 
 # ── projection_print ──────────────────────────────────────────────────────
 
 function projection_print(p::ObjectToWidget, recursion, obj, ctx)
-    rows = Any[]
+    children = Any[]
     controls = Tuple{Any,String}[]
-    y = 0
     for nm in _control_fields(p, obj)
         cell = getfield(obj, nm)
         control = _make_control(p, cell, cell[])
         push!(controls, (control, String(nm)))
-        label = WidgetLabel(Point2D(0, 0), String(nm))
-        push!(rows, WidgetComposite(Point2D(0, y), Any[label, control]))
-        y += _ROW_H
+        push!(children, WidgetLabel(Point2D(0, 0), String(nm)))
+        push!(children, control)
     end
-    output = WidgetComposite(Point2D(0, 0), rows)
+    # A 2-column grid (label | control): the first column sizes to the widest
+    # label and the second to the widest control, so both columns are aligned
+    # and content-sized — what _CONTROL_X used to hardcode.
+    output = GridLayout(children, 2;
+                        horizontal_gap=_COLUMN_GAP, vertical_gap=_ROW_GAP,
+                        vertical_align=:center)
     ObjectToWidgetIoMap(p, obj, output, controls)
 end
 
@@ -122,8 +127,9 @@ _is_renderable_value(::AbstractString) = true
 _is_renderable_value(::Real) = true
 _is_renderable_value(_) = false
 
-# Bool is more specific than Real, so the checkbox wins for booleans.
-_make_control(::ObjectToWidget, ::Cell, value::Bool) = WidgetCheckbox(Point2D(_CONTROL_X, 0), value)
+# Bool is more specific than Real, so the checkbox wins for booleans. Controls
+# sit at the cell origin; the grid places the cell (no per-control x offset).
+_make_control(::ObjectToWidget, ::Cell, value::Bool) = WidgetCheckbox(Point2D(0, 0), value)
 _make_control(p::ObjectToWidget, cell::Cell, ::AbstractString) = _editable_text_control(p, cell)
 _make_control(p::ObjectToWidget, cell::Cell, ::Real) = _editable_text_control(p, cell)
 
@@ -139,7 +145,7 @@ function _editable_text_control(p::ObjectToWidget, cell::Cell)
     setfn!(getfield(ts, :content), () -> _as_string(cell[]))
     tt = TextText(ts)
     setfn!(getfield(tt, :selection), () -> _end_cursor(length(_as_string(cell[]))))
-    WidgetText(Point2D(_CONTROL_X, 0), tt)
+    WidgetText(Point2D(0, 0), tt)
 end
 
 _as_string(v) = v isa AbstractString ? String(v) : (v === nothing ? "" : string(v))
@@ -192,9 +198,12 @@ projection_read(::ObjectToWidget, ::ObjectToWidgetIoMap, ::ReplaceSelectionOpera
 
 projection_read(::ObjectToWidget, ::ObjectToWidgetIoMap, op) = op
 
-# Parse a control text-edit reference `elements[row].elements[2].content.
-# elements[1].content[cstart:cstop]`: the first RangeReference gives the 1-based
-# row, the terminal RangeReference gives the character range.
+# Parse a control text-edit reference rooted at the grid output:
+# `children[flat].content.elements[1].content[cstart:cstop]`. The first
+# RangeReference is the 0-based grid child index of the control; since the grid
+# holds `[label, control]` per row, the control for 1-based row r is child
+# `2r` (0-based `2r-1`), so `row = (flat + 1) ÷ 2`. The terminal RangeReference
+# is the character range.
 function _parse_control_edit(ref)
     ranges = RangeReference[]
     cur = ref
@@ -203,7 +212,8 @@ function _parse_control_edit(ref)
         cur = cur.tail
     end
     length(ranges) >= 2 || return nothing
-    row = ranges[1].start + 1
+    flat = ranges[1].start
+    row = (flat + 1) ÷ 2
     term = ranges[end]
     (row, term.start, term.stop)
 end
