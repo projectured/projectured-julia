@@ -22,6 +22,14 @@ sources, never a hand-tuned literal:
 This report enumerates **every** place a size or position is a precalculated
 fixed number instead.
 
+> **Status (updated 2026-06-14).** Steps 1–2 of the original plan (§7) are
+> implemented and committed (`f421ea0`): `WidgetTheme` was expanded with
+> spacing/sizing tokens and the width-bearing widgets became content-aware.
+> The plan has since been **revised** to a *hybrid* style architecture — see
+> **§8 "Revised architecture & conventions"**, which supersedes §7 steps 3–4
+> and re-factors the Step-1 theme. Read §8 before implementing further; §1–§6
+> remain the authoritative inventory of fixed values.
+
 ---
 
 ## 0. What infrastructure already exists (so we know the target)
@@ -301,15 +309,173 @@ avoids drift.
 
 ### Suggested order of attack
 
-1. **Expand `WidgetTheme`** into a full spacing/sizing token set (and a themed
-   default box-model inset). Mechanical, unblocks everything else. (§7A, all `T`
-   rows.)
-2. **Route widths through content + `available_width`** for the `width`-bearing
-   extension widgets. (§7B, `C` rows.)
+1. ✅ **Done (`f421ea0`).** Expand `WidgetTheme` into a full spacing/sizing token
+   set (and a themed default box-model inset). (§7A, all `T` rows.)
+2. ✅ **Done (`f421ea0`).** Route widths through content + `available_width` for
+   the `width`-bearing extension widgets. (§7B, `C` rows.)
 3. **Replace manual stacking with layout documents** in `ConversationToWidget`,
-   `ObjectToWidget`, then the examples. (§7C, `L` rows.)
+   `ObjectToWidget`, then the examples. (§7C, `L` rows.) — *deferred behind the
+   §8 theme split; still planned.*
 4. **Fold fallback sizes into the layout/allocation path** so the literals in
    `WorkbenchToWidget` and the scroll/scrollbar fallbacks disappear. (§7D.)
+   — *deferred behind the §8 theme split; still planned.*
+
+> Steps 1–2 landed with a **monolithic** `WidgetTheme` (one struct that absorbed
+> ~24 single-use, widget-specific dimensions). §8 re-factors that into a hybrid
+> and must be done **before** steps 3–4.
+
+---
+
+## 8. Revised architecture & conventions (current direction)
+
+### 8.0 Why revise
+
+Step 1 put **everything** in one `WidgetTheme`: ~20 palette colors, 3 fonts, and
+~31 spacing/sizing tokens. But of those 31 spacing tokens only ~7 are read by
+more than one widget; the other ~24 (`switch_w`, `switch_h`, `knob_radius`,
+`tree_indent`, `badge_pad_x`, `card_pad`, `table_pad_x`, `progress_h`,
+`accordion_pad_y`, …) are read by exactly one widget. A token used by one widget
+buys no consistency and no fan-out — it is just that widget's parameter parked in
+a god-object. So the monolithic theme is mis-factored.
+
+### 8.1 The model: per-projection params fed by a small shared theme
+
+A **hybrid** (the standard design-tokens → component-styles pipeline):
+
+- **Each widget projection owns its style parameters** as fields — colours,
+  sizes, paddings, radii — so the projection is self-contained and its interface
+  states exactly what it consumes. This is also the ProjecturEd-native path:
+  `ProjectionConfiguringProjection` already projects an inner projection *object*
+  through `ObjectToWidget` to build an editable parameter bar, so projection
+  fields that are reactive `Cell`s become **live-editable, per-widget-scoped**
+  controls for free.
+- **A small shared `WidgetTheme` (the style document) holds only the
+  cross-cutting values** — the palette, the text styles, and the handful of
+  spacing tokens read by many widgets.
+- **The compound projection factory** (`WidgetToGraphics(; theme)`) reads the
+  theme and **distributes / derives** each child projection's parameters at
+  construction time. Different *styles* are different factory constructors.
+- **Linking values:** share the same `Cell` between projections, or derive a
+  projection's parameter from a theme token in the factory (e.g.
+  `card.padding = scale(theme.padding, 1.5)`). A value that must track the theme
+  is *derived*; a value that is genuinely independent is a plain projection
+  default.
+
+**Split rule (keep the theme small):** a value lives in the **theme** iff it is
+read by **≥ 2–3 widgets and should move together**; otherwise it is a
+**projection default** (optionally derived from a theme token). This keeps
+`theme params ≪ Σ projection params`, which is the whole point — the theme is the
+compressed, shared core; the projections carry the long tail of detail.
+
+### 8.2 Field conventions (apply everywhere — documents, theme, projections)
+
+These two rules are mandatory for the refactor and for new code:
+
+1. **No abbreviations — write field names out in full.** Rename on the way
+   through:
+   - `pad_x` / `pad_y` → folded into a `padding` field (see compound types).
+   - `radius` → `corner_radius`.
+   - `stroke` → `stroke_width`; `bw` → `border_width`; `cw`/`ch` → `content_width`
+     / `content_height`; `tw`/`th` → `text_width` / `text_height`; `kr` →
+     `knob_radius`; `sw` → `segment_width`; etc.
+   - `seg_inset` → `segment_inset`; `tab_pad` → `tab_padding`; `thumb_min` →
+     `minimum_thumb_length`. (Local computation variables inside a function
+     should be spelled out too, not just struct fields.)
+
+2. **Use a compound type wherever several scalars describe one concept** —
+   exactly as the codebase already does with `StyleColor`, `StyleFont`, `Inset`,
+   `Point2D`:
+   - **`Inset`** (`top`/`bottom`/`left`/`right`) for any padding / margin /
+     border spacing — never four `*_top/*_bottom/*_left/*_right` scalars, and
+     never an `_x`/`_y` pair where a box is meant. The theme's content padding
+     becomes `padding::Inset`; `badge_pad_x/badge_pad_y` → `padding::Inset`; etc.
+   - **`Point2D`** for any width+height size or x+y position — `switch_w` +
+     `switch_h` → `track_size::Point2D`; `progress_h` alone stays scalar
+     (`bar_height`) since there is no paired width.
+   - **`StyleColor`**, **`StyleFont`** as today.
+   - **New `StyleText { font::StyleFont, color::StyleColor }`** — a combined text
+     style, since widgets repeatedly pass a `(font, color)` pair. The theme then
+     exposes *semantic* text styles instead of loose fonts + colours, e.g.
+     `body::StyleText`, `title::StyleText` (bold + foreground),
+     `caption::StyleText` (small + muted), `label::StyleText`. A renderer takes a
+     `StyleText` and draws text in one call. (`StyleText` is new; add it beside
+     `StyleColor`/`StyleFont` and export it.)
+
+   All members of these compound types are already reactive `Cell`s
+   (`Inset`/`Point2D` hold `Cell`s), which is what makes per-projection params
+   live-editable and linkable.
+
+### 8.3 Shape of the shared theme (target)
+
+Roughly (names final, types compound):
+
+- **Palette:** `background_color`, `foreground_color`, `card_color`,
+  `muted_color`, `muted_foreground_color`, `primary_color`,
+  `primary_foreground_color`, `border_color`, `input_color`, `ring_color`,
+  `destructive_color`, … (StyleColors).
+- **Text styles:** `body_text`, `title_text`, `caption_text`, `label_text`
+  (`StyleText`).
+- **Shared spacing:** `corner_radius`, `padding::Inset`, `gap`, `border_width`,
+  `stroke_width`, `chevron_size`. (≈ the 7 that fan out.)
+- **Box model default:** `inset` (themed default margin/border/padding).
+
+Everything else (`track_size`, `knob_radius`, `bar_height`, `indent`,
+`chevron_column_width`, `card`-specific paddings/gaps, `table` cell padding,
+`minimum_thumb_length`, `segment_inset`, `tab_padding`, `title_gap`, `row_gap`,
+…) moves onto the **projection that uses it**, defaulted in the factory and
+derived from a theme token where it should track the theme.
+
+### 8.4 Worked example — `WidgetButton`
+
+*Before (Step-1 state):* `WidgetButtonToGraphicsCanvas(font, measure, theme)`;
+renderer reads `p.theme.pad_x`, `p.theme.radius`, `p.theme.border_width`,
+`p.theme.shadow_offset`, abbreviated locals `bw`, `bh`, `tw`, `th`.
+
+*After (hybrid):*
+
+```julia
+struct WidgetButtonToGraphicsCanvas <: Projection
+    measure::Function
+    label_text::StyleText      # font + foreground colour
+    background_color::StyleColor
+    border_color::StyleColor
+    padding::Inset             # content padding (was pad_x / pad_y)
+    corner_radius::Cell        # was radius
+    border_width::Cell
+    shadow_offset::Cell        # button-specific default, derived from theme
+end
+```
+
+…built by the factory as
+
+```julia
+WidgetButtonToGraphicsCanvas(
+    measure,
+    theme.label_text,
+    theme.background_color,
+    theme.border_color,
+    theme.padding,
+    theme.corner_radius,
+    theme.border_width,
+    Cell(2))            # shadow_offset: button-only default (could derive)
+```
+
+and the renderer reads `projection.padding.left[]`, `projection.corner_radius[]`,
+etc. — full names, compound types, no `p.theme.*` indirection, and the
+printer/reader of the *same* projection share the one field (killing the
+duplicate-constant problem from §7E).
+
+### 8.5 Revised order of attack
+
+3a. **Add `StyleText`** beside `StyleColor`/`StyleFont`; give the theme semantic
+    text styles.
+3b. **Split the theme** (§8.1 rule): shrink `WidgetTheme` to the shared core;
+    move the ~24 widget-specific dimensions onto their projections (full names,
+    compound types), defaulted/derived by the factory. Render code goes
+    `p.theme.x → p.field`; collapse printer/reader duplicates. *Verify rendering
+    is unchanged* (values preserved; the audit images are the oracle).
+3c. **Then** the original §7 step 3 (layout documents) and step 4 (fold fallback
+    sizes) — unchanged in intent, done on top of the hybrid.
 
 ---
 
