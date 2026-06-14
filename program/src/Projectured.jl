@@ -119,6 +119,7 @@ include("projection/primitive/ObjectToSyntax.jl")
 include("projection/primitive/WidgetToGraphics.jl")
 include("projection/primitive/LayoutToGraphics.jl")
 include("projection/primitive/BookToSyntax.jl")
+include("projection/primitive/IniToSyntax.jl")
 include("projection/primitive/LineNumbering.jl")
 include("projection/primitive/WordWrapping.jl")
 include("projection/primitive/TextFiltering.jl")
@@ -309,6 +310,9 @@ using .BookModule: BookDocument, BookInsertion,
 using .IniModule: IniDocument, IniInsertion, IniComment, IniInclude,
                   IniConfigOption, IniParamAssignment, IniSection, IniFile
 using .IniParserModule: iniparse, iniparse_file
+using .IniToSyntaxModule: IniInsertionToSyntaxLeaf, IniCommentToSyntaxLeaf, IniIncludeToSyntaxLeaf,
+                          IniConfigOptionToSyntaxNode, IniParamAssignmentToSyntaxNode,
+                          IniSectionToSyntaxNode, IniFileToSyntaxNode, IniToSyntax
 using .WorkbenchModule: WorkbenchDocument, WorkbenchInsertion,
                         WorkbenchWorkbench, WorkbenchPage,
                         WorkbenchNavigator, WorkbenchConsole, WorkbenchDescriptor,
