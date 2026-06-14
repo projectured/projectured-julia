@@ -1944,35 +1944,46 @@ end
 
 # ── WidgetBadge ─────────────────────────────────────────────────────────────
 
-struct WidgetBadgeToGraphicsCanvas <: Projection
-    font::StyleFont
+@projection struct WidgetBadgeToGraphicsCanvas <: Projection
     measure::Function
-    theme::WidgetTheme
+    font::StyleFont                # small pill font
+    padding::Inset
+    border_width::Int              # outline width (outline variant only)
+    default_fill::StyleColor
+    default_foreground::StyleColor
+    secondary_fill::StyleColor
+    secondary_foreground::StyleColor
+    destructive_fill::StyleColor
+    destructive_foreground::StyleColor
+    outline_fill::StyleColor
+    outline_foreground::StyleColor
+    outline_border::StyleColor
 end
 
 function projection_print(p::WidgetBadgeToGraphicsCanvas, recursion, w::WidgetBadge, ctx)
     w.visible == false && return SimpleIoMap(p, w, _empty_canvas())
-    pos = w.position::Point2D
-    th  = p.theme
+    position = w.position::Point2D
     text = string(w.content)
-    fill, fg, border = if w.variant === :secondary
-        (th.secondary, th.secondary_foreground, nothing)
+    fill, foreground, border = if w.variant === :secondary
+        (p.secondary_fill, p.secondary_foreground, nothing)
     elseif w.variant === :destructive
-        (th.destructive, th.destructive_foreground, nothing)
+        (p.destructive_fill, p.destructive_foreground, nothing)
     elseif w.variant === :outline
-        (th.background, th.foreground, th.border)
+        (p.outline_fill, p.outline_foreground, p.outline_border)
     else
-        (th.primary, th.primary_foreground, nothing)
+        (p.default_fill, p.default_foreground, nothing)
     end
-    pad_x, pad_y = _sc(th.badge_pad_x), _sc(th.badge_pad_y)
-    tw, tht = _text_size(p.measure, th.font_small, text)
-    cw, ch = tw + 2pad_x, tht + 2pad_y
-    bw = border !== nothing ? max(1, _sc(th.border_width)) : 0
-    elems = Any[]
-    _push_panel!(elems, 0, 0, cw, ch; fill=fill, border=border, border_w=bw, radius=ch ÷ 2)
-    fr, fg2, fb, fa = _rgbai(fg)
-    push!(elems, GraphicsText(text, pad_x, (ch - tht) ÷ 2, th.font_small, fr, fg2, fb, fa))
-    SimpleIoMap(p, w, _make_canvas(_origin(pos)..., cw, ch, elems))
+    padding_x = _sc(Int(p.padding.left[]))
+    padding_y = _sc(Int(p.padding.top[]))
+    text_width, text_height = _text_size(p.measure, p.font, text)
+    badge_width  = text_width + 2padding_x
+    badge_height = text_height + 2padding_y
+    border_width = border !== nothing ? max(1, _sc(p.border_width)) : 0
+    elements = Any[]
+    _push_panel!(elements, 0, 0, badge_width, badge_height; fill=fill, border=border, border_w=border_width, radius=badge_height ÷ 2)
+    red, green, blue, alpha = _rgbai(foreground)
+    push!(elements, GraphicsText(text, padding_x, (badge_height - text_height) ÷ 2, p.font, red, green, blue, alpha))
+    SimpleIoMap(p, w, _make_canvas(_origin(position)..., badge_width, badge_height, elements))
 end
 @_printer_only WidgetBadgeToGraphicsCanvas
 
@@ -2001,60 +2012,67 @@ end
 
 # ── WidgetCard ──────────────────────────────────────────────────────────────
 
-struct WidgetCardToGraphicsCanvas <: Projection
-    font::StyleFont
+@projection struct WidgetCardToGraphicsCanvas <: Projection
     measure::Function
-    theme::WidgetTheme
+    title_text::StyleText
+    description_text::StyleText
+    content_text::StyleText
+    footer_text::StyleText
+    surface_color::StyleColor      # card fill
+    border::StyleStroke
+    corner_radius::Int
+    padding::Int                   # uniform card padding
+    title_gap::Int
+    section_gap::Int
 end
 
 function projection_print(p::WidgetCardToGraphicsCanvas, recursion, w::WidgetCard, ctx)
     w.visible == false && return ChildrenIoMap(p, w, _empty_canvas(), Cell(Any[]))
-    pos = w.position::Point2D
-    th  = p.theme
-    pad = _sc(th.card_pad)
-    elems = Any[]
+    position = w.position::Point2D
+    padding = _sc(p.padding)
+    elements = Any[]
     child_iomaps = Any[]
-    mw = 0   # widest content row, to size the card to its content
-    y = pad
+    max_content_width = 0   # widest content row, to size the card to its content
+    y = padding
     if w.title !== nothing
-        ttxt = string(w.title)
-        tww, thh = _text_size(p.measure, th.font_bold, ttxt)
-        _push_text!(elems, th.font_bold, ttxt, pad, y, _rgba(th.foreground))
-        mw = max(mw, tww); y += thh + _sc(th.card_title_gap)
+        title = string(w.title)
+        title_width, title_height = _text_size(p.measure, p.title_text.font, title)
+        _push_text!(elements, p.title_text.font, title, padding, y, _rgba(p.title_text.color))
+        max_content_width = max(max_content_width, title_width); y += title_height + _sc(p.title_gap)
     end
     if w.description !== nothing
-        dtxt = string(w.description)
-        dww, dhh = _text_size(p.measure, th.font_small, dtxt)
-        _push_text!(elems, th.font_small, dtxt, pad, y, _rgba(th.muted_foreground))
-        mw = max(mw, dww); y += dhh + _sc(th.card_gap)
+        description = string(w.description)
+        description_width, description_height = _text_size(p.measure, p.description_text.font, description)
+        _push_text!(elements, p.description_text.font, description, padding, y, _rgba(p.description_text.color))
+        max_content_width = max(max_content_width, description_width); y += description_height + _sc(p.section_gap)
     end
     content = w.content
     if content isa WidgetDocument
         cim = projection_print(recursion, recursion, content, ctx)
-        push!(child_iomaps, (pad, y, cim))
-        push!(elems, _make_canvas(pad, y, Any[cim.output]))
+        push!(child_iomaps, (padding, y, cim))
+        push!(elements, _make_canvas(padding, y, Any[cim.output]))
         inner = cim.output
-        inner isa GraphicsCanvas && (mw = max(mw, Int(inner.w[])))
-        y += inner isa GraphicsCanvas ? Int(inner.h[]) + _sc(th.card_gap) : _sc(th.card_gap)
+        inner isa GraphicsCanvas && (max_content_width = max(max_content_width, Int(inner.w[])))
+        y += inner isa GraphicsCanvas ? Int(inner.h[]) + _sc(p.section_gap) : _sc(p.section_gap)
     elseif content isa AbstractString
-        cww, chh = _text_size(p.measure, th.font, content)
-        _push_text!(elems, th.font, content, pad, y, _rgba(th.card_foreground))
-        mw = max(mw, cww); y += chh + _sc(th.card_gap)
+        content_width, content_height = _text_size(p.measure, p.content_text.font, content)
+        _push_text!(elements, p.content_text.font, content, padding, y, _rgba(p.content_text.color))
+        max_content_width = max(max_content_width, content_width); y += content_height + _sc(p.section_gap)
     end
     if w.footer !== nothing
-        ftxt = string(w.footer)
-        fww, fhh = _text_size(p.measure, th.font_small, ftxt)
-        _push_text!(elems, th.font_small, ftxt, pad, y, _rgba(th.muted_foreground))
-        mw = max(mw, fww); y += fhh
+        footer = string(w.footer)
+        footer_width, footer_height = _text_size(p.measure, p.footer_text.font, footer)
+        _push_text!(elements, p.footer_text.font, footer, padding, y, _rgba(p.footer_text.color))
+        max_content_width = max(max_content_width, footer_width); y += footer_height
     end
-    cw = _resolve_width(ctx, _sc(Int(w.width)), mw + 2pad)
-    ch = y + pad
+    card_width = _resolve_width(ctx, _sc(Int(w.width)), max_content_width + 2padding)
+    card_height = y + padding
     # Card surface drawn first (behind content).
     surface = Any[]
-    _push_panel!(surface, 0, 0, cw, ch; fill=th.card, border=th.border,
-                 border_w=max(1, _sc(th.border_width)), radius=_sc(th.radius))
-    append!(surface, elems)
-    ChildrenIoMap(p, w, _make_canvas(_origin(pos)..., cw, ch, surface), Cell(child_iomaps))
+    _push_panel!(surface, 0, 0, card_width, card_height; fill=p.surface_color, border=p.border.color,
+                 border_w=max(1, _sc(p.border.width)), radius=_sc(p.corner_radius))
+    append!(surface, elements)
+    ChildrenIoMap(p, w, _make_canvas(_origin(position)..., card_width, card_height, surface), Cell(child_iomaps))
 end
 @_printer_only WidgetCardToGraphicsCanvas
 
@@ -2149,41 +2167,47 @@ end
 
 # ── WidgetRadioGroup ────────────────────────────────────────────────────────
 
-struct WidgetRadioGroupToGraphicsCanvas <: Projection
-    font::StyleFont
+@projection struct WidgetRadioGroupToGraphicsCanvas <: Projection
     measure::Function
-    theme::WidgetTheme
+    label_text::StyleText          # option labels
+    button_size::Int               # outer circle diameter
+    label_gap::Int                 # gap between button and label
+    row_gap::Int
+    dot_radius::Int                # selected inner dot
+    button_fill::StyleColor        # circle fill
+    selected_ring::StyleStroke     # ring + inner-dot color when selected
+    unselected_ring::StyleStroke   # ring when unselected
+    selected_color::StyleColor     # inner dot fill
 end
 
 function projection_print(p::WidgetRadioGroupToGraphicsCanvas, recursion, w::WidgetRadioGroup, ctx)
     w.visible == false && return SimpleIoMap(p, w, _empty_canvas())
-    pos = w.position::Point2D
-    th  = p.theme
+    position = w.position::Point2D
     selected = Int(w.selected)
-    diam = _sc(th.radio_size)
-    gap  = _sc(th.radio_gap)
-    row_gap = _sc(th.row_gap)
-    elems = Any[]
+    diameter = _sc(p.button_size)
+    label_gap = _sc(p.label_gap)
+    row_gap = _sc(p.row_gap)
+    elements = Any[]
     y = 0
-    max_w = 0
+    max_width = 0
     for (i, opt) in enumerate(w.options)
         label = string(opt)
-        lw, lh = _text_size(p.measure, th.font, label)
-        rh = max(diam, lh)
-        cyr = y + rh ÷ 2
+        label_width, label_height = _text_size(p.measure, p.label_text.font, label)
+        row_height = max(diameter, label_height)
+        center_y = y + row_height ÷ 2
         if i == selected
-            push!(elems, GraphicsCircle(diam ÷ 2, cyr, diam ÷ 2, _rgbai(th.background)...;
-                                        border_width=max(1, _sc(th.stroke)), border_color=_rgbai(th.primary)))
-            push!(elems, GraphicsCircle(diam ÷ 2, cyr, _sc(th.radio_dot), _rgbai(th.primary)...))
+            push!(elements, GraphicsCircle(diameter ÷ 2, center_y, diameter ÷ 2, _rgbai(p.button_fill)...;
+                                           border_width=max(1, _sc(p.selected_ring.width)), border_color=_rgbai(p.selected_ring.color)))
+            push!(elements, GraphicsCircle(diameter ÷ 2, center_y, _sc(p.dot_radius), _rgbai(p.selected_color)...))
         else
-            push!(elems, GraphicsCircle(diam ÷ 2, cyr, diam ÷ 2, _rgbai(th.background)...;
-                                        border_width=max(1, _sc(th.stroke)), border_color=_rgbai(th.input)))
+            push!(elements, GraphicsCircle(diameter ÷ 2, center_y, diameter ÷ 2, _rgbai(p.button_fill)...;
+                                           border_width=max(1, _sc(p.unselected_ring.width)), border_color=_rgbai(p.unselected_ring.color)))
         end
-        _push_text!(elems, th.font, label, diam + gap, y + (rh - lh) ÷ 2, _rgba(th.foreground))
-        max_w = max(max_w, diam + gap + lw)
-        y += rh + row_gap
+        _push_text!(elements, p.label_text.font, label, diameter + label_gap, y + (row_height - label_height) ÷ 2, _rgba(p.label_text.color))
+        max_width = max(max_width, diameter + label_gap + label_width)
+        y += row_height + row_gap
     end
-    SimpleIoMap(p, w, _make_canvas(_origin(pos)..., max_w, max(0, y - row_gap), elems))
+    SimpleIoMap(p, w, _make_canvas(_origin(position)..., max_width, max(0, y - row_gap), elements))
 end
 @_printer_only WidgetRadioGroupToGraphicsCanvas
 
@@ -2212,41 +2236,48 @@ end
 
 # ── WidgetAlert ─────────────────────────────────────────────────────────────
 
-struct WidgetAlertToGraphicsCanvas <: Projection
-    font::StyleFont
+@projection struct WidgetAlertToGraphicsCanvas <: Projection
     measure::Function
-    theme::WidgetTheme
+    title_font::StyleFont
+    description_text::StyleText        # muted description
+    background_color::StyleColor
+    padding::Int                       # uniform alert padding
+    title_gap::Int                     # gap between title and description
+    corner_radius::Int
+    border_width::Int
+    default_title_color::StyleColor
+    default_border_color::StyleColor
+    destructive_color::StyleColor      # title + border in the destructive variant
 end
 
 function projection_print(p::WidgetAlertToGraphicsCanvas, recursion, w::WidgetAlert, ctx)
     w.visible == false && return SimpleIoMap(p, w, _empty_canvas())
-    pos = w.position::Point2D
-    th  = p.theme
+    position = w.position::Point2D
     destructive = w.variant === :destructive
-    pad = _sc(th.alert_pad)
-    title_fg = destructive ? th.destructive : th.foreground
-    border   = destructive ? th.destructive : th.border
-    elems = Any[]
-    mw = 0
-    y = pad
-    ttxt = string(w.title)
-    tww, thh = _text_size(p.measure, th.font_bold, ttxt)
-    _push_text!(elems, th.font_bold, ttxt, pad, y, _rgba(title_fg))
-    mw = max(mw, tww); y += thh
+    padding = _sc(p.padding)
+    title_color  = destructive ? p.destructive_color : p.default_title_color
+    border_color = destructive ? p.destructive_color : p.default_border_color
+    elements = Any[]
+    max_content_width = 0
+    y = padding
+    title = string(w.title)
+    title_width, title_height = _text_size(p.measure, p.title_font, title)
+    _push_text!(elements, p.title_font, title, padding, y, _rgba(title_color))
+    max_content_width = max(max_content_width, title_width); y += title_height
     if w.description !== nothing
-        y += _sc(th.alert_gap)
-        dtxt = string(w.description)
-        dww, dhh = _text_size(p.measure, th.font_small, dtxt)
-        _push_text!(elems, th.font_small, dtxt, pad, y, _rgba(th.muted_foreground))
-        mw = max(mw, dww); y += dhh
+        y += _sc(p.title_gap)
+        description = string(w.description)
+        description_width, description_height = _text_size(p.measure, p.description_text.font, description)
+        _push_text!(elements, p.description_text.font, description, padding, y, _rgba(p.description_text.color))
+        max_content_width = max(max_content_width, description_width); y += description_height
     end
-    W  = _resolve_width(ctx, _sc(Int(w.width)), mw + 2pad)
-    ch = y + pad
+    alert_width = _resolve_width(ctx, _sc(Int(w.width)), max_content_width + 2padding)
+    alert_height = y + padding
     surface = Any[]
-    _push_panel!(surface, 0, 0, W, ch; fill=th.background, border=border,
-                 border_w=max(1, _sc(th.border_width)), radius=_sc(th.radius))
-    append!(surface, elems)
-    SimpleIoMap(p, w, _make_canvas(_origin(pos)..., W, ch, surface))
+    _push_panel!(surface, 0, 0, alert_width, alert_height; fill=p.background_color, border=border_color,
+                 border_w=max(1, _sc(p.border_width)), radius=_sc(p.corner_radius))
+    append!(surface, elements)
+    SimpleIoMap(p, w, _make_canvas(_origin(position)..., alert_width, alert_height, surface))
 end
 @_printer_only WidgetAlertToGraphicsCanvas
 
@@ -2647,9 +2678,18 @@ function WidgetToGraphics(font::StyleFont; measure::Function,
         WidgetScrollPane => WidgetScrollPaneToGraphicsCanvas(font, measure, theme),
         WidgetToolbar    => WidgetToolbarToGraphicsCanvas(font, measure, theme),
         WidgetScrollBar  => WidgetScrollBarToGraphicsCanvas(theme),
-        WidgetBadge      => WidgetBadgeToGraphicsCanvas(font, measure, theme),
+        WidgetBadge      => WidgetBadgeToGraphicsCanvas(measurer, theme.font_small,
+            Inset(theme.badge_pad_y, theme.badge_pad_y, theme.badge_pad_x, theme.badge_pad_x), theme.border_width,
+            theme.primary, theme.primary_foreground,
+            theme.secondary, theme.secondary_foreground,
+            theme.destructive, theme.destructive_foreground,
+            theme.background, theme.foreground, theme.border),
         WidgetSeparator  => WidgetSeparatorToGraphicsCanvas(StyleStroke(theme.border, theme.border_width)),
-        WidgetCard       => WidgetCardToGraphicsCanvas(font, measure, theme),
+        WidgetCard       => WidgetCardToGraphicsCanvas(measurer,
+            StyleText(theme.font_bold, theme.foreground), StyleText(theme.font_small, theme.muted_foreground),
+            StyleText(theme.font, theme.card_foreground), StyleText(theme.font_small, theme.muted_foreground),
+            theme.card, StyleStroke(theme.border, theme.border_width), theme.radius,
+            theme.card_pad, theme.card_title_gap, theme.card_gap),
         WidgetSwitch     => WidgetSwitchToGraphicsCanvas(
             Point2D(theme.switch_w, theme.switch_h), theme.switch_pad,
             color_white, StyleStroke(theme.border, theme.border_width),
@@ -2659,9 +2699,15 @@ function WidgetToGraphics(font::StyleFont; measure::Function,
             theme.slider_h, theme.track, theme.knob_radius,
             color_white, StyleStroke(theme.primary, theme.stroke),
             theme.muted, theme.primary),
-        WidgetRadioGroup => WidgetRadioGroupToGraphicsCanvas(font, measure, theme),
+        WidgetRadioGroup => WidgetRadioGroupToGraphicsCanvas(measurer, StyleText(theme.font, theme.foreground),
+            theme.radio_size, theme.radio_gap, theme.row_gap, theme.radio_dot,
+            theme.background, StyleStroke(theme.primary, theme.stroke), StyleStroke(theme.input, theme.stroke),
+            theme.primary),
         WidgetAvatar     => WidgetAvatarToGraphicsCanvas(measurer, StyleText(theme.font, theme.muted_foreground), theme.muted),
-        WidgetAlert      => WidgetAlertToGraphicsCanvas(font, measure, theme),
+        WidgetAlert      => WidgetAlertToGraphicsCanvas(measurer, theme.font_bold,
+            StyleText(theme.font_small, theme.muted_foreground), theme.background,
+            theme.alert_pad, theme.alert_gap, theme.radius, theme.border_width,
+            theme.foreground, theme.border, theme.destructive),
         WidgetSkeleton   => WidgetSkeletonToGraphicsCanvas(theme.muted, theme.skeleton_radius),
         WidgetToggle      => WidgetToggleToGraphicsCanvas(measurer, theme.font,
             Inset(theme.pad_y, theme.pad_y, theme.pad_x, theme.pad_x), theme.radius,
