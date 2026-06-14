@@ -379,6 +379,49 @@ If editing needs demand it, introduce:
 These would be used by a richer projection that allows structured navigation
 of keys and values. Defer until projection work starts.
 
+### Step 8 — Example document: `example/src/document/Ini.jl`
+
+Create a `make_ini_document_example()` function that builds a representative
+`IniFile` programmatically, similar to `make_xml_document_example()`. The
+document should demonstrate the key INI features:
+
+- A `[General]` section with config options (`network`, `sim-time-limit`)
+- A named config section with `description`, `extends`, and parameter
+  assignments using wildcard paths
+- A parameter-study section with iteration variables `${...}` in values
+- An `IniInclude` at the file level
+- A few `IniComment` nodes (standalone and with inline comments)
+- An `IniInsertion` at the end for cursor positioning
+
+This is a static hand-crafted document (not parsed from text), used for
+interactive exploration in the editor.
+
+### Step 9 — Example projection: `example/src/projection/Ini.jl`
+
+Create a `make_ini_projection_example()` function that builds the projection
+pipeline for INI documents, following the pattern of `make_xml_projection_example()`:
+
+```julia
+function make_ini_projection_example(; measure=sdl_measure_text)
+    SequentialProjection(
+        RecursiveProjection(IniToSyntax()),
+        RecursiveProjection(SyntaxToText()),
+        TextToGraphics(measure=measure),
+    )
+end
+```
+
+This depends on Step 6 (`IniToSyntax` projection) being implemented first.
+The projection renders the INI document as syntax-highlighted text with:
+
+- Section headers (`[General]`, `[Config Name]`) as syntax nodes
+- Config options and param assignments as key `=` value leaves
+- Comments in a distinct colour
+- Include directives styled as directives
+
+Both example files need to be registered in `example/src/ProjecturedExample.jl`
+and wired into `example/src/Examples.jl`.
+
 ## Open questions
 
 1. **Commented-out entries**: Lines like `#debug-on-errors = true` are common.
