@@ -33,6 +33,7 @@ import ..ConversationModule: ConversationDocument, ConversationConversation,
                               ConversationHeadingBlock, ConversationListBlock
 import ..WidgetModule: WidgetDocument, WidgetLabel, WidgetText, WidgetComposite,
                        WidgetScrollPane, Point2D, Inset, inset_default
+import ..LayoutModule: VerticalLayout
 import ..TextModule: TextText, TextString
 import ..FontModule: font_ubuntu_monospace_regular_24
 import ..ColorModule: StyleColor, color_default
@@ -70,11 +71,11 @@ struct ConversationListBlockToWidgetComposite          <: Projection end
 
 # ── Helpers ────────────────────────────────────────────────────────────────
 
-const _PAD5 = Inset(5, 5, 5, 5)
-# Approximate vertical pitch for a one-line widget (label, scroll-paned text,
-# nested message composite). WidgetComposite places every child at its own
-# (cox, coy) offset — children stack only if each carries its own Y position.
-const _ROW_H = 28
+# Fixed one-row viewport for scroll-paned non-widget content (see _wrap_widget).
+# Sizing this viewport to its content is a separate §4 concern; the vertical
+# *stacking* is now done by VerticalLayout from each child's intrinsic height,
+# so no per-row pitch estimate is needed for the stack itself.
+const _ITEM_VIEWPORT_H = 28
 
 _recurse(recursion, doc, ctx) =
     (recursion !== nothing && doc isa ConversationDocument) ?
@@ -86,80 +87,38 @@ _recurse(recursion, doc, ctx) =
 _label(text::AbstractString) = WidgetLabel(Point2D(0, 0), String(text))
 
 _wrap_widget(w::WidgetDocument) = w
+_wrap_widget(w::VerticalLayout) = w   # a composed message/block stack passes through
 # Non-widget content (TextText, JuliaDocument, etc.) is embedded in a
 # WidgetScrollPane, which recurses its Document content through the outer
 # projection chain. (WidgetText would stringify instead.) A small viewport
 # keeps each item to one row.
 _wrap_widget(x) = WidgetScrollPane(x;
-                                   size=Point2D(800, _ROW_H),
+                                   size=Point2D(800, _ITEM_VIEWPORT_H),
                                    padding=inset_default)
 
 _text_widget(s::AbstractString) =
     WidgetScrollPane(TextText(TextString(String(s),
                                          font_ubuntu_monospace_regular_24,
                                          color_default));
-                     size=Point2D(800, _ROW_H),
+                     size=Point2D(800, _ITEM_VIEWPORT_H),
                      padding=inset_default)
 
-# Stack widgets vertically by setting each child's `position` to (0, y).
-# `WidgetCompositeToGraphicsCanvas` places every child at the same (cox, coy);
-# the child's own position is what produces the vertical offset.
-function _set_position!(w::WidgetDocument, x::Int, y::Int)
-    hasproperty(w, :position) && (w.position = Point2D(x, y))
-    w
-end
-_set_position!(w, _x, _y) = w  # no-op for anything without a position field
-
-# Approximate intrinsic height of a widget for vertical-stacking purposes.
-# A `WidgetComposite` is itself a stack, so its height is the sum of its
-# children's heights — recursive. Anything else is one row.
-function _widget_height(w::WidgetComposite)
-    h = 0
-    for child in w.elements
-        h += _widget_height(child)
-    end
-    max(h, _ROW_H)
-end
-_widget_height(w::WidgetScrollPane) =
-    (sz = w.size; sz isa Point2D ? Int(sz.y[]) : _ROW_H)
-_widget_height(_) = _ROW_H
-
-function _stack_vertical!(widgets::Vector)
-    y = 0
-    for w in widgets
-        _set_position!(w, 0, y)
-        y += _widget_height(w)
-    end
-    widgets
-end
-
+# Stack children vertically via VerticalLayout — each child's y comes from the
+# intrinsic heights of the children before it, so there are no manual positions
+# or row-height estimates (and no overlap/gap bugs when an item is tall).
 _compose(elements::Vector) =
-    WidgetComposite(Point2D(0, 0),
-                    _stack_vertical!(Any[_wrap_widget(e) for e in elements]);
-                    padding=_PAD5)
+    VerticalLayout(Any[_wrap_widget(e) for e in elements])
 
-# Reactive composite — the inner CellVector recomputes its elements each
-# time `cv.elements` is invalidated (i.e. whenever the source thunk's
-# dependencies change). Used by the conversation/assistant projections so
-# that pushing a message to the source CellVector lights up the renderer
-# without re-running `projection_print`.
+# Reactive vertical stack — the inner CellVector recomputes its children each
+# time the source thunk's dependencies change (e.g. a message pushed to the
+# conversation), so the rendered scroll-back updates without re-running
+# `projection_print`. `f` already returns wrapped widgets.
 function _reactive_compose(f::Function)
-    elements_cv = CellVector(() -> _stack_vertical!(f()))
-    # Direct inner-constructor call; the @document macro wraps each raw
-    # value in `Cell` so the `elements_cv` ends up as `Cell{CellVector}`,
-    # matching the layout of an eagerly-built WidgetComposite.
-    WidgetComposite(
-        Point2D(0, 0),    # position
-        elements_cv,      # elements (CellVector, will be Cell-wrapped)
-        true,             # visible
-        inset_default,    # margin
-        nothing,          # margin_color
-        inset_default,    # border
-        nothing,          # border_color
-        _PAD5,            # padding
-        nothing,          # padding_color
-        nothing,          # selection
-    )
+    children_cv = CellVector(() -> f())
+    # Direct inner-constructor call; the @document macro Cell-wraps the raw
+    # CellVector so `children` ends up as `Cell{CellVector}`, matching the
+    # layout of an eagerly-built VerticalLayout.
+    VerticalLayout(children_cv, Cell(:left), Cell(0), Cell(nothing))
 end
 
 # ── projection_print: top-level conversation ────────────────────────────────

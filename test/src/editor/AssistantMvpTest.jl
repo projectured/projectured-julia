@@ -27,7 +27,8 @@
 
 using Projectured: KeyPress, KeyDown, Modifiers
 using Projectured: PrimitiveDocument, PrimitiveToSyntax, SyntaxToText,
-                   TextToGraphics, ConversationToWidget, WorkbenchToWidget
+                   TextToGraphics, ConversationToWidget, WorkbenchToWidget,
+                   VerticalLayout
 using Projectured: ConcreteReferencePath, FieldReference, RangeReference,
                    EmptyReferencePath
 using Projectured: LlmBackend, FakeLlm
@@ -138,21 +139,21 @@ function _mvp_test_reactive_thunk()
         push!(c, ConversationUserMessage("first"))
         proj = RecursiveProjection(ConversationToWidget())
         io = projection_print(proj, proj, c, PrinterContext())
-        @test io.output isa WidgetComposite
-        n0 = length(io.output.elements)
+        @test io.output isa VerticalLayout
+        n0 = length(io.output.children)
         # Load-bearing: pushing a new message must show up in the
-        # composite's elements without re-running projection_print.
+        # layout's children without re-running projection_print.
         push!(c, ConversationUserMessage("second"))
-        @test length(io.output.elements) == n0 + 1
+        @test length(io.output.children) == n0 + 1
 
         # Same thunk treatment for assistant message blocks.
         reply = ConversationAssistantMessage(stop_reason = :end_turn)
         push!(c, reply)
         io2 = projection_print(proj, proj, c, PrinterContext())
-        reply_widget = io2.output.elements[end]
-        b0 = length(reply_widget.elements)
+        reply_widget = io2.output.children[end]
+        b0 = length(reply_widget.children)
         push!(reply, ConversationTextBlock("delta"))
-        @test length(reply_widget.elements) == b0 + 1
+        @test length(reply_widget.children) == b0 + 1
     end
 end
 
