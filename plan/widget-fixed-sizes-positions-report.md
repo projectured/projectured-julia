@@ -513,6 +513,18 @@ duplicate-constant problem from §7E).
 > presentation choice — not as a fixed size in the projection. `assistant.png`
 > re-baselined to match its prior presentation. Verified: workbench / assistant /
 > navigator / widget printer tests pass.
+>
+> **Examples (§6) — done where it applies (`e00c0f7`).** The per-widget examples
+> that merely stacked variants of a widget (badge, separator, switch, alert,
+> skeleton, toggle) now use a `VerticalLayout` with a uniform gap instead of a
+> `WidgetComposite` of hand-placed `_wy(...)` offsets, and `LayoutToGraphics` is
+> wired into `make_widget_projection_example`. Container-wrapped content (the
+> `WidgetTitlePane` / `WidgetShell` bodies, the gallery form) **keeps** its
+> positioned `WidgetComposite`: those container widgets place their content as a
+> *positioned* widget, so a position-less layout child renders in the wrong place
+> — converting them needs a renderer change, out of scope for the example layer.
+> The examples whose subject *is* a container (`WidgetComposite`, `WidgetSplitPane`,
+> `WidgetScrollPane`) keep hand positions by design.
 
 ### 9.0 Decisions taken (2026-06-14)
 
