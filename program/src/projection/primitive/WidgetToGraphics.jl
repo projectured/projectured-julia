@@ -51,6 +51,7 @@ import ..OperationApiModule: Operation
 import ..OperationModule: ReplaceSelectionOperation, ReplaceReferencedValue
 import ..PrimitiveModule: StringReplaceRangeOperation, NumberReplaceRangeOperation
 import ..ReferenceModule: ReferencePath, ConcreteReferencePath, FieldReference, RangeReference, EmptyReferencePath
+import ..OperationRerootingModule: prepend_steps_to_op
 import ..TypeDispatchingModule: TypeDispatchingProjection
 import ..PrinterContextModule: child_context, with_available_size
 import ..LayoutModule: LayoutConstraint, allocate_axis, layout_min, layout_max,
@@ -552,29 +553,9 @@ function _retarget_op(p, iomap, op)
     end
 end
 
-# Prepend a tuple of reference steps to the reference inside a path-bearing
-# operation. Used by readers that need to add several steps at once (e.g.
-# split pane: `elements[i].child`).
-function _prepend_steps_to_ref(ref::ReferencePath, steps::Tuple)
-    result = ref
-    for step in reverse(steps)
-        result = ConcreteReferencePath(step, result)
-    end
-    result
-end
-
-function _prepend_steps_to_op(op, steps::Tuple)
-    op === nothing && return nothing
-    if op isa ReplaceSelectionOperation
-        ReplaceSelectionOperation(_prepend_steps_to_ref(op.path, steps))
-    elseif op isa StringReplaceRangeOperation
-        StringReplaceRangeOperation(_prepend_steps_to_ref(op.reference, steps), op.replacement)
-    elseif op isa NumberReplaceRangeOperation
-        NumberReplaceRangeOperation(_prepend_steps_to_ref(op.reference, steps), op.replacement)
-    else
-        op
-    end
-end
+# Reference/operation re-rooting now lives in `OperationRerootingModule`
+# (`prepend_steps_to_op` / `prepend_steps_to_ref`) — shared with the layout
+# container readers so the prepend logic is defined once.
 
 # ── WidgetLabel ─────────────────────────────────────────────────────────────
 
@@ -919,7 +900,7 @@ end
 # goes to the child the composite's selection points at, falling back to trying
 # each child. The op a child returns is re-rooted by prepending `elements[i]` —
 # the same scheme WidgetSplitPane uses. Identity-bearing ops (ReplaceReferencedValue
-# from a control) pass through `_prepend_steps_to_op` unchanged.
+# from a control) pass through `prepend_steps_to_op` unchanged.
 function projection_read(p::WidgetCompositeToGraphicsCanvas, iomap::ChildrenIoMap, evt)
     child_iomaps = iomap.child_iomaps[]::Vector
     res = @event_case evt begin
@@ -936,7 +917,7 @@ function projection_read(p::WidgetCompositeToGraphicsCanvas, iomap::ChildrenIoMa
     end
     res === nothing && return nothing
     op, slot_idx = res
-    _prepend_steps_to_op(op, (FieldReference("elements"), RangeReference(slot_idx - 1, slot_idx)))
+    prepend_steps_to_op(op, (FieldReference("elements"), RangeReference(slot_idx - 1, slot_idx)))
 end
 
 # Hit-test a coordinate event against each child canvas; returns `(op, i)` for
@@ -1400,7 +1381,7 @@ function projection_read(p::WidgetSplitPaneToGraphicsCanvas, iomap::ChildrenIoMa
     steps = elem isa LayoutConstraint ?
             (FieldReference("elements"), RangeReference(slot_idx-1, slot_idx), FieldReference("child")) :
             (FieldReference("elements"), RangeReference(slot_idx-1, slot_idx))
-    _prepend_steps_to_op(op, steps)
+    prepend_steps_to_op(op, steps)
 end
 
 # Forward a coordless event through split-pane slots; entries are
@@ -1668,7 +1649,7 @@ end
 function _tab_prefix(res)
     res === nothing && return nothing
     op, idx = res
-    _prepend_steps_to_op(op,
+    prepend_steps_to_op(op,
         (FieldReference("selector_element_pairs"), RangeReference(idx-1, idx)))
 end
 

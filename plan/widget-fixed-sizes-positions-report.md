@@ -479,6 +479,122 @@ duplicate-constant problem from §7E).
 
 ---
 
+## 9. Step 3 implementation plan — edit-transparent layouts (FOR REVIEW)
+
+> **Status:** §8 (hybrid theme split) is **done and committed** (`db1c41a`).
+> This section is the concrete plan for the original §7 **step 3** (manual
+> stacking → layout documents), revised per the decisions below. **Not yet
+> implemented — written for review.**
+
+### 9.0 Decisions taken (2026-06-14)
+
+- **Layout containers are not edit-transparent today.** `WidgetCompositeToGraphicsCanvas`'s
+  reader forwards keyboard events to the selected child and re-roots the returned
+  op with `elements[i]`
+  ([WidgetToGraphics.jl:923](../program/src/projection/primitive/WidgetToGraphics.jl#L923),
+  `_prepend_steps_to_op` at [:566](../program/src/projection/primitive/WidgetToGraphics.jl#L566)).
+  The layout readers (`_route_layout_event`,
+  [LayoutToGraphics.jl:100](../program/src/projection/primitive/LayoutToGraphics.jl#L100))
+  only route **mouse** events — so a layout cannot host an editable widget
+  subtree. **We will make the layout readers edit-transparent** so layout
+  documents can replace `WidgetComposite` as containers.
+- **Prefer `VerticalLayout` / `HorizontalLayout`; use `GridLayout` only where
+  content-driven column alignment is the actual requirement** (the
+  `ObjectToWidget` label|control form — a vertical stack of horizontal rows
+  would give ragged, per-row control offsets, reintroducing what `_CONTROL_X`
+  hardcoded; a 2-column grid sizes the label column to the widest label, which
+  is the point).
+
+### 9.1 Make the layout projections edit-transparent (`LayoutToGraphics.jl`)
+
+1. **Extract the generic re-rooting helpers** `_prepend_steps_to_op` /
+   `_prepend_steps_to_ref` out of `WidgetToGraphics.jl` into a neutral shared
+   home (they manipulate only `Operation` + `Reference` types — no widget
+   knowledge). Import from both `WidgetToGraphics` and `LayoutToGraphics`. This
+   avoids a `LayoutToGraphics → WidgetToGraphics` dependency and keeps the
+   layout module widget-independent.
+2. **Replace `_route_layout_event`** with a composite-style reader (one shared
+   helper used by all four `*LayoutToGraphicsCanvas` readers) that:
+   - **Mouse press/scroll:** hit-test child wrapper canvases (existing
+     `_route_to_children`), returning `(op, i)`.
+   - **Coordless events (keyboard, …):** forward to the child the layout's
+     `selection` points at (`_selected_layout_slot`, below), else try each child
+     in order; take `(op, i)` for the first that yields an `Operation`.
+   - **Re-root** the returned op with steps
+     `(FieldReference("children"), RangeReference(i-1, i))` via the shared
+     `_prepend_steps_to_op` — matching the `children[i]` convention already used
+     by `_children_forward` / `map_reference_forward`, so forward and read agree.
+3. **Add `_selected_layout_slot(doc, n)`** — mirror of `_selected_composite_slot`
+   but reading `getfield(doc, :selection)[]` for a leading `children[i]` step
+   (every layout document has a `selection::Reference` field already).
+4. Applies uniformly to `HorizontalLayout` / `VerticalLayout` / `GridLayout` /
+   `FlowLayout` (they share the reader helper).
+
+*Net effect:* an edit op now reaches a parent carrying `children[i]/…`
+(previously unreachable); `LayoutConstraint` already forwards `child/…`.
+
+### 9.2 `ConversationToWidget` → `VerticalLayout` (display-only, safe)
+
+- `_compose(elements)` → `VerticalLayout(Any[_wrap_widget(e) for e in elements]; gap=0)`.
+- `_reactive_compose(f)` → a `VerticalLayout` whose `children::CellVector` is a
+  thunk `() -> Any[_wrap_widget…]`, preserving the live-update contract (pushing
+  a message invalidates the cell — load-bearing, see AssistantMvpTest).
+- **Delete** `_ROW_H`, `_set_position!`, `_widget_height`, `_stack_vertical!` —
+  vertical positions now come from children's intrinsic `h`, killing the
+  height *estimates* (§4) and the overlap/gap bugs they cause.
+- `_PAD5` outer padding: `VerticalLayout` has no padding field. **Drop it** (no
+  pixel baseline exists for this path; the assistant renders via
+  `ConversationToSyntax`, not this projection).
+- `_wrap_widget` / `_text_widget` keep wrapping non-widget content in a
+  `WidgetScrollPane`; their fixed `Point2D(800, _ROW_H)` viewport is a *separate*
+  §4 concern — replace `_ROW_H` there with a named constant (`_ITEM_VIEWPORT_H`)
+  and leave content-sizing of that viewport out of this step.
+- **Test:** update the AssistantMvpTest reactive-thunk test — `io.output isa
+  VerticalLayout`; read `.children` (was `.elements`); assistant
+  `reply_widget.children`.
+- *No dispatcher wiring needed* — `ConversationToWidget` is not in a render path
+  today; this is a code-quality alignment that removes the estimates.
+
+### 9.3 `ObjectToWidget` → `GridLayout(columns=2)` (editable form; needs §9.1)
+
+- **Output:** `GridLayout(Any[label1, control1, label2, control2, …], 2;
+  horizontal_gap = gap, vertical_gap = gap)` instead of the stack of
+  per-row `WidgetComposite`s. **Drop** `_ROW_H`, `_CONTROL_X`; labels/controls
+  get `Point2D(0, 0)` (intra-cell offset zero — the grid places the cell).
+- **Reader** (relies on §9.1 edit-transparency): update `_parse_control_edit` to
+  the new reference shape rooted at the grid output —
+  `children[flat]/…content…[cs:ce]`. The control in 1-based row `r` is grid
+  child `2r` (0-based `2r-1`, i.e. odd). So from the first `RangeReference`
+  (`children[flat]`, 0-based) recover `row = (flat + 1) ÷ 2`; the terminal
+  `RangeReference` is still the char range. The identity-matched
+  `ReplaceReferencedValue` path (checkbox) is unchanged.
+- **Example chain** `make_object_to_widget_projection_example`: add the four
+  layout projections to the downstream dispatcher so the `GridLayout` renders —
+  `vcat(layout_dispatch, w2g.dispatch, [TextText => TextToGraphics(…)])`.
+- **Tests** (`ObjectToWidgetTest.jl`):
+  - structural: `out isa GridLayout`; `length(out.children) == 4` (2 rows × 2);
+    `iomap.controls` unchanged.
+  - text-edit fixture: rebuild the reference rooted at `children[1]` (pattern
+    control = row 1 → 0-based flat index 1) `…content.elements[1].content[5:5]`.
+
+### 9.4 Verification & commit boundaries
+
+Targeted tests (per CLAUDE.md — smallest that covers the change):
+`test_object_to_widget()`, the AssistantMvpTest reactive-thunk + scenes,
+`test_layout_allocator()` / `test_graphics_layout()` (allocator untouched, should
+stay green). Then render `make_object_to_widget_document_example` through its
+chain to a BMP and confirm (a) labels aligned with a content-sized second column
+and (b) typing into a field still roundtrips to the field cell.
+
+Commits, in order: **(1)** extract shared re-rooting helper + edit-transparent
+layout readers; **(2)** `ConversationToWidget` → `VerticalLayout` (+ test);
+**(3)** `ObjectToWidget` → `GridLayout` (+ reader, tests, example chain).
+
+Step 4 (fold `WorkbenchToWidget` / scroll / shell fallback sizes into the
+allocation path, §7D) remains after this.
+
+---
+
 ### Appendix — files audited
 
 - [program/src/document/Widget.jl](../program/src/document/Widget.jl) — widget document types & default sizes

@@ -30,6 +30,8 @@ import ..IoMapModule: SimpleIoMap, ChildrenIoMap, ContentIoMap
 import ..IoMapApiModule: IoMap
 import ..MouseModule: MouseScroll, MousePress
 import ..EventCaseModule: var"@event_case"
+import ..OperationApiModule: Operation
+import ..OperationRerootingModule: prepend_steps_to_op
 import ..ReferenceModule: ConcreteReferencePath, FieldReference, RangeReference
 import ..TypeDispatchingModule: TypeDispatchingProjection
 import ..ReferenceBuilderModule: var"@reference"
@@ -65,12 +67,13 @@ function _wrap_child(child::GraphicsCanvas, x_cell::Cell, y_cell::Cell)
 end
 
 """
-Route a mouse-style event to whichever child wrapper canvas contains
-the (x, y). `child_entries` is a vector of `(x_cell, y_cell, cim)`
-triples — the same shape this module stores on `ChildrenIoMap`.
+Hit-test a coordinate event against each child wrapper canvas; returns
+`(op, i)` for the first child that produced a non-`nothing` result.
+`child_entries` is a vector of `(x_cell, y_cell, cim)` triples — the
+same shape this module stores on `ChildrenIoMap`.
 """
 function _route_to_children(child_entries::Vector, x::Int, y::Int, make_evt)
-    for entry in child_entries
+    for (i, entry) in enumerate(child_entries)
         entry === nothing && continue
         (ox_cell, oy_cell, cim) = entry::Tuple{Cell,Cell,Any}
         canvas = cim.output
@@ -80,7 +83,7 @@ function _route_to_children(child_entries::Vector, x::Int, y::Int, make_evt)
         lx, ly = x - ox - Int(canvas.x), y - oy - Int(canvas.y)
         hit_element_at(canvas, lx, ly) === nothing && continue
         result = projection_read(cim.projection, cim, make_evt(lx, ly))
-        result !== nothing && return result
+        result !== nothing && return (result, i)
     end
     nothing
 end
@@ -93,13 +96,63 @@ _route_click(entries, evt::MousePress) =
     _route_to_children(entries, evt.x, evt.y,
         (x, y) -> MousePress(evt.button, x, y, evt.modifiers))
 
-# Mouse routing shared by every *LayoutToGraphicsCanvas reader: clicks and
-# scrolls go to the laid-out children; all other events fall through to
-# `nothing`. The reader bodies differ only by projection type, so they all
-# delegate here.
-_route_layout_event(entries::Vector, evt) = @event_case evt begin
-    MousePress  => _route_click(entries, evt)
-    MouseScroll => _route_scroll(entries, evt)
+# Forward a coordless event (keyboard, …) through children in order; `(op, i)`
+# for the first that produced an `Operation` (a passthrough of the raw event
+# doesn't count). Mirrors `_forward_composite_event` in WidgetToGraphics so a
+# layout can host an editable widget subtree.
+function _forward_layout_event(entries::Vector, evt)
+    for (i, entry) in enumerate(entries)
+        entry === nothing && continue
+        (_, _, cim) = entry::Tuple{Cell,Cell,Any}
+        result = projection_read(cim.projection, cim, evt)
+        result isa Operation && return (result, i)
+    end
+    nothing
+end
+
+# Forward a coordless event to the single child the layout's selection points at.
+function _forward_layout_event_slot(entries::Vector, evt, slot::Int)
+    (1 <= slot <= length(entries)) || return nothing
+    entry = entries[slot]
+    entry === nothing && return nothing
+    (_, _, cim) = entry::Tuple{Cell,Cell,Any}
+    result = projection_read(cim.projection, cim, evt)
+    result isa Operation ? (result, slot) : nothing
+end
+
+# Which child slot the layout's `selection` points at (a leading `children[i]`
+# step), or 0 if none — mirror of `_selected_composite_slot` for the `children`
+# field every layout document carries.
+function _selected_layout_slot(doc, n::Int)
+    hasproperty(doc, :selection) || return 0
+    sel = getfield(doc, :selection)[]
+    sel isa ConcreteReferencePath || return 0
+    (sel.head isa FieldReference && sel.head.name == "children") || return 0
+    t = sel.tail
+    (t isa ConcreteReferencePath && t.head isa RangeReference) || return 0
+    slot = t.head.start + 1
+    1 <= slot <= n ? slot : 0
+end
+
+# Edit-transparent routing shared by every *LayoutToGraphicsCanvas reader:
+# mouse clicks/scrolls hit-test the laid-out children; coordless events go to
+# the selected child (or are tried against each). The child's op is re-rooted by
+# prepending `children[i]`, matching `_children_forward`'s convention so forward
+# mapping and reads agree. Identity-bearing ops pass through unchanged.
+function _route_layout_event(iomap::ChildrenIoMap, evt)
+    entries = iomap.child_iomaps[]::Vector
+    res = @event_case evt begin
+        MousePress  => _route_click(entries, evt)
+        MouseScroll => _route_scroll(entries, evt)
+        _ => begin
+            slot = _selected_layout_slot(iomap.input, length(entries))
+            slot == 0 ? _forward_layout_event(entries, evt) :
+                        _forward_layout_event_slot(entries, evt, slot)
+        end
+    end
+    res === nothing && return nothing
+    op, i = res
+    prepend_steps_to_op(op, (FieldReference("children"), RangeReference(i - 1, i)))
 end
 
 """
@@ -365,7 +418,7 @@ function map_reference_backward(::HorizontalLayoutToGraphicsCanvas, iomap, refer
 end
 
 function projection_read(::HorizontalLayoutToGraphicsCanvas, iomap::ChildrenIoMap, evt)
-    _route_layout_event(iomap.child_iomaps[]::Vector, evt)
+    _route_layout_event(iomap, evt)
 end
 
 # ── VerticalLayout ─────────────────────────────────────────────────────────
@@ -447,7 +500,7 @@ function map_reference_backward(::VerticalLayoutToGraphicsCanvas, iomap, referen
 end
 
 function projection_read(::VerticalLayoutToGraphicsCanvas, iomap::ChildrenIoMap, evt)
-    _route_layout_event(iomap.child_iomaps[]::Vector, evt)
+    _route_layout_event(iomap, evt)
 end
 
 # ── GridLayout ─────────────────────────────────────────────────────────────
@@ -630,7 +683,7 @@ function map_reference_backward(::GridLayoutToGraphicsCanvas, iomap, reference)
 end
 
 function projection_read(::GridLayoutToGraphicsCanvas, iomap::ChildrenIoMap, evt)
-    _route_layout_event(iomap.child_iomaps[]::Vector, evt)
+    _route_layout_event(iomap, evt)
 end
 
 # ── FlowLayout ─────────────────────────────────────────────────────────────
@@ -813,7 +866,7 @@ function map_reference_backward(::FlowLayoutToGraphicsCanvas, iomap, reference)
 end
 
 function projection_read(::FlowLayoutToGraphicsCanvas, iomap::ChildrenIoMap, evt)
-    _route_layout_event(iomap.child_iomaps[]::Vector, evt)
+    _route_layout_event(iomap, evt)
 end
 
 # ── Factory ────────────────────────────────────────────────────────────────
