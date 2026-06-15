@@ -83,8 +83,7 @@ const math_example           = Example("math",           make_math_document_exam
 const julia_example          = Example("julia",          make_julia_document_example,          make_julia_projection_example)
 const graphics_image_example = Example("graphics_image", make_json_document_example,           make_graphics_image_projection_example)
 const primitive_string_example = Example("primitive_string", make_primitive_string_document_example, make_primitive_string_projection_example)
-const assistant_example      = Example("assistant",      make_assistant_document_example,      make_assistant_projection_example;
-                                       render_width=1600, render_height=283)
+const assistant_example      = Example("assistant",      make_assistant_document_example,      make_assistant_projection_example; render_width=1600, render_height=283)
 const dbcatalog_example      = Example("dbcatalog",      make_dbcatalog_document_example,      make_dbcatalog_projection_example)
 const sql_syntax_example     = Example("sql_syntax",     make_sql_document_example,            make_sql_syntax_projection_example)
 const sql_table_example      = Example("sql_table",      make_sql_document_example,            make_sql_table_projection_example)
@@ -425,7 +424,7 @@ end
 
 function write_image_example(example::Example, filename;
                               width=nothing, height=nothing,
-                              max_width=1200, max_height=800, kwargs...)
+                              max_width=1800, max_height=1200, kwargs...)
     write_image(example.document, example.projection, filename;
                 width=width, height=height,
                 max_width=max_width, max_height=max_height, kwargs...)

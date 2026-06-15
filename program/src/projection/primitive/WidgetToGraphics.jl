@@ -1561,18 +1561,25 @@ function projection_print(p::WidgetTabbedPaneToGraphicsCanvas, recursion, w::Wid
         result
     end)
 
-    # Seed a reduced available extent for the tab content: subtract the
-    # tab strip height from the parent's available_height (if any) so the
-    # content area knows it lives below the bar.
+    # Seed a reduced available extent for the tab content. The content lives
+    # inside the pane's border (offset `cox`/`coy`) and below the tab strip,
+    # so subtract the horizontal insets from the width and the tab strip plus
+    # vertical insets from the height — otherwise the content is allocated the
+    # full extent yet drawn at the inset, overhanging the pane (cf.
+    # WidgetTitlePane above).
     avail_w = ctx.available_width
     avail_h = ctx.available_height
-    content_ctx = if avail_h === nothing
-        ctx
-    else
-        sel_h_const = sel_h
-        avail_h_inner = Cell(() -> max(0, Int(avail_h[]) - sel_h_const))
-        with_available_size(ctx; width=avail_w, height=avail_h_inner)
-    end
+    # Distinct names: `tx` is reused below as a tab x-position inside the
+    # selector builder loop, so capturing it here would alias that closure's
+    # local and clobber the selector viewport width.
+    inset_x, inset_y = _inset_total(w)
+    sel_h_const = sel_h
+    avail_w_inner = avail_w === nothing ? nothing :
+        Cell(() -> max(0, Int(avail_w[]) - inset_x))
+    avail_h_inner = avail_h === nothing ? nothing :
+        Cell(() -> max(0, Int(avail_h[]) - sel_h_const - inset_y))
+    content_ctx = (avail_w === nothing && avail_h === nothing) ? ctx :
+        with_available_size(ctx; width=avail_w_inner, height=avail_h_inner)
     all_cims = Any[]
     for pair in pairs
         content = pair[2]
