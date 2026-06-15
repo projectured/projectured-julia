@@ -12,7 +12,7 @@ The domain includes:
 - **Base type**: `XmlDocument` abstract type for all XML documents
 
 Selection semantics:
-- Elements: `.attrs[i].value[k]` for attribute values, `.cell[i]` for child nodes
+- Elements: `.attrs[i].cell[k]` for attribute values, `.cell[i]` for child nodes
 - Text: `.cell[k]` — character offset in text content
 - Attributes: `.cell[k]` — character offset in attribute value
 """

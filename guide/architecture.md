@@ -64,7 +64,7 @@ Four layers, bottom to top:
 
 | Module | Types |
 |---|---|
-| `Reference.jl` | `ReferencePath`, `EmptyReferencePath`, `ConcreteReferencePath`; step types `ElementReference`, `PositionReference`, `FieldReference`, `ProjectionReference`, `RangeReference`, `TypeReference`, `FunctionReference` |
+| `Reference.jl` | `ReferencePath`, `EmptyReferencePath`, `ConcreteReferencePath`; step structs `RangeReference`, `FieldReference`, `ProjectionReference`, `TypeReference`, `FunctionReference`, `PointReference`, `TextRectangularReference` (`ElementReference`/`PositionReference` are convenience constructors that produce a `RangeReference`, not distinct structs) |
 | `Json.jl` | `JsonNull`, `JsonBool`, `JsonNumber`, `JsonString`, `JsonArray`, `JsonObject`, `JsonObjectEntry` |
 | `Xml.jl` | `XmlText`, `XmlAttribute`, `XmlElement` |
 | `Text.jl` | `TextText`, `TextString`, `TextNewline` |
@@ -226,8 +226,8 @@ Reactive  (no deps)
 | `SyntaxNodeToText` — flat position → recursive child path | ✅ |
 | `JsonToSyntax` — all node types | ✅ |
 | `SequentialProjection`, `TypeDispatching`, `RecursiveProjection` | ✅ |
-| Character editing (`StringReplaceRangeOperation`) | ⚠️ partial |
-| Mouse click-to-select | ⚠️ partial |
+| Character editing (`StringReplaceRangeOperation`) | ⚠️ wired + tested (`test_typeins`) for field-addressed examples; not every domain |
+| Mouse click-to-select | ⚠️ wired + tested (`test_mouse_clicks` / `test_click_roundtrips`); not every domain |
 | Undo / redo | ❌ |
 
 ---

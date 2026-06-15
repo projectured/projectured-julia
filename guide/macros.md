@@ -65,7 +65,8 @@ projection layer does this often, e.g. to make the `selection` field of a
 ## `@projection`
 
 ```julia
-@projection struct AlternativeProjection <: Projection
+# illustrative — a projection whose active branch is a reactive cell
+@projection struct ReactiveBranchProjection <: Projection
     projections::Vector{Any}
     index::Cell
 end
@@ -74,7 +75,8 @@ end
 Identical mechanic to `@document`, minus the immutable I-struct and
 conversion constructors. Use it when your projection struct has reactive
 fields (e.g. an `index` cell that switches the active branch) and you want
-transparent access.
+transparent access. In the current codebase `@projection` is used by the
+`Widget…ToGraphicsCanvas` projections.
 
 Most simple projections do not need `@projection` — a plain
 `struct MyProjection <: Projection ... end` suffices.
@@ -119,9 +121,10 @@ the cell holds a thunk rather than a value).
   `TextToGraphicsIoMap`, `NestingProjectionIoMap`, …) use a mixture of
   hand-rolled structs and `@iomap`.
 - Projection structs are usually plain `struct ... <: Projection` because
-  their configuration is immutable; `AlternativeProjection` is the main
-  exception (it holds a reactive `index::Cell` to switch branches at
-  runtime).
+  their configuration is immutable. `AlternativeProjection` is itself a plain
+  `struct` even though it holds a reactive `index::Cell` (it reads the cell
+  explicitly rather than through `@projection`); the `Widget…ToGraphicsCanvas`
+  projections are the ones that actually use `@projection`.
 
 The result is that domain and projection code reads like Julia you'd write
 without any framework — the reactivity is invisible until you reach for

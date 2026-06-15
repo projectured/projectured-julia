@@ -172,4 +172,4 @@ common case of sorting.
 | The shape of a recursive call | `RecursiveProjection` |
 | A "do X at path P, preserve elsewhere" pattern | `ApplyAtProjection` |
 
-All five dispatchers compose freely with `SequentialProjection`.
+All of these compose freely with `SequentialProjection`.

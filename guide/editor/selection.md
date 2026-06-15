@@ -61,7 +61,7 @@ Under the hood, this calls `clear_selection!` followed by `set_selection!`, ensu
 Before setting a selection, you can validate that a reference is valid using `is_valid_reference`:
 
 ```julia
-using ReferenceModule
+using Projectured
 
 # Check if a reference step is valid
 is_valid_reference(PositionReference(5))  # true

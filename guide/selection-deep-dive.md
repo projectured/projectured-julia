@@ -219,7 +219,7 @@ sel = Cell(() -> begin
     (i + 1 > length(iomaps)) && return nothing
     child_sel = iomaps[i + 1].output.selection[]
     child_sel === nothing && return nothing
-    ConcreteReferencePath(ElementReference(Cell(i)), child_sel)
+    ConcreteReferencePath(ElementReference(i), child_sel)
 end)
 ```
 

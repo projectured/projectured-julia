@@ -34,9 +34,10 @@ node = SyntaxNode(
 ## Selection
 
 Selection paths can reference:
-- Delimiters: `.open[i]` / `.open{k}`, `.close[i]` / `.close{k}`, `.sep[i]` / `.sep{k}` — i-th character or cursor between characters
-- Children: `.children[i]` for the i-th child, `.children{k}` for the cursor between children
-- Leaf values: `.value[i]` for the i-th character, `.value{k}` for the cursor between characters
+- Delimiters: `.open[i]` / `.open{k}`, `.close[i]` / `.close{k}` — i-th character or cursor between characters (on both `SyntaxLeaf` and `SyntaxNode`)
+- Separator: `.sep[i]` / `.sep{k}` — **`SyntaxNode` only** (`SyntaxLeaf` has no `sep` field)
+- Children: `.children[i]` for the i-th child, `.children{k}` for the cursor between children (`SyntaxNode`)
+- Leaf values: `.value[i]` for the i-th character, `.value{k}` for the cursor between characters (`SyntaxLeaf`)
 
 ## TextString
 

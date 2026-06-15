@@ -36,10 +36,10 @@ gtext.text = "World"
 ## Coordinates
 
 Graphics use pixel coordinates:
-- `x::Cell` — horizontal position
-- `y::Cell` — vertical position
-- `width::Cell` — element width
-- `height::Cell` — element height
+- `x` — horizontal position
+- `y` — vertical position
+- `w` — element width (`GraphicsRect` names the size fields `w`/`h`, not `width`/`height`)
+- `h` — element height
 
 ## Styling
 
@@ -91,5 +91,5 @@ iomap = projection_print(proj, doc)
 `GraphicsCanvasToImageFile` has no reader — it is a write-only, side-effecting
 projection.
 
-File format roadmap: BMP is built into SDL2 and needs no extra dependencies.
-PNG output is a future extension (requires SDL_image).
+File formats: `write_image` supports both `.bmp` (built into SDL2) and `.png`
+(via `IMG_SavePNG` from SDL2_image); other extensions error.

@@ -83,9 +83,9 @@ every test has a sibling that does the same work without wrapping it in
 
 | Helper | Location | What it does |
 |---|---|---|
-| `walk_printer_output(doc, proj)` | [PrinterTest.jl:75](../test/src/editor/PrinterTest.jl#L75) | Calls `projection_print`, reflexively walks every field of the resulting iomap, and forces every `Cell` via `c[]`. Catches errors per object. |
-| `walk_reader_events(doc, proj)` | [ReaderTest.jl:32](../test/src/editor/ReaderTest.jl#L32) | Prints once, then fires every key / mouse event in `_ALL_READER_EVENTS` through `projection_read`. |
-| `walk_repl_loop(doc, proj)` | [ReplTest.jl:14](../test/src/editor/ReplTest.jl#L14) | The complete read → evaluate → reprint → walk cycle, repeated for every event. The closest thing to driving the real editor headlessly. |
+| `walk_printer_output(doc, proj)` | [PrinterTest.jl:115](../test/src/editor/PrinterTest.jl#L115) | Calls `projection_print`, reflexively walks every field of the resulting iomap, and forces every `Cell` via `c[]`. Returns `(errors, status)`. |
+| `walk_reader_events(doc, proj)` | [ReaderTest.jl:51](../test/src/editor/ReaderTest.jl#L51) | Prints once, then fires every key / mouse event in `_ALL_READER_EVENTS` through `projection_read`. Returns `errors::Vector{String}`. |
+| `walk_repl_loop(doc, proj)` | [ReplTest.jl:27](../test/src/editor/ReplTest.jl#L27) | The complete read → evaluate → reprint → walk cycle, repeated for every event. The closest thing to driving the real editor headlessly. Returns `errors::Vector{String}`. |
 | `explore_selections(doc, proj[, initial])` | [SelectionTest.jl:19](../test/src/editor/SelectionTest.jl#L19) | BFS over reachable selection states using navigation keys. Returns `(state_count, errors)`. |
 | `walk_typein(doc, proj)` | [TypeinTest.jl](../test/src/editor/TypeinTest.jl) | Types a character into every reachable string and verifies the cursor renders and the edit lands. Returns one `(ref, ok, message)` result per string. |
 
@@ -95,7 +95,7 @@ takes an optional callback (`oncell` / `onevent` / `onstate`) that the
 `test_*` wrappers use to emit one `@test` per unit.
 
 ```julia
-julia> errors = walk_printer_output(json_example.document, json_example.projection);
+julia> errors, status = walk_printer_output(json_example.document, json_example.projection);
 julia> isempty(errors)
 true
 
@@ -106,7 +106,7 @@ julia> result.state_count, length(result.errors)
 ## The shared reflexive walker
 
 `_walk!` (in
-[test/src/editor/PrinterTest.jl:25](../test/src/editor/PrinterTest.jl#L25))
+[test/src/editor/PrinterTest.jl:45](../test/src/editor/PrinterTest.jl#L45))
 is the workhorse behind every printer-based test. It descends every field
 via `fieldnames` / `getfield`, follows every `Vector`, forces every `Cell`,
 and uses an `objectid` `Set` to break cycles. New document types are
@@ -128,7 +128,7 @@ julia> Pkg.test("ProjecturedTest")
 
 …but for iterative work the REPL functions are much faster because they
 keep the SDL backend initialised between runs (`__init__` in
-[test/src/ProjecturedTest.jl:10](../test/src/ProjecturedTest.jl#L10)).
+[test/src/ProjecturedTest.jl:13](../test/src/ProjecturedTest.jl#L13)).
 
 ## Typical workflows
 
