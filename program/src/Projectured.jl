@@ -485,6 +485,11 @@ export DbCatalogColumnToSyntaxLeaf, DbCatalogTableToSyntaxNode,
        dbcatalog_marker_eligible
 export TableDocument, TableCell, TableRow, TableColumn, TableTable
 export XmlDocument, XmlInsertion, XmlText, XmlAttribute, XmlElement, xmlattr, setattr!, deleteattr!
+export IniDocument, IniInsertion, IniComment, IniInclude, IniConfigOption, IniParamAssignment, IniSection, IniFile
+export iniparse, iniparse_file
+export IniInsertionToSyntaxLeaf, IniCommentToSyntaxLeaf, IniIncludeToSyntaxLeaf,
+       IniConfigOptionToSyntaxNode, IniParamAssignmentToSyntaxNode,
+       IniSectionToSyntaxNode, IniFileToSyntaxNode, IniToSyntax
 export FileSystemDocument, FileSystemInsertion, FileSystemFile, FileSystemDirectory, make_filesystem_pathname
 export WorkspaceDocument, WorkspaceFolder, Workspace
 export TextDocument, TextInsertion, TextText, TextString, TextNewline, TextGraphics
