@@ -506,11 +506,36 @@ end
 
 # ── Render a GraphicsRect element ────────────────────────────────────
 
-_corner_inset(radius::Int, dy::Int) =
-    dy >= radius ? 0 : radius - isqrt(radius * radius - (radius - dy) * (radius - dy))
+# Horizontal inset of a quarter-circle of device-radius `rdev` at device row
+# `dydev` (distance from the flat edge). Float so the curve can be sampled at
+# device resolution rather than logical-pixel steps.
+_corner_inset_dev(rdev::Float64, dydev::Float64) =
+    dydev >= rdev ? 0.0 : rdev - sqrt(rdev * rdev - (rdev - dydev) * (rdev - dydev))
 
-# Fill a rounded rectangle (per-corner radii) at integer pixel coordinates with
-# the renderer's current draw color. Shared by GraphicsRect fill and border.
+# Fill one rounded corner band (top or bottom) one *device* row at a time, so
+# the curve is quantized at the renderer's device resolution and the supersample
+# downsample anti-aliases it — instead of drawing a logical-resolution staircase
+# that `RenderSetScale` then magnifies. `f` = device pixels per logical pixel.
+function _fill_corner_band!(renderer::Ptr{SDL_Renderer}, x::Int, y_edge::Int, w::Int,
+                            r_left::Int, r_right::Int, band::Int, f::Float64, bottom::Bool)
+    band <= 0 && return
+    rl = r_left * f
+    rr = r_right * f
+    n = max(0, round(Int, band * f))
+    for i in 0:(n - 1)
+        dydev = i + 0.5
+        il = _corner_inset_dev(rl, dydev) / f
+        ir = _corner_inset_dev(rr, dydev) / f
+        span = w - il - ir
+        span <= 0 && continue
+        ylog = bottom ? (y_edge - (i + 1) / f) : (y_edge + i / f)
+        fr = Ref(SDL_FRect(Cfloat(x + il), Cfloat(ylog), Cfloat(span), Cfloat(1.0 / f)))
+        SDL_RenderFillRectF(renderer, fr)
+    end
+end
+
+# Fill a rounded rectangle (per-corner radii) with the renderer's current draw
+# color. Shared by GraphicsRect fill and border.
 function _fill_rounded!(renderer::Ptr{SDL_Renderer}, x::Int, y::Int, w::Int, h_px::Int,
                         r_tl::Int, r_tr::Int, r_br::Int, r_bl::Int)
     (w <= 0 || h_px <= 0) && return
@@ -529,22 +554,12 @@ function _fill_rounded!(renderer::Ptr{SDL_Renderer}, x::Int, y::Int, w::Int, h_p
         mid = Ref(SDL_Rect(Int32(x), Int32(y + top_max), Int32(w), Int32(mid_h)))
         SDL_RenderFillRect(renderer, mid)
     end
-    for dy in 0:(top_max - 1)
-        left = _corner_inset(r_tl, dy)
-        right = _corner_inset(r_tr, dy)
-        span_w = w - left - right
-        span_w <= 0 && continue
-        row = Ref(SDL_Rect(Int32(x + left), Int32(y + dy), Int32(span_w), Int32(1)))
-        SDL_RenderFillRect(renderer, row)
-    end
-    for dy in 0:(bot_max - 1)
-        left = _corner_inset(r_bl, dy)
-        right = _corner_inset(r_br, dy)
-        span_w = w - left - right
-        span_w <= 0 && continue
-        row = Ref(SDL_Rect(Int32(x + left), Int32(y + h_px - 1 - dy), Int32(span_w), Int32(1)))
-        SDL_RenderFillRect(renderer, row)
-    end
+    # Device pixels per logical pixel (the active RenderSetScale).
+    fx = Ref{Cfloat}(0); fy = Ref{Cfloat}(0)
+    SDL_RenderGetScale(renderer, fx, fy)
+    f = Float64(fx[]); f <= 0 && (f = 1.0)
+    _fill_corner_band!(renderer, x, y,        w, r_tl, r_tr, top_max, f, false)
+    _fill_corner_band!(renderer, x, y + h_px, w, r_bl, r_br, bot_max, f, true)
 end
 
 function _render_rect!(renderer::Ptr{SDL_Renderer}, rect::GraphicsRect, ox::Int, oy::Int)
@@ -583,10 +598,20 @@ function _render_line!(renderer::Ptr{SDL_Renderer}, line::GraphicsLine, ox::Int,
     elseif x1 == x2      # vertical rule
         SDL_RenderFillRect(renderer, Ref(SDL_Rect(Int32(x1 - wdt ÷ 2), Int32(min(y1, y2)),
                                                   Int32(wdt), Int32(abs(y2 - y1) + 1))))
-    else                 # diagonal: stamp the stroke width along the line
-        for o in -(wdt ÷ 2):(wdt - 1 - wdt ÷ 2)
-            SDL_RenderDrawLine(renderer, Int32(x1), Int32(y1 + o), Int32(x2), Int32(y2 + o))
-            SDL_RenderDrawLine(renderer, Int32(x1 + o), Int32(y1), Int32(x2 + o), Int32(y2))
+    else                 # diagonal: stamp the stroke width at device resolution
+        # Stamp one line per device pixel across the width (float endpoints), so
+        # the supersample downsample anti-aliases the diagonal. Stamping at
+        # logical offsets would leave gaps once RenderSetScale magnifies each
+        # 1px line.
+        fx = Ref{Cfloat}(0); fy = Ref{Cfloat}(0)
+        SDL_RenderGetScale(renderer, fx, fy)
+        f = Float64(fx[]); f <= 0 && (f = 1.0)
+        half = wdt / 2
+        steps = max(1, round(Int, wdt * f))
+        for s in 0:(steps - 1)
+            o = -half + (s + 0.5) * (wdt / steps)
+            SDL_RenderDrawLineF(renderer, Cfloat(x1), Cfloat(y1 + o), Cfloat(x2), Cfloat(y2 + o))
+            SDL_RenderDrawLineF(renderer, Cfloat(x1 + o), Cfloat(y1), Cfloat(x2 + o), Cfloat(y2))
         end
     end
 end
@@ -594,13 +619,23 @@ end
 # ── Render a GraphicsCircle element ──────────────────────────────────
 
 # Fill a disc of `rad` centered at (cx,cy) using the current draw color.
+# Scanlines are sampled at the renderer's *device* resolution (one float rect
+# per device row) so the supersample downsample anti-aliases the circumference,
+# rather than drawing a logical-resolution staircase that RenderSetScale then
+# magnifies.
 function _fill_disc!(renderer::Ptr{SDL_Renderer}, cx::Int, cy::Int, rad::Int)
     rad <= 0 && return
-    for dy in -rad:rad
-        dx = isqrt(max(0, rad * rad - dy * dy))
-        dx <= 0 && continue
-        SDL_RenderFillRect(renderer, Ref(SDL_Rect(Int32(cx - dx), Int32(cy + dy),
-                                                  Int32(2dx), Int32(1))))
+    fx = Ref{Cfloat}(0); fy = Ref{Cfloat}(0)
+    SDL_RenderGetScale(renderer, fx, fy)
+    f = Float64(fx[]); f <= 0 && (f = 1.0)
+    n = round(Int, rad * f)               # device rows from centre to edge
+    for k in -n:(n - 1)
+        yc = (k + 0.5) / f                # logical y offset at the device-row centre
+        half = sqrt(max(0.0, rad * rad - yc * yc))
+        half <= 0 && continue
+        fr = Ref(SDL_FRect(Cfloat(cx - half), Cfloat(cy + k / f),
+                           Cfloat(2 * half), Cfloat(1.0 / f)))
+        SDL_RenderFillRectF(renderer, fr)
     end
 end
 
