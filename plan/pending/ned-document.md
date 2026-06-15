@@ -422,12 +422,13 @@ Follow `Xml.jl`'s pattern of one method per concrete type dispatching on
 - Round-trip: build a NedFile, snapshot via the I-struct, hydrate back,
   and compare.
 
-### Step 6 (future) — `NedToSyntax` projection
+### Step 6 — `NedToSyntax` projection ✅
 
-A printer/reader pair that renders NED documents as syntax-highlighted text.
-This is a separate plan; the document types must exist first.
+Done. Created [`program/src/projection/primitive/NedToSyntax.jl`](../../program/src/projection/primitive/NedToSyntax.jl)
+containing `module NedToSyntaxModule` with print-only projection mapping all
+NED types to syntax-highlighted SyntaxTree. Registered in `Projectured.jl`.
 
-### Step 7 — NED document example ⏳
+### Step 7 — NED document example ✅
 
 Create `example/src/document/Ned.jl` with a `make_ned_document_example()`
 function that builds a representative `NedFile` by hand (or via `nedparse`).
@@ -474,7 +475,7 @@ function make_ned_document_example()
 end
 ```
 
-### Step 8 — NED projection example ⏳
+### Step 8 — NED projection example ✅
 
 Create `example/src/projection/Ned.jl` with a
 `make_ned_projection_example(; measure=sdl_measure_text)` function that wires
