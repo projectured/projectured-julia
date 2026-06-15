@@ -19,6 +19,31 @@ the source. This is a read-only audit; no files were changed.
 
 ---
 
+## Resolution status (2026-06-15)
+
+The **High-severity** findings have been addressed:
+
+- **RC-1 / RC-2 / RC-3 and all A/B/C doc High findings** — fixed across the guides
+  (`projection_print` arg order, `evaluate_operation(editor, op)`, `run!`/`Screen`/
+  `KeyDown`/`MousePress` vocabulary, per-domain constructor signatures,
+  `ElementReference`/`PositionReference` taking `Int`, the `@reference_case`
+  prefix-tail form, and `editor/annotation.md` marked aspirational).
+- **E/High** — `test_filesystem_to_syntax()` is now called from `test_projections()`
+  and exported; `FileSystemToSyntax` gained School-A `map_reference_forward`/
+  `_backward` + reader (verified round-trip).
+- **D/High (JuliaToSyntax)** — *partially addressed.* A full School-A mapper set was
+  implemented and verified to compile/print, but it does **not** restore navigation
+  on its own: Julia's dense projection-introduced structural tokens require the
+  flat-offset projection-reference machinery (`_syntax_to_flat`) to be traversable,
+  which JsonToSyntax has and JuliaToSyntax lacks. The experiment was reverted to avoid
+  a navigation regression; an explanatory comment now documents the deferral in
+  `JuliaToSyntax.jl`. **Follow-up:** wire flat-offset traversal + per-node School-A
+  mappers to get real bidirectional Julia navigation.
+
+Medium/Low findings remain open.
+
+---
+
 ## Executive summary
 
 The **code is internally very healthy**. Across ~56 projection files: argument order is
