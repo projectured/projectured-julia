@@ -24,7 +24,7 @@ family rather than the originally proposed (and abandoned) "domain-preserving
 
 Remaining work:
 
-1. **`StackLayout`** — z-ordered overlays / badges.
+1. ~~**`StackLayout`** — z-ordered overlays / badges.~~ **Done.**
 2. **`ConstraintLayout`** — constraint-solved free-form arrangement (deferred).
 3. **Migrate existing positioners** — fold `TableToGraphics` and the widget
    containers onto the layout family (optional).
@@ -33,7 +33,7 @@ Remaining work:
 
 ---
 
-## 1. StackLayout
+## 1. StackLayout — Done
 
 A new `LayoutDocument` that lays children on top of each other (z-order =
 child order). Used for overlays, badges, and composing

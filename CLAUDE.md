@@ -43,3 +43,5 @@ Pick the narrowest scope that exercises your change:
 - Want errors back as a `Vector{String}` instead of `@testset` output (less noise, keeps going on failure): the walker helpers `walk_printer_output(doc, proj)`, `walk_repl_loop(doc, proj)`, `explore_selections(doc, proj)`.
 
 Running `test_all()` is usually not needed — the targeted test above is enough to verify a change. Only reach for the loop-over-every-example functions (`test_printers()` / `test_readers()` / `test_selections()` / `test_repls()`), and rarely `test_all()`, when you specifically want a broad sweep after the targeted test already passes. See [guide/testing.md](guide/testing.md) for the full table of test functions and which layer each one covers.
+
+Always narrow down tests to the smallest reasonable scope — never default to `test_all()`, it is slow. Prefer single-example or single-domain test functions as described in the "Testing a change" section above.
