@@ -557,7 +557,7 @@ function projection_print(p::IniFileToSyntaxNode, recursion, f::IniFile, ctx)
         TextString("", font_ubuntu_monospace_regular_24, color_default),
         TextString("", font_ubuntu_monospace_regular_24, color_default),
         TextString("", font_ubuntu_monospace_regular_24, color_default),
-        children_cv, 0, Cell(false), sel)
+        children_cv, 1, Cell(false), sel)
     ChildrenIoMap(p, f, output, child_iomaps)
 end
 
