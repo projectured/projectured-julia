@@ -497,6 +497,18 @@ export iniparse, iniparse_file
 export IniInsertionToSyntaxLeaf, IniCommentToSyntaxLeaf, IniIncludeToSyntaxLeaf,
        IniConfigOptionToSyntaxNode, IniParamAssignmentToSyntaxNode,
        IniSectionToSyntaxNode, IniFileToSyntaxNode, IniToSyntax
+export NedDocument, NedInsertion, NedExtends, NedInterfaceName, NedLoop, NedCondition, NedLiteral,
+       NedPropertyKey, NedProperty, NedPropertyDecl, NedParam, NedGate,
+       NedSubmodule, NedConnection, NedConnectionGroup,
+       NedSimpleModule, NedCompoundModule, NedModuleInterface, NedChannel, NedChannelInterface,
+       NedPackage, NedImport, NedFile
+export nedparse, nedparse_file
+export NedInsertionToSyntaxLeaf, NedPackageToSyntaxLeaf, NedImportToSyntaxLeaf,
+       NedPropertyToSyntaxLeaf, NedParamToSyntaxLeaf, NedGateToSyntaxLeaf,
+       NedSubmoduleToSyntaxNode, NedConnectionToSyntaxLeaf, NedConnectionGroupToSyntaxNode,
+       NedSimpleModuleToSyntaxNode, NedCompoundModuleToSyntaxNode,
+       NedModuleInterfaceToSyntaxNode, NedChannelToSyntaxNode, NedChannelInterfaceToSyntaxNode,
+       NedFileToSyntaxNode, NedToSyntax
 export FileSystemDocument, FileSystemInsertion, FileSystemFile, FileSystemDirectory, make_filesystem_pathname
 export WorkspaceDocument, WorkspaceFolder, Workspace
 export TextDocument, TextInsertion, TextText, TextString, TextNewline, TextGraphics
