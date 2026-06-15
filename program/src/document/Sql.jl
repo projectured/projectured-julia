@@ -39,8 +39,9 @@ export SqlDocument, SqlStatement,
        SqlCrossJoin,      ISqlCrossJoin,
        SqlJoinOnCondition,    ISqlJoinOnCondition,
        SqlJoinUsingCondition, ISqlJoinUsingCondition,
-       SqlTableExpression,   ISqlTableExpression,
-       SqlJoinSegment,       ISqlJoinSegment,
+       SqlTableExpression,     ISqlTableExpression,
+       SqlJoinedFromItem,      ISqlJoinedFromItem,
+       SqlWhereFilterCondition, ISqlWhereFilterCondition,
        SqlFromItem,          ISqlFromItem,
        SqlFromClause,        ISqlFromClause,
        SqlSelectStatement,   ISqlSelectStatement,
@@ -145,12 +146,19 @@ SqlSelectClause(items::SqlSelectItem...) =
 
 # ── WHERE clause ───────────────────────────────────────────────────────────────
 
+@document struct SqlWhereFilterCondition <: SqlWhereCondition
+    expression::SqlBooleanExpression
+    selection::Reference
+end
+SqlWhereFilterCondition(expr::SqlBooleanExpression) =
+    SqlWhereFilterCondition(expr, Cell(nothing))
+
 @document struct SqlWhereClause <: SqlDocument
-    condition::Any                # SqlBooleanExpression | nothing
+    condition::Any                # SqlWhereCondition | nothing
     selection::Reference
 end
 SqlWhereClause() = SqlWhereClause(nothing, Cell(nothing))
-SqlWhereClause(cond::SqlBooleanExpression) = SqlWhereClause(cond, Cell(nothing))
+SqlWhereClause(cond::SqlWhereCondition) = SqlWhereClause(cond, Cell(nothing))
 
 # ── Boolean expression documents ───────────────────────────────────────────────
 
@@ -221,10 +229,10 @@ SqlCrossJoin() = SqlCrossJoin(Cell(nothing))
 # ── Join condition documents ───────────────────────────────────────────────────
 
 @document struct SqlJoinOnCondition <: SqlJoinCondition
-    expression::SqlJoinConditionExpression
+    expression::SqlBooleanExpression
     selection::Reference
 end
-SqlJoinOnCondition(expr::SqlJoinConditionExpression) =
+SqlJoinOnCondition(expr::SqlBooleanExpression) =
     SqlJoinOnCondition(expr, Cell(nothing))
 
 @document struct SqlJoinUsingCondition <: SqlJoinCondition
@@ -248,20 +256,20 @@ SqlTableExpression(tname::SqlTableName, alias::SqlTableAlias) =
 SqlTableExpression(name::AbstractString) =
     SqlTableExpression(SqlTableName(name), nothing, Cell(nothing))
 
-@document struct SqlJoinSegment <: SqlDocument
+@document struct SqlJoinedFromItem <: SqlDocument
     join_type::SqlJoinType
     from_item::SqlFromBaseItem
     condition::Any                # SqlJoinCondition | nothing
     selection::Reference
 end
-SqlJoinSegment(jt::SqlJoinType, fi::SqlFromBaseItem) =
-    SqlJoinSegment(jt, fi, nothing, Cell(nothing))
-SqlJoinSegment(jt::SqlJoinType, fi::SqlFromBaseItem, cond::SqlJoinCondition) =
-    SqlJoinSegment(jt, fi, cond, Cell(nothing))
+SqlJoinedFromItem(jt::SqlJoinType, fi::SqlFromBaseItem) =
+    SqlJoinedFromItem(jt, fi, nothing, Cell(nothing))
+SqlJoinedFromItem(jt::SqlJoinType, fi::SqlFromBaseItem, cond::SqlJoinCondition) =
+    SqlJoinedFromItem(jt, fi, cond, Cell(nothing))
 
 @document struct SqlFromItem <: SqlDocument
     base_item::SqlFromBaseItem
-    joins::CellVector             # [SqlJoinSegment]
+    joins::CellVector             # [SqlJoinedFromItem]
     selection::Reference
 end
 SqlFromItem(base::SqlFromBaseItem) =
@@ -354,6 +362,9 @@ render_sql(::SqlRightOuterJoin) = "RIGHT JOIN"
 render_sql(::SqlFullOuterJoin)  = "FULL JOIN"
 render_sql(::SqlCrossJoin)      = "CROSS JOIN"
 
+render_sql(c::SqlJoinOnCondition) = "ON $(render_sql(c.expression))"
+render_sql(c::SqlWhereFilterCondition) = render_sql(c.expression)
+
 function render_sql(c::SqlJoinUsingCondition)
     cols = join((render_sql(cn) for cn in c.column_names), ", ")
     "USING ($cols)"
@@ -364,7 +375,7 @@ function render_sql(t::SqlTableExpression)
     t.alias === nothing ? base : "$base AS $(t.alias.name)"
 end
 
-function render_sql(j::SqlJoinSegment)
+function render_sql(j::SqlJoinedFromItem)
     base = "$(render_sql(j.join_type)) $(render_sql(j.from_item))"
     j.condition === nothing ? base : "$base $(render_sql(j.condition))"
 end
@@ -434,8 +445,8 @@ function resolve_sql_names!(stmt::SqlSelectStatement)
     tscope = Dict{String, SqlDocument}()
     for from_item in stmt.from_clause.items
         _register_base_item!(tscope, from_item.base_item)
-        for seg in from_item.joins
-            _register_base_item!(tscope, seg.from_item)
+        for jfi in from_item.joins
+            _register_base_item!(tscope, jfi.from_item)
         end
     end
 
@@ -453,7 +464,7 @@ function resolve_sql_names!(stmt::SqlSelectStatement)
 
     # Rewrite qualifier fields in WHERE condition
     cond = stmt.where_clause.condition
-    cond !== nothing && _resolve_bool_expr!(cond, tscope, cscope)
+    cond !== nothing && _resolve_bool_expr!(cond.expression, tscope, cscope)
 
     stmt
 end
@@ -461,8 +472,8 @@ end
 function _resolve_subqueries!(from_item::SqlFromItem)
     bi = from_item.base_item
     bi isa SqlSubqueryFromItem && resolve_sql_names!(bi.subquery)
-    for seg in from_item.joins
-        si = seg.from_item
+    for jfi in from_item.joins
+        si = jfi.from_item
         si isa SqlSubqueryFromItem && resolve_sql_names!(si.subquery)
     end
 end

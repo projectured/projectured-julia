@@ -18,11 +18,12 @@ import ..ReactiveModule: Cell
 import ..CollectionModule: CellVector
 import ..ProjectionApiModule: projection_print, projection_read, map_reference_forward, map_reference_backward, Projection
 import ..SqlDocumentModule: SqlSelectStatement, SqlSelectClause, SqlFromClause, SqlWhereClause,
+                            SqlWhereFilterCondition,
                             SqlSelectItem, SqlAllColumns, SqlColumnReference,
-                            SqlTableExpression, SqlSubqueryFromItem, SqlFromItem, SqlJoinSegment, SqlJoinType,
+                            SqlTableExpression, SqlSubqueryFromItem, SqlFromItem, SqlJoinedFromItem, SqlJoinType,
                             SqlInnerJoin, SqlLeftOuterJoin, SqlRightOuterJoin, SqlFullOuterJoin, SqlCrossJoin,
-                            SqlScalarValue, SqlComparison, SqlAnd, SqlOr, SqlNot,
-                            render_sql
+                            SqlJoinOnCondition,
+                            SqlScalarValue, SqlComparison, SqlAnd, SqlOr, SqlNot
 import ..TextModule: TextString
 import ..FontModule: StyleFont, font_ubuntu_monospace_regular_24, font_ubuntu_monospace_bold_24
 import ..ColorModule: StyleColor, color_default, color_solarized_blue, color_solarized_green
@@ -40,7 +41,8 @@ export SqlAllColumnsToSyntaxLeaf, SqlColumnReferenceToSyntaxLeaf,
        SqlTableExpressionToSyntaxLeaf, SqlSubqueryFromItemToSyntaxNode, SqlJoinTypeToSyntaxLeaf,
        SqlSelectItemToSyntaxNode, SqlSelectClauseToSyntaxNode,
        SqlFromItemToSyntaxNode, SqlFromClauseToSyntaxNode,
-       SqlJoinSegmentToSyntaxNode, SqlWhereClauseToSyntaxNode,
+       SqlJoinedFromItemToSyntaxNode, SqlJoinOnConditionToSyntaxNode,
+       SqlWhereFilterConditionToSyntaxNode, SqlWhereClauseToSyntaxNode,
        SqlScalarValueToSyntaxLeaf, SqlComparisonToSyntaxNode,
        SqlBooleanBinaryToSyntaxNode, SqlNotToSyntaxNode,
        SqlSelectStatementToSyntaxNode, SqlToSyntax
@@ -257,6 +259,12 @@ end
 
 projection_read(::SqlSubqueryFromItemToSyntaxNode, iomap::ChildrenIoMap, op) = nothing
 
+_join_type_display(::SqlInnerJoin)      = "INNER JOIN"
+_join_type_display(::SqlLeftOuterJoin)  = "LEFT OUTER JOIN"
+_join_type_display(::SqlRightOuterJoin) = "RIGHT OUTER JOIN"
+_join_type_display(::SqlFullOuterJoin)  = "FULL OUTER JOIN"
+_join_type_display(::SqlCrossJoin)      = "CROSS JOIN"
+
 # ── SqlJoinTypeToSyntaxLeaf ───────────────────────────────────────────────────
 
 struct SqlJoinTypeToSyntaxLeaf <: Projection
@@ -267,7 +275,7 @@ SqlJoinTypeToSyntaxLeaf(; font=font_ubuntu_monospace_bold_24, color=color_solari
     SqlJoinTypeToSyntaxLeaf(font, color)
 
 function projection_print(p::SqlJoinTypeToSyntaxLeaf, recursion, doc::SqlJoinType, ctx)
-    SimpleIoMap(p, doc, _kw(render_sql(doc), p.font, p.color))
+    SimpleIoMap(p, doc, _kw(_join_type_display(doc), p.font, p.color))
 end
 
 function map_reference_forward(::SqlJoinTypeToSyntaxLeaf, iomap::SimpleIoMap, reference)
@@ -457,25 +465,31 @@ end
 
 projection_read(::SqlSelectClauseToSyntaxNode, iomap::ChildrenIoMap, op) = nothing
 
-# ── SqlJoinSegmentToSyntaxNode ────────────────────────────────────────────────
+# ── SqlJoinedFromItemToSyntaxNode ─────────────────────────────────────────────
 
-struct SqlJoinSegmentToSyntaxNode <: Projection
+struct SqlJoinedFromItemToSyntaxNode <: Projection
     keyword_font::StyleFont
     keyword_color::StyleColor
 end
-SqlJoinSegmentToSyntaxNode(; keyword_font=font_ubuntu_monospace_bold_24,
-                              keyword_color=color_solarized_blue) =
-    SqlJoinSegmentToSyntaxNode(keyword_font, keyword_color)
+SqlJoinedFromItemToSyntaxNode(; keyword_font=font_ubuntu_monospace_bold_24,
+                                keyword_color=color_solarized_blue) =
+    SqlJoinedFromItemToSyntaxNode(keyword_font, keyword_color)
 
-function projection_print(p::SqlJoinSegmentToSyntaxNode, recursion, doc::SqlJoinSegment, ctx)
+function projection_print(p::SqlJoinedFromItemToSyntaxNode, recursion, doc::SqlJoinedFromItem, ctx)
     projected = Cell(() -> begin
         jt = projection_print(recursion, recursion, doc.join_type,
                               child_context(ctx, FieldReference("join_type")))
         fi = projection_print(recursion, recursion, doc.from_item,
                               child_context(ctx, FieldReference("from_item")))
-        (jt, fi)
+        cond_im = doc.condition === nothing ? nothing :
+            projection_print(recursion, recursion, doc.condition,
+                             child_context(ctx, FieldReference("condition")))
+        (jt, fi, cond_im)
     end)
-    child_iomaps_cell = Cell(() -> begin jt, fi = projected[]; Any[jt, fi] end)
+    child_iomaps_cell = Cell(() -> begin
+        jt, fi, cond_im = projected[]
+        cond_im === nothing ? Any[jt, fi] : Any[jt, fi, cond_im]
+    end)
 
     iomap_cell = Cell(nothing)
     sel = Cell(() -> begin
@@ -491,8 +505,9 @@ function projection_print(p::SqlJoinSegmentToSyntaxNode, recursion, doc::SqlJoin
         TextString("", p.keyword_font, color_default),
         TextString(" ", p.keyword_font, color_default),
         CellVector(() -> begin
-            jt, fi = projected[]
-            SyntaxDocument[jt.output, fi.output]
+            jt, fi, cond_im = projected[]
+            cond_im === nothing ? SyntaxDocument[jt.output, fi.output] :
+                                  SyntaxDocument[jt.output, fi.output, cond_im.output]
         end),
         0, Cell(false), sel)
 
@@ -501,7 +516,7 @@ function projection_print(p::SqlJoinSegmentToSyntaxNode, recursion, doc::SqlJoin
     return iomap
 end
 
-function map_reference_forward(p::SqlJoinSegmentToSyntaxNode, iomap::ChildrenIoMap, reference)
+function map_reference_forward(p::SqlJoinedFromItemToSyntaxNode, iomap::ChildrenIoMap, reference)
     @reference_case reference begin
         ∅ => @reference()
         proj(^(p), _) => reference
@@ -517,10 +532,18 @@ function map_reference_forward(p::SqlJoinSegmentToSyntaxNode, iomap::ChildrenIoM
             inner === nothing && return nothing
             @reference children[2].^(inner)
         end
+        condition.rest... => begin
+            cims = iomap.child_iomaps[]
+            length(cims) < 3 && return nothing
+            child = cims[3]
+            inner = map_reference_forward(child.projection, child, rest)
+            inner === nothing && return nothing
+            @reference children[3].^(inner)
+        end
     end
 end
 
-function map_reference_backward(p::SqlJoinSegmentToSyntaxNode, iomap::ChildrenIoMap, reference)
+function map_reference_backward(p::SqlJoinedFromItemToSyntaxNode, iomap::ChildrenIoMap, reference)
     @reference_case reference begin
         ∅ => @reference()
         children[1].rest... => begin
@@ -535,10 +558,18 @@ function map_reference_backward(p::SqlJoinSegmentToSyntaxNode, iomap::ChildrenIo
             inner === nothing && return nothing
             @reference from_item.^(inner)
         end
+        children[3].rest... => begin
+            cims = iomap.child_iomaps[]
+            length(cims) < 3 && return nothing
+            child = cims[3]
+            inner = map_reference_backward(child.projection, child, rest)
+            inner === nothing && return nothing
+            @reference condition.^(inner)
+        end
     end
 end
 
-function projection_read(p::SqlJoinSegmentToSyntaxNode, iomap::ChildrenIoMap, op::ReplaceSelectionOperation)
+function projection_read(p::SqlJoinedFromItemToSyntaxNode, iomap::ChildrenIoMap, op::ReplaceSelectionOperation)
     result = map_reference_backward(p, iomap, op.path)
     result !== nothing && return ReplaceSelectionOperation(result)
     flat = _syntax_to_flat(iomap.output::SyntaxNode, op.path, SyntaxNodeToText(), 0)
@@ -546,7 +577,79 @@ function projection_read(p::SqlJoinSegmentToSyntaxNode, iomap::ChildrenIoMap, op
     return ReplaceSelectionOperation(ConcreteReferencePath(ProjectionReference(p, ConcreteReferencePath(PositionReference(flat)))))
 end
 
-projection_read(::SqlJoinSegmentToSyntaxNode, iomap::ChildrenIoMap, op) = nothing
+projection_read(::SqlJoinedFromItemToSyntaxNode, iomap::ChildrenIoMap, op) = nothing
+
+# ── SqlJoinOnConditionToSyntaxNode ─────────────────────────────────────────────
+
+struct SqlJoinOnConditionToSyntaxNode <: Projection
+    keyword_font::StyleFont
+    keyword_color::StyleColor
+end
+SqlJoinOnConditionToSyntaxNode(; keyword_font=font_ubuntu_monospace_bold_24,
+                                 keyword_color=color_solarized_blue) =
+    SqlJoinOnConditionToSyntaxNode(keyword_font, keyword_color)
+
+function projection_print(p::SqlJoinOnConditionToSyntaxNode, recursion, doc::SqlJoinOnCondition, ctx)
+    expr_im = Cell(() ->
+        projection_print(recursion, recursion, doc.expression,
+                         child_context(ctx, FieldReference("expression"))))
+    child_iomaps_cell = Cell(() -> Any[expr_im[]])
+
+    iomap_cell = Cell(nothing)
+    sel = Cell(() -> begin
+        im = iomap_cell[]
+        im === nothing && return nothing
+        path = doc.selection
+        path === nothing && return nothing
+        map_reference_forward(p, im, path)
+    end)
+
+    node = SyntaxNode(
+        TextString("", p.keyword_font, color_default),
+        TextString("", p.keyword_font, color_default),
+        TextString(" ", p.keyword_font, color_default),
+        CellVector(() -> SyntaxDocument[_kw("ON", p.keyword_font, p.keyword_color), expr_im[].output]),
+        0, Cell(false), sel)
+
+    iomap = ChildrenIoMap(p, doc, node, child_iomaps_cell)
+    iomap_cell[] = iomap
+    return iomap
+end
+
+function map_reference_forward(p::SqlJoinOnConditionToSyntaxNode, iomap::ChildrenIoMap, reference)
+    @reference_case reference begin
+        ∅ => @reference()
+        proj(^(p), _) => reference
+        expression.rest... => begin
+            child = iomap.child_iomaps[][1]
+            inner = map_reference_forward(child.projection, child, rest)
+            inner === nothing && return nothing
+            @reference children[2].^(inner)
+        end
+    end
+end
+
+function map_reference_backward(p::SqlJoinOnConditionToSyntaxNode, iomap::ChildrenIoMap, reference)
+    @reference_case reference begin
+        ∅ => @reference()
+        children[2].rest... => begin
+            child = iomap.child_iomaps[][1]
+            inner = map_reference_backward(child.projection, child, rest)
+            inner === nothing && return nothing
+            @reference expression.^(inner)
+        end
+    end
+end
+
+function projection_read(p::SqlJoinOnConditionToSyntaxNode, iomap::ChildrenIoMap, op::ReplaceSelectionOperation)
+    result = map_reference_backward(p, iomap, op.path)
+    result !== nothing && return ReplaceSelectionOperation(result)
+    flat = _syntax_to_flat(iomap.output::SyntaxNode, op.path, SyntaxNodeToText(), 0)
+    flat < 0 && return nothing
+    return ReplaceSelectionOperation(ConcreteReferencePath(ProjectionReference(p, ConcreteReferencePath(PositionReference(flat)))))
+end
+
+projection_read(::SqlJoinOnConditionToSyntaxNode, iomap::ChildrenIoMap, op) = nothing
 
 # ── SqlFromItemToSyntaxNode ───────────────────────────────────────────────────
 
@@ -735,6 +838,78 @@ end
 
 projection_read(::SqlFromClauseToSyntaxNode, iomap::ChildrenIoMap, op) = nothing
 
+# ── SqlWhereFilterConditionToSyntaxNode ──────────────────────────────────────
+
+struct SqlWhereFilterConditionToSyntaxNode <: Projection
+    keyword_font::StyleFont
+    keyword_color::StyleColor
+end
+SqlWhereFilterConditionToSyntaxNode(; keyword_font=font_ubuntu_monospace_bold_24,
+                                      keyword_color=color_solarized_blue) =
+    SqlWhereFilterConditionToSyntaxNode(keyword_font, keyword_color)
+
+function projection_print(p::SqlWhereFilterConditionToSyntaxNode, recursion, doc::SqlWhereFilterCondition, ctx)
+    expr_im = Cell(() ->
+        projection_print(recursion, recursion, doc.expression,
+                         child_context(ctx, FieldReference("expression"))))
+    child_iomaps_cell = Cell(() -> Any[expr_im[]])
+
+    iomap_cell = Cell(nothing)
+    sel = Cell(() -> begin
+        im = iomap_cell[]
+        im === nothing && return nothing
+        path = doc.selection
+        path === nothing && return nothing
+        map_reference_forward(p, im, path)
+    end)
+
+    node = SyntaxNode(
+        TextString("", p.keyword_font, color_default),
+        TextString("", p.keyword_font, color_default),
+        TextString("", p.keyword_font, color_default),
+        CellVector(() -> SyntaxDocument[expr_im[].output]),
+        0, Cell(false), sel)
+
+    iomap = ChildrenIoMap(p, doc, node, child_iomaps_cell)
+    iomap_cell[] = iomap
+    return iomap
+end
+
+function map_reference_forward(p::SqlWhereFilterConditionToSyntaxNode, iomap::ChildrenIoMap, reference)
+    @reference_case reference begin
+        ∅ => @reference()
+        proj(^(p), _) => reference
+        expression.rest... => begin
+            child = iomap.child_iomaps[][1]
+            inner = map_reference_forward(child.projection, child, rest)
+            inner === nothing && return nothing
+            @reference children[1].^(inner)
+        end
+    end
+end
+
+function map_reference_backward(p::SqlWhereFilterConditionToSyntaxNode, iomap::ChildrenIoMap, reference)
+    @reference_case reference begin
+        ∅ => @reference()
+        children[1].rest... => begin
+            child = iomap.child_iomaps[][1]
+            inner = map_reference_backward(child.projection, child, rest)
+            inner === nothing && return nothing
+            @reference expression.^(inner)
+        end
+    end
+end
+
+function projection_read(p::SqlWhereFilterConditionToSyntaxNode, iomap::ChildrenIoMap, op::ReplaceSelectionOperation)
+    result = map_reference_backward(p, iomap, op.path)
+    result !== nothing && return ReplaceSelectionOperation(result)
+    flat = _syntax_to_flat(iomap.output::SyntaxNode, op.path, SyntaxNodeToText(), 0)
+    flat < 0 && return nothing
+    return ReplaceSelectionOperation(ConcreteReferencePath(ProjectionReference(p, ConcreteReferencePath(PositionReference(flat)))))
+end
+
+projection_read(::SqlWhereFilterConditionToSyntaxNode, iomap::ChildrenIoMap, op) = nothing
+
 # ── SqlWhereClauseToSyntaxNode ────────────────────────────────────────────────
 
 struct SqlWhereClauseToSyntaxNode <: Projection
@@ -828,7 +1003,12 @@ function projection_print(p::SqlScalarValueToSyntaxLeaf, recursion, doc::SqlScal
     SimpleIoMap(p, doc, SyntaxLeaf(
         TextString("", p.font, color_default),
         TextString("", p.font, color_default),
-        TextString(() -> render_sql(doc), p.font, p.color),
+        TextString(() -> begin
+            val = doc.value
+            val isa Bool           ? (val ? "TRUE" : "FALSE") :
+            val isa AbstractString ? "'$val'" :
+            string(val)
+        end, p.font, p.color),
         doc.selection))
 end
 
@@ -1236,7 +1416,9 @@ function SqlToSyntax()
         SqlTableExpression      => SqlTableExpressionToSyntaxLeaf(),
         SqlSubqueryFromItem     => SqlSubqueryFromItemToSyntaxNode(),
         SqlFromItem             => SqlFromItemToSyntaxNode(),
-        SqlJoinSegment          => SqlJoinSegmentToSyntaxNode(),
+        SqlJoinedFromItem       => SqlJoinedFromItemToSyntaxNode(),
+        SqlJoinOnCondition      => SqlJoinOnConditionToSyntaxNode(),
+        SqlWhereFilterCondition => SqlWhereFilterConditionToSyntaxNode(),
         SqlInnerJoin            => jt,
         SqlLeftOuterJoin        => jt,
         SqlRightOuterJoin       => jt,

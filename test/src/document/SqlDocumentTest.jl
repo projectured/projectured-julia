@@ -25,7 +25,7 @@ function test_sql_document_nested_select(; show_detail=false)
                 SqlFromClause(SqlFromItem(
                     SqlTableExpression(SqlTableName("persons"), p_alias))),
                 SqlWhereClause(
-                    SqlComparison(inner_where_ref, "<>", SqlScalarValue("X")))),
+                    SqlWhereFilterCondition(SqlComparison(inner_where_ref, "<>", SqlScalarValue("X"))))),
             sub_alias)
 
         outer_stmt = SqlSelectStatement(
@@ -34,7 +34,7 @@ function test_sql_document_nested_select(; show_detail=false)
                 SqlSelectItem(outer_ref2)),
             SqlFromClause(SqlFromItem(subq_item)),
             SqlWhereClause(
-                SqlComparison(outer_where_ref, "<>", SqlScalarValue("X"))))
+                SqlWhereFilterCondition(SqlComparison(outer_where_ref, "<>", SqlScalarValue("X")))))
 
         expected_sql =
             "SELECT sub.person_name, sub.person_age FROM " *
@@ -114,7 +114,7 @@ function test_sql_boolean_expression(; show_detail=false)
         stmt = SqlSelectStatement(
             SqlSelectClause(SqlSelectItem(SqlAllColumns())),
             SqlFromClause(SqlFromItem(SqlTableExpression("persons"))),
-            SqlWhereClause(cmp_age))
+            SqlWhereClause(SqlWhereFilterCondition(cmp_age)))
         expected_sql = "SELECT * FROM \"persons\" WHERE age >= 18"
         show_detail && @info "render_sql (with WHERE):" render_sql(stmt)
         @test render_sql(stmt) == expected_sql

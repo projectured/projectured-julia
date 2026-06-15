@@ -13,21 +13,24 @@ Reference: [PostgreSQL SELECT](https://www.postgresql.org/docs/current/sql-selec
 
 ## Example
 
-`SELECT sub.person_name, sub.person_age FROM (SELECT name AS person_name, age AS person_age FROM "persons") AS sub`
-built as one nested constructor expression:
+```sql
+SELECT p.name, p.age FROM persons AS p WHERE p.age >= 18
+```
+
+Built as one constructor expression:
 
 ```julia
 SqlSelectStatement(
     SqlSelectClause(
-        SqlSelectItem(SqlColumnReference(SqlTableAlias("sub"), SqlColumnName("person_name"))),
-        SqlSelectItem(SqlColumnReference(SqlTableAlias("sub"), SqlColumnName("person_age")))),
-    SqlFromClause(SqlFromItem(SqlSubqueryFromItem(
-        SqlSelectStatement(
-            SqlSelectClause(
-                SqlSelectItem(SqlColumnReference("name"), SqlColumnAlias("person_name")),
-                SqlSelectItem(SqlColumnReference("age"),  SqlColumnAlias("person_age"))),
-            SqlFromClause(SqlFromItem(SqlTableExpression("persons")))),
-        SqlTableAlias("sub")))))
+        SqlSelectItem(SqlColumnReference(SqlTableAlias("p"), SqlColumnName("name"))),
+        SqlSelectItem(SqlColumnReference(SqlTableAlias("p"), SqlColumnName("age")))),
+    SqlFromClause(SqlFromItem(
+        SqlTableExpression(SqlTableName("persons"), SqlTableAlias("p")))),
+    SqlWhereClause(
+        SqlWhereFilterCondition(SqlComparison(
+            SqlColumnReference(SqlTableAlias("p"), SqlColumnName("age")),
+            ">=",
+            SqlScalarValue(18)))))
 ```
 
 Call `resolve_sql_names!` after construction to bind qualifier references to
@@ -62,7 +65,7 @@ SqlDocument (abstract)
     │   │       │   └── SqlSubqueryFromItem
     │   │       │       ├── subquery : SqlSelectStatement
     │   │       │       └── alias    : SqlTableAlias?
-    │   │       └── joins : [SqlJoinSegment]
+    │   │       └── joins : [SqlJoinedFromItem]
     │   │           ├── join_type  : SqlJoinType (abstract)
     │   │           │   ├── SqlInnerJoin       (leaf)
     │   │           │   ├── SqlLeftOuterJoin   (leaf)
@@ -72,24 +75,26 @@ SqlDocument (abstract)
     │   │           ├── from_item  : SqlFromBaseItem
     │   │           └── condition  : SqlJoinCondition (abstract)?
     │   │               ├── SqlJoinOnCondition
-    │   │               │   └── expression : SqlJoinConditionExpression (abstract)
+    │   │               │   └── expression : SqlBooleanExpression (abstract)
     │   │               └── SqlJoinUsingCondition
     │   │                   └── column_names : [SqlColumnName]
     │   └── where_clause : SqlWhereClause
-    │       └── condition : SqlBooleanExpression (abstract)?
-    │           ├── SqlComparison
-    │           │   ├── left     : SqlColumnReference | SqlScalarValue
-    │           │   │                  └── value : Any
-    │           │   ├── operator : String  -- "=", "<>", "<", ">", "<=", ">="
-    │           │   └── right    : SqlColumnReference | SqlScalarValue
-    │           ├── SqlAnd
-    │           │   ├── left  : SqlBooleanExpression
-    │           │   └── right : SqlBooleanExpression
-    │           ├── SqlOr
-    │           │   ├── left  : SqlBooleanExpression
-    │           │   └── right : SqlBooleanExpression
-    │           └── SqlNot
-    │               └── expression : SqlBooleanExpression
+    │       └── condition : SqlWhereCondition (abstract)?
+    │           └── SqlWhereFilterCondition
+    │               └── expression : SqlBooleanExpression (abstract)
+    │                   ├── SqlComparison
+    │                   │   ├── left     : SqlColumnReference | SqlScalarValue
+    │                   │   │                  └── value : Any
+    │                   │   ├── operator : String  -- "=", "<>", "<", ">", "<=", ">="
+    │                   │   └── right    : SqlColumnReference | SqlScalarValue
+    │                   ├── SqlAnd
+    │                   │   ├── left  : SqlBooleanExpression
+    │                   │   └── right : SqlBooleanExpression
+    │                   ├── SqlOr
+    │                   │   ├── left  : SqlBooleanExpression
+    │                   │   └── right : SqlBooleanExpression
+    │                   └── SqlNot
+    │                       └── expression : SqlBooleanExpression
     ├── SqlInsertStatement   (stub)
     └── SqlUpdateStatement   (stub)
 ```
@@ -154,13 +159,22 @@ and references statically distinguishable.
 | Abstract type | Used in | Concrete subtypes in scope |
 |---------------|---------|---------------------------|
 | `SqlSelectExpression` | `SqlSelectItem.expression` | `SqlAllColumns`, `SqlColumnReference` |
-| `SqlBooleanExpression` | `SqlWhereClause.condition`, `SqlJoinOnCondition.expression`, future `HAVING` | `SqlComparison`, `SqlAnd`, `SqlOr`, `SqlNot` |
-| `SqlJoinConditionExpression` | `SqlJoinOnCondition.expression` | `SqlBooleanExpression` (accepted via `Any` field) |
-| `SqlWhereCondition` | `SqlWhereClause.condition` | `SqlBooleanExpression` (accepted via `Any` field) |
+| `SqlBooleanExpression` | `SqlWhereFilterCondition.expression`, `SqlJoinOnCondition.expression`, future `HAVING` | `SqlComparison`, `SqlAnd`, `SqlOr`, `SqlNot` |
+| `SqlWhereCondition` | `SqlWhereClause.condition` | `SqlWhereFilterCondition` |
+| `SqlJoinCondition` | `SqlJoinedFromItem.condition` | `SqlJoinOnCondition`, `SqlJoinUsingCondition` |
+
+`SqlWhereFilterCondition` is the sole concrete `SqlWhereCondition`; it wraps a
+`SqlBooleanExpression` and exists as an explicit container so the hierarchy is
+uniform top-to-bottom: clause → condition → boolean expression.
+
+`SqlJoinConditionExpression` remains as an exported abstract type but has no
+concrete subtypes; `SqlJoinOnCondition.expression` is typed
+`::SqlBooleanExpression` directly.
 
 `SqlBooleanExpression` is the **context-independent** boolean root.
 `SqlScalarValue` is a leaf document holding a Julia `Number`, `String`, or `Bool`;
-`render_sql` maps it to `42`, `'text'`, `TRUE`/`FALSE` respectively.
+the syntax projection renders it as `42`, `'text'`, `TRUE`/`FALSE` respectively
+(no `render_sql` call at the projection level).
 
 ---
 

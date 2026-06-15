@@ -57,16 +57,16 @@ function test_sql_to_syntax_selection()
                 SqlFromClause(SqlFromItem(
                     SqlTableExpression(SqlTableName("persons"), SqlTableAlias("p")))),
                 SqlWhereClause(
-                    SqlComparison(
+                    SqlWhereFilterCondition(SqlComparison(
                         SqlColumnReference(SqlTableAlias("p"), SqlColumnName("name")),
                         "<>",
-                        SqlScalarValue("X")))),
+                        SqlScalarValue("X"))))),
             SqlTableAlias("sub")))),
         SqlWhereClause(
-            SqlComparison(
+            SqlWhereFilterCondition(SqlComparison(
                 SqlColumnReference(SqlTableAlias("sub"), SqlColumnName("person_name")),
                 "<>",
-                SqlScalarValue("X"))))
+                SqlScalarValue("X")))))
 
     measure = (text, font) -> (length(text) * 10, 18)
     proj = SequentialProjection(

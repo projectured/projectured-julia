@@ -14,11 +14,13 @@ consistently.
 | `SqlColumnReferenceToSyntaxLeaf` | Leaf | shared `doc.selection` |
 | `SqlTableExpressionToSyntaxLeaf` | Leaf | shared `doc.selection` |
 | `SqlScalarValueToSyntaxLeaf` | Leaf | shared `doc.selection` |
-| `SqlJoinTypeToSyntaxLeaf` | Leaf | no `selection` field on input — `∅` only |
+| `SqlJoinTypeToSyntaxLeaf` | Leaf | no `selection` field on input — `∅` only; display via `_join_type_display` (fully qualified: `INNER JOIN`, `LEFT OUTER JOIN`, …) |
 | `SqlSelectStatementToSyntaxNode` | Node | reference impl (was already correct) |
 | `SqlSelectClauseToSyntaxNode` | Node | items list through comma-body; dynamic body index (DISTINCT) |
 | `SqlSelectItemToSyntaxNode` | Node | single child; optional AS/alias are proj-introduced |
-| `SqlJoinSegmentToSyntaxNode` | Node | two direct children |
+| `SqlJoinedFromItemToSyntaxNode` | Node | two or three direct children (join_type, from_item, optional condition) |
+| `SqlJoinOnConditionToSyntaxNode` | Node | `ON` keyword + expression inline (space-separated); expression at children[2] |
+| `SqlWhereFilterConditionToSyntaxNode` | Node | transparent container; expression at children[1] (empty open/close/separator) |
 | `SqlNotToSyntaxNode` | Node | keyword prefix; expression at children[2] |
 | `SqlBooleanBinaryToSyntaxNode` | Node | keyword gap; left→[1], right→[3] |
 | `SqlComparisonToSyntaxNode` | Node | same as BooleanBinary |
@@ -183,6 +185,12 @@ guard: `outer_s != 1 && return nothing` (pos 2 → `outer_s == 1`).
 
 #### Optional child (condition present or absent)
 
+Two variants depending on whether the optional child is routed through a body
+node (e.g. `SqlWhereClauseToSyntaxNode`) or appended directly to the children
+list (e.g. `SqlJoinedFromItemToSyntaxNode`).
+
+**Via body node** (keyword + newline-body wrapper, child appears at `children[body_idx].children[1]`):
+
 ```julia
 child_iomaps_cell = Cell(() -> begin ci = cond_im[]; ci === nothing ? Any[] : Any[ci] end)
 
@@ -198,6 +206,36 @@ children[body_idx].children[1].rest... => begin
     cims = iomap.child_iomaps[]
     isempty(cims) && return nothing
     ...
+end
+```
+
+**Appended as trailing child** (child appears at `children[N]`; `child_iomaps`
+grows from length N-1 to N):
+
+```julia
+# child_iomaps has 2 items without condition, 3 with:
+child_iomaps_cell = Cell(() -> begin
+    jt, fi, cond_im = projected[]
+    cond_im === nothing ? Any[jt, fi] : Any[jt, fi, cond_im]
+end)
+
+# forward:
+condition.rest... => begin
+    cims = iomap.child_iomaps[]
+    length(cims) < 3 && return nothing
+    child = cims[3]
+    inner = map_reference_forward(child.projection, child, rest)
+    inner === nothing && return nothing
+    @reference children[3].^(inner)
+end
+# backward:
+children[3].rest... => begin
+    cims = iomap.child_iomaps[]
+    length(cims) < 3 && return nothing
+    child = cims[3]
+    inner = map_reference_backward(child.projection, child, rest)
+    inner === nothing && return nothing
+    @reference condition.^(inner)
 end
 ```
 
@@ -311,5 +349,8 @@ Whenever a new SQL node projection is added to `SqlToSyntax.jl`:
   pattern with a fixed body position.
 - `IN (subquery / list)`, `BETWEEN`, `EXISTS` — add as leaf or node depending
   on whether the subparts are separate documents.
-- `SqlJoinTypeToSyntaxLeaf` — currently no `selection` field on join-type
-  enum variants; confirm whether to add one or leave as `∅`-only.
+- `SqlJoinTypeToSyntaxLeaf` — no `selection` field on join-type enum variants;
+  left as `∅`-only. The `_join_type_display` helper provides fully qualified
+  display names (`INNER JOIN`, `LEFT OUTER JOIN`, …) independently of `render_sql`.
+- `SqlJoinUsingCondition` — no projection yet; add `SqlJoinUsingConditionToSyntaxNode`
+  following the `SqlJoinOnConditionToSyntaxNode` pattern (USING keyword + column list).
