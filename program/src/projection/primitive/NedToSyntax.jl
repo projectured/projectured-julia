@@ -479,6 +479,12 @@ end
 
 # ── Generic body projection helper ───────────────────────────────────────
 
+# Build a reference path like `reference.field_name[i]` dynamically.
+# The @reference macro cannot interpolate dynamic field names (Symbols).
+function _field_child_ref(reference, field_name::Symbol, i::Int)
+    append_reference(reference, FieldReference(String(field_name)), ElementReference(i))
+end
+
 # Projects a list of CellVectors into a flat child list with section headers.
 # Each section is (label, field_name, cv) where cv is the CellVector.
 function _project_body_children(recursion, ctx, reference, sections)
@@ -493,7 +499,7 @@ function _project_body_children(recursion, ctx, reference, sections)
 
         for (i, child) in enumerate(cv)
             iomap = projection_print(recursion, recursion, child,
-                        child_context(ctx, @reference ^(reference).^(field_name)[i]))
+                        child_context(ctx, _field_child_ref(reference, field_name, i)))
             push!(syntax_children, iomap.output)
             push!(all_iomaps, field_name => (i, iomap))
         end
@@ -523,7 +529,7 @@ function projection_print(p::NedSimpleModuleToSyntaxNode, recursion, m::NedSimpl
             push!(result, :_header => nothing)
             for (i, child) in enumerate(cv)
                 im = projection_print(recursion, recursion, child,
-                         child_context(ctx, @reference ^(reference).^(field_name)[i]))
+                         child_context(ctx, _field_child_ref(reference, field_name, i)))
                 push!(sc, im.output)
                 push!(result, field_name => (i, im))
             end
@@ -571,7 +577,7 @@ function projection_print(p::NedCompoundModuleToSyntaxNode, recursion, m::NedCom
             push!(result, :_header => nothing)
             for (i, child) in enumerate(cv)
                 im = projection_print(recursion, recursion, child,
-                         child_context(ctx, @reference ^(reference).^(field_name)[i]))
+                         child_context(ctx, _field_child_ref(reference, field_name, i)))
                 push!(sc, im.output)
                 push!(result, field_name => (i, im))
             end
@@ -611,7 +617,7 @@ function projection_print(p::NedModuleInterfaceToSyntaxNode, recursion, m::NedMo
             push!(result, :_header => nothing)
             for (i, child) in enumerate(cv)
                 im = projection_print(recursion, recursion, child,
-                         child_context(ctx, @reference ^(reference).^(field_name)[i]))
+                         child_context(ctx, _field_child_ref(reference, field_name, i)))
                 push!(sc, im.output)
                 push!(result, field_name => (i, im))
             end
