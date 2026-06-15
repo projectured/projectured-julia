@@ -75,7 +75,32 @@ Deferred / out of scope:
   `selector_element_pairs` tuple steps (`Tuple{String, Widget}` field access) on a
   clean checkout — a separate TypeinTest bug, not introduced here.
 
-Low-severity findings remain open.
+### Low-severity (2026-06-15)
+
+Addressed:
+
+- **Docs** — `architecture.md` Reference row (`PointReference`/
+  `TextRectangularReference` added; `ElementReference`/`PositionReference` noted as
+  `RangeReference` convenience constructors) and the character-editing /
+  mouse-click reader-status rows clarified; `macros.md` (AlternativeProjection is a
+  plain `struct`, not `@projection`); `syntax.md` (`.sep` is `SyntaxNode`-only);
+  `graphics.md` (PNG is supported; `GraphicsRect` uses `w`/`h`);
+  `higher-order-projections.md` "five dispatchers" wording; `testing.md` (stale
+  walker-helper line anchors refreshed; `walk_printer_output` returns
+  `(errors, status)`); `editor/selection.md` (`using Projectured`);
+  `selection-deep-dive.md` (`ElementReference(Int)`); the `Xml.jl` source docstring
+  (`.attrs[i].cell[k]`, not `.value[k]`).
+- **E/Low exports** — added the missing exports whose siblings were already public:
+  `TextRectangularReference`, `QuitEditorOperation`,
+  `WidgetToolbarToGraphicsCanvas`, `WidgetScrollBarToGraphicsCanvas` (plus the new
+  `WidgetInsertionToGraphicsCanvas`).
+- **E/Low orphan** — removed the unreferenced `make_tabular_document_example`
+  builder (and its `example/src/document/Tabular.jl` file + export).
+
+All High, Medium, and Low findings from this report are now resolved, except the
+deliberately deferred items noted above (JuliaToSyntax full navigation — needs
+flat-offset traversal machinery; the projection parameter-name unification — its
+own plan).
 
 ---
 
