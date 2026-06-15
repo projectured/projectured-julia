@@ -1,6 +1,6 @@
 # Syntax Domain
 
-![Syntax example](../../image/example/syntax.png)
+<img width="586" alt="Syntax example" src="../../image/example/syntax.png">
 
 The syntax domain provides a generic intermediate representation between semantic domains (JSON, XML) and text. It represents structured data as a tree of nodes with delimiters.
 

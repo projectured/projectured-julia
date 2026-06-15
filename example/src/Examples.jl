@@ -453,7 +453,16 @@ Pass `filter` (a `Regex` or string compiled to one with `occursin`) to restrict
 generation to examples whose name matches, e.g. `filter=r"^widget"` regenerates
 only the widget screenshots.
 """
+# Export scale for generated screenshots: PNGs are rendered at this many device
+# pixels per logical pixel so they stay crisp on HiDPI displays (e.g. GitHub
+# viewed on a retina screen) independent of the machine that generates them.
+# Guide embeds pin the *displayed* width to the logical size (png width ÷ this)
+# via `<img width>`, so the on-page size is unchanged while the extra pixels are
+# available for sharp rendering.
+const SCREENSHOT_SCALE = 2
+
 function generate_example_screenshots(; filter=nothing, max_width=1920, max_height=1080, supersample=3,
+                                      scale=SCREENSHOT_SCALE,
                                       image_dir=joinpath(@__DIR__, "..", "..", "image", "example"))
     mkpath(image_dir)
     white = (0xff, 0xff, 0xff, 0xff)
@@ -471,7 +480,7 @@ function generate_example_screenshots(; filter=nothing, max_width=1920, max_heig
         try
             write_image_example(ex, png; width=ex.render_width, height=ex.render_height,
                                 max_width=max_width, max_height=max_height,
-                                background=bg, supersample=supersample)
+                                background=bg, supersample=supersample, scale=scale)
             @info "  ✓ $png"
         catch e
             @warn "  ✗ $(ex.name): $e"
@@ -489,12 +498,67 @@ function update_guide_screenshots(; repo_root=joinpath(@__DIR__, "..", ".."))
     _update_examples_tour(joinpath(repo_root, "guide", "examples-tour.md"))
     _update_domain_guides(joinpath(repo_root, "guide", "document"))
     _update_readme(joinpath(repo_root, "README.md"))
+    # Convert any remaining plain Markdown example-images (thumbnail tables, the
+    # README hero, etc.) to width-pinned <img> tags.
+    md_files = String[joinpath(repo_root, "README.md")]
+    guide_dir = joinpath(repo_root, "guide")
+    if isdir(guide_dir)
+        for (root, _, files) in walkdir(guide_dir), f in files
+            endswith(f, ".md") && push!(md_files, joinpath(root, f))
+        end
+    end
+    foreach(_migrate_example_image_embeds, md_files)
 end
 
 const _TOUR_HEADER_RE = r"^## \d+\. .*`run_example\(\"(\w+)\"\)`"
 
 function _example_title(name::AbstractString)
     titlecase(replace(name, "_" => " "))
+end
+
+# Width field of a PNG's IHDR header (bytes 16-19, big-endian). Avoids a decode.
+function _png_pixel_width(path::AbstractString)
+    open(path) do io
+        seek(io, 16)
+        Int(ntoh(read(io, UInt32)))
+    end
+end
+
+# Markdown embed for a screenshot. Screenshots are `SCREENSHOT_SCALE`× their
+# logical size, so we pin the displayed width to the logical size with an HTML
+# `<img width>` (honored by GitHub): compact on the page, sharp on HiDPI. Falls
+# back to a plain Markdown image if the PNG is missing (so docs still build).
+function _img_embed(title::AbstractString, rel_path::AbstractString, md_dir::AbstractString)
+    _img_embed_raw("$title example", rel_path, md_dir, "![$title example]($rel_path)")
+end
+
+# True when a line already holds a screenshot embed (Markdown image or <img>).
+_is_image_embed(line) = (s = strip(line); startswith(s, "![") || startswith(s, "<img"))
+
+# Any Markdown image pointing at an example screenshot: ![alt](…image/example/X.png)
+const _MD_EXAMPLE_IMG_RE = r"!\[([^\]]*)\]\(([^)]*image/example/[^)]+\.png)\)"
+
+# Convert every plain Markdown example-image in a file to an `<img width>` tag
+# pinned to the logical size — covers embeds the heading inserters don't touch
+# (thumbnail tables, the README hero). Idempotent: `<img>` tags aren't matched.
+function _migrate_example_image_embeds(path::AbstractString)
+    isfile(path) || return
+    md_dir = dirname(path)
+    text = read(path, String)
+    new_text = replace(text, _MD_EXAMPLE_IMG_RE => function (s)
+        mm = match(_MD_EXAMPLE_IMG_RE, s)
+        alt, rel = mm.captures[1], mm.captures[2]
+        _img_embed_raw(alt, rel, md_dir, s)
+    end)
+    new_text != text && write(path, new_text)
+end
+
+# Like `_img_embed` but with an explicit alt string and a literal fallback.
+function _img_embed_raw(alt::AbstractString, rel::AbstractString, md_dir::AbstractString, fallback::AbstractString)
+    abs_png = normpath(joinpath(md_dir, rel))
+    isfile(abs_png) || return fallback
+    w = max(1, _png_pixel_width(abs_png) ÷ SCREENSHOT_SCALE)
+    "<img width=\"$w\" alt=\"$alt\" src=\"$rel\">"
 end
 
 function _update_examples_tour(path::AbstractString)
@@ -509,18 +573,21 @@ function _update_examples_tour(path::AbstractString)
         if m !== nothing
             name = m.captures[1]
             safe_name = replace(name, "_" => "-")
-            img_line = "![$(_example_title(name)) example](../image/example/$safe_name.png)"
+            img_line = _img_embed(_example_title(name), "../image/example/$safe_name.png", dirname(path))
             j = i + 1
             while j <= length(lines) && isempty(strip(lines[j]))
                 push!(out, lines[j])
                 j += 1
             end
-            already_present = j <= length(lines) && startswith(strip(lines[j]), "![")
-            if !already_present
+            if j <= length(lines) && _is_image_embed(lines[j])
+                # Replace the existing embed (migrates Markdown ↔ <img>).
+                push!(out, img_line)
+                i = j + 1
+            else
                 push!(out, img_line)
                 push!(out, "")
+                i = j
             end
-            i = j
             continue
         end
         i += 1
@@ -551,20 +618,19 @@ function _update_domain_guides(dir::AbstractString)
         path = joinpath(dir, filename)
         isfile(path) || continue
         lines = readlines(path; keep=false)
-        if any(l -> occursin("![", l), lines[1:min(end, 15)])
-            continue
-        end
         heading_idx = findfirst(l -> startswith(l, "# "), lines)
         heading_idx === nothing && continue
-        blank_idx = findnext(l -> isempty(strip(l)), lines, heading_idx + 1)
-        insert_after = blank_idx === nothing ? heading_idx : blank_idx
         safe_name = replace(example_name, "_" => "-")
-        img_line = "![$(_example_title(example_name)) example](../../image/example/$safe_name.png)"
-        new_lines = vcat(
-            lines[1:insert_after],
-            [img_line, ""],
-            lines[insert_after+1:end],
-        )
+        img_line = _img_embed(_example_title(example_name), "../../image/example/$safe_name.png", dirname(path))
+        existing = findfirst(_is_image_embed, lines[1:min(end, 15)])
+        new_lines = if existing !== nothing
+            # Replace the existing embed in place (migrates Markdown ↔ <img>).
+            vcat(lines[1:existing-1], [img_line], lines[existing+1:end])
+        else
+            blank_idx = findnext(l -> isempty(strip(l)), lines, heading_idx + 1)
+            insert_after = blank_idx === nothing ? heading_idx : blank_idx
+            vcat(lines[1:insert_after], [img_line, ""], lines[insert_after+1:end])
+        end
         new_text = join(new_lines, "\n") * "\n"
         if read(path, String) != new_text
             write(path, new_text)
@@ -572,24 +638,29 @@ function _update_domain_guides(dir::AbstractString)
     end
 end
 
-const _README_SCREENSHOTS_BLOCK = """
-## Screenshots
+function _readme_screenshots_block(md_dir::AbstractString)
+    cell(name, title) = _img_embed(title, "image/example/$name.png", md_dir)
+    """
+    ## Screenshots
 
-| JSON editor | Widget forms | Table view |
-|---|---|---|
-| ![JSON example](image/example/json.png) | ![Widget example](image/example/widget.png) | ![Table example](image/example/table.png) |
+    | JSON editor | Widget forms | Table view |
+    |---|---|---|
+    | $(cell("json", "JSON")) | $(cell("widget", "Widget")) | $(cell("table", "Table")) |
 
-| Syntax tree | Julia AST | Workbench |
-|---|---|---|
-| ![Syntax example](image/example/syntax.png) | ![Julia AST example](image/example/julia.png) | ![Workbench example](image/example/workbench.png) |
-"""
+    | Syntax tree | Julia AST | Workbench |
+    |---|---|---|
+    | $(cell("syntax", "Syntax")) | $(cell("julia", "Julia AST")) | $(cell("workbench", "Workbench")) |
+
+    ---
+    """
+end
 
 function _update_readme(path::AbstractString)
     isfile(path) || (@warn "Missing $path"; return)
     text = read(path, String)
     block_re = r"## Screenshots\n(?:.*\n)*?(?=\n## )"
     new_text = if occursin(block_re, text)
-        replace(text, block_re => _README_SCREENSHOTS_BLOCK)
+        replace(text, block_re => _readme_screenshots_block(dirname(path)))
     else
         text
     end

@@ -1,6 +1,6 @@
 # JSON Domain
 
-![Json example](../../image/example/json.png)
+<img width="396" alt="Json example" src="../../image/example/json.png">
 
 The JSON domain represents JSON data as a tree of reactive documents. Every JSON value is a Document with all mutable fields wrapped in reactive Cells for automatic change propagation.
 

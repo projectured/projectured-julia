@@ -904,12 +904,21 @@ function write_image(canvas::GraphicsCanvas, filename::AbstractString;
                      width::Integer = 800,
                      height::Integer = 600,
                      background::NTuple{4,UInt8} = (0xfd, 0xf6, 0xe3, 0xff),
-                     supersample::Integer = 2)
+                     supersample::Integer = 2,
+                     scale::Real = 1)
     SDL_Init(SDL_INIT_VIDEO)
     TTF_Init()
 
-    S = max(1, Int(supersample))
-    surface = SDL_CreateRGBSurface(UInt32(0), Int32(width * S), Int32(height * S), Int32(32),
+    S  = max(1, Int(supersample))
+    sc = Float64(scale)
+    # `width`/`height` are the canvas's logical size. The saved image is that
+    # times the export `scale` (device pixels), so screenshots stay crisp on
+    # HiDPI displays independent of the machine that generates them. We render
+    # the logical canvas as if the display scale were `sc` (glyphs rasterize at
+    # device size) and supersample by S for anti-aliasing.
+    out_w = max(1, round(Int, width  * sc))
+    out_h = max(1, round(Int, height * sc))
+    surface = SDL_CreateRGBSurface(UInt32(0), Int32(out_w * S), Int32(out_h * S), Int32(32),
                                    UInt32(0x00FF0000), UInt32(0x0000FF00),
                                    UInt32(0x000000FF), UInt32(0xFF000000))
     @assert surface != C_NULL "SDL surface creation failed: $(unsafe_string(SDL_GetError()))"
@@ -917,16 +926,21 @@ function write_image(canvas::GraphicsCanvas, filename::AbstractString;
     renderer = SDL_CreateSoftwareRenderer(surface)
     @assert renderer != C_NULL "SDL software renderer creation failed: $(unsafe_string(SDL_GetError()))"
     SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND)
-    S > 1 && SDL_RenderSetScale(renderer, Float32(S), Float32(S))
+    SDL_RenderSetScale(renderer, Float32(sc * S), Float32(sc * S))
 
-    r, g, b, a = background
-    SDL_SetRenderDrawColor(renderer, r, g, b, a)
-    SDL_RenderClear(renderer)
-
-    _render_canvas!(renderer, canvas, 0, 0, Int(width), Int(height))
+    old_scale = _DISPLAY_SCALE[]
+    _DISPLAY_SCALE[] = sc
+    try
+        r, g, b, a = background
+        SDL_SetRenderDrawColor(renderer, r, g, b, a)
+        SDL_RenderClear(renderer)
+        _render_canvas!(renderer, canvas, 0, 0, Int(width), Int(height))
+    finally
+        _DISPLAY_SCALE[] = old_scale
+    end
 
     # Downsample the oversized surface for anti-aliasing.
-    out_surface = S > 1 ? _downsample_surface(surface, Int(width), Int(height), S) : surface
+    out_surface = S > 1 ? _downsample_surface(surface, out_w, out_h, S) : surface
     if out_surface !== surface
         SDL_DestroyRenderer(renderer)
         SDL_FreeSurface(surface)
@@ -1062,7 +1076,8 @@ function write_image(document, projection, filename::AbstractString;
                      max_width::Integer = 1200,
                      max_height::Integer = 800,
                      background::NTuple{4,UInt8} = (0xfd, 0xf6, 0xe3, 0xff),
-                     supersample::Integer = 2)
+                     supersample::Integer = 2,
+                     scale::Real = 1)
     # Initialize before printing: the projection measures text (opening fonts),
     # which requires SDL_ttf to be up.
     SDL_Init(SDL_INIT_VIDEO)
@@ -1099,7 +1114,7 @@ function write_image(document, projection, filename::AbstractString;
     out_h = height === nothing ? clamp(nh, 1, Int(max_height)) : Int(height)
 
     write_image(canvas, filename; width=out_w, height=out_h,
-                background=background, supersample=supersample)
+                background=background, supersample=supersample, scale=scale)
 end
 
 """

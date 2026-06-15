@@ -1,6 +1,6 @@
 # Graphics Domain
 
-![Graphics Image example](../../image/example/graphics-image.png)
+<img width="396" alt="Graphics Image example" src="../../image/example/graphics-image.png">
 
 The graphics domain provides rendering primitives for the SDL2 backend. It represents visual elements as reactive documents that can be projected to the screen.
 

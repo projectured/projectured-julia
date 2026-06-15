@@ -6,7 +6,7 @@ Documents are structured data — trees, ASTs, graphs — presented through
 bidirectional, composable projections: you edit the projection, and the edit is
 mapped back to the underlying data.
 
-![ProjecturEd workbench](image/example/workbench.png)
+<img width="1595" alt="ProjecturEd workbench" src="image/example/workbench.png">
 
 ## Vision
 
@@ -160,11 +160,11 @@ the [Roadmap](guide/roadmap.md)).
 
 | JSON editor | Widget forms | Table view |
 |---|---|---|
-| ![JSON example](image/example/json.png) | ![Widget example](image/example/widget.png) | ![Table example](image/example/table.png) |
+| <img width="396" alt="JSON example" src="image/example/json.png"> | <img width="1024" alt="Widget example" src="image/example/widget.png"> | <img width="397" alt="Table example" src="image/example/table.png"> |
 
 | Syntax tree | Julia AST | Workbench |
 |---|---|---|
-| ![Syntax example](image/example/syntax.png) | ![Julia AST example](image/example/julia.png) | ![Workbench example](image/example/workbench.png) |
+| <img width="586" alt="Syntax example" src="image/example/syntax.png"> | <img width="336" alt="Julia AST example" src="image/example/julia.png"> | <img width="1595" alt="Workbench example" src="image/example/workbench.png"> |
 
 ---
 

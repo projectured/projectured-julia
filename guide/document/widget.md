@@ -1,6 +1,6 @@
 # Widget Domain
 
-![Widget example](../../image/example/widget.png)
+<img width="1024" alt="Widget example" src="../../image/example/widget.png">
 
 The widget domain is the UI layer that sits between domain-specific projections
 and the graphics domain. Widgets describe what a user interface looks like —
@@ -76,22 +76,22 @@ Every widget has a minimal isolated example, rendered below.
 
 | | | |
 |---|---|---|
-| **Label**<br>![](../../image/example/widget-label.png) | **Text (input)**<br>![](../../image/example/widget-text.png) | **Checkbox**<br>![](../../image/example/widget-checkbox.png) |
-| **Button**<br>![](../../image/example/widget-button.png) | **Tooltip**<br>![](../../image/example/widget-tooltip.png) | **Menu item**<br>![](../../image/example/widget-menu-item.png) |
-| **Menu**<br>![](../../image/example/widget-menu.png) | **Toolbar**<br>![](../../image/example/widget-toolbar.png) | **Composite**<br>![](../../image/example/widget-composite.png) |
-| **Title pane**<br>![](../../image/example/widget-title-pane.png) | **Split pane**<br>![](../../image/example/widget-split-pane.png) | **Scroll bar**<br>![](../../image/example/widget-scroll-bar.png) |
-| **Scroll pane**<br>![](../../image/example/widget-scroll-pane.png) | **Shell**<br>![](../../image/example/widget-shell.png) | **Tabbed pane**<br>![](../../image/example/widget-tabbed-pane.png) |
+| **Label**<br><img width="122" alt="" src="../../image/example/widget-label.png"> | **Text (input)**<br><img width="110" alt="" src="../../image/example/widget-text.png"> | **Checkbox**<br><img width="18" alt="" src="../../image/example/widget-checkbox.png"> |
+| **Button**<br><img width="180" alt="" src="../../image/example/widget-button.png"> | **Tooltip**<br><img width="214" alt="" src="../../image/example/widget-tooltip.png"> | **Menu item**<br><img width="47" alt="" src="../../image/example/widget-menu-item.png"> |
+| **Menu**<br><img width="54" alt="" src="../../image/example/widget-menu.png"> | **Toolbar**<br><img width="304" alt="" src="../../image/example/widget-toolbar.png"> | **Composite**<br><img width="79" alt="" src="../../image/example/widget-composite.png"> |
+| **Title pane**<br><img width="116" alt="" src="../../image/example/widget-title-pane.png"> | **Split pane**<br><img width="457" alt="" src="../../image/example/widget-split-pane.png"> | **Scroll bar**<br><img width="20" alt="" src="../../image/example/widget-scroll-bar.png"> |
+| **Scroll pane**<br><img width="401" alt="" src="../../image/example/widget-scroll-pane.png"> | **Shell**<br><img width="600" alt="" src="../../image/example/widget-shell.png"> | **Tabbed pane**<br><img width="600" alt="" src="../../image/example/widget-tabbed-pane.png"> |
 
 ### Extension widgets
 
 | | | |
 |---|---|---|
-| **Badge**<br>![](../../image/example/widget-badge.png) | **Separator**<br>![](../../image/example/widget-separator.png) | **Card**<br>![](../../image/example/widget-card.png) |
-| **Switch**<br>![](../../image/example/widget-switch.png) | **Progress**<br>![](../../image/example/widget-progress.png) | **Slider**<br>![](../../image/example/widget-slider.png) |
-| **Radio group**<br>![](../../image/example/widget-radio-group.png) | **Avatar**<br>![](../../image/example/widget-avatar.png) | **Alert**<br>![](../../image/example/widget-alert.png) |
-| **Skeleton**<br>![](../../image/example/widget-skeleton.png) | **Toggle**<br>![](../../image/example/widget-toggle.png) | **Toggle group**<br>![](../../image/example/widget-toggle-group.png) |
-| **Select**<br>![](../../image/example/widget-select.png) | **Textarea**<br>![](../../image/example/widget-textarea.png) | **Accordion**<br>![](../../image/example/widget-accordion.png) |
-| **Table**<br>![](../../image/example/widget-table.png) | **Tree**<br>![](../../image/example/widget-tree.png) | |
+| **Badge**<br><img width="114" alt="" src="../../image/example/widget-badge.png"> | **Separator**<br><img width="261" alt="" src="../../image/example/widget-separator.png"> | **Card**<br><img width="362" alt="" src="../../image/example/widget-card.png"> |
+| **Switch**<br><img width="44" alt="" src="../../image/example/widget-switch.png"> | **Progress**<br><img width="260" alt="" src="../../image/example/widget-progress.png"> | **Slider**<br><img width="260" alt="" src="../../image/example/widget-slider.png"> |
+| **Radio group**<br><img width="166" alt="" src="../../image/example/widget-radio-group.png"> | **Avatar**<br><img width="64" alt="" src="../../image/example/widget-avatar.png"> | **Alert**<br><img width="442" alt="" src="../../image/example/widget-alert.png"> |
+| **Skeleton**<br><img width="260" alt="" src="../../image/example/widget-skeleton.png"> | **Toggle**<br><img width="80" alt="" src="../../image/example/widget-toggle.png"> | **Toggle group**<br><img width="260" alt="" src="../../image/example/widget-toggle-group.png"> |
+| **Select**<br><img width="220" alt="" src="../../image/example/widget-select.png"> | **Textarea**<br><img width="340" alt="" src="../../image/example/widget-textarea.png"> | **Accordion**<br><img width="411" alt="" src="../../image/example/widget-accordion.png"> |
+| **Table**<br><img width="505" alt="" src="../../image/example/widget-table.png"> | **Tree**<br><img width="174" alt="" src="../../image/example/widget-tree.png"> | |
 
 ## Theme
 
