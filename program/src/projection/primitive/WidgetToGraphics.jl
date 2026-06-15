@@ -32,7 +32,7 @@ import ..ColorModule: StyleColor,
                       color_indigo_100, color_indigo_200, color_indigo_400, color_indigo_500,
                       color_indigo_600, color_indigo_700, color_indigo_950,
                       color_destructive, color_destructive_fg
-import ..WidgetModule: WidgetDocument, WidgetLabel, WidgetText, WidgetCheckbox,
+import ..WidgetModule: WidgetDocument, WidgetInsertion, WidgetLabel, WidgetText, WidgetCheckbox,
                        WidgetButton, WidgetTooltip, WidgetMenu, WidgetMenuItem,
                        WidgetComposite, WidgetShell, WidgetTitlePane, WidgetSplitPane,
                        WidgetTabbedPane, WidgetScrollPane, WidgetToolbar, WidgetScrollBar,
@@ -61,7 +61,7 @@ import ..TypeDispatchingModule: TypeDispatchingProjection
 import ..PrinterContextModule: child_context, with_available_size
 import ..LayoutModule: LayoutConstraint, allocate_axis, layout_min, layout_max,
                        layout_preferred, layout_weight
-export WidgetLabelToGraphicsCanvas, WidgetTextToGraphicsCanvas,
+export WidgetInsertionToGraphicsCanvas, WidgetLabelToGraphicsCanvas, WidgetTextToGraphicsCanvas,
        WidgetCheckboxToGraphicsCanvas, WidgetButtonToGraphicsCanvas,
        WidgetTooltipToGraphicsCanvas, WidgetMenuToGraphicsCanvas,
        WidgetMenuItemToGraphicsCanvas, WidgetCompositeToGraphicsCanvas,
@@ -641,6 +641,29 @@ end
 function projection_read(::WidgetLabelToGraphicsCanvas, iomap::SimpleIoMap, evt)
     return nothing
 end
+
+# ── WidgetInsertion ──────────────────────────────────────────────────────────
+
+# Renders the type-replace placeholder ("insert here") as a muted text canvas at
+# the origin. WidgetInsertion carries no `position`/`content` value of its own,
+# so there is nothing to map; like the sibling JsonInsertion handler it is a
+# projection-introduced placeholder and its reference maps are no-ops.
+@projection struct WidgetInsertionToGraphicsCanvas <: Projection
+    measure::Function
+    text::StyleText
+end
+
+function projection_print(p::WidgetInsertionToGraphicsCanvas, recursion, w::WidgetInsertion, ctx)
+    content = "insert here"
+    content_width, content_height = _text_size(p.measure, p.text.font, content)
+    elements = Any[]
+    _push_text!(elements, p.text.font, content, 0, 0, _rgba(p.text.color))
+    SimpleIoMap(p, w, _make_canvas(0, 0, content_width, content_height, elements))
+end
+
+map_reference_forward(::WidgetInsertionToGraphicsCanvas, iomap, reference) = nothing
+map_reference_backward(::WidgetInsertionToGraphicsCanvas, iomap, reference) = nothing
+projection_read(::WidgetInsertionToGraphicsCanvas, iomap::SimpleIoMap, evt) = nothing
 
 # ── WidgetText ──────────────────────────────────────────────────────────────
 
@@ -2686,6 +2709,7 @@ function WidgetToGraphics(font::StyleFont; measure::Function,
     # their fields in Cells (a bare Function would be read as a thunk).
     measurer = TextMeasurer(measure)
     TypeDispatchingProjection(
+        WidgetInsertion  => WidgetInsertionToGraphicsCanvas(measurer, theme.body_text),
         WidgetLabel      => WidgetLabelToGraphicsCanvas(measurer, theme.body_text),
         WidgetText       => WidgetTextToGraphicsCanvas(measurer, theme.body_text, theme.background, theme.input, theme.radius),
         WidgetCheckbox   => WidgetCheckboxToGraphicsCanvas(

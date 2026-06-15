@@ -16,7 +16,7 @@ import ..ReactiveModule: Cell
 import ..CollectionModule: CellVector
 import ..ProjectionApiModule: projection_print, projection_read,
                               map_reference_forward, map_reference_backward, Projection
-import ..BookModule: BookDocument, BookBook, BookChapter, BookParagraph, BookList, BookPicture
+import ..BookModule: BookDocument, BookInsertion, BookBook, BookChapter, BookParagraph, BookList, BookPicture
 import ..TextModule: TextDocument, TextString, TextText
 import ..FontModule: StyleFont, font_ubuntu_monospace_regular_24, font_ubuntu_monospace_bold_24, font_ubuntu_monospace_italic_24
 import ..ColorModule: StyleColor, color_black, color_default, color_solarized_blue, color_solarized_green, color_solarized_magenta, color_solarized_cyan, color_solarized_yellow, color_solarized_gray
@@ -32,8 +32,29 @@ import ..PrimitiveModule: StringReplaceRangeOperation
 import ..SyntaxToTextModule: SyntaxNodeToText, _syntax_to_flat
 import ..PrinterContextModule: child_context
 
-export BookBookToSyntaxNode, BookChapterToSyntaxNode, BookParagraphToSyntaxLeaf,
+export BookInsertionToSyntaxLeaf, BookBookToSyntaxNode, BookChapterToSyntaxNode, BookParagraphToSyntaxLeaf,
        BookListToSyntaxNode, BookPictureToSyntaxLeaf, BookToSyntax
+
+# ── BookInsertionToSyntaxLeaf ─────────────────────────────────────────────────
+#
+# Maps BookInsertion → SyntaxLeaf. "insert here" is a projection-introduced
+# placeholder with no editable input value (same rationale as
+# JsonInsertionToSyntaxLeaf), so the default proj-unwrapping forward mapper is
+# correct and the iomap is threaded canonically.
+
+struct BookInsertionToSyntaxLeaf <: Projection
+    font::StyleFont
+    color::StyleColor
+end
+BookInsertionToSyntaxLeaf(; font=font_ubuntu_monospace_regular_24, color=color_solarized_gray) =
+    BookInsertionToSyntaxLeaf(font, color)
+
+function projection_print(p::BookInsertionToSyntaxLeaf, recursion, b::BookInsertion, ctx)
+    output_selection = Cell(() -> map_reference_forward(p, nothing, b.selection))
+    SimpleIoMap(p, b, SyntaxLeaf(
+        TextString("", p.font, color_default), TextString("", p.font, color_default),
+        TextString("insert here", p.font, p.color), output_selection))
+end
 
 # ── BookBookToSyntaxNode ──────────────────────────────────────────────────────
 #
@@ -629,6 +650,7 @@ end
 
 function BookToSyntax()
     TypeDispatchingProjection(
+        BookInsertion => BookInsertionToSyntaxLeaf(),
         BookBook      => BookBookToSyntaxNode(),
         BookChapter   => BookChapterToSyntaxNode(),
         BookParagraph => BookParagraphToSyntaxLeaf(),
