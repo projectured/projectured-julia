@@ -28,6 +28,9 @@ import ..SyntaxModule: SyntaxDocument, SyntaxLeaf, SyntaxNode
 import ..TypeDispatchingModule: TypeDispatchingProjection
 import ..IoMapModule: SimpleIoMap, ChildrenIoMap
 import ..ReferenceModule: ConcreteReferencePath, ElementReference, PositionReference, RangeReference, FieldReference, ProjectionReference, append_reference
+import ..ReferenceCaseModule: var"@reference_case"
+import ..ReferenceBuilderModule: var"@reference"
+import ..OperationModule: ReplaceSelectionOperation
 import ..PrinterContextModule: child_context
 export FileSystemFileToSyntaxLeaf, FileSystemDirectoryToSyntaxNode, FileSystemToSyntax,
        filesystem_marker_eligible
@@ -47,6 +50,17 @@ function projection_print(p::FileSystemFileToSyntaxLeaf, recursion, f::FileSyste
         TextString("", p.font, color_default),
         TextString(() -> " " * basename(f.pathname), p.font, p.color),
         f.selection))
+end
+
+# The name leaf shares the file's selection cell, so a file's input reference and
+# its leaf output reference are the same path — the mappers are the identity.
+map_reference_forward(::FileSystemFileToSyntaxLeaf, iomap::SimpleIoMap, reference) = reference
+map_reference_backward(::FileSystemFileToSyntaxLeaf, iomap::SimpleIoMap, reference) = reference
+
+function projection_read(p::FileSystemFileToSyntaxLeaf, iomap::SimpleIoMap, op::ReplaceSelectionOperation)
+    result = map_reference_backward(p, iomap, op.path)
+    result === nothing && return nothing
+    ReplaceSelectionOperation(result)
 end
 
 # ── FileSystemDirectoryToSyntaxNode ───────────────────────────────────────────
@@ -88,28 +102,17 @@ function projection_print(p::FileSystemDirectoryToSyntaxNode, recursion, d::File
         Cell(false),
         Cell(nothing))
 
+    # Wire the output selection canonically: map d.selection forward through this
+    # projection's own map_reference_forward (School A — delegate the tail through
+    # child_iomaps). The not-yet-built iomap is supplied via the deferred-iomap
+    # trick (iomap_cell), as in JsonArrayToSyntaxNode / CopyingProjection.
+    iomap_cell = Cell(nothing)
     sel = Cell(() -> begin
+        im = iomap_cell[]
+        im === nothing && return nothing
         path = d.selection
-        path isa ConcreteReferencePath || return nothing
-        h = path.head
-        if h isa FieldReference && h.name == "elements"
-            rest = path.tail
-            rest isa ConcreteReferencePath || return nothing
-            h2 = rest.head
-            h2 isa RangeReference || return nothing
-            child_i = h2.start + 1
-            iomaps = child_iomaps[]
-            child_i > length(iomaps) && return nothing
-            child_sel = iomaps[child_i].output.selection
-            child_sel === nothing && return nothing
-            body_sel = ConcreteReferencePath(FieldReference("children"),
-                           ConcreteReferencePath(ElementReference(child_i), child_sel))
-            return ConcreteReferencePath(FieldReference("children"),
-                       ConcreteReferencePath(ElementReference(2), body_sel))
-        elseif h isa ProjectionReference
-            return path
-        end
-        return nothing
+        path === nothing && return nothing
+        map_reference_forward(p, im, path)
     end)
 
     node = SyntaxNode(
@@ -121,7 +124,52 @@ function projection_print(p::FileSystemDirectoryToSyntaxNode, recursion, d::File
         Cell(false),
         sel)
 
-    ChildrenIoMap(p, d, node, child_iomaps)
+    iomap = ChildrenIoMap(p, d, node, child_iomaps)
+    iomap_cell[] = iomap
+    return iomap
+end
+
+# Selection mapping (FileSystemDirectory → SyntaxNode):
+#   .elements[i].rest  →  .children[2].children[i].<child-mapped rest>
+# where children[1] is the name leaf and children[2] the indented body node whose
+# children are the projected elements. Both directions delegate the tail through
+# the stored child iomaps (School A); the two mappers are the single source of
+# truth, reused by the printer's selection cell and the reader below.
+function map_reference_forward(p::FileSystemDirectoryToSyntaxNode, iomap::ChildrenIoMap, reference)
+    @reference_case reference begin
+        ∅ => @reference()
+        proj(^(p), _) => reference
+        elements{s:e}.rest... => begin
+            child_i = s + 1
+            iomaps = iomap.child_iomaps[]
+            1 <= child_i <= length(iomaps) || return nothing
+            child = iomaps[child_i]
+            inner = map_reference_forward(child.projection, child, rest)
+            inner === nothing && return nothing
+            @reference children[2].children[child_i].^(inner)
+        end
+    end
+end
+
+function map_reference_backward(p::FileSystemDirectoryToSyntaxNode, iomap::ChildrenIoMap, reference)
+    @reference_case reference begin
+        ∅ => @reference()
+        children[2].children{s:e}.rest... => begin
+            child_i = s + 1
+            iomaps = iomap.child_iomaps[]
+            1 <= child_i <= length(iomaps) || return nothing
+            child = iomaps[child_i]
+            inner = map_reference_backward(child.projection, child, rest)
+            inner === nothing && return nothing
+            @reference elements[child_i].^(inner)
+        end
+    end
+end
+
+function projection_read(p::FileSystemDirectoryToSyntaxNode, iomap::ChildrenIoMap, op::ReplaceSelectionOperation)
+    result = map_reference_backward(p, iomap, op.path)
+    result === nothing && return nothing
+    ReplaceSelectionOperation(result)
 end
 
 # ── Marker eligibility ──────────────────────────────────────────────────────────
