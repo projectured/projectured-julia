@@ -17,12 +17,11 @@ SDL2.
 
 | Device | Defined in | Purpose |
 |---|---|---|
-| `Window` | `device/Window.jl` | Output surface — has title, width, height, background colour, and a backend-managed `handle` |
-| `Keyboard` | `device/Keyboard.jl` | Input — emits `KeyPress(key::Symbol, ctrl::Bool)` |
-| `Mouse` | `device/Mouse.jl` | Input — emits `MouseClick`, `MouseMove`, `MouseScroll` |
+| `Screen` | `device/Screen.jl` | Output surface — native windows are reconciled on demand against the projection-output `ScreenDocument` |
+| `Keyboard` | `device/Keyboard.jl` | Input — emits `KeyPress(char::Char)` for character input and `KeyDown(key::Symbol, modifiers::Modifiers)` for navigation |
+| `Mouse` | `device/Mouse.jl` | Input — emits `MouseDown`, `MouseUp`, `MousePress`, `MouseMove`, `MouseScroll` |
 
-Each is a singleton-like struct (a `Window` carries config; `Keyboard` and
-`Mouse` have no state of their own). The editor holds a `Vector{Device}`
+Each is a stateless singleton struct. The editor holds a `Vector{Device}`
 that is passed to every backend call.
 
 ### Backend-agnostic events
@@ -30,38 +29,44 @@ that is passed to every backend call.
 Projection readers only see these events, never SDL-specific structs:
 
 ```julia
-KeyPress(:left, false)          # arrow key, no Ctrl
-KeyPress(:return, true)         # Ctrl-Enter
-MouseClick(:left, 132, 47)      # left button at pixel (132, 47)
-MouseMove(120, 90)              # cursor moved to (120, 90)
-MouseScroll(0, 1, 200, 300)     # wheel scrolled (dx, dy) at (200, 300)
-QuitEvent()                     # window close or Escape
+KeyPress('a')                          # character input
+KeyDown(:left, Modifiers())            # arrow key, no modifiers
+KeyDown(:return, Modifiers(ctrl=true)) # Ctrl-Enter
+MousePress(:left, 132, 47)             # left button at pixel (132, 47)
+MouseMove(120, 90)                     # cursor moved to (120, 90)
+MouseScroll(0, 1, 200, 300)            # wheel scrolled (dx, dy) at (200, 300)
+QuitEvent()                            # window close or Escape
 ```
 
 This vocabulary is what insulates a `TextToGraphics.projection_read` (which
-maps `:left`/`:right` to a `ReplaceSelectionOperation`) from any specific
-backend.
+maps the `:left`/`:right` `KeyDown` keys to a `ReplaceSelectionOperation`) from
+any specific backend.
 
 ## Backends
 
 ```julia
 abstract type Backend end
 
+# Backend interface (api/Backend.jl)
 init!(::Backend)                    # set up libraries, allocate caches
 quit!(::Backend)                    # release everything
-open_window!(::Backend, window)     # create the native window/renderer
-close_window!(::Backend, window)    # destroy them
 measure_text(::Backend, text, font) # (px_width, px_height)
-read_from_devices(::Backend, devices)  # poll → backend-agnostic event
-write_to_devices(::Backend, devices, document)  # render the canvas
+
+# Device I/O interface (api/Device.jl) — driven by the backend
+read_from_devices(::Backend, devices)           # poll → EventEnvelope
+write_to_devices(::Backend, devices, document)  # render the output
 ```
+
+There is no `open_window!`/`close_window!`: native windows are reconciled on
+demand inside `write_to_devices` whenever it sees a new `ScreenDocument` output.
 
 `SdlBackend` (in [backend/Sdl.jl](../program/src/backend/Sdl.jl)) implements
 all of the above with SDL2 + SDL_ttf. Highlights:
 
 - A font measurement cache shared across all windows.
-- `sdl_to_keypress` maps SDL keysyms + modifier bits to `KeyPress`.
-- `sdl_to_mouse` maps SDL mouse events to the three `Mouse*` structs.
+- `sdl_to_keypress` maps SDL keysyms + modifier bits to `KeyPress`/`KeyDown`.
+- Mouse events are mapped inline in `read_from_devices` (there is no
+  `sdl_to_mouse` function) to the `Mouse*` structs.
 - `sdl_render_canvas` walks a `GraphicsCanvas` (and its nested
   `GraphicsViewport`/`GraphicsImage`/`GraphicsFence` children) and issues
   SDL draw calls.
@@ -84,18 +89,19 @@ itself never sees the backend type.
 1. Subtype `Device` in `program/src/device/`.
 2. Add backend methods: `read_from_device(::SdlBackend, ::YourDevice)` and
    if relevant `write_to_device(::SdlBackend, ::YourDevice, document)`.
-3. Add the device to the `Vector{Device}` in `ApplicationModule.application`.
+3. Add the device to the `Vector{Device}` built by the `run!(backend, projection,
+   document)` bootstrap in `editor/Editor.jl` (`Device[Screen(), Keyboard(), Mouse()]`).
 4. If it emits novel events, declare backend-agnostic event structs alongside
    the device so projection readers can match on them.
 
 ## Adding a new backend
 
 1. Subtype `Backend` in `program/src/backend/`.
-2. Implement `init!`, `quit!`, `open_window!`, `close_window!`,
-   `measure_text`, `read_from_devices`, `write_to_devices`.
+2. Implement the `Backend` interface (`init!`, `quit!`, `measure_text`) and the
+   `Device` I/O functions (`read_from_devices`, `write_to_devices`).
 3. Translate native events into the existing backend-agnostic event types
    so projection code does not need to change.
 4. Provide a `measure_text` callback for projections that need it.
 
-The fact that every event projection-level is a `KeyPress`/`Mouse*`/`QuitEvent`
+The fact that every event projection-level is a `KeyPress`/`KeyDown`/`Mouse*`/`QuitEvent`
 is the contract that keeps backends interchangeable.

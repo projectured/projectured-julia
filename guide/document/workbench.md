@@ -21,16 +21,16 @@ All subtype `WorkbenchDocument` (`<: Document`).
 
 | Type | Role |
 |---|---|
-| `WorkbenchWorkbench(navigation_page, editing_page, information_page)` | Top-level container; three columns |
+| `WorkbenchWorkbench(navigation_page, editing_page, information_page, control_page)` | Top-level container; four pages |
 | `WorkbenchPage(elements::CellVector)` | One column; holds a sequence of panels |
-| `WorkbenchNavigator(folders)` | The "Navigator" panel — file/document tree |
+| `WorkbenchNavigator(workspace::Workspace)` | The "Navigator" panel — file/document tree |
 | `WorkbenchConsole(content::TextText)` | The "Console" panel — text output |
 | `WorkbenchDescriptor(content::ReferencePath)` | The "Descriptor" panel — describes the node referenced by `content` |
 | `WorkbenchOperator()` | The "Operator" panel |
 | `WorkbenchSearcher()` | The "Searcher" panel |
 | `WorkbenchEvaluator(content)` | The "Evaluator" panel — eval-print loop window |
 | `WorkbenchEditor(title, filename, content)` | An open document in the editing column |
-| `WorkbenchAssistant(content)` | The "Assistant" panel — AI assistant window |
+| `WorkbenchAssistant(; conversation, input, model, system, api_key, status, llm)` | The "Assistant" panel — AI assistant window (keyword-only; field is `conversation`) |
 
 Each panel carries a `title` (class-level constant or per-instance for
 `WorkbenchEditor`) that becomes the title-bar text in the widget output.
@@ -43,7 +43,7 @@ workbench type, with one projection per panel:
 
 | Projection | Output |
 |---|---|
-| `WorkbenchWorkbenchToWidgetShell` | `WidgetShell` containing the three columns |
+| `WorkbenchWorkbenchToWidgetShell` | `WidgetShell` containing the four pages |
 | `WorkbenchPageToWidgetTabbedPane` | `WidgetTabbedPane` over the page's panels |
 | `WorkbenchNavigatorToWidgetScrollPane` | `WidgetScrollPane` with a tree of labels |
 | `WorkbenchConsoleToWidgetScrollPane` | `WidgetScrollPane` over text content |
@@ -52,7 +52,7 @@ workbench type, with one projection per panel:
 | `WorkbenchSearcherToWidgetScrollPane` | `WidgetScrollPane` search UI |
 | `WorkbenchEvaluatorToWidgetScrollPane` | `WidgetScrollPane` REPL UI |
 | `WorkbenchEditorToWidgetScrollPane` | `WidgetScrollPane` containing the editor's projected content |
-| `WorkbenchAssistantToWidgetScrollPane` | `WidgetScrollPane` containing the assistant's projected content |
+| `WorkbenchAssistantToWidgetSplitPane` | `WidgetSplitPane` containing the assistant's projected content |
 
 Each of these is exported, so a custom workbench layout can re-bind one
 projection without touching the rest.
@@ -61,14 +61,15 @@ projection without touching the rest.
 
 ```julia
 wb = WorkbenchWorkbench(
-    WorkbenchPage([WorkbenchNavigator([...])]),
+    WorkbenchPage([WorkbenchNavigator(Workspace())]),
     WorkbenchPage([WorkbenchEditor(my_doc; title = "main.json")]),
     WorkbenchPage([WorkbenchConsole(),  WorkbenchEvaluator()]),
+    WorkbenchPage([WorkbenchOperator()]),
 )
 
 proj = SequentialProjection(
     WorkbenchToWidget(),
-    WidgetToGraphics(),
+    WidgetToGraphics(font),
 )
 ```
 

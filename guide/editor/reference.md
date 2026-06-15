@@ -39,8 +39,8 @@ The same convention applies regardless of what the items are. In an array, `[1]`
 Descend to the i-th element (1-based). Used for array element index, child node position, accessing elements in collections, the i-th character in a string.
 
 ```julia
-ElementReference(Cell(1))   # first item
-ElementReference(Cell(3))   # third item
+ElementReference(1)   # first item
+ElementReference(3)   # third item
 ```
 
 ### PositionReference
@@ -48,8 +48,8 @@ ElementReference(Cell(3))   # third item
 Cursor at the i-th boundary (0-based). Position 0 is before the first item, position n is after the n-th item. Used for the cursor between array elements (insertion point), between object entries, or between characters in a string.
 
 ```julia
-PositionReference(Cell(0))  # cursor before first item
-PositionReference(Cell(3))  # cursor after third item
+PositionReference(0)  # cursor before first item
+PositionReference(3)  # cursor after third item
 ```
 
 ### FieldReference
@@ -57,8 +57,8 @@ PositionReference(Cell(3))  # cursor after third item
 Descend into a named field. Used for object keys in JSON, struct field names, attribute names in XML.
 
 ```julia
-FieldReference(Cell("name"))
-FieldReference(Cell("value"))
+FieldReference("name")
+FieldReference("value")
 ```
 
 ### ProjectionReference
@@ -66,7 +66,9 @@ FieldReference(Cell("value"))
 Points to elements introduced by a projection (e.g. delimiters, brackets).
 
 ```julia
-ProjectionReference(projection, FieldReference("open") + PositionReference(0))
+ProjectionReference(projection,
+    ConcreteReferencePath(FieldReference("open"),
+        ConcreteReferencePath(PositionReference(0))))
 ```
 
 ## Input and Output References
@@ -93,14 +95,14 @@ EmptyReferencePath()
 
 # Single step
 ConcreteReferencePath(
-    Cell(ElementReference(Cell(5))),
-    Cell(EmptyReferencePath())
+    ElementReference(5),
+    EmptyReferencePath()
 )
 
-# Multiple steps
+# Multiple steps (the tail must itself be a ReferencePath)
 ConcreteReferencePath(
-    Cell(ElementReference(Cell(1))),
-    Cell(FieldReference(Cell("name")))
+    ElementReference(1),
+    ConcreteReferencePath(FieldReference("name"), EmptyReferencePath())
 )
 ```
 
@@ -210,7 +212,7 @@ The `@reference` macro provides a convenient DSL for building reference paths:
 ```julia
 # Field references
 @reference address.city
-# Equivalent to: FieldReference("address") + FieldReference("city")
+# Equivalent to the path: FieldReference("address") then FieldReference("city")
 
 # Element references (1-based)
 @reference items[i]
@@ -230,11 +232,11 @@ The `@reference` macro provides a convenient DSL for building reference paths:
 
 # Projection references
 @reference rendered.proj(projection, {0})
-# Equivalent to: ProjectionReference(projection, PositionReference(0))
+# Equivalent to: ProjectionReference(projection, the one-step path PositionReference(0))
 
 # Complex paths
 @reference items[1].name
-# Equivalent to: ElementReference(1) + FieldReference("name")
+# Equivalent to the path: ElementReference(1) then FieldReference("name")
 
 # Range references — explicit multi-element selection
 @reference items{s:e}
@@ -256,7 +258,7 @@ The `@reference` macro provides a convenient DSL for building reference paths:
 let s = FieldReference("foo")
     @reference value.^(s)
 end
-# Equivalent to: FieldReference("value") + FieldReference("foo")
+# Equivalent to the path: FieldReference("value") then FieldReference("foo")
 ```
 
 The `^()` operator accepts either a `ReferencePath` (concatenated) or a

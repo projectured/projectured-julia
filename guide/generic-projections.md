@@ -39,7 +39,7 @@ a placeholder when a sub-tree is collapsed).
 ## CopyingProjection
 
 The workhorse of `ApplyAtProjection`. Recursively re-projects every child
-of the input by calling `projection_print(recursion, child, ...)`, then
+of the input by calling `projection_print(recursion, recursion, child, ...)`, then
 rebuilds an output struct/`CellVector`/`ListNode` of the same shape with
 the new outputs in place. Key behaviours:
 
@@ -61,7 +61,7 @@ when a backward reference points there.
 ## ReversingProjection
 
 ```julia
-projection_print(::ReversingProjection, input, recursion, ctx)
+projection_print(::ReversingProjection, recursion, input, ctx)
 ```
 
 Reverses the elements. The reference map flips an index `i` to

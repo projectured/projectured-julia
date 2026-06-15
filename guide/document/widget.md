@@ -22,24 +22,24 @@ All widgets subtype the abstract `WidgetDocument` (which subtypes `Document`).
 |---|---|
 | `WidgetLabel(position, content)` | Static text label |
 | `WidgetText(position, content)` | Editable text |
-| `WidgetCheckbox(position, checked, content)` | Boolean toggle |
-| `WidgetButton(position, content)` | Clickable button |
-| `WidgetTooltip(position, content)` | Tooltip popup |
+| `WidgetCheckbox(position, content)` | Boolean toggle (the `content` holds the checked state/label) |
+| `WidgetButton(position, size, content)` | Clickable button |
+| `WidgetTooltip(position, size, content)` | Tooltip popup |
 | `WidgetMenuItem(content)` | Menu entry |
 
 **Compound widgets:**
 
 | Widget | Purpose |
 |---|---|
-| `WidgetComposite(children)` | Generic container |
+| `WidgetComposite(position, elements)` | Generic container |
 | `WidgetShell(children)` | Top-level window contents |
 | `WidgetTitlePane(title, content)` | Pane with a title bar |
-| `WidgetSplitPane(orientation, panes, splitter)` | Resizable split |
-| `WidgetTabbedPane(tabs, active_index)` | Tab switcher |
-| `WidgetScrollPane(content, x_offset, y_offset)` | Scrollable viewport |
-| `WidgetScrollBar(orientation, value, min, max, page)` | Scrollbar control |
-| `WidgetToolbar(children)` | Horizontal toolbar |
-| `WidgetMenu(items)` | Dropdown/menu |
+| `WidgetSplitPane(orientation, elements; sizes)` | Resizable split (fields `elements`/`sizes`) |
+| `WidgetTabbedPane(selector_element_pairs)` | Tab switcher |
+| `WidgetScrollPane(content; position, size, scroll_position)` | Scrollable viewport (offset is `scroll_position`) |
+| `WidgetScrollBar(orientation; value, thumb_size)` | Scrollbar control (fields `value`/`thumb_size`) |
+| `WidgetToolbar(elements)` | Horizontal toolbar |
+| `WidgetMenu(elements)` | Dropdown/menu |
 
 **Extension widgets** (printer-only for now — their readers are no-ops). Colors,
 radius and spacing come entirely from the theme (see below), so they carry only
@@ -132,17 +132,18 @@ Defined alongside the widget types in
 | Operation | Effect |
 |---|---|
 | `HideWidgetOperation(w)` / `ShowWidgetOperation(w)` | toggle visibility |
-| `ScrollWidgetOperation(scroll_pane, dx, dy)` | adjust scroll offsets |
+| `ScrollWidgetOperation(scroll_pane, scroll_delta)` | adjust scroll offset (`scroll_delta::Point2D`) |
 | `SelectTabOperation(tabbed_pane, index)` | activate a tab |
 | `SetScrollBarValueOperation(bar, value)` | move the scroll-bar thumb |
 
 The `WidgetToGraphics` reader produces these in response to
-`MouseClick`/`MouseScroll`, routing each through the appropriate container
+`MousePress`/`MouseScroll`, routing each through the appropriate container
 via hit-testing.
 
 ## Projection to graphics
 
-`WidgetToGraphics()` is the convenience factory that returns
+`WidgetToGraphics(font; measure=sdl_measure_text, theme=widget_theme_light())`
+is the convenience factory that returns
 
 ```julia
 RecursiveProjection(TypeDispatchingProjection(
@@ -165,9 +166,9 @@ RecursiveProjection(TypeDispatchingProjection(
 ```
 
 Each per-widget projection takes a `font`, a backend `measure` function,
-and a default foreground colour. Containers project their children
-recursively via the `recursion` argument and assemble the resulting
-canvases.
+and a `theme::WidgetTheme` (colours are read from the theme, not stored on
+individual widgets). Containers project their children recursively via the
+`recursion` argument and assemble the resulting canvases.
 
 `WidgetScrollPaneToGraphicsViewport` is a separate composable projection
 that emits a `GraphicsViewport` instead of a flat canvas — useful when the
@@ -177,8 +178,8 @@ downstream backend can clip to a viewport efficiently.
 
 Widgets carry a `selection::Reference` field like every other Document.
 Selection paths typically descend into `content` for leaf widgets, into
-`children`/`tabs`/`panes` (collections) for containers, or to specific
-fields like `x_offset`/`y_offset` of a scroll pane. The standard rules in
+`elements`/`selector_element_pairs` (collections) for containers, or to specific
+fields like `scroll_position` of a scroll pane. The standard rules in
 [the reference guide](../editor/reference.md) apply.
 
 ## When to use widgets vs. graphics

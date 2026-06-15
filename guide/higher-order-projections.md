@@ -98,9 +98,9 @@ RecursiveProjection(TypeDispatchingProjection(
 ))
 ```
 
-Calls `projection_print(child, input, self, reference)` — that is, it
+Calls `projection_print(child, self, input, reference)` — that is, it
 passes *itself* as the `recursion` argument. This lets node-shaped inner
-projections call `projection_print(recursion, child, recursion, child_ref)`
+projections call `projection_print(recursion, recursion, child, child_ref)`
 to recurse without hard-coding the inner pipeline. Every multi-shape
 domain projection (JsonToSyntax, XmlToSyntax, ObjectToSyntax,
 WidgetToGraphics, …) wraps a TypeDispatchingProjection in a

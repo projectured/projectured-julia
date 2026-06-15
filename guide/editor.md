@@ -3,9 +3,8 @@
 The editor ties everything together: it owns the document, the projection
 pipeline, the backend, and the input devices, and runs a read-eval-print loop
 that responds to user input. The implementation lives in
-[program/src/editor/Editor.jl](../program/src/editor/Editor.jl) and is wrapped
-by the entry-point in
-[program/src/editor/Application.jl](../program/src/editor/Application.jl).
+[program/src/editor/Editor.jl](../program/src/editor/Editor.jl), whose `run!`
+function is the entry point.
 
 ## The Editor struct
 
@@ -24,7 +23,7 @@ end
 - `document` — the reactive document being edited
 - `projection` — the projection pipeline; typically a `SequentialProjection`
   that ends in a `GraphicsCanvas`-producing step
-- `devices` — `Vector{Device}` with the window, keyboard, and mouse
+- `devices` — `Vector{Device}` with the screen, keyboard, and mouse
 - `iomap` — the most recent IoMap from `projection_print`; needed by
   `projection_read` to translate the next event back to a domain operation
 - `operation` — the most recent operation; used by `evaluate!` and the
@@ -38,7 +37,7 @@ end
 while true
     perf_reset!()
     read!(editor)      # poll devices → projection_read → editor.operation
-    evaluate!(editor)  # evaluate_operation(editor.operation, editor.document)
+    evaluate!(editor)  # evaluate_operation(editor, editor.operation)
     print!(editor)     # projection_print → editor.iomap; render to devices
     perf!(editor)      # log reactive counters
     sleep(0.01)
@@ -52,18 +51,20 @@ cleanly. The MCP server is started before the loop and stopped in the
 ### Read
 
 `read_from_devices(backend, devices)` polls the backend's event queue (in
-the SDL case, `SDL_PollEvent`) and returns the next backend-agnostic event:
-`KeyPress`, `MouseClick`, `MouseMove`, `MouseScroll`, or `QuitEvent`. The
-event is then passed through `projection_read(editor.projection,
-editor.iomap, event)` — the entire pipeline walks backward, each projection
-contributing a translation step until an `Operation` falls out at the
-document end.
+the SDL case, `SDL_PollEvent`) and returns the next `EventEnvelope` wrapping a
+backend-agnostic event: `KeyDown`, `KeyUp`, `KeyPress`, `MouseDown`, `MouseUp`,
+`MousePress`, `MouseMove`, `MouseScroll`, or `QuitEvent`. The envelope is then
+wrapped in a `Change` and passed through
+`projection_read(editor.projection, nothing, Change(env, nothing), editor.iomap)`
+— the entire pipeline walks backward, each projection contributing a translation
+step until an `Operation` falls out at the document end.
 
 ### Evaluate
 
-`evaluate_operation(operation, document)` is a generic function with methods
-defined per operation. For `ReplaceSelectionOperation` the implementation is
-`clear_selection!(document); set_selection!(document, op.path)`. For
+`evaluate_operation(editor, operation)` is a generic function with methods
+defined per operation; methods reach for the document via `editor.document`. For
+`ReplaceSelectionOperation` the implementation is
+`clear_selection!(editor.document); set_selection!(editor.document, op.path)`. For
 `QuitEditorOperation` it throws `QuitEditorException`. Other operations
 (e.g. `ScrollWidgetOperation`, `ReplaceFocusPartOperation`) mutate the
 document or projection state directly. See [the operations guide](operations.md).
@@ -82,7 +83,7 @@ reactive and will refresh on the next read.
 
 ## Running an editor
 
-The convenience entry point is `application`:
+The entry point is the bootstrap overload `run!(backend, projection, document; mcp=false)`:
 
 ```julia
 using Projectured
@@ -95,26 +96,24 @@ proj     = SequentialProjection(
     TextToGraphics(measure = (t, f) -> sdl_measure_text(backend, t, f)),
 )
 
-application(backend, proj, document;
-    title  = "Editor",
-    width  = 1200,
-    height = 800,
-)
+run!(backend, proj, document)
 ```
 
-`application` initialises the backend, opens a window, builds a
-`Vector{Device}` containing `Window`, `Keyboard`, and `Mouse`, constructs
-the `Editor`, and calls `run!`. Cleanup (close window, quit backend) is in
-a `finally` block.
+This overload calls `init!(backend)`, builds a `Vector{Device}` of
+`Screen()`, `Keyboard()`, and `Mouse()`, constructs the `Editor`, and runs the
+loop. Native windows are not pre-allocated — the backend opens them on demand
+the first time `write_to_devices` sees a `ScreenDocument` output (the pipeline is
+expected to end in one). `quit!(backend)` cleanup is in a `finally` block. Pass
+`mcp=true` to start an MCP server alongside the loop.
 
 ## Devices and backends
 
-- `Device` is an abstract type. Concrete subtypes are `Window`, `Keyboard`,
+- `Device` is an abstract type. Concrete subtypes are `Screen`, `Keyboard`,
   and `Mouse` — see [the devices and backends guide](devices-and-backends.md).
 - `Backend` is the abstraction over the display/input platform. The only
-  current implementation is `SdlBackend`. The backend provides
-  `measure_text`, `open_window!`, `close_window!`, `read_from_devices`,
-  and `write_to_devices`.
+  current implementation is `SdlBackend`. The backend provides `init!`, `quit!`,
+  and `measure_text`; `read_from_devices` / `write_to_devices` are the `Device`
+  interface.
 - Projections that need to measure text take a `measure::Function` argument
   (e.g. `TextToGraphics`); the backend's `sdl_measure_text` is the usual
   injection.
@@ -153,7 +152,8 @@ something is reading more cells than necessary.
 If you introduce a new editing operation, you need to:
 
 1. Define a struct subtyping `Operation`.
-2. Add an `evaluate_operation(op::YourOp, document)` method.
+2. Add an `evaluate_operation(editor, op::YourOp)` method (reach for the
+   document via `editor.document`).
 3. Update the relevant projection's `projection_read` to produce the
    operation from the appropriate event.
 

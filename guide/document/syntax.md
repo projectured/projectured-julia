@@ -17,17 +17,17 @@ The syntax domain provides a generic intermediate representation between semanti
 # Create a syntax leaf (e.g., for a JSON string)
 leaf = SyntaxLeaf(
     TextString("\""),           # open delimiter
-    TextString("hello"),        # value
-    TextString("\"")            # close delimiter
+    TextString("\""),           # close delimiter
+    TextString("hello")         # value
 )
 
 # Create a syntax node (e.g., for a JSON array)
 node = SyntaxNode(
-    TextString("["),           # open delimiter
-    TextString("]"),           # close delimiter
-    TextString(", "),          # separator
-    [Cell(child1), Cell(child2)], # children
-    true                         # indent
+    TextString("["),            # open delimiter
+    TextString("]"),            # close delimiter
+    TextString(", "),           # separator
+    [child1, child2];           # children (Vector{<:SyntaxDocument})
+    indentation = 0             # indentation depth (Int keyword, default 0)
 )
 ```
 

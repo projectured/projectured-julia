@@ -11,7 +11,7 @@ in [common/Operation.jl](../program/src/common/Operation.jl).
 
 ```julia
 abstract type Operation end
-function evaluate_operation(op::Operation, document) end   # generic function
+function evaluate_operation(editor, op::Operation) end   # generic function
 ```
 
 ## The two built-in selection operations
@@ -22,7 +22,8 @@ Carries a `ReferencePath` and is produced by every reader translating a
 cursor-navigation gesture. Its evaluation:
 
 ```julia
-function evaluate_operation(op::ReplaceSelectionOperation, document)
+function evaluate_operation(editor, op::ReplaceSelectionOperation)
+    document = editor.document
     clear_selection!(document)
     set_selection!(document, op.path)
 end
@@ -64,7 +65,7 @@ small, and the editor's `evaluate!` dispatches on type.
 ## Reader → operation → evaluate flow
 
 ```
-SDL_EVENT ──read_from_devices──► KeyPress/MouseClick/...
+SDL_EVENT ──read_from_devices──► KeyPress/MousePress/...
                                           │
                                           ▼
                        projection_read(projection, iomap, event)
@@ -73,7 +74,7 @@ SDL_EVENT ──read_from_devices──► KeyPress/MouseClick/...
                                Operation or nothing
                                           │
                                           ▼
-                       evaluate_operation(op, document)
+                       evaluate_operation(editor, op)
                                           │
                                           ▼
                              cells written → invalidated
@@ -92,7 +93,8 @@ the document's own domain.
 1. **Declare it.** `struct MyOp <: Operation; ...; end` in the most natural
    module (the domain that owns the affected document, or `OperationModule`
    for cross-domain operations).
-2. **Define `evaluate_operation(::MyOp, document)`**. Use the existing
+2. **Define `evaluate_operation(editor, ::MyOp)`** (reach for the document via
+   `editor.document`). Use the existing
    primitives — `replace_selection!`, mutating reactive cells, throwing
    `QuitEditorException` — rather than reaching directly into private state.
 3. **Have a projection produce it.** Add a `projection_read` method on the
@@ -107,8 +109,8 @@ the document's own domain.
 ## The fall-through cases
 
 ```julia
-evaluate_operation(::Nothing, document) = nothing
-evaluate_operation(op, document)        = nothing  # any other type
+evaluate_operation(editor, ::Nothing) = nothing
+evaluate_operation(editor, op)        = nothing  # any other type
 ```
 
 These exist so the reader can return whatever it likes (including raw

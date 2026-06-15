@@ -1,5 +1,12 @@
 # Annotation Domain
 
+> ⚠️ **Aspirational / not yet implemented.** This document describes a planned
+> design. None of the types or functions below (`Annotation`,
+> `AnnotationBindingDirect`, `AnnotationBindingReferencePath`,
+> `AnnotationRegistry`, `get_annotation_registry`, …) currently exist anywhere in
+> `program/`, `example/`, or `test/`. Treat everything here as a future design
+> sketch, not as an API you can call today.
+
 The Annotation domain provides a generic system for decorating any document element with annotations. Annotations live in a global reactive registry separate from the documents they annotate — no modification to existing document types is required.
 
 **Key Concept**: Annotation semantics emerge from the content type, not from predefined annotation subtypes. A comment is an annotation whose content is a string; a highlight is an annotation whose content is a color. Projections dispatch on `typeof(annotation.content)` to determine rendering.

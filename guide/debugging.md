@@ -82,10 +82,10 @@ julia> iomap = projection_print(proj, doc);    # forward projection
 julia> iomap.output                            # the printed tree
 julia> iomap.output[]                          # force the outer Cell
 
-julia> using Projectured: KeyPress
-julia> op = projection_read(proj, iomap, KeyPress(:right, false));
-julia> evaluate_operation(op, doc);            # apply it back to the document
-julia> projection_print(proj, doc)             # reprint after the edit
+julia> using Projectured: KeyDown, Modifiers
+julia> op = projection_read(proj, iomap, KeyDown(:right, Modifiers()));
+julia> evaluate_operation((; document = doc), op);   # apply it (editor.document)
+julia> projection_print(proj, doc)                   # reprint after the edit
 ```
 
 This is exactly the read-eval-print loop from
@@ -117,7 +117,7 @@ functions as an indented tree, with **no edits to any projection method**:
 
 ```julia
 julia> using Cassette, Projectured
-julia> using Projectured: KeyPress
+julia> using Projectured: KeyDown, Modifiers
 julia> Cassette.@context TraceCtx
 julia> const _depth = Ref(0)
 
@@ -130,7 +130,7 @@ julia> Cassette.posthook(::TraceCtx, out, ::typeof(Projectured.projection_read),
 # wrap whatever triggers a read — a manual call, or the editor's read of one event:
 julia> ex = json_example; doc, proj = ex.document, ex.projection;
 julia> iomap = projection_print(proj, doc);
-julia> Cassette.overdub(TraceCtx(), () -> projection_read(proj, iomap, KeyPress(:right, false)))
+julia> Cassette.overdub(TraceCtx(), () -> projection_read(proj, iomap, KeyDown(:right, Modifiers())))
 ```
 
 You get an indented call tree of every read as the event flows through the

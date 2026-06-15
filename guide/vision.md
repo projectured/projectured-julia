@@ -91,9 +91,9 @@ always semantically coherent.
 
 ## Multi-backend future
 
-The `Backend` interface is a two-method abstraction:
-`init!` / `quit!` / `open_window!` / `close_window!` / `measure_text` /
-`write_to_devices` / `read_from_devices`. Any platform that can implement
+The platform abstraction is split in two: the `Backend` interface is
+`init!` / `quit!` / `measure_text`, and the `Device` interface is
+`write_to_device(s)` / `read_from_device(s)`. Any platform that can implement
 these is a valid backend.
 
 Near-term:

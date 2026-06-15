@@ -7,7 +7,7 @@ they make, flows through one or more projections.
 A projection has four entry points:
 
 ```julia
-projection_print(projection, input, recursion, context::PrinterContext) → iomap
+projection_print(projection, recursion, input, context::PrinterContext) → iomap
 projection_read(projection, iomap, event_or_op)                            → op_or_nothing
 map_reference_forward(projection, iomap, reference)                        → output_ref_or_nothing
 map_reference_backward(projection, iomap, reference)                       → input_ref_or_nothing
@@ -240,7 +240,7 @@ domain (via `map_reference_backward`).
 
 1. Define a struct that subtypes `Projection`. Use `@projection` if you have
    reactive Cell fields.
-2. Implement `projection_print(p, input, recursion, ctx)` returning an
+2. Implement `projection_print(p, recursion, input, ctx)` returning an
    `IoMap`. Use `SimpleIoMap` for positional projections, or define your own
    IoMap struct (with `<: IoMap`) when you need to carry extra data.
 3. Implement `map_reference_forward` and `map_reference_backward` — usually
@@ -255,7 +255,7 @@ domain (via `map_reference_backward`).
 ```julia
 struct MyProjection <: Projection end
 
-function projection_print(p::MyProjection, input, recursion, ctx)
+function projection_print(p::MyProjection, recursion, input, ctx)
     output = transform(input)
     SimpleIoMap(p, input, output)
 end
@@ -295,14 +295,14 @@ recursively-projected input children. The extra requirements are:
 ```julia
 struct MyNodeProjection <: Projection end
 
-function projection_print(p::MyNodeProjection, node::MyNode, recursion, ctx)
+function projection_print(p::MyNodeProjection, recursion, node::MyNode, ctx)
     # Step 1+2: project children, store IO maps in a shared cell.
     # `recursion` is threaded twice (projection to call + that call's own
     # recursion arg); `child_context` extends the reference path to child i.
     child_iomaps = Cell(() -> [
-        projection_print(recursion, getfield(node, :children)[][i][],
-                         recursion,
-                         child_context(ctx, ElementReference(Cell(i))))
+        projection_print(recursion, recursion,
+                         getfield(node, :children)[][i][],
+                         child_context(ctx, ElementReference(i)))
         for i in 1:length(node.children)
     ])
 
@@ -352,7 +352,7 @@ function map_reference_backward(::MyNodeProjection, iomap::ChildrenIoMap, refere
             child_ref = map_reference_backward(child_iomap.projection, child_iomap, rest)
             child_ref === nothing && return nothing
             ConcreteReferencePath(FieldReference(Cell("children")),
-                ConcreteReferencePath(ElementReference(Cell(i)), child_ref))
+                ConcreteReferencePath(ElementReference(i), child_ref))
         end
     end
 end
@@ -364,7 +364,7 @@ example with document types, example, and test.
 ## Recursion across projections
 
 Whenever a node-shaped projection produces children, it should call
-`projection_print(recursion, child, recursion, child_ctx)` where `child_ctx`
+`projection_print(recursion, recursion, child, child_ctx)` where `child_ctx`
 extends the current context (`child_context(ctx, <step to the child>)`). Note
 `recursion` appears **twice**, and this is deliberate: the first slot is the
 projection to invoke, the second is *that* call's own `recursion` argument.

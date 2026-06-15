@@ -137,10 +137,9 @@ Four layers, bottom to top:
 
 | Module | Role |
 |---|---|
-| `Editor.jl` | REPL loop: read → eval → print |
-| `Application.jl` | `application()` entry point; initialises backend and starts the loop |
+| `Editor.jl` | REPL loop: read → eval → print; `run!(backend, projection, document)` entry point |
 | `backend/Sdl.jl` | SDL2 + SDL_ttf backend: rendering, event translation, `write_image` |
-| `device/Window.jl` | `Window` device; `QuitEvent` |
+| `device/Screen.jl` | `Screen` device; `QuitEvent` |
 | `device/Keyboard.jl` | `KeyDown`, `KeyUp`, `KeyPress` |
 | `device/Mouse.jl` | `MouseDown`, `MouseUp`, `MousePress`, `MouseMove`, `MouseScroll` |
 | `editor/Mcp.jl` | MCP server: JSON-RPC over HTTP exposing documents and operations |
@@ -174,7 +173,7 @@ Reactive  (no deps)
   ├── TextToGraphics        (depends on Text, Graphics, Operation, Reference, Keyboard)
   │
   ├── Keyboard.jl           (no deps)
-  ├── backend/Sdl.jl        (depends on Graphics, Keyboard, Mouse, Window, Image, ProjectionApi, IoMap)
+  ├── backend/Sdl.jl        (depends on Graphics, Keyboard, Mouse, Screen, Image, ProjectionApi, IoMap)
   └── editor/Editor.jl      (depends on everything)
 ```
 

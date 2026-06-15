@@ -60,11 +60,11 @@ concrete projection struct *and* the input document type — no visitor pattern,
 no explicit type-case, no abstract method table.
 
 ```julia
-function projection_print(p::JsonStringToSyntaxLeaf, s::JsonString, rec, ref)
+function projection_print(p::JsonStringToSyntaxLeaf, rec, s::JsonString, ctx)
     ...
 end
 
-function projection_print(p::JsonArrayToSyntaxNode, a::JsonArray, rec, ref)
+function projection_print(p::JsonArrayToSyntaxNode, rec, a::JsonArray, ctx)
     ...
 end
 ```

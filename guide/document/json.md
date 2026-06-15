@@ -27,8 +27,8 @@ arr = JsonArray([JsonString("a"), JsonNumber(1), JsonBool(true)])
 obj = JsonObject("name" => JsonString("Alice"), "age" => JsonNumber(30))
 
 # Access values
-str.value[] = "world"  # reactive update
-arr.elements[1][] = JsonString("b")
+str.value = "world"              # reactive update (writes through the Cell)
+arr.elements[1] = JsonString("b") # or: arr[1] = JsonString("b")
 ```
 
 ## Reference Paths
