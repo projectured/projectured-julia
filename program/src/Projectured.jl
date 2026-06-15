@@ -387,7 +387,7 @@ using .LayoutToGraphicsModule: HorizontalLayoutToGraphicsCanvas,
                                FlowLayoutToGraphicsCanvas,
                                LayoutConstraintToGraphicsCanvas,
                                LayoutToGraphics
-using .WidgetToGraphicsModule: WidgetLabelToGraphicsCanvas, WidgetTextToGraphicsCanvas,
+using .WidgetToGraphicsModule: WidgetInsertionToGraphicsCanvas, WidgetLabelToGraphicsCanvas, WidgetTextToGraphicsCanvas,
                                WidgetCheckboxToGraphicsCanvas, WidgetButtonToGraphicsCanvas,
                                WidgetTooltipToGraphicsCanvas, WidgetMenuToGraphicsCanvas,
                                WidgetMenuItemToGraphicsCanvas, WidgetCompositeToGraphicsCanvas,
@@ -452,7 +452,7 @@ export @document, @projection, @iomap
 export Cell, setval!, setfn!, isuptodate, take_first_n
 export projection_print, projection_read, map_reference_forward, map_reference_backward, Projection
 export ConcreteReferencePath, ElementReference, PositionReference, RangeReference, FieldReference, TypeReference,
-       FunctionReference, ProjectionReference, PointReference, ReferencePath, EmptyReferencePath,
+       FunctionReference, ProjectionReference, PointReference, TextRectangularReference, ReferencePath, EmptyReferencePath,
        is_valid_reference, evaluate_reference, append_reference, collect_references,
        is_element_reference, is_position_reference, is_range_reference,
        reference_equal, is_prefix_of
@@ -461,7 +461,7 @@ export set_selection!, clear_selection!, replace_selection!
 export @reference_case, when, prefix
 export @event_case
 export @reference, @step
-export ReplaceSelectionOperation, ToggleCollapseOperation
+export ReplaceSelectionOperation, QuitEditorOperation, ToggleCollapseOperation
 export ReplaceDocumentOperation, ReplaceReferencedValue, CollectionInsertOperation, CollectionDeleteOperation
 export OpenWindowOperation, CloseWindowOperation, ResizeWindowOperation
 export JsonDocument, JsonInsertion, JsonNull, JsonBool, JsonNumber, JsonString, JsonArray, JsonObject, JsonObjectEntry, jsonvalue, entries
@@ -663,13 +663,14 @@ export CollectionToSyntax, CollectionCellVectorToSyntax, CollectionListNodeToSyn
 export TextToGraphics, WidgetToGraphics, WidgetTheme, widget_theme_light, widget_theme_dark,
        widget_theme_slate_light, widget_theme_slate_dark
 export SyntaxNodeToTextIoMap, TextToGraphicsIoMap
-export WidgetLabelToGraphicsCanvas, WidgetTextToGraphicsCanvas,
+export WidgetInsertionToGraphicsCanvas, WidgetLabelToGraphicsCanvas, WidgetTextToGraphicsCanvas,
        WidgetCheckboxToGraphicsCanvas, WidgetButtonToGraphicsCanvas,
        WidgetTooltipToGraphicsCanvas, WidgetMenuToGraphicsCanvas,
        WidgetMenuItemToGraphicsCanvas, WidgetCompositeToGraphicsCanvas,
        WidgetShellToGraphicsCanvas, WidgetTitlePaneToGraphicsCanvas,
        WidgetSplitPaneToGraphicsCanvas, WidgetTabbedPaneToGraphicsCanvas,
-       WidgetScrollPaneToGraphicsCanvas, WidgetScrollPaneToGraphicsCanvasIoMap
+       WidgetScrollPaneToGraphicsCanvas, WidgetScrollPaneToGraphicsCanvasIoMap,
+       WidgetToolbarToGraphicsCanvas, WidgetScrollBarToGraphicsCanvas
 export WidgetScrollPaneToGraphicsViewport, WidgetScrollPaneToGraphicsViewportIoMap
 export LayoutDocument, HorizontalLayout, VerticalLayout, GridLayout, FlowLayout, LayoutConstraint
 export allocate_axis, layout_min, layout_max, layout_preferred, layout_weight
