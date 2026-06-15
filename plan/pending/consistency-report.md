@@ -40,7 +40,42 @@ The **High-severity** findings have been addressed:
   `JuliaToSyntax.jl`. **Follow-up:** wire flat-offset traversal + per-node School-A
   mappers to get real bidirectional Julia navigation.
 
-Medium/Low findings remain open.
+### Medium-severity (2026-06-15)
+
+Addressed:
+
+- **A/Medium docs** — `architecture.md` inventory tables completed (33 widget
+  types, 4 collection containers, 10 higher-order + 9 generic + ~33 primitive
+  projections) and the insert/delete mapping status corrected
+  (`CollectionInsertOperation`/`CollectionDeleteOperation` exist and are wired);
+  `higher-order-projections.md` seven→ten; `generic-projections.md`
+  FilteringProjection is fully implemented (not a stub) + SearchingProjection /
+  ObjectToWidget added; `roadmap.md` broken link fixed.
+- **B/Medium docs** — `widget.md` (theme signatures, factory maps all 33 types),
+  `workbench.md` (four pages, `WorkbenchNavigator(Workspace)`), `collection.md`
+  (four container types). (Several were already fixed during the High pass.)
+- **C/Medium docs** — `devices-and-backends.md`, `editor/reference.md`,
+  `debugging.md` (run_example window-size default), `testing.md` (mouse-click
+  tests are run by `test_all`). (Most fixed during the High pass.)
+- **D/Medium code** — `FileSystemToSyntax` backward mapper (done in the High
+  pass); `BookInsertion`/`WidgetInsertion` printer handlers added
+  (`BookInsertionToSyntaxLeaf`, `WidgetInsertionToGraphicsCanvas`) and registered
+  so the type dispatcher no longer crashes on them.
+- **E/Medium** — `lazy_example`/`lazy_bidirectional_example` are **intentionally**
+  left out of the `examples` registry (they are infinite lazy lists that would
+  hang the enumeration test suites); recorded in a code comment rather than
+  registering them.
+
+Deferred / out of scope:
+
+- **D/Medium parameter-name unification** — large repo-wide rename tracked by its
+  own plan `plan/pending/unify-projection-api-parameter-names.md`; left for that
+  plan.
+- Pre-existing (unrelated to this report): `test_typein(widget_example)` fails on
+  `selector_element_pairs` tuple steps (`Tuple{String, Widget}` field access) on a
+  clean checkout — a separate TypeinTest bug, not introduced here.
+
+Low-severity findings remain open.
 
 ---
 
