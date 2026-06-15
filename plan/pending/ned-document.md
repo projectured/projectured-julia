@@ -287,7 +287,7 @@ containing `module NedModule` with:
 - `Base.show` methods for REPL display
 - Export list (concrete types + I-struct counterparts)
 
-### Step 2 — Register in `Projectured.jl` ⏳
+### Step 2 — Register in `Projectured.jl` ✅
 
 Add `include("document/Ned.jl")` and `using .NedModule` to the main module,
 insert the appropriate exports.
@@ -408,14 +408,14 @@ Parse files from `omnetpp/samples/` — good coverage set:
 - `neddemo/RandomGraph.ned` — `extends`, `inout g[]`, `<-->` with `if`
 - `petrinets/Arc.ned` — `channel extends ned.IdealChannel`
 
-### Step 4 — `_apply_string_replace!` methods ⏳
+### Step 4 — `_apply_string_replace!` methods ✅
 
 Implement string-replace operations for the editable string fields: module
 names, parameter names/values, gate names, import specs, package names, etc.
 Follow `Xml.jl`'s pattern of one method per concrete type dispatching on
 `field_name`.
 
-### Step 5 — Tests ⏳
+### Step 5 — Tests ✅
 
 - Unit tests: construct each type, verify field access, push/delete children.
 - Parser tests: parse each file from the test data set, verify structure.
