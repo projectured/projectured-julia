@@ -937,6 +937,28 @@ function projection_print(p::JuliaFunctionToSyntaxNode, recursion, f::JuliaFunct
     ChildrenIoMap(p, f, node, Cell(() -> IoMap[name_iomap[]; param_iomaps[]; body_iomap[]]))
 end
 
+# ── Reference mapping & readers (deferred) ──────────────────────────────────
+#
+# None of the sub-projections above define `map_reference_forward`,
+# `map_reference_backward`, or `projection_read`, so each falls through to the
+# generic `Projection` defaults in common/Projection.jl: the node printers store
+# `Cell(nothing)` for the output selection, and the default backward mapper wraps
+# an output reference in a `proj(p, …)` step rather than translating it into a
+# Julia-domain path. Consequence: a selection can be set and round-tripped at the
+# projection-wrapped / whole-element granularity (which is what keeps
+# `test_selection(julia_example)` green), but the cursor does NOT map
+# bidirectionally into nested Julia content (this is the High finding in
+# plan/pending/consistency-report.md, §D).
+#
+# Per-node School-A mappers (delegating through the stored child IoMaps, like
+# JsonToSyntax) are the eventual fix, but content mappers alone are not enough:
+# the Julia syntax is dense with projection-introduced structural tokens
+# (`function`, `(`, `)`, `==`, `*`, `-`, `if`, `else`, `end`, …) that have no
+# Julia pre-image, so keyboard navigation can only traverse *through* them with
+# the flat-offset projection-reference machinery that JsonToSyntax carries
+# (`_syntax_to_flat`). Wiring that for Julia is a dedicated follow-up; until then
+# the reference maps are intentionally left on the generic defaults.
+
 # ── JuliaToSyntax (composite) ───────────────────────────────────────────────
 
 function JuliaToSyntax()
