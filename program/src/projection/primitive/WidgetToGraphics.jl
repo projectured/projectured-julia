@@ -1487,11 +1487,14 @@ function projection_print(p::WidgetTabbedPaneToGraphicsCanvas, recursion, w::Wid
         i == 0 ? 1 : i
     end
 
+    # Natural width of the whole tab row (loop-invariant: the tab geometry does
+    # not depend on the active selection).
+    strip_w = isempty(tab_xs) ? 0 : (tab_xs[end] + tab_rws[end] - cox)
+
     selector_cv = CellVector(() -> begin
         active = _active_idx(sel_cell[])
         result = Any[]
         tab_radius = _sc(p.corner_radius)
-        strip_w = isempty(tab_xs) ? 0 : (tab_xs[end] + tab_rws[end] - cox)
         # Muted track behind the whole tab row.
         _push_panel!(result, cox, coy, strip_w, sel_h; fill=p.track_color, radius=tab_radius)
         for i in eachindex(tabs)
@@ -1538,8 +1541,26 @@ function projection_print(p::WidgetTabbedPaneToGraphicsCanvas, recursion, w::Wid
         cim === nothing ? Any[] : Any[_make_canvas(cox, coy + sel_h, Any[cim.output])]
     end)
 
+    # Clip the selector row to the pane's own width so a tab strip wider than
+    # the tabbed pane cannot overflow the widget. When the parent seeded an
+    # available width, clip to the content box (allocation minus insets);
+    # otherwise there is no constraint, so the viewport is as wide as the strip
+    # and clips nothing.
+    sel_view_w = if avail_w === nothing
+        Cell(Int32(strip_w))
+    else
+        tx, _ = _inset_total(w)
+        Cell(() -> Int32(max(0, Int(avail_w[]) - tx)))
+    end
+    # The viewport sits at the content origin; its inner canvas is shifted back
+    # by that origin so the strip elements keep their original coordinates.
+    selector_viewport = GraphicsViewport(
+        Cell(Int32(cox)), Cell(Int32(coy)), sel_view_w, Cell(Int32(sel_h)),
+        Cell(GraphicsCanvas(-cox, -coy, selector_cv, layout_none, true)),
+        Cell(nothing))
+
     canvas = _make_canvas(0, 0, Any[
-        GraphicsCanvas(selector_cv, layout_none, true),
+        selector_viewport,
         GraphicsCanvas(content_cv,  layout_none, true),
     ])
     ChildrenIoMap(p, w, canvas, Cell(child_iomaps))
