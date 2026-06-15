@@ -485,27 +485,25 @@ function _field_child_ref(reference, field_name::Symbol, i::Int)
     append_reference(reference, FieldReference(String(field_name)), ElementReference(i))
 end
 
-# Projects a list of CellVectors into a flat child list with section headers.
-# Each section is (label, field_name, cv) where cv is the CellVector.
-function _project_body_children(recursion, ctx, reference, sections)
-    all_iomaps = Pair{Symbol,Any}[]  # (:field, iomap)
-    syntax_children = SyntaxDocument[]
-
+# Build section SyntaxNodes for module bodies. Each non-empty section becomes
+# a SyntaxNode(open="parameters:", indentation=1, children=[entry1, entry2, ...]).
+# Returns (section_syntax_nodes::Vector{SyntaxDocument}, all child iomaps).
+function _build_section_nodes(recursion, ctx, reference, sections)
+    section_nodes = SyntaxDocument[]
     for (label, field_name, cv) in sections
         isempty(cv) && continue
-        # section header as a plain leaf
-        push!(syntax_children, SyntaxLeaf(_kw(label), _empty_ts(), _empty_ts()))
-        push!(all_iomaps, :_header => nothing)
-
+        entry_outputs = SyntaxDocument[]
         for (i, child) in enumerate(cv)
-            iomap = projection_print(recursion, recursion, child,
-                        child_context(ctx, _field_child_ref(reference, field_name, i)))
-            push!(syntax_children, iomap.output)
-            push!(all_iomaps, field_name => (i, iomap))
+            im = projection_print(recursion, recursion, child,
+                     child_context(ctx, _field_child_ref(reference, field_name, i)))
+            push!(entry_outputs, im.output)
         end
+        section_node = SyntaxNode(
+            _kw(label), _empty_ts(), _empty_ts(),
+            entry_outputs; indentation=1)
+        push!(section_nodes, section_node)
     end
-
-    return syntax_children, all_iomaps
+    return section_nodes
 end
 
 # ── NedSimpleModuleToSyntaxNode ──────────────────────────────────────────
@@ -520,30 +518,13 @@ function projection_print(p::NedSimpleModuleToSyntaxNode, recursion, m::NedSimpl
         ("gates:", :gates, m.gates),
     ]
 
-    child_iomaps_cell = Cell(() -> begin
-        result = Pair{Symbol,Any}[]
-        sc = SyntaxDocument[]
-        for (label, field_name, cv) in sections
-            isempty(cv) && continue
-            push!(sc, SyntaxLeaf(_kw(label), _empty_ts(), _empty_ts()))
-            push!(result, :_header => nothing)
-            for (i, child) in enumerate(cv)
-                im = projection_print(recursion, recursion, child,
-                         child_context(ctx, _field_child_ref(reference, field_name, i)))
-                push!(sc, im.output)
-                push!(result, field_name => (i, im))
-            end
-        end
-        (sc, result)
-    end)
+    children_cv = CellVector(() -> _build_section_nodes(recursion, ctx, reference, sections))
 
     sel = Cell(() -> begin
         path = m.selection
         path isa ConcreteReferencePath && path.head isa ProjectionReference && return path
         nothing
     end)
-
-    children_cv = CellVector(() -> child_iomaps_cell[][1])
 
     output = SyntaxNode(
         TextString(() -> _module_heading("simple", m), _kw_font, _kw_color),
@@ -568,30 +549,13 @@ function projection_print(p::NedCompoundModuleToSyntaxNode, recursion, m::NedCom
         ("connections:", :connections, m.connections),
     ]
 
-    child_iomaps_cell = Cell(() -> begin
-        result = Pair{Symbol,Any}[]
-        sc = SyntaxDocument[]
-        for (label, field_name, cv) in sections
-            isempty(cv) && continue
-            push!(sc, SyntaxLeaf(_kw(label), _empty_ts(), _empty_ts()))
-            push!(result, :_header => nothing)
-            for (i, child) in enumerate(cv)
-                im = projection_print(recursion, recursion, child,
-                         child_context(ctx, _field_child_ref(reference, field_name, i)))
-                push!(sc, im.output)
-                push!(result, field_name => (i, im))
-            end
-        end
-        (sc, result)
-    end)
+    children_cv = CellVector(() -> _build_section_nodes(recursion, ctx, reference, sections))
 
     sel = Cell(() -> begin
         path = m.selection
         path isa ConcreteReferencePath && path.head isa ProjectionReference && return path
         nothing
     end)
-
-    children_cv = CellVector(() -> child_iomaps_cell[][1])
 
     output = SyntaxNode(
         TextString(() -> _module_heading("network", m), _kw_font, _kw_color),
@@ -607,31 +571,14 @@ struct NedModuleInterfaceToSyntaxNode <: Projection end
 
 function projection_print(p::NedModuleInterfaceToSyntaxNode, recursion, m::NedModuleInterface, ctx)
     reference = ctx.reference
-
-    child_iomaps_cell = Cell(() -> begin
-        result = Pair{Symbol,Any}[]
-        sc = SyntaxDocument[]
-        for (label, field_name, cv) in [("parameters:", :params, m.params), ("gates:", :gates, m.gates)]
-            isempty(cv) && continue
-            push!(sc, SyntaxLeaf(_kw(label), _empty_ts(), _empty_ts()))
-            push!(result, :_header => nothing)
-            for (i, child) in enumerate(cv)
-                im = projection_print(recursion, recursion, child,
-                         child_context(ctx, _field_child_ref(reference, field_name, i)))
-                push!(sc, im.output)
-                push!(result, field_name => (i, im))
-            end
-        end
-        (sc, result)
-    end)
+    sections = [("parameters:", :params, m.params), ("gates:", :gates, m.gates)]
+    children_cv = CellVector(() -> _build_section_nodes(recursion, ctx, reference, sections))
 
     sel = Cell(() -> begin
         path = m.selection
         path isa ConcreteReferencePath && path.head isa ProjectionReference && return path
         nothing
     end)
-
-    children_cv = CellVector(() -> child_iomaps_cell[][1])
 
     output = SyntaxNode(
         TextString(() -> _interface_heading("moduleinterface", m), _kw_font, _kw_color),
@@ -647,17 +594,14 @@ struct NedChannelToSyntaxNode <: Projection end
 
 function projection_print(p::NedChannelToSyntaxNode, recursion, ch::NedChannel, ctx)
     reference = ctx.reference
-
-    child_iomaps_cell = Cell(() -> begin
-        result = Pair{Symbol,Any}[]
-        sc = SyntaxDocument[]
+    children_cv = CellVector(() -> begin
+        entry_outputs = SyntaxDocument[]
         for (i, child) in enumerate(ch.params)
             im = projection_print(recursion, recursion, child,
                      child_context(ctx, @reference ^(reference).params[i]))
-            push!(sc, im.output)
-            push!(result, :params => (i, im))
+            push!(entry_outputs, im.output)
         end
-        (sc, result)
+        entry_outputs
     end)
 
     sel = Cell(() -> begin
@@ -665,8 +609,6 @@ function projection_print(p::NedChannelToSyntaxNode, recursion, ch::NedChannel, 
         path isa ConcreteReferencePath && path.head isa ProjectionReference && return path
         nothing
     end)
-
-    children_cv = CellVector(() -> child_iomaps_cell[][1])
 
     output = SyntaxNode(
         TextString(() -> _module_heading("channel", ch), _kw_font, _kw_color),
@@ -682,17 +624,14 @@ struct NedChannelInterfaceToSyntaxNode <: Projection end
 
 function projection_print(p::NedChannelInterfaceToSyntaxNode, recursion, ci::NedChannelInterface, ctx)
     reference = ctx.reference
-
-    child_iomaps_cell = Cell(() -> begin
-        result = Pair{Symbol,Any}[]
-        sc = SyntaxDocument[]
+    children_cv = CellVector(() -> begin
+        entry_outputs = SyntaxDocument[]
         for (i, child) in enumerate(ci.params)
             im = projection_print(recursion, recursion, child,
                      child_context(ctx, @reference ^(reference).params[i]))
-            push!(sc, im.output)
-            push!(result, :params => (i, im))
+            push!(entry_outputs, im.output)
         end
-        (sc, result)
+        entry_outputs
     end)
 
     sel = Cell(() -> begin
@@ -700,8 +639,6 @@ function projection_print(p::NedChannelInterfaceToSyntaxNode, recursion, ci::Ned
         path isa ConcreteReferencePath && path.head isa ProjectionReference && return path
         nothing
     end)
-
-    children_cv = CellVector(() -> child_iomaps_cell[][1])
 
     output = SyntaxNode(
         TextString(() -> _interface_heading("channelinterface", ci), _kw_font, _kw_color),
@@ -737,30 +674,15 @@ end
 
 function projection_print(p::NedSubmoduleToSyntaxNode, recursion, sub::NedSubmodule, ctx)
     reference = ctx.reference
-    has_body = !isempty(sub.params) || !isempty(sub.gates)
 
-    child_iomaps_cell = Cell(() -> begin
-        result = Pair{Symbol,Any}[]
-        sc = SyntaxDocument[]
-        if !isempty(sub.params)
-            for (i, child) in enumerate(sub.params)
-                im = projection_print(recursion, recursion, child,
-                         child_context(ctx, @reference ^(reference).params[i]))
-                push!(sc, im.output)
-                push!(result, :params => (i, im))
-            end
-        end
-        if !isempty(sub.gates)
-            push!(sc, SyntaxLeaf(_kw("gates:"), _empty_ts(), _empty_ts()))
-            push!(result, :_header => nothing)
-            for (i, child) in enumerate(sub.gates)
-                im = projection_print(recursion, recursion, child,
-                         child_context(ctx, @reference ^(reference).gates[i]))
-                push!(sc, im.output)
-                push!(result, :gates => (i, im))
-            end
-        end
-        (sc, result)
+    sections = [
+        ("parameters:", :params, sub.params),
+        ("gates:", :gates, sub.gates),
+    ]
+
+    children_cv = CellVector(() -> begin
+        has_body = !isempty(sub.params) || !isempty(sub.gates)
+        has_body ? _build_section_nodes(recursion, ctx, reference, sections) : SyntaxDocument[]
     end)
 
     sel = Cell(() -> begin
@@ -769,14 +691,11 @@ function projection_print(p::NedSubmoduleToSyntaxNode, recursion, sub::NedSubmod
         nothing
     end)
 
-    children_cv = CellVector(() -> child_iomaps_cell[][1])
-
-    close_text = has_body ? "}" : ""
     output = SyntaxNode(
         TextString(() -> _format_submodule_heading(sub), _id_font, _id_color),
         TextString(() -> (isempty(sub.params) && isempty(sub.gates)) ? "" : "}", _id_font, _op_color),
         _empty_ts(),
-        children_cv, has_body ? 1 : 0, Cell(false), sel)
+        children_cv, 1, Cell(false), sel)
     SimpleIoMap(p, sub, output)
 end
 
