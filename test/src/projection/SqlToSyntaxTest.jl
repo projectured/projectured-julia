@@ -40,4 +40,41 @@ function test_sql_to_syntax()
     end
 end
 
-export test_sql_to_syntax
+function test_sql_to_syntax_selection()
+    doc = SqlSelectStatement(
+        SqlSelectClause(
+            SqlSelectItem(SqlColumnReference(SqlTableAlias("sub"), SqlColumnName("person_name"))),
+            SqlSelectItem(SqlColumnReference(SqlTableAlias("sub"), SqlColumnName("person_age")))),
+        SqlFromClause(SqlFromItem(SqlSubqueryFromItem(
+            SqlSelectStatement(
+                SqlSelectClause(
+                    SqlSelectItem(
+                        SqlColumnReference(SqlTableAlias("p"), SqlColumnName("name")),
+                        SqlColumnAlias("person_name")),
+                    SqlSelectItem(
+                        SqlColumnReference(SqlTableAlias("p"), SqlColumnName("age")),
+                        SqlColumnAlias("person_age"))),
+                SqlFromClause(SqlFromItem(
+                    SqlTableExpression(SqlTableName("persons"), SqlTableAlias("p")))),
+                SqlWhereClause(
+                    SqlComparison(
+                        SqlColumnReference(SqlTableAlias("p"), SqlColumnName("name")),
+                        "<>",
+                        SqlScalarValue("X")))),
+            SqlTableAlias("sub")))),
+        SqlWhereClause(
+            SqlComparison(
+                SqlColumnReference(SqlTableAlias("sub"), SqlColumnName("person_name")),
+                "<>",
+                SqlScalarValue("X"))))
+
+    measure = (text, font) -> (length(text) * 10, 18)
+    proj = SequentialProjection(
+        RecursiveProjection(SqlToSyntax()),
+        RecursiveProjection(SyntaxToText()),
+        TextToGraphics(measure=measure))
+
+    test_selection("SqlToSyntax nested", doc, proj)
+end
+
+export test_sql_to_syntax, test_sql_to_syntax_selection
