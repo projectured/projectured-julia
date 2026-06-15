@@ -168,8 +168,7 @@ function projection_print(p::IniIncludeToSyntaxLeaf, recursion, inc::IniInclude,
         TextString("", p.keyword_font, color_default),
         TextString("", p.keyword_font, color_default),
         TextString("", p.keyword_font, color_default),
-        SyntaxDocument[keyword_leaf, path_leaf],
-        0)
+        SyntaxDocument[keyword_leaf, path_leaf])
     SimpleIoMap(p, inc, node)
 end
 
@@ -277,7 +276,7 @@ function projection_print(p::IniConfigOptionToSyntaxNode, recursion, opt::IniCon
         TextString("", p.key_font, color_default),
         TextString("", p.key_font, color_default),
         TextString("", p.key_font, color_default),
-        children, 0)
+        children)
     SimpleIoMap(p, opt, node)
 end
 
@@ -380,7 +379,7 @@ function projection_print(p::IniParamAssignmentToSyntaxNode, recursion, pa::IniP
         TextString("", p.key_font, color_default),
         TextString("", p.key_font, color_default),
         TextString("", p.key_font, color_default),
-        children, 0)
+        children)
     SimpleIoMap(p, pa, node)
 end
 
