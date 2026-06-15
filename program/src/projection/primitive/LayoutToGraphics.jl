@@ -2,7 +2,7 @@
     LayoutToGraphicsModule
 
 Projections from layout documents (`HorizontalLayout`, `VerticalLayout`,
-`GridLayout`, `FlowLayout`) to `GraphicsCanvas`.
+`GridLayout`, `FlowLayout`, `StackLayout`) to `GraphicsCanvas`.
 
 Every projection follows the same two-phase shape:
 
@@ -21,7 +21,7 @@ import ..ReactiveModule: Cell
 import ..ProjectionApiModule: projection_print, projection_read,
                                map_reference_forward, map_reference_backward, Projection
 import ..DocumentApiModule: Document
-import ..LayoutModule: HorizontalLayout, VerticalLayout, GridLayout, FlowLayout,
+import ..LayoutModule: HorizontalLayout, VerticalLayout, GridLayout, FlowLayout, StackLayout,
                        LayoutConstraint, allocate_axis,
                        layout_min, layout_max, layout_preferred, layout_weight
 import ..CollectionModule: CellVector
@@ -38,7 +38,7 @@ import ..ReferenceBuilderModule: var"@reference"
 import ..PrinterContextModule: child_context, with_available_size
 export HorizontalLayoutToGraphicsCanvas, VerticalLayoutToGraphicsCanvas,
        GridLayoutToGraphicsCanvas, FlowLayoutToGraphicsCanvas,
-       LayoutConstraintToGraphicsCanvas,
+       StackLayoutToGraphicsCanvas, LayoutConstraintToGraphicsCanvas,
        LayoutToGraphics
 
 # ── Projection structs ─────────────────────────────────────────────────────
@@ -47,6 +47,7 @@ struct HorizontalLayoutToGraphicsCanvas <: Projection end
 struct VerticalLayoutToGraphicsCanvas   <: Projection end
 struct GridLayoutToGraphicsCanvas       <: Projection end
 struct FlowLayoutToGraphicsCanvas       <: Projection end
+struct StackLayoutToGraphicsCanvas      <: Projection end
 struct LayoutConstraintToGraphicsCanvas <: Projection end
 
 # ── Helpers ────────────────────────────────────────────────────────────────
@@ -869,6 +870,150 @@ function projection_read(::FlowLayoutToGraphicsCanvas, iomap::ChildrenIoMap, evt
     _route_layout_event(iomap, evt)
 end
 
+# ── StackLayout ───────────────────────────────────────────────────────────
+
+function _sl_child_x_cell(i::Int, child_iomaps::Vector, outer_w::Cell, halign::Cell)
+    Cell(function ()
+        cw = _child_w(child_iomaps[i])
+        ow = outer_w[]
+        a  = halign[]
+        x = a === :center ? div(ow - cw, 2) :
+            a === :right  ? ow - cw         :
+                            0
+        Int32(x)
+    end)
+end
+
+function _sl_child_y_cell(i::Int, child_iomaps::Vector, outer_h::Cell, valign::Cell)
+    Cell(function ()
+        ch = _child_h(child_iomaps[i])
+        oh = outer_h[]
+        a  = valign[]
+        y = a === :center ? div(oh - ch, 2) :
+            a === :bottom ? oh - ch         :
+                            0
+        Int32(y)
+    end)
+end
+
+"""Reverse-order hit-test: iterate children from last (top) to first (bottom)."""
+function _route_to_children_reverse(child_entries::Vector, x::Int, y::Int, make_evt)
+    for i in length(child_entries):-1:1
+        entry = child_entries[i]
+        entry === nothing && continue
+        (ox_cell, oy_cell, cim) = entry::Tuple{Cell,Cell,Any}
+        canvas = cim.output
+        canvas isa GraphicsCanvas || continue
+        ox = Int(ox_cell[])
+        oy = Int(oy_cell[])
+        lx, ly = x - ox - Int(canvas.x), y - oy - Int(canvas.y)
+        hit_element_at(canvas, lx, ly) === nothing && continue
+        result = projection_read(cim.projection, cim, make_evt(lx, ly))
+        result !== nothing && return (result, i)
+    end
+    nothing
+end
+
+_route_scroll_reverse(entries, evt::MouseScroll) =
+    _route_to_children_reverse(entries, evt.x, evt.y,
+        (x, y) -> MouseScroll(evt.dx, evt.dy, x, y))
+
+_route_click_reverse(entries, evt::MousePress) =
+    _route_to_children_reverse(entries, evt.x, evt.y,
+        (x, y) -> MousePress(evt.button, x, y, evt.modifiers))
+
+function _route_stack_event(iomap::ChildrenIoMap, evt)
+    entries = iomap.child_iomaps[]::Vector
+    res = @event_case evt begin
+        MousePress  => _route_click_reverse(entries, evt)
+        MouseScroll => _route_scroll_reverse(entries, evt)
+        _ => begin
+            slot = _selected_layout_slot(iomap.input, length(entries))
+            slot == 0 ? _forward_layout_event(entries, evt) :
+                        _forward_layout_event_slot(entries, evt, slot)
+        end
+    end
+    res === nothing && return nothing
+    op, i = res
+    prepend_steps_to_op(op, (FieldReference("children"), RangeReference(i - 1, i)))
+end
+
+function projection_print(p::StackLayoutToGraphicsCanvas,
+                          recursion, doc::StackLayout, ctx)
+    n = length(doc.children)
+    if n == 0
+        return ChildrenIoMap(p, doc, _empty_canvas(), Cell(Tuple{Cell,Cell,Any}[]))
+    end
+
+    halign = getfield(doc, :horizontal_align)
+    valign = getfield(doc, :vertical_align)
+
+    child_iomaps = Any[]
+    for i in 1:n
+        cctx = child_context(ctx, @reference ^(ctx.reference).children[i])
+        cctx = with_available_size(cctx; width=nothing, height=nothing)
+        cim = _recurse_child(recursion, doc.children[i], cctx)
+        push!(child_iomaps, cim)
+    end
+
+    outer_w = Cell(function ()
+        w = 0
+        for cim in child_iomaps
+            cw = _child_w(cim)
+            cw > w && (w = cw)
+        end
+        w
+    end)
+
+    outer_h = Cell(function ()
+        h = 0
+        for cim in child_iomaps
+            ch = _child_h(cim)
+            ch > h && (h = ch)
+        end
+        h
+    end)
+
+    child_x = Cell[]
+    child_y = Cell[]
+    for i in 1:n
+        push!(child_x, _sl_child_x_cell(i, child_iomaps, outer_w, halign))
+        push!(child_y, _sl_child_y_cell(i, child_iomaps, outer_h, valign))
+    end
+
+    wrapped = Any[]
+    for i in 1:n
+        c = child_iomaps[i].output
+        c isa GraphicsCanvas || continue
+        push!(wrapped, _wrap_child(c, child_x[i], child_y[i]))
+    end
+
+    outer = GraphicsCanvas(Cell(Int32(0)), Cell(Int32(0)),
+                           Cell(() -> Int32(outer_w[])),
+                           Cell(() -> Int32(outer_h[])),
+                           CellVector(Cell[Cell(e) for e in wrapped]),
+                           layout_none, true, Cell(nothing))
+
+    entries = Tuple{Cell,Cell,Any}[]
+    for i in 1:n
+        push!(entries, (child_x[i], child_y[i], child_iomaps[i]))
+    end
+
+    ChildrenIoMap(p, doc, outer, Cell(entries))
+end
+
+function map_reference_forward(::StackLayoutToGraphicsCanvas, iomap, reference)
+    return _children_forward(iomap, reference)
+end
+
+function map_reference_backward(::StackLayoutToGraphicsCanvas, iomap, reference)
+    return nothing
+end
+
+function projection_read(::StackLayoutToGraphicsCanvas, iomap::ChildrenIoMap, evt)
+    _route_stack_event(iomap, evt)
+end
+
 # ── Factory ────────────────────────────────────────────────────────────────
 
 """
@@ -884,6 +1029,7 @@ function LayoutToGraphics()
         VerticalLayout   => VerticalLayoutToGraphicsCanvas(),
         GridLayout       => GridLayoutToGraphicsCanvas(),
         FlowLayout       => FlowLayoutToGraphicsCanvas(),
+        StackLayout      => StackLayoutToGraphicsCanvas(),
         LayoutConstraint => LayoutConstraintToGraphicsCanvas(),
     )
 end

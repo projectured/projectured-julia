@@ -20,11 +20,11 @@ import ..CollectionModule: CellVector
 import ..ReferenceModule: Reference
 
 export LayoutDocument,
-       HorizontalLayout, VerticalLayout, GridLayout, FlowLayout,
+       HorizontalLayout, VerticalLayout, GridLayout, FlowLayout, StackLayout,
        LayoutConstraint,
        allocate_axis,
        layout_min, layout_max, layout_preferred, layout_weight,
-       IHorizontalLayout, IVerticalLayout, IGridLayout, IFlowLayout,
+       IHorizontalLayout, IVerticalLayout, IGridLayout, IFlowLayout, IStackLayout,
        ILayoutConstraint
 
 # ── Abstract base ───────────────────────────────────────────────────────────
@@ -179,6 +179,40 @@ FlowLayout(; kwargs...) = FlowLayout(Any[]; kwargs...)
 function Base.show(io::IO, f::FlowLayout)
     print(io, "FlowLayout(n=", length(f.children),
           ", max_w=", f.max_width, ")")
+end
+
+# ── StackLayout ────────────────────────────────────────────────────────────
+
+"""
+    StackLayout(children; horizontal_align, vertical_align)
+
+A z-ordered stack of children. All children share the same origin;
+child order is z-order (first = bottom, last = top). The outer
+canvas has width = max of child widths and height = max of child
+heights. Per-child `(x, y)` is derived from `horizontal_align` /
+`vertical_align` against the outer extent. Used for overlays,
+badges, and composing background / foreground layers.
+"""
+@document struct StackLayout <: LayoutDocument
+    children::CellVector
+    horizontal_align::Symbol
+    vertical_align::Symbol
+    selection::Reference
+end
+
+function StackLayout(children::Vector;
+                     horizontal_align::Symbol=:left,
+                     vertical_align::Symbol=:top)
+    StackLayout(CellVector(Cell[c isa Cell ? c : Cell(c) for c in children]),
+                Cell(horizontal_align), Cell(vertical_align), Cell(nothing))
+end
+
+StackLayout(; kwargs...) = StackLayout(Any[]; kwargs...)
+
+function Base.show(io::IO, s::StackLayout)
+    print(io, "StackLayout(n=", length(s.children),
+          ", h_align=", s.horizontal_align,
+          ", v_align=", s.vertical_align, ")")
 end
 
 # ── LayoutConstraint ────────────────────────────────────────────────────────
