@@ -598,21 +598,42 @@ function _render_line!(renderer::Ptr{SDL_Renderer}, line::GraphicsLine, ox::Int,
     elseif x1 == x2      # vertical rule
         SDL_RenderFillRect(renderer, Ref(SDL_Rect(Int32(x1 - wdt ÷ 2), Int32(min(y1, y2)),
                                                   Int32(wdt), Int32(abs(y2 - y1) + 1))))
-    else                 # diagonal: stamp the stroke width at device resolution
-        # Stamp one line per device pixel across the width (float endpoints), so
-        # the supersample downsample anti-aliases the diagonal. Stamping at
-        # logical offsets would leave gaps once RenderSetScale magnifies each
-        # 1px line.
-        fx = Ref{Cfloat}(0); fy = Ref{Cfloat}(0)
-        SDL_RenderGetScale(renderer, fx, fy)
-        f = Float64(fx[]); f <= 0 && (f = 1.0)
-        half = wdt / 2
-        steps = max(1, round(Int, wdt * f))
-        for s in 0:(steps - 1)
-            o = -half + (s + 0.5) * (wdt / steps)
-            SDL_RenderDrawLineF(renderer, Cfloat(x1), Cfloat(y1 + o), Cfloat(x2), Cfloat(y2 + o))
-            SDL_RenderDrawLineF(renderer, Cfloat(x1 + o), Cfloat(y1), Cfloat(x2 + o), Cfloat(y2))
-        end
+    else                 # diagonal: one filled quad (two triangles)
+        # SDL's line primitive is not anti-aliased. Draw the stroke as a quad
+        # whose edges are rasterized at device resolution, so the supersample
+        # downsample anti-aliases them — O(1) regardless of length.
+        _fill_thick_line!(renderer, Float64(x1), Float64(y1), Float64(x2), Float64(y2),
+                          Float64(wdt), line.r, line.g, line.b, line.a)
+    end
+end
+
+# Filled, square-capped thick line from (x1,y1) to (x2,y2) of width `wdt`, drawn
+# as two triangles via SDL_RenderGeometry. Square caps (endpoints extended by
+# half the width) make joined segments — chevrons, checkmarks — meet cleanly.
+function _fill_thick_line!(renderer::Ptr{SDL_Renderer}, x1::Float64, y1::Float64,
+                           x2::Float64, y2::Float64, wdt::Float64,
+                           r::UInt8, g::UInt8, b::UInt8, a::UInt8)
+    dx = x2 - x1; dy = y2 - y1
+    len = sqrt(dx * dx + dy * dy)
+    len == 0 && return
+    hw = wdt / 2
+    ux = dx / len; uy = dy / len          # unit along the line
+    px = -uy * hw;  py = ux * hw           # perpendicular half-width
+    ex = ux * hw;   ey = uy * hw           # square-cap extension
+    x1c = x1 - ex; y1c = y1 - ey
+    x2c = x2 + ex; y2c = y2 + ey
+    col = SDL_Color(r, g, b, a)
+    z = SDL_FPoint(0.0f0, 0.0f0)
+    verts = SDL_Vertex[
+        SDL_Vertex(SDL_FPoint(Cfloat(x1c - px), Cfloat(y1c - py)), col, z),
+        SDL_Vertex(SDL_FPoint(Cfloat(x1c + px), Cfloat(y1c + py)), col, z),
+        SDL_Vertex(SDL_FPoint(Cfloat(x2c + px), Cfloat(y2c + py)), col, z),
+        SDL_Vertex(SDL_FPoint(Cfloat(x2c - px), Cfloat(y2c - py)), col, z),
+    ]
+    idx = Cint[0, 1, 2, 0, 2, 3]
+    GC.@preserve verts idx begin
+        SDL_RenderGeometry(renderer, Ptr{SDL_Texture}(C_NULL),
+                           pointer(verts), Cint(4), pointer(idx), Cint(6))
     end
 end
 
