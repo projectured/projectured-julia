@@ -381,6 +381,7 @@ using .WidgetToGraphicsModule: WidgetLabelToGraphicsCanvas, WidgetTextToGraphics
                                WidgetScrollPaneToGraphicsCanvas, WidgetScrollPaneToGraphicsCanvasIoMap,
                                WidgetToolbarToGraphicsCanvas, WidgetScrollBarToGraphicsCanvas,
                                WidgetToGraphics, WidgetTheme, widget_theme_light, widget_theme_dark,
+                               widget_theme_slate_light, widget_theme_slate_dark,
                                WidgetScrollPaneToGraphicsViewport, WidgetScrollPaneToGraphicsViewportIoMap
 using .WorkbenchToWidgetModule: WorkbenchWorkbenchToWidgetShell,    WorkbenchWorkbenchToWidgetShellIoMap,
                                 WorkbenchPageToWidgetTabbedPane,    WorkbenchPageToWidgetTabbedPaneIoMap,
@@ -627,7 +628,8 @@ export JuliaToSyntax, JuliaIdentifierToSyntaxLeaf, JuliaIntegerToSyntaxLeaf,
        JuliaIfToSyntaxNode, JuliaFunctionToSyntaxNode,
        JuliaBlockToSyntaxNode
 export CollectionToSyntax, CollectionCellVectorToSyntax, CollectionListNodeToSyntax
-export TextToGraphics, WidgetToGraphics, WidgetTheme, widget_theme_light, widget_theme_dark
+export TextToGraphics, WidgetToGraphics, WidgetTheme, widget_theme_light, widget_theme_dark,
+       widget_theme_slate_light, widget_theme_slate_dark
 export SyntaxNodeToTextIoMap, TextToGraphicsIoMap
 export WidgetLabelToGraphicsCanvas, WidgetTextToGraphicsCanvas,
        WidgetCheckboxToGraphicsCanvas, WidgetButtonToGraphicsCanvas,

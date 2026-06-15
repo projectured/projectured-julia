@@ -36,6 +36,12 @@ export StyleColor, make_style_color,
        color_zinc_50, color_zinc_100, color_zinc_200, color_zinc_300,
        color_zinc_400, color_zinc_500, color_zinc_600, color_zinc_700,
        color_zinc_800, color_zinc_900, color_zinc_950,
+       color_slate_50, color_slate_100, color_slate_200, color_slate_300,
+       color_slate_400, color_slate_500, color_slate_600, color_slate_700,
+       color_slate_800, color_slate_900, color_slate_950,
+       color_indigo_50, color_indigo_100, color_indigo_200, color_indigo_300,
+       color_indigo_400, color_indigo_500, color_indigo_600, color_indigo_700,
+       color_indigo_800, color_indigo_900, color_indigo_950,
        color_destructive, color_destructive_fg
 
 # ── Document ──────────────────────────────────────────────────────────────────
@@ -162,6 +168,38 @@ const color_zinc_700 = _color(63,  63,  70)
 const color_zinc_800 = _color(39,  39,  42)
 const color_zinc_900 = _color(24,  24,  27)
 const color_zinc_950 = _color(9,   9,   11)
+# ── Slate neutral ramp (Tailwind) ───────────────────────────────────────────────
+# A cool, slightly blue-tinted neutral used by the widget theme in place of the
+# flatter zinc grey, so surfaces read as colored rather than washed-out grey.
+
+const color_slate_50  = _color(248, 250, 252)
+const color_slate_100 = _color(241, 245, 249)
+const color_slate_200 = _color(226, 232, 240)
+const color_slate_300 = _color(203, 213, 225)
+const color_slate_400 = _color(148, 163, 184)
+const color_slate_500 = _color(100, 116, 139)
+const color_slate_600 = _color(71,  85,  105)
+const color_slate_700 = _color(51,  65,  85)
+const color_slate_800 = _color(30,  41,  59)
+const color_slate_900 = _color(15,  23,  42)
+const color_slate_950 = _color(2,   6,   23)
+
+# ── Indigo accent ramp (Tailwind) ───────────────────────────────────────────────
+# The widget theme's primary / accent / focus-ring color. Gives buttons, active
+# states and focus rings a saturated identity instead of neutral grey.
+
+const color_indigo_50  = _color(238, 242, 255)
+const color_indigo_100 = _color(224, 231, 255)
+const color_indigo_200 = _color(199, 210, 254)
+const color_indigo_300 = _color(165, 180, 252)
+const color_indigo_400 = _color(129, 140, 248)
+const color_indigo_500 = _color(99,  102, 241)
+const color_indigo_600 = _color(79,  70,  229)
+const color_indigo_700 = _color(67,  56,  202)
+const color_indigo_800 = _color(55,  48,  163)
+const color_indigo_900 = _color(49,  46,  129)
+const color_indigo_950 = _color(30,  27,  75)
+
 const color_destructive       = _color(239, 68, 68)   # red-500
 const color_destructive_fg    = _color(250, 250, 250)
 

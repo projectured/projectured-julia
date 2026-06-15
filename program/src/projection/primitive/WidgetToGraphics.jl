@@ -26,6 +26,11 @@ import ..ColorModule: StyleColor,
                       color_white, color_zinc_50, color_zinc_100, color_zinc_200,
                       color_zinc_300, color_zinc_400, color_zinc_500, color_zinc_600,
                       color_zinc_700, color_zinc_800, color_zinc_900, color_zinc_950,
+                      color_slate_50, color_slate_100, color_slate_200, color_slate_300,
+                      color_slate_400, color_slate_500, color_slate_700, color_slate_800,
+                      color_slate_900, color_slate_950,
+                      color_indigo_100, color_indigo_200, color_indigo_400, color_indigo_500,
+                      color_indigo_600, color_indigo_700, color_indigo_950,
                       color_destructive, color_destructive_fg
 import ..WidgetModule: WidgetDocument, WidgetLabel, WidgetText, WidgetCheckbox,
                        WidgetButton, WidgetTooltip, WidgetMenu, WidgetMenuItem,
@@ -65,6 +70,7 @@ export WidgetLabelToGraphicsCanvas, WidgetTextToGraphicsCanvas,
        WidgetScrollPaneToGraphicsCanvas, WidgetScrollPaneToGraphicsCanvasIoMap,
        WidgetToolbarToGraphicsCanvas, WidgetScrollBarToGraphicsCanvas,
        WidgetToGraphics, WidgetTheme, widget_theme_light, widget_theme_dark,
+       widget_theme_slate_light, widget_theme_slate_dark,
        WidgetScrollPaneToGraphicsViewport, WidgetScrollPaneToGraphicsViewportIoMap
 
 # ── Theme (design tokens) ─────────────────────────────────────────
@@ -172,7 +178,9 @@ end
 """
     widget_theme_light(; font=font_ubuntu_regular_24) -> WidgetTheme
 
-The default light theme (a neutral zinc palette on a white background).
+The neutral zinc light theme (a neutral zinc palette on a white background).
+Kept as an alternative; the expressed slate/indigo theme is the default — see
+[`widget_theme_slate_light`](@ref).
 """
 function widget_theme_light(; font::StyleFont=font_ubuntu_regular_24)
     _widget_theme(
@@ -192,8 +200,9 @@ end
 """
     widget_theme_dark(; font=font_ubuntu_regular_24) -> WidgetTheme
 
-The dark theme (zinc-950 surfaces). Ships alongside the light default; the
-editor chrome can opt in.
+The neutral zinc dark theme (zinc-950 surfaces). Ships alongside the light
+default; the editor chrome can opt in. For the expressed slate/indigo variant
+see [`widget_theme_slate_dark`](@ref).
 """
 function widget_theme_dark(; font::StyleFont=font_ubuntu_regular_24)
     _widget_theme(
@@ -207,6 +216,48 @@ function widget_theme_dark(; font::StyleFont=font_ubuntu_regular_24)
         destructive=color_destructive, destructive_foreground=color_destructive_fg,
         border=color_zinc_800,        input=color_zinc_800,    ring=color_zinc_600,
         track_off=color_zinc_700,
+        font=font, font_bold=font_ubuntu_bold_24, font_small=font_ubuntu_regular_18)
+end
+
+"""
+    widget_theme_slate_light(; font=font_ubuntu_regular_24) -> WidgetTheme
+
+The default light theme: a cool slate palette with an indigo accent, on tinted
+(non-white) surfaces so the colors read as expressed rather than washed out.
+"""
+function widget_theme_slate_light(; font::StyleFont=font_ubuntu_regular_24)
+    _widget_theme(
+        background=color_slate_100,    foreground=color_slate_950,
+        card=color_slate_50,           card_foreground=color_slate_950,
+        popover=color_slate_50,        popover_foreground=color_slate_950,
+        muted=color_slate_200,         muted_foreground=color_slate_500,
+        primary=color_indigo_600,      primary_foreground=color_slate_50,
+        secondary=color_slate_200,     secondary_foreground=color_slate_900,
+        accent=color_indigo_100,       accent_foreground=color_indigo_700,
+        destructive=color_destructive, destructive_foreground=color_destructive_fg,
+        border=color_slate_300,        input=color_slate_300,   ring=color_indigo_500,
+        track_off=color_slate_300,
+        font=font, font_bold=font_ubuntu_bold_24, font_small=font_ubuntu_regular_18)
+end
+
+"""
+    widget_theme_slate_dark(; font=font_ubuntu_regular_24) -> WidgetTheme
+
+The expressed dark theme: deep slate surfaces with a bright indigo accent, the
+dark counterpart to [`widget_theme_slate_light`](@ref).
+"""
+function widget_theme_slate_dark(; font::StyleFont=font_ubuntu_regular_24)
+    _widget_theme(
+        background=color_slate_950,    foreground=color_slate_50,
+        card=color_slate_900,          card_foreground=color_slate_50,
+        popover=color_slate_900,       popover_foreground=color_slate_50,
+        muted=color_slate_800,         muted_foreground=color_slate_400,
+        primary=color_indigo_500,      primary_foreground=color_slate_50,
+        secondary=color_slate_800,     secondary_foreground=color_slate_50,
+        accent=color_indigo_950,       accent_foreground=color_indigo_200,
+        destructive=color_destructive, destructive_foreground=color_destructive_fg,
+        border=color_slate_800,        input=color_slate_800,   ring=color_indigo_400,
+        track_off=color_slate_700,
         font=font, font_bold=font_ubuntu_bold_24, font_small=font_ubuntu_regular_18)
 end
 
@@ -2614,15 +2665,16 @@ end
 # ── Factory ────────────────────────────────────────────────────────────────
 
 """
-    WidgetToGraphics(font; measure, theme=widget_theme_light(font=font))
+    WidgetToGraphics(font; measure, theme=widget_theme_slate_light(font=font))
 
 Build a recursive type-dispatching projection that maps any `WidgetDocument`
 subtree to a `GraphicsCanvas`. `measure(text, font) -> (width, height)` is
 used for all text sizing. The `theme` ([`WidgetTheme`](@ref)) is the single
-source of truth for colors, radius, and spacing. Defaults to the light theme.
+source of truth for colors, radius, and spacing. Defaults to the expressed
+slate/indigo light theme; the neutral zinc theme is `widget_theme_light`.
 """
 function WidgetToGraphics(font::StyleFont; measure::Function,
-                          theme::WidgetTheme=widget_theme_light(font=font))
+                          theme::WidgetTheme=widget_theme_slate_light(font=font))
     # Wrapped measure for the `@projection`-based widget projections, which store
     # their fields in Cells (a bare Function would be read as a thunk).
     measurer = TextMeasurer(measure)

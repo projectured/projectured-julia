@@ -465,7 +465,9 @@ function generate_example_screenshots(; filter=nothing, max_width=1920, max_heig
                                       scale=SCREENSHOT_SCALE,
                                       image_dir=joinpath(@__DIR__, "..", "..", "image", "example"))
     mkpath(image_dir)
-    white = (0xff, 0xff, 0xff, 0xff)
+    # The default widget theme's background (slate-100); widget screenshots use
+    # it so the canvas matches the themed surfaces rather than showing white.
+    widget_bg = (0xf1, 0xf5, 0xf9, 0xff)
     pattern = filter isa AbstractString ? Regex(filter) : filter
     for ex in examples
         if pattern !== nothing && !occursin(pattern, ex.name)
@@ -475,8 +477,8 @@ function generate_example_screenshots(; filter=nothing, max_width=1920, max_heig
         png = joinpath(image_dir, "$safe_name.png")
         @info "Generating $(ex.name)..."
         # Widgets render on the light theme background, so screenshot them on
-        # white rather than the default solarized canvas.
-        bg = startswith(ex.name, "widget") ? white : (0xfd, 0xf6, 0xe3, 0xff)
+        # the themed surface rather than the default solarized canvas.
+        bg = startswith(ex.name, "widget") ? widget_bg : (0xfd, 0xf6, 0xe3, 0xff)
         try
             write_image_example(ex, png; width=ex.render_width, height=ex.render_height,
                                 max_width=max_width, max_height=max_height,
