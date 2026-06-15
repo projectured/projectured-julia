@@ -448,7 +448,7 @@ end
 
 function _module_heading(keyword::AbstractString, m, has_extends::Bool=true)
     buf = IOBuffer()
-    write(buf, keyword, " ", m.name)
+    write(buf, "\n", keyword, " ", m.name)
     if has_extends && m.extends !== nothing
         write(buf, " extends ", m.extends.name)
     end
@@ -465,7 +465,7 @@ end
 
 function _interface_heading(keyword::AbstractString, m)
     buf = IOBuffer()
-    write(buf, keyword, " ", m.name)
+    write(buf, "\n", keyword, " ", m.name)
     if !isempty(m.extends_list)
         write(buf, " extends ")
         for (i, e) in enumerate(m.extends_list)
@@ -770,7 +770,7 @@ function projection_print(p::NedFileToSyntaxNode, recursion, f::NedFile, ctx)
 
     output = SyntaxNode(
         _empty_ts(), _empty_ts(), _empty_ts(),
-        children_cv, 0, Cell(false), sel)
+        children_cv, 1, Cell(false), sel)
     ChildrenIoMap(p, f, output, child_iomaps)
 end
 
