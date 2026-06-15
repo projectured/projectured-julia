@@ -164,7 +164,7 @@ the [Roadmap](guide/roadmap.md)).
 
 | Syntax tree | Julia AST | Workbench |
 |---|---|---|
-| <img width="586" alt="Syntax example" src="image/example/syntax.png"> | <img width="336" alt="Julia AST example" src="image/example/julia.png"> | <img width="1595" alt="Workbench example" src="image/example/workbench.png"> |
+| <img width="586" alt="Syntax example" src="image/example/syntax.png"> | <img width="336" alt="Julia AST example" src="image/example/julia.png"> | <img width="1285" alt="Workbench example" src="image/example/workbench.png"> |
 
 ---
 

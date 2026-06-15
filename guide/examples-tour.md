@@ -171,7 +171,7 @@ nodes; the cursor understands the structure of the code.
 
 ## 6. Workbench (`run_example("workbench")`)
 
-<img width="1595" alt="Workbench example" src="../image/example/workbench.png">
+<img width="1285" alt="Workbench example" src="../image/example/workbench.png">
 
 **What it demonstrates:** The full IDE shell. The workbench is a compound
 document that wraps any other document in a structured editor environment with
