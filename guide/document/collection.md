@@ -2,13 +2,15 @@
 
 <img width="240" alt="Collection example" src="../../image/example/collection.png">
 
-The collection domain provides two generic, reactive container types used
+The collection domain provides four generic, reactive container types used
 everywhere in ProjecturEd. They are defined in
 [program/src/document/Collection.jl](../../program/src/document/Collection.jl)
-and subtype `Document` so they participate in the selection mechanism.
+and subtype `Document` so they participate in the selection mechanism. This guide
+covers the two most common ones, `CellVector` and `ListNode`; `CellMatrix`
+(2-D) and `CellTable` (rows of `CellVector`s) follow the same reactive-cell design.
 
 ```julia
-const CollectionDocument = Union{CellVector, ListNode}
+const CollectionDocument = Union{CellVector, CellMatrix, CellTable, ListNode}
 ```
 
 ## CellVector

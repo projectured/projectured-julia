@@ -70,7 +70,7 @@ Four layers, bottom to top:
 | `Text.jl` | `TextText`, `TextString`, `TextNewline` |
 | `Syntax.jl` | `SyntaxLeaf`, `SyntaxNode`; wrapper types `SyntaxDelimitation`, `SyntaxIndentation`, `SyntaxCollapsible`, `SyntaxNavigation`, `SyntaxConcatenation`, `SyntaxSeparation` |
 | `Graphics.jl` | `GraphicsText`, `GraphicsRect`, `GraphicsCanvas`, `GraphicsViewport`, `GraphicsImage`, `GraphicsFence` |
-| `Widget.jl` | `WidgetLabel`, `WidgetText`, `WidgetCheckbox`, `WidgetButton`, `WidgetTooltip`, `WidgetMenu`, `WidgetMenuItem`, `WidgetComposite`, `WidgetShell`, `WidgetTitlePane`, `WidgetSplitPane`, `WidgetTabbedPane`, `WidgetScrollPane`, `WidgetToolbar`, `WidgetScrollBar` |
+| `Widget.jl` | Core: `WidgetInsertion`, `WidgetLabel`, `WidgetText`, `WidgetCheckbox`, `WidgetButton`, `WidgetTooltip`, `WidgetMenu`, `WidgetMenuItem`, `WidgetComposite`, `WidgetToolbar`, `WidgetShell`, `WidgetTitlePane`, `WidgetSplitPane`, `WidgetTabbedPane`, `WidgetScrollPane`, `WidgetScrollBar`. Extension: `WidgetBadge`, `WidgetSeparator`, `WidgetCard`, `WidgetSwitch`, `WidgetProgress`, `WidgetSlider`, `WidgetRadioGroup`, `WidgetAvatar`, `WidgetAlert`, `WidgetSkeleton`, `WidgetToggle`, `WidgetToggleGroup`, `WidgetSelect`, `WidgetTextarea`, `WidgetAccordion`, `WidgetTable`, `WidgetTree` |
 | `Workbench.jl` | `WorkbenchWorkbench`, `WorkbenchPage`, `WorkbenchNavigator`, `WorkbenchConsole`, `WorkbenchDescriptor`, `WorkbenchOperator`, `WorkbenchSearcher`, `WorkbenchEvaluator`, `WorkbenchAssistant`, `WorkbenchEditor` |
 | `Book.jl` | `BookBook`, `BookChapter`, `BookParagraph`, `BookList`, `BookPicture` |
 | `Math.jl` | `MathVariable`, `MathBinaryOperation`, `MathParenthesized`, `MathAssignment` |
@@ -78,7 +78,7 @@ Four layers, bottom to top:
 | `Primitive.jl` | `PrimitiveBool`, `PrimitiveNumber`, `PrimitiveString`; ops `NumberReplaceRangeOperation`, `StringReplaceRangeOperation` |
 | `Table.jl` | `TableCell`, `TableRow`, `TableColumn`, `TableTable` |
 | `FileSystem.jl` | `FileSystemFile`, `FileSystemDirectory` |
-| `Collection.jl` | `CellVector`, `ListNode` |
+| `Collection.jl` | `CellVector`, `CellMatrix`, `CellTable`, `ListNode` |
 | `Font.jl`, `Color.jl`, `Geometry.jl`, `Image.jl`, `Clipboard.jl` | Supporting types |
 
 ### Layer 2 — Projection modules (`projection/`)
@@ -94,6 +94,9 @@ Four layers, bottom to top:
 | `PredicateDispatchingProjection` | Dispatches on a boolean predicate over the input |
 | `ReferenceDispatchingProjection` | Dispatches on the current selection reference |
 | `NestingProjection` | Scopes an inner projection to a sub-document |
+| `WindowManagerProjection` | Passthrough printer; reader applies window open/close ops to the `ScreenDocument` |
+| `TooltipDecoratorProjection` | Dispatches on `TooltipSource`; reader runs a show/hide state machine |
+| `ProjectionConfiguringProjection` | Extends the inner projection's output with an editable parameter-control bar |
 
 **Generic** (`generic/`):
 
@@ -106,6 +109,8 @@ Four layers, bottom to top:
 | `SortingProjection` | Sorts children by a key function |
 | `FilteringProjection` | Removes elements that fail a predicate |
 | `FocusingProjection` | Projects a focused sub-document |
+| `SearchingProjection` | Collects every object with a field matching a `Regex` |
+| `ObjectToWidget` | Reflection-driven editable form for an object's `Cell` fields |
 
 **Compound** (`compound/`):
 `ApplyAtProjection`, `SortingAtProjection`.
@@ -132,6 +137,21 @@ Four layers, bottom to top:
 | `GraphicsCaching` | `Graphics` → `Graphics` (caching layer) |
 | `LineNumbering` | `Text` → `Text` (domain-preserving) |
 | `WordWrapping` | `Text` → `Text` (domain-preserving) |
+| `PrimitiveToText` | `Primitive` → `Text` |
+| `ReferenceToText` | `Reference` → `Text` |
+| `TextFiltering` | `Text` → `Text` (filter rows) |
+| `TextHighlighting` | `Text` → `Text` (highlight matches) |
+| `SqlToSyntax` | `Sql` → `Syntax` |
+| `SqlToCellTable` | `Sql` → `CellTable` |
+| `CellTableToTable` | `CellTable` → `Table` |
+| `ConversationToSyntax` | `Conversation` → `Syntax` |
+| `ConversationToWidget` | `Conversation` → `Widget` |
+| `LayoutToGraphics` | `Layout` → `Graphics` |
+| `WorkspaceToFileSystem` | `Workspace` → `FileSystem` |
+| `DatabaseInstanceToDbCatalog` | `DatabaseInstance` → `DbCatalog` |
+| `DatabaseTableToTabularGrid` | `DatabaseTable` → `TabularGrid` |
+| `DbCatalogToSyntax` | `DbCatalog` → `Syntax` |
+| `DbCatalogToJson` | `DbCatalog` → `Json` |
 
 ### Layer 3 — Editor and backend
 
@@ -227,5 +247,5 @@ Reactive  (no deps)
 | Navigation operations | `Operation.jl` (`ReplaceSelectionOperation`) | ✅ |
 | Editor REPL | `Editor.jl` | ✅ |
 | All higher-order projections | `projection/higherorder/` | ✅ |
-| Insert / delete operations | — | ❌ |
+| Insert / delete operations | `Operation.jl` (`CollectionInsertOperation` / `CollectionDeleteOperation`) | ✅ (collections; produced by JSON/XML readers) |
 | Undo / redo | — | ❌ |

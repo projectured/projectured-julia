@@ -6,7 +6,7 @@ module under `program/src/projection/higherorder/` and implements
 functions. They never touch any specific domain — their argument is always
 some other projection.
 
-There are seven higher-order projections in ProjecturEd:
+There are ten higher-order projections in ProjecturEd:
 
 | Projection | Selects by | Key file |
 |---|---|---|
@@ -17,6 +17,9 @@ There are seven higher-order projections in ProjecturEd:
 | `RecursiveProjection` | identity — wraps a child and supplies *itself* as `recursion` | `Recursive.jl` |
 | `AlternativeProjection` | a reactive `Cell{Int}` index | `Alternative.jl` |
 | `NestingProjection` | nests by element list, with recursion fallback | `Nesting.jl` |
+| `WindowManagerProjection` | passthrough printer; reader applies `OpenWindowOperation`/`CloseWindowOperation` to the `ScreenDocument` | `WindowManager.jl` |
+| `TooltipDecoratorProjection` | dispatches on `TooltipSource`; reader runs a show/hide state machine | `TooltipDecorator.jl` |
+| `ProjectionConfiguringProjection` | extends the inner projection's output with an editable parameter-control bar | `ProjectionConfiguring.jl` |
 
 ## SequentialProjection
 

@@ -2,8 +2,9 @@
 
 Generic — also called domain-independent — projections operate on any document
 without knowing its domain. They live in `program/src/projection/generic/` and
-each one is a single struct subtyping `Projection`. None of them produces an
-output domain different from the input domain.
+each one is a single struct subtyping `Projection`. Most keep the output domain
+the same as the input domain; the reflection-driven `ObjectToWidget` is the
+exception (it emits a widget form).
 
 | Projection | Effect on the output |
 |---|---|
@@ -13,7 +14,9 @@ output domain different from the input domain.
 | `ReversingProjection` | Reverses the elements of a collection |
 | `SortingProjection` | Sorts a collection by a configurable `by`/`lt`/`rev` |
 | `FocusingProjection` | Navigates into a sub-document via a `ReferencePath` |
-| `FilteringProjection` (stub) | Filtering projection scaffold |
+| `FilteringProjection` | Restricts a collection to the elements matching a predicate |
+| `SearchingProjection` | Walks the input and collects every object with a field matching a `Regex`, as a flat `CellVector` |
+| `ObjectToWidget` | Reflection-driven form: emits a labelled control row per editable `Cell` field of the object |
 
 ## PreservingProjection
 

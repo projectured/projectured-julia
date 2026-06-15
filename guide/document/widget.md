@@ -162,8 +162,16 @@ RecursiveProjection(TypeDispatchingProjection(
     WidgetScrollPane  => WidgetScrollPaneToGraphicsCanvas(...),
     WidgetToolbar     => WidgetToolbarToGraphicsCanvas(...),
     WidgetScrollBar   => WidgetScrollBarToGraphicsCanvas(...),
+    # …plus the 17 extension widgets, each with its own ToGraphicsCanvas:
+    # WidgetBadge, WidgetSeparator, WidgetCard, WidgetSwitch, WidgetProgress,
+    # WidgetSlider, WidgetRadioGroup, WidgetAvatar, WidgetAlert, WidgetSkeleton,
+    # WidgetToggle, WidgetToggleGroup, WidgetSelect, WidgetTextarea,
+    # WidgetAccordion, WidgetTable, WidgetTree.
 ))
 ```
+
+The real factory maps all 33 widget types: the 15 core widgets above, the
+`WidgetInsertion` type-replace placeholder, and the 17 extension widgets.
 
 Each per-widget projection takes a `font`, a backend `measure` function,
 and a `theme::WidgetTheme` (colours are read from the theme, not stored on

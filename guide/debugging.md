@@ -27,12 +27,13 @@ julia> run_example(json_example)    # or pass the Example object directly
 ```
 
 The function lives at
-[example/src/Examples.jl:47](../example/src/Examples.jl#L47); it accepts a
+[example/src/Examples.jl](../example/src/Examples.jl) (the `Example` overload at
+`run_example(example::Example; …)`, plus name/`Vector` overloads); it accepts a
 few keyword arguments worth knowing:
 
 | Keyword | Effect |
 |---|---|
-| `width`, `height` | Window size (defaults 2400×1600). |
+| `width`, `height` | Window size. When unset, defaults to the display size via `sdl_display_size()`. |
 | `caching=true` | Wraps the projection in `make_graphics_caching` so you can verify cell invalidation behaviour. |
 | `scrolling=true` | Wraps the document/projection in the scrolling wrapper so you can drive layout that exceeds the viewport. |
 | `workbench=true` | Embeds the example inside the workbench shell. |

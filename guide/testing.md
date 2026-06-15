@@ -22,9 +22,10 @@ julia> test_all()
 ```
 
 Runs everything: cells, per-domain document tests, projection tests,
-printers, readers, selections, REPL-loop tests, and the MCP tool tests.
-Mouse-click tests are currently disabled — see
-[test/src/ProjecturedTest.jl:63](../test/src/ProjecturedTest.jl#L63).
+printers, readers, selections, REPL-loop tests, the MCP tool tests, and the
+mouse-click / click-round-trip tests (`test_mouse_clicks()` /
+`test_click_roundtrips()` are called by `test_all` — see
+[test/src/ProjecturedTest.jl](../test/src/ProjecturedTest.jl)).
 
 `test_all` is just a `@testset` that calls the per-layer functions in
 sequence; pick the one you actually need and skip the rest.
@@ -44,7 +45,7 @@ sequence; pick the one you actually need and skip the rest.
 | `test_repls()` | Runs `test_repl` (full read-eval-print loop) over every example. |
 | `test_typeins()` | Runs `test_typein` (type a character into every string and check the edit) over the supported field-addressed examples. |
 | `test_mcp_tools()`, `test_mcp_resources()` | MCP server tools and resources. |
-| `test_mouse_clicks()` | Mouse-click round-tripping. Disabled in `test_all` until fixed. |
+| `test_mouse_clicks()` | Mouse-click round-tripping. Run by `test_all`. |
 
 ## Testing a single example
 
