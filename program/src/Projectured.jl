@@ -57,7 +57,9 @@ include("document/Layout.jl")
 include("document/Book.jl")
 include("document/Conversation.jl")
 include("document/Ini.jl")
+include("document/Ned.jl")
 include("parser/IniParser.jl")
+include("parser/NedParser.jl")
 # LLM backend (used as a field type by `WorkbenchAssistant`). Loads early
 # because no document or projection layer depends on it; it only needs
 # HTTP/JSON3 (external packages) and access to the Anthropic SSE client.
@@ -311,6 +313,12 @@ using .BookModule: BookDocument, BookInsertion,
 using .IniModule: IniDocument, IniInsertion, IniComment, IniInclude,
                   IniConfigOption, IniParamAssignment, IniSection, IniFile
 using .IniParserModule: iniparse, iniparse_file
+using .NedModule: NedDocument, NedInsertion, NedExtends, NedInterfaceName, NedLoop, NedCondition, NedLiteral,
+                  NedPropertyKey, NedProperty, NedPropertyDecl, NedParam, NedGate,
+                  NedSubmodule, NedConnection, NedConnectionGroup,
+                  NedSimpleModule, NedCompoundModule, NedModuleInterface, NedChannel, NedChannelInterface,
+                  NedPackage, NedImport, NedFile
+using .NedParserModule: nedparse, nedparse_file
 using .IniToSyntaxModule: IniInsertionToSyntaxLeaf, IniCommentToSyntaxLeaf, IniIncludeToSyntaxLeaf,
                           IniConfigOptionToSyntaxNode, IniParamAssignmentToSyntaxNode,
                           IniSectionToSyntaxNode, IniFileToSyntaxNode, IniToSyntax

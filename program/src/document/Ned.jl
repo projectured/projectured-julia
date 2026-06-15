@@ -30,6 +30,7 @@ import ..ReactiveModule: Cell, setfn!, setval!
 import ..DocumentModule: Document, @document
 import ..CollectionModule: CellVector
 import ..ReferenceModule: Reference
+import ..OperationApiModule: _apply_string_replace!
 export NedDocument,
        NedInsertion, NedExtends, NedInterfaceName, NedLoop, NedCondition, NedLiteral,
        NedPropertyKey, NedProperty, NedPropertyDecl, NedParam, NedGate,
@@ -829,6 +830,102 @@ Base.show(io::IO, i::NedImport) = print(io, "import ", i.import_spec)
 
 function Base.show(io::IO, f::NedFile)
     print(io, "NedFile(\"", f.filename, "\", ", length(f.children), " declarations)")
+end
+
+# ── String-replace operation ────────────────────────────────────────────
+
+# Character-aware replacement helper (positions are 0-based char offsets).
+function _ned_slice_replace(old::AbstractString, s::Int, e::Int, replacement::AbstractString)
+    n = length(old)
+    left  = s <= 0 ? "" : first(old, s)
+    right = e >= n ? "" : last(old, n - e)
+    String(left) * replacement * String(right)
+end
+
+function _apply_string_replace!(target::NedPackage, field_name::AbstractString, s::Int, e::Int, replacement::AbstractString)
+    field_name == "name" || error("NedPackage supports only field 'name', got: $field_name")
+    target.name = _ned_slice_replace(target.name::AbstractString, s, e, replacement)
+end
+
+function _apply_string_replace!(target::NedImport, field_name::AbstractString, s::Int, e::Int, replacement::AbstractString)
+    field_name == "import_spec" || error("NedImport supports only field 'import_spec', got: $field_name")
+    target.import_spec = _ned_slice_replace(target.import_spec::AbstractString, s, e, replacement)
+end
+
+function _apply_string_replace!(target::NedExtends, field_name::AbstractString, s::Int, e::Int, replacement::AbstractString)
+    field_name == "name" || error("NedExtends supports only field 'name', got: $field_name")
+    target.name = _ned_slice_replace(target.name::AbstractString, s, e, replacement)
+end
+
+function _apply_string_replace!(target::NedInterfaceName, field_name::AbstractString, s::Int, e::Int, replacement::AbstractString)
+    field_name == "name" || error("NedInterfaceName supports only field 'name', got: $field_name")
+    target.name = _ned_slice_replace(target.name::AbstractString, s, e, replacement)
+end
+
+function _apply_string_replace!(target::NedParam, field_name::AbstractString, s::Int, e::Int, replacement::AbstractString)
+    if field_name == "name"
+        target.name = _ned_slice_replace(target.name::AbstractString, s, e, replacement)
+    elseif field_name == "value"
+        old = target.value === nothing ? "" : target.value::AbstractString
+        target.value = _ned_slice_replace(old, s, e, replacement)
+    else
+        error("NedParam supports fields 'name', 'value', got: $field_name")
+    end
+end
+
+function _apply_string_replace!(target::NedProperty, field_name::AbstractString, s::Int, e::Int, replacement::AbstractString)
+    field_name == "name" || error("NedProperty supports only field 'name', got: $field_name")
+    target.name = _ned_slice_replace(target.name::AbstractString, s, e, replacement)
+end
+
+function _apply_string_replace!(target::NedPropertyDecl, field_name::AbstractString, s::Int, e::Int, replacement::AbstractString)
+    field_name == "name" || error("NedPropertyDecl supports only field 'name', got: $field_name")
+    target.name = _ned_slice_replace(target.name::AbstractString, s, e, replacement)
+end
+
+function _apply_string_replace!(target::NedGate, field_name::AbstractString, s::Int, e::Int, replacement::AbstractString)
+    field_name == "name" || error("NedGate supports only field 'name', got: $field_name")
+    target.name = _ned_slice_replace(target.name::AbstractString, s, e, replacement)
+end
+
+function _apply_string_replace!(target::NedSubmodule, field_name::AbstractString, s::Int, e::Int, replacement::AbstractString)
+    field_name == "name" || error("NedSubmodule supports only field 'name', got: $field_name")
+    target.name = _ned_slice_replace(target.name::AbstractString, s, e, replacement)
+end
+
+function _apply_string_replace!(target::NedSimpleModule, field_name::AbstractString, s::Int, e::Int, replacement::AbstractString)
+    field_name == "name" || error("NedSimpleModule supports only field 'name', got: $field_name")
+    target.name = _ned_slice_replace(target.name::AbstractString, s, e, replacement)
+end
+
+function _apply_string_replace!(target::NedCompoundModule, field_name::AbstractString, s::Int, e::Int, replacement::AbstractString)
+    field_name == "name" || error("NedCompoundModule supports only field 'name', got: $field_name")
+    target.name = _ned_slice_replace(target.name::AbstractString, s, e, replacement)
+end
+
+function _apply_string_replace!(target::NedModuleInterface, field_name::AbstractString, s::Int, e::Int, replacement::AbstractString)
+    field_name == "name" || error("NedModuleInterface supports only field 'name', got: $field_name")
+    target.name = _ned_slice_replace(target.name::AbstractString, s, e, replacement)
+end
+
+function _apply_string_replace!(target::NedChannel, field_name::AbstractString, s::Int, e::Int, replacement::AbstractString)
+    field_name == "name" || error("NedChannel supports only field 'name', got: $field_name")
+    target.name = _ned_slice_replace(target.name::AbstractString, s, e, replacement)
+end
+
+function _apply_string_replace!(target::NedChannelInterface, field_name::AbstractString, s::Int, e::Int, replacement::AbstractString)
+    field_name == "name" || error("NedChannelInterface supports only field 'name', got: $field_name")
+    target.name = _ned_slice_replace(target.name::AbstractString, s, e, replacement)
+end
+
+function _apply_string_replace!(target::NedFile, field_name::AbstractString, s::Int, e::Int, replacement::AbstractString)
+    field_name == "filename" || error("NedFile supports only field 'filename', got: $field_name")
+    target.filename = _ned_slice_replace(target.filename::AbstractString, s, e, replacement)
+end
+
+function _apply_string_replace!(target::NedLoop, field_name::AbstractString, s::Int, e::Int, replacement::AbstractString)
+    field_name == "param_name" || error("NedLoop supports only field 'param_name', got: $field_name")
+    target.param_name = _ned_slice_replace(target.param_name::AbstractString, s, e, replacement)
 end
 
 end # module
