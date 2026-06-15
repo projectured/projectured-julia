@@ -14,7 +14,7 @@ A reference is a sequence of typed steps that descend through a document tree. E
 - `FieldReference(name::Cell)` — named struct field
 - `ProjectionReference(projection, output_path)` — projection-introduced element (e.g. delimiters)
 - `PointReference(x::Cell, y::Cell)` — pixel coordinates for hit-testing
-- `TypeReference(type)` — element of a given type
+- `TypeReference(type)` — non-navigating type checkpoint (asserts the current node `isa type`; see [Type checkpoints](#type-checkpoints-and-replay-validity))
 - `FunctionReference(f)` — element produced by applying a function
 
 ### The boundary axis
@@ -204,6 +204,49 @@ is_valid_reference(EmptyReferencePath())  # true
 ```
 
 For `ConcreteReferencePath`, recursively validates head and tail cells.
+
+## Type checkpoints and replay validity
+
+A reference is often captured before an edit and replayed against the document
+*after* it. If the document's structure changed underneath the stored path
+(a `JsonString` swapped for a `JsonNumber`, a node retyped, …), the leftover
+steps would silently mis-navigate or throw a bare `getfield` error.
+
+`TypeReference(T)` guards against this. It is **not** a navigation step: it
+asserts that the node reached so far is a `T` and then continues on the *same*
+node. The match rule is `node isa T`.
+
+- `evaluate_reference(document, path)` throws `ReferenceTypeMismatch(expected,
+  actual)` when a checkpoint's recorded type no longer matches.
+- `valid_reference_prefix(document, path)` walks the path and returns the
+  **longest prefix that still resolves** — it stops at the first failing
+  checkpoint (or unfollowable structural step), so the invalid remainder is
+  dropped.
+- `is_valid_reference(document, path)` (the two-argument, document-aware method)
+  is `true` iff every checkpoint holds along the whole path. The one-argument
+  `is_valid_reference(obj)` remains a purely *structural* check and is unchanged.
+
+Checkpoints are created programmatically, not by hand:
+
+- `annotate_reference_types(document, path)` returns `path` interleaved with a
+  `TypeReference(typeof(node))` before each navigation step.
+- `strip_reference_types(path)` removes them again, recovering the plain
+  navigation-only path. The two are inverses on an unchanged document.
+
+```julia
+annotated = annotate_reference_types(document, path)   # persist this
+# … document is edited …
+live     = valid_reference_prefix(document, annotated)  # truncate at first mismatch
+plain    = strip_reference_types(live)                  # navigation-only path
+set_selection!(document, plain)                         # replay what is still valid
+```
+
+Checkpoints are intentionally kept **out of** stored selection paths:
+`set_selection!` / `clear_selection!` walk plain navigation paths, so the replay
+pattern above truncates and strips *before* applying. Type checkpoints record an
+*input-domain* type, so they are not meaningful after a path is mapped across a
+projection — annotate/validate within a single domain, then strip before
+crossing.
 
 ## Reference DSL: `@reference`
 

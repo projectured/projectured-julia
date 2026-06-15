@@ -27,7 +27,8 @@ import ..DocumentModule: @document
 export Reference, ReferenceStep, ElementReference, PositionReference, RangeReference, FieldReference, TypeReference, FunctionReference, ProjectionReference, PointReference, TextRectangularReference, ReferencePath, EmptyReferencePath, ConcreteReferencePath, append_reference, evaluate_reference, is_valid_reference, collect_references,
        is_element_reference, is_position_reference, is_range_reference,
        IRangeReference, IFieldReference, IConcreteReferencePath, IPointReference,
-       reference_equal, is_prefix_of
+       reference_equal, is_prefix_of,
+       ReferenceTypeMismatch, valid_reference_prefix, annotate_reference_types, strip_reference_types
 
 # ── ReferenceStep ─────────────────────────────────────────────────────
 
@@ -110,11 +111,38 @@ FieldReference(name::String) = FieldReference(Cell(name))
 """
     TypeReference(type)
 
-References the element of a given type within a heterogeneous collection.
+A **non-navigating type checkpoint**: asserts that the node reached so far is a
+`type`. Evaluation does not descend — it stays on the current node and continues
+with the rest of the path. The point of the checkpoint is *validity*: when a
+stored path is replayed against a document whose structure has changed, a
+`TypeReference` whose recorded `type` no longer matches the actual node marks the
+**remaining path as invalid** (see [`evaluate_reference`](@ref),
+[`valid_reference_prefix`](@ref), [`annotate_reference_types`](@ref)).
+
+The match rule is `node isa type`. Checkpoints are normally created from
+`typeof(node)` by [`annotate_reference_types`](@ref), so on an unchanged document
+the assertion holds exactly; recording an abstract supertype is also tolerated.
 """
 struct TypeReference <: ReferenceStep
     type::Any
 end
+
+"""
+    ReferenceTypeMismatch(expected, actual)
+
+Thrown by [`evaluate_reference`](@ref) when a [`TypeReference`](@ref) checkpoint
+does not hold: the node reached is an `actual` but the checkpoint expected an
+`expected`. Callers that replay possibly-stale references catch this specifically
+to distinguish a structural mismatch from a genuine bug.
+"""
+struct ReferenceTypeMismatch <: Exception
+    expected::Any
+    actual::Any
+end
+
+Base.showerror(io::IO, e::ReferenceTypeMismatch) =
+    print(io, "ReferenceTypeMismatch: expected node of type ", e.expected,
+          ", got ", e.actual)
 
 # ── ReferencePath (immutable linked list) ────────────────────────────────
 
@@ -394,6 +422,13 @@ end
 function evaluate_reference(document, path::ConcreteReferencePath)
     step = path.head
     rest = path.tail
+    # TypeReference is a non-navigating checkpoint: assert the current node's
+    # type, then continue on the *same* node.
+    if step isa TypeReference
+        document isa step.type ||
+            throw(ReferenceTypeMismatch(step.type, typeof(document)))
+        return evaluate_reference(document, rest)
+    end
     child = if step isa RangeReference
         if is_element_reference(step)
             document[step.start + 1]
@@ -410,6 +445,124 @@ function evaluate_reference(document, path::ConcreteReferencePath)
         error("Unsupported reference step: $(typeof(step))")
     end
     evaluate_reference(child, rest)
+end
+
+# ── Document-aware validity ──────────────────────────────────────────────
+
+"""
+    valid_reference_prefix(document, path::ReferencePath) -> ReferencePath
+
+Walk `path` against `document` and return the **longest prefix that still
+navigates cleanly**. Traversal stops — and the path is truncated — at the first
+step that fails: a [`TypeReference`](@ref) checkpoint whose recorded type no
+longer matches the node reached, or a structural step that cannot be followed
+(missing field, out-of-range index, …). The returned prefix is exactly the part
+that `evaluate_reference` can still resolve; the discarded suffix is the part
+made invalid by a structural change to `document`.
+"""
+valid_reference_prefix(document, ::EmptyReferencePath) = EmptyReferencePath()
+
+function valid_reference_prefix(document, path::ConcreteReferencePath)
+    step = path.head
+    rest = path.tail
+    if step isa TypeReference
+        document isa step.type || return EmptyReferencePath()
+        # checkpoint holds: stays on the same node
+        return ConcreteReferencePath(step, valid_reference_prefix(document, rest))
+    end
+    # structural step: try to descend one level
+    child = try
+        if step isa RangeReference
+            idx = step.start + 1
+            (!applicable(length, document) || idx < 1 || idx > length(document)) &&
+                return EmptyReferencePath()
+            document[idx]
+        elseif step isa FieldReference
+            hasproperty(document, Symbol(step.name)) || return EmptyReferencePath()
+            f = getfield(document, Symbol(step.name))
+            f isa Cell ? f[] : f
+        elseif step isa FunctionReference
+            step.f(document)
+        else
+            # steps with no document navigation (Point/Projection/Text…) are
+            # terminal-ish; keep them only if they are the last step.
+            return rest isa EmptyReferencePath ? path : ConcreteReferencePath(step, EmptyReferencePath())
+        end
+    catch
+        return EmptyReferencePath()
+    end
+    ConcreteReferencePath(step, valid_reference_prefix(child, rest))
+end
+
+"""
+    is_valid_reference(document, path::ReferencePath) -> Bool
+
+Document-aware validity: `true` iff every step of `path` — in particular every
+[`TypeReference`](@ref) checkpoint — resolves against `document`. Equivalent to
+`valid_reference_prefix(document, path) == path`. This is distinct from the
+single-argument [`is_valid_reference`](@ref) which only checks *structural*
+well-formedness of the reference object itself.
+"""
+is_valid_reference(document, path::ReferencePath) =
+    valid_reference_prefix(document, path) == path
+
+# ── Type-checkpoint annotation ───────────────────────────────────────────
+
+"""
+    annotate_reference_types(document, path::ReferencePath) -> ReferencePath
+
+Return `path` interleaved with [`TypeReference`](@ref) checkpoints: a
+`TypeReference(typeof(node))` is inserted before each navigation step, recording
+the type of the node that step is taken from. The result can be persisted and
+later re-checked with [`valid_reference_prefix`](@ref) / the document-aware
+[`is_valid_reference`](@ref) to detect structural changes. Inverse of
+[`strip_reference_types`](@ref). Existing `TypeReference` steps in `path` are
+left in place (and not double-annotated).
+"""
+function annotate_reference_types(document, path::ReferencePath)
+    path isa ConcreteReferencePath || return ConcreteReferencePath(TypeReference(typeof(document)), EmptyReferencePath())
+    step = path.head
+    rest = path.tail
+    if step isa TypeReference
+        # already a checkpoint — keep it, recurse on the same node
+        return ConcreteReferencePath(step, annotate_reference_types(document, rest))
+    end
+    checkpoint = TypeReference(typeof(document))
+    child = try
+        if step isa RangeReference
+            idx = step.start + 1
+            (!applicable(length, document) || idx < 1 || idx > length(document)) ? nothing : document[idx]
+        elseif step isa FieldReference
+            if hasproperty(document, Symbol(step.name))
+                f = getfield(document, Symbol(step.name))
+                f isa Cell ? f[] : f
+            else
+                nothing
+            end
+        elseif step isa FunctionReference
+            step.f(document)
+        else
+            nothing
+        end
+    catch
+        nothing
+    end
+    annotated_rest = child === nothing ? rest : annotate_reference_types(child, rest)
+    ConcreteReferencePath(checkpoint, ConcreteReferencePath(step, annotated_rest))
+end
+
+"""
+    strip_reference_types(path::ReferencePath) -> ReferencePath
+
+Return `path` with all [`TypeReference`](@ref) checkpoints removed, recovering
+the plain navigation-only path. Inverse of [`annotate_reference_types`](@ref).
+"""
+strip_reference_types(::EmptyReferencePath) = EmptyReferencePath()
+
+function strip_reference_types(path::ConcreteReferencePath)
+    step = path.head
+    rest = strip_reference_types(path.tail)
+    step isa TypeReference ? rest : ConcreteReferencePath(step, rest)
 end
 
 # ── Reference collection ─────────────────────────────────────────────────────

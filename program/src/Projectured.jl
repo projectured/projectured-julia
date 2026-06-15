@@ -196,7 +196,8 @@ using .ReferenceModule: ConcreteReferencePath, ElementReference, PositionReferen
                        ReferencePath, EmptyReferencePath,
                        is_valid_reference, evaluate_reference, append_reference, collect_references,
                        is_element_reference, is_position_reference, is_range_reference,
-                       reference_equal, is_prefix_of
+                       reference_equal, is_prefix_of,
+                       ReferenceTypeMismatch, valid_reference_prefix, annotate_reference_types, strip_reference_types
 using .PrinterContextModule: PrinterContext, child_context, with_available_size,
                                  with_property, get_property
 using .DocumentApiModule: set_selection!, clear_selection!
@@ -457,7 +458,8 @@ export ConcreteReferencePath, ElementReference, PositionReference, RangeReferenc
        FunctionReference, ProjectionReference, PointReference, TextRectangularReference, ReferencePath, EmptyReferencePath,
        is_valid_reference, evaluate_reference, append_reference, collect_references,
        is_element_reference, is_position_reference, is_range_reference,
-       reference_equal, is_prefix_of
+       reference_equal, is_prefix_of,
+       ReferenceTypeMismatch, valid_reference_prefix, annotate_reference_types, strip_reference_types
 export PrinterContext, child_context, with_available_size, with_property, get_property
 export set_selection!, clear_selection!, replace_selection!
 export @reference_case, when, prefix
