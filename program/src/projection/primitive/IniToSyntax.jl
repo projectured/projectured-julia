@@ -443,7 +443,7 @@ function projection_read(p::IniSectionToSyntaxNode, iomap::ChildrenIoMap, op::St
 end
 
 function _ini_section_heading(s::IniSection)
-    s.is_general ? "\n[General]" : "\n[Config $(s.name)]"
+    s.is_general ? "[General]" : "[Config $(s.name)]"
 end
 
 function projection_print(p::IniSectionToSyntaxNode, recursion, s::IniSection, ctx)
@@ -556,7 +556,7 @@ function projection_print(p::IniFileToSyntaxNode, recursion, f::IniFile, ctx)
     output = SyntaxNode(
         TextString("", font_ubuntu_monospace_regular_24, color_default),
         TextString("", font_ubuntu_monospace_regular_24, color_default),
-        TextString("", font_ubuntu_monospace_regular_24, color_default),
+        TextString("\n", font_ubuntu_monospace_regular_24, color_default),
         children_cv, 1, Cell(false), sel)
     ChildrenIoMap(p, f, output, child_iomaps)
 end
