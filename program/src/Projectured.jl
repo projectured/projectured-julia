@@ -123,6 +123,7 @@ include("projection/primitive/WidgetToGraphics.jl")
 include("projection/primitive/LayoutToGraphics.jl")
 include("projection/primitive/BookToSyntax.jl")
 include("projection/primitive/IniToSyntax.jl")
+include("projection/primitive/NedToSyntax.jl")
 include("projection/primitive/LineNumbering.jl")
 include("projection/primitive/WordWrapping.jl")
 include("projection/primitive/TextFiltering.jl")
@@ -322,6 +323,12 @@ using .NedParserModule: nedparse, nedparse_file
 using .IniToSyntaxModule: IniInsertionToSyntaxLeaf, IniCommentToSyntaxLeaf, IniIncludeToSyntaxLeaf,
                           IniConfigOptionToSyntaxNode, IniParamAssignmentToSyntaxNode,
                           IniSectionToSyntaxNode, IniFileToSyntaxNode, IniToSyntax
+using .NedToSyntaxModule: NedInsertionToSyntaxLeaf, NedPackageToSyntaxLeaf, NedImportToSyntaxLeaf,
+                          NedPropertyToSyntaxLeaf, NedParamToSyntaxLeaf, NedGateToSyntaxLeaf,
+                          NedSubmoduleToSyntaxNode, NedConnectionToSyntaxLeaf, NedConnectionGroupToSyntaxNode,
+                          NedSimpleModuleToSyntaxNode, NedCompoundModuleToSyntaxNode,
+                          NedModuleInterfaceToSyntaxNode, NedChannelToSyntaxNode, NedChannelInterfaceToSyntaxNode,
+                          NedFileToSyntaxNode, NedToSyntax
 using .WorkbenchModule: WorkbenchDocument, WorkbenchInsertion,
                         WorkbenchWorkbench, WorkbenchPage,
                         WorkbenchNavigator, WorkbenchConsole, WorkbenchDescriptor,

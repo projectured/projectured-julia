@@ -88,6 +88,7 @@ const dbcatalog_example      = Example("dbcatalog",      make_dbcatalog_document
 const sql_syntax_example     = Example("sql_syntax",     make_sql_document_example,            make_sql_syntax_projection_example)
 const sql_table_example      = Example("sql_table",      make_sql_document_example,            make_sql_table_projection_example)
 const ini_example            = Example("ini",             make_ini_document_example,            make_ini_projection_example)
+const ned_example            = Example("ned",             make_ned_document_example,            make_ned_projection_example)
 
 const examples = [
     json_example, json_sorted_example, json_null_example, json_string_example,
@@ -115,6 +116,7 @@ const examples = [
     sql_syntax_example,
     sql_table_example,
     ini_example,
+    ned_example,
 ]
 
 function run_example(example::Example; kwargs...)
