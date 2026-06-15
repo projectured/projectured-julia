@@ -443,7 +443,7 @@ function projection_read(p::IniSectionToSyntaxNode, iomap::ChildrenIoMap, op::St
 end
 
 function _ini_section_heading(s::IniSection)
-    s.is_general ? "[General]" : "[Config $(s.name)]"
+    s.is_general ? "\n[General]" : "\n[Config $(s.name)]"
 end
 
 function projection_print(p::IniSectionToSyntaxNode, recursion, s::IniSection, ctx)
