@@ -258,6 +258,45 @@ function test_sql_raw_to_sql()
             @test item.expression.qualifier.name == "p"
             @test roundtrip(stmt) == normalize_sql(sql)
         end
+
+        # ── Complex: nested subquery with aliases and WHERE ──────────
+        @testset "complex nested statement" begin
+            sql = "SELECT sub.person_name, sub.person_age FROM (SELECT p.name AS person_name, p.age AS person_age FROM persons AS p WHERE p.name <> 'X' ) AS sub WHERE sub.person_name <> 'X'"
+            stmt = parse(sql)
+            @test stmt isa SqlSelectStatement
+            # outer SELECT
+            @test length(stmt.select_clause.items) == 2
+            @test stmt.select_clause.items[1].expression.qualifier.name == "sub"
+            @test stmt.select_clause.items[1].expression.column_name.name == "person_name"
+            @test stmt.select_clause.items[2].expression.column_name.name == "person_age"
+            # outer FROM — subquery
+            base = stmt.from_clause.items[1].base_item
+            @test base isa SqlSubqueryFromItem
+            @test base.alias.name == "sub"
+            inner = base.subquery
+            @test inner isa SqlSelectStatement
+            # inner SELECT
+            @test length(inner.select_clause.items) == 2
+            @test inner.select_clause.items[1].column_alias.name == "person_name"
+            @test inner.select_clause.items[2].column_alias.name == "person_age"
+            # inner FROM
+            @test inner.from_clause.items[1].base_item.table_name.name == "persons"
+            @test inner.from_clause.items[1].base_item.alias.name == "p"
+            # inner WHERE
+            inner_cmp = inner.where_clause.condition.expression
+            @test inner_cmp isa SqlComparison
+            @test inner_cmp.left.qualifier.name == "p"
+            @test inner_cmp.left.column_name.name == "name"
+            @test inner_cmp.operator == "<>"
+            @test inner_cmp.right.value == "X"
+            # outer WHERE
+            outer_cmp = stmt.where_clause.condition.expression
+            @test outer_cmp isa SqlComparison
+            @test outer_cmp.left.qualifier.name == "sub"
+            @test outer_cmp.left.column_name.name == "person_name"
+            # round-trip
+            @test roundtrip(stmt) == normalize_sql(sql)
+        end
     end
 end
 
