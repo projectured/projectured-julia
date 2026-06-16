@@ -28,6 +28,7 @@ include("reference/ReferenceCase.jl")
 include("reference/ReferenceBuilder.jl")
 include("context/PrinterContext.jl")
 include("common/Operation.jl")
+include("document/Document.jl")
 include("document/Collection.jl")
 include("document/Font.jl")
 include("document/Color.jl")
@@ -136,6 +137,7 @@ include("projection/primitive/PrimitiveToText.jl")
 include("projection/primitive/ReferenceToText.jl")
 include("projection/primitive/MathToSyntax.jl")
 include("projection/primitive/JuliaToSyntax.jl")
+include("projection/primitive/DocumentInsertionToSyntax.jl")
 include("projection/primitive/SqlToSyntax.jl")
 include("projection/primitive/CollectionToSyntax.jl")
 include("projection/primitive/ConversationToSyntax.jl")
@@ -254,7 +256,7 @@ using .PrimitiveModule: PrimitiveDocument, PrimitiveInsertion,
 using .MathModule: MathDocument, MathInsertion, MathVariable, MathBinaryOperation,
                    MathParenthesized, MathAssignment
 using .JuliaModule: JuliaDocument, JuliaIdentifier, JuliaInteger, JuliaBinaryOp, JuliaCall,
-                    JuliaIf, JuliaFunction, JuliaBlock
+                    JuliaIf, JuliaFunction, JuliaBlock, JuliaInsertion
 using .SyntaxModule: SyntaxDocument, SyntaxInsertion, SyntaxLeaf, SyntaxNode, render
 using .GraphicsModule: GraphicsDocument, GraphicsInsertion,
                        GraphicsText, GraphicsRect, GraphicsLine, GraphicsCircle, GraphicsCanvas, GraphicsViewport, GraphicsImage,
@@ -384,6 +386,9 @@ using .JuliaToSyntaxModule: JuliaToSyntax, JuliaIdentifierToSyntaxLeaf, JuliaInt
                              JuliaBinaryOpToSyntaxNode, JuliaCallToSyntaxNode,
                              JuliaIfToSyntaxNode, JuliaFunctionToSyntaxNode,
                              JuliaBlockToSyntaxNode
+using .DocumentInsertionToSyntaxModule: InsertionToSyntaxLeaf,
+                                         DocumentInsertionToSyntaxLeaf, JuliaInsertionToSyntaxLeaf,
+                                         default_factory, default_completion
 using .CollectionToSyntaxModule: CollectionToSyntax, CollectionCellVectorToSyntax,
                                   CollectionListNodeToSyntax
 using .TextToGraphicsModule: TextToGraphics, TextToGraphicsIoMap
@@ -654,6 +659,11 @@ export JuliaToSyntax, JuliaIdentifierToSyntaxLeaf, JuliaIntegerToSyntaxLeaf,
        JuliaBinaryOpToSyntaxNode, JuliaCallToSyntaxNode,
        JuliaIfToSyntaxNode, JuliaFunctionToSyntaxNode,
        JuliaBlockToSyntaxNode
+export JuliaInsertion, InsertionToSyntaxLeaf,
+       DocumentInsertionToSyntaxLeaf, JuliaInsertionToSyntaxLeaf,
+       default_factory, default_completion
+using .DocumentCoreModule: DocumentBase, DocumentNothing, DocumentInsertion, DocumentReference
+export DocumentBase, DocumentNothing, DocumentInsertion, DocumentReference
 export CollectionToSyntax, CollectionCellVectorToSyntax, CollectionListNodeToSyntax
 export TextToGraphics, WidgetToGraphics, WidgetTheme, widget_theme_light, widget_theme_dark,
        widget_theme_slate_light, widget_theme_slate_dark

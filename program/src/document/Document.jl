@@ -11,7 +11,7 @@ module DocumentCoreModule
 import ..ReactiveModule: Cell
 import ..DocumentModule: Document, @document
 import ..ReferenceModule: Reference, ReferencePath
-import ..OperationApiModule: Operation, evaluate_operation
+import ..OperationApiModule: Operation, evaluate_operation, _apply_string_replace!
 export DocumentBase, DocumentNothing, DocumentInsertion, DocumentReference,
        LoadDocumentOperation, SaveDocumentOperation, ExportDocumentOperation,
        evaluate_operation,
@@ -66,6 +66,15 @@ DocumentInsertion(value::AbstractString=""; font=nothing, selection=nothing) =
 
 prefix(::DocumentInsertion) = DOCUMENT_INSERTION_PREFIX
 suffix(::DocumentInsertion) = DOCUMENT_INSERTION_SUFFIX
+
+function _apply_string_replace!(target::DocumentInsertion, field_name::AbstractString, s::Int, e::Int, replacement::AbstractString)
+    field_name == "value" || error("DocumentInsertion supports only field 'value', got: $field_name")
+    old = something(target.value, "")
+    n = length(old)
+    left  = s <= 0 ? "" : first(old, s)
+    right = e >= n ? "" : last(old, n - e)
+    target.value = String(left) * replacement * String(right)
+end
 
 function Base.show(io::IO, d::DocumentInsertion)
     print(io, "DocumentInsertion(", repr(d.value), ")")

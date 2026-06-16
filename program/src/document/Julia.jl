@@ -34,7 +34,8 @@ import ..ReactiveModule: Cell
 import ..DocumentModule: Document, @document
 import ..CollectionModule: CellVector
 import ..ReferenceModule: Reference
-export JuliaDocument,
+import ..OperationApiModule: _apply_string_replace!
+export JuliaDocument, JuliaInsertion,
        JuliaIdentifier, JuliaInteger, JuliaFloat, JuliaString, JuliaBool,
        JuliaNothing, JuliaSymbol, JuliaChar,
        JuliaBinaryOp, JuliaUnaryOp, JuliaCall, JuliaTernary,
@@ -44,6 +45,7 @@ export JuliaDocument,
        JuliaReturn, JuliaBreak, JuliaContinue, JuliaTry, JuliaBegin,
        JuliaIf, JuliaFunction, JuliaBlock,
        _julia_operator_string,
+       IJuliaInsertion,
        IJuliaIdentifier, IJuliaInteger, IJuliaFloat, IJuliaString, IJuliaBool,
        IJuliaNothing, IJuliaSymbol, IJuliaChar,
        IJuliaBinaryOp, IJuliaUnaryOp, IJuliaCall, IJuliaTernary,
@@ -56,6 +58,32 @@ export JuliaDocument,
 # ── Abstract base ─────────────────────────────────────────────────────────────
 
 abstract type JuliaDocument <: Document end
+
+# ── Insertion (editable Julia source being entered) ────────────────────────────
+
+"""
+    JuliaInsertion(value="")
+
+A placeholder holding Julia source text being typed; committed (e.g. on Enter)
+by parsing `value` with `juliaparse` into a real `JuliaDocument`.
+"""
+@document struct JuliaInsertion <: JuliaDocument
+    value::String
+    selection::Reference
+end
+
+JuliaInsertion(value::AbstractString="") = JuliaInsertion(Cell(String(value)), Cell(nothing))
+
+Base.show(io::IO, j::JuliaInsertion) = print(io, "JuliaInsertion(", repr(j.value), ")")
+
+function _apply_string_replace!(target::JuliaInsertion, field_name::AbstractString, s::Int, e::Int, replacement::AbstractString)
+    field_name == "value" || error("JuliaInsertion supports only field 'value', got: $field_name")
+    old = something(target.value, "")
+    n = length(old)
+    left  = s <= 0 ? "" : first(old, s)
+    right = e >= n ? "" : last(old, n - e)
+    target.value = String(left) * replacement * String(right)
+end
 
 # ── Literals ──────────────────────────────────────────────────────────────────
 

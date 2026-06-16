@@ -8,7 +8,8 @@ covers three coupled topics:
 2. **Editing & submitting a new user message** — a rich multi-part composer
    (type prose, paste JSON/XML/Julia/Tables, add & **evaluate** Julia inline)
    before submitting to the AI.
-3. **Presentation** — a vertical list of widgets, one per top-level turn and one
+3. **Presentation** — a vertical list of widgets, one per top-level 
+turn and one
    per part, each independently collapsible.
 
 Plus the two serialization directions that connect the document model to the LLM:
@@ -240,7 +241,17 @@ matching domain document. This is how the Lisp editor inserts everything
 factory in [source/executable/projection.lisp](../../../projectured-lisp/source/executable/projection.lisp)).
 It is reusable editor-wide, not just here.
 
-- **Foundation — port first** (domain-general, lands before the composer wiring):
+- **Foundation — ✅ DONE** (`program/src/projection/primitive/DocumentInsertionToSyntax.jl`).
+  Implemented `InsertionToSyntaxLeaf(commit; prefix, suffix)` (printer renders
+  `prefix·value·suffix`; reader edits `value`, **Enter** commits via `commit(value)`
+  → `ReplaceDocumentOperation`, **Esc** → `DocumentNothing`); `default_factory` /
+  `default_completion`; `DocumentInsertionToSyntaxLeaf()` (names → domain docs) and
+  `JuliaInsertionToSyntaxLeaf()` (juliaparse). Added the `JuliaInsertion` Julia type
+  + `_apply_string_replace!` methods; **wired the previously-orphaned
+  `document/Document.jl` (`DocumentInsertion`/`DocumentNothing`) into the build.**
+  Verified (`test_document_insertion`, 14 asserts): type `julia`+Enter →
+  `JuliaInsertion` → source+Enter → `JuliaDocument`; Esc → `DocumentNothing`.
+  *Deferred:* live completion hint + green/red colouring. Original spec below:
   - `DocumentInsertionToSyntaxLeaf(factory)` projection. `DocumentInsertion`
     already exists ([Document.jl:58](../../program/src/document/Document.jl#L58),
     prefix `"Insert a new "` / suffix `" here"`). Printer: render
