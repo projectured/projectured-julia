@@ -151,6 +151,7 @@ include("projection/primitive/MathToSyntax.jl")
 include("projection/primitive/JuliaToSyntax.jl")
 include("projection/primitive/DocumentInsertionToSyntax.jl")
 include("projection/primitive/SqlToSyntax.jl")
+include("projection/primitive/SqlRawToSql.jl")
 include("projection/primitive/CollectionToSyntax.jl")
 include("projection/primitive/ConversationToSyntax.jl")
 include("projection/primitive/ConversationToWidget.jl")
@@ -261,7 +262,9 @@ using .SqlDocumentModule: SqlDocument, SqlStatement,
                           SqlInsertStatement, SqlUpdateStatement,
                           SqlWhereFilterCondition, SqlBooleanExpression,
                           SqlScalarValue, SqlComparison,
-                          SqlAnd, SqlOr, SqlNot
+                          SqlAnd, SqlOr, SqlNot,
+                          SqlRawStatement
+using .SqlRawToSqlModule: SqlRawToSql
 using .DbCatalogDocumentModule: DbCatalogDocument,
                                 DbCatalogRdbms, DbCatalogDatabase, DbCatalogSchema,
                                 DbCatalogTable, DbCatalogColumn
@@ -560,6 +563,7 @@ export SqlToSyntax, SqlAllColumnsToSyntaxLeaf, SqlColumnReferenceToSyntaxLeaf,
        SqlJoinedFromItemToSyntaxNode, SqlJoinOnConditionToSyntaxNode,
        SqlWhereFilterConditionToSyntaxNode,
        SqlWhereClauseToSyntaxNode, SqlSelectStatementToSyntaxNode
+export SqlRawToSql, SqlRawStatement
 export DbCatalogDocument,
        DbCatalogRdbms, DbCatalogDatabase, DbCatalogSchema,
        DbCatalogTable, DbCatalogColumn

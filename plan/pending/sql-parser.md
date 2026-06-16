@@ -9,6 +9,8 @@ The projection direction is: `SqlRawStatement` → `SqlStatement` (e.g.
 (`SqlToSyntax → SyntaxToText → TextToString`) which serialises the AST to a
 string; `SqlRawToSql` parses a string back into the AST.
 
+**Status: implemented.** All tests passing.
+
 ---
 
 ## 1. Supported SQL constructs
@@ -59,11 +61,11 @@ The parser silently skips fragments it cannot map to a supported AST node:
 - **Block comments** — `/* … */` (may be nested per SQL standard)
 - **Unsupported statement types** — `INSERT`, `UPDATE`, `DELETE`, `CREATE`, etc.
   If the raw content does not begin with `SELECT` (after stripping comments and
-  whitespace), `projection_print` returns `nothing` or the `SqlRawStatement`
-  unchanged (see §5 — error strategy).
+  whitespace), `projection_print` returns `nothing`.
 - **Unsupported clauses** — `GROUP BY`, `HAVING`, `ORDER BY`, `LIMIT`, `OFFSET`,
   `WINDOW`, `UNION`, CTEs (`WITH`), locking (`FOR UPDATE`).
-  These are consumed as opaque token runs and discarded.
+  These are consumed by `skip_trailing!` and discarded. The skip stops at `)` to
+  preserve subquery boundaries.
 - **Unsupported expressions** — function calls (`COUNT(*)`, `COALESCE(…)`),
   arithmetic (`a + b`), `CASE WHEN`, `BETWEEN`, `IN`, `LIKE`, `IS NULL`, casts.
   When encountered inside a SELECT item or WHERE condition, the parser
@@ -77,48 +79,49 @@ The parser silently skips fragments it cannot map to a supported AST node:
 
 ### 3.1 Tokeniser (lexer)
 
-A lightweight, allocation-minimal scanner that operates on the raw `String`.
+A lightweight scanner that operates on the raw `String`, producing
+`Vector{SqlToken}`. Uses `SubString` for zero-copy token values.
 
-**Token kinds** (enum-like):
+**Token kinds** (`@enum SqlTokenKind`):
 
 | Token | Examples |
 |-------|----------|
-| `KEYWORD` | `SELECT`, `FROM`, `WHERE`, `AS`, `JOIN`, `ON`, `USING`, `AND`, `OR`, `NOT`, `DISTINCT`, `LEFT`, `RIGHT`, `FULL`, `OUTER`, `INNER`, `CROSS`, `TRUE`, `FALSE` |
-| `IDENT` | unquoted identifier: `persons`, `p`, `name` |
-| `QUOTED_IDENT` | `"persons"`, `"schema"."name"` (double-quoted) |
-| `STRING_LIT` | `'hello'` (single-quoted) |
-| `NUMBER_LIT` | `42`, `3.14`, `-1` |
-| `OP` | `=`, `<>`, `!=`, `<`, `>`, `<=`, `>=` |
-| `STAR` | `*` |
-| `DOT` | `.` |
-| `COMMA` | `,` |
-| `LPAREN` | `(` |
-| `RPAREN` | `)` |
-| `SEMICOLON` | `;` |
-| `EOF` | end of input |
+| `TK_KEYWORD` | `SELECT`, `FROM`, `WHERE`, `AS`, `JOIN`, `ON`, `USING`, `AND`, `OR`, `NOT`, `DISTINCT`, `LEFT`, `RIGHT`, `FULL`, `OUTER`, `INNER`, `CROSS`, `TRUE`, `FALSE` |
+| `TK_IDENT` | unquoted identifier: `persons`, `p`, `name` |
+| `TK_QUOTED_IDENT` | `"persons"`, `"schema"."name"` (double-quoted) |
+| `TK_STRING_LIT` | `'hello'` (single-quoted, with `''` escape) |
+| `TK_NUMBER_LIT` | `42`, `3.14` |
+| `TK_OP` | `=`, `<>`, `!=`, `<`, `>`, `<=`, `>=` |
+| `TK_STAR` | `*` |
+| `TK_DOT` | `.` |
+| `TK_COMMA` | `,` |
+| `TK_LPAREN` | `(` |
+| `TK_RPAREN` | `)` |
+| `TK_SEMICOLON` | `;` |
+| `TK_EOF` | end of input |
 
-Each token carries: `kind`, `value::SubString` (zero-copy view into the
-original string), `pos::Int` (1-based byte offset for diagnostics).
+Each token carries: `kind::SqlTokenKind`, `value::SubString{String}`,
+`pos::Int` (1-based byte offset).
 
 Comments are stripped during tokenisation — the token stream never contains
-them.
+them. Whitespace is consumed between tokens — not emitted.
 
-Whitespace is consumed between tokens — not emitted.
-
-**Keyword recognition**: after scanning an `IDENT`, check against a `Set{String}`
-of upper-cased SQL keywords. If matched, reclassify as `KEYWORD`.
+**Keyword recognition**: after scanning an identifier, check against
+`SQL_KEYWORDS::Set{String}` (upper-cased). If matched, reclassify as
+`TK_KEYWORD`. The keyword set includes structural SQL words plus common
+clauses for accurate delimiter detection.
 
 ### 3.2 Recursive-descent parser
 
-A top-down, single-pass parser with one token of lookahead. Each grammar
-production maps to a Julia function returning the corresponding `Sql*`
-document node.
+A top-down, single-pass parser with one token of lookahead (`peek`/`advance!`).
+Each grammar production maps to a Julia function returning the corresponding
+`Sql*` document node or `nothing` on failure.
 
 **Grammar sketch** (simplified; precedence handled by nesting):
 
 ```
 statement       := select_statement
-select_statement := select_clause from_clause [where_clause]
+select_statement := select_clause [from_clause] [where_clause]
                     [ignored_trailing_clauses]
 
 select_clause   := SELECT [DISTINCT] select_item { COMMA select_item }
@@ -126,6 +129,7 @@ select_item     := select_expression [AS ident]
 select_expression := STAR
                    | [qualifier DOT] STAR
                    | [qualifier DOT] column_name
+                   | fallback_expression
 
 from_clause     := FROM from_item { COMMA from_item }
 from_item       := from_base_item { join_segment }
@@ -148,7 +152,7 @@ boolean_and    := boolean_not { AND boolean_not }
 boolean_not    := NOT boolean_not | boolean_primary
 boolean_primary := LPAREN boolean_expression RPAREN
                  | comparison
-comparison     := scalar_operand [comp_op scalar_operand]
+comparison     := scalar_operand comp_op scalar_operand
 
 scalar_operand := [qualifier DOT] column_name
                 | scalar_value
@@ -156,22 +160,38 @@ scalar_value   := NUMBER_LIT | STRING_LIT | TRUE | FALSE
 
 comp_op        := '=' | '<>' | '!=' | '<' | '>' | '<=' | '>='
 
-ignored_trailing_clauses := { any_token_until_EOF_or_SEMICOLON }
+ignored_trailing_clauses := { any_token_until_EOF_or_SEMICOLON_or_RPAREN }
 ```
 
 `!=` is normalised to `<>` when constructing `SqlComparison`.
 
+FROM clause is optional — `SELECT 1` is valid (produces empty `SqlFromClause`).
+
 ### 3.3 Fallback strategy for unsupported expressions
 
 When the parser encounters an expression it cannot reduce (e.g. a function
-call, arithmetic, `CASE`), it performs **greedy token collection**: it
-consumes tokens until it hits a structural delimiter (`,`, `)`, `AND`, `OR`,
-`FROM`, `WHERE`, `GROUP`, `ORDER`, `HAVING`, `LIMIT`, `UNION`, `EOF`,
-`;`). The collected token text (including whitespace from the original
-string between tokens) is wrapped in `SqlScalarValue(raw_text::String)`.
+call starting with `ident LPAREN`), it performs **greedy token collection**:
+it consumes tokens until it hits a structural delimiter (`,`, `)`, `AS`,
+`AND`, `OR`, `FROM`, `WHERE`, `GROUP`, `ORDER`, `HAVING`, `LIMIT`, `UNION`,
+`EOF`, `;`), tracking parenthesis depth so balanced `(…)` within the
+expression are consumed. The collected token text is extracted from the
+original source string and wrapped in `SqlScalarValue(raw_text::String)`.
 
 This keeps the surrounding clause structure intact while preserving the
 opaque fragment for rendering.
+
+**Implementation detail**: `SqlSelectItem` convenience constructors require
+`SqlSelectExpression`, but `SqlScalarValue <: SqlDocument`. The parser
+bypasses the typed constructors and builds `SqlSelectItem(expr, alias,
+Cell(nothing))` directly, since `@document` makes all fields `::Cell` at
+the struct level.
+
+### 3.4 Trailing clause skip
+
+`skip_trailing!` consumes tokens until `EOF`, `;`, **or `)`**. The `)`
+boundary is critical for subquery support — without it, `skip_trailing!`
+inside a subquery's `parse_select_statement!` would eat the closing paren
+and any alias that follows.
 
 ---
 
@@ -212,7 +232,7 @@ map_reference_forward(::SqlRawToSql, ::SimpleIoMap, ref) = nothing
 map_reference_backward(::SqlRawToSql, ::SimpleIoMap, ref) = nothing
 ```
 
-All stubs — read-only, no selection forwarding.
+All stubs — printer-only, no selection forwarding.
 
 ---
 
@@ -227,41 +247,32 @@ All stubs — read-only, no selection forwarding.
   wrapped in `SqlScalarValue` or omitted.  The goal is robustness, not
   strict SQL validation; this is a projectional display aid, not a database
   front-end.
+- **Exception safety**: `parse_sql` wraps the parse in `try/catch` —
+  unexpected errors return `nothing` rather than propagating.
 
 ---
 
 ## 6. Module wiring
 
-Include in `program/src/Projectured.jl` after `SqlToSyntax.jl` (the parser
-depends only on `SqlDocumentModule`, which is already loaded).
+Included in `program/src/Projectured.jl` after `SqlToSyntax.jl`:
 
 ```julia
 include("projection/primitive/SqlRawToSql.jl")
-using .SqlRawToSqlModule
+using .SqlRawToSqlModule: SqlRawToSql
 ```
 
-Export `SqlRawToSql`.
+`SqlRawToSql` and `SqlRawStatement` are exported at the public API level.
 
 ---
 
-## 7. Implementation steps
+## 7. Implementation files
 
-1. **Create `program/src/projection/primitive/SqlRawToSql.jl`** —
-   module with tokeniser, parser, and projection struct.
-   - Tokeniser: `SqlToken`, `SqlTokenKind`, `tokenize(::String)` → `Vector{SqlToken}`
-   - Parser: `parse_sql(::String)` → `SqlStatement | nothing`
-   - Projection: `SqlRawToSql` struct + four interface functions.
-2. **Wire into `program/src/Projectured.jl`** — include and export.
-3. **Write tests** in `test/src/projection/SqlRawToSqlTest.jl`:
-   - Round-trip: pipeline output of `parse_sql(sql) == normalized(sql)` for a set
-     of representative SELECT statements.
-   - Comment stripping: SQL with `--` and `/* */` comments parses correctly.
-   - Unsupported trailing clauses (GROUP BY, ORDER BY) are ignored; the
-     SELECT/FROM/WHERE structure is preserved.
-   - Fallback expressions: a function call in a SELECT item becomes a
-     `SqlScalarValue` with the raw text.
-   - Non-SELECT input returns `nothing`.
-4. **Wire tests** into the test harness.
+| File | Role |
+|------|------|
+| `program/src/projection/primitive/SqlRawToSql.jl` | Module: tokeniser, parser, projection |
+| `program/src/Projectured.jl` | Wiring: include, using, export |
+| `test/src/projection/SqlRawToSqlTest.jl` | Tests: 21 test cases |
+| `test/src/ProjecturedTest.jl` | Test wiring: include |
 
 ---
 
@@ -276,7 +287,11 @@ Export `SqlRawToSql`.
 | `SELECT * FROM persons WHERE age >= 18` | `SqlWhereClause` with `SqlComparison` | WHERE + comparison |
 | `SELECT * FROM a JOIN b ON a.id = b.id` | `SqlJoinedFromItem` with `SqlInnerJoin` + `SqlJoinOnCondition` | join |
 | `SELECT * FROM a LEFT JOIN b ON a.id = b.id` | `SqlLeftOuterJoin` | outer join |
-| `SELECT * FROM (SELECT * FROM t) AS sub` | `SqlSubqueryFromItem` | subquery in FROM |
+| `SELECT * FROM a RIGHT JOIN b ON a.id = b.id` | `SqlRightOuterJoin` | right join |
+| `SELECT * FROM a FULL OUTER JOIN b ON a.id = b.id` | `SqlFullOuterJoin` | full outer join |
+| `SELECT * FROM a CROSS JOIN b` | `SqlCrossJoin`, no condition | cross join |
+| `SELECT * FROM a JOIN b USING (id, name)` | `SqlJoinUsingCondition` with 2 columns | USING condition |
+| `SELECT * FROM (SELECT * FROM t) AS sub` | `SqlSubqueryFromItem` with alias `sub` | subquery in FROM |
 | `SELECT * FROM t WHERE a = 1 AND b = 2` | `SqlAnd` with two `SqlComparison`s | boolean AND |
 | `SELECT * FROM t WHERE NOT a = 1` | `SqlNot` wrapping `SqlComparison` | boolean NOT |
 | `SELECT * FROM t WHERE a = 1 OR b = 2 AND c = 3` | `SqlOr(comp, SqlAnd(comp, comp))` | precedence: AND binds tighter |
@@ -285,10 +300,29 @@ Export `SqlRawToSql`.
 | `SELECT * FROM t ORDER BY name` | parses; `ORDER BY` ignored | trailing clause skipped |
 | `SELECT COUNT(*) FROM t` | `SqlScalarValue("COUNT(*)")` as select expression | fallback for unsupported expr |
 | `INSERT INTO t VALUES (1)` | `nothing` | non-SELECT → no output |
+| `SELECT * FROM public.persons` | `SqlTableName("public", "persons")` | schema-qualified table |
+| `SELECT * FROM t WHERE name = 'hello'` | `SqlScalarValue("hello")` | string literal in WHERE |
+| `SELECT * FROM t WHERE a != b` | `SqlComparison` with `"<>"` | `!=` normalised to `<>` |
+| `SELECT p.* FROM persons AS p` | `SqlAllColumns(SqlTableAlias("p"))` | qualifier.* |
 
 ---
 
-## 9. Out of scope
+## 9. Implementation lessons
+
+- **`@document` field types**: The `@document` macro rewrites all field types
+  to `::Cell`. Convenience constructors retain the original type annotations
+  as dispatch guards. When a parser-produced value doesn't match (e.g.
+  `SqlScalarValue` where `SqlSelectExpression` is expected), bypass the
+  convenience constructor and use the Cell-level constructor directly:
+  `SqlSelectItem(expr, alias, Cell(nothing))`.
+
+- **`skip_trailing!` must respect `)`**: The initial implementation consumed
+  all tokens to EOF, which broke subquery parsing — the closing `)` and
+  trailing `AS alias` were swallowed. Fix: stop at `TK_RPAREN`.
+
+---
+
+## 10. Out of scope
 
 - Reader / reference mapping (future: editing the parsed AST reflects back
   to `SqlRawStatement.content`).
