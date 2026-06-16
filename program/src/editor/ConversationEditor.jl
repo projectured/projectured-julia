@@ -1,0 +1,464 @@
+"""
+    ConversationEditorModule
+
+The **user-message composer** (Stage 3b): editing a draft `ConversationTurn`
+part by part, growing it left-to-right and always ending on an active text
+typein. One projection (`ConversationComposerToSyntaxNode`) renders the draft
+turn to syntax and maps gestures to composer operations; the operations mutate
+the draft turn in place.
+
+A part's `content` moves through these states as you edit:
+
+| state         | content type        | gesture in →                                    |
+|---------------|---------------------|-------------------------------------------------|
+| text typein   | `PrimitiveString`   | keys edit; SHIFT+ENTER newline; INSERT→chooser; ENTER→submit |
+| kind chooser  | `DocumentInsertion` | keys edit; ENTER commits keyword→insertion; ESC→typein |
+| julia source  | `JuliaInsertion`    | keys edit; SHIFT+ENTER newline; ENTER→`JuliaDocument`; ALT+ENTER→`EvaluatorForm`; ESC→typein |
+| quoted code   | `JuliaDocument`     | (committed)                                      |
+| eval form     | `EvaluatorForm`     | (committed)                                      |
+
+After any structured commit (`JuliaDocument` / `EvaluatorForm`) the composer
+appends a fresh active text typein, so the draft always ends in a typein.
+`INSERT` commits the current text typein (dropping it when blank) and appends a
+`DocumentInsertion` kind chooser. Typing a keyword (`julia`/`json`/`xml`/`text`)
+into the chooser does **not** auto-switch — ENTER commits it via the factory.
+`ESC` reverts a structured insertion back to an empty text typein.
+"""
+module ConversationEditorModule
+
+import ..ReactiveModule: Cell, setfn!
+import ..CollectionModule: CellVector
+import ..OperationApiModule: Operation, evaluate_operation
+import ..ProjectionApiModule: projection_print, projection_read,
+                              map_reference_forward, map_reference_backward, Projection
+import ..ConversationModule: ConversationConversation, ConversationTurn, ConversationPart
+import ..EvaluatorModule: EvaluatorForm, result_text
+import ..DocumentCoreModule: DocumentInsertion
+import ..PrimitiveModule: PrimitiveString
+import ..JuliaModule: JuliaDocument, JuliaInsertion, JuliaIdentifier
+import ..TextModule: TextText, TextString
+import ..DocumentInsertionToSyntaxModule: default_factory
+import ..JuliaParserModule: juliaparse
+import ..McpModule: execute_julia_code
+import ..WidgetModule: WidgetCard, WidgetAvatar, WidgetLabel, Point2D
+import ..LayoutModule: VerticalLayout, HorizontalLayout
+import ..FontModule: font_ubuntu_monospace_regular_24
+import ..ColorModule: color_default, color_solarized_gray
+import ..ReferenceModule: Reference, ConcreteReferencePath, FieldReference,
+                          RangeReference, EmptyReferencePath
+import ..KeyboardModule: KeyDown, KeyPress
+import ..EventCaseModule: var"@event_case"
+import ..IoMapModule: SimpleIoMap
+
+export ConversationComposerToWidget,
+       ComposerInputOperation, ComposerBackspaceOperation, ComposerNewlineOperation,
+       ComposerInsertPartOperation, ComposerCommitChooserOperation,
+       ComposerCommitSourceOperation, ComposerEvaluateOperation,
+       ComposerRevertOperation, ComposerSubmitOperation
+
+# ═══════════════════════════════════════════════════════════════════════
+# Active-part / cursor helpers
+# ═══════════════════════════════════════════════════════════════════════
+
+# The active part is always the last one; its content is what the gestures act
+# on. An empty turn has no active part (`nothing`).
+_active_part(t::ConversationTurn) =
+    isempty(t) ? nothing : t.parts[length(t)]
+_active_content(t::ConversationTurn) =
+    (p = _active_part(t); p === nothing ? nothing : p.content)
+
+# The three editing-state contents all carry an editable `value::String`.
+_is_editable(c) = c isa PrimitiveString || c isa DocumentInsertion || c isa JuliaInsertion
+_is_editable(::Nothing) = false
+
+_value(c) = something(c.value, "")
+
+# Build a `value{k}` zero-width cursor selection path.
+_valpath(k::Int) = ConcreteReferencePath(FieldReference("value"),
+                       ConcreteReferencePath(RangeReference(k, k), EmptyReferencePath()))
+
+# Read the cursor offset out of a content's selection, defaulting to end-of-value.
+function _cursor(c)
+    sel = getfield(c, :selection)[]
+    if sel isa ConcreteReferencePath && sel.head isa FieldReference && sel.head.name == "value"
+        t = sel.tail
+        if t isa ConcreteReferencePath && t.head isa RangeReference
+            return t.head.stop
+        end
+    end
+    length(_value(c))
+end
+
+# Set a content's value + place the cursor at `k`.
+function _set_value!(c, v::AbstractString, k::Int)
+    c.value = String(v)
+    c.selection = _valpath(k)
+    nothing
+end
+
+# A fresh active text typein (empty `PrimitiveString`, cursor at 0).
+function _new_typein()
+    ps = PrimitiveString("")
+    ps.selection = _valpath(0)
+    ConversationPart(ps)
+end
+
+# Replace the active part's content and drop the cursor at the value's end.
+function _replace_active!(t::ConversationTurn, doc)
+    p = _active_part(t)
+    p === nothing && return nothing
+    p.content = doc
+    _is_editable(doc) && (doc.selection = _valpath(length(_value(doc))))
+    nothing
+end
+
+# ═══════════════════════════════════════════════════════════════════════
+# Operations
+# ═══════════════════════════════════════════════════════════════════════
+
+"Insert printable `text` at the active content's cursor."
+struct ComposerInputOperation <: Operation
+    turn::ConversationTurn
+    text::String
+end
+
+"Delete the character before the active content's cursor."
+struct ComposerBackspaceOperation <: Operation
+    turn::ConversationTurn
+end
+
+"Insert a newline at the active content's cursor (SHIFT+ENTER)."
+struct ComposerNewlineOperation <: Operation
+    turn::ConversationTurn
+end
+
+"""
+INSERT: commit the active text typein (→ `TextText`, dropped when blank) and
+append a `DocumentInsertion` kind chooser as the new active part.
+"""
+struct ComposerInsertPartOperation <: Operation
+    turn::ConversationTurn
+end
+
+"""
+ENTER in the kind chooser: if the value names a known kind, commit it to that
+domain's insertion via the factory; otherwise a no-op (keep editing).
+"""
+struct ComposerCommitChooserOperation <: Operation
+    turn::ConversationTurn
+end
+
+"""
+ENTER in Julia source: parse the source into a `JuliaDocument`, then append a
+fresh active text typein. No-op when the source does not parse.
+"""
+struct ComposerCommitSourceOperation <: Operation
+    turn::ConversationTurn
+end
+
+"""
+ALT+ENTER in Julia source: parse and evaluate the source into an `EvaluatorForm`
+(code + result), then append a fresh active text typein.
+"""
+struct ComposerEvaluateOperation <: Operation
+    turn::ConversationTurn
+end
+
+"ESC: revert the active structured insertion back to an empty text typein."
+struct ComposerRevertOperation <: Operation
+    turn::ConversationTurn
+end
+
+"""
+ENTER in a text typein: finalize the draft turn — convert every `PrimitiveString`
+part to `TextText`, dropping a trailing blank typein.
+"""
+struct ComposerSubmitOperation <: Operation
+    turn::ConversationTurn
+end
+
+# ═══════════════════════════════════════════════════════════════════════
+# evaluate_operation
+# ═══════════════════════════════════════════════════════════════════════
+
+function evaluate_operation(editor, op::ComposerInputOperation)
+    c = _active_content(op.turn)
+    _is_editable(c) || return nothing
+    v = _value(c); k = clamp(_cursor(c), 0, length(v))
+    _set_value!(c, first(v, k) * op.text * last(v, length(v) - k), k + length(op.text))
+end
+
+function evaluate_operation(editor, op::ComposerNewlineOperation)
+    c = _active_content(op.turn)
+    _is_editable(c) || return nothing
+    v = _value(c); k = clamp(_cursor(c), 0, length(v))
+    _set_value!(c, first(v, k) * "\n" * last(v, length(v) - k), k + 1)
+end
+
+function evaluate_operation(editor, op::ComposerBackspaceOperation)
+    c = _active_content(op.turn)
+    _is_editable(c) || return nothing
+    v = _value(c); k = clamp(_cursor(c), 0, length(v))
+    k == 0 && return nothing
+    _set_value!(c, first(v, k - 1) * last(v, length(v) - k), k - 1)
+end
+
+function evaluate_operation(editor, op::ComposerInsertPartOperation)
+    t = op.turn
+    p = _active_part(t)
+    if p !== nothing && p.content isa PrimitiveString
+        v = _value(p.content)
+        if isempty(strip(v))
+            deleteat!(t.parts, length(t))          # drop the blank typein
+        else
+            p.content = TextText(TextString(v))    # commit the prose
+        end
+    end
+    ins = DocumentInsertion("")
+    ins.selection = _valpath(0)
+    push!(t, ConversationPart(ins))
+    nothing
+end
+
+function evaluate_operation(editor, op::ComposerCommitChooserOperation)
+    c = _active_content(op.turn)
+    c isa DocumentInsertion || return nothing
+    doc = default_factory(_value(c))
+    doc === nothing && return nothing              # unknown kind: keep editing
+    _replace_active!(op.turn, doc)
+end
+
+function evaluate_operation(editor, op::ComposerCommitSourceOperation)
+    c = _active_content(op.turn)
+    c isa JuliaInsertion || return nothing
+    doc = _try_parse(_value(c))
+    doc === nothing && return nothing              # unparseable: keep editing
+    _replace_active!(op.turn, doc)
+    push!(op.turn, _new_typein())
+    nothing
+end
+
+function evaluate_operation(editor, op::ComposerEvaluateOperation)
+    c = _active_content(op.turn)
+    c isa JuliaInsertion || return nothing
+    src = _value(c)
+    isempty(strip(src)) && return nothing
+    output = try
+        execute_julia_code(editor, src)
+    catch e
+        sprint(showerror, e, catch_backtrace())
+    end
+    is_err = occursin("ERROR", output) || occursin("Error", output)
+    form = something(_try_parse(src), JuliaIdentifier(src))
+    # `execute_julia_code` `println`s the result repr, so the captured output ends
+    # in a newline — strip it so the result text doesn't render a trailing tofu box.
+    _replace_active!(op.turn,
+        EvaluatorForm(form; result = result_text(rstrip(output)), is_error = is_err))
+    push!(op.turn, _new_typein())
+    nothing
+end
+
+function evaluate_operation(editor, op::ComposerRevertOperation)
+    _replace_active!(op.turn, getfield(_new_typein(), :content)[])
+end
+
+function evaluate_operation(editor, op::ComposerSubmitOperation)
+    t = op.turn
+    # Drop a trailing blank text typein.
+    p = _active_part(t)
+    if p !== nothing && p.content isa PrimitiveString && isempty(strip(_value(p.content)))
+        deleteat!(t.parts, length(t))
+    end
+    # Normalize every remaining PrimitiveString part to TextText prose.
+    for i in eachindex(t.parts)
+        part = t.parts[i]
+        part.content isa PrimitiveString &&
+            (part.content = TextText(TextString(_value(part.content))))
+    end
+    nothing
+end
+
+# Parse Julia source, guarding empty / invalid input.
+function _try_parse(src::AbstractString)
+    isempty(strip(src)) && return nothing
+    try
+        juliaparse(src)
+    catch
+        nothing
+    end
+end
+
+# ═══════════════════════════════════════════════════════════════════════
+# Printer: draft turn → a chat-bubble WidgetCard of per-part cards
+# ═══════════════════════════════════════════════════════════════════════
+
+"""
+    ConversationComposerToWidget()
+
+The composer projection for a draft `ConversationTurn`. Self-contained: the
+printer renders the turn as a `WidgetCard` (avatar header + a `VerticalLayout`
+of per-part cards), and the reader maps every gesture to a composer operation by
+dispatching on the **active** (last) part's state. Use as the root projection,
+chained through the widget→graphics pipeline (wrap in `RecursiveProjection`).
+"""
+struct ConversationComposerToWidget <: Projection end
+
+const _CARD_WIDTH  = 760
+const _PART_WIDTH  = 720
+const _AVATAR_SIZE = 22
+const _GAP         = 6
+
+_role_glyph(role::Symbol) = role === :user ? "U" : role === :assistant ? "A" : "?"
+
+# Per-part glyph/label, covering both editing states and committed content.
+_kind_glyph(::PrimitiveString)   = "✎"
+_kind_glyph(::DocumentInsertion) = "+"
+_kind_glyph(::JuliaInsertion)    = "λ"
+_kind_glyph(::JuliaDocument)     = "λ"
+_kind_glyph(::EvaluatorForm)     = "="
+_kind_glyph(::TextText)          = "¶"
+_kind_glyph(_)                   = "?"
+
+_kind_label(::PrimitiveString)   = "text"
+_kind_label(::DocumentInsertion) = "insert"
+_kind_label(::JuliaInsertion)    = "julia"
+_kind_label(::JuliaDocument)     = "julia"
+_kind_label(::EvaluatorForm)     = "eval"
+_kind_label(::TextText)          = "text"
+_kind_label(_)                   = "doc"
+
+# A header row: a small avatar glyph followed by a label.
+_header(glyph::AbstractString, label::AbstractString) =
+    HorizontalLayout(Any[
+        WidgetAvatar(Point2D(0, 0), String(glyph); size = _AVATAR_SIZE),
+        WidgetLabel(Point2D(0, 0), String(label)),
+    ]; vertical_align = :center, gap = 8)
+
+const _FONT        = font_ubuntu_monospace_regular_24
+const _PLACEHOLDER = "type here…"
+
+# A zero-width cursor at offset `k` inside span `span` (1-based) of a body
+# `TextText`, in the `.elements[span].content[k:k]` shape `TextToGraphics` reads
+# to draw its genuine thin-line caret.
+_caret_selection(span::Int, k::Int) =
+    ConcreteReferencePath(FieldReference("elements"),
+        ConcreteReferencePath(RangeReference(span - 1, span),
+            ConcreteReferencePath(FieldReference("content"),
+                ConcreteReferencePath(RangeReference(k, k), EmptyReferencePath()))))
+
+# Install the reactive caret on `body`, tracking `content`'s cursor in `span`.
+# `span_len` is the rendered length of that span so the cursor stays in range.
+function _attach_caret!(body::TextText, content, span::Int, span_len)
+    setfn!(getfield(body, :selection),
+           () -> _caret_selection(span, clamp(_cursor(content), 0, span_len())))
+    body
+end
+
+# ── Editable (active) part body — its value plus the real selection-driven caret.
+# Safe to carry a text selection: the enclosing turn `WidgetCard` reader drops
+# coordless key events, so the text layer never hijacks the composer's keys.
+
+# A `DocumentInsertion` keeps its "Insert a new <value> here" decoration: static
+# gray prefix/suffix spans around the editable value span, caret in the value.
+const _INS_PREFIX = "Insert a new "
+const _INS_SUFFIX = " here"
+function _editable_body(c::DocumentInsertion)
+    body = TextText([
+        TextString(_INS_PREFIX, _FONT, color_solarized_gray),
+        TextString(() -> _value(c), _FONT, color_default),
+        TextString(_INS_SUFFIX, _FONT, color_solarized_gray),
+    ])
+    # While the value is empty, anchor the caret to the end of the (non-empty)
+    # prefix span — `TextToGraphics` can't place a caret in a zero-width span, and
+    # this lands at the same x (just after "Insert a new ").
+    setfn!(getfield(body, :selection), function ()
+        v = _value(c)
+        isempty(v) ? _caret_selection(1, length(_INS_PREFIX)) :
+                     _caret_selection(2, clamp(_cursor(c), 0, length(v)))
+    end)
+    body
+end
+
+# Plain editable text (`PrimitiveString` / `JuliaInsertion`): one span, a pale
+# placeholder while empty, caret in the single span.
+function _editable_body(c)
+    show() = (v = _value(c); isempty(v) ? _PLACEHOLDER : v)
+    ts = TextString(show, _FONT, color_default)
+    setfn!(getfield(ts, :font_color),
+           () -> isempty(_value(c)) ? color_solarized_gray : color_default)
+    _attach_caret!(TextText(ts), c, 1, () -> length(show()))
+end
+
+# ── Committed part body — recurse the real content document through the inner
+# dispatch, so committed code renders as a parsed Julia document, prose as text,
+# and an evaluation as its form stacked over its result.
+_committed_body(c::EvaluatorForm) = VerticalLayout(Any[c.form, c.result]; gap = _GAP)
+_committed_body(c) = c
+
+_part_card(content, active::Bool) =
+    WidgetCard(Point2D(0, 0);
+               title = _header(_kind_glyph(content), _kind_label(content)),
+               content = (active && _is_editable(content)) ?
+                         _editable_body(content) : _committed_body(content),
+               width = _PART_WIDTH)
+
+function projection_print(p::ConversationComposerToWidget, recursion, t::ConversationTurn, ctx)
+    # Reactive part list: the last part is the active typein (gets the caret).
+    # The thunk recomputes on structural changes; per-part value/cursor edits
+    # re-render via the reactive `TextString` thunks inside each card.
+    body = VerticalLayout(
+        CellVector(() -> (n = length(t.parts);
+                          Any[_part_card(t.parts[i].content, i == n) for i in 1:n])),
+        Cell(:left), Cell(_GAP), Cell(nothing))
+    card = WidgetCard(Point2D(0, 0);
+                      title = _header(_role_glyph(t.role), String(t.role)),
+                      content = body,
+                      width = _CARD_WIDTH)
+    SimpleIoMap(p, t, card)
+end
+
+# The composer manages its own selection; nothing is forwarded to the widget
+# layers (so they never hijack key events for a mapped cursor).
+map_reference_forward(::ConversationComposerToWidget, iomap, ref)  = nothing
+map_reference_backward(::ConversationComposerToWidget, iomap, ref) = nothing
+
+# ═══════════════════════════════════════════════════════════════════════
+# Reader: gesture → composer operation, dispatched on the active part's state
+# ═══════════════════════════════════════════════════════════════════════
+
+function projection_read(::ConversationComposerToWidget, iomap::SimpleIoMap, evt::KeyPress)
+    evt.modifiers.ctrl && return nothing
+    turn = iomap.input
+    _is_editable(_active_content(turn)) || return nothing
+    ComposerInputOperation(turn, String(evt.text))
+end
+
+function projection_read(::ConversationComposerToWidget, iomap::SimpleIoMap, evt::KeyDown)
+    turn = iomap.input
+    c = _active_content(turn)
+    if c isa PrimitiveString
+        return @event_case evt begin
+            KeyDown(:return; shift) => ComposerNewlineOperation(turn)
+            KeyDown(:return)        => ComposerSubmitOperation(turn)
+            KeyDown(:insert)        => ComposerInsertPartOperation(turn)
+            KeyDown(:backspace)     => ComposerBackspaceOperation(turn)
+        end
+    elseif c isa DocumentInsertion
+        return @event_case evt begin
+            KeyDown(:return)    => ComposerCommitChooserOperation(turn)
+            KeyDown(:escape)    => ComposerRevertOperation(turn)
+            KeyDown(:backspace) => ComposerBackspaceOperation(turn)
+        end
+    elseif c isa JuliaInsertion
+        return @event_case evt begin
+            KeyDown(:return; alt)   => ComposerEvaluateOperation(turn)
+            KeyDown(:return; shift) => ComposerNewlineOperation(turn)
+            KeyDown(:return)        => ComposerCommitSourceOperation(turn)
+            KeyDown(:escape)        => ComposerRevertOperation(turn)
+            KeyDown(:backspace)     => ComposerBackspaceOperation(turn)
+        end
+    end
+    nothing
+end
+
+end # module

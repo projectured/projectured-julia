@@ -165,6 +165,7 @@ include("projection/primitive/DbCatalogToSyntax.jl")
 include("editor/ToolRegistry.jl")
 include("editor/Mcp.jl")
 include("editor/WorkbenchAssistant.jl")
+include("editor/ConversationEditor.jl")
 include("editor/Editor.jl")
 
 # ── Public API ────────────────────────────────────────────────────────────
@@ -444,6 +445,12 @@ using .WorkbenchAssistantModule: SubmitProseOperation, SubmitJuliaOperation,
                                    ClearInputOperation, ResetConversationOperation,
                                    build_messages, assistant_tool_schemas,
                                    dispatch_assistant_tool, parse_markdown_blocks
+using .ConversationEditorModule: ConversationComposerToWidget,
+                                  ComposerInputOperation, ComposerBackspaceOperation,
+                                  ComposerNewlineOperation, ComposerInsertPartOperation,
+                                  ComposerCommitChooserOperation, ComposerCommitSourceOperation,
+                                  ComposerEvaluateOperation, ComposerRevertOperation,
+                                  ComposerSubmitOperation
 
 export @document, @projection, @iomap
 export Cell, setval!, setfn!, isuptodate, take_first_n
@@ -716,5 +723,11 @@ export SubmitProseOperation, SubmitJuliaOperation,
        ClearInputOperation, ResetConversationOperation,
        build_messages, assistant_tool_schemas, dispatch_assistant_tool,
        parse_markdown_blocks
+export ConversationComposerToWidget,
+       ComposerInputOperation, ComposerBackspaceOperation,
+       ComposerNewlineOperation, ComposerInsertPartOperation,
+       ComposerCommitChooserOperation, ComposerCommitSourceOperation,
+       ComposerEvaluateOperation, ComposerRevertOperation,
+       ComposerSubmitOperation
 
 end # module Projectured

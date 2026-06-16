@@ -270,40 +270,138 @@ It is reusable editor-wide, not just here.
     reader: entering Julia source commits via `juliaparse` → `JuliaDocument`.
     This is the chain *domain-independent insertion → domain-specific insertion →
     enter the domain's actual source*; for Julia that source is Julia code.
-- Composer operations on top of that foundation (all act on uniform
-  `ConversationPart`s whose `content` differs):
-  - typing into a part whose `content` is a `TextText` → existing `TextText`
-    reader path.
-  - a new/empty part has `content = DocumentInsertion`; type `julia`/`json`/`xml`/
-    `table` + Enter → the part's `content` becomes the matching document
-    (`JuliaInsertion` → Julia source → `JuliaDocument`).
-  - **paste** → seed a `DocumentInsertion`'s `value` (or, when the kind is
-    detected, commit straight to the parsed document via the same factory/Stage-5
-    parsers).
-  - `EvaluatePart` → for a part whose `content` is a `JuliaDocument` (or an
-    `EvaluatorForm`), run the code via the existing `execute_julia_code` tool
-    (`McpModule` / `ToolRegistry`) and store the output in the `EvaluatorForm`'s
-    `result` field — **inline, while editing**, before submit (generalizes
-    today's ALT+ENTER `SubmitJuliaOperation`). (Evaluating a bare `JuliaDocument`
-    part wraps its `content` in an `EvaluatorForm`: `form` = the code, `result` =
-    the output.)
-  - `SubmitDraftTurn` → push the draft turn into `conversation.turns`, reset the
-    draft to empty, and trigger the assistant turn.
-- Composer keymap: typing edits the focused part / insertion; a chord (e.g.
-  ALT+ENTER) → `EvaluatePart` on the focused code part; **Send** (e.g.
-  Ctrl+ENTER / button) → `SubmitDraftTurn`. (Separating "add/eval a part" from
-  "send the turn" is the one genuinely new UX decision; note Enter is already
-  taken by insertion-commit, so Send needs its own chord.)
+### Composer — ✅ DONE (`program/src/editor/ConversationEditor.jl`)
 
-**Deliverable / test.** New example `conversation_editor_example` exercising the
-lifecycle: empty start → type text → add a part by typing `julia` + Enter (via
-`DocumentInsertion`) → enter Julia source → evaluate it (result appears) → paste
-(JSON/XML/Table) → submit (draft becomes a turn, draft re-empties). Also a
-focused test of `DocumentInsertionToSyntaxLeaf` + `default_factory` on its own
-(type prefix → completion + green/red commitability; Enter → correct domain
-document; `"julia"` → `JuliaInsertion` → `JuliaDocument`). Tests: scripted
-operation sequences via the reader (mirroring `TypeinTest` / `ClickRoundtripTest`),
-asserting the draft turn's parts after each step.
+Implemented as a self-contained `ConversationComposerToWidget` projection
+(printer renders the draft turn as a chat-bubble `WidgetCard` — avatar header
+over a reactive `VerticalLayout` of per-part cards; reader maps every gesture to
+a composer operation by dispatching on the **active** (last) part's content
+type). Wired through the **widget** pipeline:
+`RecursiveProjection(ConversationComposerToWidget())` → the same widget→graphics
+inner dispatch as `conversation_widget_example`
+(`make_conversation_editor_projection_example`). The per-part label list is a
+`CellVector` thunk over the parts' `value`s, so typing recomputes the labels
+without reprinting. `map_reference_forward/backward` return `nothing` so the
+widget layers never hijack keys for a mapped cursor; the composer tracks
+`value{k}` selection itself.
+
+Operations (direct mutation of the draft turn): `ComposerInputOperation`,
+`ComposerBackspaceOperation`, `ComposerNewlineOperation` (SHIFT+ENTER),
+`ComposerInsertPartOperation` (INSERT — commit/drop the typein, append a
+`DocumentInsertion`), `ComposerCommitChooserOperation` (ENTER, `default_factory`),
+`ComposerCommitSourceOperation` (ENTER, `juliaparse` → `JuliaDocument`),
+`ComposerEvaluateOperation` (ALT+ENTER, `execute_julia_code` → `EvaluatorForm`),
+`ComposerRevertOperation` (ESC), `ComposerSubmitOperation` (ENTER —
+`PrimitiveString`→`TextText`, drop trailing blank). Example
+`conversation_editor_example`; tests in
+`test/src/projection/ConversationEditorTest.jl` (`test_conversation_editor`,
+28 asserts) cover the worked case, ESC-revert, unknown-keyword no-op, blank-drop,
+and the reader's gesture→operation mapping per state.
+
+**Reactive rendering (done).** Three reactivity fixes so the widget output
+updates live as you edit:
+
+- *Value edits* — each part body is a `TextText` whose `TextString` content/color
+  are reactive thunks over the part's live value/cursor (the proven text→graphics
+  reactive path), so typing repaints without the part list recomputing.
+- *Structural changes* — the widget `layout→graphics` printers snapshotted
+  `length(children)` at print time, so added/swapped part cards never appeared.
+  Fixed properly in `LayoutToGraphics.jl`: `VerticalLayoutToGraphicsCanvas` /
+  `HorizontalLayoutToGraphicsCanvas` now wrap their body in a `build` cell keyed
+  on `doc.children` (`_vl_build`/`_hl_build`), exposing a stable output canvas
+  whose elements/size/entries derive reactively — adding a child repaints with
+  **no `iomap = nothing`** (that reset is only correct for whole-root swaps). The
+  per-child size/position cells stay lazy, so a child merely growing still
+  updates incrementally. Verified regression-free across the layout/widget tests.
+- *Card sizing* — `WidgetCardToGraphicsCanvas` likewise computed `card_height` /
+  the surface panel / the output-canvas size eagerly, so a card did not grow with
+  its content (the parts overflowed the turn bubble's border). Same fix: recurse
+  the Document title/content once (stable iomaps), then derive height, panel,
+  element positions, and canvas size from a `build` cell (`_card_build`) that
+  reads the content's reactive height. The turn card now grows as parts are
+  added/evaluated.
+- *Caret + placeholder* — the active (last) editable part's body `TextText` gets a
+  reactive `selection` thunk (`.elements[span].content[k:k]` at the part's cursor),
+  so `TextToGraphics` draws its **genuine thin-line caret** following the cursor —
+  no glyph. Safe because the enclosing turn `WidgetCard` reader drops coordless key
+  events ([WidgetToGraphics.jl](../../program/src/projection/primitive/WidgetToGraphics.jl#L2164)),
+  so the text layer never hijacks the composer's keystrokes. A `PrimitiveString` /
+  `JuliaInsertion` body is one span with a reactive pale-gray `type here…`
+  placeholder while empty. A `DocumentInsertion` keeps its **`Insert a new <value>
+  here`** decoration — gray prefix/suffix spans around the editable value span,
+  caret in the value (anchored to the end of the prefix while the value is empty,
+  since a caret can't sit in a zero-width span).
+
+- *Committed parts render through their real projections.* Once a part is
+  committed, its card body is the actual content document recursed through the
+  inner dispatch: a `JuliaDocument` renders as a **parsed, tokenised Julia
+  document** (juliaparse → julia→syntax→text→graphics, not a lossy `string`),
+  `TextText` prose as text, and an `EvaluatorForm` as its `form` stacked over its
+  `result`. Only the active editing part uses the custom editable `TextText`.
+
+Deferred to Stage 6: pushing the finalized turn into a live conversation +
+triggering the assistant (`ComposerSubmitOperation` only normalizes for now);
+paste-as-part (needs Stage-5 parsers).
+
+### Composer model (decided — the grow-a-turn-by-parts flow)
+
+The composer edits a draft `ConversationTurn(:user)`. Only the **last** part is
+*active* (has the cursor); earlier parts are committed/static. A part's `content`
+moves through five states:
+
+| State | content type | screen |
+|---|---|---|
+| text typein | `PrimitiveString` (placeholder when empty) | pale `type a message…▮` / typed text |
+| kind chooser | `DocumentInsertion` | pale `Insert a new ▮ here` (value `julia` highlights) |
+| julia source | `JuliaInsertion` | monospace source `2+2▮` |
+| quoted code | `JuliaDocument` | syntax-highlighted code |
+| eval form | `EvaluatorForm{form,result}` | `> code` over `= result` |
+
+**Gesture → state (applies to the active part):**
+
+| Active state | Gesture | Result |
+|---|---|---|
+| text typein | printable key | insert char |
+| text typein | **SHIFT+ENTER** | newline in text |
+| text typein | **INSERT** | commit current text (drop if empty) → append active `DocumentInsertion` |
+| text typein | **ENTER** | **submit the turn** |
+| kind chooser | printable key | edit value (free typing; no switch on keystroke) |
+| kind chooser | **ENTER** | if value is a known keyword (`julia`/`json`/`xml`/`text`) **commit** → corresponding insertion (`JuliaInsertion`, …); otherwise *ignore* (stay editing) |
+| kind chooser | **ESC** | revert active part → empty text typein |
+| julia source | printable key | edit source |
+| julia source | **SHIFT+ENTER** | newline in source (multi-line code) |
+| julia source | **ENTER** | `juliaparse(src)` → active becomes `JuliaDocument`; append active text typein |
+| julia source | **ALT+ENTER** | parse **+ eval** (`execute_julia_code`) → active becomes `EvaluatorForm`; append active text typein |
+| julia source | **ESC** | revert active part → empty text typein |
+
+(Parse failure on ENTER/ALT+ENTER ⇒ no-op, stay editing. After any structured
+commit, the new active text typein keeps the "always end on a typein" invariant.)
+
+**Decisions locked:** text typein = `PrimitiveString` (reuse placeholder +
+editing), converted to `TextText` when committed; ENTER submits only from a text
+typein; SHIFT+ENTER newlines in both text and Julia source; ESC reverts a
+structured insertion entirely to an empty text typein; keyword `julia`.
+
+**Operations** (in a new `ConversationEditor.jl` or `WorkbenchAssistant.jl`):
+`InsertPart` (text→chooser), `EvaluatePart` (ALT+ENTER, via `execute_julia_code`
+→ `EvaluatorForm`), `SubmitDraftTurn` (finalize: drop trailing empty typein,
+convert active `PrimitiveString`→`TextText`, push to conversation, trigger
+assistant). Source-commit (`JuliaInsertion`→`JuliaDocument`) reuses the Stage-3a
+`InsertionToSyntaxLeaf` reader; the chooser commits the keyword → insertion **on
+ENTER** (the Stage-3a `DocumentInsertionToSyntaxLeaf` reader already does this via
+the factory — no per-keystroke switching).
+
+**Worked case** (`"hey assistant, look what I've got"` · evaluated `2+2` ·
+`"see, it's not that complicated"`): type → INSERT → type `julia` → **ENTER**
+(commit chooser → `JuliaInsertion`) → type `2+2` → ALT+ENTER (`> 2+2 / = 4`, new
+typein) → type → ENTER submit ⇒ turn parts `[TextText, EvaluatorForm(2+2→4),
+TextText]`.
+
+**Deliverable / test.** New example `conversation_editor_example` (root = a draft
+`ConversationTurn(:user)`), exercising the worked case end-to-end. Tests: scripted
+gesture sequences via the reader (mirroring `TypeinTest`), asserting the draft
+turn's parts after each gesture, and the final 3-part turn. Paste (JSON/XML/Table
+→ a part) folds in once the Stage-5 parsers exist.
 
 ## Stage 4 — Serialization: conversation → LLM messages/string
 

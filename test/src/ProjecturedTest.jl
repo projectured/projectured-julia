@@ -46,6 +46,7 @@ include("projection/ObjectToWidgetTest.jl")
 include("projection/ProjectionConfiguringTest.jl")
 include("projection/WidgetTextEditTest.jl")
 include("projection/DocumentInsertionTest.jl")
+include("projection/ConversationEditorTest.jl")
 include("projection/CopyingProjectionTest.jl")
 include("projection/TooltipTest.jl")
 include("projection/GraphicsToFileTest.jl")
@@ -131,6 +132,7 @@ function test_all()
     test_typeins()
     test_mcp_tools()
     test_document_insertion()
+    test_conversation_editor()
     test_assistant_mvp()
     test_mouse_clicks()
     test_click_roundtrips()
@@ -174,6 +176,7 @@ export test_json_content_clicks_clean, test_json_content_clicks_clean_all
 export test_collapse_roundtrip
 export test_tree_navigation, test_tree_navigations, test_tree_navigations_complete, explore_tree_selections
 export test_assistant_mvp, make_assistant_mvp_setup, make_assistant_mvp_projection
+export test_conversation_editor
 export test_database_connection, test_database, test_database_no_db, test_database_tabular
 export test_db_catalog, test_db_catalog_tabular, test_db_catalog_json, test_db_catalog_syntax
 

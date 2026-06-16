@@ -22,3 +22,11 @@ function make_conversation_document_example()
         ]),
     ])
 end
+
+# A draft user turn for the composer (Stage 3b) — a single active text typein
+# (`PrimitiveString`) the user grows part by part: type prose, INSERT to start a
+# kind chooser, type `julia` + ENTER for a Julia source part, ALT+ENTER to
+# evaluate it, etc. Rooted at the turn itself so the composer can be exercised in
+# isolation (`run_example(conversation_editor_example)`).
+make_conversation_editor_document_example() =
+    ConversationTurn(:user, [ConversationPart(PrimitiveString(""))])
