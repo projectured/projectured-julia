@@ -62,10 +62,9 @@ function make_workbench_projection(; measure=sdl_measure_text,
                                        JsonDocument         => SequentialProjection(RecursiveProjection(JsonToSyntax()), RecursiveProjection(SyntaxToText()), WordWrapping(measure=measure), TextToGraphics(measure=measure)),
                                        XmlDocument          => SequentialProjection(RecursiveProjection(XmlToSyntax()), RecursiveProjection(SyntaxToText()), WordWrapping(measure=measure), TextToGraphics(measure=measure)),
                                        TextDocument         => SequentialProjection(WordWrapping(measure=measure), TextToGraphics(measure=measure)),
-                                       # Composer input pane (a ConversationDraft) — before the
-                                       # ConversationDocument entry it is a subtype of.
+                                       # Assistant panel: composer input + widget chat history.
                                        conversation_draft_entry(measure=measure),
-                                       ConversationDocument => SequentialProjection(RecursiveProjection(ConversationToSyntax()), RecursiveProjection(SyntaxToText(indent_size=0)), WordWrapping(measure=measure), TextToGraphics(measure=measure)),
+                                       conversation_widget_entry(measure=measure),
                                        PrimitiveDocument    => SequentialProjection(RecursiveProjection(PrimitiveToSyntax()), RecursiveProjection(SyntaxToText()), WordWrapping(measure=measure), TextToGraphics(measure=measure)),
                                    ])
     font = font_ubuntu_monospace_regular_24

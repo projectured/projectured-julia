@@ -1,18 +1,10 @@
-"""
-    conversation_draft_entry(; measure=sdl_measure_text) -> Pair
-
-The dispatch entry that renders a `ConversationDraft` (the assistant panel's
-composer input) to graphics: the composer produces a widget chat bubble, then a
-two-stage `composer → widget_graphics` chain renders it (and the text/Julia/JSON/
-XML documents embedded in its part cards). Shared by every projection that draws
-the assistant panel (assistant, workbench, wrapper). Place it **before** any
-`ConversationDocument` entry, since `ConversationDraft <: ConversationDocument`.
-"""
-function conversation_draft_entry(; measure=sdl_measure_text)
+# Render a widget tree (from ConversationToWidget / the composer) to graphics,
+# including the part-content documents embedded in the cards.
+function _conversation_widget_graphics(; measure=sdl_measure_text)
     font = font_ubuntu_monospace_regular_24
     w2g  = WidgetToGraphics(font; measure=measure)
     text_to_graphics = SequentialProjection(WordWrapping(measure=measure), TextToGraphics(measure=measure))
-    widget_graphics = RecursiveProjection(TypeDispatchingProjection(vcat(
+    RecursiveProjection(TypeDispatchingProjection(vcat(
         w2g.dispatch,
         Pair{DataType,Any}[
             HorizontalLayout => HorizontalLayoutToGraphicsCanvas(),
@@ -23,10 +15,32 @@ function conversation_draft_entry(; measure=sdl_measure_text)
             XmlDocument      => make_xml_projection_example(measure=measure),
         ],
     )))
+end
+
+"""
+    conversation_draft_entry(; measure=sdl_measure_text) -> Pair
+
+Dispatch entry rendering a `ConversationDraft` (the assistant panel's composer
+input): the composer produces a widget chat bubble, then `widget_graphics`
+renders it. Place **before** any `ConversationDocument` entry, since
+`ConversationDraft <: ConversationDocument`.
+"""
+conversation_draft_entry(; measure=sdl_measure_text) =
     ConversationDraft => SequentialProjection(
         RecursiveProjection(ConversationComposerToWidget()),
-        widget_graphics)
-end
+        _conversation_widget_graphics(measure=measure))
+
+"""
+    conversation_widget_entry(; measure=sdl_measure_text) -> Pair
+
+Dispatch entry rendering the conversation history (`ConversationDocument`) as the
+Stage-2 widget chat bubbles (`ConversationToWidget → widget_graphics`). Shared by
+the assistant, workbench, and wrapper panels so they all show the widget chat.
+"""
+conversation_widget_entry(; measure=sdl_measure_text) =
+    ConversationDocument => SequentialProjection(
+        RecursiveProjection(ConversationToWidget()),
+        _conversation_widget_graphics(measure=measure))
 
 """
     make_assistant_projection_example(; measure=sdl_measure_text)
@@ -45,37 +59,16 @@ XML) to graphics.
 """
 function make_assistant_projection_example(; measure=sdl_measure_text)
     font = font_ubuntu_monospace_regular_24
-    text_to_graphics = SequentialProjection(WordWrapping(measure=measure), TextToGraphics(measure=measure))
     w2g  = WidgetToGraphics(font; measure=measure)
-
-    # Widget tree (from ConversationToWidget / the composer) → graphics, including
-    # the part-content documents embedded in the cards.
-    content_dispatch = Pair{DataType,Any}[
-        HorizontalLayout => HorizontalLayoutToGraphicsCanvas(),
-        VerticalLayout   => VerticalLayoutToGraphicsCanvas(),
-        TextDocument     => text_to_graphics,
-        JuliaDocument    => make_julia_projection_example(measure=measure),
-        JsonDocument     => make_json_projection_example(measure=measure),
-        XmlDocument      => make_xml_projection_example(measure=measure),
-    ]
-    widget_graphics = RecursiveProjection(TypeDispatchingProjection(vcat(w2g.dispatch, content_dispatch)))
-
-    # The panel widget tree → graphics, routing the conversation history and the
-    # draft through their widget chains. `ConversationDraft` must precede
-    # `ConversationDocument` (it is a subtype) so the draft hits the composer.
+    # Route the conversation history and the draft through their widget chains.
+    # `ConversationDraft` precedes `ConversationDocument` (its subtype).
     inner_chain = RecursiveProjection(TypeDispatchingProjection(vcat(
         w2g.dispatch,
-        content_dispatch,
         Pair{DataType,Any}[
-            ConversationDraft    => SequentialProjection(
-                                        RecursiveProjection(ConversationComposerToWidget()),
-                                        widget_graphics),
-            ConversationDocument => SequentialProjection(
-                                        RecursiveProjection(ConversationToWidget()),
-                                        widget_graphics),
+            conversation_draft_entry(measure=measure),
+            conversation_widget_entry(measure=measure),
         ],
     )))
-
     SequentialProjection(
         RecursiveProjection(WorkbenchToWidget()),
         inner_chain,

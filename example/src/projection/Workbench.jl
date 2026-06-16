@@ -31,10 +31,10 @@ function make_workbench_projection_example(; measure=sdl_measure_text)
             # pale "type message here" hint when empty. It is the only
             # PrimitiveString rendered through this entry.
             PrimitiveDocument     => SequentialProjection(RecursiveProjection(PrimitiveToText(string_kw=(color=fg, placeholder="type message here", placeholder_color=hint))), text_to_graphics),
-            # The assistant input pane is the composer on a draft turn; render it
-            # before the (syntax) ConversationDocument entry it is a subtype of.
+            # Assistant panel: composer input (draft) + widget chat-bubble history.
+            # ConversationDraft precedes ConversationDocument (its subtype).
             conversation_draft_entry(measure=measure),
-            ConversationDocument  => SequentialProjection(RecursiveProjection(ConversationToSyntax()), RecursiveProjection(SyntaxToText(indent_size=0)), text_to_graphics),
+            conversation_widget_entry(measure=measure),
             WorkspaceDocument     => SequentialProjection(RecursiveProjection(WorkspaceToFileSystem()), RecursiveProjection(FileSystemToSyntax()), RecursiveProjection(SyntaxToText()), text_to_graphics_no_wrap),
             FileSystemDocument    => SequentialProjection(RecursiveProjection(FileSystemToSyntax()), RecursiveProjection(SyntaxToText()), text_to_graphics_no_wrap),
             EditorIntrospection   => object_chain,
