@@ -414,7 +414,19 @@ gesture sequences via the reader (mirroring `TypeinTest`), asserting the draft
 turn's parts after each gesture, and the final 3-part turn. Paste (JSON/XML/Table
 → a part) folds in once the Stage-5 parsers exist.
 
-## Stage 4 — Serialization: conversation → LLM messages/string
+## Stage 4 — Serialization: conversation → LLM messages/string ✅ DONE
+
+Implemented in `editor/WorkbenchAssistant.jl`. `build_messages` walks turns →
+messages, dispatching on each part's content type; structured documents serialize
+to **fenced source via their print chain** (`…→syntax→text`, flattened — the same
+text the editor shows): `JuliaDocument`→```` ```julia ````, `JsonDocument`→
+```` ```json ````, `XmlDocument`→```` ```xml ````. `EvaluatorForm` →
+`tool_use`+`tool_result` (assistant) / inline "I ran …" text (user). A multi-part
+user turn is one message with N blocks. Added `conversation_to_string` (readable
+plain fallback) and exported `result_text`. Tests:
+`test/src/editor/ConversationSerializationTest.jl` (`test_conversation_serialization`,
+16 asserts) — message count, role alternation, per-block shape, multi-part → one
+message, tool_use/tool_result pairing.
 
 **Goal.** Convert the turn/part conversation into the Anthropic messages array
 (and a plain-string fallback) so the LLM understands it.

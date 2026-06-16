@@ -27,12 +27,20 @@ Internal helpers:
 module WorkbenchAssistantModule
 
 import ..OperationApiModule: Operation, evaluate_operation
-import ..ProjectionApiModule: projection_read
+import ..ProjectionApiModule: projection_read, projection_print
 import ..ReactiveModule: Cell
 import ..TextModule: TextText, TextString
 import ..PrimitiveModule: PrimitiveString
 import ..CollectionModule: CellVector
 import ..JuliaModule: JuliaDocument
+import ..JsonModule: JsonDocument
+import ..XmlModule: XmlDocument
+import ..SequentialProjectionModule: SequentialProjection
+import ..RecursiveProjectionModule: RecursiveProjection
+import ..JuliaToSyntaxModule: JuliaToSyntax
+import ..JsonToSyntaxModule: JsonToSyntax
+import ..XmlToSyntaxModule: XmlToSyntax
+import ..SyntaxToTextModule: SyntaxToText
 import ..ReferenceModule: ConcreteReferencePath, FieldReference, RangeReference, EmptyReferencePath
 import ..ReferenceCaseModule: var"@reference_case"
 import ..ReferenceBuilderModule: var"@reference"
@@ -56,7 +64,7 @@ using JSON3
 
 export SubmitProseOperation, SubmitJuliaOperation,
        ClearInputOperation, ResetConversationOperation,
-       build_messages, assistant_tool_schemas, dispatch_assistant_tool,
+       build_messages, conversation_to_string, assistant_tool_schemas, dispatch_assistant_tool,
        parse_markdown_blocks
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -122,6 +130,46 @@ _text_to_string(s::PrimitiveString) = something(s.value, "")
 _content_to_string(t::TextText) = _text_to_string(t)
 _content_to_string(d) = hasproperty(d, :name) ? String(d.name) : string(d)
 
+# ── Domain document → source text, via its print chain ─────────────────────────
+# Serialize a structured document by projecting it through `…→syntax→text` and
+# flattening the resulting (possibly nested) TextText — the same rendering the
+# editor shows, so the LLM sees exactly the displayed source. Built once.
+
+const _JULIA_TO_TEXT = SequentialProjection(RecursiveProjection(JuliaToSyntax()),
+                                            RecursiveProjection(SyntaxToText()))
+const _JSON_TO_TEXT  = SequentialProjection(RecursiveProjection(JsonToSyntax()),
+                                            RecursiveProjection(SyntaxToText()))
+const _XML_TO_TEXT   = SequentialProjection(RecursiveProjection(XmlToSyntax()),
+                                            RecursiveProjection(SyntaxToText()))
+
+_flatten_text!(io, s::TextString) = (c = s.content; c isa AbstractString && print(io, c); nothing)
+_flatten_text!(io, t::TextText)   = (for e in t.elements; _flatten_text!(io, e); end; nothing)
+_flatten_text!(io, _)             = nothing
+
+function _via_chain(chain, doc)
+    try
+        io = IOBuffer()
+        _flatten_text!(io, projection_print(chain, doc).output)
+        String(take!(io))
+    catch
+        _content_to_string(doc)
+    end
+end
+
+# Source text for a structured document (no fence).
+_doc_source(c::JuliaDocument) = _via_chain(_JULIA_TO_TEXT, c)
+_doc_source(c::JsonDocument)  = _via_chain(_JSON_TO_TEXT, c)
+_doc_source(c::XmlDocument)   = _via_chain(_XML_TO_TEXT, c)
+_doc_source(c)               = _content_to_string(c)
+
+# One LLM text-block string for a part's content: prose as-is, a structured
+# document fenced with its kind (```julia / ```json / ```xml).
+_block_text(c::TextText)      = _content_to_string(c)
+_block_text(c::JuliaDocument) = "```julia\n" * _doc_source(c) * "\n```"
+_block_text(c::JsonDocument)  = "```json\n"  * _doc_source(c) * "\n```"
+_block_text(c::XmlDocument)   = "```xml\n"   * _doc_source(c) * "\n```"
+_block_text(c)               = _content_to_string(c)
+
 # Part / turn helpers for the uniform turn/part model.
 _part_content(p::ConversationPart) = p.content
 _part_text(p::ConversationPart) = _content_to_string(p.content)
@@ -133,7 +181,7 @@ function _first_eval(t::ConversationTurn)
     end
     nothing
 end
-_eval_code(ef::EvaluatorForm)   = _content_to_string(ef.form)
+_eval_code(ef::EvaluatorForm)   = _doc_source(ef.form)
 _eval_result(ef::EvaluatorForm) = _content_to_string(ef.result)
 
 function _set_input!(a::WorkbenchAssistant, s::AbstractString)
@@ -320,7 +368,7 @@ function build_messages(conversation::ConversationConversation)
                            "\n```\nResult:\n```\n" * _eval_result(c) * "\n```"
                     push!(content, Dict("type" => "text", "text" => text))
                 else
-                    push!(content, Dict("type" => "text", "text" => _part_text(part)))
+                    push!(content, Dict("type" => "text", "text" => _block_text(c)))
                 end
             end
             isempty(content) && push!(content, Dict("type" => "text", "text" => " "))
@@ -384,14 +432,34 @@ function _assistant_content(t::ConversationTurn)
     for part in t.parts
         c = part.content
         c isa EvaluatorForm && continue
-        if c isa JuliaDocument
-            push!(content, Dict("type" => "text",
-                                 "text" => "```julia\n" * _content_to_string(c) * "\n```"))
-        else
-            push!(content, Dict("type" => "text", "text" => _part_text(part)))
-        end
+        push!(content, Dict("type" => "text", "text" => _block_text(c)))
     end
     content
+end
+
+"""
+    conversation_to_string(conversation) -> String
+
+A plain, human-readable rendering of the whole conversation (for logging and as a
+non-API fallback): each turn labelled by role, each part rendered with its kind
+(prose, fenced code/JSON/XML, or an `EvaluatorForm` as `> code` / `= result`).
+"""
+function conversation_to_string(conversation::ConversationConversation)
+    io = IOBuffer()
+    for t in conversation.turns
+        println(io, uppercasefirst(string(t.role)), ":")
+        for part in t.parts
+            c = part.content
+            if c isa EvaluatorForm
+                println(io, "> ", _eval_code(c))
+                println(io, "= ", _eval_result(c))
+            else
+                println(io, _block_text(c))
+            end
+        end
+        println(io)
+    end
+    String(take!(io))
 end
 
 # ═══════════════════════════════════════════════════════════════════════

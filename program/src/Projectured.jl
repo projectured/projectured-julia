@@ -434,7 +434,7 @@ using .ToolRegistryModule: Tool, Resource,
                             anthropic_tool_schema, mcp_tools, mcp_resources
 using .AnthropicModule: stream_message
 using .LlmModule: LlmBackend, AnthropicLlm, FakeLlm, stream_turn
-using .EvaluatorModule: EvaluatorDocument, EvaluatorForm, EvaluatorToplevel
+using .EvaluatorModule: EvaluatorDocument, EvaluatorForm, EvaluatorToplevel, result_text
 using .ConversationModule: ConversationDocument, ConversationConversation,
                             ConversationTurn, ConversationPart
 using .ConversationToSyntaxModule: ConversationToSyntax,
@@ -447,7 +447,7 @@ using .ConversationToWidgetModule: ConversationToWidget,
                                     ConversationPartToWidget
 using .WorkbenchAssistantModule: SubmitProseOperation, SubmitJuliaOperation,
                                    ClearInputOperation, ResetConversationOperation,
-                                   build_messages, assistant_tool_schemas,
+                                   build_messages, conversation_to_string, assistant_tool_schemas,
                                    dispatch_assistant_tool, parse_markdown_blocks
 using .ConversationEditorModule: ConversationComposerToWidget,
                                   ComposerInputOperation, ComposerBackspaceOperation,
@@ -714,7 +714,7 @@ export Tool, Resource, register_tool!, register_tools!, list_tools, call_tool,
        anthropic_tool_schema, mcp_tools, mcp_resources
 export stream_message
 export LlmBackend, AnthropicLlm, FakeLlm, stream_turn
-export EvaluatorDocument, EvaluatorForm, EvaluatorToplevel
+export EvaluatorDocument, EvaluatorForm, EvaluatorToplevel, result_text
 export ConversationDocument, ConversationConversation,
        ConversationTurn, ConversationPart
 export ConversationToSyntax,
@@ -727,7 +727,7 @@ export ConversationToWidget,
        ConversationPartToWidget
 export SubmitProseOperation, SubmitJuliaOperation,
        ClearInputOperation, ResetConversationOperation,
-       build_messages, assistant_tool_schemas, dispatch_assistant_tool,
+       build_messages, conversation_to_string, assistant_tool_schemas, dispatch_assistant_tool,
        parse_markdown_blocks
 export ConversationComposerToWidget,
        ComposerInputOperation, ComposerBackspaceOperation,
