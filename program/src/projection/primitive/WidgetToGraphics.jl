@@ -2092,7 +2092,20 @@ function projection_print(p::WidgetCardToGraphicsCanvas, recursion, w::WidgetCar
     child_iomaps = Any[]
     max_content_width = 0   # widest content row, to size the card to its content
     y = padding
-    if w.title !== nothing
+    if w.title isa Document
+        # Recurse a document title (e.g. a header row of avatar + label) so the
+        # card chrome wraps it; track its iomap so header clicks can route.
+        tim = projection_print(recursion, recursion, w.title, ctx)
+        push!(child_iomaps, (padding, y, tim))
+        push!(elements, _make_canvas(padding, y, Any[tim.output]))
+        inner = tim.output
+        if inner isa GraphicsCanvas
+            max_content_width = max(max_content_width, Int(inner.w[]))
+            y += Int(inner.h[]) + _sc(p.title_gap)
+        else
+            y += _sc(p.title_gap)
+        end
+    elseif w.title !== nothing
         title = string(w.title)
         title_width, title_height = _text_size(p.measure, p.title_text.font, title)
         _push_text!(elements, p.title_text.font, title, padding, y, _rgba(p.title_text.color))
@@ -2105,7 +2118,7 @@ function projection_print(p::WidgetCardToGraphicsCanvas, recursion, w::WidgetCar
         max_content_width = max(max_content_width, description_width); y += description_height + _sc(p.section_gap)
     end
     content = w.content
-    if content isa WidgetDocument
+    if content isa Document
         cim = projection_print(recursion, recursion, content, ctx)
         push!(child_iomaps, (padding, y, cim))
         push!(elements, _make_canvas(padding, y, Any[cim.output]))

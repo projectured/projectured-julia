@@ -36,7 +36,7 @@ using Projectured.McpModule: register_default_tools_and_resources!
 using Projectured.WorkbenchAssistantModule: _text_to_string, _run_agent_loop!,
                                             _eval_code, _eval_result
 using Projectured: ConversationConversation, ConversationTurn, ConversationPart,
-                   EvaluatorForm, TextText, TextString, JuliaIdentifier
+                   EvaluatorForm, TextText, TextString, JuliaIdentifier, WidgetCard
 import Projectured.LlmModule: stream_turn
 
 # A multi-turn scripted backend: each call to `stream_turn` consumes the
@@ -149,14 +149,18 @@ function _mvp_test_reactive_thunk()
         push!(c, ConversationTurn(:user, [ConversationPart("second")]))
         @test length(io.output.children) == n0 + 1
 
-        # Same thunk treatment for a turn's parts.
+        # Same thunk treatment for a turn's parts. A turn projects to a
+        # WidgetCard whose `content` is the reactive VerticalLayout of part
+        # widgets (the turn is not collapsed, so content is the layout itself).
         reply = ConversationTurn(:assistant; stop_reason = :end_turn)
         push!(c, reply)
         io2 = projection_print(proj, proj, c, PrinterContext())
-        reply_widget = io2.output.children[end]
-        b0 = length(reply_widget.children)
+        reply_card = io2.output.children[end]
+        @test reply_card isa WidgetCard
+        body = reply_card.content
+        b0 = length(body.children)
         push!(reply, ConversationPart("delta"))
-        @test length(reply_widget.children) == b0 + 1
+        @test length(body.children) == b0 + 1
     end
 end
 

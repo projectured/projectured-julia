@@ -24,3 +24,29 @@ function make_conversation_projection_example(; measure=sdl_measure_text)
         ],
     )))
 end
+
+# Widget presentation: `ConversationConversation → Widget bubbles → Graphics`.
+# Two stages (like the workbench/assistant examples): the conversation projects
+# to a vertical list of collapsible turn cards (each a WidgetCard with an avatar
+# header) holding collapsible part cards; then the widget tree — and the
+# part-content documents embedded in it — are rendered to graphics by the inner
+# dispatch (widgets via WidgetToGraphics, TextText/JuliaDocument via their chains).
+function make_conversation_widget_projection_example(; measure=sdl_measure_text)
+    font = font_ubuntu_monospace_regular_24
+    w2g  = WidgetToGraphics(font; measure=measure)
+    text_to_graphics = SequentialProjection(WordWrapping(measure=measure),
+                                            TextToGraphics(measure=measure))
+    inner = RecursiveProjection(TypeDispatchingProjection(vcat(
+        w2g.dispatch,
+        Pair{DataType,Any}[
+            HorizontalLayout => HorizontalLayoutToGraphicsCanvas(),
+            VerticalLayout   => VerticalLayoutToGraphicsCanvas(),
+            TextDocument     => text_to_graphics,
+            JuliaDocument    => make_julia_projection_example(measure=measure),
+        ],
+    )))
+    SequentialProjection(
+        RecursiveProjection(ConversationToWidget()),
+        inner,
+    )
+end

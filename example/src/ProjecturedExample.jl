@@ -166,6 +166,7 @@ export graphics_image_example
 export primitive_string_example
 export assistant_example
 export conversation_example
+export conversation_widget_example
 export dbcatalog_example
 export sql_syntax_example
 export sql_table_example
