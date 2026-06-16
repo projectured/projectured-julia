@@ -11,7 +11,7 @@ A part's `content` moves through these states as you edit:
 
 | state         | content type        | gesture in →                                    |
 |---------------|---------------------|-------------------------------------------------|
-| text typein   | `PrimitiveString`   | keys edit; SHIFT+ENTER newline; INSERT→chooser; ENTER→submit |
+| text typein   | `PrimitiveString`   | keys edit; SHIFT+ENTER newline; TAB/INSERT→chooser; ENTER→submit |
 | kind chooser  | `DocumentInsertion` | keys edit; ENTER commits keyword→insertion; ESC→typein |
 | julia source  | `JuliaInsertion`    | keys edit; SHIFT+ENTER newline; ENTER→`JuliaDocument`; ALT+ENTER→`EvaluatorForm`; ESC→typein |
 | quoted code   | `JuliaDocument`     | (committed)                                      |
@@ -19,7 +19,7 @@ A part's `content` moves through these states as you edit:
 
 After any structured commit (`JuliaDocument` / `EvaluatorForm`) the composer
 appends a fresh active text typein, so the draft always ends in a typein.
-`INSERT` commits the current text typein (dropping it when blank) and appends a
+`TAB` / `INSERT` commits the current text typein (dropping it when blank) and appends a
 `DocumentInsertion` kind chooser. Typing a keyword (`julia`/`json`/`xml`/`text`)
 into the chooser does **not** auto-switch — ENTER commits it via the factory.
 `ESC` reverts a structured insertion back to an empty text typein.
@@ -497,6 +497,7 @@ function composer_read(turn::ConversationTurn, evt::KeyDown)
         return @event_case evt begin
             KeyDown(:return; shift) => ComposerNewlineOperation(turn)
             KeyDown(:return)        => ComposerSubmitOperation(turn)
+            KeyDown(:tab)           => ComposerInsertPartOperation(turn)
             KeyDown(:insert)        => ComposerInsertPartOperation(turn)
             KeyDown(:backspace)     => ComposerBackspaceOperation(turn)
         end

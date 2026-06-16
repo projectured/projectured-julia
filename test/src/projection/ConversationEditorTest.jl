@@ -97,6 +97,7 @@ function test_conversation_editor()
             @test projection_read(proj, iom, KeyDown(:return, Modifiers())) isa ComposerSubmitOperation
             @test projection_read(proj, iom, KeyDown(:return, Modifiers(shift=true))) isa ComposerNewlineOperation
             @test projection_read(proj, iom, KeyDown(:insert, Modifiers())) isa ComposerInsertPartOperation
+            @test projection_read(proj, iom, KeyDown(:tab, Modifiers())) isa ComposerInsertPartOperation
             @test projection_read(proj, iom, KeyDown(:backspace, Modifiers())) isa ComposerBackspaceOperation
 
             # kind chooser
