@@ -53,7 +53,7 @@ import ..KeyboardModule: KeyDown, KeyPress
 import ..EventCaseModule: var"@event_case"
 import ..IoMapModule: SimpleIoMap
 
-export ConversationComposerToWidget,
+export ConversationComposerToWidget, composer_read, finalize_draft!, new_draft_turn,
        ComposerInputOperation, ComposerBackspaceOperation, ComposerNewlineOperation,
        ComposerInsertPartOperation, ComposerCommitChooserOperation,
        ComposerCommitSourceOperation, ComposerEvaluateOperation,
@@ -281,21 +281,34 @@ function evaluate_operation(editor, op::ComposerRevertOperation)
     _replace_active!(op.turn, getfield(_new_typein(), :content)[])
 end
 
-function evaluate_operation(editor, op::ComposerSubmitOperation)
-    t = op.turn
-    # Drop a trailing blank text typein.
+"""
+    finalize_draft!(turn) -> Bool
+
+Normalize a draft turn for submission: drop a trailing blank text typein and
+convert every remaining `PrimitiveString` part to committed `TextText` prose.
+Returns whether the turn still has any parts (i.e. is worth submitting).
+"""
+function finalize_draft!(t::ConversationTurn)
     p = _active_part(t)
     if p !== nothing && p.content isa PrimitiveString && isempty(strip(_value(p.content)))
         deleteat!(t.parts, length(t))
     end
-    # Normalize every remaining PrimitiveString part to TextText prose.
     for i in eachindex(t.parts)
         part = t.parts[i]
         part.content isa PrimitiveString &&
             (part.content = TextText(TextString(_value(part.content))))
     end
-    nothing
+    !isempty(t)
 end
+
+evaluate_operation(editor, op::ComposerSubmitOperation) = (finalize_draft!(op.turn); nothing)
+
+"""
+    new_draft_turn() -> ConversationTurn
+
+A fresh empty user draft turn (one active text typein) for the composer.
+"""
+new_draft_turn() = ConversationTurn(:user, [_new_typein()])
 
 # Parse source with `f`, guarding empty / invalid input (returns `nothing`).
 function _try_parse(f, src::AbstractString)
@@ -449,15 +462,22 @@ map_reference_backward(::ConversationComposerToWidget, iomap, ref) = nothing
 # Reader: gesture → composer operation, dispatched on the active part's state
 # ═══════════════════════════════════════════════════════════════════════
 
-function projection_read(::ConversationComposerToWidget, iomap::SimpleIoMap, evt::KeyPress)
+"""
+    composer_read(turn, event) -> Operation | nothing
+
+Map a key gesture to a composer operation on `turn`, dispatching on the active
+(last) part's state. Shared by the composer projection and the live assistant
+panel (which routes its input keys to a draft turn). `ENTER` on a plain text
+typein yields a `ComposerSubmitOperation`; the panel intercepts that to submit
+the draft into the conversation instead of merely normalizing it.
+"""
+function composer_read(turn::ConversationTurn, evt::KeyPress)
     evt.modifiers.ctrl && return nothing
-    turn = iomap.input
     _is_editable(_active_content(turn)) || return nothing
     ComposerInputOperation(turn, String(evt.text))
 end
 
-function projection_read(::ConversationComposerToWidget, iomap::SimpleIoMap, evt::KeyDown)
-    turn = iomap.input
+function composer_read(turn::ConversationTurn, evt::KeyDown)
     c = _active_content(turn)
     if c isa PrimitiveString
         return @event_case evt begin
@@ -493,5 +513,12 @@ function projection_read(::ConversationComposerToWidget, iomap::SimpleIoMap, evt
     end
     nothing
 end
+
+composer_read(::Any, ::Any) = nothing
+
+projection_read(::ConversationComposerToWidget, iomap::SimpleIoMap, evt::KeyPress) =
+    composer_read(iomap.input, evt)
+projection_read(::ConversationComposerToWidget, iomap::SimpleIoMap, evt::KeyDown) =
+    composer_read(iomap.input, evt)
 
 end # module
