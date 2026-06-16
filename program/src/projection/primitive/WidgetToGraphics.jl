@@ -1627,11 +1627,17 @@ function projection_print(p::WidgetTabbedPaneToGraphicsCanvas, recursion, w::Wid
     # available width, clip to the content box (allocation minus insets);
     # otherwise there is no constraint, so the viewport is as wide as the strip
     # and clips nothing.
+    #
+    # Reuse the distinctly-named `inset_x` (computed above) rather than a fresh
+    # `tx` local: the selector builder closure binds `tx` as a tab x-position,
+    # and because both closures capture the same enclosing-scope variable, a
+    # `tx` here would be clobbered once the strip renders — leaving the viewport
+    # width at `avail_w - last_tab_x` (a "random" narrow clip) instead of
+    # `avail_w - insets`.
     sel_view_w = if avail_w === nothing
         Cell(Int32(strip_w))
     else
-        tx, _ = _inset_total(w)
-        Cell(() -> Int32(max(0, Int(avail_w[]) - tx)))
+        Cell(() -> Int32(max(0, Int(avail_w[]) - inset_x)))
     end
     # The viewport sits at the content origin; its inner canvas is shifted back
     # by that origin so the strip elements keep their original coordinates.

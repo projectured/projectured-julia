@@ -1,5 +1,5 @@
 using Projectured: PrimitiveBool, PrimitiveNumber, PrimitiveString,
-                    PrimitiveBoolToText, PrimitiveNumberToText, PrimitiveStringToText,
+                    PrimitiveBoolToText, PrimitiveNumberToText, PrimitiveStringToTextText,
                     PrimitiveToText, TextText, TextString,
                     projection_print, projection_read,
                     map_reference_forward, map_reference_backward,
@@ -65,11 +65,11 @@ end
     @test out[1].content == ""
 end
 
-# ── PrimitiveStringToText ────────────────────────────────────────────────────
+# ── PrimitiveStringToTextText ────────────────────────────────────────────────────
 
 @testset "string prints single span (no quotes)" begin
     s = PrimitiveString("hi")
-    p = PrimitiveStringToText()
+    p = PrimitiveStringToTextText()
     out = projection_print(p, nothing, s, nothing).output
     @test length(out) == 1
     @test out[1].content == "hi"
@@ -78,7 +78,7 @@ end
 
 @testset "string reacts to value change" begin
     s = PrimitiveString("hi")
-    p = PrimitiveStringToText()
+    p = PrimitiveStringToTextText()
     out = projection_print(p, nothing, s, nothing).output
     @test out[1].content == "hi"
     s.value = "world"
@@ -90,7 +90,7 @@ end
 @testset "selection forward .value[k] → .elements[1].content[k]" begin
     s = PrimitiveString("abc")
     set_selection!(s, _value_range(2, 2))
-    p = PrimitiveStringToText()
+    p = PrimitiveStringToTextText()
     out = projection_print(p, nothing, s, nothing).output
     sel = out.selection
     @test sel isa ConcreteReferencePath
@@ -109,7 +109,7 @@ end
 
 @testset "map_reference_forward .value[k]" begin
     s = PrimitiveString("abc")
-    p = PrimitiveStringToText()
+    p = PrimitiveStringToTextText()
     iomap = projection_print(p, nothing, s, nothing)
     out = map_reference_forward(p, iomap, _value_range(2, 2))
     @test out isa ConcreteReferencePath
@@ -118,7 +118,7 @@ end
 
 @testset "map_reference_backward .elements[1].content[k]" begin
     s = PrimitiveString("abc")
-    p = PrimitiveStringToText()
+    p = PrimitiveStringToTextText()
     iomap = projection_print(p, nothing, s, nothing)
     inp = map_reference_backward(p, iomap, _elem_content_pos(1, 2))
     @test inp isa ConcreteReferencePath
@@ -132,7 +132,7 @@ end
 @testset "string KeyPress produces StringReplaceRangeOperation" begin
     s = PrimitiveString("ab")
     set_selection!(s, _value_range(0, 0))
-    p = PrimitiveStringToText()
+    p = PrimitiveStringToTextText()
     iomap = SimpleIoMap(p, s, nothing)
     op = projection_read(p, iomap, KeyPress('x'))
     @test op isa StringReplaceRangeOperation
@@ -145,7 +145,7 @@ end
 @testset "string KeyDown backspace produces op" begin
     s = PrimitiveString("ab")
     set_selection!(s, _value_range(2, 2))
-    p = PrimitiveStringToText()
+    p = PrimitiveStringToTextText()
     iomap = SimpleIoMap(p, s, nothing)
     op = projection_read(p, iomap, KeyDown(:backspace, Modifiers()))
     @test op isa StringReplaceRangeOperation
@@ -156,7 +156,7 @@ end
 @testset "string KeyDown delete produces op" begin
     s = PrimitiveString("ab")
     set_selection!(s, _value_range(0, 0))
-    p = PrimitiveStringToText()
+    p = PrimitiveStringToTextText()
     iomap = SimpleIoMap(p, s, nothing)
     op = projection_read(p, iomap, KeyDown(:delete, Modifiers()))
     @test op isa StringReplaceRangeOperation
@@ -166,7 +166,7 @@ end
 @testset "string KeyPress with ctrl returns nothing" begin
     s = PrimitiveString("ab")
     set_selection!(s, _value_range(0, 0))
-    p = PrimitiveStringToText()
+    p = PrimitiveStringToTextText()
     iomap = SimpleIoMap(p, s, nothing)
     evt = KeyPress('x', "x", Modifiers(true, false, false, false))
     @test projection_read(p, iomap, evt) === nothing
@@ -175,7 +175,7 @@ end
 @testset "string backspace at start returns nothing" begin
     s = PrimitiveString("ab")
     set_selection!(s, _value_range(0, 0))
-    p = PrimitiveStringToText()
+    p = PrimitiveStringToTextText()
     iomap = SimpleIoMap(p, s, nothing)
     @test projection_read(p, iomap, KeyDown(:backspace, Modifiers())) === nothing
 end
@@ -183,7 +183,7 @@ end
 @testset "string delete at end returns nothing" begin
     s = PrimitiveString("ab")
     set_selection!(s, _value_range(2, 2))
-    p = PrimitiveStringToText()
+    p = PrimitiveStringToTextText()
     iomap = SimpleIoMap(p, s, nothing)
     @test projection_read(p, iomap, KeyDown(:delete, Modifiers())) === nothing
 end

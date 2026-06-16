@@ -27,7 +27,7 @@ import ..KeyboardModule: KeyDown, KeyPress
 import ..EventCaseModule: var"@event_case"
 import ..TypeDispatchingModule: TypeDispatchingProjection
 import ..PrinterContextModule: child_context
-export PrimitiveBoolToText, PrimitiveNumberToText, PrimitiveStringToText, PrimitiveToText
+export PrimitiveBoolToText, PrimitiveNumberToText, PrimitiveStringToTextText, PrimitiveToText
 
 # Forward: .value[k] on the primitive → .elements[1].content[k] on the TextText.
 # Range selections collapse to a cursor at the range start.
@@ -103,28 +103,40 @@ function projection_read(p::PrimitiveNumberToText, iomap::SimpleIoMap, op::Repla
     ReplaceSelectionOperation(input_path)
 end
 
-# ── PrimitiveStringToText ────────────────────────────────────────────────────
+# ── PrimitiveStringToTextText ────────────────────────────────────────────────────
 
-struct PrimitiveStringToText <: Projection
+struct PrimitiveStringToTextText <: Projection
     font::StyleFont
     color::StyleColor
+    # Hint shown when the value is empty. `placeholder == ""` disables it, so
+    # the projection keeps its plain (placeholder-free) behavior by default.
+    placeholder::String
+    placeholder_font::StyleFont
+    placeholder_color::StyleColor
 end
-PrimitiveStringToText(; font=font_ubuntu_monospace_regular_24, color=color_solarized_green) =
-    PrimitiveStringToText(font, color)
+PrimitiveStringToTextText(; font=font_ubuntu_monospace_regular_24, color=color_solarized_green,
+                            placeholder="", placeholder_font=font, placeholder_color=color) =
+    PrimitiveStringToTextText(font, color, placeholder, placeholder_font, placeholder_color)
 
-map_reference_forward(::PrimitiveStringToText, iomap::SimpleIoMap, reference) =
+map_reference_forward(::PrimitiveStringToTextText, iomap::SimpleIoMap, reference) =
     _forward_value(reference)
-map_reference_backward(::PrimitiveStringToText, iomap::SimpleIoMap, reference) =
+map_reference_backward(::PrimitiveStringToTextText, iomap::SimpleIoMap, reference) =
     _backward_value(reference)
 
-function projection_print(p::PrimitiveStringToText, recursion, s::PrimitiveString, ctx)
-    span = TextString(() -> something(s.value, ""), p.font, p.color)
-    out = TextText(CellVector(() -> TextDocument[span]),
+function projection_print(p::PrimitiveStringToTextText, recursion, s::PrimitiveString, ctx)
+    value_span = TextString(() -> something(s.value, ""), p.font, p.color)
+    # When the value is empty and a placeholder is configured, show a muted hint
+    # span instead. Both spans keep a stable identity; the CellVector thunk only
+    # swaps which one is element 1 at the empty↔non-empty boundary, and the
+    # selection (mapped to `elements[1].content`) tracks `s.value` either way.
+    placeholder_span = TextString(p.placeholder, p.placeholder_font, p.placeholder_color)
+    show_placeholder() = !isempty(p.placeholder) && isempty(something(s.value, ""))
+    out = TextText(CellVector(() -> TextDocument[show_placeholder() ? placeholder_span : value_span]),
                    Cell(() -> _value_selection_to_text(s)))
     SimpleIoMap(p, s, out)
 end
 
-function projection_read(p::PrimitiveStringToText, iomap::SimpleIoMap, op::ReplaceSelectionOperation)
+function projection_read(p::PrimitiveStringToTextText, iomap::SimpleIoMap, op::ReplaceSelectionOperation)
     input_path = _backward_value(op.path)
     input_path === nothing && return nothing
     ReplaceSelectionOperation(input_path)
@@ -144,7 +156,7 @@ end
 
 _string_value_path(range::RangeReference) = @reference value.^(range)
 
-function projection_read(p::PrimitiveStringToText, iomap::SimpleIoMap, evt::KeyPress)
+function projection_read(p::PrimitiveStringToTextText, iomap::SimpleIoMap, evt::KeyPress)
     evt.modifiers.ctrl && return nothing
     s = iomap.input
     range = _string_value_range(s)
@@ -152,7 +164,7 @@ function projection_read(p::PrimitiveStringToText, iomap::SimpleIoMap, evt::KeyP
     StringReplaceRangeOperation(_string_value_path(range), evt.text)
 end
 
-function projection_read(p::PrimitiveStringToText, iomap::SimpleIoMap, evt::KeyDown)
+function projection_read(p::PrimitiveStringToTextText, iomap::SimpleIoMap, evt::KeyDown)
     s = iomap.input
     range = _string_value_range(s)
     range === nothing && return nothing
@@ -194,7 +206,7 @@ function PrimitiveToText(; bool_kw=(), number_kw=(), string_kw=())
     TypeDispatchingProjection(
         PrimitiveBool   => PrimitiveBoolToText(; bool_kw...),
         PrimitiveNumber => PrimitiveNumberToText(; number_kw...),
-        PrimitiveString => PrimitiveStringToText(; string_kw...),
+        PrimitiveString => PrimitiveStringToTextText(; string_kw...),
     )
 end
 

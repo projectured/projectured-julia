@@ -13,8 +13,10 @@ manual widget-position layout.
 function make_assistant_projection_example(; measure=sdl_measure_text)
     font = font_ubuntu_monospace_regular_24
     # Dark text — the SDL backend uses a cream background; the workbench's
-    # default `(0xee, 0xee, 0xee, 0xff)` pale-gray is for dark themes only.
-    fg   = (0x22, 0x22, 0x22, 0xff)
+    # default pale-gray is for dark themes only.
+    fg   = StyleColor(0x22/255, 0x22/255, 0x22/255, 1.0)
+    # Pale gray for the empty-input "type message here" placeholder.
+    hint = StyleColor(0x99/255, 0x99/255, 0x99/255, 1.0)
     w2g  = WidgetToGraphics(font; measure=measure)
     text_to_graphics = SequentialProjection(WordWrapping(measure=measure), TextToGraphics(measure=measure))
 
@@ -22,9 +24,14 @@ function make_assistant_projection_example(; measure=sdl_measure_text)
         w2g.dispatch,
         Pair{DataType,Any}[
             TextDocument         => text_to_graphics,
+            # The assistant input is the only PrimitiveString here, so project it
+            # straight to text (no SyntaxLeaf → no quotes) and show a pale hint
+            # when empty.
             PrimitiveDocument    => SequentialProjection(
-                                        RecursiveProjection(PrimitiveToSyntax()),
-                                        RecursiveProjection(SyntaxToText()),
+                                        RecursiveProjection(PrimitiveToText(string_kw=(
+                                            color=fg,
+                                            placeholder="type message here",
+                                            placeholder_color=hint))),
                                         text_to_graphics),
             JuliaDocument        => make_julia_projection_example(measure=measure),
             # Conversation → Syntax → Text → Graphics.

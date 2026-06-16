@@ -370,7 +370,7 @@ using .SyntaxToTextModule: SyntaxToText, SyntaxNodeToTextIoMap,
 using .PrimitiveToSyntaxModule: PrimitiveToSyntax, PrimitiveBoolToSyntaxLeaf,
                                  PrimitiveNumberToSyntaxLeaf, PrimitiveStringToSyntaxLeaf
 using .PrimitiveToTextModule: PrimitiveToText, PrimitiveBoolToText,
-                               PrimitiveNumberToText, PrimitiveStringToText
+                               PrimitiveNumberToText, PrimitiveStringToTextText
 using .ReferenceToTextModule: ReferenceToText, ReferenceToHumanReadableText
 using .MathToSyntaxModule: MathToSyntax, MathInsertionToSyntaxLeaf, MathVariableToSyntaxLeaf,
                             MathBinaryOperationToSyntaxNode, MathParenthesizedToSyntaxNode,
@@ -507,6 +507,7 @@ export NedDocument, NedInsertion, NedExtends, NedInterfaceName, NedLoop, NedCond
        NedSimpleModule, NedCompoundModule, NedModuleInterface, NedChannel, NedChannelInterface,
        NedPackage, NedImport, NedFile
 export nedparse, nedparse_file
+export juliaparse, juliaparse_file
 export NedInsertionToSyntaxLeaf, NedPackageToSyntaxLeaf, NedImportToSyntaxLeaf,
        NedPropertyToSyntaxLeaf, NedParamToSyntaxLeaf, NedGateToSyntaxLeaf,
        NedSubmoduleToSyntaxNode, NedConnectionToSyntaxLeaf, NedConnectionGroupToSyntaxNode,
@@ -654,7 +655,7 @@ export SyntaxToText, SyntaxLeafToText, SyntaxListToText
 export PrimitiveToSyntax, PrimitiveBoolToSyntaxLeaf,
        PrimitiveNumberToSyntaxLeaf, PrimitiveStringToSyntaxLeaf
 export PrimitiveToText, PrimitiveBoolToText,
-       PrimitiveNumberToText, PrimitiveStringToText
+       PrimitiveNumberToText, PrimitiveStringToTextText
 export ReferenceToText, ReferenceToHumanReadableText
 export MathToSyntax, MathInsertionToSyntaxLeaf, MathVariableToSyntaxLeaf,
        MathBinaryOperationToSyntaxNode, MathParenthesizedToSyntaxNode,
