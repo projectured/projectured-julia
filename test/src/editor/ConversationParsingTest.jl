@@ -50,5 +50,11 @@ function test_parse_markdown_blocks()
         # Plain prose only → a single text part.
         plain = parse_markdown_blocks("just words")
         @test length(plain) == 1 && plain[1].content isa TextText
+
+        # Inline code spans render as text (not the `Markdown.Code(...)` repr).
+        inline = parse_markdown_blocks("Nice `factorial(6) = 720` done")
+        txt = _cp_flat(inline[1].content)
+        @test occursin("factorial(6) = 720", txt)
+        @test !occursin("Markdown.Code", txt)
     end
 end

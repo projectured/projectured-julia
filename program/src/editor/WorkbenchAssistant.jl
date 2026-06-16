@@ -742,12 +742,20 @@ function _md_walk(io, x::AbstractVector)
     end
 end
 
+# Inline code span (`code`) — render the code text, not the `Markdown.Code(...)`
+# constructor repr the generic fallback would produce.
+_md_walk(io, x::Markdown.Code)    = print(io, '`', x.code, '`')
+_md_walk(io, x::Markdown.LaTeX)   = print(io, x.formula)
+_md_walk(io, ::Markdown.LineBreak) = print(io, '\n')
+
 function _md_walk(io, x)
-    # Generic fallback for Markdown inline nodes
+    # Generic fallback for Markdown inline nodes (Bold/Italic/Link carry `.text`).
     if hasproperty(x, :text)
         _md_walk(io, x.text)
     elseif hasproperty(x, :content)
         _md_walk(io, x.content)
+    elseif hasproperty(x, :code)
+        print(io, x.code)
     else
         print(io, string(x))
     end
