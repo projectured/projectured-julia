@@ -433,6 +433,16 @@ child". (Open-coding it and getting either slot wrong silently breaks
 heterogeneous recursion — the child gets projected by the wrong projection, or
 not recursively at all.)
 
+> **Principle: recurse as little as possible.** A projection should transform
+> **only its own single level** and delegate every child to `recursion` — even
+> when the child happens to be the same domain. Do *not* walk your input subtree
+> yourself and flatten the whole thing into your output. Self-walking a subtree
+> hard-codes which projection renders each descendant and forecloses **unforeseen
+> combinations of documents and projections**: a child could be a different
+> domain, or a substituted projection, and only single-level delegation lets the
+> recursion follow whatever projection actually runs. Keeping each projection to
+> one level is exactly what makes the library composable.
+
 ## Mapping references when the printer recurses
 
 When `projection_print` recurses into children, `map_reference_forward` and
@@ -496,6 +506,14 @@ When the child the printer recursed into went through a `CopyingProjection` (as
 > was deleted in favour of the delegation rule above. Whatever you write, the two
 > directions must agree with each other *and* with how the printer wired the
 > output selection.
+>
+> The same prohibition applies to the **printer**. Flattening a child subtree
+> into your own output — walking `input`'s descendants yourself instead of calling
+> `projection_print(recursion, recursion, child, …)` and composing each
+> `child_iomap.output` — is the printer-side School B. It forecloses composing any
+> descendant with another projection, for the same reasons. (`SyntaxNodeToText`
+> historically did exactly this; see
+> `plan/pending/syntaxtotext-delegation.md`.)
 
 ## Type dispatching
 

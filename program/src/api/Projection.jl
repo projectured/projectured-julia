@@ -131,6 +131,19 @@ recurses. Each concrete projection adds a method; compound projections such as
      *share* the same `selection::Cell` (`getfield(input, :selection)`) on both
      sides — writes are then visible on both with no mapping. Valid only
      leaf-to-leaf (selection deep dive §7).
+
+# Delegate one level; never flatten the subtree
+
+**Transform only your own node and hand every child to `recursion`** — even when
+the child is the same domain you are. The preferred design is to recurse as
+*little* as possible: a node projection descends exactly one level and delegates
+each child through `recursion`, rather than walking its input subtree itself and
+baking the whole tree into its output. Self-walking a subtree hard-codes which
+projection renders each descendant and forecloses **unforeseen combinations of
+documents and projections** — a child might be a different domain, or rendered by
+a substituted projection, and only delegation lets the recursion follow whatever
+projection actually runs. This is the printer-side form of the "delegate, don't
+re-walk by type" rule the reference mappers follow (see `map_reference_forward`).
 """
 function projection_print end
 

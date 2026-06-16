@@ -111,6 +111,13 @@ without hard-coding the inner pipeline. Every multi-shape domain projection
 (JsonToSyntax, XmlToSyntax, ObjectToSyntax, WidgetToGraphics, …) wraps a
 TypeDispatchingProjection in a RecursiveProjection.
 
+The reason node projections take `recursion` instead of calling a fixed inner
+projection is precisely to keep each projection **single-level and composable**:
+a projection renders one level and delegates children, so any subtree can be
+swapped for — or composed with — another projection. A projection that recurses
+over its own subtree instead would foreclose that (see the recursion principle in
+[projection-system.md](projection-system.md#recursion-across-projections)).
+
 ## AlternativeProjection
 
 ```julia
