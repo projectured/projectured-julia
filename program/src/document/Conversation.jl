@@ -6,23 +6,24 @@ editor. The whole conversation, including in-flight streaming, is a real
 ProjecturEd domain so selection, projections, and editing all compose with
 the rest of the editor.
 
-Top-level type: `ConversationConversation` — a sequence of messages.
+Uniform *turn / part* model:
 
-Message subtypes (`ConversationMessage`):
-- `ConversationUserMessage`      — user prose (a `TextText`).
-- `ConversationAssistantMessage` — assistant response composed of blocks.
-- `ConversationCodeExecution`    — a code run with both input and output,
-                                   tagged with the `initiator` that triggered
-                                   it (`:user` for ALT+ENTER, `:assistant`
-                                   for an AI `execute_julia_code` tool call).
+- `ConversationConversation` — an ordered sequence of `ConversationTurn`s.
+- `ConversationTurn`         — one message in the chat: a `role`
+                               (`:user` / `:assistant`), an ordered list of
+                               `ConversationPart`s, a `stop_reason`, and a
+                               `collapsed` flag.
+- `ConversationPart`         — one collapsible slot wrapping an arbitrary
+                               `content::Document`. The content's own type
+                               drives projection and serialization:
+                                 * `TextText`     — prose
+                                 * `JuliaDocument`— quoted code
+                                 * `EvaluatorForm`— code + evaluation result
+                                 * `JsonDocument` / `XmlDocument` / … — data
+                                 * `DocumentInsertion` — being typed (composer)
 
-Block subtypes (`ConversationBlock`) live inside `ConversationAssistantMessage`:
-- `ConversationTextBlock`     — prose paragraph (a `TextText`).
-- `ConversationCodeBlock`     — fenced code; `body` is `JuliaDocument` for julia, `TextText` otherwise.
-- `ConversationHeadingBlock`  — heading at a given level.
-- `ConversationListBlock`     — bulleted list of `TextText`s.
-
-Status of an assistant turn is held by `ConversationAssistantMessage.stop_reason`.
+There is exactly **one** part type; there is no part subtype hierarchy. Per-slot
+state that is not in the content (`collapsed`, `selection`) lives on the part.
 """
 module ConversationModule
 
@@ -30,240 +31,126 @@ import ..ReactiveModule: Cell, setfn!, setval!
 import ..DocumentModule: Document, @document
 import ..CollectionModule: CellVector
 import ..TextModule: TextText, TextString
-import ..JuliaModule: JuliaDocument
 import ..ReferenceModule: Reference, ReferencePath
 
 export ConversationDocument, ConversationConversation,
-       ConversationMessage,
-       ConversationUserMessage, ConversationAssistantMessage,
-       ConversationCodeExecution,
-       ConversationBlock,
-       ConversationTextBlock, ConversationCodeBlock,
-       ConversationHeadingBlock, ConversationListBlock,
-       IConversationConversation,
-       IConversationUserMessage, IConversationAssistantMessage,
-       IConversationCodeExecution,
-       IConversationTextBlock, IConversationCodeBlock,
-       IConversationHeadingBlock, IConversationListBlock
+       ConversationTurn, ConversationPart,
+       IConversationConversation, IConversationTurn, IConversationPart
 
-# ── Abstract bases ──────────────────────────────────────────────────────────
+# ── Abstract base ─────────────────────────────────────────────────────────────
 
 abstract type ConversationDocument <: Document end
-abstract type ConversationMessage  <: ConversationDocument end
-abstract type ConversationBlock    <: ConversationDocument end
 
-# ── Blocks ──────────────────────────────────────────────────────────────────
+# ── ConversationPart ──────────────────────────────────────────────────────────
 
 """
-    ConversationTextBlock(text::TextText)
+    ConversationPart(content; collapsed = false)
 
-A paragraph of prose inside an assistant message.
+A collapsible slot around an arbitrary content document.
 """
-@document struct ConversationTextBlock <: ConversationBlock
-    text::TextText
+@document struct ConversationPart <: ConversationDocument
+    content::Document
+    collapsed::Bool
     selection::Reference
 end
 
-ConversationTextBlock() = ConversationTextBlock(Cell(TextText()), Cell(nothing))
-ConversationTextBlock(text::TextText) = ConversationTextBlock(Cell(text), Cell(nothing))
-ConversationTextBlock(s::AbstractString) =
-    ConversationTextBlock(Cell(TextText(TextString(String(s)))), Cell(nothing))
+ConversationPart(content::Document; collapsed::Bool = false) =
+    ConversationPart(Cell(content), Cell(collapsed), Cell(nothing))
+ConversationPart(s::AbstractString; collapsed::Bool = false) =
+    ConversationPart(Cell(TextText(TextString(String(s)))), Cell(collapsed), Cell(nothing))
+
+# ── ConversationTurn ──────────────────────────────────────────────────────────
 
 """
-    ConversationCodeBlock(language::String, body)
+    ConversationTurn(role; parts = [], stop_reason = :complete, collapsed = false)
 
-A fenced code block. `body` is a `JuliaDocument` if `language == "julia"`,
-otherwise a `TextText` rendered monospace.
+One chat message: a `role` (`:user` / `:assistant`), an ordered list of parts,
+a streaming `stop_reason`, and a `collapsed` flag.
 """
-@document struct ConversationCodeBlock <: ConversationBlock
-    language::String
-    body::Document
-    selection::Reference
-end
-
-ConversationCodeBlock(language::AbstractString, body::Document) =
-    ConversationCodeBlock(Cell(String(language)), Cell(body), Cell(nothing))
-
-"""
-    ConversationHeadingBlock(level::Int, text::TextText)
-
-A markdown heading; `level ∈ 1:6`.
-"""
-@document struct ConversationHeadingBlock <: ConversationBlock
-    level::Int
-    text::TextText
-    selection::Reference
-end
-
-ConversationHeadingBlock(level::Int, text::TextText) =
-    ConversationHeadingBlock(Cell(level), Cell(text), Cell(nothing))
-ConversationHeadingBlock(level::Int, s::AbstractString) =
-    ConversationHeadingBlock(Cell(level), Cell(TextText(TextString(String(s)))), Cell(nothing))
-
-"""
-    ConversationListBlock(items::CellVector{TextText})
-
-A bulleted list. Items are `TextText` values.
-"""
-@document struct ConversationListBlock <: ConversationBlock
-    items::CellVector
-    selection::Reference
-end
-
-ConversationListBlock() = ConversationListBlock(CellVector(), Cell(nothing))
-ConversationListBlock(items::Vector) =
-    ConversationListBlock(CellVector(Cell[Cell(x) for x in items]), Cell(nothing))
-
-# ── Messages ────────────────────────────────────────────────────────────────
-
-"""
-    ConversationUserMessage(text::TextText)
-
-A user prose turn.
-"""
-@document struct ConversationUserMessage <: ConversationMessage
-    text::TextText
-    selection::Reference
-end
-
-ConversationUserMessage() = ConversationUserMessage(Cell(TextText()), Cell(nothing))
-ConversationUserMessage(text::TextText) = ConversationUserMessage(Cell(text), Cell(nothing))
-ConversationUserMessage(s::AbstractString) =
-    ConversationUserMessage(Cell(TextText(TextString(String(s)))), Cell(nothing))
-
-"""
-    ConversationAssistantMessage(; blocks=[], stop_reason=:streaming)
-
-A streaming assistant response. `blocks` is a `CellVector` of
-`ConversationBlock`s appended to as the SSE stream arrives.
-`stop_reason` is a `Symbol`: `:streaming`, `:end_turn`, `:tool_use`,
-`:max_tokens`, `:error`, ...
-"""
-@document struct ConversationAssistantMessage <: ConversationMessage
-    blocks::CellVector
+@document struct ConversationTurn <: ConversationDocument
+    role::Symbol
+    parts::CellVector
     stop_reason::Symbol
+    collapsed::Bool
     selection::Reference
 end
 
-ConversationAssistantMessage(; blocks::Vector = ConversationBlock[],
-                              stop_reason::Symbol = :streaming) =
-    ConversationAssistantMessage(CellVector(Cell[Cell(b) for b in blocks]),
-                                 Cell(stop_reason), Cell(nothing))
+ConversationTurn(role::Symbol;
+                 parts::Vector = ConversationPart[],
+                 stop_reason::Symbol = :complete,
+                 collapsed::Bool = false) =
+    ConversationTurn(Cell(role),
+                     CellVector(Cell[Cell(p) for p in parts]),
+                     Cell(stop_reason), Cell(collapsed), Cell(nothing))
+
+ConversationTurn(role::Symbol, parts::Vector; kwargs...) =
+    ConversationTurn(role; parts = parts, kwargs...)
+
+# Convenience: a user/assistant turn from a single string or content document.
+user_turn(content) = ConversationTurn(:user, [ConversationPart(content)])
+assistant_turn(content) = ConversationTurn(:assistant, [ConversationPart(content)])
+
+# ── ConversationConversation ──────────────────────────────────────────────────
 
 """
-    ConversationCodeExecution(initiator, code, result; is_error=false, tool_use_id="")
+    ConversationConversation(turns = [])
 
-A single Julia execution unit pairing the input `code` and the resulting
-`result`. The originator of the call is recorded explicitly in
-`initiator`, which is either:
-
-  * `:user`      — triggered manually with ALT+ENTER. Serialised back to
-                   the API as a plain user text turn.
-  * `:assistant` — triggered by Claude calling the `execute_julia_code`
-                   tool. Serialised back as an `assistant` `tool_use`
-                   block plus a `user` `tool_result` block, using
-                   `tool_use_id` to pair them.
-
-The executor is fixed to Julia — `execute_julia_code` is the only
-execution tool the assistant exposes and ALT+ENTER goes through the same
-path, so there is no language to choose. `is_error` flags failed runs;
-`tool_use_id` is empty for `:user` and holds the Anthropic tool-use id
-for `:assistant`.
-"""
-@document struct ConversationCodeExecution <: ConversationMessage
-    initiator::Symbol
-    code::String
-    result::String
-    is_error::Bool
-    tool_use_id::String
-    selection::Reference
-end
-
-ConversationCodeExecution(initiator::Symbol,
-                          code::AbstractString, result::AbstractString;
-                          is_error::Bool = false,
-                          tool_use_id::AbstractString = "") =
-    ConversationCodeExecution(Cell(initiator),
-                              Cell(String(code)), Cell(String(result)),
-                              Cell(is_error), Cell(String(tool_use_id)),
-                              Cell(nothing))
-
-# ── Top-level conversation ──────────────────────────────────────────────────
-
-"""
-    ConversationConversation(messages = [])
-
-The whole chat history as an ordered `CellVector` of
-`ConversationMessage`s.
+The whole chat history as an ordered sequence of `ConversationTurn`s.
 """
 @document struct ConversationConversation <: ConversationDocument
-    messages::CellVector
+    turns::CellVector
     selection::Reference
 end
 
 ConversationConversation() = ConversationConversation(CellVector(), Cell(nothing))
+ConversationConversation(turns::Vector) =
+    ConversationConversation(CellVector(Cell[Cell(t) for t in turns]), Cell(nothing))
 
-ConversationConversation(messages::Vector) =
-    ConversationConversation(CellVector(Cell[Cell(m) for m in messages]), Cell(nothing))
+# ── Element access on the conversation ────────────────────────────────────────
 
-# ── Element access on ConversationConversation ───────────────────────────────
-
-Base.length(c::ConversationConversation)  = length(c.messages)
-Base.isempty(c::ConversationConversation) = isempty(c.messages)
-Base.getindex(c::ConversationConversation, i::Integer) = c.messages[i]
+Base.length(c::ConversationConversation)  = length(c.turns)
+Base.isempty(c::ConversationConversation) = isempty(c.turns)
+Base.getindex(c::ConversationConversation, i::Integer) = c.turns[i]
 Base.firstindex(::ConversationConversation) = 1
 Base.lastindex(c::ConversationConversation) = length(c)
-Base.iterate(c::ConversationConversation, s...) = iterate(c.messages, s...)
-Base.eachindex(c::ConversationConversation) = eachindex(c.messages)
+Base.iterate(c::ConversationConversation, s...) = iterate(c.turns, s...)
+Base.eachindex(c::ConversationConversation) = eachindex(c.turns)
 
-Base.push!(c::ConversationConversation, msgs::ConversationMessage...) =
-    (for m in msgs; push!(c.messages, Cell(m)); end; c)
+Base.push!(c::ConversationConversation, turns::ConversationTurn...) =
+    (for t in turns; push!(c.turns, Cell(t)); end; c)
 
-Base.deleteat!(c::ConversationConversation, i) =
-    (deleteat!(c.messages, i); c)
+Base.deleteat!(c::ConversationConversation, i) = (deleteat!(c.turns, i); c)
 
-# ── Element access on assistant message blocks ──────────────────────────────
+# ── Element access on a turn's parts ──────────────────────────────────────────
 
-Base.length(m::ConversationAssistantMessage)  = length(m.blocks)
-Base.isempty(m::ConversationAssistantMessage) = isempty(m.blocks)
-Base.getindex(m::ConversationAssistantMessage, i::Integer) = m.blocks[i]
+Base.length(t::ConversationTurn)  = length(t.parts)
+Base.isempty(t::ConversationTurn) = isempty(t.parts)
+Base.getindex(t::ConversationTurn, i::Integer) = t.parts[i]
+Base.firstindex(::ConversationTurn) = 1
+Base.lastindex(t::ConversationTurn) = length(t)
+Base.iterate(t::ConversationTurn, s...) = iterate(t.parts, s...)
+Base.eachindex(t::ConversationTurn) = eachindex(t.parts)
 
-Base.push!(m::ConversationAssistantMessage, bs::ConversationBlock...) =
-    (for b in bs; push!(m.blocks, Cell(b)); end; m)
+Base.push!(t::ConversationTurn, parts::ConversationPart...) =
+    (for p in parts; push!(t.parts, Cell(p)); end; t)
 
-# ── setfn! delegation (mirror Workbench panel pattern) ──────────────────────
+# ── setfn! delegation (mirror Workbench panel pattern) ────────────────────────
 
 setfn!(c::ConversationConversation, f::Function) =
-    (setfn!(getfield(c.messages, :elements), () -> Cell[Cell(x) for x in f()]); c)
+    (setfn!(getfield(c.turns, :elements), () -> Cell[Cell(x) for x in f()]); c)
 
-setfn!(m::ConversationAssistantMessage, f::Function) =
-    (setfn!(getfield(m.blocks, :elements), () -> Cell[Cell(x) for x in f()]); m)
+setfn!(t::ConversationTurn, f::Function) =
+    (setfn!(getfield(t.parts, :elements), () -> Cell[Cell(x) for x in f()]); t)
 
-# ── Display ─────────────────────────────────────────────────────────────────
+# ── Display ───────────────────────────────────────────────────────────────────
 
 Base.show(io::IO, c::ConversationConversation) =
-    print(io, "ConversationConversation(messages=", length(c), ")")
+    print(io, "ConversationConversation(turns=", length(c), ")")
 
-Base.show(io::IO, m::ConversationUserMessage) =
-    print(io, "ConversationUserMessage(text=", m.text, ")")
+Base.show(io::IO, t::ConversationTurn) =
+    print(io, "ConversationTurn(:", t.role, ", parts=", length(t), ")")
 
-Base.show(io::IO, m::ConversationAssistantMessage) =
-    print(io, "ConversationAssistantMessage(blocks=", length(m), ", stop_reason=:", m.stop_reason, ")")
-
-Base.show(io::IO, m::ConversationCodeExecution) =
-    print(io, "ConversationCodeExecution(initiator=:", m.initiator,
-              ", is_error=", m.is_error, ")")
-
-Base.show(io::IO, b::ConversationTextBlock) =
-    print(io, "ConversationTextBlock(", b.text, ")")
-
-Base.show(io::IO, b::ConversationCodeBlock) =
-    print(io, "ConversationCodeBlock(language=", repr(b.language), ")")
-
-Base.show(io::IO, b::ConversationHeadingBlock) =
-    print(io, "ConversationHeadingBlock(level=", b.level, ")")
-
-Base.show(io::IO, b::ConversationListBlock) =
-    print(io, "ConversationListBlock(items=", length(b.items), ")")
+Base.show(io::IO, p::ConversationPart) =
+    print(io, "ConversationPart(", typeof(p.content), ")")
 
 end # module

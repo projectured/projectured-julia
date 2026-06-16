@@ -36,11 +36,9 @@ import ..JuliaModule: JuliaDocument
 import ..ReferenceModule: ConcreteReferencePath, FieldReference, RangeReference, EmptyReferencePath
 import ..ReferenceCaseModule: var"@reference_case"
 import ..ReferenceBuilderModule: var"@reference"
-import ..ConversationModule: ConversationConversation,
-                              ConversationUserMessage, ConversationAssistantMessage,
-                              ConversationCodeExecution,
-                              ConversationTextBlock, ConversationCodeBlock,
-                              ConversationHeadingBlock, ConversationListBlock
+import ..ConversationModule: ConversationConversation, ConversationTurn, ConversationPart
+import ..EvaluatorModule: EvaluatorForm, result_text
+import ..JuliaModule: JuliaDocument, JuliaIdentifier
 import ..WorkbenchModule: WorkbenchAssistant
 import ..WorkbenchToWidgetModule: WorkbenchAssistantToWidgetSplitPane
 import ..KeyboardModule: KeyDown
@@ -120,6 +118,24 @@ end
 
 _text_to_string(s::PrimitiveString) = something(s.value, "")
 
+# Stringify an arbitrary part content (text / Julia placeholder / etc).
+_content_to_string(t::TextText) = _text_to_string(t)
+_content_to_string(d) = hasproperty(d, :name) ? String(d.name) : string(d)
+
+# Part / turn helpers for the uniform turn/part model.
+_part_content(p::ConversationPart) = p.content
+_part_text(p::ConversationPart) = _content_to_string(p.content)
+_is_eval_part(p::ConversationPart) = p.content isa EvaluatorForm
+_is_eval_turn(t::ConversationTurn) = any(_is_eval_part, t.parts)
+function _first_eval(t::ConversationTurn)
+    for p in t.parts
+        p.content isa EvaluatorForm && return p.content
+    end
+    nothing
+end
+_eval_code(ef::EvaluatorForm)   = _content_to_string(ef.form)
+_eval_result(ef::EvaluatorForm) = _content_to_string(ef.result)
+
 function _set_input!(a::WorkbenchAssistant, s::AbstractString)
     a.input.value = String(s)
     n = length(s)
@@ -156,7 +172,9 @@ function evaluate_operation(editor, op::SubmitJuliaOperation)
     end
     is_error = occursin("ERROR", output) || occursin("Error", output)
     push!(a.conversation,
-          ConversationCodeExecution(:user, code, output; is_error = is_error))
+          ConversationTurn(:user, [ConversationPart(
+              EvaluatorForm(JuliaIdentifier(code);
+                            result = result_text(output), is_error = is_error))]))
 
     _set_input!(a, "")
     nothing
@@ -167,7 +185,7 @@ function evaluate_operation(editor, op::SubmitProseOperation)
     text = _text_to_string(a.input)
     isempty(strip(text)) && return nothing
 
-    push!(a.conversation, ConversationUserMessage(text))
+    push!(a.conversation, ConversationTurn(:user, [ConversationPart(text)]))
     _set_input!(a, "")
     a.status = :streaming
 
@@ -186,9 +204,7 @@ function evaluate_operation(editor, op::SubmitProseOperation)
             # Surface the error in the conversation as an assistant prose turn
             # so the user sees what went wrong inline.
             push!(a.conversation,
-                  ConversationAssistantMessage(blocks = [
-                      ConversationTextBlock("Error: " * err)
-                  ]))
+                  ConversationTurn(:assistant, [ConversationPart("Error: " * err)]))
         finally
             a.status === :streaming && (a.status = :idle)
         end
@@ -202,8 +218,6 @@ end
 # v1 keeps the structural representation minimal — we wrap the code text in
 # the smallest JuliaDocument that can still be projected. The Conversation
 # code-block projection treats `body` polymorphically, so this is fine.
-
-import ..JuliaModule: JuliaIdentifier
 
 _placeholder_julia_doc(code::AbstractString) = JuliaIdentifier(String(code))
 
@@ -293,75 +307,69 @@ never requested.
 """
 function build_messages(conversation::ConversationConversation)
     out = Dict[]
-    msgs = collect(conversation.messages)
+    turns = collect(conversation.turns)
     i = 1
-    while i <= length(msgs)
-        m = msgs[i]
-        if m isa ConversationUserMessage
-            push!(out, Dict(
-                "role" => "user",
-                "content" => Any[Dict("type" => "text",
-                                      "text" => _text_to_string(m.text))],
-            ))
+    while i <= length(turns)
+        t = turns[i]
+        if t.role === :user
+            content = Any[]
+            for part in t.parts
+                c = part.content
+                if c isa EvaluatorForm
+                    text = "I ran the following Julia code:\n```julia\n" * _eval_code(c) *
+                           "\n```\nResult:\n```\n" * _eval_result(c) * "\n```"
+                    push!(content, Dict("type" => "text", "text" => text))
+                else
+                    push!(content, Dict("type" => "text", "text" => _part_text(part)))
+                end
+            end
+            isempty(content) && push!(content, Dict("type" => "text", "text" => " "))
+            push!(out, Dict("role" => "user", "content" => content))
             i += 1
-        elseif m isa ConversationAssistantMessage
-            content = _assistant_content(m)
-            # Look ahead: each consecutive :assistant CodeExecution belongs
-            # in this assistant turn as a tool_use block, with all their
-            # results forming the following user turn as tool_result blocks.
-            # This reconstructs the Anthropic protocol shape from the
-            # unified storage.
+        elseif t.role === :assistant && _is_eval_turn(t)
+            # An assistant tool-call turn not preceded by an assistant text
+            # turn — emit a standalone assistant tool_use + user tool_result
+            # pair so the API contract still holds.
+            ef = _first_eval(t)
+            push!(out, Dict("role" => "assistant",
+                            "content" => Any[Dict("type"  => "tool_use",
+                                                   "id"    => ef.tool_use_id,
+                                                   "name"  => "execute_julia_code",
+                                                   "input" => Dict("code" => _eval_code(ef)))]))
+            push!(out, Dict("role" => "user",
+                            "content" => Any[Dict("type"        => "tool_result",
+                                                   "tool_use_id" => ef.tool_use_id,
+                                                   "content"     => _eval_result(ef),
+                                                   "is_error"    => ef.is_error)]))
+            i += 1
+        elseif t.role === :assistant
+            content = _assistant_content(t)
+            # Look ahead: each consecutive :assistant eval turn belongs in this
+            # assistant turn as a tool_use block, with all their results forming
+            # the following user turn as tool_result blocks.
             j = i + 1
-            while j <= length(msgs) &&
-                  msgs[j] isa ConversationCodeExecution &&
-                  msgs[j].initiator === :assistant
-                ce = msgs[j]
+            while j <= length(turns) && turns[j].role === :assistant && _is_eval_turn(turns[j])
+                ef = _first_eval(turns[j])
                 push!(content, Dict("type"  => "tool_use",
-                                     "id"    => ce.tool_use_id,
+                                     "id"    => ef.tool_use_id,
                                      "name"  => "execute_julia_code",
-                                     "input" => Dict("code" => ce.code)))
+                                     "input" => Dict("code" => _eval_code(ef))))
                 j += 1
             end
-            # Anthropic rejects assistant turns with no content. Only fall
-            # back to a placeholder when there's neither text nor tool_use —
-            # an empty text block alongside a tool_use is also rejected
-            # ("text content blocks must be non-empty").
             isempty(content) && push!(content, Dict("type" => "text", "text" => " "))
             push!(out, Dict("role" => "assistant", "content" => content))
             if j > i + 1
                 results = Any[]
                 for k in (i + 1):(j - 1)
-                    ce = msgs[k]
+                    ef = _first_eval(turns[k])
                     push!(results, Dict("type"        => "tool_result",
-                                         "tool_use_id" => ce.tool_use_id,
-                                         "content"     => ce.result,
-                                         "is_error"    => ce.is_error))
+                                         "tool_use_id" => ef.tool_use_id,
+                                         "content"     => _eval_result(ef),
+                                         "is_error"    => ef.is_error))
                 end
                 push!(out, Dict("role" => "user", "content" => results))
             end
             i = j
-        elseif m isa ConversationCodeExecution
-            if m.initiator === :user
-                text = "I ran the following Julia code:\n```julia\n" * m.code *
-                       "\n```\nResult:\n```\n" * m.result * "\n```"
-                push!(out, Dict("role" => "user",
-                                "content" => Any[Dict("type" => "text", "text" => text)]))
-            else
-                # :assistant CodeExecution not preceded by an assistant
-                # message — emit a standalone assistant tool_use + user
-                # tool_result pair so the API contract still holds.
-                push!(out, Dict("role" => "assistant",
-                                "content" => Any[Dict("type"  => "tool_use",
-                                                       "id"    => m.tool_use_id,
-                                                       "name"  => "execute_julia_code",
-                                                       "input" => Dict("code" => m.code))]))
-                push!(out, Dict("role" => "user",
-                                "content" => Any[Dict("type"        => "tool_result",
-                                                       "tool_use_id" => m.tool_use_id,
-                                                       "content"     => m.result,
-                                                       "is_error"    => m.is_error)]))
-            end
-            i += 1
         else
             i += 1
         end
@@ -369,30 +377,20 @@ function build_messages(conversation::ConversationConversation)
     out
 end
 
-function _assistant_content(m::ConversationAssistantMessage)
+# Build the Anthropic content blocks for an assistant text turn (eval/tool_use
+# parts are handled by `build_messages`'s lookahead, so they are skipped here).
+function _assistant_content(t::ConversationTurn)
     content = Any[]
-    for b in m.blocks
-        if b isa ConversationTextBlock
+    for part in t.parts
+        c = part.content
+        c isa EvaluatorForm && continue
+        if c isa JuliaDocument
             push!(content, Dict("type" => "text",
-                                 "text" => _text_to_string(b.text)))
-        elseif b isa ConversationHeadingBlock
-            push!(content, Dict("type" => "text",
-                                 "text" => repeat("#", b.level) * " " * _text_to_string(b.text)))
-        elseif b isa ConversationCodeBlock
-            body = b.body isa TextText ? _text_to_string(b.body) :
-                   (hasproperty(b.body, :name) ? b.body.name : string(b.body))
-            push!(content, Dict("type" => "text",
-                                 "text" => "```" * b.language * "\n" * body * "\n```"))
-        elseif b isa ConversationListBlock
-            io = IOBuffer()
-            for item in b.items
-                println(io, "- ", _text_to_string(item))
-            end
-            push!(content, Dict("type" => "text", "text" => String(take!(io))))
+                                 "text" => "```julia\n" * _content_to_string(c) * "\n```"))
+        else
+            push!(content, Dict("type" => "text", "text" => _part_text(part)))
         end
     end
-    # No empty-placeholder fallback here — `build_messages` adds one only
-    # after the tool_use lookahead has had a chance to fill the turn.
     content
 end
 
@@ -419,15 +417,14 @@ function _run_agent_loop!(editor, a::WorkbenchAssistant)
     tools = assistant_tool_schemas()
 
     while true
-        # Append a fresh assistant message for this turn; the SSE handler
-        # fills its prose blocks as deltas arrive. Tool calls do NOT go
-        # into the assistant message — they end up as separate
-        # ConversationCodeExecution(:assistant) entries after the tool runs.
-        assistant_msg = ConversationAssistantMessage()
-        push!(a.conversation, assistant_msg)
+        # Append a fresh assistant turn; the SSE handler fills its prose parts
+        # as deltas arrive. Tool calls do NOT go into this turn — they end up as
+        # separate :assistant eval turns (EvaluatorForm parts) after the tool runs.
+        turn = ConversationTurn(:assistant)
+        push!(a.conversation, turn)
 
         msgs = build_messages(a.conversation)
-        # Drop the empty assistant message we just appended from the outgoing
+        # Drop the empty assistant turn we just appended from the outgoing
         # request — Anthropic only wants prior turns.
         !isempty(msgs) && msgs[end]["role"] == "assistant" && pop!(msgs)
 
@@ -441,19 +438,19 @@ function _run_agent_loop!(editor, a::WorkbenchAssistant)
         )
 
         stream_turn(a.llm, a.api_key, a.model, a.system, msgs, tools;
-                    on_event = ev -> _handle_sse_event!(ev, a, assistant_msg, state))
+                    on_event = ev -> _handle_sse_event!(ev, a, turn, state))
 
-        assistant_msg.stop_reason = state[:stop_reason]
+        turn.stop_reason = state[:stop_reason]
 
-        # If the turn produced no prose blocks (e.g. Claude went straight
-        # to a tool call), drop the placeholder so it doesn't render as an
-        # empty "assistant:" line in front of the CodeExecution that
-        # carries its own label. `build_messages` falls back to emitting
-        # the tool_use + tool_result standalone in that case.
-        if isempty(assistant_msg.blocks)
-            elems = getfield(a.conversation.messages, :elements)[]
-            if !isempty(elems) && elems[end][] === assistant_msg
-                deleteat!(a.conversation.messages, length(elems))
+        # If the turn produced no prose parts (e.g. Claude went straight to a
+        # tool call), drop the placeholder so it doesn't render as an empty
+        # "assistant:" line in front of the eval turn that carries its own
+        # label. `build_messages` falls back to emitting the tool_use +
+        # tool_result standalone in that case.
+        if isempty(turn.parts)
+            elems = getfield(a.conversation.turns, :elements)[]
+            if !isempty(elems) && elems[end][] === turn
+                deleteat!(a.conversation.turns, length(elems))
             end
         end
 
@@ -462,10 +459,10 @@ function _run_agent_loop!(editor, a::WorkbenchAssistant)
             return
         end
 
-        # Dispatch each tool and emit one ConversationCodeExecution(:assistant)
-        # per call. The code and result live together in one message and
-        # `tool_use_id` pairs the call with its API tool_use block when
-        # `build_messages` re-serialises the conversation for Claude.
+        # Dispatch each tool and emit one :assistant eval turn per call. The
+        # code and result live together in one EvaluatorForm and `tool_use_id`
+        # pairs the call with its API tool_use block when `build_messages`
+        # re-serialises the conversation for Claude.
         for tu in pending
             output = try
                 dispatch_assistant_tool(tu.name, tu.input, editor)
@@ -476,14 +473,15 @@ function _run_agent_loop!(editor, a::WorkbenchAssistant)
                        String(tu.input["code"]) : ""
             is_err = occursin("ERROR", output) || occursin("Error", output)
             push!(a.conversation,
-                  ConversationCodeExecution(:assistant, code, output;
-                                            is_error = is_err,
-                                            tool_use_id = tu.id))
+                  ConversationTurn(:assistant, [ConversationPart(
+                      EvaluatorForm(JuliaIdentifier(code);
+                                    result = result_text(output),
+                                    is_error = is_err, tool_use_id = tu.id))]))
         end
     end
 end
 
-function _handle_sse_event!(ev, a, assistant_msg, state)
+function _handle_sse_event!(ev, a, turn, state)
     et = ev.type
     data = ev.data
     if et === :content_block_start
@@ -491,9 +489,9 @@ function _handle_sse_event!(ev, a, assistant_msg, state)
         block_data === nothing && return
         block_type = get(block_data, :type, "")
         if block_type == "text"
-            tb = ConversationTextBlock("")
-            push!(assistant_msg.blocks, Cell(tb))
-            state[:current_block] = tb
+            part = ConversationPart(TextText(TextString("")))
+            push!(turn.parts, Cell(part))
+            state[:current_block] = part
         elseif block_type == "tool_use"
             state[:current_tool] = _PendingToolUse(
                 String(get(block_data, :id, "")),
@@ -524,11 +522,11 @@ function _handle_sse_event!(ev, a, assistant_msg, state)
             ct.input = parsed
             push!(state[:pending_tools], ct)
             state[:current_tool] = nothing
-        elseif cb isa ConversationTextBlock
-            blocks = parse_markdown_blocks(_text_to_string(cb.text))
-            if !isempty(blocks)
-                # Replace the streamed scratch block with parsed blocks.
-                _replace_last_block!(assistant_msg, blocks)
+        elseif cb isa ConversationPart
+            parts = parse_markdown_blocks(_part_text(cb))
+            if !isempty(parts)
+                # Replace the streamed scratch part with parsed parts.
+                _replace_last_part!(turn, parts)
             end
         end
         state[:current_block] = nothing
@@ -547,24 +545,24 @@ function _handle_sse_event!(ev, a, assistant_msg, state)
     end
 end
 
-function _append_text_delta!(block::ConversationTextBlock, s::AbstractString)
-    # Append to the block's TextText. Simplest reliable approach: rebuild
-    # a single-span TextText with the accumulated content.
-    current = _text_to_string(block.text)
-    block.text = TextText(TextString(current * String(s)))
+function _append_text_delta!(part::ConversationPart, s::AbstractString)
+    # Append to the part's TextText content. Simplest reliable approach:
+    # rebuild a single-span TextText with the accumulated content.
+    current = _content_to_string(part.content)
+    part.content = TextText(TextString(current * String(s)))
     nothing
 end
 
 _append_text_delta!(_, _) = nothing
 
-function _replace_last_block!(msg::ConversationAssistantMessage, new_blocks::Vector)
-    # Drop the scratch block at the end, replace with new_blocks.
-    elems = getfield(msg.blocks, :elements)[]
+function _replace_last_part!(turn::ConversationTurn, new_parts::Vector)
+    # Drop the scratch part at the end, replace with new_parts.
+    elems = getfield(turn.parts, :elements)[]
     !isempty(elems) && pop!(elems)
-    for b in new_blocks
-        push!(elems, Cell(b))
+    for p in new_parts
+        push!(elems, Cell(p))
     end
-    getfield(msg.blocks, :elements)[] = elems
+    getfield(turn.parts, :elements)[] = elems
     nothing
 end
 
@@ -584,33 +582,33 @@ function parse_markdown_blocks(text::AbstractString)
     md = try
         Markdown.parse(text)
     catch
-        return Any[ConversationTextBlock(text)]
+        return Any[ConversationPart(String(text))]
     end
     for node in md.content
         if node isa Markdown.Header
             level = _header_level(node)
-            push!(out, ConversationHeadingBlock(level, _md_to_plain(node.text)))
+            push!(out, ConversationPart(repeat("#", level) * " " * _md_to_plain(node.text)))
         elseif node isa Markdown.Code
             lang = String(node.language)
             body = String(node.code)
             if lang == "julia"
-                push!(out, ConversationCodeBlock(lang, JuliaIdentifier(body)))
+                push!(out, ConversationPart(JuliaIdentifier(body)))
             else
-                push!(out, ConversationCodeBlock(lang, TextText(TextString(body))))
+                push!(out, ConversationPart("```" * lang * "\n" * body * "\n```"))
             end
         elseif node isa Markdown.List
-            items = TextText[]
+            io = IOBuffer()
             for it in node.items
-                push!(items, TextText(TextString(_md_to_plain(it))))
+                println(io, "- ", _md_to_plain(it))
             end
-            push!(out, ConversationListBlock(items))
+            push!(out, ConversationPart(String(take!(io))))
         elseif node isa Markdown.Paragraph
-            push!(out, ConversationTextBlock(_md_to_plain(node.content)))
+            push!(out, ConversationPart(_md_to_plain(node.content)))
         else
-            push!(out, ConversationTextBlock(_md_to_plain(node)))
+            push!(out, ConversationPart(_md_to_plain(node)))
         end
     end
-    isempty(out) && push!(out, ConversationTextBlock(text))
+    isempty(out) && push!(out, ConversationPart(String(text)))
     out
 end
 

@@ -3,18 +3,22 @@
 # tested in isolation (`test_example(conversation_example)`,
 # `print_example(conversation_example)`, `write_image_example(...)`).
 #
-# Covers every part type: a user message, an assistant message whose blocks mix
-# prose and a real `JuliaDocument` (parsed, not a string placeholder) code
-# block, and a code execution.
+# Uniform turn/part model: a user turn, an assistant turn whose parts mix prose
+# and a Julia code part, and a user turn carrying a Julia evaluation
+# (`EvaluatorForm` = code + result).
 function make_conversation_document_example()
-    code = juliaparse("factorial(n) = n <= 1 ? 1 : n * factorial(n - 1)")
     ConversationConversation([
-        ConversationUserMessage("Can you write a factorial function in Julia?"),
-        ConversationAssistantMessage(blocks = [
-            ConversationTextBlock("Sure! Here is a concise recursive version:"),
-            ConversationCodeBlock("julia", code),
-            ConversationTextBlock("It recurses until n reaches 1. Want an iterative one?"),
+        ConversationTurn(:user, [
+            ConversationPart("Can you write a factorial function in Julia?"),
         ]),
-        ConversationCodeExecution(:user, "factorial(5)", "120"),
+        ConversationTurn(:assistant, [
+            ConversationPart("Sure! Here is a concise recursive version:"),
+            ConversationPart(JuliaIdentifier("factorial(n) = n <= 1 ? 1 : n * factorial(n - 1)")),
+            ConversationPart("It recurses until n reaches 1. Want an iterative one?"),
+        ]),
+        ConversationTurn(:user, [
+            ConversationPart(EvaluatorForm(JuliaIdentifier("factorial(5)");
+                                           result = TextText(TextString("120")))),
+        ]),
     ])
 end

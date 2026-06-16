@@ -55,6 +55,7 @@ include("document/Clipboard.jl")
 include("document/Widget.jl")
 include("document/Layout.jl")
 include("document/Book.jl")
+include("document/Evaluator.jl")
 include("document/Conversation.jl")
 include("document/Ini.jl")
 include("document/Ned.jl")
@@ -423,31 +424,17 @@ using .ToolRegistryModule: Tool, Resource,
                             anthropic_tool_schema, mcp_tools, mcp_resources
 using .AnthropicModule: stream_message
 using .LlmModule: LlmBackend, AnthropicLlm, FakeLlm, stream_turn
+using .EvaluatorModule: EvaluatorDocument, EvaluatorForm, EvaluatorToplevel
 using .ConversationModule: ConversationDocument, ConversationConversation,
-                            ConversationMessage,
-                            ConversationUserMessage, ConversationAssistantMessage,
-                            ConversationCodeExecution,
-                            ConversationBlock,
-                            ConversationTextBlock, ConversationCodeBlock,
-                            ConversationHeadingBlock, ConversationListBlock
+                            ConversationTurn, ConversationPart
 using .ConversationToSyntaxModule: ConversationToSyntax,
                                     ConversationConversationToSyntaxNode,
-                                    ConversationUserMessageToSyntaxNode,
-                                    ConversationAssistantMessageToSyntaxNode,
-                                    ConversationCodeExecutionToSyntaxNode,
-                                    ConversationTextBlockToSyntaxLeaf,
-                                    ConversationCodeBlockToSyntaxNode,
-                                    ConversationHeadingBlockToSyntaxLeaf,
-                                    ConversationListBlockToSyntaxNode
+                                    ConversationTurnToSyntaxNode,
+                                    ConversationPartToSyntaxNode
 using .ConversationToWidgetModule: ConversationToWidget,
                                     ConversationConversationToWidgetComposite,
-                                    ConversationUserMessageToWidgetComposite,
-                                    ConversationAssistantMessageToWidgetComposite,
-                                    ConversationCodeExecutionToWidgetComposite,
-                                    ConversationTextBlockToText,
-                                    ConversationCodeBlockToWidget,
-                                    ConversationHeadingBlockToText,
-                                    ConversationListBlockToWidgetComposite
+                                    ConversationTurnToWidgetComposite,
+                                    ConversationPartToWidget
 using .WorkbenchAssistantModule: SubmitProseOperation, SubmitJuliaOperation,
                                    ClearInputOperation, ResetConversationOperation,
                                    build_messages, assistant_tool_schemas,
@@ -704,31 +691,17 @@ export Tool, Resource, register_tool!, register_tools!, list_tools, call_tool,
        anthropic_tool_schema, mcp_tools, mcp_resources
 export stream_message
 export LlmBackend, AnthropicLlm, FakeLlm, stream_turn
+export EvaluatorDocument, EvaluatorForm, EvaluatorToplevel
 export ConversationDocument, ConversationConversation,
-       ConversationMessage,
-       ConversationUserMessage, ConversationAssistantMessage,
-       ConversationCodeExecution,
-       ConversationBlock,
-       ConversationTextBlock, ConversationCodeBlock,
-       ConversationHeadingBlock, ConversationListBlock
+       ConversationTurn, ConversationPart
 export ConversationToSyntax,
        ConversationConversationToSyntaxNode,
-       ConversationUserMessageToSyntaxNode,
-       ConversationAssistantMessageToSyntaxNode,
-       ConversationCodeExecutionToSyntaxNode,
-       ConversationTextBlockToSyntaxLeaf,
-       ConversationCodeBlockToSyntaxNode,
-       ConversationHeadingBlockToSyntaxLeaf,
-       ConversationListBlockToSyntaxNode
+       ConversationTurnToSyntaxNode,
+       ConversationPartToSyntaxNode
 export ConversationToWidget,
        ConversationConversationToWidgetComposite,
-       ConversationUserMessageToWidgetComposite,
-       ConversationAssistantMessageToWidgetComposite,
-       ConversationCodeExecutionToWidgetComposite,
-       ConversationTextBlockToText,
-       ConversationCodeBlockToWidget,
-       ConversationHeadingBlockToText,
-       ConversationListBlockToWidgetComposite
+       ConversationTurnToWidgetComposite,
+       ConversationPartToWidget
 export SubmitProseOperation, SubmitJuliaOperation,
        ClearInputOperation, ResetConversationOperation,
        build_messages, assistant_tool_schemas, dispatch_assistant_tool,

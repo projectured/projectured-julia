@@ -1,7 +1,7 @@
 using Test
 using Projectured.McpModule
 using Projectured.ToolRegistryModule: call_tool
-using Projectured.WorkbenchAssistantModule: SubmitJuliaOperation
+using Projectured.WorkbenchAssistantModule: SubmitJuliaOperation, _eval_result
 using Projectured: WorkbenchAssistant, evaluate_operation, ConcreteReferencePath,
                    FieldReference, RangeReference, EmptyReferencePath, FakeLlm
 
@@ -202,8 +202,8 @@ function test_workbench_editor_reference()
         evaluate_operation(stand_in, SubmitJuliaOperation(a))
 
         @test length(a.conversation) == 1
-        exec = a.conversation.messages[1]
-        @test occursin("true", exec.result)
+        exec = a.conversation.turns[1].parts[1].content
+        @test occursin("true", _eval_result(exec))
         @test !exec.is_error
 
         a.input.value = "editor.document isa Projectured.WorkbenchAssistant"
@@ -212,8 +212,8 @@ function test_workbench_editor_reference()
             ConcreteReferencePath(RangeReference(0, length(a.input.value)),
                                   EmptyReferencePath()))
         evaluate_operation(stand_in, SubmitJuliaOperation(a))
-        exec2 = a.conversation.messages[2]
-        @test occursin("true", exec2.result)
+        exec2 = a.conversation.turns[2].parts[1].content
+        @test occursin("true", _eval_result(exec2))
         @test !exec2.is_error
     end
 end

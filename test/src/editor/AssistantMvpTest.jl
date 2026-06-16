@@ -33,7 +33,10 @@ using Projectured: ConcreteReferencePath, FieldReference, RangeReference,
                    EmptyReferencePath
 using Projectured: LlmBackend, FakeLlm
 using Projectured.McpModule: register_default_tools_and_resources!
-using Projectured.WorkbenchAssistantModule: _text_to_string, _run_agent_loop!
+using Projectured.WorkbenchAssistantModule: _text_to_string, _run_agent_loop!,
+                                            _eval_code, _eval_result
+using Projectured: ConversationConversation, ConversationTurn, ConversationPart,
+                   EvaluatorForm, TextText, TextString, JuliaIdentifier
 import Projectured.LlmModule: stream_turn
 
 # A multi-turn scripted backend: each call to `stream_turn` consumes the
@@ -136,23 +139,23 @@ end
 function _mvp_test_reactive_thunk()
     @testset "ConversationToWidget reactive thunk" begin
         c = ConversationConversation()
-        push!(c, ConversationUserMessage("first"))
+        push!(c, ConversationTurn(:user, [ConversationPart("first")]))
         proj = RecursiveProjection(ConversationToWidget())
         io = projection_print(proj, proj, c, PrinterContext())
         @test io.output isa VerticalLayout
         n0 = length(io.output.children)
-        # Load-bearing: pushing a new message must show up in the
+        # Load-bearing: pushing a new turn must show up in the
         # layout's children without re-running projection_print.
-        push!(c, ConversationUserMessage("second"))
+        push!(c, ConversationTurn(:user, [ConversationPart("second")]))
         @test length(io.output.children) == n0 + 1
 
-        # Same thunk treatment for assistant message blocks.
-        reply = ConversationAssistantMessage(stop_reason = :end_turn)
+        # Same thunk treatment for a turn's parts.
+        reply = ConversationTurn(:assistant; stop_reason = :end_turn)
         push!(c, reply)
         io2 = projection_print(proj, proj, c, PrinterContext())
         reply_widget = io2.output.children[end]
         b0 = length(reply_widget.children)
-        push!(reply, ConversationTextBlock("delta"))
+        push!(reply, ConversationPart("delta"))
         @test length(reply_widget.children) == b0 + 1
     end
 end
@@ -173,13 +176,13 @@ function _mvp_test_scenes()
         @test op isa SubmitProseOperation
         @test _mvp_wait_idle!(a) === :idle
         @test length(a.conversation) == 2
-        user_msg  = a.conversation.messages[1]
-        reply_msg = a.conversation.messages[2]
-        @test user_msg isa ConversationUserMessage
-        @test _text_to_string(user_msg.text) == "Hello"
-        @test reply_msg isa ConversationAssistantMessage
-        @test length(reply_msg.blocks) == 1
-        @test _text_to_string(reply_msg.blocks[1].text) == "Yes, sir!"
+        user_msg  = a.conversation.turns[1]
+        reply_msg = a.conversation.turns[2]
+        @test user_msg.role === :user
+        @test _text_to_string(user_msg.parts[1].content) == "Hello"
+        @test reply_msg.role === :assistant
+        @test length(reply_msg.parts) == 1
+        @test _text_to_string(reply_msg.parts[1].content) == "Yes, sir!"
         @test a.input.value == ""
 
         # Scene 3: type "What?"
@@ -190,8 +193,8 @@ function _mvp_test_scenes()
         _mvp_enter!(a)
         @test _mvp_wait_idle!(a) === :idle
         @test length(a.conversation) == 4
-        @test _text_to_string(a.conversation.messages[3].text) == "What?"
-        @test _text_to_string(a.conversation.messages[4].blocks[1].text) == "Yes, sir!"
+        @test _text_to_string(a.conversation.turns[3].parts[1].content) == "What?"
+        @test _text_to_string(a.conversation.turns[4].parts[1].content) == "Yes, sir!"
         @test a.input.value == ""
     end
 end
@@ -205,7 +208,7 @@ function _mvp_test_fake_llm_dispatch()
         _mvp_enter!(a)
         @test _mvp_wait_idle!(a) === :idle
         @test length(a.conversation) == 2
-        @test _text_to_string(a.conversation.messages[end].blocks[end].text) == "hi there"
+        @test _text_to_string(a.conversation.turns[end].parts[end].content) == "hi there"
     end
 end
 
@@ -285,7 +288,7 @@ function _mvp_test_tool_use_roundtrip()
             _final_text_script("Done."),
         ])
         a = WorkbenchAssistant(; llm = llm)
-        push!(a.conversation, ConversationUserMessage("compute 1+1"))
+        push!(a.conversation, ConversationTurn(:user, [ConversationPart("compute 1+1")]))
 
         # Drive the agent loop synchronously (no @async) so we can assert
         # the post-state immediately. Stand-in editor mirrors the production
@@ -294,29 +297,30 @@ function _mvp_test_tool_use_roundtrip()
         # doesn't read it, but the wiring is what's under test).
         _run_agent_loop!((document=a,), a)
 
-        msgs = a.conversation.messages
-        # Expected sequence after the unified ConversationCodeExecution refactor:
-        #   1. user message ("compute 1+1")
-        #   2. ConversationCodeExecution(:assistant, code="1+1", result≈"2")
-        #      — the assistant turn 1 had only a tool_use (no prose), so the
-        #        empty placeholder ConversationAssistantMessage was dropped.
-        #   3. assistant message with one ConversationTextBlock("Done.") from turn 2.
+        msgs = a.conversation.turns
+        # Expected sequence in the turn/part model:
+        #   1. user turn ("compute 1+1")
+        #   2. :assistant eval turn — one part whose content is an EvaluatorForm
+        #      (code="1+1", result≈"2"). Turn 1 had only a tool_use (no prose),
+        #      so the empty placeholder assistant turn was dropped.
+        #   3. :assistant turn with one TextText part ("Done.") from turn 2.
         @test length(msgs) == 3
 
-        @test msgs[1] isa ConversationUserMessage
-        @test _text_to_string(msgs[1].text) == "compute 1+1"
+        @test msgs[1].role === :user
+        @test _text_to_string(msgs[1].parts[1].content) == "compute 1+1"
 
-        @test msgs[2] isa ConversationCodeExecution
-        @test msgs[2].initiator   === :assistant
-        @test msgs[2].code        == "1+1"
-        @test msgs[2].tool_use_id == "tu_1"
+        @test msgs[2].role === :assistant
+        ef = msgs[2].parts[1].content
+        @test ef isa EvaluatorForm
+        @test _eval_code(ef)   == "1+1"
+        @test ef.tool_use_id   == "tu_1"
         # The real `execute_julia_code` tool ran — `1+1` repr is "2".
-        @test occursin("2", msgs[2].result)
-        @test msgs[2].is_error == false
+        @test occursin("2", _eval_result(ef))
+        @test ef.is_error == false
 
-        @test msgs[3] isa ConversationAssistantMessage
-        @test length(msgs[3].blocks) == 1
-        @test msgs[3].blocks[1] isa ConversationTextBlock
-        @test _text_to_string(msgs[3].blocks[1].text) == "Done."
+        @test msgs[3].role === :assistant
+        @test length(msgs[3].parts) == 1
+        @test msgs[3].parts[1].content isa TextText
+        @test _text_to_string(msgs[3].parts[1].content) == "Done."
     end
 end
