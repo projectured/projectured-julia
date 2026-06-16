@@ -448,6 +448,19 @@ function write_image_example(name="json", filename=tempname()*".bmp"; kwargs...)
     write_image_example(examples[idx], filename; kwargs...)
 end
 
+function record_video_example(example::Example, gestures, filename;
+                              width=1200, height=800, fps=30, kwargs...)
+    record_video(example.document, example.projection, gestures, filename;
+                 width=width, height=height, fps=fps, kwargs...)
+end
+
+function record_video_example(name::AbstractString, gestures,
+                              filename=tempname()*".mp4"; kwargs...)
+    idx = findfirst(ex -> ex.name == name, examples)
+    idx === nothing && error("Unknown example: \"$name\"")
+    record_video_example(examples[idx], gestures, filename; kwargs...)
+end
+
 """
     generate_example_screenshots(; filter=nothing, max_width=1920, max_height=1080,
                                  image_dir=joinpath(@__DIR__, "..", "..", "image", "example"))

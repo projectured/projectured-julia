@@ -19,14 +19,17 @@ import ..ModifiersModule: Modifiers
 import ..KeyboardModule: KeyDown, KeyUp, KeyPress
 import ..MouseModule: MouseDown, MouseUp, MousePress, MouseMove, MouseScroll
 import ..ImageModule: ImageFile
-import ..ProjectionApiModule: projection_print, Projection
+import ..ProjectionApiModule: projection_print, projection_read, Projection
+import ..OperationApiModule: Operation, evaluate_operation
+import ..DocumentApiModule: clear_selection!
 import ..PrinterContextModule: PrinterContext
 import ..ReactiveModule: Cell
 import ..ReferenceModule: EmptyReferencePath
 import ..IoMapModule: SimpleIoMap
+import FFMPEG
 
 export SdlBackend, sdl_measure_text, sdl_render_canvas, sdl_display_size,
-       write_image, GraphicsCanvasToImageFile,
+       write_image, record_video, GraphicsCanvasToImageFile,
        sdl_decode_image, decode_image_file!
 
 # Pixel size of the primary monitor from xrandr's RandR 1.5
@@ -956,75 +959,106 @@ function _downsample_surface(big::Ptr{SDL_Surface}, width::Int, height::Int, S::
     small
 end
 
-function write_image(canvas::GraphicsCanvas, filename::AbstractString;
-                     width::Integer = 800,
-                     height::Integer = 600,
-                     background::NTuple{4,UInt8} = (0xfd, 0xf6, 0xe3, 0xff),
-                     supersample::Integer = 2,
-                     scale::Real = 1)
+# ── Reusable offscreen renderer ──────────────────────────────────────────
+#
+# Opening an SDL surface + software renderer is expensive (SDL_Init, TTF_Init,
+# allocating an S²-oversized buffer). `write_image` does it once per call, but
+# `record_video` renders hundreds-to-thousands of frames at a fixed size, so the
+# setup/teardown is factored out here and reused across every frame.
+
+# Open an offscreen, `supersample`-oversized software renderer for a logical
+# `width × height` canvas drawn at export `scale`. Returns a handle holding the
+# big surface, its renderer, and the sizing it was built with. `width`/`height`
+# are the canvas's logical size; the saved image is that times `scale` (device
+# pixels), so output stays crisp on HiDPI displays independent of the generating
+# machine. The caller must eventually pass the handle to
+# `_close_offscreen_renderer`.
+function _open_offscreen_renderer(width::Integer, height::Integer;
+                                  supersample::Integer = 2, scale::Real = 1)
     SDL_Init(SDL_INIT_VIDEO)
     TTF_Init()
-
     S  = max(1, Int(supersample))
     sc = Float64(scale)
-    # `width`/`height` are the canvas's logical size. The saved image is that
-    # times the export `scale` (device pixels), so screenshots stay crisp on
-    # HiDPI displays independent of the machine that generates them. We render
-    # the logical canvas as if the display scale were `sc` (glyphs rasterize at
-    # device size) and supersample by S for anti-aliasing.
     out_w = max(1, round(Int, width  * sc))
     out_h = max(1, round(Int, height * sc))
     surface = SDL_CreateRGBSurface(UInt32(0), Int32(out_w * S), Int32(out_h * S), Int32(32),
                                    UInt32(0x00FF0000), UInt32(0x0000FF00),
                                    UInt32(0x000000FF), UInt32(0xFF000000))
     @assert surface != C_NULL "SDL surface creation failed: $(unsafe_string(SDL_GetError()))"
-
     renderer = SDL_CreateSoftwareRenderer(surface)
     @assert renderer != C_NULL "SDL software renderer creation failed: $(unsafe_string(SDL_GetError()))"
     SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND)
     SDL_RenderSetScale(renderer, Float32(sc * S), Float32(sc * S))
+    (surface = surface, renderer = renderer, S = S, sc = sc, out_w = out_w, out_h = out_h)
+end
 
+# Clear `off` to `background` and render `canvas` (logical size `width × height`)
+# into it. `_DISPLAY_SCALE` is set so glyphs rasterize at device size, matching
+# the renderer's scale.
+function _render_canvas_offscreen!(off, canvas::GraphicsCanvas, width::Integer,
+                                   height::Integer, background::NTuple{4,UInt8})
     old_scale = _DISPLAY_SCALE[]
-    _DISPLAY_SCALE[] = sc
+    _DISPLAY_SCALE[] = off.sc
     try
         r, g, b, a = background
-        SDL_SetRenderDrawColor(renderer, r, g, b, a)
-        SDL_RenderClear(renderer)
-        _render_canvas!(renderer, canvas, 0, 0, Int(width), Int(height))
+        SDL_SetRenderDrawColor(off.renderer, r, g, b, a)
+        SDL_RenderClear(off.renderer)
+        _render_canvas!(off.renderer, canvas, 0, 0, Int(width), Int(height))
     finally
         _DISPLAY_SCALE[] = old_scale
     end
+    nothing
+end
 
-    # Downsample the oversized surface for anti-aliasing.
-    out_surface = S > 1 ? _downsample_surface(surface, out_w, out_h, S) : surface
-    if out_surface !== surface
-        SDL_DestroyRenderer(renderer)
-        SDL_FreeSurface(surface)
-        surface = out_surface
-        renderer = C_NULL
-    end
+# The surface to save: the box-downsampled output when supersampling (a fresh
+# surface the caller must `SDL_FreeSurface`), or the big surface itself when not
+# (do not free it separately — `_close_offscreen_renderer` owns it).
+function _offscreen_output_surface(off)
+    off.S > 1 ? _downsample_surface(off.surface, off.out_w, off.out_h, off.S) : off.surface
+end
 
-    ext = lowercase(splitext(filename)[2])
-    if ext == ".bmp"
-        rw = SDL_RWFromFile(filename, "wb")
-        @assert rw != C_NULL "Failed to open output file: $filename"
-        SDL_SaveBMP_RW(surface, rw, Int32(1))   # freedst=1 — SDL closes the RW handle
-    elseif ext == ".png"
-        if IMG_SavePNG(surface, filename) != 0
-            err = unsafe_string(SDL_GetError())
-            SDL_DestroyRenderer(renderer)
-            SDL_FreeSurface(surface)
-            error("write_image: IMG_SavePNG failed for $filename: $err")
+# Save a surface to a BMP file.
+function _save_surface_bmp(surface::Ptr{SDL_Surface}, filename::AbstractString)
+    rw = SDL_RWFromFile(filename, "wb")
+    @assert rw != C_NULL "Failed to open output file: $filename"
+    SDL_SaveBMP_RW(surface, rw, Int32(1))   # freedst=1 — SDL closes the RW handle
+    nothing
+end
+
+# Tear down a renderer+surface pair opened by `_open_offscreen_renderer`.
+function _close_offscreen_renderer(off)
+    SDL_DestroyRenderer(off.renderer)
+    SDL_FreeSurface(off.surface)
+    nothing
+end
+
+function write_image(canvas::GraphicsCanvas, filename::AbstractString;
+                     width::Integer = 800,
+                     height::Integer = 600,
+                     background::NTuple{4,UInt8} = (0xfd, 0xf6, 0xe3, 0xff),
+                     supersample::Integer = 2,
+                     scale::Real = 1)
+    off = _open_offscreen_renderer(width, height; supersample=supersample, scale=scale)
+    try
+        _render_canvas_offscreen!(off, canvas, width, height, background)
+        out_surface = _offscreen_output_surface(off)
+        try
+            ext = lowercase(splitext(filename)[2])
+            if ext == ".bmp"
+                _save_surface_bmp(out_surface, filename)
+            elseif ext == ".png"
+                if IMG_SavePNG(out_surface, filename) != 0
+                    error("write_image: IMG_SavePNG failed for $filename: $(unsafe_string(SDL_GetError()))")
+                end
+            else
+                error("write_image: unsupported format \"$ext\" (only .bmp and .png are supported)")
+            end
+        finally
+            out_surface !== off.surface && SDL_FreeSurface(out_surface)
         end
-    else
-        SDL_DestroyRenderer(renderer)
-        SDL_FreeSurface(surface)
-        error("write_image: unsupported format \"$ext\" (only .bmp and .png are supported)")
+    finally
+        _close_offscreen_renderer(off)
     end
-
-    SDL_DestroyRenderer(renderer)
-    SDL_FreeSurface(surface)
-
     ImageFile(filename)
 end
 
@@ -1220,6 +1254,133 @@ end
 
 function map_reference_backward(::GraphicsCanvasToImageFile, iomap, reference)
     nothing
+end
+
+# ════════════════════════════════════════════════════════════════════════
+# Headless video recording
+# ════════════════════════════════════════════════════════════════════════
+
+# A minimal mutable editor stand-in for `evaluate_operation`, mirroring the test
+# harness's `_ReplEditor`: an operation such as `ReplaceDocumentOperation` may
+# rebind `.document` (a whole-document swap) and null `.iomap`. `record_video`
+# re-reads `.document` afterwards so a root swap is picked up by the next print.
+mutable struct _VideoEditor
+    document::Any
+    iomap::Any
+end
+
+# Render `canvas` once and write `count` identical BMP frames (the post-event
+# state held on screen for `count` frames of video time), advancing `frame`.
+function _emit_frames!(off, canvas::GraphicsCanvas, width::Integer, height::Integer,
+                       background::NTuple{4,UInt8}, tmpdir::AbstractString,
+                       frame::Ref{Int}, count::Integer)
+    count <= 0 && return nothing
+    _render_canvas_offscreen!(off, canvas, width, height, background)
+    out_surface = _offscreen_output_surface(off)
+    try
+        for _ in 1:count
+            frame[] += 1
+            _save_surface_bmp(out_surface, joinpath(tmpdir, "frame_$(lpad(frame[], 6, '0')).bmp"))
+        end
+    finally
+        out_surface !== off.surface && SDL_FreeSurface(out_surface)
+    end
+    nothing
+end
+
+"""
+    record_video(document, projection, gestures, filename::AbstractString;
+                 fps=30, width=1200, height=800,
+                 background=(0x00,0x00,0x00,0xff), initial_hold=0.5,
+                 supersample=2, scale=1) -> String
+
+Record a headless video of an editing session and encode it to `filename` (which
+must end in `.mp4`). No window is required — frames are rendered with the same
+offscreen software renderer as [`write_image`](@ref) and assembled with `ffmpeg`.
+
+`gestures` is a vector of `(event = …, hold = …)` entries. `event` is any
+backend-agnostic device event (`KeyDown`, `KeyUp`, `KeyPress`, `MouseDown`,
+`MouseUp`, `MousePress`, `MouseMove`, `MouseScroll`); `hold` is the number of
+seconds to display the resulting state. Timing is in **video time** (frame
+counts, not wall-clock), so the output is deterministic regardless of how long
+rendering takes — `round(hold * fps)` identical frames are emitted per gesture.
+The initial state, before any gesture, is shown for `initial_hold` seconds.
+
+For each gesture the standard editor cycle runs: `projection_read` →
+`evaluate_operation` → `projection_print`, mirroring the live editor loop. Each
+frame is laid out at the fixed `width × height` video resolution so mouse-gesture
+coordinates line up with what is rendered. Errors from the pipeline propagate
+(callers want loud failures, not a partial video).
+
+```julia
+gestures = [
+    (event = KeyPress('h'),                        hold = 0.3),
+    (event = KeyPress('i'),                        hold = 0.3),
+    (event = KeyDown(:right, Modifiers(), false),  hold = 0.5),
+]
+record_video(doc, proj, gestures, "/tmp/demo.mp4"; fps=30)
+```
+"""
+function record_video(document, projection, gestures::AbstractVector,
+                      filename::AbstractString;
+                      fps::Integer = 30,
+                      width::Integer = 1200,
+                      height::Integer = 800,
+                      background::NTuple{4,UInt8} = (0x00, 0x00, 0x00, 0xff),
+                      initial_hold::Real = 0.5,
+                      supersample::Integer = 2,
+                      scale::Real = 1)
+    lowercase(splitext(filename)[2]) == ".mp4" ||
+        error("record_video: only .mp4 output is supported (got \"$filename\")")
+
+    # Lay out every frame at the fixed video resolution.
+    print_iomap = doc -> projection_print(projection, nothing, doc,
+        PrinterContext(EmptyReferencePath(), Cell(Int(width)), Cell(Int(height)),
+                       Dict{Symbol,Any}()))
+    canvas_of = iomap -> begin
+        canvas = iomap.output
+        canvas isa GraphicsCanvas ||
+            error("record_video: projection output is $(typeof(canvas)), expected GraphicsCanvas")
+        canvas
+    end
+
+    off = _open_offscreen_renderer(width, height; supersample=supersample, scale=scale)
+    tmpdir = mktempdir()
+    frame = Ref(0)
+    try
+        clear_selection!(document)
+        iomap = print_iomap(document)
+        _emit_frames!(off, canvas_of(iomap), width, height, background,
+                      tmpdir, frame, round(Int, initial_hold * fps))
+
+        for entry in gestures
+            op = projection_read(projection, iomap, entry.event)
+            if op !== nothing
+                ed = _VideoEditor(document, iomap)
+                evaluate_operation(ed, op)
+                document = ed.document   # pick up a whole-document swap
+            end
+            iomap = print_iomap(document)
+            _emit_frames!(off, canvas_of(iomap), width, height, background,
+                          tmpdir, frame, round(Int, entry.hold * fps))
+        end
+
+        frame[] == 0 &&
+            error("record_video: no frames produced (empty gestures and initial_hold ≈ 0)")
+
+        pattern = joinpath(tmpdir, "frame_%06d.bmp")
+        # Build the command from a string vector: a backtick literal would reject
+        # the unquoted parentheses/asterisks in the `pad` filter expression.
+        FFMPEG.exe(Cmd(String[
+            "-y", "-hide_banner", "-loglevel", "error",
+            "-framerate", string(fps), "-i", pattern,
+            "-c:v", "libx264", "-pix_fmt", "yuv420p",
+            "-vf", "pad=ceil(iw/2)*2:ceil(ih/2)*2", filename]))
+    finally
+        _close_offscreen_renderer(off)
+        rm(tmpdir; force=true, recursive=true)
+    end
+    filename
 end
 
 # ════════════════════════════════════════════════════════════════════════

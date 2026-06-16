@@ -197,6 +197,36 @@ Both functions accept keyword overrides: `width`, `height`, `image_dir` and
 `update_guide_screenshots` is idempotent — a second call produces no further
 changes.
 
+## Recording a video
+
+`record_video` drives an example through a timed sequence of gestures and
+encodes the result to an MP4 — headless, no window required. Timing is in
+**video time** (frame counts), so output is deterministic regardless of how long
+rendering takes.
+
+```julia
+julia> using Projectured, ProjecturedExample
+julia> gestures = [
+           (event = KeyPress('h'),                       hold = 0.3),
+           (event = KeyPress('i'),                       hold = 0.3),
+           (event = KeyDown(:right, Modifiers(), false), hold = 0.5),
+       ]
+julia> record_video_example("json", gestures, "/tmp/demo.mp4"; fps=30)
+```
+
+`event` is any backend-agnostic device event (`KeyDown`, `KeyUp`, `KeyPress`,
+`MouseDown`, `MouseUp`, `MousePress`, `MouseMove`, `MouseScroll`); `hold` is how
+many seconds to display the resulting state. The initial state is shown for
+`initial_hold` seconds (default `0.5`). Each gesture runs the full editor cycle
+(`projection_read` → `evaluate_operation` → `projection_print`) and `round(hold *
+fps)` identical frames are emitted, so the frame count is predictable: the
+recording above is `15 + 9 + 9 + 15 = 48` frames at `fps=30`.
+
+`record_video(document, projection, gestures, filename)` is the lower-level form;
+both accept `fps`, `width`, `height`, `background`, and `initial_hold`. Output
+must be `.mp4` (libx264 + `yuv420p`); encoding uses `ffmpeg` bundled via
+`FFMPEG.jl`, so no system ffmpeg install is needed.
+
 ## Workspace fixtures
 
 Sample documents live in [example/workspace/](../example/workspace/)

@@ -1,5 +1,9 @@
 # Headless video recording of the editor
 
+> **Status: DONE** — implemented on branch `worktree-headless-video-recording`.
+> Each "Files to modify" item below is annotated ✅. See **Implementation notes**
+> at the end for decisions made during the work.
+
 ## Context
 
 ProjecturEd already has the two ingredients needed to record a video of an editing session without a window: an **offscreen SDL software renderer** that writes a single frame to BMP ([Sdl.jl:613-653](program/src/backend/Sdl.jl#L613-L653)), and a **windowless read-eval-print walker** that drives the editor by feeding it a list of events one at a time ([ReplTest.jl:14-46](test/src/editor/ReplTest.jl#L14-L46)). What is missing is a function that ties them together: take a *timed* sequence of gestures, run the REPL cycle for each one, snapshot a frame after each event, and assemble the frames into a video.
@@ -35,7 +39,7 @@ MP4 only, encoded with libx264 + `yuv420p` pixel format for universal playback. 
 
 ## Files to modify
 
-### 1. `program/src/backend/Sdl.jl` — extract reusable offscreen renderer
+### 1. ✅ `program/src/backend/Sdl.jl` — extract reusable offscreen renderer
 
 Refactor the body of [`write_image(canvas, filename, ...)`](program/src/backend/Sdl.jl#L613) so the SDL surface/renderer setup is reusable across many frames:
 
@@ -44,7 +48,7 @@ Refactor the body of [`write_image(canvas, filename, ...)`](program/src/backend/
 
 This avoids re-initializing SDL_Init/TTF_Init and recreating the renderer per frame — important because there will be hundreds-to-thousands of frames per video.
 
-### 2. `program/src/backend/Sdl.jl` — add `record_video`
+### 2. ✅ `program/src/backend/Sdl.jl` — add `record_video`
 
 New function appended after the `GraphicsCanvasToImageFile` block (after [Sdl.jl:734](program/src/backend/Sdl.jl#L734)):
 
@@ -86,7 +90,7 @@ Notes:
 - Wrap event loop in `try / finally` so the SDL renderer + temp dir are always cleaned up.
 - Re-raise errors from `projection_read` / `evaluate_operation` rather than swallowing them — production callers want loud failures, not partial videos.
 
-### 3. `program/Project.toml` — add `FFMPEG` dependency
+### 3. ✅ `program/Project.toml` — add `FFMPEG` dependency
 
 Add:
 ```toml
@@ -94,11 +98,11 @@ FFMPEG = "c87230d0-a227-11e9-1b43-d7ebe4e7570a"
 ```
 (direct dependency on the `FFMPEG.jl` wrapper, not just the transitive `FFMPEG_jll` already in the Manifest). Run `Pkg.resolve()` after the edit.
 
-### 4. `program/src/Projectured.jl` — export `record_video`
+### 4. ✅ `program/src/Projectured.jl` — export `record_video`
 
 Add `record_video` to the symbols re-exported from `SdlModule` (mirror the existing `write_image` export).
 
-### 5. `example/src/Examples.jl` — add `record_video_example`
+### 5. ✅ `example/src/Examples.jl` — add `record_video_example`
 
 Mirror the existing [`write_image_example`](example/src/Examples.jl#L94-L104) pattern (around line 94):
 
@@ -119,7 +123,7 @@ end
 
 Add `record_video_example` to the export list at [ProjecturedExample.jl:88](example/src/ProjecturedExample.jl#L88).
 
-### 6. `guide/debugging.md` — document the new helper
+### 6. ✅ `guide/debugging.md` — document the new helper
 
 Add a short section showing a minimal example, similar to the existing `write_image_example` snippet.
 
@@ -155,3 +159,33 @@ Add a short section showing a minimal example, similar to the existing `write_im
 3. **Add a test** in `test/src/editor/` (e.g. `VideoTest.jl`) that records a 1-second video from `json_example` and asserts the output file exists and has > 0 bytes. Wire it into `test_all` only if `FFMPEG.exe_ffmpeg` is available, so CI without ffmpeg doesn't break.
 
 4. **Manual visual inspection**: play the MP4 and confirm each gesture's resulting state is visible for roughly the expected duration.
+
+## Implementation notes (as built)
+
+- **Reusable offscreen renderer.** `write_image(canvas, …)` was refactored to go
+  through five new helpers in `Sdl.jl`: `_open_offscreen_renderer`,
+  `_render_canvas_offscreen!`, `_offscreen_output_surface`, `_save_surface_bmp`,
+  and `_close_offscreen_renderer`. `record_video` opens the renderer once and
+  reuses it for every frame. Existing `write_image` overloads are behavior-
+  preserving (BMP + PNG paths verified by `test_write_image`).
+- **FFMPEG.jl API.** There is no `FFMPEG.exe_ffmpeg`. The encode is invoked via
+  `FFMPEG.exe(cmd::Cmd)` (which runs the bundled `ffmpeg`). The command is built
+  from a `Cmd(String[...])` vector, **not** a backtick literal — a backtick
+  `Cmd` rejects the unquoted `()` / `*` characters in the
+  `pad=ceil(iw/2)*2:ceil(ih/2)*2` filter expression. Added `-hide_banner
+  -loglevel error` to keep test/REPL output quiet. ffmpeg ships with
+  `FFMPEG_jll`, so no system install is required and the "only if ffmpeg
+  available" guard is effectively always satisfied.
+- **Fixed-size layout per frame.** Each frame is printed with a `PrinterContext`
+  whose available size is `Cell(width)` / `Cell(height)`, so mouse-gesture
+  coordinates line up with the rendered video resolution.
+- **Editor stand-in.** `record_video` uses a module-local `_VideoEditor` mutable
+  struct (mirroring the test harness's `_ReplEditor`) so a whole-document swap
+  (`ReplaceDocumentOperation`) is picked up for the next print.
+- **Frame count.** `round(Int, hold * fps)` frames per entry; the smoke test
+  produced exactly 48 packets as predicted.
+- **Manifests.** Adding `FFMPEG` required `Pkg.resolve()` in all four
+  environments (root, `program/`, `example/`, `test/`).
+- **Test.** `test/src/editor/VideoTest.jl` (`test_record_video`) records a short
+  json clip, asserts the file exists and is non-empty, and checks that a non-
+  `.mp4` extension raises. Wired into `test_all` after `test_write_image`.

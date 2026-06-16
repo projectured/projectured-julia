@@ -265,7 +265,7 @@ using .MouseModule: MouseDown, MouseUp, MousePress, MouseMove, MouseScroll
 using .BackendModule: Backend, init!, quit!, measure_text
 using .SdlBackendModule: SdlBackend, sdl_measure_text, sdl_render_canvas,
                           sdl_display_size,
-                          write_image, GraphicsCanvasToImageFile,
+                          write_image, record_video, GraphicsCanvasToImageFile,
                           sdl_decode_image, decode_image_file!
 
 using .DeviceModule: Device, write_to_device, read_from_device, write_to_devices, read_from_devices
@@ -585,7 +585,7 @@ export MouseDown, MouseUp, MousePress, MouseMove, MouseScroll
 export Backend, init!, quit!, measure_text
 export Screen
 export SdlBackend, sdl_measure_text, sdl_render_canvas, sdl_display_size,
-       write_image, GraphicsCanvasToImageFile, sdl_decode_image, decode_image_file!
+       write_image, record_video, GraphicsCanvasToImageFile, sdl_decode_image, decode_image_file!
 export Device, write_to_device, read_from_device, write_to_devices, read_from_devices
 export IoMap, SimpleIoMap, ChildrenIoMap, ContentIoMap
 export TypeDispatchingProjection, RecursiveProjection
