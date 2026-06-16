@@ -148,8 +148,8 @@ module BookmarkToSyntaxModule
 
 import ..ReactiveModule: Cell
 import ..CollectionModule: CellVector
-import ..ProjectionApiModule: projection_print, projection_printer_recurse, projection_read,
-                               map_reference_forward, map_reference_backward, Projection, Change
+import ..ProjectionApiModule: projection_print, projection_printer_recurse,
+                               map_reference_forward, map_reference_backward, Projection
 import ..BookmarkModule: BookmarkDocument, BookmarkInsertion,
                           BookmarkEntry, BookmarkList
 import ..TextModule: TextString
@@ -166,7 +166,6 @@ import ..ReferenceModule: ConcreteReferencePath, ElementReference, FieldReferenc
 import ..PrinterContextModule: PrinterContext, child_context
 import ..ReferenceCaseModule: var"@reference_case"
 import ..ReferenceBuilderModule: var"@reference"
-import ..OperationModule: ReplaceSelectionOperation
 
 export BookmarkEntryToSyntaxNode, BookmarkListToSyntaxNode, BookmarkToSyntax
 
@@ -178,17 +177,33 @@ struct BookmarkEntryToSyntaxNode <: Projection end
 
 function projection_print(p::BookmarkEntryToSyntaxNode,
                            recursion, entry::BookmarkEntry, ctx)
+    # This projection introduces the two leaves itself (title / url are plain
+    # string fields, not recursed sub-documents), so it owns the whole
+    # selection mapping: `.title{k} ↔ [1].value{k}`, `.url{k} ↔ [2].value{k}`.
+    # Defer the iomap so the node-selection thunk can call the mapper.
+    iomap_cell = Cell(nothing)
+
+    # Each leaf's own (output-domain) selection — a cursor in its value span.
+    title_sel = Cell(() -> @reference_case entry.selection begin
+        title{k} => @reference value{k}
+        _        => nothing
+    end)
+    url_sel = Cell(() -> @reference_case entry.selection begin
+        url{k} => @reference value{k}
+        _      => nothing
+    end)
+
     title_leaf = SyntaxLeaf(
         TextString("▶ ", _font, color_solarized_blue),
         TextString("", _font, color_default),
         TextString(() -> entry.title, _font, color_solarized_blue),
-        getfield(entry, :selection),   # shared selection cell
+        title_sel,
     )
     url_leaf = SyntaxLeaf(
         TextString("   ", _font, color_default),
         TextString("", _font, color_default),
         TextString(() -> entry.url, _font, color_solarized_cyan),
-        Cell(nothing),
+        url_sel,
     )
     node = SyntaxNode(
         TextString("", _font, color_default),
@@ -197,15 +212,35 @@ function projection_print(p::BookmarkEntryToSyntaxNode,
         Cell(CellVector(Cell[Cell(title_leaf), Cell(url_leaf)])),
         Cell(0),       # indentation
         Cell(false),   # collapsed
-        getfield(entry, :selection),
+        # node selection is the input selection mapped forward by our own mapper
+        Cell(() -> let im = iomap_cell[]
+            im === nothing ? nothing : map_reference_forward(p, im, entry.selection)
+        end),
     )
-    SimpleIoMap(p, entry, node)
+    iomap = SimpleIoMap(p, entry, node)
+    iomap_cell[] = iomap
+    iomap
 end
 
-function projection_read(p::BookmarkEntryToSyntaxNode,
-                          recursion, change::Change, iomap::SimpleIoMap)
-    # Selection passes through unchanged (shared cell handles it).
-    change
+# The mappers are the single source of truth for how a path crosses this
+# projection. With them defined, the default reader translates both selection
+# moves and value edits backward — so no `projection_read` method is needed.
+function map_reference_forward(::BookmarkEntryToSyntaxNode, iomap, reference)
+    @reference_case reference begin
+        ∅        => @reference()
+        title{k} => @reference [1].value{k}
+        url{k}   => @reference [2].value{k}
+        _        => nothing
+    end
+end
+
+function map_reference_backward(::BookmarkEntryToSyntaxNode, iomap, reference)
+    @reference_case reference begin
+        ∅            => @reference()
+        [1].value{k} => @reference title{k}
+        [2].value{k} => @reference url{k}
+        _            => nothing
+    end
 end
 
 # ── BookmarkList → SyntaxNode ──────────────────────────────────────────────
@@ -214,38 +249,18 @@ struct BookmarkListToSyntaxNode <: Projection end
 
 function projection_print(p::BookmarkListToSyntaxNode,
                            recursion, list::BookmarkList, ctx)
+    iomap_cell = Cell(nothing)
     # Project each entry recursively via `projection_printer_recurse`, which
     # re-enters the whole pipeline for the child; `child_context` extends the
-    # reference path to entry i.
+    # reference path with the `entries` field step and the element step, so the
+    # child knows it sits at `entries[i]` relative to this node.
     child_iomaps = Cell(() ->
         [projection_printer_recurse(recursion, getfield(list, :entries)[][i][],
-                                    child_context(ctx, ElementReference(i)))
+                                    child_context(ctx, FieldReference("entries"),
+                                                  ElementReference(i)))
          for i in 1:length(list.entries)])
 
     children = Cell(() -> CellVector(Cell[Cell(m.output) for m in child_iomaps[]]))
-
-    header_leaf = SyntaxLeaf(
-        TextString("", _font, color_default),
-        TextString("", _font, color_default),
-        TextString(() -> list.name, _font, color_solarized_blue),
-        Cell(nothing),
-    )
-
-    # Selection: find which child the input selection points to
-    sel = Cell(() -> begin
-        path = list.selection
-        @reference_case path begin
-            entries[i].rest... => begin
-                iomaps = child_iomaps[]
-                i > length(iomaps) && return nothing
-                child_sel = iomaps[i].output.selection
-                child_sel === nothing && return nothing
-                # prepend [i] to place it within the child list
-                ConcreteReferencePath(ElementReference(i), child_sel)
-            end
-            _ => nothing
-        end
-    end)
 
     node = SyntaxNode(
         TextString("", _font, color_default),
@@ -254,14 +269,46 @@ function projection_print(p::BookmarkListToSyntaxNode,
         children,
         Cell(0),
         Cell(false),
-        sel,
+        # node selection: the input selection mapped forward by our own mapper
+        Cell(() -> let im = iomap_cell[]
+            im === nothing ? nothing : map_reference_forward(p, im, list.selection)
+        end),
     )
-    ChildrenIoMap(p, list, node, child_iomaps)
+    iomap = ChildrenIoMap(p, list, node, child_iomaps)
+    iomap_cell[] = iomap
+    iomap
 end
 
-function projection_read(p::BookmarkListToSyntaxNode,
-                          recursion, change::Change, iomap::ChildrenIoMap)
-    change   # pass navigation operations through unchanged
+# School A: peel the one step this projection owns (`entries[i]` ↔ `[i]`) and
+# delegate the tail to the child projection's own mapper, reached through the
+# stored child IO maps. No `projection_read` is needed — the default reader uses
+# `map_reference_backward` for both selection moves and edits.
+function map_reference_forward(::BookmarkListToSyntaxNode, iomap::ChildrenIoMap, reference)
+    @reference_case reference begin
+        ∅ => @reference()
+        entries[i].rest... => begin
+            ims = iomap.child_iomaps[]
+            (i < 1 || i > length(ims)) && return nothing
+            child = ims[i]
+            mapped = map_reference_forward(child.projection, child, rest)
+            mapped === nothing ? nothing : (@reference [i].^(mapped))
+        end
+        _ => nothing
+    end
+end
+
+function map_reference_backward(::BookmarkListToSyntaxNode, iomap::ChildrenIoMap, reference)
+    @reference_case reference begin
+        ∅ => @reference()
+        [i].rest... => begin
+            ims = iomap.child_iomaps[]
+            (i < 1 || i > length(ims)) && return nothing
+            child = ims[i]
+            mapped = map_reference_backward(child.projection, child, rest)
+            mapped === nothing ? nothing : (@reference entries[i].^(mapped))
+        end
+        _ => nothing
+    end
 end
 
 # ── BookmarkToSyntax convenience constructor ───────────────────────────────
@@ -279,10 +326,23 @@ end # module
 **Key points:**
 - `projection_print` must return an `IoMap` (here `SimpleIoMap` or
   `ChildrenIoMap`), not just the output document.
-- The selection is wired as a *computed cell* (`Cell(() -> ...)`) that reads
-  the input document's selection reactively.
-- `ChildrenIoMap` is used when the projection recurses into children, because
-  the reader may need to know which child IO map corresponds to a given child.
+- The output selection is wired as a *computed cell* (`Cell(() -> ...)`) that
+  maps the input selection forward through this projection's **own**
+  `map_reference_forward` — the deferred-iomap trick (`iomap_cell = Cell(nothing)`,
+  assigned after the IoMap is built) lets the thunk reach the not-yet-built iomap.
+- **Define `map_reference_forward` / `map_reference_backward`, not a
+  `projection_read`.** The two mappers are the single source of truth for how a
+  path crosses the projection; the default reader uses `map_reference_backward`
+  to translate *both* selection moves and value edits backward. You only add a
+  `projection_read` method when a projection must do more than re-target a
+  reference.
+- When the printer recurses into children (`projection_printer_recurse`), the
+  mappers recurse **in lockstep** — peel the one step this projection owns and
+  delegate the tail through the stored child IO maps (School A). A projection
+  that introduces structure itself (like `BookmarkEntryToSyntaxNode`'s two
+  leaves) writes that structural rewrite directly instead.
+- `ChildrenIoMap` is used when the projection recurses into children, so the
+  mappers can locate the child IO map for a given child.
 - `RecursiveProjection(TypeDispatchingProjection(...))` is the standard
   pattern for domains with multiple types.
 - See [the projection system guide](projection-system.md) and
@@ -364,9 +424,9 @@ function test_bookmark_to_syntax()
 
 @testset "BookmarkEntry → SyntaxNode" begin
     entry = BookmarkEntry("Julia", "https://julialang.org")
-    # projection_print signature is (projection, recursion, document, ctx)
-    iomap = projection_print(BookmarkEntryToSyntaxNode(), PreservingProjection(),
-                             entry,
+    # projection_print(projection, recursion, input, ctx)
+    iomap = projection_print(BookmarkEntryToSyntaxNode(),
+                             PreservingProjection(), entry,
                              Projectured.PrinterContextModule.PrinterContext())
     node = iomap.output
     @test node isa SyntaxNode
@@ -420,9 +480,13 @@ BookmarkList
 
 ## What to add next
 
-- **Character editing:** implement `projection_read` methods that produce
-  `StringReplaceRangeOperation` for the `title` and `url` fields.
-- **Structural editing:** `CollectionInsertOperation` to append bookmarks.
+- **Character editing:** already works — a `StringReplaceRangeOperation` on a
+  leaf's value flows back through the default reader, which re-targets its
+  reference via the `map_reference_backward` you defined (`[1].value{k}` →
+  `title{k}`, `[2].value{k}` → `url{k}`). No extra `projection_read` needed.
+- **Structural editing:** `CollectionInsertOperation` to append bookmarks —
+  this *does* need a `projection_read` method, since it is more than a
+  reference re-target.
 - **A custom operation:** e.g. `BookmarkOpenOperation` that opens the URL
   in a browser when Enter is pressed.
 
