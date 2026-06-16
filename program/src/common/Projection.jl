@@ -19,6 +19,7 @@ module ProjectionModule
 
 import ..ProjectionApiModule: projection_print, projection_read, map_reference_forward, map_reference_backward, Projection, Change
 import ..OperationModule: ReplaceSelectionOperation, ToggleCollapseOperation
+import ..PrimitiveModule: StringReplaceRangeOperation, NumberReplaceRangeOperation
 import ..ReactiveModule: Cell
 import ..ReferenceModule: EmptyReferencePath
 import ..PrinterContextModule: PrinterContext
@@ -61,16 +62,28 @@ end
 """
     projection_read(projection::Projection, iomap, operation)
 
-Default implementation for projection operation reading. Handles
-`ReplaceSelectionOperation` by mapping the selection path backward
-from output space to input space using `map_reference_backward`.
-Returns `nothing` for other operation types.
+Default implementation for projection operation reading. Re-targets any
+operation that carries a reference from output space to input space using
+`map_reference_backward`: the selection path of a `ReplaceSelectionOperation`,
+and the `reference` of a `StringReplaceRangeOperation` /
+`NumberReplaceRangeOperation` (so edits flow back through generic projections
+such as `SortingProjection`/`ReversingProjection`/`CopyingProjection` without a
+bespoke reader). `ToggleCollapseOperation` is forwarded unchanged; all other
+operation types return `nothing`.
 """
 function projection_read(projection::Projection, iomap, operation)
     if operation isa ReplaceSelectionOperation
         input_selection = map_reference_backward(projection, iomap, operation.path)
         input_selection === nothing && return nothing
         return ReplaceSelectionOperation(input_selection)
+    elseif operation isa StringReplaceRangeOperation
+        input_ref = map_reference_backward(projection, iomap, operation.reference)
+        input_ref === nothing && return nothing
+        return StringReplaceRangeOperation(input_ref, operation.replacement)
+    elseif operation isa NumberReplaceRangeOperation
+        input_ref = map_reference_backward(projection, iomap, operation.reference)
+        input_ref === nothing && return nothing
+        return NumberReplaceRangeOperation(input_ref, operation.replacement)
     elseif operation isa ToggleCollapseOperation
         # Collapse state lives at the syntax layer; every other projection
         # forwards the operation up the chain unchanged.
