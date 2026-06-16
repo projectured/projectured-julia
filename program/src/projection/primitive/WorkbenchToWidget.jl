@@ -28,7 +28,7 @@ pane. See the "Forward-Projecting Selection" section of guide/editor/selection.m
 """
 module WorkbenchToWidgetModule
 
-import ..ProjectionApiModule: projection_print, projection_read,
+import ..ProjectionApiModule: projection_print, projection_printer_recurse, projection_read,
                                map_reference_forward, map_reference_backward, Projection
 import ..WorkbenchModule: WorkbenchDocument, WorkbenchWorkbench, WorkbenchPage,
                           WorkbenchNavigator, WorkbenchConsole, WorkbenchDescriptor,
@@ -135,7 +135,7 @@ const _SHELL_FALLBACK_WIDTH  = 1280  # window width when run outside a window
 const _SHELL_FALLBACK_HEIGHT = 720   # window height when run outside a window
 
 _recurse(recursion, doc, ctx) =
-    (recursion !== nothing && doc isa WorkbenchDocument) ? projection_print(recursion, recursion, doc, ctx) : SimpleIoMap(nothing, doc, doc)
+    (recursion !== nothing && doc isa WorkbenchDocument) ? projection_printer_recurse(recursion, doc, ctx) : SimpleIoMap(nothing, doc, doc)
 
 _title_widget(doc::WorkbenchDocument) = title(doc)
 
@@ -300,7 +300,7 @@ function projection_print(::WorkbenchAssistantToWidgetSplitPane,
                            recursion, a::WorkbenchAssistant, ctx)
     # Both children are WidgetScrollPanes whose `content` is the underlying
     # document. `WidgetScrollPaneToGraphicsCanvas.projection_print` calls
-    # `projection_print(recursion, recursion, content, …)` directly, so the outer
+    # `projection_printer_recurse(recursion, content, …)` directly, so the outer
     # TypeDispatchingProjection routes `ConversationDocument` to
     # `ConversationToWidget` and `PrimitiveDocument` (the input) to the
     # Primitive→Syntax→Text→Graphics chain. This is also what makes the

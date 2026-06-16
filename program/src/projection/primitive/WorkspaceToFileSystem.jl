@@ -16,7 +16,7 @@ module WorkspaceToFileSystemModule
 
 import ..ReactiveModule: Cell
 import ..CollectionModule: CellVector
-import ..ProjectionApiModule: projection_print, projection_read,
+import ..ProjectionApiModule: projection_print, projection_printer_recurse, projection_read,
                                map_reference_forward, map_reference_backward, Projection
 import ..WorkspaceModule: WorkspaceDocument, Workspace, WorkspaceFolder
 import ..FileSystemModule: FileSystemDocument, FileSystemFile, FileSystemDirectory, make_filesystem_pathname
@@ -55,7 +55,7 @@ struct WorkspaceWorkspaceProjection <: Projection end
 
 function projection_print(p::WorkspaceWorkspaceProjection,
                            recursion, w::Workspace, ctx)
-    child_iomaps = [projection_print(recursion, recursion, elem,
+    child_iomaps = [projection_printer_recurse(recursion, elem,
                                    child_context(ctx, FieldReference("folders"), ElementReference(i)))
                     for (i, elem) in enumerate(w)]
     # The output is the first folder's output for single-root workspaces.

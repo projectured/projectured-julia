@@ -25,7 +25,7 @@ module NedToSyntaxModule
 
 import ..ReactiveModule: Cell
 import ..CollectionModule: CellVector
-import ..ProjectionApiModule: projection_print, projection_read, map_reference_forward, map_reference_backward, Projection
+import ..ProjectionApiModule: projection_print, projection_printer_recurse, projection_read, map_reference_forward, map_reference_backward, Projection
 import ..NedModule: NedDocument, NedInsertion, NedExtends, NedInterfaceName, NedLoop, NedCondition,
                     NedLiteral, NedPropertyKey, NedProperty, NedPropertyDecl, NedParam, NedGate,
                     NedSubmodule, NedConnection, NedConnectionGroup,
@@ -415,7 +415,7 @@ end
 
 function projection_print(p::NedConnectionGroupToSyntaxNode, recursion, group::NedConnectionGroup, ctx)
     reference = ctx.reference
-    child_iomaps = Cell(() -> [projection_print(recursion, recursion, conn,
+    child_iomaps = Cell(() -> [projection_printer_recurse(recursion, conn,
                                    child_context(ctx, @reference ^(reference).connections[i]))
                                for (i, conn) in enumerate(group.connections)])
 
@@ -494,7 +494,7 @@ function _build_section_nodes(recursion, ctx, reference, sections)
         isempty(cv) && continue
         entry_outputs = SyntaxDocument[]
         for (i, child) in enumerate(cv)
-            im = projection_print(recursion, recursion, child,
+            im = projection_printer_recurse(recursion, child,
                      child_context(ctx, _field_child_ref(reference, field_name, i)))
             push!(entry_outputs, im.output)
         end
@@ -597,7 +597,7 @@ function projection_print(p::NedChannelToSyntaxNode, recursion, ch::NedChannel, 
     children_cv = CellVector(() -> begin
         entry_outputs = SyntaxDocument[]
         for (i, child) in enumerate(ch.params)
-            im = projection_print(recursion, recursion, child,
+            im = projection_printer_recurse(recursion, child,
                      child_context(ctx, @reference ^(reference).params[i]))
             push!(entry_outputs, im.output)
         end
@@ -627,7 +627,7 @@ function projection_print(p::NedChannelInterfaceToSyntaxNode, recursion, ci::Ned
     children_cv = CellVector(() -> begin
         entry_outputs = SyntaxDocument[]
         for (i, child) in enumerate(ci.params)
-            im = projection_print(recursion, recursion, child,
+            im = projection_printer_recurse(recursion, child,
                      child_context(ctx, @reference ^(reference).params[i]))
             push!(entry_outputs, im.output)
         end
@@ -747,7 +747,7 @@ end
 
 function projection_print(p::NedFileToSyntaxNode, recursion, f::NedFile, ctx)
     reference = ctx.reference
-    child_iomaps = Cell(() -> [projection_print(recursion, recursion, child,
+    child_iomaps = Cell(() -> [projection_printer_recurse(recursion, child,
                                    child_context(ctx, @reference ^(reference).children[i]))
                                for (i, child) in enumerate(f)])
 

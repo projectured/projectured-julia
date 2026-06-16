@@ -19,7 +19,7 @@ module TableToGraphicsModule
 
 import ..ReactiveModule: Cell
 import ..CollectionModule: CellVector
-import ..ProjectionApiModule: projection_print, projection_read, map_reference_forward, map_reference_backward, Projection, Change
+import ..ProjectionApiModule: projection_print, projection_printer_recurse, projection_read, map_reference_forward, map_reference_backward, Projection, Change
 import ..TableModule: TableDocument, TableTable, TableCell, TableRow, TableColumn
 import ..GraphicsModule: GraphicsDocument, GraphicsCanvas, GraphicsRect, layout_none
 import ..ColorModule: StyleColor, color_default, color_solarized_gray
@@ -284,7 +284,7 @@ function projection_print(p::TableTableToGraphicsCanvas, recursion, table::Table
             cell = table.cells[idx]
             if cell isa TableCell && cell.content !== nothing
                 content_ref = @reference ^(reference).cells[idx].content
-                push!(iomaps, projection_print(recursion, recursion, cell.content, child_context(ctx, content_ref)))
+                push!(iomaps, projection_printer_recurse(recursion, cell.content, child_context(ctx, content_ref)))
             else
                 push!(iomaps, nothing)
             end
@@ -298,7 +298,7 @@ function projection_print(p::TableTableToGraphicsCanvas, recursion, table::Table
             col = table.columns[idx]
             if col isa TableColumn && col.content !== nothing
                 col_ref = @reference ^(reference).columns[idx].content
-                push!(iomaps, projection_print(recursion, recursion, col.content, child_context(ctx, col_ref)))
+                push!(iomaps, projection_printer_recurse(recursion, col.content, child_context(ctx, col_ref)))
             else
                 push!(iomaps, nothing)
             end
@@ -312,7 +312,7 @@ function projection_print(p::TableTableToGraphicsCanvas, recursion, table::Table
             row = table.rows[idx]
             if row isa TableRow && row.content !== nothing
                 row_ref = @reference ^(reference).rows[idx].content
-                push!(iomaps, projection_print(recursion, recursion, row.content, child_context(ctx, row_ref)))
+                push!(iomaps, projection_printer_recurse(recursion, row.content, child_context(ctx, row_ref)))
             else
                 push!(iomaps, nothing)
             end

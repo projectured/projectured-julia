@@ -15,7 +15,7 @@ module JuliaToSyntaxModule
 
 import ..ReactiveModule: Cell
 import ..CollectionModule: CellVector
-import ..ProjectionApiModule: projection_print, projection_read, map_reference_forward, map_reference_backward, Projection
+import ..ProjectionApiModule: projection_print, projection_printer_recurse, projection_read, map_reference_forward, map_reference_backward, Projection
 import ..JuliaModule: JuliaDocument,
                       JuliaIdentifier, JuliaInteger, JuliaFloat, JuliaString, JuliaBool,
                       JuliaNothing, JuliaSymbol, JuliaChar,
@@ -206,8 +206,8 @@ JuliaBinaryOpToSyntaxNode(; op_font=font_ubuntu_monospace_regular_24, op_color=c
 function projection_print(p::JuliaBinaryOpToSyntaxNode, recursion, m::JuliaBinaryOp, ctx)
     left_ref = child_context(ctx, @reference ^(ctx.reference).left)
     right_ref = child_context(ctx, @reference ^(ctx.reference).right)
-    left_iomap = Cell(() -> projection_print(recursion, recursion, m.left, left_ref))
-    right_iomap = Cell(() -> projection_print(recursion, recursion, m.right, right_ref))
+    left_iomap = Cell(() -> projection_printer_recurse(recursion, m.left, left_ref))
+    right_iomap = Cell(() -> projection_printer_recurse(recursion, m.right, right_ref))
 
     op_leaf = SyntaxLeaf(
         TextString(" ", p.op_font, color_default),
@@ -233,7 +233,7 @@ JuliaUnaryOpToSyntaxNode(; op_font=font_ubuntu_monospace_regular_24, op_color=co
 
 function projection_print(p::JuliaUnaryOpToSyntaxNode, recursion, u::JuliaUnaryOp, ctx)
     operand_ref = child_context(ctx, @reference ^(ctx.reference).operand)
-    operand_iomap = Cell(() -> projection_print(recursion, recursion, u.operand, operand_ref))
+    operand_iomap = Cell(() -> projection_printer_recurse(recursion, u.operand, operand_ref))
 
     op_leaf = SyntaxLeaf(
         _empty(p.op_font), _empty(p.op_font),
@@ -258,9 +258,9 @@ JuliaCallToSyntaxNode(; delim_font=font_ubuntu_monospace_regular_24, delim_color
 
 function projection_print(p::JuliaCallToSyntaxNode, recursion, c::JuliaCall, ctx)
     callee_ref = child_context(ctx, @reference ^(ctx.reference).callee)
-    callee_iomap = Cell(() -> projection_print(recursion, recursion, c.callee, callee_ref))
+    callee_iomap = Cell(() -> projection_printer_recurse(recursion, c.callee, callee_ref))
 
-    arg_iomaps = Cell(() -> [projection_print(recursion, recursion, arg,
+    arg_iomaps = Cell(() -> [projection_printer_recurse(recursion, arg,
                                 child_context(ctx, @reference ^(ctx.reference).arguments[i]))
                              for (i, arg) in enumerate(c.arguments)])
 
@@ -292,9 +292,9 @@ function projection_print(p::JuliaTernaryToSyntaxNode, recursion, t::JuliaTernar
     then_ref = child_context(ctx, @reference ^(ctx.reference).then_branch)
     else_ref = child_context(ctx, @reference ^(ctx.reference).else_branch)
 
-    cond_iomap = Cell(() -> projection_print(recursion, recursion, t.condition, cond_ref))
-    then_iomap = Cell(() -> projection_print(recursion, recursion, t.then_branch, then_ref))
-    else_iomap = Cell(() -> projection_print(recursion, recursion, t.else_branch, else_ref))
+    cond_iomap = Cell(() -> projection_printer_recurse(recursion, t.condition, cond_ref))
+    then_iomap = Cell(() -> projection_printer_recurse(recursion, t.then_branch, then_ref))
+    else_iomap = Cell(() -> projection_printer_recurse(recursion, t.else_branch, else_ref))
 
     q_leaf = SyntaxLeaf(
         TextString(" ", p.op_font, color_default),
@@ -323,9 +323,9 @@ JuliaIndexToSyntaxNode(; delim_font=font_ubuntu_monospace_regular_24, delim_colo
 
 function projection_print(p::JuliaIndexToSyntaxNode, recursion, x::JuliaIndex, ctx)
     coll_ref = child_context(ctx, @reference ^(ctx.reference).collection)
-    coll_iomap = Cell(() -> projection_print(recursion, recursion, x.collection, coll_ref))
+    coll_iomap = Cell(() -> projection_printer_recurse(recursion, x.collection, coll_ref))
 
-    idx_iomaps = Cell(() -> [projection_print(recursion, recursion, ix,
+    idx_iomaps = Cell(() -> [projection_printer_recurse(recursion, ix,
                                 child_context(ctx, @reference ^(ctx.reference).indices[i]))
                              for (i, ix) in enumerate(x.indices)])
 
@@ -355,8 +355,8 @@ JuliaFieldAccessToSyntaxNode(; dot_font=font_ubuntu_monospace_regular_24, dot_co
 function projection_print(p::JuliaFieldAccessToSyntaxNode, recursion, f::JuliaFieldAccess, ctx)
     object_ref = child_context(ctx, @reference ^(ctx.reference).object)
     field_ref = child_context(ctx, @reference ^(ctx.reference).field)
-    object_iomap = Cell(() -> projection_print(recursion, recursion, f.object, object_ref))
-    field_iomap = Cell(() -> projection_print(recursion, recursion, f.field, field_ref))
+    object_iomap = Cell(() -> projection_printer_recurse(recursion, f.object, object_ref))
+    field_iomap = Cell(() -> projection_printer_recurse(recursion, f.field, field_ref))
 
     dot_leaf = SyntaxLeaf(
         _empty(p.dot_font), _empty(p.dot_font),
@@ -379,7 +379,7 @@ JuliaTupleToSyntaxNode(; delim_font=font_ubuntu_monospace_regular_24, delim_colo
     JuliaTupleToSyntaxNode(delim_font, delim_color)
 
 function projection_print(p::JuliaTupleToSyntaxNode, recursion, t::JuliaTuple, ctx)
-    elem_iomaps = Cell(() -> [projection_print(recursion, recursion, e,
+    elem_iomaps = Cell(() -> [projection_printer_recurse(recursion, e,
                                 child_context(ctx, @reference ^(ctx.reference).elements[i]))
                               for (i, e) in enumerate(t.elements)])
 
@@ -402,7 +402,7 @@ JuliaArrayToSyntaxNode(; delim_font=font_ubuntu_monospace_regular_24, delim_colo
     JuliaArrayToSyntaxNode(delim_font, delim_color)
 
 function projection_print(p::JuliaArrayToSyntaxNode, recursion, a::JuliaArray, ctx)
-    elem_iomaps = Cell(() -> [projection_print(recursion, recursion, e,
+    elem_iomaps = Cell(() -> [projection_printer_recurse(recursion, e,
                                 child_context(ctx, @reference ^(ctx.reference).elements[i]))
                               for (i, e) in enumerate(a.elements)])
 
@@ -429,11 +429,11 @@ function projection_print(p::JuliaRangeToSyntaxNode, recursion, r::JuliaRange, c
     step_ref = child_context(ctx, @reference ^(ctx.reference).step)
     stop_ref = child_context(ctx, @reference ^(ctx.reference).stop)
 
-    start_iomap = Cell(() -> projection_print(recursion, recursion, r.start, start_ref))
-    stop_iomap = Cell(() -> projection_print(recursion, recursion, r.stop, stop_ref))
+    start_iomap = Cell(() -> projection_printer_recurse(recursion, r.start, start_ref))
+    stop_iomap = Cell(() -> projection_printer_recurse(recursion, r.stop, stop_ref))
     step_iomap = Cell(() -> begin
         s = r.step
-        s === nothing ? nothing : projection_print(recursion, recursion, s, step_ref)
+        s === nothing ? nothing : projection_printer_recurse(recursion, s, step_ref)
     end)
 
     colon_leaf() = SyntaxLeaf(_empty(p.op_font), _empty(p.op_font),
@@ -472,8 +472,8 @@ JuliaTypeAnnotationToSyntaxNode(; op_font=font_ubuntu_monospace_regular_24, op_c
 function projection_print(p::JuliaTypeAnnotationToSyntaxNode, recursion, t::JuliaTypeAnnotation, ctx)
     value_ref = child_context(ctx, @reference ^(ctx.reference).value)
     type_ref = child_context(ctx, @reference ^(ctx.reference).type)
-    value_iomap = Cell(() -> projection_print(recursion, recursion, t.value, value_ref))
-    type_iomap = Cell(() -> projection_print(recursion, recursion, t.type, type_ref))
+    value_iomap = Cell(() -> projection_printer_recurse(recursion, t.value, value_ref))
+    type_iomap = Cell(() -> projection_printer_recurse(recursion, t.type, type_ref))
 
     dc_leaf = SyntaxLeaf(_empty(p.op_font), _empty(p.op_font),
                          TextString("::", p.op_font, p.op_color), Cell(nothing))
@@ -497,8 +497,8 @@ JuliaAssignmentToSyntaxNode(; op_font=font_ubuntu_monospace_regular_24, op_color
 function projection_print(p::JuliaAssignmentToSyntaxNode, recursion, a::JuliaAssignment, ctx)
     target_ref = child_context(ctx, @reference ^(ctx.reference).target)
     value_ref = child_context(ctx, @reference ^(ctx.reference).value)
-    target_iomap = Cell(() -> projection_print(recursion, recursion, a.target, target_ref))
-    value_iomap = Cell(() -> projection_print(recursion, recursion, a.value, value_ref))
+    target_iomap = Cell(() -> projection_printer_recurse(recursion, a.target, target_ref))
+    value_iomap = Cell(() -> projection_printer_recurse(recursion, a.value, value_ref))
 
     op_leaf = SyntaxLeaf(
         TextString(" ", p.op_font, color_default),
@@ -525,8 +525,8 @@ JuliaForIteratorToSyntaxNode(; keyword_font=font_ubuntu_monospace_bold_24, keywo
 function projection_print(p::JuliaForIteratorToSyntaxNode, recursion, it::JuliaForIterator, ctx)
     var_ref = child_context(ctx, @reference ^(ctx.reference).variable)
     iter_ref = child_context(ctx, @reference ^(ctx.reference).iterable)
-    var_iomap = Cell(() -> projection_print(recursion, recursion, it.variable, var_ref))
-    iter_iomap = Cell(() -> projection_print(recursion, recursion, it.iterable, iter_ref))
+    var_iomap = Cell(() -> projection_printer_recurse(recursion, it.variable, var_ref))
+    iter_iomap = Cell(() -> projection_printer_recurse(recursion, it.iterable, iter_ref))
 
     in_leaf = SyntaxLeaf(
         TextString(" ", p.keyword_font, color_default),
@@ -556,9 +556,9 @@ JuliaForToSyntaxNode(;
 
 function projection_print(p::JuliaForToSyntaxNode, recursion, f::JuliaFor, ctx)
     body_ref = child_context(ctx, @reference ^(ctx.reference).body)
-    body_iomap = Cell(() -> projection_print(recursion, recursion, f.body, body_ref))
+    body_iomap = Cell(() -> projection_printer_recurse(recursion, f.body, body_ref))
 
-    iter_iomaps = Cell(() -> [projection_print(recursion, recursion, it,
+    iter_iomaps = Cell(() -> [projection_printer_recurse(recursion, it,
                                   child_context(ctx, @reference ^(ctx.reference).iterators[i]))
                               for (i, it) in enumerate(f.iterators)])
 
@@ -603,8 +603,8 @@ JuliaWhileToSyntaxNode(; keyword_font=font_ubuntu_monospace_bold_24, keyword_col
 function projection_print(p::JuliaWhileToSyntaxNode, recursion, w::JuliaWhile, ctx)
     cond_ref = child_context(ctx, @reference ^(ctx.reference).condition)
     body_ref = child_context(ctx, @reference ^(ctx.reference).body)
-    cond_iomap = Cell(() -> projection_print(recursion, recursion, w.condition, cond_ref))
-    body_iomap = Cell(() -> projection_print(recursion, recursion, w.body, body_ref))
+    cond_iomap = Cell(() -> projection_printer_recurse(recursion, w.condition, cond_ref))
+    body_iomap = Cell(() -> projection_printer_recurse(recursion, w.body, body_ref))
 
     while_leaf = SyntaxLeaf(
         _empty(p.keyword_font),
@@ -642,7 +642,7 @@ function projection_print(p::JuliaReturnToSyntaxNode, recursion, r::JuliaReturn,
     value_ref = child_context(ctx, @reference ^(ctx.reference).value)
     value_iomap = Cell(() -> begin
         v = r.value
-        v === nothing ? nothing : projection_print(recursion, recursion, v, value_ref)
+        v === nothing ? nothing : projection_printer_recurse(recursion, v, value_ref)
     end)
 
     return_leaf_alone = SyntaxLeaf(
@@ -719,18 +719,18 @@ function projection_print(p::JuliaTryToSyntaxNode, recursion, t::JuliaTry, ctx)
     catch_branch_ref = child_context(ctx, @reference ^(ctx.reference).catch_branch)
     finally_branch_ref = child_context(ctx, @reference ^(ctx.reference).finally_branch)
 
-    body_iomap = Cell(() -> projection_print(recursion, recursion, t.body, body_ref))
+    body_iomap = Cell(() -> projection_printer_recurse(recursion, t.body, body_ref))
     catch_var_iomap = Cell(() -> begin
         v = t.catch_var
-        v === nothing ? nothing : projection_print(recursion, recursion, v, catch_var_ref)
+        v === nothing ? nothing : projection_printer_recurse(recursion, v, catch_var_ref)
     end)
     catch_branch_iomap = Cell(() -> begin
         v = t.catch_branch
-        v === nothing ? nothing : projection_print(recursion, recursion, v, catch_branch_ref)
+        v === nothing ? nothing : projection_printer_recurse(recursion, v, catch_branch_ref)
     end)
     finally_branch_iomap = Cell(() -> begin
         v = t.finally_branch
-        v === nothing ? nothing : projection_print(recursion, recursion, v, finally_branch_ref)
+        v === nothing ? nothing : projection_printer_recurse(recursion, v, finally_branch_ref)
     end)
 
     try_leaf = SyntaxLeaf(
@@ -798,7 +798,7 @@ JuliaBeginToSyntaxNode(; keyword_font=font_ubuntu_monospace_bold_24, keyword_col
 
 function projection_print(p::JuliaBeginToSyntaxNode, recursion, b::JuliaBegin, ctx)
     body_ref = child_context(ctx, @reference ^(ctx.reference).body)
-    body_iomap = Cell(() -> projection_print(recursion, recursion, b.body, body_ref))
+    body_iomap = Cell(() -> projection_printer_recurse(recursion, b.body, body_ref))
 
     begin_leaf = SyntaxLeaf(
         _empty(p.keyword_font), _empty(p.keyword_font),
@@ -826,7 +826,7 @@ JuliaBlockToSyntaxNode(; font=font_ubuntu_monospace_regular_24, indentation=1) =
     JuliaBlockToSyntaxNode(font, indentation)
 
 function projection_print(p::JuliaBlockToSyntaxNode, recursion, b::JuliaBlock, ctx)
-    stmt_iomaps = Cell(() -> [projection_print(recursion, recursion, s,
+    stmt_iomaps = Cell(() -> [projection_printer_recurse(recursion, s,
                                   child_context(ctx, @reference ^(ctx.reference).statements[i]))
                               for (i, s) in enumerate(b.statements)])
 
@@ -851,9 +851,9 @@ function projection_print(p::JuliaIfToSyntaxNode, recursion, m::JuliaIf, ctx)
     then_ref = child_context(ctx, @reference ^(ctx.reference).then_branch)
     else_ref = child_context(ctx, @reference ^(ctx.reference).else_branch)
 
-    cond_iomap = Cell(() -> projection_print(recursion, recursion, m.condition, cond_ref))
-    then_iomap = Cell(() -> projection_print(recursion, recursion, m.then_branch, then_ref))
-    else_iomap = Cell(() -> projection_print(recursion, recursion, m.else_branch, else_ref))
+    cond_iomap = Cell(() -> projection_printer_recurse(recursion, m.condition, cond_ref))
+    then_iomap = Cell(() -> projection_printer_recurse(recursion, m.then_branch, then_ref))
+    else_iomap = Cell(() -> projection_printer_recurse(recursion, m.else_branch, else_ref))
 
     if_leaf = SyntaxLeaf(
         _empty(p.keyword_font),
@@ -900,10 +900,10 @@ function projection_print(p::JuliaFunctionToSyntaxNode, recursion, f::JuliaFunct
     name_ref = child_context(ctx, @reference ^(ctx.reference).name)
     body_ref = child_context(ctx, @reference ^(ctx.reference).body)
 
-    name_iomap = Cell(() -> projection_print(recursion, recursion, f.name, name_ref))
-    body_iomap = Cell(() -> projection_print(recursion, recursion, f.body, body_ref))
+    name_iomap = Cell(() -> projection_printer_recurse(recursion, f.name, name_ref))
+    body_iomap = Cell(() -> projection_printer_recurse(recursion, f.body, body_ref))
 
-    param_iomaps = Cell(() -> [projection_print(recursion, recursion, param,
+    param_iomaps = Cell(() -> [projection_printer_recurse(recursion, param,
                                    child_context(ctx, @reference ^(ctx.reference).params[i]))
                                for (i, param) in enumerate(f.params)])
 

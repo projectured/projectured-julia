@@ -12,7 +12,7 @@ module CollectionToSyntaxModule
 
 import ..ReactiveModule: Cell, setfn!, setval!
 import ..CollectionModule: CellVector, ListNode
-import ..ProjectionApiModule: projection_print, projection_read, map_reference_forward, map_reference_backward, Projection
+import ..ProjectionApiModule: projection_print, projection_printer_recurse, projection_read, map_reference_forward, map_reference_backward, Projection
 import ..SyntaxModule: SyntaxDocument, SyntaxNode
 import ..TextModule: TextString
 import ..FontModule: StyleFont, font_ubuntu_monospace_regular_24, font_ubuntu_monospace_bold_24
@@ -47,7 +47,7 @@ function map_reference_backward(::CollectionCellVectorToSyntax, iomap, reference
 end
 
 function projection_print(p::CollectionCellVectorToSyntax, recursion, cv::CellVector, ctx)
-    child_iomaps = Cell(() -> [projection_print(recursion, recursion, x,
+    child_iomaps = Cell(() -> [projection_printer_recurse(recursion, x,
                                    child_context(ctx, ElementReference(i)))
                                for (i, x) in enumerate(cv)])
     node = SyntaxNode(
@@ -112,7 +112,7 @@ end
 
 function _map_listnode(recursion, input_node::ListNode, ctx, index::Int)
     child_ctx = child_context(ctx, ElementReference(index))
-    child_iomap = projection_print(recursion, recursion, input_node.value, child_ctx)
+    child_iomap = projection_printer_recurse(recursion, input_node.value, child_ctx)
     out_node = ListNode(child_iomap.output)
 
     # Lazy next

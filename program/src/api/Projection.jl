@@ -25,7 +25,7 @@ for the selection mechanism.
 """
 module ProjectionApiModule
 
-export projection_print, projection_read, map_reference_forward, map_reference_backward, Projection,
+export projection_print, projection_printer_recurse, projection_read, map_reference_forward, map_reference_backward, Projection,
        Change, as_change
 
 """
@@ -89,17 +89,18 @@ recurses. Each concrete projection adds a method; compound projections such as
 
 # Arguments
 - `recursion` — the projection to invoke when descending into a child. A leaf
-  projection that never descends ignores it. A node projection must thread it
-  **twice** — as the projection to call *and* as that call's own `recursion`
-  argument:
+  projection that never descends ignores it. A node projection recurses into a
+  child with the `projection_printer_recurse` helper:
 
-      projection_print(recursion, recursion, child, child_ctx)
+      projection_printer_recurse(recursion, child, child_ctx)
 
-  so the child re-enters the whole pipeline (normally a `RecursiveProjection`
-  wrapping a `TypeDispatchingProjection`) instead of this single projection.
-  Passing `projection` or `nothing` in either slot silently breaks
-  heterogeneous recursion. The 2-arg overload `projection_print(p, input)`
-  supplies `nothing`.
+  which expands to `projection_print(recursion, recursion, child, child_ctx)` —
+  `recursion` is *both* the projection to call and that call's own `recursion`
+  argument, so the child re-enters the whole pipeline (normally a
+  `RecursiveProjection` wrapping a `TypeDispatchingProjection`) instead of this
+  single projection. Always recurse through the helper rather than open-coding
+  the doubled argument. The 2-arg overload `projection_print(p, input)` supplies
+  `nothing`.
 - `context::PrinterContext` — downward-flowing per-invocation data: a
   `reference` path locating `input` relative to the document root, plus
   optional layout extent (`available_width`/`available_height`) and an
@@ -132,6 +133,20 @@ recurses. Each concrete projection adds a method; compound projections such as
      leaf-to-leaf (selection deep dive §7).
 """
 function projection_print end
+
+"""
+    projection_printer_recurse(recursion, input, ctx) -> iomap
+
+Project a child by re-entering the whole pipeline. Equivalent to
+`projection_print(recursion, recursion, input, ctx)`: `recursion` is both the
+projection to invoke *and* that call's own `recursion` argument, so the child
+goes back through the full pipeline (normally a `RecursiveProjection` wrapping a
+`TypeDispatchingProjection`) instead of one projection. Node printers should
+recurse through this helper so the doubled `recursion` argument lives in exactly
+one place and call sites read as "recurse into this child".
+"""
+projection_printer_recurse(recursion, input, ctx) =
+    projection_print(recursion, recursion, input, ctx)
 
 """
     projection_read(projection, recursion, change::Change, iomap) -> Change

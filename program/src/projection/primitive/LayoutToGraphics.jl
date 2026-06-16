@@ -18,7 +18,7 @@ downstream position/extent cells, no re-projection of the layout.
 module LayoutToGraphicsModule
 
 import ..ReactiveModule: Cell
-import ..ProjectionApiModule: projection_print, projection_read,
+import ..ProjectionApiModule: projection_print, projection_printer_recurse, projection_read,
                                map_reference_forward, map_reference_backward, Projection
 import ..DocumentApiModule: Document
 import ..LayoutModule: HorizontalLayout, VerticalLayout, GridLayout, FlowLayout, StackLayout,
@@ -161,7 +161,7 @@ Recurse into a child document via the dispatcher.
 """
 function _recurse_child(recursion, child, ref)
     recursion === nothing && return SimpleIoMap(nothing, child, child)
-    return projection_print(recursion, recursion, child, ref)
+    return projection_printer_recurse(recursion, child, ref)
 end
 
 """
@@ -226,7 +226,7 @@ function projection_print(p::LayoutConstraintToGraphicsCanvas,
     child = doc.child
     inner = recursion === nothing ?
             SimpleIoMap(nothing, child, child) :
-            projection_print(recursion, recursion, child,
+            projection_printer_recurse(recursion, child,
                              child_context(ctx, @reference ^(ctx.reference).child))
     output = inner.output isa GraphicsCanvas ? inner.output : _empty_canvas()
     ContentIoMap(p, doc, output, inner)

@@ -18,7 +18,7 @@ sources independently.
 """
 module TooltipDecoratorProjectionModule
 
-import ..ProjectionApiModule: projection_print, projection_read, map_reference_forward, map_reference_backward, Projection, Change, as_change
+import ..ProjectionApiModule: projection_print, projection_printer_recurse, projection_read, map_reference_forward, map_reference_backward, Projection, Change, as_change
 import ..IoMapApiModule: IoMap
 import ..ReactiveModule: Cell
 import ..ReferenceModule: ReferencePath, ConcreteReferencePath, FieldReference, head, tail
@@ -74,7 +74,7 @@ TooltipDecoratorProjection(; trigger::Function,
 # ── Printer (transparent) ─────────────────────────────────────────────────
 
 function projection_print(p::TooltipDecoratorProjection, recursion, input::TooltipSource, ctx)
-    child_iomap = projection_print(recursion, recursion, input.child, ctx)
+    child_iomap = projection_printer_recurse(recursion, input.child, ctx)
     TooltipDecoratorProjectionIoMap(p, input, child_iomap.output, child_iomap)
 end
 

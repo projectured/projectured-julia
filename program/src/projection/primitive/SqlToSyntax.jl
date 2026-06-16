@@ -15,7 +15,7 @@ module SqlToSyntaxModule
 
 import ..ReactiveModule: Cell
 import ..CollectionModule: CellVector
-import ..ProjectionApiModule: projection_print, projection_read, map_reference_forward, map_reference_backward, Projection
+import ..ProjectionApiModule: projection_print, projection_printer_recurse, projection_read, map_reference_forward, map_reference_backward, Projection
 import ..SqlDocumentModule: SqlSelectStatement, SqlAllColumns, SqlTableReference
 import ..TextModule: TextString
 import ..FontModule: StyleFont, font_ubuntu_monospace_regular_24, font_ubuntu_monospace_bold_24
@@ -102,9 +102,9 @@ function projection_print(p::SqlSelectStatementToSyntaxNode, recursion, stmt::Sq
     # Project the select-list items and the FROM reference lazily through the
     # recursion projection. Returns (item_iomaps::Vector, from_iomap).
     projected = Cell(() -> begin
-        items = [projection_print(recursion, recursion, item, child_context(ctx, ElementReference(i)))
+        items = [projection_printer_recurse(recursion, item, child_context(ctx, ElementReference(i)))
                  for (i, item) in enumerate(stmt.select_list)]
-        from  = projection_print(recursion, recursion, stmt.from, child_context(ctx, FieldReference("from")))
+        from  = projection_printer_recurse(recursion, stmt.from, child_context(ctx, FieldReference("from")))
         (items, from)
     end)
 

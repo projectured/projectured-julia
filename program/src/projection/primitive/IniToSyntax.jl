@@ -19,7 +19,7 @@ module IniToSyntaxModule
 
 import ..ReactiveModule: Cell
 import ..CollectionModule: CellVector
-import ..ProjectionApiModule: projection_print, projection_read, map_reference_forward, map_reference_backward, Projection
+import ..ProjectionApiModule: projection_print, projection_printer_recurse, projection_read, map_reference_forward, map_reference_backward, Projection
 import ..IniModule: IniDocument, IniInsertion, IniComment, IniInclude, IniConfigOption, IniParamAssignment, IniSection, IniFile
 import ..TextModule: TextString
 import ..FontModule: StyleFont, font_ubuntu_monospace_regular_24, font_ubuntu_monospace_bold_24
@@ -448,7 +448,7 @@ end
 
 function projection_print(p::IniSectionToSyntaxNode, recursion, s::IniSection, ctx)
     reference = ctx.reference
-    child_iomaps = Cell(() -> [projection_print(recursion, recursion, entry,
+    child_iomaps = Cell(() -> [projection_printer_recurse(recursion, entry,
                                    child_context(ctx, @reference ^(reference).entries[i]))
                                for (i, entry) in enumerate(s)])
 
@@ -532,7 +532,7 @@ end
 
 function projection_print(p::IniFileToSyntaxNode, recursion, f::IniFile, ctx)
     reference = ctx.reference
-    child_iomaps = Cell(() -> [projection_print(recursion, recursion, child,
+    child_iomaps = Cell(() -> [projection_printer_recurse(recursion, child,
                                    child_context(ctx, @reference ^(reference).children[i]))
                                for (i, child) in enumerate(f)])
 

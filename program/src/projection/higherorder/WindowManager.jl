@@ -22,7 +22,7 @@ recursion on each new window to produce the output side.
 """
 module WindowManagerProjectionModule
 
-import ..ProjectionApiModule: projection_print, projection_read, map_reference_forward, map_reference_backward, Projection, Change, as_change
+import ..ProjectionApiModule: projection_print, projection_printer_recurse, projection_read, map_reference_forward, map_reference_backward, Projection, Change, as_change
 import ..IoMapApiModule: IoMap
 import ..ReactiveModule: Cell
 import ..ScreenDocumentModule: ScreenDocument, WindowDocument, EventEnvelope, WindowResizeEvent
@@ -126,7 +126,7 @@ function _apply_open!(iomap::WindowManagerProjectionIoMap, op::OpenWindowOperati
                               width=op.width, height=op.height,
                               bg=op.bg, style=op.style,
                               content=op.content)
-    new_iomap = projection_print(iomap.recursion, iomap.recursion, new_in, iomap.ctx)
+    new_iomap = projection_printer_recurse(iomap.recursion, new_in, iomap.ctx)
     new_out = new_iomap.output
 
     push!(in_wins, Cell(new_in))
@@ -145,7 +145,7 @@ function _update_window!(w::WindowDocument, op::OpenWindowOperation;
     w.style  = op.style
     if project_content
         # Re-project the new content for the output side.
-        content_iomap = projection_print(recursion, recursion, op.content, ctx)
+        content_iomap = projection_printer_recurse(recursion, op.content, ctx)
         w.content = content_iomap.output
     else
         w.content = op.content

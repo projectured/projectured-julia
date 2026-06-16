@@ -19,7 +19,7 @@ module FileSystemToSyntaxModule
 
 import ..ReactiveModule: Cell
 import ..CollectionModule: CellVector
-import ..ProjectionApiModule: projection_print, projection_read, map_reference_forward, map_reference_backward, Projection
+import ..ProjectionApiModule: projection_print, projection_printer_recurse, projection_read, map_reference_forward, map_reference_backward, Projection
 import ..FileSystemModule: FileSystemDocument, FileSystemFile, FileSystemDirectory
 import ..TextModule: TextString
 import ..FontModule: StyleFont, font_ubuntu_monospace_regular_24, font_ubuntu_monospace_bold_24
@@ -83,7 +83,7 @@ FileSystemDirectoryToSyntaxNode(; name_font=font_ubuntu_monospace_bold_24, name_
 
 
 function projection_print(p::FileSystemDirectoryToSyntaxNode, recursion, d::FileSystemDirectory, ctx)
-    child_iomaps = Cell(() -> [projection_print(recursion, recursion, elem,
+    child_iomaps = Cell(() -> [projection_printer_recurse(recursion, elem,
                                    child_context(ctx, FieldReference("elements"), ElementReference(i)))
                                for (i, elem) in enumerate(d)])
 

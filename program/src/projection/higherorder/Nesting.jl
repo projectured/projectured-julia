@@ -13,7 +13,7 @@ Mirrors the design of `nesting.lisp` in the Common Lisp codebase.
 """
 module NestingProjectionModule
 
-import ..ProjectionApiModule: projection_print, projection_read, map_reference_forward, map_reference_backward, Projection, Change, as_change
+import ..ProjectionApiModule: projection_print, projection_printer_recurse, projection_read, map_reference_forward, map_reference_backward, Projection, Change, as_change
 import ..IoMapApiModule: IoMap
 export NestingProjection, NestingProjectionIoMap
 
@@ -29,7 +29,7 @@ end
 
 A compound projection that applies projections in a nesting (recursive)
 fashion rather than sequentially. The first element handles the outer
-structure and can call `projection_print(recursion, recursion, content, ...)` to
+structure and can call `projection_printer_recurse(recursion, content, ...)` to
 project nested content through the remaining elements.
 
 # Example

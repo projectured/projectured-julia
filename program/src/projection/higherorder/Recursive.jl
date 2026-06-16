@@ -8,7 +8,7 @@ step, enabling self-referential tree traversal.
 """
 module RecursiveProjectionModule
 
-import ..ProjectionApiModule: projection_print, projection_read, map_reference_forward, map_reference_backward, Projection, Change, as_change
+import ..ProjectionApiModule: projection_print, projection_printer_recurse, projection_read, map_reference_forward, map_reference_backward, Projection, Change, as_change
 export RecursiveProjection
 
 """
@@ -17,7 +17,7 @@ export RecursiveProjection
 A compound projection that wraps a child projection and passes itself
 as the `recursion` argument when calling `projection_print` on the child.
 This enables the child projection (and any projections it delegates to)
-to call `projection_print(recursion, recursion, sub_input)` to recurse
+to call `projection_printer_recurse(recursion, sub_input)` to recurse
 back through this same wrapper.
 
 # Example

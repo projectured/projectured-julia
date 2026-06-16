@@ -11,7 +11,7 @@ AbstractString, Symbol, Char) produce SyntaxLeaf terminals.
 module ObjectToSyntaxModule
 
 import ..ReactiveModule: Cell
-import ..ProjectionApiModule: projection_print, projection_read, map_reference_forward, map_reference_backward, Projection
+import ..ProjectionApiModule: projection_print, projection_printer_recurse, projection_read, map_reference_forward, map_reference_backward, Projection
 import ..TextModule: TextString
 import ..FontModule: StyleFont, font_ubuntu_monospace_regular_24, font_ubuntu_monospace_bold_24, font_ubuntu_monospace_italic_24
 import ..ColorModule: StyleColor, color_black, color_default, color_solarized_blue, color_solarized_green, color_solarized_magenta, color_solarized_cyan, color_solarized_yellow, color_solarized_gray
@@ -156,7 +156,7 @@ function projection_print(p::CellToSyntax, recursion, cell::Cell, ctx)
     new_visited[cell] = true
     ctx = with_property(ctx, :objects_seen, new_visited)
     unwrapped = cell[]
-    projection_print(recursion, recursion, unwrapped, ctx)
+    projection_printer_recurse(recursion, unwrapped, ctx)
 end
 
 # ── ObjectNodeToSyntaxNode ───────────────────────────────────────────────────
@@ -229,7 +229,7 @@ function projection_print(p::ObjectNodeToSyntaxNode, recursion, obj, ctx)
             return SimpleIoMap(p, obj, type_leaf)
         end
         element_nodes = SyntaxDocument[
-            projection_print(recursion, recursion, obj[i],
+            projection_printer_recurse(recursion, obj[i],
                            child_context(ctx, ElementReference(i))).output
             for i in eachindex(obj)
         ]
@@ -256,7 +256,7 @@ function projection_print(p::ObjectNodeToSyntaxNode, recursion, obj, ctx)
                 SyntaxLeaf(TextString("", p.field_name_font, color_default), TextString("", p.field_name_font, color_default),
                            TextString(string(fn), p.field_name_font, p.field_name_color)),
                 isdefined(obj, fn) ?
-                    projection_print(recursion, recursion, getfield(obj, fn),
+                    projection_printer_recurse(recursion, getfield(obj, fn),
                                      child_context(ctx, FieldReference(string(fn)))).output :
                     SyntaxLeaf(TextString("", p.undef_font, color_default), TextString("", p.undef_font, color_default),
                                TextString("<undefined>", p.undef_font, p.undef_color))

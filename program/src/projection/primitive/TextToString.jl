@@ -8,7 +8,7 @@ character; all other span types are ignored.
 """
 module TextToStringModule
 
-import ..ProjectionApiModule: projection_print, projection_read, map_reference_forward, map_reference_backward, Projection
+import ..ProjectionApiModule: projection_print, projection_printer_recurse, projection_read, map_reference_forward, map_reference_backward, Projection
 import ..TextModule: TextText, TextDocument, TextString, TextNewline
 import ..ReactiveModule: Cell
 import ..IoMapModule: SimpleIoMap
@@ -72,7 +72,7 @@ end
 # Projection print: builds one child IoMap per element via recursion, then
 # combines their output cells into a single reactive Cell{String}.
 function projection_print(proj::TextTextToString, recursion, text::TextText, ctx)
-    child_iomaps = Cell(() -> [projection_print(recursion, recursion, elem,
+    child_iomaps = Cell(() -> [projection_printer_recurse(recursion, elem,
                                    child_context(ctx, FieldReference("elements"), ElementReference(i)))
                                for (i, elem) in enumerate(text.elements)])
     output = Cell(() -> begin

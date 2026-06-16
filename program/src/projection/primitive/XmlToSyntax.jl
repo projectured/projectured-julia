@@ -9,7 +9,7 @@ module XmlToSyntaxModule
 
 import ..ReactiveModule: Cell
 import ..CollectionModule: CellVector
-import ..ProjectionApiModule: projection_print, projection_read, map_reference_forward, map_reference_backward, Projection
+import ..ProjectionApiModule: projection_print, projection_printer_recurse, projection_read, map_reference_forward, map_reference_backward, Projection
 import ..XmlModule: XmlDocument, XmlInsertion, XmlText, XmlAttribute, XmlElement
 import ..TextModule: TextString
 import ..FontModule: StyleFont, font_ubuntu_monospace_regular_24, font_ubuntu_monospace_bold_24
@@ -250,7 +250,7 @@ end
 
 function projection_print(p::XmlElementToSyntaxNode, recursion, e::XmlElement, ctx)
     reference = ctx.reference
-    child_iomaps = Cell(() -> [projection_print(recursion, recursion, child,
+    child_iomaps = Cell(() -> [projection_printer_recurse(recursion, child,
                                    child_context(ctx, @reference ^(reference).children[i]))
                                for (i, child) in enumerate(e)])
 

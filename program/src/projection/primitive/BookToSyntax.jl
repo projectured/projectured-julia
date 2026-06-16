@@ -14,7 +14,7 @@ module BookToSyntaxModule
 
 import ..ReactiveModule: Cell
 import ..CollectionModule: CellVector
-import ..ProjectionApiModule: projection_print, projection_read,
+import ..ProjectionApiModule: projection_print, projection_printer_recurse, projection_read,
                               map_reference_forward, map_reference_backward, Projection
 import ..BookModule: BookDocument, BookInsertion, BookBook, BookChapter, BookParagraph, BookList, BookPicture
 import ..TextModule: TextDocument, TextString, TextText
@@ -85,7 +85,7 @@ BookBookToSyntaxNode(;
 
 
 function projection_print(p::BookBookToSyntaxNode, recursion, b::BookBook, ctx)
-    element_iomaps = Cell(() -> [projection_print(recursion, recursion, e,
+    element_iomaps = Cell(() -> [projection_printer_recurse(recursion, e,
                                      child_context(ctx, @reference ^(ctx.reference).elements[i]))
                                  for (i, e) in enumerate(b.elements)])
 
@@ -256,7 +256,7 @@ BookChapterToSyntaxNode(;
 
 
 function projection_print(p::BookChapterToSyntaxNode, recursion, b::BookChapter, ctx)
-    element_iomaps = Cell(() -> [projection_print(recursion, recursion, e,
+    element_iomaps = Cell(() -> [projection_printer_recurse(recursion, e,
                                      child_context(ctx, @reference ^(ctx.reference).elements{i}))
                                  for (i, e) in enumerate(b.elements)])
 
@@ -481,7 +481,7 @@ BookListToSyntaxNode(; bullet_font=font_ubuntu_monospace_regular_24, bullet_colo
 
 
 function projection_print(p::BookListToSyntaxNode, recursion, b::BookList, ctx)
-    element_iomaps = Cell(() -> [projection_print(recursion, recursion, e,
+    element_iomaps = Cell(() -> [projection_printer_recurse(recursion, e,
                                      child_context(ctx, @reference ^(ctx.reference).elements{i}))
                                  for (i, e) in enumerate(b.elements)])
 

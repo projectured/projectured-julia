@@ -20,7 +20,7 @@ module ConversationToSyntaxModule
 
 import ..ReactiveModule: Cell
 import ..CollectionModule: CellVector
-import ..ProjectionApiModule: projection_print, projection_read,
+import ..ProjectionApiModule: projection_print, projection_printer_recurse, projection_read,
                               map_reference_forward, map_reference_backward, Projection
 import ..ConversationModule: ConversationDocument, ConversationConversation,
                               ConversationTurn, ConversationPart
@@ -82,7 +82,7 @@ _content_to_string(d) = hasproperty(d, :name) ? String(d.name) : string(d)
 function projection_print(p::ConversationConversationToSyntaxNode,
                           recursion, c::ConversationConversation, ctx)
     children = CellVector(() -> SyntaxDocument[
-        projection_print(recursion, recursion, c.turns[i], ctx).output
+        projection_printer_recurse(recursion, c.turns[i], ctx).output
         for i in eachindex(c.turns)
     ])
     node = SyntaxNode(_empty_ts(), _empty_ts(), _empty_ts(),
@@ -95,7 +95,7 @@ end
 function projection_print(p::ConversationTurnToSyntaxNode,
                           recursion, t::ConversationTurn, ctx)
     children = CellVector(() -> SyntaxDocument[
-        projection_print(recursion, recursion, t.parts[i], ctx).output
+        projection_printer_recurse(recursion, t.parts[i], ctx).output
         for i in eachindex(t.parts)
     ])
     label = string(t.role, ":\n")

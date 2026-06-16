@@ -19,7 +19,7 @@ module DbCatalogToSyntaxModule
 
 import ..ReactiveModule: Cell
 import ..CollectionModule: CellVector
-import ..ProjectionApiModule: projection_print, projection_read, map_reference_forward, map_reference_backward, Projection
+import ..ProjectionApiModule: projection_print, projection_printer_recurse, projection_read, map_reference_forward, map_reference_backward, Projection
 import ..DbCatalogDocumentModule: DbCatalogRdbms, DbCatalogDatabase,
                                    DbCatalogSchema, DbCatalogTable, DbCatalogColumn
 import ..TextModule: TextString
@@ -68,7 +68,7 @@ function _catalog_syntax_node(recursion, ctx, selection, indentation::Int,
                               name_font::StyleFont, name_color::StyleColor,
                               label, children)
     child_iomaps = Cell(() -> begin
-        [projection_print(recursion, recursion, elem, child_context(ctx, ElementReference(i)))
+        [projection_printer_recurse(recursion, elem, child_context(ctx, ElementReference(i)))
          for (i, elem) in enumerate(children)]
     end)
 

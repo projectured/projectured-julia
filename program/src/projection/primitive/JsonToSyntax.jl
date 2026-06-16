@@ -11,7 +11,7 @@ module JsonToSyntaxModule
 
 import ..ReactiveModule: Cell
 import ..CollectionModule: CellVector
-import ..ProjectionApiModule: projection_print, projection_read, map_reference_forward, map_reference_backward, Projection
+import ..ProjectionApiModule: projection_print, projection_printer_recurse, projection_read, map_reference_forward, map_reference_backward, Projection
 import ..JsonModule: JsonDocument, JsonInsertion, JsonNull, JsonBool, JsonNumber, JsonString, JsonArray, JsonObject, JsonObjectEntry
 import ..TextModule: TextString
 import ..FontModule: StyleFont, font_ubuntu_monospace_regular_24, font_ubuntu_monospace_bold_24
@@ -272,7 +272,7 @@ end
 # in CopyingProjection.
 function projection_print(p::JsonArrayToSyntaxNode, recursion, j::JsonArray, ctx)
     reference = ctx.reference
-    child_iomaps = Cell(() -> [projection_print(recursion, recursion, x,
+    child_iomaps = Cell(() -> [projection_printer_recurse(recursion, x,
                                    child_context(ctx, @reference ^(reference).elements[i]))
                                for (i, x) in enumerate(j)])
     iomap_cell = Cell(nothing)
@@ -422,7 +422,7 @@ function projection_print(p::JsonObjectToSyntaxNode, recursion, j::JsonObject, c
     reference = ctx.reference
     # Use recursion projection to access entries field
     entries_ref = @reference ^(reference).entries
-    entries_iomap = projection_print(recursion, recursion, j.entries.elements, child_context(ctx, entries_ref))
+    entries_iomap = projection_printer_recurse(recursion, j.entries.elements, child_context(ctx, entries_ref))
     projected_entries = entries_iomap.output
 
     # School-A delegation handle: the per-entry value IO map. Each entry is

@@ -13,7 +13,7 @@ module MathToSyntaxModule
 
 import ..ReactiveModule: Cell
 import ..CollectionModule: CellVector
-import ..ProjectionApiModule: projection_print, projection_read, map_reference_forward, map_reference_backward, Projection
+import ..ProjectionApiModule: projection_print, projection_printer_recurse, projection_read, map_reference_forward, map_reference_backward, Projection
 import ..MathModule: MathDocument, MathInsertion, MathVariable, MathBinaryOperation, MathParenthesized, MathAssignment, _operator_string
 import ..PrimitiveModule: PrimitiveNumber
 import ..TextModule: TextString
@@ -141,8 +141,8 @@ function projection_print(p::MathBinaryOperationToSyntaxNode, recursion, m::Math
     reference = ctx.reference
     left_ctx  = child_context(ctx, @reference ^(reference).left)
     right_ctx = child_context(ctx, @reference ^(reference).right)
-    left_iomap = Cell(() -> projection_print(recursion, recursion, m.left, left_ctx))
-    right_iomap = Cell(() -> projection_print(recursion, recursion, m.right, right_ctx))
+    left_iomap = Cell(() -> projection_printer_recurse(recursion, m.left, left_ctx))
+    right_iomap = Cell(() -> projection_printer_recurse(recursion, m.right, right_ctx))
 
     op_leaf = SyntaxLeaf(
         TextString("", p.op_font, color_default),
@@ -230,7 +230,7 @@ end
 function projection_print(p::MathParenthesizedToSyntaxNode, recursion, m::MathParenthesized, ctx)
     reference = ctx.reference
     content_ctx = child_context(ctx, @reference ^(reference).content)
-    content_iomap = Cell(() -> projection_print(recursion, recursion, m.content, content_ctx))
+    content_iomap = Cell(() -> projection_printer_recurse(recursion, m.content, content_ctx))
 
     sel = Cell(() -> begin
         path = m.selection
@@ -322,8 +322,8 @@ function projection_print(p::MathAssignmentToSyntaxNode, recursion, m::MathAssig
     reference = ctx.reference
     target_ctx = child_context(ctx, @reference ^(reference).target)
     value_ctx  = child_context(ctx, @reference ^(reference).value)
-    target_iomap = Cell(() -> projection_print(recursion, recursion, m.target, target_ctx))
-    value_iomap = Cell(() -> projection_print(recursion, recursion, m.value, value_ctx))
+    target_iomap = Cell(() -> projection_printer_recurse(recursion, m.target, target_ctx))
+    value_iomap = Cell(() -> projection_printer_recurse(recursion, m.value, value_ctx))
 
     eq_leaf = SyntaxLeaf(
         TextString("", p.eq_font, color_default),
