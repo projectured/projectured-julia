@@ -48,8 +48,8 @@ print_example("syntax")   # print the syntax example
 ## Saving a screenshot
 
 ```julia
-write_image_example("json", "/tmp/snapshot.bmp")
-write_image_example("widget", "/tmp/w.bmp"; width=1200, height=800)
+write_example_image("json", "/tmp/snapshot.bmp")
+write_example_image("widget", "/tmp/w.bmp"; width=1200, height=800)
 ```
 
 See [the graphics guide](document/graphics.md) for the `write_image` API.

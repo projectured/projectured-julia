@@ -51,7 +51,7 @@ julia --project=.
 using Projectured, ProjecturedExample
 run_example()            # JSON example
 run_example("widget")    # widget form example
-write_image_example("json", "/tmp/snapshot.bmp")  # save screenshot
+write_example_image("json", "/tmp/snapshot.bmp")  # save screenshot
 ```
 
 Press **Escape** to close the window.

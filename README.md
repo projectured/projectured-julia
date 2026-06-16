@@ -191,7 +191,7 @@ julia> run_example("widget")          # widget form example
 julia> run_example("table")           # table view
 julia> run_example("julia")           # Julia AST editor
 julia> print_example("syntax")        # dump a projection's output to stdout
-julia> write_image_example("json", "/tmp/snapshot.bmp")   # save to file
+julia> write_example_image("json", "/tmp/snapshot.bmp")   # save to file
 ```
 
 See the [debugging guide](guide/debugging.md) for the full REPL helper catalogue
@@ -204,7 +204,7 @@ and the [testing guide](guide/testing.md) for running the test suite.
 | Path | Contents |
 |---|---|
 | [program/src/](program/src/) | Core `Projectured` package — API, documents, projections, references, editor, devices, backends |
-| [example/src/](example/src/) | `ProjecturedExample` package — concrete examples and `run_example` / `print_example` / `write_image_example` helpers |
+| [example/src/](example/src/) | `ProjecturedExample` package — concrete examples and `run_example` / `print_example` / `write_example_image` helpers |
 | [example/workspace/](example/workspace/) | On-disk fixtures used by examples |
 | [test/src/](test/src/) | `ProjecturedTest` package — `test_all` and every per-layer helper |
 | [guide/](guide/) | All architecture and topic guides — see [the guide index](guide/README.md) for the reading-order index |
@@ -248,7 +248,7 @@ Three reading tracks — pick the one that matches your goal.
 
 ### Working in the REPL
 
-- [Debugging](guide/debugging.md) — `run_example`, `print_example`, `write_image_example`, driving the printer/reader by hand, forcing reactive cells.
+- [Debugging](guide/debugging.md) — `run_example`, `print_example`, `write_example_image`, driving the printer/reader by hand, forcing reactive cells.
 - [Testing](guide/testing.md) — `test_all`, per-layer helpers, walker utilities.
 
 ## Roadmap

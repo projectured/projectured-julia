@@ -14,7 +14,7 @@ mental model before diving into code.
 2. [Examples tour](examples-tour.md) — guided tour of six examples with
    screenshots and what to try.
 3. [Getting started](getting-started.md) — prerequisites, setup, and REPL
-   helpers (`run_example`, `print_example`, `write_image_example`).
+   helpers (`run_example`, `print_example`, `write_example_image`).
 4. [Debugging](debugging.md) — driving the printer/reader by hand, forcing
    reactive cells, inspecting selection.
 
@@ -77,7 +77,7 @@ Read it first; it will point you here and to the specific guides you need.
 | Guide | Contents |
 |---|---|
 | [Getting started](getting-started.md) | Setup and REPL helpers |
-| [Debugging](debugging.md) | REPL debugging: print_example, write_image_example, forcing cells |
+| [Debugging](debugging.md) | REPL debugging: print_example, write_example_image, forcing cells |
 | [Testing](testing.md) | test_all and per-layer test helpers |
 | [Tutorial: new domain](tutorial-new-domain.md) | Step-by-step: add a new domain |
 

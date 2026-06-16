@@ -23,7 +23,7 @@ When touching selection/reference handling or a specific domain, also consult:
 
 When iterating in the REPL or running the test suite:
 
-- [guide/debugging.md](guide/debugging.md) — REPL debugging tips: `run_example`, `print_example`, `write_image_example`, driving the printer/reader by hand, and forcing reactive cells.
+- [guide/debugging.md](guide/debugging.md) — REPL debugging tips: `run_example`, `print_example`, `write_example_image`, driving the printer/reader by hand, and forcing reactive cells.
 - [guide/testing.md](guide/testing.md) — testing tips: `test_all`, `test_printers`, `test_readers`, `test_text_navigations`, `test_repls`, and the walker helpers behind them.
 
 ## Conventions

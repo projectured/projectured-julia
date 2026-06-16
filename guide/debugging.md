@@ -211,7 +211,7 @@ julia> gestures = [
            (event = KeyPress('i'),                       hold = 0.3),
            (event = KeyDown(:right, Modifiers(), false), hold = 0.5),
        ]
-julia> record_video_example("json", gestures, "/tmp/demo.mp4"; fps=30)
+julia> record_example_video("json", gestures, "/tmp/demo.mp4"; fps=30)
 ```
 
 `event` is any backend-agnostic device event (`KeyDown`, `KeyUp`, `KeyPress`,

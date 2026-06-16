@@ -11,7 +11,7 @@ using Projectured, ProjecturedExample
 run_example()               # opens the default (JSON) example
 run_example("widget")       # opens a specific example by name
 print_example("syntax")     # dump the projection output to stdout (no window)
-write_image_example("json", "/tmp/snapshot.bmp")   # save a screenshot
+write_example_image("json", "/tmp/snapshot.bmp")   # save a screenshot
 ```
 
 Available names (see `examples` vector in `ProjecturedExample`):
@@ -42,7 +42,7 @@ delimiters (`{`, `}`, `"`, `,`).
 **What to try:**
 - Press `←` / `→` to move the cursor.
 - Run `print_example("json")` to see the full projection output as text.
-- Run `write_image_example("json", "/tmp/j.bmp")` to capture a screenshot.
+- Run `write_example_image("json", "/tmp/j.bmp")` to capture a screenshot.
 
 **Concepts illustrated:**
 - Domain-to-domain projection (`JsonToSyntax`)

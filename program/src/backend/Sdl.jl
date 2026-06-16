@@ -1291,7 +1291,8 @@ end
 """
     record_video(document, projection, gestures, filename::AbstractString;
                  fps=30, width=1200, height=800,
-                 background=(0x00,0x00,0x00,0xff), initial_hold=0.5,
+                 background=(0xfd,0xf6,0xe3,0xff),
+                 initial_hold=0.5, final_hold=initial_hold,
                  supersample=2, scale=1) -> String
 
 Record a headless video of an editing session and encode it to `filename` (which
@@ -1304,7 +1305,9 @@ backend-agnostic device event (`KeyDown`, `KeyUp`, `KeyPress`, `MouseDown`,
 seconds to display the resulting state. Timing is in **video time** (frame
 counts, not wall-clock), so the output is deterministic regardless of how long
 rendering takes — `round(hold * fps)` identical frames are emitted per gesture.
-The initial state, before any gesture, is shown for `initial_hold` seconds.
+The initial state (before any gesture) is held for `initial_hold` seconds and the
+final state (after the last gesture) for `final_hold` seconds, giving a still
+margin at each end of the clip; both default to `0.5`.
 
 For each gesture the standard editor cycle runs: `projection_read` →
 `evaluate_operation` → `projection_print`, mirroring the live editor loop. Each
@@ -1333,8 +1336,9 @@ function record_video(document, projection, gestures::AbstractVector,
                       fps::Integer = 30,
                       width::Integer = 1200,
                       height::Integer = 800,
-                      background::NTuple{4,UInt8} = (0x00, 0x00, 0x00, 0xff),
+                      background::NTuple{4,UInt8} = (0xfd, 0xf6, 0xe3, 0xff),
                       initial_hold::Real = 0.5,
+                      final_hold::Real = initial_hold,
                       initial_selection = nothing,
                       supersample::Integer = 2,
                       scale::Real = 1)
@@ -1377,8 +1381,12 @@ function record_video(document, projection, gestures::AbstractVector,
                           tmpdir, frame, round(Int, entry.hold * fps))
         end
 
+        # End margin: hold the final state.
+        _emit_frames!(off, canvas_of(iomap), width, height, background,
+                      tmpdir, frame, round(Int, final_hold * fps))
+
         frame[] == 0 &&
-            error("record_video: no frames produced (empty gestures and initial_hold ≈ 0)")
+            error("record_video: no frames produced (gestures empty and initial_hold/final_hold ≈ 0)")
 
         pattern = joinpath(tmpdir, "frame_%06d.bmp")
         # Build the command from a string vector: a backtick literal would reject

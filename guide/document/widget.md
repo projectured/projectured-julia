@@ -66,7 +66,7 @@ the fields they need plus `visible`/`selection`:
 | `WidgetTree(position, roots)` | Indented outline / tree view |
 
 Each has a minimal isolated example — e.g. `run_example(widget_table_example)`,
-`write_image_example(widget_tree_example, "tree.png")`.
+`write_example_image(widget_tree_example, "tree.png")`.
 
 ## Gallery
 

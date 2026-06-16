@@ -1,7 +1,7 @@
 # A standalone conversation document — the chat history on its own, with no
 # WorkbenchAssistant wrapper / input box. Lets the conversation rendering be
 # tested in isolation (`test_example(conversation_example)`,
-# `print_example(conversation_example)`, `write_image_example(...)`).
+# `print_example(conversation_example)`, `write_example_image(...)`).
 #
 # Uniform turn/part model: a user turn, an assistant turn whose parts mix prose
 # and a Julia code part, and a user turn carrying a Julia evaluation

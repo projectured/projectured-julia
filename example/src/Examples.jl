@@ -436,7 +436,7 @@ function print_example(name="json")
     print_example(examples[idx])
 end
 
-function write_image_example(example::Example, filename;
+function write_example_image(example::Example, filename;
                               width=nothing, height=nothing,
                               max_width=1800, max_height=1200, kwargs...)
     write_image(example.document, example.projection, filename;
@@ -444,23 +444,41 @@ function write_image_example(example::Example, filename;
                 max_width=max_width, max_height=max_height, kwargs...)
 end
 
-function write_image_example(name="json", filename=tempname()*".bmp"; kwargs...)
+function write_example_image(name="json", filename=tempname()*".bmp"; kwargs...)
     idx = findfirst(ex -> ex.name == name, examples)
     idx === nothing && error("Unknown example: \"$name\"")
-    write_image_example(examples[idx], filename; kwargs...)
+    write_example_image(examples[idx], filename; kwargs...)
 end
 
-function record_video_example(example::Example, gestures, filename;
+function record_example_video(example::Example, gestures, filename;
                               width=1200, height=800, fps=30, kwargs...)
     record_video(example.document, example.projection, gestures, filename;
                  width=width, height=height, fps=fps, kwargs...)
 end
 
-function record_video_example(name::AbstractString, gestures,
+function record_example_video(name::AbstractString, gestures,
                               filename=tempname()*".mp4"; kwargs...)
     idx = findfirst(ex -> ex.name == name, examples)
     idx === nothing && error("Unknown example: \"$name\"")
-    record_video_example(examples[idx], gestures, filename; kwargs...)
+    record_example_video(examples[idx], gestures, filename; kwargs...)
+end
+
+"""
+    make_typein_gestures(text; hold=0.15, jitter=0.6) -> Vector
+
+Turn `text` into a list of timed `record_video` gestures: one
+`(event = KeyPress(char), hold = …)` per character, in order. Feed the result to
+`record_video`/`record_example_video` to record someone typing `text`. The
+recording needs an `initial_selection` (a text caret) for the keypresses to land.
+
+To mimic human typing, each hold is `hold` scaled by a random factor in
+`[1-jitter, 1+jitter]` (so `hold` is the *average* per-key duration and `jitter`
+∈ `[0,1]` is how irregular the rhythm is). `jitter=0` gives a perfectly even
+machine cadence. Holds are drawn fresh on every call.
+"""
+function make_typein_gestures(text::AbstractString; hold::Real=0.15, jitter::Real=0.6)
+    j = clamp(Float64(jitter), 0.0, 1.0)
+    [(event = KeyPress(c), hold = hold * (1 + j * (2 * rand() - 1))) for c in text]
 end
 
 """
@@ -506,7 +524,7 @@ function generate_example_screenshots(; filter=nothing, max_width=1920, max_heig
         # the themed surface rather than the default solarized canvas.
         bg = startswith(ex.name, "widget") ? widget_bg : (0xfd, 0xf6, 0xe3, 0xff)
         try
-            write_image_example(ex, png; width=ex.render_width, height=ex.render_height,
+            write_example_image(ex, png; width=ex.render_width, height=ex.render_height,
                                 max_width=max_width, max_height=max_height,
                                 background=bg, supersample=supersample, scale=scale)
             @info "  ✓ $png"
