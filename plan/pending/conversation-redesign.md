@@ -339,6 +339,15 @@ updates live as you edit:
   `TextText` prose as text, and an `EvaluatorForm` as its `form` stacked over its
   `result`. Only the active editing part uses the custom editable `TextText`.
 
+**Kind chooser → domain insertions.** The chooser commits `julia`/`json`/`xml` to
+a `JuliaInsertion` / `JsonInsertion` / `XmlInsertion` (a composer-local factory).
+All are editable insertions (type a source, with caret + reactive rendering).
+Julia additionally **parses** (ENTER → `JuliaDocument`) and **evaluates**
+(ALT+ENTER → `EvaluatorForm`). JSON/XML source **parsing** (ENTER) and structural
+key-driven insertion (e.g. `[` on a `JsonInsertion` → `JsonArray`) arrive with the
+Stage-5 parsers; until then those insertions accept typing/newline/backspace and
+ESC-to-typein only.
+
 Deferred to Stage 6: pushing the finalized turn into a live conversation +
 triggering the assistant (`ComposerSubmitOperation` only normalizes for now);
 paste-as-part (needs Stage-5 parsers).

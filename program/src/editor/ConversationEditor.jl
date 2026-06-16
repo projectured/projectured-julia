@@ -36,6 +36,8 @@ import ..EvaluatorModule: EvaluatorForm, result_text
 import ..DocumentCoreModule: DocumentInsertion
 import ..PrimitiveModule: PrimitiveString
 import ..JuliaModule: JuliaDocument, JuliaInsertion, JuliaIdentifier
+import ..JsonModule: JsonInsertion
+import ..XmlModule: XmlInsertion
 import ..TextModule: TextText, TextString
 import ..JuliaParserModule: juliaparse
 import ..McpModule: execute_julia_code
@@ -66,8 +68,9 @@ _active_part(t::ConversationTurn) =
 _active_content(t::ConversationTurn) =
     (p = _active_part(t); p === nothing ? nothing : p.content)
 
-# The three editing-state contents all carry an editable `value::String`.
-_is_editable(c) = c isa PrimitiveString || c isa DocumentInsertion || c isa JuliaInsertion
+# The editing-state contents all carry an editable `value` you can type into.
+_is_editable(c) = c isa PrimitiveString || c isa DocumentInsertion ||
+                  c isa JuliaInsertion || c isa JsonInsertion || c isa XmlInsertion
 _is_editable(::Nothing) = false
 
 _value(c) = something(c.value, "")
@@ -219,12 +222,16 @@ function evaluate_operation(editor, op::ComposerInsertPartOperation)
     nothing
 end
 
-# Kinds the composer can actually grow a part into. Today only Julia has a source
-# parser + evaluator, so it is the only committable kind; JSON/XML/Table keywords
-# need the Stage-5 parsers and stay in the chooser (committing them to an
-# insertion the pipeline can neither render nor parse is what broke the printer).
-_composer_factory(name::AbstractString) =
-    lowercase(strip(name)) == "julia" ? JuliaInsertion("") : nothing
+# Kind keyword → the domain insertion the chooser grows into. Each is an editable
+# insertion you then type a source into (and, later, drive structurally — e.g. a
+# `JsonInsertion` turning into a `JsonArray` on `[`). Julia additionally parses +
+# evaluates today; JSON/XML source parsing lands with the Stage-5 parsers.
+function _composer_factory(name::AbstractString)
+    n = lowercase(strip(name))
+    n == "julia" ? JuliaInsertion("") :
+    n == "json"  ? JsonInsertion()    :
+    n == "xml"   ? XmlInsertion()     : nothing
+end
 
 function evaluate_operation(editor, op::ComposerCommitChooserOperation)
     c = _active_content(op.turn)
@@ -321,10 +328,14 @@ _kind_glyph(::PrimitiveString)   = "✎"
 _kind_glyph(::DocumentInsertion) = "+"
 _kind_glyph(::JuliaInsertion)    = "λ"
 _kind_glyph(::JuliaDocument)     = "λ"
+_kind_glyph(::JsonInsertion)     = "{}"
+_kind_glyph(::XmlInsertion)      = "<>"
 _kind_glyph(::EvaluatorForm)     = "="
 _kind_glyph(::TextText)          = "¶"
 _kind_glyph(_)                   = "?"
 
+_kind_label(::JsonInsertion)     = "json"
+_kind_label(::XmlInsertion)      = "xml"
 _kind_label(::PrimitiveString)   = "text"
 _kind_label(::DocumentInsertion) = "insert"
 _kind_label(::JuliaInsertion)    = "julia"
@@ -460,6 +471,15 @@ function projection_read(::ConversationComposerToWidget, iomap::SimpleIoMap, evt
             KeyDown(:return; alt)   => ComposerEvaluateOperation(turn)
             KeyDown(:return; shift) => ComposerNewlineOperation(turn)
             KeyDown(:return)        => ComposerCommitSourceOperation(turn)
+            KeyDown(:escape)        => ComposerRevertOperation(turn)
+            KeyDown(:backspace)     => ComposerBackspaceOperation(turn)
+        end
+    elseif c isa JsonInsertion || c isa XmlInsertion
+        # Editable source insertion; ENTER-to-parse and structural keys (`[` →
+        # JsonArray, …) arrive with the Stage-5 parsers. For now: type, newline,
+        # backspace, and ESC back to a text typein.
+        return @event_case evt begin
+            KeyDown(:return; shift) => ComposerNewlineOperation(turn)
             KeyDown(:escape)        => ComposerRevertOperation(turn)
             KeyDown(:backspace)     => ComposerBackspaceOperation(turn)
         end
