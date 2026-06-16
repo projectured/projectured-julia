@@ -348,12 +348,19 @@ function clear_selection!(document)
         f = getfield(document, sym)
         f isa Cell ? f[] : f
     elseif h isa RangeReference
+        # A RangeReference into a string leaf is a character cursor/range that
+        # terminates here — there is no child Document to descend into, and
+        # byte-indexing a multibyte String by a character position throws.
+        document isa AbstractString && return
         idx = h.start + 1
         (!applicable(length, document) || idx < 1 || idx > length(document)) && return
         document[idx]
     else
         return
     end
+    # Only descend into child Documents (which carry their own selection cell);
+    # leaf values (String/Char/Number) hold no selection and are not navigable.
+    child isa Document || return
     clear_selection!(child)
 end
 
@@ -376,12 +383,19 @@ function set_selection!(document, path)
         f = getfield(document, sym)
         f isa Cell ? f[] : f
     elseif h isa RangeReference
+        # A RangeReference into a string leaf is a character cursor/range that
+        # terminates here — there is no child Document to descend into, and
+        # byte-indexing a multibyte String by a character position throws.
+        document isa AbstractString && return
         idx = h.start + 1
         (!applicable(length, document) || idx < 1 || idx > length(document)) && return
         document[idx]
     else
         return
     end
+    # Only descend into child Documents (which carry their own selection cell);
+    # leaf values (String/Char/Number) hold no selection and are not navigable.
+    child isa Document || return
     set_selection!(child, rest)
 end
 
