@@ -37,7 +37,6 @@ import ..DocumentCoreModule: DocumentInsertion
 import ..PrimitiveModule: PrimitiveString
 import ..JuliaModule: JuliaDocument, JuliaInsertion, JuliaIdentifier
 import ..TextModule: TextText, TextString
-import ..DocumentInsertionToSyntaxModule: default_factory
 import ..JuliaParserModule: juliaparse
 import ..McpModule: execute_julia_code
 import ..WidgetModule: WidgetCard, WidgetAvatar, WidgetLabel, Point2D
@@ -220,11 +219,18 @@ function evaluate_operation(editor, op::ComposerInsertPartOperation)
     nothing
 end
 
+# Kinds the composer can actually grow a part into. Today only Julia has a source
+# parser + evaluator, so it is the only committable kind; JSON/XML/Table keywords
+# need the Stage-5 parsers and stay in the chooser (committing them to an
+# insertion the pipeline can neither render nor parse is what broke the printer).
+_composer_factory(name::AbstractString) =
+    lowercase(strip(name)) == "julia" ? JuliaInsertion("") : nothing
+
 function evaluate_operation(editor, op::ComposerCommitChooserOperation)
     c = _active_content(op.turn)
     c isa DocumentInsertion || return nothing
-    doc = default_factory(_value(c))
-    doc === nothing && return nothing              # unknown kind: keep editing
+    doc = _composer_factory(_value(c))
+    doc === nothing && return nothing              # unknown/unsupported: keep editing
     _replace_active!(op.turn, doc)
 end
 
