@@ -41,6 +41,9 @@ import ..JuliaToSyntaxModule: JuliaToSyntax
 import ..JsonToSyntaxModule: JsonToSyntax
 import ..XmlToSyntaxModule: XmlToSyntax
 import ..SyntaxToTextModule: SyntaxToText
+import ..JuliaParserModule: juliaparse
+import ..JsonParserModule: jsonparse
+import ..XmlParserModule: xmlparse
 import ..ReferenceModule: ConcreteReferencePath, FieldReference, RangeReference, EmptyReferencePath
 import ..ReferenceCaseModule: var"@reference_case"
 import ..ReferenceBuilderModule: var"@reference"
@@ -642,9 +645,28 @@ end
     parse_markdown_blocks(text::AbstractString) -> Vector{ConversationBlock}
 
 Parse a completed assistant text-block body into structured blocks.
-Recognises headings, fenced code (with `julia` getting a `JuliaIdentifier`
-body), bulleted lists, and prose paragraphs.
+Recognises headings, fenced code (with `julia`/`json`/`xml` parsed into real
+`JuliaDocument`/`JsonDocument`/`XmlElement` content), bulleted lists, and prose
+paragraphs. A block whose language is unknown or that fails to parse falls back
+to fenced text, so a malformed block never breaks the turn.
 """
+# A fenced code block → a part whose content is the parsed domain document, with
+# a graceful fallback to fenced text when the language is unknown or won't parse.
+function _code_part(lang::AbstractString, body::AbstractString)
+    parser = lang == "julia" ? juliaparse :
+             lang == "json"  ? jsonparse  :
+             lang == "xml"   ? xmlparse   : nothing
+    if parser !== nothing
+        doc = try
+            parser(body)
+        catch
+            nothing
+        end
+        doc === nothing || return ConversationPart(doc)
+    end
+    ConversationPart("```" * lang * "\n" * body * "\n```")
+end
+
 function parse_markdown_blocks(text::AbstractString)
     out = Any[]
     md = try
@@ -657,13 +679,7 @@ function parse_markdown_blocks(text::AbstractString)
             level = _header_level(node)
             push!(out, ConversationPart(repeat("#", level) * " " * _md_to_plain(node.text)))
         elseif node isa Markdown.Code
-            lang = String(node.language)
-            body = String(node.code)
-            if lang == "julia"
-                push!(out, ConversationPart(JuliaIdentifier(body)))
-            else
-                push!(out, ConversationPart("```" * lang * "\n" * body * "\n```"))
-            end
+            push!(out, _code_part(String(node.language), String(node.code)))
         elseif node isa Markdown.List
             io = IOBuffer()
             for it in node.items

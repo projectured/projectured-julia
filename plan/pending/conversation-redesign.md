@@ -452,7 +452,18 @@ message, tool_use/tool_result pairing.
 assert message count, role alternation, and per-block shape; assert a multi-part
 user turn yields a single user message.
 
-## Stage 5 — Parsing: LLM response (and pasted text) → documents
+## Stage 5 — Parsing: LLM response (and pasted text) → documents ✅ MOSTLY DONE
+
+`parse_markdown_blocks` now parses fenced `julia`/`json`/`xml` blocks into real
+`JuliaDocument`/`JsonDocument`/`XmlElement` content (via `juliaparse`/`jsonparse`/
+`xmlparse`), with a try/catch fallback to fenced text for unknown languages or
+malformed blocks. Streaming already routes finished text blocks through it
+(`_handle_sse_event!` → `parse_markdown_blocks` → `_replace_last_part!`), so
+assistant code blocks now stream in as documents. JSON/XML parsers landed earlier
+(`parser/JsonParser.jl`, `parser/XmlParser.jl`). Test:
+`test/src/editor/ConversationParsingTest.jl` (`test_parse_markdown_blocks`).
+**Still pending:** a tabular/CSV → `TableTable` parser, and paste-as-part (tied to
+the deferred Stage-3 paste path).
 
 **Goal.** Parse assistant output and pasted clipboard text into part documents,
 using existing parsers and adding the missing ones.
