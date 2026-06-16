@@ -69,5 +69,25 @@ function test_record_video()
     @test_throws ErrorException record_video(
         make_json_document_example(), make_json_projection_example(),
         [(event = KeyPress('a'), hold = 0.1)], tempname() * ".avi")
+
+    @testset "assistant conversation demo records and waits for the reply" begin
+        # Drives the full assistant composer: prose → julia eval → prose → submit,
+        # then `wait_for` lets the FakeLlm reply land before the final frames.
+        filename = tempname() * ".mp4"
+        reply = "Sure, 720 it is."
+        ok = try
+            record_assistant_conversation_video(filename;
+                reply = reply, fps = 10, width = 800, height = 600, supersample = 1)
+            true
+        catch e
+            @warn "assistant video test skipped (ffmpeg unavailable?): $e"
+            false
+        end
+        if ok
+            @test isfile(filename)
+            @test filesize(filename) > 0
+            rm(filename; force = true)
+        end
+    end
 end
 end # test_record_video

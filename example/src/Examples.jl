@@ -480,6 +480,55 @@ function make_typein_gestures(text::AbstractString; hold::Real=0.15, jitter::Rea
 end
 
 """
+    record_assistant_conversation_video(filename=tempname()*".mp4"; reply, kwargs...) -> String
+
+Record a headless MP4 of someone composing a multi-part message in the workbench
+assistant and waiting for the reply. The recorded session, driven entirely
+through the live `make_assistant_projection_example` chain
+(`KeyPress`/`KeyDown` → composer operations), is:
+
+1. type the prose `"Look what I can do!"`;
+2. `TAB` to start a new part, type `julia`, `ENTER` to turn it into a Julia
+   source part, type `factorial(6)`, then `ALT+ENTER` to evaluate it into an
+   `EvaluatorForm` (code + result `720`);
+3. type the prose `"Can you do the same?"`;
+4. `ENTER` to submit the draft turn, then wait for the assistant to reply.
+
+The assistant uses a `FakeLlm` so the reply (`reply`) is deterministic and needs
+no network. The reply is streamed on an `@async` task that the recording lets
+settle (via `record_video`'s `wait_for`) before holding the final frames.
+"""
+function record_assistant_conversation_video(filename::AbstractString = tempname() * ".mp4";
+                                              reply::AbstractString = "Whoa, 720! Nice. I can do that too: factorial(6) = 720.",
+                                              width=1600, height=900, fps=30, kwargs...)
+    # A fresh assistant with a deterministic canned reply. The composer edits the
+    # draft's active part (cursor defaults to end-of-value), so no selection seed
+    # is needed for the keypresses to land.
+    assistant  = WorkbenchAssistant(; llm = FakeLlm(reply))
+    projection = make_assistant_projection_example()
+
+    # A composer part-break: commit the active part and start the next one.
+    tab   = (event = KeyDown(:tab, Modifiers()),              hold = 0.5)
+    enter = (event = KeyDown(:return, Modifiers()),           hold = 0.6)
+    alt_enter = (event = KeyDown(:return, Modifiers(alt=true)), hold = 0.8)
+
+    gestures = vcat(
+        make_typein_gestures("Look what I can do!"),
+        [tab],
+        make_typein_gestures("julia"),               # name the kind in the chooser
+        [enter],                                      # commit chooser → Julia source part
+        make_typein_gestures("factorial(6)"),
+        [alt_enter],                                  # evaluate → EvaluatorForm (720)
+        make_typein_gestures("Can you do the same?"),
+        [enter],                                      # submit the draft turn
+    )
+
+    record_video(assistant, projection, gestures, filename;
+                 width=width, height=height, fps=fps,
+                 wait_for = () -> assistant.status === :idle, kwargs...)
+end
+
+"""
     generate_example_screenshots(; filter=nothing, max_width=1920, max_height=1080,
                                  image_dir=joinpath(@__DIR__, "..", "..", "image", "example"))
 

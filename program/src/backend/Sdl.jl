@@ -1330,6 +1330,13 @@ typing demo either pass an `initial_selection` (a `ReferencePath` into the
 document) or make the first gesture a `MousePress` that places the caret. When
 `initial_selection` is `nothing` (the default) the selection is cleared and the
 recording starts caret-free, mirroring a freshly opened editor.
+
+`wait_for` records the result of asynchronous editor work. The gesture loop never
+yields, so an `@async` task started by a gesture (e.g. the assistant's streaming
+reply launched by ENTER) cannot progress on its own. When `wait_for` is a
+predicate, after the last gesture the recording spins (yielding) until it returns
+`true` — or `wait_timeout` wall-clock seconds elapse — then re-prints so the
+final-hold frames show the settled state (e.g. `wait_for = () -> a.status === :idle`).
 """
 function record_video(document, projection, gestures::AbstractVector,
                       filename::AbstractString;
@@ -1340,6 +1347,8 @@ function record_video(document, projection, gestures::AbstractVector,
                       initial_hold::Real = 0.5,
                       final_hold::Real = initial_hold,
                       initial_selection = nothing,
+                      wait_for::Union{Nothing,Function} = nothing,
+                      wait_timeout::Real = 5.0,
                       supersample::Integer = 2,
                       scale::Real = 1)
     lowercase(splitext(filename)[2]) == ".mp4" ||
@@ -1379,6 +1388,21 @@ function record_video(document, projection, gestures::AbstractVector,
             iomap = print_iomap(document)
             _emit_frames!(off, canvas_of(iomap), width, height, background,
                           tmpdir, frame, round(Int, entry.hold * fps))
+        end
+
+        # Let async editor work kicked off by the gestures settle before the
+        # final frames. The frame loop never yields, so an `@async` task (e.g.
+        # the assistant's streaming reply launched by ENTER) can't progress on
+        # its own; spin yielding until `wait_for()` is satisfied (or the
+        # `wait_timeout` wall-clock deadline passes), then re-print so the final
+        # state reflects the settled document.
+        if wait_for !== nothing
+            deadline = time() + wait_timeout
+            while !wait_for() && time() < deadline
+                yield()
+                sleep(0.01)
+            end
+            iomap = print_iomap(document)
         end
 
         # End margin: hold the final state.
