@@ -31,7 +31,7 @@ import ..CollectionModule: CellVector
 import ..OperationApiModule: Operation, evaluate_operation
 import ..ProjectionApiModule: projection_print, projection_read,
                               map_reference_forward, map_reference_backward, Projection
-import ..ConversationModule: ConversationConversation, ConversationTurn, ConversationPart
+import ..ConversationModule: ConversationConversation, ConversationTurn, ConversationPart, ConversationDraft
 import ..EvaluatorModule: EvaluatorForm, result_text
 import ..DocumentCoreModule: DocumentInsertion
 import ..PrimitiveModule: PrimitiveString
@@ -53,7 +53,7 @@ import ..KeyboardModule: KeyDown, KeyPress
 import ..EventCaseModule: var"@event_case"
 import ..IoMapModule: SimpleIoMap
 
-export ConversationComposerToWidget, composer_read, finalize_draft!, new_draft_turn,
+export ConversationComposerToWidget, composer_read, finalize_draft!, new_draft_turn, reset_draft!,
        ComposerInputOperation, ComposerBackspaceOperation, ComposerNewlineOperation,
        ComposerInsertPartOperation, ComposerCommitChooserOperation,
        ComposerCommitSourceOperation, ComposerEvaluateOperation,
@@ -310,6 +310,18 @@ A fresh empty user draft turn (one active text typein) for the composer.
 """
 new_draft_turn() = ConversationTurn(:user, [_new_typein()])
 
+"""
+    reset_draft!(turn)
+
+Reset a draft turn **in place** to a single empty text typein — used after its
+content has been submitted. Mutating in place (rather than replacing the turn)
+keeps a cached projection of the draft valid and reactive.
+"""
+function reset_draft!(t::ConversationTurn)
+    getfield(t.parts, :elements)[] = Cell[Cell(_new_typein())]
+    t
+end
+
 # Parse source with `f`, guarding empty / invalid input (returns `nothing`).
 function _try_parse(f, src::AbstractString)
     isempty(strip(src)) && return nothing
@@ -438,7 +450,8 @@ _part_card(content, active::Bool) =
                          _editable_body(content) : _committed_body(content),
                width = _PART_WIDTH)
 
-function projection_print(p::ConversationComposerToWidget, recursion, t::ConversationTurn, ctx)
+function projection_print(p::ConversationComposerToWidget, recursion, d::ConversationDraft, ctx)
+    t = d.turn
     # Reactive part list: the last part is the active typein (gets the caret).
     # The thunk recomputes on structural changes; per-part value/cursor edits
     # re-render via the reactive `TextString` thunks inside each card.
@@ -450,7 +463,7 @@ function projection_print(p::ConversationComposerToWidget, recursion, t::Convers
                       title = _header(_role_glyph(t.role), String(t.role)),
                       content = body,
                       width = _CARD_WIDTH)
-    SimpleIoMap(p, t, card)
+    SimpleIoMap(p, d, card)
 end
 
 # The composer manages its own selection; nothing is forwarded to the widget
@@ -517,8 +530,8 @@ end
 composer_read(::Any, ::Any) = nothing
 
 projection_read(::ConversationComposerToWidget, iomap::SimpleIoMap, evt::KeyPress) =
-    composer_read(iomap.input, evt)
+    composer_read(iomap.input.turn, evt)
 projection_read(::ConversationComposerToWidget, iomap::SimpleIoMap, evt::KeyDown) =
-    composer_read(iomap.input, evt)
+    composer_read(iomap.input.turn, evt)
 
 end # module

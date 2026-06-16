@@ -34,8 +34,8 @@ import ..TextModule: TextText, TextString
 import ..ReferenceModule: Reference, ReferencePath
 
 export ConversationDocument, ConversationConversation,
-       ConversationTurn, ConversationPart,
-       IConversationConversation, IConversationTurn, IConversationPart
+       ConversationTurn, ConversationPart, ConversationDraft,
+       IConversationConversation, IConversationTurn, IConversationPart, IConversationDraft
 
 # ── Abstract base ─────────────────────────────────────────────────────────────
 
@@ -105,6 +105,28 @@ end
 ConversationConversation() = ConversationConversation(CellVector(), Cell(nothing))
 ConversationConversation(turns::Vector) =
     ConversationConversation(CellVector(Cell[Cell(t) for t in turns]), Cell(nothing))
+
+# ── ConversationDraft ─────────────────────────────────────────────────────────
+
+"""
+    ConversationDraft(turn)
+
+A thin wrapper around the `ConversationTurn` currently being composed. It exists
+purely to give the composer a distinct document type to dispatch on: the draft
+and the conversation's history turns are both `ConversationTurn`, so without this
+wrapper a `ConversationTurn => composer` dispatch entry would also turn history
+turns into editable composers. The wrapped `turn` is mutated in place by the
+composer operations.
+"""
+@document struct ConversationDraft <: ConversationDocument
+    turn::ConversationTurn
+    selection::Reference
+end
+
+ConversationDraft(turn::ConversationTurn) = ConversationDraft(Cell(turn), Cell(nothing))
+
+Base.show(io::IO, d::ConversationDraft) =
+    print(io, "ConversationDraft(", d.turn, ")")
 
 # ── Element access on the conversation ────────────────────────────────────────
 

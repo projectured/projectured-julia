@@ -1,5 +1,13 @@
 # Conversation redesign — turns, parts, rich composer, widget presentation
 
+> **Status: ✅ DONE.** Stages 1–6 are implemented, tested, and committed. The
+> feature works end-to-end: compose a multi-part user message (text, evaluated
+> Julia, quoted JSON/XML), submit it, see the conversation as collapsible widget
+> chat bubbles, and stream a reply that arrives as parsed document parts.
+> Optional/deferred follow-ups (not blocking): a tabular/CSV → `TableTable` parser
+> and paste-as-part (Stage 5), and the `TextFirstLine` first-line collapse
+> refinement (Stage 7).
+
 A staged redesign of the in-editor AI conversation. Supersedes the earlier
 "collapsible icon parts" plan (which was scoped to rendering only). The redesign
 covers three coupled topics:
@@ -493,7 +501,36 @@ markdown → assert each part's `content` is the right document type and that
 `julia`/`json`/`xml` contents are real documents (not stringified). Unit-test
 each new parser (string → document → re-serialized round-trip where feasible).
 
-## Stage 6 — Integrate into the live WorkbenchAssistant panel
+## Stage 6 — Integrate into the live WorkbenchAssistant panel ✅ DONE
+
+The assistant panel now uses the Stage-2 widget presentation for the conversation
+and the Stage-3 composer for the input. Key points of the wiring:
+
+- **`ConversationDraft`** (new, `document/Conversation.jl`) wraps the draft
+  `ConversationTurn` so the composer has a distinct type to dispatch on — without
+  it, a `ConversationTurn => composer` entry would also turn *history* turns into
+  editable composers (they're the same type).
+- **`WorkbenchAssistant`** gains a `draft::ConversationTurn` field. The panel
+  printer renders the input pane as `ConversationDraft(a.draft)`; the assistant
+  example projection routes `ConversationDraft → composer` and
+  `ConversationConversation → ConversationToWidget`, each a two-stage
+  `…ToWidget → widget_graphics` chain (so the embedded text/Julia/JSON/XML render).
+- **Reader.** The composer's own reader (in the draft chain) maps input keys to
+  composer operations on the draft; the panel intercepts the resulting
+  `ComposerSubmitOperation` and emits **`SubmitDraftTurnOperation`**, which
+  `finalize_draft!`s, pushes the draft into the conversation, `reset_draft!`s it in
+  place (so the cached panel stays reactive), and launches a streaming turn.
+- **Includes reordered** so `ConversationEditor` loads before `WorkbenchAssistant`
+  (the panel reader imports `composer_read`).
+- Streaming (Stage 5) already produces document parts; sends use Stage-4
+  `build_messages`.
+
+Tests: `test/src/editor/ConversationPanelTest.jl` (`test_assistant_composer_panel`,
+12 asserts — render, key routing, submit/stream/reset, empty-draft no-op) and the
+updated `AssistantMvpTest` (now drives the draft via the composer — **43/43**, and
+the previously pre-existing typing-path failures are gone because the composer
+edits the value directly). Regression-clean across widget/layout/example suites
+(199/199 over the affected set).
 
 **Goal.** Replace the panel's conversation slot + simple input with the Stage-2
 presentation and the Stage-3 composer; wire streaming to Stage-5 parsing and

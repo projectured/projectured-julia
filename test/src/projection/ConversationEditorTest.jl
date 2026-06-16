@@ -4,7 +4,7 @@
 
 using Projectured: ConversationTurn, ConversationPart, PrimitiveString, TextText,
                    DocumentInsertion, JuliaInsertion, JuliaDocument, EvaluatorForm,
-                   ConversationComposerToWidget,
+                   ConversationComposerToWidget, ConversationDraft,
                    ComposerInputOperation, ComposerBackspaceOperation,
                    ComposerNewlineOperation, ComposerInsertPartOperation,
                    ComposerCommitChooserOperation, ComposerCommitSourceOperation,
@@ -90,7 +90,7 @@ function test_conversation_editor()
         @testset "reader: gesture → operation per active state" begin
             proj = ConversationComposerToWidget()
             turn = ConversationTurn(:user, [ConversationPart(PrimitiveString(""))])
-            iom = projection_print(proj, turn)
+            iom = projection_print(proj, ConversationDraft(turn))
 
             # text typein
             @test projection_read(proj, iom, KeyPress('a')) isa ComposerInputOperation

@@ -32,6 +32,7 @@ using Projectured: PrimitiveDocument, PrimitiveToSyntax, SyntaxToText,
 using Projectured: ConcreteReferencePath, FieldReference, RangeReference,
                    EmptyReferencePath
 using Projectured: LlmBackend, FakeLlm
+using Projectured: ComposerInputOperation, SubmitDraftTurnOperation, SubmitProseOperation
 using Projectured.McpModule: register_default_tools_and_resources!
 using Projectured.WorkbenchAssistantModule: _text_to_string, _run_agent_loop!,
                                             _eval_code, _eval_result
@@ -113,17 +114,17 @@ function _mvp_wait_idle!(a::WorkbenchAssistant; timeout_seconds::Real = 2.0)
     a.status
 end
 
-# Type a string into the assistant input by feeding KeyPress events
-# through the PrimitiveString chain.
+# Type a string into the assistant's draft turn via the composer (Stage 6: the
+# input pane is the composer on `a.draft`, not the old PrimitiveString box).
 function _mvp_type!(a::WorkbenchAssistant, s::AbstractString)
-    chain = _input_chain()
     for c in s
-        iomap = projection_print(chain, a.input)
-        op = projection_read(chain, iomap, KeyPress(c))
-        op === nothing && continue
-        evaluate_operation((document=a.input,), op)
+        evaluate_operation(nothing, ComposerInputOperation(a.draft, string(c)))
     end
 end
+
+# The active typein's current text (the draft's last part, a PrimitiveString).
+_mvp_draft_text(a::WorkbenchAssistant) =
+    something(a.draft.parts[length(a.draft.parts)].content.value, "")
 
 # Press Enter on the assistant panel and apply the resulting operation.
 function _mvp_enter!(a::WorkbenchAssistant)
@@ -173,12 +174,12 @@ function _mvp_test_scenes()
 
         # Scene 1: type "Hello"
         _mvp_type!(a, "Hello")
-        @test a.input.value == "Hello"
+        @test _mvp_draft_text(a) == "Hello"
         @test length(a.conversation) == 0
 
         # Scene 2: Enter — kicks off async _run_agent_loop! via FakeLlm
         op = _mvp_enter!(a)
-        @test op isa SubmitProseOperation
+        @test op isa SubmitDraftTurnOperation
         @test _mvp_wait_idle!(a) === :idle
         @test length(a.conversation) == 2
         user_msg  = a.conversation.turns[1]
@@ -188,11 +189,11 @@ function _mvp_test_scenes()
         @test reply_msg.role === :assistant
         @test length(reply_msg.parts) == 1
         @test _text_to_string(reply_msg.parts[1].content) == "Yes, sir!"
-        @test a.input.value == ""
+        @test _mvp_draft_text(a) == ""        # draft reset after submit
 
         # Scene 3: type "What?"
         _mvp_type!(a, "What?")
-        @test a.input.value == "What?"
+        @test _mvp_draft_text(a) == "What?"
 
         # Scene 4: Enter again
         _mvp_enter!(a)
@@ -200,7 +201,7 @@ function _mvp_test_scenes()
         @test length(a.conversation) == 4
         @test _text_to_string(a.conversation.turns[3].parts[1].content) == "What?"
         @test _text_to_string(a.conversation.turns[4].parts[1].content) == "Yes, sir!"
-        @test a.input.value == ""
+        @test _mvp_draft_text(a) == ""
     end
 end
 

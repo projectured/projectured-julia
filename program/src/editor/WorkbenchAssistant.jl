@@ -61,11 +61,14 @@ import ..PrimitiveModule: StringReplaceRangeOperation
 import ..AnthropicModule: stream_message
 import ..LlmModule: LlmBackend, stream_turn
 import ..McpModule: execute_julia_code, register_default_tools_and_resources!
+import ..ConversationModule: ConversationDraft
+import ..ConversationEditorModule: composer_read, ComposerSubmitOperation,
+                                    finalize_draft!, reset_draft!
 
 using Markdown
 using JSON3
 
-export SubmitProseOperation, SubmitJuliaOperation,
+export SubmitProseOperation, SubmitJuliaOperation, SubmitDraftTurnOperation,
        ClearInputOperation, ResetConversationOperation,
        build_messages, conversation_to_string, assistant_tool_schemas, dispatch_assistant_tool,
        parse_markdown_blocks
@@ -231,29 +234,18 @@ function evaluate_operation(editor, op::SubmitJuliaOperation)
     nothing
 end
 
-function evaluate_operation(editor, op::SubmitProseOperation)
-    a = op.assistant
-    text = _text_to_string(a.input)
-    isempty(strip(text)) && return nothing
-
-    push!(a.conversation, ConversationTurn(:user, [ConversationPart(text)]))
-    _set_input!(a, "")
+# Flip to streaming and launch the agent loop on a task. `FakeLlm` synthesises
+# events in-process (tests / offline); `AnthropicLlm` streams from Claude — the
+# same `_handle_sse_event!` consumes both.
+function _launch_agent_turn!(editor, a::WorkbenchAssistant)
     a.status = :streaming
-
-    # The agent loop dispatches through `a.llm::LlmBackend` — `FakeLlm`
-    # synthesises events in-process for tests / offline use; `AnthropicLlm`
-    # streams from Claude. The same `_handle_sse_event!` consumes both.
     @async begin
         try
             _run_agent_loop!(editor, a)
         catch e
             a.status = :error
             err = sprint(showerror, e, catch_backtrace())
-            # Also dump to stderr so it's visible regardless of how the
-            # in-editor scroll pane sizes the result message.
             @error "Assistant turn failed" exception = (e, catch_backtrace())
-            # Surface the error in the conversation as an assistant prose turn
-            # so the user sees what went wrong inline.
             push!(a.conversation,
                   ConversationTurn(:assistant, [ConversationPart("Error: " * err)]))
         finally
@@ -261,6 +253,37 @@ function evaluate_operation(editor, op::SubmitProseOperation)
         end
     end
     nothing
+end
+
+function evaluate_operation(editor, op::SubmitProseOperation)
+    a = op.assistant
+    text = _text_to_string(a.input)
+    isempty(strip(text)) && return nothing
+
+    push!(a.conversation, ConversationTurn(:user, [ConversationPart(text)]))
+    _set_input!(a, "")
+    _launch_agent_turn!(editor, a)
+end
+
+"""
+    SubmitDraftTurnOperation(assistant)
+
+Submit the composer's draft turn: finalize it (`finalize_draft!`), push it into
+the conversation history, reset the draft in place, and launch a streaming turn.
+This is what the panel emits when the composer's `ComposerSubmitOperation` fires
+(ENTER on a text typein).
+"""
+struct SubmitDraftTurnOperation <: Operation
+    assistant::WorkbenchAssistant
+end
+
+function evaluate_operation(editor, op::SubmitDraftTurnOperation)
+    a = op.assistant
+    draft = a.draft
+    finalize_draft!(draft) || return nothing          # nothing to submit
+    push!(a.conversation, ConversationTurn(draft.role, collect(draft.parts)))
+    reset_draft!(draft)
+    _launch_agent_turn!(editor, a)
 end
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -728,79 +751,40 @@ end
 # ═══════════════════════════════════════════════════════════════════════
 # Assistant input event handling
 # ═══════════════════════════════════════════════════════════════════════
-# Additional methods on the existing `WorkbenchAssistantToWidgetSplitPane`
-# projection_read so the editor's read! loop dispatches:
-#
-#   Enter      → SubmitProseOperation
-#   Alt+Enter  → SubmitJuliaOperation
-#   KeyPress   → insert character into `assistant.input`
-#   Backspace  → delete char before cursor in `assistant.input`
-#   Delete     → delete char after cursor in `assistant.input`
-#
-# We translate KeyPress / Backspace / Delete directly into
-# `StringReplaceRangeOperation`s with paths rooted at the WorkbenchAssistant
-# (i.e. `.input.value[range]`) — the widget tree's default projection_read
-# does not route key events to nested document content, so we intercept
-# at the assistant layer. Cursor movement (arrow keys, home, end) is not
-# handled here yet; for the MVP, typing + backspace + Enter is sufficient.
+# The panel routes input key events to the composer on `assistant.draft` (the
+# message being composed). `composer_read` maps the gesture to a composer
+# operation on the draft turn; the panel intercepts the composer's
+# `ComposerSubmitOperation` (ENTER on a text typein) and turns it into a
+# `SubmitDraftTurnOperation`, which pushes the draft into the conversation and
+# launches a streaming turn. The widget tree's default reader does not route key
+# events to nested content, so we intercept here at the assistant layer.
 
-# Pull the current `.value[range]` cursor out of the assistant's input.
-function _input_range(a::WorkbenchAssistant)
-    @reference_case a.input.selection begin
-        value{s:e} => RangeReference(s, e)
-    end
+# The draft is rendered through the composer in the panel's projection chain, so
+# the composer's own reader already turns input keys into composer operations on
+# the draft turn. The panel only needs to intercept the composer's
+# `ComposerSubmitOperation` (ENTER on a text typein) — which merely normalizes the
+# draft — and turn it into a `SubmitDraftTurnOperation` that pushes the draft into
+# the conversation and launches a streaming turn.
+function projection_read(::WorkbenchAssistantToWidgetSplitPane,
+                          iomap, op::ComposerSubmitOperation)
+    iomap.input isa WorkbenchAssistant || return op
+    SubmitDraftTurnOperation(iomap.input::WorkbenchAssistant)
 end
 
-# Build a path rooted at WorkbenchAssistant: `.input.value[range]`.
-_input_path(range::RangeReference) = @reference input.value.^(range)
-
+# Fallback for when the composer chain declines a raw key (so it reaches the
+# panel directly): route it to the draft, intercepting submit as above.
 function projection_read(::WorkbenchAssistantToWidgetSplitPane,
                           iomap, evt::KeyPress)
     iomap.input isa WorkbenchAssistant || return nothing
-    evt.modifiers.ctrl && return nothing
-    a = iomap.input::WorkbenchAssistant
-    range = _input_range(a)
-    range === nothing && return nothing
-    StringReplaceRangeOperation(_input_path(range), evt.text)
+    composer_read(iomap.input.draft, evt)
 end
 
 function projection_read(::WorkbenchAssistantToWidgetSplitPane,
                           iomap, evt::KeyDown)
     iomap.input isa WorkbenchAssistant || return nothing
     a = iomap.input::WorkbenchAssistant
-
-    submit = @event_case evt begin
-        KeyDown(:return; alt) => SubmitJuliaOperation(a)
-        KeyDown(:return)      => SubmitProseOperation(a)
-    end
-    submit === nothing || return submit
-
-    range = _input_range(a)
-    range === nothing && return nothing
-    text = something(a.input.value, "")
-    n = length(text)
-    new_range = @event_case evt begin
-        KeyDown(:backspace) => begin
-            if range.start != range.stop
-                range
-            elseif range.start > 0
-                RangeReference(range.start - 1, range.start)
-            else
-                return nothing
-            end
-        end
-        KeyDown(:delete) => begin
-            if range.start != range.stop
-                range
-            elseif range.stop < n
-                RangeReference(range.stop, range.stop + 1)
-            else
-                return nothing
-            end
-        end
-    end
-    new_range === nothing && return nothing
-    StringReplaceRangeOperation(_input_path(new_range), "")
+    op = composer_read(a.draft, evt)
+    op isa ComposerSubmitOperation ? SubmitDraftTurnOperation(a) : op
 end
 
 end # module

@@ -167,8 +167,10 @@ include("projection/primitive/DbCatalogToJson.jl")
 include("projection/primitive/DbCatalogToSyntax.jl")
 include("editor/ToolRegistry.jl")
 include("editor/Mcp.jl")
-include("editor/WorkbenchAssistant.jl")
+# ConversationEditor (the composer) loads before WorkbenchAssistant so the panel's
+# reader can import `composer_read` to route its draft-turn input.
 include("editor/ConversationEditor.jl")
+include("editor/WorkbenchAssistant.jl")
 include("editor/Editor.jl")
 
 # ── Public API ────────────────────────────────────────────────────────────
@@ -438,7 +440,7 @@ using .AnthropicModule: stream_message
 using .LlmModule: LlmBackend, AnthropicLlm, FakeLlm, stream_turn
 using .EvaluatorModule: EvaluatorDocument, EvaluatorForm, EvaluatorToplevel, result_text
 using .ConversationModule: ConversationDocument, ConversationConversation,
-                            ConversationTurn, ConversationPart
+                            ConversationTurn, ConversationPart, ConversationDraft
 using .ConversationToSyntaxModule: ConversationToSyntax,
                                     ConversationConversationToSyntaxNode,
                                     ConversationTurnToSyntaxNode,
@@ -447,12 +449,12 @@ using .ConversationToWidgetModule: ConversationToWidget,
                                     ConversationConversationToWidgetComposite,
                                     ConversationTurnToWidgetComposite,
                                     ConversationPartToWidget
-using .WorkbenchAssistantModule: SubmitProseOperation, SubmitJuliaOperation,
+using .WorkbenchAssistantModule: SubmitProseOperation, SubmitJuliaOperation, SubmitDraftTurnOperation,
                                    ClearInputOperation, ResetConversationOperation,
                                    build_messages, conversation_to_string, assistant_tool_schemas,
                                    dispatch_assistant_tool, parse_markdown_blocks
 using .ConversationEditorModule: ConversationComposerToWidget, composer_read,
-                                  finalize_draft!, new_draft_turn,
+                                  finalize_draft!, new_draft_turn, reset_draft!,
                                   ComposerInputOperation, ComposerBackspaceOperation,
                                   ComposerNewlineOperation, ComposerInsertPartOperation,
                                   ComposerCommitChooserOperation, ComposerCommitSourceOperation,
@@ -720,7 +722,7 @@ export stream_message
 export LlmBackend, AnthropicLlm, FakeLlm, stream_turn
 export EvaluatorDocument, EvaluatorForm, EvaluatorToplevel, result_text
 export ConversationDocument, ConversationConversation,
-       ConversationTurn, ConversationPart
+       ConversationTurn, ConversationPart, ConversationDraft
 export ConversationToSyntax,
        ConversationConversationToSyntaxNode,
        ConversationTurnToSyntaxNode,
@@ -729,11 +731,11 @@ export ConversationToWidget,
        ConversationConversationToWidgetComposite,
        ConversationTurnToWidgetComposite,
        ConversationPartToWidget
-export SubmitProseOperation, SubmitJuliaOperation,
+export SubmitProseOperation, SubmitJuliaOperation, SubmitDraftTurnOperation,
        ClearInputOperation, ResetConversationOperation,
        build_messages, conversation_to_string, assistant_tool_schemas, dispatch_assistant_tool,
        parse_markdown_blocks
-export ConversationComposerToWidget, composer_read, finalize_draft!, new_draft_turn,
+export ConversationComposerToWidget, composer_read, finalize_draft!, new_draft_turn, reset_draft!,
        ComposerInputOperation, ComposerBackspaceOperation,
        ComposerNewlineOperation, ComposerInsertPartOperation,
        ComposerCommitChooserOperation, ComposerCommitSourceOperation,

@@ -29,4 +29,4 @@ end
 # evaluate it, etc. Rooted at the turn itself so the composer can be exercised in
 # isolation (`run_example(conversation_editor_example)`).
 make_conversation_editor_document_example() =
-    ConversationTurn(:user, [ConversationPart(PrimitiveString(""))])
+    ConversationDraft(ConversationTurn(:user, [ConversationPart(PrimitiveString(""))]))
