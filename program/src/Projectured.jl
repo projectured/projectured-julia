@@ -63,6 +63,8 @@ include("document/Ned.jl")
 include("parser/IniParser.jl")
 include("parser/NedParser.jl")
 include("parser/JuliaParser.jl")
+include("parser/JsonParser.jl")
+include("parser/XmlParser.jl")
 # LLM backend (used as a field type by `WorkbenchAssistant`). Loads early
 # because no document or projection layer depends on it; it only needs
 # HTTP/JSON3 (external packages) and access to the Anthropic SSE client.
@@ -328,6 +330,8 @@ using .NedModule: NedDocument, NedInsertion, NedExtends, NedInterfaceName, NedLo
                   NedPackage, NedImport, NedFile
 using .NedParserModule: nedparse, nedparse_file
 using .JuliaParserModule: juliaparse, juliaparse_file
+using .JsonParserModule: jsonparse, jsonparse_file
+using .XmlParserModule: xmlparse, xmlparse_file
 using .IniToSyntaxModule: IniInsertionToSyntaxLeaf, IniCommentToSyntaxLeaf, IniIncludeToSyntaxLeaf,
                           IniConfigOptionToSyntaxNode, IniParamAssignmentToSyntaxNode,
                           IniSectionToSyntaxNode, IniFileToSyntaxNode, IniToSyntax
@@ -509,6 +513,8 @@ export NedDocument, NedInsertion, NedExtends, NedInterfaceName, NedLoop, NedCond
        NedPackage, NedImport, NedFile
 export nedparse, nedparse_file
 export juliaparse, juliaparse_file
+export jsonparse, jsonparse_file
+export xmlparse, xmlparse_file
 export NedInsertionToSyntaxLeaf, NedPackageToSyntaxLeaf, NedImportToSyntaxLeaf,
        NedPropertyToSyntaxLeaf, NedParamToSyntaxLeaf, NedGateToSyntaxLeaf,
        NedSubmoduleToSyntaxNode, NedConnectionToSyntaxLeaf, NedConnectionGroupToSyntaxNode,

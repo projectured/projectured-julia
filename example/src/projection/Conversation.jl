@@ -68,6 +68,8 @@ function make_conversation_editor_projection_example(; measure=sdl_measure_text)
             VerticalLayout   => VerticalLayoutToGraphicsCanvas(),
             TextDocument     => text_to_graphics,
             JuliaDocument    => make_julia_projection_example(measure=measure),
+            JsonDocument     => make_json_projection_example(measure=measure),
+            XmlDocument      => make_xml_projection_example(measure=measure),
         ],
     )))
     SequentialProjection(

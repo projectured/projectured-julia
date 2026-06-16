@@ -1,0 +1,169 @@
+"""
+    XmlParserModule
+
+A small recursive-descent XML parser. Converts XML source text into an
+`XmlElement` tree from `XmlModule`.
+
+Provides:
+- `xmlparse(text)` — parse an XML string into its root `XmlElement`
+- `xmlparse_file(path)` — read and parse a `.xml` file from disk
+
+Deliberately minimal: one root element, nested elements, attributes
+(`name="value"` or `name='value'`), text content, self-closing tags, and the
+common entity escapes. The XML declaration (`<?xml …?>`), comments (`<!-- … -->`),
+and `<!…>` declarations are skipped. Not namespace- or DTD-aware — enough to turn
+typed XML in the editor into a real document. Malformed input raises an error.
+"""
+module XmlParserModule
+
+import ..XmlModule: XmlDocument, XmlElement, XmlAttribute, XmlText
+
+export xmlparse, xmlparse_file
+
+# ── Cursor over the source ─────────────────────────────────────────────────────
+
+mutable struct _Cur
+    cs::Vector{Char}
+    i::Int
+end
+
+_eof(p)   = p.i > length(p.cs)
+_peek(p)  = _eof(p) ? '\0' : p.cs[p.i]
+_next!(p) = (_eof(p) && error("XML: unexpected end of input"); c = p.cs[p.i]; p.i += 1; c)
+
+function _skipws!(p)
+    while !_eof(p) && isspace(_peek(p))
+        p.i += 1
+    end
+end
+
+function _expect!(p, ch::Char)
+    c = _next!(p)
+    c == ch || error("XML: expected '$ch' but got '$c' at position $(p.i - 1)")
+end
+
+_starts(p, word) = p.i + length(word) - 1 <= length(p.cs) &&
+                   String(p.cs[p.i:p.i + length(word) - 1]) == word
+
+function _skip_past!(p, marker)
+    while !_eof(p) && !_starts(p, marker)
+        p.i += 1
+    end
+    p.i += length(marker)
+end
+
+_isname(c) = isletter(c) || isdigit(c) || c in ('-', '_', ':', '.')
+
+function _name!(p)
+    start = p.i
+    while !_eof(p) && _isname(_peek(p))
+        p.i += 1
+    end
+    p.i > start || error("XML: expected a name at position $(p.i)")
+    String(p.cs[start:p.i - 1])
+end
+
+_unescape(s) = replace(String(s),
+    "&lt;" => "<", "&gt;" => ">", "&quot;" => "\"", "&apos;" => "'", "&amp;" => "&")
+
+# Skip whitespace, the XML declaration, comments, and `<!…>` declarations.
+function _skip_prolog!(p)
+    while true
+        _skipws!(p)
+        if _starts(p, "<?")
+            _skip_past!(p, "?>")
+        elseif _starts(p, "<!--")
+            _skip_past!(p, "-->")
+        elseif _starts(p, "<!")
+            _skip_past!(p, ">")
+        else
+            return
+        end
+    end
+end
+
+# ── Grammar ────────────────────────────────────────────────────────────────────
+
+function _element!(p)
+    _expect!(p, '<')
+    tag = _name!(p)
+    attrs = XmlAttribute[]
+    while true
+        _skipws!(p)
+        c = _peek(p)
+        (c == '>' || c == '/') && break
+        name = _name!(p)
+        _skipws!(p); _expect!(p, '='); _skipws!(p)
+        push!(attrs, XmlAttribute(name, _attr_value!(p)))
+    end
+    _skipws!(p)
+    if _peek(p) == '/'                      # self-closing: <tag …/>
+        p.i += 1
+        _expect!(p, '>')
+        return XmlElement(tag, attrs, XmlDocument[])
+    end
+    _expect!(p, '>')
+    children = XmlDocument[]
+    while true
+        text = _text_until_lt!(p)
+        isempty(strip(text)) || push!(children, XmlText(text))
+        if _starts(p, "</")                 # closing tag
+            p.i += 2
+            close = _name!(p)
+            _skipws!(p); _expect!(p, '>')
+            close == tag || error("XML: </$close> does not match <$tag>")
+            break
+        elseif _starts(p, "<!--")
+            _skip_past!(p, "-->")
+        elseif _peek(p) == '<'              # nested element
+            push!(children, _element!(p))
+        else
+            error("XML: unexpected end of input inside <$tag>")
+        end
+    end
+    XmlElement(tag, attrs, children)
+end
+
+function _attr_value!(p)
+    q = _next!(p)
+    (q == '"' || q == '\'') || error("XML: expected a quoted attribute value at position $(p.i - 1)")
+    start = p.i
+    while !_eof(p) && _peek(p) != q
+        p.i += 1
+    end
+    val = String(p.cs[start:p.i - 1])
+    _expect!(p, q)
+    _unescape(val)
+end
+
+function _text_until_lt!(p)
+    start = p.i
+    while !_eof(p) && _peek(p) != '<'
+        p.i += 1
+    end
+    _unescape(p.cs[start:p.i - 1])
+end
+
+# ── Entry points ───────────────────────────────────────────────────────────────
+
+"""
+    xmlparse(text) -> XmlElement
+
+Parse an XML string into its root `XmlElement`.
+"""
+function xmlparse(text::AbstractString)
+    p = _Cur(collect(String(text)), 1)
+    _skip_prolog!(p)
+    _skipws!(p)
+    _peek(p) == '<' || error("XML: expected a root element")
+    _element!(p)
+end
+
+"""
+    xmlparse_file(path) -> XmlElement
+
+Read and parse a `.xml` file from disk.
+"""
+xmlparse_file(path::AbstractString) = xmlparse(read(path, String))
+
+end # module

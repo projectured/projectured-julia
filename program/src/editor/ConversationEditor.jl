@@ -36,10 +36,12 @@ import ..EvaluatorModule: EvaluatorForm, result_text
 import ..DocumentCoreModule: DocumentInsertion
 import ..PrimitiveModule: PrimitiveString
 import ..JuliaModule: JuliaDocument, JuliaInsertion, JuliaIdentifier
-import ..JsonModule: JsonInsertion
-import ..XmlModule: XmlInsertion
+import ..JsonModule: JsonInsertion, JsonDocument
+import ..XmlModule: XmlInsertion, XmlDocument
 import ..TextModule: TextText, TextString
 import ..JuliaParserModule: juliaparse
+import ..JsonParserModule: jsonparse
+import ..XmlParserModule: xmlparse
 import ..McpModule: execute_julia_code
 import ..WidgetModule: WidgetCard, WidgetAvatar, WidgetLabel, Point2D
 import ..LayoutModule: VerticalLayout, HorizontalLayout
@@ -241,10 +243,14 @@ function evaluate_operation(editor, op::ComposerCommitChooserOperation)
     _replace_active!(op.turn, doc)
 end
 
+# Parse a source insertion into its domain document, by insertion type.
+_parse_source(c::JuliaInsertion) = _try_parse(juliaparse, _value(c))
+_parse_source(c::JsonInsertion)  = _try_parse(jsonparse, _value(c))
+_parse_source(c::XmlInsertion)   = _try_parse(xmlparse, _value(c))
+_parse_source(_) = nothing
+
 function evaluate_operation(editor, op::ComposerCommitSourceOperation)
-    c = _active_content(op.turn)
-    c isa JuliaInsertion || return nothing
-    doc = _try_parse(_value(c))
+    doc = _parse_source(_active_content(op.turn))
     doc === nothing && return nothing              # unparseable: keep editing
     _replace_active!(op.turn, doc)
     push!(op.turn, _new_typein())
@@ -262,7 +268,7 @@ function evaluate_operation(editor, op::ComposerEvaluateOperation)
         sprint(showerror, e, catch_backtrace())
     end
     is_err = occursin("ERROR", output) || occursin("Error", output)
-    form = something(_try_parse(src), JuliaIdentifier(src))
+    form = something(_try_parse(juliaparse, src), JuliaIdentifier(src))
     # `execute_julia_code` `println`s the result repr, so the captured output ends
     # in a newline — strip it so the result text doesn't render a trailing tofu box.
     _replace_active!(op.turn,
@@ -291,11 +297,11 @@ function evaluate_operation(editor, op::ComposerSubmitOperation)
     nothing
 end
 
-# Parse Julia source, guarding empty / invalid input.
-function _try_parse(src::AbstractString)
+# Parse source with `f`, guarding empty / invalid input (returns `nothing`).
+function _try_parse(f, src::AbstractString)
     isempty(strip(src)) && return nothing
     try
-        juliaparse(src)
+        f(src)
     catch
         nothing
     end
@@ -328,14 +334,14 @@ _kind_glyph(::PrimitiveString)   = "✎"
 _kind_glyph(::DocumentInsertion) = "+"
 _kind_glyph(::JuliaInsertion)    = "λ"
 _kind_glyph(::JuliaDocument)     = "λ"
-_kind_glyph(::JsonInsertion)     = "{}"
-_kind_glyph(::XmlInsertion)      = "<>"
 _kind_glyph(::EvaluatorForm)     = "="
 _kind_glyph(::TextText)          = "¶"
+_kind_glyph(::JsonDocument)      = "{}"   # JsonInsertion and committed JSON
+_kind_glyph(::XmlDocument)       = "<>"   # XmlInsertion and committed XML
 _kind_glyph(_)                   = "?"
 
-_kind_label(::JsonInsertion)     = "json"
-_kind_label(::XmlInsertion)      = "xml"
+_kind_label(::JsonDocument)      = "json"
+_kind_label(::XmlDocument)       = "xml"
 _kind_label(::PrimitiveString)   = "text"
 _kind_label(::DocumentInsertion) = "insert"
 _kind_label(::JuliaInsertion)    = "julia"
@@ -475,11 +481,12 @@ function projection_read(::ConversationComposerToWidget, iomap::SimpleIoMap, evt
             KeyDown(:backspace)     => ComposerBackspaceOperation(turn)
         end
     elseif c isa JsonInsertion || c isa XmlInsertion
-        # Editable source insertion; ENTER-to-parse and structural keys (`[` →
-        # JsonArray, …) arrive with the Stage-5 parsers. For now: type, newline,
-        # backspace, and ESC back to a text typein.
+        # Editable source insertion: ENTER parses it into a JsonDocument/XmlElement
+        # (no-op while it doesn't parse). Structural key-driven insertion (`[` →
+        # JsonArray, …) is still future work.
         return @event_case evt begin
             KeyDown(:return; shift) => ComposerNewlineOperation(turn)
+            KeyDown(:return)        => ComposerCommitSourceOperation(turn)
             KeyDown(:escape)        => ComposerRevertOperation(turn)
             KeyDown(:backspace)     => ComposerBackspaceOperation(turn)
         end

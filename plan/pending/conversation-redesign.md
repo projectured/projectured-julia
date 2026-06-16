@@ -341,12 +341,14 @@ updates live as you edit:
 
 **Kind chooser → domain insertions.** The chooser commits `julia`/`json`/`xml` to
 a `JuliaInsertion` / `JsonInsertion` / `XmlInsertion` (a composer-local factory).
-All are editable insertions (type a source, with caret + reactive rendering).
-Julia additionally **parses** (ENTER → `JuliaDocument`) and **evaluates**
-(ALT+ENTER → `EvaluatorForm`). JSON/XML source **parsing** (ENTER) and structural
-key-driven insertion (e.g. `[` on a `JsonInsertion` → `JsonArray`) arrive with the
-Stage-5 parsers; until then those insertions accept typing/newline/backspace and
-ESC-to-typein only.
+All are editable insertions (type a source, with caret + reactive rendering) and
+**parse on ENTER** into their domain document via the parsers
+(`juliaparse`/`jsonparse`/`xmlparse`); committed parts then render through the
+domain projection (parsed JSON/XML/Julia, tokenised). Julia additionally
+**evaluates** (ALT+ENTER → `EvaluatorForm`). `jsonparse`/`xmlparse` are small
+recursive-descent parsers (`parser/JsonParser.jl`, `parser/XmlParser.jl`) — basic
+but real. Structural key-driven insertion (e.g. `[` on a `JsonInsertion` →
+`JsonArray`) is still future work.
 
 Deferred to Stage 6: pushing the finalized turn into a live conversation +
 triggering the assistant (`ComposerSubmitOperation` only normalizes for now);
