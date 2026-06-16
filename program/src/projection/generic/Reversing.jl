@@ -6,7 +6,7 @@ collection document.
 """
 module ReversingProjectionModule
 
-import ..ProjectionApiModule: projection_print, map_reference_forward, map_reference_backward, Projection
+import ..ProjectionApiModule: projection_print, projection_printer_recurse, map_reference_forward, map_reference_backward, Projection
 import ..IoMapModule: SimpleIoMap, ChildrenIoMap
 import ..ReactiveModule: Cell
 import ..ReferenceModule: ConcreteReferencePath, ElementReference, PositionReference, RangeReference, append_reference
@@ -30,8 +30,8 @@ struct ReversingProjection <: Projection end
 function projection_print(p::ReversingProjection, recursion, input, ctx)
     recursion = something(recursion, PreservingProjection())
     child_iomaps = Cell(() -> [
-        projection_print(recursion, recursion, input[i],
-            child_context(ctx, PositionReference(i)))
+        projection_printer_recurse(recursion, input[i],
+            child_context(ctx, ElementReference(i)))
         for i in 1:length(input)
     ])
     ChildrenIoMap(p, input, reverse(input), child_iomaps)
