@@ -2084,18 +2084,18 @@ end
     section_gap::Int
 end
 
-function projection_print(p::WidgetCardToGraphicsCanvas, recursion, w::WidgetCard, ctx)
-    w.visible == false && return ChildrenIoMap(p, w, _empty_canvas(), Cell(Any[]))
-    position = w.position::Point2D
+# Lay out the card body: stack title/description/content/footer top-to-bottom,
+# size the card to them, and draw the surface panel behind. Reads the recursed
+# title/content iomaps' reactive sizes (`inner.h[]`/`inner.w[]`), so the enclosing
+# `build` cell re-runs when the content grows — that is what keeps the card's
+# border, height, and child positions in step with reactive content.
+function _card_build(p, w, ctx, tim, cim)
     padding = _sc(p.padding)
     elements = Any[]
     child_iomaps = Any[]
     max_content_width = 0   # widest content row, to size the card to its content
     y = padding
-    if w.title isa Document
-        # Recurse a document title (e.g. a header row of avatar + label) so the
-        # card chrome wraps it; track its iomap so header clicks can route.
-        tim = projection_print(recursion, recursion, w.title, ctx)
+    if tim !== nothing
         push!(child_iomaps, (padding, y, tim))
         push!(elements, _make_canvas(padding, y, Any[tim.output]))
         inner = tim.output
@@ -2118,8 +2118,7 @@ function projection_print(p::WidgetCardToGraphicsCanvas, recursion, w::WidgetCar
         max_content_width = max(max_content_width, description_width); y += description_height + _sc(p.section_gap)
     end
     content = w.content
-    if content isa Document
-        cim = projection_print(recursion, recursion, content, ctx)
+    if cim !== nothing
         push!(child_iomaps, (padding, y, cim))
         push!(elements, _make_canvas(padding, y, Any[cim.output]))
         inner = cim.output
@@ -2143,7 +2142,25 @@ function projection_print(p::WidgetCardToGraphicsCanvas, recursion, w::WidgetCar
     _push_panel!(surface, 0, 0, card_width, card_height; fill=p.surface_color, border=p.border.color,
                  border_w=max(1, _sc(p.border.width)), radius=_sc(p.corner_radius))
     append!(surface, elements)
-    ChildrenIoMap(p, w, _make_canvas(_origin(position)..., card_width, card_height, surface), Cell(child_iomaps))
+    (w = card_width, h = card_height, elements = surface, child_iomaps = child_iomaps)
+end
+
+function projection_print(p::WidgetCardToGraphicsCanvas, recursion, w::WidgetCard, ctx)
+    w.visible == false && return ChildrenIoMap(p, w, _empty_canvas(), Cell(Any[]))
+    position = w.position::Point2D
+    ox, oy = _origin(position)
+    # Recurse the Document title/content once (stable iomaps); the build cell only
+    # reads their reactive sizes, so growing content repaints the card without
+    # reprinting the projection.
+    tim = w.title isa Document ? projection_print(recursion, recursion, w.title, ctx) : nothing
+    cim = w.content isa Document ? projection_print(recursion, recursion, w.content, ctx) : nothing
+    build = Cell(() -> _card_build(p, w, ctx, tim, cim))
+    outer = GraphicsCanvas(Cell(Int32(ox)), Cell(Int32(oy)),
+                           Cell(() -> Int32(build[].w)),
+                           Cell(() -> Int32(build[].h)),
+                           CellVector(() -> build[].elements),
+                           layout_none, true, Cell(nothing))
+    ChildrenIoMap(p, w, outer, Cell(() -> build[].child_iomaps))
 end
 
 # A click on the card's header (a Document title — its first child entry) is a

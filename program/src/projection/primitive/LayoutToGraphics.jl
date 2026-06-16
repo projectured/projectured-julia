@@ -338,15 +338,13 @@ end
 
 # ── HorizontalLayout ───────────────────────────────────────────────────────
 
-function projection_print(p::HorizontalLayoutToGraphicsCanvas,
-                          recursion, doc::HorizontalLayout, ctx)
-    n = length(doc.children)
-    if n == 0
-        return ChildrenIoMap(p, doc, _empty_canvas(), Cell(Tuple{Cell,Cell,Any}[]))
-    end
-
+# Recompute the whole laid-out horizontal row. Like `_vl_build`, reads
+# `doc.children` so the enclosing `build` cell re-runs on structural changes,
+# while the per-child size/position cells stay lazy.
+function _hl_build(recursion, doc, ctx)
     gap_cell   = getfield(doc, :gap)
     align_cell = getfield(doc, :vertical_align)
+    n = length(doc.children)
 
     # Strip avail before recursing into children: a layout's intrinsic size
     # is computed from its children's intrinsic sizes, so children must not
@@ -358,8 +356,7 @@ function projection_print(p::HorizontalLayoutToGraphicsCanvas,
     for i in 1:n
         cctx = child_context(ctx, @reference ^(ctx.reference).children[i])
         cctx = with_available_size(cctx; width=nothing, height=nothing)
-        cim = _recurse_child(recursion, doc.children[i], cctx)
-        push!(child_iomaps, cim)
+        push!(child_iomaps, _recurse_child(recursion, doc.children[i], cctx))
     end
 
     outer_h = Cell(function ()
@@ -395,19 +392,23 @@ function projection_print(p::HorizontalLayoutToGraphicsCanvas,
         push!(wrapped, _wrap_child(c, child_x[i], child_y[i]))
     end
 
-    outer_w_i32 = Cell(() -> Int32(outer_w[]))
-    outer_h_i32 = Cell(() -> Int32(outer_h[]))
-    outer = GraphicsCanvas(Cell(Int32(0)), Cell(Int32(0)),
-                           outer_w_i32, outer_h_i32,
-                           CellVector(Cell[Cell(e) for e in wrapped]),
-                           layout_none, true, Cell(nothing))
-
     entries = Tuple{Cell,Cell,Any}[]
     for i in 1:n
         push!(entries, (child_x[i], child_y[i], child_iomaps[i]))
     end
 
-    ChildrenIoMap(p, doc, outer, Cell(entries))
+    (wrapped = wrapped, w = outer_w, h = outer_h, entries = entries)
+end
+
+function projection_print(p::HorizontalLayoutToGraphicsCanvas,
+                          recursion, doc::HorizontalLayout, ctx)
+    build = Cell(() -> _hl_build(recursion, doc, ctx))
+    outer = GraphicsCanvas(Cell(Int32(0)), Cell(Int32(0)),
+                           Cell(() -> Int32(build[].w[])),
+                           Cell(() -> Int32(build[].h[])),
+                           CellVector(() -> build[].wrapped),
+                           layout_none, true, Cell(nothing))
+    ChildrenIoMap(p, doc, outer, Cell(() -> build[].entries))
 end
 
 function map_reference_forward(::HorizontalLayoutToGraphicsCanvas, iomap, reference)
@@ -424,15 +425,15 @@ end
 
 # ── VerticalLayout ─────────────────────────────────────────────────────────
 
-function projection_print(p::VerticalLayoutToGraphicsCanvas,
-                          recursion, doc::VerticalLayout, ctx)
-    n = length(doc.children)
-    if n == 0
-        return ChildrenIoMap(p, doc, _empty_canvas(), Cell(Tuple{Cell,Cell,Any}[]))
-    end
-
+# Recompute the whole laid-out vertical stack. Reads `doc.children` (length +
+# each child), so the enclosing `build` cell re-runs when the children list
+# changes (a part is added/swapped) — that is what makes structure reactive. The
+# per-child size/position cells it constructs stay lazy, so a child merely
+# *growing* recomputes those cells without rebuilding the stack.
+function _vl_build(recursion, doc, ctx)
     gap_cell   = getfield(doc, :gap)
     align_cell = getfield(doc, :horizontal_align)
+    n = length(doc.children)
 
     # See HorizontalLayoutToGraphicsCanvas: strip avail before recursing to
     # avoid the cell-feedback cycle when a child layout reads its own
@@ -441,8 +442,7 @@ function projection_print(p::VerticalLayoutToGraphicsCanvas,
     for i in 1:n
         cctx = child_context(ctx, @reference ^(ctx.reference).children[i])
         cctx = with_available_size(cctx; width=nothing, height=nothing)
-        cim = _recurse_child(recursion, doc.children[i], cctx)
-        push!(child_iomaps, cim)
+        push!(child_iomaps, _recurse_child(recursion, doc.children[i], cctx))
     end
 
     outer_w = Cell(function ()
@@ -478,18 +478,27 @@ function projection_print(p::VerticalLayoutToGraphicsCanvas,
         push!(wrapped, _wrap_child(c, child_x[i], child_y[i]))
     end
 
-    outer = GraphicsCanvas(Cell(Int32(0)), Cell(Int32(0)),
-                           Cell(() -> Int32(outer_w[])),
-                           Cell(() -> Int32(outer_h[])),
-                           CellVector(Cell[Cell(e) for e in wrapped]),
-                           layout_none, true, Cell(nothing))
-
     entries = Tuple{Cell,Cell,Any}[]
     for i in 1:n
         push!(entries, (child_x[i], child_y[i], child_iomaps[i]))
     end
 
-    ChildrenIoMap(p, doc, outer, Cell(entries))
+    (wrapped = wrapped, w = outer_w, h = outer_h, entries = entries)
+end
+
+function projection_print(p::VerticalLayoutToGraphicsCanvas,
+                          recursion, doc::VerticalLayout, ctx)
+    # A single cell holding the laid-out stack, recomputed when `doc.children`
+    # changes. The output canvas, its element list, and the child-routing
+    # entries are all derived reactively from it, so adding/removing a child
+    # repaints without reprinting the projection (and without `iomap = nothing`).
+    build = Cell(() -> _vl_build(recursion, doc, ctx))
+    outer = GraphicsCanvas(Cell(Int32(0)), Cell(Int32(0)),
+                           Cell(() -> Int32(build[].w[])),
+                           Cell(() -> Int32(build[].h[])),
+                           CellVector(() -> build[].wrapped),
+                           layout_none, true, Cell(nothing))
+    ChildrenIoMap(p, doc, outer, Cell(() -> build[].entries))
 end
 
 function map_reference_forward(::VerticalLayoutToGraphicsCanvas, iomap, reference)
