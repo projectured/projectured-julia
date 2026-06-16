@@ -148,8 +148,8 @@ module BookmarkToSyntaxModule
 
 import ..ReactiveModule: Cell
 import ..CollectionModule: CellVector
-import ..ProjectionApiModule: projection_print, projection_read,
-                               map_reference_forward, map_reference_backward, Projection
+import ..ProjectionApiModule: projection_print, projection_printer_recurse, projection_read,
+                               map_reference_forward, map_reference_backward, Projection, Change
 import ..BookmarkModule: BookmarkDocument, BookmarkInsertion,
                           BookmarkEntry, BookmarkList
 import ..TextModule: TextString
@@ -203,9 +203,9 @@ function projection_print(p::BookmarkEntryToSyntaxNode,
 end
 
 function projection_read(p::BookmarkEntryToSyntaxNode,
-                          iomap::SimpleIoMap, op::ReplaceSelectionOperation)
-    # Selection passes through unchanged (shared cell handles it)
-    op
+                          recursion, change::Change, iomap::SimpleIoMap)
+    # Selection passes through unchanged (shared cell handles it).
+    change
 end
 
 # ── BookmarkList → SyntaxNode ──────────────────────────────────────────────
@@ -214,12 +214,12 @@ struct BookmarkListToSyntaxNode <: Projection end
 
 function projection_print(p::BookmarkListToSyntaxNode,
                            recursion, list::BookmarkList, ctx)
-    # Project each entry recursively. `recursion` is threaded twice (projection
-    # to call + that call's own recursion arg); `child_context` extends the
+    # Project each entry recursively via `projection_printer_recurse`, which
+    # re-enters the whole pipeline for the child; `child_context` extends the
     # reference path to entry i.
     child_iomaps = Cell(() ->
-        [projection_print(recursion, recursion, getfield(list, :entries)[][i][],
-                          child_context(ctx, ElementReference(i)))
+        [projection_printer_recurse(recursion, getfield(list, :entries)[][i][],
+                                    child_context(ctx, ElementReference(i)))
          for i in 1:length(list.entries)])
 
     children = Cell(() -> CellVector(Cell[Cell(m.output) for m in child_iomaps[]]))
@@ -260,8 +260,8 @@ function projection_print(p::BookmarkListToSyntaxNode,
 end
 
 function projection_read(p::BookmarkListToSyntaxNode,
-                          iomap::ChildrenIoMap, op::ReplaceSelectionOperation)
-    op   # pass navigation operations through unchanged
+                          recursion, change::Change, iomap::ChildrenIoMap)
+    change   # pass navigation operations through unchanged
 end
 
 # ── BookmarkToSyntax convenience constructor ───────────────────────────────

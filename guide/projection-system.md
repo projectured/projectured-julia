@@ -8,15 +8,17 @@ A projection has four entry points:
 
 ```julia
 projection_print(projection, recursion, input, context::PrinterContext) → iomap
-projection_read(projection, iomap, event_or_op)                            → op_or_nothing
-map_reference_forward(projection, iomap, reference)                        → output_ref_or_nothing
-map_reference_backward(projection, iomap, reference)                       → input_ref_or_nothing
+projection_read(projection, recursion, change::Change, iomap)            → Change
+map_reference_forward(projection, iomap, reference)                       → output_ref_or_nothing
+map_reference_backward(projection, iomap, reference)                      → input_ref_or_nothing
 ```
 
 The four functions come in two symmetric pairs, one per direction of data flow.
 Forward, `projection_print` produces the output **and** wires the cursor by
-calling `map_reference_forward`. Backward, `projection_read` consumes an
-output-domain event **and** maps the cursor by calling `map_reference_backward`.
+calling `map_reference_forward`. Backward, `projection_read` consumes a
+backward-flowing [`Change`](#the-change-the-reader-threads) (a gesture plus the
+operation produced so far) **and** maps the cursor by calling
+`map_reference_backward`.
 The rule of thumb that follows from this symmetry — and that the rest of this
 guide leans on — is:
 
@@ -85,29 +87,64 @@ small prefix strip. Once wired, those forward-projected selection cells let the
 reader route events by selection — see below and
 [the selection guide](editor/selection.md#forward-projecting-selection).
 
+### The `Change` the reader threads
+
+The reader's payload is a **`Change`** ([api/Projection.jl](../program/src/api/Projection.jl)) —
+the backward-flowing dual of the document that flows forward through the printer:
+
+```julia
+struct Change
+    gesture    # the originating device event (MousePress/KeyDown), threaded UNCHANGED
+    operation  # the change in the current projection's input domain; starts nothing
+end
+```
+
+- **`gesture`** is the raw thing the user did. It rides along **unchanged** the
+  whole way up the chain, so any reader can inspect *what the user did*, not just
+  what it currently means. (Example: `SyntaxToText`'s reader needs the raw click
+  coordinates from the gesture to hit-test a mouse click back to a character
+  offset, even though what eventually flows back is a selection move.)
+- **`operation`** starts as `nothing` (a "nothing-change") and is filled in /
+  re-mapped by each reader as the change travels one domain inward.
+
+A reader returns a `Change`: either it keeps `operation === nothing` (it had
+nothing to say) or it returns a fresh `Change` with the gesture preserved and a
+real operation swapped in.
+
 ### `projection_read` — the reader
 
-Takes either a raw device event (key press, mouse click) or an `Operation`
-produced by another projection, and returns an `Operation` in the input
-domain — or `nothing` if this projection has nothing to say about it. The
-editor hands the raw event to the **top-level** projection's `projection_read`;
-how it is routed from there is up to each projection. A `SequentialProjection`
-forwards it down its chain and threads the resulting operation back up through
-each earlier step; a routing projection instead dispatches it to the
-sub-projection of the relevant document part. It is entirely the projection's
-decision.
+```julia
+projection_read(projection, recursion, change::Change, iomap) → Change
+```
 
-The default `projection_read` (in `ProjectionModule`) handles
-`ReplaceSelectionOperation` by calling `map_reference_backward` on the path —
-so for most simple projections, only the two reference-mapping functions need
-methods. When you do write a `projection_read`, these are the moves available,
-from the lightest touch to the most involved:
+The symmetric dual of `projection_print` — both take
+`(projection, recursion, payload, context)`, where the payload is the `Change`
+and the context is the printer's `iomap`. The reader turns an output-domain
+change into an input-domain one and returns a `Change` (operation filled in /
+re-mapped, gesture preserved), or a nothing-change if it has nothing to say.
+
+The editor hands the raw device event to the **top-level** projection's
+`projection_read`; routing from there is up to each projection. A
+`SequentialProjection` forwards the change down its chain and threads the
+operation that comes back up through each earlier step; a routing projection
+instead dispatches it to the sub-projection of the relevant document part.
+
+**Most projections need no `projection_read` method.** The default in
+`ProjectionModule` re-targets any reference-carrying operation —
+`ReplaceSelectionOperation`, `StringReplaceRangeOperation`,
+`NumberReplaceRangeOperation` — by mapping its reference with
+`map_reference_backward`. So a projection that only moves the cursor or edits a
+value through a structure-preserving map needs **only** the two reference-mapping
+functions. Write a `projection_read` method (the 4-arg `Change` form above) only
+when you must do more than re-target a reference. The moves available, from the
+lightest touch to the most involved:
 
 - **Re-target the references.** Most often the incoming operation is the right
   *kind* and only its references need moving from output to input coordinates
   with `map_reference_backward` — rewrite the `.reference` of a
   `StringReplaceRangeOperation` / `NumberReplaceRangeOperation`, or the `.path`
-  of a `ReplaceSelectionOperation` (what the default does), then rebuild the op.
+  of a `ReplaceSelectionOperation` (this is what the default already does for
+  you), then rebuild the op.
 - **Convert to a different operation.** It is perfectly valid to turn the
   incoming operation into a *completely different* one — retype it (e.g.
   `JsonNumberToSyntaxLeaf` turns a `StringReplaceRangeOperation` into a
@@ -132,9 +169,15 @@ from the lightest touch to the most involved:
   exactly this; see
   [the selection guide](editor/selection.md#selection-directed-event-routing).
 
-Whichever moves it makes, a projection returns an `Operation` in its own input
-domain (or `nothing`); the operation the **top-level** projection ultimately
-returns is the final answer the editor applies to the document.
+Whichever moves it makes, a projection returns a `Change` carrying an operation
+in its own input domain (or a nothing-change); the operation the **top-level**
+projection ultimately returns is the final answer the editor applies to the
+document.
+
+> **Legacy 3-arg shim.** You may still see a 3-arg
+> `projection_read(projection, iomap, event_or_op)` returning a bare operation.
+> That form is **obsolete** — a transitional shim the generic bridge adapts to
+> the 4-arg `Change` interface. Write the 4-arg `Change` form in new code.
 
 ### `map_reference_forward` / `map_reference_backward` — the reference maps
 
@@ -208,12 +251,16 @@ The `@iomap` macro (parallel to `@document`) generates an IoMap struct whose
 
 ## Projection categories
 
-| Category | Examples | Purpose |
+The **higher-order** and **generic** rows below are the complete sets — an
+agent can treat them as exhaustive. The domain-to-domain and domain-preserving
+rows are representative (every domain adds its own `*To*` projection).
+
+| Category | Members | Purpose |
 |---|---|---|
-| **Domain-to-domain** | `JsonToSyntax`, `SyntaxToText`, `TextToGraphics`, `WidgetToGraphics`, `WorkbenchToWidget`, `XmlToSyntax`, `ObjectToSyntax`, `BookToSyntax`, `JuliaToSyntax`, `MathToSyntax`, `FileSystemToSyntax`, `TableToGraphics`, `PrimitiveToSyntax`, `CollectionToSyntax` | Translate between two distinct domains |
-| **Domain-preserving** | `WordWrapping`, `LineNumbering` | Same domain in and out |
-| **Domain-independent** | `CopyingProjection`, `SortingProjection`, `ReversingProjection`, `FocusingProjection`, `PreservingProjection`, `InvariablyProjection` | Work on any domain |
-| **Higher-order** | `SequentialProjection`, `TypeDispatchingProjection`, `RecursiveProjection`, `PredicateDispatchingProjection`, `ReferenceDispatchingProjection`, `AlternativeProjection`, `NestingProjection` | Compose other projections |
+| **Domain-to-domain** | `JsonToSyntax`, `SyntaxToText`, `TextToGraphics`, `WidgetToGraphics`, `WorkbenchToWidget`, `XmlToSyntax`, `ObjectToSyntax`, `BookToSyntax`, `JuliaToSyntax`, `MathToSyntax`, `FileSystemToSyntax`, `TableToGraphics`, `PrimitiveToSyntax`, `CollectionToSyntax`, … | Translate between two distinct domains |
+| **Domain-preserving** | `WordWrapping`, `LineNumbering`, `TextHighlighting`, `TextFiltering`, `GraphicsCaching`, `ScreenToScreen`, … | Same domain in and out (`ScreenToScreen` is the screen-domain projection — see [the screen pipeline](#the-screen-pipeline)) |
+| **Generic (domain-independent)** | `CopyingProjection`, `SortingProjection`, `ReversingProjection`, `FilteringProjection`, `SearchingProjection`, `FocusingProjection`, `PreservingProjection`, `InvariablyProjection`, `ObjectToWidget` | Operate on any input domain *by structure, not by type* (the 9 in `generic/`). Most also preserve the domain; `ObjectToWidget` is input-independent but produces widgets |
+| **Higher-order** | `SequentialProjection`, `TypeDispatchingProjection`, `PredicateDispatchingProjection`, `ReferenceDispatchingProjection`, `RecursiveProjection`, `AlternativeProjection`, `NestingProjection`, `WindowManagerProjection`, `TooltipDecoratorProjection`, `ProjectionConfiguringProjection` | Compose other projections (the 10 in `higherorder/`) |
 | **Compound** | `ApplyAtProjection`, `SortingAtProjection` | Convenience combinators built from higher-order primitives |
 
 See [higher-order projections](higher-order-projections.md) and
@@ -248,9 +295,11 @@ domain (via `map_reference_backward`).
    selection by calling `map_reference_forward`; the default `projection_read`
    handles selection by calling `map_reference_backward`. Write the pair once
    and both directions work.
-4. If your projection needs to respond to events other than selection moves
-   (e.g. mouse scroll, type-to-edit), add a method to `projection_read`
-   that returns the corresponding domain operation.
+4. If your projection needs to do more than re-target a reference (e.g. mouse
+   scroll, type-to-edit, retyping an operation), add a 4-arg
+   `projection_read(p, recursion, change::Change, iomap)` method that returns a
+   `Change` carrying the corresponding domain operation. Selection moves and
+   structure-preserving edits need no method — the default handles them.
 
 ```julia
 struct MyProjection <: Projection end
@@ -279,8 +328,8 @@ A leaf projection maps one document value to one output value. A compound
 projection maps one input *node* to an output node whose children are the
 recursively-projected input children. The extra requirements are:
 
-1. **Call `projection_print` on each child** via the `recursion` argument —
-   threading `recursion` twice (see [§ Recursion across projections](#recursion-across-projections)).
+1. **Recurse into each child** with `projection_printer_recurse(recursion, child, child_ctx)`
+   (see [§ Recursion across projections](#recursion-across-projections)).
 2. **Store the child IO maps** in a shared reactive `Cell` (not inline in two
    separate cells — see [§8 of the selection deep dive](selection-deep-dive.md)).
 3. **Project the selection reactively.** Canonically this is
@@ -297,12 +346,12 @@ struct MyNodeProjection <: Projection end
 
 function projection_print(p::MyNodeProjection, recursion, node::MyNode, ctx)
     # Step 1+2: project children, store IO maps in a shared cell.
-    # `recursion` is threaded twice (projection to call + that call's own
-    # recursion arg); `child_context` extends the reference path to child i.
+    # `projection_printer_recurse` re-enters the whole pipeline for each child;
+    # `child_context` extends the reference path to child i.
     child_iomaps = Cell(() -> [
-        projection_print(recursion, recursion,
-                         getfield(node, :children)[][i][],
-                         child_context(ctx, ElementReference(i)))
+        projection_printer_recurse(recursion,
+                                   getfield(node, :children)[][i][],
+                                   child_context(ctx, ElementReference(i)))
         for i in 1:length(node.children)
     ])
 
@@ -363,17 +412,26 @@ example with document types, example, and test.
 
 ## Recursion across projections
 
-Whenever a node-shaped projection produces children, it should call
-`projection_print(recursion, recursion, child, child_ctx)` where `child_ctx`
-extends the current context (`child_context(ctx, <step to the child>)`). Note
-`recursion` appears **twice**, and this is deliberate: the first slot is the
-projection to invoke, the second is *that* call's own `recursion` argument.
-Both must be `recursion` (not `p`, not `nothing`) so the child re-enters the
-whole pipeline — typically a `RecursiveProjection` wrapping a
-`TypeDispatchingProjection` — rather than this one projection. The node
-projection thus does not hard-code which inner projections handle each child
-type. Get either slot wrong and heterogeneous recursion silently breaks: the
-child gets projected by the wrong projection, or not recursively at all.
+Whenever a node-shaped projection produces children, it recurses into each with
+
+```julia
+projection_printer_recurse(recursion, child, child_ctx)
+```
+
+where `child_ctx` extends the current context
+(`child_context(ctx, <step to the child>)`). The helper expands to
+`projection_print(recursion, recursion, child, child_ctx)` — `recursion`
+appears **twice** on purpose: the first slot is the projection to invoke, the
+second is *that* call's own `recursion` argument. Both must be `recursion` (not
+`p`, not `nothing`) so the child re-enters the whole pipeline — typically a
+`RecursiveProjection` wrapping a `TypeDispatchingProjection` — rather than this
+one projection. The node projection thus does not hard-code which inner
+projections handle each child type. **Always recurse through
+`projection_printer_recurse`** rather than open-coding the doubled argument: it
+keeps the doubling in one place and call sites read as "recurse into this
+child". (Open-coding it and getting either slot wrong silently breaks
+heterogeneous recursion — the child gets projected by the wrong projection, or
+not recursively at all.)
 
 ## Mapping references when the printer recurses
 
@@ -458,3 +516,30 @@ RecursiveProjection(TypeDispatchingProjection(
 `JsonToSyntax()`, `XmlToSyntax()`, `WidgetToGraphics()`,
 `WorkbenchToWidget()`, `ObjectToSyntax()` — every multi-shape projection
 exposes a zero-arg factory that returns exactly this shape.
+
+## The screen pipeline
+
+The multi-window root document is a `ScreenDocument` holding a list of
+`WindowDocument`s (each with window metadata and a `content::Document`). Two
+projections cooperate at the top of the pipeline, with one clear responsibility
+each:
+
+- **`ScreenToScreen`** (a domain projection over `ScreenDocument` /
+  `WindowDocument`) owns all screen *structure*. Its printer copies the screen
+  shell, copies each window's metadata verbatim, and recurses each window's
+  `content` back through the pipeline with `projection_printer_recurse` —
+  seeding the window's `width`/`height` as the available layout extent so
+  layout-aware content sizes itself to the window. Its reader routes an
+  `EventEnvelope` to the matching window by `window_id`, hands the inner event
+  to that window's content reader, and prepends the `windows[i].content` steps
+  to the operation that comes back. The window-content reference is
+  `windows[i].content` (the i-th window is an `ElementReference`).
+- **`WindowManagerProjection`** wraps `ScreenToScreen` (`inner = ScreenToScreen()`)
+  and owns window-management *operations* — it intercepts
+  `OpenWindowOperation` / `CloseWindowOperation` / resize bubbling up and applies
+  them to both the input and the projected output.
+
+`CopyingProjection` is deliberately **not** involved: it is generic and knows
+nothing about screens. Keeping the screen-structural concern in `ScreenToScreen`
+and the operation-interception concern in `WindowManagerProjection` is why each
+has a single reason to change.

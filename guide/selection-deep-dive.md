@@ -116,8 +116,9 @@ Every `projection_print` method maps both the input *content* and the input
 so it updates reactively whenever the input selection changes:
 
 ```julia
-# SyntaxLeafToText — excerpt
-function projection_print(::SyntaxLeafToText, leaf::SyntaxLeaf, ...)
+# SyntaxLeafToText — excerpt. The printer is always 4-arg:
+# projection_print(projection, recursion, input, ctx::PrinterContext)
+function projection_print(p::SyntaxLeafToText, recursion, leaf::SyntaxLeaf, ctx)
     sel = Cell(() -> begin
         c = _leaf_cursor(leaf)   # reads leaf.selection[] as a dependency
         c < 0 ? nothing : ConcreteReferencePath(PositionReference(c))
@@ -146,11 +147,17 @@ dependency.
 
 ## 6. How the reader translates the selection
 
-The reader chain walks right-to-left, translating a `ReplaceSelectionOperation`
-from the output domain back to the input domain at each step.
+The reader chain walks right-to-left, threading a [`Change`](projection-system.md#the-change-the-reader-threads)
+(gesture + operation) and translating its `ReplaceSelectionOperation` from the
+output domain back to the input domain at each step. Each reader is the 4-arg
+`projection_read(p, recursion, change::Change, iomap) → Change`; the `gesture`
+rides along unchanged while the `operation` is re-mapped one domain inward.
+(Most steps need no `projection_read` method at all — the default re-targets a
+`ReplaceSelectionOperation`'s path via `map_reference_backward`. The steps below
+spell out the path translation each one's mapper performs.)
 
 **`TextToGraphics`** (outermost reader):
-- Receives a raw key event (`KeyDown(:right, ...)`).
+- The `Change.gesture` is a raw key event (`KeyDown(:right, ...)`).
 - Reads the current flat cursor offset from `iomap.input.selection[]`.
 - Produces `ReplaceSelectionOperation({new_pos})` in Text domain.
 
@@ -196,14 +203,15 @@ into children the formats differ across domains (see §8 below).
 ## 8. Selection projection under recursion
 
 When a compound projection recurses into children (calling
-`projection_print(recursion, child, recursion)` for each element), the output
-document's selection must be computed via a three-step algorithm, not by passing
-the input suffix directly:
+`projection_printer_recurse(recursion, child, child_ctx)` for each element), the
+output document's selection must be computed via a three-step algorithm, not by
+passing the input suffix directly:
 
 **Step 1 — Recurse first, collect child IO maps.**
 ```julia
-child_iomaps = Cell(() -> [projection_print(recursion, child, recursion)
-                            for child in elements])
+child_iomaps = Cell(() -> [projection_printer_recurse(recursion, child,
+                                                       child_context(ctx, ElementReference(i)))
+                            for (i, child) in enumerate(elements)])
 ```
 
 **Step 2 — Find the child pointed to by the input selection.**

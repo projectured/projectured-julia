@@ -101,13 +101,15 @@ RecursiveProjection(TypeDispatchingProjection(
 ))
 ```
 
-Calls `projection_print(child, self, input, reference)` — that is, it
-passes *itself* as the `recursion` argument. This lets node-shaped inner
-projections call `projection_print(recursion, recursion, child, child_ref)`
-to recurse without hard-coding the inner pipeline. Every multi-shape
-domain projection (JsonToSyntax, XmlToSyntax, ObjectToSyntax,
-WidgetToGraphics, …) wraps a TypeDispatchingProjection in a
-RecursiveProjection.
+Calls `projection_print(child, self, input, ctx)` — that is, it passes
+*itself* as the `recursion` argument. (The 4th argument is a
+`PrinterContext` that *carries* the document-root-relative reference path
+plus layout extent and properties; it was historically a bare
+`ReferencePath`, since promoted to the context struct.) This lets node-shaped
+inner projections recurse with `projection_printer_recurse(recursion, child, child_ctx)`
+without hard-coding the inner pipeline. Every multi-shape domain projection
+(JsonToSyntax, XmlToSyntax, ObjectToSyntax, WidgetToGraphics, …) wraps a
+TypeDispatchingProjection in a RecursiveProjection.
 
 ## AlternativeProjection
 
@@ -132,10 +134,18 @@ NestingProjection(outer, inner; recursion = PreservingProjection())
 Applies the first element to the input, passing a new `NestingProjection`
 built from the remaining elements as the `recursion` argument. The outer
 projection thus controls the surface structure and delegates inner
-content to the rest of the list. When elements run out, falls back to the
-optional stored `recursion`. This is the mechanism used inside
-`ApplyAtProjection` to insert a target projection at a specific
-reference path while preserving the rest of the document.
+content to the rest of the list. When elements run out, it falls back to a
+recursion.
+
+**Recursion precedence (load-bearing for `ApplyAtProjection`).** A
+`NestingProjection` carries both a *stored* `recursion` (the keyword argument)
+and the *inherited* `recursion` passed in at print time. The **stored one wins**;
+the inherited one is used only when none is stored
+(`effective = stored !== nothing ? stored : inherited`). This is exactly how
+`ApplyAtProjection(reference, projection)` preserves the target subtree's
+contents: it builds `NestingProjection(projection; recursion = PreservingProjection())`,
+so once `projection` has run at the target, everything below is handed to the
+stored `PreservingProjection` rather than continuing down the outer pipeline.
 
 ## Compound combinators
 

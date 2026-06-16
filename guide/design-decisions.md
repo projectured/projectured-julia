@@ -97,13 +97,13 @@ access to both contexts without any additional bookkeeping.
 through each step:
 
 ```julia
-function projection_read(seq, iomap, event)
-    op = projection_read(seq.projections[end], iomap.step_iomaps[end], event)
+function projection_read(seq, recursion, change::Change, iomap)
+    change = projection_read(seq.projections[end], recursion, change, iomap.step_iomaps[end])
     for i in (n-1):-1:1
-        op === nothing && return nothing
-        op = projection_read(seq.projections[i], iomap.step_iomaps[i], op)
+        change.operation === nothing && return change
+        change = projection_read(seq.projections[i], recursion, change, iomap.step_iomaps[i])
     end
-    return op
+    return change
 end
 ```
 

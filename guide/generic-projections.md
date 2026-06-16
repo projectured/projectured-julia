@@ -1,10 +1,15 @@
 # Generic Projections
 
-Generic — also called domain-independent — projections operate on any document
-without knowing its domain. They live in `program/src/projection/generic/` and
-each one is a single struct subtyping `Projection`. Most keep the output domain
-the same as the input domain; the reflection-driven `ObjectToWidget` is the
-exception (it emits a widget form).
+Generic projections are **input-domain-independent**: they operate on any
+document *by structure, not by type* — copying, sorting, reversing, filtering,
+focusing, preserving, or reflecting over it without dispatching on any specific
+domain. That input-independence is the defining property of the nine projections
+in `program/src/projection/generic/`; each is a single struct subtyping
+`Projection`. *Most* also preserve the domain (same domain in and out). The
+reflection-driven `ObjectToWidget` is the one that does not preserve the
+domain — it is still fully input-independent (it reflects over any object) but
+produces a widget form. So it belongs here by the input-independence test, even
+though it changes the output domain.
 
 | Projection | Effect on the output |
 |---|---|
@@ -42,9 +47,12 @@ a placeholder when a sub-tree is collapsed).
 ## CopyingProjection
 
 The workhorse of `ApplyAtProjection`. Recursively re-projects every child
-of the input by calling `projection_print(recursion, recursion, child, ...)`, then
+of the input with `projection_printer_recurse(recursion, child, child_ctx)`, then
 rebuilds an output struct/`CellVector`/`ListNode` of the same shape with
-the new outputs in place. Key behaviours:
+the new outputs in place. It is strictly domain-independent — it has no
+`projection_read` method of its own (the default reader re-targets selection and
+edit operations through `map_reference_backward`) and knows nothing about any
+specific domain. Key behaviours:
 
 - For a `CellVector`, eagerly projects every slot.
 - For a `ListNode`, projects only the head eagerly; `prev`/`next` are

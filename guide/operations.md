@@ -65,16 +65,16 @@ small, and the editor's `evaluate!` dispatches on type.
 ## Reader → operation → evaluate flow
 
 ```
-SDL_EVENT ──read_from_devices──► KeyPress/MousePress/...
+SDL_EVENT ──read_from_devices──► KeyPress/MousePress/...  ──► Change(gesture, nothing)
                                           │
                                           ▼
-                       projection_read(projection, iomap, event)
+          projection_read(projection, recursion, change::Change, iomap)
                                           │
                                           ▼
-                               Operation or nothing
+                  Change(gesture, operation)  (operation may be nothing)
                                           │
                                           ▼
-                       evaluate_operation(editor, op)
+                       evaluate_operation(editor, change.operation)
                                           │
                                           ▼
                              cells written → invalidated
@@ -83,10 +83,12 @@ SDL_EVENT ──read_from_devices──► KeyPress/MousePress/...
                        projection_print refreshes the iomap lazily
 ```
 
-The reader walks the pipeline last-to-first, calling `projection_read` on
-each step. The first step that returns a non-nothing value short-circuits
-the walk; subsequent earlier steps translate the operation further toward
-the document's own domain.
+The reader threads a [`Change`](projection-system.md#the-change-the-reader-threads)
+(the originating `gesture` plus the `operation` produced so far) and walks the
+pipeline last-to-first, calling `projection_read` on each step. The `gesture`
+rides along unchanged; the first step that fills in a non-nothing `operation`
+short-circuits the walk, and subsequent earlier steps translate that operation
+further toward the document's own domain.
 
 ## Adding a new operation
 
@@ -97,9 +99,12 @@ the document's own domain.
    `editor.document`). Use the existing
    primitives — `replace_selection!`, mutating reactive cells, throwing
    `QuitEditorException` — rather than reaching directly into private state.
-3. **Have a projection produce it.** Add a `projection_read` method on the
-   projection that owns the gesture; return `MyOp(...)` instead of
-   `nothing` when the event applies.
+3. **Have a projection produce it.** Add a 4-arg
+   `projection_read(p, recursion, change::Change, iomap)` method on the
+   projection that owns the gesture; return `Change(change.gesture, MyOp(...))`
+   when the event applies (and a nothing-change otherwise). If the projection
+   only needs to re-target a reference-carrying operation, you need no method at
+   all — the default reader does that.
 4. **(Optional) Translate it upstream.** If the operation needs to flow
    through more projections before reaching the document, give the
    upstream projections matching `projection_read` methods that consume the

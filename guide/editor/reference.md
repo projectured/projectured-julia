@@ -84,27 +84,24 @@ A `ProjectionReference(P, output_path)` *step* embeds an output reference inside
 
 ## Reference Paths
 
-Paths are immutable linked lists of steps:
-
-- **EmptyReferencePath** — terminates the path (root)
-- **ConcreteReferencePath** — holds a head step and tail path
+**Build paths with the `@reference` macro** (see [§ Reference DSL](#reference-dsl-reference)
+below) — it is the canonical, most capable way to construct a reference:
 
 ```julia
-# Empty path (root)
-EmptyReferencePath()
-
-# Single step
-ConcreteReferencePath(
-    ElementReference(5),
-    EmptyReferencePath()
-)
-
-# Multiple steps (the tail must itself be a ReferencePath)
-ConcreteReferencePath(
-    ElementReference(1),
-    ConcreteReferencePath(FieldReference("name"), EmptyReferencePath())
-)
+@reference items[1].name        # ElementReference(1) then FieldReference("name")
+@reference()                    # the empty path (the whole element / root)
 ```
+
+For programmatic construction from a list of steps, `ReferencePath(steps...)`
+threads them into a path:
+
+```julia
+ReferencePath(ElementReference(1), FieldReference("name"))
+```
+
+Under the hood a path is an immutable linked list — `EmptyReferencePath()`
+terminates it and `ConcreteReferencePath(head, tail)` is one cons cell — but you
+rarely construct those cells by hand; prefer `@reference` or `ReferencePath`.
 
 ## Mapping Between Document Structs and Reference Steps
 
@@ -357,6 +354,8 @@ end
 
 Pattern syntax:
 - `_` — wildcard, matches anything
+- `∅` — the **empty path** (`EmptyReferencePath`), i.e. a *whole-element*
+  selection (see below)
 - `i` — binder, captures the value
 - `"name"` or `0` — literal, matches specific value
 - `i::Int` — typed binder, captures with type check
@@ -366,6 +365,27 @@ Pattern syntax:
   more specific `{k}` patterns first if both are interesting)
 
 The `@reference_case` macro is commonly used in projection readers to translate output-domain references back to input-domain references.
+
+## Whole-element selection: the empty path
+
+An **empty path** (`EmptyReferencePath()`, written `@reference()`, matched by the
+`∅` pattern) means *the whole element at this level is selected* — there is no
+sub-position within it. This is a first-class selection convention, not an
+absence of selection (that is `nothing`).
+
+Because an empty path has no steps to translate, it maps across any projection
+**by identity**: the default `map_reference_forward` / `map_reference_backward`
+return `@reference()` unchanged for it, so whole-element selections round-trip
+through every projection for free.
+
+```julia
+function map_reference_forward(::SomeProjection, iomap, reference)
+    @reference_case reference begin
+        ∅           => @reference()        # whole element — identity
+        value{k}    => @reference value{k}
+    end
+end
+```
 
 ## Collecting References: `collect_references`
 

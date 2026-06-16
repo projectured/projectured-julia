@@ -83,9 +83,10 @@ julia> iomap = projection_print(proj, doc);    # forward projection
 julia> iomap.output                            # the printed tree
 julia> iomap.output[]                          # force the outer Cell
 
-julia> using Projectured: KeyDown, Modifiers
-julia> op = projection_read(proj, iomap, KeyDown(:right, Modifiers()));
-julia> evaluate_operation((; document = doc), op);   # apply it (editor.document)
+julia> using Projectured: KeyDown, Modifiers, Change
+julia> change = projection_read(proj, nothing, Change(KeyDown(:right, Modifiers())), iomap);
+julia> change.operation                              # the operation the reader produced
+julia> evaluate_operation((; document = doc), change.operation);   # apply it (editor.document)
 julia> projection_print(proj, doc)                   # reprint after the edit
 ```
 
@@ -118,20 +119,21 @@ functions as an indented tree, with **no edits to any projection method**:
 
 ```julia
 julia> using Cassette, Projectured
-julia> using Projectured: KeyDown, Modifiers
+julia> using Projectured: KeyDown, Modifiers, Change
 julia> Cassette.@context TraceCtx
 julia> const _depth = Ref(0)
 
-julia> function Cassette.prehook(::TraceCtx, ::typeof(Projectured.projection_read), p, iomap, x)
-           println("  "^_depth[], "→ read ", nameof(typeof(p)), "   <", nameof(typeof(x)), ">")
+# Hook the 4-arg reader: projection_read(p, recursion, change, iomap)
+julia> function Cassette.prehook(::TraceCtx, ::typeof(Projectured.projection_read), p, recursion, change, iomap)
+           println("  "^_depth[], "→ read ", nameof(typeof(p)), "   <", nameof(typeof(change.gesture)), ">")
            _depth[] += 1
        end
-julia> Cassette.posthook(::TraceCtx, out, ::typeof(Projectured.projection_read), p, iomap, x) = (_depth[] -= 1)
+julia> Cassette.posthook(::TraceCtx, out, ::typeof(Projectured.projection_read), p, recursion, change, iomap) = (_depth[] -= 1)
 
 # wrap whatever triggers a read — a manual call, or the editor's read of one event:
 julia> ex = json_example; doc, proj = ex.document, ex.projection;
 julia> iomap = projection_print(proj, doc);
-julia> Cassette.overdub(TraceCtx(), () -> projection_read(proj, iomap, KeyDown(:right, Modifiers())))
+julia> Cassette.overdub(TraceCtx(), () -> projection_read(proj, nothing, Change(KeyDown(:right, Modifiers())), iomap))
 ```
 
 You get an indented call tree of every read as the event flows through the
