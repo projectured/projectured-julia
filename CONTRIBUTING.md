@@ -36,7 +36,7 @@ test_all()          # full suite (~30 s)
 # Or individual layers:
 test_printers()
 test_readers()
-test_selections()
+test_text_navigations()
 test_repls()
 test_mcp_tools()
 ```

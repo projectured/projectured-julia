@@ -50,7 +50,8 @@ include("projection/TooltipTest.jl")
 include("projection/GraphicsToFileTest.jl")
 include("editor/PrinterTest.jl")
 include("editor/ExampleTest.jl")
-include("editor/SelectionTest.jl")
+include("editor/SelectionEnumeration.jl")
+include("editor/TextNavigationTest.jl")
 include("editor/ReaderTest.jl")
 include("editor/ReplTest.jl")
 include("editor/TypeinTest.jl")
@@ -121,7 +122,8 @@ function test_all()
     test_projections()
     test_printers()
     test_readers()
-    test_selections()
+    test_text_navigations()
+    test_text_navigations_complete()
     test_repls()
     test_typeins()
     test_mcp_tools()
@@ -132,6 +134,7 @@ function test_all()
     test_json_content_clicks_clean_all()
     test_collapse_roundtrip()
     test_tree_navigations()
+    test_tree_navigations_complete()
     test_table_navigation()
     test_database_no_db()
     end
@@ -155,9 +158,9 @@ export test_cell, test_reference_builder, test_type_reference, test_event_case
 export test_json, test_syntax, test_text, test_graphics, test_graphics_layout, test_layout_allocator, test_layout_constraint_helpers, test_collection, test_tabular, test_primitive, test_ini, test_ini_parser, test_ned, test_ned_parser
 export test_json_to_syntax, test_json_to_syntax_reader, test_syntax_to_text, test_syntax_tree_selection, test_filesystem_to_syntax, test_primitive_to_text, test_text_to_graphics, test_word_wrapping, test_text_filtering, test_text_highlighting, test_object_to_widget, test_projection_configuring, test_widget_text_editing, test_copying_projection, test_write_image, test_tooltip
 export test_table, test_table_selection, test_table_navigation, explore_table_selections
-export test_examples, test_selections
-export test_printer, test_printers, test_example, test_selection
-export explore_selections
+export test_examples, test_text_navigations, test_text_navigations_complete
+export test_printer, test_printers, test_example, test_text_navigation
+export explore_text_selections, collect_text_selections, collect_tree_selections
 export test_reader, test_readers, walk_reader_events
 export test_repl, test_repls, walk_repl_loop
 export test_typein, test_typeins, walk_typein
@@ -165,7 +168,7 @@ export test_mouse_click_roundtrip, test_mouse_clicks
 export test_click_roundtrip, test_click_roundtrips, test_text_nav_invariants, test_text_nav_invariants_all
 export test_json_content_clicks_clean, test_json_content_clicks_clean_all
 export test_collapse_roundtrip
-export test_tree_navigation, test_tree_navigations, explore_tree_selections
+export test_tree_navigation, test_tree_navigations, test_tree_navigations_complete, explore_tree_selections
 export test_assistant_mvp, make_assistant_mvp_setup, make_assistant_mvp_projection
 export test_database_connection, test_database, test_database_no_db, test_database_tabular
 export test_db_catalog, test_db_catalog_tabular, test_db_catalog_json, test_db_catalog_syntax

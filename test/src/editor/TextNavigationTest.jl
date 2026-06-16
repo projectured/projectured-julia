@@ -14,12 +14,12 @@
 #   If initial_selection is omitted, Ctrl+Home is used to find the first state.
 #   Returns (state_count, errors, visited) — visited is the Set of path strings.
 #
-# test_text_navigation(label, document, projection[, initial_selection])
+# test_text_navigation(label, document, projection[, initial_selection]; check_reaches_all=false)
 #   Wraps explore_text_selections in a @testset and asserts no errors occurred.
-#
-# test_text_navigation_complete(example)
-#   Additionally asserts navigation reaches every caret in
-#   collect_text_selections(document) (subset: enumerated ⊆ reachable).
+#   With check_reaches_all=true it additionally asserts navigation reaches every
+#   caret in collect_text_selections(document) (subset: enumerated ⊆ reachable) —
+#   the coverage feature. test_text_navigations_complete() runs it over a curated
+#   subset of examples.
 # ═══════════════════════════════════════════════════════════════════════════
 
 function explore_text_selections(document, projection, initial_selection=nothing; onstate=nothing)
@@ -101,10 +101,11 @@ function explore_text_selections(document, projection, initial_selection=nothing
     (state_count=length(visited), errors=errors, visited=visited)
 end
 
-# One @test per reachable selection state. When `complete=true`, additionally
-# assert navigation reaches every caret enumerated directly from the document
-# (subset: collect_text_selections(document) ⊆ reachable) — the coverage feature.
-function test_text_navigation(label, document, projection, initial_selection=nothing; complete=false)
+# One @test per reachable selection state. When `check_reaches_all=true`,
+# additionally assert navigation reaches every caret enumerated directly from the
+# document (subset: collect_text_selections(document) ⊆ reachable) — the coverage
+# feature.
+function test_text_navigation(label, document, projection, initial_selection=nothing; check_reaches_all=false)
     @testset "$label" begin
         result = explore_text_selections(document, projection, initial_selection;
             onstate = (p, ok, msg) -> begin
@@ -119,7 +120,7 @@ function test_text_navigation(label, document, projection, initial_selection=not
             end
         end
         @test result.state_count > 0
-        if complete
+        if check_reaches_all
             enumerated = collect_text_selections(document)
             @test !isempty(enumerated)
             _assert_reaches_all(label, enumerated, result.visited)
@@ -127,8 +128,8 @@ function test_text_navigation(label, document, projection, initial_selection=not
     end
 end
 
-function test_text_navigation(example::Example; complete=false)
-    test_text_navigation(example.name, example.document, example.projection; complete=complete)
+function test_text_navigation(example::Example; check_reaches_all=false)
+    test_text_navigation(example.name, example.document, example.projection; check_reaches_all=check_reaches_all)
 end
 
 function test_text_navigations()
@@ -173,7 +174,7 @@ function test_text_navigations_complete()
     @testset "TextNavigationComplete" begin
         for example in examples
             example.name in _text_navigation_complete_examples || continue
-            test_text_navigation(example; complete=true)
+            test_text_navigation(example; check_reaches_all=true)
         end
     end
 end

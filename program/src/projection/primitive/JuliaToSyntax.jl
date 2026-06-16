@@ -946,7 +946,7 @@ end
 # an output reference in a `proj(p, …)` step rather than translating it into a
 # Julia-domain path. Consequence: a selection can be set and round-tripped at the
 # projection-wrapped / whole-element granularity (which is what keeps
-# `test_selection(julia_example)` green), but the cursor does NOT map
+# `test_text_navigation(julia_example)` green), but the cursor does NOT map
 # bidirectionally into nested Julia content (this is the High finding in
 # plan/pending/consistency-report.md, §D).
 #

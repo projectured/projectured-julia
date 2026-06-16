@@ -214,5 +214,5 @@ you need an on-disk fixture.
    `evaluate_operation` by hand.
 5. Cross-reference with the test helpers documented in
    [the testing guide](testing.md) — `walk_printer_output`, `walk_reader_events`,
-   `walk_repl_loop`, and `explore_selections` all take a `(document,
+   `walk_repl_loop`, and `explore_text_selections` all take a `(document,
    projection)` pair and exercise one slice of the editor loop.

@@ -24,7 +24,7 @@ When touching selection/reference handling or a specific domain, also consult:
 When iterating in the REPL or running the test suite:
 
 - [guide/debugging.md](guide/debugging.md) — REPL debugging tips: `run_example`, `print_example`, `write_image_example`, driving the printer/reader by hand, and forcing reactive cells.
-- [guide/testing.md](guide/testing.md) — testing tips: `test_all`, `test_printers`, `test_readers`, `test_selections`, `test_repls`, and the walker helpers behind them.
+- [guide/testing.md](guide/testing.md) — testing tips: `test_all`, `test_printers`, `test_readers`, `test_text_navigations`, `test_repls`, and the walker helpers behind them.
 
 ## Conventions
 
@@ -37,11 +37,11 @@ When you change something and want to verify it, run the **smallest test that co
 
 Pick the narrowest scope that exercises your change:
 
-- A single example: `test_printer(json_example)`, `test_reader(json_example)`, `test_selection(json_example)`, `test_repl(json_example)`, or `test_example(json_example)` for all three at once.
+- A single example: `test_printer(json_example)`, `test_reader(json_example)`, `test_text_navigation(json_example)`, `test_repl(json_example)`, or `test_example(json_example)` for all three at once. Add `test_text_navigation(json_example; check_reaches_all=true)` to also assert navigation reaches every enumerated caret.
 - A single domain or pipeline stage: e.g. `test_json()`, `test_syntax()`, `test_json_to_syntax()`, `test_syntax_to_text()`.
 - The reactive primitive only: `test_cell()`.
-- Want errors back as a `Vector{String}` instead of `@testset` output (less noise, keeps going on failure): the walker helpers `walk_printer_output(doc, proj)`, `walk_repl_loop(doc, proj)`, `explore_selections(doc, proj)`.
+- Want errors back as a `Vector{String}` instead of `@testset` output (less noise, keeps going on failure): the walker helpers `walk_printer_output(doc, proj)`, `walk_repl_loop(doc, proj)`, `explore_text_selections(doc, proj)`.
 
-Running `test_all()` is usually not needed — the targeted test above is enough to verify a change. Only reach for the loop-over-every-example functions (`test_printers()` / `test_readers()` / `test_selections()` / `test_repls()`), and rarely `test_all()`, when you specifically want a broad sweep after the targeted test already passes. See [guide/testing.md](guide/testing.md) for the full table of test functions and which layer each one covers.
+Running `test_all()` is usually not needed — the targeted test above is enough to verify a change. Only reach for the loop-over-every-example functions (`test_printers()` / `test_readers()` / `test_text_navigations()` / `test_repls()`), and rarely `test_all()`, when you specifically want a broad sweep after the targeted test already passes. See [guide/testing.md](guide/testing.md) for the full table of test functions and which layer each one covers.
 
 Always narrow down tests to the smallest reasonable scope — never default to `test_all()`, it is slow. Prefer single-example or single-domain test functions as described in the "Testing a change" section above.

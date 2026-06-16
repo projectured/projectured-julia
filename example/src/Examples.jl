@@ -79,7 +79,7 @@ const math_table_example     = Example("math_table",     make_math_table_documen
 const workbench_example      = Example("workbench",      make_workbench_document_example,      make_workbench_projection_example)
 # `lazy_example` / `lazy_bidirectional_example` are deliberately kept OUT of the
 # `examples` registry below. Their documents are infinite lazy linked lists, so
-# the enumeration-based suites (test_printers / test_readers / test_selections /
+# the enumeration-based suites (test_printers / test_readers / test_text_navigations /
 # test_repls), which walk a document exhaustively, would never terminate and would
 # exhaust memory. Use them directly (e.g. `run_example(lazy_example)`); do not add
 # them to `examples`.

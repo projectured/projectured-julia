@@ -1,5 +1,13 @@
 # Navigation reaches all possible selections
 
+> **Status: DONE.** Implemented across [TextNavigationTest.jl](../../test/src/editor/TextNavigationTest.jl),
+> [SyntaxTreeNavigationTest.jl](../../test/src/editor/SyntaxTreeNavigationTest.jl),
+> the new [SelectionEnumeration.jl](../../test/src/editor/SelectionEnumeration.jl),
+> and call-site/doc updates. Completeness suites pass: `TextNavigationComplete`
+> 837/837, `TreeNavigationComplete` 24/24. See **Implementation outcome** at the
+> bottom for what changed vs. the original design.
+
+
 Rename the text-selection navigation suite and extend both navigation suites so
 they no longer just check "navigation never errors", but also **pre-collect the
 complete set of possible selections directly from the editor's document** and
@@ -214,3 +222,63 @@ Per repo convention, run the narrowest scope:
 - Character-range selections (would require shift-select navigation keys).
 - Extending the completeness assertion to the full example list (filtering /
   sorting / word-wrapping / collapse projections).
+
+## Implementation outcome
+
+What actually shipped, and where it diverged from the design above:
+
+- **No separate `_complete` per-example test.** Per review feedback, the
+  coverage check is a `check_reaches_all=false` keyword on `test_text_navigation`
+  / `test_tree_navigation` (the BFS runs once; coverage is an add-on). The curated
+  runners `test_text_navigations_complete()` / `test_tree_navigations_complete()`
+  call them with `check_reaches_all=true`. `test_all` runs both the broad
+  no-error sweeps and the curated completeness runners.
+
+- **Enumerator descent — `TextString` is a text leaf, not a container.** The
+  crucial fact discovered in [Text.jl](../../program/src/document/Text.jl): a
+  `TextString` defines **no** `length`/`getindex`, so `set_selection!` stops at
+  it and stores `{k}` relative to it — the caret path is `.value{k}`, *not*
+  `.value.content{k}`. `_walk_document` therefore treats both raw `String`s and
+  `TextString`s as text leaves (`_text_leaf_length`) and emits the carets
+  directly on the field path, without descending into `TextString.content`.
+
+- **No `is_valid_reference` filter on text carets.** That same `TextString` fact
+  means the document-aware validator *rejects* a valid `.value{k}` (it can't
+  follow `{k}` into a node with no `length`), so the filter was dropped from
+  `collect_text_selections`. The walker only emits paths to leaves it actually
+  reached, so results are well-formed by construction. The filter is kept for
+  `collect_tree_selections`, whose paths terminate at indexable nodes.
+
+- **Structural nodes are domain-specific.** `collect_tree_selections` takes an
+  `is_node` predicate. A generic "has a `:selection` field" over-includes
+  `CellVector` containers (`.children`) and text-holders (`.open`/`.value`),
+  which Alt+arrow navigation never reaches. The syntax suite passes
+  `n -> n isa SyntaxDocument`, which reproduces the navigation-reached set
+  exactly (21/21 nodes for `syntax_example`).
+
+- **Curated sets (Phase 4 triage results):**
+  - Text completeness: **`["text", "json"]`**. `syntax` was dropped — its *input
+    domain* carries explicit delimiter `TextString`s (`.open`/`.close`/`.sep`)
+    that plain text navigation does not enter (only `.value` content), so
+    enumerating every `TextString` over-reaches. `json`/`text` don't hit this
+    because their delimiters (e.g. JSON quotes) are projection-added, absent from
+    the input document. `xml` was also dropped: navigation does not reach the
+    `{0}` position of attribute names (5 carets) — a boundary-aliasing quirk, a
+    candidate **navigation gap** noted here as a follow-up rather than silently
+    enumerated around.
+  - Tree completeness: **`["syntax"]`**. `json`'s tree-reachable set diverges
+    from its input struct (entry keys vs values are projection-defined), and
+    `xml`/`math` expose no tree navigation in this harness (Ctrl+Alt+Home yields
+    no selection), so only the native syntax tree gives a clean subset.
+
+- **Pre-existing failures (NOT introduced here, confirmed by stashing):**
+  - `test_example`/`test_examples` error on `text_example` with a
+    `StringIndexError` inside `set_selection!(::String, …)` — `set_selection!`
+    byte-indexes a multi-byte UTF-8 string after `test_repl` has mutated the
+    shared document. Identical on the original `SelectionTest.jl`. Not in
+    `test_all`. **Follow-up candidate:** make `set_selection!` char-index
+    (`nextind`) instead of byte-index for `String` nodes.
+  - The broad `test_text_navigations()` sweep fails `state_count > 0` for
+    `object_to_widget`, `filesystem`, `navigator`, `conversation` (Ctrl+Home
+    can't seed) — identical on the original `test_selections()` (6419 pass / 4
+    fail), unchanged by this work.

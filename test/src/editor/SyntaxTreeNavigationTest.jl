@@ -34,15 +34,15 @@ function explore_tree_selections(document, projection; onstate=nothing)
     iomap = try
         projection_print(projection, document)
     catch e
-        return (state_count=0, errors=["projection_print failed: $e"])
+        return (state_count=0, errors=["projection_print failed: $e"], visited=visited)
     end
 
     op = try
         projection_read(projection, iomap, KeyDown(:home, Modifiers(ctrl=true, alt=true)))
     catch e
-        return (state_count=0, errors=["Ctrl+Alt+Home failed: $e"])
+        return (state_count=0, errors=["Ctrl+Alt+Home failed: $e"], visited=visited)
     end
-    op isa ReplaceSelectionOperation || return (state_count=0, errors=["Ctrl+Alt+Home returned $(typeof(op)) instead of ReplaceSelectionOperation"])
+    op isa ReplaceSelectionOperation || return (state_count=0, errors=["Ctrl+Alt+Home returned $(typeof(op)) instead of ReplaceSelectionOperation"], visited=visited)
 
     queue = Any[op.path]
 
@@ -88,10 +88,14 @@ function explore_tree_selections(document, projection; onstate=nothing)
         end
     end
 
-    (state_count=length(visited), errors=errors)
+    (state_count=length(visited), errors=errors, visited=visited)
 end
 
-function test_tree_navigation(label, document, projection)
+# One @test per reachable whole-element state. When `check_reaches_all=true`,
+# additionally assert navigation reaches every structural selection enumerated
+# directly from the document (subset: collect_tree_selections(document; is_node) ⊆
+# reachable).
+function test_tree_navigation(label, document, projection; check_reaches_all=false, is_node=_is_syntax_node)
     @testset "$label" begin
         result = explore_tree_selections(document, projection;
             onstate = (p, ok, msg) -> begin
@@ -104,11 +108,16 @@ function test_tree_navigation(label, document, projection)
             end
         end
         @test result.state_count > 0
+        if check_reaches_all
+            enumerated = collect_tree_selections(document; is_node=is_node)
+            @test !isempty(enumerated)
+            _assert_reaches_all(label, enumerated, result.visited)
+        end
     end
 end
 
-function test_tree_navigation(example::Example)
-    test_tree_navigation(example.name, example.document, example.projection)
+function test_tree_navigation(example::Example; check_reaches_all=false, is_node=_is_syntax_node)
+    test_tree_navigation(example.name, example.document, example.projection; check_reaches_all=check_reaches_all, is_node=is_node)
 end
 
 function test_tree_navigations()
@@ -134,6 +143,32 @@ function test_tree_navigations()
                     @test result.state_count > 0
                 end
             end
+        end
+    end
+end
+
+# ── Completeness: navigation reaches every enumerated whole-element selection ──
+
+# Scoped to the `syntax` example only: its document is a *native* SyntaxDocument
+# tree, so "all structural selections" is well-defined as the whole-element ∅ at
+# every SyntaxDocument node, and that predicate reproduces exactly the
+# Alt+arrow-reachable set. Other syntax-capable examples are excluded on purpose:
+# their structural-node set is defined by the projection to syntax, not by the
+# raw input struct — json's reachable set diverges (entry keys vs values), and
+# xml / math expose no tree navigation in this harness (Ctrl+Alt+Home yields no
+# selection). Revisit if those gain projection-aware enumeration.
+const _tree_navigation_complete_examples = ["syntax"]
+
+# A structural tree node in the syntax domain is any SyntaxDocument — this
+# excludes the CellVector child containers and the TextString delimiter / value
+# holders, neither of which is an Alt+arrow tree-selection target.
+_is_syntax_node(n) = n isa Projectured.SyntaxDocument
+
+function test_tree_navigations_complete()
+    @testset "TreeNavigationComplete" begin
+        for example in examples
+            example.name in _tree_navigation_complete_examples || continue
+            test_tree_navigation(example; check_reaches_all=true)
         end
     end
 end

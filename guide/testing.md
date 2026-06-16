@@ -41,7 +41,9 @@ sequence; pick the one you actually need and skip the rest.
 | `test_json_to_syntax()`, `test_syntax_to_text()`, `test_text_to_graphics()`, `test_copying_projection()` | Pipeline-stage tests in [test/src/projection/](../test/src/projection/). |
 | `test_printers()` | Runs `test_printer` over every entry in `examples`. |
 | `test_readers()` | Runs `test_reader` over every example. |
-| `test_selections()` | Runs `test_selection` over every example. |
+| `test_text_navigations()` | Runs `test_text_navigation` (text-caret BFS, no-error sweep) over every example. |
+| `test_text_navigations_complete()` | Over a curated subset, additionally asserts navigation reaches every caret enumerated from the document (`collect_text_selections`). |
+| `test_tree_navigations_complete()` | Same idea for whole-element/structural selections (`collect_tree_selections`); curated to the native syntax tree. |
 | `test_repls()` | Runs `test_repl` (full read-eval-print loop) over every example. |
 | `test_typeins()` | Runs `test_typein` (type a character into every string and check the edit) over the supported field-addressed examples. |
 | `test_mcp_tools()`, `test_mcp_resources()` | MCP server tools and resources. |
@@ -55,7 +57,8 @@ Each example-level test is also defined for a single `Example` or a labelled
 ```julia
 julia> test_printer(json_example)
 julia> test_reader(json_example)
-julia> test_selection(json_example)
+julia> test_text_navigation(json_example)                 # no-error caret BFS
+julia> test_text_navigation(json_example; check_reaches_all=true)  # + reaches every enumerated caret
 julia> test_repl(json_example)
 julia> test_typein(json_example)
 
@@ -63,14 +66,14 @@ julia> ex = widget_example;
 julia> test_printer("widget", ex.document, ex.projection)
 ```
 
-`test_example(ex)` bundles printer + reader + repl + selection + typein for
-one example — useful when you have just added a new domain and want a single
+`test_example(ex)` bundles printer + reader + repl + text-navigation + typein
+for one example — useful when you have just added a new domain and want a single
 command to exercise it.
 
 Each example-level test emits **one `@test` per unit verified** rather than a
 single `isempty(errors)` assertion, so the pass count reflects the work done:
 `test_printer` asserts once per forced reactive cell, `test_reader`/`test_repl`
-once per event, `test_selection` once per reachable selection state, and
+once per event, `test_text_navigation` once per reachable selection state, and
 `test_typein` once per string. A failing unit names the offending
 cell/event/state/reference in a `@warn`.
 
@@ -86,11 +89,12 @@ every test has a sibling that does the same work without wrapping it in
 | `walk_printer_output(doc, proj)` | [PrinterTest.jl:115](../test/src/editor/PrinterTest.jl#L115) | Calls `projection_print`, reflexively walks every field of the resulting iomap, and forces every `Cell` via `c[]`. Returns `(errors, status)`. |
 | `walk_reader_events(doc, proj)` | [ReaderTest.jl:51](../test/src/editor/ReaderTest.jl#L51) | Prints once, then fires every key / mouse event in `_ALL_READER_EVENTS` through `projection_read`. Returns `errors::Vector{String}`. |
 | `walk_repl_loop(doc, proj)` | [ReplTest.jl:27](../test/src/editor/ReplTest.jl#L27) | The complete read → evaluate → reprint → walk cycle, repeated for every event. The closest thing to driving the real editor headlessly. Returns `errors::Vector{String}`. |
-| `explore_selections(doc, proj[, initial])` | [SelectionTest.jl:19](../test/src/editor/SelectionTest.jl#L19) | BFS over reachable selection states using navigation keys. Returns `(state_count, errors)`. |
+| `explore_text_selections(doc, proj[, initial])` | [TextNavigationTest.jl:24](../test/src/editor/TextNavigationTest.jl#L24) | BFS over reachable text-caret selection states using navigation keys. Returns `(state_count, errors, visited)`. |
+| `collect_text_selections(doc)` / `collect_tree_selections(doc; is_node)` | [SelectionEnumeration.jl](../test/src/editor/SelectionEnumeration.jl) | Ground-truth selections enumerated directly from the document (all carets / all whole-element nodes), for the completeness suites to check against. |
 | `walk_typein(doc, proj)` | [TypeinTest.jl](../test/src/editor/TypeinTest.jl) | Types a character into every reachable string and verifies the cursor renders and the edit lands. Returns one `(ref, ok, message)` result per string. |
 
 `walk_printer_output`, `walk_reader_events`, `walk_repl_loop`, and
-`explore_selections` keep their plain return values for REPL use; each also
+`explore_text_selections` keep their plain return values for REPL use; each also
 takes an optional callback (`oncell` / `onevent` / `onstate`) that the
 `test_*` wrappers use to emit one `@test` per unit.
 
@@ -99,7 +103,7 @@ julia> errors, status = walk_printer_output(json_example.document, json_example.
 julia> isempty(errors)
 true
 
-julia> result = explore_selections(syntax_example.document, syntax_example.projection);
+julia> result = explore_text_selections(syntax_example.document, syntax_example.projection);
 julia> result.state_count, length(result.errors)
 ```
 
@@ -133,7 +137,7 @@ keep the SDL backend initialised between runs (`__init__` in
 ## Typical workflows
 
 - **Added a new example.** `test_printer(my_example)`, then
-  `test_reader(my_example)`, then `test_selection(my_example)`, then
+  `test_reader(my_example)`, then `test_text_navigation(my_example)`, then
   `test_repl(my_example)`. Once those pass, the example is automatically
   picked up by `test_printers` / `test_readers` / etc. because they loop
   over the `examples` vector.
@@ -143,9 +147,10 @@ keep the SDL backend initialised between runs (`__init__` in
 - **Suspected reactive bug.** `test_cell()` first, then
   `walk_printer_output` (which forces every reachable cell) on the
   affected example.
-- **Selection navigation bug.** `explore_selections(doc, proj)` returns
+- **Selection navigation bug.** `explore_text_selections(doc, proj)` returns
   every reachable state; small `state_count` numbers are often the symptom
-  of a stuck navigator.
+  of a stuck navigator. To check *coverage*, compare against
+  `collect_text_selections(doc)` (or use `test_text_navigation(ex; check_reaches_all=true)`).
 
 See [the debugging guide](debugging.md) for the matching REPL helpers
 (`run_example`, `print_example`) that let you reproduce a failure
