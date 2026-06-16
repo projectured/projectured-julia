@@ -53,7 +53,7 @@ import ..IoMapApiModule: IoMap
 import ..MouseModule: MouseScroll, MousePress
 import ..EventCaseModule: var"@event_case"
 import ..OperationApiModule: Operation
-import ..OperationModule: ReplaceSelectionOperation, ReplaceReferencedValue
+import ..OperationModule: ReplaceSelectionOperation, ReplaceReferencedValue, ToggleCollapseOperation
 import ..PrimitiveModule: StringReplaceRangeOperation, NumberReplaceRangeOperation
 import ..ReferenceModule: ReferencePath, ConcreteReferencePath, FieldReference, RangeReference, EmptyReferencePath
 import ..OperationRerootingModule: prepend_steps_to_op
@@ -2145,7 +2145,25 @@ function projection_print(p::WidgetCardToGraphicsCanvas, recursion, w::WidgetCar
     append!(surface, elements)
     ChildrenIoMap(p, w, _make_canvas(_origin(position)..., card_width, card_height, surface), Cell(child_iomaps))
 end
-@_printer_only WidgetCardToGraphicsCanvas
+
+# A click on the card's header (a Document title — its first child entry) is a
+# fold gesture → toggle the card. Clicks elsewhere route into the card content.
+function projection_read(p::WidgetCardToGraphicsCanvas, iomap::ChildrenIoMap, evt::MousePress)
+    w = iomap.input
+    entries = iomap.child_iomaps[]
+    if w.title isa Document && !isempty(entries)
+        tx, ty, tim = entries[1]
+        tcanvas = tim.output
+        if tcanvas isa GraphicsCanvas
+            tw = Int(tcanvas.w[]); th = Int(tcanvas.h[])
+            (tx <= evt.x < tx + tw && ty <= evt.y < ty + th) && return ToggleCollapseOperation(w)
+        end
+    end
+    _route_click_to_children(entries, evt)
+end
+projection_read(::WidgetCardToGraphicsCanvas, iomap::ChildrenIoMap, evt) = nothing
+map_reference_forward(::WidgetCardToGraphicsCanvas, iomap, reference) = nothing
+map_reference_backward(::WidgetCardToGraphicsCanvas, iomap, reference) = nothing
 
 # ── WidgetSwitch ────────────────────────────────────────────────────────────
 

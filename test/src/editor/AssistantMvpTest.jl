@@ -36,7 +36,8 @@ using Projectured.McpModule: register_default_tools_and_resources!
 using Projectured.WorkbenchAssistantModule: _text_to_string, _run_agent_loop!,
                                             _eval_code, _eval_result
 using Projectured: ConversationConversation, ConversationTurn, ConversationPart,
-                   EvaluatorForm, TextText, TextString, JuliaIdentifier, WidgetCard
+                   EvaluatorForm, TextText, TextString, JuliaIdentifier, WidgetCard,
+                   MousePress, ToggleCollapseOperation
 import Projectured.LlmModule: stream_turn
 
 # A multi-turn scripted backend: each call to `stream_turn` consumes the
@@ -228,6 +229,57 @@ function test_assistant_mvp()
         _mvp_test_scenes()
         _mvp_test_fake_llm_dispatch()
         _mvp_test_tool_use_roundtrip()
+        _mvp_test_collapse_click()
+    end
+end
+
+# ── Collapse-on-header-click (widget presentation) ─────────────────────
+#
+# Projects the conversation through the widget chain and drives a MousePress
+# on a turn / part header card. The WidgetCard reader emits a
+# ToggleCollapseOperation targeting the card; ConversationToWidget translates
+# it back to the domain turn/part; evaluating it flips `collapsed`.
+# Uses a font-free measure so the headless run never loads a TTF.
+
+# Scan the left edge for the first header click that yields a ToggleCollapse
+# whose target satisfies `pred`.
+function _find_toggle(proj, io, pred)
+    for y in 2:3:820, x in 16:4:200
+        op = try
+            projection_read(proj, io, MousePress(:left, x, y))
+        catch
+            nothing
+        end
+        if op isa ToggleCollapseOperation && op.target !== nothing && pred(op.target)
+            return op
+        end
+    end
+    nothing
+end
+
+function _mvp_test_collapse_click()
+    @testset "collapse on header click" begin
+        fake_measure(_text, _font) = (length(_text) * 10, 20)
+        doc  = ProjecturedExample.make_conversation_document_example()
+        proj = ProjecturedExample.make_conversation_widget_projection_example(measure = fake_measure)
+        io   = projection_print(proj, proj, doc, PrinterContext())
+
+        # Resolve both header clicks from the *same* fresh projection (a toggle
+        # mutates `collapsed`, which re-projects and shifts later positions).
+        op_turn = _find_toggle(proj, io, t -> t === doc.turns[1])
+        op_part = _find_toggle(proj, io, t -> t === doc.turns[2].parts[1])
+
+        # Turn header → toggles the turn's domain node.
+        @test op_turn isa ToggleCollapseOperation
+        @test doc.turns[1].collapsed == false
+        evaluate_operation((document = doc,), op_turn)
+        @test doc.turns[1].collapsed == true
+
+        # Part header → toggles the part's domain node.
+        @test op_part isa ToggleCollapseOperation
+        @test doc.turns[2].parts[1].collapsed == false
+        evaluate_operation((document = doc,), op_part)
+        @test doc.turns[2].parts[1].collapsed == true
     end
 end
 

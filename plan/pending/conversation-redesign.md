@@ -172,24 +172,26 @@ kinds (text, Book heading/list, `JuliaDocument`, evaluator, a pasted
 `JsonDocument`); `show` + walk it; `test_printer(conversation_example)` still
 green.
 
-## Stage 2 — Widget presentation (vertical list, nested collapsible widgets) ✅ MOSTLY DONE
+## Stage 2 — Widget presentation (vertical list, nested collapsible widgets) ✅ DONE
 
 **Implemented.** `WidgetCard` now recurses a `Document` `title` (avatar+label
 header) and a `Document` `content` (tracking the title iomap). `ConversationToWidget`
-rewritten: `ConversationConversation` → reactive `VerticalLayout` of turn
-`WidgetCard`s (avatar role header + reactive part stack); `ConversationPart` →
-`WidgetCard` (kind avatar header + recursed content; `EvaluatorForm` → code-over-
-result). Collapse via graphics-viewport clip (`WidgetScrollPane` to ~1 row),
-read from the domain `collapsed` at print time. New standalone
-`conversation_widget_example` (document + two-stage widget→graphics projection),
-registered. Verified: walk 0 errors (76 nodes); collapse shrinks height
-(686 → 392 turn-collapsed / 662 part-collapsed); reactive-thunk test updated;
-no regression in widget/layout example walks.
+rewritten: `ConversationConversation` → `VerticalLayout` of turn `WidgetCard`s
+(avatar role header + reactive part stack); `ConversationPart` → `WidgetCard`
+(kind avatar header + recursed content; `EvaluatorForm` → code-over-result, each
+sized to content). Collapse via graphics-viewport clip (`WidgetScrollPane` to ~1
+row), read from the domain `collapsed` at print time; turn and part collapse
+independently. New standalone `conversation_widget_example` (two-stage
+widget→graphics).
 
-**Remaining sub-item (deferred):** header-click → `ToggleCollapseOperation`
-hit-test (interactive toggle). `WidgetCard` is `@_printer_only`; wiring a reader
-that resolves the clicked card back to its domain turn/part target is separable
-reader work — collapse-by-state already works and is tested.
+**Interactive collapse (done).** `WidgetCard` gained a reader: a click on its
+header (Document title) emits `ToggleCollapseOperation(card)`; `ConversationToWidget`
+iomaps track their children (`ChildrenIoMap`) and its root reader walks the iomap
+tree to translate `card → domain turn/part`, so `evaluate_operation` flips the
+right `collapsed`. Verified end-to-end: header clicks on turns and parts resolve
+to the correct domain nodes and toggle them (integration test
+`_mvp_test_collapse_click`). Walk 0 errors; collapse shrinks height; reactive
+lists intact; widget/layout example walks unregressed.
 
 **Goal.** Render a conversation as a vertical list of collapsible turn widgets,
 each holding collapsible part widgets. Standalone, testable in isolation.
