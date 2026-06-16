@@ -454,7 +454,7 @@ using .WorkbenchAssistantModule: SubmitProseOperation, SubmitJuliaOperation, Sub
                                    build_messages, conversation_to_string, assistant_tool_schemas,
                                    dispatch_assistant_tool, parse_markdown_blocks
 using .ConversationEditorModule: ConversationComposerToWidget, composer_read,
-                                  finalize_draft!, new_draft_turn, reset_draft!,
+                                  finalize_draft!, new_draft, reset_draft!,
                                   ComposerInputOperation, ComposerBackspaceOperation,
                                   ComposerNewlineOperation, ComposerInsertPartOperation,
                                   ComposerCommitChooserOperation, ComposerCommitSourceOperation,
@@ -735,7 +735,7 @@ export SubmitProseOperation, SubmitJuliaOperation, SubmitDraftTurnOperation,
        ClearInputOperation, ResetConversationOperation,
        build_messages, conversation_to_string, assistant_tool_schemas, dispatch_assistant_tool,
        parse_markdown_blocks
-export ConversationComposerToWidget, composer_read, finalize_draft!, new_draft_turn, reset_draft!,
+export ConversationComposerToWidget, composer_read, finalize_draft!, new_draft, reset_draft!,
        ComposerInputOperation, ComposerBackspaceOperation,
        ComposerNewlineOperation, ComposerInsertPartOperation,
        ComposerCommitChooserOperation, ComposerCommitSourceOperation,

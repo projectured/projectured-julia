@@ -281,7 +281,7 @@ function evaluate_operation(editor, op::SubmitDraftTurnOperation)
     a = op.assistant
     draft = a.draft
     finalize_draft!(draft) || return nothing          # nothing to submit
-    push!(a.conversation, ConversationTurn(draft.role, collect(draft.parts)))
+    push!(a.conversation, ConversationTurn(:user, collect(draft.parts)))
     reset_draft!(draft)
     _launch_agent_turn!(editor, a)
 end

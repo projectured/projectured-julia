@@ -15,7 +15,7 @@ import ..DocumentModule: Document, @document
 import ..CollectionModule: CellVector
 import ..TextModule: TextText
 import ..PrimitiveModule: PrimitiveString
-import ..ConversationModule: ConversationConversation, ConversationTurn, ConversationPart
+import ..ConversationModule: ConversationConversation, ConversationTurn, ConversationPart, ConversationDraft
 import ..LlmModule: LlmBackend, FakeLlm, AnthropicLlm
 import ..ReferenceModule: Reference, ReferencePath
 import ..WorkspaceModule: Workspace, WorkspaceFolder
@@ -296,7 +296,7 @@ The default `llm` is `AnthropicLlm()` when `ANTHROPIC_API_KEY` is set,
 @document struct WorkbenchAssistant <: WorkbenchDocument
     conversation::ConversationConversation
     input::PrimitiveString
-    draft::ConversationTurn
+    draft::ConversationDraft
     model::String
     system::String
     api_key::String
@@ -305,22 +305,26 @@ The default `llm` is `AnthropicLlm()` when `ANTHROPIC_API_KEY` is set,
     selection::Reference
 end
 
-# A fresh user draft turn (one active text typein) for the composer input pane.
-_default_draft() = ConversationTurn(:user, [ConversationPart(PrimitiveString(""))])
+# A fresh user draft (one active text typein) for the composer input pane.
+_default_draft() = ConversationDraft([ConversationPart(PrimitiveString(""))])
 
 function WorkbenchAssistant(; conversation::ConversationConversation = ConversationConversation(),
                               input::PrimitiveString = PrimitiveString(""),
-                              draft::ConversationTurn = _default_draft(),
+                              draft::ConversationDraft = _default_draft(),
                               model::AbstractString = DEFAULT_ASSISTANT_MODEL,
                               system::AbstractString = DEFAULT_ASSISTANT_SYSTEM,
                               api_key::AbstractString = get(ENV, "ANTHROPIC_API_KEY", ""),
                               status::Symbol = :idle,
                               llm::LlmBackend = isempty(api_key) ? FakeLlm() : AnthropicLlm())
-    WorkbenchAssistant(Cell(conversation), Cell(input), Cell(draft),
-                       Cell(String(model)), Cell(String(system)),
-                       Cell(String(api_key)), Cell(status),
-                       Cell(llm),
-                       Cell(nothing))
+    a = WorkbenchAssistant(Cell(conversation), Cell(input), Cell(draft),
+                           Cell(String(model)), Cell(String(system)),
+                           Cell(String(api_key)), Cell(status),
+                           Cell(llm),
+                           Cell(nothing))
+    # Back-link the draft to its owning assistant so the composer's ENTER can be
+    # turned into a submit (push into the conversation + stream a reply).
+    draft.assistant = a
+    a
 end
 
 title(::WorkbenchAssistant) = WORKBENCH_ASSISTANT_TITLE

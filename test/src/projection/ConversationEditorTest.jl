@@ -23,17 +23,20 @@ function _ce_flatten(t::TextText)
     String(take!(io))
 end
 
-# Apply an operation to the draft turn (no real editor needed for the logic).
+# Apply an operation to the draft (no real editor needed for the logic).
 _ce_apply!(op) = evaluate_operation(nothing, op)
-_ce_type!(turn, s) = for ch in s
-    _ce_apply!(ComposerInputOperation(turn, string(ch)))
+_ce_type!(draft, s) = for ch in s
+    _ce_apply!(ComposerInputOperation(draft, string(ch)))
 end
+
+# A fresh single-typein draft.
+_ce_draft() = ConversationDraft([ConversationPart(PrimitiveString(""))])
 
 function test_conversation_editor()
     @testset "Conversation composer (Stage 3b)" begin
 
         @testset "worked case: prose · evaluated 2+2 · prose" begin
-            turn = ConversationTurn(:user, [ConversationPart(PrimitiveString(""))])
+            turn = _ce_draft()
 
             _ce_type!(turn, "hey assistant, look what I've got")
             _ce_apply!(ComposerInsertPartOperation(turn))   # INSERT → kind chooser
@@ -63,7 +66,7 @@ function test_conversation_editor()
         end
 
         @testset "ESC reverts a structured insertion to a text typein" begin
-            turn = ConversationTurn(:user, [ConversationPart(PrimitiveString(""))])
+            turn = _ce_draft()
             _ce_type!(turn, "hi")
             _ce_apply!(ComposerInsertPartOperation(turn))    # → DocumentInsertion
             _ce_type!(turn, "jul")
@@ -73,7 +76,7 @@ function test_conversation_editor()
         end
 
         @testset "unknown chooser keyword is a no-op" begin
-            turn = ConversationTurn(:user, [ConversationPart(PrimitiveString(""))])
+            turn = _ce_draft()
             _ce_apply!(ComposerInsertPartOperation(turn))    # drop blank → chooser
             _ce_type!(turn, "zzz")
             _ce_apply!(ComposerCommitChooserOperation(turn)) # not a known kind
@@ -81,7 +84,7 @@ function test_conversation_editor()
         end
 
         @testset "INSERT drops a blank typein" begin
-            turn = ConversationTurn(:user, [ConversationPart(PrimitiveString(""))])
+            turn = _ce_draft()
             _ce_apply!(ComposerInsertPartOperation(turn))
             @test length(turn.parts) == 1
             @test turn.parts[1].content isa DocumentInsertion
@@ -89,8 +92,8 @@ function test_conversation_editor()
 
         @testset "reader: gesture → operation per active state" begin
             proj = ConversationComposerToWidget()
-            turn = ConversationTurn(:user, [ConversationPart(PrimitiveString(""))])
-            iom = projection_print(proj, ConversationDraft(turn))
+            turn = _ce_draft()
+            iom = projection_print(proj, turn)
 
             # text typein
             @test projection_read(proj, iom, KeyPress('a')) isa ComposerInputOperation

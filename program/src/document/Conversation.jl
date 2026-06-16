@@ -109,26 +109,44 @@ ConversationConversation(turns::Vector) =
 # ── ConversationDraft ─────────────────────────────────────────────────────────
 
 """
-    ConversationDraft(turn)
+    ConversationDraft(parts = [], assistant = nothing)
 
-A thin wrapper around the `ConversationTurn` currently being composed. It exists
-purely to give the composer a distinct document type to dispatch on: the draft
-and the conversation's history turns are both `ConversationTurn`, so without this
-wrapper a `ConversationTurn => composer` dispatch entry would also turn history
-turns into editable composers. The wrapped `turn` is mutated in place by the
-composer operations.
+The user message currently being composed. The draft is **always** a user turn,
+so it carries its `parts` directly (rather than wrapping a `ConversationTurn`)
+and renders without a role/avatar header. It exists as its own document type only
+so the composer can dispatch on it: without a distinct type, a
+`ConversationTurn => composer` projection entry would also turn the history turns
+into editable composers. The `parts` are mutated in place by the composer
+operations; `assistant` back-links the owning `WorkbenchAssistant` (or `nothing`
+when standalone) so ENTER can submit the draft into the conversation.
 """
 @document struct ConversationDraft <: ConversationDocument
-    turn::ConversationTurn
+    parts::CellVector
     assistant::Any        # the owning WorkbenchAssistant (or nothing, standalone)
     selection::Reference
 end
 
-ConversationDraft(turn::ConversationTurn, assistant = nothing) =
-    ConversationDraft(Cell(turn), Cell(assistant), Cell(nothing))
+ConversationDraft(parts::Vector = ConversationPart[], assistant = nothing) =
+    ConversationDraft(CellVector(Cell[Cell(p) for p in parts]), Cell(assistant), Cell(nothing))
 
 Base.show(io::IO, d::ConversationDraft) =
-    print(io, "ConversationDraft(", d.turn, ")")
+    print(io, "ConversationDraft(parts=", length(d.parts), ")")
+
+# ── Element access on a draft's parts (mirrors a turn) ─────────────────────────
+
+Base.length(d::ConversationDraft)  = length(d.parts)
+Base.isempty(d::ConversationDraft) = isempty(d.parts)
+Base.getindex(d::ConversationDraft, i::Integer) = d.parts[i]
+Base.firstindex(::ConversationDraft) = 1
+Base.lastindex(d::ConversationDraft) = length(d)
+Base.iterate(d::ConversationDraft, s...) = iterate(d.parts, s...)
+Base.eachindex(d::ConversationDraft) = eachindex(d.parts)
+
+Base.push!(d::ConversationDraft, parts::ConversationPart...) =
+    (for p in parts; push!(d.parts, Cell(p)); end; d)
+
+setfn!(d::ConversationDraft, f::Function) =
+    (setfn!(getfield(d.parts, :elements), () -> Cell[Cell(x) for x in f()]); d)
 
 # ── Element access on the conversation ────────────────────────────────────────
 

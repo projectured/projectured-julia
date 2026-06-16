@@ -1,11 +1,12 @@
 """
     ConversationEditorModule
 
-The **user-message composer** (Stage 3b): editing a draft `ConversationTurn`
+The **user-message composer** (Stage 3b): editing a draft `ConversationDraft`
 part by part, growing it left-to-right and always ending on an active text
-typein. One projection (`ConversationComposerToSyntaxNode`) renders the draft
-turn to syntax and maps gestures to composer operations; the operations mutate
-the draft turn in place.
+typein. One projection (`ConversationComposerToWidget`) renders the draft to a
+stack of per-part widget cards and maps gestures to composer operations; the
+operations mutate the draft's parts in place. The draft is always a user message,
+so it renders without a role/avatar header.
 
 A part's `content` moves through these states as you edit:
 
@@ -53,7 +54,7 @@ import ..KeyboardModule: KeyDown, KeyPress
 import ..EventCaseModule: var"@event_case"
 import ..IoMapModule: SimpleIoMap
 
-export ConversationComposerToWidget, composer_read, finalize_draft!, new_draft_turn, reset_draft!,
+export ConversationComposerToWidget, composer_read, finalize_draft!, new_draft, reset_draft!,
        SUBMIT_HANDLER,
        ComposerInputOperation, ComposerBackspaceOperation, ComposerNewlineOperation,
        ComposerInsertPartOperation, ComposerCommitChooserOperation,
@@ -65,11 +66,11 @@ export ConversationComposerToWidget, composer_read, finalize_draft!, new_draft_t
 # ═══════════════════════════════════════════════════════════════════════
 
 # The active part is always the last one; its content is what the gestures act
-# on. An empty turn has no active part (`nothing`).
-_active_part(t::ConversationTurn) =
-    isempty(t) ? nothing : t.parts[length(t)]
-_active_content(t::ConversationTurn) =
-    (p = _active_part(t); p === nothing ? nothing : p.content)
+# on. An empty draft has no active part (`nothing`).
+_active_part(d::ConversationDraft) =
+    isempty(d) ? nothing : d.parts[length(d)]
+_active_content(d::ConversationDraft) =
+    (p = _active_part(d); p === nothing ? nothing : p.content)
 
 # The editing-state contents all carry an editable `value` you can type into.
 _is_editable(c) = c isa PrimitiveString || c isa DocumentInsertion ||
@@ -109,8 +110,8 @@ function _new_typein()
 end
 
 # Replace the active part's content and drop the cursor at the value's end.
-function _replace_active!(t::ConversationTurn, doc)
-    p = _active_part(t)
+function _replace_active!(d::ConversationDraft, doc)
+    p = _active_part(d)
     p === nothing && return nothing
     p.content = doc
     _is_editable(doc) && (doc.selection = _valpath(length(_value(doc))))
@@ -123,18 +124,18 @@ end
 
 "Insert printable `text` at the active content's cursor."
 struct ComposerInputOperation <: Operation
-    turn::ConversationTurn
+    draft::ConversationDraft
     text::String
 end
 
 "Delete the character before the active content's cursor."
 struct ComposerBackspaceOperation <: Operation
-    turn::ConversationTurn
+    draft::ConversationDraft
 end
 
 "Insert a newline at the active content's cursor (SHIFT+ENTER)."
 struct ComposerNewlineOperation <: Operation
-    turn::ConversationTurn
+    draft::ConversationDraft
 end
 
 """
@@ -142,7 +143,7 @@ INSERT: commit the active text typein (→ `TextText`, dropped when blank) and
 append a `DocumentInsertion` kind chooser as the new active part.
 """
 struct ComposerInsertPartOperation <: Operation
-    turn::ConversationTurn
+    draft::ConversationDraft
 end
 
 """
@@ -150,7 +151,7 @@ ENTER in the kind chooser: if the value names a known kind, commit it to that
 domain's insertion via the factory; otherwise a no-op (keep editing).
 """
 struct ComposerCommitChooserOperation <: Operation
-    turn::ConversationTurn
+    draft::ConversationDraft
 end
 
 """
@@ -158,7 +159,7 @@ ENTER in Julia source: parse the source into a `JuliaDocument`, then append a
 fresh active text typein. No-op when the source does not parse.
 """
 struct ComposerCommitSourceOperation <: Operation
-    turn::ConversationTurn
+    draft::ConversationDraft
 end
 
 """
@@ -166,20 +167,20 @@ ALT+ENTER in Julia source: parse and evaluate the source into an `EvaluatorForm`
 (code + result), then append a fresh active text typein.
 """
 struct ComposerEvaluateOperation <: Operation
-    turn::ConversationTurn
+    draft::ConversationDraft
 end
 
 "ESC: revert the active structured insertion back to an empty text typein."
 struct ComposerRevertOperation <: Operation
-    turn::ConversationTurn
+    draft::ConversationDraft
 end
 
 """
-ENTER in a text typein: finalize the draft turn — convert every `PrimitiveString`
+ENTER in a text typein: finalize the draft — convert every `PrimitiveString`
 part to `TextText`, dropping a trailing blank typein.
 """
 struct ComposerSubmitOperation <: Operation
-    turn::ConversationTurn
+    draft::ConversationDraft
 end
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -187,21 +188,21 @@ end
 # ═══════════════════════════════════════════════════════════════════════
 
 function evaluate_operation(editor, op::ComposerInputOperation)
-    c = _active_content(op.turn)
+    c = _active_content(op.draft)
     _is_editable(c) || return nothing
     v = _value(c); k = clamp(_cursor(c), 0, length(v))
     _set_value!(c, first(v, k) * op.text * last(v, length(v) - k), k + length(op.text))
 end
 
 function evaluate_operation(editor, op::ComposerNewlineOperation)
-    c = _active_content(op.turn)
+    c = _active_content(op.draft)
     _is_editable(c) || return nothing
     v = _value(c); k = clamp(_cursor(c), 0, length(v))
     _set_value!(c, first(v, k) * "\n" * last(v, length(v) - k), k + 1)
 end
 
 function evaluate_operation(editor, op::ComposerBackspaceOperation)
-    c = _active_content(op.turn)
+    c = _active_content(op.draft)
     _is_editable(c) || return nothing
     v = _value(c); k = clamp(_cursor(c), 0, length(v))
     k == 0 && return nothing
@@ -209,19 +210,19 @@ function evaluate_operation(editor, op::ComposerBackspaceOperation)
 end
 
 function evaluate_operation(editor, op::ComposerInsertPartOperation)
-    t = op.turn
-    p = _active_part(t)
+    d = op.draft
+    p = _active_part(d)
     if p !== nothing && p.content isa PrimitiveString
         v = _value(p.content)
         if isempty(strip(v))
-            deleteat!(t.parts, length(t))          # drop the blank typein
+            deleteat!(d.parts, length(d))          # drop the blank typein
         else
             p.content = TextText(TextString(v))    # commit the prose
         end
     end
     ins = DocumentInsertion("")
     ins.selection = _valpath(0)
-    push!(t, ConversationPart(ins))
+    push!(d, ConversationPart(ins))
     nothing
 end
 
@@ -237,11 +238,11 @@ function _composer_factory(name::AbstractString)
 end
 
 function evaluate_operation(editor, op::ComposerCommitChooserOperation)
-    c = _active_content(op.turn)
+    c = _active_content(op.draft)
     c isa DocumentInsertion || return nothing
     doc = _composer_factory(_value(c))
     doc === nothing && return nothing              # unknown/unsupported: keep editing
-    _replace_active!(op.turn, doc)
+    _replace_active!(op.draft, doc)
 end
 
 # Parse a source insertion into its domain document, by insertion type.
@@ -251,15 +252,15 @@ _parse_source(c::XmlInsertion)   = _try_parse(xmlparse, _value(c))
 _parse_source(_) = nothing
 
 function evaluate_operation(editor, op::ComposerCommitSourceOperation)
-    doc = _parse_source(_active_content(op.turn))
+    doc = _parse_source(_active_content(op.draft))
     doc === nothing && return nothing              # unparseable: keep editing
-    _replace_active!(op.turn, doc)
-    push!(op.turn, _new_typein())
+    _replace_active!(op.draft, doc)
+    push!(op.draft, _new_typein())
     nothing
 end
 
 function evaluate_operation(editor, op::ComposerEvaluateOperation)
-    c = _active_content(op.turn)
+    c = _active_content(op.draft)
     c isa JuliaInsertion || return nothing
     src = _value(c)
     isempty(strip(src)) && return nothing
@@ -272,55 +273,55 @@ function evaluate_operation(editor, op::ComposerEvaluateOperation)
     form = something(_try_parse(juliaparse, src), JuliaIdentifier(src))
     # `execute_julia_code` `println`s the result repr, so the captured output ends
     # in a newline — strip it so the result text doesn't render a trailing tofu box.
-    _replace_active!(op.turn,
+    _replace_active!(op.draft,
         EvaluatorForm(form; result = result_text(rstrip(output)), is_error = is_err))
-    push!(op.turn, _new_typein())
+    push!(op.draft, _new_typein())
     nothing
 end
 
 function evaluate_operation(editor, op::ComposerRevertOperation)
-    _replace_active!(op.turn, getfield(_new_typein(), :content)[])
+    _replace_active!(op.draft, getfield(_new_typein(), :content)[])
 end
 
 """
-    finalize_draft!(turn) -> Bool
+    finalize_draft!(draft) -> Bool
 
-Normalize a draft turn for submission: drop a trailing blank text typein and
-convert every remaining `PrimitiveString` part to committed `TextText` prose.
-Returns whether the turn still has any parts (i.e. is worth submitting).
+Normalize a draft for submission: drop a trailing blank text typein and convert
+every remaining `PrimitiveString` part to committed `TextText` prose. Returns
+whether the draft still has any parts (i.e. is worth submitting).
 """
-function finalize_draft!(t::ConversationTurn)
-    p = _active_part(t)
+function finalize_draft!(d::ConversationDraft)
+    p = _active_part(d)
     if p !== nothing && p.content isa PrimitiveString && isempty(strip(_value(p.content)))
-        deleteat!(t.parts, length(t))
+        deleteat!(d.parts, length(d))
     end
-    for i in eachindex(t.parts)
-        part = t.parts[i]
+    for i in eachindex(d.parts)
+        part = d.parts[i]
         part.content isa PrimitiveString &&
             (part.content = TextText(TextString(_value(part.content))))
     end
-    !isempty(t)
+    !isempty(d)
 end
 
-evaluate_operation(editor, op::ComposerSubmitOperation) = (finalize_draft!(op.turn); nothing)
+evaluate_operation(editor, op::ComposerSubmitOperation) = (finalize_draft!(op.draft); nothing)
 
 """
-    new_draft_turn() -> ConversationTurn
+    new_draft() -> ConversationDraft
 
-A fresh empty user draft turn (one active text typein) for the composer.
+A fresh empty user draft (one active text typein) for the composer.
 """
-new_draft_turn() = ConversationTurn(:user, [_new_typein()])
+new_draft() = ConversationDraft([_new_typein()])
 
 """
-    reset_draft!(turn)
+    reset_draft!(draft)
 
-Reset a draft turn **in place** to a single empty text typein — used after its
-content has been submitted. Mutating in place (rather than replacing the turn)
-keeps a cached projection of the draft valid and reactive.
+Reset a draft **in place** to a single empty text typein — used after its content
+has been submitted. Mutating in place (rather than replacing the draft) keeps a
+cached projection of the draft valid and reactive.
 """
-function reset_draft!(t::ConversationTurn)
-    getfield(t.parts, :elements)[] = Cell[Cell(_new_typein())]
-    t
+function reset_draft!(d::ConversationDraft)
+    getfield(d.parts, :elements)[] = Cell[Cell(_new_typein())]
+    d
 end
 
 # Parse source with `f`, guarding empty / invalid input (returns `nothing`).
@@ -340,20 +341,18 @@ end
 """
     ConversationComposerToWidget()
 
-The composer projection for a draft `ConversationTurn`. Self-contained: the
-printer renders the turn as a `WidgetCard` (avatar header + a `VerticalLayout`
-of per-part cards), and the reader maps every gesture to a composer operation by
-dispatching on the **active** (last) part's state. Use as the root projection,
-chained through the widget→graphics pipeline (wrap in `RecursiveProjection`).
+The composer projection for a `ConversationDraft`. Self-contained: the printer
+renders the draft as a `VerticalLayout` of per-part `WidgetCard`s (no role/avatar
+header — the draft is always a user message), and the reader maps every gesture
+to a composer operation by dispatching on the **active** (last) part's state. Use
+as the root projection, chained through the widget→graphics pipeline (wrap in
+`RecursiveProjection`).
 """
 struct ConversationComposerToWidget <: Projection end
 
-const _CARD_WIDTH  = 760
 const _PART_WIDTH  = 720
 const _AVATAR_SIZE = 22
 const _GAP         = 6
-
-_role_glyph(role::Symbol) = role === :user ? "U" : role === :assistant ? "A" : "?"
 
 # Per-part glyph/label, covering both editing states and committed content.
 _kind_glyph(::PrimitiveString)   = "✎"
@@ -452,19 +451,16 @@ _part_card(content, active::Bool) =
                width = _PART_WIDTH)
 
 function projection_print(p::ConversationComposerToWidget, recursion, d::ConversationDraft, ctx)
-    t = d.turn
-    # Reactive part list: the last part is the active typein (gets the caret).
-    # The thunk recomputes on structural changes; per-part value/cursor edits
-    # re-render via the reactive `TextString` thunks inside each card.
+    # The draft is always a user message, so it renders as just its stack of part
+    # cards — no role/avatar header card around them. Reactive part list: the last
+    # part is the active typein (gets the caret). The thunk recomputes on
+    # structural changes; per-part value/cursor edits re-render via the reactive
+    # `TextString` thunks inside each card.
     body = VerticalLayout(
-        CellVector(() -> (n = length(t.parts);
-                          Any[_part_card(t.parts[i].content, i == n) for i in 1:n])),
+        CellVector(() -> (n = length(d.parts);
+                          Any[_part_card(d.parts[i].content, i == n) for i in 1:n])),
         Cell(:left), Cell(_GAP), Cell(nothing))
-    card = WidgetCard(Point2D(0, 0);
-                      title = _header(_role_glyph(t.role), String(t.role)),
-                      content = body,
-                      width = _CARD_WIDTH)
-    SimpleIoMap(p, d, card)
+    SimpleIoMap(p, d, body)
 end
 
 # The composer manages its own selection; nothing is forwarded to the widget
@@ -477,53 +473,53 @@ map_reference_backward(::ConversationComposerToWidget, iomap, ref) = nothing
 # ═══════════════════════════════════════════════════════════════════════
 
 """
-    composer_read(turn, event) -> Operation | nothing
+    composer_read(draft, event) -> Operation | nothing
 
-Map a key gesture to a composer operation on `turn`, dispatching on the active
+Map a key gesture to a composer operation on `draft`, dispatching on the active
 (last) part's state. Shared by the composer projection and the live assistant
-panel (which routes its input keys to a draft turn). `ENTER` on a plain text
-typein yields a `ComposerSubmitOperation`; the panel intercepts that to submit
-the draft into the conversation instead of merely normalizing it.
+panel (which routes its input keys to the draft). `ENTER` on a plain text typein
+yields a `ComposerSubmitOperation`; the panel intercepts that to submit the draft
+into the conversation instead of merely normalizing it.
 """
-function composer_read(turn::ConversationTurn, evt::KeyPress)
+function composer_read(draft::ConversationDraft, evt::KeyPress)
     evt.modifiers.ctrl && return nothing
-    _is_editable(_active_content(turn)) || return nothing
-    ComposerInputOperation(turn, String(evt.text))
+    _is_editable(_active_content(draft)) || return nothing
+    ComposerInputOperation(draft, String(evt.text))
 end
 
-function composer_read(turn::ConversationTurn, evt::KeyDown)
-    c = _active_content(turn)
+function composer_read(draft::ConversationDraft, evt::KeyDown)
+    c = _active_content(draft)
     if c isa PrimitiveString
         return @event_case evt begin
-            KeyDown(:return; shift) => ComposerNewlineOperation(turn)
-            KeyDown(:return)        => ComposerSubmitOperation(turn)
-            KeyDown(:tab)           => ComposerInsertPartOperation(turn)
-            KeyDown(:insert)        => ComposerInsertPartOperation(turn)
-            KeyDown(:backspace)     => ComposerBackspaceOperation(turn)
+            KeyDown(:return; shift) => ComposerNewlineOperation(draft)
+            KeyDown(:return)        => ComposerSubmitOperation(draft)
+            KeyDown(:tab)           => ComposerInsertPartOperation(draft)
+            KeyDown(:insert)        => ComposerInsertPartOperation(draft)
+            KeyDown(:backspace)     => ComposerBackspaceOperation(draft)
         end
     elseif c isa DocumentInsertion
         return @event_case evt begin
-            KeyDown(:return)    => ComposerCommitChooserOperation(turn)
-            KeyDown(:escape)    => ComposerRevertOperation(turn)
-            KeyDown(:backspace) => ComposerBackspaceOperation(turn)
+            KeyDown(:return)    => ComposerCommitChooserOperation(draft)
+            KeyDown(:escape)    => ComposerRevertOperation(draft)
+            KeyDown(:backspace) => ComposerBackspaceOperation(draft)
         end
     elseif c isa JuliaInsertion
         return @event_case evt begin
-            KeyDown(:return; alt)   => ComposerEvaluateOperation(turn)
-            KeyDown(:return; shift) => ComposerNewlineOperation(turn)
-            KeyDown(:return)        => ComposerCommitSourceOperation(turn)
-            KeyDown(:escape)        => ComposerRevertOperation(turn)
-            KeyDown(:backspace)     => ComposerBackspaceOperation(turn)
+            KeyDown(:return; alt)   => ComposerEvaluateOperation(draft)
+            KeyDown(:return; shift) => ComposerNewlineOperation(draft)
+            KeyDown(:return)        => ComposerCommitSourceOperation(draft)
+            KeyDown(:escape)        => ComposerRevertOperation(draft)
+            KeyDown(:backspace)     => ComposerBackspaceOperation(draft)
         end
     elseif c isa JsonInsertion || c isa XmlInsertion
         # Editable source insertion: ENTER parses it into a JsonDocument/XmlElement
         # (no-op while it doesn't parse). Structural key-driven insertion (`[` →
         # JsonArray, …) is still future work.
         return @event_case evt begin
-            KeyDown(:return; shift) => ComposerNewlineOperation(turn)
-            KeyDown(:return)        => ComposerCommitSourceOperation(turn)
-            KeyDown(:escape)        => ComposerRevertOperation(turn)
-            KeyDown(:backspace)     => ComposerBackspaceOperation(turn)
+            KeyDown(:return; shift) => ComposerNewlineOperation(draft)
+            KeyDown(:return)        => ComposerCommitSourceOperation(draft)
+            KeyDown(:escape)        => ComposerRevertOperation(draft)
+            KeyDown(:backspace)     => ComposerBackspaceOperation(draft)
         end
     end
     nothing
@@ -537,11 +533,11 @@ composer_read(::Any, ::Any) = nothing
 const SUBMIT_HANDLER = Ref{Any}(nothing)
 
 projection_read(::ConversationComposerToWidget, iomap::SimpleIoMap, evt::KeyPress) =
-    composer_read(iomap.input.turn, evt)
+    composer_read(iomap.input, evt)
 
 function projection_read(::ConversationComposerToWidget, iomap::SimpleIoMap, evt::KeyDown)
     d = iomap.input                       # ConversationDraft
-    op = composer_read(d.turn, evt)
+    op = composer_read(d, evt)
     # When the draft belongs to an assistant, ENTER's `ComposerSubmitOperation`
     # (which only normalizes the draft) becomes the host's submit op (push + stream).
     if op isa ComposerSubmitOperation && d.assistant !== nothing && SUBMIT_HANDLER[] !== nothing

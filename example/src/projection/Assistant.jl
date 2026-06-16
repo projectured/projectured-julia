@@ -51,8 +51,8 @@ focused on the assistant alone — no tabs, no navigator, no editor.
 
 Stage-6 wiring: the conversation pane is the widget chat presentation
 (`ConversationToWidget`) and the input pane is the composer
-(`ConversationComposerToWidget`) on the assistant's draft turn (wrapped in a
-`ConversationDraft`). Both are widget-producing projections, so each is a
+(`ConversationComposerToWidget`) on the assistant's `ConversationDraft`. Both are
+widget-producing projections, so each is a
 two-stage chain `…ToWidget → widget_graphics`, where `widget_graphics` renders
 the widget tree (and the part-content documents it embeds — text, Julia, JSON,
 XML) to graphics.

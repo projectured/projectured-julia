@@ -35,7 +35,6 @@ import ..WorkbenchModule: WorkbenchDocument, WorkbenchWorkbench, WorkbenchPage,
                           WorkbenchOperator, WorkbenchSearcher, WorkbenchEvaluator,
                           WorkbenchAssistant,
                           WorkbenchEditor, title
-import ..ConversationModule: ConversationDraft
 import ..WidgetModule: WidgetDocument, WidgetLabel, WidgetText, WidgetShell, WidgetSplitPane, WidgetTabbedPane,
                        WidgetScrollPane, WidgetComposite, Point2D, Inset, inset_default,
                        SelectTabOperation
@@ -308,10 +307,11 @@ function projection_print(::WorkbenchAssistantToWidgetSplitPane,
     # `PrimitiveStringToSyntaxLeaf` reader receive `KeyPress` events.
     conv_pane  = WidgetScrollPane(a.conversation;
                                   padding=_PAD5, padding_color=_WHITE)
-    # The input pane is the composer on the draft turn (wrapped in a
-    # `ConversationDraft` so it dispatches to the composer, not the history
-    # presentation). The panel reader routes input keys to `a.draft`.
-    input_pane = WidgetScrollPane(ConversationDraft(a.draft, a);
+    # The input pane is the composer on `a.draft` (a `ConversationDraft`, so it
+    # dispatches to the composer rather than the history presentation; it already
+    # back-links the assistant for submit). The panel reader routes input keys to
+    # `a.draft`.
+    input_pane = WidgetScrollPane(a.draft;
                                   padding=_PAD5, padding_color=_WHITE)
     # Conversation takes the main weight; the input box stays at its minimum
     # (≈3 monospace rows) and does not grow with the window.
