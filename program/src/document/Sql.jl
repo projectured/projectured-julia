@@ -9,8 +9,6 @@ The AST is database-agnostic — it carries no connection. Projections render it
 it against a `DatabaseInstance` (through a connection pool) and returns the
 result rows. `render_sql` produces the canonical executable SQL string.
 
-After construction, call `resolve_sql_names!` to bind qualifier and column-name
-reference fields to their canonical definition documents (bottom-up pass).
 """
 module SqlDocumentModule
 
@@ -46,6 +44,7 @@ export SqlDocument, SqlStatement,
        SqlFromClause,        ISqlFromClause,
        SqlSelectStatement,   ISqlSelectStatement,
        SqlSubqueryFromItem,  ISqlSubqueryFromItem,
+       SqlRawStatement,      ISqlRawStatement,
        SqlInsertStatement,   ISqlInsertStatement,
        SqlUpdateStatement,   ISqlUpdateStatement,
        SqlBooleanExpression,
@@ -54,7 +53,7 @@ export SqlDocument, SqlStatement,
        SqlAnd,            ISqlAnd,
        SqlOr,             ISqlOr,
        SqlNot,            ISqlNot,
-       render_sql, resolve_sql_names!
+       render_sql
 
 # ── Abstract types ─────────────────────────────────────────────────────────────
 
@@ -313,6 +312,12 @@ SqlSubqueryFromItem(sq::SqlSelectStatement) =
 SqlSubqueryFromItem(sq::SqlSelectStatement, alias::SqlTableAlias) =
     SqlSubqueryFromItem(sq, alias, Cell(nothing))
 
+@document struct SqlRawStatement <: SqlStatement
+    content::String
+    selection::Reference
+end
+SqlRawStatement(content::AbstractString) = SqlRawStatement(String(content), Cell(nothing))
+
 @document struct SqlInsertStatement <: SqlStatement
     selection::Reference
 end
@@ -417,105 +422,14 @@ function render_sql(s::SqlSubqueryFromItem)
     s.alias === nothing ? subq : "$subq AS $(s.alias.name)"
 end
 
+render_sql(stmt::SqlRawStatement) = stmt.content
+
 function render_sql(stmt::SqlSelectStatement)
     parts = String[render_sql(stmt.select_clause), render_sql(stmt.from_clause)]
     w = render_sql(stmt.where_clause)
     isempty(w) || push!(parts, w)
     join(parts, " ")
 end
-
-# ── resolve_sql_names! ─────────────────────────────────────────────────────────
-
-"""
-    resolve_sql_names!(stmt::SqlSelectStatement) -> SqlSelectStatement
-
-Bottom-up name resolution pass. Walks the document tree and rebinds qualifier
-and column-name reference fields so they hold the same object instance as the
-canonical definition document (the deepest node that originally introduced the
-identifier). After this pass, identity equality (`===`) reliably indicates
-co-reference.
-"""
-function resolve_sql_names!(stmt::SqlSelectStatement)
-    # Recurse into subqueries first (bottom-up)
-    for from_item in stmt.from_clause.items
-        _resolve_subqueries!(from_item)
-    end
-
-    # Build table/alias scope from the FROM clause
-    tscope = Dict{String, SqlDocument}()
-    for from_item in stmt.from_clause.items
-        _register_base_item!(tscope, from_item.base_item)
-        for jfi in from_item.joins
-            _register_base_item!(tscope, jfi.from_item)
-        end
-    end
-
-    # Build column alias scope from the SELECT clause
-    cscope = Dict{String, SqlColumnAlias}()
-    for item in stmt.select_clause.items
-        ca = item.column_alias
-        ca !== nothing && (cscope[ca.name] = ca)
-    end
-
-    # Rewrite qualifier and column_name fields in SELECT expressions
-    for item in stmt.select_clause.items
-        _resolve_select_expr!(item.expression, tscope, cscope)
-    end
-
-    # Rewrite qualifier fields in WHERE condition
-    cond = stmt.where_clause.condition
-    cond !== nothing && _resolve_bool_expr!(cond.expression, tscope, cscope)
-
-    stmt
-end
-
-function _resolve_subqueries!(from_item::SqlFromItem)
-    bi = from_item.base_item
-    bi isa SqlSubqueryFromItem && resolve_sql_names!(bi.subquery)
-    for jfi in from_item.joins
-        si = jfi.from_item
-        si isa SqlSubqueryFromItem && resolve_sql_names!(si.subquery)
-    end
-end
-
-function _register_base_item!(scope::Dict, bi::SqlTableExpression)
-    scope[bi.table_name.name] = bi.table_name
-    bi.alias !== nothing && (scope[bi.alias.name] = bi.alias)
-end
-function _register_base_item!(scope::Dict, bi::SqlSubqueryFromItem)
-    bi.alias !== nothing && (scope[bi.alias.name] = bi.alias)
-end
-
-function _resolve_select_expr!(expr::SqlAllColumns, tscope, _cscope)
-    q = expr.qualifier
-    q !== nothing && haskey(tscope, q.name) && (expr.qualifier = tscope[q.name])
-end
-function _resolve_select_expr!(expr::SqlColumnReference, tscope, cscope)
-    q = expr.qualifier
-    q !== nothing && haskey(tscope, q.name) && (expr.qualifier = tscope[q.name])
-    cn = expr.column_name
-    if haskey(cscope, cn.name)
-        expr.column_name = cscope[cn.name]
-    end
-end
-_resolve_select_expr!(::SqlSelectExpression, _, _) = nothing  # fallback for future types
-
-function _resolve_bool_expr!(expr::SqlComparison, tscope, cscope)
-    expr.left  isa SqlColumnReference && _resolve_select_expr!(expr.left,  tscope, cscope)
-    expr.right isa SqlColumnReference && _resolve_select_expr!(expr.right, tscope, cscope)
-end
-function _resolve_bool_expr!(expr::SqlAnd, tscope, cscope)
-    _resolve_bool_expr!(expr.left,  tscope, cscope)
-    _resolve_bool_expr!(expr.right, tscope, cscope)
-end
-function _resolve_bool_expr!(expr::SqlOr, tscope, cscope)
-    _resolve_bool_expr!(expr.left,  tscope, cscope)
-    _resolve_bool_expr!(expr.right, tscope, cscope)
-end
-function _resolve_bool_expr!(expr::SqlNot, tscope, cscope)
-    _resolve_bool_expr!(expr.expression, tscope, cscope)
-end
-_resolve_bool_expr!(::SqlBooleanExpression, _, _) = nothing  # fallback for future types
 
 # ── Base.show ──────────────────────────────────────────────────────────────────
 
@@ -532,5 +446,6 @@ Base.show(io::IO, c::SqlComparison)    = print(io, render_sql(c))
 Base.show(io::IO, e::SqlAnd)           = print(io, render_sql(e))
 Base.show(io::IO, e::SqlOr)            = print(io, render_sql(e))
 Base.show(io::IO, e::SqlNot)           = print(io, render_sql(e))
+Base.show(io::IO, stmt::SqlRawStatement) = print(io, stmt.content)
 
 end # module

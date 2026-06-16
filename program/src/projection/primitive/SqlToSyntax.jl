@@ -67,6 +67,9 @@ _comma_body(f::Function) =
 _newline_body(f::Function) =
     SyntaxNode("", "", "", f; indentation=1)
 
+_newline_body_compact(f::Function) =
+    SyntaxNode("", "", "", f; indentation=-1)
+
 # ── SqlAllColumnsToSyntaxLeaf ─────────────────────────────────────────────────
 
 struct SqlAllColumnsToSyntaxLeaf <: Projection
@@ -672,7 +675,7 @@ function projection_print(p::SqlFromItemToSyntaxNode, recursion, doc::SqlFromIte
     end)
     child_iomaps_cell = Cell(() -> begin base, joins = projected[]; Any[base; joins] end)
 
-    joins_body = _newline_body(() -> begin
+    joins_body = _newline_body_compact(() -> begin
         _, joins = projected[]
         SyntaxDocument[j.output for j in joins]
     end)

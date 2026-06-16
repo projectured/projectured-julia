@@ -775,7 +775,7 @@ function _syntax_to_flat(node::SyntaxNode, path::ReferencePath, p::SyntaxNodeToT
             children = node.children
             length(children) >= 2 || return -1
             char_count = _marker_len(p, node) + length(node.open.content)
-            if node.indentation > 0
+            if node.indentation != 0
                 child_depth = depth + 1
                 char_count += 1 + child_depth * p.indent_size
                 char_count += _subtree_len(children[1], p, child_depth)
@@ -794,7 +794,7 @@ function _syntax_to_flat(node::SyntaxNode, path::ReferencePath, p::SyntaxNodeToT
             (1 <= child_i <= length(children)) || return -1
             rest2 = rest.tail
             char_count = _marker_len(p, node) + length(node.open.content)
-            if node.indentation > 0
+            if node.indentation != 0
                 child_depth = depth + 1
                 for i in 1:child_i
                     i > 1 && (char_count += length(node.sep.content))
@@ -870,7 +870,7 @@ function _syntax_to_flat_range(node::SyntaxNode, path::ConcreteReferencePath, p:
 
     # Accumulate the flat offset up to child_i
     char_count = _marker_len(p, node) + length(node.open.content)
-    if node.indentation > 0
+    if node.indentation != 0
         child_depth = depth + 1
         for i in 1:child_i
             i > 1 && (char_count += length(node.sep.content))
@@ -938,7 +938,7 @@ function _collect_spans(node::SyntaxNode, p::SyntaxNodeToText, depth::Int, recur
             push!(spans, p.ellipsis_text)
             char_count += _span_len(p.ellipsis_text)
         end
-    elseif node.indentation > 0
+    elseif node.indentation != 0
         child_depth = depth + 1
         for (i, child) in enumerate(children)
             if i > 1
@@ -963,11 +963,13 @@ function _collect_spans(node::SyntaxNode, p::SyntaxNodeToText, depth::Int, recur
             end
             push!(child_ranges, child_start:char_count-1)
         end
-        push!(spans, _newline_span())
-        char_count += 1
-        ind = _indent_span(p, depth)
-        push!(spans, ind)
-        char_count += _span_len(ind)
+        if node.indentation > 0
+            push!(spans, _newline_span())
+            char_count += 1
+            ind = _indent_span(p, depth)
+            push!(spans, ind)
+            char_count += _span_len(ind)
+        end
     else
         for (i, child) in enumerate(children)
             if i > 1
@@ -1011,16 +1013,18 @@ function _subtree_len(node::SyntaxNode, p::SyntaxNodeToText, depth::Int)
     n = _marker_len(p, node) + length(node.open.content)
     if node.collapsed
         n += _ellipsis_len(p, node)
-    elseif node.indentation > 0
+    elseif node.indentation != 0
         child_depth = depth + 1
         for (i, child) in enumerate(children)
             i > 1 && (n += length(node.sep.content))
             n += 1 + child_depth * p.indent_size          # \n + indent
             n += _subtree_len(child, p, child_depth)
         end
-        # Trailing \n + indent emitted by the printer before the close
-        # delimiter, regardless of whether children was empty.
-        n += 1 + depth * p.indent_size
+        if node.indentation > 0
+            # Trailing \n + indent emitted by the printer before the close
+            # delimiter, regardless of whether children was empty.
+            n += 1 + depth * p.indent_size
+        end
     else
         for (i, child) in enumerate(children)
             i > 1 && (n += length(node.sep.content))
@@ -1052,7 +1056,7 @@ function _pos_to_tree_selection(node::SyntaxNode, local_pos::Int, p::SyntaxNodeT
         return EmptyReferencePath()
     end
 
-    if node.indentation > 0
+    if node.indentation != 0
         child_depth = depth + 1
         for (i, child) in enumerate(children)
             if i > 1
@@ -1126,7 +1130,7 @@ function _pos_to_selection(node::SyntaxNode, local_pos::Int, p::SyntaxNodeToText
         return _proj(local_pos)
     end
 
-    if node.indentation > 0
+    if node.indentation != 0
         child_depth = depth + 1
         for (i, child) in enumerate(children)
             if i > 1
@@ -1144,11 +1148,12 @@ function _pos_to_selection(node::SyntaxNode, local_pos::Int, p::SyntaxNodeToText
             end
             char_count += child_len
         end
-        # Trailing \n + indent before close. Always emitted by _collect_spans
-        # when indent=true, regardless of whether children was empty.
-        trail_len = 1 + depth * p.indent_size
-        local_pos < char_count + trail_len && return _proj(local_pos)
-        char_count += trail_len
+        if node.indentation > 0
+            # Trailing \n + indent before close.
+            trail_len = 1 + depth * p.indent_size
+            local_pos < char_count + trail_len && return _proj(local_pos)
+            char_count += trail_len
+        end
     else
         for (i, child) in enumerate(children)
             if i > 1
@@ -1195,7 +1200,7 @@ function _node_at_collapse_glyph(node::SyntaxNode, local_pos::Int, p::SyntaxNode
     end
 
     children = node.children
-    if node.indentation > 0
+    if node.indentation != 0
         child_depth = depth + 1
         for (i, child) in enumerate(children)
             i > 1 && (char_count += length(node.sep.content))

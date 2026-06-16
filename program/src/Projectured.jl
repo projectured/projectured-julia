@@ -262,7 +262,7 @@ using .SqlDocumentModule: SqlDocument, SqlStatement,
                           SqlWhereFilterCondition, SqlBooleanExpression,
                           SqlScalarValue, SqlComparison,
                           SqlAnd, SqlOr, SqlNot,
-                          render_sql, resolve_sql_names!
+                          render_sql
 using .DbCatalogDocumentModule: DbCatalogDocument,
                                 DbCatalogRdbms, DbCatalogDatabase, DbCatalogSchema,
                                 DbCatalogTable, DbCatalogColumn
@@ -554,7 +554,7 @@ export SqlDocument, SqlStatement,
        SqlWhereFilterCondition, SqlBooleanExpression,
        SqlScalarValue, SqlComparison,
        SqlAnd, SqlOr, SqlNot,
-       render_sql, resolve_sql_names!
+       render_sql
 export SqlToSyntax, SqlAllColumnsToSyntaxLeaf, SqlColumnReferenceToSyntaxLeaf,
        SqlTableExpressionToSyntaxLeaf, SqlJoinTypeToSyntaxLeaf,
        SqlSelectItemToSyntaxNode, SqlSelectClauseToSyntaxNode,

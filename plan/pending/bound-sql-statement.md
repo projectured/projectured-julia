@@ -216,5 +216,3 @@ Read-only v1: no `projection_read`, no reference mapping.
 
 - `SqlDocumentModule` (`Sql.jl`) — must be loaded first.
 - `DbCatalogDocumentModule` (`DbCatalog.jl`) — must be loaded first.
-- `resolve_sql_names!` should be called on the `SqlSelectStatement` before
-  passing it to `SqlToBoundSql` so qualifier back-references are canonical.

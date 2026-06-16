@@ -63,22 +63,6 @@ function test_sql_document_nested_select(; show_detail=false)
         @test outer_ref2.qualifier      !== outer_where_ref.qualifier
         # subq_item.alias was passed as sub_alias directly → already the canonical object
         @test subq_item.alias           === sub_alias
-
-        # Bottom-up pass: inner scope resolved first, then outer
-        resolve_sql_names!(outer_stmt)
-
-        # Inner qualifiers bound to p_alias (canonical alias from persons AS p)
-        @test p_name_ref.qualifier      === p_alias
-        @test p_age_ref.qualifier       === p_alias
-        @test inner_where_ref.qualifier === p_alias
-        # Outer qualifiers bound to sub_alias (canonical alias from the subquery wrapper)
-        @test outer_ref1.qualifier      === sub_alias
-        @test outer_ref2.qualifier      === sub_alias
-        @test outer_where_ref.qualifier === sub_alias
-        @test subq_item.alias           === sub_alias
-
-        show_detail && @info "render_sql (after resolve):" render_sql(outer_stmt)
-        @test render_sql(outer_stmt) == expected_sql
     end
 end
 
