@@ -17,7 +17,8 @@ export TypeDispatchingProjection
 A compound projection that dispatches to different projections based on
 the input type. Given a list of `(Type, projection)` pairs, calling
 `projection_print` applies the projection associated with the first
-matching type.
+matching type (`input isa T`). The key may be any `Type` — a concrete type,
+an abstract type, or a `Union` such as `Union{JsonNull,JsonBool}`.
 
 # Example
 
@@ -29,11 +30,11 @@ matching type.
     result = projection_print(tdp, some_json_doc)  # uses JsonToSyntax
 """
 struct TypeDispatchingProjection <: Projection
-    dispatch::Vector{Pair{DataType, Any}}
+    dispatch::Vector{Pair{Type, Any}}
 end
 
 TypeDispatchingProjection(pairs::Pair...) =
-    TypeDispatchingProjection(collect(Pair{DataType, Any}, pairs))
+    TypeDispatchingProjection(collect(Pair{Type, Any}, pairs))
 
 """
     projection_print(tdp::TypeDispatchingProjection, recursion, input, ctx) -> output
