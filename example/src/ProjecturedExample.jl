@@ -25,6 +25,7 @@ include(joinpath(_EXAMPLE_DIR, "document", "Collection.jl"))
 include(joinpath(_EXAMPLE_DIR, "document", "Focusing.jl"))
 include(joinpath(_EXAMPLE_DIR, "document", "Workbench.jl"))
 include(joinpath(_EXAMPLE_DIR, "document", "Assistant.jl"))
+include(joinpath(_EXAMPLE_DIR, "document", "Conversation.jl"))
 include(joinpath(_EXAMPLE_DIR, "document", "Table.jl"))
 include(joinpath(_EXAMPLE_DIR, "document", "Lazy.jl"))
 include(joinpath(_EXAMPLE_DIR, "document", "Math.jl"))
@@ -63,6 +64,7 @@ include(joinpath(_EXAMPLE_DIR, "projection", "Sorting.jl"))
 include(joinpath(_EXAMPLE_DIR, "projection", "Focusing.jl"))
 include(joinpath(_EXAMPLE_DIR, "projection", "Workbench.jl"))
 include(joinpath(_EXAMPLE_DIR, "projection", "Assistant.jl"))
+include(joinpath(_EXAMPLE_DIR, "projection", "Conversation.jl"))
 include(joinpath(_EXAMPLE_DIR, "projection", "Lazy.jl"))
 include(joinpath(_EXAMPLE_DIR, "projection", "Math.jl"))
 include(joinpath(_EXAMPLE_DIR, "projection", "Julia.jl"))
@@ -163,6 +165,7 @@ export julia_example
 export graphics_image_example
 export primitive_string_example
 export assistant_example
+export conversation_example
 export dbcatalog_example
 export sql_syntax_example
 export sql_table_example

@@ -127,6 +127,7 @@ include("projection/primitive/IniToSyntax.jl")
 include("projection/primitive/NedToSyntax.jl")
 include("projection/primitive/LineNumbering.jl")
 include("projection/primitive/WordWrapping.jl")
+include("projection/primitive/TextFirstLine.jl")
 include("projection/primitive/TextFiltering.jl")
 include("projection/primitive/TextHighlighting.jl")
 include("projection/primitive/PrimitiveToSyntax.jl")
@@ -363,6 +364,7 @@ using .TooltipDocumentModule: TooltipSource
 using .TextToStringModule: TextToString, TextTextToString, TextStringToString, TextNewlineToString
 using .TextLineNumberingModule: LineNumbering, TextLineNumbering
 using .WordWrappingModule: WordWrapping, WordWrappingIoMap, WrapSeg
+using .TextFirstLineModule: TextFirstLine, TextFirstLineIoMap
 using .TextFilteringModule: TextFiltering, TextFilteringIoMap
 using .TextHighlightingModule: TextHighlighting, TextHighlightingIoMap, HighlightSeg
 using .SyntaxToTextModule: SyntaxToText, SyntaxNodeToTextIoMap,
@@ -649,6 +651,7 @@ export TooltipSource
 export TextToString, TextTextToString, TextStringToString, TextNewlineToString
 export LineNumbering, TextLineNumbering
 export WordWrapping, WordWrappingIoMap, WrapSeg
+export TextFirstLine, TextFirstLineIoMap
 export TextFiltering, TextFilteringIoMap
 export TextHighlighting, TextHighlightingIoMap, HighlightSeg
 export SyntaxToText, SyntaxLeafToText, SyntaxListToText
