@@ -135,7 +135,7 @@ concrete subtypes; `SqlJoinOnCondition.expression` is typed
 `SqlBooleanExpression` is the **context-independent** boolean root.
 `SqlScalarValue` is a leaf document holding a Julia `Number`, `String`, or `Bool`;
 the syntax projection renders it as `42`, `'text'`, `TRUE`/`FALSE` respectively
-(no `render_sql` call at the projection level).
+(rendered through the projection pipeline).
 
 ---
 

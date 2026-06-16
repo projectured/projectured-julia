@@ -5,9 +5,9 @@ parses its `content` field into the corresponding `SqlDocument` hierarchy.
 Printer-only (no readers, no reference mapping) in this initial scope.
 
 The projection direction is: `SqlRawStatement` → `SqlStatement` (e.g.
-`SqlSelectStatement`). It is the *inverse* of `render_sql`: `render_sql`
-serialises the AST to a string; `SqlRawToSql` parses a string back into the
-AST.
+`SqlSelectStatement`). It is the *inverse* of the projection pipeline
+(`SqlToSyntax → SyntaxToText → TextToString`) which serialises the AST to a
+string; `SqlRawToSql` parses a string back into the AST.
 
 ---
 
@@ -253,7 +253,7 @@ Export `SqlRawToSql`.
    - Projection: `SqlRawToSql` struct + four interface functions.
 2. **Wire into `program/src/Projectured.jl`** — include and export.
 3. **Write tests** in `test/src/projection/SqlRawToSqlTest.jl`:
-   - Round-trip: `render_sql(parse_sql(sql)) == normalized(sql)` for a set
+   - Round-trip: pipeline output of `parse_sql(sql) == normalized(sql)` for a set
      of representative SELECT statements.
    - Comment stripping: SQL with `--` and `/* */` comments parses correctly.
    - Unsupported trailing clauses (GROUP BY, ORDER BY) are ignored; the

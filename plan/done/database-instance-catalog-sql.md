@@ -132,8 +132,9 @@ add a focused SqlToSyntax printer test.
 ## Stage 3 — SQL execution → CellTable → TableTable + runnable example
 
 1. **New projection `program/src/projection/primitive/SqlToCellTable.jl`.**
-   `SqlToCellTable(pool, instance)`. A `render_sql(stmt)` helper produces the SQL
-   string (v1: `SELECT * FROM "T"`). `projection_print` runs the query inside a
+   `SqlToCellTable(pool, instance)`. The projection pipeline
+   (`SqlToSyntax → SyntaxToText → TextToString`) produces the SQL
+   string. `projection_print` runs the query inside a
    reactive `Cell` thunk via `with_connection(pool, inst) do a;
    db_execute_raw(a, sql, RawDatabaseResult) end` and builds a `CellTable`
    (`program/src/document/Collection.jl`) — row 1 = column names, rows 2..n =

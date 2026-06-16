@@ -3,12 +3,13 @@
 
 Projection: `SqlSelectStatement` → `CellTable` (the query result).
 
-`SqlToCellTable(pool, instance)` renders the statement to SQL (`render_sql`),
-executes it against `instance` through the connection `pool`, and materialises
-the result as a `CellTable`: row 1 holds the column names, rows 2..n hold the
-data. The query runs inside a reactive `Cell` thunk, so it fires lazily on first
-force and re-runs when the statement changes — constructing the document never
-touches the database.
+`SqlToCellTable(pool, instance)` prints the statement through the projection
+pipeline (`SqlToSyntax → SyntaxToText → TextToString`), executes it against
+`instance` through the connection `pool`, and materialises the result as a
+`CellTable`: row 1 holds the column names, rows 2..n hold the data. The query
+runs inside a reactive `Cell` thunk, so it fires lazily on first force and
+re-runs when the statement changes — constructing the document never touches
+the database.
 
 The connection pool and the target `DatabaseInstance` are **projection
 parameters**; the SQL statement itself stays database-agnostic.
@@ -21,7 +22,12 @@ import ..ReactiveModule: Cell
 import ..CollectionModule: CellVector, CellTable
 import ..ProjectionApiModule: projection_print, projection_read,
                               map_reference_forward, map_reference_backward, Projection
-import ..SqlDocumentModule: SqlSelectStatement, render_sql
+import ..SqlDocumentModule: SqlSelectStatement
+import ..SqlToSyntaxModule: SqlToSyntax
+import ..SyntaxToTextModule: SyntaxToText
+import ..TextToStringModule: TextToString
+import ..RecursiveProjectionModule: RecursiveProjection
+import ..SequentialProjectionModule: SequentialProjection
 import ..DatabaseInstanceDocumentModule: DatabaseInstance
 import ..DatabaseModule: RawDatabaseResult, db_execute_raw
 import ..ConnectionPoolModule: OdbcConnectionPool, with_connection
@@ -36,7 +42,11 @@ end
 
 function projection_print(p::SqlToCellTable, recursion, stmt::SqlSelectStatement, ctx)
     raw = Cell(() -> begin
-        sql = render_sql(stmt)
+        pipe = SequentialProjection(
+            RecursiveProjection(SqlToSyntax()),
+            RecursiveProjection(SyntaxToText()),
+            RecursiveProjection(TextToString()))
+        sql = projection_print(pipe, stmt).output[]
         with_connection(p.pool, p.instance) do adapter
             db_execute_raw(adapter, sql, RawDatabaseResult)
         end

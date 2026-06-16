@@ -351,6 +351,6 @@ Whenever a new SQL node projection is added to `SqlToSyntax.jl`:
   on whether the subparts are separate documents.
 - `SqlJoinTypeToSyntaxLeaf` — no `selection` field on join-type enum variants;
   left as `∅`-only. The `_join_type_display` helper provides fully qualified
-  display names (`INNER JOIN`, `LEFT OUTER JOIN`, …) independently of `render_sql`.
+  display names (`INNER JOIN`, `LEFT OUTER JOIN`, …) independently of the projection pipeline.
 - `SqlJoinUsingCondition` — no projection yet; add `SqlJoinUsingConditionToSyntaxNode`
   following the `SqlJoinOnConditionToSyntaxNode` pattern (USING keyword + column list).

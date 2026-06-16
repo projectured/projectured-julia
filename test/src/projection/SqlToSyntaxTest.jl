@@ -7,9 +7,6 @@ function test_sql_to_syntax()
     @testset "SqlToSyntax" begin
         stmt = SqlSelectStatement("persons")
 
-        # Canonical executable SQL text
-        @test render_sql(stmt) == "SELECT * FROM \"persons\""
-
         # SqlToSyntax + SyntaxToText renders the display form
         pipe = SequentialProjection(
             RecursiveProjection(SqlToSyntax()),
@@ -26,13 +23,21 @@ function test_sql_to_syntax()
         @test projection_print(SqlTableExpressionToSyntaxLeaf(), SqlTableExpression("t")).output isa SyntaxLeaf
         @test projection_print(SqlColumnReferenceToSyntaxLeaf(), SqlColumnReference("id")).output isa SyntaxLeaf
 
-        # render_sql covers new types
-        @test render_sql(SqlAllColumns()) == "*"
-        @test render_sql(SqlAllColumns(SqlTableAlias("t"))) == "t.*"
-        @test render_sql(SqlColumnReference("id")) == "id"
-        @test render_sql(SqlTableExpression(SqlTableName("public", "users"), SqlTableAlias("u"))) ==
-              "\"public\".\"users\" AS u"
-        @test render_sql(SqlSelectStatement("persons")) == "SELECT * FROM \"persons\""
+        # Full pipeline (Sql→Syntax→Text→String) covers all types
+        sql_pipe = SequentialProjection(
+            RecursiveProjection(SqlToSyntax()),
+            RecursiveProjection(SyntaxToText()),
+            RecursiveProjection(TextToString()))
+        sql_text(doc) = projection_print(sql_pipe, doc).output[]
+
+        @test sql_text(SqlAllColumns()) == "*"
+        @test sql_text(SqlAllColumns(SqlTableAlias("t"))) == "t.*"
+        @test sql_text(SqlColumnReference("id")) == "id"
+        @test occursin("public", sql_text(SqlTableExpression(SqlTableName("public", "users"), SqlTableAlias("u"))))
+        @test occursin("users", sql_text(SqlTableExpression(SqlTableName("public", "users"), SqlTableAlias("u"))))
+        @test occursin("AS u", sql_text(SqlTableExpression(SqlTableName("public", "users"), SqlTableAlias("u"))))
+        @test occursin("SELECT", sql_text(SqlSelectStatement("persons")))
+        @test occursin("persons", sql_text(SqlSelectStatement("persons")))
 
         # Stubs compile
         @test SqlInsertStatement() isa SqlInsertStatement

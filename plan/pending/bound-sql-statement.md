@@ -23,7 +23,7 @@ column-type display, hover documentation, and validation need both trees togethe
 
 Separation of concerns:
 
-- `SqlStatement` — syntactic form; DB-agnostic; used by `SqlToSyntax` and `render_sql`.
+- `SqlStatement` — syntactic form; DB-agnostic; used by `SqlToSyntax` and the projection pipeline.
 - `DbCatalog` — live schema metadata; built by `DatabaseInstanceToDbCatalog`.
 - `BoundSqlStatement` — combined view; built by the binding projection; consumed
   by type-aware display, validation, and completion.

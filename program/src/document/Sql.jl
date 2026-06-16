@@ -7,7 +7,8 @@ Every semantic element is a dedicated document type.
 The AST is database-agnostic — it carries no connection. Projections render it:
 `SqlToSyntax` produces a syntax tree for display, and `SqlToCellTable` executes
 it against a `DatabaseInstance` (through a connection pool) and returns the
-result rows. `render_sql` produces the canonical executable SQL string.
+result rows. The projection pipeline `Sql→Syntax→Text→String` produces the
+printed text output.
 
 """
 module SqlDocumentModule
@@ -52,8 +53,7 @@ export SqlDocument, SqlStatement,
        SqlComparison,     ISqlComparison,
        SqlAnd,            ISqlAnd,
        SqlOr,             ISqlOr,
-       SqlNot,            ISqlNot,
-       render_sql
+       SqlNot,            ISqlNot
 
 # ── Abstract types ─────────────────────────────────────────────────────────────
 
@@ -328,124 +328,12 @@ SqlInsertStatement() = SqlInsertStatement(Cell(nothing))
 end
 SqlUpdateStatement() = SqlUpdateStatement(Cell(nothing))
 
-# ── render_sql ─────────────────────────────────────────────────────────────────
-
-"""
-    render_sql(doc) -> String
-
-Render a SQL AST node to its canonical executable SQL text.
-"""
-function render_sql(n::SqlTableName)
-    n.schema_name === nothing ? "\"$(n.name)\"" : "\"$(n.schema_name)\".\"$(n.name)\""
-end
-render_sql(a::SqlTableAlias)  = a.name
-render_sql(c::SqlColumnName)  = c.name
-render_sql(a::SqlColumnAlias) = a.name
-
-function render_sql(s::SqlAllColumns)
-    s.qualifier === nothing ? "*" : "$(render_sql(s.qualifier)).*"
-end
-
-function render_sql(r::SqlColumnReference)
-    col = r.column_name.name
-    r.qualifier === nothing ? col : "$(render_sql(r.qualifier)).$col"
-end
-
-function render_sql(item::SqlSelectItem)
-    expr = render_sql(item.expression)
-    item.column_alias === nothing ? expr : "$expr AS $(item.column_alias.name)"
-end
-
-function render_sql(c::SqlSelectClause)
-    list = join((render_sql(item) for item in c.items), ", ")
-    c.distinct === nothing ? "SELECT $list" : "SELECT DISTINCT $list"
-end
-
-render_sql(::SqlInnerJoin)      = "JOIN"
-render_sql(::SqlLeftOuterJoin)  = "LEFT JOIN"
-render_sql(::SqlRightOuterJoin) = "RIGHT JOIN"
-render_sql(::SqlFullOuterJoin)  = "FULL JOIN"
-render_sql(::SqlCrossJoin)      = "CROSS JOIN"
-
-render_sql(c::SqlJoinOnCondition) = "ON $(render_sql(c.expression))"
-render_sql(c::SqlWhereFilterCondition) = render_sql(c.expression)
-
-function render_sql(c::SqlJoinUsingCondition)
-    cols = join((render_sql(cn) for cn in c.column_names), ", ")
-    "USING ($cols)"
-end
-
-function render_sql(t::SqlTableExpression)
-    base = render_sql(t.table_name)
-    t.alias === nothing ? base : "$base AS $(t.alias.name)"
-end
-
-function render_sql(j::SqlJoinedFromItem)
-    base = "$(render_sql(j.join_type)) $(render_sql(j.from_item))"
-    j.condition === nothing ? base : "$base $(render_sql(j.condition))"
-end
-
-function render_sql(fi::SqlFromItem)
-    parts = String[render_sql(fi.base_item)]
-    for seg in fi.joins
-        push!(parts, render_sql(seg))
-    end
-    join(parts, " ")
-end
-
-function render_sql(c::SqlFromClause)
-    "FROM $(join((render_sql(fi) for fi in c.items), ", "))"
-end
-
-function render_sql(c::SqlWhereClause)
-    c.condition === nothing ? "" : "WHERE $(render_sql(c.condition))"
-end
-
-function render_sql(v::SqlScalarValue)
-    val = v.value
-    val isa Bool           ? (val ? "TRUE" : "FALSE") :
-    val isa AbstractString ? "'$val'" :
-    string(val)
-end
-
-render_sql(c::SqlComparison) =
-    "$(render_sql(c.left)) $(c.operator) $(render_sql(c.right))"
-render_sql(e::SqlAnd) =
-    "($(render_sql(e.left)) AND $(render_sql(e.right)))"
-render_sql(e::SqlOr)  =
-    "($(render_sql(e.left)) OR $(render_sql(e.right)))"
-render_sql(e::SqlNot) =
-    "(NOT $(render_sql(e.expression)))"
-
-function render_sql(s::SqlSubqueryFromItem)
-    subq = "($(render_sql(s.subquery)))"
-    s.alias === nothing ? subq : "$subq AS $(s.alias.name)"
-end
-
-render_sql(stmt::SqlRawStatement) = stmt.content
-
-function render_sql(stmt::SqlSelectStatement)
-    parts = String[render_sql(stmt.select_clause), render_sql(stmt.from_clause)]
-    w = render_sql(stmt.where_clause)
-    isempty(w) || push!(parts, w)
-    join(parts, " ")
-end
-
 # ── Base.show ──────────────────────────────────────────────────────────────────
 
-Base.show(io::IO, n::SqlTableName)        = print(io, render_sql(n))
+Base.show(io::IO, n::SqlTableName)        = print(io, n.schema_name === nothing ? n.name : "$(n.schema_name).$(n.name)")
 Base.show(io::IO, a::SqlTableAlias)       = print(io, a.name)
 Base.show(io::IO, c::SqlColumnName)       = print(io, c.name)
 Base.show(io::IO, a::SqlColumnAlias)      = print(io, a.name)
-Base.show(io::IO, s::SqlAllColumns)       = print(io, render_sql(s))
-Base.show(io::IO, r::SqlColumnReference)  = print(io, render_sql(r))
-Base.show(io::IO, t::SqlTableExpression)  = print(io, render_sql(t))
-Base.show(io::IO, stmt::SqlSelectStatement) = print(io, render_sql(stmt))
-Base.show(io::IO, v::SqlScalarValue)   = print(io, render_sql(v))
-Base.show(io::IO, c::SqlComparison)    = print(io, render_sql(c))
-Base.show(io::IO, e::SqlAnd)           = print(io, render_sql(e))
-Base.show(io::IO, e::SqlOr)            = print(io, render_sql(e))
-Base.show(io::IO, e::SqlNot)           = print(io, render_sql(e))
-Base.show(io::IO, stmt::SqlRawStatement) = print(io, stmt.content)
+Base.show(io::IO, stmt::SqlRawStatement)  = print(io, stmt.content)
 
 end # module
