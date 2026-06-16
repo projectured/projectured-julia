@@ -120,10 +120,12 @@ composer operations.
 """
 @document struct ConversationDraft <: ConversationDocument
     turn::ConversationTurn
+    assistant::Any        # the owning WorkbenchAssistant (or nothing, standalone)
     selection::Reference
 end
 
-ConversationDraft(turn::ConversationTurn) = ConversationDraft(Cell(turn), Cell(nothing))
+ConversationDraft(turn::ConversationTurn, assistant = nothing) =
+    ConversationDraft(Cell(turn), Cell(assistant), Cell(nothing))
 
 Base.show(io::IO, d::ConversationDraft) =
     print(io, "ConversationDraft(", d.turn, ")")

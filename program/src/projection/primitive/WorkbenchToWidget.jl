@@ -129,7 +129,7 @@ const _WHITE = StyleColor(255, 255, 255, 255)
 const _NAV_MIN_WIDTH      = 200   # navigation column (left)
 const _CONTROL_MIN_WIDTH  = 400   # control column (right; assistant chat)
 const _INFO_MIN_HEIGHT    = 200   # information row in the center column
-const _INPUT_MIN_HEIGHT   = 90    # assistant input box (≈3 monospace rows)
+const _INPUT_MIN_HEIGHT   = 200   # assistant input: the composer chat-bubble draft
 const _MAIN_WEIGHT        = 1.0   # editor / conversation / center column
 const _SIDE_WEIGHT        = 0.2   # nav / control / info — grow, but less
 const _SHELL_FALLBACK_WIDTH  = 1280  # window width when run outside a window
@@ -311,7 +311,7 @@ function projection_print(::WorkbenchAssistantToWidgetSplitPane,
     # The input pane is the composer on the draft turn (wrapped in a
     # `ConversationDraft` so it dispatches to the composer, not the history
     # presentation). The panel reader routes input keys to `a.draft`.
-    input_pane = WidgetScrollPane(ConversationDraft(a.draft);
+    input_pane = WidgetScrollPane(ConversationDraft(a.draft, a);
                                   padding=_PAD5, padding_color=_WHITE)
     # Conversation takes the main weight; the input box stays at its minimum
     # (≈3 monospace rows) and does not grow with the window.

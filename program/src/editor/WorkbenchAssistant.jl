@@ -63,7 +63,7 @@ import ..LlmModule: LlmBackend, stream_turn
 import ..McpModule: execute_julia_code, register_default_tools_and_resources!
 import ..ConversationModule: ConversationDraft
 import ..ConversationEditorModule: composer_read, ComposerSubmitOperation,
-                                    finalize_draft!, reset_draft!
+                                    finalize_draft!, reset_draft!, SUBMIT_HANDLER
 
 using Markdown
 using JSON3
@@ -285,6 +285,11 @@ function evaluate_operation(editor, op::SubmitDraftTurnOperation)
     reset_draft!(draft)
     _launch_agent_turn!(editor, a)
 end
+
+# Register the composer's submit hook so ENTER on the draft (anywhere it is
+# rendered — incl. the nested workbench, where the panel reader isn't reached)
+# becomes a SubmitDraftTurnOperation rather than a bare draft-normalize.
+SUBMIT_HANDLER[] = a -> SubmitDraftTurnOperation(a)
 
 # ═══════════════════════════════════════════════════════════════════════
 # Placeholder JuliaDocument

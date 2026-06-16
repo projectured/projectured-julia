@@ -54,6 +54,7 @@ import ..EventCaseModule: var"@event_case"
 import ..IoMapModule: SimpleIoMap
 
 export ConversationComposerToWidget, composer_read, finalize_draft!, new_draft_turn, reset_draft!,
+       SUBMIT_HANDLER,
        ComposerInputOperation, ComposerBackspaceOperation, ComposerNewlineOperation,
        ComposerInsertPartOperation, ComposerCommitChooserOperation,
        ComposerCommitSourceOperation, ComposerEvaluateOperation,
@@ -529,9 +530,23 @@ end
 
 composer_read(::Any, ::Any) = nothing
 
+# Hook for turning the composer's `ComposerSubmitOperation` into a host-specific
+# submit operation. The live assistant panel registers `a -> SubmitDraftTurnOperation(a)`
+# here (it can't be referenced directly — module order: the composer loads first).
+const SUBMIT_HANDLER = Ref{Any}(nothing)
+
 projection_read(::ConversationComposerToWidget, iomap::SimpleIoMap, evt::KeyPress) =
     composer_read(iomap.input.turn, evt)
-projection_read(::ConversationComposerToWidget, iomap::SimpleIoMap, evt::KeyDown) =
-    composer_read(iomap.input.turn, evt)
+
+function projection_read(::ConversationComposerToWidget, iomap::SimpleIoMap, evt::KeyDown)
+    d = iomap.input                       # ConversationDraft
+    op = composer_read(d.turn, evt)
+    # When the draft belongs to an assistant, ENTER's `ComposerSubmitOperation`
+    # (which only normalizes the draft) becomes the host's submit op (push + stream).
+    if op isa ComposerSubmitOperation && d.assistant !== nothing && SUBMIT_HANDLER[] !== nothing
+        return SUBMIT_HANDLER[](d.assistant)
+    end
+    op
+end
 
 end # module

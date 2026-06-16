@@ -52,5 +52,23 @@ function test_assistant_composer_panel()
             @test length(a.conversation) == 0
             @test a.status === :idle
         end
+
+        @testset "ENTER submits through the nested full workbench" begin
+            # Regression: in the full workbench the panel reader isn't reached, so
+            # the composer must convert ENTER's submit via the draft's assistant.
+            ex   = workbench_example
+            doc  = ex.make_document()
+            proj = ex.make_projection()
+            iom  = projection_print(proj, doc)
+            a = nothing
+            for p in (:navigation_page, :editing_page, :information_page, :control_page)
+                for e in getfield(doc, p)[].elements
+                    e isa WorkbenchAssistant && (a = e)
+                end
+            end
+            @test a !== nothing
+            @test projection_read(proj, iom, KeyPress('h')) isa ComposerInputOperation
+            @test projection_read(proj, iom, KeyDown(:return, Modifiers())) isa SubmitDraftTurnOperation
+        end
     end
 end
