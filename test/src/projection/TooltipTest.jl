@@ -23,8 +23,8 @@ decorator = TooltipDecoratorProjection(
 
 projection = RecursiveProjection(
     TypeDispatchingProjection(
-        ScreenDocument => WindowManagerProjection(inner = CopyingProjection()),
-        WindowDocument => CopyingProjection(),
+        ScreenDocument => WindowManagerProjection(inner = ScreenToScreen()),
+        WindowDocument => ScreenToScreen(),
         CellVector     => CopyingProjection(),
         TooltipSource  => decorator,
         Any            => PreservingProjection(),
@@ -96,8 +96,8 @@ deco = TooltipDecoratorProjection(
 )
 projection = RecursiveProjection(
     TypeDispatchingProjection(
-        ScreenDocument => WindowManagerProjection(inner=CopyingProjection()),
-        WindowDocument => CopyingProjection(),
+        ScreenDocument => WindowManagerProjection(inner=ScreenToScreen()),
+        WindowDocument => ScreenToScreen(),
         CellVector     => CopyingProjection(),
         TooltipSource  => deco,
         Any            => PreservingProjection(),

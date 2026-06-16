@@ -96,6 +96,7 @@ include("projection/generic/Filtering.jl")
 include("projection/generic/Searching.jl")
 include("projection/generic/Sorting.jl")
 include("projection/generic/Copying.jl")
+include("projection/primitive/ScreenToScreen.jl")
 include("projection/generic/Invariably.jl")
 include("projection/generic/ObjectToWidget.jl")
 
@@ -290,6 +291,7 @@ using .HigherOrderCompoundModule: ApplyAtProjection
 using .GenericCompoundModule: SortingAtProjection
 using .NestingProjectionModule: NestingProjection, NestingProjectionIoMap
 using .WindowManagerProjectionModule: WindowManagerProjection, WindowManagerProjectionIoMap
+using .ScreenToScreenModule: ScreenToScreen, ScreenToScreenIoMap, ScreenWindowIoMap
 using .TooltipDecoratorProjectionModule: TooltipDecoratorProjection, TooltipDecoratorProjectionIoMap
 using .ReversingProjectionModule: ReversingProjection
 using .FilteringProjectionModule: FilteringProjection, FilteringProjectionIoMap
@@ -604,6 +606,7 @@ export ApplyAtProjection
 export SortingAtProjection
 export NestingProjection, NestingProjectionIoMap
 export WindowManagerProjection, WindowManagerProjectionIoMap
+export ScreenToScreen, ScreenToScreenIoMap, ScreenWindowIoMap
 export TooltipDecoratorProjection, TooltipDecoratorProjectionIoMap
 export ReversingProjection
 export FilteringProjection, FilteringProjectionIoMap

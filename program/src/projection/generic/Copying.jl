@@ -11,21 +11,14 @@ child iomaps so that map_reference_backward can delegate through them
 """
 module CopyingProjectionModule
 
-import ..ProjectionApiModule: projection_print, projection_read, map_reference_forward, map_reference_backward, Projection, Change, as_change
+import ..ProjectionApiModule: projection_print, projection_printer_recurse, map_reference_forward, map_reference_backward, Projection
 import ..ReactiveModule: Cell, setfn!, setval!
 import ..DocumentModule: Document
-import ..ReferenceModule: ReferencePath, EmptyReferencePath, ConcreteReferencePath,
-                          FieldReference, PositionReference, RangeReference,
-                          ElementReference, append_reference, is_element_reference, head, tail
-import ..ReferenceBuilderModule: var"@reference"
-import ..PrinterContextModule: PrinterContext, child_context, with_available_size
+import ..ReferenceModule: ConcreteReferencePath, FieldReference, RangeReference,
+                          ElementReference, is_element_reference, head, tail
+import ..PrinterContextModule: PrinterContext, child_context
 import ..CollectionModule: CellVector, ListNode
 import ..IoMapApiModule: IoMap
-import ..OperationApiModule: Operation
-import ..OperationModule: ReplaceSelectionOperation
-import ..PrimitiveModule: StringReplaceRangeOperation, NumberReplaceRangeOperation
-import ..ScreenDocumentModule: ScreenDocument, WindowDocument, EventEnvelope
-import ..ReferenceDispatchingModule: ReferenceDispatchingIoMap
 
 export CopyingProjection, CopyingProjectionIoMap, copying_field_iomap, copying_element_iomap
 
@@ -53,8 +46,8 @@ _unwrap(c::Cell) = c[]
 # ── projection_print ──────────────────────────────────────────────────────
 
 function projection_print(p::CopyingProjection, recursion, input::CellVector, ctx)
-    children = [projection_print(recursion, recursion, input[i],
-                    child_context(ctx, PositionReference(i)))
+    children = [projection_printer_recurse(recursion, input[i],
+                    child_context(ctx, ElementReference(i)))
                 for i in 1:length(input)]
     out_cells = Cell[Cell(im.output) for im in children]
     output = CellVector(out_cells)
@@ -71,7 +64,7 @@ end
 
 function _map_node(p::CopyingProjection, input_node::ListNode, recursion, ctx, index::Int)
     # Project current element
-    elem_iomap = projection_print(recursion, recursion, input_node.value,
+    elem_iomap = projection_printer_recurse(recursion, input_node.value,
                      child_context(ctx, ElementReference(index)))
 
     # Create output node
@@ -103,8 +96,8 @@ end
 # ── Vector{Cell} and struct paths ─────────────────────────────────────────
 
 function projection_print(p::CopyingProjection, recursion, input::Vector{Cell}, ctx)
-    children = [projection_print(recursion, recursion, c[],
-                    child_context(ctx, PositionReference(i)))
+    children = [projection_printer_recurse(recursion, c[],
+                    child_context(ctx, ElementReference(i)))
                 for (i, c) in enumerate(input)]
     out_cells = Cell[Cell(im.output) for im in children]
     output = CellVector(out_cells)
@@ -131,18 +124,7 @@ function projection_print(p::CopyingProjection, recursion, input, ctx)
             end))
         elseif _is_doc_field(fv)
             child_ctx = child_context(ctx, FieldReference(string(nm)))
-            # A WindowDocument is a natural source of layout extent: its
-            # `width`/`height` fields are the window's pixel size. Seed
-            # them on the context when descending into `content` so any
-            # layout-aware descendant (split/tabbed/scroll panes) can
-            # size itself to the window without needing a WidgetShell.
-            if input isa WindowDocument && nm == :content
-                w_cell = getfield(input, :width)
-                h_cell = getfield(input, :height)
-                child_ctx = with_available_size(child_ctx;
-                                                width=w_cell, height=h_cell)
-            end
-            im = projection_print(recursion, recursion, _unwrap(fv), child_ctx)
+            im = projection_printer_recurse(recursion, _unwrap(fv), child_ctx)
             push!(children, im); push!(names, string(nm))
             push!(field_vals, im.output)
         else
@@ -201,7 +183,9 @@ function _map_ref(fn, iomap::CopyingProjectionIoMap, reference)
             child_im = iomap.children[j]
             mapped = fn(child_im.projection, child_im, rest)
             mapped === nothing && return nothing
-            return ConcreteReferencePath(PositionReference(j), mapped)
+            # Copying preserves order, so the index step passes through unchanged
+            # (mirrors the ListNode branch below).
+            return ConcreteReferencePath(h, mapped)
         elseif iomap.children === nothing && iomap.recursion !== nothing
             # ListNode path: walk to the indexed node and project on demand
             is_element_reference(h) || return reference
@@ -227,7 +211,7 @@ end
 function _get_listnode_child_iomap(iomap::CopyingProjectionIoMap, index::Int)
     input_node = _walk_to_index(iomap.input::ListNode, index)
     input_node === nothing && return nothing
-    return projection_print(iomap.recursion, iomap.recursion, input_node.value,
+    return projection_printer_recurse(iomap.recursion, input_node.value,
                child_context(iomap.base_ctx, ElementReference(index)))
 end
 
@@ -257,98 +241,10 @@ function map_reference_forward(::CopyingProjection, iomap::CopyingProjectionIoMa
     _map_ref(map_reference_forward, iomap, reference)
 end
 
-# ── Event envelope routing ────────────────────────────────────────────────
-# When a ScreenDocument is being copied, the projection output is itself
-# a ScreenDocument with per-window content already projected through the
-# inner recursion. Events from the backend arrive tagged with the
-# originating window id; route each envelope to the matching
-# WindowDocument.content's sub-iomap so the inner projection's reader
-# sees the bare event. Operations the inner reader produces have paths
-# rooted at the inner content document; we prepend the steps that lead
-# from the ScreenDocument root down to that content so
-# `evaluate_operation` can walk them against the editor's root.
-
-function projection_read(p::CopyingProjection, recursion, change::Change, iomap::CopyingProjectionIoMap)
-    env = change.gesture
-    if env isa EventEnvelope
-        input = iomap.input
-        if input isa ScreenDocument
-            # Find the windows-field child iomap (CellVector path).
-            windows_iomap = _struct_field_iomap(iomap, "windows")
-            (windows_iomap === nothing || !(windows_iomap.children isa Vector)) &&
-                return Change(change.gesture, nothing)
-            for (i, raw_child) in enumerate(windows_iomap.children)
-                child_input = raw_child.input
-                child_input isa WindowDocument || continue
-                child_input.id === env.window_id || continue
-                # raw_child is the copied WindowDocument; recurse with the same
-                # envelope so the WindowDocument branch below handles the content.
-                inner = projection_read(raw_child.projection, recursion, change, raw_child)
-                op = _prefix_op_with_steps(inner.operation,
-                    (FieldReference("windows"), ElementReference(i)))
-                return Change(change.gesture, op)
-            end
-            return Change(change.gesture, nothing)
-        elseif input isa WindowDocument
-            # We're inside the matching window: descend into the content field
-            # and hand the bare event (as a fresh Change) to its reader.
-            content_iomap = _struct_field_iomap(iomap, "content")
-            content_iomap === nothing && return Change(change.gesture, nothing)
-            inner = projection_read(content_iomap.projection, recursion,
-                                    Change(env.event, nothing), content_iomap)
-            op = _prefix_op_with_steps(inner.operation, (FieldReference("content"),))
-            return Change(change.gesture, op)
-        else
-            return Change(change.gesture, nothing)
-        end
-    else
-        # Non-envelope change (an operation threaded up through a document-copy
-        # stage): fall back to the generic per-reference mapping.
-        payload = change.operation === nothing ? change.gesture : change.operation
-        return Change(change.gesture, projection_read(p, iomap, payload))
-    end
-end
-
-# 3-arg compatibility entry for callers that hand a bare envelope.
-projection_read(p::CopyingProjection, iomap::CopyingProjectionIoMap, env::EventEnvelope) =
-    projection_read(p, nothing, Change(env, nothing), iomap).operation
-
-# Field-keyed lookup of a struct child iomap. Strips transparent wrappers
-# (e.g. ReferenceDispatchingIoMap) so the returned iomap is the actual
-# CopyingProjectionIoMap whose `.children` we want to walk further.
-function _struct_field_iomap(iomap::CopyingProjectionIoMap, name::AbstractString)
-    iomap.field_names isa Vector || return nothing
-    idx = findfirst(==(name), iomap.field_names)
-    idx === nothing && return nothing
-    return _unwrap_to_copying(iomap.children[idx])
-end
-
-_unwrap_to_copying(im) = im
-_unwrap_to_copying(im::ReferenceDispatchingIoMap) = _unwrap_to_copying(im.inner_iomap)
-
-# Prepend `steps` to the reference path inside `op` (if the op carries one).
-# Operations that target a captured Julia value directly (e.g. workbench
-# tool ops that hold their target document) need no prefixing and are
-# returned unchanged. `nothing` passes through unchanged.
-function _prefix_op_with_steps(op, steps::Tuple)
-    op === nothing && return nothing
-    if op isa StringReplaceRangeOperation
-        return StringReplaceRangeOperation(_prepend_path(steps, op.reference), op.replacement)
-    elseif op isa NumberReplaceRangeOperation
-        return NumberReplaceRangeOperation(_prepend_path(steps, op.reference), op.replacement)
-    elseif op isa ReplaceSelectionOperation
-        return ReplaceSelectionOperation(_prepend_path(steps, op.path))
-    else
-        return op
-    end
-end
-
-function _prepend_path(steps::Tuple, path::ReferencePath)
-    result = path
-    for step in reverse(steps)
-        result = ConcreteReferencePath(step, result)
-    end
-    result
-end
+# CopyingProjection is domain-independent: it has no `projection_read` method of
+# its own. The generic reader bridge (ProjectionModule) routes selection and
+# edit operations back through `map_reference_backward`, which delegates into the
+# stored child iomaps. Screen/window event routing lives in `ScreenToScreen`, the
+# screen-domain projection — not here.
 
 end # module

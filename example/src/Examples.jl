@@ -287,20 +287,21 @@ function run_example(examples::Vector{Example}; width=nothing, height=nothing,
     run!(SdlBackend(), composed, screen)
 end
 
-# Build a projection that copies the ScreenDocument / WindowDocument spine
-# down to each `windows{i}.content` reference and applies the matching
-# example's projection only at that exact leaf. Dispatch by reference path
-# rather than content type so two examples with the same root document
-# type still each render through their own pipeline.
+# Build a projection that projects the screen down to each
+# `windows[i].content` reference and applies the matching example's
+# projection only at that exact leaf. Dispatch by reference path rather than
+# content type so two examples with the same root document type still each
+# render through their own pipeline.
 #
-# CopyingProjection's CellVector path encodes element indices as
-# `PositionReference(i)` (the `{i}` form of `@reference`); the target
-# paths are constructed the same way so `reference_equal` works.
+# `ScreenToScreen` owns the screen spine: it recurses each window's `content`
+# (and nothing above it) back through this dispatch, with the content's
+# reference being `windows[i].content` (the i-th window is an
+# `ElementReference`), which is how the target paths are built.
 function _multi_window_projection(projections::Vector)
     n = length(projections)
     targets = Vector{Any}(undef, n)
     for i in 1:n
-        targets[i] = @reference windows{i}.content
+        targets[i] = @reference windows[i].content
     end
     return RecursiveProjection(ReferenceDispatchingProjection(ref -> begin
         # Exact match — apply that window's example projection here. Wrap
@@ -313,17 +314,12 @@ function _multi_window_projection(projections::Vector)
                                       recursion=PreservingProjection())
         end
         # The ScreenDocument root is the window-management seam: route it
-        # through WindowManagerProjection so window events (resize, and any
-        # open/close) are owned there. Its printer is a passthrough, so the
-        # rest of the spine dispatches exactly as the CopyingProjection case.
+        # through WindowManagerProjection (window open/close/resize ops are
+        # owned there) wrapping ScreenToScreen, which projects the screen
+        # shell and recurses each window's content back through this dispatch.
         ref isa EmptyReferencePath &&
-            return WindowManagerProjection(inner = CopyingProjection())
-        # Spine above any window's content target — copy through.
-        for t in targets
-            is_prefix_of(ref, t) || continue
-            return CopyingProjection()
-        end
-        # Anything else is outside the screen spine — preserve.
+            return WindowManagerProjection(inner = ScreenToScreen())
+        # Anything outside a window's content target — preserve.
         return PreservingProjection()
     end))
 end
@@ -367,7 +363,7 @@ function _multi_window_projection_tooltipped(projections::Vector; measure=sdl_me
     n = length(projections)
     targets = Vector{Any}(undef, n)
     for i in 1:n
-        targets[i] = @reference windows{i}.content
+        targets[i] = @reference windows[i].content
     end
     decorator = TooltipDecoratorProjection(
         trigger  = (source, _evt) -> source.child.selection !== nothing,
@@ -388,8 +384,8 @@ function _multi_window_projection_tooltipped(projections::Vector; measure=sdl_me
     end)
     RecursiveProjection(
         TypeDispatchingProjection(
-            ScreenDocument => WindowManagerProjection(inner = CopyingProjection()),
-            WindowDocument => CopyingProjection(),
+            ScreenDocument => WindowManagerProjection(inner = ScreenToScreen()),
+            WindowDocument => ScreenToScreen(),
             CellVector     => CopyingProjection(),
             TooltipSource  => decorator,
             TextText       => SequentialProjection(WordWrapping(measure=measure), TextToGraphics(measure=measure)),
