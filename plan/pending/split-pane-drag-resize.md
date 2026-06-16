@@ -1,0 +1,171 @@
+# Drag-to-resize splitters for `WidgetSplitPane`
+
+## Goal
+
+Let the user grab a splitter between two slots of a `WidgetSplitPane` with the
+left mouse button and drag it to redistribute space between the adjacent slots,
+with live repaint during the drag. Today the splitter is a purely decorative
+`GraphicsRect` and clicks on it fall through to a dead gap.
+
+## Current state (what exists today)
+
+- **Document**: [`WidgetSplitPane`](../../program/src/document/Widget.jl#L556-L568)
+  holds `orientation`, `elements::CellVector`, `sizes::CellVector` (per-slot
+  main-axis pref/intrinsic extents), inset/colour cells, and a `selection`.
+  `sizes` may be **empty** (`CellVector()`) when constructed without `sizes=`.
+- **Render**: [`projection_print(::WidgetSplitPaneToGraphicsCanvas, …)`](../../program/src/projection/primitive/WidgetToGraphics.jl#L1231-L1340)
+  computes per-slot main-axis extents into `slot_main` cells (two regimes — see
+  below), positions children via `child_x`/`child_y` cursor cells, and draws each
+  splitter as a `GraphicsRect` of `splitter_thickness` in the gap between slots
+  ([lines 1394-1404](../../program/src/projection/primitive/WidgetToGraphics.jl#L1394-L1404)).
+- **Read**: [`projection_read(::WidgetSplitPaneToGraphicsCanvas, …)`](../../program/src/projection/primitive/WidgetToGraphics.jl#L1439-L1469)
+  handles only `MouseScroll` and `MousePress`, routing them to the **child slot**
+  under the cursor via `_route_split_event`; all other events (incl. `MouseMove`,
+  `MouseDown`, `MouseUp`) hit the `_ =>` branch and are forwarded to the focused
+  child. A press in the splitter gap hits no child canvas, so it is silently
+  dropped — the gap is currently inert (good: we can claim it).
+- **Event model**: the backend emits `MouseDown` / `MouseUp` / `MousePress`
+  (synthesised click) / `MouseMove` (carrying the held `buttons` symbol) — see
+  [`Mouse.jl`](../../program/src/device/Mouse.jl#L41-L96). `MouseMove` with a held
+  button does reach the reader ([`Sdl.jl`](../../program/src/backend/Sdl.jl#L1547)).
+- **Op flow**: [`read!`](../../program/src/editor/Editor.jl#L72-L94) turns each
+  envelope into at most one `Operation`; `evaluate!` applies it and `print!`
+  repaints, every frame. So an op emitted on each `MouseMove` gives live drag.
+- **Precedent**: the scroll-bar knob ([`projection_read`](../../program/src/projection/primitive/WidgetToGraphics.jl#L1968-L1987))
+  is **stateless** — it reacts to a single `MousePress` and computes the value
+  from the absolute click position. There is **no existing stateful drag** in the
+  codebase, and the editor has no mouse-capture / drag-state concept.
+
+## Key design challenges
+
+1. **Drag is stateful, the event pipeline is not.** Once the cursor leaves the
+   splitter band mid-drag we still need to know which splitter is being dragged.
+   We must persist "active splitter index" across `MouseDown → MouseMove* →
+   MouseUp`. There is no editor-level capture slot; the established pattern is to
+   keep transient view state **on the widget document** (selection, scroll
+   position, scrollbar value, tab selection all already live there).
+
+2. **Two sizing regimes** in `projection_print`:
+   - *Unconstrained* (`avail_main === nothing`): slot extent =
+     `_split_intrinsic(elem, sizes, i, axis)` = `sizes[i]` or a 200px fallback.
+     Writing `sizes[i]` directly sets the slot — drag maps cleanly.
+   - *Constrained* (`avail_main !== nothing`): [`allocate_axis`](../../program/src/projection/primitive/WidgetToGraphics.jl#L1298-L1313)
+     redistributes the available main extent from per-slot `(min, max, pref,
+     weight)`, where `pref` comes from `sizes`/intrinsic and `weight` from
+     `layout_weight(elem)`. Setting `sizes[i]` only changes `pref`; non-zero
+     weights can pull the final size away from the dragged boundary.
+   The drag must behave predictably in **both**.
+
+3. **`sizes` may be empty.** Before the first drag we must materialise `sizes`
+   from the *currently measured* slot extents, otherwise there is nothing to
+   mutate (and dragging from the 200px fallback would jump).
+
+4. **Total must be conserved.** Dragging splitter *k* should grow slot *k* and
+   shrink slot *k+1* (or vice-versa) by the same delta — never change the pane's
+   overall extent — and respect each slot's `layout_min`/`layout_max`.
+
+## Design decisions
+
+- **State location — transient cell on the document.** Add
+  `active_splitter::Cell{Int}` to `WidgetSplitPane` (0 = no drag in progress,
+  `k` = dragging the splitter after slot `k`). Also store
+  `drag_anchor::Cell` (the main-axis coordinate where the grab started and the
+  two slot sizes at grab time) so each `MouseMove` resizes relative to the grab
+  origin rather than accumulating rounding drift. Mark these clearly as
+  transient UI state in the docstring; they are not serialised.
+
+- **Operations** (added in `Widget.jl`, evaluated by `evaluate_operation`):
+  - `StartSplitterDragOperation(split, splitter_index, anchor_coord, size_a,
+    size_b)` — materialise `sizes` if empty, set `active_splitter` and
+    `drag_anchor`.
+  - `ResizeSplitPaneOperation(split, splitter_index, new_size_a, new_size_b)` —
+    write the two adjacent `sizes[]` cells (clamped to each slot's
+    min/max). Total conserved by construction.
+  - `EndSplitterDragOperation(split)` — reset `active_splitter = 0`.
+  Carrying the `WidgetSplitPane` identity directly mirrors
+  `ScrollWidgetOperation` / `SetScrollBarValueOperation`.
+
+- **Hit-testing the splitter band in the reader.** The band geometry is fully
+  recoverable in `projection_read`: `orientation = iomap.input.orientation`,
+  `splitter_thickness = max(1, _sc(p.splitter.width))`, and each child's screen
+  rect from the `(x_cell, y_cell, cim)` tuples in `iomap.child_iomaps[]`
+  (`cim.output::GraphicsCanvas` gives `.x/.y` + size). Splitter `k` occupies the
+  main-axis gap between child `k`'s end and child `k+1`'s start; widen it by a
+  small grab tolerance (e.g. ±3px) so a 1px hairline is easy to grab.
+
+- **Resize semantics.** On drag of splitter `k` by main-axis delta `d` from the
+  anchor: `new_size_a = clamp(size_a + d, min_a, max_a)`,
+  `new_size_b = size_b - (new_size_a - size_a)` (then clamp `b` and re-derive `a`
+  so both stay in range and the sum is preserved). Cross-axis movement ignored.
+
+- **Constrained regime correctness.** To stop `allocate_axis` from fighting the
+  drag, the two dragged slots must read their dragged size as a *hard* pref. Two
+  options, decide during Phase 2:
+  - (A) After a drag, treat the pane as pref-pinned: have `allocate_axis` honour
+    pref exactly for slots whose size was set by a drag (e.g. zero their
+    effective weight). Cleanest, keeps `sizes` the single source of truth.
+  - (B) Require dragged slots to be wrapped in fixed-size `LayoutConstraint`s and
+    rewrite the constraint extent on drag. More invasive.
+  Recommended: **(A)** — add a per-slot "pinned" flag (a `CellVector{Bool}` on
+  the pane, or sentinel weight 0) consulted in the `alloc_main_ref` builder.
+
+## Implementation phases
+
+### Phase 1 — unconstrained regime, end-to-end drag
+1. Add `active_splitter`/`drag_anchor` cells + the three operations to
+   [`Widget.jl`](../../program/src/document/Widget.jl) with `evaluate_operation`
+   methods.
+2. In [`projection_read`](../../program/src/projection/primitive/WidgetToGraphics.jl#L1439)
+   add cases **before** child routing:
+   - `MouseDown(:left)` inside a splitter band → `StartSplitterDragOperation`.
+   - `MouseMove` while `active_splitter != 0` → `ResizeSplitPaneOperation`
+     (do **not** forward to children).
+   - `MouseUp(:left)` while dragging → `EndSplitterDragOperation`.
+   Leave `MousePress`/`MouseScroll`/keyboard routing unchanged.
+3. Helper `_splitter_band_hit(p, iomap, x, y) -> Int` (0 = none) recovering band
+   geometry as described.
+4. Materialise `sizes` from measured slot extents on drag start when empty.
+5. Verify in the REPL with `make_widget_split_pane_document_example`
+   (`example/src/document/Widget.jl:189`) — drag and confirm live repaint.
+
+### Phase 2 — constrained regime (`avail_main !== nothing`)
+6. Implement decision (A): per-slot pin so a dragged slot's `sizes` pref is
+   honoured exactly by `allocate_axis`; update the `alloc_main_ref` builder
+   ([lines 1298-1313](../../program/src/projection/primitive/WidgetToGraphics.jl#L1298-L1313))
+   to consult it. Confirm a drag inside a width-constrained pane sticks and the
+   neighbour gives/takes exactly the dragged delta.
+
+### Phase 3 — polish (optional, can defer)
+7. Hover/grab cursor feedback (resize cursor over the band) — needs backend
+   cursor support; **out of scope** unless cheap.
+8. Honour `layout_min`/`layout_max` clamps visibly (don't let a slot collapse
+   below its min).
+9. Update [`guide/document/widget.md`](../../guide/document/widget.md) splitter
+   section and the [`layout-extensions`](../tentative/layout-extensions.md) note.
+
+## Testing
+
+- **Reader unit test** (new, in `test/src/projection/`): feed a synthetic
+  `MouseDown`→`MouseMove`→`MouseUp` sequence on a known-geometry split and assert
+  the emitted operations and resulting `sizes`. Mirror the routing-test style in
+  [`ProjectionConfiguringTest.jl`](../../test/src/projection/ProjectionConfiguringTest.jl#L88).
+- **Regression**: existing `MousePress` child routing and `test_repl` for the
+  split example must still pass — run `test_example(widget_split_pane_example)`
+  (or the narrowest split test) per the repo "smallest test" rule, **not**
+  `test_all`.
+- **Geometry edge cases**: empty `sizes`; 2 vs 3+ slots; vertical orientation;
+  drag past a slot's min/max.
+
+## Out of scope
+
+- Cursor shape changes (Phase 3, backend-dependent).
+- Persisting split sizes across sessions / serialising the transient cells.
+- Keyboard-driven splitter nudging.
+
+## Open questions
+
+- Confirm `MouseDown`/`MouseUp` (not just `MousePress`) are delivered to the
+  reader during a press-drag-release on the splitter (verify in `Sdl.jl` event
+  translation before relying on it).
+- Phase 2 pin mechanism: per-slot `CellVector{Bool}` on the pane vs. a sentinel
+  weight — pick whichever reads cleanest against `allocate_axis`.
