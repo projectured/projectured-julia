@@ -186,6 +186,14 @@ Add a short section showing a minimal example, similar to the existing `write_im
   produced exactly 48 packets as predicted.
 - **Manifests.** Adding `FFMPEG` required `Pkg.resolve()` in all four
   environments (root, `program/`, `example/`, `test/`).
+- **Typein needs a selection (`initial_selection` kwarg).** The reader only
+  emits an edit operation when the document has a caret, so `KeyPress` gestures
+  are silent no-ops when the recording starts selection-free. `record_video`
+  gained an `initial_selection` kwarg: when given it is applied via
+  `set_selection!` (instead of the default `clear_selection!`), so typing demos
+  work. Fix for the "typein does nothing" report.
 - **Test.** `test/src/editor/VideoTest.jl` (`test_record_video`) records a short
-  json clip, asserts the file exists and is non-empty, and checks that a non-
-  `.mp4` extension raises. Wired into `test_all` after `test_write_image`.
+  json clip (asserting the file exists and is non-empty), records a typein with
+  an `initial_selection` and asserts the typed character lands in the document,
+  and checks that a non-`.mp4` extension raises. Wired into `test_all` after
+  `test_write_image`.

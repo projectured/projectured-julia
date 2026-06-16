@@ -222,6 +222,17 @@ many seconds to display the resulting state. The initial state is shown for
 fps)` identical frames are emitted, so the frame count is predictable: the
 recording above is `15 + 9 + 9 + 15 = 48` frames at `fps=30`.
 
+Keyboard typein only edits when something is selected — with no caret the reader
+produces no operation and `KeyPress` gestures are silent no-ops. To record a
+typing demo, either make the first gesture a `MousePress` that places the caret,
+or pass an `initial_selection` (a `ReferencePath` into the document, the same
+kind of value `set_selection!` and `run_example(...; selection=…)` take):
+
+```julia
+julia> caret = @reference entries[1].key{0}   # cursor before the 1st key's 1st char
+julia> record_video(doc, proj, gestures, "/tmp/demo.mp4"; initial_selection=caret)
+```
+
 `record_video(document, projection, gestures, filename)` is the lower-level form;
 both accept `fps`, `width`, `height`, `background`, and `initial_hold`. Output
 must be `.mp4` (libx264 + `yuv420p`); encoding uses `ffmpeg` bundled via

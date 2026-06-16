@@ -21,7 +21,7 @@ import ..MouseModule: MouseDown, MouseUp, MousePress, MouseMove, MouseScroll
 import ..ImageModule: ImageFile
 import ..ProjectionApiModule: projection_print, projection_read, Projection
 import ..OperationApiModule: Operation, evaluate_operation
-import ..DocumentApiModule: clear_selection!
+import ..DocumentApiModule: clear_selection!, set_selection!
 import ..PrinterContextModule: PrinterContext
 import ..ReactiveModule: Cell
 import ..ReferenceModule: EmptyReferencePath
@@ -1320,6 +1320,13 @@ gestures = [
 ]
 record_video(doc, proj, gestures, "/tmp/demo.mp4"; fps=30)
 ```
+
+`initial_selection` controls where the caret starts. Keyboard typein (e.g.
+`KeyPress`) only produces an edit when something is selected, so to record a
+typing demo either pass an `initial_selection` (a `ReferencePath` into the
+document) or make the first gesture a `MousePress` that places the caret. When
+`initial_selection` is `nothing` (the default) the selection is cleared and the
+recording starts caret-free, mirroring a freshly opened editor.
 """
 function record_video(document, projection, gestures::AbstractVector,
                       filename::AbstractString;
@@ -1328,6 +1335,7 @@ function record_video(document, projection, gestures::AbstractVector,
                       height::Integer = 800,
                       background::NTuple{4,UInt8} = (0x00, 0x00, 0x00, 0xff),
                       initial_hold::Real = 0.5,
+                      initial_selection = nothing,
                       supersample::Integer = 2,
                       scale::Real = 1)
     lowercase(splitext(filename)[2]) == ".mp4" ||
@@ -1348,7 +1356,11 @@ function record_video(document, projection, gestures::AbstractVector,
     tmpdir = mktempdir()
     frame = Ref(0)
     try
-        clear_selection!(document)
+        if initial_selection === nothing
+            clear_selection!(document)
+        else
+            set_selection!(document, initial_selection)
+        end
         iomap = print_iomap(document)
         _emit_frames!(off, canvas_of(iomap), width, height, background,
                       tmpdir, frame, round(Int, initial_hold * fps))
