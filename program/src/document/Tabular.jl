@@ -43,7 +43,7 @@ A single data slot in a tabular structure.
 
 - `content::Document` — the cell value; any `Document` type is accepted,
   including a nested `TabularGrid` (nesting is implicit via the type system).
-- `selection::Reference` — holds the ReferencePath for cursor position.
+- `selection::Reference` — a `ReferencePath` or `nothing` (stored in a Cell).
 """
 @document struct TabularCell <: TabularDocument
     content::Document
@@ -65,7 +65,7 @@ the grid's outer CellVector changes, not the cell data of other rows.
 # Fields
 
 - `cells::CellVector` — the cells in this row; elements are `TabularCell`.
-- `selection::Reference` — holds the ReferencePath for cursor position.
+- `selection::Reference` — a `ReferencePath` or `nothing` (stored in a Cell).
 """
 @document struct TabularRow <: TabularDocument
     cells::CellVector
@@ -90,7 +90,7 @@ directions without copying.
 - `rows::CellVector` — the rows of the grid; elements are `TabularRow`.
 - `col_count::Int` — expected number of cells per row (cross-dimension size).
   Used for validation; avoids storing redundant column objects.
-- `selection::Reference` — holds the ReferencePath for cursor position.
+- `selection::Reference` — a `ReferencePath` or `nothing` (stored in a Cell).
 
 # Constructors
 

@@ -57,13 +57,13 @@ XmlTextToSyntaxLeaf(; font=font_ubuntu_monospace_regular_24, color=color_black) 
 
 function map_reference_forward(::XmlTextToSyntaxLeaf, iomap, reference)
     @reference_case reference begin
-        cell.rest... => @reference value.^(rest)
+        content.rest... => @reference value.^(rest)
     end
 end
 
 function map_reference_backward(::XmlTextToSyntaxLeaf, iomap, reference)
     @reference_case reference begin
-        value.rest... => @reference cell.^(rest)
+        value.rest... => @reference content.^(rest)
     end
 end
 
@@ -72,14 +72,14 @@ function projection_read(p::XmlTextToSyntaxLeaf, iomap, op::ReplaceSelectionOper
     path isa ConcreteReferencePath || return nothing
     h = path.head
     if h isa FieldReference && h.name == "value"
-        return ReplaceSelectionOperation(@reference cell.^(path.tail))
+        return ReplaceSelectionOperation(@reference content.^(path.tail))
     else
         return ReplaceSelectionOperation(@reference proj(p, ^(path)))
     end
 end
 
 # Type-in: a syntax-domain `.value[s:e]` edit translates to the text node's
-# `.cell[s:e]` via the same map_reference_backward used for selection reads.
+# `.content[s:e]` via the same map_reference_backward used for selection reads.
 function projection_read(p::XmlTextToSyntaxLeaf, iomap, op::StringReplaceRangeOperation)
     new_ref = map_reference_backward(p, iomap, op.reference)
     new_ref === nothing && return nothing
@@ -91,14 +91,14 @@ function _xml_text_sel(t::XmlText)
         sel = t.selection
         sel isa ConcreteReferencePath && sel.head isa ProjectionReference && return sel
         @reference_case sel begin
-            cell.rest... => @reference value.^(rest)
+            content.rest... => @reference value.^(rest)
         end
     end)
 end
 
 function projection_print(p::XmlTextToSyntaxLeaf, recursion, t::XmlText, ctx)
     output_selection = _xml_text_sel(t)
-    SimpleIoMap(p, t, SyntaxLeaf(TextString("", p.font, color_default), TextString("", p.font, color_default), TextString(() -> t.cell, p.font, p.color), output_selection))
+    SimpleIoMap(p, t, SyntaxLeaf(TextString("", p.font, color_default), TextString("", p.font, color_default), TextString(() -> t.content, p.font, p.color), output_selection))
 end
 
 # ── XmlInsertionToSyntaxLeaf ───────────────────────────────────────────────────
@@ -139,14 +139,14 @@ XmlElementToSyntaxNode(;
 
 # Selection mapping (School A). The output node's children are
 # [tag leaf (1), attrs node (2), body node (3), close leaf (4)]. The recursively
-# projected XML children live inside the body node, so .cell[i] maps to
+# projected XML children live inside the body node, so .children[i] maps to
 # .children[3].children[i] and the tail is delegated through the stored child IO
 # map — independent of what projection rendered each child. The tag and the
 # attributes are projection-introduced structure, so they map directly to their
 # fixed output positions:
-#   .tag[k]          → .children[1].value[k]
-#   .attrs[i].name[k] → .children[2].children[i].children[1].value[k]
-#   .attrs[i].cell[k] → .children[2].children[i].children[2].value[k]
+#   .tag[k]            → .children[1].value[k]
+#   .attrs[i].name[k]  → .children[2].children[i].children[1].value[k]
+#   .attrs[i].value[k] → .children[2].children[i].children[2].value[k]
 # The closing tag (child 4) renders the same .tag field but carries no cursor.
 function map_reference_forward(p::XmlElementToSyntaxNode, iomap::ChildrenIoMap, reference)
     @reference_case reference begin
@@ -156,12 +156,12 @@ function map_reference_forward(p::XmlElementToSyntaxNode, iomap::ChildrenIoMap, 
             (1 <= attr_i <= length(iomap.input.attrs)) || return nothing
             @reference children[2].children[attr_i].children[1].value.^(rest)
         end
-        attrs{s:_}.cell.rest... => begin
+        attrs{s:_}.value.rest... => begin
             attr_i = s + 1
             (1 <= attr_i <= length(iomap.input.attrs)) || return nothing
             @reference children[2].children[attr_i].children[2].value.^(rest)
         end
-        cell{s:_}.rest... => begin
+        children{s:_}.rest... => begin
             child_i = s + 1
             iomaps = iomap.child_iomaps[]
             1 <= child_i <= length(iomaps) || return nothing
@@ -184,7 +184,7 @@ function map_reference_backward(p::XmlElementToSyntaxNode, iomap::ChildrenIoMap,
                 end
             elseif child_i == 2
                 # attrs node: .children[i].children[j].value[k] →
-                #   .attrs[i].name[k]  (j == 1)  /  .attrs[i].cell[k]  (j == 2)
+                #   .attrs[i].name[k]  (j == 1)  /  .attrs[i].value[k]  (j == 2)
                 @reference_case rest begin
                     children{ai:_}.children{lj:_}.ltail... => begin
                         attr_i = ai + 1
@@ -195,7 +195,7 @@ function map_reference_backward(p::XmlElementToSyntaxNode, iomap::ChildrenIoMap,
                                 if leaf_j == 1
                                     @reference attrs[attr_i].name.^(vtail)
                                 elseif leaf_j == 2
-                                    @reference attrs[attr_i].cell.^(vtail)
+                                    @reference attrs[attr_i].value.^(vtail)
                                 else
                                     nothing
                                 end
@@ -213,14 +213,15 @@ function map_reference_backward(p::XmlElementToSyntaxNode, iomap::ChildrenIoMap,
                         child = iomaps[child_j]
                         translated = map_reference_backward(child.projection, child, tail)
                         translated === nothing && return nothing
-                        @reference cell[child_j].^(translated)
+                        @reference children[child_j].^(translated)
                     end
                 end
             else
                 # child 4 is the closing tag. It renders the same `.tag` field
                 # as the start tag (child 1), which already updates both tags
-                # reactively (`_apply_string_replace!(::XmlElement, "tag", …)`),
-                # so the end tag is intentionally display-only: it carries no
+                # reactively (a text edit threads back to `.tag[s:e]` and
+                # `splice_value!` rewrites the shared field), so the end tag is
+                # intentionally display-only: it carries no
                 # cursor forward and no edit maps back through it. Edit the tag
                 # via the start tag instead (plan §5.2, "display-only" option).
                 nothing
@@ -237,7 +238,7 @@ function projection_read(p::XmlElementToSyntaxNode, iomap::ChildrenIoMap, op::Re
     return ReplaceSelectionOperation(ConcreteReferencePath(ProjectionReference(p, ConcreteReferencePath(PositionReference(flat)))))
 end
 
-# Type-in: route a child's `.value[s:e]` edit back to `.cell[i].…` through the
+# Type-in: route a child's `.value[s:e]` edit back to `.children[i].…` through the
 # stored child IO map (School A delegation), the same path map_reference_backward
 # uses for selection reads. Edits targeting projection-introduced spans (tag,
 # attributes, closing tag) fall through to nothing.
@@ -250,14 +251,14 @@ end
 function projection_print(p::XmlElementToSyntaxNode, recursion, e::XmlElement, ctx)
     reference = ctx.reference
     child_iomaps = Cell(() -> [projection_print(recursion, recursion, child,
-                                   child_context(ctx, @reference ^(reference).cell[i]))
+                                   child_context(ctx, @reference ^(reference).children[i]))
                                for (i, child) in enumerate(e)])
 
     sel = Cell(() -> begin
         path = e.selection
         path isa ConcreteReferencePath && path.head isa ProjectionReference && return path
         @reference_case path begin
-            cell{s:_}.rest... => begin
+            children{s:_}.rest... => begin
                 child_i = s + 1
                 iomaps = child_iomaps[]
                 child_i > length(iomaps) && return nothing
@@ -339,7 +340,7 @@ function xml_escape_attr(s::AbstractString)
 end
 
 # Each attribute renders as a two-leaf node `name = "value"`. The name leaf
-# carries the cursor for `.name[k]` edits and the value leaf for `.cell[k]`
+# carries the cursor for `.name[k]` edits and the value leaf for `.value[k]`
 # edits, each mapped onto its own value span.
 function _attr_node(a::XmlAttribute, p::XmlElementToSyntaxNode)
     name_sel = Cell(() -> begin
@@ -349,7 +350,7 @@ function _attr_node(a::XmlAttribute, p::XmlElementToSyntaxNode)
     end)
     value_sel = Cell(() -> begin
         @reference_case a.selection begin
-            cell.rest... => @reference value.^(rest)
+            value.rest... => @reference value.^(rest)
         end
     end)
     SyntaxNode(
@@ -365,7 +366,7 @@ function _attr_node(a::XmlAttribute, p::XmlElementToSyntaxNode)
             SyntaxLeaf(
                 TextString("\"", p.quote_font, p.quote_color),
                 TextString("\"", p.quote_font, p.quote_color),
-                TextString(() -> xml_escape_attr(a.cell), p.attr_value_font, p.attr_value_color),
+                TextString(() -> xml_escape_attr(a.value), p.attr_value_font, p.attr_value_color),
                 value_sel),
         ])
 end
@@ -408,32 +409,32 @@ function _xml_read_command(input, evt::KeyPress)
     sel === nothing && return nothing
     target = try evaluate_reference(input, sel) catch; nothing end
     target isa XmlInsertion || return nothing
-    newdoc = ch == '"' ? _xml_sel!(XmlText(""), @reference cell{0}) :
+    newdoc = ch == '"' ? _xml_sel!(XmlText(""), @reference content{0}) :
                          _xml_sel!(XmlElement(""), @reference tag{0})
     ReplaceDocumentOperation(sel, newdoc)
 end
 
-# Append a child to an element's `.cell` and drop the cursor into it, ready to
+# Append a child to an element's `.children` and drop the cursor into it, ready to
 # author (Lisp xml/element reader `<`/`"`, :427-446). Append at the end (index
-# `length(e.cell)`), as the Lisp does.
+# `length(e.children)`), as the Lisp does.
 function _xml_child_element_insert(e::XmlElement)
-    n = length(e.cell)
-    CollectionInsertOperation(@reference(cell), n, Any[XmlElement("")],
-                              @reference cell[n + 1].tag{0})
+    n = length(e.children)
+    CollectionInsertOperation(@reference(children), n, Any[XmlElement("")],
+                              @reference children[n + 1].tag{0})
 end
 function _xml_child_text_insert(e::XmlElement)
-    n = length(e.cell)
-    CollectionInsertOperation(@reference(cell), n, Any[XmlText("")],
-                              @reference cell[n + 1].cell{0})
+    n = length(e.children)
+    CollectionInsertOperation(@reference(children), n, Any[XmlText("")],
+                              @reference children[n + 1].content{0})
 end
 
 # Insert key: a generic insertion child, selected whole so the next `<`/`"`
 # type-to-replaces it (Lisp xml/element reader Insert, :400-409). Julia has only
 # `XmlInsertion`, so it stands in for the Lisp generic `document/insertion`.
 function _xml_generic_insert(e::XmlElement)
-    n = length(e.cell)
-    CollectionInsertOperation(@reference(cell), n, Any[XmlInsertion()],
-                              @reference cell[n + 1])
+    n = length(e.children)
+    CollectionInsertOperation(@reference(children), n, Any[XmlInsertion()],
+                              @reference children[n + 1])
 end
 
 # Space gating (Lisp xml/element reader, :412-418): a new attribute is inserted
@@ -465,7 +466,7 @@ function _xml_attr_equals(e::XmlElement)
     sel = getfield(e, :selection)[]
     sel === nothing && return nothing
     @reference_case sel begin
-        attrs{s:_}.name.rest... => ReplaceSelectionOperation(@reference attrs[s + 1].cell{0})
+        attrs{s:_}.name.rest... => ReplaceSelectionOperation(@reference attrs[s + 1].value{0})
     end
 end
 

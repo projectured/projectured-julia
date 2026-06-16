@@ -15,10 +15,10 @@ Primitive values expose their content through a single cell, while compound valu
 hold their children in a `CellVector` so structural changes (insertions, deletions)
 invalidate only the affected container while leaving siblings intact.
 
-Selection semantics:
-- Primitives: `.value[k]` — character offset within the rendered text
-- Arrays: `.elements[i]` — cursor within element i
-- Objects: `.entries[i]` — cursor within entry i, then `.key[k]` or `.value` for key/value
+Selection semantics (`[i]` = 1-based item, `{k}` = 0-based cursor):
+- Primitives: `.value{k}` — cursor at boundary k of the rendered text; `.value[i]` its i-th character
+- Arrays: `.elements[i]` — the i-th element; `.elements{k}` — cursor between elements
+- Objects: `.entries[i]` — the i-th entry, then `.key{k}` (cursor in the key) or `.value` (the value document)
 """
 module JsonModule
 
@@ -26,7 +26,6 @@ import ..ReactiveModule: Cell, setfn!, setval!
 import ..DocumentModule: Document, @document
 import ..CollectionModule: CellVector
 import ..ReferenceModule: Reference, ReferencePath, ConcreteReferencePath, PositionReference, RangeReference, FieldReference, EmptyReferencePath
-import ..OperationApiModule: _apply_string_replace!, _apply_number_replace!
 export JsonDocument, JsonInsertion, JsonNull, JsonBool, JsonNumber, JsonString, JsonArray, JsonObject, JsonObjectEntry, jsonvalue, entries, setfn!,
        IJsonInsertion, IJsonNull, IJsonBool, IJsonNumber, IJsonString, IJsonArray, IJsonObject, IJsonObjectEntry
 
@@ -49,7 +48,7 @@ editor to indicate where new content should be inserted.
 
 # Fields
 
-- `selection::Reference` — holds the ReferencePath for cursor position
+- `selection::Reference` — a `ReferencePath` or `nothing` (stored in a Cell)
 """
 @document struct JsonInsertion <: JsonDocument
     value::Any
@@ -63,12 +62,12 @@ JsonInsertion() = JsonInsertion(Cell(nothing), Cell(nothing))
 """
     JsonNull
 
-Represents the JSON `null` value. Selection semantics: `.value[k]` refers
-to character k within the rendered text "null".
+Represents the JSON `null` value. Selection semantics: `.value{k}` is the
+cursor at boundary k of the rendered text "null" (0-based).
 
 # Fields
 
-- `selection::Reference` — holds the ReferencePath for cursor position
+- `selection::Reference` — a `ReferencePath` or `nothing` (stored in a Cell)
 """
 @document struct JsonNull <: JsonDocument
     selection::Reference
@@ -80,12 +79,12 @@ JsonNull() = JsonNull(Cell(nothing))
     JsonBool
 
 Represents a JSON boolean value (`true` or `false`). Selection semantics:
-`.value[k]` refers to character k of the boolean text.
+`.value{k}` is the cursor at boundary k of the boolean text (0-based).
 
 # Fields
 
 - `value::Cell` — holds the `Bool` value
-- `selection::Reference` — holds the ReferencePath for cursor position
+- `selection::Reference` — a `ReferencePath` or `nothing` (stored in a Cell)
 
 # Constructors
 
@@ -103,13 +102,14 @@ JsonBool(f::Function) = JsonBool(Cell(f), Cell(nothing))
 """
     JsonNumber
 
-Represents a JSON number value. Selection semantics: `.value[k]` refers to
-character k of the number text.
+Represents a JSON number value. Selection semantics: `.value{k}` is the cursor
+at boundary k of the number text (0-based); `.value[i]` is its i-th character.
 
 # Fields
 
-- `value::Cell` — holds the numeric value (any `Real` type)
-- `selection::Reference` — holds the ReferencePath for cursor position
+- `value::Real` or `nothing` — the numeric value, or `nothing` once the text is
+  emptied (stored in a Cell for reactivity)
+- `selection::Reference` — a `ReferencePath` or `nothing` (stored in a Cell)
 
 # Constructors
 
@@ -117,7 +117,7 @@ character k of the number text.
 - `JsonNumber(f::Function)` — computed cell with thunk `f`
 """
 @document struct JsonNumber <: JsonDocument
-    value::Real
+    value::Union{Real, Nothing}
     selection::Reference
 end
 
@@ -127,13 +127,14 @@ JsonNumber(f::Function) = JsonNumber(Cell(f), Cell(nothing))
 """
     JsonString
 
-Represents a JSON string value. Selection semantics: `.value[k]` refers to
-character k of the string value (excluding quotes).
+Represents a JSON string value. Selection semantics: `.value{k}` is the cursor
+at boundary k of the string value (0-based, excluding quotes); `.value[i]` is
+its i-th character.
 
 # Fields
 
 - `value::Cell` — holds the `String` value
-- `selection::Reference` — holds the ReferencePath for cursor position
+- `selection::Reference` — a `ReferencePath` or `nothing` (stored in a Cell)
 
 # Constructors
 
@@ -161,7 +162,7 @@ operations like indexing, push, insert, delete, sort, and reverse.
 
 - `elements::CellVector` — holds the array elements as reactive cells
 - `collapsed::Cell` — holds `Bool` indicating if array is collapsed in UI
-- `selection::Reference` — holds the ReferencePath for cursor position
+- `selection::Reference` — a `ReferencePath` or `nothing` (stored in a Cell)
 
 # Constructors
 
@@ -185,15 +186,15 @@ JsonArray(items::JsonDocument...) =
     JsonObjectEntry
 
 Represents a single key-value entry in a JSON object. Selection semantics:
-`.key[k]` refers to character k of the key, `.value` refers to cursor within
-the value document.
+`.key{k}` is the cursor at boundary k of the key (0-based), `.value` descends
+into the value document.
 
 # Fields
 
 - `key::String` — the entry key
 - `value::Cell` — holds the value (any `Document` type)
 - `collapsed::Cell` — holds `Bool` indicating if entry is collapsed in UI
-- `selection::Reference` — holds the ReferencePath for cursor position
+- `selection::Reference` — a `ReferencePath` or `nothing` (stored in a Cell)
 
 # Constructor
 
@@ -220,7 +221,7 @@ operations: `haskey`, `keys`, `values`, `getindex`, `setindex!`, `delete!`, `get
 
 - `entries::CellVector` — holds the object entries as reactive cells
 - `collapsed::Cell` — holds `Bool` indicating if object is collapsed in UI
-- `selection::Reference` — holds the ReferencePath for cursor position
+- `selection::Reference` — a `ReferencePath` or `nothing` (stored in a Cell)
 
 # Constructors
 
@@ -404,45 +405,11 @@ function Base.get(j::JsonObject, key::AbstractString, default)
     return default
 end
 
-# ── String / number replace operations ──────────────────────────────────
-
-function _apply_string_replace!(target::JsonString, field_name::AbstractString, s::Int, e::Int, replacement::AbstractString)
-    field_name == "value" || error("JsonString supports only field 'value', got: $field_name")
-    old = something(target.value, "")
-    target.value = _slice_replace(old, s, e, replacement)
-end
-
-function _apply_string_replace!(target::JsonObjectEntry, field_name::AbstractString, s::Int, e::Int, replacement::AbstractString)
-    field_name == "key" || error("JsonObjectEntry supports only field 'key', got: $field_name")
-    old = something(target.key, "")
-    target.key = _slice_replace(old, s, e, replacement)
-end
-
-# A string-domain edit can reach a JsonNumber when it is threaded back through a
-# parent array/object reader (which preserves the operation type rather than
-# re-dispatching to the leaf's JsonNumber→NumberReplaceRange conversion). Editing
-# a number's text means "reparse it", so treat the string edit as a number edit.
-_apply_string_replace!(target::JsonNumber, field_name::AbstractString, s::Int, e::Int, replacement::AbstractString) =
-    _apply_number_replace!(target, field_name, s, e, replacement)
-
-function _apply_number_replace!(target::JsonNumber, field_name::AbstractString, s::Int, e::Int, replacement::AbstractString)
-    field_name == "value" || error("JsonNumber supports only field 'value', got: $field_name")
-    old_num = target.value
-    old_str = old_num === nothing ? "" : string(old_num)
-    new_str = _slice_replace(old_str, s, e, replacement)
-    # tryparse returns `nothing` for unparseable input; the value Cell accepts it
-    # (mirrors PrimitiveModule._apply_number_replace!). Do not wrap in `something`
-    # — `something(nothing, nothing)` throws.
-    target.value = isempty(new_str) ? nothing : tryparse(Float64, new_str)
-end
-
-# Character-aware replacement helper (positions are 0-based char offsets).
-function _slice_replace(old::AbstractString, s::Int, e::Int, replacement::AbstractString)
-    n = length(old)
-    left  = s <= 0 ? "" : first(old, s)
-    right = e >= n ? "" : last(old, n - e)
-    String(left) * replacement * String(right)
-end
+# Text/number replace edits are handled generically by `splice_value!` (see
+# OperationApiModule): `JsonString.value` and `JsonObjectEntry.key` are plain
+# strings (string representation); `JsonNumber.value` is a number (a string-domain
+# edit threaded through a parent array/object reader reparses it via the number
+# representation). No per-type method is needed.
 
 # ── Display ──────────────────────────────────────────────────────────────
 

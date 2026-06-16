@@ -39,7 +39,7 @@ Represents a single cell in a table.
 # Fields
 
 - `content::Cell` — holds the cell content (any `Document` type)
-- `selection::Reference` — holds the ReferencePath for cursor position
+- `selection::Reference` — a `ReferencePath` or `nothing` (stored in a Cell)
 """
 @document struct TableCell <: TableDocument
     content::Document
@@ -59,7 +59,7 @@ Represents a row in a table.
 # Fields
 
 - `content::Document` — optional row header (e.g. "1", "2", "3")
-- `selection::Reference` — holds the ReferencePath for cursor position
+- `selection::Reference` — a `ReferencePath` or `nothing` (stored in a Cell)
 """
 @document struct TableRow <: TableDocument
     content::Document
@@ -79,7 +79,7 @@ Represents a column in a table.
 # Fields
 
 - `content::Document` — optional column header (e.g. "A", "B", "C")
-- `selection::Reference` — holds the ReferencePath for cursor position
+- `selection::Reference` — a `ReferencePath` or `nothing` (stored in a Cell)
 """
 @document struct TableColumn <: TableDocument
     content::Document
@@ -102,7 +102,7 @@ Represents a table with rows, columns, and cells.
 - `columns::CellVector` — holds the table columns
 - `cells::CellVector` — holds the table cells
 - `padding::Int` — inner padding (pixels) between cell border and content
-- `selection::Reference` — holds the ReferencePath for cursor position
+- `selection::Reference` — a `ReferencePath` or `nothing` (stored in a Cell)
 
 # Constructors
 

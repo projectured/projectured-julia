@@ -11,10 +11,11 @@ The domain includes:
 - **Attribute type**: `XmlAttribute` (first-class document for attribute values)
 - **Base type**: `XmlDocument` abstract type for all XML documents
 
-Selection semantics:
-- Elements: `.attrs[i].cell[k]` for attribute values, `.cell[i]` for child nodes
-- Text: `.cell[k]` — character offset in text content
-- Attributes: `.cell[k]` — character offset in attribute value
+Selection semantics (`[i]` = 1-based item, `{k}` = 0-based cursor):
+- Elements: `.children[i]` for the i-th child node, `.attrs[i].value{k}` for a
+  cursor in the i-th attribute's value
+- Text: `.content{k}` — cursor at boundary k of the text content
+- Attributes: `.value{k}` — cursor at boundary k of the attribute value
 """
 module XmlModule
 
@@ -22,7 +23,6 @@ import ..ReactiveModule: Cell, setfn!, setval!
 import ..DocumentModule: Document, @document
 import ..CollectionModule: CellVector
 import ..ReferenceModule: Reference
-import ..OperationApiModule: _apply_string_replace!
 export XmlDocument, XmlInsertion, XmlText, XmlAttribute, XmlElement, xmlattr, setattr!, deleteattr!, setfn!,
        IXmlInsertion, IXmlText, IXmlAttribute, IXmlElement
 
@@ -45,7 +45,7 @@ editor to indicate where new content should be inserted.
 
 # Fields
 
-- `selection::Reference` — holds the ReferencePath for cursor position
+- `selection::Reference` — a `ReferencePath` or `nothing` (stored in a Cell)
 """
 @document struct XmlInsertion <: XmlDocument
     value::Any
@@ -66,8 +66,8 @@ and assignment via `[]` and `[]=`.
 # Fields
 
 - `name::String` — the attribute name
-- `cell::Cell` — holds the attribute value as `String`
-- `selection::Reference` — holds the ReferencePath for cursor position
+- `value::String` — the attribute value (stored in a Cell)
+- `selection::Reference` — a `ReferencePath` or `nothing` (stored in a Cell)
 
 # Constructors
 
@@ -76,7 +76,7 @@ and assignment via `[]` and `[]=`.
 """
 @document struct XmlAttribute <: XmlDocument
     name::String
-    cell::String
+    value::String
     selection::Reference
 end
 
@@ -93,24 +93,24 @@ with a primitive cell holding the given string value.
 """
 xmlattr(name::AbstractString, value::AbstractString) = XmlAttribute(String(name), Cell(String(value)), Cell(nothing))
 
-Base.getindex(a::XmlAttribute) = a.cell::String
-Base.setindex!(a::XmlAttribute, v::AbstractString) = (a.cell = String(v))
-setfn!(a::XmlAttribute, f::Function) = (setfn!(getfield(a, :cell), f); a)
-setval!(a::XmlAttribute, v::AbstractString) = (setval!(getfield(a, :cell), String(v)); a)
+Base.getindex(a::XmlAttribute) = a.value::String
+Base.setindex!(a::XmlAttribute, v::AbstractString) = (a.value = String(v))
+setfn!(a::XmlAttribute, f::Function) = (setfn!(getfield(a, :value), f); a)
+setval!(a::XmlAttribute, v::AbstractString) = (setval!(getfield(a, :value), String(v)); a)
 
 # ── Text node ─────────────────────────────────────────────────────────────
 
 """
     XmlText
 
-Represents a text node in an XML document. Selection semantics: `.cell[k]`
-refers to character offset in the text content. Supports indexing and
+Represents a text node in an XML document. Selection semantics: `.content{k}`
+is the cursor at boundary k of the text content (0-based). Supports indexing and
 assignment via `[]` and `[]=`.
 
 # Fields
 
-- `cell::Cell` — holds the text content as `String`
-- `selection::Reference` — holds the ReferencePath for cursor position
+- `content::String` — the text content (stored in a Cell)
+- `selection::Reference` — a `ReferencePath` or `nothing` (stored in a Cell)
 
 # Constructors
 
@@ -118,17 +118,17 @@ assignment via `[]` and `[]=`.
 - `XmlText(f::Function)` — computed cell with thunk
 """
 @document struct XmlText <: XmlDocument
-    cell::String
+    content::String
     selection::Reference
 end
 
 XmlText(v::AbstractString) = XmlText(Cell(String(v)), Cell(nothing))
 XmlText(f::Function) = XmlText(Cell(f), Cell(nothing))
 
-Base.getindex(t::XmlText) = t.cell::String
-Base.setindex!(t::XmlText, v::AbstractString) = (t.cell = String(v))
-setfn!(t::XmlText, f::Function) = (setfn!(getfield(t, :cell), f); t)
-setval!(t::XmlText, v::AbstractString) = (setval!(getfield(t, :cell), String(v)); t)
+Base.getindex(t::XmlText) = t.content::String
+Base.setindex!(t::XmlText, v::AbstractString) = (t.content = String(v))
+setfn!(t::XmlText, f::Function) = (setfn!(getfield(t, :content), f); t)
+setval!(t::XmlText, v::AbstractString) = (setval!(getfield(t, :content), String(v)); t)
 
 # ── Element ───────────────────────────────────────────────────────────────
 
@@ -136,16 +136,17 @@ setval!(t::XmlText, v::AbstractString) = (setval!(getfield(t, :cell), String(v))
     XmlElement
 
 Represents an XML element with a tag, attributes, and child nodes. Selection
-semantics: `.attrs[i].value[k]` for attribute values, `.cell[i]` for child nodes.
-Supports array-like operations on children and dictionary-like operations on attributes.
+semantics: `.children[i]` for the i-th child node, `.attrs[i].value{k}` for a
+cursor in the i-th attribute's value. Supports array-like operations on children
+and dictionary-like operations on attributes.
 
 # Fields
 
 - `tag::String` — the element tag name
 - `attrs::CellVector` — holds `XmlAttribute` objects
-- `cell::CellVector` — holds child `XmlDocument` nodes
-- `collapsed::Cell` — holds `Bool` indicating if element is collapsed in UI
-- `selection::Reference` — holds the ReferencePath for cursor position
+- `children::CellVector` — holds child `XmlDocument` nodes
+- `collapsed::Bool` — whether the element is collapsed in the UI (stored in a Cell)
+- `selection::Reference` — a `ReferencePath` or `nothing` (stored in a Cell)
 
 # Constructors
 
@@ -157,7 +158,7 @@ Supports array-like operations on children and dictionary-like operations on att
 @document struct XmlElement <: XmlDocument
     tag::String
     attrs::CellVector
-    cell::CellVector  # holds XmlDocument children
+    children::CellVector  # holds XmlDocument children
     collapsed::Bool
     selection::Reference
 end
@@ -180,38 +181,38 @@ end
 
 # ── Children access ───────────────────────────────────────────────────────────
 
-Base.length(e::XmlElement)                = length(e.cell)
-Base.isempty(e::XmlElement)               = isempty(e.cell)
-Base.getindex(e::XmlElement, i::Integer)  = e.cell[i]
+Base.length(e::XmlElement)                = length(e.children)
+Base.isempty(e::XmlElement)               = isempty(e.children)
+Base.getindex(e::XmlElement, i::Integer)  = e.children[i]
 Base.firstindex(::XmlElement)             = 1
 Base.lastindex(e::XmlElement)             = length(e)
-Base.iterate(e::XmlElement, state...)     = iterate(e.cell, state...)
-Base.eachindex(e::XmlElement)             = eachindex(e.cell)
+Base.iterate(e::XmlElement, state...)     = iterate(e.children, state...)
+Base.eachindex(e::XmlElement)             = eachindex(e.children)
 
 function Base.push!(e::XmlElement, children::XmlDocument...)
     for c in children
-        push!(e.cell, Cell(c))
+        push!(e.children, Cell(c))
     end
     return e
 end
 
 function Base.setindex!(e::XmlElement, child::XmlDocument, i::Integer)
-    e.cell[i] = child
+    e.children[i] = child
     return child
 end
 
 function Base.deleteat!(e::XmlElement, i)
-    deleteat!(e.cell, i)
+    deleteat!(e.children, i)
     return e
 end
 
 function Base.insert!(e::XmlElement, i::Integer, child::XmlDocument)
-    insert!(e.cell, i, Cell(child))
+    insert!(e.children, i, Cell(child))
     return e
 end
 
 function Base.pop!(e::XmlElement)
-    pop!(e.cell)
+    pop!(e.children)
 end
 
 # ── Attribute access ────────────────────────────────────────────────────────────
@@ -236,7 +237,7 @@ Returns the modified element for chaining.
 function setattr!(e::XmlElement, name::AbstractString, value::AbstractString)
     for a in e.attrs
         if a.name == name
-            a.cell = String(value)
+            a.value = String(value)
             return e
         end
     end
@@ -260,56 +261,27 @@ function deleteattr!(e::XmlElement, name::AbstractString)
 end
 
 # ── String-replace operation ────────────────────────────────────────────
-
-# Type-in target: the text content of a text node. The reference arriving from
-# XmlTextToSyntaxLeaf is `.cell[s:e]`, so `field_name` is always "cell".
-function _apply_string_replace!(target::XmlText, field_name::AbstractString, s::Int, e::Int, replacement::AbstractString)
-    field_name == "cell" || error("XmlText supports only field 'cell', got: $field_name")
-    target.cell = _xml_slice_replace(target.cell::AbstractString, s, e, replacement)
-end
-
-# Type-in target: an attribute name or value. The reference arriving from
-# XmlElementToSyntaxNode is `.attrs[i].name[s:e]` or `.attrs[i].cell[s:e]`; both
-# are plain `String` cells edited between 0-based character boundaries.
-function _apply_string_replace!(target::XmlAttribute, field_name::AbstractString, s::Int, e::Int, replacement::AbstractString)
-    if field_name == "cell"
-        target.cell = _xml_slice_replace(target.cell::AbstractString, s, e, replacement)
-    elseif field_name == "name"
-        target.name = _xml_slice_replace(target.name::AbstractString, s, e, replacement)
-    else
-        error("XmlAttribute supports only fields 'cell', 'name', got: $field_name")
-    end
-end
-
-# Type-in target: an element's tag name. The reference arriving from
-# XmlElementToSyntaxNode is `.tag[s:e]`. The opening and closing tags both render
-# from this one field, so editing it updates both reactively.
-function _apply_string_replace!(target::XmlElement, field_name::AbstractString, s::Int, e::Int, replacement::AbstractString)
-    field_name == "tag" || error("XmlElement supports only field 'tag', got: $field_name")
-    target.tag = _xml_slice_replace(target.tag::AbstractString, s, e, replacement)
-end
-
-# Character-aware replacement helper (positions are 0-based char offsets).
-function _xml_slice_replace(old::AbstractString, s::Int, e::Int, replacement::AbstractString)
-    n = length(old)
-    left  = s <= 0 ? "" : first(old, s)
-    right = e >= n ? "" : last(old, n - e)
-    String(left) * replacement * String(right)
-end
+#
+# Text-replace edits for the XML domain are handled generically by `splice_value!`
+# (see OperationApiModule): the type-in target fields — `XmlText.content`,
+# `XmlAttribute.value`/`name`, and `XmlElement.tag` — are all plain strings, so
+# the string representation covers them. (The opening and closing tags both
+# render from the single `tag` field, so editing it updates both reactively.)
+# No per-type method is needed.
 
 # ── Display ───────────────────────────────────────────────────────────────
 
-Base.show(io::IO, a::XmlAttribute) = print(io, a.name, "=\"", a.cell, "\"")
+Base.show(io::IO, a::XmlAttribute) = print(io, a.name, "=\"", a.value, "\"")
 
-Base.show(io::IO, t::XmlText) = print(io, t.cell)
+Base.show(io::IO, t::XmlText) = print(io, t.content)
 
 function Base.show(io::IO, e::XmlElement)
     attr_str = isempty(e.attrs) ? "" : " " * join(string.(collect(e.attrs)), " ")
-    if isempty(e.cell)
+    if isempty(e.children)
         print(io, "<", e.tag, attr_str, "/>")
     else
         print(io, "<", e.tag, attr_str, ">")
-        for c in e.cell
+        for c in e.children
             show(io, c)
         end
         print(io, "</", e.tag, ">")

@@ -34,7 +34,6 @@ import ..ReactiveModule: Cell
 import ..DocumentModule: Document, @document
 import ..CollectionModule: CellVector
 import ..ReferenceModule: Reference
-import ..OperationApiModule: _apply_string_replace!
 export JuliaDocument, JuliaInsertion,
        JuliaIdentifier, JuliaInteger, JuliaFloat, JuliaString, JuliaBool,
        JuliaNothing, JuliaSymbol, JuliaChar,
@@ -76,14 +75,9 @@ JuliaInsertion(value::AbstractString="") = JuliaInsertion(Cell(String(value)), C
 
 Base.show(io::IO, j::JuliaInsertion) = print(io, "JuliaInsertion(", repr(j.value), ")")
 
-function _apply_string_replace!(target::JuliaInsertion, field_name::AbstractString, s::Int, e::Int, replacement::AbstractString)
-    field_name == "value" || error("JuliaInsertion supports only field 'value', got: $field_name")
-    old = something(target.value, "")
-    n = length(old)
-    left  = s <= 0 ? "" : first(old, s)
-    right = e >= n ? "" : last(old, n - e)
-    target.value = String(left) * replacement * String(right)
-end
+# A JuliaInsertion's `value` (the buffer of typed text) is a plain string, so
+# text-replace edits are handled generically by `splice_value!` (see
+# OperationApiModule). No per-type method is needed.
 
 # ── Literals ──────────────────────────────────────────────────────────────────
 

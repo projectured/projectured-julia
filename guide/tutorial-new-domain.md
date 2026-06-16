@@ -42,6 +42,13 @@ export BookmarkDocument, BookmarkInsertion,
 abstract type BookmarkDocument <: Document end
 
 # ── BookmarkInsertion ──────────────────────────────────────────────────────
+#
+# Every domain defines its own `…Insertion` type: it is the domain's *type-in
+# entry point* — the placeholder a user replaces by typing. Its reader (added
+# later) interprets the typed text in the domain's own terms (a JuliaInsertion
+# parses arbitrary Julia; a JsonInsertion builds JSON values). That is why the
+# Insertion type is per-domain rather than shared, even though the struct looks
+# generic here.
 
 @document struct BookmarkInsertion <: BookmarkDocument
     value::Any
@@ -90,6 +97,11 @@ end # module
 **Key points:**
 - Every concrete `Document` subtype carries `selection::Reference`.
 - `@document` makes `doc.title` read the cell value and `doc.title = v` write it.
+- **Field names are public API.** A selection path reaches `title` / `url` /
+  `entries` by `getfield`, so these names *are* the domain's reference
+  vocabulary — choose them deliberately; renaming one later breaks stored
+  references. (See the `Document` contract in
+  [api/Document.jl](../program/src/api/Document.jl).)
 - `CellVector` wraps a `Vector{Cell}` reactively — length changes invalidate
   downstream computed cells.
 - See [reactive cells](reactive-cells.md) and [macros](macros.md)
@@ -352,15 +364,18 @@ function test_bookmark_to_syntax()
 
 @testset "BookmarkEntry → SyntaxNode" begin
     entry = BookmarkEntry("Julia", "https://julialang.org")
-    iomap = projection_print(BookmarkEntryToSyntaxNode(), entry,
-                             PreservingProjection(),
+    # projection_print signature is (projection, recursion, document, ctx)
+    iomap = projection_print(BookmarkEntryToSyntaxNode(), PreservingProjection(),
+                             entry,
                              Projectured.PrinterContextModule.PrinterContext())
     node = iomap.output
     @test node isa SyntaxNode
-    # two children: title leaf and url leaf
-    @test length(node.elements) == 2
-    @test node.elements[1].value == "Julia"
-    @test node.elements[2].value == "https://julialang.org"
+    # two children: title leaf and url leaf. SyntaxNode's children field is
+    # `children`, and a SyntaxLeaf's `value` is a TextString — read `.value.content`
+    # for the rendered string.
+    @test length(node.children) == 2
+    @test node.children[1].value.content == "Julia"
+    @test node.children[2].value.content == "https://julialang.org"
 end
 
 @testset "BookmarkList → SyntaxNode" begin

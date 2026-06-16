@@ -8,7 +8,7 @@ from the raw device event that triggered it.
 """
 module OperationApiModule
 
-export Operation, evaluate_operation, _apply_string_replace!, _apply_number_replace!
+export Operation, evaluate_operation, splice_string, splice_value!, splice_number
 
 """
     Operation
@@ -31,26 +31,62 @@ pipeline produces an operation.
 function evaluate_operation end
 
 """
-    _apply_string_replace!(target, field_name, s, e, replacement)
+    splice_string(old, s, e, replacement) -> String
 
-Apply a string-replace edit to `target.<field_name>` between 0-based boundaries
-`[s, e]`. Each domain module adds methods for the document types whose `value`
-field (or analogous text-bearing field) is a string. The default method errors
-so missing methods are easy to diagnose.
+Replace the characters of `old` between 0-based boundaries `[s, e]` with
+`replacement`. Character-aware, so multi-byte characters survive intact.
+Boundaries are clamped: `s <= 0` keeps nothing on the left, `e >= length(old)`
+keeps nothing on the right. This is the one canonical text splice — every
+text-replace edit in every domain routes through it.
 """
-function _apply_string_replace!(target, field_name::AbstractString, s::Int, e::Int, replacement::AbstractString)
-    error("No _apply_string_replace! method for target $(typeof(target)).$(field_name)")
+function splice_string(old::AbstractString, s::Int, e::Int, replacement::AbstractString)
+    n = length(old)
+    left  = s <= 0 ? "" : first(old, s)
+    right = e >= n ? "" : last(old, n - e)
+    String(left) * replacement * String(right)
 end
 
 """
-    _apply_number_replace!(target, field_name, s, e, replacement)
+    splice_number(old_str, s, e, replacement) -> Union{Float64, Nothing}
 
-Apply a number-replace edit to `target.<field_name>`. The target's stringified
-value is updated between 0-based boundaries `[s, e]`, then parsed back to a
-number (or `nothing` on parse failure / empty result).
+Splice the textual form of a number between 0-based boundaries `[s, e]`, then
+parse the result back to a `Float64`. Returns `nothing` for an empty result or
+unparseable input (the value cell tolerates `nothing` as the empty sentinel).
 """
-function _apply_number_replace!(target, field_name::AbstractString, s::Int, e::Int, replacement::AbstractString)
-    error("No _apply_number_replace! method for target $(typeof(target)).$(field_name)")
+function splice_number(old_str::AbstractString, s::Int, e::Int, replacement::AbstractString)
+    new_str = splice_string(old_str, s, e, replacement)
+    isempty(new_str) ? nothing : tryparse(Float64, new_str)
 end
+
+"""
+    splice_value!(owner, field, value, s, e, replacement)
+
+Apply a text-replace edit to `owner.<field>` between 0-based boundaries `[s, e]`.
+Dispatch is on the *representation* of the current `value` (read from the field
+by the caller), not on the document type — so a single small set of methods
+covers every domain:
+
+- `AbstractString` — write the spliced string back through the field.
+- `Nothing`        — a cleared text field; splice against the empty string.
+- `Number`         — splice the textual form and reparse (editing a number's text
+                     means "reparse it"; see [`splice_number`](@ref)).
+- `TextString`     — the field holds a styled span; splice its `.content` in place.
+- `TextText`       — the field holds a flat span sequence; locate the span the
+                     range falls inside and splice it.
+
+The last two methods live in `TextModule` (which owns those types). A later
+unification of all replace-part operations around a reference will add a
+sequence/`CellVector` method here for structural element edits.
+"""
+function splice_value! end
+
+splice_value!(owner, field::Symbol, value::AbstractString, s::Int, e::Int, replacement::AbstractString) =
+    setproperty!(owner, field, splice_string(value, s, e, replacement))
+
+splice_value!(owner, field::Symbol, ::Nothing, s::Int, e::Int, replacement::AbstractString) =
+    setproperty!(owner, field, splice_string("", s, e, replacement))
+
+splice_value!(owner, field::Symbol, value::Number, s::Int, e::Int, replacement::AbstractString) =
+    setproperty!(owner, field, splice_number(string(value), s, e, replacement))
 
 end # module

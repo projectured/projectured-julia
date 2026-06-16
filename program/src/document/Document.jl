@@ -11,7 +11,7 @@ module DocumentCoreModule
 import ..ReactiveModule: Cell
 import ..DocumentModule: Document, @document
 import ..ReferenceModule: Reference, ReferencePath
-import ..OperationApiModule: Operation, evaluate_operation, _apply_string_replace!
+import ..OperationApiModule: Operation, evaluate_operation
 export DocumentBase, DocumentNothing, DocumentInsertion, DocumentReference,
        LoadDocumentOperation, SaveDocumentOperation, ExportDocumentOperation,
        evaluate_operation,
@@ -67,14 +67,9 @@ DocumentInsertion(value::AbstractString=""; font=nothing, selection=nothing) =
 prefix(::DocumentInsertion) = DOCUMENT_INSERTION_PREFIX
 suffix(::DocumentInsertion) = DOCUMENT_INSERTION_SUFFIX
 
-function _apply_string_replace!(target::DocumentInsertion, field_name::AbstractString, s::Int, e::Int, replacement::AbstractString)
-    field_name == "value" || error("DocumentInsertion supports only field 'value', got: $field_name")
-    old = something(target.value, "")
-    n = length(old)
-    left  = s <= 0 ? "" : first(old, s)
-    right = e >= n ? "" : last(old, n - e)
-    target.value = String(left) * replacement * String(right)
-end
+# A DocumentInsertion's `value` (the editable insertion text) is a plain string,
+# so text-replace edits are handled generically by `splice_value!` (see
+# OperationApiModule). No per-type method is needed.
 
 function Base.show(io::IO, d::DocumentInsertion)
     print(io, "DocumentInsertion(", repr(d.value), ")")
@@ -100,12 +95,19 @@ function Base.show(io::IO, d::DocumentReference)
 end
 
 # ── Operations ────────────────────────────────────────────────────────────────
+#
+# WIP / NOT YET FUNCTIONAL. These three operations are an incomplete port: their
+# evaluators read and write a `content` field (`document.content`) that no
+# `DocumentBase` subtype currently has. They are waiting on a `content`-bearing
+# document wrapper to be ported. Do not treat them as live API; they will error
+# if dispatched against any existing document type.
 
 """
     LoadDocumentOperation(document, filename)
 
-Operation that loads a document from `filename` and stores the result in
-`document`'s content cell, updating its selection accordingly.
+**WIP (incompletely ported).** Operation that loads a document from `filename`
+and stores the result in `document`'s content cell, updating its selection
+accordingly. Needs a `content`-bearing document wrapper (not yet ported).
 """
 struct LoadDocumentOperation <: Operation
     document::Document
@@ -115,7 +117,8 @@ end
 """
     SaveDocumentOperation(document, filename)
 
-Operation that serialises the content of `document` to `filename`.
+**WIP (incompletely ported).** Operation that serialises the content of
+`document` to `filename`. Needs a `content`-bearing document wrapper.
 """
 struct SaveDocumentOperation <: Operation
     document::Document
@@ -125,8 +128,8 @@ end
 """
     ExportDocumentOperation(document, filename)
 
-Operation that exports a human-readable rendering of `document`'s content
-to `filename`.
+**WIP (incompletely ported).** Operation that exports a human-readable rendering
+of `document`'s content to `filename`. Needs a `content`-bearing document wrapper.
 """
 struct ExportDocumentOperation <: Operation
     document::Document
@@ -134,6 +137,8 @@ struct ExportDocumentOperation <: Operation
 end
 
 # ── Operation evaluation ──────────────────────────────────────────────────────
+# WIP: see the note above — these reference a `content` field no current document
+# type carries.
 
 function evaluate_operation(editor, op::LoadDocumentOperation)
     doc = op.document

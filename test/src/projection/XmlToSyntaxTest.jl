@@ -71,7 +71,7 @@ end
 
 @testset "replacing a selected child insertion writes the slot in place" begin
     e = XmlElement("a", XmlDocument[XmlInsertion()])
-    op = read_key(e, (@reference cell[1]), KeyPress('<'))
+    op = read_key(e, (@reference children[1]), KeyPress('<'))
     @test op isa ReplaceDocumentOperation
     @test op.document isa XmlElement
     ed = _XmlReaderEditor(e, nothing)
@@ -115,7 +115,7 @@ end
     @test selof(e.attrs[1]) isa ConcreteReferencePath  # cursor in the name
     # Gating: Space while editing a child node declines.
     e2 = XmlElement("a", XmlDocument[XmlText("hi")])
-    @test read_key(e2, (@reference cell[1].cell{0}), KeyDown(:space, Modifiers())) === nothing
+    @test read_key(e2, (@reference children[1].content{0}), KeyDown(:space, Modifiers())) === nothing
 end
 
 @testset "Insert key inserts a generic insertion child" begin
@@ -132,7 +132,7 @@ end
     e = XmlElement("a", [XmlAttribute("k", "v")])
     op = read_key(e, (@reference attrs[1].name{0}), KeyPress('='))
     @test op isa ReplaceSelectionOperation
-    @test reference_equal(op.path, @reference attrs[1].cell{0})
+    @test reference_equal(op.path, @reference attrs[1].value{0})
     # = outside an attribute name does nothing.
     @test read_key(e, whole, KeyPress('=')) === nothing
 end

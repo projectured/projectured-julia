@@ -100,13 +100,17 @@ satisfies the IoMap interface (every iomap has `projection`, `input`,
 ## When to declare a field as `::Cell` vs. let the macro wrap it
 
 The macros wrap *every* declared field in a `Cell` regardless of the type
-annotation. The annotation is preserved in the generated I-struct (for
-`@document`) so it can be used for serialisation and type-stable
-inspection. So the rule is:
+annotation. The annotation is preserved verbatim in the generated I-struct (for
+`@document`), where it becomes an **enforced** field type. So the rule is:
 
-- Declare the field with its **logical** type (`::String`, `::Reference`,
-  `::Int`) — that is what the I-struct will use and what `setproperty!`
-  expects when writing.
+- Declare the field with its logical type (`::String`, `::Reference`, `::Int`),
+  **but the annotation must admit every value the field can actually hold.** If
+  the domain ever stores `nothing` in a field as an empty sentinel — e.g. a
+  number whose text has been fully deleted — the annotation must include it
+  (`::Union{Real, Nothing}`), or snapshotting that document (`IFoo(foo)`) will
+  throw when it tries to put `nothing` into a non-`Nothing` field. The runtime
+  struct hides this (the field is really a `Cell`), so a dishonest annotation
+  stays silent until the first snapshot.
 - The macro takes care of the Cell wrapping for the runtime struct.
 
 The only time you'd annotate `::Cell` directly is when the field really

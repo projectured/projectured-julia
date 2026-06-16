@@ -11,9 +11,9 @@ The domain includes:
 - **Container type**: `TextText` (sequence of spans)
 - **Base type**: `TextDocument` abstract type for all text documents
 
-Selection semantics:
-- Spans: `.content[k]` — character offset within the span's content
-- TextText: `.elements[i]` — cursor within span i, then `.content[k]` for character offset
+Selection semantics (`[i]` = 1-based item, `{k}` = 0-based cursor):
+- Spans: `.content{k}` — cursor at boundary k within the span's content
+- TextText: `.elements[i]` — the i-th span, then `.content{k}` for the cursor within it
 
 Each span has reactive styling fields:
 - `font` — font style (e.g., "bold", "italic", "monospace")
@@ -31,7 +31,7 @@ import ..FontModule: StyleFont, font_ubuntu_monospace_regular_24
 import ..ColorModule: StyleColor, color_default
 import ..GeometryModule: Inset
 import ..ReferenceModule: Reference
-import ..OperationApiModule: _apply_string_replace!
+import ..OperationApiModule: splice_string, splice_value!
 export TextDocument, TextInsertion, TextNewline, TextSpacing, TextString, TextGraphics, TextText, setfn!,
        ITextInsertion, ITextNewline, ITextSpacing, ITextString, ITextGraphics, ITextText
 
@@ -69,7 +69,7 @@ incremental updates.
 - `fill_color::Cell` — background fill color
 - `line_color::Cell` — border/line color
 - `padding::Cell` — inset/padding value
-- `selection::Reference` — holds the ReferencePath for cursor position
+- `selection::Reference` — a `ReferencePath` or `nothing` (stored in a Cell)
 
 # Constructor
 
@@ -104,7 +104,7 @@ in pixels or character spaces.
 - `fill_color::Cell` — background fill color
 - `line_color::Cell` — border/line color
 - `padding::Cell` — inset/padding value
-- `selection::Reference` — holds the ReferencePath for cursor position
+- `selection::Reference` — a `ReferencePath` or `nothing` (stored in a Cell)
 
 # Constructor
 
@@ -139,7 +139,7 @@ A single text span. Each field is a reactive `Cell`.
 - `padding::Cell`    — holds inset/padding value or `nothing`
 
 When a `TextText` selection path descends into a span, the sub-path
-refers to a character within the span's `content` field:  `.content[k]`
+refers to the cursor within the span's `content` field:  `.content{k}`
 """
 @document struct TextString <: TextDocument
     content::AbstractString
@@ -179,7 +179,7 @@ contributes its height to the line and occupies one atomic cursor position.
 - `fill_color::Cell` — background fill color
 - `line_color::Cell` — border/line color
 - `padding::Cell` — inset/padding value
-- `selection::Reference` — holds the ReferencePath for cursor position
+- `selection::Reference` — a `ReferencePath` or `nothing` (stored in a Cell)
 
 # Constructors
 
@@ -267,15 +267,39 @@ function Base.deleteat!(st::TextText, i)
     return st
 end
 
-# ── String-replace operation ────────────────────────────────────────
+# ── splice_value! methods for the text representations ──────────────
+#
+# These are the two non-string representations of `splice_value!` (declared in
+# OperationApiModule). They fire when a replace reference resolves to a field
+# whose *value* is a styled span or a flat span sequence — e.g. a SyntaxLeaf's
+# `open`/`value`/`close` (each a TextString) or a BookParagraph's TextText
+# content. When the target is itself a TextString edited by its `content` field,
+# the value read from the field is a plain `String` and the generic
+# AbstractString method handles it — no TextString-target method is needed.
 
-function _apply_string_replace!(target::TextString, field_name::AbstractString, s::Int, e::Int, replacement::AbstractString)
-    field_name == "content" || error("TextString supports only field 'content', got: $field_name")
-    old = target.content::AbstractString
-    n = length(old)
-    left  = s <= 0 ? "" : first(old, s)
-    right = e >= n ? "" : last(old, n - e)
-    target.content = String(left) * replacement * String(right)
+# Field value is a styled span: splice its content in place (owner unchanged).
+splice_value!(owner, field::Symbol, span::TextString, s::Int, e::Int, replacement::AbstractString) =
+    (span.content = splice_string(span.content::AbstractString, s, e, replacement); span)
+
+# Field value is a flat span sequence: the incoming `[s, e]` is a flat offset
+# across the concatenated spans. Locate the single `TextString` span the range
+# falls inside and edit it; an empty sequence grows a fresh span. Ranges that
+# straddle two spans are left for a later multi-span editing pass.
+function splice_value!(owner, field::Symbol, text::TextText, s::Int, e::Int, replacement::AbstractString)
+    pos = 0
+    have_span = false
+    for span in text
+        span isa TextString || continue
+        have_span = true
+        len = length(span.content)
+        if s >= pos && e <= pos + len
+            span.content = splice_string(span.content::AbstractString, s - pos, e - pos, replacement)
+            return text
+        end
+        pos += len
+    end
+    have_span || push!(text, TextString(replacement))
+    text
 end
 
 # ── setfn! delegation ───────────────────────────────────────────────

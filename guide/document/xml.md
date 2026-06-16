@@ -34,18 +34,18 @@ elem = XmlElement("div",
 )
 
 # Access and modify (transparent via @document macro — no [] needed)
-text.cell = "New text"
-attr.cell = "456"
+text.content = "New text"
+attr.value = "456"
 push!(elem, XmlText("More content"))
 ```
 
 ## Selection
 
-Selection paths can descend into:
+Selection paths can descend into (`[i]` = 1-based item, `{k}` = 0-based cursor):
 - Attribute access: `.attrs[i]` for the i-th attribute, `.attrs{k}` for the cursor between attributes
-- Attribute value: `.attrs[i].cell[i]` for the i-th character, `.attrs[i].cell{k}` for the cursor between characters
-- Child nodes: `.cell[i]` for the i-th child, `.cell{k}` for the cursor between children
-- Text content: `.cell[i]` for the i-th character, `.cell{k}` for the cursor between characters
+- Attribute value: `.attrs[i].value[i]` for the i-th character, `.attrs[i].value{k}` for the cursor between characters
+- Child nodes: `.children[i]` for the i-th child, `.children{k}` for the cursor between children
+- Text content: `.content[i]` for the i-th character, `.content{k}` for the cursor between characters
 
 ## Key Features
 

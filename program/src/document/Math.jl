@@ -21,9 +21,9 @@ MathAssignment(
     PrimitiveNumber(2)))
 ```
 
-Selection semantics:
-- Variables: `.name[k]` — character offset within the variable name
-- Binary operations: `.left`, `.right` — cursor within operands; `.operator[k]` — character within operator symbol
+Selection semantics (`[i]` = 1-based item, `{k}` = 0-based cursor):
+- Variables: `.name{k}` — cursor at boundary k within the variable name
+- Binary operations: `.left`, `.right` — cursor within operands; `.operator{k}` — cursor within the operator symbol
 - Parenthesized: `.content` — cursor within the inner expression
 - Assignments: `.target`, `.value` — cursor within LHS or RHS
 """

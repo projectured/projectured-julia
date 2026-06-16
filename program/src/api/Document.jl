@@ -13,8 +13,22 @@ export Document, clear_selection!, set_selection!
 """
     Document
 
-Abstract base type for all document types. Every concrete document
-must have a `selection::Reference` field tracking the current selection state.
+Abstract base type for all document types.
+
+Two contracts bind every concrete document:
+
+1. **Selection field.** Every document must have a `selection::Reference` field
+   (a `ReferencePath` or `nothing`, stored in a `Cell`) tracking the current
+   selection state.
+
+2. **Field names ARE the reference vocabulary.** A `FieldReference("foo")` in a
+   selection/reference path is resolved by `getfield(document, :foo)` — so a
+   document's *struct field names are public API*. A path like
+   `entries[1].value.value{3}` only navigates because `entries` and `value` are
+   literally field names on the documents it passes through. Renaming a field
+   silently breaks every stored reference, every hand-built `@reference`, and
+   every projection that maps onto that field. Choose field names deliberately
+   and treat them as a stable interface, not an implementation detail.
 """
 abstract type Document end
 

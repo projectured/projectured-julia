@@ -16,12 +16,12 @@ while parameter assignments set model parameters via dotted wildcard paths
 (e.g. `**.host[*].iaTime`). Per-object config options (dotted keys with a hyphen
 in the last component) are also stored as `IniParamAssignment`.
 
-Selection semantics:
-- IniFile: `.children[i]` — cursor within child i
-- IniSection: `.entries[i]` — cursor within entry i
-- IniConfigOption/IniParamAssignment: `.key[k]` or `.value[k]` — character offset
-- IniComment: `.text[k]` — character offset
-- IniInclude: `.path[k]` — character offset
+Selection semantics (`[i]` = 1-based item, `{k}` = 0-based cursor):
+- IniFile: `.children[i]` — the i-th child
+- IniSection: `.entries[i]` — the i-th entry
+- IniConfigOption/IniParamAssignment: `.key{k}` or `.value{k}` — cursor at boundary k
+- IniComment: `.text{k}` — cursor at boundary k
+- IniInclude: `.path{k}` — cursor at boundary k
 """
 module IniModule
 
@@ -29,7 +29,6 @@ import ..ReactiveModule: Cell, setfn!, setval!
 import ..DocumentModule: Document, @document
 import ..CollectionModule: CellVector
 import ..ReferenceModule: Reference
-import ..OperationApiModule: _apply_string_replace!
 export IniDocument, IniInsertion, IniComment, IniInclude, IniConfigOption, IniParamAssignment, IniSection, IniFile,
        IIniInsertion, IIniComment, IIniInclude, IIniConfigOption, IIniParamAssignment, IIniSection, IIniFile
 
@@ -63,7 +62,7 @@ A standalone comment line. `text` holds the content after `#` (the leading
 # Fields
 
 - `text::Cell` — holds comment content as `String`
-- `selection::Reference` — holds the ReferencePath for cursor position
+- `selection::Reference` — a `ReferencePath` or `nothing` (stored in a Cell)
 """
 @document struct IniComment <: IniDocument
     text::String
@@ -82,7 +81,7 @@ An `include` directive. `path` holds the included file path.
 # Fields
 
 - `path::Cell` — holds the file path as `String`
-- `selection::Reference` — holds the ReferencePath for cursor position
+- `selection::Reference` — a `ReferencePath` or `nothing` (stored in a Cell)
 """
 @document struct IniInclude <: IniDocument
     path::String
@@ -105,7 +104,7 @@ These control the simulation engine: `network`, `sim-time-limit`, `extends`,
 - `key::Cell` — option name, no dots (e.g. `"network"`, `"sim-time-limit"`)
 - `value::Cell` — value string (e.g. `"Aloha"`, `"100h"`)
 - `comment::Cell` — `Nothing` or trailing inline comment `String`
-- `selection::Reference` — holds the ReferencePath for cursor position
+- `selection::Reference` — a `ReferencePath` or `nothing` (stored in a Cell)
 """
 @document struct IniConfigOption <: IniDocument
     key::String
@@ -131,7 +130,7 @@ and per-object config options (`**.vector-recording`, `**.rng-0`, `**.typename`)
 - `key::Cell` — dotted key with optional wildcards (e.g. `"Aloha.numHosts"`, `"**.host[*].iaTime"`)
 - `value::Cell` — value string (e.g. `"20"`, `"exponential(2s)"`)
 - `comment::Cell` — `Nothing` or trailing inline comment `String`
-- `selection::Reference` — holds the ReferencePath for cursor position
+- `selection::Reference` — a `ReferencePath` or `nothing` (stored in a Cell)
 """
 @document struct IniParamAssignment <: IniDocument
     key::String
@@ -157,7 +156,7 @@ A configuration section: `[General]` or `[Config Name]` / `[Name]`.
 - `is_general::Cell` — `true` for `[General]`
 - `entries::CellVector` — holds `IniConfigOption`, `IniParamAssignment`, `IniComment`, `IniInclude`
 - `collapsed::Cell` — UI fold state
-- `selection::Reference` — holds the ReferencePath for cursor position
+- `selection::Reference` — a `ReferencePath` or `nothing` (stored in a Cell)
 """
 @document struct IniSection <: IniDocument
     name::String
@@ -225,7 +224,7 @@ and `IniInclude` nodes.
 # Fields
 
 - `children::CellVector` — holds `IniSection`, `IniComment`, `IniInclude`
-- `selection::Reference` — holds the ReferencePath for cursor position
+- `selection::Reference` — a `ReferencePath` or `nothing` (stored in a Cell)
 """
 @document struct IniFile <: IniDocument
     children::CellVector
@@ -274,49 +273,10 @@ function Base.pop!(f::IniFile)
     pop!(f.children)
 end
 
-# ── String-replace operations ────────────────────────────────────────────────
-
-function _ini_slice_replace(old::AbstractString, s::Int, e::Int, replacement::AbstractString)
-    n = length(old)
-    left  = s <= 0 ? "" : first(old, s)
-    right = e >= n ? "" : last(old, n - e)
-    String(left) * replacement * String(right)
-end
-
-function _apply_string_replace!(target::IniConfigOption, field_name::AbstractString, s::Int, e::Int, replacement::AbstractString)
-    if field_name == "key"
-        target.key = _ini_slice_replace(target.key::AbstractString, s, e, replacement)
-    elseif field_name == "value"
-        target.value = _ini_slice_replace(target.value::AbstractString, s, e, replacement)
-    else
-        error("IniConfigOption supports only fields 'key', 'value', got: $field_name")
-    end
-end
-
-function _apply_string_replace!(target::IniParamAssignment, field_name::AbstractString, s::Int, e::Int, replacement::AbstractString)
-    if field_name == "key"
-        target.key = _ini_slice_replace(target.key::AbstractString, s, e, replacement)
-    elseif field_name == "value"
-        target.value = _ini_slice_replace(target.value::AbstractString, s, e, replacement)
-    else
-        error("IniParamAssignment supports only fields 'key', 'value', got: $field_name")
-    end
-end
-
-function _apply_string_replace!(target::IniComment, field_name::AbstractString, s::Int, e::Int, replacement::AbstractString)
-    field_name == "text" || error("IniComment supports only field 'text', got: $field_name")
-    target.text = _ini_slice_replace(target.text::AbstractString, s, e, replacement)
-end
-
-function _apply_string_replace!(target::IniInclude, field_name::AbstractString, s::Int, e::Int, replacement::AbstractString)
-    field_name == "path" || error("IniInclude supports only field 'path', got: $field_name")
-    target.path = _ini_slice_replace(target.path::AbstractString, s, e, replacement)
-end
-
-function _apply_string_replace!(target::IniSection, field_name::AbstractString, s::Int, e::Int, replacement::AbstractString)
-    field_name == "name" || error("IniSection supports only field 'name', got: $field_name")
-    target.name = _ini_slice_replace(target.name::AbstractString, s, e, replacement)
-end
+# Text-replace edits for the INI domain are handled generically by
+# `splice_value!` (see OperationApiModule): every type-in target field
+# (`key`, `value`, `text`, `path`, `name`) is a plain string. No per-type
+# method is needed.
 
 # ── Display ──────────────────────────────────────────────────────────────────
 

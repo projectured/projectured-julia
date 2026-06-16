@@ -13,9 +13,9 @@ The domain includes:
 - **Container types**: `SyntaxConcatenation`, `SyntaxSeparation` (for combining documents)
 - **Base type**: `SyntaxDocument` abstract type for all syntax documents
 
-Selection semantics:
-- Leaves: `.open[k]`, `.value[k]`, `.close[k]` — character offset in delimiters or value
-- Nodes: `.open[k]`, `.close[k]` for delimiters, `.children[i]` for child nodes
+Selection semantics (`[i]` = 1-based item, `{k}` = 0-based cursor):
+- Leaves: `.open{k}`, `.value{k}`, `.close{k}` — cursor at boundary k in a delimiter or the value
+- Nodes: `.open{k}`, `.close{k}` for delimiters, `.children[i]` for the i-th child
 """
 module SyntaxModule
 
@@ -26,7 +26,6 @@ import ..TextModule: TextString
 import ..ReferenceModule: Reference
 import ..FontModule: font_ubuntu_monospace_regular_24
 import ..ColorModule: color_default
-import ..OperationApiModule: _apply_string_replace!
 export SyntaxNode, SyntaxLeaf, SyntaxDocument, SyntaxInsertion, render, setfn!,
        SyntaxDelimitation, SyntaxIndentation, SyntaxCollapsible,
        SyntaxNavigation, SyntaxConcatenation, SyntaxSeparation,
@@ -63,7 +62,7 @@ bracket-style delimiters to any document type.
 - `content` — the wrapped document
 - `opening_delimiter::TextString` — the opening delimiter text
 - `closing_delimiter::TextString` — the closing delimiter text
-- `selection::Reference` — holds the ReferencePath for cursor position
+- `selection::Reference` — a `ReferencePath` or `nothing` (stored in a Cell)
 
 # Constructor
 
@@ -89,7 +88,7 @@ pretty-printing indentation for structured documents.
 
 - `content` — the wrapped document
 - `indentation::Int` — the indentation level (number of spaces/tabs)
-- `selection::Reference` — holds the ReferencePath for cursor position
+- `selection::Reference` — a `ReferencePath` or `nothing` (stored in a Cell)
 
 # Constructor
 
@@ -114,7 +113,7 @@ collapse/expand portions of the document tree.
 
 - `content` — the wrapped document
 - `collapsed::Cell` — holds `Bool` indicating if collapsed
-- `selection::Reference` — holds the ReferencePath for cursor position
+- `selection::Reference` — a `ReferencePath` or `nothing` (stored in a Cell)
 
 # Constructor
 
@@ -138,7 +137,7 @@ that the cursor should be positioned at this location.
 # Fields
 
 - `content` — the wrapped document
-- `selection::Reference` — holds the ReferencePath for cursor position
+- `selection::Reference` — a `ReferencePath` or `nothing` (stored in a Cell)
 
 # Constructor
 
@@ -160,7 +159,7 @@ join documents end-to-end.
 # Fields
 
 - `children::CellVector` — holds the child `SyntaxDocument` nodes
-- `selection::Reference` — holds the ReferencePath for cursor position
+- `selection::Reference` — a `ReferencePath` or `nothing` (stored in a Cell)
 
 # Constructors
 
@@ -187,7 +186,7 @@ Used to join documents with a specific separator string.
 
 - `children::CellVector` — holds the child `SyntaxDocument` nodes
 - `separator::TextString` — the separator text string
-- `selection::Reference` — holds the ReferencePath for cursor position
+- `selection::Reference` — a `ReferencePath` or `nothing` (stored in a Cell)
 
 # Constructors
 
@@ -216,9 +215,9 @@ Each of `open`, `close`, `value` is a `TextString` carrying text, font, and colo
 Renders as: open.content * value.content * close.content
 
 The `selection` cell holds a path into the leaf's rendered span, or `nothing`:
-  `.open[k]`   — character k of the open delimiter
-  `.value[k]`  — character k of the value content
-  `.close[k]`  — character k of the close delimiter
+  `.open{k}`   — cursor at boundary k of the open delimiter (0-based)
+  `.value{k}`  — cursor at boundary k of the value content
+  `.close{k}`  — cursor at boundary k of the close delimiter
 """
 @document struct SyntaxLeaf <: SyntaxDocument
     open::TextString
@@ -257,10 +256,10 @@ Each of `open`, `close`, `sep` is a `TextString` carrying text, font, and color.
 Renders as: open.content * join(children, sep.content) * close.content
 
 The `selection` cell routes a cursor into the rendered node, or `nothing`:
-  `.open[k]`          — cursor at character k of the open delimiter
-  `.close[k]`         — cursor at character k of the close delimiter
-  `.children[i]`      — cursor within child i; set_selection! clears all other
-                        children and propagates the rest into child i
+  `.open{k}`          — cursor at boundary k of the open delimiter (0-based)
+  `.close{k}`         — cursor at boundary k of the close delimiter
+  `.children[i]`      — descend into the i-th child (1-based); set_selection!
+                        clears all other children and propagates the rest into child i
 """
 @document struct SyntaxNode <: SyntaxDocument
     open::TextString
@@ -297,29 +296,10 @@ SyntaxNode(open::AbstractString, close::AbstractString, sep::AbstractString,
       f::Function; indentation::Int = 0) =
     SyntaxNode(TextString(open), TextString(close), TextString(sep), CellVector(f), indentation, false, nothing)
 
-# ── String-replace operation ────────────────────────────────────────────
-
-function _apply_string_replace!(target::SyntaxLeaf, field_name::AbstractString, s::Int, e::Int, replacement::AbstractString)
-    field_name in ("open", "value", "close") ||
-        error("SyntaxLeaf supports only fields 'open', 'value', 'close', got: $field_name")
-    span = getproperty(target, Symbol(field_name))::TextString
-    old = span.content::AbstractString
-    n = length(old)
-    left  = s <= 0 ? "" : first(old, s)
-    right = e >= n ? "" : last(old, n - e)
-    span.content = String(left) * replacement * String(right)
-end
-
-function _apply_string_replace!(target::SyntaxNode, field_name::AbstractString, s::Int, e::Int, replacement::AbstractString)
-    field_name in ("open", "close", "sep") ||
-        error("SyntaxNode supports only fields 'open', 'close', 'sep', got: $field_name")
-    span = getproperty(target, Symbol(field_name))::TextString
-    old = span.content::AbstractString
-    n = length(old)
-    left  = s <= 0 ? "" : first(old, s)
-    right = e >= n ? "" : last(old, n - e)
-    span.content = String(left) * replacement * String(right)
-end
+# Text-replace edits on a SyntaxLeaf (`open`/`value`/`close`) or SyntaxNode
+# (`open`/`close`/`sep`) are handled generically by `splice_value!`: each of
+# those fields holds a TextString, so the TextString representation (defined in
+# TextModule) splices the span's content. No per-type method is needed.
 
 # ── Unparse (render to string) ──────────────────────────────────────────
 

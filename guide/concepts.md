@@ -116,6 +116,13 @@ currently focused position. It is expressed as a sequence of *reference steps*:
 For example, `[1] + .value + {3}` means: first entry of an object → its value
 field → cursor at offset 3 within that value.
 
+A `.field` step is resolved by `getfield(document, :field)`, so **a document's
+struct field names *are* its public reference vocabulary**: `.value`, `.entries`,
+`.children` work because those are literally field names. This is a deliberate,
+load-bearing design choice — it means renaming a field is a breaking change to
+every stored selection and every projection. (See the `Document` contract in
+[api/Document.jl](../program/src/api/Document.jl).)
+
 Every document node carries its own `selection` field — the *suffix* of the
 full selection path that starts at that node. This distributed storage means
 the projection can read a node's selection without knowing the full path to the

@@ -11,7 +11,7 @@ import ..ReactiveModule: Cell, setfn!, setval!
 import ..DocumentModule: Document, @document
 import ..DocumentApiModule: clear_selection!, set_selection!
 import ..OperationApiModule: Operation, evaluate_operation,
-                              _apply_string_replace!, _apply_number_replace!
+                              splice_string, splice_value!, splice_number
 import ..ReferenceModule: Reference, ReferencePath, ConcreteReferencePath, EmptyReferencePath,
                           ReferenceStep, FieldReference, RangeReference, evaluate_reference
 export PrimitiveDocument, PrimitiveInsertion, PrimitiveBool, PrimitiveNumber, PrimitiveString,
@@ -56,7 +56,7 @@ A primitive domain-independent number document with selection and identity.
 `value` is a `Cell` holding a `Number` or `nothing`.
 """
 @document struct PrimitiveNumber <: PrimitiveDocument
-    value::Number
+    value::Union{Number, Nothing}
     selection::Reference
 end
 
@@ -72,7 +72,7 @@ A primitive domain-independent string document with selection and identity.
 `value` is a `Cell` holding a `String` or `nothing`.
 """
 @document struct PrimitiveString <: PrimitiveDocument
-    value::String
+    value::Union{String, Nothing}
     selection::Reference
 end
 
@@ -124,8 +124,8 @@ end
 # Split `op.reference` into (target_path, field_name, range_step). The
 # penultimate step is the field-name carrying the text/number value; the
 # terminal step is the RangeReference. The field name is data, not a
-# precondition — each domain interprets it via its own `_apply_*_replace!`
-# method.
+# precondition — `splice_value!` interprets the field's current value by its
+# representation (string / number / span / span-sequence).
 function _split_replace_reference(path::ReferencePath)
     steps = ReferenceStep[]
     cur = path
@@ -167,11 +167,18 @@ function _replace_terminal_with_cursor(path::ReferencePath, replacement::Abstrac
     result
 end
 
+# A number edit always has number semantics regardless of the field's current
+# value (an empty/cleared field reparses from ""), so it does not go through the
+# representation-dispatched `splice_value!` — it forces the number path here.
 function evaluate_operation(editor, op::NumberReplaceRangeOperation)
     document = editor.document
     target_path, field_name, range_step = _split_replace_reference(op.reference)
     target = evaluate_reference(document, target_path)
-    _apply_number_replace!(target, field_name, range_step.start, range_step.stop, op.replacement)
+    field = Symbol(field_name)
+    old = getproperty(target, field)
+    setproperty!(target, field,
+                 splice_number(old === nothing ? "" : string(old),
+                               range_step.start, range_step.stop, op.replacement))
     _replace_selection_with_cursor!(document, op)
 end
 
@@ -179,7 +186,9 @@ function evaluate_operation(editor, op::StringReplaceRangeOperation)
     document = editor.document
     target_path, field_name, range_step = _split_replace_reference(op.reference)
     target = evaluate_reference(document, target_path)
-    _apply_string_replace!(target, field_name, range_step.start, range_step.stop, op.replacement)
+    field = Symbol(field_name)
+    splice_value!(target, field, getproperty(target, field),
+                  range_step.start, range_step.stop, op.replacement)
     _replace_selection_with_cursor!(document, op)
 end
 
@@ -192,30 +201,9 @@ function _replace_selection_with_cursor!(document, op)
     set_selection!(document, new_path)
 end
 
-# Apply the replacement to `old_str` between 0-based **character** boundaries
-# [s, e]. Uses char-aware slicing so multi-byte characters survive intact.
-function _apply_range_replace(old_str::AbstractString, s::Int, e::Int, replacement::AbstractString)
-    n = length(old_str)
-    left  = s <= 0 ? "" : first(old_str, s)
-    right = e >= n ? "" : last(old_str, n - e)
-    String(left) * replacement * String(right)
-end
-
-# ── Primitive domain implementations ─────────────────────────────────────────
-
-function _apply_string_replace!(target::PrimitiveString, field_name::AbstractString, s::Int, e::Int, replacement::AbstractString)
-    field_name == "value" || error("PrimitiveString supports only field 'value', got: $field_name")
-    old_str = something(target.value, "")
-    target.value = _apply_range_replace(old_str, s, e, replacement)
-end
-
-function _apply_number_replace!(target::PrimitiveNumber, field_name::AbstractString, s::Int, e::Int, replacement::AbstractString)
-    field_name == "value" || error("PrimitiveNumber supports only field 'value', got: $field_name")
-    old_num = target.value
-    old_str = old_num === nothing ? "" : string(old_num)
-    new_str = _apply_range_replace(old_str, s, e, replacement)
-    target.value = isempty(new_str) ? nothing : tryparse(Float64, new_str)
-end
+# Text/number edits to PrimitiveString / PrimitiveNumber are handled generically
+# by `splice_value!` (string / number representations) — no per-type method
+# needed; the value field is a plain `String`/`Number`.
 
 # ── Sequence interface for PrimitiveString ────────────────────────────────────
 
