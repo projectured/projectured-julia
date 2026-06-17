@@ -49,6 +49,7 @@ include("projection/WidgetTextEditTest.jl")
 include("projection/DocumentInsertionTest.jl")
 include("projection/ConversationEditorTest.jl")
 include("projection/CopyingProjectionTest.jl")
+include("projection/ClipboardToAnyTest.jl")
 include("projection/TooltipTest.jl")
 include("projection/SplitPaneDragTest.jl")
 include("projection/GraphicsToFileTest.jl")
@@ -117,6 +118,7 @@ function test_projections()
         test_projection_configuring()
         test_widget_text_editing()
         test_copying_projection()
+        test_clipboard_to_any()
         test_tooltip()
         test_split_pane_drag()
         test_write_image()
@@ -172,7 +174,7 @@ end
 export test_all
 export test_cell, test_reference_builder, test_type_reference, test_event_case
 export test_json, test_syntax, test_text, test_graphics, test_graphics_layout, test_layout_allocator, test_layout_constraint_helpers, test_collection, test_tabular, test_primitive, test_ini, test_ini_parser, test_ned, test_ned_parser, test_json_parser, test_xml_parser
-export test_json_to_syntax, test_json_to_syntax_reader, test_syntax_to_text, test_syntax_tree_selection, test_filesystem_to_syntax, test_primitive_to_text, test_text_to_graphics, test_word_wrapping, test_text_filtering, test_text_highlighting, test_object_to_widget, test_projection_configuring, test_widget_text_editing, test_copying_projection, test_write_image, test_record_video, test_tooltip, test_split_pane_drag
+export test_json_to_syntax, test_json_to_syntax_reader, test_syntax_to_text, test_syntax_tree_selection, test_filesystem_to_syntax, test_primitive_to_text, test_text_to_graphics, test_word_wrapping, test_text_filtering, test_text_highlighting, test_object_to_widget, test_projection_configuring, test_widget_text_editing, test_copying_projection, test_clipboard_to_any, test_write_image, test_record_video, test_tooltip, test_split_pane_drag
 export test_table, test_table_selection, test_table_navigation, explore_table_selections
 export test_examples, test_text_navigations, test_text_navigations_complete
 export test_printer, test_printers, test_example, test_text_navigation
