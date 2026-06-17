@@ -72,12 +72,13 @@ function test_record_video()
 
     @testset "assistant conversation demo records and waits for the reply" begin
         # Drives the full assistant composer: prose → julia eval → prose → submit,
-        # then `wait_for` lets the FakeLlm reply land before the final frames.
+        # then `wait_for` lets the FakeLlm reply land before the final frames. Uses
+        # the default reply (a fenced ```julia block + a multi-byte em dash) so the
+        # markdown→JuliaDocument parse and the FakeLlm char-chunking are exercised.
         filename = tempname() * ".mp4"
-        reply = "Sure, 720 it is."
         ok = try
             record_assistant_conversation_video(filename;
-                reply = reply, fps = 10, width = 800, height = 600, supersample = 1)
+                fps = 10, width = 800, height = 600, supersample = 1, final_hold = 0.5)
             true
         catch e
             @warn "assistant video test skipped (ffmpeg unavailable?): $e"

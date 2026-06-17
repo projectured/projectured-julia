@@ -113,14 +113,18 @@ function stream_turn(b::FakeLlm,
     on_event((type = :content_block_start,
               data = Dict{Symbol,Any}(:content_block =>
                                        Dict{Symbol,Any}(:type => "text"))))
-    n = length(b.reply)
+    # Chunk by character, not byte: `b.reply[i:j]` indexes bytes and throws on
+    # any multi-byte character (e.g. an em dash or emoji), so collect to a Char
+    # vector and slice that.
+    chars = collect(b.reply)
+    n = length(chars)
     i = 1
     while i <= n
         j = min(i + b.chunk_size - 1, n)
         on_event((type = :content_block_delta,
                   data = Dict{Symbol,Any}(:delta =>
                                             Dict{Symbol,Any}(:type => "text_delta",
-                                                              :text => b.reply[i:j]))))
+                                                              :text => String(chars[i:j])))))
         b.delay > 0 && sleep(b.delay)
         i = j + 1
     end
