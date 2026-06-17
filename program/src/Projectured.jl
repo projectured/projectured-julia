@@ -30,6 +30,7 @@ include("context/PrinterContext.jl")
 include("common/Operation.jl")
 include("document/Document.jl")
 include("document/Collection.jl")
+include("common/DocumentCopy.jl")
 include("document/Font.jl")
 include("document/Color.jl")
 include("document/StyleText.jl")
@@ -107,6 +108,9 @@ include("device/Keyboard.jl")
 include("device/Mouse.jl")
 include("device/EventCase.jl")
 include("projection/generic/Focusing.jl")
+# Clipboard projection: needs the keyboard/event-case device modules above plus
+# the clipboard documents, copy_document, and operations included earlier.
+include("projection/primitive/ClipboardToAny.jl")
 
 # Higher-order projection that depends on ObjectToWidget (generic) and the
 # keyboard device, so it is included here rather than with the other
@@ -199,7 +203,7 @@ using .StyleStrokeModule
 using .ImageModule
 using .ScreenDocumentModule
 using .ReactiveModule: Cell, setval!, setfn!, isuptodate
-using .ProjectionApiModule: projection_print, projection_read, map_reference_forward, map_reference_backward, Projection
+using .ProjectionApiModule: projection_print, projection_read, map_reference_forward, map_reference_backward, Projection, Change, as_change
 using .ReferenceModule: ConcreteReferencePath, ElementReference, PositionReference, RangeReference, FieldReference,
                        TypeReference, FunctionReference, ProjectionReference, PointReference,
                        TextRectangularReference,
@@ -213,7 +217,8 @@ using .PrinterContextModule: PrinterContext, child_context, with_available_size,
 using .DocumentApiModule: set_selection!, clear_selection!
 using .OperationModule: ReplaceSelectionOperation, QuitEditorOperation, replace_selection!,
                         OpenWindowOperation, CloseWindowOperation, ResizeWindowOperation, ToggleCollapseOperation,
-                        ReplaceDocumentOperation, ReplaceReferencedValue, CollectionInsertOperation, CollectionDeleteOperation
+                        ReplaceDocumentOperation, ReplaceReferencedValue, CollectionInsertOperation, CollectionDeleteOperation,
+                        CompoundOperation
 using .ReferenceCaseModule: var"@reference_case", when, prefix
 using .EventCaseModule: var"@event_case"
 using .ReferenceBuilderModule: var"@reference", var"@step"
@@ -302,6 +307,10 @@ using .ObjectToWidgetModule: ObjectToWidget, ObjectToWidgetIoMap
 using .ProjectionConfiguringProjectionModule: ProjectionConfiguringProjection, ProjectionConfiguringProjectionIoMap
 using .SortingProjectionModule: SortingProjection, SortingProjectionIoMap
 using .CopyingProjectionModule: CopyingProjection, CopyingProjectionIoMap
+using .DocumentCopyModule: copy_document
+using .ClipboardToAnyProjectionModule: ClipboardSliceToAnyProjection, ClipboardCollectionToAnyProjection,
+                                     ClipboardSliceToAnyProjectionIoMap, ClipboardCollectionToAnyProjectionIoMap,
+                                     ToggleClipboardSliceDisplayOperation, ToggleClipboardCollectionDisplayOperation
 using .FocusingProjectionModule: FocusingProjection, ReplaceFocusPartOperation
 using .JsonToSyntaxModule: JsonToSyntax, JsonStringToSyntaxLeaf,
                                JsonNullToSyntaxLeaf, JsonBoolToSyntaxLeaf,
@@ -464,7 +473,7 @@ using .ConversationEditorModule: ConversationComposerToWidget, composer_read,
 
 export @document, @projection, @iomap
 export Cell, setval!, setfn!, isuptodate, take_first_n
-export projection_print, projection_read, map_reference_forward, map_reference_backward, Projection
+export projection_print, projection_read, map_reference_forward, map_reference_backward, Projection, Change, as_change
 export ConcreteReferencePath, ElementReference, PositionReference, RangeReference, FieldReference, TypeReference,
        FunctionReference, ProjectionReference, PointReference, TextRectangularReference, ReferencePath, EmptyReferencePath,
        is_valid_reference, evaluate_reference, append_reference, collect_references,
@@ -478,6 +487,7 @@ export @event_case
 export @reference, @step
 export ReplaceSelectionOperation, QuitEditorOperation, ToggleCollapseOperation
 export ReplaceDocumentOperation, ReplaceReferencedValue, CollectionInsertOperation, CollectionDeleteOperation
+export CompoundOperation
 export OpenWindowOperation, CloseWindowOperation, ResizeWindowOperation
 export JsonDocument, JsonInsertion, JsonNull, JsonBool, JsonNumber, JsonString, JsonArray, JsonObject, JsonObjectEntry, jsonvalue, entries
 export TabularDocument, TabularCell, TabularRow, TabularGrid,
@@ -635,6 +645,10 @@ export BookBookToSyntaxNode, BookChapterToSyntaxNode,
        BookParagraphToSyntaxLeaf, BookListToSyntaxNode,
        BookPictureToSyntaxLeaf, BookToSyntax
 export ClipboardDocument, ClipboardInsertion, ClipboardSlice, ClipboardCollection
+export copy_document
+export ClipboardSliceToAnyProjection, ClipboardCollectionToAnyProjection,
+       ClipboardSliceToAnyProjectionIoMap, ClipboardCollectionToAnyProjectionIoMap,
+       ToggleClipboardSliceDisplayOperation, ToggleClipboardCollectionDisplayOperation
 export CellVector, CellMatrix, CellTable, ListNode, CollectionDocument, left_tail, right_tail, cell_at
 export Inset, StyleColor, Point2D, color_default
 export WidgetDocument, WidgetInsertion,

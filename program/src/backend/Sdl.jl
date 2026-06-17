@@ -238,6 +238,20 @@ function sdl_keysym_to_symbol(keysym::Int32)::Symbol
     keysym == Int32(27)         && return :escape
     keysym == Int32(32)         && return :space
     keysym == Int32(46)         && return :period   # '.' — used by the Ctrl+. fold chord
+    # Clipboard projection chords (ClipboardToAnyProjectionModule): the letter and
+    # punctuation keys it binds need distinct symbols rather than the `:char`
+    # fallback so `@event_case` can tell them apart under Ctrl.
+    keysym == Int32(99)         && return :c        # Ctrl+C — copy
+    keysym == Int32(120)        && return :x        # Ctrl+X — cut
+    keysym == Int32(118)        && return :v        # Ctrl+V — paste
+    keysym == Int32(110)        && return :n        # Ctrl+N — note
+    keysym == Int32(47)         && return :slash    # '/' — toggle slice display
+    keysym == Int32(1073741908) && return :slash    # keypad '/'
+    keysym == Int32(1073741909) && return :asterisk # keypad '*' — toggle collection display
+    keysym == Int32(61)         && return :equals   # '=' — add to collection
+    keysym == Int32(1073741911) && return :equals   # keypad '+'
+    keysym == Int32(45)         && return :minus    # '-' — remove from collection
+    keysym == Int32(1073741910) && return :minus    # keypad '-'
     keysym == Int32(1073741881) && return :caps_lock
     # Modifier-only keys
     keysym == Int32(1073742048) && return :lctrl
