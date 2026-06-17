@@ -1828,9 +1828,14 @@ function _route_active_tab(iomap::ChildrenIoMap, child_iomaps::Vector, evt)
     (ox, oy, cim) = entry::Tuple{Int,Int,Any}
     canvas = cim.output
     canvas isa GraphicsCanvas || return nothing
-    # Mouse events: translate coords into the tab's local frame and
-    # hit-test before forwarding. Coordless events (KeyDown, KeyPress, …)
-    # are forwarded as-is to the active tab's reader.
+    # Mouse events: translate coords into the tab's local frame before
+    # forwarding. `MousePress`/`MouseScroll` also hit-test (a click/scroll
+    # outside the content is dropped). The drag events `MouseDown`/`MouseUp`/
+    # `MouseMove` are translated too but not hit-gated — a splitter drag inside
+    # the active tab must keep receiving motion even when the cursor strays off
+    # the content, and the translation is what lets the tab's own splitter band
+    # line up with where it is drawn (otherwise the grab region is offset by the
+    # tab strip's height). Coordless events (KeyDown, KeyPress, …) pass through.
     child_evt = @event_case evt begin
         MousePress(button, x, y) => begin
             lx, ly = x - ox - Int(canvas.x), y - oy - Int(canvas.y)
@@ -1842,6 +1847,12 @@ function _route_active_tab(iomap::ChildrenIoMap, child_iomaps::Vector, evt)
             hit_element_at(canvas, lx, ly) === nothing && return nothing
             MouseScroll(dx, dy, lx, ly)
         end
+        MouseDown(button, x, y) =>
+            MouseDown(button, x - ox - Int(canvas.x), y - oy - Int(canvas.y), evt.modifiers)
+        MouseUp(button, x, y) =>
+            MouseUp(button, x - ox - Int(canvas.x), y - oy - Int(canvas.y), evt.modifiers)
+        MouseMove(x, y) =>
+            MouseMove(x - ox - Int(canvas.x), y - oy - Int(canvas.y), evt.buttons, evt.modifiers)
         _ => evt
     end
     op = projection_read(cim.projection, cim, child_evt)

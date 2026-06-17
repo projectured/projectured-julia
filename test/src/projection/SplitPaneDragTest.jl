@@ -106,5 +106,34 @@ end
     @test 379 <= xs[2] <= 381   # second child starts right after the 380px slot
 end
 
+@testset "splitter inside a WidgetTabbedPane is grabbable at its drawn position" begin
+    # Regression: a split nested in a tabbed pane is offset by the tab strip.
+    # The tabbed-pane reader must translate the drag events' coordinates into
+    # the active tab's frame, otherwise the grab region floats above where the
+    # splitter is actually drawn (the bug that made the assistant
+    # conversation/draft splitter unmovable in the workbench).
+    top    = WidgetTitlePane("T", WidgetLabel(Point2D(8, 8), "t"))
+    bottom = WidgetTitlePane("B", WidgetLabel(Point2D(8, 8), "b"))
+    split  = WidgetSplitPane(:vertical, Any[top, bottom]; sizes=[150, 150])
+    tabbed = WidgetTabbedPane(Any[("Tab", split)])
+    proj   = _proj()
+    iomap  = projection_print(proj, tabbed)
+
+    # The splitter is drawn at slot1 (150px) plus the tab strip offset, i.e.
+    # well below screen-y 150. Find where a MouseDown actually starts the drag.
+    starts = [y for y in 0:400
+              if projection_read(proj, iomap, MouseDown(:left, 40, y, Modifiers())) isa StartSplitterDragOperation]
+    @test !isempty(starts)
+    @test first(starts) > 150   # grab region sits at the drawn splitter, not at column-local 150
+
+    gy = (first(starts) + last(starts)) ÷ 2
+    _feed(proj, iomap, MouseDown(:left, 40, gy, Modifiers()))
+    @test split.active_splitter == 1
+    _feed(proj, iomap, MouseMove(40, gy + 40, :left, Modifiers()))
+    @test [Int(split.sizes[i]) for i in 1:length(split.sizes)] == [190, 110]
+    _feed(proj, iomap, MouseUp(:left, 40, gy + 40, Modifiers()))
+    @test split.active_splitter == 0
+end
+
 end # @testset
 end
