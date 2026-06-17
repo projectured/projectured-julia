@@ -96,6 +96,8 @@ const conversation_widget_example = Example("conversation_widget", make_conversa
 const conversation_editor_example = Example("conversation_editor", make_conversation_editor_document_example, make_conversation_editor_projection_example; render_width=1200, render_height=400)
 const dbcatalog_example      = Example("dbcatalog",      make_dbcatalog_document_example,      make_dbcatalog_projection_example)
 const dvdrental_catalog_example = Example("dvdrental_catalog", make_dvdrental_catalog_document_example, make_dbcatalog_projection_example)
+const dbcatalog_widget_example  = Example("dbcatalog_widget",  make_dbcatalog_document_example,  make_dbcatalog_widget_projection_example)
+const dvdrental_catalog_widget_example = Example("dvdrental_catalog_widget", make_dvdrental_catalog_document_example, make_dbcatalog_widget_projection_example)
 const sql_syntax_example     = Example("sql_syntax",     make_sql_document_example,            make_sql_syntax_projection_example)
 const sql_nested_syntax_example = Example("sql_nested_syntax", make_sql_nested_document_example, make_sql_nested_syntax_projection_example)
 const sql_table_example      = Example("sql_table",      make_sql_document_example,            make_sql_table_projection_example)
@@ -142,6 +144,8 @@ const examples = [
     conversation_editor_example,
     dbcatalog_example,
     dvdrental_catalog_example,
+    dbcatalog_widget_example,
+    dvdrental_catalog_widget_example,
     sql_syntax_example,
     sql_nested_syntax_example,
     sql_table_example,

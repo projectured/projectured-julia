@@ -184,6 +184,8 @@ export conversation_widget_example
 export conversation_editor_example
 export dbcatalog_example
 export dvdrental_catalog_example
+export dbcatalog_widget_example
+export dvdrental_catalog_widget_example
 export sql_syntax_example
 export sql_nested_syntax_example
 export sql_table_example

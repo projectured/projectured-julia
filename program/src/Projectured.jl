@@ -136,6 +136,7 @@ include("projection/primitive/WorkspaceToFileSystem.jl")
 include("projection/primitive/TextToString.jl")
 include("projection/primitive/ObjectToSyntax.jl")
 include("projection/primitive/WidgetToGraphics.jl")
+include("projection/primitive/TextToWidget.jl")
 include("projection/primitive/LayoutToGraphics.jl")
 include("projection/primitive/BookToSyntax.jl")
 include("projection/primitive/IniToSyntax.jl")
@@ -466,6 +467,7 @@ using .WidgetToGraphicsModule: WidgetInsertionToGraphicsCanvas, WidgetLabelToGra
                                WidgetToGraphics, WidgetTheme, widget_theme_light, widget_theme_dark,
                                widget_theme_slate_light, widget_theme_slate_dark,
                                WidgetScrollPaneToGraphicsViewport, WidgetScrollPaneToGraphicsViewportIoMap
+using .TextToWidgetModule: TextToWidget, TextToWidgetIoMap, WidgetAndTextToGraphics
 using .WorkbenchToWidgetModule: WorkbenchWorkbenchToWidgetShell,    WorkbenchWorkbenchToWidgetShellIoMap,
                                 WorkbenchPageToWidgetTabbedPane,    WorkbenchPageToWidgetTabbedPaneIoMap,
                                 WorkbenchNavigatorToWidgetScrollPane, WorkbenchNavigatorToWidgetScrollPaneIoMap,
@@ -771,7 +773,7 @@ using .DocumentCoreModule: DocumentBase, DocumentNothing, DocumentInsertion, Doc
 export DocumentBase, DocumentNothing, DocumentInsertion, DocumentReference
 export CollectionToSyntax, CollectionCellVectorToSyntax, CollectionListNodeToSyntax
 export TextToGraphics, WidgetToGraphics, WidgetTheme, widget_theme_light, widget_theme_dark,
-       widget_theme_slate_light, widget_theme_slate_dark
+       widget_theme_slate_light, widget_theme_slate_dark, TextToWidget, WidgetAndTextToGraphics
 export SyntaxNodeToTextIoMap, TextToGraphicsIoMap
 export WidgetInsertionToGraphicsCanvas, WidgetLabelToGraphicsCanvas, WidgetTextToGraphicsCanvas,
        WidgetCheckboxToGraphicsCanvas, WidgetButtonToGraphicsCanvas,
