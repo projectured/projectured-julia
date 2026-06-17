@@ -29,6 +29,7 @@ export Inset, Point2D,
        WidgetTable, WidgetTree,
        HideWidgetOperation, ShowWidgetOperation, ScrollWidgetOperation, SelectTabOperation,
        SetScrollBarValueOperation,
+       StartSplitterDragOperation, ResizeSplitPaneOperation, EndSplitterDragOperation,
        evaluate_operation,
        inset_default, inset_size, inset_width, inset_height,
        inset_top_left, inset_top_right, inset_bottom_left, inset_bottom_right,
@@ -552,6 +553,17 @@ end
 
 A container that divides its area among child widgets along an axis.
 `orientation` is `:horizontal` or `:vertical`..
+
+`active_splitter` and `drag_anchor` are **transient UI state** holding an
+in-progress splitter drag (see `StartSplitterDragOperation`): `active_splitter`
+is `0` when no drag is in progress, or `k` while the splitter after slot `k` is
+being dragged; `drag_anchor` is `nothing` or a
+`(coord, size_a, size_b)` named tuple recording the grab origin so each motion
+resizes relative to it. `pinned` is a per-slot `Bool` vector marking slots whose
+size was set by a drag — in the constrained layout regime those slots are laid
+out at their `sizes` extent exactly (their layout weight is ignored) so a drag
+sticks instead of being undone by weighted redistribution. They are not part of
+the document's content and are not meant to be serialised.
 """
 @document struct WidgetSplitPane <: WidgetDocument
     orientation::Symbol
@@ -565,6 +577,9 @@ A container that divides its area among child widgets along an axis.
     padding::Inset
     padding_color::StyleColor
     selection::Reference
+    active_splitter::Int
+    drag_anchor::Any
+    pinned::CellVector
 end
 
 function WidgetSplitPane(orientation::Symbol, elements::Vector;
@@ -581,7 +596,7 @@ function WidgetSplitPane(orientation::Symbol, elements::Vector;
                     Cell(visible), Cell(margin), Cell(margin_color),
                     Cell(border), Cell(border_color),
                     Cell(padding), Cell(padding_color),
-                    Cell(nothing))
+                    Cell(nothing), Cell(0), Cell(nothing), CellVector())
 end
 
 WidgetSplitPane(elements::Vector; kwargs...) =
@@ -1136,6 +1151,46 @@ struct SetScrollBarValueOperation <: Operation
     value::Float64
 end
 
+"""
+    StartSplitterDragOperation(split, splitter_index, anchor_coord, slot_sizes)
+
+Begin dragging the splitter after slot `splitter_index` of `split`. Materialises
+the pane's `sizes` from the currently measured `slot_sizes` (one per slot) when
+empty, records the grab origin (`anchor_coord`, the main-axis coordinate of the
+press, plus the two adjacent slot sizes) in `drag_anchor`, and marks the pane as
+actively dragging via `active_splitter`. Transient UI state only.
+"""
+struct StartSplitterDragOperation <: Operation
+    split::WidgetSplitPane
+    splitter_index::Int
+    anchor_coord::Int
+    slot_sizes::Vector{Int}
+end
+
+"""
+    ResizeSplitPaneOperation(split, splitter_index, new_size_a, new_size_b)
+
+Redistribute space across the splitter after slot `splitter_index`: write
+`sizes[splitter_index] = new_size_a` and `sizes[splitter_index+1] = new_size_b`.
+The reader computes both values so their sum equals the pre-drag total (space is
+conserved) and each stays within its slot's min/max.
+"""
+struct ResizeSplitPaneOperation <: Operation
+    split::WidgetSplitPane
+    splitter_index::Int
+    new_size_a::Int
+    new_size_b::Int
+end
+
+"""
+    EndSplitterDragOperation(split)
+
+Finish a splitter drag: reset `active_splitter` to `0` and clear `drag_anchor`.
+"""
+struct EndSplitterDragOperation <: Operation
+    split::WidgetSplitPane
+end
+
 # ── Operation evaluation ───────────────────────────────────────────────────
 
 """
@@ -1164,6 +1219,46 @@ end
 
 function evaluate_operation(editor, op::SelectTabOperation)
     op.widget.selection = ConcreteReferencePath(ElementReference(op.tab_index), EmptyReferencePath())
+end
+
+function evaluate_operation(editor, op::StartSplitterDragOperation)
+    split = op.split
+    sizes = split.sizes
+    # Materialise `sizes` from the measured slot extents so the first drag has
+    # concrete cells to mutate (otherwise the slot falls back to a fixed size).
+    if isempty(sizes) || length(sizes) < length(op.slot_sizes)
+        sizes.elements = Cell[Cell(s) for s in op.slot_sizes]
+    end
+    # Keep the per-slot pin vector the same length as `sizes`.
+    pinned = split.pinned
+    if length(pinned) != length(sizes)
+        pinned.elements = Cell[Cell(false) for _ in 1:length(sizes)]
+    end
+    k = op.splitter_index
+    split.active_splitter = k
+    split.drag_anchor = (coord = op.anchor_coord,
+                         size_a = Int(sizes[k]),
+                         size_b = Int(sizes[k + 1]))
+end
+
+function evaluate_operation(editor, op::ResizeSplitPaneOperation)
+    split = op.split
+    sizes = split.sizes
+    k = op.splitter_index
+    sizes[k]     = op.new_size_a
+    sizes[k + 1] = op.new_size_b
+    # Pin both dragged slots so the constrained layout honours their new size
+    # exactly instead of redistributing it by weight.
+    pinned = split.pinned
+    if length(pinned) >= k + 1
+        pinned[k]     = true
+        pinned[k + 1] = true
+    end
+end
+
+function evaluate_operation(editor, op::EndSplitterDragOperation)
+    op.split.active_splitter = 0
+    op.split.drag_anchor = nothing
 end
 
 end # module

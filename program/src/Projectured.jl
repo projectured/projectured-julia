@@ -365,7 +365,8 @@ using .WidgetModule: WidgetDocument, WidgetInsertion,
                      WidgetToggle, WidgetToggleGroup, WidgetSelect, WidgetTextarea, WidgetAccordion,
                      WidgetTable, WidgetTree,
                      HideWidgetOperation, ShowWidgetOperation,
-                     ScrollWidgetOperation, SelectTabOperation, SetScrollBarValueOperation
+                     ScrollWidgetOperation, SelectTabOperation, SetScrollBarValueOperation,
+                     StartSplitterDragOperation, ResizeSplitPaneOperation, EndSplitterDragOperation
 using .LayoutModule: LayoutDocument,
                      HorizontalLayout, VerticalLayout, GridLayout, FlowLayout,
                      LayoutConstraint, allocate_axis,
@@ -646,6 +647,7 @@ export WidgetDocument, WidgetInsertion,
        WidgetToggle, WidgetToggleGroup, WidgetSelect, WidgetTextarea, WidgetAccordion,
        WidgetTable, WidgetTree
 export HideWidgetOperation, ShowWidgetOperation, ScrollWidgetOperation, SelectTabOperation, SetScrollBarValueOperation
+export StartSplitterDragOperation, ResizeSplitPaneOperation, EndSplitterDragOperation
 export Operation, evaluate_operation
 export inset_default, inset_size, inset_width, inset_height,
        inset_top_left, inset_top_right, inset_bottom_left, inset_bottom_right

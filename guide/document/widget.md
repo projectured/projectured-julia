@@ -34,7 +34,7 @@ All widgets subtype the abstract `WidgetDocument` (which subtypes `Document`).
 | `WidgetComposite(position, elements)` | Generic container |
 | `WidgetShell(children)` | Top-level window contents |
 | `WidgetTitlePane(title, content)` | Pane with a title bar |
-| `WidgetSplitPane(orientation, elements; sizes)` | Resizable split (fields `elements`/`sizes`) |
+| `WidgetSplitPane(orientation, elements; sizes)` | Split with drag-resizable splitters (fields `elements`/`sizes`) |
 | `WidgetTabbedPane(selector_element_pairs)` | Tab switcher |
 | `WidgetScrollPane(content; position, size, scroll_position)` | Scrollable viewport (offset is `scroll_position`) |
 | `WidgetScrollBar(orientation; value, thumb_size)` | Scrollbar control (fields `value`/`thumb_size`) |
@@ -135,10 +135,35 @@ Defined alongside the widget types in
 | `ScrollWidgetOperation(scroll_pane, scroll_delta)` | adjust scroll offset (`scroll_delta::Point2D`) |
 | `SelectTabOperation(tabbed_pane, index)` | activate a tab |
 | `SetScrollBarValueOperation(bar, value)` | move the scroll-bar thumb |
+| `StartSplitterDragOperation` / `ResizeSplitPaneOperation` / `EndSplitterDragOperation` | drag a split-pane splitter to resize the two adjacent slots |
 
 The `WidgetToGraphics` reader produces these in response to
 `MousePress`/`MouseScroll`, routing each through the appropriate container
 via hit-testing.
+
+### Splitter drag-to-resize
+
+A `WidgetSplitPane` splitter is draggable. The reader recognises a
+`MouseDown(:left)` inside a splitter's gap (`thickness` plus a few pixels of
+grab tolerance), then resizes the two adjacent slots on each `MouseMove` until
+`MouseUp`. The drag is **stateful but the event pipeline is not**, so the
+in-progress drag lives on transient cells of the pane itself:
+
+- `active_splitter::Int` — `0`, or `k` while the splitter after slot `k` is held.
+- `drag_anchor` — `nothing`, or `(coord, size_a, size_b)` recording the grab
+  origin so every motion resizes *relative to the grab* (no accumulated rounding
+  drift).
+- `pinned::CellVector` — per-slot `Bool`; a slot dragged at least once is laid
+  out at its `sizes` extent exactly.
+
+Each move grows slot `k` and shrinks slot `k+1` by the same delta (total
+conserved), clamped to each slot's `layout_min`/`layout_max`. In the
+*unconstrained* regime `sizes[k]`/`sizes[k+1]` are written directly; in the
+*constrained* regime (`allocate_axis`) the dragged slots are **pinned** — their
+`sizes` value becomes a hard preference and their layout weight is zeroed, so
+the drag sticks instead of being undone by weighted redistribution. `sizes` is
+materialised from the measured slot extents on the first drag if it was empty.
+These cells are transient UI state and are not meant to be serialised.
 
 ## Projection to graphics
 

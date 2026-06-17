@@ -41,7 +41,8 @@ import ..WidgetModule: WidgetDocument, WidgetInsertion, WidgetLabel, WidgetText,
                        WidgetToggle, WidgetToggleGroup, WidgetSelect, WidgetTextarea, WidgetAccordion,
                        WidgetTable, WidgetTree,
                        Inset, Point2D, inset_default,
-                       ScrollWidgetOperation, SelectTabOperation, SetScrollBarValueOperation
+                       ScrollWidgetOperation, SelectTabOperation, SetScrollBarValueOperation,
+                       StartSplitterDragOperation, ResizeSplitPaneOperation, EndSplitterDragOperation
 import ..CollectionModule: CellVector, CollectionDocument
 import ..GraphicsModule: GraphicsText, GraphicsRect, GraphicsLine, GraphicsCircle, GraphicsCanvas, GraphicsViewport, hit_element_at, layout_none
 import ..FontModule: StyleFont,
@@ -50,7 +51,7 @@ import ..StyleTextModule: StyleText
 import ..StyleStrokeModule: StyleStroke
 import ..IoMapModule: SimpleIoMap, ChildrenIoMap
 import ..IoMapApiModule: IoMap
-import ..MouseModule: MouseScroll, MousePress
+import ..MouseModule: MouseScroll, MousePress, MouseDown, MouseUp, MouseMove
 import ..EventCaseModule: var"@event_case"
 import ..OperationApiModule: Operation
 import ..OperationModule: ReplaceSelectionOperation, ReplaceReferencedValue, ToggleCollapseOperation
@@ -1295,6 +1296,7 @@ function projection_print(p::WidgetSplitPaneToGraphicsCanvas, recursion, w::Widg
         axis        = main_axis
         n_local     = n
         sizes_local = sizes
+        pinned_cv   = w.pinned
         alloc_main_ref[] = Cell(function ()
             mins  = Vector{Int}(undef, n_local)
             maxs  = Vector{Int}(undef, n_local)
@@ -1305,8 +1307,17 @@ function projection_print(p::WidgetSplitPaneToGraphicsCanvas, recursion, w::Widg
                 intrinsic = _split_intrinsic(elem, sizes_local, i, axis)
                 mins[i]   = layout_min(elem, axis, intrinsic)
                 maxs[i]   = layout_max(elem, axis, intrinsic)
-                prefs[i]  = intrinsic
-                wts[i]    = layout_weight(elem, axis)
+                # A slot pinned by a drag is laid out at its dragged `sizes`
+                # extent exactly: that value becomes a hard pref (overriding any
+                # LayoutConstraint preferred) and its weight is zeroed so
+                # weighted redistribution leaves it alone.
+                if i <= length(pinned_cv) && pinned_cv[i] && i <= length(sizes_local)
+                    prefs[i] = Int(sizes_local[i])
+                    wts[i]   = 0.0
+                else
+                    prefs[i] = intrinsic
+                    wts[i]   = layout_weight(elem, axis)
+                end
             end
             allocate_axis(Int(avail_main[]), mins, maxs, prefs, wts,
                           splitter_thickness, n_local)
@@ -1436,7 +1447,107 @@ function map_reference_backward(p::WidgetSplitPaneToGraphicsCanvas, iomap::Child
     return nothing
 end
 
+# Extra pixels on each side of a splitter's `thickness`-wide gap that still
+# count as a grab, so a 1 px hairline is easy to catch with the cursor.
+const _SPLITTER_GRAB_TOL = 3
+
+# Main-axis screen coordinate of a child slot (its top-left in the split's own
+# coordinate frame — the same frame the reader receives events in).
+_split_child_main_pos(entry, orientation::Symbol) =
+    (entry::Tuple{Cell,Cell,Any}; orientation === :horizontal ? Int(entry[1][]) : Int(entry[2][]))
+
+# Index `k` (1-based) of the splitter band under `(x, y)`, or 0 if none.
+# Splitter `k` occupies the `thickness`-wide gap immediately before child `k+1`
+# (see the print cursor), widened by `tol` on each side along the main axis.
+function _splitter_band_hit(orientation::Symbol, child_iomaps::Vector,
+                            thickness::Int, x::Int, y::Int, tol::Int)
+    n = length(child_iomaps)
+    coord = orientation === :horizontal ? x : y
+    for k in 1:(n - 1)
+        nxt = child_iomaps[k + 1]
+        nxt === nothing && continue
+        gap_end   = _split_child_main_pos(nxt, orientation)
+        gap_start = gap_end - thickness
+        (gap_start - tol <= coord <= gap_end + tol) && return k
+    end
+    0
+end
+
+# Currently measured main-axis extent of every slot. Inner slots are the
+# distance between consecutive child positions minus the splitter; the last
+# slot fills to the far edge of the pane (the outer canvas's main extent minus
+# the last child's start and the near inset, assumed symmetric) — the child
+# canvas itself can't be trusted as it may not expand to fill its slot. Used to
+# seed `sizes` on the first drag so it starts from the on-screen layout.
+function _split_measured_sizes(child_iomaps::Vector, orientation::Symbol,
+                               thickness::Int, outer_main::Int)
+    n = length(child_iomaps)
+    sizes = Vector{Int}(undef, n)
+    pos(i) = _split_child_main_pos(child_iomaps[i], orientation)
+    for i in 1:(n - 1)
+        sizes[i] = pos(i + 1) - pos(i) - thickness
+    end
+    sizes[n] = max(0, outer_main - pos(n) - pos(1))
+    sizes
+end
+
+# Drag lifecycle for the splitter gaps. Returns an Operation when the event
+# starts, continues, or ends a drag; `nothing` lets the event fall through to
+# the normal child-routing path below. A `MouseDown` on a band starts a drag;
+# `MouseMove` while a drag is active resizes the two adjacent slots relative to
+# the grab origin (so rounding doesn't accumulate); `MouseUp` ends it.
+function _split_drag_read(p::WidgetSplitPaneToGraphicsCanvas, iomap::ChildrenIoMap,
+                          w::WidgetSplitPane, evt)
+    child_iomaps = iomap.child_iomaps[]::Vector
+    n = length(child_iomaps)
+    n < 2 && return nothing
+    orientation = w.orientation::Symbol
+    thickness   = max(1, _sc(p.splitter.width))
+    active      = w.active_splitter::Int
+
+    if evt isa MouseDown && evt.button === :left && active == 0
+        k = _splitter_band_hit(orientation, child_iomaps, thickness, evt.x, evt.y, _SPLITTER_GRAB_TOL)
+        k == 0 && return nothing
+        outer = iomap.output
+        outer_main = outer isa GraphicsCanvas ?
+                     (orientation === :horizontal ? Int(outer.w[]) : Int(outer.h[])) : 0
+        slot_sizes = _split_measured_sizes(child_iomaps, orientation, thickness, outer_main)
+        coord = orientation === :horizontal ? evt.x : evt.y
+        return StartSplitterDragOperation(w, k, coord, slot_sizes)
+    elseif evt isa MouseMove && active != 0
+        anchor = w.drag_anchor
+        anchor === nothing && return nothing
+        k = active
+        (1 <= k && k + 1 <= n) || return nothing
+        axis   = orientation === :horizontal ? :x : :y
+        coord  = orientation === :horizontal ? evt.x : evt.y
+        delta  = coord - anchor.coord
+        size_a = anchor.size_a
+        size_b = anchor.size_b
+        elem_a = w.elements[k]
+        elem_b = w.elements[k + 1]
+        min_a, max_a = layout_min(elem_a, axis, size_a), layout_max(elem_a, axis, size_a)
+        min_b, max_b = layout_min(elem_b, axis, size_b), layout_max(elem_b, axis, size_b)
+        # Move the boundary by `delta`, conserve the pair's total, and keep both
+        # slots within their min/max: clamp A, give/take the rest from B, then
+        # re-derive A from the clamped B so the sum is exactly preserved.
+        new_a = clamp(size_a + delta, min_a, max_a)
+        new_b = clamp(size_b - (new_a - size_a), min_b, max_b)
+        new_a = clamp(size_a + size_b - new_b, min_a, max_a)
+        new_b = size_a + size_b - new_a
+        return ResizeSplitPaneOperation(w, k, new_a, new_b)
+    elseif evt isa MouseUp && evt.button === :left && active != 0
+        return EndSplitterDragOperation(w)
+    end
+    nothing
+end
+
 function projection_read(p::WidgetSplitPaneToGraphicsCanvas, iomap::ChildrenIoMap, evt)
+    w = iomap.input
+    if w isa WidgetSplitPane
+        drag = _split_drag_read(p, iomap, w, evt)
+        drag !== nothing && return drag
+    end
     child_iomaps = iomap.child_iomaps[]::Vector
     res = @event_case evt begin
         MouseScroll => _route_split_event(child_iomaps, evt.x, evt.y,
