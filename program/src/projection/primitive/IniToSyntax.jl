@@ -426,8 +426,8 @@ end
 # where heading_leaf = SyntaxLeaf(open="[" | "[Config ", close="]", value=name)
 # is a navigable leaf (so the section name is reachable by text navigation), and
 # the entries are its *siblings* (so tree navigation can reach them). The node's
-# separator carries the newline + 4-space indent — sections always sit one level
-# under the file, so entries render at column 4 while the heading stays at 2.
+# separator carries the newline + 2-space indent, so the heading renders at
+# column 0 (top level) while its entries render at column 2.
 #
 # Selection:
 #   .name[k]      → .children[1].value[k]   (heading leaf)
@@ -544,7 +544,7 @@ function projection_print(p::IniSectionToSyntaxNode, recursion, s::IniSection, c
     output = SyntaxNode(
         TextString("", p.heading_font, color_default),
         TextString("", p.heading_font, color_default),
-        TextString("\n    ", p.heading_font, color_default),
+        TextString("\n  ", p.heading_font, color_default),
         children_cv, 0, s.collapsed, sel)
     ChildrenIoMap(p, s, output, child_iomaps)
 end
@@ -634,11 +634,14 @@ function projection_print(p::IniFileToSyntaxNode, recursion, f::IniFile, ctx)
 
     children_cv = CellVector(() -> SyntaxDocument[im.output for im in child_iomaps[]])
 
+    # Inline (indentation=0) with a blank-line separator: top-level items
+    # (comment, include, section headings) render at column 0, separated by a
+    # blank line. Entries are indented one level by the section's own separator.
     output = SyntaxNode(
         TextString("", font_ubuntu_monospace_regular_24, color_default),
         TextString("", font_ubuntu_monospace_regular_24, color_default),
-        TextString("\n", font_ubuntu_monospace_regular_24, color_default),
-        children_cv, 1, Cell(false), sel)
+        TextString("\n\n", font_ubuntu_monospace_regular_24, color_default),
+        children_cv, 0, Cell(false), sel)
     ChildrenIoMap(p, f, output, child_iomaps)
 end
 

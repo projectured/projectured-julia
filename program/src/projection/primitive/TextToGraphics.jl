@@ -366,7 +366,10 @@ function projection_print(p::TextToGraphics, recursion, styled::TextText, ctx)
             span_flat_offsets[elem_idx] = cumulative_flat
             if span isa TextNewline
                 cx = p.start_x
-                cy += line_h
+                # An empty line (no glyphs since the previous break) still
+                # occupies one line of height; fall back to the font's height
+                # so blank lines are not collapsed to zero.
+                cy += line_h > 0 ? line_h : p.measure(" ", span.font::StyleFont)[2]
                 line_h = 0
                 continue
             end
@@ -416,7 +419,8 @@ function projection_print(p::TextToGraphics, recursion, styled::TextText, ctx)
                         cursor_line_h = line_h
                     end
                     cx = p.start_x
-                    cy += line_h
+                    # Empty line keeps one line of height (see TextNewline above).
+                    cy += line_h > 0 ? line_h : p.measure(" ", sf)[2]
                     line_h = 0
                     char_offset += 1  # count the \n
                     # cursor AFTER the \n (now at beginning of next line)
