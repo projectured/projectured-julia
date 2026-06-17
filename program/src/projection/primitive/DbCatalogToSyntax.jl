@@ -2,18 +2,26 @@
     DbCatalogToSyntaxModule
 
 DbCatalog → SyntaxDocument projection. Maps the catalog hierarchy to syntax
-tree shapes:
+tree shapes with keyword grouping nodes:
 
-    DbCatalogRdbms    → SyntaxNode  " host:port"        (indentation 0)
-    DbCatalogDatabase → SyntaxNode  " dbname"           (indentation 1)
-    DbCatalogSchema   → SyntaxNode  " schema"           (indentation 2)
-    DbCatalogTable    → SyntaxNode  " table"            (indentation 3)
-    DbCatalogColumn   → SyntaxLeaf  " column::type"    (indentation 4)
+    DbCatalogRdbms    → entity " host:port" → keyword " Databases" → body
+    DbCatalogDatabase → entity " dbname"    → keyword " Schemas"   → body
+    DbCatalogSchema   → entity " schema"    → keyword " Tables"    → body
+    DbCatalogTable    → entity " table"     → keyword " Columns"   → body
+    DbCatalogColumn   → SyntaxLeaf " column::type"
 
-Children are read directly from each node's own child `CellVector`
-(`rdbms.databases`, `db.schemas`, `schema.tables`, `table.columns`) and
-projected recursively. The output is a hierarchical syntax tree suitable for
-expand/collapse visualization when combined with `SyntaxToText`.
+Each non-leaf entity node is collapsible and contains a single keyword child:
+  entity_node  (ind=-1, open=" name"):  collapsible, marker-eligible
+    keyword_node (ind=0,  open=" Keyword"): collapsible, marker-eligible
+      keyword_body (ind=-1, open=""):     children = projected items
+
+Using `indentation = -1` avoids trailing newlines that create blank lines,
+while still rendering children with `\\n + indent`.
+
+Selection mapping (School A — delegate child tails through stored child IO maps):
+  Input:  <field>[i].rest        (e.g. databases[2].child_path)
+  Output: children[1].children[1].children[i].delegated(rest)
+The three levels correspond to: keyword_node → keyword_body → actual child.
 """
 module DbCatalogToSyntaxModule
 
@@ -28,8 +36,14 @@ import ..ColorModule: StyleColor, color_default, color_solarized_blue, color_sol
 import ..SyntaxModule: SyntaxDocument, SyntaxLeaf, SyntaxNode
 import ..TypeDispatchingModule: TypeDispatchingProjection
 import ..IoMapModule: SimpleIoMap, ChildrenIoMap
-import ..ReferenceModule: ConcreteReferencePath, ElementReference, PositionReference, RangeReference, FieldReference, ProjectionReference, append_reference
+import ..ReferenceModule: ConcreteReferencePath, EmptyReferencePath, ReferencePath,
+                           ElementReference, PositionReference, RangeReference,
+                           FieldReference, ProjectionReference, append_reference
+import ..ReferenceCaseModule: var"@reference_case"
+import ..ReferenceBuilderModule: var"@reference"
 import ..PrinterContextModule: child_context
+import ..SyntaxToTextModule: SyntaxNodeToText, _syntax_to_flat
+import ..OperationModule: ReplaceSelectionOperation
 export DbCatalogColumnToSyntaxLeaf, DbCatalogTableToSyntaxNode, DbCatalogSchemaToSyntaxNode,
        DbCatalogDatabaseToSyntaxNode, DbCatalogRdbmsToSyntaxNode, DbCatalogToSyntax,
        dbcatalog_marker_eligible
@@ -44,65 +58,183 @@ DbCatalogColumnToSyntaxLeaf(; font=font_ubuntu_monospace_regular_24, color=color
     DbCatalogColumnToSyntaxLeaf(font, color)
 
 function projection_print(p::DbCatalogColumnToSyntaxLeaf, recursion, col::DbCatalogColumn, ctx)
+    sel = Cell(() -> begin
+        path = col.selection
+        path === nothing && return nothing
+        map_reference_forward(p, nothing, path)
+    end)
     SimpleIoMap(p, col, SyntaxLeaf(
         TextString("", p.font, color_default),
         TextString("", p.font, color_default),
         TextString(() -> " " * col.name * "::" * col.data_type, p.font, p.color),
-        col.selection))
+        sel))
 end
 
-map_reference_forward(::DbCatalogColumnToSyntaxLeaf, iomap, ref) = nothing
-map_reference_backward(::DbCatalogColumnToSyntaxLeaf, iomap, ref) = nothing
-projection_read(::DbCatalogColumnToSyntaxLeaf, iomap, op) = nothing
+function map_reference_forward(::DbCatalogColumnToSyntaxLeaf, iomap, reference)
+    reference isa EmptyReferencePath && return EmptyReferencePath()
+    reference isa ConcreteReferencePath || return nothing
+    h = reference.head
+    h isa ProjectionReference || return nothing
+    return h.output_path
+end
+
+function map_reference_backward(p::DbCatalogColumnToSyntaxLeaf, iomap, reference)
+    reference isa EmptyReferencePath && return EmptyReferencePath()
+    reference === nothing && return nothing
+    ConcreteReferencePath(Cell(ProjectionReference(p, reference)), Cell(EmptyReferencePath()))
+end
+
+function projection_read(p::DbCatalogColumnToSyntaxLeaf, iomap, op::ReplaceSelectionOperation)
+    result = map_reference_backward(p, iomap, op.path)
+    result === nothing && return nothing
+    ReplaceSelectionOperation(result)
+end
+
+# ── Shared reference mapping helpers ─────────────────────────────────────────
+#
+# All non-leaf catalog projections share the same 3-level output shape:
+#   entity_node → keyword_node → keyword_body → children
+# so the reference mapping logic is factored into shared helpers parameterised
+# by the input-domain children field name ("databases", "schemas", etc.).
+
+"""
+Forward: `<field_name>[i].rest → children[1].children[1].children[i].delegated(rest)`
+"""
+function _catalog_forward_ref(p, iomap::ChildrenIoMap, reference, field_name::String)
+    reference isa EmptyReferencePath && return EmptyReferencePath()
+    reference isa ConcreteReferencePath || return nothing
+    h = reference.head
+    h isa ProjectionReference && h.projection === p && return reference
+    # Match: field_name{s:e}.rest (FieldReference + RangeReference + tail)
+    h isa FieldReference && h.name == field_name || return nothing
+    rest = reference.tail
+    rest isa ConcreteReferencePath || return nothing
+    h2 = rest.head
+    h2 isa RangeReference || return nothing
+    child_i = h2.start + 1
+    child_rest = rest.tail
+    iomaps = iomap.child_iomaps[]
+    1 <= child_i <= length(iomaps) || return nothing
+    child = iomaps[child_i]
+    inner = map_reference_forward(child.projection, child, child_rest)
+    inner === nothing && return nothing
+    @reference children[1].children[1].children[child_i].^(inner)
+end
+
+"""
+Backward: `children[1].children[1].children[i].rest → <field_name>[i].delegated(rest)`
+Peels 3 levels of children (keyword_node, keyword_body, actual child).
+"""
+function _catalog_backward_ref(p, iomap::ChildrenIoMap, reference, field_name::String)
+    reference isa EmptyReferencePath && return EmptyReferencePath()
+    # Peel: children[1].children[1].children[i].rest
+    # Each level is FieldReference("children") + RangeReference(...)
+    @reference_case reference begin
+        children[1].rest1... => begin
+            @reference_case rest1 begin
+                children[1].rest2... => begin
+                    @reference_case rest2 begin
+                        children{s:e}.rest3... => begin
+                            child_i = s + 1
+                            iomaps = iomap.child_iomaps[]
+                            1 <= child_i <= length(iomaps) || return nothing
+                            child = iomaps[child_i]
+                            inner = map_reference_backward(child.projection, child, rest3)
+                            inner === nothing && return nothing
+                            ConcreteReferencePath(
+                                Cell(FieldReference(field_name)),
+                                Cell(ConcreteReferencePath(
+                                    Cell(ElementReference(child_i)),
+                                    Cell(inner))))
+                        end
+                        _ => nothing
+                    end
+                end
+                _ => nothing
+            end
+        end
+        _ => nothing
+    end
+end
+
+"""
+Reader for `ReplaceSelectionOperation`: try backward mapping, fall back to
+`ProjectionReference(p, {flat})` for structural positions (entity names,
+keyword labels, whitespace).
+"""
+function _catalog_read_selection(p, iomap::ChildrenIoMap, op::ReplaceSelectionOperation)
+    result = map_reference_backward(p, iomap, op.path)
+    result !== nothing && return ReplaceSelectionOperation(result)
+    flat = _syntax_to_flat(iomap.output::SyntaxNode, op.path, SyntaxNodeToText(), 0)
+    flat < 0 && return nothing
+    return ReplaceSelectionOperation(
+        ConcreteReferencePath(Cell(ProjectionReference(p,
+            ConcreteReferencePath(Cell(PositionReference(flat)), Cell(EmptyReferencePath())))),
+            Cell(EmptyReferencePath())))
+end
 
 # ── Shared node builder ───────────────────────────────────────────────────────
 #
-# Every non-leaf catalog level produces the same shape:
-#   SyntaxNode(indentation=n):
-#     children[1] = SyntaxLeaf(" name")               ← name leaf
-#     children[2] = SyntaxNode(indentation=n+1):       ← body node
-#                     children[1..n] = projected child outputs
-# `children` is the node's own child CellVector (databases/schemas/tables/…).
+# Every non-leaf catalog level produces the shape:
+#   entity_node (ind=-1, open=" name"):       ← collapsible entity
+#     keyword_node (ind=0, open=" Keyword"):  ← collapsible keyword
+#       keyword_body (ind=-1, open=""):       ← children container
+#         child[1..n] = projected child outputs
+#
+# Using ind=-1 (rather than a positive value) enters the newline branch
+# (children get \n + indent) but skips the trailing \n + indent that would
+# otherwise create blank lines between sibling items.
+#
+# Selection is wired via the deferred-iomap trick: the entity_node's selection
+# cell reads from the input document's selection and maps it forward through
+# this projection's own map_reference_forward. The iomap_cell is returned so
+# the caller can set it after building the ChildrenIoMap.
 
-function _catalog_syntax_node(recursion, ctx, selection, indentation::Int,
+function _catalog_syntax_node(p, recursion, ctx, input_doc,
                               name_font::StyleFont, name_color::StyleColor,
-                              label, children)
+                              keyword::String, label, children)
     child_iomaps = Cell(() -> begin
         [projection_printer_recurse(recursion, elem, child_context(ctx, ElementReference(i)))
          for (i, elem) in enumerate(children)]
     end)
 
-    name_leaf = SyntaxLeaf(
-        TextString("", name_font, color_default),
-        TextString("", name_font, color_default),
-        TextString(label, name_font, name_color),
-        selection)
-
-    body_node = SyntaxNode(
-        TextString("", name_font, color_default),
-        TextString("", name_font, color_default),
-        TextString("", name_font, color_default),
+    keyword_body = SyntaxNode(
+        TextString("", font_ubuntu_monospace_regular_24, color_default),
+        TextString("", font_ubuntu_monospace_regular_24, color_default),
+        TextString("", font_ubuntu_monospace_regular_24, color_default),
         CellVector(() -> SyntaxDocument[im.output for im in child_iomaps[]]),
-        indentation + 1,
+        -1,
         Cell(false),
         Cell(nothing))
 
+    keyword_node = SyntaxNode(
+        TextString(" " * keyword, font_ubuntu_monospace_regular_24, color_default),
+        TextString("", font_ubuntu_monospace_regular_24, color_default),
+        TextString("", font_ubuntu_monospace_regular_24, color_default),
+        CellVector(Cell[Cell(keyword_body)]),
+        0,
+        Cell(false),
+        Cell(nothing))
+
+    iomap_cell = Cell(nothing)
     sel = Cell(() -> begin
-        path = selection
-        path isa ConcreteReferencePath || return nothing
-        path.head isa ProjectionReference ? path : nothing
+        im = iomap_cell[]
+        im === nothing && return nothing
+        path = input_doc.selection
+        path === nothing && return nothing
+        map_reference_forward(p, im, path)
     end)
 
-    node = SyntaxNode(
+    entity_node = SyntaxNode(
+        TextString(label, name_font, name_color),
         TextString("", name_font, color_default),
         TextString("", name_font, color_default),
-        TextString("", name_font, color_default),
-        CellVector(Cell[Cell(name_leaf), Cell(body_node)]),
-        indentation,
+        CellVector(Cell[Cell(keyword_node)]),
+        -1,
         Cell(false),
         sel)
 
-    node, child_iomaps
+    entity_node, child_iomaps, iomap_cell
 end
 
 # ── DbCatalogTableToSyntaxNode ────────────────────────────────────────────────
@@ -115,15 +247,20 @@ DbCatalogTableToSyntaxNode(; name_font=font_ubuntu_monospace_bold_24, name_color
     DbCatalogTableToSyntaxNode(name_font, name_color)
 
 function projection_print(p::DbCatalogTableToSyntaxNode, recursion, table::DbCatalogTable, ctx)
-    node, child_iomaps = _catalog_syntax_node(
-        recursion, ctx, table.selection, 3, p.name_font, p.name_color,
-        () -> " " * table.name, table.columns)
-    ChildrenIoMap(p, table, node, child_iomaps)
+    node, child_iomaps, iomap_cell = _catalog_syntax_node(
+        p, recursion, ctx, table, p.name_font, p.name_color,
+        "Columns", () -> " " * table.name, table.columns)
+    iomap = ChildrenIoMap(p, table, node, child_iomaps)
+    iomap_cell[] = iomap
+    return iomap
 end
 
-map_reference_forward(::DbCatalogTableToSyntaxNode, iomap, ref) = nothing
-map_reference_backward(::DbCatalogTableToSyntaxNode, iomap, ref) = nothing
-projection_read(::DbCatalogTableToSyntaxNode, iomap, op) = nothing
+map_reference_forward(p::DbCatalogTableToSyntaxNode, iomap::ChildrenIoMap, ref) =
+    _catalog_forward_ref(p, iomap, ref, "columns")
+map_reference_backward(p::DbCatalogTableToSyntaxNode, iomap::ChildrenIoMap, ref) =
+    _catalog_backward_ref(p, iomap, ref, "columns")
+projection_read(p::DbCatalogTableToSyntaxNode, iomap::ChildrenIoMap, op::ReplaceSelectionOperation) =
+    _catalog_read_selection(p, iomap, op)
 
 # ── DbCatalogSchemaToSyntaxNode ───────────────────────────────────────────────
 
@@ -135,15 +272,20 @@ DbCatalogSchemaToSyntaxNode(; name_font=font_ubuntu_monospace_bold_24, name_colo
     DbCatalogSchemaToSyntaxNode(name_font, name_color)
 
 function projection_print(p::DbCatalogSchemaToSyntaxNode, recursion, schema::DbCatalogSchema, ctx)
-    node, child_iomaps = _catalog_syntax_node(
-        recursion, ctx, schema.selection, 2, p.name_font, p.name_color,
-        () -> " " * schema.name, schema.tables)
-    ChildrenIoMap(p, schema, node, child_iomaps)
+    node, child_iomaps, iomap_cell = _catalog_syntax_node(
+        p, recursion, ctx, schema, p.name_font, p.name_color,
+        "Tables", () -> " " * schema.name, schema.tables)
+    iomap = ChildrenIoMap(p, schema, node, child_iomaps)
+    iomap_cell[] = iomap
+    return iomap
 end
 
-map_reference_forward(::DbCatalogSchemaToSyntaxNode, iomap, ref) = nothing
-map_reference_backward(::DbCatalogSchemaToSyntaxNode, iomap, ref) = nothing
-projection_read(::DbCatalogSchemaToSyntaxNode, iomap, op) = nothing
+map_reference_forward(p::DbCatalogSchemaToSyntaxNode, iomap::ChildrenIoMap, ref) =
+    _catalog_forward_ref(p, iomap, ref, "tables")
+map_reference_backward(p::DbCatalogSchemaToSyntaxNode, iomap::ChildrenIoMap, ref) =
+    _catalog_backward_ref(p, iomap, ref, "tables")
+projection_read(p::DbCatalogSchemaToSyntaxNode, iomap::ChildrenIoMap, op::ReplaceSelectionOperation) =
+    _catalog_read_selection(p, iomap, op)
 
 # ── DbCatalogDatabaseToSyntaxNode ─────────────────────────────────────────────
 
@@ -155,15 +297,20 @@ DbCatalogDatabaseToSyntaxNode(; name_font=font_ubuntu_monospace_bold_24, name_co
     DbCatalogDatabaseToSyntaxNode(name_font, name_color)
 
 function projection_print(p::DbCatalogDatabaseToSyntaxNode, recursion, db::DbCatalogDatabase, ctx)
-    node, child_iomaps = _catalog_syntax_node(
-        recursion, ctx, db.selection, 1, p.name_font, p.name_color,
-        () -> " " * db.name, db.schemas)
-    ChildrenIoMap(p, db, node, child_iomaps)
+    node, child_iomaps, iomap_cell = _catalog_syntax_node(
+        p, recursion, ctx, db, p.name_font, p.name_color,
+        "Schemas", () -> " " * db.name, db.schemas)
+    iomap = ChildrenIoMap(p, db, node, child_iomaps)
+    iomap_cell[] = iomap
+    return iomap
 end
 
-map_reference_forward(::DbCatalogDatabaseToSyntaxNode, iomap, ref) = nothing
-map_reference_backward(::DbCatalogDatabaseToSyntaxNode, iomap, ref) = nothing
-projection_read(::DbCatalogDatabaseToSyntaxNode, iomap, op) = nothing
+map_reference_forward(p::DbCatalogDatabaseToSyntaxNode, iomap::ChildrenIoMap, ref) =
+    _catalog_forward_ref(p, iomap, ref, "schemas")
+map_reference_backward(p::DbCatalogDatabaseToSyntaxNode, iomap::ChildrenIoMap, ref) =
+    _catalog_backward_ref(p, iomap, ref, "schemas")
+projection_read(p::DbCatalogDatabaseToSyntaxNode, iomap::ChildrenIoMap, op::ReplaceSelectionOperation) =
+    _catalog_read_selection(p, iomap, op)
 
 # ── DbCatalogRdbmsToSyntaxNode ────────────────────────────────────────────────
 
@@ -175,38 +322,37 @@ DbCatalogRdbmsToSyntaxNode(; name_font=font_ubuntu_monospace_bold_24, name_color
     DbCatalogRdbmsToSyntaxNode(name_font, name_color)
 
 function projection_print(p::DbCatalogRdbmsToSyntaxNode, recursion, rdbms::DbCatalogRdbms, ctx)
-    node, child_iomaps = _catalog_syntax_node(
-        recursion, ctx, rdbms.selection, 0, p.name_font, p.name_color,
-        () -> " " * rdbms.host * ":" * string(rdbms.port), rdbms.databases)
-    ChildrenIoMap(p, rdbms, node, child_iomaps)
+    node, child_iomaps, iomap_cell = _catalog_syntax_node(
+        p, recursion, ctx, rdbms, p.name_font, p.name_color,
+        "Databases", () -> " " * rdbms.host * ":" * string(rdbms.port), rdbms.databases)
+    iomap = ChildrenIoMap(p, rdbms, node, child_iomaps)
+    iomap_cell[] = iomap
+    return iomap
 end
 
-map_reference_forward(::DbCatalogRdbmsToSyntaxNode, iomap, ref) = nothing
-map_reference_backward(::DbCatalogRdbmsToSyntaxNode, iomap, ref) = nothing
-projection_read(::DbCatalogRdbmsToSyntaxNode, iomap, op) = nothing
+map_reference_forward(p::DbCatalogRdbmsToSyntaxNode, iomap::ChildrenIoMap, ref) =
+    _catalog_forward_ref(p, iomap, ref, "databases")
+map_reference_backward(p::DbCatalogRdbmsToSyntaxNode, iomap::ChildrenIoMap, ref) =
+    _catalog_backward_ref(p, iomap, ref, "databases")
+projection_read(p::DbCatalogRdbmsToSyntaxNode, iomap::ChildrenIoMap, op::ReplaceSelectionOperation) =
+    _catalog_read_selection(p, iomap, op)
 
 # ── Marker eligibility ──────────────────────────────────────────────────────────
 #
-# Predicate for `SyntaxToText(marker_eligible = …)` so the expand/collapse marker
-# lands on non-empty catalog nodes (rdbms, database, schema, table) and never
-# on leaf columns or empty body wrappers.
-#
-#   • indentation < 4          → not a column leaf
-#   • children[2] is the body   → catalog node shape (name leaf + body node)
-#   • body has children         → non-empty: there is something to fold
+# Entity nodes and keyword nodes carry their label in the `open` field.
+# Body nodes (keyword_body) have empty `open`. This lets us mark exactly the
+# collapsible named nodes — entities and keywords — while skipping body wrappers.
 """
     dbcatalog_marker_eligible(node) -> Bool
 
 Predicate for `SyntaxToText(marker_eligible = …)` so the expand/collapse marker
-lands on non-empty catalog nodes and never on leaf columns or empty body wrappers.
+lands on entity nodes and keyword nodes (which carry a label in `open`), but not
+on body wrappers or column leaves.
 """
 dbcatalog_marker_eligible(::SyntaxLeaf) = false
 function dbcatalog_marker_eligible(node::SyntaxNode)
-    node.indentation < 4 || return false
-    children = node.children
-    length(children) >= 2 || return false
-    body = children[2]
-    body isa SyntaxNode && length(body.children) > 0
+    isempty(node.open.content::AbstractString) && return false
+    length(node.children) > 0
 end
 
 # ── Compound constructor ──────────────────────────────────────────────────────

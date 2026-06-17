@@ -89,6 +89,8 @@ end
 
 map_reference_forward(::DatabaseInstanceToDbCatalog, iomap, ref) = nothing
 map_reference_backward(::DatabaseInstanceToDbCatalog, iomap, ref) = nothing
-projection_read(::DatabaseInstanceToDbCatalog, iomap, op) = nothing
+# No projection_read override — the generic default in Projection.jl handles
+# ToggleCollapseOperation (pass-through) and ReplaceSelectionOperation (returns
+# nothing because map_reference_backward returns nothing) correctly.
 
 end # module
