@@ -41,7 +41,7 @@ import ..SyntaxModule: SyntaxDocument, SyntaxLeaf, SyntaxNode
 import ..TypeDispatchingModule: TypeDispatchingProjection
 import ..IoMapModule: SimpleIoMap, ChildrenIoMap
 import ..ReferenceModule: ConcreteReferencePath, ElementReference, PositionReference, RangeReference, FieldReference,
-                         ProjectionReference, ReferencePath, EmptyReferencePath, append_reference
+                         ProjectionReference, ReferencePath, EmptyReferencePath, append_reference, head, tail
 import ..ReferenceCaseModule: var"@reference_case"
 import ..ReferenceBuilderModule: var"@reference"
 import ..PrinterContextModule: child_context
@@ -75,9 +75,149 @@ _ts(text, font=_id_font, color=color_default) = TextString(text, font, color)
 _kw(text) = TextString(text, _kw_font, _kw_color)
 _op(text) = TextString(text, _id_font, _op_color)
 
+# ── Section-structured node infrastructure ────────────────────────────────
+#
+# Module-like NED types render their body as a two-level syntax tree: the node's
+# children are *section* SyntaxNodes ("parameters:", "gates:", …), and each
+# section node's children are the projected entries. The document has no section
+# level — entries live directly in per-field CellVectors (`.params`, `.gates`,
+# …). So whole-element selection paths cross two coordinate systems:
+#
+#   document  .params[i].<tail>   ⇄   syntax  .children[sec].children[i].<tail>
+#   document  .params (∅)         ⇄   syntax  .children[sec] (∅)   (whole section)
+#   document  ∅                   ⇄   syntax  ∅                    (whole node)
+#
+# `sec` is the section's index among the *non-empty* sections (empty sections are
+# not rendered). The per-section IO maps store the field name and the entries'
+# own IO maps so the entry tail can be delegated (School A).
+abstract type NedSectionToSyntaxNode <: Projection end
+
+# Build the per-section IO map structure: one NamedTuple (field, label, entries)
+# per non-empty section, in render order. `sections` is a vector of
+# (label::String, field::Symbol, cv::CellVector).
+function _ned_section_iomaps(recursion, ctx, reference, sections)
+    result = NamedTuple[]
+    for (label, field, cv) in sections
+        isempty(cv) && continue
+        entry_ioms = Any[]
+        for (i, child) in enumerate(cv)
+            im = projection_printer_recurse(recursion, child,
+                     child_context(ctx, _field_child_ref(reference, field, i)))
+            push!(entry_ioms, im)
+        end
+        push!(result, (field=field, label=label, entries=entry_ioms))
+    end
+    result
+end
+
+# document → syntax. `secs` is the value of the section IO maps cell.
+function _ned_section_forward(secs, reference)
+    reference isa EmptyReferencePath && return EmptyReferencePath()
+    reference isa ConcreteReferencePath || return nothing
+    h = head(reference)
+    h isa FieldReference || return nothing
+    field = Symbol(h.name)
+    sec_i = findfirst(s -> s.field === field, secs)
+    sec_i === nothing && return nothing
+    rest = tail(reference)
+    rest isa EmptyReferencePath && return @reference children[sec_i]
+    rest isa ConcreteReferencePath || return nothing
+    h2 = head(rest)
+    h2 isa RangeReference || return nothing
+    entry_i = h2.stop                       # ElementReference(i) = Range(i-1, i)
+    entries = secs[sec_i].entries
+    1 <= entry_i <= length(entries) || return nothing
+    child = entries[entry_i]
+    entry_rest = tail(rest)
+    if entry_rest isa EmptyReferencePath
+        return @reference children[sec_i].children[entry_i]
+    end
+    inner = map_reference_forward(child.projection, child, entry_rest)
+    inner === nothing && return nothing
+    @reference children[sec_i].children[entry_i].^(inner)
+end
+
+# syntax → document. `secs` is the value of the section IO maps cell.
+function _ned_section_backward(secs, reference)
+    @reference_case reference begin
+        ∅ => @reference()
+        children{s:_}.rest... => begin
+            sec_i = s + 1
+            1 <= sec_i <= length(secs) || return nothing
+            sec = secs[sec_i]
+            field_ref = FieldReference(String(sec.field))
+            rest isa EmptyReferencePath && return ConcreteReferencePath(field_ref, EmptyReferencePath())
+            @reference_case rest begin
+                children{e:_}.inner... => begin
+                    entry_i = e + 1
+                    1 <= entry_i <= length(sec.entries) || return nothing
+                    child = sec.entries[entry_i]
+                    translated = inner isa EmptyReferencePath ? EmptyReferencePath() :
+                                 map_reference_backward(child.projection, child, inner)
+                    translated === nothing && return nothing
+                    ConcreteReferencePath(field_ref,
+                        ConcreteReferencePath(ElementReference(entry_i), translated))
+                end
+            end
+        end
+    end
+end
+
+# Build a section-structured node's IO map. `open_ts`/`close_ts` are the
+# heading/closing TextStrings, `collapsed` the fold-state cell.
+function _ned_section_print(p, recursion, m, ctx, open_ts, close_ts, collapsed, sections)
+    reference = ctx.reference
+    section_iomaps = Cell(() -> _ned_section_iomaps(recursion, ctx, reference, sections))
+
+    sel = Cell(() -> begin
+        path = m.selection
+        path isa ConcreteReferencePath && head(path) isa ProjectionReference && return path
+        _ned_section_forward(section_iomaps[], path)
+    end)
+
+    children_cv = CellVector(() -> SyntaxDocument[
+        SyntaxNode(_kw(s.label), _empty_ts(), _empty_ts(),
+                   SyntaxDocument[im.output for im in s.entries]; indentation=1)
+        for s in section_iomaps[]])
+
+    output = SyntaxNode(open_ts, close_ts, _empty_ts(), children_cv, 1, collapsed, sel)
+    ChildrenIoMap(p, m, output, section_iomaps)
+end
+
+# Shared reference mapping / readers for every section-structured node.
+map_reference_forward(p::NedSectionToSyntaxNode, iomap::ChildrenIoMap, reference) =
+    _ned_section_forward(iomap.child_iomaps[], reference)
+
+map_reference_backward(p::NedSectionToSyntaxNode, iomap::ChildrenIoMap, reference) =
+    _ned_section_backward(iomap.child_iomaps[], reference)
+
+function projection_read(p::NedSectionToSyntaxNode, iomap::ChildrenIoMap, op::ReplaceSelectionOperation)
+    result = map_reference_backward(p, iomap, op.path)
+    result !== nothing && return ReplaceSelectionOperation(result)
+    flat = _syntax_to_flat(iomap.output::SyntaxNode, op.path, SyntaxNodeToText(), 0)
+    flat < 0 && return nothing
+    return ReplaceSelectionOperation(ConcreteReferencePath(ProjectionReference(p, ConcreteReferencePath(PositionReference(flat)))))
+end
+
+function projection_read(p::NedSectionToSyntaxNode, iomap::ChildrenIoMap, op::StringReplaceRangeOperation)
+    new_ref = map_reference_backward(p, iomap, op.reference)
+    new_ref === nothing && return nothing
+    StringReplaceRangeOperation(new_ref, op.replacement)
+end
+
 # ── NedInsertionToSyntaxLeaf ─────────────────────────────────────────────
 
 struct NedInsertionToSyntaxLeaf <: Projection end
+
+map_reference_forward(::NedInsertionToSyntaxLeaf, iomap, reference) =
+    reference isa EmptyReferencePath ? EmptyReferencePath() : nothing
+map_reference_backward(::NedInsertionToSyntaxLeaf, iomap, reference) =
+    reference isa EmptyReferencePath ? EmptyReferencePath() : nothing
+
+function projection_read(p::NedInsertionToSyntaxLeaf, iomap::SimpleIoMap, op::ReplaceSelectionOperation)
+    result = map_reference_backward(p, iomap, op.path)
+    result !== nothing ? ReplaceSelectionOperation(result) : nothing
+end
 
 function projection_print(p::NedInsertionToSyntaxLeaf, recursion, ins::NedInsertion, ctx)
     output_selection = Cell(() -> map_reference_forward(p, nothing, ins.selection))
@@ -93,12 +233,14 @@ struct NedPackageToSyntaxLeaf <: Projection end
 
 function map_reference_forward(::NedPackageToSyntaxLeaf, iomap::SimpleIoMap, reference)
     @reference_case reference begin
+        ∅ => @reference()
         name.rest... => @reference value.^(rest)
     end
 end
 
 function map_reference_backward(::NedPackageToSyntaxLeaf, iomap::SimpleIoMap, reference)
     @reference_case reference begin
+        ∅ => @reference()
         value.rest... => @reference name.^(rest)
     end
 end
@@ -117,6 +259,7 @@ end
 function projection_print(p::NedPackageToSyntaxLeaf, recursion, pkg::NedPackage, ctx)
     sel = Cell(() -> begin
         @reference_case pkg.selection begin
+            ∅ => @reference()
             name.rest... => @reference value.^(rest)
         end
     end)
@@ -132,12 +275,14 @@ struct NedImportToSyntaxLeaf <: Projection end
 
 function map_reference_forward(::NedImportToSyntaxLeaf, iomap::SimpleIoMap, reference)
     @reference_case reference begin
+        ∅ => @reference()
         import_spec.rest... => @reference value.^(rest)
     end
 end
 
 function map_reference_backward(::NedImportToSyntaxLeaf, iomap::SimpleIoMap, reference)
     @reference_case reference begin
+        ∅ => @reference()
         value.rest... => @reference import_spec.^(rest)
     end
 end
@@ -156,6 +301,7 @@ end
 function projection_print(p::NedImportToSyntaxLeaf, recursion, imp::NedImport, ctx)
     sel = Cell(() -> begin
         @reference_case imp.selection begin
+            ∅ => @reference()
             import_spec.rest... => @reference value.^(rest)
         end
     end)
@@ -196,9 +342,35 @@ function _format_property(prop::NedProperty)
     String(take!(buf))
 end
 
+function map_reference_forward(::NedPropertyToSyntaxLeaf, iomap::SimpleIoMap, reference)
+    @reference_case reference begin
+        ∅ => @reference()
+        name.rest... => @reference value.^(rest)
+    end
+end
+
+function map_reference_backward(::NedPropertyToSyntaxLeaf, iomap::SimpleIoMap, reference)
+    @reference_case reference begin
+        ∅ => @reference()
+        value.rest... => @reference name.^(rest)
+    end
+end
+
+function projection_read(p::NedPropertyToSyntaxLeaf, iomap::SimpleIoMap, op::ReplaceSelectionOperation)
+    result = map_reference_backward(p, iomap, op.path)
+    result !== nothing ? ReplaceSelectionOperation(result) : nothing
+end
+
+function projection_read(p::NedPropertyToSyntaxLeaf, iomap::SimpleIoMap, op::StringReplaceRangeOperation)
+    new_ref = map_reference_backward(p, iomap, op.reference)
+    new_ref === nothing && return nothing
+    StringReplaceRangeOperation(new_ref, op.replacement)
+end
+
 function projection_print(p::NedPropertyToSyntaxLeaf, recursion, prop::NedProperty, ctx)
     sel = Cell(() -> begin
         @reference_case prop.selection begin
+            ∅ => @reference()
             name.rest... => @reference value.^(rest)
         end
     end)
@@ -232,6 +404,7 @@ end
 
 function map_reference_forward(::NedParamToSyntaxLeaf, iomap::SimpleIoMap, reference)
     @reference_case reference begin
+        ∅ => @reference()
         name.rest...  => @reference value.^(rest)
         value.rest... => @reference value.^(rest)
     end
@@ -239,6 +412,7 @@ end
 
 function map_reference_backward(::NedParamToSyntaxLeaf, iomap::SimpleIoMap, reference)
     @reference_case reference begin
+        ∅ => @reference()
         value.rest... => @reference name.^(rest)
     end
 end
@@ -257,6 +431,7 @@ end
 function projection_print(p::NedParamToSyntaxLeaf, recursion, param::NedParam, ctx)
     sel = Cell(() -> begin
         @reference_case param.selection begin
+            ∅ => @reference()
             name.rest...  => @reference value.^(rest)
             value.rest... => @reference value.^(rest)
         end
@@ -283,9 +458,35 @@ function _format_gate(gate::NedGate)
     String(take!(buf))
 end
 
+function map_reference_forward(::NedGateToSyntaxLeaf, iomap::SimpleIoMap, reference)
+    @reference_case reference begin
+        ∅ => @reference()
+        name.rest... => @reference value.^(rest)
+    end
+end
+
+function map_reference_backward(::NedGateToSyntaxLeaf, iomap::SimpleIoMap, reference)
+    @reference_case reference begin
+        ∅ => @reference()
+        value.rest... => @reference name.^(rest)
+    end
+end
+
+function projection_read(p::NedGateToSyntaxLeaf, iomap::SimpleIoMap, op::ReplaceSelectionOperation)
+    result = map_reference_backward(p, iomap, op.path)
+    result !== nothing ? ReplaceSelectionOperation(result) : nothing
+end
+
+function projection_read(p::NedGateToSyntaxLeaf, iomap::SimpleIoMap, op::StringReplaceRangeOperation)
+    new_ref = map_reference_backward(p, iomap, op.reference)
+    new_ref === nothing && return nothing
+    StringReplaceRangeOperation(new_ref, op.replacement)
+end
+
 function projection_print(p::NedGateToSyntaxLeaf, recursion, gate::NedGate, ctx)
     sel = Cell(() -> begin
         @reference_case gate.selection begin
+            ∅ => @reference()
             name.rest... => @reference value.^(rest)
         end
     end)
@@ -344,10 +545,24 @@ function _format_connection(c::NedConnection)
     String(take!(buf))
 end
 
+# A connection is rendered as one flat text leaf; only the whole element is
+# independently selectable (its many sub-fields have no addressable cursor).
+map_reference_forward(::NedConnectionToSyntaxLeaf, iomap::SimpleIoMap, reference) =
+    reference isa EmptyReferencePath ? EmptyReferencePath() : nothing
+map_reference_backward(::NedConnectionToSyntaxLeaf, iomap::SimpleIoMap, reference) =
+    reference isa EmptyReferencePath ? EmptyReferencePath() : nothing
+
+function projection_read(p::NedConnectionToSyntaxLeaf, iomap::SimpleIoMap, op::ReplaceSelectionOperation)
+    result = map_reference_backward(p, iomap, op.path)
+    result !== nothing ? ReplaceSelectionOperation(result) : nothing
+end
+
 function projection_print(p::NedConnectionToSyntaxLeaf, recursion, conn::NedConnection, ctx)
+    sel = Cell(() -> conn.selection isa EmptyReferencePath ? EmptyReferencePath() : nothing)
     SimpleIoMap(p, conn, SyntaxLeaf(
         _empty_ts(), _op(";"),
-        TextString(() -> _format_connection(conn), _id_font, _val_color)))
+        TextString(() -> _format_connection(conn), _id_font, _val_color),
+        sel))
 end
 
 # ── NedConnectionGroupToSyntaxNode ───────────────────────────────────────
@@ -373,6 +588,7 @@ end
 
 function map_reference_forward(p::NedConnectionGroupToSyntaxNode, iomap::ChildrenIoMap, reference)
     @reference_case reference begin
+        ∅ => @reference()
         connections{s:_}.rest... => begin
             child_i = s + 1
             iomaps = iomap.child_iomaps[]
@@ -387,12 +603,14 @@ end
 
 function map_reference_backward(p::NedConnectionGroupToSyntaxNode, iomap::ChildrenIoMap, reference)
     @reference_case reference begin
+        ∅ => @reference()
         children{s:_}.rest... => begin
             child_i = s + 1
             iomaps = iomap.child_iomaps[]
             1 <= child_i <= length(iomaps) || return nothing
             child = iomaps[child_i]
-            translated = map_reference_backward(child.projection, child, rest)
+            translated = rest isa EmptyReferencePath ? EmptyReferencePath() :
+                         map_reference_backward(child.projection, child, rest)
             translated === nothing && return nothing
             @reference connections[child_i].^(translated)
         end
@@ -423,6 +641,7 @@ function projection_print(p::NedConnectionGroupToSyntaxNode, recursion, group::N
         path = group.selection
         path isa ConcreteReferencePath && path.head isa ProjectionReference && return path
         @reference_case path begin
+            ∅ => @reference()
             connections{s_idx:_}.rest... => begin
                 child_i = s_idx + 1
                 iomaps = child_iomaps[]
@@ -485,62 +704,22 @@ function _field_child_ref(reference, field_name::Symbol, i::Int)
     append_reference(reference, FieldReference(String(field_name)), ElementReference(i))
 end
 
-# Build section SyntaxNodes for module bodies. Each non-empty section becomes
-# a SyntaxNode(open="parameters:", indentation=1, children=[entry1, entry2, ...]).
-# Returns (section_syntax_nodes::Vector{SyntaxDocument}, all child iomaps).
-function _build_section_nodes(recursion, ctx, reference, sections)
-    section_nodes = SyntaxDocument[]
-    for (label, field_name, cv) in sections
-        isempty(cv) && continue
-        entry_outputs = SyntaxDocument[]
-        for (i, child) in enumerate(cv)
-            im = projection_printer_recurse(recursion, child,
-                     child_context(ctx, _field_child_ref(reference, field_name, i)))
-            push!(entry_outputs, im.output)
-        end
-        section_node = SyntaxNode(
-            _kw(label), _empty_ts(), _empty_ts(),
-            entry_outputs; indentation=1)
-        push!(section_nodes, section_node)
-    end
-    return section_nodes
-end
-
 # ── NedSimpleModuleToSyntaxNode ──────────────────────────────────────────
 
-struct NedSimpleModuleToSyntaxNode <: Projection end
+struct NedSimpleModuleToSyntaxNode <: NedSectionToSyntaxNode end
 
 function projection_print(p::NedSimpleModuleToSyntaxNode, recursion, m::NedSimpleModule, ctx)
-    reference = ctx.reference
-
-    sections = [
-        ("parameters:", :params, m.params),
-        ("gates:", :gates, m.gates),
-    ]
-
-    children_cv = CellVector(() -> _build_section_nodes(recursion, ctx, reference, sections))
-
-    sel = Cell(() -> begin
-        path = m.selection
-        path isa ConcreteReferencePath && path.head isa ProjectionReference && return path
-        nothing
-    end)
-
-    output = SyntaxNode(
+    sections = [("parameters:", :params, m.params), ("gates:", :gates, m.gates)]
+    _ned_section_print(p, recursion, m, ctx,
         TextString(() -> _module_heading("simple", m), _kw_font, _kw_color),
-        _op("}"),
-        _empty_ts(),
-        children_cv, 1, Cell(false), sel)
-    SimpleIoMap(p, m, output)
+        _op("}"), Cell(false), sections)
 end
 
 # ── NedCompoundModuleToSyntaxNode ────────────────────────────────────────
 
-struct NedCompoundModuleToSyntaxNode <: Projection end
+struct NedCompoundModuleToSyntaxNode <: NedSectionToSyntaxNode end
 
 function projection_print(p::NedCompoundModuleToSyntaxNode, recursion, m::NedCompoundModule, ctx)
-    reference = ctx.reference
-
     sections = [
         ("parameters:", :params, m.params),
         ("gates:", :gates, m.gates),
@@ -548,109 +727,47 @@ function projection_print(p::NedCompoundModuleToSyntaxNode, recursion, m::NedCom
         ("submodules:", :submodules, m.submodules),
         ("connections:", :connections, m.connections),
     ]
-
-    children_cv = CellVector(() -> _build_section_nodes(recursion, ctx, reference, sections))
-
-    sel = Cell(() -> begin
-        path = m.selection
-        path isa ConcreteReferencePath && path.head isa ProjectionReference && return path
-        nothing
-    end)
-
-    output = SyntaxNode(
+    _ned_section_print(p, recursion, m, ctx,
         TextString(() -> _module_heading("network", m), _kw_font, _kw_color),
-        _op("}"),
-        _empty_ts(),
-        children_cv, 1, m.collapsed, sel)
-    SimpleIoMap(p, m, output)
+        _op("}"), m.collapsed, sections)
 end
 
 # ── NedModuleInterfaceToSyntaxNode ───────────────────────────────────────
 
-struct NedModuleInterfaceToSyntaxNode <: Projection end
+struct NedModuleInterfaceToSyntaxNode <: NedSectionToSyntaxNode end
 
 function projection_print(p::NedModuleInterfaceToSyntaxNode, recursion, m::NedModuleInterface, ctx)
-    reference = ctx.reference
     sections = [("parameters:", :params, m.params), ("gates:", :gates, m.gates)]
-    children_cv = CellVector(() -> _build_section_nodes(recursion, ctx, reference, sections))
-
-    sel = Cell(() -> begin
-        path = m.selection
-        path isa ConcreteReferencePath && path.head isa ProjectionReference && return path
-        nothing
-    end)
-
-    output = SyntaxNode(
+    _ned_section_print(p, recursion, m, ctx,
         TextString(() -> _interface_heading("moduleinterface", m), _kw_font, _kw_color),
-        _op("}"),
-        _empty_ts(),
-        children_cv, 1, Cell(false), sel)
-    SimpleIoMap(p, m, output)
+        _op("}"), Cell(false), sections)
 end
 
 # ── NedChannelToSyntaxNode ───────────────────────────────────────────────
 
-struct NedChannelToSyntaxNode <: Projection end
+struct NedChannelToSyntaxNode <: NedSectionToSyntaxNode end
 
 function projection_print(p::NedChannelToSyntaxNode, recursion, ch::NedChannel, ctx)
-    reference = ctx.reference
-    children_cv = CellVector(() -> begin
-        entry_outputs = SyntaxDocument[]
-        for (i, child) in enumerate(ch.params)
-            im = projection_printer_recurse(recursion, child,
-                     child_context(ctx, @reference ^(reference).params[i]))
-            push!(entry_outputs, im.output)
-        end
-        entry_outputs
-    end)
-
-    sel = Cell(() -> begin
-        path = ch.selection
-        path isa ConcreteReferencePath && path.head isa ProjectionReference && return path
-        nothing
-    end)
-
-    output = SyntaxNode(
+    sections = [("parameters:", :params, ch.params)]
+    _ned_section_print(p, recursion, ch, ctx,
         TextString(() -> _module_heading("channel", ch), _kw_font, _kw_color),
-        _op("}"),
-        _empty_ts(),
-        children_cv, 1, Cell(false), sel)
-    SimpleIoMap(p, ch, output)
+        _op("}"), Cell(false), sections)
 end
 
 # ── NedChannelInterfaceToSyntaxNode ──────────────────────────────────────
 
-struct NedChannelInterfaceToSyntaxNode <: Projection end
+struct NedChannelInterfaceToSyntaxNode <: NedSectionToSyntaxNode end
 
 function projection_print(p::NedChannelInterfaceToSyntaxNode, recursion, ci::NedChannelInterface, ctx)
-    reference = ctx.reference
-    children_cv = CellVector(() -> begin
-        entry_outputs = SyntaxDocument[]
-        for (i, child) in enumerate(ci.params)
-            im = projection_printer_recurse(recursion, child,
-                     child_context(ctx, @reference ^(reference).params[i]))
-            push!(entry_outputs, im.output)
-        end
-        entry_outputs
-    end)
-
-    sel = Cell(() -> begin
-        path = ci.selection
-        path isa ConcreteReferencePath && path.head isa ProjectionReference && return path
-        nothing
-    end)
-
-    output = SyntaxNode(
+    sections = [("parameters:", :params, ci.params)]
+    _ned_section_print(p, recursion, ci, ctx,
         TextString(() -> _interface_heading("channelinterface", ci), _kw_font, _kw_color),
-        _op("}"),
-        _empty_ts(),
-        children_cv, 1, Cell(false), sel)
-    SimpleIoMap(p, ci, output)
+        _op("}"), Cell(false), sections)
 end
 
 # ── NedSubmoduleToSyntaxNode ─────────────────────────────────────────────
 
-struct NedSubmoduleToSyntaxNode <: Projection end
+struct NedSubmoduleToSyntaxNode <: NedSectionToSyntaxNode end
 
 function _format_submodule_heading(s::NedSubmodule)
     buf = IOBuffer()
@@ -673,30 +790,11 @@ function _format_submodule_heading(s::NedSubmodule)
 end
 
 function projection_print(p::NedSubmoduleToSyntaxNode, recursion, sub::NedSubmodule, ctx)
-    reference = ctx.reference
-
-    sections = [
-        ("parameters:", :params, sub.params),
-        ("gates:", :gates, sub.gates),
-    ]
-
-    children_cv = CellVector(() -> begin
-        has_body = !isempty(sub.params) || !isempty(sub.gates)
-        has_body ? _build_section_nodes(recursion, ctx, reference, sections) : SyntaxDocument[]
-    end)
-
-    sel = Cell(() -> begin
-        path = sub.selection
-        path isa ConcreteReferencePath && path.head isa ProjectionReference && return path
-        nothing
-    end)
-
-    output = SyntaxNode(
+    sections = [("parameters:", :params, sub.params), ("gates:", :gates, sub.gates)]
+    _ned_section_print(p, recursion, sub, ctx,
         TextString(() -> _format_submodule_heading(sub), _id_font, _id_color),
         TextString(() -> (isempty(sub.params) && isempty(sub.gates)) ? "" : "}", _id_font, _op_color),
-        _empty_ts(),
-        children_cv, 1, Cell(false), sel)
-    SimpleIoMap(p, sub, output)
+        Cell(false), sections)
 end
 
 # ── NedFileToSyntaxNode ──────────────────────────────────────────────────
@@ -705,12 +803,14 @@ struct NedFileToSyntaxNode <: Projection end
 
 function map_reference_forward(p::NedFileToSyntaxNode, iomap::ChildrenIoMap, reference)
     @reference_case reference begin
+        ∅ => @reference()
         children{s:_}.rest... => begin
             child_i = s + 1
             iomaps = iomap.child_iomaps[]
             1 <= child_i <= length(iomaps) || return nothing
             child = iomaps[child_i]
-            inner = map_reference_forward(child.projection, child, rest)
+            inner = rest isa EmptyReferencePath ? EmptyReferencePath() :
+                    map_reference_forward(child.projection, child, rest)
             inner === nothing && return nothing
             @reference children[child_i].^(inner)
         end
@@ -719,12 +819,14 @@ end
 
 function map_reference_backward(p::NedFileToSyntaxNode, iomap::ChildrenIoMap, reference)
     @reference_case reference begin
+        ∅ => @reference()
         children{s:_}.rest... => begin
             child_i = s + 1
             iomaps = iomap.child_iomaps[]
             1 <= child_i <= length(iomaps) || return nothing
             child = iomaps[child_i]
-            translated = map_reference_backward(child.projection, child, rest)
+            translated = rest isa EmptyReferencePath ? EmptyReferencePath() :
+                         map_reference_backward(child.projection, child, rest)
             translated === nothing && return nothing
             @reference children[child_i].^(translated)
         end
@@ -755,6 +857,7 @@ function projection_print(p::NedFileToSyntaxNode, recursion, f::NedFile, ctx)
         path = f.selection
         path isa ConcreteReferencePath && path.head isa ProjectionReference && return path
         @reference_case path begin
+            ∅ => @reference()
             children{s_idx:_}.rest... => begin
                 child_i = s_idx + 1
                 iomaps = child_iomaps[]

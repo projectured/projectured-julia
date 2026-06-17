@@ -132,6 +132,64 @@ function collect_tree_selections(document; is_node = n -> hasproperty(n, :select
     results
 end
 
+# ── NED whole-element enumeration ─────────────────────────────────────────
+#
+# The NED document is NOT a native syntax tree: NedToSyntax projects it to one,
+# and only the nodes it emits as their own selectable syntax element are
+# Alt+arrow targets. Sub-parts flattened into a leaf's text (a param's `@unit`
+# property, property keys, literals, gate properties) are not navigable, so the
+# generic `is_node = SyntaxDocument`/`hasproperty(:selection)` predicates do not
+# describe the reachable set. Instead, walk exactly the projection's child
+# decomposition: file children, then per-type body sections, recursing into the
+# structural ones and stopping at leaf entries.
+
+# The navigable child sections of a NED node, as (field::Symbol, CellVector).
+function _ned_nav_sections(node)
+    if node isa Projectured.NedSimpleModule
+        [(:params, node.params), (:gates, node.gates)]
+    elseif node isa Projectured.NedCompoundModule
+        [(:params, node.params), (:gates, node.gates), (:types, node.types),
+         (:submodules, node.submodules), (:connections, node.connections)]
+    elseif node isa Projectured.NedModuleInterface
+        [(:params, node.params), (:gates, node.gates)]
+    elseif node isa Projectured.NedChannel || node isa Projectured.NedChannelInterface
+        [(:params, node.params)]
+    elseif node isa Projectured.NedSubmodule
+        [(:params, node.params), (:gates, node.gates)]
+    elseif node isa Projectured.NedConnectionGroup
+        [(:connections, node.connections)]
+    else
+        Tuple{Symbol,Any}[]
+    end
+end
+
+function _ned_collect!(node, path, results)
+    push!(results, path)                       # the whole element at this node
+    for (field, cv) in _ned_nav_sections(node)
+        for (i, child) in enumerate(cv)
+            cpath = append_reference(path, FieldReference(String(field)), ElementReference(i))
+            _ned_collect!(child, cpath, results)
+        end
+    end
+end
+
+"""
+    collect_ned_tree_selections(file::NedFile) -> Vector{ReferencePath}
+
+Every Alt+arrow-reachable whole-element selection in a NED file: the root (∅),
+each top-level declaration (`.children[i]`), and recursively each body-section
+entry (`.params[i]`, `.gates[i]`, `.submodules[i]`, `.connections[i]`). Mirrors
+NedToSyntax's child decomposition, so the path strings match navigation output.
+"""
+function collect_ned_tree_selections(file)
+    results = ReferencePath[EmptyReferencePath()]
+    for (i, child) in enumerate(file.children)
+        cpath = ReferencePath(FieldReference("children"), ElementReference(i))
+        _ned_collect!(child, cpath, results)
+    end
+    results
+end
+
 # Subset assertion: every enumerated selection must be among the reachable ones.
 function _assert_reaches_all(label, enumerated, visited::Set{String})
     missing = sort!([string(p) for p in enumerated if !(string(p) in visited)])

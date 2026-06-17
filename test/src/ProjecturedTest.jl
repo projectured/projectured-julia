@@ -176,7 +176,7 @@ export test_json_to_syntax, test_json_to_syntax_reader, test_syntax_to_text, tes
 export test_table, test_table_selection, test_table_navigation, explore_table_selections
 export test_examples, test_text_navigations, test_text_navigations_complete
 export test_printer, test_printers, test_example, test_text_navigation
-export explore_text_selections, collect_text_selections, collect_tree_selections
+export explore_text_selections, collect_text_selections, collect_tree_selections, collect_ned_tree_selections
 export test_reader, test_readers, walk_reader_events
 export test_repl, test_repls, walk_repl_loop
 export test_typein, test_typeins, walk_typein

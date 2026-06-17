@@ -95,7 +95,11 @@ end
 # additionally assert navigation reaches every structural selection enumerated
 # directly from the document (subset: collect_tree_selections(document; is_node) ⊆
 # reachable).
-function test_tree_navigation(label, document, projection; check_reaches_all=false, is_node=_is_syntax_node)
+# `collect` overrides how the ground-truth enumerated set is produced (default:
+# `collect_tree_selections(document; is_node)`). Domains whose document is not a
+# native syntax tree pass a domain enumerator instead (e.g. NED passes
+# `collect_ned_tree_selections`, which mirrors NedToSyntax's child decomposition).
+function test_tree_navigation(label, document, projection; check_reaches_all=false, is_node=_is_syntax_node, collect=nothing)
     @testset "$label" begin
         result = explore_tree_selections(document, projection;
             onstate = (p, ok, msg) -> begin
@@ -109,15 +113,16 @@ function test_tree_navigation(label, document, projection; check_reaches_all=fal
         end
         @test result.state_count > 0
         if check_reaches_all
-            enumerated = collect_tree_selections(document; is_node=is_node)
+            enumerated = collect === nothing ?
+                collect_tree_selections(document; is_node=is_node) : collect(document)
             @test !isempty(enumerated)
             _assert_reaches_all(label, enumerated, result.visited)
         end
     end
 end
 
-function test_tree_navigation(example::Example; check_reaches_all=false, is_node=_is_syntax_node)
-    test_tree_navigation(example.name, example.document, example.projection; check_reaches_all=check_reaches_all, is_node=is_node)
+function test_tree_navigation(example::Example; check_reaches_all=false, is_node=_is_syntax_node, collect=nothing)
+    test_tree_navigation(example.name, example.document, example.projection; check_reaches_all=check_reaches_all, is_node=is_node, collect=collect)
 end
 
 function test_tree_navigations()
@@ -169,6 +174,13 @@ function test_tree_navigations_complete()
         for example in examples
             example.name in _tree_navigation_complete_examples || continue
             test_tree_navigation(example; check_reaches_all=true)
+        end
+        # NED: its document is projected to syntax (not a native syntax tree), so
+        # the navigable-node set is defined by NedToSyntax's child decomposition,
+        # enumerated by collect_ned_tree_selections rather than an is_node predicate.
+        for example in examples
+            example.name == "ned" || continue
+            test_tree_navigation(example; check_reaches_all=true, collect=collect_ned_tree_selections)
         end
     end
 end
