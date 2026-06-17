@@ -56,6 +56,7 @@ include("document/Workspace.jl")
 include("document/Clipboard.jl")
 include("document/Widget.jl")
 include("document/Layout.jl")
+include("document/Component.jl")
 include("document/Book.jl")
 include("document/Evaluator.jl")
 include("document/Conversation.jl")
@@ -384,6 +385,7 @@ using .NedToSyntaxModule: NedInsertionToSyntaxLeaf, NedPackageToSyntaxLeaf, NedI
                           NedSimpleModuleToSyntaxNode, NedCompoundModuleToSyntaxNode,
                           NedModuleInterfaceToSyntaxNode, NedChannelToSyntaxNode, NedChannelInterfaceToSyntaxNode,
                           NedFileToSyntaxNode, NedToSyntax
+using .ComponentModule: ComponentDocument, ComponentMasterDetail
 using .WorkbenchModule: WorkbenchDocument, WorkbenchInsertion,
                         WorkbenchWorkbench, WorkbenchPage,
                         WorkbenchNavigator, WorkbenchConsole, WorkbenchDescriptor,
@@ -732,6 +734,7 @@ export Operation, evaluate_operation
 export inset_default, inset_size, inset_width, inset_height,
        inset_top_left, inset_top_right, inset_bottom_left, inset_bottom_right
 export BookDocument, BookInsertion, BookBook, BookChapter, BookParagraph, BookList, BookPicture
+export ComponentDocument, ComponentMasterDetail
 export WorkbenchDocument, WorkbenchInsertion,
        WorkbenchWorkbench, WorkbenchPage,
        WorkbenchNavigator, WorkbenchConsole, WorkbenchDescriptor,

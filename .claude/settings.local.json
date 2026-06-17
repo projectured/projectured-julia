@@ -2,7 +2,8 @@
   "permissions": {
     "allow": [
       "Bash(julia --project=. -e 'using ProjecturedTest; ProjecturedTest.test_all\\(\\)')",
-      "Bash(xargs grep:*)"
+      "Bash(xargs grep:*)",
+      "Bash(julia --project=. -e \"using Projectured; println\\(\\\\\"Module loaded successfully\\\\\"\\)\")"
     ]
   },
   "devin.acp.enabledAgents": {
