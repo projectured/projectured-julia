@@ -65,11 +65,12 @@ const _kw_font  = font_ubuntu_monospace_bold_24
 const _kw_color = StyleColor(127 / 255, 0 / 255, 85 / 255, 1.0)  # Eclipse keyword maroon
 const _id_font  = font_ubuntu_monospace_regular_24
 const _id_color = color_black
-const _type_color = color_solarized_cyan
-const _str_color  = color_solarized_green
-const _val_color  = color_black
-const _op_color   = color_gray63
-const _prop_color = color_solarized_green
+const _type_color = _kw_color            # parameter/gate types (double, bool, input …)
+const _str_color  = color_solarized_blue # string constants
+const _val_color  = color_black          # value expressions / non-string literals
+const _op_color   = color_gray63         # operators / punctuation
+const _prop_color = color_solarized_green # @property annotations
+const _section_color = color_solarized_violet # body section labels (parameters:, gates: …)
 const _comment_color = color_solarized_gray
 
 # ── Helpers ───────────────────────────────────────────────────────────────
@@ -77,6 +78,7 @@ const _comment_color = color_solarized_gray
 _empty_ts() = TextString("", _id_font, color_default)
 _ts(text, font=_id_font, color=color_default) = TextString(text, font, color)
 _kw(text) = TextString(text, _kw_font, _kw_color)
+_section_kw(text) = TextString(text, _kw_font, _section_color)
 _op(text) = TextString(text, _id_font, _op_color)
 
 # ── Section-structured node infrastructure ────────────────────────────────
@@ -180,7 +182,7 @@ function _ned_section_print(p, recursion, m, ctx, open_ts, close_ts, collapsed, 
     end)
 
     children_cv = CellVector(() -> SyntaxDocument[
-        SyntaxNode(_kw(s.label), _empty_ts(), _empty_ts(),
+        SyntaxNode(_section_kw(s.label), _empty_ts(), _empty_ts(),
                    SyntaxDocument[im.output for im in s.entries]; indentation=1)
         for s in section_iomaps[]])
 
@@ -204,6 +206,131 @@ function projection_read(p::NedSectionToSyntaxNode, iomap::ChildrenIoMap, op::Re
 end
 
 function projection_read(p::NedSectionToSyntaxNode, iomap::ChildrenIoMap, op::StringReplaceRangeOperation)
+    new_ref = map_reference_backward(p, iomap, op.reference)
+    new_ref === nothing && return nothing
+    StringReplaceRangeOperation(new_ref, op.replacement)
+end
+
+# ── Inline token-node infrastructure (param / gate / property) ─────────────
+#
+# These NED entries render on one line but mix several token colors (type, name,
+# @property, string literal). A SyntaxLeaf carries one color per run, so each is
+# instead projected to an *inline* SyntaxNode (indentation 0 ⇒ children rendered
+# end-to-end, no newlines) whose children are one colored SyntaxLeaf per token.
+# By convention the editable name token is always child index 2 (after a
+# possibly-empty prefix token holding the type), so the `.name` selection maps to
+# `children[2].value` no matter which other tokens are present — keeping the
+# whole-element and text-cursor mappings (and thus navigation/editing) intact.
+# Tokens other than the name are decorative; selecting one falls through to the
+# enclosing file's flat-position fallback.
+abstract type NedInlineToNode <: Projection end
+
+_token(text, color, font=_id_font) = SyntaxLeaf(TextString(text, font, color))
+
+# A non-string literal inside a property key keeps the value color; a quoted
+# literal is a string constant.
+function _literal_token(lit)
+    text = lit.text !== nothing ? string(lit.text) : (lit.value !== nothing ? string(lit.value) : "")
+    _token(text, startswith(text, "\"") ? _str_color : _val_color)
+end
+
+_value_token(v) = (s = string(v); _token(s, startswith(s, "\"") ? _str_color : _val_color))
+
+# Token leaves for a `@property` annotation: "@" + name in property color, the
+# parenthesised key list with string constants in string color. When this
+# property is a standalone entry the name lands at child index 2 (the "@" is
+# child 1); when embedded in a param's token list the leading " " offsets it, so
+# only the param's own name (its child 2) stays editable.
+function _property_token_leaves(prop)
+    leaves = SyntaxDocument[_token("@", _prop_color), _token(prop.name, _prop_color)]
+    prop.index !== nothing && push!(leaves, _token("[" * string(prop.index) * "]", _op_color))
+    if !isempty(prop.keys)
+        push!(leaves, _token("(", _op_color))
+        for (i, key) in enumerate(prop.keys)
+            i > 1 && push!(leaves, _token(";", _op_color))
+            key.name !== nothing && push!(leaves, _token(string(key.name) * "=", _op_color))
+            for (j, lit) in enumerate(key.literals)
+                j > 1 && push!(leaves, _token(",", _op_color))
+                push!(leaves, _literal_token(lit))
+            end
+        end
+        push!(leaves, _token(")", _op_color))
+    end
+    leaves
+end
+
+function _param_token_leaves(param)
+    prefix = ""
+    param.is_volatile && (prefix *= "volatile ")
+    param.type !== nothing && (prefix *= string(param.type) * " ")
+    leaves = SyntaxDocument[_token(prefix, _type_color), _token(param.name, _id_color)]
+    for prop in param.properties
+        push!(leaves, _token(" ", _op_color))
+        append!(leaves, _property_token_leaves(prop))
+    end
+    if param.value !== nothing
+        if param.is_default
+            push!(leaves, _token(" = default(", _op_color))
+            push!(leaves, _value_token(param.value))
+            push!(leaves, _token(")", _op_color))
+        else
+            push!(leaves, _token(" = ", _op_color))
+            push!(leaves, _value_token(param.value))
+        end
+    end
+    leaves
+end
+
+function _gate_token_leaves(gate)
+    prefix = gate.type !== nothing ? string(gate.type) * " " : ""
+    leaves = SyntaxDocument[_token(prefix, _type_color), _token(gate.name, _id_color)]
+    if gate.is_vector
+        push!(leaves, _token("[" * (gate.vector_size !== nothing ? string(gate.vector_size) : "") * "]", _op_color))
+    end
+    leaves
+end
+
+# Build the inline node carrying `input`'s selection. `leaves_fn` yields the
+# token leaves (name at index 2); `close` is the trailing ";" delimiter.
+function _ned_inline_node(p, input, leaves_fn, close)
+    sel = Cell(() -> begin
+        path = input.selection
+        path isa ConcreteReferencePath && head(path) isa ProjectionReference && return path
+        @reference_case path begin
+            ∅ => @reference()
+            name.rest...  => @reference children[2].value.^(rest)
+            value.rest... => @reference children[2].value.^(rest)
+        end
+    end)
+    output = SyntaxNode(_empty_ts(), close, _empty_ts(),
+                        CellVector(leaves_fn), 0, Cell(false), sel)
+    SimpleIoMap(p, input, output)
+end
+
+map_reference_forward(::NedInlineToNode, iomap, reference) =
+    @reference_case reference begin
+        ∅ => @reference()
+        name.rest...  => @reference children[2].value.^(rest)
+        value.rest... => @reference children[2].value.^(rest)
+    end
+
+map_reference_backward(::NedInlineToNode, iomap, reference) =
+    @reference_case reference begin
+        ∅ => @reference()
+        children{1:_}.rest... => begin
+            rest isa EmptyReferencePath && return @reference name
+            @reference_case rest begin
+                value.vrest... => @reference name.^(vrest)
+            end
+        end
+    end
+
+function projection_read(p::NedInlineToNode, iomap::SimpleIoMap, op::ReplaceSelectionOperation)
+    result = map_reference_backward(p, iomap, op.path)
+    result !== nothing ? ReplaceSelectionOperation(result) : nothing
+end
+
+function projection_read(p::NedInlineToNode, iomap::SimpleIoMap, op::StringReplaceRangeOperation)
     new_ref = map_reference_backward(p, iomap, op.reference)
     new_ref === nothing && return nothing
     StringReplaceRangeOperation(new_ref, op.replacement)
@@ -268,7 +395,7 @@ function projection_print(p::NedPackageToSyntaxLeaf, recursion, pkg::NedPackage,
         end
     end)
     SimpleIoMap(p, pkg, SyntaxLeaf(
-        _kw("package "), _op(";"),
+        _kw("\npackage "), _op(";"),
         TextString(() -> pkg.name, _id_font, _id_color),
         sel))
 end
@@ -310,14 +437,14 @@ function projection_print(p::NedImportToSyntaxLeaf, recursion, imp::NedImport, c
         end
     end)
     SimpleIoMap(p, imp, SyntaxLeaf(
-        _kw("import "), _op(";"),
+        _kw("\nimport "), _op(";"),
         TextString(() -> imp.import_spec, _id_font, _id_color),
         sel))
 end
 
 # ── NedPropertyToSyntaxLeaf ─────────────────────────────────────────────
 
-struct NedPropertyToSyntaxLeaf <: Projection end
+struct NedPropertyToSyntaxLeaf <: NedInlineToNode end
 
 function _format_property(prop::NedProperty)
     buf = IOBuffer()
@@ -346,47 +473,12 @@ function _format_property(prop::NedProperty)
     String(take!(buf))
 end
 
-function map_reference_forward(::NedPropertyToSyntaxLeaf, iomap::SimpleIoMap, reference)
-    @reference_case reference begin
-        ∅ => @reference()
-        name.rest... => @reference value.^(rest)
-    end
-end
-
-function map_reference_backward(::NedPropertyToSyntaxLeaf, iomap::SimpleIoMap, reference)
-    @reference_case reference begin
-        ∅ => @reference()
-        value.rest... => @reference name.^(rest)
-    end
-end
-
-function projection_read(p::NedPropertyToSyntaxLeaf, iomap::SimpleIoMap, op::ReplaceSelectionOperation)
-    result = map_reference_backward(p, iomap, op.path)
-    result !== nothing ? ReplaceSelectionOperation(result) : nothing
-end
-
-function projection_read(p::NedPropertyToSyntaxLeaf, iomap::SimpleIoMap, op::StringReplaceRangeOperation)
-    new_ref = map_reference_backward(p, iomap, op.reference)
-    new_ref === nothing && return nothing
-    StringReplaceRangeOperation(new_ref, op.replacement)
-end
-
-function projection_print(p::NedPropertyToSyntaxLeaf, recursion, prop::NedProperty, ctx)
-    sel = Cell(() -> begin
-        @reference_case prop.selection begin
-            ∅ => @reference()
-            name.rest... => @reference value.^(rest)
-        end
-    end)
-    SimpleIoMap(p, prop, SyntaxLeaf(
-        _empty_ts(), _op(";"),
-        TextString(() -> _format_property(prop), _id_font, _prop_color),
-        sel))
-end
+projection_print(p::NedPropertyToSyntaxLeaf, recursion, prop::NedProperty, ctx) =
+    _ned_inline_node(p, prop, () -> _property_token_leaves(prop), _op(";"))
 
 # ── NedParamToSyntaxLeaf ─────────────────────────────────────────────────
 
-struct NedParamToSyntaxLeaf <: Projection end
+struct NedParamToSyntaxLeaf <: NedInlineToNode end
 
 function _format_param(param::NedParam)
     buf = IOBuffer()
@@ -406,49 +498,12 @@ function _format_param(param::NedParam)
     String(take!(buf))
 end
 
-function map_reference_forward(::NedParamToSyntaxLeaf, iomap::SimpleIoMap, reference)
-    @reference_case reference begin
-        ∅ => @reference()
-        name.rest...  => @reference value.^(rest)
-        value.rest... => @reference value.^(rest)
-    end
-end
-
-function map_reference_backward(::NedParamToSyntaxLeaf, iomap::SimpleIoMap, reference)
-    @reference_case reference begin
-        ∅ => @reference()
-        value.rest... => @reference name.^(rest)
-    end
-end
-
-function projection_read(p::NedParamToSyntaxLeaf, iomap::SimpleIoMap, op::ReplaceSelectionOperation)
-    result = map_reference_backward(p, iomap, op.path)
-    result !== nothing ? ReplaceSelectionOperation(result) : nothing
-end
-
-function projection_read(p::NedParamToSyntaxLeaf, iomap::SimpleIoMap, op::StringReplaceRangeOperation)
-    new_ref = map_reference_backward(p, iomap, op.reference)
-    new_ref === nothing && return nothing
-    StringReplaceRangeOperation(new_ref, op.replacement)
-end
-
-function projection_print(p::NedParamToSyntaxLeaf, recursion, param::NedParam, ctx)
-    sel = Cell(() -> begin
-        @reference_case param.selection begin
-            ∅ => @reference()
-            name.rest...  => @reference value.^(rest)
-            value.rest... => @reference value.^(rest)
-        end
-    end)
-    SimpleIoMap(p, param, SyntaxLeaf(
-        _empty_ts(), _op(";"),
-        TextString(() -> _format_param(param), _id_font, _val_color),
-        sel))
-end
+projection_print(p::NedParamToSyntaxLeaf, recursion, param::NedParam, ctx) =
+    _ned_inline_node(p, param, () -> _param_token_leaves(param), _op(";"))
 
 # ── NedGateToSyntaxLeaf ──────────────────────────────────────────────────
 
-struct NedGateToSyntaxLeaf <: Projection end
+struct NedGateToSyntaxLeaf <: NedInlineToNode end
 
 function _format_gate(gate::NedGate)
     buf = IOBuffer()
@@ -462,43 +517,8 @@ function _format_gate(gate::NedGate)
     String(take!(buf))
 end
 
-function map_reference_forward(::NedGateToSyntaxLeaf, iomap::SimpleIoMap, reference)
-    @reference_case reference begin
-        ∅ => @reference()
-        name.rest... => @reference value.^(rest)
-    end
-end
-
-function map_reference_backward(::NedGateToSyntaxLeaf, iomap::SimpleIoMap, reference)
-    @reference_case reference begin
-        ∅ => @reference()
-        value.rest... => @reference name.^(rest)
-    end
-end
-
-function projection_read(p::NedGateToSyntaxLeaf, iomap::SimpleIoMap, op::ReplaceSelectionOperation)
-    result = map_reference_backward(p, iomap, op.path)
-    result !== nothing ? ReplaceSelectionOperation(result) : nothing
-end
-
-function projection_read(p::NedGateToSyntaxLeaf, iomap::SimpleIoMap, op::StringReplaceRangeOperation)
-    new_ref = map_reference_backward(p, iomap, op.reference)
-    new_ref === nothing && return nothing
-    StringReplaceRangeOperation(new_ref, op.replacement)
-end
-
-function projection_print(p::NedGateToSyntaxLeaf, recursion, gate::NedGate, ctx)
-    sel = Cell(() -> begin
-        @reference_case gate.selection begin
-            ∅ => @reference()
-            name.rest... => @reference value.^(rest)
-        end
-    end)
-    SimpleIoMap(p, gate, SyntaxLeaf(
-        _empty_ts(), _op(";"),
-        TextString(() -> _format_gate(gate), _id_font, _id_color),
-        sel))
-end
+projection_print(p::NedGateToSyntaxLeaf, recursion, gate::NedGate, ctx) =
+    _ned_inline_node(p, gate, () -> _gate_token_leaves(gate), _op(";"))
 
 # ── NedConnectionToSyntaxLeaf ────────────────────────────────────────────
 
@@ -671,7 +691,7 @@ end
 
 function _module_heading(keyword::AbstractString, m, has_extends::Bool=true)
     buf = IOBuffer()
-    write(buf, "\n", keyword, " ", m.name)
+    write(buf, "\n\n", keyword, " ", m.name)
     if has_extends && m.extends !== nothing
         write(buf, " extends ", m.extends.name)
     end
@@ -688,7 +708,7 @@ end
 
 function _interface_heading(keyword::AbstractString, m)
     buf = IOBuffer()
-    write(buf, "\n", keyword, " ", m.name)
+    write(buf, "\n\n", keyword, " ", m.name)
     if !isempty(m.extends_list)
         write(buf, " extends ")
         for (i, e) in enumerate(m.extends_list)
@@ -875,9 +895,13 @@ function projection_print(p::NedFileToSyntaxNode, recursion, f::NedFile, ctx)
 
     children_cv = CellVector(() -> SyntaxDocument[im.output for im in child_iomaps[]])
 
+    # Inline (indentation 0): top-level declarations are not indented. Each one
+    # carries its own leading newline(s) — the module headings begin with "\n\n"
+    # and the package/import leaves with "\n\n" — so they sit flush at column 0
+    # (and each module's closing "}" dedents to column 0 as well).
     output = SyntaxNode(
         _empty_ts(), _empty_ts(), _empty_ts(),
-        children_cv, 1, Cell(false), sel)
+        children_cv, 0, Cell(false), sel)
     ChildrenIoMap(p, f, output, child_iomaps)
 end
 

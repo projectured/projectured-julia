@@ -426,8 +426,8 @@ end
 # where heading_leaf = SyntaxLeaf(open="[" | "[Config ", close="]", value=name)
 # is a navigable leaf (so the section name is reachable by text navigation), and
 # the entries are its *siblings* (so tree navigation can reach them). The node's
-# separator carries the newline + 2-space indent, so the heading renders at
-# column 0 (top level) while its entries render at column 2.
+# separator is a bare newline, so the heading and all of its entries render
+# flush at column 0 (no indentation).
 #
 # Selection:
 #   .name[k]      → .children[1].value[k]   (heading leaf)
@@ -544,7 +544,7 @@ function projection_print(p::IniSectionToSyntaxNode, recursion, s::IniSection, c
     output = SyntaxNode(
         TextString("", p.heading_font, color_default),
         TextString("", p.heading_font, color_default),
-        TextString("\n  ", p.heading_font, color_default),
+        TextString("\n", p.heading_font, color_default),
         children_cv, 0, s.collapsed, sel)
     ChildrenIoMap(p, s, output, child_iomaps)
 end
