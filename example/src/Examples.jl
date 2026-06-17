@@ -495,12 +495,23 @@ through the live `make_assistant_projection_example` chain
 4. `ENTER` to submit the draft turn, then wait for the assistant to reply.
 
 The assistant uses a `FakeLlm` so the reply (`reply`) is deterministic and needs
-no network. The reply is streamed on an `@async` task that the recording lets
-settle (via `record_video`'s `wait_for`) before holding the final frames.
+no network. The default reply contains a fenced ```` ```julia ```` block, which
+`parse_markdown_blocks` parses into a real `JuliaDocument` part — so the recorded
+reply renders the code as a parsed Julia document in the conversation, not plain
+text. The reply is streamed on an `@async` task that the recording lets settle
+(via `record_video`'s `wait_for`) before holding the final frames for
+`final_hold` seconds (longer than the default so the answer lingers on screen).
 """
 function record_assistant_conversation_video(filename::AbstractString = tempname() * ".mp4";
-                                              reply::AbstractString = "Whoa, 720! Nice. I can do that too: factorial(6) = 720.",
-                                              width=1600, height=900, fps=30, kwargs...)
+                                              reply::AbstractString = """
+                                                  Sure! Here's a recursive factorial in Julia:
+
+                                                  ```julia
+                                                  fact(n) = n <= 1 ? 1 : n * fact(n - 1)
+                                                  ```
+
+                                                  Calling `fact(6)` returns 720 — same as yours.""",
+                                              width=1600, height=900, fps=30, final_hold=4.0, kwargs...)
     # A fresh assistant with a deterministic canned reply. The composer edits the
     # draft's active part (cursor defaults to end-of-value), so no selection seed
     # is needed for the keypresses to land.
@@ -524,7 +535,7 @@ function record_assistant_conversation_video(filename::AbstractString = tempname
     )
 
     record_video(assistant, projection, gestures, filename;
-                 width=width, height=height, fps=fps,
+                 width=width, height=height, fps=fps, final_hold=final_hold,
                  wait_for = () -> assistant.status === :idle, kwargs...)
 end
 
