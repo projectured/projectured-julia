@@ -12,7 +12,8 @@ import ..ReferenceModule: ReferencePath, ConcreteReferencePath, EmptyReferencePa
 import ..ReactiveModule: Cell
 export ReplaceSelectionOperation, QuitEditorOperation, QuitEditorException, replace_selection!,
        OpenWindowOperation, CloseWindowOperation, ResizeWindowOperation, ToggleCollapseOperation,
-       ReplaceDocumentOperation, ReplaceReferencedValue, CollectionInsertOperation, CollectionDeleteOperation
+       ReplaceDocumentOperation, ReplaceReferencedValue, CollectionInsertOperation, CollectionDeleteOperation,
+       CompoundOperation
 
 function evaluate_operation(editor, op::Nothing) end
 
@@ -20,6 +21,29 @@ function evaluate_operation(editor, op::Nothing) end
 function evaluate_operation(editor, op) end
 
 struct QuitEditorException <: Exception end
+
+"""
+    CompoundOperation(operations)
+
+Apply a sequence of operations in order, as a single editor step. The Julia
+counterpart of Lisp's `make-operation/compound`: a reader returns one
+`CompoundOperation` and the editor's `evaluate_operation` runs each member
+operation against the same editor in turn.
+
+Used by the clipboard cut gesture, which both writes the selected object into
+the clipboard slice and replaces the selection target with an empty document.
+"""
+struct CompoundOperation <: Operation
+    operations::Vector{Any}
+end
+
+CompoundOperation(operations...) = CompoundOperation(Vector{Any}(collect(operations)))
+
+function evaluate_operation(editor, op::CompoundOperation)
+    for member in op.operations
+        evaluate_operation(editor, member)
+    end
+end
 
 """
     QuitEditorOperation()
