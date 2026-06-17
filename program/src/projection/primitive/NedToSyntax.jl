@@ -33,7 +33,7 @@ import ..NedModule: NedDocument, NedInsertion, NedExtends, NedInterfaceName, Ned
                     NedPackage, NedImport, NedFile
 import ..TextModule: TextString
 import ..FontModule: StyleFont, font_ubuntu_monospace_regular_24, font_ubuntu_monospace_bold_24
-import ..ColorModule: StyleColor, color_black, color_default,
+import ..ColorModule: StyleColor, color_black, color_default, color_gray63,
                       color_solarized_blue, color_solarized_green, color_solarized_magenta,
                       color_solarized_cyan, color_solarized_yellow, color_solarized_gray,
                       color_solarized_red, color_solarized_orange, color_solarized_violet
@@ -57,15 +57,19 @@ export NedInsertionToSyntaxLeaf, NedPackageToSyntaxLeaf, NedImportToSyntaxLeaf,
 
 # ── Style defaults ────────────────────────────────────────────────────────
 
+# Palette modeled on the Eclipse/OMNeT++ NED source editor (see reference
+# screenshot): maroon bold keywords, black identifiers/values, green strings and
+# `@property` annotations, gray comments. The cream editor background is shared
+# across examples and is intentionally left unchanged.
 const _kw_font  = font_ubuntu_monospace_bold_24
-const _kw_color = color_solarized_magenta
+const _kw_color = StyleColor(127 / 255, 0 / 255, 85 / 255, 1.0)  # Eclipse keyword maroon
 const _id_font  = font_ubuntu_monospace_regular_24
-const _id_color = color_solarized_blue
+const _id_color = color_black
 const _type_color = color_solarized_cyan
 const _str_color  = color_solarized_green
-const _val_color  = color_solarized_cyan
-const _op_color   = color_solarized_gray
-const _prop_color = color_solarized_yellow
+const _val_color  = color_black
+const _op_color   = color_gray63
+const _prop_color = color_solarized_green
 const _comment_color = color_solarized_gray
 
 # ── Helpers ───────────────────────────────────────────────────────────────
