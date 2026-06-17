@@ -51,6 +51,25 @@ end
 IniInsertionToSyntaxLeaf(; font=font_ubuntu_monospace_regular_24, color=color_solarized_gray) =
     IniInsertionToSyntaxLeaf(font, color)
 
+# The placeholder is projection chrome; only the whole-element (∅) selection is
+# meaningful — it lets tree navigation land on the insertion point.
+function map_reference_forward(::IniInsertionToSyntaxLeaf, iomap, reference)
+    @reference_case reference begin
+        ∅ => @reference()
+    end
+end
+
+function map_reference_backward(::IniInsertionToSyntaxLeaf, iomap, reference)
+    @reference_case reference begin
+        ∅ => @reference()
+    end
+end
+
+function projection_read(p::IniInsertionToSyntaxLeaf, iomap::SimpleIoMap, op::ReplaceSelectionOperation)
+    result = map_reference_backward(p, iomap, op.path)
+    result !== nothing ? ReplaceSelectionOperation(result) : nothing
+end
+
 function projection_print(p::IniInsertionToSyntaxLeaf, recursion, ins::IniInsertion, ctx)
     output_selection = Cell(() -> map_reference_forward(p, nothing, ins.selection))
     SimpleIoMap(p, ins, SyntaxLeaf(
@@ -71,12 +90,14 @@ IniCommentToSyntaxLeaf(; font=font_ubuntu_monospace_regular_24, color=color_sola
 
 function map_reference_forward(::IniCommentToSyntaxLeaf, iomap::SimpleIoMap, reference)
     @reference_case reference begin
+        ∅            => @reference()
         text.rest... => @reference value.^(rest)
     end
 end
 
 function map_reference_backward(::IniCommentToSyntaxLeaf, iomap::SimpleIoMap, reference)
     @reference_case reference begin
+        ∅             => @reference()
         value.rest... => @reference text.^(rest)
     end
 end
@@ -119,22 +140,15 @@ IniIncludeToSyntaxLeaf(; keyword_font=font_ubuntu_monospace_bold_24, keyword_col
 
 function map_reference_forward(::IniIncludeToSyntaxLeaf, iomap::SimpleIoMap, reference)
     @reference_case reference begin
-        path.rest... => @reference children[2].value.^(rest)
+        ∅            => @reference()
+        path.rest... => @reference value.^(rest)
     end
 end
 
 function map_reference_backward(::IniIncludeToSyntaxLeaf, iomap::SimpleIoMap, reference)
     @reference_case reference begin
-        children{s:_}.rest... => begin
-            child_i = s + 1
-            if child_i == 2
-                @reference_case rest begin
-                    value.tail... => @reference path.^(tail)
-                end
-            else
-                nothing
-            end
-        end
+        ∅             => @reference()
+        value.rest... => @reference path.^(rest)
     end
 end
 
@@ -155,21 +169,15 @@ function projection_print(p::IniIncludeToSyntaxLeaf, recursion, inc::IniInclude,
             path.rest... => @reference value.^(rest)
         end
     end)
-    keyword_leaf = SyntaxLeaf(
-        TextString("", p.keyword_font, color_default),
-        TextString(" ", p.keyword_font, color_default),
-        TextString("include", p.keyword_font, p.keyword_color))
-    path_leaf = SyntaxLeaf(
-        TextString("", p.path_font, color_default),
+    # The "include " keyword lives in the leaf's open span (bold magenta), so the
+    # path's value{0} is an intra-leaf open|value boundary that maps back to
+    # `.path{0}` instead of a flat inter-leaf position.
+    leaf = SyntaxLeaf(
+        TextString("include ", p.keyword_font, p.keyword_color),
         TextString("", p.path_font, color_default),
         TextString(() -> inc.path, p.path_font, p.path_color),
         path_sel)
-    node = SyntaxNode(
-        TextString("", p.keyword_font, color_default),
-        TextString("", p.keyword_font, color_default),
-        TextString("", p.keyword_font, color_default),
-        SyntaxDocument[keyword_leaf, path_leaf])
-    SimpleIoMap(p, inc, node)
+    SimpleIoMap(p, inc, leaf)
 end
 
 # ── IniConfigOptionToSyntaxNode ──────────────────────────────────────────────
@@ -201,22 +209,32 @@ IniConfigOptionToSyntaxNode(;
 
 function map_reference_forward(::IniConfigOptionToSyntaxNode, iomap::SimpleIoMap, reference)
     @reference_case reference begin
-        key.rest...   => @reference children[1].value.^(rest)
-        value.rest... => @reference children[3].value.^(rest)
+        ∅              => @reference()
+        key.rest...     => rest isa EmptyReferencePath ? (@reference children[1]) : (@reference children[1].value.^(rest))
+        value.rest...   => rest isa EmptyReferencePath ? (@reference children[2]) : (@reference children[2].value.^(rest))
+        comment.rest... => rest isa EmptyReferencePath ? (@reference children[3]) : (@reference children[3].value.^(rest))
     end
 end
 
 function map_reference_backward(::IniConfigOptionToSyntaxNode, iomap::SimpleIoMap, reference)
     @reference_case reference begin
+        ∅ => @reference()
         children{s:_}.rest... => begin
             child_i = s + 1
             if child_i == 1
+                rest isa EmptyReferencePath && return @reference key
                 @reference_case rest begin
                     value.tail... => @reference key.^(tail)
                 end
-            elseif child_i == 3
+            elseif child_i == 2
+                rest isa EmptyReferencePath && return @reference value
                 @reference_case rest begin
                     value.tail... => @reference value.^(tail)
+                end
+            elseif child_i == 3
+                rest isa EmptyReferencePath && return @reference comment
+                @reference_case rest begin
+                    value.tail... => @reference comment.^(tail)
                 end
             else
                 nothing
@@ -247,28 +265,33 @@ function projection_print(p::IniConfigOptionToSyntaxNode, recursion, opt::IniCon
             value.rest... => @reference value.^(rest)
         end
     end)
+    comment_sel = Cell(() -> begin
+        @reference_case opt.selection begin
+            comment.rest... => @reference value.^(rest)
+        end
+    end)
 
     key_leaf = SyntaxLeaf(
         TextString("", p.key_font, color_default),
         TextString("", p.key_font, color_default),
         TextString(() -> opt.key, p.key_font, p.key_color),
         key_sel)
-    eq_leaf = SyntaxLeaf(
-        TextString("", p.eq_font, color_default),
-        TextString("", p.eq_font, color_default),
-        TextString(" = ", p.eq_font, p.eq_color))
+    # The " = " separator lives in the value leaf's open span (not a separate
+    # leaf), so value{0} is an intra-leaf open|value boundary that maps back to
+    # `.value{0}` — matching JSON, where delimiters share the value's leaf.
     value_leaf = SyntaxLeaf(
-        TextString("", p.value_font, color_default),
+        TextString(" = ", p.eq_font, p.eq_color),
         TextString("", p.value_font, color_default),
         TextString(() -> opt.value, p.value_font, p.value_color),
         value_sel)
 
-    children = SyntaxDocument[key_leaf, eq_leaf, value_leaf]
+    children = SyntaxDocument[key_leaf, value_leaf]
     if opt.comment !== nothing
         comment_leaf = SyntaxLeaf(
             TextString(" #", p.comment_font, p.comment_color),
             TextString("", p.comment_font, color_default),
-            TextString(() -> something(opt.comment, ""), p.comment_font, p.comment_color))
+            TextString(() -> something(opt.comment, ""), p.comment_font, p.comment_color),
+            comment_sel)
         push!(children, comment_leaf)
     end
 
@@ -304,22 +327,32 @@ IniParamAssignmentToSyntaxNode(;
 
 function map_reference_forward(::IniParamAssignmentToSyntaxNode, iomap::SimpleIoMap, reference)
     @reference_case reference begin
-        key.rest...   => @reference children[1].value.^(rest)
-        value.rest... => @reference children[3].value.^(rest)
+        ∅              => @reference()
+        key.rest...     => rest isa EmptyReferencePath ? (@reference children[1]) : (@reference children[1].value.^(rest))
+        value.rest...   => rest isa EmptyReferencePath ? (@reference children[2]) : (@reference children[2].value.^(rest))
+        comment.rest... => rest isa EmptyReferencePath ? (@reference children[3]) : (@reference children[3].value.^(rest))
     end
 end
 
 function map_reference_backward(::IniParamAssignmentToSyntaxNode, iomap::SimpleIoMap, reference)
     @reference_case reference begin
+        ∅ => @reference()
         children{s:_}.rest... => begin
             child_i = s + 1
             if child_i == 1
+                rest isa EmptyReferencePath && return @reference key
                 @reference_case rest begin
                     value.tail... => @reference key.^(tail)
                 end
-            elseif child_i == 3
+            elseif child_i == 2
+                rest isa EmptyReferencePath && return @reference value
                 @reference_case rest begin
                     value.tail... => @reference value.^(tail)
+                end
+            elseif child_i == 3
+                rest isa EmptyReferencePath && return @reference comment
+                @reference_case rest begin
+                    value.tail... => @reference comment.^(tail)
                 end
             else
                 nothing
@@ -350,28 +383,31 @@ function projection_print(p::IniParamAssignmentToSyntaxNode, recursion, pa::IniP
             value.rest... => @reference value.^(rest)
         end
     end)
+    comment_sel = Cell(() -> begin
+        @reference_case pa.selection begin
+            comment.rest... => @reference value.^(rest)
+        end
+    end)
 
     key_leaf = SyntaxLeaf(
         TextString("", p.key_font, color_default),
         TextString("", p.key_font, color_default),
         TextString(() -> pa.key, p.key_font, p.key_color),
         key_sel)
-    eq_leaf = SyntaxLeaf(
-        TextString("", p.eq_font, color_default),
-        TextString("", p.eq_font, color_default),
-        TextString(" = ", p.eq_font, p.eq_color))
+    # " = " separator folded into the value leaf's open span (see config option).
     value_leaf = SyntaxLeaf(
-        TextString("", p.value_font, color_default),
+        TextString(" = ", p.eq_font, p.eq_color),
         TextString("", p.value_font, color_default),
         TextString(() -> pa.value, p.value_font, p.value_color),
         value_sel)
 
-    children = SyntaxDocument[key_leaf, eq_leaf, value_leaf]
+    children = SyntaxDocument[key_leaf, value_leaf]
     if pa.comment !== nothing
         comment_leaf = SyntaxLeaf(
             TextString(" #", p.comment_font, p.comment_color),
             TextString("", p.comment_font, color_default),
-            TextString(() -> something(pa.comment, ""), p.comment_font, p.comment_color))
+            TextString(() -> something(pa.comment, ""), p.comment_font, p.comment_color),
+            comment_sel)
         push!(children, comment_leaf)
     end
 
@@ -385,13 +421,17 @@ end
 
 # ── IniSectionToSyntaxNode ───────────────────────────────────────────────────
 #
-# Layout: SyntaxNode(open="[name]", close="", sep="", [
-#   ... recursively projected entries ...
-# ], indentation=1)
+# Layout: an inline SyntaxNode whose children are
+#   [heading_leaf, entry₁, entry₂, …]
+# where heading_leaf = SyntaxLeaf(open="[" | "[Config ", close="]", value=name)
+# is a navigable leaf (so the section name is reachable by text navigation), and
+# the entries are its *siblings* (so tree navigation can reach them). The node's
+# separator carries the newline + 4-space indent — sections always sit one level
+# under the file, so entries render at column 4 while the heading stays at 2.
 #
 # Selection:
-#   .name[k]      → output open text (projected, display-only for now)
-#   .entries[i].… → .children[i].… (via child iomap)
+#   .name[k]      → .children[1].value[k]   (heading leaf)
+#   .entries[i].… → .children[i+1].…        (via child iomap)
 
 struct IniSectionToSyntaxNode <: Projection
     heading_font::StyleFont
@@ -402,11 +442,15 @@ IniSectionToSyntaxNode(; heading_font=font_ubuntu_monospace_bold_24, heading_col
 
 function map_reference_forward(p::IniSectionToSyntaxNode, iomap::ChildrenIoMap, reference)
     @reference_case reference begin
+        ∅ => @reference()
+        name.rest... => rest isa EmptyReferencePath ? (@reference children[1]) : (@reference children[1].value.^(rest))
         entries{s:_}.rest... => begin
-            child_i = s + 1
+            entry_i = s + 1
             iomaps = iomap.child_iomaps[]
-            1 <= child_i <= length(iomaps) || return nothing
-            child = iomaps[child_i]
+            1 <= entry_i <= length(iomaps) || return nothing
+            child_i = entry_i + 1   # heading leaf occupies child 1
+            rest isa EmptyReferencePath && return @reference children[child_i]
+            child = iomaps[entry_i]
             inner = map_reference_forward(child.projection, child, rest)
             inner === nothing && return nothing
             @reference children[child_i].^(inner)
@@ -416,14 +460,23 @@ end
 
 function map_reference_backward(p::IniSectionToSyntaxNode, iomap::ChildrenIoMap, reference)
     @reference_case reference begin
+        ∅ => @reference()
         children{s:_}.rest... => begin
             child_i = s + 1
-            iomaps = iomap.child_iomaps[]
-            1 <= child_i <= length(iomaps) || return nothing
-            child = iomaps[child_i]
-            translated = map_reference_backward(child.projection, child, rest)
-            translated === nothing && return nothing
-            @reference entries[child_i].^(translated)
+            if child_i == 1
+                rest isa EmptyReferencePath && return @reference name
+                @reference_case rest begin
+                    value.tail... => @reference name.^(tail)
+                end
+            else
+                entry_i = child_i - 1
+                iomaps = iomap.child_iomaps[]
+                1 <= entry_i <= length(iomaps) || return nothing
+                child = iomaps[entry_i]
+                translated = map_reference_backward(child.projection, child, rest)
+                translated === nothing && return nothing
+                @reference entries[entry_i].^(translated)
+            end
         end
     end
 end
@@ -442,38 +495,57 @@ function projection_read(p::IniSectionToSyntaxNode, iomap::ChildrenIoMap, op::St
     StringReplaceRangeOperation(new_ref, op.replacement)
 end
 
-function _ini_section_heading(s::IniSection)
-    s.is_general ? "[General]" : "[Config $(s.name)]"
-end
-
 function projection_print(p::IniSectionToSyntaxNode, recursion, s::IniSection, ctx)
     reference = ctx.reference
     child_iomaps = Cell(() -> [projection_printer_recurse(recursion, entry,
                                    child_context(ctx, @reference ^(reference).entries[i]))
                                for (i, entry) in enumerate(s)])
 
+    # Heading leaf cursor: domain .name[k] → leaf .value[k].
+    heading_sel = Cell(() -> begin
+        @reference_case s.selection begin
+            name.rest... => @reference value.^(rest)
+        end
+    end)
+    heading_leaf = SyntaxLeaf(
+        TextString(() -> s.is_general ? "[" : "[Config ", p.heading_font, p.heading_color),
+        TextString("]", p.heading_font, p.heading_color),
+        TextString(() -> s.name, p.heading_font, p.heading_color),
+        heading_sel)
+
+    # Mirror map_reference_forward so the syntax node carries the full structural
+    # path (heading/entry cursor *and* whole-element), enabling cursor/highlight
+    # rendering and tree navigation.
     sel = Cell(() -> begin
         path = s.selection
         path isa ConcreteReferencePath && path.head isa ProjectionReference && return path
         @reference_case path begin
-            entries{s_idx:_}.rest... => begin
-                child_i = s_idx + 1
-                iomaps = child_iomaps[]
-                child_i > length(iomaps) && return nothing
-                child_sel = iomaps[child_i].output.selection
-                child_sel === nothing && return nothing
-                @reference children[child_i].^(child_sel)
+            ∅ => @reference()
+            name.rest... => rest isa EmptyReferencePath ? (@reference children[1]) : (@reference children[1].value.^(rest))
+            entries{idx:_}.rest... => begin
+                entry_i = idx + 1
+                ioms = child_iomaps[]
+                1 <= entry_i <= length(ioms) || return nothing
+                child_i = entry_i + 1   # heading leaf occupies child 1
+                rest isa EmptyReferencePath && return @reference children[child_i]
+                inner = map_reference_forward(ioms[entry_i].projection, ioms[entry_i], rest)
+                inner === nothing && return nothing
+                @reference children[child_i].^(inner)
             end
         end
     end)
 
-    children_cv = CellVector(() -> SyntaxDocument[im.output for im in child_iomaps[]])
+    children_cv = CellVector(() -> begin
+        out = SyntaxDocument[im.output for im in child_iomaps[]]
+        pushfirst!(out, heading_leaf)
+        out
+    end)
 
     output = SyntaxNode(
-        TextString(() -> _ini_section_heading(s), p.heading_font, p.heading_color),
         TextString("", p.heading_font, color_default),
         TextString("", p.heading_font, color_default),
-        children_cv, 1, s.collapsed, sel)
+        TextString("\n    ", p.heading_font, color_default),
+        children_cv, 0, s.collapsed, sel)
     ChildrenIoMap(p, s, output, child_iomaps)
 end
 
@@ -490,10 +562,12 @@ struct IniFileToSyntaxNode <: Projection end
 
 function map_reference_forward(p::IniFileToSyntaxNode, iomap::ChildrenIoMap, reference)
     @reference_case reference begin
+        ∅ => @reference()
         children{s:_}.rest... => begin
             child_i = s + 1
             iomaps = iomap.child_iomaps[]
             1 <= child_i <= length(iomaps) || return nothing
+            rest isa EmptyReferencePath && return @reference children[child_i]
             child = iomaps[child_i]
             inner = map_reference_forward(child.projection, child, rest)
             inner === nothing && return nothing
@@ -504,10 +578,12 @@ end
 
 function map_reference_backward(p::IniFileToSyntaxNode, iomap::ChildrenIoMap, reference)
     @reference_case reference begin
+        ∅ => @reference()
         children{s:_}.rest... => begin
             child_i = s + 1
             iomaps = iomap.child_iomaps[]
             1 <= child_i <= length(iomaps) || return nothing
+            rest isa EmptyReferencePath && return @reference children[child_i]
             child = iomaps[child_i]
             translated = map_reference_backward(child.projection, child, rest)
             translated === nothing && return nothing
@@ -536,17 +612,22 @@ function projection_print(p::IniFileToSyntaxNode, recursion, f::IniFile, ctx)
                                    child_context(ctx, @reference ^(reference).children[i]))
                                for (i, child) in enumerate(f)])
 
+    # Mirror map_reference_forward so the syntax node carries the full structural
+    # path of the current selection (cursor *and* whole-element), which lets
+    # SyntaxToText render the cursor/highlight and drive tree navigation.
     sel = Cell(() -> begin
         path = f.selection
         path isa ConcreteReferencePath && path.head isa ProjectionReference && return path
         @reference_case path begin
+            ∅ => @reference()
             children{s_idx:_}.rest... => begin
                 child_i = s_idx + 1
                 iomaps = child_iomaps[]
-                child_i > length(iomaps) && return nothing
-                child_sel = iomaps[child_i].output.selection
-                child_sel === nothing && return nothing
-                @reference children[child_i].^(child_sel)
+                1 <= child_i <= length(iomaps) || return nothing
+                rest isa EmptyReferencePath && return @reference children[child_i]
+                inner = map_reference_forward(iomaps[child_i].projection, iomaps[child_i], rest)
+                inner === nothing && return nothing
+                @reference children[child_i].^(inner)
             end
         end
     end)

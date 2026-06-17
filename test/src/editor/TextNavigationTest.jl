@@ -178,7 +178,7 @@ end
 #     is the wrong invariant. The no-error sweep (`test_text_navigations()`)
 #     covers NED; its whole-element selections are covered by the tree-navigation
 #     completeness suite.
-const _text_navigation_complete_examples = ["text", "json"]
+const _text_navigation_complete_examples = ["text", "json", "ini"]
 
 function test_text_navigations_complete()
     @testset "TextNavigationComplete" begin
