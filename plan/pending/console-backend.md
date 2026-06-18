@@ -49,12 +49,35 @@ not a nice-to-have.
 
 ## Scope / milestones
 
-### Phase 1 — render-only (primary deliverable)
+### Phase 1 — render-only (primary deliverable) ✅ DONE
 
 A `ConsoleBackend` that prints the `TextText` output of the json pipeline to
 the terminal once / each frame. No input handling yet.
 
-- [ ] **New file** `program/src/backend/Console.jl`, module `ConsoleBackendModule`.
+**Implemented.** `run_console_example()` renders the JSON example to the
+terminal with the solarized colors carried by the spans (keys blue, string
+values green with yellow quotes, numbers magenta, delimiters gray). Verified:
+stripping the ANSI codes from the colored output reproduces the plain output
+byte-for-byte, and the wrong-output-type guard fires as expected.
+
+Implementation decisions made during the build:
+- **`color_default` → terminal default.** Default-black is only used by the
+  empty zero-length boundary-marker spans (nothing to print), so the renderer
+  emits a truecolor foreground only for a *meaningful* color (a `StyleColor`
+  that is not `color_default`) and otherwise leaves the terminal's own
+  foreground — avoiding black-on-dark. Backgrounds emit whenever `fill_color`
+  is a `StyleColor`. Reset (`\e[0m`) is written after any styled span.
+- **`clear` defaults to off for the one-shot runner** (`run_console_example`
+  passes `clear=false`) so the output appends instead of wiping the
+  scrollback. The backend still supports `clear=true` for an in-place repaint
+  loop. Clear is gated on `ansi` (no control codes when ANSI is disabled).
+- **Hard newlines inside `TextString.content` are preserved verbatim** (they
+  pass straight through `print`), in addition to `TextNewline` spans.
+- **`run_console_example` is keyword-based** (`document`, `projection`, `ansi`,
+  `clear`) rather than `Example`-based, and does a one-shot render (no `run!`
+  loop yet — a loop with no input just repaints the same frame).
+
+- [x] **New file** `program/src/backend/Console.jl`, module `ConsoleBackendModule`.
   - `struct ConsoleBackend <: Backend` (holds an output `IO`, default
     `stdout`; a flag for whether ANSI styling is enabled; nothing else for
     phase 1).
@@ -81,7 +104,7 @@ the terminal once / each frame. No input handling yet.
     (mirrors the SDL backend's `error("… expected GraphicsCanvas")`), so a
     miswired pipeline (e.g. one that still ends in `TextToGraphics`) fails loud.
 
-- [ ] **ANSI styling** (helper in the same file) — **required**, this is what
+- [x] **ANSI styling** (helper in the same file) — **required**, this is what
   preserves the Text domain's colors. Map a `StyleColor`
   (`red`/`green`/`blue`/`alpha` ∈ [0,1], so scale each component by 255) to a
   24-bit ANSI foreground code `"\e[38;2;{r};{g};{b}m"` and background
@@ -94,10 +117,10 @@ the terminal once / each frame. No input handling yet.
   codes for piping to a non-TTY/plain-text sink, but the **default is colored
   output**. Terminals without truecolor support degrade by ignoring the codes.
 
-- [ ] **Register the backend** in [program/src/Projectured.jl](../../program/src/Projectured.jl)
+- [x] **Register the backend** in [program/src/Projectured.jl](../../program/src/Projectured.jl)
   alongside the SDL include/`using`, and re-export `ConsoleBackend`.
 
-- [ ] **Console pipeline + runner** in the example package
+- [x] **Console pipeline + runner** in the example package
   (`example/src/projection/Json.jl` or a small new
   `example/src/Console.jl`):
   - `make_json_console_projection_example()` =
