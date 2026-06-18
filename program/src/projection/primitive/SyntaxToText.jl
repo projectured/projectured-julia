@@ -188,9 +188,15 @@ end
 #        .close[k]     →  .elements at char k of the close span
 #        .children[i]  →  .elements at offset of child i + child's cursor
 function projection_print(p::SyntaxNodeToText, recursion, node::SyntaxNode, ctx)
-    both = Cell(() -> _collect_spans(node, p, 0, recursion))
+    # Spans depend only on the syntax content, not the selection: the spans-only
+    # pass (`want_cursor=false`) skips every selection read, so the output
+    # TextText's element vector is stable across caret moves and only the
+    # separate selection cell below changes. (The cursor pass re-runs the same
+    # collection to locate the flat cursor, identical to the spans layout.)
+    spans = Cell(() -> _collect_spans(node, p, 0, recursion, false))
+    cursor_cell = Cell(() -> _collect_spans(node, p, 0, recursion, true)[2])
     output = TextText(
-        CellVector(() -> both[][1]),
+        CellVector(() -> spans[][1]),
         Cell(() -> begin
             node_sel = node.selection
             node_sel isa EmptyReferencePath && return @reference()
@@ -202,11 +208,11 @@ function projection_print(p::SyntaxNodeToText, recursion, node::SyntaxNode, ctx)
                     TextRectangularReference(flat_range[1], flat_range[2]),
                     EmptyReferencePath())
             end
-            cursor = both[][2]
+            cursor = cursor_cell[]
             cursor < 0 && return nothing
-            _flat_to_text_elem_path(both[][1], cursor)
+            _flat_to_text_elem_path(spans[][1], cursor)
         end))
-    child_ranges = Cell(() -> both[][3])
+    child_ranges = Cell(() -> spans[][3])
     marker_idx = Cell(() -> _active_marker(p, node) === nothing ? 0 : 1)
     SyntaxNodeToTextIoMap(p, node, output, child_ranges, marker_idx)
 end
@@ -890,12 +896,12 @@ function _syntax_to_flat_range(node::SyntaxNode, path::ConcreteReferencePath, p:
     return nothing
 end
 
-function _collect_child_spans(leaf::SyntaxLeaf, p::SyntaxNodeToText, depth::Int, recursion)
-    (TextDocument[leaf.open, leaf.value, leaf.close], _leaf_cursor(leaf))
+function _collect_child_spans(leaf::SyntaxLeaf, p::SyntaxNodeToText, depth::Int, recursion, want_cursor::Bool)
+    (TextDocument[leaf.open, leaf.value, leaf.close], want_cursor ? _leaf_cursor(leaf) : -1)
 end
 
-function _collect_child_spans(node::SyntaxNode, p::SyntaxNodeToText, depth::Int, recursion)
-    spans, cursor, _ = _collect_spans(node, p, depth, recursion)
+function _collect_child_spans(node::SyntaxNode, p::SyntaxNodeToText, depth::Int, recursion, want_cursor::Bool)
+    spans, cursor, _ = _collect_spans(node, p, depth, recursion, want_cursor)
     (spans, cursor)
 end
 
@@ -903,7 +909,7 @@ function _span_len(s::TextString)
     length(s.content::AbstractString)
 end
 
-function _collect_spans(node::SyntaxNode, p::SyntaxNodeToText, depth::Int, recursion)
+function _collect_spans(node::SyntaxNode, p::SyntaxNodeToText, depth::Int, recursion, want_cursor::Bool=true)
     spans = TextDocument[]
     cursor_offset = -1
     char_count = 0
@@ -947,7 +953,7 @@ function _collect_spans(node::SyntaxNode, p::SyntaxNodeToText, depth::Int, recur
             char_count += _span_len(ind)
 
             child_start = char_count
-            child_spans, child_cursor = _collect_child_spans(child, p, child_depth, recursion)
+            child_spans, child_cursor = _collect_child_spans(child, p, child_depth, recursion, want_cursor)
             if child_cursor >= 0 && cursor_offset < 0
                 cursor_offset = char_count + child_cursor
             end
@@ -969,7 +975,7 @@ function _collect_spans(node::SyntaxNode, p::SyntaxNodeToText, depth::Int, recur
                 char_count += _span_len(node.sep)
             end
             child_start = char_count
-            child_spans, child_cursor = _collect_child_spans(child, p, depth, recursion)
+            child_spans, child_cursor = _collect_child_spans(child, p, depth, recursion, want_cursor)
             if child_cursor >= 0 && cursor_offset < 0
                 cursor_offset = char_count + child_cursor
             end
@@ -981,10 +987,14 @@ function _collect_spans(node::SyntaxNode, p::SyntaxNodeToText, depth::Int, recur
         end
     end
 
-    # structural cursor always wins over stale leaf cursors
-    sc = _structural_cursor(node, p, depth)
-    if sc >= 0
-        cursor_offset = sc
+    # structural cursor always wins over stale leaf cursors (cursor pass only —
+    # reading node.selection here is what would otherwise couple the spans to the
+    # selection, so the spans-only pass skips it)
+    if want_cursor
+        sc = _structural_cursor(node, p, depth)
+        if sc >= 0
+            cursor_offset = sc
+        end
     end
 
     # close delimiter

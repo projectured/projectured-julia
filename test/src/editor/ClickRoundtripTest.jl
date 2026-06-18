@@ -40,7 +40,9 @@ end
 function _find_cursor_rect(t2g::TextToGraphicsIoMap)
     for elem in t2g.output.elements
         actual = elem isa Projectured.ReactiveModule.Cell ? elem[] : elem
-        actual isa GraphicsRect && Int(actual.w) <= 5 && return actual
+        # The caret is a narrow rect. Skip the always-present highlight rect,
+        # which is zero-width (invisible) for a plain caret selection.
+        actual isa GraphicsRect && 0 < Int(actual.w) <= 5 && return actual
     end
     nothing
 end

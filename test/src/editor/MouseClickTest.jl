@@ -86,7 +86,9 @@ function get_cursor_rect(canvas::GraphicsCanvas)
             elem
         end
         
-        if actual_elem isa GraphicsRect && Int(actual_elem.w) <= 5
+        # Skip the always-present highlight rect (zero-width for a plain caret);
+        # the caret is a narrow but non-empty rect.
+        if actual_elem isa GraphicsRect && 0 < Int(actual_elem.w) <= 5
             return actual_elem
         end
     end
