@@ -86,6 +86,7 @@ include("projection/higherorder/PredicateDispatching.jl")
 include("projection/higherorder/ReferenceDispatching.jl")
 include("projection/higherorder/Nesting.jl")
 include("projection/higherorder/WindowManager.jl")
+include("projection/higherorder/EnvelopeUnwrapping.jl")
 include("projection/higherorder/TooltipDecorator.jl")
 
 # ── Generic projections ───────────────────────────────────────────────────
@@ -275,7 +276,7 @@ using .GraphicsModule: GraphicsDocument, GraphicsInsertion,
                        GraphicsFence, LayoutDirection, layout_none, layout_horizontal, layout_vertical,
                        hit_element_at
 using .ModifiersModule: Modifiers
-using .KeyboardModule: KeyDown, KeyUp, KeyPress, is_ctrl, is_shift, is_alt, is_meta
+using .KeyboardModule: Keyboard, KeyDown, KeyUp, KeyPress, is_ctrl, is_shift, is_alt, is_meta
 using .MouseModule: MouseDown, MouseUp, MousePress, MouseMove, MouseScroll
 using .BackendModule: Backend, init!, quit!, measure_text
 using .SdlBackendModule: SdlBackend, sdl_measure_text, sdl_render_canvas,
@@ -299,6 +300,7 @@ using .ReferenceDispatchingModule: ReferenceDispatchingProjection, ReferenceDisp
 using .HigherOrderCompoundModule: ApplyAtProjection
 using .GenericCompoundModule: SortingAtProjection
 using .NestingProjectionModule: NestingProjection, NestingProjectionIoMap
+using .EnvelopeUnwrappingModule: EnvelopeUnwrappingProjection, EnvelopeUnwrappingIoMap
 using .WindowManagerProjectionModule: WindowManagerProjection, WindowManagerProjectionIoMap
 using .ScreenToScreenModule: ScreenToScreen, ScreenToScreenIoMap, ScreenWindowIoMap
 using .TooltipDecoratorProjectionModule: TooltipDecoratorProjection, TooltipDecoratorProjectionIoMap
@@ -608,7 +610,7 @@ export GraphicsDocument, GraphicsInsertion,
        GraphicsText, GraphicsRect, GraphicsLine, GraphicsCircle, GraphicsCanvas, GraphicsViewport, GraphicsImage,
        GraphicsFence, LayoutDirection, layout_none, layout_horizontal, layout_vertical, hit_element_at
 export Modifiers
-export KeyDown, KeyUp, KeyPress, is_ctrl, is_shift, is_alt, is_meta
+export Keyboard, KeyDown, KeyUp, KeyPress, is_ctrl, is_shift, is_alt, is_meta
 export MouseDown, MouseUp, MousePress, MouseMove, MouseScroll
 export Backend, init!, quit!, measure_text
 export Screen
@@ -627,6 +629,7 @@ export ReferenceDispatchingProjection, ReferenceDispatchingIoMap
 export ApplyAtProjection
 export SortingAtProjection
 export NestingProjection, NestingProjectionIoMap
+export EnvelopeUnwrappingProjection, EnvelopeUnwrappingIoMap
 export WindowManagerProjection, WindowManagerProjectionIoMap
 export ScreenToScreen, ScreenToScreenIoMap, ScreenWindowIoMap
 export TooltipDecoratorProjection, TooltipDecoratorProjectionIoMap

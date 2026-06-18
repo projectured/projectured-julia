@@ -190,11 +190,16 @@ output. `Editor.devices` only carries the hardware kinds the editor
 needs: `Screen`, `Keyboard`, `Mouse`.
 
 Pass `mcp=true` to start an MCP server alongside the loop.
+
+`devices` defaults to the full SDL hardware set (`Screen`, `Keyboard`,
+`Mouse`); backends that drive a different channel — e.g. the `ConsoleBackend`,
+which has no native window or pointer — pass their own set (e.g.
+`Device[Keyboard()]`).
 """
-function run!(backend::Backend, projection, document; mcp::Bool=false)
+function run!(backend::Backend, projection, document; mcp::Bool=false,
+              devices::Vector{Device}=Device[Screen(), Keyboard(), Mouse()])
     init!(backend)
     try
-        devices = Device[Screen(), Keyboard(), Mouse()]
         editor = Editor(backend, document, projection, devices)
         run!(editor; mcp=mcp)
     finally
