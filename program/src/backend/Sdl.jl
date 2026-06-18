@@ -168,6 +168,53 @@ SdlBackend() = SdlBackend(Any[], :none, 0, 0, 0.0,
 # Populated lazily by `_get_font`; freed by `quit!`.
 const _font_cache = Dict{Tuple{String,Int}, Ptr{TTF_Font}}()
 
+# Module-level text-texture cache. Rendering a `GraphicsText` rasterizes the
+# string (`TTF_RenderUTF8_Blended`), uploads a GPU texture, draws it, then
+# destroys the texture — every span, every frame. When scrolling a static
+# document the spans never change, so the rasterize/upload/destroy churn is the
+# dominant render cost. We cache the uploaded texture (plus its device size, so
+# `SDL_QueryTexture` is skipped too) keyed by renderer + text + font + colour and
+# reuse it across frames. Textures are renderer-specific, so entries are evicted
+# when their renderer is destroyed (`_close_native_window!`,
+# `_close_offscreen_renderer`) and all are freed by `quit!`.
+struct _TextTextureKey
+    renderer::Ptr{SDL_Renderer}
+    text::String
+    filename::String
+    size::Int
+    color::NTuple{4,UInt8}
+end
+
+struct _TextTexture
+    texture::Ptr{SDL_Texture}
+    dw::Int   # device px width  (logical size is recomputed per draw via _to_logical)
+    dh::Int   # device px height
+end
+
+const _text_texture_cache = Dict{_TextTextureKey, _TextTexture}()
+
+# Soft cap: a single document's distinct spans are bounded, but rendering many
+# different documents over a session would grow this without limit. When the cap
+# is hit, drop everything and start over — far simpler than an LRU and rare.
+const _TEXT_TEXTURE_CACHE_CAP = 16384
+
+function _clear_text_texture_cache!()
+    for entry in values(_text_texture_cache)
+        SDL_DestroyTexture(entry.texture)
+    end
+    empty!(_text_texture_cache)
+end
+
+# Drop (and free) every cached texture owned by `renderer`. Must run before the
+# renderer itself is destroyed, otherwise the cached pointers dangle.
+function _evict_renderer_textures!(renderer::Ptr{SDL_Renderer})
+    for (k, entry) in _text_texture_cache
+        k.renderer == renderer || continue
+        SDL_DestroyTexture(entry.texture)
+        delete!(_text_texture_cache, k)
+    end
+end
+
 # ════════════════════════════════════════════════════════════════════════
 # Modifier extraction
 # ════════════════════════════════════════════════════════════════════════
@@ -464,6 +511,7 @@ end
 # module-level cache until `quit!`.
 function _close_native_window!(res::SdlWindowResources)
     res.target != C_NULL && SDL_DestroyTexture(res.target)
+    _evict_renderer_textures!(res.renderer)
     SDL_DestroyRenderer(res.renderer)
     SDL_DestroyWindow(res.win)
 end
@@ -486,24 +534,34 @@ function _render_element!(renderer::Ptr{SDL_Renderer}, elem::GraphicsText, ox::I
     text = elem.text::AbstractString
     isempty(text) && return
 
-    font = _get_font(elem.font::StyleFont)
-    color = SDL_Color(elem.r, elem.g, elem.b, elem.a)
+    font_style = elem.font::StyleFont
+    color = (elem.r, elem.g, elem.b, elem.a)
+    key = _TextTextureKey(renderer, String(text), font_style.filename,
+                          font_scaled_size(font_style.size), color)
 
-    surface = TTF_RenderUTF8_Blended(font, text, color)
-    surface == C_NULL && return
-    texture = SDL_CreateTextureFromSurface(renderer, surface)
+    # Reuse the uploaded texture for an unchanged (text, font, colour) span;
+    # rasterize + upload only on a cache miss. The texture is rasterized at
+    # device size and freed when its renderer is torn down.
+    entry = get(_text_texture_cache, key, nothing)
+    if entry === nothing
+        font = _get_font(font_style)
+        surface = TTF_RenderUTF8_Blended(font, text, SDL_Color(color...))
+        surface == C_NULL && return
+        texture = SDL_CreateTextureFromSurface(renderer, surface)
+        w_ref, h_ref = Ref{Cint}(0), Ref{Cint}(0)
+        SDL_QueryTexture(texture, C_NULL, C_NULL, w_ref, h_ref)
+        SDL_FreeSurface(surface)
+        length(_text_texture_cache) >= _TEXT_TEXTURE_CACHE_CAP && _clear_text_texture_cache!()
+        entry = _TextTexture(texture, Int(w_ref[]), Int(h_ref[]))
+        _text_texture_cache[key] = entry
+    end
 
-    # The glyph texture is rasterized at device size; the destination rect is in
-    # logical pixels (= device size ÷ scale). The renderer scale then maps it
-    # back to device pixels, so the texture lands 1:1 and stays crisp.
-    w_ref, h_ref = Ref{Cint}(0), Ref{Cint}(0)
-    SDL_QueryTexture(texture, C_NULL, C_NULL, w_ref, h_ref)
+    # The destination rect is in logical pixels (= device size ÷ scale). The
+    # renderer scale then maps it back to device pixels, so the texture lands
+    # 1:1 and stays crisp.
     dest = Ref(SDL_Rect(elem.x + ox, elem.y + oy,
-                        Int32(_to_logical(Int(w_ref[]))), Int32(_to_logical(Int(h_ref[])))))
-    SDL_RenderCopy(renderer, texture, C_NULL, dest)
-
-    SDL_DestroyTexture(texture)
-    SDL_FreeSurface(surface)
+                        Int32(_to_logical(entry.dw)), Int32(_to_logical(entry.dh))))
+    SDL_RenderCopy(renderer, entry.texture, C_NULL, dest)
 end
 
 # ── Render a GraphicsViewport element ────────────────────────────────
@@ -1041,6 +1099,7 @@ end
 
 # Tear down a renderer+surface pair opened by `_open_offscreen_renderer`.
 function _close_offscreen_renderer(off)
+    _evict_renderer_textures!(off.renderer)
     SDL_DestroyRenderer(off.renderer)
     SDL_FreeSurface(off.surface)
     nothing
@@ -1454,6 +1513,8 @@ end
 
 function quit!(::SdlBackend)
     SDL_StopTextInput()
+    # Free cached textures while their renderers are still alive (before SDL_Quit).
+    _clear_text_texture_cache!()
     for font in values(_font_cache)
         TTF_CloseFont(font)
     end
