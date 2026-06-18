@@ -3,13 +3,52 @@
 Introduce an explicit **gesture-recognition stage** between raw device events
 and the projection reader pipeline. Today readers pattern-match raw events
 (`KeyDown`, `MousePress`, …) directly; this plan inserts a stateful step that
-maps *combinations and sequences of events* to named **gestures**, and changes
-readers to match gestures instead. The operation-producing half of the readers
-is unchanged — only the thing they dispatch on changes.
+maps *combinations and sequences of events* to gestures.
 
-> Status: planning. Nothing implemented yet. This plan supersedes the implicit
-> "raw event in the `Change.gesture` slot" arrangement described in
+> This plan supersedes the implicit "raw event in the `Change.gesture` slot"
+> arrangement described in
 > [program/src/api/Projection.jl](../../program/src/api/Projection.jl).
+
+## Implementation status (2026-06-18)
+
+**The recognition-stage spine is implemented and tested.** During
+implementation the scope was split to manage risk (see "Decision: phased
+semantic depth" below); the first increment was deliberately reduced:
+
+- ✅ **Done — the event → gesture stage exists.** A stateful
+  [`GestureRecognizer`](../../program/src/editor/GestureRecognizer.jl) is owned
+  by the `Editor` and driven once per input event via `next_gesture!` in
+  `Editor.read!`. It is the place where multi-event combinations become gestures.
+- ✅ **Done — click synthesis moved out of the backend.** The `MousePress`
+  click (a `MouseDown`/`MouseUp` combination) is now recognised in the
+  `GestureRecognizer`, not the SDL backend. The backend emits only raw events.
+  This is backend-agnostic and unit-tested
+  ([GestureRecognizerTest.jl](../../test/src/editor/GestureRecognizerTest.jl),
+  21 assertions) — previously the logic was buried in SDL and untested.
+- ✅ **Done — no behaviour change.** The existing backend-agnostic input structs
+  (`KeyDown`, `KeyPress`, `MouseScroll`, `MouseDown/Up/Move`) serve as the
+  normalized gesture vocabulary and still flow unchanged, so no reader was
+  touched. Verified: recognizer unit tests, json printer (3517), mouse-click
+  roundtrips (all examples bar the pre-existing `searching` failure), click
+  roundtrips, repls, typeins (159), and the split-pane drag suite (31,
+  confirming raw `MouseDown/Move/Up` still reach the splitter reader).
+
+**Deferred to follow-up increments (not yet implemented):**
+
+- ⏳ Distinct semantic gesture *types* + `@gesture_case` + migrating the ~14
+  reader files to match gestures instead of raw events (original Phase 1
+  steps 1, 2, 6).
+- ⏳ Richer composite gestures the recogniser is now positioned to add:
+  double/triple-click counting, drag begin/update/end, key chords.
+- ⏳ The named-intent keymap (Phase 2).
+
+Rationale for the reduced first increment: a faithful "rename the matched event
+in every reader" change touches ~98 `KeyDown` + 44 `MousePress` + 40 `KeyPress`
++ 28 `MouseScroll` matches across 14 files — a repo-wide rewrite with broad
+regression surface — for *zero* behaviour change. Establishing the recognition
+seam first (and moving the one real multi-event combination, the click, into it)
+delivers the architectural value and a testable home for future composites while
+keeping the change small and reviewable. The remaining items build on this seam.
 
 ---
 
@@ -149,7 +188,19 @@ This keeps each step reviewable and never leaves the tree in a broken state.
 
 ## Phase 1 — recognition layer (no behaviour change)
 
-### 1. `Gesture` types — `program/src/device/Gesture.jl`
+> Status: steps 3–5 ✅ implemented (the recogniser, the `read!` wiring, and the
+> backend cleanup). Steps 1, 2, 6 ⏳ deferred (distinct gesture types,
+> `@gesture_case`, reader migration). What landed differs from the original
+> sketch below in two ways, by design: (a) the recogniser **passes raw events
+> through** and only *adds* the synthesised `MousePress` — it does not emit a
+> new `Gesture` type yet (no reader churn); (b) drag/double-click recognition
+> were left as ⏳ follow-ups, so the `pending_down`/`dragging`/`click_count`
+> state and `recognize! -> Union{Gesture,Nothing}` signature below were not
+> built as drawn. The implemented `recognize!` returns the forwarded
+> `EventEnvelope` and queues synthesised gestures on `rec.pending`; a
+> `next_gesture!(rec, source)` helper drains that queue before pulling new input.
+
+### 1. `Gesture` types — `program/src/device/Gesture.jl` ⏳ deferred
 
 New `GestureModule`. Define `Gesture` (above) and constructors for the Phase-1
 gesture set that mirrors today's matched events plus the recognised composites:
@@ -158,7 +209,7 @@ gesture set that mirrors today's matched events plus the recognised composites:
 `ScrollGesture(dx, dy, x, y, mods)`. Include in
 [Projectured.jl](../../program/src/Projectured.jl) next to the device modules.
 
-### 2. `@gesture_case` macro — generalize `@event_case`
+### 2. `@gesture_case` macro — generalize `@event_case` ⏳ deferred
 
 [EventCase.jl](../../program/src/device/EventCase.jl) is a first-match table over
 the event structs. Add a sibling `@gesture_case` (or extend `_EVENT_TYPES` to
@@ -166,7 +217,10 @@ include the gesture structs so the *same* macro matches both during migration).
 Same surface syntax — only the type table grows. Keep `@event_case` working so
 migration is incremental, file by file.
 
-### 3. `GestureRecognizer` — `program/src/editor/GestureRecognizer.jl`
+### 3. `GestureRecognizer` — `program/src/editor/GestureRecognizer.jl` ✅ done
+
+> Implemented with click synthesis only (queued on `rec.pending`, injectable
+> `clock` for deterministic tests). Drag/multi-click state shown below is ⏳.
 
 A mutable struct holding recognition state:
 
@@ -201,7 +255,11 @@ recognize!(rec::GestureRecognizer, env::EventEnvelope) -> Union{Gesture, Nothing
 
 This subsumes the SDL backend's `MousePress` synthesis (step 5).
 
-### 4. Wire the recogniser into `Editor.read!`
+### 4. Wire the recogniser into `Editor.read!` ✅ done
+
+> Implemented as `next_gesture!(editor.recognizer, () -> read_from_devices(...))`
+> at the top of the `read!` loop; the rest of `read!` (QuitEvent short-circuit,
+> `Change(env, nothing)` seeding) is unchanged.
 
 In [Editor.jl](../../program/src/editor/Editor.jl) add `recognizer::GestureRecognizer`
 to the `Editor` struct and change `read!`:
@@ -217,7 +275,7 @@ change = projection_read(editor.projection, nothing, Change(gesture, nothing), e
 a `Gesture`; the threading invariant (gesture preserved unchanged through the
 chain) is unchanged.
 
-### 5. Remove `MousePress` synthesis from the SDL backend
+### 5. Remove `MousePress` synthesis from the SDL backend ✅ done
 
 Strip the click-synthesis state and logic from
 [Sdl.jl](../../program/src/backend/Sdl.jl) (`last_down_*`, `pending_events`
@@ -226,7 +284,7 @@ press injection, ~L152–156, L1554–1572). The backend now emits only raw
 job. (Keep `MousePress` the *type* until readers migrate, or map
 `ClickGesture` ↔ the old reader expectations in step 6.)
 
-### 6. Migrate readers `@event_case` → `@gesture_case`
+### 6. Migrate readers `@event_case` → `@gesture_case` ⏳ deferred
 
 For each of the 14 `@event_case` files, switch the scrutinee from the raw event
 to the gesture and the arms to gesture patterns. Phase-1 gestures carry the same
@@ -248,14 +306,19 @@ own commit; the generic `projection_read` bridge
 ([common/Projection.jl](../../program/src/common/Projection.jl)) is unaffected
 since it just unwraps `Change.gesture`.
 
-### 7. Tests
+### 7. Tests ✅ done (for what landed)
 
-- `test_cell()` unaffected.
-- Add focused recogniser unit tests: down+up→click, down+move+up→drag,
-  two quick clicks→double-click, wheel→scroll. Pure, no SDL.
-- Re-run the existing navigation/printer/reader suites per domain as files
-  migrate (`test_text_navigation(json_example)`, `test_repl(json_example)`, …).
-  Behaviour must be unchanged at the end of Phase 1.
+- ✅ Recogniser unit tests added
+  ([GestureRecognizerTest.jl](../../test/src/editor/GestureRecognizerTest.jl)):
+  down+up→click, too-far→none, too-slow→none, wrong-button→none, non-mouse
+  pass-through, and `next_gesture!` queue ordering. Deterministic via an
+  injectable clock and a scripted source — no SDL. Registered in `test_all`.
+- ✅ Re-ran the input-related suites with no new failures: json printer,
+  mouse-click roundtrips, click roundtrips, repls, typeins, split-pane drag.
+  (The `searching` mouse-click failure is pre-existing on the base branch — a
+  `PrimitiveString` `:open`/`:close` selection-mapping bug, unrelated.)
+- ⏳ down+move+up→drag and double-click tests land with those recogniser
+  features (deferred).
 
 ---
 
