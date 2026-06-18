@@ -41,7 +41,7 @@ function make_workbench_document_example(; root=abspath(joinpath(@__DIR__, "../.
         WorkbenchEditor(julia_doc;       title="factorial.jl",      filename="factorial.jl"),
         WorkbenchEditor(table_doc;       title="table.pred",        filename="table.pred"),
         # WorkbenchEditor(collections_doc; title="collections.pred",  filename="collection.pred"),
-        WorkbenchEditor(lazy_doc;        title="lazyprimes.pred",   filename="lazyprimes.pred"),
+        # WorkbenchEditor(lazy_doc;        title="lazyprimes.pred",   filename="lazyprimes.pred"),
         # editor_document_view,
         # editor_projection_view,
     ])
