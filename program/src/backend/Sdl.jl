@@ -11,8 +11,8 @@ import ..BackendModule: Backend, init!, quit!, measure_text
 import ..DeviceModule: Device, read_from_devices, write_to_devices, write_to_device
 import ..GraphicsModule: GraphicsCanvas, GraphicsText, GraphicsRect, GraphicsLine, GraphicsCircle, GraphicsViewport, GraphicsImage,
                          GraphicsFence, LayoutDirection, layout_none, layout_horizontal, layout_vertical,
-                         _canvas_content_bounds
-import ..CollectionModule: ListNode
+                         _canvas_content_bounds, _accumulate_bounds!, _bounds_elem!
+import ..CollectionModule: ListNode, CellVector
 import ..FontModule: StyleFont, font_scaled_size, _DISPLAY_SCALE
 import ..ScreenModule: Screen, QuitEvent
 import ..ScreenDocumentModule: ScreenDocument, WindowDocument, EventEnvelope, WindowCloseRequest, WindowResizeEvent
@@ -24,7 +24,7 @@ import ..ProjectionApiModule: projection_print, projection_read, Projection
 import ..OperationApiModule: Operation, evaluate_operation
 import ..DocumentApiModule: clear_selection!, set_selection!
 import ..PrinterContextModule: PrinterContext
-import ..ReactiveModule: Cell
+import ..ReactiveModule: Cell, isuptodate
 import ..ReferenceModule: EmptyReferencePath
 import ..IoMapModule: SimpleIoMap
 import FFMPEG
@@ -131,6 +131,10 @@ mutable struct SdlWindowResources
     target::Ptr{SDL_Texture}  # offscreen SSAA render target (C_NULL until created)
     target_w::Int        # current target texture size (device px)
     target_h::Int
+    # Dirty-rectangle partial repaint state.
+    first_paint::Bool    # force a full repaint on the first frame / after target (re)creation
+    dirty_bounds::Dict{UInt,NTuple{4,Int}}  # last-rendered absolute logical bounds, keyed by
+                                            # objectid of each dirty-unit container/leaf (for old∪new)
 end
 
 """
@@ -198,6 +202,28 @@ const _text_texture_cache = Dict{_TextTextureKey, _TextTexture}()
 # different documents over a session would grow this without limit. When the cap
 # is hit, drop everything and start over — far simpler than an LRU and rare.
 const _TEXT_TEXTURE_CACHE_CAP = 16384
+
+# ── Dirty-rectangle partial repaint controls ─────────────────────────────
+#
+# Each editor frame currently repaints the whole window. Nothing needs to be
+# repainted that has not been *invalidated* in the reactive graph, so we walk
+# the canvas tree, find the smallest rectangle covering every invalidated
+# graphic, clip to it and repaint only that region into a retained target.
+#
+# `_PARTIAL_RENDER` — master switch (PROJECTURED_PARTIAL_RENDER=0 disables it,
+#   forcing the original full-frame repaint).
+# `_DEBUG_DIRTY` — when on (PROJECTURED_DEBUG_DIRTY=1), outline the repainted
+#   region in red so it is visible which part of the screen was painted.
+const _PARTIAL_RENDER = Ref(true)
+const _DEBUG_DIRTY = Ref(false)
+
+_envflag(name, default::Bool) =
+    (v = lowercase(get(ENV, name, "")); v == "" ? default : v in ("1", "true", "yes", "on"))
+
+function _init_render_flags!()
+    _PARTIAL_RENDER[] = _envflag("PROJECTURED_PARTIAL_RENDER", true)
+    _DEBUG_DIRTY[]    = _envflag("PROJECTURED_DEBUG_DIRTY", false)
+end
 
 function _clear_text_texture_cache!()
     for entry in values(_text_texture_cache)
@@ -411,7 +437,8 @@ function _open_native_window!(w::WindowDocument)
     sdl_id = UInt32(SDL_GetWindowID(win))
     SdlWindowResources(win, renderer, w.id, sdl_id, w.title,
                        Int(w.width), Int(w.height), Int(w.x), Int(w.y),
-                       w.style, w.bg, _window_supersample(), C_NULL, 0, 0)
+                       w.style, w.bg, _window_supersample(), C_NULL, 0, 0,
+                       true, Dict{UInt,NTuple{4,Int}}())
 end
 
 # Supersample factor for live windows (anti-aliasing). Override with the
@@ -901,35 +928,338 @@ function _ensure_ss_target!(res::SdlWindowResources)
                                        Int32(SDL_TEXTUREACCESS_TARGET), Int32(tw), Int32(th))
         res.target == C_NULL && return false
         res.target_w, res.target_h = tw, th
+        # A fresh target holds undefined pixels and invalidates any cached
+        # dirty-unit bounds — repaint the whole window next frame.
+        res.first_paint = true
+        empty!(res.dirty_bounds)
     end
     true
 end
 
-function _render_window!(res::SdlWindowResources, canvas::GraphicsCanvas)
-    bg = res.bg
-    # The canvas is in logical pixels; the renderer scale maps it to device
-    # pixels. Supersampling (ss) composes with the display scale as one factor.
-    scale = Float32(_DISPLAY_SCALE[])
-    if res.ss > 1 && _ensure_ss_target!(res)
-        # Render the frame into an oversized offscreen target, then copy it down
-        # to the window with linear filtering — supersampled anti-aliasing.
-        SDL_SetRenderTarget(res.renderer, res.target)
-        SDL_RenderSetScale(res.renderer, Float32(res.ss) * scale, Float32(res.ss) * scale)
-        SDL_SetRenderDrawColor(res.renderer, bg[1], bg[2], bg[3], bg[4])
-        SDL_RenderClear(res.renderer)
-        _render_canvas!(res.renderer, canvas, 0, 0, res.width, res.height)
-        SDL_RenderSetScale(res.renderer, 1.0f0, 1.0f0)
-        SDL_SetRenderTarget(res.renderer, C_NULL)
-        SDL_RenderCopy(res.renderer, res.target, C_NULL, C_NULL)
-        SDL_RenderPresent(res.renderer)
+# ── Dirty-rectangle analysis ─────────────────────────────────────────────
+#
+# Walk the canvas tree (mirroring `_render_canvas!`'s offset accumulation) and
+# return the smallest absolute logical rectangle covering every *invalidated*
+# graphic, or `nothing` if nothing changed. Detection keys on the reactive
+# `valid` flag of the relevant cells, tested via `isuptodate` *before* the value
+# is read (reading recomputes). Because writing a primitive cell marks it valid
+# (only its dependents go stale), the detectable dirty units are the *computed*
+# container cells the projection pipeline invalidates — a canvas whose
+# `CellVector`-backed `elements` (or geometry) cell is stale, or a `ListNode`
+# whose spine / value cells are stale — plus any leaf whose own field cell is
+# stale (in-place mutation). For each dirty unit we union its *new* bounds with
+# its *previous* rendered bounds (cached in `res.dirty_bounds`, keyed by
+# `objectid`) so content that moved, shrank or was removed still clears its
+# vacated pixels.
+
+# Mutable accumulator for a union of absolute logical bounds.
+mutable struct _DirtyAcc
+    minx::Int; miny::Int; maxx::Int; maxy::Int
+end
+_DirtyAcc() = _DirtyAcc(typemax(Int), typemax(Int), typemin(Int), typemin(Int))
+_acc_extend!(a::_DirtyAcc, b::NTuple{4,Int}) =
+    (a.minx = min(a.minx, b[1]); a.miny = min(a.miny, b[2]);
+     a.maxx = max(a.maxx, b[3]); a.maxy = max(a.maxy, b[4]); nothing)
+_acc_empty(a::_DirtyAcc) = a.maxx == typemin(Int)
+_acc_tuple(a::_DirtyAcc) = (a.minx, a.miny, a.maxx, a.maxy)
+
+# True if any of `elem`'s own visual field cells is stale. `:selection` is the
+# reader's reference (not rendered) and `:prev`/`:next` are the list spine
+# (handled separately), so they never force a repaint on their own.
+function _node_dirty(elem)::Bool
+    for f in fieldnames(typeof(elem))
+        (f === :selection || f === :prev || f === :next) && continue
+        c = getfield(elem, f)
+        c isa Cell || continue
+        isuptodate(c) || return true
+    end
+    false
+end
+
+# Bounds of a single element / a whole canvas / a set of list-node values,
+# returned as an absolute logical `(x0,y0,x1,y1)` tuple or `nothing` if empty.
+# These reuse the existing `_bounds_elem!` / `_accumulate_bounds!` machinery
+# (and so recompute the cells they read — exactly what we want, since the unit
+# is about to be repainted).
+function _bounds_of_elem(elem, ox::Int, oy::Int)
+    mnx = Ref(typemax(Int)); mny = Ref(typemax(Int))
+    mxx = Ref(typemin(Int)); mxy = Ref(typemin(Int))
+    _bounds_elem!(elem, ox, oy, sdl_measure_text, mnx, mny, mxx, mxy)
+    mxx[] == typemin(Int) ? nothing : (mnx[], mny[], mxx[], mxy[])
+end
+
+function _bounds_of_canvas(canvas::GraphicsCanvas, ox::Int, oy::Int)
+    mnx = Ref(typemax(Int)); mny = Ref(typemax(Int))
+    mxx = Ref(typemin(Int)); mxy = Ref(typemin(Int))
+    _accumulate_bounds!(canvas, ox, oy, sdl_measure_text, mnx, mny, mxx, mxy)
+    mxx[] == typemin(Int) ? nothing : (mnx[], mny[], mxx[], mxy[])
+end
+
+# Union a dirty unit's previous (cached) and new bounds into `acc`, then refresh
+# the cache so this frame's bounds become next frame's "previous". `new` may be
+# `nothing` when the unit now renders nothing (content removed) — its cached old
+# extent is still cleared, then the stale entry is dropped.
+function _union_unit!(res::SdlWindowResources, acc::_DirtyAcc, key::UInt,
+                      new::Union{Nothing,NTuple{4,Int}})
+    old = get(res.dirty_bounds, key, nothing)
+    old === nothing || _acc_extend!(acc, old)
+    if new === nothing
+        delete!(res.dirty_bounds, key)
+    else
+        _acc_extend!(acc, new)
+        res.dirty_bounds[key] = new
+    end
+end
+
+# Recurse into a canvas at content origin `(ox, oy)`. `(vw, vh)` is the viewport
+# extent in this canvas's coordinate space, threaded exactly as in
+# `_render_canvas!` so the dirty walk reads precisely the cells the renderer
+# reads — in particular it honours the same layout early-stop, so off-screen
+# `ListNode` tail cells (which the renderer leaves lazily invalid) are not
+# misread as "dirty" every frame. Accumulates into `acc`.
+function _collect_canvas_dirty!(res::SdlWindowResources, canvas::GraphicsCanvas,
+                                ox::Int, oy::Int, vw::Int, vh::Int, acc::_DirtyAcc)
+    elements_cell = getfield(canvas, :elements)
+    unit = _node_dirty(canvas) || !isuptodate(elements_cell)
+    ev = elements_cell[]                 # read after capturing validity above
+    if !unit && ev isa CellVector && !isuptodate(getfield(ev, :elements))
+        unit = true                      # the regenerated element vector changed
+    end
+    if unit
+        _union_unit!(res, acc, objectid(canvas), _bounds_of_canvas(canvas, ox, oy))
         return
     end
-    SDL_RenderSetScale(res.renderer, scale, scale)
-    SDL_SetRenderDrawColor(res.renderer, bg[1], bg[2], bg[3], bg[4])
-    SDL_RenderClear(res.renderer)
-    _render_canvas!(res.renderer, canvas, 0, 0, res.width, res.height)
-    SDL_RenderSetScale(res.renderer, 1.0f0, 1.0f0)
-    SDL_RenderPresent(res.renderer)
+    layout = canvas.layout
+    early = !canvas.overlapping_elements && layout != layout_none
+    if ev isa ListNode
+        _collect_listnode_dirty!(res, ev, ox, oy, vw, vh, layout, early, acc)
+    else
+        for elem in ev
+            elem isa GraphicsFence && continue
+            if early
+                if layout == layout_vertical
+                    ey = _render_elem_y(elem)
+                    ey !== nothing && (ey + oy) > vh && break
+                elseif layout == layout_horizontal
+                    ex = _render_elem_x(elem)
+                    ex !== nothing && (ex + ox) > vw && break
+                end
+            end
+            _collect_dirty_elem!(res, elem, ox, oy, vw, vh, acc)
+        end
+    end
+    nothing
+end
+
+function _collect_dirty_elem!(res::SdlWindowResources, elem, ox::Int, oy::Int,
+                              vw::Int, vh::Int, acc::_DirtyAcc)
+    elem isa GraphicsFence && return
+    if elem isa GraphicsCanvas
+        cx, cy = Int(elem.x), Int(elem.y)
+        _collect_canvas_dirty!(res, elem, ox + cx, oy + cy, vw - cx, vh - cy, acc)
+    elseif elem isa GraphicsViewport
+        _collect_viewport_dirty!(res, elem, ox, oy, acc)
+    elseif _node_dirty(elem)
+        # Leaf with an in-place-mutated (stale) field cell.
+        _union_unit!(res, acc, objectid(elem), _bounds_of_elem(elem, ox, oy))
+    end
+    nothing
+end
+
+# A viewport clips its content, so its dirty contribution is clamped to its own
+# box. If the viewport itself moved/resized, the whole box is dirty.
+function _collect_viewport_dirty!(res::SdlWindowResources, vp::GraphicsViewport,
+                                  ox::Int, oy::Int, acc::_DirtyAcc)
+    vx, vy = ox + Int(vp.x), oy + Int(vp.y)
+    vw, vh = Int(vp.w), Int(vp.h)
+    if _node_dirty(vp)
+        _acc_extend!(acc, (vx, vy, vx + vw, vy + vh))
+        return
+    end
+    content = vp.content::GraphicsCanvas
+    cx, cy = Int(content.x), Int(content.y)
+    tmp = _DirtyAcc()
+    # Mirror `_render_viewport!`: content extent is the absolute viewport box.
+    _collect_canvas_dirty!(res, content, vx + cx, vy + cy, vx + vw, vy + vh, tmp)
+    _acc_empty(tmp) && return
+    # Intersect the content's dirty region with the viewport box.
+    ix0 = max(tmp.minx, vx); iy0 = max(tmp.miny, vy)
+    ix1 = min(tmp.maxx, vx + vw); iy1 = min(tmp.maxy, vy + vh)
+    (ix1 > ix0 && iy1 > iy0) && _acc_extend!(acc, (ix0, iy0, ix1, iy1))
+    nothing
+end
+
+# Walk a `ListNode`-backed element list the same way `_render_canvas!` does
+# (prev links, then next links, with the layout early-stop), visiting only the
+# nodes the renderer would draw. A change confined to one node's value is a
+# per-node dirty unit (one edited line stays tight, with old∪new bounds so a
+# shrinking line clears its tail). A spine change (line inserted/removed)
+# reflows everything below it, so the dirty region is extended down to the
+# viewport bottom — which also clears a removed last line's vacated pixels.
+function _collect_listnode_dirty!(res::SdlWindowResources, head::ListNode,
+                                  ox::Int, oy::Int, vw::Int, vh::Int,
+                                  layout::LayoutDirection, early::Bool, acc::_DirtyAcc)
+    visited = Tuple{ListNode,Any,Bool}[]   # (node, value, value_is_stale)
+    spine_dirty = false
+
+    # Prev links (negative offsets): process, then early-stop (as in render).
+    pcell = getfield(head, :prev)
+    isuptodate(pcell) || (spine_dirty = true)
+    node = pcell[]
+    while node !== nothing
+        vcell = getfield(node, :value)
+        vstale = !isuptodate(vcell)
+        elem = vcell[]
+        if !(elem isa GraphicsFence)
+            push!(visited, (node, elem, vstale))
+            if early
+                if layout == layout_vertical
+                    ey = _render_elem_y(elem); ey !== nothing && (ey + oy) < 0 && break
+                elseif layout == layout_horizontal
+                    ex = _render_elem_x(elem); ex !== nothing && (ex + ox) < 0 && break
+                end
+            end
+        end
+        pc = getfield(node, :prev)
+        isuptodate(pc) || (spine_dirty = true)
+        node = pc[]
+    end
+
+    # Next links from head: early-stop, then process (as in render).
+    node = head
+    while node !== nothing
+        vcell = getfield(node, :value)
+        vstale = !isuptodate(vcell)
+        elem = vcell[]
+        if !(elem isa GraphicsFence)
+            if early
+                if layout == layout_vertical
+                    ey = _render_elem_y(elem); ey !== nothing && (ey + oy) > vh && break
+                elseif layout == layout_horizontal
+                    ex = _render_elem_x(elem); ex !== nothing && (ex + ox) > vw && break
+                end
+            end
+            push!(visited, (node, elem, vstale))
+        end
+        nc = getfield(node, :next)
+        isuptodate(nc) || (spine_dirty = true)
+        node = nc[]
+    end
+
+    if spine_dirty
+        wb = _DirtyAcc()
+        for (_, val, _) in visited
+            b = _bounds_of_elem(val, ox, oy)
+            b === nothing || _acc_extend!(wb, b)
+        end
+        if !_acc_empty(wb)
+            # Reflow runs to the viewport bottom (vertical) / right (horizontal).
+            bottom = layout == layout_horizontal ? wb.maxy : max(wb.maxy, vh)
+            right  = layout == layout_horizontal ? max(wb.maxx, vw) : wb.maxx
+            _acc_extend!(acc, (wb.minx, wb.miny, right, bottom))
+        end
+        return
+    end
+
+    for (n, val, vstale) in visited
+        if vstale
+            _union_unit!(res, acc, objectid(n), _bounds_of_elem(val, ox, oy))
+        else
+            _collect_dirty_elem!(res, val, ox, oy, vw, vh, acc)
+        end
+    end
+    nothing
+end
+
+# Compute the dirty rectangle for `canvas` (the whole window content), clamped
+# to the window and padded a couple of logical pixels so anti-aliased glyph
+# edges straddling the clip boundary are not clipped. Returns `(x0,y0,x1,y1)`,
+# or `nothing` when nothing is invalidated. Populating `res.dirty_bounds` is a
+# side effect, so this is also called (its rect ignored) on the first full paint
+# to seed each unit's previous bounds.
+function _compute_dirty_rect(res::SdlWindowResources, canvas::GraphicsCanvas)
+    acc = _DirtyAcc()
+    _collect_canvas_dirty!(res, canvas, 0, 0, res.width, res.height, acc)
+    _acc_empty(acc) && return nothing
+    pad = 2
+    x0 = clamp(acc.minx - pad, 0, res.width)
+    y0 = clamp(acc.miny - pad, 0, res.height)
+    x1 = clamp(acc.maxx + pad, 0, res.width)
+    y1 = clamp(acc.maxy + pad, 0, res.height)
+    (x1 <= x0 || y1 <= y0) ? nothing : (x0, y0, x1, y1)
+end
+
+# ── Per-window paint ──────────────────────────────────────────────────────
+
+# Repaint `canvas` into the window, restricting the work to the invalidated
+# region when partial rendering is enabled. Everything is rendered into the
+# retained `res.target` texture (which keeps its pixels across frames); only the
+# dirty sub-rectangle of that texture is re-rendered, then the whole texture is
+# copied to the window and presented. The window backbuffer itself is undefined
+# after a present, so it is always fully refreshed from the target.
+function _render_window!(res::SdlWindowResources, canvas::GraphicsCanvas)
+    bg = res.bg
+    renderer = res.renderer
+    scale = Float32(_DISPLAY_SCALE[])
+
+    if !_ensure_ss_target!(res)
+        # No usable retained target — fall back to the classic full repaint
+        # straight to the window backbuffer.
+        SDL_RenderSetScale(renderer, scale, scale)
+        SDL_SetRenderDrawColor(renderer, bg[1], bg[2], bg[3], bg[4])
+        SDL_RenderClear(renderer)
+        _render_canvas!(renderer, canvas, 0, 0, res.width, res.height)
+        SDL_RenderSetScale(renderer, 1.0f0, 1.0f0)
+        SDL_RenderPresent(renderer)
+        return
+    end
+
+    # Decide the region to repaint.
+    if !_PARTIAL_RENDER[]
+        dirty = (0, 0, res.width, res.height)
+    else
+        # Always walk: this seeds `res.dirty_bounds` with each unit's current
+        # extent so the *next* edit can clear vacated pixels (old∪new). On the
+        # first paint the whole window must be cleared (the target is undefined
+        # and margins outside the content have no element to mark them dirty),
+        # so the computed rect is widened to the full window — but the walk's
+        # cache-seeding side effect is kept.
+        computed = _compute_dirty_rect(res, canvas)
+        if res.first_paint
+            dirty = (0, 0, res.width, res.height)
+        else
+            computed === nothing && return   # nothing invalidated — skip paint/present
+            dirty = computed
+        end
+    end
+    res.first_paint = false
+
+    rss = Float32(res.ss) * scale
+    dx, dy = dirty[1], dirty[2]
+    dw, dh = dirty[3] - dirty[1], dirty[4] - dirty[2]
+    clip = Ref(SDL_Rect(Int32(dx), Int32(dy), Int32(dw), Int32(dh)))
+
+    SDL_SetRenderTarget(renderer, res.target)
+    SDL_RenderSetScale(renderer, rss, rss)
+    SDL_RenderSetClipRect(renderer, clip)
+    # Not SDL_RenderClear: it ignores the clip rect and would wipe the retained
+    # pixels outside the dirty region. Repaint the dirty background by hand.
+    SDL_SetRenderDrawColor(renderer, bg[1], bg[2], bg[3], bg[4])
+    SDL_RenderFillRect(renderer, clip)
+    _render_canvas!(renderer, canvas, 0, 0, res.width, res.height)
+    SDL_RenderSetClipRect(renderer, C_NULL)
+    SDL_RenderSetScale(renderer, 1.0f0, 1.0f0)
+    SDL_SetRenderTarget(renderer, C_NULL)
+
+    SDL_RenderCopy(renderer, res.target, C_NULL, C_NULL)
+    if _DEBUG_DIRTY[]
+        # Outline the repainted region on the window (erased by next frame's copy).
+        SDL_RenderSetScale(renderer, scale, scale)
+        SDL_SetRenderDrawColor(renderer, 0xff, 0x00, 0x00, 0xff)
+        SDL_RenderDrawRect(renderer, clip)
+        SDL_RenderSetScale(renderer, 1.0f0, 1.0f0)
+    end
+    SDL_RenderPresent(renderer)
 end
 
 # ════════════════════════════════════════════════════════════════════════
@@ -1469,6 +1799,7 @@ function init!(::SdlBackend)
     @assert TTF_Init() == 0 "TTF init failed: $(unsafe_string(SDL_GetError()))"
     SDL_StartTextInput()   # enable SDL_TEXTINPUT events (explicit for portability)
     _detect_display_scale!()
+    _init_render_flags!()
 end
 
 function quit!(::SdlBackend)
