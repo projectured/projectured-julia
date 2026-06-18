@@ -77,7 +77,8 @@ gesture. So to script the editor (e.g. from `execute_julia_code`, or the REPL),
 do exactly what a reader does: find the target, build the operation, evaluate it.
 
 ```julia
-# Move the selection: find the node's path, then select it.
+# Move the selection: find the node's path, then select it. (The predicate can be
+# the string/regex shorthand instead: search_references(editor.document, "Alice").)
 ref = first(search_references(editor.document, v -> v isa JsonString && v.value == "Alice"))
 evaluate_operation(editor, ReplaceSelectionOperation(ref))   # == replace_selection!(editor.document, ref)
 

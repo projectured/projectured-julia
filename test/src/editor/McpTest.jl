@@ -310,6 +310,17 @@ function test_search_object()
 
         # a predicate that throws on some nodes is treated as no-match, not an error
         @test !isempty(search_references(doc, v -> v.value == 10))
+
+        # String query → substring match on leaf text (the JsonString's value
+        # "Alice" is a leaf String node in the document tree).
+        @test length(search_references(doc, "Alice")) == 1
+        @test evaluate_reference(doc, search_references(doc, "Alice")[1]) == "Alice"
+        @test length(search_references(doc, "lic")) == 1      # substring
+        @test isempty(search_references(doc, "Bob"))
+
+        # Regex query → matches leaf text; "10" and "20" are number leaves.
+        @test length(search_references(doc, r"^\d+$")) == 2
+        @test length(search_references(doc, r"Ali")) == 1
     end
 
     @testset "search_objects" begin
@@ -325,6 +336,10 @@ function test_search_object()
         @test strs[1].value == "Alice"
 
         @test isempty(search_objects(doc, v -> v isa JsonNull))
+
+        # String / Regex query forms also work here (leaf-text match).
+        @test search_objects(doc, "Alice") == ["Alice"]
+        @test sort(search_objects(doc, r"^\d+$")) == [10, 20]
 
         # a shared object reachable by several paths is returned only once…
         shared = JsonString("dup")

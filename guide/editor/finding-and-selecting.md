@@ -12,21 +12,42 @@ The three primitives, and how they compose:
 
 | You have… | You want… | Use |
 |-----------|-----------|-----|
-| a document + a predicate | the **paths** to matching nodes | `search_references(doc, pred)` |
-| a document + a predicate | the **matching nodes** themselves | `search_objects(doc, pred)` |
+| a document + a predicate **or string/regex** | the **paths** to matching nodes | `search_references(doc, query)` |
+| a document + a predicate **or string/regex** | the **matching nodes** themselves | `search_objects(doc, query)` |
 | a document + a path | the **node** at that path | `evaluate_reference(doc, path)` |
 | a document + a path | the cursor moved there | `replace_selection!(doc, path)` |
+
+## Two ways to write a query
+
+Both search functions take a `query` that is *either*:
+
+- a **predicate** `node -> Bool` — full control; match on type, field values, or
+  structure (`v -> v isa JsonString && v.value == "Alice"`); or
+- a **`String`** (substring) or **`Regex`** — a shorthand that matches any *leaf*
+  node (string / symbol / number / char) by its textual form.
+
+```julia
+search_references(editor.document, "Alice")        # leaf text containing "Alice"
+search_references(editor.document, r"TODO|FIXME")  # regex over leaf text
+search_objects(editor.document, r"^\d+$")          # every integer-looking leaf
+search_references(editor.document, v -> v isa JsonNumber)   # predicate: by type
+```
+
+The string/regex form matches the rendered text of leaf values only — struct and
+collection nodes have no textual form, so they never match a string/regex query.
+Reach for a predicate when you need to match by type or shape, or to match a leaf
+*exactly* (`v -> v == "Alice"`) rather than as a substring.
 
 ## Searching for references — `search_references`
 
 ```julia
-search_references(obj, predicate; include_selection=false, maxdepth=64)
-    -> Vector{ReferencePath}
+search_references(obj, predicate; include_selection=false, maxdepth=64) -> Vector{ReferencePath}
+search_references(obj, query::Union{AbstractString,Regex}; …)           -> Vector{ReferencePath}
 ```
 
 Walks `obj` and returns a document-rooted `ReferencePath` for **every** node whose
-(cell-unwrapped) value satisfies `predicate`. The predicate receives each node; a
-predicate that throws on some node is treated as "no match" there, not an error.
+(cell-unwrapped) value satisfies the query. With a predicate, a predicate that
+throws on some node is treated as "no match" there, not an error.
 
 - A node reachable by **several paths** yields **one result per path** — each path
   is a distinct *location*, hence a distinct selection.
@@ -45,12 +66,13 @@ Because the returned paths are document-rooted, they resolve with
 
 ```julia
 search_objects(obj, predicate; include_selection=false, maxdepth=64) -> Vector{Any}
+search_objects(obj, query::Union{AbstractString,Regex}; …)           -> Vector{Any}
 ```
 
-Same walk, but returns the matching **objects themselves, each one once** even
-when a node is shared / reachable by several paths. Use it when you want the
-values, not where they live (`search_references` is the one to use when you intend
-to select).
+Same walk (and the same string/regex shorthand), but returns the matching
+**objects themselves, each one once** even when a node is shared / reachable by
+several paths. Use it when you want the values, not where they live
+(`search_references` is the one to use when you intend to select).
 
 ## Resolving a reference — `evaluate_reference`
 
@@ -111,6 +133,10 @@ operation catalogue and `evaluate_operation`.
 # Find the JSON string whose value is exactly "Alice", anywhere in the document,
 # and select it. No need to know its path in advance.
 refs = search_references(editor.document, v -> v isa JsonString && v.value == "Alice")
+isempty(refs) || replace_selection!(editor.document, first(refs))
+
+# The same, using the string shorthand — matches any leaf containing "Alice":
+refs = search_references(editor.document, "Alice")
 isempty(refs) || replace_selection!(editor.document, first(refs))
 ```
 

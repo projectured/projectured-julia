@@ -371,11 +371,30 @@ end
 _is_search_leaf(x) = x === nothing || x isa Number || x isa AbstractString ||
                      x isa Symbol || x isa Char
 
+# A search query is either a predicate (called on each node) or a String / Regex.
+# A String/Regex is turned into a predicate matching any *leaf* node whose textual
+# form (the string / symbol / number / char rendered) contains the substring /
+# matches the regex. Struct and collection nodes have no textual form, so they
+# never match a String/Regex query — pass a predicate to match on type or shape.
+_search_text(x::AbstractString) = x
+_search_text(x::Symbol)         = string(x)
+_search_text(x::Number)         = string(x)
+_search_text(x::Char)           = string(x)
+_search_text(::Any)             = nothing
+
+_text_query(q::AbstractString) = x -> (t = _search_text(x); t !== nothing && occursin(q, t))
+_text_query(q::Regex)          = x -> (t = _search_text(x); t !== nothing && occursin(q, t))
+
 """
     search_references(obj, predicate; include_selection=false, maxdepth=64) -> Vector{ReferencePath}
+    search_references(obj, query::Union{AbstractString,Regex}; …)            -> Vector{ReferencePath}
 
 Walk any object and return a `ReferencePath` for every node whose (Cell-unwrapped)
-value satisfies `predicate`. Cells are unwrapped transparently (no path step);
+value satisfies `predicate`. Instead of a predicate you may pass a `String`
+(substring match) or `Regex` — it matches any leaf node (string / symbol / number
+/ char) whose textual form contains / matches the query, e.g.
+`search_references(editor.document, "Alice")` or `search_references(doc, r"TODO|FIXME")`.
+Cells are unwrapped transparently (no path step);
 struct fields contribute a `FieldReference`, and array / `CellVector` elements an
 `ElementReference` — so the returned paths resolve with `evaluate_reference` and
 can be handed to `set_selection!` / `replace_selection!`.
@@ -401,6 +420,9 @@ function search_references(obj, predicate; include_selection::Bool=false, maxdep
                         EmptyReferencePath(), IdDict{Any,Bool}(), include_selection, maxdepth)
     results
 end
+
+search_references(obj, query::Union{AbstractString,Regex}; kwargs...) =
+    search_references(obj, _text_query(query); kwargs...)
 
 function _search_references!(results, obj, predicate, path, seen, include_selection, depth)
     # Drop only paths that loop back through an object already on *this* path:
@@ -439,9 +461,12 @@ end
 
 """
     search_objects(obj, predicate; include_selection=false, maxdepth=64) -> Vector{Any}
+    search_objects(obj, query::Union{AbstractString,Regex}; …)           -> Vector{Any}
 
 Walk any object and return every (Cell-unwrapped) node that satisfies `predicate`,
 **each object at most once** even when it is shared / reachable by several paths.
+As with [`search_references`](@ref), a `String` (substring) or `Regex` may be passed
+instead of a predicate to match leaf nodes by their textual form.
 This is the object-valued counterpart to [`search_references`](@ref): use it when
 you want the matching values themselves rather than where they live.
 
@@ -461,6 +486,9 @@ function search_objects(obj, predicate; include_selection::Bool=false, maxdepth:
                      IdDict{Any,Bool}(), include_selection, maxdepth)
     results
 end
+
+search_objects(obj, query::Union{AbstractString,Regex}; kwargs...) =
+    search_objects(obj, _text_query(query); kwargs...)
 
 function _search_objects!(results, obj, predicate, seen, include_selection, depth)
     # Global visit-once: `seen` is shared across the whole walk, so each object is
