@@ -47,6 +47,7 @@ Then read the guide for the domain or subsystem you are touching:
 - References + DSL: [reference guide](editor/reference.md)
 - Selection mechanism: [selection guide](editor/selection.md) and
   [selection deep dive](selection-deep-dive.md)
+- Finding / selecting nodes by content: [finding-and-selecting guide](editor/finding-and-selecting.md)
 - Backends and devices: [devices and backends guide](devices-and-backends.md)
 - Per-domain: [document/](document/)
 
@@ -107,6 +108,7 @@ Read it first; it will point you here and to the specific guides you need.
 | [Editor](editor.md) | REPL loop, event handling, rendering pipeline |
 | [Reference guide](editor/reference.md) | Reference paths and the @reference / @reference_case DSL |
 | [Selection guide](editor/selection.md) | How selection is stored and propagated |
+| [Finding and selecting](editor/finding-and-selecting.md) | Search for nodes by content (`search_references` / `search_objects`), resolve paths (`evaluate_reference`), select |
 | [Selection deep dive](selection-deep-dive.md) | Full reference/selection mechanism with worked examples |
 | [Devices and backends](devices-and-backends.md) | Backend/Device split and how to add a new one |
 

@@ -1,0 +1,131 @@
+# Finding and Selecting Nodes
+
+How to locate a node in a document by *content* (not by a path you already know),
+turn that into a reference, resolve a reference back to a node, and move the
+selection there. This is the practical workflow for tasks like "select the string
+'Alice'" or "highlight every number".
+
+**Do not hand-walk the document tree** (`doc.windows[1].content.editing_page…`) to
+find something — that is brittle and verbose. Search for it.
+
+The three primitives, and how they compose:
+
+| You have… | You want… | Use |
+|-----------|-----------|-----|
+| a document + a predicate | the **paths** to matching nodes | `search_references(doc, pred)` |
+| a document + a predicate | the **matching nodes** themselves | `search_objects(doc, pred)` |
+| a document + a path | the **node** at that path | `evaluate_reference(doc, path)` |
+| a document + a path | the cursor moved there | `replace_selection!(doc, path)` |
+
+## Searching for references — `search_references`
+
+```julia
+search_references(obj, predicate; include_selection=false, maxdepth=64)
+    -> Vector{ReferencePath}
+```
+
+Walks `obj` and returns a document-rooted `ReferencePath` for **every** node whose
+(cell-unwrapped) value satisfies `predicate`. The predicate receives each node; a
+predicate that throws on some node is treated as "no match" there, not an error.
+
+- A node reachable by **several paths** yields **one result per path** — each path
+  is a distinct *location*, hence a distinct selection.
+- Paths that **loop back** through an object already on the current path are
+  dropped, so cyclic structures (e.g. a doubly-linked list's `prev`/`next`) stay
+  finite.
+- `maxdepth` bounds recursion for structures whose nodes are never the *same*
+  object — e.g. an infinite lazy list, which the cycle guard alone cannot stop.
+- `include_selection=true` also walks `selection` fields (off by default).
+
+Because the returned paths are document-rooted, they resolve with
+`evaluate_reference` and can be handed straight to `set_selection!` /
+`replace_selection!`.
+
+## Searching for objects — `search_objects`
+
+```julia
+search_objects(obj, predicate; include_selection=false, maxdepth=64) -> Vector{Any}
+```
+
+Same walk, but returns the matching **objects themselves, each one once** even
+when a node is shared / reachable by several paths. Use it when you want the
+values, not where they live (`search_references` is the one to use when you intend
+to select).
+
+## Resolving a reference — `evaluate_reference`
+
+```julia
+evaluate_reference(document, path) -> node
+```
+
+The inverse of searching: walk `path` from `document` and return the node it
+points at (unwrapping cells, descending fields and elements). This is the
+`(document, reference) → node` direction. See the
+[reference guide](reference.md#resolving-a-reference-to-a-node) for details and
+the type-checkpoint validity rules.
+
+## The round trip
+
+```julia
+# 1. Find: paths to every JSON string containing "TODO".
+refs = search_references(editor.document, v -> v isa JsonString && occursin("TODO", v.value))
+
+# 2. Resolve (optional): a path back into its node.
+node = evaluate_reference(editor.document, first(refs))   # the JsonString
+
+# 3. Select: move the cursor to a match.
+replace_selection!(editor.document, first(refs))
+```
+
+`search_references` → paths, `evaluate_reference` → node from a path,
+`replace_selection!` → cursor at a path. See the
+[selection guide](selection.md) for how the selection then propagates through the
+projections and renders.
+
+## Acting on what you found: build an operation, evaluate it
+
+Selecting is one case of the general way to change the document: build an
+`Operation` and apply it with `evaluate_operation(editor, op)` — the same step the
+editor loop runs after a gesture. The full pattern is **find → build operation →
+evaluate**:
+
+```julia
+# Select (ReplaceSelectionOperation is what replace_selection! wraps):
+ref = first(search_references(editor.document, v -> v isa JsonString && v.value == "Alice"))
+evaluate_operation(editor, ReplaceSelectionOperation(ref))
+
+# Any other action: find the target, build the op carrying it, evaluate.
+page = first(search_objects(editor.document, x -> x isa WorkbenchPage && !isempty(x.elements)))
+evaluate_operation(editor, WorkbenchCloseDocumentOperation(page, 1))
+```
+
+Because operations carry their own target and `evaluate_operation` is
+wrapper-agnostic, this works regardless of how the document is nested
+(`ScreenDocument` → `WindowDocument` → …). Reach for this instead of bespoke
+imperative helpers. See the [operations guide](../operations.md) for the full
+operation catalogue and `evaluate_operation`.
+
+## Worked example: select "Alice"
+
+```julia
+# Find the JSON string whose value is exactly "Alice", anywhere in the document,
+# and select it. No need to know its path in advance.
+refs = search_references(editor.document, v -> v isa JsonString && v.value == "Alice")
+isempty(refs) || replace_selection!(editor.document, first(refs))
+```
+
+To select just the character range rather than the whole value, extend the found
+path with the cursor/range step the domain uses (for a JSON string value, a
+`RangeReference` over the text — see the [reference guide](reference.md) and the
+JSON section of the [selection guide](selection.md#json-domain)).
+
+## Notes
+
+- All three primitives unwrap reactive `Cell`s transparently — you do **not**
+  write `node.field[]`; property access already gives the value (see
+  [macros guide](../macros.md)).
+- The predicate runs in the **document (input) domain** — match on
+  `JsonString` / `JsonNumber` / … document nodes, not on projected text/graphics.
+- In the running editor `editor.document` is a `ScreenDocument`; searching it
+  walks through the window(s) into the workbench automatically, so a content-based
+  search does not care about the screen/window wrapping.

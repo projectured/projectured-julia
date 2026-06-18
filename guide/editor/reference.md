@@ -103,6 +103,28 @@ Under the hood a path is an immutable linked list — `EmptyReferencePath()`
 terminates it and `ConcreteReferencePath(head, tail)` is one cons cell — but you
 rarely construct those cells by hand; prefer `@reference` or `ReferencePath`.
 
+## Resolving a reference to a node
+
+`evaluate_reference(document, path)` is the inverse of building a path: it walks
+`path` from `document` and returns the node (or value) it points at — unwrapping
+cells, descending fields by `FieldReference` and elements by
+`ElementReference` / `PositionReference`. It is the `(document, reference) → node`
+function.
+
+```julia
+ref  = @reference entries[1].value
+node = evaluate_reference(document, ref)   # the JsonString at that path
+```
+
+(`evaluate_reference` is also the document-aware validator under the hood — see
+[§ Type checkpoints](#type-checkpoints-and-replay-validity) for how it reports a
+structure mismatch when a stored path no longer fits the document.)
+
+**To find a node by content** (and get a reference to it, or select it) rather
+than knowing its path up front, use `search_references` / `search_objects` — see
+the [finding-and-selecting guide](finding-and-selecting.md). Do not hand-walk the
+document tree to locate a node.
+
 ## Mapping Between Document Structs and Reference Steps
 
 Reference paths mirror the struct field layout of documents. The two core

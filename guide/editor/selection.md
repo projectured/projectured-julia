@@ -56,6 +56,20 @@ replace_selection!(document, new_path)
 
 Under the hood, this calls `clear_selection!` followed by `set_selection!`, ensuring that any stale selection state is completely removed before applying the new selection. Use this when you need to guarantee that only one selection exists in the document—for example, when the user navigates to a new location or when the document structure has changed and old selection paths may no longer be valid.
 
+### Selecting by content
+
+When you do not already know the path — e.g. "select the string 'Alice'" — find
+it with `search_references` and select the result, instead of hand-walking the
+document tree:
+
+```julia
+refs = search_references(editor.document, v -> v isa JsonString && v.value == "Alice")
+isempty(refs) || replace_selection!(editor.document, first(refs))
+```
+
+See the [finding-and-selecting guide](finding-and-selecting.md) for the full
+search → resolve → select workflow.
+
 ## Validating References
 
 Before setting a selection, you can validate that a reference is valid using `is_valid_reference`:
