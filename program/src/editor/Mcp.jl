@@ -390,7 +390,9 @@ function register_default_tools_and_resources!()
         "reading whole guides.",
         NamedTuple[
             (name="query", type="string",
-             description="Search terms (matched against guide headings and body)", required=true),
+             description="Plain keywords (case-insensitive substring match against guide " *
+                         "headings and body; NOT a regex, no boolean operators; more matching " *
+                         "terms rank higher)", required=true),
             (name="limit", type="number",
              description="Maximum number of results (default 8)", required=false),
         ],
@@ -407,7 +409,9 @@ function register_default_tools_and_resources!()
         "names or signatures.",
         NamedTuple[
             (name="query", type="string",
-             description="Search terms (matched against names and docstrings)", required=true),
+             description="Plain keywords (case-insensitive substring match against names and " *
+                         "docstrings; NOT a regex, no boolean operators; exact name matches " *
+                         "rank highest)", required=true),
             (name="kind", type="string",
              description="Optional filter: \"module\", \"class\", or \"function\"", required=false),
             (name="limit", type="number",
@@ -701,6 +705,12 @@ heading-delimited sections, ranks them by how often the query terms appear
 (headings weighted higher than body), and returns the top `limit` hits as a
 markdown list of `resource://guide/{name}` URIs plus a short excerpt. Read the
 full text with `read_resource(uri)`.
+
+The query is plain keywords, **not a regular expression and with no boolean
+operators**: it is lowercased and split into tokens (alphanumeric/underscore,
+2+ characters) which are matched case-insensitively as substrings. Any token
+matching anywhere includes the section (OR semantics); sections matching more —
+and heading — terms rank higher.
 """
 function search_documentation(query::AbstractString; limit::Integer=8)
     terms = _query_terms(query)
@@ -791,6 +801,12 @@ matches and returns the top `limit` hits. Each hit shows its kind, qualified
 name, one-line doc, and how to read full docs: a `resource://…` URI for modules
 and classes, or a `read_function_documentation(…)` call for functions. Pass
 `kind` (`"module"`, `"class"`, or `"function"`) to filter.
+
+The query is plain keywords, **not a regular expression and with no boolean
+operators**: it is lowercased and split into tokens (alphanumeric/underscore,
+2+ characters) matched case-insensitively. Any token matching includes the entry
+(OR semantics); exact name matches rank above name substrings, above qualified-
+name substrings, above docstring matches.
 """
 function search_api(query::AbstractString; kind=nothing, limit::Integer=8)
     terms = _query_terms(query)
