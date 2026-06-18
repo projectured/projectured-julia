@@ -55,5 +55,81 @@ oob = ConcreteReferencePath(ElementReference(5), EmptyReferencePath())
 @test is_valid_reference(TypeReference(JsonString))
 @test is_valid_reference(annotated)
 
+# ── Phase 1: infrastructure is checkpoint-tolerant ────────────────────────
+
+# skip_type_checkpoints peels only leading checkpoints, leaving the first
+# navigation step (or the empty path) exposed.
+@test Projectured.skip_type_checkpoints(annotated) isa ConcreteReferencePath
+@test Projectured.skip_type_checkpoints(annotated).head == ElementReference(1)
+@test Projectured.skip_type_checkpoints(EmptyReferencePath()) === EmptyReferencePath()
+@test Projectured.skip_type_checkpoints(nothing) === nothing
+
+# Ignoring-types equality treats an annotated path as equal to its skeleton,
+# while strict equality keeps them distinct.
+@test Projectured.reference_equal_ignoring_types(annotated, plain)
+@test !reference_equal(annotated, plain)
+
+# set_selection! / clear_selection! walk an annotated path exactly like the
+# stripped form — the checkpoints are skipped during descent.
+obj = JsonObject("a" => JsonString("x"), "b" => JsonString("y"))
+# Path to the value string of the first entry: .entries[1].value
+plain_sel = ConcreteReferencePath(FieldReference("entries"),
+                ConcreteReferencePath(ElementReference(1),
+                    ConcreteReferencePath(FieldReference("value"),
+                        EmptyReferencePath())))
+annot_sel = annotate_reference_types(obj, plain_sel)
+
+# Setting via the annotated path stores the (annotated) sub-paths down the tree.
+set_selection!(obj, annot_sel)
+@test getfield(obj, :selection)[] == annot_sel
+entry1 = obj.entries[1]
+@test getfield(entry1, :selection)[] !== nothing
+# Descent reached the value node (selection propagated past the field step).
+@test getfield(entry1.value, :selection)[] !== nothing
+
+# Clearing walks the same annotated path and resets every cell to nothing.
+clear_selection!(obj)
+@test getfield(obj, :selection)[] === nothing
+@test getfield(entry1, :selection)[] === nothing
+@test getfield(entry1.value, :selection)[] === nothing
+
+# @reference_case matches a pattern written against the navigation skeleton
+# even when the input path is annotated with interleaved checkpoints.
+matched = @reference_case annot_sel begin
+    entries[i].value => (:hit, i)
+end
+@test matched == (:hit, 1)
+
+# The same pattern still matches the plain skeleton (backward compatible).
+matched_plain = @reference_case plain_sel begin
+    entries[i].value => (:hit, i)
+end
+@test matched_plain == (:hit, 1)
+
+# The whole-element `∅` pattern matches a canonical whole-element selection
+# (a single trailing checkpoint annotates from EmptyReferencePath).
+whole = annotate_reference_types(obj, EmptyReferencePath())
+@test whole isa ConcreteReferencePath           # trailing checkpoint present
+hit_whole = @reference_case whole begin
+    ∅ => :whole
+    _ => :other
+end
+@test hit_whole == :whole
+
+# ── Phase 2: producers return canonical (self-describing) references ───────
+
+# collect_references annotates each result against the document, so every search
+# result is canonical (carries type checkpoints) and strips back to the plain
+# navigation path the search built.
+hits = collect_references(obj, "x")
+@test !isempty(hits)
+canonical_hit = first(hits)
+# Canonical: contains at least one TypeReference checkpoint, and is structurally
+# well-formed (single-arg validity).
+@test strip_reference_types(canonical_hit) != canonical_hit
+@test is_valid_reference(canonical_hit)
+# The leading step records the document's own type.
+@test Projectured.skip_type_checkpoints(canonical_hit) !== canonical_hit
+
 end
 end

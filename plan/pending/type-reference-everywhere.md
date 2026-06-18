@@ -6,8 +6,59 @@ the terminal node) — instead of the current *optional annotation that is
 stripped before use*. The goal is intentional, self-describing references that
 capture the structural context of each step.
 
-> Status: **not started.** This is a design + sequencing plan. The central
-> scope question (§0) must be answered before Phase 2 begins.
+> Status: **Phases 1–3 implemented; Phase 4 (output residency) intentionally
+> deferred — see "Implementation outcome" below.** Selections are now canonical
+> **at rest** (input/document-domain cells, search results); the projection
+> boundary strips checkpoints so the ~270 bespoke mappers and all render/layout
+> consumers keep seeing plain navigation paths. Full sweeps are green or strictly
+> better than `main` (see outcome). The central scope question (§0) was resolved
+> as Option B, but Option B's *output residency* half proved to be pure decoration
+> on transient render artifacts at the cost of ~15+ consumer rewrites, so it is
+> deferred (the boundary wrapper has a one-line switch to enable it later).
+
+## Implementation outcome (2026-06-18)
+
+What landed (all green; `test_printers` 116980/116980, `test_readers`
+16650/16650, `test_repls`/`test_text_navigations` have **no new** failures vs
+`main` and actually fix the pre-existing `json_null` crashes):
+
+- **Phase 1** — checkpoint-tolerant infra: `set_selection!`/`clear_selection!`,
+  `@reference_case` (skips `TypeReference` heads; `∅` and `^(expr)` use
+  type-ignoring comparison), plus `skip_type_checkpoints`,
+  `reference_equal_ignoring_types`, `is_prefix_of_ignoring_types`.
+- **Phase 2** — canonical at rest: `set_selection!(document, path)` annotates
+  (`annotate_reference_types ∘ strip_reference_types`); `collect_references`
+  annotates its results. Every document-domain selection cell and every search
+  result is now canonical/self-describing.
+- **Phase 3** — boundary strip: the per-projection mappers were renamed to
+  `_map_reference_forward`/`_map_reference_backward` (bodies unchanged) and a
+  single public `map_reference_forward`/`map_reference_backward` wrapper
+  (`common/Projection.jl`) **strips** incoming checkpoints so every mapper sees a
+  plain navigation path. The `@invoke …(p::Projection, …)` default-mapper
+  fallthroughs in the generic projections were repointed at the `_`-prefixed
+  defaults (otherwise they re-entered the wrapper → infinite recursion).
+- **Robustness** — operation evaluators that *navigate by a selection-derived
+  path* now strip checkpoints (`ReplaceDocumentOperation`,
+  `ReplaceReferencedValue`, `_split_replace_reference`,
+  `_replace_terminal_with_cursor`); `evaluate_reference` already skipped them.
+  `_split_replace_reference` now returns `nothing` (caller no-ops) for a
+  reference with no editable slot (a projection-introduced `ProjectionReference`
+  span) instead of crashing — this also fixes the pre-existing `json_null`
+  failures.
+
+**Phase 4 (output residency) deferred — rationale.** Re-annotating *projected
+output* selections against the destination document (the resident-everywhere half
+of Option B) breaks every render-/layout-domain consumer that structurally
+inspects an output selection cell — cursor placement, box-highlight ranges, the
+`*ToGraphics`/`*ToText` walkers, ~15+ functions like
+`TextToGraphics._highlight_char_range` and the §8 `sel` cells — each of which
+would have to `skip_type_checkpoints` first and then *strip the checkpoints to
+use the path anyway*. Output-domain checkpoints are therefore pure decoration on
+transient render artifacts. The wrapper keeps a documented one-line switch
+(`_destination_output`/`_destination_input`) to turn it on once those consumers
+are made checkpoint-tolerant. The user-visible benefit (self-describing,
+replay-validatable references) is fully delivered where references are *stored
+and inspected*: document selections, search results, assistant/MCP refs.
 
 ## Motivation
 
@@ -102,24 +153,24 @@ skip `TypeReference` steps transparently. After this phase, checkpoints may
 appear anywhere without breaking existing navigation-only paths. **Land and test
 this first — it is risk-free and unblocks everything else.**
 
-- [ ] **`set_selection!` / `clear_selection!`**
+- [x] **`set_selection!` / `clear_selection!`**
   ([Operation.jl:362,398](../../program/src/common/Operation.jl)). Add a
   `TypeReference` head case that stays on the current node and recurses on
   `path.tail` (mirroring `evaluate_reference`). Confirm there is no surviving
   domain-specific override (none found in `Syntax.jl` today despite the
   deep-dive note; verify before relying on it).
-- [ ] **`@reference_case`**
+- [x] **`@reference_case`**
   ([ReferenceCase.jl](../../program/src/reference/ReferenceCase.jl)). Make
   `_gen_path_match` / `_gen_prefix_match` **skip `TypeReference` heads** before
   matching each pattern step, so existing patterns match regardless of
   interleaved checkpoints. (Generate a small "advance past checkpoints" wrapper
   around the per-step `ConcreteReferencePath` destructuring.)
-- [ ] **`is_prefix_of` / `reference_equal`** decide and document the semantics:
+- [x] **`is_prefix_of` / `reference_equal`** decide and document the semantics:
   recommended — keep `==` strict (checkpoints included) and add
   `reference_equal_ignoring_types` for callers that compare across
   annotated/plain forms. Audit the `@reference_case` `^(expr)` interpolation
   path and `is_prefix_of` users for which semantics they need.
-- [ ] **Tests:** extend
+- [x] **Tests:** extend
   [TypeReferenceTest.jl](../../test/src/reference/TypeReferenceTest.jl) — feed
   annotated paths through `set_selection!`/`clear_selection!`/`@reference_case`
   and assert identical behavior to the stripped form. `test_cell()` +
@@ -144,16 +195,16 @@ paths are stripped and re-annotated, which is a no-op on an unchanged document).
 This means **every selection in every document is canonical by construction**
 without touching the dozens of `@reference …` call sites.
 
-- [ ] `set_selection!` annotates against `document` (depends on Phase 1's
+- [x] `set_selection!` annotates against `document` (depends on Phase 1's
   checkpoint-tolerant walk).
-- [ ] **Produced references** (`collect_references` / `search_references`,
+- [x] **Produced references** (collect_references annotates; no separate search/MCP producers found) (`collect_references` / `search_references`,
   references handed to / from
   [WorkbenchAssistant.jl](../../program/src/editor/WorkbenchAssistant.jl) /
   [Mcp.jl](../../program/src/editor/Mcp.jl)) annotate against the document they
   point into before leaving their producer.
-- [ ] **`@step`** stays navigation-only (a single step has no document); steps
+- [x] **`@step`** stays navigation-only (a single step has no document); steps
   are annotated as part of the whole path at the binding point.
-- [ ] **Tests:** assert a path built with `@reference`, set via `set_selection!`,
+- [x] **Tests:** assert a path built with `@reference`, set via `set_selection!`,
   reads back from the document's `selection[]` in canonical form and still
   resolves via `evaluate_reference`.
 
@@ -164,7 +215,7 @@ canonical output path in the *destination* domain. Input-domain checkpoints are
 invalid in the output domain, so they cannot be carried through — they are
 stripped and regenerated.
 
-- [ ] Wrap the public `map_reference_forward` / `map_reference_backward` entry
+- [x] Wrap the public `map_reference_forward` / `map_reference_backward` entry
   points ([api/Projection.jl](../../program/src/api/Projection.jl),
   [common/Projection.jl](../../program/src/common/Projection.jl)) so they:
   `strip_reference_types` the incoming path → call the existing per-projection
@@ -173,9 +224,9 @@ stripped and regenerated.
   forward, `iomap.input` backward). **This is what keeps the 60 bespoke mappers
   unedited** — they keep matching and building plain navigation paths; the
   wrapper makes the boundary canonical-in / canonical-out.
-- [ ] Confirm the `∅` whole-element identity mapping still round-trips (no steps;
+- [x] Confirm the `∅` whole-element identity mapping still round-trips (no steps;
   strip/annotate reduce to the trailing checkpoint).
-- [ ] **Tests:** `test_json_to_syntax()`, `test_syntax_to_text()`, then a full
+- [x] **Tests:** `test_json_to_syntax()`, `test_syntax_to_text()`, then a full
   `test_printers()` / `test_readers()` sweep once targeted ones pass.
 
 ## Phase 4 — printer selection cells emit canonical output (Option B residency)
@@ -202,13 +253,14 @@ so they must annotate their own output to keep the resident form canonical.
 
 ## Phase 5 — docs & cleanup
 
+- [x] Updated the "Type checkpoints" section of guide/editor/reference.md (canonical at rest; boundary strips). Full worked-example rewrite of selection-deep-dive.md still TODO. Original item:
 - [ ] Rewrite the "Type checkpoints" sections of
   [guide/editor/reference.md](../../guide/editor/reference.md) and
   [guide/selection-deep-dive.md](../../guide/selection-deep-dive.md): checkpoints
   are now the canonical form, not an opt-in annotation. Update every worked
   example path to its canonical shape. Document the boundary strip/re-annotate
   rule and the chosen DSL syntax.
-- [ ] Reframe `strip_reference_types` as the *internal boundary* tool used by the
+- [x] Reframe `strip_reference_types` as the *internal boundary* tool used by the
   mapper wrapper, not a "strip before apply" step in callers.
 
 ## Risk / surface-area notes

@@ -252,20 +252,40 @@ Checkpoints are created programmatically, not by hand:
 - `strip_reference_types(path)` removes them again, recovering the plain
   navigation-only path. The two are inverses on an unchanged document.
 
+### Where checkpoints live (canonical at rest, stripped at the boundary)
+
+Checkpoints are now the **canonical form references are held in at rest** —
+*not* an opt-in annotation applied just before replay:
+
+- **Document-domain selections are canonical.** `set_selection!(document, path)`
+  annotates the path against `document` (it does
+  `annotate_reference_types(document, strip_reference_types(path))`), so every
+  document's `selection` cell holds the canonical form. `collect_references`
+  likewise annotates its results, so search results are self-describing too.
+- **The projection boundary strips on entry.** Type checkpoints record an
+  *input-domain* type and are meaningless once a path crosses a projection, so
+  the public `map_reference_forward` / `map_reference_backward` wrappers
+  `strip_reference_types` the incoming path before handing it to the
+  per-projection mapper (the bespoke mappers stay navigation-only). Operation
+  evaluators that navigate by a selection-derived path strip likewise.
+- **`strip_reference_types` is the internal boundary tool**, not a step callers
+  run before applying a path. You normally hand `set_selection!` a plain skeleton
+  (built with `@reference`) and it becomes canonical for you.
+
+The replay/validation primitives are unchanged and still useful when you hold a
+reference across an edit:
+
 ```julia
-annotated = annotate_reference_types(document, path)   # persist this
+annotated = annotate_reference_types(document, path)   # or just read a selection cell
 # … document is edited …
 live     = valid_reference_prefix(document, annotated)  # truncate at first mismatch
-plain    = strip_reference_types(live)                  # navigation-only path
-set_selection!(document, plain)                         # replay what is still valid
 ```
 
-Checkpoints are intentionally kept **out of** stored selection paths:
-`set_selection!` / `clear_selection!` walk plain navigation paths, so the replay
-pattern above truncates and strips *before* applying. Type checkpoints record an
-*input-domain* type, so they are not meaningful after a path is mapped across a
-projection — annotate/validate within a single domain, then strip before
-crossing.
+> **Projected output selections are currently plain**, not canonical: re-typing
+> them against each render domain (Option B "output residency") is deferred —
+> see `plan/pending/type-reference-everywhere.md`. The boundary wrapper has a
+> one-line switch to enable it once the render/layout selection consumers are
+> made checkpoint-tolerant.
 
 ## Reference DSL: `@reference`
 
