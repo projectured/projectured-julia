@@ -231,9 +231,17 @@ function test_print_object_options()
     @testset "print_object: newlines / indent / filter" begin
         doc = jsonparse("[1, \"x\", true]")
 
-        # default: multi-line, indented
+        # default: multi-line, indented, default {} delimiters
         multi = print_object(doc)
         @test occursin("\n", multi)
+        # type name labels the brace block (type-first), with default delimiters
+        @test occursin("JsonArray {", multi)
+        # CellVector / raw Array wrapper layers are omitted as noise
+        # (\bArray\b avoids matching the legitimate "JsonArray" type name)
+        @test !occursin("CellVector", multi)
+        @test !occursin(r"\bArray\b", multi)
+        # no trailing whitespace on any line
+        @test !any(l -> l != rstrip(l), split(multi, '\n'))
 
         # newlines=false: single line, space-separated
         flat = print_object(doc; newlines=false)

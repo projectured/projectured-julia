@@ -205,6 +205,27 @@ ObjectNodeToSyntaxNode(; type_name_font=font_ubuntu_monospace_bold_24, type_name
 # Unwrap a Cell for predicate/filter testing; pass non-cells through.
 _unwrap_cell(x) = x isa Cell ? x[] : x
 
+# Build the type-name leaf for `T`.
+_type_leaf(p::ObjectNodeToSyntaxNode, name::AbstractString) =
+    SyntaxLeaf(TextString("", p.type_name_font, color_default),
+               TextString("", p.type_name_font, color_default),
+               TextString(name, p.type_name_font, p.type_name_color))
+
+# Build one `field_name <value>` node (inline: name leaf + projected value).
+function _field_node(p::ObjectNodeToSyntaxNode, recursion, obj, ctx, fn::Symbol)
+    name_leaf = SyntaxLeaf(
+        TextString("", p.field_name_font, color_default),
+        TextString("", p.field_name_font, color_default),
+        TextString(string(fn), p.field_name_font, p.field_name_color))
+    value_node = isdefined(obj, fn) ?
+        projection_printer_recurse(recursion, getfield(obj, fn),
+                         child_context(ctx, FieldReference(string(fn)))).output :
+        SyntaxLeaf(TextString("", p.undef_font, color_default),
+                   TextString("", p.undef_font, color_default),
+                   TextString("<undefined>", p.undef_font, p.undef_color))
+    SyntaxNode("", "", " ", SyntaxDocument[name_leaf, value_node]; indentation=0)
+end
+
 function projection_print(p::ObjectNodeToSyntaxNode, recursion, obj, ctx)
     T = typeof(obj)
 
@@ -217,71 +238,47 @@ function projection_print(p::ObjectNodeToSyntaxNode, recursion, obj, ctx)
     if ismutable(obj)
         visited = get_property(ctx, :objects_seen, nothing)
         if visited !== nothing && haskey(visited, obj)
-            cycle_leaf = SyntaxLeaf(
-                TextString("", p.type_name_font, color_default),
-                TextString("", p.type_name_font, color_default),
-                TextString("⟨cycle: $(nameof(T))⟩", p.type_name_font, p.type_name_color))
-            return SimpleIoMap(p, obj, cycle_leaf)
+            return SimpleIoMap(p, obj, _type_leaf(p, "⟨cycle: $(nameof(T))⟩"))
         end
         new_visited = visited === nothing ? IdDict{Any,Bool}() : copy(visited)
         new_visited[obj] = true
         ctx = with_property(ctx, :objects_seen, new_visited)
     end
 
-    # Special handling for Arrays: project elements directly
-    if obj isa AbstractArray
-        type_leaf = SyntaxLeaf(
-            TextString("", p.type_name_font, color_default),
-            TextString("", p.type_name_font, color_default),
-            TextString(string(nameof(T)), p.type_name_font, p.type_name_color))
-        idxs = p.filter === nothing ? collect(eachindex(obj)) :
-               [i for i in eachindex(obj) if p.filter(_unwrap_cell(obj[i]))]
-        if isempty(idxs)
-            return SimpleIoMap(p, obj, type_leaf)
-        end
+    ind = p.newlines ? 1 : 0
+
+    # Collections (CellVector and raw arrays) render as a braced element list
+    # with NO type-name leaf: the CellVector/Array wrapper carries no selection
+    # and no structural meaning, so it would only be noise. Elements keep their
+    # ElementReference so the references stay valid.
+    if obj isa CellVector || obj isa AbstractArray
+        idxs = p.filter === nothing ? collect(1:length(obj)) :
+               [i for i in 1:length(obj) if p.filter(_unwrap_cell(obj[i]))]
         element_nodes = SyntaxDocument[
             projection_printer_recurse(recursion, obj[i],
                            child_context(ctx, ElementReference(i))).output
             for i in idxs
         ]
         node = SyntaxNode(p.open_delimiter, p.close_delimiter, " ",
-            SyntaxDocument[type_leaf; element_nodes];
-            indentation = p.newlines ? 1 : 0)
+            element_nodes; indentation = ind)
         return SimpleIoMap(p, obj, node)
     end
 
-    # Regular struct handling
+    # Struct: render as `TypeName { field … }` — the type name labels the
+    # brace block (outside it), and the fields are indented one level inside.
     fnames = try fieldnames(T) catch; () end
-    # Filter out technical fields like "ref" from Arrays, and selection if include_selection=false
     fnames = filter(fn -> fn != :ref && (fn != :selection || p.include_selection), fnames)
-    # Optional value predicate: keep only fields whose (unwrapped) value matches.
     if p.filter !== nothing
         fnames = filter(fn -> isdefined(obj, fn) && p.filter(_unwrap_cell(getfield(obj, fn))), fnames)
     end
-    type_leaf = SyntaxLeaf(
-        TextString("", p.type_name_font, color_default),
-        TextString("", p.type_name_font, color_default),
-        TextString(string(nameof(T)), p.type_name_font, p.type_name_color))
-    if isempty(fnames)
-        return SimpleIoMap(p, obj, type_leaf)
-    end
-    field_nodes = SyntaxDocument[
-        SyntaxNode("", "", " ",
-            SyntaxDocument[
-                SyntaxLeaf(TextString("", p.field_name_font, color_default), TextString("", p.field_name_font, color_default),
-                           TextString(string(fn), p.field_name_font, p.field_name_color)),
-                isdefined(obj, fn) ?
-                    projection_printer_recurse(recursion, getfield(obj, fn),
-                                     child_context(ctx, FieldReference(string(fn)))).output :
-                    SyntaxLeaf(TextString("", p.undef_font, color_default), TextString("", p.undef_font, color_default),
-                               TextString("<undefined>", p.undef_font, p.undef_color))
-            ];
-            indentation=0)
-        for fn in fnames
-    ]
-    node = SyntaxNode(p.open_delimiter, p.close_delimiter, " ",
-        SyntaxDocument[type_leaf; field_nodes];
-        indentation = p.newlines ? 1 : 0)
+    type_leaf = _type_leaf(p, string(nameof(T)))
+    # No fields → just the type name, no empty braces.
+    isempty(fnames) && return SimpleIoMap(p, obj, type_leaf)
+    field_nodes = SyntaxDocument[_field_node(p, recursion, obj, ctx, fn) for fn in fnames]
+    fields_block = SyntaxNode(p.open_delimiter, p.close_delimiter, " ",
+        field_nodes; indentation = ind)
+    node = SyntaxNode("", "", " ",
+        SyntaxDocument[type_leaf, fields_block]; indentation = 0)
     SimpleIoMap(p, obj, node)
 end
 
@@ -353,7 +350,7 @@ print_object(obj; filter=v -> !(v isa Bool))   # hide boolean fields
 - Arrays are projected by iterating over elements (not as structs)
 - The `ref` field is filtered out from struct field names
 """
-function print_object(obj; include_selection=false, open_delimiter="", close_delimiter="",
+function print_object(obj; include_selection=false, open_delimiter="{", close_delimiter="}",
                       newlines::Bool=true, indent::Int=2, filter=nothing)
     seq = SequentialProjection(
         RecursiveProjection(ObjectToSyntax(include_selection=include_selection,
@@ -363,7 +360,10 @@ function print_object(obj; include_selection=false, open_delimiter="", close_del
         RecursiveProjection(TextToString())
     )
     iomap = projection_print(seq, seq, obj, PrinterContext())
-    return iomap.output[]
+    out = iomap.output[]
+    # The sibling separator (" ") leaves a trailing space before each newline;
+    # strip per-line trailing whitespace so the rendering is clean.
+    newlines ? join((rstrip(l) for l in split(out, '\n')), '\n') : out
 end
 
 # ── search_object ────────────────────────────────────────────────────────────
