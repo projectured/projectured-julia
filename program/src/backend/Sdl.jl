@@ -212,17 +212,18 @@ const _TEXT_TEXTURE_CACHE_CAP = 16384
 #
 # `_PARTIAL_RENDER` — master switch (PROJECTURED_PARTIAL_RENDER=0 disables it,
 #   forcing the original full-frame repaint).
-# `_DEBUG_DIRTY` — when on (PROJECTURED_DEBUG_DIRTY=1), outline the repainted
-#   region in red so it is visible which part of the screen was painted.
+# `_DEBUG_DIRTY` — when on, outline the repainted region in red so it is visible
+#   which part of the screen was painted. Enabled by default; set
+#   PROJECTURED_DEBUG_DIRTY=0 to turn the overlay off.
 const _PARTIAL_RENDER = Ref(true)
-const _DEBUG_DIRTY = Ref(false)
+const _DEBUG_DIRTY = Ref(true)
 
 _envflag(name, default::Bool) =
     (v = lowercase(get(ENV, name, "")); v == "" ? default : v in ("1", "true", "yes", "on"))
 
 function _init_render_flags!()
     _PARTIAL_RENDER[] = _envflag("PROJECTURED_PARTIAL_RENDER", true)
-    _DEBUG_DIRTY[]    = _envflag("PROJECTURED_DEBUG_DIRTY", false)
+    _DEBUG_DIRTY[]    = _envflag("PROJECTURED_DEBUG_DIRTY", true)
 end
 
 function _clear_text_texture_cache!()
