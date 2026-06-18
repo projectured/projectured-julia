@@ -556,8 +556,12 @@ function _run_agent_loop!(editor, a::WorkbenchAssistant)
     # to the backend.
     register_default_tools_and_resources!()
     tools = assistant_tool_schemas()
+    turn_t0 = time()
+    iter = 0
+    @info "[assistant] turn start" llm=nameof(typeof(a.llm)) model=a.model tools=length(tools)
 
     while true
+        iter += 1
         # Append a fresh assistant turn; the SSE handler fills its prose parts
         # as deltas arrive. Tool calls do NOT go into this turn — they end up as
         # separate :assistant eval turns (EvaluatorForm parts) after the tool runs.
@@ -579,9 +583,12 @@ function _run_agent_loop!(editor, a::WorkbenchAssistant)
             :stop_reason      => :end_turn,
         )
 
+        @info "[assistant] round $iter: streaming" messages=length(msgs)
+        stream_t0 = time()
         stream_turn(a.llm, a.api_key, a.model, a.system, msgs, tools;
                     on_event = ev -> _handle_sse_event!(ev, a, turn, state),
                     thinking = _thinking_config(a.model))
+        @info "[assistant] round $iter: stream done" elapsed_s=round(time() - stream_t0; digits=2) stop=state[:stop_reason] prose_parts=length(turn.parts) pending_tools=length(state[:pending_tools])
 
         turn.stop_reason = state[:stop_reason]
 
@@ -599,6 +606,7 @@ function _run_agent_loop!(editor, a::WorkbenchAssistant)
 
         pending = state[:pending_tools]::Vector{_PendingToolUse}
         if isempty(pending) || state[:stop_reason] !== :tool_use
+            @info "[assistant] turn done" rounds=iter elapsed_s=round(time() - turn_t0; digits=2)
             return
         end
 
@@ -607,11 +615,14 @@ function _run_agent_loop!(editor, a::WorkbenchAssistant)
         # pairs the call with its API tool_use block when `build_messages`
         # re-serialises the conversation for Claude.
         for tu in pending
+            @info "[assistant] tool call" name=tu.name
+            tool_t0 = time()
             output = try
                 dispatch_assistant_tool(tu.name, tu.input, editor)
             catch e
                 sprint(showerror, e, catch_backtrace())
             end
+            @info "[assistant] tool done" name=tu.name elapsed_s=round(time() - tool_t0; digits=2) out_chars=length(output)
             code = tu.input isa AbstractDict && haskey(tu.input, "code") ?
                        String(tu.input["code"]) : ""
             is_err = occursin("ERROR", output) || occursin("Error", output)
