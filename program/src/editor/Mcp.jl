@@ -390,14 +390,24 @@ function register_default_tools_and_resources!()
         "reading whole guides.",
         NamedTuple[
             (name="query", type="string",
-             description="Plain keywords (case-insensitive substring match against guide " *
-                         "headings and body; NOT a regex, no boolean operators; more matching " *
-                         "terms rank higher)", required=true),
+             description="Keywords by default (case-insensitive substring match against guide " *
+                         "headings and body; more matching terms rank higher). With regex=true " *
+                         "it is a regular expression instead (use a (?i) prefix for " *
+                         "case-insensitivity).", required=true),
+            (name="regex", type="boolean",
+             description="Treat `query` as a regular expression instead of keywords (default false)",
+             required=false),
             (name="limit", type="number",
              description="Maximum number of results (default 8)", required=false),
         ],
-        (editor, args) -> search_documentation(
-            String(args["query"]); limit=_arg_int(get(args, "limit", 8), 8)),
+        (editor, args) -> begin
+            q = try
+                _query_arg(args)
+            catch e
+                return "Invalid regex: $(sprint(showerror, e))"
+            end
+            search_documentation(q; limit=_arg_int(get(args, "limit", 8), 8))
+        end,
     ))
 
     register_tool!(Tool(
@@ -409,18 +419,28 @@ function register_default_tools_and_resources!()
         "names or signatures.",
         NamedTuple[
             (name="query", type="string",
-             description="Plain keywords (case-insensitive substring match against names and " *
-                         "docstrings; NOT a regex, no boolean operators; exact name matches " *
-                         "rank highest)", required=true),
+             description="Keywords by default (case-insensitive substring match against names " *
+                         "and docstrings; exact name matches rank highest). With regex=true it " *
+                         "is a regular expression instead (use a (?i) prefix for " *
+                         "case-insensitivity).", required=true),
+            (name="regex", type="boolean",
+             description="Treat `query` as a regular expression instead of keywords (default false)",
+             required=false),
             (name="kind", type="string",
              description="Optional filter: \"module\", \"class\", or \"function\"", required=false),
             (name="limit", type="number",
              description="Maximum number of results (default 8)", required=false),
         ],
-        (editor, args) -> search_api(
-            String(args["query"]);
-            kind=_arg_kind(get(args, "kind", nothing)),
-            limit=_arg_int(get(args, "limit", 8), 8)),
+        (editor, args) -> begin
+            q = try
+                _query_arg(args)
+            catch e
+                return "Invalid regex: $(sprint(showerror, e))"
+            end
+            search_api(q;
+                       kind=_arg_kind(get(args, "kind", nothing)),
+                       limit=_arg_int(get(args, "limit", 8), 8))
+        end,
     ))
 
     register_resource!(Resource(
@@ -867,6 +887,21 @@ function _arg_kind(v)
     s = lowercase(strip(string(v)))
     isempty(s) ? nothing : s
 end
+
+# Coerce a tool argument to Bool (it may arrive as Bool, "true"/"false", or 1/0).
+function _arg_bool(v, default::Bool)
+    v === nothing && return default
+    v isa Bool && return v
+    v isa Real && return v != 0
+    lowercase(strip(string(v))) in ("true", "1", "yes")
+end
+
+# Build the search query from tool args: a plain `String` (keyword), or a
+# `Regex` when `regex=true`. Compiling an invalid pattern throws — the tool
+# handlers catch it and return a readable error.
+_query_arg(args) =
+    _arg_bool(get(args, "regex", false), false) ?
+        Regex(String(args["query"])) : String(args["query"])
 
 """
     mcp_stop!(mcp::McpServer) -> McpServer
