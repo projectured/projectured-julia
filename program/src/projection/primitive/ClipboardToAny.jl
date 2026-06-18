@@ -246,11 +246,17 @@ function _selected(input)
     sel, obj
 end
 
-# Copy: store an independent deep copy of the selected object in the slice.
+# Copy: store an independent deep copy of the selected object in the slice. The
+# write retargets the selection to `.slice` (ReplaceDocumentOperation moves the
+# selection to where it writes), so a trailing ReplaceSelectionOperation restores
+# the user's original selection on the copied source.
 function _clipboard_copy(input)
-    _, obj = _selected(input)
+    sel, obj = _selected(input)
     obj isa Document || return nothing
-    ReplaceDocumentOperation(_field_path("slice"), copy_document(obj))
+    CompoundOperation(Any[
+        ReplaceDocumentOperation(_field_path("slice"), copy_document(obj)),
+        ReplaceSelectionOperation(sel),
+    ])
 end
 
 # Cut: store the live object in the slice and blank out its source position.
@@ -263,20 +269,29 @@ function _clipboard_cut(input)
     ])
 end
 
-# Note: like copy, but stores the live object (no deep copy).
+# Note: like copy, but stores the live object (no deep copy). Restores the
+# original selection after the slice write (see `_clipboard_copy`).
 function _clipboard_note(input)
-    _, obj = _selected(input)
+    sel, obj = _selected(input)
     obj isa Document || return nothing
-    ReplaceDocumentOperation(_field_path("slice"), obj)
+    CompoundOperation(Any[
+        ReplaceDocumentOperation(_field_path("slice"), obj),
+        ReplaceSelectionOperation(sel),
+    ])
 end
 
-# Paste: replace the selection target with the stored slice.
+# Paste: replace the selection target with the stored slice. The trailing
+# ReplaceSelectionOperation pins the selection to the pasted target (rather than
+# letting it follow the slice's stale inner selection).
 function _clipboard_paste(input)
     slice = input.slice
     slice isa Document || return nothing
     sel = input.selection
     (sel === nothing || sel isa EmptyReferencePath) && return nothing
-    ReplaceDocumentOperation(sel, slice)
+    CompoundOperation(Any[
+        ReplaceDocumentOperation(sel, slice),
+        ReplaceSelectionOperation(sel),
+    ])
 end
 
 # Paste-copy: like paste, but a fresh deep copy each time.
@@ -285,7 +300,10 @@ function _clipboard_paste_copy(input)
     slice isa Document || return nothing
     sel = input.selection
     (sel === nothing || sel isa EmptyReferencePath) && return nothing
-    ReplaceDocumentOperation(sel, copy_document(slice))
+    CompoundOperation(Any[
+        ReplaceDocumentOperation(sel, copy_document(slice)),
+        ReplaceSelectionOperation(sel),
+    ])
 end
 
 # Add the selected object to the front of the collection (matches Lisp `push`).

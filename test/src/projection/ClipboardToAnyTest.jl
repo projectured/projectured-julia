@@ -68,18 +68,26 @@ end
     @test op isa ToggleClipboardSliceDisplayOperation
     @test op.projection === p
 
-    # Copy — writes a fresh deep copy into the slice.
+    # Copy — writes a fresh deep copy into the slice, then restores the
+    # original selection (the write would otherwise move it to .slice).
     op = projection_read(p, iomap, KeyDown(:c, ctrl))
-    @test op isa ReplaceDocumentOperation
-    @test op.path.head.name == "slice"
-    @test op.document isa PrimitiveString
-    @test op.document.value == "hello"
-    @test op.document !== content                            # deep copy
+    @test op isa CompoundOperation
+    @test length(op.operations) == 2
+    @test op.operations[1] isa ReplaceDocumentOperation
+    @test op.operations[1].path.head.name == "slice"
+    @test op.operations[1].document isa PrimitiveString
+    @test op.operations[1].document.value == "hello"
+    @test op.operations[1].document !== content             # deep copy
+    @test op.operations[2] isa ReplaceSelectionOperation
+    @test op.operations[2].path == cpath(FieldReference("content"))
 
-    # Note — stores the live object.
+    # Note — stores the live object, then restores the original selection.
     op = projection_read(p, iomap, KeyDown(:n, ctrl))
-    @test op isa ReplaceDocumentOperation
-    @test op.document === content
+    @test op isa CompoundOperation
+    @test op.operations[1] isa ReplaceDocumentOperation
+    @test op.operations[1].document === content
+    @test op.operations[2] isa ReplaceSelectionOperation
+    @test op.operations[2].path == cpath(FieldReference("content"))
 
     # Cut — compound of (store live) + (blank source).
     op = projection_read(p, iomap, KeyDown(:x, ctrl))
@@ -101,17 +109,23 @@ end
     p = ClipboardSliceToAnyProjection()
     iomap = projection_print(p, PreservingProjection(), slice, PrinterContext())
 
-    # Paste — replaces the selection target with the live slice.
+    # Paste — replaces the selection target with the live slice, then pins the
+    # selection to the pasted target.
     op = projection_read(p, iomap, KeyDown(:v, ctrl))
-    @test op isa ReplaceDocumentOperation
-    @test op.path.head.name == "content"
-    @test op.document === stored
+    @test op isa CompoundOperation
+    @test op.operations[1] isa ReplaceDocumentOperation
+    @test op.operations[1].path.head.name == "content"
+    @test op.operations[1].document === stored
+    @test op.operations[2] isa ReplaceSelectionOperation
+    @test op.operations[2].path == cpath(FieldReference("content"))
 
     # Paste copy — a fresh deep copy each time.
     op = projection_read(p, iomap, KeyDown(:v, ctrl_shift))
-    @test op isa ReplaceDocumentOperation
-    @test op.document !== stored
-    @test op.document.value == "stored"
+    @test op isa CompoundOperation
+    @test op.operations[1] isa ReplaceDocumentOperation
+    @test op.operations[1].document !== stored
+    @test op.operations[1].document.value == "stored"
+    @test op.operations[2] isa ReplaceSelectionOperation
 
     # Paste with no stored slice does not fire: it falls through to the content
     # reader (matching Lisp's merge-commands). With no replace produced here, the
