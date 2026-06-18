@@ -1021,7 +1021,12 @@ end
 function _collect_canvas_dirty!(res::SdlWindowResources, canvas::GraphicsCanvas,
                                 ox::Int, oy::Int, vw::Int, vh::Int, acc::_DirtyAcc)
     elements_cell = getfield(canvas, :elements)
-    unit = _node_dirty(canvas) || !isuptodate(elements_cell)
+    # A canvas's painted content depends only on its elements and its own x/y
+    # offset — not on w/h/layout (those are metadata for parents/scroll that the
+    # renderer never reads, so their cells may stay perpetually invalid and must
+    # not be mistaken for "dirty").
+    unit = !isuptodate(elements_cell) ||
+           !isuptodate(getfield(canvas, :x)) || !isuptodate(getfield(canvas, :y))
     ev = elements_cell[]                 # read after capturing validity above
     if !unit && ev isa CellVector && !isuptodate(getfield(ev, :elements))
         unit = true                      # the regenerated element vector changed
