@@ -145,6 +145,32 @@ further toward the document's own domain.
    downstream operation and emit an equivalent operation in their own
    input domain.
 
+### Two invariants every operation must respect
+
+- **Mutate existing cells in place — or drop the iomap.** The editor builds the
+  projection iomap **once** and never rebuilds it on its own; between frames,
+  updates flow *only* through reactive Cell writes (`print!` reuses
+  `editor.iomap` whenever it is non-`nothing`). So an `evaluate_operation` must
+  change the document by writing into the Cells that are already wired into the
+  projection graph. If an operation instead swaps a whole value/subtree out from
+  under the projection (replacing the structure the iomap was built against), it
+  must **null `editor.iomap`** to force a fresh `projection_print` — exactly what
+  `ReplaceDocumentOperation` does for a whole-root replace. An operation that
+  silently rebinds structure without dropping the iomap renders stale.
+- **A new *reference-carrying* operation must be registered in two places.** If
+  your operation embeds a `ReferencePath` that has to cross projection
+  boundaries (like `ReplaceSelectionOperation` /
+  `StringReplaceRangeOperation` / `NumberReplaceRangeOperation`), it is only
+  retargeted/rerooted automatically if you add it to **both** the default
+  `projection_read` ([common/Projection.jl](../program/src/common/Projection.jl))
+  **and** `prepend_steps_to_op`
+  ([common/OperationRerooting.jl](../program/src/common/OperationRerooting.jl)).
+  Both enumerate the path-bearing operation types explicitly; an operation
+  missing from either is **silently passed through unmapped** — its reference
+  stays in the wrong domain with no error. (An operation that carries its own
+  concrete target instead of a path — see the note above on `HideWidgetOperation`
+  et al. — needs neither.)
+
 ## The fall-through cases
 
 ```julia
