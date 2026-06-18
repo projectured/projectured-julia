@@ -23,7 +23,7 @@ import ..ReferenceModule: Reference
 import ..TextModule: TextText, TextString
 
 export EvaluatorDocument, EvaluatorForm, EvaluatorToplevel, result_text,
-       IEvaluatorForm, IEvaluatorToplevel
+       eval_kind_label, IEvaluatorForm, IEvaluatorToplevel
 
 # ── Abstract base ────────────────────────────────────────────────────────────
 
@@ -42,15 +42,31 @@ A code form paired with its evaluation result. `form` is the code document
     result::Document
     is_error::Bool
     tool_use_id::String
+    tool_name::String
     selection::Reference
 end
 
 EvaluatorForm(form::Document;
               result::Document = TextText(),
               is_error::Bool = false,
-              tool_use_id::AbstractString = "") =
+              tool_use_id::AbstractString = "",
+              tool_name::AbstractString = "execute_julia_code") =
     EvaluatorForm(Cell(form), Cell(result), Cell(is_error),
-                  Cell(String(tool_use_id)), Cell(nothing))
+                  Cell(String(tool_use_id)), Cell(String(tool_name)), Cell(nothing))
+
+"""
+    eval_kind_label(name::AbstractString) -> "eval" | "resource" | "tool"
+
+Classify a tool-call form's header label by the tool that produced it:
+`execute_julia_code` is an evaluation, `list_resources` / `read_resource`
+are resource reads, everything else is a generic tool call.
+"""
+function eval_kind_label(name::AbstractString)
+    name == "execute_julia_code" && return "eval"
+    (name == "list_resources" || name == "read_resource") && return "resource"
+    return "tool"
+end
+eval_kind_label(f::EvaluatorForm) = eval_kind_label(f.tool_name)
 
 # Convenience: build a result document from a plain output string.
 result_text(s::AbstractString) = TextText(TextString(String(s)))

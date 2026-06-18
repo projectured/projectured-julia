@@ -33,7 +33,7 @@ import ..OperationApiModule: Operation, evaluate_operation
 import ..ProjectionApiModule: projection_print, projection_read,
                               map_reference_forward, map_reference_backward, Projection
 import ..ConversationModule: ConversationConversation, ConversationTurn, ConversationPart, ConversationDraft
-import ..EvaluatorModule: EvaluatorForm, result_text
+import ..EvaluatorModule: EvaluatorForm, result_text, eval_kind_label
 import ..DocumentCoreModule: DocumentInsertion
 import ..PrimitiveModule: PrimitiveString
 import ..JuliaModule: JuliaDocument, JuliaInsertion, JuliaIdentifier
@@ -371,7 +371,7 @@ _kind_label(::PrimitiveString)   = "text"
 _kind_label(::DocumentInsertion) = "insert"
 _kind_label(::JuliaInsertion)    = "julia"
 _kind_label(::JuliaDocument)     = "julia"
-_kind_label(::EvaluatorForm)     = "eval"
+_kind_label(f::EvaluatorForm)    = eval_kind_label(f)
 _kind_label(::TextText)          = "text"
 _kind_label(_)                   = "doc"
 

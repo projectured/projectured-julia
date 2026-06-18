@@ -452,7 +452,7 @@ using .ToolRegistryModule: Tool, Resource,
                             anthropic_tool_schema, mcp_tools, mcp_resources
 using .AnthropicModule: stream_message
 using .LlmModule: LlmBackend, AnthropicLlm, FakeLlm, stream_turn
-using .EvaluatorModule: EvaluatorDocument, EvaluatorForm, EvaluatorToplevel, result_text
+using .EvaluatorModule: EvaluatorDocument, EvaluatorForm, EvaluatorToplevel, result_text, eval_kind_label
 using .ConversationModule: ConversationDocument, ConversationConversation,
                             ConversationTurn, ConversationPart, ConversationDraft,
                             ConversationThinking, thinking_part
@@ -745,7 +745,7 @@ export Tool, Resource, register_tool!, register_tools!, list_tools, call_tool,
        anthropic_tool_schema, mcp_tools, mcp_resources
 export stream_message
 export LlmBackend, AnthropicLlm, FakeLlm, stream_turn
-export EvaluatorDocument, EvaluatorForm, EvaluatorToplevel, result_text
+export EvaluatorDocument, EvaluatorForm, EvaluatorToplevel, result_text, eval_kind_label
 export ConversationDocument, ConversationConversation,
        ConversationTurn, ConversationPart, ConversationDraft,
        ConversationThinking, thinking_part

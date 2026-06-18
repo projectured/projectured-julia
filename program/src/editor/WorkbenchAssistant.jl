@@ -627,7 +627,8 @@ function _run_agent_loop!(editor, a::WorkbenchAssistant)
             push!(turn.parts, Cell(ConversationPart(
                 EvaluatorForm(JuliaIdentifier(code);
                               result = result_text(output),
-                              is_error = is_err, tool_use_id = tu.id))))
+                              is_error = is_err, tool_use_id = tu.id,
+                              tool_name = tu.name))))
         end
     end
 

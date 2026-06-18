@@ -26,7 +26,7 @@ import ..ProjectionApiModule: projection_print, projection_read,
 import ..DocumentApiModule: Document
 import ..ConversationModule: ConversationDocument, ConversationConversation,
                               ConversationTurn, ConversationPart, ConversationThinking
-import ..EvaluatorModule: EvaluatorForm
+import ..EvaluatorModule: EvaluatorForm, eval_kind_label
 import ..JuliaModule: JuliaDocument
 import ..WidgetModule: WidgetDocument, WidgetCard, WidgetAvatar, WidgetLabel,
                        WidgetScrollPane, Point2D, Inset, inset_default
@@ -68,7 +68,7 @@ function _kind_glyph(content)
     return "?"
 end
 function _kind_label(content)
-    content isa EvaluatorForm      && return "eval"
+    content isa EvaluatorForm      && return eval_kind_label(content)
     content isa ConversationThinking && return "thinking"
     content isa JuliaDocument      && return "julia"
     content isa TextText           && return "text"
