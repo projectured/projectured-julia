@@ -144,7 +144,8 @@ export make_scrolling_document, make_scrolling_projection
 export make_workbench_document, make_workbench_projection
 export make_introspection_document, make_introspection_projection, EditorIntrospection
 export make_text_configuring_projection
-export Example, examples, run_example, print_example, write_example_image, record_example_video, make_typein_gestures
+export Example, examples, run_example, run_console_example, print_example, write_example_image, record_example_video, make_typein_gestures
+export make_json_console_projection_example
 export record_assistant_conversation_video
 export generate_example_screenshots, update_guide_screenshots
 export json_example, json_sorted_example, json_null_example, json_string_example

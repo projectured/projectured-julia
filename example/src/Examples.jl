@@ -462,6 +462,40 @@ function print_example(name="json")
     print_example(examples[idx])
 end
 
+"""
+    run_console_example(; document, projection, ansi=true, clear=false)
+
+Render a Text-domain document to the terminal via the `ConsoleBackend`,
+preserving the spans' colors. This is the console counterpart to
+`run_example`: it bypasses SDL and the `ScreenDocument`/window machinery and
+prints the bare `TextText` produced by the projection.
+
+Defaults to the JSON example projected through
+`make_json_console_projection_example` — the json pipeline **without** the
+`TextToGraphics` step, so its output is a `TextText` the console can render.
+
+Keywords:
+  - `document`   — the domain document (default: a fresh JSON example doc).
+  - `projection` — a projection whose output is a `TextText` (default: the
+                   json→syntax→text console projection).
+  - `ansi`       — emit ANSI color codes (default `true`).
+  - `clear`      — clear the screen before rendering (default `false`, so the
+                   output appends rather than wiping the scrollback).
+
+This is a one-shot render. A full read-eval-print loop awaits the console
+backend's input phase.
+"""
+function run_console_example(; document=make_json_document_example(),
+                               projection=make_json_console_projection_example(),
+                               ansi::Bool=true, clear::Bool=false)
+    backend = ConsoleBackend(; ansi=ansi, clear=clear)
+    iomap = projection_print(projection, document)
+    output = iomap.output
+    output = output isa Cell ? output[] : output
+    write_to_devices(backend, Device[], output)
+    return nothing
+end
+
 function write_example_image(example::Example, filename;
                               width=nothing, height=nothing,
                               max_width=1800, max_height=1200, kwargs...)
