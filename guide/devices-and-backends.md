@@ -10,8 +10,8 @@ dispatch.
 
 The abstract interfaces live in
 [api/Backend.jl](../program/src/api/Backend.jl) and
-[api/Device.jl](../program/src/api/Device.jl). The only current backend is
-SDL2.
+[api/Device.jl](../program/src/api/Device.jl). There are two backends today: the
+SDL2 graphics backend and a terminal `ConsoleBackend` (see below).
 
 ## Devices
 
@@ -60,6 +60,10 @@ write_to_devices(::Backend, devices, document)  # render the output
 There is no `open_window!`/`close_window!`: native windows are reconciled on
 demand inside `write_to_devices` whenever it sees a new `ScreenDocument` output.
 
+There are two backends: `SdlBackend` (graphics) and `ConsoleBackend` (terminal).
+
+### SdlBackend
+
 `SdlBackend` (in [backend/Sdl.jl](../program/src/backend/Sdl.jl)) implements
 all of the above with SDL2 + SDL_ttf. Highlights:
 
@@ -70,6 +74,35 @@ all of the above with SDL2 + SDL_ttf. Highlights:
 - `sdl_render_canvas` walks a `GraphicsCanvas` (and its nested
   `GraphicsViewport`/`GraphicsImage`/`GraphicsFence` children) and issues
   SDL draw calls.
+
+### ConsoleBackend
+
+`ConsoleBackend` (in [backend/Console.jl](../program/src/backend/Console.jl))
+renders the **Text domain** straight to a terminal. Crucially it consumes a
+`TextText` directly and skips `TextToGraphics`: its pipeline is
+`JsonToSyntax → SyntaxToText` (no graphics step), so `write_to_devices` receives
+a `TextText` rather than a `ScreenDocument`. Highlights:
+
+- `write_to_devices` flattens the spans to a character stream, preserving each
+  span's `font_color`/`fill_color` as 24-bit ANSI SGR codes (set `ansi=false`
+  for plain output). The selection is reverse-video highlighted.
+- `read_from_devices` polls `backend.input` (default `stdin`) non-blockingly and
+  translates terminal bytes — printable chars, `ESC[` arrow/Home/End/Delete
+  sequences, Enter/Backspace/Tab, Ctrl-Space, Ctrl-C — into the same
+  `KeyDown`/`KeyPress`/`QuitEvent` vocabulary the readers already use, wrapped in
+  an `EventEnvelope(:console, …)`. `init!`/`quit!` toggle the terminal's raw mode.
+- Because the console has no screen/window layer, the pipeline supplies its own
+  envelope-unwrapping seam — `EnvelopeUnwrappingProjection`
+  ([projection/higherorder/EnvelopeUnwrapping.jl](../program/src/projection/higherorder/EnvelopeUnwrapping.jl))
+  — that strips the `EventEnvelope` off the gesture before the readers run. (In
+  the SDL pipeline `ScreenToScreen` does this.)
+- **Limitation:** character-level text editing (cursor left/right, insertion,
+  backspace/delete) lives in `TextToGraphics` and is therefore unavailable;
+  the console drives the geometry-free subset — structural tree navigation
+  (`Home` + arrows) and the `Ctrl+Space` mode toggle.
+
+Run it with `run_console_example()` (one-shot) or
+`run_console_example(interactive=true)` (read-eval-print loop).
 
 ## Projections that need the backend
 

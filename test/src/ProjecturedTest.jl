@@ -18,6 +18,7 @@ include("common/CellTest.jl")
 include("reference/ReferenceBuilderTest.jl")
 include("reference/TypeReferenceTest.jl")
 include("device/EventCaseTest.jl")
+include("backend/ConsoleBackendTest.jl")
 include("document/JsonTest.jl")
 include("document/SyntaxTest.jl")
 include("document/TextTest.jl")
@@ -132,6 +133,7 @@ function test_all()
     test_reference_builder()
     test_type_reference()
     test_event_case()
+    test_console_backend()
     test_documents()
     test_projections()
     test_printers()
@@ -172,7 +174,7 @@ function test_table()
 end
 
 export test_all
-export test_cell, test_reference_builder, test_type_reference, test_event_case
+export test_cell, test_reference_builder, test_type_reference, test_event_case, test_console_backend
 export test_json, test_syntax, test_text, test_graphics, test_graphics_layout, test_layout_allocator, test_layout_constraint_helpers, test_collection, test_tabular, test_primitive, test_ini, test_ini_parser, test_ned, test_ned_parser, test_json_parser, test_xml_parser
 export test_json_to_syntax, test_json_to_syntax_reader, test_syntax_to_text, test_syntax_tree_selection, test_filesystem_to_syntax, test_primitive_to_text, test_text_to_graphics, test_word_wrapping, test_text_filtering, test_text_highlighting, test_object_to_widget, test_projection_configuring, test_widget_text_editing, test_copying_projection, test_clipboard_to_any, test_write_image, test_record_video, test_tooltip, test_split_pane_drag
 export test_table, test_table_selection, test_table_navigation, explore_table_selections

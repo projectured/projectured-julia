@@ -134,30 +134,67 @@ Implementation decisions made during the build:
     Do **not** wrap in `ScreenDocument`/`WindowDocument` — the console renders
     the bare `TextText`. (The multi-window `run_example` path is SDL-specific.)
 
-### Phase 2 — interactive input (optional, deferred)
+### Phase 2 — interactive input ✅ DONE
 
 Make the console editable so the read-eval-print loop is meaningful.
 
-- [ ] `init!` puts the terminal into raw mode (no line buffering, no echo);
-  `quit!` restores it. (Julia: `REPL.TerminalMenus`/`ccall` to `tcsetattr`, or
-  shell out to `stty raw -echo` / `stty sane`.)
-- [ ] `read_from_devices(::ConsoleBackend, devices)` — read bytes from stdin,
-  translate to the backend-agnostic events the readers already expect:
-  - printable byte → `KeyPress(char)`.
-  - ESC `[` sequences → `KeyDown(:left/:right/:up/:down, Modifiers())`.
-  - Enter/Backspace/Tab → `KeyDown(:return/:backspace/:tab, …)`.
-  - `Ctrl-C` / `Esc` → `QuitEvent()`.
-  Wrap in an `EventEnvelope` (the editor's `read!` unwraps `env.event`); since
-  there is no `WindowDocument`, use a sentinel/`:console` id. Return `nothing`
-  when no byte is available (non-blocking poll).
-- [ ] Render the caret: `SyntaxToText`/the Text domain carry a `selection`;
-  decide how to show it in the terminal (e.g. reverse-video the cursor cell,
-  or print the path). Mouse events are not applicable to a plain console —
-  omit `Mouse`.
-- [ ] Adjust the `run!` bootstrap (or the console runner) so
-  `devices = Device[Keyboard()]` only — `Screen`/`Mouse` are SDL concepts.
-  Confirm `editor.iomap.output` is the `TextText` and that `read!` tolerates a
-  non-`Screen` device set.
+**Implemented.** `run_console_example(interactive=true)` drives the read-eval-print
+loop from the keyboard: `Home` selects the root node, arrows navigate the
+syntax tree, `Ctrl+Space` toggles structural ⇄ text selection, `Ctrl+C` quits.
+The selection is shown by reverse-video highlighting the matching span(s).
+Verified headlessly by feeding bytes through an `IOBuffer` `input` and driving
+the real `Editor` (`test_console_backend`, 26 assertions): the parser, the
+`:console` `EventEnvelope`, caret rendering, ansi-vs-plain equivalence, and
+`Home → Down → Down → Right` navigation (`∅ → .entries[1] → .entries[1].key →
+.entries[1].value`).
+
+**Key discovery — the envelope-unwrapping seam.** The editor threads every
+event as an `EventEnvelope` in `Change.gesture`; the projection readers match on
+the *inner* event (`KeyDown`/`KeyPress`). In the SDL pipeline `ScreenToScreen`
+([program/src/projection/primitive/ScreenToScreen.jl](../../program/src/projection/primitive/ScreenToScreen.jl))
+is the seam that unwraps `env.event` (and re-roots the op under the window's
+`content`). The console pipeline has **no** screen/window layer, so it needs its
+own seam. Added a small reusable
+[EnvelopeUnwrappingProjection](../../program/src/projection/higherorder/EnvelopeUnwrapping.jl):
+a transparent printer (output is the inner `TextText`) whose reader swaps an
+`EventEnvelope` gesture for `env.event` before delegating. No reference
+re-rooting is needed because the pipeline output is rooted at the domain
+document. `make_json_console_projection_example` now wraps the
+`JsonToSyntax → SyntaxToText` chain in it.
+
+**Limitation — no character-level text editing.** Character cursor movement
+(plain left/right/up/down/home/end), `KeyPress` insertion, and backspace/delete
+all live in `TextToGraphics`, which derives them from rendered glyph geometry.
+The console pipeline omits `TextToGraphics`, so those are unavailable. What works
+is the geometry-free subset owned by `SyntaxToText`: structural tree navigation
+and the `Ctrl+Space` mode toggle. (Selecting the whole document — root `∅` —
+renders no highlight, since reverse-video-ing the entire document would be
+noise; every nested element highlights normally.)
+
+- [x] `init!`/`quit!` toggle the terminal's **raw mode** via
+  `ccall(:jl_tty_set_mode, …)` (the call `REPL.Terminals.raw!` makes), guarded
+  so a non-TTY `input` (e.g. an `IOBuffer` in tests) or an unsupported platform
+  is a no-op. `raw_active` records the state so `quit!` restores it.
+- [x] `read_from_devices(::ConsoleBackend, devices)` — non-blocking: drains all
+  available bytes from `backend.input` into a persistent buffer and parses one
+  event. Translations: printable → `KeyPress`; `ESC[A/B/C/D` → arrow `KeyDown`;
+  `ESC[H`/`ESC[1~` → `Home` mapped to the reader's **Ctrl+Alt+Home root-select**
+  chord (the console's entry into structural mode, since there is no mouse);
+  `ESC[F`/`ESC[3~` → `End`/`Delete`; Enter/Backspace/Tab → their `KeyDown`s;
+  `NUL` (Ctrl-Space) → `KeyDown(:space; ctrl)`; UTF-8 lead byte → full-char
+  `KeyPress`; `Ctrl-C`/lone-ESC-then-other → `QuitEvent`. Wrapped in
+  `EventEnvelope(:console, event)`; an incomplete escape sequence stays buffered
+  and returns `nothing`. The pure `_next_event!(buf)` parser is unit-tested.
+- [x] **Caret rendering**: `_selection_flat` resolves the output `TextText`'s
+  selection to a flat half-open char range — whole-element selections arrive as
+  a top-level `TextRectangularReference(a,b)` (already flat), text cursors as
+  `.elements[i].content{a:b}` (add the i-th span's base offset). The range is
+  reverse-video highlighted; a zero-width cursor is widened to a one-char block.
+- [x] **`devices` keyword** added to the bootstrap `run!`
+  ([program/src/editor/Editor.jl](../../program/src/editor/Editor.jl)); the
+  console runner passes `Device[Keyboard()]` (no `Screen`/`Mouse`). Confirmed
+  `editor.iomap.output` is a concrete `TextText` and `read!` tolerates the
+  reduced device set.
 
 ## Open questions / decisions to confirm during implementation
 
