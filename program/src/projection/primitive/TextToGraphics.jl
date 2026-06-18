@@ -347,145 +347,182 @@ function projection_print(p::TextToGraphics, recursion, styled::TextText, ctx)
     if styled.elements isa ListNode
         return _print_listnode(p, styled, ctx)
     end
-    both = Cell(function ()
-        result = Any[]
-        coord_map = SegCoord[]
-        span_flat_offsets = Dict{Int,Int}()  # elem_idx → cumulative flat char offset
-        cumulative_flat = 0
-        cx = p.start_x
-        cy = p.start_y
-        max_cx = cx
-        line_h = 0
+    # The text spans depend only on the text, not on the caret: the `layout`
+    # cell lays them out *without* reading `styled.selection`, so moving the
+    # caret does not invalidate (and regenerate) the whole span vector. Only the
+    # separate, persistent cursor/highlight overlay rects below depend on the
+    # selection — so the backend's dirty-rectangle pass repaints just the caret
+    # slivers, not the entire block. (`overlay` re-runs the layout to locate the
+    # caret/highlight, which keeps placement identical to the spans, including
+    # the newline-boundary and empty-line cases; it skips building the span
+    # objects via `collect_spans=false`.)
+    layout  = Cell(() -> _layout_text(p, styled, nothing))
+    overlay = Cell(() -> _layout_text(p, styled, styled.selection; collect_spans=false))
 
-        cursor_pos = _cursor_position(styled.selection)
-        cursor_x = -1
-        cursor_y = -1
-        cursor_line_h = 0
+    # Persistent overlay elements. Their geometry cells read the selection-
+    # dependent `overlay`; a zero width hides them when inactive (the renderer
+    # skips a zero-width rect).
+    cursor_rect = GraphicsRect(0, 0, 0, 0, 0x00, 0x00, 0x00, 0xff)
+    setfn!(getfield(cursor_rect, :x), () -> (g = overlay[].cursor; g === nothing ? Int32(0) : Int32(g[1])))
+    setfn!(getfield(cursor_rect, :y), () -> (g = overlay[].cursor; g === nothing ? Int32(0) : Int32(g[2])))
+    setfn!(getfield(cursor_rect, :w), () -> overlay[].cursor === nothing ? Int32(0) : Int32(2))
+    setfn!(getfield(cursor_rect, :h), () -> (g = overlay[].cursor; g === nothing ? Int32(0) : Int32(max(g[3], 1))))
 
-        for (elem_idx, span) in enumerate(styled)         # reads styled.elements cell
-            span_flat_offsets[elem_idx] = cumulative_flat
-            if span isa TextNewline
-                cx = p.start_x
-                # An empty line (no glyphs since the previous break) still
-                # occupies one line of height; fall back to the font's height
-                # so blank lines are not collapsed to zero.
-                cy += line_h > 0 ? line_h : p.measure(" ", span.font::StyleFont)[2]
-                line_h = 0
-                continue
+    highlight_rect = GraphicsRect(0, 0, 0, 0, 0x88, 0xbb, 0xee, 0x40, 4)
+    setfn!(getfield(highlight_rect, :x), () -> (g = overlay[].highlight; g === nothing ? Int32(0) : Int32(g[1])))
+    setfn!(getfield(highlight_rect, :y), () -> (g = overlay[].highlight; g === nothing ? Int32(0) : Int32(g[2])))
+    setfn!(getfield(highlight_rect, :w), () -> (g = overlay[].highlight; g === nothing ? Int32(0) : Int32(g[3])))
+    setfn!(getfield(highlight_rect, :h), () -> (g = overlay[].highlight; g === nothing ? Int32(0) : Int32(g[4])))
+
+    # Element vector: highlight (behind) + text spans + cursor (in front). Reads
+    # only `layout` (the text), so the caret moving never regenerates it. The
+    # highlight is always element 1, so the click-mapping offset is constant 1.
+    elements = CellVector(function ()
+        spans = layout[].spans
+        out = Any[highlight_rect]
+        append!(out, spans)
+        push!(out, cursor_rect)
+        out
+    end)
+
+    char_to_coord = Cell(() -> layout[].coord_map)
+    highlight_offset = Cell(1)
+    canvas_w = Cell(() -> Int32(layout[].width))
+    canvas_h = Cell(() -> Int32(layout[].height))
+    canvas = GraphicsCanvas(Cell(Int32(0)), Cell(Int32(0)), canvas_w, canvas_h, elements, layout_none, false, Cell(nothing))
+    TextToGraphicsIoMap(p, styled, canvas, char_to_coord, highlight_offset)
+end
+
+# Lay `styled` out into spans + a coordinate map, and (when `sel !== nothing`)
+# locate the caret and selection highlight. Shared by the selection-independent
+# `layout` cell (sel=nothing) and the selection-only `overlay` cell. Returns a
+# NamedTuple `(spans, coord_map, width, height, span_flat_offsets, cursor,
+# highlight)` where `cursor` is `(x, y, h)` or `nothing` and `highlight` is
+# `(x, y, w, h)` or `nothing`. With `collect_spans=false` the span objects are
+# not built (the overlay only needs geometry), but measurement and the coord
+# map still run so caret/highlight placement is identical to the rendered text.
+function _layout_text(p::TextToGraphics, styled::TextText, sel; collect_spans::Bool=true)
+    result = Any[]
+    coord_map = SegCoord[]
+    span_flat_offsets = Dict{Int,Int}()  # elem_idx → cumulative flat char offset
+    cumulative_flat = 0
+    cx = p.start_x
+    cy = p.start_y
+    max_cx = cx
+    line_h = 0
+
+    cursor_pos = _cursor_position(sel)
+    cursor_x = -1
+    cursor_y = -1
+    cursor_line_h = 0
+
+    for (elem_idx, span) in enumerate(styled)         # reads styled.elements cell
+        span_flat_offsets[elem_idx] = cumulative_flat
+        if span isa TextNewline
+            cx = p.start_x
+            # An empty line (no glyphs since the previous break) still
+            # occupies one line of height; fall back to the font's height
+            # so blank lines are not collapsed to zero.
+            cy += line_h > 0 ? line_h : p.measure(" ", span.font::StyleFont)[2]
+            line_h = 0
+            continue
+        end
+        if span isa TextGraphics
+            img_w = Int(span.width::Int32)
+            img_h = Int(span.height::Int32)
+            # Extract raw pixel data from the embedded ImageDocument
+            img_data = _extract_image_data(span)
+            collect_spans && push!(result, GraphicsImage(cx, cy, img_w, img_h, img_data))
+            # Record a SegCoord for hit-testing: atomic position (0..1)
+            push!(coord_map, SegCoord(elem_idx, 0, 1, cx, cy, span.font::StyleFont, "", img_w, img_h))
+            cumulative_flat += 1  # image spans occupy 1 char in the flat space
+            line_h = max(line_h, img_h)
+            # Handle cursor at this image span
+            if cursor_pos !== nothing && cursor_x < 0 &&
+               cursor_pos.span == elem_idx
+                if cursor_pos.char == 0
+                    cursor_x = cx
+                else
+                    cursor_x = cx + img_w
+                end
+                cursor_y = cy
+                cursor_line_h = line_h
             end
-            if span isa TextGraphics
-                img_w = Int(span.width::Int32)
-                img_h = Int(span.height::Int32)
-                # Extract raw pixel data from the embedded ImageDocument
-                img_data = _extract_image_data(span)
-                push!(result, GraphicsImage(cx, cy, img_w, img_h, img_data))
-                # Record a SegCoord for hit-testing: atomic position (0..1)
-                push!(coord_map, SegCoord(elem_idx, 0, 1, cx, cy, span.font::StyleFont, "", img_w, img_h))
-                cumulative_flat += 1  # image spans occupy 1 char in the flat space
-                line_h = max(line_h, img_h)
-                # Handle cursor at this image span
+            cx += img_w
+            continue
+        end
+        span isa TextString || continue
+        span_idx = elem_idx                            # 1-based index in elements
+        char_offset = 0                               # local offset within this span
+        txt  = span.content::AbstractString             # reads span content cell
+        cumulative_flat += length(txt)
+        sf   = span.font::StyleFont                     # reads span font cell
+        col  = span.font_color::StyleColor              # reads span font_color cell
+
+        r, g, b, a = (UInt8(round(col.red * 255)), UInt8(round(col.green * 255)), UInt8(round(col.blue * 255)), UInt8(round(col.alpha * 255)))
+
+        lines = split(txt, '\n')
+        for (li, line) in enumerate(lines)
+            # Hard newline embedded in the span content.
+            if li > 1
+                # cursor BEFORE the \n (char_offset still points to \n pos)
                 if cursor_pos !== nothing && cursor_x < 0 &&
-                   cursor_pos.span == elem_idx
-                    if cursor_pos.char == 0
-                        cursor_x = cx
-                    else
-                        cursor_x = cx + img_w
-                    end
+                   cursor_pos.span == span_idx && cursor_pos.char == char_offset
+                    cursor_x = cx
                     cursor_y = cy
                     cursor_line_h = line_h
                 end
-                cx += img_w
-                continue
-            end
-            span isa TextString || continue
-            span_idx = elem_idx                            # 1-based index in elements
-            char_offset = 0                               # local offset within this span
-            txt  = span.content::AbstractString             # reads span content cell
-            cumulative_flat += length(txt)
-            sf   = span.font::StyleFont                     # reads span font cell
-            col  = span.font_color::StyleColor              # reads span font_color cell
-
-            r, g, b, a = (UInt8(round(col.red * 255)), UInt8(round(col.green * 255)), UInt8(round(col.blue * 255)), UInt8(round(col.alpha * 255)))
-
-            lines = split(txt, '\n')
-            for (li, line) in enumerate(lines)
-                # Hard newline embedded in the span content.
-                if li > 1
-                    # cursor BEFORE the \n (char_offset still points to \n pos)
-                    if cursor_pos !== nothing && cursor_x < 0 &&
-                       cursor_pos.span == span_idx && cursor_pos.char == char_offset
-                        cursor_x = cx
-                        cursor_y = cy
-                        cursor_line_h = line_h
-                    end
-                    cx = p.start_x
-                    # Empty line keeps one line of height (see TextNewline above).
-                    cy += line_h > 0 ? line_h : p.measure(" ", sf)[2]
-                    line_h = 0
-                    char_offset += 1  # count the \n
-                    # cursor AFTER the \n (now at beginning of next line)
-                    if cursor_pos !== nothing && cursor_x < 0 &&
-                       cursor_pos.span == span_idx && cursor_pos.char == char_offset
-                        cursor_x = cx
-                        cursor_y = cy
-                        cursor_line_h = line_h
-                    end
+                cx = p.start_x
+                # Empty line keeps one line of height (see TextNewline above).
+                cy += line_h > 0 ? line_h : p.measure(" ", sf)[2]
+                line_h = 0
+                char_offset += 1  # count the \n
+                # cursor AFTER the \n (now at beginning of next line)
+                if cursor_pos !== nothing && cursor_x < 0 &&
+                   cursor_pos.span == span_idx && cursor_pos.char == char_offset
+                    cursor_x = cx
+                    cursor_y = cy
+                    cursor_line_h = line_h
                 end
+            end
 
-                isempty(line) && continue
+            isempty(line) && continue
 
-                # No wrap: emit the whole line as a single segment.
-                seg_w, seg_h = p.measure(line, sf)
-                line_h = max(line_h, seg_h)
-                seg_x = cx
-                seg_char_start = char_offset
-                seg_len = length(line)
+            # No wrap: emit the whole line as a single segment.
+            seg_w, seg_h = p.measure(line, sf)
+            line_h = max(line_h, seg_h)
+            seg_x = cx
+            seg_char_start = char_offset
+            seg_len = length(line)
+            if collect_spans
                 _push_fill_rect!(result, span, seg_x, cy, seg_w, seg_h)
                 push!(result, _make_sdl(line, seg_x, cy, sf, r, g, b, a))
-                push!(coord_map, SegCoord(span_idx, seg_char_start, seg_char_start + seg_len, seg_x, cy, sf, line, seg_w, seg_h))
-                if cursor_pos !== nothing && cursor_x < 0 &&
-                   cursor_pos.span == span_idx &&
-                   cursor_pos.char >= seg_char_start && cursor_pos.char <= seg_char_start + seg_len
-                    local_pos = cursor_pos.char - seg_char_start
-                    cursor_x = seg_x + (local_pos > 0 ? p.measure(first(line, local_pos), sf)[1] : 0)
-                    cursor_y = cy
-                    cursor_line_h = line_h
-                end
-                cx += seg_w
-                char_offset += seg_len
             end
-        end
-
-        # ── Highlight box for whole-element / rectangular selections ────────
-        highlight_count = 0
-        sel = styled.selection
-        hl_range = _highlight_char_range(sel, coord_map)
-        if hl_range !== nothing
-            hl_start, hl_stop = hl_range
-            hl_rect = _compute_highlight_rect(coord_map, span_flat_offsets, hl_start, hl_stop, p)
-            if hl_rect !== nothing
-                pushfirst!(result, hl_rect)
-                highlight_count = 1
+            push!(coord_map, SegCoord(span_idx, seg_char_start, seg_char_start + seg_len, seg_x, cy, sf, line, seg_w, seg_h))
+            if cursor_pos !== nothing && cursor_x < 0 &&
+               cursor_pos.span == span_idx &&
+               cursor_pos.char >= seg_char_start && cursor_pos.char <= seg_char_start + seg_len
+                local_pos = cursor_pos.char - seg_char_start
+                cursor_x = seg_x + (local_pos > 0 ? p.measure(first(line, local_pos), sf)[1] : 0)
+                cursor_y = cy
+                cursor_line_h = line_h
             end
+            cx += seg_w
+            char_offset += seg_len
         end
+    end
 
-        # Emit cursor line
-        if cursor_x >= 0
-            push!(result, GraphicsRect(cursor_x, cursor_y, 2, max(cursor_line_h, 1),
-                                       0x00, 0x00, 0x00, 0xff))
-        end
+    cursor = cursor_x >= 0 ? (cursor_x, cursor_y, max(cursor_line_h, 1)) : nothing
 
-        max_cx = max(max_cx, cx)
-        total_w = max_cx
-        total_h = cy + line_h
-        return (result, coord_map, total_w, total_h, highlight_count)
-    end)
-    char_to_coord = Cell(() -> both[][2])
-    highlight_offset = Cell(() -> both[][5])
-    canvas_w = Cell(() -> Int32(both[][3]))
-    canvas_h = Cell(() -> Int32(both[][4]))
-    canvas = GraphicsCanvas(Cell(Int32(0)), Cell(Int32(0)), canvas_w, canvas_h, CellVector(() -> both[][1]), layout_none, false, Cell(nothing))
-    TextToGraphicsIoMap(p, styled, canvas, char_to_coord, highlight_offset)
+    highlight = nothing
+    hl_range = _highlight_char_range(sel, coord_map)
+    if hl_range !== nothing
+        highlight = _compute_highlight_geo(coord_map, span_flat_offsets, hl_range[1], hl_range[2], p)
+    end
+
+    max_cx = max(max_cx, cx)
+    (spans = result, coord_map = coord_map, width = max_cx, height = cy + line_h,
+     span_flat_offsets = span_flat_offsets, cursor = cursor, highlight = highlight)
 end
 
 # ── ListNode path: lazy paragraph-level mapping ──────────────────────
@@ -840,13 +877,14 @@ function _highlight_char_range(sel, coord_map::Vector{SegCoord})
 end
 
 """
-    _compute_highlight_rect(coord_map, hl_start, hl_stop, p) -> GraphicsRect or nothing
+    _compute_highlight_geo(coord_map, span_flat_offsets, hl_start, hl_stop, p) -> (x, y, w, h) or nothing
 
-Compute the bounding box over all `SegCoord`s whose character range overlaps
-`[hl_start, hl_stop)`. Returns a semi-transparent `GraphicsRect` with rounded
-corners, or `nothing` when no segment overlaps the range.
+Bounding box over all `SegCoord`s whose character range overlaps
+`[hl_start, hl_stop)`, as an `(x, y, w, h)` tuple, or `nothing` when no segment
+overlaps. The caller paints it as the persistent highlight rect (light blue,
+~25% alpha, rounded).
 """
-function _compute_highlight_rect(coord_map::Vector{SegCoord}, span_flat_offsets::Dict{Int,Int}, hl_start::Int, hl_stop::Int, p::TextToGraphics)
+function _compute_highlight_geo(coord_map::Vector{SegCoord}, span_flat_offsets::Dict{Int,Int}, hl_start::Int, hl_stop::Int, p::TextToGraphics)
     x0, y0 = typemax(Int), typemax(Int)
     x1, y1 = 0, 0
     found = false
@@ -872,8 +910,7 @@ function _compute_highlight_rect(coord_map::Vector{SegCoord}, span_flat_offsets:
     w = x1 - x0
     h = y1 - y0
     (w <= 0 || h <= 0) && return nothing
-    # Accent colour: a light blue with ~25% alpha
-    GraphicsRect(x0, y0, w, h, 0x88, 0xbb, 0xee, 0x40, 4)
+    (x0, y0, w, h)
 end
 
 # ── Image helpers ────────────────────────────────────────────────────────

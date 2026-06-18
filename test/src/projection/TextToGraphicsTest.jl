@@ -1,6 +1,13 @@
 function test_text_to_graphics()
 _test_measure(cw, lh) = (text, font) -> (length(text) * cw, lh)
 
+# The flat TextToGraphics canvas always carries a persistent highlight rect
+# (element 1, behind the text) and cursor rect (last, in front) so that moving
+# the caret never regenerates the span vector. Both are zero-width/invisible
+# when no selection is set. These helpers pull out the real content elements.
+_all(c) = [c.elements[i] for i in 1:length(c.elements)]
+_texts(c) = filter(e -> e isa GraphicsText, _all(c))
+
 @testset "TextToGraphics" begin
 
 # basic layout (wrapping is now done by WordWrapping upstream)
@@ -10,17 +17,17 @@ st_wrap = TextText(
 m = _test_measure(10, 18)
 chain = SequentialProjection(WordWrapping(max_width=200, measure=m), TextToGraphics(measure=m))
 sdl_cell = projection_print(chain, st_wrap).output
-sdl_items = sdl_cell.elements
-@test length(sdl_items) >= 2  # should wrap
-@test sdl_items[1].y == 0
-@test sdl_items[2].y == 18  # second line
+texts = _texts(sdl_cell)
+@test length(texts) >= 2  # should wrap
+@test texts[1].y == 0
+@test texts[2].y == 18  # second line
 
 # newline handling
 st_nl = TextText(
     TextString("line1\nline2\nline3", font_ubuntu_monospace_regular_24, color_white),
 )
 sdl_nl = projection_print(TextToGraphics(measure=_test_measure(10, 20)), st_nl).output
-items_nl = sdl_nl.elements
+items_nl = _texts(sdl_nl)
 @test length(items_nl) == 3
 @test items_nl[1].text == "line1"
 @test items_nl[2].text == "line2"
@@ -35,7 +42,7 @@ st_color = TextText(
     TextString(" blue text", font_ubuntu_monospace_regular_24, color_blue),
 )
 sdl_color = projection_print(TextToGraphics(measure=_test_measure(10, 48)), st_color).output
-items_c = sdl_color.elements
+items_c = _texts(sdl_color)
 @test items_c[1].r == 0xff && items_c[1].g == 0x00  # red
 @test items_c[2].r == 0x00 && items_c[2].b == 0xff  # blue
 
@@ -52,13 +59,13 @@ _ = length(sdl_react.elements)
 @test isuptodate(getfield(sdl_react.elements, :elements))
 st_react[1].content = "changed"
 @test !isuptodate(getfield(sdl_react.elements, :elements))
-items_r = sdl_react.elements
+items_r = _texts(sdl_react)
 @test items_r[1].text == "changed"
 
 # hex color parsing
 st_hex = TextText(TextString("hex", font_ubuntu_monospace_regular_24, StyleColor(1.0, 0.53, 0.0, 1.0)))
 sdl_hex = projection_print(TextToGraphics(measure=_test_measure(10, 48)), st_hex).output
-h = sdl_hex.elements[1]
+h = _texts(sdl_hex)[1]
 @test h.r == 0xff
 @test h.g == 0x87  # rounding of 0.53 * 255
 @test h.b == 0x00
@@ -183,10 +190,11 @@ st = TextText(
 )
 iomap = projection_print(p, st)
 
-# A click path encodes (segment-index → pixel offset). The image is the 2nd
-# emitted segment; rx<32 is its left half, rx>=32 its right half.
+# A click path encodes (element-index → pixel offset). The persistent highlight
+# rect is element 1, so the image (2nd text segment) is element index 2 (0-based);
+# rx<32 is its left half, rx>=32 its right half.
 click(rx) = ReplaceSelectionOperation(
-    ConcreteReferencePath(RangeReference(1, 2),
+    ConcreteReferencePath(RangeReference(2, 3),
         ConcreteReferencePath(PointReference(rx, 0), EmptyReferencePath())))
 left  = projection_read(p, iomap, click(10))
 right = projection_read(p, iomap, click(50))
@@ -208,16 +216,17 @@ st = TextText(hl, plain)
 canvas = projection_print(TextToGraphics(measure=m), st).output
 items = [canvas.elements[i] for i in 1:length(canvas.elements)]
 
-# Exactly one rect — the filled span; the default-`nothing` span gets none.
-rects = filter(e -> e isa GraphicsRect, items)
+# Exactly one *visible* rect — the filled span; the default-`nothing` span gets
+# none. The always-present highlight/cursor overlay rects are zero-width here.
+rects = filter(e -> e isa GraphicsRect && e.w > 0, items)
 @test length(rects) == 1
 rect = rects[1]
 @test rect.x == 0 && rect.y == 0
 @test rect.w == 20 && rect.h == 18      # tight measured box of "hi"
 @test rect.r == 0x00 && rect.g == 0x00 && rect.b == 0xff   # blue fill
 
-# The rect is drawn before its text, so it paints behind.
-rect_idx = findfirst(e -> e isa GraphicsRect, items)
+# The fill rect is drawn before its text, so it paints behind.
+rect_idx = findfirst(e -> e isa GraphicsRect && e.w > 0, items)
 hi_idx   = findfirst(e -> e isa GraphicsText && e.text == "hi", items)
 @test rect_idx !== nothing && hi_idx !== nothing
 @test rect_idx < hi_idx
