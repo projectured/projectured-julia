@@ -20,8 +20,11 @@ function make_workbench_projection_example(; measure=sdl_measure_text)
         w2g.dispatch,
         Pair{DataType,Any}[
             BookDocument          => SequentialProjection(RecursiveProjection(BookToSyntax()), RecursiveProjection(SyntaxToText()), text_to_graphics),
-            JsonDocument          => SequentialProjection(RecursiveProjection(JsonToSyntax()), RecursiveProjection(SyntaxToText()), text_to_graphics),
-            XmlDocument           => SequentialProjection(RecursiveProjection(XmlToSyntax()), RecursiveProjection(SyntaxToText()), text_to_graphics),
+            # JSON/XML are structured code: word-wrapping at arbitrary space
+            # boundaries ignores their syntax, so render them no-wrap (the scroll
+            # pane handles overflow) like the file tree below.
+            JsonDocument          => SequentialProjection(RecursiveProjection(JsonToSyntax()), RecursiveProjection(SyntaxToText()), text_to_graphics_no_wrap),
+            XmlDocument           => SequentialProjection(RecursiveProjection(XmlToSyntax()), RecursiveProjection(SyntaxToText()), text_to_graphics_no_wrap),
             TextDocument          => text_to_graphics,
             JuliaDocument         => make_julia_projection_example(measure=measure),
             TableDocument         => make_table_projection_example(measure=measure),

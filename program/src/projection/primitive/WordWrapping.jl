@@ -21,7 +21,7 @@ import ..ReactiveModule: Cell
 import ..CollectionModule: CellVector
 import ..IoMapApiModule: IoMap
 import ..PrinterContextModule: PrinterContext
-import ..ReferenceModule: ConcreteReferencePath, RangeReference, FieldReference, EmptyReferencePath, ReferencePath
+import ..ReferenceModule: ConcreteReferencePath, RangeReference, FieldReference, EmptyReferencePath, ReferencePath, TextRectangularReference
 import ..ReferenceCaseModule: var"@reference_case"
 import ..ReferenceBuilderModule: var"@reference"
 import ..OperationModule: ReplaceSelectionOperation
@@ -234,6 +234,13 @@ end
 # matches the boundary-duplicate convention in TextToGraphics.
 function _forward_map(segs::Vector{WrapSeg}, sel)
     sel === nothing && return nothing
+    # Structural / whole-element selections live in a flat character space that
+    # wrapping leaves invariant (every input character survives exactly once and
+    # in order; the soft `TextNewline`s inserted at wrap points are not counted),
+    # so their shapes pass straight through:
+    #   ∅                                → the whole text element
+    #   TextRectangularReference(s,e)…∅  → the flat character box [s, e)
+    _is_structural_ref(sel) && return sel
     parsed = _parse_text_elem_path(sel)
     parsed === nothing && return nothing
     in_span, in_char = parsed
@@ -259,6 +266,9 @@ function map_reference_forward(p::WordWrapping, iomap::WordWrappingIoMap, refere
 end
 
 function map_reference_backward(p::WordWrapping, iomap::WordWrappingIoMap, reference)
+    # Structural / whole-element selections are invariant under wrapping (see
+    # `_forward_map`); map them back unchanged so the round-trip is exact.
+    _is_structural_ref(reference) && return reference
     parsed = _parse_text_elem_path(reference)
     parsed === nothing && return nothing
     out_span, out_char = parsed
@@ -305,6 +315,15 @@ end
 projection_read(::WordWrapping, ::WordWrappingIoMap, op) = op
 
 # ── Path helpers ────────────────────────────────────────────────────────────
+
+# A whole-element selection at this layer is either `∅` (the whole text) or a
+# `TextRectangularReference(s,e)…∅` box over a flat character range — the same
+# two shapes `SyntaxToText` emits and `TextToGraphics` highlights. Both index the
+# flat character space, which wrapping leaves unchanged, so they map identically
+# in either direction.
+_is_structural_ref(ref) =
+    ref isa EmptyReferencePath ||
+    (ref isa ConcreteReferencePath && ref.head isa TextRectangularReference)
 
 _text_elem_path(span_idx::Int, char_idx::Int) =
     @reference elements[span_idx].content{char_idx}
