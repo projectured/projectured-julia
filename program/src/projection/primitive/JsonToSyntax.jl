@@ -434,13 +434,22 @@ function projection_print(p::JsonObjectToSyntaxNode, recursion, j::JsonObject, c
     # those stay as explicit structural rewrites in the mappers below.
     value_iomaps = Cell(() -> Any[copying_field_iomap(em, "value") for em in entries_iomap.children])
 
+    # Wire the output selection through this projection's own
+    # `map_reference_forward` (School A), exactly as JsonArrayToSyntaxNode does.
+    # A hand-rolled `children.^(rest)` rewrite is wrong for entries: an entry's
+    # pair node nests the key/value under `.children[1]`/`.children[2]`, so
+    # `.entries[i].key` must map to `.children[i].children[1]` (not
+    # `.children[i].key`). The tree-navigator only understands `.children[k]`
+    # steps, so the naive form left key/value siblings unreachable and dropped
+    # the selection on Alt+arrow. The not-yet-built iomap is supplied via the
+    # deferred-iomap trick (iomap_cell).
+    iomap_cell = Cell(nothing)
     sel = Cell(() -> begin
+        im = iomap_cell[]
+        im === nothing && return nothing
         path = j.selection
-        path isa ConcreteReferencePath && path.head isa ProjectionReference && return path
-        @reference_case path begin
-            ∅ => @reference()
-            entries.rest... => rest isa ConcreteReferencePath ? (@reference children.^(rest)) : nothing
-        end
+        path === nothing && return nothing
+        map_reference_forward(p, im, path)
     end)
     node = SyntaxNode(
         TextString("{", p.delim_font, p.delim_color),
@@ -469,7 +478,9 @@ function projection_print(p::JsonObjectToSyntaxNode, recursion, j::JsonObject, c
         1,
         Cell(false),
         sel)
-    ChildrenIoMap(p, j, node, value_iomaps)
+    iomap = ChildrenIoMap(p, j, node, value_iomaps)
+    iomap_cell[] = iomap
+    return iomap
 end
 
 # Structural positions ({, }, ,, :) use the same coarse `proj(p, {flat})`

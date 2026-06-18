@@ -121,7 +121,17 @@ function test_tree_navigation(label, document, projection; check_reaches_all=fal
     end
 end
 
+# Pick the projection-aware enumerator for a document whose navigable tree is
+# defined by its projection to syntax rather than by the raw input struct. Native
+# syntax trees (and anything else) fall back to the `is_node` predicate by
+# returning `nothing`. This lets `test_tree_navigation(json_example;
+# check_reaches_all=true)` work without the caller naming the enumerator.
+_default_tree_collector(::Any) = nothing
+_default_tree_collector(::Projectured.JsonDocument) = collect_json_tree_selections
+_default_tree_collector(::Projectured.NedFile) = collect_ned_tree_selections
+
 function test_tree_navigation(example::Example; check_reaches_all=false, is_node=_is_syntax_node, collect=nothing)
+    collect === nothing && (collect = _default_tree_collector(example.document))
     test_tree_navigation(example.name, example.document, example.projection; check_reaches_all=check_reaches_all, is_node=is_node, collect=collect)
 end
 
@@ -154,15 +164,14 @@ end
 
 # ── Completeness: navigation reaches every enumerated whole-element selection ──
 
-# Scoped to the `syntax` example only: its document is a *native* SyntaxDocument
-# tree, so "all structural selections" is well-defined as the whole-element ∅ at
-# every SyntaxDocument node, and that predicate reproduces exactly the
-# Alt+arrow-reachable set. Other syntax-capable examples are excluded on purpose:
-# their structural-node set is defined by the projection to syntax, not by the
-# raw input struct — json's reachable set diverges (entry keys vs values), and
-# xml / math expose no tree navigation in this harness (Ctrl+Alt+Home yields no
-# selection). Revisit if those gain projection-aware enumeration.
-const _tree_navigation_complete_examples = ["syntax"]
+# Examples whose every structural selection is enumerable as ground truth.
+# `syntax` is a *native* SyntaxDocument tree, so the `is_node = SyntaxDocument`
+# predicate reproduces the Alt+arrow-reachable set exactly. `json` and `ned` are
+# projected *to* syntax, so they use a projection-aware enumerator instead
+# (selected automatically by document type via `_default_tree_collector`).
+# xml / math still expose no tree navigation in this harness (Ctrl+Alt+Home
+# yields no selection).
+const _tree_navigation_complete_examples = ["syntax", "json", "ned"]
 
 # A structural tree node in the syntax domain is any SyntaxDocument — this
 # excludes the CellVector child containers and the TextString delimiter / value
@@ -173,14 +182,9 @@ function test_tree_navigations_complete()
     @testset "TreeNavigationComplete" begin
         for example in examples
             example.name in _tree_navigation_complete_examples || continue
+            # The enumerator is chosen by document type via _default_tree_collector
+            # (native syntax → is_node predicate; json / ned → projection-aware).
             test_tree_navigation(example; check_reaches_all=true)
-        end
-        # NED: its document is projected to syntax (not a native syntax tree), so
-        # the navigable-node set is defined by NedToSyntax's child decomposition,
-        # enumerated by collect_ned_tree_selections rather than an is_node predicate.
-        for example in examples
-            example.name == "ned" || continue
-            test_tree_navigation(example; check_reaches_all=true, collect=collect_ned_tree_selections)
         end
     end
 end
