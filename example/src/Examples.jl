@@ -463,7 +463,7 @@ function print_example(name="json")
 end
 
 """
-    run_console_example(; document, projection, ansi=true, clear=false)
+    run_console_example(; document, projection, ansi=true, clear=nothing, interactive=false)
 
 Render a Text-domain document to the terminal via the `ConsoleBackend`,
 preserving the spans' colors. This is the console counterpart to
@@ -475,24 +475,33 @@ Defaults to the JSON example projected through
 `TextToGraphics` step, so its output is a `TextText` the console can render.
 
 Keywords:
-  - `document`   — the domain document (default: a fresh JSON example doc).
-  - `projection` — a projection whose output is a `TextText` (default: the
-                   json→syntax→text console projection).
-  - `ansi`       — emit ANSI color codes (default `true`).
-  - `clear`      — clear the screen before rendering (default `false`, so the
-                   output appends rather than wiping the scrollback).
-
-This is a one-shot render. A full read-eval-print loop awaits the console
-backend's input phase.
+  - `document`    — the domain document (default: a fresh JSON example doc).
+  - `projection`  — a projection whose output is a `TextText` (default: the
+                    json→syntax→text console projection).
+  - `ansi`        — emit ANSI color codes (default `true`).
+  - `clear`       — clear the screen before each frame. Defaults to `false` for
+                    a one-shot render and `true` for the interactive loop.
+  - `interactive` — when `true`, run the read-eval-print loop: poll the
+                    keyboard, apply operations, repaint. `Home` selects the root
+                    node, arrows navigate the tree, `Ctrl+Space` toggles
+                    structural ⇄ text selection, `Ctrl+C` quits. Character-level
+                    text editing is not available (it lives in `TextToGraphics`,
+                    which this pipeline omits). Default `false` (one-shot).
 """
 function run_console_example(; document=make_json_document_example(),
                                projection=make_json_console_projection_example(),
-                               ansi::Bool=true, clear::Bool=false)
-    backend = ConsoleBackend(; ansi=ansi, clear=clear)
-    iomap = projection_print(projection, document)
-    output = iomap.output
-    output = output isa Cell ? output[] : output
-    write_to_devices(backend, Device[], output)
+                               ansi::Bool=true, clear::Union{Bool,Nothing}=nothing,
+                               interactive::Bool=false)
+    if interactive
+        backend = ConsoleBackend(; ansi=ansi, clear=something(clear, true))
+        run!(backend, projection, document; devices=Device[Keyboard()])
+    else
+        backend = ConsoleBackend(; ansi=ansi, clear=something(clear, false))
+        iomap = projection_print(projection, document)
+        output = iomap.output
+        output = output isa Cell ? output[] : output
+        write_to_devices(backend, Device[], output)
+    end
     return nothing
 end
 
