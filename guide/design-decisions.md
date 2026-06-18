@@ -157,6 +157,24 @@ struct in the backend before being passed to `projection_read`. This decouples
 projections from the SDL backend — a future terminal or web backend produces
 the same events, and projection reader code stays unchanged.
 
+## 10. Propagation is write-driven, not value-driven
+
+When a primitive cell is written, the engine invalidates its transitive
+dependents **unconditionally** — there is no `old == new` short-circuit, and a
+computed cell that recomputes to an unchanged value does not stop propagation.
+The engine is deliberately *not* glitch-free or value-stabilising.
+
+The reason is simplicity and predictability: change detection by value would
+require every cell to retain and compare its previous value (and to define a
+meaningful `==` for arbitrary document payloads), and it interacts badly with
+laziness — a cell that was never pulled has no "previous value" to compare
+against. Keeping propagation keyed on *writes* makes the cost model trivial to
+reason about: work is proportional to what is written and then pulled, full
+stop. The practical consequence to keep in mind is that writing a cell its own
+current value is **not** free — e.g. a printer that rewrites `selection` every
+frame pays to recompute the whole subtree that reads it. See
+[the reactive invariants](reactive-cells.md#invariants-the-engine-relies-on).
+
 ---
 
 ## Key differences from the original ProjecturEd (Common Lisp)

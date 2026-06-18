@@ -54,6 +54,40 @@ This is the pull-based / lazy strategy. It is essential to how the projection
 printer stays incremental: invisible parts of the output don't recompute even
 when their inputs change, because nothing pulls on them.
 
+## Invariants the engine relies on
+
+These hold by construction in the current code, but nothing checks them — break
+one and you get a hang, a stale render, or a stack overflow rather than an error.
+
+- **The dependency graph must be acyclic.** `recompute!` evaluates a thunk while
+  its cell sits on the `_computing` stack; if that thunk (transitively) reads its
+  own cell, recomputation recurses forever. The engine only skips a *direct*
+  self-edge (`observer !== c`) — it does **not** detect multi-cell cycles. A
+  computed cell must never depend on itself through any chain.
+- **Invalidation is monotone: invalid ⟹ all transitive dependents are already
+  invalid.** `_invalidate_walk!` stops descending the moment it meets an
+  already-invalid dependent, trusting that that cell propagated its own
+  invalidation when it first became invalid. This holds only because every write
+  walks the *full* transitive closure and `recompute!` is the only thing that
+  re-validates. Never hand-set `valid`, and never partially invalidate a subset
+  of dependents — either breaks the early-stop and leaves cells stale forever.
+- **Propagation is write-driven, not value-driven.** Writing a cell invalidates
+  its dependents unconditionally, with **no equality check** — setting a cell to
+  the value it already holds still recomputes everything downstream, and a thunk
+  that recomputes to an unchanged value does *not* stop propagation (the engine
+  is not glitch-free / not value-stabilising). So `c[] = c[]` is not free; a
+  printer that rewrites `selection` every frame pays for the whole subtree it
+  feeds. See [the design-decisions note](design-decisions.md#10-propagation-is-write-driven-not-value-driven).
+- **Thunks must be pure and deterministic in their cell inputs.** A thunk may run
+  zero, one, or many times for a single logical change, and its cached result is
+  reused until invalidation. It must therefore have no side effects and depend
+  only on the cells it reads (no clocks, RNG, or external mutable state) — or the
+  cache is wrong. This is a correctness requirement, not a style preference.
+- **Invalidation recurses on the call stack**, so its depth is bounded by the
+  longest dependency chain (≈ document tree depth). Pathologically deep documents
+  can overflow the stack; in practice trees stay shallow enough that this is a
+  theoretical limit, noted here so it isn't a surprise.
+
 ## Performance counters
 
 ```julia

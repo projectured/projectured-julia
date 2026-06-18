@@ -14,6 +14,18 @@ Dependency tracking is automatic: when a computed cell evaluates its thunk,
 every `Cell` read via `c[]` is recorded as a dependency. When any upstream
 cell changes, all downstream dependents are invalidated and will recompute
 on next read.
+
+# Invariants (unchecked — see guide/reactive-cells.md)
+- **Acyclic graph.** A thunk must never transitively read its own cell;
+  `recompute!` would recurse forever. Only *direct* self-edges are skipped.
+- **Monotone invalidation.** `_invalidate_walk!` stops at already-invalid
+  dependents, trusting they propagated when first invalidated. Always walk the
+  full closure on write; never hand-set `valid` or partially invalidate.
+- **Write-driven propagation.** Writes invalidate dependents unconditionally —
+  there is no value-equality short-circuit, so writing a cell its current value
+  still recomputes downstream.
+- **Pure thunks.** A thunk may run 0/1/many times and is cached until
+  invalidation, so it must be side-effect-free and depend only on cells it reads.
 """
 module ReactiveModule
 
