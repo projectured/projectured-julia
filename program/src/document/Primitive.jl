@@ -13,7 +13,8 @@ import ..DocumentApiModule: clear_selection!, set_selection!
 import ..OperationApiModule: Operation, evaluate_operation,
                               splice_string, splice_value!, splice_number
 import ..ReferenceModule: Reference, ReferencePath, ConcreteReferencePath, EmptyReferencePath,
-                          ReferenceStep, FieldReference, RangeReference, evaluate_reference
+                          ReferenceStep, FieldReference, RangeReference, evaluate_reference,
+                          strip_reference_types
 export PrimitiveDocument, PrimitiveInsertion, PrimitiveBool, PrimitiveNumber, PrimitiveString,
        NumberReplaceRangeOperation, StringReplaceRangeOperation,
        evaluate_operation,
@@ -127,20 +128,25 @@ end
 # precondition — `splice_value!` interprets the field's current value by its
 # representation (string / number / span / span-sequence).
 function _split_replace_reference(path::ReferencePath)
+    # Operate on the plain navigation path: drop selection-style type checkpoints
+    # so the `.<field>[range]` suffix split sees only real steps.
+    path = strip_reference_types(path)
     steps = ReferenceStep[]
     cur = path
     while cur isa ConcreteReferencePath
         push!(steps, cur.head)
         cur = cur.tail
     end
-    length(steps) >= 2 ||
-        error("replace-range reference must have at least .<field>[range] suffix, got: $path")
+    # An un-splittable reference has no editable `.<field>[range]` slot — e.g. an
+    # edit aimed at a projection-introduced span (a placeholder/insertion rendered
+    # as `…[i].proj(p, .value[k])`, whose terminal is a `ProjectionReference` with
+    # no input pre-image). Return `nothing` so the caller no-ops instead of
+    # crashing the editor.
+    length(steps) >= 2 || return nothing
     field_step = steps[end - 1]
     range_step = steps[end]
-    field_step isa FieldReference ||
-        error("replace-range reference penultimate step must be a FieldReference, got: $field_step")
-    range_step isa RangeReference ||
-        error("replace-range reference terminal step must be a RangeReference, got: $range_step")
+    field_step isa FieldReference || return nothing
+    range_step isa RangeReference || return nothing
     target_path = EmptyReferencePath()
     for i in (length(steps) - 2):-1:1
         target_path = ConcreteReferencePath(steps[i], target_path)
@@ -151,6 +157,9 @@ end
 # Replace the terminal RangeReference of `path` with a zero-width
 # RangeReference at `start + length(replacement)`, leaving the rest intact.
 function _replace_terminal_with_cursor(path::ReferencePath, replacement::AbstractString)
+    # Plain navigation path only; the rebuilt path is re-canonicalized when it is
+    # handed to `set_selection!`.
+    path = strip_reference_types(path)
     steps = ReferenceStep[]
     cur = path
     while cur isa ConcreteReferencePath
@@ -172,7 +181,9 @@ end
 # representation-dispatched `splice_value!` — it forces the number path here.
 function evaluate_operation(editor, op::NumberReplaceRangeOperation)
     document = editor.document
-    target_path, field_name, range_step = _split_replace_reference(op.reference)
+    split = _split_replace_reference(op.reference)
+    split === nothing && return            # no editable slot (e.g. projection-introduced span)
+    target_path, field_name, range_step = split
     target = evaluate_reference(document, target_path)
     field = Symbol(field_name)
     old = getproperty(target, field)
@@ -184,7 +195,9 @@ end
 
 function evaluate_operation(editor, op::StringReplaceRangeOperation)
     document = editor.document
-    target_path, field_name, range_step = _split_replace_reference(op.reference)
+    split = _split_replace_reference(op.reference)
+    split === nothing && return            # no editable slot (e.g. projection-introduced span)
+    target_path, field_name, range_step = split
     target = evaluate_reference(document, target_path)
     field = Symbol(field_name)
     splice_value!(target, field, getproperty(target, field),

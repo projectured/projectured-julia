@@ -8,7 +8,7 @@ module OperationModule
 
 import ..OperationApiModule: Operation, evaluate_operation
 import ..DocumentApiModule: Document, clear_selection!, set_selection!
-import ..ReferenceModule: ReferencePath, ConcreteReferencePath, EmptyReferencePath, FieldReference, RangeReference, is_element_reference, evaluate_reference, reference_equal
+import ..ReferenceModule: ReferencePath, ConcreteReferencePath, EmptyReferencePath, FieldReference, RangeReference, TypeReference, is_element_reference, evaluate_reference, reference_equal, skip_type_checkpoints, annotate_reference_types, strip_reference_types
 import ..ReactiveModule: Cell
 export ReplaceSelectionOperation, QuitEditorOperation, QuitEditorException, replace_selection!,
        OpenWindowOperation, CloseWindowOperation, ResizeWindowOperation, ToggleCollapseOperation,
@@ -103,19 +103,24 @@ struct ReplaceDocumentOperation <: Operation
 end
 
 function evaluate_operation(editor, op::ReplaceDocumentOperation)
+    # The path is a document-mutation navigation path: strip any selection-style
+    # type checkpoints so the terminal-slot split and whole-root check see a
+    # plain navigation path. (The new selection built below is re-canonicalized
+    # by `replace_selection!`.)
+    path = strip_reference_types(op.path)
     new_doc = op.document
     inner_sel = getfield(new_doc, :selection)[]
     inner_sel === nothing && (inner_sel = EmptyReferencePath())
-    if op.path isa EmptyReferencePath
+    if path isa EmptyReferencePath
         editor.document = new_doc
         editor.iomap = nothing
         replace_selection!(new_doc, inner_sel)
         return
     end
-    parent_path, terminal = _split_terminal_step(op.path)
+    parent_path, terminal = _split_terminal_step(path)
     parent = evaluate_reference(editor.document, parent_path)
     _write_document_slot!(parent, terminal, new_doc)
-    replace_selection!(editor.document, _concat_paths(op.path, inner_sel))
+    replace_selection!(editor.document, _concat_paths(path, inner_sel))
 end
 
 # Concatenate two reference *paths* (vs. `append_reference`, which appends raw
@@ -173,10 +178,11 @@ struct ReplaceReferencedValue <: Operation
 end
 
 function evaluate_operation(editor, op::ReplaceReferencedValue)
-    if op.reference isa EmptyReferencePath
+    reference = strip_reference_types(op.reference)
+    if reference isa EmptyReferencePath
         error("ReplaceReferencedValue: empty reference has no slot to write")
     end
-    parent_path, terminal = _split_terminal_step(op.reference)
+    parent_path, terminal = _split_terminal_step(reference)
     parent = parent_path isa EmptyReferencePath ? op.document :
              evaluate_reference(op.document, parent_path)
     _write_value_slot!(parent, terminal, op.value)
@@ -363,8 +369,13 @@ function clear_selection!(document)
     path = sel[]
     sel[] = nothing
     path isa ConcreteReferencePath || return
-    h = path.head
-    rest = path.tail
+    # Skip leading type checkpoints: a TypeReference is a non-navigating
+    # assertion on the current node, so descent is driven by the next
+    # navigation step (mirrors evaluate_reference / skip_type_checkpoints).
+    nav = skip_type_checkpoints(path)
+    nav isa ConcreteReferencePath || return
+    h = nav.head
+    rest = nav.tail
     child = if h isa FieldReference
         sym = Symbol(h.name)
         f = getfield(document, sym)
@@ -390,16 +401,35 @@ end
     set_selection!(document, path)
 
 Recursively sets the selection on `document` and its children to `path`.
-Sets the document's `selection` field to the given reference path and traverses
-the path to set selections on nested structures.
+
+The path is first **canonicalized** against `document`: any existing type
+checkpoints are stripped and a fresh `TypeReference(typeof(node))` is inserted
+before every navigation step (see `annotate_reference_types`). This is the single
+binding point that makes every stored selection self-describing — callers hand in
+a plain navigation skeleton (built with `@reference`) and it becomes canonical
+against the live document. Annotation is idempotent on an unchanged document.
 """
 function set_selection!(document, path)
+    canonical = path === nothing ? path :
+                annotate_reference_types(document, strip_reference_types(path))
+    _set_selection_walk!(document, canonical)
+end
+
+# Internal recursive walker: assumes `path` is already canonical and writes each
+# suffix into the matching child's selection cell, skipping type checkpoints to
+# find the navigation step that descends.
+function _set_selection_walk!(document, path)
     if hasproperty(document, :selection)
         getfield(document, :selection)[] = path
     end
     path isa ConcreteReferencePath || return
-    h = path.head
-    rest = path.tail
+    # Skip leading type checkpoints to find the navigation step that descends
+    # into a child; the checkpoint stays on the current node (canonical paths
+    # carry a TypeReference before every navigation step).
+    nav = skip_type_checkpoints(path)
+    nav isa ConcreteReferencePath || return
+    h = nav.head
+    rest = nav.tail
     child = if h isa FieldReference
         sym = Symbol(h.name)
         f = getfield(document, sym)
@@ -418,7 +448,7 @@ function set_selection!(document, path)
     # Only descend into child Documents (which carry their own selection cell);
     # leaf values (String/Char/Number) hold no selection and are not navigable.
     child isa Document || return
-    set_selection!(child, rest)
+    _set_selection_walk!(child, rest)
 end
 
 """
