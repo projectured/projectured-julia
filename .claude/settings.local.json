@@ -3,7 +3,14 @@
     "allow": [
       "Bash(julia --project=. -e 'using ProjecturedTest; ProjecturedTest.test_all\\(\\)')",
       "Bash(xargs grep:*)",
-      "Bash(julia --project=. -e \"using Projectured; println\\(\\\\\"Module loaded successfully\\\\\"\\)\")"
+      "Bash(julia --project=. -e \"using Projectured; println\\(\\\\\"Module loaded successfully\\\\\"\\)\")",
+      "Bash(git merge:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(julia --project=. -e 'include\\(\"example/src/ProjecturedExample.jl\"\\); println\\(\"ProjecturedExample loaded OK\"\\)')",
+      "Bash(julia --project=. -e 'include\\(\"test/src/ProjecturedTest.jl\"\\); println\\(\"ProjecturedTest loaded OK\"\\)')",
+      "Bash(git status:*)",
+      "Bash(julia --project=program session/analyze-session.jl --latest)"
     ]
   },
   "devin.acp.enabledAgents": {
