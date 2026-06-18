@@ -1,6 +1,7 @@
 module ProjecturedExample
 
 using Projectured
+using Profile
 
 const _EXAMPLE_DIR = @__DIR__
 

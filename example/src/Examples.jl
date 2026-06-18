@@ -151,7 +151,8 @@ end
 """
     run_example(examples::Vector{Example}; width, height,
                 caching=false, scrolling=false, workbench=false, reset=false,
-                tooltip=false, introspection=false, selection=nothing)
+                tooltip=false, introspection=false, selection=nothing,
+                profile=false)
 
 Open one window per example, side by side. Each example contributes a
 `WindowDocument` with the example's domain document as content; the
@@ -186,11 +187,16 @@ editable control bar for a `TextHighlighting` (resp. `TextFiltering`)
 projection above the projected text. Editing the controls re-highlights /
 re-filters live; `Ctrl+F` toggles the bar, `Escape` hides it. Expects a
 `TextText` document (the text examples). The two flags are mutually exclusive.
+
+When `profile=true`, the read-eval-print loop runs under `Profile.@profile`.
+The profile buffer is cleared first; once the editor window is closed (the
+loop exits) a sampled backtrace report is printed via `Profile.print`.
 """
 function run_example(examples::Vector{Example}; width=nothing, height=nothing,
                      caching=false, scrolling=false, workbench=false, reset=false,
                      tooltip=false, introspection=false,
-                     text_filtering=false, text_highlighting=false, selection=nothing)
+                     text_filtering=false, text_highlighting=false, selection=nothing,
+                     profile=false)
     isempty(examples) && error("run_example: empty examples vector")
     if text_filtering && text_highlighting
         error("run_example: text_filtering and text_highlighting are mutually exclusive")
@@ -297,7 +303,16 @@ function run_example(examples::Vector{Example}; width=nothing, height=nothing,
 
     composed = tooltip ? _multi_window_projection_tooltipped(projs) :
                          _multi_window_projection(projs)
-    run!(SdlBackend(), composed, screen)
+    if profile
+        Profile.clear()
+        try
+            Profile.@profile run!(SdlBackend(), composed, screen)
+        finally
+            Profile.print(; mincount=10)
+        end
+    else
+        run!(SdlBackend(), composed, screen)
+    end
 end
 
 # Build a projection that projects the screen down to each
