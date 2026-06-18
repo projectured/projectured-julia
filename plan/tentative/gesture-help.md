@@ -5,8 +5,10 @@
 > Everything here needs to be critically evaluated, refined, and adapted before
 > any of it gets implemented.
 
-> A special gesture (Ctrl-?) that introspects the projection pipeline to display
-> all gestures currently available in the editor state.
+> A special gesture (Ctrl-?) that asks the projection pipeline to describe every
+> gesture currently available in the editor state — using the **same** reader
+> declarations that actually dispatch the gestures, so the mapping is written
+> exactly once.
 
 ---
 
@@ -16,262 +18,346 @@ The user has no way to discover which gestures are active at any given moment.
 Gestures are scattered across projections (`TextToGraphics` handles arrow keys,
 `FocusingProjection` handles Ctrl-comma/period, `WidgetToGraphics` handles
 scroll, etc.) and which ones apply depends on the current document type,
-selection, and active projection pipeline. A help overlay that queries the
-actual readers removes guesswork.
+selection, and active projection pipeline.
+
+The hard requirement is **one source of truth**: the gesture → operation mapping
+of every reader must be expressed *once*, and both (a) the actual operation that
+fires and (b) the context-sensitive help text must be derived from that single
+declaration. A second, parallel "list of available gestures" API would inevitably
+drift out of sync with what the readers really do.
 
 ---
 
-## Design Summary
+## Prior art: how projectured-lisp did it
 
-When the user presses **Ctrl-?** (Ctrl-Shift-/ on most layouts):
+The Lisp version already solved this, and the mechanism is the model for this
+plan. The relevant files:
 
-1. The editor intercepts the event before normal `projection_read` dispatch.
-2. It calls a new **`projection_available_gestures`** function that walks the
-   projection pipeline (using the current `iomap`) and collects gesture
-   descriptors from every reader that could handle an event in the current state.
-3. The collected gestures are displayed as a temporary overlay (tooltip-style
-   popup or full-screen panel) projected via the existing pipeline.
-4. Pressing Escape (or any other key) dismisses the overlay and returns to
-   normal editing.
+- `source/editor/command.lisp` — the `command` class and the `gesture-case` macro.
+- `source/document/t.lisp` — `operation/show-context-sensitive-help` and the
+  backward-recursion of that operation through the pipeline.
+- `source/projection/primitive/help-to-text.lisp` — the projection that renders
+  the help.
 
----
+### The reader pipeline traffics in `command`, not bare operations
 
-## Core Concept: `projection_available_gestures`
+A Lisp `command` bundles everything a gesture binding needs:
 
-Each projection that implements `projection_read` also implements:
-
-```julia
-projection_available_gestures(projection, iomap) -> Vector{GestureDescriptor}
+```lisp
+(def class* command ()
+  ((domain :type string)        ; category, e.g. "Focusing"
+   (description :type string)   ; human description
+   (gesture :type gesture)      ; the trigger
+   (accessible :type boolean)   ; would it actually succeed right now?
+   (operation :type operation)));the change to apply
 ```
 
-This function returns a list of gestures the projection *could* handle in the
-current state (given the current iomap contents — selection, focus, document
-shape, etc.). Projections that have no gestures return an empty vector.
+Every reader receives a command (carrying the gesture) and returns a command
+(carrying the operation). This is exactly Julia's `Change`, except `Change`
+currently carries only `gesture` + `operation` — it is missing the
+`domain`/`description`/`accessible` metadata.
 
-A default fallback on `Projection` returns `GestureDescriptor[]`.
+### `gesture-case`: the single source of truth
+
+```lisp
+(def reader focusing ()
+  (merge-commands
+    (gesture-case -gesture-
+      ((make-key-press-gesture :scancode-comma :control)
+       :domain "Focusing" :description "Moves the focus one level up"
+       :operation (when (part-of -projection-) (make-instance 'operation/focusing/replace-part ...)))
+      ((make-key-press-gesture :scancode-period :control)
+       :domain "Focusing" :description "Moves the focus to the selection"
+       :operation (make-instance 'operation/focusing/replace-part ...)))
+    ...recursed/backward command...
+    (make-nothing-command (gesture-of -input-))))
+```
+
+The macro expands each case **once** into two roles:
+
+1. **Help role.** If the incoming gesture is the help key (Ctrl-H in Lisp), the
+   macro builds an `operation/show-context-sensitive-help` whose `commands` slot
+   is a descriptor for *every* case — `gesture` + `domain` + `description` +
+   `accessible` — **without evaluating any case's `:operation`**.
+2. **Dispatch role.** Otherwise, the first case whose gesture matches has *its*
+   `:operation` form evaluated (lazily — only that branch) and returned as the
+   command's operation.
+
+So the same `(gesture :domain … :description … :operation …)` list serves both
+the help and the actual dispatch. There is no second table.
+
+### `merge-commands` accumulates help across the pipeline
+
+Each reader stage produces help for *its own* gestures. As commands flow back up
+the pipeline, `merge-commands` unions two `show-context-sensitive-help`
+operations' command lists (dedup by gesture):
+
+```lisp
+(if (and (typep (operation-of c1) 'operation/show-context-sensitive-help)
+         (typep (operation-of c2) 'operation/show-context-sensitive-help))
+    ;; append c1's commands + c2's commands not already present (by gesture=)
+    ...)
+```
+
+The help operation also rides the *normal* backward machinery
+(`operation/read-backward` / `operation/extend` have a
+`operation/show-context-sensitive-help` case) so each descriptor's references are
+mapped one domain inward at every step, and a command whose extension fails is
+marked `:accessible #f`. That is what greys out gestures that exist downstream
+but cannot apply in the current context.
+
+### Display reads the operation's command list
+
+`help/context-sensitive->text/text` does nothing more than iterate
+`(available-commands-of -input-)` and emit, per command, the gesture text +
+domain + description, colored by `accessible-p`. No enumeration API — it just
+renders the operation that `gesture-case` already produced.
 
 ---
 
-## Domain Types
+## Design Summary (Julia)
+
+Mirror the Lisp design rather than inventing a parallel enumeration API.
+
+When the user presses **Ctrl-?**:
+
+1. The editor seeds the usual nothing-`Change` carrying the gesture and calls
+   `projection_read` as normal — **no special interception in `read!`**.
+2. Readers built with the new `@gesture_case` recognize the help gesture and,
+   instead of firing one operation, return a `ShowContextSensitiveHelpOperation`
+   listing every gesture they declare (each as a `GestureDescriptor`).
+3. Higher-order readers (`SequentialProjection`, alternatives, dispatchers) merge
+   the help operations coming from every relevant step, so the descriptors from
+   the whole active pipeline accumulate (Julia analogue of `merge-commands`).
+4. The editor recognizes `ShowContextSensitiveHelpOperation` as the operation,
+   and `evaluate!`/`print!` overlays a help document built from its descriptor
+   list, rendered through a `HelpToText → … → graphics` pipeline.
+5. Any next key/click dismisses the overlay.
+
+The crucial property: **`@gesture_case` is the only place a gesture binding is
+written.** Both the dispatched operation and the help descriptor come out of it.
+
+---
+
+## Core mechanism: `@gesture_case`
+
+A macro used inside readers. One call replaces the ad-hoc
+`if gesture_matches(…) … elseif … end` chains that readers write today, and
+makes them help-aware for free.
+
+```julia
+@gesture_case(gesture,
+    case(key_press(:comma; ctrl = true);
+         domain      = "Focusing",
+         description  = "Move focus one level up",
+         accessible  = !isempty(projection.part),
+         operation   = FocusReplacePartOperation(projection, parent_part(projection))),
+    case(key_press(:period; ctrl = true);
+         domain      = "Focusing",
+         description  = "Focus into the selection",
+         accessible  = has_selection(input),
+         operation   = FocusReplacePartOperation(projection, selection_part(input))),
+)
+```
+
+Expansion (sketch):
+
+```julia
+let g = gesture
+    if is_help_gesture(g)
+        ShowContextSensitiveHelpOperation(GestureDescriptor[
+            GestureDescriptor(key_press(:comma;  ctrl=true), "Focusing", "Move focus one level up", (!isempty(projection.part))),
+            GestureDescriptor(key_press(:period; ctrl=true), "Focusing", "Focus into the selection", (has_selection(input))),
+        ])
+        # note: the :operation forms are NOT spliced here — only gesture/domain/
+        # description/accessible are evaluated to build descriptors.
+    elseif gesture_matches(g, key_press(:comma; ctrl=true))
+        FocusReplacePartOperation(projection, parent_part(projection))   # only this branch's operation form
+    elseif gesture_matches(g, key_press(:period; ctrl=true))
+        FocusReplacePartOperation(projection, selection_part(input))
+    else
+        nothing
+    end
+end
+```
+
+- Each case's `operation` expression is spliced **only** into its own dispatch
+  branch, so it is evaluated lazily exactly as the Lisp `:operation` form is —
+  side-effect-free guards like `when (part-of …)` translate to the operation
+  expression returning `nothing`.
+- The `accessible` expression is evaluated only when building descriptors; it
+  feeds `GestureDescriptor.available`.
+- The reader wraps the macro's result back into a `Change(gesture, op)` (or the
+  macro can yield the `Change` directly).
+
+This keeps every concrete binding — gesture, category, human text, guard, and the
+operation — in one `case(...)` declaration.
+
+---
+
+## Domain types
 
 ```julia
 struct GestureDescriptor
-    trigger::String          # human-readable trigger, e.g. "Ctrl-," or "Left click"
-    description::String      # what it does, e.g. "Navigate focus out (unfocus)"
-    category::Symbol         # :navigation, :editing, :selection, :focus, :scroll, ...
-    source::String           # projection name, e.g. "FocusingProjection"
-    available::Bool          # true if the gesture would produce an operation right now
+    gesture::Any          # the trigger gesture object (so display can describe it, and merge can dedup)
+    domain::String        # category, e.g. "Focusing", "Navigation"
+    description::String   # short human description
+    available::Bool       # would it fire in the current state?
+end
+
+struct ShowContextSensitiveHelpOperation <: Operation
+    commands::Vector{GestureDescriptor}
 end
 ```
 
-- **`trigger`** — the key combo or mouse action.
-- **`description`** — short human description.
-- **`category`** — for grouping in the display.
-- **`source`** — which projection provides it (for debugging/filtering).
-- **`available`** — whether the gesture would actually succeed given the current
-  state (e.g. "Ctrl-," is only available when focus part is non-empty).
+- `GestureDescriptor` is produced *only* by `@gesture_case`; it is never written
+  by hand alongside a binding.
+- Reuse the existing gesture-describing helpers (the Julia equivalents of
+  `describe-gesture-modifiers` / `describe-gesture-keys`) to render
+  `descriptor.gesture` as `"Ctrl-,"` etc. — the trigger string is derived, not
+  stored, so there is no separate copy to keep in sync.
 
 ---
 
-## Gathering Gestures Through the Pipeline
+## Accumulating through the pipeline (the `merge-commands` analogue)
 
-### SequentialProjection
+Julia's `SequentialProjection` reader is *first-match-wins*: it tries steps
+last-to-first and stops at the first step that yields an operation. That is
+correct for normal dispatch but wrong for help, which must visit **every** step.
 
-Walk each step from last to first (same order as `projection_read`) and
-concatenate all gesture descriptors. This mirrors the reader's try-each-step
-semantics.
+Plan: make the higher-order readers help-aware.
 
-```julia
-function projection_available_gestures(seq::SequentialProjection, iomap::SequentialProjectionIoMap)
-    gestures = GestureDescriptor[]
-    for i in length(seq.projections):-1:1
-        append!(gestures, projection_available_gestures(seq.projections[i], iomap.step_iomaps[i]))
-    end
-    gestures
-end
-```
+- **`SequentialProjection`** — when `change.gesture` is the help gesture, do not
+  stop at the first step. Call each step's reader, collect every
+  `ShowContextSensitiveHelpOperation` it returns, and union their
+  `commands` (dedup by `gesture`). Return one merged help operation.
+- **`AlternativeProjection` / dispatchers** — delegate help to the active branch
+  (its reader's help already lists that branch's gestures).
+- **Leaf readers** — produce their descriptor list straight from `@gesture_case`.
 
-### AlternativeProjection
+Define a small helper `merge_help(op1, op2)` (and `merge_help(changes...)`) that
+encapsulates the union-by-gesture rule, mirroring `merge-commands`.
 
-Delegate to the active branch:
-
-```julia
-function projection_available_gestures(ap::AlternativeProjection, iomap::AlternativeProjectionIoMap)
-    projection_available_gestures(ap.projections[iomap.index], iomap.inner_iomap)
-end
-```
-
-### NestingProjection / RecursiveProjection
-
-Delegate to the inner projection using the child iomap.
-
-### Leaf projections (TextToGraphics, FocusingProjection, etc.)
-
-Each implements the method by returning descriptors for its known gestures,
-conditionally marking `available` based on current state.
-
----
-
-## Example: FocusingProjection
-
-```julia
-function projection_available_gestures(p::FocusingProjection, iomap::SimpleIoMap)
-    gestures = GestureDescriptor[]
-    push!(gestures, GestureDescriptor(
-        "Ctrl-,", "Navigate focus outward (unfocus one level)",
-        :focus, "FocusingProjection", !isempty(p.part)
-    ))
-    has_sel = hasproperty(iomap.input, :selection) &&
-              iomap.input.selection !== nothing &&
-              !isempty(iomap.input.selection)
-    push!(gestures, GestureDescriptor(
-        "Ctrl-.", "Focus into selected element",
-        :focus, "FocusingProjection", has_sel
-    ))
-    gestures
-end
-```
-
-## Example: TextToGraphics
-
-```julia
-function projection_available_gestures(p::TextToGraphics, iomap::TextToGraphicsIoMap)
-    has_cursor = _cursor_position(iomap.input.selection) !== nothing
-    [
-        GestureDescriptor("Left",      "Move cursor left",           :navigation, "TextToGraphics", has_cursor),
-        GestureDescriptor("Right",     "Move cursor right",          :navigation, "TextToGraphics", has_cursor),
-        GestureDescriptor("Up",        "Move cursor up one line",    :navigation, "TextToGraphics", has_cursor),
-        GestureDescriptor("Down",      "Move cursor down one line",  :navigation, "TextToGraphics", has_cursor),
-        GestureDescriptor("Home",      "Move to start of line",      :navigation, "TextToGraphics", has_cursor),
-        GestureDescriptor("End",       "Move to end of line",        :navigation, "TextToGraphics", has_cursor),
-        GestureDescriptor("Ctrl-Home", "Move to start of document",  :navigation, "TextToGraphics", true),
-        GestureDescriptor("Ctrl-End",  "Move to end of document",    :navigation, "TextToGraphics", true),
-        GestureDescriptor("Click",     "Place cursor at position",   :selection,  "TextToGraphics", true),
-    ]
-end
-```
+**Backward reference mapping (deferred refinement).** In Lisp the help operation
+also flows through `operation/read-backward`, mapping each descriptor's
+references inward and marking unmappable ones inaccessible. For v1, display needs
+only gesture + domain + description (plain strings, domain-independent), so the
+union can ignore reference mapping. Computing `available` precisely by mapping
+each descriptor backward through the pipeline is a later refinement.
 
 ---
 
 ## Display
 
-### Option A: Overlay document (preferred, simple)
+### Overlay document (preferred, simple)
 
-When Ctrl-? is pressed:
+When the operation comes back as a `ShowContextSensitiveHelpOperation`:
 
-1. Build a `GestureHelpDocument` containing the collected `Vector{GestureDescriptor}`.
+1. Wrap its `commands` in a `GestureHelpDocument`.
 2. Temporarily swap the editor's active document/projection to display the help
-   (similar to the log overlay approach in `logging.md`).
-3. The help projection (`GestureHelpToSyntax → SyntaxToText → TextToGraphics`)
-   renders a categorized table:
+   (same overlay approach as the logging plan).
+3. A `HelpToText` (or `GestureHelpToSyntax → SyntaxToText → TextToGraphics`)
+   projection renders a categorized table:
    ```
-   ── Navigation ──────────────────────────
-   Left          Move cursor left              [TextToGraphics]
-   Right         Move cursor right             [TextToGraphics]
+   ── Focusing ─────────────────────────────
+   Ctrl-,        Move focus one level up
+   Ctrl-.        Focus into the selection        (unavailable: no selection)
+   ── Navigation ───────────────────────────
+   Left          Move cursor left
    ...
-   ── Focus ────────────────────────────────
-   Ctrl-,        Navigate focus outward        [FocusingProjection]  ✓
-   Ctrl-.        Focus into selected element   [FocusingProjection]  ✗ (no selection)
    ```
+   Greyed rows = `available == false` (Lisp colors these with lightened text).
 4. Any key dismisses the overlay.
 
-### Option B: Tooltip popup
-
-Display the gestures in a `WidgetTooltip` anchored to the cursor position.
-Richer but requires widget layout to be in place.
-
-Start with **Option A**.
+This mirrors `help/context-sensitive->text/text` directly.
 
 ---
 
 ## Steps
 
-### 1. Add `:question_mark` to `KeyPress` vocabulary
+### 1. Gesture vocabulary for the help key
 
-Update `Keyboard.jl` symbol list documentation. Ensure the SDL backend maps
-Shift-/ (or the `?` key on international layouts) to `:question_mark`.
-Verify `ctrl` flag is set when Ctrl is held.
+Ensure the help gesture is recognizable (`Ctrl-?` / `Ctrl-Shift-/`, or follow the
+Lisp `Ctrl-H`). Add `is_help_gesture(gesture)` next to the existing gesture
+predicates. Verify the SDL/`Keyboard.jl` backend delivers the modifier + key.
 
-### 2. Define `GestureDescriptor` struct
+### 2. Add `GestureDescriptor` + `ShowContextSensitiveHelpOperation`
 
-New file `program/src/document/GestureHelp.jl`:
-- `GestureDescriptor` struct
-- `GestureHelpDocument` (wraps a `Vector{GestureDescriptor}`)
-- Include in `Projectured.jl`
+- `GestureDescriptor` struct.
+- `ShowContextSensitiveHelpOperation <: Operation` carrying
+  `Vector{GestureDescriptor}`.
+- A no-op evaluator (it produces no document change; the editor handles it as an
+  overlay, like Lisp's empty `(values)` evaluator).
+- Export from `Projectured.jl`.
 
-### 3. Define `projection_available_gestures` API
+### 3. The `@gesture_case` macro
 
-Add to `program/src/api/Projection.jl`:
-```julia
-function projection_available_gestures end
-```
+New macro (e.g. `program/src/editor/GestureCase.jl`):
+- `case(gesture; domain, description, accessible = true, operation)` marker.
+- Expand to the help-branch (build descriptors, operations **not** evaluated) +
+  per-case dispatch branches (operation evaluated lazily) + `nothing` fallback.
+- Returns an operation-or-`nothing` (reader wraps in `Change`), or a `Change`
+  directly — pick one convention and document it.
 
-Add default fallback in `program/src/common/Projection.jl`:
-```julia
-projection_available_gestures(::Projection, iomap) = GestureDescriptor[]
-```
+### 4. `merge_help` + help-aware higher-order readers
 
-### 4. Implement for higher-order projections
+- `merge_help` union-by-gesture helper.
+- `SequentialProjection.projection_read`: help-gesture branch that visits all
+  steps and merges.
+- Alternative/dispatching readers: delegate to active branch.
 
-- `SequentialProjection` — concatenate from all steps
-- `AlternativeProjection` — delegate to active branch
-- `NestingProjection` — delegate to inner
-- `RecursiveProjection` — delegate to inner
+### 5. Convert leaf readers to `@gesture_case`
 
-### 5. Implement for leaf projections
+Migrate the ad-hoc gesture matching in the highest-value readers so their
+bindings become single-source and help-capable:
+- `FocusingProjection` (Ctrl-comma / Ctrl-period).
+- `TextToGraphics` (arrows, home/end, click).
+- `SyntaxToText` (insert/backspace/delete).
+- `WidgetToGraphics` variants (scroll, tab selection).
 
-Start with the most impactful ones:
-- `TextToGraphics` (arrow keys, home/end, click)
-- `FocusingProjection` (Ctrl-comma, Ctrl-period)
-- `SyntaxToText` (character insertion, backspace, delete)
-- `WidgetToGraphics` variants (scroll, tab selection)
-- `WorkbenchToWidget` (if it handles keys)
+Readers not yet migrated simply contribute no help entries — incremental.
 
-Others can return empty and be filled in incrementally.
+### 6. Editor + overlay rendering
 
-### 6. Intercept Ctrl-? in `read!`
-
-In `Editor.read!`, before calling `projection_read`, check if the event is
-`KeyPress(:question_mark, true)`. If so:
-- Call `projection_available_gestures(editor.projection, editor.iomap)`
-- Store result and set a flag indicating help mode is active
-- On next event (any key/click), clear the flag and resume normal operation
-
-### 7. `GestureHelpToSyntax` projection (printer)
-
-A simple projection that takes a `GestureHelpDocument` and produces a
-`SyntaxDocument` with categorized rows. Reuse existing syntax/text/graphics
-pipeline for rendering.
-
-### 8. Help overlay rendering
-
-When help mode is active, `print!` renders the `GestureHelpDocument` instead
-of the normal document. This is a temporary swap — no permanent state change.
+- `read!` needs **no** special help interception — the help operation comes back
+  through `projection_read` like any operation. `read!` just returns it.
+- `evaluate!`/`print!`: when `editor.operation isa
+  ShowContextSensitiveHelpOperation`, render the overlay instead of applying a
+  document change; clear it on the next event.
+- `HelpToText` (or `GestureHelpToSyntax → …`) projection for the table.
 
 ---
 
-## Open Questions
+## Open questions
 
-- **Conditional availability** — some gestures are always available (click),
-  others depend on state (arrow keys need a cursor). How granular should
-  `available` be? Start with coarse (has cursor / has selection / has focus)
-  and refine later.
-- **Mouse gestures** — clicks and scrolls are position-dependent. Should we
-  list "Click on element X" per-element, or just "Left click — select element"
-  generically? Start generic.
-- **Gesture conflicts** — `SequentialProjection` tries steps last-to-first and
-  the first handler wins. Should the help display indicate priority/shadowing?
-  Nice-to-have but not essential for v1.
-- **Internationalization** — trigger strings are currently English. Acceptable
-  for now.
-- **Performance** — `projection_available_gestures` only runs on Ctrl-?, not
-  every frame. No performance concern.
+- **Lazy operation evaluation in the macro.** Julia macros splice expressions;
+  ensure each `operation` form is emitted only in its matching branch so guards
+  with side-effect-free `nothing` returns behave like the Lisp `:operation`
+  forms. Confirm there are no readers whose operation expression must run for its
+  side effects during matching (there should not be).
+- **Per-reader merge vs. Sequential-level merge.** Lisp merges *inside every
+  reader* (`merge-commands` is called by each). The pragmatic Julia adaptation
+  merges at the `SequentialProjection` level. Is per-reader merge worth the extra
+  uniformity, or is Sequential-level aggregation enough? Start with
+  Sequential-level.
+- **Precise `available` via backward mapping.** v1 marks `available` from the
+  case's `accessible` guard only. Mapping descriptors backward through the
+  pipeline (to grey out downstream gestures that cannot reach the current
+  context) is the full Lisp behavior — defer.
+- **Mouse/positional gestures.** Clicks/scrolls are position-dependent; list them
+  generically ("Left click — select element") for now.
+- **Should `Change` itself carry domain/description?** Lisp's `command` does. In
+  Julia they are only needed inside `GestureDescriptor`, so `Change` can stay as
+  `gesture` + `operation`. Revisit only if per-reader merge (above) is adopted.
 
 ---
 
 ## Dependencies
 
-- Requires `KeyPress` to support `:question_mark` (or `:slash` with shift
-  detection) — minor SDL backend change.
-- Display reuses existing `SyntaxToText → TextToGraphics` pipeline.
-- No dependency on logging or drag-and-drop plans.
+- A recognizable help gesture (`is_help_gesture`) — minor backend/predicate work.
+- `@gesture_case` macro — the central new piece; everything else builds on it.
+- Help-aware `SequentialProjection` reader (merge instead of first-wins for the
+  help gesture).
+- Display reuses the existing `SyntaxToText → TextToGraphics` pipeline.
+- No dependency on the logging or drag-and-drop plans (shares the overlay idea
+  with logging but not its code).
