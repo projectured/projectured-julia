@@ -29,7 +29,7 @@ import ..RecursiveProjectionModule: RecursiveProjection
 export NothingToSyntaxLeaf, BoolToSyntaxLeaf, NumberToSyntaxLeaf,
        StringToSyntaxLeaf, SymbolToSyntaxLeaf, CharToSyntaxLeaf,
        ObjectNodeToSyntaxNode, ObjectToSyntax, print_object, CellToSyntax,
-       search_object
+       search_references, search_objects
 
 # ── NothingToSyntaxLeaf ──────────────────────────────────────────────────────
 
@@ -366,13 +366,13 @@ function print_object(obj; include_selection=false, open_delimiter="{", close_de
     newlines ? join((rstrip(l) for l in split(out, '\n')), '\n') : out
 end
 
-# ── search_object ────────────────────────────────────────────────────────────
+# ── search_references / search_objects ─────────────────────────────────────────
 
 _is_search_leaf(x) = x === nothing || x isa Number || x isa AbstractString ||
                      x isa Symbol || x isa Char
 
 """
-    search_object(obj, predicate; include_selection=false, maxdepth=64) -> Vector{ReferencePath}
+    search_references(obj, predicate; include_selection=false, maxdepth=64) -> Vector{ReferencePath}
 
 Walk any object and return a `ReferencePath` for every node whose (Cell-unwrapped)
 value satisfies `predicate`. Cells are unwrapped transparently (no path step);
@@ -381,38 +381,49 @@ struct fields contribute a `FieldReference`, and array / `CellVector` elements a
 can be handed to `set_selection!` / `replace_selection!`.
 
 ```julia
-for ref in search_object(editor.document, v -> v isa JsonString && occursin("TODO", v.value))
+for ref in search_references(editor.document, v -> v isa JsonString && occursin("TODO", v.value))
     replace_selection!(editor.document, ref)
 end
 ```
 
-`include_selection` includes `selection` fields in the walk; `maxdepth` bounds
-recursion. Mutable nodes are cycle-guarded so self-referential graphs terminate.
+`include_selection` includes `selection` fields in the walk. Every distinct path
+to a matching node is returned — a shared object reachable by several paths is a
+different *location* (hence a different selection) each time, so all of them are
+reported. Only paths that loop back through an object already on the current path
+are dropped, which keeps cyclic graphs (e.g. a doubly-linked list's `prev`/`next`)
+finite. `maxdepth` separately bounds recursion depth for structures that are never
+the *same* object, e.g. an infinite lazy list whose nodes are generated fresh on
+demand. See [`search_objects`](@ref) for the matching objects themselves (each once).
 """
-function search_object(obj, predicate; include_selection::Bool=false, maxdepth::Int=64)
+function search_references(obj, predicate; include_selection::Bool=false, maxdepth::Int=64)
     results = ReferencePath[]
-    _search_object!(results, _unwrap_cell(obj), predicate,
-                    EmptyReferencePath(), IdDict{Any,Bool}(), include_selection, maxdepth)
+    _search_references!(results, _unwrap_cell(obj), predicate,
+                        EmptyReferencePath(), IdDict{Any,Bool}(), include_selection, maxdepth)
     results
 end
 
-function _search_object!(results, obj, predicate, path, seen, include_selection, depth)
-    matched = try predicate(obj) catch; false end
-    matched && push!(results, path)
-    depth <= 0 && return
-    _is_search_leaf(obj) && return
+function _search_references!(results, obj, predicate, path, seen, include_selection, depth)
+    # Drop only paths that loop back through an object already on *this* path:
+    # `seen` holds the current path's ancestors (copied per level), so distinct
+    # paths to a shared object are all reported — they are different locations and
+    # mean different selections — while a path returning to one of its own
+    # ancestors is neither recorded nor descended (keeping cyclic graphs finite).
     if ismutable(obj)
         haskey(seen, obj) && return
         seen = copy(seen); seen[obj] = true
     end
+    matched = try predicate(obj) catch; false end
+    matched && push!(results, path)
+    depth <= 0 && return
+    _is_search_leaf(obj) && return
     if obj isa CellVector
         for i in 1:length(obj)
-            _search_object!(results, _unwrap_cell(obj[i]), predicate,
+            _search_references!(results, _unwrap_cell(obj[i]), predicate,
                             append_reference(path, ElementReference(i)), seen, include_selection, depth - 1)
         end
     elseif obj isa AbstractArray
         for i in 1:length(obj)
-            _search_object!(results, _unwrap_cell(obj[i]), predicate,
+            _search_references!(results, _unwrap_cell(obj[i]), predicate,
                             append_reference(path, ElementReference(i)), seen, include_selection, depth - 1)
         end
     else
@@ -420,8 +431,60 @@ function _search_object!(results, obj, predicate, path, seen, include_selection,
         for fn in fnames
             (fn == :ref || (fn == :selection && !include_selection)) && continue
             isdefined(obj, fn) || continue
-            _search_object!(results, _unwrap_cell(getfield(obj, fn)), predicate,
+            _search_references!(results, _unwrap_cell(getfield(obj, fn)), predicate,
                             append_reference(path, FieldReference(string(fn))), seen, include_selection, depth - 1)
+        end
+    end
+end
+
+"""
+    search_objects(obj, predicate; include_selection=false, maxdepth=64) -> Vector{Any}
+
+Walk any object and return every (Cell-unwrapped) node that satisfies `predicate`,
+**each object at most once** even when it is shared / reachable by several paths.
+This is the object-valued counterpart to [`search_references`](@ref): use it when
+you want the matching values themselves rather than where they live.
+
+```julia
+nums = search_objects(editor.document, v -> v isa JsonNumber)
+```
+
+`include_selection` includes `selection` fields in the walk. A single global
+visited set makes the walk visit each object once, so shared subtrees / DAGs are
+not re-walked and cyclic graphs terminate. `maxdepth` separately bounds recursion
+depth for structures that are never the *same* object, e.g. an infinite lazy list
+whose nodes are generated fresh on demand.
+"""
+function search_objects(obj, predicate; include_selection::Bool=false, maxdepth::Int=64)
+    results = Any[]
+    _search_objects!(results, _unwrap_cell(obj), predicate,
+                     IdDict{Any,Bool}(), include_selection, maxdepth)
+    results
+end
+
+function _search_objects!(results, obj, predicate, seen, include_selection, depth)
+    # Global visit-once: `seen` is shared across the whole walk, so each object is
+    # processed (and therefore reported) a single time regardless of how many
+    # paths reach it; this also makes shared subtrees / DAGs / cycles safe.
+    haskey(seen, obj) && return
+    seen[obj] = true
+    (try predicate(obj) catch; false end) && push!(results, obj)
+    depth <= 0 && return
+    _is_search_leaf(obj) && return
+    if obj isa CellVector
+        for i in 1:length(obj)
+            _search_objects!(results, _unwrap_cell(obj[i]), predicate, seen, include_selection, depth - 1)
+        end
+    elseif obj isa AbstractArray
+        for i in 1:length(obj)
+            _search_objects!(results, _unwrap_cell(obj[i]), predicate, seen, include_selection, depth - 1)
+        end
+    else
+        fnames = try fieldnames(typeof(obj)) catch; () end
+        for fn in fnames
+            (fn == :ref || (fn == :selection && !include_selection)) && continue
+            isdefined(obj, fn) || continue
+            _search_objects!(results, _unwrap_cell(getfield(obj, fn)), predicate, seen, include_selection, depth - 1)
         end
     end
 end

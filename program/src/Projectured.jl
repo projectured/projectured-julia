@@ -324,7 +324,7 @@ using .FileSystemToSyntaxModule: FileSystemFileToSyntaxLeaf, FileSystemDirectory
 using .WorkspaceToFileSystemModule: WorkspaceFolderToFileSystemDirectory, WorkspaceToFileSystem
 using .ObjectToSyntaxModule: ObjectToSyntax, NothingToSyntaxLeaf, BoolToSyntaxLeaf,
                               NumberToSyntaxLeaf, StringToSyntaxLeaf, SymbolToSyntaxLeaf,
-                              CharToSyntaxLeaf, ObjectNodeToSyntaxNode, print_object, search_object
+                              CharToSyntaxLeaf, ObjectNodeToSyntaxNode, print_object, search_references, search_objects
 using .BookToSyntaxModule: BookBookToSyntaxNode, BookChapterToSyntaxNode,
                             BookParagraphToSyntaxLeaf, BookListToSyntaxNode,
                             BookPictureToSyntaxLeaf, BookToSyntax
@@ -360,10 +360,7 @@ using .WorkbenchModule: WorkbenchDocument, WorkbenchInsertion,
                         WorkbenchOperator, WorkbenchSearcher, WorkbenchEvaluator,
                         WorkbenchAssistant,
                         WorkbenchEditor,
-                        WorkbenchOpenDocumentOperation, WorkbenchCloseDocumentOperation,
-                        open_workbench_document!, open_workbench_file!, close_workbench_document!,
-                        list_workbench_documents, get_workbench_document,
-                        set_focused_workbench_document!, get_focused_workbench_document
+                        WorkbenchOpenDocumentOperation, WorkbenchCloseDocumentOperation
 using .ColorModule: StyleColor
 using .GeometryModule: Inset, Point2D,
                       inset_default, inset_size, inset_width, inset_height,
@@ -469,7 +466,7 @@ using .ConversationToWidgetModule: ConversationToWidget,
                                     ConversationPartToWidget
 using .WorkbenchAssistantModule: SubmitProseOperation, SubmitJuliaOperation, SubmitDraftTurnOperation,
                                    ClearInputOperation, ResetConversationOperation,
-                                   build_messages, conversation_to_string, assistant_tool_schemas,
+                                   build_messages, conversation_to_string, write_conversation, assistant_tool_schemas,
                                    dispatch_assistant_tool, parse_markdown_blocks
 using .ConversationEditorModule: ConversationComposerToWidget, composer_read,
                                   finalize_draft!, new_draft, reset_draft!,
@@ -648,7 +645,7 @@ export FileSystemFileToSyntaxLeaf, FileSystemDirectoryToSyntaxNode, FileSystemTo
 export WorkspaceFolderToFileSystemDirectory, WorkspaceToFileSystem
 export ObjectToSyntax, NothingToSyntaxLeaf, BoolToSyntaxLeaf,
        NumberToSyntaxLeaf, StringToSyntaxLeaf, SymbolToSyntaxLeaf,
-       CharToSyntaxLeaf, ObjectNodeToSyntaxNode, print_object, search_object
+       CharToSyntaxLeaf, ObjectNodeToSyntaxNode, print_object, search_references, search_objects
 export BookBookToSyntaxNode, BookChapterToSyntaxNode,
        BookParagraphToSyntaxLeaf, BookListToSyntaxNode,
        BookPictureToSyntaxLeaf, BookToSyntax
@@ -680,10 +677,7 @@ export WorkbenchDocument, WorkbenchInsertion,
        WorkbenchOperator, WorkbenchSearcher, WorkbenchEvaluator,
        WorkbenchAssistant,
        WorkbenchEditor,
-       WorkbenchOpenDocumentOperation, WorkbenchCloseDocumentOperation,
-       open_workbench_document!, open_workbench_file!, close_workbench_document!,
-       list_workbench_documents, get_workbench_document,
-       set_focused_workbench_document!, get_focused_workbench_document
+       WorkbenchOpenDocumentOperation, WorkbenchCloseDocumentOperation
 export ImageDocument, ImageInsertion, ImageFile, ImageMemory
 export ScreenDocument, WindowDocument, EventEnvelope, WindowCloseRequest, WindowResizeEvent
 export TooltipSource
@@ -765,7 +759,7 @@ export ConversationToWidget,
        ConversationPartToWidget
 export SubmitProseOperation, SubmitJuliaOperation, SubmitDraftTurnOperation,
        ClearInputOperation, ResetConversationOperation,
-       build_messages, conversation_to_string, assistant_tool_schemas, dispatch_assistant_tool,
+       build_messages, conversation_to_string, write_conversation, assistant_tool_schemas, dispatch_assistant_tool,
        parse_markdown_blocks
 export ConversationComposerToWidget, composer_read, finalize_draft!, new_draft, reset_draft!,
        ComposerInputOperation, ComposerBackspaceOperation,

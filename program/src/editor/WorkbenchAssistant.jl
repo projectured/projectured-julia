@@ -60,7 +60,7 @@ import ..KeyboardModule: KeyPress
 import ..EventCaseModule: var"@event_case"
 import ..PrimitiveModule: StringReplaceRangeOperation
 import ..AnthropicModule: stream_message
-import ..LlmModule: LlmBackend, stream_turn
+import ..LlmModule: LlmBackend, stream_turn, FakeLlm, AnthropicLlm
 import ..McpModule: execute_julia_code, register_default_tools_and_resources!
 import ..ConversationModule: ConversationDraft
 import ..ConversationEditorModule: composer_read, ComposerSubmitOperation,
@@ -71,7 +71,7 @@ using JSON3
 
 export SubmitProseOperation, SubmitJuliaOperation, SubmitDraftTurnOperation,
        ClearInputOperation, ResetConversationOperation,
-       build_messages, conversation_to_string, assistant_tool_schemas, dispatch_assistant_tool,
+       build_messages, conversation_to_string, write_conversation, assistant_tool_schemas, dispatch_assistant_tool,
        parse_markdown_blocks
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -522,6 +522,23 @@ function conversation_to_string(conversation::ConversationConversation)
     String(take!(io))
 end
 
+"""
+    write_conversation(assistant_or_conversation, path) -> path
+
+Write the assistant's chat history to `path` as a readable transcript (the same
+rendering as `conversation_to_string`: `Role:` headers, prose / fenced source
+blocks, `> code` / `= result` for tool calls, `∴` for thinking). Accepts a
+`WorkbenchAssistant` (uses its `.conversation`) or a `ConversationConversation`
+directly. Returns `path`.
+"""
+write_conversation(a::WorkbenchAssistant, path::AbstractString) =
+    write_conversation(a.conversation, path)
+
+function write_conversation(conversation::ConversationConversation, path::AbstractString)
+    write(path, conversation_to_string(conversation))
+    path
+end
+
 # ═══════════════════════════════════════════════════════════════════════
 # Streaming agent loop
 # ═══════════════════════════════════════════════════════════════════════
@@ -556,9 +573,18 @@ function _run_agent_loop!(editor, a::WorkbenchAssistant)
     # to the backend.
     register_default_tools_and_resources!()
     tools = assistant_tool_schemas()
+    # Resolve the backend and key now (not at construction): a `nothing` default
+    # becomes AnthropicLlm when a key is available, else FakeLlm. Reading ENV here
+    # — rather than baking it into the precompiled document — is what lets a key
+    # exported before launch take effect. Write the resolution back so the live
+    # document reflects the real backend/key (e.g. when inspecting `a.llm`).
+    key = isempty(a.api_key) ? get(ENV, "ANTHROPIC_API_KEY", "") : a.api_key
+    llm = a.llm === nothing ? (isempty(key) ? FakeLlm() : AnthropicLlm()) : a.llm
+    a.llm === llm || (a.llm = llm)
+    a.api_key == key || (a.api_key = key)
     turn_t0 = time()
     iter = 0
-    @info "[assistant] turn start" llm=nameof(typeof(a.llm)) model=a.model tools=length(tools)
+    @info "[assistant] turn start" llm=nameof(typeof(llm)) model=a.model tools=length(tools)
 
     while true
         iter += 1

@@ -4,13 +4,12 @@ using Projectured.ToolRegistryModule: call_tool, list_tools, list_resources
 using Projectured.WorkbenchAssistantModule: SubmitJuliaOperation, _eval_result
 using Projectured: WorkbenchAssistant, evaluate_operation, ConcreteReferencePath,
                    FieldReference, RangeReference, EmptyReferencePath, FakeLlm,
-                   WorkbenchWorkbench, WorkbenchPage, WorkbenchNavigator, Workspace,
-                   JsonString, JsonNull, JsonNumber, jsonparse, evaluate_reference,
-                   print_object, search_object,
-                   open_workbench_document!, open_workbench_file!,
-                   close_workbench_document!, list_workbench_documents,
-                   get_workbench_document, set_focused_workbench_document!,
-                   get_focused_workbench_document
+                   WorkbenchWorkbench, WorkbenchPage, WorkbenchNavigator, WorkbenchEditor,
+                   Workspace,
+                   JsonString, JsonNull, JsonNumber, JsonObject, jsonparse, evaluate_reference,
+                   print_object, search_references, search_objects,
+                   ReplaceSelectionOperation,
+                   WorkbenchOpenDocumentOperation, WorkbenchCloseDocumentOperation
 
 function test_list_guides()
     @testset "list_guides" begin
@@ -205,65 +204,53 @@ function test_search_tools_registered()
 end
 
 function test_workbench_b1()
-    @testset "workbench B1: open/close/list/focus" begin
+    @testset "workbench tabs via operations + search" begin
+        editing = WorkbenchPage([])
+        info    = WorkbenchPage([])
         wb = WorkbenchWorkbench(
             WorkbenchPage([WorkbenchNavigator(Workspace())]),
-            WorkbenchPage([]),
-            WorkbenchPage([]),
+            editing,
+            info,
             WorkbenchPage([]),
         )
         editor = (document = wb,)
 
+        # Find tabs generically with search (no bespoke list helper). The
         # Navigator is not a WorkbenchEditor, so nothing is "open" yet.
-        @test isempty(list_workbench_documents(editor))
+        @test isempty(search_objects(wb, x -> x isa WorkbenchEditor))
 
-        d1 = open_workbench_document!(editor, JsonString("hi"); title="a.json")
-        open_workbench_document!(editor, JsonNull(); title="b.json")
-        docs = list_workbench_documents(editor)
-        @test length(docs) == 2
-        @test docs[1].page == :editing && docs[1].index == 1 && docs[1].title == "a.json"
-        @test docs[1].content_type == JsonString
-        @test docs[2].title == "b.json"
+        # Open tabs by building the operation that carries its target page, then
+        # evaluating it — the same path the editor loop runs for a gesture.
+        a = WorkbenchEditor(JsonString("hi"); title="a.json")
+        b = WorkbenchEditor(JsonNull();        title="b.json")
+        evaluate_operation(editor, WorkbenchOpenDocumentOperation(editing, a))
+        evaluate_operation(editor, WorkbenchOpenDocumentOperation(editing, b))
 
-        # no focus yet → getter returns nothing
-        @test get_focused_workbench_document(editor) === nothing
+        editors = search_objects(wb, x -> x isa WorkbenchEditor)
+        @test length(editors) == 2
+        @test Set(e.title for e in editors) == Set(["a.json", "b.json"])
 
-        # set focus by title points the page selection at the right element
-        set_focused_workbench_document!(editor, "b.json")
-        @test wb.editing_page.selection == ConcreteReferencePath(
-            Projectured.ElementReference(2), EmptyReferencePath())
-        # getter round-trips the focused entry
-        foc = get_focused_workbench_document(editor)
-        @test foc isa Projectured.WorkbenchEditor && foc.title == "b.json"
+        # Locate a tab by content and resolve its reference back to the node.
+        refs = search_references(wb, x -> x isa WorkbenchEditor && x.title == "b.json")
+        @test length(refs) == 1
+        @test evaluate_reference(wb, refs[1]) === b
 
-        # get_workbench_document resolves by index/title without side effect
-        @test get_workbench_document(editor, 1).title == "a.json"
-        @test get_workbench_document(editor, "b.json") === foc
-        @test get_workbench_document(editor, "nope.json") === nothing
+        # "Focus" is selecting that tab — a ReplaceSelectionOperation, like a click.
+        evaluate_operation(editor, ReplaceSelectionOperation(refs[1]))
+        @test evaluate_reference(wb, wb.selection) === b
 
-        # open onto another page
-        open_workbench_document!(editor, JsonNull(); title="n.json", page=:information)
-        @test any(d -> d.page == :information && d.title == "n.json",
-                  list_workbench_documents(editor))
-        # page filter on list_
-        info = list_workbench_documents(editor; page=:information)
-        @test length(info) == 1 && info[1].title == "n.json"
-        @test all(d -> d.page == :editing, list_workbench_documents(editor; page=:editing))
+        # Open onto another page; search finds it regardless of which page.
+        n = WorkbenchEditor(JsonNull(); title="n.json")
+        evaluate_operation(editor, WorkbenchOpenDocumentOperation(info, n))
+        @test any(e -> e.title == "n.json", search_objects(wb, x -> x isa WorkbenchEditor))
 
-        # close by title, by entry identity
-        close_workbench_document!(editor, "a.json")
-        @test [d.title for d in list_workbench_documents(editor) if d.page == :editing] == ["b.json"]
-
-        # open_workbench_file! picks the domain by extension and titles by basename
-        tmp = mktempdir()
-        path = joinpath(tmp, "data.json")
-        write(path, "[1, 2, 3]")
-        entry = open_workbench_file!(editor, path)
-        @test entry.title == "data.json"
-        @test entry.filename == path
-
-        # unknown page errors
-        @test_throws ErrorException open_workbench_document!(editor, JsonNull(); page=:nope)
+        # Close a tab: find its index on the page, build the close operation.
+        idx = 0
+        for (i, e) in enumerate(editing.elements)
+            e.title == "a.json" && (idx = i; break)
+        end
+        evaluate_operation(editor, WorkbenchCloseDocumentOperation(editing, idx))
+        @test [e.title for e in editing.elements] == ["b.json"]
     end
 end
 
@@ -303,10 +290,10 @@ function test_print_object_options()
 end
 
 function test_search_object()
-    @testset "search_object" begin
+    @testset "search_references" begin
         doc = jsonparse("{\"name\": \"Alice\", \"scores\": [10, 20], \"active\": true}")
 
-        refs = search_object(doc, v -> v isa JsonNumber)
+        refs = search_references(doc, v -> v isa JsonNumber)
         @test length(refs) == 2
         # references resolve back to matching nodes
         for r in refs
@@ -314,15 +301,37 @@ function test_search_object()
             @test v isa JsonNumber
         end
 
-        srefs = search_object(doc, v -> v isa JsonString && occursin("Alice", v.value))
+        srefs = search_references(doc, v -> v isa JsonString && occursin("Alice", v.value))
         @test length(srefs) == 1
         @test evaluate_reference(doc, srefs[1]).value == "Alice"
 
         # no matches → empty
-        @test isempty(search_object(doc, v -> v isa JsonNull))
+        @test isempty(search_references(doc, v -> v isa JsonNull))
 
         # a predicate that throws on some nodes is treated as no-match, not an error
-        @test !isempty(search_object(doc, v -> v.value == 10))
+        @test !isempty(search_references(doc, v -> v.value == 10))
+    end
+
+    @testset "search_objects" begin
+        doc = jsonparse("{\"name\": \"Alice\", \"scores\": [10, 20], \"active\": true}")
+
+        # returns the matching objects themselves
+        nums = search_objects(doc, v -> v isa JsonNumber)
+        @test length(nums) == 2
+        @test all(v -> v isa JsonNumber, nums)
+
+        strs = search_objects(doc, v -> v isa JsonString && occursin("Alice", v.value))
+        @test length(strs) == 1
+        @test strs[1].value == "Alice"
+
+        @test isempty(search_objects(doc, v -> v isa JsonNull))
+
+        # a shared object reachable by several paths is returned only once…
+        shared = JsonString("dup")
+        obj = JsonObject("a" => shared, "b" => shared)
+        @test length(search_objects(obj, v -> v === shared)) == 1
+        # …whereas search_references reports both locations
+        @test length(search_references(obj, v -> v === shared)) == 2
     end
 end
 

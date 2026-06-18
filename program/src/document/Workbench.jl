@@ -16,7 +16,7 @@ import ..CollectionModule: CellVector
 import ..TextModule: TextText
 import ..PrimitiveModule: PrimitiveString
 import ..ConversationModule: ConversationConversation, ConversationTurn, ConversationPart, ConversationDraft
-import ..LlmModule: LlmBackend, FakeLlm, AnthropicLlm
+import ..LlmModule: LlmBackend
 import ..ReferenceModule: Reference, ReferencePath, ConcreteReferencePath, ElementReference, RangeReference, EmptyReferencePath, is_element_reference
 import ..WorkspaceModule: Workspace, WorkspaceFolder
 import ..OperationApiModule: Operation, evaluate_operation
@@ -39,10 +39,7 @@ export WorkbenchDocument, WorkbenchInsertion,
        IWorkbenchAssistant,
        IWorkbenchEditor,
        DEFAULT_ASSISTANT_SYSTEM,
-       WorkbenchOpenDocumentOperation, WorkbenchCloseDocumentOperation,
-       open_workbench_document!, open_workbench_file!, close_workbench_document!,
-       list_workbench_documents, get_workbench_document,
-       set_focused_workbench_document!, get_focused_workbench_document
+       WorkbenchOpenDocumentOperation, WorkbenchCloseDocumentOperation
 
 # ── WorkbenchDocument (abstract base) ────────────────────────────────────────
 
@@ -284,7 +281,18 @@ const DEFAULT_ASSISTANT_SYSTEM = "You are Claude working inside the ProjecturEd 
                                   "2. resource://modules\n" *
                                   "3. resource://guide/getting-started\n" *
                                   "4. resource://guide/editor/reference\n" *
-                                  "5. resource://guide/editor/selection\n\n" *
+                                  "5. resource://guide/editor/selection\n" *
+                                  "6. resource://guide/editor/finding-and-selecting\n" *
+                                  "7. resource://guide/operations\n\n" *
+                                  "TO INSPECT OR CHANGE THE DOCUMENT — never hand-walk the document tree or write\n" *
+                                  "bespoke helpers; use the general primitives (they work through any Screen/Window\n" *
+                                  "wrapping and across every domain):\n" *
+                                  "- `search_references(editor.document, predicate)` returns the paths to matching nodes.\n" *
+                                  "- `search_objects(editor.document, predicate)` returns the matching nodes themselves (each once).\n" *
+                                  "- `evaluate_reference(editor.document, path)` resolves a path back to its node.\n" *
+                                  "- Build an `Operation` and apply it with `evaluate_operation(editor, op)` — e.g. " *
+                                  "`ReplaceSelectionOperation(path)` to select. This is the one way to change the document.\n" *
+                                  "  See resource://guide/editor/finding-and-selecting and resource://guide/operations.\n\n" *
                                   "TO FIND A SPECIFIC API OR GUIDE — do this BEFORE writing code:\n" *
                                   "- Call the `search_api` tool to find the right module, struct, or function.\n" *
                                   "- Call the `search_documentation` tool to find the relevant guide section.\n" *
@@ -307,8 +315,14 @@ API key (`api_key`), a `status` symbol (`:idle`, `:streaming`, `:error`,
 ...), and a pluggable `llm::LlmBackend` that decides how submit turns are
 serviced (real Claude vs. a canned-reply fake).
 
-The default `llm` is `AnthropicLlm()` when `ANTHROPIC_API_KEY` is set,
-`FakeLlm()` otherwise — so `run_example(assistant_example)` works offline.
+`llm` defaults to `nothing` and `api_key` to empty: the concrete backend
+(`AnthropicLlm` vs `FakeLlm`) and the key are resolved from
+`ENV["ANTHROPIC_API_KEY"]` **at submit time**, not here. This keeps the choice
+out of the precompiled image — documents are built eagerly into `const`s during
+precompilation (no key then), so resolving at construction would freeze
+`FakeLlm`. Resolving lazily means a key exported before launch is honoured, while
+`run_example(assistant_example)` still works offline (falls back to `FakeLlm`).
+Pass an explicit `llm` (e.g. `FakeLlm("ok")` in tests) to bypass resolution.
 """
 @document struct WorkbenchAssistant <: WorkbenchDocument
     conversation::ConversationConversation
@@ -318,7 +332,7 @@ The default `llm` is `AnthropicLlm()` when `ANTHROPIC_API_KEY` is set,
     system::String
     api_key::String
     status::Symbol
-    llm::LlmBackend
+    llm::Union{Nothing,LlmBackend}
     selection::Reference
 end
 
@@ -330,9 +344,9 @@ function WorkbenchAssistant(; conversation::ConversationConversation = Conversat
                               draft::ConversationDraft = _default_draft(),
                               model::AbstractString = DEFAULT_ASSISTANT_MODEL,
                               system::AbstractString = DEFAULT_ASSISTANT_SYSTEM,
-                              api_key::AbstractString = get(ENV, "ANTHROPIC_API_KEY", ""),
+                              api_key::AbstractString = "",
                               status::Symbol = :idle,
-                              llm::LlmBackend = isempty(api_key) ? FakeLlm() : AnthropicLlm())
+                              llm::Union{Nothing,LlmBackend} = nothing)
     a = WorkbenchAssistant(Cell(conversation), Cell(input), Cell(draft),
                            Cell(String(model)), Cell(String(system)),
                            Cell(String(api_key)), Cell(status),
@@ -385,16 +399,21 @@ end
 
 # ── Workbench manipulation (B1) ───────────────────────────────────────────────
 #
-# High-level functions for opening, closing, listing, and focusing documents in
-# the workbench. Intended to be called from `execute_julia_code` (and the REPL),
-# where `editor` is the running editor and `editor.document` is the workbench.
-# Open/close go through operations so they behave like user edits and can be
-# made undoable later.
+# Workbench tab edits are expressed as operations: build the operation carrying
+# its target `WorkbenchPage` and apply it with `evaluate_operation(editor, op)` —
+# the same path the editor loop runs for a gesture. Find the page (and any tab)
+# generically with `search_objects` / `search_references` (which walk through the
+# ScreenDocument → WindowDocument → … wrapping); there is deliberately no bespoke
+# imperative helper layer that re-navigates `editor.document`. See
+# guide/editor/finding-and-selecting.md and guide/operations.md.
 
 """
     WorkbenchOpenDocumentOperation(page, entry)
 
-Open `entry` (a `WorkbenchEditor`) by appending it to `page`.
+Open a workbench tab: append `entry` (a `WorkbenchEditor`) to `page`
+(a `WorkbenchPage`). Locate `page` with e.g.
+`search_objects(editor.document, x -> x isa WorkbenchPage)` and apply with
+`evaluate_operation(editor, WorkbenchOpenDocumentOperation(page, entry))`.
 """
 struct WorkbenchOpenDocumentOperation <: Operation
     page::WorkbenchPage
@@ -409,7 +428,9 @@ end
 """
     WorkbenchCloseDocumentOperation(page, index)
 
-Close the document at 1-based `index` on `page`.
+Close the workbench tab at 1-based `index` on `page` (a `WorkbenchPage`). Locate
+`page` with `search_objects` / `search_references` and apply with
+`evaluate_operation(editor, WorkbenchCloseDocumentOperation(page, index))`.
 """
 struct WorkbenchCloseDocumentOperation <: Operation
     page::WorkbenchPage
@@ -419,185 +440,6 @@ end
 function evaluate_operation(editor, op::WorkbenchCloseDocumentOperation)
     deleteat!(op.page.elements, op.index)
     nothing
-end
-
-# Map a page selector symbol to the WorkbenchPage on the editor's workbench.
-function _workbench_page(editor, page::Symbol)
-    wb = editor.document
-    wb isa WorkbenchWorkbench ||
-        error("editor.document is a $(typeof(wb)), not a WorkbenchWorkbench")
-    page === :navigation  ? wb.navigation_page  :
-    page === :editing     ? wb.editing_page     :
-    page === :information ? wb.information_page  :
-    page === :control     ? wb.control_page      :
-    error("unknown page $(repr(page)); expected :navigation, :editing, :information, or :control")
-end
-
-# Resolve `which` (1-based index, title string, or the entry itself) to an index.
-_resolve_workbench_index(pg::WorkbenchPage, which::Integer) =
-    (1 <= which <= length(pg.elements)) ? Int(which) :
-        error("index $which out of range 1:$(length(pg.elements))")
-
-function _resolve_workbench_index(pg::WorkbenchPage, which::AbstractString)
-    for (i, el) in enumerate(pg.elements)
-        title(el) == which && return i
-    end
-    error("no document titled $(repr(which)) on this page")
-end
-
-function _resolve_workbench_index(pg::WorkbenchPage, which)
-    for (i, el) in enumerate(pg.elements)
-        el === which && return i
-    end
-    error("document $(which) not found on this page")
-end
-
-# Pick a domain document for a file by extension; fall back to a plain string.
-function _parse_workbench_file(filename::AbstractString)
-    ext = lowercase(splitext(filename)[2])
-    ext == ".json" ? jsonparse_file(filename) :
-    ext == ".xml"  ? xmlparse_file(filename)  :
-    ext == ".ini"  ? iniparse_file(filename)  :
-    ext == ".ned"  ? nedparse_file(filename)  :
-    ext == ".jl"   ? juliaparse_file(filename) :
-    PrimitiveString(read(filename, String))
-end
-
-"""
-    open_workbench_document!(editor, content; title="", filename="", page=:editing) -> WorkbenchEditor
-
-Open `content` as a new editor tab on `page` (one of `:navigation`, `:editing`,
-`:information`, `:control`; default `:editing`) and return the created
-`WorkbenchEditor`.
-"""
-function open_workbench_document!(editor, content;
-                                  title::AbstractString="",
-                                  filename::AbstractString="",
-                                  page::Symbol=:editing)
-    pg = _workbench_page(editor, page)
-    entry = WorkbenchEditor(content; title=String(title), filename=String(filename))
-    evaluate_operation(editor, WorkbenchOpenDocumentOperation(pg, entry))
-    entry
-end
-
-"""
-    open_workbench_file!(editor, filename; page=:editing, title="") -> WorkbenchEditor
-
-Load `filename` from disk, parse it by extension (`.json`, `.xml`, `.ini`,
-`.ned`, `.jl`; anything else becomes a `PrimitiveString`), and open it on `page`.
-The tab title defaults to the file's base name. Compose it over a directory to
-open many files at once:
-
-    for f in readdir(dir; join=true)
-        open_workbench_file!(editor, f)
-    end
-"""
-function open_workbench_file!(editor, filename::AbstractString;
-                              page::Symbol=:editing, title::AbstractString="")
-    isfile(filename) || error("no such file: $filename")
-    content = _parse_workbench_file(filename)
-    ttl = isempty(title) ? basename(filename) : title
-    open_workbench_document!(editor, content; title=ttl, filename=filename, page=page)
-end
-
-"""
-    close_workbench_document!(editor, which; page=:editing)
-
-Close a document on `page`. `which` is a 1-based index, a title string, or the
-`WorkbenchEditor` entry itself.
-"""
-function close_workbench_document!(editor, which; page::Symbol=:editing)
-    pg = _workbench_page(editor, page)
-    idx = _resolve_workbench_index(pg, which)
-    evaluate_operation(editor, WorkbenchCloseDocumentOperation(pg, idx))
-    nothing
-end
-
-"""
-    list_workbench_documents(editor; page=nothing) -> Vector{<:NamedTuple}
-
-List the open `WorkbenchEditor` tabs as NamedTuples
-`(page, index, title, filename, content_type)`. With `page=nothing` (default)
-all four pages are listed; pass a page symbol (`:navigation`, `:editing`,
-`:information`, `:control`) to list only that page. Call this to see workbench
-state before opening, closing, or focusing a document.
-"""
-function list_workbench_documents(editor; page=nothing)
-    wb = editor.document
-    wb isa WorkbenchWorkbench ||
-        error("editor.document is a $(typeof(wb)), not a WorkbenchWorkbench")
-    pages = page === nothing ?
-        ((:navigation,  wb.navigation_page),
-         (:editing,     wb.editing_page),
-         (:information, wb.information_page),
-         (:control,     wb.control_page)) :
-        ((page, _workbench_page(editor, page)),)
-    out = NamedTuple[]
-    for (pagename, pg) in pages
-        for (i, el) in enumerate(pg.elements)
-            el isa WorkbenchEditor || continue
-            push!(out, (page = pagename, index = i,
-                        title = el.title, filename = el.filename,
-                        content_type = typeof(el.content)))
-        end
-    end
-    out
-end
-
-"""
-    get_workbench_document(editor, which; page=:editing) -> WorkbenchEditor or nothing
-
-Resolve the document at `which` (index, title, or the entry itself) on `page`
-and return its `WorkbenchEditor` entry — or `nothing` if no such document
-exists. Pure lookup: unlike `close_`/`set_focused_`, it has no side effect. Use
-`entry.content` for the inner document.
-"""
-function get_workbench_document(editor, which; page::Symbol=:editing)
-    pg = _workbench_page(editor, page)
-    idx = try
-        _resolve_workbench_index(pg, which)
-    catch
-        return nothing
-    end
-    pg.elements[idx]
-end
-
-# The 1-based index the page's selection points at (its leading element step),
-# or nothing if the page has no element-level selection.
-function _focused_index(pg::WorkbenchPage)
-    sel = pg.selection
-    sel isa ConcreteReferencePath || return nothing
-    step = sel.head
-    (step isa RangeReference && is_element_reference(step)) || return nothing
-    idx = step.start + 1
-    (1 <= idx <= length(pg.elements)) ? idx : nothing
-end
-
-"""
-    set_focused_workbench_document!(editor, which; page=:editing)
-
-Make the document at `which` (index, title, or entry) the active tab on `page`
-by pointing the page's selection at it — the same mechanism a tab click uses.
-The getter counterpart is [`get_focused_workbench_document`](@ref).
-"""
-function set_focused_workbench_document!(editor, which; page::Symbol=:editing)
-    pg = _workbench_page(editor, page)
-    idx = _resolve_workbench_index(pg, which)
-    pg.selection = ConcreteReferencePath(ElementReference(idx), EmptyReferencePath())
-    nothing
-end
-
-"""
-    get_focused_workbench_document(editor; page=:editing) -> WorkbenchEditor or nothing
-
-Return the `WorkbenchEditor` that is the active tab on `page` (the one
-[`set_focused_workbench_document!`](@ref) / a tab click last selected), or
-`nothing` if the page has no focused document.
-"""
-function get_focused_workbench_document(editor; page::Symbol=:editing)
-    pg = _workbench_page(editor, page)
-    idx = _focused_index(pg)
-    idx === nothing ? nothing : pg.elements[idx]
 end
 
 end # module
