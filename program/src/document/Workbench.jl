@@ -17,8 +17,14 @@ import ..TextModule: TextText
 import ..PrimitiveModule: PrimitiveString
 import ..ConversationModule: ConversationConversation, ConversationTurn, ConversationPart, ConversationDraft
 import ..LlmModule: LlmBackend, FakeLlm, AnthropicLlm
-import ..ReferenceModule: Reference, ReferencePath
+import ..ReferenceModule: Reference, ReferencePath, ConcreteReferencePath, ElementReference, EmptyReferencePath
 import ..WorkspaceModule: Workspace, WorkspaceFolder
+import ..OperationApiModule: Operation, evaluate_operation
+import ..JsonParserModule: jsonparse_file
+import ..XmlParserModule: xmlparse_file
+import ..IniParserModule: iniparse_file
+import ..NedParserModule: nedparse_file
+import ..JuliaParserModule: juliaparse_file
 export WorkbenchDocument, WorkbenchInsertion,
        WorkbenchWorkbench, WorkbenchPage,
        WorkbenchNavigator, WorkbenchConsole, WorkbenchDescriptor,
@@ -32,7 +38,10 @@ export WorkbenchDocument, WorkbenchInsertion,
        IWorkbenchOperator, IWorkbenchSearcher, IWorkbenchEvaluator,
        IWorkbenchAssistant,
        IWorkbenchEditor,
-       DEFAULT_ASSISTANT_SYSTEM
+       DEFAULT_ASSISTANT_SYSTEM,
+       WorkbenchOpenDocumentOperation, WorkbenchCloseDocumentOperation,
+       open_workbench_document!, open_workbench_file!, close_workbench_document!,
+       list_workbench_documents, focus_workbench_document!
 
 # ── WorkbenchDocument (abstract base) ────────────────────────────────────────
 
@@ -371,6 +380,175 @@ setfn!(e::WorkbenchEditor, f::Function) = (setfn!(getfield(e, :content), f); e)
 function Base.show(io::IO, e::WorkbenchEditor)
     print(io, "WorkbenchEditor(title=", repr(e.title),
           ", filename=", repr(e.filename), ")")
+end
+
+# ── Workbench manipulation (B1) ───────────────────────────────────────────────
+#
+# High-level functions for opening, closing, listing, and focusing documents in
+# the workbench. Intended to be called from `execute_julia_code` (and the REPL),
+# where `editor` is the running editor and `editor.document` is the workbench.
+# Open/close go through operations so they behave like user edits and can be
+# made undoable later.
+
+"""
+    WorkbenchOpenDocumentOperation(page, entry)
+
+Open `entry` (a `WorkbenchEditor`) by appending it to `page`.
+"""
+struct WorkbenchOpenDocumentOperation <: Operation
+    page::WorkbenchPage
+    entry::WorkbenchDocument
+end
+
+function evaluate_operation(editor, op::WorkbenchOpenDocumentOperation)
+    push!(op.page.elements, Cell(op.entry))
+    op.entry
+end
+
+"""
+    WorkbenchCloseDocumentOperation(page, index)
+
+Close the document at 1-based `index` on `page`.
+"""
+struct WorkbenchCloseDocumentOperation <: Operation
+    page::WorkbenchPage
+    index::Int
+end
+
+function evaluate_operation(editor, op::WorkbenchCloseDocumentOperation)
+    deleteat!(op.page.elements, op.index)
+    nothing
+end
+
+# Map a page selector symbol to the WorkbenchPage on the editor's workbench.
+function _workbench_page(editor, page::Symbol)
+    wb = editor.document
+    wb isa WorkbenchWorkbench ||
+        error("editor.document is a $(typeof(wb)), not a WorkbenchWorkbench")
+    page === :navigation  ? wb.navigation_page  :
+    page === :editing     ? wb.editing_page     :
+    page === :information ? wb.information_page  :
+    page === :control     ? wb.control_page      :
+    error("unknown page $(repr(page)); expected :navigation, :editing, :information, or :control")
+end
+
+# Resolve `which` (1-based index, title string, or the entry itself) to an index.
+_resolve_workbench_index(pg::WorkbenchPage, which::Integer) =
+    (1 <= which <= length(pg.elements)) ? Int(which) :
+        error("index $which out of range 1:$(length(pg.elements))")
+
+function _resolve_workbench_index(pg::WorkbenchPage, which::AbstractString)
+    for (i, el) in enumerate(pg.elements)
+        title(el) == which && return i
+    end
+    error("no document titled $(repr(which)) on this page")
+end
+
+function _resolve_workbench_index(pg::WorkbenchPage, which)
+    for (i, el) in enumerate(pg.elements)
+        el === which && return i
+    end
+    error("document $(which) not found on this page")
+end
+
+# Pick a domain document for a file by extension; fall back to a plain string.
+function _parse_workbench_file(filename::AbstractString)
+    ext = lowercase(splitext(filename)[2])
+    ext == ".json" ? jsonparse_file(filename) :
+    ext == ".xml"  ? xmlparse_file(filename)  :
+    ext == ".ini"  ? iniparse_file(filename)  :
+    ext == ".ned"  ? nedparse_file(filename)  :
+    ext == ".jl"   ? juliaparse_file(filename) :
+    PrimitiveString(read(filename, String))
+end
+
+"""
+    open_workbench_document!(editor, content; title="", filename="", page=:editing) -> WorkbenchEditor
+
+Open `content` as a new editor tab on `page` (one of `:navigation`, `:editing`,
+`:information`, `:control`; default `:editing`) and return the created
+`WorkbenchEditor`.
+"""
+function open_workbench_document!(editor, content;
+                                  title::AbstractString="",
+                                  filename::AbstractString="",
+                                  page::Symbol=:editing)
+    pg = _workbench_page(editor, page)
+    entry = WorkbenchEditor(content; title=String(title), filename=String(filename))
+    evaluate_operation(editor, WorkbenchOpenDocumentOperation(pg, entry))
+    entry
+end
+
+"""
+    open_workbench_file!(editor, filename; page=:editing, title="") -> WorkbenchEditor
+
+Load `filename` from disk, parse it by extension (`.json`, `.xml`, `.ini`,
+`.ned`, `.jl`; anything else becomes a `PrimitiveString`), and open it on `page`.
+The tab title defaults to the file's base name. Compose it over a directory to
+open many files at once:
+
+    for f in readdir(dir; join=true)
+        open_workbench_file!(editor, f)
+    end
+"""
+function open_workbench_file!(editor, filename::AbstractString;
+                              page::Symbol=:editing, title::AbstractString="")
+    isfile(filename) || error("no such file: $filename")
+    content = _parse_workbench_file(filename)
+    ttl = isempty(title) ? basename(filename) : title
+    open_workbench_document!(editor, content; title=ttl, filename=filename, page=page)
+end
+
+"""
+    close_workbench_document!(editor, which; page=:editing)
+
+Close a document on `page`. `which` is a 1-based index, a title string, or the
+`WorkbenchEditor` entry itself.
+"""
+function close_workbench_document!(editor, which; page::Symbol=:editing)
+    pg = _workbench_page(editor, page)
+    idx = _resolve_workbench_index(pg, which)
+    evaluate_operation(editor, WorkbenchCloseDocumentOperation(pg, idx))
+    nothing
+end
+
+"""
+    list_workbench_documents(editor) -> Vector{<:NamedTuple}
+
+List the open `WorkbenchEditor` tabs across all four pages, each as a NamedTuple
+`(page, index, title, filename, content_type)`. Call this to see workbench state
+before opening, closing, or focusing a document.
+"""
+function list_workbench_documents(editor)
+    wb = editor.document
+    wb isa WorkbenchWorkbench ||
+        error("editor.document is a $(typeof(wb)), not a WorkbenchWorkbench")
+    out = NamedTuple[]
+    for (pagename, pg) in ((:navigation,  wb.navigation_page),
+                            (:editing,     wb.editing_page),
+                            (:information, wb.information_page),
+                            (:control,     wb.control_page))
+        for (i, el) in enumerate(pg.elements)
+            el isa WorkbenchEditor || continue
+            push!(out, (page = pagename, index = i,
+                        title = el.title, filename = el.filename,
+                        content_type = typeof(el.content)))
+        end
+    end
+    out
+end
+
+"""
+    focus_workbench_document!(editor, which; page=:editing)
+
+Make the document at `which` (index, title, or entry) the active tab on `page`
+by pointing the page's selection at it — the same mechanism a tab click uses.
+"""
+function focus_workbench_document!(editor, which; page::Symbol=:editing)
+    pg = _workbench_page(editor, page)
+    idx = _resolve_workbench_index(pg, which)
+    pg.selection = ConcreteReferencePath(ElementReference(idx), EmptyReferencePath())
+    nothing
 end
 
 end # module

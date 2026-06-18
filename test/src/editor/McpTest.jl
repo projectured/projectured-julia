@@ -3,7 +3,12 @@ using Projectured.McpModule
 using Projectured.ToolRegistryModule: call_tool, list_tools, list_resources
 using Projectured.WorkbenchAssistantModule: SubmitJuliaOperation, _eval_result
 using Projectured: WorkbenchAssistant, evaluate_operation, ConcreteReferencePath,
-                   FieldReference, RangeReference, EmptyReferencePath, FakeLlm
+                   FieldReference, RangeReference, EmptyReferencePath, FakeLlm,
+                   WorkbenchWorkbench, WorkbenchPage, WorkbenchNavigator, Workspace,
+                   JsonString, JsonNull,
+                   open_workbench_document!, open_workbench_file!,
+                   close_workbench_document!, list_workbench_documents,
+                   focus_workbench_document!
 
 function test_list_guides()
     @testset "list_guides" begin
@@ -170,6 +175,54 @@ function test_search_tools_registered()
         # The search tools are callable through the registry like any tool.
         out = call_tool("search_api", Dict("query" => "replace_selection"), nothing)
         @test occursin("replace_selection", out)
+    end
+end
+
+function test_workbench_b1()
+    @testset "workbench B1: open/close/list/focus" begin
+        wb = WorkbenchWorkbench(
+            WorkbenchPage([WorkbenchNavigator(Workspace())]),
+            WorkbenchPage([]),
+            WorkbenchPage([]),
+            WorkbenchPage([]),
+        )
+        editor = (document = wb,)
+
+        # Navigator is not a WorkbenchEditor, so nothing is "open" yet.
+        @test isempty(list_workbench_documents(editor))
+
+        d1 = open_workbench_document!(editor, JsonString("hi"); title="a.json")
+        open_workbench_document!(editor, JsonNull(); title="b.json")
+        docs = list_workbench_documents(editor)
+        @test length(docs) == 2
+        @test docs[1].page == :editing && docs[1].index == 1 && docs[1].title == "a.json"
+        @test docs[1].content_type == JsonString
+        @test docs[2].title == "b.json"
+
+        # focus by title points the page selection at the right element
+        focus_workbench_document!(editor, "b.json")
+        @test wb.editing_page.selection == ConcreteReferencePath(
+            Projectured.ElementReference(2), EmptyReferencePath())
+
+        # open onto another page
+        open_workbench_document!(editor, JsonNull(); title="n.json", page=:information)
+        @test any(d -> d.page == :information && d.title == "n.json",
+                  list_workbench_documents(editor))
+
+        # close by title, by entry identity
+        close_workbench_document!(editor, "a.json")
+        @test [d.title for d in list_workbench_documents(editor) if d.page == :editing] == ["b.json"]
+
+        # open_workbench_file! picks the domain by extension and titles by basename
+        tmp = mktempdir()
+        path = joinpath(tmp, "data.json")
+        write(path, "[1, 2, 3]")
+        entry = open_workbench_file!(editor, path)
+        @test entry.title == "data.json"
+        @test entry.filename == path
+
+        # unknown page errors
+        @test_throws ErrorException open_workbench_document!(editor, JsonNull(); page=:nope)
     end
 end
 
@@ -383,6 +436,7 @@ function test_mcp_tools()
         test_search_documentation()
         test_search_api()
         test_search_tools_registered()
+        test_workbench_b1()
     end
 end
 
@@ -393,3 +447,4 @@ export test_read_module_documentation, test_read_class_documentation, test_read_
 export test_execute_julia_code, test_function_availability, test_base_extensions
 export test_workbench_editor_reference
 export test_search_documentation, test_search_api, test_search_tools_registered
+export test_workbench_b1
