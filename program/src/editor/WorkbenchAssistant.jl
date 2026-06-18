@@ -584,10 +584,16 @@ function _run_agent_loop!(editor, a::WorkbenchAssistant)
     a.api_key == key || (a.api_key = key)
     turn_t0 = time()
     iter = 0
+    # TEMPORARY: cap the agent loop so it can't run away during debugging.
+    max_iters = 5
     @info "[assistant] turn start" llm=nameof(typeof(llm)) model=a.model tools=length(tools)
 
     while true
         iter += 1
+        if iter > max_iters
+            @warn "[assistant] hit iteration cap; stopping turn" max_iters rounds=iter - 1
+            return
+        end
         # Append a fresh assistant turn; the SSE handler fills its prose parts
         # as deltas arrive. Tool calls do NOT go into this turn — they end up as
         # separate :assistant eval turns (EvaluatorForm parts) after the tool runs.

@@ -132,6 +132,12 @@ preloaded), plus resource listings for guides, modules, classes, and
 function documentation. The intent is that an AI assistant can inspect and
 manipulate `editor.document` and `editor.projection` live.
 
+`execute_julia_code` runs each top-level statement in a **persistent scratch
+module**, so a variable assigned in one call (`paths = search_references(…)`)
+stays bound for the next — the caller can build up state incrementally instead
+of resending one large block. It returns the repr of the last value plus any
+captured stdout/stderr.
+
 The server is stopped in the `finally` block of `run!`.
 
 ## Performance counters

@@ -145,6 +145,36 @@ path with the cursor/range step the domain uses (for a JSON string value, a
 `RangeReference` over the text — see the [reference guide](reference.md) and the
 JSON section of the [selection guide](selection.md#json-domain)).
 
+## Scoping a search to one domain
+
+The workbench renders the **same** underlying document through several projections
+at once — a JSON value also shows up in a syntax editor and a text editor. So a
+bare value query returns **one hit per projection** and cannot tell them apart:
+
+```julia
+search_references(editor.document, "Alice")                       # ← matches in JSON, syntax, text…
+search_references(editor.document, n -> n isa AbstractString && n == "Alice")  # same problem
+```
+
+Match the **domain node type** instead — that confines the result to the domain
+you mean:
+
+```julia
+search_references(editor.document, v -> v isa JsonString && v.value == "Alice")
+```
+
+If several editors of the same domain are open, first locate the document you want
+and search the editor that holds it:
+
+```julia
+jsondoc = first(search_objects(editor.document, x -> x isa JsonDocument))
+# …then search editor.document with a predicate keyed to that doc's nodes.
+```
+
+(Searching `jsondoc` directly returns paths rooted at `jsondoc`, **not** at
+`editor.document`, so those paths are not directly selectable on the screen —
+search `editor.document` with a domain-typed predicate when you intend to select.)
+
 ## Notes
 
 - All three primitives unwrap reactive `Cell`s transparently — you do **not**
@@ -152,6 +182,10 @@ JSON section of the [selection guide](selection.md#json-domain)).
   [macros guide](../macros.md)).
 - The predicate runs in the **document (input) domain** — match on
   `JsonString` / `JsonNumber` / … document nodes, not on projected text/graphics.
+- A `String`/`Regex` query is a leaf-text shorthand; it cannot distinguish
+  domains (see "Scoping a search to one domain"). Use a typed predicate to scope.
 - In the running editor `editor.document` is a `ScreenDocument`; searching it
   walks through the window(s) into the workbench automatically, so a content-based
   search does not care about the screen/window wrapping.
+- `execute_julia_code` keeps top-level bindings between calls (a persistent
+  scratch module), so you can assign `paths = …` in one step and use it the next.

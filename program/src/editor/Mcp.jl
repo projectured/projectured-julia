@@ -92,47 +92,54 @@ end
 # Tool handlers (can be called directly from REPL)
 # ═══════════════════════════════════════════════════════════════════════
 
+# A persistent scratch module for `execute_julia_code` sessions. Each top-level
+# statement is evaluated here, so assignments (`paths = …`) become module globals
+# that survive across calls — the assistant can build up state incrementally
+# instead of cramming everything into one block (a major source of wasted rounds).
+# `using Projectured` is done once, by binding the running package module and
+# importing its exports, so every export resolves without re-prepending it.
+const _SCRATCH = Ref{Module}()
+
+function _scratch_module()
+    if !isassigned(_SCRATCH)
+        m = Module(:AssistantScratch)
+        Core.eval(m, :(const Projectured = $(parentmodule(@__MODULE__))))
+        Core.eval(m, :(using .Projectured))
+        _SCRATCH[] = m
+    end
+    _SCRATCH[]
+end
+
 """
     execute_julia_code(editor, code) -> String
 
 Evaluate `code` in the editor process with `editor` bound and `using Projectured`
-pre-loaded. Returns repr of last value plus captured stdout/stderr.
+pre-loaded. Statements run at the top level of a persistent scratch module, so
+top-level assignments (e.g. `paths = …`) stay bound for later calls. Returns the
+repr of the last value plus captured stdout/stderr.
 """
 function execute_julia_code(editor, code)
     try
-        # Prepend 'using Projectured' to make Projectured exports available
-        code_with_using = "using Projectured\n" * code
-        # Use parseall for multi-line code support
-        expr = Meta.parseall(code_with_using)
-        # Use Pipe for redirect_stdio
+        m = _scratch_module()
+        # (Re)bind `editor` as a module global each call so user code can reference
+        # it and so it always tracks the current editor.
+        Core.eval(m, :(editor = $(QuoteNode(editor))))
+        expr = Meta.parseall(code)  # parseall handles multi-line code
+
         stdout_pipe = Pipe()
         stderr_pipe = Pipe()
 
         redirect_stdio(stdout=stdout_pipe, stderr=stderr_pipe) do
-            # Evaluate with editor bound in a let block
-            # Handle :toplevel expression from Meta.parseall
-            local result
+            # Evaluate each top-level statement in order; keep the last value
+            # (REPL semantics). Top-level assignments persist as module globals.
+            result = nothing
             if expr isa Expr && expr.head == :toplevel
-                # Extract the actual expressions (skip line info nodes)
-                actual_exprs = filter(e -> !(e isa LineNumberNode), expr.args)
-                if length(actual_exprs) == 1
-                    # Single expression - evaluate directly with editor bound
-                    result = Core.eval(@__MODULE__, :(let editor = $(QuoteNode(editor))
-                        $(actual_exprs[1])
-                    end))
-                else
-                    # Multiple expressions - wrap in a begin block
-                    result = Core.eval(@__MODULE__, :(let editor = $(QuoteNode(editor))
-                        begin
-                            $(actual_exprs...)
-                        end
-                    end))
+                for e in expr.args
+                    e isa LineNumberNode && continue
+                    result = Core.eval(m, e)
                 end
             else
-                # Non-toplevel expression (shouldn't happen with parseall, but handle anyway)
-                result = Core.eval(@__MODULE__, :(let editor = $(QuoteNode(editor))
-                    $expr
-                end))
+                result = Core.eval(m, expr)
             end
 
             # Append the repr of the result if it's not nothing

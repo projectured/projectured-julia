@@ -264,7 +264,7 @@ end
 # ── WorkbenchAssistant ────────────────────────────────────────────────────────
 
 const WORKBENCH_ASSISTANT_TITLE = "Assistant"
-const DEFAULT_ASSISTANT_MODEL  = "claude-opus-4-7"
+const DEFAULT_ASSISTANT_MODEL  = "claude-opus-4-8"
 """
     DEFAULT_ASSISTANT_SYSTEM
 
@@ -287,20 +287,28 @@ const DEFAULT_ASSISTANT_SYSTEM = "You are Claude working inside the ProjecturEd 
                                   "TO INSPECT OR CHANGE THE DOCUMENT — never hand-walk the document tree or write\n" *
                                   "bespoke helpers; use the general primitives (they work through any Screen/Window\n" *
                                   "wrapping and across every domain):\n" *
-                                  "- `search_references(editor.document, predicate)` returns the paths to matching nodes.\n" *
-                                  "- `search_objects(editor.document, predicate)` returns the matching nodes themselves (each once).\n" *
+                                  "- `search_references(editor.document, query)` returns the paths to matching nodes.\n" *
+                                  "- `search_objects(editor.document, query)` returns the matching nodes themselves (each once).\n" *
+                                  "  `query` is a predicate `node -> Bool`, or a `String`/`Regex` matching leaf text.\n" *
                                   "- `evaluate_reference(editor.document, path)` resolves a path back to its node.\n" *
                                   "- Build an `Operation` and apply it with `evaluate_operation(editor, op)` — e.g. " *
                                   "`ReplaceSelectionOperation(path)` to select. This is the one way to change the document.\n" *
                                   "  See resource://guide/editor/finding-and-selecting and resource://guide/operations.\n\n" *
+                                  "SCOPING A SEARCH TO A DOMAIN — the workbench renders the SAME document through\n" *
+                                  "several projections (a JSON value also appears in syntax and text editors), so a\n" *
+                                  "bare value match (e.g. \"Alice\" or `n isa AbstractString`) returns one hit per\n" *
+                                  "projection and cannot tell them apart. Match the DOMAIN NODE TYPE instead, e.g.\n" *
+                                  "`v -> v isa JsonString && v.value == \"Alice\"`, and/or first locate the document\n" *
+                                  "with `search_objects(editor.document, x -> x isa JsonDocument)`.\n\n" *
+                                  "STATE PERSISTS between `execute_julia_code` calls: a variable you assign at top\n" *
+                                  "level in one call (e.g. `paths = search_references(...)`) is still bound in the\n" *
+                                  "next call, so you can build up state incrementally instead of one giant block.\n\n" *
                                   "TO FIND A SPECIFIC API OR GUIDE — do this BEFORE writing code:\n" *
                                   "- Call the `search_api` tool to find the right module, struct, or function.\n" *
                                   "- Call the `search_documentation` tool to find the relevant guide section.\n" *
                                   "- Read full text with `read_resource(uri)`; read a function's full docs with " *
                                   "`read_function_documentation(\"Module\", \"name\")`.\n" *
                                   "- `list_resources` enumerates guide/module/class resources if you need to browse.\n\n" *
-                                  "Prefer the high-level workbench/document manipulation helpers (find them via " *
-                                  "`search_api(\"workbench\")`) over hand-writing reactive-cell mutations.\n\n" *
                                   "NEVER guess names or signatures — search for them.\n" *
                                   "NEVER search in files, read files, or run shell commands — use the editor's search tools and resources."
 
