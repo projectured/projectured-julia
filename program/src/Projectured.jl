@@ -444,7 +444,10 @@ using .WorkbenchToWidgetModule: WorkbenchWorkbenchToWidgetShell,    WorkbenchWor
                                 WorkbenchToWidget
 using .GraphicsCachingModule: GraphicsCanvasToGraphicsImage, GraphicsCaching
 using .EditorModule: Editor, run!
-using .McpModule: McpServer, mcp_start!, mcp_stop!
+using .McpModule: McpServer, mcp_start!, mcp_stop!,
+                  search_documentation, search_api,
+                  list_guides, read_guide, list_modules, list_classes, list_functions,
+                  read_module_documentation, read_class_documentation, read_function_documentation
 using .ToolRegistryModule: Tool, Resource,
                             register_tool!, register_tools!, list_tools, call_tool,
                             register_resource!, register_resources!, list_resources, read_resource,
@@ -737,7 +740,10 @@ export WorkbenchWorkbenchToWidgetShell,    WorkbenchWorkbenchToWidgetShellIoMap,
        WorkbenchEditorToWidgetScrollPane,
        WorkbenchToWidget
 export Editor, run!
-export McpServer, mcp_start!, mcp_stop!
+export McpServer, mcp_start!, mcp_stop!,
+       search_documentation, search_api,
+       list_guides, read_guide, list_modules, list_classes, list_functions,
+       read_module_documentation, read_class_documentation, read_function_documentation
 export Tool, Resource, register_tool!, register_tools!, list_tools, call_tool,
        register_resource!, register_resources!, list_resources, read_resource,
        anthropic_tool_schema, mcp_tools, mcp_resources
