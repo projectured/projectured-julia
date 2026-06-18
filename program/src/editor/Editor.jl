@@ -96,11 +96,16 @@ end
 """
     evaluate!(editor::Editor)
 
-Apply the current operation to the document. Logs the operation to stdout
-when it is non-nothing.
+Apply the current operation to the document. Logs the operation when it is
+non-nothing.
 """
 function evaluate!(editor::Editor)
-    editor.operation !== nothing && println("\r\e[K[operation] $(editor.operation)")
+    # Log via @info, not a raw println: the assistant runs `execute_julia_code` on
+    # a concurrent task that globally redirects `stdout`/`stderr` to a pipe (and
+    # closes it), so a raw write to the live global stdout from this loop can land
+    # in that closed pipe and crash. The logger writes to the stream captured at
+    # startup, which the redirect leaves untouched.
+    editor.operation !== nothing && @info "[operation] $(editor.operation)"
     evaluate_operation(editor, editor.operation)
 end
 
@@ -130,7 +135,9 @@ function perf!(editor::Editor)
     rt = c[:read_time] / 1e6
     et = c[:evaluate_time] / 1e6
     pt = c[:print_time] / 1e6
-    println("\r\e[K[perf] reads=$(c[:reads]) computes=$(c[:computes]) invalidations=$(c[:invalidations]) writes=$(c[:writes]) read=$(round(rt; digits=2))ms eval=$(round(et; digits=2))ms print=$(round(pt; digits=2))ms")
+    # @info (not raw println) so this never writes to the global stdout the
+    # assistant's `execute_julia_code` may have redirected to a now-closed pipe.
+    @info "[perf] reads=$(c[:reads]) computes=$(c[:computes]) invalidations=$(c[:invalidations]) writes=$(c[:writes]) read=$(round(rt; digits=2))ms eval=$(round(et; digits=2))ms print=$(round(pt; digits=2))ms"
 end
 
 # ── Main loop ──────────────────────────────────────────────────────────
