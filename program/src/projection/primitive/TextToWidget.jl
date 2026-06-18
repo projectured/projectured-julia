@@ -32,7 +32,7 @@ import ..ReferenceModule: ConcreteReferencePath, FieldReference
 import ..FontModule: StyleFont
 import ..ColorModule: StyleColor
 import ..TextToGraphicsModule: TextToGraphics
-import ..WidgetToGraphicsModule: WidgetToGraphics
+import ..WidgetToGraphicsModule: WidgetToGraphics, WidgetTheme, widget_theme_slate_light
 import ..TypeDispatchingModule: TypeDispatchingProjection
 import ..RecursiveProjectionModule: RecursiveProjection
 
@@ -121,8 +121,8 @@ documents (via `WidgetToGraphics`) and `TextText` (via `TextToGraphics`).
 This is the standard final step after `TextToWidget` in the pipeline.
 """
 function WidgetAndTextToGraphics(font::StyleFont; measure::Function,
-                                  default_fg::NTuple{4,UInt8}=(0xff, 0xff, 0xff, 0xff))
-    w2g = WidgetToGraphics(font; measure=measure, default_fg=default_fg)
+                                  theme::WidgetTheme=widget_theme_slate_light(font=font))
+    w2g = WidgetToGraphics(font; measure=measure, theme=theme)
     RecursiveProjection(TypeDispatchingProjection(vcat(
         w2g.dispatch,
         Pair{DataType,Any}[TextText => TextToGraphics(measure=measure)],
