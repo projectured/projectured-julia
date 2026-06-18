@@ -180,6 +180,7 @@ include("projection/primitive/SqlToCellTable.jl")
 include("projection/primitive/CellTableToTable.jl")
 include("projection/primitive/DbCatalogToJson.jl")
 include("projection/primitive/DbCatalogToSyntax.jl")
+include("editor/GestureRecognizer.jl")
 include("editor/ToolRegistry.jl")
 include("editor/Mcp.jl")
 # ConversationEditor (the composer) loads before WorkbenchAssistant so the panel's
@@ -480,6 +481,7 @@ using .WorkbenchToWidgetModule: WorkbenchWorkbenchToWidgetShell,    WorkbenchWor
                                 WorkbenchEditorToWidgetScrollPane,
                                 WorkbenchToWidget
 using .GraphicsCachingModule: GraphicsCanvasToGraphicsImage, GraphicsCaching
+using .GestureRecognizerModule: GestureRecognizer, recognize!, next_gesture!
 using .EditorModule: Editor, run!, play_live!
 using .McpModule: McpServer, mcp_start!, mcp_stop!,
                   search_documentation, search_api,
@@ -790,6 +792,7 @@ export HorizontalLayoutToGraphicsCanvas, VerticalLayoutToGraphicsCanvas,
        GridLayoutToGraphicsCanvas, FlowLayoutToGraphicsCanvas,
        LayoutConstraintToGraphicsCanvas, LayoutToGraphics
 export GraphicsCanvasToGraphicsImage, GraphicsCaching
+export GestureRecognizer, recognize!, next_gesture!
 export WorkbenchWorkbenchToWidgetShell,    WorkbenchWorkbenchToWidgetShellIoMap,
        WorkbenchPageToWidgetTabbedPane,    WorkbenchPageToWidgetTabbedPaneIoMap,
        WorkbenchNavigatorToWidgetScrollPane, WorkbenchNavigatorToWidgetScrollPaneIoMap,

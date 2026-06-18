@@ -148,8 +148,11 @@ end
 
 SDL2 + SDL_ttf backend. Loaded TTF fonts are cached in the module-level
 [`_font_cache`](@ref), shared across windows, measurement, and offscreen
-image rendering. An internal `pending_events` queue holds synthesised
-events (e.g. `MousePress`) scheduled to be delivered on the next poll.
+image rendering.
+
+The backend emits only raw input events; recognising composite gestures
+(e.g. synthesising a `MousePress` click from a `MouseDown`/`MouseUp` pair) is
+the editor's `GestureRecognizer`'s job, not the backend's.
 
 `windows` is the live registry of native SDL windows, keyed by the
 `WindowDocument.id` they mirror. `window_ids` is the reverse map from
@@ -158,13 +161,6 @@ events into `EventEnvelope`s. Both are reconciled by
 `write_to_devices(::SdlBackend, devices, ::ScreenDocument)`.
 """
 mutable struct SdlBackend <: Backend
-    # Synthesised-event queue: drained before polling SDL.
-    pending_events::Vector{Any}
-    # State for MousePress synthesis.
-    last_down_button::Symbol
-    last_down_x::Int
-    last_down_y::Int
-    last_down_time::Float64
     # Multi-window reconciliation state.
     windows::Dict{Symbol, SdlWindowResources}
     window_ids::Dict{UInt32, Symbol}
@@ -182,8 +178,7 @@ end
 # override (e.g. from `run_example(; partial_render=false, debug_dirty=true)`).
 SdlBackend(; partial_render::Union{Bool,Nothing} = nothing,
              debug_dirty::Union{Bool,Nothing}    = nothing) =
-    SdlBackend(Any[], :none, 0, 0, 0.0,
-               Dict{Symbol, SdlWindowResources}(),
+    SdlBackend(Dict{Symbol, SdlWindowResources}(),
                Dict{UInt32, Symbol}(),
                partial_render === nothing ? _envflag("PROJECTURED_PARTIAL_RENDER", true) : partial_render,
                debug_dirty    === nothing ? _envflag("PROJECTURED_DEBUG_DIRTY", true)    : debug_dirty)
@@ -1953,7 +1948,6 @@ end
 
 Poll the SDL event queue once and return an `EventEnvelope` wrapping a
 backend-agnostic inner event:
-- Pending synthesised events (e.g. `MousePress`) are returned first.
 - `SDL_QUIT`                           → `EventEnvelope(:none, QuitEvent())`
 - `SDL_WINDOWEVENT_CLOSE` for a window → `EventEnvelope(<id>, WindowCloseRequest())`
 - `SDL_WINDOWEVENT_RESIZED`            → `EventEnvelope(<id>, WindowResizeEvent(w, h))`
@@ -1961,23 +1955,18 @@ backend-agnostic inner event:
 - `SDL_KEYUP`                          → `EventEnvelope(<id>, KeyUp)`
 - `SDL_TEXTINPUT`                      → `EventEnvelope(<id>, KeyPress)`
 - `SDL_MOUSEBUTTONDOWN`                → `EventEnvelope(<id>, MouseDown)`
-- `SDL_MOUSEBUTTONUP`                  → `EventEnvelope(<id>, MouseUp)`; also
-                                          queues a synthetic `MousePress` envelope
-                                          when the button-up matches the preceding
-                                          button-down (≤ 5 px, ≤ 300 ms).
+- `SDL_MOUSEBUTTONUP`                  → `EventEnvelope(<id>, MouseUp)`
 - `SDL_MOUSEMOTION` (btn held)         → `EventEnvelope(<id>, MouseMove)`
 - `SDL_MOUSEWHEEL`                     → `EventEnvelope(<id>, MouseScroll)`
 
 `<id>` is the `WindowDocument.id` of the originating window (looked up
 in `backend.window_ids`), or `:none` if the SDL event carries no window
 id or refers to a window the backend does not track.
+
+The backend emits only raw events; the `MousePress` click is synthesised from
+the `MouseDown`/`MouseUp` pair by the editor's `GestureRecognizer`, not here.
 """
 function read_from_devices(backend::SdlBackend, devices)
-    # Deliver any previously synthesised events before polling SDL.
-    if !isempty(backend.pending_events)
-        return popfirst!(backend.pending_events)
-    end
-
     event_ref = Ref{SDL_Event}()
     while Bool(SDL_PollEvent(event_ref))
         evt = event_ref[]
@@ -2033,11 +2022,6 @@ function read_from_devices(backend::SdlBackend, devices)
             mods = _current_modifiers()
             x, y = _to_logical(Int(evt.button.x)), _to_logical(Int(evt.button.y))
             wid = _lookup_window_id(backend, evt.button.windowID)
-            # Record for press synthesis.
-            backend.last_down_button = button
-            backend.last_down_x = x
-            backend.last_down_y = y
-            backend.last_down_time = time()
             return EventEnvelope(wid, MouseDown(button, x, y, mods))
 
         elseif t == 0x00000402  # SDL_MOUSEBUTTONUP
@@ -2045,14 +2029,6 @@ function read_from_devices(backend::SdlBackend, devices)
             mods = _current_modifiers()
             x, y = _to_logical(Int(evt.button.x)), _to_logical(Int(evt.button.y))
             wid = _lookup_window_id(backend, evt.button.windowID)
-            # Synthesise MousePress when this up matches the preceding down.
-            if button == backend.last_down_button &&
-               abs(x - backend.last_down_x) < 5 &&
-               abs(y - backend.last_down_y) < 5 &&
-               (time() - backend.last_down_time) < 0.3
-                push!(backend.pending_events,
-                      EventEnvelope(wid, MousePress(button, x, y, mods)))
-            end
             return EventEnvelope(wid, MouseUp(button, x, y, mods))
 
         elseif t == 0x00000400  # SDL_MOUSEMOTION

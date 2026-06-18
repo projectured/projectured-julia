@@ -24,6 +24,7 @@ import ..OperationModule: ReplaceSelectionOperation, QuitEditorOperation
 import ..OperationModule: QuitEditorException
 import ..OperationRerootingModule: prepend_steps_to_op
 import ..ReferenceModule: ReferencePath, ConcreteReferencePath, EmptyReferencePath
+import ..GestureRecognizerModule: GestureRecognizer, next_gesture!
 import ..McpModule: McpServer, mcp_start!, mcp_stop!
 
 export Editor, run!, play_live!
@@ -38,6 +39,7 @@ Holds the state for a read-eval-print loop:
   - `devices`    — input/output devices (e.g. window, keyboard)
   - `iomap`      — the latest IoMap from the printer (internal)
   - `operation`  — the latest operation from the reader (internal)
+  - `recognizer` — the event → gesture recogniser (internal)
 """
 mutable struct Editor
     backend::Backend
@@ -46,9 +48,11 @@ mutable struct Editor
     devices::Vector{Device}
     iomap::Union{IoMap, Nothing}
     operation::Union{Operation, Nothing}
+    recognizer::GestureRecognizer
 end
 
-Editor(backend, document, projection, devices) = Editor(backend, document, projection, devices, nothing, nothing)
+Editor(backend, document, projection, devices) =
+    Editor(backend, document, projection, devices, nothing, nothing, GestureRecognizer())
 
 # ── Read-Eval-Print ──────────────────────────────────────────────────
 
@@ -64,16 +68,19 @@ Envelopes that don't yield an operation (no iomap yet, or a projection
 reader that passed the event through unchanged) are silently consumed;
 there's nothing to evaluate or repaint for them.
 
-The backend returns an `EventEnvelope` wrapping a backend-agnostic
-event (KeyDown, KeyUp, KeyPress, MouseDown, MouseUp, MousePress,
-MouseMove, MouseScroll, QuitEvent, WindowCloseRequest, …) together
-with the originating `WindowDocument.id`. The envelope is passed to
-the projection pipeline reader which translates it via the last
-stored IoMap.
+Raw backend events are first pulled through the editor's `GestureRecognizer`
+(`next_gesture!`), which is where multi-event combinations become gestures —
+e.g. a `MouseDown`/`MouseUp` pair is recognised as a `MousePress` click. The
+recogniser returns an `EventEnvelope` wrapping a backend-agnostic gesture
+(KeyDown, KeyUp, KeyPress, MouseDown, MouseUp, MousePress, MouseMove,
+MouseScroll, QuitEvent, WindowCloseRequest, …) together with the originating
+`WindowDocument.id`. The envelope is passed to the projection pipeline reader
+which translates it via the last stored IoMap.
 """
 function read!(editor::Editor)
     while true
-        env = read_from_devices(editor.backend, editor.devices)
+        env = next_gesture!(editor.recognizer,
+                            () -> read_from_devices(editor.backend, editor.devices))
         if env === nothing
             editor.operation = nothing
             return false
