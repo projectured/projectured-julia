@@ -626,24 +626,35 @@ end
 _query_terms(q::AbstractString) =
     filter(t -> length(t) >= 2, split(lowercase(q), r"[^a-z0-9_]+"))
 
-# Count case-insensitive occurrences of every term in `text`, scaled by `weight`.
-function _term_score(terms, text::AbstractString, weight::Int)
+# Turn a query into (patterns, fold) where `patterns` is what we match against
+# text and `fold` is applied to both query and haystack before matching. The
+# query type selects the search mode:
+#   - String → keyword search: lowercase tokens matched case-insensitively.
+#   - Regex  → regular-expression search against original-case text (use the
+#              `i` flag for case-insensitivity); a single pattern.
+# `findall` / `occursin` / `findfirst` accept both String and Regex patterns,
+# so the scoring code below is shared across both modes.
+_matchers(q::AbstractString) = (_query_terms(q), lowercase)
+_matchers(q::Regex)         = (Any[q], identity)
+
+# Count occurrences of every pattern in `text` (after `fold`), scaled by `weight`.
+function _term_score(patterns, text::AbstractString, weight::Int, fold)
     isempty(text) && return 0
-    lt = lowercase(text)
+    ft = fold(text)
     s = 0
-    for t in terms
-        s += weight * length(findall(t, lt))
+    for t in patterns
+        s += weight * length(findall(t, ft))
     end
     s
 end
 
-# A short, whitespace-collapsed excerpt of `body` centred on the first term hit.
-function _excerpt(body::AbstractString, terms; width::Int=240)
+# A short, whitespace-collapsed excerpt of `body` centred on the first match.
+function _excerpt(body::AbstractString, patterns, fold; width::Int=240)
     isempty(body) && return ""
-    lt = lowercase(body)
+    fb = fold(body)
     pos = nothing
-    for t in terms
-        r = findfirst(t, lt)
+    for t in patterns
+        r = findfirst(t, fb)
         r === nothing && continue
         (pos === nothing || first(r) < pos) && (pos = first(r))
     end
@@ -700,34 +711,37 @@ _guide_index() = (_GUIDE_INDEX[] === nothing && (_GUIDE_INDEX[] = _index_guide_s
 """
     search_documentation(query; limit=8) -> String
 
-Keyword-search the ProjecturEd guide documentation. Splits guides into
-heading-delimited sections, ranks them by how often the query terms appear
-(headings weighted higher than body), and returns the top `limit` hits as a
-markdown list of `resource://guide/{name}` URIs plus a short excerpt. Read the
-full text with `read_resource(uri)`.
+Search the ProjecturEd guide documentation. Splits guides into heading-delimited
+sections, ranks them by how often the query matches (headings weighted higher
+than body), and returns the top `limit` hits as a markdown list of
+`resource://guide/{name}` URIs plus a short excerpt. Read the full text with
+`read_resource(uri)`.
 
-The query is plain keywords, **not a regular expression and with no boolean
-operators**: it is lowercased and split into tokens (alphanumeric/underscore,
-2+ characters) which are matched case-insensitively as substrings. Any token
-matching anywhere includes the section (OR semantics); sections matching more —
-and heading — terms rank higher.
+The **query type selects the mode** (Julia dispatch):
+
+- `query::AbstractString` — plain keywords (**not** a regex, no boolean
+  operators): lowercased and split into tokens (alphanumeric/underscore, 2+
+  characters) matched case-insensitively as substrings. Any token matching
+  includes the section (OR semantics); more — and heading — matches rank higher.
+- `query::Regex` — regular-expression match against the original-case text (add
+  the `i` flag for case-insensitivity), e.g. `search_documentation(r"replace.*range")`.
 """
-function search_documentation(query::AbstractString; limit::Integer=8)
-    terms = _query_terms(query)
-    isempty(terms) && return "Provide a search query (two or more characters)."
+function search_documentation(query::Union{AbstractString,Regex}; limit::Integer=8)
+    patterns, fold = _matchers(query)
+    isempty(patterns) && return "Provide a search query (two or more characters)."
     scored = Tuple{Int,_GuideSection}[]
     for sec in _guide_index()
-        s = _term_score(terms, sec.heading, 5) + _term_score(terms, sec.body, 1)
+        s = _term_score(patterns, sec.heading, 5, fold) + _term_score(patterns, sec.body, 1, fold)
         s > 0 && push!(scored, (s, sec))
     end
-    isempty(scored) && return "No documentation matches \"$query\"."
+    isempty(scored) && return "No documentation matches $(repr(query))."
     sort!(scored; by = x -> -x[1])
     io = IOBuffer()
-    println(io, "# Documentation matches for \"$query\"\n")
+    println(io, "# Documentation matches for $(repr(query))\n")
     for (s, sec) in first(scored, min(limit, length(scored)))
         head = isempty(sec.heading) ? "" : " — $(sec.heading)"
         println(io, "## resource://guide/$(sec.guide)$head")
-        println(io, _excerpt(sec.body, terms))
+        println(io, _excerpt(sec.body, patterns, fold))
         println(io)
     end
     String(take!(io))
@@ -774,13 +788,15 @@ const _API_INDEX = Ref{Union{Nothing,Vector{_ApiEntry}}}(nothing)
 _api_index() = (_API_INDEX[] === nothing && (_API_INDEX[] = _index_api()); _API_INDEX[])
 
 # Rank: exact name match > name substring > qualified-name substring; doc hits add a little.
-function _api_score(terms, e::_ApiEntry)
-    name = lowercase(last(split(e.qualname, '.')))
-    full = lowercase(e.qualname)
-    doc  = lowercase(e.doc)
+# The exact-name (==) tier only applies to string keywords; for a Regex pattern
+# it is skipped (a regex still scores via its name / qualified-name / doc matches).
+function _api_score(patterns, e::_ApiEntry, fold)
+    name = fold(last(split(e.qualname, '.')))
+    full = fold(e.qualname)
+    doc  = fold(e.doc)
     s = 0
-    for t in terms
-        if name == t
+    for t in patterns
+        if t isa AbstractString && name == t
             s += 100
         elseif occursin(t, name)
             s += 20
@@ -802,28 +818,32 @@ name, one-line doc, and how to read full docs: a `resource://…` URI for module
 and classes, or a `read_function_documentation(…)` call for functions. Pass
 `kind` (`"module"`, `"class"`, or `"function"`) to filter.
 
-The query is plain keywords, **not a regular expression and with no boolean
-operators**: it is lowercased and split into tokens (alphanumeric/underscore,
-2+ characters) matched case-insensitively. Any token matching includes the entry
-(OR semantics); exact name matches rank above name substrings, above qualified-
-name substrings, above docstring matches.
+The **query type selects the mode** (Julia dispatch):
+
+- `query::AbstractString` — plain keywords (**not** a regex, no boolean
+  operators): lowercased and split into tokens (alphanumeric/underscore, 2+
+  characters) matched case-insensitively. Any token matching includes the entry
+  (OR semantics); exact name > name substring > qualified-name substring > doc.
+- `query::Regex` — regular-expression match against original-case text (add the
+  `i` flag for case-insensitivity), e.g. `search_api(r"^Json.*Operation\$")`. The
+  exact-name bonus does not apply to a regex; ranking is by where it matches.
 """
-function search_api(query::AbstractString; kind=nothing, limit::Integer=8)
-    terms = _query_terms(query)
-    isempty(terms) && return "Provide a search query (two or more characters)."
+function search_api(query::Union{AbstractString,Regex}; kind=nothing, limit::Integer=8)
+    patterns, fold = _matchers(query)
+    isempty(patterns) && return "Provide a search query (two or more characters)."
     scored = Tuple{Int,_ApiEntry}[]
     for e in _api_index()
         (kind === nothing || e.kind == kind) || continue
-        s = _api_score(terms, e)
+        s = _api_score(patterns, e, fold)
         s > 0 && push!(scored, (s, e))
     end
     if isempty(scored)
         suffix = kind === nothing ? "" : " (kind=$kind)"
-        return "No API matches \"$query\"$suffix."
+        return "No API matches $(repr(query))$suffix."
     end
     sort!(scored; by = x -> -x[1])
     io = IOBuffer()
-    println(io, "# API matches for \"$query\"\n")
+    println(io, "# API matches for $(repr(query))\n")
     for (s, e) in first(scored, min(limit, length(scored)))
         doc = isempty(e.doc) ? "(no documentation)" : e.doc
         println(io, "- **$(e.kind)** `$(e.qualname)` — $doc")

@@ -134,6 +134,9 @@ function test_search_documentation()
 
         # Empty / too-short query
         @test occursin("Provide a search query", search_documentation("a"))
+
+        # Regex dispatch
+        @test occursin("resource://guide/", search_documentation(r"selection"))
     end
 end
 
@@ -157,6 +160,13 @@ function test_search_api()
 
         # Too-short query
         @test occursin("Provide a search query", search_api("a"))
+
+        # Regex dispatch: a Regex query searches by pattern
+        @test occursin("replace_selection", search_api(r"replace_selection"))
+        # regex is case-sensitive by default (matched against original-case text)
+        @test occursin("No API matches", search_api(r"REPLACE_SELECTION"))
+        # ... the i flag restores case-insensitivity
+        @test occursin("replace_selection", search_api(r"REPLACE_SELECTION"i))
     end
 end
 
