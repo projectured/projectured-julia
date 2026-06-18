@@ -24,6 +24,7 @@ const xml_example            = Example("xml",            make_xml_document_examp
 const mixed_example          = Example("mixed",          make_mixed_document_example,          make_mixed_projection_example)
 const syntax_example         = Example("syntax",         make_syntax_document_example,         make_syntax_projection_example)
 const text_example           = Example("text",           make_text_document_example,           make_text_projection_example)
+const plain_text_example     = Example("plain_text",     make_plain_text_document_example,     make_plain_text_projection_example)
 const text_with_image_example = Example("text_with_image", make_text_with_image_example,       make_text_projection_example)
 const object_example         = Example("object",         make_object_document_example,         make_object_projection_example)
 const object_to_widget_example = Example("object_to_widget", make_object_to_widget_document_example, make_object_to_widget_projection_example)
@@ -114,7 +115,7 @@ const clipboard_example      = Example("clipboard",       make_clipboard_documen
 
 const examples = [
     json_example, json_sorted_example, json_null_example, json_string_example,
-    xml_example, mixed_example, syntax_example, text_example, text_with_image_example,
+    xml_example, mixed_example, syntax_example, text_example, plain_text_example, text_with_image_example,
     object_example, object_to_widget_example, line_numbering_example, word_wrapping_example, text_filtering_example, text_highlighting_example,
     widget_example,
     widget_label_example, widget_text_example, widget_checkbox_example, widget_button_example,

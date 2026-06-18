@@ -7,6 +7,26 @@ function make_text_document_example()
     document
 end
 
+# A short, fixed multi-line text — one `TextString` span per line, separated by
+# explicit `TextNewline`s, so there is no word wrapping. Paired with
+# `make_plain_text_projection_example` (a bare `TextToGraphics`), this is the
+# minimal pipeline for watching the renderer's dirty rectangle: moving the caret
+# should repaint only the caret slivers, not the whole block.
+function make_plain_text_document_example()
+    regular = font_ubuntu_monospace_regular_24
+    nl() = TextNewline(font=regular)
+    TextText(
+        TextString("The quick brown fox", regular, color_default), nl(),
+        TextString("jumps over the lazy dog.", regular, color_default), nl(),
+        TextString("Move the caret around and", regular, color_default), nl(),
+        TextString("watch the dirty rectangle:", regular, color_default), nl(),
+        TextString("only the caret should repaint,", regular, color_default), nl(),
+        TextString("not the whole block.", regular, color_default), nl(),
+        TextString("Each line is its own span;", regular, color_default), nl(),
+        TextString("there is no word wrapping here.", regular, color_default),
+    )
+end
+
 # Inline images (and icons) flowing with text. A large image and a small icon
 # sit on the same baseline as the surrounding words; the line grows to the
 # tallest glyph and the cursor can land before or after each image.

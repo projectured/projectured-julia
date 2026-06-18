@@ -90,6 +90,7 @@ export make_xml_document_example, make_xml_projection_example
 export make_mixed_document_example, make_mixed_projection_example
 export make_syntax_document_example, make_syntax_projection_example
 export make_text_document_example, make_text_projection_example, make_text_with_image_example
+export make_plain_text_document_example, make_plain_text_projection_example
 export make_object_document_example, make_object_projection_example
 export make_object_to_widget_document_example, make_object_to_widget_projection_example
 export make_line_numbering_document_example, make_line_numbering_projection_example
@@ -152,7 +153,7 @@ export LiveExample, live_examples, play_live_example, record_live_example, timed
 export json_typein_live, json_select_and_edit_live
 export generate_example_screenshots, update_guide_screenshots
 export json_example, json_sorted_example, json_null_example, json_string_example
-export xml_example, mixed_example, syntax_example, text_example, text_with_image_example
+export xml_example, mixed_example, syntax_example, text_example, plain_text_example, text_with_image_example
 export object_example, object_to_widget_example, line_numbering_example, word_wrapping_example, text_filtering_example, text_highlighting_example
 export widget_example, widget_tabbed_pane_example, widget_text_example
 export widget_label_example, widget_checkbox_example, widget_button_example
