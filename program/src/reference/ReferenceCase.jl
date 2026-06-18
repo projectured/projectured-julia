@@ -432,18 +432,21 @@ function _gen_step_match(hex, tex, step::PSProjection, rest_success, bound::Set{
 end
 
 function _gen_path_match(path_ex, steps::Vector{PatStep}, success, bound::Set{Symbol}=Set{Symbol}())
+    # Skip any leading type checkpoints before matching: canonical references
+    # carry a `TypeReference` before every navigation step, but patterns are
+    # written against the navigation skeleton only.
     if isempty(steps)
-        return :(($path_ex isa ReferenceModule.EmptyReferencePath) ? $success : _nomatch), bound
+        return :((ReferenceModule.skip_type_checkpoints($path_ex) isa ReferenceModule.EmptyReferencePath) ? $success : _nomatch), bound
     end
 
     if length(steps) == 1 && steps[1] isa PSWholePathBind
         name = steps[1].name
-        return :(let $(esc(name)) = $path_ex; $success end), union(bound, Set([name]))
+        return :(let $(esc(name)) = ReferenceModule.skip_type_checkpoints($path_ex); $success end), union(bound, Set([name]))
     end
 
     if length(steps) == 1 && steps[1] isa PSPathInterp
         expr = esc(steps[1].expr)
-        return :(ReferenceModule.reference_equal($path_ex, $expr) ? $success : _nomatch), bound
+        return :(ReferenceModule.reference_equal_ignoring_types($path_ex, $expr) ? $success : _nomatch), bound
     end
 
     p = gensym(:p)
@@ -454,7 +457,7 @@ function _gen_path_match(path_ex, steps::Vector{PatStep}, success, bound::Set{Sy
     step_success, bound2 = _gen_step_match(h, t, steps[1], rest_success, bound1)
 
     ex = quote
-        let $p = $path_ex
+        let $p = ReferenceModule.skip_type_checkpoints($path_ex)
             if $p isa ReferenceModule.ConcreteReferencePath
                 let $h = ReferenceModule.head($p),
                     $t = ReferenceModule.tail($p)
@@ -476,7 +479,7 @@ function _gen_prefix_match(path_ex, steps::Vector{PatStep}, success, bound::Set{
 
     if length(steps) == 1 && steps[1] isa PSPathInterp
         expr = esc(steps[1].expr)
-        return :(ReferenceModule.is_prefix_of($path_ex, $expr) ? $success : _nomatch), bound
+        return :(ReferenceModule.is_prefix_of_ignoring_types($path_ex, $expr) ? $success : _nomatch), bound
     end
 
     p = gensym(:p)
@@ -487,7 +490,7 @@ function _gen_prefix_match(path_ex, steps::Vector{PatStep}, success, bound::Set{
     step_match, bound2 = _gen_step_match(h, t, steps[1], rest_match, bound1)
 
     ex = quote
-        let $p = $path_ex
+        let $p = ReferenceModule.skip_type_checkpoints($path_ex)
             if $p isa ReferenceModule.EmptyReferencePath
                 $success
             elseif $p isa ReferenceModule.ConcreteReferencePath

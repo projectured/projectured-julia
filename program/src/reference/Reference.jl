@@ -27,8 +27,9 @@ import ..DocumentModule: @document
 export Reference, ReferenceStep, ElementReference, PositionReference, RangeReference, FieldReference, TypeReference, FunctionReference, ProjectionReference, PointReference, TextRectangularReference, ReferencePath, EmptyReferencePath, ConcreteReferencePath, append_reference, evaluate_reference, is_valid_reference, collect_references,
        is_element_reference, is_position_reference, is_range_reference,
        IRangeReference, IFieldReference, IConcreteReferencePath, IPointReference,
-       reference_equal, is_prefix_of,
-       ReferenceTypeMismatch, valid_reference_prefix, annotate_reference_types, strip_reference_types
+       reference_equal, is_prefix_of, reference_equal_ignoring_types, is_prefix_of_ignoring_types,
+       ReferenceTypeMismatch, valid_reference_prefix, annotate_reference_types, strip_reference_types,
+       skip_type_checkpoints
 
 # ── ReferenceStep ─────────────────────────────────────────────────────
 
@@ -336,9 +337,47 @@ Base.:(==)(a::ConcreteReferencePath, b::ConcreteReferencePath) =
 """
     reference_equal(a, b)
 
-Structural equality of two reference paths.
+Structural equality of two reference paths. **Strict**: type checkpoints are
+significant, so an annotated path is not equal to its stripped form. Use
+[`reference_equal_ignoring_types`](@ref) to compare across annotated/plain forms.
 """
 reference_equal(a::ReferencePath, b::ReferencePath) = a == b
+
+"""
+    skip_type_checkpoints(path::ReferencePath) -> ReferencePath
+
+Return `path` advanced past any **leading** [`TypeReference`](@ref) checkpoints,
+so the result is either `EmptyReferencePath` or a `ConcreteReferencePath` whose
+head is a navigation step. Unlike [`strip_reference_types`](@ref) this only peels
+the front (it does not recurse into the tail); it is the primitive every
+checkpoint-tolerant consumer uses to find "the next navigation step".
+"""
+skip_type_checkpoints(path::EmptyReferencePath) = path
+function skip_type_checkpoints(path::ConcreteReferencePath)
+    path.head isa TypeReference ? skip_type_checkpoints(path.tail) : path
+end
+# Permissive fallback: the matcher may apply this to a non-path (e.g. `nothing`
+# when there is no selection); pass such values through unchanged.
+skip_type_checkpoints(other) = other
+
+"""
+    reference_equal_ignoring_types(a, b)
+
+Structural equality of two reference paths **ignoring** type checkpoints: both
+paths are stripped of their [`TypeReference`](@ref) steps before comparison, so an
+annotated (canonical) path compares equal to its plain navigation skeleton.
+"""
+reference_equal_ignoring_types(a::ReferencePath, b::ReferencePath) =
+    strip_reference_types(a) == strip_reference_types(b)
+
+"""
+    is_prefix_of_ignoring_types(a, b)
+
+Like [`is_prefix_of`](@ref) but ignoring type checkpoints: both paths are stripped
+before the prefix test.
+"""
+is_prefix_of_ignoring_types(a::ReferencePath, b::ReferencePath) =
+    is_prefix_of(strip_reference_types(a), strip_reference_types(b))
 
 """
     is_prefix_of(a, b)
@@ -584,7 +623,11 @@ function collect_references(document, search_value)
     try
         results = ReferencePath[]
         _search_document(document, EmptyReferencePath(), search_value, results)
-        return results
+        # Produced references leave this function in canonical form: annotate each
+        # plain path against the document it points into, so search results are
+        # self-describing (every step records the type it descends from) and carry
+        # replay-validation checkpoints.
+        return ReferencePath[annotate_reference_types(document, p) for p in results]
     catch e
         @error "Error collecting references" exception = e
         return ReferencePath[]
