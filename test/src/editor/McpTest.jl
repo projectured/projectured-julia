@@ -9,7 +9,8 @@ using Projectured: WorkbenchAssistant, evaluate_operation, ConcreteReferencePath
                    print_object, search_object,
                    open_workbench_document!, open_workbench_file!,
                    close_workbench_document!, list_workbench_documents,
-                   focus_workbench_document!
+                   get_workbench_document, set_focused_workbench_document!,
+                   get_focused_workbench_document
 
 function test_list_guides()
     @testset "list_guides" begin
@@ -224,15 +225,30 @@ function test_workbench_b1()
         @test docs[1].content_type == JsonString
         @test docs[2].title == "b.json"
 
-        # focus by title points the page selection at the right element
-        focus_workbench_document!(editor, "b.json")
+        # no focus yet → getter returns nothing
+        @test get_focused_workbench_document(editor) === nothing
+
+        # set focus by title points the page selection at the right element
+        set_focused_workbench_document!(editor, "b.json")
         @test wb.editing_page.selection == ConcreteReferencePath(
             Projectured.ElementReference(2), EmptyReferencePath())
+        # getter round-trips the focused entry
+        foc = get_focused_workbench_document(editor)
+        @test foc isa Projectured.WorkbenchEditor && foc.title == "b.json"
+
+        # get_workbench_document resolves by index/title without side effect
+        @test get_workbench_document(editor, 1).title == "a.json"
+        @test get_workbench_document(editor, "b.json") === foc
+        @test get_workbench_document(editor, "nope.json") === nothing
 
         # open onto another page
         open_workbench_document!(editor, JsonNull(); title="n.json", page=:information)
         @test any(d -> d.page == :information && d.title == "n.json",
                   list_workbench_documents(editor))
+        # page filter on list_
+        info = list_workbench_documents(editor; page=:information)
+        @test length(info) == 1 && info[1].title == "n.json"
+        @test all(d -> d.page == :editing, list_workbench_documents(editor; page=:editing))
 
         # close by title, by entry identity
         close_workbench_document!(editor, "a.json")

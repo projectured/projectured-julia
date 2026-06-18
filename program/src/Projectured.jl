@@ -362,7 +362,8 @@ using .WorkbenchModule: WorkbenchDocument, WorkbenchInsertion,
                         WorkbenchEditor,
                         WorkbenchOpenDocumentOperation, WorkbenchCloseDocumentOperation,
                         open_workbench_document!, open_workbench_file!, close_workbench_document!,
-                        list_workbench_documents, focus_workbench_document!
+                        list_workbench_documents, get_workbench_document,
+                        set_focused_workbench_document!, get_focused_workbench_document
 using .ColorModule: StyleColor
 using .GeometryModule: Inset, Point2D,
                       inset_default, inset_size, inset_width, inset_height,
@@ -681,7 +682,8 @@ export WorkbenchDocument, WorkbenchInsertion,
        WorkbenchEditor,
        WorkbenchOpenDocumentOperation, WorkbenchCloseDocumentOperation,
        open_workbench_document!, open_workbench_file!, close_workbench_document!,
-       list_workbench_documents, focus_workbench_document!
+       list_workbench_documents, get_workbench_document,
+       set_focused_workbench_document!, get_focused_workbench_document
 export ImageDocument, ImageInsertion, ImageFile, ImageMemory
 export ScreenDocument, WindowDocument, EventEnvelope, WindowCloseRequest, WindowResizeEvent
 export TooltipSource

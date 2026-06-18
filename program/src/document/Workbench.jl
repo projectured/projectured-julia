@@ -17,7 +17,7 @@ import ..TextModule: TextText
 import ..PrimitiveModule: PrimitiveString
 import ..ConversationModule: ConversationConversation, ConversationTurn, ConversationPart, ConversationDraft
 import ..LlmModule: LlmBackend, FakeLlm, AnthropicLlm
-import ..ReferenceModule: Reference, ReferencePath, ConcreteReferencePath, ElementReference, EmptyReferencePath
+import ..ReferenceModule: Reference, ReferencePath, ConcreteReferencePath, ElementReference, RangeReference, EmptyReferencePath, is_element_reference
 import ..WorkspaceModule: Workspace, WorkspaceFolder
 import ..OperationApiModule: Operation, evaluate_operation
 import ..JsonParserModule: jsonparse_file
@@ -41,7 +41,8 @@ export WorkbenchDocument, WorkbenchInsertion,
        DEFAULT_ASSISTANT_SYSTEM,
        WorkbenchOpenDocumentOperation, WorkbenchCloseDocumentOperation,
        open_workbench_document!, open_workbench_file!, close_workbench_document!,
-       list_workbench_documents, focus_workbench_document!
+       list_workbench_documents, get_workbench_document,
+       set_focused_workbench_document!, get_focused_workbench_document
 
 # ── WorkbenchDocument (abstract base) ────────────────────────────────────────
 
@@ -513,21 +514,26 @@ function close_workbench_document!(editor, which; page::Symbol=:editing)
 end
 
 """
-    list_workbench_documents(editor) -> Vector{<:NamedTuple}
+    list_workbench_documents(editor; page=nothing) -> Vector{<:NamedTuple}
 
-List the open `WorkbenchEditor` tabs across all four pages, each as a NamedTuple
-`(page, index, title, filename, content_type)`. Call this to see workbench state
-before opening, closing, or focusing a document.
+List the open `WorkbenchEditor` tabs as NamedTuples
+`(page, index, title, filename, content_type)`. With `page=nothing` (default)
+all four pages are listed; pass a page symbol (`:navigation`, `:editing`,
+`:information`, `:control`) to list only that page. Call this to see workbench
+state before opening, closing, or focusing a document.
 """
-function list_workbench_documents(editor)
+function list_workbench_documents(editor; page=nothing)
     wb = editor.document
     wb isa WorkbenchWorkbench ||
         error("editor.document is a $(typeof(wb)), not a WorkbenchWorkbench")
+    pages = page === nothing ?
+        ((:navigation,  wb.navigation_page),
+         (:editing,     wb.editing_page),
+         (:information, wb.information_page),
+         (:control,     wb.control_page)) :
+        ((page, _workbench_page(editor, page)),)
     out = NamedTuple[]
-    for (pagename, pg) in ((:navigation,  wb.navigation_page),
-                            (:editing,     wb.editing_page),
-                            (:information, wb.information_page),
-                            (:control,     wb.control_page))
+    for (pagename, pg) in pages
         for (i, el) in enumerate(pg.elements)
             el isa WorkbenchEditor || continue
             push!(out, (page = pagename, index = i,
@@ -539,16 +545,59 @@ function list_workbench_documents(editor)
 end
 
 """
-    focus_workbench_document!(editor, which; page=:editing)
+    get_workbench_document(editor, which; page=:editing) -> WorkbenchEditor or nothing
+
+Resolve the document at `which` (index, title, or the entry itself) on `page`
+and return its `WorkbenchEditor` entry — or `nothing` if no such document
+exists. Pure lookup: unlike `close_`/`set_focused_`, it has no side effect. Use
+`entry.content` for the inner document.
+"""
+function get_workbench_document(editor, which; page::Symbol=:editing)
+    pg = _workbench_page(editor, page)
+    idx = try
+        _resolve_workbench_index(pg, which)
+    catch
+        return nothing
+    end
+    pg.elements[idx]
+end
+
+# The 1-based index the page's selection points at (its leading element step),
+# or nothing if the page has no element-level selection.
+function _focused_index(pg::WorkbenchPage)
+    sel = pg.selection
+    sel isa ConcreteReferencePath || return nothing
+    step = sel.head
+    (step isa RangeReference && is_element_reference(step)) || return nothing
+    idx = step.start + 1
+    (1 <= idx <= length(pg.elements)) ? idx : nothing
+end
+
+"""
+    set_focused_workbench_document!(editor, which; page=:editing)
 
 Make the document at `which` (index, title, or entry) the active tab on `page`
 by pointing the page's selection at it — the same mechanism a tab click uses.
+The getter counterpart is [`get_focused_workbench_document`](@ref).
 """
-function focus_workbench_document!(editor, which; page::Symbol=:editing)
+function set_focused_workbench_document!(editor, which; page::Symbol=:editing)
     pg = _workbench_page(editor, page)
     idx = _resolve_workbench_index(pg, which)
     pg.selection = ConcreteReferencePath(ElementReference(idx), EmptyReferencePath())
     nothing
+end
+
+"""
+    get_focused_workbench_document(editor; page=:editing) -> WorkbenchEditor or nothing
+
+Return the `WorkbenchEditor` that is the active tab on `page` (the one
+[`set_focused_workbench_document!`](@ref) / a tab click last selected), or
+`nothing` if the page has no focused document.
+"""
+function get_focused_workbench_document(editor; page::Symbol=:editing)
+    pg = _workbench_page(editor, page)
+    idx = _focused_index(pg)
+    idx === nothing ? nothing : pg.elements[idx]
 end
 
 end # module
