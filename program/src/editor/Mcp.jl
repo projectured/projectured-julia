@@ -613,9 +613,27 @@ function _submodules(proj::Module)
     mods
 end
 
+# True for compiler-generated names that should never surface to a human/AI:
+# gensym'd closure and method types (`#projection_print##0#…`, `##BookBook#1`,
+# `#10#11`). They flood the listings with hundreds of meaningless entries.
+_is_gensym_name(sname::AbstractString) = occursin('#', sname)
+
+# True for the `IFoo` interface type that `@document` generates next to each
+# document type `Foo` — internal plumbing the AI should not see. Only treats a
+# name as an interface when the sibling `Foo` actually exists in the module, so
+# legitimate I-prefixed names (`Inset`, `IniFile`, …) are kept.
+function _is_interface_name(sname::AbstractString, present::Set{Symbol})
+    length(sname) > 1 && sname[1] == 'I' && isuppercase(sname[2]) &&
+        Symbol(sname[2:end]) in present
+end
+
 function _struct_types(mod::Module)
     types = Pair{Symbol,Type}[]
-    for name in sort!(collect(names(mod; all=true)))
+    allnames = names(mod; all=true)
+    present = Set(allnames)
+    for name in sort!(collect(allnames))
+        sname = string(name)
+        (_is_gensym_name(sname) || _is_interface_name(sname, present)) && continue
         isdefined(mod, name) || continue
         obj = getfield(mod, name)
         obj isa Type || continue
@@ -630,6 +648,7 @@ function _module_functions(mod::Module)
     proj = _projectured()
     fns = Pair{Symbol,Any}[]
     for name in sort!(collect(names(mod; all=true)))
+        _is_gensym_name(string(name)) && continue
         isdefined(mod, name) || continue
         obj = getfield(mod, name)
         obj isa Function || continue
