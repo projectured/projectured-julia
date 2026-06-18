@@ -180,14 +180,6 @@ _block_text(c)               = _content_to_string(c)
 # Part / turn helpers for the uniform turn/part model.
 _part_content(p::ConversationPart) = p.content
 _part_text(p::ConversationPart) = _content_to_string(p.content)
-_is_eval_part(p::ConversationPart) = p.content isa EvaluatorForm
-_is_eval_turn(t::ConversationTurn) = any(_is_eval_part, t.parts)
-function _first_eval(t::ConversationTurn)
-    for p in t.parts
-        p.content isa EvaluatorForm && return p.content
-    end
-    nothing
-end
 _eval_code(ef::EvaluatorForm)   = _doc_source(ef.form)
 _eval_result(ef::EvaluatorForm) = _content_to_string(ef.result)
 
@@ -387,10 +379,7 @@ never requested.
 """
 function build_messages(conversation::ConversationConversation)
     out = Dict[]
-    turns = collect(conversation.turns)
-    i = 1
-    while i <= length(turns)
-        t = turns[i]
+    for t in conversation.turns
         if t.role === :user
             content = Any[]
             for part in t.parts
@@ -408,80 +397,66 @@ function build_messages(conversation::ConversationConversation)
             end
             isempty(content) && push!(content, Dict("type" => "text", "text" => " "))
             push!(out, Dict("role" => "user", "content" => content))
-            i += 1
-        elseif t.role === :assistant && _is_eval_turn(t)
-            # An assistant tool-call turn not preceded by an assistant text
-            # turn — emit a standalone assistant tool_use + user tool_result
-            # pair so the API contract still holds.
-            ef = _first_eval(t)
-            push!(out, Dict("role" => "assistant",
-                            "content" => Any[Dict("type"  => "tool_use",
-                                                   "id"    => ef.tool_use_id,
-                                                   "name"  => "execute_julia_code",
-                                                   "input" => Dict("code" => _eval_code(ef)))]))
-            push!(out, Dict("role" => "user",
-                            "content" => Any[Dict("type"        => "tool_result",
-                                                   "tool_use_id" => ef.tool_use_id,
-                                                   "content"     => _eval_result(ef),
-                                                   "is_error"    => ef.is_error)]))
-            i += 1
         elseif t.role === :assistant
-            content = _assistant_content(t)
-            # Look ahead: each consecutive :assistant eval turn belongs in this
-            # assistant turn as a tool_use block, with all their results forming
-            # the following user turn as tool_result blocks.
-            j = i + 1
-            while j <= length(turns) && turns[j].role === :assistant && _is_eval_turn(turns[j])
-                ef = _first_eval(turns[j])
-                push!(content, Dict("type"  => "tool_use",
-                                     "id"    => ef.tool_use_id,
-                                     "name"  => "execute_julia_code",
-                                     "input" => Dict("code" => _eval_code(ef))))
-                j += 1
-            end
-            isempty(content) && push!(content, Dict("type" => "text", "text" => " "))
-            push!(out, Dict("role" => "assistant", "content" => content))
-            if j > i + 1
-                results = Any[]
-                for k in (i + 1):(j - 1)
-                    ef = _first_eval(turns[k])
-                    push!(results, Dict("type"        => "tool_result",
-                                         "tool_use_id" => ef.tool_use_id,
-                                         "content"     => _eval_result(ef),
-                                         "is_error"    => ef.is_error))
-                end
-                push!(out, Dict("role" => "user", "content" => results))
-            end
-            i = j
-        else
-            i += 1
+            _emit_assistant_turn!(out, t)
         end
     end
     out
 end
 
-# Build the Anthropic content blocks for an assistant text turn (eval/tool_use
-# parts are handled by `build_messages`'s lookahead, so they are skipped here).
-#
-# Thinking blocks must come **first** in the content array — before text and
-# before the `tool_use` blocks the caller's lookahead appends — and must carry
-# their `signature` unchanged, or a tool-use continuation 400s on a signature
-# error. We collect thinking blocks separately and prepend them.
-function _assistant_content(t::ConversationTurn)
+# Serialize one :assistant turn — an ordered mix of thinking / text / eval parts —
+# into the Anthropic wire shape. The tool-use protocol requires each tool call to
+# sit in an assistant message whose immediately-following user message carries the
+# `tool_result`, so a single turn becomes one or more
+# `assistant(thinking+text+tool_use) → user(tool_result)` pairs, split at each run
+# of eval parts, plus a trailing assistant message for any closing prose. Thinking
+# blocks must lead each assistant message and keep their signature unchanged, or a
+# tool-use continuation 400s.
+function _emit_assistant_turn!(out, t::ConversationTurn)
     thinking = Any[]
-    rest = Any[]
+    text     = Any[]
+    evals    = EvaluatorForm[]
+
+    flush_segment! = function ()
+        content = Any[]
+        append!(content, thinking)    # thinking first
+        append!(content, text)        # then text
+        for ef in evals               # then tool_use blocks
+            push!(content, Dict("type"  => "tool_use",
+                                 "id"    => ef.tool_use_id,
+                                 "name"  => "execute_julia_code",
+                                 "input" => Dict("code" => _eval_code(ef))))
+        end
+        isempty(content) || push!(out, Dict("role" => "assistant", "content" => content))
+        if !isempty(evals)
+            results = Any[Dict("type"        => "tool_result",
+                                "tool_use_id" => ef.tool_use_id,
+                                "content"     => _eval_result(ef),
+                                "is_error"    => ef.is_error) for ef in evals]
+            push!(out, Dict("role" => "user", "content" => results))
+        end
+        empty!(thinking); empty!(text); empty!(evals)
+    end
+
+    prev_was_eval = false
     for part in t.parts
         c = part.content
-        if c isa ConversationThinking
-            push!(thinking, _thinking_block(c))
-        elseif c isa EvaluatorForm
-            continue
+        if c isa EvaluatorForm
+            push!(evals, c)
+            prev_was_eval = true
         else
-            push!(rest, Dict("type" => "text", "text" => _block_text(c)))
+            # Prose after a run of evals begins a new assistant message — close the
+            # current (thinking+text+tool_use) → tool_result segment first.
+            prev_was_eval && flush_segment!()
+            if c isa ConversationThinking
+                push!(thinking, _thinking_block(c))
+            else
+                push!(text, Dict("type" => "text", "text" => _block_text(c)))
+            end
+            prev_was_eval = false
         end
     end
-    append!(thinking, rest)   # thinking first, then text; tool_use appended after
-    thinking
+    flush_segment!()
 end
 
 # One Anthropic content block for a thinking part. Redacted blocks carry an
@@ -588,24 +563,27 @@ function _run_agent_loop!(editor, a::WorkbenchAssistant)
     max_iters = 5
     @info "[assistant] turn start" llm=nameof(typeof(llm)) model=a.model tools=length(tools)
 
+    # One assistant turn for the whole response. The SSE handler appends thinking/
+    # text parts as deltas arrive, and each tool call appends an EvaluatorForm part
+    # below — so the conversation stays strictly alternating user/assistant, with
+    # this single turn holding every part in order. `build_messages` re-expands it
+    # into the Anthropic tool_use/tool_result wire shape.
+    turn = ConversationTurn(:assistant)
+    push!(a.conversation, turn)
+
     while true
         iter += 1
         if iter > max_iters
             @warn "[assistant] hit iteration cap; stopping turn" max_iters rounds=iter - 1
-            return
+            break
         end
-        # Append a fresh assistant turn; the SSE handler fills its prose parts
-        # as deltas arrive. Tool calls do NOT go into this turn — they end up as
-        # separate :assistant eval turns (EvaluatorForm parts) after the tool runs.
-        turn = ConversationTurn(:assistant)
-        push!(a.conversation, turn)
 
+        # Prior turns plus this turn's parts so far (its trailing tool_results are
+        # exactly the continuation prompt). An empty turn on round 1 serializes to
+        # nothing, so no placeholder needs stripping.
         msgs = build_messages(a.conversation)
-        # Drop the empty assistant turn we just appended from the outgoing
-        # request — Anthropic only wants prior turns.
-        !isempty(msgs) && msgs[end]["role"] == "assistant" && pop!(msgs)
 
-        # Live state for this turn
+        # Live state for this round
         state = Dict{Symbol,Any}(
             :current_block    => nothing,         # text block being filled
             :current_thinking => nothing,         # thinking part being filled
@@ -620,32 +598,20 @@ function _run_agent_loop!(editor, a::WorkbenchAssistant)
         stream_turn(a.llm, a.api_key, a.model, a.system, msgs, tools;
                     on_event = ev -> _handle_sse_event!(ev, a, turn, state),
                     thinking = _thinking_config(a.model))
-        @info "[assistant] round $iter: stream done" elapsed_s=round(time() - stream_t0; digits=2) stop=state[:stop_reason] prose_parts=length(turn.parts) pending_tools=length(state[:pending_tools])
+        @info "[assistant] round $iter: stream done" elapsed_s=round(time() - stream_t0; digits=2) stop=state[:stop_reason] parts=length(turn.parts) pending_tools=length(state[:pending_tools])
 
         turn.stop_reason = state[:stop_reason]
-
-        # If the turn produced no prose parts (e.g. Claude went straight to a
-        # tool call), drop the placeholder so it doesn't render as an empty
-        # "assistant:" line in front of the eval turn that carries its own
-        # label. `build_messages` falls back to emitting the tool_use +
-        # tool_result standalone in that case.
-        if isempty(turn.parts)
-            elems = getfield(a.conversation.turns, :elements)[]
-            if !isempty(elems) && elems[end][] === turn
-                deleteat!(a.conversation.turns, length(elems))
-            end
-        end
 
         pending = state[:pending_tools]::Vector{_PendingToolUse}
         if isempty(pending) || state[:stop_reason] !== :tool_use
             @info "[assistant] turn done" rounds=iter elapsed_s=round(time() - turn_t0; digits=2)
-            return
+            break
         end
 
-        # Dispatch each tool and emit one :assistant eval turn per call. The
-        # code and result live together in one EvaluatorForm and `tool_use_id`
-        # pairs the call with its API tool_use block when `build_messages`
-        # re-serialises the conversation for Claude.
+        # Dispatch each tool and append one EvaluatorForm *part* per call to the
+        # single assistant turn. The code and result live together in one
+        # EvaluatorForm and `tool_use_id` pairs the call with its API tool_use /
+        # tool_result blocks when `build_messages` re-serialises the conversation.
         for tu in pending
             @info "[assistant] tool call" name=tu.name
             tool_t0 = time()
@@ -658,11 +624,20 @@ function _run_agent_loop!(editor, a::WorkbenchAssistant)
             code = tu.input isa AbstractDict && haskey(tu.input, "code") ?
                        String(tu.input["code"]) : ""
             is_err = occursin("ERROR", output) || occursin("Error", output)
-            push!(a.conversation,
-                  ConversationTurn(:assistant, [ConversationPart(
-                      EvaluatorForm(JuliaIdentifier(code);
-                                    result = result_text(output),
-                                    is_error = is_err, tool_use_id = tu.id))]))
+            push!(turn.parts, Cell(ConversationPart(
+                EvaluatorForm(JuliaIdentifier(code);
+                              result = result_text(output),
+                              is_error = is_err, tool_use_id = tu.id))))
+        end
+    end
+
+    # If the whole turn produced nothing (e.g. immediate stop / error before any
+    # content), drop the empty placeholder so it doesn't render as a bare
+    # "assistant:" line.
+    if isempty(turn.parts)
+        elems = getfield(a.conversation.turns, :elements)[]
+        if !isempty(elems) && elems[end][] === turn
+            deleteat!(a.conversation.turns, length(elems))
         end
     end
 end
