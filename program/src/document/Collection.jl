@@ -7,6 +7,18 @@ reactive Cells, a table (CellVector of CellVector rows) optimised for row
 insert/delete, and a doubly-linked list with a fixed head and two unlimited
 tails. Per-slot reactivity means a change to one element invalidates only that
 slot's dependents, not the entire collection.
+
+# Invariants
+- **Value change vs. structural change.** `cv[i] = val` writes *into* slot `i`'s
+  existing Cell — a value change that keeps the slot's dependents wired.
+  `cv[i] = cell::Cell` *replaces* the slot's Cell — a structural change that
+  drops the old cell's dependents (they will not be notified again).
+- **Structural mutators must reassign `.elements`.** `push!`, `pop!`, `insert!`,
+  `deleteat!`, and the `Cell`-replacing `setindex!` all mutate the underlying
+  `Vector{Cell}` in place *and then* reassign `cv.elements = elems`. That
+  reassignment (of the same object) is what fires the structure Cell and
+  invalidates dependents that track the vector's shape; omitting it leaves
+  structural observers stale. Any new structural mutator must do the same.
 """
 module CollectionModule
 

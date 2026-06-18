@@ -58,6 +58,13 @@ Return a context for a child position: extends `ctx.reference` by `steps`.
 Available width/height are inherited unchanged — pass-through wrappers
 keep the parent's allocation; a layout that re-allocates space calls
 `with_available_size` explicitly.
+
+!!! warning "The properties Dict is shared, not copied"
+    `child_context` passes the parent's `properties` Dict to the child **by
+    reference**. Mutating it in place (`ctx.properties[k] = v`) therefore leaks
+    into the parent and every sibling branch. Always add per-projection data
+    with `with_property`, which copies the Dict so branches stay isolated; treat
+    `ctx.properties` as read-only.
 """
 function child_context(ctx::PrinterContext, steps::ReferenceStep...)
     PrinterContext(
