@@ -18,7 +18,9 @@ directly mirrors the input structure.
 module ProjectionModule
 
 import ..ProjectionApiModule: projection_print, projection_read, map_reference_forward, map_reference_backward, Projection, Change
-import ..OperationModule: ReplaceSelectionOperation, ToggleCollapseOperation
+import ..OperationModule: ReplaceSelectionOperation, ToggleCollapseOperation,
+                          ReplaceDocumentOperation, CollectionInsertOperation,
+                          CollectionDeleteOperation, CompoundOperation
 import ..PrimitiveModule: StringReplaceRangeOperation, NumberReplaceRangeOperation
 import ..ReactiveModule: Cell
 import ..ReferenceModule: EmptyReferencePath
@@ -64,9 +66,11 @@ end
 
 Default implementation for projection operation reading. Re-targets any
 operation that carries a reference from output space to input space using
-`map_reference_backward`: the selection path of a `ReplaceSelectionOperation`,
-and the `reference` of a `StringReplaceRangeOperation` /
-`NumberReplaceRangeOperation` (so edits flow back through generic projections
+`map_reference_backward`: the path/reference of `ReplaceSelectionOperation`,
+`StringReplaceRangeOperation`, `NumberReplaceRangeOperation`,
+`ReplaceDocumentOperation`, `CollectionInsertOperation` (both `path` and
+`selection`), and `CollectionDeleteOperation`, plus each member of a
+`CompoundOperation` recursively (so edits flow back through generic projections
 such as `SortingProjection`/`ReversingProjection`/`CopyingProjection` without a
 bespoke reader). `ToggleCollapseOperation` is forwarded unchanged; all other
 operation types return `nothing`.
@@ -88,6 +92,24 @@ function projection_read(projection::Projection, iomap, operation)
         input_ref = map_reference_backward(projection, iomap, operation.reference)
         input_ref === nothing && return nothing
         return NumberReplaceRangeOperation(input_ref, operation.replacement)
+    elseif operation isa ReplaceDocumentOperation
+        input_path = map_reference_backward(projection, iomap, operation.path)
+        input_path === nothing && return nothing
+        return ReplaceDocumentOperation(input_path, operation.document)
+    elseif operation isa CollectionInsertOperation
+        input_path = map_reference_backward(projection, iomap, operation.path)
+        input_path === nothing && return nothing
+        input_sel = operation.selection === nothing ? nothing :
+                    map_reference_backward(projection, iomap, operation.selection)
+        return CollectionInsertOperation(input_path, operation.index, operation.items, input_sel)
+    elseif operation isa CollectionDeleteOperation
+        input_path = map_reference_backward(projection, iomap, operation.path)
+        input_path === nothing && return nothing
+        return CollectionDeleteOperation(input_path, operation.index, operation.count)
+    elseif operation isa CompoundOperation
+        mapped = Any[projection_read(projection, iomap, o) for o in operation.operations]
+        any(isnothing, mapped) && return nothing
+        return CompoundOperation(mapped)
     elseif operation isa ToggleCollapseOperation
         # Collapse state lives at the syntax layer; every other projection
         # forwards the operation up the chain unchanged.
