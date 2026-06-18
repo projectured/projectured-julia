@@ -155,11 +155,17 @@ become undoable once undo lands (`further-development.md` §3).
 > Naming follows the Julia convention already in the repo (`setfn!`,
 > `replace_selection!`): mutating functions end in `!`. **Every function name
 > starts with a verb** — `list_workbench_documents`, not `workbench_documents`;
-> `open_workbench_document!`, `describe_document`, `get_selection`. Every function
+> `open_workbench_document!`, `search_object`, `get_selection`. Every function
 > gets a docstring with a usage example, because the docstring is what `search_api`
 > surfaces and what the AI reads before calling.
 
-### B1. Workbench: open / close / list / focus documents
+### B1. Workbench: open / close / list / focus documents — ✅ DONE
+
+> **Implemented** in [Workbench.jl](../../program/src/document/Workbench.jl):
+> `open_workbench_document!`, `open_workbench_file!`, `close_workbench_document!`,
+> `list_workbench_documents`, `focus_workbench_document!`, backed by
+> `WorkbenchOpenDocumentOperation` / `WorkbenchCloseDocumentOperation`. Re-exported
+> from `Projectured`; test `test_workbench_b1`.
 
 > **Naming.** The word "document" is overloaded — `Document` is the abstract base
 > type of *everything* in ProjecturEd. These functions therefore qualify it with
@@ -188,24 +194,77 @@ whose `elements` is a `CellVector`; `WorkbenchPage` already has `setfn!`.
 Back open/close with operations in `WorkbenchModule`
 (`WorkbenchOpenDocumentOperation`, `WorkbenchCloseDocumentOperation`).
 
-### B2. Inspecting parts
+### B2. Inspecting and searching parts — ✅ DONE
 
-**No string-path layer.** The AI is already writing Julia, so it addresses parts
-with the existing reference DSL directly: `@reference editing_page.elements[1].content.entries[2].value`
-for literals, or `ConcreteReferencePath(ElementReference(i), …)` when the path is
-built dynamically (loop variables, computed indices). Since there is no
-string-args entry point — manipulation flows through `execute_julia_code`, not a
-string tool — `parse_reference_path` / `format_reference_path` would only ever
-parse a string the AI itself wrote. They are dead weight and are **not** added.
-Applying and showing paths is already covered by `set_selection!` /
-`replace_selection!` and `repr(path)` / the existing `show`.
+> **Implemented** in
+> [ObjectToSyntax.jl](../../program/src/projection/primitive/ObjectToSyntax.jl):
+> `print_object` gained `newlines::Bool`, `indent::Int`, and `filter` (value
+> predicate) — `newlines`/`filter` thread through `ObjectToSyntax` /
+> `ObjectNodeToSyntaxNode`, `indent` maps to the existing `SyntaxToText(indent_size=…)`
+> (no `SyntaxToText` change needed). `search_object(obj, predicate)` walks any
+> object and returns `ReferencePath`s (`FieldReference` for fields,
+> `ElementReference` for array/`CellVector` elements, Cells transparent,
+> mutable-cycle-guarded) that resolve via `evaluate_reference` and feed
+> `set_selection!` / `replace_selection!`. Re-exported from `Projectured`; tests
+> `test_print_object_options`, `test_search_object`.
 
-What's actually worth adding here is one read helper:
+**No string-path layer, no `describe_document`.** The AI is already writing
+Julia, so it addresses parts with the existing reference DSL directly:
+`@reference editing_page.elements[1].content.entries[2].value` for literals, or
+`ConcreteReferencePath(ElementReference(i), …)` when the path is built dynamically
+(loop variables, computed indices). Since there is no string-args entry point —
+manipulation flows through `execute_julia_code`, not a string tool —
+`parse_reference_path` / `format_reference_path` would only ever parse a string
+the AI itself wrote. They are dead weight.
 
-- `describe_document(editor; path=nothing) -> String` — compact structural
-  outline of a subtree (type, fields, collection lengths, and the `@reference` of
-  each child) so the AI can *see* structure before editing, more readably than
-  raw `repr`/`dump`. Optional — skip if `repr`/`dump` prove sufficient in practice.
+`describe_document` was also dropped: the reference path **is** the structural
+path, so an explicit per-node path dump only repackages information the AI can
+already get from `show` (content), plain Julia field access (`typeof`, `length`,
+`doc.entries[2].value`), and `print_object` (structure). Worse, it would be a
+second structure-walker running parallel to `print_object`, which already
+traverses through the real projection pipeline (`ObjectToSyntax`).
+
+Instead, sharpen the inspection primitives that already exist or fill a real gap:
+
+#### B2a. Enhance `print_object` (in `ObjectToSyntax.jl`)
+
+`print_object` already produces a structural rendering through the projection
+chain (`ObjectToSyntax → SyntaxToText → TextToString`). Add formatting/filtering
+parameters so it is actually pleasant to read (today it leaks `CellVector` /
+`Array` wrapper lines, `collapsed`, and blank lines):
+
+- `newlines::Bool` — whether each node goes on its own line (`true`) or the
+  output is rendered on a single line (`false`).
+- `indent::Int` — spaces per nesting level; `0` ⇒ no indentation. (Pairs with
+  `newlines`: `newlines=true, indent=2` is the readable tree; `newlines=false`
+  is a compact one-liner.)
+- `filter` — a predicate to include/exclude nodes (and/or fields) from the
+  result, so the AI can narrow a large object to the parts it cares about.
+- room for further formatting options (e.g. eliding internal fields, max depth).
+
+These thread into the `print_object` chain / `ObjectToSyntax` — **one** traversal,
+no new walker.
+
+#### B2b. Add `search_object(obj, predicate) -> Vector{ReferencePath}`
+
+Walk any object and return **references to the parts that match** `predicate`.
+This is the one genuinely new capability: it lets the AI find parts *by content*
+("every value `== 42`", "every string containing `foo`", "every node of type
+`JsonNumber`") and get copy-paste `@reference` paths back — something neither
+`show`, `@reference`, nor `print_object` gives without hand-rolling a walker. It
+composes directly with the rest:
+
+```julia
+for ref in search_object(editor.document, v -> v isa JsonString && occursin("TODO", v.value))
+    set_selection!(editor.document, ref)   # or edit_text! at ref, etc.
+end
+```
+
+Open design points (resolve when implementing): predicate signature (value-only
+vs. `(value, ref)`); whether to offer a string/substring convenience wrapper;
+return `Vector{ReferencePath}` vs. `Vector{(ref, value)}`; reuse the
+`ObjectToSyntax` traversal vs. a small dedicated walk; where it lives
+(`ObjectToSyntax.jl` alongside `print_object`, most likely).
 
 ### B3. Editing parts
 
@@ -245,27 +304,28 @@ and insert/delete an element — all by calling named functions, all through
 ## Suggested order
 
 1. ~~**Part A (discovery)**~~ — ✅ done (search tools + prompts + resource trim).
-2. **B2 + B3 `edit_text!`** — `describe_document` (optional), string edit
-   (reuses §1a operation). No string-path helpers; the AI uses `@reference`
-   directly.
-3. **B1** — workbench open/close/list/focus.
-4. **B3 structural ops** — `insert_part!` / `delete_part!`; coordinate with
-   `further-development.md` §1b so the operations are defined once.
+2. ~~**B1**~~ — ✅ done (workbench open/close/list/focus, operation-backed).
+3. ~~**B2**~~ — ✅ done (`print_object` `newlines`/`indent`/`filter`,
+   `search_object`). No `describe_document`, no string-path helpers; the AI uses
+   `@reference` + Julia field access directly.
+4. **B3** — `edit_text!` (reuses §1a operation), then `insert_part!` /
+   `delete_part!`; coordinate with `further-development.md` §1b so the operations
+   are defined once.
 
 ## Files touched
 
-- `program/src/editor/Mcp.jl` — `search_api` / `search_documentation` functions
+- `program/src/editor/Mcp.jl` — ✅ `search_api` / `search_documentation` functions
   **registered as the only new MCP tools** (discovery is read-only, so tools fit;
   manipulation stays Julia-function-only), resource-fan-out trim,
   `execute_julia_code` description rewrite.
-- `program/src/document/Workbench.jl` — `DEFAULT_ASSISTANT_SYSTEM` rewrite;
-  workbench manipulation functions + open/close operations.
-- `program/src/common/Operation.jl` / `CollectionModule` — collection operations
-  + `evaluate_operation` methods + the wrapper functions.
-- `program/src/document/Primitive.jl` / domain modules — `edit_text!` and any
-  `describe_document` introspection.
-- `test/src/editor/McpTest.jl` — search coverage and a workbench fixture
-  exercising the manipulation functions through `execute_julia_code`.
+- `program/src/document/Workbench.jl` — ✅ `DEFAULT_ASSISTANT_SYSTEM` rewrite;
+  ✅ B1 workbench manipulation functions + open/close operations.
+- `program/src/projection/primitive/ObjectToSyntax.jl` — ✅ B2: `print_object`
+  formatting/filtering params (`newlines`, `indent`, `filter`) and `search_object`.
+- `program/src/common/Operation.jl` / `CollectionModule` — B3 collection
+  operations + `evaluate_operation` methods + the wrapper functions.
+- `program/src/document/Primitive.jl` / domain modules — B3 `edit_text!`.
+- `test/src/editor/McpTest.jl` — ✅ search + B1 coverage; later B2/B3 coverage.
 
 ## Open questions
 

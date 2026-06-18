@@ -11,6 +11,7 @@ AbstractString, Symbol, Char) produce SyntaxLeaf terminals.
 module ObjectToSyntaxModule
 
 import ..ReactiveModule: Cell
+import ..CollectionModule: CellVector
 import ..ProjectionApiModule: projection_print, projection_printer_recurse, projection_read, map_reference_forward, map_reference_backward, Projection
 import ..TextModule: TextString
 import ..FontModule: StyleFont, font_ubuntu_monospace_regular_24, font_ubuntu_monospace_bold_24, font_ubuntu_monospace_italic_24
@@ -18,7 +19,7 @@ import ..ColorModule: StyleColor, color_black, color_default, color_solarized_bl
 import ..SyntaxModule: SyntaxDocument, SyntaxLeaf, SyntaxNode
 import ..TypeDispatchingModule: TypeDispatchingProjection
 import ..IoMapModule: SimpleIoMap
-import ..ReferenceModule: ConcreteReferencePath, ElementReference, PositionReference, RangeReference, FieldReference, EmptyReferencePath, append_reference
+import ..ReferenceModule: ReferencePath, ConcreteReferencePath, ElementReference, PositionReference, RangeReference, FieldReference, EmptyReferencePath, append_reference
 import ..PrinterContextModule: PrinterContext, child_context, with_property, get_property
 import ..SyntaxToTextModule: SyntaxToText
 import ..TextToStringModule: TextToString
@@ -27,7 +28,8 @@ import ..RecursiveProjectionModule: RecursiveProjection
 
 export NothingToSyntaxLeaf, BoolToSyntaxLeaf, NumberToSyntaxLeaf,
        StringToSyntaxLeaf, SymbolToSyntaxLeaf, CharToSyntaxLeaf,
-       ObjectNodeToSyntaxNode, ObjectToSyntax, print_object, CellToSyntax
+       ObjectNodeToSyntaxNode, ObjectToSyntax, print_object, CellToSyntax,
+       search_object
 
 # ── NothingToSyntaxLeaf ──────────────────────────────────────────────────────
 
@@ -185,16 +187,23 @@ struct ObjectNodeToSyntaxNode <: Projection
     include_selection::Bool
     open_delimiter::String
     close_delimiter::String
+    newlines::Bool
+    filter::Any
 end
 ObjectNodeToSyntaxNode(; type_name_font=font_ubuntu_monospace_bold_24, type_name_color=color_solarized_blue,
                          field_name_font=font_ubuntu_monospace_regular_24,    field_name_color=color_solarized_green,
                          undef_font=font_ubuntu_monospace_italic_24,   undef_color=color_solarized_gray,
                          include_selection=false,
-                         open_delimiter="", close_delimiter="") =
+                         open_delimiter="", close_delimiter="",
+                         newlines::Bool=true, filter=nothing) =
     ObjectNodeToSyntaxNode(type_name_font, type_name_color,
                            field_name_font, field_name_color,
                            undef_font, undef_color, include_selection,
-                           open_delimiter, close_delimiter)
+                           open_delimiter, close_delimiter,
+                           newlines, filter)
+
+# Unwrap a Cell for predicate/filter testing; pass non-cells through.
+_unwrap_cell(x) = x isa Cell ? x[] : x
 
 function projection_print(p::ObjectNodeToSyntaxNode, recursion, obj, ctx)
     T = typeof(obj)
@@ -225,17 +234,19 @@ function projection_print(p::ObjectNodeToSyntaxNode, recursion, obj, ctx)
             TextString("", p.type_name_font, color_default),
             TextString("", p.type_name_font, color_default),
             TextString(string(nameof(T)), p.type_name_font, p.type_name_color))
-        if isempty(obj)
+        idxs = p.filter === nothing ? collect(eachindex(obj)) :
+               [i for i in eachindex(obj) if p.filter(_unwrap_cell(obj[i]))]
+        if isempty(idxs)
             return SimpleIoMap(p, obj, type_leaf)
         end
         element_nodes = SyntaxDocument[
             projection_printer_recurse(recursion, obj[i],
                            child_context(ctx, ElementReference(i))).output
-            for i in eachindex(obj)
+            for i in idxs
         ]
         node = SyntaxNode(p.open_delimiter, p.close_delimiter, " ",
             SyntaxDocument[type_leaf; element_nodes];
-            indentation=1)
+            indentation = p.newlines ? 1 : 0)
         return SimpleIoMap(p, obj, node)
     end
 
@@ -243,6 +254,10 @@ function projection_print(p::ObjectNodeToSyntaxNode, recursion, obj, ctx)
     fnames = try fieldnames(T) catch; () end
     # Filter out technical fields like "ref" from Arrays, and selection if include_selection=false
     fnames = filter(fn -> fn != :ref && (fn != :selection || p.include_selection), fnames)
+    # Optional value predicate: keep only fields whose (unwrapped) value matches.
+    if p.filter !== nothing
+        fnames = filter(fn -> isdefined(obj, fn) && p.filter(_unwrap_cell(getfield(obj, fn))), fnames)
+    end
     type_leaf = SyntaxLeaf(
         TextString("", p.type_name_font, color_default),
         TextString("", p.type_name_font, color_default),
@@ -266,7 +281,7 @@ function projection_print(p::ObjectNodeToSyntaxNode, recursion, obj, ctx)
     ]
     node = SyntaxNode(p.open_delimiter, p.close_delimiter, " ",
         SyntaxDocument[type_leaf; field_nodes];
-        indentation=1)
+        indentation = p.newlines ? 1 : 0)
     SimpleIoMap(p, obj, node)
 end
 
@@ -281,7 +296,8 @@ function ObjectToSyntax(; type_name_font=font_ubuntu_monospace_bold_24, type_nam
                           symbol_color=color_solarized_blue,
                           char_color=color_solarized_green,
                           include_selection=false,
-                          open_delimiter="", close_delimiter="")
+                          open_delimiter="", close_delimiter="",
+                          newlines::Bool=true, filter=nothing)
     TypeDispatchingProjection(
         Cell           => CellToSyntax(),
         Nothing        => NothingToSyntaxLeaf(color=nothing_color, include_selection=include_selection),
@@ -296,13 +312,15 @@ function ObjectToSyntax(; type_name_font=font_ubuntu_monospace_bold_24, type_nam
                                                  field_name_color=field_name_color,
                                                  include_selection=include_selection,
                                                  open_delimiter=open_delimiter,
-                                                 close_delimiter=close_delimiter),
+                                                 close_delimiter=close_delimiter,
+                                                 newlines=newlines, filter=filter),
     )
 end
 
 # ── print_object ─────────────────────────────────────────────────────────────
 """
-    print_object(obj; include_selection=false, open_delimiter="", close_delimiter="") -> String
+    print_object(obj; include_selection=false, open_delimiter="", close_delimiter="",
+                 newlines=true, indent=2, filter=nothing) -> String
 
 Convenience function that chains ObjectToSyntax, SyntaxToText, and TextToString
 projections to produce a string representation of any Julia object.
@@ -312,13 +330,22 @@ projections to produce a string representation of any Julia object.
 - `include_selection`: If false, selection fields are not recursed into (default: false)
 - `open_delimiter`: Opening delimiter for struct/array nodes (default: "")
 - `close_delimiter`: Closing delimiter for struct/array nodes (default: "")
+- `newlines`: If true, each node prints on its own line; if false, the whole
+  result is rendered on a single line (default: true)
+- `indent`: Spaces per nesting level; `0` means no indentation (default: 2).
+  Pairs with `newlines` — `newlines=true, indent=2` is the readable tree,
+  `newlines=false` is a compact one-liner.
+- `filter`: Optional predicate `value -> Bool`; when given, only struct fields and
+  array/collection elements whose (Cell-unwrapped) value satisfies it are shown.
 
 # Examples
 ```julia
 print_object(42)              # "42"
 print_object([1, 2, 3])      # Vector with elements
 print_object(Point(3, 4))    # Struct with fields
-print_object(obj, open_delimiter="{", close_delimiter="}")  # Add delimiters
+print_object(obj; newlines=false)              # one-liner
+print_object(obj; indent=4)                    # wider indentation
+print_object(obj; filter=v -> !(v isa Bool))   # hide boolean fields
 ```
 
 # Notes
@@ -326,14 +353,77 @@ print_object(obj, open_delimiter="{", close_delimiter="}")  # Add delimiters
 - Arrays are projected by iterating over elements (not as structs)
 - The `ref` field is filtered out from struct field names
 """
-function print_object(obj; include_selection=false, open_delimiter="", close_delimiter="")
+function print_object(obj; include_selection=false, open_delimiter="", close_delimiter="",
+                      newlines::Bool=true, indent::Int=2, filter=nothing)
     seq = SequentialProjection(
-        RecursiveProjection(ObjectToSyntax(include_selection=include_selection, open_delimiter=open_delimiter, close_delimiter=close_delimiter)),
-        RecursiveProjection(SyntaxToText()),
+        RecursiveProjection(ObjectToSyntax(include_selection=include_selection,
+                                           open_delimiter=open_delimiter, close_delimiter=close_delimiter,
+                                           newlines=newlines, filter=filter)),
+        RecursiveProjection(SyntaxToText(indent_size=indent)),
         RecursiveProjection(TextToString())
     )
     iomap = projection_print(seq, seq, obj, PrinterContext())
     return iomap.output[]
+end
+
+# ── search_object ────────────────────────────────────────────────────────────
+
+_is_search_leaf(x) = x === nothing || x isa Number || x isa AbstractString ||
+                     x isa Symbol || x isa Char
+
+"""
+    search_object(obj, predicate; include_selection=false, maxdepth=64) -> Vector{ReferencePath}
+
+Walk any object and return a `ReferencePath` for every node whose (Cell-unwrapped)
+value satisfies `predicate`. Cells are unwrapped transparently (no path step);
+struct fields contribute a `FieldReference`, and array / `CellVector` elements an
+`ElementReference` — so the returned paths resolve with `evaluate_reference` and
+can be handed to `set_selection!` / `replace_selection!`.
+
+```julia
+for ref in search_object(editor.document, v -> v isa JsonString && occursin("TODO", v.value))
+    replace_selection!(editor.document, ref)
+end
+```
+
+`include_selection` includes `selection` fields in the walk; `maxdepth` bounds
+recursion. Mutable nodes are cycle-guarded so self-referential graphs terminate.
+"""
+function search_object(obj, predicate; include_selection::Bool=false, maxdepth::Int=64)
+    results = ReferencePath[]
+    _search_object!(results, _unwrap_cell(obj), predicate,
+                    EmptyReferencePath(), IdDict{Any,Bool}(), include_selection, maxdepth)
+    results
+end
+
+function _search_object!(results, obj, predicate, path, seen, include_selection, depth)
+    matched = try predicate(obj) catch; false end
+    matched && push!(results, path)
+    depth <= 0 && return
+    _is_search_leaf(obj) && return
+    if ismutable(obj)
+        haskey(seen, obj) && return
+        seen = copy(seen); seen[obj] = true
+    end
+    if obj isa CellVector
+        for i in 1:length(obj)
+            _search_object!(results, _unwrap_cell(obj[i]), predicate,
+                            append_reference(path, ElementReference(i)), seen, include_selection, depth - 1)
+        end
+    elseif obj isa AbstractArray
+        for i in 1:length(obj)
+            _search_object!(results, _unwrap_cell(obj[i]), predicate,
+                            append_reference(path, ElementReference(i)), seen, include_selection, depth - 1)
+        end
+    else
+        fnames = try fieldnames(typeof(obj)) catch; () end
+        for fn in fnames
+            (fn == :ref || (fn == :selection && !include_selection)) && continue
+            isdefined(obj, fn) || continue
+            _search_object!(results, _unwrap_cell(getfield(obj, fn)), predicate,
+                            append_reference(path, FieldReference(string(fn))), seen, include_selection, depth - 1)
+        end
+    end
 end
 
 end # module

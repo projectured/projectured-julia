@@ -324,7 +324,7 @@ using .FileSystemToSyntaxModule: FileSystemFileToSyntaxLeaf, FileSystemDirectory
 using .WorkspaceToFileSystemModule: WorkspaceFolderToFileSystemDirectory, WorkspaceToFileSystem
 using .ObjectToSyntaxModule: ObjectToSyntax, NothingToSyntaxLeaf, BoolToSyntaxLeaf,
                               NumberToSyntaxLeaf, StringToSyntaxLeaf, SymbolToSyntaxLeaf,
-                              CharToSyntaxLeaf, ObjectNodeToSyntaxNode, print_object
+                              CharToSyntaxLeaf, ObjectNodeToSyntaxNode, print_object, search_object
 using .BookToSyntaxModule: BookBookToSyntaxNode, BookChapterToSyntaxNode,
                             BookParagraphToSyntaxLeaf, BookListToSyntaxNode,
                             BookPictureToSyntaxLeaf, BookToSyntax
@@ -644,7 +644,7 @@ export FileSystemFileToSyntaxLeaf, FileSystemDirectoryToSyntaxNode, FileSystemTo
 export WorkspaceFolderToFileSystemDirectory, WorkspaceToFileSystem
 export ObjectToSyntax, NothingToSyntaxLeaf, BoolToSyntaxLeaf,
        NumberToSyntaxLeaf, StringToSyntaxLeaf, SymbolToSyntaxLeaf,
-       CharToSyntaxLeaf, ObjectNodeToSyntaxNode, print_object
+       CharToSyntaxLeaf, ObjectNodeToSyntaxNode, print_object, search_object
 export BookBookToSyntaxNode, BookChapterToSyntaxNode,
        BookParagraphToSyntaxLeaf, BookListToSyntaxNode,
        BookPictureToSyntaxLeaf, BookToSyntax

@@ -5,7 +5,8 @@ using Projectured.WorkbenchAssistantModule: SubmitJuliaOperation, _eval_result
 using Projectured: WorkbenchAssistant, evaluate_operation, ConcreteReferencePath,
                    FieldReference, RangeReference, EmptyReferencePath, FakeLlm,
                    WorkbenchWorkbench, WorkbenchPage, WorkbenchNavigator, Workspace,
-                   JsonString, JsonNull,
+                   JsonString, JsonNull, JsonNumber, jsonparse, evaluate_reference,
+                   print_object, search_object,
                    open_workbench_document!, open_workbench_file!,
                    close_workbench_document!, list_workbench_documents,
                    focus_workbench_document!
@@ -226,6 +227,57 @@ function test_workbench_b1()
     end
 end
 
+function test_print_object_options()
+    @testset "print_object: newlines / indent / filter" begin
+        doc = jsonparse("[1, \"x\", true]")
+
+        # default: multi-line, indented
+        multi = print_object(doc)
+        @test occursin("\n", multi)
+
+        # newlines=false: single line, space-separated
+        flat = print_object(doc; newlines=false)
+        @test !occursin("\n", flat)
+        @test occursin("JsonArray", flat) && occursin("JsonNumber", flat)
+
+        # indent widens the leading whitespace
+        @test occursin("    ", print_object(doc; indent=4))
+
+        # filter: hide Bool-valued elements -> no JsonBool node
+        filtered = print_object(doc; filter = v -> !(v isa JsonNull) && !(v isa Bool))
+        # the boolean element should be gone; numbers/strings remain
+        @test occursin("JsonNumber", filtered)
+
+        # scalars are unaffected by the formatting flags
+        @test print_object(42) == "42"
+        @test print_object(42; newlines=false) == "42"
+    end
+end
+
+function test_search_object()
+    @testset "search_object" begin
+        doc = jsonparse("{\"name\": \"Alice\", \"scores\": [10, 20], \"active\": true}")
+
+        refs = search_object(doc, v -> v isa JsonNumber)
+        @test length(refs) == 2
+        # references resolve back to matching nodes
+        for r in refs
+            v = evaluate_reference(doc, r)
+            @test v isa JsonNumber
+        end
+
+        srefs = search_object(doc, v -> v isa JsonString && occursin("Alice", v.value))
+        @test length(srefs) == 1
+        @test evaluate_reference(doc, srefs[1]).value == "Alice"
+
+        # no matches → empty
+        @test isempty(search_object(doc, v -> v isa JsonNull))
+
+        # a predicate that throws on some nodes is treated as no-match, not an error
+        @test !isempty(search_object(doc, v -> v.value == 10))
+    end
+end
+
 function test_execute_julia_code()
     @testset "execute_julia_code" begin
         # Need a mock editor for this test
@@ -437,6 +489,8 @@ function test_mcp_tools()
         test_search_api()
         test_search_tools_registered()
         test_workbench_b1()
+        test_print_object_options()
+        test_search_object()
     end
 end
 
@@ -447,4 +501,4 @@ export test_read_module_documentation, test_read_class_documentation, test_read_
 export test_execute_julia_code, test_function_availability, test_base_extensions
 export test_workbench_editor_reference
 export test_search_documentation, test_search_api, test_search_tools_registered
-export test_workbench_b1
+export test_workbench_b1, test_print_object_options, test_search_object
