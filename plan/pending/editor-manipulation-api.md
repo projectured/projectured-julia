@@ -10,14 +10,15 @@ fast.
 
 ## Why not more MCP tools
 
-A rigid tool per manipulation (`open_document`, `close_document`, `sort_parts`,
-…) does not compose. The AI can only call them one at a time with literal
-arguments. By contrast, a single `execute_julia_code` over a good function
-library lets the AI write ordinary Julia:
+A rigid tool per manipulation (`open_workbench_document`,
+`close_workbench_document`, `insert_part`, …) does not compose. The AI can only
+call them one at a time with literal arguments. By contrast, a single
+`execute_julia_code` over a good function library lets the AI write ordinary
+Julia:
 
 ```julia
 for f in readdir("/some/folder"; join=true)
-    open_document!(editor, f)
+    open_workbench_file!(editor, f)
 end
 ```
 
@@ -28,8 +29,9 @@ capable, discoverable, and safe to call.
 
 The current gaps that make the AI weak today are therefore:
 
-1. **No high-level manipulation functions.** There is no `open_document!`,
-   `close_document!`, `move_part!`, `sort_parts!`. The AI must hand-assemble
+1. **No high-level manipulation functions.** There is no
+   `open_workbench_document!`, `close_workbench_document!`, `insert_part!`,
+   `delete_part!`. The AI must hand-assemble
    reactive-cell mutations (`setfn!` on a `WorkbenchPage`, building
    `WorkbenchEditor`s, computing `ReferencePath`s) from primitives, guessing the
    shapes. These manipulations should exist as named functions a human would
@@ -49,9 +51,11 @@ read-only discovery tools (`search_api`, `search_documentation`).
 > **Implemented.** `search_documentation` and `search_api` are live in
 > [Mcp.jl](../../program/src/editor/Mcp.jl) as MCP tools (auto-flow to the
 > assistant schema via `list_tools()`), the per-function resource fan-out is
-> dropped, and both prompts lead with search. Tests:
-> `test_search_documentation`, `test_search_api`, `test_search_tools_registered`
-> in [McpTest.jl](../../test/src/editor/McpTest.jl).
+> dropped, and both prompts keep the mandatory orienting resources **and** add
+> search-first guidance below them. Tests: `test_search_documentation`,
+> `test_search_api`, `test_search_tools_registered` in
+> [McpTest.jl](../../test/src/editor/McpTest.jl) (all 60 tool + 22 resource
+> tests pass).
 >
 > **Discovered during implementation:** on Julia 1.12 `Base.Docs.doc(obj)` has
 > *no method* for modules, types, or functions, so the existing `_doc_string`
@@ -75,59 +79,67 @@ The two search functions are also plain Julia functions exported from
 `execute_julia_code` — registering them as tools is just the extra, always-on
 entry point.
 
-### A1. `search_documentation(query; limit=8) -> String` (MCP tool)
+### A1. `search_documentation(query; limit=8) -> String` (MCP tool) — as built
 
-Keyword/substring search across `guide/` markdown. Returns ranked **section
-snippets with their `resource://guide/{name}#heading` URI**, not whole files.
+Keyword search across `guide/` markdown. Returns ranked sections, each headed by
+its `resource://guide/{name}` URI (with the heading shown after an em dash) plus
+a whitespace-collapsed excerpt centred on the first matching term.
 
-- Index the `guide/` walk already done in
-  `register_default_tools_and_resources!`, split on markdown headings into
-  `(guide_name, heading_path, section_text)`. Cache in-process.
-- Case-insensitive term match over heading + body; rank by frequency and heading
-  hits.
-- Register as a `Tool` in `register_default_tools_and_resources!` with one
-  `query` (required) and optional `limit` parameter.
+- `_index_guide_sections` walks `guide/`, splitting each file on markdown
+  headings into `_GuideSection(guide, heading, body)`; cached in `_GUIDE_INDEX`.
+- Query terms are lowercase alphanumeric/underscore tokens (1-char noise
+  dropped). Score = heading hits ×5 + body hits ×1.
+- Registered as a `Tool` with `query` (required) and `limit` (optional).
 
-### A2. `search_api(query; kind=nothing, limit=8) -> String` (MCP tool)
+### A2. `search_api(query; kind=nothing, limit=8) -> String` (MCP tool) — as built
 
-Search the reflected module/class/function universe (the data
-`_submodules` / `_struct_types` / `_module_functions` already expose in
-`Mcp.jl`). Each hit: `<kind> <Module.Name> — <one-line doc> → <resource uri>`.
-Match name + docstring; rank exact-name > name-substring > doc-substring.
-`kind` filters to `module|class|function`. Register as a `Tool` (params:
-`query` required, `kind` and `limit` optional).
+Search the reflected module/class/function universe (`_submodules` /
+`_struct_types` / `_module_functions`), cached in `_API_INDEX` as `_ApiEntry`.
+Each hit: `**<kind>** \`<Module.Name>\` — <one-line doc>` plus a "read full"
+line — a `resource://module|class/...` URI for modules and classes, or a
+`read_function_documentation("Module", "name")` call for functions (since
+per-function resources are no longer registered).
+
+- Scoring: exact name +100, name substring +20, qualified-name substring +10,
+  each doc-hit +1.
+- `kind` filters to `module|class|function`.
+- Compiler-generated `#` closure types are filtered out of results.
 
 ```julia
-search_api("open a document in the workbench")
+search_api("replace selection")   # → ReplaceSelectionOperation, replace_selection!
 ```
 
-### A3. Keep resources for direct reads, drop the function fan-out
+### A3. Keep resources for direct reads, drop the function fan-out — as built
 
-Keep `resource://guides`, `resource://guide/*`, `resource://module/*`,
-`resource://class/*` (search points at these URIs; `read_resource` fetches full
-text). **Stop pre-registering one resource per function** — `search_api` plus a
-`read_function_documentation(...)` call covers it and shrinks the resource list.
+Kept `resource://guides`, `resource://guide/*`, `resource://module/*`,
+`resource://class/*/*`. **Removed the per-function `resource://function/...`
+registrations** — `search_api` + `read_function_documentation(...)` covers them
+and the resource list no longer fans out to hundreds of entries.
 
-### A4. Update `execute_julia_code`'s description + `DEFAULT_ASSISTANT_SYSTEM`
+### A4. Prompts: `execute_julia_code` description + `DEFAULT_ASSISTANT_SYSTEM` — as built
 
-Lead with discovery and the high-level API:
+Both prompt sites (sourced from the single `DEFAULT_ASSISTANT_SYSTEM` constant in
+`program/src/document/Workbench.jl`) **keep** the mandatory orienting reading
+list (`resource://guides`, `resource://modules`, `guide/getting-started`,
+`guide/editor/reference`, `guide/editor/selection`) and **add** a search-first
+block below it: use `search_api` / `search_documentation` to find a specific
+function/struct/guide section; read full text with `read_resource(uri)` or
+`read_function_documentation("Module", "name")`; never guess names.
 
-- "To find a function/struct/guide section, call the `search_api` /
-  `search_documentation` tools first; read full text with `read_resource(uri)`."
-- "Prefer the high-level workbench/part manipulation functions (find them via
-  `search_api("workbench")`, `search_api("part")`) over hand-writing cell
-  mutations."
+> The flow the prompts encode: orient broadly (mandatory reads) → search
+> narrowly → read full text → write code.
 
-Keep both prompt sites sourced from the single `DEFAULT_ASSISTANT_SYSTEM`
-constant (`program/src/document/Workbench.jl`).
-
-### Done when
+### Done — verified
 
 - The `search_api` and `search_documentation` tools appear in the MCP tool list
-  and the assistant schema; `search_api("replace selection")` surfaces
-  `ReplaceSelectionOperation` / `replace_selection!` with URIs;
-  `search_documentation("selection")` returns guide sections. Per-function
-  resource explosion removed; `McpTest` updated.
+  and the assistant schema (`["execute_julia_code", "search_documentation",
+  "search_api", "list_resources", "read_resource"]`).
+- `search_api("replace selection")` surfaces `ReplaceSelectionOperation` /
+  `replace_selection!` with their locators; `search_documentation("selection")`
+  returns guide sections with URIs.
+- Per-function resources removed; `_doc_string` (and thus the existing
+  `list_*` / `read_*` doc functions) fixed for Julia 1.12; `McpTest` updated and
+  green.
 
 ---
 
@@ -141,11 +153,13 @@ and — where a manipulation maps to an `Operation` — go through
 become undoable once undo lands (`further-development.md` §3).
 
 > Naming follows the Julia convention already in the repo (`setfn!`,
-> `replace_selection!`): mutating functions end in `!`. Every function gets a
-> docstring with a usage example, because the docstring is what `search_api`
+> `replace_selection!`): mutating functions end in `!`. **Every function name
+> starts with a verb** — `list_workbench_documents`, not `workbench_documents`;
+> `open_workbench_document!`, `describe_document`, `get_selection`. Every function
+> gets a docstring with a usage example, because the docstring is what `search_api`
 > surfaces and what the AI reads before calling.
 
-### B1. Workbench: open / close / list / reorder documents
+### B1. Workbench: open / close / list / focus documents
 
 > **Naming.** The word "document" is overloaded — `Document` is the abstract base
 > type of *everything* in ProjecturEd. These functions therefore qualify it with
@@ -166,15 +180,13 @@ whose `elements` is a `CellVector`; `WorkbenchPage` already has `setfn!`.
   calls.
 - `close_workbench_document!(editor, which; page=:editing)` — remove a
   `WorkbenchEditor` by index, title, or identity.
-- `workbench_documents(editor) -> Vector` — list open documents (page, index,
-  title, filename, content type) so the AI can see state before acting.
-- `reorder_workbench_documents!(editor, order; page=:editing)` /
-  `focus_workbench_document!(editor, which)` — reorder a page's elements /
-  activate a tab (reuse `SelectTabOperation` from `document/Widget.jl`).
+- `list_workbench_documents(editor) -> Vector` — list open documents (page,
+  index, title, filename, content type) so the AI can see state before acting.
+- `focus_workbench_document!(editor, which)` — activate a tab (reuse
+  `SelectTabOperation` from `document/Widget.jl`).
 
-Back open/close/reorder with operations in `WorkbenchModule`
-(`WorkbenchOpenDocumentOperation`, `WorkbenchCloseDocumentOperation`, and the
-generic reorder operation from B3).
+Back open/close with operations in `WorkbenchModule`
+(`WorkbenchOpenDocumentOperation`, `WorkbenchCloseDocumentOperation`).
 
 ### B2. Addressing and inspecting parts
 
@@ -208,37 +220,35 @@ These compose: `set_selection!(editor, parse_reference_path(p))`.
   wrappers:
   - `insert_part!(editor, path, index, value)` → `CollectionInsertOperation`
   - `delete_part!(editor, path, index)` → `CollectionDeleteOperation`
-  - `move_part!(editor, path, from, to)` → `CollectionMoveOperation`
-  - `sort_parts!(editor, path; by=identity, order=...)` →
-    `CollectionReorderOperation`. The AI can pass a `by` key or an explicit
-    permutation, e.g. sort an array's elements — this is the "sort parts"
-    request, expressed as composable Julia.
 
   Keep them collection-agnostic so JSON arrays, syntax-node children, and
   workbench pages all work through one path.
 
-**Open question — selection fixup after structural change.** A deleted/moved
-part can leave the global selection dangling (`further-development.md` §1, open).
-For v1, after a structural op, drop any selection that no longer resolves (walk
-the path; reset to nearest valid ancestor). Refine later.
+> **Reordering (move/sort) is out of scope for now** — deferred until a concrete
+> need arises. No `move_part!` / `sort_parts!` and no
+> `CollectionMoveOperation` / `CollectionReorderOperation`.
+
+**Open question — selection fixup after structural change.** A deleted part can
+leave the global selection dangling (`further-development.md` §1, open). For v1,
+after a structural op, drop any selection that no longer resolves (walk the path;
+reset to nearest valid ancestor). Refine later.
 
 ### Done when
 
 The AI, in a single `execute_julia_code` block, can: open every file in a folder
 into the workbench; select a node by path; read its structure; change a string;
-insert/delete an element; and **sort an array's elements** — all by calling named
-functions, all through `evaluate_operation`, all visible in the editor.
+and insert/delete an element — all by calling named functions, all through
+`evaluate_operation`, all visible in the editor.
 
 ---
 
 ## Suggested order
 
-1. **Part A (discovery)** — search functions + prompt rewrite + resource trim.
-   Immediate value, low risk, unblocks everything else.
+1. ~~**Part A (discovery)**~~ — ✅ done (search tools + prompts + resource trim).
 2. **B2 + B3 `edit_text!`** — path helpers, `describe_document`, selection
    wrappers, string edit (reuses §1a operation).
-3. **B1** — workbench open/close/list/reorder (reorder reuses B3's operation).
-4. **B3 structural ops** — largest new-code chunk; coordinate with
+3. **B1** — workbench open/close/list/focus.
+4. **B3 structural ops** — `insert_part!` / `delete_part!`; coordinate with
    `further-development.md` §1b so the operations are defined once.
 
 ## Files touched
