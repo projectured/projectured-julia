@@ -188,24 +188,24 @@ whose `elements` is a `CellVector`; `WorkbenchPage` already has `setfn!`.
 Back open/close with operations in `WorkbenchModule`
 (`WorkbenchOpenDocumentOperation`, `WorkbenchCloseDocumentOperation`).
 
-### B2. Addressing and inspecting parts
+### B2. Inspecting parts
 
-The vocabulary for "a part" is the existing `ReferencePath` / global-selection
-mechanism (`guide/editor/reference.md`, `selection.md`,
-`selection-deep-dive.md`). Add the minimum to make it ergonomic from code:
+**No string-path layer.** The AI is already writing Julia, so it addresses parts
+with the existing reference DSL directly: `@reference editing_page.elements[1].content.entries[2].value`
+for literals, or `ConcreteReferencePath(ElementReference(i), …)` when the path is
+built dynamically (loop variables, computed indices). Since there is no
+string-args entry point — manipulation flows through `execute_julia_code`, not a
+string tool — `parse_reference_path` / `format_reference_path` would only ever
+parse a string the AI itself wrote. They are dead weight and are **not** added.
+Applying and showing paths is already covered by `set_selection!` /
+`replace_selection!` and `repr(path)` / the existing `show`.
 
-- `parse_reference_path(str) -> ReferencePath` and
-  `format_reference_path(path) -> String`, built on the existing reference DSL
-  (`@reference`, `ConcreteReferencePath`, `FieldReference`, `RangeReference`,
-  `EmptyReferencePath`). String form mirrors the guides, e.g.
-  `"editing_page.elements[1].content.entries[2].value"`.
+What's actually worth adding here is one read helper:
+
 - `describe_document(editor; path=nothing) -> String` — compact structural
-  outline of a subtree (type, fields, collection lengths, child paths). The read
-  counterpart the AI uses to *see* structure before editing.
-- `get_selection(editor)` / `set_selection!(editor, path)` — thin wrappers over
-  the existing `ReplaceSelectionOperation` / `replace_selection!`.
-
-These compose: `set_selection!(editor, parse_reference_path(p))`.
+  outline of a subtree (type, fields, collection lengths, and the `@reference` of
+  each child) so the AI can *see* structure before editing, more readably than
+  raw `repr`/`dump`. Optional — skip if `repr`/`dump` prove sufficient in practice.
 
 ### B3. Editing parts
 
@@ -245,8 +245,9 @@ and insert/delete an element — all by calling named functions, all through
 ## Suggested order
 
 1. ~~**Part A (discovery)**~~ — ✅ done (search tools + prompts + resource trim).
-2. **B2 + B3 `edit_text!`** — path helpers, `describe_document`, selection
-   wrappers, string edit (reuses §1a operation).
+2. **B2 + B3 `edit_text!`** — `describe_document` (optional), string edit
+   (reuses §1a operation). No string-path helpers; the AI uses `@reference`
+   directly.
 3. **B1** — workbench open/close/list/focus.
 4. **B3 structural ops** — `insert_part!` / `delete_part!`; coordinate with
    `further-development.md` §1b so the operations are defined once.
@@ -261,7 +262,6 @@ and insert/delete an element — all by calling named functions, all through
   workbench manipulation functions + open/close operations.
 - `program/src/common/Operation.jl` / `CollectionModule` — collection operations
   + `evaluate_operation` methods + the wrapper functions.
-- Reference DSL area — `parse_reference_path` / `format_reference_path`.
 - `program/src/document/Primitive.jl` / domain modules — `edit_text!` and any
   `describe_document` introspection.
 - `test/src/editor/McpTest.jl` — search coverage and a workbench fixture
