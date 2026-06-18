@@ -117,6 +117,30 @@ The only time you'd annotate `::Cell` directly is when the field really
 *is* the cell itself (e.g. when sharing a cell between two structs, or when
 the cell holds a thunk rather than a value).
 
+## Gotchas these macros impose
+
+All three macros (`@document`, `@projection`, `@iomap`) share the same generated
+machinery, and with it the same three sharp edges:
+
+- **A macro-wrapped field can never hold a `Cell` as its logical value.** The
+  auto-wrapping inner constructor runs `x isa Cell ? x : Cell(x)` on every
+  argument, so a value that *is* a `Cell` is stored unwrapped and read back
+  transparently — there is no way to have a field whose value is itself a `Cell`.
+  If you genuinely need to store a cell *as a value*, box it (e.g. in a
+  one-element tuple or a wrapper struct), or keep it in a plain hand-rolled
+  struct instead.
+- **The macro emits the *only inner* constructor.** Any convenience constructor
+  you write must therefore be an **outer** constructor (`Foo(args...) = Foo(...)`
+  outside the `@document struct` body); an inner one would collide with the
+  generated auto-wrapping constructor.
+- **Equality is identity, not structural.** A `@document` type is a `mutable
+  struct`, so it keeps Julia's default *identity* `==`/`hash`; only the
+  generated `I`-prefixed snapshot (`IFoo`, an immutable `struct`) compares
+  structurally. Reference/path types define `==` by hand. Don't assume two
+  freshly built documents with equal fields are `==` — they are not. Code that
+  needs value comparison (e.g. `collect_references`) compares the unwrapped
+  *leaf values*, not whole documents.
+
 ## How this pattern threads through the codebase
 
 - Domain types (`JsonString`, `XmlElement`, `WidgetButton`, …) use
