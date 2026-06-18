@@ -119,7 +119,8 @@ top-level assignments (e.g. `paths = …`) stay bound for later calls. Returns t
 repr of the last value plus captured stdout/stderr.
 """
 function execute_julia_code(editor, code)
-    try
+    @info "[mcp] execute_julia_code call" code
+    output = try
         m = _scratch_module()
         # (Re)bind `editor` as a module global each call so user code can reference
         # it and so it always tracks the current editor.
@@ -161,6 +162,8 @@ function execute_julia_code(editor, code)
     catch e
         sprint(showerror, e, catch_backtrace())
     end
+    @info "[mcp] execute_julia_code result" output
+    output
 end
 
 """

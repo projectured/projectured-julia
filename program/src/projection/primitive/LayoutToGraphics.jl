@@ -346,16 +346,18 @@ function _hl_build(recursion, doc, ctx)
     align_cell = getfield(doc, :vertical_align)
     n = length(doc.children)
 
-    # Strip avail before recursing into children: a layout's intrinsic size
-    # is computed from its children's intrinsic sizes, so children must not
-    # have an `available_*` cell that ultimately reads this layout's own
-    # outer size — that closes a feedback loop and stack-overflows when the
-    # reactive cell evaluates. The layout itself renders at its content
-    # size; outer fills (window shells, scroll panes, etc.) belong outside.
+    # Symmetric to VerticalLayout: propagate the available extent on the CROSS
+    # axis (height) so children can fill the row's allocation, but strip it on
+    # the MAIN axis (width) — a horizontal row sizes its width from the sum of
+    # its children, so a child must not carry an `available_width` that
+    # ultimately reads this layout's own outer width (a feedback loop that
+    # stack-overflows). Keeping only the cross axis is cycle-free: `outer_h`
+    # reads child heights while each child reads the parent-supplied
+    # `available_height` cell, never `outer_h`.
     child_iomaps = Any[]
     for i in 1:n
         cctx = child_context(ctx, @reference ^(ctx.reference).children[i])
-        cctx = with_available_size(cctx; width=nothing, height=nothing)
+        cctx = with_available_size(cctx; width=nothing)
         push!(child_iomaps, _recurse_child(recursion, doc.children[i], cctx))
     end
 
@@ -435,13 +437,18 @@ function _vl_build(recursion, doc, ctx)
     align_cell = getfield(doc, :horizontal_align)
     n = length(doc.children)
 
-    # See HorizontalLayoutToGraphicsCanvas: strip avail before recursing to
-    # avoid the cell-feedback cycle when a child layout reads its own
-    # avail-derived outer back into the parent's intrinsic computation.
+    # Propagate the available extent on the CROSS axis (width) so children can
+    # fill the layout's allocation (responsive cards/text), but strip it on the
+    # MAIN axis (height): a vertical stack sizes its height from the sum of its
+    # children, so a child must not carry an `available_height` that ultimately
+    # reads this layout's own outer height — that closes a feedback loop and
+    # stack-overflows when the reactive cell evaluates. Keeping only the cross
+    # axis is cycle-free because `outer_w` (below) reads child widths while each
+    # child reads the *parent-supplied* `available_width` cell, never `outer_w`.
     child_iomaps = Any[]
     for i in 1:n
         cctx = child_context(ctx, @reference ^(ctx.reference).children[i])
-        cctx = with_available_size(cctx; width=nothing, height=nothing)
+        cctx = with_available_size(cctx; height=nothing)
         push!(child_iomaps, _recurse_child(recursion, doc.children[i], cctx))
     end
 

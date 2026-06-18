@@ -1956,7 +1956,19 @@ function projection_print(p::WidgetScrollPaneToGraphicsCanvas, recursion, w::Wid
                                                           layout_none, true, Cell(nothing))),
                                       Cell(nothing)))
     end
-    WidgetScrollPaneToGraphicsCanvasIoMap(p, w, _make_canvas(px, py, elems), content_iomap)
+    # Report the pane's own box as the outer canvas extent (viewport + insets)
+    # rather than 0×0. A scroll pane occupies a fixed viewport, so a parent that
+    # *measures* its child (e.g. WidgetCard sizing its body to the recursed
+    # content) needs the real height — otherwise it under-sizes and the clipped
+    # viewport draws past the parent's border. Split/tabbed parents allocate the
+    # slot and ignore this size, so they are unaffected. `vw_cell`/`vh_cell` are
+    # the inset-reduced viewport extents, so the full box adds the insets back.
+    outer_w = Cell(() -> Int32(Int(vw_cell[]) + tx))
+    outer_h = Cell(() -> Int32(Int(vh_cell[]) + ty))
+    outer = GraphicsCanvas(Cell(Int32(px)), Cell(Int32(py)), outer_w, outer_h,
+                           CellVector(Cell[Cell(e) for e in elems]),
+                           layout_none, true, Cell(nothing))
+    WidgetScrollPaneToGraphicsCanvasIoMap(p, w, outer, content_iomap)
 end
 
 function map_reference_forward(::WidgetScrollPaneToGraphicsCanvas, iomap, reference)
@@ -2274,8 +2286,20 @@ function projection_print(p::WidgetCardToGraphicsCanvas, recursion, w::WidgetCar
     # Recurse the Document title/content once (stable iomaps); the build cell only
     # reads their reactive sizes, so growing content repaints the card without
     # reprinting the projection.
-    tim = w.title isa Document ? projection_printer_recurse(recursion, w.title, ctx) : nothing
-    cim = w.content isa Document ? projection_printer_recurse(recursion, w.content, ctx) : nothing
+    #
+    # Seed the *interior* width for the recursed content: when a parent allocated
+    # a width, the card fills it (see `_resolve_width` in `_card_build`), so its
+    # content should fill that allocation minus the card's own padding — letting
+    # a responsive body (chat-bubble text, nested cards) wrap to the card rather
+    # than overrunning it. Strip the vertical axis: the card is content-tall, so
+    # neither the header row nor the body should fill the parent's height.
+    pad = _sc(p.padding)
+    avail_w = ctx.available_width
+    inner_w = avail_w === nothing ? nothing :
+              Cell(() -> Int32(max(0, Int(avail_w[]) - 2pad)))
+    inner_ctx = with_available_size(ctx; width=inner_w, height=nothing)
+    tim = w.title isa Document ? projection_printer_recurse(recursion, w.title, inner_ctx) : nothing
+    cim = w.content isa Document ? projection_printer_recurse(recursion, w.content, inner_ctx) : nothing
     build = Cell(() -> _card_build(p, w, ctx, tim, cim))
     outer = GraphicsCanvas(Cell(Int32(ox)), Cell(Int32(oy)),
                            Cell(() -> Int32(build[].w)),
