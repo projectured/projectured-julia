@@ -226,7 +226,7 @@ traverses through the real projection pipeline (`ObjectToSyntax`).
 
 Instead, sharpen the inspection primitives that already exist or fill a real gap:
 
-#### B2a. Enhance `print_object` (in `ObjectToSyntax.jl`)
+#### B2a. Enhance `print_object` (in `ObjectToSyntax.jl`) — ✅ DONE
 
 `print_object` already produces a structural rendering through the projection
 chain (`ObjectToSyntax → SyntaxToText → TextToString`). Add formatting/filtering
@@ -245,7 +245,7 @@ parameters so it is actually pleasant to read (today it leaks `CellVector` /
 These thread into the `print_object` chain / `ObjectToSyntax` — **one** traversal,
 no new walker.
 
-#### B2b. Add `search_object(obj, predicate) -> Vector{ReferencePath}`
+#### B2b. Add `search_object(obj, predicate) -> Vector{ReferencePath}` — ✅ DONE
 
 Walk any object and return **references to the parts that match** `predicate`.
 This is the one genuinely new capability: it lets the AI find parts *by content*
@@ -266,38 +266,31 @@ return `Vector{ReferencePath}` vs. `Vector{(ref, value)}`; reuse the
 `ObjectToSyntax` traversal vs. a small dedicated walk; where it lives
 (`ObjectToSyntax.jl` alongside `print_object`, most likely).
 
-### B3. Editing parts
+### B3. Editing parts — ❌ REJECTED (not pursued)
 
-- `edit_text!(editor, path, start, stop, text)` — replace a character range in a
-  `PrimitiveString`-shaped part via the existing `StringReplaceRangeOperation`
-  (`document/Primitive.jl`; §1a of `further-development.md` wires it into
-  `evaluate_operation` — share that work).
-- Structural edits, which need operations that **do not exist yet**
-  (`further-development.md` §1b). Add minimal collection-generic operations
-  (in `OperationModule` / `CollectionModule`) that mutate the target `CellVector`
-  / `JsonArray` / `JsonObject` / page `elements` via `setfn!`, with thin function
-  wrappers:
-  - `insert_part!(editor, path, index, value)` → `CollectionInsertOperation`
-  - `delete_part!(editor, path, index)` → `CollectionDeleteOperation`
+> **Rejected by the user.** No `edit_text!`, `insert_part!`, `delete_part!`, and
+> no new collection operations. Rationale: editing is already covered by the
+> existing operations the AI can drive through `execute_julia_code` (e.g.
+> `replace_selection!` / `ReplaceReferencedValue` / the string-range edit work
+> tracked in `further-development.md` §1), and `search_object` + `@reference`
+> already let the AI locate and select parts. A bespoke `_part!` wrapper layer
+> would duplicate that. Structural insert/delete, if ever needed, belongs with
+> the editing-operations work in `further-development.md` §1, not here.
 
-  Keep them collection-agnostic so JSON arrays, syntax-node children, and
-  workbench pages all work through one path.
+### Delivered
 
-> **Reordering (move/sort) is out of scope for now** — deferred until a concrete
-> need arises. No `move_part!` / `sort_parts!` and no
-> `CollectionMoveOperation` / `CollectionReorderOperation`.
+Through `execute_julia_code` (and the REPL) the AI can:
 
-**Open question — selection fixup after structural change.** A deleted part can
-leave the global selection dangling (`further-development.md` §1, open). For v1,
-after a structural op, drop any selection that no longer resolves (walk the path;
-reset to nearest valid ancestor). Refine later.
+- **Discover** APIs and guides fast via the `search_api` / `search_documentation`
+  MCP tools (Part A).
+- **Manage the workbench**: open (incl. a whole folder in a loop), close, list,
+  and focus documents (Part B1).
+- **Inspect** any object with a clean, configurable `print_object`, and **find
+  parts by content** with `search_object`, getting back `@reference` paths it can
+  feed to `set_selection!` / `replace_selection!` (Part B2).
 
-### Done when
-
-The AI, in a single `execute_julia_code` block, can: open every file in a folder
-into the workbench; select a node by path; read its structure; change a string;
-and insert/delete an element — all by calling named functions, all through
-`evaluate_operation`, all visible in the editor.
+Addressing and editing themselves use the pre-existing `@reference` /
+`set_selection!` / value-replace machinery directly — no new wrapper layer.
 
 ---
 
@@ -308,9 +301,10 @@ and insert/delete an element — all by calling named functions, all through
 3. ~~**B2**~~ — ✅ done (`print_object` `newlines`/`indent`/`filter`,
    `search_object`). No `describe_document`, no string-path helpers; the AI uses
    `@reference` + Julia field access directly.
-4. **B3** — `edit_text!` (reuses §1a operation), then `insert_part!` /
-   `delete_part!`; coordinate with `further-development.md` §1b so the operations
-   are defined once.
+4. ~~**B3**~~ — ❌ rejected (no `edit_text!` / `insert_part!` / `delete_part!`);
+   editing uses the pre-existing operations + `@reference` directly.
+
+All accepted scope (A, B1, B2) is implemented; B3 was rejected. Plan complete.
 
 ## Files touched
 
@@ -321,11 +315,13 @@ and insert/delete an element — all by calling named functions, all through
 - `program/src/document/Workbench.jl` — ✅ `DEFAULT_ASSISTANT_SYSTEM` rewrite;
   ✅ B1 workbench manipulation functions + open/close operations.
 - `program/src/projection/primitive/ObjectToSyntax.jl` — ✅ B2: `print_object`
-  formatting/filtering params (`newlines`, `indent`, `filter`) and `search_object`.
-- `program/src/common/Operation.jl` / `CollectionModule` — B3 collection
-  operations + `evaluate_operation` methods + the wrapper functions.
-- `program/src/document/Primitive.jl` / domain modules — B3 `edit_text!`.
-- `test/src/editor/McpTest.jl` — ✅ search + B1 coverage; later B2/B3 coverage.
+  formatting/filtering params (`newlines`, `indent`, `filter`), output-shape
+  redesign, and `search_object`.
+- `program/src/Projectured.jl` — ✅ re-export of B1/B2 functions and the
+  search/doc helpers.
+- ~~`program/src/common/Operation.jl` / `CollectionModule`~~ — ❌ B3 rejected.
+- ~~`program/src/document/Primitive.jl`~~ — ❌ B3 rejected.
+- `test/src/editor/McpTest.jl` — ✅ search + B1 + B2 coverage.
 
 ## Open questions
 
