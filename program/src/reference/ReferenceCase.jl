@@ -74,6 +74,14 @@ struct PSWholePathBind <: PatStep
     name::Symbol
 end
 
+# A first-class type checkpoint in a pattern: `(::T)` matches a TypeReference
+# step whose recorded type is a subtype of `T`. `f::T` matches `f`'s steps then
+# the checkpoint. When a pattern omits `::T`, checkpoints are skipped (tolerant),
+# so existing patterns keep matching canonical references unchanged.
+struct PSType <: PatStep
+    typeexpr
+end
+
 struct PSPathInterp <: PatStep
     expr
 end
@@ -127,6 +135,17 @@ function _parse_path!(steps::Vector{PatStep}, ex)
     if ex isa Symbol
         # Top-level / path-position symbol means a literal field step.
         push!(steps, PSField(PVLiteral(String(ex))))
+        return steps
+
+    elseif ex isa Expr && ex.head == :(::)
+        # f::T — match f's steps then a TypeReference(T) checkpoint.
+        # A leading `::T` (no `f`) matches just the checkpoint.
+        if length(ex.args) == 2
+            _parse_path!(steps, ex.args[1])
+            push!(steps, PSType(ex.args[2]))
+        else
+            push!(steps, PSType(ex.args[1]))
+        end
         return steps
 
     elseif ex isa Expr && ex.head == :. && ex.args[2] isa QuoteNode
@@ -338,6 +357,18 @@ function _gen_value_match(valex, pat::PVTypedBind, success, bound::Set{Symbol})
     end
 end
 
+function _gen_step_match(hex, tex, step::PSType, rest_success, bound::Set{Symbol})
+    ty = esc(step.typeexpr)
+    ex = quote
+        if $hex isa ReferenceModule.TypeReference && $hex.type <: $ty
+            $rest_success
+        else
+            _nomatch
+        end
+    end
+    return ex, bound
+end
+
 function _gen_step_match(hex, tex, step::PSField, rest_success, bound::Set{Symbol})
     nameexpr = :($hex.name)
     inner, bound2 = _gen_value_match(nameexpr, step.namepat, rest_success, bound)
@@ -442,6 +473,28 @@ function _gen_path_match(path_ex, steps::Vector{PatStep}, success, bound::Set{Sy
     if length(steps) == 1 && steps[1] isa PSWholePathBind
         name = steps[1].name
         return :(let $(esc(name)) = ReferenceModule.skip_type_checkpoints($path_ex); $success end), union(bound, Set([name]))
+    end
+
+    # A leading `(::T)` is an OPTIONAL assertion: if a checkpoint is present here it
+    # must be `<: T` (consume it, match the rest on the tail); if absent, match the
+    # rest on the same path. This lets `(::ChildType)` patterns match both a
+    # canonical reference (checkpoint present) and a skip-bound recursion tail
+    # (checkpoint already peeled), so recursive mappers keep `rest...` skip-bound.
+    if steps[1] isa PSType
+        ty = esc(steps[1].typeexpr)
+        sp = gensym(:sp)
+        rest_on_tail, b1 = _gen_path_match(:(ReferenceModule.tail($sp)), steps[2:end], success, bound)
+        rest_on_same, b2 = _gen_path_match(sp, steps[2:end], success, bound)
+        ex = quote
+            let $sp = $path_ex
+                if $sp isa ReferenceModule.ConcreteReferencePath && ReferenceModule.head($sp) isa ReferenceModule.TypeReference
+                    ReferenceModule.head($sp).type <: $ty ? $rest_on_tail : _nomatch
+                else
+                    $rest_on_same
+                end
+            end
+        end
+        return ex, union(b1, b2)
     end
 
     if length(steps) == 1 && steps[1] isa PSPathInterp

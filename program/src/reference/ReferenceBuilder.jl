@@ -59,6 +59,12 @@ struct BSPathSplice <: BuildStep
     expr
 end
 
+# A first-class type checkpoint step: `f::T` emits the steps of `f` and then a
+# TypeReference(T) — "f first then T".
+struct BSType <: BuildStep
+    typeexpr
+end
+
 function _parse_build_path(ex)
     steps = BuildStep[]
     _parse_build_path!(steps, ex)
@@ -69,6 +75,17 @@ function _parse_build_path!(steps::Vector{BuildStep}, ex)
     if ex isa Symbol
         # Path-position symbol => literal field name
         push!(steps, BSField(String(ex)))
+        return steps
+
+    elseif ex isa Expr && ex.head == :(::)
+        # f::T — emit the steps of `f`, then a TypeReference(T) checkpoint.
+        # A leading `::T` (no `f`) emits just the checkpoint.
+        if length(ex.args) == 2
+            _parse_build_path!(steps, ex.args[1])
+            push!(steps, BSType(ex.args[2]))
+        else
+            push!(steps, BSType(ex.args[1]))
+        end
         return steps
 
     elseif ex isa Expr && ex.head == :. && ex.args[2] isa QuoteNode
@@ -211,6 +228,10 @@ end
 
 function _gen_build_step(step::BSPathSplice)
     return esc(step.expr)
+end
+
+function _gen_build_step(step::BSType)
+    return :(ReferenceModule.TypeReference($(esc(step.typeexpr))))
 end
 
 function _gen_build_step(step::BSProjection)
