@@ -79,12 +79,12 @@ function _parse_build_path!(steps::Vector{BuildStep}, ex)
 
     elseif ex isa Expr && ex.head == :(::)
         # f::T — emit the steps of `f`, then a TypeReference(T) checkpoint.
-        # A leading `::T` (no `f`) emits just the checkpoint.
+        # A leading `::T` (no `f`) emits the checkpoint then the rest of the chain.
         if length(ex.args) == 2
             _parse_build_path!(steps, ex.args[1])
-            push!(steps, BSType(ex.args[2]))
+            _build_type_suffix!(steps, ex.args[2])
         else
-            push!(steps, BSType(ex.args[1]))
+            _build_leading_type!(steps, ex.args[1])
         end
         return steps
 
@@ -181,6 +181,43 @@ function _parse_build_path!(steps::Vector{BuildStep}, ex)
 
     else
         error("unsupported @reference syntax: $ex")
+    end
+end
+
+# `x::T` type suffix: a bare `T` is a checkpoint; a `T{i}` / `T[i]` (which Julia
+# parses as a parametric/indexed type) is read as the checkpoint `T` followed by
+# a position/range/element step — so `value::TextString{s:e}` needs no parens.
+function _build_type_suffix!(steps::Vector{BuildStep}, T)
+    if T isa Expr && T.head == :curly
+        push!(steps, BSType(T.args[1]))
+        push!(steps, _braces_step(T.args[2], T))
+    elseif T isa Expr && T.head == :ref
+        push!(steps, BSType(T.args[1]))
+        if length(T.args) == 2
+            push!(steps, BSIndex(T.args[2]))
+        elseif length(T.args) == 3
+            push!(steps, BSRange(T.args[2], T.args[3]))
+        else
+            error("type suffix index supports 1 or 2 dimensions: $T")
+        end
+    else
+        push!(steps, BSType(T))
+    end
+end
+
+# Leading `::X`: a bare symbol is just the checkpoint; a chain like
+# `JsonNumber.value{s:e}` (which Julia parses entirely under the `::`) is read as
+# checkpoint `JsonNumber` followed by the `.value{s:e}` steps — so no parens.
+function _build_leading_type!(steps::Vector{BuildStep}, X)
+    if X isa Symbol
+        push!(steps, BSType(X))
+    else
+        n = length(steps)
+        _parse_build_path!(steps, X)
+        root = steps[n + 1]
+        (root isa BSField && root.nameexpr isa String) ||
+            error("leading ::T must start with a type name: $X")
+        steps[n + 1] = BSType(Symbol(root.nameexpr))
     end
 end
 

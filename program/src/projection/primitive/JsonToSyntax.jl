@@ -80,15 +80,15 @@ JsonBoolToSyntaxLeaf(; font=font_ubuntu_monospace_regular_24, color=color_solari
 
 function map_reference_forward(::JsonBoolToSyntaxLeaf, iomap::SimpleIoMap, reference)
     @reference_case reference begin
-        (::JsonBool)            => @reference (::SyntaxLeaf)
-        (::JsonBool).value{s:e} => @reference ((::SyntaxLeaf).value::TextString){s:e}
+        ::JsonBool            => @reference ::SyntaxLeaf
+        ::JsonBool.value{s:e} => @reference ::SyntaxLeaf.value::TextString{s:e}
     end
 end
 
 function map_reference_backward(::JsonBoolToSyntaxLeaf, iomap::SimpleIoMap, reference)
     @reference_case reference begin
-        (::SyntaxLeaf)            => @reference (::JsonBool)
-        (::SyntaxLeaf).value{s:e} => @reference ((::JsonBool).value::Bool){s:e}
+        ::SyntaxLeaf            => @reference ::JsonBool
+        ::SyntaxLeaf.value{s:e} => @reference ::JsonBool.value::Bool{s:e}
     end
 end
 
@@ -111,15 +111,15 @@ JsonNumberToSyntaxLeaf(; font=font_ubuntu_monospace_regular_24, color=color_sola
 
 function map_reference_forward(::JsonNumberToSyntaxLeaf, iomap::SimpleIoMap, reference)
     @reference_case reference begin
-        (::JsonNumber)            => @reference (::SyntaxLeaf)
-        (::JsonNumber).value{s:e} => @reference ((::SyntaxLeaf).value::TextString){s:e}
+        ::JsonNumber            => @reference ::SyntaxLeaf
+        ::JsonNumber.value{s:e} => @reference ::SyntaxLeaf.value::TextString{s:e}
     end
 end
 
 function map_reference_backward(::JsonNumberToSyntaxLeaf, iomap::SimpleIoMap, reference)
     @reference_case reference begin
-        (::SyntaxLeaf)            => @reference (::JsonNumber)
-        (::SyntaxLeaf).value{s:e} => @reference ((::JsonNumber).value::Real){s:e}
+        ::SyntaxLeaf            => @reference ::JsonNumber
+        ::SyntaxLeaf.value{s:e} => @reference ::JsonNumber.value::Real{s:e}
     end
 end
 
@@ -163,9 +163,9 @@ JsonStringToSyntaxLeaf(; quote_font=font_ubuntu_monospace_regular_24, quote_colo
 # quote selection on a nested string round-trips as proj(p, open) → open.
 function map_reference_forward(p::JsonStringToSyntaxLeaf, iomap::SimpleIoMap, reference)
     @reference_case reference begin
-        (::JsonString)            => @reference (::SyntaxLeaf)
+        ::JsonString            => @reference ::SyntaxLeaf
         proj(^(p), inner) => inner
-        (::JsonString).value{s:e} => @reference ((::SyntaxLeaf).value::TextString){s:e}
+        ::JsonString.value{s:e} => @reference ::SyntaxLeaf.value::TextString{s:e}
     end
 end
 
@@ -178,10 +178,10 @@ end
 # when no escape sequences precede the position).
 function map_reference_backward(p::JsonStringToSyntaxLeaf, iomap::SimpleIoMap, reference)
     @reference_case reference begin
-        (::SyntaxLeaf)            => @reference (::JsonString)
-        (::SyntaxLeaf).value{s:e} => @reference ((::JsonString).value::String){s:e}
-        (::SyntaxLeaf).open{s:e}  => @reference (::JsonString).proj(p, ^(reference))
-        (::SyntaxLeaf).close{s:e} => @reference (::JsonString).proj(p, ^(reference))
+        ::SyntaxLeaf            => @reference ::JsonString
+        ::SyntaxLeaf.value{s:e} => @reference ::JsonString.value::String{s:e}
+        ::SyntaxLeaf.open{s:e}  => @reference ::JsonString.proj(p, ^(reference))
+        ::SyntaxLeaf.close{s:e} => @reference ::JsonString.proj(p, ^(reference))
     end
 end
 
@@ -232,31 +232,31 @@ JsonArrayToSyntaxNode(; delim_font=font_ubuntu_monospace_bold_24, delim_color=co
 # SyntaxNode renderer can interpret the embedded output position.
 function map_reference_forward(p::JsonArrayToSyntaxNode, iomap::ChildrenIoMap, reference)
     @reference_case reference begin
-        (::JsonArray) => @reference (::SyntaxNode)
+        ::JsonArray => @reference ::SyntaxNode
         proj(^(p), _) => reference
-        (::JsonArray).elements{s:e}.rest... => begin
+        ::JsonArray.elements{s:e}.rest... => begin
             child_i = s + 1
             iomaps = iomap.child_iomaps[]
             1 <= child_i <= length(iomaps) || return nothing
             child = iomaps[child_i]
             inner = map_reference_forward(child.projection, child, rest)
             inner === nothing && return nothing
-            @reference ((::SyntaxNode).children::CellVector)[child_i].^(inner)
+            @reference ::SyntaxNode.children::CellVector[child_i].^(inner)
         end
     end
 end
 
 function map_reference_backward(p::JsonArrayToSyntaxNode, iomap::ChildrenIoMap, reference)
     @reference_case reference begin
-        (::SyntaxNode) => @reference (::JsonArray)
-        (::SyntaxNode).children{s:e}.rest... => begin
+        ::SyntaxNode => @reference ::JsonArray
+        ::SyntaxNode.children{s:e}.rest... => begin
             child_i = s + 1
             iomaps = iomap.child_iomaps[]
             1 <= child_i <= length(iomaps) || return nothing
             child = iomaps[child_i]
             inner = map_reference_backward(child.projection, child, rest)
             inner === nothing && return nothing
-            @reference ((::JsonArray).elements::CellVector)[child_i].^(inner)
+            @reference ::JsonArray.elements::CellVector[child_i].^(inner)
         end
     end
 end
@@ -347,20 +347,20 @@ JsonObjectToSyntaxNode(; delim_font=font_ubuntu_monospace_bold_24, delim_color=c
 # introduced output ({, }, :, separators, flattened offset) and passes through.
 function map_reference_forward(p::JsonObjectToSyntaxNode, iomap::ChildrenIoMap, reference)
     @reference_case reference begin
-        (::JsonObject) => @reference (::SyntaxNode)
+        ::JsonObject => @reference ::SyntaxNode
         proj(^(p), _) => reference
-        (::JsonObject).entries{s:e}.rest... => begin
+        ::JsonObject.entries{s:e}.rest... => begin
             pair_i = s + 1
             vioms = iomap.child_iomaps[]
             1 <= pair_i <= length(vioms) || return nothing
             # Whole entry: .entries[j]{{Entry}} → .children[j]
-            skip_type_checkpoints(rest) isa EmptyReferencePath && return @reference (::SyntaxNode).children[pair_i]
+            skip_type_checkpoints(rest) isa EmptyReferencePath && return @reference ::SyntaxNode.children[pair_i]
             @reference_case rest begin
                 key.inner... => begin
                     # Whole key → .children[j].children[1]; a char path passes through.
                     skip_type_checkpoints(inner) isa EmptyReferencePath &&
-                        return @reference (::SyntaxNode).children[pair_i].children[1]
-                    @reference (::SyntaxNode).children[pair_i].children[1].value.^(inner)
+                        return @reference ::SyntaxNode.children[pair_i].children[1]
+                    @reference ::SyntaxNode.children[pair_i].children[1].value.^(inner)
                 end
                 value.inner... => begin
                     child = vioms[pair_i]
@@ -369,7 +369,7 @@ function map_reference_forward(p::JsonObjectToSyntaxNode, iomap::ChildrenIoMap, 
                     # so the type after .children[2] comes from the recursion.
                     translated = map_reference_forward(child.projection, child, inner)
                     translated === nothing && return nothing
-                    @reference (::SyntaxNode).children[pair_i].children[2].^(translated)
+                    @reference ::SyntaxNode.children[pair_i].children[2].^(translated)
                 end
             end
         end
@@ -378,28 +378,28 @@ end
 
 function map_reference_backward(p::JsonObjectToSyntaxNode, iomap::ChildrenIoMap, reference)
     @reference_case reference begin
-        (::SyntaxNode) => @reference (::JsonObject)
-        (::SyntaxNode).children{s:e}.rest... => begin
+        ::SyntaxNode => @reference ::JsonObject
+        ::SyntaxNode.children{s:e}.rest... => begin
             pair_i = s + 1
             vioms = iomap.child_iomaps[]
             1 <= pair_i <= length(vioms) || return nothing
             # Whole pair node → .entries[j]
-            skip_type_checkpoints(rest) isa EmptyReferencePath && return @reference (::JsonObject).entries[pair_i]
+            skip_type_checkpoints(rest) isa EmptyReferencePath && return @reference ::JsonObject.entries[pair_i]
             @reference_case rest begin
                 children{s2:e2}.leaf_path... => begin
                     child_of_pair = s2 + 1
                     if child_of_pair == 1
                         skip_type_checkpoints(leaf_path) isa EmptyReferencePath &&
-                            return @reference (::JsonObject).entries[pair_i].key
+                            return @reference ::JsonObject.entries[pair_i].key
                         @reference_case leaf_path begin
-                            value.char_path... => @reference (::JsonObject).entries[pair_i].key.^(char_path)
+                            value.char_path... => @reference ::JsonObject.entries[pair_i].key.^(char_path)
                         end
                     elseif child_of_pair == 2
                         child = vioms[pair_i]
                         child === nothing && return nothing
                         translated = map_reference_backward(child.projection, child, leaf_path)
                         translated === nothing && return nothing
-                        @reference (::JsonObject).entries[pair_i].value.^(translated)
+                        @reference ::JsonObject.entries[pair_i].value.^(translated)
                     else
                         nothing
                     end

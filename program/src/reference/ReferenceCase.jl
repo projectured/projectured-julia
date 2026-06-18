@@ -139,12 +139,12 @@ function _parse_path!(steps::Vector{PatStep}, ex)
 
     elseif ex isa Expr && ex.head == :(::)
         # f::T — match f's steps then a TypeReference(T) checkpoint.
-        # A leading `::T` (no `f`) matches just the checkpoint.
+        # A leading `::T` (no `f`) matches the checkpoint then the rest of the chain.
         if length(ex.args) == 2
             _parse_path!(steps, ex.args[1])
-            push!(steps, PSType(ex.args[2]))
+            _pat_type_suffix!(steps, ex.args[2])
         else
-            push!(steps, PSType(ex.args[1]))
+            _pat_leading_type!(steps, ex.args[1])
         end
         return steps
 
@@ -258,6 +258,42 @@ end
 function _parse_subpath(ex)
     ex isa Symbol && return PatStep[PSWholePathBind(ex)]
     return _parse_path(ex)
+end
+
+# `x::T` type suffix in a pattern: bare `T` is a checkpoint; `T{i}`/`T[i]` is read
+# as checkpoint `T` then a position/range/element step (so `value::TextString{s:e}`
+# needs no parens).
+function _pat_type_suffix!(steps::Vector{PatStep}, T)
+    if T isa Expr && T.head == :curly
+        push!(steps, PSType(T.args[1]))
+        push!(steps, _braces_pat(T.args[2]))
+    elseif T isa Expr && T.head == :ref
+        push!(steps, PSType(T.args[1]))
+        if length(T.args) == 2
+            push!(steps, PSIndex(_parse_value(T.args[2])))
+        elseif length(T.args) == 3
+            push!(steps, PSRange(_parse_value(T.args[2]), _parse_value(T.args[3])))
+        else
+            error("type suffix index supports 1 or 2 dimensions: $T")
+        end
+    else
+        push!(steps, PSType(T))
+    end
+end
+
+# Leading `::X`: a bare symbol is the checkpoint; a chain like `JsonObject.entries{s:e}`
+# is read as checkpoint `JsonObject` then the `.entries{s:e}` steps (no parens).
+function _pat_leading_type!(steps::Vector{PatStep}, X)
+    if X isa Symbol
+        push!(steps, PSType(X))
+    else
+        n = length(steps)
+        _parse_path!(steps, X)
+        root = steps[n + 1]
+        (root isa PSField && root.namepat isa PVLiteral && root.namepat.value isa String) ||
+            error("leading ::T must start with a type name: $X")
+        steps[n + 1] = PSType(Symbol(root.namepat.value))
+    end
 end
 
 # Lower the inner expression of a `{...}` pattern to either a position or
