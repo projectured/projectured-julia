@@ -98,6 +98,19 @@ const sql_syntax_example     = Example("sql_syntax",     make_sql_document_examp
 const sql_table_example      = Example("sql_table",      make_sql_document_example,            make_sql_table_projection_example)
 const ini_example            = Example("ini",             make_ini_document_example,            make_ini_projection_example)
 const ned_example            = Example("ned",             make_ned_document_example,            make_ned_projection_example)
+# `clipboard_example` is deliberately kept OUT of the `examples` registry below
+# (like `lazy_example`). The internal clipboard is stateful: its document is a
+# `ClipboardSlice` and its projection carries a mutable display flag. The
+# enumeration-based suites (test_printers / test_readers / test_repls /
+# test_text_navigations) and `test_example` run every sub-test on one *shared*
+# document instance in sequence, so the destructive no-selection `test_repl`
+# sweep collapses the small wrapped content before navigation runs (a Ctrl+Home
+# seed then finds no caret). Each suite passes on a *fresh* document — run them
+# individually, e.g. `test_printer(clipboard_example)` / `test_reader(...)` /
+# `test_repl(...)` / `test_text_navigation(...)`. Use it interactively with
+# `run_example(clipboard_example)`; the selection-driven copy/cut/paste flow it
+# exists to demonstrate is unaffected.
+const clipboard_example      = Example("clipboard",       make_clipboard_document_example,      make_clipboard_projection_example)
 
 const examples = [
     json_example, json_sorted_example, json_null_example, json_string_example,

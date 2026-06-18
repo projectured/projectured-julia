@@ -29,7 +29,8 @@ import ..ReferenceModule: ReferencePath, ConcreteReferencePath, EmptyReferencePa
                           FieldReference, RangeReference, ElementReference, head, tail
 import ..PrinterContextModule: PrinterContext, child_context, with_available_size
 import ..IoMapApiModule: IoMap
-import ..OperationModule: ReplaceSelectionOperation
+import ..OperationModule: ReplaceSelectionOperation, ReplaceDocumentOperation,
+                          CollectionInsertOperation, CollectionDeleteOperation, CompoundOperation
 import ..PrimitiveModule: StringReplaceRangeOperation, NumberReplaceRangeOperation
 
 export ScreenToScreen, ScreenToScreenIoMap, ScreenWindowIoMap
@@ -175,7 +176,11 @@ function projection_read(p::ScreenToScreen, recursion, change::Change, iomap::Sc
     return Change(change.gesture, projection_read(p, iomap, payload))
 end
 
-# Prepend `steps` to the reference path inside `op` (if it carries one).
+# Prepend `steps` to the reference path inside `op` (if it carries one), rooting a
+# child's operation at the ScreenDocument. Every path-carrying operation type must
+# be handled here; an unhandled type would fall through unchanged and apply its
+# child-relative path against the screen root (e.g. ReplaceDocumentOperation's
+# `.slice` from the clipboard projection).
 function _prefix_op(op, steps::Tuple)
     op === nothing && return nothing
     if op isa StringReplaceRangeOperation
@@ -184,6 +189,15 @@ function _prefix_op(op, steps::Tuple)
         return NumberReplaceRangeOperation(_prepend(steps, op.reference), op.replacement)
     elseif op isa ReplaceSelectionOperation
         return ReplaceSelectionOperation(_prepend(steps, op.path))
+    elseif op isa ReplaceDocumentOperation
+        return ReplaceDocumentOperation(_prepend(steps, op.path), op.document)
+    elseif op isa CollectionInsertOperation
+        return CollectionInsertOperation(_prepend(steps, op.path), op.index, op.items,
+            op.selection === nothing ? nothing : _prepend(steps, op.selection))
+    elseif op isa CollectionDeleteOperation
+        return CollectionDeleteOperation(_prepend(steps, op.path), op.index, op.count)
+    elseif op isa CompoundOperation
+        return CompoundOperation(Any[_prefix_op(o, steps) for o in op.operations])
     else
         return op
     end

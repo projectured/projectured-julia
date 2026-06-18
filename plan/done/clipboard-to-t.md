@@ -198,10 +198,18 @@ Delegation tail (both readers):
    The reader guards every copy/cut/note/paste path with `isa Document`
    (`_selected` returns the evaluated sub-document; helpers bail out when it is
    not a `Document`), so the op is only built with a genuine `Document`.
-5. **Example/root wiring** — **Deferred.** No example currently makes a
-   `ClipboardSlice`/`ClipboardCollection` the editor root; none was added. The
-   projection is exercised end-to-end by `test/src/projection/ClipboardToTTest.jl`
-   instead.
+5. **Example/root wiring** — **Done (follow-up).** A `clipboard_example` now
+   makes a `ClipboardSlice` (wrapping a small JSON array) the editor root:
+   `example/src/document/Clipboard.jl` + `example/src/projection/Clipboard.jl`
+   (`ClipboardSliceToAnyProjection` at the top of a `RecursiveProjection`
+   dispatcher that also handles the JSON content → syntax, then SyntaxToText →
+   TextToGraphics). Run it interactively with `run_example(clipboard_example)`.
+   It is **kept out of the global `examples` registry** (like `lazy_example`):
+   the projection/document are stateful, and the shared-instance enumeration
+   sweeps (`test_example` runs `test_repl` before `test_text_navigation` on one
+   document) collapse the small content. Each suite passes on a fresh instance —
+   run them individually (`test_printer(clipboard_example)` etc.). The projection
+   is still exercised in CI by `test/src/projection/ClipboardToAnyTest.jl`.
 
 ## Implementation notes / decisions
 
