@@ -1,6 +1,6 @@
 using Test
 using Projectured.McpModule
-using Projectured.ToolRegistryModule: call_tool
+using Projectured.ToolRegistryModule: call_tool, list_tools, list_resources
 using Projectured.WorkbenchAssistantModule: SubmitJuliaOperation, _eval_result
 using Projectured: WorkbenchAssistant, evaluate_operation, ConcreteReferencePath,
                    FieldReference, RangeReference, EmptyReferencePath, FakeLlm
@@ -108,6 +108,68 @@ function test_read_function_documentation()
         # Test with non-existent function
         result = read_function_documentation("DocumentModule", "non_existent_function")
         @test occursin("not found", result)
+    end
+end
+
+function test_search_documentation()
+    @testset "search_documentation" begin
+        # A term that should appear in the guides
+        result = search_documentation("selection")
+        @test isa(result, String)
+        @test occursin("resource://guide/", result)
+
+        # Limit is honoured (count the per-hit "resource://guide/" headers)
+        result_one = search_documentation("selection"; limit=1)
+        @test count("resource://guide/", result_one) <= 1
+
+        # No match
+        result_none = search_documentation("zzzznotarealword")
+        @test occursin("No documentation matches", result_none)
+
+        # Empty / too-short query
+        @test occursin("Provide a search query", search_documentation("a"))
+    end
+end
+
+function test_search_api()
+    @testset "search_api" begin
+        # A function that definitely exists
+        result = search_api("replace_selection")
+        @test isa(result, String)
+        @test occursin("replace_selection", result)
+
+        # Function hits point at read_function_documentation; module/class hits at resource://
+        @test occursin("read_function_documentation", result) || occursin("resource://", result)
+
+        # kind filter restricts results to classes (structs)
+        result_class = search_api("workbench"; kind="class")
+        @test isa(result_class, String)
+        @test !occursin("**function**", result_class)
+
+        # No match
+        @test occursin("No API matches", search_api("zzzznotarealword"))
+
+        # Too-short query
+        @test occursin("Provide a search query", search_api("a"))
+    end
+end
+
+# After register_default_tools_and_resources! the search tools are registered and
+# no per-function resources are; verifies the A3 fan-out drop.
+function test_search_tools_registered()
+    @testset "search tools registered, function resources dropped" begin
+        register_default_tools_and_resources!()
+        tool_names = [t.name for t in list_tools()]
+        @test "search_api" in tool_names
+        @test "search_documentation" in tool_names
+
+        resource_uris = [r.uri for r in list_resources()]
+        @test !any(u -> startswith(u, "resource://function/"), resource_uris)
+        @test any(u -> startswith(u, "resource://module/"), resource_uris)
+
+        # The search tools are callable through the registry like any tool.
+        out = call_tool("search_api", Dict("query" => "replace_selection"), nothing)
+        @test occursin("replace_selection", out)
     end
 end
 
@@ -318,6 +380,9 @@ function test_mcp_tools()
         test_function_availability()
         test_base_extensions()
         test_workbench_editor_reference()
+        test_search_documentation()
+        test_search_api()
+        test_search_tools_registered()
     end
 end
 
@@ -327,3 +392,4 @@ export test_list_modules, test_list_classes, test_list_functions
 export test_read_module_documentation, test_read_class_documentation, test_read_function_documentation
 export test_execute_julia_code, test_function_availability, test_base_extensions
 export test_workbench_editor_reference
+export test_search_documentation, test_search_api, test_search_tools_registered

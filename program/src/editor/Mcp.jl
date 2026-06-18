@@ -21,7 +21,9 @@ import ..WorkbenchModule: DEFAULT_ASSISTANT_SYSTEM
 export McpServer, mcp_start!, mcp_stop!,
        execute_julia_code, list_guides, read_guide,
        list_modules, list_classes, list_functions,
-       read_module_documentation, read_class_documentation, read_function_documentation
+       read_module_documentation, read_class_documentation, read_function_documentation,
+       search_documentation, search_api,
+       register_default_tools_and_resources!
 
 # ═══════════════════════════════════════════════════════════════════════
 # MCP server
@@ -365,18 +367,56 @@ function register_default_tools_and_resources!()
         "3. resource://guide/getting-started\n" *
         "4. resource://guide/editor/reference\n" *
         "5. resource://guide/editor/selection\n\n" *
-        "NEVER guess names or signatures. Look them up.\n" *
-        "NEVER call print(). NEVER include code comments.\n\n" *
-        "Additional resources (via MCP list_resources):\n" *
-        "- resource://guide/{guide_name}\n" *
-        "- resource://module/{module_name}\n" *
-        "- resource://class/{module_name}/{class_name}\n" *
-        "- resource://function/{module_name}/{function_signature}",
+        "TO FIND A SPECIFIC API OR GUIDE — do this BEFORE writing code:\n" *
+        "- Call the `search_api` tool to find the right module, struct, or function " *
+        "(it ranks by name and docstring and returns how to read full docs).\n" *
+        "- Call the `search_documentation` tool to find the relevant guide section.\n" *
+        "- Read full text with read_resource(uri); read a function's full docs with " *
+        "read_function_documentation(\"Module\", \"name\") (callable directly here).\n\n" *
+        "NEVER guess names or signatures — search for them.\n" *
+        "NEVER call print(). NEVER include code comments.",
         NamedTuple[
             (name="code", type="string",
              description="Julia source code to evaluate", required=true),
         ],
         (editor, args) -> execute_julia_code(editor, args["code"]),
+    ))
+
+    register_tool!(Tool(
+        "search_documentation",
+        "Search the ProjecturEd guide documentation by keyword. Returns ranked guide " *
+        "sections with their resource:// URIs and a short excerpt. Read the full text " *
+        "with read_resource(uri). Call this to locate the relevant guide section BEFORE " *
+        "reading whole guides.",
+        NamedTuple[
+            (name="query", type="string",
+             description="Search terms (matched against guide headings and body)", required=true),
+            (name="limit", type="number",
+             description="Maximum number of results (default 8)", required=false),
+        ],
+        (editor, args) -> search_documentation(
+            String(args["query"]); limit=_arg_int(get(args, "limit", 8), 8)),
+    ))
+
+    register_tool!(Tool(
+        "search_api",
+        "Search ProjecturEd modules, structs (classes), and functions by name and " *
+        "docstring. Returns ranked hits with a one-line doc and how to read the full " *
+        "docs: a resource:// URI for modules/classes, or a read_function_documentation(…) " *
+        "call for functions. Use this to find the right type or function and NEVER guess " *
+        "names or signatures.",
+        NamedTuple[
+            (name="query", type="string",
+             description="Search terms (matched against names and docstrings)", required=true),
+            (name="kind", type="string",
+             description="Optional filter: \"module\", \"class\", or \"function\"", required=false),
+            (name="limit", type="number",
+             description="Maximum number of results (default 8)", required=false),
+        ],
+        (editor, args) -> search_api(
+            String(args["query"]);
+            kind=_arg_kind(get(args, "kind", nothing)),
+            limit=_arg_int(get(args, "limit", 8), 8)),
     ))
 
     register_resource!(Resource(
@@ -434,16 +474,10 @@ function register_default_tools_and_resources!()
                 ))
             end
         end
-        for (fn_sym, _) in _module_functions(mod)
-            let mn = String(mod_sym), fn = String(fn_sym)
-                register_resource!(Resource(
-                    "resource://function/$mn/$fn",
-                    "Function: $mn.$fn",
-                    "Full documentation for function $fn in module $mn.",
-                    () -> read_function_documentation(mn, fn),
-                ))
-            end
-        end
+        # Per-function resources are intentionally NOT registered: that fans out
+        # to hundreds of entries and bloats the resource list. Functions are
+        # discovered via the `search_api` tool and read on demand with
+        # `read_function_documentation(module, name)`.
     end
     nothing
 end
@@ -473,11 +507,47 @@ function _find_module(name::String)
     obj isa Module ? obj : nothing
 end
 
+# Render a doc object (as returned by `Base.Docs._doc`) to plain markdown source.
+# On Julia 1.12 `_doc` yields a raw `DocStr`/`MultiDoc`, not a `Markdown.MD`.
+function _render_doc(md)
+    md === nothing && return ""
+    if md isa Base.Docs.DocStr
+        return strip(join(md.text))
+    elseif md isa Base.Docs.MultiDoc
+        isempty(md.order) && return ""
+        d = md.docs[md.order[1]]
+        return d isa Base.Docs.DocStr ? strip(join(d.text)) : strip(string(d))
+    else
+        return strip(string(md))
+    end
+end
+
+"""
+    _binding_doc(mod, sym) -> String
+
+Full documentation for the binding `mod.sym` as plain markdown, or "" if none.
+This is the `(module, symbol)` form `@doc` lowers to — the only path that works
+on Julia 1.12, where `Base.Docs.doc(obj)` has no method for modules/types/functions.
+"""
+function _binding_doc(mod::Module, sym::Symbol)
+    md = try
+        Base.Docs._doc(Base.Docs.Binding(mod, sym))
+    catch
+        nothing
+    end
+    str = _render_doc(md)
+    (isempty(str) || startswith(str, "No documentation found")) && return ""
+    String(str)
+end
+
+# Object-based convenience: derive the binding from a module/type/function value.
 function _doc_string(obj)
-    md = Base.Docs.doc(obj)
-    str = string(md)
-    startswith(str, "No documentation found") && return ""
-    String(strip(str))
+    if obj isa Module
+        return _binding_doc(parentmodule(obj), nameof(obj))
+    elseif obj isa Type || obj isa Function
+        return _binding_doc(parentmodule(obj), nameof(obj))
+    end
+    ""
 end
 
 function _first_paragraph(doc::AbstractString)
@@ -538,6 +608,228 @@ function _module_functions(mod::Module)
         push!(fns, name => obj)
     end
     fns
+end
+
+# ═══════════════════════════════════════════════════════════════════════
+# Documentation & API search
+# ═══════════════════════════════════════════════════════════════════════
+#
+# Two read-only search functions, also exposed as MCP tools, so an AI can
+# find the right guide section or API entry in one call instead of listing
+# and reading every resource. Both reuse the reflection/guide helpers above.
+
+# Split a query into lowercase alphanumeric/underscore terms (drop 1-char noise).
+_query_terms(q::AbstractString) =
+    filter(t -> length(t) >= 2, split(lowercase(q), r"[^a-z0-9_]+"))
+
+# Count case-insensitive occurrences of every term in `text`, scaled by `weight`.
+function _term_score(terms, text::AbstractString, weight::Int)
+    isempty(text) && return 0
+    lt = lowercase(text)
+    s = 0
+    for t in terms
+        s += weight * length(findall(t, lt))
+    end
+    s
+end
+
+# A short, whitespace-collapsed excerpt of `body` centred on the first term hit.
+function _excerpt(body::AbstractString, terms; width::Int=240)
+    isempty(body) && return ""
+    lt = lowercase(body)
+    pos = nothing
+    for t in terms
+        r = findfirst(t, lt)
+        r === nothing && continue
+        (pos === nothing || first(r) < pos) && (pos = first(r))
+    end
+    pos === nothing && (pos = 1)
+    start = thisind(body, max(1, pos - 60))
+    stop  = thisind(body, min(lastindex(body), pos + width))
+    snippet = strip(replace(body[start:stop], r"\s+" => " "))
+    (start > 1 ? "…" : "") * snippet * (stop < lastindex(body) ? "…" : "")
+end
+
+# ── Guide documentation index ──────────────────────────────────────────────
+
+struct _GuideSection
+    guide::String
+    heading::String
+    body::String
+end
+
+function _index_guide_sections()
+    doc_dir = joinpath(@__DIR__, "../../../guide")
+    sections = _GuideSection[]
+    isdir(doc_dir) || return sections
+    for (root, dirs, files) in walkdir(doc_dir)
+        for file in sort(files)
+            endswith(file, ".md") || continue
+            filepath = joinpath(root, file)
+            relpath = replace(filepath, doc_dir * "/" => "")
+            guide_name = replace(relpath, ".md" => "")
+            content = read(filepath, String)
+            heading = ""
+            buf = String[]
+            for line in split(content, '\n')
+                if startswith(strip(line), "#")
+                    body = strip(join(buf, "\n"))
+                    (isempty(body) && isempty(heading)) ||
+                        push!(sections, _GuideSection(guide_name, heading, body))
+                    heading = strip(replace(line, r"^\s*#+\s*" => ""))
+                    empty!(buf)
+                else
+                    push!(buf, line)
+                end
+            end
+            body = strip(join(buf, "\n"))
+            (isempty(body) && isempty(heading)) ||
+                push!(sections, _GuideSection(guide_name, heading, body))
+        end
+    end
+    sections
+end
+
+const _GUIDE_INDEX = Ref{Union{Nothing,Vector{_GuideSection}}}(nothing)
+_guide_index() = (_GUIDE_INDEX[] === nothing && (_GUIDE_INDEX[] = _index_guide_sections()); _GUIDE_INDEX[])
+
+"""
+    search_documentation(query; limit=8) -> String
+
+Keyword-search the ProjecturEd guide documentation. Splits guides into
+heading-delimited sections, ranks them by how often the query terms appear
+(headings weighted higher than body), and returns the top `limit` hits as a
+markdown list of `resource://guide/{name}` URIs plus a short excerpt. Read the
+full text with `read_resource(uri)`.
+"""
+function search_documentation(query::AbstractString; limit::Integer=8)
+    terms = _query_terms(query)
+    isempty(terms) && return "Provide a search query (two or more characters)."
+    scored = Tuple{Int,_GuideSection}[]
+    for sec in _guide_index()
+        s = _term_score(terms, sec.heading, 5) + _term_score(terms, sec.body, 1)
+        s > 0 && push!(scored, (s, sec))
+    end
+    isempty(scored) && return "No documentation matches \"$query\"."
+    sort!(scored; by = x -> -x[1])
+    io = IOBuffer()
+    println(io, "# Documentation matches for \"$query\"\n")
+    for (s, sec) in first(scored, min(limit, length(scored)))
+        head = isempty(sec.heading) ? "" : " — $(sec.heading)"
+        println(io, "## resource://guide/$(sec.guide)$head")
+        println(io, _excerpt(sec.body, terms))
+        println(io)
+    end
+    String(take!(io))
+end
+
+# ── API (module / class / function) index ──────────────────────────────────
+
+struct _ApiEntry
+    kind::String      # "module" | "class" | "function"
+    qualname::String  # "Mod" or "Mod.Name"
+    doc::String       # first-paragraph documentation
+    locator::String   # how to read the full docs
+end
+
+function _index_api()
+    proj = _projectured()
+    entries = _ApiEntry[]
+    for (mod_sym, mod) in _submodules(proj)
+        mn = String(mod_sym)
+        push!(entries, _ApiEntry("module", mn,
+                                 _first_paragraph(_binding_doc(proj, mod_sym)),
+                                 "resource://module/$mn"))
+        for (cls_sym, T) in _struct_types(mod)
+            cn = String(cls_sym)
+            startswith(cn, "#") && continue  # skip compiler-generated closure types
+            push!(entries, _ApiEntry("class", "$mn.$cn",
+                                     _first_paragraph(_binding_doc(mod, cls_sym)),
+                                     "resource://class/$mn/$cn"))
+        end
+        for (fn_sym, fn) in _module_functions(mod)
+            fnn = String(fn_sym)
+            startswith(fnn, "#") && continue  # skip compiler-generated closures
+            # Per-function resources are not pre-registered (would fan out to
+            # hundreds); read full docs on demand via this call instead.
+            push!(entries, _ApiEntry("function", "$mn.$fnn",
+                                     _first_paragraph(_binding_doc(mod, fn_sym)),
+                                     "read_function_documentation(\"$mn\", \"$fnn\")"))
+        end
+    end
+    entries
+end
+
+const _API_INDEX = Ref{Union{Nothing,Vector{_ApiEntry}}}(nothing)
+_api_index() = (_API_INDEX[] === nothing && (_API_INDEX[] = _index_api()); _API_INDEX[])
+
+# Rank: exact name match > name substring > qualified-name substring; doc hits add a little.
+function _api_score(terms, e::_ApiEntry)
+    name = lowercase(last(split(e.qualname, '.')))
+    full = lowercase(e.qualname)
+    doc  = lowercase(e.doc)
+    s = 0
+    for t in terms
+        if name == t
+            s += 100
+        elseif occursin(t, name)
+            s += 20
+        elseif occursin(t, full)
+            s += 10
+        end
+        s += length(findall(t, doc))
+    end
+    s
+end
+
+"""
+    search_api(query; kind=nothing, limit=8) -> String
+
+Search ProjecturEd modules, structs (classes), and functions by name and
+docstring. Ranks exact name matches above name substrings above docstring
+matches and returns the top `limit` hits. Each hit shows its kind, qualified
+name, one-line doc, and how to read full docs: a `resource://…` URI for modules
+and classes, or a `read_function_documentation(…)` call for functions. Pass
+`kind` (`"module"`, `"class"`, or `"function"`) to filter.
+"""
+function search_api(query::AbstractString; kind=nothing, limit::Integer=8)
+    terms = _query_terms(query)
+    isempty(terms) && return "Provide a search query (two or more characters)."
+    scored = Tuple{Int,_ApiEntry}[]
+    for e in _api_index()
+        (kind === nothing || e.kind == kind) || continue
+        s = _api_score(terms, e)
+        s > 0 && push!(scored, (s, e))
+    end
+    if isempty(scored)
+        suffix = kind === nothing ? "" : " (kind=$kind)"
+        return "No API matches \"$query\"$suffix."
+    end
+    sort!(scored; by = x -> -x[1])
+    io = IOBuffer()
+    println(io, "# API matches for \"$query\"\n")
+    for (s, e) in first(scored, min(limit, length(scored)))
+        doc = isempty(e.doc) ? "(no documentation)" : e.doc
+        println(io, "- **$(e.kind)** `$(e.qualname)` — $doc")
+        println(io, "  → read full: `$(e.locator)`")
+    end
+    String(take!(io))
+end
+
+# Coerce a tool argument (which may arrive as string/float/int) to an Int.
+function _arg_int(v, default::Int)
+    v === nothing && return default
+    v isa Integer && return Int(v)
+    v isa Real && return round(Int, v)
+    n = tryparse(Float64, string(v))
+    n === nothing ? default : round(Int, n)
+end
+
+# Normalise an optional `kind` argument to nothing or a lowercase string.
+function _arg_kind(v)
+    v === nothing && return nothing
+    s = lowercase(strip(string(v)))
+    isempty(s) ? nothing : s
 end
 
 """
