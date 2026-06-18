@@ -450,7 +450,8 @@ using .AnthropicModule: stream_message
 using .LlmModule: LlmBackend, AnthropicLlm, FakeLlm, stream_turn
 using .EvaluatorModule: EvaluatorDocument, EvaluatorForm, EvaluatorToplevel, result_text
 using .ConversationModule: ConversationDocument, ConversationConversation,
-                            ConversationTurn, ConversationPart, ConversationDraft
+                            ConversationTurn, ConversationPart, ConversationDraft,
+                            ConversationThinking, thinking_part
 using .ConversationToSyntaxModule: ConversationToSyntax,
                                     ConversationConversationToSyntaxNode,
                                     ConversationTurnToSyntaxNode,
@@ -738,7 +739,8 @@ export stream_message
 export LlmBackend, AnthropicLlm, FakeLlm, stream_turn
 export EvaluatorDocument, EvaluatorForm, EvaluatorToplevel, result_text
 export ConversationDocument, ConversationConversation,
-       ConversationTurn, ConversationPart, ConversationDraft
+       ConversationTurn, ConversationPart, ConversationDraft,
+       ConversationThinking, thinking_part
 export ConversationToSyntax,
        ConversationConversationToSyntaxNode,
        ConversationTurnToSyntaxNode,

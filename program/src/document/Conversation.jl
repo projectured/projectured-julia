@@ -35,7 +35,9 @@ import ..ReferenceModule: Reference, ReferencePath
 
 export ConversationDocument, ConversationConversation,
        ConversationTurn, ConversationPart, ConversationDraft,
-       IConversationConversation, IConversationTurn, IConversationPart, IConversationDraft
+       ConversationThinking, thinking_part,
+       IConversationConversation, IConversationTurn, IConversationPart,
+       IConversationDraft, IConversationThinking
 
 # ── Abstract base ─────────────────────────────────────────────────────────────
 
@@ -58,6 +60,55 @@ ConversationPart(content::Document; collapsed::Bool = false) =
     ConversationPart(Cell(content), Cell(collapsed), Cell(nothing))
 ConversationPart(s::AbstractString; collapsed::Bool = false) =
     ConversationPart(Cell(TextText(TextString(String(s)))), Cell(collapsed), Cell(nothing))
+
+# ── ConversationThinking ──────────────────────────────────────────────────────
+
+"""
+    ConversationThinking(text; signature = "", redacted = false, data = "")
+
+A content document for an extended-thinking ("reasoning") block. Wrapped in a
+`ConversationPart` like any other content type — what makes it special is that
+`signature` / `redacted` / `data` are Anthropic API protocol metadata that must
+survive re-serialization back to the API (parallel to `EvaluatorForm.tool_use_id`),
+so the tool-use round-trip is not broken.
+
+Fields:
+
+- `text::Document`     — the reasoning text (`TextText`; empty when `display` is
+                         `"omitted"` or for redacted blocks).
+- `signature::String`  — the opaque signature from `signature_delta` (`""` until
+                         one arrives; redacted blocks have none).
+- `redacted::Bool`     — `true` for a `redacted_thinking` block.
+- `data::String`       — the opaque payload for a redacted block (`""` otherwise).
+"""
+@document struct ConversationThinking <: ConversationDocument
+    text::Document
+    signature::String
+    redacted::Bool
+    data::String
+    selection::Reference
+end
+
+ConversationThinking(text::Document;
+                     signature::AbstractString = "",
+                     redacted::Bool = false,
+                     data::AbstractString = "") =
+    ConversationThinking(Cell(text), Cell(String(signature)),
+                         Cell(redacted), Cell(String(data)), Cell(nothing))
+ConversationThinking(text::AbstractString = "";
+                     signature::AbstractString = "",
+                     redacted::Bool = false,
+                     data::AbstractString = "") =
+    ConversationThinking(TextText(TextString(String(text)));
+                         signature = signature, redacted = redacted, data = data)
+
+# Convenience: a thinking part. Collapsed by default — reasoning is verbose and
+# secondary (see Stage 5 of the conversation-thinking plan).
+thinking_part(text = ""; collapsed::Bool = true, kwargs...) =
+    ConversationPart(ConversationThinking(text; kwargs...); collapsed = collapsed)
+
+# Accessor mirroring EvaluatorModule.result_text / _eval_*.
+_thinking_text(t::ConversationThinking) = t.text
 
 # ── ConversationTurn ──────────────────────────────────────────────────────────
 
@@ -194,5 +245,9 @@ Base.show(io::IO, t::ConversationTurn) =
 
 Base.show(io::IO, p::ConversationPart) =
     print(io, "ConversationPart(", typeof(p.content), ")")
+
+Base.show(io::IO, t::ConversationThinking) =
+    print(io, "ConversationThinking(redacted=", t.redacted,
+          ", signature=", isempty(t.signature) ? "\"\"" : "…", ")")
 
 end # module

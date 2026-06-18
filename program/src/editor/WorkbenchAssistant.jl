@@ -47,7 +47,8 @@ import ..XmlParserModule: xmlparse
 import ..ReferenceModule: ConcreteReferencePath, FieldReference, RangeReference, EmptyReferencePath
 import ..ReferenceCaseModule: var"@reference_case"
 import ..ReferenceBuilderModule: var"@reference"
-import ..ConversationModule: ConversationConversation, ConversationTurn, ConversationPart
+import ..ConversationModule: ConversationConversation, ConversationTurn, ConversationPart,
+                              ConversationThinking, thinking_part
 import ..EvaluatorModule: EvaluatorForm, result_text
 import ..JuliaModule: JuliaDocument, JuliaIdentifier
 import ..WorkbenchModule: WorkbenchAssistant
@@ -394,7 +395,10 @@ function build_messages(conversation::ConversationConversation)
             content = Any[]
             for part in t.parts
                 c = part.content
-                if c isa EvaluatorForm
+                if c isa ConversationThinking
+                    # User turns never legitimately contain thinking; drop it.
+                    continue
+                elseif c isa EvaluatorForm
                     text = "I ran the following Julia code:\n```julia\n" * _eval_code(c) *
                            "\n```\nResult:\n```\n" * _eval_result(c) * "\n```"
                     push!(content, Dict("type" => "text", "text" => text))
@@ -458,14 +462,37 @@ end
 
 # Build the Anthropic content blocks for an assistant text turn (eval/tool_use
 # parts are handled by `build_messages`'s lookahead, so they are skipped here).
+#
+# Thinking blocks must come **first** in the content array — before text and
+# before the `tool_use` blocks the caller's lookahead appends — and must carry
+# their `signature` unchanged, or a tool-use continuation 400s on a signature
+# error. We collect thinking blocks separately and prepend them.
 function _assistant_content(t::ConversationTurn)
-    content = Any[]
+    thinking = Any[]
+    rest = Any[]
     for part in t.parts
         c = part.content
-        c isa EvaluatorForm && continue
-        push!(content, Dict("type" => "text", "text" => _block_text(c)))
+        if c isa ConversationThinking
+            push!(thinking, _thinking_block(c))
+        elseif c isa EvaluatorForm
+            continue
+        else
+            push!(rest, Dict("type" => "text", "text" => _block_text(c)))
+        end
     end
-    content
+    append!(thinking, rest)   # thinking first, then text; tool_use appended after
+    thinking
+end
+
+# One Anthropic content block for a thinking part. Redacted blocks carry an
+# opaque `data` payload; normal blocks carry the reasoning text plus signature.
+function _thinking_block(c::ConversationThinking)
+    if c.redacted
+        return Dict("type" => "redacted_thinking", "data" => c.data)
+    end
+    Dict("type"      => "thinking",
+         "thinking"  => _content_to_string(c.text),
+         "signature" => c.signature)
 end
 
 """
@@ -484,6 +511,8 @@ function conversation_to_string(conversation::ConversationConversation)
             if c isa EvaluatorForm
                 println(io, "> ", _eval_code(c))
                 println(io, "= ", _eval_result(c))
+            elseif c isa ConversationThinking
+                println(io, "∴ ", c.redacted ? "[redacted thinking]" : _content_to_string(c.text))
             else
                 println(io, _block_text(c))
             end
@@ -508,6 +537,19 @@ mutable struct _PendingToolUse
     input::Any
 end
 
+# Extended-thinking request config for a model. Opus 4.x / Sonnet thinking
+# models accept `{"type":"adaptive","display":"summarized"}`; `display:
+# "summarized"` is what yields readable reasoning text (vs. the `"omitted"`
+# default). Returns `nothing` for models where we don't enable thinking, so the
+# `thinking` param is simply omitted from the request.
+function _thinking_config(model::AbstractString)
+    m = lowercase(String(model))
+    if occursin("opus", m) || occursin("sonnet", m)
+        return Dict("type" => "adaptive", "display" => "summarized")
+    end
+    nothing
+end
+
 function _run_agent_loop!(editor, a::WorkbenchAssistant)
     # `AnthropicLlm.stream_turn` errors with a clear HTTP message if the
     # API key is empty. `FakeLlm` doesn't need one. So leave validation
@@ -530,6 +572,7 @@ function _run_agent_loop!(editor, a::WorkbenchAssistant)
         # Live state for this turn
         state = Dict{Symbol,Any}(
             :current_block    => nothing,         # text block being filled
+            :current_thinking => nothing,         # thinking part being filled
             :current_tool     => nothing,         # _PendingToolUse being filled
             :tool_input_buf   => IOBuffer(),
             :pending_tools    => _PendingToolUse[],
@@ -537,7 +580,8 @@ function _run_agent_loop!(editor, a::WorkbenchAssistant)
         )
 
         stream_turn(a.llm, a.api_key, a.model, a.system, msgs, tools;
-                    on_event = ev -> _handle_sse_event!(ev, a, turn, state))
+                    on_event = ev -> _handle_sse_event!(ev, a, turn, state),
+                    thinking = _thinking_config(a.model))
 
         turn.stop_reason = state[:stop_reason]
 
@@ -591,6 +635,16 @@ function _handle_sse_event!(ev, a, turn, state)
             part = ConversationPart(TextText(TextString("")))
             push!(turn.parts, Cell(part))
             state[:current_block] = part
+        elseif block_type == "thinking"
+            # Collapsed by default — reasoning is verbose and secondary.
+            part = thinking_part("")
+            push!(turn.parts, Cell(part))
+            state[:current_thinking] = part
+        elseif block_type == "redacted_thinking"
+            # No deltas follow; the opaque `data` is all there is. Finalize now.
+            part = thinking_part(""; redacted = true,
+                                 data = String(get(block_data, :data, "")))
+            push!(turn.parts, Cell(part))
         elseif block_type == "tool_use"
             state[:current_tool] = _PendingToolUse(
                 String(get(block_data, :id, "")),
@@ -605,6 +659,10 @@ function _handle_sse_event!(ev, a, turn, state)
         dtype = get(delta, :type, "")
         if dtype == "text_delta"
             _append_text_delta!(state[:current_block], String(get(delta, :text, "")))
+        elseif dtype == "thinking_delta"
+            _append_thinking_delta!(state[:current_thinking], String(get(delta, :thinking, "")))
+        elseif dtype == "signature_delta"
+            _set_thinking_signature!(state[:current_thinking], String(get(delta, :signature, "")))
         elseif dtype == "input_json_delta"
             print(state[:tool_input_buf], String(get(delta, :partial_json, "")))
         end
@@ -628,7 +686,9 @@ function _handle_sse_event!(ev, a, turn, state)
                 _replace_last_part!(turn, parts)
             end
         end
+        # Thinking is plain prose — no markdown parse. Just close the block.
         state[:current_block] = nothing
+        state[:current_thinking] = nothing
     elseif et === :message_delta
         delta = get(data, :delta, nothing)
         if delta !== nothing
@@ -653,6 +713,29 @@ function _append_text_delta!(part::ConversationPart, s::AbstractString)
 end
 
 _append_text_delta!(_, _) = nothing
+
+# Accumulate a thinking_delta into the thinking part's text (rebuild a
+# single-span TextText with the accumulated reasoning, mirroring
+# `_append_text_delta!`).
+function _append_thinking_delta!(part::ConversationPart, s::AbstractString)
+    c = part.content
+    c isa ConversationThinking || return nothing
+    current = _content_to_string(c.text)
+    c.text = TextText(TextString(current * String(s)))
+    nothing
+end
+
+_append_thinking_delta!(_, _) = nothing
+
+# A signature_delta carries the opaque signature near the end of the block.
+function _set_thinking_signature!(part::ConversationPart, s::AbstractString)
+    c = part.content
+    c isa ConversationThinking || return nothing
+    c.signature = String(s)
+    nothing
+end
+
+_set_thinking_signature!(_, _) = nothing
 
 function _replace_last_part!(turn::ConversationTurn, new_parts::Vector)
     # Drop the scratch part at the end, replace with new_parts.

@@ -23,7 +23,7 @@ import ..CollectionModule: CellVector
 import ..ProjectionApiModule: projection_print, projection_printer_recurse, projection_read,
                               map_reference_forward, map_reference_backward, Projection
 import ..ConversationModule: ConversationDocument, ConversationConversation,
-                              ConversationTurn, ConversationPart
+                              ConversationTurn, ConversationPart, ConversationThinking
 import ..EvaluatorModule: EvaluatorForm
 import ..TextModule: TextText, TextString
 import ..FontModule: font_ubuntu_monospace_regular_24,
@@ -112,9 +112,22 @@ function projection_print(p::ConversationPartToSyntaxNode,
     content = part.content
     if content isa EvaluatorForm
         return _eval_form_node(p, part, content)
+    elseif content isa ConversationThinking
+        return _thinking_node(p, part, content)
     end
     leaf = SyntaxLeaf(_empty_ts(), _empty_ts(),
                       _ts(() -> _content_to_string(part.content)))
+    SimpleIoMap(p, part, leaf)
+end
+
+# A thinking block renders as a dimmed/italic "∴ <reasoning>" (or, for a redacted
+# block, "∴ [redacted]"), de-emphasised since reasoning is secondary prose.
+const _FONT_ITALIC = font_ubuntu_monospace_italic_24
+function _thinking_node(p, part, t::ConversationThinking)
+    body() = t.redacted ? "[redacted thinking]" : _content_to_string(t.text)
+    leaf = SyntaxLeaf(_ts("∴ ", _FONT_BOLD, _DIM_COL),
+                      _empty_ts(),
+                      _ts(body, _FONT_ITALIC, _DIM_COL))
     SimpleIoMap(p, part, leaf)
 end
 

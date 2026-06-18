@@ -1,5 +1,12 @@
 # Conversation thinking — extended-thinking support for the AI assistant
 
+> **Status: DONE.** All six stages implemented. Verified green with
+> `test_printer(conversation_example)`, `test_printer(conversation_widget_example)`,
+> `test_printer(assistant_example)`, `test_assistant_mvp()` (incl. the new
+> thinking-stream + thinking-collapse tests), `test_conversation_serialization()`
+> (incl. the new thinking round-trip / redacted / user-drop tests), and
+> `test_assistant_composer_panel()`. See the per-stage "Done" notes below.
+
 Add **extended thinking** ("reasoning") to the in-editor AI conversation. Claude
 emits `thinking` content blocks before its text/tool-use blocks when adaptive
 thinking is enabled; today the assistant pipeline ignores them entirely. This
@@ -105,6 +112,18 @@ redaction state.
 a turn, `show`/walk it. Extend `conversation_example` with a thinking part and
 keep `test_printer(conversation_example)` green.
 
+**Done.** `ConversationThinking` added to `ConversationModule` (recommended
+placement — no `Projectured.jl` projection churn, only a `using`/`export` of the
+new type + `thinking_part` convenience). Constructors: a `Document`-taking and a
+string-taking one (defaulting `text=""`); `thinking_part(text; collapsed=true, …)`
+defaults collapsed. `_thinking_text` accessor + a `show`. Exported through
+`Projectured.jl`. `conversation_example` now opens the assistant turn with a
+thinking part. Because `conversation_example` projects through **ConversationToSyntax**,
+that projection also got a `ConversationThinking` branch (`_thinking_node`,
+dimmed-italic `∴ <reasoning>` / `∴ [redacted thinking]`) — without it the generic
+fallback would have stringified the `show` repr. `test_printer(conversation_example)`
+green (834).
+
 ## Stage 2 — Streaming: capture thinking blocks
 
 **Goal.** `_handle_sse_event!` materializes thinking blocks into parts as deltas
@@ -140,6 +159,17 @@ sequence (block_start → thinking_delta×N → signature_delta → block_stop) 
 assert the turn gains one `ConversationThinking` part with the right text and
 signature. Use the Stage-3 `FakeLlm` extension to script it.
 
+**Done.** Implemented exactly as specified: `content_block_start` handles
+`"thinking"` (push collapsed `thinking_part("")`, stash as `:current_thinking`)
+and `"redacted_thinking"` (push finalized redacted part, no stash);
+`content_block_delta` handles `thinking_delta` (`_append_thinking_delta!` rebuilds
+the `TextText`) and `signature_delta` (`_set_thinking_signature!`);
+`content_block_stop` clears `:current_thinking` with **no** markdown parse;
+`:current_thinking => nothing` added to the per-turn state dict. Empty-turn guard
+keys off `isempty(turn.parts)`, and a thinking part counts as a part, so a
+thinking+toolcall turn is not dropped — verified by the thinking-stream test.
+Covered by `_mvp_test_thinking_stream` in `AssistantMvpTest.jl`.
+
 ## Stage 3 — Request: enable thinking + FakeLlm synthesis
 
 **Goal.** Send the `thinking` parameter and let `FakeLlm` emit thinking events
@@ -165,6 +195,20 @@ for deterministic tests.
 thinking part (text + `signature == "sig_fake"`) followed by the text part.
 Confirm the request body carries `thinking` (inspect the dict `build_messages`
 feeds, or a stubbed `stream_message`).
+
+**Done.** `stream_message` gained `thinking`/`output_config` keywords (attached to
+the body only when non-`nothing`); threaded through `AnthropicLlm.stream_turn`.
+The request value comes from a constant default, not a struct field:
+`_thinking_config(model)` returns `{"type":"adaptive","display":"summarized"}` for
+models whose id contains `opus`/`sonnet`, else `nothing` (param omitted) — chosen
+over a new `WorkbenchAssistant` field to avoid `@document` constructor churn; the
+default model `claude-opus-4-7` therefore enables thinking automatically. **No
+`budget_tokens`.** `FakeLlm` gained a `thinking::String` synthesis field (separate
+from the request param) that emits block_start → thinking_delta×N →
+`signature_delta{signature:"sig_fake"}` → block_stop ahead of the text block.
+**Note:** every `stream_turn` method (incl. the test-only `ScriptedLlm`) must now
+accept the `thinking`/`output_config` kwargs, since the agent loop always passes
+`thinking=`. Covered by `_mvp_test_thinking_stream`.
 
 ## Stage 4 — Serialization: round-trip thinking through `build_messages`
 
@@ -201,6 +245,20 @@ tool_use(EvaluatorForm)]` → assert the assistant message content is
 and the following user message carries the `tool_result`. Add a redacted-block
 case.
 
+**Done.** `_assistant_content` now collects thinking blocks separately and
+prepends them (thinking → text), and the existing lookahead appends `tool_use`
+after — yielding `[thinking, text, tool_use]` in **one** assistant message.
+`_thinking_block` emits `{"type":"thinking","thinking":…,"signature":…}` or
+`{"type":"redacted_thinking","data":…}`. The trickiest interaction (a
+thinking-only/thinking+text assistant turn immediately followed by a separate
+`:assistant` eval turn) lands the thinking on the same assistant message as the
+`tool_use` because the thinking turn is not an eval turn, so it hits the
+text-turn branch whose lookahead consumes the eval turn — no separate message.
+`:user` turns drop stray thinking parts defensively. `conversation_to_string`
+renders thinking as `∴ …`. Cross-model echoing is unconditional (v1 = one model
+per conversation; per-block model tracking deferred). Three new testsets in
+`ConversationSerializationTest.jl` (ordering+signature, redacted, user-drop).
+
 ## Stage 5 — Presentation: render thinking parts (collapsed by default)
 
 **Goal.** Thinking shows as a distinct, de-emphasized, collapsed-by-default part
@@ -229,6 +287,18 @@ printer walk 0 errors; collapsed thinking clips to one row; header click yields
 `ToggleCollapseOperation` on the thinking part's domain node;
 `write_image_example` snapshot.
 
+**Done.** (Implemented alongside Stage 1 because both examples share
+`make_conversation_document_example`, so the thinking part broke the widget
+example until handled.) `_kind_glyph`/`_kind_label` gained `ConversationThinking
+→ "∴"/"thinking"`. `ConversationPartToWidget` routes a thinking part's body
+through `_thinking_body`, which returns the `text` `TextText` (recursed like any
+text), or an elided placeholder for redacted blocks / empty (`display:"omitted"`)
+text — chosen over skipping the part so the round-trip part still exists.
+Collapsed-by-default comes from `thinking_part`'s `collapsed=true`; the existing
+`_maybe_clip` + header-click toggle work unchanged. `test_printer(conversation_widget_example)`
+green (2610); collapse-click test extended to assert the thinking part's header
+toggles its domain node.
+
 ## Stage 6 — Integrate into the live WorkbenchAssistant panel
 
 **Goal.** Real Claude turns stream thinking into the live panel.
@@ -245,6 +315,14 @@ printer walk 0 errors; collapsed thinking clips to one row; header click yields
 existing `test_*(assistant_example)` updated and green. A real-key smoke test is
 manual (network), not in the suite.
 
+**Done.** The thinking config is set on the shared agent loop, so it already
+applies to the real `AnthropicLlm` path — the default `claude-opus-4-7` model
+sends `display:"summarized"`. `test_assistant_mvp` typing scenes unaffected
+(thinking is assistant-only); the collapse-click test was retargeted (thinking is
+now `parts[1]` of the assistant turn, collapsed by default — prose moved to
+`parts[2]`). `test_printer(assistant_example)` green (1348),
+`test_assistant_composer_panel()` green (15). Real-key smoke test remains manual.
+
 ---
 
 ## Sequencing notes
@@ -258,15 +336,15 @@ manual (network), not in the suite.
 - Keep `conversation_example` / `conversation_widget_example` updated and green
   per stage. Use targeted `test_*` functions; never `test_all`.
 
-## Open decisions (resolve as stages start)
+## Open decisions (RESOLVED)
 
-- **Where `ConversationThinking` lives** — `ConversationModule` (recommended, no
-  build wiring) vs. a new `ThinkingModule` (only if reused outside conversations).
-- **Thinking config source** — a `WorkbenchAssistant` field vs. a constant
-  default; and whether to expose `effort` in the UI.
-- **Empty-thinking parts** (`display: "omitted"`) — render elided vs. skip
-  creating the part.
-- **Cross-model thinking** — v1 assumes one model per conversation and echoes
-  thinking unconditionally; per-block model tracking deferred.
-- **Collapse default** — thinking collapsed-by-default (recommended) vs.
-  expanded; both reuse the existing per-part `collapsed`.
+- **Where `ConversationThinking` lives** — `ConversationModule` (no build wiring).
+- **Thinking config source** — a constant default `_thinking_config(model)` keyed
+  on the model id (opus/sonnet → adaptive+summarized), not a struct field; `effort`
+  is threaded as an optional `output_config` keyword but not exposed in the UI.
+- **Empty-thinking parts** (`display: "omitted"`) — render an elided placeholder
+  (`[no thinking summary]`), part is still created (needed for round-trip).
+- **Cross-model thinking** — v1 echoes thinking unconditionally (one model per
+  conversation); per-block model tracking deferred.
+- **Collapse default** — thinking is collapsed-by-default (`thinking_part`'s
+  `collapsed=true`).

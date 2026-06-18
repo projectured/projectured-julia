@@ -38,7 +38,7 @@ using Projectured.WorkbenchAssistantModule: _text_to_string, _run_agent_loop!,
                                             _eval_code, _eval_result
 using Projectured: ConversationConversation, ConversationTurn, ConversationPart,
                    EvaluatorForm, TextText, TextString, JuliaIdentifier, WidgetCard,
-                   MousePress, ToggleCollapseOperation
+                   MousePress, ToggleCollapseOperation, ConversationThinking
 import Projectured.LlmModule: stream_turn
 
 # A multi-turn scripted backend: each call to `stream_turn` consumes the
@@ -57,7 +57,9 @@ function stream_turn(b::ScriptedLlm,
                      _system::AbstractString,
                      _messages::AbstractVector,
                      _tools::AbstractVector;
-                     on_event::Function)
+                     on_event::Function,
+                     thinking = nothing,
+                     output_config = nothing)
     b.cursor += 1
     b.cursor > length(b.scripts) &&
         error("ScriptedLlm: exhausted at turn $(b.cursor) (have $(length(b.scripts)))")
@@ -231,6 +233,36 @@ function test_assistant_mvp()
         _mvp_test_fake_llm_dispatch()
         _mvp_test_tool_use_roundtrip()
         _mvp_test_collapse_click()
+        _mvp_test_thinking_stream()
+    end
+end
+
+# ── Thinking capture (Stages 2–3) ──────────────────────────────────────
+#
+# A FakeLlm scripted with `thinking="…"` emits a synthetic thinking block
+# (block_start → thinking_delta×N → signature_delta → block_stop) before the
+# text block. The agent loop must materialize one collapsed ConversationThinking
+# part (right text + signature "sig_fake") ahead of the text part.
+
+function _mvp_test_thinking_stream()
+    @testset "thinking block captured from stream" begin
+        a = WorkbenchAssistant(; llm = FakeLlm("Hello"; thinking = "Let me reason…"))
+        push!(a.conversation, ConversationTurn(:user, [ConversationPart("hi")]))
+        _run_agent_loop!((document = a,), a)
+
+        reply = a.conversation.turns[end]
+        @test reply.role === :assistant
+        @test length(reply.parts) == 2
+
+        think = reply.parts[1]
+        @test think.content isa ConversationThinking
+        @test _text_to_string(think.content.text) == "Let me reason…"
+        @test think.content.signature == "sig_fake"
+        @test think.content.redacted == false
+        @test think.collapsed == true        # collapsed by default
+
+        @test reply.parts[2].content isa TextText
+        @test _text_to_string(reply.parts[2].content) == "Hello"
     end
 end
 
@@ -268,7 +300,18 @@ function _mvp_test_collapse_click()
         # Resolve both header clicks from the *same* fresh projection (a toggle
         # mutates `collapsed`, which re-projects and shifts later positions).
         op_turn = _find_toggle(proj, io, t -> t === doc.turns[1])
-        op_part = _find_toggle(proj, io, t -> t === doc.turns[2].parts[1])
+        # parts[1] of the assistant turn is now the collapsed-by-default thinking
+        # part; target parts[2] (the "Sure!…" prose part) which starts expanded.
+        op_part  = _find_toggle(proj, io, t -> t === doc.turns[2].parts[2])
+        op_think = _find_toggle(proj, io, t -> t === doc.turns[2].parts[1])
+
+        # Thinking part header → toggles the thinking part's domain node. It is
+        # collapsed by default, so the click expands it.
+        @test op_think isa ToggleCollapseOperation
+        @test doc.turns[2].parts[1].content isa ConversationThinking
+        @test doc.turns[2].parts[1].collapsed == true
+        evaluate_operation((document = doc,), op_think)
+        @test doc.turns[2].parts[1].collapsed == false
 
         # Turn header → toggles the turn's domain node.
         @test op_turn isa ToggleCollapseOperation
@@ -278,9 +321,9 @@ function _mvp_test_collapse_click()
 
         # Part header → toggles the part's domain node.
         @test op_part isa ToggleCollapseOperation
-        @test doc.turns[2].parts[1].collapsed == false
+        @test doc.turns[2].parts[2].collapsed == false
         evaluate_operation((document = doc,), op_part)
-        @test doc.turns[2].parts[1].collapsed == true
+        @test doc.turns[2].parts[2].collapsed == true
     end
 end
 

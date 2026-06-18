@@ -25,7 +25,7 @@ import ..ProjectionApiModule: projection_print, projection_read,
                               map_reference_forward, map_reference_backward, Projection
 import ..DocumentApiModule: Document
 import ..ConversationModule: ConversationDocument, ConversationConversation,
-                              ConversationTurn, ConversationPart
+                              ConversationTurn, ConversationPart, ConversationThinking
 import ..EvaluatorModule: EvaluatorForm
 import ..JuliaModule: JuliaDocument
 import ..WidgetModule: WidgetDocument, WidgetCard, WidgetAvatar, WidgetLabel,
@@ -61,15 +61,17 @@ const _GAP           = 6
 _role_glyph(role::Symbol) = role === :user ? "U" : role === :assistant ? "A" : "?"
 
 function _kind_glyph(content)
-    content isa EvaluatorForm && return "="
-    content isa JuliaDocument && return "λ"
-    content isa TextText      && return "¶"
+    content isa EvaluatorForm      && return "="
+    content isa ConversationThinking && return "∴"
+    content isa JuliaDocument      && return "λ"
+    content isa TextText           && return "¶"
     return "?"
 end
 function _kind_label(content)
-    content isa EvaluatorForm && return "eval"
-    content isa JuliaDocument && return "julia"
-    content isa TextText      && return "text"
+    content isa EvaluatorForm      && return "eval"
+    content isa ConversationThinking && return "thinking"
+    content isa JuliaDocument      && return "julia"
+    content isa TextText           && return "text"
     return "doc"
 end
 
@@ -128,7 +130,9 @@ function projection_print(::ConversationPartToWidget,
                           recursion, part::ConversationPart, ctx)
     rec, ref = recursion, ctx.reference
     content = part.content
-    body = content isa EvaluatorForm ? _eval_body(content) : content
+    body = content isa EvaluatorForm      ? _eval_body(content) :
+           content isa ConversationThinking ? _thinking_body(content) :
+           content
     card = WidgetCard(Point2D(0, 0);
                       title = _header(_kind_glyph(content), _kind_label(content)),
                       content = _maybe_clip(body, part.collapsed === true),
@@ -143,6 +147,27 @@ end
 # one row even when the part is expanded.
 _eval_body(ef::EvaluatorForm) =
     VerticalLayout(Any[ef.form, ef.result]; gap = _GAP)
+
+# A thinking part's body is its reasoning text, recursed like any other text
+# content. Redacted blocks (and `display: "omitted"`, which yields empty text)
+# render an elided placeholder rather than an empty card.
+function _thinking_body(t::ConversationThinking)
+    t.redacted && return TextText(TextString("[redacted thinking]"))
+    txt = t.text
+    txt isa TextText && _text_is_empty(txt) &&
+        return TextText(TextString("[no thinking summary]"))
+    txt
+end
+
+# True when a TextText has no non-empty span content (e.g. `display: "omitted"`).
+function _text_is_empty(t::TextText)
+    for span in t.elements
+        hasproperty(span, :content) || continue
+        c = span.content
+        c isa AbstractString && !isempty(c) && return false
+    end
+    true
+end
 
 # ── Reference mapping / reader ───────────────────────────────────────────────
 

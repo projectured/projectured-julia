@@ -12,6 +12,9 @@ function make_conversation_document_example()
             ConversationPart("Can you write a factorial function in Julia?"),
         ]),
         ConversationTurn(:assistant, [
+            thinking_part("The user wants a factorial function. A recursive one is " *
+                          "clearest; I'll mention the iterative alternative too.";
+                          signature = "sig_example"),
             ConversationPart("Sure! Here is a concise recursive version:"),
             ConversationPart(JuliaIdentifier("factorial(n) = n <= 1 ? 1 : n * factorial(n - 1)")),
             ConversationPart("It recurses until n reaches 1. Want an iterative one?"),

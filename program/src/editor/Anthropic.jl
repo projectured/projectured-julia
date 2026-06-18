@@ -25,11 +25,17 @@ const _ANTHROPIC_VERSION = "2023-06-01"
 
 """
     stream_message(api_key, model, system, messages, tools; on_event,
-                    max_tokens=4096, base_url=_ANTHROPIC_URL)
+                    max_tokens=4096, base_url=_ANTHROPIC_URL,
+                    thinking=nothing, output_config=nothing)
 
 POST a streaming Messages request to Anthropic. `messages` is the array
 of message dicts already shaped for the API; `tools` is a vector of
 JSON-Schema tool descriptions (see `ToolRegistryModule.anthropic_tool_schema`).
+
+`thinking` (when non-`nothing`) is attached as the request's `thinking`
+parameter to enable extended thinking, e.g.
+`Dict("type" => "adaptive", "display" => "summarized")`. `output_config`
+similarly maps to the optional `output_config` (e.g. `{"effort": "high"}`).
 
 `on_event(event::NamedTuple)` is called for each SSE event. The named
 tuple has at least `:type` (the event type as `Symbol`) and `:data`
@@ -42,7 +48,9 @@ function stream_message(api_key::AbstractString,
                         tools::AbstractVector;
                         on_event::Function,
                         max_tokens::Integer = 4096,
-                        base_url::AbstractString = _ANTHROPIC_URL)
+                        base_url::AbstractString = _ANTHROPIC_URL,
+                        thinking = nothing,
+                        output_config = nothing)
     body = Dict{String,Any}(
         "model"      => String(model),
         "max_tokens" => Int(max_tokens),
@@ -54,6 +62,15 @@ function stream_message(api_key::AbstractString,
     end
     if !isempty(tools)
         body["tools"] = tools
+    end
+    # Extended thinking. On Opus 4.7/4.8 only `{"type":"adaptive", "display":…}`
+    # is accepted — `budget_tokens`/`{"type":"enabled"}` 400. The caller passes
+    # the dict verbatim; we just attach it.
+    if thinking !== nothing
+        body["thinking"] = thinking
+    end
+    if output_config !== nothing
+        body["output_config"] = output_config
     end
     payload = JSON3.write(body)
 
