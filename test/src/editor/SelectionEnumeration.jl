@@ -191,8 +191,13 @@ function collect_ned_tree_selections(file)
 end
 
 # Subset assertion: every enumerated selection must be among the reachable ones.
+# One `@test` per enumerated selection so a failure pinpoints exactly which
+# selection navigation cannot reach (rather than a single bulk assertion).
 function _assert_reaches_all(label, enumerated, visited::Set{String})
-    missing = sort!([string(p) for p in enumerated if !(string(p) in visited)])
-    isempty(missing) || @warn "[$label] $(length(missing)) enumerated selection(s) unreached by navigation" missing
-    @test isempty(missing)
+    for p in enumerated
+        s = string(p)
+        reached = s in visited
+        reached || @warn "[$label] enumerated selection unreached by navigation: $s"
+        @test reached
+    end
 end
