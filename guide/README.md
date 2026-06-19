@@ -120,7 +120,7 @@ Read it first; it will point you here and to the specific guides you need.
 | [XML domain](document/xml.md) | XML |
 | [Text domain](document/text.md) | Text |
 | [Syntax domain](document/syntax.md) | Syntax (intermediate) |
-| [Graphics domain](document/graphics.md) | Graphics + write_image |
+| [Graphics domain](document/graphics.md) | Graphics + write_image + write_pdf |
 | [Widget domain](document/widget.md) | Widgets |
 | [Workbench domain](document/workbench.md) | Workbench (IDE shell) |
 | [Collection domain](document/collection.md) | CellVector and ListNode |

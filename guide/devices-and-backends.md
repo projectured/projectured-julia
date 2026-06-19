@@ -208,6 +208,24 @@ both directions; the SDL-texture `Ptr` image form is skipped (decoded RGBA
 buffers are sent as base64). SDL stays the default; the web backend is additive
 and selected explicitly.
 
+## File-export backends
+
+The backends above (`SdlBackend`, `ConsoleBackend`, `WebBackend`) are
+*interactive* — they drive live output and input devices. Output-only file
+export lives alongside them under `program/src/backend/` but does **not** subtype
+`Backend` — there are no devices or events, just a `GraphicsCanvas` turned into a
+file:
+
+- **`write_image`** ([backend/Sdl.jl](../program/src/backend/Sdl.jl)) rasterizes a
+  canvas through an offscreen SDL software renderer to BMP/PNG.
+- **`write_pdf`** ([backend/Pdf.jl](../program/src/backend/Pdf.jl)) walks the same
+  canvas and emits a **vector** PDF (paths + selectable text, embedded TrueType
+  fonts, optional multi-page pagination). It is entirely SDL-free — it measures
+  text from the embedded font metrics via `pdf_measure_text`, a drop-in for
+  `sdl_measure_text`.
+
+See [the graphics guide](document/graphics.md) for both APIs.
+
 ## Projections that need the backend
 
 Some projections need to *measure* text to lay it out (`TextToGraphics`

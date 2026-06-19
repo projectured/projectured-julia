@@ -64,8 +64,10 @@ renderer, a WebGL canvas, or an IDE extension tomorrow. The projection code
 does not change.
 
 **4. Offline rendering.** `write_image` renders any projected document to a
-BMP file without opening a window. This enables automated documentation
-generation, screenshot testing, and CI-based visual regression checks.
+BMP/PNG file without opening a window, and `write_pdf` renders one to a
+resolution-independent, multi-page **vector** PDF with selectable text and
+embedded fonts. This enables automated documentation generation, screenshot
+testing, CI-based visual regression checks, and print-quality export.
 
 ---
 
@@ -101,7 +103,8 @@ Near-term:
   ANSI escape sequences. Enables SSH-accessible editing and CI-friendly
   projections.
 - **Headless backend** — for testing and screenshot generation (already
-  partially available via `write_image`'s software renderer).
+  partially available via `write_image`'s software renderer and the fully
+  SDL-free `write_pdf` vector exporter).
 
 Medium-term:
 - **Web backend** — HTTP + WebSocket; canvas rendering via `<canvas>` or SVG.

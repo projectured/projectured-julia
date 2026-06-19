@@ -45,14 +45,17 @@ print_example("syntax")   # print the syntax example
 `print_example` runs `print_object` on the projection output — it chains
 `ObjectToSyntax → SyntaxToText → TextToString` internally.
 
-## Saving a screenshot
+## Saving a screenshot or PDF
 
 ```julia
 write_example_image("json", "/tmp/snapshot.bmp")
 write_example_image("widget", "/tmp/w.bmp"; width=1200, height=800)
+write_example_pdf("json", "/tmp/snapshot.pdf")              # vector PDF, selectable text
+write_example_pdf("widget", "/tmp/book.pdf"; paginate=true) # flow tall content onto pages
 ```
 
-See [the graphics guide](document/graphics.md) for the `write_image` API.
+See [the graphics guide](document/graphics.md) for the `write_image` and
+`write_pdf` APIs.
 
 ## Inspecting document structure
 
