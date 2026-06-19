@@ -4,6 +4,7 @@ version = "0.1.0"
 authors = []
 
 [deps]
+Base64 = "2a0f44e3-6c83-55bd-87e4-b1978d98bd5f"
 DBInterface = "a10d1c49-ce27-4219-8d33-6db1a4562965"
 FFMPEG = "c87230d0-a227-11e9-1b43-d7ebe4e7570a"
 HTTP = "cd3eb016-35fb-5094-929b-558a96fad6f3"

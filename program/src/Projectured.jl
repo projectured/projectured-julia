@@ -162,6 +162,7 @@ include("projection/compound/Generic.jl")
 include("device/Screen.jl")
 include("backend/Sdl.jl")
 include("backend/Console.jl")
+include("backend/Web.jl")
 include("external/Database.jl")
 include("external/ConnectionPool.jl")
 include("external/DatabaseTabular.jl")
@@ -284,6 +285,7 @@ using .SdlBackendModule: SdlBackend, sdl_measure_text, sdl_render_canvas,
                           write_image, record_video, GraphicsCanvasToImageFile,
                           sdl_decode_image, decode_image_file!
 using .ConsoleBackendModule: ConsoleBackend, console_render
+using .WebBackendModule: WebBackend, web_key_to_symbol
 
 using .DeviceModule: Device, write_to_device, read_from_device, write_to_devices, read_from_devices
 using .ScreenModule: Screen, QuitEvent
@@ -617,6 +619,7 @@ export Screen
 export SdlBackend, sdl_measure_text, sdl_render_canvas, sdl_display_size,
        write_image, record_video, GraphicsCanvasToImageFile, sdl_decode_image, decode_image_file!
 export ConsoleBackend, console_render
+export WebBackend, web_key_to_symbol
 export Device, write_to_device, read_from_device, write_to_devices, read_from_devices
 export IoMap, SimpleIoMap, ChildrenIoMap, ContentIoMap
 export TypeDispatchingProjection, RecursiveProjection
