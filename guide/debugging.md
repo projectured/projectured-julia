@@ -249,6 +249,44 @@ both accept `fps`, `width`, `height`, `background`, and `initial_hold`. Output
 must be `.mp4` (libx264 + `yuv420p`); encoding uses `ffmpeg` bundled via
 `FFMPEG.jl`, so no system ffmpeg install is needed.
 
+A timeline entry may also carry an `operation` instead of an `event`:
+`(operation = …, hold = …)` injects a domain `Operation` straight into the
+evaluator, skipping the reader — for actions with no single device-event trigger
+(seed a selection, scroll, swap focus/document). `operation` is an `Operation`
+value or a `doc -> op` thunk evaluated at fire time:
+
+```julia
+julia> timeline = [
+           (operation = ReplaceSelectionOperation(caret), hold = 0.3),  # jump the caret
+           (event     = KeyPress('!'),                    hold = 0.3),  # type there
+       ]
+julia> record_video(doc, proj, timeline, "/tmp/demo.mp4")
+```
+
+## Live examples: scripted sessions on a real window
+
+A `LiveExample` captures an existing example and pairs it with a *timeline* (the
+same `(event|operation = …, hold = …)` entries). One timeline drives both a
+headless recording and a live, watch-it-happen window:
+
+```julia
+julia> using Projectured, ProjecturedExample
+julia> record_live_example("json_typein", "/tmp/demo.mp4")  # headless MP4
+julia> play_live_example("json_typein")                     # real window, wall-clock speed
+```
+
+`record_live_example` reuses `record_video`. `play_live_example` wraps the
+example in a single `WindowDocument`/`ScreenDocument` (the scene `run_example`
+builds) and runs `play_live!(editor, timeline; window_id, initial_hold)`: each
+frame polls real input *and* fires the next scheduled timeline entry when its
+wall-clock time arrives, so the user watches the script run and can still
+interact (Escape / window-close quits). `hold` is the dwell after an entry in
+both worlds — frame counts for the recorder, a delay for the live player.
+
+Predefined live examples live in `live_examples` (e.g. `json_typein_live`,
+`json_select_and_edit_live`); build your own with the `LiveExample` constructor
+and the `timed_event` / `timed_operation` helpers.
+
 ## Workspace fixtures
 
 Sample documents live in [example/workspace/](../example/workspace/)
