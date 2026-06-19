@@ -445,4 +445,74 @@ end
 _elem_x(elem) = hasproperty(elem, :x) ? Int(elem.x) : nothing
 _elem_y(elem) = hasproperty(elem, :y) ? Int(elem.y) : nothing
 
+# ── Content bounds ──────────────────────────────────────────────────────
+#
+# Compute the axis-aligned bounding box, in absolute pixels, of everything a
+# canvas would draw. Offsets accumulate through nested canvases exactly as the
+# backend renders them, so the result is the natural extent of the laid-out
+# content. Used to size an output (image/PDF) to the content when no explicit
+# width/height is requested. `measure(text, font)` returns the pixel
+# `(width, height)` of a text element — supplied by the caller so this stays
+# free of any backend (SDL, PDF) dependency.
+
+function _canvas_content_bounds(canvas::GraphicsCanvas, measure)
+    minx = Ref(typemax(Int)); miny = Ref(typemax(Int))
+    maxx = Ref(typemin(Int)); maxy = Ref(typemin(Int))
+    _accumulate_bounds!(canvas, 0, 0, measure, minx, miny, maxx, maxy)
+    maxx[] == typemin(Int) && return (0, 0, 0, 0)   # empty canvas
+    (minx[], miny[], maxx[], maxy[])
+end
+
+function _accumulate_bounds!(canvas::GraphicsCanvas, ox::Int, oy::Int, measure,
+                             minx, miny, maxx, maxy)
+    for elem in canvas.elements
+        _bounds_elem!(elem, ox, oy, measure, minx, miny, maxx, maxy)
+    end
+end
+
+function _bounds_extend!(minx, miny, maxx, maxy, x0::Int, y0::Int, x1::Int, y1::Int)
+    minx[] = min(minx[], x0); miny[] = min(miny[], y0)
+    maxx[] = max(maxx[], x1); maxy[] = max(maxy[], y1)
+    nothing
+end
+
+function _bounds_elem!(elem, ox::Int, oy::Int, measure, minx, miny, maxx, maxy)
+    if elem isa GraphicsText
+        x, y = ox + Int(elem.x), oy + Int(elem.y)
+        w, _ = measure(elem.text, elem.font)
+        h = elem.font.size
+        _bounds_extend!(minx, miny, maxx, maxy, x, y, x + Int(w), y + h)
+    elseif elem isa GraphicsRect
+        x, y = ox + Int(elem.x), oy + Int(elem.y)
+        w, h = Int(elem.w), Int(elem.h)   # read both (validates computed cells)
+        # A zero-size rect paints nothing — contribute no bounds, so an inactive
+        # (hidden) overlay rect parked at the origin does not drag the dirty box
+        # to (0, 0).
+        (w > 0 && h > 0) && _bounds_extend!(minx, miny, maxx, maxy, x, y, x + w, y + h)
+    elseif elem isa GraphicsImage
+        x, y = ox + Int(elem.x), oy + Int(elem.y)
+        w, h = Int(elem.w), Int(elem.h)
+        (w > 0 && h > 0) && _bounds_extend!(minx, miny, maxx, maxy, x, y, x + w, y + h)
+    elseif elem isa GraphicsViewport
+        # A viewport clips its content, so its extent is its declared box.
+        x, y = ox + Int(elem.x), oy + Int(elem.y)
+        _bounds_extend!(minx, miny, maxx, maxy, x, y, x + Int(elem.w), y + Int(elem.h))
+    elseif elem isa GraphicsLine
+        hw = max(1, Int(elem.width))
+        x0 = ox + min(Int(elem.x1), Int(elem.x2)) - hw
+        y0 = oy + min(Int(elem.y1), Int(elem.y2)) - hw
+        x1 = ox + max(Int(elem.x1), Int(elem.x2)) + hw
+        y1 = oy + max(Int(elem.y1), Int(elem.y2)) + hw
+        _bounds_extend!(minx, miny, maxx, maxy, x0, y0, x1, y1)
+    elseif elem isa GraphicsCircle
+        rad = Int(elem.radius) + Int(elem.border_width)
+        cx, cy = ox + Int(elem.cx), oy + Int(elem.cy)
+        _bounds_extend!(minx, miny, maxx, maxy, cx - rad, cy - rad, cx + rad, cy + rad)
+    elseif elem isa GraphicsCanvas
+        _accumulate_bounds!(elem, ox + Int(elem.x), oy + Int(elem.y), measure,
+                            minx, miny, maxx, maxy)
+    end
+    # GraphicsFence and unknown types contribute nothing.
+end
+
 end # module

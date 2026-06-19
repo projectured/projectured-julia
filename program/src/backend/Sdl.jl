@@ -10,7 +10,8 @@ using SimpleDirectMediaLayer.LibSDL2
 import ..BackendModule: Backend, init!, quit!, measure_text
 import ..DeviceModule: Device, read_from_devices, write_to_devices, write_to_device
 import ..GraphicsModule: GraphicsCanvas, GraphicsText, GraphicsRect, GraphicsLine, GraphicsCircle, GraphicsViewport, GraphicsImage,
-                         GraphicsFence, LayoutDirection, layout_none, layout_horizontal, layout_vertical
+                         GraphicsFence, LayoutDirection, layout_none, layout_horizontal, layout_vertical,
+                         _canvas_content_bounds
 import ..CollectionModule: ListNode
 import ..FontModule: StyleFont, font_scaled_size, _DISPLAY_SCALE
 import ..ScreenModule: Screen, QuitEvent
@@ -1137,67 +1138,9 @@ end
 
 # ── Content bounds ──────────────────────────────────────────────────────
 #
-# Compute the axis-aligned bounding box, in absolute pixels, of everything a
-# canvas would draw. Offsets accumulate through nested canvases exactly as
-# `_dispatch_render_elem!` renders them, so the result is the natural extent of
-# the laid-out content. `write_image` uses this to size an output image to the
-# content when no explicit width/height is requested. `measure(text, font)`
-# returns the pixel `(width, height)` of a text element.
-
-function _canvas_content_bounds(canvas::GraphicsCanvas; measure = sdl_measure_text)
-    minx = Ref(typemax(Int)); miny = Ref(typemax(Int))
-    maxx = Ref(typemin(Int)); maxy = Ref(typemin(Int))
-    _accumulate_bounds!(canvas, 0, 0, measure, minx, miny, maxx, maxy)
-    maxx[] == typemin(Int) && return (0, 0, 0, 0)   # empty canvas
-    (minx[], miny[], maxx[], maxy[])
-end
-
-function _accumulate_bounds!(canvas::GraphicsCanvas, ox::Int, oy::Int, measure,
-                             minx, miny, maxx, maxy)
-    for elem in canvas.elements
-        _bounds_elem!(elem, ox, oy, measure, minx, miny, maxx, maxy)
-    end
-end
-
-function _bounds_extend!(minx, miny, maxx, maxy, x0::Int, y0::Int, x1::Int, y1::Int)
-    minx[] = min(minx[], x0); miny[] = min(miny[], y0)
-    maxx[] = max(maxx[], x1); maxy[] = max(maxy[], y1)
-    nothing
-end
-
-function _bounds_elem!(elem, ox::Int, oy::Int, measure, minx, miny, maxx, maxy)
-    if elem isa GraphicsText
-        x, y = ox + Int(elem.x), oy + Int(elem.y)
-        w, _ = measure(elem.text, elem.font)
-        h = elem.font.size
-        _bounds_extend!(minx, miny, maxx, maxy, x, y, x + Int(w), y + h)
-    elseif elem isa GraphicsRect
-        x, y = ox + Int(elem.x), oy + Int(elem.y)
-        _bounds_extend!(minx, miny, maxx, maxy, x, y, x + Int(elem.w), y + Int(elem.h))
-    elseif elem isa GraphicsImage
-        x, y = ox + Int(elem.x), oy + Int(elem.y)
-        _bounds_extend!(minx, miny, maxx, maxy, x, y, x + Int(elem.w), y + Int(elem.h))
-    elseif elem isa GraphicsViewport
-        # A viewport clips its content, so its extent is its declared box.
-        x, y = ox + Int(elem.x), oy + Int(elem.y)
-        _bounds_extend!(minx, miny, maxx, maxy, x, y, x + Int(elem.w), y + Int(elem.h))
-    elseif elem isa GraphicsLine
-        hw = max(1, Int(elem.width))
-        x0 = ox + min(Int(elem.x1), Int(elem.x2)) - hw
-        y0 = oy + min(Int(elem.y1), Int(elem.y2)) - hw
-        x1 = ox + max(Int(elem.x1), Int(elem.x2)) + hw
-        y1 = oy + max(Int(elem.y1), Int(elem.y2)) + hw
-        _bounds_extend!(minx, miny, maxx, maxy, x0, y0, x1, y1)
-    elseif elem isa GraphicsCircle
-        rad = Int(elem.radius) + Int(elem.border_width)
-        cx, cy = ox + Int(elem.cx), oy + Int(elem.cy)
-        _bounds_extend!(minx, miny, maxx, maxy, cx - rad, cy - rad, cx + rad, cy + rad)
-    elseif elem isa GraphicsCanvas
-        _accumulate_bounds!(elem, ox + Int(elem.x), oy + Int(elem.y), measure,
-                            minx, miny, maxx, maxy)
-    end
-    # GraphicsFence and unknown types contribute nothing.
-end
+# `_canvas_content_bounds` / `_accumulate_bounds!` / `_bounds_elem!` now live in
+# `GraphicsModule` (pure geometry over a `measure` callback, no SDL), imported
+# above and shared with the PDF backend. `write_image` passes `sdl_measure_text`.
 
 """
     write_image(document, projection, filename::AbstractString;
@@ -1260,7 +1203,7 @@ function write_image(document, projection, filename::AbstractString;
     aw = width  === nothing ? nothing : Cell(Int(width))
     ah = height === nothing ? nothing : Cell(Int(height))
     canvas = print_canvas(aw, ah)
-    _, _, nw, nh = _canvas_content_bounds(canvas)
+    _, _, nw, nh = _canvas_content_bounds(canvas, sdl_measure_text)
 
     # Pass 2: if an omitted axis overran its max, cap it at max and re-print so
     # the layout can reflow (e.g. word wrapping), then re-measure.
@@ -1270,7 +1213,7 @@ function write_image(document, projection, filename::AbstractString;
         aw2 = cap_w ? Cell(Int(max_width))  : aw
         ah2 = cap_h ? Cell(Int(max_height)) : ah
         canvas = print_canvas(aw2, ah2)
-        _, _, nw, nh = _canvas_content_bounds(canvas)
+        _, _, nw, nh = _canvas_content_bounds(canvas, sdl_measure_text)
     end
 
     out_w = width  === nothing ? clamp(nw, 1, Int(max_width))  : Int(width)
