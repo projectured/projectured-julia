@@ -93,3 +93,47 @@ projection.
 
 File formats: `write_image` supports both `.bmp` (built into SDL2) and `.png`
 (via `IMG_SavePNG` from SDL2_image); other extensions error.
+
+## Saving to PDF
+
+`write_pdf` is the vector counterpart of `write_image`: same call shape, a
+`.pdf` filename. Instead of rasterizing the canvas through SDL, it walks the
+`GraphicsCanvas` tree and emits PDF path/text operators, so shapes stay crisp at
+any zoom and the text is selectable and searchable. Fonts are embedded
+(Type0 / CIDFontType2, `Identity-H`), so output is self-contained.
+
+```julia
+proj = SequentialProjection(
+    RecursiveProjection(JsonToSyntax()),
+    RecursiveProjection(SyntaxToText()),
+    TextToGraphics(measure=sdl_measure_text),
+)
+write_pdf(doc, proj, "snapshot.pdf")                         # one page, sized to content
+write_pdf(doc, proj, "snapshot.pdf"; width=1200, height=800) # fixed page size
+```
+
+A given canvas writes directly, and the save step composes into a pipeline via
+`GraphicsCanvasToPdfFile` (printer-only, output is an `ImageFile`, no reader):
+
+```julia
+write_pdf(canvas, "snapshot.pdf"; width=800, height=600)
+
+proj = SequentialProjection(
+    make_graphics_image_projection_example(),
+    GraphicsCanvasToPdfFile("snapshot.pdf"; width=1200, height=800),
+)
+projection_print(proj, doc)   # writes snapshot.pdf
+```
+
+Unlike `write_image`, `write_pdf` is **SDL-free** — it never opens a renderer.
+It measures text for page sizing from the embedded font metrics via
+`pdf_measure_text` (an `(Int, Int)` measure, drop-in for `sdl_measure_text`). The
+projection that *produces* the canvas still chooses its own `measure`: pass
+`pdf_measure_text` to keep the whole export SDL-free, or `sdl_measure_text` for
+byte-for-byte parity with the on-screen layout (which requires SDL to be up — the
+`write_example_pdf` helper initializes it for you).
+
+v1 limitations: a single page (no pagination), uncompressed content streams,
+`GraphicsImage` supported only in its RGBA-buffer form (raw SDL texture pointers
+are skipped), and TrueType (`.ttf`) outline fonts only — CFF/`.otf` embedding
+(`Inconsolata.otf`) is not yet implemented.
