@@ -239,11 +239,24 @@ function projection_print(::WorkbenchPageToWidgetTabbedPane,
     iomap = WorkbenchPageToWidgetTabbedPaneIoMap(nothing, page, tabbed, element_iomaps)
     # Forward-project the page's selection onto the tabbed pane so the active
     # tab follows the document selection (and coordless events route to it).
+    #
+    # Forward only the *head* step (`elements[i]` → `selector_element_pairs[i]`),
+    # not the deep suffix: every consumer of a tabbed pane's selection
+    # (`_tab_index_from_selection`, `_route_active_tab`) reads only the tab index
+    # `i`; the caret inside the active tab is carried by that tab content's own
+    # forward-projected selection. Truncating to the head keeps this cell from
+    # reading the deep cursor cells, so a caret move inside a tab — which (thanks
+    # to the in-place `update_selection!`) mutates only the terminal cursor step,
+    # leaving the page-level head step untouched — does not invalidate this cell
+    # and therefore does not regenerate the tab strip or active-content wrapper
+    # (incremental selection propagation).
     psel = getfield(page, :selection)
     setfn!(getfield(tabbed, :selection), () -> begin
         sel = psel[]
         sel === nothing && return nothing
-        map_reference_forward(WorkbenchPageToWidgetTabbedPane(), iomap, sel)
+        head_only = sel isa ConcreteReferencePath ?
+            ConcreteReferencePath(sel.head, EmptyReferencePath()) : sel
+        map_reference_forward(WorkbenchPageToWidgetTabbedPane(), iomap, head_only)
     end)
     iomap
 end
