@@ -47,44 +47,85 @@ canvases. (A leaf-level retained-diff in the dirty walk was considered and
 **rejected**: it would descend through regenerating wrappers, but the proper fix
 is to stop the spurious invalidation at the source.)
 
-## The fix
+## The fix — DONE
 
-Make selection propagation **incremental**:
+Two changes, both about *how a selection is written* (readers untouched — each
+level still holds the **whole remaining reference**, as before).
 
-1. **Do not `clear_selection!` on every change.** The leftover stale selection
-   in off-path branches does not matter: each split/dispatch point
-   (`_tab_index_from_selection`, `TypeDispatchingProjection`, composite/ split
-   routers, …) takes precedence based on the **actual remaining selection path**,
-   so a stale selection in a branch that is no longer on the active path is never
-   consulted.
+### 1. In-place incremental write (`program/src/common/Operation.jl`)
 
-2. **Only write a node's selection where its local step actually changes.** A
-   node should depend only on the part of the selection relevant to it (its local
-   step — which child / which field), not on the full deep suffix. A caret move
-   deep in the tree should write only the cells from the divergence point down,
-   leaving the unchanged ancestors' selection cells untouched — so cells like the
-   tabbed pane's `_active_idx` (which key off an unchanged local step) are not
-   invalidated and the widget chrome does not regenerate.
+The selection is already a **shared chain**: `set_selection!` stores
+`child.selection === parent.selection.tail` (the *same* path objects), and
+`ConcreteReferencePath`'s `head`/`tail` — and `RangeReference`'s `start`/`stop` —
+are themselves `Cell`s. So the new `update_selection!` (used only by
+`evaluate_operation(::ReplaceSelectionOperation)`) walks old-vs-new in lockstep
+and mutates the chain **in place**:
 
-Likely shape of the change (to be designed):
+- A caret move within a leaf differs only in the terminal cursor step's
+  `start`/`stop` → mutate those two cells; **no `selection` cell on the path is
+  rewritten**, so unchanged routing ancestors are not invalidated.
+- At a structural divergence, clear just the old divergent branch and
+  `set_selection!` the new suffix from the divergence point down, then fix the
+  parent's `.tail` cell in place to keep the chain shared — so cells *above* the
+  divergence stay untouched too.
+- The separate `clear_selection!` pass is dropped for replace-selection (the
+  divergence handling clears exactly the stale branch).
 
-- Store/propagate selection so each node holds its **local step** (plus a link to
-  the child's selection), rather than the full suffix; or
-- Keep the full-suffix representation but make `set_selection!` a **diff**: walk
-  the new path against the currently-stored selection and write a node's cell
-  only when its stored value differs, descending no further once the suffixes
-  match. Drop the separate `clear_selection!` pass entirely (let the new write
-  overwrite the changed nodes; off-path leftovers are harmless per (1)).
+Measured: a caret move in the embedded json went from **28 cell writes → 2**
+(just the cursor `start`/`stop`).
 
-## Acceptance
+### 2. Tabbed-pane selection decoupling (`WorkbenchToWidget.jl`)
 
-- In `workbench_example`, moving the caret inside the embedded json repaints only
-  the old∪new caret slivers (measure via the same harness used during the
-  TextToGraphics/SyntaxToText work: print, render once to validate cells, drive a
-  click + arrow through the projection, `SdlBackendModule._compute_dirty_rect`).
-- No regression in selection/click/navigation suites (`test_readers`,
-  `test_text_navigations`, `test_click_roundtrips`, `test_tree_navigations`,
-  `test_repls`).
+(1) alone did *not* shrink the repaint: the dirty walk attributes dirtiness at
+canvas granularity, and the tabbed pane's `selector_cv`/`content_cv` read
+`sel_cell` (the forward-projected widget selection), which `map_reference_forward`
+recomputes on *every* caret move because it **walks the whole shared chain down
+to the mutated cursor cells** — i.e. the output cells still depended on the end of
+the chain.
+
+Every consumer of a tabbed pane's selection (`_tab_index_from_selection`,
+`_route_active_tab`) reads only the **head** (which tab); the caret inside the
+active tab is carried by that tab content's *own* forward-projected selection. So
+`WorkbenchPageToWidgetTabbedPane`'s `tabbed.selection` now forwards only the
+**head step** (`elements[i] → selector_element_pairs[i]`). That cell then depends
+only on the page-selection head (untouched by a caret move, thanks to (1)), so
+the tab strip and active-content wrapper no longer regenerate.
+
+This is the narrow, "tabbed pane only" instance of the general principle (the
+plan's point 2): a routing node should depend only on its local step. Whether to
+generalise the same head/tail decoupling to *all* selection forward-maps (so
+every routing projection stops depending on the chain end) is left as a
+follow-up.
+
+## Acceptance — MET
+
+- `workbench_example`, visible caret move
+  `.editing_page.elements[1].content.title{3}→{4}`, 1366×768, via
+  `SdlBackendModule._compute_dirty_rect`:
+  - **before:** `(313, 3, 853, 465)` — the whole tab strip + content wrapper.
+  - **after:** `(390, 67, 396, 95)` — a 6×28px caret sliver.
+  - A deeper, *scrolled-out* caret yields `nothing` after the fix (correct,
+    nothing visible to repaint) vs. the same large spurious rect before.
+  - At the cell level a caret move now leaves **0** canvases/`CellVector`s stale;
+    only the caret `GraphicsRect`'s `x/y/w/h` mutate in place.
+- No new regressions. `test_readers`, `test_repls`, `test_tree_navigations`,
+  `test_split_pane_drag`, `test_object_to_widget`, `test_widget_text_editing`,
+  `test_dirty_rect` pass; the failures in `test_text_navigations` (5),
+  `test_click_roundtrips` (3) and `test_mouse_clicks` (1) are **pre-existing on
+  the base commit** (verified by stashing) — the `searching`/`dbcatalog`/
+  `sql_syntax`/widget-wrapped examples.
+
+### Design notes (why the originally-listed options don't work as written)
+
+- **Store the local step only:** breaks readers that legitimately walk the full
+  suffix at one node (e.g. `_leaf_cursor` needs `.value[k]` together), and the
+  constraint was to keep readers untouched.
+- **Full-suffix diff:** the suffix stored at *every* ancestor contains the deep
+  caret, so it differs on every caret move — "write only when the stored value
+  differs" still rewrites every ancestor. The reactive engine has no
+  value-equality short-circuit (`Reactive.jl`), so equal-value writes still
+  invalidate. The working answer is **in-place mutation of the shared chain's
+  cells**, which changes neither the stored representation nor the readers.
 
 ## Context / related
 
