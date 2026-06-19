@@ -8,7 +8,7 @@ module OperationModule
 
 import ..OperationApiModule: Operation, evaluate_operation
 import ..DocumentApiModule: Document, clear_selection!, set_selection!
-import ..ReferenceModule: ReferencePath, ConcreteReferencePath, EmptyReferencePath, FieldReference, RangeReference, is_element_reference, evaluate_reference
+import ..ReferenceModule: ReferencePath, ConcreteReferencePath, EmptyReferencePath, FieldReference, RangeReference, is_element_reference, evaluate_reference, reference_equal
 import ..ReactiveModule: Cell
 export ReplaceSelectionOperation, QuitEditorOperation, QuitEditorException, replace_selection!,
        OpenWindowOperation, CloseWindowOperation, ResizeWindowOperation, ToggleCollapseOperation,
@@ -76,9 +76,7 @@ struct ReplaceSelectionOperation <: Operation
 end
 
 function evaluate_operation(editor, op::ReplaceSelectionOperation)
-    document = editor.document
-    clear_selection!(document)
-    set_selection!(document, op.path)
+    update_selection!(editor.document, op.path)
 end
 
 """
@@ -435,5 +433,107 @@ function replace_selection!(document, path)
     clear_selection!(document)
     set_selection!(document, path)
 end
+
+# ── Incremental selection replacement ──────────────────────────────────────
+#
+# `update_selection!` is the caret-move fast path used by
+# `ReplaceSelectionOperation`. It produces exactly the same stored state as
+# `replace_selection!` (each level still holds the *whole remaining reference*,
+# so every reader is unaffected), but writes the **shared selection chain in
+# place**, touching only the cells whose content actually changed:
+#
+#   * `set_selection!` stores `child.selection === parent.selection.tail` (the
+#     same path objects), and `ConcreteReferencePath`'s head/tail — and a
+#     `RangeReference`'s start/stop — are themselves `Cell`s. A caret move
+#     within a leaf therefore differs from the stored selection only in the
+#     terminal cursor step's start/stop: we mutate those two cells in place and
+#     rewrite **no** `selection` cell on the path. Unchanged routing ancestors
+#     (e.g. a tabbed pane's active-tab cell, which reads only the head step)
+#     are not invalidated, so partial rendering repaints only the caret.
+#
+#   * Where the path structurally diverges, we clear just the old divergent
+#     branch and `set_selection!` the new suffix from the divergence point down,
+#     then fix the parent path's `.tail` cell in place to keep the chain shared
+#     — so cells *above* the divergence stay untouched too.
+#
+# The eager reactive engine has no value-equality short-circuit (see
+# Reactive.jl), so the whole point is to avoid the *writes*, not to rely on the
+# engine to absorb redundant ones.
+function update_selection!(document, path)
+    hasproperty(document, :selection) || return
+    _sync_selection!(document, path)
+    return
+end
+
+# Sync `document`'s selection subtree to `path`, reusing the existing chain in
+# place wherever possible. Returns the value now held by `document.selection`
+# so the caller can keep its own path tail pointing at it (chain sharing).
+function _sync_selection!(document, path)
+    hasproperty(document, :selection) || return path
+    cell = getfield(document, :selection)
+    old = cell[]
+    (old isa ReferencePath && path isa ReferencePath && reference_equal(old, path)) && return old
+
+    if old isa ConcreteReferencePath && path isa ConcreteReferencePath
+        old_child = _selection_child(document, old)
+        new_child = _selection_child(document, path)
+        # Same routing step into the same child Document: keep this cell, recurse
+        # into the child and only re-point our tail if the child's value changed.
+        if new_child !== nothing && old_child === new_child && old.head == path.head
+            new_tail = _sync_selection!(new_child, path.tail)
+            getfield(old, :tail)[] === new_tail || (getfield(old, :tail)[] = new_tail)
+            return old
+        end
+        # Terminal cursor moved within the same leaf step: mutate start/stop in
+        # place, leaving every selection cell on the path untouched.
+        if new_child === nothing && old_child === nothing &&
+           reference_equal(old.tail, path.tail) && _mutate_terminal_step!(old.head, path.head)
+            return old
+        end
+    end
+
+    # Divergence: clear the old branch hanging here, install the new suffix.
+    if old isa ConcreteReferencePath
+        oc = _selection_child(document, old)
+        oc === nothing || clear_selection!(oc)
+    end
+    cell[] = path
+    if path isa ConcreteReferencePath
+        nc = _selection_child(document, path)
+        nc === nothing || set_selection!(nc, path.tail)
+    end
+    return path
+end
+
+# The child Document that `path`'s head step descends into, or `nothing` when
+# the head terminates at `document` (a leaf cursor: string char, out-of-range,
+# or a non-Document field). Mirrors the descent in clear_selection!/set_selection!.
+function _selection_child(document, path::ConcreteReferencePath)
+    h = path.head
+    child = if h isa FieldReference
+        f = getfield(document, Symbol(h.name))
+        f isa Cell ? f[] : f
+    elseif h isa RangeReference
+        document isa AbstractString && return nothing
+        idx = h.start + 1
+        (!applicable(length, document) || idx < 1 || idx > length(document)) && return nothing
+        document[idx]
+    else
+        return nothing
+    end
+    child isa Document ? child : nothing
+end
+
+# Mutate a terminal cursor step `old` in place to match `new`, returning `true`
+# on success. Only `RangeReference` (a character cursor/range) is updated this
+# way — its start/stop are `Cell`s shared across every path level, so one write
+# moves the caret everywhere it is observed. Any other step type returns
+# `false`, leaving the caller to rewrite the selection cell wholesale.
+function _mutate_terminal_step!(old::RangeReference, new::RangeReference)
+    getfield(old, :start)[] === new.start || (getfield(old, :start)[] = new.start)
+    getfield(old, :stop)[]  === new.stop  || (getfield(old, :stop)[]  = new.stop)
+    true
+end
+_mutate_terminal_step!(::Any, ::Any) = false
 
 end # module
