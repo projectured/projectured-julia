@@ -8,7 +8,7 @@ SDL = Projectured.SdlBackendModule
 make_res() = SDL.SdlWindowResources(
     C_NULL, C_NULL, :test, UInt32(0), "t", 800, 600, 0, 0, :default,
     (0x00, 0x00, 0x00, 0xff), 1, C_NULL, 0, 0, false,
-    Dict{UInt,NTuple{4,Int}}(), (-1, -1, -1, -1))
+    Dict{UInt,NTuple{4,Int}}(), NTuple{4,Int}[])
 
 @testset "detects an invalidated element and pads its bounds" begin
     # A canvas whose elements are produced by a computed thunk over `src`,

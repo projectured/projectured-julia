@@ -135,13 +135,12 @@ mutable struct SdlWindowResources
     first_paint::Bool    # force a full repaint on the first frame / after target (re)creation
     dirty_bounds::Dict{UInt,NTuple{4,Int}}  # last-rendered absolute logical bounds, keyed by
                                             # objectid of each dirty-unit container/leaf (for old∪new)
-    # Previous frame's logical dirty rect (x0,y0,x1,y1), or (-1,-1,-1,-1) for
-    # "none/full". The target→window copy each frame covers this ∪ the current
-    # dirty rect: with a double-buffered swap chain the back-buffer we draw into
-    # was last presented two frames ago, so the region that changed since then
-    # is the last two frames' damage. Without the union the previous frame's
-    # edit would not be refreshed on the alternate buffer (ghosting).
-    prev_copy::NTuple{4,Int}
+    # Recent frames' logical dirty rects (x0,y0,x1,y1), most-recent first. The
+    # target→window copy each frame refreshes the union of the last `buffer age`
+    # of these: the back-buffer we draw into was last presented `age` frames ago
+    # (queried via EGL/GLX buffer age), so everything that changed since then
+    # must be re-copied or the older edits ghost on the alternate buffer(s).
+    damage_history::Vector{NTuple{4,Int}}
 end
 
 """
@@ -240,6 +239,12 @@ const _TEXT_TEXTURE_CACHE_CAP = 16384
 # default to the PROJECTURED_PARTIAL_RENDER / PROJECTURED_DEBUG_DIRTY env vars.
 const _PARTIAL_RENDER = Ref(true)
 const _DEBUG_DIRTY = Ref(true)
+
+# How many recent frames' damage rects to retain for the partial target→window
+# copy. The copy refreshes the union of the last `buffer age` of them; deeper
+# swap chains than this fall back to a full copy. 8 is far beyond any real swap
+# chain (double/triple buffering ⇒ age 2/3).
+const _DAMAGE_HISTORY_CAP = 8
 
 _envflag(name, default::Bool) =
     (v = lowercase(get(ENV, name, "")); v == "" ? default : v in ("1", "true", "yes", "on"))
@@ -468,7 +473,7 @@ function _open_native_window!(w::WindowDocument)
     SdlWindowResources(win, renderer, w.id, sdl_id, w.title,
                        Int(w.width), Int(w.height), Int(w.x), Int(w.y),
                        w.style, w.bg, _window_supersample(), C_NULL, 0, 0,
-                       true, Dict{UInt,NTuple{4,Int}}(), (-1, -1, -1, -1))
+                       true, Dict{UInt,NTuple{4,Int}}(), NTuple{4,Int}[])
 end
 
 # Supersample factor for live windows (anti-aliasing). Override with the
@@ -1224,16 +1229,76 @@ function _compute_dirty_rect(res::SdlWindowResources, canvas::GraphicsCanvas)
     (x1 <= x0 || y1 <= y0) ? nothing : (x0, y0, x1, y1)
 end
 
+# ── Swap-chain buffer age ──────────────────────────────────────────────────
+#
+# Copying only the damaged sub-rectangle to the window is correct only if we
+# refresh everything that changed since the back-buffer we are drawing into was
+# last presented — the last 2 frames for a double-buffered swap chain, 3 for
+# triple-buffered, etc. `EGL_EXT_buffer_age` / `GLX_EXT_buffer_age` report that
+# "age" for the current drawable. SDL's 2D renderer hides its GL context, but the
+# *current* EGL surface / GLX drawable is queryable from whatever context SDL has
+# made current during rendering (we query right after switching back to the
+# window framebuffer). Returns the age (≥1), or 0 when the buffer is undefined or
+# the extension is unavailable — the caller then does a full copy, so this is
+# correct for any swap-chain depth and degrades safely.
+const _EGL_AVAILABLE = Ref{Union{Nothing,Bool}}(nothing)
+const _GLX_AVAILABLE = Ref{Union{Nothing,Bool}}(nothing)
+
+function _egl_buffer_age()::Int
+    _EGL_AVAILABLE[] === false && return -1
+    try
+        dpy = ccall((:eglGetCurrentDisplay, "libEGL.so.1"), Ptr{Cvoid}, ())
+        _EGL_AVAILABLE[] = true
+        dpy == C_NULL && return -1                                          # not the EGL path
+        surf = ccall((:eglGetCurrentSurface, "libEGL.so.1"), Ptr{Cvoid}, (Cint,), Cint(0x3059))  # EGL_DRAW
+        surf == C_NULL && return -1
+        age = Ref{Cint}(0)
+        ok = ccall((:eglQuerySurface, "libEGL.so.1"), Cint,
+                   (Ptr{Cvoid}, Ptr{Cvoid}, Cint, Ptr{Cint}),
+                   dpy, surf, Cint(0x313D), age)                            # EGL_BUFFER_AGE_EXT
+        return ok != 0 ? Int(age[]) : -1
+    catch
+        _EGL_AVAILABLE[] = false
+        return -1
+    end
+end
+
+function _glx_buffer_age()::Int
+    _GLX_AVAILABLE[] === false && return -1
+    try
+        dpy = ccall((:glXGetCurrentDisplay, "libGL.so.1"), Ptr{Cvoid}, ())
+        _GLX_AVAILABLE[] = true
+        dpy == C_NULL && return -1                                          # not the GLX path
+        draw = ccall((:glXGetCurrentDrawable, "libGL.so.1"), Culong, ())
+        draw == 0 && return -1
+        age = Ref{Cuint}(0)
+        ccall((:glXQueryDrawable, "libGL.so.1"), Cvoid,
+              (Ptr{Cvoid}, Culong, Cint, Ptr{Cuint}),
+              dpy, draw, Cint(0x20F4), age)                                 # GLX_BACK_BUFFER_AGE_EXT
+        return Int(age[])
+    catch
+        _GLX_AVAILABLE[] = false
+        return -1
+    end
+end
+
+# Age of the current window back-buffer, or 0 when unknown (⇒ full copy).
+function _back_buffer_age()::Int
+    a = _egl_buffer_age(); a >= 0 && return a
+    a = _glx_buffer_age(); a >= 0 && return a
+    return 0
+end
+
 # ── Per-window paint ──────────────────────────────────────────────────────
 
 # Repaint `canvas` into the window, restricting the work to the invalidated
 # region when partial rendering is enabled. Everything is rendered into the
 # retained `res.target` texture (which keeps its pixels across frames); only the
-# dirty sub-rectangle of that texture is re-rendered, then that sub-rectangle
-# (unioned with the previous frame's — see `prev_copy`) is copied to the window
-# and presented. Copying only the damage instead of the whole target keeps the
-# expensive scaled blit proportional to the edit, which matters on software
-# renderers where the full-window blit dominates frame time.
+# dirty sub-rectangle of that texture is re-rendered, then the damaged region
+# (this frame's dirty rect unioned with the last `buffer age` frames' — see
+# `damage_history` / `_back_buffer_age`) is copied to the window and presented.
+# Copying only the damage instead of the whole target keeps the scaled blit
+# proportional to the edit.
 function _render_window!(res::SdlWindowResources, canvas::GraphicsCanvas)
     bg = res.bg
     renderer = res.renderer
@@ -1289,29 +1354,32 @@ function _render_window!(res::SdlWindowResources, canvas::GraphicsCanvas)
     SDL_SetRenderTarget(renderer, C_NULL)
 
     # Copy only the damaged region from the retained target to the window
-    # back-buffer, rather than the whole (supersampled) target. On a software
-    # renderer the full-window scaled blit dominates frame time and is constant
-    # regardless of how little changed; restricting it to the damage makes the
-    # blit track the edit. The damage is this frame's dirty rect ∪ the previous
-    # frame's: a double-buffered swap chain hands us the buffer presented two
-    # frames ago, so both frames' edits must be re-copied (see `prev_copy`). A
-    # full copy (whole window) is forced on the first paint / full-repaint mode,
-    # where `dirty` already spans the window.
-    full = !_PARTIAL_RENDER[] || res.prev_copy == (-1, -1, -1, -1)
-    if full
+    # back-buffer, rather than the whole (supersampled) target, so the scaled
+    # blit tracks the edit instead of the window. The back-buffer we just rendered
+    # into was last presented `age` frames ago (EGL/GLX buffer age, queried now
+    # that the window framebuffer is current), so to bring it current we re-copy
+    # every frame's damage since then — the union of the last `age` dirty rects.
+    # Age 0 means undefined contents; an unsupported extension, age 0, or too
+    # little history all fall back to a full copy. This is correct for any
+    # swap-chain depth (no fixed double-buffer assumption).
+    age = _back_buffer_age()
+    if !_PARTIAL_RENDER[] || age <= 0 || (age - 1) > length(res.damage_history)
         SDL_RenderCopy(renderer, res.target, C_NULL, C_NULL)
     else
-        cx0 = min(dirty[1], res.prev_copy[1]); cy0 = min(dirty[2], res.prev_copy[2])
-        cx1 = max(dirty[3], res.prev_copy[3]); cy1 = max(dirty[4], res.prev_copy[4])
+        cx0, cy0, cx1, cy1 = dirty
+        for i in 1:(age - 1)
+            r = res.damage_history[i]
+            cx0 = min(cx0, r[1]); cy0 = min(cy0, r[2]); cx1 = max(cx1, r[3]); cy1 = max(cy1, r[4])
+        end
         src = Ref(SDL_Rect(round(Int32, cx0 * rss),   round(Int32, cy0 * rss),
                            round(Int32, (cx1 - cx0) * rss), round(Int32, (cy1 - cy0) * rss)))
         dst = Ref(SDL_Rect(round(Int32, cx0 * scale), round(Int32, cy0 * scale),
                            round(Int32, (cx1 - cx0) * scale), round(Int32, (cy1 - cy0) * scale)))
         SDL_RenderCopy(renderer, res.target, src, dst)
     end
-    # Remember this frame's damage for the next frame's union. A full copy resets
-    # it to "whole window" so the next frame fully refreshes the alternate buffer.
-    res.prev_copy = full ? (0, 0, res.width, res.height) : dirty
+    # Record this frame's content damage (most-recent first) for future unions.
+    pushfirst!(res.damage_history, dirty)
+    length(res.damage_history) > _DAMAGE_HISTORY_CAP && resize!(res.damage_history, _DAMAGE_HISTORY_CAP)
 
     if _DEBUG_DIRTY[]
         # Outline the repainted region on the window (erased by next frame's copy).
