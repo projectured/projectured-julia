@@ -536,6 +536,26 @@ function write_example_image(name="json", filename=tempname()*".bmp"; kwargs...)
     write_example_image(examples[idx], filename; kwargs...)
 end
 
+# Render an example to a vector PDF. Reuses the example's own (SDL-measured)
+# projection for layout parity with the on-screen / `write_image` view; unlike
+# `write_image`, `write_pdf` does not initialize SDL itself, so we bring it up
+# here for the projection's `sdl_measure_text`.
+function write_example_pdf(example::Example, filename;
+                           width=nothing, height=nothing,
+                           max_width=1800, max_height=1200, kwargs...)
+    init!(SdlBackend())
+    write_pdf(example.document, example.projection, filename;
+              width=width, height=height,
+              max_width=max_width, max_height=max_height,
+              measure=sdl_measure_text, kwargs...)
+end
+
+function write_example_pdf(name="json", filename=tempname()*".pdf"; kwargs...)
+    idx = findfirst(ex -> ex.name == name, examples)
+    idx === nothing && error("Unknown example: \"$name\"")
+    write_example_pdf(examples[idx], filename; kwargs...)
+end
+
 function record_example_video(example::Example, gestures, filename;
                               width=1200, height=800, fps=30, kwargs...)
     record_video(example.document, example.projection, gestures, filename;
