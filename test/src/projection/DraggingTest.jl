@@ -1,0 +1,129 @@
+# Reader-level tests for DraggingProjection. We feed a synthetic
+# MouseDown → MouseMove → MouseUp sequence through the projection and assert the
+# state machine's phase transitions, the emitted MoveRangeOperation, and the
+# resulting collection order after evaluation.
+#
+# DraggingProjection resolves the grab/drop targets by synthesising a MousePress
+# at the press/release point and delegating it to the inner chain (the real
+# graphics-layer hit-test path). Here a stub inner projection plays the graphics
+# chain: it maps a synthetic MousePress's x coordinate to a content-domain
+# reference, so the DraggingProjection logic is exercised end-to-end without the
+# full pixel pipeline.
+
+using Projectured: MoveRangeOperation, DraggingProjection, DraggingProjectionIoMap, DraggingState,
+                   ReplaceSelectionOperation, JsonArray, JsonNumber,
+                   Change, Projection, projection_print, projection_read, evaluate_operation, Operation, cell_at,
+                   MouseDown, MouseUp, MouseMove, MousePress, Modifiers
+
+# Stub inner projection: `f(gesture) -> op` plays the graphics-layer hit-test.
+struct _CoordStub <: Projection
+    f::Any
+end
+Projectured.projection_read(p::_CoordStub, recursion, change::Change, iomap) =
+    Change(change.gesture, p.f(change.gesture))
+
+struct _StubInner
+    projection::Any
+    output::Any
+end
+
+_elem_path(i) = ConcreteReferencePath(FieldReference("elements"),
+                    ConcreteReferencePath(ElementReference(i), EmptyReferencePath()))
+
+# Build (projection, iomap) for a DraggingState wrapping `content`; the inner
+# stub resolves a synthetic MousePress via `hit` (a `gesture -> op` function).
+function _drag_setup(content, hit)
+    proj  = DraggingProjection()
+    state = DraggingState(content; threshold=5)
+    inner = _StubInner(_CoordStub(hit), nothing)
+    iomap = DraggingProjectionIoMap(proj, state, nothing, inner)
+    (proj, iomap)
+end
+
+_feed(proj, iomap, evt) = projection_read(proj, iomap, evt)
+
+function test_dragging()
+@testset "DraggingProjection drag-and-drop" begin
+
+    # Map a synthetic MousePress's x to an element reference: x=100 → 2, x=300 → 4.
+    _hit_2_or_4(g) = g isa MousePress ?
+        (g.x == 100 ? ReplaceSelectionOperation(_elem_path(2)) :
+         g.x == 300 ? ReplaceSelectionOperation(_elem_path(4)) : nothing) : nothing
+
+    @testset "press → drag → drop reorders the collection" begin
+        content = JsonArray(JsonNumber(10), JsonNumber(20), JsonNumber(30), JsonNumber(40))
+        c2 = cell_at(content.elements, 2)
+        proj, iomap = _drag_setup(content, _hit_2_or_4)
+
+        # MouseDown hit-tests the grab point (x=100 → element 2) and arms a
+        # pending drag, absorbing the press.
+        @test _feed(proj, iomap, MouseDown(:left, 100, 100, Modifiers())) === nothing
+        @test proj.state.phase === :pending
+
+        # A move past the 5px threshold activates the drag, still absorbed.
+        @test _feed(proj, iomap, MouseMove(120, 100, :left, Modifiers())) === nothing
+        @test proj.state.phase === :dragging
+
+        # MouseUp hit-tests the drop point (x=300 → element 4): element 2 moves there.
+        op = _feed(proj, iomap, MouseUp(:left, 300, 100, Modifiers()))
+        @test op isa MoveRangeOperation
+        @test proj.state.phase === :idle
+
+        evaluate_operation(nothing, op)
+        @test [Int(content.elements[i].value) for i in 1:4] == [10, 30, 20, 40]
+        @test cell_at(content.elements, 3) === c2          # cell identity preserved
+    end
+
+    @testset "sub-threshold press-release is a click, not a drag" begin
+        content = JsonArray(JsonNumber(10), JsonNumber(20), JsonNumber(30))
+        proj, iomap = _drag_setup(content, _hit_2_or_4)
+
+        @test _feed(proj, iomap, MouseDown(:left, 100, 100, Modifiers())) === nothing
+        @test proj.state.phase === :pending
+        # Release within threshold (2px): no drag, no op — the backend's
+        # synthesised MousePress handles the click selection separately.
+        op = _feed(proj, iomap, MouseUp(:left, 102, 100, Modifiers()))
+        @test op === nothing
+        @test proj.state.phase === :idle
+        @test [Int(content.elements[i].value) for i in 1:3] == [10, 20, 30]
+    end
+
+    @testset "drop on an unresolvable target yields no move" begin
+        content = JsonArray(JsonNumber(10), JsonNumber(20))
+        # Grab resolves (x=100 → element 2), but the drop point (x=999) hits nothing.
+        hit(g) = g isa MousePress && g.x == 100 ? ReplaceSelectionOperation(_elem_path(2)) : nothing
+        proj, iomap = _drag_setup(content, hit)
+
+        _feed(proj, iomap, MouseDown(:left, 100, 100, Modifiers()))
+        _feed(proj, iomap, MouseMove(120, 100, :left, Modifiers()))
+        op = _feed(proj, iomap, MouseUp(:left, 999, 100, Modifiers()))
+        @test !(op isa MoveRangeOperation)
+        @test [Int(content.elements[i].value) for i in 1:2] == [10, 20]
+    end
+
+    # End-to-end through the real json → syntax → text → graphics pipeline: the
+    # grab/drop points are resolved by the actual graphics-layer hit-test (no
+    # stub). The array renders one element per line at y = 24/48/72, x ≈ 24.
+    @testset "real pipeline: drag an array element to reorder" begin
+        content = JsonArray(JsonNumber(10), JsonNumber(20), JsonNumber(30))
+        c1 = cell_at(content.elements, 1)
+        inner = projection_print(make_json_projection_example(), content)
+        proj  = DraggingProjection()
+        iomap = DraggingProjectionIoMap(proj, DraggingState(content; threshold=5),
+                                        inner.output, inner)
+
+        @test _feed(proj, iomap, MouseDown(:left, 24, 24, Modifiers())) === nothing   # grab element 1
+        @test proj.state.phase === :pending
+        _feed(proj, iomap, MouseMove(24, 48, :left, Modifiers()))                     # cross threshold
+        @test proj.state.phase === :dragging
+        op = _feed(proj, iomap, MouseUp(:left, 24, 72, Modifiers()))                  # drop at element 3
+        @test op isa MoveRangeOperation
+        @test op.source_start == 1 && op.destination_index == 3
+
+        evaluate_operation(nothing, op)
+        @test [Int(content.elements[i].value) for i in 1:3] == [20, 10, 30]
+        @test cell_at(content.elements, 2) === c1                                     # identity preserved
+    end
+
+end
+end
