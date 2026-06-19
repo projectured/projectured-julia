@@ -45,7 +45,8 @@ using SimpleDirectMediaLayer.LibSDL2: SDL_Init, SDL_INIT_VIDEO, TTF_Init
 import ..BackendModule: Backend, init!, quit!, measure_text
 import ..DeviceModule: Device, read_from_devices, write_to_devices
 import ..GraphicsModule: GraphicsCanvas, GraphicsText, GraphicsRect, GraphicsLine,
-                         GraphicsCircle, GraphicsViewport, GraphicsImage, GraphicsFence
+                         GraphicsCircle, GraphicsViewport, GraphicsImage, GraphicsFence,
+                         _bounds_elem!, _accumulate_bounds!
 import ..CollectionModule: ListNode, CellVector
 import ..FontModule: StyleFont
 import ..ReactiveModule: Cell, isuptodate
@@ -55,7 +56,7 @@ import ..ScreenDocumentModule: ScreenDocument, WindowDocument, EventEnvelope,
 import ..ModifiersModule: Modifiers
 import ..KeyboardModule: KeyDown, KeyUp, KeyPress
 import ..MouseModule: MouseDown, MouseUp, MousePress, MouseMove, MouseScroll
-import ..SdlBackendModule: sdl_measure_text, _bounds_elem!, _accumulate_bounds!
+import ..SdlBackendModule: sdl_measure_text
 
 export WebBackend, web_key_to_symbol
 
