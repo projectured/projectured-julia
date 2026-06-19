@@ -16,7 +16,7 @@ import ..FontModule: StyleFont, font_ubuntu_monospace_regular_24
 import ..ColorModule: StyleColor, color_default, color_solarized_magenta, color_solarized_cyan, color_solarized_green, color_solarized_yellow
 import ..IoMapModule: SimpleIoMap
 import ..IoMapApiModule: IoMap
-import ..ReferenceModule: ConcreteReferencePath, EmptyReferencePath, FieldReference, RangeReference
+import ..ReferenceModule: ConcreteReferencePath, EmptyReferencePath, FieldReference, RangeReference, skip_type_checkpoints
 import ..ReferenceBuilderModule: var"@reference"
 import ..ReferenceCaseModule: var"@reference_case"
 import ..OperationModule: ReplaceSelectionOperation
@@ -36,13 +36,13 @@ PrimitiveBoolToSyntaxLeaf(; font=font_ubuntu_monospace_regular_24, color=color_s
 
 function map_reference_forward(::PrimitiveBoolToSyntaxLeaf, iomap::SimpleIoMap, reference)
     @reference_case reference begin
-        value{k} => @reference value{k}
+        ::PrimitiveBool.value{k} => @reference ::SyntaxLeaf.value::TextString{k}
     end
 end
 
 function map_reference_backward(::PrimitiveBoolToSyntaxLeaf, iomap::SimpleIoMap, reference)
     @reference_case reference begin
-        value{k} => @reference value{k}
+        ::SyntaxLeaf.value{k} => @reference ::PrimitiveBool.value::Bool{k}
     end
 end
 
@@ -52,7 +52,7 @@ function projection_print(p::PrimitiveBoolToSyntaxLeaf, recursion, b::PrimitiveB
 end
 
 function projection_read(::PrimitiveBoolToSyntaxLeaf, iomap::SimpleIoMap, op::ReplaceSelectionOperation)
-    path = op.path
+    path = skip_type_checkpoints(op.path)
     path isa ConcreteReferencePath || return nothing
     h = path.head
     h isa FieldReference && h.name == "value" || return nothing
@@ -70,13 +70,13 @@ PrimitiveNumberToSyntaxLeaf(; font=font_ubuntu_monospace_regular_24, color=color
 
 function map_reference_forward(::PrimitiveNumberToSyntaxLeaf, iomap::SimpleIoMap, reference)
     @reference_case reference begin
-        value{k} => @reference value{k}
+        ::PrimitiveNumber.value{k} => @reference ::SyntaxLeaf.value::TextString{k}
     end
 end
 
 function map_reference_backward(::PrimitiveNumberToSyntaxLeaf, iomap::SimpleIoMap, reference)
     @reference_case reference begin
-        value{k} => @reference value{k}
+        ::SyntaxLeaf.value{k} => @reference ::PrimitiveNumber.value::Number{k}
     end
 end
 
@@ -86,7 +86,7 @@ function projection_print(p::PrimitiveNumberToSyntaxLeaf, recursion, n::Primitiv
 end
 
 function projection_read(::PrimitiveNumberToSyntaxLeaf, iomap::SimpleIoMap, op::ReplaceSelectionOperation)
-    path = op.path
+    path = skip_type_checkpoints(op.path)
     path isa ConcreteReferencePath || return nothing
     h = path.head
     h isa FieldReference && h.name == "value" || return nothing
@@ -107,13 +107,13 @@ PrimitiveStringToSyntaxLeaf(; quote_font=font_ubuntu_monospace_regular_24, quote
 
 function map_reference_forward(::PrimitiveStringToSyntaxLeaf, iomap::SimpleIoMap, reference)
     @reference_case reference begin
-        value{k} => @reference value{k}
+        ::PrimitiveString.value{k} => @reference ::SyntaxLeaf.value::TextString{k}
     end
 end
 
 function map_reference_backward(::PrimitiveStringToSyntaxLeaf, iomap::SimpleIoMap, reference)
     @reference_case reference begin
-        value{k} => @reference value{k}
+        ::SyntaxLeaf.value{k} => @reference ::PrimitiveString.value::String{k}
     end
 end
 

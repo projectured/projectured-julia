@@ -72,13 +72,13 @@ InsertionToSyntaxLeaf(commit; prefix::AbstractString = "", suffix::AbstractStrin
 
 function map_reference_forward(::InsertionToSyntaxLeaf, iomap, reference)
     @reference_case reference begin
-        value{k} => @reference value{k}
+        value{k} => @reference ::SyntaxLeaf.value::TextString{k}
     end
 end
 
 function map_reference_backward(::InsertionToSyntaxLeaf, iomap, reference)
     @reference_case reference begin
-        value{k} => @reference value{k}
+        ::SyntaxLeaf.value{k} => @reference value{k}
     end
 end
 
