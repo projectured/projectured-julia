@@ -40,7 +40,7 @@ import ..ColorModule: StyleColor, color_black, color_default, color_gray63,
 import ..SyntaxModule: SyntaxDocument, SyntaxLeaf, SyntaxNode
 import ..TypeDispatchingModule: TypeDispatchingProjection
 import ..IoMapModule: SimpleIoMap, ChildrenIoMap
-import ..ReferenceModule: ConcreteReferencePath, ElementReference, PositionReference, RangeReference, FieldReference,
+import ..ReferenceModule: ConcreteReferencePath, ElementReference, PositionReference, RangeReference, FieldReference, skip_type_checkpoints,
                          ProjectionReference, ReferencePath, EmptyReferencePath, append_reference, head, tail
 import ..ReferenceCaseModule: var"@reference_case"
 import ..ReferenceBuilderModule: var"@reference"
@@ -118,6 +118,7 @@ end
 
 # document → syntax. `secs` is the value of the section IO maps cell.
 function _ned_section_forward(secs, reference)
+    reference = skip_type_checkpoints(reference)
     reference isa EmptyReferencePath && return EmptyReferencePath()
     reference isa ConcreteReferencePath || return nothing
     h = head(reference)
@@ -125,8 +126,8 @@ function _ned_section_forward(secs, reference)
     field = Symbol(h.name)
     sec_i = findfirst(s -> s.field === field, secs)
     sec_i === nothing && return nothing
-    rest = tail(reference)
-    rest isa EmptyReferencePath && return @reference children[sec_i]
+    rest = skip_type_checkpoints(tail(reference))
+    rest isa EmptyReferencePath && return @reference ::SyntaxNode.children[sec_i]
     rest isa ConcreteReferencePath || return nothing
     h2 = head(rest)
     h2 isa RangeReference || return nothing
@@ -134,13 +135,13 @@ function _ned_section_forward(secs, reference)
     entries = secs[sec_i].entries
     1 <= entry_i <= length(entries) || return nothing
     child = entries[entry_i]
-    entry_rest = tail(rest)
+    entry_rest = skip_type_checkpoints(tail(rest))
     if entry_rest isa EmptyReferencePath
-        return @reference children[sec_i].children[entry_i]
+        return @reference ::SyntaxNode.children[sec_i].children[entry_i]
     end
     inner = map_reference_forward(child.projection, child, entry_rest)
     inner === nothing && return nothing
-    @reference children[sec_i].children[entry_i].^(inner)
+    @reference ::SyntaxNode.children[sec_i].children[entry_i].^(inner)
 end
 
 # syntax → document. `secs` is the value of the section IO maps cell.
@@ -176,9 +177,9 @@ function _ned_section_print(p, recursion, m, ctx, open_ts, close_ts, collapsed, 
     section_iomaps = Cell(() -> _ned_section_iomaps(recursion, ctx, reference, sections))
 
     sel = Cell(() -> begin
-        path = m.selection
-        path isa ConcreteReferencePath && head(path) isa ProjectionReference && return path
-        _ned_section_forward(section_iomaps[], path)
+        path = skip_type_checkpoints(m.selection)
+        path isa ConcreteReferencePath && head(path) isa ProjectionReference && return m.selection
+        _ned_section_forward(section_iomaps[], m.selection)
     end)
 
     children_cv = CellVector(() -> SyntaxDocument[
@@ -294,12 +295,12 @@ end
 # token leaves (name at index 2); `close` is the trailing ";" delimiter.
 function _ned_inline_node(p, input, leaves_fn, close)
     sel = Cell(() -> begin
-        path = input.selection
-        path isa ConcreteReferencePath && head(path) isa ProjectionReference && return path
-        @reference_case path begin
-            ∅ => @reference()
-            name.rest...  => @reference children[2].value.^(rest)
-            value.rest... => @reference children[2].value.^(rest)
+        path = skip_type_checkpoints(input.selection)
+        path isa ConcreteReferencePath && head(path) isa ProjectionReference && return input.selection
+        @reference_case input.selection begin
+            ∅ => @reference ::SyntaxNode
+            name.rest...  => @reference ::SyntaxNode.children[2].value::TextString.^(rest)
+            value.rest... => @reference ::SyntaxNode.children[2].value::TextString.^(rest)
         end
     end)
     output = SyntaxNode(_empty_ts(), close, _empty_ts(),
@@ -309,15 +310,15 @@ end
 
 map_reference_forward(::NedInlineToNode, iomap, reference) =
     @reference_case reference begin
-        ∅ => @reference()
-        name.rest...  => @reference children[2].value.^(rest)
-        value.rest... => @reference children[2].value.^(rest)
+        ∅ => @reference ::SyntaxNode
+        name.rest...  => @reference ::SyntaxNode.children[2].value::TextString.^(rest)
+        value.rest... => @reference ::SyntaxNode.children[2].value::TextString.^(rest)
     end
 
 map_reference_backward(::NedInlineToNode, iomap, reference) =
     @reference_case reference begin
         ∅ => @reference()
-        children{1:_}.rest... => begin
+        ::SyntaxNode.children{1:_}.rest... => begin
             rest isa EmptyReferencePath && return @reference name
             @reference_case rest begin
                 value.vrest... => @reference name.^(vrest)
@@ -341,9 +342,9 @@ end
 struct NedInsertionToSyntaxLeaf <: Projection end
 
 map_reference_forward(::NedInsertionToSyntaxLeaf, iomap, reference) =
-    reference isa EmptyReferencePath ? EmptyReferencePath() : nothing
+    skip_type_checkpoints(reference) isa EmptyReferencePath ? (@reference ::SyntaxLeaf) : nothing
 map_reference_backward(::NedInsertionToSyntaxLeaf, iomap, reference) =
-    reference isa EmptyReferencePath ? EmptyReferencePath() : nothing
+    skip_type_checkpoints(reference) isa EmptyReferencePath ? EmptyReferencePath() : nothing
 
 function projection_read(p::NedInsertionToSyntaxLeaf, iomap::SimpleIoMap, op::ReplaceSelectionOperation)
     result = map_reference_backward(p, iomap, op.path)
@@ -364,15 +365,15 @@ struct NedPackageToSyntaxLeaf <: Projection end
 
 function map_reference_forward(::NedPackageToSyntaxLeaf, iomap::SimpleIoMap, reference)
     @reference_case reference begin
-        ∅ => @reference()
-        name.rest... => @reference value.^(rest)
+        ∅ => @reference ::SyntaxLeaf
+        ::NedPackage.name.rest... => @reference ::SyntaxLeaf.value::TextString.^(rest)
     end
 end
 
 function map_reference_backward(::NedPackageToSyntaxLeaf, iomap::SimpleIoMap, reference)
     @reference_case reference begin
-        ∅ => @reference()
-        value.rest... => @reference name.^(rest)
+        ∅ => @reference ::NedPackage
+        ::SyntaxLeaf.value.rest... => @reference ::NedPackage.name::String.^(rest)
     end
 end
 
@@ -390,8 +391,8 @@ end
 function projection_print(p::NedPackageToSyntaxLeaf, recursion, pkg::NedPackage, ctx)
     sel = Cell(() -> begin
         @reference_case pkg.selection begin
-            ∅ => @reference()
-            name.rest... => @reference value.^(rest)
+            ∅ => @reference ::SyntaxLeaf
+            name.rest... => @reference ::SyntaxLeaf.value::TextString.^(rest)
         end
     end)
     SimpleIoMap(p, pkg, SyntaxLeaf(
@@ -406,15 +407,15 @@ struct NedImportToSyntaxLeaf <: Projection end
 
 function map_reference_forward(::NedImportToSyntaxLeaf, iomap::SimpleIoMap, reference)
     @reference_case reference begin
-        ∅ => @reference()
-        import_spec.rest... => @reference value.^(rest)
+        ∅ => @reference ::SyntaxLeaf
+        ::NedImport.import_spec.rest... => @reference ::SyntaxLeaf.value::TextString.^(rest)
     end
 end
 
 function map_reference_backward(::NedImportToSyntaxLeaf, iomap::SimpleIoMap, reference)
     @reference_case reference begin
-        ∅ => @reference()
-        value.rest... => @reference import_spec.^(rest)
+        ∅ => @reference ::NedImport
+        ::SyntaxLeaf.value.rest... => @reference ::NedImport.import_spec::String.^(rest)
     end
 end
 
@@ -432,8 +433,8 @@ end
 function projection_print(p::NedImportToSyntaxLeaf, recursion, imp::NedImport, ctx)
     sel = Cell(() -> begin
         @reference_case imp.selection begin
-            ∅ => @reference()
-            import_spec.rest... => @reference value.^(rest)
+            ∅ => @reference ::SyntaxLeaf
+            import_spec.rest... => @reference ::SyntaxLeaf.value::TextString.^(rest)
         end
     end)
     SimpleIoMap(p, imp, SyntaxLeaf(
@@ -572,9 +573,9 @@ end
 # A connection is rendered as one flat text leaf; only the whole element is
 # independently selectable (its many sub-fields have no addressable cursor).
 map_reference_forward(::NedConnectionToSyntaxLeaf, iomap::SimpleIoMap, reference) =
-    reference isa EmptyReferencePath ? EmptyReferencePath() : nothing
+    skip_type_checkpoints(reference) isa EmptyReferencePath ? (@reference ::SyntaxLeaf) : nothing
 map_reference_backward(::NedConnectionToSyntaxLeaf, iomap::SimpleIoMap, reference) =
-    reference isa EmptyReferencePath ? EmptyReferencePath() : nothing
+    skip_type_checkpoints(reference) isa EmptyReferencePath ? EmptyReferencePath() : nothing
 
 function projection_read(p::NedConnectionToSyntaxLeaf, iomap::SimpleIoMap, op::ReplaceSelectionOperation)
     result = map_reference_backward(p, iomap, op.path)
@@ -582,7 +583,7 @@ function projection_read(p::NedConnectionToSyntaxLeaf, iomap::SimpleIoMap, op::R
 end
 
 function projection_print(p::NedConnectionToSyntaxLeaf, recursion, conn::NedConnection, ctx)
-    sel = Cell(() -> conn.selection isa EmptyReferencePath ? EmptyReferencePath() : nothing)
+    sel = Cell(() -> skip_type_checkpoints(conn.selection) isa EmptyReferencePath ? (@reference ::SyntaxLeaf) : nothing)
     SimpleIoMap(p, conn, SyntaxLeaf(
         _empty_ts(), _op(";"),
         TextString(() -> _format_connection(conn), _id_font, _val_color),
@@ -612,23 +613,23 @@ end
 
 function map_reference_forward(p::NedConnectionGroupToSyntaxNode, iomap::ChildrenIoMap, reference)
     @reference_case reference begin
-        ∅ => @reference()
-        connections{s:_}.rest... => begin
+        ∅ => @reference ::SyntaxNode
+        ::NedConnectionGroup.connections{s:_}.rest... => begin
             child_i = s + 1
             iomaps = iomap.child_iomaps[]
             1 <= child_i <= length(iomaps) || return nothing
             child = iomaps[child_i]
             inner = map_reference_forward(child.projection, child, rest)
             inner === nothing && return nothing
-            @reference children[child_i].^(inner)
+            @reference ::SyntaxNode.children[child_i].^(inner)
         end
     end
 end
 
 function map_reference_backward(p::NedConnectionGroupToSyntaxNode, iomap::ChildrenIoMap, reference)
     @reference_case reference begin
-        ∅ => @reference()
-        children{s:_}.rest... => begin
+        ∅ => @reference ::NedConnectionGroup
+        ::SyntaxNode.children{s:_}.rest... => begin
             child_i = s + 1
             iomaps = iomap.child_iomaps[]
             1 <= child_i <= length(iomaps) || return nothing
@@ -636,7 +637,7 @@ function map_reference_backward(p::NedConnectionGroupToSyntaxNode, iomap::Childr
             translated = rest isa EmptyReferencePath ? EmptyReferencePath() :
                          map_reference_backward(child.projection, child, rest)
             translated === nothing && return nothing
-            @reference connections[child_i].^(translated)
+            @reference ::NedConnectionGroup.connections[child_i].^(translated)
         end
     end
 end
@@ -662,8 +663,8 @@ function projection_print(p::NedConnectionGroupToSyntaxNode, recursion, group::N
                                for (i, conn) in enumerate(group.connections)])
 
     sel = Cell(() -> begin
-        path = group.selection
-        path isa ConcreteReferencePath && path.head isa ProjectionReference && return path
+        path = skip_type_checkpoints(group.selection)
+        path isa ConcreteReferencePath && path.head isa ProjectionReference && return group.selection
         @reference_case path begin
             ∅ => @reference()
             connections{s_idx:_}.rest... => begin
@@ -827,8 +828,8 @@ struct NedFileToSyntaxNode <: Projection end
 
 function map_reference_forward(p::NedFileToSyntaxNode, iomap::ChildrenIoMap, reference)
     @reference_case reference begin
-        ∅ => @reference()
-        children{s:_}.rest... => begin
+        ∅ => @reference ::SyntaxNode
+        ::NedFile.children{s:_}.rest... => begin
             child_i = s + 1
             iomaps = iomap.child_iomaps[]
             1 <= child_i <= length(iomaps) || return nothing
@@ -836,15 +837,15 @@ function map_reference_forward(p::NedFileToSyntaxNode, iomap::ChildrenIoMap, ref
             inner = rest isa EmptyReferencePath ? EmptyReferencePath() :
                     map_reference_forward(child.projection, child, rest)
             inner === nothing && return nothing
-            @reference children[child_i].^(inner)
+            @reference ::SyntaxNode.children[child_i].^(inner)
         end
     end
 end
 
 function map_reference_backward(p::NedFileToSyntaxNode, iomap::ChildrenIoMap, reference)
     @reference_case reference begin
-        ∅ => @reference()
-        children{s:_}.rest... => begin
+        ∅ => @reference ::NedFile
+        ::SyntaxNode.children{s:_}.rest... => begin
             child_i = s + 1
             iomaps = iomap.child_iomaps[]
             1 <= child_i <= length(iomaps) || return nothing
@@ -852,7 +853,7 @@ function map_reference_backward(p::NedFileToSyntaxNode, iomap::ChildrenIoMap, re
             translated = rest isa EmptyReferencePath ? EmptyReferencePath() :
                          map_reference_backward(child.projection, child, rest)
             translated === nothing && return nothing
-            @reference children[child_i].^(translated)
+            @reference ::NedFile.children[child_i].^(translated)
         end
     end
 end
@@ -878,8 +879,8 @@ function projection_print(p::NedFileToSyntaxNode, recursion, f::NedFile, ctx)
                                for (i, child) in enumerate(f)])
 
     sel = Cell(() -> begin
-        path = f.selection
-        path isa ConcreteReferencePath && path.head isa ProjectionReference && return path
+        path = skip_type_checkpoints(f.selection)
+        path isa ConcreteReferencePath && path.head isa ProjectionReference && return f.selection
         @reference_case path begin
             ∅ => @reference()
             children{s_idx:_}.rest... => begin
