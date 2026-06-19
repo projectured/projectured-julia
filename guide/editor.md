@@ -113,6 +113,54 @@ expected to end in one). `quit!(backend)` cleanup is in a `finally` block. Pass
 different channel passes its own `devices` (the `ConsoleBackend` uses
 `devices = Device[Keyboard()]` — no `Screen`/`Mouse`).
 
+## Scripted live playback
+
+`play_live!` is a sibling entry point that runs the same read-eval-print loop
+but **fires a predefined timeline on a wall-clock schedule**, so a recorded
+session plays out on a real window while the user watches (and can still
+interact — real input is polled every frame, and Escape / window-close quits).
+
+```julia
+play_live!(backend, projection, document, timeline;
+           window_id::Symbol, initial_hold=0.5,
+           op_prefix=EmptyReferencePath())
+```
+
+A *timeline* is a vector of timed entries; the present key selects the kind
+(the same format `record_video` consumes, so one timeline drives both a headless
+recording and live playback):
+
+- `(event = <device event>, hold = <seconds>)` — wrapped in
+  `EventEnvelope(window_id, event)` and run through `projection_read`, exactly
+  like live input.
+- `(operation = <Operation | doc -> op>, hold = <seconds>)` — a domain
+  `Operation` (or a thunk evaluated at fire time) injected **straight into
+  `evaluate_operation`**, skipping the reader. This expresses actions with no
+  single device-event trigger (seed a selection, scroll, swap focus/document).
+
+`hold` is the dwell after an entry. In `record_video` it becomes a frame count
+(video time); here it becomes a wall-clock delay before the next entry. Entry
+`i` fires at `initial_hold + Σ hold[1..i-1]` seconds; at most one scheduled
+entry is applied per frame, so each resulting state is visible.
+
+### Rooting injected operations: `op_prefix`
+
+A timeline is authored in the **bare-content** domain (the document the example
+projects, the same coordinates `record_video` uses). When the example is wrapped
+in a window for live playback, the live document root is a `ScreenDocument`, not
+the content. `:event` entries are rerooted automatically — the
+`ScreenToScreen` / `WindowManagerProjection` readers prepend the
+`windows[i].content` steps to every operation they emit. A directly-injected
+`:operation` **bypasses the reader**, so its bare-content path would be applied
+to the screen root and fail. `op_prefix` (a `ReferencePath`) closes the gap:
+`play_live!` reroots each `:operation` entry through
+`prepend_steps_to_op(op, steps(op_prefix))`. Pass
+`op_prefix = @reference windows[1].content` when the example sits in window 1;
+leave it empty (the default) for an unwrapped, single-document pipeline.
+
+In the example layer this is wired up for you — see `play_live_example` and
+`LiveExample` in [the live-examples debugging section](debugging.md#live-examples-scripted-sessions-on-a-real-window).
+
 ## Devices and backends
 
 - `Device` is an abstract type. Concrete subtypes are `Screen`, `Keyboard`,

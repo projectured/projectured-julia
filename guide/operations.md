@@ -96,6 +96,18 @@ the operation is the durable, composable unit. See the
 half, and [`evaluate_operation`'s flow](#reader--operation--evaluate-flow) for
 how the editor itself uses it.
 
+This is also how a **timeline** scripts a session: `record_video` (headless) and
+`play_live!` ([editor guide](editor.md#scripted-live-playback)) accept timed
+entries that are *either* a device `event` (run through the reader) *or* an
+`operation` (evaluated directly, exactly the pattern above). Because a
+directly-injected operation skips the reader, it is **not** rerooted through
+container wrappers automatically — when the document is wrapped (e.g. in a
+`ScreenDocument`/`WindowDocument` for live playback), `play_live!` reroots it via
+`op_prefix` using `prepend_steps_to_op` (see the
+[rerooting invariant](#two-invariants-every-operation-must-respect) below). The
+search-based pattern above sidesteps this by searching the *live* root, so it
+needs no prefix.
+
 ## Reader → operation → evaluate flow
 
 ```
