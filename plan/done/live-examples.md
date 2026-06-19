@@ -54,9 +54,9 @@ existing `(event = …, hold = …)` gesture format, so existing gesture vectors
    directly (value or `doc -> op` thunk), an `:event` entry goes through the
    reader as before. Backward compatible. Docstring extended.
 2. **`program/src/editor/Editor.jl`** ✅ — added `play_live!(editor, timeline;
-   window_id, initial_hold)` (scripted loop) + a bootstrap overload
+   window_id, initial_hold, op_prefix)` (scripted loop) + a bootstrap overload
    `play_live!(backend, projection, document, timeline; …)` mirroring `run!`, and
-   the `_timeline_operation` helper. Exported `play_live!`.
+   the `_timeline_operation` / `_path_to_steps` helpers. Exported `play_live!`.
 3. **`program/src/Projectured.jl`** ✅ — re-export `play_live!`.
 4. **`example/src/LiveExamples.jl`** ✅ — new file: `LiveExample` struct,
    `timed_event`/`timed_operation` builders, `record_live_example` /
@@ -81,6 +81,23 @@ existing `(event = …, hold = …)` gesture format, so existing gesture vectors
   reader **without** modifying x/y. So a `MousePress(x, y)` hits the same content
   point in both the recorder and the live window. The planned
   `content_origin`/`_offset_mouse` machinery was dropped as unnecessary.
+- **Operation *paths* are NOT parity-free — they need rerooting (fixed
+  post-hoc).** A timeline is authored in the bare-content domain (the same
+  coordinates the recorder uses). In the live player the example is wrapped in a
+  `WindowDocument`/`ScreenDocument`, so the live document root is the
+  *screen*, not the content. For `:event` entries this is handled automatically:
+  the reader pipeline (`ScreenToScreen` + `WindowManagerProjection`) prepends the
+  `windows[i].content` steps to every operation it produces. But a directly
+  injected `:operation` entry *bypasses the reader*, so its bare-content path
+  (e.g. `entries[4]…`) was applied straight to the `ScreenDocument` and threw a
+  `FieldError` (`ScreenDocument has no field entries`). Fix: `play_live!` gained
+  an `op_prefix::ReferencePath` keyword (default `EmptyReferencePath()`); it
+  reroots only `:operation` entries via the existing
+  `OperationRerootingModule.prepend_steps_to_op`, and `play_live_example` passes
+  `@reference windows[1].content`. This is the operation analogue of the reader's
+  automatic rerooting; the recorder needs none because it runs on the bare
+  document. (So "parity is free" holds for *event coordinates* but not for
+  *injected-operation reference paths*.)
 - **No `loop` parameter.** The plan floated an optional `loop=true`. Replaying a
   mutating timeline (e.g. typein) against an already-edited document is
   misleading, so `play_live!` does not loop; after the last entry the window
@@ -91,7 +108,9 @@ existing `(event = …, hold = …)` gesture format, so existing gesture vectors
   (`time()-start ≥ fire_at[next]`), set `editor.operation` from it; then
   evaluate + print. At most one scheduled entry per frame, so each state is
   visible; real input wins a contested frame and the scheduled entry retries
-  next frame. Exits on `QuitEditorException` like `run!`.
+  next frame. Exits on `QuitEditorException` like `run!`. `:event` entries are
+  enveloped with `window_id` and run through the reader (which roots the result);
+  `:operation` entries are rerooted by `op_prefix` (see the rerooting note).
 - **Drivers build fresh docs.** Both `record_live_example` and
   `play_live_example` call `example.make_document()` / `make_projection()` so a
   replay starts clean rather than reusing a possibly-edited shared instance.
@@ -117,6 +136,12 @@ existing `(event = …, hold = …)` gesture format, so existing gesture vectors
 - The `play_live_example` scene builds and prints to a `ScreenDocument` (so the
   backend opens a real window); the loop reuses the verified read/eval/print
   primitives.
+- Reproduced `play_live!`'s scheduled-operation step headlessly against the
+  windowed `ScreenDocument`: with `op_prefix = @reference windows[1].content`,
+  the injected `ReplaceSelectionOperation` reroots to
+  `.windows[1].content.entries[4]…`, `set_selection!` on the screen succeeds, and
+  the following `:event` typein advances the caret — confirming the `FieldError`
+  fix.
 
 ## What is intentionally NOT in scope
 
