@@ -40,6 +40,7 @@ include(joinpath(_EXAMPLE_DIR, "document", "Sql.jl"))
 include(joinpath(_EXAMPLE_DIR, "document", "Ini.jl"))
 include(joinpath(_EXAMPLE_DIR, "document", "Ned.jl"))
 include(joinpath(_EXAMPLE_DIR, "document", "Clipboard.jl"))
+include(joinpath(_EXAMPLE_DIR, "document", "Dragging.jl"))
 
 include(joinpath(_EXAMPLE_DIR, "projection", "Json.jl"))
 include(joinpath(_EXAMPLE_DIR, "projection", "Table.jl"))
@@ -79,6 +80,7 @@ include(joinpath(_EXAMPLE_DIR, "projection", "Sql.jl"))
 include(joinpath(_EXAMPLE_DIR, "projection", "Ini.jl"))
 include(joinpath(_EXAMPLE_DIR, "projection", "Ned.jl"))
 include(joinpath(_EXAMPLE_DIR, "projection", "Clipboard.jl"))
+include(joinpath(_EXAMPLE_DIR, "projection", "Dragging.jl"))
 
 include(joinpath(_EXAMPLE_DIR, "Examples.jl"))
 include(joinpath(_EXAMPLE_DIR, "LiveExamples.jl"))
@@ -195,5 +197,7 @@ export make_ned_document_example, make_ned_projection_example
 export ned_example
 export make_clipboard_document_example, make_clipboard_projection_example
 export clipboard_example
+export make_dragging_document_example, make_dragging_projection_example
+export dragging_example
 
 end

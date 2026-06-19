@@ -39,6 +39,7 @@ import ..ReferenceModule: ReferencePath, EmptyReferencePath, ConcreteReferencePa
 import ..DraggingDocumentModule: DraggingState
 import ..OperationModule: ReplaceSelectionOperation
 import ..OperationApiModule: Operation, evaluate_operation
+import ..OperationRerootingModule: prepend_steps_to_op
 import ..MouseModule: MouseDown, MouseUp, MouseMove, MousePress
 import ..ModifiersModule: Modifiers
 
