@@ -196,7 +196,7 @@ function run_example(examples::Vector{Example}; width=nothing, height=nothing,
                      caching=false, scrolling=false, workbench=false, reset=false,
                      tooltip=false, introspection=false,
                      text_filtering=false, text_highlighting=false, selection=nothing,
-                     profile=false)
+                     profile=false, backend=SdlBackend())
     isempty(examples) && error("run_example: empty examples vector")
     if text_filtering && text_highlighting
         error("run_example: text_filtering and text_highlighting are mutually exclusive")
@@ -306,14 +306,26 @@ function run_example(examples::Vector{Example}; width=nothing, height=nothing,
     if profile
         Profile.clear()
         try
-            Profile.@profile run!(SdlBackend(), composed, screen)
+            Profile.@profile run!(backend, composed, screen)
         finally
             Profile.print(; mincount=10)
         end
     else
-        run!(SdlBackend(), composed, screen)
+        run!(backend, composed, screen)
     end
 end
+
+"""
+    run_web_example(name_or_names="json"; host="127.0.0.1", port=8080, kwargs...)
+
+Run an example (or several side-by-side) through the **web backend** instead of
+SDL. Starts an HTTP + WebSocket server; open `http://host:port` in a browser and
+click *Launch* — each editor window opens as a browser popup that paints the
+server's draw-list and forwards input back. Accepts the same keyword arguments
+as [`run_example`](@ref) (e.g. `width`, `height`, `workbench`, `selection`).
+"""
+run_web_example(arg="json"; host="127.0.0.1", port=8080, kwargs...) =
+    run_example(arg; backend=WebBackend(; host=host, port=port), kwargs...)
 
 # Build a projection that projects the screen down to each
 # `windows[i].content` reference and applies the matching example's
