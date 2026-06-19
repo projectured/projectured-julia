@@ -494,7 +494,12 @@ function run_console_example(; document=make_json_document_example(),
                                interactive::Bool=false)
     if interactive
         backend = ConsoleBackend(; ansi=ansi, clear=something(clear, true))
-        run!(backend, projection, document; devices=Device[Keyboard()])
+        # The editor logs each operation and a perf line via @info; on a terminal
+        # that lands on the rendered screen and corrupts it (the console owns the
+        # display). Discard those logs for the duration of the interactive loop.
+        Base.CoreLogging.with_logger(Base.CoreLogging.NullLogger()) do
+            run!(backend, projection, document; devices=Device[Keyboard()])
+        end
     else
         backend = ConsoleBackend(; ansi=ansi, clear=something(clear, false))
         iomap = projection_print(projection, document)
