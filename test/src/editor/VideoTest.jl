@@ -65,6 +65,35 @@ function test_record_video()
         @test evaluate_reference(doc, caret) != before
     end
 
+    @testset "timed operation entry seeds the caret for a following keypress" begin
+        # An `:operation` entry (ReplaceSelectionOperation) is injected straight
+        # into the evaluator — no event needed — then a `:event` keypress edits
+        # at that selection. Proves operation entries reach evaluate_operation and
+        # the next event reads against the updated state.
+        doc  = make_json_document_example()
+        proj = make_json_projection_example()
+        caret = first(collect_text_selections(doc))
+        filename = tempname() * ".mp4"
+        timeline = [
+            (operation = ReplaceSelectionOperation(caret), hold = 0.2),
+            (event     = KeyPress('q'),                    hold = 0.2),
+        ]
+        ok = try
+            record_video(doc, proj, timeline, filename;
+                         fps=10, width=400, height=300, supersample=1)
+            true
+        catch e
+            @warn "record_video operation-entry test skipped (ffmpeg unavailable?): $e"
+            false
+        end
+        if ok
+            @test filesize(filename) > 0
+            rm(filename; force=true)
+        end
+        # The keypress landed at the operation-seeded caret regardless of encoding.
+        @test evaluate_reference(doc, caret) == 'q'
+    end
+
     # .mp4 is the only supported container.
     @test_throws ErrorException record_video(
         make_json_document_example(), make_json_projection_example(),
