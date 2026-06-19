@@ -75,6 +75,7 @@ include("document/Workbench.jl")
 include("document/Image.jl")
 include("document/Screen.jl")
 include("document/Tooltip.jl")
+include("document/Dragging.jl")
 
 # ── Higher-order projections ──────────────────────────────────────────────
 
@@ -117,6 +118,9 @@ include("projection/primitive/ClipboardToAny.jl")
 # keyboard device, so it is included here rather than with the other
 # higher-order projections above.
 include("projection/higherorder/ProjectionConfiguring.jl")
+# Drag-and-drop decorator: depends on the Mouse device, the collection/reference
+# modules, and the DraggingState document, all included above.
+include("projection/higherorder/Dragging.jl")
 
 # ── Primitive projections ─────────────────────────────────────────────────
 
@@ -308,6 +312,8 @@ using .EnvelopeUnwrappingModule: EnvelopeUnwrappingProjection, EnvelopeUnwrappin
 using .WindowManagerProjectionModule: WindowManagerProjection, WindowManagerProjectionIoMap
 using .ScreenToScreenModule: ScreenToScreen, ScreenToScreenIoMap, ScreenWindowIoMap
 using .TooltipDecoratorProjectionModule: TooltipDecoratorProjection, TooltipDecoratorProjectionIoMap
+using .DraggingDocumentModule: DraggingState, DraggingDocument
+using .DraggingProjectionModule: DraggingProjection, DraggingProjectionIoMap, MoveRangeOperation
 using .ReversingProjectionModule: ReversingProjection
 using .FilteringProjectionModule: FilteringProjection, FilteringProjectionIoMap
 using .SearchingProjectionModule: SearchingProjection, SearchingProjectionIoMap
@@ -639,6 +645,7 @@ export EnvelopeUnwrappingProjection, EnvelopeUnwrappingIoMap
 export WindowManagerProjection, WindowManagerProjectionIoMap
 export ScreenToScreen, ScreenToScreenIoMap, ScreenWindowIoMap
 export TooltipDecoratorProjection, TooltipDecoratorProjectionIoMap
+export DraggingState, DraggingDocument, DraggingProjection, DraggingProjectionIoMap, MoveRangeOperation
 export ReversingProjection
 export FilteringProjection, FilteringProjectionIoMap
 export ObjectToWidget, ObjectToWidgetIoMap
