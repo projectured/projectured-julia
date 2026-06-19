@@ -58,7 +58,10 @@ keystrokes back from it.
 
 `inbuf` holds bytes read from `input` but not yet consumed into an event (e.g.
 a partial escape sequence). `raw_active` records whether `init!` put the
-terminal into raw mode so `quit!` can restore it.
+terminal into raw mode so `quit!` can restore it. `last_frame` caches the bytes
+last written so the read-eval-print loop can skip a repaint when nothing
+changed — without it the editor's per-tick `print!` would clear and redraw the
+screen continuously, flickering the terminal.
 """
 mutable struct ConsoleBackend <: Backend
     io::IO
@@ -67,23 +70,41 @@ mutable struct ConsoleBackend <: Backend
     clear::Bool
     inbuf::Vector{UInt8}
     raw_active::Bool
+    last_frame::Union{String,Nothing}
 end
 
 ConsoleBackend(; io::IO=stdout, input::IO=stdin, ansi::Bool=true, clear::Bool=true) =
-    ConsoleBackend(io, input, ansi, clear, UInt8[], false)
+    ConsoleBackend(io, input, ansi, clear, UInt8[], false, nothing)
 
 # ── Backend interface ────────────────────────────────────────────────────
 
 # Put a real terminal into raw mode (no line buffering, no echo) so individual
 # keystrokes — including arrows and Ctrl chords — reach `read_from_devices`
-# immediately. No-op (and harmless) when `input` is not a TTY, e.g. an
-# `IOBuffer` in tests.
+# immediately, and start libuv reading on the TTY so `bytesavailable` actually
+# reflects incoming bytes (without `start_reading` the internal buffer is never
+# filled and the poll always sees zero). No-op (and harmless) when `input` is
+# not a TTY, e.g. an `IOBuffer` in tests.
 function init!(backend::ConsoleBackend)
     _set_raw!(backend, true)
+    io = backend.input
+    if io isa Base.TTY
+        try
+            Base.start_reading(io)
+        catch
+            # Polling still degrades gracefully; some streams auto-start on read.
+        end
+    end
     return nothing
 end
 
 function quit!(backend::ConsoleBackend)
+    io = backend.input
+    if io isa Base.TTY
+        try
+            Base.stop_reading(io)
+        catch
+        end
+    end
     _set_raw!(backend, false)
     return nothing
 end
@@ -269,7 +290,13 @@ function console_render(backend::ConsoleBackend, text::TextText)
     for span in text.elements
         base = _render_span!(buf, backend, span, base, hl)
     end
-    print(backend.io, String(take!(buf)))
+    frame = String(take!(buf))
+    # Skip the write when the frame is identical to the last one. The editor's
+    # loop calls print! every tick; without this the screen would clear+redraw
+    # continuously and flicker.
+    frame == backend.last_frame && return nothing
+    backend.last_frame = frame
+    print(backend.io, frame)
     flush(backend.io)
     return nothing
 end

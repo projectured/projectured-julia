@@ -99,6 +99,19 @@ function test_console_backend()
         @test replace(cs, r"\e\[[0-9;]*m" => "") == String(take!(plain)) # strip ⇒ plain
     end
 
+    # ── frame diffing skips an unchanged repaint ──────────────────────────
+    @testset "frame diff" begin
+        doc = make_json_document_example()
+        out = Projectured.projection_print(make_json_console_projection_example(), doc).output
+        io = IOBuffer()
+        backend = ConsoleBackend(; io=io, ansi=true, clear=true)
+        console_render(backend, out)
+        @test position(io) > 0                       # first frame is written
+        truncate(io, 0); seekstart(io)
+        console_render(backend, out)                 # identical frame
+        @test position(io) == 0                      # …is skipped (no flicker)
+    end
+
     # ── structural navigation through the editor loop ─────────────────────
     @testset "navigation" begin
         # Home (ESC[H), Down (ESC[B), Down, Right (ESC[C).

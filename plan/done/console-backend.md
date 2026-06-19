@@ -174,7 +174,17 @@ noise; every nested element highlights normally.)
 - [x] `init!`/`quit!` toggle the terminal's **raw mode** via
   `ccall(:jl_tty_set_mode, …)` (the call `REPL.Terminals.raw!` makes), guarded
   so a non-TTY `input` (e.g. an `IOBuffer` in tests) or an unsupported platform
-  is a no-op. `raw_active` records the state so `quit!` restores it.
+  is a no-op. `raw_active` records the state so `quit!` restores it. **`init!`
+  also calls `Base.start_reading(io)` for a TTY** — without it libuv never fills
+  its internal buffer, so `bytesavailable(stdin)` stays 0 and the non-blocking
+  poll reads nothing. This was the cause of "cursor navigation doesn't work" the
+  first time it was tried in a real terminal; the `IOBuffer`-driven tests didn't
+  catch it because they bypass the TTY read path. Verified and fixed with a pty
+  harness (with `start_reading` the down-arrow arrives as `[0x1b,0x5b,0x42]`).
+- [x] **Frame diffing**: `console_render` caches the last frame and skips the
+  write when it is unchanged. The shared `run!` loop calls `print!` every tick;
+  without this the clear+redraw ran continuously and flickered the terminal
+  (≈10 MB of escape output over a few seconds on boot → ~40 KB after).
 - [x] `read_from_devices(::ConsoleBackend, devices)` — non-blocking: drains all
   available bytes from `backend.input` into a persistent buffer and parses one
   event. Translations: printable → `KeyPress`; `ESC[A/B/C/D` → arrow `KeyDown`;
