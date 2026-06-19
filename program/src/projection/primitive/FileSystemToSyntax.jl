@@ -137,31 +137,31 @@ end
 # truth, reused by the printer's selection cell and the reader below.
 function map_reference_forward(p::FileSystemDirectoryToSyntaxNode, iomap::ChildrenIoMap, reference)
     @reference_case reference begin
-        ∅ => @reference()
+        ∅ => @reference ::SyntaxNode
         proj(^(p), _) => reference
-        elements{s:e}.rest... => begin
+        ::FileSystemDirectory.elements{s:e}.rest... => begin
             child_i = s + 1
             iomaps = iomap.child_iomaps[]
             1 <= child_i <= length(iomaps) || return nothing
             child = iomaps[child_i]
             inner = map_reference_forward(child.projection, child, rest)
             inner === nothing && return nothing
-            @reference children[2].children[child_i].^(inner)
+            @reference ::SyntaxNode.children[2].children[child_i].^(inner)
         end
     end
 end
 
 function map_reference_backward(p::FileSystemDirectoryToSyntaxNode, iomap::ChildrenIoMap, reference)
     @reference_case reference begin
-        ∅ => @reference()
-        children[2].children{s:e}.rest... => begin
+        ∅ => @reference ::FileSystemDirectory
+        ::SyntaxNode.children[2].children{s:e}.rest... => begin
             child_i = s + 1
             iomaps = iomap.child_iomaps[]
             1 <= child_i <= length(iomaps) || return nothing
             child = iomaps[child_i]
             inner = map_reference_backward(child.projection, child, rest)
             inner === nothing && return nothing
-            @reference elements[child_i].^(inner)
+            @reference ::FileSystemDirectory.elements[child_i].^(inner)
         end
     end
 end
