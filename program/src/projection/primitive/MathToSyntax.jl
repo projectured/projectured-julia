@@ -22,7 +22,7 @@ import ..ColorModule: StyleColor, color_default, color_solarized_blue, color_sol
 import ..SyntaxModule: SyntaxDocument, SyntaxLeaf, SyntaxNode
 import ..TypeDispatchingModule: TypeDispatchingProjection
 import ..IoMapModule: SimpleIoMap, ChildrenIoMap
-import ..ReferenceModule: ConcreteReferencePath, ElementReference, PositionReference, RangeReference, FieldReference, ProjectionReference, ReferencePath, EmptyReferencePath, append_reference
+import ..ReferenceModule: ConcreteReferencePath, ElementReference, PositionReference, RangeReference, FieldReference, ProjectionReference, ReferencePath, EmptyReferencePath, append_reference, skip_type_checkpoints
 import ..ReferenceCaseModule: var"@reference_case"
 import ..ReferenceBuilderModule: var"@reference"
 import ..PrinterContextModule: child_context
@@ -59,13 +59,13 @@ MathVariableToSyntaxLeaf(; font=font_ubuntu_monospace_regular_24, color=color_so
 
 function map_reference_forward(::MathVariableToSyntaxLeaf, iomap::SimpleIoMap, reference)
     @reference_case reference begin
-        name{k} => @reference value{k}
+        ::MathVariable.name{k} => @reference ::SyntaxLeaf.value::TextString{k}
     end
 end
 
 function map_reference_backward(::MathVariableToSyntaxLeaf, iomap::SimpleIoMap, reference)
     @reference_case reference begin
-        value{k} => @reference name{k}
+        ::SyntaxLeaf.value{k} => @reference ::MathVariable.name::String{k}
     end
 end
 
@@ -78,7 +78,7 @@ function projection_print(p::MathVariableToSyntaxLeaf, recursion, v::MathVariabl
 end
 
 function projection_read(::MathVariableToSyntaxLeaf, iomap::SimpleIoMap, op::ReplaceSelectionOperation)
-    path = op.path
+    path = skip_type_checkpoints(op.path)
     path isa ConcreteReferencePath || return nothing
     h = path.head
     h isa FieldReference && h.name == "value" || return nothing
@@ -100,36 +100,36 @@ MathBinaryOperationToSyntaxNode(; op_font=font_ubuntu_monospace_regular_24, op_c
 # child IO maps (child_iomaps = [left, right]) rather than re-walking math types.
 function map_reference_forward(p::MathBinaryOperationToSyntaxNode, iomap::ChildrenIoMap, reference)
     @reference_case reference begin
-        left.rest... => begin
+        ::MathBinaryOperation.left.rest... => begin
             child = iomap.child_iomaps[][1]
             inner = map_reference_forward(child.projection, child, rest)
             inner === nothing && return nothing
-            @reference children[1].^(inner)
+            @reference ::SyntaxNode.children[1].^(inner)
         end
-        right.rest... => begin
+        ::MathBinaryOperation.right.rest... => begin
             child = iomap.child_iomaps[][2]
             inner = map_reference_forward(child.projection, child, rest)
             inner === nothing && return nothing
-            @reference children[3].^(inner)
+            @reference ::SyntaxNode.children[3].^(inner)
         end
     end
 end
 
 function map_reference_backward(p::MathBinaryOperationToSyntaxNode, iomap::ChildrenIoMap, reference)
     @reference_case reference begin
-        children{s:_}.leaf_path... => begin
+        ::SyntaxNode.children{s:_}.leaf_path... => begin
             child_i = s + 1
             cims = iomap.child_iomaps[]
             if child_i == 1
                 child = cims[1]
                 translated = map_reference_backward(child.projection, child, leaf_path)
                 translated === nothing && return nothing
-                @reference left.^(translated)
+                @reference ::MathBinaryOperation.left.^(translated)
             elseif child_i == 3
                 child = cims[2]
                 translated = map_reference_backward(child.projection, child, leaf_path)
                 translated === nothing && return nothing
-                @reference right.^(translated)
+                @reference ::MathBinaryOperation.right.^(translated)
             else
                 nothing
             end
@@ -151,7 +151,7 @@ function projection_print(p::MathBinaryOperationToSyntaxNode, recursion, m::Math
         Cell(nothing))
 
     sel = Cell(() -> begin
-        path = m.selection
+        path = skip_type_checkpoints(m.selection)
         path isa ConcreteReferencePath || return nothing
         h = path.head
         if h isa FieldReference
@@ -206,23 +206,23 @@ MathParenthesizedToSyntaxNode(; delim_font=font_ubuntu_monospace_regular_24, del
 # parentheses are projection-introduced. child_iomaps holds the one content IO map.
 function map_reference_forward(p::MathParenthesizedToSyntaxNode, iomap::ChildrenIoMap, reference)
     @reference_case reference begin
-        content.rest... => begin
+        ::MathParenthesized.content.rest... => begin
             child = iomap.child_iomaps[]
             inner = map_reference_forward(child.projection, child, rest)
             inner === nothing && return nothing
-            @reference children[1].^(inner)
+            @reference ::SyntaxNode.children[1].^(inner)
         end
     end
 end
 
 function map_reference_backward(p::MathParenthesizedToSyntaxNode, iomap::ChildrenIoMap, reference)
     @reference_case reference begin
-        children{s:_}.leaf_path... => begin
+        ::SyntaxNode.children{s:_}.leaf_path... => begin
             s + 1 == 1 || return nothing
             child = iomap.child_iomaps[]
             translated = map_reference_backward(child.projection, child, leaf_path)
             translated === nothing && return nothing
-            @reference content.^(translated)
+            @reference ::MathParenthesized.content.^(translated)
         end
     end
 end
@@ -233,7 +233,7 @@ function projection_print(p::MathParenthesizedToSyntaxNode, recursion, m::MathPa
     content_iomap = Cell(() -> projection_printer_recurse(recursion, m.content, content_ctx))
 
     sel = Cell(() -> begin
-        path = m.selection
+        path = skip_type_checkpoints(m.selection)
         path isa ConcreteReferencePath || return nothing
         h = path.head
         if h isa FieldReference && h.name == "content"
@@ -281,17 +281,17 @@ MathAssignmentToSyntaxNode(; eq_font=font_ubuntu_monospace_regular_24, eq_color=
 # projection-introduced. child_iomaps = [target, value].
 function map_reference_forward(p::MathAssignmentToSyntaxNode, iomap::ChildrenIoMap, reference)
     @reference_case reference begin
-        target.rest... => begin
+        ::MathAssignment.target.rest... => begin
             child = iomap.child_iomaps[][1]
             inner = map_reference_forward(child.projection, child, rest)
             inner === nothing && return nothing
-            @reference children[1].^(inner)
+            @reference ::SyntaxNode.children[1].^(inner)
         end
-        value.rest... => begin
+        ::MathAssignment.value.rest... => begin
             child = iomap.child_iomaps[][2]
             inner = map_reference_forward(child.projection, child, rest)
             inner === nothing && return nothing
-            @reference children[3].^(inner)
+            @reference ::SyntaxNode.children[3].^(inner)
         end
     end
 end
@@ -305,12 +305,12 @@ function map_reference_backward(p::MathAssignmentToSyntaxNode, iomap::ChildrenIo
                 child = cims[1]
                 translated = map_reference_backward(child.projection, child, leaf_path)
                 translated === nothing && return nothing
-                @reference target.^(translated)
+                @reference ::MathAssignment.target.^(translated)
             elseif child_i == 3
                 child = cims[2]
                 translated = map_reference_backward(child.projection, child, leaf_path)
                 translated === nothing && return nothing
-                @reference value.^(translated)
+                @reference ::MathAssignment.value.^(translated)
             else
                 nothing
             end
@@ -332,7 +332,7 @@ function projection_print(p::MathAssignmentToSyntaxNode, recursion, m::MathAssig
         Cell(nothing))
 
     sel = Cell(() -> begin
-        path = m.selection
+        path = skip_type_checkpoints(m.selection)
         path isa ConcreteReferencePath || return nothing
         h = path.head
         if h isa FieldReference
