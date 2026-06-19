@@ -133,7 +133,27 @@ projection that *produces* the canvas still chooses its own `measure`: pass
 byte-for-byte parity with the on-screen layout (which requires SDL to be up — the
 `write_example_pdf` helper initializes it for you).
 
-v1 limitations: a single page (no pagination), uncompressed content streams,
-`GraphicsImage` supported only in its RGBA-buffer form (raw SDL texture pointers
-are skipped), and TrueType (`.ttf`) outline fonts only — CFF/`.otf` embedding
-(`Inconsolata.otf`) is not yet implemented.
+### Pagination
+
+By default the output is a single page. Pass `paginate=true` to flow content
+taller than the page across multiple pages — `height` becomes the page height and
+the content is sliced into `height`-tall bands (an element straddling a page
+boundary is split cleanly between the two pages). The embedded fonts are shared
+across all pages, so only the per-page content streams add to the file size.
+
+```julia
+# Multi-page: each page is 612 × 792 pt (US Letter); content reflows to 612 wide.
+write_pdf(doc, proj, "book.pdf"; paginate=true, width=612, height=792)
+
+# Canvas you already have, three 300×400 pages if it is ~1000 pt tall:
+write_pdf(canvas, "book.pdf"; width=300, height=400, paginate=true)
+```
+
+In `write_pdf(document, projection, …)` paginate mode, `width` is the page width
+(given, or content-fit capped at `max_width`); `height` defaults to `792`. For
+the document overload, `GraphicsCanvasToPdfFile` also takes `paginate=true`.
+
+v1 limitations: uncompressed content streams, `GraphicsImage` supported only in
+its RGBA-buffer form (raw SDL texture pointers are skipped), and TrueType
+(`.ttf`) outline fonts only — CFF/`.otf` embedding (`Inconsolata.otf`) is not yet
+implemented.
