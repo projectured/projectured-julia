@@ -286,14 +286,25 @@ end
 
 mutable struct PageCtx
     page_height::Float64
+    y0::Float64                     # global y of the current page's top (0 = single page)
+    band_lo::Float64                # global y band of the current page, for culling
+    band_hi::Float64
     buf::IOBuffer
-    fonts::Dict{String,FontReg}     # keyed by font filename (shared across sizes)
+    fonts::Dict{String,FontReg}     # keyed by font filename (shared across sizes/pages)
     gstates::Dict{UInt8,String}     # alpha byte -> ExtGState resource name
     images::Vector{Any}
 end
 
-PageCtx(height) = PageCtx(Float64(height), IOBuffer(), Dict{String,FontReg}(),
-                          Dict{UInt8,String}(), Any[])
+PageCtx(height) = PageCtx(Float64(height), 0.0, 0.0, Float64(height), IOBuffer(),
+                          Dict{String,FontReg}(), Dict{UInt8,String}(), Any[])
+
+# Flip a global (top-left, y-down) y into the current page's PDF (bottom-left,
+# y-up) space, accounting for the page's vertical band offset `y0`.
+_flip(ctx::PageCtx, gy) = ctx.page_height - (gy - ctx.y0)
+
+# True when a primitive's global vertical extent `[top, bottom]` intersects the
+# current page's band, so off-page elements can be culled during pagination.
+_on_page(ctx::PageCtx, top, bottom) = bottom >= ctx.band_lo && top <= ctx.band_hi
 
 function register_font!(ctx::PageCtx, font::StyleFont)
     get!(ctx.fonts, font.filename) do
@@ -339,7 +350,8 @@ end
 function paint_rect!(ctx, rect, ox, oy)
     x = ox + Int(rect.x); y = oy + Int(rect.y); w = Int(rect.w); h = Int(rect.h)
     (w <= 0 || h <= 0) && return
-    L = x; B = ctx.page_height - (y + h)
+    _on_page(ctx, y, y + h) || return
+    L = x; B = _flip(ctx, y + h)
     rtl, rtr = Int(rect.radius_tl), Int(rect.radius_tr)
     rbr, rbl = Int(rect.radius_br), Int(rect.radius_bl)
     bw = Int(rect.border_width)
@@ -368,8 +380,9 @@ function _fill_disc!(ctx, cx, cy, rad, r, g, b, a)
 end
 
 function paint_circle!(ctx, circ, ox, oy)
-    cx = ox + Int(circ.cx); cy = ctx.page_height - (oy + Int(circ.cy))
-    rad = Int(circ.radius); bw = Int(circ.border_width)
+    cyG = oy + Int(circ.cy); rad = Int(circ.radius); bw = Int(circ.border_width)
+    _on_page(ctx, cyG - rad - bw, cyG + rad + bw) || return
+    cx = ox + Int(circ.cx); cy = _flip(ctx, cyG)
     if bw > 0 && circ.border_a > 0
         _fill_disc!(ctx, cx, cy, rad, circ.border_r, circ.border_g, circ.border_b, circ.border_a)
         circ.a > 0 && _fill_disc!(ctx, cx, cy, rad - bw, circ.r, circ.g, circ.b, circ.a)
@@ -380,9 +393,11 @@ end
 
 function paint_line!(ctx, line, ox, oy)
     line.a == 0 && return
-    x1 = ox + Int(line.x1); y1 = ctx.page_height - (oy + Int(line.y1))
-    x2 = ox + Int(line.x2); y2 = ctx.page_height - (oy + Int(line.y2))
     wdt = max(1, Int(line.width))
+    g1 = oy + Int(line.y1); g2 = oy + Int(line.y2)
+    _on_page(ctx, min(g1, g2) - wdt, max(g1, g2) + wdt) || return
+    x1 = ox + Int(line.x1); y1 = _flip(ctx, g1)
+    x2 = ox + Int(line.x2); y2 = _flip(ctx, g2)
     print(ctx.buf, "/", gs_for!(ctx, line.a), " gs ",
           c01(line.r), " ", c01(line.g), " ", c01(line.b), " RG ",
           n2(wdt), " w 2 J ", n2(x1), " ", n2(y1), " m ", n2(x2), " ", n2(y2), " l S\n")
@@ -390,6 +405,8 @@ end
 
 function paint_text!(ctx, t, ox, oy)
     (isempty(t.text) || t.a == 0) && return
+    gy = oy + Int(t.y)
+    _on_page(ctx, gy, gy + t.font.size) || return
     reg = register_font!(ctx, t.font)
     ttf = reg.ttf
     io = IOBuffer()
@@ -402,7 +419,7 @@ function paint_text!(ctx, t, ox, oy)
     end
     hex = String(take!(io))
     size = t.font.size
-    baseline = ctx.page_height - (oy + Int(t.y) + ascent_px(ttf, size))
+    baseline = _flip(ctx, gy + ascent_px(ttf, size))
     print(ctx.buf, "/", gs_for!(ctx, t.a), " gs ",
           c01(t.r), " ", c01(t.g), " ", c01(t.b), " rg BT /", reg.resname, " ",
           n2(size), " Tf 1 0 0 1 ", n2(ox + Int(t.x)), " ", n2(baseline), " Tm <", hex, "> Tj ET\n")
@@ -426,16 +443,18 @@ function paint_image!(ctx, img, ox, oy)
         rgb[3i + 1] = buf[4i + 1]; rgb[3i + 2] = buf[4i + 2]; rgb[3i + 3] = buf[4i + 3]
         al[i + 1] = buf[4i + 4]
     end
+    x = ox + Int(img.x); w = Int(img.w); h = Int(img.h); gy = oy + Int(img.y)
+    _on_page(ctx, gy, gy + h) || return
     resname = "Im$(length(ctx.images) + 1)"
     push!(ctx.images, (resname = resname, nw = nw, nh = nh, rgb = rgb, alpha = al))
-    x = ox + Int(img.x); w = Int(img.w); h = Int(img.h)
-    yb = ctx.page_height - (oy + Int(img.y) + h)
+    yb = _flip(ctx, gy + h)
     print(ctx.buf, "q ", n2(w), " 0 0 ", n2(h), " ", n2(x), " ", n2(yb), " cm /", resname, " Do Q\n")
 end
 
 function paint_viewport!(ctx, vp, ox, oy)
     vx = ox + Int(vp.x); vy = oy + Int(vp.y); vw = Int(vp.w); vh = Int(vp.h)
-    yb = ctx.page_height - (vy + vh)
+    _on_page(ctx, vy, vy + vh) || return
+    yb = _flip(ctx, vy + vh)
     print(ctx.buf, "q ", n2(vx), " ", n2(yb), " ", n2(vw), " ", n2(vh), " re W n\n")
     content = vp.content
     paint_canvas!(ctx, content, vx + Int(content.x), vy + Int(content.y))
@@ -542,32 +561,40 @@ end
 # Public: write_pdf
 # ════════════════════════════════════════════════════════════════════════
 
-"""
-    write_pdf(canvas::GraphicsCanvas, filename::AbstractString;
-              width::Integer, height::Integer,
-              background::NTuple{4,UInt8} = (0xfd,0xf6,0xe3,0xff)) -> ImageFile
-
-Low-level overload. Emit `canvas` as a single-page vector PDF of `width × height`
-points (1 pt == 1 logical px). Shapes become PDF paths, text becomes selectable
-glyphs in embedded fonts. Returns `ImageFile(filename)`.
-"""
-function write_pdf(canvas::GraphicsCanvas, filename::AbstractString;
-                   width::Integer, height::Integer,
-                   background::NTuple{4,UInt8} = DEFAULT_BG)
-    ext = lowercase(splitext(filename)[2])
-    ext == ".pdf" || error("write_pdf: unsupported format \"$ext\" (only .pdf is supported)")
-
-    ctx = PageCtx(height)
+# Render `npages` content streams for `canvas`, one per vertical band of height
+# `page_h` starting at global y `top`. Fonts/gstates/images accumulate into the
+# single shared `ctx` so each is emitted once and referenced by every page.
+function _render_pages(canvas::GraphicsCanvas, page_w::Int, page_h::Int,
+                       npages::Int, top::Int, background::NTuple{4,UInt8})
+    ctx = PageCtx(page_h)
     r, g, b, a = background
-    if a > 0
-        print(ctx.buf, "/", gs_for!(ctx, a), " gs ", c01(r), " ", c01(g), " ", c01(b),
-              " rg 0 0 ", n2(width), " ", n2(height), " re f\n")
+    contents = Vector{Vector{UInt8}}(undef, npages)
+    for k in 0:(npages - 1)
+        ctx.buf = IOBuffer()
+        ctx.y0 = Float64(top + k * page_h)
+        ctx.band_lo = Float64(top + k * page_h)
+        ctx.band_hi = Float64(top + (k + 1) * page_h)
+        # Clip the page to its MediaBox so an element straddling a page boundary
+        # is split cleanly between consecutive pages.
+        print(ctx.buf, "q 0 0 ", n2(page_w), " ", n2(page_h), " re W n\n")
+        if a > 0
+            print(ctx.buf, "/", gs_for!(ctx, a), " gs ", c01(r), " ", c01(g), " ", c01(b),
+                  " rg 0 0 ", n2(page_w), " ", n2(page_h), " re f\n")
+        end
+        paint_canvas!(ctx, canvas, 0, 0)
+        print(ctx.buf, "Q\n")
+        contents[k + 1] = take!(ctx.buf)
     end
-    paint_canvas!(ctx, canvas, 0, 0)
-    content = take!(ctx.buf)
+    (ctx, contents)
+end
 
+# Assemble the PDF file from already-rendered per-page `contents` and the shared
+# `ctx` (fonts/gstates/images). Each page is `page_w × page_h` and references the
+# same `/Resources`.
+function _write_pdf_document(filename::AbstractString, contents::Vector{Vector{UInt8}},
+                             ctx::PageCtx, page_w::Int, page_h::Int)
     w = PdfWriter()
-    content_num = new_object!(w)
+    content_nums = Int[new_object!(w) for _ in contents]
 
     # Reserve object numbers up front so cross-references are known before writing.
     fontnums = Pair{String,NamedTuple}[]
@@ -585,13 +612,16 @@ function write_pdf(canvas::GraphicsCanvas, filename::AbstractString;
         smask = new_object!(w); base = new_object!(w)
         push!(imgnums, (base = base, smask = smask, img = im))
     end
-    page_num = new_object!(w); pages_num = new_object!(w); catalog_num = new_object!(w)
+    page_nums = Int[new_object!(w) for _ in contents]
+    pages_num = new_object!(w); catalog_num = new_object!(w)
 
-    write_stream!(w, content_num, "", content)
+    for (cn, c) in zip(content_nums, contents)
+        write_stream!(w, cn, "", c)
+    end
     for (_, info) in fontnums
         _write_font!(w, info)
     end
-    for (alpha, name) in ctx.gstates
+    for (alpha, _) in ctx.gstates
         av = c01(alpha)
         write_object!(w, gsnums[alpha], "<< /Type /ExtGState /ca $av /CA $av >>")
     end
@@ -630,10 +660,13 @@ function write_pdf(canvas::GraphicsCanvas, filename::AbstractString;
     print(res, ">>")
     resources = String(take!(res))
 
-    write_object!(w, page_num,
-        "<< /Type /Page /Parent $pages_num 0 R /MediaBox [0 0 $(n2(width)) $(n2(height))] " *
-        "/Resources $resources /Contents $content_num 0 R >>")
-    write_object!(w, pages_num, "<< /Type /Pages /Kids [$page_num 0 R] /Count 1 >>")
+    for (pn, cn) in zip(page_nums, content_nums)
+        write_object!(w, pn,
+            "<< /Type /Page /Parent $pages_num 0 R /MediaBox [0 0 $(n2(page_w)) $(n2(page_h))] " *
+            "/Resources $resources /Contents $cn 0 R >>")
+    end
+    kids = join(("$pn 0 R" for pn in page_nums), " ")
+    write_object!(w, pages_num, "<< /Type /Pages /Kids [$kids] /Count $(length(page_nums)) >>")
     write_object!(w, catalog_num, "<< /Type /Catalog /Pages $pages_num 0 R >>")
 
     open(filename, "w") do f
@@ -643,16 +676,57 @@ function write_pdf(canvas::GraphicsCanvas, filename::AbstractString;
 end
 
 """
+    write_pdf(canvas::GraphicsCanvas, filename::AbstractString;
+              width::Integer, height::Integer, paginate::Bool = false,
+              background::NTuple{4,UInt8} = (0xfd,0xf6,0xe3,0xff),
+              measure = pdf_measure_text) -> ImageFile
+
+Low-level overload. Emit `canvas` as a vector PDF where each page is
+`width × height` points (1 pt == 1 logical px). Shapes become PDF paths, text
+becomes selectable glyphs in embedded fonts. Returns `ImageFile(filename)`.
+
+With `paginate = false` (default) the result is a single page; content taller
+than `height` overflows and is clipped. With `paginate = true`, content taller
+than `height` flows onto successive `width × height` pages, sliced into vertical
+bands; `measure` is used to find the content height.
+"""
+function write_pdf(canvas::GraphicsCanvas, filename::AbstractString;
+                   width::Integer, height::Integer, paginate::Bool = false,
+                   background::NTuple{4,UInt8} = DEFAULT_BG,
+                   measure = pdf_measure_text)
+    ext = lowercase(splitext(filename)[2])
+    ext == ".pdf" || error("write_pdf: unsupported format \"$ext\" (only .pdf is supported)")
+
+    page_w = Int(width); page_h = Int(height)
+    top = 0; npages = 1
+    if paginate
+        _, miny, _, maxy = _canvas_content_bounds(canvas, measure)
+        top = min(0, miny)
+        npages = max(1, cld(max(0, maxy - top), page_h))
+    end
+    ctx, contents = _render_pages(canvas, page_w, page_h, npages, top, background)
+    _write_pdf_document(filename, contents, ctx, page_w, page_h)
+end
+
+"""
     write_pdf(document, projection, filename::AbstractString;
-              width=nothing, height=nothing,
+              width=nothing, height=nothing, paginate::Bool = false,
               max_width::Integer = 1200, max_height::Integer = 800,
               background::NTuple{4,UInt8} = (0xfd,0xf6,0xe3,0xff),
               measure = pdf_measure_text) -> ImageFile
 
-Run `projection_print(projection, document)` to obtain a `GraphicsCanvas`, size a
-single page to its content (same two-pass content-fit as `write_image`: omitted
-axes hug the content, capped at `max_*`), and write the vector PDF. Throws if the
-projection output is not a `GraphicsCanvas`.
+Run `projection_print(projection, document)` to obtain a `GraphicsCanvas` and
+write the vector PDF. Throws if the projection output is not a `GraphicsCanvas`.
+
+With `paginate = false` (default), a single page is sized to the content (same
+two-pass content-fit as `write_image`: omitted axes hug the content, capped at
+`max_*`).
+
+With `paginate = true`, the content flows across multiple pages: `height` is the
+page height (default `792`, US-Letter at 72 dpi) and the layout is produced with
+its vertical axis unbounded, then sliced into `height`-tall bands. `width` is the
+page width — given (the projection reflows to it) or the content's natural width
+capped at `max_width`. `max_height` is ignored in this mode.
 
 ```julia
 proj = SequentialProjection(
@@ -660,12 +734,14 @@ proj = SequentialProjection(
     RecursiveProjection(SyntaxToText()),
     TextToGraphics(measure=sdl_measure_text),
 )
-write_pdf(doc, proj, "snapshot.pdf")
+write_pdf(doc, proj, "snapshot.pdf")                       # one content-fit page
+write_pdf(doc, proj, "book.pdf"; paginate=true, height=792) # multi-page
 ```
 """
 function write_pdf(document, projection, filename::AbstractString;
                    width::Union{Nothing,Integer} = nothing,
                    height::Union{Nothing,Integer} = nothing,
+                   paginate::Bool = false,
                    max_width::Integer = 1200,
                    max_height::Integer = 800,
                    background::NTuple{4,UInt8} = DEFAULT_BG,
@@ -677,6 +753,22 @@ function write_pdf(document, projection, filename::AbstractString;
         canvas isa GraphicsCanvas ||
             error("write_pdf: projection output is $(typeof(canvas)), expected GraphicsCanvas")
         canvas
+    end
+
+    if paginate
+        # Lay out at the page width (vertical axis unbounded), then slice into
+        # `page_h`-tall pages.
+        page_h = height === nothing ? 792 : Int(height)
+        aw = width === nothing ? nothing : Cell(Int(width))
+        canvas = print_canvas(aw, nothing)
+        _, _, nw, _ = _canvas_content_bounds(canvas, measure)
+        if width === nothing && nw > max_width
+            canvas = print_canvas(Cell(Int(max_width)), nothing)
+            _, _, nw, _ = _canvas_content_bounds(canvas, measure)
+        end
+        page_w = width === nothing ? clamp(nw, 1, Int(max_width)) : Int(width)
+        return write_pdf(canvas, filename; width = page_w, height = page_h,
+                         paginate = true, background = background, measure = measure)
     end
 
     aw = width  === nothing ? nothing : Cell(Int(width))
@@ -705,29 +797,33 @@ end
 
 """
     GraphicsCanvasToPdfFile(filename; width=800, height=600,
-                            background=(0xfd,0xf6,0xe3,0xff))
+                            background=(0xfd,0xf6,0xe3,0xff), paginate=false)
 
 Printer-only projection. On `projection_print` it renders the input
-`GraphicsCanvas` to a vector PDF and saves to `filename`. The `output` of the
-returned `SimpleIoMap` is an `ImageFile`. Has no reader (subtypes `Projection`,
-so the default reference mappers return `nothing`).
+`GraphicsCanvas` to a vector PDF and saves to `filename`. With `paginate=true`,
+content taller than `height` flows across multiple `width × height` pages. The
+`output` of the returned `SimpleIoMap` is an `ImageFile`. Has no reader (subtypes
+`Projection`, so the default reference mappers return `nothing`).
 """
 struct GraphicsCanvasToPdfFile <: Projection
     filename::String
     width::Int
     height::Int
     background::NTuple{4,UInt8}
+    paginate::Bool
 end
 
 function GraphicsCanvasToPdfFile(filename::AbstractString;
                                  width::Integer = 800, height::Integer = 600,
-                                 background = DEFAULT_BG)
-    GraphicsCanvasToPdfFile(String(filename), Int(width), Int(height), NTuple{4,UInt8}(background))
+                                 background = DEFAULT_BG, paginate::Bool = false)
+    GraphicsCanvasToPdfFile(String(filename), Int(width), Int(height),
+                            NTuple{4,UInt8}(background), paginate)
 end
 
 function projection_print(p::GraphicsCanvasToPdfFile, recursion, canvas::GraphicsCanvas, ctx)
     output = write_pdf(canvas, p.filename;
-                       width = p.width, height = p.height, background = p.background)
+                       width = p.width, height = p.height,
+                       background = p.background, paginate = p.paginate)
     SimpleIoMap(p, canvas, output)
 end
 
