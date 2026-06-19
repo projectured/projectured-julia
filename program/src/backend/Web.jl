@@ -3,8 +3,8 @@
 
 Web backend. Runs the editor inside an HTTP + WebSocket server; the **final
 rendering step happens in the browser**. A connected JavaScript client sends raw
-mouse/keyboard events and receives a list of drawing primitives (a JSON
-draw-list) to paint onto an HTML `<canvas>`.
+mouse/keyboard events and receives drawing primitives (a JSON draw-list) to paint
+onto an HTML `<canvas>`.
 
 This is a drop-in `Backend`: `run!(WebBackend(; port=8080), projection, document)`
 substitutes for `run!(SdlBackend(), …)` with no change to the editor loop,
@@ -23,6 +23,14 @@ Layering vs. SDL:
   backend-agnostic vocabulary (`MouseDown`, `KeyPress`, …) wrapped in
   `EventEnvelope`s on a `Channel`; `read_from_devices` drains it non-blocking.
 
+Incremental rendering (phase 2): instead of re-sending the whole window every
+frame, a reactive dirty-walk (keyed on the cells' `isuptodate` flags) computes
+the smallest rectangle covering everything that changed since the last paint, and
+only the primitives intersecting that rectangle are serialized and sent as a
+`patch`. The client repaints just that region over a retained backing canvas. A
+full `window` message is sent on first paint, on (re)connect, after a resize, or
+when the patch queue would overflow (`force_full`).
+
 Constraints (v1): exactly one client per editor (a second WS upgrade is
 rejected); JSON transport both directions; key-symbol mapping is done on the
 server (`web_key_to_symbol`, mirroring `sdl_keysym_to_symbol`).
@@ -38,15 +46,16 @@ import ..BackendModule: Backend, init!, quit!, measure_text
 import ..DeviceModule: Device, read_from_devices, write_to_devices
 import ..GraphicsModule: GraphicsCanvas, GraphicsText, GraphicsRect, GraphicsLine,
                          GraphicsCircle, GraphicsViewport, GraphicsImage, GraphicsFence
-import ..CollectionModule: ListNode
+import ..CollectionModule: ListNode, CellVector
 import ..FontModule: StyleFont
+import ..ReactiveModule: Cell, isuptodate
 import ..ScreenModule: QuitEvent
 import ..ScreenDocumentModule: ScreenDocument, WindowDocument, EventEnvelope,
                                WindowCloseRequest, WindowResizeEvent
 import ..ModifiersModule: Modifiers
 import ..KeyboardModule: KeyDown, KeyUp, KeyPress
 import ..MouseModule: MouseDown, MouseUp, MousePress, MouseMove, MouseScroll
-import ..SdlBackendModule: sdl_measure_text
+import ..SdlBackendModule: sdl_measure_text, _bounds_elem!, _accumulate_bounds!
 
 export WebBackend, web_key_to_symbol
 
@@ -57,24 +66,40 @@ export WebBackend, web_key_to_symbol
 """
     WebConn
 
-The single live WebSocket connection. Outbound frames are coalesced: each new
-frame overwrites `pending`, and a capacity-1 `doorbell` channel wakes the send
-task — so frames produced faster than the socket drains collapse to the latest.
+The single live WebSocket connection. `outbox` is an in-order FIFO of JSON
+messages drained by the send task. Patches are order-sensitive, so the queue is
+never coalesced; when it nears capacity the backend falls back to a full resend
+(`force_full`) instead of dropping a patch.
 """
 mutable struct WebConn
     ws::Any
-    pending::Ref{Union{Nothing,String}}
-    doorbell::Channel{Nothing}
+    outbox::Channel{String}
+    cap::Int
     sendtask::Union{Task,Nothing}
 end
 
-WebConn(ws) = WebConn(ws, Ref{Union{Nothing,String}}(nothing), Channel{Nothing}(1), nothing)
+WebConn(ws; cap::Int=512) = WebConn(ws, Channel{String}(cap), cap, nothing)
+
+"""
+    WebWindowState
+
+Per-window incremental-render bookkeeping. `prev_bounds` maps each renderable
+unit's `objectid` to the absolute logical bounds at which it was last painted, so
+a moved/shrunk unit's vacated pixels can be cleared (old ∪ new). `first_paint`
+forces a full `window` message the next time the window is rendered.
+"""
+mutable struct WebWindowState
+    prev_bounds::Dict{UInt,NTuple{4,Int}}
+    first_paint::Bool
+end
+WebWindowState() = WebWindowState(Dict{UInt,NTuple{4,Int}}(), true)
 
 """
     WebBackend(; host="127.0.0.1", port=8080)
 
 HTTP + WebSocket backend. Serves the browser client and a per-window JSON
-draw-list, and decodes the client's input events. One client per editor.
+draw-list (full windows + incremental patches), and decodes the client's input
+events. One client per editor.
 """
 mutable struct WebBackend <: Backend
     host::String
@@ -82,10 +107,11 @@ mutable struct WebBackend <: Backend
     webdir::String
     fontdir::String
     server::Any
-    inbound::Channel{Any}              # decoded EventEnvelopes from the client
-    conn::Union{WebConn,Nothing}       # the one live connection
-    last_frame::Union{String,Nothing}  # last serialized frame (for late joiners)
-    last_sent::Union{String,Nothing}   # last frame actually sent (dedup)
+    inbound::Channel{Any}                 # decoded EventEnvelopes from the client
+    conn::Union{WebConn,Nothing}          # the one live connection
+    windows::Dict{Symbol,WebWindowState}  # per-window incremental state
+    last_ids::Vector{Symbol}              # window ids sent last frame (for close detection)
+    force_full::Bool                      # send every window in full on the next frame
     # MousePress synthesis state (mirrors SdlBackend).
     last_down_button::Symbol
     last_down_x::Int
@@ -97,7 +123,8 @@ function WebBackend(; host::AbstractString="127.0.0.1", port::Integer=8080)
     webdir  = normpath(joinpath(@__DIR__, "..", "..", "web"))
     fontdir = normpath(joinpath(@__DIR__, "..", "..", "..", "font"))
     WebBackend(String(host), Int(port), webdir, fontdir,
-               nothing, Channel{Any}(256), nothing, nothing, nothing,
+               nothing, Channel{Any}(256), nothing,
+               Dict{Symbol,WebWindowState}(), Symbol[], false,
                :none, 0, 0, 0.0)
 end
 
@@ -176,8 +203,22 @@ _rgba(e) = Int[Int(e.r), Int(e.g), Int(e.b), Int(e.a)]
 _border_rgba(e) = Int[Int(e.border_r), Int(e.border_g), Int(e.border_b), Int(e.border_a)]
 _font_family(path::AbstractString) = splitext(basename(path))[1]
 
-# Serialize one element into a draw-list node, or `nothing` to skip it
-# (GraphicsFence, an unrenderable image, or an unknown type).
+# A canvas's element list in render order: the `ListNode` prev-chain (nearest the
+# head first), then the head and its next-chain — matching `_render_canvas!`.
+function _list_nodes(head::ListNode)
+    nodes = ListNode[]
+    pn = head.prev
+    while pn !== nothing
+        push!(nodes, pn); pn = pn.prev
+    end
+    node = head
+    while node !== nothing
+        push!(nodes, node); node = node.next
+    end
+    nodes
+end
+
+# Serialize one element into a draw-list node, or `nothing` to skip it.
 function _serialize_node(elem)
     if elem isa GraphicsText
         font = elem.font::StyleFont
@@ -232,25 +273,15 @@ function _serialize_image(elem::GraphicsImage)
          "nw" => nw, "nh" => nh, "rgba" => base64encode(buf))
 end
 
-# Serialize a canvas's element list, mirroring `_render_canvas!`'s traversal
-# order (the `ListNode` prev-chain, then the head's next-chain) so paint
-# z-order matches SDL. The early-stop / off-screen culling is omitted for
-# correctness in v1 (the client clips).
+# Serialize a canvas's full element list (the top-level window content is painted
+# at origin like SDL's `_render_canvas!(…, 0, 0, …)`, so its own x/y are ignored).
 function _serialize_children(canvas::GraphicsCanvas)
     out = Any[]
     elements = canvas.elements
     if elements isa ListNode
-        prev_node = elements.prev
-        while prev_node !== nothing
-            n = _serialize_node(prev_node.value)
-            n === nothing || push!(out, n)
-            prev_node = prev_node.prev
-        end
-        node = elements
-        while node !== nothing
+        for node in _list_nodes(elements)
             n = _serialize_node(node.value)
             n === nothing || push!(out, n)
-            node = node.next
         end
     else
         for elem in elements
@@ -261,22 +292,238 @@ function _serialize_children(canvas::GraphicsCanvas)
     out
 end
 
-# Serialize the whole ScreenDocument into a `frame` message. The top-level
-# window content canvas is painted at origin (0,0) just like SDL
-# (`_render_canvas!(…, 0, 0, …)`), so its own x/y are not applied here.
-function _serialize_screen(screen::ScreenDocument)::String
-    windows = Any[]
-    for w in screen.windows
-        w isa WindowDocument || continue
-        content = w.content
-        draw = content isa GraphicsCanvas ? _serialize_children(content) : Any[]
-        push!(windows, Dict(
-            "id" => String(w.id), "title" => w.title,
-            "x" => Int(w.x), "y" => Int(w.y), "w" => Int(w.width), "h" => Int(w.height),
-            "bg" => Int[Int(w.bg[1]), Int(w.bg[2]), Int(w.bg[3]), Int(w.bg[4])],
-            "style" => String(w.style), "draw" => draw))
+# ── Clipped serialization (phase 2) ──────────────────────────────────────
+#
+# Like `_serialize_children`, but only emits primitives whose absolute bounds
+# intersect `clip` (an (x, y, w, h) tuple). Groups/viewports are recursed and
+# emitted only when they contribute a visible child, so a patch carries just the
+# primitives covering the dirty region.
+
+_intersects(b, clip) =
+    b[1] < clip[1] + clip[3] && b[3] > clip[1] && b[2] < clip[2] + clip[4] && b[4] > clip[2]
+
+function _serialize_clipped(canvas::GraphicsCanvas, ox::Int, oy::Int, clip)
+    out = Any[]
+    elements = canvas.elements
+    if elements isa ListNode
+        for node in _list_nodes(elements)
+            n = _serialize_node_clipped(node.value, ox, oy, clip)
+            n === nothing || push!(out, n)
+        end
+    else
+        for elem in elements
+            n = _serialize_node_clipped(elem, ox, oy, clip)
+            n === nothing || push!(out, n)
+        end
     end
-    JSON3.write(Dict("type" => "frame", "windows" => windows))
+    out
+end
+
+function _serialize_node_clipped(elem, ox::Int, oy::Int, clip)
+    elem isa GraphicsFence && return nothing
+    if elem isa GraphicsCanvas
+        children = _serialize_clipped(elem, ox + Int(elem.x), oy + Int(elem.y), clip)
+        isempty(children) && return nothing
+        return Dict("t" => "group", "x" => Int(elem.x), "y" => Int(elem.y), "content" => children)
+    elseif elem isa GraphicsViewport
+        vx, vy = ox + Int(elem.x), oy + Int(elem.y)
+        vw, vh = Int(elem.w), Int(elem.h)
+        _intersects((vx, vy, vx + vw, vy + vh), clip) || return nothing
+        content = elem.content::GraphicsCanvas
+        children = _serialize_clipped(content, vx + Int(content.x), vy + Int(content.y), clip)
+        isempty(children) && return nothing
+        return Dict("t" => "clip", "x" => Int(elem.x), "y" => Int(elem.y),
+                    "w" => vw, "h" => vh, "ox" => Int(content.x), "oy" => Int(content.y),
+                    "content" => children)
+    else
+        b = _bounds_of_elem(elem, ox, oy)
+        b === nothing && return nothing
+        _intersects(b, clip) || return nothing
+        return _serialize_node(elem)
+    end
+end
+
+# ════════════════════════════════════════════════════════════════════════
+# Dirty-rectangle analysis (phase 2)
+# ════════════════════════════════════════════════════════════════════════
+#
+# Walk the window's content canvas the way the renderer does, but test each
+# unit's reactive `isuptodate` flag *before* reading its value (reading
+# recomputes). Stale computed-container cells (a canvas's `elements`, a
+# CellVector's backing vector, a ListNode's spine) mark a whole subtree dirty;
+# a leaf whose own field cell is stale (in-place mutation) is a tight dirty unit.
+# For each dirty unit we union its previous painted bounds with its new bounds so
+# moved/shrunk content clears its vacated pixels.
+
+mutable struct _DAcc
+    minx::Int; miny::Int; maxx::Int; maxy::Int
+end
+_DAcc() = _DAcc(typemax(Int), typemax(Int), typemin(Int), typemin(Int))
+_acc_empty(a::_DAcc) = a.maxx == typemin(Int)
+_extend!(a::_DAcc, b) = (a.minx = min(a.minx, b[1]); a.miny = min(a.miny, b[2]);
+                         a.maxx = max(a.maxx, b[3]); a.maxy = max(a.maxy, b[4]); nothing)
+
+function _bounds_of_elem(elem, ox::Int, oy::Int)
+    mnx = Ref(typemax(Int)); mny = Ref(typemax(Int)); mxx = Ref(typemin(Int)); mxy = Ref(typemin(Int))
+    _bounds_elem!(elem, ox, oy, sdl_measure_text, mnx, mny, mxx, mxy)
+    mxx[] == typemin(Int) ? nothing : (mnx[], mny[], mxx[], mxy[])
+end
+
+function _bounds_of_canvas(canvas::GraphicsCanvas, ox::Int, oy::Int)
+    mnx = Ref(typemax(Int)); mny = Ref(typemax(Int)); mxx = Ref(typemin(Int)); mxy = Ref(typemin(Int))
+    _accumulate_bounds!(canvas, ox, oy, sdl_measure_text, mnx, mny, mxx, mxy)
+    mxx[] == typemin(Int) ? nothing : (mnx[], mny[], mxx[], mxy[])
+end
+
+function _bounds_of_listnode(head::ListNode, ox::Int, oy::Int)
+    mnx = Ref(typemax(Int)); mny = Ref(typemax(Int)); mxx = Ref(typemin(Int)); mxy = Ref(typemin(Int))
+    for n in _list_nodes(head)
+        _bounds_elem!(n.value, ox, oy, sdl_measure_text, mnx, mny, mxx, mxy)
+    end
+    mxx[] == typemin(Int) ? nothing : (mnx[], mny[], mxx[], mxy[])
+end
+
+# True if any of `elem`'s own visual field cells is stale. `:selection` is the
+# reader's reference (not rendered); `:prev`/`:next` are the list spine (handled
+# separately) — so they never force a repaint on their own.
+function _node_dirty(elem)::Bool
+    for f in fieldnames(typeof(elem))
+        (f === :selection || f === :prev || f === :next) && continue
+        c = getfield(elem, f)
+        c isa Cell || continue
+        isuptodate(c) || return true
+    end
+    false
+end
+
+function _union_unit!(acc::_DAcc, prev::Dict{UInt,NTuple{4,Int}}, key::UInt,
+                      newb::Union{Nothing,NTuple{4,Int}})
+    old = get(prev, key, nothing)
+    old === nothing || _extend!(acc, old)
+    if newb === nothing
+        delete!(prev, key)
+    else
+        _extend!(acc, newb)
+        prev[key] = newb
+    end
+end
+
+# `include_xy` is false for the top-level window content (rendered at origin, so
+# its own x/y cells are never read and must not trigger a repaint).
+function _collect_canvas_dirty!(canvas::GraphicsCanvas, ox::Int, oy::Int,
+                                acc::_DAcc, prev::Dict{UInt,NTuple{4,Int}};
+                                include_xy::Bool=true)
+    ec = getfield(canvas, :elements)
+    cd = !isuptodate(ec)
+    if include_xy && !cd
+        cd = !isuptodate(getfield(canvas, :x)) || !isuptodate(getfield(canvas, :y))
+    end
+    ev = canvas.elements                      # read after capturing validity above
+    if !cd && ev isa CellVector && !isuptodate(getfield(ev, :elements))
+        cd = true
+    end
+    if cd
+        _union_unit!(acc, prev, objectid(canvas), _bounds_of_canvas(canvas, ox, oy))
+        return
+    end
+    if ev isa ListNode
+        _collect_listnode_dirty!(ev, ox, oy, acc, prev)
+    else
+        for elem in ev
+            _collect_elem_dirty!(elem, ox, oy, acc, prev)
+        end
+    end
+    nothing
+end
+
+# A spine change (line inserted/removed) reflows the list, so the whole list is
+# one dirty unit; otherwise each node's value is checked individually.
+function _collect_listnode_dirty!(head::ListNode, ox::Int, oy::Int,
+                                  acc::_DAcc, prev::Dict{UInt,NTuple{4,Int}})
+    nodes = _list_nodes(head)
+    for n in nodes
+        if !isuptodate(getfield(n, :next)) || !isuptodate(getfield(n, :prev))
+            _union_unit!(acc, prev, objectid(head), _bounds_of_listnode(head, ox, oy))
+            return
+        end
+    end
+    for n in nodes
+        _collect_elem_dirty!(n.value, ox, oy, acc, prev)
+    end
+    nothing
+end
+
+function _collect_elem_dirty!(elem, ox::Int, oy::Int,
+                              acc::_DAcc, prev::Dict{UInt,NTuple{4,Int}})
+    elem isa GraphicsFence && return
+    if elem isa GraphicsCanvas
+        _collect_canvas_dirty!(elem, ox + Int(elem.x), oy + Int(elem.y), acc, prev)
+    elseif elem isa GraphicsViewport
+        vx, vy = ox + Int(elem.x), oy + Int(elem.y)
+        vw, vh = Int(elem.w), Int(elem.h)
+        if _node_dirty(elem)
+            _union_unit!(acc, prev, objectid(elem), (vx, vy, vx + vw, vy + vh))
+            return
+        end
+        content = elem.content::GraphicsCanvas
+        tmp = _DAcc()
+        _collect_canvas_dirty!(content, vx + Int(content.x), vy + Int(content.y), tmp, prev)
+        _acc_empty(tmp) && return
+        ix0 = max(tmp.minx, vx); iy0 = max(tmp.miny, vy)
+        ix1 = min(tmp.maxx, vx + vw); iy1 = min(tmp.maxy, vy + vh)
+        (ix1 > ix0 && iy1 > iy0) && _extend!(acc, (ix0, iy0, ix1, iy1))
+    elseif _node_dirty(elem)
+        _union_unit!(acc, prev, objectid(elem), _bounds_of_elem(elem, ox, oy))
+    end
+    nothing
+end
+
+# Compute the dirty rectangle (x, y, w, h) for a window's content, or `nothing`
+# if nothing changed. Padded by 2px and clamped to the visible quadrant.
+function _collect_window_dirty(content::GraphicsCanvas, prev::Dict{UInt,NTuple{4,Int}})
+    acc = _DAcc()
+    _collect_canvas_dirty!(content, 0, 0, acc, prev; include_xy=false)
+    _acc_empty(acc) && return nothing
+    x0 = max(0, acc.minx - 2); y0 = max(0, acc.miny - 2)
+    x1 = acc.maxx + 2; y1 = acc.maxy + 2
+    (x1 <= x0 || y1 <= y0) && return nothing
+    (x0, y0, x1 - x0, y1 - y0)
+end
+
+# Record the painted bounds of every renderable unit, so the first subsequent
+# change has a previous extent to union against. Called after a full window send.
+function _record_all_bounds!(prev::Dict{UInt,NTuple{4,Int}}, canvas::GraphicsCanvas, ox::Int, oy::Int)
+    b = _bounds_of_canvas(canvas, ox, oy)
+    b === nothing || (prev[objectid(canvas)] = b)
+    ev = canvas.elements
+    if ev isa ListNode
+        lb = _bounds_of_listnode(ev, ox, oy)
+        lb === nothing || (prev[objectid(ev)] = lb)
+        for n in _list_nodes(ev)
+            _record_elem_bounds!(prev, n.value, ox, oy)
+        end
+    else
+        for elem in ev
+            _record_elem_bounds!(prev, elem, ox, oy)
+        end
+    end
+    nothing
+end
+
+function _record_elem_bounds!(prev::Dict{UInt,NTuple{4,Int}}, elem, ox::Int, oy::Int)
+    elem isa GraphicsFence && return
+    if elem isa GraphicsCanvas
+        _record_all_bounds!(prev, elem, ox + Int(elem.x), oy + Int(elem.y))
+    elseif elem isa GraphicsViewport
+        vx, vy = ox + Int(elem.x), oy + Int(elem.y)
+        prev[objectid(elem)] = (vx, vy, vx + Int(elem.w), vy + Int(elem.h))
+        content = elem.content::GraphicsCanvas
+        _record_all_bounds!(prev, content, vx + Int(content.x), vy + Int(content.y))
+    else
+        b = _bounds_of_elem(elem, ox, oy)
+        b === nothing || (prev[objectid(elem)] = b)
+    end
+    nothing
 end
 
 # ════════════════════════════════════════════════════════════════════════
@@ -312,7 +559,6 @@ function _decode_and_enqueue!(backend::WebBackend, msg)
     elseif typ == "mouseup"
         b = _button(obj); x = Int(obj[:x]); y = Int(obj[:y]); m = _mods(obj)
         put!(backend.inbound, EventEnvelope(wid, MouseUp(b, x, y, m)))
-        # Synthesise MousePress when this up matches the preceding down.
         if b == backend.last_down_button &&
            abs(x - backend.last_down_x) < 5 && abs(y - backend.last_down_y) < 5 &&
            (time() - backend.last_down_time) < 0.3
@@ -332,7 +578,6 @@ function _decode_and_enqueue!(backend::WebBackend, msg)
     elseif typ == "keydown"
         m = _mods(obj)
         key = String(obj[:key])
-        # Escape quits the application, mirroring the SDL backend.
         if key == "Escape"
             put!(backend.inbound, EventEnvelope(:none, QuitEvent()))
             return
@@ -358,6 +603,10 @@ function _decode_and_enqueue!(backend::WebBackend, msg)
 
     elseif typ == "quit"
         put!(backend.inbound, EventEnvelope(:none, QuitEvent()))
+
+    elseif typ == "resync"
+        # Client (re)launched popups and wants a fresh full state for everything.
+        _reset_for_full!(backend)
     end
     return
 end
@@ -377,7 +626,6 @@ function _fonts_json(fontdir::AbstractString)::String
     JSON3.write(Dict("fonts" => names))
 end
 
-# Resolve a request path to (body, content_type), or (nothing, "") for 404.
 function _resolve_asset(backend::WebBackend, path::AbstractString)
     if path == "/" || path == "/index.html"
         f = joinpath(backend.webdir, "index.html")
@@ -415,12 +663,9 @@ function _serve_static(backend::WebBackend, http)
     return
 end
 
-# Drain coalesced frames to the socket until the connection closes.
+# Drain queued messages to the socket in order until the connection closes.
 function _send_loop(conn::WebConn)
-    for _ in conn.doorbell
-        msg = conn.pending[]
-        conn.pending[] = nothing
-        msg === nothing && continue
+    for msg in conn.outbox
         try
             HTTP.WebSockets.isclosed(conn.ws) && break
             HTTP.WebSockets.send(conn.ws, msg)
@@ -430,9 +675,29 @@ function _send_loop(conn::WebConn)
     end
 end
 
-function _send_frame!(conn::WebConn, str::AbstractString)
-    conn.pending[] = String(str)
-    isready(conn.doorbell) || (try; put!(conn.doorbell, nothing); catch; end)
+# Enqueue a frame message in order. A `snapshot` (the force_full path: every
+# window in full, no patches) supersedes the backlog, so the queue is drained
+# first. On overflow we likewise drain and arm a forced resend next frame — the
+# imminent snapshot makes the dropped patches obsolete, so nothing is lost. A
+# normal incremental message is only appended, never dropping a queued patch.
+function _enqueue!(backend::WebBackend, conn::WebConn, msg::String, snapshot::Bool)
+    overflow = Base.n_avail(conn.outbox) >= conn.cap - 1
+    if snapshot || overflow
+        while isready(conn.outbox)
+            try; take!(conn.outbox); catch; break; end
+        end
+        overflow && (backend.force_full = true)
+    end
+    try; put!(conn.outbox, msg); catch; end
+    return
+end
+
+# Force the next frame to send every window in full (on connect / resync / queue
+# overflow). Clearing per-window state drops stale incremental bookkeeping.
+function _reset_for_full!(backend::WebBackend)
+    empty!(backend.windows)
+    backend.last_ids = Symbol[]
+    backend.force_full = true
     return
 end
 
@@ -444,9 +709,8 @@ function _handle_ws(backend::WebBackend, ws)
     end
     conn = WebConn(ws)
     backend.conn = conn
-    backend.last_sent = nothing  # force a full resend to the new client
+    _reset_for_full!(backend)
     conn.sendtask = @async _send_loop(conn)
-    backend.last_frame === nothing || _send_frame!(conn, backend.last_frame)
     try
         for msg in ws
             try
@@ -458,7 +722,7 @@ function _handle_ws(backend::WebBackend, ws)
     catch
         # Connection dropped; fall through to cleanup.
     finally
-        try; close(conn.doorbell); catch; end
+        try; close(conn.outbox); catch; end
         backend.conn === conn && (backend.conn = nothing)
     end
     return
@@ -487,7 +751,7 @@ end
 function quit!(backend::WebBackend)
     conn = backend.conn
     if conn !== nothing
-        try; close(conn.doorbell); catch; end
+        try; close(conn.outbox); catch; end
         try; close(conn.ws); catch; end
         backend.conn = nothing
     end
@@ -507,22 +771,65 @@ measure_text(::WebBackend, text::AbstractString, font::StyleFont) = sdl_measure_
 read_from_devices(backend::WebBackend, devices) =
     isready(backend.inbound) ? take!(backend.inbound) : nothing
 
+_window_meta(w::WindowDocument, draw) = Dict(
+    "id" => String(w.id), "title" => w.title,
+    "x" => Int(w.x), "y" => Int(w.y), "w" => Int(w.width), "h" => Int(w.height),
+    "bg" => Int[Int(w.bg[1]), Int(w.bg[2]), Int(w.bg[3]), Int(w.bg[4])],
+    "style" => String(w.style), "draw" => draw)
+
 """
     write_to_devices(backend::WebBackend, devices, screen::ScreenDocument)
 
-Serialize the projection-output `ScreenDocument` into a per-window JSON
-draw-list and push it to the connected client. A frame identical to the last one
-sent is skipped (the editor loop repaints every frame at ~100 Hz). The latest
-frame is retained so a client connecting later receives the current view.
+Reconcile the connected client against the projection-output `ScreenDocument`.
+A window is sent in full on first paint / after a forced resync; otherwise only a
+`patch` covering the reactive dirty rectangle is sent. Windows that disappeared
+are closed. The message is `{type:"update", full:[…], patches:[…], close:[…]}`;
+nothing is sent when no client is connected or no window changed.
 """
 function write_to_devices(backend::WebBackend, devices, screen::ScreenDocument)
-    str = _serialize_screen(screen)
-    backend.last_frame = str
     conn = backend.conn
-    if conn !== nothing && str != backend.last_sent
-        _send_frame!(conn, str)
-        backend.last_sent = str
+    conn === nothing && return nothing  # no client; a resync on (re)connect sends full
+
+    wins = WindowDocument[]
+    for w in screen.windows
+        w isa WindowDocument && push!(wins, w)
     end
+    ids = Symbol[w.id for w in wins]
+
+    closed = String[]
+    for id in backend.last_ids
+        (id in ids) || (push!(closed, String(id)); delete!(backend.windows, id))
+    end
+    backend.last_ids = ids
+
+    force = backend.force_full
+    backend.force_full = false
+
+    full = Any[]
+    patches = Any[]
+    for w in wins
+        ws = get!(WebWindowState, backend.windows, w.id)
+        content = w.content
+        if force || ws.first_paint
+            draw = content isa GraphicsCanvas ? _serialize_children(content) : Any[]
+            push!(full, _window_meta(w, draw))
+            ws.first_paint = false
+            empty!(ws.prev_bounds)
+            content isa GraphicsCanvas && _record_all_bounds!(ws.prev_bounds, content, 0, 0)
+        elseif content isa GraphicsCanvas
+            clip = _collect_window_dirty(content, ws.prev_bounds)
+            clip === nothing || push!(patches, Dict(
+                "window" => String(w.id),
+                "clip" => Int[clip[1], clip[2], clip[3], clip[4]],
+                "draw" => _serialize_clipped(content, 0, 0, clip)))
+        end
+    end
+
+    (isempty(full) && isempty(patches) && isempty(closed)) && return nothing
+    msg = JSON3.write(Dict("type" => "update", "full" => full, "patches" => patches, "close" => closed))
+    # `force` ⇒ a complete snapshot (all windows full, no patches), safe to drain
+    # the backlog against; otherwise append in order.
+    _enqueue!(backend, conn, msg, force)
     return nothing
 end
 

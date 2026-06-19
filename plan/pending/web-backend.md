@@ -209,12 +209,37 @@ multi-popup bursts — documented in the client; popups are opened from a gestur
 size (client `putImageData`) or a `data:` PNG. `sdl_render_canvas` /
 `GraphicsCaching` has no web analog yet — deferred.
 
-## Incremental rendering (phase 2)
+## Incremental rendering (phase 2) — implemented
 
-SDL has dirty-rectangle partial repaint. v1 sends the **full draw-list per
-frame** (deduped against the last frame). Phase 2 reuses the same dirty-walk to
-send only changed regions (`{type:"patch", window, clip, draw}`) painted over a
-retained backing canvas. Dovetails with the incremental-selection work.
+SDL has dirty-rectangle partial repaint. v1 sent the full draw-list per frame.
+Phase 2 (implemented) sends only changed regions.
+
+The base worktree's SDL backend predates SDL's own dirty-rect machinery, so the
+web backend implements its own reactive dirty-walk in `Web.jl`
+(`_collect_canvas_dirty!` / `_collect_listnode_dirty!` / `_collect_elem_dirty!`),
+keyed on the cells' `isuptodate` flags and reusing SDL's pure bounds helpers
+(`_bounds_elem!`, `_accumulate_bounds!`, imported). It computes the smallest
+rectangle covering everything that changed since the last paint; `prev_bounds`
+(per window, keyed by `objectid`) unions a unit's previous painted extent with
+its new one so moved/shrunk content clears its vacated pixels. A stale
+computed-container cell (canvas `elements`, `CellVector` backing, `ListNode`
+spine) marks a whole subtree dirty (reflow); a leaf's own stale field cell is a
+tight unit.
+
+`_serialize_clipped` then emits only the primitives whose absolute bounds
+intersect the dirty rect (recursing groups/viewports, dropping empty ones), so a
+patch carries just that region.
+
+Protocol is now a single coalescible-but-ordered message per frame:
+`{type:"update", full:[window…], patches:[{window,clip,draw}…], close:[id…]}`.
+A window is sent in `full` on first paint, on (re)connect, after a resize, or on
+queue-overflow (`force_full`); otherwise only a `patch` is sent. The client
+repaints a patch by clipping to `clip`, clearing it to the window background, and
+painting the patch's primitives over the retained canvas. Because patches are
+order-sensitive, the outbox is a FIFO (never coalesced); on near-overflow the
+backend falls back to a full resend rather than dropping a patch. The client
+sends `{type:"resync"}` after (re)opening popups (launch, resize) to request
+guaranteed-fresh full state.
 
 ## Dependencies & file layout
 
@@ -243,7 +268,7 @@ SDL stays the default; the web backend is additive and selected explicitly.
 3. **Input round-trip.** Client captures mouse+keyboard; server decodes (incl.
    MousePress synthesis, Esc→quit). ✅ implemented
 4. **Images, resize, multi-window popups.** ✅ implemented (images: buffer forms)
-5. **Phase-2 incremental draw-lists.** deferred.
+5. **Phase-2 incremental draw-lists.** ✅ implemented (reactive dirty-walk + clipped patches)
 
 ## Decisions
 

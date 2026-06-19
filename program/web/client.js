@@ -6,8 +6,12 @@
 //   - renders the JSON draw-list the server sends into each popup's <canvas>,
 //   - forwards raw mouse/keyboard/resize events back to the server.
 //
-// Transport is JSON over a single WebSocket. See program/src/backend/Web.jl for
-// the matching server side and the wire protocol.
+// Protocol (JSON over one WebSocket). Server -> client:
+//   {type:"update", full:[win...], patches:[{window,clip,draw}...], close:[id...]}
+// A `full` entry carries a window's complete draw-list; a `patch` repaints only
+// its clip rectangle over the retained canvas (incremental rendering). The client
+// sends {type:"resync"} after opening popups to request fresh full state.
+// See program/src/backend/Web.jl for the server side.
 
 (() => {
   "use strict";
@@ -16,13 +20,11 @@
   const launchBtn = document.getElementById("launch");
 
   let ws = null;
-  let latestFrame = null;            // most recent {type:"frame", windows:[…]}
-  let launched = false;              // popups may only open after a user gesture
-  const popups = new Map();          // id -> { win, canvas, ctx, draw, bg }
+  let launched = false;                 // popups may only open after a user gesture
+  const windowsMeta = new Map();        // id -> full window object {id,...,draw}
+  const popups = new Map();             // id -> { win, canvas, ctx, dpr }
 
   // ── Fonts ────────────────────────────────────────────────────────────────
-  // Load every served font so the browser renders with the same glyphs the
-  // server measured. Family name = file basename without extension.
 
   async function loadFonts() {
     try {
@@ -55,12 +57,8 @@
     ws.onmessage = (ev) => {
       let msg;
       try { msg = JSON.parse(ev.data); } catch { return; }
-      if (msg.type === "frame") {
-        latestFrame = msg;
-        if (launched) reconcile(msg);
-      } else if (msg.type === "busy") {
-        statusEl.textContent = "Another client is already connected to this editor.";
-      }
+      if (msg.type === "update") handleUpdate(msg);
+      else if (msg.type === "busy") statusEl.textContent = "Another client is already connected to this editor.";
     };
   }
 
@@ -68,45 +66,42 @@
     if (ws && ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify(obj));
   }
 
-  // ── Popups ───────────────────────────────────────────────────────────────
-
-  function reconcile(frame) {
-    const wantIds = new Set(frame.windows.map((w) => w.id));
-    // Close popups whose window disappeared.
-    for (const id of [...popups.keys()]) {
-      if (!wantIds.has(id)) {
-        const p = popups.get(id);
-        try { p.win.close(); } catch {}
-        popups.delete(id);
-      }
+  function handleUpdate(msg) {
+    for (const f of msg.full || []) {
+      windowsMeta.set(f.id, f);
+      if (launched) paintFull(f);
     }
-    // Open / update each window.
-    for (const w of frame.windows) {
-      let p = popups.get(w.id);
-      if (!p || p.win.closed) {
-        p = openPopup(w);
-        if (!p) continue;          // popup blocked
-        popups.set(w.id, p);
-      }
-      p.draw = w.draw;
-      p.bg = w.bg;
-      try { p.win.document.title = w.title || "ProjecturEd"; } catch {}
-      paint(p);
+    for (const p of msg.patches || []) {
+      if (launched) applyPatch(p);
+    }
+    for (const id of msg.close || []) {
+      closePopup(id);
+      windowsMeta.delete(id);
     }
   }
 
-  function openPopup(w) {
-    const width = w.w > 0 ? w.w : 1024;
-    const height = w.h > 0 ? w.h : 768;
+  // ── Popups ───────────────────────────────────────────────────────────────
+
+  function ensurePopup(meta) {
+    let p = popups.get(meta.id);
+    if (p && !p.win.closed) return p;
+    p = openPopup(meta);
+    if (p) popups.set(meta.id, p);
+    return p;
+  }
+
+  function openPopup(meta) {
+    const width = meta.w > 0 ? meta.w : 1024;
+    const height = meta.h > 0 ? meta.h : 768;
     let features = `width=${width},height=${height}`;
-    if (w.x >= 0) features += `,left=${w.x}`;
-    if (w.y >= 0) features += `,top=${w.y}`;
-    const win = window.open("", w.id, features);
+    if (meta.x >= 0) features += `,left=${meta.x}`;
+    if (meta.y >= 0) features += `,top=${meta.y}`;
+    const win = window.open("", meta.id, features);
     if (!win) return null;
 
     const doc = win.document;
     doc.open();
-    doc.write(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>${w.title || "ProjecturEd"}</title>
+    doc.write(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>${meta.title || "ProjecturEd"}</title>
       <style>html,body{margin:0;height:100%;overflow:hidden;background:#000}
       canvas{display:block;width:100vw;height:100vh}</style></head>
       <body><canvas id="c"></canvas></body></html>`);
@@ -114,22 +109,29 @@
 
     const canvas = doc.getElementById("c");
     const ctx = canvas.getContext("2d");
-    const p = { win, canvas, ctx, draw: w.draw, bg: w.bg };
+    const p = { win, canvas, ctx, dpr: win.devicePixelRatio || 1 };
     sizeCanvas(p);
-    wireEvents(w.id, p);
+    wireEvents(meta.id, p);
 
     win.addEventListener("resize", () => {
       sizeCanvas(p);
-      send({ type: "resize", window: w.id, w: win.innerWidth, h: win.innerHeight });
-      paint(p);
+      const m = windowsMeta.get(meta.id);
+      if (m) paint(p, m);                 // repaint retained state so it isn't blank
+      send({ type: "resize", window: meta.id, w: win.innerWidth, h: win.innerHeight });
+      send({ type: "resync" });           // server relayout -> fresh full state
     });
     win.addEventListener("beforeunload", () => {
-      send({ type: "close", window: w.id });
-      popups.delete(w.id);
+      send({ type: "close", window: meta.id });
+      popups.delete(meta.id);
     });
-    // Report the real popup size once (it may differ from the requested size).
-    send({ type: "resize", window: w.id, w: win.innerWidth, h: win.innerHeight });
+    send({ type: "resize", window: meta.id, w: win.innerWidth, h: win.innerHeight });
     return p;
+  }
+
+  function closePopup(id) {
+    const p = popups.get(id);
+    if (p) { try { p.win.close(); } catch {} }
+    popups.delete(id);
   }
 
   function sizeCanvas(p) {
@@ -144,19 +146,44 @@
 
   function col(c) { return `rgba(${c[0]},${c[1]},${c[2]},${(c[3] / 255).toFixed(4)})`; }
 
-  function paint(p) {
+  // Full repaint of a window from its complete draw-list.
+  function paintFull(meta) {
+    const p = ensurePopup(meta);
+    if (!p) return;
+    try { p.win.document.title = meta.title || "ProjecturEd"; } catch {}
+    paint(p, meta);
+  }
+
+  function paint(p, meta) {
     if (!p.win || p.win.closed) return;
     const ctx = p.ctx;
     ctx.setTransform(p.dpr, 0, 0, p.dpr, 0, 0);
     const w = p.win.innerWidth, h = p.win.innerHeight;
-    if (p.bg) { ctx.fillStyle = col(p.bg); ctx.fillRect(0, 0, w, h); }
+    if (meta.bg) { ctx.fillStyle = col(meta.bg); ctx.fillRect(0, 0, w, h); }
     else { ctx.clearRect(0, 0, w, h); }
-    renderList(ctx, p.draw || []);
+    renderList(ctx, meta.draw || []);
   }
 
-  function renderList(ctx, list) {
-    for (const e of list) renderNode(ctx, e);
+  // Incremental repaint: clip to the patch rectangle, clear it to the window
+  // background, then paint the primitives the server sent for that region.
+  function applyPatch(patch) {
+    const p = popups.get(patch.window);
+    const meta = windowsMeta.get(patch.window);
+    if (!p || p.win.closed || !meta) return;
+    const [x, y, w, h] = patch.clip;
+    const ctx = p.ctx;
+    ctx.setTransform(p.dpr, 0, 0, p.dpr, 0, 0);
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(x, y, w, h);
+    ctx.clip();
+    ctx.fillStyle = meta.bg ? col(meta.bg) : "rgba(0,0,0,0)";
+    if (meta.bg) ctx.fillRect(x, y, w, h); else ctx.clearRect(x, y, w, h);
+    renderList(ctx, patch.draw || []);
+    ctx.restore();
   }
+
+  function renderList(ctx, list) { for (const e of list) renderNode(ctx, e); }
 
   function renderNode(ctx, e) {
     switch (e.t) {
@@ -218,8 +245,6 @@
     }
   }
 
-  // Axis-aligned lines paint as a crisp filled span (matching Sdl); diagonals
-  // stroke with square caps.
   function drawLine(ctx, e) {
     const wdt = Math.max(1, e.w | 0);
     if (e.y1 === e.y2) {
@@ -257,8 +282,8 @@
     ctx.restore();
   }
 
-  // Mirror Sdl's _render_viewport!: clip to (x,y,w,h), then render content at
-  // the content canvas's own (ox,oy) offset.
+  // Mirror Sdl's _render_viewport!: clip to (x,y,w,h), then render content at the
+  // content canvas's own (ox,oy) offset.
   function drawClip(ctx, e) {
     ctx.save();
     ctx.translate(e.x, e.y);
@@ -345,8 +370,7 @@
       send({ type: "keyup", window: id, key: ev.key, code: ev.code, mods: mods(ev) });
     });
     doc.addEventListener("keypress", (ev) => {
-      // Printable characters only (mirrors SDL_TEXTINPUT → KeyPress).
-      const ch = ev.key;
+      const ch = ev.key;                       // printable chars only (≈ SDL_TEXTINPUT)
       if (!ch || ch.length !== 1) return;
       send({ type: "keypress", window: id, char: ch, text: ch, mods: mods(ev) });
     });
@@ -358,7 +382,8 @@
     launched = true;
     launchBtn.disabled = true;
     statusEl.textContent = "Editor running in pop-up window(s).";
-    if (latestFrame) reconcile(latestFrame);
+    for (const meta of windowsMeta.values()) paintFull(meta);
+    send({ type: "resync" });                  // get fresh full state + patches
   });
 
   window.addEventListener("beforeunload", () => {
