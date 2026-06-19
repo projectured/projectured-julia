@@ -113,8 +113,13 @@ function play_live_example(live::LiveExample; width::Integer=live.width,
     inner_sel === nothing || set_selection!(screen, @reference windows[1].content.^(inner_sel))
 
     composed = _multi_window_projection([projection])
+    # Timeline operations are authored in the bare-content domain (like the
+    # recorder); in the windowed scene they must be rerooted to the screen by the
+    # steps that lead to this window's content. Event entries are rerooted by the
+    # reader automatically, so they need no prefix.
     play_live!(SdlBackend(), composed, screen, live.timeline;
-               window_id=window_id, initial_hold=initial_hold)
+               window_id=window_id, initial_hold=initial_hold,
+               op_prefix = @reference windows[1].content)
 end
 
 function play_live_example(name::AbstractString; kwargs...)

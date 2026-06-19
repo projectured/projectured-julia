@@ -22,6 +22,8 @@ import ..MouseModule: Mouse
 import ..OperationApiModule: Operation, evaluate_operation
 import ..OperationModule: ReplaceSelectionOperation, QuitEditorOperation
 import ..OperationModule: QuitEditorException
+import ..OperationRerootingModule: prepend_steps_to_op
+import ..ReferenceModule: ReferencePath, ConcreteReferencePath, EmptyReferencePath
 import ..McpModule: McpServer, mcp_start!, mcp_stop!
 
 export Editor, run!, play_live!
@@ -209,19 +211,36 @@ end
 
 # ── Scripted live playback ───────────────────────────────────────────────
 
+# Walk a reference path into a tuple of steps (outermost first), for rerooting.
+_path_to_steps(::EmptyReferencePath) = ()
+function _path_to_steps(path::ConcreteReferencePath)
+    steps = Any[]
+    cur = path
+    while cur isa ConcreteReferencePath
+        push!(steps, cur.head)
+        cur = cur.tail
+    end
+    Tuple(steps)
+end
+
 """
-    _timeline_operation(editor::Editor, entry, window_id::Symbol) -> Operation or nothing
+    _timeline_operation(editor::Editor, entry, window_id::Symbol, op_prefix::Tuple) -> Operation or nothing
 
 Turn one timeline entry into an operation, mirroring `read!`. An entry carrying
 `event` is wrapped in `EventEnvelope(window_id, event)` and run through the
-reader pipeline (the same path live input takes); an entry carrying `operation`
-is taken directly — either an `Operation` value or a `doc -> op` thunk evaluated
-against the current `editor.document`. Returns `nothing` when nothing applies.
+reader pipeline (the same path live input takes), which already roots the
+resulting operation in the document root. An entry carrying `operation` is taken
+directly — either an `Operation` value or a `doc -> op` thunk evaluated against
+the current `editor.document` — and its reference path is rerooted by
+`op_prefix` (the steps from the document root to the wrapped content), since a
+directly-injected operation bypasses the reader's rerooting. Returns `nothing`
+when nothing applies.
 """
-function _timeline_operation(editor::Editor, entry, window_id::Symbol)
+function _timeline_operation(editor::Editor, entry, window_id::Symbol, op_prefix::Tuple)
     if haskey(entry, :operation)
         op = entry.operation isa Function ? entry.operation(editor.document) : entry.operation
-        return op isa Operation ? op : nothing
+        op isa Operation || return nothing
+        return isempty(op_prefix) ? op : prepend_steps_to_op(op, op_prefix)
     else
         editor.iomap === nothing && return nothing
         env = EventEnvelope(window_id, entry.event)
@@ -232,7 +251,8 @@ function _timeline_operation(editor::Editor, entry, window_id::Symbol)
 end
 
 """
-    play_live!(editor::Editor, timeline; window_id::Symbol, initial_hold::Real=0.5)
+    play_live!(editor::Editor, timeline; window_id::Symbol, initial_hold::Real=0.5,
+               op_prefix::ReferencePath=EmptyReferencePath())
 
 Run the read-eval-print loop while firing a predefined `timeline` on a
 wall-clock schedule, so the user watches the scripted session unfold in a real
@@ -248,9 +268,17 @@ evaluator). At most one scheduled entry is applied per frame, so each resulting
 state is visible. Real user input is still polled every frame, so the user can
 interact and the window-close button / Escape quits cleanly. After the last
 entry the window stays live and interactive.
+
+`op_prefix` reroots directly-injected `operation` entries: a timeline authored
+in the bare-content domain (the same coordinates the recorder uses) needs its
+operation paths prefixed by the steps from the live document root to that
+content (e.g. `windows[1].content` when the example is wrapped in a window).
+Event entries are unaffected — the reader already roots them.
 """
-function play_live!(editor::Editor, timeline; window_id::Symbol, initial_hold::Real=0.5)
+function play_live!(editor::Editor, timeline; window_id::Symbol, initial_hold::Real=0.5,
+                    op_prefix::ReferencePath=EmptyReferencePath())
     n = length(timeline)
+    prefix_steps = _path_to_steps(op_prefix)
     # fire_at[i]: seconds from start at which entry i is applied.
     fire_at = Vector{Float64}(undef, n)
     acc = Float64(initial_hold)
@@ -268,7 +296,7 @@ function play_live!(editor::Editor, timeline; window_id::Symbol, initial_hold::R
             # entry is due, inject it. Real input wins the frame; the scheduled
             # entry retries on the following frame.
             if editor.operation === nothing && next <= n && (time() - start) >= fire_at[next]
-                editor.operation = _timeline_operation(editor, timeline[next], window_id)
+                editor.operation = _timeline_operation(editor, timeline[next], window_id, prefix_steps)
                 next += 1
             end
             @perf_time :evaluate_time evaluate!(editor)
@@ -291,12 +319,14 @@ produce a `ScreenDocument` so the backend opens a real window; `window_id` is th
 `WindowDocument.id` scripted events are routed to.
 """
 function play_live!(backend::Backend, projection, document, timeline;
-                    window_id::Symbol, initial_hold::Real=0.5)
+                    window_id::Symbol, initial_hold::Real=0.5,
+                    op_prefix::ReferencePath=EmptyReferencePath())
     init!(backend)
     try
         devices = Device[Screen(), Keyboard(), Mouse()]
         editor = Editor(backend, document, projection, devices)
-        play_live!(editor, timeline; window_id=window_id, initial_hold=initial_hold)
+        play_live!(editor, timeline; window_id=window_id, initial_hold=initial_hold,
+                   op_prefix=op_prefix)
     finally
         quit!(backend)
     end
