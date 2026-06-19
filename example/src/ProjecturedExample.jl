@@ -80,6 +80,7 @@ include(joinpath(_EXAMPLE_DIR, "projection", "Ned.jl"))
 include(joinpath(_EXAMPLE_DIR, "projection", "Clipboard.jl"))
 
 include(joinpath(_EXAMPLE_DIR, "Examples.jl"))
+include(joinpath(_EXAMPLE_DIR, "LiveExamples.jl"))
 
 export make_json_document_example, make_json_projection_example
 export make_json_sorted_projection_example
@@ -147,6 +148,8 @@ export make_text_configuring_projection
 export Example, examples, run_example, run_console_example, run_web_example, print_example, write_example_image, record_example_video, make_typein_gestures
 export make_json_console_projection_example
 export record_assistant_conversation_video
+export LiveExample, live_examples, play_live_example, record_live_example, timed_event, timed_operation
+export json_typein_live, json_select_and_edit_live
 export generate_example_screenshots, update_guide_screenshots
 export json_example, json_sorted_example, json_null_example, json_string_example
 export xml_example, mixed_example, syntax_example, text_example, text_with_image_example
