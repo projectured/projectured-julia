@@ -20,7 +20,7 @@ import ..ColorModule: StyleColor, color_solarized_gray
 import ..IoMapModule: SimpleIoMap, ChildrenIoMap
 import ..IoMapApiModule: IoMap
 import ..ReferenceModule: ConcreteReferencePath, ElementReference, FieldReference, RangeReference,
-                          PositionReference, ProjectionReference, ReferencePath,
+                          PositionReference, ProjectionReference, ReferencePath, skip_type_checkpoints,
                           EmptyReferencePath, append_reference
 import ..OperationModule: ReplaceSelectionOperation
 import ..SyntaxToTextModule: SyntaxNodeToText, _syntax_to_flat
@@ -64,10 +64,11 @@ end
 # Maps a SyntaxNode path (children[i].rest) back to the CellVector domain.
 # Returns ConcreteReferencePath(ElementReference(child_i), rest) or nothing.
 function _translate_collection_path(cv::CellVector, path::ReferencePath)
+    path = skip_type_checkpoints(path)
     path isa ConcreteReferencePath || return nothing
     h = path.head
     h isa FieldReference && h.name == "children" || return nothing
-    rest0 = path.tail
+    rest0 = skip_type_checkpoints(path.tail)
     rest0 isa ConcreteReferencePath || return nothing
     h2 = rest0.head
     h2 isa RangeReference || return nothing
