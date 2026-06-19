@@ -444,6 +444,17 @@ function _open_native_window!(w::WindowDocument)
     @assert renderer != C_NULL "SDL renderer creation failed: $(unsafe_string(SDL_GetError()))"
     SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND)
 
+    # Report which SDL render driver we actually got: a *software* driver
+    # (e.g. llvmpipe under a VM/headless GL) makes the per-frame full-window
+    # present CPU-rasterized and is the usual reason `print` is tens of ms even
+    # when nothing recomputes.
+    let ri = Ref{SDL_RendererInfo}()
+        if SDL_GetRendererInfo(renderer, ri) == 0
+            accel = (ri[].flags & SDL_RENDERER_ACCELERATED) != 0
+            @info "[sdl] renderer" driver=unsafe_string(ri[].name) accelerated=accel
+        end
+    end
+
     _update_display_scale!(win, renderer)
 
     sdl_id = UInt32(SDL_GetWindowID(win))
