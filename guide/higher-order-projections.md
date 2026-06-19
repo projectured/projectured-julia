@@ -18,6 +18,7 @@ There are ten higher-order projections in ProjecturEd:
 | `AlternativeProjection` | a reactive `Cell{Int}` index | `Alternative.jl` |
 | `NestingProjection` | nests by element list, with recursion fallback | `Nesting.jl` |
 | `WindowManagerProjection` | passthrough printer; reader applies `OpenWindowOperation`/`CloseWindowOperation` to the `ScreenDocument` | `WindowManager.jl` |
+| `EnvelopeUnwrappingProjection` | passthrough printer; reader strips the `EventEnvelope` off the gesture for pipelines with no screen/window layer | `EnvelopeUnwrapping.jl` |
 | `TooltipDecoratorProjection` | dispatches on `TooltipSource`; reader runs a show/hide state machine | `TooltipDecorator.jl` |
 | `ProjectionConfiguringProjection` | extends the inner projection's output with an editable parameter-control bar | `ProjectionConfiguring.jl` |
 

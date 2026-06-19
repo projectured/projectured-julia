@@ -99,24 +99,35 @@ proj     = SequentialProjection(
 run!(backend, proj, document)
 ```
 
-This overload calls `init!(backend)`, builds a `Vector{Device}` of
-`Screen()`, `Keyboard()`, and `Mouse()`, constructs the `Editor`, and runs the
+This overload calls `init!(backend)`, builds a `Vector{Device}` (default
+`Screen()`, `Keyboard()`, `Mouse()`), constructs the `Editor`, and runs the
 loop. Native windows are not pre-allocated — the backend opens them on demand
 the first time `write_to_devices` sees a `ScreenDocument` output (the pipeline is
 expected to end in one). `quit!(backend)` cleanup is in a `finally` block. Pass
-`mcp=true` to start an MCP server alongside the loop.
+`mcp=true` to start an MCP server alongside the loop. A backend that drives a
+different channel passes its own `devices` (the `ConsoleBackend` uses
+`devices = Device[Keyboard()]` — no `Screen`/`Mouse`).
 
 ## Devices and backends
 
 - `Device` is an abstract type. Concrete subtypes are `Screen`, `Keyboard`,
   and `Mouse` — see [the devices and backends guide](devices-and-backends.md).
-- `Backend` is the abstraction over the display/input platform. The only
-  current implementation is `SdlBackend`. The backend provides `init!`, `quit!`,
-  and `measure_text`; `read_from_devices` / `write_to_devices` are the `Device`
-  interface.
+- `Backend` is the abstraction over the display/input platform. There are two
+  implementations: `SdlBackend` (graphics) and `ConsoleBackend` (terminal). The
+  backend provides `init!`, `quit!`, and `measure_text`; `read_from_devices` /
+  `write_to_devices` are the `Device` interface.
 - Projections that need to measure text take a `measure::Function` argument
   (e.g. `TextToGraphics`); the backend's `sdl_measure_text` is the usual
   injection.
+- The `ConsoleBackend` consumes the **Text** domain directly (no
+  `TextToGraphics`): its `write_to_devices` renders a `TextText` to the terminal
+  with ANSI colors and a reverse-video selection highlight, and
+  `read_from_devices` turns keystrokes into the same `KeyDown`/`KeyPress`/
+  `QuitEvent` events. Because it has no screen/window layer, its pipeline adds an
+  `EnvelopeUnwrappingProjection` to strip the `EventEnvelope` that
+  `ScreenToScreen` would otherwise strip. Run it with
+  `run_console_example()` / `run_console_example(interactive=true)`. See
+  [the devices and backends guide](devices-and-backends.md#consolebackend).
 
 ## MCP server
 

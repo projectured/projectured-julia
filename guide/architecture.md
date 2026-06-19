@@ -17,7 +17,7 @@ mechanism see the [selection deep dive](selection-deep-dive.md).
              │                                  │
      ┌───────▼───────┐                ┌─────────▼─────────┐
      │   Backends     │                │   Projection      │
-     │  (SDL2)        │                │   Pipeline        │
+     │ (SDL2/Console) │                │   Pipeline        │
      └───────┬───────┘                └─────────┬─────────┘
              │                                  │
              │              ┌───────────────────┼───────────────────┐
@@ -40,7 +40,7 @@ Four layers, bottom to top:
 | 0 — Reactive engine | `Reactive.jl` | `Cell` type, dependency tracking, lazy invalidation |
 | 1 — Domain modules | `document/*.jl` | Document/operation types per problem area |
 | 2 — Projection modules | `projection/**/*.jl` | Domain-to-domain transformations |
-| 3 — Editor + backend | `editor/*.jl`, `backend/Sdl.jl` | REPL loop, rendering, device I/O |
+| 3 — Editor + backend | `editor/*.jl`, `backend/Sdl.jl`, `backend/Console.jl` | REPL loop, rendering, device I/O |
 
 ---
 
@@ -95,6 +95,7 @@ Four layers, bottom to top:
 | `ReferenceDispatchingProjection` | Dispatches on the current selection reference |
 | `NestingProjection` | Scopes an inner projection to a sub-document |
 | `WindowManagerProjection` | Passthrough printer; reader applies window open/close ops to the `ScreenDocument` |
+| `EnvelopeUnwrappingProjection` | Passthrough printer; reader strips the `EventEnvelope` off the gesture — the envelope-unwrap seam for pipelines with no screen/window layer (e.g. the `ConsoleBackend`'s) |
 | `TooltipDecoratorProjection` | Dispatches on `TooltipSource`; reader runs a show/hide state machine |
 | `ProjectionConfiguringProjection` | Extends the inner projection's output with an editable parameter-control bar |
 
@@ -158,7 +159,8 @@ Four layers, bottom to top:
 | Module | Role |
 |---|---|
 | `Editor.jl` | REPL loop: read → eval → print; `run!(backend, projection, document)` entry point |
-| `backend/Sdl.jl` | SDL2 + SDL_ttf backend: rendering, event translation, `write_image` |
+| `backend/Sdl.jl` | SDL2 + SDL_ttf backend: graphics rendering, event translation, `write_image` |
+| `backend/Console.jl` | Terminal backend: renders the **Text** domain (a `TextText`) to the terminal with ANSI colors and reads keystrokes — no `TextToGraphics`/SDL ([devices and backends](devices-and-backends.md#consolebackend)) |
 | `device/Screen.jl` | `Screen` device; `QuitEvent` |
 | `device/Keyboard.jl` | `KeyDown`, `KeyUp`, `KeyPress` |
 | `device/Mouse.jl` | `MouseDown`, `MouseUp`, `MousePress`, `MouseMove`, `MouseScroll` |
@@ -214,6 +216,7 @@ Reactive  (no deps)
 | Widget → GraphicsCanvas | ✅ |
 | Workbench → Widget → GraphicsCanvas | ✅ |
 | SDL2 window rendering | ✅ |
+| Text → terminal (`ConsoleBackend`, ANSI colors, no `TextToGraphics`) | ✅ |
 | Offscreen BMP export (`write_image`) | ✅ |
 
 ### Reader (reverse projection)
@@ -242,6 +245,7 @@ Reactive  (no deps)
 | Styled string domain | `Text.jl` | ✅ |
 | Graphics domain | `Graphics.jl` | ✅ |
 | SDL backend | `backend/Sdl.jl` | ✅ |
+| Console (terminal) backend | `backend/Console.jl` | ✅ (Text domain, no Lisp counterpart) |
 | IO Maps | `IoMap.jl` + per-projection | ✅ |
 | References | `Reference.jl` | ✅ |
 | Navigation operations | `Operation.jl` (`ReplaceSelectionOperation`) | ✅ |

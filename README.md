@@ -124,8 +124,10 @@ which has non-obvious payoffs:
   inside styled prose — and every cursor position round-trips faithfully across
   the boundaries.
 - **Backend-agnostic rendering.** The pipeline emits an abstract
-  `GraphicsCanvas`; SDL2 renders it today, while a terminal, web, or IDE-plugin
-  backend could render it tomorrow with the projection code unchanged.
+  `GraphicsCanvas` that SDL2 renders; a backend can also tap an earlier stage —
+  the `ConsoleBackend` renders the **Text** domain straight to the terminal
+  (ANSI colors, keyboard navigation, no graphics step). Web or IDE-plugin
+  backends could follow with the projection code unchanged.
 
 See the [projection system](guide/projection-system.md) and [higher-order
 projections](guide/higher-order-projections.md) guides for the mechanics.
