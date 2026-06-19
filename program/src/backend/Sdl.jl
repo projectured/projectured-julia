@@ -135,6 +135,13 @@ mutable struct SdlWindowResources
     first_paint::Bool    # force a full repaint on the first frame / after target (re)creation
     dirty_bounds::Dict{UInt,NTuple{4,Int}}  # last-rendered absolute logical bounds, keyed by
                                             # objectid of each dirty-unit container/leaf (for old∪new)
+    # Previous frame's logical dirty rect (x0,y0,x1,y1), or (-1,-1,-1,-1) for
+    # "none/full". The target→window copy each frame covers this ∪ the current
+    # dirty rect: with a double-buffered swap chain the back-buffer we draw into
+    # was last presented two frames ago, so the region that changed since then
+    # is the last two frames' damage. Without the union the previous frame's
+    # edit would not be refreshed on the alternate buffer (ghosting).
+    prev_copy::NTuple{4,Int}
 end
 
 """
@@ -461,7 +468,7 @@ function _open_native_window!(w::WindowDocument)
     SdlWindowResources(win, renderer, w.id, sdl_id, w.title,
                        Int(w.width), Int(w.height), Int(w.x), Int(w.y),
                        w.style, w.bg, _window_supersample(), C_NULL, 0, 0,
-                       true, Dict{UInt,NTuple{4,Int}}())
+                       true, Dict{UInt,NTuple{4,Int}}(), (-1, -1, -1, -1))
 end
 
 # Supersample factor for live windows (anti-aliasing). Override with the
@@ -1222,9 +1229,11 @@ end
 # Repaint `canvas` into the window, restricting the work to the invalidated
 # region when partial rendering is enabled. Everything is rendered into the
 # retained `res.target` texture (which keeps its pixels across frames); only the
-# dirty sub-rectangle of that texture is re-rendered, then the whole texture is
-# copied to the window and presented. The window backbuffer itself is undefined
-# after a present, so it is always fully refreshed from the target.
+# dirty sub-rectangle of that texture is re-rendered, then that sub-rectangle
+# (unioned with the previous frame's — see `prev_copy`) is copied to the window
+# and presented. Copying only the damage instead of the whole target keeps the
+# expensive scaled blit proportional to the edit, which matters on software
+# renderers where the full-window blit dominates frame time.
 function _render_window!(res::SdlWindowResources, canvas::GraphicsCanvas)
     bg = res.bg
     renderer = res.renderer
@@ -1279,7 +1288,31 @@ function _render_window!(res::SdlWindowResources, canvas::GraphicsCanvas)
     SDL_RenderSetScale(renderer, 1.0f0, 1.0f0)
     SDL_SetRenderTarget(renderer, C_NULL)
 
-    SDL_RenderCopy(renderer, res.target, C_NULL, C_NULL)
+    # Copy only the damaged region from the retained target to the window
+    # back-buffer, rather than the whole (supersampled) target. On a software
+    # renderer the full-window scaled blit dominates frame time and is constant
+    # regardless of how little changed; restricting it to the damage makes the
+    # blit track the edit. The damage is this frame's dirty rect ∪ the previous
+    # frame's: a double-buffered swap chain hands us the buffer presented two
+    # frames ago, so both frames' edits must be re-copied (see `prev_copy`). A
+    # full copy (whole window) is forced on the first paint / full-repaint mode,
+    # where `dirty` already spans the window.
+    full = !_PARTIAL_RENDER[] || res.prev_copy == (-1, -1, -1, -1)
+    if full
+        SDL_RenderCopy(renderer, res.target, C_NULL, C_NULL)
+    else
+        cx0 = min(dirty[1], res.prev_copy[1]); cy0 = min(dirty[2], res.prev_copy[2])
+        cx1 = max(dirty[3], res.prev_copy[3]); cy1 = max(dirty[4], res.prev_copy[4])
+        src = Ref(SDL_Rect(round(Int32, cx0 * rss),   round(Int32, cy0 * rss),
+                           round(Int32, (cx1 - cx0) * rss), round(Int32, (cy1 - cy0) * rss)))
+        dst = Ref(SDL_Rect(round(Int32, cx0 * scale), round(Int32, cy0 * scale),
+                           round(Int32, (cx1 - cx0) * scale), round(Int32, (cy1 - cy0) * scale)))
+        SDL_RenderCopy(renderer, res.target, src, dst)
+    end
+    # Remember this frame's damage for the next frame's union. A full copy resets
+    # it to "whole window" so the next frame fully refreshes the alternate buffer.
+    res.prev_copy = full ? (0, 0, res.width, res.height) : dirty
+
     if _DEBUG_DIRTY[]
         # Outline the repainted region on the window (erased by next frame's copy).
         SDL_RenderSetScale(renderer, scale, scale)
