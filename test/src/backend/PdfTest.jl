@@ -8,6 +8,19 @@ function _is_pdf(filename)
         occursin("%%EOF", String(bytes[max(1, end - 32):end]))
 end
 
+# Count page objects: each Page dict is "<< /Type /Page /Parent …"; the single
+# Pages node is "/Type /Pages", which this prefix does not match.
+function _page_count(filename)
+    s = String(read(filename))
+    n = 0; i = firstindex(s)
+    while true
+        j = findnext("/Type /Page /Parent", s, i)
+        j === nothing && break
+        n += 1; i = last(j) + 1
+    end
+    n
+end
+
 @testset "write_pdf(document, projection, filename)" begin
     doc  = make_json_document_example()
     proj = make_graphics_image_projection_example(measure=pdf_measure_text)
@@ -76,6 +89,60 @@ end
 @testset "unsupported format raises error" begin
     canvas = GraphicsCanvas()
     @test_throws ErrorException write_pdf(canvas, tempname() * ".png"; width=10, height=10)
+end
+
+# A tall stack of text lines used by the pagination tests.
+function _tall_canvas(nlines)
+    fnt = Projectured.FontModule.font_dejavu_sans_regular_18
+    GraphicsCanvas(Any[GraphicsText("paginated line $(i+1)", 10, 10 + 20i, fnt, 20, 20, 20, 255)
+                       for i in 0:(nlines - 1)])
+end
+
+@testset "paginate=false is single page (default unchanged)" begin
+    canvas = _tall_canvas(60)               # ~1210 tall, far taller than the page
+    filename = tempname() * ".pdf"
+    write_pdf(canvas, filename; width=300, height=400)
+    @test _is_pdf(filename)
+    @test _page_count(filename) == 1
+    rm(filename)
+end
+
+@testset "paginate=true flows a tall canvas onto multiple pages" begin
+    canvas = _tall_canvas(60)               # content height ~1210; 400-tall pages → ⌈1210/400⌉ = 4
+    filename = tempname() * ".pdf"
+    write_pdf(canvas, filename; width=300, height=400, paginate=true)
+    @test _is_pdf(filename)
+    @test _page_count(filename) == 4
+    rm(filename)
+end
+
+@testset "paginate=true short content stays one page" begin
+    canvas = _tall_canvas(3)
+    filename = tempname() * ".pdf"
+    write_pdf(canvas, filename; width=300, height=400, paginate=true)
+    @test _page_count(filename) == 1
+    rm(filename)
+end
+
+@testset "paginate=true document/projection overload" begin
+    doc  = make_json_document_example()
+    proj = make_graphics_image_projection_example(measure=pdf_measure_text)
+    filename = tempname() * ".pdf"
+    img = write_pdf(doc, proj, filename; paginate=true, width=300, height=120)
+    @test img isa ImageFile
+    @test _is_pdf(filename)
+    @test _page_count(filename) > 1         # the JSON example is taller than 120 pt
+    rm(filename)
+end
+
+@testset "GraphicsCanvasToPdfFile paginate=true" begin
+    canvas = _tall_canvas(40)               # ~810 tall; 300-tall pages → ⌈810/300⌉ = 3
+    filename = tempname() * ".pdf"
+    proj = GraphicsCanvasToPdfFile(filename; width=300, height=300, paginate=true)
+    iomap = projection_print(proj, canvas)
+    @test iomap.output isa ImageFile
+    @test _page_count(filename) == 3
+    rm(filename)
 end
 
 end # test_write_pdf
