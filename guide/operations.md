@@ -59,6 +59,7 @@ break out cleanly.
 | `ReplaceFocusPartOperation(projection, part)` | `projection/generic/Focusing.jl` | retargets a `FocusingProjection` |
 | `WorkbenchOpenDocumentOperation(page, entry)` | `document/Workbench.jl` | appends `entry` to `page.elements` (open a tab) |
 | `WorkbenchCloseDocumentOperation(page, index)` | `document/Workbench.jl` | removes `page.elements[index]` (close a tab) |
+| `MoveRangeOperation(src, a, b, dst, i)` | `projection/higherorder/Dragging.jl` | relocates `CellVector` elements `a:b` to index `i` of `dst` (drag-and-drop reorder); carries the `CellVector`s directly, like the split-pane ops carry the pane |
 
 Operation modules are the right place to look when wiring a new gesture:
 the operation declares its semantics once, projections that emit it stay

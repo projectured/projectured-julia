@@ -79,6 +79,7 @@ Four layers, bottom to top:
 | `Table.jl` | `TableCell`, `TableRow`, `TableColumn`, `TableTable` |
 | `FileSystem.jl` | `FileSystemFile`, `FileSystemDirectory` |
 | `Collection.jl` | `CellVector`, `CellMatrix`, `CellTable`, `ListNode` |
+| `Dragging.jl` | `DraggingState` — transparent wrapper marking a sub-tree as drag-and-drop reorderable (paired with `DraggingProjection`) |
 | `Font.jl`, `Color.jl`, `Geometry.jl`, `Image.jl`, `Clipboard.jl` | Supporting types |
 
 ### Layer 2 — Projection modules (`projection/`)
@@ -97,6 +98,7 @@ Four layers, bottom to top:
 | `WindowManagerProjection` | Passthrough printer; reader applies window open/close ops to the `ScreenDocument` |
 | `EnvelopeUnwrappingProjection` | Passthrough printer; reader strips the `EventEnvelope` off the gesture — the envelope-unwrap seam for pipelines with no screen/window layer (e.g. the `ConsoleBackend`'s) |
 | `TooltipDecoratorProjection` | Dispatches on `TooltipSource`; reader runs a show/hide state machine |
+| `DraggingProjection` | Dispatches on `DraggingState`; reader runs a press→drag→drop state machine emitting `MoveRangeOperation` |
 | `ProjectionConfiguringProjection` | Extends the inner projection's output with an editable parameter-control bar |
 
 **Generic** (`generic/`):

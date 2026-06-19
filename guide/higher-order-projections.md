@@ -6,7 +6,7 @@ module under `program/src/projection/higherorder/` and implements
 functions. They never touch any specific domain — their argument is always
 some other projection.
 
-There are ten higher-order projections in ProjecturEd:
+There are twelve higher-order projections in ProjecturEd:
 
 | Projection | Selects by | Key file |
 |---|---|---|
@@ -20,6 +20,7 @@ There are ten higher-order projections in ProjecturEd:
 | `WindowManagerProjection` | passthrough printer; reader applies `OpenWindowOperation`/`CloseWindowOperation` to the `ScreenDocument` | `WindowManager.jl` |
 | `EnvelopeUnwrappingProjection` | passthrough printer; reader strips the `EventEnvelope` off the gesture for pipelines with no screen/window layer | `EnvelopeUnwrapping.jl` |
 | `TooltipDecoratorProjection` | dispatches on `TooltipSource`; reader runs a show/hide state machine | `TooltipDecorator.jl` |
+| `DraggingProjection` | dispatches on `DraggingState`; reader runs a press→drag→drop state machine emitting `MoveRangeOperation` | `Dragging.jl` |
 | `ProjectionConfiguringProjection` | extends the inner projection's output with an editable parameter-control bar | `ProjectionConfiguring.jl` |
 
 ## SequentialProjection
@@ -154,6 +155,48 @@ the inherited one is used only when none is stored
 contents: it builds `NestingProjection(projection; recursion = PreservingProjection())`,
 so once `projection` has run at the target, everything below is handed to the
 stored `PreservingProjection` rather than continuing down the outer pipeline.
+
+## DraggingProjection
+
+```julia
+DraggingProjection()   # dispatched on a DraggingState document
+```
+
+Adds drag-and-drop reordering to whatever document a `DraggingState` wraps. Like
+`TooltipDecoratorProjection`, it is a **transparent decorator**: `projection_print`
+just recurses into `state.content` and returns its output, so the wrapper is
+invisible. All the work is in the reader, a press→drag→drop state machine whose
+transient state (`:idle` / `:pending` / `:dragging` + grab coords + source
+reference) lives on the projection instance — one drag at a time, never
+serialised.
+
+**Resolving the grab and drop points.** Mouse events are pixel coordinates; they
+only become document references at the graphics layer, and only for `MousePress`
+(a real drag fires `MouseDown` → `MouseMove*` → `MouseUp`, with no synthesised
+`MousePress`). Rather than teach every graphics reader to hit-test `MouseUp`,
+`DraggingProjection` resolves both endpoints itself:
+
+> on the grabbing `MouseDown` and the dropping `MouseUp`, it **synthesises a left
+> `MousePress` at that pixel and delegates it to the inner chain** — the exact
+> path a real click takes down through the graphics layer to the content domain.
+> The returned `ReplaceSelectionOperation`'s path is the reference under the
+> point.
+
+The synthetic press is only *read*, never applied, so it is a side-effect-free
+query (a drop onto, say, a collapse marker yields a `ToggleCollapseOperation`,
+which the projection ignores → no move, no toggle). This needs **zero changes
+outside `Dragging.jl`** and works for any domain whose graphics reader already
+hit-tests `MousePress`.
+
+**The move.** A completed drag emits a `MoveRangeOperation` (see
+[operations.md](operations.md)). The reader resolves each reference to a
+`(CellVector, index)` pair (splitting the path at its last element
+`RangeReference`; the prefix resolves to the owning collection) and stores the
+`CellVector`s **directly** in the operation — like the split-pane operations
+carry the `WidgetSplitPane` itself, which sidesteps re-rooting the reference up
+through the projections above. `evaluate_operation` then lifts the raw `Cell`s
+out of the source and `insert!`s them at the destination, preserving cell
+identity.
 
 ## Compound combinators
 
