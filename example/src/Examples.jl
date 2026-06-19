@@ -197,7 +197,7 @@ function run_example(examples::Vector{Example}; width=nothing, height=nothing,
                      caching=false, scrolling=false, workbench=false, reset=false,
                      tooltip=false, introspection=false,
                      text_filtering=false, text_highlighting=false, selection=nothing,
-                     profile=false, backend=SdlBackend())
+                     profile=false, backend=nothing, partial_render=nothing, debug_dirty=nothing)
     isempty(examples) && error("run_example: empty examples vector")
     if text_filtering && text_highlighting
         error("run_example: text_filtering and text_highlighting are mutually exclusive")
@@ -304,6 +304,9 @@ function run_example(examples::Vector{Example}; width=nothing, height=nothing,
 
     composed = tooltip ? _multi_window_projection_tooltipped(projs) :
                          _multi_window_projection(projs)
+    # An explicit `backend` (e.g. the WebBackend from run_web_example) wins;
+    # otherwise build the SDL backend, threading the render-control knobs.
+    backend === nothing && (backend = SdlBackend(; partial_render=partial_render, debug_dirty=debug_dirty))
     if profile
         Profile.clear()
         try

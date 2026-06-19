@@ -162,11 +162,25 @@ mutable struct SdlBackend <: Backend
     # Multi-window reconciliation state.
     windows::Dict{Symbol, SdlWindowResources}
     window_ids::Dict{UInt32, Symbol}
+    # Render controls (diagnostics / benchmarking). `init!` copies these into the
+    # `_PARTIAL_RENDER` / `_DEBUG_DIRTY` globals the render path reads:
+    #   partial_render — incremental dirty-rectangle repaint (false = full frame)
+    #   debug_dirty    — outline the repainted region in red
+    partial_render::Bool
+    debug_dirty::Bool
 end
 
-SdlBackend() = SdlBackend(Any[], :none, 0, 0, 0.0,
-                          Dict{Symbol, SdlWindowResources}(),
-                          Dict{UInt32, Symbol}())
+# `partial_render` / `debug_dirty` default to the PROJECTURED_PARTIAL_RENDER /
+# PROJECTURED_DEBUG_DIRTY env vars (via `_envflag`) when left as `nothing`, so a
+# bare `SdlBackend()` keeps the env-driven defaults; pass an explicit `Bool` to
+# override (e.g. from `run_example(; partial_render=false, debug_dirty=true)`).
+SdlBackend(; partial_render::Union{Bool,Nothing} = nothing,
+             debug_dirty::Union{Bool,Nothing}    = nothing) =
+    SdlBackend(Any[], :none, 0, 0, 0.0,
+               Dict{Symbol, SdlWindowResources}(),
+               Dict{UInt32, Symbol}(),
+               partial_render === nothing ? _envflag("PROJECTURED_PARTIAL_RENDER", true) : partial_render,
+               debug_dirty    === nothing ? _envflag("PROJECTURED_DEBUG_DIRTY", true)    : debug_dirty)
 
 # Module-level TTF font cache, keyed by (filename, scaled_size).
 # Shared by window rendering, offscreen image rendering, and text measurement.
@@ -210,21 +224,18 @@ const _TEXT_TEXTURE_CACHE_CAP = 16384
 # the canvas tree, find the smallest rectangle covering every invalidated
 # graphic, clip to it and repaint only that region into a retained target.
 #
-# `_PARTIAL_RENDER` — master switch (PROJECTURED_PARTIAL_RENDER=0 disables it,
-#   forcing the original full-frame repaint).
-# `_DEBUG_DIRTY` — when on, outline the repainted region in red so it is visible
-#   which part of the screen was painted. Enabled by default; set
-#   PROJECTURED_DEBUG_DIRTY=0 to turn the overlay off.
+# `_PARTIAL_RENDER` — master switch (false forces the original full-frame
+#   repaint). `_DEBUG_DIRTY` — when on, outline the repainted region in red so it
+#   is visible which part of the screen was painted.
+#
+# These globals are the values the render path reads; `init!` sets them from the
+# active `SdlBackend`'s `partial_render` / `debug_dirty` fields, which in turn
+# default to the PROJECTURED_PARTIAL_RENDER / PROJECTURED_DEBUG_DIRTY env vars.
 const _PARTIAL_RENDER = Ref(true)
 const _DEBUG_DIRTY = Ref(true)
 
 _envflag(name, default::Bool) =
     (v = lowercase(get(ENV, name, "")); v == "" ? default : v in ("1", "true", "yes", "on"))
-
-function _init_render_flags!()
-    _PARTIAL_RENDER[] = _envflag("PROJECTURED_PARTIAL_RENDER", true)
-    _DEBUG_DIRTY[]    = _envflag("PROJECTURED_DEBUG_DIRTY", true)
-end
 
 function _clear_text_texture_cache!()
     for entry in values(_text_texture_cache)
@@ -1800,12 +1811,13 @@ end
 # Application lifecycle
 # ════════════════════════════════════════════════════════════════════════
 
-function init!(::SdlBackend)
+function init!(backend::SdlBackend)
     @assert SDL_Init(SDL_INIT_VIDEO) == 0 "SDL init failed: $(unsafe_string(SDL_GetError()))"
     @assert TTF_Init() == 0 "TTF init failed: $(unsafe_string(SDL_GetError()))"
     SDL_StartTextInput()   # enable SDL_TEXTINPUT events (explicit for portability)
     _detect_display_scale!()
-    _init_render_flags!()
+    _PARTIAL_RENDER[] = backend.partial_render
+    _DEBUG_DIRTY[]    = backend.debug_dirty
 end
 
 function quit!(::SdlBackend)
