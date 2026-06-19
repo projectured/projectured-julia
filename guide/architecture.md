@@ -40,7 +40,7 @@ Four layers, bottom to top:
 | 0 — Reactive engine | `Reactive.jl` | `Cell` type, dependency tracking, lazy invalidation |
 | 1 — Domain modules | `document/*.jl` | Document/operation types per problem area |
 | 2 — Projection modules | `projection/**/*.jl` | Domain-to-domain transformations |
-| 3 — Editor + backend | `editor/*.jl`, `backend/Sdl.jl`, `backend/Console.jl` | REPL loop, rendering, device I/O |
+| 3 — Editor + backend | `editor/*.jl`, `backend/{Sdl,Console,Web}.jl` | REPL loop, rendering, device I/O |
 
 ---
 
@@ -161,6 +161,7 @@ Four layers, bottom to top:
 | `Editor.jl` | REPL loop: read → eval → print; `run!(backend, projection, document)` entry point |
 | `backend/Sdl.jl` | SDL2 + SDL_ttf backend: graphics rendering, event translation, `write_image` |
 | `backend/Console.jl` | Terminal backend: renders the **Text** domain (a `TextText`) to the terminal with ANSI colors and reads keystrokes — no `TextToGraphics`/SDL ([devices and backends](devices-and-backends.md#consolebackend)) |
+| `backend/Web.jl` | Web backend: HTTP + WebSocket server, JSON draw-list (with dirty-rect patches), browser renderer in [program/web/](../program/web/) |
 | `device/Screen.jl` | `Screen` device; `QuitEvent` |
 | `device/Keyboard.jl` | `KeyDown`, `KeyUp`, `KeyPress` |
 | `device/Mouse.jl` | `MouseDown`, `MouseUp`, `MousePress`, `MouseMove`, `MouseScroll` |
@@ -196,6 +197,7 @@ Reactive  (no deps)
   │
   ├── Keyboard.jl           (no deps)
   ├── backend/Sdl.jl        (depends on Graphics, Keyboard, Mouse, Screen, Image, ProjectionApi, IoMap)
+  ├── backend/Web.jl        (depends on Graphics, Keyboard, Mouse, Screen, Sdl [text metrics], HTTP, JSON3)
   └── editor/Editor.jl      (depends on everything)
 ```
 
@@ -217,6 +219,7 @@ Reactive  (no deps)
 | Workbench → Widget → GraphicsCanvas | ✅ |
 | SDL2 window rendering | ✅ |
 | Text → terminal (`ConsoleBackend`, ANSI colors, no `TextToGraphics`) | ✅ |
+| Web rendering (browser canvas, dirty-rect patches) | ✅ |
 | Offscreen BMP export (`write_image`) | ✅ |
 
 ### Reader (reverse projection)
@@ -246,6 +249,7 @@ Reactive  (no deps)
 | Graphics domain | `Graphics.jl` | ✅ |
 | SDL backend | `backend/Sdl.jl` | ✅ |
 | Console (terminal) backend | `backend/Console.jl` | ✅ (Text domain, no Lisp counterpart) |
+| Web backend (browser renderer) | `backend/Web.jl` | ✅ (new in Julia port) |
 | IO Maps | `IoMap.jl` + per-projection | ✅ |
 | References | `Reference.jl` | ✅ |
 | Navigation operations | `Operation.jl` (`ReplaceSelectionOperation`) | ✅ |

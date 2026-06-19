@@ -124,10 +124,12 @@ which has non-obvious payoffs:
   inside styled prose — and every cursor position round-trips faithfully across
   the boundaries.
 - **Backend-agnostic rendering.** The pipeline emits an abstract
-  `GraphicsCanvas` that SDL2 renders; a backend can also tap an earlier stage —
-  the `ConsoleBackend` renders the **Text** domain straight to the terminal
-  (ANSI colors, keyboard navigation, no graphics step). Web or IDE-plugin
-  backends could follow with the projection code unchanged.
+  `GraphicsCanvas`. SDL2 renders it in a native window and a web backend renders
+  it in the browser (the editor runs in an HTTP/WebSocket server; the browser
+  paints a JSON draw-list and sends back raw input) — the same projection code
+  drives both. A backend can also tap an earlier stage: the `ConsoleBackend`
+  renders the **Text** domain straight to the terminal (ANSI colors, keyboard
+  navigation, no graphics step). An IDE-plugin backend could follow the same way.
 
 See the [projection system](guide/projection-system.md) and [higher-order
 projections](guide/higher-order-projections.md) guides for the mechanics.
@@ -154,9 +156,10 @@ projections](guide/higher-order-projections.md) guides for the mechanics.
 | **Collection** | `CellVector` (reactive indexed vector) and `ListNode` (lazy doubly-linked list) |
 
 All domains support **selection** and **cursor movement** end-to-end. The SDL
-backend is the primary frontend, and the in-editor AI assistant plus the MCP
-server are built in. Character-level manual editing is the next milestone (see
-the [Roadmap](guide/roadmap.md)).
+backend is the primary frontend; a [web backend](guide/devices-and-backends.md#web-backend)
+renders the same editor in the browser (`run_web_example("json")`). The in-editor
+AI assistant plus the MCP server are built in. Character-level manual editing is
+the next milestone (see the [Roadmap](guide/roadmap.md)).
 
 ### Screenshots
 
@@ -192,6 +195,7 @@ julia> run_example("assistant")       # the built-in AI conversation
 julia> run_example("widget")          # widget form example
 julia> run_example("table")           # table view
 julia> run_example("julia")           # Julia AST editor
+julia> run_web_example("json")        # same editor in the browser → http://127.0.0.1:8080
 julia> print_example("syntax")        # dump a projection's output to stdout
 julia> write_example_image("json", "/tmp/snapshot.bmp")   # save to file
 ```

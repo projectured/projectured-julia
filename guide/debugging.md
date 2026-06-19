@@ -43,6 +43,15 @@ If you get a stale-state bug, `run_example("foo"; reset=true)` is almost
 always the first thing to try — the `Example` struct caches one shared
 instance per example.
 
+To drive the same example from a browser instead of an SDL window, use
+`run_web_example` — it takes the same arguments and runs the editor through the
+[web backend](devices-and-backends.md#web-backend):
+
+```julia
+julia> run_web_example("json")              # serve on http://127.0.0.1:8080
+julia> run_web_example("json"; port=9000)   # then open the URL and click Launch
+```
+
 ## Printing without rendering
 
 `print_example` runs the projection's printer and dumps the resulting output

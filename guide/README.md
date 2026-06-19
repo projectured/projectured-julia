@@ -110,7 +110,7 @@ Read it first; it will point you here and to the specific guides you need.
 | [Selection guide](editor/selection.md) | How selection is stored and propagated |
 | [Finding and selecting](editor/finding-and-selecting.md) | Search for nodes by content (`search_references` / `search_objects`), resolve paths (`evaluate_reference`), select |
 | [Selection deep dive](selection-deep-dive.md) | Full reference/selection mechanism with worked examples |
-| [Devices and backends](devices-and-backends.md) | Backend/Device split and how to add a new one |
+| [Devices and backends](devices-and-backends.md) | Backend/Device split, the SDL, Console, and Web backends, and how to add a new one |
 
 ### Per-domain
 

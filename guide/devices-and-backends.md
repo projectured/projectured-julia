@@ -10,8 +10,15 @@ dispatch.
 
 The abstract interfaces live in
 [api/Backend.jl](../program/src/api/Backend.jl) and
-[api/Device.jl](../program/src/api/Device.jl). There are two backends today: the
-SDL2 graphics backend and a terminal `ConsoleBackend` (see below).
+[api/Device.jl](../program/src/api/Device.jl). There are three backends: the
+SDL2 graphics backend (default; native windows), a terminal `ConsoleBackend`, and
+a `WebBackend` that runs the editor in an HTTP + WebSocket server and renders in
+the browser (all described below).
+
+Every backend is a drop-in: `run!` takes the backend as an argument, so switching
+is just e.g. `run!(WebBackend(), projection, document)` instead of
+`run!(SdlBackend(), projection, document)` — nothing in the editor loop,
+projection pipeline, or domains changes.
 
 ## Devices
 
@@ -60,7 +67,8 @@ write_to_devices(::Backend, devices, document)  # render the output
 There is no `open_window!`/`close_window!`: native windows are reconciled on
 demand inside `write_to_devices` whenever it sees a new `ScreenDocument` output.
 
-There are two backends: `SdlBackend` (graphics) and `ConsoleBackend` (terminal).
+There are three backends: `SdlBackend` (native graphics), `ConsoleBackend`
+(terminal), and `WebBackend` (browser, over HTTP + WebSocket).
 
 ### SdlBackend
 
@@ -103,6 +111,102 @@ a `TextText` rather than a `ScreenDocument`. Highlights:
 
 Run it with `run_console_example()` (one-shot) or
 `run_console_example(interactive=true)` (read-eval-print loop).
+## Web backend
+
+`WebBackend` ([backend/Web.jl](../program/src/backend/Web.jl)) runs the editor
+inside an HTTP + WebSocket server and moves the **final rendering step into the
+browser**. The Julia process keeps the document, projection pipeline, reactive
+cells, and the read-eval-print loop; a connected JavaScript client
+([program/web/](../program/web/)) is a thin terminal that captures raw mouse and
+keyboard events and paints a JSON **draw-list** onto an HTML `<canvas>`.
+
+```
+ browser popup (canvas)  ──events──▶  WebSocket  ──▶  read_from_devices
+        ▲                                                      │
+        └──── draw-list (full / patch) ◀── write_to_devices ◀──┘
+```
+
+### Running it
+
+```julia
+run_web_example("json")          # serve on http://127.0.0.1:8080
+run_web_example("json"; port=9000)
+run_web_example(["json", "xml"]) # one popup per window, side by side
+```
+
+Then open `http://127.0.0.1:8080` and click **Launch** (a user gesture is
+required before a browser will open pop-ups). Each editor `WindowDocument` opens
+as its own browser popup. `run_web_example` accepts the same keyword arguments as
+`run_example`; under the hood it is just `run_example(...; backend=WebBackend(...))`.
+
+### How it satisfies the interface
+
+- **`measure_text` stays on the server.** The layout pipeline calls
+  `measure_text` synchronously *while printing*, long before any primitive
+  reaches the browser, so the server must measure glyphs the same way the browser
+  renders them. `init!` runs `SDL_Init` + `TTF_Init` (no window) and reuses
+  `sdl_measure_text`; the same TTFs are served to the browser (`/font/<name>`,
+  loaded via the `FontFace` API) so metrics line up. The browser handles HiDPI
+  with `devicePixelRatio`, so the server stays in logical pixels.
+- **`write_to_devices`** serializes the projection-output `ScreenDocument` into a
+  per-window draw-list mirroring the SDL element set (`text`, `rect`, `line`,
+  `circle`, `clip`=viewport, `group`=nested canvas, `image`; `GraphicsFence`
+  skipped) and pushes it over the socket.
+- **`read_from_devices`** is non-blocking: a receive task decodes the client's
+  JSON events into the backend-agnostic vocabulary (`MouseDown`, `KeyPress`, …)
+  wrapped in `EventEnvelope`s on a `Channel`; the editor drains it each frame.
+  MousePress synthesis and motion-while-held filtering mirror the SDL backend.
+
+### Wire protocol (JSON, both directions)
+
+Server → client, one ordered message per frame:
+
+```json
+{ "type":"update",
+  "full":    [ {"id":"json","title":"…","w":…,"h":…,"bg":[…],"draw":[ …primitives… ]} ],
+  "patches": [ {"window":"json","clip":[x,y,w,h],"draw":[ …primitives… ]} ],
+  "close":   ["someWindowId"] }
+```
+
+Client → server (raw browser key fields; the server maps them):
+
+```json
+{"type":"mousedown","window":"json","button":"left","x":40,"y":40,"mods":{…}}
+{"type":"keydown","window":"json","key":"ArrowLeft","code":"ArrowLeft","mods":{…}}
+{"type":"keypress","window":"json","char":"a","text":"a","mods":{…}}
+{"type":"resize","window":"json","w":…,"h":…}   {"type":"resync"}   {"type":"quit"}
+```
+
+Key mapping is done **on the server** (`web_key_to_symbol`, mirroring
+`sdl_keysym_to_symbol`) so the `:left`/`:char`/… vocabulary has a single source
+of truth.
+
+### Incremental rendering (dirty-rect patches)
+
+Rather than resend a whole window on every change, a reactive **dirty-walk**
+(`_collect_canvas_dirty!` and friends) keyed on the cells' `isuptodate` flags
+computes the smallest rectangle covering everything that changed since the last
+paint, reusing SDL's bounds helpers. Per-window `prev_bounds` unions a unit's old
+and new extent so moved/shrunk content clears its vacated pixels.
+`_serialize_clipped` then emits only the primitives intersecting that rectangle.
+
+- A window is sent in **`full`** on first paint, on (re)connect, after a resize,
+  or on output-queue overflow (`force_full`); otherwise only a **`patch`** is
+  sent. Idle frames send nothing.
+- The client repaints a patch by clipping to its rect, clearing to the window
+  background, and painting over the **retained** canvas. After (re)opening popups
+  it sends `{type:"resync"}` to request fresh full state.
+- The savings track the projection's reactivity granularity: a change confined to
+  one computed cell yields a tight patch with just that primitive; a change that
+  re-projects the whole canvas (e.g. a json caret move) yields a whole-window
+  patch — the same granularity SDL's dirty-rect would see.
+
+### Constraints (v1)
+
+One client per editor (a second WebSocket upgrade is rejected); JSON transport
+both directions; the SDL-texture `Ptr` image form is skipped (decoded RGBA
+buffers are sent as base64). SDL stays the default; the web backend is additive
+and selected explicitly.
 
 ## Projections that need the backend
 
@@ -138,3 +242,9 @@ itself never sees the backend type.
 
 The fact that every event projection-level is a `KeyPress`/`KeyDown`/`Mouse*`/`QuitEvent`
 is the contract that keeps backends interchangeable.
+
+[backend/Web.jl](../program/src/backend/Web.jl) is a worked second example: it
+adds a whole new transport (HTTP + WebSocket, with the renderer living in a
+browser) yet touches no projection or domain code, precisely because it speaks
+the same event vocabulary and consumes the same `ScreenDocument` output as the
+SDL backend.

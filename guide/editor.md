@@ -99,6 +99,11 @@ proj     = SequentialProjection(
 run!(backend, proj, document)
 ```
 
+The backend is pluggable: swap `SdlBackend()` for `WebBackend()` to run the same
+editor in a browser instead of a native window (see the
+[devices and backends guide](devices-and-backends.md#web-backend)), or
+`ConsoleBackend()` for the terminal. Nothing else changes.
+
 This overload calls `init!(backend)`, builds a `Vector{Device}` (default
 `Screen()`, `Keyboard()`, `Mouse()`), constructs the `Editor`, and runs the
 loop. Native windows are not pre-allocated — the backend opens them on demand
