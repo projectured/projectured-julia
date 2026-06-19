@@ -36,7 +36,7 @@ import ..ColorModule: StyleColor, color_default, color_solarized_blue, color_sol
 import ..SyntaxModule: SyntaxDocument, SyntaxLeaf, SyntaxNode
 import ..TypeDispatchingModule: TypeDispatchingProjection
 import ..IoMapModule: SimpleIoMap, ChildrenIoMap
-import ..ReferenceModule: ConcreteReferencePath, EmptyReferencePath, ReferencePath,
+import ..ReferenceModule: ConcreteReferencePath, EmptyReferencePath, ReferencePath, skip_type_checkpoints,
                            ElementReference, PositionReference, RangeReference,
                            FieldReference, ProjectionReference, append_reference
 import ..ReferenceCaseModule: var"@reference_case"
@@ -71,6 +71,7 @@ function projection_print(p::DbCatalogColumnToSyntaxLeaf, recursion, col::DbCata
 end
 
 function map_reference_forward(::DbCatalogColumnToSyntaxLeaf, iomap, reference)
+    reference = skip_type_checkpoints(reference)
     reference isa EmptyReferencePath && return EmptyReferencePath()
     reference isa ConcreteReferencePath || return nothing
     h = reference.head
@@ -102,13 +103,14 @@ Forward: `<field_name>[i].rest → children[1].children[i].delegated(rest)`
 (entity → keyword group `children[1]` → item `children[i]`).
 """
 function _catalog_forward_ref(p, iomap::ChildrenIoMap, reference, field_name::String)
+    reference = skip_type_checkpoints(reference)
     reference isa EmptyReferencePath && return EmptyReferencePath()
     reference isa ConcreteReferencePath || return nothing
     h = reference.head
     h isa ProjectionReference && h.projection === p && return reference
     # Match: field_name{s:e}.rest (FieldReference + RangeReference + tail)
     h isa FieldReference && h.name == field_name || return nothing
-    rest = reference.tail
+    rest = skip_type_checkpoints(reference.tail)
     rest isa ConcreteReferencePath || return nothing
     h2 = rest.head
     h2 isa RangeReference || return nothing
@@ -119,7 +121,7 @@ function _catalog_forward_ref(p, iomap::ChildrenIoMap, reference, field_name::St
     child = iomaps[child_i]
     inner = map_reference_forward(child.projection, child, child_rest)
     inner === nothing && return nothing
-    @reference children[1].children[child_i].^(inner)
+    @reference ::SyntaxNode.children[1].children[child_i].^(inner)
 end
 
 """

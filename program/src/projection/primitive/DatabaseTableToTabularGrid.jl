@@ -26,7 +26,7 @@ import ..ReactiveModule: Cell
 import ..ProjectionApiModule: projection_print, projection_read,
                               map_reference_forward, map_reference_backward, Projection
 import ..IoMapApiModule: IoMap
-import ..ReferenceModule: ReferencePath, EmptyReferencePath, ConcreteReferencePath,
+import ..ReferenceModule: ReferencePath, EmptyReferencePath, ConcreteReferencePath, skip_type_checkpoints,
                           FieldReference, RangeReference, is_element_reference
 import ..OperationModule: ReplaceSelectionOperation
 import ..PrimitiveModule: StringReplaceRangeOperation, NumberReplaceRangeOperation
@@ -177,11 +177,11 @@ end
 # ── Reference mapping ─────────────────────────────────────────────────────────
 
 function map_reference_forward(::DatabaseTableToTabularGrid, iomap, reference)
-    reference isa EmptyReferencePath ? EmptyReferencePath() : nothing
+    skip_type_checkpoints(reference) isa EmptyReferencePath ? EmptyReferencePath() : nothing
 end
 
 function map_reference_backward(p::DatabaseTableToTabularGrid, iomap, reference)
-    reference isa EmptyReferencePath && return EmptyReferencePath()
+    skip_type_checkpoints(reference) isa EmptyReferencePath && return EmptyReferencePath()
     @reference proj(p, ^(reference))
 end
 
