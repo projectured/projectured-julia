@@ -17,7 +17,7 @@ import ..ColorModule: StyleColor, color_black, color_default, color_solarized_bl
 import ..SyntaxModule: SyntaxDocument, SyntaxLeaf, SyntaxNode
 import ..TypeDispatchingModule: TypeDispatchingProjection
 import ..IoMapModule: SimpleIoMap, ChildrenIoMap
-import ..ReferenceModule: ConcreteReferencePath, ElementReference, PositionReference, RangeReference, FieldReference, ProjectionReference, ReferencePath, EmptyReferencePath, append_reference, evaluate_reference
+import ..ReferenceModule: ConcreteReferencePath, ElementReference, PositionReference, RangeReference, FieldReference, ProjectionReference, ReferencePath, EmptyReferencePath, append_reference, evaluate_reference, skip_type_checkpoints
 import ..ReferenceCaseModule: var"@reference_case"
 import ..ReferenceBuilderModule: var"@reference"
 import ..PrinterContextModule: child_context
@@ -57,18 +57,18 @@ XmlTextToSyntaxLeaf(; font=font_ubuntu_monospace_regular_24, color=color_black) 
 
 function map_reference_forward(::XmlTextToSyntaxLeaf, iomap, reference)
     @reference_case reference begin
-        content.rest... => @reference value.^(rest)
+        ::XmlText.content.rest... => @reference ::SyntaxLeaf.value::TextString.^(rest)
     end
 end
 
 function map_reference_backward(::XmlTextToSyntaxLeaf, iomap, reference)
     @reference_case reference begin
-        value.rest... => @reference content.^(rest)
+        ::SyntaxLeaf.value.rest... => @reference ::XmlText.content::String.^(rest)
     end
 end
 
 function projection_read(p::XmlTextToSyntaxLeaf, iomap, op::ReplaceSelectionOperation)
-    path = op.path
+    path = skip_type_checkpoints(op.path)
     path isa ConcreteReferencePath || return nothing
     h = path.head
     if h isa FieldReference && h.name == "value"
@@ -88,10 +88,10 @@ end
 
 function _xml_text_sel(t::XmlText)
     Cell(() -> begin
-        sel = t.selection
+        sel = skip_type_checkpoints(t.selection)
         sel isa ConcreteReferencePath && sel.head isa ProjectionReference && return sel
-        @reference_case sel begin
-            content.rest... => @reference value.^(rest)
+        @reference_case t.selection begin
+            content.rest... => @reference ::SyntaxLeaf.value::TextString.^(rest)
         end
     end)
 end
@@ -150,37 +150,37 @@ XmlElementToSyntaxNode(;
 # The closing tag (child 4) renders the same .tag field but carries no cursor.
 function map_reference_forward(p::XmlElementToSyntaxNode, iomap::ChildrenIoMap, reference)
     @reference_case reference begin
-        tag.rest...        => @reference children[1].value.^(rest)
-        attrs{s:_}.name.rest... => begin
+        ::XmlElement.tag.rest...        => @reference ::SyntaxNode.children[1].value::TextString.^(rest)
+        ::XmlElement.attrs{s:_}.name.rest... => begin
             attr_i = s + 1
             (1 <= attr_i <= length(iomap.input.attrs)) || return nothing
-            @reference children[2].children[attr_i].children[1].value.^(rest)
+            @reference ::SyntaxNode.children[2].children[attr_i].children[1].value::TextString.^(rest)
         end
-        attrs{s:_}.value.rest... => begin
+        ::XmlElement.attrs{s:_}.value.rest... => begin
             attr_i = s + 1
             (1 <= attr_i <= length(iomap.input.attrs)) || return nothing
-            @reference children[2].children[attr_i].children[2].value.^(rest)
+            @reference ::SyntaxNode.children[2].children[attr_i].children[2].value::TextString.^(rest)
         end
-        children{s:_}.rest... => begin
+        ::XmlElement.children{s:_}.rest... => begin
             child_i = s + 1
             iomaps = iomap.child_iomaps[]
             1 <= child_i <= length(iomaps) || return nothing
             child = iomaps[child_i]
             inner = map_reference_forward(child.projection, child, rest)
             inner === nothing && return nothing
-            @reference children[3].children[child_i].^(inner)
+            @reference ::SyntaxNode.children[3].children[child_i].^(inner)
         end
     end
 end
 
 function map_reference_backward(p::XmlElementToSyntaxNode, iomap::ChildrenIoMap, reference)
     @reference_case reference begin
-        children{s:_}.rest... => begin
+        ::SyntaxNode.children{s:_}.rest... => begin
             child_i = s + 1
             if child_i == 1
                 # tag leaf: .value[k] → .tag[k]
                 @reference_case rest begin
-                    value.vtail... => @reference tag.^(vtail)
+                    value.vtail... => @reference ::XmlElement.tag::String.^(vtail)
                 end
             elseif child_i == 2
                 # attrs node: .children[i].children[j].value[k] →
@@ -193,9 +193,9 @@ function map_reference_backward(p::XmlElementToSyntaxNode, iomap::ChildrenIoMap,
                         @reference_case ltail begin
                             value.vtail... => begin
                                 if leaf_j == 1
-                                    @reference attrs[attr_i].name.^(vtail)
+                                    @reference ::XmlElement.attrs[attr_i].name::String.^(vtail)
                                 elseif leaf_j == 2
-                                    @reference attrs[attr_i].value.^(vtail)
+                                    @reference ::XmlElement.attrs[attr_i].value::String.^(vtail)
                                 else
                                     nothing
                                 end
@@ -213,7 +213,7 @@ function map_reference_backward(p::XmlElementToSyntaxNode, iomap::ChildrenIoMap,
                         child = iomaps[child_j]
                         translated = map_reference_backward(child.projection, child, tail)
                         translated === nothing && return nothing
-                        @reference children[child_j].^(translated)
+                        @reference ::XmlElement.children[child_j].^(translated)
                     end
                 end
             else
@@ -255,16 +255,16 @@ function projection_print(p::XmlElementToSyntaxNode, recursion, e::XmlElement, c
                                for (i, child) in enumerate(e)])
 
     sel = Cell(() -> begin
-        path = e.selection
+        path = skip_type_checkpoints(e.selection)
         path isa ConcreteReferencePath && path.head isa ProjectionReference && return path
-        @reference_case path begin
+        @reference_case e.selection begin
             children{s:_}.rest... => begin
                 child_i = s + 1
                 iomaps = child_iomaps[]
                 child_i > length(iomaps) && return nothing
                 child_sel = iomaps[child_i].output.selection
                 child_sel === nothing && return nothing
-                @reference children[3].children[child_i].^(child_sel)
+                @reference ::SyntaxNode.children[3].children[child_i].^(child_sel)
             end
         end
     end)
@@ -274,7 +274,7 @@ function projection_print(p::XmlElementToSyntaxNode, recursion, e::XmlElement, c
     # field but never holds a cursor.
     tag_sel = Cell(() -> begin
         @reference_case e.selection begin
-            tag.rest... => @reference value.^(rest)
+            tag.rest... => @reference ::SyntaxLeaf.value::TextString.^(rest)
         end
     end)
     tag_leaf = SyntaxLeaf(
@@ -442,6 +442,7 @@ end
 # existing attribute — never while editing a child node.
 function _xml_in_attr_context(sel)
     sel === nothing && return false
+    sel = skip_type_checkpoints(sel)
     sel isa EmptyReferencePath && return true
     sel isa ConcreteReferencePath || return false
     h = sel.head
