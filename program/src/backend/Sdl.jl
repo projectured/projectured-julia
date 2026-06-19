@@ -1372,10 +1372,17 @@ Record a headless video of an editing session and encode it to `filename` (which
 must end in `.mp4`). No window is required — frames are rendered with the same
 offscreen software renderer as [`write_image`](@ref) and assembled with `ffmpeg`.
 
-`gestures` is a vector of `(event = …, hold = …)` entries. `event` is any
-backend-agnostic device event (`KeyDown`, `KeyUp`, `KeyPress`, `MouseDown`,
-`MouseUp`, `MousePress`, `MouseMove`, `MouseScroll`); `hold` is the number of
-seconds to display the resulting state. Timing is in **video time** (frame
+`gestures` is a vector of timed entries. Each entry carries either an `event` or
+an `operation`, plus a `hold`:
+- `(event = …, hold = …)` — `event` is any backend-agnostic device event
+  (`KeyDown`, `KeyUp`, `KeyPress`, `MouseDown`, `MouseUp`, `MousePress`,
+  `MouseMove`, `MouseScroll`), translated to an operation via `projection_read`.
+- `(operation = …, hold = …)` — a domain `Operation` injected straight into
+  `evaluate_operation`, skipping the reader (for actions with no single-event
+  trigger: seed a selection, scroll, swap focus/document). `operation` may be an
+  `Operation` value or a `doc -> op` thunk evaluated at fire time.
+
+`hold` is the number of seconds to display the resulting state. Timing is in **video time** (frame
 counts, not wall-clock), so the output is deterministic regardless of how long
 rendering takes — `round(hold * fps)` identical frames are emitted per gesture.
 The initial state (before any gesture) is held for `initial_hold` seconds and the
@@ -1452,7 +1459,17 @@ function record_video(document, projection, gestures::AbstractVector,
                       tmpdir, frame, round(Int, initial_hold * fps))
 
         for entry in gestures
-            op = projection_read(projection, iomap, entry.event)
+            # An entry carries either an `event` (translated to an operation via
+            # the reader, like live input) or an `operation` (a domain operation
+            # injected straight into the evaluator, for actions with no single
+            # device-event trigger). An `operation` may be an `Operation` value
+            # or a `doc -> op` thunk evaluated at fire time against the current
+            # document.
+            if haskey(entry, :operation)
+                op = entry.operation isa Function ? entry.operation(document) : entry.operation
+            else
+                op = projection_read(projection, iomap, entry.event)
+            end
             if op !== nothing
                 ed = _VideoEditor(document, iomap)
                 evaluate_operation(ed, op)

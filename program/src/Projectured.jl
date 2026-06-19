@@ -447,7 +447,7 @@ using .WorkbenchToWidgetModule: WorkbenchWorkbenchToWidgetShell,    WorkbenchWor
                                 WorkbenchEditorToWidgetScrollPane,
                                 WorkbenchToWidget
 using .GraphicsCachingModule: GraphicsCanvasToGraphicsImage, GraphicsCaching
-using .EditorModule: Editor, run!
+using .EditorModule: Editor, run!, play_live!
 using .McpModule: McpServer, mcp_start!, mcp_stop!,
                   search_documentation, search_api,
                   list_guides, read_guide, list_modules, list_classes, list_functions,
@@ -744,7 +744,7 @@ export WorkbenchWorkbenchToWidgetShell,    WorkbenchWorkbenchToWidgetShellIoMap,
        WorkbenchAssistantToWidgetSplitPane,
        WorkbenchEditorToWidgetScrollPane,
        WorkbenchToWidget
-export Editor, run!
+export Editor, run!, play_live!
 export McpServer, mcp_start!, mcp_stop!,
        search_documentation, search_api,
        list_guides, read_guide, list_modules, list_classes, list_functions,

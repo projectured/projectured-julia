@@ -24,7 +24,7 @@ import ..OperationModule: ReplaceSelectionOperation, QuitEditorOperation
 import ..OperationModule: QuitEditorException
 import ..McpModule: McpServer, mcp_start!, mcp_stop!
 
-export Editor, run!
+export Editor, run!, play_live!
 
 """
     Editor(backend, document, projection, devices)
@@ -202,6 +202,101 @@ function run!(backend::Backend, projection, document; mcp::Bool=false,
     try
         editor = Editor(backend, document, projection, devices)
         run!(editor; mcp=mcp)
+    finally
+        quit!(backend)
+    end
+end
+
+# ── Scripted live playback ───────────────────────────────────────────────
+
+"""
+    _timeline_operation(editor::Editor, entry, window_id::Symbol) -> Operation or nothing
+
+Turn one timeline entry into an operation, mirroring `read!`. An entry carrying
+`event` is wrapped in `EventEnvelope(window_id, event)` and run through the
+reader pipeline (the same path live input takes); an entry carrying `operation`
+is taken directly — either an `Operation` value or a `doc -> op` thunk evaluated
+against the current `editor.document`. Returns `nothing` when nothing applies.
+"""
+function _timeline_operation(editor::Editor, entry, window_id::Symbol)
+    if haskey(entry, :operation)
+        op = entry.operation isa Function ? entry.operation(editor.document) : entry.operation
+        return op isa Operation ? op : nothing
+    else
+        editor.iomap === nothing && return nothing
+        env = EventEnvelope(window_id, entry.event)
+        change = projection_read(editor.projection, nothing, Change(env, nothing), editor.iomap)
+        op = change isa Change ? change.operation : change
+        return op isa Operation ? op : nothing
+    end
+end
+
+"""
+    play_live!(editor::Editor, timeline; window_id::Symbol, initial_hold::Real=0.5)
+
+Run the read-eval-print loop while firing a predefined `timeline` on a
+wall-clock schedule, so the user watches the scripted session unfold in a real
+window. Entry `i` fires `initial_hold + Σ hold[1..i-1]` seconds after start;
+`hold` is the dwell after the entry is applied (the same field used by
+[`record_video`](@ref), so one timeline drives both the headless recording and
+this live playback).
+
+Each entry carries either an `event` (wrapped in an `EventEnvelope` for
+`window_id` and run through the reader, like live input) or an `operation` (a
+domain `Operation` value, or a `doc -> op` thunk, injected straight into the
+evaluator). At most one scheduled entry is applied per frame, so each resulting
+state is visible. Real user input is still polled every frame, so the user can
+interact and the window-close button / Escape quits cleanly. After the last
+entry the window stays live and interactive.
+"""
+function play_live!(editor::Editor, timeline; window_id::Symbol, initial_hold::Real=0.5)
+    n = length(timeline)
+    # fire_at[i]: seconds from start at which entry i is applied.
+    fire_at = Vector{Float64}(undef, n)
+    acc = Float64(initial_hold)
+    for i in 1:n
+        fire_at[i] = acc
+        acc += Float64(timeline[i].hold)
+    end
+    start = time()
+    next = 1
+    try
+        while true
+            perf_reset!()
+            @perf_time :read_time read!(editor)
+            # When no real-input operation is pending and the next scheduled
+            # entry is due, inject it. Real input wins the frame; the scheduled
+            # entry retries on the following frame.
+            if editor.operation === nothing && next <= n && (time() - start) >= fire_at[next]
+                editor.operation = _timeline_operation(editor, timeline[next], window_id)
+                next += 1
+            end
+            @perf_time :evaluate_time evaluate!(editor)
+            @perf_time :print_time    print!(editor)
+            perf!(editor)
+            sleep(0.01)
+        end
+    catch e
+        e isa QuitEditorException || rethrow()
+    end
+end
+
+"""
+    play_live!(backend::Backend, projection, document, timeline;
+               window_id::Symbol, initial_hold::Real=0.5)
+
+Bootstrap overload: initialise the backend, wire up an `Editor`, and run the
+scripted live loop above. Like [`run!`](@ref), the pipeline is expected to
+produce a `ScreenDocument` so the backend opens a real window; `window_id` is the
+`WindowDocument.id` scripted events are routed to.
+"""
+function play_live!(backend::Backend, projection, document, timeline;
+                    window_id::Symbol, initial_hold::Real=0.5)
+    init!(backend)
+    try
+        devices = Device[Screen(), Keyboard(), Mouse()]
+        editor = Editor(backend, document, projection, devices)
+        play_live!(editor, timeline; window_id=window_id, initial_hold=initial_hold)
     finally
         quit!(backend)
     end
