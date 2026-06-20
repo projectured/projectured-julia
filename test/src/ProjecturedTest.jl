@@ -42,6 +42,7 @@ include("projection/SyntaxToTextTest.jl")
 include("projection/SyntaxTreeSelectionTest.jl")
 include("projection/TableSelectionTest.jl")
 include("projection/TableNavigationTest.jl")
+include("projection/GraphTest.jl")
 include("projection/FileSystemToSyntaxTest.jl")
 include("projection/PrimitiveToTextTest.jl")
 include("projection/TextToGraphicsTest.jl")
@@ -121,6 +122,7 @@ function test_projections()
         test_syntax_tree_selection()
         test_filesystem_to_syntax()
         test_table_selection()
+        test_graph()
         test_primitive_to_text()
         test_text_to_graphics()
         test_word_wrapping()
@@ -194,6 +196,7 @@ export test_cell, test_reference_builder, test_type_reference, test_event_case, 
 export test_json, test_syntax, test_text, test_graphics, test_graphics_layout, test_layout_allocator, test_layout_constraint_helpers, test_collection, test_tabular, test_primitive, test_ini, test_ini_parser, test_ned, test_ned_parser, test_json_parser, test_xml_parser
 export test_json_to_syntax, test_json_to_syntax_reader, test_syntax_to_text, test_syntax_tree_selection, test_filesystem_to_syntax, test_primitive_to_text, test_text_to_graphics, test_word_wrapping, test_text_filtering, test_text_highlighting, test_selection_inverting, test_object_to_widget, test_projection_configuring, test_widget_text_editing, test_copying_projection, test_clipboard_to_any, test_write_image, test_record_video, test_tooltip, test_split_pane_drag, test_dragging, test_write_pdf, test_dirty_rect
 export test_table, test_table_selection, test_table_navigation, explore_table_selections
+export test_graph
 export test_examples, test_text_navigations, test_text_navigations_complete
 export test_printer, test_printers, test_example, test_text_navigation
 export explore_text_selections, collect_text_selections, collect_tree_selections, collect_ned_tree_selections, collect_json_tree_selections

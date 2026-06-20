@@ -101,12 +101,12 @@ function projection_print(p::GraphGraphToGraphLayout, recursion, graph::GraphGra
     vertex_layouts = CellVector(() -> begin
         positions, _ = placed[]
         n = length(graph.vertices)
-        out = Cell[]
+        out = Any[]
         for i in 1:n
             v = graph.vertices[i]
             v isa GraphVertex || continue
             x, y, w, h = get(positions, objectid(v), (0, 0, 60, 30))
-            push!(out, Cell(VertexLayout(v, x, y, w, h)))
+            push!(out, VertexLayout(v, x, y, w, h))
         end
         out
     end)
@@ -114,12 +114,12 @@ function projection_print(p::GraphGraphToGraphLayout, recursion, graph::GraphGra
     edge_layouts = CellVector(() -> begin
         _, routes = placed[]
         n = length(graph.edges)
-        out = Cell[]
+        out = Any[]
         for i in 1:n
             e = graph.edges[i]
             e isa GraphEdge || continue
             route = get(routes, objectid(e), Tuple{Int,Int}[])
-            push!(out, Cell(EdgeLayout(e, route)))
+            push!(out, EdgeLayout(e, route))
         end
         out
     end)
