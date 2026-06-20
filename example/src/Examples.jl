@@ -77,6 +77,7 @@ const sorting_example        = Example("sorting",        make_collection_documen
 const focusing_example       = Example("focusing",       make_focusing_document_example,       make_focusing_projection_example)
 const table_example          = Example("table",          make_table_document_example,          make_table_projection_example)
 const math_table_example     = Example("math_table",     make_math_table_document_example,     make_math_table_projection_example)
+const graph_example          = Example("graph",          make_graph_document_example,          make_graph_projection_example)
 const workbench_example      = Example("workbench",      make_workbench_document_example,      make_workbench_projection_example)
 # `lazy_example` / `lazy_bidirectional_example` are deliberately kept OUT of the
 # `examples` registry below. Their documents are infinite lazy linked lists, so
@@ -134,7 +135,7 @@ const examples = [
     widget_toggle_example, widget_toggle_group_example, widget_select_example,
     widget_textarea_example, widget_accordion_example, widget_table_example, widget_tree_example,
     layout_example, book_example, filesystem_example, navigator_example,
-    collection_example, reversing_example, filtering_example, searching_example, sorting_example, focusing_example, table_example, math_table_example, workbench_example,
+    collection_example, reversing_example, filtering_example, searching_example, sorting_example, focusing_example, table_example, math_table_example, graph_example, workbench_example,
     math_example,
     julia_example,
     graphics_image_example,

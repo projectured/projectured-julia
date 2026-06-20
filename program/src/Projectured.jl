@@ -56,6 +56,9 @@ include("document/Workspace.jl")
 include("document/Clipboard.jl")
 include("document/Widget.jl")
 include("document/Layout.jl")
+include("document/Graph.jl")
+include("document/GraphLayout.jl")
+include("layout/GraphLayoutEngine.jl")
 include("document/Component.jl")
 include("document/Book.jl")
 include("document/Evaluator.jl")
@@ -138,6 +141,8 @@ include("projection/primitive/ObjectToSyntax.jl")
 include("projection/primitive/WidgetToGraphics.jl")
 include("projection/primitive/TextToWidget.jl")
 include("projection/primitive/LayoutToGraphics.jl")
+include("projection/primitive/GraphToGraphLayout.jl")
+include("projection/primitive/GraphLayoutToGraphics.jl")
 include("projection/primitive/BookToSyntax.jl")
 include("projection/primitive/IniToSyntax.jl")
 include("projection/primitive/NedToSyntax.jl")
@@ -417,6 +422,9 @@ using .LayoutModule: LayoutDocument,
                      HorizontalLayout, VerticalLayout, GridLayout, FlowLayout,
                      LayoutConstraint, allocate_axis,
                      layout_min, layout_max, layout_preferred, layout_weight
+using .GraphModule: GraphDocument, GraphInsertion, GraphVertex, GraphEdge, GraphGraph
+using .GraphLayoutModule: GraphLayoutDocument, VertexLayout, EdgeLayout, GraphLayout, GraphConstraint
+using .GraphLayoutEngineModule: GraphLayoutEngine, FallbackLayoutEngine, AdaptagramsEngine, layout_graph
 using .ImageModule: ImageDocument, ImageInsertion, ImageFile, ImageMemory
 using .ScreenDocumentModule: ScreenDocument, WindowDocument, EventEnvelope, WindowCloseRequest, WindowResizeEvent
 using .TooltipDocumentModule: TooltipSource
@@ -460,6 +468,10 @@ using .LayoutToGraphicsModule: HorizontalLayoutToGraphicsCanvas,
                                FlowLayoutToGraphicsCanvas,
                                LayoutConstraintToGraphicsCanvas,
                                LayoutToGraphics
+using .GraphToGraphLayoutModule: GraphGraphToGraphLayout, GraphToGraphLayout,
+                                 GraphGraphToGraphLayoutIoMap
+using .GraphLayoutToGraphicsModule: GraphLayoutToGraphicsCanvas,
+                                    GraphLayoutToGraphicsCanvasIoMap
 using .WidgetToGraphicsModule: WidgetInsertionToGraphicsCanvas, WidgetLabelToGraphicsCanvas, WidgetTextToGraphicsCanvas,
                                WidgetCheckboxToGraphicsCanvas, WidgetButtonToGraphicsCanvas,
                                WidgetTooltipToGraphicsCanvas, WidgetMenuToGraphicsCanvas,
@@ -797,6 +809,11 @@ export allocate_axis, layout_min, layout_max, layout_preferred, layout_weight
 export HorizontalLayoutToGraphicsCanvas, VerticalLayoutToGraphicsCanvas,
        GridLayoutToGraphicsCanvas, FlowLayoutToGraphicsCanvas,
        LayoutConstraintToGraphicsCanvas, LayoutToGraphics
+export GraphDocument, GraphInsertion, GraphVertex, GraphEdge, GraphGraph
+export GraphLayoutDocument, VertexLayout, EdgeLayout, GraphLayout, GraphConstraint
+export GraphLayoutEngine, FallbackLayoutEngine, AdaptagramsEngine, layout_graph
+export GraphGraphToGraphLayout, GraphToGraphLayout, GraphGraphToGraphLayoutIoMap
+export GraphLayoutToGraphicsCanvas, GraphLayoutToGraphicsCanvasIoMap
 export GraphicsCanvasToGraphicsImage, GraphicsCaching
 export GestureRecognizer, recognize!, next_gesture!
 export WorkbenchWorkbenchToWidgetShell,    WorkbenchWorkbenchToWidgetShellIoMap,

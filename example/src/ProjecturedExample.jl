@@ -28,6 +28,7 @@ include(joinpath(_EXAMPLE_DIR, "document", "Workbench.jl"))
 include(joinpath(_EXAMPLE_DIR, "document", "Assistant.jl"))
 include(joinpath(_EXAMPLE_DIR, "document", "Conversation.jl"))
 include(joinpath(_EXAMPLE_DIR, "document", "Table.jl"))
+include(joinpath(_EXAMPLE_DIR, "document", "Graph.jl"))
 include(joinpath(_EXAMPLE_DIR, "document", "Lazy.jl"))
 include(joinpath(_EXAMPLE_DIR, "document", "Math.jl"))
 include(joinpath(_EXAMPLE_DIR, "document", "Julia.jl"))
@@ -44,6 +45,7 @@ include(joinpath(_EXAMPLE_DIR, "document", "Dragging.jl"))
 
 include(joinpath(_EXAMPLE_DIR, "projection", "Json.jl"))
 include(joinpath(_EXAMPLE_DIR, "projection", "Table.jl"))
+include(joinpath(_EXAMPLE_DIR, "projection", "Graph.jl"))
 include(joinpath(_EXAMPLE_DIR, "projection", "Xml.jl"))
 include(joinpath(_EXAMPLE_DIR, "projection", "Mixed.jl"))
 include(joinpath(_EXAMPLE_DIR, "projection", "Syntax.jl"))
@@ -133,6 +135,7 @@ export make_focusing_document_example, make_focusing_projection_example
 export make_workbench_document_example, make_workbench_projection_example
 export make_assistant_document_example, make_assistant_projection_example
 export make_table_document_example, make_table_projection_example
+export make_graph_document_example, make_graph_projection_example
 export make_math_table_document_example, make_math_table_projection_example
 export make_lazy_document_example, make_lazy_projection_example
 export make_lazy_bidirectional_document_example, make_lazy_bidirectional_projection_example
@@ -174,7 +177,7 @@ export widget_avatar_example, widget_alert_example, widget_skeleton_example
 export widget_toggle_example, widget_toggle_group_example, widget_select_example
 export widget_textarea_example, widget_accordion_example, widget_table_example, widget_tree_example
 export layout_example, book_example, filesystem_example, navigator_example
-export collection_example, reversing_example, filtering_example, searching_example, sorting_example, focusing_example, table_example, math_table_example, workbench_example
+export collection_example, reversing_example, filtering_example, searching_example, sorting_example, focusing_example, table_example, math_table_example, graph_example, workbench_example
 export lazy_example, lazy_bidirectional_example
 export math_example
 export julia_example
