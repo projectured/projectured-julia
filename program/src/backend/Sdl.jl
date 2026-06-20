@@ -9,9 +9,11 @@ using SimpleDirectMediaLayer
 using SimpleDirectMediaLayer.LibSDL2
 import ..BackendModule: Backend, init!, quit!, measure_text
 import ..DeviceModule: Device, read_from_devices, write_to_devices, write_to_device
-import ..GraphicsModule: GraphicsCanvas, GraphicsText, GraphicsRect, GraphicsLine, GraphicsCircle, GraphicsViewport, GraphicsImage,
+import ..GraphicsModule: GraphicsCanvas, GraphicsText, GraphicsRect, GraphicsLine, GraphicsCircle,
+                         GraphicsPolyline, GraphicsSpline, GraphicsViewport, GraphicsImage,
                          GraphicsFence, LayoutDirection, layout_none, layout_horizontal, layout_vertical,
-                         _canvas_content_bounds, _accumulate_bounds!, _bounds_elem!
+                         _canvas_content_bounds, _accumulate_bounds!, _bounds_elem!,
+                         tessellate_spline, polyline_arrowhead
 import ..CollectionModule: ListNode, CellVector
 import ..FontModule: StyleFont, font_scaled_size, _DISPLAY_SCALE
 import ..ScreenModule: Screen, QuitEvent
@@ -770,6 +772,65 @@ function _fill_thick_line!(renderer::Ptr{SDL_Renderer}, x1::Float64, y1::Float64
     end
 end
 
+# ── Render polyline / spline edges (+ arrowheads) ────────────────────
+
+# Fill the triangle `verts` (three (x,y) floats) with the current draw color.
+function _fill_triangle!(renderer::Ptr{SDL_Renderer}, verts3,
+                         r::UInt8, g::UInt8, b::UInt8, a::UInt8)
+    col = SDL_Color(r, g, b, a)
+    z = SDL_FPoint(0.0f0, 0.0f0)
+    verts = SDL_Vertex[
+        SDL_Vertex(SDL_FPoint(Cfloat(verts3[1][1]), Cfloat(verts3[1][2])), col, z),
+        SDL_Vertex(SDL_FPoint(Cfloat(verts3[2][1]), Cfloat(verts3[2][2])), col, z),
+        SDL_Vertex(SDL_FPoint(Cfloat(verts3[3][1]), Cfloat(verts3[3][2])), col, z),
+    ]
+    idx = Cint[0, 1, 2]
+    GC.@preserve verts idx begin
+        SDL_RenderGeometry(renderer, Ptr{SDL_Texture}(C_NULL),
+                           pointer(verts), Cint(3), pointer(idx), Cint(3))
+    end
+end
+
+# Draw a connected polyline of (x,y) floats with stroke width `wdt`, plus
+# optional arrowheads. Each segment is a filled quad (anti-aliased by the
+# supersample downsample), matching the diagonal-GraphicsLine path.
+function _stroke_polyline!(renderer::Ptr{SDL_Renderer}, pts, wdt::Int,
+                           r::UInt8, g::UInt8, b::UInt8, a::UInt8,
+                           start_arrow::Bool, end_arrow::Bool, arrow_size::Int)
+    n = length(pts)
+    n == 0 && return
+    SDL_SetRenderDrawColor(renderer, r, g, b, a)
+    w = Float64(max(1, wdt))
+    for i in 1:(n-1)
+        x1, y1 = Float64(pts[i][1]), Float64(pts[i][2])
+        x2, y2 = Float64(pts[i+1][1]), Float64(pts[i+1][2])
+        _fill_thick_line!(renderer, x1, y1, x2, y2, w, r, g, b, a)
+    end
+    if end_arrow
+        tri = polyline_arrowhead(pts, arrow_size; at_end=true)
+        isempty(tri) || _fill_triangle!(renderer, tri, r, g, b, a)
+    end
+    if start_arrow
+        tri = polyline_arrowhead(pts, arrow_size; at_end=false)
+        isempty(tri) || _fill_triangle!(renderer, tri, r, g, b, a)
+    end
+end
+
+function _render_polyline!(renderer::Ptr{SDL_Renderer}, pl::GraphicsPolyline, ox::Int, oy::Int)
+    pl.a == 0 && return
+    pts = [(Int(p[1]) + ox, Int(p[2]) + oy) for p in pl.points]
+    _stroke_polyline!(renderer, pts, Int(pl.width), pl.r, pl.g, pl.b, pl.a,
+                      pl.start_arrow, pl.end_arrow, Int(pl.arrow_size))
+end
+
+function _render_spline!(renderer::Ptr{SDL_Renderer}, sp::GraphicsSpline, ox::Int, oy::Int)
+    sp.a == 0 && return
+    tess = tessellate_spline(sp.points, sp.kind, sp.segments)
+    pts = [(p[1] + ox, p[2] + oy) for p in tess]
+    _stroke_polyline!(renderer, pts, Int(sp.width), sp.r, sp.g, sp.b, sp.a,
+                      sp.start_arrow, sp.end_arrow, Int(sp.arrow_size))
+end
+
 # ── Render a GraphicsCircle element ──────────────────────────────────
 
 # Fill a disc of `rad` centered at (cx,cy) using the current draw color.
@@ -923,6 +984,10 @@ function _dispatch_render_elem!(renderer::Ptr{SDL_Renderer}, elem, ox::Int, oy::
         _render_rect!(renderer, elem, ox, oy)
     elseif elem isa GraphicsLine
         _render_line!(renderer, elem, ox, oy)
+    elseif elem isa GraphicsPolyline
+        _render_polyline!(renderer, elem, ox, oy)
+    elseif elem isa GraphicsSpline
+        _render_spline!(renderer, elem, ox, oy)
     elseif elem isa GraphicsCircle
         _render_circle!(renderer, elem, ox, oy)
     elseif elem isa GraphicsViewport

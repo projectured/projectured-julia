@@ -190,6 +190,7 @@
       case "text":   return drawText(ctx, e);
       case "rect":   return drawRect(ctx, e);
       case "line":   return drawLine(ctx, e);
+      case "polyline": return drawPolyline(ctx, e);
       case "circle": return drawCircle(ctx, e);
       case "group":  return drawGroup(ctx, e);
       case "clip":   return drawClip(ctx, e);
@@ -262,6 +263,47 @@
       ctx.lineTo(e.x2, e.y2);
       ctx.stroke();
     }
+  }
+
+  // A routed connector: a stroked polyline path plus optional filled-triangle
+  // arrowheads. Splines are tessellated to a polyline server-side, so this op
+  // covers both GraphicsPolyline and GraphicsSpline.
+  function drawPolyline(ctx, e) {
+    const pts = e.pts || [];
+    if (pts.length < 1) return;
+    const wdt = Math.max(1, e.w | 0);
+    const c = col(e.c);
+    if (pts.length >= 2) {
+      ctx.strokeStyle = c;
+      ctx.lineWidth = wdt;
+      ctx.lineCap = "round";
+      ctx.lineJoin = "round";
+      ctx.beginPath();
+      ctx.moveTo(pts[0][0], pts[0][1]);
+      for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i][0], pts[i][1]);
+      ctx.stroke();
+    }
+    const sz = e.as | 0;
+    const head = (atEnd) => {
+      const n = pts.length;
+      if (n < 2) return;
+      const tip = atEnd ? pts[n - 1] : pts[0];
+      const prev = atEnd ? pts[n - 2] : pts[1];
+      let dx = tip[0] - prev[0], dy = tip[1] - prev[1];
+      const len = Math.hypot(dx, dy);
+      if (len === 0) return;
+      const ux = dx / len, uy = dy / len, px = -uy, py = ux;
+      const bx = tip[0] - ux * sz, by = tip[1] - uy * sz, half = sz / 2;
+      ctx.beginPath();
+      ctx.moveTo(tip[0], tip[1]);
+      ctx.lineTo(bx + px * half, by + py * half);
+      ctx.lineTo(bx - px * half, by - py * half);
+      ctx.closePath();
+      ctx.fillStyle = c;
+      ctx.fill();
+    };
+    if (e.ea) head(true);
+    if (e.sa) head(false);
   }
 
   function drawCircle(ctx, e) {

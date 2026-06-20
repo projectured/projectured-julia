@@ -22,9 +22,12 @@ import ..FontModule: StyleFont
 import ..ReferenceModule: Reference
 export GraphicsDocument, LayoutDirection, layout_none, layout_horizontal, layout_vertical,
        GraphicsInsertion, GraphicsText, GraphicsRect, GraphicsLine, GraphicsCircle,
+       GraphicsPolyline, GraphicsSpline,
        GraphicsCanvas, GraphicsViewport, GraphicsImage,
        GraphicsFence, setfn!, hit_element_at,
+       tessellate_spline, polyline_arrowhead, point_near_polyline,
        IGraphicsInsertion, IGraphicsText, IGraphicsRect, IGraphicsLine, IGraphicsCircle,
+       IGraphicsPolyline, IGraphicsSpline,
        IGraphicsCanvas, IGraphicsViewport, IGraphicsImage,
        IGraphicsFence
 
@@ -221,6 +224,182 @@ function Base.show(io::IO, c::GraphicsCircle)
           ", rgba=(", c.r, ",", c.g, ",", c.b, ",", c.a, "))")
 end
 
+# ── GraphicsPolyline ─────────────────────────────────────────────────────
+
+"""
+    GraphicsPolyline(points, r, g, b, a; width=1, start_arrow=false, end_arrow=false, arrow_size=8)
+
+A reactive connected sequence of straight segments through `points` (a
+`Vector{Tuple{Int,Int}}` of absolute `(x, y)` pixels) in color `(r,g,b,a)` with
+stroke `width`. This is the canonical edge primitive for a routed connector — a
+libavoid-style polyline route. Optional filled-triangle arrowheads at the start
+and/or end, sized `arrow_size` pixels, oriented along the adjacent segment.
+"""
+@document struct GraphicsPolyline <: GraphicsDocument
+    points::Any            # Vector{Tuple{Int,Int}}
+    r::UInt8
+    g::UInt8
+    b::UInt8
+    a::UInt8
+    width::Int32
+    start_arrow::Bool
+    end_arrow::Bool
+    arrow_size::Int32
+    selection::Reference
+end
+
+function GraphicsPolyline(points::AbstractVector,
+                          r::Integer=0, g::Integer=0, b::Integer=0, a::Integer=255;
+                          width::Integer=1, start_arrow::Bool=false,
+                          end_arrow::Bool=false, arrow_size::Integer=8)
+    pts = Tuple{Int,Int}[(Int(p[1]), Int(p[2])) for p in points]
+    GraphicsPolyline(Cell(pts),
+                     Cell(UInt8(r)), Cell(UInt8(g)), Cell(UInt8(b)), Cell(UInt8(a)),
+                     Cell(Int32(width)), Cell(start_arrow), Cell(end_arrow),
+                     Cell(Int32(arrow_size)), Cell(nothing))
+end
+
+function Base.show(io::IO, p::GraphicsPolyline)
+    print(io, "GraphicsPolyline(n=", length(p.points),
+          ", rgba=(", p.r, ",", p.g, ",", p.b, ",", p.a, "), width=", p.width,
+          ", arrows=(", p.start_arrow, ",", p.end_arrow, "))")
+end
+
+# ── GraphicsSpline ───────────────────────────────────────────────────────
+
+"""
+    GraphicsSpline(points, r, g, b, a; kind=:catmullrom, width=1,
+                   start_arrow=false, end_arrow=false, arrow_size=8, segments=12)
+
+A reactive smooth curve through/along `points` (a `Vector{Tuple{Int,Int}}`).
+`kind` is `:catmullrom` (curve passes through the points) or `:bezier` (the
+points are control points of a cubic Bézier chain). Backends tessellate to a
+polyline at render time via [`tessellate_spline`](@ref) (`segments` samples per
+span), so curve quality is one shared knob. Arrowhead flags as on
+`GraphicsPolyline`.
+"""
+@document struct GraphicsSpline <: GraphicsDocument
+    points::Any            # Vector{Tuple{Int,Int}}
+    kind::Symbol
+    r::UInt8
+    g::UInt8
+    b::UInt8
+    a::UInt8
+    width::Int32
+    start_arrow::Bool
+    end_arrow::Bool
+    arrow_size::Int32
+    segments::Int32
+    selection::Reference
+end
+
+function GraphicsSpline(points::AbstractVector,
+                        r::Integer=0, g::Integer=0, b::Integer=0, a::Integer=255;
+                        kind::Symbol=:catmullrom, width::Integer=1,
+                        start_arrow::Bool=false, end_arrow::Bool=false,
+                        arrow_size::Integer=8, segments::Integer=12)
+    pts = Tuple{Int,Int}[(Int(p[1]), Int(p[2])) for p in points]
+    GraphicsSpline(Cell(pts), Cell(kind),
+                   Cell(UInt8(r)), Cell(UInt8(g)), Cell(UInt8(b)), Cell(UInt8(a)),
+                   Cell(Int32(width)), Cell(start_arrow), Cell(end_arrow),
+                   Cell(Int32(arrow_size)), Cell(Int32(segments)), Cell(nothing))
+end
+
+function Base.show(io::IO, s::GraphicsSpline)
+    print(io, "GraphicsSpline(n=", length(s.points), ", kind=", s.kind,
+          ", rgba=(", s.r, ",", s.g, ",", s.b, ",", s.a, "), width=", s.width, ")")
+end
+
+# ── Spline tessellation + arrowheads (shared by every backend) ────────────
+
+"""
+    tessellate_spline(points, kind, segments) -> Vector{Tuple{Float64,Float64}}
+
+Sample a spline of `kind` (`:catmullrom` | `:bezier`) through/along `points`
+(a vector of `(x, y)`) into a flat polyline of `(x, y)` floats, `segments`
+samples per span. Fewer than two points returns the points unchanged. This is
+the single tessellation path every backend (SDL/Web/PDF) uses, so curve quality
+is controlled in one place.
+"""
+function tessellate_spline(points::AbstractVector, kind::Symbol, segments::Integer)
+    n = length(points)
+    n < 2 && return [(Float64(p[1]), Float64(p[2])) for p in points]
+    seg = max(1, Int(segments))
+    pts = [(Float64(p[1]), Float64(p[2])) for p in points]
+    out = Tuple{Float64,Float64}[]
+    if kind === :bezier
+        # Cubic Bézier chain: consume points in groups of 3 after the first
+        # anchor (p0, c1, c2, p1, c1, c2, p1, ...). A trailing partial group
+        # degrades to a straight segment.
+        i = 1
+        push!(out, pts[1])
+        while i + 3 <= n
+            p0 = pts[i]; c1 = pts[i+1]; c2 = pts[i+2]; p1 = pts[i+3]
+            for s in 1:seg
+                t = s / seg
+                mt = 1 - t
+                x = mt^3*p0[1] + 3mt^2*t*c1[1] + 3mt*t^2*c2[1] + t^3*p1[1]
+                y = mt^3*p0[2] + 3mt^2*t*c1[2] + 3mt*t^2*c2[2] + t^3*p1[2]
+                push!(out, (x, y))
+            end
+            i += 3
+        end
+        # Any leftover points: connect straight.
+        while i < n
+            push!(out, pts[i+1]); i += 1
+        end
+    else
+        # Catmull-Rom: the curve passes through every input point.
+        for k in 1:(n-1)
+            p0 = pts[max(1, k-1)]
+            p1 = pts[k]
+            p2 = pts[k+1]
+            p3 = pts[min(n, k+2)]
+            k == 1 && push!(out, p1)
+            for s in 1:seg
+                t = s / seg
+                t2 = t*t; t3 = t2*t
+                x = 0.5*((2p1[1]) + (-p0[1]+p2[1])*t +
+                         (2p0[1]-5p1[1]+4p2[1]-p3[1])*t2 +
+                         (-p0[1]+3p1[1]-3p2[1]+p3[1])*t3)
+                y = 0.5*((2p1[2]) + (-p0[2]+p2[2])*t +
+                         (2p0[2]-5p1[2]+4p2[2]-p3[2])*t2 +
+                         (-p0[2]+3p1[2]-3p2[2]+p3[2])*t3)
+                push!(out, (x, y))
+            end
+        end
+    end
+    out
+end
+
+"""
+    polyline_arrowhead(points, size; at_end=true) -> Vector{Tuple{Float64,Float64}}
+
+The three vertices of a filled triangle arrowhead of `size` pixels at the end
+(`at_end=true`) or start of the polyline `points`, oriented along the adjacent
+segment. Returns an empty vector when there is no segment to orient along.
+"""
+function polyline_arrowhead(points::AbstractVector, size::Real; at_end::Bool=true)
+    n = length(points)
+    n < 2 && return Tuple{Float64,Float64}[]
+    if at_end
+        tip = (Float64(points[n][1]), Float64(points[n][2]))
+        prev = (Float64(points[n-1][1]), Float64(points[n-1][2]))
+    else
+        tip = (Float64(points[1][1]), Float64(points[1][2]))
+        prev = (Float64(points[2][1]), Float64(points[2][2]))
+    end
+    dx = tip[1] - prev[1]; dy = tip[2] - prev[2]
+    len = sqrt(dx*dx + dy*dy)
+    len == 0 && return Tuple{Float64,Float64}[]
+    ux = dx/len; uy = dy/len            # unit toward the tip
+    px = -uy; py = ux                   # perpendicular
+    sz = Float64(size)
+    bx = tip[1] - ux*sz; by = tip[2] - uy*sz   # base center, `sz` back from the tip
+    half = sz*0.5
+    [tip, (bx + px*half, by + py*half), (bx - px*half, by - py*half)]
+end
+
 # ── Canvas ───────────────────────────────────────────────────────────────
 
 """
@@ -332,6 +511,38 @@ function _rect_hit(elem::GraphicsRect, cx::Int, cy::Int)
     cx >= x && cx < x + w && cy >= y && cy < y + h
 end
 
+# Squared distance from point (px,py) to segment (ax,ay)-(bx,by).
+function _dist2_point_segment(px, py, ax, ay, bx, by)
+    dx = bx - ax; dy = by - ay
+    if dx == 0 && dy == 0
+        return (px - ax)^2 + (py - ay)^2
+    end
+    t = ((px - ax)*dx + (py - ay)*dy) / (dx*dx + dy*dy)
+    t = clamp(t, 0.0, 1.0)
+    qx = ax + t*dx; qy = ay + t*dy
+    (px - qx)^2 + (py - qy)^2
+end
+
+"""
+    point_near_polyline(points, x, y, tolerance) -> Bool
+
+True when `(x, y)` is within `tolerance` pixels of any segment of the polyline
+`points` (a vector of `(x, y)`). Used for edge hit-testing.
+"""
+function point_near_polyline(points::AbstractVector, x::Real, y::Real, tolerance::Real)
+    n = length(points)
+    n == 0 && return false
+    n == 1 && return (x - points[1][1])^2 + (y - points[1][2])^2 <= tolerance^2
+    tol2 = Float64(tolerance)^2
+    for i in 1:(n-1)
+        a = points[i]; b = points[i+1]
+        _dist2_point_segment(Float64(x), Float64(y),
+                             Float64(a[1]), Float64(a[2]),
+                             Float64(b[1]), Float64(b[2])) <= tol2 && return true
+    end
+    false
+end
+
 """
     hit_element_at(canvas::GraphicsCanvas, x::Int, y::Int) -> Int or nothing
 
@@ -433,6 +644,11 @@ function _hit_test_element(elem, x::Int, y::Int)
         lw = abs(Int(elem.x2) - Int(elem.x1)); lh = abs(Int(elem.y2) - Int(elem.y1))
         hw = max(1, Int(elem.width))
         x >= lx - hw && x <= lx + lw + hw && y >= ly - hw && y <= ly + lh + hw
+    elseif elem isa GraphicsPolyline
+        point_near_polyline(elem.points, x, y, max(3, Int(elem.width) + 2))
+    elseif elem isa GraphicsSpline
+        pts = tessellate_spline(elem.points, elem.kind, elem.segments)
+        point_near_polyline(pts, x, y, max(3, Int(elem.width) + 2))
     elseif elem isa GraphicsCanvas
         # Delegate hit test into the nested canvas (coordinates relative to canvas origin)
         cx, cy = Int(elem.x), Int(elem.y)
@@ -508,6 +724,12 @@ function _bounds_elem!(elem, ox::Int, oy::Int, measure, minx, miny, maxx, maxy)
         rad = Int(elem.radius) + Int(elem.border_width)
         cx, cy = ox + Int(elem.cx), oy + Int(elem.cy)
         _bounds_extend!(minx, miny, maxx, maxy, cx - rad, cy - rad, cx + rad, cy + rad)
+    elseif elem isa GraphicsPolyline || elem isa GraphicsSpline
+        hw = max(1, Int(elem.width)) + Int(elem.arrow_size)
+        for p in elem.points
+            px = ox + Int(p[1]); py = oy + Int(p[2])
+            _bounds_extend!(minx, miny, maxx, maxy, px - hw, py - hw, px + hw, py + hw)
+        end
     elseif elem isa GraphicsCanvas
         _accumulate_bounds!(elem, ox + Int(elem.x), oy + Int(elem.y), measure,
                             minx, miny, maxx, maxy)

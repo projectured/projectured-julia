@@ -298,9 +298,10 @@ using .JuliaModule: JuliaDocument, JuliaIdentifier, JuliaInteger, JuliaBinaryOp,
                     JuliaIf, JuliaFunction, JuliaBlock, JuliaInsertion
 using .SyntaxModule: SyntaxDocument, SyntaxInsertion, SyntaxLeaf, SyntaxNode, render
 using .GraphicsModule: GraphicsDocument, GraphicsInsertion,
-                       GraphicsText, GraphicsRect, GraphicsLine, GraphicsCircle, GraphicsCanvas, GraphicsViewport, GraphicsImage,
+                       GraphicsText, GraphicsRect, GraphicsLine, GraphicsCircle,
+                       GraphicsPolyline, GraphicsSpline, GraphicsCanvas, GraphicsViewport, GraphicsImage,
                        GraphicsFence, LayoutDirection, layout_none, layout_horizontal, layout_vertical,
-                       hit_element_at
+                       hit_element_at, tessellate_spline, polyline_arrowhead, point_near_polyline
 using .ModifiersModule: Modifiers
 using .KeyboardModule: Keyboard, KeyDown, KeyUp, KeyPress, is_ctrl, is_shift, is_alt, is_meta
 using .MouseModule: MouseDown, MouseUp, MousePress, MouseMove, MouseScroll
@@ -667,8 +668,10 @@ export JuliaDocument, JuliaIdentifier, JuliaInteger, JuliaBinaryOp, JuliaCall,
        JuliaIf, JuliaFunction, JuliaBlock
 export SyntaxDocument, SyntaxInsertion, SyntaxLeaf, SyntaxNode, render
 export GraphicsDocument, GraphicsInsertion,
-       GraphicsText, GraphicsRect, GraphicsLine, GraphicsCircle, GraphicsCanvas, GraphicsViewport, GraphicsImage,
-       GraphicsFence, LayoutDirection, layout_none, layout_horizontal, layout_vertical, hit_element_at
+       GraphicsText, GraphicsRect, GraphicsLine, GraphicsCircle,
+       GraphicsPolyline, GraphicsSpline, GraphicsCanvas, GraphicsViewport, GraphicsImage,
+       GraphicsFence, LayoutDirection, layout_none, layout_horizontal, layout_vertical, hit_element_at,
+       tessellate_spline, polyline_arrowhead, point_near_polyline
 export Modifiers
 export Keyboard, KeyDown, KeyUp, KeyPress, is_ctrl, is_shift, is_alt, is_meta
 export MouseDown, MouseUp, MousePress, MouseMove, MouseScroll

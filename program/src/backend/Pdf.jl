@@ -24,8 +24,9 @@ written.
 module PdfBackendModule
 
 import ..GraphicsModule: GraphicsCanvas, GraphicsText, GraphicsRect, GraphicsLine,
-                         GraphicsCircle, GraphicsViewport, GraphicsImage, GraphicsFence,
-                         _canvas_content_bounds
+                         GraphicsCircle, GraphicsPolyline, GraphicsSpline,
+                         GraphicsViewport, GraphicsImage, GraphicsFence,
+                         _canvas_content_bounds, tessellate_spline, polyline_arrowhead
 import ..FontModule: StyleFont
 import ..ImageModule: ImageFile
 import ..ProjectionApiModule: projection_print, Projection
@@ -403,6 +404,50 @@ function paint_line!(ctx, line, ox, oy)
           n2(wdt), " w 2 J ", n2(x1), " ", n2(y1), " m ", n2(x2), " ", n2(y2), " l S\n")
 end
 
+# Stroke a polyline of absolute (gx, gy) points (page-top coordinates) with
+# width `wdt`, plus optional filled-triangle arrowheads. Splines tessellate to
+# a polyline first, so this serves both edge primitives — native vector output.
+function _paint_polyline_points!(ctx, gpts, wdt::Int, r, g, b, a,
+                                 start_arrow::Bool, end_arrow::Bool, arrow_size::Int)
+    (a == 0 || isempty(gpts)) && return
+    ys = [p[2] for p in gpts]
+    _on_page(ctx, minimum(ys) - wdt, maximum(ys) + wdt) || return
+    flip = [(p[1], _flip(ctx, p[2])) for p in gpts]
+    if length(flip) >= 2
+        print(ctx.buf, "/", gs_for!(ctx, a), " gs ",
+              c01(r), " ", c01(g), " ", c01(b), " RG ", n2(wdt), " w 1 J 1 j ")
+        print(ctx.buf, n2(flip[1][1]), " ", n2(flip[1][2]), " m ")
+        for i in 2:length(flip)
+            print(ctx.buf, n2(flip[i][1]), " ", n2(flip[i][2]), " l ")
+        end
+        print(ctx.buf, "S\n")
+    end
+    # Arrowheads are filled triangles (computed in page-top space, then flipped).
+    fill_tri(tri) = begin
+        isempty(tri) && return
+        ft = [(t[1], _flip(ctx, t[2])) for t in tri]
+        print(ctx.buf, "/", gs_for!(ctx, a), " gs ", c01(r), " ", c01(g), " ", c01(b), " rg ")
+        print(ctx.buf, n2(ft[1][1]), " ", n2(ft[1][2]), " m ",
+              n2(ft[2][1]), " ", n2(ft[2][2]), " l ",
+              n2(ft[3][1]), " ", n2(ft[3][2]), " l h f\n")
+    end
+    end_arrow   && fill_tri(polyline_arrowhead(gpts, arrow_size; at_end=true))
+    start_arrow && fill_tri(polyline_arrowhead(gpts, arrow_size; at_end=false))
+end
+
+function paint_polyline!(ctx, pl, ox, oy)
+    gpts = [(ox + Int(p[1]), oy + Int(p[2])) for p in pl.points]
+    _paint_polyline_points!(ctx, gpts, max(1, Int(pl.width)), pl.r, pl.g, pl.b, pl.a,
+                            pl.start_arrow, pl.end_arrow, Int(pl.arrow_size))
+end
+
+function paint_spline!(ctx, sp, ox, oy)
+    tess = tessellate_spline(sp.points, sp.kind, sp.segments)
+    gpts = [(ox + p[1], oy + p[2]) for p in tess]
+    _paint_polyline_points!(ctx, gpts, max(1, Int(sp.width)), sp.r, sp.g, sp.b, sp.a,
+                            sp.start_arrow, sp.end_arrow, Int(sp.arrow_size))
+end
+
 function paint_text!(ctx, t, ox, oy)
     (isempty(t.text) || t.a == 0) && return
     gy = oy + Int(t.y)
@@ -468,6 +513,10 @@ function paint_elem!(ctx, elem, ox, oy)
         paint_rect!(ctx, elem, ox, oy)
     elseif elem isa GraphicsLine
         paint_line!(ctx, elem, ox, oy)
+    elseif elem isa GraphicsPolyline
+        paint_polyline!(ctx, elem, ox, oy)
+    elseif elem isa GraphicsSpline
+        paint_spline!(ctx, elem, ox, oy)
     elseif elem isa GraphicsCircle
         paint_circle!(ctx, elem, ox, oy)
     elseif elem isa GraphicsViewport

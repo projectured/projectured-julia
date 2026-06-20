@@ -45,8 +45,9 @@ using SimpleDirectMediaLayer.LibSDL2: SDL_Init, SDL_INIT_VIDEO, TTF_Init
 import ..BackendModule: Backend, init!, quit!, measure_text
 import ..DeviceModule: Device, read_from_devices, write_to_devices
 import ..GraphicsModule: GraphicsCanvas, GraphicsText, GraphicsRect, GraphicsLine,
-                         GraphicsCircle, GraphicsViewport, GraphicsImage, GraphicsFence,
-                         _bounds_elem!, _accumulate_bounds!
+                         GraphicsCircle, GraphicsPolyline, GraphicsSpline,
+                         GraphicsViewport, GraphicsImage, GraphicsFence,
+                         _bounds_elem!, _accumulate_bounds!, tessellate_spline
 import ..CollectionModule: ListNode, CellVector
 import ..FontModule: StyleFont
 import ..ReactiveModule: Cell, isuptodate
@@ -240,6 +241,20 @@ function _serialize_node(elem)
         return Dict("t" => "circle", "cx" => Int(elem.cx), "cy" => Int(elem.cy),
                     "r" => Int(elem.radius), "c" => _rgba(elem),
                     "bw" => Int(elem.border_width), "bc" => _border_rgba(elem))
+    elseif elem isa GraphicsPolyline
+        pts = [[Int(p[1]), Int(p[2])] for p in elem.points]
+        return Dict("t" => "polyline", "pts" => pts, "c" => _rgba(elem),
+                    "w" => Int(elem.width),
+                    "sa" => elem.start_arrow, "ea" => elem.end_arrow,
+                    "as" => Int(elem.arrow_size))
+    elseif elem isa GraphicsSpline
+        # Tessellate server-side so the browser only needs the polyline path.
+        tess = tessellate_spline(elem.points, elem.kind, elem.segments)
+        pts = [[round(Int, p[1]), round(Int, p[2])] for p in tess]
+        return Dict("t" => "polyline", "pts" => pts, "c" => _rgba(elem),
+                    "w" => Int(elem.width),
+                    "sa" => elem.start_arrow, "ea" => elem.end_arrow,
+                    "as" => Int(elem.arrow_size))
     elseif elem isa GraphicsViewport
         content = elem.content::GraphicsCanvas
         return Dict("t" => "clip", "x" => Int(elem.x), "y" => Int(elem.y),
