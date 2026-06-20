@@ -34,16 +34,19 @@ function test_sql_to_cell_table(instance, pool; show_detail=false)
 end
 
 function test_cell_table_to_table(instance, pool)
-    @testset "CellTableToTable → TableTable" begin
+    @testset "CellTableToWidgetTable → WidgetTable" begin
         stmt = SqlSelectStatement("persons")
         ct = projection_print(SqlToCellTable(pool, instance), stmt).output
         nr, nc = size(ct)
 
-        tt = projection_print(CellTableToTable(), ct).output
-        @test tt isa TableTable
-        @test length(tt.columns) == nc                  # one column per result column
-        @test length(tt.rows)    == max(0, nr - 1)       # one row per data row
-        @test length(tt.cells)   == max(0, nr - 1) * nc  # row-major data cells
+        wt = projection_print(CellTableToWidgetTable(), ct).output
+        @test wt isa WidgetTable
+        @test Int(wt.column_count)        == nc            # one column per result column
+        @test length(wt.column_headers)   == nc            # header strip from row 1
+        @test length(wt.rows)             == max(0, nr - 1) # one body row per data row
+        if nr > 1
+            @test length(wt.rows[1])      == nc            # each body row is full-width
+        end
     end
 end
 

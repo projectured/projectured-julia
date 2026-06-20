@@ -1,51 +1,42 @@
+# Table examples build a `WidgetTable` (the single table abstraction) whose cells
+# are domain documents recursed by the projection. The first variant uses JSON
+# cells; the second uses Primitive / Math cells.
+
 function make_table_document_example()
-    TableTable(
-        CellVector(TableRow(), TableRow(), TableRow(), TableRow()),
-        CellVector(TableColumn(), TableColumn(), TableColumn()),
-        CellVector(
-            TableCell(JsonString("Name")),
-            TableCell(JsonString("Age")),
-            TableCell(JsonString("City")),
-            TableCell(JsonString("Jennifer")),
-            TableCell(JsonNumber(30)),
-            TableCell(JsonString("New York")),
-            TableCell(JsonString("Bob")),
-            TableCell(JsonNumber(25)),
-            TableCell(JsonString("Springfield")),
-            TableCell(JsonString("Carol")),
-            TableCell(JsonNumber(42)),
-            TableCell(JsonString("Metropolis")),
-        );
-        padding=16,
-    )
+    WidgetTable(Point2D(40, 40),
+        # column headers
+        Any[JsonString("Name"), JsonString("Age"), JsonString("City")],
+        # row headers (none)
+        Any[],
+        # body rows (each a vector of document cells)
+        Any[
+            Any[JsonString("Jennifer"), JsonNumber(30), JsonString("New York")],
+            Any[JsonString("Bob"),      JsonNumber(25), JsonString("Springfield")],
+            Any[JsonString("Carol"),    JsonNumber(42), JsonString("Metropolis")],
+        ],
+        3;                       # column_count
+        padding=16)
 end
 
 function make_math_table_document_example()
-    TableTable(
-        CellVector(
-            TableRow(PrimitiveString("1")),
-            TableRow(PrimitiveString("2")),
-            TableRow(PrimitiveString("3")),
-        ),
-        CellVector(
-            TableColumn(PrimitiveString("A")),
-            TableColumn(PrimitiveString("B")),
-            TableColumn(PrimitiveString("C")),
-        ),
-        CellVector(
+    WidgetTable(Point2D(40, 40),
+        # column headers
+        Any[PrimitiveString("A"), PrimitiveString("B"), PrimitiveString("C")],
+        # row headers
+        Any[PrimitiveString("1"), PrimitiveString("2"), PrimitiveString("3")],
+        # body rows
+        Any[
             # row 1: plain numbers
-            TableCell(PrimitiveNumber(10)),
-            TableCell(PrimitiveNumber(20)),
-            TableCell(PrimitiveNumber(30)),
+            Any[PrimitiveNumber(10), PrimitiveNumber(20), PrimitiveNumber(30)],
             # row 2: math formulas
-            TableCell(MathBinaryOperation(:+, MathVariable("A"), MathVariable("B"))),
-            TableCell(MathBinaryOperation(:*, PrimitiveNumber(2), MathVariable("B"))),
-            TableCell(MathBinaryOperation(:-, MathVariable("C"), PrimitiveNumber(5))),
+            Any[MathBinaryOperation(:+, MathVariable("A"), MathVariable("B")),
+                MathBinaryOperation(:*, PrimitiveNumber(2), MathVariable("B")),
+                MathBinaryOperation(:-, MathVariable("C"), PrimitiveNumber(5))],
             # row 3: more formulas
-            TableCell(MathBinaryOperation(:/, MathVariable("A"), PrimitiveNumber(2))),
-            TableCell(MathBinaryOperation(:/, MathParenthesized(MathBinaryOperation(:+, MathVariable("A"), MathVariable("C"))), PrimitiveNumber(2))),
-            TableCell(MathBinaryOperation(:*, PrimitiveNumber(3), MathParenthesized(MathBinaryOperation(:+, MathVariable("A"), MathVariable("B"))))),
-        );
-        padding=16,
-    )
+            Any[MathBinaryOperation(:/, MathVariable("A"), PrimitiveNumber(2)),
+                MathBinaryOperation(:/, MathParenthesized(MathBinaryOperation(:+, MathVariable("A"), MathVariable("C"))), PrimitiveNumber(2)),
+                MathBinaryOperation(:*, PrimitiveNumber(3), MathParenthesized(MathBinaryOperation(:+, MathVariable("A"), MathVariable("B"))))],
+        ],
+        3;
+        padding=16)
 end

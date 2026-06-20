@@ -17,6 +17,9 @@ function make_workbench_projection_example(; measure=sdl_measure_text)
         text_to_graphics,
     )
     combined_w2g = RecursiveProjection(TypeDispatchingProjection(vcat(
+        # Layout dispatch first: the WidgetTable renderer builds a GridLayout and
+        # recurses it through this same dispatcher, so GridLayout must be routable.
+        LayoutToGraphics().dispatch,
         w2g.dispatch,
         Pair{DataType,Any}[
             BookDocument          => SequentialProjection(RecursiveProjection(BookToSyntax()), RecursiveProjection(SyntaxToText()), text_to_graphics),
@@ -27,7 +30,6 @@ function make_workbench_projection_example(; measure=sdl_measure_text)
             XmlDocument           => SequentialProjection(RecursiveProjection(XmlToSyntax()), RecursiveProjection(SyntaxToText()), text_to_graphics_no_wrap),
             TextDocument          => text_to_graphics,
             JuliaDocument         => make_julia_projection_example(measure=measure),
-            TableDocument         => make_table_projection_example(measure=measure),
             ListNode              => make_lazy_projection_example(measure=measure),
             CellVector            => make_collection_projection_example(measure=measure),
             # Assistant input → text directly (no SyntaxLeaf → no quotes), with a
