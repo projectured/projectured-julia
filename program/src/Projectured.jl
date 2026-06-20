@@ -146,6 +146,7 @@ include("projection/primitive/WordWrapping.jl")
 include("projection/primitive/TextFirstLine.jl")
 include("projection/primitive/TextFiltering.jl")
 include("projection/primitive/TextHighlighting.jl")
+include("projection/primitive/SelectionInverting.jl")
 include("projection/primitive/PrimitiveToSyntax.jl")
 include("projection/primitive/PrimitiveToText.jl")
 include("projection/primitive/ReferenceToText.jl")
@@ -424,6 +425,7 @@ using .WordWrappingModule: WordWrapping, WordWrappingIoMap, WrapSeg
 using .TextFirstLineModule: TextFirstLine, TextFirstLineIoMap
 using .TextFilteringModule: TextFiltering, TextFilteringIoMap
 using .TextHighlightingModule: TextHighlighting, TextHighlightingIoMap, HighlightSeg
+using .SelectionInvertingModule: SelectionInverting, SelectionInvertingIoMap, SelSeg
 using .SyntaxToTextModule: SyntaxToText, SyntaxNodeToTextIoMap,
                                        SyntaxLeafToText, SyntaxListToText
 using .PrimitiveToSyntaxModule: PrimitiveToSyntax, PrimitiveBoolToSyntaxLeaf,
@@ -755,6 +757,7 @@ export WordWrapping, WordWrappingIoMap, WrapSeg
 export TextFirstLine, TextFirstLineIoMap
 export TextFiltering, TextFilteringIoMap
 export TextHighlighting, TextHighlightingIoMap, HighlightSeg
+export SelectionInverting, SelectionInvertingIoMap, SelSeg
 export SyntaxToText, SyntaxLeafToText, SyntaxListToText
 export PrimitiveToSyntax, PrimitiveBoolToSyntaxLeaf,
        PrimitiveNumberToSyntaxLeaf, PrimitiveStringToSyntaxLeaf
