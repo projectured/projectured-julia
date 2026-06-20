@@ -61,6 +61,7 @@ include("layout/GraphLayoutEngine.jl")
 include("document/Component.jl")
 include("document/Book.jl")
 include("document/Evaluator.jl")
+include("document/Formula.jl")
 include("document/Conversation.jl")
 include("document/Ini.jl")
 include("document/Ned.jl")
@@ -161,6 +162,7 @@ include("projection/primitive/PrimitiveToText.jl")
 include("projection/primitive/ReferenceToText.jl")
 include("projection/primitive/MathToSyntax.jl")
 include("projection/primitive/JuliaToSyntax.jl")
+include("projection/primitive/FormulaToSyntax.jl")
 include("projection/primitive/DocumentInsertionToSyntax.jl")
 include("projection/primitive/SqlToSyntax.jl")
 include("projection/primitive/CollectionToSyntax.jl")
@@ -469,6 +471,9 @@ using .JuliaToSyntaxModule: JuliaToSyntax, JuliaIdentifierToSyntaxLeaf, JuliaInt
                              JuliaBinaryOpToSyntaxNode, JuliaCallToSyntaxNode,
                              JuliaIfToSyntaxNode, JuliaFunctionToSyntaxNode,
                              JuliaBlockToSyntaxNode
+using .FormulaToSyntaxModule: FormulaToSyntax, FormulaInsertionToSyntaxLeaf,
+                              FormulaReferenceToSyntaxLeaf, FormulaFormulaToSyntaxNode,
+                              FormulaEnvironmentToSyntaxNode
 using .DocumentInsertionToSyntaxModule: InsertionToSyntaxLeaf,
                                          DocumentInsertionToSyntaxLeaf, JuliaInsertionToSyntaxLeaf,
                                          default_factory, default_completion
@@ -523,6 +528,12 @@ using .ToolRegistryModule: Tool, Resource,
 using .AnthropicModule: stream_message
 using .LlmModule: LlmBackend, AnthropicLlm, FakeLlm, stream_turn
 using .EvaluatorModule: EvaluatorDocument, EvaluatorForm, EvaluatorToplevel, result_text, eval_kind_label
+using .FormulaModule: FormulaDocument, FormulaInsertion, FormulaReference, FormulaFormula,
+                      FormulaEnvironment, formula_result_text, wire_result!,
+                      resolve, column_letter, cell_name,
+                      formula_references, formula_dependencies,
+                      would_create_cycle, topological_order,
+                      formula_to_expr, evaluate_formula
 using .ConversationModule: ConversationDocument, ConversationConversation,
                             ConversationTurn, ConversationPart, ConversationDraft,
                             ConversationThinking, thinking_part
@@ -811,6 +822,9 @@ export JuliaToSyntax, JuliaIdentifierToSyntaxLeaf, JuliaIntegerToSyntaxLeaf,
        JuliaBinaryOpToSyntaxNode, JuliaCallToSyntaxNode,
        JuliaIfToSyntaxNode, JuliaFunctionToSyntaxNode,
        JuliaBlockToSyntaxNode
+export FormulaToSyntax, FormulaInsertionToSyntaxLeaf,
+       FormulaReferenceToSyntaxLeaf, FormulaFormulaToSyntaxNode,
+       FormulaEnvironmentToSyntaxNode
 export JuliaInsertion, InsertionToSyntaxLeaf,
        DocumentInsertionToSyntaxLeaf, JuliaInsertionToSyntaxLeaf,
        default_factory, default_completion
@@ -864,6 +878,12 @@ export Tool, Resource, register_tool!, register_tools!, list_tools, call_tool,
 export stream_message
 export LlmBackend, AnthropicLlm, FakeLlm, stream_turn
 export EvaluatorDocument, EvaluatorForm, EvaluatorToplevel, result_text, eval_kind_label
+export FormulaDocument, FormulaInsertion, FormulaReference, FormulaFormula,
+       FormulaEnvironment, formula_result_text, wire_result!,
+       resolve, column_letter, cell_name,
+       formula_references, formula_dependencies,
+       would_create_cycle, topological_order,
+       formula_to_expr, evaluate_formula
 export ConversationDocument, ConversationConversation,
        ConversationTurn, ConversationPart, ConversationDraft,
        ConversationThinking, thinking_part
