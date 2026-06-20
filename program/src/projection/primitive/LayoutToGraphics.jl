@@ -39,7 +39,7 @@ import ..PrinterContextModule: child_context, with_available_size
 export HorizontalLayoutToGraphicsCanvas, VerticalLayoutToGraphicsCanvas,
        GridLayoutToGraphicsCanvas, FlowLayoutToGraphicsCanvas,
        StackLayoutToGraphicsCanvas, LayoutConstraintToGraphicsCanvas,
-       LayoutToGraphics
+       LayoutToGraphics, GridLayoutIoMap
 
 # ── Projection structs ─────────────────────────────────────────────────────
 
@@ -49,6 +49,51 @@ struct GridLayoutToGraphicsCanvas       <: Projection end
 struct FlowLayoutToGraphicsCanvas       <: Projection end
 struct StackLayoutToGraphicsCanvas      <: Projection end
 struct LayoutConstraintToGraphicsCanvas <: Projection end
+
+# ── GridLayout iomap (geometry-bearing) ─────────────────────────────────────
+
+"""
+    GridLayoutIoMap
+
+Like `ChildrenIoMap` (it carries the same `projection` / `input` / `output` and
+the per-child routing entries in `child_iomaps`), plus the grid *geometry*
+exposed so a parent renderer can draw decorations without GridLayout knowing
+anything about tables ("layout is just layout").
+
+The geometry cells:
+
+- `col_x::Vector{Cell}` — cumulative left edges, one per column (length = columns).
+- `row_y::Vector{Cell}` — cumulative top edges, one per row (length = rows).
+- `col_w::Vector{Cell}` / `row_h::Vector{Cell}` — per-column width / per-row height
+  (max over the children in that column / row).
+- `columns::Cell` — the grid's column count.
+- `row_count::Cell` — the number of rows (`ceil(n / columns)`).
+- `horizontal_gap` / `vertical_gap` — the inter-cell gaps.
+- `w::Cell` / `h::Cell` — the outer canvas extent.
+
+All cells are reactive: an edit that changes a child's intrinsic extent
+invalidates only the downstream geometry cells.
+"""
+struct GridLayoutIoMap <: IoMap
+    projection::Any
+    input::Any
+    output::Any
+    child_iomaps::Cell
+    col_x::Vector{Cell}
+    row_y::Vector{Cell}
+    col_w::Vector{Cell}
+    row_h::Vector{Cell}
+    columns::Cell
+    row_count::Cell
+    horizontal_gap::Cell
+    vertical_gap::Cell
+    w::Cell
+    h::Cell
+end
+
+# Routing / forward helpers below read only `iomap.child_iomaps`; both iomap
+# shapes carry that field, so they accept either.
+const _LayoutChildrenIoMap = Union{ChildrenIoMap, GridLayoutIoMap}
 
 # ── Helpers ────────────────────────────────────────────────────────────────
 
@@ -148,7 +193,7 @@ end
 # the selected child (or are tried against each). The child's op is re-rooted by
 # prepending `children[i]`, matching `_children_forward`'s convention so forward
 # mapping and reads agree. Identity-bearing ops pass through unchanged.
-function _route_layout_event(iomap::ChildrenIoMap, evt)
+function _route_layout_event(iomap::_LayoutChildrenIoMap, evt)
     entries = iomap.child_iomaps[]::Vector
     res = @event_case evt begin
         MousePress  => _route_click(entries, evt)
@@ -261,7 +306,7 @@ end
 A reference of the form `children[i]/...` routes to the i-th child
 iomap's forward mapping.
 """
-function _children_forward(iomap::ChildrenIoMap, reference)
+function _children_forward(iomap::_LayoutChildrenIoMap, reference)
     reference isa ConcreteReferencePath || return nothing
     h = reference.head
     h isa FieldReference && h.name == "children" || return nothing
@@ -620,7 +665,11 @@ function projection_print(p::GridLayoutToGraphicsCanvas,
                           recursion, doc::GridLayout, ctx)
     n = length(doc.children)
     if n == 0
-        return ChildrenIoMap(p, doc, _empty_canvas(), Cell(Tuple{Cell,Cell,Any}[]))
+        return GridLayoutIoMap(p, doc, _empty_canvas(), Cell(Tuple{Cell,Cell,Any}[]),
+                               Cell[], Cell[], Cell[], Cell[],
+                               getfield(doc, :columns), Cell(0),
+                               getfield(doc, :horizontal_gap), getfield(doc, :vertical_gap),
+                               Cell(Int32(0)), Cell(Int32(0)))
     end
 
     child_iomaps = Any[]
@@ -696,7 +745,15 @@ function projection_print(p::GridLayoutToGraphicsCanvas,
         push!(entries, (child_x[i], child_y[i], child_iomaps[i]))
     end
 
-    ChildrenIoMap(p, doc, outer, Cell(entries))
+    row_count = Cell(function ()
+        c = cols_cell[]
+        c <= 0 ? 0 : div(n + c - 1, c)
+    end)
+
+    GridLayoutIoMap(p, doc, outer, Cell(entries),
+                    col_x, row_y, col_w, row_h,
+                    cols_cell, row_count, hgap, vgap,
+                    Cell(() -> Int32(outer_w[])), Cell(() -> Int32(outer_h[])))
 end
 
 function map_reference_forward(::GridLayoutToGraphicsCanvas, iomap, reference)
@@ -707,7 +764,7 @@ function map_reference_backward(::GridLayoutToGraphicsCanvas, iomap, reference)
     return nothing
 end
 
-function projection_read(::GridLayoutToGraphicsCanvas, iomap::ChildrenIoMap, evt)
+function projection_read(::GridLayoutToGraphicsCanvas, iomap::GridLayoutIoMap, evt)
     _route_layout_event(iomap, evt)
 end
 

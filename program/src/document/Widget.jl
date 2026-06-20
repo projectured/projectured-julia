@@ -1055,26 +1055,87 @@ Base.show(io::IO, w::WidgetAccordion) = print(io, "WidgetAccordion(", length(w.i
 # ── WidgetTable ─────────────────────────────────────────────────────────────
 
 """
-    WidgetTable(position, headers, rows)
+    WidgetTable(position, column_headers, row_headers, rows, column_count; ...)
+    WidgetTable(position, headers::Vector, rows::Vector)   # string convenience shim
 
-A data table: a header row over body rows separated by hairline
-rules. `headers` is a `Vector` of column titles; `rows` is a `Vector` of rows,
-each a `Vector` of cell values. (Compare `TableTable`, the spreadsheet domain —
-this is the widget-styled presentation variant.)
+The single table abstraction. A grid of **document cells** (each cell is a
+`Document`, recursed through the shared recursion — so a cell can be a
+`JsonString`, an `XmlElement`, text, even a nested `WidgetTable`) decorated with
+borders / hairline rules, optional header strips, and selection bands. Its
+renderer ([`WidgetTableToGraphicsCanvas`](@ref)) delegates *all positioning* to
+a `GridLayout` and overlays decorations from the grid geometry it reads off the
+layout iomap ("layout is just layout").
+
+# Fields
+
+- `position::Point2D` — top-left origin.
+- `column_headers::CellVector` — optional top strip; each entry a `Document` (or
+  `nothing`). Empty vector ⇒ no column-header strip.
+- `row_headers::CellVector` — optional left strip; each entry a `Document` (or
+  `nothing`). Empty vector ⇒ no row-header strip.
+- `rows::CellVector` — the body; each entry is a `CellVector` of `Document` cells
+  (row-major). Field names `rows` / `column_headers` / `row_headers` are the
+  public reference vocabulary for selection (mirroring the old `TableToGraphics`
+  `rows[r]` / `columns[c]` bands).
+- `column_count::Int` — number of columns.
+- `padding::Int` — inner padding (px) between a cell's border and its content.
+- `border_width::Int` — hairline rule / border width (px).
+- `visible::Bool`, `selection::Reference` — standard Document fields.
+
+The string convenience constructor wraps each string in a `WidgetLabel` so
+existing call sites (`WidgetTable(pos, headers, rows)`) keep working unchanged.
 """
 @document struct WidgetTable <: WidgetDocument
     position::Point2D
-    headers::CellVector
-    rows::CellVector
+    column_headers::CellVector   # of Document (or nothing) — optional top strip
+    row_headers::CellVector      # of Document (or nothing) — optional left strip
+    rows::CellVector             # each row is a CellVector of Document cells
+    column_count::Int
+    padding::Int
+    border_width::Int
     visible::Bool
     selection::Reference
 end
-WidgetTable(position::Point2D, headers::Vector, rows::Vector; visible::Bool=true) =
+
+# Wrap a raw cell value in a renderable widget document; pass Documents through.
+_table_cell_doc(v::Document) = v
+_table_cell_doc(::Nothing)   = nothing
+_table_cell_doc(v)           = WidgetLabel(Point2D(0, 0), string(v))
+
+# Wrap one body row (a Vector of values or Documents) into a CellVector of cells.
+_table_row(r) = CellVector(Cell[Cell(_table_cell_doc(c)) for c in r])
+
+"""
+    WidgetTable(position, column_headers, row_headers, rows, column_count; padding=8, border_width=1, visible=true)
+
+Document-cell constructor. `column_headers` / `row_headers` are `Vector`s of
+`Document`/`nothing` (pass `[]` for none); `rows` is a `Vector` of rows, each a
+`Vector` of `Document`/value cells.
+"""
+function WidgetTable(position::Point2D, column_headers::Vector, row_headers::Vector,
+                     rows::Vector, column_count::Integer;
+                     padding::Integer=8, border_width::Integer=1, visible::Bool=true)
     WidgetTable(Cell(position),
-                CellVector(Cell[Cell(h) for h in headers]),
-                CellVector(Cell[Cell(r) for r in rows]),
+                CellVector(Cell[Cell(_table_cell_doc(h)) for h in column_headers]),
+                CellVector(Cell[Cell(_table_cell_doc(h)) for h in row_headers]),
+                CellVector(Cell[Cell(_table_row(r)) for r in rows]),
+                Cell(Int(column_count)), Cell(Int(padding)), Cell(Int(border_width)),
                 Cell(visible), Cell(nothing))
-Base.show(io::IO, w::WidgetTable) = print(io, "WidgetTable(", length(w.headers), "×", length(w.rows), ")")
+end
+
+# String convenience shim: headers become a column-header strip, rows become the
+# body, columns inferred from the header count (or the widest row). Strings are
+# wrapped in WidgetLabels via `_table_cell_doc`.
+function WidgetTable(position::Point2D, headers::Vector, rows::Vector;
+                     padding::Integer=8, border_width::Integer=1, visible::Bool=true)
+    column_count = isempty(headers) ?
+        (isempty(rows) ? 0 : maximum(length(r) for r in rows)) : length(headers)
+    WidgetTable(position, collect(Any, headers), Any[], collect(Any, rows), column_count;
+                padding=padding, border_width=border_width, visible=visible)
+end
+
+Base.show(io::IO, w::WidgetTable) =
+    print(io, "WidgetTable(", length(w.rows), "×", w.column_count, ")")
 
 # ── WidgetTree ──────────────────────────────────────────────────────────────
 
