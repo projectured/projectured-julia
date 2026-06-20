@@ -45,7 +45,6 @@ export SqlDocument, SqlStatement,
        SqlFromClause,        ISqlFromClause,
        SqlSelectStatement,   ISqlSelectStatement,
        SqlSubqueryFromItem,  ISqlSubqueryFromItem,
-       SqlRawStatement,      ISqlRawStatement,
        SqlInsertStatement,   ISqlInsertStatement,
        SqlUpdateStatement,   ISqlUpdateStatement,
        SqlBooleanExpression,
@@ -312,12 +311,6 @@ SqlSubqueryFromItem(sq::SqlSelectStatement) =
 SqlSubqueryFromItem(sq::SqlSelectStatement, alias::SqlTableAlias) =
     SqlSubqueryFromItem(sq, alias, Cell(nothing))
 
-@document struct SqlRawStatement <: SqlStatement
-    content::String
-    selection::Reference
-end
-SqlRawStatement(content::AbstractString) = SqlRawStatement(String(content), Cell(nothing))
-
 @document struct SqlInsertStatement <: SqlStatement
     selection::Reference
 end
@@ -334,6 +327,5 @@ Base.show(io::IO, n::SqlTableName)        = print(io, n.schema_name === nothing 
 Base.show(io::IO, a::SqlTableAlias)       = print(io, a.name)
 Base.show(io::IO, c::SqlColumnName)       = print(io, c.name)
 Base.show(io::IO, a::SqlColumnAlias)      = print(io, a.name)
-Base.show(io::IO, stmt::SqlRawStatement)  = print(io, stmt.content)
 
 end # module

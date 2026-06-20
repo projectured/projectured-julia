@@ -1,10 +1,15 @@
-# SqlRawToSql projection — SQL parser
+# SqlParser — SQL parser module
 
-`SqlRawStatement` → `SqlSelectStatement` parser projection. The *inverse*
-of the rendering pipeline (`SqlToSyntax → SyntaxToText → TextToString`).
-Printer-only (no readers, no reference mapping).
+`sqlparse(text) → SqlSelectStatement`. A standalone parser that turns SQL source
+text into the `SqlDocument` hierarchy, mirroring the other parsers in
+`program/src/parser/` (`jsonparse`, `xmlparse`, …). The result round-trips back to
+text through the rendering pipeline (`SqlToSyntax → SyntaxToText → TextToString`).
 
-**File:** `program/src/projection/primitive/SqlRawToSql.jl`
+**File:** `program/src/parser/SqlParser.jl`
+
+**Entry points:**
+- `sqlparse(text)` — parse a SQL string into a `SqlSelectStatement`.
+- `sqlparse_file(path)` — read and parse a `.sql` file from disk.
 
 ---
 
@@ -20,7 +25,9 @@ Unsupported fragments are silently handled:
 - **Unsupported clauses** (GROUP BY, ORDER BY, etc.) — consumed by `skip_trailing!`.
 - **Unsupported expressions** (function calls, arithmetic, CASE) — collected
   into `SqlScalarValue(raw_text)` via greedy token fallback.
-- **Non-SELECT statements** — `parse_sql` returns `nothing`.
+- **Non-SELECT / unparseable statements** — `sqlparse` raises an error (matching
+  the `jsonparse`/`juliaparse` convention). Internally the private `parse_sql`
+  helper returns `nothing`, which the public `sqlparse` converts to an error.
 
 ---
 
@@ -63,9 +70,10 @@ primary          := (boolean_expr) | scalar_operand comp_op scalar_operand
   produces `SqlScalarValue` where `SqlSelectExpression` is expected, it
   builds `SqlSelectItem(expr, alias, Cell(nothing))` directly.
 
-- **Error strategy**: unparseable input → `nothing`; partial parse → best-effort
-  with broken fragments wrapped in `SqlScalarValue`; `try/catch` around the
-  full parse prevents propagation.
+- **Error strategy**: unparseable input → `sqlparse` raises; partial parse →
+  best-effort with broken fragments wrapped in `SqlScalarValue`; a `try/catch`
+  around the internal `parse_sql` prevents partial-parse exceptions from
+  propagating (they collapse to the "not parseable" error).
 
 ---
 

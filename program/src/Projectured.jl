@@ -70,6 +70,7 @@ include("parser/NedParser.jl")
 include("parser/JuliaParser.jl")
 include("parser/JsonParser.jl")
 include("parser/XmlParser.jl")
+include("parser/SqlParser.jl")
 # LLM backend (used as a field type by `WorkbenchAssistant`). Loads early
 # because no document or projection layer depends on it; it only needs
 # HTTP/JSON3 (external packages) and access to the Anthropic SSE client.
@@ -159,7 +160,6 @@ include("projection/primitive/MathToSyntax.jl")
 include("projection/primitive/JuliaToSyntax.jl")
 include("projection/primitive/DocumentInsertionToSyntax.jl")
 include("projection/primitive/SqlToSyntax.jl")
-include("projection/primitive/SqlRawToSql.jl")
 include("projection/primitive/CollectionToSyntax.jl")
 include("projection/primitive/ConversationToSyntax.jl")
 include("projection/primitive/ConversationToWidget.jl")
@@ -271,9 +271,7 @@ using .SqlDocumentModule: SqlDocument, SqlStatement,
                           SqlInsertStatement, SqlUpdateStatement,
                           SqlWhereFilterCondition, SqlBooleanExpression,
                           SqlScalarValue, SqlComparison,
-                          SqlAnd, SqlOr, SqlNot,
-                          SqlRawStatement
-using .SqlRawToSqlModule: SqlRawToSql
+                          SqlAnd, SqlOr, SqlNot
 using .DbCatalogDocumentModule: DbCatalogDocument,
                                 DbCatalogRdbms, DbCatalogDatabase, DbCatalogSchema,
                                 DbCatalogTable, DbCatalogColumn
@@ -385,6 +383,7 @@ using .NedParserModule: nedparse, nedparse_file
 using .JuliaParserModule: juliaparse, juliaparse_file
 using .JsonParserModule: jsonparse, jsonparse_file
 using .XmlParserModule: xmlparse, xmlparse_file
+using .SqlParserModule: sqlparse, sqlparse_file
 using .IniToSyntaxModule: IniInsertionToSyntaxLeaf, IniCommentToSyntaxLeaf, IniIncludeToSyntaxLeaf,
                           IniConfigOptionToSyntaxNode, IniParamAssignmentToSyntaxNode,
                           IniSectionToSyntaxNode, IniFileToSyntaxNode, IniToSyntax
@@ -584,7 +583,6 @@ export SqlToSyntax, SqlAllColumnsToSyntaxLeaf, SqlColumnReferenceToSyntaxLeaf,
        SqlJoinedFromItemToSyntaxNode, SqlJoinOnConditionToSyntaxNode,
        SqlWhereFilterConditionToSyntaxNode,
        SqlWhereClauseToSyntaxNode, SqlSelectStatementToSyntaxNode
-export SqlRawToSql, SqlRawStatement
 export DbCatalogDocument,
        DbCatalogRdbms, DbCatalogDatabase, DbCatalogSchema,
        DbCatalogTable, DbCatalogColumn
@@ -613,6 +611,7 @@ export nedparse, nedparse_file
 export juliaparse, juliaparse_file
 export jsonparse, jsonparse_file
 export xmlparse, xmlparse_file
+export sqlparse, sqlparse_file
 export NedInsertionToSyntaxLeaf, NedPackageToSyntaxLeaf, NedImportToSyntaxLeaf,
        NedPropertyToSyntaxLeaf, NedParamToSyntaxLeaf, NedGateToSyntaxLeaf,
        NedSubmoduleToSyntaxNode, NedConnectionToSyntaxLeaf, NedConnectionGroupToSyntaxNode,

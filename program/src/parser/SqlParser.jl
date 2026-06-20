@@ -1,24 +1,29 @@
 """
-    SqlRawToSqlModule
+    SqlParserModule
 
-SqlRawStatement → SqlSelectStatement parser projection.
+Parser for SQL SELECT statements. Converts SQL source text into a
+`SqlSelectStatement` tree from `SqlDocumentModule`.
 
-Reads the `content` field of a `SqlRawStatement` and parses it into the
-corresponding `SqlDocument` hierarchy using a lightweight tokeniser and
-recursive-descent parser.
+Provides:
+- `sqlparse(text)` — parse a SQL string into a `SqlSelectStatement`
+- `sqlparse_file(path)` — read and parse a `.sql` file from disk
 
-Printer-only — no readers, no reference mapping.  Unsupported SQL fragments
-(comments, trailing clauses, complex expressions) are silently skipped or
-wrapped in `SqlScalarValue` for lossless pass-through.
+A lightweight tokeniser feeds a single-pass, one-token-lookahead recursive-descent
+parser. Scope is the SELECT-related types defined in `Sql.jl`: SELECT/FROM/WHERE
+clauses, joins, ON/USING conditions, subqueries, boolean expressions, column
+references, aliases, DISTINCT, and scalar values.
+
+Unsupported fragments are handled gracefully: comments are stripped by the
+tokeniser, trailing clauses (GROUP BY, ORDER BY, …) are consumed, and unsupported
+expressions (function calls, arithmetic, CASE) are wrapped in `SqlScalarValue` via
+a greedy token fallback. Input that is not a parseable SELECT statement raises an
+error rather than guessing, matching the other parsers in this directory.
 """
-module SqlRawToSqlModule
+module SqlParserModule
 
 import ..ReactiveModule: Cell
 import ..CollectionModule: CellVector
-import ..ProjectionApiModule: projection_print, projection_read, map_reference_forward, map_reference_backward, Projection
-import ..IoMapModule: SimpleIoMap
-import ..SqlDocumentModule: SqlRawStatement,
-                            SqlSelectStatement, SqlSelectClause, SqlFromClause, SqlWhereClause,
+import ..SqlDocumentModule: SqlSelectStatement, SqlSelectClause, SqlFromClause, SqlWhereClause,
                             SqlWhereFilterCondition,
                             SqlSelectItem, SqlAllColumns, SqlColumnReference,
                             SqlTableName, SqlTableAlias, SqlColumnName, SqlColumnAlias,
@@ -28,23 +33,30 @@ import ..SqlDocumentModule: SqlRawStatement,
                             SqlJoinOnCondition, SqlJoinUsingCondition,
                             SqlScalarValue, SqlComparison, SqlAnd, SqlOr, SqlNot
 
-export SqlRawToSql
+export sqlparse, sqlparse_file
 
 # ══════════════════════════════════════════════════════════════════════════════
-# §1  Projection
+# §1  Entry points
 # ══════════════════════════════════════════════════════════════════════════════
 
-struct SqlRawToSql <: Projection end
+"""
+    sqlparse(text::AbstractString) -> SqlSelectStatement
 
-function projection_print(p::SqlRawToSql, recursion, doc::SqlRawStatement, ctx)
-    parsed = parse_sql(doc.content)
-    parsed === nothing && return nothing
-    SimpleIoMap(p, doc, parsed)
+Parse a SQL string into a `SqlSelectStatement`. Raises an error if `text` is not a
+parseable SELECT statement.
+"""
+function sqlparse(text::AbstractString)
+    parsed = parse_sql(String(text))
+    parsed === nothing && error("SQL: not a parseable SELECT statement")
+    return parsed
 end
 
-projection_read(::SqlRawToSql, ::SimpleIoMap, op) = nothing
-map_reference_forward(::SqlRawToSql, ::SimpleIoMap, ref) = nothing
-map_reference_backward(::SqlRawToSql, ::SimpleIoMap, ref) = nothing
+"""
+    sqlparse_file(path::AbstractString) -> SqlSelectStatement
+
+Read and parse a `.sql` file from disk.
+"""
+sqlparse_file(path::AbstractString) = sqlparse(read(path, String))
 
 # ══════════════════════════════════════════════════════════════════════════════
 # §2  Tokeniser

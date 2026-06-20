@@ -1,18 +1,12 @@
 using Test
 using Projectured
 
-# SqlRawToSql projection tests — parser-only, no DB needed.
+# SqlParser tests — parser-only, no DB needed.
 
-function test_sql_raw_to_sql()
-    @testset "SqlRawToSql" begin
-        proj = SqlRawToSql()
-
+function test_sql_parser()
+    @testset "SqlParser" begin
         # ── helper: parse and return the output document ──────────────
-        parse(sql) = begin
-            raw = SqlRawStatement(sql)
-            iomap = projection_print(proj, raw)
-            iomap === nothing ? nothing : iomap.output
-        end
+        parse(sql) = sqlparse(sql)
 
         # ── helper: normalize SQL for round-trip comparison ───────────
         normalize_sql(s) = begin
@@ -216,9 +210,9 @@ function test_sql_raw_to_sql()
             @test occursin("COUNT", string(item.expression.value))
         end
 
-        # ── Non-SELECT returns nothing ───────────────────────────────
+        # ── Non-SELECT raises ────────────────────────────────────────
         @testset "non-SELECT" begin
-            @test parse("INSERT INTO t VALUES (1)") === nothing
+            @test_throws Exception sqlparse("INSERT INTO t VALUES (1)")
         end
 
         # ── Schema-qualified table ───────────────────────────────────
@@ -300,4 +294,4 @@ function test_sql_raw_to_sql()
     end
 end
 
-export test_sql_raw_to_sql
+export test_sql_parser
