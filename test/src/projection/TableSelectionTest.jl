@@ -115,9 +115,9 @@ end
     @test startswith(string(op.path), ".rows[1][1]")
 end
 
-@testset "headerless table still bands rows/columns/cells" begin
+@testset "JSON table (column headers only) bands rows/columns/cells" begin
     m = _table_measure()
-    doc = make_table_document_example()             # 3×3 JSON cells, no headers... has column headers
+    doc = make_table_document_example()             # 3×3 JSON cells, column headers, no row headers
     proj = make_table_projection_example(measure=m)
 
     th(path) = _table_highlights(_print_with(doc, proj, path))
