@@ -7,14 +7,44 @@
 #   julia --project=program session/analyze-session.jl --latest 2
 #   julia --project=program session/analyze-session.jl path/to/session.jsonl [path2.jsonl ...]
 #   julia --project=program session/analyze-session.jl --name control path1.jsonl --name concepts path2.jsonl
+#   julia --project=program session/analyze-session.jl --history
 #
-# Output: session/report-{timestamp}.md
+# Output: session/{inv-key}-{last-alive}-{title}.md   (--latest / explicit files)
+#         session/history/{group}/{inv-key}-{last-alive}-{title}.md + comparison   (--history)
+#         (inv-key sorts newest-first; the comparison file is pinned to the folder top)
 
 using JSON3, Printf, Dates
 
-const PROJECT_SLUG = "c--Users-balin-gitworkspace-projectured-julia"
-const SESSIONS_DIR = joinpath(homedir(), ".claude", "projects", PROJECT_SLUG)
+const PROJECTS_ROOT = joinpath(homedir(), ".claude", "projects")
 const OUTPUT_DIR = joinpath(@__DIR__)
+const HISTORY_DIR = joinpath(@__DIR__, "history")
+
+# Inverse-timestamp reference: filenames are prefixed with (REF - mtime) so that
+# newer sessions get a *smaller* key and sort first under ascending name order.
+const SORT_REF = 9_999_999_999
+inv_key(mt::Real) = @sprintf("%010d", SORT_REF - floor(Int, mt))
+# Pinned to the top of each folder (all-zero key sorts before any session key).
+const COMPARISON_NAME = "0000000000-history-comparison.md"
+
+const COST_INPUT   = 5.00   # $/MTok fresh input (Opus 4.6/4.7/4.8)
+const COST_OUTPUT  = 25.00  # $/MTok output
+const COST_CACHE_W = 6.25   # $/MTok cache creation (1.25× input)
+const COST_CACHE_R = 0.50   # $/MTok cache read (0.1× input)
+
+# Claude Code encodes a workspace path into its projects-folder name by
+# replacing every non-alphanumeric character with '-'.
+slugify_path(p::AbstractString) = replace(abspath(String(p)), r"[^A-Za-z0-9]" => "-")
+
+function current_sessions_dir()
+    dir = joinpath(PROJECTS_ROOT, slugify_path(pwd()))
+    if !isdir(dir)
+        available = isdir(PROJECTS_ROOT) ?
+            join(["  " * d for d in readdir(PROJECTS_ROOT)], "\n") : "  (none)"
+        error("No Claude sessions folder for the current directory.\n" *
+              "Expected: $dir\nAvailable projects under $PROJECTS_ROOT:\n$available")
+    end
+    dir
+end
 
 mutable struct SessionMetrics
     label::String
@@ -30,12 +60,18 @@ mutable struct SessionMetrics
     turn_count::Int
     files_read::Dict{String,Int}        # normalized path => read count
     files_edited::Dict{String,Int}      # normalized path => edit count
+    files_read_chars::Dict{String,Int}  # normalized path => total chars from tool_results
+    files_edited_chars::Dict{String,Int}
     tool_counts::Dict{String,Int}       # tool name => count
+    tool_input::Dict{String,Int}        # tool name => sum of effective input across turns
+    tool_output::Dict{String,Int}       # tool name => sum of output across turns
     malformed::Int
 end
 
 SessionMetrics(label, filename) = SessionMetrics(
     label, filename, "", "", 0, 0, 0, 0, 0, -1, 0,
+    Dict{String,Int}(), Dict{String,Int}(),
+    Dict{String,Int}(), Dict{String,Int}(),
     Dict{String,Int}(), Dict{String,Int}(), Dict{String,Int}(), 0
 )
 
@@ -44,14 +80,17 @@ function norm_path(p::AbstractString)
 end
 
 function find_session_title(filepath::String)
+    # A session can carry several ai-title records as the title is refined;
+    # the last one is the current title.
+    latest = ""
     for line in eachline(filepath)
         obj = try JSON3.read(line) catch; continue end
         if string(get(obj, :type, "")) == "ai-title"
             title = get(obj, :aiTitle, nothing)
-            title !== nothing && return String(title)
+            title !== nothing && (latest = String(title))
         end
     end
-    return ""
+    return latest
 end
 
 function parse_session(filepath::String; label::String="")
@@ -60,6 +99,13 @@ function parse_session(filepath::String; label::String="")
     m = SessionMetrics(name, basename(filepath))
     cumulative = 0
     seen_first_edit = false
+
+    # Buffer pending tool_use calls from assistant turns: id => (normalized_path, tool_name)
+    pending_tools = Dict{String,Tuple{String,String}}()
+    # Per-turn token values for tool attribution
+    last_turn_eff_input = 0
+    last_turn_output = 0
+    last_turn_tools = Set{String}()
 
     for line in eachline(filepath)
         isempty(strip(line)) && continue
@@ -71,7 +117,41 @@ function parse_session(filepath::String; label::String="")
             continue
         end
 
-        string(get(obj, :type, "")) == "assistant" || continue
+        record_type = string(get(obj, :type, ""))
+
+        if record_type == "user"
+            # Resolve pending tool_use calls via tool_result blocks
+            msg = get(obj, :message, nothing)
+            msg === nothing && continue
+            content = get(msg, :content, nothing)
+            content === nothing && continue
+            content isa AbstractString && continue
+            for block in content
+                block isa AbstractString && continue
+                string(get(block, :type, "")) == "tool_result" || continue
+                tool_use_id = string(get(block, :tool_use_id, ""))
+                isempty(tool_use_id) && continue
+                haskey(pending_tools, tool_use_id) || continue
+                np, tname = pending_tools[tool_use_id]
+                result_content = get(block, :content, nothing)
+                result_content === nothing && continue
+                chars = if result_content isa AbstractString
+                    length(result_content)
+                elseif result_content isa AbstractVector
+                    sum(length(string(get(sub, :text, ""))) for sub in result_content; init=0)
+                else
+                    0
+                end
+                if tname == "Read"
+                    m.files_read_chars[np] = get(m.files_read_chars, np, 0) + chars
+                elseif tname in ("Edit", "Write")
+                    m.files_edited_chars[np] = get(m.files_edited_chars, np, 0) + chars
+                end
+            end
+            continue
+        end
+
+        record_type == "assistant" || continue
         msg = get(obj, :message, nothing)
         msg === nothing && continue
 
@@ -84,15 +164,26 @@ function parse_session(filepath::String; label::String="")
             branch !== nothing && (m.git_branch = String(branch))
         end
 
+        # Reset per-turn tracking
+        empty!(pending_tools)
+        empty!(last_turn_tools)
+        last_turn_eff_input = 0
+        last_turn_output = 0
+
         usage = get(msg, :usage, nothing)
         if usage !== nothing
             inp = get(usage, :input_tokens, 0)
             outp = get(usage, :output_tokens, 0)
+            cc = get(usage, :cache_creation_input_tokens, 0)
+            cr = get(usage, :cache_read_input_tokens, 0)
             m.total_input += inp
             m.total_output += outp
-            m.cache_creation += get(usage, :cache_creation_input_tokens, 0)
-            m.cache_read += get(usage, :cache_read_input_tokens, 0)
+            m.cache_creation += cc
+            m.cache_read += cr
             cumulative += inp + outp
+
+            last_turn_eff_input = inp + cc + cr
+            last_turn_output = outp
 
             if !seen_first_edit
                 m.discovery_cost = cumulative
@@ -106,27 +197,38 @@ function parse_session(filepath::String; label::String="")
 
         for block in content
             get(block, :type, nothing) == "tool_use" || continue
-            name = String(get(block, :name, "unknown"))
-            m.tool_counts[name] = get(m.tool_counts, name, 0) + 1
+            tname = String(get(block, :name, "unknown"))
+            m.tool_counts[tname] = get(m.tool_counts, tname, 0) + 1
+            push!(last_turn_tools, tname)
 
             input = get(block, :input, nothing)
             input === nothing && continue
 
-            if name == "Read"
+            tool_id = string(get(block, :id, ""))
+
+            if tname == "Read"
                 fp = get(input, :file_path, nothing)
                 fp !== nothing || continue
                 np = norm_path(fp)
                 m.files_read[np] = get(m.files_read, np, 0) + 1
-            elseif name in ("Edit", "Write")
+                !isempty(tool_id) && (pending_tools[tool_id] = (np, tname))
+            elseif tname in ("Edit", "Write")
                 fp = get(input, :file_path, nothing)
                 fp !== nothing || continue
                 np = norm_path(fp)
                 m.files_edited[np] = get(m.files_edited, np, 0) + 1
+                !isempty(tool_id) && (pending_tools[tool_id] = (np, tname))
                 if !seen_first_edit
                     seen_first_edit = true
                     m.first_code_offset = cumulative
                 end
             end
+        end
+
+        # Attribute turn tokens to each tool used in this turn
+        for tname in last_turn_tools
+            m.tool_input[tname] = get(m.tool_input, tname, 0) + last_turn_eff_input
+            m.tool_output[tname] = get(m.tool_output, tname, 0) + last_turn_output
         end
     end
 
@@ -153,13 +255,50 @@ function fmt(n::Int)
     join(reverse(parts), ",")
 end
 
+function fmt_cost(dollars::Float64)
+    @sprintf("\$%.2f", dollars)
+end
+
+function cost_mtok(tokens::Int, rate::Float64)
+    tokens / 1_000_000 * rate
+end
+
+function est_tokens(chars::Int)
+    div(chars, 4)
+end
+
+function session_cost(m::SessionMetrics)
+    cost_mtok(m.total_input, COST_INPUT) +
+    cost_mtok(m.total_output, COST_OUTPUT) +
+    cost_mtok(m.cache_creation, COST_CACHE_W) +
+    cost_mtok(m.cache_read, COST_CACHE_R)
+end
+
 function short_path(p::AbstractString)
     idx = findfirst("projectured-julia/", p)
     idx !== nothing ? p[first(idx)+length("projectured-julia/"):end] : p
 end
 
+# Build a filesystem-safe stem from a session title: keep the first 3 words
+# whole, truncate each later word to 4 chars, then restrict to [A-Za-z0-9-].
+function condense_title(title::AbstractString; fallback::AbstractString="")
+    words = split(strip(title))
+    if isempty(words)
+        title = fallback
+        words = split(strip(title))
+    end
+    parts = String[]
+    for (i, w) in enumerate(words)
+        push!(parts, i <= 3 ? String(w) : String(w)[1:min(end, 4)])
+    end
+    name = join(parts, "-")
+    name = replace(name, r"[^A-Za-z0-9-]" => "-")   # only alnum and '-'
+    name = replace(name, r"-+" => "-")              # collapse runs
+    name = strip(name, '-')
+    isempty(name) ? "session" : name
+end
+
 function write_session_section(io, m::SessionMetrics)
-    total = m.total_input + m.total_output
     read_count = length(m.files_read)
     edit_count = length(m.files_edited)
     irrelevant = setdiff(keys(m.files_read), keys(m.files_edited))
@@ -177,65 +316,96 @@ function write_session_section(io, m::SessionMetrics)
     effective_input = m.total_input + m.cache_creation + m.cache_read
     effective_total = effective_input + m.total_output
 
+    cost_fresh = cost_mtok(m.total_input, COST_INPUT)
+    cost_output = cost_mtok(m.total_output, COST_OUTPUT)
+    cost_cache_w = cost_mtok(m.cache_creation, COST_CACHE_W)
+    cost_cache_r = cost_mtok(m.cache_read, COST_CACHE_R)
+    total_cost = cost_fresh + cost_output + cost_cache_w + cost_cache_r
+    output_cost_pct = total_cost > 0 ? 100.0 * cost_output / total_cost : 0.0
+
     println(io, "### Token Usage\n")
-    println(io, "| Metric | Value | Notes |")
-    println(io, "|---|---:|---|")
-    println(io, "| **Effective total** | **$(fmt(effective_total))** | input (all sources) + output |")
-    println(io, "| Effective input | $(fmt(effective_input)) | fresh + cache creation + cache read |")
-    println(io, "| Output | $(fmt(m.total_output)) | |")
-    println(io, "| Fresh input | $(fmt(m.total_input)) | non-cached input tokens |")
-    println(io, "| Cache creation | $(fmt(m.cache_creation)) | new cache entries |")
-    println(io, "| Cache read | $(fmt(m.cache_read)) | reused from cache |")
-    println(io, "| Cache hit rate | $(pct(m.cache_read, effective_input)) | cache read / effective input |")
-    println(io, "| Discovery cost | $(fmt(m.discovery_cost)) | output tokens before first Edit/Write |")
+    println(io, "| Metric | Value | \$/MTok | Rel. Weight | Est. Cost | Notes |")
+    println(io, "|---|---:|---:|---:|---:|---|")
+    println(io, "| **Effective total** | **$(fmt(effective_total))** | | | **$(fmt_cost(total_cost))** | input (all sources) + output |")
+    println(io, "| Output | $(fmt(m.total_output)) | \$25.00 | **5.0×** | $(fmt_cost(cost_output)) | most expensive |")
+    println(io, "| Fresh input | $(fmt(m.total_input)) | \$5.00 | 1.0× | $(fmt_cost(cost_fresh)) | non-cached input tokens |")
+    println(io, "| Cache creation | $(fmt(m.cache_creation)) | \$6.25 | 1.25× | $(fmt_cost(cost_cache_w)) | new cache entries |")
+    println(io, "| Cache read | $(fmt(m.cache_read)) | \$0.50 | 0.1× | $(fmt_cost(cost_cache_r)) | cheapest |")
+    println(io, "| Effective input | $(fmt(effective_input)) | | | | fresh + cache creation + cache read |")
+    println(io, "| Cache hit rate | $(pct(m.cache_read, effective_input)) | | | | cache read / effective input |")
+    println(io, "| Discovery cost | $(fmt(m.discovery_cost)) | | | | tokens before first Edit/Write |")
     println(io)
+    println(io, "> **Budget impact:** $(fmt_cost(total_cost)) — output tokens account for $(@sprintf("%.0f", output_cost_pct))% of cost\n")
 
     println(io, "### Activity\n")
-    println(io, "| Metric | Count |")
-    println(io, "|---|---:|")
-    println(io, "| Assistant turns | $(m.turn_count) |")
-    println(io, "| Files read | $read_count |")
-    println(io, "| Files edited | $edit_count |")
-    println(io, "| Irrelevant reads ≈ | $(length(irrelevant)) |")
-    println(io, "| Multi-edited ≈ | $multi_edited |")
+    println(io, "| Metric | Count | Eff. Input | Output |")
+    println(io, "|---|---:|---:|---:|")
+    println(io, "| Assistant turns | $(m.turn_count) | $(fmt(effective_input)) | $(fmt(m.total_output)) |")
+    println(io, "| Files read | $read_count | | |")
+    println(io, "| Files edited | $edit_count | | |")
+    println(io, "| Irrelevant reads ≈ | $(length(irrelevant)) | | |")
+    println(io, "| Multi-edited ≈ | $multi_edited | | |")
     if m.first_code_offset >= 0
-        println(io, "| First code at token | $(fmt(m.first_code_offset)) |")
+        println(io, "| First code at token | $(fmt(m.first_code_offset)) | | |")
     end
     println(io)
 
     println(io, "### Tool Calls\n")
-    println(io, "| Tool | Count |")
-    println(io, "|---|---:|")
-    for name in sort(collect(keys(m.tool_counts)))
-        println(io, "| $name | $(m.tool_counts[name]) |")
+    println(io, "| Tool | Count | Eff. Input ≈ | Output ≈ |")
+    println(io, "|---|---:|---:|---:|")
+    for tname in sort(collect(keys(m.tool_counts)))
+        ti = fmt(get(m.tool_input, tname, 0))
+        to = fmt(get(m.tool_output, tname, 0))
+        println(io, "| $tname | $(m.tool_counts[tname]) | $ti | $to |")
     end
     println(io)
 
+    # Files Read — table inside <details>
     println(io, "### Files Read\n")
     read_paths = sort(collect(keys(m.files_read)))
-    println(io, "<details><summary>$(length(read_paths)) files</summary>\n")
+    total_read_est = sum(est_tokens(get(m.files_read_chars, p, 0)) for p in read_paths; init=0)
+    total_read_cost = cost_mtok(total_read_est, COST_CACHE_R)
+    println(io, "<details><summary>$(length(read_paths)) files, ~$(fmt(total_read_est)) est. tokens, ~$(fmt_cost(total_read_cost))</summary>\n")
+    println(io, "| File | Reads | Est. Tokens | Est. Cost |")
+    println(io, "|---|---:|---:|---:|")
     for p in read_paths
         cnt = m.files_read[p]
-        suffix = cnt > 1 ? " (×$cnt)" : ""
-        println(io, "- $(short_path(p))$suffix")
+        chars = get(m.files_read_chars, p, 0)
+        toks = est_tokens(chars)
+        println(io, "| $(short_path(p)) | $cnt | $(fmt(toks)) | $(fmt_cost(cost_mtok(toks, COST_CACHE_R))) |")
     end
     println(io, "\n</details>\n")
 
+    # Files Edited — table inside <details>
     println(io, "### Files Edited\n")
     edit_paths = sort(collect(keys(m.files_edited)))
-    println(io, "<details><summary>$(length(edit_paths)) files</summary>\n")
+    total_edit_est = sum(est_tokens(get(m.files_edited_chars, p, 0)) for p in edit_paths; init=0)
+    total_edit_cost = cost_mtok(total_edit_est, COST_CACHE_R)
+    println(io, "<details><summary>$(length(edit_paths)) files, ~$(fmt(total_edit_est)) est. tokens, ~$(fmt_cost(total_edit_cost))</summary>\n")
+    println(io, "| File | Edits | Est. Tokens | Est. Cost |")
+    println(io, "|---|---:|---:|---:|")
     for p in edit_paths
         cnt = m.files_edited[p]
-        suffix = cnt > 1 ? " (×$cnt)" : ""
-        println(io, "- $(short_path(p))$suffix")
+        chars = get(m.files_edited_chars, p, 0)
+        toks = est_tokens(chars)
+        println(io, "| $(short_path(p)) | $cnt | $(fmt(toks)) | $(fmt_cost(cost_mtok(toks, COST_CACHE_R))) |")
     end
     println(io, "\n</details>\n")
 
+    # Irrelevant Reads — table inside <details>
     if !isempty(irrelevant)
         println(io, "### Irrelevant Reads (approx)\n")
-        println(io, "<details><summary>$(length(irrelevant)) files read but never edited</summary>\n")
-        for p in sort(collect(irrelevant))
-            println(io, "- $(short_path(p))")
+        irr_sorted = sort(collect(irrelevant))
+        total_irr_est = sum(est_tokens(get(m.files_read_chars, p, 0)) for p in irr_sorted; init=0)
+        total_irr_cost = cost_mtok(total_irr_est, COST_CACHE_R)
+        println(io, "<details><summary>$(length(irr_sorted)) files read but never edited, ~$(fmt(total_irr_est)) est. tokens wasted, ~$(fmt_cost(total_irr_cost))</summary>\n")
+        println(io, "| File | Reads | Est. Tokens | Est. Cost |")
+        println(io, "|---|---:|---:|---:|")
+        for p in irr_sorted
+            cnt = get(m.files_read, p, 0)
+            chars = get(m.files_read_chars, p, 0)
+            toks = est_tokens(chars)
+            println(io, "| $(short_path(p)) | $cnt | $(fmt(toks)) | $(fmt_cost(cost_mtok(toks, COST_CACHE_R))) |")
         end
         println(io, "\n</details>\n")
     end
@@ -264,6 +434,8 @@ function write_comparison(io, sessions::Vector{SessionMetrics})
         ("Fresh input", [fmt(s.total_input) for s in sessions]),
         ("Cache creation", [fmt(s.cache_creation) for s in sessions]),
         ("Cache read", [fmt(s.cache_read) for s in sessions]),
+        ("Cache hit rate", [pct(s.cache_read, s.total_input + s.cache_creation + s.cache_read) for s in sessions]),
+        ("**Est. Cost**", ["**$(fmt_cost(session_cost(s)))**" for s in sessions]),
         ("Discovery cost", [fmt(s.discovery_cost) for s in sessions]),
         ("First code at token", [fmt(s.first_code_offset) for s in sessions]),
         ("Assistant turns", [string(s.turn_count) for s in sessions]),
@@ -279,10 +451,9 @@ function write_comparison(io, sessions::Vector{SessionMetrics})
     println(io)
 end
 
-function resolve_latest(n::Int)
-    isdir(SESSIONS_DIR) || error("Sessions directory not found: $SESSIONS_DIR")
-    files = filter(f -> endswith(f, ".jsonl"), readdir(SESSIONS_DIR; join=true))
-    isempty(files) && error("No JSONL files found in $SESSIONS_DIR")
+function resolve_latest(n::Int, sessions_dir::AbstractString=current_sessions_dir())
+    files = filter(f -> endswith(f, ".jsonl"), readdir(sessions_dir; join=true))
+    isempty(files) && error("No JSONL files found in $sessions_dir")
     sort!(files; by=mtime, rev=true)
     n = min(n, length(files))
 
@@ -296,7 +467,123 @@ function resolve_latest(n::Int)
     result
 end
 
+function write_single_report(io, m::SessionMetrics, source::AbstractString)
+    println(io, "# Session Analysis Report\n")
+    println(io, "**Generated:** $(Dates.format(now(), "yyyy-mm-dd HH:MM"))")
+    println(io, "**Source:** `$source`\n")
+    println(io, "---\n")
+    write_session_section(io, m)
+end
+
+basename_path(p::AbstractString) =
+    isempty(strip(p)) ? "" : String(last(split(strip(String(p)), r"[/\\]"; keepempty=false)))
+
+# Subfolder for a session: its workspace folder name, else branch, else "unknown".
+function session_group(m::SessionMetrics)
+    g = basename_path(m.workspace)
+    isempty(g) && (g = m.git_branch)
+    isempty(g) && (g = "unknown")
+    g = replace(g, r"[^A-Za-z0-9-]" => "-")
+    strip(replace(g, r"-+" => "-"), '-')
+end
+
+# One row of the comparison tables.
+struct HistoryRow
+    m::SessionMetrics
+    rel::String     # path relative to HISTORY_DIR, '/'-separated
+    group::String
+    mt::Float64     # source .jsonl mtime, for ordering
+end
+
+function write_comparison(path::AbstractString, rows::Vector{HistoryRow}, title::AbstractString; link_fn)
+    sorted = sort(rows; by=r -> r.mt, rev=true)   # hottest (most recently changed) first
+    open(path, "w") do io
+        println(io, "# $title\n")
+        println(io, "**Generated:** $(Dates.format(now(), "yyyy-mm-dd HH:MM"))")
+        println(io, "**Sessions:** $(length(sorted))  (ordered by last change, newest first)\n")
+        println(io, "| Session | Last change | Group | Eff. total | Output | Discovery | Turns | Read | Edited | Est. Cost |")
+        println(io, "|---|---|---|---:|---:|---:|---:|---:|---:|---:|")
+        for r in sorted
+            m = r.m
+            eff = m.total_input + m.cache_creation + m.cache_read + m.total_output
+            changed = Dates.format(unix2datetime(r.mt), "yyyy-mm-dd HH:MM")
+            link = "[$(m.label)]($(link_fn(r)))"
+            println(io, "| $link | $changed | `$(r.group)` | $(fmt(eff)) | $(fmt(m.total_output)) | " *
+                        "$(fmt(m.discovery_cost)) | $(m.turn_count) | " *
+                        "$(length(m.files_read)) | $(length(m.files_edited)) | $(fmt_cost(session_cost(m))) |")
+        end
+    end
+end
+
+# Sweep every Claude project folder and write one report per session into
+# session/history/<group>/, plus a per-group history-comparison.md and a
+# top-level history-comparison.md covering all sessions. A session report is
+# regenerated only when its source .jsonl is newer than the existing report.
+function run_history()
+    isdir(PROJECTS_ROOT) || error("Projects root not found: $PROJECTS_ROOT")
+    mkpath(HISTORY_DIR)
+
+    used_rels = Set{String}()
+    rows = HistoryRow[]
+
+    for proj in sort(readdir(PROJECTS_ROOT))
+        projdir = joinpath(PROJECTS_ROOT, proj)
+        isdir(projdir) || continue
+        for f in sort(filter(x -> endswith(x, ".jsonl"), readdir(projdir; join=true)))
+            session_id = first(splitext(basename(f)))
+            m = parse_session(f)
+            group = session_group(m)
+            mt = mtime(f)
+            stem = condense_title(m.label; fallback=session_id)
+            # Prefix: inverse-time sort key + the readable last-alive datetime, so
+            # the folder lists newest-first while the real time stays visible.
+            last_alive = Dates.format(unix2datetime(mt), "yyyymmdd-HHMMSS")
+            stem = "$(inv_key(mt))-$last_alive-$stem"
+            # Disambiguate filename collisions within the group.
+            fname = "$stem.md"
+            if "$group/$fname" in used_rels
+                fname = "$stem-$(first(session_id, 8)).md"
+            end
+            rel = "$group/$fname"
+            push!(used_rels, rel)
+
+            report = joinpath(HISTORY_DIR, group, fname)
+            mkpath(dirname(report))
+            if isfile(report) && mtime(report) >= mt
+                println(stderr, "Up to date: $rel")
+            else
+                open(report, "w") do io
+                    write_single_report(io, m, f)
+                end
+                println(stderr, "Wrote $rel")
+            end
+            push!(rows, HistoryRow(m, rel, group, mt))
+        end
+    end
+
+    isempty(rows) && (println(stderr, "No sessions found under $PROJECTS_ROOT"); return)
+
+    # Per-group comparison (related sessions only), links relative to the group folder.
+    for group in sort(unique(r.group for r in rows))
+        group_rows = filter(r -> r.group == group, rows)
+        write_comparison(joinpath(HISTORY_DIR, group, COMPARISON_NAME), group_rows,
+            "Session History — $group"; link_fn = r -> basename(r.rel))
+    end
+
+    # Top-level comparison across all sessions, links into the group subfolders.
+    cmp = joinpath(HISTORY_DIR, COMPARISON_NAME)
+    write_comparison(cmp, rows, "Session History Comparison (all)"; link_fn = r -> r.rel)
+
+    println(stderr, "Comparison written to $cmp")
+    println(cmp)
+end
+
 function main()
+    if "--history" in ARGS
+        run_history()
+        return
+    end
+
     args = copy(ARGS)
     entries = Tuple{String,String}[]  # (label, path)
 
@@ -328,6 +615,7 @@ function main()
           julia --project=program session/analyze-session.jl --latest 2
           julia --project=program session/analyze-session.jl path/to/session.jsonl [...]
           julia --project=program session/analyze-session.jl --name control path1.jsonl --name concepts path2.jsonl
+          julia --project=program session/analyze-session.jl --history
         """)
         exit(1)
     end
@@ -342,8 +630,14 @@ function main()
         push!(sessions, parse_session(p; label))
     end
 
-    timestamp = Dates.format(now(), "yyyymmdd-HHMMSS")
-    outpath = joinpath(OUTPUT_DIR, "report-$timestamp.md")
+    # Name: <inv-key>-<last-alive>-<condensed primary title>, matching the
+    # history scheme: prefix by the newest session's last-alive time so reports
+    # sort newest-first, with the readable datetime kept in the name.
+    mt = maximum(mtime(p) for (_, p) in entries)
+    last_alive = Dates.format(unix2datetime(mt), "yyyymmdd-HHMMSS")
+    stem = condense_title(sessions[1].label; fallback="report")
+    length(sessions) > 1 && (stem *= "-plus$(length(sessions) - 1)")
+    outpath = joinpath(OUTPUT_DIR, "$(inv_key(mt))-$last_alive-$stem.md")
 
     open(outpath, "w") do io
         println(io, "# Session Analysis Report\n")
