@@ -174,7 +174,8 @@ In the example layer this is wired up for you — see `play_live_example` and
   injection.
 - The `ConsoleBackend` consumes the **Text** domain directly (no
   `TextToGraphics`): its `write_to_devices` renders a `TextText` to the terminal
-  with ANSI colors and a reverse-video selection highlight, and
+  with ANSI colors, the selection encoded as inverse-video span colors by a
+  `SelectionInverting` projection at the end of the pipeline, and
   `read_from_devices` turns keystrokes into the same `KeyDown`/`KeyPress`/
   `QuitEvent` events. Because it has no screen/window layer, its pipeline adds an
   `EnvelopeUnwrappingProjection` to strip the `EventEnvelope` that

@@ -93,7 +93,9 @@ a `TextText` rather than a `ScreenDocument`. Highlights:
 
 - `write_to_devices` flattens the spans to a character stream, preserving each
   span's `font_color`/`fill_color` as 24-bit ANSI SGR codes (set `ansi=false`
-  for plain output). The selection is reverse-video highlighted.
+  for plain output). The selection is shown as inverse-video span colors baked
+  in by the `SelectionInverting` projection at the end of the console pipeline,
+  so the backend itself just emits each span's colors.
 - `read_from_devices` polls `backend.input` (default `stdin`) non-blockingly and
   translates terminal bytes — printable chars, `ESC[` arrow/Home/End/Delete
   sequences, Enter/Backspace/Tab, Ctrl-Space, Ctrl-C — into the same

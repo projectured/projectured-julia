@@ -23,6 +23,9 @@ function make_json_console_projection_example()
         SequentialProjection(
             RecursiveProjection(JsonToSyntax()),
             RecursiveProjection(SyntaxToText()),
+            # Bake the selection into the spans as inverse video so the dumb
+            # console renderer shows it (no separate cursor/highlight layer).
+            SelectionInverting(),
         )
     )
 end

@@ -23,7 +23,9 @@ this backend drives — is:
   - **`Ctrl+Space`** toggles structural ⇄ text-cursor selection.
   - **`Ctrl+C`** quits.
 
-The selection is shown by reverse-video highlighting the corresponding span(s).
+The selection is shown as inverse-video span colors, baked into the spans by the
+`SelectionInverting` projection at the end of the console pipeline (the backend
+itself no longer resolves the selection or emits a reverse-video attribute).
 """
 module ConsoleBackendModule
 
@@ -36,7 +38,6 @@ import ..ModifiersModule: Modifiers
 import ..KeyboardModule: KeyDown, KeyPress
 import ..ScreenModule: QuitEvent
 import ..ScreenDocumentModule: EventEnvelope
-import ..ReferenceModule: ConcreteReferencePath, EmptyReferencePath, RangeReference, FieldReference, TextRectangularReference, ReferencePath
 
 export ConsoleBackend, console_render
 
@@ -138,7 +139,6 @@ measure_text(::ConsoleBackend, text::AbstractString, font) = (length(text), 1)
 
 const _ANSI_RESET = "\e[0m"
 const _ANSI_CLEAR_HOME = "\e[2J\e[H"
-const _ANSI_REVERSE = "\e[7m"
 
 _component(x::Float64)::Int = clamp(round(Int, x * 255), 0, 255)
 
@@ -154,66 +154,20 @@ _sgr_background(c::StyleColor) =
 # typical terminal — so map it to the terminal's own foreground (no code).
 _meaningful_foreground(c) = c isa StyleColor && !color_equal(c, color_default)
 
-# ── Selection → flat highlight range ──────────────────────────────────────
-
-# The flat length a span contributes to the rendered character stream, matching
-# how the selection's offsets are counted: TextString → its content length,
-# TextNewline / TextSpacing → 1, anything else → 0.
-_flat_length(span::TextString) = length(span.content::AbstractString)
-_flat_length(::TextNewline) = 1
-_flat_length(::TextSpacing) = 1
-_flat_length(::TextDocument) = 0
-
-# Resolve the output `TextText`'s selection to a flat half-open char range
-# `(start, stop)` over the rendered stream, plus an `is_cursor` flag (a
-# zero-width caret). Returns `nothing` when there is no renderable selection.
-#
-# Two shapes occur, both with 0-based offsets:
-#   • whole-element: top-level `TextRectangularReference(a, b)`, an already-flat
-#     character range over the concatenated text;
-#   • text cursor: `.elements[i].content{a:b}` — add the i-th span's base offset.
-function _selection_flat(text::TextText)
-    sel = text.selection
-    sel isa ConcreteReferencePath || return nothing
-    h = sel.head
-    if h isa TextRectangularReference && sel.tail isa EmptyReferencePath
-        return (h.start, h.stop, h.start == h.stop)
-    end
-    return _text_cursor_flat(text, sel)
-end
-
-function _text_cursor_flat(text::TextText, sel::ConcreteReferencePath)
-    (sel.head isa FieldReference && sel.head.name == "elements") || return nothing
-    t1 = sel.tail
-    t1 isa ConcreteReferencePath && t1.head isa RangeReference || return nothing
-    span_idx = t1.head.start + 1   # 1-based span index
-    t2 = t1.tail
-    t2 isa ConcreteReferencePath && t2.head isa FieldReference && t2.head.name == "content" || return nothing
-    t3 = t2.tail
-    t3 isa ConcreteReferencePath && t3.head isa RangeReference || return nothing
-    a, b = t3.head.start, t3.head.stop
-    elements = text.elements
-    (1 <= span_idx <= length(elements)) || return nothing
-    base = 0
-    for i in 1:(span_idx - 1)
-        base += _flat_length(elements[i])
-    end
-    return (base + a, base + b, a == b)
-end
-
 # ── Rendering ────────────────────────────────────────────────────────────
+#
+# The console backend is "dumb": it emits each span's foreground + background
+# colors and nothing else. The selection highlight (inverse-video over the
+# selected range, plus the widened block caret) is baked into the span colors
+# upstream by the `SelectionInverting` projection at the end of the console
+# pipeline, so there is no selection-resolution or reverse-video logic here.
 
-# Emit a slice of text with the span's colors and, when `reverse` is set, the
-# reverse-video attribute (used for the selection highlight). A fresh reset
-# closes the slice so attributes don't bleed into the next one.
-function _emit_slice!(buf::IO, backend::ConsoleBackend, s::AbstractString,
-                      fg, bg, reverse::Bool)
+# Emit a slice of text with the span's colors. A fresh reset closes the slice
+# so attributes don't bleed into the next one.
+function _emit_slice!(buf::IO, backend::ConsoleBackend, s::AbstractString, fg, bg)
     isempty(s) && return
     if backend.ansi
         styled = false
-        if reverse
-            print(buf, _ANSI_REVERSE); styled = true
-        end
         if _meaningful_foreground(fg)
             print(buf, _sgr_foreground(fg::StyleColor)); styled = true
         end
@@ -228,67 +182,37 @@ function _emit_slice!(buf::IO, backend::ConsoleBackend, s::AbstractString,
     return
 end
 
-# Render one span starting at flat offset `base`, reverse-highlighting the part
-# that overlaps the half-open flat range `hl` (or nothing). Returns the flat
-# offset after this span.
-function _render_span!(buf::IO, backend::ConsoleBackend, span::TextString,
-                       base::Int, hl)
+# Render one span: emit its content with its own foreground/background colors.
+function _render_span!(buf::IO, backend::ConsoleBackend, span::TextString)
     content = span.content::AbstractString
-    L = length(content)
-    if isempty(content)
-        return base
-    end
-    fg = span.font_color
-    bg = span.fill_color
-    if hl === nothing || !backend.ansi
-        _emit_slice!(buf, backend, content, fg, bg, false)
-        return base + L
-    end
-    hs, he = hl
-    # Overlap of [hs, he) with this span's [base, base+L), in span-local chars.
-    lo = clamp(hs - base, 0, L)
-    hi = clamp(he - base, 0, L)
-    chars = collect(content)
-    _emit_slice!(buf, backend, String(chars[1:lo]), fg, bg, false)
-    _emit_slice!(buf, backend, String(chars[lo+1:hi]), fg, bg, true)
-    _emit_slice!(buf, backend, String(chars[hi+1:end]), fg, bg, false)
-    return base + L
+    isempty(content) && return
+    _emit_slice!(buf, backend, content, span.font_color, span.fill_color)
+    return
 end
 
-function _render_span!(buf::IO, ::ConsoleBackend, ::TextNewline, base::Int, hl)
-    print(buf, '\n')
-    return base + 1
-end
+_render_span!(buf::IO, ::ConsoleBackend, ::TextNewline) = (print(buf, '\n'); nothing)
 
-function _render_span!(buf::IO, ::ConsoleBackend, ::TextSpacing, base::Int, hl)
-    # Span size is in pixels; there is no exact character-cell equivalent.
-    # Approximate horizontal spacing with a single space; ignore non-pixel units.
-    print(buf, ' ')
-    return base + 1
-end
+# Span size is in pixels; there is no exact character-cell equivalent.
+# Approximate horizontal spacing with a single space; ignore non-pixel units.
+_render_span!(buf::IO, ::ConsoleBackend, ::TextSpacing) = (print(buf, ' '); nothing)
 
 # Embedded graphics have no text representation — render nothing.
-_render_span!(::IO, ::ConsoleBackend, ::TextGraphics, base::Int, hl) = base
+_render_span!(::IO, ::ConsoleBackend, ::TextGraphics) = nothing
 # Fallback for any other span type: ignore it rather than crash.
-_render_span!(::IO, ::ConsoleBackend, ::TextDocument, base::Int, hl) = base
+_render_span!(::IO, ::ConsoleBackend, ::TextDocument) = nothing
 
 """
     console_render(backend::ConsoleBackend, text::TextText)
 
-Flatten `text`'s spans into a (optionally colored) character stream — with the
-current selection reverse-video highlighted — and write it to `backend.io` in a
-single flush.
+Flatten `text`'s spans into a (optionally colored) character stream and write it
+to `backend.io` in a single flush. The selection highlight is expected to be
+already encoded in the span colors (by `SelectionInverting`).
 """
 function console_render(backend::ConsoleBackend, text::TextText)
     buf = IOBuffer()
     backend.ansi && backend.clear && print(buf, _ANSI_CLEAR_HOME)
-    sel = _selection_flat(text)
-    # A zero-width cursor is widened to a one-char block so it is visible.
-    hl = sel === nothing ? nothing :
-         sel[3] ? (sel[1], sel[1] + 1) : (sel[1], sel[2])
-    base = 0
     for span in text.elements
-        base = _render_span!(buf, backend, span, base, hl)
+        _render_span!(buf, backend, span)
     end
     frame = String(take!(buf))
     # Skip the write when the frame is identical to the last one. The editor's
