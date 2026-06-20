@@ -27,7 +27,11 @@ function _drive_console(bytes::Vector{UInt8}, steps::Int)
 end
 
 # Render `doc` (with whatever selection it carries) and return the concatenated
-# text inside reverse-video (selection-highlight) regions, SGR codes stripped.
+# text inside selection-highlight regions, SGR codes stripped. The selection is
+# now baked in as inverse video by `SelectionInverting`: the highlighted slice
+# carries an explicit background color (`\e[48;2;…m`), which the plain JSON spans
+# (font color only, no fill) do not, so a background-coded run marks the
+# selection.
 function _highlighted(doc)
     proj = make_json_console_projection_example()
     io = IOBuffer()
@@ -36,8 +40,11 @@ function _highlighted(doc)
     write_to_devices(backend, Device[], out)
     s = String(take!(io))
     rev = ""
-    for m in eachmatch(r"\e\[7m(.*?)\e\[0m"s, s)
-        rev *= replace(m.captures[1], r"\e\[[0-9;]*m" => "")
+    # Each styled slice is `<sgr codes>text\e[0m`; keep the ones whose codes
+    # include a background color.
+    for m in eachmatch(r"((?:\e\[[0-9;]*m)+)(.*?)\e\[0m"s, s)
+        occursin(r"\e\[48;2;", m.captures[1]) || continue
+        rev *= replace(m.captures[2], r"\e\[[0-9;]*m" => "")
     end
     return rev
 end
