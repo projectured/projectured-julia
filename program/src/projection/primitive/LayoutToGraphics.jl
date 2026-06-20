@@ -82,6 +82,14 @@ function _route_to_children(child_entries::Vector, x::Int, y::Int, make_evt)
         ox = Int(ox_cell[])
         oy = Int(oy_cell[])
         lx, ly = x - ox - Int(canvas.x), y - oy - Int(canvas.y)
+        # Bound the hit to this child's own box. `GraphicsText` carries no width
+        # (the backend measures it at draw time), so `hit_element_at` leaves a
+        # text element's right/bottom edge open — which in a row layout lets the
+        # leftmost child greedily capture every click to its right. The child
+        # canvas's `w`/`h` give the missing bound, so each child owns exactly its
+        # laid-out box and a click resolves to the child actually under it.
+        cw, ch = Int(canvas.w[]), Int(canvas.h[])
+        (0 <= lx < cw && 0 <= ly < ch) || continue
         hit_element_at(canvas, lx, ly) === nothing && continue
         result = projection_read(cim.projection, cim, make_evt(lx, ly))
         result !== nothing && return (result, i)
