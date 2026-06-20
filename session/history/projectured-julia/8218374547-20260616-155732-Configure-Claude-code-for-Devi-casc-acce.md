@@ -1,6 +1,6 @@
 # Session Analysis Report
 
-**Generated:** 2026-06-20 14:50
+**Generated:** 2026-06-20 19:55
 **Source:** `C:\Users\balin\.claude\projects\c--Users-balin-gitworkspace-projectured-julia\0fb9970f-dbbe-429c-826f-0dd06e39559d.jsonl`
 
 ---
@@ -9,20 +9,22 @@
 
 Source: `0fb9970f-dbbe-429c-826f-0dd06e39559d.jsonl` | Workspace: `c:\Users\balin\gitworkspace\projectured-julia` | Branch: `database`
 
+> **Cost basis:** subscription-amortized, not API list price. Subscription $20/mo (`--subscription`, default $20) → weekly budget $4.67 (÷ 4.286 wk/mo). Weight = weekly budget ÷ *estimated* weekly usage $371.52 = **×0.0126**. Est. Cost below is this weight applied to list price.
+
 ### Token Usage
 
 | Metric | Value | $/MTok | Rel. Weight | Est. Cost | Notes |
 |---|---:|---:|---:|---:|---|
-| **Effective total** | **109,568** | | | **$0.12** | input (all sources) + output |
-| Output | 675 | $25.00 | **5.0×** | $0.02 | most expensive |
+| **Effective total** | **109,568** | | | **$0.00** | input (all sources) + output |
+| Output | 675 | $25.00 | **5.0×** | $0.00 | most expensive |
 | Fresh input | 12 | $5.00 | 1.0× | $0.00 | non-cached input tokens |
-| Cache creation | 9,133 | $6.25 | 1.25× | $0.06 | new cache entries |
-| Cache read | 99,748 | $0.50 | 0.1× | $0.05 | cheapest |
+| Cache creation | 9,133 | $6.25 | 1.25× | $0.00 | new cache entries |
+| Cache read | 99,748 | $0.50 | 0.1× | $0.00 | cheapest |
 | Effective input | 108,893 | | | | fresh + cache creation + cache read |
 | Cache hit rate | 91.6% | | | | cache read / effective input |
 | Discovery cost | 687 | | | | tokens before first Edit/Write |
 
-> **Budget impact:** $0.12 — output tokens account for 14% of cost
+> **Budget impact:** $0.00 — output tokens account for 14% of cost
 
 ### Activity
 

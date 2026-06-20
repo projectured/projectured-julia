@@ -1,6 +1,6 @@
 # Session Analysis Report
 
-**Generated:** 2026-06-20 14:50
+**Generated:** 2026-06-20 19:55
 **Source:** `C:\Users\balin\.claude\projects\c--Users-balin-gitworkspace-projectured-julia\62b7a678-2398-4d31-945d-7aaf6d964044.jsonl`
 
 ---
@@ -9,20 +9,22 @@
 
 Source: `62b7a678-2398-4d31-945d-7aaf6d964044.jsonl` | Workspace: `c:\Users\balin\gitworkspace\projectured-julia` | Branch: `database`
 
+> **Cost basis:** subscription-amortized, not API list price. Subscription $20/mo (`--subscription`, default $20) → weekly budget $4.67 (÷ 4.286 wk/mo). Weight = weekly budget ÷ *estimated* weekly usage $371.52 = **×0.0126**. Est. Cost below is this weight applied to list price.
+
 ### Token Usage
 
 | Metric | Value | $/MTok | Rel. Weight | Est. Cost | Notes |
 |---|---:|---:|---:|---:|---|
-| **Effective total** | **2,946,752** | | | **$3.64** | input (all sources) + output |
-| Output | 20,984 | $25.00 | **5.0×** | $0.52 | most expensive |
+| **Effective total** | **2,946,752** | | | **$0.05** | input (all sources) + output |
+| Output | 20,984 | $25.00 | **5.0×** | $0.01 | most expensive |
 | Fresh input | 118 | $5.00 | 1.0× | $0.00 | non-cached input tokens |
-| Cache creation | 288,164 | $6.25 | 1.25× | $1.80 | new cache entries |
-| Cache read | 2,637,486 | $0.50 | 0.1× | $1.32 | cheapest |
+| Cache creation | 288,164 | $6.25 | 1.25× | $0.02 | new cache entries |
+| Cache read | 2,637,486 | $0.50 | 0.1× | $0.02 | cheapest |
 | Effective input | 2,925,768 | | | | fresh + cache creation + cache read |
 | Cache hit rate | 90.1% | | | | cache read / effective input |
 | Discovery cost | 7,069 | | | | tokens before first Edit/Write |
 
-> **Budget impact:** $3.64 — output tokens account for 14% of cost
+> **Budget impact:** $0.05 — output tokens account for 14% of cost
 
 ### Activity
 
@@ -49,12 +51,12 @@ Source: `62b7a678-2398-4d31-945d-7aaf6d964044.jsonl` | Workspace: `c:\Users\bali
 
 ### Files Read
 
-<details><summary>6 files, ~23,373 est. tokens, ~$0.01</summary>
+<details><summary>6 files, ~23,373 est. tokens, ~$0.00</summary>
 
 | File | Reads | Est. Tokens | Est. Cost |
 |---|---:|---:|---:|
 | c:/users/balin/.claude/plans/breezy-foraging-rossum.md | 2 | 4,947 | $0.00 |
-| plan/pending/bound-sql-statement.md | 6 | 10,022 | $0.01 |
+| plan/pending/bound-sql-statement.md | 6 | 10,022 | $0.00 |
 | program/src/document/databaseinstance.jl | 1 | 580 | $0.00 |
 | program/src/document/dbcatalog.jl | 1 | 735 | $0.00 |
 | program/src/document/sql.jl | 1 | 3,406 | $0.00 |

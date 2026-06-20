@@ -8,6 +8,11 @@
 #   julia --project=program session/analyze-session.jl path/to/session.jsonl [path2.jsonl ...]
 #   julia --project=program session/analyze-session.jl --name control path1.jsonl --name concepts path2.jsonl
 #   julia --project=program session/analyze-session.jl --history
+#   julia --project=program session/analyze-session.jl --history --subscription 100
+#
+# --subscription <amount>: monthly subscription fee ($/mo, default 20) used to
+#   amortize costs; the plan tier is not recorded in the logs, so it is supplied
+#   here. Costs are subscription-amortized, not API list price (see COST_WEIGHT).
 #
 # Output: session/{inv-key}-{last-alive}-{title}.md   (--latest / explicit files)
 #         session/history/{group}/{inv-key}-{last-alive}-{title}.md + comparison   (--history)
@@ -30,6 +35,47 @@ const COST_INPUT   = 5.00   # $/MTok fresh input (Opus 4.6/4.7/4.8)
 const COST_OUTPUT  = 25.00  # $/MTok output
 const COST_CACHE_W = 6.25   # $/MTok cache creation (1.25× input)
 const COST_CACHE_R = 0.50   # $/MTok cache read (0.1× input)
+
+# Subscription-amortized cost weighting.
+#
+# The rates above are pay-as-you-go API list prices; on a flat monthly
+# subscription they wildly overstate what work actually costs. Usage resets
+# every ~6 h (sub-buckets) and weekly (the binding quota), billed monthly; a
+# 30-day month holds 30/7 ≈ 4.286 weekly windows. Assuming the weekly quota is
+# fully used, the real cost of a week's work is just the weekly share of the fee.
+#
+#   weekly_budget = SUBSCRIPTION_MONTHLY * 7/30        # weekly share of the fee
+#   L_week_full   = busiest rolling 7-day list cost    # ≈ one fully-used quota
+#   COST_WEIGHT   = weekly_budget / L_week_full        # ≪ 1 in practice
+#
+# L_week_full is data-calibrated (cached, raw list dollars) and decoupled from
+# the fee, so --subscription can vary per run without recomputing the sweep.
+const WEEKS_PER_MONTH      = 30 / 7
+const DEFAULT_SUBSCRIPTION = 20.00                          # $/mo; override --subscription
+const WEIGHT_CACHE = joinpath(HISTORY_DIR, ".cost-weight")  # raw busiest-week list $
+const COST_WEIGHT  = Ref(1.0)                              # global multiplier, set at runtime
+
+# Max summed list cost over any rolling 7-day window. timed = (mtime, list_cost),
+# computed while COST_WEIGHT[] == 1.0 (raw list prices).
+function busiest_week_cost(timed::Vector{Tuple{Float64,Float64}})
+    isempty(timed) && return 0.0
+    sort!(timed; by = first)
+    win = 7 * 24 * 3600.0
+    best = 0.0
+    for i in eachindex(timed)
+        t0 = timed[i][1]
+        s = 0.0
+        for j in i:length(timed)
+            timed[j][1] - t0 <= win || break
+            s += timed[j][2]
+        end
+        best = max(best, s)
+    end
+    best
+end
+
+set_cost_weight!(sub::Real, l_week_full::Real) =
+    (COST_WEIGHT[] = l_week_full > 0 ? (sub * 7 / 30) / l_week_full : 1.0)
 
 # Claude Code encodes a workspace path into its projects-folder name by
 # replacing every non-alphanumeric character with '-'.
@@ -260,7 +306,7 @@ function fmt_cost(dollars::Float64)
 end
 
 function cost_mtok(tokens::Int, rate::Float64)
-    tokens / 1_000_000 * rate
+    tokens / 1_000_000 * rate * COST_WEIGHT[]
 end
 
 function est_tokens(chars::Int)
@@ -298,7 +344,7 @@ function condense_title(title::AbstractString; fallback::AbstractString="")
     isempty(name) ? "session" : name
 end
 
-function write_session_section(io, m::SessionMetrics)
+function write_session_section(io, m::SessionMetrics; subscription::Real=DEFAULT_SUBSCRIPTION)
     read_count = length(m.files_read)
     edit_count = length(m.files_edited)
     irrelevant = setdiff(keys(m.files_read), keys(m.files_edited))
@@ -322,6 +368,17 @@ function write_session_section(io, m::SessionMetrics)
     cost_cache_r = cost_mtok(m.cache_read, COST_CACHE_R)
     total_cost = cost_fresh + cost_output + cost_cache_w + cost_cache_r
     output_cost_pct = total_cost > 0 ? 100.0 * cost_output / total_cost : 0.0
+
+    # How the cost was calculated (single-session framing): one session can't
+    # observe a full week, so the weekly total is an *estimate* (the calibrated
+    # busiest-week list cost = weekly_budget / weight).
+    weekly_budget = subscription * 7 / 30
+    weekly_total_est = COST_WEIGHT[] > 0 ? weekly_budget / COST_WEIGHT[] : 0.0
+    println(io, "> **Cost basis:** subscription-amortized, not API list price. ",
+        "Subscription \$$(@sprintf("%.0f", subscription))/mo (`--subscription`, default \$$(@sprintf("%.0f", DEFAULT_SUBSCRIPTION))) ",
+        "→ weekly budget $(fmt_cost(weekly_budget)) (÷ $(@sprintf("%.3f", WEEKS_PER_MONTH)) wk/mo). ",
+        "Weight = weekly budget ÷ *estimated* weekly usage $(fmt_cost(weekly_total_est)) = ",
+        "**×$(@sprintf("%.4f", COST_WEIGHT[]))**. Est. Cost below is this weight applied to list price.\n")
 
     println(io, "### Token Usage\n")
     println(io, "| Metric | Value | \$/MTok | Rel. Weight | Est. Cost | Notes |")
@@ -467,12 +524,13 @@ function resolve_latest(n::Int, sessions_dir::AbstractString=current_sessions_di
     result
 end
 
-function write_single_report(io, m::SessionMetrics, source::AbstractString)
+function write_single_report(io, m::SessionMetrics, source::AbstractString;
+                             subscription::Real=DEFAULT_SUBSCRIPTION)
     println(io, "# Session Analysis Report\n")
     println(io, "**Generated:** $(Dates.format(now(), "yyyy-mm-dd HH:MM"))")
     println(io, "**Source:** `$source`\n")
     println(io, "---\n")
-    write_session_section(io, m)
+    write_session_section(io, m; subscription)
 end
 
 basename_path(p::AbstractString) =
@@ -495,12 +553,21 @@ struct HistoryRow
     mt::Float64     # source .jsonl mtime, for ordering
 end
 
-function write_comparison(path::AbstractString, rows::Vector{HistoryRow}, title::AbstractString; link_fn)
+function write_comparison(path::AbstractString, rows::Vector{HistoryRow}, title::AbstractString;
+                          link_fn, subscription::Real=DEFAULT_SUBSCRIPTION)
     sorted = sort(rows; by=r -> r.mt, rev=true)   # hottest (most recently changed) first
+    weekly_budget = subscription * 7 / 30
+    l_week_full = COST_WEIGHT[] > 0 ? weekly_budget / COST_WEIGHT[] : 0.0
     open(path, "w") do io
         println(io, "# $title\n")
         println(io, "**Generated:** $(Dates.format(now(), "yyyy-mm-dd HH:MM"))")
         println(io, "**Sessions:** $(length(sorted))  (ordered by last change, newest first)\n")
+        println(io, "> **Cost basis:** subscription-amortized, not API list price. ",
+            "Subscription \$$(@sprintf("%.0f", subscription))/mo (`--subscription`, default \$$(@sprintf("%.0f", DEFAULT_SUBSCRIPTION))) ",
+            "→ weekly budget $(fmt_cost(weekly_budget)) (÷ $(@sprintf("%.3f", WEEKS_PER_MONTH)) wk/mo). ",
+            "Weight = weekly budget ÷ busiest 7-day list cost $(fmt_cost(l_week_full)) (≈ one fully-used weekly quota, ",
+            "aggregated across all sessions) = **×$(@sprintf("%.4f", COST_WEIGHT[]))**.\n")
+        println(io, "> _More work raises the aggregated weekly total, shrinking the weight — so each report grows relatively cheaper over time._\n")
         println(io, "| Session | Last change | Group | Eff. total | Output | Discovery | Turns | Read | Edited | Est. Cost |")
         println(io, "|---|---|---|---:|---:|---:|---:|---:|---:|---:|")
         for r in sorted
@@ -519,13 +586,16 @@ end
 # session/history/<group>/, plus a per-group history-comparison.md and a
 # top-level history-comparison.md covering all sessions. A session report is
 # regenerated only when its source .jsonl is newer than the existing report.
-function run_history()
+function run_history(subscription::Real=DEFAULT_SUBSCRIPTION)
     isdir(PROJECTS_ROOT) || error("Projects root not found: $PROJECTS_ROOT")
     mkpath(HISTORY_DIR)
 
     used_rels = Set{String}()
     rows = HistoryRow[]
+    sources = Dict{String,String}()   # rel => source .jsonl path, for pass 2
 
+    # Pass 1: parse every session and assign output paths (no reports written yet,
+    # so the cost weight can be calibrated from the full population first).
     for proj in sort(readdir(PROJECTS_ROOT))
         projdir = joinpath(PROJECTS_ROOT, proj)
         isdir(projdir) || continue
@@ -546,45 +616,74 @@ function run_history()
             end
             rel = "$group/$fname"
             push!(used_rels, rel)
-
-            report = joinpath(HISTORY_DIR, group, fname)
-            mkpath(dirname(report))
-            if isfile(report) && mtime(report) >= mt
-                println(stderr, "Up to date: $rel")
-            else
-                open(report, "w") do io
-                    write_single_report(io, m, f)
-                end
-                println(stderr, "Wrote $rel")
-            end
+            sources[rel] = f
             push!(rows, HistoryRow(m, rel, group, mt))
         end
     end
 
     isempty(rows) && (println(stderr, "No sessions found under $PROJECTS_ROOT"); return)
 
+    # Calibrate the weight from raw list costs (COST_WEIGHT[] still 1.0), cache the
+    # busiest-week list cost, then switch on weighting for all writes below.
+    timed = Tuple{Float64,Float64}[(r.mt, session_cost(r.m)) for r in rows]
+    l_week_full = busiest_week_cost(timed)
+    try
+        write(WEIGHT_CACHE, @sprintf("%.6f\n", l_week_full))
+    catch e
+        @warn "Could not write weight cache" path=WEIGHT_CACHE exception=e
+    end
+    set_cost_weight!(subscription, l_week_full)
+    println(stderr, @sprintf("Cost weight ×%.4f  (sub \$%.0f/mo ÷ %.3f wk ÷ busiest-week \$%.2f)",
+        COST_WEIGHT[], subscription, WEEKS_PER_MONTH, l_week_full))
+    COST_WEIGHT[] > 1.0 && println(stderr,
+        "  note: weight > 1 — usage is below the weekly budget, so each token costs more than list price.")
+
+    # Pass 2: write per-session reports (regenerate only when the source is newer).
+    for r in rows
+        report = joinpath(HISTORY_DIR, r.rel)
+        mkpath(dirname(report))
+        if isfile(report) && mtime(report) >= r.mt
+            println(stderr, "Up to date: $(r.rel)")
+        else
+            open(report, "w") do io
+                write_single_report(io, r.m, sources[r.rel]; subscription)
+            end
+            println(stderr, "Wrote $(r.rel)")
+        end
+    end
+
     # Per-group comparison (related sessions only), links relative to the group folder.
     for group in sort(unique(r.group for r in rows))
         group_rows = filter(r -> r.group == group, rows)
         write_comparison(joinpath(HISTORY_DIR, group, COMPARISON_NAME), group_rows,
-            "Session History — $group"; link_fn = r -> basename(r.rel))
+            "Session History — $group"; link_fn = r -> basename(r.rel), subscription)
     end
 
     # Top-level comparison across all sessions, links into the group subfolders.
     cmp = joinpath(HISTORY_DIR, COMPARISON_NAME)
-    write_comparison(cmp, rows, "Session History Comparison (all)"; link_fn = r -> r.rel)
+    write_comparison(cmp, rows, "Session History Comparison (all)"; link_fn = r -> r.rel, subscription)
 
     println(stderr, "Comparison written to $cmp")
     println(cmp)
 end
 
 function main()
-    if "--history" in ARGS
-        run_history()
+    args = copy(ARGS)
+
+    # Pull out --subscription <amount> (monthly fee, $/mo) anywhere in the args.
+    subscription = DEFAULT_SUBSCRIPTION
+    j = findfirst(==("--subscription"), args)
+    if j !== nothing
+        j + 1 <= length(args) || error("--subscription requires an amount")
+        subscription = parse(Float64, args[j+1])
+        deleteat!(args, j:j+1)
+    end
+
+    if "--history" in args
+        run_history(subscription)
         return
     end
 
-    args = copy(ARGS)
     entries = Tuple{String,String}[]  # (label, path)
 
     i = 1
@@ -616,6 +715,7 @@ function main()
           julia --project=program session/analyze-session.jl path/to/session.jsonl [...]
           julia --project=program session/analyze-session.jl --name control path1.jsonl --name concepts path2.jsonl
           julia --project=program session/analyze-session.jl --history
+          (any of the above may add: --subscription <amount>   # monthly fee \$/mo, default $(@sprintf("%.0f", DEFAULT_SUBSCRIPTION)))
         """)
         exit(1)
     end
@@ -628,6 +728,21 @@ function main()
     for (label, p) in entries
         println(stderr, "Parsing $(basename(p))$(isempty(label) ? "" : " as \"$label\"")...")
         push!(sessions, parse_session(p; label))
+    end
+
+    # A single session can't observe a full week, so reuse the cached busiest-week
+    # list cost (from the last --history run) as an estimated weekly total.
+    if isfile(WEIGHT_CACHE)
+        l_week_full = tryparse(Float64, strip(read(WEIGHT_CACHE, String)))
+        if l_week_full === nothing || l_week_full <= 0
+            @warn "Ignoring unusable weight cache; using unweighted list prices." path=WEIGHT_CACHE
+        else
+            set_cost_weight!(subscription, l_week_full)
+            println(stderr, @sprintf("Cost weight ×%.4f  (sub \$%.0f/mo, cached weekly est. \$%.2f)",
+                COST_WEIGHT[], subscription, l_week_full))
+        end
+    else
+        @warn "No weight cache — run `--history` once to calibrate. Using unweighted API list prices."
     end
 
     # Name: <inv-key>-<last-alive>-<condensed primary title>, matching the
@@ -651,7 +766,7 @@ function main()
         println(io, "\n---\n")
 
         for m in sessions
-            write_session_section(io, m)
+            write_session_section(io, m; subscription)
             println(io, "---\n")
         end
 

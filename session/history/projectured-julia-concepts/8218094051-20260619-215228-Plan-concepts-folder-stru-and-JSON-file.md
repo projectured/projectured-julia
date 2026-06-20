@@ -1,6 +1,6 @@
 # Session Analysis Report
 
-**Generated:** 2026-06-20 14:50
+**Generated:** 2026-06-20 19:55
 **Source:** `C:\Users\balin\.claude\projects\c--Users-balin-gitworkspace-projectured-julia-concepts\17734e72-666b-44df-aad3-d5fec0e83eec.jsonl`
 
 ---
@@ -9,20 +9,22 @@
 
 Source: `17734e72-666b-44df-aad3-d5fec0e83eec.jsonl` | Workspace: `c:\Users\balin\gitworkspace\projectured-julia-concepts` | Branch: `concepts`
 
+> **Cost basis:** subscription-amortized, not API list price. Subscription $20/mo (`--subscription`, default $20) → weekly budget $4.67 (÷ 4.286 wk/mo). Weight = weekly budget ÷ *estimated* weekly usage $371.52 = **×0.0126**. Est. Cost below is this weight applied to list price.
+
 ### Token Usage
 
 | Metric | Value | $/MTok | Rel. Weight | Est. Cost | Notes |
 |---|---:|---:|---:|---:|---|
-| **Effective total** | **65,654,832** | | | **$65.70** | input (all sources) + output |
-| Output | 701,436 | $25.00 | **5.0×** | $17.54 | most expensive |
-| Fresh input | 104,820 | $5.00 | 1.0× | $0.52 | non-cached input tokens |
-| Cache creation | 2,645,393 | $6.25 | 1.25× | $16.53 | new cache entries |
-| Cache read | 62,203,183 | $0.50 | 0.1× | $31.10 | cheapest |
+| **Effective total** | **65,654,832** | | | **$0.83** | input (all sources) + output |
+| Output | 701,436 | $25.00 | **5.0×** | $0.22 | most expensive |
+| Fresh input | 104,820 | $5.00 | 1.0× | $0.01 | non-cached input tokens |
+| Cache creation | 2,645,393 | $6.25 | 1.25× | $0.21 | new cache entries |
+| Cache read | 62,203,183 | $0.50 | 0.1× | $0.39 | cheapest |
 | Effective input | 64,953,396 | | | | fresh + cache creation + cache read |
 | Cache hit rate | 95.8% | | | | cache read / effective input |
 | Discovery cost | 70,765 | | | | tokens before first Edit/Write |
 
-> **Budget impact:** $65.70 — output tokens account for 27% of cost
+> **Budget impact:** $0.83 — output tokens account for 27% of cost
 
 ### Activity
 
@@ -54,11 +56,11 @@ Source: `17734e72-666b-44df-aad3-d5fec0e83eec.jsonl` | Workspace: `c:\Users\bali
 
 ### Files Read
 
-<details><summary>21 files, ~60,596 est. tokens, ~$0.03</summary>
+<details><summary>21 files, ~60,596 est. tokens, ~$0.00</summary>
 
 | File | Reads | Est. Tokens | Est. Cost |
 |---|---:|---:|---:|
-| c:/users/balin/.claude/projects/c--users-balin-gitworkspace-projectured-julia-concepts/17734e72-666b-44df-aad3-d5fec0e83eec/tool-results/bgnuv0vts.txt | 2 | 20,849 | $0.01 |
+| c:/users/balin/.claude/projects/c--users-balin-gitworkspace-projectured-julia-concepts/17734e72-666b-44df-aad3-d5fec0e83eec/tool-results/bgnuv0vts.txt | 2 | 20,849 | $0.00 |
 | c:/users/balin/gitworkspace/projectured-julia-concepts/concepts/core/projection-system--print-returns-iomap.json | 1 | 162 | $0.00 |
 | c:/users/balin/gitworkspace/projectured-julia-concepts/concepts/layout--intrinsic-up-available-down.json | 1 | 164 | $0.00 |
 | c:/users/balin/gitworkspace/projectured-julia-concepts/concepts/navigation--reaches-all-verified.json | 1 | 137 | $0.00 |
@@ -239,11 +241,11 @@ Source: `17734e72-666b-44df-aad3-d5fec0e83eec.jsonl` | Workspace: `c:\Users\bali
 
 ### Irrelevant Reads (approx)
 
-<details><summary>16 files read but never edited, ~59,819 est. tokens wasted, ~$0.03</summary>
+<details><summary>16 files read but never edited, ~59,819 est. tokens wasted, ~$0.00</summary>
 
 | File | Reads | Est. Tokens | Est. Cost |
 |---|---:|---:|---:|
-| c:/users/balin/.claude/projects/c--users-balin-gitworkspace-projectured-julia-concepts/17734e72-666b-44df-aad3-d5fec0e83eec/tool-results/bgnuv0vts.txt | 2 | 20,849 | $0.01 |
+| c:/users/balin/.claude/projects/c--users-balin-gitworkspace-projectured-julia-concepts/17734e72-666b-44df-aad3-d5fec0e83eec/tool-results/bgnuv0vts.txt | 2 | 20,849 | $0.00 |
 | c:/users/balin/gitworkspace/projectured-julia-concepts/guide/concepts.md | 1 | 3,722 | $0.00 |
 | c:/users/balin/gitworkspace/projectured-julia-concepts/guide/design-decisions.md | 1 | 2,046 | $0.00 |
 | c:/users/balin/gitworkspace/projectured-julia-concepts/plan/pending/concept-document.md | 1 | 7,374 | $0.00 |

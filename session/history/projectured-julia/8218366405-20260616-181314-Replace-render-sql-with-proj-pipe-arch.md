@@ -1,6 +1,6 @@
 # Session Analysis Report
 
-**Generated:** 2026-06-20 14:50
+**Generated:** 2026-06-20 19:55
 **Source:** `C:\Users\balin\.claude\projects\c--Users-balin-gitworkspace-projectured-julia\5146dfa1-9f33-4e34-ade8-9e90a82b83ec.jsonl`
 
 ---
@@ -9,20 +9,22 @@
 
 Source: `5146dfa1-9f33-4e34-ade8-9e90a82b83ec.jsonl` | Workspace: `c:\Users\balin\gitworkspace\projectured-julia` | Branch: `database`
 
+> **Cost basis:** subscription-amortized, not API list price. Subscription $20/mo (`--subscription`, default $20) → weekly budget $4.67 (÷ 4.286 wk/mo). Weight = weekly budget ÷ *estimated* weekly usage $371.52 = **×0.0126**. Est. Cost below is this weight applied to list price.
+
 ### Token Usage
 
 | Metric | Value | $/MTok | Rel. Weight | Est. Cost | Notes |
 |---|---:|---:|---:|---:|---|
-| **Effective total** | **7,323,835** | | | **$5.57** | input (all sources) + output |
-| Output | 25,846 | $25.00 | **5.0×** | $0.65 | most expensive |
+| **Effective total** | **7,323,835** | | | **$0.07** | input (all sources) + output |
+| Output | 25,846 | $25.00 | **5.0×** | $0.01 | most expensive |
 | Fresh input | 134 | $5.00 | 1.0× | $0.00 | non-cached input tokens |
-| Cache creation | 221,941 | $6.25 | 1.25× | $1.39 | new cache entries |
-| Cache read | 7,075,914 | $0.50 | 0.1× | $3.54 | cheapest |
+| Cache creation | 221,941 | $6.25 | 1.25× | $0.02 | new cache entries |
+| Cache read | 7,075,914 | $0.50 | 0.1× | $0.04 | cheapest |
 | Effective input | 7,297,989 | | | | fresh + cache creation + cache read |
 | Cache hit rate | 97.0% | | | | cache read / effective input |
 | Discovery cost | 6,044 | | | | tokens before first Edit/Write |
 
-> **Budget impact:** $5.57 — output tokens account for 12% of cost
+> **Budget impact:** $0.07 — output tokens account for 12% of cost
 
 ### Activity
 
@@ -51,7 +53,7 @@ Source: `5146dfa1-9f33-4e34-ade8-9e90a82b83ec.jsonl` | Workspace: `c:\Users\bali
 
 ### Files Read
 
-<details><summary>13 files, ~17,345 est. tokens, ~$0.01</summary>
+<details><summary>13 files, ~17,345 est. tokens, ~$0.00</summary>
 
 | File | Reads | Est. Tokens | Est. Cost |
 |---|---:|---:|---:|

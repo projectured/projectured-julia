@@ -1,6 +1,6 @@
 # Session Analysis Report
 
-**Generated:** 2026-06-20 14:50
+**Generated:** 2026-06-20 19:55
 **Source:** `C:\Users\balin\.claude\projects\c--Users-balin-gitworkspace-projectured-julia\012d3cdc-d4d4-4839-9d0e-236c5bbc628d.jsonl`
 
 ---
@@ -9,20 +9,22 @@
 
 Source: `012d3cdc-d4d4-4839-9d0e-236c5bbc628d.jsonl` | Workspace: `c:\Users\balin\gitworkspace\projectured-julia` | Branch: `database`
 
+> **Cost basis:** subscription-amortized, not API list price. Subscription $20/mo (`--subscription`, default $20) → weekly budget $4.67 (÷ 4.286 wk/mo). Weight = weekly budget ÷ *estimated* weekly usage $371.52 = **×0.0126**. Est. Cost below is this weight applied to list price.
+
 ### Token Usage
 
 | Metric | Value | $/MTok | Rel. Weight | Est. Cost | Notes |
 |---|---:|---:|---:|---:|---|
-| **Effective total** | **9,712,834** | | | **$9.62** | input (all sources) + output |
-| Output | 104,031 | $25.00 | **5.0×** | $2.60 | most expensive |
-| Fresh input | 52,164 | $5.00 | 1.0× | $0.26 | non-cached input tokens |
-| Cache creation | 345,083 | $6.25 | 1.25× | $2.16 | new cache entries |
-| Cache read | 9,211,556 | $0.50 | 0.1× | $4.61 | cheapest |
+| **Effective total** | **9,712,834** | | | **$0.12** | input (all sources) + output |
+| Output | 104,031 | $25.00 | **5.0×** | $0.03 | most expensive |
+| Fresh input | 52,164 | $5.00 | 1.0× | $0.00 | non-cached input tokens |
+| Cache creation | 345,083 | $6.25 | 1.25× | $0.03 | new cache entries |
+| Cache read | 9,211,556 | $0.50 | 0.1× | $0.06 | cheapest |
 | Effective input | 9,608,803 | | | | fresh + cache creation + cache read |
 | Cache hit rate | 95.9% | | | | cache read / effective input |
 | Discovery cost | 79,748 | | | | tokens before first Edit/Write |
 
-> **Budget impact:** $9.62 — output tokens account for 27% of cost
+> **Budget impact:** $0.12 — output tokens account for 27% of cost
 
 ### Activity
 
@@ -53,7 +55,7 @@ Source: `012d3cdc-d4d4-4839-9d0e-236c5bbc628d.jsonl` | Workspace: `c:\Users\bali
 
 ### Files Read
 
-<details><summary>11 files, ~10,150 est. tokens, ~$0.01</summary>
+<details><summary>11 files, ~10,150 est. tokens, ~$0.00</summary>
 
 | File | Reads | Est. Tokens | Est. Cost |
 |---|---:|---:|---:|

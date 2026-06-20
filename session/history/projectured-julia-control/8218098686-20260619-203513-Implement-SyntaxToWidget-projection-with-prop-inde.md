@@ -1,6 +1,6 @@
 # Session Analysis Report
 
-**Generated:** 2026-06-20 14:50
+**Generated:** 2026-06-20 19:55
 **Source:** `C:\Users\balin\.claude\projects\c--Users-balin-gitworkspace-projectured-julia-control\56323896-2277-471d-9c39-719cfb88280c.jsonl`
 
 ---
@@ -9,20 +9,22 @@
 
 Source: `56323896-2277-471d-9c39-719cfb88280c.jsonl` | Workspace: `c:\Users\balin\gitworkspace\projectured-julia-control` | Branch: `control`
 
+> **Cost basis:** subscription-amortized, not API list price. Subscription $20/mo (`--subscription`, default $20) → weekly budget $4.67 (÷ 4.286 wk/mo). Weight = weekly budget ÷ *estimated* weekly usage $371.52 = **×0.0126**. Est. Cost below is this weight applied to list price.
+
 ### Token Usage
 
 | Metric | Value | $/MTok | Rel. Weight | Est. Cost | Notes |
 |---|---:|---:|---:|---:|---|
-| **Effective total** | **24,225,805** | | | **$18.84** | input (all sources) + output |
-| Output | 152,457 | $25.00 | **5.0×** | $3.81 | most expensive |
-| Fresh input | 10,147 | $5.00 | 1.0× | $0.05 | non-cached input tokens |
-| Cache creation | 511,898 | $6.25 | 1.25× | $3.20 | new cache entries |
-| Cache read | 23,551,303 | $0.50 | 0.1× | $11.78 | cheapest |
+| **Effective total** | **24,225,805** | | | **$0.24** | input (all sources) + output |
+| Output | 152,457 | $25.00 | **5.0×** | $0.05 | most expensive |
+| Fresh input | 10,147 | $5.00 | 1.0× | $0.00 | non-cached input tokens |
+| Cache creation | 511,898 | $6.25 | 1.25× | $0.04 | new cache entries |
+| Cache read | 23,551,303 | $0.50 | 0.1× | $0.15 | cheapest |
 | Effective input | 24,073,348 | | | | fresh + cache creation + cache read |
 | Cache hit rate | 97.8% | | | | cache read / effective input |
 | Discovery cost | 102,908 | | | | tokens before first Edit/Write |
 
-> **Budget impact:** $18.84 — output tokens account for 20% of cost
+> **Budget impact:** $0.24 — output tokens account for 20% of cost
 
 ### Activity
 
@@ -47,7 +49,7 @@ Source: `56323896-2277-471d-9c39-719cfb88280c.jsonl` | Workspace: `c:\Users\bali
 
 ### Files Read
 
-<details><summary>23 files, ~65,860 est. tokens, ~$0.03</summary>
+<details><summary>23 files, ~65,860 est. tokens, ~$0.00</summary>
 
 | File | Reads | Est. Tokens | Est. Cost |
 |---|---:|---:|---:|
@@ -62,12 +64,12 @@ Source: `56323896-2277-471d-9c39-719cfb88280c.jsonl` | Workspace: `c:\Users\bali
 | c:/users/balin/gitworkspace/projectured-julia-control/program/src/document/layout.jl | 1 | 4,137 | $0.00 |
 | c:/users/balin/gitworkspace/projectured-julia-control/program/src/document/syntax.jl | 1 | 3,700 | $0.00 |
 | c:/users/balin/gitworkspace/projectured-julia-control/program/src/document/text.jl | 1 | 431 | $0.00 |
-| c:/users/balin/gitworkspace/projectured-julia-control/program/src/document/widget.jl | 1 | 12,297 | $0.01 |
+| c:/users/balin/gitworkspace/projectured-julia-control/program/src/document/widget.jl | 1 | 12,297 | $0.00 |
 | c:/users/balin/gitworkspace/projectured-julia-control/program/src/projection/primitive/conversationtowidget.jl | 1 | 2,500 | $0.00 |
 | c:/users/balin/gitworkspace/projectured-julia-control/program/src/projection/primitive/dbcatalogtosyntax.jl | 1 | 672 | $0.00 |
 | c:/users/balin/gitworkspace/projectured-julia-control/program/src/projection/primitive/jsontosyntax.jl | 2 | 955 | $0.00 |
 | c:/users/balin/gitworkspace/projectured-julia-control/program/src/projection/primitive/layouttographics.jl | 1 | 1,796 | $0.00 |
-| c:/users/balin/gitworkspace/projectured-julia-control/program/src/projection/primitive/syntaxtotext.jl | 1 | 15,587 | $0.01 |
+| c:/users/balin/gitworkspace/projectured-julia-control/program/src/projection/primitive/syntaxtotext.jl | 1 | 15,587 | $0.00 |
 | c:/users/balin/gitworkspace/projectured-julia-control/program/src/projection/primitive/texttowidget.jl | 1 | 1,455 | $0.00 |
 | c:/users/balin/gitworkspace/projectured-julia-control/program/src/projection/primitive/widgettographics.jl | 4 | 5,659 | $0.00 |
 | c:/users/balin/gitworkspace/projectured-julia-control/program/src/projectured.jl | 2 | 335 | $0.00 |
@@ -94,7 +96,7 @@ Source: `56323896-2277-471d-9c39-719cfb88280c.jsonl` | Workspace: `c:\Users\bali
 
 ### Irrelevant Reads (approx)
 
-<details><summary>18 files read but never edited, ~62,806 est. tokens wasted, ~$0.03</summary>
+<details><summary>18 files read but never edited, ~62,806 est. tokens wasted, ~$0.00</summary>
 
 | File | Reads | Est. Tokens | Est. Cost |
 |---|---:|---:|---:|
@@ -105,12 +107,12 @@ Source: `56323896-2277-471d-9c39-719cfb88280c.jsonl` | Workspace: `c:\Users\bali
 | c:/users/balin/gitworkspace/projectured-julia-control/program/src/document/layout.jl | 1 | 4,137 | $0.00 |
 | c:/users/balin/gitworkspace/projectured-julia-control/program/src/document/syntax.jl | 1 | 3,700 | $0.00 |
 | c:/users/balin/gitworkspace/projectured-julia-control/program/src/document/text.jl | 1 | 431 | $0.00 |
-| c:/users/balin/gitworkspace/projectured-julia-control/program/src/document/widget.jl | 1 | 12,297 | $0.01 |
+| c:/users/balin/gitworkspace/projectured-julia-control/program/src/document/widget.jl | 1 | 12,297 | $0.00 |
 | c:/users/balin/gitworkspace/projectured-julia-control/program/src/projection/primitive/conversationtowidget.jl | 1 | 2,500 | $0.00 |
 | c:/users/balin/gitworkspace/projectured-julia-control/program/src/projection/primitive/dbcatalogtosyntax.jl | 1 | 672 | $0.00 |
 | c:/users/balin/gitworkspace/projectured-julia-control/program/src/projection/primitive/jsontosyntax.jl | 2 | 955 | $0.00 |
 | c:/users/balin/gitworkspace/projectured-julia-control/program/src/projection/primitive/layouttographics.jl | 1 | 1,796 | $0.00 |
-| c:/users/balin/gitworkspace/projectured-julia-control/program/src/projection/primitive/syntaxtotext.jl | 1 | 15,587 | $0.01 |
+| c:/users/balin/gitworkspace/projectured-julia-control/program/src/projection/primitive/syntaxtotext.jl | 1 | 15,587 | $0.00 |
 | c:/users/balin/gitworkspace/projectured-julia-control/program/src/projection/primitive/texttowidget.jl | 1 | 1,455 | $0.00 |
 | c:/users/balin/gitworkspace/projectured-julia-control/program/src/projection/primitive/widgettographics.jl | 4 | 5,659 | $0.00 |
 | c:/users/balin/gitworkspace/projectured-julia-control/test/src/editor/clickroundtriptest.jl | 2 | 1,968 | $0.00 |

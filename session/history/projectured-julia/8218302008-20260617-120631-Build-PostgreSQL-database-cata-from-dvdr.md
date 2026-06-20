@@ -1,6 +1,6 @@
 # Session Analysis Report
 
-**Generated:** 2026-06-20 14:50
+**Generated:** 2026-06-20 19:55
 **Source:** `C:\Users\balin\.claude\projects\c--Users-balin-gitworkspace-projectured-julia\515781f8-3428-4b35-933d-ea988f156748.jsonl`
 
 ---
@@ -9,20 +9,22 @@
 
 Source: `515781f8-3428-4b35-933d-ea988f156748.jsonl` | Workspace: `c:\Users\balin\gitworkspace\projectured-julia` | Branch: `database`
 
+> **Cost basis:** subscription-amortized, not API list price. Subscription $20/mo (`--subscription`, default $20) → weekly budget $4.67 (÷ 4.286 wk/mo). Weight = weekly budget ÷ *estimated* weekly usage $371.52 = **×0.0126**. Est. Cost below is this weight applied to list price.
+
 ### Token Usage
 
 | Metric | Value | $/MTok | Rel. Weight | Est. Cost | Notes |
 |---|---:|---:|---:|---:|---|
-| **Effective total** | **4,236,808** | | | **$4.59** | input (all sources) + output |
-| Output | 13,476 | $25.00 | **5.0×** | $0.34 | most expensive |
-| Fresh input | 11,518 | $5.00 | 1.0× | $0.06 | non-cached input tokens |
-| Cache creation | 364,004 | $6.25 | 1.25× | $2.28 | new cache entries |
-| Cache read | 3,847,810 | $0.50 | 0.1× | $1.92 | cheapest |
+| **Effective total** | **4,236,808** | | | **$0.06** | input (all sources) + output |
+| Output | 13,476 | $25.00 | **5.0×** | $0.00 | most expensive |
+| Fresh input | 11,518 | $5.00 | 1.0× | $0.00 | non-cached input tokens |
+| Cache creation | 364,004 | $6.25 | 1.25× | $0.03 | new cache entries |
+| Cache read | 3,847,810 | $0.50 | 0.1× | $0.02 | cheapest |
 | Effective input | 4,223,332 | | | | fresh + cache creation + cache read |
 | Cache hit rate | 91.1% | | | | cache read / effective input |
 | Discovery cost | 15,454 | | | | tokens before first Edit/Write |
 
-> **Budget impact:** $4.59 — output tokens account for 7% of cost
+> **Budget impact:** $0.06 — output tokens account for 7% of cost
 
 ### Activity
 
@@ -49,7 +51,7 @@ Source: `515781f8-3428-4b35-933d-ea988f156748.jsonl` | Workspace: `c:\Users\bali
 
 ### Files Read
 
-<details><summary>12 files, ~26,813 est. tokens, ~$0.01</summary>
+<details><summary>12 files, ~26,813 est. tokens, ~$0.00</summary>
 
 | File | Reads | Est. Tokens | Est. Cost |
 |---|---:|---:|---:|
@@ -84,7 +86,7 @@ Source: `515781f8-3428-4b35-933d-ea988f156748.jsonl` | Workspace: `c:\Users\bali
 
 ### Irrelevant Reads (approx)
 
-<details><summary>7 files read but never edited, ~12,774 est. tokens wasted, ~$0.01</summary>
+<details><summary>7 files read but never edited, ~12,774 est. tokens wasted, ~$0.00</summary>
 
 | File | Reads | Est. Tokens | Est. Cost |
 |---|---:|---:|---:|
