@@ -146,6 +146,7 @@ const dragging_example       = Example("dragging",        make_dragging_document
 # `run_example(clipboard_example)`; the selection-driven copy/cut/paste flow it
 # exists to demonstrate is unaffected.
 const clipboard_example      = Example("clipboard",       make_clipboard_document_example,      make_clipboard_projection_example)
+const formula_example        = Example("formula",         make_formula_document_example,        make_formula_projection_example)
 
 const examples = [
     json_example, json_sorted_example, json_null_example, json_string_example, json_widget_example,
@@ -166,6 +167,7 @@ const examples = [
     collection_example, reversing_example, filtering_example, searching_example, sorting_example, focusing_example, table_example, math_table_example, graph_example, workbench_example,
     math_example,
     julia_example,
+    formula_example,
     graphics_image_example,
     primitive_string_example,
     assistant_example,

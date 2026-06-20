@@ -32,6 +32,7 @@ include(joinpath(_EXAMPLE_DIR, "document", "Graph.jl"))
 include(joinpath(_EXAMPLE_DIR, "document", "Lazy.jl"))
 include(joinpath(_EXAMPLE_DIR, "document", "Math.jl"))
 include(joinpath(_EXAMPLE_DIR, "document", "Julia.jl"))
+include(joinpath(_EXAMPLE_DIR, "document", "Formula.jl"))
 include(joinpath(_EXAMPLE_DIR, "document", "Wrapper.jl"))
 include(joinpath(_EXAMPLE_DIR, "document", "Primitive.jl"))
 include(joinpath(_EXAMPLE_DIR, "document", "DbCatalog.jl"))
@@ -74,6 +75,7 @@ include(joinpath(_EXAMPLE_DIR, "projection", "Conversation.jl"))
 include(joinpath(_EXAMPLE_DIR, "projection", "Lazy.jl"))
 include(joinpath(_EXAMPLE_DIR, "projection", "Math.jl"))
 include(joinpath(_EXAMPLE_DIR, "projection", "Julia.jl"))
+include(joinpath(_EXAMPLE_DIR, "projection", "Formula.jl"))
 include(joinpath(_EXAMPLE_DIR, "projection", "Wrapper.jl"))
 include(joinpath(_EXAMPLE_DIR, "projection", "Graphics.jl"))
 include(joinpath(_EXAMPLE_DIR, "projection", "Primitive.jl"))
@@ -142,6 +144,7 @@ export make_lazy_document_example, make_lazy_projection_example
 export make_lazy_bidirectional_document_example, make_lazy_bidirectional_projection_example
 export make_math_document_example, make_math_projection_example
 export make_julia_document_example, make_julia_projection_example
+export make_formula_document_example, make_formula_projection_example
 export make_graphics_image_projection_example
 export make_primitive_string_document_example, make_primitive_string_projection_example
 export make_dbcatalog_document_example, make_dbcatalog_projection_example
