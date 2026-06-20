@@ -145,6 +145,12 @@ function test_text_navigations()
             # Skip every widget example except the editable widget_text, whose
             # content recurses through TextToGraphics and so seeds a selection.
             (startswith(example.name, "widget") && example.name != "widget_text") && continue
+            # Widget-presentation pipelines (…ToWidget → Graphics), e.g.
+            # `json_widget`, `xml_widget`, the `*_catalog_widget`s, and
+            # `conversation_widget`: the widget/graphics layer doesn't route
+            # keyboard events to its children, so Ctrl+Home can't seed an initial
+            # selection (same reason the bare widget examples above are skipped).
+            endswith(example.name, "_widget") && continue
             example.name in ("layout", "workbench", "assistant",
                              "dbcatalog", "sql_syntax", "sql_table") && continue
             @testset "$(example.name)" begin

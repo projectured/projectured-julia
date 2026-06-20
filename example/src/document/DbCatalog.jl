@@ -36,20 +36,23 @@ end
 """
     explore_dbcatalog!(rdbms::DbCatalogRdbms) -> DbCatalogRdbms
 
-Force-evaluate every lazy `CellVector` in the catalog tree so the entire
-hierarchy is materialized in memory. Returns `rdbms` for chaining.
+Materialize only the **first** table of the catalog (first database → first
+schema → first table's columns), leaving every other table's `columns`
+`CellVector` lazy. Enumerating each schema's table *list* is forced (so the
+table names are known), but the per-table column queries — the expensive part —
+are deferred until something forces them (e.g. expanding that table's card in
+the widget pipeline). This makes the catalog a good fixture for **testing
+laziness**: only one table is opened up front; the rest load on demand.
+Returns `rdbms` for chaining.
 """
 function explore_dbcatalog!(rdbms::DbCatalogRdbms)
-    for i in 1:length(rdbms.databases)
-        db = rdbms.databases[i]
-        for j in 1:length(db.schemas)
-            schema = db.schemas[j]
-            for k in 1:length(schema.tables)
-                table = schema.tables[k]
-                length(table.columns)  # force columns CellVector
-            end
-        end
-    end
+    length(rdbms.databases) >= 1 || return rdbms
+    db = rdbms.databases[1]
+    length(db.schemas) >= 1 || return rdbms
+    schema = db.schemas[1]
+    length(schema.tables) >= 1 || return rdbms   # force the table list, not its columns
+    table = schema.tables[1]
+    length(table.columns)                        # open only the first table's columns
     rdbms
 end
 

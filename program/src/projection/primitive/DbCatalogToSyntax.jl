@@ -98,7 +98,8 @@ end
 # by the input-domain children field name ("databases", "schemas", etc.).
 
 """
-Forward: `<field_name>[i].rest → children[1].children[1].children[i].delegated(rest)`
+Forward: `<field_name>[i].rest → children[1].children[i].delegated(rest)`
+(entity → keyword group `children[1]` → item `children[i]`).
 """
 function _catalog_forward_ref(p, iomap::ChildrenIoMap, reference, field_name::String)
     reference isa EmptyReferencePath && return EmptyReferencePath()
@@ -118,37 +119,31 @@ function _catalog_forward_ref(p, iomap::ChildrenIoMap, reference, field_name::St
     child = iomaps[child_i]
     inner = map_reference_forward(child.projection, child, child_rest)
     inner === nothing && return nothing
-    @reference children[1].children[1].children[child_i].^(inner)
+    @reference children[1].children[child_i].^(inner)
 end
 
 """
-Backward: `children[1].children[1].children[i].rest → <field_name>[i].delegated(rest)`
-Peels 3 levels of children (keyword_node, keyword_body, actual child).
+Backward: `children[1].children[i].rest → <field_name>[i].delegated(rest)`
+Peels 2 levels of children (keyword group, then the actual item).
 """
 function _catalog_backward_ref(p, iomap::ChildrenIoMap, reference, field_name::String)
     reference isa EmptyReferencePath && return EmptyReferencePath()
-    # Peel: children[1].children[1].children[i].rest
-    # Each level is FieldReference("children") + RangeReference(...)
+    # Peel: children[1] (the keyword group), then children[i] (the item).
     @reference_case reference begin
         children[1].rest1... => begin
             @reference_case rest1 begin
-                children[1].rest2... => begin
-                    @reference_case rest2 begin
-                        children{s:e}.rest3... => begin
-                            child_i = s + 1
-                            iomaps = iomap.child_iomaps[]
-                            1 <= child_i <= length(iomaps) || return nothing
-                            child = iomaps[child_i]
-                            inner = map_reference_backward(child.projection, child, rest3)
-                            inner === nothing && return nothing
-                            ConcreteReferencePath(
-                                Cell(FieldReference(field_name)),
-                                Cell(ConcreteReferencePath(
-                                    Cell(ElementReference(child_i)),
-                                    Cell(inner))))
-                        end
-                        _ => nothing
-                    end
+                children{s:e}.rest2... => begin
+                    child_i = s + 1
+                    iomaps = iomap.child_iomaps[]
+                    1 <= child_i <= length(iomaps) || return nothing
+                    child = iomaps[child_i]
+                    inner = map_reference_backward(child.projection, child, rest2)
+                    inner === nothing && return nothing
+                    ConcreteReferencePath(
+                        Cell(FieldReference(field_name)),
+                        Cell(ConcreteReferencePath(
+                            Cell(ElementReference(child_i)),
+                            Cell(inner))))
                 end
                 _ => nothing
             end
@@ -173,13 +168,41 @@ function _catalog_read_selection(p, iomap::ChildrenIoMap, op::ReplaceSelectionOp
             Cell(EmptyReferencePath())))
 end
 
+# ── Lazy-expansion helper ─────────────────────────────────────────────────────
+#
+# A catalog level's child collection is a *lazy* `CellVector` whose thunk queries
+# the database only when forced (see `DatabaseInstanceToDbCatalog`). To support
+# lazy expansion, an entity node starts **collapsed** unless its children are
+# *already materialized* — so the initial render queries nothing, and expanding a
+# node (flipping `collapsed`) is what first forces its child query, which then
+# projects into syntax and widgets.
+#
+# "Already materialized" is read **without forcing**: the `CellVector`'s backing
+# `elements` cell is a computed cell that becomes `valid` only after it has been
+# evaluated (the query ran) and stays `valid` until invalidated. A value-backed
+# (eagerly built) collection is `valid` from construction, so non-lazy children
+# render expanded. A pre-forced lazy collection (e.g. via `explore_dbcatalog!`)
+# also reads `valid`, so only the explored path opens up front.
+function _children_realized(children)
+    children isa CellVector || return true
+    cell = getfield(children, :elements)
+    cell isa Cell ? getfield(cell, :valid) : true
+end
+
 # ── Shared node builder ───────────────────────────────────────────────────────
 #
 # Every non-leaf catalog level produces the shape:
-#   entity_node (ind=-1, open=" name"):       ← collapsible entity
-#     keyword_node (ind=0, open=" Keyword"):  ← collapsible keyword
-#       keyword_body (ind=-1, open=""):       ← children container
-#         child[1..n] = projected child outputs
+#   entity_node  (ind=-1, open=" name"):     ← the named entity; always expanded
+#     keyword_node (ind=-1, open=" Keyword"): ← a collapsible *kind-of-child*
+#       child[1..n] = projected child outputs ← its items, held directly
+#
+# The keyword node is its own collapsible group (a "kind" of child — Columns,
+# and in future Indexes, etc. — sit side by side as sibling keyword groups under
+# one entity). It is **collapsed unless its child collection is already
+# materialized**, so the initial render queries nothing and expanding the group
+# is what first forces its lazy `CellVector` (the DB query), which then projects
+# into syntax and widgets. The entity node merely groups its keyword(s) and stays
+# expanded (the user can still fold it via its header).
 #
 # Using ind=-1 (rather than a positive value) enters the newline branch
 # (children get \n + indent) but skips the trailing \n + indent that would
@@ -198,22 +221,15 @@ function _catalog_syntax_node(p, recursion, ctx, input_doc,
          for (i, elem) in enumerate(children)]
     end)
 
-    keyword_body = SyntaxNode(
-        TextString("", font_ubuntu_monospace_regular_24, color_default),
-        TextString("", font_ubuntu_monospace_regular_24, color_default),
-        TextString("", font_ubuntu_monospace_regular_24, color_default),
-        CellVector(() -> SyntaxDocument[im.output for im in child_iomaps[]]),
-        -1,
-        Cell(false),
-        Cell(nothing))
-
+    # The keyword group holds the projected items directly and is the lazy /
+    # collapsible unit. Collapsed until its child collection is materialized.
     keyword_node = SyntaxNode(
         TextString(" " * keyword, font_ubuntu_monospace_regular_24, color_default),
         TextString("", font_ubuntu_monospace_regular_24, color_default),
         TextString("", font_ubuntu_monospace_regular_24, color_default),
-        CellVector(Cell[Cell(keyword_body)]),
-        0,
-        Cell(false),
+        CellVector(() -> SyntaxDocument[im.output for im in child_iomaps[]]),
+        -1,
+        Cell(!_children_realized(children)),
         Cell(nothing))
 
     iomap_cell = Cell(nothing)
@@ -225,6 +241,7 @@ function _catalog_syntax_node(p, recursion, ctx, input_doc,
         map_reference_forward(p, im, path)
     end)
 
+    # The entity groups its keyword(s); it stays expanded (foldable by the user).
     entity_node = SyntaxNode(
         TextString(label, name_font, name_color),
         TextString("", name_font, color_default),
@@ -350,10 +367,12 @@ lands on entity nodes and keyword nodes (which carry a label in `open`), but not
 on body wrappers or column leaves.
 """
 dbcatalog_marker_eligible(::SyntaxLeaf) = false
-function dbcatalog_marker_eligible(node::SyntaxNode)
-    isempty(node.open.content::AbstractString) && return false
-    length(node.children) > 0
-end
+# Eligibility keys off the label alone (a non-empty `open`): entity and keyword
+# nodes carry one, body/leaf nodes do not. Deliberately does NOT inspect
+# `node.children` — a keyword group's children are a lazy `CellVector` whose
+# length can't be read without forcing the database query, which would defeat
+# lazy expansion.
+dbcatalog_marker_eligible(node::SyntaxNode) = !isempty(node.open.content::AbstractString)
 
 # ── Compound constructor ──────────────────────────────────────────────────────
 

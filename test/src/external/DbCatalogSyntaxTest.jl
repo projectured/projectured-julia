@@ -82,14 +82,12 @@ function test_db_catalog_table_to_syntax(; show_detail=false)
             # children[1] = keyword node "Columns"
             keyword = entity.children[1]
             @test keyword isa SyntaxNode
-            @test keyword.indentation == 0
+            @test keyword.indentation == -1
             @test keyword.open.content == " Columns"
-            @test length(keyword.children) == 1
-
-            # keyword.children[1] = keyword body (ind=-1)
-            body = keyword.children[1]
-            @test body isa SyntaxNode
-            @test body.indentation == -1
+            # The keyword group holds its projected items directly (no body
+            # wrapper). Item projection is delegated through `recursion`, so it is
+            # exercised under a RecursiveProjection (see the lazy-expansion tests),
+            # not forced here with this bare single-level projection.
         end
     end
 end
@@ -112,13 +110,12 @@ function test_db_catalog_schema_to_syntax(; show_detail=false)
 
             keyword = entity.children[1]
             @test keyword isa SyntaxNode
-            @test keyword.indentation == 0
+            @test keyword.indentation == -1
             @test keyword.open.content == " Tables"
-            @test length(keyword.children) == 1
-
-            body = keyword.children[1]
-            @test body isa SyntaxNode
-            @test body.indentation == -1
+            # The keyword group holds its projected items directly (no body
+            # wrapper). Item projection is delegated through `recursion`, so it is
+            # exercised under a RecursiveProjection (see the lazy-expansion tests),
+            # not forced here with this bare single-level projection.
         end
     end
 end
@@ -141,13 +138,12 @@ function test_db_catalog_database_to_syntax(; show_detail=false)
 
             keyword = entity.children[1]
             @test keyword isa SyntaxNode
-            @test keyword.indentation == 0
+            @test keyword.indentation == -1
             @test keyword.open.content == " Schemas"
-            @test length(keyword.children) == 1
-
-            body = keyword.children[1]
-            @test body isa SyntaxNode
-            @test body.indentation == -1
+            # The keyword group holds its projected items directly (no body
+            # wrapper). Item projection is delegated through `recursion`, so it is
+            # exercised under a RecursiveProjection (see the lazy-expansion tests),
+            # not forced here with this bare single-level projection.
         end
     end
 end
@@ -170,13 +166,12 @@ function test_db_catalog_rdbms_to_syntax(; show_detail=false)
 
             keyword = entity.children[1]
             @test keyword isa SyntaxNode
-            @test keyword.indentation == 0
+            @test keyword.indentation == -1
             @test keyword.open.content == " Databases"
-            @test length(keyword.children) == 1
-
-            body = keyword.children[1]
-            @test body isa SyntaxNode
-            @test body.indentation == -1
+            # The keyword group holds its projected items directly (no body
+            # wrapper). Item projection is delegated through `recursion`, so it is
+            # exercised under a RecursiveProjection (see the lazy-expansion tests),
+            # not forced here with this bare single-level projection.
         end
     end
 end
@@ -221,7 +216,7 @@ function test_dbcatalog_reference_mapping(; show_detail=false)
             p_table = DbCatalogTableToSyntaxNode()
             iomap_t = projection_print(p_table, table)
 
-            # Forward: columns[1] → children[1].children[1].children[1]
+            # Forward: columns[1] → children[1].children[1] (keyword group → item)
             in_ref = @reference columns[1]
             out_ref = map_reference_forward(p_table, iomap_t, in_ref)
             @test out_ref !== nothing
@@ -337,13 +332,9 @@ function test_dbcatalog_marker_eligible(; show_detail=false)
             iomap1 = projection_print(p, rdbms)
             @test dbcatalog_marker_eligible(iomap1.output)
 
-            # Keyword nodes should be eligible (non-empty open, has children)
+            # Keyword group nodes should be eligible (they carry a label).
             keyword = iomap1.output.children[1]
             @test dbcatalog_marker_eligible(keyword)
-
-            # Keyword body should NOT be eligible (empty open)
-            body = keyword.children[1]
-            @test !dbcatalog_marker_eligible(body)
 
             # Same pattern for other entity levels
             iomap2 = projection_print(p, db)

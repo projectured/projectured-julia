@@ -20,7 +20,9 @@ const json_example           = Example("json",           make_json_document_exam
 const json_sorted_example    = Example("json_sorted",    make_json_document_example,           make_json_sorted_projection_example)
 const json_null_example      = Example("json_null",      make_json_null_document_example,      make_json_null_projection_example)
 const json_string_example    = Example("json_string",    make_json_string_document_example,    make_json_string_projection_example)
+const json_widget_example    = Example("json_widget",    make_json_document_example,           make_json_widget_projection_example)
 const xml_example            = Example("xml",            make_xml_document_example,            make_xml_projection_example)
+const xml_widget_example     = Example("xml_widget",     make_xml_document_example,            make_xml_widget_projection_example)
 const mixed_example          = Example("mixed",          make_mixed_document_example,          make_mixed_projection_example)
 const syntax_example         = Example("syntax",         make_syntax_document_example,         make_syntax_projection_example)
 const text_example           = Example("text",           make_text_document_example,           make_text_projection_example)
@@ -120,8 +122,8 @@ const dragging_example       = Example("dragging",        make_dragging_document
 const clipboard_example      = Example("clipboard",       make_clipboard_document_example,      make_clipboard_projection_example)
 
 const examples = [
-    json_example, json_sorted_example, json_null_example, json_string_example,
-    xml_example, mixed_example, syntax_example, text_example, plain_text_example, text_with_image_example,
+    json_example, json_sorted_example, json_null_example, json_string_example, json_widget_example,
+    xml_example, xml_widget_example, mixed_example, syntax_example, text_example, plain_text_example, text_with_image_example,
     object_example, object_to_widget_example, line_numbering_example, word_wrapping_example, text_filtering_example, text_highlighting_example,
     widget_example,
     widget_label_example, widget_text_example, widget_checkbox_example, widget_button_example,
