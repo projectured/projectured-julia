@@ -49,7 +49,6 @@ include("document/Database.jl")
 include("document/DbCatalog.jl")
 include("document/DatabaseInstance.jl")
 include("document/Sql.jl")
-include("document/Table.jl")
 include("document/Xml.jl")
 include("document/FileSystem.jl")
 include("document/Workspace.jl")
@@ -133,16 +132,18 @@ include("projection/primitive/SyntaxToText.jl")
 include("projection/primitive/TextToGraphics.jl")
 include("projection/primitive/GraphicsCaching.jl")
 include("projection/primitive/JsonToSyntax.jl")
-include("projection/primitive/TableToGraphics.jl")
 include("projection/primitive/XmlToSyntax.jl")
 include("projection/primitive/FileSystemToSyntax.jl")
 include("projection/primitive/WorkspaceToFileSystem.jl")
 include("projection/primitive/TextToString.jl")
 include("projection/primitive/ObjectToSyntax.jl")
 include("projection/primitive/ObjectToJson.jl")
+# LayoutToGraphics before WidgetToGraphics: the WidgetTable renderer builds a
+# GridLayout and reads its geometry off the GridLayoutIoMap, so those symbols
+# must already be defined when WidgetToGraphics is loaded.
+include("projection/primitive/LayoutToGraphics.jl")
 include("projection/primitive/WidgetToGraphics.jl")
 include("projection/primitive/TextToWidget.jl")
-include("projection/primitive/LayoutToGraphics.jl")
 include("projection/primitive/GraphToGraphLayout.jl")
 include("projection/primitive/GraphLayoutToGraphics.jl")
 include("projection/primitive/SyntaxToWidget.jl")
@@ -209,7 +210,6 @@ using .IoMapModule: @iomap
 using .CollectionModule
 using .JsonModule
 using .TabularModule
-using .TableModule
 using .ReferenceModule
 using .SyntaxModule
 using .FileSystemModule
@@ -282,7 +282,7 @@ using .DbCatalogDocumentModule: DbCatalogDocument,
                                 DbCatalogTable, DbCatalogColumn
 using .DatabaseInstanceToDbCatalogModule: DatabaseInstanceToDbCatalog
 using .SqlToCellTableModule: SqlToCellTable
-using .CellTableToTableModule: CellTableToTable
+using .CellTableToTableModule: CellTableToTable, CellTableToWidgetTable
 using .DbCatalogToJsonModule: DbCatalogRdbmsToJson, DbCatalogDatabaseToJson,
                                DbCatalogSchemaToJson, DbCatalogTableToJson, DbCatalogColumnToJson,
                                DbCatalogToJson
@@ -293,7 +293,6 @@ using .DbCatalogToSyntaxModule: DbCatalogColumnToSyntaxLeaf, DbCatalogTableToSyn
                                 DbCatalogSchemaToSyntaxNode, DbCatalogDatabaseToSyntaxNode,
                                 DbCatalogRdbmsToSyntaxNode, DbCatalogToSyntax,
                                 dbcatalog_marker_eligible
-using .TableModule: TableDocument, TableCell, TableRow, TableColumn, TableTable
 using .XmlModule: XmlDocument, XmlInsertion, XmlText, XmlAttribute, XmlElement, xmlattr,
                   setattr!, deleteattr!
 using .FileSystemModule: FileSystemDocument, FileSystemInsertion,
@@ -363,7 +362,6 @@ using .JsonToSyntaxModule: JsonToSyntax, JsonStringToSyntaxLeaf,
                                JsonNumberToSyntaxLeaf, JsonArrayToSyntaxNode,
                                JsonObjectToSyntaxNode,
                                JsonInsertionToSyntaxLeaf
-using .TableToGraphicsModule: TableToGraphics, TableTableToGraphicsCanvas
 using .XmlToSyntaxModule: XmlToSyntax, XmlTextToSyntaxLeaf, XmlElementToSyntaxNode
 using .FileSystemToSyntaxModule: FileSystemFileToSyntaxLeaf, FileSystemDirectoryToSyntaxNode, FileSystemToSyntax,
                                  filesystem_marker_eligible
@@ -482,7 +480,7 @@ using .LayoutToGraphicsModule: HorizontalLayoutToGraphicsCanvas,
                                GridLayoutToGraphicsCanvas,
                                FlowLayoutToGraphicsCanvas,
                                LayoutConstraintToGraphicsCanvas,
-                               LayoutToGraphics
+                               LayoutToGraphics, GridLayoutIoMap
 using .GraphToGraphLayoutModule: GraphGraphToGraphLayout, GraphToGraphLayout,
                                  GraphGraphToGraphLayoutIoMap
 using .GraphLayoutToGraphicsModule: GraphLayoutToGraphicsCanvas,
@@ -611,7 +609,7 @@ export DbCatalogDocument,
        DbCatalogRdbms, DbCatalogDatabase, DbCatalogSchema,
        DbCatalogTable, DbCatalogColumn
 export DatabaseInstanceToDbCatalog
-export SqlToCellTable, CellTableToTable
+export SqlToCellTable, CellTableToTable, CellTableToWidgetTable
 export DbCatalogRdbmsToJson, DbCatalogDatabaseToJson,
        DbCatalogSchemaToJson, DbCatalogTableToJson, DbCatalogColumnToJson,
        DbCatalogToJson
@@ -622,7 +620,6 @@ export DbCatalogColumnToSyntaxLeaf, DbCatalogTableToSyntaxNode,
        DbCatalogSchemaToSyntaxNode, DbCatalogDatabaseToSyntaxNode,
        DbCatalogRdbmsToSyntaxNode, DbCatalogToSyntax,
        dbcatalog_marker_eligible
-export TableDocument, TableCell, TableRow, TableColumn, TableTable
 export XmlDocument, XmlInsertion, XmlText, XmlAttribute, XmlElement, xmlattr, setattr!, deleteattr!
 export IniDocument, IniInsertion, IniComment, IniInclude, IniConfigOption, IniParamAssignment, IniSection, IniFile
 export iniparse, iniparse_file
@@ -749,7 +746,6 @@ export JsonToSyntax, JsonStringToSyntaxLeaf,
        JsonNullToSyntaxLeaf, JsonBoolToSyntaxLeaf,
        JsonNumberToSyntaxLeaf, JsonArrayToSyntaxNode, JsonObjectToSyntaxNode,
        JsonInsertionToSyntaxLeaf
-export TableToGraphics, TableTableToGraphicsCanvas
 export XmlToSyntax, XmlTextToSyntaxLeaf, XmlElementToSyntaxNode
 export FileSystemFileToSyntaxLeaf, FileSystemDirectoryToSyntaxNode, FileSystemToSyntax, filesystem_marker_eligible
 export WorkspaceFolderToFileSystemDirectory, WorkspaceToFileSystem

@@ -19,7 +19,7 @@ module WidgetToGraphicsModule
 
 import ..ReactiveModule: Cell
 import ..ProjectionApiModule: projection_print, projection_printer_recurse, projection_read,
-                               map_reference_forward, map_reference_backward, Projection
+                               map_reference_forward, map_reference_backward, Projection, Change
 import ..ProjectionModule: var"@projection"
 import ..DocumentApiModule: Document
 import ..ColorModule: StyleColor,
@@ -56,12 +56,16 @@ import ..EventCaseModule: var"@event_case"
 import ..OperationApiModule: Operation
 import ..OperationModule: ReplaceSelectionOperation, ReplaceReferencedValue, ToggleCollapseOperation
 import ..PrimitiveModule: StringReplaceRangeOperation, NumberReplaceRangeOperation
-import ..ReferenceModule: ReferencePath, ConcreteReferencePath, FieldReference, RangeReference, EmptyReferencePath
+import ..ReferenceModule: ReferencePath, ConcreteReferencePath, FieldReference, RangeReference,
+                          ElementReference, EmptyReferencePath, is_element_reference
 import ..OperationRerootingModule: prepend_steps_to_op
 import ..TypeDispatchingModule: TypeDispatchingProjection
 import ..PrinterContextModule: child_context, with_available_size
-import ..LayoutModule: LayoutConstraint, allocate_axis, layout_min, layout_max,
+import ..LayoutModule: LayoutConstraint, GridLayout, allocate_axis, layout_min, layout_max,
                        layout_preferred, layout_weight
+import ..LayoutToGraphicsModule: GridLayoutToGraphicsCanvas, GridLayoutIoMap
+import ..KeyboardModule: KeyDown
+import ..ModifiersModule: Modifiers
 export WidgetInsertionToGraphicsCanvas, WidgetLabelToGraphicsCanvas, WidgetTextToGraphicsCanvas,
        WidgetCheckboxToGraphicsCanvas, WidgetButtonToGraphicsCanvas,
        WidgetTooltipToGraphicsCanvas, WidgetMenuToGraphicsCanvas,
@@ -2782,62 +2786,656 @@ end
 @_printer_only WidgetAccordionToGraphicsCanvas
 
 # ── WidgetTable ─────────────────────────────────────────────────────────────
+#
+# The single table abstraction. The renderer delegates *all positioning* to a
+# `GridLayout` (built from the recursed cell documents) and overlays the table
+# decorations — borders, hairline rules, header styling, selection bands — using
+# the grid geometry it reads off the `GridLayoutIoMap` ("layout is just layout").
+#
+# Layout / padding model. The grid's children are the bare cell documents; the
+# grid uses `horizontal_gap = vertical_gap = 2*padding + border_width` so that
+# every inter-cell gap is "padding-right + rule + padding-left", and the whole
+# grid canvas is offset by `border_width + padding` inside the outer canvas so
+# the first row/column is padded too. Rules are then drawn centred in the gaps
+# (and on the outer edges) at edges computed from the grid geometry. This yields
+# uniformly-padded cells while reusing GridLayout for the actual positioning.
+#
+# Selection. Field names `rows` / `column_headers` / `row_headers` are the public
+# reference vocabulary (ported from the old TableToGraphics `rows[r]`/`columns[c]`
+# bands). A whole-element selection is a path terminating at the element (`∅`);
+# the renderer — the one place with the grid geometry — turns a 1-D handle into a
+# 2-D highlight band. An in-cell cursor (`rows[r][c].…`) descends into the cell's
+# own sub-pipeline and is drawn there.
 
 @projection struct WidgetTableToGraphicsCanvas <: Projection
-    measure::Function
-    cell_text::StyleText         # body cells
-    header_text::StyleText        # header row
-    rule::StyleStroke             # horizontal hairlines
-    cell_padding::Inset
+    cell_text::StyleText          # (kept for theming parity; cells render via recursion)
+    header_text::StyleText        # header strip text style
+    rule::StyleStroke             # border / hairline rules
+    header_fill::StyleColor       # header strip background
+end
+
+# Translucent selection accent (same blue the syntax-text / old table highlight used).
+const _WT_HL_R = 0x88
+const _WT_HL_G = 0xbb
+const _WT_HL_B = 0xee
+const _WT_HL_A = 0x40
+const _WT_HL_RADIUS = 4
+
+# Grid geometry snapshot for a WidgetTable, derived from the GridLayoutIoMap plus
+# the table's own padding / border. `col_x` / `row_y` are cumulative left/top
+# edges in *outer-canvas* coordinates, length grid_cols+1 / grid_rows+1 so that
+# `col_x[gc+1]` is the right edge of grid column gc.
+struct WTGeometry
+    nrows::Int
+    ncols::Int
+    row_offset::Int          # 1 when a column-header strip occupies grid row 1
+    col_offset::Int          # 1 when a row-header strip occupies grid column 1
+    grid_rows::Int
+    grid_cols::Int
+    has_row_headers::Bool
+    has_col_headers::Bool
+    col_x::Vector{Int}
+    row_y::Vector{Int}
+    total_w::Int
+    total_h::Int
+    bw::Int                  # border / rule width
+    pad::Int                 # inner padding
+    grid_off::Int            # outer offset of the grid canvas (= bw + pad)
+end
+
+# IoMap: carries the grid iomap (for cell delegation) plus the persisted geometry
+# (the table analog of TextToGraphics's char_to_coord).
+struct WidgetTableToGraphicsCanvasIoMap <: IoMap
+    projection::Any
+    input::Any
+    output::Any
+    grid_iomap::Cell         # the GridLayoutIoMap
+    geometry::Cell
+end
+
+# A WidgetTable carries `rows`, `column_headers`, `row_headers`. The grid is laid
+# out row-major over `grid_rows × grid_cols` cells where the (optional) header
+# strips occupy grid row/column 1. The corner and any short cells are filled with
+# an empty placeholder so the grid sizes consistently.
+_wt_has_col_headers(w::WidgetTable) = length(w.column_headers) > 0
+_wt_has_row_headers(w::WidgetTable) = length(w.row_headers) > 0
+_wt_empty_cell() = WidgetLabel(Point2D(0, 0), "")
+
+# Build the flat row-major list of grid-child documents for the table.
+function _wt_grid_children(w::WidgetTable)
+    nrows = length(w.rows)
+    ncols = Int(w.column_count)
+    has_ch = _wt_has_col_headers(w)
+    has_rh = _wt_has_row_headers(w)
+    row_offset = has_ch ? 1 : 0
+    col_offset = has_rh ? 1 : 0
+    grid_rows = nrows + row_offset
+    grid_cols = ncols + col_offset
+    children = Any[]
+    for gr in 1:grid_rows
+        for gc in 1:grid_cols
+            doc = _wt_cell_doc(w, gr, gc, row_offset, col_offset, ncols)
+            push!(children, doc === nothing ? _wt_empty_cell() : doc)
+        end
+    end
+    (children, grid_rows, grid_cols, row_offset, col_offset, nrows, ncols, has_ch, has_rh)
+end
+
+# The document occupying grid position (gr, gc), or nothing (→ placeholder).
+function _wt_cell_doc(w::WidgetTable, gr::Int, gc::Int, row_offset::Int, col_offset::Int, ncols::Int)
+    header_row = row_offset == 1 && gr == 1
+    header_col = col_offset == 1 && gc == 1
+    if header_row && header_col
+        return nothing                       # corner
+    elseif header_row
+        c = gc - col_offset
+        return (1 <= c <= length(w.column_headers)) ? w.column_headers[c] : nothing
+    elseif header_col
+        r = gr - row_offset
+        return (1 <= r <= length(w.row_headers)) ? w.row_headers[r] : nothing
+    else
+        r = gr - row_offset
+        c = gc - col_offset
+        row = (1 <= r <= length(w.rows)) ? w.rows[r] : nothing
+        row === nothing && return nothing
+        return (1 <= c <= length(row)) ? row[c] : nothing
+    end
+end
+
+# Map a (gr, gc) grid position to the flat grid-child index (1-based, row-major).
+_wt_grid_index(gr::Int, gc::Int, grid_cols::Int) = (gr - 1) * grid_cols + gc
+
+# Compute the outer geometry from the GridLayoutIoMap and the table padding/border.
+function _wt_geometry(gim::GridLayoutIoMap, grid_rows::Int, grid_cols::Int,
+                      row_offset::Int, col_offset::Int, nrows::Int, ncols::Int,
+                      has_ch::Bool, has_rh::Bool, pad::Int, bw::Int)
+    grid_off = bw + pad
+    # Per-grid-column width and per-grid-row height from the layout geometry.
+    col_w = Int[Int(gim.col_w[c][]) for c in 1:grid_cols]
+    row_h = Int[Int(gim.row_h[r][]) for r in 1:grid_rows]
+    # Cumulative edges. `col_x[gc]` is the position of the rule to the LEFT of grid
+    # column gc (so col_x[1] = 0 is the left border, col_x[grid_cols+1] is the
+    # right border). The content-left of column gc is col_x[gc] + bw + pad, which
+    # matches the GridLayout child x (Σ prev (col_w+gap)) plus grid_off=bw+pad,
+    # since each box advance is col_w + 2*pad + bw (= the layout gap plus col_w).
+    col_x = Vector{Int}(undef, grid_cols + 1)
+    col_x[1] = 0
+    for gc in 1:grid_cols
+        col_x[gc + 1] = col_x[gc] + col_w[gc] + 2 * pad + bw
+    end
+    row_y = Vector{Int}(undef, grid_rows + 1)
+    row_y[1] = 0
+    for gr in 1:grid_rows
+        row_y[gr + 1] = row_y[gr] + row_h[gr] + 2 * pad + bw
+    end
+    total_w = col_x[grid_cols + 1] + bw   # + trailing right border
+    total_h = row_y[grid_rows + 1] + bw
+    WTGeometry(nrows, ncols, row_offset, col_offset, grid_rows, grid_cols,
+               has_rh, has_ch, col_x, row_y, total_w, total_h, bw, pad, grid_off)
+end
+
+# ── Selection-shape recognition (ported from TableToGraphics) ────────────────
+# `.<field>[index]∅` → (field_name, 1-based index), else nothing.
+function _wt_field_element_terminal(sel)
+    sel isa ConcreteReferencePath || return nothing
+    h = sel.head
+    h isa FieldReference || return nothing
+    t = sel.tail
+    t isa ConcreteReferencePath || return nothing
+    r = t.head
+    (r isa RangeReference && is_element_reference(r)) || return nothing
+    t.tail isa EmptyReferencePath || return nothing
+    (h.name, r.start + 1)
+end
+
+# (:table,_,_) | (:row,r,_) | (:col,c,_) | (:cell,r,c) | nothing
+function _wt_selection_shape(sel, geom::WTGeometry)
+    sel isa EmptyReferencePath && return (:table, 0, 0)
+    fe = _wt_field_element_terminal(sel)
+    if fe !== nothing
+        field, idx = fe
+        if field == "rows"
+            (1 <= idx <= geom.nrows) || return nothing
+            return (:row, idx, 0)
+        elseif field == "column_headers"
+            (1 <= idx <= geom.ncols) || return nothing
+            return (:col, idx, 0)
+        elseif field == "row_headers"
+            (1 <= idx <= geom.nrows) || return nothing
+            return (:row, idx, 0)
+        end
+        return nothing
+    end
+    # `rows[r][c]∅` → whole cell (r,c).
+    rc = _wt_cell_terminal(sel)
+    rc === nothing && return nothing
+    r, c = rc
+    (1 <= r <= geom.nrows && 1 <= c <= geom.ncols) || return nothing
+    return (:cell, r, c)
+end
+
+# `rows[r][c]∅` (element c of row r, terminating) → (r, c), else nothing.
+function _wt_cell_terminal(sel)
+    sel isa ConcreteReferencePath || return nothing
+    (sel.head isa FieldReference && sel.head.name == "rows") || return nothing
+    t = sel.tail
+    t isa ConcreteReferencePath || return nothing
+    (t.head isa RangeReference && is_element_reference(t.head)) || return nothing
+    r = t.head.start + 1
+    t2 = t.tail
+    t2 isa ConcreteReferencePath || return nothing
+    (t2.head isa RangeReference && is_element_reference(t2.head)) || return nothing
+    c = t2.head.start + 1
+    t2.tail isa EmptyReferencePath || return nothing
+    (r, c)
+end
+
+# Pixel rects of the named selection shape (outer-canvas coordinates).
+function _wt_highlight_rects(sel, geom::WTGeometry)
+    shape = _wt_selection_shape(sel, geom)
+    shape === nothing && return GraphicsRect[]
+    kind = shape[1]
+    rect = if kind === :table
+        (0, 0, geom.total_w, geom.total_h)
+    elseif kind === :row
+        gr = shape[2] + geom.row_offset
+        (0, geom.row_y[gr], geom.total_w, geom.row_y[gr + 1] - geom.row_y[gr])
+    elseif kind === :col
+        gc = shape[2] + geom.col_offset
+        (geom.col_x[gc], 0, geom.col_x[gc + 1] - geom.col_x[gc], geom.total_h)
+    elseif kind === :cell
+        gr = shape[2] + geom.row_offset
+        gc = shape[3] + geom.col_offset
+        (geom.col_x[gc], geom.row_y[gr],
+         geom.col_x[gc + 1] - geom.col_x[gc], geom.row_y[gr + 1] - geom.row_y[gr])
+    else
+        return GraphicsRect[]
+    end
+    x, y, ww, hh = rect
+    GraphicsRect[GraphicsRect(x, y, ww, hh, _WT_HL_R, _WT_HL_G, _WT_HL_B, _WT_HL_A, _WT_HL_RADIUS)]
 end
 
 function projection_print(p::WidgetTableToGraphicsCanvas, recursion, w::WidgetTable, ctx)
     w.visible == false && return SimpleIoMap(p, w, _empty_canvas())
     position = w.position::Point2D
-    headers = [string(h) for h in w.headers]
-    rows = [Any[c for c in r] for r in w.rows]
-    column_count = length(headers)
-    cell_padding_x = _sc(Int(p.cell_padding.left[]))
-    cell_padding_y = _sc(Int(p.cell_padding.top[]))
-    _, line_height = _text_size(p.measure, p.cell_text.font, "M")
-    row_height = line_height + 2cell_padding_y
-    # Column widths from header + body content.
-    column_widths = zeros(Int, column_count)
-    for j in 1:column_count
-        width_j = _text_size(p.measure, p.header_text.font, headers[j])[1]
-        for r in rows
-            j <= length(r) && (width_j = max(width_j, _text_size(p.measure, p.cell_text.font, string(r[j]))[1]))
+    pad = _sc(Int(w.padding))
+    bw  = max(1, _sc(Int(w.border_width)))
+    grid_off = bw + pad
+
+    layout_info = Cell(() -> _wt_grid_children(w))
+
+    # Build a GridLayout whose children are the recursed cell documents and
+    # project it through `recursion` (which dispatches GridLayout → its renderer
+    # and each cell document → its own projection). Gaps carry the per-cell
+    # padding + rule so positioning matches the decoration overlay.
+    grid_iomap = Cell(() -> begin
+        info = layout_info[]
+        children, grid_rows, grid_cols = info[1], info[2], info[3]
+        gap = 2 * pad + bw
+        grid = GridLayout(children, grid_cols;
+                          horizontal_gap=gap, vertical_gap=gap)
+        # The grid is positioned at grid_off inside the outer canvas; extend the
+        # context reference to the table's grid so child contexts are rooted here.
+        projection_printer_recurse(recursion, grid, ctx)
+    end)
+
+    geometry = Cell(() -> begin
+        info = layout_info[]
+        _, grid_rows, grid_cols, row_offset, col_offset, nrows, ncols, has_ch, has_rh = info
+        gim = grid_iomap[]
+        gim isa GridLayoutIoMap || return _wt_geometry_empty(pad, bw)
+        _wt_geometry(gim, grid_rows, grid_cols, row_offset, col_offset,
+                     nrows, ncols, has_ch, has_rh, pad, bw)
+    end)
+
+    rule_r, rule_g, rule_b, rule_a = _rgba(p.rule.color)
+    hf_r, hf_g, hf_b, hf_a = _rgba(p.header_fill)
+
+    elements = CellVector(() -> begin
+        geom = geometry[]
+        gim = grid_iomap[]
+        result = Any[]
+        geom.grid_cols == 0 && return result
+        # 1. Header strip backgrounds (behind everything). The column-header strip
+        #    occupies grid row 1; the row-header strip occupies grid column 1.
+        if geom.has_col_headers
+            push!(result, GraphicsRect(0, 0, geom.total_w, geom.row_y[2], hf_r, hf_g, hf_b, hf_a))
         end
-        column_widths[j] = width_j + 2cell_padding_x
-    end
-    table_width = sum(column_widths; init=0)
-    elements = Any[]
-    rule_red, rule_green, rule_blue, rule_alpha = _rgba(p.rule.color)
-    rule_width = max(1, _sc(p.rule.width))
-    # Header row + underline.
-    header_red, header_green, header_blue, header_alpha = _rgbai(p.header_text.color)
-    x = 0
-    for j in 1:column_count
-        push!(elements, GraphicsText(headers[j], x + cell_padding_x, cell_padding_y, p.header_text.font, header_red, header_green, header_blue, header_alpha))
-        x += column_widths[j]
-    end
-    y = row_height
-    push!(elements, GraphicsLine(0, y, table_width, y, rule_red, rule_green, rule_blue, rule_alpha; width=rule_width))
-    # Body rows.
-    cell_red, cell_green, cell_blue, cell_alpha = _rgbai(p.cell_text.color)
-    for r in rows
-        x = 0
-        for j in 1:column_count
-            cell = j <= length(r) ? string(r[j]) : ""
-            push!(elements, GraphicsText(cell, x + cell_padding_x, y + cell_padding_y, p.cell_text.font, cell_red, cell_green, cell_blue, cell_alpha))
-            x += column_widths[j]
+        if geom.has_row_headers
+            push!(result, GraphicsRect(0, 0, geom.col_x[2], geom.total_h, hf_r, hf_g, hf_b, hf_a))
         end
-        y += row_height
-        push!(elements, GraphicsLine(0, y, table_width, y, rule_red, rule_green, rule_blue, rule_alpha; width=rule_width))
-    end
-    SimpleIoMap(p, w, _make_canvas(_origin(position)..., table_width, y, elements))
+        # 2. Selection highlight band(s), behind the grid content and rules.
+        for hr in _wt_highlight_rects(w.selection, geom)
+            push!(result, hr)
+        end
+        # 3. The positioned grid content (from GridLayout), offset by grid_off.
+        if gim isa GridLayoutIoMap
+            gcanvas = gim.output
+            if gcanvas isa GraphicsCanvas
+                push!(result, _make_canvas(geom.grid_off, geom.grid_off, Any[gcanvas]))
+            end
+        end
+        # 4. Horizontal rules — at row_y[gr] for gr in 1..grid_rows+1 (top border,
+        #    inner rules, bottom border).
+        for gr in 1:(geom.grid_rows + 1)
+            push!(result, GraphicsRect(0, geom.row_y[gr], geom.total_w, bw,
+                                       rule_r, rule_g, rule_b, rule_a))
+        end
+        # 5. Vertical rules — at col_x[gc] for gc in 1..grid_cols+1.
+        for gc in 1:(geom.grid_cols + 1)
+            push!(result, GraphicsRect(geom.col_x[gc], 0, bw, geom.total_h,
+                                       rule_r, rule_g, rule_b, rule_a))
+        end
+        result
+    end)
+
+    canvas = GraphicsCanvas(Cell(Int32(_origin(position)[1])), Cell(Int32(_origin(position)[2])),
+                            Cell(() -> Int32(geometry[].total_w)),
+                            Cell(() -> Int32(geometry[].total_h)),
+                            elements, layout_none, true, Cell(nothing))
+    WidgetTableToGraphicsCanvasIoMap(p, w, canvas, grid_iomap, geometry)
 end
-@_printer_only WidgetTableToGraphicsCanvas
+
+_wt_geometry_empty(pad::Int, bw::Int) =
+    WTGeometry(0, 0, 0, 0, 0, 0, false, false, Int[bw], Int[bw], bw, bw, bw, pad, bw + pad)
+
+# ── Reference mapping ────────────────────────────────────────────────────────
+# Forward: a table-domain selection pointing into a cell's content
+# (`rows[r][c].…` / `column_headers[c].…` / `row_headers[r].…`) is delegated to
+# the corresponding GridLayout child so the in-cell cursor is forward-projected.
+# Whole-element handles (`rows[r]∅`, `∅`, …) have no image on the canvas — the
+# band is drawn in place during print — so they map to nothing.
+function map_reference_forward(p::WidgetTableToGraphicsCanvas, iomap::WidgetTableToGraphicsCanvasIoMap, reference)
+    geom = iomap.geometry[]
+    gim = iomap.grid_iomap[]
+    gim isa GridLayoutIoMap || return nothing
+    target = _wt_ref_to_grid_index(reference, geom)
+    target === nothing && return nothing
+    gidx, tail = target
+    # Delegate the tail through the grid's forward map, addressed as children[gidx].
+    grid_ref = ConcreteReferencePath(FieldReference("children"),
+                ConcreteReferencePath(RangeReference(gidx - 1, gidx), tail))
+    map_reference_forward(gim.projection, gim, grid_ref)
+end
+
+map_reference_forward(::WidgetTableToGraphicsCanvas, iomap, reference) = nothing
+
+# Backward: a grid-domain reference (`children[gidx].…`) maps back to the table
+# domain (`rows[r][c].…` etc.).
+function map_reference_backward(p::WidgetTableToGraphicsCanvas, iomap::WidgetTableToGraphicsCanvasIoMap, reference)
+    geom = iomap.geometry[]
+    _wt_grid_ref_to_table(reference, geom)
+end
+
+map_reference_backward(::WidgetTableToGraphicsCanvas, iomap, reference) = nothing
+
+# Decode a table-domain reference into (grid_index, tail) or nothing.
+function _wt_ref_to_grid_index(reference, geom::WTGeometry)
+    reference isa ConcreteReferencePath || return nothing
+    h = reference.head
+    h isa FieldReference || return nothing
+    t = reference.tail
+    t isa ConcreteReferencePath || return nothing
+    e = t.head
+    (e isa RangeReference && is_element_reference(e)) || return nothing
+    idx1 = e.start + 1
+    if h.name == "column_headers"
+        (1 <= idx1 <= geom.ncols) || return nothing
+        gr = 1
+        gc = idx1 + geom.col_offset
+        return (_wt_grid_index(gr, gc, geom.grid_cols), t.tail)
+    elseif h.name == "row_headers"
+        (1 <= idx1 <= geom.nrows) || return nothing
+        gr = idx1 + geom.row_offset
+        gc = 1
+        return (_wt_grid_index(gr, gc, geom.grid_cols), t.tail)
+    elseif h.name == "rows"
+        # rows[r][c].<tail>
+        t2 = t.tail
+        t2 isa ConcreteReferencePath || return nothing
+        e2 = t2.head
+        (e2 isa RangeReference && is_element_reference(e2)) || return nothing
+        c = e2.start + 1
+        r = idx1
+        (1 <= r <= geom.nrows && 1 <= c <= geom.ncols) || return nothing
+        gr = r + geom.row_offset
+        gc = c + geom.col_offset
+        return (_wt_grid_index(gr, gc, geom.grid_cols), t2.tail)
+    end
+    return nothing
+end
+
+# Decode a grid-domain reference (`children[gidx].<tail>`) into the table domain.
+function _wt_grid_ref_to_table(reference, geom::WTGeometry)
+    reference isa ConcreteReferencePath || return nothing
+    (reference.head isa FieldReference && reference.head.name == "children") || return nothing
+    t = reference.tail
+    t isa ConcreteReferencePath || return nothing
+    (t.head isa RangeReference && is_element_reference(t.head)) || return nothing
+    gidx = t.head.start + 1
+    tail = t.tail
+    geom.grid_cols <= 0 && return nothing
+    gr = div(gidx - 1, geom.grid_cols) + 1
+    gc = mod(gidx - 1, geom.grid_cols) + 1
+    header_row = geom.row_offset == 1 && gr == 1
+    header_col = geom.col_offset == 1 && gc == 1
+    if header_row && header_col
+        return nothing
+    elseif header_row
+        c = gc - geom.col_offset
+        return ConcreteReferencePath(FieldReference("column_headers"),
+                ConcreteReferencePath(RangeReference(c - 1, c), tail))
+    elseif header_col
+        r = gr - geom.row_offset
+        return ConcreteReferencePath(FieldReference("row_headers"),
+                ConcreteReferencePath(RangeReference(r - 1, r), tail))
+    else
+        r = gr - geom.row_offset
+        c = gc - geom.col_offset
+        return ConcreteReferencePath(FieldReference("rows"),
+                ConcreteReferencePath(RangeReference(r - 1, r),
+                ConcreteReferencePath(RangeReference(c - 1, c), tail)))
+    end
+end
+
+# ── Reading (gestures) ───────────────────────────────────────────────────────
+# Gesture-aware reader, ported from TableToGraphics. Left clicks resolve here
+# (header/corner → row/column/table; Alt+click promotes a data cell to a whole
+# cell; a plain click routes into the cell content). Keyboard grid navigation
+# (Alt+arrows, Ctrl+Alt+Home, Shift/Ctrl+Space, Enter) is resolved against the
+# live table. Everything else falls through to per-cell editing via the grid.
+function projection_read(p::WidgetTableToGraphicsCanvas, recursion, change::Change, iomap::WidgetTableToGraphicsCanvasIoMap)
+    g = change.gesture
+    if change.operation === nothing && g isa MousePress && g.button === :left
+        return Change(g, _wt_mouse_select(iomap, g))
+    end
+    if change.operation === nothing && g isa KeyDown
+        op = _wt_key_navigate(iomap, g, iomap.geometry[])
+        op === nothing || return Change(g, op)
+    end
+    # Fall through: plain editing keys route into the active cell via the grid; an
+    # already-produced operation passes straight through. Use the grid passthrough
+    # directly (not the 3-arg reader) to avoid re-entering this gesture logic.
+    payload = change.operation === nothing ? g : change.operation
+    return Change(g, _wt_grid_passthrough(p, iomap, payload))
+end
+
+# Resolve a left click into a selection operation (or nothing).
+function _wt_mouse_select(iomap::WidgetTableToGraphicsCanvasIoMap, g::MousePress)
+    geom = iomap.geometry[]
+    hit = _wt_hit_test(geom, g.x, g.y)
+    kind = hit[1]
+    if kind === :corner
+        return ReplaceSelectionOperation(EmptyReferencePath())
+    elseif kind === :row
+        r = hit[2]
+        return ReplaceSelectionOperation(
+            ConcreteReferencePath(FieldReference("rows"),
+                ConcreteReferencePath(RangeReference(r - 1, r), EmptyReferencePath())))
+    elseif kind === :col
+        c = hit[2]
+        return ReplaceSelectionOperation(
+            ConcreteReferencePath(FieldReference("column_headers"),
+                ConcreteReferencePath(RangeReference(c - 1, c), EmptyReferencePath())))
+    elseif kind === :cell
+        r, c = hit[2], hit[3]
+        if g.modifiers.alt
+            return ReplaceSelectionOperation(
+                ConcreteReferencePath(FieldReference("rows"),
+                    ConcreteReferencePath(RangeReference(r - 1, r),
+                    ConcreteReferencePath(RangeReference(c - 1, c), EmptyReferencePath()))))
+        else
+            return _wt_route_cell_click(iomap, geom, r, c, g)
+        end
+    end
+    return nothing
+end
+
+# Classify a click point: :corner | (:row,r) | (:col,c) | (:cell,r,c) | :outside.
+function _wt_hit_test(geom::WTGeometry, x::Int, y::Int)
+    (0 <= x < geom.total_w && 0 <= y < geom.total_h) || return (:outside, 0, 0)
+    gc = 0
+    for c in 1:geom.grid_cols
+        if geom.col_x[c] <= x < geom.col_x[c + 1]
+            gc = c; break
+        end
+    end
+    gr = 0
+    for r in 1:geom.grid_rows
+        if geom.row_y[r] <= y < geom.row_y[r + 1]
+            gr = r; break
+        end
+    end
+    (gc == 0 || gr == 0) && return (:outside, 0, 0)
+    header_col = geom.has_row_headers && gc == 1
+    header_row = geom.has_col_headers && gr == 1
+    if header_col && header_row
+        return (:corner, 0, 0)
+    elseif header_row
+        return (:col, gc - geom.col_offset, 0)
+    elseif header_col
+        return (:row, gr - geom.row_offset, 0)
+    else
+        return (:cell, gr - geom.row_offset, gc - geom.col_offset)
+    end
+end
+
+# Route a plain click into a data cell's content sub-pipeline (via the grid
+# child), translating the click into the cell's frame, then wrap the resulting
+# operation back into the table domain.
+function _wt_route_cell_click(iomap::WidgetTableToGraphicsCanvasIoMap, geom::WTGeometry,
+                              r::Int, c::Int, g::MousePress)
+    gim = iomap.grid_iomap[]
+    gim isa GridLayoutIoMap || return nothing
+    gr = r + geom.row_offset
+    gc = c + geom.col_offset
+    gidx = _wt_grid_index(gr, gc, geom.grid_cols)
+    entries = gim.child_iomaps[]::Vector
+    (1 <= gidx <= length(entries)) || return nothing
+    entry = entries[gidx]
+    entry === nothing && return nothing
+    (ox_cell, oy_cell, cim) = entry::Tuple{Cell,Cell,Any}
+    canvas = cim.output
+    canvas isa GraphicsCanvas || return nothing
+    # Child position = grid_off (grid canvas offset) + child wrapper offset + child canvas offset.
+    cell_x = geom.grid_off + Int(ox_cell[]) + Int(canvas.x)
+    cell_y = geom.grid_off + Int(oy_cell[]) + Int(canvas.y)
+    local_evt = MousePress(g.button, g.x - cell_x, g.y - cell_y, g.modifiers)
+    op = projection_read(cim.projection, cim, local_evt)
+    op isa ReplaceSelectionOperation || return nothing
+    table_ref = _wt_grid_ref_to_table(
+        ConcreteReferencePath(FieldReference("children"),
+            ConcreteReferencePath(RangeReference(gidx - 1, gidx), op.path)), geom)
+    table_ref === nothing ? nothing : ReplaceSelectionOperation(table_ref)
+end
+
+# Keyboard grid navigation (ported from TableToGraphics, adapted to rows[r][c]).
+function _wt_key_navigate(iomap::WidgetTableToGraphicsCanvasIoMap, evt::KeyDown, geom::WTGeometry)
+    nrows, ncols = geom.nrows, geom.ncols
+    (nrows == 0 || ncols == 0) && return nothing
+    sel = iomap.input.selection
+
+    if evt.key === :home && evt.modifiers.ctrl && evt.modifiers.alt
+        return ReplaceSelectionOperation(EmptyReferencePath())
+    end
+
+    shape = _wt_selection_shape(sel, geom)
+    cell_rc = _wt_cell_terminal(sel)
+
+    if evt.key === :return
+        if shape !== nothing && shape[1] === :row
+            return ReplaceSelectionOperation(_wt_cell_ref(shape[2], 1))
+        elseif shape !== nothing && shape[1] === :col
+            return ReplaceSelectionOperation(_wt_cell_ref(1, shape[2]))
+        elseif cell_rc !== nothing
+            return _wt_enter_cell_content(iomap, geom, cell_rc[1], cell_rc[2])
+        end
+        return nothing
+    end
+
+    if evt.key === :space && (evt.modifiers.shift ⊻ evt.modifiers.ctrl)
+        cell_rc === nothing && return nothing
+        r, c = cell_rc
+        if evt.modifiers.shift
+            return ReplaceSelectionOperation(_wt_row_ref(r))
+        else
+            return ReplaceSelectionOperation(_wt_col_ref(c))
+        end
+    end
+
+    if (evt.modifiers.alt || shape !== nothing) && evt.key in (:up, :down, :left, :right)
+        if shape !== nothing && shape[1] === :row
+            r = shape[2]
+            if evt.key === :up
+                return ReplaceSelectionOperation(_wt_row_ref(max(1, r - 1)))
+            elseif evt.key === :down
+                return ReplaceSelectionOperation(_wt_row_ref(min(nrows, r + 1)))
+            elseif evt.key === :right
+                return ReplaceSelectionOperation(_wt_cell_ref(r, 1))
+            else
+                return nothing
+            end
+        elseif shape !== nothing && shape[1] === :col
+            c = shape[2]
+            if evt.key === :left
+                return ReplaceSelectionOperation(_wt_col_ref(max(1, c - 1)))
+            elseif evt.key === :right
+                return ReplaceSelectionOperation(_wt_col_ref(min(ncols, c + 1)))
+            elseif evt.key === :down
+                return ReplaceSelectionOperation(_wt_cell_ref(1, c))
+            else
+                return nothing
+            end
+        else
+            cell_rc === nothing && return nothing
+            r, c = cell_rc
+            if evt.key === :up
+                r = max(1, r - 1)
+            elseif evt.key === :down
+                r = min(nrows, r + 1)
+            elseif evt.key === :left
+                c = max(1, c - 1)
+            elseif evt.key === :right
+                c = min(ncols, c + 1)
+            end
+            return ReplaceSelectionOperation(_wt_cell_ref(r, c))
+        end
+    end
+    return nothing
+end
+
+_wt_row_ref(r::Int) = ConcreteReferencePath(FieldReference("rows"),
+    ConcreteReferencePath(RangeReference(r - 1, r), EmptyReferencePath()))
+_wt_col_ref(c::Int) = ConcreteReferencePath(FieldReference("column_headers"),
+    ConcreteReferencePath(RangeReference(c - 1, c), EmptyReferencePath()))
+_wt_cell_ref(r::Int, c::Int) = ConcreteReferencePath(FieldReference("rows"),
+    ConcreteReferencePath(RangeReference(r - 1, r),
+    ConcreteReferencePath(RangeReference(c - 1, c), EmptyReferencePath())))
+
+# Place a character cursor at the start of a cell's content.
+function _wt_enter_cell_content(iomap::WidgetTableToGraphicsCanvasIoMap, geom::WTGeometry, r::Int, c::Int)
+    gim = iomap.grid_iomap[]
+    gim isa GridLayoutIoMap || return nothing
+    gr = r + geom.row_offset
+    gc = c + geom.col_offset
+    gidx = _wt_grid_index(gr, gc, geom.grid_cols)
+    entries = gim.child_iomaps[]::Vector
+    (1 <= gidx <= length(entries)) || return nothing
+    entry = entries[gidx]
+    entry === nothing && return nothing
+    cim = entry[3]
+    op = projection_read(cim.projection, cim, KeyDown(:home, Modifiers(ctrl=true)))
+    op isa ReplaceSelectionOperation || return nothing
+    table_ref = _wt_grid_ref_to_table(
+        ConcreteReferencePath(FieldReference("children"),
+            ConcreteReferencePath(RangeReference(gidx - 1, gidx), op.path)), geom)
+    table_ref === nothing ? nothing : ReplaceSelectionOperation(table_ref)
+end
+
+# 3-arg fall-through form. Reached two ways: (a) the 4-arg gesture reader above
+# delegates plain editing events here; (b) a *parent* container (composite, grid,
+# split pane) routes a raw event to this nested table via the 3-arg call. For (b)
+# we must still run the table's own gesture logic (left-click selection, grid
+# navigation), so a bare MousePress/KeyDown is lifted into a Change and handled by
+# the 4-arg reader. Anything else dispatches to the grid and is re-rooted.
+function projection_read(p::WidgetTableToGraphicsCanvas, iomap::WidgetTableToGraphicsCanvasIoMap, event)
+    if event isa MousePress || event isa KeyDown
+        return projection_read(p, nothing, Change(event, nothing), iomap).operation
+    end
+    return _wt_grid_passthrough(p, iomap, event)
+end
+
+# Dispatch a non-gesture event to the grid; the active cell answers and the grid
+# returns a `children[gidx].…` op, which we re-root into the table domain.
+function _wt_grid_passthrough(p::WidgetTableToGraphicsCanvas, iomap::WidgetTableToGraphicsCanvasIoMap, event)
+    gim = iomap.grid_iomap[]
+    gim isa GridLayoutIoMap || return nothing
+    geom = iomap.geometry[]
+    op = projection_read(gim.projection, gim, event)
+    op isa ReplaceSelectionOperation || return nothing
+    table_ref = _wt_grid_ref_to_table(op.path, geom)
+    table_ref === nothing ? nothing : ReplaceSelectionOperation(table_ref)
+end
 
 # ── WidgetTree ──────────────────────────────────────────────────────────────
 
@@ -2987,10 +3585,10 @@ function WidgetToGraphics(font::StyleFont; measure::Function,
             StyleStroke(theme.border, theme.border_width),
             Inset(10, 10, theme.pad_x, theme.pad_x),
             theme.gap, 2, StyleStroke(theme.muted_foreground, theme.stroke), theme.chevron),
-        WidgetTable       => WidgetTableToGraphicsCanvas(measurer,
+        WidgetTable       => WidgetTableToGraphicsCanvas(
             StyleText(theme.font, theme.foreground), StyleText(theme.font_small, theme.muted_foreground),
             StyleStroke(theme.border, theme.border_width),
-            Inset(8, 8, 12, 12)),
+            theme.muted),
         WidgetTree        => WidgetTreeToGraphicsCanvas(measurer, StyleText(theme.font, theme.foreground),
             22, 18, 4,
             StyleStroke(theme.muted_foreground, theme.stroke), theme.chevron),
