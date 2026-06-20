@@ -105,6 +105,76 @@ end
     @test op2.replacement == "x"
 end
 
+@testset "node selection maps backward: widget leaf path → domain leaf path" begin
+    root, _, _, _ = _make_tree()
+    iomap = projection_print(_proj(), root)
+    # Root (indented object) body piece 1 = the inline pair; pair HL piece 3 =
+    # the value leaf; its value span is elements[2]. A click there arrives as:
+    widget_path = @reference children[1].children[3].elements[2].content{2}
+    op = projection_read(_proj(), iomap, ReplaceSelectionOperation(widget_path))
+    @test op isa ReplaceSelectionOperation
+    # … and re-roots to the pair's second child (the value leaf) value{2}.
+    @test op.path == (@reference children[1].children[2].value{2})
+end
+
+@testset "node selection maps forward: domain leaf path → widget leaf path" begin
+    root, _, _, _ = _make_tree()
+    iomap = projection_print(_proj(), root)
+    fwd = map_reference_forward(iomap.projection, iomap,
+                                @reference children[1].children[2].value{1})
+    # Inverse of the backward case: child 2 of the inline pair sits at HL piece 3.
+    @test fwd == (@reference children[1].children[3].elements[2].content{1})
+end
+
+@testset "node selection: ∅ is identity, chrome (sep) pieces are rejected" begin
+    root, _, _, _ = _make_tree()
+    iomap = projection_print(_proj(), root)
+    @test map_reference_backward(iomap.projection, iomap, EmptyReferencePath()) ==
+          EmptyReferencePath()
+    @test map_reference_forward(iomap.projection, iomap, EmptyReferencePath()) ==
+          EmptyReferencePath()
+    # Pair HL piece 2 is the ": " separator — projection chrome with no syntax
+    # pre-image, so the whole op is dropped.
+    sep_path = @reference children[1].children[2].elements[1].content{0}
+    @test projection_read(_proj(), iomap, ReplaceSelectionOperation(sep_path)) === nothing
+end
+
+@testset "inline value click routes to the value leaf, not the greedy key" begin
+    # Regression: in a HorizontalLayout the leftmost child's GraphicsText has no
+    # measured right edge, so before the LayoutToGraphics box-bound fix the key
+    # leaf swallowed every click to its right and a click on the value resolved
+    # to the key. Drive a real click through the full widget graphics pipeline.
+    key = SyntaxLeaf("\"", "\"", "k")
+    val = SyntaxLeaf("\"", "\"", "valuevalue")     # clearly to the right
+    pair = SyntaxNode(TextString(""), TextString(""), TextString(": "),
+                      SyntaxDocument[key, val]; indentation=0)
+    gproj = SequentialProjection(RecursiveProjection(SyntaxToWidget()),
+                                 make_syntax_widget_graphics())
+    iomap = projection_print(gproj, pair)
+
+    # Walk the canvas to the rendered value glyph and read its global x.
+    val_x = Ref(-1); val_y = Ref(0)
+    walk(n, ox, oy) = begin
+        if n isa GraphicsCanvas
+            bx = ox + Int(n.x[]); by = oy + Int(n.y[])
+            for e in n.elements
+                a = e isa Projectured.ReactiveModule.Cell ? e[] : e
+                walk(a, bx, by)
+            end
+        elseif n isa GraphicsText && occursin("valuevalue", String(n.text))
+            val_x[] = ox + Int(n.x); val_y[] = oy + Int(n.y)
+        end
+    end
+    walk(iomap.output, 0, 0)
+    @test val_x[] >= 0    # the value glyph rendered
+
+    op = projection_read(gproj, iomap,
+                         MousePress(:left, val_x[] + 2, val_y[] + 6, Modifiers()))
+    @test op isa ReplaceSelectionOperation
+    # child 2 of the inline pair is the value leaf; child 1 (the key) must NOT win.
+    @test op.path == (@reference children[2].value{0})
+end
+
 @testset "collapse: ToggleCollapseOperation on the card retargets to the node" begin
     root, _, _, _ = _make_tree()
     iomap = projection_print(_proj(), root)

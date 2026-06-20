@@ -267,10 +267,146 @@ function projection_print(p::SyntaxNodeToWidget, recursion, node::SyntaxNode, ct
     ChildrenIoMap(p, node, card, child_ioms)
 end
 
-# Node-level structural selection display / backward mapping is deferred to leaf
-# cursors (the embedded TextTexts carry the caret); the node maps nothing.
-map_reference_forward(::SyntaxNodeToWidget, iomap, reference)  = nothing
-map_reference_backward(::SyntaxNodeToWidget, iomap, reference) = nothing
+# ── Selection / reference mapping ──────────────────────────────────────────
+# A widget-domain selection path reaches the node already rooted at one of its
+# laid-out layouts as `children[piece]…` (the layout/card graphics readers
+# prepend `children[i]`; `WidgetCardToGraphicsCanvas` is transparent and routes a
+# body click into the body `VerticalLayout` without adding a step). To re-root it
+# back to the syntax domain we de-interleave that piece index — skipping the
+# projection-introduced open/close/sep pieces — to the syntax child it came from,
+# then delegate the tail through that child's stored iomap (School A, as in
+# `JsonArrayToSyntaxNode`). The helpers below mirror the piece layout built by
+# `projection_print`:
+#
+#   inline node (HorizontalLayout): [ open?  child₁  sep  child₂ … childₙ  close? ]
+#   indented node body (VerticalLayout): [ child₁  child₂ … childₙ  close? ]
+#
+# The indented header (marker/open, plus ellipsis/close when collapsed) is never a
+# selection path — the card hit-tests it and emits ToggleCollapseOperation — so
+# only the inline-HL and indented-body shapes are mapped.
+
+# Piece index (1-based) of inline child `i`.
+function _inline_child_piece(node::SyntaxNode, i::Int)
+    open_off = isempty(node.open.content) ? 0 : 1
+    open_off + 1 + 2 * (i - 1)
+end
+
+# Piece index (1-based) of the inline close delimiter (valid only when present).
+function _inline_close_piece(node::SyntaxNode)
+    open_off = isempty(node.open.content) ? 0 : 1
+    n = length(node.children)
+    open_off + (n == 0 ? 0 : 2n - 1) + 1
+end
+
+# Kind of the inline HorizontalLayout piece at `piece` (1-based):
+# (:child, i) | (:open,) | (:close,) | (:sep,) | nothing.
+function _inline_piece_kind(node::SyntaxNode, piece::Int)
+    piece < 1 && return nothing
+    open_off = isempty(node.open.content) ? 0 : 1
+    n = length(node.children)
+    has_close = !isempty(node.close.content)
+    open_off == 1 && piece == 1 && return (:open,)
+    has_close && piece == _inline_close_piece(node) && return (:close,)
+    rel = piece - open_off                 # 1-based within [child sep child … child]
+    rel < 1 && return nothing
+    if isodd(rel)
+        i = (rel + 1) ÷ 2
+        1 <= i <= n ? (:child, i) : nothing
+    else
+        (:sep,)
+    end
+end
+
+# Kind of the indented body VerticalLayout piece at `piece` (1-based):
+# (:child, i) | (:close,) | nothing.
+function _body_piece_kind(node::SyntaxNode, piece::Int)
+    n = length(node.children)
+    1 <= piece <= n && return (:child, piece)
+    !isempty(node.close.content) && piece == n + 1 && return (:close,)
+    nothing
+end
+
+# Peel a leading `children[piece]` step → (piece::Int, rest) or nothing.
+function _peel_children_step(reference)
+    reference isa ConcreteReferencePath || return nothing
+    h = reference.head
+    (h isa FieldReference && h.name == "children") || return nothing
+    t = reference.tail
+    t isa ConcreteReferencePath || return nothing
+    h2 = t.head
+    h2 isa RangeReference || return nothing
+    (h2.start + 1, t.tail)
+end
+
+function map_reference_backward(p::SyntaxNodeToWidget, iomap::ChildrenIoMap, reference)
+    reference isa EmptyReferencePath && return @reference()
+    peeled = _peel_children_step(reference)
+    peeled === nothing && return nothing
+    piece, rest = peeled
+    node = iomap.input::SyntaxNode
+    kind = node.indentation == 0 ? _inline_piece_kind(node, piece) :
+                                   _body_piece_kind(node, piece)
+    kind === nothing && return nothing
+    if kind[1] === :child
+        i = kind[2]
+        iomaps = iomap.child_iomaps[]
+        1 <= i <= length(iomaps) || return nothing
+        child = iomaps[i]
+        inner = map_reference_backward(child.projection, child, rest)
+        inner === nothing && return nothing
+        return @reference children[i].^(inner)
+    elseif kind[1] === :open
+        _, char_idx = _parse_text_elem_path(rest)
+        char_idx === nothing && return nothing
+        return @reference open{char_idx}
+    elseif kind[1] === :close
+        _, char_idx = _parse_text_elem_path(rest)
+        char_idx === nothing && return nothing
+        return @reference close{char_idx}
+    end
+    return nothing
+end
+
+function map_reference_forward(p::SyntaxNodeToWidget, iomap::ChildrenIoMap, reference)
+    reference isa EmptyReferencePath && return @reference()
+    reference isa ConcreteReferencePath || return nothing
+    node = iomap.input::SyntaxNode
+    h = reference.head
+    if h isa FieldReference && h.name == "children"
+        t = reference.tail
+        t isa ConcreteReferencePath || return nothing
+        h2 = t.head
+        h2 isa RangeReference || return nothing
+        i = h2.start + 1
+        iomaps = iomap.child_iomaps[]
+        1 <= i <= length(iomaps) || return nothing
+        child = iomaps[i]
+        inner = map_reference_forward(child.projection, child, t.tail)
+        inner === nothing && return nothing
+        piece = node.indentation == 0 ? _inline_child_piece(node, i) : i
+        return @reference children[piece].^(inner)
+    elseif h isa FieldReference && (h.name == "open" || h.name == "close")
+        # A delimiter cursor maps into its one-span TextText piece. The inline
+        # layout holds both delimiters; the indented header is not selectable, so
+        # only the inline case has a widget pre-image.
+        node.indentation == 0 || return nothing
+        t = reference.tail
+        t isa ConcreteReferencePath || return nothing
+        h2 = t.head
+        h2 isa RangeReference || return nothing
+        k = h2.start
+        if h.name == "open"
+            isempty(node.open.content) && return nothing
+            piece = 1
+        else
+            isempty(node.close.content) && return nothing
+            piece = _inline_close_piece(node)
+        end
+        inner = @reference elements[1].content{k}
+        return @reference children[piece].^(inner)
+    end
+    return nothing
+end
 
 # Walk the stored child iomaps to translate a widget target (a produced
 # WidgetCard) back to the SyntaxNode whose projection produced it.
@@ -295,7 +431,20 @@ function projection_read(::SyntaxNodeToWidget, iomap, op::ToggleCollapseOperatio
     node === nothing ? op : ToggleCollapseOperation(node)
 end
 
-# Anything else (selection moves handled by leaves, scrolls, …) passes through.
+# Re-root a path-bearing op from the widget output domain back to the syntax
+# domain via the backward mapper (which recurses through the stored child iomaps).
+# A reference with no syntax pre-image (a sep/chrome piece) drops the op.
+function projection_read(p::SyntaxNodeToWidget, iomap::ChildrenIoMap, op::ReplaceSelectionOperation)
+    new = map_reference_backward(p, iomap, op.path)
+    new === nothing ? nothing : ReplaceSelectionOperation(new)
+end
+
+function projection_read(p::SyntaxNodeToWidget, iomap::ChildrenIoMap, op::StringReplaceRangeOperation)
+    new = map_reference_backward(p, iomap, op.reference)
+    new === nothing ? nothing : StringReplaceRangeOperation(new, op.replacement)
+end
+
+# Anything else (scrolls, non-path ops, …) passes through.
 projection_read(::SyntaxNodeToWidget, iomap, op) = op
 
 # ── Factory ──────────────────────────────────────────────────────────────────

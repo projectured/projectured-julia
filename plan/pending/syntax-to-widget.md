@@ -84,12 +84,21 @@ its parent rather than on a separate line.
 - **Leaves** wire their selection forward into the embedded `TextText`
   (`open{k}`/`value{k}`/`close{k}` → `elements[{1,2,3}].content{k}`), and the
   leaf reader maps `ReplaceSelectionOperation` / value-span
-  `StringReplaceRangeOperation` back to the leaf domain — *in isolation*.
-- **End-to-end selection is not wired** (see §3): `SyntaxNodeToWidget`'s
-  reference maps return `nothing`, so a path produced deep in the widget tree
-  (a click on a leaf, routed up through the cards/layouts) is not re-rooted
-  across the node levels back to the domain. Caret placement and leaf editing
-  therefore do not yet round-trip through the full pipeline.
+  `StringReplaceRangeOperation` back to the leaf domain.
+- **Nodes** now re-root references across each level. `SyntaxNodeToWidget`
+  implements symmetric `map_reference_forward`/`map_reference_backward` that
+  de-interleave the widget layout's `children[piece]` index — skipping the
+  projection-introduced open/close/sep pieces — back to the syntax `children[i]`
+  and delegate the tail through the stored child iomap (the
+  `JsonArrayToSyntaxNode` "School A" pattern), plus `projection_read` methods that
+  re-root `ReplaceSelectionOperation` / `StringReplaceRangeOperation` via the
+  backward mapper. A click on a leaf (routed up through the cards/layouts as
+  `children[piece].elements[span].content{k}`) is therefore re-rooted across the
+  node levels back to the domain, so caret placement and leaf editing round-trip
+  through the full pipeline. Forward caret *display* is per-leaf: each
+  `SyntaxLeaf.selection` is set by the upstream `…ToSyntax` printer and forwarded
+  into the embedded `TextText`, so no node-level forward map is needed to show the
+  caret — the node forward map exists for symmetry / node-level selection.
 
 ---
 
@@ -125,16 +134,17 @@ debug scaffold, so it was dropped rather than shipped.
   keyboard events to its children, so the widget examples are excluded from the
   keyboard-navigation test sweep (same as the bare widget examples). A
   widget-layer keyboard-routing mechanism would be the prerequisite.
-- **End-to-end selection / reference mapping.** `SyntaxNodeToWidget` must map
-  references forward (input selection → widget path, to display the caret) and
-  backward (widget path → input selection, to retarget a click/edit), re-rooting
-  across each node level — the way the existing `…ToSyntax` projections and
-  `LayoutToGraphics` do via the `children[i]` prepend. **This is the prerequisite
-  for editing leaf text:** without it a click on a leaf cannot be turned into a
-  selection on the underlying domain leaf, so the caret cannot be placed and a
-  keystroke has no target. (The leaf projection already maps its own three spans;
-  what is missing is the node-level path plumbing above it.)
 - **Node-level structural selection display** (highlighting a whole subtree).
+  The reference mapping is in place (see §1 Selection), but no widget-layer
+  highlight is rendered for a whole-element node selection.
+- **Coordinate-based click test coverage for widget examples.** The
+  `test_click_roundtrips` harness drives clicks by global `char_to_coord` offsets;
+  in the widget pipeline each leaf's `TextToGraphics` reports *local* canvas
+  coordinates with no global accumulation, so the harness still skips `widget*`
+  examples. The node-level re-rooting itself is covered by unit tests in
+  `test/src/projection/SyntaxToWidgetTest.jl` (widget leaf path ⇄ domain leaf
+  path). Un-skipping the click sweep needs the widget→screen coordinate metadata
+  below.
 - **Theme/domain-driven per-element styling** (accent, emphasis) — a style
   intent the domain expresses and the theme resolves, not arithmetic on the
   font color.
