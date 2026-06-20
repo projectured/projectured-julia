@@ -15,7 +15,8 @@ Mappers follow the School-A peel-and-delegate pattern (see the tutorial and
 guide/projection-system.md): each node peels the one step it owns and delegates
 the tail through the stored child IO maps. `FormulaToSyntax()` merges the Julia
 type-dispatch table with the Formula entries into a single
-`TypeDispatchingProjection`, wrapped once in `RecursiveProjection`.
+`TypeDispatchingProjection` (callers wrap it once in `RecursiveProjection`, as
+with `JuliaToSyntax`).
 """
 module FormulaToSyntaxModule
 
