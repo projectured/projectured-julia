@@ -30,10 +30,11 @@ import ..CollectionModule: CellVector, ListNode, CollectionDocument
 import ..FontModule: StyleFont, font_ubuntu_monospace_regular_24
 import ..ColorModule: StyleColor, color_default
 import ..GeometryModule: Inset
-import ..ReferenceModule: Reference
+import ..ReferenceModule: Reference, ConcreteReferencePath, EmptyReferencePath, RangeReference, FieldReference, TextRectangularReference
 import ..OperationApiModule: splice_string, splice_value!
 export TextDocument, TextInsertion, TextNewline, TextSpacing, TextString, TextGraphics, TextText, setfn!,
-       ITextInsertion, ITextNewline, ITextSpacing, ITextString, ITextGraphics, ITextText
+       ITextInsertion, ITextNewline, ITextSpacing, ITextString, ITextGraphics, ITextText,
+       text_flat_length, text_selection_flat
 
 # ── TextDocument (base) ───────────────────────────────────────────────────
 
@@ -306,6 +307,62 @@ end
 
 setfn!(s::TextString, f::Function) = (setfn!(getfield(s, :content), f); s)
 setfn!(st::TextText, f::Function) = (setfn!(getfield(st.elements, :elements), () -> Cell[Cell(x) for x in f()]); st)
+
+# ── Selection → flat character range ───────────────────────────────
+#
+# Shared helper: resolve a TextText's selection to a flat half-open char range
+# over the concatenated rendered stream. The console backend and the
+# `SelectionInverting` projection both consume this single source of truth (the
+# graphics pipeline computes its cursor rect from span-local offsets instead).
+
+# The flat length a span contributes to the rendered character stream, matching
+# how the selection's offsets are counted: TextString → its content length,
+# TextNewline / TextSpacing → 1, anything else → 0.
+text_flat_length(span::TextString) = length(span.content::AbstractString)
+text_flat_length(::TextNewline) = 1
+text_flat_length(::TextSpacing) = 1
+text_flat_length(::TextDocument) = 0
+
+"""
+    text_selection_flat(text::TextText) -> (start, stop, is_cursor) or nothing
+
+Resolve `text`'s selection to a flat half-open char range `(start, stop)` over
+the concatenated stream (0-based), plus an `is_cursor` flag (a zero-width caret).
+Returns `nothing` when there is no renderable selection.
+
+Two shapes occur, both with 0-based offsets:
+  • whole-element: top-level `TextRectangularReference(a, b)`, an already-flat
+    character range over the concatenated text;
+  • text cursor: `.elements[i].content{a:b}` — add the i-th span's base offset.
+"""
+function text_selection_flat(text::TextText)
+    sel = text.selection
+    sel isa ConcreteReferencePath || return nothing
+    h = sel.head
+    if h isa TextRectangularReference && sel.tail isa EmptyReferencePath
+        return (h.start, h.stop, h.start == h.stop)
+    end
+    return _text_cursor_flat(text, sel)
+end
+
+function _text_cursor_flat(text::TextText, sel::ConcreteReferencePath)
+    (sel.head isa FieldReference && sel.head.name == "elements") || return nothing
+    t1 = sel.tail
+    t1 isa ConcreteReferencePath && t1.head isa RangeReference || return nothing
+    span_idx = t1.head.start + 1   # 1-based span index
+    t2 = t1.tail
+    t2 isa ConcreteReferencePath && t2.head isa FieldReference && t2.head.name == "content" || return nothing
+    t3 = t2.tail
+    t3 isa ConcreteReferencePath && t3.head isa RangeReference || return nothing
+    a, b = t3.head.start, t3.head.stop
+    elements = text.elements
+    (1 <= span_idx <= length(elements)) || return nothing
+    base = 0
+    for i in 1:(span_idx - 1)
+        base += text_flat_length(elements[i])
+    end
+    return (base + a, base + b, a == b)
+end
 
 # ── Display ──────────────────────────────────────────────────────
 
