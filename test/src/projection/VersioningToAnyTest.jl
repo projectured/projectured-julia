@@ -156,18 +156,22 @@ end
     p = VersioningToAnyProjection()
     iomap = projection_print(p, PreservingProjection(), vo, PrinterContext())
 
-    # Ctrl+Shift+S snapshots the active value into a new front ObjectVersion.
+    # Ctrl+Shift+S snapshots the active value into a new front ObjectVersion via
+    # a standard CollectionInsertOperation (index 0 = front, newest-first).
     op = projection_read(p, iomap, KeyDown(:s, ctrl_shift))
-    @test op isa CreateVersionOperation
+    @test op isa CollectionInsertOperation
     @test op.path.head.name == "versions"
-    @test op.version isa ObjectVersion
-    @test op.version.value isa PrimitiveString
-    @test op.version.value.value == "v3"
-    @test op.version.value !== vo.versions[1].value     # deep copy
+    @test op.index == 0
+    snapshot = op.items[1]
+    @test snapshot isa ObjectVersion
+    @test snapshot.value isa PrimitiveString
+    @test snapshot.value.value == "v3"
+    @test snapshot.value !== vo.versions[1].value       # deep copy
 
-    # Ctrl+Delete deletes the active version (0-based index for the op).
+    # Ctrl+Delete deletes the active version via CollectionDeleteOperation
+    # (0-based index for the op).
     op = projection_read(p, iomap, KeyDown(:delete, ctrl))
-    @test op isa DeleteVersionOperation
+    @test op isa CollectionDeleteOperation
     @test op.path.head.name == "versions"
     @test op.index == 0
 end

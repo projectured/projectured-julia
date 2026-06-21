@@ -15,9 +15,11 @@ resolve automatically, each by its own criterion.
 The reader delegates non-versioning gestures into the selected value's child
 reader and re-roots the returned operation under `versions[idx].value` (the
 School-A pattern — delegate through the stored child IoMap, never re-walk by
-document type). Own gestures (`CreateVersionOperation`,
-`SetVersionCriterionOperation`, `DeleteVersionOperation`) manage the version
-list.
+document type). Own gestures snapshot a new version
+(`CollectionInsertOperation` on `versions`) or remove the active one
+(`CollectionDeleteOperation`) — the same standard, universally-rerooted
+collection operations the clipboard uses; `SetVersionCriterionOperation`
+switches the active criterion.
 
 ## Criterion swapping
 
@@ -57,7 +59,7 @@ import ..KeyboardModule: KeyDown
 import ..EventCaseModule: var"@event_case"
 
 export VersioningToAnyProjection, VersioningToAnyProjectionIoMap,
-       CreateVersionOperation, SetVersionCriterionOperation, DeleteVersionOperation
+       SetVersionCriterionOperation
 
 # ── Projection ────────────────────────────────────────────────────────────────
 
@@ -138,24 +140,6 @@ end
 # ── Operations ────────────────────────────────────────────────────────────────
 
 """
-    CreateVersionOperation(path, version)
-
-Insert a freshly snapshotted `ObjectVersion` at the front of the `versions`
-collection of the `VersionedObject` at `path` (newest-first convention). The
-reader builds `version` by deep-copying the current selected value (the explicit
-"save point" snapshot) — this is *not* tied to undo.
-"""
-struct CreateVersionOperation <: Operation
-    path::ReferencePath
-    version::ObjectVersion
-end
-
-function evaluate_operation(editor, op::CreateVersionOperation)
-    container = evaluate_reference(editor.document, op.path)
-    insert!(container, 1, Cell(op.version))
-end
-
-"""
     SetVersionCriterionOperation(target, criterion)
 
 Replace the `criterion` of the `target` `VersionedObject` (e.g. switch from
@@ -174,41 +158,27 @@ function evaluate_operation(editor, op::SetVersionCriterionOperation)
     editor.iomap = nothing
 end
 
-"""
-    DeleteVersionOperation(path, index)
-
-Remove the version at the 0-based `index` from the `versions` collection of the
-`VersionedObject` at `path` (the defined inverse of `CreateVersionOperation`).
-"""
-struct DeleteVersionOperation <: Operation
-    path::ReferencePath
-    index::Int
-end
-
-function evaluate_operation(editor, op::DeleteVersionOperation)
-    container = evaluate_reference(editor.document, op.path)
-    deleteat!(container, op.index + 1)
-end
-
 # ── Reader gesture helpers ─────────────────────────────────────────────────────
 
 _field_path(name::AbstractString) =
     ConcreteReferencePath(FieldReference(name), EmptyReferencePath())
 
 # Snapshot the current selected value into a new ObjectVersion (deep-copied) and
-# push it to the front of `versions`. Returns nothing when there is no selected
-# value to snapshot.
+# push it to the front of `versions` (index 0, newest-first). A standard
+# CollectionInsertOperation so every ancestor projection re-roots it. Returns
+# nothing when there is no selected value to snapshot.
 function _create_version(iomap::VersioningToAnyProjectionIoMap)
     version = iomap.index === nothing ? nothing : iomap.input.versions[iomap.index]
     version isa ObjectVersion || return nothing
     snapshot = ObjectVersion(copy_document(version.value))
-    CreateVersionOperation(_field_path("versions"), snapshot)
+    CollectionInsertOperation(_field_path("versions"), 0, Any[snapshot])
 end
 
-# Delete the currently selected version (the active one).
+# Delete the currently selected version (the active one). A standard
+# CollectionDeleteOperation (0-based index), re-rooted by every ancestor.
 function _delete_version(iomap::VersioningToAnyProjectionIoMap)
     iomap.index === nothing && return nothing
-    DeleteVersionOperation(_field_path("versions"), iomap.index - 1)
+    CollectionDeleteOperation(_field_path("versions"), iomap.index - 1)
 end
 
 # ── Reader ─────────────────────────────────────────────────────────────────────

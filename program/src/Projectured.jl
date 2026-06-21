@@ -373,7 +373,7 @@ using .ClipboardToAnyProjectionModule: ClipboardSliceToAnyProjection, ClipboardC
                                      ClipboardSliceToAnyProjectionIoMap, ClipboardCollectionToAnyProjectionIoMap,
                                      ToggleClipboardSliceDisplayOperation, ToggleClipboardCollectionDisplayOperation
 using .VersioningToAnyProjectionModule: VersioningToAnyProjection, VersioningToAnyProjectionIoMap,
-                                       CreateVersionOperation, SetVersionCriterionOperation, DeleteVersionOperation
+                                       SetVersionCriterionOperation
 using .FocusingProjectionModule: FocusingProjection, ReplaceFocusPartOperation
 using .JsonToSyntaxModule: JsonToSyntax, JsonStringToSyntaxLeaf,
                                JsonNullToSyntaxLeaf, JsonBoolToSyntaxLeaf,
@@ -801,7 +801,7 @@ export VersionCriterion, VersionCriterionLatest, VersionCriterionIndex,
        VersionCriterionByAuthor, VersionCriterionAsOf, VersionCriterionPredicate,
        select_version
 export VersioningToAnyProjection, VersioningToAnyProjectionIoMap,
-       CreateVersionOperation, SetVersionCriterionOperation, DeleteVersionOperation
+       SetVersionCriterionOperation
 export CellVector, CellMatrix, CellTable, ListNode, CollectionDocument, left_tail, right_tail, cell_at
 export Inset, StyleColor, Point2D, color_default
 export WidgetDocument, WidgetInsertion,
