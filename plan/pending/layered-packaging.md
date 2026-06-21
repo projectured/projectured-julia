@@ -67,6 +67,16 @@ optional dependency's code moves out of `src/` and into an extension under
 
 ### 1.0 (optional stage) — SDL-independent text measurement
 
+**DONE** (commit `Stage 1.0: make the Web backend SDL-free`). Turned out far smaller
+than planned: the PDF backend *already* had a pure-Julia TrueType metrics measurer
+(`pdf_measure_text`, reading advance widths from the font's `hmtx` table — no SDL,
+no FreeType, **no new dependency**). The only SDL-coupled graphical backend was Web,
+which now reuses `pdf_measure_text` (includes reordered so Pdf precedes Web) and
+drops all `SDL_Init`/`TTF_Init`/`sdl_measure_text` use. Verified: Web measurement is
+*identical* to SDL's (`(77,14)` for `"hello world"`@ubuntu-mono-14). FreeTypeAbstraction
+and precomputed-table options were unnecessary. This **unblocks the SDL and Web
+extensions** (no core/Web code now forces SDL text measurement).
+
 **This stage is optional and self-contained.** It is the gate on whether SDL2 can be
 made *optional for graphical output*:
 - **Skip it** → console editing is still fully SDL-free (it never used SDL), but the
