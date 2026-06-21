@@ -16,7 +16,7 @@ import ..TextModule: TextText, TextString, TextNewline, TextDocument
 import ..FontModule: font_ubuntu_monospace_regular_24, font_dejavu_monospace_regular_24
 import ..ColorModule: color_solarized_gray
 import ..TypeDispatchingModule: TypeDispatchingProjection
-import ..ReferenceModule: ConcreteReferencePath, ElementReference, PositionReference, RangeReference, FieldReference, ProjectionReference, EmptyReferencePath, ReferencePath, TextRectangularReference
+import ..ReferenceModule: ConcreteReferencePath, ElementReference, PositionReference, RangeReference, FieldReference, ProjectionReference, EmptyReferencePath, ReferencePath, TextRectangularReference, strip_reference_types
 import ..ReferenceCaseModule: var"@reference_case"
 import ..ReferenceBuilderModule: var"@reference"
 import ..IoMapModule: SimpleIoMap
@@ -590,6 +590,7 @@ end
 # Maps a SyntaxLeaf-domain path to the flat character offset within the leaf.
 # .open[k] → k,  .value[k] → L_o+k,  .close[k] → L_o+L_v+k.  Returns -1 on mismatch.
 function _syntax_to_flat(leaf::SyntaxLeaf, path::ReferencePath, ::SyntaxNodeToText, _depth::Int)
+    path = strip_reference_types(path)
     path isa ConcreteReferencePath || return -1
     h = path.head
     h isa FieldReference || return -1
@@ -607,6 +608,7 @@ end
 # rendered node.  Handles .open[k], .close[k], PS (flat pass-through),
 # and .children[i] descent (accumulating open + sep/indent offsets).
 function _syntax_to_flat(node::SyntaxNode, path::ReferencePath, p::SyntaxNodeToText, depth::Int)
+    path = strip_reference_types(path)
     path isa ConcreteReferencePath || return -1
     h = path.head
     if h isa FieldReference
