@@ -23,7 +23,7 @@ import ..ColorModule: StyleColor, color_yellow
 import ..ReactiveModule: Cell
 import ..CollectionModule: CellVector
 import ..IoMapApiModule: IoMap
-import ..ReferenceModule: ConcreteReferencePath, RangeReference, FieldReference, EmptyReferencePath
+import ..ReferenceModule: ConcreteReferencePath, RangeReference, FieldReference, EmptyReferencePath, skip_type_checkpoints, strip_reference_types
 import ..ReferenceBuilderModule: var"@reference"
 import ..OperationModule: ReplaceSelectionOperation
 import ..PrimitiveModule: StringReplaceRangeOperation
@@ -261,9 +261,10 @@ projection_read(::TextHighlighting, ::TextHighlightingIoMap, op) = op
 # ── Path helpers ────────────────────────────────────────────────────────────
 
 _text_elem_path(span_idx::Int, char_idx::Int) =
-    @reference elements[span_idx].content{char_idx}
+    @reference ::TextText.elements[span_idx].content::String{char_idx}
 
 function _parse_text_elem_path(path)
+    path = strip_reference_types(path)
     path isa ConcreteReferencePath || return nothing
     h1 = path.head
     h1 isa FieldReference && h1.name == "elements" || return nothing
@@ -285,6 +286,7 @@ end
 
 # Like `_parse_text_elem_path` but returns the full terminal `(span, start, stop)`.
 function _parse_text_elem_range(path)
+    path = strip_reference_types(path)
     path isa ConcreteReferencePath || return nothing
     h1 = path.head
     h1 isa FieldReference && h1.name == "elements" || return nothing

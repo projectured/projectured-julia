@@ -15,10 +15,10 @@ function _fixture()
 end
 
 # `elements[span].content{char}` cursor path (span/char are 1-based / 0-based).
-_ref(span, char) = ConcreteReferencePath(FieldReference("elements"),
-    ConcreteReferencePath(RangeReference(span - 1, span),
-        ConcreteReferencePath(FieldReference("content"),
-            ConcreteReferencePath(RangeReference(char, char), EmptyReferencePath()))))
+# Canonical (typed) form: the projection emits the same self-describing
+# `::TextText.elements[..].content::String{..}` checkpoints, so the round-trip
+# assertions compare typed-against-typed.
+_ref(span, char) = @reference ::TextText.elements[span].content::String{char}
 
 # `elements[span].content[start:stop]` range path.
 _range(span, start, stop) = ConcreteReferencePath(FieldReference("elements"),

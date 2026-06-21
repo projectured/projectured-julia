@@ -21,7 +21,7 @@ import ..ReactiveModule: Cell
 import ..CollectionModule: CellVector
 import ..IoMapApiModule: IoMap
 import ..PrinterContextModule: PrinterContext
-import ..ReferenceModule: ConcreteReferencePath, RangeReference, FieldReference, EmptyReferencePath, ReferencePath, TextRectangularReference
+import ..ReferenceModule: ConcreteReferencePath, RangeReference, FieldReference, EmptyReferencePath, ReferencePath, TextRectangularReference, skip_type_checkpoints, strip_reference_types
 import ..ReferenceCaseModule: var"@reference_case"
 import ..ReferenceBuilderModule: var"@reference"
 import ..OperationModule: ReplaceSelectionOperation
@@ -321,14 +321,17 @@ projection_read(::WordWrapping, ::WordWrappingIoMap, op) = op
 # two shapes `SyntaxToText` emits and `TextToGraphics` highlights. Both index the
 # flat character space, which wrapping leaves unchanged, so they map identically
 # in either direction.
-_is_structural_ref(ref) =
+function _is_structural_ref(ref)
+    ref = skip_type_checkpoints(ref)
     ref isa EmptyReferencePath ||
-    (ref isa ConcreteReferencePath && ref.head isa TextRectangularReference)
+        (ref isa ConcreteReferencePath && ref.head isa TextRectangularReference)
+end
 
 _text_elem_path(span_idx::Int, char_idx::Int) =
-    @reference elements[span_idx].content{char_idx}
+    @reference ::TextText.elements[span_idx].content::String{char_idx}
 
 function _parse_text_elem_path(path)
+    path = strip_reference_types(path)
     path isa ConcreteReferencePath || return nothing
     h1 = path.head
     h1 isa FieldReference && h1.name == "elements" || return nothing
@@ -351,6 +354,7 @@ end
 # Like `_parse_text_elem_path` but returns the full `(span_idx, char_start,
 # char_stop)` of the terminal `RangeReference` instead of only its start.
 function _parse_text_elem_range(path)
+    path = strip_reference_types(path)
     path isa ConcreteReferencePath || return nothing
     h1 = path.head
     h1 isa FieldReference && h1.name == "elements" || return nothing
