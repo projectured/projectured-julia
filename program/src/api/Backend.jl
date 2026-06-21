@@ -8,7 +8,7 @@ etc.
 """
 module BackendModule
 
-export Backend, init!, quit!, measure_text, make_backend
+export Backend, init!, quit!, measure_text, make_backend, write_image, record_video
 
 """
     Backend
@@ -51,5 +51,27 @@ function quit!(::Backend) end
 Return the `(pixel_width, pixel_height)` of `text` rendered in `font`.
 """
 function measure_text(::Backend, text, font) end
+
+"""
+    write_image(document, projection, filename; kwargs...)
+    write_image(canvas, filename; kwargs...)
+
+Render to a raster image file. Implemented by a rendering backend (currently the
+SDL backend, via offscreen software rendering) — the method lives wherever that
+backend does, so it is only available when that backend's optional dependency is
+loaded. Generic forward-declaration kept here so callers need not name the
+concrete backend module.
+"""
+function write_image end
+
+"""
+    record_video(document, projection, gestures, filename; kwargs...)
+
+Render a timeline of gestures to a video file. Implemented by the SDL backend
+(offscreen frames assembled with `ffmpeg`), so it requires both the SDL backend
+and `FFMPEG` to be available. Generic forward-declaration kept here so callers
+need not name the concrete backend module.
+"""
+function record_video end
 
 end # module

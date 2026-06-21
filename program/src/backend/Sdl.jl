@@ -7,7 +7,7 @@ module SdlBackendModule
 
 using SimpleDirectMediaLayer
 using SimpleDirectMediaLayer.LibSDL2
-import ..BackendModule: Backend, init!, quit!, measure_text, make_backend
+import ..BackendModule: Backend, init!, quit!, measure_text, make_backend, write_image, record_video
 import ..DeviceModule: Device, read_from_devices, write_to_devices, write_to_device
 import ..GraphicsModule: GraphicsCanvas, GraphicsText, GraphicsRect, GraphicsLine, GraphicsCircle,
                          GraphicsPolyline, GraphicsSpline, GraphicsViewport, GraphicsImage,

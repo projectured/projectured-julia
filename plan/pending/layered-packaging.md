@@ -131,20 +131,32 @@ hook, so behaviour is identical while everything is still present:
       the pool, not the type — unchanged.) Note for 1.2: the umbrella still
       `using .OdbcAdapterModule: OdbcDatabaseAdapter` — that re-export becomes
       extension-gated when ODBC moves to a weakdep.
-- [ ] Agent control-surface seam (prerequisite for putting LLM/MCP in the kernel):
-      - Split `editor/ToolRegistry.jl` into a **pure registry** (Tool/Resource types,
-        `register_tool!`, `call_tool`, the `(editor, args) -> String` protocol — no
-        deps) and the **wire bridges** (`mcp_tools`, `anthropic_tool_schema`,
-        `TextResourceContents`), which move into the LLM/MCP extensions. The registry
-        currently does `using ModelContextProtocol` (`ToolRegistry.jl:18`) — that
-        import must leave the pure module.
-      - Invert the `editor/Mcp.jl` → `WorkbenchModule: DEFAULT_ASSISTANT_SYSTEM`
-        dependency (`Mcp.jl:18`): the kernel cannot import a domain. Pass the system
-        prompt in as a parameter; the domain supplies it at startup.
-      - Define the abstract `LLMClient` + `complete(client, messages)` generic and the
-        agent turn-loop in the kernel; route the assistant through them.
-      - Add `make_agent_server(kind, editor)` factory so the concrete MCP server type
-        can stay in an extension.
+- [x] Agent control-surface seam (prerequisite for putting LLM/MCP in the kernel).
+      **Done** (commits `make ToolRegistry dependency-free; invert Mcp->Workbench`,
+      `add agent-server factory seam`, `make LlmModule dependency-free`):
+      - `ToolRegistryModule` is now dependency-free (dropped `using
+        ModelContextProtocol`); the MCP wire bridges `mcp_tools`/`mcp_resources`
+        moved into `McpModule` (the MCP extension). The dep-free
+        `anthropic_tool_schema` stayed in the registry (kept simple — it needs no
+        heavy dep, deviating slightly from "move all bridges to the LLM ext").
+      - Inverted `Mcp → WorkbenchModule: DEFAULT_ASSISTANT_SYSTEM`: `McpServer` takes
+        an `instructions` kwarg defaulting to a generic, domain-free
+        `DEFAULT_MCP_INSTRUCTIONS`; `run!` threads an optional `mcp_instructions`.
+        (Minor behavioural nuance: default MCP-client prompt is the generic string
+        unless a caller passes the richer one.)
+      - The abstract LLM-client seam already existed as `LlmModule`'s `LlmBackend` +
+        `stream_turn` generic (with `AnthropicLlm`/`FakeLlm`). Made `LlmModule`
+        dependency-free by moving `stream_turn(::AnthropicLlm)` (calls
+        `stream_message`, HTTP/JSON3) into `AnthropicModule`; swapped include order so
+        `Llm` precedes `Anthropic`; dropped the unused `stream_message` import from
+        `WorkbenchAssistant`. (No separate `complete` generic was added — the existing
+        `stream_turn` plays that role.)
+      - Added `make_agent_server(kind, editor)` + `agent_server_start!`/
+        `agent_server_stop!` generics in new `AgentModule` (`api/Agent.jl`); `:mcp`
+        methods registered in `McpModule`; the editor loop drives them through the
+        generics so `EditorModule` no longer imports `McpServer`.
+- [ ] Video seam: `record_video`/`write_image` as generics whose FFMPEG/SDL
+      implementations can be supplied by an extension.
 - [ ] Video seam: `record_video`/`write_image` as generics whose FFMPEG/SDL
       implementations can be supplied by an extension.
 

@@ -331,10 +331,11 @@ using .GraphicsModule: GraphicsDocument, GraphicsInsertion,
 using .ModifiersModule: Modifiers
 using .KeyboardModule: Keyboard, KeyDown, KeyUp, KeyPress, is_ctrl, is_shift, is_alt, is_meta
 using .MouseModule: MouseDown, MouseUp, MousePress, MouseMove, MouseScroll
-using .BackendModule: Backend, init!, quit!, measure_text, make_backend
+using .BackendModule: Backend, init!, quit!, measure_text, make_backend,
+                      write_image, record_video
 using .SdlBackendModule: SdlBackend, sdl_measure_text, sdl_render_canvas,
                           sdl_display_size,
-                          write_image, record_video, GraphicsCanvasToImageFile,
+                          GraphicsCanvasToImageFile,
                           sdl_decode_image, decode_image_file!
 using .ConsoleBackendModule: ConsoleBackend, console_render
 using .WebBackendModule: WebBackend, web_key_to_symbol
