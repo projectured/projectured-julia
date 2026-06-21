@@ -56,3 +56,24 @@ Each span has:
 - Each span is independently styled
 - Reactive styling updates propagate automatically
 - Flat character offset selection for easy navigation
+
+## Gesture mapping (`document_read`)
+
+The geometry-free half of the Text reader lives on the document itself:
+`document_read(::TextText, gesture)` ([document/Text.jl](../../program/src/document/Text.jl))
+maps an input gesture to an operation expressed against the `TextText`'s own
+references (reading only `elements` and `selection`, never any pixel layout):
+
+- `KeyPress(c)` → `StringReplaceRangeOperation` (character insert)
+- `Backspace` / `Delete` → `StringReplaceRangeOperation`
+- `Left` / `Right` → cross-span character cursor movement
+- `Ctrl+Home` / `Ctrl+End` → jump to the first/last span character
+- `Ctrl+.` → `ToggleCollapseOperation` (recognised here, resolved at the syntax layer)
+- the decline rules (Alt+arrows, plain arrows while structural, Tab) return
+  `nothing` so an outer (syntax) layer can own the gesture
+
+`TextToGraphics` delegates to this and adds only the geometry-dependent arms
+(visual up/down, plain Home/End, mouse click). Any backend that renders a
+`TextText` directly — e.g. the `ConsoleBackend` — therefore gets character-level
+editing without a graphics layout pass. See
+[guide/projection-system.md](../projection-system.md) for the full reader split.

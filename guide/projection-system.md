@@ -174,6 +174,48 @@ in its own input domain (or a nothing-change); the operation the **top-level**
 projection ultimately returns is the final answer the editor applies to the
 document.
 
+#### Domain-owned, geometry-free gesture mapping (`document_read`)
+
+A projection reader mixes two kinds of gesture handling, and only one of them is
+really the *projection's* business:
+
+- **Geometry-dependent.** Needs the laid-out output — pixel coordinates, the
+  measured glyph map, hit-testing. Example: a mouse click to a cursor position,
+  or visual line up/down. This *must* live in the projection that owns the
+  layout (e.g. `TextToGraphics`'s `char_to_coord`).
+- **Geometry-independent.** Reads only the domain document's own structure and
+  its `selection`. Example: inserting a character, Backspace/Delete, moving the
+  character cursor left/right across spans, or stepping a whole-element selection
+  around a tree. None of this needs pixels.
+
+The geometry-independent half is a property of the **domain document**, not of
+the projection that happens to render it. It lives behind
+`document_read(document, gesture) -> Union{Operation, Nothing}`
+([api/Document.jl](../program/src/api/Document.jl)): the document maps the
+gesture to an operation in its **own** reference vocabulary (reading only its
+structure and `document.selection`), or returns `nothing` when it does not handle
+the gesture (which also serves as "I decline this gesture so an outer layer can
+own it"). The operation then flows back through the normal
+`map_reference_backward` chain like any other.
+
+A projection reader **delegates** to it and keeps only its geometry arms:
+
+- `TextToGraphics` calls `document_read(iomap.input, evt)` for character
+  insert/delete and left/right/Ctrl+Home-End cursor motion, and keeps visual
+  up/down, plain Home/End, and mouse click.
+- `SyntaxToText` (`SyntaxNodeToText`) calls `document_read(iomap.input, evt)` for
+  tree navigation (Ctrl+Alt+Home, Ctrl+Space toggle, Alt/structural arrows), and
+  keeps the mouse hit-test for collapse glyphs and Alt+click.
+
+The payoff: any backend that renders a domain **directly** gets the
+geometry-free editing for free. The console pipeline (`… → SyntaxToText →
+EnvelopeUnwrapping`, no `TextToGraphics`) reuses `SyntaxToText`'s existing reader,
+which — when its operation slot is still empty (the console case) and it does not
+handle the gesture as a syntax gesture — falls back to
+`document_read(iomap.output, gesture)` on the output `TextText` and maps the
+result backward. In SDL the operation slot is already filled by `TextToGraphics`,
+so that fallback is a no-op and SDL behaviour is unchanged.
+
 > **Legacy 3-arg shim.** You may still see a 3-arg
 > `projection_read(projection, iomap, event_or_op)` returning a bare operation.
 > That form is **obsolete** — a transitional shim the generic bridge adapts to

@@ -65,3 +65,20 @@ node.indentation = 2     # override indentation depth
 - Delimiters are first-class for cursor positioning
 - Supports indentation for pretty-printing
 - Selection mechanism works on delimiters and content
+
+## Gesture mapping (`document_read`)
+
+The syntax tree's keyboard navigation is entirely geometry-free — it walks the
+`SyntaxNode` tree and its selection paths — so it lives on the document:
+`document_read(::SyntaxNode, gesture)` ([document/Syntax.jl](../../program/src/document/Syntax.jl))
+maps an input gesture to a `ReplaceSelectionOperation` on the tree:
+
+- `Ctrl+Alt+Home` → select the root node (`∅`)
+- `Ctrl+Space` → toggle structural ⇄ text (character-cursor) selection
+- `Up` / `Down` / `Left` / `Right` → step the whole-element selection
+  (parent / first child / previous / next sibling); arrows require `Alt` only to
+  *enter* structural mode from a character cursor
+
+`SyntaxNodeToText` delegates to this and keeps only the geometry/output-driven
+mouse hit-testing (collapse glyph, Alt+click). See
+[guide/projection-system.md](../projection-system.md) for the full reader split.
