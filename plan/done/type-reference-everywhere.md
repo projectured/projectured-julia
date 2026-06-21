@@ -6,15 +6,15 @@ the terminal node) — instead of the current *optional annotation that is
 stripped before use*. The goal is intentional, self-describing references that
 capture the structural context of each step.
 
-> Status: **Phases 1–3 implemented; Phase 4 (output residency) intentionally
-> deferred — see "Implementation outcome" below.** Selections are now canonical
-> **at rest** (input/document-domain cells, search results); the projection
-> boundary strips checkpoints so the ~270 bespoke mappers and all render/layout
-> consumers keep seeing plain navigation paths. Full sweeps are green or strictly
-> better than `main` (see outcome). The central scope question (§0) was resolved
-> as Option B, but Option B's *output residency* half proved to be pure decoration
-> on transient render artifacts at the cost of ~15+ consumer rewrites, so it is
-> deferred (the boundary wrapper has a one-line switch to enable it later).
+> Status: **Fully implemented (Phases 1–4).** `TypeReference` checkpoints are
+> the canonical, first-class form everywhere: selections are canonical **at
+> rest**, structure-creating printers **emit** the typed form, and every
+> structural reader across the projection/editor stack is **checkpoint-tolerant**.
+> The wrapper/stripping design described below was reverted — see
+> **"Implementation outcome (2026-06-21)"** at the end for the final architecture,
+> the `::T` DSL, the per-layer change list, and test status (zero regressions;
+> `WidgetTextEditTest` fixed). The earlier "2026-06-18" outcome describes the
+> superseded wrapper era and is kept only for history.
 
 ## Implementation outcome (2026-06-18)
 
@@ -295,3 +295,76 @@ so they must annotate their own output to keep the resident form canonical.
 3. **Performance** — annotating on every `set_selection!` and re-annotating at
    every projection boundary walks the document per edit/frame. Measure; if hot,
    memoize annotation per (document-version, path) or annotate lazily.
+
+## Implementation outcome (2026-06-21) — supersedes the 2026-06-18 deferral
+
+The wrapper-based design (boundary strip/re-annotate; mappers see plain paths;
+output residency deferred) was **reverted by request**. Final architecture:
+
+- **No `_map_reference_*` wrapper, no stripping in the mapper/reference-flow
+  layer.** `TypeReference` is a first-class navigation-adjacent step. Mappers use
+  the normal `map_reference_forward`/`map_reference_backward` names and their
+  static structural knowledge of what each printer emits to map types
+  (`r1::T1 => r2::T2`).
+- **Paren-free `::T` DSL** in `@reference` (builds) and `@reference_case`
+  (matches; `::T` is an *optional* assertion). Leading `::T.rest`, interior
+  `field::T{pos}`. Builders emit typed output; `@reference_case` skips checkpoints.
+- **Output residency DELIVERED** (the deferred Phase-4 half): every printer that
+  *creates* domain structure emits the typed canonical form.
+  - doc→syntax printers (JSON, Primitive, Insertion, Collection, XML, Ini, Math,
+    Book, Ned, Sql, Db, FileSystem) — typed `::T` mappers (prior session).
+  - SyntaxToText + the text re-segmentation layers (WordWrapping,
+    TextHighlighting, TextFiltering, TextFirstLine) emit
+    `::TextText.elements[i].content::String{c}`.
+  - Generic/widget/graphics transient maps that only *forward/reorder* keep the
+    element type in the mapped tail (nothing new to type); their structural reads
+    were made tolerant instead.
+
+- **Tolerance swept across every layer** (skip leading checkpoints before a
+  structural `.head`/`.tail` read; `strip_reference_types` at the entry of pure
+  parse-to-offset helpers). Files made tolerant this session:
+  - render/text: TextToGraphics, Text.jl (`_is_structural_selection`,
+    `_text_selection_range`), Syntax.jl nav, SyntaxToText.
+  - text re-segmentation: WordWrapping, TextHighlighting, TextFiltering,
+    TextFirstLine; TextToWidget (backward).
+  - generic/higher-order: Copying, Dragging, TooltipDecorator,
+    ProjectionConfiguring (Sorting/Reversing/Filtering/Focusing/ObjectToWidget
+    were already tolerant via `@reference_case` / structure-preserving walks).
+  - widget/graphics/table/clipboard: SyntaxToWidget, LayoutToGraphics,
+    WidgetToGraphics (slot helpers), DatabaseTableToTabularGrid, ClipboardToAny,
+    WorkbenchToWidget.
+  - primitive/text-elem readers: SelectionInverting, LineNumbering,
+    PrimitiveToText, PrimitiveToSyntax (`_string_value_range`),
+    DocumentInsertionToSyntax (`_value_range` + reader); ConversationEditor
+    (`_cursor`).
+
+- **Real bug fixed:** `WidgetTextEditTest` — typing/backspace into an editable
+  `WidgetText` produced no edit because `_text_selection_range` read the
+  canonical content-leaf selection with a raw walk. Strip at entry fixes it.
+- **`strip_reference_types` hardened** with the permissive non-path fallback that
+  `skip_type_checkpoints` already had, so `strip_reference_types(nothing)` (the
+  "no selection" case) passes through instead of throwing.
+
+### Item: drop now-redundant operation-evaluator strips — RESOLVED as keep
+
+The two `strip_reference_types` calls in `Operation.jl` (`ReplaceDocumentOperation`,
+`StringReplaceRangeOperation` evaluators) are **load-bearing, not redundant**:
+they normalize a document-*mutation* navigation path so the terminal-slot split
+and whole-root checks see a plain path; the resulting selection is
+re-canonicalized by `replace_selection!`. Distinct concern from selection
+tolerance — left in place. (`set_selection!`'s
+`annotate_reference_types ∘ strip_reference_types` is also kept: it is the
+canonical-at-rest normalizer.)
+
+### Test status (worktree `worktree-type-reference-everywhere`)
+
+`test_text_navigations` = 5 failed, 0 errored; `test_repls` = 327 failed — all
+pre-existing on `main`'s line (sql_table `length(::Cell)` bug, dvdrental missing
+DB, dragging `DraggingState`, etc.). **Zero regressions** introduced by any of
+the above; `WidgetTextEditTest` and the per-layer projection tests now pass.
+
+### Deferred (small, optional)
+
+- Type the *transient* outputs of SelectionInverting / LineNumbering
+  (`_text_elem_path` still builds the plain shape; they are tolerant on input and
+  canonicalization-at-rest covers the stored selection, so this is cosmetic).
