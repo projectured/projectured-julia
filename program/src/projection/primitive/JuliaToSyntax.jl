@@ -29,6 +29,7 @@ import ..TextModule: TextString
 import ..FontModule: StyleFont, font_ubuntu_monospace_regular_24, font_ubuntu_monospace_bold_24
 import ..ColorModule: StyleColor, color_default, color_solarized_blue, color_solarized_cyan,
                       color_solarized_green, color_solarized_magenta, color_solarized_gray
+import ..StyleTextModule: StyleText
 import ..SyntaxModule: SyntaxDocument, SyntaxLeaf, SyntaxNode
 import ..TypeDispatchingModule: TypeDispatchingProjection
 import ..IoMapModule: SimpleIoMap, ChildrenIoMap
@@ -60,148 +61,137 @@ _text(value, font, color) = TextString(value, font, color)
 # ── JuliaIdentifierToSyntaxLeaf ─────────────────────────────────────────────
 
 struct JuliaIdentifierToSyntaxLeaf <: Projection
-    font::StyleFont
-    color::StyleColor
+    style::StyleText
 end
-JuliaIdentifierToSyntaxLeaf(; font=font_ubuntu_monospace_regular_24, color=color_solarized_blue) =
-    JuliaIdentifierToSyntaxLeaf(font, color)
+JuliaIdentifierToSyntaxLeaf(; style=StyleText(font_ubuntu_monospace_regular_24, color_solarized_blue)) =
+    JuliaIdentifierToSyntaxLeaf(style)
 
 function projection_print(p::JuliaIdentifierToSyntaxLeaf, recursion, v::JuliaIdentifier, ctx)
     SimpleIoMap(p, v, SyntaxLeaf(
-        _empty(p.font), _empty(p.font),
-        TextString(() -> v.name, p.font, p.color),
+        _empty(p.style.font), _empty(p.style.font),
+        TextString(() -> v.name, p.style),
         getfield(v, :selection)))
 end
 
 # ── JuliaIntegerToSyntaxLeaf ────────────────────────────────────────────────
 
 struct JuliaIntegerToSyntaxLeaf <: Projection
-    font::StyleFont
-    color::StyleColor
+    style::StyleText
 end
-JuliaIntegerToSyntaxLeaf(; font=font_ubuntu_monospace_regular_24, color=color_solarized_green) =
-    JuliaIntegerToSyntaxLeaf(font, color)
+JuliaIntegerToSyntaxLeaf(; style=StyleText(font_ubuntu_monospace_regular_24, color_solarized_green)) =
+    JuliaIntegerToSyntaxLeaf(style)
 
 function projection_print(p::JuliaIntegerToSyntaxLeaf, recursion, v::JuliaInteger, ctx)
     SimpleIoMap(p, v, SyntaxLeaf(
-        _empty(p.font), _empty(p.font),
-        TextString(() -> string(v.value), p.font, p.color),
+        _empty(p.style.font), _empty(p.style.font),
+        TextString(() -> string(v.value), p.style),
         getfield(v, :selection)))
 end
 
 # ── JuliaFloatToSyntaxLeaf ──────────────────────────────────────────────────
 
 struct JuliaFloatToSyntaxLeaf <: Projection
-    font::StyleFont
-    color::StyleColor
+    style::StyleText
 end
-JuliaFloatToSyntaxLeaf(; font=font_ubuntu_monospace_regular_24, color=color_solarized_green) =
-    JuliaFloatToSyntaxLeaf(font, color)
+JuliaFloatToSyntaxLeaf(; style=StyleText(font_ubuntu_monospace_regular_24, color_solarized_green)) =
+    JuliaFloatToSyntaxLeaf(style)
 
 function projection_print(p::JuliaFloatToSyntaxLeaf, recursion, v::JuliaFloat, ctx)
     SimpleIoMap(p, v, SyntaxLeaf(
-        _empty(p.font), _empty(p.font),
-        TextString(() -> string(v.value), p.font, p.color),
+        _empty(p.style.font), _empty(p.style.font),
+        TextString(() -> string(v.value), p.style),
         getfield(v, :selection)))
 end
 
 # ── JuliaStringToSyntaxLeaf ─────────────────────────────────────────────────
 
 struct JuliaStringToSyntaxLeaf <: Projection
-    font::StyleFont
-    color::StyleColor
-    quote_color::StyleColor
+    style::StyleText
+    quote_style::StyleText
 end
-JuliaStringToSyntaxLeaf(; font=font_ubuntu_monospace_regular_24,
-                         color=color_solarized_green,
-                         quote_color=color_solarized_gray) =
-    JuliaStringToSyntaxLeaf(font, color, quote_color)
+JuliaStringToSyntaxLeaf(; style=StyleText(font_ubuntu_monospace_regular_24, color_solarized_green),
+                          quote_style=StyleText(font_ubuntu_monospace_regular_24, color_solarized_gray)) =
+    JuliaStringToSyntaxLeaf(style, quote_style)
 
 function projection_print(p::JuliaStringToSyntaxLeaf, recursion, v::JuliaString, ctx)
     SimpleIoMap(p, v, SyntaxLeaf(
-        TextString("\"", p.font, p.quote_color),
-        TextString("\"", p.font, p.quote_color),
-        TextString(() -> v.value, p.font, p.color),
+        TextString("\"", p.quote_style),
+        TextString("\"", p.quote_style),
+        TextString(() -> v.value, p.style),
         getfield(v, :selection)))
 end
 
 # ── JuliaBoolToSyntaxLeaf ───────────────────────────────────────────────────
 
 struct JuliaBoolToSyntaxLeaf <: Projection
-    font::StyleFont
-    color::StyleColor
+    style::StyleText
 end
-JuliaBoolToSyntaxLeaf(; font=font_ubuntu_monospace_bold_24, color=color_solarized_magenta) =
-    JuliaBoolToSyntaxLeaf(font, color)
+JuliaBoolToSyntaxLeaf(; style=StyleText(font_ubuntu_monospace_bold_24, color_solarized_magenta)) =
+    JuliaBoolToSyntaxLeaf(style)
 
 function projection_print(p::JuliaBoolToSyntaxLeaf, recursion, v::JuliaBool, ctx)
     SimpleIoMap(p, v, SyntaxLeaf(
-        _empty(p.font), _empty(p.font),
-        TextString(() -> v.value ? "true" : "false", p.font, p.color),
+        _empty(p.style.font), _empty(p.style.font),
+        TextString(() -> v.value ? "true" : "false", p.style),
         getfield(v, :selection)))
 end
 
 # ── JuliaNothingToSyntaxLeaf ────────────────────────────────────────────────
 
 struct JuliaNothingToSyntaxLeaf <: Projection
-    font::StyleFont
-    color::StyleColor
+    style::StyleText
 end
-JuliaNothingToSyntaxLeaf(; font=font_ubuntu_monospace_bold_24, color=color_solarized_magenta) =
-    JuliaNothingToSyntaxLeaf(font, color)
+JuliaNothingToSyntaxLeaf(; style=StyleText(font_ubuntu_monospace_bold_24, color_solarized_magenta)) =
+    JuliaNothingToSyntaxLeaf(style)
 
 function projection_print(p::JuliaNothingToSyntaxLeaf, recursion, v::JuliaNothing, ctx)
     SimpleIoMap(p, v, SyntaxLeaf(
-        _empty(p.font), _empty(p.font),
-        TextString("nothing", p.font, p.color),
+        _empty(p.style.font), _empty(p.style.font),
+        TextString("nothing", p.style),
         getfield(v, :selection)))
 end
 
 # ── JuliaSymbolToSyntaxLeaf ─────────────────────────────────────────────────
 
 struct JuliaSymbolToSyntaxLeaf <: Projection
-    font::StyleFont
-    color::StyleColor
+    style::StyleText
 end
-JuliaSymbolToSyntaxLeaf(; font=font_ubuntu_monospace_regular_24, color=color_solarized_magenta) =
-    JuliaSymbolToSyntaxLeaf(font, color)
+JuliaSymbolToSyntaxLeaf(; style=StyleText(font_ubuntu_monospace_regular_24, color_solarized_magenta)) =
+    JuliaSymbolToSyntaxLeaf(style)
 
 function projection_print(p::JuliaSymbolToSyntaxLeaf, recursion, v::JuliaSymbol, ctx)
     SimpleIoMap(p, v, SyntaxLeaf(
-        TextString(":", p.font, p.color),
-        _empty(p.font),
-        TextString(() -> v.name, p.font, p.color),
+        TextString(":", p.style),
+        _empty(p.style.font),
+        TextString(() -> v.name, p.style),
         getfield(v, :selection)))
 end
 
 # ── JuliaCharToSyntaxLeaf ───────────────────────────────────────────────────
 
 struct JuliaCharToSyntaxLeaf <: Projection
-    font::StyleFont
-    color::StyleColor
-    quote_color::StyleColor
+    style::StyleText
+    quote_style::StyleText
 end
-JuliaCharToSyntaxLeaf(; font=font_ubuntu_monospace_regular_24,
-                       color=color_solarized_green,
-                       quote_color=color_solarized_gray) =
-    JuliaCharToSyntaxLeaf(font, color, quote_color)
+JuliaCharToSyntaxLeaf(; style=StyleText(font_ubuntu_monospace_regular_24, color_solarized_green),
+                        quote_style=StyleText(font_ubuntu_monospace_regular_24, color_solarized_gray)) =
+    JuliaCharToSyntaxLeaf(style, quote_style)
 
 function projection_print(p::JuliaCharToSyntaxLeaf, recursion, v::JuliaChar, ctx)
     SimpleIoMap(p, v, SyntaxLeaf(
-        TextString("'", p.font, p.quote_color),
-        TextString("'", p.font, p.quote_color),
-        TextString(() -> string(v.value), p.font, p.color),
+        TextString("'", p.quote_style),
+        TextString("'", p.quote_style),
+        TextString(() -> string(v.value), p.style),
         getfield(v, :selection)))
 end
 
 # ── JuliaBinaryOpToSyntaxNode ───────────────────────────────────────────────
 
 struct JuliaBinaryOpToSyntaxNode <: Projection
-    op_font::StyleFont
-    op_color::StyleColor
+    op::StyleText
 end
-JuliaBinaryOpToSyntaxNode(; op_font=font_ubuntu_monospace_regular_24, op_color=color_solarized_cyan) =
-    JuliaBinaryOpToSyntaxNode(op_font, op_color)
+JuliaBinaryOpToSyntaxNode(; op=StyleText(font_ubuntu_monospace_regular_24, color_solarized_cyan)) =
+    JuliaBinaryOpToSyntaxNode(op)
 
 function projection_print(p::JuliaBinaryOpToSyntaxNode, recursion, m::JuliaBinaryOp, ctx)
     left_ref = child_context(ctx, @reference ^(ctx.reference).left)
@@ -210,13 +200,13 @@ function projection_print(p::JuliaBinaryOpToSyntaxNode, recursion, m::JuliaBinar
     right_iomap = Cell(() -> projection_printer_recurse(recursion, m.right, right_ref))
 
     op_leaf = SyntaxLeaf(
-        TextString(" ", p.op_font, color_default),
-        TextString(" ", p.op_font, color_default),
-        TextString(() -> _julia_operator_string(m.operator), p.op_font, p.op_color),
+        TextString(" ", p.op.font, color_default),
+        TextString(" ", p.op.font, color_default),
+        TextString(() -> _julia_operator_string(m.operator), p.op),
         Cell(nothing))
 
     node = SyntaxNode(
-        _empty(p.op_font), _empty(p.op_font), _empty(p.op_font),
+        _empty(p.op.font), _empty(p.op.font), _empty(p.op.font),
         CellVector(() -> SyntaxDocument[left_iomap[].output, op_leaf, right_iomap[].output]),
         0, Cell(false), Cell(nothing))
     ChildrenIoMap(p, m, node, Cell(() -> IoMap[left_iomap[], right_iomap[]]))
@@ -225,23 +215,22 @@ end
 # ── JuliaUnaryOpToSyntaxNode ────────────────────────────────────────────────
 
 struct JuliaUnaryOpToSyntaxNode <: Projection
-    op_font::StyleFont
-    op_color::StyleColor
+    op::StyleText
 end
-JuliaUnaryOpToSyntaxNode(; op_font=font_ubuntu_monospace_regular_24, op_color=color_solarized_cyan) =
-    JuliaUnaryOpToSyntaxNode(op_font, op_color)
+JuliaUnaryOpToSyntaxNode(; op=StyleText(font_ubuntu_monospace_regular_24, color_solarized_cyan)) =
+    JuliaUnaryOpToSyntaxNode(op)
 
 function projection_print(p::JuliaUnaryOpToSyntaxNode, recursion, u::JuliaUnaryOp, ctx)
     operand_ref = child_context(ctx, @reference ^(ctx.reference).operand)
     operand_iomap = Cell(() -> projection_printer_recurse(recursion, u.operand, operand_ref))
 
     op_leaf = SyntaxLeaf(
-        _empty(p.op_font), _empty(p.op_font),
-        TextString(() -> _julia_operator_string(u.operator), p.op_font, p.op_color),
+        _empty(p.op.font), _empty(p.op.font),
+        TextString(() -> _julia_operator_string(u.operator), p.op),
         Cell(nothing))
 
     node = SyntaxNode(
-        _empty(p.op_font), _empty(p.op_font), _empty(p.op_font),
+        _empty(p.op.font), _empty(p.op.font), _empty(p.op.font),
         CellVector(() -> SyntaxDocument[op_leaf, operand_iomap[].output]),
         0, Cell(false), Cell(nothing))
     ChildrenIoMap(p, u, node, Cell(() -> IoMap[operand_iomap[]]))
@@ -250,11 +239,10 @@ end
 # ── JuliaCallToSyntaxNode ───────────────────────────────────────────────────
 
 struct JuliaCallToSyntaxNode <: Projection
-    delim_font::StyleFont
-    delim_color::StyleColor
+    delim::StyleText
 end
-JuliaCallToSyntaxNode(; delim_font=font_ubuntu_monospace_regular_24, delim_color=color_solarized_gray) =
-    JuliaCallToSyntaxNode(delim_font, delim_color)
+JuliaCallToSyntaxNode(; delim=StyleText(font_ubuntu_monospace_regular_24, color_solarized_gray)) =
+    JuliaCallToSyntaxNode(delim)
 
 function projection_print(p::JuliaCallToSyntaxNode, recursion, c::JuliaCall, ctx)
     callee_ref = child_context(ctx, @reference ^(ctx.reference).callee)
@@ -265,14 +253,14 @@ function projection_print(p::JuliaCallToSyntaxNode, recursion, c::JuliaCall, ctx
                              for (i, arg) in enumerate(c.arguments)])
 
     args_node = SyntaxNode(
-        TextString("(", p.delim_font, p.delim_color),
-        TextString(")", p.delim_font, p.delim_color),
-        TextString(", ", p.delim_font, p.delim_color),
+        TextString("(", p.delim),
+        TextString(")", p.delim),
+        TextString(", ", p.delim),
         CellVector(() -> SyntaxDocument[im.output for im in arg_iomaps[]]),
         0, Cell(false), Cell(nothing))
 
     node = SyntaxNode(
-        _empty(p.delim_font), _empty(p.delim_font), _empty(p.delim_font),
+        _empty(p.delim.font), _empty(p.delim.font), _empty(p.delim.font),
         CellVector(() -> SyntaxDocument[callee_iomap[].output, args_node]),
         0, Cell(false), Cell(nothing))
     ChildrenIoMap(p, c, node, Cell(() -> IoMap[callee_iomap[]; arg_iomaps[]]))
@@ -281,11 +269,10 @@ end
 # ── JuliaTernaryToSyntaxNode ────────────────────────────────────────────────
 
 struct JuliaTernaryToSyntaxNode <: Projection
-    op_font::StyleFont
-    op_color::StyleColor
+    op::StyleText
 end
-JuliaTernaryToSyntaxNode(; op_font=font_ubuntu_monospace_regular_24, op_color=color_solarized_cyan) =
-    JuliaTernaryToSyntaxNode(op_font, op_color)
+JuliaTernaryToSyntaxNode(; op=StyleText(font_ubuntu_monospace_regular_24, color_solarized_cyan)) =
+    JuliaTernaryToSyntaxNode(op)
 
 function projection_print(p::JuliaTernaryToSyntaxNode, recursion, t::JuliaTernary, ctx)
     cond_ref = child_context(ctx, @reference ^(ctx.reference).condition)
@@ -297,16 +284,16 @@ function projection_print(p::JuliaTernaryToSyntaxNode, recursion, t::JuliaTernar
     else_iomap = Cell(() -> projection_printer_recurse(recursion, t.else_branch, else_ref))
 
     q_leaf = SyntaxLeaf(
-        TextString(" ", p.op_font, color_default),
-        TextString(" ", p.op_font, color_default),
-        TextString("?", p.op_font, p.op_color), Cell(nothing))
+        TextString(" ", p.op.font, color_default),
+        TextString(" ", p.op.font, color_default),
+        TextString("?", p.op), Cell(nothing))
     c_leaf = SyntaxLeaf(
-        TextString(" ", p.op_font, color_default),
-        TextString(" ", p.op_font, color_default),
-        TextString(":", p.op_font, p.op_color), Cell(nothing))
+        TextString(" ", p.op.font, color_default),
+        TextString(" ", p.op.font, color_default),
+        TextString(":", p.op), Cell(nothing))
 
     node = SyntaxNode(
-        _empty(p.op_font), _empty(p.op_font), _empty(p.op_font),
+        _empty(p.op.font), _empty(p.op.font), _empty(p.op.font),
         CellVector(() -> SyntaxDocument[cond_iomap[].output, q_leaf, then_iomap[].output, c_leaf, else_iomap[].output]),
         0, Cell(false), Cell(nothing))
     ChildrenIoMap(p, t, node, Cell(() -> IoMap[cond_iomap[], then_iomap[], else_iomap[]]))
@@ -315,11 +302,10 @@ end
 # ── JuliaIndexToSyntaxNode ──────────────────────────────────────────────────
 
 struct JuliaIndexToSyntaxNode <: Projection
-    delim_font::StyleFont
-    delim_color::StyleColor
+    delim::StyleText
 end
-JuliaIndexToSyntaxNode(; delim_font=font_ubuntu_monospace_regular_24, delim_color=color_solarized_gray) =
-    JuliaIndexToSyntaxNode(delim_font, delim_color)
+JuliaIndexToSyntaxNode(; delim=StyleText(font_ubuntu_monospace_regular_24, color_solarized_gray)) =
+    JuliaIndexToSyntaxNode(delim)
 
 function projection_print(p::JuliaIndexToSyntaxNode, recursion, x::JuliaIndex, ctx)
     coll_ref = child_context(ctx, @reference ^(ctx.reference).collection)
@@ -330,14 +316,14 @@ function projection_print(p::JuliaIndexToSyntaxNode, recursion, x::JuliaIndex, c
                              for (i, ix) in enumerate(x.indices)])
 
     idx_node = SyntaxNode(
-        TextString("[", p.delim_font, p.delim_color),
-        TextString("]", p.delim_font, p.delim_color),
-        TextString(", ", p.delim_font, p.delim_color),
+        TextString("[", p.delim),
+        TextString("]", p.delim),
+        TextString(", ", p.delim),
         CellVector(() -> SyntaxDocument[im.output for im in idx_iomaps[]]),
         0, Cell(false), Cell(nothing))
 
     node = SyntaxNode(
-        _empty(p.delim_font), _empty(p.delim_font), _empty(p.delim_font),
+        _empty(p.delim.font), _empty(p.delim.font), _empty(p.delim.font),
         CellVector(() -> SyntaxDocument[coll_iomap[].output, idx_node]),
         0, Cell(false), Cell(nothing))
     ChildrenIoMap(p, x, node, Cell(() -> IoMap[coll_iomap[]; idx_iomaps[]]))
@@ -346,11 +332,10 @@ end
 # ── JuliaFieldAccessToSyntaxNode ────────────────────────────────────────────
 
 struct JuliaFieldAccessToSyntaxNode <: Projection
-    dot_font::StyleFont
-    dot_color::StyleColor
+    dot::StyleText
 end
-JuliaFieldAccessToSyntaxNode(; dot_font=font_ubuntu_monospace_regular_24, dot_color=color_solarized_cyan) =
-    JuliaFieldAccessToSyntaxNode(dot_font, dot_color)
+JuliaFieldAccessToSyntaxNode(; dot=StyleText(font_ubuntu_monospace_regular_24, color_solarized_cyan)) =
+    JuliaFieldAccessToSyntaxNode(dot)
 
 function projection_print(p::JuliaFieldAccessToSyntaxNode, recursion, f::JuliaFieldAccess, ctx)
     object_ref = child_context(ctx, @reference ^(ctx.reference).object)
@@ -359,11 +344,11 @@ function projection_print(p::JuliaFieldAccessToSyntaxNode, recursion, f::JuliaFi
     field_iomap = Cell(() -> projection_printer_recurse(recursion, f.field, field_ref))
 
     dot_leaf = SyntaxLeaf(
-        _empty(p.dot_font), _empty(p.dot_font),
-        TextString(".", p.dot_font, p.dot_color), Cell(nothing))
+        _empty(p.dot.font), _empty(p.dot.font),
+        TextString(".", p.dot), Cell(nothing))
 
     node = SyntaxNode(
-        _empty(p.dot_font), _empty(p.dot_font), _empty(p.dot_font),
+        _empty(p.dot.font), _empty(p.dot.font), _empty(p.dot.font),
         CellVector(() -> SyntaxDocument[object_iomap[].output, dot_leaf, field_iomap[].output]),
         0, Cell(false), Cell(nothing))
     ChildrenIoMap(p, f, node, Cell(() -> IoMap[object_iomap[], field_iomap[]]))
@@ -372,11 +357,10 @@ end
 # ── JuliaTupleToSyntaxNode ──────────────────────────────────────────────────
 
 struct JuliaTupleToSyntaxNode <: Projection
-    delim_font::StyleFont
-    delim_color::StyleColor
+    delim::StyleText
 end
-JuliaTupleToSyntaxNode(; delim_font=font_ubuntu_monospace_regular_24, delim_color=color_solarized_gray) =
-    JuliaTupleToSyntaxNode(delim_font, delim_color)
+JuliaTupleToSyntaxNode(; delim=StyleText(font_ubuntu_monospace_regular_24, color_solarized_gray)) =
+    JuliaTupleToSyntaxNode(delim)
 
 function projection_print(p::JuliaTupleToSyntaxNode, recursion, t::JuliaTuple, ctx)
     elem_iomaps = Cell(() -> [projection_printer_recurse(recursion, e,
@@ -384,9 +368,9 @@ function projection_print(p::JuliaTupleToSyntaxNode, recursion, t::JuliaTuple, c
                               for (i, e) in enumerate(t.elements)])
 
     node = SyntaxNode(
-        TextString("(", p.delim_font, p.delim_color),
-        TextString(")", p.delim_font, p.delim_color),
-        TextString(", ", p.delim_font, p.delim_color),
+        TextString("(", p.delim),
+        TextString(")", p.delim),
+        TextString(", ", p.delim),
         CellVector(() -> SyntaxDocument[im.output for im in elem_iomaps[]]),
         0, Cell(false), Cell(nothing))
     ChildrenIoMap(p, t, node, elem_iomaps)
@@ -395,11 +379,10 @@ end
 # ── JuliaArrayToSyntaxNode ──────────────────────────────────────────────────
 
 struct JuliaArrayToSyntaxNode <: Projection
-    delim_font::StyleFont
-    delim_color::StyleColor
+    delim::StyleText
 end
-JuliaArrayToSyntaxNode(; delim_font=font_ubuntu_monospace_regular_24, delim_color=color_solarized_gray) =
-    JuliaArrayToSyntaxNode(delim_font, delim_color)
+JuliaArrayToSyntaxNode(; delim=StyleText(font_ubuntu_monospace_regular_24, color_solarized_gray)) =
+    JuliaArrayToSyntaxNode(delim)
 
 function projection_print(p::JuliaArrayToSyntaxNode, recursion, a::JuliaArray, ctx)
     elem_iomaps = Cell(() -> [projection_printer_recurse(recursion, e,
@@ -407,9 +390,9 @@ function projection_print(p::JuliaArrayToSyntaxNode, recursion, a::JuliaArray, c
                               for (i, e) in enumerate(a.elements)])
 
     node = SyntaxNode(
-        TextString("[", p.delim_font, p.delim_color),
-        TextString("]", p.delim_font, p.delim_color),
-        TextString(", ", p.delim_font, p.delim_color),
+        TextString("[", p.delim),
+        TextString("]", p.delim),
+        TextString(", ", p.delim),
         CellVector(() -> SyntaxDocument[im.output for im in elem_iomaps[]]),
         0, Cell(false), Cell(nothing))
     ChildrenIoMap(p, a, node, elem_iomaps)
@@ -418,11 +401,10 @@ end
 # ── JuliaRangeToSyntaxNode ──────────────────────────────────────────────────
 
 struct JuliaRangeToSyntaxNode <: Projection
-    op_font::StyleFont
-    op_color::StyleColor
+    op::StyleText
 end
-JuliaRangeToSyntaxNode(; op_font=font_ubuntu_monospace_regular_24, op_color=color_solarized_cyan) =
-    JuliaRangeToSyntaxNode(op_font, op_color)
+JuliaRangeToSyntaxNode(; op=StyleText(font_ubuntu_monospace_regular_24, color_solarized_cyan)) =
+    JuliaRangeToSyntaxNode(op)
 
 function projection_print(p::JuliaRangeToSyntaxNode, recursion, r::JuliaRange, ctx)
     start_ref = child_context(ctx, @reference ^(ctx.reference).start)
@@ -436,11 +418,11 @@ function projection_print(p::JuliaRangeToSyntaxNode, recursion, r::JuliaRange, c
         s === nothing ? nothing : projection_printer_recurse(recursion, s, step_ref)
     end)
 
-    colon_leaf() = SyntaxLeaf(_empty(p.op_font), _empty(p.op_font),
-                              TextString(":", p.op_font, p.op_color), Cell(nothing))
+    colon_leaf() = SyntaxLeaf(_empty(p.op.font), _empty(p.op.font),
+                              TextString(":", p.op), Cell(nothing))
 
     node = SyntaxNode(
-        _empty(p.op_font), _empty(p.op_font), _empty(p.op_font),
+        _empty(p.op.font), _empty(p.op.font), _empty(p.op.font),
         CellVector(() -> begin
             s = r.step
             if s === nothing
@@ -463,11 +445,10 @@ end
 # ── JuliaTypeAnnotationToSyntaxNode ─────────────────────────────────────────
 
 struct JuliaTypeAnnotationToSyntaxNode <: Projection
-    op_font::StyleFont
-    op_color::StyleColor
+    op::StyleText
 end
-JuliaTypeAnnotationToSyntaxNode(; op_font=font_ubuntu_monospace_regular_24, op_color=color_solarized_cyan) =
-    JuliaTypeAnnotationToSyntaxNode(op_font, op_color)
+JuliaTypeAnnotationToSyntaxNode(; op=StyleText(font_ubuntu_monospace_regular_24, color_solarized_cyan)) =
+    JuliaTypeAnnotationToSyntaxNode(op)
 
 function projection_print(p::JuliaTypeAnnotationToSyntaxNode, recursion, t::JuliaTypeAnnotation, ctx)
     value_ref = child_context(ctx, @reference ^(ctx.reference).value)
@@ -475,11 +456,11 @@ function projection_print(p::JuliaTypeAnnotationToSyntaxNode, recursion, t::Juli
     value_iomap = Cell(() -> projection_printer_recurse(recursion, t.value, value_ref))
     type_iomap = Cell(() -> projection_printer_recurse(recursion, t.type, type_ref))
 
-    dc_leaf = SyntaxLeaf(_empty(p.op_font), _empty(p.op_font),
-                         TextString("::", p.op_font, p.op_color), Cell(nothing))
+    dc_leaf = SyntaxLeaf(_empty(p.op.font), _empty(p.op.font),
+                         TextString("::", p.op), Cell(nothing))
 
     node = SyntaxNode(
-        _empty(p.op_font), _empty(p.op_font), _empty(p.op_font),
+        _empty(p.op.font), _empty(p.op.font), _empty(p.op.font),
         CellVector(() -> SyntaxDocument[value_iomap[].output, dc_leaf, type_iomap[].output]),
         0, Cell(false), Cell(nothing))
     ChildrenIoMap(p, t, node, Cell(() -> IoMap[value_iomap[], type_iomap[]]))
@@ -488,11 +469,10 @@ end
 # ── JuliaAssignmentToSyntaxNode ─────────────────────────────────────────────
 
 struct JuliaAssignmentToSyntaxNode <: Projection
-    op_font::StyleFont
-    op_color::StyleColor
+    op::StyleText
 end
-JuliaAssignmentToSyntaxNode(; op_font=font_ubuntu_monospace_regular_24, op_color=color_solarized_cyan) =
-    JuliaAssignmentToSyntaxNode(op_font, op_color)
+JuliaAssignmentToSyntaxNode(; op=StyleText(font_ubuntu_monospace_regular_24, color_solarized_cyan)) =
+    JuliaAssignmentToSyntaxNode(op)
 
 function projection_print(p::JuliaAssignmentToSyntaxNode, recursion, a::JuliaAssignment, ctx)
     target_ref = child_context(ctx, @reference ^(ctx.reference).target)
@@ -501,13 +481,13 @@ function projection_print(p::JuliaAssignmentToSyntaxNode, recursion, a::JuliaAss
     value_iomap = Cell(() -> projection_printer_recurse(recursion, a.value, value_ref))
 
     op_leaf = SyntaxLeaf(
-        TextString(" ", p.op_font, color_default),
-        TextString(" ", p.op_font, color_default),
-        TextString(() -> _julia_operator_string(a.operator), p.op_font, p.op_color),
+        TextString(" ", p.op.font, color_default),
+        TextString(" ", p.op.font, color_default),
+        TextString(() -> _julia_operator_string(a.operator), p.op),
         Cell(nothing))
 
     node = SyntaxNode(
-        _empty(p.op_font), _empty(p.op_font), _empty(p.op_font),
+        _empty(p.op.font), _empty(p.op.font), _empty(p.op.font),
         CellVector(() -> SyntaxDocument[target_iomap[].output, op_leaf, value_iomap[].output]),
         0, Cell(false), Cell(nothing))
     ChildrenIoMap(p, a, node, Cell(() -> IoMap[target_iomap[], value_iomap[]]))
@@ -516,11 +496,10 @@ end
 # ── JuliaForIteratorToSyntaxNode ────────────────────────────────────────────
 
 struct JuliaForIteratorToSyntaxNode <: Projection
-    keyword_font::StyleFont
-    keyword_color::StyleColor
+    keyword::StyleText
 end
-JuliaForIteratorToSyntaxNode(; keyword_font=font_ubuntu_monospace_bold_24, keyword_color=color_solarized_magenta) =
-    JuliaForIteratorToSyntaxNode(keyword_font, keyword_color)
+JuliaForIteratorToSyntaxNode(; keyword=StyleText(font_ubuntu_monospace_bold_24, color_solarized_magenta)) =
+    JuliaForIteratorToSyntaxNode(keyword)
 
 function projection_print(p::JuliaForIteratorToSyntaxNode, recursion, it::JuliaForIterator, ctx)
     var_ref = child_context(ctx, @reference ^(ctx.reference).variable)
@@ -529,13 +508,13 @@ function projection_print(p::JuliaForIteratorToSyntaxNode, recursion, it::JuliaF
     iter_iomap = Cell(() -> projection_printer_recurse(recursion, it.iterable, iter_ref))
 
     in_leaf = SyntaxLeaf(
-        TextString(" ", p.keyword_font, color_default),
-        TextString(" ", p.keyword_font, color_default),
-        TextString("in", p.keyword_font, p.keyword_color),
+        TextString(" ", p.keyword.font, color_default),
+        TextString(" ", p.keyword.font, color_default),
+        TextString("in", p.keyword),
         Cell(nothing))
 
     node = SyntaxNode(
-        _empty(p.keyword_font), _empty(p.keyword_font), _empty(p.keyword_font),
+        _empty(p.keyword.font), _empty(p.keyword.font), _empty(p.keyword.font),
         CellVector(() -> SyntaxDocument[var_iomap[].output, in_leaf, iter_iomap[].output]),
         0, Cell(false), Cell(nothing))
     ChildrenIoMap(p, it, node, Cell(() -> IoMap[var_iomap[], iter_iomap[]]))
@@ -544,15 +523,13 @@ end
 # ── JuliaForToSyntaxNode ────────────────────────────────────────────────────
 
 struct JuliaForToSyntaxNode <: Projection
-    keyword_font::StyleFont
-    keyword_color::StyleColor
-    delim_font::StyleFont
-    delim_color::StyleColor
+    keyword::StyleText
+    delim::StyleText
 end
 JuliaForToSyntaxNode(;
-        keyword_font=font_ubuntu_monospace_bold_24, keyword_color=color_solarized_magenta,
-        delim_font=font_ubuntu_monospace_regular_24, delim_color=color_solarized_gray) =
-    JuliaForToSyntaxNode(keyword_font, keyword_color, delim_font, delim_color)
+        keyword=StyleText(font_ubuntu_monospace_bold_24, color_solarized_magenta),
+        delim=StyleText(font_ubuntu_monospace_regular_24, color_solarized_gray)) =
+    JuliaForToSyntaxNode(keyword, delim)
 
 function projection_print(p::JuliaForToSyntaxNode, recursion, f::JuliaFor, ctx)
     body_ref = child_context(ctx, @reference ^(ctx.reference).body)
@@ -563,29 +540,29 @@ function projection_print(p::JuliaForToSyntaxNode, recursion, f::JuliaFor, ctx)
                               for (i, it) in enumerate(f.iterators)])
 
     for_leaf = SyntaxLeaf(
-        _empty(p.keyword_font),
-        TextString(" ", p.keyword_font, color_default),
-        TextString("for", p.keyword_font, p.keyword_color),
+        _empty(p.keyword.font),
+        TextString(" ", p.keyword.font, color_default),
+        TextString("for", p.keyword),
         Cell(nothing))
 
     iters_node = SyntaxNode(
-        _empty(p.delim_font), _empty(p.delim_font),
-        TextString(", ", p.delim_font, p.delim_color),
+        _empty(p.delim.font), _empty(p.delim.font),
+        TextString(", ", p.delim),
         CellVector(() -> SyntaxDocument[im.output for im in iter_iomaps[]]),
         0, Cell(false), Cell(nothing))
 
     header_node = SyntaxNode(
-        _empty(p.keyword_font), _empty(p.keyword_font), _empty(p.keyword_font),
+        _empty(p.keyword.font), _empty(p.keyword.font), _empty(p.keyword.font),
         CellVector(() -> SyntaxDocument[for_leaf, iters_node]),
         0, Cell(false), Cell(nothing))
 
     end_leaf = SyntaxLeaf(
-        _empty(p.keyword_font), _empty(p.keyword_font),
-        TextString("end", p.keyword_font, p.keyword_color),
+        _empty(p.keyword.font), _empty(p.keyword.font),
+        TextString("end", p.keyword),
         Cell(nothing))
 
     node = SyntaxNode(
-        _empty(p.keyword_font), _empty(p.keyword_font), _empty(p.keyword_font),
+        _empty(p.keyword.font), _empty(p.keyword.font), _empty(p.keyword.font),
         CellVector(() -> SyntaxDocument[header_node, body_iomap[].output, end_leaf]),
         0, Cell(false), Cell(nothing))
     ChildrenIoMap(p, f, node, Cell(() -> IoMap[iter_iomaps[]; body_iomap[]]))
@@ -594,11 +571,10 @@ end
 # ── JuliaWhileToSyntaxNode ──────────────────────────────────────────────────
 
 struct JuliaWhileToSyntaxNode <: Projection
-    keyword_font::StyleFont
-    keyword_color::StyleColor
+    keyword::StyleText
 end
-JuliaWhileToSyntaxNode(; keyword_font=font_ubuntu_monospace_bold_24, keyword_color=color_solarized_magenta) =
-    JuliaWhileToSyntaxNode(keyword_font, keyword_color)
+JuliaWhileToSyntaxNode(; keyword=StyleText(font_ubuntu_monospace_bold_24, color_solarized_magenta)) =
+    JuliaWhileToSyntaxNode(keyword)
 
 function projection_print(p::JuliaWhileToSyntaxNode, recursion, w::JuliaWhile, ctx)
     cond_ref = child_context(ctx, @reference ^(ctx.reference).condition)
@@ -607,23 +583,23 @@ function projection_print(p::JuliaWhileToSyntaxNode, recursion, w::JuliaWhile, c
     body_iomap = Cell(() -> projection_printer_recurse(recursion, w.body, body_ref))
 
     while_leaf = SyntaxLeaf(
-        _empty(p.keyword_font),
-        TextString(" ", p.keyword_font, color_default),
-        TextString("while", p.keyword_font, p.keyword_color),
+        _empty(p.keyword.font),
+        TextString(" ", p.keyword.font, color_default),
+        TextString("while", p.keyword),
         Cell(nothing))
 
     header_node = SyntaxNode(
-        _empty(p.keyword_font), _empty(p.keyword_font), _empty(p.keyword_font),
+        _empty(p.keyword.font), _empty(p.keyword.font), _empty(p.keyword.font),
         CellVector(() -> SyntaxDocument[while_leaf, cond_iomap[].output]),
         0, Cell(false), Cell(nothing))
 
     end_leaf = SyntaxLeaf(
-        _empty(p.keyword_font), _empty(p.keyword_font),
-        TextString("end", p.keyword_font, p.keyword_color),
+        _empty(p.keyword.font), _empty(p.keyword.font),
+        TextString("end", p.keyword),
         Cell(nothing))
 
     node = SyntaxNode(
-        _empty(p.keyword_font), _empty(p.keyword_font), _empty(p.keyword_font),
+        _empty(p.keyword.font), _empty(p.keyword.font), _empty(p.keyword.font),
         CellVector(() -> SyntaxDocument[header_node, body_iomap[].output, end_leaf]),
         0, Cell(false), Cell(nothing))
     ChildrenIoMap(p, w, node, Cell(() -> IoMap[cond_iomap[], body_iomap[]]))
@@ -632,11 +608,10 @@ end
 # ── JuliaReturnToSyntaxNode ─────────────────────────────────────────────────
 
 struct JuliaReturnToSyntaxNode <: Projection
-    keyword_font::StyleFont
-    keyword_color::StyleColor
+    keyword::StyleText
 end
-JuliaReturnToSyntaxNode(; keyword_font=font_ubuntu_monospace_bold_24, keyword_color=color_solarized_magenta) =
-    JuliaReturnToSyntaxNode(keyword_font, keyword_color)
+JuliaReturnToSyntaxNode(; keyword=StyleText(font_ubuntu_monospace_bold_24, color_solarized_magenta)) =
+    JuliaReturnToSyntaxNode(keyword)
 
 function projection_print(p::JuliaReturnToSyntaxNode, recursion, r::JuliaReturn, ctx)
     value_ref = child_context(ctx, @reference ^(ctx.reference).value)
@@ -646,17 +621,17 @@ function projection_print(p::JuliaReturnToSyntaxNode, recursion, r::JuliaReturn,
     end)
 
     return_leaf_alone = SyntaxLeaf(
-        _empty(p.keyword_font), _empty(p.keyword_font),
-        TextString("return", p.keyword_font, p.keyword_color),
+        _empty(p.keyword.font), _empty(p.keyword.font),
+        TextString("return", p.keyword),
         Cell(nothing))
     return_leaf_with_value = SyntaxLeaf(
-        _empty(p.keyword_font),
-        TextString(" ", p.keyword_font, color_default),
-        TextString("return", p.keyword_font, p.keyword_color),
+        _empty(p.keyword.font),
+        TextString(" ", p.keyword.font, color_default),
+        TextString("return", p.keyword),
         Cell(nothing))
 
     node = SyntaxNode(
-        _empty(p.keyword_font), _empty(p.keyword_font), _empty(p.keyword_font),
+        _empty(p.keyword.font), _empty(p.keyword.font), _empty(p.keyword.font),
         CellVector(() -> begin
             v = r.value
             if v === nothing
@@ -675,43 +650,40 @@ end
 # ── JuliaBreakToSyntaxLeaf ──────────────────────────────────────────────────
 
 struct JuliaBreakToSyntaxLeaf <: Projection
-    keyword_font::StyleFont
-    keyword_color::StyleColor
+    keyword::StyleText
 end
-JuliaBreakToSyntaxLeaf(; keyword_font=font_ubuntu_monospace_bold_24, keyword_color=color_solarized_magenta) =
-    JuliaBreakToSyntaxLeaf(keyword_font, keyword_color)
+JuliaBreakToSyntaxLeaf(; keyword=StyleText(font_ubuntu_monospace_bold_24, color_solarized_magenta)) =
+    JuliaBreakToSyntaxLeaf(keyword)
 
 function projection_print(p::JuliaBreakToSyntaxLeaf, recursion, b::JuliaBreak, ctx)
     SimpleIoMap(p, b, SyntaxLeaf(
-        _empty(p.keyword_font), _empty(p.keyword_font),
-        TextString("break", p.keyword_font, p.keyword_color),
+        _empty(p.keyword.font), _empty(p.keyword.font),
+        TextString("break", p.keyword),
         getfield(b, :selection)))
 end
 
 # ── JuliaContinueToSyntaxLeaf ───────────────────────────────────────────────
 
 struct JuliaContinueToSyntaxLeaf <: Projection
-    keyword_font::StyleFont
-    keyword_color::StyleColor
+    keyword::StyleText
 end
-JuliaContinueToSyntaxLeaf(; keyword_font=font_ubuntu_monospace_bold_24, keyword_color=color_solarized_magenta) =
-    JuliaContinueToSyntaxLeaf(keyword_font, keyword_color)
+JuliaContinueToSyntaxLeaf(; keyword=StyleText(font_ubuntu_monospace_bold_24, color_solarized_magenta)) =
+    JuliaContinueToSyntaxLeaf(keyword)
 
 function projection_print(p::JuliaContinueToSyntaxLeaf, recursion, c::JuliaContinue, ctx)
     SimpleIoMap(p, c, SyntaxLeaf(
-        _empty(p.keyword_font), _empty(p.keyword_font),
-        TextString("continue", p.keyword_font, p.keyword_color),
+        _empty(p.keyword.font), _empty(p.keyword.font),
+        TextString("continue", p.keyword),
         getfield(c, :selection)))
 end
 
 # ── JuliaTryToSyntaxNode ────────────────────────────────────────────────────
 
 struct JuliaTryToSyntaxNode <: Projection
-    keyword_font::StyleFont
-    keyword_color::StyleColor
+    keyword::StyleText
 end
-JuliaTryToSyntaxNode(; keyword_font=font_ubuntu_monospace_bold_24, keyword_color=color_solarized_magenta) =
-    JuliaTryToSyntaxNode(keyword_font, keyword_color)
+JuliaTryToSyntaxNode(; keyword=StyleText(font_ubuntu_monospace_bold_24, color_solarized_magenta)) =
+    JuliaTryToSyntaxNode(keyword)
 
 function projection_print(p::JuliaTryToSyntaxNode, recursion, t::JuliaTry, ctx)
     body_ref = child_context(ctx, @reference ^(ctx.reference).body)
@@ -734,35 +706,35 @@ function projection_print(p::JuliaTryToSyntaxNode, recursion, t::JuliaTry, ctx)
     end)
 
     try_leaf = SyntaxLeaf(
-        _empty(p.keyword_font), _empty(p.keyword_font),
-        TextString("try", p.keyword_font, p.keyword_color),
+        _empty(p.keyword.font), _empty(p.keyword.font),
+        TextString("try", p.keyword),
         Cell(nothing))
     catch_leaf = SyntaxLeaf(
-        _empty(p.keyword_font), _empty(p.keyword_font),
-        TextString("catch", p.keyword_font, p.keyword_color),
+        _empty(p.keyword.font), _empty(p.keyword.font),
+        TextString("catch", p.keyword),
         Cell(nothing))
     catch_leaf_with_var = SyntaxLeaf(
-        _empty(p.keyword_font),
-        TextString(" ", p.keyword_font, color_default),
-        TextString("catch", p.keyword_font, p.keyword_color),
+        _empty(p.keyword.font),
+        TextString(" ", p.keyword.font, color_default),
+        TextString("catch", p.keyword),
         Cell(nothing))
     finally_leaf = SyntaxLeaf(
-        _empty(p.keyword_font), _empty(p.keyword_font),
-        TextString("finally", p.keyword_font, p.keyword_color),
+        _empty(p.keyword.font), _empty(p.keyword.font),
+        TextString("finally", p.keyword),
         Cell(nothing))
     end_leaf = SyntaxLeaf(
-        _empty(p.keyword_font), _empty(p.keyword_font),
-        TextString("end", p.keyword_font, p.keyword_color),
+        _empty(p.keyword.font), _empty(p.keyword.font),
+        TextString("end", p.keyword),
         Cell(nothing))
 
     catch_header_alone = catch_leaf
     catch_header_with_var = SyntaxNode(
-        _empty(p.keyword_font), _empty(p.keyword_font), _empty(p.keyword_font),
+        _empty(p.keyword.font), _empty(p.keyword.font), _empty(p.keyword.font),
         CellVector(() -> SyntaxDocument[catch_leaf_with_var, catch_var_iomap[].output]),
         0, Cell(false), Cell(nothing))
 
     node = SyntaxNode(
-        _empty(p.keyword_font), _empty(p.keyword_font), _empty(p.keyword_font),
+        _empty(p.keyword.font), _empty(p.keyword.font), _empty(p.keyword.font),
         CellVector(() -> begin
             result = SyntaxDocument[try_leaf, body_iomap[].output]
             cb = t.catch_branch
@@ -790,27 +762,26 @@ end
 # ── JuliaBeginToSyntaxNode ──────────────────────────────────────────────────
 
 struct JuliaBeginToSyntaxNode <: Projection
-    keyword_font::StyleFont
-    keyword_color::StyleColor
+    keyword::StyleText
 end
-JuliaBeginToSyntaxNode(; keyword_font=font_ubuntu_monospace_bold_24, keyword_color=color_solarized_magenta) =
-    JuliaBeginToSyntaxNode(keyword_font, keyword_color)
+JuliaBeginToSyntaxNode(; keyword=StyleText(font_ubuntu_monospace_bold_24, color_solarized_magenta)) =
+    JuliaBeginToSyntaxNode(keyword)
 
 function projection_print(p::JuliaBeginToSyntaxNode, recursion, b::JuliaBegin, ctx)
     body_ref = child_context(ctx, @reference ^(ctx.reference).body)
     body_iomap = Cell(() -> projection_printer_recurse(recursion, b.body, body_ref))
 
     begin_leaf = SyntaxLeaf(
-        _empty(p.keyword_font), _empty(p.keyword_font),
-        TextString("begin", p.keyword_font, p.keyword_color),
+        _empty(p.keyword.font), _empty(p.keyword.font),
+        TextString("begin", p.keyword),
         Cell(nothing))
     end_leaf = SyntaxLeaf(
-        _empty(p.keyword_font), _empty(p.keyword_font),
-        TextString("end", p.keyword_font, p.keyword_color),
+        _empty(p.keyword.font), _empty(p.keyword.font),
+        TextString("end", p.keyword),
         Cell(nothing))
 
     node = SyntaxNode(
-        _empty(p.keyword_font), _empty(p.keyword_font), _empty(p.keyword_font),
+        _empty(p.keyword.font), _empty(p.keyword.font), _empty(p.keyword.font),
         CellVector(() -> SyntaxDocument[begin_leaf, body_iomap[].output, end_leaf]),
         0, Cell(false), Cell(nothing))
     ChildrenIoMap(p, b, node, Cell(() -> IoMap[body_iomap[]]))
@@ -840,11 +811,10 @@ end
 # ── JuliaIfToSyntaxNode ─────────────────────────────────────────────────────
 
 struct JuliaIfToSyntaxNode <: Projection
-    keyword_font::StyleFont
-    keyword_color::StyleColor
+    keyword::StyleText
 end
-JuliaIfToSyntaxNode(; keyword_font=font_ubuntu_monospace_bold_24, keyword_color=color_solarized_magenta) =
-    JuliaIfToSyntaxNode(keyword_font, keyword_color)
+JuliaIfToSyntaxNode(; keyword=StyleText(font_ubuntu_monospace_bold_24, color_solarized_magenta)) =
+    JuliaIfToSyntaxNode(keyword)
 
 function projection_print(p::JuliaIfToSyntaxNode, recursion, m::JuliaIf, ctx)
     cond_ref = child_context(ctx, @reference ^(ctx.reference).condition)
@@ -856,28 +826,28 @@ function projection_print(p::JuliaIfToSyntaxNode, recursion, m::JuliaIf, ctx)
     else_iomap = Cell(() -> projection_printer_recurse(recursion, m.else_branch, else_ref))
 
     if_leaf = SyntaxLeaf(
-        _empty(p.keyword_font),
-        TextString(" ", p.keyword_font, color_default),
-        TextString("if", p.keyword_font, p.keyword_color),
+        _empty(p.keyword.font),
+        TextString(" ", p.keyword.font, color_default),
+        TextString("if", p.keyword),
         Cell(nothing))
 
     header_node = SyntaxNode(
-        _empty(p.keyword_font), _empty(p.keyword_font), _empty(p.keyword_font),
+        _empty(p.keyword.font), _empty(p.keyword.font), _empty(p.keyword.font),
         CellVector(() -> SyntaxDocument[if_leaf, cond_iomap[].output]),
         0, Cell(false), Cell(nothing))
 
     else_leaf = SyntaxLeaf(
-        _empty(p.keyword_font), _empty(p.keyword_font),
-        TextString("else", p.keyword_font, p.keyword_color),
+        _empty(p.keyword.font), _empty(p.keyword.font),
+        TextString("else", p.keyword),
         Cell(nothing))
 
     end_leaf = SyntaxLeaf(
-        _empty(p.keyword_font), _empty(p.keyword_font),
-        TextString("end", p.keyword_font, p.keyword_color),
+        _empty(p.keyword.font), _empty(p.keyword.font),
+        TextString("end", p.keyword),
         Cell(nothing))
 
     node = SyntaxNode(
-        _empty(p.keyword_font), _empty(p.keyword_font), _empty(p.keyword_font),
+        _empty(p.keyword.font), _empty(p.keyword.font), _empty(p.keyword.font),
         CellVector(() -> SyntaxDocument[header_node, then_iomap[].output, else_leaf, else_iomap[].output, end_leaf]),
         0, Cell(false), Cell(nothing))
     ChildrenIoMap(p, m, node, Cell(() -> IoMap[cond_iomap[], then_iomap[], else_iomap[]]))
@@ -886,15 +856,13 @@ end
 # ── JuliaFunctionToSyntaxNode ───────────────────────────────────────────────
 
 struct JuliaFunctionToSyntaxNode <: Projection
-    keyword_font::StyleFont
-    keyword_color::StyleColor
-    delim_font::StyleFont
-    delim_color::StyleColor
+    keyword::StyleText
+    delim::StyleText
 end
 JuliaFunctionToSyntaxNode(;
-        keyword_font=font_ubuntu_monospace_bold_24, keyword_color=color_solarized_magenta,
-        delim_font=font_ubuntu_monospace_regular_24, delim_color=color_solarized_gray) =
-    JuliaFunctionToSyntaxNode(keyword_font, keyword_color, delim_font, delim_color)
+        keyword=StyleText(font_ubuntu_monospace_bold_24, color_solarized_magenta),
+        delim=StyleText(font_ubuntu_monospace_regular_24, color_solarized_gray)) =
+    JuliaFunctionToSyntaxNode(keyword, delim)
 
 function projection_print(p::JuliaFunctionToSyntaxNode, recursion, f::JuliaFunction, ctx)
     name_ref = child_context(ctx, @reference ^(ctx.reference).name)
@@ -908,30 +876,30 @@ function projection_print(p::JuliaFunctionToSyntaxNode, recursion, f::JuliaFunct
                                for (i, param) in enumerate(f.params)])
 
     function_leaf = SyntaxLeaf(
-        _empty(p.keyword_font),
-        TextString(" ", p.keyword_font, color_default),
-        TextString("function", p.keyword_font, p.keyword_color),
+        _empty(p.keyword.font),
+        TextString(" ", p.keyword.font, color_default),
+        TextString("function", p.keyword),
         Cell(nothing))
 
     params_node = SyntaxNode(
-        TextString("(", p.delim_font, p.delim_color),
-        TextString(")", p.delim_font, p.delim_color),
-        TextString(", ", p.delim_font, p.delim_color),
+        TextString("(", p.delim),
+        TextString(")", p.delim),
+        TextString(", ", p.delim),
         CellVector(() -> SyntaxDocument[im.output for im in param_iomaps[]]),
         0, Cell(false), Cell(nothing))
 
     header_node = SyntaxNode(
-        _empty(p.delim_font), _empty(p.delim_font), _empty(p.delim_font),
+        _empty(p.delim.font), _empty(p.delim.font), _empty(p.delim.font),
         CellVector(() -> SyntaxDocument[function_leaf, name_iomap[].output, params_node]),
         0, Cell(false), Cell(nothing))
 
     end_leaf = SyntaxLeaf(
-        _empty(p.keyword_font), _empty(p.keyword_font),
-        TextString("end", p.keyword_font, p.keyword_color),
+        _empty(p.keyword.font), _empty(p.keyword.font),
+        TextString("end", p.keyword),
         Cell(nothing))
 
     node = SyntaxNode(
-        _empty(p.keyword_font), _empty(p.keyword_font), _empty(p.keyword_font),
+        _empty(p.keyword.font), _empty(p.keyword.font), _empty(p.keyword.font),
         CellVector(() -> SyntaxDocument[header_node, body_iomap[].output, end_leaf]),
         0, Cell(false), Cell(nothing))
     ChildrenIoMap(p, f, node, Cell(() -> IoMap[name_iomap[]; param_iomaps[]; body_iomap[]]))

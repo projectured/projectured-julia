@@ -31,6 +31,7 @@ import ..SqlDocumentModule: SqlSelectStatement, SqlSelectClause, SqlFromClause, 
 import ..TextModule: TextString
 import ..FontModule: StyleFont, font_ubuntu_monospace_regular_24, font_ubuntu_monospace_bold_24
 import ..ColorModule: StyleColor, color_default, color_solarized_blue, color_solarized_green
+import ..StyleTextModule: StyleText
 import ..SyntaxModule: SyntaxDocument, SyntaxLeaf, SyntaxNode
 import ..TypeDispatchingModule: TypeDispatchingProjection
 import ..IoMapModule: SimpleIoMap, ChildrenIoMap
@@ -64,6 +65,8 @@ _kw(text, font, color) = SyntaxLeaf(
     TextString(text, font, color),
     Cell(nothing))
 
+_kw(text, style::StyleText) = _kw(text, style.font, style.color)
+
 _space_node(f::Function) =
     SyntaxNode("", "", " ", f)
 
@@ -82,20 +85,19 @@ _newline_body_compact(f::Function) =
 # ── SqlAllColumnsToSyntaxLeaf ─────────────────────────────────────────────────
 
 struct SqlAllColumnsToSyntaxLeaf <: Projection
-    font::StyleFont
-    color::StyleColor
+    style::StyleText
 end
-SqlAllColumnsToSyntaxLeaf(; font=font_ubuntu_monospace_regular_24, color=color_default) =
-    SqlAllColumnsToSyntaxLeaf(font, color)
+SqlAllColumnsToSyntaxLeaf(; style=StyleText(font_ubuntu_monospace_regular_24, color_default)) =
+    SqlAllColumnsToSyntaxLeaf(style)
 
 function projection_print(p::SqlAllColumnsToSyntaxLeaf, recursion, doc::SqlAllColumns, ctx)
     SimpleIoMap(p, doc, SyntaxLeaf(
-        TextString("", p.font, color_default),
-        TextString("", p.font, color_default),
+        TextString("", p.style.font, color_default),
+        TextString("", p.style.font, color_default),
         TextString(() -> begin
             q = doc.qualifier
             q === nothing ? "*" : "$(q.name).*"
-        end, p.font, p.color),
+        end, p.style),
         doc.selection))
 end
 
@@ -116,21 +118,20 @@ projection_read(::SqlAllColumnsToSyntaxLeaf, iomap::SimpleIoMap, op) = nothing
 # ── SqlColumnReferenceToSyntaxLeaf ────────────────────────────────────────────
 
 struct SqlColumnReferenceToSyntaxLeaf <: Projection
-    font::StyleFont
-    color::StyleColor
+    style::StyleText
 end
-SqlColumnReferenceToSyntaxLeaf(; font=font_ubuntu_monospace_regular_24, color=color_default) =
-    SqlColumnReferenceToSyntaxLeaf(font, color)
+SqlColumnReferenceToSyntaxLeaf(; style=StyleText(font_ubuntu_monospace_regular_24, color_default)) =
+    SqlColumnReferenceToSyntaxLeaf(style)
 
 function projection_print(p::SqlColumnReferenceToSyntaxLeaf, recursion, doc::SqlColumnReference, ctx)
     SimpleIoMap(p, doc, SyntaxLeaf(
-        TextString("", p.font, color_default),
-        TextString("", p.font, color_default),
+        TextString("", p.style.font, color_default),
+        TextString("", p.style.font, color_default),
         TextString(() -> begin
             q = doc.qualifier
             col = doc.column_name.name
             q === nothing ? col : "$(q.name).$col"
-        end, p.font, p.color),
+        end, p.style),
         doc.selection))
 end
 
@@ -152,17 +153,16 @@ projection_read(::SqlColumnReferenceToSyntaxLeaf, iomap::SimpleIoMap, op) = noth
 # Bare column name, used in INSERT column lists and UPDATE assignments.
 
 struct SqlColumnNameToSyntaxLeaf <: Projection
-    font::StyleFont
-    color::StyleColor
+    style::StyleText
 end
-SqlColumnNameToSyntaxLeaf(; font=font_ubuntu_monospace_regular_24, color=color_default) =
-    SqlColumnNameToSyntaxLeaf(font, color)
+SqlColumnNameToSyntaxLeaf(; style=StyleText(font_ubuntu_monospace_regular_24, color_default)) =
+    SqlColumnNameToSyntaxLeaf(style)
 
 function projection_print(p::SqlColumnNameToSyntaxLeaf, recursion, doc::SqlColumnName, ctx)
     SimpleIoMap(p, doc, SyntaxLeaf(
-        TextString("", p.font, color_default),
-        TextString("", p.font, color_default),
-        TextString(() -> doc.name, p.font, p.color),
+        TextString("", p.style.font, color_default),
+        TextString("", p.style.font, color_default),
+        TextString(() -> doc.name, p.style),
         doc.selection))
 end
 
@@ -184,18 +184,17 @@ projection_read(::SqlColumnNameToSyntaxLeaf, iomap::SimpleIoMap, op) = nothing
 # Bare table name (with optional schema), used as the INSERT/UPDATE target.
 
 struct SqlTableNameToSyntaxLeaf <: Projection
-    font::StyleFont
-    color::StyleColor
+    style::StyleText
 end
-SqlTableNameToSyntaxLeaf(; font=font_ubuntu_monospace_regular_24, color=color_solarized_green) =
-    SqlTableNameToSyntaxLeaf(font, color)
+SqlTableNameToSyntaxLeaf(; style=StyleText(font_ubuntu_monospace_regular_24, color_solarized_green)) =
+    SqlTableNameToSyntaxLeaf(style)
 
 function projection_print(p::SqlTableNameToSyntaxLeaf, recursion, doc::SqlTableName, ctx)
     SimpleIoMap(p, doc, SyntaxLeaf(
-        TextString("", p.font, color_default),
-        TextString("", p.font, color_default),
+        TextString("", p.style.font, color_default),
+        TextString("", p.style.font, color_default),
         TextString(() -> doc.schema_name === nothing ? doc.name : "$(doc.schema_name).$(doc.name)",
-                   p.font, p.color),
+                   p.style),
         doc.selection))
 end
 
@@ -216,22 +215,21 @@ projection_read(::SqlTableNameToSyntaxLeaf, iomap::SimpleIoMap, op) = nothing
 # ── SqlTableExpressionToSyntaxLeaf ────────────────────────────────────────────
 
 struct SqlTableExpressionToSyntaxLeaf <: Projection
-    font::StyleFont
-    color::StyleColor
+    style::StyleText
 end
-SqlTableExpressionToSyntaxLeaf(; font=font_ubuntu_monospace_regular_24, color=color_solarized_green) =
-    SqlTableExpressionToSyntaxLeaf(font, color)
+SqlTableExpressionToSyntaxLeaf(; style=StyleText(font_ubuntu_monospace_regular_24, color_solarized_green)) =
+    SqlTableExpressionToSyntaxLeaf(style)
 
 function projection_print(p::SqlTableExpressionToSyntaxLeaf, recursion, doc::SqlTableExpression, ctx)
     SimpleIoMap(p, doc, SyntaxLeaf(
-        TextString("", p.font, color_default),
-        TextString("", p.font, color_default),
+        TextString("", p.style.font, color_default),
+        TextString("", p.style.font, color_default),
         TextString(() -> begin
             tn = doc.table_name
             base = tn.schema_name === nothing ? tn.name : "$(tn.schema_name).$(tn.name)"
             a = doc.alias
             a === nothing ? base : "$base AS $(a.name)"
-        end, p.font, p.color),
+        end, p.style),
         doc.selection))
 end
 
@@ -252,14 +250,12 @@ projection_read(::SqlTableExpressionToSyntaxLeaf, iomap::SimpleIoMap, op) = noth
 # ── SqlSubqueryFromItemToSyntaxNode ──────────────────────────────────────────
 
 struct SqlSubqueryFromItemToSyntaxNode <: Projection
-    keyword_font::StyleFont
-    keyword_color::StyleColor
+    keyword::StyleText
     identifier_font::StyleFont
 end
-SqlSubqueryFromItemToSyntaxNode(; keyword_font=font_ubuntu_monospace_bold_24,
-                                   keyword_color=color_solarized_blue,
+SqlSubqueryFromItemToSyntaxNode(; keyword=StyleText(font_ubuntu_monospace_bold_24, color_solarized_blue),
                                    identifier_font=font_ubuntu_monospace_regular_24) =
-    SqlSubqueryFromItemToSyntaxNode(keyword_font, keyword_color, identifier_font)
+    SqlSubqueryFromItemToSyntaxNode(keyword, identifier_font)
 
 function projection_print(p::SqlSubqueryFromItemToSyntaxNode, recursion, doc::SqlSubqueryFromItem, ctx)
     subq_im = Cell(() -> projection_print(recursion, recursion, doc.subquery,
@@ -278,13 +274,13 @@ function projection_print(p::SqlSubqueryFromItemToSyntaxNode, recursion, doc::Sq
     end)
 
     node = SyntaxNode(
-        TextString("", p.keyword_font, color_default),
-        TextString("", p.keyword_font, color_default),
-        TextString(" ", p.keyword_font, color_default),
+        TextString("", p.keyword.font, color_default),
+        TextString("", p.keyword.font, color_default),
+        TextString(" ", p.keyword.font, color_default),
         CellVector(() -> begin
             docs = SyntaxDocument[paren_node]
             if doc.alias !== nothing
-                push!(docs, _kw("AS", p.keyword_font, p.keyword_color))
+                push!(docs, _kw("AS", p.keyword))
                 push!(docs, SyntaxLeaf(
                     TextString("", p.identifier_font, color_default),
                     TextString("", p.identifier_font, color_default),
@@ -345,14 +341,13 @@ _join_type_display(::SqlCrossJoin)      = "CROSS JOIN"
 # ── SqlJoinTypeToSyntaxLeaf ───────────────────────────────────────────────────
 
 struct SqlJoinTypeToSyntaxLeaf <: Projection
-    font::StyleFont
-    color::StyleColor
+    style::StyleText
 end
-SqlJoinTypeToSyntaxLeaf(; font=font_ubuntu_monospace_bold_24, color=color_solarized_blue) =
-    SqlJoinTypeToSyntaxLeaf(font, color)
+SqlJoinTypeToSyntaxLeaf(; style=StyleText(font_ubuntu_monospace_bold_24, color_solarized_blue)) =
+    SqlJoinTypeToSyntaxLeaf(style)
 
 function projection_print(p::SqlJoinTypeToSyntaxLeaf, recursion, doc::SqlJoinType, ctx)
-    SimpleIoMap(p, doc, _kw(_join_type_display(doc), p.font, p.color))
+    SimpleIoMap(p, doc, _kw(_join_type_display(doc), p.style))
 end
 
 function map_reference_forward(::SqlJoinTypeToSyntaxLeaf, iomap::SimpleIoMap, reference)
@@ -372,14 +367,12 @@ projection_read(::SqlJoinTypeToSyntaxLeaf, iomap::SimpleIoMap, op) = nothing
 # ── SqlSelectItemToSyntaxNode ─────────────────────────────────────────────────
 
 struct SqlSelectItemToSyntaxNode <: Projection
-    keyword_font::StyleFont
-    keyword_color::StyleColor
+    keyword::StyleText
     alias_font::StyleFont
 end
-SqlSelectItemToSyntaxNode(; keyword_font=font_ubuntu_monospace_bold_24,
-                            keyword_color=color_solarized_blue,
+SqlSelectItemToSyntaxNode(; keyword=StyleText(font_ubuntu_monospace_bold_24, color_solarized_blue),
                             alias_font=font_ubuntu_monospace_regular_24) =
-    SqlSelectItemToSyntaxNode(keyword_font, keyword_color, alias_font)
+    SqlSelectItemToSyntaxNode(keyword, alias_font)
 
 function projection_print(p::SqlSelectItemToSyntaxNode, recursion, doc::SqlSelectItem, ctx)
     expr_im = Cell(() -> projection_print(recursion, recursion, doc.expression,
@@ -396,13 +389,13 @@ function projection_print(p::SqlSelectItemToSyntaxNode, recursion, doc::SqlSelec
     end)
 
     node = SyntaxNode(
-        TextString("", p.keyword_font, color_default),
-        TextString("", p.keyword_font, color_default),
-        TextString(" ", p.keyword_font, color_default),
+        TextString("", p.keyword.font, color_default),
+        TextString("", p.keyword.font, color_default),
+        TextString(" ", p.keyword.font, color_default),
         CellVector(() -> begin
             docs = SyntaxDocument[expr_im[].output]
             if doc.column_alias !== nothing
-                push!(docs, _kw("AS", p.keyword_font, p.keyword_color))
+                push!(docs, _kw("AS", p.keyword))
                 push!(docs, SyntaxLeaf(
                     TextString("", p.alias_font, color_default),
                     TextString("", p.alias_font, color_default),
@@ -457,12 +450,10 @@ projection_read(::SqlSelectItemToSyntaxNode, iomap::ChildrenIoMap, op) = nothing
 # ── SqlSelectClauseToSyntaxNode ───────────────────────────────────────────────
 
 struct SqlSelectClauseToSyntaxNode <: Projection
-    keyword_font::StyleFont
-    keyword_color::StyleColor
+    keyword::StyleText
 end
-SqlSelectClauseToSyntaxNode(; keyword_font=font_ubuntu_monospace_bold_24,
-                               keyword_color=color_solarized_blue) =
-    SqlSelectClauseToSyntaxNode(keyword_font, keyword_color)
+SqlSelectClauseToSyntaxNode(; keyword=StyleText(font_ubuntu_monospace_bold_24, color_solarized_blue)) =
+    SqlSelectClauseToSyntaxNode(keyword)
 
 function projection_print(p::SqlSelectClauseToSyntaxNode, recursion, doc::SqlSelectClause, ctx)
     item_ims = Cell(() -> [
@@ -481,12 +472,12 @@ function projection_print(p::SqlSelectClauseToSyntaxNode, recursion, doc::SqlSel
     end)
 
     node = SyntaxNode(
-        TextString("", p.keyword_font, color_default),
-        TextString("", p.keyword_font, color_default),
-        TextString(" ", p.keyword_font, color_default),
+        TextString("", p.keyword.font, color_default),
+        TextString("", p.keyword.font, color_default),
+        TextString(" ", p.keyword.font, color_default),
         CellVector(() -> begin
-            kws = SyntaxDocument[_kw("SELECT", p.keyword_font, p.keyword_color)]
-            doc.distinct !== nothing && push!(kws, _kw("DISTINCT", p.keyword_font, p.keyword_color))
+            kws = SyntaxDocument[_kw("SELECT", p.keyword)]
+            doc.distinct !== nothing && push!(kws, _kw("DISTINCT", p.keyword))
             push!(kws, items_body)
             kws
         end),
@@ -545,12 +536,10 @@ projection_read(::SqlSelectClauseToSyntaxNode, iomap::ChildrenIoMap, op) = nothi
 # ── SqlJoinedFromItemToSyntaxNode ─────────────────────────────────────────────
 
 struct SqlJoinedFromItemToSyntaxNode <: Projection
-    keyword_font::StyleFont
-    keyword_color::StyleColor
+    keyword::StyleText
 end
-SqlJoinedFromItemToSyntaxNode(; keyword_font=font_ubuntu_monospace_bold_24,
-                                keyword_color=color_solarized_blue) =
-    SqlJoinedFromItemToSyntaxNode(keyword_font, keyword_color)
+SqlJoinedFromItemToSyntaxNode(; keyword=StyleText(font_ubuntu_monospace_bold_24, color_solarized_blue)) =
+    SqlJoinedFromItemToSyntaxNode(keyword)
 
 function projection_print(p::SqlJoinedFromItemToSyntaxNode, recursion, doc::SqlJoinedFromItem, ctx)
     projected = Cell(() -> begin
@@ -578,9 +567,9 @@ function projection_print(p::SqlJoinedFromItemToSyntaxNode, recursion, doc::SqlJ
     end)
 
     node = SyntaxNode(
-        TextString("", p.keyword_font, color_default),
-        TextString("", p.keyword_font, color_default),
-        TextString(" ", p.keyword_font, color_default),
+        TextString("", p.keyword.font, color_default),
+        TextString("", p.keyword.font, color_default),
+        TextString(" ", p.keyword.font, color_default),
         CellVector(() -> begin
             jt, fi, cond_im = projected[]
             cond_im === nothing ? SyntaxDocument[jt.output, fi.output] :
@@ -659,12 +648,10 @@ projection_read(::SqlJoinedFromItemToSyntaxNode, iomap::ChildrenIoMap, op) = not
 # ── SqlJoinOnConditionToSyntaxNode ─────────────────────────────────────────────
 
 struct SqlJoinOnConditionToSyntaxNode <: Projection
-    keyword_font::StyleFont
-    keyword_color::StyleColor
+    keyword::StyleText
 end
-SqlJoinOnConditionToSyntaxNode(; keyword_font=font_ubuntu_monospace_bold_24,
-                                 keyword_color=color_solarized_blue) =
-    SqlJoinOnConditionToSyntaxNode(keyword_font, keyword_color)
+SqlJoinOnConditionToSyntaxNode(; keyword=StyleText(font_ubuntu_monospace_bold_24, color_solarized_blue)) =
+    SqlJoinOnConditionToSyntaxNode(keyword)
 
 function projection_print(p::SqlJoinOnConditionToSyntaxNode, recursion, doc::SqlJoinOnCondition, ctx)
     expr_im = Cell(() ->
@@ -682,10 +669,10 @@ function projection_print(p::SqlJoinOnConditionToSyntaxNode, recursion, doc::Sql
     end)
 
     node = SyntaxNode(
-        TextString("", p.keyword_font, color_default),
-        TextString("", p.keyword_font, color_default),
-        TextString(" ", p.keyword_font, color_default),
-        CellVector(() -> SyntaxDocument[_kw("ON", p.keyword_font, p.keyword_color), expr_im[].output]),
+        TextString("", p.keyword.font, color_default),
+        TextString("", p.keyword.font, color_default),
+        TextString(" ", p.keyword.font, color_default),
+        CellVector(() -> SyntaxDocument[_kw("ON", p.keyword), expr_im[].output]),
         0, Cell(false), sel)
 
     iomap = ChildrenIoMap(p, doc, node, child_iomaps_cell)
@@ -731,12 +718,10 @@ projection_read(::SqlJoinOnConditionToSyntaxNode, iomap::ChildrenIoMap, op) = no
 # ── SqlFromItemToSyntaxNode ───────────────────────────────────────────────────
 
 struct SqlFromItemToSyntaxNode <: Projection
-    keyword_font::StyleFont
-    keyword_color::StyleColor
+    keyword::StyleText
 end
-SqlFromItemToSyntaxNode(; keyword_font=font_ubuntu_monospace_bold_24,
-                           keyword_color=color_solarized_blue) =
-    SqlFromItemToSyntaxNode(keyword_font, keyword_color)
+SqlFromItemToSyntaxNode(; keyword=StyleText(font_ubuntu_monospace_bold_24, color_solarized_blue)) =
+    SqlFromItemToSyntaxNode(keyword)
 
 function projection_print(p::SqlFromItemToSyntaxNode, recursion, doc::SqlFromItem, ctx)
     projected = Cell(() -> begin
@@ -764,9 +749,9 @@ function projection_print(p::SqlFromItemToSyntaxNode, recursion, doc::SqlFromIte
     end)
 
     node = SyntaxNode(
-        TextString("", p.keyword_font, color_default),
-        TextString("", p.keyword_font, color_default),
-        TextString(" ", p.keyword_font, color_default),
+        TextString("", p.keyword.font, color_default),
+        TextString("", p.keyword.font, color_default),
+        TextString(" ", p.keyword.font, color_default),
         CellVector(() -> begin
             base, joins = projected[]
             isempty(joins) ? SyntaxDocument[base.output] :
@@ -838,12 +823,10 @@ projection_read(::SqlFromItemToSyntaxNode, iomap::ChildrenIoMap, op) = nothing
 # ── SqlFromClauseToSyntaxNode ─────────────────────────────────────────────────
 
 struct SqlFromClauseToSyntaxNode <: Projection
-    keyword_font::StyleFont
-    keyword_color::StyleColor
+    keyword::StyleText
 end
-SqlFromClauseToSyntaxNode(; keyword_font=font_ubuntu_monospace_bold_24,
-                             keyword_color=color_solarized_blue) =
-    SqlFromClauseToSyntaxNode(keyword_font, keyword_color)
+SqlFromClauseToSyntaxNode(; keyword=StyleText(font_ubuntu_monospace_bold_24, color_solarized_blue)) =
+    SqlFromClauseToSyntaxNode(keyword)
 
 function projection_print(p::SqlFromClauseToSyntaxNode, recursion, doc::SqlFromClause, ctx)
     item_ims = Cell(() -> [
@@ -862,10 +845,10 @@ function projection_print(p::SqlFromClauseToSyntaxNode, recursion, doc::SqlFromC
     end)
 
     node = SyntaxNode(
-        TextString("", p.keyword_font, color_default),
-        TextString("", p.keyword_font, color_default),
-        TextString(" ", p.keyword_font, color_default),
-        CellVector(() -> SyntaxDocument[_kw("FROM", p.keyword_font, p.keyword_color), items_body]),
+        TextString("", p.keyword.font, color_default),
+        TextString("", p.keyword.font, color_default),
+        TextString(" ", p.keyword.font, color_default),
+        CellVector(() -> SyntaxDocument[_kw("FROM", p.keyword), items_body]),
         0, Cell(false), sel)
 
     iomap = ChildrenIoMap(p, doc, node, item_ims)
@@ -918,12 +901,10 @@ projection_read(::SqlFromClauseToSyntaxNode, iomap::ChildrenIoMap, op) = nothing
 # ── SqlWhereFilterConditionToSyntaxNode ──────────────────────────────────────
 
 struct SqlWhereFilterConditionToSyntaxNode <: Projection
-    keyword_font::StyleFont
-    keyword_color::StyleColor
+    keyword::StyleText
 end
-SqlWhereFilterConditionToSyntaxNode(; keyword_font=font_ubuntu_monospace_bold_24,
-                                      keyword_color=color_solarized_blue) =
-    SqlWhereFilterConditionToSyntaxNode(keyword_font, keyword_color)
+SqlWhereFilterConditionToSyntaxNode(; keyword=StyleText(font_ubuntu_monospace_bold_24, color_solarized_blue)) =
+    SqlWhereFilterConditionToSyntaxNode(keyword)
 
 function projection_print(p::SqlWhereFilterConditionToSyntaxNode, recursion, doc::SqlWhereFilterCondition, ctx)
     expr_im = Cell(() ->
@@ -941,9 +922,9 @@ function projection_print(p::SqlWhereFilterConditionToSyntaxNode, recursion, doc
     end)
 
     node = SyntaxNode(
-        TextString("", p.keyword_font, color_default),
-        TextString("", p.keyword_font, color_default),
-        TextString("", p.keyword_font, color_default),
+        TextString("", p.keyword.font, color_default),
+        TextString("", p.keyword.font, color_default),
+        TextString("", p.keyword.font, color_default),
         CellVector(() -> SyntaxDocument[expr_im[].output]),
         0, Cell(false), sel)
 
@@ -990,12 +971,10 @@ projection_read(::SqlWhereFilterConditionToSyntaxNode, iomap::ChildrenIoMap, op)
 # ── SqlWhereClauseToSyntaxNode ────────────────────────────────────────────────
 
 struct SqlWhereClauseToSyntaxNode <: Projection
-    keyword_font::StyleFont
-    keyword_color::StyleColor
+    keyword::StyleText
 end
-SqlWhereClauseToSyntaxNode(; keyword_font=font_ubuntu_monospace_bold_24,
-                              keyword_color=color_solarized_blue) =
-    SqlWhereClauseToSyntaxNode(keyword_font, keyword_color)
+SqlWhereClauseToSyntaxNode(; keyword=StyleText(font_ubuntu_monospace_bold_24, color_solarized_blue)) =
+    SqlWhereClauseToSyntaxNode(keyword)
 
 function projection_print(p::SqlWhereClauseToSyntaxNode, recursion, doc::SqlWhereClause, ctx)
     cond_im = Cell(() -> doc.condition === nothing ? nothing :
@@ -1017,10 +996,10 @@ function projection_print(p::SqlWhereClauseToSyntaxNode, recursion, doc::SqlWher
     end)
 
     node = SyntaxNode(
-        TextString("", p.keyword_font, color_default),
-        TextString("", p.keyword_font, color_default),
-        TextString(" ", p.keyword_font, color_default),
-        CellVector(() -> SyntaxDocument[_kw("WHERE", p.keyword_font, p.keyword_color), cond_body]),
+        TextString("", p.keyword.font, color_default),
+        TextString("", p.keyword.font, color_default),
+        TextString(" ", p.keyword.font, color_default),
+        CellVector(() -> SyntaxDocument[_kw("WHERE", p.keyword), cond_body]),
         0, Cell(false), sel)
 
     iomap = ChildrenIoMap(p, doc, node, child_iomaps_cell)
@@ -1070,22 +1049,21 @@ projection_read(::SqlWhereClauseToSyntaxNode, iomap::ChildrenIoMap, op) = nothin
 # ── SqlScalarValueToSyntaxLeaf ───────────────────────────────────────────────
 
 struct SqlScalarValueToSyntaxLeaf <: Projection
-    font::StyleFont
-    color::StyleColor
+    style::StyleText
 end
-SqlScalarValueToSyntaxLeaf(; font=font_ubuntu_monospace_regular_24, color=color_default) =
-    SqlScalarValueToSyntaxLeaf(font, color)
+SqlScalarValueToSyntaxLeaf(; style=StyleText(font_ubuntu_monospace_regular_24, color_default)) =
+    SqlScalarValueToSyntaxLeaf(style)
 
 function projection_print(p::SqlScalarValueToSyntaxLeaf, recursion, doc::SqlScalarValue, ctx)
     SimpleIoMap(p, doc, SyntaxLeaf(
-        TextString("", p.font, color_default),
-        TextString("", p.font, color_default),
+        TextString("", p.style.font, color_default),
+        TextString("", p.style.font, color_default),
         TextString(() -> begin
             val = doc.value
             val isa Bool           ? (val ? "TRUE" : "FALSE") :
             val isa AbstractString ? "'$val'" :
             string(val)
-        end, p.font, p.color),
+        end, p.style),
         doc.selection))
 end
 
@@ -1106,12 +1084,10 @@ projection_read(::SqlScalarValueToSyntaxLeaf, iomap::SimpleIoMap, op) = nothing
 # ── SqlComparisonToSyntaxNode ─────────────────────────────────────────────────
 
 struct SqlComparisonToSyntaxNode <: Projection
-    keyword_font::StyleFont
-    keyword_color::StyleColor
+    keyword::StyleText
 end
-SqlComparisonToSyntaxNode(; keyword_font=font_ubuntu_monospace_bold_24,
-                             keyword_color=color_solarized_blue) =
-    SqlComparisonToSyntaxNode(keyword_font, keyword_color)
+SqlComparisonToSyntaxNode(; keyword=StyleText(font_ubuntu_monospace_bold_24, color_solarized_blue)) =
+    SqlComparisonToSyntaxNode(keyword)
 
 function projection_print(p::SqlComparisonToSyntaxNode, recursion, doc::SqlComparison, ctx)
     projected = Cell(() -> begin
@@ -1133,12 +1109,12 @@ function projection_print(p::SqlComparisonToSyntaxNode, recursion, doc::SqlCompa
     end)
 
     node = SyntaxNode(
-        TextString("", p.keyword_font, color_default),
-        TextString("", p.keyword_font, color_default),
-        TextString(" ", p.keyword_font, color_default),
+        TextString("", p.keyword.font, color_default),
+        TextString("", p.keyword.font, color_default),
+        TextString(" ", p.keyword.font, color_default),
         CellVector(() -> begin
             left, right = projected[]
-            SyntaxDocument[left.output, _kw(doc.operator, p.keyword_font, p.keyword_color), right.output]
+            SyntaxDocument[left.output, _kw(doc.operator, p.keyword), right.output]
         end),
         0, Cell(false), sel)
 
@@ -1198,12 +1174,10 @@ projection_read(::SqlComparisonToSyntaxNode, iomap::ChildrenIoMap, op) = nothing
 
 struct SqlBooleanBinaryToSyntaxNode <: Projection
     keyword::String
-    keyword_font::StyleFont
-    keyword_color::StyleColor
+    keyword_style::StyleText
 end
-SqlBooleanBinaryToSyntaxNode(keyword; keyword_font=font_ubuntu_monospace_bold_24,
-                                       keyword_color=color_solarized_blue) =
-    SqlBooleanBinaryToSyntaxNode(keyword, keyword_font, keyword_color)
+SqlBooleanBinaryToSyntaxNode(keyword; keyword_style=StyleText(font_ubuntu_monospace_bold_24, color_solarized_blue)) =
+    SqlBooleanBinaryToSyntaxNode(keyword, keyword_style)
 
 function projection_print(p::SqlBooleanBinaryToSyntaxNode, recursion, doc, ctx)
     projected = Cell(() -> begin
@@ -1225,12 +1199,12 @@ function projection_print(p::SqlBooleanBinaryToSyntaxNode, recursion, doc, ctx)
     end)
 
     node = SyntaxNode(
-        TextString("(", p.keyword_font, color_default),
-        TextString(")", p.keyword_font, color_default),
-        TextString(" ", p.keyword_font, color_default),
+        TextString("(", p.keyword_style.font, color_default),
+        TextString(")", p.keyword_style.font, color_default),
+        TextString(" ", p.keyword_style.font, color_default),
         CellVector(() -> begin
             left, right = projected[]
-            SyntaxDocument[left.output, _kw(p.keyword, p.keyword_font, p.keyword_color), right.output]
+            SyntaxDocument[left.output, _kw(p.keyword, p.keyword_style), right.output]
         end),
         0, Cell(false), sel)
 
@@ -1289,12 +1263,10 @@ projection_read(::SqlBooleanBinaryToSyntaxNode, iomap::ChildrenIoMap, op) = noth
 # ── SqlNotToSyntaxNode ────────────────────────────────────────────────────────
 
 struct SqlNotToSyntaxNode <: Projection
-    keyword_font::StyleFont
-    keyword_color::StyleColor
+    keyword::StyleText
 end
-SqlNotToSyntaxNode(; keyword_font=font_ubuntu_monospace_bold_24,
-                      keyword_color=color_solarized_blue) =
-    SqlNotToSyntaxNode(keyword_font, keyword_color)
+SqlNotToSyntaxNode(; keyword=StyleText(font_ubuntu_monospace_bold_24, color_solarized_blue)) =
+    SqlNotToSyntaxNode(keyword)
 
 function projection_print(p::SqlNotToSyntaxNode, recursion, doc::SqlNot, ctx)
     expr_im = Cell(() -> projection_print(recursion, recursion, doc.expression,
@@ -1311,11 +1283,11 @@ function projection_print(p::SqlNotToSyntaxNode, recursion, doc::SqlNot, ctx)
     end)
 
     node = SyntaxNode(
-        TextString("(", p.keyword_font, color_default),
-        TextString(")", p.keyword_font, color_default),
-        TextString(" ", p.keyword_font, color_default),
+        TextString("(", p.keyword.font, color_default),
+        TextString(")", p.keyword.font, color_default),
+        TextString(" ", p.keyword.font, color_default),
         CellVector(() ->
-            SyntaxDocument[_kw("NOT", p.keyword_font, p.keyword_color), expr_im[].output]),
+            SyntaxDocument[_kw("NOT", p.keyword), expr_im[].output]),
         0, Cell(false), sel)
 
     iomap = ChildrenIoMap(p, doc, node, child_iomaps_cell)
@@ -1368,12 +1340,10 @@ projection_read(::SqlNotToSyntaxNode, iomap::ChildrenIoMap, op) = nothing
 #     children[3] = where_clause node   → "WHERE\n  …\n"  (omitted if no condition)
 
 struct SqlSelectStatementToSyntaxNode <: Projection
-    keyword_font::StyleFont
-    keyword_color::StyleColor
+    keyword::StyleText
 end
-SqlSelectStatementToSyntaxNode(; keyword_font=font_ubuntu_monospace_bold_24,
-                                  keyword_color=color_solarized_blue) =
-    SqlSelectStatementToSyntaxNode(keyword_font, keyword_color)
+SqlSelectStatementToSyntaxNode(; keyword=StyleText(font_ubuntu_monospace_bold_24, color_solarized_blue)) =
+    SqlSelectStatementToSyntaxNode(keyword)
 
 function projection_print(p::SqlSelectStatementToSyntaxNode, recursion, stmt::SqlSelectStatement, ctx)
     projected = Cell(() -> begin
@@ -1409,9 +1379,9 @@ function projection_print(p::SqlSelectStatementToSyntaxNode, recursion, stmt::Sq
     end)
 
     node = SyntaxNode(
-        TextString("", p.keyword_font, color_default),
-        TextString("", p.keyword_font, color_default),
-        TextString("", p.keyword_font, color_default),
+        TextString("", p.keyword.font, color_default),
+        TextString("", p.keyword.font, color_default),
+        TextString("", p.keyword.font, color_default),
         children,
         0, Cell(false), sel)
 
@@ -1487,12 +1457,10 @@ end
 # deeper, inside their parenthesised comma list.
 
 struct SqlInsertStatementToSyntaxNode <: Projection
-    keyword_font::StyleFont
-    keyword_color::StyleColor
+    keyword::StyleText
 end
-SqlInsertStatementToSyntaxNode(; keyword_font=font_ubuntu_monospace_bold_24,
-                                 keyword_color=color_solarized_blue) =
-    SqlInsertStatementToSyntaxNode(keyword_font, keyword_color)
+SqlInsertStatementToSyntaxNode(; keyword=StyleText(font_ubuntu_monospace_bold_24, color_solarized_blue)) =
+    SqlInsertStatementToSyntaxNode(keyword)
 
 function projection_print(p::SqlInsertStatementToSyntaxNode, recursion, stmt::SqlInsertStatement, ctx)
     projected = Cell(() -> begin
@@ -1530,16 +1498,16 @@ function projection_print(p::SqlInsertStatementToSyntaxNode, recursion, stmt::Sq
     end)
 
     node = SyntaxNode(
-        TextString("", p.keyword_font, color_default),
-        TextString("", p.keyword_font, color_default),
-        TextString(" ", p.keyword_font, color_default),
+        TextString("", p.keyword.font, color_default),
+        TextString("", p.keyword.font, color_default),
+        TextString(" ", p.keyword.font, color_default),
         CellVector(() -> begin
             _, col_ims, _ = projected[]
-            docs = SyntaxDocument[_kw("INSERT", p.keyword_font, p.keyword_color),
-                                  _kw("INTO", p.keyword_font, p.keyword_color),
+            docs = SyntaxDocument[_kw("INSERT", p.keyword),
+                                  _kw("INTO", p.keyword),
                                   projected[][1].output]
             isempty(col_ims) || push!(docs, columns_paren)
-            push!(docs, _kw("VALUES", p.keyword_font, p.keyword_color))
+            push!(docs, _kw("VALUES", p.keyword))
             push!(docs, values_paren)
             docs
         end),
@@ -1637,12 +1605,10 @@ projection_read(::SqlInsertStatementToSyntaxNode, iomap::ChildrenIoMap, op) = no
 # keyword sits at children[2], like SqlComparison).
 
 struct SqlUpdateAssignmentToSyntaxNode <: Projection
-    keyword_font::StyleFont
-    keyword_color::StyleColor
+    keyword::StyleText
 end
-SqlUpdateAssignmentToSyntaxNode(; keyword_font=font_ubuntu_monospace_bold_24,
-                                  keyword_color=color_solarized_blue) =
-    SqlUpdateAssignmentToSyntaxNode(keyword_font, keyword_color)
+SqlUpdateAssignmentToSyntaxNode(; keyword=StyleText(font_ubuntu_monospace_bold_24, color_solarized_blue)) =
+    SqlUpdateAssignmentToSyntaxNode(keyword)
 
 function projection_print(p::SqlUpdateAssignmentToSyntaxNode, recursion, doc::SqlUpdateAssignment, ctx)
     projected = Cell(() -> begin
@@ -1664,12 +1630,12 @@ function projection_print(p::SqlUpdateAssignmentToSyntaxNode, recursion, doc::Sq
     end)
 
     node = SyntaxNode(
-        TextString("", p.keyword_font, color_default),
-        TextString("", p.keyword_font, color_default),
-        TextString(" ", p.keyword_font, color_default),
+        TextString("", p.keyword.font, color_default),
+        TextString("", p.keyword.font, color_default),
+        TextString(" ", p.keyword.font, color_default),
         CellVector(() -> begin
             col_im, val_im = projected[]
-            SyntaxDocument[col_im.output, _kw("=", p.keyword_font, p.keyword_color), val_im.output]
+            SyntaxDocument[col_im.output, _kw("=", p.keyword), val_im.output]
         end),
         0, Cell(false), sel)
 
@@ -1736,12 +1702,10 @@ projection_read(::SqlUpdateAssignmentToSyntaxNode, iomap::ChildrenIoMap, op) = n
 # statement on one line.
 
 struct SqlUpdateStatementToSyntaxNode <: Projection
-    keyword_font::StyleFont
-    keyword_color::StyleColor
+    keyword::StyleText
 end
-SqlUpdateStatementToSyntaxNode(; keyword_font=font_ubuntu_monospace_bold_24,
-                                 keyword_color=color_solarized_blue) =
-    SqlUpdateStatementToSyntaxNode(keyword_font, keyword_color)
+SqlUpdateStatementToSyntaxNode(; keyword=StyleText(font_ubuntu_monospace_bold_24, color_solarized_blue)) =
+    SqlUpdateStatementToSyntaxNode(keyword)
 
 function projection_print(p::SqlUpdateStatementToSyntaxNode, recursion, stmt::SqlUpdateStatement, ctx)
     projected = Cell(() -> begin
@@ -1775,17 +1739,17 @@ function projection_print(p::SqlUpdateStatementToSyntaxNode, recursion, stmt::Sq
     end)
 
     node = SyntaxNode(
-        TextString("", p.keyword_font, color_default),
-        TextString("", p.keyword_font, color_default),
-        TextString(" ", p.keyword_font, color_default),
+        TextString("", p.keyword.font, color_default),
+        TextString("", p.keyword.font, color_default),
+        TextString(" ", p.keyword.font, color_default),
         CellVector(() -> begin
             table_im, _, where_im = projected[]
-            docs = SyntaxDocument[_kw("UPDATE", p.keyword_font, p.keyword_color),
+            docs = SyntaxDocument[_kw("UPDATE", p.keyword),
                                   table_im.output,
-                                  _kw("SET", p.keyword_font, p.keyword_color),
+                                  _kw("SET", p.keyword),
                                   assignments_body]
             if where_im !== nothing
-                push!(docs, _kw("WHERE", p.keyword_font, p.keyword_color))
+                push!(docs, _kw("WHERE", p.keyword))
                 push!(docs, where_im.output)
             end
             docs
@@ -1878,12 +1842,10 @@ projection_read(::SqlUpdateStatementToSyntaxNode, iomap::ChildrenIoMap, op) = no
 # String on the document, so it has no projected child of its own).
 
 struct SqlColumnDefinitionToSyntaxNode <: Projection
-    type_font::StyleFont
-    type_color::StyleColor
+    type::StyleText
 end
-SqlColumnDefinitionToSyntaxNode(; type_font=font_ubuntu_monospace_regular_24,
-                                  type_color=color_default) =
-    SqlColumnDefinitionToSyntaxNode(type_font, type_color)
+SqlColumnDefinitionToSyntaxNode(; type=StyleText(font_ubuntu_monospace_regular_24, color_default)) =
+    SqlColumnDefinitionToSyntaxNode(type)
 
 function projection_print(p::SqlColumnDefinitionToSyntaxNode, recursion, doc::SqlColumnDefinition, ctx)
     col_im = Cell(() -> projection_print(recursion, recursion, doc.column_name,
@@ -1900,15 +1862,15 @@ function projection_print(p::SqlColumnDefinitionToSyntaxNode, recursion, doc::Sq
     end)
 
     node = SyntaxNode(
-        TextString("", p.type_font, color_default),
-        TextString("", p.type_font, color_default),
-        TextString(" ", p.type_font, color_default),
+        TextString("", p.type.font, color_default),
+        TextString("", p.type.font, color_default),
+        TextString(" ", p.type.font, color_default),
         CellVector(() -> SyntaxDocument[
             col_im[].output,
             SyntaxLeaf(
-                TextString("", p.type_font, color_default),
-                TextString("", p.type_font, color_default),
-                TextString(() -> doc.data_type, p.type_font, p.type_color),
+                TextString("", p.type.font, color_default),
+                TextString("", p.type.font, color_default),
+                TextString(() -> doc.data_type, p.type),
                 Cell(nothing))]),
         0, Cell(false), sel)
 
@@ -1964,12 +1926,10 @@ projection_read(::SqlColumnDefinitionToSyntaxNode, iomap::ChildrenIoMap, op) = n
 # parenthesised comma body at children[4].
 
 struct SqlCreateTableStatementToSyntaxNode <: Projection
-    keyword_font::StyleFont
-    keyword_color::StyleColor
+    keyword::StyleText
 end
-SqlCreateTableStatementToSyntaxNode(; keyword_font=font_ubuntu_monospace_bold_24,
-                                      keyword_color=color_solarized_blue) =
-    SqlCreateTableStatementToSyntaxNode(keyword_font, keyword_color)
+SqlCreateTableStatementToSyntaxNode(; keyword=StyleText(font_ubuntu_monospace_bold_24, color_solarized_blue)) =
+    SqlCreateTableStatementToSyntaxNode(keyword)
 
 function projection_print(p::SqlCreateTableStatementToSyntaxNode, recursion, stmt::SqlCreateTableStatement, ctx)
     projected = Cell(() -> begin
@@ -2000,13 +1960,13 @@ function projection_print(p::SqlCreateTableStatementToSyntaxNode, recursion, stm
     end)
 
     node = SyntaxNode(
-        TextString("", p.keyword_font, color_default),
-        TextString(";", p.keyword_font, color_default),
-        TextString(" ", p.keyword_font, color_default),
+        TextString("", p.keyword.font, color_default),
+        TextString(";", p.keyword.font, color_default),
+        TextString(" ", p.keyword.font, color_default),
         CellVector(() -> begin
             table_im, _ = projected[]
-            SyntaxDocument[_kw("CREATE", p.keyword_font, p.keyword_color),
-                           _kw("TABLE", p.keyword_font, p.keyword_color),
+            SyntaxDocument[_kw("CREATE", p.keyword),
+                           _kw("TABLE", p.keyword),
                            table_im.output,
                            columns_body]
         end),
@@ -2081,14 +2041,12 @@ projection_read(::SqlCreateTableStatementToSyntaxNode, iomap::ChildrenIoMap, op)
 # statement has no child iomaps; only whole-statement (∅) selection is mapped.
 
 struct SqlCreateSchemaStatementToSyntaxNode <: Projection
-    keyword_font::StyleFont
-    keyword_color::StyleColor
+    keyword::StyleText
     identifier_font::StyleFont
 end
-SqlCreateSchemaStatementToSyntaxNode(; keyword_font=font_ubuntu_monospace_bold_24,
-                                       keyword_color=color_solarized_blue,
+SqlCreateSchemaStatementToSyntaxNode(; keyword=StyleText(font_ubuntu_monospace_bold_24, color_solarized_blue),
                                        identifier_font=font_ubuntu_monospace_regular_24) =
-    SqlCreateSchemaStatementToSyntaxNode(keyword_font, keyword_color, identifier_font)
+    SqlCreateSchemaStatementToSyntaxNode(keyword, identifier_font)
 
 function projection_print(p::SqlCreateSchemaStatementToSyntaxNode, recursion, stmt::SqlCreateSchemaStatement, ctx)
     iomap_cell = Cell(nothing)
@@ -2101,12 +2059,12 @@ function projection_print(p::SqlCreateSchemaStatementToSyntaxNode, recursion, st
     end)
 
     node = SyntaxNode(
-        TextString("", p.keyword_font, color_default),
-        TextString(";", p.keyword_font, color_default),
-        TextString(" ", p.keyword_font, color_default),
+        TextString("", p.keyword.font, color_default),
+        TextString(";", p.keyword.font, color_default),
+        TextString(" ", p.keyword.font, color_default),
         CellVector(() -> SyntaxDocument[
-            _kw("CREATE", p.keyword_font, p.keyword_color),
-            _kw("SCHEMA", p.keyword_font, p.keyword_color),
+            _kw("CREATE", p.keyword),
+            _kw("SCHEMA", p.keyword),
             SyntaxLeaf(
                 TextString("", p.identifier_font, color_default),
                 TextString("", p.identifier_font, color_default),
