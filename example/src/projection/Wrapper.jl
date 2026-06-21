@@ -2,7 +2,7 @@ function make_graphics_caching(projection; render=sdl_render_canvas)
     SequentialProjection(projection, RecursiveProjection(GraphicsCaching(render=render)))
 end
 
-function make_scrolling_projection(projection; measure=sdl_measure_text,
+function make_scrolling_projection(projection; measure=truetype_measure_text,
                                     font=font_ubuntu_monospace_regular_24)
     NestingProjection(
         WidgetScrollPaneToGraphicsViewport(font, measure);
@@ -10,7 +10,7 @@ function make_scrolling_projection(projection; measure=sdl_measure_text,
     )
 end
 
-function make_introspection_projection(projection; measure=sdl_measure_text)
+function make_introspection_projection(projection; measure=truetype_measure_text)
     font = font_ubuntu_monospace_regular_24
     fg   = (0xee, 0xee, 0xee, 0xff)
     w2g  = WidgetToGraphics(font; measure=measure)
@@ -41,7 +41,7 @@ end
 # projected `TextText` slot through TextToGraphics — the introspection pattern.
 # Expects a TextText document (the text examples).
 function make_text_configuring_projection(inner_text_projection;
-                                          measure=sdl_measure_text,
+                                          measure=truetype_measure_text,
                                           font=font_ubuntu_monospace_regular_24)
     fg  = (0x22, 0x22, 0x22, 0xff)   # dark text for the light example background
     w2g = WidgetToGraphics(font; measure=measure)
@@ -57,7 +57,7 @@ function make_text_configuring_projection(inner_text_projection;
     )
 end
 
-function make_workbench_projection(; measure=sdl_measure_text,
+function make_workbench_projection(; measure=truetype_measure_text,
                                    content_projections=Pair{DataType,Any}[
                                        JsonDocument         => SequentialProjection(RecursiveProjection(JsonToSyntax()), RecursiveProjection(SyntaxToText()), WordWrapping(measure=measure), TextToGraphics(measure=measure)),
                                        XmlDocument          => SequentialProjection(RecursiveProjection(XmlToSyntax()), RecursiveProjection(SyntaxToText()), WordWrapping(measure=measure), TextToGraphics(measure=measure)),

@@ -1,6 +1,6 @@
 # ── Text-based pipeline: Domain → Syntax → Text → Graphics ──────────────
 
-function make_dbcatalog_projection_example(; measure=sdl_measure_text,
+function make_dbcatalog_projection_example(; measure=truetype_measure_text,
                                              pool=OdbcConnectionPool())
     SequentialProjection(
         DatabaseInstanceToDbCatalog(pool),
@@ -13,7 +13,7 @@ function make_dbcatalog_projection_example(; measure=sdl_measure_text,
     )
 end
 
-function make_dvdrental_dbcatalog_projection_example(; measure=sdl_measure_text)
+function make_dvdrental_dbcatalog_projection_example(; measure=truetype_measure_text)
     SequentialProjection(
         RecursiveProjection(DbCatalogToSyntax()),
         RecursiveProjection(SyntaxToText(
@@ -37,7 +37,7 @@ end
 # `dvdrental_object_example`. The document stays a lazy `DatabaseInstance`
 # connection spec; `DatabaseInstanceToDbCatalog` opens the connection (through its
 # pool) only when the tree is first forced at print time.
-function make_dvdrental_object_projection_example(; measure=sdl_measure_text,
+function make_dvdrental_object_projection_example(; measure=truetype_measure_text,
                                                     pool=OdbcConnectionPool())
     SequentialProjection(
         DatabaseInstanceToDbCatalog(pool),
@@ -61,7 +61,7 @@ end
 # to `dvdrental_object_json_example`. The document stays a lazy `DatabaseInstance`
 # spec; the connection is opened (through its pool) only when the tree is first
 # forced at print time.
-function make_dvdrental_object_json_projection_example(; measure=sdl_measure_text,
+function make_dvdrental_object_json_projection_example(; measure=truetype_measure_text,
                                                          pool=OdbcConnectionPool())
     SequentialProjection(
         DatabaseInstanceToDbCatalog(pool),
@@ -84,7 +84,7 @@ end
 # collection, so this pipeline **fully walks** the catalog — every per-table
 # column query is forced, the whole `databases → schemas → tables → columns` tree
 # rendered. Use `dvdrental_object_json_example` for the generic structural dump.
-function make_dvdrental_catalog_json_projection_example(; measure=sdl_measure_text,
+function make_dvdrental_catalog_json_projection_example(; measure=truetype_measure_text,
                                                           pool=OdbcConnectionPool())
     SequentialProjection(
         DatabaseInstanceToDbCatalog(pool),
@@ -103,7 +103,7 @@ end
 # (`make_syntax_widget_graphics`, defined in the Json projection example). This
 # replaces the old `TextToWidget` + `WidgetAndTextToGraphics` single-wrapper path.
 
-function make_dbcatalog_widget_projection_example(; measure=sdl_measure_text,
+function make_dbcatalog_widget_projection_example(; measure=truetype_measure_text,
                                                     pool=OdbcConnectionPool())
     SequentialProjection(
         DatabaseInstanceToDbCatalog(pool),
@@ -113,7 +113,7 @@ function make_dbcatalog_widget_projection_example(; measure=sdl_measure_text,
     )
 end
 
-function make_dvdrental_dbcatalog_widget_projection_example(; measure=sdl_measure_text)
+function make_dvdrental_dbcatalog_widget_projection_example(; measure=truetype_measure_text)
     SequentialProjection(
         RecursiveProjection(DbCatalogToSyntax()),
         RecursiveProjection(SyntaxToWidget(marker_eligible = dbcatalog_marker_eligible)),

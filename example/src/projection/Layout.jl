@@ -6,7 +6,7 @@ Project a tree of `HorizontalLayout` / `VerticalLayout` / `GridLayout` /
 nodes to their `…ToGraphicsCanvas` projections and any other document
 (widgets in this example) to `WidgetToGraphics`.
 """
-function make_layout_projection_example(; measure=sdl_measure_text)
+function make_layout_projection_example(; measure=truetype_measure_text)
     font = font_ubuntu_regular_24
     # Dark foreground — this example renders directly onto the backend's
     # default (light) background, without a `WidgetShell` to provide a

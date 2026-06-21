@@ -6,7 +6,7 @@
 # Defaults to the pure-Julia FallbackLayoutEngine. Pass an engine to swap it
 # (e.g. AdaptagramsEngine once its native build lands) behind the same interface.
 
-function make_graph_projection_example(; measure=sdl_measure_text,
+function make_graph_projection_example(; measure=truetype_measure_text,
                                        engine=FallbackLayoutEngine())
     # A vertex's content can be any domain. Dispatch on the root content type to a
     # complete per-domain pipeline to GraphicsCanvas: tables render directly via

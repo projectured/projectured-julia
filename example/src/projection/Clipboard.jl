@@ -11,7 +11,7 @@
 #   Ctrl+N        note: store the live selected object in the slice (no copy)
 #   Ctrl+V        paste the stored slice over the current selection
 #   Ctrl+Shift+V  paste a fresh deep copy of the stored slice
-function make_clipboard_projection_example(; measure=sdl_measure_text)
+function make_clipboard_projection_example(; measure=truetype_measure_text)
     SequentialProjection(
         RecursiveProjection(TypeDispatchingProjection(
             ClipboardSlice  => ClipboardSliceToAnyProjection(),

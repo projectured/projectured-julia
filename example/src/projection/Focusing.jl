@@ -1,4 +1,4 @@
-function make_focusing_projection_example(; measure=sdl_measure_text)
+function make_focusing_projection_example(; measure=truetype_measure_text)
     SequentialProjection(
         FocusingProjection(
             part_type=JsonArray,

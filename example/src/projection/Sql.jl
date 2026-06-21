@@ -1,4 +1,4 @@
-function make_sql_syntax_projection_example(; measure=sdl_measure_text)
+function make_sql_syntax_projection_example(; measure=truetype_measure_text)
     SequentialProjection(
         RecursiveProjection(SqlToSyntax()),
         RecursiveProjection(SyntaxToText()),
@@ -6,7 +6,7 @@ function make_sql_syntax_projection_example(; measure=sdl_measure_text)
     )
 end
 
-function make_sql_insert_syntax_projection_example(; measure=sdl_measure_text)
+function make_sql_insert_syntax_projection_example(; measure=truetype_measure_text)
     SequentialProjection(
         RecursiveProjection(SqlToSyntax()),
         RecursiveProjection(SyntaxToText()),
@@ -14,7 +14,7 @@ function make_sql_insert_syntax_projection_example(; measure=sdl_measure_text)
     )
 end
 
-function make_sql_update_syntax_projection_example(; measure=sdl_measure_text)
+function make_sql_update_syntax_projection_example(; measure=truetype_measure_text)
     SequentialProjection(
         RecursiveProjection(SqlToSyntax()),
         RecursiveProjection(SyntaxToText()),
@@ -22,7 +22,7 @@ function make_sql_update_syntax_projection_example(; measure=sdl_measure_text)
     )
 end
 
-function make_sql_nested_syntax_projection_example(; measure=sdl_measure_text)
+function make_sql_nested_syntax_projection_example(; measure=truetype_measure_text)
     SequentialProjection(
         RecursiveProjection(SqlToSyntax()),
         RecursiveProjection(SyntaxToText()),
@@ -30,7 +30,7 @@ function make_sql_nested_syntax_projection_example(; measure=sdl_measure_text)
     )
 end
 
-function make_sql_table_projection_example(; measure=sdl_measure_text,
+function make_sql_table_projection_example(; measure=truetype_measure_text,
                                              pool=OdbcConnectionPool(),
                                              instance=make_database_instance_document_example())
     # The query result cells are JSON documents; render them like the table example.

@@ -7,13 +7,13 @@
 # A single RecursiveProjection(TypeDispatchingProjection(...)) ties them together.
 
 # A JSON cell renders through Json → Syntax → Text → Graphics.
-_json_cell_projection(; measure=sdl_measure_text) = SequentialProjection(
+_json_cell_projection(; measure=truetype_measure_text) = SequentialProjection(
     RecursiveProjection(JsonToSyntax()),
     RecursiveProjection(SyntaxToText()),
     TextToGraphics(measure=measure),
 )
 
-function make_table_projection_example(; measure=sdl_measure_text)
+function make_table_projection_example(; measure=truetype_measure_text)
     w2g  = WidgetToGraphics(font_ubuntu_regular_24; measure=measure)
     json = _json_cell_projection(measure=measure)
     RecursiveProjection(TypeDispatchingProjection(vcat(
@@ -25,7 +25,7 @@ function make_table_projection_example(; measure=sdl_measure_text)
     )))
 end
 
-function make_math_table_projection_example(; measure=sdl_measure_text)
+function make_math_table_projection_example(; measure=truetype_measure_text)
     w2g = WidgetToGraphics(font_ubuntu_regular_24; measure=measure)
     primitive_chain = SequentialProjection(
         RecursiveProjection(PrimitiveToSyntax()),

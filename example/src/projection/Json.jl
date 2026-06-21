@@ -1,4 +1,4 @@
-function make_json_projection_example(; measure=sdl_measure_text)
+function make_json_projection_example(; measure=truetype_measure_text)
     SequentialProjection(
         RecursiveProjection(JsonToSyntax()),
         RecursiveProjection(SyntaxToText()),
@@ -37,7 +37,7 @@ end
 # embedded `TextText` leaf content (TextToGraphics) in one pass — the
 # widgets-for-structure / text-for-content composition (mirrors the
 # conversation_widget inner dispatch).
-function make_syntax_widget_graphics(; measure=sdl_measure_text)
+function make_syntax_widget_graphics(; measure=truetype_measure_text)
     font = font_ubuntu_monospace_regular_24
     w2g  = WidgetToGraphics(font; measure=measure)
     RecursiveProjection(TypeDispatchingProjection(vcat(
@@ -50,7 +50,7 @@ function make_syntax_widget_graphics(; measure=sdl_measure_text)
     )))
 end
 
-function make_json_widget_projection_example(; measure=sdl_measure_text)
+function make_json_widget_projection_example(; measure=truetype_measure_text)
     SequentialProjection(
         RecursiveProjection(JsonToSyntax()),
         RecursiveProjection(SyntaxToWidget()),
@@ -58,7 +58,7 @@ function make_json_widget_projection_example(; measure=sdl_measure_text)
     )
 end
 
-function make_json_sorted_projection_example(; measure=sdl_measure_text)
+function make_json_sorted_projection_example(; measure=truetype_measure_text)
     SequentialProjection(
         SortingAtProjection(@reference(entries), x -> x.key),
         RecursiveProjection(JsonToSyntax()),
@@ -67,7 +67,7 @@ function make_json_sorted_projection_example(; measure=sdl_measure_text)
     )
 end
 
-function make_json_null_projection_example(; measure=sdl_measure_text)
+function make_json_null_projection_example(; measure=truetype_measure_text)
     SequentialProjection(
         JsonNullToSyntaxLeaf(),
         SyntaxLeafToText(),
@@ -75,7 +75,7 @@ function make_json_null_projection_example(; measure=sdl_measure_text)
     )
 end
 
-function make_json_string_projection_example(; measure=sdl_measure_text)
+function make_json_string_projection_example(; measure=truetype_measure_text)
     SequentialProjection(
         JsonStringToSyntaxLeaf(),
         SyntaxLeafToText(),

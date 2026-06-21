@@ -35,7 +35,7 @@ import ..PrinterContextModule: PrinterContext
 import ..ReferenceModule: EmptyReferencePath
 import ..ReactiveModule: Cell
 
-export write_pdf, GraphicsCanvasToPdfFile, pdf_measure_text
+export write_pdf, GraphicsCanvasToPdfFile, pdf_measure_text, truetype_measure_text
 
 const DEFAULT_BG = (0xfd, 0xf6, 0xe3, 0xff)
 const KAPPA = 0.5522847498307936   # circle/quarter-arc Bézier constant
@@ -218,6 +218,17 @@ page. Returns `(width, height)` in logical pixels — both `Int`, matching
 """
 pdf_measure_text(text, font::StyleFont) =
     (round(Int, text_width(_load_ttf(font.filename), font.size, String(text))), Int(font.size))
+
+"""
+    truetype_measure_text(text, font::StyleFont) -> (Int, Int)
+
+Canonical SDL-free text measurer for layout: a neutral-named alias of
+[`pdf_measure_text`]. Reads advance widths from the font's own TrueType `hmtx`
+metrics (pure Julia, no SDL/SDL_ttf), so any projection pipeline can measure text
+without SDL. Use this as the default `measure=` for projection examples; it
+matches `sdl_measure_text`'s `(width, height)` contract.
+"""
+const truetype_measure_text = pdf_measure_text
 
 # ════════════════════════════════════════════════════════════════════════
 # Number / color formatting

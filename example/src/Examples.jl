@@ -453,7 +453,7 @@ end
 # Same shape as `_multi_window_projection` but with the four extra type
 # entries needed for tooltip support, sitting in front of the existing
 # reference-based dispatch for example content.
-function _multi_window_projection_tooltipped(projections::Vector; measure=sdl_measure_text)
+function _multi_window_projection_tooltipped(projections::Vector; measure=truetype_measure_text)
     n = length(projections)
     targets = Vector{Any}(undef, n)
     for i in 1:n
@@ -593,7 +593,7 @@ end
 # Render an example to a vector PDF. Reuses the example's own (SDL-measured)
 # projection for layout parity with the on-screen / `write_image` view; unlike
 # `write_image`, `write_pdf` does not initialize SDL itself, so we bring it up
-# here for the projection's `sdl_measure_text`.
+# here for the projection's `truetype_measure_text`.
 function write_example_pdf(example::Example, filename;
                            width=nothing, height=nothing,
                            max_width=1800, max_height=1200, kwargs...)
@@ -601,7 +601,7 @@ function write_example_pdf(example::Example, filename;
     write_pdf(example.document, example.projection, filename;
               width=width, height=height,
               max_width=max_width, max_height=max_height,
-              measure=sdl_measure_text, kwargs...)
+              measure=truetype_measure_text, kwargs...)
 end
 
 function write_example_pdf(name="json", filename=tempname()*".pdf"; kwargs...)
