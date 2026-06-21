@@ -604,6 +604,11 @@ function strip_reference_types(path::ConcreteReferencePath)
     step isa TypeReference ? rest : ConcreteReferencePath(step, rest)
 end
 
+# Permissive fallback, mirroring `skip_type_checkpoints`: callers may apply this
+# to a non-path (e.g. `nothing` when there is no selection); pass it through
+# unchanged so the structural reads downstream handle the absence themselves.
+strip_reference_types(other) = other
+
 # ── Reference collection ─────────────────────────────────────────────────────
 
 """

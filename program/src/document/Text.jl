@@ -30,7 +30,7 @@ import ..CollectionModule: CellVector, ListNode, CollectionDocument
 import ..FontModule: StyleFont, font_ubuntu_monospace_regular_24
 import ..ColorModule: StyleColor, color_default
 import ..GeometryModule: Inset
-import ..ReferenceModule: Reference, ConcreteReferencePath, EmptyReferencePath, RangeReference, FieldReference, TextRectangularReference, skip_type_checkpoints
+import ..ReferenceModule: Reference, ConcreteReferencePath, EmptyReferencePath, RangeReference, FieldReference, TextRectangularReference, skip_type_checkpoints, strip_reference_types
 import ..ReferenceCaseModule: var"@reference_case"
 import ..ReferenceBuilderModule: var"@reference"
 import ..OperationApiModule: splice_string, splice_value!
@@ -551,7 +551,10 @@ end
 # Parse `text.selection[]` into (span_idx, char_start, char_stop) when it
 # matches `.elements[i].content[s:e]`, else return nothing.
 function _text_selection_range(text::TextText)
-    sel = text.selection
+    # Selections are canonical at rest; strip the TypeReference checkpoints
+    # (this parser only extracts integer span/char offsets) before the raw
+    # structural walk over `.elements[i].content[s:e]`.
+    sel = strip_reference_types(text.selection)
     sel isa ConcreteReferencePath || return nothing
     h1 = sel.head
     (h1 isa FieldReference && h1.name == "elements") || return nothing
