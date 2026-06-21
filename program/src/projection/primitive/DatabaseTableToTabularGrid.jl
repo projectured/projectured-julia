@@ -27,7 +27,7 @@ import ..ProjectionApiModule: projection_print, projection_read,
                               map_reference_forward, map_reference_backward, Projection
 import ..IoMapApiModule: IoMap
 import ..ReferenceModule: ReferencePath, EmptyReferencePath, ConcreteReferencePath, skip_type_checkpoints,
-                          FieldReference, RangeReference, is_element_reference
+                          FieldReference, RangeReference, is_element_reference, strip_reference_types
 import ..OperationModule: ReplaceSelectionOperation
 import ..PrimitiveModule: StringReplaceRangeOperation, NumberReplaceRangeOperation
 import ..OperationApiModule: evaluate_operation
@@ -100,6 +100,7 @@ function _make_data_row(vals::Vector{Any})
 end
 
 function _decode_grid_cell(path::ReferencePath)
+    path = strip_reference_types(path)
     path isa ConcreteReferencePath || return nothing, nothing
     path.head isa FieldReference && path.head.name == "rows" || return nothing, nothing
     path = path.tail
@@ -142,7 +143,7 @@ function _compute_new_value(grid::TabularGrid, r::Int, c::Int,
     current = _cell_string_value(grid, r, c)
     current === nothing && return replacement
     range_step = nothing
-    path = ref
+    path = strip_reference_types(ref)
     while path isa ConcreteReferencePath
         h = path.head
         if h isa RangeReference && !(path.tail isa ConcreteReferencePath)

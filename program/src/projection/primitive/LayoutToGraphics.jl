@@ -32,7 +32,7 @@ import ..MouseModule: MouseScroll, MousePress
 import ..EventCaseModule: var"@event_case"
 import ..OperationApiModule: Operation
 import ..OperationRerootingModule: prepend_steps_to_op
-import ..ReferenceModule: ConcreteReferencePath, FieldReference, RangeReference
+import ..ReferenceModule: ConcreteReferencePath, FieldReference, RangeReference, skip_type_checkpoints
 import ..TypeDispatchingModule: TypeDispatchingProjection
 import ..ReferenceBuilderModule: var"@reference"
 import ..PrinterContextModule: child_context, with_available_size
@@ -180,9 +180,10 @@ end
 function _selected_layout_slot(doc, n::Int)
     hasproperty(doc, :selection) || return 0
     sel = getfield(doc, :selection)[]
+    sel = skip_type_checkpoints(sel)
     sel isa ConcreteReferencePath || return 0
     (sel.head isa FieldReference && sel.head.name == "children") || return 0
-    t = sel.tail
+    t = skip_type_checkpoints(sel.tail)
     (t isa ConcreteReferencePath && t.head isa RangeReference) || return 0
     slot = t.head.start + 1
     1 <= slot <= n ? slot : 0
@@ -286,6 +287,7 @@ function projection_print(p::LayoutConstraintToGraphicsCanvas,
 end
 
 function map_reference_forward(::LayoutConstraintToGraphicsCanvas, iomap::ContentIoMap, reference)
+    reference = skip_type_checkpoints(reference)
     reference isa ConcreteReferencePath || return nothing
     h = reference.head
     h isa FieldReference && h.name == "child" || return nothing
@@ -307,10 +309,11 @@ A reference of the form `children[i]/...` routes to the i-th child
 iomap's forward mapping.
 """
 function _children_forward(iomap::_LayoutChildrenIoMap, reference)
+    reference = skip_type_checkpoints(reference)
     reference isa ConcreteReferencePath || return nothing
     h = reference.head
     h isa FieldReference && h.name == "children" || return nothing
-    rest = reference.tail
+    rest = skip_type_checkpoints(reference.tail)
     rest isa ConcreteReferencePath || return nothing
     h2 = rest.head
     h2 isa RangeReference || return nothing

@@ -42,7 +42,7 @@ import ..IoMapModule: SimpleIoMap, ChildrenIoMap
 import ..OperationModule: ReplaceSelectionOperation, ToggleCollapseOperation
 import ..PrimitiveModule: StringReplaceRangeOperation
 import ..ReferenceModule: ConcreteReferencePath, FieldReference, RangeReference,
-                          ProjectionReference, ReferencePath, EmptyReferencePath
+                          ProjectionReference, ReferencePath, EmptyReferencePath, strip_reference_types
 import ..ReferenceCaseModule: var"@reference_case"
 import ..ReferenceBuilderModule: var"@reference"
 import ..KeyboardModule: KeyDown
@@ -88,6 +88,7 @@ end
 # Parse a `.elements[i].content{k}` TextText path → (span_idx, char_idx) or
 # (nothing, nothing) on mismatch.
 function _parse_text_elem_path(path)
+    path = strip_reference_types(path)
     path isa ConcreteReferencePath || return (nothing, nothing)
     h1 = path.head
     h1 isa FieldReference && h1.name == "elements" || return (nothing, nothing)
@@ -108,6 +109,7 @@ function _parse_text_elem_path(path)
 end
 
 function _parse_text_elem_range(path)
+    path = strip_reference_types(path)
     path isa ConcreteReferencePath || return nothing
     h1 = path.head
     (h1 isa FieldReference && h1.name == "elements") || return nothing

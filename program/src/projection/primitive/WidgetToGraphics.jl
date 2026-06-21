@@ -57,7 +57,7 @@ import ..OperationApiModule: Operation
 import ..OperationModule: ReplaceSelectionOperation, ReplaceReferencedValue, ToggleCollapseOperation
 import ..PrimitiveModule: StringReplaceRangeOperation, NumberReplaceRangeOperation
 import ..ReferenceModule: ReferencePath, ConcreteReferencePath, FieldReference, RangeReference,
-                          ElementReference, EmptyReferencePath, is_element_reference
+                          ElementReference, EmptyReferencePath, is_element_reference, skip_type_checkpoints
 import ..OperationRerootingModule: prepend_steps_to_op
 import ..TypeDispatchingModule: TypeDispatchingProjection
 import ..PrinterContextModule: child_context, with_available_size
@@ -1051,9 +1051,10 @@ end
 # or 0 when it carries no such selection.
 function _selected_composite_slot(w::WidgetComposite, n::Int)
     sel = getfield(w, :selection)[]
+    sel = skip_type_checkpoints(sel)
     sel isa ConcreteReferencePath || return 0
     (sel.head isa FieldReference && sel.head.name == "elements") || return 0
-    t = sel.tail
+    t = skip_type_checkpoints(sel.tail)
     (t isa ConcreteReferencePath && t.head isa RangeReference) || return 0
     slot = t.head.start + 1
     1 <= slot <= n ? slot : 0
@@ -1604,9 +1605,10 @@ end
 # when the split carries no such selection (route by fallback then).
 function _selected_split_slot(w::WidgetSplitPane, n::Int)
     sel = getfield(w, :selection)[]
+    sel = skip_type_checkpoints(sel)
     sel isa ConcreteReferencePath || return 0
     (sel.head isa FieldReference && sel.head.name == "elements") || return 0
-    t = sel.tail
+    t = skip_type_checkpoints(sel.tail)
     (t isa ConcreteReferencePath && t.head isa RangeReference) || return 0
     slot = t.head.start + 1
     1 <= slot <= n ? slot : 0

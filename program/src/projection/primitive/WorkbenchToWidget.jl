@@ -50,7 +50,7 @@ import ..OperationModule: ReplaceSelectionOperation
 import ..OperationApiModule: Operation
 import ..PrimitiveModule: StringReplaceRangeOperation, NumberReplaceRangeOperation
 import ..KeyboardModule: KeyDown
-import ..ReferenceModule: ReferencePath, ConcreteReferencePath, ElementReference, PositionReference, RangeReference, EmptyReferencePath, FieldReference, append_reference
+import ..ReferenceModule: ReferencePath, ConcreteReferencePath, ElementReference, PositionReference, RangeReference, EmptyReferencePath, FieldReference, append_reference, skip_type_checkpoints
 import ..ReferenceBuilderModule: var"@reference"
 import ..ReferenceCaseModule: var"@reference_case"
 import ..PrinterContextModule: child_context
@@ -143,6 +143,7 @@ _title_widget(doc::WorkbenchDocument) = title(doc)
 # `nothing` if it doesn't match. Used to re-root the shell's full widget-domain
 # selection onto the structural split panes it builds.
 function _strip_field(path, name::AbstractString)
+    path = skip_type_checkpoints(path)
     path isa ConcreteReferencePath || return nothing
     (path.head isa FieldReference && path.head.name == name) || return nothing
     path.tail
@@ -152,6 +153,7 @@ end
 # split pane's selection; `nothing` if the selection doesn't enter that slot.
 function _strip_split_child(path, slot::Int)
     rest = _strip_field(path, "elements")
+    rest = skip_type_checkpoints(rest)
     rest isa ConcreteReferencePath || return nothing
     rest.head isa RangeReference || return nothing
     (rest.head.start + 1) == slot || return nothing

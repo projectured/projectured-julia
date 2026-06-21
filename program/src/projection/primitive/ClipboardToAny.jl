@@ -46,7 +46,7 @@ import ..ClipboardModule: ClipboardSlice, ClipboardCollection
 import ..CollectionModule: CellVector
 import ..ReferenceModule: ReferencePath, ConcreteReferencePath, EmptyReferencePath,
                           FieldReference, RangeReference, ElementReference,
-                          evaluate_reference, head, tail
+                          evaluate_reference, head, tail, strip_reference_types
 import ..PrinterContextModule: PrinterContext, child_context
 import ..IoMapApiModule: IoMap
 import ..KeyboardModule: KeyDown
@@ -323,6 +323,7 @@ end
 # 0-based index of the element a selection path addresses, or nothing when the
 # path does not descend through `elements[i]`.
 function _elements_index(path)
+    path = strip_reference_types(path)
     path isa ConcreteReferencePath || return nothing
     h = path.head
     (h isa FieldReference && h.name == "elements") || return nothing
