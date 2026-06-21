@@ -11,11 +11,10 @@ substitutes for `run!(SdlBackend(), …)` with no change to the editor loop,
 projection pipeline, or domains.
 
 Layering vs. SDL:
-- **Text metrics stay on the server.** The projection pipeline bakes
-  `TextToGraphics(measure=sdl_measure_text)` into layout, so SDL_ttf must be
-  initialised to print at all. `init!` runs `SDL_Init(SDL_INIT_VIDEO)` +
-  `TTF_Init()` (no window) and reuses `sdl_measure_text`. The browser renders the
-  same TTFs (served from `font/`), so metrics line up.
+- **Text metrics stay on the server, SDL-free.** Layout measures text with the
+  pure-Julia TrueType measurer `pdf_measure_text` (from the SDL-free PDF backend),
+  so the web backend needs no SDL/SDL_ttf at all — `init!` does no SDL setup. The
+  browser renders the same TTFs (served from `font/`), so metrics line up.
 - **Output**: `write_to_devices` serializes the projection-output
   `ScreenDocument` into a per-window draw-list (mirroring the SDL renderer's
   element set) and pushes it to the client over the WebSocket.
@@ -40,7 +39,6 @@ module WebBackendModule
 using HTTP
 using JSON3
 using Base64: base64encode
-using SimpleDirectMediaLayer.LibSDL2: SDL_Init, SDL_INIT_VIDEO, TTF_Init
 
 import ..BackendModule: Backend, init!, quit!, measure_text, make_backend
 import ..DeviceModule: Device, read_from_devices, write_to_devices
@@ -57,7 +55,11 @@ import ..ScreenDocumentModule: ScreenDocument, WindowDocument, EventEnvelope,
 import ..ModifiersModule: Modifiers
 import ..KeyboardModule: KeyDown, KeyUp, KeyPress
 import ..MouseModule: MouseDown, MouseUp, MousePress, MouseMove, MouseScroll
-import ..SdlBackendModule: sdl_measure_text
+# SDL-free text measurement: reuse the pure-Julia TrueType metrics measurer from
+# the (SDL-free) PDF backend, so the web backend needs no SDL/SDL_ttf at all.
+# (This measurer is a general font-metrics utility that could later move to a
+# shared module; it lives in PdfBackendModule today.)
+import ..PdfBackendModule: pdf_measure_text
 
 export WebBackend, web_key_to_symbol
 
@@ -381,20 +383,20 @@ _extend!(a::_DAcc, b) = (a.minx = min(a.minx, b[1]); a.miny = min(a.miny, b[2]);
 
 function _bounds_of_elem(elem, ox::Int, oy::Int)
     mnx = Ref(typemax(Int)); mny = Ref(typemax(Int)); mxx = Ref(typemin(Int)); mxy = Ref(typemin(Int))
-    _bounds_elem!(elem, ox, oy, sdl_measure_text, mnx, mny, mxx, mxy)
+    _bounds_elem!(elem, ox, oy, pdf_measure_text, mnx, mny, mxx, mxy)
     mxx[] == typemin(Int) ? nothing : (mnx[], mny[], mxx[], mxy[])
 end
 
 function _bounds_of_canvas(canvas::GraphicsCanvas, ox::Int, oy::Int)
     mnx = Ref(typemax(Int)); mny = Ref(typemax(Int)); mxx = Ref(typemin(Int)); mxy = Ref(typemin(Int))
-    _accumulate_bounds!(canvas, ox, oy, sdl_measure_text, mnx, mny, mxx, mxy)
+    _accumulate_bounds!(canvas, ox, oy, pdf_measure_text, mnx, mny, mxx, mxy)
     mxx[] == typemin(Int) ? nothing : (mnx[], mny[], mxx[], mxy[])
 end
 
 function _bounds_of_listnode(head::ListNode, ox::Int, oy::Int)
     mnx = Ref(typemax(Int)); mny = Ref(typemax(Int)); mxx = Ref(typemin(Int)); mxy = Ref(typemin(Int))
     for n in _list_nodes(head)
-        _bounds_elem!(n.value, ox, oy, sdl_measure_text, mnx, mny, mxx, mxy)
+        _bounds_elem!(n.value, ox, oy, pdf_measure_text, mnx, mny, mxx, mxy)
     end
     mxx[] == typemin(Int) ? nothing : (mnx[], mny[], mxx[], mxy[])
 end
@@ -749,10 +751,8 @@ end
 # ════════════════════════════════════════════════════════════════════════
 
 function init!(backend::WebBackend)
-    # SDL_ttf is needed for text metrics (`sdl_measure_text`); no window is
-    # created. SDL_INIT_VIDEO is reference-counted, so this is safe to repeat.
-    SDL_Init(SDL_INIT_VIDEO)
-    TTF_Init()
+    # Text metrics come from the pure-Julia TrueType measurer (pdf_measure_text),
+    # so no SDL/SDL_ttf initialisation is needed — the web backend is SDL-free.
     backend.server = HTTP.listen!(backend.host, backend.port) do http
         if HTTP.WebSockets.isupgrade(http.message)
             HTTP.WebSockets.upgrade(ws -> _handle_ws(backend, ws), http)
@@ -781,7 +781,7 @@ function quit!(backend::WebBackend)
     return nothing
 end
 
-measure_text(::WebBackend, text::AbstractString, font::StyleFont) = sdl_measure_text(text, font)
+measure_text(::WebBackend, text::AbstractString, font::StyleFont) = pdf_measure_text(text, font)
 
 # Non-blocking poll: hand back the next decoded event, or nothing.
 read_from_devices(backend::WebBackend, devices) =

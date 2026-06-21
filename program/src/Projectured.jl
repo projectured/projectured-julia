@@ -192,8 +192,10 @@ include("projection/compound/Generic.jl")
 include("device/Screen.jl")
 include("backend/Sdl.jl")
 include("backend/Console.jl")
-include("backend/Web.jl")
+# Pdf before Web: Pdf holds the pure-Julia TrueType metrics measurer
+# (pdf_measure_text) that the Web backend reuses for SDL-free text measurement.
 include("backend/Pdf.jl")
+include("backend/Web.jl")
 include("external/Database.jl")
 include("external/OdbcAdapter.jl")
 include("external/ConnectionPool.jl")
