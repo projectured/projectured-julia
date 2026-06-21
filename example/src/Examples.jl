@@ -356,7 +356,7 @@ function run_example(examples::Vector{Example}; width=nothing, height=nothing,
                          _multi_window_projection(projs)
     # An explicit `backend` (e.g. the WebBackend from run_web_example) wins;
     # otherwise build the SDL backend, threading the render-control knobs.
-    backend === nothing && (backend = SdlBackend(; partial_render=partial_render, debug_dirty=debug_dirty))
+    backend === nothing && (backend = make_backend(:sdl; partial_render=partial_render, debug_dirty=debug_dirty))
     if profile
         Profile.clear()
         try
@@ -379,7 +379,7 @@ server's draw-list and forwards input back. Accepts the same keyword arguments
 as [`run_example`](@ref) (e.g. `width`, `height`, `workbench`, `selection`).
 """
 run_web_example(arg="json"; host="127.0.0.1", port=8080, kwargs...) =
-    run_example(arg; backend=WebBackend(; host=host, port=port), kwargs...)
+    run_example(arg; backend=make_backend(:web; host=host, port=port), kwargs...)
 
 # Build a projection that projects the screen down to each
 # `windows[i].content` reference and applies the matching example's
@@ -559,7 +559,7 @@ function run_console_example(; document=make_json_document_example(),
                                ansi::Bool=true, clear::Union{Bool,Nothing}=nothing,
                                interactive::Bool=false)
     if interactive
-        backend = ConsoleBackend(; ansi=ansi, clear=something(clear, true))
+        backend = make_backend(:console; ansi=ansi, clear=something(clear, true))
         # The editor logs each operation and a perf line via @info; on a terminal
         # that lands on the rendered screen and corrupts it (the console owns the
         # display). Discard those logs for the duration of the interactive loop.
@@ -567,7 +567,7 @@ function run_console_example(; document=make_json_document_example(),
             run!(backend, projection, document; devices=Device[Keyboard()])
         end
     else
-        backend = ConsoleBackend(; ansi=ansi, clear=something(clear, false))
+        backend = make_backend(:console; ansi=ansi, clear=something(clear, false))
         iomap = projection_print(projection, document)
         output = iomap.output
         output = output isa Cell ? output[] : output
@@ -597,7 +597,7 @@ end
 function write_example_pdf(example::Example, filename;
                            width=nothing, height=nothing,
                            max_width=1800, max_height=1200, kwargs...)
-    init!(SdlBackend())
+    init!(make_backend(:sdl))
     write_pdf(example.document, example.projection, filename;
               width=width, height=height,
               max_width=max_width, max_height=max_height,

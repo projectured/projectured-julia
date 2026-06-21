@@ -35,7 +35,7 @@ itself no longer resolves the selection or emits a reverse-video attribute).
 """
 module ConsoleBackendModule
 
-import ..BackendModule: Backend, init!, quit!, measure_text
+import ..BackendModule: Backend, init!, quit!, measure_text, make_backend
 import ..DeviceModule: Device, read_from_devices, write_to_devices
 import ..TextModule: TextDocument, TextText, TextString, TextNewline, TextSpacing, TextGraphics
 import ..ColorModule: StyleColor, color_default, color_equal
@@ -333,5 +333,8 @@ end
 # (Ctrl+Alt+Home). It is the console's entry point into structural navigation
 # (there is no mouse to click a starting selection).
 _home_event() = KeyDown(:home, Modifiers(ctrl=true, alt=true))
+
+# Backend factory method: `make_backend(:console; io=…, ansi=…, clear=…)`.
+make_backend(::Val{:console}; kwargs...) = ConsoleBackend(; kwargs...)
 
 end # module

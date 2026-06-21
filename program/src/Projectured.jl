@@ -325,7 +325,7 @@ using .GraphicsModule: GraphicsDocument, GraphicsInsertion,
 using .ModifiersModule: Modifiers
 using .KeyboardModule: Keyboard, KeyDown, KeyUp, KeyPress, is_ctrl, is_shift, is_alt, is_meta
 using .MouseModule: MouseDown, MouseUp, MousePress, MouseMove, MouseScroll
-using .BackendModule: Backend, init!, quit!, measure_text
+using .BackendModule: Backend, init!, quit!, measure_text, make_backend
 using .SdlBackendModule: SdlBackend, sdl_measure_text, sdl_render_canvas,
                           sdl_display_size,
                           write_image, record_video, GraphicsCanvasToImageFile,
@@ -702,7 +702,7 @@ export GraphicsDocument, GraphicsInsertion,
 export Modifiers
 export Keyboard, KeyDown, KeyUp, KeyPress, is_ctrl, is_shift, is_alt, is_meta
 export MouseDown, MouseUp, MousePress, MouseMove, MouseScroll
-export Backend, init!, quit!, measure_text
+export Backend, init!, quit!, measure_text, make_backend
 export Screen
 export SdlBackend, sdl_measure_text, sdl_render_canvas, sdl_display_size,
        write_image, record_video, GraphicsCanvasToImageFile, sdl_decode_image, decode_image_file!

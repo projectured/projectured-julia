@@ -117,7 +117,7 @@ function play_live_example(live::LiveExample; width::Integer=live.width,
     # recorder); in the windowed scene they must be rerooted to the screen by the
     # steps that lead to this window's content. Event entries are rerooted by the
     # reader automatically, so they need no prefix.
-    play_live!(SdlBackend(), composed, screen, live.timeline;
+    play_live!(make_backend(:sdl), composed, screen, live.timeline;
                window_id=window_id, initial_hold=initial_hold,
                op_prefix = @reference windows[1].content)
 end

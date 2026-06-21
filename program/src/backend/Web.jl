@@ -42,7 +42,7 @@ using JSON3
 using Base64: base64encode
 using SimpleDirectMediaLayer.LibSDL2: SDL_Init, SDL_INIT_VIDEO, TTF_Init
 
-import ..BackendModule: Backend, init!, quit!, measure_text
+import ..BackendModule: Backend, init!, quit!, measure_text, make_backend
 import ..DeviceModule: Device, read_from_devices, write_to_devices
 import ..GraphicsModule: GraphicsCanvas, GraphicsText, GraphicsRect, GraphicsLine,
                          GraphicsCircle, GraphicsPolyline, GraphicsSpline,
@@ -855,5 +855,8 @@ function write_to_devices(::WebBackend, devices, output)
           "expected a ScreenDocument. The web backend renders the multi-window " *
           "screen pipeline (same as the SDL backend).")
 end
+
+# Backend factory method: `make_backend(:web; host=…, port=…)`.
+make_backend(::Val{:web}; kwargs...) = WebBackend(; kwargs...)
 
 end # module

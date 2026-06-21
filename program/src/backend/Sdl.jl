@@ -7,7 +7,7 @@ module SdlBackendModule
 
 using SimpleDirectMediaLayer
 using SimpleDirectMediaLayer.LibSDL2
-import ..BackendModule: Backend, init!, quit!, measure_text
+import ..BackendModule: Backend, init!, quit!, measure_text, make_backend
 import ..DeviceModule: Device, read_from_devices, write_to_devices, write_to_device
 import ..GraphicsModule: GraphicsCanvas, GraphicsText, GraphicsRect, GraphicsLine, GraphicsCircle,
                          GraphicsPolyline, GraphicsSpline, GraphicsViewport, GraphicsImage,
@@ -2269,5 +2269,9 @@ function decode_image_file!(img::ImageFile)
     img.raw = result
     img
 end
+
+# Backend factory method: lets callers build the SDL backend via
+# `make_backend(:sdl; …)` without naming `SdlBackend` directly (extension-ready).
+make_backend(::Val{:sdl}; kwargs...) = SdlBackend(; kwargs...)
 
 end # module
