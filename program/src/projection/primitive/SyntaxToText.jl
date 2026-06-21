@@ -16,7 +16,7 @@ import ..TextModule: TextText, TextString, TextNewline, TextDocument
 import ..FontModule: font_ubuntu_monospace_regular_24, font_dejavu_monospace_regular_24
 import ..ColorModule: color_solarized_gray
 import ..TypeDispatchingModule: TypeDispatchingProjection
-import ..ReferenceModule: ConcreteReferencePath, ElementReference, PositionReference, RangeReference, FieldReference, ProjectionReference, EmptyReferencePath, ReferencePath, TextRectangularReference, strip_reference_types
+import ..ReferenceModule: ConcreteReferencePath, ElementReference, PositionReference, RangeReference, FieldReference, ProjectionReference, EmptyReferencePath, ReferencePath, TextRectangularReference, strip_reference_types, skip_type_checkpoints
 import ..ReferenceCaseModule: var"@reference_case"
 import ..ReferenceBuilderModule: var"@reference"
 import ..IoMapModule: SimpleIoMap
@@ -1124,11 +1124,12 @@ function _click_flat_pos(iomap::SyntaxNodeToTextIoMap, path)
 end
 
 _text_elem_path(span_idx::Int, char_idx::Int) =
-    @reference elements[span_idx].content{char_idx}
+    @reference ::TextText.elements[span_idx].content::String{char_idx}
 
 # Parse a tree selection path: .elements[i]∅  (element ref without .content{k}).
 # Returns span_idx (1-based) or nothing.
 function _parse_tree_elem_path(path)
+    path = strip_reference_types(path)
     path isa ConcreteReferencePath || return nothing
     h1 = path.head
     h1 isa FieldReference && h1.name == "elements" || return nothing
@@ -1141,6 +1142,7 @@ function _parse_tree_elem_path(path)
 end
 
 function _parse_text_elem_path(path)
+    path = strip_reference_types(path)
     path isa ConcreteReferencePath || return (nothing, nothing)
     h1 = path.head
     h1 isa FieldReference && h1.name == "elements" || return (nothing, nothing)
@@ -1163,6 +1165,7 @@ end
 # Like `_parse_text_elem_path` but returns the full `(span_idx, char_start,
 # char_stop)` of the terminal `RangeReference`. Returns `nothing` on mismatch.
 function _parse_text_elem_range(path)
+    path = strip_reference_types(path)
     path isa ConcreteReferencePath || return nothing
     h1 = path.head
     (h1 isa FieldReference && h1.name == "elements") || return nothing
