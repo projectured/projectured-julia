@@ -32,6 +32,8 @@ function explore_text_selections(document, projection, initial_selection=nothing
         KeyDown(:end,   Modifiers()),
         KeyDown(:home,  Modifiers(ctrl=true)),
         KeyDown(:end,   Modifiers(ctrl=true)),
+        KeyDown(:left,  Modifiers(ctrl=true)),
+        KeyDown(:right, Modifiers(ctrl=true)),
     ]
 
     visited = Set{String}()

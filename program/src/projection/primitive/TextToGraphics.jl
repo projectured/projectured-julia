@@ -240,6 +240,10 @@ function projection_read(p::TextToGraphics, iomap::TextToGraphicsIoMap, evt)
                   for (elem_idx, span) in enumerate(styled)
                   if span isa TextString]
     isempty(span_infos) && return nothing
+    # Span-content lookup (elem_idx → content String) for word-class testing.
+    span_text = Dict{Int,String}(elem_idx => String(span.content::AbstractString)
+                  for (elem_idx, span) in enumerate(styled)
+                  if span isa TextString)
 
     jump = @event_case evt begin
         KeyDown(:home; ctrl) => ReplaceSelectionOperation(_build_selection_path(span_infos[1][1], 0))
@@ -251,35 +255,25 @@ function projection_read(p::TextToGraphics, iomap::TextToGraphicsIoMap, evt)
     current === nothing && return nothing
 
     @event_case evt begin
+        # Word-wise motion. Placed before the bare :left/:right rules so it wins
+        # (first-match-wins); the bare rules match Left/Right with any modifiers.
+        KeyDown(:left; ctrl) => begin
+            s, c = _word_step_left(span_infos, span_text, current.span, current.char)
+            return ReplaceSelectionOperation(_build_selection_path(s, c))
+        end
+        KeyDown(:right; ctrl) => begin
+            s, c = _word_step_right(span_infos, span_text, current.span, current.char)
+            return ReplaceSelectionOperation(_build_selection_path(s, c))
+        end
         KeyDown(:left) => begin
-            span_idx, char_idx = current.span, current.char
-            if char_idx > 0
-                return ReplaceSelectionOperation(_build_selection_path(span_idx, char_idx - 1))
-            else
-                pos = findfirst(si -> si[1] == span_idx, span_infos)
-                if pos === nothing || pos == 1
-                    return ReplaceSelectionOperation(_build_selection_path(span_idx, 0))  # clamp
-                end
-                prev = span_infos[pos - 1]
-                # Use prev[2]-1 to skip the boundary duplicate (prev[2] == current (span,0) visually)
-                return ReplaceSelectionOperation(_build_selection_path(prev[1], max(0, prev[2] - 1)))
-            end
+            nxt = _step_left(span_infos, current.span, current.char)
+            s, c = nxt === nothing ? (current.span, current.char) : nxt  # clamp in place
+            return ReplaceSelectionOperation(_build_selection_path(s, c))
         end
         KeyDown(:right) => begin
-            span_idx, char_idx = current.span, current.char
-            pos = findfirst(si -> si[1] == span_idx, span_infos)
-            pos === nothing && return ReplaceSelectionOperation(_build_selection_path(span_idx, char_idx))  # clamp
-            span_len = span_infos[pos][2]
-            if char_idx < span_len
-                return ReplaceSelectionOperation(_build_selection_path(span_idx, char_idx + 1))
-            else
-                if pos == length(span_infos)
-                    return ReplaceSelectionOperation(_build_selection_path(span_idx, char_idx))  # clamp
-                end
-                next = span_infos[pos + 1]
-                # Use char 1 to skip the boundary duplicate (char 0 == current (span,span_len) visually)
-                return ReplaceSelectionOperation(_build_selection_path(next[1], next[2] > 0 ? 1 : 0))
-            end
+            nxt = _step_right(span_infos, current.span, current.char)
+            s, c = nxt === nothing ? (current.span, current.char) : nxt  # clamp in place
+            return ReplaceSelectionOperation(_build_selection_path(s, c))
         end
         when(KeyDown(k), k === :home || k === :end) => begin
             coord_map = iomap.char_to_coord[]
@@ -735,6 +729,88 @@ function _push_fill_rect!(result, span, x::Integer, y::Integer, w::Integer, h::I
 end
 
 # ── Reader helpers ──────────────────────────────────────────────────────
+
+# ── Character-cursor step helpers ─────────────────────────────────────────
+#
+# `_step_left` / `_step_right` return the next canonical caret `(span, char)`
+# one character away from `(span_idx, char_idx)`, or `nothing` when motion is
+# clamped at a document end. They are the verbatim extraction of the inline
+# `KeyDown(:left)` / `KeyDown(:right)` bodies, including the boundary-duplicate
+# skip (so each visual caret has one canonical path). Word motion iterates them
+# so every intermediate/final caret is one the per-char path already produces.
+
+function _step_left(span_infos, span_idx, char_idx)
+    if char_idx > 0
+        return (span_idx, char_idx - 1)
+    else
+        pos = findfirst(si -> si[1] == span_idx, span_infos)
+        (pos === nothing || pos == 1) && return nothing  # clamp at document start
+        prev = span_infos[pos - 1]
+        # Use prev[2]-1 to skip the boundary duplicate (prev[2] == current (span,0) visually)
+        return (prev[1], max(0, prev[2] - 1))
+    end
+end
+
+function _step_right(span_infos, span_idx, char_idx)
+    pos = findfirst(si -> si[1] == span_idx, span_infos)
+    pos === nothing && return nothing  # clamp
+    span_len = span_infos[pos][2]
+    if char_idx < span_len
+        return (span_idx, char_idx + 1)
+    else
+        pos == length(span_infos) && return nothing  # clamp at document end
+        next = span_infos[pos + 1]
+        # Use char 1 to skip the boundary duplicate (char 0 == current (span,span_len) visually)
+        return (next[1], next[2] > 0 ? 1 : 0)
+    end
+end
+
+# Standard editor word class: letters, digits, and underscore are "word" chars;
+# everything else is a separator.
+_is_word_char(c) = isletter(c) || isdigit(c) || c == '_'
+
+# The character a single step would cross. `char_idx` is the 0-based caret
+# offset; span strings are 1-based, so `_char_right` reads index `char_idx+1`
+# and `_char_left` reads index `char_idx`. Returns `nothing` at the span ends
+# (a step there crosses a span boundary, not a character within this span).
+function _char_right(span_text, span_idx, char_idx)
+    txt = get(span_text, span_idx, nothing)
+    txt === nothing && return nothing
+    idx = char_idx + 1
+    (idx < 1 || idx > length(txt)) && return nothing
+    txt[idx]
+end
+
+function _char_left(span_text, span_idx, char_idx)
+    txt = get(span_text, span_idx, nothing)
+    txt === nothing && return nothing
+    (char_idx < 1 || char_idx > length(txt)) && return nothing
+    txt[char_idx]
+end
+
+# Ctrl+Right: skip the current word run, then the separator run → next word start.
+function _word_step_right(span_infos, span_text, span_idx, char_idx)
+    s, c = span_idx, char_idx
+    while (ch = _char_right(span_text, s, c)) !== nothing && _is_word_char(ch)
+        nxt = _step_right(span_infos, s, c); nxt === nothing && return (s, c); (s, c) = nxt
+    end
+    while (ch = _char_right(span_text, s, c)) !== nothing && !_is_word_char(ch)
+        nxt = _step_right(span_infos, s, c); nxt === nothing && return (s, c); (s, c) = nxt
+    end
+    (s, c)
+end
+
+# Ctrl+Left: skip the separator run, then the word run → current/previous word start.
+function _word_step_left(span_infos, span_text, span_idx, char_idx)
+    s, c = span_idx, char_idx
+    while (ch = _char_left(span_text, s, c)) !== nothing && !_is_word_char(ch)
+        nxt = _step_left(span_infos, s, c); nxt === nothing && return (s, c); (s, c) = nxt
+    end
+    while (ch = _char_left(span_text, s, c)) !== nothing && _is_word_char(ch)
+        nxt = _step_left(span_infos, s, c); nxt === nothing && return (s, c); (s, c) = nxt
+    end
+    (s, c)
+end
 
 function _seg_cursor_x(sc::SegCoord, cursor_pos::Int, measure::Function)
     local_pos = cursor_pos - sc.char_start
