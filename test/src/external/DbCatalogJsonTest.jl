@@ -2,8 +2,11 @@ using Test
 using Projectured
 
 # Tests for DbCatalogToJson projection. Pure construction — no live DB needed.
-# Each DbCatalog document type projects to a JsonObject containing only its own
-# data fields (excluding child collections and selection).
+# Each DbCatalog document type projects to a JsonObject of its own data fields
+# (excluding parent reference and selection) plus a nested array of its
+# recursively-projected children, so the catalog renders as one nested JSON tree.
+# These fixtures use empty child collections, so the children arrays are present
+# but empty.
 
 # ── DbCatalogRdbmsToJson tests ───────────────────────────────────────────────────
 
@@ -23,8 +26,10 @@ function test_db_catalog_rdbms_to_json(; show_detail=false)
         @test obj["host"][] == "myhost"
         @test obj["port"][] == 5433
 
-        # Verify no child collections or selection fields
-        @test !haskey(obj, "databases")
+        # Children render as a nested (here empty) array; selection is excluded.
+        @test haskey(obj, "databases")
+        @test obj["databases"] isa JsonArray
+        @test length(obj["databases"]) == 0
         @test !haskey(obj, "selection")
     end
 end
@@ -45,7 +50,9 @@ function test_db_catalog_database_to_json(; show_detail=false)
         @test haskey(obj, "name")
         @test obj["name"][] == "mydb"
 
-        @test !haskey(obj, "schemas")
+        @test haskey(obj, "schemas")
+        @test obj["schemas"] isa JsonArray
+        @test length(obj["schemas"]) == 0
         @test !haskey(obj, "selection")
     end
 end
@@ -66,7 +73,9 @@ function test_db_catalog_schema_to_json(; show_detail=false)
         @test haskey(obj, "name")
         @test obj["name"][] == "public"
 
-        @test !haskey(obj, "tables")
+        @test haskey(obj, "tables")
+        @test obj["tables"] isa JsonArray
+        @test length(obj["tables"]) == 0
         @test !haskey(obj, "selection")
     end
 end
@@ -87,7 +96,9 @@ function test_db_catalog_table_to_json(; show_detail=false)
         @test haskey(obj, "name")
         @test obj["name"][] == "persons"
 
-        @test !haskey(obj, "columns")
+        @test haskey(obj, "columns")
+        @test obj["columns"] isa JsonArray
+        @test length(obj["columns"]) == 0
         @test !haskey(obj, "selection")
     end
 end
@@ -148,6 +159,44 @@ function test_db_catalog_to_json_dispatch(; show_detail=false)
     end
 end
 
+# ── Nested-walk test ─────────────────────────────────────────────────────────
+# Wrapped in a RecursiveProjection, DbCatalogToJson fully walks the catalog: each
+# level's children are recursively projected into its nested array. Builds a small
+# rdbms → database → schema → table → column tree (no live DB) and descends it.
+
+function test_db_catalog_to_json_walk(; show_detail=false)
+    @testset "DbCatalogToJson nested walk" begin
+        col    = DbCatalogColumn("id", "integer")
+        table  = DbCatalogTable("film", CellVector(Cell[Cell(col)]))
+        schema = DbCatalogSchema("public", CellVector(Cell[Cell(table)]))
+        db     = DbCatalogDatabase("dvdrental", CellVector(Cell[Cell(schema)]))
+        rdbms  = DbCatalogRdbms("localhost", 5432, CellVector(Cell[Cell(db)]))
+
+        obj = projection_print(RecursiveProjection(DbCatalogToJson()), rdbms).output
+        if show_detail
+            println("  Nested catalog JSON: ", obj)
+        end
+        @test obj isa JsonObject
+        @test length(obj["databases"]) == 1
+
+        dbj = obj["databases"][1]
+        @test dbj["name"][] == "dvdrental"
+        @test length(dbj["schemas"]) == 1
+
+        schemaj = dbj["schemas"][1]
+        @test schemaj["name"][] == "public"
+        @test length(schemaj["tables"]) == 1
+
+        tablej = schemaj["tables"][1]
+        @test tablej["name"][] == "film"
+        @test length(tablej["columns"]) == 1
+
+        colj = tablej["columns"][1]
+        @test colj["name"][] == "id"
+        @test colj["data_type"][] == "integer"
+    end
+end
+
 # ── Entry point ────────────────────────────────────────────────────────────────
 
 function test_db_catalog_json(; show_detail=false)
@@ -158,6 +207,7 @@ function test_db_catalog_json(; show_detail=false)
         test_db_catalog_table_to_json(show_detail=show_detail)
         test_db_catalog_column_to_json(show_detail=show_detail)
         test_db_catalog_to_json_dispatch(show_detail=show_detail)
+        test_db_catalog_to_json_walk(show_detail=show_detail)
     end
 end
 

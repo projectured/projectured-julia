@@ -47,6 +47,54 @@ function make_dvdrental_object_projection_example(; measure=sdl_measure_text,
     )
 end
 
+# ── Generic-reflection pipeline, JSON flavour: DatabaseInstance → DbCatalog →
+#    ObjectToJson → JsonToSyntax → Text → Graphics ──────────────────────────────
+#
+# The JSON counterpart of `make_dvdrental_object_projection_example`. Instead of
+# the bespoke s-expression form of `ObjectToSyntax`, the catalog is reflected by
+# the generic `ObjectToJson` into a `JsonDocument` tree, then rendered through the
+# regular JSON pipeline (`JsonToSyntax → SyntaxToText`). Like the `ObjectToSyntax`
+# variant, `ObjectToJson` walks every field and every `CellVector` element — so
+# the whole `databases → schemas → tables → columns` hierarchy is **fully walked /
+# expanded** (every per-table column query forced, no collapse markers). This is
+# the LLM-oriented JSON view of the live dvdrental database, deliberately specific
+# to `dvdrental_object_json_example`. The document stays a lazy `DatabaseInstance`
+# spec; the connection is opened (through its pool) only when the tree is first
+# forced at print time.
+function make_dvdrental_object_json_projection_example(; measure=sdl_measure_text,
+                                                         pool=OdbcConnectionPool())
+    SequentialProjection(
+        DatabaseInstanceToDbCatalog(pool),
+        RecursiveProjection(ObjectToJson()),
+        RecursiveProjection(JsonToSyntax()),
+        RecursiveProjection(SyntaxToText()),
+        TextToGraphics(measure=measure),
+    )
+end
+
+# ── Bespoke-projection pipeline, JSON flavour: DatabaseInstance → DbCatalog →
+#    DbCatalogToJson → JsonToSyntax → Text → Graphics ────────────────────────────
+#
+# The DbCatalog-specific counterpart of `make_dvdrental_object_json_projection_example`.
+# `DbCatalogToJson` is the domain-idiomatic JSON view: each level maps to a
+# JsonObject of just its meaningful fields plus a nested array of its children
+# (RDBMS → `{"host", "port", "databases":[…]}`, table → `{"name", "columns":[…]}`,
+# etc.), without the generic projection's `"type"` markers and noise fields. Like
+# the `ObjectToJson` / `ObjectToSyntax` variants it recurses through every child
+# collection, so this pipeline **fully walks** the catalog — every per-table
+# column query is forced, the whole `databases → schemas → tables → columns` tree
+# rendered. Use `dvdrental_object_json_example` for the generic structural dump.
+function make_dvdrental_catalog_json_projection_example(; measure=sdl_measure_text,
+                                                          pool=OdbcConnectionPool())
+    SequentialProjection(
+        DatabaseInstanceToDbCatalog(pool),
+        RecursiveProjection(DbCatalogToJson()),
+        RecursiveProjection(JsonToSyntax()),
+        RecursiveProjection(SyntaxToText()),
+        TextToGraphics(measure=measure),
+    )
+end
+
 # ── Widget-based pipeline: Domain → Syntax → Widget → Graphics ──────────────
 #
 # `SyntaxToWidget` turns each indented catalog level (RDBMS, Schema, Table) into

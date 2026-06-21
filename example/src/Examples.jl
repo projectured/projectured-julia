@@ -118,13 +118,12 @@ const dvdrental_object_example = Example("dvdrental_object", make_dvdrental_cata
 # test sweeps would hammer the live database. Use it directly:
 # `run_example(dvdrental_object_json_example)`.
 const dvdrental_object_json_example = Example("dvdrental_object_json", make_dvdrental_catalog_document_example, make_dvdrental_object_json_projection_example)
-# `dvdrental_catalog_json_example` uses the bespoke, narrow `DbCatalogToJson`
-# instead of the generic `ObjectToJson`. `DbCatalogToJson` is non-recursive — each
-# level maps to a flat JsonObject of its own scalar fields only — so this renders
-# just the RDBMS root `{"host","port"}` and does NOT walk into databases/schemas/
-# tables (and so barely touches the database). For the full catalog as JSON use
-# `dvdrental_object_json_example`. Kept OUT of the `examples` registry like its
-# siblings; run directly: `run_example(dvdrental_catalog_json_example)`.
+# `dvdrental_catalog_json_example` uses the bespoke, domain-idiomatic `DbCatalogToJson`
+# instead of the generic `ObjectToJson`. It renders the catalog as nested JSON of
+# just the meaningful fields + children (no `"type"`/noise entries) and, like its
+# siblings, **fully walks** the tree — every per-table column query is forced. Kept
+# OUT of the `examples` registry (it hammers the live database); run directly:
+# `run_example(dvdrental_catalog_json_example)`.
 const dvdrental_catalog_json_example = Example("dvdrental_catalog_json", make_dvdrental_catalog_document_example, make_dvdrental_catalog_json_projection_example)
 const sql_syntax_example     = Example("sql_syntax",     make_sql_document_example,            make_sql_syntax_projection_example)
 const sql_insert_syntax_example = Example("sql_insert_syntax", make_sql_insert_document_example, make_sql_insert_syntax_projection_example)
