@@ -188,15 +188,37 @@ entries to `program/Project.toml`, and drop the moved deps from `[deps]`.
       seam. Attaches to **`ProjecturedKernel`** (the orchestration is kernel-level),
       not domain. The HTTP/JSON3 parts of `WorkbenchAssistant`/`ConversationEditor`
       are domain UI calling the kernel seam.
-- [ ] **`ProjecturedMCPExt`** — weakdep `ModelContextProtocol`. Holds the
-      `editor/Mcp.jl` server transport (`McpServer`, `HttpTransport`, `ServerConfig`)
-      + the `mcp_tools`/`TextResourceContents` wire bridges; implements
-      `make_agent_server(:mcp, …)`. Attaches to **`ProjecturedKernel`**.
-- [ ] **`ProjecturedFFMPEGExt`** — weakdep `FFMPEG`. Holds the video-recording
-      implementation used by `Editor.jl` / `Sdl.jl`.
+- [x] **`ProjecturedMCPExt`** — weakdep `ModelContextProtocol`. **Done** (commit
+      `extract MCP transport into ProjecturedMCPExt`). `program/ext/ProjecturedMCPExt.jl`
+      holds the transport (`McpServer`, HTTP lifecycle, `mcp_tools`/`mcp_resources`
+      bridges) and the `:mcp` `make_agent_server` methods; `program/Project.toml` has
+      `[weakdeps]`/`[extensions]`; root env declares `ModelContextProtocol`.
+      **Verified both ways** (dormant: `using Projectured` → `test_json` 29/29,
+      factory errors; active: `using ModelContextProtocol` → extension loads, builds
+      an `McpServer`). **Key finding:** most of `Mcp.jl` was *not* MCP — the
+      dep-free editor tools (imported by core `ConversationEditor`/`WorkbenchAssistant`)
+      had to stay in core `McpModule`; only the ~150-line transport moved. Each
+      extension needs this kind of core-consumer disentangling, not just a file move.
+- [ ] **`ProjecturedFFMPEGExt`** — **not needed** (finding from the video seam):
+      FFMPEG is used only inside SDL `record_video`, so it folds into
+      `ProjecturedSDLExt`'s `[weakdeps]` (gating `record_video`), not its own extension.
 
 (`backend/Console.jl` and `backend/Pdf.jl` have **no** heavy deps — they stay in
-core.)
+core. **Note:** `Pdf.jl` currently uses `sdl_measure_text`, so it shares SDL's
+text-measurement coupling — see stage 1.0.)
+
+**Per-extension prerequisites discovered while doing MCP** (update before
+attempting each):
+- **LLM (`HTTP`/`JSON3`)** is *not* a clean single-consumer weakdep yet: `HTTP` is
+  shared by `Anthropic` + `Web`; `JSON3` by `Anthropic` + `Web` + `WorkbenchAssistant`.
+  Making `HTTP`/`JSON3` weakdeps requires Web extracted (blocked on stage 1.0) and
+  `WorkbenchAssistant`'s `JSON3` use addressed.
+- **ODBC** spans several modules (`OdbcAdapter`, `ConnectionPool`, `DatabaseTabular`,
+  and the live-query projections) plus a `using ODBC`/`DBInterface` reference inside
+  the `DatabaseInstance` *document* — verify/relocate that before moving ODBC code to
+  the extension. Pure SQL/DbCatalog docs + `*ToSyntax`/`*ToJson`/`*ToSql` stay in core.
+- **SDL + Web** remain blocked on **stage 1.0** (SDL-free text measurement); `Web`
+  also imports `sdl_measure_text` and `LibSDL2` init.
 
 ### 1.3 Verification (Phase 1)
 
