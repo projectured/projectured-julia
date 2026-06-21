@@ -29,6 +29,7 @@ import ..DocumentModule: Document, @document
 import ..CollectionModule: CellVector, ListNode, CollectionDocument
 import ..FontModule: StyleFont, font_ubuntu_monospace_regular_24
 import ..ColorModule: StyleColor, color_default
+import ..StyleTextModule: StyleText
 import ..GeometryModule: Inset
 import ..ReferenceModule: Reference, ConcreteReferencePath, EmptyReferencePath, RangeReference, FieldReference, TextRectangularReference, skip_type_checkpoints, strip_reference_types
 import ..ReferenceCaseModule: var"@reference_case"
@@ -167,6 +168,12 @@ TextString(content::AbstractString) =
 
 TextString(content::Function, font::StyleFont, font_color::StyleColor) =
     TextString(Cell(content), Cell(font), Cell(font_color), Cell(nothing), Cell(nothing), Cell(nothing), Cell(nothing))
+
+# StyleText bridge: a projection holding a merged (font, color) style value can
+# build a run without unpacking it. The document model itself is unchanged —
+# `style` is split into the existing `font` / `font_color` cells.
+TextString(content::AbstractString, style::StyleText) = TextString(content, style.font, style.color)
+TextString(content::Function,      style::StyleText) = TextString(content, style.font, style.color)
 
 # ── TextGraphics ─────────────────────────────────────────────────────
 
