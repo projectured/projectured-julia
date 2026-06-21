@@ -169,14 +169,28 @@ hook, so behaviour is identical while everything is still present:
 Move code into `program/ext/`, add `[weakdeps]`, `[extensions]`, and `[compat]`
 entries to `program/Project.toml`, and drop the moved deps from `[deps]`.
 
-- [ ] **`ProjecturedODBCExt`** — weakdeps `ODBC`, `DBInterface`, `Tables`. **In
-      progress.** Cluster confirmed (6 modules move): `OdbcAdapterModule`,
-      `ConnectionPoolModule`, `DatabaseTabularModule`,
-      `DatabaseTableToTabularGridModule`, `SqlToCellTableModule`,
-      `DatabaseInstanceToDbCatalogModule`. `CellTableToTableModule` is dep-free and
-      **stays in core**. The `DatabaseInstance` document's ODBC mention is only a
-      comment — it's dep-free. No core consumers outside the umbrella re-export.
-      Holds:
+- [ ] **`ProjecturedODBCExt`** — weakdeps `ODBC`, `DBInterface`, `Tables`.
+      **Attempted, then reverted — needs a factory-seam pass first (finding below).**
+      Cluster confirmed (6 modules move): `OdbcAdapterModule`, `ConnectionPoolModule`,
+      `DatabaseTabularModule`, `DatabaseTableToTabularGridModule`,
+      `SqlToCellTableModule`, `DatabaseInstanceToDbCatalogModule`.
+      `CellTableToTableModule` is dep-free and **stays in core**. The
+      `DatabaseInstance` document's ODBC mention is only a comment — it's dep-free.
+      **The blocker:** unlike MCP (one `make_agent_server` entry point), the ODBC
+      cluster's public types are *constructed by name* in ~15 `example/` and `test/`
+      sites — `OdbcConnectionPool()`, `OdbcDatabaseAdapter(…)`,
+      `DatabaseInstanceToDbCatalog(pool)`, `SqlToCellTable(pool, inst)`,
+      `DatabaseTableToTabularGrid()`, `close_pool!`, `DatabaseTableIoMap`. Once those
+      modules move to the extension, `ProjecturedExample` fails to **precompile**
+      (`UndefVarError: OdbcConnectionPool`) because it builds example documents at
+      load time. **Prerequisite before retrying:** add core factory seams for each
+      constructed entry point (e.g. `make_connection_pool(:odbc; …)` and
+      projection-builder seams, alongside the existing `make_database_adapter(:odbc)`),
+      and route the example/test call sites through them — *or* have
+      `ProjecturedExample`/`ProjecturedTest` declare ODBC and import the public types
+      from the extension. This is more decoupling than MCP needed; the structural
+      move itself (the 6-nested-module ext file + Project.toml weakdeps) was built and
+      works — it's the consumer surface that needs seams. Holds:
       `external/Database.jl` (the `OdbcDatabaseAdapter`), `external/ConnectionPool.jl`,
       `external/DatabaseTabular.jl`, and the query-executing parts of
       `projection/primitive/DatabaseTableToTabularGrid.jl`,
