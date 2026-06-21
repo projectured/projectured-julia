@@ -19,6 +19,7 @@ import ..PrimitiveModule: PrimitiveNumber
 import ..TextModule: TextString
 import ..FontModule: StyleFont, font_ubuntu_monospace_regular_24
 import ..ColorModule: StyleColor, color_default, color_solarized_blue, color_solarized_cyan, color_solarized_magenta, color_solarized_yellow, color_solarized_gray
+import ..StyleTextModule: StyleText
 import ..SyntaxModule: SyntaxDocument, SyntaxLeaf, SyntaxNode
 import ..TypeDispatchingModule: TypeDispatchingProjection
 import ..IoMapModule: SimpleIoMap, ChildrenIoMap
@@ -36,26 +37,24 @@ export MathInsertionToSyntaxLeaf, MathVariableToSyntaxLeaf,
 # ── MathInsertionToSyntaxLeaf ─────────────────────────────────────────────────
 
 struct MathInsertionToSyntaxLeaf <: Projection
-    font::StyleFont
-    color::StyleColor
+    style::StyleText
 end
-MathInsertionToSyntaxLeaf(; font=font_ubuntu_monospace_regular_24, color=color_solarized_gray) =
-    MathInsertionToSyntaxLeaf(font, color)
+MathInsertionToSyntaxLeaf(; style=StyleText(font_ubuntu_monospace_regular_24, color_solarized_gray)) =
+    MathInsertionToSyntaxLeaf(style)
 
 function projection_print(p::MathInsertionToSyntaxLeaf, recursion, m::MathInsertion, ctx)
     output_selection = Cell(() -> map_reference_forward(p, nothing, m.selection))
-    SimpleIoMap(p, m, SyntaxLeaf(TextString("", p.font, color_default), TextString("", p.font, color_default),
-                                  TextString("⌷", p.font, p.color), output_selection))
+    SimpleIoMap(p, m, SyntaxLeaf(TextString("", p.style.font, color_default), TextString("", p.style.font, color_default),
+                                  TextString("⌷", p.style), output_selection))
 end
 
 # ── MathVariableToSyntaxLeaf ──────────────────────────────────────────────────
 
 struct MathVariableToSyntaxLeaf <: Projection
-    font::StyleFont
-    color::StyleColor
+    style::StyleText
 end
-MathVariableToSyntaxLeaf(; font=font_ubuntu_monospace_regular_24, color=color_solarized_blue) =
-    MathVariableToSyntaxLeaf(font, color)
+MathVariableToSyntaxLeaf(; style=StyleText(font_ubuntu_monospace_regular_24, color_solarized_blue)) =
+    MathVariableToSyntaxLeaf(style)
 
 function map_reference_forward(::MathVariableToSyntaxLeaf, iomap::SimpleIoMap, reference)
     @reference_case reference begin
@@ -71,9 +70,9 @@ end
 
 function projection_print(p::MathVariableToSyntaxLeaf, recursion, v::MathVariable, ctx)
     SimpleIoMap(p, v, SyntaxLeaf(
-        TextString("", p.font, color_default),
-        TextString("", p.font, color_default),
-        TextString(() -> v.name, p.font, p.color),
+        TextString("", p.style.font, color_default),
+        TextString("", p.style.font, color_default),
+        TextString(() -> v.name, p.style),
         getfield(v, :selection)))
 end
 
@@ -88,11 +87,10 @@ end
 # ── MathBinaryOperationToSyntaxNode ───────────────────────────────────────────
 
 struct MathBinaryOperationToSyntaxNode <: Projection
-    op_font::StyleFont
-    op_color::StyleColor
+    op::StyleText
 end
-MathBinaryOperationToSyntaxNode(; op_font=font_ubuntu_monospace_regular_24, op_color=color_solarized_cyan) =
-    MathBinaryOperationToSyntaxNode(op_font, op_color)
+MathBinaryOperationToSyntaxNode(; op=StyleText(font_ubuntu_monospace_regular_24, color_solarized_cyan)) =
+    MathBinaryOperationToSyntaxNode(op)
 
 # Selection mapping (School A). The output node's children are
 # [left (index 1), operator leaf (index 2), right (index 3)]; the operator is
@@ -145,9 +143,9 @@ function projection_print(p::MathBinaryOperationToSyntaxNode, recursion, m::Math
     right_iomap = Cell(() -> projection_printer_recurse(recursion, m.right, right_ctx))
 
     op_leaf = SyntaxLeaf(
-        TextString("", p.op_font, color_default),
-        TextString("", p.op_font, color_default),
-        TextString(() -> _operator_string(m.operator), p.op_font, p.op_color),
+        TextString("", p.op.font, color_default),
+        TextString("", p.op.font, color_default),
+        TextString(() -> _operator_string(m.operator), p.op),
         Cell(nothing))
 
     sel = Cell(() -> begin
@@ -175,9 +173,9 @@ function projection_print(p::MathBinaryOperationToSyntaxNode, recursion, m::Math
     end)
 
     node = SyntaxNode(
-        TextString("", p.op_font, color_default),
-        TextString("", p.op_font, color_default),
-        TextString(" ", p.op_font, color_default),
+        TextString("", p.op.font, color_default),
+        TextString("", p.op.font, color_default),
+        TextString(" ", p.op.font, color_default),
         CellVector(() -> SyntaxDocument[left_iomap[].output, op_leaf, right_iomap[].output]),
         0,
         Cell(false),
@@ -196,11 +194,10 @@ end
 # ── MathParenthesizedToSyntaxNode ─────────────────────────────────────────────
 
 struct MathParenthesizedToSyntaxNode <: Projection
-    delim_font::StyleFont
-    delim_color::StyleColor
+    delim::StyleText
 end
-MathParenthesizedToSyntaxNode(; delim_font=font_ubuntu_monospace_regular_24, delim_color=color_solarized_gray) =
-    MathParenthesizedToSyntaxNode(delim_font, delim_color)
+MathParenthesizedToSyntaxNode(; delim=StyleText(font_ubuntu_monospace_regular_24, color_solarized_gray)) =
+    MathParenthesizedToSyntaxNode(delim)
 
 # Selection mapping (School A). The single content child is output index 1; the
 # parentheses are projection-introduced. child_iomaps holds the one content IO map.
@@ -249,9 +246,9 @@ function projection_print(p::MathParenthesizedToSyntaxNode, recursion, m::MathPa
     end)
 
     node = SyntaxNode(
-        TextString("(", p.delim_font, p.delim_color),
-        TextString(")", p.delim_font, p.delim_color),
-        TextString("", p.delim_font, color_default),
+        TextString("(", p.delim),
+        TextString(")", p.delim),
+        TextString("", p.delim.font, color_default),
         CellVector(() -> SyntaxDocument[content_iomap[].output]),
         0,
         Cell(false),
@@ -270,11 +267,10 @@ end
 # ── MathAssignmentToSyntaxNode ────────────────────────────────────────────────
 
 struct MathAssignmentToSyntaxNode <: Projection
-    eq_font::StyleFont
-    eq_color::StyleColor
+    eq::StyleText
 end
-MathAssignmentToSyntaxNode(; eq_font=font_ubuntu_monospace_regular_24, eq_color=color_solarized_yellow) =
-    MathAssignmentToSyntaxNode(eq_font, eq_color)
+MathAssignmentToSyntaxNode(; eq=StyleText(font_ubuntu_monospace_regular_24, color_solarized_yellow)) =
+    MathAssignmentToSyntaxNode(eq)
 
 # Selection mapping (School A). Output children are
 # [target (index 1), '=' leaf (index 2), value (index 3)]; the '=' is
@@ -326,9 +322,9 @@ function projection_print(p::MathAssignmentToSyntaxNode, recursion, m::MathAssig
     value_iomap = Cell(() -> projection_printer_recurse(recursion, m.value, value_ctx))
 
     eq_leaf = SyntaxLeaf(
-        TextString("", p.eq_font, color_default),
-        TextString("", p.eq_font, color_default),
-        TextString("=", p.eq_font, p.eq_color),
+        TextString("", p.eq.font, color_default),
+        TextString("", p.eq.font, color_default),
+        TextString("=", p.eq),
         Cell(nothing))
 
     sel = Cell(() -> begin
@@ -356,9 +352,9 @@ function projection_print(p::MathAssignmentToSyntaxNode, recursion, m::MathAssig
     end)
 
     node = SyntaxNode(
-        TextString("", p.eq_font, color_default),
-        TextString("", p.eq_font, color_default),
-        TextString(" ", p.eq_font, color_default),
+        TextString("", p.eq.font, color_default),
+        TextString("", p.eq.font, color_default),
+        TextString(" ", p.eq.font, color_default),
         CellVector(() -> SyntaxDocument[target_iomap[].output, eq_leaf, value_iomap[].output]),
         0,
         Cell(false),

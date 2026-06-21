@@ -14,6 +14,7 @@ import ..SyntaxModule: SyntaxLeaf
 import ..TextModule: TextString
 import ..FontModule: StyleFont, font_ubuntu_monospace_regular_24
 import ..ColorModule: StyleColor, color_default, color_solarized_magenta, color_solarized_cyan, color_solarized_green, color_solarized_yellow
+import ..StyleTextModule: StyleText
 import ..IoMapModule: SimpleIoMap
 import ..IoMapApiModule: IoMap
 import ..ReferenceModule: ConcreteReferencePath, EmptyReferencePath, FieldReference, RangeReference, skip_type_checkpoints
@@ -28,11 +29,10 @@ export PrimitiveBoolToSyntaxLeaf, PrimitiveNumberToSyntaxLeaf, PrimitiveStringTo
 # ── PrimitiveBoolToSyntaxLeaf ────────────────────────────────────────────────
 
 struct PrimitiveBoolToSyntaxLeaf <: Projection
-    font::StyleFont
-    color::StyleColor
+    style::StyleText
 end
-PrimitiveBoolToSyntaxLeaf(; font=font_ubuntu_monospace_regular_24, color=color_solarized_cyan) =
-    PrimitiveBoolToSyntaxLeaf(font, color)
+PrimitiveBoolToSyntaxLeaf(; style=StyleText(font_ubuntu_monospace_regular_24, color_solarized_cyan)) =
+    PrimitiveBoolToSyntaxLeaf(style)
 
 function map_reference_forward(::PrimitiveBoolToSyntaxLeaf, iomap::SimpleIoMap, reference)
     @reference_case reference begin
@@ -47,8 +47,8 @@ function map_reference_backward(::PrimitiveBoolToSyntaxLeaf, iomap::SimpleIoMap,
 end
 
 function projection_print(p::PrimitiveBoolToSyntaxLeaf, recursion, b::PrimitiveBool, ctx)
-    SimpleIoMap(p, b, SyntaxLeaf(TextString("", p.font, color_default), TextString("", p.font, color_default),
-                                  TextString(() -> string(b.value), p.font, p.color), getfield(b, :selection)))
+    SimpleIoMap(p, b, SyntaxLeaf(TextString("", p.style.font, color_default), TextString("", p.style.font, color_default),
+                                  TextString(() -> string(b.value), p.style), getfield(b, :selection)))
 end
 
 function projection_read(::PrimitiveBoolToSyntaxLeaf, iomap::SimpleIoMap, op::ReplaceSelectionOperation)
@@ -62,11 +62,10 @@ end
 # ── PrimitiveNumberToSyntaxLeaf ──────────────────────────────────────────────
 
 struct PrimitiveNumberToSyntaxLeaf <: Projection
-    font::StyleFont
-    color::StyleColor
+    style::StyleText
 end
-PrimitiveNumberToSyntaxLeaf(; font=font_ubuntu_monospace_regular_24, color=color_solarized_magenta) =
-    PrimitiveNumberToSyntaxLeaf(font, color)
+PrimitiveNumberToSyntaxLeaf(; style=StyleText(font_ubuntu_monospace_regular_24, color_solarized_magenta)) =
+    PrimitiveNumberToSyntaxLeaf(style)
 
 function map_reference_forward(::PrimitiveNumberToSyntaxLeaf, iomap::SimpleIoMap, reference)
     @reference_case reference begin
@@ -81,8 +80,8 @@ function map_reference_backward(::PrimitiveNumberToSyntaxLeaf, iomap::SimpleIoMa
 end
 
 function projection_print(p::PrimitiveNumberToSyntaxLeaf, recursion, n::PrimitiveNumber, ctx)
-    SimpleIoMap(p, n, SyntaxLeaf(TextString("", p.font, color_default), TextString("", p.font, color_default),
-                                  TextString(() -> string(n.value), p.font, p.color), getfield(n, :selection)))
+    SimpleIoMap(p, n, SyntaxLeaf(TextString("", p.style.font, color_default), TextString("", p.style.font, color_default),
+                                  TextString(() -> string(n.value), p.style), getfield(n, :selection)))
 end
 
 function projection_read(::PrimitiveNumberToSyntaxLeaf, iomap::SimpleIoMap, op::ReplaceSelectionOperation)
@@ -96,14 +95,12 @@ end
 # ── PrimitiveStringToSyntaxLeaf ──────────────────────────────────────────────
 
 struct PrimitiveStringToSyntaxLeaf <: Projection
-    quote_font::StyleFont
-    quote_color::StyleColor
-    value_font::StyleFont
-    value_color::StyleColor
+    quote_style::StyleText
+    value::StyleText
 end
-PrimitiveStringToSyntaxLeaf(; quote_font=font_ubuntu_monospace_regular_24, quote_color=color_solarized_yellow,
-                               value_font=font_ubuntu_monospace_regular_24, value_color=color_solarized_green) =
-    PrimitiveStringToSyntaxLeaf(quote_font, quote_color, value_font, value_color)
+PrimitiveStringToSyntaxLeaf(; quote_style=StyleText(font_ubuntu_monospace_regular_24, color_solarized_yellow),
+                               value=StyleText(font_ubuntu_monospace_regular_24, color_solarized_green)) =
+    PrimitiveStringToSyntaxLeaf(quote_style, value)
 
 function map_reference_forward(::PrimitiveStringToSyntaxLeaf, iomap::SimpleIoMap, reference)
     @reference_case reference begin
@@ -119,9 +116,9 @@ end
 
 function projection_print(p::PrimitiveStringToSyntaxLeaf, recursion, s::PrimitiveString, ctx)
     SimpleIoMap(p, s, SyntaxLeaf(
-        TextString("\"", p.quote_font, p.quote_color),
-        TextString("\"", p.quote_font, p.quote_color),
-        TextString(() -> something(s.value, ""), p.value_font, p.value_color),
+        TextString("\"", p.quote_style),
+        TextString("\"", p.quote_style),
+        TextString(() -> something(s.value, ""), p.value),
         getfield(s, :selection)))
 end
 

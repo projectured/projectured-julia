@@ -20,6 +20,7 @@ import ..BookModule: BookDocument, BookInsertion, BookBook, BookChapter, BookPar
 import ..TextModule: TextDocument, TextString, TextText
 import ..FontModule: StyleFont, font_ubuntu_monospace_regular_24, font_ubuntu_monospace_bold_24, font_ubuntu_monospace_italic_24
 import ..ColorModule: StyleColor, color_black, color_default, color_solarized_blue, color_solarized_green, color_solarized_magenta, color_solarized_cyan, color_solarized_yellow, color_solarized_gray
+import ..StyleTextModule: StyleText
 import ..SyntaxModule: SyntaxDocument, SyntaxLeaf, SyntaxNode
 import ..TypeDispatchingModule: TypeDispatchingProjection
 import ..IoMapModule: SimpleIoMap, ChildrenIoMap
@@ -43,17 +44,16 @@ export BookInsertionToSyntaxLeaf, BookBookToSyntaxNode, BookChapterToSyntaxNode,
 # correct and the iomap is threaded canonically.
 
 struct BookInsertionToSyntaxLeaf <: Projection
-    font::StyleFont
-    color::StyleColor
+    style::StyleText
 end
-BookInsertionToSyntaxLeaf(; font=font_ubuntu_monospace_regular_24, color=color_solarized_gray) =
-    BookInsertionToSyntaxLeaf(font, color)
+BookInsertionToSyntaxLeaf(; style=StyleText(font_ubuntu_monospace_regular_24, color_solarized_gray)) =
+    BookInsertionToSyntaxLeaf(style)
 
 function projection_print(p::BookInsertionToSyntaxLeaf, recursion, b::BookInsertion, ctx)
     output_selection = Cell(() -> map_reference_forward(p, nothing, b.selection))
     SimpleIoMap(p, b, SyntaxLeaf(
-        TextString("", p.font, color_default), TextString("", p.font, color_default),
-        TextString("insert here", p.font, p.color), output_selection))
+        TextString("", p.style.font, color_default), TextString("", p.style.font, color_default),
+        TextString("insert here", p.style), output_selection))
 end
 
 # ── BookBookToSyntaxNode ──────────────────────────────────────────────────────
@@ -69,19 +69,15 @@ end
 #   .elements[i].…    → .children[i+offset].…  (via element iomap)
 
 struct BookBookToSyntaxNode <: Projection
-    title_font::StyleFont
-    title_color::StyleColor
-    author_prefix_font::StyleFont
-    author_prefix_color::StyleColor
-    author_font::StyleFont
-    author_color::StyleColor
+    title::StyleText
+    author_prefix::StyleText
+    author::StyleText
 end
 BookBookToSyntaxNode(;
-        title_font=font_ubuntu_monospace_bold_24,   title_color=color_solarized_blue,
-        author_prefix_font=font_ubuntu_monospace_italic_24, author_prefix_color=color_solarized_gray,
-        author_font=font_ubuntu_monospace_regular_24,    author_color=color_solarized_cyan) =
-    BookBookToSyntaxNode(title_font, title_color, author_prefix_font, author_prefix_color,
-                         author_font, author_color)
+        title=StyleText(font_ubuntu_monospace_bold_24, color_solarized_blue),
+        author_prefix=StyleText(font_ubuntu_monospace_italic_24, color_solarized_gray),
+        author=StyleText(font_ubuntu_monospace_regular_24, color_solarized_cyan)) =
+    BookBookToSyntaxNode(title, author_prefix, author)
 
 
 function projection_print(p::BookBookToSyntaxNode, recursion, b::BookBook, ctx)
@@ -101,8 +97,8 @@ function projection_print(p::BookBookToSyntaxNode, recursion, b::BookBook, ctx)
         end
     end)
 
-    title_leaf = SyntaxLeaf(TextString("", p.title_font, color_default), TextString("", p.title_font, color_default),
-        TextString(() -> b.title, p.title_font, p.title_color),
+    title_leaf = SyntaxLeaf(TextString("", p.title.font, color_default), TextString("", p.title.font, color_default),
+        TextString(() -> b.title, p.title),
         0, Cell(false), title_sel)
 
     sel = Cell(() -> begin
@@ -146,9 +142,9 @@ function projection_print(p::BookBookToSyntaxNode, recursion, b::BookBook, ctx)
         result  = SyntaxDocument[title_leaf]
         if author !== nothing
             a_leaf = SyntaxLeaf(
-                TextString("Written by ", p.author_prefix_font, p.author_prefix_color),
-                TextString("", p.author_prefix_font, color_default),
-                TextString(() -> string(b.author), p.author_font, p.author_color),
+                TextString("Written by ", p.author_prefix),
+                TextString("", p.author_prefix.font, color_default),
+                TextString(() -> string(b.author), p.author),
                 0, Cell(false), author_sel)
             push!(result, a_leaf)
         end
@@ -158,7 +154,7 @@ function projection_print(p::BookBookToSyntaxNode, recursion, b::BookBook, ctx)
         result
     end)
 
-    output = SyntaxNode(TextString("", p.title_font, color_default), TextString("", p.title_font, color_default), TextString("", p.title_font, color_default),
+    output = SyntaxNode(TextString("", p.title.font, color_default), TextString("", p.title.font, color_default), TextString("", p.title.font, color_default),
                         children_cv, 1, b.collapsed, sel)
     ChildrenIoMap(p, b, output, element_iomaps)
 end
@@ -244,15 +240,15 @@ end
 # Backward mapping subtracts length(numbering)+2 from character indices.
 
 struct BookChapterToSyntaxNode <: Projection
-    title_font::StyleFont
-    title_color::StyleColor
-    numbering_font::StyleFont
-    numbering_color::StyleColor
+    title::StyleText
+    # Reserved for styling the numbering prefix distinctly; the title leaf
+    # currently renders "numbering  title" in the title style.
+    numbering::StyleText
 end
 BookChapterToSyntaxNode(;
-        title_font=font_ubuntu_monospace_bold_24,     title_color=color_solarized_blue,
-        numbering_font=font_ubuntu_monospace_bold_24, numbering_color=color_solarized_magenta) =
-    BookChapterToSyntaxNode(title_font, title_color, numbering_font, numbering_color)
+        title=StyleText(font_ubuntu_monospace_bold_24, color_solarized_blue),
+        numbering=StyleText(font_ubuntu_monospace_bold_24, color_solarized_magenta)) =
+    BookChapterToSyntaxNode(title, numbering)
 
 
 function projection_print(p::BookChapterToSyntaxNode, recursion, b::BookChapter, ctx)
@@ -274,12 +270,12 @@ function projection_print(p::BookChapterToSyntaxNode, recursion, b::BookChapter,
         end
     end)
 
-    title_leaf = SyntaxLeaf(TextString("", p.title_font, color_default), TextString("", p.title_font, color_default),
+    title_leaf = SyntaxLeaf(TextString("", p.title.font, color_default), TextString("", p.title.font, color_default),
         TextString(() -> begin
             num = b.numbering
             t   = b.title
             isempty(num) ? t : "$num  $t"
-        end, p.title_font, p.title_color),
+        end, p.title),
         0, Cell(false), title_sel)
 
     sel = Cell(() -> begin
@@ -321,7 +317,7 @@ function projection_print(p::BookChapterToSyntaxNode, recursion, b::BookChapter,
         result
     end)
 
-    output = SyntaxNode(TextString("", p.title_font, color_default), TextString("", p.title_font, color_default), TextString("", p.title_font, color_default),
+    output = SyntaxNode(TextString("", p.title.font, color_default), TextString("", p.title.font, color_default), TextString("", p.title.font, color_default),
                         children_cv, 1, b.collapsed, sel)
     ChildrenIoMap(p, b, output, element_iomaps)
 end
@@ -414,13 +410,13 @@ end
 # Selection forward:  .content → .value
 
 struct BookParagraphToSyntaxLeaf <: Projection
-    font::StyleFont
-    color::StyleColor
-    placeholder_color::StyleColor
+    style::StyleText
+    # Reserved for an empty-content placeholder hint (not yet rendered).
+    placeholder::StyleText
 end
-BookParagraphToSyntaxLeaf(; font=font_ubuntu_monospace_regular_24,  color=color_solarized_green,
-        placeholder_color=color_solarized_gray) =
-    BookParagraphToSyntaxLeaf(font, color, placeholder_color)
+BookParagraphToSyntaxLeaf(; style=StyleText(font_ubuntu_monospace_regular_24, color_solarized_green),
+        placeholder=StyleText(font_ubuntu_monospace_regular_24, color_solarized_gray)) =
+    BookParagraphToSyntaxLeaf(style, placeholder)
 
 function projection_print(p::BookParagraphToSyntaxLeaf, recursion, b::BookParagraph, ctx)
     content_sel = Cell(() -> begin
@@ -428,8 +424,8 @@ function projection_print(p::BookParagraphToSyntaxLeaf, recursion, b::BookParagr
             content.rest... => @reference ::SyntaxLeaf.value::TextString.^(rest)
         end
     end)
-    leaf = SyntaxLeaf(TextString("", p.font, color_default), TextString("", p.font, color_default),
-        TextString(() -> _render_paragraph_content(b.content), p.font, p.color),
+    leaf = SyntaxLeaf(TextString("", p.style.font, color_default), TextString("", p.style.font, color_default),
+        TextString(() -> _render_paragraph_content(b.content), p.style),
         0, Cell(false), content_sel)
     SimpleIoMap(p, b, leaf)
 end
@@ -471,13 +467,12 @@ end
 # Selection forward:  .elements[i].… → .children[i].children[1].…
 
 struct BookListToSyntaxNode <: Projection
-    bullet_font::StyleFont
-    bullet_color::StyleColor
+    bullet::StyleText
     indentation::Int
 end
-BookListToSyntaxNode(; bullet_font=font_ubuntu_monospace_regular_24, bullet_color=color_solarized_yellow,
+BookListToSyntaxNode(; bullet=StyleText(font_ubuntu_monospace_regular_24, color_solarized_yellow),
         indentation=2) =
-    BookListToSyntaxNode(bullet_font, bullet_color, indentation)
+    BookListToSyntaxNode(bullet, indentation)
 
 
 function projection_print(p::BookListToSyntaxNode, recursion, b::BookList, ctx)
@@ -504,14 +499,14 @@ function projection_print(p::BookListToSyntaxNode, recursion, b::BookList, ctx)
         iomaps = element_iomaps[]
         SyntaxDocument[
             SyntaxNode(
-                TextString("• ", p.bullet_font, p.bullet_color),
-                TextString("", p.bullet_font, color_default), TextString("", p.bullet_font, color_default),
+                TextString("• ", p.bullet),
+                TextString("", p.bullet.font, color_default), TextString("", p.bullet.font, color_default),
                 SyntaxDocument[im.output]; indentation=0)
             for im in iomaps
         ]
     end)
 
-    output = SyntaxNode(TextString("", p.bullet_font, color_default), TextString("", p.bullet_font, color_default), TextString("", p.bullet_font, color_default),
+    output = SyntaxNode(TextString("", p.bullet.font, color_default), TextString("", p.bullet.font, color_default), TextString("", p.bullet.font, color_default),
                         children_cv, p.indentation, b.collapsed, sel)
     ChildrenIoMap(p, b, output, element_iomaps)
 end
@@ -578,13 +573,12 @@ end
 # an empty content renders the path placeholder.
 
 struct BookPictureToSyntaxLeaf <: Projection
-    font::StyleFont
-    color::StyleColor
-    placeholder_color::StyleColor
+    style::StyleText
+    placeholder::StyleText
 end
-BookPictureToSyntaxLeaf(; font=font_ubuntu_monospace_regular_24, color=color_solarized_magenta,
-        placeholder_color=color_solarized_gray) =
-    BookPictureToSyntaxLeaf(font, color, placeholder_color)
+BookPictureToSyntaxLeaf(; style=StyleText(font_ubuntu_monospace_regular_24, color_solarized_magenta),
+        placeholder=StyleText(font_ubuntu_monospace_regular_24, color_solarized_gray)) =
+    BookPictureToSyntaxLeaf(style, placeholder)
 
 function projection_print(p::BookPictureToSyntaxLeaf, recursion, b::BookPicture, ctx)
     title_sel = Cell(() -> begin
@@ -597,21 +591,21 @@ function projection_print(p::BookPictureToSyntaxLeaf, recursion, b::BookPicture,
             content.rest... => @reference ::SyntaxLeaf.value::TextString.^(rest)
         end
     end)
-    title_leaf = SyntaxLeaf(TextString("", p.font, color_default), TextString("", p.font, color_default),
+    title_leaf = SyntaxLeaf(TextString("", p.style.font, color_default), TextString("", p.style.font, color_default),
         TextString(() -> begin
             t = b.title
             isempty(t) ? "untitled" : t
-        end, p.font, p.color),
+        end, p.style),
         0, Cell(false), title_sel)
-    content_leaf = SyntaxLeaf(TextString("", p.font, color_default), TextString("", p.font, color_default),
+    content_leaf = SyntaxLeaf(TextString("", p.style.font, color_default), TextString("", p.style.font, color_default),
         TextString(() -> begin
             c = b.content
             c === nothing ? "enter picture path" : string(c)
-        end, p.font, p.color),
+        end, p.style),
         0, Cell(false), content_sel)
-    node = SyntaxNode(TextString("", p.font, color_default),
-                      TextString("", p.font, color_default),
-                      TextString(": ", p.font, p.placeholder_color),
+    node = SyntaxNode(TextString("", p.style.font, color_default),
+                      TextString("", p.style.font, color_default),
+                      TextString(": ", p.placeholder),
                       CellVector(Cell[Cell(title_leaf), Cell(content_leaf)]),
                       0, Cell(false), Cell(nothing))
     SimpleIoMap(p, b, node)

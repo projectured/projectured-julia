@@ -14,6 +14,7 @@ import ..XmlModule: XmlDocument, XmlInsertion, XmlText, XmlAttribute, XmlElement
 import ..TextModule: TextString
 import ..FontModule: StyleFont, font_ubuntu_monospace_regular_24, font_ubuntu_monospace_bold_24
 import ..ColorModule: StyleColor, color_black, color_default, color_solarized_blue, color_solarized_green, color_solarized_magenta, color_solarized_cyan, color_solarized_yellow, color_solarized_gray
+import ..StyleTextModule: StyleText
 import ..SyntaxModule: SyntaxDocument, SyntaxLeaf, SyntaxNode
 import ..TypeDispatchingModule: TypeDispatchingProjection
 import ..IoMapModule: SimpleIoMap, ChildrenIoMap
@@ -50,10 +51,9 @@ export XmlInsertionToSyntaxLeaf, XmlTextToSyntaxLeaf, XmlElementToSyntaxNode, Xm
 # it evaluates to " " when attributes are present and "" otherwise.
 
 struct XmlTextToSyntaxLeaf <: Projection
-    font::StyleFont
-    color::StyleColor
+    style::StyleText
 end
-XmlTextToSyntaxLeaf(; font=font_ubuntu_monospace_regular_24, color=color_black) = XmlTextToSyntaxLeaf(font, color)
+XmlTextToSyntaxLeaf(; style=StyleText(font_ubuntu_monospace_regular_24, color_black)) = XmlTextToSyntaxLeaf(style)
 
 function map_reference_forward(::XmlTextToSyntaxLeaf, iomap, reference)
     @reference_case reference begin
@@ -98,44 +98,35 @@ end
 
 function projection_print(p::XmlTextToSyntaxLeaf, recursion, t::XmlText, ctx)
     output_selection = _xml_text_sel(t)
-    SimpleIoMap(p, t, SyntaxLeaf(TextString("", p.font, color_default), TextString("", p.font, color_default), TextString(() -> t.content, p.font, p.color), output_selection))
+    SimpleIoMap(p, t, SyntaxLeaf(TextString("", p.style.font, color_default), TextString("", p.style.font, color_default), TextString(() -> t.content, p.style), output_selection))
 end
 
 # ── XmlInsertionToSyntaxLeaf ───────────────────────────────────────────────────
 
 struct XmlInsertionToSyntaxLeaf <: Projection
-    font::StyleFont
-    color::StyleColor
+    style::StyleText
 end
-XmlInsertionToSyntaxLeaf(; font=font_ubuntu_monospace_regular_24, color=color_solarized_gray) = XmlInsertionToSyntaxLeaf(font, color)
+XmlInsertionToSyntaxLeaf(; style=StyleText(font_ubuntu_monospace_regular_24, color_solarized_gray)) = XmlInsertionToSyntaxLeaf(style)
 
 function projection_print(p::XmlInsertionToSyntaxLeaf, recursion, x::XmlInsertion, ctx)
     output_selection = Cell(() -> map_reference_forward(p, nothing, x.selection))
-    SimpleIoMap(p, x, SyntaxLeaf(TextString("", p.font, color_default), TextString("", p.font, color_default), TextString("insert XML here", p.font, p.color), output_selection))
+    SimpleIoMap(p, x, SyntaxLeaf(TextString("", p.style.font, color_default), TextString("", p.style.font, color_default), TextString("insert XML here", p.style), output_selection))
 end
 
 struct XmlElementToSyntaxNode <: Projection
-    tag_font::StyleFont
-    tag_color::StyleColor
-    delim_font::StyleFont
-    delim_color::StyleColor
-    attr_name_font::StyleFont
-    attr_name_color::StyleColor
-    quote_font::StyleFont
-    quote_color::StyleColor
-    attr_value_font::StyleFont
-    attr_value_color::StyleColor
+    tag::StyleText
+    delim::StyleText
+    attr_name::StyleText
+    quote_style::StyleText
+    attr_value::StyleText
 end
 XmlElementToSyntaxNode(;
-        tag_font=font_ubuntu_monospace_bold_24,       tag_color=color_solarized_blue,
-        delim_font=font_ubuntu_monospace_regular_24,         delim_color=color_solarized_gray,
-        attr_name_font=font_ubuntu_monospace_regular_24,     attr_name_color=color_solarized_green,
-        quote_font=font_ubuntu_monospace_regular_24,         quote_color=color_solarized_yellow,
-        attr_value_font=font_ubuntu_monospace_regular_24,    attr_value_color=color_solarized_cyan) =
-    XmlElementToSyntaxNode(tag_font, tag_color, delim_font, delim_color,
-                           attr_name_font, attr_name_color,
-                           quote_font, quote_color,
-                           attr_value_font, attr_value_color)
+        tag=StyleText(font_ubuntu_monospace_bold_24, color_solarized_blue),
+        delim=StyleText(font_ubuntu_monospace_regular_24, color_solarized_gray),
+        attr_name=StyleText(font_ubuntu_monospace_regular_24, color_solarized_green),
+        quote_style=StyleText(font_ubuntu_monospace_regular_24, color_solarized_yellow),
+        attr_value=StyleText(font_ubuntu_monospace_regular_24, color_solarized_cyan)) =
+    XmlElementToSyntaxNode(tag, delim, attr_name, quote_style, attr_value)
 
 # Selection mapping (School A). The output node's children are
 # [tag leaf (1), attrs node (2), body node (3), close leaf (4)]. The recursively
@@ -278,35 +269,35 @@ function projection_print(p::XmlElementToSyntaxNode, recursion, e::XmlElement, c
         end
     end)
     tag_leaf = SyntaxLeaf(
-        TextString("<", p.delim_font, p.delim_color),
-        TextString(() -> isempty(e.attrs) ? "" : " ", p.delim_font, p.delim_color),
-        TextString(() -> e.tag, p.tag_font, p.tag_color),
+        TextString("<", p.delim),
+        TextString(() -> isempty(e.attrs) ? "" : " ", p.delim),
+        TextString(() -> e.tag, p.tag),
         tag_sel)
 
     attrs_node = SyntaxNode(
-        TextString("", p.delim_font, color_default),
-        TextString(">", p.delim_font, p.delim_color),
-        TextString(" ", p.delim_font, color_default),
+        TextString("", p.delim.font, color_default),
+        TextString(">", p.delim),
+        TextString(" ", p.delim.font, color_default),
         () -> SyntaxDocument[_attr_node(a, p) for a in e.attrs])
 
     body_node = SyntaxNode(
-        TextString("", p.delim_font, color_default),
-        TextString("", p.delim_font, color_default),
-        TextString("", p.delim_font, color_default),
+        TextString("", p.delim.font, color_default),
+        TextString("", p.delim.font, color_default),
+        TextString("", p.delim.font, color_default),
         CellVector(() -> SyntaxDocument[im.output for im in child_iomaps[]]),
         1,
         Cell(false),
         Cell(nothing))
 
     close_leaf = SyntaxLeaf(
-        TextString("</", p.delim_font, p.delim_color),
-        TextString(">",  p.delim_font, p.delim_color),
-        TextString(() -> e.tag, p.tag_font, p.tag_color))
+        TextString("</", p.delim),
+        TextString(">",  p.delim),
+        TextString(() -> e.tag, p.tag))
 
     ChildrenIoMap(p, e, SyntaxNode(
-        TextString("", p.delim_font, color_default),
-        TextString("", p.delim_font, color_default),
-        TextString("", p.delim_font, color_default),
+        TextString("", p.delim.font, color_default),
+        TextString("", p.delim.font, color_default),
+        TextString("", p.delim.font, color_default),
         CellVector(Cell[Cell(tag_leaf), Cell(attrs_node), Cell(body_node), Cell(close_leaf)]),
         0,
         Cell(false),
@@ -354,19 +345,19 @@ function _attr_node(a::XmlAttribute, p::XmlElementToSyntaxNode)
         end
     end)
     SyntaxNode(
-        TextString("", p.delim_font, color_default),
-        TextString("", p.delim_font, color_default),
-        TextString("=", p.delim_font, p.delim_color),
+        TextString("", p.delim.font, color_default),
+        TextString("", p.delim.font, color_default),
+        TextString("=", p.delim),
         SyntaxDocument[
             SyntaxLeaf(
-                TextString("", p.attr_name_font, color_default),
-                TextString("", p.attr_name_font, color_default),
-                TextString(() -> a.name, p.attr_name_font, p.attr_name_color),
+                TextString("", p.attr_name.font, color_default),
+                TextString("", p.attr_name.font, color_default),
+                TextString(() -> a.name, p.attr_name),
                 name_sel),
             SyntaxLeaf(
-                TextString("\"", p.quote_font, p.quote_color),
-                TextString("\"", p.quote_font, p.quote_color),
-                TextString(() -> xml_escape_attr(a.value), p.attr_value_font, p.attr_value_color),
+                TextString("\"", p.quote_style),
+                TextString("\"", p.quote_style),
+                TextString(() -> xml_escape_attr(a.value), p.attr_value),
                 value_sel),
         ])
 end

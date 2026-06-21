@@ -17,6 +17,7 @@ import ..SyntaxModule: SyntaxDocument, SyntaxNode
 import ..TextModule: TextString
 import ..FontModule: StyleFont, font_ubuntu_monospace_regular_24, font_ubuntu_monospace_bold_24
 import ..ColorModule: StyleColor, color_solarized_gray
+import ..StyleTextModule: StyleText
 import ..IoMapModule: SimpleIoMap, ChildrenIoMap
 import ..IoMapApiModule: IoMap
 import ..ReferenceModule: ConcreteReferencePath, ElementReference, FieldReference, RangeReference,
@@ -29,14 +30,12 @@ export CollectionCellVectorToSyntax, CollectionListNodeToSyntax, CollectionToSyn
 # ── CollectionCellVectorToSyntax ─────────────────────────────────────────────
 
 struct CollectionCellVectorToSyntax <: Projection
-    delim_font::StyleFont
-    delim_color::StyleColor
-    sep_font::StyleFont
-    sep_color::StyleColor
+    delim::StyleText
+    sep::StyleText
 end
-CollectionCellVectorToSyntax(; delim_font=font_ubuntu_monospace_bold_24, delim_color=color_solarized_gray,
-                                sep_font=font_ubuntu_monospace_regular_24, sep_color=color_solarized_gray) =
-    CollectionCellVectorToSyntax(delim_font, delim_color, sep_font, sep_color)
+CollectionCellVectorToSyntax(; delim=StyleText(font_ubuntu_monospace_bold_24, color_solarized_gray),
+                                sep=StyleText(font_ubuntu_monospace_regular_24, color_solarized_gray)) =
+    CollectionCellVectorToSyntax(delim, sep)
 
 function map_reference_forward(::CollectionCellVectorToSyntax, iomap, reference)
     return nothing
@@ -51,9 +50,9 @@ function projection_print(p::CollectionCellVectorToSyntax, recursion, cv::CellVe
                                    child_context(ctx, ElementReference(i)))
                                for (i, x) in enumerate(cv)])
     node = SyntaxNode(
-        TextString("[", p.delim_font, p.delim_color),
-        TextString("]", p.delim_font, p.delim_color),
-        TextString(", ", p.sep_font, p.sep_color),
+        TextString("[", p.delim),
+        TextString("]", p.delim),
+        TextString(", ", p.sep),
         CellVector(() -> SyntaxDocument[im.output for im in child_iomaps[]]),
         1,
         Cell(false),

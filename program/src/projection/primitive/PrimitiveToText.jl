@@ -17,6 +17,7 @@ import ..PrimitiveModule: PrimitiveDocument, PrimitiveBool, PrimitiveNumber, Pri
 import ..TextModule: TextDocument, TextText, TextString
 import ..FontModule: StyleFont, font_ubuntu_monospace_regular_24
 import ..ColorModule: StyleColor, color_solarized_cyan, color_solarized_magenta, color_solarized_green
+import ..StyleTextModule: StyleText
 import ..IoMapModule: SimpleIoMap
 import ..ReferenceModule: ConcreteReferencePath, EmptyReferencePath, FieldReference, RangeReference,
                           ElementReference, PositionReference, ReferencePath, skip_type_checkpoints
@@ -52,11 +53,10 @@ _value_selection_to_text(prim) = _forward_value(getfield(prim, :selection)[])
 # ── PrimitiveBoolToText ──────────────────────────────────────────────────────
 
 struct PrimitiveBoolToText <: Projection
-    font::StyleFont
-    color::StyleColor
+    style::StyleText
 end
-PrimitiveBoolToText(; font=font_ubuntu_monospace_regular_24, color=color_solarized_cyan) =
-    PrimitiveBoolToText(font, color)
+PrimitiveBoolToText(; style=StyleText(font_ubuntu_monospace_regular_24, color_solarized_cyan)) =
+    PrimitiveBoolToText(style)
 
 map_reference_forward(::PrimitiveBoolToText, iomap::SimpleIoMap, reference) =
     _forward_value(reference)
@@ -64,7 +64,7 @@ map_reference_backward(::PrimitiveBoolToText, iomap::SimpleIoMap, reference) =
     _backward_value(reference)
 
 function projection_print(p::PrimitiveBoolToText, recursion, b::PrimitiveBool, ctx)
-    span = TextString(() -> string(b.value), p.font, p.color)
+    span = TextString(() -> string(b.value), p.style)
     out = TextText(CellVector(() -> TextDocument[span]),
                    Cell(() -> _value_selection_to_text(b)))
     SimpleIoMap(p, b, out)
@@ -79,11 +79,10 @@ end
 # ── PrimitiveNumberToText ────────────────────────────────────────────────────
 
 struct PrimitiveNumberToText <: Projection
-    font::StyleFont
-    color::StyleColor
+    style::StyleText
 end
-PrimitiveNumberToText(; font=font_ubuntu_monospace_regular_24, color=color_solarized_magenta) =
-    PrimitiveNumberToText(font, color)
+PrimitiveNumberToText(; style=StyleText(font_ubuntu_monospace_regular_24, color_solarized_magenta)) =
+    PrimitiveNumberToText(style)
 
 map_reference_forward(::PrimitiveNumberToText, iomap::SimpleIoMap, reference) =
     _forward_value(reference)
@@ -91,7 +90,7 @@ map_reference_backward(::PrimitiveNumberToText, iomap::SimpleIoMap, reference) =
     _backward_value(reference)
 
 function projection_print(p::PrimitiveNumberToText, recursion, n::PrimitiveNumber, ctx)
-    span = TextString(() -> string(something(n.value, "")), p.font, p.color)
+    span = TextString(() -> string(something(n.value, "")), p.style)
     out = TextText(CellVector(() -> TextDocument[span]),
                    Cell(() -> _value_selection_to_text(n)))
     SimpleIoMap(p, n, out)
@@ -106,17 +105,15 @@ end
 # ── PrimitiveStringToTextText ────────────────────────────────────────────────────
 
 struct PrimitiveStringToTextText <: Projection
-    font::StyleFont
-    color::StyleColor
+    style::StyleText
     # Hint shown when the value is empty. `placeholder == ""` disables it, so
     # the projection keeps its plain (placeholder-free) behavior by default.
     placeholder::String
-    placeholder_font::StyleFont
-    placeholder_color::StyleColor
+    placeholder_style::StyleText
 end
-PrimitiveStringToTextText(; font=font_ubuntu_monospace_regular_24, color=color_solarized_green,
-                            placeholder="", placeholder_font=font, placeholder_color=color) =
-    PrimitiveStringToTextText(font, color, placeholder, placeholder_font, placeholder_color)
+PrimitiveStringToTextText(; style=StyleText(font_ubuntu_monospace_regular_24, color_solarized_green),
+                            placeholder="", placeholder_style=style) =
+    PrimitiveStringToTextText(style, placeholder, placeholder_style)
 
 map_reference_forward(::PrimitiveStringToTextText, iomap::SimpleIoMap, reference) =
     _forward_value(reference)
@@ -124,12 +121,12 @@ map_reference_backward(::PrimitiveStringToTextText, iomap::SimpleIoMap, referenc
     _backward_value(reference)
 
 function projection_print(p::PrimitiveStringToTextText, recursion, s::PrimitiveString, ctx)
-    value_span = TextString(() -> something(s.value, ""), p.font, p.color)
+    value_span = TextString(() -> something(s.value, ""), p.style)
     # When the value is empty and a placeholder is configured, show a muted hint
     # span instead. Both spans keep a stable identity; the CellVector thunk only
     # swaps which one is element 1 at the empty↔non-empty boundary, and the
     # selection (mapped to `elements[1].content`) tracks `s.value` either way.
-    placeholder_span = TextString(p.placeholder, p.placeholder_font, p.placeholder_color)
+    placeholder_span = TextString(p.placeholder, p.placeholder_style)
     show_placeholder() = !isempty(p.placeholder) && isempty(something(s.value, ""))
     out = TextText(CellVector(() -> TextDocument[show_placeholder() ? placeholder_span : value_span]),
                    Cell(() -> _value_selection_to_text(s)))

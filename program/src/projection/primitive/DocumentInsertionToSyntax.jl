@@ -45,6 +45,7 @@ import ..KeyboardModule: KeyDown, KeyPress
 import ..EventCaseModule: var"@event_case"
 import ..FontModule: font_ubuntu_monospace_regular_24, StyleFont
 import ..ColorModule: color_solarized_gray, color_default, StyleColor
+import ..StyleTextModule: StyleText
 import ..IoMapModule: SimpleIoMap
 import ..ReactiveModule: Cell
 
@@ -57,16 +58,16 @@ struct InsertionToSyntaxLeaf <: Projection
     prefix::String
     suffix::String
     commit::Any            # (value::String) -> Union{Document,Nothing}
-    font::StyleFont
-    label_color::StyleColor
-    value_color::StyleColor
+    # The label (prefix/suffix) and the editable value share a font but are
+    # coloured distinctly, so each is its own StyleText.
+    label::StyleText
+    value::StyleText
 end
 
 InsertionToSyntaxLeaf(commit; prefix::AbstractString = "", suffix::AbstractString = "",
-                      font = font_ubuntu_monospace_regular_24,
-                      label_color = color_solarized_gray,
-                      value_color = color_default) =
-    InsertionToSyntaxLeaf(String(prefix), String(suffix), commit, font, label_color, value_color)
+                      label = StyleText(font_ubuntu_monospace_regular_24, color_solarized_gray),
+                      value = StyleText(font_ubuntu_monospace_regular_24, color_default)) =
+    InsertionToSyntaxLeaf(String(prefix), String(suffix), commit, label, value)
 
 # ── Selection mapping (value{k} identity, mirrors PrimitiveStringToSyntaxLeaf) ─
 
@@ -86,9 +87,9 @@ end
 
 function projection_print(p::InsertionToSyntaxLeaf, recursion, ins, ctx)
     SimpleIoMap(p, ins, SyntaxLeaf(
-        TextString(p.prefix, p.font, p.label_color),
-        TextString(p.suffix, p.font, p.label_color),
-        TextString(() -> something(ins.value, ""), p.font, p.value_color),
+        TextString(p.prefix, p.label),
+        TextString(p.suffix, p.label),
+        TextString(() -> something(ins.value, ""), p.value),
         getfield(ins, :selection)))
 end
 

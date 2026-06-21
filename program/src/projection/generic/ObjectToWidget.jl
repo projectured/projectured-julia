@@ -37,6 +37,7 @@ import ..LayoutModule: GridLayout
 import ..TextModule: TextText, TextString
 import ..FontModule: StyleFont, font_ubuntu_monospace_regular_24
 import ..ColorModule: StyleColor, color_default
+import ..StyleTextModule: StyleText
 import ..ReferenceModule: ReferencePath, ConcreteReferencePath, EmptyReferencePath,
                           FieldReference, RangeReference
 import ..OperationModule: ReplaceReferencedValue, ReplaceSelectionOperation
@@ -71,13 +72,11 @@ controls.
 """
 struct ObjectToWidget <: Projection
     fields::Union{Vector{Symbol},Nothing}
-    font::StyleFont
-    color::StyleColor
+    style::StyleText
 end
 
 ObjectToWidget(; fields=nothing,
-               font::StyleFont=font_ubuntu_monospace_regular_24,
-               color::StyleColor=color_default) = ObjectToWidget(fields, font, color)
+               style::StyleText=StyleText(font_ubuntu_monospace_regular_24, color_default)) = ObjectToWidget(fields, style)
 
 # Inter-column / inter-row gaps for the parameter form. The label column width
 # and row heights are content-driven by GridLayout (no _CONTROL_X / _ROW_H
@@ -141,7 +140,7 @@ _make_control(p::ObjectToWidget, cell::Cell, ::Real) = _editable_text_control(p,
 # reader. Pinning the caret to the end keeps append/backspace correct without a
 # persistent cursor stored in the (projection-output) control bar.
 function _editable_text_control(p::ObjectToWidget, cell::Cell)
-    ts = TextString("", p.font, p.color)
+    ts = TextString("", p.style)
     setfn!(getfield(ts, :content), () -> _as_string(cell[]))
     tt = TextText(ts)
     setfn!(getfield(tt, :selection), () -> _end_cursor(length(_as_string(cell[]))))

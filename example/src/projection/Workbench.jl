@@ -35,7 +35,7 @@ function make_workbench_projection_example(; measure=sdl_measure_text)
             # Assistant input → text directly (no SyntaxLeaf → no quotes), with a
             # pale "type message here" hint when empty. It is the only
             # PrimitiveString rendered through this entry.
-            PrimitiveDocument     => SequentialProjection(RecursiveProjection(PrimitiveToText(string_kw=(color=fg, placeholder="type message here", placeholder_color=hint))), text_to_graphics),
+            PrimitiveDocument     => SequentialProjection(RecursiveProjection(PrimitiveToText(string_kw=(style=StyleText(font_ubuntu_monospace_regular_24, fg), placeholder="type message here", placeholder_style=StyleText(font_ubuntu_monospace_regular_24, hint)))), text_to_graphics),
             # Assistant panel: composer input (draft) + widget chat-bubble history.
             # ConversationDraft precedes ConversationDocument (its subtype).
             conversation_draft_entry(measure=measure),

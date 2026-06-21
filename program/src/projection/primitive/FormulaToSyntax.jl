@@ -31,6 +31,7 @@ import ..FontModule: StyleFont, font_ubuntu_monospace_regular_24, font_ubuntu_mo
 import ..ColorModule: StyleColor, color_default, color_solarized_blue, color_solarized_cyan,
                       color_solarized_green, color_solarized_magenta, color_solarized_gray,
                       color_solarized_violet
+import ..StyleTextModule: StyleText
 import ..SyntaxModule: SyntaxDocument, SyntaxLeaf, SyntaxNode
 import ..TypeDispatchingModule: TypeDispatchingProjection
 import ..IoMapModule: SimpleIoMap, ChildrenIoMap
@@ -56,16 +57,15 @@ _empty(font) = TextString("", font, color_default)
 # input value, so the default forward mapper (proj-unwrapping) is correct.
 
 struct FormulaInsertionToSyntaxLeaf <: Projection
-    font::StyleFont
-    color::StyleColor
+    style::StyleText
 end
-FormulaInsertionToSyntaxLeaf(; font=font_ubuntu_monospace_regular_24, color=color_solarized_gray) =
-    FormulaInsertionToSyntaxLeaf(font, color)
+FormulaInsertionToSyntaxLeaf(; style=StyleText(font_ubuntu_monospace_regular_24, color_solarized_gray)) =
+    FormulaInsertionToSyntaxLeaf(style)
 
 function projection_print(p::FormulaInsertionToSyntaxLeaf, recursion, b::FormulaInsertion, ctx)
     SimpleIoMap(p, b, SyntaxLeaf(
-        _empty(p.font), _empty(p.font),
-        TextString("insert formula", p.font, p.color),
+        _empty(p.style.font), _empty(p.style.font),
+        TextString("insert formula", p.style),
         getfield(b, :selection)))
 end
 
@@ -77,19 +77,18 @@ end
 # selects the whole reference).
 
 struct FormulaReferenceToSyntaxLeaf <: Projection
-    font::StyleFont
-    color::StyleColor
+    style::StyleText
 end
-FormulaReferenceToSyntaxLeaf(; font=font_ubuntu_monospace_bold_24, color=color_solarized_violet) =
-    FormulaReferenceToSyntaxLeaf(font, color)
+FormulaReferenceToSyntaxLeaf(; style=StyleText(font_ubuntu_monospace_bold_24, color_solarized_violet)) =
+    FormulaReferenceToSyntaxLeaf(style)
 
 function projection_print(p::FormulaReferenceToSyntaxLeaf, recursion, r::FormulaReference, ctx)
     SimpleIoMap(p, r, SyntaxLeaf(
-        _empty(p.font), _empty(p.font),
+        _empty(p.style.font), _empty(p.style.font),
         TextString(() -> begin
             t = r.target
             t isa FormulaFormula ? t.name : "#REF!"
-        end, p.font, p.color),
+        end, p.style),
         getfield(r, :selection)))
 end
 
@@ -107,17 +106,16 @@ end
 # delegation; its output child index depends on the mode.
 
 struct FormulaFormulaToSyntaxNode <: Projection
-    name_font::StyleFont
-    name_color::StyleColor
-    op_font::StyleFont
-    op_color::StyleColor
-    result_color::StyleColor
+    name::StyleText
+    op::StyleText
+    # The result run shares the op font but is coloured distinctly (green).
+    result::StyleText
 end
 FormulaFormulaToSyntaxNode(;
-        name_font=font_ubuntu_monospace_bold_24, name_color=color_solarized_blue,
-        op_font=font_ubuntu_monospace_regular_24, op_color=color_solarized_gray,
-        result_color=color_solarized_green) =
-    FormulaFormulaToSyntaxNode(name_font, name_color, op_font, op_color, result_color)
+        name=StyleText(font_ubuntu_monospace_bold_24, color_solarized_blue),
+        op=StyleText(font_ubuntu_monospace_regular_24, color_solarized_gray),
+        result=StyleText(font_ubuntu_monospace_regular_24, color_solarized_green)) =
+    FormulaFormulaToSyntaxNode(name, op, result)
 
 # Flatten a result TextText into a single rendered string.
 function _result_to_string(result)
@@ -135,24 +133,24 @@ function projection_print(p::FormulaFormulaToSyntaxNode, recursion, f::FormulaFo
     # The name leaf displays the formula name; renaming is a structural
     # operation, not character editing here, so it carries no input mapping.
     name_leaf = SyntaxLeaf(
-        _empty(p.name_font), _empty(p.name_font),
-        TextString(() -> f.name, p.name_font, p.name_color),
+        _empty(p.name.font), _empty(p.name.font),
+        TextString(() -> f.name, p.name),
         Cell(nothing))
     eq_leaf = SyntaxLeaf(
-        TextString(" ", p.op_font, color_default),
-        TextString(" ", p.op_font, color_default),
-        TextString("=", p.op_font, p.op_color), Cell(nothing))
+        TextString(" ", p.op.font, color_default),
+        TextString(" ", p.op.font, color_default),
+        TextString("=", p.op), Cell(nothing))
     arrow_leaf = SyntaxLeaf(
-        TextString(" ", p.op_font, color_default),
-        TextString(" ", p.op_font, color_default),
-        TextString("⇒", p.op_font, p.op_color), Cell(nothing))
+        TextString(" ", p.op.font, color_default),
+        TextString(" ", p.op.font, color_default),
+        TextString("⇒", p.op), Cell(nothing))
     result_leaf = SyntaxLeaf(
-        _empty(p.op_font), _empty(p.op_font),
-        TextString(() -> _result_to_string(f.result), p.op_font, p.result_color),
+        _empty(p.op.font), _empty(p.op.font),
+        TextString(() -> _result_to_string(f.result), p.result),
         Cell(nothing))
 
     node = SyntaxNode(
-        _empty(p.op_font), _empty(p.op_font), _empty(p.op_font),
+        _empty(p.op.font), _empty(p.op.font), _empty(p.op.font),
         CellVector(() -> begin
             mode = f.display_mode
             if mode === :code

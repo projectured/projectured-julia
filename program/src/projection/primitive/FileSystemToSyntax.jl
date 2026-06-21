@@ -24,6 +24,7 @@ import ..FileSystemModule: FileSystemDocument, FileSystemFile, FileSystemDirecto
 import ..TextModule: TextString
 import ..FontModule: StyleFont, font_ubuntu_monospace_regular_24, font_ubuntu_monospace_bold_24
 import ..ColorModule: StyleColor, color_black, color_default, color_solarized_blue, color_solarized_red
+import ..StyleTextModule: StyleText
 import ..SyntaxModule: SyntaxDocument, SyntaxLeaf, SyntaxNode
 import ..TypeDispatchingModule: TypeDispatchingProjection
 import ..IoMapModule: SimpleIoMap, ChildrenIoMap
@@ -38,17 +39,16 @@ export FileSystemFileToSyntaxLeaf, FileSystemDirectoryToSyntaxNode, FileSystemTo
 # ── FileSystemFileToSyntaxLeaf ────────────────────────────────────────────────
 
 struct FileSystemFileToSyntaxLeaf <: Projection
-    font::StyleFont
-    color::StyleColor
+    style::StyleText
 end
-FileSystemFileToSyntaxLeaf(; font=font_ubuntu_monospace_regular_24, color=color_solarized_blue) =
-    FileSystemFileToSyntaxLeaf(font, color)
+FileSystemFileToSyntaxLeaf(; style=StyleText(font_ubuntu_monospace_regular_24, color_solarized_blue)) =
+    FileSystemFileToSyntaxLeaf(style)
 
 function projection_print(p::FileSystemFileToSyntaxLeaf, recursion, f::FileSystemFile, ctx)
     SimpleIoMap(p, f, SyntaxLeaf(
-        TextString("", p.font, color_default),
-        TextString("", p.font, color_default),
-        TextString(() -> " " * basename(f.pathname), p.font, p.color),
+        TextString("", p.style.font, color_default),
+        TextString("", p.style.font, color_default),
+        TextString(() -> " " * basename(f.pathname), p.style),
         f.selection))
 end
 
@@ -75,11 +75,10 @@ end
 #   .elements[i] + rest  →  .children[2].children[i] + child_sel
 
 struct FileSystemDirectoryToSyntaxNode <: Projection
-    name_font::StyleFont
-    name_color::StyleColor
+    name::StyleText
 end
-FileSystemDirectoryToSyntaxNode(; name_font=font_ubuntu_monospace_bold_24, name_color=color_solarized_red) =
-    FileSystemDirectoryToSyntaxNode(name_font, name_color)
+FileSystemDirectoryToSyntaxNode(; name=StyleText(font_ubuntu_monospace_bold_24, color_solarized_red)) =
+    FileSystemDirectoryToSyntaxNode(name)
 
 
 function projection_print(p::FileSystemDirectoryToSyntaxNode, recursion, d::FileSystemDirectory, ctx)
@@ -88,15 +87,15 @@ function projection_print(p::FileSystemDirectoryToSyntaxNode, recursion, d::File
                                for (i, elem) in enumerate(d)])
 
     name_leaf = SyntaxLeaf(
-        TextString("", p.name_font, color_default),
-        TextString("", p.name_font, color_default),
-        TextString(() -> " " * _dir_name(d.pathname), p.name_font, p.name_color),
+        TextString("", p.name.font, color_default),
+        TextString("", p.name.font, color_default),
+        TextString(() -> " " * _dir_name(d.pathname), p.name),
         d.selection)
 
     body_node = SyntaxNode(
-        TextString("", p.name_font, color_default),
-        TextString("", p.name_font, color_default),
-        TextString("", p.name_font, color_default),
+        TextString("", p.name.font, color_default),
+        TextString("", p.name.font, color_default),
+        TextString("", p.name.font, color_default),
         CellVector(() -> SyntaxDocument[im.output for im in child_iomaps[]]),
         2,
         Cell(false),
@@ -116,9 +115,9 @@ function projection_print(p::FileSystemDirectoryToSyntaxNode, recursion, d::File
     end)
 
     node = SyntaxNode(
-        TextString("", p.name_font, color_default),
-        TextString("", p.name_font, color_default),
-        TextString("", p.name_font, color_default),
+        TextString("", p.name.font, color_default),
+        TextString("", p.name.font, color_default),
+        TextString("", p.name.font, color_default),
         CellVector(Cell[Cell(name_leaf), Cell(body_node)]),
         0,
         Cell(false),

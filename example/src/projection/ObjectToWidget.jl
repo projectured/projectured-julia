@@ -8,7 +8,7 @@ function make_object_to_widget_projection_example(; measure=sdl_measure_text)
     fg   = (0x22, 0x22, 0x22, 0xff)
     w2g  = WidgetToGraphics(font; measure=measure)
     SequentialProjection(
-        ObjectToWidget(font=font, color=color_default),
+        ObjectToWidget(style=StyleText(font, color_default)),
         # The form is a GridLayout of widgets, so the renderer dispatches layout
         # nodes to LayoutToGraphics, widgets to WidgetToGraphics, and the
         # editable controls' TextText content to TextToGraphics.
