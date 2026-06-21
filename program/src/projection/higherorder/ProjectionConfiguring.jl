@@ -36,7 +36,7 @@ import ..WidgetModule: WidgetDocument, WidgetSplitPane, WidgetScrollPane,
 import ..ObjectToWidgetModule: ObjectToWidget
 import ..OperationModule: ReplaceReferencedValue, ReplaceSelectionOperation
 import ..PrimitiveModule: StringReplaceRangeOperation
-import ..ReferenceModule: ConcreteReferencePath, FieldReference, RangeReference
+import ..ReferenceModule: ConcreteReferencePath, FieldReference, RangeReference, skip_type_checkpoints
 import ..KeyboardModule: KeyDown, is_ctrl
 
 export ProjectionConfiguringProjection, ProjectionConfiguringProjectionIoMap
@@ -137,9 +137,12 @@ projection_read(p::ProjectionConfiguringProjection,
 # reference rooted at our output split pane, returning the remainder (rooted at
 # the control bar) or `nothing` when the reference is not in the control slot.
 function _strip_control_slot(ref)
+    # Skip canonical TypeReference checkpoints at each level before reading the
+    # `elements[1]` control-slot structure.
+    ref = skip_type_checkpoints(ref)
     ref isa ConcreteReferencePath || return nothing
     (ref.head isa FieldReference && ref.head.name == "elements") || return nothing
-    t = ref.tail
+    t = skip_type_checkpoints(ref.tail)
     (t isa ConcreteReferencePath && t.head isa RangeReference && t.head.start == 0) || return nothing
     t.tail
 end

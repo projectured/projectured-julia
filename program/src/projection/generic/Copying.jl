@@ -15,7 +15,7 @@ import ..ProjectionApiModule: projection_print, projection_printer_recurse, map_
 import ..ReactiveModule: Cell, setfn!, setval!
 import ..DocumentModule: Document
 import ..ReferenceModule: ConcreteReferencePath, FieldReference, RangeReference,
-                          ElementReference, is_element_reference, head, tail
+                          ElementReference, is_element_reference, head, tail, skip_type_checkpoints
 import ..PrinterContextModule: PrinterContext, child_context
 import ..CollectionModule: CellVector, ListNode
 import ..IoMapApiModule: IoMap
@@ -172,6 +172,9 @@ end
 # ── Reference mapping helpers ─────────────────────────────────────────────
 
 function _map_ref(fn, iomap::CopyingProjectionIoMap, reference)
+    # Skip canonical TypeReference checkpoints before dispatching on the head's
+    # navigation step (index vs. field); the child mapper re-canonicalizes.
+    reference = skip_type_checkpoints(reference)
     reference isa ConcreteReferencePath || return reference
     h = head(reference)
     rest = tail(reference)
