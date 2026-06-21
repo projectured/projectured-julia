@@ -200,8 +200,32 @@ Per the repo's "smallest test that covers the change" rule — never `test_all()
 
 ## Progress
 
-- [ ] Phase 0 — bridge constructors
-- [ ] Phase 1 — JsonToSyntax
-- [ ] Phase 2 — small/medium projections
-- [ ] Phase 3 — JuliaToSyntax, SqlToSyntax
-- [ ] Phase 4 — (optional) document-model merge
+- [x] Phase 0 — bridge constructors (`TextString(content, style::StyleText)`, string + function)
+- [x] Phase 1 — JsonToSyntax
+- [x] Phase 2 — small/medium projections + FormulaToSyntax, DocumentInsertionToSyntax, BookToSyntax
+- [x] Phase 3 — JuliaToSyntax, SqlToSyntax
+- [ ] Phase 4 — (optional) document-model merge — **not done, deferred as planned**
+
+## Outcome / decisions discovered during implementation
+
+- **`StyleText` is now exported from `Projectured`** (alongside `StyleFont`/`StyleColor`). It
+  became part of the public projection-constructor API, and an example referenced it.
+- **Reserved-word / field-clash renames:** a merged field that would be `quote` is named
+  `quote_style` (JSON/Primitive/Xml/Object/Julia string+char). Where a `keyword::String` field
+  already existed (`SqlBooleanBinaryToSyntaxNode`) the merged style is `keyword_style`; same for
+  `PrimitiveStringToTextText` (`placeholder::String` stays, color → `placeholder_style`).
+- **Font-sharing merges (lone color paired with a shared font):** turned into a second
+  `StyleText` that reuses the font in its default — `FormulaFormula.result`, `Book*.placeholder`,
+  `DocumentInsertion` `label`/`value`, `Julia` string/char `quote_style`.
+- **Lone fonts left as-is** (no color partner; rendered with literal colors): `FormulaEnvironment`,
+  `JuliaBlock`, `SqlStatementList` (`.font`), and Sql `identifier_font` (Subquery/CreateSchema) /
+  `alias_font` (SelectItem).
+- **Out of scope, untouched:** `ReferenceToText` (font-only struct; per-token colors are literals)
+  and `TextToGraphics` (document-model reads + measurement fonts, no config pairs).
+- **External callers updated:** `example/.../ObjectToWidget.jl` and `example/.../Workbench.jl`
+  (the latter forwards `string_kw` to `PrimitiveStringToTextText`).
+- **Verification:** `test_printers` matches the base exactly (165711 passed; the 5 `sql_table`
+  failures are a pre-existing WidgetTable `length` bug, confirmed by a stashed-base run).
+  `test_readers` clean. `test_text_navigations` shows the same 5 pre-existing failures
+  (conversation_editor, dvdrental_catalog, filesystem, formula, navigator) that the untouched
+  base commit also produces — no regressions.
