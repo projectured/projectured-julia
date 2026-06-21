@@ -3,7 +3,8 @@ using Projectured.McpModule
 using Projectured.ToolRegistryModule: call_tool, list_tools, list_resources
 using Projectured.WorkbenchAssistantModule: SubmitJuliaOperation, _eval_result
 using Projectured: WorkbenchAssistant, evaluate_operation, ConcreteReferencePath,
-                   FieldReference, RangeReference, EmptyReferencePath, FakeLlm,
+                   FieldReference, RangeReference, EmptyReferencePath, TypeReference,
+                   strip_reference_types, FakeLlm,
                    WorkbenchWorkbench, WorkbenchPage, WorkbenchNavigator, WorkbenchEditor,
                    Workspace,
                    JsonString, JsonNull, JsonNumber, JsonObject, jsonparse, evaluate_reference,
@@ -321,6 +322,21 @@ function test_search_object()
         # Regex query → matches leaf text; "10" and "20" are number leaves.
         @test length(search_references(doc, r"^\d+$")) == 2
         @test length(search_references(doc, r"Ali")) == 1
+
+        # Returned references are canonical at rest: every navigation step is
+        # preceded by a TypeReference checkpoint (as collect_references produces),
+        # and stripping them recovers a usable plain path.
+        ar = search_references(doc, "Alice")[1]
+        steps = ConcreteReferencePath[]
+        let p = ar
+            while p isa ConcreteReferencePath
+                push!(steps, p)
+                p = p.tail
+            end
+        end
+        @test any(s -> s.head isa TypeReference, steps)
+        @test ar.head isa TypeReference
+        @test evaluate_reference(doc, strip_reference_types(ar)) == "Alice"
     end
 
     @testset "search_objects" begin

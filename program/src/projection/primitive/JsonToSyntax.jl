@@ -353,7 +353,7 @@ function map_reference_forward(p::JsonObjectToSyntaxNode, iomap::ChildrenIoMap, 
             pair_i = s + 1
             vioms = iomap.child_iomaps[]
             1 <= pair_i <= length(vioms) || return nothing
-            # Whole entry: .entries[j]{{Entry}} → .children[j]
+            # Whole entry: .entries[j]::Entry → .children[j]
             skip_type_checkpoints(rest) isa EmptyReferencePath && return @reference ::SyntaxNode.children[pair_i]
             @reference_case rest begin
                 key.inner... => begin
@@ -365,7 +365,7 @@ function map_reference_forward(p::JsonObjectToSyntaxNode, iomap::ChildrenIoMap, 
                 value.inner... => begin
                     child = vioms[pair_i]
                     child === nothing && return nothing
-                    # `translated` carries the child's leading {{ChildOut}} checkpoint,
+                    # `translated` carries the child's leading ::ChildOut checkpoint,
                     # so the type after .children[2] comes from the recursion.
                     translated = map_reference_forward(child.projection, child, inner)
                     translated === nothing && return nothing

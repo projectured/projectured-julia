@@ -296,7 +296,7 @@ function Base.show(io::IO, s::FieldReference)
 end
 
 function Base.show(io::IO, s::TypeReference)
-    print(io, "{{", s.type, "}}")
+    print(io, "::", s.type)
 end
 
 function Base.show(io::IO, s::PointReference)

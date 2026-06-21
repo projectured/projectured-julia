@@ -19,7 +19,7 @@ import ..ColorModule: StyleColor, color_black, color_default, color_solarized_bl
 import ..SyntaxModule: SyntaxDocument, SyntaxLeaf, SyntaxNode
 import ..TypeDispatchingModule: TypeDispatchingProjection
 import ..IoMapModule: SimpleIoMap
-import ..ReferenceModule: ReferencePath, ConcreteReferencePath, ElementReference, PositionReference, RangeReference, FieldReference, EmptyReferencePath, append_reference
+import ..ReferenceModule: ReferencePath, ConcreteReferencePath, ElementReference, PositionReference, RangeReference, FieldReference, EmptyReferencePath, append_reference, annotate_reference_types
 import ..PrinterContextModule: PrinterContext, child_context, with_property, get_property
 import ..SyntaxToTextModule: SyntaxToText
 import ..TextToStringModule: TextToString
@@ -399,6 +399,13 @@ struct fields contribute a `FieldReference`, and array / `CellVector` elements a
 `ElementReference` — so the returned paths resolve with `evaluate_reference` and
 can be handed to `set_selection!` / `replace_selection!`.
 
+The returned paths are **canonical at rest**: each navigation step is preceded by
+a `TypeReference(typeof(node))` checkpoint (via [`annotate_reference_types`](@ref),
+matching [`collect_references`](@ref)), so results are self-describing and carry
+replay-validation checkpoints. `evaluate_reference` honours the checkpoints; pass a
+result through `strip_reference_types` first if a consumer needs the plain
+navigation-only path.
+
 ```julia
 for ref in search_references(editor.document, v -> v isa JsonString && occursin("TODO", v.value))
     replace_selection!(editor.document, ref)
@@ -418,7 +425,11 @@ function search_references(obj, predicate; include_selection::Bool=false, maxdep
     results = ReferencePath[]
     _search_references!(results, _unwrap_cell(obj), predicate,
                         EmptyReferencePath(), IdDict{Any,Bool}(), include_selection, maxdepth)
-    results
+    # Leave search results in canonical form: annotate each plain navigation path
+    # with `TypeReference(typeof(node))` checkpoints against `obj`, matching
+    # `collect_references`, so the references are self-describing and carry
+    # replay-validation checkpoints (see annotate_reference_types).
+    ReferencePath[annotate_reference_types(_unwrap_cell(obj), p) for p in results]
 end
 
 search_references(obj, query::Union{AbstractString,Regex}; kwargs...) =

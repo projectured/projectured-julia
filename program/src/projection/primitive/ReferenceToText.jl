@@ -102,9 +102,8 @@ function _emit_step_short!(spans::Vector{TextDocument}, p::ReferenceToText, step
 end
 
 function _emit_step_short!(spans::Vector{TextDocument}, p::ReferenceToText, step::TypeReference)
-    push!(spans, _tok("{{", p.font, color_solarized_gray))
+    push!(spans, _tok("::", p.font, color_solarized_gray))
     push!(spans, _tok(string(step.type), p.font, color_solarized_orange))
-    push!(spans, _tok("}}", p.font, color_solarized_gray))
 end
 
 function _emit_step_short!(spans::Vector{TextDocument}, p::ReferenceToText, step::FunctionReference)
