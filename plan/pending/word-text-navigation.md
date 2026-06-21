@@ -162,8 +162,17 @@ end
   word, then intervening separators). At document end it clamps in place.
 - **Ctrl+Left** lands at the start of the current word, or the previous word if
   already at a word start / in separators. At document start it clamps in place.
-- Crosses span boundaries transparently (the loop is span-agnostic; steps are
-  canonical). In structural mode it declines and falls through to the tree layer.
+- Stops at `TextString` span boundaries (the stop-condition helpers
+  `_char_left`/`_char_right` read only the current span). This is intentional:
+  `WordWrapping` runs before `TextToGraphics` and *consumes* the space at soft-wrap
+  points, so it lives in no span. Peeking across the boundary would see the next
+  line's first letter as the crossed character and wrongly merge two words
+  (`…dolor` + `sit…`) into one. Since each visual line is its own span, this means
+  word motion stops at line ends — a defensible, common editor behavior. (The
+  earlier "crosses boundaries transparently" intent was unsafe given the consumed
+  wrap-space; revisit only if span boundaries that are *not* line/wrap boundaries
+  with intra-line styled word runs appear.) In structural mode it declines and
+  falls through to the tree layer.
 
 ## Testing
 
