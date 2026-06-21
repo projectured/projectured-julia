@@ -517,13 +517,14 @@ using .GraphicsCachingModule: GraphicsCanvasToGraphicsImage, GraphicsCaching
 using .GestureRecognizerModule: GestureRecognizer, recognize!, next_gesture!
 using .EditorModule: Editor, run!, play_live!
 using .McpModule: McpServer, mcp_start!, mcp_stop!,
+                  mcp_tools, mcp_resources,
                   search_documentation, search_api,
                   list_guides, read_guide, list_modules, list_classes, list_functions,
                   read_module_documentation, read_class_documentation, read_function_documentation
 using .ToolRegistryModule: Tool, Resource,
                             register_tool!, register_tools!, list_tools, call_tool,
                             register_resource!, register_resources!, list_resources, read_resource,
-                            anthropic_tool_schema, mcp_tools, mcp_resources
+                            anthropic_tool_schema
 using .AnthropicModule: stream_message
 using .LlmModule: LlmBackend, AnthropicLlm, FakeLlm, stream_turn
 using .EvaluatorModule: EvaluatorDocument, EvaluatorForm, EvaluatorToplevel, result_text, eval_kind_label

@@ -118,13 +118,19 @@ hook, so behaviour is identical while everything is still present:
       (commit `make_backend factory seam`): `make_backend(::Val{:sdl|:web|:console})`
       registered in each backend module; all 5 example construction sites routed
       through it; `make_backend` exported from the umbrella.
-- [ ] DB adapter seam: confirm the abstract `DatabaseAdapter` + generic
-      `db_connect!`/`db_query`/`db_catalog_*`/… all live in a **core** module
-      (`DatabaseModule`/`DatabaseDocumentModule`), and that `OdbcDatabaseAdapter` is
-      the *only* ODBC-touching concrete type. Everything that references
-      `OdbcDatabaseAdapter` by name (`ConnectionPool`, `DatabaseInstanceToDbCatalog`,
-      `DatabaseTableToTabularGrid`, `SqlToCellTable`) must instead go through the
-      abstract interface or a factory.
+- [x] DB adapter seam. **Done** (commit `split DatabaseModule interface from ODBC
+      adapter`): `DatabaseModule` is now dependency-free (abstract `DatabaseAdapter`,
+      `RawDatabaseResult`, generic `db_*` stubs, new `make_database_adapter` factory;
+      dropped `import ODBC/DBInterface/Tables`). The concrete `OdbcDatabaseAdapter`
+      + all ODBC impls + `_build_select`/`_materialize` moved to new
+      `OdbcAdapterModule` (`external/OdbcAdapter.jl`) — the *only* module touching
+      ODBC/DBInterface/Tables — with `make_database_adapter(::Val{:odbc})`. By-name
+      refs (`ConnectionPool`, `DatabaseTabular`, `DatabaseTableToTabularGrid`, umbrella
+      re-export) repointed to `OdbcAdapterModule`; `db_*` generics still from
+      `DatabaseModule`. (`DatabaseInstanceToDbCatalog`/`SqlToCellTable` only reference
+      the pool, not the type — unchanged.) Note for 1.2: the umbrella still
+      `using .OdbcAdapterModule: OdbcDatabaseAdapter` — that re-export becomes
+      extension-gated when ODBC moves to a weakdep.
 - [ ] Agent control-surface seam (prerequisite for putting LLM/MCP in the kernel):
       - Split `editor/ToolRegistry.jl` into a **pure registry** (Tool/Resource types,
         `register_tool!`, `call_tool`, the `(editor, args) -> String` protocol — no

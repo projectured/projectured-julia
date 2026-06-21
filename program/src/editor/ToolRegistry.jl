@@ -9,19 +9,17 @@ A `Tool` is an action with a name, JSON-Schema-style parameters, and a
 handler `(editor, args::Dict) -> String`. A `Resource` is a read-only piece
 of data identified by a URI and produced lazily by a `provider` function.
 
-Helpers are provided to bridge the registry to the MCP wire format
-(`mcp_tools` / `mcp_resources`) and to the Anthropic Messages API
-(`anthropic_tool_schema`).
+A dependency-free bridge to the Anthropic Messages API (`anthropic_tool_schema`)
+lives here. The MCP wire-format bridges (`mcp_tools` / `mcp_resources`) require
+`ModelContextProtocol` and therefore live in `McpModule` (which becomes the MCP
+package extension), keeping this registry free of optional dependencies.
 """
 module ToolRegistryModule
-
-using ModelContextProtocol
-using ModelContextProtocol: TextResourceContents
 
 export Tool, Resource,
        register_tool!, register_tools!, list_tools, call_tool, find_tool,
        register_resource!, register_resources!, list_resources, read_resource, find_resource,
-       anthropic_tool_schema, mcp_tools, mcp_resources,
+       anthropic_tool_schema,
        clear_registry!
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -182,68 +180,8 @@ function anthropic_tool_schema(tools::AbstractVector{Tool} = list_tools())
     out
 end
 
-# ═══════════════════════════════════════════════════════════════════════
-# MCP bridge
-# ═══════════════════════════════════════════════════════════════════════
-
-"""
-    mcp_tools(editor, tools = list_tools()) -> Vector{MCPTool}
-
-Render the given tools into the `MCPTool` shape expected by the MCP server,
-binding each handler to `editor`.
-"""
-function mcp_tools(editor, tools::AbstractVector{Tool} = list_tools())
-    out = MCPTool[]
-    for t in tools
-        params = ToolParameter[
-            ToolParameter(
-                name        = String(p.name),
-                type        = String(p.type),
-                description = String(p.description),
-                required    = get(p, :required, false),
-            ) for p in t.parameters
-        ]
-        # Capture t and editor in a closure
-        let tool = t
-            handler = params_dict -> begin
-                args = Dict{String,Any}(string(k) => v for (k, v) in pairs(params_dict))
-                TextContent(text = tool.handler(editor, args))
-            end
-            push!(out, MCPTool(
-                name        = tool.name,
-                description = tool.description,
-                parameters  = params,
-                handler     = handler,
-            ))
-        end
-    end
-    out
-end
-
-"""
-    mcp_resources(resources = list_resources()) -> Vector{MCPResource}
-
-Render the given resources as `MCPResource` objects whose data providers
-return `TextResourceContents` containing the body.
-"""
-function mcp_resources(resources::AbstractVector{Resource} = list_resources())
-    out = MCPResource[]
-    for r in resources
-        let res = r
-            push!(out, MCPResource(
-                uri           = res.uri,
-                name          = res.name,
-                description   = res.description,
-                mime_type     = res.mime_type,
-                data_provider = () -> TextResourceContents(
-                    uri       = res.uri,
-                    mime_type = res.mime_type,
-                    text      = res.provider(),
-                ),
-            ))
-        end
-    end
-    out
-end
+# The MCP wire-format bridges (`mcp_tools` / `mcp_resources`) require
+# `ModelContextProtocol` and live in `McpModule` (the MCP package extension),
+# so this registry stays free of optional dependencies.
 
 end # module

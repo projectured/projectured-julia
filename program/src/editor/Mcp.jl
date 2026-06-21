@@ -14,11 +14,19 @@ using ModelContextProtocol
 using ModelContextProtocol: HttpTransport, TextResourceContents, ServerConfig
 import ..ToolRegistryModule: Tool, Resource,
                               register_tool!, register_resource!,
-                              list_tools, list_resources,
-                              mcp_tools, mcp_resources
-import ..WorkbenchModule: DEFAULT_ASSISTANT_SYSTEM
+                              list_tools, list_resources
+
+# Generic system prompt for MCP clients. Kept here (not imported from the
+# Workbench domain) so this module — the future MCP package extension — has no
+# dependency on any domain. A richer, app-specific prompt can be supplied by the
+# caller via `McpServer(editor; instructions=…)`.
+const DEFAULT_MCP_INSTRUCTIONS =
+    "You are an assistant operating ProjecturEd, a projectional editor built in " *
+    "Julia. Use the registered tools to inspect and manipulate the editor's " *
+    "document, projection, and selection."
 
 export McpServer, mcp_start!, mcp_stop!,
+       mcp_tools, mcp_resources,
        execute_julia_code, list_guides, read_guide,
        list_modules, list_classes, list_functions,
        read_module_documentation, read_class_documentation, read_function_documentation,
@@ -41,7 +49,7 @@ mutable struct McpServer
     task::Union{Task,Nothing}
 end
 
-function McpServer(editor)
+function McpServer(editor; instructions::AbstractString = DEFAULT_MCP_INSTRUCTIONS)
     srv = mcp_server(
         name        = "projectured",
         version     = "0.1.0",
@@ -51,13 +59,14 @@ function McpServer(editor)
     # `mcp_server` does not expose `instructions`, but `ServerConfig` does —
     # and that's the field the MCP `initialize` handler delivers to clients,
     # so the in-editor assistant and any external MCP client share the same
-    # prompt.
+    # prompt. The caller supplies `instructions`; it defaults to a generic,
+    # domain-free prompt so this module needs no Workbench dependency.
     srv.config = ServerConfig(
         name         = srv.config.name,
         version      = srv.config.version,
         description  = srv.config.description,
         capabilities = srv.config.capabilities,
-        instructions = DEFAULT_ASSISTANT_SYSTEM,
+        instructions = instructions,
         title        = srv.config.title,
         icons        = srv.config.icons,
     )
@@ -514,6 +523,71 @@ function register_default_tools_and_resources!()
         # `read_function_documentation(module, name)`.
     end
     nothing
+end
+
+# ═══════════════════════════════════════════════════════════════════════
+# MCP wire-format bridges (moved here from ToolRegistryModule: these need
+# ModelContextProtocol, which is confined to this module / extension)
+# ═══════════════════════════════════════════════════════════════════════
+
+"""
+    mcp_tools(editor, tools = list_tools()) -> Vector{MCPTool}
+
+Render the given registry tools into the `MCPTool` shape expected by the MCP
+server, binding each handler to `editor`.
+"""
+function mcp_tools(editor, tools::AbstractVector{Tool} = list_tools())
+    out = MCPTool[]
+    for t in tools
+        params = ToolParameter[
+            ToolParameter(
+                name        = String(p.name),
+                type        = String(p.type),
+                description = String(p.description),
+                required    = get(p, :required, false),
+            ) for p in t.parameters
+        ]
+        # Capture t and editor in a closure
+        let tool = t
+            handler = params_dict -> begin
+                args = Dict{String,Any}(string(k) => v for (k, v) in pairs(params_dict))
+                TextContent(text = tool.handler(editor, args))
+            end
+            push!(out, MCPTool(
+                name        = tool.name,
+                description = tool.description,
+                parameters  = params,
+                handler     = handler,
+            ))
+        end
+    end
+    out
+end
+
+"""
+    mcp_resources(resources = list_resources()) -> Vector{MCPResource}
+
+Render the given registry resources as `MCPResource` objects whose data
+providers return `TextResourceContents` containing the body.
+"""
+function mcp_resources(resources::AbstractVector{Resource} = list_resources())
+    out = MCPResource[]
+    for r in resources
+        let res = r
+            push!(out, MCPResource(
+                uri           = res.uri,
+                name          = res.name,
+                description   = res.description,
+                mime_type     = res.mime_type,
+                data_provider = () -> TextResourceContents(
+                    uri       = res.uri,
+                    mime_type = res.mime_type,
+                    text      = res.provider(),
+                ),
+            ))
+        end
+    end
+    out
 end
 
 function _make_tools(editor)
