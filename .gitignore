@@ -6,3 +6,6 @@ session/history/.cost-weight
 
 # Local-only baseline reference screenshots (third-party docs captures)
 image/baseline-shadcn/
+
+# Transient agent worktrees (Claude Code isolation)
+.claude/worktrees/
