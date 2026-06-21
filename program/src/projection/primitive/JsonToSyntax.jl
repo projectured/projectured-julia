@@ -16,6 +16,7 @@ import ..JsonModule: JsonDocument, JsonInsertion, JsonNull, JsonBool, JsonNumber
 import ..TextModule: TextString
 import ..FontModule: StyleFont, font_ubuntu_monospace_regular_24, font_ubuntu_monospace_bold_24
 import ..ColorModule: StyleColor, color_black, color_default, color_solarized_blue, color_solarized_green, color_solarized_magenta, color_solarized_cyan, color_solarized_yellow, color_solarized_gray
+import ..StyleTextModule: StyleText
 import ..SyntaxModule: SyntaxDocument, SyntaxLeaf, SyntaxNode
 import ..TypeDispatchingModule: TypeDispatchingProjection
 import ..CopyingProjectionModule: CopyingProjection, copying_field_iomap
@@ -35,10 +36,9 @@ export JsonInsertionToSyntaxLeaf, JsonNullToSyntaxLeaf, JsonBoolToSyntaxLeaf, Js
 # ── JsonNullToSyntaxLeaf ─────────────────────────────────────────────────────
 
 struct JsonNullToSyntaxLeaf <: Projection
-    font::StyleFont
-    color::StyleColor
+    style::StyleText
 end
-JsonNullToSyntaxLeaf(; font=font_ubuntu_monospace_regular_24, color=color_solarized_magenta) = JsonNullToSyntaxLeaf(font, color)
+JsonNullToSyntaxLeaf(; style=StyleText(font_ubuntu_monospace_regular_24, color_solarized_magenta)) = JsonNullToSyntaxLeaf(style)
 
 # Selection mapping (JsonNull → SyntaxLeaf): "null" is a projection-introduced
 # label with no editable input value, so a cursor on it has no input pre-image.
@@ -50,16 +50,15 @@ JsonNullToSyntaxLeaf(; font=font_ubuntu_monospace_regular_24, color=color_solari
 # as nothing.
 function projection_print(p::JsonNullToSyntaxLeaf, recursion, j::JsonNull, ctx)
     output_selection = Cell(() -> map_reference_forward(p, nothing, j.selection))
-    SimpleIoMap(p, j, SyntaxLeaf(TextString("", p.font, color_default), TextString("", p.font, color_default), TextString("null", p.font, p.color), output_selection))
+    SimpleIoMap(p, j, SyntaxLeaf(TextString("", p.style.font, color_default), TextString("", p.style.font, color_default), TextString("null", p.style), output_selection))
 end
 
 # ── JsonInsertionToSyntaxLeaf ───────────────────────────────────────────────────
 
 struct JsonInsertionToSyntaxLeaf <: Projection
-    font::StyleFont
-    color::StyleColor
+    style::StyleText
 end
-JsonInsertionToSyntaxLeaf(; font=font_ubuntu_monospace_regular_24, color=color_solarized_gray) = JsonInsertionToSyntaxLeaf(font, color)
+JsonInsertionToSyntaxLeaf(; style=StyleText(font_ubuntu_monospace_regular_24, color_solarized_gray)) = JsonInsertionToSyntaxLeaf(style)
 
 # Selection mapping (JsonInsertion → SyntaxLeaf): same rationale as JsonNull —
 # "insert JSON here" is a projection-introduced placeholder with no editable
@@ -67,16 +66,15 @@ JsonInsertionToSyntaxLeaf(; font=font_ubuntu_monospace_regular_24, color=color_s
 # shared-cell shortcut does not apply. The real iomap is threaded canonically.
 function projection_print(p::JsonInsertionToSyntaxLeaf, recursion, j::JsonInsertion, ctx)
     output_selection = Cell(() -> map_reference_forward(p, nothing, j.selection))
-    SimpleIoMap(p, j, SyntaxLeaf(TextString("", p.font, color_default), TextString("", p.font, color_default), TextString("insert JSON here", p.font, p.color), output_selection))
+    SimpleIoMap(p, j, SyntaxLeaf(TextString("", p.style.font, color_default), TextString("", p.style.font, color_default), TextString("insert JSON here", p.style), output_selection))
 end
 
 # ── JsonBoolToSyntaxLeaf ─────────────────────────────────────────────────────
 
 struct JsonBoolToSyntaxLeaf <: Projection
-    font::StyleFont
-    color::StyleColor
+    style::StyleText
 end
-JsonBoolToSyntaxLeaf(; font=font_ubuntu_monospace_regular_24, color=color_solarized_yellow) = JsonBoolToSyntaxLeaf(font, color)
+JsonBoolToSyntaxLeaf(; style=StyleText(font_ubuntu_monospace_regular_24, color_solarized_yellow)) = JsonBoolToSyntaxLeaf(style)
 
 function map_reference_forward(::JsonBoolToSyntaxLeaf, iomap::SimpleIoMap, reference)
     @reference_case reference begin
@@ -98,16 +96,15 @@ end
 # the default projection_read, which routes the path through the identity
 # map_reference_backward above — no bespoke reader is needed.
 function projection_print(p::JsonBoolToSyntaxLeaf, recursion, j::JsonBool, ctx)
-    SimpleIoMap(p, j, SyntaxLeaf(TextString("", p.font, color_default), TextString("", p.font, color_default), TextString(() -> j[] ? "true" : "false", p.font, p.color), getfield(j, :selection)))
+    SimpleIoMap(p, j, SyntaxLeaf(TextString("", p.style.font, color_default), TextString("", p.style.font, color_default), TextString(() -> j[] ? "true" : "false", p.style), getfield(j, :selection)))
 end
 
 # ── JsonNumberToSyntaxLeaf ───────────────────────────────────────────────────
 
 struct JsonNumberToSyntaxLeaf <: Projection
-    font::StyleFont
-    color::StyleColor
+    style::StyleText
 end
-JsonNumberToSyntaxLeaf(; font=font_ubuntu_monospace_regular_24, color=color_solarized_magenta) = JsonNumberToSyntaxLeaf(font, color)
+JsonNumberToSyntaxLeaf(; style=StyleText(font_ubuntu_monospace_regular_24, color_solarized_magenta)) = JsonNumberToSyntaxLeaf(style)
 
 function map_reference_forward(::JsonNumberToSyntaxLeaf, iomap::SimpleIoMap, reference)
     @reference_case reference begin
@@ -129,8 +126,8 @@ end
 # (routed through the identity map_reference_backward); only the value-editing
 # path below needs a bespoke reader.
 function projection_print(p::JsonNumberToSyntaxLeaf, recursion, j::JsonNumber, ctx)
-    value = _hinted_text(() -> string(j[]), () -> j[] === nothing, "enter json number", p.font, p.color)
-    SimpleIoMap(p, j, SyntaxLeaf(TextString("", p.font, color_default), TextString("", p.font, color_default), value, getfield(j, :selection)))
+    value = _hinted_text(() -> string(j[]), () -> j[] === nothing, "enter json number", p.style)
+    SimpleIoMap(p, j, SyntaxLeaf(TextString("", p.style.font, color_default), TextString("", p.style.font, color_default), value, getfield(j, :selection)))
 end
 
 # Editing into a JsonNumber's value rewires the string operation as a
@@ -147,14 +144,12 @@ end
 # ── JsonStringToSyntaxLeaf ───────────────────────────────────────────────────
 
 struct JsonStringToSyntaxLeaf <: Projection
-    quote_font::StyleFont
-    quote_color::StyleColor
-    value_font::StyleFont
-    value_color::StyleColor
+    quote_style::StyleText
+    value::StyleText
 end
-JsonStringToSyntaxLeaf(; quote_font=font_ubuntu_monospace_regular_24, quote_color=color_solarized_yellow,
-                         value_font=font_ubuntu_monospace_regular_24, value_color=color_solarized_green) =
-    JsonStringToSyntaxLeaf(quote_font, quote_color, value_font, value_color)
+JsonStringToSyntaxLeaf(; quote_style=StyleText(font_ubuntu_monospace_regular_24, color_solarized_yellow),
+                         value=StyleText(font_ubuntu_monospace_regular_24, color_solarized_green)) =
+    JsonStringToSyntaxLeaf(quote_style, value)
 
 # The forward mapper is the inverse of map_reference_backward below: .value
 # passes through, and this projection's own ProjectionReference step (wrapping a
@@ -191,10 +186,10 @@ end
 # map_reference_backward above — .value passes through; the surrounding quotes
 # wrap into a ProjectionReference. Only value editing needs a bespoke reader.
 function projection_print(p::JsonStringToSyntaxLeaf, recursion, j::JsonString, ctx)
-    value = _hinted_text(() -> json_escape(j[]), () -> isempty(j[]), "enter json string", p.value_font, p.value_color)
+    value = _hinted_text(() -> json_escape(j[]), () -> isempty(j[]), "enter json string", p.value)
     SimpleIoMap(p, j, SyntaxLeaf(
-        TextString("\"", p.quote_font, p.quote_color),
-        TextString("\"", p.quote_font, p.quote_color),
+        TextString("\"", p.quote_style),
+        TextString("\"", p.quote_style),
         value,
         getfield(j, :selection)))
 end
@@ -214,14 +209,12 @@ end
 # ── JsonArrayToSyntaxNode ────────────────────────────────────────────────────
 
 struct JsonArrayToSyntaxNode <: Projection
-    delim_font::StyleFont
-    delim_color::StyleColor
-    sep_font::StyleFont
-    sep_color::StyleColor
+    delim::StyleText
+    sep::StyleText
 end
-JsonArrayToSyntaxNode(; delim_font=font_ubuntu_monospace_bold_24, delim_color=color_solarized_gray,
-                        sep_font=font_ubuntu_monospace_regular_24,       sep_color=color_solarized_gray) =
-    JsonArrayToSyntaxNode(delim_font, delim_color, sep_font, sep_color)
+JsonArrayToSyntaxNode(; delim=StyleText(font_ubuntu_monospace_bold_24, color_solarized_gray),
+                        sep=StyleText(font_ubuntu_monospace_regular_24, color_solarized_gray)) =
+    JsonArrayToSyntaxNode(delim, sep)
 
 # Selection mapping (School A): peel the one step this projection owns
 # (.elements[i] ↔ .children[i]) and delegate the remaining tail to element i's
@@ -284,9 +277,9 @@ function projection_print(p::JsonArrayToSyntaxNode, recursion, j::JsonArray, ctx
         map_reference_forward(p, im, path)
     end)
     node = SyntaxNode(
-        TextString("[", p.delim_font, p.delim_color),
-        TextString("]", p.delim_font, p.delim_color),
-        TextString(", ", p.sep_font, p.sep_color),
+        TextString("[", p.delim),
+        TextString("]", p.delim),
+        TextString(", ", p.sep),
         CellVector(() -> SyntaxDocument[im.output for im in child_iomaps[]]),
         1,
         Cell(false),
@@ -320,21 +313,16 @@ end
 # ── JsonObjectToSyntaxNode ───────────────────────────────────────────────────
 
 struct JsonObjectToSyntaxNode <: Projection
-    delim_font::StyleFont
-    delim_color::StyleColor
-    sep_font::StyleFont
-    sep_color::StyleColor
-    key_font::StyleFont
-    key_color::StyleColor
-    colon_font::StyleFont
-    colon_color::StyleColor
+    delim::StyleText
+    sep::StyleText
+    key::StyleText
+    colon::StyleText
 end
-JsonObjectToSyntaxNode(; delim_font=font_ubuntu_monospace_bold_24, delim_color=color_solarized_gray,
-                         sep_font=font_ubuntu_monospace_regular_24,       sep_color=color_solarized_gray,
-                         key_font=font_ubuntu_monospace_regular_24,       key_color=color_solarized_blue,
-                         colon_font=font_ubuntu_monospace_regular_24,     colon_color=color_solarized_gray) =
-    JsonObjectToSyntaxNode(delim_font, delim_color, sep_font, sep_color,
-                           key_font, key_color, colon_font, colon_color)
+JsonObjectToSyntaxNode(; delim=StyleText(font_ubuntu_monospace_bold_24, color_solarized_gray),
+                         sep=StyleText(font_ubuntu_monospace_regular_24, color_solarized_gray),
+                         key=StyleText(font_ubuntu_monospace_regular_24, color_solarized_blue),
+                         colon=StyleText(font_ubuntu_monospace_regular_24, color_solarized_gray)) =
+    JsonObjectToSyntaxNode(delim, sep, key, colon)
 
 # Selection mapping (School A). Each entry's output is a pair node whose
 # children are [key_leaf (index 1), value_subtree (index 2)]:
@@ -455,20 +443,20 @@ function projection_print(p::JsonObjectToSyntaxNode, recursion, j::JsonObject, c
         map_reference_forward(p, im, path)
     end)
     node = SyntaxNode(
-        TextString("{", p.delim_font, p.delim_color),
-        TextString("}", p.delim_font, p.delim_color),
-        TextString(", ", p.sep_font, p.sep_color),
+        TextString("{", p.delim),
+        TextString("}", p.delim),
+        TextString(", ", p.sep),
         CellVector(() -> begin
             SyntaxDocument[
                 SyntaxNode(
-                    TextString("", p.delim_font, color_default),
-                    TextString("", p.delim_font, color_default),
-                    TextString(": ", p.colon_font, p.colon_color),
+                    TextString("", p.delim.font, color_default),
+                    TextString("", p.delim.font, color_default),
+                    TextString(": ", p.colon),
                     CellVector(Cell[
                         Cell(SyntaxLeaf(
-                            TextString("\"", p.key_font, p.key_color),
-                            TextString("\"", p.key_font, p.key_color),
-                            _hinted_text(() -> json_escape(e.key), () -> isempty(e.key), "enter key", p.key_font, p.key_color),
+                            TextString("\"", p.key),
+                            TextString("\"", p.key),
+                            _hinted_text(() -> json_escape(e.key), () -> isempty(e.key), "enter key", p.key),
                             _entry_key_sel(getfield(e, :selection)))),
                         getfield(e, :value)
                     ]),
@@ -658,11 +646,11 @@ end
 # no special field — distinguished only by colour, and both content and colour
 # recompute reactively with the value, so the hint vanishes the instant the user
 # types. (Same shape JsonInsertion already uses for its "insert JSON here" hint.)
-function _hinted_text(content_thunk, empty_thunk, placeholder::AbstractString, font::StyleFont, color::StyleColor)
+function _hinted_text(content_thunk, empty_thunk, placeholder::AbstractString, style::StyleText)
     TextString(
         Cell(() -> empty_thunk() ? placeholder : content_thunk()),
-        Cell(font),
-        Cell(() -> empty_thunk() ? color_solarized_gray : color),
+        Cell(style.font),
+        Cell(() -> empty_thunk() ? color_solarized_gray : style.color),
         Cell(nothing), Cell(nothing), Cell(nothing), Cell(nothing))
 end
 
