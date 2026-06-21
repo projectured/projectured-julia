@@ -14,6 +14,7 @@ include("api/Projection.jl")
 include("api/Operation.jl")
 include("api/Document.jl")
 include("api/IoMap.jl")
+include("api/Agent.jl")
 
 # ── Infrastructure ────────────────────────────────────────────────────────
 
@@ -516,6 +517,7 @@ using .WorkbenchToWidgetModule: WorkbenchWorkbenchToWidgetShell,    WorkbenchWor
 using .GraphicsCachingModule: GraphicsCanvasToGraphicsImage, GraphicsCaching
 using .GestureRecognizerModule: GestureRecognizer, recognize!, next_gesture!
 using .EditorModule: Editor, run!, play_live!
+using .AgentModule: make_agent_server, agent_server_start!, agent_server_stop!
 using .McpModule: McpServer, mcp_start!, mcp_stop!,
                   mcp_tools, mcp_resources,
                   search_documentation, search_api,
@@ -859,6 +861,7 @@ export WorkbenchWorkbenchToWidgetShell,    WorkbenchWorkbenchToWidgetShellIoMap,
        WorkbenchEditorToWidgetScrollPane,
        WorkbenchToWidget
 export Editor, run!, play_live!
+export make_agent_server, agent_server_start!, agent_server_stop!
 export McpServer, mcp_start!, mcp_stop!,
        search_documentation, search_api,
        list_guides, read_guide, list_modules, list_classes, list_functions,

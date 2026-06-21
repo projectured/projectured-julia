@@ -15,6 +15,7 @@ using ModelContextProtocol: HttpTransport, TextResourceContents, ServerConfig
 import ..ToolRegistryModule: Tool, Resource,
                               register_tool!, register_resource!,
                               list_tools, list_resources
+import ..AgentModule: make_agent_server, agent_server_start!, agent_server_stop!
 
 # Generic system prompt for MCP clients. Kept here (not imported from the
 # Workbench domain) so this module — the future MCP package extension — has no
@@ -72,6 +73,12 @@ function McpServer(editor; instructions::AbstractString = DEFAULT_MCP_INSTRUCTIO
     )
     McpServer(editor, srv, nothing)
 end
+
+# Agent control-surface factory methods, so the editor loop drives the MCP
+# server through the generic AgentModule interface without naming `McpServer`.
+make_agent_server(::Val{:mcp}, editor; kwargs...) = McpServer(editor; kwargs...)
+agent_server_start!(mcp::McpServer) = mcp_start!(mcp)
+agent_server_stop!(mcp::McpServer) = mcp_stop!(mcp)
 
 """
     mcp_start!(mcp::McpServer) -> McpServer

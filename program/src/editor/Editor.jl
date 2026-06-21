@@ -25,7 +25,7 @@ import ..OperationModule: QuitEditorException
 import ..OperationRerootingModule: prepend_steps_to_op
 import ..ReferenceModule: ReferencePath, ConcreteReferencePath, EmptyReferencePath
 import ..GestureRecognizerModule: GestureRecognizer, next_gesture!
-import ..McpModule: McpServer, mcp_start!, mcp_stop!
+import ..AgentModule: make_agent_server, agent_server_start!, agent_server_stop!
 
 export Editor, run!, play_live!
 
@@ -164,9 +164,16 @@ MCP server) get to run between polls.
 When `mcp=true`, an MCP server is started alongside the loop so external
 clients can drive the editor; off by default.
 """
-function run!(editor::Editor; mcp::Bool=false)
-    server = mcp ? McpServer(editor) : nothing
-    server === nothing || mcp_start!(server)
+function run!(editor::Editor; mcp::Bool=false,
+              mcp_instructions::Union{AbstractString,Nothing}=nothing)
+    server = if mcp
+        mcp_instructions === nothing ?
+            make_agent_server(:mcp, editor) :
+            make_agent_server(:mcp, editor; instructions=mcp_instructions)
+    else
+        nothing
+    end
+    server === nothing || agent_server_start!(server)
     try
         while true
             perf_reset!()
@@ -179,7 +186,7 @@ function run!(editor::Editor; mcp::Bool=false)
     catch e
         e isa QuitEditorException || rethrow()
     finally
-        server === nothing || mcp_stop!(server)
+        server === nothing || agent_server_stop!(server)
     end
 end
 
