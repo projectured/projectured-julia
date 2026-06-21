@@ -176,17 +176,7 @@ end
 #     TextString over-reaches. (`json` / `text` don't hit this: their delimiters,
 #     e.g. JSON quotes, are projection-added and absent from the input document.)
 #     `syntax` is covered structurally by the tree-navigation completeness suite.
-#   * `ned` — same rendered-vs-document divergence: NedToSyntax renders each leaf
-#     entry as a single *computed* TextString (a param's `@unit`/value, a module's
-#     heading) and most document string fields (`.filename`, `.version`, a module
-#     `.name`, nested property keys/literals) never become an addressable text
-#     leaf. Text navigation covers every visible character via flat
-#     ProjectionReference offsets plus `.name`/`.import_spec` carets whose `{k}`
-#     range spans the *rendered* string, so "every document-field caret reachable"
-#     is the wrong invariant. The no-error sweep (`test_text_navigations()`)
-#     covers NED; its whole-element selections are covered by the tree-navigation
-#     completeness suite.
-const _text_navigation_complete_examples = ["text", "json", "ini"]
+const _text_navigation_complete_examples = ["text", "json"]
 
 function test_text_navigations_complete()
     @testset "TextNavigationComplete" begin

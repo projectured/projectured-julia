@@ -75,10 +75,6 @@ include("document/Book.jl")
 include("document/Evaluator.jl")
 include("document/Formula.jl")
 include("document/Conversation.jl")
-include("document/Ini.jl")
-include("document/Ned.jl")
-include("parser/IniParser.jl")
-include("parser/NedParser.jl")
 include("parser/JuliaParser.jl")
 include("parser/JsonParser.jl")
 include("parser/XmlParser.jl")
@@ -163,8 +159,6 @@ include("projection/primitive/GraphToGraphLayout.jl")
 include("projection/primitive/GraphLayoutToGraphics.jl")
 include("projection/primitive/SyntaxToWidget.jl")
 include("projection/primitive/BookToSyntax.jl")
-include("projection/primitive/IniToSyntax.jl")
-include("projection/primitive/NedToSyntax.jl")
 include("projection/primitive/LineNumbering.jl")
 include("projection/primitive/WordWrapping.jl")
 include("projection/primitive/TextFirstLine.jl")
@@ -403,28 +397,10 @@ using .VersioningModule: VersioningDocument, VersionProperties, ObjectVersion, V
 using .CollectionModule: CellVector, CellMatrix, CellTable, ListNode, CollectionDocument, left_tail, right_tail, cell_at, take_first_n
 using .BookModule: BookDocument, BookInsertion,
                    BookBook, BookChapter, BookParagraph, BookList, BookPicture
-using .IniModule: IniDocument, IniInsertion, IniComment, IniInclude,
-                  IniConfigOption, IniParamAssignment, IniSection, IniFile
-using .IniParserModule: iniparse, iniparse_file
-using .NedModule: NedDocument, NedInsertion, NedExtends, NedInterfaceName, NedLoop, NedCondition, NedLiteral,
-                  NedPropertyKey, NedProperty, NedPropertyDecl, NedParam, NedGate,
-                  NedSubmodule, NedConnection, NedConnectionGroup,
-                  NedSimpleModule, NedCompoundModule, NedModuleInterface, NedChannel, NedChannelInterface,
-                  NedPackage, NedImport, NedFile
-using .NedParserModule: nedparse, nedparse_file
 using .JuliaParserModule: juliaparse, juliaparse_file
 using .JsonParserModule: jsonparse, jsonparse_file
 using .XmlParserModule: xmlparse, xmlparse_file
 using .SqlParserModule: sqlparse, sqlparse_file
-using .IniToSyntaxModule: IniInsertionToSyntaxLeaf, IniCommentToSyntaxLeaf, IniIncludeToSyntaxLeaf,
-                          IniConfigOptionToSyntaxNode, IniParamAssignmentToSyntaxNode,
-                          IniSectionToSyntaxNode, IniFileToSyntaxNode, IniToSyntax
-using .NedToSyntaxModule: NedInsertionToSyntaxLeaf, NedPackageToSyntaxLeaf, NedImportToSyntaxLeaf,
-                          NedPropertyToSyntaxLeaf, NedParamToSyntaxLeaf, NedGateToSyntaxLeaf,
-                          NedSubmoduleToSyntaxNode, NedConnectionToSyntaxLeaf, NedConnectionGroupToSyntaxNode,
-                          NedSimpleModuleToSyntaxNode, NedCompoundModuleToSyntaxNode,
-                          NedModuleInterfaceToSyntaxNode, NedChannelToSyntaxNode, NedChannelInterfaceToSyntaxNode,
-                          NedFileToSyntaxNode, NedToSyntax
 using .ComponentModule: ComponentDocument, ComponentMasterDetail
 using .WorkbenchModule: WorkbenchDocument, WorkbenchInsertion,
                         WorkbenchWorkbench, WorkbenchPage,
@@ -653,27 +629,10 @@ export DbCatalogColumnToSyntaxLeaf, DbCatalogTableToSyntaxNode,
        DbCatalogRdbmsToSyntaxNode, DbCatalogToSyntax,
        dbcatalog_marker_eligible
 export XmlDocument, XmlInsertion, XmlText, XmlAttribute, XmlElement, xmlattr, setattr!, deleteattr!
-export IniDocument, IniInsertion, IniComment, IniInclude, IniConfigOption, IniParamAssignment, IniSection, IniFile
-export iniparse, iniparse_file
-export IniInsertionToSyntaxLeaf, IniCommentToSyntaxLeaf, IniIncludeToSyntaxLeaf,
-       IniConfigOptionToSyntaxNode, IniParamAssignmentToSyntaxNode,
-       IniSectionToSyntaxNode, IniFileToSyntaxNode, IniToSyntax
-export NedDocument, NedInsertion, NedExtends, NedInterfaceName, NedLoop, NedCondition, NedLiteral,
-       NedPropertyKey, NedProperty, NedPropertyDecl, NedParam, NedGate,
-       NedSubmodule, NedConnection, NedConnectionGroup,
-       NedSimpleModule, NedCompoundModule, NedModuleInterface, NedChannel, NedChannelInterface,
-       NedPackage, NedImport, NedFile
-export nedparse, nedparse_file
 export juliaparse, juliaparse_file
 export jsonparse, jsonparse_file
 export xmlparse, xmlparse_file
 export sqlparse, sqlparse_file
-export NedInsertionToSyntaxLeaf, NedPackageToSyntaxLeaf, NedImportToSyntaxLeaf,
-       NedPropertyToSyntaxLeaf, NedParamToSyntaxLeaf, NedGateToSyntaxLeaf,
-       NedSubmoduleToSyntaxNode, NedConnectionToSyntaxLeaf, NedConnectionGroupToSyntaxNode,
-       NedSimpleModuleToSyntaxNode, NedCompoundModuleToSyntaxNode,
-       NedModuleInterfaceToSyntaxNode, NedChannelToSyntaxNode, NedChannelInterfaceToSyntaxNode,
-       NedFileToSyntaxNode, NedToSyntax
 export FileSystemDocument, FileSystemInsertion, FileSystemFile, FileSystemDirectory, make_filesystem_pathname
 export WorkspaceDocument, WorkspaceFolder, Workspace
 export TextDocument, TextInsertion, TextText, TextString, TextNewline, TextGraphics

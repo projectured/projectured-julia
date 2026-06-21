@@ -624,7 +624,7 @@ _is_gensym_name(sname::AbstractString) = occursin('#', sname)
 # True for the `IFoo` interface type that `@document` generates next to each
 # document type `Foo` — internal plumbing the AI should not see. Only treats a
 # name as an interface when the sibling `Foo` actually exists in the module, so
-# legitimate I-prefixed names (`Inset`, `IniFile`, …) are kept.
+# legitimate I-prefixed names (`Inset`, …) are kept.
 function _is_interface_name(sname::AbstractString, present::Set{Symbol})
     length(sname) > 1 && sname[1] == 'I' && isuppercase(sname[2]) &&
         Symbol(sname[2:end]) in present

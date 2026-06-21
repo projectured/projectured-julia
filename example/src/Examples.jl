@@ -130,8 +130,6 @@ const sql_insert_syntax_example = Example("sql_insert_syntax", make_sql_insert_d
 const sql_update_syntax_example = Example("sql_update_syntax", make_sql_update_document_example, make_sql_update_syntax_projection_example)
 const sql_nested_syntax_example = Example("sql_nested_syntax", make_sql_nested_document_example, make_sql_nested_syntax_projection_example)
 const sql_table_example      = Example("sql_table",      make_sql_document_example,            make_sql_table_projection_example)
-const ini_example            = Example("ini",             make_ini_document_example,            make_ini_projection_example)
-const ned_example            = Example("ned",             make_ned_document_example,            make_ned_projection_example)
 const dragging_example       = Example("dragging",        make_dragging_document_example,       make_dragging_projection_example)
 # `clipboard_example` is deliberately kept OUT of the `examples` registry below
 # (like `lazy_example`). The internal clipboard is stateful: its document is a
@@ -194,8 +192,6 @@ const examples = [
     sql_update_syntax_example,
     sql_nested_syntax_example,
     sql_table_example,
-    ini_example,
-    ned_example,
     dragging_example,
 ]
 

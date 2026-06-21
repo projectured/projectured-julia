@@ -97,8 +97,8 @@ end
 # reachable).
 # `collect` overrides how the ground-truth enumerated set is produced (default:
 # `collect_tree_selections(document; is_node)`). Domains whose document is not a
-# native syntax tree pass a domain enumerator instead (e.g. NED passes
-# `collect_ned_tree_selections`, which mirrors NedToSyntax's child decomposition).
+# native syntax tree pass a domain enumerator instead (e.g. JSON passes
+# `collect_json_tree_selections`, which mirrors JsonToSyntax's child decomposition).
 function test_tree_navigation(label, document, projection; check_reaches_all=false, is_node=_is_syntax_node, collect=nothing)
     @testset "$label" begin
         result = explore_tree_selections(document, projection;
@@ -128,7 +128,6 @@ end
 # check_reaches_all=true)` work without the caller naming the enumerator.
 _default_tree_collector(::Any) = nothing
 _default_tree_collector(::Projectured.JsonDocument) = collect_json_tree_selections
-_default_tree_collector(::Projectured.NedFile) = collect_ned_tree_selections
 
 function test_tree_navigation(example::Example; check_reaches_all=false, is_node=_is_syntax_node, collect=nothing)
     collect === nothing && (collect = _default_tree_collector(example.document))
@@ -166,12 +165,12 @@ end
 
 # Examples whose every structural selection is enumerable as ground truth.
 # `syntax` is a *native* SyntaxDocument tree, so the `is_node = SyntaxDocument`
-# predicate reproduces the Alt+arrow-reachable set exactly. `json` and `ned` are
-# projected *to* syntax, so they use a projection-aware enumerator instead
+# predicate reproduces the Alt+arrow-reachable set exactly. `json` is
+# projected *to* syntax, so it uses a projection-aware enumerator instead
 # (selected automatically by document type via `_default_tree_collector`).
 # xml / math still expose no tree navigation in this harness (Ctrl+Alt+Home
 # yields no selection).
-const _tree_navigation_complete_examples = ["syntax", "json", "ned"]
+const _tree_navigation_complete_examples = ["syntax", "json"]
 
 # A structural tree node in the syntax domain is any SyntaxDocument — this
 # excludes the CellVector child containers and the TextString delimiter / value
