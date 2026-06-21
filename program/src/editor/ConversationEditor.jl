@@ -49,7 +49,7 @@ import ..LayoutModule: VerticalLayout, HorizontalLayout
 import ..FontModule: font_ubuntu_monospace_regular_24
 import ..ColorModule: color_default, color_solarized_gray
 import ..ReferenceModule: Reference, ConcreteReferencePath, FieldReference,
-                          RangeReference, EmptyReferencePath
+                          RangeReference, EmptyReferencePath, skip_type_checkpoints
 import ..KeyboardModule: KeyDown, KeyPress
 import ..EventCaseModule: var"@event_case"
 import ..IoMapModule: SimpleIoMap
@@ -85,9 +85,11 @@ _valpath(k::Int) = ConcreteReferencePath(FieldReference("value"),
 
 # Read the cursor offset out of a content's selection, defaulting to end-of-value.
 function _cursor(c)
-    sel = getfield(c, :selection)[]
+    # Selections are canonical at rest: skip the TypeReference checkpoints before
+    # reading the `value[range]` cursor structure.
+    sel = skip_type_checkpoints(getfield(c, :selection)[])
     if sel isa ConcreteReferencePath && sel.head isa FieldReference && sel.head.name == "value"
-        t = sel.tail
+        t = skip_type_checkpoints(sel.tail)
         if t isa ConcreteReferencePath && t.head isa RangeReference
             return t.head.stop
         end
