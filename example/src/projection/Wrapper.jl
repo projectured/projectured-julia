@@ -1,4 +1,4 @@
-function make_graphics_caching(projection; render=sdl_render_canvas)
+function make_graphics_caching(projection; render=render_canvas)
     SequentialProjection(projection, RecursiveProjection(GraphicsCaching(render=render)))
 end
 

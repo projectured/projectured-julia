@@ -7,7 +7,8 @@ module SdlBackendModule
 
 using SimpleDirectMediaLayer
 using SimpleDirectMediaLayer.LibSDL2
-import ..BackendModule: Backend, init!, quit!, measure_text, make_backend, write_image, record_video
+import ..BackendModule: Backend, init!, quit!, measure_text, make_backend, write_image, record_video,
+                        render_canvas, decode_image, display_size, set_display_size_provider!
 import ..DeviceModule: Device, read_from_devices, write_to_devices, write_to_device
 import ..GraphicsModule: GraphicsCanvas, GraphicsText, GraphicsRect, GraphicsLine, GraphicsCircle,
                          GraphicsPolyline, GraphicsSpline, GraphicsViewport, GraphicsImage,
@@ -1502,6 +1503,11 @@ function sdl_render_canvas(canvas::GraphicsCanvas)
     GraphicsImage(Int32(0), Int32(0), Int32(0), Int32(0), nothing)
 end
 
+# Backend-interface methods: let callers reach SDL rendering/decoding/display
+# through the generic BackendModule seams without naming SdlBackendModule, so the
+# SDL backend can move into an optional extension.
+render_canvas(canvas::GraphicsCanvas) = sdl_render_canvas(canvas)
+
 # ════════════════════════════════════════════════════════════════════════
 # Offscreen rendering / write_image
 # ════════════════════════════════════════════════════════════════════════
@@ -2273,5 +2279,10 @@ end
 # Backend factory method: lets callers build the SDL backend via
 # `make_backend(:sdl; …)` without naming `SdlBackend` directly (extension-ready).
 make_backend(::Val{:sdl}; kwargs...) = SdlBackend(; kwargs...)
+
+# Image decode via the generic seam, and register SDL as the real display-size
+# provider (so `display_size()` returns the actual display when SDL is loaded).
+decode_image(filename::AbstractString) = sdl_decode_image(filename)
+set_display_size_provider!(sdl_display_size)
 
 end # module

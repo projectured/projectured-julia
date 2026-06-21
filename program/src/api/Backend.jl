@@ -8,7 +8,8 @@ etc.
 """
 module BackendModule
 
-export Backend, init!, quit!, measure_text, make_backend, write_image, record_video
+export Backend, init!, quit!, measure_text, make_backend, write_image, record_video,
+       render_canvas, decode_image, display_size, set_display_size_provider!
 
 """
     Backend
@@ -73,5 +74,48 @@ and `FFMPEG` to be available. Generic forward-declaration kept here so callers
 need not name the concrete backend module.
 """
 function record_video end
+
+"""
+    render_canvas(canvas::GraphicsCanvas) -> GraphicsImage
+
+Rasterize a graphics canvas to an image. Implemented by a rendering backend
+(the SDL backend), so it needs that backend's optional dependency. Generic
+forward-declaration so callers (e.g. the graphics-caching projection) need not
+name the concrete backend module.
+"""
+function render_canvas end
+
+"""
+    decode_image(filename) -> (data::Vector{UInt8}, width, height)
+
+Decode an image file to raw RGBA pixels. Implemented by the SDL backend (the
+only image decoder), so it requires SDL. Generic forward-declaration so callers
+need not name the concrete backend module.
+"""
+function decode_image end
+
+# Display-size provider: a rendering backend that can query the real display
+# (the SDL backend) registers a provider; without one, a fixed default is used
+# so headless/SDL-free callers still get a sensible size.
+const _DISPLAY_SIZE_PROVIDER = Ref{Any}(nothing)
+
+"""
+    set_display_size_provider!(f)
+
+Register `f(; display)` as the real display-size source (called by a backend
+that can query the display, e.g. SDL).
+"""
+set_display_size_provider!(f) = (_DISPLAY_SIZE_PROVIDER[] = f)
+
+"""
+    display_size(; display=0) -> (width, height)
+
+The display's pixel size when a backend has registered a provider (e.g. SDL),
+otherwise a fixed SDL-free default `(1280, 800)`.
+"""
+function display_size(; display::Integer=0)
+    p = _DISPLAY_SIZE_PROVIDER[]
+    p === nothing ? (1280, 800) : p(; display=display)
+end
 
 end # module

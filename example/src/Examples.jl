@@ -253,7 +253,7 @@ function run_example(examples::Vector{Example}; width=nothing, height=nothing,
         error("run_example: text_filtering and text_highlighting are mutually exclusive")
     end
     if width === nothing || height === nothing
-        sw, sh = sdl_display_size()
+        sw, sh = display_size()
         width  = something(width,  sw)
         height = something(height, sh)
     end

@@ -11,7 +11,7 @@ using Projectured: ElementReference, RangeReference, PositionReference, FieldRef
                    color_solarized_background_dark,
                    font_ubuntu_monospace_regular_24
 
-const _test_backend = SdlBackend()
+const _test_backend = make_backend(:sdl)
 
 function __init__()
     init!(_test_backend)

@@ -53,7 +53,7 @@ function _load_inline_image(name::AbstractString)
     img = ImageFile(path)
     setfn!(getfield(img, :raw), () -> begin
         try
-            sdl_decode_image(path)
+            decode_image(path)
         catch
             nothing
         end
