@@ -126,6 +126,80 @@ function test_execute_raw(adapter)
     end
 end
 
+# Render a parsed/constructed SQL document to executable text through the
+# Sql→Syntax→Text→String pipeline (the same path an LLM-facing DDL view uses).
+_ddl_render_pipe() = SequentialProjection(
+    RecursiveProjection(SqlToSyntax()),
+    RecursiveProjection(SyntaxToText()),
+    RecursiveProjection(TextToString()))
+_ddl_to_sql(stmt) = projection_print(_ddl_render_pipe(), stmt).output[]
+
+# Full DDL lifecycle, run entirely inside a dedicated `test` schema (the `public`
+# schema is reserved for other purposes here). Each statement is parsed from
+# external SQL text, rendered back through the Sql→Syntax→Text→String pipeline,
+# and the rendered text executed against the live database — proving the parser
+# and SqlToSyntax emit executable PostgreSQL.
+#
+# Order of operations:
+#   1. CREATE SCHEMA test
+#   2. CREATE TABLE test.ddl_roundtrip (…)
+# then teardown in reverse:
+#   3. DROP TABLE test.ddl_roundtrip
+#   4. DROP SCHEMA test
+function test_create_ddl_in_test_schema(adapter)
+    @testset "T7 — CREATE SCHEMA/TABLE DDL round-trip (test schema)" begin
+        schema_stmt = sqlparse("CREATE SCHEMA test")
+        @test schema_stmt isa SqlCreateSchemaStatement
+        @test schema_stmt.schema_name == "test"
+
+        table_stmt = sqlparse(
+            "CREATE TABLE test.ddl_roundtrip (id integer, name text, price numeric(10, 2))")
+        @test table_stmt isa SqlCreateTableStatement
+        @test table_stmt.table_name.schema_name == "test"
+        @test table_stmt.table_name.name == "ddl_roundtrip"
+        @test length(table_stmt.columns) == 3
+
+        # Clean slate (reverse order) in case a previous run left artifacts behind.
+        db_execute_raw(adapter, "DROP TABLE IF EXISTS test.ddl_roundtrip", RawDatabaseResult)
+        db_execute_raw(adapter, "DROP SCHEMA IF EXISTS test", RawDatabaseResult)
+
+        try
+            # 1. CREATE SCHEMA test
+            db_execute_raw(adapter, _ddl_to_sql(schema_stmt), RawDatabaseResult)
+            @test length(db_execute_raw(adapter,
+                "SELECT schema_name FROM information_schema.schemata " *
+                "WHERE schema_name = 'test'", RawDatabaseResult).rows) == 1
+
+            # 2. CREATE TABLE test.ddl_roundtrip (…)
+            db_execute_raw(adapter, _ddl_to_sql(table_stmt), RawDatabaseResult)
+            cols = db_execute_raw(adapter,
+                "SELECT column_name, data_type FROM information_schema.columns " *
+                "WHERE table_schema = 'test' AND table_name = 'ddl_roundtrip' " *
+                "ORDER BY ordinal_position",
+                RawDatabaseResult)
+            @test [string(r[1]) for r in cols.rows] == ["id", "name", "price"]
+            @test [string(r[2]) for r in cols.rows] == ["integer", "text", "numeric"]
+
+            # 3. DROP TABLE test.ddl_roundtrip
+            db_execute_raw(adapter, "DROP TABLE test.ddl_roundtrip", RawDatabaseResult)
+            @test isempty(db_execute_raw(adapter,
+                "SELECT 1 FROM information_schema.tables " *
+                "WHERE table_schema = 'test' AND table_name = 'ddl_roundtrip'",
+                RawDatabaseResult).rows)
+
+            # 4. DROP SCHEMA test
+            db_execute_raw(adapter, "DROP SCHEMA test", RawDatabaseResult)
+            @test isempty(db_execute_raw(adapter,
+                "SELECT 1 FROM information_schema.schemata WHERE schema_name = 'test'",
+                RawDatabaseResult).rows)
+        finally
+            # Safety net (reverse order) if an assertion above failed mid-lifecycle.
+            db_execute_raw(adapter, "DROP TABLE IF EXISTS test.ddl_roundtrip", RawDatabaseResult)
+            db_execute_raw(adapter, "DROP SCHEMA IF EXISTS test", RawDatabaseResult)
+        end
+    end
+end
+
 # ── Entry points ──────────────────────────────────────────────────────────────
 
 function test_database_connection()
@@ -168,6 +242,7 @@ function test_database(; skip_if_no_db=true)
             test_update(adapter)
             test_delete(adapter)
             test_execute_raw(adapter)
+            test_create_ddl_in_test_schema(adapter)
         finally
             db_close!(adapter)
         end

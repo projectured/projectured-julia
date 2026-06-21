@@ -152,4 +152,57 @@ function test_sql_to_syntax_selection()
     test_selection("SqlToSyntax nested", doc, proj)
 end
 
-export test_sql_to_syntax, test_sql_to_syntax_selection, test_sql_insert_update_selection
+function test_sql_ddl()
+    @testset "SqlToSyntax DDL (CREATE TABLE / SCHEMA)" begin
+        sql_pipe = SequentialProjection(
+            RecursiveProjection(SqlToSyntax()),
+            RecursiveProjection(SyntaxToText()),
+            RecursiveProjection(TextToString()))
+        sql_text(doc) = projection_print(sql_pipe, doc).output[]
+
+        # CREATE TABLE: multi-line, schema-qualified, indented column list.
+        create_table = SqlCreateTableStatement(
+            SqlTableName("public", "film"),
+            [SqlColumnDefinition("title", "text"),
+             SqlColumnDefinition("len", "integer")])
+        @test sql_text(create_table) ==
+            "CREATE TABLE public.film (\n  title text,\n  len integer\n);"
+
+        # A single column definition on its own renders `<name> <type>`.
+        @test sql_text(SqlColumnDefinition("id", "integer")) == "id integer"
+
+        # CREATE SCHEMA: single line.
+        @test sql_text(SqlCreateSchemaStatement("public")) == "CREATE SCHEMA public;"
+    end
+end
+
+function test_sql_ddl_selection()
+    @testset "SqlToSyntax DDL selection round-trip" begin
+        proj = RecursiveProjection(SqlToSyntax())
+
+        create_table = SqlCreateTableStatement(
+            SqlTableName("public", "film"),
+            [SqlColumnDefinition("title", "text"),
+             SqlColumnDefinition("len", "integer")])
+        iomap = projection_print(proj, create_table)
+        p = iomap.projection
+        for path in (
+                ReferencePath(FieldReference("table_name")),
+                ReferencePath(FieldReference("columns"), ElementReference(1),
+                              FieldReference("column_name")),
+                ReferencePath(FieldReference("columns"), ElementReference(2),
+                              FieldReference("column_name")))
+            fwd = map_reference_forward(p, iomap, path)
+            @test fwd !== nothing
+            @test map_reference_backward(p, iomap, fwd) == path
+        end
+
+        # CREATE SCHEMA only maps the whole-statement (∅) selection.
+        siomap = projection_print(proj, SqlCreateSchemaStatement("public"))
+        sp = siomap.projection
+        @test map_reference_forward(sp, siomap, EmptyReferencePath()) == EmptyReferencePath()
+    end
+end
+
+export test_sql_to_syntax, test_sql_to_syntax_selection, test_sql_insert_update_selection,
+       test_sql_ddl, test_sql_ddl_selection

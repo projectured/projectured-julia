@@ -48,6 +48,9 @@ export SqlDocument, SqlStatement,
        SqlInsertStatement,   ISqlInsertStatement,
        SqlUpdateAssignment,  ISqlUpdateAssignment,
        SqlUpdateStatement,   ISqlUpdateStatement,
+       SqlColumnDefinition,      ISqlColumnDefinition,
+       SqlCreateTableStatement,  ISqlCreateTableStatement,
+       SqlCreateSchemaStatement, ISqlCreateSchemaStatement,
        SqlBooleanExpression,
        SqlScalarValue,    ISqlScalarValue,
        SqlComparison,     ISqlComparison,
@@ -358,11 +361,48 @@ SqlUpdateStatement(table::SqlTableName,
                    wc::SqlWhereClause=SqlWhereClause()) =
     SqlUpdateStatement(table, CellVector([assignments...]), wc, Cell(nothing))
 
+# ── DDL: CREATE statements ─────────────────────────────────────────────────────
+# Column definition inside a CREATE TABLE: `<column-name> <data-type>`.
+# The catalog stores the data type as a plain string, so we carry it as a String.
+# Room to grow later (nullable, default, constraints); start with name + type.
+@document struct SqlColumnDefinition <: SqlDocument
+    column_name::SqlColumnName
+    data_type::String             # e.g. "integer", "text", "varchar(255)"
+    selection::Reference
+end
+SqlColumnDefinition(col::SqlColumnName, data_type::AbstractString) =
+    SqlColumnDefinition(col, String(data_type), Cell(nothing))
+SqlColumnDefinition(col::AbstractString, data_type::AbstractString) =
+    SqlColumnDefinition(SqlColumnName(col), String(data_type), Cell(nothing))
+
+# `CREATE TABLE <table-name> (<column-definition>, …)`.
+@document struct SqlCreateTableStatement <: SqlStatement
+    table_name::SqlTableName
+    columns::CellVector           # [SqlColumnDefinition]
+    selection::Reference
+end
+SqlCreateTableStatement(table_name::SqlTableName, columns::CellVector) =
+    SqlCreateTableStatement(table_name, columns, Cell(nothing))
+SqlCreateTableStatement(table_name::SqlTableName,
+                        columns::AbstractVector{SqlColumnDefinition}) =
+    SqlCreateTableStatement(table_name, CellVector([columns...]), Cell(nothing))
+
+# `CREATE SCHEMA <schema-name>`.
+@document struct SqlCreateSchemaStatement <: SqlStatement
+    schema_name::String
+    selection::Reference
+end
+SqlCreateSchemaStatement(schema_name::AbstractString) =
+    SqlCreateSchemaStatement(String(schema_name), Cell(nothing))
+
 # ── Base.show ──────────────────────────────────────────────────────────────────
 
 Base.show(io::IO, n::SqlTableName)        = print(io, n.schema_name === nothing ? n.name : "$(n.schema_name).$(n.name)")
 Base.show(io::IO, a::SqlTableAlias)       = print(io, a.name)
 Base.show(io::IO, c::SqlColumnName)       = print(io, c.name)
 Base.show(io::IO, a::SqlColumnAlias)      = print(io, a.name)
+Base.show(io::IO, d::SqlColumnDefinition) = print(io, "$(d.column_name) $(d.data_type)")
+Base.show(io::IO, s::SqlCreateTableStatement) = print(io, "CREATE TABLE $(s.table_name)")
+Base.show(io::IO, s::SqlCreateSchemaStatement) = print(io, "CREATE SCHEMA $(s.schema_name)")
 
 end # module

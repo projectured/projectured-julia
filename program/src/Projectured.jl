@@ -271,6 +271,7 @@ using .SqlDocumentModule: SqlDocument, SqlStatement,
                           SqlTableExpression, SqlJoinedFromItem, SqlFromItem, SqlFromClause,
                           SqlSelectStatement, SqlSubqueryFromItem,
                           SqlInsertStatement, SqlUpdateAssignment, SqlUpdateStatement,
+                          SqlColumnDefinition, SqlCreateTableStatement, SqlCreateSchemaStatement,
                           SqlWhereFilterCondition, SqlBooleanExpression,
                           SqlScalarValue, SqlComparison,
                           SqlAnd, SqlOr, SqlNot
@@ -458,7 +459,9 @@ using .SqlToSyntaxModule: SqlToSyntax, SqlAllColumnsToSyntaxLeaf, SqlColumnRefer
                           SqlWhereFilterConditionToSyntaxNode,
                           SqlWhereClauseToSyntaxNode, SqlSelectStatementToSyntaxNode,
                           SqlInsertStatementToSyntaxNode, SqlUpdateAssignmentToSyntaxNode,
-                          SqlUpdateStatementToSyntaxNode
+                          SqlUpdateStatementToSyntaxNode,
+                          SqlColumnDefinitionToSyntaxNode, SqlCreateTableStatementToSyntaxNode,
+                          SqlCreateSchemaStatementToSyntaxNode
 using .JuliaToSyntaxModule: JuliaToSyntax, JuliaIdentifierToSyntaxLeaf, JuliaIntegerToSyntaxLeaf,
                              JuliaBinaryOpToSyntaxNode, JuliaCallToSyntaxNode,
                              JuliaIfToSyntaxNode, JuliaFunctionToSyntaxNode,
@@ -582,6 +585,7 @@ export SqlDocument, SqlStatement,
        SqlTableExpression, SqlJoinedFromItem, SqlFromItem, SqlFromClause,
        SqlSelectStatement, SqlSubqueryFromItem,
        SqlInsertStatement, SqlUpdateAssignment, SqlUpdateStatement,
+       SqlColumnDefinition, SqlCreateTableStatement, SqlCreateSchemaStatement,
        SqlWhereFilterCondition, SqlBooleanExpression,
        SqlScalarValue, SqlComparison,
        SqlAnd, SqlOr, SqlNot
@@ -594,7 +598,9 @@ export SqlToSyntax, SqlAllColumnsToSyntaxLeaf, SqlColumnReferenceToSyntaxLeaf,
        SqlWhereFilterConditionToSyntaxNode,
        SqlWhereClauseToSyntaxNode, SqlSelectStatementToSyntaxNode,
        SqlInsertStatementToSyntaxNode, SqlUpdateAssignmentToSyntaxNode,
-       SqlUpdateStatementToSyntaxNode
+       SqlUpdateStatementToSyntaxNode,
+       SqlColumnDefinitionToSyntaxNode, SqlCreateTableStatementToSyntaxNode,
+       SqlCreateSchemaStatementToSyntaxNode
 export DbCatalogDocument,
        DbCatalogRdbms, DbCatalogDatabase, DbCatalogSchema,
        DbCatalogTable, DbCatalogColumn

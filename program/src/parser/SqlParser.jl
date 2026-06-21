@@ -1,17 +1,22 @@
 """
     SqlParserModule
 
-Parser for SQL SELECT statements. Converts SQL source text into a
-`SqlSelectStatement` tree from `SqlDocumentModule`.
+Parser for SQL statements. Converts SQL source text into a `SqlStatement` tree
+from `SqlDocumentModule`. Two statement families are recognised:
+
+- **SELECT** queries → `SqlSelectStatement`.
+- **DDL** `CREATE TABLE` / `CREATE SCHEMA` → `SqlCreateTableStatement` /
+  `SqlCreateSchemaStatement`.
 
 Provides:
-- `sqlparse(text)` — parse a SQL string into a `SqlSelectStatement`
+- `sqlparse(text)` — parse a SQL string into a `SqlStatement`
 - `sqlparse_file(path)` — read and parse a `.sql` file from disk
 
 A lightweight tokeniser feeds a single-pass, one-token-lookahead recursive-descent
 parser. Scope is the SELECT-related types defined in `Sql.jl`: SELECT/FROM/WHERE
 clauses, joins, ON/USING conditions, subqueries, boolean expressions, column
-references, aliases, DISTINCT, and scalar values.
+references, aliases, DISTINCT, and scalar values; plus the DDL `CREATE TABLE`
+(table name + column name/type list) and `CREATE SCHEMA` (schema name) forms.
 
 Unsupported fragments are handled gracefully: comments are stripped by the
 tokeniser, trailing clauses (GROUP BY, ORDER BY, …) are consumed, and unsupported
@@ -31,7 +36,8 @@ import ..SqlDocumentModule: SqlSelectStatement, SqlSelectClause, SqlFromClause, 
                             SqlTableExpression, SqlSubqueryFromItem, SqlFromItem, SqlJoinedFromItem,
                             SqlInnerJoin, SqlLeftOuterJoin, SqlRightOuterJoin, SqlFullOuterJoin, SqlCrossJoin,
                             SqlJoinOnCondition, SqlJoinUsingCondition,
-                            SqlScalarValue, SqlComparison, SqlAnd, SqlOr, SqlNot
+                            SqlScalarValue, SqlComparison, SqlAnd, SqlOr, SqlNot,
+                            SqlColumnDefinition, SqlCreateTableStatement, SqlCreateSchemaStatement
 
 export sqlparse, sqlparse_file
 
@@ -40,14 +46,15 @@ export sqlparse, sqlparse_file
 # ══════════════════════════════════════════════════════════════════════════════
 
 """
-    sqlparse(text::AbstractString) -> SqlSelectStatement
+    sqlparse(text::AbstractString) -> SqlStatement
 
-Parse a SQL string into a `SqlSelectStatement`. Raises an error if `text` is not a
-parseable SELECT statement.
+Parse a SQL string into a `SqlStatement` (a `SqlSelectStatement` for queries, or a
+`SqlCreateTableStatement` / `SqlCreateSchemaStatement` for DDL). Raises an error if
+`text` is not a parseable statement.
 """
 function sqlparse(text::AbstractString)
     parsed = parse_sql(String(text))
-    parsed === nothing && error("SQL: not a parseable SELECT statement")
+    parsed === nothing && error("SQL: not a parseable statement")
     return parsed
 end
 
@@ -91,6 +98,7 @@ const SQL_KEYWORDS = Set{String}([
     "TRUE", "FALSE",
     "GROUP", "ORDER", "HAVING", "LIMIT", "OFFSET", "UNION",
     "INSERT", "UPDATE", "DELETE", "CREATE", "DROP", "ALTER",
+    "TABLE", "SCHEMA",
     "SET", "INTO", "VALUES", "BY", "ASC", "DESC", "BETWEEN",
     "IN", "LIKE", "IS", "NULL", "CASE", "WHEN", "THEN", "ELSE", "END",
     "EXISTS", "ALL", "ANY", "SOME", "WITH", "WINDOW", "FOR",
@@ -308,22 +316,28 @@ end
 # ── top-level entry ───────────────────────────────────────────────────────────
 
 """
-    parse_sql(sql::String) → SqlSelectStatement | nothing
+    parse_sql(sql::String) → SqlStatement | nothing
 
-Parse `sql` into the SQL document hierarchy.  Returns `nothing` if the input
-is not a SELECT statement or cannot be parsed.
+Parse `sql` into the SQL document hierarchy.  Returns `nothing` if the input is
+neither a SELECT query nor a supported `CREATE` DDL statement, or cannot be
+parsed.
 """
 function parse_sql(sql::String)
     p = Parser(sql)
-    # Must start with SELECT
-    if !match_keyword(p, "SELECT")
-        return nothing
+    if match_keyword(p, "SELECT")
+        try
+            return parse_select_statement!(p)
+        catch
+            return nothing
+        end
+    elseif match_keyword(p, "CREATE")
+        try
+            return parse_create_statement!(p)
+        catch
+            return nothing
+        end
     end
-    try
-        return parse_select_statement!(p)
-    catch
-        return nothing
-    end
+    return nothing
 end
 
 # ── SELECT statement ──────────────────────────────────────────────────────────
@@ -349,6 +363,119 @@ function parse_select_statement!(p::Parser)
     skip_trailing!(p)
 
     return SqlSelectStatement(sc, fc, wc)
+end
+
+# ── CREATE (DDL) statements ─────────────────────────────────────────────────────
+
+"""
+    parse_create_statement!(p) → SqlCreateTableStatement | SqlCreateSchemaStatement | nothing
+
+Dispatch a leading `CREATE` to the `TABLE` or `SCHEMA` form. Returns `nothing`
+for any other `CREATE …` (INDEX, VIEW, DATABASE, …) — out of scope here.
+"""
+function parse_create_statement!(p::Parser)
+    expect_keyword!(p, "CREATE") === nothing && return nothing
+    if match_keyword(p, "TABLE")
+        return parse_create_table!(p)
+    elseif match_keyword(p, "SCHEMA")
+        return parse_create_schema!(p)
+    end
+    return nothing
+end
+
+# CREATE SCHEMA <name>
+function parse_create_schema!(p::Parser)
+    expect_keyword!(p, "SCHEMA") === nothing && return nothing
+    id = consume_ident!(p)
+    id === nothing && return nothing
+    name = ident_string(id)
+    skip_trailing!(p)
+    return SqlCreateSchemaStatement(name)
+end
+
+# CREATE TABLE [schema.]table ( <column-def> {, <column-def>} )
+function parse_create_table!(p::Parser)
+    expect_keyword!(p, "TABLE") === nothing && return nothing
+
+    id = consume_ident!(p)
+    id === nothing && return nothing
+    name = ident_string(id)
+
+    tname = if peek(p).kind == TK_DOT
+        advance!(p)  # consume dot
+        table_tok = consume_ident!(p)
+        table_tok !== nothing ? SqlTableName(name, ident_string(table_tok)) : SqlTableName(name)
+    else
+        SqlTableName(name)
+    end
+
+    peek(p).kind == TK_LPAREN || return nothing
+    advance!(p)  # consume (
+
+    columns = SqlColumnDefinition[]
+    if peek(p).kind != TK_RPAREN
+        col = parse_column_definition!(p)
+        col === nothing && return nothing
+        push!(columns, col)
+        while peek(p).kind == TK_COMMA
+            advance!(p)  # consume comma
+            col = parse_column_definition!(p)
+            col === nothing && break
+            push!(columns, col)
+        end
+    end
+
+    if peek(p).kind == TK_RPAREN
+        advance!(p)  # consume )
+    end
+    skip_trailing!(p)
+
+    return SqlCreateTableStatement(tname, CellVector([columns...]))
+end
+
+# A single `<column-name> <data-type>` entry. The catalog model carries only the
+# column name and a plain-string type, so the type is captured as raw source text
+# (e.g. "integer", "varchar(255)", "numeric(10, 2)") up to the next top-level
+# comma or the closing paren. Any trailing per-column constraints (NOT NULL,
+# PRIMARY KEY, …) are folded into that string — the document model has no field
+# for them yet (see plan: catalog enrichment is tracked separately).
+function parse_column_definition!(p::Parser)
+    id = consume_ident!(p)
+    id === nothing && return nothing
+    col_name = ident_string(id)
+
+    type_str = parse_data_type!(p)
+    type_str === nothing && return nothing
+
+    return SqlColumnDefinition(SqlColumnName(col_name), type_str)
+end
+
+# Greedy raw-text capture of a column's data type, respecting paren depth so
+# parameterised types like `numeric(10, 2)` are kept whole. Stops at a top-level
+# comma or closing paren (the column-list delimiters).
+function parse_data_type!(p::Parser)
+    start_pos = peek(p).pos
+    depth = 0
+    last_end = -1
+
+    while !at_end(p)
+        tok = peek(p)
+        if depth == 0 && (tok.kind == TK_COMMA || tok.kind == TK_RPAREN)
+            break
+        end
+        if tok.kind == TK_LPAREN
+            depth += 1
+        elseif tok.kind == TK_RPAREN
+            depth -= 1
+        end
+        last_end = tok.pos + length(tok.value) - 1
+        advance!(p)
+    end
+
+    last_end < start_pos && return nothing
+    raw = strip(SubString(p.source, start_pos, last_end))
+    isempty(raw) && return nothing
+    return String(raw)
 end
 
 # ── SELECT clause ─────────────────────────────────────────────────────────────

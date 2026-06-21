@@ -11,6 +11,16 @@ This plan covers three layers that ship together:
 2. **`SqlToSyntax`** rendering for those types (+ optional **`SqlParser`** support).
 3. **`DbCatalogToSql`** projection: catalog → DDL document tree, built directly.
 
+## Status (2026-06-21)
+
+- **Layer 1 — DONE.** `SqlColumnDefinition`, `SqlCreateTableStatement`,
+  `SqlCreateSchemaStatement` added to `Sql.jl`, exported through `Projectured.jl`.
+- **Layer 2 — DONE, including the optional parser.** `SqlToSyntax` renders all
+  three types; `SqlParser` now parses `CREATE TABLE` / `CREATE SCHEMA` too. Both
+  the offline `SqlToSyntax`/`SqlParser` suites and a live-DB round-trip test pass.
+- **Layer 3 — PENDING.** `DbCatalogToSql` not yet started; this is the remaining
+  work. The open questions below are decisions for Layer 3.
+
 The goal that motivates this: a representation of a database that is *easy for an
 LLM to understand*. DDL (`CREATE TABLE …`) is the most idiomatic, highest-prior
 form an LLM has for "how a database looks", far more than a bespoke syntax tree.
@@ -55,9 +65,18 @@ So the two catalog views coexist deliberately:
 
 ---
 
-## Layer 1 — SQL DDL document types
+## Layer 1 — SQL DDL document types ✅ DONE
 
 **File:** `program/src/document/Sql.jl`
+
+**As implemented:** `SqlColumnDefinition` (`column_name::SqlColumnName`,
+`data_type::String`), `SqlCreateTableStatement` (`table_name::SqlTableName`,
+`columns::CellVector`), `SqlCreateSchemaStatement` (`schema_name::String`) — each
+with the `selection::Reference` field, convenience constructors that default the
+selection to `Cell(nothing)` and accept plain vectors / bare strings, and terse
+`Base.show` methods. Names are wired into the `using .SqlDocumentModule` import
+list and `export` list in `Projectured.jl`. Scope kept to name + type only (no
+nullable/default/constraints), matching what the catalog holds.
 
 The Sql domain currently models only `SqlSelectStatement` plus stub
 `SqlInsertStatement` / `SqlUpdateStatement` (selection-only). Add DDL statement
@@ -91,7 +110,27 @@ Notes:
 
 ---
 
-## Layer 2 — `SqlToSyntax` rendering (+ optional parser)
+## Layer 2 — `SqlToSyntax` rendering (+ optional parser) ✅ DONE
+
+**As implemented (rendering):** three projections in
+`program/src/projection/primitive/SqlToSyntax.jl`, registered in the
+`SqlToSyntax()` dispatcher and exported via `Projectured.jl`:
+
+- `SqlColumnDefinitionToSyntaxNode` — `<column-name> <data-type>`; the column name
+  recurses through the existing `SqlColumnName` leaf, the type is a plain leaf
+  (it's a `String` on the document, so no projected child).
+- `SqlCreateTableStatementToSyntaxNode` — multi-line, schema-qualified, with the
+  column list in an indented `(` … `)` body node (`indentation=1`) and a trailing
+  `;` carried as the node's **close** delimiter. Child positions: `[1]`=CREATE,
+  `[2]`=TABLE, `[3]`=table_name, `[4]`=columns body.
+- `SqlCreateSchemaStatementToSyntaxNode` — single line `CREATE SCHEMA name;`. The
+  schema name is a plain `String` (no projected child), so the statement has
+  **no child iomaps** and maps only the whole-statement (`∅`) selection.
+
+Selection mapping is fully wired (forward/backward + `projection_read`) and
+round-trips (verified: `columns[2].column_name ↔ children[4].children[2].children[1]`,
+`table_name ↔ children[3]`). Rendered indentation is the project standard **2
+spaces**, e.g. `CREATE TABLE public.film (\n  title text,\n  len integer\n);`.
 
 **File:** `program/src/projection/primitive/SqlToSyntax.jl`
 
@@ -117,23 +156,44 @@ CREATE SCHEMA name;
   LLM-teaching use case) and follow the `ChildrenIoMap` clause-delegation pattern
   used by `SqlSelectStatementToSyntaxNode` when round-trip editing is wanted.
 
-**Parser (optional, can land later in this plan or be deferred):**
+**Parser ✅ DONE (was optional; INSERT/UPDATE parsing explicitly excluded).**
 **File:** `program/src/parser/SqlParser.jl`
 
-`sqlparse` currently parses **SELECT only**
-([SqlParser.jl:4](../../program/src/parser/SqlParser.jl#L4)). Extend the
-recursive-descent parser to recognise `CREATE TABLE` / `CREATE SCHEMA` so
-external DDL text round-trips into the new document types. This is **only needed
-for ingesting external SQL** — it is *not* on the `DbCatalogToSql` path. If time
-is short, ship Layers 1–3 and rendering first; add DDL parsing as a follow-up.
+`sqlparse` now dispatches on the leading keyword: `SELECT` → existing query path,
+`CREATE` → new DDL path (`CREATE TABLE` / `CREATE SCHEMA`); anything else still
+returns `nothing` → raises. This is **only for ingesting external SQL** — *not*
+on the `DbCatalogToSql` path.
+
+Learnings worth keeping:
+
+- **`TABLE` and `SCHEMA` were not in `SQL_KEYWORDS`** and tokenised as plain
+  identifiers, so `match_keyword(p, "TABLE")` failed silently — the parser just
+  returned `nothing`. Fix: add both to the keyword set. (`consume_ident!`'s
+  structural-keyword exclusion list does not include them, so they can still be
+  used as identifiers elsewhere.)
+- **Data type is captured as greedy raw source text** (`parse_data_type!`),
+  paren-aware so `numeric(10, 2)` / `varchar(255)` stay whole, stopping at the
+  top-level `,` or `)`. The model has only `data_type::String`, so any trailing
+  per-column constraints (`NOT NULL`, `PRIMARY KEY`, …) would fold into that
+  string — acceptable for the minimal cut; richer DDL needs catalog enrichment
+  first (out of scope, tracked separately).
+- Round-trip through the render pipeline is **not byte-identical** to the input:
+  the renderer adds the indented multi-line layout, spaces inside the parens, and
+  a trailing `;`. Tests compare against the rendered+normalised form, not the raw
+  input (same convention as the SELECT round-trip tests).
+
 See [plan/pending/sql-parser.md](sql-parser.md) for the parser's architecture and
-error/round-trip conventions to match.
+error/round-trip conventions.
 
 ---
 
-## Layer 3 — `DbCatalogToSql` projection
+## Layer 3 — `DbCatalogToSql` projection ⏳ PENDING (remaining work)
 
 **File (new):** `program/src/projection/primitive/DbCatalogToSql.jl`
+
+Layers 1–2 already provide everything the output side needs: the DDL document
+types render to executable, schema-qualified SQL (confirmed against live
+PostgreSQL). What's left is the catalog → DDL-document projection itself.
 
 A `TypeDispatchingProjection` over the catalog types, mirroring the structure of
 [DbCatalogToJson.jl](../../program/src/projection/primitive/DbCatalogToJson.jl).
@@ -191,7 +251,9 @@ normal widget/graphics pipeline render it.
 - **Schema qualification source.** `SqlTableName` supports `schema.name`; the
   catalog table doesn't know its parent schema name. Thread the enclosing schema
   through the printer context (`child_context` / `with_property`) if qualified
-  names are wanted.
+  names are wanted. *(Output side confirmed working in Layer 2: a
+  `SqlTableName("test", "ddl_roundtrip")` renders and executes as
+  `CREATE TABLE test.ddl_roundtrip …`; only the catalog-side threading remains.)*
 
 ---
 
@@ -199,10 +261,22 @@ normal widget/graphics pipeline render it.
 
 Per repo convention, run the **smallest** covering test, never `test_all`:
 
-- `test_sql()` / `test_printer(sql_example)` after Layer 2 for DDL rendering.
-- A new DDL example document exercising `SqlCreateTableStatement` round-trips
-  (`test_example(...)`), and a parser example (`test_reader(...)`) if Layer-2
-  parser support lands.
+**Already landed (Layers 1–2):**
+
+- `test_sql_ddl()` / `test_sql_ddl_selection()` in `SqlToSyntaxTest.jl` — DDL
+  rendering (`CREATE TABLE` / `CREATE SCHEMA` / column definition) and
+  forward/backward selection round-trips. Wired into `test_projections()`.
+- The DDL `CREATE` cases in `test_sql_parser()` (`SqlParserTest.jl`) round-trip
+  parsed DDL back through the render pipeline.
+- `test_create_ddl_in_test_schema(adapter)` in `external/DatabaseTest.jl` — a
+  **live-DB** lifecycle against `projectured_test`, run **inside a dedicated
+  `test` schema** (never `public`): create order `CREATE SCHEMA test` →
+  `CREATE TABLE test.ddl_roundtrip (…)`, verified via `information_schema`, then
+  teardown in reverse `DROP TABLE` → `DROP SCHEMA` (with a reverse-order `finally`
+  safety net). Gated by `skip_if_no_db`, so it's a no-op without a database.
+
+**Remaining (Layer 3):**
+
 - A `DbCatalogToSql` example feeding the full
   `DbCatalog → Sql → Syntax → Text → String` pipeline; assert the emitted SQL is
   the expected `CREATE TABLE …`.

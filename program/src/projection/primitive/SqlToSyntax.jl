@@ -25,7 +25,8 @@ import ..SqlDocumentModule: SqlSelectStatement, SqlSelectClause, SqlFromClause, 
                             SqlInnerJoin, SqlLeftOuterJoin, SqlRightOuterJoin, SqlFullOuterJoin, SqlCrossJoin,
                             SqlJoinOnCondition,
                             SqlScalarValue, SqlComparison, SqlAnd, SqlOr, SqlNot,
-                            SqlInsertStatement, SqlUpdateAssignment, SqlUpdateStatement
+                            SqlInsertStatement, SqlUpdateAssignment, SqlUpdateStatement,
+                            SqlColumnDefinition, SqlCreateTableStatement, SqlCreateSchemaStatement
 import ..TextModule: TextString
 import ..FontModule: StyleFont, font_ubuntu_monospace_regular_24, font_ubuntu_monospace_bold_24
 import ..ColorModule: StyleColor, color_default, color_solarized_blue, color_solarized_green
@@ -50,7 +51,9 @@ export SqlAllColumnsToSyntaxLeaf, SqlColumnReferenceToSyntaxLeaf,
        SqlBooleanBinaryToSyntaxNode, SqlNotToSyntaxNode,
        SqlSelectStatementToSyntaxNode,
        SqlInsertStatementToSyntaxNode, SqlUpdateAssignmentToSyntaxNode,
-       SqlUpdateStatementToSyntaxNode, SqlToSyntax
+       SqlUpdateStatementToSyntaxNode,
+       SqlColumnDefinitionToSyntaxNode, SqlCreateTableStatementToSyntaxNode,
+       SqlCreateSchemaStatementToSyntaxNode, SqlToSyntax
 
 # ── helpers ────────────────────────────────────────────────────────────────────
 
@@ -1868,6 +1871,276 @@ end
 
 projection_read(::SqlUpdateStatementToSyntaxNode, iomap::ChildrenIoMap, op) = nothing
 
+# ── SqlColumnDefinitionToSyntaxNode ───────────────────────────────────────────
+# Renders `<column-name> <data-type>` inside a CREATE TABLE column list.
+# children[1] = column_name (projected); children[2] = data-type leaf (a plain
+# String on the document, so it has no projected child of its own).
+
+struct SqlColumnDefinitionToSyntaxNode <: Projection
+    type_font::StyleFont
+    type_color::StyleColor
+end
+SqlColumnDefinitionToSyntaxNode(; type_font=font_ubuntu_monospace_regular_24,
+                                  type_color=color_default) =
+    SqlColumnDefinitionToSyntaxNode(type_font, type_color)
+
+function projection_print(p::SqlColumnDefinitionToSyntaxNode, recursion, doc::SqlColumnDefinition, ctx)
+    col_im = Cell(() -> projection_print(recursion, recursion, doc.column_name,
+                                         child_context(ctx, FieldReference("column_name"))))
+    child_iomaps_cell = Cell(() -> Any[col_im[]])
+
+    iomap_cell = Cell(nothing)
+    sel = Cell(() -> begin
+        im = iomap_cell[]
+        im === nothing && return nothing
+        path = doc.selection
+        path === nothing && return nothing
+        map_reference_forward(p, im, path)
+    end)
+
+    node = SyntaxNode(
+        TextString("", p.type_font, color_default),
+        TextString("", p.type_font, color_default),
+        TextString(" ", p.type_font, color_default),
+        CellVector(() -> SyntaxDocument[
+            col_im[].output,
+            SyntaxLeaf(
+                TextString("", p.type_font, color_default),
+                TextString("", p.type_font, color_default),
+                TextString(() -> doc.data_type, p.type_font, p.type_color),
+                Cell(nothing))]),
+        0, Cell(false), sel)
+
+    iomap = ChildrenIoMap(p, doc, node, child_iomaps_cell)
+    iomap_cell[] = iomap
+    return iomap
+end
+
+function map_reference_forward(p::SqlColumnDefinitionToSyntaxNode, iomap::ChildrenIoMap, reference)
+    @reference_case reference begin
+        ∅ => @reference()
+        proj(^(p), _) => reference
+        column_name.rest... => begin
+            child = iomap.child_iomaps[][1]
+            inner = map_reference_forward(child.projection, child, rest)
+            inner === nothing && return nothing
+            @reference children[1].^(inner)
+        end
+    end
+end
+
+function map_reference_backward(p::SqlColumnDefinitionToSyntaxNode, iomap::ChildrenIoMap, reference)
+    @reference_case reference begin
+        ∅ => @reference()
+        children[1].rest... => begin
+            child = iomap.child_iomaps[][1]
+            inner = map_reference_backward(child.projection, child, rest)
+            inner === nothing && return nothing
+            @reference column_name.^(inner)
+        end
+    end
+end
+
+function projection_read(p::SqlColumnDefinitionToSyntaxNode, iomap::ChildrenIoMap, op::ReplaceSelectionOperation)
+    result = map_reference_backward(p, iomap, op.path)
+    result !== nothing && return ReplaceSelectionOperation(result)
+    flat = _syntax_to_flat(iomap.output::SyntaxNode, op.path, SyntaxNodeToText(), 0)
+    flat < 0 && return nothing
+    return ReplaceSelectionOperation(ConcreteReferencePath(ProjectionReference(p, ConcreteReferencePath(PositionReference(flat)))))
+end
+
+projection_read(::SqlColumnDefinitionToSyntaxNode, iomap::ChildrenIoMap, op) = nothing
+
+# ── SqlCreateTableStatementToSyntaxNode ───────────────────────────────────────
+#
+# Output shape (top node sep=" ", close=";"):
+#   CREATE TABLE schema.table (
+#       col_a integer,
+#       col_b text
+#   );
+# Child positions: [1]=CREATE [2]=TABLE [3]=table_name [4]=columns paren-body.
+# The column definition leaves live one level deeper, inside the indented,
+# parenthesised comma body at children[4].
+
+struct SqlCreateTableStatementToSyntaxNode <: Projection
+    keyword_font::StyleFont
+    keyword_color::StyleColor
+end
+SqlCreateTableStatementToSyntaxNode(; keyword_font=font_ubuntu_monospace_bold_24,
+                                      keyword_color=color_solarized_blue) =
+    SqlCreateTableStatementToSyntaxNode(keyword_font, keyword_color)
+
+function projection_print(p::SqlCreateTableStatementToSyntaxNode, recursion, stmt::SqlCreateTableStatement, ctx)
+    projected = Cell(() -> begin
+        table_im = projection_print(recursion, recursion, stmt.table_name,
+                                    child_context(ctx, FieldReference("table_name")))
+        col_ims = [projection_print(recursion, recursion, c,
+                                    child_context(ctx, FieldReference("columns"), ElementReference(i)))
+                   for (i, c) in enumerate(stmt.columns)]
+        (table_im, col_ims)
+    end)
+    child_iomaps_cell = Cell(() -> begin
+        table_im, col_ims = projected[]
+        Any[table_im; col_ims]
+    end)
+
+    columns_body = SyntaxNode("(", ")", ",", () -> begin
+        _, col_ims = projected[]
+        SyntaxDocument[c.output for c in col_ims]
+    end; indentation=1)
+
+    iomap_cell = Cell(nothing)
+    sel = Cell(() -> begin
+        im = iomap_cell[]
+        im === nothing && return nothing
+        path = stmt.selection
+        path === nothing && return nothing
+        map_reference_forward(p, im, path)
+    end)
+
+    node = SyntaxNode(
+        TextString("", p.keyword_font, color_default),
+        TextString(";", p.keyword_font, color_default),
+        TextString(" ", p.keyword_font, color_default),
+        CellVector(() -> begin
+            table_im, _ = projected[]
+            SyntaxDocument[_kw("CREATE", p.keyword_font, p.keyword_color),
+                           _kw("TABLE", p.keyword_font, p.keyword_color),
+                           table_im.output,
+                           columns_body]
+        end),
+        0, Cell(false), sel)
+
+    iomap = ChildrenIoMap(p, stmt, node, child_iomaps_cell)
+    iomap_cell[] = iomap
+    return iomap
+end
+
+function map_reference_forward(p::SqlCreateTableStatementToSyntaxNode, iomap::ChildrenIoMap, reference)
+    @reference_case reference begin
+        ∅ => @reference()
+        proj(^(p), _) => reference
+        table_name.rest... => begin
+            child = iomap.child_iomaps[][1]
+            inner = map_reference_forward(child.projection, child, rest)
+            inner === nothing && return nothing
+            @reference children[3].^(inner)
+        end
+        columns{s:_}.rest... => begin
+            child_i = s + 1
+            cims = iomap.child_iomaps[]
+            cim_i = 1 + child_i
+            1 <= cim_i <= length(cims) || return nothing
+            child = cims[cim_i]
+            inner = map_reference_forward(child.projection, child, rest)
+            inner === nothing && return nothing
+            @reference children[4].children[child_i].^(inner)
+        end
+    end
+end
+
+function map_reference_backward(p::SqlCreateTableStatementToSyntaxNode, iomap::ChildrenIoMap, reference)
+    @reference_case reference begin
+        ∅ => @reference()
+        children[3].rest... => begin
+            child = iomap.child_iomaps[][1]
+            inner = map_reference_backward(child.projection, child, rest)
+            inner === nothing && return nothing
+            @reference table_name.^(inner)
+        end
+        children{outer_s:_}.children{t:u}.rest... => begin
+            outer_i = outer_s + 1
+            outer_i != 4 && return nothing
+            child_i = t + 1
+            cims = iomap.child_iomaps[]
+            cim_i = 1 + child_i
+            1 <= cim_i <= length(cims) || return nothing
+            child = cims[cim_i]
+            inner = map_reference_backward(child.projection, child, rest)
+            inner === nothing && return nothing
+            @reference columns[child_i].^(inner)
+        end
+    end
+end
+
+function projection_read(p::SqlCreateTableStatementToSyntaxNode, iomap::ChildrenIoMap, op::ReplaceSelectionOperation)
+    result = map_reference_backward(p, iomap, op.path)
+    result !== nothing && return ReplaceSelectionOperation(result)
+    flat = _syntax_to_flat(iomap.output::SyntaxNode, op.path, SyntaxNodeToText(), 0)
+    flat < 0 && return nothing
+    return ReplaceSelectionOperation(ConcreteReferencePath(ProjectionReference(p, ConcreteReferencePath(PositionReference(flat)))))
+end
+
+projection_read(::SqlCreateTableStatementToSyntaxNode, iomap::ChildrenIoMap, op) = nothing
+
+# ── SqlCreateSchemaStatementToSyntaxNode ──────────────────────────────────────
+#
+# Output shape (top node sep=" ", close=";"):  CREATE SCHEMA name;
+# The schema name is a plain String on the document (no projected child), so the
+# statement has no child iomaps; only whole-statement (∅) selection is mapped.
+
+struct SqlCreateSchemaStatementToSyntaxNode <: Projection
+    keyword_font::StyleFont
+    keyword_color::StyleColor
+    identifier_font::StyleFont
+end
+SqlCreateSchemaStatementToSyntaxNode(; keyword_font=font_ubuntu_monospace_bold_24,
+                                       keyword_color=color_solarized_blue,
+                                       identifier_font=font_ubuntu_monospace_regular_24) =
+    SqlCreateSchemaStatementToSyntaxNode(keyword_font, keyword_color, identifier_font)
+
+function projection_print(p::SqlCreateSchemaStatementToSyntaxNode, recursion, stmt::SqlCreateSchemaStatement, ctx)
+    iomap_cell = Cell(nothing)
+    sel = Cell(() -> begin
+        im = iomap_cell[]
+        im === nothing && return nothing
+        path = stmt.selection
+        path === nothing && return nothing
+        map_reference_forward(p, im, path)
+    end)
+
+    node = SyntaxNode(
+        TextString("", p.keyword_font, color_default),
+        TextString(";", p.keyword_font, color_default),
+        TextString(" ", p.keyword_font, color_default),
+        CellVector(() -> SyntaxDocument[
+            _kw("CREATE", p.keyword_font, p.keyword_color),
+            _kw("SCHEMA", p.keyword_font, p.keyword_color),
+            SyntaxLeaf(
+                TextString("", p.identifier_font, color_default),
+                TextString("", p.identifier_font, color_default),
+                TextString(() -> stmt.schema_name, p.identifier_font, color_solarized_green),
+                Cell(nothing))]),
+        0, Cell(false), sel)
+
+    iomap = ChildrenIoMap(p, stmt, node, Cell(() -> Any[]))
+    iomap_cell[] = iomap
+    return iomap
+end
+
+function map_reference_forward(p::SqlCreateSchemaStatementToSyntaxNode, iomap::ChildrenIoMap, reference)
+    @reference_case reference begin
+        ∅ => @reference()
+        proj(^(p), _) => reference
+    end
+end
+
+function map_reference_backward(p::SqlCreateSchemaStatementToSyntaxNode, iomap::ChildrenIoMap, reference)
+    @reference_case reference begin
+        ∅ => @reference()
+    end
+end
+
+function projection_read(p::SqlCreateSchemaStatementToSyntaxNode, iomap::ChildrenIoMap, op::ReplaceSelectionOperation)
+    result = map_reference_backward(p, iomap, op.path)
+    result !== nothing && return ReplaceSelectionOperation(result)
+    flat = _syntax_to_flat(iomap.output::SyntaxNode, op.path, SyntaxNodeToText(), 0)
+    flat < 0 && return nothing
+    return ReplaceSelectionOperation(ConcreteReferencePath(ProjectionReference(p, ConcreteReferencePath(PositionReference(flat)))))
+end
+
+projection_read(::SqlCreateSchemaStatementToSyntaxNode, iomap::ChildrenIoMap, op) = nothing
+
 # ── Compound constructor ──────────────────────────────────────────────────────
 
 function SqlToSyntax()
@@ -1901,6 +2174,9 @@ function SqlToSyntax()
         SqlInsertStatement      => SqlInsertStatementToSyntaxNode(),
         SqlUpdateAssignment     => SqlUpdateAssignmentToSyntaxNode(),
         SqlUpdateStatement      => SqlUpdateStatementToSyntaxNode(),
+        SqlColumnDefinition     => SqlColumnDefinitionToSyntaxNode(),
+        SqlCreateTableStatement => SqlCreateTableStatementToSyntaxNode(),
+        SqlCreateSchemaStatement => SqlCreateSchemaStatementToSyntaxNode(),
     )
 end
 
