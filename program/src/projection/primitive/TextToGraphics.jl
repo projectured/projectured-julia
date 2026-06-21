@@ -26,7 +26,7 @@ import ..GraphicsModule: GraphicsText, GraphicsRect, GraphicsImage, GraphicsCanv
 import ..ImageModule: ImageDocument
 import ..FontModule: StyleFont
 import ..ColorModule: StyleColor
-import ..ReferenceModule: ReferencePath, ConcreteReferencePath, ElementReference, PositionReference, RangeReference, PointReference, EmptyReferencePath, FieldReference, TextRectangularReference, head, tail
+import ..ReferenceModule: ReferencePath, ConcreteReferencePath, ElementReference, PositionReference, RangeReference, PointReference, EmptyReferencePath, FieldReference, TextRectangularReference, head, tail, skip_type_checkpoints
 import ..ReferenceCaseModule: var"@reference_case"
 import ..ReferenceBuilderModule: var"@reference"
 import ..OperationModule: ReplaceSelectionOperation, ToggleCollapseOperation
@@ -727,6 +727,9 @@ selection. Recognized shapes:
 Returns `nothing` for any other selection shape (normal cursor, etc.).
 """
 function _highlight_char_range(sel, coord_map::Vector{SegCoord})
+    # The selection is canonical at rest: skip its non-navigating TypeReference
+    # checkpoints before reading the box structure underneath.
+    sel = skip_type_checkpoints(sel)
     if sel isa EmptyReferencePath
         isempty(coord_map) && return nothing
         # Cover all segments: use a large sentinel that exceeds any absolute offset.
@@ -735,7 +738,7 @@ function _highlight_char_range(sel, coord_map::Vector{SegCoord})
     sel isa ConcreteReferencePath || return nothing
     h = sel.head
     h isa TextRectangularReference || return nothing
-    sel.tail isa EmptyReferencePath || return nothing
+    skip_type_checkpoints(sel.tail) isa EmptyReferencePath || return nothing
     return (h.start, h.stop)
 end
 

@@ -30,7 +30,7 @@ import ..CollectionModule: CellVector, ListNode, CollectionDocument
 import ..FontModule: StyleFont, font_ubuntu_monospace_regular_24
 import ..ColorModule: StyleColor, color_default
 import ..GeometryModule: Inset
-import ..ReferenceModule: Reference, ConcreteReferencePath, EmptyReferencePath, RangeReference, FieldReference, TextRectangularReference
+import ..ReferenceModule: Reference, ConcreteReferencePath, EmptyReferencePath, RangeReference, FieldReference, TextRectangularReference, skip_type_checkpoints
 import ..ReferenceCaseModule: var"@reference_case"
 import ..ReferenceBuilderModule: var"@reference"
 import ..OperationApiModule: splice_string, splice_value!
@@ -590,9 +590,11 @@ end
 
 # A whole-element selection projects to either `∅` (the root element) or a
 # `TextRectangularReference` box; both mean "structural mode" at this layer.
-_is_structural_selection(sel) =
+function _is_structural_selection(sel)
+    sel = skip_type_checkpoints(sel)
     sel isa EmptyReferencePath ||
-    (sel isa ConcreteReferencePath && sel.head isa TextRectangularReference)
+        (sel isa ConcreteReferencePath && sel.head isa TextRectangularReference)
+end
 
 _build_selection_path(span_idx::Int, char_idx::Int) =
     @reference elements[span_idx].content{char_idx}
