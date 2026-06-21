@@ -101,6 +101,15 @@ const dbcatalog_example      = Example("dbcatalog",      make_dbcatalog_document
 const dvdrental_catalog_example = Example("dvdrental_catalog", make_dvdrental_catalog_document_example, make_dbcatalog_projection_example)
 const dbcatalog_widget_example  = Example("dbcatalog_widget",  make_dbcatalog_document_example,  make_dbcatalog_widget_projection_example)
 const dvdrental_catalog_widget_example = Example("dvdrental_catalog_widget", make_dvdrental_catalog_document_example, make_dbcatalog_widget_projection_example)
+# `dvdrental_object_example` projects the live dvdrental catalog through the
+# generic reflective `ObjectToSyntax` (→ Text → Graphics) instead of the
+# collapsible `DbCatalogToSyntax`, so the whole `databases → schemas → tables →
+# columns` tree is *fully walked* (every per-table column query is forced and
+# rendered, no collapse markers). It is deliberately kept OUT of the `examples`
+# registry below — `ObjectToSyntax` forces a column query for every table, so the
+# enumeration-based test sweeps would hammer the live database. Use it directly:
+# `run_example(dvdrental_object_example)`.
+const dvdrental_object_example = Example("dvdrental_object", make_dvdrental_catalog_document_example, make_dvdrental_object_projection_example)
 const sql_syntax_example     = Example("sql_syntax",     make_sql_document_example,            make_sql_syntax_projection_example)
 const sql_nested_syntax_example = Example("sql_nested_syntax", make_sql_nested_document_example, make_sql_nested_syntax_projection_example)
 const sql_table_example      = Example("sql_table",      make_sql_document_example,            make_sql_table_projection_example)

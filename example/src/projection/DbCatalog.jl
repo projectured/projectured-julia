@@ -24,6 +24,29 @@ function make_dvdrental_dbcatalog_projection_example(; measure=sdl_measure_text)
     )
 end
 
+# ── Generic-reflection pipeline: DatabaseInstance → DbCatalog → ObjectToSyntax →
+#    Text → Graphics ───────────────────────────────────────────────────────────
+#
+# Unlike `make_dbcatalog_projection_example` (which uses the bespoke, *collapsible*
+# `DbCatalogToSyntax`), this routes the catalog tree through the generic reflective
+# `ObjectToSyntax`. `ObjectToSyntax` reflects every field and every `CellVector`
+# element — so it forces the whole `databases → schemas → tables → columns`
+# hierarchy, leaving the catalog **fully walked / expanded** (no collapse markers,
+# every per-table column query realized). This is the "fully walked children
+# state" view of the live dvdrental database, and is deliberately specific to the
+# `dvdrental_object_example`. The document stays a lazy `DatabaseInstance`
+# connection spec; `DatabaseInstanceToDbCatalog` opens the connection (through its
+# pool) only when the tree is first forced at print time.
+function make_dvdrental_object_projection_example(; measure=sdl_measure_text,
+                                                    pool=OdbcConnectionPool())
+    SequentialProjection(
+        DatabaseInstanceToDbCatalog(pool),
+        RecursiveProjection(ObjectToSyntax()),
+        RecursiveProjection(SyntaxToText()),
+        TextToGraphics(measure=measure),
+    )
+end
+
 # ── Widget-based pipeline: Domain → Syntax → Widget → Graphics ──────────────
 #
 # `SyntaxToWidget` turns each indented catalog level (RDBMS, Schema, Table) into
