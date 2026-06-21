@@ -17,7 +17,7 @@ import ..ReactiveModule: Cell
 import ..CollectionModule: CellVector
 import ..IoMapModule: SimpleIoMap
 import ..PrinterContextModule: child_context
-import ..ReferenceModule: ConcreteReferencePath, RangeReference, FieldReference, EmptyReferencePath
+import ..ReferenceModule: ConcreteReferencePath, RangeReference, FieldReference, EmptyReferencePath, strip_reference_types
 import ..ReferenceBuilderModule: var"@reference"
 import ..OperationModule: ReplaceSelectionOperation
 import ..KeyboardModule: KeyDown
@@ -141,6 +141,7 @@ function _output_to_input_map(input_elems)
 end
 
 function _parse_text_elem_path(path)
+    path = strip_reference_types(path)
     path isa ConcreteReferencePath || return (nothing, nothing)
     h1 = path.head
     (h1 isa FieldReference && h1.name == "elements") || return (nothing, nothing)

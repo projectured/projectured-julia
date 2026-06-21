@@ -141,10 +141,11 @@ end
 # RangeReference, or return nothing if the selection is in a different shape.
 function _string_value_range(s::PrimitiveString)
     sel = getfield(s, :selection)[]
+    sel = skip_type_checkpoints(sel)
     sel isa ConcreteReferencePath || return nothing
     head = sel.head
     (head isa FieldReference && head.name == "value") || return nothing
-    inner = sel.tail
+    inner = skip_type_checkpoints(sel.tail)
     inner isa ConcreteReferencePath || return nothing
     inner.head isa RangeReference || return nothing
     inner.head

@@ -38,7 +38,7 @@ import ..SyntaxModule: SyntaxLeaf
 import ..OperationModule: ReplaceDocumentOperation, ReplaceSelectionOperation
 import ..PrimitiveModule: StringReplaceRangeOperation
 import ..ReferenceModule: ConcreteReferencePath, FieldReference, RangeReference,
-                          EmptyReferencePath, ProjectionReference
+                          EmptyReferencePath, ProjectionReference, skip_type_checkpoints
 import ..ReferenceCaseModule: var"@reference_case"
 import ..ReferenceBuilderModule: var"@reference"
 import ..KeyboardModule: KeyDown, KeyPress
@@ -96,10 +96,11 @@ end
 
 function _value_range(ins)
     sel = getfield(ins, :selection)[]
+    sel = skip_type_checkpoints(sel)
     sel isa ConcreteReferencePath || return nothing
     h = sel.head
     (h isa FieldReference && h.name == "value") || return nothing
-    t = sel.tail
+    t = skip_type_checkpoints(sel.tail)
     t isa ConcreteReferencePath || return nothing
     t.head isa RangeReference || return nothing
     t.head
@@ -113,6 +114,7 @@ _value_path(range::RangeReference) =
 
 function projection_read(p::InsertionToSyntaxLeaf, iomap::SimpleIoMap, op::ReplaceSelectionOperation)
     path = op.path
+    path = skip_type_checkpoints(path)
     path isa ConcreteReferencePath || return nothing
     h = path.head
     h isa FieldReference || return nothing

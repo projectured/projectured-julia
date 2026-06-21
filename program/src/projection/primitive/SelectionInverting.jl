@@ -29,7 +29,7 @@ import ..ColorModule: StyleColor, color_solarized_background_dark, color_solariz
 import ..ReactiveModule: Cell
 import ..CollectionModule: CellVector
 import ..IoMapApiModule: IoMap
-import ..ReferenceModule: ConcreteReferencePath, RangeReference, FieldReference, EmptyReferencePath
+import ..ReferenceModule: ConcreteReferencePath, RangeReference, FieldReference, EmptyReferencePath, strip_reference_types
 import ..ReferenceBuilderModule: var"@reference"
 import ..OperationModule: ReplaceSelectionOperation
 import ..PrimitiveModule: StringReplaceRangeOperation
@@ -282,6 +282,7 @@ _text_elem_path(span_idx::Int, char_idx::Int) =
     @reference elements[span_idx].content{char_idx}
 
 function _parse_text_elem_path(path)
+    path = strip_reference_types(path)
     path isa ConcreteReferencePath || return nothing
     h1 = path.head
     h1 isa FieldReference && h1.name == "elements" || return nothing
@@ -302,6 +303,7 @@ function _parse_text_elem_path(path)
 end
 
 function _parse_text_elem_range(path)
+    path = strip_reference_types(path)
     path isa ConcreteReferencePath || return nothing
     h1 = path.head
     h1 isa FieldReference && h1.name == "elements" || return nothing
