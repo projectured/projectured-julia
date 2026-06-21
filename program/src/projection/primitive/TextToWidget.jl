@@ -28,7 +28,7 @@ import ..WidgetModule: WidgetScrollPane, Point2D, Inset, inset_default, ScrollWi
 import ..IoMapApiModule: IoMap
 import ..OperationModule: ReplaceSelectionOperation, ToggleCollapseOperation
 import ..PrimitiveModule: StringReplaceRangeOperation
-import ..ReferenceModule: ConcreteReferencePath, FieldReference
+import ..ReferenceModule: ConcreteReferencePath, FieldReference, skip_type_checkpoints
 import ..FontModule: StyleFont
 import ..ColorModule: StyleColor
 import ..TextToGraphicsModule: TextToGraphics
@@ -90,6 +90,9 @@ function map_reference_forward(::TextToWidget, ::TextToWidgetIoMap, ref)
 end
 
 function map_reference_backward(::TextToWidget, ::TextToWidgetIoMap, ref)
+    # The widget selection is canonical at rest: skip leading TypeReference
+    # checkpoints before reading the `.content` step that wraps the text path.
+    ref = skip_type_checkpoints(ref)
     ref isa ConcreteReferencePath || return nothing
     h = ref.head
     (h isa FieldReference && h.name == "content") || return nothing
