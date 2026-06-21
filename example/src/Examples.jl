@@ -110,7 +110,25 @@ const dvdrental_catalog_widget_example = Example("dvdrental_catalog_widget", mak
 # enumeration-based test sweeps would hammer the live database. Use it directly:
 # `run_example(dvdrental_object_example)`.
 const dvdrental_object_example = Example("dvdrental_object", make_dvdrental_catalog_document_example, make_dvdrental_object_projection_example)
+# `dvdrental_object_json_example` is the JSON flavour of `dvdrental_object_example`:
+# the same fully-walked catalog tree, but reflected through the generic
+# `ObjectToJson` (→ JsonToSyntax → Text → Graphics) instead of `ObjectToSyntax`,
+# producing the LLM-oriented JSON view. Kept OUT of the `examples` registry for the
+# same reason — it forces a column query for every table, so the enumeration-based
+# test sweeps would hammer the live database. Use it directly:
+# `run_example(dvdrental_object_json_example)`.
+const dvdrental_object_json_example = Example("dvdrental_object_json", make_dvdrental_catalog_document_example, make_dvdrental_object_json_projection_example)
+# `dvdrental_catalog_json_example` uses the bespoke, narrow `DbCatalogToJson`
+# instead of the generic `ObjectToJson`. `DbCatalogToJson` is non-recursive — each
+# level maps to a flat JsonObject of its own scalar fields only — so this renders
+# just the RDBMS root `{"host","port"}` and does NOT walk into databases/schemas/
+# tables (and so barely touches the database). For the full catalog as JSON use
+# `dvdrental_object_json_example`. Kept OUT of the `examples` registry like its
+# siblings; run directly: `run_example(dvdrental_catalog_json_example)`.
+const dvdrental_catalog_json_example = Example("dvdrental_catalog_json", make_dvdrental_catalog_document_example, make_dvdrental_catalog_json_projection_example)
 const sql_syntax_example     = Example("sql_syntax",     make_sql_document_example,            make_sql_syntax_projection_example)
+const sql_insert_syntax_example = Example("sql_insert_syntax", make_sql_insert_document_example, make_sql_insert_syntax_projection_example)
+const sql_update_syntax_example = Example("sql_update_syntax", make_sql_update_document_example, make_sql_update_syntax_projection_example)
 const sql_nested_syntax_example = Example("sql_nested_syntax", make_sql_nested_document_example, make_sql_nested_syntax_projection_example)
 const sql_table_example      = Example("sql_table",      make_sql_document_example,            make_sql_table_projection_example)
 const ini_example            = Example("ini",             make_ini_document_example,            make_ini_projection_example)
@@ -160,6 +178,8 @@ const examples = [
     dbcatalog_widget_example,
     dvdrental_catalog_widget_example,
     sql_syntax_example,
+    sql_insert_syntax_example,
+    sql_update_syntax_example,
     sql_nested_syntax_example,
     sql_table_example,
     ini_example,

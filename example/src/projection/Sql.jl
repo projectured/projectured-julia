@@ -6,6 +6,22 @@ function make_sql_syntax_projection_example(; measure=sdl_measure_text)
     )
 end
 
+function make_sql_insert_syntax_projection_example(; measure=sdl_measure_text)
+    SequentialProjection(
+        RecursiveProjection(SqlToSyntax()),
+        RecursiveProjection(SyntaxToText()),
+        TextToGraphics(measure=measure),
+    )
+end
+
+function make_sql_update_syntax_projection_example(; measure=sdl_measure_text)
+    SequentialProjection(
+        RecursiveProjection(SqlToSyntax()),
+        RecursiveProjection(SyntaxToText()),
+        TextToGraphics(measure=measure),
+    )
+end
+
 function make_sql_nested_syntax_projection_example(; measure=sdl_measure_text)
     SequentialProjection(
         RecursiveProjection(SqlToSyntax()),

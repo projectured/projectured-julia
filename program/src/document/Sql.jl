@@ -46,6 +46,7 @@ export SqlDocument, SqlStatement,
        SqlSelectStatement,   ISqlSelectStatement,
        SqlSubqueryFromItem,  ISqlSubqueryFromItem,
        SqlInsertStatement,   ISqlInsertStatement,
+       SqlUpdateAssignment,  ISqlUpdateAssignment,
        SqlUpdateStatement,   ISqlUpdateStatement,
        SqlBooleanExpression,
        SqlScalarValue,    ISqlScalarValue,
@@ -311,15 +312,51 @@ SqlSubqueryFromItem(sq::SqlSelectStatement) =
 SqlSubqueryFromItem(sq::SqlSelectStatement, alias::SqlTableAlias) =
     SqlSubqueryFromItem(sq, alias, Cell(nothing))
 
+# ── INSERT ─────────────────────────────────────────────────────────────────────
+# Single-row INSERT: `INSERT INTO <table> (<col>, …) VALUES (<val>, …)`.
+# `columns` may be empty, in which case the column list is omitted.
 @document struct SqlInsertStatement <: SqlStatement
+    table::Any                    # SqlTableName | nothing (empty stub)
+    columns::CellVector           # [SqlColumnName]
+    values::CellVector            # [SqlScalarValue]
     selection::Reference
 end
-SqlInsertStatement() = SqlInsertStatement(Cell(nothing))
+SqlInsertStatement() =
+    SqlInsertStatement(nothing, CellVector(), CellVector(), Cell(nothing))
+SqlInsertStatement(table::SqlTableName, columns::CellVector, values::CellVector) =
+    SqlInsertStatement(table, columns, values, Cell(nothing))
+SqlInsertStatement(table::SqlTableName,
+                   columns::AbstractVector{SqlColumnName},
+                   values::AbstractVector{SqlScalarValue}) =
+    SqlInsertStatement(table, CellVector([columns...]), CellVector([values...]), Cell(nothing))
 
-@document struct SqlUpdateStatement <: SqlStatement
+# ── UPDATE ─────────────────────────────────────────────────────────────────────
+# Single assignment `<col> = <value>` inside an UPDATE's SET list.
+@document struct SqlUpdateAssignment <: SqlDocument
+    column_name::SqlColumnName
+    value::SqlScalarValue
     selection::Reference
 end
-SqlUpdateStatement() = SqlUpdateStatement(Cell(nothing))
+SqlUpdateAssignment(col::SqlColumnName, value::SqlScalarValue) =
+    SqlUpdateAssignment(col, value, Cell(nothing))
+
+# Single-line UPDATE: `UPDATE <table> SET <assignment>, … [WHERE …]`.
+@document struct SqlUpdateStatement <: SqlStatement
+    table::Any                    # SqlTableName | nothing (empty stub)
+    assignments::CellVector       # [SqlUpdateAssignment]
+    where_clause::SqlWhereClause
+    selection::Reference
+end
+SqlUpdateStatement() =
+    SqlUpdateStatement(nothing, CellVector(), SqlWhereClause(), Cell(nothing))
+SqlUpdateStatement(table::SqlTableName, assignments::CellVector) =
+    SqlUpdateStatement(table, assignments, SqlWhereClause(), Cell(nothing))
+SqlUpdateStatement(table::SqlTableName, assignments::CellVector, wc::SqlWhereClause) =
+    SqlUpdateStatement(table, assignments, wc, Cell(nothing))
+SqlUpdateStatement(table::SqlTableName,
+                   assignments::AbstractVector{SqlUpdateAssignment},
+                   wc::SqlWhereClause=SqlWhereClause()) =
+    SqlUpdateStatement(table, CellVector([assignments...]), wc, Cell(nothing))
 
 # ── Base.show ──────────────────────────────────────────────────────────────────
 

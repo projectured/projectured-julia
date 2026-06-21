@@ -139,6 +139,7 @@ include("projection/primitive/FileSystemToSyntax.jl")
 include("projection/primitive/WorkspaceToFileSystem.jl")
 include("projection/primitive/TextToString.jl")
 include("projection/primitive/ObjectToSyntax.jl")
+include("projection/primitive/ObjectToJson.jl")
 include("projection/primitive/WidgetToGraphics.jl")
 include("projection/primitive/TextToWidget.jl")
 include("projection/primitive/LayoutToGraphics.jl")
@@ -269,7 +270,7 @@ using .SqlDocumentModule: SqlDocument, SqlStatement,
                           SqlJoinOnCondition, SqlJoinUsingCondition,
                           SqlTableExpression, SqlJoinedFromItem, SqlFromItem, SqlFromClause,
                           SqlSelectStatement, SqlSubqueryFromItem,
-                          SqlInsertStatement, SqlUpdateStatement,
+                          SqlInsertStatement, SqlUpdateAssignment, SqlUpdateStatement,
                           SqlWhereFilterCondition, SqlBooleanExpression,
                           SqlScalarValue, SqlComparison,
                           SqlAnd, SqlOr, SqlNot
@@ -364,6 +365,9 @@ using .WorkspaceToFileSystemModule: WorkspaceFolderToFileSystemDirectory, Worksp
 using .ObjectToSyntaxModule: ObjectToSyntax, NothingToSyntaxLeaf, BoolToSyntaxLeaf,
                               NumberToSyntaxLeaf, StringToSyntaxLeaf, SymbolToSyntaxLeaf,
                               CharToSyntaxLeaf, ObjectNodeToSyntaxNode, print_object, search_references, search_objects
+using .ObjectToJsonModule: ObjectToJson, NothingToJsonNull, BoolToJsonBool,
+                            NumberToJsonNumber, StringToJsonString, SymbolToJsonString,
+                            CharToJsonString, CellToJson, ObjectNodeToJsonObject, json_object
 using .BookToSyntaxModule: BookBookToSyntaxNode, BookChapterToSyntaxNode,
                             BookParagraphToSyntaxLeaf, BookListToSyntaxNode,
                             BookPictureToSyntaxLeaf, BookToSyntax
@@ -446,12 +450,15 @@ using .MathToSyntaxModule: MathToSyntax, MathInsertionToSyntaxLeaf, MathVariable
                             MathBinaryOperationToSyntaxNode, MathParenthesizedToSyntaxNode,
                             MathAssignmentToSyntaxNode
 using .SqlToSyntaxModule: SqlToSyntax, SqlAllColumnsToSyntaxLeaf, SqlColumnReferenceToSyntaxLeaf,
+                          SqlColumnNameToSyntaxLeaf,
                           SqlTableExpressionToSyntaxLeaf, SqlJoinTypeToSyntaxLeaf,
                           SqlSelectItemToSyntaxNode, SqlSelectClauseToSyntaxNode,
                           SqlFromItemToSyntaxNode, SqlFromClauseToSyntaxNode,
                           SqlJoinedFromItemToSyntaxNode, SqlJoinOnConditionToSyntaxNode,
                           SqlWhereFilterConditionToSyntaxNode,
-                          SqlWhereClauseToSyntaxNode, SqlSelectStatementToSyntaxNode
+                          SqlWhereClauseToSyntaxNode, SqlSelectStatementToSyntaxNode,
+                          SqlInsertStatementToSyntaxNode, SqlUpdateAssignmentToSyntaxNode,
+                          SqlUpdateStatementToSyntaxNode
 using .JuliaToSyntaxModule: JuliaToSyntax, JuliaIdentifierToSyntaxLeaf, JuliaIntegerToSyntaxLeaf,
                              JuliaBinaryOpToSyntaxNode, JuliaCallToSyntaxNode,
                              JuliaIfToSyntaxNode, JuliaFunctionToSyntaxNode,
@@ -574,17 +581,20 @@ export SqlDocument, SqlStatement,
        SqlJoinOnCondition, SqlJoinUsingCondition,
        SqlTableExpression, SqlJoinedFromItem, SqlFromItem, SqlFromClause,
        SqlSelectStatement, SqlSubqueryFromItem,
-       SqlInsertStatement, SqlUpdateStatement,
+       SqlInsertStatement, SqlUpdateAssignment, SqlUpdateStatement,
        SqlWhereFilterCondition, SqlBooleanExpression,
        SqlScalarValue, SqlComparison,
        SqlAnd, SqlOr, SqlNot
 export SqlToSyntax, SqlAllColumnsToSyntaxLeaf, SqlColumnReferenceToSyntaxLeaf,
+       SqlColumnNameToSyntaxLeaf,
        SqlTableExpressionToSyntaxLeaf, SqlJoinTypeToSyntaxLeaf,
        SqlSelectItemToSyntaxNode, SqlSelectClauseToSyntaxNode,
        SqlFromItemToSyntaxNode, SqlFromClauseToSyntaxNode,
        SqlJoinedFromItemToSyntaxNode, SqlJoinOnConditionToSyntaxNode,
        SqlWhereFilterConditionToSyntaxNode,
-       SqlWhereClauseToSyntaxNode, SqlSelectStatementToSyntaxNode
+       SqlWhereClauseToSyntaxNode, SqlSelectStatementToSyntaxNode,
+       SqlInsertStatementToSyntaxNode, SqlUpdateAssignmentToSyntaxNode,
+       SqlUpdateStatementToSyntaxNode
 export DbCatalogDocument,
        DbCatalogRdbms, DbCatalogDatabase, DbCatalogSchema,
        DbCatalogTable, DbCatalogColumn
@@ -731,6 +741,9 @@ export WorkspaceFolderToFileSystemDirectory, WorkspaceToFileSystem
 export ObjectToSyntax, NothingToSyntaxLeaf, BoolToSyntaxLeaf,
        NumberToSyntaxLeaf, StringToSyntaxLeaf, SymbolToSyntaxLeaf,
        CharToSyntaxLeaf, ObjectNodeToSyntaxNode, print_object, search_references, search_objects
+export ObjectToJson, NothingToJsonNull, BoolToJsonBool,
+       NumberToJsonNumber, StringToJsonString, SymbolToJsonString,
+       CharToJsonString, CellToJson, ObjectNodeToJsonObject, json_object
 export BookBookToSyntaxNode, BookChapterToSyntaxNode,
        BookParagraphToSyntaxLeaf, BookListToSyntaxNode,
        BookPictureToSyntaxLeaf, BookToSyntax

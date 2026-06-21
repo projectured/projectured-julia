@@ -20,10 +20,12 @@ import ..ProjectionApiModule: projection_print, projection_read, map_reference_f
 import ..SqlDocumentModule: SqlSelectStatement, SqlSelectClause, SqlFromClause, SqlWhereClause,
                             SqlWhereFilterCondition,
                             SqlSelectItem, SqlAllColumns, SqlColumnReference,
+                            SqlTableName, SqlColumnName,
                             SqlTableExpression, SqlSubqueryFromItem, SqlFromItem, SqlJoinedFromItem, SqlJoinType,
                             SqlInnerJoin, SqlLeftOuterJoin, SqlRightOuterJoin, SqlFullOuterJoin, SqlCrossJoin,
                             SqlJoinOnCondition,
-                            SqlScalarValue, SqlComparison, SqlAnd, SqlOr, SqlNot
+                            SqlScalarValue, SqlComparison, SqlAnd, SqlOr, SqlNot,
+                            SqlInsertStatement, SqlUpdateAssignment, SqlUpdateStatement
 import ..TextModule: TextString
 import ..FontModule: StyleFont, font_ubuntu_monospace_regular_24, font_ubuntu_monospace_bold_24
 import ..ColorModule: StyleColor, color_default, color_solarized_blue, color_solarized_green
@@ -38,6 +40,7 @@ import ..SyntaxToTextModule: SyntaxNodeToText, _syntax_to_flat
 import ..PrinterContextModule: child_context
 
 export SqlAllColumnsToSyntaxLeaf, SqlColumnReferenceToSyntaxLeaf,
+       SqlColumnNameToSyntaxLeaf, SqlTableNameToSyntaxLeaf,
        SqlTableExpressionToSyntaxLeaf, SqlSubqueryFromItemToSyntaxNode, SqlJoinTypeToSyntaxLeaf,
        SqlSelectItemToSyntaxNode, SqlSelectClauseToSyntaxNode,
        SqlFromItemToSyntaxNode, SqlFromClauseToSyntaxNode,
@@ -45,7 +48,9 @@ export SqlAllColumnsToSyntaxLeaf, SqlColumnReferenceToSyntaxLeaf,
        SqlWhereFilterConditionToSyntaxNode, SqlWhereClauseToSyntaxNode,
        SqlScalarValueToSyntaxLeaf, SqlComparisonToSyntaxNode,
        SqlBooleanBinaryToSyntaxNode, SqlNotToSyntaxNode,
-       SqlSelectStatementToSyntaxNode, SqlToSyntax
+       SqlSelectStatementToSyntaxNode,
+       SqlInsertStatementToSyntaxNode, SqlUpdateAssignmentToSyntaxNode,
+       SqlUpdateStatementToSyntaxNode, SqlToSyntax
 
 # ── helpers ────────────────────────────────────────────────────────────────────
 
@@ -138,6 +143,71 @@ function map_reference_backward(::SqlColumnReferenceToSyntaxLeaf, iomap::SimpleI
 end
 
 projection_read(::SqlColumnReferenceToSyntaxLeaf, iomap::SimpleIoMap, op) = nothing
+
+# ── SqlColumnNameToSyntaxLeaf ─────────────────────────────────────────────────
+# Bare column name, used in INSERT column lists and UPDATE assignments.
+
+struct SqlColumnNameToSyntaxLeaf <: Projection
+    font::StyleFont
+    color::StyleColor
+end
+SqlColumnNameToSyntaxLeaf(; font=font_ubuntu_monospace_regular_24, color=color_default) =
+    SqlColumnNameToSyntaxLeaf(font, color)
+
+function projection_print(p::SqlColumnNameToSyntaxLeaf, recursion, doc::SqlColumnName, ctx)
+    SimpleIoMap(p, doc, SyntaxLeaf(
+        TextString("", p.font, color_default),
+        TextString("", p.font, color_default),
+        TextString(() -> doc.name, p.font, p.color),
+        doc.selection))
+end
+
+function map_reference_forward(::SqlColumnNameToSyntaxLeaf, iomap::SimpleIoMap, reference)
+    @reference_case reference begin
+        ∅ => @reference()
+    end
+end
+
+function map_reference_backward(::SqlColumnNameToSyntaxLeaf, iomap::SimpleIoMap, reference)
+    @reference_case reference begin
+        ∅ => @reference()
+    end
+end
+
+projection_read(::SqlColumnNameToSyntaxLeaf, iomap::SimpleIoMap, op) = nothing
+
+# ── SqlTableNameToSyntaxLeaf ──────────────────────────────────────────────────
+# Bare table name (with optional schema), used as the INSERT/UPDATE target.
+
+struct SqlTableNameToSyntaxLeaf <: Projection
+    font::StyleFont
+    color::StyleColor
+end
+SqlTableNameToSyntaxLeaf(; font=font_ubuntu_monospace_regular_24, color=color_solarized_green) =
+    SqlTableNameToSyntaxLeaf(font, color)
+
+function projection_print(p::SqlTableNameToSyntaxLeaf, recursion, doc::SqlTableName, ctx)
+    SimpleIoMap(p, doc, SyntaxLeaf(
+        TextString("", p.font, color_default),
+        TextString("", p.font, color_default),
+        TextString(() -> doc.schema_name === nothing ? doc.name : "$(doc.schema_name).$(doc.name)",
+                   p.font, p.color),
+        doc.selection))
+end
+
+function map_reference_forward(::SqlTableNameToSyntaxLeaf, iomap::SimpleIoMap, reference)
+    @reference_case reference begin
+        ∅ => @reference()
+    end
+end
+
+function map_reference_backward(::SqlTableNameToSyntaxLeaf, iomap::SimpleIoMap, reference)
+    @reference_case reference begin
+        ∅ => @reference()
+    end
+end
+
+projection_read(::SqlTableNameToSyntaxLeaf, iomap::SimpleIoMap, op) = nothing
 
 # ── SqlTableExpressionToSyntaxLeaf ────────────────────────────────────────────
 
@@ -1404,6 +1474,400 @@ function projection_read(p::SqlSelectStatementToSyntaxNode, iomap::ChildrenIoMap
     return ReplaceSelectionOperation(ConcreteReferencePath(ProjectionReference(p, ConcreteReferencePath(PositionReference(flat)))))
 end
 
+# ── SqlInsertStatementToSyntaxNode ────────────────────────────────────────────
+#
+# Single-line shape (sep=" "):
+#   INSERT INTO <table> (<col>, …) VALUES (<val>, …)
+# Child positions: [1]=INSERT [2]=INTO [3]=table [4]=columns-paren (when columns
+# present) then VALUES and values-paren. The column/value leaves live one level
+# deeper, inside their parenthesised comma list.
+
+struct SqlInsertStatementToSyntaxNode <: Projection
+    keyword_font::StyleFont
+    keyword_color::StyleColor
+end
+SqlInsertStatementToSyntaxNode(; keyword_font=font_ubuntu_monospace_bold_24,
+                                 keyword_color=color_solarized_blue) =
+    SqlInsertStatementToSyntaxNode(keyword_font, keyword_color)
+
+function projection_print(p::SqlInsertStatementToSyntaxNode, recursion, stmt::SqlInsertStatement, ctx)
+    projected = Cell(() -> begin
+        table_im = projection_print(recursion, recursion, stmt.table,
+                                    child_context(ctx, FieldReference("table")))
+        col_ims = [projection_print(recursion, recursion, c,
+                                    child_context(ctx, FieldReference("columns"), ElementReference(i)))
+                   for (i, c) in enumerate(stmt.columns)]
+        val_ims = [projection_print(recursion, recursion, v,
+                                    child_context(ctx, FieldReference("values"), ElementReference(i)))
+                   for (i, v) in enumerate(stmt.values)]
+        (table_im, col_ims, val_ims)
+    end)
+    child_iomaps_cell = Cell(() -> begin
+        table_im, col_ims, val_ims = projected[]
+        Any[table_im; col_ims; val_ims]
+    end)
+
+    columns_paren = SyntaxNode("(", ")", ", ", () -> begin
+        _, col_ims, _ = projected[]
+        SyntaxDocument[c.output for c in col_ims]
+    end)
+    values_paren = SyntaxNode("(", ")", ", ", () -> begin
+        _, _, val_ims = projected[]
+        SyntaxDocument[v.output for v in val_ims]
+    end)
+
+    iomap_cell = Cell(nothing)
+    sel = Cell(() -> begin
+        im = iomap_cell[]
+        im === nothing && return nothing
+        path = stmt.selection
+        path === nothing && return nothing
+        map_reference_forward(p, im, path)
+    end)
+
+    node = SyntaxNode(
+        TextString("", p.keyword_font, color_default),
+        TextString("", p.keyword_font, color_default),
+        TextString(" ", p.keyword_font, color_default),
+        CellVector(() -> begin
+            _, col_ims, _ = projected[]
+            docs = SyntaxDocument[_kw("INSERT", p.keyword_font, p.keyword_color),
+                                  _kw("INTO", p.keyword_font, p.keyword_color),
+                                  projected[][1].output]
+            isempty(col_ims) || push!(docs, columns_paren)
+            push!(docs, _kw("VALUES", p.keyword_font, p.keyword_color))
+            push!(docs, values_paren)
+            docs
+        end),
+        0, Cell(false), sel)
+
+    iomap = ChildrenIoMap(p, stmt, node, child_iomaps_cell)
+    iomap_cell[] = iomap
+    return iomap
+end
+
+function map_reference_forward(p::SqlInsertStatementToSyntaxNode, iomap::ChildrenIoMap, reference)
+    ncols = length(iomap.input.columns)
+    vals_idx = ncols == 0 ? 5 : 6
+    @reference_case reference begin
+        ∅ => @reference()
+        proj(^(p), _) => reference
+        table.rest... => begin
+            child = iomap.child_iomaps[][1]
+            inner = map_reference_forward(child.projection, child, rest)
+            inner === nothing && return nothing
+            @reference children[3].^(inner)
+        end
+        columns{s:_}.rest... => begin
+            child_i = s + 1
+            cims = iomap.child_iomaps[]
+            cim_i = 1 + child_i
+            1 <= cim_i <= length(cims) || return nothing
+            child = cims[cim_i]
+            inner = map_reference_forward(child.projection, child, rest)
+            inner === nothing && return nothing
+            @reference children[4].children[child_i].^(inner)
+        end
+        values{s:_}.rest... => begin
+            child_i = s + 1
+            cims = iomap.child_iomaps[]
+            cim_i = 1 + ncols + child_i
+            1 <= cim_i <= length(cims) || return nothing
+            child = cims[cim_i]
+            inner = map_reference_forward(child.projection, child, rest)
+            inner === nothing && return nothing
+            @reference children[vals_idx].children[child_i].^(inner)
+        end
+    end
+end
+
+function map_reference_backward(p::SqlInsertStatementToSyntaxNode, iomap::ChildrenIoMap, reference)
+    ncols = length(iomap.input.columns)
+    cols_present = ncols != 0
+    vals_idx = cols_present ? 6 : 5
+    @reference_case reference begin
+        ∅ => @reference()
+        children[3].rest... => begin
+            child = iomap.child_iomaps[][1]
+            inner = map_reference_backward(child.projection, child, rest)
+            inner === nothing && return nothing
+            @reference table.^(inner)
+        end
+        children{outer_s:_}.children{t:u}.rest... => begin
+            outer_i = outer_s + 1
+            child_i = t + 1
+            cims = iomap.child_iomaps[]
+            if cols_present && outer_i == 4
+                cim_i = 1 + child_i
+                1 <= cim_i <= length(cims) || return nothing
+                child = cims[cim_i]
+                inner = map_reference_backward(child.projection, child, rest)
+                inner === nothing && return nothing
+                @reference columns[child_i].^(inner)
+            elseif outer_i == vals_idx
+                cim_i = 1 + ncols + child_i
+                1 <= cim_i <= length(cims) || return nothing
+                child = cims[cim_i]
+                inner = map_reference_backward(child.projection, child, rest)
+                inner === nothing && return nothing
+                @reference values[child_i].^(inner)
+            else
+                return nothing
+            end
+        end
+    end
+end
+
+function projection_read(p::SqlInsertStatementToSyntaxNode, iomap::ChildrenIoMap, op::ReplaceSelectionOperation)
+    result = map_reference_backward(p, iomap, op.path)
+    result !== nothing && return ReplaceSelectionOperation(result)
+    flat = _syntax_to_flat(iomap.output::SyntaxNode, op.path, SyntaxNodeToText(), 0)
+    flat < 0 && return nothing
+    return ReplaceSelectionOperation(ConcreteReferencePath(ProjectionReference(p, ConcreteReferencePath(PositionReference(flat)))))
+end
+
+projection_read(::SqlInsertStatementToSyntaxNode, iomap::ChildrenIoMap, op) = nothing
+
+# ── SqlUpdateAssignmentToSyntaxNode ───────────────────────────────────────────
+# Renders `<col> = <value>`. children[1]=column, children[3]=value (the `=`
+# keyword sits at children[2], like SqlComparison).
+
+struct SqlUpdateAssignmentToSyntaxNode <: Projection
+    keyword_font::StyleFont
+    keyword_color::StyleColor
+end
+SqlUpdateAssignmentToSyntaxNode(; keyword_font=font_ubuntu_monospace_bold_24,
+                                  keyword_color=color_solarized_blue) =
+    SqlUpdateAssignmentToSyntaxNode(keyword_font, keyword_color)
+
+function projection_print(p::SqlUpdateAssignmentToSyntaxNode, recursion, doc::SqlUpdateAssignment, ctx)
+    projected = Cell(() -> begin
+        col_im = projection_print(recursion, recursion, doc.column_name,
+                                  child_context(ctx, FieldReference("column_name")))
+        val_im = projection_print(recursion, recursion, doc.value,
+                                  child_context(ctx, FieldReference("value")))
+        (col_im, val_im)
+    end)
+    child_iomaps_cell = Cell(() -> begin col_im, val_im = projected[]; Any[col_im, val_im] end)
+
+    iomap_cell = Cell(nothing)
+    sel = Cell(() -> begin
+        im = iomap_cell[]
+        im === nothing && return nothing
+        path = doc.selection
+        path === nothing && return nothing
+        map_reference_forward(p, im, path)
+    end)
+
+    node = SyntaxNode(
+        TextString("", p.keyword_font, color_default),
+        TextString("", p.keyword_font, color_default),
+        TextString(" ", p.keyword_font, color_default),
+        CellVector(() -> begin
+            col_im, val_im = projected[]
+            SyntaxDocument[col_im.output, _kw("=", p.keyword_font, p.keyword_color), val_im.output]
+        end),
+        0, Cell(false), sel)
+
+    iomap = ChildrenIoMap(p, doc, node, child_iomaps_cell)
+    iomap_cell[] = iomap
+    return iomap
+end
+
+function map_reference_forward(p::SqlUpdateAssignmentToSyntaxNode, iomap::ChildrenIoMap, reference)
+    @reference_case reference begin
+        ∅ => @reference()
+        proj(^(p), _) => reference
+        column_name.rest... => begin
+            child = iomap.child_iomaps[][1]
+            inner = map_reference_forward(child.projection, child, rest)
+            inner === nothing && return nothing
+            @reference children[1].^(inner)
+        end
+        value.rest... => begin
+            child = iomap.child_iomaps[][2]
+            inner = map_reference_forward(child.projection, child, rest)
+            inner === nothing && return nothing
+            @reference children[3].^(inner)
+        end
+    end
+end
+
+function map_reference_backward(p::SqlUpdateAssignmentToSyntaxNode, iomap::ChildrenIoMap, reference)
+    @reference_case reference begin
+        ∅ => @reference()
+        children[1].rest... => begin
+            child = iomap.child_iomaps[][1]
+            inner = map_reference_backward(child.projection, child, rest)
+            inner === nothing && return nothing
+            @reference column_name.^(inner)
+        end
+        children[3].rest... => begin
+            child = iomap.child_iomaps[][2]
+            inner = map_reference_backward(child.projection, child, rest)
+            inner === nothing && return nothing
+            @reference value.^(inner)
+        end
+    end
+end
+
+function projection_read(p::SqlUpdateAssignmentToSyntaxNode, iomap::ChildrenIoMap, op::ReplaceSelectionOperation)
+    result = map_reference_backward(p, iomap, op.path)
+    result !== nothing && return ReplaceSelectionOperation(result)
+    flat = _syntax_to_flat(iomap.output::SyntaxNode, op.path, SyntaxNodeToText(), 0)
+    flat < 0 && return nothing
+    return ReplaceSelectionOperation(ConcreteReferencePath(ProjectionReference(p, ConcreteReferencePath(PositionReference(flat)))))
+end
+
+projection_read(::SqlUpdateAssignmentToSyntaxNode, iomap::ChildrenIoMap, op) = nothing
+
+# ── SqlUpdateStatementToSyntaxNode ────────────────────────────────────────────
+#
+# Single-line shape (sep=" "):
+#   UPDATE <table> SET <assignment>, … [WHERE <condition>]
+# Child positions: [1]=UPDATE [2]=table [3]=SET [4]=assignments comma-body
+#   [5]=WHERE [6]=condition  (5 and 6 present only when there is a condition).
+# The WHERE condition is rendered inline (the where clause's condition is
+# projected directly, not the multi-line SqlWhereClause projection), keeping the
+# statement on one line.
+
+struct SqlUpdateStatementToSyntaxNode <: Projection
+    keyword_font::StyleFont
+    keyword_color::StyleColor
+end
+SqlUpdateStatementToSyntaxNode(; keyword_font=font_ubuntu_monospace_bold_24,
+                                 keyword_color=color_solarized_blue) =
+    SqlUpdateStatementToSyntaxNode(keyword_font, keyword_color)
+
+function projection_print(p::SqlUpdateStatementToSyntaxNode, recursion, stmt::SqlUpdateStatement, ctx)
+    projected = Cell(() -> begin
+        table_im = projection_print(recursion, recursion, stmt.table,
+                                    child_context(ctx, FieldReference("table")))
+        assign_ims = [projection_print(recursion, recursion, a,
+                                       child_context(ctx, FieldReference("assignments"), ElementReference(i)))
+                      for (i, a) in enumerate(stmt.assignments)]
+        where_im = stmt.where_clause.condition === nothing ? nothing :
+            projection_print(recursion, recursion, stmt.where_clause.condition,
+                             child_context(ctx, FieldReference("where_clause"), FieldReference("condition")))
+        (table_im, assign_ims, where_im)
+    end)
+    child_iomaps_cell = Cell(() -> begin
+        table_im, assign_ims, where_im = projected[]
+        where_im === nothing ? Any[table_im; assign_ims] : Any[table_im; assign_ims; where_im]
+    end)
+
+    assignments_body = _comma_node(() -> begin
+        _, assign_ims, _ = projected[]
+        SyntaxDocument[a.output for a in assign_ims]
+    end)
+
+    iomap_cell = Cell(nothing)
+    sel = Cell(() -> begin
+        im = iomap_cell[]
+        im === nothing && return nothing
+        path = stmt.selection
+        path === nothing && return nothing
+        map_reference_forward(p, im, path)
+    end)
+
+    node = SyntaxNode(
+        TextString("", p.keyword_font, color_default),
+        TextString("", p.keyword_font, color_default),
+        TextString(" ", p.keyword_font, color_default),
+        CellVector(() -> begin
+            table_im, _, where_im = projected[]
+            docs = SyntaxDocument[_kw("UPDATE", p.keyword_font, p.keyword_color),
+                                  table_im.output,
+                                  _kw("SET", p.keyword_font, p.keyword_color),
+                                  assignments_body]
+            if where_im !== nothing
+                push!(docs, _kw("WHERE", p.keyword_font, p.keyword_color))
+                push!(docs, where_im.output)
+            end
+            docs
+        end),
+        0, Cell(false), sel)
+
+    iomap = ChildrenIoMap(p, stmt, node, child_iomaps_cell)
+    iomap_cell[] = iomap
+    return iomap
+end
+
+function map_reference_forward(p::SqlUpdateStatementToSyntaxNode, iomap::ChildrenIoMap, reference)
+    nassign = length(iomap.input.assignments)
+    @reference_case reference begin
+        ∅ => @reference()
+        proj(^(p), _) => reference
+        table.rest... => begin
+            child = iomap.child_iomaps[][1]
+            inner = map_reference_forward(child.projection, child, rest)
+            inner === nothing && return nothing
+            @reference children[2].^(inner)
+        end
+        assignments{s:_}.rest... => begin
+            child_i = s + 1
+            cims = iomap.child_iomaps[]
+            cim_i = 1 + child_i
+            1 <= cim_i <= length(cims) || return nothing
+            child = cims[cim_i]
+            inner = map_reference_forward(child.projection, child, rest)
+            inner === nothing && return nothing
+            @reference children[4].children[child_i].^(inner)
+        end
+        where_clause.condition.rest... => begin
+            cims = iomap.child_iomaps[]
+            length(cims) < 2 + nassign && return nothing
+            child = cims[2 + nassign]
+            inner = map_reference_forward(child.projection, child, rest)
+            inner === nothing && return nothing
+            @reference children[6].^(inner)
+        end
+    end
+end
+
+function map_reference_backward(p::SqlUpdateStatementToSyntaxNode, iomap::ChildrenIoMap, reference)
+    nassign = length(iomap.input.assignments)
+    @reference_case reference begin
+        ∅ => @reference()
+        children[2].rest... => begin
+            child = iomap.child_iomaps[][1]
+            inner = map_reference_backward(child.projection, child, rest)
+            inner === nothing && return nothing
+            @reference table.^(inner)
+        end
+        children[6].rest... => begin
+            cims = iomap.child_iomaps[]
+            length(cims) < 2 + nassign && return nothing
+            child = cims[2 + nassign]
+            inner = map_reference_backward(child.projection, child, rest)
+            inner === nothing && return nothing
+            @reference where_clause.condition.^(inner)
+        end
+        children{outer_s:_}.children{t:u}.rest... => begin
+            outer_i = outer_s + 1
+            outer_i != 4 && return nothing
+            child_i = t + 1
+            cims = iomap.child_iomaps[]
+            cim_i = 1 + child_i
+            1 <= cim_i <= length(cims) || return nothing
+            child = cims[cim_i]
+            inner = map_reference_backward(child.projection, child, rest)
+            inner === nothing && return nothing
+            @reference assignments[child_i].^(inner)
+        end
+    end
+end
+
+function projection_read(p::SqlUpdateStatementToSyntaxNode, iomap::ChildrenIoMap, op::ReplaceSelectionOperation)
+    result = map_reference_backward(p, iomap, op.path)
+    result !== nothing && return ReplaceSelectionOperation(result)
+    flat = _syntax_to_flat(iomap.output::SyntaxNode, op.path, SyntaxNodeToText(), 0)
+    flat < 0 && return nothing
+    return ReplaceSelectionOperation(ConcreteReferencePath(ProjectionReference(p, ConcreteReferencePath(PositionReference(flat)))))
+end
+
+projection_read(::SqlUpdateStatementToSyntaxNode, iomap::ChildrenIoMap, op) = nothing
+
 # ── Compound constructor ──────────────────────────────────────────────────────
 
 function SqlToSyntax()
@@ -1416,6 +1880,8 @@ function SqlToSyntax()
         SqlSelectItem           => SqlSelectItemToSyntaxNode(),
         SqlAllColumns           => SqlAllColumnsToSyntaxLeaf(),
         SqlColumnReference      => SqlColumnReferenceToSyntaxLeaf(),
+        SqlColumnName           => SqlColumnNameToSyntaxLeaf(),
+        SqlTableName            => SqlTableNameToSyntaxLeaf(),
         SqlTableExpression      => SqlTableExpressionToSyntaxLeaf(),
         SqlSubqueryFromItem     => SqlSubqueryFromItemToSyntaxNode(),
         SqlFromItem             => SqlFromItemToSyntaxNode(),
@@ -1432,6 +1898,9 @@ function SqlToSyntax()
         SqlAnd                  => SqlBooleanBinaryToSyntaxNode("AND"),
         SqlOr                   => SqlBooleanBinaryToSyntaxNode("OR"),
         SqlNot                  => SqlNotToSyntaxNode(),
+        SqlInsertStatement      => SqlInsertStatementToSyntaxNode(),
+        SqlUpdateAssignment     => SqlUpdateAssignmentToSyntaxNode(),
+        SqlUpdateStatement      => SqlUpdateStatementToSyntaxNode(),
     )
 end
 

@@ -5,7 +5,8 @@ using Projectured
 using ProjecturedExample
 using Projectured: ElementReference, RangeReference, PositionReference, FieldReference, PointReference,
                    TextRectangularReference,
-                   ConcreteReferencePath, EmptyReferencePath,
+                   ConcreteReferencePath, EmptyReferencePath, ReferencePath,
+                   map_reference_forward, map_reference_backward,
                    color_red, color_blue, color_green, color_white, color_default,
                    color_solarized_background_dark,
                    font_ubuntu_monospace_regular_24
@@ -118,6 +119,7 @@ function test_projections()
         test_json_to_syntax_reader()
         test_sql_to_syntax()
         test_sql_to_syntax_selection()
+        test_sql_insert_update_selection()
         test_xml_to_syntax()
         test_xml_to_syntax_reader()
         test_syntax_to_text()

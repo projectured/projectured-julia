@@ -1,5 +1,11 @@
 # Single-line INSERT and UPDATE support
 
+> **Status (as-built):** document model, projection, examples, and tests are
+> **implemented and passing**. The parser (§3) was **deferred** — it remains the
+> only open item. Sections below have been updated to match what actually shipped;
+> places where the implementation diverged from the original design are called out
+> with **As-built** notes.
+
 Flesh out the two statement stubs `SqlInsertStatement` and `SqlUpdateStatement`
 ([program/src/document/Sql.jl:314-322](program/src/document/Sql.jl#L314-L322)) into
 real document trees, give each a bidirectional `SqlToSyntax` projection
@@ -84,35 +90,53 @@ flat-position fallback). Each needs a matching reader — projections are bidire
 
 1. **`SqlInsertStatementToSyntaxNode`** — renders
    `INSERT INTO <table> (<col>, …) VALUES (<val>, …)`.
-   - `table` is a `SqlTableExpressionToSyntaxLeaf`-style leaf, or reuse the table-name
-     rendering. Columns and values render as comma-separated parenthesised lists.
    - Child iomaps: the table leaf, each column leaf, each value leaf. Reference cases:
      `table`, `columns{i}`, `values{i}` forward; corresponding `children[…]` backward.
-   - Render single-line: use space separators (`_space_node` / inline `_kw`), **not**
-     the indented `_comma_body` / `_newline_body` helpers the SELECT clauses use.
+   - The column and value leaves live one level deeper, inside parenthesised
+     comma lists rendered as `SyntaxNode("(", ")", ", ", …)`. So a column maps to
+     `children[cols_idx].children[i]` and a value to `children[vals_idx].children[i]`.
+   - **As-built:** the column list is omitted when `columns` is empty, which shifts
+     the `VALUES`/values-paren positions — handle this with a `cols_present` /
+     `vals_idx` computation in both reference maps (mirrors how
+     `SqlSelectClauseToSyntaxNode` shifts indices for the optional `DISTINCT`).
+   - Render single-line: a single `SyntaxNode` with a space separator and inline
+     `_kw` keywords, **not** the indented `_comma_body` / `_newline_body` helpers the
+     SELECT clauses use.
 
 2. **`SqlUpdateAssignmentToSyntaxNode`** — renders `<col> = <value>`.
-   - Two child iomaps (column leaf, value leaf), `=` as a plain (non-keyword) leaf.
+   - Two child iomaps (column leaf, value leaf); column at `children[1]`, value at
+     `children[3]`, with `=` at `children[2]`.
+   - **As-built:** `=` is rendered via `_kw("=", …)` (bold/blue keyword style), matching
+     how `SqlComparisonToSyntaxNode` renders its operator — not a plain leaf.
 
 3. **`SqlUpdateStatementToSyntaxNode`** — renders
-   `UPDATE <table> SET <assignment>, … [WHERE …]`.
-   - Child iomaps: table leaf, each `SqlUpdateAssignment` node, optional where clause
-     (reuse `SqlWhereClauseToSyntaxNode`, included only when
-     `where_clause.condition !== nothing`, exactly like
-     `SqlSelectStatementToSyntaxNode` does at
-     [SqlToSyntax.jl:1310-1319](program/src/projection/primitive/SqlToSyntax.jl#L1310-L1319)).
+   `UPDATE <table> SET <assignment>, … [WHERE <condition>]`.
+   - Child iomaps: table leaf, each `SqlUpdateAssignment` node, and (when present) the
+     WHERE condition. Positions: `[1]=UPDATE [2]=table [3]=SET [4]=assignments-body`
+     `[5]=WHERE [6]=condition`; 5/6 present only when there is a condition.
+   - **As-built — WHERE is rendered inline, NOT via `SqlWhereClauseToSyntaxNode`.**
+     The original plan said to reuse the whole where-clause projection, but that
+     projection is deliberately multi-line (`WHERE\n  <cond>\n` via `_newline_body`),
+     which would break the single-line goal. Instead, project
+     `stmt.where_clause.condition` directly and emit `_kw("WHERE")` + the condition's
+     output inline. The condition is still included only when
+     `where_clause.condition !== nothing`. The reference maps therefore route through
+     the two-level path `where_clause.condition.<rest>` ⇄ `children[6]`.
 
-4. Register all of them in the `SqlToSyntax()` compound constructor
-   ([SqlToSyntax.jl:1409-1436](program/src/projection/primitive/SqlToSyntax.jl#L1409-L1436)):
-   `SqlInsertStatement => …`, `SqlUpdateStatement => …`,
-   `SqlUpdateAssignment => …`. `SqlColumnName` is currently rendered only inside
-   `SqlColumnReference`; INSERT/UPDATE need a bare-column-name leaf, so add a small
-   `SqlColumnNameToSyntaxLeaf` (mirror `SqlColumnReferenceToSyntaxLeaf`) and register
-   `SqlColumnName => SqlColumnNameToSyntaxLeaf()`.
+4. Register all of them in the `SqlToSyntax()` compound constructor:
+   `SqlInsertStatement => …`, `SqlUpdateStatement => …`, `SqlUpdateAssignment => …`.
+   INSERT/UPDATE also need **two new bare-name leaves**, because their targets/columns
+   are bare `SqlTableName` / `SqlColumnName` documents that no existing projection
+   handles (`SqlColumnReference` and `SqlTableExpression` render those names inline
+   rather than recursing into them):
+   - `SqlColumnNameToSyntaxLeaf` (mirror `SqlColumnReferenceToSyntaxLeaf`), registered
+     `SqlColumnName => SqlColumnNameToSyntaxLeaf()`.
+   - **As-built:** also `SqlTableNameToSyntaxLeaf` (renders `schema.name` or `name`),
+     registered `SqlTableName => SqlTableNameToSyntaxLeaf()`. Adding these global
+     dispatch entries is harmless — they are only reached via INSERT/UPDATE recursion.
 
-5. Add the new projection types to the module `export` list
-   ([SqlToSyntax.jl:40-48](program/src/projection/primitive/SqlToSyntax.jl#L40-L48)) and
-   the re-export in [Projectured.jl:437-443](program/src/Projectured.jl#L437-L443).
+5. Add the new projection types to the module `export` list and the re-export in
+   [Projectured.jl](program/src/Projectured.jl).
 
 ### Single-line rendering note
 
@@ -123,12 +147,13 @@ separator helpers and keep keywords (`INSERT`, `INTO`, `VALUES`, `UPDATE`, `SET`
 
 ---
 
-## 3. Parser (`SqlParser.jl`) — optional, can be deferred
+## 3. Parser (`SqlParser.jl`) — DEFERRED (open follow-up)
 
-`sqlparse` currently handles SELECT only. Extend the entry point to dispatch on the
-leading keyword (`INSERT` / `UPDATE` / `SELECT`) and add two recursive-descent
-parse functions producing the new document trees. If deferred, note it explicitly as
-follow-up; the projection + examples + tests below do **not** depend on the parser.
+**Not implemented.** `sqlparse` still handles SELECT only. To finish: extend the entry
+point to dispatch on the leading keyword (`INSERT` / `UPDATE` / `SELECT`) and add two
+recursive-descent parse functions producing the new document trees. The shipped
+projection + examples + tests do **not** depend on the parser, so this can land
+separately without touching the rest of this work.
 
 ---
 
@@ -156,27 +181,48 @@ list at [Examples.jl:160-162](example/src/Examples.jl#L160-L162).
 
 In [test/src/projection/SqlToSyntaxTest.jl](test/src/projection/SqlToSyntaxTest.jl):
 
-- Replace the "Stubs compile" asserts
-  ([SqlToSyntaxTest.jl:42-44](test/src/projection/SqlToSyntaxTest.jl#L42-L44)) with
-  real round-trip rendering checks via the `sql_text` helper already defined there,
-  e.g.:
-  - `sql_text(insert_doc)` ⟹ `"INSERT INTO persons (name, age) VALUES ('Ada', 36)"`
-  - `sql_text(update_doc)` ⟹ `"UPDATE persons SET age = 37 WHERE name = 'Ada'"`
-- Add selection round-trip coverage mirroring `test_sql_to_syntax_selection`: drive
-  the printer/reader and assert `map_reference_forward`/`backward` invert for a
-  selection on a column, a value, and (UPDATE) a WHERE sub-reference.
+- Replace the "Stubs compile" asserts with real round-trip rendering checks via the
+  `sql_text` helper already defined there. Cover the index-shifting/optional branches,
+  not just the happy path:
+  - `INSERT INTO persons (name, age) VALUES ('Ada', 36)` (with column list)
+  - `INSERT INTO persons VALUES ('Ada', 36)` (empty column list → list omitted)
+  - `UPDATE persons SET age = 37 WHERE name = 'Ada'` (with WHERE)
+  - `UPDATE persons SET name = 'Ada', age = 37` (no WHERE, multiple assignments)
+- Add a **self-contained** selection round-trip test, `test_sql_insert_update_selection()`.
+  **As-built / gotcha:** the original plan said to "mirror `test_sql_to_syntax_selection`",
+  but that existing test calls a `test_selection` helper that is **defined nowhere in
+  the repo** — so `test_sql_to_syntax_selection()` is already broken on this branch and
+  cannot be mirrored. Instead the new test stands alone: `projection_print` the doc,
+  take `iomap.projection` (RecursiveProjection unwraps to the concrete node projection),
+  and assert `map_reference_backward(p, iomap, map_reference_forward(p, iomap, path)) == path`
+  for `table`, `columns[i]`, `values[i]` (INSERT) and `table`, `assignments[i].column_name`,
+  `assignments[i].value`, and a `where_clause.condition.expression.left` sub-reference
+  (UPDATE). Build multi-step paths with `ReferencePath(steps...)` — note
+  `ConcreteReferencePath` only takes one step or `(step, ReferencePath)`, so passing
+  bare steps as varargs constructs a malformed path.
+- This needs `ReferencePath`, `map_reference_forward`, `map_reference_backward` added to
+  the `using Projectured: …` import list in
+  [ProjecturedTest.jl](test/src/ProjecturedTest.jl), and the new test wired into
+  `test_projections()` + the module `export`.
 
-Verify with the narrowest scope (per [CLAUDE.md](CLAUDE.md) "Testing a change"):
+### Verifying
+
+Per [CLAUDE.md](CLAUDE.md) "Testing a change", use the narrowest scope:
 
 ```julia
-test_sql_to_syntax()          # the targeted projection test
-test_example(sql_insert_syntax_example)
-test_example(sql_update_syntax_example)
+test_sql_document()                  # document model still loads
+test_sql_to_syntax()                 # rendering, incl. the new INSERT/UPDATE cases
+test_sql_insert_update_selection()   # selection round-trip
 ```
 
-Use `test_example(...)` to cover printer + reader + navigation per example. Only run
-broader sweeps (`test_syntax()`, `test_all()`) if the targeted tests pass and a wide
-check is wanted.
+**Do not rely on `test_example(sql_insert_syntax_example)` as a clean signal.**
+`test_example` bundles a **typein** sub-test (`walk_typein`) that fails for SQL
+scalar/column leaves — but this is a **pre-existing, SQL-wide limitation**: the
+existing `sql_syntax_example` (SELECT) fails the same typein check, and the broad
+`test_typeins()` sweep only covers `json/json_string/text/xml/book/syntax`, never SQL.
+So the printer/reader/navigation portions of `test_example` pass for the new examples;
+only the typein portion fails, and adding the examples to the registry does **not**
+make the broad suite red. Editable string typein for SQL leaves is out of scope (see §6).
 
 ---
 
@@ -188,4 +234,6 @@ check is wanted.
   `SqlScalarValue` only (`42`, `'text'`, `TRUE`/`FALSE`), as in SELECT.
 - Qualified/multi-table UPDATE targets and joins.
 - Multi-line / pretty-printed layout — these statements render on a single line.
-- Parser support is optional (see §3) and may land as a follow-up.
+- Parser support (see §3) — deferred, lands as a follow-up.
+- Editable-string **typein** for SQL leaves (scalar values, column/table names). Not
+  supported for any SQL document today (SELECT included); a separate effort.

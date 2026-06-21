@@ -39,9 +39,79 @@ function test_sql_to_syntax()
         @test occursin("SELECT", sql_text(SqlSelectStatement("persons")))
         @test occursin("persons", sql_text(SqlSelectStatement("persons")))
 
-        # Stubs compile
+        # Empty constructors still compile
         @test SqlInsertStatement() isa SqlInsertStatement
         @test SqlUpdateStatement() isa SqlUpdateStatement
+
+        # INSERT renders single-line, with and without an explicit column list
+        insert_doc = SqlInsertStatement(
+            SqlTableName("persons"),
+            [SqlColumnName("name"), SqlColumnName("age")],
+            [SqlScalarValue("Ada"), SqlScalarValue(36)])
+        @test sql_text(insert_doc) == "INSERT INTO persons (name, age) VALUES ('Ada', 36)"
+
+        insert_no_cols = SqlInsertStatement(
+            SqlTableName("persons"),
+            SqlColumnName[],
+            [SqlScalarValue("Ada"), SqlScalarValue(36)])
+        @test sql_text(insert_no_cols) == "INSERT INTO persons VALUES ('Ada', 36)"
+
+        # UPDATE renders single-line, with and without WHERE
+        update_doc = SqlUpdateStatement(
+            SqlTableName("persons"),
+            [SqlUpdateAssignment(SqlColumnName("age"), SqlScalarValue(37))],
+            SqlWhereClause(SqlWhereFilterCondition(SqlComparison(
+                SqlColumnReference(SqlColumnName("name")), "=", SqlScalarValue("Ada")))))
+        @test sql_text(update_doc) == "UPDATE persons SET age = 37 WHERE name = 'Ada'"
+
+        update_no_where = SqlUpdateStatement(
+            SqlTableName("persons"),
+            [SqlUpdateAssignment(SqlColumnName("name"), SqlScalarValue("Ada")),
+             SqlUpdateAssignment(SqlColumnName("age"), SqlScalarValue(37))])
+        @test sql_text(update_no_where) == "UPDATE persons SET name = 'Ada', age = 37"
+    end
+end
+
+function test_sql_insert_update_selection()
+    @testset "SqlToSyntax INSERT/UPDATE selection round-trip" begin
+        proj = RecursiveProjection(SqlToSyntax())
+
+        # INSERT: forward a doc reference to a syntax path, then back again.
+        insert_doc = SqlInsertStatement(
+            SqlTableName("persons"),
+            [SqlColumnName("name"), SqlColumnName("age")],
+            [SqlScalarValue("Ada"), SqlScalarValue(36)])
+        iomap = projection_print(proj, insert_doc)
+        p = iomap.projection
+        for path in (
+                ReferencePath(FieldReference("table")),
+                ReferencePath(FieldReference("columns"), ElementReference(2)),
+                ReferencePath(FieldReference("values"), ElementReference(1)))
+            fwd = map_reference_forward(p, iomap, path)
+            @test fwd !== nothing
+            @test map_reference_backward(p, iomap, fwd) == path
+        end
+
+        # UPDATE: assignment column, assignment value, and a WHERE sub-reference.
+        update_doc = SqlUpdateStatement(
+            SqlTableName("persons"),
+            [SqlUpdateAssignment(SqlColumnName("age"), SqlScalarValue(37))],
+            SqlWhereClause(SqlWhereFilterCondition(SqlComparison(
+                SqlColumnReference(SqlColumnName("name")), "=", SqlScalarValue("Ada")))))
+        uiomap = projection_print(proj, update_doc)
+        up = uiomap.projection
+        for path in (
+                ReferencePath(FieldReference("table")),
+                ReferencePath(FieldReference("assignments"), ElementReference(1),
+                              FieldReference("column_name")),
+                ReferencePath(FieldReference("assignments"), ElementReference(1),
+                              FieldReference("value")),
+                ReferencePath(FieldReference("where_clause"), FieldReference("condition"),
+                              FieldReference("expression"), FieldReference("left")))
+            fwd = map_reference_forward(up, uiomap, path)
+            @test fwd !== nothing
+            @test map_reference_backward(up, uiomap, fwd) == path
+        end
     end
 end
 
@@ -82,4 +152,4 @@ function test_sql_to_syntax_selection()
     test_selection("SqlToSyntax nested", doc, proj)
 end
 
-export test_sql_to_syntax, test_sql_to_syntax_selection
+export test_sql_to_syntax, test_sql_to_syntax_selection, test_sql_insert_update_selection
