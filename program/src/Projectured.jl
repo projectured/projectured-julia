@@ -36,9 +36,18 @@ include("document/Color.jl")
 include("document/StyleText.jl")
 include("document/StyleStroke.jl")
 include("document/Geometry.jl")
-include("document/Text.jl")
+# Input devices and the primitive domain load before Text/Syntax so the domain
+# documents can declare `document_read` methods that map input gestures
+# (KeyDown/KeyPress/MousePress, matched via `@event_case`) to operations such as
+# `StringReplaceRangeOperation` (from PrimitiveModule). These device modules are
+# pure leaves (DeviceModule + ModifiersModule), so moving them earlier is safe.
+include("device/Modifiers.jl")
+include("device/Keyboard.jl")
+include("device/Mouse.jl")
+include("device/EventCase.jl")
 include("document/Primitive.jl")
 include("common/OperationRerooting.jl")
+include("document/Text.jl")
 include("document/Syntax.jl")
 include("document/Graphics.jl")
 include("document/Json.jl")
@@ -108,12 +117,10 @@ include("projection/primitive/ScreenToScreen.jl")
 include("projection/generic/Invariably.jl")
 include("projection/generic/ObjectToWidget.jl")
 
-# ── Devices (needed by projections) ──────────────────────────────────────
+# ── Devices ───────────────────────────────────────────────────────────────
+# Modifiers / Keyboard / Mouse / EventCase are included earlier (before Text.jl)
+# so the document layer can declare `document_read` gesture methods.
 
-include("device/Modifiers.jl")
-include("device/Keyboard.jl")
-include("device/Mouse.jl")
-include("device/EventCase.jl")
 include("projection/generic/Focusing.jl")
 # Clipboard projection: needs the keyboard/event-case device modules above plus
 # the clipboard documents, copy_document, and operations included earlier.
@@ -237,7 +244,7 @@ using .ReferenceModule: ConcreteReferencePath, ElementReference, PositionReferen
                        ReferenceTypeMismatch, valid_reference_prefix, annotate_reference_types, strip_reference_types
 using .PrinterContextModule: PrinterContext, child_context, with_available_size,
                                  with_property, get_property
-using .DocumentApiModule: set_selection!, clear_selection!
+using .DocumentApiModule: set_selection!, clear_selection!, document_read
 using .OperationModule: ReplaceSelectionOperation, QuitEditorOperation, replace_selection!,
                         OpenWindowOperation, CloseWindowOperation, ResizeWindowOperation, ToggleCollapseOperation,
                         ReplaceDocumentOperation, ReplaceReferencedValue, CollectionInsertOperation, CollectionDeleteOperation,
@@ -567,7 +574,7 @@ export ConcreteReferencePath, ElementReference, PositionReference, RangeReferenc
        reference_equal, is_prefix_of,
        ReferenceTypeMismatch, valid_reference_prefix, annotate_reference_types, strip_reference_types
 export PrinterContext, child_context, with_available_size, with_property, get_property
-export set_selection!, clear_selection!, replace_selection!
+export set_selection!, clear_selection!, replace_selection!, document_read
 export @reference_case, when, prefix
 export @event_case
 export @reference, @step

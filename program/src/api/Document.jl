@@ -8,7 +8,7 @@ the declaration from the implementation and avoids circular dependencies.
 """
 module DocumentApiModule
 
-export Document, clear_selection!, set_selection!
+export Document, clear_selection!, set_selection!, document_read
 
 """
     Document
@@ -48,5 +48,22 @@ in the path navigates to a child document and sets that child's `selection` to
 the remaining tail of the path.
 """
 function set_selection! end
+
+"""
+    document_read(document, gesture) -> Union{Operation, Nothing}
+
+Map a backend-agnostic input gesture to an Operation expressed against
+`document` itself (i.e. against `document`'s own reference vocabulary, reading
+only `document`'s structure and `document.selection`). Returns `nothing` when
+the document does not handle the gesture, so a projection reader can fall back
+to its own geometry-dependent handling or let the gesture propagate.
+
+This is the projection-independent half of a domain's reader: any projection
+whose output (or input) is `document` can obtain navigation/editing operations
+without re-implementing them, and a backend that renders the domain directly
+(e.g. ConsoleBackend on a bare TextText) gets them for free.
+"""
+function document_read end
+document_read(::Document, gesture) = nothing   # default: not handled
 
 end # module
