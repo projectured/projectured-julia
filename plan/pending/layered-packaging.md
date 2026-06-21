@@ -169,7 +169,14 @@ hook, so behaviour is identical while everything is still present:
 Move code into `program/ext/`, add `[weakdeps]`, `[extensions]`, and `[compat]`
 entries to `program/Project.toml`, and drop the moved deps from `[deps]`.
 
-- [ ] **`ProjecturedODBCExt`** — weakdeps `ODBC`, `DBInterface`, `Tables`. Holds:
+- [ ] **`ProjecturedODBCExt`** — weakdeps `ODBC`, `DBInterface`, `Tables`. **In
+      progress.** Cluster confirmed (6 modules move): `OdbcAdapterModule`,
+      `ConnectionPoolModule`, `DatabaseTabularModule`,
+      `DatabaseTableToTabularGridModule`, `SqlToCellTableModule`,
+      `DatabaseInstanceToDbCatalogModule`. `CellTableToTableModule` is dep-free and
+      **stays in core**. The `DatabaseInstance` document's ODBC mention is only a
+      comment — it's dep-free. No core consumers outside the umbrella re-export.
+      Holds:
       `external/Database.jl` (the `OdbcDatabaseAdapter`), `external/ConnectionPool.jl`,
       `external/DatabaseTabular.jl`, and the query-executing parts of
       `projection/primitive/DatabaseTableToTabularGrid.jl`,
