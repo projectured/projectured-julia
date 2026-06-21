@@ -17,7 +17,8 @@ module DatabaseTableToTabularGridModule
 
 import DBInterface
 import Tables
-import ..DatabaseModule: OdbcDatabaseAdapter, db_update!, db_insert!
+import ..DatabaseModule: db_update!, db_insert!
+import ..OdbcAdapterModule: OdbcDatabaseAdapter
 import ..DatabaseDocumentModule: DatabaseTable,
                                   DatabaseUpdateOperation, DatabaseInsertOperation
 import ..TabularModule: TabularGrid, TabularRow, TabularCell

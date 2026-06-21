@@ -112,9 +112,12 @@ Tasks:
 
 Before moving any code, introduce in `src/` the generic seams the extensions will
 hook, so behaviour is identical while everything is still present:
-- [ ] Backend factory: a generic `make_backend(kind, …)` (or registry) in
+- [x] Backend factory: a generic `make_backend(kind, …)` (or registry) in
       `api/Backend.jl`; route `run_example` / executable / example wiring through it
-      instead of constructing `SdlBackend(…)` / `WebBackend(…)` directly.
+      instead of constructing `SdlBackend(…)` / `WebBackend(…)` directly. **Done**
+      (commit `make_backend factory seam`): `make_backend(::Val{:sdl|:web|:console})`
+      registered in each backend module; all 5 example construction sites routed
+      through it; `make_backend` exported from the umbrella.
 - [ ] DB adapter seam: confirm the abstract `DatabaseAdapter` + generic
       `db_connect!`/`db_query`/`db_catalog_*`/… all live in a **core** module
       (`DatabaseModule`/`DatabaseDocumentModule`), and that `OdbcDatabaseAdapter` is

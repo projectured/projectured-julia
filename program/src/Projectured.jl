@@ -191,6 +191,7 @@ include("backend/Console.jl")
 include("backend/Web.jl")
 include("backend/Pdf.jl")
 include("external/Database.jl")
+include("external/OdbcAdapter.jl")
 include("external/ConnectionPool.jl")
 include("external/DatabaseTabular.jl")
 include("projection/primitive/DatabaseTableToTabularGrid.jl")
@@ -261,12 +262,13 @@ using .TabularModule: TabularDocument, TabularCell, TabularRow, TabularGrid,
                       insert_row!, delete_row!, insert_column!, delete_column!
 using .DatabaseDocumentModule: DatabaseDocument, DatabaseTable,
                                DatabaseUpdateOperation, DatabaseInsertOperation
-using .DatabaseModule: DatabaseAdapter, RawDatabaseResult, OdbcDatabaseAdapter,
+using .DatabaseModule: DatabaseAdapter, RawDatabaseResult, make_database_adapter,
                        db_connect!, db_close!, db_alive,
                        db_rowid_column,
                        db_query, db_execute_raw,
                        db_insert!, db_update!, db_delete!,
                        db_catalog_databases, db_catalog_schemas, db_catalog_tables, db_catalog_columns
+using .OdbcAdapterModule: OdbcDatabaseAdapter
 using .DatabaseTableToTabularGridModule: DatabaseTableIoMap, DatabaseTableToTabularGrid
 using .DatabaseInstanceDocumentModule: DatabaseInstanceDocument, DatabaseInstance, DatabaseCredentials
 using .ConnectionPoolModule: OdbcConnectionPool, with_connection, dsn_for, close_pool!
@@ -577,7 +579,7 @@ export TabularDocument, TabularCell, TabularRow, TabularGrid,
        tabular_cell, tabular_column,
        insert_row!, delete_row!, insert_column!, delete_column!
 export DatabaseDocument, DatabaseTable, DatabaseUpdateOperation, DatabaseInsertOperation
-export DatabaseAdapter, RawDatabaseResult, OdbcDatabaseAdapter,
+export DatabaseAdapter, RawDatabaseResult, make_database_adapter, OdbcDatabaseAdapter,
        db_connect!, db_close!, db_alive, db_rowid_column,
        db_query, db_execute_raw, db_insert!, db_update!, db_delete!,
        db_catalog_databases, db_catalog_schemas, db_catalog_tables, db_catalog_columns

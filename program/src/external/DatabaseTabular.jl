@@ -10,7 +10,8 @@ module DatabaseTabularModule
 
 import DBInterface
 import Tables
-import ..DatabaseModule: OdbcDatabaseAdapter, db_query
+import ..DatabaseModule: db_query
+import ..OdbcAdapterModule: OdbcDatabaseAdapter
 import ..TabularModule: TabularGrid, TabularRow, TabularCell
 import ..CollectionModule: CellVector
 import ..ReactiveModule: Cell

@@ -19,7 +19,8 @@ A `ReentrantLock` guards the idle buckets.
 """
 module ConnectionPoolModule
 
-import ..DatabaseModule: OdbcDatabaseAdapter, db_connect!, db_close!, db_alive
+import ..DatabaseModule: db_connect!, db_close!, db_alive
+import ..OdbcAdapterModule: OdbcDatabaseAdapter
 import ..DatabaseInstanceDocumentModule: DatabaseInstance
 
 export OdbcConnectionPool, with_connection, dsn_for, close_pool!
