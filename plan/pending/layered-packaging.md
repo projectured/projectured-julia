@@ -244,6 +244,19 @@ entries to `program/Project.toml`, and drop the moved deps from `[deps]`.
 > single-entry cases. Recommendation: (a) where a small factory suffices, (b) for the
 > genuinely-SDL bits (decode/display/render) with no SDL-free fallback. **This one
 > decision unblocks both ODBC and SDL.**
+>
+> **DECIDED: hybrid (a+b).** Applied to SDL (commit `seam render_canvas/decode_image/
+> display_size, route consumers`): added core `render_canvas`/`decode_image` generics
+> (SDL supplies the methods) and `display_size` with an SDL-free fallback + provider
+> hook (SDL registers the real source). All example/test SDL call sites now name only
+> core seams. **The SDL backend is now fully extractable** — the only remaining SDL
+> reference in example/test is `GraphicsCanvasToImageFile` in one runtime testset
+> (`GraphicsToFileTest`), which needs ext access (hybrid-b) when `Sdl.jl` moves.
+> Remaining SDL work = the mechanical extraction: move `Sdl.jl` → `ext/ProjecturedSDLExt.jl`
+> (rewrite ~25 `..CoreModule`→`Projectured.CoreModule`), `[weakdeps]` SDL2/
+> SimpleDirectMediaLayer/FFMPEG + `[extensions]`, drop the SDL symbols from the umbrella
+> re-export, and have `ProjecturedExample`/`ProjecturedTest` trigger+access the ext.
+> Apply the same factory seams to ODBC's pool/projections to unblock it identically.
 - [ ] **`ProjecturedWebExt`** — weakdeps `HTTP`, `JSON3`. Holds `backend/Web.jl`;
       adds `make_backend(::Val{:web}, …)`. If stage 1.0 was done, Web is SDL-free; if
       not, Web keeps a hard SDL dep and ships with the SDL extension instead.
