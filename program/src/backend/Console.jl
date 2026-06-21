@@ -11,17 +11,23 @@ not a `ScreenDocument`.
 
 ## Interactivity (Phase 2) and its limits
 
-Caret/text-level editing in this codebase lives in `TextToGraphics`
-(`KeyPress` → `StringReplaceRangeOperation`, backspace/delete, character
-left/right/up/down, click-to-position) because it needs the rendered glyph
-geometry. The console pipeline deliberately omits `TextToGraphics`, so those
-character-level operations are **not** available here. What survives — and what
-this backend drives — is:
+The **geometry-free** half of caret/text editing now lives on the Text domain
+(`document_read(::TextText, gesture)` in `TextModule`), so the console pipeline
+gets it even though it omits `TextToGraphics`: `SyntaxToText` falls back to the
+output `TextText`'s `document_read` when its operation slot is empty (the console
+case). What this backend drives is therefore:
 
   - **Structural tree navigation** (handled by `SyntaxToText`): arrows move
     node-to-node once a whole element is selected; `Home` selects the root.
   - **`Ctrl+Space`** toggles structural ⇄ text-cursor selection.
+  - **Character editing** (via the Text domain's `document_read`): character
+    insert (`KeyPress`), `Backspace`/`Delete`, and character left/right cursor
+    movement — none of which need pixel geometry.
   - **`Ctrl+C`** quits.
+
+Still SDL-only (they need the laid-out glyph geometry): visual up/down line
+movement, plain (non-Ctrl) `Home`/`End` to the visual line edges, and
+click-to-position.
 
 The selection is shown as inverse-video span colors, baked into the spans by the
 `SelectionInverting` projection at the end of the console pipeline (the backend

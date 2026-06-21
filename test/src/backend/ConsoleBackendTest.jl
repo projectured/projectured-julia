@@ -26,6 +26,26 @@ function _drive_console(bytes::Vector{UInt8}, steps::Int)
     return sels
 end
 
+# Like `_drive_console` but also returns the document, so tests can inspect the
+# edited content (character insert / delete) in addition to the selection path.
+function _drive_console_doc(bytes::Vector{UInt8}, steps::Int)
+    doc = make_json_document_example()
+    proj = make_json_console_projection_example()
+    backend = ConsoleBackend(; io=IOBuffer(), input=IOBuffer(bytes), ansi=true, clear=false)
+    editor = Editor(backend, doc, proj, Device[Keyboard()])
+    sels = Any[]
+    Base.CoreLogging.with_logger(Base.CoreLogging.NullLogger()) do
+        _ED.print!(editor)
+        for _ in 1:steps
+            _ED.read!(editor)
+            _ED.evaluate!(editor)
+            _ED.print!(editor)
+            push!(sels, getfield(doc, :selection)[])
+        end
+    end
+    return doc, sels
+end
+
 # Render `doc` (with whatever selection it carries) and return the concatenated
 # text inside selection-highlight regions, SGR codes stripped. The selection is
 # now baked in as inverse video by `SelectionInverting`: the highlighted slice
@@ -128,6 +148,44 @@ function test_console_backend()
         @test string(sels[2]) == ".entries[1]"                           # Down → first child
         @test string(sels[3]) == ".entries[1].key"                       # Down → descend
         @test string(sels[4]) == ".entries[1].value"                     # Right → sibling
+    end
+
+    # ── character-level text editing through the console pipeline ──────────
+    # This is the payoff of moving the geometry-free Text-domain gesture mapping
+    # onto the document (`document_read(::TextText, …)`): the console pipeline,
+    # which omits `TextToGraphics`, now gets character cursor movement and
+    # insert/delete via `SyntaxToText`'s fallback to `document_read(iomap.output,
+    # gesture)`. None of these gestures need pixel geometry.
+    @testset "character editing" begin
+        ESC = 0x1b; LB = 0x5b
+        HOME  = UInt8[ESC, LB, UInt8('H')]   # Ctrl+Alt+Home → root
+        DOWN  = UInt8[ESC, LB, UInt8('B')]
+        RIGHT = UInt8[ESC, LB, UInt8('C')]
+        LEFT  = UInt8[ESC, LB, UInt8('D')]
+        CTRL_SPACE = UInt8[0x00]
+        BACKSPACE  = UInt8[0x7f]
+
+        # Navigate Home → Down → Down → Right to land on entry 1's value
+        # (the JSON string "Alice"), then Ctrl+Space to enter text-cursor mode.
+        nav = vcat(HOME, DOWN, DOWN, RIGHT, CTRL_SPACE)
+
+        # Cross-span / character cursor movement (Right then Left) drives the
+        # text-domain `document_read` left/right arms through the fallback.
+        _, sels = _drive_console_doc(vcat(nav, RIGHT, LEFT), 7)
+        @test string(sels[4]) == ".entries[1].value"              # on the value
+        @test string(sels[5]) == ".entries[1].value.value{0}"     # Ctrl+Space → text cursor
+        @test string(sels[6]) == ".entries[1].value.value{1}"     # Right → +1
+        @test string(sels[7]) == ".entries[1].value.value{0}"     # Left  → back
+
+        # Character insert: type 'X' at the text cursor (offset 0) inside "Alice".
+        doc, sels = _drive_console_doc(vcat(nav, UInt8[UInt8('X')]), 6)
+        @test entries(doc)[1].value.value == "XAlice"             # inserted at the cursor
+        @test string(sels[6]) == ".entries[1].value.value{1}"     # cursor advanced past insert
+
+        # Backspace: move the cursor right by one, then delete the char before it.
+        doc, sels = _drive_console_doc(vcat(nav, RIGHT, BACKSPACE), 7)
+        @test entries(doc)[1].value.value == "lice"               # "Alice" → delete 'A'
+        @test string(sels[7]) == ".entries[1].value.value{0}"
     end
 
     # ── wrong pipeline output fails loud ──────────────────────────────────

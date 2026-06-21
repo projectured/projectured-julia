@@ -23,6 +23,7 @@ import ..IoMapModule: SimpleIoMap
 import ..IoMapApiModule: IoMap
 import ..OperationModule: ReplaceSelectionOperation, ToggleCollapseOperation
 import ..PrimitiveModule: StringReplaceRangeOperation
+import ..DocumentApiModule: document_read
 import ..KeyboardModule: KeyDown
 import ..EventCaseModule: var"@event_case"
 import ..MouseModule: MousePress
@@ -243,7 +244,26 @@ function projection_read(p::SyntaxNodeToText, recursion, change::Change, iomap::
     # Everything else (keyboard, plain clicks, other operations) falls through to
     # the operation-typed readers below.
     payload = op === nothing ? gesture : op
-    return Change(gesture, projection_read(p, iomap, payload))
+    result = projection_read(p, iomap, payload)
+
+    # Console fallback. In the SDL pipeline `TextToGraphics` (downstream) has
+    # already filled the operation slot via its own `document_read` delegation, so
+    # `op !== nothing` and we never reach here for a gesture. In the console
+    # pipeline (`… → SyntaxToText → EnvelopeUnwrapping`) there is no
+    # `TextToGraphics`, so the operation slot is still empty: `payload` is the raw
+    # gesture and `projection_read(p, iomap, gesture)` only handled the syntax
+    # (tree-navigation) subset. When that yields nothing, the gesture may still be
+    # a geometry-free Text-domain edit/navigation (character insert/delete,
+    # left/right cursor, …). Ask the *output* TextText's `document_read` for a
+    # text-domain operation and route it back through this projection's existing
+    # operation-typed readers, which map the `.elements[i].content[…]` reference
+    # to the enclosing syntax leaf.
+    if result === nothing && op === nothing
+        text_op = document_read(iomap.output, gesture)
+        text_op === nothing || return Change(gesture, projection_read(p, iomap, text_op))
+    end
+
+    return Change(gesture, result)
 end
 
 function projection_read(p::SyntaxNodeToText, iomap::SyntaxNodeToTextIoMap, op::ReplaceSelectionOperation)
