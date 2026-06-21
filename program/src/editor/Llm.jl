@@ -17,8 +17,6 @@ Two concrete backends:
 """
 module LlmModule
 
-import ..AnthropicModule: stream_message
-
 export LlmBackend, AnthropicLlm, FakeLlm, stream_turn
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -66,22 +64,11 @@ AnthropicLlm(; base_url::AbstractString = "https://api.anthropic.com/v1/messages
                max_tokens::Integer = 4096) =
     AnthropicLlm(String(base_url), Int(max_tokens))
 
-function stream_turn(b::AnthropicLlm,
-                     api_key::AbstractString,
-                     model::AbstractString,
-                     system::AbstractString,
-                     messages::AbstractVector,
-                     tools::AbstractVector;
-                     on_event::Function,
-                     thinking = nothing,
-                     output_config = nothing)
-    stream_message(api_key, model, system, messages, tools;
-                   on_event      = on_event,
-                   max_tokens    = b.max_tokens,
-                   base_url      = b.base_url,
-                   thinking      = thinking,
-                   output_config = output_config)
-end
+# The `stream_turn(::AnthropicLlm, …)` method calls `AnthropicModule.stream_message`
+# (HTTP/JSON3) and therefore lives in `AnthropicModule` — the future LLM package
+# extension — not here. This module stays dependency-free: it holds only the
+# abstract `LlmBackend`, the `stream_turn` generic, the (dep-free) `AnthropicLlm`
+# struct, and the in-process `FakeLlm`.
 
 # ═══════════════════════════════════════════════════════════════════════
 # FakeLlm — canned reply, no network

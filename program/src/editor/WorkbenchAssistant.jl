@@ -59,7 +59,6 @@ import ..ToolRegistryModule: list_tools, list_resources, call_tool, read_resourc
 import ..KeyboardModule: KeyPress
 import ..EventCaseModule: var"@event_case"
 import ..PrimitiveModule: StringReplaceRangeOperation
-import ..AnthropicModule: stream_message
 import ..LlmModule: LlmBackend, stream_turn, FakeLlm, AnthropicLlm
 import ..McpModule: execute_julia_code, register_default_tools_and_resources!
 import ..ConversationModule: ConversationDraft

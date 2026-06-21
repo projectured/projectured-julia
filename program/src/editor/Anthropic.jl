@@ -18,6 +18,8 @@ module AnthropicModule
 using HTTP
 using JSON3
 
+import ..LlmModule: AnthropicLlm, stream_turn
+
 export stream_message
 
 const _ANTHROPIC_URL = "https://api.anthropic.com/v1/messages"
@@ -156,6 +158,27 @@ function _drain_sse_events!(buf::IOBuffer, on_event::Function; final::Bool = fal
     if !final && length(parts) > n
         write(buf, parts[end])
     end
+end
+
+# The real-Claude `LlmBackend.stream_turn` method lives here (not in LlmModule)
+# because it calls `stream_message` (HTTP/JSON3): this keeps LlmModule
+# dependency-free and confines the network dependency to this module, which
+# becomes the LLM package extension.
+function stream_turn(b::AnthropicLlm,
+                     api_key::AbstractString,
+                     model::AbstractString,
+                     system::AbstractString,
+                     messages::AbstractVector,
+                     tools::AbstractVector;
+                     on_event::Function,
+                     thinking = nothing,
+                     output_config = nothing)
+    stream_message(api_key, model, system, messages, tools;
+                   on_event      = on_event,
+                   max_tokens    = b.max_tokens,
+                   base_url      = b.base_url,
+                   thinking      = thinking,
+                   output_config = output_config)
 end
 
 end # module

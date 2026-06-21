@@ -83,8 +83,11 @@ include("parser/SqlParser.jl")
 # LLM backend (used as a field type by `WorkbenchAssistant`). Loads early
 # because no document or projection layer depends on it; it only needs
 # HTTP/JSON3 (external packages) and access to the Anthropic SSE client.
-include("editor/Anthropic.jl")
+# Llm before Anthropic: LlmModule defines the dependency-free LlmBackend/
+# AnthropicLlm/FakeLlm interface; AnthropicModule (HTTP/JSON3) adds the
+# stream_turn(::AnthropicLlm) method, so it must load after LlmModule.
 include("editor/Llm.jl")
+include("editor/Anthropic.jl")
 include("document/Workbench.jl")
 include("document/Image.jl")
 include("document/Screen.jl")
