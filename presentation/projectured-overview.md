@@ -17,9 +17,9 @@ style: |
   }
   section {
     font-family: -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-    font-size: 30px;
-    line-height: 1.45;
-    padding: 70px 90px;
+    font-size: 28px;
+    line-height: 1.4;
+    padding: 52px 84px;
     text-align: left;
     justify-content: flex-start;
   }
@@ -68,11 +68,14 @@ style: |
     font-size: 0.6em;
     margin-bottom: 0.6em;
   }
-  .grid {
+  .cols {
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: 0.4em 1.4em;
+    gap: 0 1.6em;
+    align-items: start;
   }
+  .cols ul { margin: 0; padding-left: 1.1em; }
+  .cols li { font-size: 0.92em; }
   footer { color: var(--muted); font-size: 0.5em; }
   section::after {
     color: var(--muted);
@@ -115,26 +118,27 @@ every view is *derived* from it, and every edit is *structural*.
 
 ## The features at a glance
 
-<div class="grid">
+<div class="cols">
+<div>
 
 - 🤖 **AI assistant** built in
-- 🔍 **Introspection** of any object
-- 🪞 **Self-reflection** (edit itself)
+- 🔍 **Introspection** of objects
+- 🪞 **Self-reflection**
 - 🪟 **On-demand UI** for huge data
 - 🖥️ **Multiple backends**
 - ⚡ **Lazy & incremental** engine
 
 </div>
-<div class="grid">
+<div>
 
 - 🧩 **Composition** of docs & projections
-- 📚 **Many domains** out of the box
+- 📚 **Many domains** built in
 - ⌨️ **Standard editor functions**
+- ⏱️ **Undo, redo & versioning**
 - 🤝 **Built to collaborate on**
 
 </div>
-
-<br>
+</div>
 
 <span class="muted">One slide each — and the deck is built to grow.</span>
 
@@ -331,7 +335,8 @@ Batteries included.
 
 <span class="tag">30+ structured domains</span>
 
-<div class="grid">
+<div class="cols">
+<div>
 
 - **Data** — JSON, XML, INI, SQL, Database
 - **Text & prose** — Text, Book, Syntax
@@ -339,7 +344,7 @@ Batteries included.
 - **UI** — Widget, Graphics, Layout, Color, Font
 
 </div>
-<div class="grid">
+<div>
 
 - **IDE** — Workbench, Conversation, FileSystem
 - **Tables** — Table, Collection (vector/matrix/list)
@@ -347,8 +352,7 @@ Batteries included.
 - **…and more** — Image, Tooltip, Geometry, Style
 
 </div>
-
-<br>
+</div>
 
 Each is a real domain with structured types and operations — and any one
 can be **embedded inside any other**.
@@ -370,15 +374,38 @@ The operations you expect — in every domain.
 <span class="tag">structural operations, not string edits</span>
 
 - **Navigation & selection** — arrows, Home/End, Page Up/Down; the selection
-  path threads through *every* projection layer.
+  threads through *every* projection layer.
+- **Cut / copy / paste** — a real `Clipboard` domain; you paste structured
+  *meaning*, not text.
 - **Mouse** — click-to-select maps pixels back to a position.
 - **Search** — `search_references` / `search_objects` walk the whole tree
-  with string, regex, or predicate matches (depth-bounded for infinite data).
+  (string, regex, or predicate; depth-bounded for infinite data).
 - **Scroll, tabs, panels, drag-to-reorder** in the workbench.
-- Every edit is a **typed, invertible `Operation`** — the foundation that
-  undo/redo and clipboard build on.
 
-<span class="muted">Selection round-trips JSON → Syntax → Text → Graphics → pixels and back.</span>
+The same `Operation` interpreted locally per domain — one mechanism, every view.
+
+---
+
+<!-- _class: lead -->
+
+# ⏱️ Undo, redo & versioning
+
+Edits as a history you can travel through.
+
+---
+
+## ⏱️ Undo, redo & versioning
+
+<span class="tag">the operation model is the timeline</span>
+
+- Every change is a **typed, invertible `Operation`** — so undo is just
+  applying its inverse, and redo is replaying it forward.
+- A stream of operations *is* a history: branchable, replayable,
+  and inspectable — the natural substrate for full **document versioning**.
+- Because operations carry **meaning** (*“insert at index 3”*), a version
+  diff reads as structural intent, not a noisy line-by-line text diff.
+
+<span class="muted">Forthcoming — built directly on the existing operation infrastructure.</span>
 
 ---
 
@@ -401,7 +428,7 @@ Real-time multi-user editing, by construction.
 - The model already separates **operation → transport → apply**, so live
   collaboration becomes a transport-and-merge layer on top, not a rewrite.
 
-<span class="muted">Roadmap: live collaboration + plugin/package system build on this foundation.</span>
+<span class="muted">Shares the same operation foundation as undo/redo and versioning.</span>
 
 ---
 
