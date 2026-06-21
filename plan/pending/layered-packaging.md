@@ -220,6 +220,30 @@ entries to `program/Project.toml`, and drop the moved deps from `[deps]`.
       SDL-internal only. Also seam/relocate the other consumed symbols (image decode,
       display size, canvas render, the image-file projection) — like the ODBC finding,
       the structural extraction is easy; the consumer surface is the work.
+      **Progress (commit `default examples to SDL-free truetype_measure_text`):** the
+      measurer sweep is done — `truetype_measure_text` (neutral alias of
+      `pdf_measure_text`) is the default `measure=` across all ~74 example sites, and
+      **core `program/src` now has no SDL symbol references outside `Sdl.jl`** (only
+      docstring mentions). Remaining SDL consumers are just **5 example/test sites**,
+      all genuinely SDL-requiring: `example/document/Text.jl` `sdl_decode_image`,
+      `example/projection/Wrapper.jl` `render=sdl_render_canvas` default,
+      `example/Examples.jl` `sdl_display_size()`, `test/ProjecturedTest.jl`
+      `const _test_backend = SdlBackend()` (top-level — the one that breaks test
+      precompile), `test/projection/GraphicsToFileTest.jl` `GraphicsCanvasToImageFile`.
+
+> **Shared blocker for ODBC + SDL (and any broad-surface extension): how do
+> `ProjecturedExample`/`ProjecturedTest` consume extension-provided symbols?**
+> Two options, then apply uniformly:
+> (a) **core factory/fallback seams** for everything constructed (e.g.
+> `make_connection_pool(:odbc)`, a no-SDL `display_size` fallback, an image-decode
+> seam) — consumers name only core; or
+> (b) **consumer packages depend on the trigger packages** (ODBC / SDL2) and reach the
+> types via `Base.get_extension(Projectured, :ProjecturedXXXExt)` — the *example/test*
+> packages then require the optional dep (the *library* stays optional).
+> `make_backend`/`make_agent_server`/`make_database_adapter` already follow (a) for
+> single-entry cases. Recommendation: (a) where a small factory suffices, (b) for the
+> genuinely-SDL bits (decode/display/render) with no SDL-free fallback. **This one
+> decision unblocks both ODBC and SDL.**
 - [ ] **`ProjecturedWebExt`** — weakdeps `HTTP`, `JSON3`. Holds `backend/Web.jl`;
       adds `make_backend(::Val{:web}, …)`. If stage 1.0 was done, Web is SDL-free; if
       not, Web keeps a hard SDL dep and ships with the SDL extension instead.
