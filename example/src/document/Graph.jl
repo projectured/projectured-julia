@@ -4,16 +4,14 @@
 # edges by identity.
 
 function make_graph_document_example()
-    # Vertex 1: a tiny table.
-    table = TableTable(
-        CellVector(TableRow(), TableRow()),
-        CellVector(TableColumn(), TableColumn()),
-        CellVector(
-            TableCell(JsonString("Name")),
-            TableCell(JsonString("Role")),
-            TableCell(JsonString("Ada")),
-            TableCell(JsonString("Lead")),
-        );
+    # Vertex 1: a tiny table (2 columns: Name / Role).
+    table = WidgetTable(Point2D(0, 0),
+        Any[JsonString("Name"), JsonString("Role")],
+        Any[],
+        Any[
+            Any[JsonString("Ada"), JsonString("Lead")],
+        ],
+        2;
         padding=8,
     )
 

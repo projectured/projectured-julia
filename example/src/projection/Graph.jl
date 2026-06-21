@@ -14,8 +14,8 @@ function make_graph_projection_example(; measure=sdl_measure_text,
     # self-contained (RecursiveProjection/NestingProjection set their own
     # recursion), so they compose cleanly under one dispatcher.
     content = TypeDispatchingProjection(
-        TableTable => make_table_projection_example(measure=measure),
-        Any        => make_mixed_projection_example(measure=measure),
+        WidgetTable => make_table_projection_example(measure=measure),
+        Any         => make_mixed_projection_example(measure=measure),
     )
 
     graph_stages = SequentialProjection(

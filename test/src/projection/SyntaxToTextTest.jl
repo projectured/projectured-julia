@@ -254,11 +254,15 @@ end
 end
 
 @testset "plain arrows with a character cursor are not tree navigation" begin
-    # A character cursor inside a leaf must fall through (the text layer keeps
-    # character motion); the syntax reader declines without Alt.
+    # A character cursor inside a leaf must not do tree navigation.
+    # :down has no text-domain meaning at console level → declines.
+    # :right is handled by the console fallback (document_read on output TextText)
+    # and returns a character-level cursor move, not a tree step.
     cursor = @reference children[1].value{2}
-    @test read_key(cursor, :down)  === nothing
-    @test read_key(cursor, :right) === nothing
+    @test read_key(cursor, :down) === nothing
+    right_op = read_key(cursor, :right)
+    @test right_op isa ReplaceSelectionOperation
+    @test reference_equal(right_op.path, (@reference children[1].value{3}))
 end
 
 @testset "Ctrl+Space toggles structural ⇄ text" begin
