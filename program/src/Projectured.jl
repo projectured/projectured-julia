@@ -522,11 +522,13 @@ using .GraphicsCachingModule: GraphicsCanvasToGraphicsImage, GraphicsCaching
 using .GestureRecognizerModule: GestureRecognizer, recognize!, next_gesture!
 using .EditorModule: Editor, run!, play_live!
 using .AgentModule: make_agent_server, agent_server_start!, agent_server_stop!
-using .McpModule: McpServer, mcp_start!, mcp_stop!,
-                  mcp_tools, mcp_resources,
-                  search_documentation, search_api,
+# McpModule (core) holds the dependency-free editor tools; the MCP transport
+# (McpServer, mcp_start!/stop!, mcp_tools/resources) lives in the
+# ProjecturedMCPExt extension and is reached through make_agent_server(:mcp, …).
+using .McpModule: search_documentation, search_api,
                   list_guides, read_guide, list_modules, list_classes, list_functions,
-                  read_module_documentation, read_class_documentation, read_function_documentation
+                  read_module_documentation, read_class_documentation, read_function_documentation,
+                  execute_julia_code, register_default_tools_and_resources!
 using .ToolRegistryModule: Tool, Resource,
                             register_tool!, register_tools!, list_tools, call_tool,
                             register_resource!, register_resources!, list_resources, read_resource,
@@ -866,13 +868,13 @@ export WorkbenchWorkbenchToWidgetShell,    WorkbenchWorkbenchToWidgetShellIoMap,
        WorkbenchToWidget
 export Editor, run!, play_live!
 export make_agent_server, agent_server_start!, agent_server_stop!
-export McpServer, mcp_start!, mcp_stop!,
-       search_documentation, search_api,
+export search_documentation, search_api,
        list_guides, read_guide, list_modules, list_classes, list_functions,
-       read_module_documentation, read_class_documentation, read_function_documentation
+       read_module_documentation, read_class_documentation, read_function_documentation,
+       execute_julia_code, register_default_tools_and_resources!
 export Tool, Resource, register_tool!, register_tools!, list_tools, call_tool,
        register_resource!, register_resources!, list_resources, read_resource,
-       anthropic_tool_schema, mcp_tools, mcp_resources
+       anthropic_tool_schema
 export stream_message
 export LlmBackend, AnthropicLlm, FakeLlm, stream_turn
 export EvaluatorDocument, EvaluatorForm, EvaluatorToplevel, result_text, eval_kind_label

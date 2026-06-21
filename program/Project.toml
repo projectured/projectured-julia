@@ -10,11 +10,18 @@ FFMPEG = "c87230d0-a227-11e9-1b43-d7ebe4e7570a"
 HTTP = "cd3eb016-35fb-5094-929b-558a96fad6f3"
 JSON3 = "0f8b85d8-7281-11e9-16c2-39a750bddbf1"
 Markdown = "d6f4376e-aef5-505a-96c1-9c027394607a"
-ModelContextProtocol = "c58f755f-f2a7-4f48-bf29-4e9659b78499"
 ODBC = "be6f12e9-ca4f-5eb2-a339-a4f995cc0291"
 SDL2_jll = "ab825dc5-c88e-5901-9575-1e5e20358fcf"
 SimpleDirectMediaLayer = "98e33af6-2ee5-5afd-9e75-cbc738b767c4"
 Tables = "bd369af6-aec1-5ad0-b16a-f7cc5008161c"
+
+[weakdeps]
+ModelContextProtocol = "c58f755f-f2a7-4f48-bf29-4e9659b78499"
+
+[extensions]
+# Loaded automatically when ModelContextProtocol is present in the session.
+# Provides the MCP server transport (McpServer + HTTP lifecycle + wire bridges).
+ProjecturedMCPExt = "ModelContextProtocol"
 
 [compat]
 DBInterface = "2.6.1"
