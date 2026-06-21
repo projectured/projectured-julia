@@ -155,10 +155,14 @@ hook, so behaviour is identical while everything is still present:
         `agent_server_stop!` generics in new `AgentModule` (`api/Agent.jl`); `:mcp`
         methods registered in `McpModule`; the editor loop drives them through the
         generics so `EditorModule` no longer imports `McpServer`.
-- [ ] Video seam: `record_video`/`write_image` as generics whose FFMPEG/SDL
-      implementations can be supplied by an extension.
-- [ ] Video seam: `record_video`/`write_image` as generics whose FFMPEG/SDL
-      implementations can be supplied by an extension.
+- [x] Video seam. **Done** (commit `forward-declare write_image/record_video
+      generics`): `write_image`/`record_video` are now generic forward-declarations
+      in `BackendModule`; the SDL backend's existing definitions became methods;
+      umbrella re-exports them from `BackendModule`. Finding: FFMPEG is used *only*
+      inside the SDL `record_video` (SDL offscreen frames + ffmpeg), so it is **not
+      independently optional** — it rides with the SDL extension as an extra weakdep
+      that gates `record_video` specifically. No separate FFMPEG extension is
+      warranted; fold FFMPEG into the SDL extension's `[weakdeps]` in 1.2.
 
 ### 1.2 Create the extensions
 
