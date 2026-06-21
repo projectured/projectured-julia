@@ -62,6 +62,9 @@ include("document/Xml.jl")
 include("document/FileSystem.jl")
 include("document/Workspace.jl")
 include("document/Clipboard.jl")
+# Versioning: a generic, optional, recursive wrapper layer over any document
+# subtree. Uses `CellVector`, so it loads after `Collection.jl`.
+include("document/Versioning.jl")
 include("document/Widget.jl")
 include("document/Layout.jl")
 include("document/Graph.jl")
@@ -125,6 +128,10 @@ include("projection/generic/Focusing.jl")
 # Clipboard projection: needs the keyboard/event-case device modules above plus
 # the clipboard documents, copy_document, and operations included earlier.
 include("projection/primitive/ClipboardToAny.jl")
+# Versioning projection: the version-elimination analogue of ClipboardToAny.
+# Needs the keyboard/event-case device modules above plus the versioning
+# documents, copy_document, and operations included earlier.
+include("projection/primitive/VersioningToAny.jl")
 
 # Higher-order projection that depends on ObjectToWidget (generic) and the
 # keyboard device, so it is included here rather than with the other
@@ -365,6 +372,8 @@ using .DocumentCopyModule: copy_document
 using .ClipboardToAnyProjectionModule: ClipboardSliceToAnyProjection, ClipboardCollectionToAnyProjection,
                                      ClipboardSliceToAnyProjectionIoMap, ClipboardCollectionToAnyProjectionIoMap,
                                      ToggleClipboardSliceDisplayOperation, ToggleClipboardCollectionDisplayOperation
+using .VersioningToAnyProjectionModule: VersioningToAnyProjection, VersioningToAnyProjectionIoMap,
+                                       CreateVersionOperation, SetVersionCriterionOperation, DeleteVersionOperation
 using .FocusingProjectionModule: FocusingProjection, ReplaceFocusPartOperation
 using .JsonToSyntaxModule: JsonToSyntax, JsonStringToSyntaxLeaf,
                                JsonNullToSyntaxLeaf, JsonBoolToSyntaxLeaf,
@@ -386,6 +395,11 @@ using .BookToSyntaxModule: BookBookToSyntaxNode, BookChapterToSyntaxNode,
                             BookPictureToSyntaxLeaf, BookToSyntax
 using .ClipboardModule: ClipboardDocument, ClipboardInsertion,
                         ClipboardSlice, ClipboardCollection
+using .VersioningModule: VersioningDocument, VersionProperties, ObjectVersion, VersionedObject,
+                         IVersionProperties, IObjectVersion, IVersionedObject,
+                         VersionCriterion, VersionCriterionLatest, VersionCriterionIndex,
+                         VersionCriterionByAuthor, VersionCriterionAsOf, VersionCriterionPredicate,
+                         select_version
 using .CollectionModule: CellVector, CellMatrix, CellTable, ListNode, CollectionDocument, left_tail, right_tail, cell_at, take_first_n
 using .BookModule: BookDocument, BookInsertion,
                    BookBook, BookChapter, BookParagraph, BookList, BookPicture
@@ -781,6 +795,13 @@ export copy_document
 export ClipboardSliceToAnyProjection, ClipboardCollectionToAnyProjection,
        ClipboardSliceToAnyProjectionIoMap, ClipboardCollectionToAnyProjectionIoMap,
        ToggleClipboardSliceDisplayOperation, ToggleClipboardCollectionDisplayOperation
+export VersioningDocument, VersionedObject, ObjectVersion, VersionProperties,
+       IVersionedObject, IObjectVersion, IVersionProperties
+export VersionCriterion, VersionCriterionLatest, VersionCriterionIndex,
+       VersionCriterionByAuthor, VersionCriterionAsOf, VersionCriterionPredicate,
+       select_version
+export VersioningToAnyProjection, VersioningToAnyProjectionIoMap,
+       CreateVersionOperation, SetVersionCriterionOperation, DeleteVersionOperation
 export CellVector, CellMatrix, CellTable, ListNode, CollectionDocument, left_tail, right_tail, cell_at
 export Inset, StyleColor, Point2D, color_default
 export WidgetDocument, WidgetInsertion,

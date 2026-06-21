@@ -147,6 +147,17 @@ const dragging_example       = Example("dragging",        make_dragging_document
 # exists to demonstrate is unaffected.
 const clipboard_example      = Example("clipboard",       make_clipboard_document_example,      make_clipboard_projection_example)
 const formula_example        = Example("formula",         make_formula_document_example,        make_formula_projection_example)
+# `versioning_example` is deliberately kept OUT of the `examples` registry below
+# (like `clipboard_example`). The version-elimination projection selects one of
+# several `ObjectVersion`s by criterion and re-roots edits under
+# `versions[idx].value`; the enumeration-based suites (test_printers /
+# test_readers / test_repls / test_text_navigations) run every sub-test on one
+# *shared* document instance, so a destructive sweep on the eliminated view can
+# leave a later sub-test without a caret. Each suite passes on a *fresh*
+# document — run them individually, e.g. `test_printer(versioning_example)` /
+# `test_reader(...)` / `test_text_navigation(...)`. Use it interactively with
+# `run_example(versioning_example)`.
+const versioning_example     = Example("versioning",      make_versioning_document_example,     make_versioning_projection_example)
 
 const examples = [
     json_example, json_sorted_example, json_null_example, json_string_example, json_widget_example,
