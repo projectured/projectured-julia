@@ -51,6 +51,7 @@ export SqlDocument, SqlStatement,
        SqlColumnDefinition,      ISqlColumnDefinition,
        SqlCreateTableStatement,  ISqlCreateTableStatement,
        SqlCreateSchemaStatement, ISqlCreateSchemaStatement,
+       SqlStatementList,         ISqlStatementList,
        SqlBooleanExpression,
        SqlScalarValue,    ISqlScalarValue,
        SqlComparison,     ISqlComparison,
@@ -395,6 +396,21 @@ end
 SqlCreateSchemaStatement(schema_name::AbstractString) =
     SqlCreateSchemaStatement(String(schema_name), Cell(nothing))
 
+# ── Statement sequence ──────────────────────────────────────────────────────────
+# An ordered list of statements, rendered one after another (blank-line
+# separated). Lets a projection emit a whole DDL script — e.g. a CREATE SCHEMA
+# followed by its CREATE TABLEs — as a single Sql document.
+@document struct SqlStatementList <: SqlDocument
+    statements::CellVector        # [SqlStatement]
+    selection::Reference
+end
+SqlStatementList(statements::CellVector) =
+    SqlStatementList(statements, Cell(nothing))
+SqlStatementList(statements::AbstractVector) =
+    SqlStatementList(CellVector([statements...]), Cell(nothing))
+SqlStatementList(statements::SqlStatement...) =
+    SqlStatementList(CellVector([statements...]), Cell(nothing))
+
 # ── Base.show ──────────────────────────────────────────────────────────────────
 
 Base.show(io::IO, n::SqlTableName)        = print(io, n.schema_name === nothing ? n.name : "$(n.schema_name).$(n.name)")
@@ -404,5 +420,6 @@ Base.show(io::IO, a::SqlColumnAlias)      = print(io, a.name)
 Base.show(io::IO, d::SqlColumnDefinition) = print(io, "$(d.column_name) $(d.data_type)")
 Base.show(io::IO, s::SqlCreateTableStatement) = print(io, "CREATE TABLE $(s.table_name)")
 Base.show(io::IO, s::SqlCreateSchemaStatement) = print(io, "CREATE SCHEMA $(s.schema_name)")
+Base.show(io::IO, l::SqlStatementList) = print(io, "SqlStatementList($(length(l.statements)))")
 
 end # module

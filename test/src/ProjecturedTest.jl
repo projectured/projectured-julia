@@ -88,6 +88,7 @@ include("external/DatabaseTabularTest.jl")
 include("external/DbCatalogTest.jl")
 include("external/DbCatalogTabularTest.jl")
 include("external/DbCatalogJsonTest.jl")
+include("external/DbCatalogSqlTest.jl")
 include("external/DbCatalogSyntaxTest.jl")
 
 function test_documents()
@@ -122,6 +123,7 @@ function test_projections()
         test_sql_insert_update_selection()
         test_sql_ddl()
         test_sql_ddl_selection()
+        test_db_catalog_sql()
         test_xml_to_syntax()
         test_xml_to_syntax_reader()
         test_syntax_to_text()
@@ -218,6 +220,6 @@ export test_tree_navigation, test_tree_navigations, test_tree_navigations_comple
 export test_assistant_mvp, make_assistant_mvp_setup, make_assistant_mvp_projection
 export test_conversation_editor, test_conversation_serialization, test_parse_markdown_blocks
 export test_database_connection, test_database, test_database_no_db, test_database_tabular
-export test_db_catalog, test_db_catalog_tabular, test_db_catalog_json, test_db_catalog_syntax
+export test_db_catalog, test_db_catalog_tabular, test_db_catalog_json, test_db_catalog_syntax, test_db_catalog_sql
 
 end # module ProjecturedTest

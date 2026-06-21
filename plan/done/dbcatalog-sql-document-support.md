@@ -18,8 +18,10 @@ This plan covers three layers that ship together:
 - **Layer 2 — DONE, including the optional parser.** `SqlToSyntax` renders all
   three types; `SqlParser` now parses `CREATE TABLE` / `CREATE SCHEMA` too. Both
   the offline `SqlToSyntax`/`SqlParser` suites and a live-DB round-trip test pass.
-- **Layer 3 — PENDING.** `DbCatalogToSql` not yet started; this is the remaining
-  work. The open questions below are decisions for Layer 3.
+- **Layer 3 — DONE.** `DbCatalogToSql` projects the catalog tree directly into
+  SQL DDL documents (a new `SqlStatementList` container holds the CREATE-script
+  sequence). Schema qualification is threaded through the printer context. Pure
+  and live-DB tests pass — the generated script executes on real PostgreSQL.
 
 The goal that motivates this: a representation of a database that is *easy for an
 LLM to understand*. DDL (`CREATE TABLE …`) is the most idiomatic, highest-prior
@@ -187,13 +189,38 @@ error/round-trip conventions.
 
 ---
 
-## Layer 3 — `DbCatalogToSql` projection ⏳ PENDING (remaining work)
+## Layer 3 — `DbCatalogToSql` projection ✅ DONE
 
 **File (new):** `program/src/projection/primitive/DbCatalogToSql.jl`
 
-Layers 1–2 already provide everything the output side needs: the DDL document
-types render to executable, schema-qualified SQL (confirmed against live
-PostgreSQL). What's left is the catalog → DDL-document projection itself.
+**As implemented:** a `TypeDispatchingProjection` over the five catalog types,
+mirroring `DbCatalogToJson` — each `projection_print` builds the SQL DDL document
+directly and recurses children through `projection_printer_recurse` (so wrapping
+in `RecursiveProjection` fully walks the lazy catalog):
+
+- `DbCatalogColumn` → `SqlColumnDefinition`
+- `DbCatalogTable`  → `SqlCreateTableStatement`, schema-qualified when the
+  enclosing schema name is present in context
+- `DbCatalogSchema` → `SqlStatementList` of `CREATE SCHEMA` + one `CREATE TABLE`
+  per table
+- `DbCatalogDatabase` / `DbCatalogRdbms` → the contained statements **flattened**
+  into one `SqlStatementList` (a clean single script, not nested lists)
+
+Decisions made against the open questions:
+
+- **Statement granularity / container.** Added a new `SqlStatementList`
+  (`<: SqlDocument`, holds `statements::CellVector`) to the Sql domain, plus
+  `SqlStatementListToSyntaxNode` in `SqlToSyntax` that renders statements
+  blank-line separated (each already ends with `;`). This keeps everything routing
+  through `SqlToSyntax` — no bespoke catalog→syntax SQL rendering. A schema
+  projects to one list; database/rdbms flatten their descendants' lists.
+- **Schema qualification source.** The enclosing schema name is threaded down via
+  the printer-context property `:sql_schema_name` (`with_property` /
+  `get_property`); a table reads it to emit `schema.table`, or an unqualified name
+  when absent (standalone table projection).
+- **Lazy children.** Read-only serialiser, so it forces the whole subtree by
+  nature (iterating each lazy child `CellVector` and recursing). `map_reference_*`
+  and `projection_read` return `nothing`, exactly like `DbCatalogToJson`.
 
 A `TypeDispatchingProjection` over the catalog types, mirroring the structure of
 [DbCatalogToJson.jl](../../program/src/projection/primitive/DbCatalogToJson.jl).
@@ -261,7 +288,7 @@ normal widget/graphics pipeline render it.
 
 Per repo convention, run the **smallest** covering test, never `test_all`:
 
-**Already landed (Layers 1–2):**
+**Landed (Layers 1–3):**
 
 - `test_sql_ddl()` / `test_sql_ddl_selection()` in `SqlToSyntaxTest.jl` — DDL
   rendering (`CREATE TABLE` / `CREATE SCHEMA` / column definition) and
@@ -275,11 +302,15 @@ Per repo convention, run the **smallest** covering test, never `test_all`:
   teardown in reverse `DROP TABLE` → `DROP SCHEMA` (with a reverse-order `finally`
   safety net). Gated by `skip_if_no_db`, so it's a no-op without a database.
 
-**Remaining (Layer 3):**
-
-- A `DbCatalogToSql` example feeding the full
-  `DbCatalog → Sql → Syntax → Text → String` pipeline; assert the emitted SQL is
-  the expected `CREATE TABLE …`.
+- `test_db_catalog_sql()` in `external/DbCatalogSqlTest.jl` — pure construction
+  (no DB): per-type projection, schema qualification, schema/database flattening,
+  and full-pipeline `DbCatalog → Sql → Syntax → Text → String` rendering asserts.
+  Wired into `test_projections()`.
+- `test_db_catalog_to_sql_live(adapter)` (T9 in `external/DatabaseTest.jl`) —
+  builds a catalog rooted at a `test` schema, projects it to a DDL script, and
+  **executes the generated script** against `projectured_test` (split per
+  statement for the ODBC path), verifying via `information_schema` and tearing
+  down in reverse order.
 
 See [guide/testing.md](../../guide/testing.md) and
 [CLAUDE.md](../../CLAUDE.md) "Testing a change".

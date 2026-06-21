@@ -22,6 +22,23 @@ function test_raw_database_result_struct()
 end
 
 # ── Live-DB helpers (also used by DatabaseTabularTest) ────────────────────────
+#
+# Test-database conventions (keep new live-DB tests consistent with these):
+#
+#   • Database — all live-DB tests run against `projectured_test`
+#     (localhost:5432, user/pwd `projectured`). Override via the PG* / TEST_ODBC_DSN
+#     env vars below; never point these at a real/shared database.
+#
+#   • Schema — any test that CREATEs schemas or tables must work inside the
+#     dedicated `test` schema, never `public`. `public` is reserved for other
+#     purposes (and pre-existing fixtures); creating/dropping objects there can
+#     clobber unrelated state. Schema-qualify created objects as `test.<name>`.
+#
+#   • Teardown — create in order (schema → table) and drop in REVERSE order
+#     (table → schema), with a reverse-order `finally` safety net using
+#     `DROP … IF EXISTS` so a mid-test failure still cleans up and leaves the
+#     `test` schema gone. See `test_create_ddl_in_test_schema` /
+#     `test_db_catalog_to_sql_live` for the pattern to copy.
 
 function _make_test_adapter()
     OdbcDatabaseAdapter(
@@ -200,6 +217,49 @@ function test_create_ddl_in_test_schema(adapter)
     end
 end
 
+# Layer 3 end-to-end: build a catalog tree, project it to a DDL script via
+# DbCatalogToSql, and run that generated script against the live database — inside
+# the dedicated `test` schema, torn down in reverse order. Statements are executed
+# one at a time (split on the blank-line separator) since the ODBC path runs a
+# single statement per call.
+function test_db_catalog_to_sql_live(adapter)
+    @testset "T9 — DbCatalogToSql → execute generated DDL (test schema)" begin
+        film = DbCatalogTable("film", CellVector(Cell[
+            Cell(DbCatalogColumn("title", "text")),
+            Cell(DbCatalogColumn("length", "integer"))]))
+        schema = DbCatalogSchema("test", CellVector(Cell[Cell(film)]))
+
+        pipe = SequentialProjection(
+            RecursiveProjection(DbCatalogToSql()),
+            RecursiveProjection(SqlToSyntax()),
+            RecursiveProjection(SyntaxToText()),
+            RecursiveProjection(TextToString()))
+        script = projection_print(pipe, schema).output[]
+        @test occursin("CREATE SCHEMA test", script)
+        @test occursin("CREATE TABLE test.film", script)
+
+        db_execute_raw(adapter, "DROP TABLE IF EXISTS test.film", RawDatabaseResult)
+        db_execute_raw(adapter, "DROP SCHEMA IF EXISTS test", RawDatabaseResult)
+        try
+            for stmt in split(script, "\n\n")
+                s = strip(stmt)
+                isempty(s) && continue
+                db_execute_raw(adapter, String(s), RawDatabaseResult)
+            end
+            cols = db_execute_raw(adapter,
+                "SELECT column_name, data_type FROM information_schema.columns " *
+                "WHERE table_schema = 'test' AND table_name = 'film' " *
+                "ORDER BY ordinal_position",
+                RawDatabaseResult)
+            @test [string(r[1]) for r in cols.rows] == ["title", "length"]
+            @test [string(r[2]) for r in cols.rows] == ["text", "integer"]
+        finally
+            db_execute_raw(adapter, "DROP TABLE IF EXISTS test.film", RawDatabaseResult)
+            db_execute_raw(adapter, "DROP SCHEMA IF EXISTS test", RawDatabaseResult)
+        end
+    end
+end
+
 # ── Entry points ──────────────────────────────────────────────────────────────
 
 function test_database_connection()
@@ -243,6 +303,7 @@ function test_database(; skip_if_no_db=true)
             test_delete(adapter)
             test_execute_raw(adapter)
             test_create_ddl_in_test_schema(adapter)
+            test_db_catalog_to_sql_live(adapter)
         finally
             db_close!(adapter)
         end

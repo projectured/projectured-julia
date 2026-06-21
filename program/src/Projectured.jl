@@ -187,6 +187,7 @@ include("projection/primitive/DatabaseInstanceToDbCatalog.jl")
 include("projection/primitive/SqlToCellTable.jl")
 include("projection/primitive/CellTableToTable.jl")
 include("projection/primitive/DbCatalogToJson.jl")
+include("projection/primitive/DbCatalogToSql.jl")
 include("projection/primitive/DbCatalogToSyntax.jl")
 include("editor/GestureRecognizer.jl")
 include("editor/ToolRegistry.jl")
@@ -272,6 +273,7 @@ using .SqlDocumentModule: SqlDocument, SqlStatement,
                           SqlSelectStatement, SqlSubqueryFromItem,
                           SqlInsertStatement, SqlUpdateAssignment, SqlUpdateStatement,
                           SqlColumnDefinition, SqlCreateTableStatement, SqlCreateSchemaStatement,
+                          SqlStatementList,
                           SqlWhereFilterCondition, SqlBooleanExpression,
                           SqlScalarValue, SqlComparison,
                           SqlAnd, SqlOr, SqlNot
@@ -284,6 +286,9 @@ using .CellTableToTableModule: CellTableToTable
 using .DbCatalogToJsonModule: DbCatalogRdbmsToJson, DbCatalogDatabaseToJson,
                                DbCatalogSchemaToJson, DbCatalogTableToJson, DbCatalogColumnToJson,
                                DbCatalogToJson
+using .DbCatalogToSqlModule: DbCatalogRdbmsToSql, DbCatalogDatabaseToSql,
+                              DbCatalogSchemaToSql, DbCatalogTableToSql, DbCatalogColumnToSql,
+                              DbCatalogToSql
 using .DbCatalogToSyntaxModule: DbCatalogColumnToSyntaxLeaf, DbCatalogTableToSyntaxNode,
                                 DbCatalogSchemaToSyntaxNode, DbCatalogDatabaseToSyntaxNode,
                                 DbCatalogRdbmsToSyntaxNode, DbCatalogToSyntax,
@@ -461,7 +466,7 @@ using .SqlToSyntaxModule: SqlToSyntax, SqlAllColumnsToSyntaxLeaf, SqlColumnRefer
                           SqlInsertStatementToSyntaxNode, SqlUpdateAssignmentToSyntaxNode,
                           SqlUpdateStatementToSyntaxNode,
                           SqlColumnDefinitionToSyntaxNode, SqlCreateTableStatementToSyntaxNode,
-                          SqlCreateSchemaStatementToSyntaxNode
+                          SqlCreateSchemaStatementToSyntaxNode, SqlStatementListToSyntaxNode
 using .JuliaToSyntaxModule: JuliaToSyntax, JuliaIdentifierToSyntaxLeaf, JuliaIntegerToSyntaxLeaf,
                              JuliaBinaryOpToSyntaxNode, JuliaCallToSyntaxNode,
                              JuliaIfToSyntaxNode, JuliaFunctionToSyntaxNode,
@@ -586,6 +591,7 @@ export SqlDocument, SqlStatement,
        SqlSelectStatement, SqlSubqueryFromItem,
        SqlInsertStatement, SqlUpdateAssignment, SqlUpdateStatement,
        SqlColumnDefinition, SqlCreateTableStatement, SqlCreateSchemaStatement,
+       SqlStatementList,
        SqlWhereFilterCondition, SqlBooleanExpression,
        SqlScalarValue, SqlComparison,
        SqlAnd, SqlOr, SqlNot
@@ -600,7 +606,7 @@ export SqlToSyntax, SqlAllColumnsToSyntaxLeaf, SqlColumnReferenceToSyntaxLeaf,
        SqlInsertStatementToSyntaxNode, SqlUpdateAssignmentToSyntaxNode,
        SqlUpdateStatementToSyntaxNode,
        SqlColumnDefinitionToSyntaxNode, SqlCreateTableStatementToSyntaxNode,
-       SqlCreateSchemaStatementToSyntaxNode
+       SqlCreateSchemaStatementToSyntaxNode, SqlStatementListToSyntaxNode
 export DbCatalogDocument,
        DbCatalogRdbms, DbCatalogDatabase, DbCatalogSchema,
        DbCatalogTable, DbCatalogColumn
@@ -609,6 +615,9 @@ export SqlToCellTable, CellTableToTable
 export DbCatalogRdbmsToJson, DbCatalogDatabaseToJson,
        DbCatalogSchemaToJson, DbCatalogTableToJson, DbCatalogColumnToJson,
        DbCatalogToJson
+export DbCatalogRdbmsToSql, DbCatalogDatabaseToSql,
+       DbCatalogSchemaToSql, DbCatalogTableToSql, DbCatalogColumnToSql,
+       DbCatalogToSql
 export DbCatalogColumnToSyntaxLeaf, DbCatalogTableToSyntaxNode,
        DbCatalogSchemaToSyntaxNode, DbCatalogDatabaseToSyntaxNode,
        DbCatalogRdbmsToSyntaxNode, DbCatalogToSyntax,
