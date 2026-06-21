@@ -208,8 +208,18 @@ entries to `program/Project.toml`, and drop the moved deps from `[deps]`.
       DB generics. **Keep in core:** `Sql.jl`, `DbCatalog.jl`, `Database.jl`
       documents and the pure `*ToSyntax`/`*ToJson`/`*ToSql` projections — they need
       no ODBC.
-- [ ] **`ProjecturedSDLExt`** — weakdeps `SimpleDirectMediaLayer`, `SDL2_jll`. Holds
-      `backend/Sdl.jl`; adds `make_backend(::Val{:sdl}, …)`.
+- [ ] **`ProjecturedSDLExt`** — weakdeps `SimpleDirectMediaLayer`, `SDL2_jll`, `FFMPEG`.
+      Holds `backend/Sdl.jl`; `make_backend(:sdl)` seam already done. **Unblocked by
+      Stage 1.0, but has a large consumer surface (finding):** `sdl_measure_text` is
+      the *default* `measure=` kwarg in ~30 `example/` projection builders, and
+      examples/tests also reference `sdl_render_canvas`, `sdl_display_size`,
+      `sdl_decode_image`, `GraphicsCanvasToImageFile`, and `SdlBackend()` (test
+      `_test_backend`). **Prerequisite sweep before extracting:** promote the SDL-free
+      `pdf_measure_text` (from Stage 1.0) to the canonical default measurer everywhere
+      `sdl_measure_text` is currently the default — then `sdl_measure_text` is
+      SDL-internal only. Also seam/relocate the other consumed symbols (image decode,
+      display size, canvas render, the image-file projection) — like the ODBC finding,
+      the structural extraction is easy; the consumer surface is the work.
 - [ ] **`ProjecturedWebExt`** — weakdeps `HTTP`, `JSON3`. Holds `backend/Web.jl`;
       adds `make_backend(::Val{:web}, …)`. If stage 1.0 was done, Web is SDL-free; if
       not, Web keeps a hard SDL dep and ships with the SDL extension instead.
