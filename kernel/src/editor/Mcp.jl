@@ -38,10 +38,21 @@ export execute_julia_code, list_guides, read_guide,
 # importing its exports, so every export resolves without re-prepending it.
 const _SCRATCH = Ref{Module}()
 
+# The umbrella `Projectured` package (loaded but not a dependency of the kernel —
+# that would be circular) re-exports both kernel and domain names. Prefer it so
+# scratch code can reach domain types (`JsonArray`, `WorkbenchAssistant`, …);
+# fall back to this kernel package when only the kernel is loaded.
+function _projectured_umbrella()
+    for (id, m) in Base.loaded_modules
+        id.name == "Projectured" && return m
+    end
+    parentmodule(@__MODULE__)
+end
+
 function _scratch_module()
     if !isassigned(_SCRATCH)
         m = Module(:AssistantScratch)
-        Core.eval(m, :(const Projectured = $(parentmodule(@__MODULE__))))
+        Core.eval(m, :(const Projectured = $(_projectured_umbrella())))
         Core.eval(m, :(using .Projectured))
         _SCRATCH[] = m
     end
