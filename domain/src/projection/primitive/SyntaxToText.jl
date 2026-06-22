@@ -552,7 +552,10 @@ end
 # converts it to a flat character offset within open ++ value ++ close.
 # Returns -1 if the selection does not point to a cursor position inside this leaf.
 function _leaf_cursor(leaf::SyntaxLeaf)
-    sel = leaf.selection
+    # Selections are canonical (carry TypeReference checkpoints); strip them so
+    # the raw .open/.value/.close{k} structural match below sees the plain
+    # skeleton (otherwise sel.head is a TypeReference and no cursor is found).
+    sel = strip_reference_types(leaf.selection)
     sel isa EmptyReferencePath && return -1
     sel isa ConcreteReferencePath || return -1
     h = sel.head
