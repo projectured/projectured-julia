@@ -82,7 +82,7 @@ end
     evaluate_operation(ed, op)
     @test ed.document isa JsonArray
     @test ed.iomap === nothing            # forced reprint on a root swap
-    @test length(ed.document) == 1
+    @test length(ed.document.elements) == 1
     @test ed.document[1] isa JsonInsertion
 end
 
@@ -112,7 +112,7 @@ end
     @test op.index == 1
     ed = _JsonReaderEditor(arr, nothing)
     evaluate_operation(ed, op)
-    @test length(arr) == 2
+    @test length(arr.elements) == 2
     @test arr[2] isa JsonInsertion
     @test selof(arr[2]) isa EmptyReferencePath   # new element wholly selected
 end
@@ -123,7 +123,7 @@ end
     @test op isa CollectionInsertOperation
     ed = _JsonReaderEditor(obj, nothing)
     evaluate_operation(ed, op)
-    @test length(obj) == 2
+    @test length(obj.entries) == 2
     new_entry = entries(obj)[2]
     @test new_entry isa JsonObjectEntry
     @test new_entry.key == ""
