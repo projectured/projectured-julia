@@ -390,7 +390,10 @@ never requested.
 """
 function build_messages(conversation::ConversationConversation)
     out = Dict[]
-    for t in conversation.turns
+    turns = collect(conversation.turns)
+    i = 1
+    while i <= length(turns)
+        t = turns[i]
         if t.role === :user
             content = Any[]
             for part in t.parts
@@ -408,8 +411,21 @@ function build_messages(conversation::ConversationConversation)
             end
             isempty(content) && push!(content, Dict("type" => "text", "text" => " "))
             push!(out, Dict("role" => "user", "content" => content))
+            i += 1
         elseif t.role === :assistant
-            _emit_assistant_turn!(out, t)
+            # Coalesce consecutive assistant turns into one logical turn before
+            # serialising: Anthropic merges consecutive same-role messages, and a
+            # tool_use block must share its assistant message with the preceding
+            # thinking/text. A later assistant turn that only carries the tool call
+            # would otherwise emit a second assistant message (and 400 the API).
+            parts = Any[]
+            while i <= length(turns) && turns[i].role === :assistant
+                append!(parts, collect(turns[i].parts))
+                i += 1
+            end
+            _emit_assistant_turn!(out, parts)
+        else
+            i += 1
         end
     end
     out
@@ -423,7 +439,7 @@ end
 # of eval parts, plus a trailing assistant message for any closing prose. Thinking
 # blocks must lead each assistant message and keep their signature unchanged, or a
 # tool-use continuation 400s.
-function _emit_assistant_turn!(out, t::ConversationTurn)
+function _emit_assistant_turn!(out, parts)
     thinking = Any[]
     text     = Any[]
     evals    = EvaluatorForm[]
@@ -450,7 +466,7 @@ function _emit_assistant_turn!(out, t::ConversationTurn)
     end
 
     prev_was_eval = false
-    for part in t.parts
+    for part in parts
         c = part.content
         if c isa EvaluatorForm
             push!(evals, c)
