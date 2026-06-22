@@ -2,7 +2,7 @@
     ProjecturedLLMExt
 
 Package extension: the Anthropic Messages API client (real-Claude LlmBackend).
-Loaded when HTTP and JSON3 are present alongside Projectured. Relocated from the
+Loaded when HTTP and JSON3 are present alongside ProjecturedKernel. Relocated from the
 former program/src/editor/Anthropic.jl (AnthropicModule).
 """
 module ProjecturedLLMExt
@@ -13,7 +13,7 @@ using Projectured
 using HTTP
 using JSON3
 
-import Projectured.LlmModule: AnthropicLlm, stream_turn
+import ProjecturedKernel.LlmModule: AnthropicLlm, stream_turn
 
 export stream_message
 

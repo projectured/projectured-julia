@@ -1,0 +1,20 @@
+name = "ProjecturedKernel"
+uuid = "a3e3499a-684d-4df9-a0d6-de2d1797b1f3"
+version = "0.1.0"
+authors = []
+
+[weakdeps]
+HTTP = "cd3eb016-35fb-5094-929b-558a96fad6f3"
+JSON3 = "0f8b85d8-7281-11e9-16c2-39a750bddbf1"
+ModelContextProtocol = "c58f755f-f2a7-4f48-bf29-4e9659b78499"
+
+[extensions]
+# LLM (Anthropic Messages API client; adds stream_turn(::AnthropicLlm) to LlmModule)
+ProjecturedLLMExt = ["HTTP", "JSON3"]
+# MCP transport (McpServer + HTTP lifecycle; the :mcp make_agent_server methods)
+ProjecturedMCPExt = "ModelContextProtocol"
+
+[compat]
+HTTP = "1.11.0"
+JSON3 = "1.14.3"
+ModelContextProtocol = "0.4.1"

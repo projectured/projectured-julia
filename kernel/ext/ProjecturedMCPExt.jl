@@ -7,7 +7,7 @@ session alongside `Projectured`.
 
 The dependency-free editor tools and their registration (`execute_julia_code`,
 `register_default_tools_and_resources!`, the documentation/API search tools) live
-in core `Projectured.McpModule`. Only the MCP *transport* — the `McpServer`, the
+in core `ProjecturedKernel.McpModule`. Only the MCP *transport* — the `McpServer`, the
 HTTP transport lifecycle, and the registry→MCP wire-format bridges — needs
 `ModelContextProtocol` and therefore lives here.
 
@@ -20,9 +20,9 @@ module ProjecturedMCPExt
 using ModelContextProtocol
 using ModelContextProtocol: HttpTransport, TextResourceContents, ServerConfig
 
-import Projectured.ToolRegistryModule: Tool, Resource, list_tools, list_resources
-import Projectured.McpModule: register_default_tools_and_resources!
-import Projectured.AgentModule: make_agent_server, agent_server_start!, agent_server_stop!
+import ProjecturedKernel.ToolRegistryModule: Tool, Resource, list_tools, list_resources
+import ProjecturedKernel.McpModule: register_default_tools_and_resources!
+import ProjecturedKernel.AgentModule: make_agent_server, agent_server_start!, agent_server_stop!
 
 # Generic system prompt for MCP clients (domain-free). A richer, app-specific
 # prompt can be supplied by the caller via `make_agent_server(:mcp, editor;
