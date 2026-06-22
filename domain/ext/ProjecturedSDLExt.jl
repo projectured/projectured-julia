@@ -3,10 +3,10 @@
 
 Package extension: the SDL display/input backend (window, GPU rendering, SDL_ttf
 text rasterisation, offscreen image/PDF/video output). Loaded automatically when
-SimpleDirectMediaLayer, SDL2_jll and FFMPEG are present alongside Projectured.
+SimpleDirectMediaLayer, SDL2_jll and FFMPEG are present alongside ProjecturedDomain.
 
 Relocated from the former program/src/backend/Sdl.jl (SdlBackendModule); relative
-submodule imports were rewritten to absolute Projectured.* references.
+submodule imports were rewritten to absolute ProjecturedDomain.* references.
 """
 module ProjecturedSDLExt
 
@@ -15,29 +15,29 @@ using Projectured
 
 using SimpleDirectMediaLayer
 using SimpleDirectMediaLayer.LibSDL2
-import Projectured.BackendModule: Backend, init!, quit!, measure_text, make_backend, write_image, record_video,
+import ProjecturedDomain.BackendModule: Backend, init!, quit!, measure_text, make_backend, write_image, record_video,
                         render_canvas, decode_image, display_size, set_display_size_provider!
-import Projectured.DeviceModule: Device, read_from_devices, write_to_devices, write_to_device
-import Projectured.GraphicsModule: GraphicsCanvas, GraphicsText, GraphicsRect, GraphicsLine, GraphicsCircle,
+import ProjecturedDomain.DeviceModule: Device, read_from_devices, write_to_devices, write_to_device
+import ProjecturedDomain.GraphicsModule: GraphicsCanvas, GraphicsText, GraphicsRect, GraphicsLine, GraphicsCircle,
                          GraphicsPolyline, GraphicsSpline, GraphicsViewport, GraphicsImage,
                          GraphicsFence, LayoutDirection, layout_none, layout_horizontal, layout_vertical,
                          _canvas_content_bounds, _accumulate_bounds!, _bounds_elem!,
                          tessellate_spline, polyline_arrowhead
-import Projectured.CollectionModule: ListNode, CellVector
-import Projectured.FontModule: StyleFont, font_scaled_size, _DISPLAY_SCALE
-import Projectured.ScreenModule: Screen, QuitEvent
-import Projectured.ScreenDocumentModule: ScreenDocument, WindowDocument, EventEnvelope, WindowCloseRequest, WindowResizeEvent
-import Projectured.ModifiersModule: Modifiers
-import Projectured.KeyboardModule: KeyDown, KeyUp, KeyPress
-import Projectured.MouseModule: MouseDown, MouseUp, MousePress, MouseMove, MouseScroll
-import Projectured.ImageModule: ImageFile
-import Projectured.ProjectionApiModule: projection_print, projection_read, Projection
-import Projectured.OperationApiModule: Operation, evaluate_operation
-import Projectured.DocumentApiModule: clear_selection!, set_selection!
-import Projectured.PrinterContextModule: PrinterContext
-import Projectured.ReactiveModule: Cell, isuptodate
-import Projectured.ReferenceModule: EmptyReferencePath
-import Projectured.IoMapModule: SimpleIoMap
+import ProjecturedDomain.CollectionModule: ListNode, CellVector
+import ProjecturedDomain.FontModule: StyleFont, font_scaled_size, _DISPLAY_SCALE
+import ProjecturedDomain.ScreenModule: Screen, QuitEvent
+import ProjecturedDomain.ScreenDocumentModule: ScreenDocument, WindowDocument, EventEnvelope, WindowCloseRequest, WindowResizeEvent
+import ProjecturedDomain.ModifiersModule: Modifiers
+import ProjecturedDomain.KeyboardModule: KeyDown, KeyUp, KeyPress
+import ProjecturedDomain.MouseModule: MouseDown, MouseUp, MousePress, MouseMove, MouseScroll
+import ProjecturedDomain.ImageModule: ImageFile
+import ProjecturedDomain.ProjectionApiModule: projection_print, projection_read, Projection
+import ProjecturedDomain.OperationApiModule: Operation, evaluate_operation
+import ProjecturedDomain.DocumentApiModule: clear_selection!, set_selection!
+import ProjecturedDomain.PrinterContextModule: PrinterContext
+import ProjecturedDomain.ReactiveModule: Cell, isuptodate
+import ProjecturedDomain.ReferenceModule: EmptyReferencePath
+import ProjecturedDomain.IoMapModule: SimpleIoMap
 import FFMPEG
 
 export SdlBackend, sdl_measure_text, sdl_render_canvas, sdl_display_size,

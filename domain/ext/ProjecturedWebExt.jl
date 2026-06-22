@@ -2,7 +2,7 @@
     ProjecturedWebExt
 
 Package extension: the HTTP/WebSocket web backend (browser-rendered editor).
-Loaded when HTTP and JSON3 are present alongside Projectured. Relocated from the
+Loaded when HTTP and JSON3 are present alongside ProjecturedDomain. Relocated from the
 former program/src/backend/Web.jl (WebBackendModule).
 """
 module ProjecturedWebExt
@@ -14,26 +14,26 @@ using HTTP
 using JSON3
 using Base64: base64encode
 
-import Projectured.BackendModule: Backend, init!, quit!, measure_text, make_backend
-import Projectured.DeviceModule: Device, read_from_devices, write_to_devices
-import Projectured.GraphicsModule: GraphicsCanvas, GraphicsText, GraphicsRect, GraphicsLine,
+import ProjecturedDomain.BackendModule: Backend, init!, quit!, measure_text, make_backend
+import ProjecturedDomain.DeviceModule: Device, read_from_devices, write_to_devices
+import ProjecturedDomain.GraphicsModule: GraphicsCanvas, GraphicsText, GraphicsRect, GraphicsLine,
                          GraphicsCircle, GraphicsPolyline, GraphicsSpline,
                          GraphicsViewport, GraphicsImage, GraphicsFence,
                          _bounds_elem!, _accumulate_bounds!, tessellate_spline
-import Projectured.CollectionModule: ListNode, CellVector
-import Projectured.FontModule: StyleFont
-import Projectured.ReactiveModule: Cell, isuptodate
-import Projectured.ScreenModule: QuitEvent
-import Projectured.ScreenDocumentModule: ScreenDocument, WindowDocument, EventEnvelope,
+import ProjecturedDomain.CollectionModule: ListNode, CellVector
+import ProjecturedDomain.FontModule: StyleFont
+import ProjecturedDomain.ReactiveModule: Cell, isuptodate
+import ProjecturedDomain.ScreenModule: QuitEvent
+import ProjecturedDomain.ScreenDocumentModule: ScreenDocument, WindowDocument, EventEnvelope,
                                WindowCloseRequest, WindowResizeEvent
-import Projectured.ModifiersModule: Modifiers
-import Projectured.KeyboardModule: KeyDown, KeyUp, KeyPress
-import Projectured.MouseModule: MouseDown, MouseUp, MousePress, MouseMove, MouseScroll
+import ProjecturedDomain.ModifiersModule: Modifiers
+import ProjecturedDomain.KeyboardModule: KeyDown, KeyUp, KeyPress
+import ProjecturedDomain.MouseModule: MouseDown, MouseUp, MousePress, MouseMove, MouseScroll
 # SDL-free text measurement: reuse the pure-Julia TrueType metrics measurer from
 # the (SDL-free) PDF backend, so the web backend needs no SDL/SDL_ttf at all.
 # (This measurer is a general font-metrics utility that could later move to a
 # shared module; it lives in PdfBackendModule today.)
-import Projectured.PdfBackendModule: pdf_measure_text
+import ProjecturedDomain.PdfBackendModule: pdf_measure_text
 
 export WebBackend, web_key_to_symbol
 
