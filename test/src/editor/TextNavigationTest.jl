@@ -60,7 +60,10 @@ function explore_text_selections(document, projection, initial_selection=nothing
 
     while !isempty(queue)
         path = popfirst!(queue)
-        path_str = string(path)
+        # Navigation selections are canonical (carry TypeReference checkpoints);
+        # dedup and the completeness comparison are modulo checkpoints, so record
+        # the stripped navigation skeleton (matching collect_text_selections).
+        path_str = string(strip_reference_types(path))
         path_str in visited && continue
         push!(visited, path_str)
         errs_before = length(errors)
@@ -86,7 +89,7 @@ function explore_text_selections(document, projection, initial_selection=nothing
                 nothing
             end
             op isa ReplaceSelectionOperation || continue
-            new_str = string(op.path)
+            new_str = string(strip_reference_types(op.path))
             new_str in visited && continue
             push!(queue, op.path)
         end
