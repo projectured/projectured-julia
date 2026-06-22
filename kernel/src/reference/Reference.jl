@@ -513,8 +513,11 @@ function valid_reference_prefix(document, path::ConcreteReferencePath)
     child = try
         if step isa RangeReference
             idx = step.start + 1
-            (!applicable(length, document) || idx < 1 || idx > length(document)) &&
-                return EmptyReferencePath()
+            # Probe the index via getindex rather than `length(document)`:
+            # container documents (JsonArray, …) support indexing but no longer
+            # forward `length` (cf0482c). An out-of-range / unindexable access
+            # throws and is caught below, truncating the path.
+            idx < 1 && return EmptyReferencePath()
             document[idx]
         elseif step isa FieldReference
             hasproperty(document, Symbol(step.name)) || return EmptyReferencePath()
@@ -570,7 +573,9 @@ function annotate_reference_types(document, path::ReferencePath)
     child = try
         if step isa RangeReference
             idx = step.start + 1
-            (!applicable(length, document) || idx < 1 || idx > length(document)) ? nothing : document[idx]
+            # See valid_reference_prefix: probe via getindex, not length, so
+            # container documents annotate their element checkpoints too.
+            idx < 1 ? nothing : document[idx]
         elseif step isa FieldReference
             if hasproperty(document, Symbol(step.name))
                 f = getfield(document, Symbol(step.name))
