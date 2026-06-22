@@ -149,6 +149,13 @@ macro document(structdef)
     hyd_args = [:(obj.$(fname)) for (fname, _) in original_fields]
     hydrate = :($(struct_name)(obj::$(i_name)) = $(Expr(:call, struct_name, hyd_args...)))
 
+    # The Cell-based variant is a **mutable** struct: every field is a `Cell`, so
+    # mutating field *contents* already worked via `setproperty!`, but making the
+    # struct itself mutable additionally allows swapping a field's Cell object
+    # (`setfield!`) — needed to keep/replace Cell identity. The immutable snapshot
+    # is the I-prefixed variant above.
+    structdef.args[1] = true
+
     return esc(Expr(:block, :(Base.@__doc__ $structdef), getprop, setprop,
                      i_struct, snapshot, hydrate))
 end
