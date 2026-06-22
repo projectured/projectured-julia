@@ -208,8 +208,18 @@ entries to `program/Project.toml`, and drop the moved deps from `[deps]`.
       DB generics. **Keep in core:** `Sql.jl`, `DbCatalog.jl`, `Database.jl`
       documents and the pure `*ToSyntax`/`*ToJson`/`*ToSql` projections — they need
       no ODBC.
-- [ ] **`ProjecturedSDLExt`** — weakdeps `SimpleDirectMediaLayer`, `SDL2_jll`, `FFMPEG`.
-      Holds `backend/Sdl.jl`; `make_backend(:sdl)` seam already done. **Unblocked by
+- [x] **`ProjecturedSDLExt`** — weakdeps `SimpleDirectMediaLayer`, `SDL2_jll`, `FFMPEG`.
+      **DONE** (commit `extract SDL backend into ProjecturedSDLExt`). SDL2 is now
+      optional. The 2288-line `Sdl.jl` moved to `program/ext/ProjecturedSDLExt.jl`
+      (relative imports rewritten), adds methods to the core seams
+      (`make_backend(:sdl)`/`render_canvas`/`decode_image`/`write_image`/`record_video`)
+      + registers the display-size provider. Umbrella drops the SDL re-exports;
+      `ProjecturedExample` loads SDL-free; `ProjecturedTest` opts in (triggers the ext,
+      lazy `__init__` backend, `Base.get_extension` for `GraphicsCanvasToImageFile`).
+      **Verified both ways** — SDL-free load + projection print with the ext dormant;
+      and with the ext: `test_json` 29/29, `test_write_image` (incl.
+      `GraphicsCanvasToImageFile`), `test_record_video` 10/10 (SDL+FFMPEG), measurement.
+      Hybrid pattern (factory seams + `Base.get_extension`) worked cleanly. Old text: **Unblocked by
       Stage 1.0, but has a large consumer surface (finding):** `sdl_measure_text` is
       the *default* `measure=` kwarg in ~30 `example/` projection builders, and
       examples/tests also reference `sdl_render_canvas`, `sdl_display_size`,
