@@ -21,6 +21,43 @@ Return the current selection value of a document.
 selection(doc::Document) = doc.selection
 
 """
+Maximum nesting depth printed by the generic document `show` before child
+documents are abbreviated to `…`. Bounds debug output for deeply nested trees.
+"""
+const DOCUMENT_SHOW_MAX_DEPTH = 2
+
+"""
+    show(io::IO, x::Document)
+
+Default depth-limited debug rendering for documents. Prints constructor-style
+`TypeName(field, field, …)`, reading each field through `getproperty` so the
+underlying reactive `Cell`s are unwrapped. Recursion is bounded by the
+`:document_depth` IOContext key (see [`DOCUMENT_SHOW_MAX_DEPTH`]) so deeply
+nested documents do not explode. The `selection` field, present on every
+document, is omitted as noise.
+
+This is a generic debug aid only. The *semantic* rendering of a document
+(source syntax, etc.) is produced by the projection pipeline, not by `show`.
+"""
+function Base.show(io::IO, x::Document)
+    depth = get(io, :document_depth, 0)
+    print(io, nameof(typeof(x)), "(")
+    if depth ≥ DOCUMENT_SHOW_MAX_DEPTH
+        print(io, "…")
+    else
+        inner = IOContext(io, :document_depth => depth + 1)
+        first = true
+        for f in fieldnames(typeof(x))
+            f === :selection && continue
+            first || print(io, ", ")
+            show(inner, getproperty(x, f))
+            first = false
+        end
+    end
+    print(io, ")")
+end
+
+"""
     @document struct T [<: Super] ... end
 
 Annotate a Document struct whose fields should be transparent reactive Cells.
