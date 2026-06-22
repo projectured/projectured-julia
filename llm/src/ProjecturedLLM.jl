@@ -1,11 +1,12 @@
 """
-    ProjecturedLLMExt
+    ProjecturedLLM
 
-Package extension: the Anthropic Messages API client (real-Claude LlmBackend).
-Loaded when HTTP and JSON3 are present alongside ProjecturedKernel. Relocated from the
-former program/src/editor/Anthropic.jl (AnthropicModule).
+Opt-in package: the Anthropic Messages API client (real-Claude `LlmBackend`).
+Depends on `ProjecturedKernel` + HTTP/JSON3; `using ProjecturedLLM` adds the
+`stream_turn(::AnthropicLlm)` method to the kernel's `LlmModule` seam. Relocated
+from the former program/src/editor/Anthropic.jl (AnthropicModule).
 """
-module ProjecturedLLMExt
+module ProjecturedLLM
 
 using ProjecturedKernel
 
@@ -176,4 +177,4 @@ function stream_turn(b::AnthropicLlm,
                    output_config = output_config)
 end
 
-end # module ProjecturedLLMExt
+end # module ProjecturedLLM
