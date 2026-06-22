@@ -1,9 +1,9 @@
 """
-    ProjecturedSDL
+    Sdl
 
 Opt-in package: the SDL display/input backend (window, GPU rendering, SDL_ttf text
 rasterisation, offscreen image/PDF/video output). Depends on `ProjecturedDomain` +
-SimpleDirectMediaLayer/SDL2_jll/FFMPEG; `using ProjecturedSDL` registers
+SimpleDirectMediaLayer/SDL2_jll/FFMPEG; `using Sdl` registers
 `make_backend(:sdl)` plus the render/decode/image/video seam methods, and (via
 `__init__`) installs SDL as the real `display_size` provider. Exposes `SdlBackend`,
 `GraphicsCanvasToImageFile`, and the `sdl_*` helpers.
@@ -11,7 +11,7 @@ SimpleDirectMediaLayer/SDL2_jll/FFMPEG; `using ProjecturedSDL` registers
 Relocated from the former program/src/backend/Sdl.jl (SdlBackendModule); relative
 submodule imports were rewritten to absolute ProjecturedDomain.* references.
 """
-module ProjecturedSDL
+module Sdl
 
 using ProjecturedDomain
 
@@ -2303,4 +2303,4 @@ function __init__()
     set_display_size_provider!(sdl_display_size)
 end
 
-end # module ProjecturedSDL
+end # module Sdl

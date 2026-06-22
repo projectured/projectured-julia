@@ -1,12 +1,12 @@
 """
-    ProjecturedWeb
+    Web
 
 Opt-in package: the HTTP/WebSocket web backend (browser-rendered editor). Depends
-on `ProjecturedDomain` + HTTP/JSON3; `using ProjecturedWeb` registers
+on `ProjecturedDomain` + HTTP/JSON3; `using Web` registers
 `make_backend(:web)` and exports `WebBackend`. SDL-free — reuses Pdf's pure-Julia
 text metrics. Relocated from the former program/src/backend/Web.jl (WebBackendModule).
 """
-module ProjecturedWeb
+module Web
 
 using ProjecturedDomain
 
@@ -836,4 +836,4 @@ end
 # Backend factory method: `make_backend(:web; host=…, port=…)`.
 make_backend(::Val{:web}; kwargs...) = WebBackend(; kwargs...)
 
-end # module ProjecturedWeb
+end # module Web

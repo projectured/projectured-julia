@@ -63,11 +63,11 @@ Projectured (program/)        umbrella: re-exports Kernel + Domain as one flat A
                               `using Projectured` reproduces the full public surface.
 
 Opt-in packages (depend on the above; loaded only when you `using` them):
-  ProjecturedSDL  (sdl/)   → Domain  SDL2/SimpleDirectMediaLayer/FFMPEG  SdlBackend, make_backend(:sdl), write_image, record_video
-  ProjecturedWeb  (web/)   → Domain  HTTP/JSON3                          WebBackend,  make_backend(:web); assets in web/assets/
-  ProjecturedODBC (odbc/)  → Domain  ODBC/DBInterface/Tables             OdbcDatabaseAdapter, make_database_adapter(:odbc), live-query projections
-  ProjecturedMCP  (mcp/)   → Kernel  ModelContextProtocol               McpServer, make_agent_server(:mcp)
-  ProjecturedLLM  (llm/)   → Kernel  HTTP/JSON3                          stream_turn(::AnthropicLlm) — Anthropic Messages client
+  Sdl  (sdl/)   → Domain  SDL2/SimpleDirectMediaLayer/FFMPEG  SdlBackend, make_backend(:sdl), write_image, record_video
+  Web  (web/)   → Domain  HTTP/JSON3                          WebBackend,  make_backend(:web); assets in web/assets/
+  Odbc (odbc/)  → Domain  ODBC/DBInterface/Tables             OdbcDatabaseAdapter, make_database_adapter(:odbc), live-query projections
+  Mcp  (mcp/)   → Kernel  ModelContextProtocol               McpServer, make_agent_server(:mcp)
+  Llm  (llm/)   → Kernel  HTTP/JSON3                          stream_turn(::AnthropicLlm) — Anthropic Messages client
 ```
 
 The optional backends plug into **factory seams** owned by the kernel/domain
@@ -75,13 +75,13 @@ The optional backends plug into **factory seams** owned by the kernel/domain
 generic code (e.g. `run_example`) requests a backend by symbol; the opt-in package
 registers the method on load and errors helpfully if it isn't loaded. So the SQL and
 DbCatalog *documents and projections* stay in `ProjecturedDomain` (they need nothing
-external) — only **live ODBC querying** lives in `ProjecturedODBC`. Likewise the
+external) — only **live ODBC querying** lives in `Odbc`. Likewise the
 agent *registry and tools* are kernel-resident; only the MCP transport and the
-Anthropic HTTP client are in the opt-in `ProjecturedMCP`/`ProjecturedLLM`.
+Anthropic HTTP client are in the opt-in `Mcp`/`Llm`.
 
 > The per-file paths cited in the module inventory below (`backend/Sdl.jl`,
 > `program/web/`, …) reflect the pre-split single-package tree; the code now lives in
-> the packages above (e.g. `backend/Sdl.jl` → `sdl/src/ProjecturedSDL.jl`,
+> the packages above (e.g. `backend/Sdl.jl` → `sdl/src/Sdl.jl`,
 > `program/web/` → `web/assets/`, `document/*` → `kernel/src/` or `domain/src/`).
 
 ---

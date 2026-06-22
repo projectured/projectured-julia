@@ -24,8 +24,8 @@ end
 @testset "GraphicsCanvasToImageFile projection" begin
     doc  = make_json_document_example()
     filename = tempname() * ".bmp"
-    # GraphicsCanvasToImageFile is exported by the ProjecturedSDL package, which the
-    # test module opts into via `using ProjecturedSDL`.
+    # GraphicsCanvasToImageFile is exported by the Sdl package, which the
+    # test module opts into via `using Sdl`.
     proj = SequentialProjection(
         make_graphics_image_projection_example(),
         GraphicsCanvasToImageFile(filename; width=400, height=300),

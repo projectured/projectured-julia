@@ -6,4 +6,4 @@ version = "0.1.0"
 [deps]
 Profile = "9abbd945-dff8-562f-b5e8-e1ebf5ef1b79"
 Projectured = "92922de3-b970-4d9a-8b2a-9d6f361397b5"
-ProjecturedODBC = "aed26263-2fd3-42de-9b03-7ee91ffa11a3"
+Odbc = "aed26263-2fd3-42de-9b03-7ee91ffa11a3"

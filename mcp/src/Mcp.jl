@@ -1,8 +1,8 @@
 """
-    ProjecturedMCP
+    Mcp
 
 Opt-in package providing the MCP (Model Context Protocol) server transport for
-ProjecturEd. Depends on `ProjecturedKernel`; `using ProjecturedMCP` registers the
+ProjecturEd. Depends on `ProjecturedKernel`; `using Mcp` registers the
 `:mcp` agent-server methods and exposes `McpServer`.
 
 The dependency-free editor tools and their registration (`execute_julia_code`,
@@ -15,7 +15,7 @@ The editor loop never names `McpServer`: it goes through the generic
 `AgentModule` control surface (`make_agent_server(:mcp, editor)` etc.), whose
 `:mcp` methods this package registers.
 """
-module ProjecturedMCP
+module Mcp
 
 using ModelContextProtocol
 using ModelContextProtocol: HttpTransport, TextResourceContents, ServerConfig
@@ -192,4 +192,4 @@ function _make_resources()
     mcp_resources(list_resources())
 end
 
-end # module ProjecturedMCP
+end # module Mcp

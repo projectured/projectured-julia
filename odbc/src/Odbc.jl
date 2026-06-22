@@ -1,13 +1,13 @@
 """
-    ProjecturedODBC
+    Odbc
 
 Opt-in package: live ODBC database access (OdbcDatabaseAdapter, connection pool,
 and the live-query projections). Depends on `ProjecturedDomain` + ODBC/DBInterface/
-Tables; `using ProjecturedODBC` registers `make_database_adapter(:odbc)` and exposes
+Tables; `using Odbc` registers `make_database_adapter(:odbc)` and exposes
 the adapter, pool, and live-query projection types. (The SQL/DbCatalog documents and
 their pure projections stay in `ProjecturedDomain` — only live querying lives here.)
 """
-module ProjecturedODBC
+module Odbc
 
 using ProjecturedDomain
 
@@ -740,7 +740,7 @@ map_reference_backward(::DatabaseInstanceToDbCatalog, iomap, ref) = nothing
 end # module DatabaseInstanceToDbCatalogModule
 
 # Re-export and export public symbols at the package top level so consumers can
-# `using ProjecturedODBC` and name these types directly.
+# `using Odbc` and name these types directly.
 using .OdbcAdapterModule: OdbcDatabaseAdapter
 using .ConnectionPoolModule: OdbcConnectionPool, with_connection, dsn_for, close_pool!
 using .DatabaseTableToTabularGridModule: DatabaseTableToTabularGrid, DatabaseTableIoMap
@@ -751,4 +751,4 @@ export OdbcDatabaseAdapter, OdbcConnectionPool, with_connection, dsn_for, close_
        DatabaseTableToTabularGrid, DatabaseTableIoMap, SqlToCellTable,
        DatabaseInstanceToDbCatalog
 
-end # module ProjecturedODBC
+end # module Odbc

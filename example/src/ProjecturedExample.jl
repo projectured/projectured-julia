@@ -3,10 +3,10 @@ module ProjecturedExample
 using Projectured
 using Profile
 
-# Live database examples use the opt-in ProjecturedODBC package, which exports
+# Live database examples use the opt-in Odbc package, which exports
 # OdbcConnectionPool / OdbcDatabaseAdapter / DatabaseInstanceToDbCatalog /
 # SqlToCellTable. ProjecturEd itself is database-optional; the example opts in.
-using ProjecturedODBC
+using Odbc
 
 const _EXAMPLE_DIR = @__DIR__
 
