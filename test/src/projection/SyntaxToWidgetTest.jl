@@ -16,12 +16,10 @@ function test_syntax_to_widget()
 #       key  leaf  "a"
 #       value leaf  1
 _make_tree() = begin
-    key  = SyntaxLeaf("\"", "\"", "a")
-    val  = SyntaxLeaf("", "", "1")
-    pair = SyntaxNode(TextString(""), TextString(""), TextString(": "),
-                      SyntaxDocument[key, val]; indentation=0)
-    root = SyntaxNode(TextString("{"), TextString("}"), TextString(","),
-                      SyntaxDocument[pair]; indentation=2)
+    key  = SyntaxLeaf("a"; open="\"", close="\"")
+    val  = SyntaxLeaf("1")
+    pair = SyntaxNode(SyntaxDocument[key, val]; sep=TextString(": "))
+    root = SyntaxNode(SyntaxDocument[pair]; open=TextString("{"), close=TextString("}"), sep=TextString(","), indentation=2)
     (root, pair, key, val)
 end
 
@@ -144,10 +142,9 @@ end
     # measured right edge, so before the LayoutToGraphics box-bound fix the key
     # leaf swallowed every click to its right and a click on the value resolved
     # to the key. Drive a real click through the full widget graphics pipeline.
-    key = SyntaxLeaf("\"", "\"", "k")
-    val = SyntaxLeaf("\"", "\"", "valuevalue")     # clearly to the right
-    pair = SyntaxNode(TextString(""), TextString(""), TextString(": "),
-                      SyntaxDocument[key, val]; indentation=0)
+    key = SyntaxLeaf("k"; open="\"", close="\"")
+    val = SyntaxLeaf("valuevalue"; open="\"", close="\"")     # clearly to the right
+    pair = SyntaxNode(SyntaxDocument[key, val]; sep=TextString(": "))
     gproj = SequentialProjection(RecursiveProjection(SyntaxToWidget()),
                                  make_syntax_widget_graphics())
     iomap = projection_print(gproj, pair)
@@ -190,8 +187,7 @@ end
 @testset "collapse: a nested card retargets to its own node" begin
     # Wrap the object in an outer indented array so there are two cards.
     inner_root, _, _, _ = _make_tree()
-    outer = SyntaxNode(TextString("["), TextString("]"), TextString(","),
-                       SyntaxDocument[inner_root]; indentation=1)
+    outer = SyntaxNode(SyntaxDocument[inner_root]; open=TextString("["), close=TextString("]"), sep=TextString(","), indentation=1)
     iomap = projection_print(_proj(), outer)
     outer_card = iomap.output
     @test outer_card isa WidgetCard

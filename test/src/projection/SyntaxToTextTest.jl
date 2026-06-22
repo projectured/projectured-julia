@@ -2,7 +2,7 @@ function test_syntax_to_text()
 @testset "SyntaxToText" begin
 
 s2st = RecursiveProjection(SyntaxToText())
-stree = SyntaxLeaf("[", "]", "val")
+stree = SyntaxLeaf("val"; open="[", close="]")
 sst = projection_print(s2st, stree).output
 @test length(sst.elements) == 3
 @test sst.elements[1].content == "["
@@ -12,14 +12,14 @@ sst = projection_print(s2st, stree).output
 @test sst.elements[2].font == font_ubuntu_monospace_regular_24   # style comes from tree node
 
 # node flattening
-sn = SyntaxNode("(", ")", ", ", SyntaxDocument[SyntaxLeaf("a"), SyntaxLeaf("b")])
+sn = SyntaxNode(SyntaxDocument[SyntaxLeaf("a"), SyntaxLeaf("b")]; open="(", close=")", sep=", ")
 sst2 = projection_print(s2st, sn).output
 texts = [s.content for s in sst2.elements]
 @test join(texts) == "(a, b)"
 
 # value-level incrementality
 lv = Cell("X")
-sl = SyntaxLeaf("[", "]", () -> lv[])
+sl = SyntaxLeaf(() -> lv[]; open="[", close="]")
 sst3 = projection_print(s2st, sl).output
 @test sst3.elements[2].content == "X"
 @test isuptodate(getfield(sst3.elements, :elements))  # spans structure still valid
@@ -29,7 +29,7 @@ lv[] = "Y"
 
 # structural incrementality
 src2 = Cell(2)
-sn2 = SyntaxNode("<", ">", ",", () -> SyntaxDocument[SyntaxLeaf(string(i)) for i in 1:src2[]])
+sn2 = SyntaxNode(() -> SyntaxDocument[SyntaxLeaf(string(i)) for i in 1:src2[]]; open="<", close=">", sep=",")
 sst4 = projection_print(s2st, sn2).output
 _ = [s.content for s in sst4.elements]  # force eval
 @test isuptodate(getfield(sst4.elements, :elements))
@@ -60,23 +60,22 @@ end
 
 # A two-leaf array with separator and indented children, mirroring the
 # `syntax` example.
-node = SyntaxNode("[", "]", ", ",
+node = SyntaxNode(
     SyntaxDocument[
-        SyntaxLeaf("\"", "\"", "hello"),
-        SyntaxLeaf("\"", "\"", "world"),
-    ]; indentation=1)
+        SyntaxLeaf("hello"; open="\"", close="\""),
+        SyntaxLeaf("world"; open="\"", close="\""),
+    ]; open="[", close="]", sep=", ", indentation=1)
 _check_roundtrip("indented array", node, _S2T.SyntaxNodeToText())
 
 # An inline (non-indented) node: child₁ sep child₂.
-inline_node = SyntaxNode("", "", " | ",
-    SyntaxDocument[SyntaxLeaf("a"), SyntaxLeaf("b"), SyntaxLeaf("c")])
+inline_node = SyntaxNode(SyntaxDocument[SyntaxLeaf("a"), SyntaxLeaf("b"), SyntaxLeaf("c")]; sep=" | ")
 _check_roundtrip("inline node", inline_node, _S2T.SyntaxNodeToText())
 
 # Nested: an outer array whose child is itself an inline pair node.
-inner_pair = SyntaxNode("", "", ": ",
-    SyntaxDocument[SyntaxLeaf("\"", "\"", "key"),
-                    SyntaxLeaf("\"", "\"", "value")])
-outer = SyntaxNode("{", "}", ", ", SyntaxDocument[inner_pair]; indentation=1)
+inner_pair = SyntaxNode(
+    SyntaxDocument[SyntaxLeaf("key"; open="\"", close="\""),
+                    SyntaxLeaf("value"; open="\"", close="\"")]; sep=": ")
+outer = SyntaxNode(SyntaxDocument[inner_pair]; open="{", close="}", sep=", ", indentation=1)
 _check_roundtrip("nested key/value", outer, _S2T.SyntaxNodeToText())
 end # let
 
@@ -91,8 +90,7 @@ let
 _S2T = Projectured.SyntaxToTextModule
 mk(s) = TextString(s)
 
-node = SyntaxNode("[", "]", ", ",
-    SyntaxDocument[SyntaxLeaf("1"), SyntaxLeaf("2"), SyntaxLeaf("3")])
+node = SyntaxNode(SyntaxDocument[SyntaxLeaf("1"), SyntaxLeaf("2"), SyntaxLeaf("3")]; open="[", close="]", sep=", ")
 
 p_off = _S2T.SyntaxNodeToText()
 p_on  = _S2T.SyntaxNodeToText(expanded_marker=mk("▾"), collapsed_marker=mk("▸"))
@@ -124,7 +122,7 @@ spans_c = [s.content for s in iomap_c.output.elements]
 node.collapsed = false
 
 # Empty node: no marker even when configured (nothing to fold).
-empty_node = SyntaxNode("[", "]", ", ", SyntaxDocument[])
+empty_node = SyntaxNode(SyntaxDocument[]; open="[", close="]", sep=", ")
 iomap_e = projection_print(pipe_on, empty_node)
 @test join(s.content for s in iomap_e.output.elements) == "[]"
 @test iomap_e.marker_index[] == 0
@@ -159,8 +157,7 @@ let
 _S2T = Projectured.SyntaxToTextModule
 mk(s) = TextString(s)
 
-node = SyntaxNode("[", "]", ", ",
-    SyntaxDocument[SyntaxLeaf("1"), SyntaxLeaf("2"), SyntaxLeaf("3")])
+node = SyntaxNode(SyntaxDocument[SyntaxLeaf("1"), SyntaxLeaf("2"), SyntaxLeaf("3")]; open="[", close="]", sep=", ")
 pipe = RecursiveProjection(SyntaxToText())
 p    = _S2T.SyntaxNodeToText()
 
@@ -189,12 +186,12 @@ node.collapsed = false
 @test join(s.content for s in projection_print(pipe, node).output.elements) == expanded
 
 # Empty node: collapsing adds no ellipsis (nothing to fold).
-empty_node = SyntaxNode("[", "]", ", ", SyntaxDocument[])
+empty_node = SyntaxNode(SyntaxDocument[]; open="[", close="]", sep=", ")
 empty_node.collapsed = true
 @test join(s.content for s in projection_print(pipe, empty_node).output.elements) == "[]"
 
 # Reactivity: toggling `collapsed` invalidates the output spans cell.
-react_node = SyntaxNode("[", "]", ", ", SyntaxDocument[SyntaxLeaf("x")])
+react_node = SyntaxNode(SyntaxDocument[SyntaxLeaf("x")]; open="[", close="]", sep=", ")
 out = projection_print(pipe, react_node).output
 _ = [s.content for s in out.elements]                       # force the spans cell
 @test isuptodate(getfield(out.elements, :elements))
@@ -209,11 +206,11 @@ end # @testset "SyntaxToText collapsed body"
 let
 s2st = RecursiveProjection(SyntaxToText())
 # Two leaves under an indented array, mirroring the `syntax` example.
-node = SyntaxNode("[", "]", ", ",
+node = SyntaxNode(
     SyntaxDocument[
-        SyntaxLeaf("\"", "\"", "hello"),
-        SyntaxLeaf("\"", "\"", "world"),
-    ]; indentation=1)
+        SyntaxLeaf("hello"; open="\"", close="\""),
+        SyntaxLeaf("world"; open="\"", close="\""),
+    ]; open="[", close="]", sep=", ", indentation=1)
 
 # Drive the SyntaxNodeToText reader with `sel` as the current selection.
 read_key(sel, key, mods=Modifiers()) = begin

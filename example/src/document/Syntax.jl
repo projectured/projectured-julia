@@ -1,25 +1,25 @@
 function make_syntax_document_example()
-    document = SyntaxNode("(", ")", " ", SyntaxDocument[
+    document = SyntaxNode(SyntaxDocument[
         SyntaxLeaf("defun"),
         SyntaxLeaf("factorial"),
-        SyntaxNode("(", ")", " ", SyntaxDocument[SyntaxLeaf("n")]),
-        SyntaxNode("(", ")", " ", SyntaxDocument[
+        SyntaxNode(SyntaxDocument[SyntaxLeaf("n")]; open="(", close=")", sep=" "),
+        SyntaxNode(SyntaxDocument[
             SyntaxLeaf("if"),
-            SyntaxNode("(", ")", " ", SyntaxDocument[
+            SyntaxNode(SyntaxDocument[
                 SyntaxLeaf("<="), SyntaxLeaf("n"), SyntaxLeaf("1"),
-            ]),
+            ]; open="(", close=")", sep=" "),
             SyntaxLeaf("1"),
-            SyntaxNode("(", ")", " ", SyntaxDocument[
+            SyntaxNode(SyntaxDocument[
                 SyntaxLeaf("*"),
                 SyntaxLeaf("n"),
-                SyntaxNode("(", ")", " ", SyntaxDocument[
+                SyntaxNode(SyntaxDocument[
                     SyntaxLeaf("factorial"),
-                    SyntaxNode("(", ")", " ", SyntaxDocument[
+                    SyntaxNode(SyntaxDocument[
                         SyntaxLeaf("-"), SyntaxLeaf("n"), SyntaxLeaf("1"),
-                    ]),
-                ]),
-            ]),
-        ]),
-    ]; indentation=1)
+                    ]; open="(", close=")", sep=" "),
+                ]; open="(", close=")", sep=" "),
+            ]; open="(", close=")", sep=" "),
+        ]; open="(", close=")", sep=" "),
+    ]; open="(", close=")", sep=" ", indentation=1)
     document
 end

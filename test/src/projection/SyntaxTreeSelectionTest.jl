@@ -37,7 +37,7 @@ s2t = RecursiveProjection(SyntaxToText())
 end
 
 @testset "set/clear_selection! place ∅ at the target node" begin
-    leaf = SyntaxLeaf("\"", "\"", "hi")
+    leaf = SyntaxLeaf("hi"; open="\"", close="\"")
     set_selection!(leaf, whole)
     @test selof(leaf) isa EmptyReferencePath
     clear_selection!(leaf)
@@ -83,7 +83,7 @@ end
 end
 
 @testset "forward: SyntaxLeaf whole → Text ∅" begin
-    leaf = SyntaxLeaf("\"", "\"", "hi")
+    leaf = SyntaxLeaf("hi"; open="\"", close="\"")
     set_selection!(leaf, whole)
     text_io = projection_print(s2t, leaf)
     @test text_io.output.selection isa EmptyReferencePath
