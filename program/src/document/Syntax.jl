@@ -364,23 +364,6 @@ end
 setfn!(t::SyntaxLeaf, f::Function) = (setfn!(getfield(t.value, :content), f); t)
 setfn!(n::SyntaxNode, f::Function) = (setfn!(getfield(n.children, :elements), () -> Cell[Cell(x) for x in f()]); n)
 
-# ── Display ──────────────────────────────────────────────────────────────
-
-function Base.show(io::IO, leaf::SyntaxLeaf)
-    print(io, "SyntaxLeaf(", repr(leaf.open.content), ", ", repr(leaf.close.content),
-          ", ", repr(leaf.value.content), ")")
-end
-
-function Base.show(io::IO, node::SyntaxNode)
-    print(io, "SyntaxNode(", repr(node.open.content), ", ", repr(node.close.content),
-          ", ", repr(node.sep.content), ", indentation=", node.indentation, ", [")
-    for (i, c) in enumerate(node.children)
-        i > 1 && print(io, ", ")
-        show(io, c)
-    end
-    print(io, "])")
-end
-
 # ── document_read: geometry-free tree-navigation gesture mapping ──────────
 #
 # The projection-independent half of the Syntax domain's reader. The entire

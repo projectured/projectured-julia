@@ -61,10 +61,6 @@ end
 GraphVertex() = GraphVertex(Cell(nothing), Cell(nothing))
 GraphVertex(content::Document) = GraphVertex(Cell(content), Cell(nothing))
 
-function Base.show(io::IO, v::GraphVertex)
-    print(io, "GraphVertex(content=", typeof(getfield(v, :content)[]), ")")
-end
-
 # ── GraphEdge ───────────────────────────────────────────────────────────────
 
 """
@@ -85,10 +81,6 @@ end
 function GraphEdge(source::GraphVertex, target::GraphVertex;
                    directed::Bool=true, label=nothing)
     GraphEdge(Cell(source), Cell(target), Cell(directed), Cell(label), Cell(nothing))
-end
-
-function Base.show(io::IO, e::GraphEdge)
-    print(io, "GraphEdge(directed=", e.directed, ")")
 end
 
 # ── GraphGraph ──────────────────────────────────────────────────────────────
@@ -112,11 +104,6 @@ function GraphGraph(vertices::Vector, edges::Vector)
     GraphGraph(CellVector(Cell[v isa Cell ? v : Cell(v) for v in vertices]),
                CellVector(Cell[e isa Cell ? e : Cell(e) for e in edges]),
                Cell(nothing))
-end
-
-function Base.show(io::IO, g::GraphGraph)
-    print(io, "GraphGraph(vertices=", length(g.vertices),
-          ", edges=", length(g.edges), ")")
 end
 
 end # module

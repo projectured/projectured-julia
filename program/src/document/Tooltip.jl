@@ -53,8 +53,4 @@ function TooltipSource(; child::Document,
     TooltipSource(Cell(child), Cell(content), Cell(style), Cell(id), Cell(nothing))
 end
 
-function Base.show(io::IO, t::TooltipSource)
-    print(io, "TooltipSource(id=:", t.id, ", style=:", t.style, ")")
-end
-
 end # module

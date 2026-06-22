@@ -180,9 +180,6 @@ end
 ConversationDraft(parts::Vector = ConversationPart[], assistant = nothing) =
     ConversationDraft(CellVector(Cell[Cell(p) for p in parts]), Cell(assistant), Cell(nothing))
 
-Base.show(io::IO, d::ConversationDraft) =
-    print(io, "ConversationDraft(parts=", length(d.parts), ")")
-
 # ── Element access on a draft's parts (mirrors a turn) ─────────────────────────
 
 Base.length(d::ConversationDraft)  = length(d.parts)
@@ -234,20 +231,5 @@ setfn!(c::ConversationConversation, f::Function) =
 
 setfn!(t::ConversationTurn, f::Function) =
     (setfn!(getfield(t.parts, :elements), () -> Cell[Cell(x) for x in f()]); t)
-
-# ── Display ───────────────────────────────────────────────────────────────────
-
-Base.show(io::IO, c::ConversationConversation) =
-    print(io, "ConversationConversation(turns=", length(c), ")")
-
-Base.show(io::IO, t::ConversationTurn) =
-    print(io, "ConversationTurn(:", t.role, ", parts=", length(t), ")")
-
-Base.show(io::IO, p::ConversationPart) =
-    print(io, "ConversationPart(", typeof(p.content), ")")
-
-Base.show(io::IO, t::ConversationThinking) =
-    print(io, "ConversationThinking(redacted=", t.redacted,
-          ", signature=", isempty(t.signature) ? "\"\"" : "…", ")")
 
 end # module

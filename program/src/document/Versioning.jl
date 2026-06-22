@@ -228,15 +228,4 @@ function _select_version(c::VersionCriterionPredicate, versions)
     nothing
 end
 
-# ── Display ───────────────────────────────────────────────────────────────────
-
-Base.show(io::IO, p::VersionProperties) =
-    print(io, "VersionProperties(", p.author === nothing ? "?" : p.author, ")")
-
-Base.show(io::IO, v::ObjectVersion) =
-    print(io, "ObjectVersion(", v.value, ")")
-
-Base.show(io::IO, vo::VersionedObject) =
-    print(io, "VersionedObject(", length(vo.versions), " versions)")
-
 end # module

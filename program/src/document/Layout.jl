@@ -64,11 +64,6 @@ end
 
 HorizontalLayout(; kwargs...) = HorizontalLayout(Any[]; kwargs...)
 
-function Base.show(io::IO, h::HorizontalLayout)
-    print(io, "HorizontalLayout(n=", length(h.children),
-          ", v_align=", h.vertical_align, ", gap=", h.gap, ")")
-end
-
 # ── VerticalLayout ──────────────────────────────────────────────────────────
 
 """
@@ -93,11 +88,6 @@ function VerticalLayout(children::Vector;
 end
 
 VerticalLayout(; kwargs...) = VerticalLayout(Any[]; kwargs...)
-
-function Base.show(io::IO, v::VerticalLayout)
-    print(io, "VerticalLayout(n=", length(v.children),
-          ", h_align=", v.horizontal_align, ", gap=", v.gap, ")")
-end
 
 # ── GridLayout ──────────────────────────────────────────────────────────────
 
@@ -131,11 +121,6 @@ function GridLayout(children::Vector, columns::Integer;
                Cell(horizontal_align), Cell(vertical_align),
                Cell(Int(horizontal_gap)), Cell(Int(vertical_gap)),
                Cell(nothing))
-end
-
-function Base.show(io::IO, g::GridLayout)
-    print(io, "GridLayout(n=", length(g.children),
-          ", cols=", g.columns, ")")
 end
 
 # ── FlowLayout ──────────────────────────────────────────────────────────────
@@ -176,11 +161,6 @@ end
 
 FlowLayout(; kwargs...) = FlowLayout(Any[]; kwargs...)
 
-function Base.show(io::IO, f::FlowLayout)
-    print(io, "FlowLayout(n=", length(f.children),
-          ", max_w=", f.max_width, ")")
-end
-
 # ── StackLayout ────────────────────────────────────────────────────────────
 
 """
@@ -208,12 +188,6 @@ function StackLayout(children::Vector;
 end
 
 StackLayout(; kwargs...) = StackLayout(Any[]; kwargs...)
-
-function Base.show(io::IO, s::StackLayout)
-    print(io, "StackLayout(n=", length(s.children),
-          ", h_align=", s.horizontal_align,
-          ", v_align=", s.vertical_align, ")")
-end
 
 # ── LayoutConstraint ────────────────────────────────────────────────────────
 
@@ -254,10 +228,6 @@ function LayoutConstraint(child::Document;
                      Cell(min_height), Cell(preferred_height),
                      Cell(max_height), Cell(weight_height),
                      Cell(nothing))
-end
-
-function Base.show(io::IO, c::LayoutConstraint)
-    print(io, "LayoutConstraint(child=", c.child, ")")
 end
 
 # ── Constraint reading helpers ───────────────────────────────────────────────

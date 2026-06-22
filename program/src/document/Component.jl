@@ -81,10 +81,4 @@ function ComponentMasterDetail(master::Document, detail::Document;
                           Cell(nothing))
 end
 
-function Base.show(io::IO, c::ComponentMasterDetail)
-    print(io, "ComponentMasterDetail(master_title=", repr(c.master_title),
-          ", detail_title=", repr(c.detail_title),
-          ", split_ratio=", c.split_ratio, ")")
-end
-
 end # module

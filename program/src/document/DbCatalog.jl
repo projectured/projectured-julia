@@ -68,17 +68,4 @@ DbCatalogTable(name, columns) =
 DbCatalogColumn(name, data_type) =
     DbCatalogColumn(name, data_type, Cell(nothing))
 
-# ── Base.show ─────────────────────────────────────────────────────────────────
-
-Base.show(io::IO, conn::DbCatalogRdbms) =
-    print(io, "DbCatalogRdbms(", conn.host, ":", conn.port, ")")
-Base.show(io::IO, db::DbCatalogDatabase) =
-    print(io, "DbCatalogDatabase(", db.name, ")")
-Base.show(io::IO, schema::DbCatalogSchema) =
-    print(io, "DbCatalogSchema(", schema.name, ")")
-Base.show(io::IO, table::DbCatalogTable) =
-    print(io, "DbCatalogTable(", table.name, ")")
-Base.show(io::IO, col::DbCatalogColumn) =
-    print(io, "DbCatalogColumn(", col.name, "::", col.data_type, ")")
-
 end # module

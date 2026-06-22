@@ -51,13 +51,4 @@ Base.lastindex(w::Workspace)            = length(w)
 Base.iterate(w::Workspace, state...)    = iterate(w.folders, state...)
 Base.eachindex(w::Workspace)            = eachindex(w.folders)
 
-# ── Display ──────────────────────────────────────────────────────────────────
-
-Base.show(io::IO, f::WorkspaceFolder) =
-    print(io, "WorkspaceFolder(", repr(f.name), ", ", repr(f.pathname), ")")
-
-function Base.show(io::IO, w::Workspace)
-    print(io, "Workspace([", length(w), " folders])")
-end
-
 end # module

@@ -155,17 +155,4 @@ struct WindowResizeEvent
     height::Int
 end
 
-# ── Display ───────────────────────────────────────────────────────────────
-
-function Base.show(io::IO, s::ScreenDocument)
-    print(io, "ScreenDocument(windows=", length(s.windows), ")")
-end
-
-function Base.show(io::IO, w::WindowDocument)
-    print(io, "WindowDocument(id=:", w.id,
-          ", title=", repr(w.title),
-          ", ", w.width, "x", w.height,
-          ", style=:", w.style, ")")
-end
-
 end # module

@@ -56,8 +56,4 @@ end
 DraggingState(content::Document; threshold::Integer = 5) =
     DraggingState(Cell(content), Cell(Int(threshold)), Cell(nothing))
 
-function Base.show(io::IO, d::DraggingState)
-    print(io, "DraggingState(threshold=", d.threshold, ")")
-end
-
 end # module

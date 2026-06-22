@@ -55,11 +55,6 @@ function VertexLayout(vertex::Document, x::Integer, y::Integer, w::Integer, h::I
                  Cell(pinned), Cell(nothing))
 end
 
-function Base.show(io::IO, v::VertexLayout)
-    print(io, "VertexLayout(x=", v.x, ", y=", v.y, ", w=", v.w, ", h=", v.h,
-          ", pinned=", v.pinned, ")")
-end
-
 # ── EdgeLayout ───────────────────────────────────────────────────────────────
 
 """
@@ -81,10 +76,6 @@ function EdgeLayout(edge::Document, route::AbstractVector;
                     source_port::Symbol=:auto, target_port::Symbol=:auto)
     pts = Tuple{Int,Int}[(Int(p[1]), Int(p[2])) for p in route]
     EdgeLayout(Cell(edge), Cell(pts), Cell(source_port), Cell(target_port), Cell(nothing))
-end
-
-function Base.show(io::IO, e::EdgeLayout)
-    print(io, "EdgeLayout(route=", length(e.route), " pts)")
 end
 
 # ── GraphLayout ──────────────────────────────────────────────────────────────
@@ -116,11 +107,6 @@ function GraphLayout(vertex_layouts, edge_layouts;
     GraphLayout(vl, el, Cell(direction), Cell(Int(node_sep)), Cell(Int(rank_sep)), Cell(nothing))
 end
 
-function Base.show(io::IO, g::GraphLayout)
-    print(io, "GraphLayout(vertices=", length(g.vertex_layouts),
-          ", edges=", length(g.edge_layouts), ", direction=", g.direction, ")")
-end
-
 # ── GraphConstraint ──────────────────────────────────────────────────────────
 
 """
@@ -141,10 +127,6 @@ end
 
 function GraphConstraint(target::Document; kind::Symbol=:pin, payload=nothing)
     GraphConstraint(Cell(target), Cell(kind), Cell(payload), Cell(nothing))
-end
-
-function Base.show(io::IO, c::GraphConstraint)
-    print(io, "GraphConstraint(kind=", c.kind, ")")
 end
 
 end # module

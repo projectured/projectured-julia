@@ -119,9 +119,6 @@ Base.reverse(cv::CellVector) = begin
     CellVector(Cell[elems[i] for i in length(elems):-1:1])
 end
 
-Base.show(io::IO, cv::CellVector) =
-    print(io, "CellVector(", length(cv), " slots)")
-
 # ── CellMatrix ────────────────────────────────────────────────────────────
 # A dense rectangular matrix where each slot is a reactive Cell.
 # Structural mutations (insert/delete row/column) reallocate the underlying
@@ -224,9 +221,6 @@ function deletecol!(cm::CellMatrix, c::Integer)
     return cm
 end
 
-Base.show(io::IO, cm::CellMatrix) =
-    print(io, "CellMatrix(", size(cm, 1), "×", size(cm, 2), " slots)")
-
 # ── CellTable ─────────────────────────────────────────────────────────────
 # A table stored as a CellVector of CellVector rows. Row insert/delete is
 # O(nrows) — the same cost as CellVector.insert! — without copying every
@@ -281,11 +275,6 @@ function Base.iterate(ct::CellTable, s...)
     r === nothing && return nothing
     (row, state) = r
     (row::CellVector, state)
-end
-
-Base.show(io::IO, ct::CellTable) = begin
-    nr, nc = size(ct)
-    print(io, "CellTable(", nr, "×", nc, " slots)")
 end
 
 # ── ListNode ──────────────────────────────────────────────────────────────
@@ -376,8 +365,6 @@ function Base.iterate(n::ListNode, cur::Union{ListNode,Nothing} = left_tail(n))
     cur === nothing && return nothing
     return (cur, cur.next)
 end
-
-Base.show(io::IO, n::ListNode) = print(io, "ListNode(", n.value, ")")
 
 # Take first n elements from a ListNode in specified direction
 # direction = :next for forward, :prev for backward

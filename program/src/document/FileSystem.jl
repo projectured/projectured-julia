@@ -81,13 +81,4 @@ function make_filesystem_pathname(pathname::AbstractString)
     end
 end
 
-# ── Display ───────────────────────────────────────────────────────────────────
-
-Base.show(io::IO, f::FileSystemFile) =
-    print(io, "FileSystemFile(", repr(f.pathname), ")")
-
-function Base.show(io::IO, d::FileSystemDirectory)
-    print(io, "FileSystemDirectory(", repr(d.pathname), ", [", length(d), " elements])")
-end
-
 end # module

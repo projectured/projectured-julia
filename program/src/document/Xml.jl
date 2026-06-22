@@ -269,23 +269,4 @@ end
 # render from the single `tag` field, so editing it updates both reactively.)
 # No per-type method is needed.
 
-# ── Display ───────────────────────────────────────────────────────────────
-
-Base.show(io::IO, a::XmlAttribute) = print(io, a.name, "=\"", a.value, "\"")
-
-Base.show(io::IO, t::XmlText) = print(io, t.content)
-
-function Base.show(io::IO, e::XmlElement)
-    attr_str = isempty(e.attrs) ? "" : " " * join(string.(collect(e.attrs)), " ")
-    if isempty(e.children)
-        print(io, "<", e.tag, attr_str, "/>")
-    else
-        print(io, "<", e.tag, attr_str, ">")
-        for c in e.children
-            show(io, c)
-        end
-        print(io, "</", e.tag, ">")
-    end
-end
-
 end # module

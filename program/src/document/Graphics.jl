@@ -73,15 +73,6 @@ function GraphicsText(text::AbstractString, x::Integer, y::Integer,
                  Cell(nothing))
 end
 
-# ── Display ──────────────────────────────────────────────────────────────
-
-function Base.show(io::IO, t::GraphicsText)
-    print(io, "GraphicsText(", repr(t.text),
-          ", x=", t.x, ", y=", t.y,
-          ", font=", repr(t.font),
-          ", rgba=(", t.r, ",", t.g, ",", t.b, ",", t.a, "))")
-end
-
 """
     GraphicsRect(x, y, w, h, r, g, b, a, radius=0;
                  radius_tl=radius, radius_tr=radius,
@@ -138,16 +129,6 @@ function GraphicsRect(x::Integer, y::Integer, w::Integer, h::Integer,
                  Cell(nothing))
 end
 
-function Base.show(io::IO, r::GraphicsRect)
-    print(io, "GraphicsRect(x=", r.x, ", y=", r.y,
-          ", w=", r.w, ", h=", r.h,
-          ", rgba=(", r.r, ",", r.g, ",", r.b, ",", r.a, ")",
-          ", radius=(tl=", r.radius_tl, ",tr=", r.radius_tr,
-          ",br=", r.radius_br, ",bl=", r.radius_bl, ")",
-          ", border=(", r.border_width, ",rgba=(", r.border_r, ",", r.border_g,
-          ",", r.border_b, ",", r.border_a, ")))")
-end
-
 # ── GraphicsLine ───────────────────────────────────────────────────────────
 
 """
@@ -176,11 +157,6 @@ function GraphicsLine(x1::Integer, y1::Integer, x2::Integer, y2::Integer,
     GraphicsLine(Cell(Int32(x1)), Cell(Int32(y1)), Cell(Int32(x2)), Cell(Int32(y2)),
                  Cell(UInt8(r)), Cell(UInt8(g)), Cell(UInt8(b)), Cell(UInt8(a)),
                  Cell(Int32(width)), Cell(nothing))
-end
-
-function Base.show(io::IO, l::GraphicsLine)
-    print(io, "GraphicsLine((", l.x1, ",", l.y1, ")→(", l.x2, ",", l.y2, ")",
-          ", rgba=(", l.r, ",", l.g, ",", l.b, ",", l.a, "), width=", l.width, ")")
 end
 
 # ── GraphicsCircle ─────────────────────────────────────────────────────────
@@ -219,11 +195,6 @@ function GraphicsCircle(cx::Integer, cy::Integer, radius::Integer,
                    Cell(nothing))
 end
 
-function Base.show(io::IO, c::GraphicsCircle)
-    print(io, "GraphicsCircle(c=(", c.cx, ",", c.cy, "), r=", c.radius,
-          ", rgba=(", c.r, ",", c.g, ",", c.b, ",", c.a, "))")
-end
-
 # ── GraphicsPolyline ─────────────────────────────────────────────────────
 
 """
@@ -257,12 +228,6 @@ function GraphicsPolyline(points::AbstractVector,
                      Cell(UInt8(r)), Cell(UInt8(g)), Cell(UInt8(b)), Cell(UInt8(a)),
                      Cell(Int32(width)), Cell(start_arrow), Cell(end_arrow),
                      Cell(Int32(arrow_size)), Cell(nothing))
-end
-
-function Base.show(io::IO, p::GraphicsPolyline)
-    print(io, "GraphicsPolyline(n=", length(p.points),
-          ", rgba=(", p.r, ",", p.g, ",", p.b, ",", p.a, "), width=", p.width,
-          ", arrows=(", p.start_arrow, ",", p.end_arrow, "))")
 end
 
 # ── GraphicsSpline ───────────────────────────────────────────────────────
@@ -303,11 +268,6 @@ function GraphicsSpline(points::AbstractVector,
                    Cell(UInt8(r)), Cell(UInt8(g)), Cell(UInt8(b)), Cell(UInt8(a)),
                    Cell(Int32(width)), Cell(start_arrow), Cell(end_arrow),
                    Cell(Int32(arrow_size)), Cell(Int32(segments)), Cell(nothing))
-end
-
-function Base.show(io::IO, s::GraphicsSpline)
-    print(io, "GraphicsSpline(n=", length(s.points), ", kind=", s.kind,
-          ", rgba=(", s.r, ",", s.g, ",", s.b, ",", s.a, "), width=", s.width, ")")
 end
 
 # ── Spline tessellation + arrowheads (shared by every backend) ────────────
@@ -459,11 +419,6 @@ function GraphicsViewport(x::Integer, y::Integer, w::Integer, h::Integer,
                      Cell(nothing))
 end
 
-function Base.show(io::IO, v::GraphicsViewport)
-    print(io, "GraphicsViewport(x=", v.x, ", y=", v.y,
-          ", w=", v.w, ", h=", v.h, ")")
-end
-
 # ── Image (cached rasterized canvas) ─────────────────────────────────────
 
 @document struct GraphicsImage <: GraphicsDocument
@@ -480,11 +435,6 @@ function GraphicsImage(x::Integer, y::Integer, w::Integer, h::Integer, data)
                   Cell(Int32(w)), Cell(Int32(h)),
                   Cell(data),
                   Cell(nothing))
-end
-
-function Base.show(io::IO, img::GraphicsImage)
-    print(io, "GraphicsImage(x=", img.x, ", y=", img.y,
-          ", w=", img.w, ", h=", img.h, ")")
 end
 
 # ── Fence ──────────────────────────────────────────────────────────────────

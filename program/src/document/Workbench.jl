@@ -95,18 +95,7 @@ function WorkbenchWorkbench(navigation_page::WorkbenchDocument,
                        Cell(nothing))
 end
 
-function Base.show(io::IO, w::WorkbenchWorkbench)
-    print(io, "WorkbenchWorkbench(navigation_page=", w.navigation_page,
-          ", editing_page=", w.editing_page,
-          ", information_page=", w.information_page,
-          ", control_page=", w.control_page, ")")
-end
-
 setfn!(p::WorkbenchPage, f::Function) = (setfn!(getfield(p.elements, :elements), () -> Cell[Cell(x) for x in f()]); p)
-
-function Base.show(io::IO, p::WorkbenchPage)
-    print(io, "WorkbenchPage(elements=", length(p.elements), ")")
-end
 
 # ── WorkbenchNavigator ────────────────────────────────────────────────────────
 
@@ -129,10 +118,6 @@ WorkbenchNavigator(workspace::Workspace) =
 WorkbenchNavigator() = WorkbenchNavigator(Workspace())
 
 title(::WorkbenchNavigator) = WORKBENCH_NAVIGATOR_TITLE
-
-function Base.show(io::IO, n::WorkbenchNavigator)
-    print(io, "WorkbenchNavigator(workspace=", n.workspace, ")")
-end
 
 # ── WorkbenchConsole ──────────────────────────────────────────────────────────
 
@@ -158,10 +143,6 @@ WorkbenchConsole() = WorkbenchConsole(TextText())
 title(::WorkbenchConsole) = WORKBENCH_CONSOLE_TITLE
 setfn!(c::WorkbenchConsole, f::Function) = (setfn!(getfield(c, :content), f); c)
 
-function Base.show(io::IO, c::WorkbenchConsole)
-    print(io, "WorkbenchConsole(content=", c.content, ")")
-end
-
 # ── WorkbenchDescriptor ───────────────────────────────────────────────────────
 
 const WORKBENCH_DESCRIPTOR_TITLE = "Descriptor"
@@ -184,10 +165,6 @@ end
 
 title(::WorkbenchDescriptor) = WORKBENCH_DESCRIPTOR_TITLE
 
-function Base.show(io::IO, d::WorkbenchDescriptor)
-    print(io, "WorkbenchDescriptor(content=", d.content, ")")
-end
-
 # ── WorkbenchOperator ─────────────────────────────────────────────────────────
 
 const WORKBENCH_OPERATOR_TITLE = "Operator"
@@ -205,10 +182,6 @@ WorkbenchOperator() = WorkbenchOperator(Cell(nothing))
 
 title(::WorkbenchOperator) = WORKBENCH_OPERATOR_TITLE
 
-function Base.show(io::IO, ::WorkbenchOperator)
-    print(io, "WorkbenchOperator()")
-end
-
 # ── WorkbenchSearcher ─────────────────────────────────────────────────────────
 
 const WORKBENCH_SEARCHER_TITLE = "Searcher"
@@ -225,10 +198,6 @@ end
 WorkbenchSearcher() = WorkbenchSearcher(Cell(nothing))
 
 title(::WorkbenchSearcher) = WORKBENCH_SEARCHER_TITLE
-
-function Base.show(io::IO, ::WorkbenchSearcher)
-    print(io, "WorkbenchSearcher()")
-end
 
 # ── WorkbenchEvaluator ────────────────────────────────────────────────────────
 
@@ -254,10 +223,6 @@ WorkbenchEvaluator() = WorkbenchEvaluator(nothing)
 
 title(::WorkbenchEvaluator) = WORKBENCH_EVALUATOR_TITLE
 setfn!(e::WorkbenchEvaluator, f::Function) = (setfn!(getfield(e, :content), f); e)
-
-function Base.show(io::IO, e::WorkbenchEvaluator)
-    print(io, "WorkbenchEvaluator(content=", e.content, ")")
-end
 
 # ── WorkbenchAssistant ────────────────────────────────────────────────────────
 
@@ -365,11 +330,6 @@ end
 title(::WorkbenchAssistant) = WORKBENCH_ASSISTANT_TITLE
 setfn!(a::WorkbenchAssistant, f::Function) = (setfn!(getfield(a, :conversation), f); a)
 
-function Base.show(io::IO, a::WorkbenchAssistant)
-    print(io, "WorkbenchAssistant(model=", repr(a.model),
-          ", status=:", a.status, ", conversation=", a.conversation, ")")
-end
-
 # ── WorkbenchEditor ──────────────────────────────────────────────────────────
 
 """
@@ -395,11 +355,6 @@ end
 
 title(e::WorkbenchEditor) = e.title
 setfn!(e::WorkbenchEditor, f::Function) = (setfn!(getfield(e, :content), f); e)
-
-function Base.show(io::IO, e::WorkbenchEditor)
-    print(io, "WorkbenchEditor(title=", repr(e.title),
-          ", filename=", repr(e.filename), ")")
-end
 
 # ── Workbench manipulation (B1) ───────────────────────────────────────────────
 #

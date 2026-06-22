@@ -47,10 +47,6 @@ function ImageFile(filename::AbstractString; selection=nothing)
     ImageFile(Cell(filename), Cell(nothing), Cell(selection))
 end
 
-function Base.show(io::IO, img::ImageFile)
-    print(io, "ImageFile(", repr(img.filename), ")")
-end
-
 # ── ImageMemory ────────────────────────────────────────────────────────────
 
 """
@@ -66,10 +62,6 @@ end
 
 function ImageMemory(raw; selection=nothing)
     ImageMemory(Cell(raw), Cell(selection))
-end
-
-function Base.show(io::IO, img::ImageMemory)
-    print(io, "ImageMemory(raw=", img.raw, ")")
 end
 
 # ── setfn! delegation ──────────────────────────────────────────────────────

@@ -48,12 +48,4 @@ DatabaseInstance(; database::AbstractString,
                    credentials::DatabaseCredentials) =
     DatabaseInstance(String(database), String(host), Int(port), credentials, Cell(nothing))
 
-# ── Base.show ───────────────────────────────────────────────────────────────────
-
-Base.show(io::IO, c::DatabaseCredentials) =
-    print(io, "DatabaseCredentials(", c.user, ")")
-Base.show(io::IO, inst::DatabaseInstance) =
-    print(io, "DatabaseInstance(", inst.credentials.user, "@", inst.host, ":",
-          inst.port, "/", inst.database, ")")
-
 end # module

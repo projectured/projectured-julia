@@ -411,34 +411,4 @@ end
 # edit threaded through a parent array/object reader reparses it via the number
 # representation). No per-type method is needed.
 
-# ── Display ──────────────────────────────────────────────────────────────
-
-Base.show(io::IO, ::JsonNull) = print(io, "null")
-Base.show(io::IO, j::JsonBool) = print(io, j[] ? "true" : "false")
-Base.show(io::IO, j::JsonNumber) = print(io, j[])
-Base.show(io::IO, j::JsonString) = show(io, j[])
-
-function Base.show(io::IO, j::JsonArray)
-    items = _items(j)
-    print(io, "[")
-    for (i, item) in enumerate(items)
-        i > 1 && print(io, ", ")
-        show(io, item)
-    end
-    print(io, "]")
-end
-
-function Base.show(io::IO, j::JsonObject)
-    print(io, "{")
-    first = true
-    for e in j.entries
-        first || print(io, ", ")
-        first = false
-        show(io, e.key)
-        print(io, ": ")
-        show(io, e.value)
-    end
-    print(io, "}")
-end
-
 end # module

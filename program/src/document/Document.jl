@@ -39,10 +39,6 @@ DocumentNothing(; selection=nothing) = DocumentNothing(Cell(selection))
 
 value(::DocumentNothing) = DOCUMENT_NOTHING_VALUE
 
-function Base.show(io::IO, ::DocumentNothing)
-    print(io, "DocumentNothing()")
-end
-
 # ── DocumentInsertion ─────────────────────────────────────────────────────────
 
 const DOCUMENT_INSERTION_PREFIX = "Insert a new "
@@ -71,10 +67,6 @@ suffix(::DocumentInsertion) = DOCUMENT_INSERTION_SUFFIX
 # so text-replace edits are handled generically by `splice_value!` (see
 # OperationApiModule). No per-type method is needed.
 
-function Base.show(io::IO, d::DocumentInsertion)
-    print(io, "DocumentInsertion(", repr(d.value), ")")
-end
-
 # ── DocumentReference ─────────────────────────────────────────────────────────
 
 """
@@ -89,10 +81,6 @@ end
 
 DocumentReference(path::ReferencePath; selection=nothing) =
     DocumentReference(Cell(path), Cell(selection))
-
-function Base.show(io::IO, d::DocumentReference)
-    print(io, "DocumentReference(", d.path, ")")
-end
 
 # ── Operations ────────────────────────────────────────────────────────────────
 #

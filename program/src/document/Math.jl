@@ -121,27 +121,4 @@ function _operator_string(op::Symbol)
     return string(op)
 end
 
-# ── Display ───────────────────────────────────────────────────────────────────
-
-Base.show(io::IO, ::MathInsertion) = print(io, "⌷")
-Base.show(io::IO, v::MathVariable) = print(io, v.name)
-
-function Base.show(io::IO, b::MathBinaryOperation)
-    show(io, b.left)
-    print(io, " ", _operator_string(b.operator), " ")
-    show(io, b.right)
-end
-
-function Base.show(io::IO, p::MathParenthesized)
-    print(io, "(")
-    show(io, p.content)
-    print(io, ")")
-end
-
-function Base.show(io::IO, a::MathAssignment)
-    show(io, a.target)
-    print(io, " = ")
-    show(io, a.value)
-end
-
 end # module

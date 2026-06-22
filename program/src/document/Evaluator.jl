@@ -103,12 +103,4 @@ Base.push!(t::EvaluatorToplevel, fs::EvaluatorForm...) =
 setfn!(t::EvaluatorToplevel, f::Function) =
     (setfn!(getfield(t.elements, :elements), () -> Cell[Cell(x) for x in f()]); t)
 
-# ── Display ──────────────────────────────────────────────────────────────────
-
-Base.show(io::IO, f::EvaluatorForm) =
-    print(io, "EvaluatorForm(", f.form, ", is_error=", f.is_error, ")")
-
-Base.show(io::IO, t::EvaluatorToplevel) =
-    print(io, "EvaluatorToplevel(forms=", length(t), ")")
-
 end # module

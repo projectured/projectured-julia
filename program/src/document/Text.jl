@@ -670,21 +670,4 @@ function _text_cursor_flat(text::TextText, sel::ConcreteReferencePath)
     return (base + a, base + b, a == b)
 end
 
-# ── Display ──────────────────────────────────────────────────────
-
-function Base.show(io::IO, s::TextString)
-    print(io, "TextString(", repr(s.content),
-          ", font=", repr(s.font),
-          ", font_color=", repr(s.font_color), ")")
-end
-
-function Base.show(io::IO, st::TextText)
-    print(io, "TextText([")
-    for (i, s) in enumerate(st.elements)
-        i > 1 && print(io, ", ")
-        show(io, s)
-    end
-    print(io, "])")
-end
-
 end # module

@@ -67,8 +67,6 @@ end
 FormulaInsertion(value::AbstractString="") =
     FormulaInsertion(Cell(String(value)), Cell(nothing))
 
-Base.show(io::IO, f::FormulaInsertion) = print(io, "FormulaInsertion(", repr(f.value), ")")
-
 # ── FormulaReference ─────────────────────────────────────────────────────────
 
 """
@@ -122,9 +120,6 @@ formula_result_text(s) = TextText(TextString(_value_string(s)))
 _value_string(s::AbstractString) = String(s)
 _value_string(x) = string(x)
 
-Base.show(io::IO, f::FormulaFormula) =
-    print(io, "FormulaFormula(", repr(f.name), ")")
-
 # ── FormulaEnvironment ───────────────────────────────────────────────────────
 
 """
@@ -155,9 +150,6 @@ Base.getindex(e::FormulaEnvironment, i::Integer) = e.formulas[i]
 Base.firstindex(::FormulaEnvironment) = 1
 Base.lastindex(e::FormulaEnvironment) = length(e)
 Base.iterate(e::FormulaEnvironment, s...) = iterate(e.formulas, s...)
-
-Base.show(io::IO, e::FormulaEnvironment) =
-    print(io, "FormulaEnvironment(formulas=", length(e), ")")
 
 # ═══════════════════════════════════════════════════════════════════════
 # Phase 2 — environment, naming, dependency graph, cycle detection

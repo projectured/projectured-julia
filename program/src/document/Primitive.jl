@@ -241,20 +241,4 @@ function Base.setindex!(s::PrimitiveString, ch::AbstractChar, i::Integer)
     return ch
 end
 
-# ── Display ───────────────────────────────────────────────────────────────────
-
-function Base.show(io::IO, b::PrimitiveBool)
-    print(io, "PrimitiveBool(", b.value, ")")
-end
-
-function Base.show(io::IO, n::PrimitiveNumber)
-    v = n.value
-    v === nothing ? print(io, "PrimitiveNumber(nothing)") : print(io, "PrimitiveNumber(", v, ")")
-end
-
-function Base.show(io::IO, s::PrimitiveString)
-    v = s.value
-    v === nothing ? print(io, "PrimitiveString(nothing)") : print(io, "PrimitiveString(", repr(v), ")")
-end
-
 end # module

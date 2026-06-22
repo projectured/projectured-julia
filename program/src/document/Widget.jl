@@ -102,10 +102,6 @@ end
 
 setfn!(w::WidgetLabel, f::Function) = (setfn!(getfield(w, :content), f); w)
 
-function Base.show(io::IO, w::WidgetLabel)
-    print(io, "WidgetLabel(pos=", w.position, ", content=", w.content, ")")
-end
-
 # ── WidgetText ─────────────────────────────────────────────────────────────
 
 """
@@ -145,10 +141,6 @@ end
 
 setfn!(w::WidgetText, f::Function) = (setfn!(getfield(w, :content), f); w)
 
-function Base.show(io::IO, w::WidgetText)
-    print(io, "WidgetText(pos=", w.position, ", content=", w.content, ")")
-end
-
 # ── WidgetCheckbox ─────────────────────────────────────────────────────────
 
 """
@@ -185,10 +177,6 @@ function WidgetCheckbox(position::Point2D, content;
 end
 
 setfn!(w::WidgetCheckbox, f::Function) = (setfn!(getfield(w, :content), f); w)
-
-function Base.show(io::IO, w::WidgetCheckbox)
-    print(io, "WidgetCheckbox(pos=", w.position, ", content=", w.content, ")")
-end
 
 # ── WidgetButton ───────────────────────────────────────────────────────────
 
@@ -228,11 +216,6 @@ end
 
 setfn!(w::WidgetButton, f::Function) = (setfn!(getfield(w, :content), f); w)
 
-function Base.show(io::IO, w::WidgetButton)
-    print(io, "WidgetButton(pos=", w.position,
-          ", size=", w.size, ", content=", w.content, ")")
-end
-
 # ── WidgetTooltip ──────────────────────────────────────────────────────────
 
 """
@@ -270,11 +253,6 @@ function WidgetTooltip(position::Point2D, size::Point2D, content;
 end
 
 setfn!(w::WidgetTooltip, f::Function) = (setfn!(getfield(w, :content), f); w)
-
-function Base.show(io::IO, w::WidgetTooltip)
-    print(io, "WidgetTooltip(pos=", w.position,
-          ", size=", w.size, ", content=", w.content, ")")
-end
 
 # ── WidgetMenu ─────────────────────────────────────────────────────────────
 
@@ -314,10 +292,6 @@ WidgetMenu(; kwargs...) = WidgetMenu(Any[]; kwargs...)
 
 setfn!(w::WidgetMenu, f::Function) = (setfn!(getfield(w.elements, :elements), () -> Cell[Cell(x) for x in f()]); w)
 
-function Base.show(io::IO, w::WidgetMenu)
-    print(io, "WidgetMenu(elements=", length(w.elements), ")")
-end
-
 # ── WidgetMenuItem ─────────────────────────────────────────────────────────
 
 """
@@ -353,10 +327,6 @@ function WidgetMenuItem(content;
 end
 
 setfn!(w::WidgetMenuItem, f::Function) = (setfn!(getfield(w, :content), f); w)
-
-function Base.show(io::IO, w::WidgetMenuItem)
-    print(io, "WidgetMenuItem(content=", w.content, ")")
-end
 
 # ── WidgetComposite ────────────────────────────────────────────────────────
 
@@ -395,11 +365,6 @@ function WidgetComposite(position::Point2D, elements::Vector;
 end
 
 setfn!(w::WidgetComposite, f::Function) = (setfn!(getfield(w.elements, :elements), () -> Cell[Cell(x) for x in f()]); w)
-
-function Base.show(io::IO, w::WidgetComposite)
-    print(io, "WidgetComposite(pos=", w.position,
-          ", elements=", length(w.elements), ")")
-end
 
 # ── WidgetToolbar ──────────────────────────────────────────────────────────
 
@@ -440,10 +405,6 @@ WidgetToolbar(; kwargs...) = WidgetToolbar(Any[]; kwargs...)
 
 setfn!(w::WidgetToolbar, f::Function) =
     (setfn!(getfield(w.elements, :elements), () -> Cell[Cell(x) for x in f()]); w)
-
-function Base.show(io::IO, w::WidgetToolbar)
-    print(io, "WidgetToolbar(elements=", length(w.elements), ")")
-end
 
 # ── WidgetShell ────────────────────────────────────────────────────────────
 
@@ -495,10 +456,6 @@ end
 
 setfn!(w::WidgetShell, f::Function) = (setfn!(getfield(w, :content), f); w)
 
-function Base.show(io::IO, w::WidgetShell)
-    print(io, "WidgetShell(content=", w.content, ")")
-end
-
 # ── WidgetTitlePane ────────────────────────────────────────────────────────
 
 """
@@ -541,10 +498,6 @@ function WidgetTitlePane(title, content;
 end
 
 setfn!(w::WidgetTitlePane, f::Function) = (setfn!(getfield(w, :content), f); w)
-
-function Base.show(io::IO, w::WidgetTitlePane)
-    print(io, "WidgetTitlePane(title=", w.title, ")")
-end
 
 # ── WidgetSplitPane ────────────────────────────────────────────────────────
 
@@ -604,11 +557,6 @@ WidgetSplitPane(elements::Vector; kwargs...) =
 
 setfn!(w::WidgetSplitPane, f::Function) = (setfn!(getfield(w.elements, :elements), () -> Cell[Cell(x) for x in f()]); w)
 
-function Base.show(io::IO, w::WidgetSplitPane)
-    print(io, "WidgetSplitPane(orientation=", w.orientation,
-          ", elements=", length(w.elements), ")")
-end
-
 # ── WidgetTabbedPane ───────────────────────────────────────────────────────
 
 """
@@ -647,10 +595,6 @@ end
 WidgetTabbedPane(; kwargs...) = WidgetTabbedPane(Any[]; kwargs...)
 
 setfn!(w::WidgetTabbedPane, f::Function) = (setfn!(getfield(w.selector_element_pairs, :elements), () -> Cell[Cell(x) for x in f()]); w)
-
-function Base.show(io::IO, w::WidgetTabbedPane)
-    print(io, "WidgetTabbedPane(pairs=", length(w.selector_element_pairs), ")")
-end
 
 # ── WidgetScrollPane ───────────────────────────────────────────────────────
 
@@ -698,11 +642,6 @@ end
 
 setfn!(w::WidgetScrollPane, f::Function) = (setfn!(getfield(w, :content), f); w)
 
-function Base.show(io::IO, w::WidgetScrollPane)
-    print(io, "WidgetScrollPane(content=", w.content,
-          ", scroll=", w.scroll_position, ")")
-end
-
 # ── WidgetScrollBar ────────────────────────────────────────────────────────
 
 """
@@ -748,11 +687,6 @@ function WidgetScrollBar(orientation::Symbol;
                     Cell(nothing))
 end
 
-function Base.show(io::IO, w::WidgetScrollBar)
-    print(io, "WidgetScrollBar(orientation=", w.orientation,
-          ", value=", w.value, ")")
-end
-
 # ════════════════════════════════════════════════════════════════════════════
 # Extension widgets (printer-only for now; readers are no-ops)
 #
@@ -778,7 +712,6 @@ A small pill-shaped status label. `variant` ∈
 end
 WidgetBadge(position::Point2D, content; variant::Symbol=:default, visible::Bool=true) =
     WidgetBadge(Cell(position), Cell(content), Cell(variant), Cell(visible), Cell(nothing))
-Base.show(io::IO, w::WidgetBadge) = print(io, "WidgetBadge(", w.content, ", ", w.variant, ")")
 
 # ── WidgetSeparator ─────────────────────────────────────────────────────────
 
@@ -797,7 +730,6 @@ end
 WidgetSeparator(position::Point2D; orientation::Symbol=:horizontal,
                 length::Integer=200, visible::Bool=true) =
     WidgetSeparator(Cell(position), Cell(orientation), Cell(Int(length)), Cell(visible), Cell(nothing))
-Base.show(io::IO, w::WidgetSeparator) = print(io, "WidgetSeparator(", w.orientation, ")")
 
 # ── WidgetCard ──────────────────────────────────────────────────────────────
 
@@ -821,7 +753,6 @@ WidgetCard(position::Point2D; title=nothing, description=nothing, content=nothin
            footer=nothing, width::Integer=320, visible::Bool=true) =
     WidgetCard(Cell(position), Cell(title), Cell(description), Cell(content),
                Cell(footer), Cell(Int(width)), Cell(visible), Cell(nothing))
-Base.show(io::IO, w::WidgetCard) = print(io, "WidgetCard(", w.title, ")")
 
 # ── WidgetSwitch ────────────────────────────────────────────────────────────
 
@@ -838,7 +769,6 @@ An on/off toggle switch (rounded track + knob).
 end
 WidgetSwitch(position::Point2D, checked::Bool=false; visible::Bool=true) =
     WidgetSwitch(Cell(position), Cell(checked), Cell(visible), Cell(nothing))
-Base.show(io::IO, w::WidgetSwitch) = print(io, "WidgetSwitch(", w.checked, ")")
 
 # ── WidgetProgress ──────────────────────────────────────────────────────────
 
@@ -856,7 +786,6 @@ A horizontal progress bar. `value` ∈ [0, 1].
 end
 WidgetProgress(position::Point2D, value::Real=0.0; width::Integer=240, visible::Bool=true) =
     WidgetProgress(Cell(position), Cell(Float64(value)), Cell(Int(width)), Cell(visible), Cell(nothing))
-Base.show(io::IO, w::WidgetProgress) = print(io, "WidgetProgress(", w.value, ")")
 
 # ── WidgetSlider ────────────────────────────────────────────────────────────
 
@@ -874,7 +803,6 @@ A slider with a track, filled portion and a draggable knob. `value` ∈ [0, 1].
 end
 WidgetSlider(position::Point2D, value::Real=0.5; width::Integer=240, visible::Bool=true) =
     WidgetSlider(Cell(position), Cell(Float64(value)), Cell(Int(width)), Cell(visible), Cell(nothing))
-Base.show(io::IO, w::WidgetSlider) = print(io, "WidgetSlider(", w.value, ")")
 
 # ── WidgetRadioGroup ────────────────────────────────────────────────────────
 
@@ -894,7 +822,6 @@ end
 WidgetRadioGroup(position::Point2D, options::Vector; selected::Integer=1, visible::Bool=true) =
     WidgetRadioGroup(Cell(position), CellVector(Cell[Cell(o) for o in options]),
                      Cell(Int(selected)), Cell(visible), Cell(nothing))
-Base.show(io::IO, w::WidgetRadioGroup) = print(io, "WidgetRadioGroup(", length(w.options), ")")
 
 # ── WidgetAvatar ────────────────────────────────────────────────────────────
 
@@ -912,7 +839,6 @@ A circular avatar showing initials (image-clipping is future work).
 end
 WidgetAvatar(position::Point2D, initials; size::Integer=64, visible::Bool=true) =
     WidgetAvatar(Cell(position), Cell(initials), Cell(Int(size)), Cell(visible), Cell(nothing))
-Base.show(io::IO, w::WidgetAvatar) = print(io, "WidgetAvatar(", w.initials, ")")
 
 # ── WidgetAlert ─────────────────────────────────────────────────────────────
 
@@ -935,7 +861,6 @@ WidgetAlert(position::Point2D, title, description=nothing;
             variant::Symbol=:default, width::Integer=360, visible::Bool=true) =
     WidgetAlert(Cell(position), Cell(title), Cell(description), Cell(variant),
                 Cell(Int(width)), Cell(visible), Cell(nothing))
-Base.show(io::IO, w::WidgetAlert) = print(io, "WidgetAlert(", w.title, ")")
 
 # ── WidgetSkeleton ──────────────────────────────────────────────────────────
 
@@ -953,7 +878,6 @@ A muted rounded placeholder block for loading states.
 end
 WidgetSkeleton(position::Point2D; width::Integer=240, height::Integer=20, visible::Bool=true) =
     WidgetSkeleton(Cell(position), Cell(Int(width)), Cell(Int(height)), Cell(visible), Cell(nothing))
-Base.show(io::IO, w::WidgetSkeleton) = print(io, "WidgetSkeleton(", w.width, "×", w.height, ")")
 
 # ── WidgetToggle ────────────────────────────────────────────────────────────
 
@@ -971,7 +895,6 @@ A two-state toggle button (pressed = accent surface).
 end
 WidgetToggle(position::Point2D, content; pressed::Bool=false, visible::Bool=true) =
     WidgetToggle(Cell(position), Cell(content), Cell(pressed), Cell(visible), Cell(nothing))
-Base.show(io::IO, w::WidgetToggle) = print(io, "WidgetToggle(", w.content, ", ", w.pressed, ")")
 
 # ── WidgetToggleGroup ───────────────────────────────────────────────────────
 
@@ -990,7 +913,6 @@ end
 WidgetToggleGroup(position::Point2D, options::Vector; selected::Integer=1, visible::Bool=true) =
     WidgetToggleGroup(Cell(position), CellVector(Cell[Cell(o) for o in options]),
                       Cell(Int(selected)), Cell(visible), Cell(nothing))
-Base.show(io::IO, w::WidgetToggleGroup) = print(io, "WidgetToggleGroup(", length(w.options), ")")
 
 # ── WidgetSelect ────────────────────────────────────────────────────────────
 
@@ -1009,7 +931,6 @@ chevron (the dropdown itself is a reader concern, out of scope here).
 end
 WidgetSelect(position::Point2D, value; width::Integer=220, visible::Bool=true) =
     WidgetSelect(Cell(position), Cell(value), Cell(Int(width)), Cell(visible), Cell(nothing))
-Base.show(io::IO, w::WidgetSelect) = print(io, "WidgetSelect(", w.value, ")")
 
 # ── WidgetTextarea ──────────────────────────────────────────────────────────
 
@@ -1029,7 +950,6 @@ end
 WidgetTextarea(position::Point2D, content; width::Integer=320, rows::Integer=4, visible::Bool=true) =
     WidgetTextarea(Cell(position), Cell(content), Cell(Int(width)), Cell(Int(rows)),
                    Cell(visible), Cell(nothing))
-Base.show(io::IO, w::WidgetTextarea) = print(io, "WidgetTextarea(rows=", w.rows, ")")
 
 # ── WidgetAccordion ─────────────────────────────────────────────────────────
 
@@ -1050,7 +970,6 @@ end
 WidgetAccordion(position::Point2D, items::Vector; expanded::Integer=1, width::Integer=360, visible::Bool=true) =
     WidgetAccordion(Cell(position), CellVector(Cell[Cell(it) for it in items]),
                     Cell(Int(expanded)), Cell(Int(width)), Cell(visible), Cell(nothing))
-Base.show(io::IO, w::WidgetAccordion) = print(io, "WidgetAccordion(", length(w.items), ")")
 
 # ── WidgetTable ─────────────────────────────────────────────────────────────
 
@@ -1134,9 +1053,6 @@ function WidgetTable(position::Point2D, headers::Vector, rows::Vector;
                 padding=padding, border_width=border_width, visible=visible)
 end
 
-Base.show(io::IO, w::WidgetTable) =
-    print(io, "WidgetTable(", length(w.rows), "×", w.column_count, ")")
-
 # ── WidgetTree ──────────────────────────────────────────────────────────────
 
 """
@@ -1155,7 +1071,6 @@ file-system / navigator trees.)
 end
 WidgetTree(position::Point2D, roots::Vector; visible::Bool=true) =
     WidgetTree(Cell(position), CellVector(Cell[Cell(n) for n in roots]), Cell(visible), Cell(nothing))
-Base.show(io::IO, w::WidgetTree) = print(io, "WidgetTree(", length(w.roots), ")")
 
 # ── Operations ─────────────────────────────────────────────────────────────
 

@@ -62,12 +62,4 @@ end
 ClipboardCollection(content; elements=[], selection=nothing) =
     ClipboardCollection(Cell(content), CellVector(Cell[Cell(x) for x in elements]), Cell(selection))
 
-# ── Display ───────────────────────────────────────────────────────────────────
-
-Base.show(io::IO, c::ClipboardSlice) =
-    print(io, "ClipboardSlice(", c.content, ")")
-
-Base.show(io::IO, c::ClipboardCollection) =
-    print(io, "ClipboardCollection(", length(c.elements), " elements)")
-
 end # module

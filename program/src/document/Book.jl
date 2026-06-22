@@ -63,11 +63,6 @@ BookBook(; kwargs...) = BookBook(BookDocument[]; kwargs...)
 
 setfn!(b::BookBook, f::Function) = (setfn!(getfield(b.elements, :elements), () -> Cell[Cell(x) for x in f()]); b)
 
-function Base.show(io::IO, b::BookBook)
-    print(io, "BookBook(title=", repr(b.title),
-          ", elements=", length(b.elements), ")")
-end
-
 # ── BookChapter ────────────────────────────────────────────────────────────
 
 """
@@ -96,12 +91,6 @@ BookChapter(; kwargs...) = BookChapter(BookDocument[]; kwargs...)
 
 setfn!(b::BookChapter, f::Function) = (setfn!(getfield(b.elements, :elements), () -> Cell[Cell(x) for x in f()]); b)
 
-function Base.show(io::IO, b::BookChapter)
-    print(io, "BookChapter(title=", repr(b.title),
-          ", numbering=", repr(b.numbering),
-          ", elements=", length(b.elements), ")")
-end
-
 # ── BookParagraph ──────────────────────────────────────────────────────────
 
 """
@@ -126,10 +115,6 @@ end
 
 setfn!(b::BookParagraph, f::Function) = (setfn!(getfield(b, :content), f); b)
 
-function Base.show(io::IO, b::BookParagraph)
-    print(io, "BookParagraph(alignment=", b.alignment, ", content=", b.content, ")")
-end
-
 # ── BookList ───────────────────────────────────────────────────────────────
 
 """
@@ -150,10 +135,6 @@ end
 BookList(; kwargs...) = BookList(BookDocument[]; kwargs...)
 
 setfn!(b::BookList, f::Function) = (setfn!(getfield(b.elements, :elements), () -> Cell[Cell(x) for x in f()]); b)
-
-function Base.show(io::IO, b::BookList)
-    print(io, "BookList(elements=", length(b.elements), ")")
-end
 
 # ── BookPicture ────────────────────────────────────────────────────────────
 
@@ -180,11 +161,6 @@ function BookPicture(content;
 end
 
 setfn!(b::BookPicture, f::Function) = (setfn!(getfield(b, :content), f); b)
-
-function Base.show(io::IO, b::BookPicture)
-    print(io, "BookPicture(title=", repr(b.title),
-          ", alignment=", b.alignment, ")")
-end
 
 # Text-replace edits for the book domain are handled generically by
 # `splice_value!` (see OperationApiModule): `title`/`author`/`numbering` are
