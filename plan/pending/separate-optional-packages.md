@@ -204,7 +204,7 @@ After all five move out:
 Work in a dedicated worktree. One package per commit, each verified before the next:
 1. `ProjecturedMCP` (193 LOC, kernel-only, single seam) — smallest, proves the pattern. **DONE.**
 2. `ProjecturedLLM` (179 LOC, kernel-only). **DONE** — kernel now has zero weakdeps/extensions; `kernel/ext/` deleted.
-3. `ProjecturedODBC` (748 LOC) + retarget Example/Test off `get_extension`.
+3. `ProjecturedODBC` (748 LOC) + retarget Example/Test off `get_extension`. **DONE.**
 4. `ProjecturedWeb` (838 LOC) + move `domain/web/` → `web/assets/` + path refit.
 5. `ProjecturedSDL` (2296 LOC) + `__init__` provider + retarget Test/executable.
 6. Strip `[weakdeps]`/`[extensions]` from kernel & domain; delete `*/ext/`.
