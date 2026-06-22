@@ -3,6 +3,16 @@ module ProjecturedExample
 using Projectured
 using Profile
 
+# Trigger the ODBC package extension and bind its public types so the database
+# example builders (and the eager `const …_example` constructions below) can name
+# them. ProjecturEd itself is ODBC-optional; the example package opts in.
+using ODBC, DBInterface, Tables
+const _ODBCEXT = Base.get_extension(Projectured, :ProjecturedODBCExt)
+const OdbcConnectionPool        = _ODBCEXT.OdbcConnectionPool
+const OdbcDatabaseAdapter       = _ODBCEXT.OdbcDatabaseAdapter
+const DatabaseInstanceToDbCatalog = _ODBCEXT.DatabaseInstanceToDbCatalog
+const SqlToCellTable            = _ODBCEXT.SqlToCellTable
+
 const _EXAMPLE_DIR = @__DIR__
 
 include(joinpath(_EXAMPLE_DIR, "document", "Json.jl"))

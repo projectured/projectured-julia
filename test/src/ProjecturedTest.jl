@@ -7,6 +7,18 @@ using ProjecturedExample
 # (rendering / write_image / click roundtrips). The library itself is SDL-optional;
 # the test package opts in.
 using SimpleDirectMediaLayer, SDL2_jll, FFMPEG
+# Likewise trigger the ODBC extension and bind its public types so the database
+# tests can construct adapters/pools/projections and assert on their types.
+using ODBC, DBInterface, Tables
+const _ODBCEXT = Base.get_extension(Projectured, :ProjecturedODBCExt)
+const OdbcDatabaseAdapter         = _ODBCEXT.OdbcDatabaseAdapter
+const OdbcConnectionPool          = _ODBCEXT.OdbcConnectionPool
+const with_connection             = _ODBCEXT.with_connection
+const close_pool!                 = _ODBCEXT.close_pool!
+const DatabaseInstanceToDbCatalog = _ODBCEXT.DatabaseInstanceToDbCatalog
+const SqlToCellTable              = _ODBCEXT.SqlToCellTable
+const DatabaseTableToTabularGrid  = _ODBCEXT.DatabaseTableToTabularGrid
+const DatabaseTableIoMap          = _ODBCEXT.DatabaseTableIoMap
 using Projectured: ElementReference, RangeReference, PositionReference, FieldReference, PointReference,
                    TextRectangularReference,
                    ConcreteReferencePath, EmptyReferencePath, ReferencePath,

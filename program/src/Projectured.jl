@@ -198,12 +198,10 @@ include("backend/Console.jl")
 include("backend/Pdf.jl")
 include("backend/Web.jl")
 include("external/Database.jl")
-include("external/OdbcAdapter.jl")
-include("external/ConnectionPool.jl")
-include("external/DatabaseTabular.jl")
-include("projection/primitive/DatabaseTableToTabularGrid.jl")
-include("projection/primitive/DatabaseInstanceToDbCatalog.jl")
-include("projection/primitive/SqlToCellTable.jl")
+# The live-ODBC modules (OdbcAdapter, ConnectionPool, DatabaseTabular, and the
+# DatabaseTableToTabularGrid / SqlToCellTable / DatabaseInstanceToDbCatalog
+# live-query projections) live in the ProjecturedODBCExt package extension
+# (program/ext/ProjecturedODBCExt.jl) — they need ODBC/DBInterface/Tables.
 include("projection/primitive/CellTableToTable.jl")
 include("projection/primitive/DbCatalogToJson.jl")
 include("projection/primitive/DbCatalogToSql.jl")
@@ -275,10 +273,10 @@ using .DatabaseModule: DatabaseAdapter, RawDatabaseResult, make_database_adapter
                        db_query, db_execute_raw,
                        db_insert!, db_update!, db_delete!,
                        db_catalog_databases, db_catalog_schemas, db_catalog_tables, db_catalog_columns
-using .OdbcAdapterModule: OdbcDatabaseAdapter
-using .DatabaseTableToTabularGridModule: DatabaseTableIoMap, DatabaseTableToTabularGrid
+# OdbcDatabaseAdapter, the connection pool, and the DatabaseTableToTabularGrid /
+# SqlToCellTable / DatabaseInstanceToDbCatalog live-query projections live in the
+# ProjecturedODBCExt extension (build an adapter via make_database_adapter(:odbc)).
 using .DatabaseInstanceDocumentModule: DatabaseInstanceDocument, DatabaseInstance, DatabaseCredentials
-using .ConnectionPoolModule: OdbcConnectionPool, with_connection, dsn_for, close_pool!
 using .SqlDocumentModule: SqlDocument, SqlStatement,
                           SqlSelectExpression, SqlFromBaseItem, SqlJoinType, SqlJoinCondition,
                           SqlJoinConditionExpression, SqlWhereCondition,
@@ -299,8 +297,6 @@ using .SqlDocumentModule: SqlDocument, SqlStatement,
 using .DbCatalogDocumentModule: DbCatalogDocument,
                                 DbCatalogRdbms, DbCatalogDatabase, DbCatalogSchema,
                                 DbCatalogTable, DbCatalogColumn
-using .DatabaseInstanceToDbCatalogModule: DatabaseInstanceToDbCatalog
-using .SqlToCellTableModule: SqlToCellTable
 using .CellTableToTableModule: CellTableToTable, CellTableToWidgetTable
 using .DbCatalogToJsonModule: DbCatalogRdbmsToJson, DbCatalogDatabaseToJson,
                                DbCatalogSchemaToJson, DbCatalogTableToJson, DbCatalogColumnToJson,
@@ -591,13 +587,14 @@ export TabularDocument, TabularCell, TabularRow, TabularGrid,
        tabular_cell, tabular_column,
        insert_row!, delete_row!, insert_column!, delete_column!
 export DatabaseDocument, DatabaseTable, DatabaseUpdateOperation, DatabaseInsertOperation
-export DatabaseAdapter, RawDatabaseResult, make_database_adapter, OdbcDatabaseAdapter,
+export DatabaseAdapter, RawDatabaseResult, make_database_adapter,
        db_connect!, db_close!, db_alive, db_rowid_column,
        db_query, db_execute_raw, db_insert!, db_update!, db_delete!,
        db_catalog_databases, db_catalog_schemas, db_catalog_tables, db_catalog_columns
-export DatabaseTableIoMap, DatabaseTableToTabularGrid
+# OdbcDatabaseAdapter, OdbcConnectionPool, DatabaseTableToTabularGrid/IoMap, the
+# live-query projections, with_connection/dsn_for/close_pool! are provided by the
+# ProjecturedODBCExt extension (build via make_database_adapter(:odbc)).
 export DatabaseInstanceDocument, DatabaseInstance, DatabaseCredentials
-export OdbcConnectionPool, with_connection, dsn_for, close_pool!
 export SqlDocument, SqlStatement,
        SqlSelectExpression, SqlFromBaseItem, SqlJoinType, SqlJoinCondition,
        SqlJoinConditionExpression, SqlWhereCondition,
@@ -630,8 +627,8 @@ export SqlToSyntax, SqlAllColumnsToSyntaxLeaf, SqlColumnReferenceToSyntaxLeaf,
 export DbCatalogDocument,
        DbCatalogRdbms, DbCatalogDatabase, DbCatalogSchema,
        DbCatalogTable, DbCatalogColumn
-export DatabaseInstanceToDbCatalog
-export SqlToCellTable, CellTableToTable, CellTableToWidgetTable
+# DatabaseInstanceToDbCatalog and SqlToCellTable are provided by ProjecturedODBCExt.
+export CellTableToTable, CellTableToWidgetTable
 export DbCatalogRdbmsToJson, DbCatalogDatabaseToJson,
        DbCatalogSchemaToJson, DbCatalogTableToJson, DbCatalogColumnToJson,
        DbCatalogToJson
