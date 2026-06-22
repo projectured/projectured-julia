@@ -47,8 +47,7 @@ function map_reference_backward(::PrimitiveBoolToSyntaxLeaf, iomap::SimpleIoMap,
 end
 
 function projection_print(p::PrimitiveBoolToSyntaxLeaf, recursion, b::PrimitiveBool, ctx)
-    SimpleIoMap(p, b, SyntaxLeaf(TextString("", p.style.font, color_default), TextString("", p.style.font, color_default),
-                                  TextString(() -> string(b.value), p.style), getfield(b, :selection)))
+    SimpleIoMap(p, b, SyntaxLeaf(TextString(() -> string(b.value), p.style); selection=getfield(b, :selection)))
 end
 
 function projection_read(::PrimitiveBoolToSyntaxLeaf, iomap::SimpleIoMap, op::ReplaceSelectionOperation)
@@ -80,8 +79,7 @@ function map_reference_backward(::PrimitiveNumberToSyntaxLeaf, iomap::SimpleIoMa
 end
 
 function projection_print(p::PrimitiveNumberToSyntaxLeaf, recursion, n::PrimitiveNumber, ctx)
-    SimpleIoMap(p, n, SyntaxLeaf(TextString("", p.style.font, color_default), TextString("", p.style.font, color_default),
-                                  TextString(() -> string(n.value), p.style), getfield(n, :selection)))
+    SimpleIoMap(p, n, SyntaxLeaf(TextString(() -> string(n.value), p.style); selection=getfield(n, :selection)))
 end
 
 function projection_read(::PrimitiveNumberToSyntaxLeaf, iomap::SimpleIoMap, op::ReplaceSelectionOperation)
@@ -116,10 +114,10 @@ end
 
 function projection_print(p::PrimitiveStringToSyntaxLeaf, recursion, s::PrimitiveString, ctx)
     SimpleIoMap(p, s, SyntaxLeaf(
-        TextString("\"", p.quote_style),
-        TextString("\"", p.quote_style),
-        TextString(() -> something(s.value, ""), p.value),
-        getfield(s, :selection)))
+        TextString(() -> something(s.value, ""), p.value);
+        open=TextString("\"", p.quote_style),
+        close=TextString("\"", p.quote_style),
+        selection=getfield(s, :selection)))
 end
 
 function projection_read(p::PrimitiveStringToSyntaxLeaf, iomap::SimpleIoMap, op::ReplaceSelectionOperation)
