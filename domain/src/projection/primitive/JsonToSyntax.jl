@@ -6,6 +6,14 @@ syntax tree shape, preserving delimiter characters (quotes, braces, brackets)
 as projection-introduced elements via ProjectionReference. The reader inverts
 the mapping, routing tree-domain paths back to the correct JSON field, array
 index, or ProjectionReference for delimiters.
+
+Every value type is expressed as a `@projection_template` builder: an ordinary
+`(p, doc) -> output` that constructs the real SyntaxLeaf/SyntaxNode, dropping a
+`bound`/`project`/`collection` marker where special handling is needed. The
+ProjectionTemplate engine walks the built tree, strips the markers, and derives
+`projection_print` / `map_reference_forward` / `map_reference_backward` / the
+value-edit reader. Only the JSON *authoring* readers (type-to-replace, `,`
+insert, Tab) and the Syntax-specific structural fallback stay hand-written.
 """
 module JsonToSyntaxModule
 
@@ -19,11 +27,11 @@ import ..ColorModule: StyleColor, color_black, color_default, color_solarized_bl
 import ..StyleTextModule: StyleText
 import ..SyntaxModule: SyntaxDocument, SyntaxLeaf, SyntaxNode
 import ..TypeDispatchingModule: TypeDispatchingProjection
-import ..CopyingProjectionModule: CopyingProjection, copying_field_iomap
-import ..IoMapModule: SimpleIoMap, ChildrenIoMap
+import ..CopyingProjectionModule: CopyingProjection
 import ..ReferenceModule: ConcreteReferencePath, ElementReference, PositionReference, RangeReference, FieldReference, ProjectionReference, ReferencePath, EmptyReferencePath, append_reference, evaluate_reference, skip_type_checkpoints
 import ..ReferenceCaseModule: var"@reference_case"
 import ..ReferenceBuilderModule: var"@reference"
+import ..ProjectionTemplateModule: var"@projection_template", bound, project, collection, RuleIoMap
 import ..PrinterContextModule: PrinterContext, child_context
 import ..OperationModule: ReplaceSelectionOperation, ReplaceDocumentOperation, CollectionInsertOperation
 import ..PrimitiveModule: StringReplaceRangeOperation, NumberReplaceRangeOperation
@@ -40,18 +48,14 @@ struct JsonNullToSyntaxLeaf <: Projection
 end
 JsonNullToSyntaxLeaf(; style=StyleText(font_ubuntu_monospace_regular_24, color_solarized_magenta)) = JsonNullToSyntaxLeaf(style)
 
-# Selection mapping (JsonNull → SyntaxLeaf): "null" is a projection-introduced
-# label with no editable input value, so a cursor on it has no input pre-image.
-# The default map_reference_forward (proj-unwrapping) is therefore the correct
-# mapper here — a value cursor arrives wrapped as proj(p, .value{k}) and is
-# unwrapped to .value{k} for the leaf. Unlike Bool/Number/String the input and
-# output selection formats differ (proj-wrapped vs. bare), so the shared-cell
-# shortcut does not apply. The default mapper ignores the iomap, so it is passed
-# as nothing.
-function projection_print(p::JsonNullToSyntaxLeaf, recursion, j::JsonNull, ctx)
-    output_selection = Cell(() -> map_reference_forward(p, nothing, j.selection))
-    SimpleIoMap(p, j, SyntaxLeaf(TextString("", p.style.font, color_default), TextString("", p.style.font, color_default), TextString("null", p.style), output_selection))
-end
+# "null" is a projection-introduced label with no editable input value (no
+# marker ⇒ opaque): the walk records no binding, so the default proj-unwrapping
+# mappers apply and the output selection is the input selection mapped forward.
+@projection_template JsonNullToSyntaxLeaf JsonNull (p, doc) ->
+    SyntaxLeaf(TextString("", p.style.font, color_default),
+               TextString("", p.style.font, color_default),
+               TextString("null", p.style),
+               0, false, nothing)
 
 # ── JsonInsertionToSyntaxLeaf ───────────────────────────────────────────────────
 
@@ -60,14 +64,13 @@ struct JsonInsertionToSyntaxLeaf <: Projection
 end
 JsonInsertionToSyntaxLeaf(; style=StyleText(font_ubuntu_monospace_regular_24, color_solarized_gray)) = JsonInsertionToSyntaxLeaf(style)
 
-# Selection mapping (JsonInsertion → SyntaxLeaf): same rationale as JsonNull —
-# "insert JSON here" is a projection-introduced placeholder with no editable
-# input value, so the default proj-unwrapping forward mapper is correct and the
-# shared-cell shortcut does not apply. The real iomap is threaded canonically.
-function projection_print(p::JsonInsertionToSyntaxLeaf, recursion, j::JsonInsertion, ctx)
-    output_selection = Cell(() -> map_reference_forward(p, nothing, j.selection))
-    SimpleIoMap(p, j, SyntaxLeaf(TextString("", p.style.font, color_default), TextString("", p.style.font, color_default), TextString("insert JSON here", p.style), output_selection))
-end
+# Same rationale as JsonNull — "insert JSON here" is an opaque
+# projection-introduced placeholder with no editable input value.
+@projection_template JsonInsertionToSyntaxLeaf JsonInsertion (p, doc) ->
+    SyntaxLeaf(TextString("", p.style.font, color_default),
+               TextString("", p.style.font, color_default),
+               TextString("insert JSON here", p.style),
+               0, false, nothing)
 
 # ── JsonBoolToSyntaxLeaf ─────────────────────────────────────────────────────
 
@@ -76,28 +79,15 @@ struct JsonBoolToSyntaxLeaf <: Projection
 end
 JsonBoolToSyntaxLeaf(; style=StyleText(font_ubuntu_monospace_regular_24, color_solarized_yellow)) = JsonBoolToSyntaxLeaf(style)
 
-function map_reference_forward(::JsonBoolToSyntaxLeaf, iomap::SimpleIoMap, reference)
-    @reference_case reference begin
-        ::JsonBool            => @reference ::SyntaxLeaf
-        ::JsonBool.value{s:e} => @reference ::SyntaxLeaf.value::TextString{s:e}
-    end
-end
-
-function map_reference_backward(::JsonBoolToSyntaxLeaf, iomap::SimpleIoMap, reference)
-    @reference_case reference begin
-        ::SyntaxLeaf            => @reference ::JsonBool
-        ::SyntaxLeaf.value{s:e} => @reference ::JsonBool.value::Bool{s:e}
-    end
-end
-
-# Selection mapping (JsonBool → SyntaxLeaf, open="" close=""):
-# j.selection is shared directly with the leaf (same Cell), so .value{k}
-# identity-maps on both sides with no wiring. Selection reads are handled by
-# the default projection_read, which routes the path through the identity
-# map_reference_backward above — no bespoke reader is needed.
-function projection_print(p::JsonBoolToSyntaxLeaf, recursion, j::JsonBool, ctx)
-    SimpleIoMap(p, j, SyntaxLeaf(TextString("", p.style.font, color_default), TextString("", p.style.font, color_default), TextString(() -> j[] ? "true" : "false", p.style), getfield(j, :selection)))
-end
+# Transparent value bound to JsonBool.value (Bool): the walk shares doc's
+# selection cell with the leaf, so .value{k} identity-maps both ways. The `bound`
+# marker in the value slot is stripped to its real TextString before the output
+# leaves the printer.
+@projection_template JsonBoolToSyntaxLeaf JsonBool (p, doc) ->
+    SyntaxLeaf(TextString("", p.style.font, color_default),
+               TextString("", p.style.font, color_default),
+               bound(:value, Bool, TextString(() -> doc[] ? "true" : "false", p.style)),
+               0, false, nothing)
 
 # ── JsonNumberToSyntaxLeaf ───────────────────────────────────────────────────
 
@@ -106,40 +96,16 @@ struct JsonNumberToSyntaxLeaf <: Projection
 end
 JsonNumberToSyntaxLeaf(; style=StyleText(font_ubuntu_monospace_regular_24, color_solarized_magenta)) = JsonNumberToSyntaxLeaf(style)
 
-function map_reference_forward(::JsonNumberToSyntaxLeaf, iomap::SimpleIoMap, reference)
-    @reference_case reference begin
-        ::JsonNumber            => @reference ::SyntaxLeaf
-        ::JsonNumber.value{s:e} => @reference ::SyntaxLeaf.value::TextString{s:e}
-    end
-end
-
-function map_reference_backward(::JsonNumberToSyntaxLeaf, iomap::SimpleIoMap, reference)
-    @reference_case reference begin
-        ::SyntaxLeaf            => @reference ::JsonNumber
-        ::SyntaxLeaf.value{s:e} => @reference ::JsonNumber.value::Real{s:e}
-    end
-end
-
-# Selection mapping (JsonNumber → SyntaxLeaf, open="" close=""):
-# j.selection is shared directly with the leaf (same Cell), so .value{k}
-# identity-maps on both sides. Selection reads use the default projection_read
-# (routed through the identity map_reference_backward); only the value-editing
-# path below needs a bespoke reader.
-function projection_print(p::JsonNumberToSyntaxLeaf, recursion, j::JsonNumber, ctx)
-    value = _hinted_text(() -> string(j[]), () -> j[] === nothing, "enter json number", p.style)
-    SimpleIoMap(p, j, SyntaxLeaf(TextString("", p.style.font, color_default), TextString("", p.style.font, color_default), value, getfield(j, :selection)))
-end
-
-# Editing into a JsonNumber's value rewires the string operation as a
-# NumberReplaceRangeOperation so the evaluator's tryparse logic kicks in. The
-# reference is re-targeted through map_reference_backward (identity for .value)
-# so the path mapping stays in one place; the retype is the documented
-# "convert to a different operation" move.
-function projection_read(p::JsonNumberToSyntaxLeaf, iomap::SimpleIoMap, op::StringReplaceRangeOperation)
-    new_ref = map_reference_backward(p, iomap, op.reference)
-    new_ref === nothing && return nothing
-    NumberReplaceRangeOperation(new_ref, op.replacement)
-end
+# Transparent value bound to JsonNumber.value (Real). Editing the value rewires
+# the StringReplaceRangeOperation into a NumberReplaceRangeOperation (the
+# `retype` marker arg) so the evaluator's tryparse logic kicks in.
+@projection_template JsonNumberToSyntaxLeaf JsonNumber (p, doc) ->
+    SyntaxLeaf(TextString("", p.style.font, color_default),
+               TextString("", p.style.font, color_default),
+               bound(:value, Real,
+                     _hinted_text(() -> string(doc[]), () -> doc[] === nothing, "enter json number", p.style);
+                     retype = NumberReplaceRangeOperation),
+               0, false, nothing)
 
 # ── JsonStringToSyntaxLeaf ───────────────────────────────────────────────────
 
@@ -151,60 +117,18 @@ JsonStringToSyntaxLeaf(; quote_style=StyleText(font_ubuntu_monospace_regular_24,
                          value=StyleText(font_ubuntu_monospace_regular_24, color_solarized_green)) =
     JsonStringToSyntaxLeaf(quote_style, value)
 
-# The forward mapper is the inverse of map_reference_backward below: .value
-# passes through, and this projection's own ProjectionReference step (wrapping a
-# projection-introduced quote position) is unwrapped back to the output quote
-# reference. The unwrap matters once a parent delegates here under School A — a
-# quote selection on a nested string round-trips as proj(p, open) → open.
-function map_reference_forward(p::JsonStringToSyntaxLeaf, iomap::SimpleIoMap, reference)
-    @reference_case reference begin
-        ::JsonString            => @reference ::SyntaxLeaf
-        proj(^(p), inner) => inner
-        ::JsonString.value{s:e} => @reference ::SyntaxLeaf.value::TextString{s:e}
-    end
-end
-
-# The quote characters are projection-introduced and have no JSON-domain
-# pre-image, so an .open/.close output reference crosses into the output domain
-# here: it is wrapped in this projection's own ProjectionReference step (the
-# late-as-possible crossing described in the map_reference_backward docstring).
-# map_reference_forward unwraps the same step, so the path round-trips. A
-# .value reference passes through unchanged (identity character offsets, exact
-# when no escape sequences precede the position).
-function map_reference_backward(p::JsonStringToSyntaxLeaf, iomap::SimpleIoMap, reference)
-    @reference_case reference begin
-        ::SyntaxLeaf            => @reference ::JsonString
-        ::SyntaxLeaf.value{s:e} => @reference ::JsonString.value::String{s:e}
-        ::SyntaxLeaf.open{s:e}  => @reference ::JsonString.proj(p, ^(reference))
-        ::SyntaxLeaf.close{s:e} => @reference ::JsonString.proj(p, ^(reference))
-    end
-end
-
-# Selection mapping (JsonString → SyntaxLeaf, open='"' close='"'):
-# j.selection is shared directly with the leaf (same Cell). Selection reads use
-# the default projection_read, which routes the output path through
-# map_reference_backward above — .value passes through; the surrounding quotes
-# wrap into a ProjectionReference. Only value editing needs a bespoke reader.
-function projection_print(p::JsonStringToSyntaxLeaf, recursion, j::JsonString, ctx)
-    value = _hinted_text(() -> json_escape(j[]), () -> isempty(j[]), "enter json string", p.value)
-    SimpleIoMap(p, j, SyntaxLeaf(
-        TextString("\"", p.quote_style),
-        TextString("\"", p.quote_style),
-        value,
-        getfield(j, :selection)))
-end
-
-# Editing into a JsonString's value is an identity translation — the syntax
-# leaf's value content is `json_escape(j[])`, so character offsets agree as
-# long as no escape sequences precede position k. The reference is re-targeted
-# through map_reference_backward (identity for .value) to keep the path mapping
-# in one place. Escape-aware mapping is deferred (same caveat as
-# `map_reference_*`).
-function projection_read(p::JsonStringToSyntaxLeaf, iomap::SimpleIoMap, op::StringReplaceRangeOperation)
-    new_ref = map_reference_backward(p, iomap, op.reference)
-    new_ref === nothing && return nothing
-    StringReplaceRangeOperation(new_ref, op.replacement)
-end
+# Transparent value bound to JsonString.value (String, identity lens — escaping
+# deferred). The `"` delimiters are non-empty introduced text, so the walk records
+# them as selectable delimiters: a cursor on them has no JSON pre-image, so the
+# backward mapper wraps an .open/.close reference into this projection's own
+# ProjectionReference (and forward unwraps it, so a quote selection round-trips
+# under School-A delegation). The value-edit reader falls to the default.
+@projection_template JsonStringToSyntaxLeaf JsonString (p, doc) ->
+    SyntaxLeaf(TextString("\"", p.quote_style),
+               TextString("\"", p.quote_style),
+               bound(:value, String,
+                     _hinted_text(() -> json_escape(doc[]), () -> isempty(doc[]), "enter json string", p.value)),
+               0, false, nothing)
 
 # ── JsonArrayToSyntaxNode ────────────────────────────────────────────────────
 
@@ -216,99 +140,18 @@ JsonArrayToSyntaxNode(; delim=StyleText(font_ubuntu_monospace_bold_24, color_sol
                         sep=StyleText(font_ubuntu_monospace_regular_24, color_solarized_gray)) =
     JsonArrayToSyntaxNode(delim, sep)
 
-# Selection mapping (School A): peel the one step this projection owns
-# (.elements[i] ↔ .children[i]) and delegate the remaining tail to element i's
-# own projection through the stored child IO map, so the recursion follows
-# whatever projection actually ran rather than re-walking JSON value types.
-# A `proj(p, …)` head is this projection's own introduced output (a bracket,
-# comma, or flattened structural offset); forward keeps it wrapped so the
-# SyntaxNode renderer can interpret the embedded output position.
-function map_reference_forward(p::JsonArrayToSyntaxNode, iomap::ChildrenIoMap, reference)
-    @reference_case reference begin
-        ::JsonArray => @reference ::SyntaxNode
-        proj(^(p), _) => reference
-        ::JsonArray.elements{s:e}.rest... => begin
-            child_i = s + 1
-            iomaps = iomap.child_iomaps[]
-            1 <= child_i <= length(iomaps) || return nothing
-            child = iomaps[child_i]
-            inner = map_reference_forward(child.projection, child, rest)
-            inner === nothing && return nothing
-            @reference ::SyntaxNode.children::CellVector[child_i].^(inner)
-        end
-    end
-end
-
-function map_reference_backward(p::JsonArrayToSyntaxNode, iomap::ChildrenIoMap, reference)
-    @reference_case reference begin
-        ::SyntaxNode => @reference ::JsonArray
-        ::SyntaxNode.children{s:e}.rest... => begin
-            child_i = s + 1
-            iomaps = iomap.child_iomaps[]
-            1 <= child_i <= length(iomaps) || return nothing
-            child = iomaps[child_i]
-            inner = map_reference_backward(child.projection, child, rest)
-            inner === nothing && return nothing
-            @reference ::JsonArray.elements::CellVector[child_i].^(inner)
-        end
-    end
-end
-
-# Selection mapping (JsonArray → SyntaxNode, children = projected elements):
-#   .elements[i]  →  .children[i]
-# child_iomaps holds the projected iomap for every element (shared between the
-# children cell and the selection cell so projection_print is called once). The
-# output selection is wired canonically by mapping j.selection forward through
-# this projection's own map_reference_forward (School A — delegating the tail
-# through child_iomaps), the single definition reused on both sides. The
-# not-yet-built iomap is supplied via the deferred-iomap trick (iomap_cell), as
-# in CopyingProjection.
-function projection_print(p::JsonArrayToSyntaxNode, recursion, j::JsonArray, ctx)
-    reference = ctx.reference
-    child_iomaps = Cell(() -> [projection_printer_recurse(recursion, x,
-                                   child_context(ctx, @reference ^(reference).elements[i]))
-                               for (i, x) in enumerate(j.elements)])
-    iomap_cell = Cell(nothing)
-    sel = Cell(() -> begin
-        im = iomap_cell[]
-        im === nothing && return nothing
-        path = j.selection
-        path === nothing && return nothing
-        map_reference_forward(p, im, path)
-    end)
-    node = SyntaxNode(
-        TextString("[", p.delim),
-        TextString("]", p.delim),
-        TextString(", ", p.sep),
-        CellVector(() -> SyntaxDocument[im.output for im in child_iomaps[]]),
-        1,
-        Cell(false),
-        sel)
-    iomap = ChildrenIoMap(p, j, node, child_iomaps)
-    iomap_cell[] = iomap
-    return iomap
-end
-
-# A structural output position ([, ], ,) has no JSON pre-image, so it is
-# represented by the coarse `proj(p, {flat})` shortcut — a single flattened
-# character offset wrapped in this projection's step. The fine-grained
-# `matched_input_prefix + proj(p, unmatched_output_suffix)` form (see the
-# map_reference_backward docstring) is deliberately not used here: the
-# individual delimiters are not separately addressable by any current feature,
-# so the flat offset is sufficient and round-trips via `_syntax_to_flat`.
-function projection_read(p::JsonArrayToSyntaxNode, iomap::ChildrenIoMap, op::ReplaceSelectionOperation)
-    result = map_reference_backward(p, iomap, op.path)
-    result !== nothing && return ReplaceSelectionOperation(result)
-    flat = _syntax_to_flat(iomap.output::SyntaxNode, op.path, SyntaxNodeToText(), 0)
-    flat < 0 && return nothing
-    return ReplaceSelectionOperation(ConcreteReferencePath(ProjectionReference(p, ConcreteReferencePath(PositionReference(flat)))))
-end
-
-function projection_read(p::JsonArrayToSyntaxNode, iomap::ChildrenIoMap, op::Union{StringReplaceRangeOperation, NumberReplaceRangeOperation})
-    new_ref = map_reference_backward(p, iomap, op.reference)
-    new_ref === nothing && return nothing
-    typeof(op)(new_ref, op.replacement)
-end
+# Builder/walk node: the `collection(:elements)` marker in the children slot tells
+# the engine to recurse over doc.elements (School A) and build the projected
+# children. The walk records (.elements[i] ↔ .children[i]); the generic node
+# mappers delegate each element's tail through the stored child iomap. Structural
+# positions ([, ], ,) are projection-introduced: the reader fallback below maps
+# them to the flat character offset the text layer can navigate.
+@projection_template JsonArrayToSyntaxNode JsonArray (p, doc) ->
+    SyntaxNode(TextString("[", p.delim),
+               TextString("]", p.delim),
+               TextString(", ", p.sep),
+               collection(:elements),
+               1, false, nothing)
 
 # ── JsonObjectToSyntaxNode ───────────────────────────────────────────────────
 
@@ -324,172 +167,33 @@ JsonObjectToSyntaxNode(; delim=StyleText(font_ubuntu_monospace_bold_24, color_so
                          colon=StyleText(font_ubuntu_monospace_regular_24, color_solarized_gray)) =
     JsonObjectToSyntaxNode(delim, sep, key, colon)
 
-# Selection mapping (School A). Each entry's output is a pair node whose
-# children are [key_leaf (index 1), value_subtree (index 2)]:
-#   .entries[i].key[k]      →  .children[i].children[1].value[k]
-#   .entries[i].value.<tail> →  .children[i].children[2].<value-mapped tail>
-# The key leaf is projection-introduced (its content has no document child IO
-# map), so the key mapping is a fixed structural rewrite. The value tail is
-# delegated through the stored per-entry value IO map, so the recursion follows
-# whatever projection actually ran. A `proj(p, …)` head is this projection's own
-# introduced output ({, }, :, separators, flattened offset) and passes through.
-function map_reference_forward(p::JsonObjectToSyntaxNode, iomap::ChildrenIoMap, reference)
-    @reference_case reference begin
-        ::JsonObject => @reference ::SyntaxNode
-        proj(^(p), _) => reference
-        ::JsonObject.entries{s:e}.rest... => begin
-            pair_i = s + 1
-            vioms = iomap.child_iomaps[]
-            1 <= pair_i <= length(vioms) || return nothing
-            # Whole entry: .entries[j]::Entry → .children[j]
-            skip_type_checkpoints(rest) isa EmptyReferencePath && return @reference ::SyntaxNode.children[pair_i]
-            @reference_case rest begin
-                key.inner... => begin
-                    # Whole key → .children[j].children[1]; a char path passes through.
-                    skip_type_checkpoints(inner) isa EmptyReferencePath &&
-                        return @reference ::SyntaxNode.children[pair_i].children[1]
-                    @reference ::SyntaxNode.children[pair_i].children[1].value.^(inner)
-                end
-                value.inner... => begin
-                    child = vioms[pair_i]
-                    child === nothing && return nothing
-                    # `translated` carries the child's leading ::ChildOut checkpoint,
-                    # so the type after .children[2] comes from the recursion.
-                    translated = map_reference_forward(child.projection, child, inner)
-                    translated === nothing && return nothing
-                    @reference ::SyntaxNode.children[pair_i].children[2].^(translated)
-                end
-            end
-        end
-    end
-end
-
-function map_reference_backward(p::JsonObjectToSyntaxNode, iomap::ChildrenIoMap, reference)
-    @reference_case reference begin
-        ::SyntaxNode => @reference ::JsonObject
-        ::SyntaxNode.children{s:e}.rest... => begin
-            pair_i = s + 1
-            vioms = iomap.child_iomaps[]
-            1 <= pair_i <= length(vioms) || return nothing
-            # Whole pair node → .entries[j]
-            skip_type_checkpoints(rest) isa EmptyReferencePath && return @reference ::JsonObject.entries[pair_i]
-            @reference_case rest begin
-                children{s2:e2}.leaf_path... => begin
-                    child_of_pair = s2 + 1
-                    if child_of_pair == 1
-                        skip_type_checkpoints(leaf_path) isa EmptyReferencePath &&
-                            return @reference ::JsonObject.entries[pair_i].key
-                        @reference_case leaf_path begin
-                            value.char_path... => @reference ::JsonObject.entries[pair_i].key.^(char_path)
-                        end
-                    elseif child_of_pair == 2
-                        child = vioms[pair_i]
-                        child === nothing && return nothing
-                        translated = map_reference_backward(child.projection, child, leaf_path)
-                        translated === nothing && return nothing
-                        @reference ::JsonObject.entries[pair_i].value.^(translated)
-                    else
-                        nothing
-                    end
-                end
-            end
-        end
-    end
-end
-
-# Selection mapping (JsonObject → SyntaxNode,
-#   children = per-entry pair nodes,
-#   each pair's children = [key_leaf (index 1), value_subtree (index 2)]):
-#   .entries[i].key[k]  →  .children[i].children[1].value[k]
-#   .entries[i].value   →  .children[i].children[2]
-# sel strips the .entries wrapper from j.selection so that
-# SyntaxNode.set_selection! receives [i] and routes into pair_node[i].
-# pair_node uses e.selection so set_selection! propagates entry_sel into
-# it; _entry_key_sel(e.selection) then maps .key[k] → .value[k] for the
-# key leaf.  Structural positions ({, }, ,, :) fall back to ProjectionReference.
-# The reference maps use School A (delegating each value tail through the stored
-# per-entry value IO map), so the result is a ChildrenIoMap carrying those maps.
-function projection_print(p::JsonObjectToSyntaxNode, recursion, j::JsonObject, ctx)
-    reference = ctx.reference
-    # Use recursion projection to access entries field
-    entries_ref = @reference ^(reference).entries
-    entries_iomap = projection_printer_recurse(recursion, j.entries.elements, child_context(ctx, entries_ref))
-    projected_entries = entries_iomap.output
-
-    # School-A delegation handle: the per-entry value IO map. Each entry is
-    # projected by a CopyingProjection (JsonObjectEntry has one Document field,
-    # `value`), so its value subtree's IO map is reachable through the stored
-    # entries IO map — the same projection that produced the rendered values, so
-    # the mappers can never drift from what was printed. The key leaf and the
-    # structural delimiters are projection-introduced and have no child IO map;
-    # those stay as explicit structural rewrites in the mappers below.
-    value_iomaps = Cell(() -> Any[copying_field_iomap(em, "value") for em in entries_iomap.children])
-
-    # Wire the output selection through this projection's own
-    # `map_reference_forward` (School A), exactly as JsonArrayToSyntaxNode does.
-    # A hand-rolled `children.^(rest)` rewrite is wrong for entries: an entry's
-    # pair node nests the key/value under `.children[1]`/`.children[2]`, so
-    # `.entries[i].key` must map to `.children[i].children[1]` (not
-    # `.children[i].key`). The tree-navigator only understands `.children[k]`
-    # steps, so the naive form left key/value siblings unreachable and dropped
-    # the selection on Alt+arrow. The not-yet-built iomap is supplied via the
-    # deferred-iomap trick (iomap_cell).
-    iomap_cell = Cell(nothing)
-    sel = Cell(() -> begin
-        im = iomap_cell[]
-        im === nothing && return nothing
-        path = j.selection
-        path === nothing && return nothing
-        map_reference_forward(p, im, path)
-    end)
-    node = SyntaxNode(
-        TextString("{", p.delim),
-        TextString("}", p.delim),
-        TextString(", ", p.sep),
-        CellVector(() -> begin
-            SyntaxDocument[
-                SyntaxNode(
-                    TextString("", p.delim.font, color_default),
-                    TextString("", p.delim.font, color_default),
-                    TextString(": ", p.colon),
-                    CellVector(Cell[
-                        Cell(SyntaxLeaf(
-                            TextString("\"", p.key),
-                            TextString("\"", p.key),
-                            _hinted_text(() -> json_escape(e.key), () -> isempty(e.key), "enter key", p.key),
-                            _entry_key_sel(getfield(e, :selection)))),
-                        getfield(e, :value)
-                    ]),
-                    0,
-                    Cell(false),
-                    getfield(e, :selection))
-                for (i, e) in enumerate(projected_entries)
-            ]
-        end),
-        1,
-        Cell(false),
-        sel)
-    iomap = ChildrenIoMap(p, j, node, value_iomaps)
-    iomap_cell[] = iomap
-    return iomap
-end
-
-# Structural positions ({, }, ,, :) use the same coarse `proj(p, {flat})`
-# shortcut as JsonArrayToSyntaxNode above (deliberately not the fine-grained
-# form — see that reader's note).
-function projection_read(p::JsonObjectToSyntaxNode, iomap::ChildrenIoMap, op::ReplaceSelectionOperation)
-    result = map_reference_backward(p, iomap, op.path)
-    result !== nothing && return ReplaceSelectionOperation(result)
-    flat = _syntax_to_flat(iomap.output::SyntaxNode, op.path, SyntaxNodeToText(), 0)
-    flat < 0 && return nothing
-    return ReplaceSelectionOperation(ConcreteReferencePath(ProjectionReference(p, ConcreteReferencePath(PositionReference(flat)))))
-end
-
-function projection_read(p::JsonObjectToSyntaxNode, iomap::ChildrenIoMap, op::Union{StringReplaceRangeOperation, NumberReplaceRangeOperation})
-    new_ref = map_reference_backward(p, iomap, op.reference)
-    new_ref === nothing && return nothing
-    typeof(op)(new_ref, op.replacement)
-end
+# Builder/walk node with a templated collection. `collection(:entries) do e … end`
+# builds a per-entry pair node `[key_leaf, value]`:
+#   - the key leaf carries `bound(:key, String, …)` → the walk records a KeySlot, so
+#     `.entries[i].key{k}` ↔ `.children[i].children[1].value{k}` and the whole key ↔
+#     the whole key leaf;
+#   - `project(:value)` delegates the value subtree to its own projection (School A),
+#     so `.entries[i].value.<tail>` ↔ `.children[i].children[2].<tail>`.
+# Selection is wired by the builder: the pair node uses the entry's selection cell
+# so set_selection! propagates into it, and `_entry_key_sel` remaps the key cursor
+# `.key{k}` → the key leaf's `.value{k}`. Structural positions ({, }, :, separators)
+# are projection-introduced and map to a flat offset via the reader fallback below.
+@projection_template JsonObjectToSyntaxNode JsonObject (p, doc) ->
+    SyntaxNode(TextString("{", p.delim),
+               TextString("}", p.delim),
+               TextString(", ", p.sep),
+               collection(:entries) do e
+                   SyntaxNode(TextString("", p.delim.font, color_default),
+                              TextString("", p.delim.font, color_default),
+                              TextString(": ", p.colon),
+                              [ SyntaxLeaf(TextString("\"", p.key),
+                                           TextString("\"", p.key),
+                                           bound(:key, String, _hinted_text(() -> json_escape(e.key), () -> isempty(e.key), "enter key", p.key)),
+                                           0, false, _entry_key_sel(getfield(e, :selection))),
+                                project(:value) ],
+                              0, false, getfield(e, :selection))
+               end,
+               1, false, nothing)
 
 # ── Reader: the JSON authoring command set ──────────────────────────────────
 #
@@ -601,18 +305,32 @@ function _object_tab(input::JsonObject)
     end
 end
 
-projection_read(p::JsonInsertionToSyntaxLeaf, iomap::SimpleIoMap, evt::KeyPress) = _json_read_command(iomap.input, evt)
-projection_read(p::JsonNullToSyntaxLeaf,      iomap::SimpleIoMap, evt::KeyPress) = _json_read_command(iomap.input, evt)
-projection_read(p::JsonBoolToSyntaxLeaf,      iomap::SimpleIoMap, evt::KeyPress) = _json_read_command(iomap.input, evt)
-projection_read(p::JsonNumberToSyntaxLeaf,    iomap::SimpleIoMap, evt::KeyPress) = _json_read_command(iomap.input, evt)
-projection_read(p::JsonStringToSyntaxLeaf,    iomap::SimpleIoMap, evt::KeyPress) = _json_read_command(iomap.input, evt)
+projection_read(p::JsonInsertionToSyntaxLeaf, iomap::RuleIoMap, evt::KeyPress) = _json_read_command(iomap.input, evt)
+projection_read(p::JsonNullToSyntaxLeaf,      iomap::RuleIoMap, evt::KeyPress) = _json_read_command(iomap.input, evt)
+projection_read(p::JsonBoolToSyntaxLeaf,      iomap::RuleIoMap, evt::KeyPress) = _json_read_command(iomap.input, evt)
+projection_read(p::JsonNumberToSyntaxLeaf,    iomap::RuleIoMap, evt::KeyPress) = _json_read_command(iomap.input, evt)
+projection_read(p::JsonStringToSyntaxLeaf,    iomap::RuleIoMap, evt::KeyPress) = _json_read_command(iomap.input, evt)
 
-function projection_read(p::JsonArrayToSyntaxNode, iomap::ChildrenIoMap, evt::KeyPress)
+# Structural-position fallback for SyntaxNode output: a bracket/brace/comma/colon
+# has no JSON pre-image, so it round-trips as the coarse `proj(p, {flat})` shortcut
+# — a single flattened character offset the text layer can navigate. This is the
+# Syntax→Text-specific counterpart of the engine's domain-neutral proj-wrap
+# fallback, so it overrides the generic `RuleIoMap` ReplaceSelection reader for the
+# JSON node projections (whose output feeds SyntaxToText).
+function projection_read(p::Union{JsonArrayToSyntaxNode, JsonObjectToSyntaxNode}, iomap::RuleIoMap, op::ReplaceSelectionOperation)
+    result = map_reference_backward(p, iomap, op.path)
+    result !== nothing && return ReplaceSelectionOperation(result)
+    flat = _syntax_to_flat(iomap.output::SyntaxNode, op.path, SyntaxNodeToText(), 0)
+    flat < 0 && return nothing
+    return ReplaceSelectionOperation(ConcreteReferencePath(ProjectionReference(p, ConcreteReferencePath(PositionReference(flat)))))
+end
+
+function projection_read(p::JsonArrayToSyntaxNode, iomap::RuleIoMap, evt::KeyPress)
     evt.char == ',' && return _array_insert(iomap.input)
     _json_read_command(iomap.input, evt)
 end
 
-function projection_read(p::JsonObjectToSyntaxNode, iomap::ChildrenIoMap, evt::KeyPress)
+function projection_read(p::JsonObjectToSyntaxNode, iomap::RuleIoMap, evt::KeyPress)
     evt.char == ',' && return _object_insert(iomap.input)
     _json_read_command(iomap.input, evt)
 end
@@ -620,7 +338,7 @@ end
 # Lisp readers is deferred: the shared TextToGraphics layer would have to route
 # Insert inward for every domain, and doing so surfaces an unrelated typein bug
 # in the XML element reader. `,` already provides structural insert here.
-projection_read(p::JsonObjectToSyntaxNode, iomap::ChildrenIoMap, evt::KeyDown) =
+projection_read(p::JsonObjectToSyntaxNode, iomap::RuleIoMap, evt::KeyDown) =
     evt.key === :tab ? _object_tab(iomap.input) : nothing
 
 # ── Compound convenience constructor ────────────────────────────────────────
