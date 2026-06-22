@@ -211,13 +211,41 @@ SyntaxSeparation(children::Vector{<:SyntaxDocument}, separator::TextString) =
 SyntaxSeparation(separator::TextString) =
     SyntaxSeparation(CellVector(), separator, nothing)
 
+# ── Constructor helpers ────────────────────────────────────────────────────
+#
+# Shared by the `SyntaxLeaf`/`SyntaxNode` keyword constructors below.
+
+# Auto-wrap a bare string delimiter so callers can write `open="<"` etc.
+_text(t::TextString) = t
+_text(s::AbstractString) = TextString(s)
+
+# Normalize the `children` argument of `SyntaxNode` to the `CellVector` the inner
+# constructor stores. A `@projection_template` marker (e.g. `collection(:field)`)
+# or any other object is passed through untouched, for the `@document` inner ctor
+# to wrap in a `Cell` (the same shape the positional 7-arg form produces).
+_children(c::CellVector) = c
+_children(c::Vector{Cell}) = CellVector(c)
+_children(c::AbstractVector) = CellVector(Cell[Cell(x) for x in c])
+_children(f::Function) = CellVector(f)
+_children(c) = c
+
 # ── Leaf ─────────────────────────────────────────────────────────────────
 
 """
-    SyntaxLeaf(open, close, value)
+    SyntaxLeaf(value; open, close, indentation, collapsed, selection)
 
-A leaf node with opening/closing delimiters and a content value.
-Each of `open`, `close`, `value` is a `TextString` carrying text, font, and color.
+A leaf node with a content `value` and optional opening/closing delimiters.
+`value` is the sole positional argument (so the meaningful content leads); it is
+a `TextString`, a bare `String`/`Function` (auto-wrapped), or a
+`@projection_template` marker such as `bound(:value, …)`. Every delimiter /
+layout / selection field is an optional keyword:
+
+  - `open`, `close` — delimiter `TextString`s (a bare `String` is auto-wrapped);
+    default empty `TextString("")`.
+  - `indentation::Int` — pretty-print indentation; default `0`.
+  - `collapsed::Bool` — collapsed state; default `false`.
+  - `selection` — a `ReferencePath`/`Cell`/`nothing`; default `nothing`.
+
 Renders as: open.content * value.content * close.content
 
 The `selection` cell holds a path into the leaf's rendered span, or `nothing`:
@@ -234,6 +262,20 @@ The `selection` cell holds a path into the leaf's rendered span, or `nothing`:
     selection::Reference
 end
 
+# Canonical keyword constructor: `value` leads positionally and is left untyped
+# so it also accepts a `bound(…)`/marker object from `@projection_template`
+# builders. open/close auto-wrap a bare string via `_text`.
+SyntaxLeaf(value; open=TextString(""), close=TextString(""),
+           indentation::Int=0, collapsed=false, selection=nothing) =
+    SyntaxLeaf(_text(open), _text(close), value, indentation, collapsed, selection)
+
+# Bare-string / function content ergonomics route through the keyword form so
+# they inherit the same defaults.
+SyntaxLeaf(value::AbstractString; kwargs...) = SyntaxLeaf(TextString(value); kwargs...)
+SyntaxLeaf(f::Function; kwargs...) =
+    SyntaxLeaf(TextString(f, font_ubuntu_monospace_regular_24, color_default); kwargs...)
+
+# Positional delimiter forms retained for callers not yet migrated to keywords.
 SyntaxLeaf(open::TextString, close::TextString, value::TextString) =
     SyntaxLeaf(open, close, value, 0, false, nothing)
 
@@ -246,19 +288,23 @@ SyntaxLeaf(open::AbstractString, close::AbstractString, value::AbstractString) =
 SyntaxLeaf(open::AbstractString, close::AbstractString, f::Function) =
     SyntaxLeaf(TextString(open), TextString(close), TextString(f, font_ubuntu_monospace_regular_24, color_default), 0, false, nothing)
 
-SyntaxLeaf(value::TextString) = SyntaxLeaf(TextString(""), TextString(""), value, 0, false, nothing)
-
-SyntaxLeaf(value::AbstractString) = SyntaxLeaf(TextString(""), TextString(""), TextString(value), 0, false, nothing)
-
-SyntaxLeaf(f::Function) = SyntaxLeaf(TextString(""), TextString(""), TextString(f, font_ubuntu_monospace_regular_24, color_default), 0, false, nothing)
-
 # ── Node ─────────────────────────────────────────────────────────────────
 
 """
-    SyntaxNode(open, close, sep, children)
+    SyntaxNode(children; open, close, sep, indentation, collapsed, selection)
 
-A compound node with opening/closing delimiters, a separator, and children.
-Each of `open`, `close`, `sep` is a `TextString` carrying text, font, and color.
+A compound node with `children` and optional opening/closing delimiters and a
+separator. `children` is the sole positional argument; it is a
+`Vector{<:SyntaxDocument}`, a `CellVector`, a `Function` builder, or a
+`@projection_template` marker such as `collection(:field)`. Every delimiter /
+layout / selection field is an optional keyword:
+
+  - `open`, `close`, `sep` — `TextString`s (a bare `String` is auto-wrapped);
+    default empty `TextString("")`.
+  - `indentation::Int` — pretty-print indentation; default `0`.
+  - `collapsed::Bool` — collapsed state; default `false`.
+  - `selection` — a `ReferencePath`/`Cell`/`nothing`; default `nothing`.
+
 Renders as: open.content * join(children, sep.content) * close.content
 
 The `selection` cell routes a cursor into the rendered node, or `nothing`:
@@ -277,6 +323,15 @@ The `selection` cell routes a cursor into the rendered node, or `nothing`:
     selection::Reference
 end
 
+# Canonical keyword constructor: `children` leads positionally; `_children`
+# normalizes a Vector/CellVector/Function builder and passes a marker through
+# untouched. open/close/sep auto-wrap a bare string via `_text`.
+SyntaxNode(children; open=TextString(""), close=TextString(""), sep=TextString(""),
+           indentation::Int=0, collapsed=false, selection=nothing) =
+    SyntaxNode(_text(open), _text(close), _text(sep), _children(children),
+               indentation, collapsed, selection)
+
+# Positional delimiter forms retained for callers not yet migrated to keywords.
 SyntaxNode(open::TextString, close::TextString, sep::TextString,
       children::Vector{<:SyntaxDocument}; indentation::Int = 0) =
     SyntaxNode(open, close, sep, CellVector(Cell[Cell(c) for c in children]), indentation, false, nothing)
