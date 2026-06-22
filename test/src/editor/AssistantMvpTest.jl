@@ -143,27 +143,27 @@ end
 function _mvp_test_reactive_thunk()
     @testset "ConversationToWidget reactive thunk" begin
         c = ConversationConversation()
-        push!(c, ConversationTurn(:user, [ConversationPart("first")]))
+        push!(c.turns, ConversationTurn(:user, [ConversationPart("first")]))
         proj = RecursiveProjection(ConversationToWidget())
         io = projection_print(proj, proj, c, PrinterContext())
         @test io.output isa VerticalLayout
         n0 = length(io.output.children)
         # Load-bearing: pushing a new turn must show up in the
         # layout's children without re-running projection_print.
-        push!(c, ConversationTurn(:user, [ConversationPart("second")]))
+        push!(c.turns, ConversationTurn(:user, [ConversationPart("second")]))
         @test length(io.output.children) == n0 + 1
 
         # Same thunk treatment for a turn's parts. A turn projects to a
         # WidgetCard whose `content` is the reactive VerticalLayout of part
         # widgets (the turn is not collapsed, so content is the layout itself).
         reply = ConversationTurn(:assistant; stop_reason = :end_turn)
-        push!(c, reply)
+        push!(c.turns, reply)
         io2 = projection_print(proj, proj, c, PrinterContext())
         reply_card = io2.output.children[end]
         @test reply_card isa WidgetCard
         body = reply_card.content
         b0 = length(body.children)
-        push!(reply, ConversationPart("delta"))
+        push!(reply.parts, ConversationPart("delta"))
         @test length(body.children) == b0 + 1
     end
 end
@@ -177,13 +177,13 @@ function _mvp_test_scenes()
         # Scene 1: type "Hello"
         _mvp_type!(a, "Hello")
         @test _mvp_draft_text(a) == "Hello"
-        @test length(a.conversation) == 0
+        @test length(a.conversation.turns) == 0
 
         # Scene 2: Enter — kicks off async _run_agent_loop! via FakeLlm
         op = _mvp_enter!(a)
         @test op isa SubmitDraftTurnOperation
         @test _mvp_wait_idle!(a) === :idle
-        @test length(a.conversation) == 2
+        @test length(a.conversation.turns) == 2
         user_msg  = a.conversation.turns[1]
         reply_msg = a.conversation.turns[2]
         @test user_msg.role === :user
@@ -200,7 +200,7 @@ function _mvp_test_scenes()
         # Scene 4: Enter again
         _mvp_enter!(a)
         @test _mvp_wait_idle!(a) === :idle
-        @test length(a.conversation) == 4
+        @test length(a.conversation.turns) == 4
         @test _text_to_string(a.conversation.turns[3].parts[1].content) == "What?"
         @test _text_to_string(a.conversation.turns[4].parts[1].content) == "Yes, sir!"
         @test _mvp_draft_text(a) == ""
@@ -215,7 +215,7 @@ function _mvp_test_fake_llm_dispatch()
         _mvp_type!(a, "ping")
         _mvp_enter!(a)
         @test _mvp_wait_idle!(a) === :idle
-        @test length(a.conversation) == 2
+        @test length(a.conversation.turns) == 2
         @test _text_to_string(a.conversation.turns[end].parts[end].content) == "hi there"
     end
 end
@@ -247,7 +247,7 @@ end
 function _mvp_test_thinking_stream()
     @testset "thinking block captured from stream" begin
         a = WorkbenchAssistant(; llm = FakeLlm("Hello"; thinking = "Let me reason…"))
-        push!(a.conversation, ConversationTurn(:user, [ConversationPart("hi")]))
+        push!(a.conversation.turns, ConversationTurn(:user, [ConversationPart("hi")]))
         _run_agent_loop!((document = a,), a)
 
         reply = a.conversation.turns[end]
@@ -388,7 +388,7 @@ function _mvp_test_tool_use_roundtrip()
             _final_text_script("Done."),
         ])
         a = WorkbenchAssistant(; llm = llm)
-        push!(a.conversation, ConversationTurn(:user, [ConversationPart("compute 1+1")]))
+        push!(a.conversation.turns, ConversationTurn(:user, [ConversationPart("compute 1+1")]))
 
         # Drive the agent loop synchronously (no @async) so we can assert
         # the post-state immediately. Stand-in editor mirrors the production

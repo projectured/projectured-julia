@@ -456,7 +456,7 @@ function test_workbench_editor_reference()
         stand_in = (document = a,)
         evaluate_operation(stand_in, SubmitJuliaOperation(a))
 
-        @test length(a.conversation) == 1
+        @test length(a.conversation.turns) == 1
         exec = a.conversation.turns[1].parts[1].content
         @test occursin("true", _eval_result(exec))
         @test !exec.is_error

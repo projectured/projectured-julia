@@ -30,15 +30,15 @@ function test_assistant_composer_panel()
             for ch in "hi assistant"
                 evaluate_operation(nothing, ComposerInputOperation(a.draft, string(ch)))
             end
-            @test length(a.conversation) == 0
+            @test length(a.conversation.turns) == 0
 
             evaluate_operation(nothing, SubmitDraftTurnOperation(a))
             _panel_wait_idle!(a)
 
             # User turn submitted, plus a streamed assistant reply.
-            @test length(a.conversation) >= 1
-            @test a.conversation[1].role == :user
-            @test any(t -> t.role == :assistant, a.conversation)
+            @test length(a.conversation.turns) >= 1
+            @test a.conversation.turns[1].role == :user
+            @test any(t -> t.role == :assistant, a.conversation.turns)
 
             # Draft reset in place to a single empty text typein.
             @test length(a.draft.parts) == 1
@@ -49,7 +49,7 @@ function test_assistant_composer_panel()
         @testset "empty draft does not submit" begin
             a = WorkbenchAssistant(; llm = FakeLlm("x"))
             evaluate_operation(nothing, SubmitDraftTurnOperation(a))
-            @test length(a.conversation) == 0
+            @test length(a.conversation.turns) == 0
             @test a.status === :idle
         end
 
