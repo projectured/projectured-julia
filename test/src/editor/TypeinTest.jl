@@ -27,7 +27,7 @@ using Projectured.ReactiveModule: Cell
 using Projectured.CollectionModule: CellVector
 using Projectured.FontModule: StyleFont
 using Projectured.TextModule: TextString, TextText
-using Projectured.SyntaxModule: SyntaxNode
+using Projectured.SyntaxModule: SyntaxNode, SyntaxLeaf
 
 # ── Document-graph walk ──────────────────────────────────────────────────────
 #
@@ -93,10 +93,12 @@ function _walk_strings!(node, path, visited, refs)
     isstructtype(typeof(node)) || return
     for fname in fieldnames(typeof(node))
         fname === :selection && continue
-        # A SyntaxNode with fewer than two children renders no separator, so its
-        # `sep` field has no on-screen cursor position — there is nothing to
-        # separate, hence nothing to type into.
-        (node isa SyntaxNode && fname === :sep && length(node.children) < 2) && continue
+        # open/close/sep on a SyntaxLeaf/SyntaxNode are projection-rendered
+        # delimiters (chrome derived from the node), not editable document
+        # content: editing the open/close span is explicitly deferred at the
+        # SyntaxLeafToText reader, so there is no edit op to type into them.
+        (node isa Union{SyntaxLeaf, SyntaxNode} &&
+         fname in (:open, :close, :sep)) && continue
         fval = getfield(node, fname)
         val  = fval isa Cell ? fval[] : fval
         field_path = append_reference(path, FieldReference(string(fname)))
