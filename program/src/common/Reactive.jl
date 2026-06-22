@@ -243,8 +243,12 @@ end
 
 function Base.show(io::IO, c::Cell)
     kind = c.thunk === nothing ? "primitive" : "computed"
-    state = c.valid ? repr(c.value) : "<invalid>"
-    print(io, "Cell(", kind, ", ", state, ")")
+    print(io, "Cell(", kind, ", ")
+    # Forward `io` (rather than `repr`, which would build a fresh buffer) so the
+    # value is shown in the same IOContext — this keeps the document `show`
+    # depth limit (`:document_depth`) effective across Cell-wrapped subtrees.
+    c.valid ? show(io, c.value) : print(io, "<invalid>")
+    print(io, ")")
 end
 
 end # module

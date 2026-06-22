@@ -24,7 +24,7 @@ selection(doc::Document) = doc.selection
 Maximum nesting depth printed by the generic document `show` before child
 documents are abbreviated to `…`. Bounds debug output for deeply nested trees.
 """
-const DOCUMENT_SHOW_MAX_DEPTH = 2
+const DOCUMENT_SHOW_MAX_DEPTH = 3
 
 """
     show(io::IO, x::Document)

@@ -195,10 +195,18 @@ Implemented on branch `generic-document-show` (worktree
 `../projectured-julia-show`).
 
 - **Generic method added** to `DocumentModule`
-  ([program/src/common/Document.jl](../../program/src/common/Document.jl)) with
-  `DOCUMENT_SHOW_MAX_DEPTH = 2`. Commit `d5ffad6`.
+  ([program/src/common/Document.jl](../../program/src/common/Document.jl)).
+  Commit `d5ffad6`.
 - **All 172 per-type document `show` methods removed** across 32 files
   (`program/src/document/*` plus `document/Document.jl`). Commit `068d3ef`.
+- **`Cell.show` fixed to forward the IOContext** (`show(io, c.value)` instead of
+  `repr(c.value)`, which built a fresh buffer that dropped `:document_depth`).
+  Because every document field is Cell-wrapped, the old `repr` reset the depth at
+  each Cell, so the limit only bit within a single getproperty-chain and full
+  trees still printed (e.g. the whole `ini` document). Forwarding `io` makes the
+  depth limit **general** across Cell-wrapped subtrees — this is what makes the
+  generic `show` actually worth having. Output for non-document Cell values is
+  unchanged. (`common/Reactive.jl`.)
 - **Confirmed non-document keep-list** (left untouched): `Cell`
   (`common/Reactive.jl`), the 8 `Reference*` steps/paths
   (`reference/Reference.jl`), `Inset`/`Point2D` (`document/Geometry.jl`),
@@ -210,12 +218,17 @@ Implemented on branch `generic-document-show` (worktree
   from fields (`string(...)` on primitives), never from document `show`/`repr`.
 - **Verification**:
   - Package precompiles cleanly after the deletions.
-  - Generic `show` exercised on the real nested `json` example document — Cells
-    unwrapped, constructor form, depth cutoff renders `CellVector(…)` at the
-    boundary.
+  - Generic `show` exercised on the real nested `json` and `ini` example
+    documents — Cells unwrapped, constructor form, depth cutoff renders `…` at
+    the boundary (json: 559-char bounded output showing all top-level keys; ini:
+    `IniSection("General", true, CellVector(…), false)` style).
   - Full `test_printers()` + `test_readers()` + `test_repls()` sweep over all 84
-    examples: **165,711 pass, 5 fail**. The 5 failures are all in `sql_table`
-    and are a **pre-existing** `length(::Cell)` bug — verified identical on
-    unmodified `main` (378 pass / 5 fail). This change regresses nothing.
-- **Depth threshold**: kept at `2`; the json example confirms it bounds deep
-  trees readably. Revisit only if a domain wants more/less.
+    examples, **after the `Cell.show` change** (pervasive): **165,711 pass,
+    5 fail**. The 5 failures are all in `sql_table` and are a **pre-existing**
+    `length(::Cell)` bug — verified identical on unmodified `main` (378 pass /
+    5 fail). This change regresses nothing.
+- **Depth threshold `DOCUMENT_SHOW_MAX_DEPTH = 3`.** With the Cell fix the limit
+  became effective; a `CellVector` plumbing wrapper costs one depth level, so `2`
+  collapsed even section names. `3` shows each document's own scalar fields and
+  collapses nested collections to `…` — a good default for both json and ini.
+  Revisit only if a domain wants more/less.
