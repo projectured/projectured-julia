@@ -64,9 +64,21 @@ import ..McpModule: execute_julia_code, register_default_tools_and_resources!
 import ..ConversationModule: ConversationDraft
 import ..ConversationEditorModule: composer_read, ComposerSubmitOperation,
                                     finalize_draft!, reset_draft!, SUBMIT_HANDLER
+import ..JsonModule: JsonDocument, JsonNull, JsonBool, JsonNumber, JsonString,
+                     JsonArray, JsonObject
+import ..JsonParserModule: jsonparse
 
 using Markdown
-using JSON3
+
+# Convert a parsed JsonDocument into native Julia values (so LLM tool-call argument
+# JSON can be parsed with the project's own parser instead of JSON3, keeping this
+# module dependency-free).
+_json_native(::JsonNull)   = nothing
+_json_native(j::JsonBool)   = j[]
+_json_native(j::JsonNumber) = j[]
+_json_native(j::JsonString) = String(j[])
+_json_native(j::JsonArray)  = Any[_json_native(e) for e in j.elements]
+_json_native(j::JsonObject) = Dict{String,Any}(k => _json_native(v) for (k, v) in j)
 
 export SubmitProseOperation, SubmitJuliaOperation, SubmitDraftTurnOperation,
        ClearInputOperation, ResetConversationOperation,
@@ -690,7 +702,8 @@ function _handle_sse_event!(ev, a, turn, state)
         if ct isa _PendingToolUse
             raw = String(take!(state[:tool_input_buf]))
             parsed = try
-                JSON3.read(raw, Dict{String,Any})
+                nv = _json_native(jsonparse(raw))
+                nv isa Dict{String,Any} ? nv : Dict{String,Any}()
             catch
                 Dict{String,Any}()
             end
