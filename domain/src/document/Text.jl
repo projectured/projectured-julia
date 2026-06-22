@@ -427,14 +427,14 @@ function _char_right(span_text, span_idx, char_idx)
     txt === nothing && return nothing
     idx = char_idx + 1
     (idx < 1 || idx > length(txt)) && return nothing
-    txt[idx]
+    txt[nextind(txt, 0, idx)]   # idx is a character position; map to a byte index
 end
 
 function _char_left(span_text, span_idx, char_idx)
     txt = get(span_text, span_idx, nothing)
     txt === nothing && return nothing
     (char_idx < 1 || char_idx > length(txt)) && return nothing
-    txt[char_idx]
+    txt[nextind(txt, 0, char_idx)]   # char_idx is a character position
 end
 
 # Ctrl+Right: skip the current word run, then the separator run → next word start.
