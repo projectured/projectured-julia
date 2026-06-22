@@ -52,10 +52,7 @@ JsonNullToSyntaxLeaf(; style=StyleText(font_ubuntu_monospace_regular_24, color_s
 # marker ⇒ opaque): the walk records no binding, so the default proj-unwrapping
 # mappers apply and the output selection is the input selection mapped forward.
 @projection_template JsonNullToSyntaxLeaf JsonNull (p, doc) ->
-    SyntaxLeaf(TextString("", p.style.font, color_default),
-               TextString("", p.style.font, color_default),
-               TextString("null", p.style),
-               0, false, nothing)
+    SyntaxLeaf(TextString("null", p.style))
 
 # ── JsonInsertionToSyntaxLeaf ───────────────────────────────────────────────────
 
@@ -67,10 +64,7 @@ JsonInsertionToSyntaxLeaf(; style=StyleText(font_ubuntu_monospace_regular_24, co
 # Same rationale as JsonNull — "insert JSON here" is an opaque
 # projection-introduced placeholder with no editable input value.
 @projection_template JsonInsertionToSyntaxLeaf JsonInsertion (p, doc) ->
-    SyntaxLeaf(TextString("", p.style.font, color_default),
-               TextString("", p.style.font, color_default),
-               TextString("insert JSON here", p.style),
-               0, false, nothing)
+    SyntaxLeaf(TextString("insert JSON here", p.style))
 
 # ── JsonBoolToSyntaxLeaf ─────────────────────────────────────────────────────
 
@@ -84,10 +78,7 @@ JsonBoolToSyntaxLeaf(; style=StyleText(font_ubuntu_monospace_regular_24, color_s
 # marker in the value slot is stripped to its real TextString before the output
 # leaves the printer.
 @projection_template JsonBoolToSyntaxLeaf JsonBool (p, doc) ->
-    SyntaxLeaf(TextString("", p.style.font, color_default),
-               TextString("", p.style.font, color_default),
-               bound(:value, Bool, TextString(() -> doc[] ? "true" : "false", p.style)),
-               0, false, nothing)
+    SyntaxLeaf(bound(:value, Bool, TextString(() -> doc[] ? "true" : "false", p.style)))
 
 # ── JsonNumberToSyntaxLeaf ───────────────────────────────────────────────────
 
@@ -100,12 +91,9 @@ JsonNumberToSyntaxLeaf(; style=StyleText(font_ubuntu_monospace_regular_24, color
 # the StringReplaceRangeOperation into a NumberReplaceRangeOperation (the
 # `retype` marker arg) so the evaluator's tryparse logic kicks in.
 @projection_template JsonNumberToSyntaxLeaf JsonNumber (p, doc) ->
-    SyntaxLeaf(TextString("", p.style.font, color_default),
-               TextString("", p.style.font, color_default),
-               bound(:value, Real,
+    SyntaxLeaf(bound(:value, Real,
                      _hinted_text(() -> string(doc[]), () -> doc[] === nothing, "enter json number", p.style);
-                     retype = NumberReplaceRangeOperation),
-               0, false, nothing)
+                     retype = NumberReplaceRangeOperation))
 
 # ── JsonStringToSyntaxLeaf ───────────────────────────────────────────────────
 
@@ -124,11 +112,10 @@ JsonStringToSyntaxLeaf(; quote_style=StyleText(font_ubuntu_monospace_regular_24,
 # ProjectionReference (and forward unwraps it, so a quote selection round-trips
 # under School-A delegation). The value-edit reader falls to the default.
 @projection_template JsonStringToSyntaxLeaf JsonString (p, doc) ->
-    SyntaxLeaf(TextString("\"", p.quote_style),
-               TextString("\"", p.quote_style),
-               bound(:value, String,
-                     _hinted_text(() -> json_escape(doc[]), () -> isempty(doc[]), "enter json string", p.value)),
-               0, false, nothing)
+    SyntaxLeaf(bound(:value, String,
+                     _hinted_text(() -> json_escape(doc[]), () -> isempty(doc[]), "enter json string", p.value));
+               open=TextString("\"", p.quote_style),
+               close=TextString("\"", p.quote_style))
 
 # ── JsonArrayToSyntaxNode ────────────────────────────────────────────────────
 
@@ -147,11 +134,11 @@ JsonArrayToSyntaxNode(; delim=StyleText(font_ubuntu_monospace_bold_24, color_sol
 # positions ([, ], ,) are projection-introduced: the reader fallback below maps
 # them to the flat character offset the text layer can navigate.
 @projection_template JsonArrayToSyntaxNode JsonArray (p, doc) ->
-    SyntaxNode(TextString("[", p.delim),
-               TextString("]", p.delim),
-               TextString(", ", p.sep),
-               collection(:elements),
-               1, false, nothing)
+    SyntaxNode(collection(:elements);
+               open=TextString("[", p.delim),
+               close=TextString("]", p.delim),
+               sep=TextString(", ", p.sep),
+               indentation=1)
 
 # ── JsonObjectToSyntaxNode ───────────────────────────────────────────────────
 
@@ -179,21 +166,26 @@ JsonObjectToSyntaxNode(; delim=StyleText(font_ubuntu_monospace_bold_24, color_so
 # `.key{k}` → the key leaf's `.value{k}`. Structural positions ({, }, :, separators)
 # are projection-introduced and map to a flat offset via the reader fallback below.
 @projection_template JsonObjectToSyntaxNode JsonObject (p, doc) ->
-    SyntaxNode(TextString("{", p.delim),
-               TextString("}", p.delim),
-               TextString(", ", p.sep),
-               collection(:entries) do e
+    SyntaxNode(collection(:entries) do e
+                   # The pair node is a *fixed-children template node*: the engine's
+                   # `_fixed_print` locates its children with `isa Vector` and walks them
+                   # to find the `project(:value)` marker, so the children must stay a raw
+                   # Vector. The keyword `children` path normalizes to a CellVector, which
+                   # the walk would not recognise — hence the positional form is kept here.
                    SyntaxNode(TextString("", p.delim.font, color_default),
                               TextString("", p.delim.font, color_default),
                               TextString(": ", p.colon),
-                              [ SyntaxLeaf(TextString("\"", p.key),
-                                           TextString("\"", p.key),
-                                           bound(:key, String, _hinted_text(() -> json_escape(e.key), () -> isempty(e.key), "enter key", p.key)),
-                                           0, false, _entry_key_sel(getfield(e, :selection))),
+                              [ SyntaxLeaf(bound(:key, String, _hinted_text(() -> json_escape(e.key), () -> isempty(e.key), "enter key", p.key));
+                                           open=TextString("\"", p.key),
+                                           close=TextString("\"", p.key),
+                                           selection=_entry_key_sel(getfield(e, :selection))),
                                 project(:value) ],
                               0, false, getfield(e, :selection))
-               end,
-               1, false, nothing)
+               end;
+               open=TextString("{", p.delim),
+               close=TextString("}", p.delim),
+               sep=TextString(", ", p.sep),
+               indentation=1)
 
 # ── Reader: the JSON authoring command set ──────────────────────────────────
 #
