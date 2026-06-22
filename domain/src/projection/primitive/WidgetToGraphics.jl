@@ -61,7 +61,7 @@ import ..ReferenceModule: ReferencePath, ConcreteReferencePath, FieldReference, 
 import ..OperationRerootingModule: prepend_steps_to_op
 import ..TypeDispatchingModule: TypeDispatchingProjection
 import ..PrinterContextModule: child_context, with_available_size
-import ..LayoutModule: LayoutConstraint, GridLayout, allocate_axis, layout_min, layout_max,
+import ..LayoutModule: LayoutDocument, LayoutConstraint, GridLayout, allocate_axis, layout_min, layout_max,
                        layout_preferred, layout_weight
 import ..LayoutToGraphicsModule: GridLayoutToGraphicsCanvas, GridLayoutIoMap
 import ..KeyboardModule: KeyDown
@@ -968,7 +968,9 @@ function projection_print(p::WidgetCompositeToGraphicsCanvas, recursion, w::Widg
     child_iomaps = Any[]
     elems = Any[]
     for child in w.elements
-        child isa WidgetDocument || continue
+        # A composite renders widget children and embedded layout children (e.g.
+        # a GridLayout form from ObjectToWidget); both re-enter the recursion.
+        (child isa WidgetDocument || child isa LayoutDocument) || continue
         cim = projection_printer_recurse(recursion, child, ctx)
         push!(child_iomaps, (cox, coy, cim))
         push!(elems, _make_canvas(cox, coy, Any[cim.output]))
@@ -3531,6 +3533,10 @@ function WidgetToGraphics(font::StyleFont; measure::Function,
         WidgetMenu       => WidgetMenuToGraphicsCanvas(measurer, theme.font),
         WidgetMenuItem   => WidgetMenuItemToGraphicsCanvas(measurer, theme.body_text),
         WidgetComposite  => WidgetCompositeToGraphicsCanvas(),
+        # Widgets embed layouts (a composite/table holds a GridLayout); register
+        # it so the recursion can render an embedded grid without an outer
+        # layout dispatcher.
+        GridLayout       => GridLayoutToGraphicsCanvas(),
         WidgetShell      => WidgetShellToGraphicsCanvas(measurer, theme.font, theme.background, theme.gap),
         WidgetTitlePane  => WidgetTitlePaneToGraphicsCanvas(measurer,
             StyleText(theme.font_bold, theme.foreground), StyleText(theme.font, theme.card_foreground), 6),

@@ -99,9 +99,15 @@ function projection_print(p::ObjectToWidget, recursion, obj, ctx)
     # A 2-column grid (label | control): the first column sizes to the widest
     # label and the second to the widest control, so both columns are aligned
     # and content-sized — what _CONTROL_X used to hardcode.
-    output = GridLayout(children, 2;
-                        horizontal_gap=_COLUMN_GAP, vertical_gap=_ROW_GAP,
-                        vertical_align=:center)
+    grid = GridLayout(children, 2;
+                      horizontal_gap=_COLUMN_GAP, vertical_gap=_ROW_GAP,
+                      vertical_align=:center)
+    # ObjectToWidget's job is to produce a *widget* form, so wrap the grid in a
+    # WidgetComposite: only a WidgetDocument carries `visible`, which a layout
+    # lacks. ProjectionConfiguring toggles this composite's `visible` to show/hide
+    # the control bar, and WidgetToGraphics renders an invisible widget as an
+    # empty canvas. The composite holds the grid as its single child.
+    output = WidgetComposite(Point2D(0, 0), Any[grid])
     ObjectToWidgetIoMap(p, obj, output, controls)
 end
 
@@ -197,23 +203,32 @@ projection_read(::ObjectToWidget, ::ObjectToWidgetIoMap, ::ReplaceSelectionOpera
 
 projection_read(::ObjectToWidget, ::ObjectToWidgetIoMap, op) = op
 
-# Parse a control text-edit reference rooted at the grid output:
-# `children[flat].content.elements[1].content[cstart:cstop]`. The first
-# RangeReference is the 0-based grid child index of the control; since the grid
-# holds `[label, control]` per row, the control for 1-based row r is child
-# `2r` (0-based `2r-1`), so `row = (flat + 1) ÷ 2`. The terminal RangeReference
-# is the character range.
+# Parse a control text-edit reference. The output is a WidgetComposite wrapping
+# the grid, so a renderer-produced reference looks like
+# `elements[0].children[flat].content.elements[1].content[cstart:cstop]` — i.e.
+# the grid child index follows the `children` field. (A reference passed in
+# already rooted at the grid, with no composite `elements` prefix, also works.)
+# The RangeReference right after `children` is the 0-based grid child index of
+# the control; since the grid holds `[label, control]` per row, the control for
+# 1-based row r is child `2r` (0-based `2r-1`), so `row = (flat + 1) ÷ 2`. The
+# terminal RangeReference is the character range.
 function _parse_control_edit(ref)
-    ranges = RangeReference[]
+    flat = nothing
+    term = nothing
+    after_children = false
     cur = ref
     while cur isa ConcreteReferencePath
-        cur.head isa RangeReference && push!(ranges, cur.head)
+        h = cur.head
+        if h isa FieldReference && h.name == "children"
+            after_children = true
+        elseif h isa RangeReference
+            after_children && flat === nothing && (flat = h.start)
+            term = h
+        end
         cur = cur.tail
     end
-    length(ranges) >= 2 || return nothing
-    flat = ranges[1].start
+    (flat === nothing || term === nothing) && return nothing
     row = (flat + 1) ÷ 2
-    term = ranges[end]
     (row, term.start, term.stop)
 end
 

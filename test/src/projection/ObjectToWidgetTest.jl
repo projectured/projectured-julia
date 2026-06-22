@@ -11,11 +11,14 @@ _content_ref() = ConcreteReferencePath(FieldReference("content"), EmptyReference
     iomap = projection_print(ObjectToWidget(), proj)
     out = iomap.output
 
-    # Two rows of a 2-column (label | control) grid → 4 children: pattern
+    # The output is a WidgetComposite (a real widget, carrying `visible`) wrapping
+    # a 2-column (label | control) grid. The grid has 4 children: pattern
     # (String → WidgetText) and case_insensitive (Bool → WidgetCheckbox); the
     # StyleColor `color` field is skipped.
-    @test out isa GridLayout
-    @test length(out.children) == 4
+    @test out isa WidgetComposite
+    grid = out.elements[1]
+    @test grid isa GridLayout
+    @test length(grid.children) == 4
     @test [nm for (_, nm) in iomap.controls] == ["pattern", "case_insensitive"]
     @test iomap.controls[1][1] isa WidgetText
     @test iomap.controls[2][1] isa WidgetCheckbox
