@@ -179,8 +179,17 @@ hook, so behaviour is identical while everything is still present:
 Move code into `program/ext/`, add `[weakdeps]`, `[extensions]`, and `[compat]`
 entries to `program/Project.toml`, and drop the moved deps from `[deps]`.
 
-- [ ] **`ProjecturedODBCExt`** — weakdeps `ODBC`, `DBInterface`, `Tables`.
-      **Attempted, then reverted — needs a factory-seam pass first (finding below).**
+- [x] **`ProjecturedODBCExt`** — weakdeps `ODBC`, `DBInterface`, `Tables`. **DONE**
+      (commit `extract live-ODBC into ProjecturedODBCExt`). ODBC is now optional. The
+      6 live-DB modules moved to `program/ext/ProjecturedODBCExt.jl` (nested submodules,
+      core imports rewritten, public types re-exported at the ext top level).
+      Consumer surface solved with the hybrid pattern: `make_database_adapter(:odbc)`
+      factory in core; `ProjecturedExample`/`ProjecturedTest` opt in (`using
+      ODBC/DBInterface/Tables`) and bind the ext public types via `Base.get_extension`
+      as top-level consts — which **works at precompile** (resolving the timing worry:
+      the dependent package's precompile loads the triggered extension). Verified both
+      ways (Projectured alone → ext dormant; full env → test_json 29/29, adapter builds).
+      **Original notes below (superseded):**
       Cluster confirmed (6 modules move): `OdbcAdapterModule`, `ConnectionPoolModule`,
       `DatabaseTabularModule`, `DatabaseTableToTabularGridModule`,
       `SqlToCellTableModule`, `DatabaseInstanceToDbCatalogModule`.
