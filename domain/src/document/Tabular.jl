@@ -107,6 +107,19 @@ TabularGrid() = TabularGrid(CellVector(), Cell(0), Cell(nothing))
 TabularGrid(rows::CellVector, col_count::Integer) =
     TabularGrid(rows, Cell(col_count), Cell(nothing))
 
+# ── TAB-delimited show ────────────────────────────────────────────────────────
+# A spreadsheet-style rendering (overrides the generic `Document` show): a cell
+# shows its content (a nested grid as a `<TabularGrid>` placeholder), a row
+# TAB-joins its cells, and a grid newline-joins its rows.
+function Base.show(io::IO, c::TabularCell)
+    content = c.content
+    content isa TabularGrid ? print(io, "<TabularGrid>") : show(io, content)
+end
+Base.show(io::IO, r::TabularRow) =
+    join(io, (sprint(show, cell) for cell in r.cells), "\t")
+Base.show(io::IO, g::TabularGrid) =
+    join(io, (sprint(show, row) for row in g.rows), "\n")
+
 # ── Accessors ───────────────────────────────────────────────────────────────
 
 """
