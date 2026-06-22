@@ -1,7 +1,7 @@
 # Helper: read the flat string out of a TextText result document.
 function _formula_result_string(result)
     buf = IOBuffer()
-    for span in result
+    for span in result.elements
         span isa TextString && print(buf, span.content)
     end
     String(take!(buf))

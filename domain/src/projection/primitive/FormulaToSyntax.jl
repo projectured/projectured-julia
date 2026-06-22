@@ -120,7 +120,7 @@ FormulaFormulaToSyntaxNode(;
 # Flatten a result TextText into a single rendered string.
 function _result_to_string(result)
     buf = IOBuffer()
-    for span in result
+    for span in result.elements
         span isa TextString && print(buf, span.content)
     end
     String(take!(buf))

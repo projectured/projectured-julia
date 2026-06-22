@@ -144,13 +144,6 @@ function FormulaEnvironment(formulas::Vector)
     env
 end
 
-Base.length(e::FormulaEnvironment) = length(e.formulas)
-Base.isempty(e::FormulaEnvironment) = isempty(e.formulas)
-Base.getindex(e::FormulaEnvironment, i::Integer) = e.formulas[i]
-Base.firstindex(::FormulaEnvironment) = 1
-Base.lastindex(e::FormulaEnvironment) = length(e)
-Base.iterate(e::FormulaEnvironment, s...) = iterate(e.formulas, s...)
-
 # ═══════════════════════════════════════════════════════════════════════
 # Phase 2 — environment, naming, dependency graph, cycle detection
 # ═══════════════════════════════════════════════════════════════════════
@@ -433,7 +426,7 @@ end
 function _result_string(result)
     result isa TextText || return string(result)
     buf = IOBuffer()
-    for span in result
+    for span in result.elements
         span isa TextString && print(buf, span.content)
     end
     String(take!(buf))

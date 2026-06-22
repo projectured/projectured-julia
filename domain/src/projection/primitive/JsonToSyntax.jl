@@ -267,7 +267,7 @@ function projection_print(p::JsonArrayToSyntaxNode, recursion, j::JsonArray, ctx
     reference = ctx.reference
     child_iomaps = Cell(() -> [projection_printer_recurse(recursion, x,
                                    child_context(ctx, @reference ^(reference).elements[i]))
-                               for (i, x) in enumerate(j)])
+                               for (i, x) in enumerate(j.elements)])
     iomap_cell = Cell(nothing)
     sel = Cell(() -> begin
         im = iomap_cell[]
@@ -572,7 +572,7 @@ end
 # Append a JsonInsertion to an array's elements and select it whole, ready to be
 # type-to-replaced (Lisp json/array reader `,` / Insert, :550-569).
 function _array_insert(input::JsonArray)
-    n = length(input)
+    n = length(input.elements)
     CollectionInsertOperation(@reference(elements), n, Any[JsonInsertion()],
                               @reference elements[n + 1])
 end
@@ -580,7 +580,7 @@ end
 # Append an empty entry to an object's entries and select its key for typing
 # (Lisp json/object reader `,` / Insert, :607-626).
 function _object_insert(input::JsonObject)
-    n = length(input)
+    n = length(input.entries)
     CollectionInsertOperation(@reference(entries), n,
                               Any[JsonObjectEntry("", JsonInsertion())],
                               @reference entries[n + 1].key{0})

@@ -14,15 +14,15 @@ st = TextText(
     TextString("aaa", font_ubuntu_monospace_bold_24, color_red),
     TextString("bbb", font_ubuntu_monospace_regular_24, color_blue),
 )
-@test length(st) == 2
-@test st[1].content == "aaa"
+@test length(st.elements) == 2
+@test st.elements[1].content == "aaa"
 
-push!(st, TextString("ccc", font_ubuntu_monospace_regular_24, color_default))
-@test length(st) == 3
+push!(st.elements, TextString("ccc", font_ubuntu_monospace_regular_24, color_default))
+@test length(st.elements) == 3
 
-deleteat!(st, 2)
-@test length(st) == 2
-@test st[2].content == "ccc"
+deleteat!(st.elements, 2)
+@test length(st.elements) == 2
+@test st.elements[2].content == "ccc"
 
 # computed text
 counter = Cell(0)
@@ -47,11 +47,11 @@ st = TextText(
     TextGraphics(ImageMemory(nothing), 24, 24),
     TextString("cd", font_ubuntu_monospace_regular_24, color_blue),
 )
-@test length(st) == 3
-@test st[1].content == "ab"
-@test st[2] isa TextGraphics
-@test st[2].width == 24
-@test st[3].content == "cd"
+@test length(st.elements) == 3
+@test st.elements[1].content == "ab"
+@test st.elements[2] isa TextGraphics
+@test st.elements[2].width == 24
+@test st.elements[3].content == "cd"
 
 end # @testset "TextGraphics inline image span"
 end # test_text

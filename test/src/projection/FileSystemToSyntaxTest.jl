@@ -22,7 +22,7 @@ s2t = RecursiveProjection(SyntaxToText(
     expanded_marker  = TextString("▾", font_dejavu_monospace_regular_24, color_default),
     collapsed_marker = TextString("▸", font_dejavu_monospace_regular_24, color_default),
     marker_eligible  = filesystem_marker_eligible))
-rendered = join(s.content for s in projection_print(s2t, syntax).output)
+rendered = join(s.content for s in projection_print(s2t, syntax).output.elements)
 
 @test count("▾", rendered) == 2          # /root and /root/sub, not the body wrappers
 @test occursin("▾ root", rendered)
@@ -32,7 +32,7 @@ rendered = join(s.content for s in projection_print(s2t, syntax).output)
 @test !occursin("▾ c.txt", rendered)
 
 # Default SyntaxToText (no markers) leaves the filesystem render untouched.
-plain = join(s.content for s in projection_print(RecursiveProjection(SyntaxToText()), syntax).output)
+plain = join(s.content for s in projection_print(RecursiveProjection(SyntaxToText()), syntax).output.elements)
 @test !occursin("▾", plain)
 @test !occursin("▸", plain)
 

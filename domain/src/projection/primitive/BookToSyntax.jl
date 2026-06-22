@@ -659,7 +659,7 @@ function _render_paragraph_content(content)
     content === nothing && return ""
     content isa TextText || return string(content)
     buf = IOBuffer()
-    for span in content
+    for span in content.elements
         span isa TextString && print(buf, span.content)
     end
     String(take!(buf))

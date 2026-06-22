@@ -243,7 +243,7 @@ function projection_print(p::XmlElementToSyntaxNode, recursion, e::XmlElement, c
     reference = ctx.reference
     child_iomaps = Cell(() -> [projection_printer_recurse(recursion, child,
                                    child_context(ctx, @reference ^(reference).children[i]))
-                               for (i, child) in enumerate(e)])
+                               for (i, child) in enumerate(e.children)])
 
     sel = Cell(() -> begin
         path = skip_type_checkpoints(e.selection)

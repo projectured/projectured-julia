@@ -16,10 +16,10 @@ outer = SyntaxNode("{", "}", "; ", SyntaxDocument[inner, SyntaxLeaf("x")])
 @test render(outer) == "{(1+2); x}"
 
 # mutation
-push!(node, SyntaxLeaf("d"))
+push!(node.children, SyntaxLeaf("d"))
 @test render(node) == "[a, b, c, d]"
 
-deleteat!(node, 1)
+deleteat!(node.children, 1)
 @test render(node) == "[b, c, d]"
 
 # computed children

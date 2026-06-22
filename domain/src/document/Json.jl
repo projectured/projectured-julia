@@ -302,14 +302,10 @@ setval!(j::Union{JsonBool, JsonNumber, JsonString}, v) = (setval!(getfield(j, :v
 
 _items(j::JsonArray) = j.elements   # CellVector
 
-Base.length(j::JsonArray) = length(j.elements)
-Base.size(j::JsonArray) = (length(j),)
-Base.firstindex(j::JsonArray) = 1
-Base.lastindex(j::JsonArray) = length(j)
-Base.iterate(j::JsonArray, state...) = iterate(j.elements, state...)
-Base.eachindex(j::JsonArray) = eachindex(j.elements)
-Base.isempty(j::JsonArray) = isempty(j.elements)
+Base.size(j::JsonArray) = (length(j.elements),)
 
+# Needed by evaluate_reference when a PositionReference navigates directly into
+# a JsonArray (e.g. FocusingProjection with part=ReferencePath(PositionReference(n))).
 Base.getindex(j::JsonArray, i::Integer) = j.elements[i]
 
 function Base.setindex!(j::JsonArray, v, i::Integer)
@@ -324,19 +320,10 @@ function Base.push!(j::JsonArray, vs...)
     return j
 end
 
-function Base.deleteat!(j::JsonArray, i)
-    deleteat!(j.elements, i)
-    return j
-end
-
 function Base.insert!(j::JsonArray, i::Integer, v)
     doc = v isa JsonDocument ? v : jsonvalue(v)
     insert!(j.elements, i, Cell(doc))
     return j
-end
-
-function Base.pop!(j::JsonArray)
-    return pop!(j.elements)
 end
 
 Base.reverse(j::JsonArray) =
@@ -354,9 +341,6 @@ Return the `CellVector` containing the object's entries. This is the underlying
 storage for the object's key-value pairs.
 """
 entries(j::JsonObject) = j.entries   # CellVector
-
-Base.length(j::JsonObject)  = length(j.entries)
-Base.isempty(j::JsonObject) = isempty(j.entries)
 
 function Base.haskey(j::JsonObject, key::AbstractString)
     any(e -> e.key == key, j.entries)

@@ -84,7 +84,7 @@ FileSystemDirectoryToSyntaxNode(; name=StyleText(font_ubuntu_monospace_bold_24, 
 function projection_print(p::FileSystemDirectoryToSyntaxNode, recursion, d::FileSystemDirectory, ctx)
     child_iomaps = Cell(() -> [projection_printer_recurse(recursion, elem,
                                    child_context(ctx, FieldReference("elements"), ElementReference(i)))
-                               for (i, elem) in enumerate(d)])
+                               for (i, elem) in enumerate(d.elements)])
 
     name_leaf = SyntaxLeaf(
         TextString("", p.name.font, color_default),

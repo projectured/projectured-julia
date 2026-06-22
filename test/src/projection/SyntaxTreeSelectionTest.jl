@@ -68,7 +68,7 @@ end
     text_io = projection_print(s2t, node_io.output)
     @test text_io.output.selection isa EmptyReferencePath
     # The whole-element selection does not alter the rendered text.
-    @test occursin("1", join(s.content for s in text_io.output))
+    @test occursin("1", join(s.content for s in text_io.output.elements))
 end
 
 @testset "forward: JsonObject whole → SyntaxNode ∅ → Text ∅" begin

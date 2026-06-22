@@ -41,14 +41,4 @@ Workspace(folders::Vector{WorkspaceFolder}) =
 
 Workspace() = Workspace(WorkspaceFolder[])
 
-# ── Children access ──────────────────────────────────────────────────────────
-
-Base.length(w::Workspace)               = length(w.folders)
-Base.isempty(w::Workspace)              = isempty(w.folders)
-Base.getindex(w::Workspace, i::Integer) = w.folders[i]
-Base.firstindex(::Workspace)            = 1
-Base.lastindex(w::Workspace)            = length(w)
-Base.iterate(w::Workspace, state...)    = iterate(w.folders, state...)
-Base.eachindex(w::Workspace)            = eachindex(w.folders)
-
 end # module

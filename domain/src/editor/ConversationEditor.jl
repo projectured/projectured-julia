@@ -68,7 +68,7 @@ export ConversationComposerToWidget, composer_read, finalize_draft!, new_draft, 
 # The active part is always the last one; its content is what the gestures act
 # on. An empty draft has no active part (`nothing`).
 _active_part(d::ConversationDraft) =
-    isempty(d) ? nothing : d.parts[length(d)]
+    isempty(d.parts) ? nothing : d.parts[length(d.parts)]
 _active_content(d::ConversationDraft) =
     (p = _active_part(d); p === nothing ? nothing : p.content)
 
@@ -217,14 +217,14 @@ function evaluate_operation(editor, op::ComposerInsertPartOperation)
     if p !== nothing && p.content isa PrimitiveString
         v = _value(p.content)
         if isempty(strip(v))
-            deleteat!(d.parts, length(d))          # drop the blank typein
+            deleteat!(d.parts, length(d.parts))    # drop the blank typein
         else
             p.content = TextText(TextString(v))    # commit the prose
         end
     end
     ins = DocumentInsertion("")
     ins.selection = _valpath(0)
-    push!(d, ConversationPart(ins))
+    push!(d.parts, ConversationPart(ins))
     nothing
 end
 
@@ -257,7 +257,7 @@ function evaluate_operation(editor, op::ComposerCommitSourceOperation)
     doc = _parse_source(_active_content(op.draft))
     doc === nothing && return nothing              # unparseable: keep editing
     _replace_active!(op.draft, doc)
-    push!(op.draft, _new_typein())
+    push!(op.draft.parts, _new_typein())
     nothing
 end
 
@@ -277,7 +277,7 @@ function evaluate_operation(editor, op::ComposerEvaluateOperation)
     # in a newline — strip it so the result text doesn't render a trailing tofu box.
     _replace_active!(op.draft,
         EvaluatorForm(form; result = result_text(rstrip(output)), is_error = is_err))
-    push!(op.draft, _new_typein())
+    push!(op.draft.parts, _new_typein())
     nothing
 end
 
@@ -295,14 +295,14 @@ whether the draft still has any parts (i.e. is worth submitting).
 function finalize_draft!(d::ConversationDraft)
     p = _active_part(d)
     if p !== nothing && p.content isa PrimitiveString && isempty(strip(_value(p.content)))
-        deleteat!(d.parts, length(d))
+        deleteat!(d.parts, length(d.parts))
     end
     for i in eachindex(d.parts)
         part = d.parts[i]
         part.content isa PrimitiveString &&
             (part.content = TextText(TextString(_value(part.content))))
     end
-    !isempty(d)
+    !isempty(d.parts)
 end
 
 evaluate_operation(editor, op::ComposerSubmitOperation) = (finalize_draft!(op.draft); nothing)

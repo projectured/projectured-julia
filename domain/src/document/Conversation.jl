@@ -180,49 +180,8 @@ end
 ConversationDraft(parts::Vector = ConversationPart[], assistant = nothing) =
     ConversationDraft(CellVector(Cell[Cell(p) for p in parts]), Cell(assistant), Cell(nothing))
 
-# ── Element access on a draft's parts (mirrors a turn) ─────────────────────────
-
-Base.length(d::ConversationDraft)  = length(d.parts)
-Base.isempty(d::ConversationDraft) = isempty(d.parts)
-Base.getindex(d::ConversationDraft, i::Integer) = d.parts[i]
-Base.firstindex(::ConversationDraft) = 1
-Base.lastindex(d::ConversationDraft) = length(d)
-Base.iterate(d::ConversationDraft, s...) = iterate(d.parts, s...)
-Base.eachindex(d::ConversationDraft) = eachindex(d.parts)
-
-Base.push!(d::ConversationDraft, parts::ConversationPart...) =
-    (for p in parts; push!(d.parts, Cell(p)); end; d)
-
 setfn!(d::ConversationDraft, f::Function) =
     (setfn!(getfield(d.parts, :elements), () -> Cell[Cell(x) for x in f()]); d)
-
-# ── Element access on the conversation ────────────────────────────────────────
-
-Base.length(c::ConversationConversation)  = length(c.turns)
-Base.isempty(c::ConversationConversation) = isempty(c.turns)
-Base.getindex(c::ConversationConversation, i::Integer) = c.turns[i]
-Base.firstindex(::ConversationConversation) = 1
-Base.lastindex(c::ConversationConversation) = length(c)
-Base.iterate(c::ConversationConversation, s...) = iterate(c.turns, s...)
-Base.eachindex(c::ConversationConversation) = eachindex(c.turns)
-
-Base.push!(c::ConversationConversation, turns::ConversationTurn...) =
-    (for t in turns; push!(c.turns, Cell(t)); end; c)
-
-Base.deleteat!(c::ConversationConversation, i) = (deleteat!(c.turns, i); c)
-
-# ── Element access on a turn's parts ──────────────────────────────────────────
-
-Base.length(t::ConversationTurn)  = length(t.parts)
-Base.isempty(t::ConversationTurn) = isempty(t.parts)
-Base.getindex(t::ConversationTurn, i::Integer) = t.parts[i]
-Base.firstindex(::ConversationTurn) = 1
-Base.lastindex(t::ConversationTurn) = length(t)
-Base.iterate(t::ConversationTurn, s...) = iterate(t.parts, s...)
-Base.eachindex(t::ConversationTurn) = eachindex(t.parts)
-
-Base.push!(t::ConversationTurn, parts::ConversationPart...) =
-    (for p in parts; push!(t.parts, Cell(p)); end; t)
 
 # ── setfn! delegation (mirror Workbench panel pattern) ────────────────────────
 

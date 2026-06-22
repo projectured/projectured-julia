@@ -79,9 +79,14 @@ function Base.setindex!(cv::CellVector, cell::Cell, i::Integer)
     return cell
 end
 
-function Base.push!(cv::CellVector, cells::Cell...)
+# A plain value is wrapped in a fresh Cell; an existing Cell is appended as-is so
+# identity-preserving moves still work. A Cell is never stored *as a value* in this
+# codebase, so the single method is unambiguous.
+_wrap_cell(x) = x isa Cell ? x : Cell(x)
+
+function Base.push!(cv::CellVector, xs...)
     elems = _elems(cv)
-    for c in cells; push!(elems, c) end
+    for x in xs; push!(elems, _wrap_cell(x)) end
     cv.elements = elems
     return cv
 end
@@ -93,9 +98,9 @@ function Base.pop!(cv::CellVector)
     return c[]   # return stored value
 end
 
-function Base.insert!(cv::CellVector, i::Integer, cell::Cell)
+function Base.insert!(cv::CellVector, i::Integer, x)
     elems = _elems(cv)
-    insert!(elems, i, cell)
+    insert!(elems, i, _wrap_cell(x))
     cv.elements = elems
     return cv
 end

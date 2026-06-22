@@ -148,7 +148,7 @@ function projection_read(p::TextToGraphics, iomap::TextToGraphicsIoMap, evt)
     declined === nothing || return nothing
 
     styled = iomap.input
-    any(span -> span isa TextString, styled) || return nothing
+    any(span -> span isa TextString, styled.elements) || return nothing
 
     current = _cursor_position(styled.selection)
     current === nothing && return nothing
@@ -289,7 +289,7 @@ function _layout_text(p::TextToGraphics, styled::TextText, sel; collect_spans::B
     cursor_y = -1
     cursor_line_h = 0
 
-    for (elem_idx, span) in enumerate(styled)         # reads styled.elements cell
+    for (elem_idx, span) in enumerate(styled.elements)  # reads styled.elements cell
         span_flat_offsets[elem_idx] = cumulative_flat
         if span isa TextNewline
             cx = p.start_x

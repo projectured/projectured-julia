@@ -57,7 +57,7 @@ function projection_print(p::WorkspaceWorkspaceProjection,
                            recursion, w::Workspace, ctx)
     child_iomaps = [projection_printer_recurse(recursion, elem,
                                    child_context(ctx, FieldReference("folders"), ElementReference(i)))
-                    for (i, elem) in enumerate(w)]
+                    for (i, elem) in enumerate(w.folders)]
     # The output is the first folder's output for single-root workspaces.
     # Multi-root rendering can be refined later with a composite output.
     output = isempty(child_iomaps) ? nothing : child_iomaps[1].output

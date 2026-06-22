@@ -324,41 +324,6 @@ function render(node::SyntaxNode)
     string(node.open.content, join(parts, node.sep.content), node.close.content)
 end
 
-# ── Children access ─────────────────────────────────────────────────────
-
-Base.length(n::SyntaxNode)               = length(n.children)
-Base.isempty(n::SyntaxNode)              = isempty(n.children)
-Base.getindex(n::SyntaxNode, i::Integer) = n.children[i]
-Base.firstindex(::SyntaxNode)            = 1
-Base.lastindex(n::SyntaxNode)            = length(n)
-Base.iterate(n::SyntaxNode, state...)    = iterate(n.children, state...)
-
-function Base.setindex!(n::SyntaxNode, child::SyntaxDocument, i::Integer)
-    n.children[i] = child
-    return child
-end
-
-function Base.push!(n::SyntaxNode, children::SyntaxDocument...)
-    for c in children
-        push!(n.children, Cell(c))
-    end
-    return n
-end
-
-function Base.pop!(n::SyntaxNode)
-    pop!(n.children)
-end
-
-function Base.insert!(n::SyntaxNode, i::Integer, child::SyntaxDocument)
-    insert!(n.children, i, Cell(child))
-    return n
-end
-
-function Base.deleteat!(n::SyntaxNode, i)
-    deleteat!(n.children, i)
-    return n
-end
-
 # ── setfn! delegation ───────────────────────────────────────────────────
 
 setfn!(t::SyntaxLeaf, f::Function) = (setfn!(getfield(t.value, :content), f); t)

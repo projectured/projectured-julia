@@ -87,19 +87,6 @@ EvaluatorToplevel() = EvaluatorToplevel(CellVector(), Cell(nothing))
 EvaluatorToplevel(elements::Vector) =
     EvaluatorToplevel(CellVector(Cell[Cell(e) for e in elements]), Cell(nothing))
 
-# ── Element access on the toplevel ───────────────────────────────────────────
-
-Base.length(t::EvaluatorToplevel)  = length(t.elements)
-Base.isempty(t::EvaluatorToplevel) = isempty(t.elements)
-Base.getindex(t::EvaluatorToplevel, i::Integer) = t.elements[i]
-Base.firstindex(::EvaluatorToplevel) = 1
-Base.lastindex(t::EvaluatorToplevel) = length(t)
-Base.iterate(t::EvaluatorToplevel, s...) = iterate(t.elements, s...)
-Base.eachindex(t::EvaluatorToplevel) = eachindex(t.elements)
-
-Base.push!(t::EvaluatorToplevel, fs::EvaluatorForm...) =
-    (for f in fs; push!(t.elements, Cell(f)); end; t)
-
 setfn!(t::EvaluatorToplevel, f::Function) =
     (setfn!(getfield(t.elements, :elements), () -> Cell[Cell(x) for x in f()]); t)
 

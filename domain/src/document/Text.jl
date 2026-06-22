@@ -246,41 +246,6 @@ TextText(spans::TextDocument...) =
 
 TextText(f::Function) = TextText(CellVector(f), Cell(nothing))
 
-# ── Element access ─────────────────────────────────────────────────
-
-Base.length(st::TextText)               = length(st.elements)
-Base.isempty(st::TextText)              = isempty(st.elements)
-Base.getindex(st::TextText, i::Integer) = st.elements[i]
-Base.firstindex(::TextText)             = 1
-Base.lastindex(st::TextText)            = length(st)
-Base.iterate(st::TextText, state...)    = iterate(st.elements, state...)
-Base.eachindex(st::TextText)            = eachindex(st.elements)
-
-function Base.setindex!(st::TextText, span::TextDocument, i::Integer)
-    st.elements[i] = span
-    return span
-end
-
-function Base.push!(st::TextText, spans::TextDocument...)
-    for s in spans
-        push!(st.elements, Cell(s))
-    end
-    return st
-end
-
-function Base.pop!(st::TextText)
-    pop!(st.elements)
-end
-
-function Base.insert!(st::TextText, i::Integer, span::TextDocument)
-    insert!(st.elements, i, Cell(span))
-    return st
-end
-
-function Base.deleteat!(st::TextText, i)
-    deleteat!(st.elements, i)
-    return st
-end
 
 # ── splice_value! methods for the text representations ──────────────
 #
@@ -303,7 +268,7 @@ splice_value!(owner, field::Symbol, span::TextString, s::Int, e::Int, replacemen
 function splice_value!(owner, field::Symbol, text::TextText, s::Int, e::Int, replacement::AbstractString)
     pos = 0
     have_span = false
-    for span in text
+    for span in text.elements
         span isa TextString || continue
         have_span = true
         len = length(span.content)
@@ -313,7 +278,7 @@ function splice_value!(owner, field::Symbol, text::TextText, s::Int, e::Int, rep
         end
         pos += len
     end
-    have_span || push!(text, TextString(replacement))
+    have_span || push!(text.elements, TextString(replacement))
     text
 end
 
@@ -372,12 +337,12 @@ function document_read(text::TextText, evt)
     del_op === nothing || return del_op
 
     span_infos = [(elem_idx, length(span.content::AbstractString))
-                  for (elem_idx, span) in enumerate(text)
+                  for (elem_idx, span) in enumerate(text.elements)
                   if span isa TextString]
     isempty(span_infos) && return nothing
     # Span-content lookup (elem_idx → content String) for word-class testing.
     span_text = Dict{Int,String}(elem_idx => String(span.content::AbstractString)
-                  for (elem_idx, span) in enumerate(text)
+                  for (elem_idx, span) in enumerate(text.elements)
                   if span isa TextString)
 
     jump = @event_case evt begin

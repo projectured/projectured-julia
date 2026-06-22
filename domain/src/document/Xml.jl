@@ -179,42 +179,6 @@ function XmlElement(tag::AbstractString, attrs::Vector{XmlAttribute}, children::
                CellVector(Cell[Cell(c) for c in children]), Cell(false), Cell(nothing))
 end
 
-# ── Children access ───────────────────────────────────────────────────────────
-
-Base.length(e::XmlElement)                = length(e.children)
-Base.isempty(e::XmlElement)               = isempty(e.children)
-Base.getindex(e::XmlElement, i::Integer)  = e.children[i]
-Base.firstindex(::XmlElement)             = 1
-Base.lastindex(e::XmlElement)             = length(e)
-Base.iterate(e::XmlElement, state...)     = iterate(e.children, state...)
-Base.eachindex(e::XmlElement)             = eachindex(e.children)
-
-function Base.push!(e::XmlElement, children::XmlDocument...)
-    for c in children
-        push!(e.children, Cell(c))
-    end
-    return e
-end
-
-function Base.setindex!(e::XmlElement, child::XmlDocument, i::Integer)
-    e.children[i] = child
-    return child
-end
-
-function Base.deleteat!(e::XmlElement, i)
-    deleteat!(e.children, i)
-    return e
-end
-
-function Base.insert!(e::XmlElement, i::Integer, child::XmlDocument)
-    insert!(e.children, i, Cell(child))
-    return e
-end
-
-function Base.pop!(e::XmlElement)
-    pop!(e.children)
-end
-
 # ── Attribute access ────────────────────────────────────────────────────────────
 
 function Base.getindex(e::XmlElement, name::AbstractString)

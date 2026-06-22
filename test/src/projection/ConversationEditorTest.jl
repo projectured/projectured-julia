@@ -40,15 +40,15 @@ function test_conversation_editor()
 
             _ce_type!(turn, "hey assistant, look what I've got")
             _ce_apply!(ComposerInsertPartOperation(turn))   # INSERT → kind chooser
-            @test turn.parts[length(turn)].content isa DocumentInsertion
+            @test turn.parts[length(turn.parts)].content isa DocumentInsertion
 
             _ce_type!(turn, "julia")
             _ce_apply!(ComposerCommitChooserOperation(turn)) # ENTER → JuliaInsertion
-            @test turn.parts[length(turn)].content isa JuliaInsertion
+            @test turn.parts[length(turn.parts)].content isa JuliaInsertion
 
             _ce_type!(turn, "2+2")
             _ce_apply!(ComposerEvaluateOperation(turn))      # ALT+ENTER → EvaluatorForm
-            @test turn.parts[length(turn)].content isa PrimitiveString  # fresh typein
+            @test turn.parts[length(turn.parts)].content isa PrimitiveString  # fresh typein
 
             _ce_type!(turn, "see, it's not that complicated")
             _ce_apply!(ComposerSubmitOperation(turn))        # ENTER → finalize
@@ -71,7 +71,7 @@ function test_conversation_editor()
             _ce_apply!(ComposerInsertPartOperation(turn))    # → DocumentInsertion
             _ce_type!(turn, "jul")
             _ce_apply!(ComposerRevertOperation(turn))        # ESC
-            @test turn.parts[length(turn)].content isa PrimitiveString
+            @test turn.parts[length(turn.parts)].content isa PrimitiveString
             @test length(turn.parts) == 2                    # committed "hi" + fresh typein
         end
 
@@ -80,7 +80,7 @@ function test_conversation_editor()
             _ce_apply!(ComposerInsertPartOperation(turn))    # drop blank → chooser
             _ce_type!(turn, "zzz")
             _ce_apply!(ComposerCommitChooserOperation(turn)) # not a known kind
-            @test turn.parts[length(turn)].content isa DocumentInsertion
+            @test turn.parts[length(turn.parts)].content isa DocumentInsertion
         end
 
         @testset "INSERT drops a blank typein" begin
@@ -111,7 +111,7 @@ function test_conversation_editor()
             # julia source
             _ce_type!(turn, "julia")
             _ce_apply!(ComposerCommitChooserOperation(turn))
-            @test turn.parts[length(turn)].content isa JuliaInsertion
+            @test turn.parts[length(turn.parts)].content isa JuliaInsertion
             @test projection_read(proj, iom, KeyDown(:return, Modifiers())) isa ComposerCommitSourceOperation
             @test projection_read(proj, iom, KeyDown(:return, Modifiers(alt=true))) isa ComposerEvaluateOperation
             @test projection_read(proj, iom, KeyDown(:return, Modifiers(shift=true))) isa ComposerNewlineOperation

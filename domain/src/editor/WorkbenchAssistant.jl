@@ -229,7 +229,7 @@ function evaluate_operation(editor, op::SubmitJuliaOperation)
         sprint(showerror, e, catch_backtrace())
     end
     is_error = occursin("ERROR", output) || occursin("Error", output)
-    push!(a.conversation,
+    push!(a.conversation.turns,
           ConversationTurn(:user, [ConversationPart(
               EvaluatorForm(JuliaIdentifier(code);
                             result = result_text(output), is_error = is_error))]))
@@ -250,7 +250,7 @@ function _launch_agent_turn!(editor, a::WorkbenchAssistant)
             a.status = :error
             err = sprint(showerror, e, catch_backtrace())
             @error "Assistant turn failed" exception = (e, catch_backtrace())
-            push!(a.conversation,
+            push!(a.conversation.turns,
                   ConversationTurn(:assistant, [ConversationPart("Error: " * err)]))
         finally
             a.status === :streaming && (a.status = :idle)
@@ -264,7 +264,7 @@ function evaluate_operation(editor, op::SubmitProseOperation)
     text = _text_to_string(a.input)
     isempty(strip(text)) && return nothing
 
-    push!(a.conversation, ConversationTurn(:user, [ConversationPart(text)]))
+    push!(a.conversation.turns, ConversationTurn(:user, [ConversationPart(text)]))
     _set_input!(a, "")
     _launch_agent_turn!(editor, a)
 end
@@ -285,7 +285,7 @@ function evaluate_operation(editor, op::SubmitDraftTurnOperation)
     a = op.assistant
     draft = a.draft
     finalize_draft!(draft) || return nothing          # nothing to submit
-    push!(a.conversation, ConversationTurn(:user, collect(draft.parts)))
+    push!(a.conversation.turns, ConversationTurn(:user, collect(draft.parts)))
     reset_draft!(draft)
     _launch_agent_turn!(editor, a)
 end
@@ -580,7 +580,7 @@ function _run_agent_loop!(editor, a::WorkbenchAssistant)
     # this single turn holding every part in order. `build_messages` re-expands it
     # into the Anthropic tool_use/tool_result wire shape.
     turn = ConversationTurn(:assistant)
-    push!(a.conversation, turn)
+    push!(a.conversation.turns, turn)
 
     while true
         iter += 1

@@ -57,7 +57,7 @@ st_react = TextText(
 sdl_react = projection_print(TextToGraphics(measure=_test_measure(10, 48)), st_react).output
 _ = length(sdl_react.elements)
 @test isuptodate(getfield(sdl_react.elements, :elements))
-st_react[1].content = "changed"
+st_react.elements[1].content = "changed"
 @test !isuptodate(getfield(sdl_react.elements, :elements))
 items_r = _texts(sdl_react)
 @test items_r[1].text == "changed"

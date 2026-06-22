@@ -49,23 +49,6 @@ FileSystemDirectory(pathname::AbstractString) =
 FileSystemDirectory(pathname::AbstractString, elements::Vector{<:FileSystemDocument}) =
     FileSystemDirectory(String(pathname), CellVector(Cell[Cell(x) for x in elements]), Cell(nothing))
 
-# ── Children access ───────────────────────────────────────────────────────────
-
-Base.length(d::FileSystemDirectory)               = length(d.elements)
-Base.isempty(d::FileSystemDirectory)              = isempty(d.elements)
-Base.getindex(d::FileSystemDirectory, i::Integer) = d.elements[i]
-Base.firstindex(::FileSystemDirectory)            = 1
-Base.lastindex(d::FileSystemDirectory)            = length(d)
-Base.iterate(d::FileSystemDirectory, state...)    = iterate(d.elements, state...)
-Base.eachindex(d::FileSystemDirectory)            = eachindex(d.elements)
-
-function Base.push!(d::FileSystemDirectory, items::FileSystemDocument...)
-    for item in items
-        push!(d.elements, Cell(item))
-    end
-    return d
-end
-
 # ── API ───────────────────────────────────────────────────────────────────────
 
 function make_filesystem_pathname(pathname::AbstractString)
