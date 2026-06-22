@@ -1,246 +1,40 @@
 """
     Projectured
 
-Root module. Assembles all sub-modules in dependency order and re-exports
-the public API. Import this module to access the full pred library.
+Umbrella package. Depends on `ProjecturedKernel` (the headless engine) and
+`ProjecturedDomain` (all concrete documents/projections/backends) and re-exports
+their combined public API as a single flat namespace, so existing `using
+Projectured` user code is unchanged. The optional features (SDL/ODBC/Web live in
+ProjecturedDomain; LLM/MCP live in ProjecturedKernel) light up through their
+package extensions when the corresponding weakdeps are loaded.
 """
 module Projectured
 
-# ── API (abstract types + function stubs) ────────────────────────────────
+using ProjecturedKernel
+using ProjecturedDomain
 
-include("api/Backend.jl")
-include("api/Device.jl")
-include("api/Projection.jl")
-include("api/Operation.jl")
-include("api/Document.jl")
-include("api/IoMap.jl")
-include("api/Agent.jl")
-
-# ── Infrastructure ────────────────────────────────────────────────────────
-
-include("common/Reactive.jl")
-include("common/Document.jl")
-include("common/IoMap.jl")
-
-# ── Document types ────────────────────────────────────────────────────────
-
-include("reference/Reference.jl")
-include("reference/ReferenceCase.jl")
-include("reference/ReferenceBuilder.jl")
-include("context/PrinterContext.jl")
-include("common/Operation.jl")
-include("document/Document.jl")
-include("document/Collection.jl")
-include("common/DocumentCopy.jl")
-include("document/Font.jl")
-include("document/Color.jl")
-include("document/StyleText.jl")
-include("document/StyleStroke.jl")
-include("document/Geometry.jl")
-# Input devices and the primitive domain load before Text/Syntax so the domain
-# documents can declare `document_read` methods that map input gestures
-# (KeyDown/KeyPress/MousePress, matched via `@event_case`) to operations such as
-# `StringReplaceRangeOperation` (from PrimitiveModule). These device modules are
-# pure leaves (DeviceModule + ModifiersModule), so moving them earlier is safe.
-include("device/Modifiers.jl")
-include("device/Keyboard.jl")
-include("device/Mouse.jl")
-include("device/EventCase.jl")
-include("document/Primitive.jl")
-include("common/OperationRerooting.jl")
-include("document/Text.jl")
-include("document/Syntax.jl")
-include("document/Graphics.jl")
-include("document/Json.jl")
-include("document/Math.jl")
-include("document/Julia.jl")
-include("document/Tabular.jl")
-include("document/Database.jl")
-include("document/DbCatalog.jl")
-include("document/DatabaseInstance.jl")
-include("document/Sql.jl")
-include("document/Xml.jl")
-include("document/FileSystem.jl")
-include("document/Workspace.jl")
-include("document/Clipboard.jl")
-# Versioning: a generic, optional, recursive wrapper layer over any document
-# subtree. Uses `CellVector`, so it loads after `Collection.jl`.
-include("document/Versioning.jl")
-include("document/Widget.jl")
-include("document/Layout.jl")
-include("document/Graph.jl")
-include("document/GraphLayout.jl")
-include("layout/GraphLayoutEngine.jl")
-include("document/Component.jl")
-include("document/Book.jl")
-include("document/Evaluator.jl")
-include("document/Formula.jl")
-include("document/Conversation.jl")
-include("parser/JuliaParser.jl")
-include("parser/JsonParser.jl")
-include("parser/XmlParser.jl")
-include("parser/SqlParser.jl")
-# LLM backend (used as a field type by `WorkbenchAssistant`). Loads early
-# because no document or projection layer depends on it; it only needs
-# LlmModule defines the dependency-free LlmBackend/AnthropicLlm/FakeLlm interface.
-# The Anthropic Messages API client (HTTP/JSON3) that adds the
-# stream_turn(::AnthropicLlm) method lives in the ProjecturedLLMExt extension
-# (program/ext/ProjecturedLLMExt.jl).
-include("editor/Llm.jl")
-include("document/Workbench.jl")
-include("document/Image.jl")
-include("document/Screen.jl")
-include("document/Tooltip.jl")
-include("document/Dragging.jl")
-
-# ── Higher-order projections ──────────────────────────────────────────────
-
-include("projection/higherorder/Sequential.jl")
-include("projection/higherorder/TypeDispatching.jl")
-include("projection/higherorder/Recursive.jl")
-include("projection/higherorder/Alternative.jl")
-include("projection/higherorder/PredicateDispatching.jl")
-include("projection/higherorder/ReferenceDispatching.jl")
-include("projection/higherorder/Nesting.jl")
-include("projection/higherorder/WindowManager.jl")
-include("projection/higherorder/EnvelopeUnwrapping.jl")
-include("projection/higherorder/TooltipDecorator.jl")
-
-# ── Generic projections ───────────────────────────────────────────────────
-
-include("common/Projection.jl")
-include("projection/generic/Preserving.jl")
-include("projection/generic/Reversing.jl")
-include("projection/generic/Filtering.jl")
-include("projection/generic/Searching.jl")
-include("projection/generic/Sorting.jl")
-include("projection/generic/Copying.jl")
-include("projection/primitive/ScreenToScreen.jl")
-include("projection/generic/Invariably.jl")
-include("projection/generic/ObjectToWidget.jl")
-
-# ── Devices ───────────────────────────────────────────────────────────────
-# Modifiers / Keyboard / Mouse / EventCase are included earlier (before Text.jl)
-# so the document layer can declare `document_read` gesture methods.
-
-include("projection/generic/Focusing.jl")
-# Clipboard projection: needs the keyboard/event-case device modules above plus
-# the clipboard documents, copy_document, and operations included earlier.
-include("projection/primitive/ClipboardToAny.jl")
-# Versioning projection: the version-elimination analogue of ClipboardToAny.
-# Needs the keyboard/event-case device modules above plus the versioning
-# documents, copy_document, and operations included earlier.
-include("projection/primitive/VersioningToAny.jl")
-
-# Higher-order projection that depends on ObjectToWidget (generic) and the
-# keyboard device, so it is included here rather than with the other
-# higher-order projections above.
-include("projection/higherorder/ProjectionConfiguring.jl")
-# Drag-and-drop decorator: depends on the Mouse device, the collection/reference
-# modules, and the DraggingState document, all included above.
-include("projection/higherorder/Dragging.jl")
-
-# ── Primitive projections ─────────────────────────────────────────────────
-
-include("projection/primitive/SyntaxToText.jl")
-include("projection/primitive/TextToGraphics.jl")
-include("projection/primitive/GraphicsCaching.jl")
-include("projection/primitive/JsonToSyntax.jl")
-include("projection/primitive/XmlToSyntax.jl")
-include("projection/primitive/FileSystemToSyntax.jl")
-include("projection/primitive/WorkspaceToFileSystem.jl")
-include("projection/primitive/TextToString.jl")
-include("projection/primitive/ObjectToSyntax.jl")
-include("projection/primitive/ObjectToJson.jl")
-# LayoutToGraphics before WidgetToGraphics: the WidgetTable renderer builds a
-# GridLayout and reads its geometry off the GridLayoutIoMap, so those symbols
-# must already be defined when WidgetToGraphics is loaded.
-include("projection/primitive/LayoutToGraphics.jl")
-include("projection/primitive/WidgetToGraphics.jl")
-include("projection/primitive/TextToWidget.jl")
-include("projection/primitive/GraphToGraphLayout.jl")
-include("projection/primitive/GraphLayoutToGraphics.jl")
-include("projection/primitive/SyntaxToWidget.jl")
-include("projection/primitive/BookToSyntax.jl")
-include("projection/primitive/LineNumbering.jl")
-include("projection/primitive/WordWrapping.jl")
-include("projection/primitive/TextFirstLine.jl")
-include("projection/primitive/TextFiltering.jl")
-include("projection/primitive/TextHighlighting.jl")
-include("projection/primitive/SelectionInverting.jl")
-include("projection/primitive/PrimitiveToSyntax.jl")
-include("projection/primitive/PrimitiveToText.jl")
-include("projection/primitive/ReferenceToText.jl")
-include("projection/primitive/MathToSyntax.jl")
-include("projection/primitive/JuliaToSyntax.jl")
-include("projection/primitive/FormulaToSyntax.jl")
-include("projection/primitive/DocumentInsertionToSyntax.jl")
-include("projection/primitive/SqlToSyntax.jl")
-include("projection/primitive/CollectionToSyntax.jl")
-include("projection/primitive/ConversationToSyntax.jl")
-include("projection/primitive/ConversationToWidget.jl")
-include("projection/primitive/WorkbenchToWidget.jl")
-
-# ── Compound projections ─────────────────────────────────────────────────
-
-include("projection/compound/HigherOrder.jl")
-include("projection/compound/Generic.jl")
-
-# ── Devices, backend, and editor ──────────────────────────────────────────
-
-include("device/Screen.jl")
-# The SDL backend lives in the ProjecturedSDLExt package extension
-# (program/ext/ProjecturedSDLExt.jl) — it needs SimpleDirectMediaLayer/SDL2_jll/FFMPEG.
-include("backend/Console.jl")
-# The web backend lives in the ProjecturedWebExt package extension
-# (program/ext/ProjecturedWebExt.jl) — it needs HTTP/JSON3 (and reuses Pdf's
-# pure-Julia pdf_measure_text for SDL-free text metrics).
-include("backend/Pdf.jl")
-include("external/Database.jl")
-# The live-ODBC modules (OdbcAdapter, ConnectionPool, DatabaseTabular, and the
-# DatabaseTableToTabularGrid / SqlToCellTable / DatabaseInstanceToDbCatalog
-# live-query projections) live in the ProjecturedODBCExt package extension
-# (program/ext/ProjecturedODBCExt.jl) — they need ODBC/DBInterface/Tables.
-include("projection/primitive/CellTableToTable.jl")
-include("projection/primitive/DbCatalogToJson.jl")
-include("projection/primitive/DbCatalogToSql.jl")
-include("projection/primitive/DbCatalogToSyntax.jl")
-include("editor/GestureRecognizer.jl")
-include("editor/ToolRegistry.jl")
-include("editor/Mcp.jl")
-# ConversationEditor (the composer) loads before WorkbenchAssistant so the panel's
-# reader can import `composer_read` to route its draft-turn input.
-include("editor/ConversationEditor.jl")
-include("editor/WorkbenchAssistant.jl")
-include("editor/Editor.jl")
-
-# ── Public API ────────────────────────────────────────────────────────────
-
-# Import modules with Base extensions to ensure they're loaded when Projectured is imported
-# This makes Base method extensions (like getindex for CellVector) available in contexts
-# that import Projectured, such as the MCP execution environment.
-using .DocumentModule: @document
-using .ProjectionModule: @projection
-using .IoMapModule: @iomap
-using .CollectionModule
-using .JsonModule
-using .TabularModule
-using .ReferenceModule
-using .SyntaxModule
-using .FileSystemModule
-using .XmlModule
-using .TextModule
-using .PrimitiveModule
-using .MathModule
-using .FontModule
-using .ColorModule
-using .StyleTextModule
-using .StyleStrokeModule
-using .ImageModule
-using .ScreenDocumentModule
-using .ReactiveModule: Cell, setval!, setfn!, isuptodate
-using .ProjectionApiModule: projection_print, projection_read, map_reference_forward, map_reference_backward, Projection, Change, as_change
-using .ReferenceModule: ConcreteReferencePath, ElementReference, PositionReference, RangeReference, FieldReference,
+using ProjecturedKernel.DocumentModule: @document
+using ProjecturedKernel.ProjectionModule: @projection
+using ProjecturedKernel.IoMapModule: @iomap
+using ProjecturedKernel.CollectionModule
+using ProjecturedDomain.JsonModule
+using ProjecturedDomain.TabularModule
+using ProjecturedKernel.ReferenceModule
+using ProjecturedDomain.SyntaxModule
+using ProjecturedDomain.FileSystemModule
+using ProjecturedDomain.XmlModule
+using ProjecturedDomain.TextModule
+using ProjecturedKernel.PrimitiveModule
+using ProjecturedDomain.MathModule
+using ProjecturedDomain.FontModule
+using ProjecturedDomain.ColorModule
+using ProjecturedDomain.StyleTextModule
+using ProjecturedDomain.StyleStrokeModule
+using ProjecturedDomain.ImageModule
+using ProjecturedKernel.ScreenDocumentModule
+using ProjecturedKernel.ReactiveModule: Cell, setval!, setfn!, isuptodate
+using ProjecturedKernel.ProjectionApiModule: projection_print, projection_read, map_reference_forward, map_reference_backward, Projection, Change, as_change
+using ProjecturedKernel.ReferenceModule: ConcreteReferencePath, ElementReference, PositionReference, RangeReference, FieldReference,
                        TypeReference, FunctionReference, ProjectionReference, PointReference,
                        TextRectangularReference,
                        ReferencePath, EmptyReferencePath,
@@ -248,25 +42,25 @@ using .ReferenceModule: ConcreteReferencePath, ElementReference, PositionReferen
                        is_element_reference, is_position_reference, is_range_reference,
                        reference_equal, is_prefix_of,
                        ReferenceTypeMismatch, valid_reference_prefix, annotate_reference_types, strip_reference_types
-using .PrinterContextModule: PrinterContext, child_context, with_available_size,
+using ProjecturedKernel.PrinterContextModule: PrinterContext, child_context, with_available_size,
                                  with_property, get_property
-using .DocumentApiModule: set_selection!, clear_selection!, document_read
-using .OperationModule: ReplaceSelectionOperation, QuitEditorOperation, replace_selection!,
+using ProjecturedKernel.DocumentApiModule: set_selection!, clear_selection!, document_read
+using ProjecturedKernel.OperationModule: ReplaceSelectionOperation, QuitEditorOperation, replace_selection!,
                         OpenWindowOperation, CloseWindowOperation, ResizeWindowOperation, ToggleCollapseOperation,
                         ReplaceDocumentOperation, ReplaceReferencedValue, CollectionInsertOperation, CollectionDeleteOperation,
                         CompoundOperation
-using .ReferenceCaseModule: var"@reference_case", when, prefix
-using .EventCaseModule: var"@event_case"
-using .ReferenceBuilderModule: var"@reference", var"@step"
-using .OperationApiModule: Operation, evaluate_operation
-using .JsonModule: JsonDocument, JsonInsertion, JsonNull, JsonBool, JsonNumber, JsonString, JsonArray,
+using ProjecturedKernel.ReferenceCaseModule: var"@reference_case", when, prefix
+using ProjecturedKernel.EventCaseModule: var"@event_case"
+using ProjecturedKernel.ReferenceBuilderModule: var"@reference", var"@step"
+using ProjecturedKernel.OperationApiModule: Operation, evaluate_operation
+using ProjecturedDomain.JsonModule: JsonDocument, JsonInsertion, JsonNull, JsonBool, JsonNumber, JsonString, JsonArray,
                    JsonObject, JsonObjectEntry, jsonvalue, entries
-using .TabularModule: TabularDocument, TabularCell, TabularRow, TabularGrid,
+using ProjecturedDomain.TabularModule: TabularDocument, TabularCell, TabularRow, TabularGrid,
                       tabular_cell, tabular_column,
                       insert_row!, delete_row!, insert_column!, delete_column!
-using .DatabaseDocumentModule: DatabaseDocument, DatabaseTable,
+using ProjecturedDomain.DatabaseDocumentModule: DatabaseDocument, DatabaseTable,
                                DatabaseUpdateOperation, DatabaseInsertOperation
-using .DatabaseModule: DatabaseAdapter, RawDatabaseResult, make_database_adapter,
+using ProjecturedDomain.DatabaseModule: DatabaseAdapter, RawDatabaseResult, make_database_adapter,
                        db_connect!, db_close!, db_alive,
                        db_rowid_column,
                        db_query, db_execute_raw,
@@ -275,8 +69,8 @@ using .DatabaseModule: DatabaseAdapter, RawDatabaseResult, make_database_adapter
 # OdbcDatabaseAdapter, the connection pool, and the DatabaseTableToTabularGrid /
 # SqlToCellTable / DatabaseInstanceToDbCatalog live-query projections live in the
 # ProjecturedODBCExt extension (build an adapter via make_database_adapter(:odbc)).
-using .DatabaseInstanceDocumentModule: DatabaseInstanceDocument, DatabaseInstance, DatabaseCredentials
-using .SqlDocumentModule: SqlDocument, SqlStatement,
+using ProjecturedDomain.DatabaseInstanceDocumentModule: DatabaseInstanceDocument, DatabaseInstance, DatabaseCredentials
+using ProjecturedDomain.SqlDocumentModule: SqlDocument, SqlStatement,
                           SqlSelectExpression, SqlFromBaseItem, SqlJoinType, SqlJoinCondition,
                           SqlJoinConditionExpression, SqlWhereCondition,
                           SqlTableName, SqlTableAlias, SqlColumnName, SqlColumnAlias,
@@ -293,132 +87,132 @@ using .SqlDocumentModule: SqlDocument, SqlStatement,
                           SqlWhereFilterCondition, SqlBooleanExpression,
                           SqlScalarValue, SqlComparison,
                           SqlAnd, SqlOr, SqlNot
-using .DbCatalogDocumentModule: DbCatalogDocument,
+using ProjecturedDomain.DbCatalogDocumentModule: DbCatalogDocument,
                                 DbCatalogRdbms, DbCatalogDatabase, DbCatalogSchema,
                                 DbCatalogTable, DbCatalogColumn
-using .CellTableToTableModule: CellTableToTable, CellTableToWidgetTable
-using .DbCatalogToJsonModule: DbCatalogRdbmsToJson, DbCatalogDatabaseToJson,
+using ProjecturedDomain.CellTableToTableModule: CellTableToTable, CellTableToWidgetTable
+using ProjecturedDomain.DbCatalogToJsonModule: DbCatalogRdbmsToJson, DbCatalogDatabaseToJson,
                                DbCatalogSchemaToJson, DbCatalogTableToJson, DbCatalogColumnToJson,
                                DbCatalogToJson
-using .DbCatalogToSqlModule: DbCatalogRdbmsToSql, DbCatalogDatabaseToSql,
+using ProjecturedDomain.DbCatalogToSqlModule: DbCatalogRdbmsToSql, DbCatalogDatabaseToSql,
                               DbCatalogSchemaToSql, DbCatalogTableToSql, DbCatalogColumnToSql,
                               DbCatalogToSql
-using .DbCatalogToSyntaxModule: DbCatalogColumnToSyntaxLeaf, DbCatalogTableToSyntaxNode,
+using ProjecturedDomain.DbCatalogToSyntaxModule: DbCatalogColumnToSyntaxLeaf, DbCatalogTableToSyntaxNode,
                                 DbCatalogSchemaToSyntaxNode, DbCatalogDatabaseToSyntaxNode,
                                 DbCatalogRdbmsToSyntaxNode, DbCatalogToSyntax,
                                 dbcatalog_marker_eligible
-using .XmlModule: XmlDocument, XmlInsertion, XmlText, XmlAttribute, XmlElement, xmlattr,
+using ProjecturedDomain.XmlModule: XmlDocument, XmlInsertion, XmlText, XmlAttribute, XmlElement, xmlattr,
                   setattr!, deleteattr!
-using .FileSystemModule: FileSystemDocument, FileSystemInsertion,
+using ProjecturedDomain.FileSystemModule: FileSystemDocument, FileSystemInsertion,
                          FileSystemFile, FileSystemDirectory, make_filesystem_pathname
-using .WorkspaceModule: WorkspaceDocument, WorkspaceFolder, Workspace
-using .TextModule: TextDocument, TextInsertion, TextText, TextString, TextNewline, TextGraphics
-using .PrimitiveModule: PrimitiveDocument, PrimitiveInsertion,
+using ProjecturedDomain.WorkspaceModule: WorkspaceDocument, WorkspaceFolder, Workspace
+using ProjecturedDomain.TextModule: TextDocument, TextInsertion, TextText, TextString, TextNewline, TextGraphics
+using ProjecturedKernel.PrimitiveModule: PrimitiveDocument, PrimitiveInsertion,
                         PrimitiveBool, PrimitiveNumber, PrimitiveString,
                         NumberReplaceRangeOperation, StringReplaceRangeOperation
-using .MathModule: MathDocument, MathInsertion, MathVariable, MathBinaryOperation,
+using ProjecturedDomain.MathModule: MathDocument, MathInsertion, MathVariable, MathBinaryOperation,
                    MathParenthesized, MathAssignment
-using .JuliaModule: JuliaDocument, JuliaIdentifier, JuliaInteger, JuliaBinaryOp, JuliaCall,
+using ProjecturedDomain.JuliaModule: JuliaDocument, JuliaIdentifier, JuliaInteger, JuliaBinaryOp, JuliaCall,
                     JuliaIf, JuliaFunction, JuliaBlock, JuliaInsertion
-using .SyntaxModule: SyntaxDocument, SyntaxInsertion, SyntaxLeaf, SyntaxNode, render
-using .GraphicsModule: GraphicsDocument, GraphicsInsertion,
+using ProjecturedDomain.SyntaxModule: SyntaxDocument, SyntaxInsertion, SyntaxLeaf, SyntaxNode, render
+using ProjecturedDomain.GraphicsModule: GraphicsDocument, GraphicsInsertion,
                        GraphicsText, GraphicsRect, GraphicsLine, GraphicsCircle,
                        GraphicsPolyline, GraphicsSpline, GraphicsCanvas, GraphicsViewport, GraphicsImage,
                        GraphicsFence, LayoutDirection, layout_none, layout_horizontal, layout_vertical,
                        hit_element_at, tessellate_spline, polyline_arrowhead, point_near_polyline
-using .ModifiersModule: Modifiers
-using .KeyboardModule: Keyboard, KeyDown, KeyUp, KeyPress, is_ctrl, is_shift, is_alt, is_meta
-using .MouseModule: MouseDown, MouseUp, MousePress, MouseMove, MouseScroll
-using .BackendModule: Backend, init!, quit!, measure_text, make_backend,
+using ProjecturedKernel.ModifiersModule: Modifiers
+using ProjecturedKernel.KeyboardModule: Keyboard, KeyDown, KeyUp, KeyPress, is_ctrl, is_shift, is_alt, is_meta
+using ProjecturedKernel.MouseModule: MouseDown, MouseUp, MousePress, MouseMove, MouseScroll
+using ProjecturedKernel.BackendModule: Backend, init!, quit!, measure_text, make_backend,
                       write_image, record_video,
                       render_canvas, decode_image, display_size, set_display_size_provider!
 # SdlBackend and the sdl_* / GraphicsCanvasToImageFile symbols live in the
 # ProjecturedSDLExt extension; build the backend via make_backend(:sdl) and reach
 # rendering/decoding through the core seams (render_canvas/decode_image/write_image).
-using .ConsoleBackendModule: ConsoleBackend, console_render
+using ProjecturedDomain.ConsoleBackendModule: ConsoleBackend, console_render
 # WebBackend lives in the ProjecturedWebExt extension; build it via make_backend(:web).
-using .PdfBackendModule: write_pdf, GraphicsCanvasToPdfFile, pdf_measure_text, truetype_measure_text
+using ProjecturedDomain.PdfBackendModule: write_pdf, GraphicsCanvasToPdfFile, pdf_measure_text, truetype_measure_text
 
-using .DeviceModule: Device, write_to_device, read_from_device, write_to_devices, read_from_devices
-using .ScreenModule: Screen, QuitEvent
-using .IoMapApiModule: IoMap
-using .IoMapModule: SimpleIoMap, ChildrenIoMap, ContentIoMap
-using .TypeDispatchingModule: TypeDispatchingProjection
-using .RecursiveProjectionModule: RecursiveProjection
-using .SequentialProjectionModule: SequentialProjection, SequentialProjectionIoMap
-using .AlternativeProjectionModule: AlternativeProjection, AlternativeProjectionIoMap
-using .PredicateDispatchingModule: PredicateDispatchingProjection
-using .PreservingProjectionModule: PreservingProjection
-using .InvariablyProjectionModule: InvariablyProjection
-using .ReferenceDispatchingModule: ReferenceDispatchingProjection, ReferenceDispatchingIoMap
-using .HigherOrderCompoundModule: ApplyAtProjection
-using .GenericCompoundModule: SortingAtProjection
-using .NestingProjectionModule: NestingProjection, NestingProjectionIoMap
-using .EnvelopeUnwrappingModule: EnvelopeUnwrappingProjection, EnvelopeUnwrappingIoMap
-using .WindowManagerProjectionModule: WindowManagerProjection, WindowManagerProjectionIoMap
-using .ScreenToScreenModule: ScreenToScreen, ScreenToScreenIoMap, ScreenWindowIoMap
-using .TooltipDecoratorProjectionModule: TooltipDecoratorProjection, TooltipDecoratorProjectionIoMap
-using .DraggingDocumentModule: DraggingState, DraggingDocument
-using .DraggingProjectionModule: DraggingProjection, DraggingProjectionIoMap, MoveRangeOperation
-using .ReversingProjectionModule: ReversingProjection
-using .FilteringProjectionModule: FilteringProjection, FilteringProjectionIoMap
-using .SearchingProjectionModule: SearchingProjection, SearchingProjectionIoMap
-using .ObjectToWidgetModule: ObjectToWidget, ObjectToWidgetIoMap
-using .ProjectionConfiguringProjectionModule: ProjectionConfiguringProjection, ProjectionConfiguringProjectionIoMap
-using .SortingProjectionModule: SortingProjection, SortingProjectionIoMap
-using .CopyingProjectionModule: CopyingProjection, CopyingProjectionIoMap
-using .DocumentCopyModule: copy_document
-using .ClipboardToAnyProjectionModule: ClipboardSliceToAnyProjection, ClipboardCollectionToAnyProjection,
+using ProjecturedKernel.DeviceModule: Device, write_to_device, read_from_device, write_to_devices, read_from_devices
+using ProjecturedKernel.ScreenModule: Screen, QuitEvent
+using ProjecturedKernel.IoMapApiModule: IoMap
+using ProjecturedKernel.IoMapModule: SimpleIoMap, ChildrenIoMap, ContentIoMap
+using ProjecturedKernel.TypeDispatchingModule: TypeDispatchingProjection
+using ProjecturedKernel.RecursiveProjectionModule: RecursiveProjection
+using ProjecturedKernel.SequentialProjectionModule: SequentialProjection, SequentialProjectionIoMap
+using ProjecturedKernel.AlternativeProjectionModule: AlternativeProjection, AlternativeProjectionIoMap
+using ProjecturedKernel.PredicateDispatchingModule: PredicateDispatchingProjection
+using ProjecturedKernel.PreservingProjectionModule: PreservingProjection
+using ProjecturedKernel.InvariablyProjectionModule: InvariablyProjection
+using ProjecturedKernel.ReferenceDispatchingModule: ReferenceDispatchingProjection, ReferenceDispatchingIoMap
+using ProjecturedDomain.HigherOrderCompoundModule: ApplyAtProjection
+using ProjecturedDomain.GenericCompoundModule: SortingAtProjection
+using ProjecturedKernel.NestingProjectionModule: NestingProjection, NestingProjectionIoMap
+using ProjecturedKernel.EnvelopeUnwrappingModule: EnvelopeUnwrappingProjection, EnvelopeUnwrappingIoMap
+using ProjecturedKernel.WindowManagerProjectionModule: WindowManagerProjection, WindowManagerProjectionIoMap
+using ProjecturedDomain.ScreenToScreenModule: ScreenToScreen, ScreenToScreenIoMap, ScreenWindowIoMap
+using ProjecturedDomain.TooltipDecoratorProjectionModule: TooltipDecoratorProjection, TooltipDecoratorProjectionIoMap
+using ProjecturedDomain.DraggingDocumentModule: DraggingState, DraggingDocument
+using ProjecturedDomain.DraggingProjectionModule: DraggingProjection, DraggingProjectionIoMap, MoveRangeOperation
+using ProjecturedKernel.ReversingProjectionModule: ReversingProjection
+using ProjecturedKernel.FilteringProjectionModule: FilteringProjection, FilteringProjectionIoMap
+using ProjecturedKernel.SearchingProjectionModule: SearchingProjection, SearchingProjectionIoMap
+using ProjecturedDomain.ObjectToWidgetModule: ObjectToWidget, ObjectToWidgetIoMap
+using ProjecturedDomain.ProjectionConfiguringProjectionModule: ProjectionConfiguringProjection, ProjectionConfiguringProjectionIoMap
+using ProjecturedKernel.SortingProjectionModule: SortingProjection, SortingProjectionIoMap
+using ProjecturedKernel.CopyingProjectionModule: CopyingProjection, CopyingProjectionIoMap
+using ProjecturedKernel.DocumentCopyModule: copy_document
+using ProjecturedDomain.ClipboardToAnyProjectionModule: ClipboardSliceToAnyProjection, ClipboardCollectionToAnyProjection,
                                      ClipboardSliceToAnyProjectionIoMap, ClipboardCollectionToAnyProjectionIoMap,
                                      ToggleClipboardSliceDisplayOperation, ToggleClipboardCollectionDisplayOperation
-using .VersioningToAnyProjectionModule: VersioningToAnyProjection, VersioningToAnyProjectionIoMap,
+using ProjecturedDomain.VersioningToAnyProjectionModule: VersioningToAnyProjection, VersioningToAnyProjectionIoMap,
                                        SetVersionCriterionOperation
-using .FocusingProjectionModule: FocusingProjection, ReplaceFocusPartOperation
-using .JsonToSyntaxModule: JsonToSyntax, JsonStringToSyntaxLeaf,
+using ProjecturedKernel.FocusingProjectionModule: FocusingProjection, ReplaceFocusPartOperation
+using ProjecturedDomain.JsonToSyntaxModule: JsonToSyntax, JsonStringToSyntaxLeaf,
                                JsonNullToSyntaxLeaf, JsonBoolToSyntaxLeaf,
                                JsonNumberToSyntaxLeaf, JsonArrayToSyntaxNode,
                                JsonObjectToSyntaxNode,
                                JsonInsertionToSyntaxLeaf
-using .XmlToSyntaxModule: XmlToSyntax, XmlTextToSyntaxLeaf, XmlElementToSyntaxNode
-using .FileSystemToSyntaxModule: FileSystemFileToSyntaxLeaf, FileSystemDirectoryToSyntaxNode, FileSystemToSyntax,
+using ProjecturedDomain.XmlToSyntaxModule: XmlToSyntax, XmlTextToSyntaxLeaf, XmlElementToSyntaxNode
+using ProjecturedDomain.FileSystemToSyntaxModule: FileSystemFileToSyntaxLeaf, FileSystemDirectoryToSyntaxNode, FileSystemToSyntax,
                                  filesystem_marker_eligible
-using .WorkspaceToFileSystemModule: WorkspaceFolderToFileSystemDirectory, WorkspaceToFileSystem
-using .ObjectToSyntaxModule: ObjectToSyntax, NothingToSyntaxLeaf, BoolToSyntaxLeaf,
+using ProjecturedDomain.WorkspaceToFileSystemModule: WorkspaceFolderToFileSystemDirectory, WorkspaceToFileSystem
+using ProjecturedDomain.ObjectToSyntaxModule: ObjectToSyntax, NothingToSyntaxLeaf, BoolToSyntaxLeaf,
                               NumberToSyntaxLeaf, StringToSyntaxLeaf, SymbolToSyntaxLeaf,
                               CharToSyntaxLeaf, ObjectNodeToSyntaxNode, print_object, search_references, search_objects
-using .ObjectToJsonModule: ObjectToJson, NothingToJsonNull, BoolToJsonBool,
+using ProjecturedDomain.ObjectToJsonModule: ObjectToJson, NothingToJsonNull, BoolToJsonBool,
                             NumberToJsonNumber, StringToJsonString, SymbolToJsonString,
                             CharToJsonString, CellToJson, ObjectNodeToJsonObject, json_object
-using .BookToSyntaxModule: BookBookToSyntaxNode, BookChapterToSyntaxNode,
+using ProjecturedDomain.BookToSyntaxModule: BookBookToSyntaxNode, BookChapterToSyntaxNode,
                             BookParagraphToSyntaxLeaf, BookListToSyntaxNode,
                             BookPictureToSyntaxLeaf, BookToSyntax
-using .ClipboardModule: ClipboardDocument, ClipboardInsertion,
+using ProjecturedDomain.ClipboardModule: ClipboardDocument, ClipboardInsertion,
                         ClipboardSlice, ClipboardCollection
-using .VersioningModule: VersioningDocument, VersionProperties, ObjectVersion, VersionedObject,
+using ProjecturedDomain.VersioningModule: VersioningDocument, VersionProperties, ObjectVersion, VersionedObject,
                          IVersionProperties, IObjectVersion, IVersionedObject,
                          VersionCriterion, VersionCriterionLatest, VersionCriterionIndex,
                          VersionCriterionByAuthor, VersionCriterionAsOf, VersionCriterionPredicate,
                          select_version
-using .CollectionModule: CellVector, CellMatrix, CellTable, ListNode, CollectionDocument, left_tail, right_tail, cell_at, take_first_n
-using .BookModule: BookDocument, BookInsertion,
+using ProjecturedKernel.CollectionModule: CellVector, CellMatrix, CellTable, ListNode, CollectionDocument, left_tail, right_tail, cell_at, take_first_n
+using ProjecturedDomain.BookModule: BookDocument, BookInsertion,
                    BookBook, BookChapter, BookParagraph, BookList, BookPicture
-using .JuliaParserModule: juliaparse, juliaparse_file
-using .JsonParserModule: jsonparse, jsonparse_file
-using .XmlParserModule: xmlparse, xmlparse_file
-using .SqlParserModule: sqlparse, sqlparse_file
-using .ComponentModule: ComponentDocument, ComponentMasterDetail
-using .WorkbenchModule: WorkbenchDocument, WorkbenchInsertion,
+using ProjecturedDomain.JuliaParserModule: juliaparse, juliaparse_file
+using ProjecturedDomain.JsonParserModule: jsonparse, jsonparse_file
+using ProjecturedDomain.XmlParserModule: xmlparse, xmlparse_file
+using ProjecturedDomain.SqlParserModule: sqlparse, sqlparse_file
+using ProjecturedDomain.ComponentModule: ComponentDocument, ComponentMasterDetail
+using ProjecturedDomain.WorkbenchModule: WorkbenchDocument, WorkbenchInsertion,
                         WorkbenchWorkbench, WorkbenchPage,
                         WorkbenchNavigator, WorkbenchConsole, WorkbenchDescriptor,
                         WorkbenchOperator, WorkbenchSearcher, WorkbenchEvaluator,
                         WorkbenchAssistant,
                         WorkbenchEditor,
                         WorkbenchOpenDocumentOperation, WorkbenchCloseDocumentOperation
-using .ColorModule: StyleColor
-using .GeometryModule: Inset, Point2D,
+using ProjecturedDomain.ColorModule: StyleColor
+using ProjecturedDomain.GeometryModule: Inset, Point2D,
                       inset_default, inset_size, inset_width, inset_height,
                       inset_top_left, inset_top_right, inset_bottom_left, inset_bottom_right
-using .WidgetModule: WidgetDocument, WidgetInsertion,
+using ProjecturedDomain.WidgetModule: WidgetDocument, WidgetInsertion,
                      WidgetLabel, WidgetText, WidgetCheckbox, WidgetButton,
                      WidgetTooltip, WidgetMenu, WidgetMenuItem, WidgetComposite,
                      WidgetShell, WidgetTitlePane, WidgetSplitPane, WidgetTabbedPane,
@@ -430,34 +224,34 @@ using .WidgetModule: WidgetDocument, WidgetInsertion,
                      HideWidgetOperation, ShowWidgetOperation,
                      ScrollWidgetOperation, SelectTabOperation, SetScrollBarValueOperation,
                      StartSplitterDragOperation, ResizeSplitPaneOperation, EndSplitterDragOperation
-using .LayoutModule: LayoutDocument,
+using ProjecturedDomain.LayoutModule: LayoutDocument,
                      HorizontalLayout, VerticalLayout, GridLayout, FlowLayout,
                      LayoutConstraint, allocate_axis,
                      layout_min, layout_max, layout_preferred, layout_weight
-using .GraphModule: GraphDocument, GraphInsertion, GraphVertex, GraphEdge, GraphGraph
-using .GraphLayoutModule: GraphLayoutDocument, VertexLayout, EdgeLayout, GraphLayout, GraphConstraint
-using .GraphLayoutEngineModule: GraphLayoutEngine, FallbackLayoutEngine, AdaptagramsEngine, layout_graph
-using .ImageModule: ImageDocument, ImageInsertion, ImageFile, ImageMemory
-using .ScreenDocumentModule: ScreenDocument, WindowDocument, EventEnvelope, WindowCloseRequest, WindowResizeEvent
-using .TooltipDocumentModule: TooltipSource
-using .TextToStringModule: TextToString, TextTextToString, TextStringToString, TextNewlineToString
-using .TextLineNumberingModule: LineNumbering, TextLineNumbering
-using .WordWrappingModule: WordWrapping, WordWrappingIoMap, WrapSeg
-using .TextFirstLineModule: TextFirstLine, TextFirstLineIoMap
-using .TextFilteringModule: TextFiltering, TextFilteringIoMap
-using .TextHighlightingModule: TextHighlighting, TextHighlightingIoMap, HighlightSeg
-using .SelectionInvertingModule: SelectionInverting, SelectionInvertingIoMap, SelSeg
-using .SyntaxToTextModule: SyntaxToText, SyntaxNodeToTextIoMap,
+using ProjecturedDomain.GraphModule: GraphDocument, GraphInsertion, GraphVertex, GraphEdge, GraphGraph
+using ProjecturedDomain.GraphLayoutModule: GraphLayoutDocument, VertexLayout, EdgeLayout, GraphLayout, GraphConstraint
+using ProjecturedDomain.GraphLayoutEngineModule: GraphLayoutEngine, FallbackLayoutEngine, AdaptagramsEngine, layout_graph
+using ProjecturedDomain.ImageModule: ImageDocument, ImageInsertion, ImageFile, ImageMemory
+using ProjecturedKernel.ScreenDocumentModule: ScreenDocument, WindowDocument, EventEnvelope, WindowCloseRequest, WindowResizeEvent
+using ProjecturedDomain.TooltipDocumentModule: TooltipSource
+using ProjecturedDomain.TextToStringModule: TextToString, TextTextToString, TextStringToString, TextNewlineToString
+using ProjecturedDomain.TextLineNumberingModule: LineNumbering, TextLineNumbering
+using ProjecturedDomain.WordWrappingModule: WordWrapping, WordWrappingIoMap, WrapSeg
+using ProjecturedDomain.TextFirstLineModule: TextFirstLine, TextFirstLineIoMap
+using ProjecturedDomain.TextFilteringModule: TextFiltering, TextFilteringIoMap
+using ProjecturedDomain.TextHighlightingModule: TextHighlighting, TextHighlightingIoMap, HighlightSeg
+using ProjecturedDomain.SelectionInvertingModule: SelectionInverting, SelectionInvertingIoMap, SelSeg
+using ProjecturedDomain.SyntaxToTextModule: SyntaxToText, SyntaxNodeToTextIoMap,
                                        SyntaxLeafToText, SyntaxListToText
-using .PrimitiveToSyntaxModule: PrimitiveToSyntax, PrimitiveBoolToSyntaxLeaf,
+using ProjecturedDomain.PrimitiveToSyntaxModule: PrimitiveToSyntax, PrimitiveBoolToSyntaxLeaf,
                                  PrimitiveNumberToSyntaxLeaf, PrimitiveStringToSyntaxLeaf
-using .PrimitiveToTextModule: PrimitiveToText, PrimitiveBoolToText,
+using ProjecturedDomain.PrimitiveToTextModule: PrimitiveToText, PrimitiveBoolToText,
                                PrimitiveNumberToText, PrimitiveStringToTextText
-using .ReferenceToTextModule: ReferenceToText, ReferenceToHumanReadableText
-using .MathToSyntaxModule: MathToSyntax, MathInsertionToSyntaxLeaf, MathVariableToSyntaxLeaf,
+using ProjecturedDomain.ReferenceToTextModule: ReferenceToText, ReferenceToHumanReadableText
+using ProjecturedDomain.MathToSyntaxModule: MathToSyntax, MathInsertionToSyntaxLeaf, MathVariableToSyntaxLeaf,
                             MathBinaryOperationToSyntaxNode, MathParenthesizedToSyntaxNode,
                             MathAssignmentToSyntaxNode
-using .SqlToSyntaxModule: SqlToSyntax, SqlAllColumnsToSyntaxLeaf, SqlColumnReferenceToSyntaxLeaf,
+using ProjecturedDomain.SqlToSyntaxModule: SqlToSyntax, SqlAllColumnsToSyntaxLeaf, SqlColumnReferenceToSyntaxLeaf,
                           SqlColumnNameToSyntaxLeaf,
                           SqlTableExpressionToSyntaxLeaf, SqlJoinTypeToSyntaxLeaf,
                           SqlSelectItemToSyntaxNode, SqlSelectClauseToSyntaxNode,
@@ -469,30 +263,30 @@ using .SqlToSyntaxModule: SqlToSyntax, SqlAllColumnsToSyntaxLeaf, SqlColumnRefer
                           SqlUpdateStatementToSyntaxNode,
                           SqlColumnDefinitionToSyntaxNode, SqlCreateTableStatementToSyntaxNode,
                           SqlCreateSchemaStatementToSyntaxNode, SqlStatementListToSyntaxNode
-using .JuliaToSyntaxModule: JuliaToSyntax, JuliaIdentifierToSyntaxLeaf, JuliaIntegerToSyntaxLeaf,
+using ProjecturedDomain.JuliaToSyntaxModule: JuliaToSyntax, JuliaIdentifierToSyntaxLeaf, JuliaIntegerToSyntaxLeaf,
                              JuliaBinaryOpToSyntaxNode, JuliaCallToSyntaxNode,
                              JuliaIfToSyntaxNode, JuliaFunctionToSyntaxNode,
                              JuliaBlockToSyntaxNode
-using .FormulaToSyntaxModule: FormulaToSyntax, FormulaInsertionToSyntaxLeaf,
+using ProjecturedDomain.FormulaToSyntaxModule: FormulaToSyntax, FormulaInsertionToSyntaxLeaf,
                               FormulaReferenceToSyntaxLeaf, FormulaFormulaToSyntaxNode,
                               FormulaEnvironmentToSyntaxNode
-using .DocumentInsertionToSyntaxModule: InsertionToSyntaxLeaf,
+using ProjecturedDomain.DocumentInsertionToSyntaxModule: InsertionToSyntaxLeaf,
                                          DocumentInsertionToSyntaxLeaf, JuliaInsertionToSyntaxLeaf,
                                          default_factory, default_completion
-using .CollectionToSyntaxModule: CollectionToSyntax, CollectionCellVectorToSyntax,
+using ProjecturedDomain.CollectionToSyntaxModule: CollectionToSyntax, CollectionCellVectorToSyntax,
                                   CollectionListNodeToSyntax
-using .TextToGraphicsModule: TextToGraphics, TextToGraphicsIoMap
-using .LayoutToGraphicsModule: HorizontalLayoutToGraphicsCanvas,
+using ProjecturedDomain.TextToGraphicsModule: TextToGraphics, TextToGraphicsIoMap
+using ProjecturedDomain.LayoutToGraphicsModule: HorizontalLayoutToGraphicsCanvas,
                                VerticalLayoutToGraphicsCanvas,
                                GridLayoutToGraphicsCanvas,
                                FlowLayoutToGraphicsCanvas,
                                LayoutConstraintToGraphicsCanvas,
                                LayoutToGraphics, GridLayoutIoMap
-using .GraphToGraphLayoutModule: GraphGraphToGraphLayout, GraphToGraphLayout,
+using ProjecturedDomain.GraphToGraphLayoutModule: GraphGraphToGraphLayout, GraphToGraphLayout,
                                  GraphGraphToGraphLayoutIoMap
-using .GraphLayoutToGraphicsModule: GraphLayoutToGraphicsCanvas,
+using ProjecturedDomain.GraphLayoutToGraphicsModule: GraphLayoutToGraphicsCanvas,
                                     GraphLayoutToGraphicsCanvasIoMap
-using .WidgetToGraphicsModule: WidgetInsertionToGraphicsCanvas, WidgetLabelToGraphicsCanvas, WidgetTextToGraphicsCanvas,
+using ProjecturedDomain.WidgetToGraphicsModule: WidgetInsertionToGraphicsCanvas, WidgetLabelToGraphicsCanvas, WidgetTextToGraphicsCanvas,
                                WidgetCheckboxToGraphicsCanvas, WidgetButtonToGraphicsCanvas,
                                WidgetTooltipToGraphicsCanvas, WidgetMenuToGraphicsCanvas,
                                WidgetMenuItemToGraphicsCanvas, WidgetCompositeToGraphicsCanvas,
@@ -503,9 +297,9 @@ using .WidgetToGraphicsModule: WidgetInsertionToGraphicsCanvas, WidgetLabelToGra
                                WidgetToGraphics, WidgetTheme, widget_theme_light, widget_theme_dark,
                                widget_theme_slate_light, widget_theme_slate_dark,
                                WidgetScrollPaneToGraphicsViewport, WidgetScrollPaneToGraphicsViewportIoMap
-using .TextToWidgetModule: TextToWidget, TextToWidgetIoMap, WidgetAndTextToGraphics
-using .SyntaxToWidgetModule: SyntaxToWidget, SyntaxLeafToWidget, SyntaxNodeToWidget
-using .WorkbenchToWidgetModule: WorkbenchWorkbenchToWidgetShell,    WorkbenchWorkbenchToWidgetShellIoMap,
+using ProjecturedDomain.TextToWidgetModule: TextToWidget, TextToWidgetIoMap, WidgetAndTextToGraphics
+using ProjecturedDomain.SyntaxToWidgetModule: SyntaxToWidget, SyntaxLeafToWidget, SyntaxNodeToWidget
+using ProjecturedDomain.WorkbenchToWidgetModule: WorkbenchWorkbenchToWidgetShell,    WorkbenchWorkbenchToWidgetShellIoMap,
                                 WorkbenchPageToWidgetTabbedPane,    WorkbenchPageToWidgetTabbedPaneIoMap,
                                 WorkbenchNavigatorToWidgetScrollPane, WorkbenchNavigatorToWidgetScrollPaneIoMap,
                                 WorkbenchConsoleToWidgetScrollPane,
@@ -516,46 +310,46 @@ using .WorkbenchToWidgetModule: WorkbenchWorkbenchToWidgetShell,    WorkbenchWor
                                 WorkbenchAssistantToWidgetSplitPane,
                                 WorkbenchEditorToWidgetScrollPane,
                                 WorkbenchToWidget
-using .GraphicsCachingModule: GraphicsCanvasToGraphicsImage, GraphicsCaching
-using .GestureRecognizerModule: GestureRecognizer, recognize!, next_gesture!
-using .EditorModule: Editor, run!, play_live!
-using .AgentModule: make_agent_server, agent_server_start!, agent_server_stop!
+using ProjecturedDomain.GraphicsCachingModule: GraphicsCanvasToGraphicsImage, GraphicsCaching
+using ProjecturedKernel.GestureRecognizerModule: GestureRecognizer, recognize!, next_gesture!
+using ProjecturedKernel.EditorModule: Editor, run!, play_live!
+using ProjecturedKernel.AgentModule: make_agent_server, agent_server_start!, agent_server_stop!
 # McpModule (core) holds the dependency-free editor tools; the MCP transport
 # (McpServer, mcp_start!/stop!, mcp_tools/resources) lives in the
 # ProjecturedMCPExt extension and is reached through make_agent_server(:mcp, …).
-using .McpModule: search_documentation, search_api,
+using ProjecturedKernel.McpModule: search_documentation, search_api,
                   list_guides, read_guide, list_modules, list_classes, list_functions,
                   read_module_documentation, read_class_documentation, read_function_documentation,
                   execute_julia_code, register_default_tools_and_resources!
-using .ToolRegistryModule: Tool, Resource,
+using ProjecturedKernel.ToolRegistryModule: Tool, Resource,
                             register_tool!, register_tools!, list_tools, call_tool,
                             register_resource!, register_resources!, list_resources, read_resource,
                             anthropic_tool_schema
 # stream_message (the Anthropic HTTP client) lives in the ProjecturedLLMExt extension.
-using .LlmModule: LlmBackend, AnthropicLlm, FakeLlm, stream_turn
-using .EvaluatorModule: EvaluatorDocument, EvaluatorForm, EvaluatorToplevel, result_text, eval_kind_label
-using .FormulaModule: FormulaDocument, FormulaInsertion, FormulaReference, FormulaFormula,
+using ProjecturedKernel.LlmModule: LlmBackend, AnthropicLlm, FakeLlm, stream_turn
+using ProjecturedDomain.EvaluatorModule: EvaluatorDocument, EvaluatorForm, EvaluatorToplevel, result_text, eval_kind_label
+using ProjecturedDomain.FormulaModule: FormulaDocument, FormulaInsertion, FormulaReference, FormulaFormula,
                       FormulaEnvironment, formula_result_text, wire_result!,
                       resolve, column_letter, cell_name,
                       formula_references, formula_dependencies,
                       would_create_cycle, topological_order,
                       formula_to_expr, evaluate_formula
-using .ConversationModule: ConversationDocument, ConversationConversation,
+using ProjecturedDomain.ConversationModule: ConversationDocument, ConversationConversation,
                             ConversationTurn, ConversationPart, ConversationDraft,
                             ConversationThinking, thinking_part
-using .ConversationToSyntaxModule: ConversationToSyntax,
+using ProjecturedDomain.ConversationToSyntaxModule: ConversationToSyntax,
                                     ConversationConversationToSyntaxNode,
                                     ConversationTurnToSyntaxNode,
                                     ConversationPartToSyntaxNode
-using .ConversationToWidgetModule: ConversationToWidget,
+using ProjecturedDomain.ConversationToWidgetModule: ConversationToWidget,
                                     ConversationConversationToWidgetComposite,
                                     ConversationTurnToWidgetComposite,
                                     ConversationPartToWidget
-using .WorkbenchAssistantModule: SubmitProseOperation, SubmitJuliaOperation, SubmitDraftTurnOperation,
+using ProjecturedDomain.WorkbenchAssistantModule: SubmitProseOperation, SubmitJuliaOperation, SubmitDraftTurnOperation,
                                    ClearInputOperation, ResetConversationOperation,
                                    build_messages, conversation_to_string, write_conversation, assistant_tool_schemas,
                                    dispatch_assistant_tool, parse_markdown_blocks
-using .ConversationEditorModule: ConversationComposerToWidget, composer_read,
+using ProjecturedDomain.ConversationEditorModule: ConversationComposerToWidget, composer_read,
                                   finalize_draft!, new_draft, reset_draft!,
                                   ComposerInputOperation, ComposerBackspaceOperation,
                                   ComposerNewlineOperation, ComposerInsertPartOperation,
@@ -827,7 +621,7 @@ export FormulaToSyntax, FormulaInsertionToSyntaxLeaf,
 export JuliaInsertion, InsertionToSyntaxLeaf,
        DocumentInsertionToSyntaxLeaf, JuliaInsertionToSyntaxLeaf,
        default_factory, default_completion
-using .DocumentCoreModule: DocumentBase, DocumentNothing, DocumentInsertion, DocumentReference
+using ProjecturedDomain.DocumentCoreModule: DocumentBase, DocumentNothing, DocumentInsertion, DocumentReference
 export DocumentBase, DocumentNothing, DocumentInsertion, DocumentReference
 export CollectionToSyntax, CollectionCellVectorToSyntax, CollectionListNodeToSyntax
 export TextToGraphics, WidgetToGraphics, WidgetTheme, widget_theme_light, widget_theme_dark,
