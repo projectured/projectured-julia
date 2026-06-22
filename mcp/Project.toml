@@ -1,0 +1,14 @@
+name = "ProjecturedMCP"
+uuid = "2b4e36b2-6b10-43fd-9b63-0a09efcd22da"
+version = "0.1.0"
+authors = []
+
+[deps]
+ModelContextProtocol = "c58f755f-f2a7-4f48-bf29-4e9659b78499"
+ProjecturedKernel = "a3e3499a-684d-4df9-a0d6-de2d1797b1f3"
+
+[sources]
+ProjecturedKernel = {path = "../kernel"}
+
+[compat]
+ModelContextProtocol = "0.4.1"

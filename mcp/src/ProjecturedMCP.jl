@@ -1,9 +1,9 @@
 """
-    ProjecturedMCPExt
+    ProjecturedMCP
 
-Package extension providing the MCP (Model Context Protocol) server transport for
-ProjecturEd. Loaded automatically when `ModelContextProtocol` is available in the
-session alongside `Projectured`.
+Opt-in package providing the MCP (Model Context Protocol) server transport for
+ProjecturEd. Depends on `ProjecturedKernel`; `using ProjecturedMCP` registers the
+`:mcp` agent-server methods and exposes `McpServer`.
 
 The dependency-free editor tools and their registration (`execute_julia_code`,
 `register_default_tools_and_resources!`, the documentation/API search tools) live
@@ -13,9 +13,9 @@ HTTP transport lifecycle, and the registry→MCP wire-format bridges — needs
 
 The editor loop never names `McpServer`: it goes through the generic
 `AgentModule` control surface (`make_agent_server(:mcp, editor)` etc.), whose
-`:mcp` methods this extension registers.
+`:mcp` methods this package registers.
 """
-module ProjecturedMCPExt
+module ProjecturedMCP
 
 using ModelContextProtocol
 using ModelContextProtocol: HttpTransport, TextResourceContents, ServerConfig
@@ -23,6 +23,8 @@ using ModelContextProtocol: HttpTransport, TextResourceContents, ServerConfig
 import ProjecturedKernel.ToolRegistryModule: Tool, Resource, list_tools, list_resources
 import ProjecturedKernel.McpModule: register_default_tools_and_resources!
 import ProjecturedKernel.AgentModule: make_agent_server, agent_server_start!, agent_server_stop!
+
+export McpServer, mcp_start!, mcp_stop!, mcp_tools, mcp_resources
 
 # Generic system prompt for MCP clients (domain-free). A richer, app-specific
 # prompt can be supplied by the caller via `make_agent_server(:mcp, editor;
@@ -190,4 +192,4 @@ function _make_resources()
     mcp_resources(list_resources())
 end
 
-end # module ProjecturedMCPExt
+end # module ProjecturedMCP

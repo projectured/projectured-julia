@@ -112,7 +112,9 @@ For each ext the steps are:
 5. **`export` the public API** so consumers name it directly (see per-package lists below).
 6. **Move runtime global-state registration into `__init__()`** (see correctness note).
 7. Delete that ext's entries from the parent's `[weakdeps]`/`[extensions]` and drop the
-   now-unused external weakdeps from the parent's `[weakdeps]`.
+   now-unused external weakdeps from the parent's `[weakdeps]`. **Do this per-package, not
+   batched at step 6** — leaving a `[extensions]` entry whose file has moved makes the
+   parent fail to load the (missing) ext when the trigger dep is present in the env.
 
 ### Critical correctness notes
 
@@ -200,7 +202,7 @@ After all five move out:
 ## Sequencing / commits (simplest-first to de-risk)
 
 Work in a dedicated worktree. One package per commit, each verified before the next:
-1. `ProjecturedMCP` (193 LOC, kernel-only, single seam) — smallest, proves the pattern.
+1. `ProjecturedMCP` (193 LOC, kernel-only, single seam) — smallest, proves the pattern. **DONE.**
 2. `ProjecturedLLM` (179 LOC, kernel-only).
 3. `ProjecturedODBC` (748 LOC) + retarget Example/Test off `get_extension`.
 4. `ProjecturedWeb` (838 LOC) + move `domain/web/` → `web/assets/` + path refit.
