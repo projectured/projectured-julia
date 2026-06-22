@@ -7,12 +7,12 @@ function test_sql_to_syntax()
     @testset "SqlToSyntax" begin
         stmt = SqlSelectStatement("persons")
 
-        # SqlToSyntax + SyntaxToText renders the display form
+        # SqlToSyntax + SyntaxToText + TextToString renders the display form
         pipe = SequentialProjection(
             RecursiveProjection(SqlToSyntax()),
-            RecursiveProjection(SyntaxToText()))
-        out = projection_print(pipe, stmt).output
-        @test join(s.content for s in out) == "SELECT \n  *\nFROM \n  persons\n"
+            RecursiveProjection(SyntaxToText()),
+            RecursiveProjection(TextToString()))
+        @test projection_print(pipe, stmt).output[] == "SELECT \n  *\nFROM \n  persons\n"
 
         # Top-level dispatch produces a SyntaxNode
         node = projection_print(RecursiveProjection(SqlToSyntax()), stmt).output
@@ -149,7 +149,7 @@ function test_sql_to_syntax_selection()
         RecursiveProjection(SyntaxToText()),
         TextToGraphics(measure=measure))
 
-    test_selection("SqlToSyntax nested", doc, proj)
+    test_text_navigation("SqlToSyntax nested", doc, proj)
 end
 
 function test_sql_ddl()
