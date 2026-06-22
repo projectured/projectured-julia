@@ -7,7 +7,7 @@ both). This is done in two phases, in this order, because Phase 1 forces the cle
 interface boundaries that Phase 2 then cuts along while everything is still in one
 package and refactorable in single PRs.
 
-Status: **pending**.
+Status: **Phase 1 complete; Phase 2 boundary frozen (see "FROZEN BOUNDARY" below), extraction in progress.**
 
 ## Current state (grounding)
 
@@ -354,6 +354,87 @@ attempting each):
 ---
 
 ## Phase 2 — Split into `ProjecturedKernel` / `ProjecturedDomain` / `Projectured`
+
+### FROZEN BOUNDARY + MECHANISM (decided 2026-06-22)
+
+**Mechanism — const module aliases, NOT a 1134-reference rewrite.** Empirically
+verified (`/tmp/alias_test.jl`): a relative reference `import ..ReactiveModule: x`
+*inside a submodule of `ProjecturedDomain`* resolves through a `const ReactiveModule =
+ProjecturedKernel.ReactiveModule` binding in the `ProjecturedDomain` parent — for both
+`import ..Alias: name` and `using ..Alias`. So domain files keep **every** `..XxxModule`
+reference verbatim; we only add ~37 `const` alias lines in the `ProjecturedDomain`
+module body (before any `include`). `ProjecturedKernel` is still a genuine standalone
+package (precompiles alone, no domain, no heavy deps), so the user's goal is fully met.
+This collapses the planned ~1134-edit sweep to ~37 alias definitions. **Confirmed safe:**
+`grep` found **zero** absolute `Projectured.`-qualified references in `program/src` and the
+macros (`@document`/`@projection`/`@iomap`/`@reference_case`/`@event_case`) hardcode no
+package name, so nothing breaks when files move to the new package roots.
+
+**Kernel file set — airtight closure (48 files / 48 modules, zero escapes).** Computed
+by closure from the seed; verified self-contained. Judgement calls resolved by the
+closure, not by taste:
+- `document/Collection.jl` → **KERNEL**. Deps are only Reactive/Document/Reference; the
+  kernel generic projections Filtering/Searching/Sorting/Copying need `CellVector`.
+- `document/Primitive.jl` → **KERNEL**. `common/OperationRerooting.jl` and
+  `common/Projection.jl` (kernel machinery) intrinsically depend on its
+  `StringReplaceRangeOperation`/`NumberReplaceRangeOperation`; Primitive's own deps are
+  all-kernel. It is edit-operation *vocabulary*, not a domain.
+- `document/Screen.jl` (`ScreenDocumentModule`) → **KERNEL**. Deps all-kernel
+  (Reactive/Document/Collection/Reference); the kernel editor loop needs its `EventEnvelope`.
+- `document/Text.jl`, `document/Syntax.jl` → **DOMAIN** (Text depends on Font/Color/
+  Geometry/Primitive; Syntax depends on Text).
+- `document/Font.jl`, `Color.jl`, `Geometry.jl` (+ StyleText/StyleStroke) → **DOMAIN**
+  (imported only by domain files).
+- `editor/Editor.jl`, `editor/GestureRecognizer.jl` → **KERNEL** — GestureRecognizer's
+  only deps are Mouse + ScreenDocument (both kernel) and dispatches on no concrete domain
+  type, which makes the whole editor loop's closure kernel. **No Editor.jl split needed.**
+- Agent surface → **KERNEL**: `api/Agent.jl` (no deps), `editor/ToolRegistry.jl` (no
+  cross-module deps), `editor/Llm.jl` (no deps), `editor/Mcp.jl` (core; only ToolRegistry).
+- Pure projection algebra → **KERNEL**: higherorder Sequential, TypeDispatching,
+  Recursive, Alternative, PredicateDispatching, ReferenceDispatching, Nesting,
+  EnvelopeUnwrapping, WindowManager; generic Preserving, Reversing, Filtering, Searching,
+  Sorting, Copying, Invariably, Focusing; plus `common/Projection.jl`.
+- Everything in `api/`, `common/`, `reference/`, `context/`, `device/` → **KERNEL**.
+- **Everything else** (all other `document/*`, `parser/*`, `backend/*`, `external/*`,
+  remaining `projection/*`, `layout/*`, the domain-coupled editors
+  WorkbenchAssistant/ConversationEditor, ObjectToWidget/ScreenToScreen/etc.) → **DOMAIN**.
+
+**Const aliases needed in `ProjecturedDomain`** (exact list — the 37 kernel modules
+referenced by domain files): BackendModule, CollectionModule, CopyingProjectionModule,
+DeviceModule, DocumentApiModule, DocumentCopyModule, DocumentModule, EventCaseModule,
+IoMapApiModule, IoMapModule, KeyboardModule, LlmModule, McpModule, ModifiersModule,
+MouseModule, NestingProjectionModule, OperationApiModule, OperationModule,
+OperationRerootingModule, PredicateDispatchingModule, PreservingProjectionModule,
+PrimitiveModule, PrinterContextModule, ProjectionApiModule, ProjectionModule,
+ReactiveModule, RecursiveProjectionModule, ReferenceBuilderModule, ReferenceCaseModule,
+ReferenceDispatchingModule, ReferenceModule, ScreenDocumentModule, ScreenModule,
+SequentialProjectionModule, SortingProjectionModule, ToolRegistryModule,
+TypeDispatchingModule.
+
+**Extension re-parenting** (each ext moves to the package whose modules it extends):
+- `ProjecturedMCPExt`, `ProjecturedLLMExt` → attach to **`ProjecturedKernel`** (extend
+  McpModule/AgentModule/ToolRegistryModule / LlmModule). Refs `Projectured.X` →
+  `ProjecturedKernel.X`. weakdeps move to `kernel/Project.toml`.
+- `ProjecturedSDLExt`, `ProjecturedODBCExt`, `ProjecturedWebExt` → attach to
+  **`ProjecturedDomain`**. Refs `Projectured.X` → `ProjecturedDomain.X` (domain's const
+  aliases cover the kernel modules they touch, e.g. BackendModule). weakdeps move to
+  `domain/Project.toml`.
+
+**Directory layout (decided):** keep `program/` as the umbrella package **`Projectured`
+with its existing uuid `92922de3-…`** (so `ProjecturedExample`/`ProjecturedTest` keep
+their `Projectured` dep unchanged). New sibling dirs `kernel/` (`ProjecturedKernel`) and
+`domain/` (`ProjecturedDomain`). Include lists for each = the current
+`program/src/Projectured.jl` include order filtered to that package's files (the existing
+order is already a valid topological sort; filtering preserves it). The umbrella
+`Projectured.jl` includes nothing — it does `using ProjecturedKernel, ProjecturedDomain`,
+re-aliases their public submodules, and carries the existing big re-export/`export` block.
+- **Asset-path caveat:** `program/web/` (index.html/client.js) is read by the Web ext via
+  `@__DIR__`-relative paths; move it to `domain/web/` and refit (`"../web"` from
+  `domain/ext` works; the shared repo-root `font/` stays put, `"../../font"` still resolves).
+- **Test retarget:** `Base.get_extension(Projectured, :ProjecturedSDLExt/:ProjecturedODBCExt)`
+  calls in `ProjecturedTest` become `Base.get_extension(ProjecturedDomain, …)`; add
+  `ProjecturedDomain` (and `ProjecturedKernel` if needed) as direct test deps. Wire all
+  five packages into the root env via `[sources]` path entries (Julia ≥1.11).
 
 ### Target package graph
 
