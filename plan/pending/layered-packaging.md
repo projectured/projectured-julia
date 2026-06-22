@@ -276,15 +276,22 @@ entries to `program/Project.toml`, and drop the moved deps from `[deps]`.
 > SimpleDirectMediaLayer/FFMPEG + `[extensions]`, drop the SDL symbols from the umbrella
 > re-export, and have `ProjecturedExample`/`ProjecturedTest` trigger+access the ext.
 > Apply the same factory seams to ODBC's pool/projections to unblock it identically.
-- [ ] **`ProjecturedWebExt`** — weakdeps `HTTP`, `JSON3`. Holds `backend/Web.jl`;
-      adds `make_backend(::Val{:web}, …)`. If stage 1.0 was done, Web is SDL-free; if
-      not, Web keeps a hard SDL dep and ships with the SDL extension instead.
-- [ ] **`ProjecturedLLMExt`** — weakdeps `HTTP`, `JSON3`. Holds `editor/Anthropic.jl`
-      (the concrete `LLMClient` over the Anthropic Messages API) + the
-      `anthropic_tool_schema` wire bridge; implements the kernel's `complete`/`LLMClient`
-      seam. Attaches to **`ProjecturedKernel`** (the orchestration is kernel-level),
-      not domain. The HTTP/JSON3 parts of `WorkbenchAssistant`/`ConversationEditor`
-      are domain UI calling the kernel seam.
+- [x] **`ProjecturedWebExt`** — weakdeps `HTTP`, `JSON3`. **DONE** (commit `extract
+      Web and LLM backends`). `backend/Web.jl` → `program/ext/ProjecturedWebExt.jl`
+      (SDL-free since Stage 1.0; reuses Pdf's `truetype` measurer); adds
+      `make_backend(:web)`. Fixed its `@__DIR__`-relative web/font asset paths for the
+      new `program/ext/` location.
+- [x] **`ProjecturedLLMExt`** — weakdeps `HTTP`, `JSON3`. **DONE** (same commit).
+      `editor/Anthropic.jl` → `program/ext/ProjecturedLLMExt.jl`; adds
+      `stream_turn(::AnthropicLlm)` to the core `LlmModule` seam. Prerequisite done
+      first: dropped `JSON3` from `WorkbenchAssistant` (parses LLM tool-call args with
+      the project's own `jsonparse` + a small native converter), so `HTTP`/`JSON3`
+      became clean weakdeps. (`anthropic_tool_schema` stayed a dep-free bridge in core
+      `ToolRegistryModule`; no separate `complete` generic — `stream_turn` plays that
+      role. Both exts share the `HTTP`+`JSON3` trigger and co-load.)
+      Verified both ways. **Note:** the pre-existing `test_assistant_mvp` "tool-use
+      round-trip" failure is present on `main` too (BoundsError, unrelated agent-loop
+      bug) — not caused by this work.
 - [x] **`ProjecturedMCPExt`** — weakdep `ModelContextProtocol`. **Done** (commit
       `extract MCP transport into ProjecturedMCPExt`). `program/ext/ProjecturedMCPExt.jl`
       holds the transport (`McpServer`, HTTP lifecycle, `mcp_tools`/`mcp_resources`
