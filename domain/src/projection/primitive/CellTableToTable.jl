@@ -40,17 +40,21 @@ const CellTableToTable = CellTableToWidgetTable
 
 function projection_print(p::CellTableToWidgetTable, recursion, ct::CellTable, ctx)
     nr, nc = size(ct)
+    # The lazy `CellVector(f)` constructor wraps each item `f()` returns in its
+    # own slot Cell, so the thunks return *raw* values (Documents / inner
+    # CellVectors), never pre-wrapped Cells — pre-wrapping would double-wrap and
+    # make `rows[r]` a `Cell` instead of the row `CellVector`.
     # Column headers = the first row of the CellTable (column names).
     column_headers = CellVector(() -> begin
         nr2, nc2 = size(ct)
-        nr2 == 0 ? Cell[] : Cell[Cell(_to_doc(ct[1, c])) for c in 1:nc2]
+        nr2 == 0 ? Any[] : Any[_to_doc(ct[1, c]) for c in 1:nc2]
     end)
     # Data rows, JSON-wrapped, each a CellVector of document cells.
     rows = CellVector(() -> begin
         nr2, nc2 = size(ct)
-        out = Cell[]
+        out = Any[]
         for r in 2:nr2
-            push!(out, Cell(CellVector(Cell[Cell(_to_doc(ct[r, c])) for c in 1:nc2])))
+            push!(out, CellVector(Cell[Cell(_to_doc(ct[r, c])) for c in 1:nc2]))
         end
         out
     end)
