@@ -78,7 +78,10 @@ _json_native(j::JsonBool)   = j[]
 _json_native(j::JsonNumber) = j[]
 _json_native(j::JsonString) = String(j[])
 _json_native(j::JsonArray)  = Any[_json_native(e) for e in j.elements]
-_json_native(j::JsonObject) = Dict{String,Any}(k => _json_native(v) for (k, v) in j)
+# Iterate the `entries` collection field directly: JsonObject no longer forwards
+# `length` (collection-fold), which the Dict constructor needs to presize the
+# generator, so building the Dict straight off `j` throws.
+_json_native(j::JsonObject) = Dict{String,Any}(e.key => _json_native(e.value) for e in j.entries)
 
 export SubmitProseOperation, SubmitJuliaOperation, SubmitDraftTurnOperation,
        ClearInputOperation, ResetConversationOperation,

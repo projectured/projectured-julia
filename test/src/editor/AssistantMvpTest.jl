@@ -400,16 +400,17 @@ function _mvp_test_tool_use_roundtrip()
         msgs = a.conversation.turns
         # Expected sequence in the turn/part model:
         #   1. user turn ("compute 1+1")
-        #   2. :assistant eval turn — one part whose content is an EvaluatorForm
-        #      (code="1+1", result≈"2"). Turn 1 had only a tool_use (no prose),
-        #      so the empty placeholder assistant turn was dropped.
-        #   3. :assistant turn with one TextText part ("Done.") from turn 2.
-        @test length(msgs) == 3
+        #   2. one :assistant turn with two parts — the EvaluatorForm (code="1+1",
+        #      result≈"2") followed by the final "Done." prose. The agent appends
+        #      the tool result and the closing text to the same assistant turn
+        #      rather than emitting a separate trailing prose turn.
+        @test length(msgs) == 2
 
         @test msgs[1].role === :user
         @test _text_to_string(msgs[1].parts[1].content) == "compute 1+1"
 
         @test msgs[2].role === :assistant
+        @test length(msgs[2].parts) == 2
         ef = msgs[2].parts[1].content
         @test ef isa EvaluatorForm
         @test _eval_code(ef)   == "1+1"
@@ -418,9 +419,7 @@ function _mvp_test_tool_use_roundtrip()
         @test occursin("2", _eval_result(ef))
         @test ef.is_error == false
 
-        @test msgs[3].role === :assistant
-        @test length(msgs[3].parts) == 1
-        @test msgs[3].parts[1].content isa TextText
-        @test _text_to_string(msgs[3].parts[1].content) == "Done."
+        @test msgs[2].parts[2].content isa TextText
+        @test _text_to_string(msgs[2].parts[2].content) == "Done."
     end
 end
