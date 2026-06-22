@@ -1,35 +1,43 @@
 """
-    SdlBackendModule
+    ProjecturedSDLExt
 
-SDL backend. Implements the abstract backend interface using SDL2 + SDL_ttf.
+Package extension: the SDL display/input backend (window, GPU rendering, SDL_ttf
+text rasterisation, offscreen image/PDF/video output). Loaded automatically when
+SimpleDirectMediaLayer, SDL2_jll and FFMPEG are present alongside Projectured.
+
+Relocated from the former program/src/backend/Sdl.jl (SdlBackendModule); relative
+submodule imports were rewritten to absolute Projectured.* references.
 """
-module SdlBackendModule
+module ProjecturedSDLExt
+
+using Projectured
+
 
 using SimpleDirectMediaLayer
 using SimpleDirectMediaLayer.LibSDL2
-import ..BackendModule: Backend, init!, quit!, measure_text, make_backend, write_image, record_video,
+import Projectured.BackendModule: Backend, init!, quit!, measure_text, make_backend, write_image, record_video,
                         render_canvas, decode_image, display_size, set_display_size_provider!
-import ..DeviceModule: Device, read_from_devices, write_to_devices, write_to_device
-import ..GraphicsModule: GraphicsCanvas, GraphicsText, GraphicsRect, GraphicsLine, GraphicsCircle,
+import Projectured.DeviceModule: Device, read_from_devices, write_to_devices, write_to_device
+import Projectured.GraphicsModule: GraphicsCanvas, GraphicsText, GraphicsRect, GraphicsLine, GraphicsCircle,
                          GraphicsPolyline, GraphicsSpline, GraphicsViewport, GraphicsImage,
                          GraphicsFence, LayoutDirection, layout_none, layout_horizontal, layout_vertical,
                          _canvas_content_bounds, _accumulate_bounds!, _bounds_elem!,
                          tessellate_spline, polyline_arrowhead
-import ..CollectionModule: ListNode, CellVector
-import ..FontModule: StyleFont, font_scaled_size, _DISPLAY_SCALE
-import ..ScreenModule: Screen, QuitEvent
-import ..ScreenDocumentModule: ScreenDocument, WindowDocument, EventEnvelope, WindowCloseRequest, WindowResizeEvent
-import ..ModifiersModule: Modifiers
-import ..KeyboardModule: KeyDown, KeyUp, KeyPress
-import ..MouseModule: MouseDown, MouseUp, MousePress, MouseMove, MouseScroll
-import ..ImageModule: ImageFile
-import ..ProjectionApiModule: projection_print, projection_read, Projection
-import ..OperationApiModule: Operation, evaluate_operation
-import ..DocumentApiModule: clear_selection!, set_selection!
-import ..PrinterContextModule: PrinterContext
-import ..ReactiveModule: Cell, isuptodate
-import ..ReferenceModule: EmptyReferencePath
-import ..IoMapModule: SimpleIoMap
+import Projectured.CollectionModule: ListNode, CellVector
+import Projectured.FontModule: StyleFont, font_scaled_size, _DISPLAY_SCALE
+import Projectured.ScreenModule: Screen, QuitEvent
+import Projectured.ScreenDocumentModule: ScreenDocument, WindowDocument, EventEnvelope, WindowCloseRequest, WindowResizeEvent
+import Projectured.ModifiersModule: Modifiers
+import Projectured.KeyboardModule: KeyDown, KeyUp, KeyPress
+import Projectured.MouseModule: MouseDown, MouseUp, MousePress, MouseMove, MouseScroll
+import Projectured.ImageModule: ImageFile
+import Projectured.ProjectionApiModule: projection_print, projection_read, Projection
+import Projectured.OperationApiModule: Operation, evaluate_operation
+import Projectured.DocumentApiModule: clear_selection!, set_selection!
+import Projectured.PrinterContextModule: PrinterContext
+import Projectured.ReactiveModule: Cell, isuptodate
+import Projectured.ReferenceModule: EmptyReferencePath
+import Projectured.IoMapModule: SimpleIoMap
 import FFMPEG
 
 export SdlBackend, sdl_measure_text, sdl_render_canvas, sdl_display_size,
@@ -2285,4 +2293,4 @@ make_backend(::Val{:sdl}; kwargs...) = SdlBackend(; kwargs...)
 decode_image(filename::AbstractString) = sdl_decode_image(filename)
 set_display_size_provider!(sdl_display_size)
 
-end # module
+end # module ProjecturedSDLExt

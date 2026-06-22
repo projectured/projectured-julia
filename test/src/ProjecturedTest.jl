@@ -3,6 +3,10 @@ module ProjecturedTest
 using Test
 using Projectured
 using ProjecturedExample
+# Trigger the SDL package extension so the test suite can drive the SDL backend
+# (rendering / write_image / click roundtrips). The library itself is SDL-optional;
+# the test package opts in.
+using SimpleDirectMediaLayer, SDL2_jll, FFMPEG
 using Projectured: ElementReference, RangeReference, PositionReference, FieldReference, PointReference,
                    TextRectangularReference,
                    ConcreteReferencePath, EmptyReferencePath, ReferencePath,
@@ -11,10 +15,10 @@ using Projectured: ElementReference, RangeReference, PositionReference, FieldRef
                    color_solarized_background_dark,
                    font_ubuntu_monospace_regular_24
 
-const _test_backend = make_backend(:sdl)
-
+# Built lazily in __init__ (runtime, after the SDL extension has loaded) rather
+# than as a precompile-time const, so precompilation doesn't depend on the extension.
 function __init__()
-    init!(_test_backend)
+    init!(make_backend(:sdl))
 end
 
 include("common/CellTest.jl")

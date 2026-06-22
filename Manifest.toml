@@ -2,7 +2,7 @@
 
 julia_version = "1.12.6"
 manifest_format = "2.0"
-project_hash = "22881a63770009b8dbcaaa31b1186b8737ac0732"
+project_hash = "c27db5cb29ae515b3bb9b9745f189c430d0e387d"
 
 [[deps.ArgTools]]
 uuid = "0dad84c5-d112-42e6-8d28-ef12dabb789f"
@@ -605,14 +605,15 @@ uuid = "9abbd945-dff8-562f-b5e8-e1ebf5ef1b79"
 version = "1.11.0"
 
 [[deps.Projectured]]
-deps = ["Base64", "DBInterface", "FFMPEG", "HTTP", "JSON3", "Markdown", "ODBC", "SDL2_jll", "SimpleDirectMediaLayer", "Tables"]
+deps = ["Base64", "DBInterface", "HTTP", "JSON3", "Markdown", "ODBC", "Tables"]
 path = "program"
 uuid = "92922de3-b970-4d9a-8b2a-9d6f361397b5"
 version = "0.1.0"
-weakdeps = ["ModelContextProtocol"]
+weakdeps = ["FFMPEG", "ModelContextProtocol", "SDL2_jll", "SimpleDirectMediaLayer"]
 
     [deps.Projectured.extensions]
     ProjecturedMCPExt = "ModelContextProtocol"
+    ProjecturedSDLExt = ["SimpleDirectMediaLayer", "SDL2_jll", "FFMPEG"]
 
 [[deps.ProjecturedExample]]
 deps = ["Profile", "Projectured"]
@@ -621,7 +622,7 @@ uuid = "e5f6a7b8-c9d0-4e1f-2a3b-4c5d6e7f8a9b"
 version = "0.1.0"
 
 [[deps.ProjecturedTest]]
-deps = ["Projectured", "ProjecturedExample", "Test"]
+deps = ["FFMPEG", "Projectured", "ProjecturedExample", "SDL2_jll", "SimpleDirectMediaLayer", "Test"]
 path = "test"
 uuid = "c3f1d2e8-4a5b-6c7d-8e9f-0a1b2c3d4e5f"
 version = "0.1.0"

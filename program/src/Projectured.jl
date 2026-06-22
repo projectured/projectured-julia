@@ -190,7 +190,8 @@ include("projection/compound/Generic.jl")
 # ── Devices, backend, and editor ──────────────────────────────────────────
 
 include("device/Screen.jl")
-include("backend/Sdl.jl")
+# The SDL backend lives in the ProjecturedSDLExt package extension
+# (program/ext/ProjecturedSDLExt.jl) — it needs SimpleDirectMediaLayer/SDL2_jll/FFMPEG.
 include("backend/Console.jl")
 # Pdf before Web: Pdf holds the pure-Julia TrueType metrics measurer
 # (pdf_measure_text) that the Web backend reuses for SDL-free text measurement.
@@ -336,10 +337,9 @@ using .MouseModule: MouseDown, MouseUp, MousePress, MouseMove, MouseScroll
 using .BackendModule: Backend, init!, quit!, measure_text, make_backend,
                       write_image, record_video,
                       render_canvas, decode_image, display_size, set_display_size_provider!
-using .SdlBackendModule: SdlBackend, sdl_measure_text, sdl_render_canvas,
-                          sdl_display_size,
-                          GraphicsCanvasToImageFile,
-                          sdl_decode_image, decode_image_file!
+# SdlBackend and the sdl_* / GraphicsCanvasToImageFile symbols live in the
+# ProjecturedSDLExt extension; build the backend via make_backend(:sdl) and reach
+# rendering/decoding through the core seams (render_canvas/decode_image/write_image).
 using .ConsoleBackendModule: ConsoleBackend, console_render
 using .WebBackendModule: WebBackend, web_key_to_symbol
 using .PdfBackendModule: write_pdf, GraphicsCanvasToPdfFile, pdf_measure_text, truetype_measure_text
@@ -716,11 +716,11 @@ export GraphicsDocument, GraphicsInsertion,
 export Modifiers
 export Keyboard, KeyDown, KeyUp, KeyPress, is_ctrl, is_shift, is_alt, is_meta
 export MouseDown, MouseUp, MousePress, MouseMove, MouseScroll
-export Backend, init!, quit!, measure_text, make_backend,
+export Backend, init!, quit!, measure_text, make_backend, write_image, record_video,
        render_canvas, decode_image, display_size, set_display_size_provider!
 export Screen
-export SdlBackend, sdl_measure_text, sdl_render_canvas, sdl_display_size,
-       write_image, record_video, GraphicsCanvasToImageFile, sdl_decode_image, decode_image_file!
+# write_image/record_video are exported above (BackendModule generics). SdlBackend and
+# the sdl_*/GraphicsCanvasToImageFile symbols are provided by ProjecturedSDLExt.
 export ConsoleBackend, console_render
 export WebBackend, web_key_to_symbol
 export write_pdf, GraphicsCanvasToPdfFile, pdf_measure_text, truetype_measure_text
