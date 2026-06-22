@@ -259,7 +259,7 @@ SyntaxNode(collection(:elements);
            sep=TextString(", ", p.sep), indentation=1)
 ```
 
-### 3. Migrate tests
+### 3. Migrate tests — ✅ Done (commit 3b0807d)
 
 The test files
 ([SyntaxTest.jl](../../test/src/document/SyntaxTest.jl),
@@ -267,14 +267,28 @@ The test files
 [SyntaxToWidgetTest.jl](../../test/src/projection/SyntaxToWidgetTest.jl),
 [SyntaxTreeSelectionTest.jl](../../test/src/projection/SyntaxTreeSelectionTest.jl),
 [example/src/document/Syntax.jl](../../example/src/document/Syntax.jl)) also call
-the positional forms. Migrate them to keyword form for consistency.
+the positional forms. Migrated to keyword form for consistency (57 sites).
 
-### 4. (Optional follow-up) Retire redundant positional overloads
+**Verification.** `test_syntax`, `test_syntax_to_text`, `test_syntax_to_widget`
+pass clean. `test_syntax_tree_selection` shows 12 pass / 9 fail / 4 error — but
+this is **pre-existing**: reverting every source file to base 68fdbff reproduces
+the identical failure set (`set/clear_selection! place ∅`, the JsonArray /
+JsonObject / SyntaxLeaf `whole → ∅` forward cases, and the
+`backward: ∅ … is ambiguous` `MethodError: projection_read(::RecursiveProjection,
+::RuleIoMap, ::ReplaceSelectionOperation)`). These belong to the WIP
+whole-element (∅) selection feature, not to this refactor; the same failure
+names appear with and without the test-file migration, so the migration kept the
+constructed trees equivalent.
 
-Once all callers use keyword form, the multi-positional `SyntaxLeaf`/`SyntaxNode`
-convenience overloads (other than the `@document` inner ctors the template walk
-needs) can be removed to keep one obvious way to construct each type. Track as a
-separate cleanup; not required for the noise-reduction win.
+### 4. (Optional follow-up, DEFERRED) Retire redundant positional overloads
+
+All shipping callers now use the keyword form, so the multi-positional
+`SyntaxLeaf`/`SyntaxNode` convenience overloads (other than the `@document` inner
+ctors the template walk needs, and the raw-`Vector` form the fixed-children
+template nodes still require — see the discovered constraint above) could be
+removed for a single obvious construction path. **Left in place** intentionally:
+they are harmless, non-breaking, and removing them is pure churn with no
+behavioural benefit. Tracked as a separate cleanup if ever wanted.
 
 ## Verification
 
@@ -293,13 +307,27 @@ file (per the repo's testing guidance — never default to `test_all`):
 Run a broad `test_printers()` / `test_readers()` sweep only once, at the end,
 after every targeted test already passes.
 
-## Open questions
+## Open questions — resolved
 
-1. Should `open`/`close`/`sep` keyword defaults be a single shared
-   `const EMPTY_TEXT = TextString("")` to avoid allocating a fresh empty
-   `TextString` per call? (Cells are mutable, but an empty delimiter is never
-   mutated in place — worth confirming before sharing one instance.)
-2. Do we want the `AbstractString` content ergonomics (`SyntaxLeaf("null")`) at
-   all, given almost every real leaf needs a styled `TextString`? It may invite
-   unstyled leaves by accident. Default: keep it (it already exists), but flag in
-   review.
+1. **Shared `const EMPTY_TEXT`?** No. Each call allocates a fresh
+   `TextString("")` default. An empty delimiter's `content` cell can in principle
+   be spliced by a text edit (`splice_value!`), so sharing one instance across
+   nodes would alias mutations — not worth the risk for a negligible allocation.
+   Kept per-call defaults.
+2. **Keep `AbstractString` content ergonomics?** Yes. The migrated test/example
+   files use `SyntaxLeaf("a")` / `SyntaxLeaf("1")`, and the wrapper routes through
+   the keyword form. Retained.
+
+## Outcome
+
+All three steps complete. Net effect: every shipping `*ToSyntax` projection and
+the syntax test suite construct `SyntaxLeaf`/`SyntaxNode` via the keyword form;
+content leads, delimiters/separator/layout/selection are optional keywords,
+empty delimiters and defaulted trailing args vanish from call sites. ~−300 lines
+across the projection files alone. Zero behavioural regressions — the only test
+failures in the full sweep (`sql_table` printers; `test_syntax_tree_selection`)
+were each confirmed pre-existing by reproducing them on base commit 68fdbff.
+
+Commits: `27dd65b` (constructors) · `c3c49fc` (JsonToSyntax) · `e030cd3`
+(PrimitiveToSyntax) · `7bcef5e` (12 projection files) · `3b0807d` (tests/examples)
+plus plan-progress commits.
