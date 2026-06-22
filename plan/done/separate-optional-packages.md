@@ -5,7 +5,16 @@ into **standalone, opt-in Julia packages** in their own top-level folders. SQL/D
 **documents and projections stay in `ProjecturedDomain`** — they are pure and need
 nothing external; only the *live ODBC querying* moves out.
 
-Status: **pending**.
+Status: **COMPLETE** (2026-06-22). All five components are standalone opt-in packages;
+kernel & domain have no extensions left; consumers retargeted; root env cleaned. Broad
+sweep `test_printers()`+`test_readers()` = **165711 passed, 5 failed** (the pre-existing
+`sql_table` `length(::Cell{CellVector})` bug only — **zero regressions**). `using
+Projectured` alone keeps the optional backends dormant; loading each opt-in package
+registers its seam. Final layout: `kernel/ domain/ program/ sdl/ web/ odbc/ mcp/ llm/`
+(plus `example/ test/ executable/`); `kernel/ext` and `domain/ext` deleted; web assets at
+`web/assets/`. SDL's display-size-provider registration moved to `__init__` (the only
+top-level cross-module state mutation). Docs: package-layout section added to
+`guide/architecture.md`.
 
 ## Why (the trade we are accepting)
 

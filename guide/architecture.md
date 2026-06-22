@@ -40,7 +40,49 @@ Four layers, bottom to top:
 | 0 — Reactive engine | `Reactive.jl` | `Cell` type, dependency tracking, lazy invalidation |
 | 1 — Domain modules | `document/*.jl` | Document/operation types per problem area |
 | 2 — Projection modules | `projection/**/*.jl` | Domain-to-domain transformations |
-| 3 — Editor + backend | `editor/*.jl`, `backend/{Sdl,Console,Web}.jl` | REPL loop, rendering, device I/O |
+| 3 — Editor + backend | `editor/*.jl`, Console/Pdf backends, opt-in backend packages | REPL loop, rendering, device I/O |
+
+---
+
+## Package layout
+
+The conceptual layers above are split across **separate Julia packages** (each a
+top-level folder with its own `Project.toml`). The reusable engine, the concrete
+domains, and the optional/external-dependency backends are physically separated so a
+user editing JSON/XML/Text pays for none of SDL/Web/DB/LLM/MCP.
+
+```
+ProjecturedKernel (kernel/)   headless engine; layers 0–2 machinery + the editor loop +
+        ▲                     the agent control surface. ZERO dependencies.
+        │                     (api, common, reference, context, device, the projection
+        │                     algebra, Collection/Primitive/ScreenDocument, ToolRegistry/Llm/Mcp-core)
+ProjecturedDomain (domain/)   all concrete documents/projections/parsers + Console & Pdf
+        ▲                     backends. Deps: Base64, Markdown. Binds kernel submodules as
+        │                     const aliases so domain files keep relative ..XxxModule refs.
+Projectured (program/)        umbrella: re-exports Kernel + Domain as one flat API.
+                              `using Projectured` reproduces the full public surface.
+
+Opt-in packages (depend on the above; loaded only when you `using` them):
+  ProjecturedSDL  (sdl/)   → Domain  SDL2/SimpleDirectMediaLayer/FFMPEG  SdlBackend, make_backend(:sdl), write_image, record_video
+  ProjecturedWeb  (web/)   → Domain  HTTP/JSON3                          WebBackend,  make_backend(:web); assets in web/assets/
+  ProjecturedODBC (odbc/)  → Domain  ODBC/DBInterface/Tables             OdbcDatabaseAdapter, make_database_adapter(:odbc), live-query projections
+  ProjecturedMCP  (mcp/)   → Kernel  ModelContextProtocol               McpServer, make_agent_server(:mcp)
+  ProjecturedLLM  (llm/)   → Kernel  HTTP/JSON3                          stream_turn(::AnthropicLlm) — Anthropic Messages client
+```
+
+The optional backends plug into **factory seams** owned by the kernel/domain
+(`make_backend(kind)`, `make_database_adapter(kind)`, `make_agent_server(kind, …)`):
+generic code (e.g. `run_example`) requests a backend by symbol; the opt-in package
+registers the method on load and errors helpfully if it isn't loaded. So the SQL and
+DbCatalog *documents and projections* stay in `ProjecturedDomain` (they need nothing
+external) — only **live ODBC querying** lives in `ProjecturedODBC`. Likewise the
+agent *registry and tools* are kernel-resident; only the MCP transport and the
+Anthropic HTTP client are in the opt-in `ProjecturedMCP`/`ProjecturedLLM`.
+
+> The per-file paths cited in the module inventory below (`backend/Sdl.jl`,
+> `program/web/`, …) reflect the pre-split single-package tree; the code now lives in
+> the packages above (e.g. `backend/Sdl.jl` → `sdl/src/ProjecturedSDL.jl`,
+> `program/web/` → `web/assets/`, `document/*` → `kernel/src/` or `domain/src/`).
 
 ---
 
