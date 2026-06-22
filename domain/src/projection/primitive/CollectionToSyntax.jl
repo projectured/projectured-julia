@@ -50,13 +50,11 @@ function projection_print(p::CollectionCellVectorToSyntax, recursion, cv::CellVe
                                    child_context(ctx, ElementReference(i)))
                                for (i, x) in enumerate(cv)])
     node = SyntaxNode(
-        TextString("[", p.delim),
-        TextString("]", p.delim),
-        TextString(", ", p.sep),
-        CellVector(() -> SyntaxDocument[im.output for im in child_iomaps[]]),
-        1,
-        Cell(false),
-        Cell(nothing))
+        CellVector(() -> SyntaxDocument[im.output for im in child_iomaps[]]);
+        open=TextString("[", p.delim),
+        close=TextString("]", p.delim),
+        sep=TextString(", ", p.sep),
+        indentation=1)
     ChildrenIoMap(p, cv, node, child_iomaps)
 end
 

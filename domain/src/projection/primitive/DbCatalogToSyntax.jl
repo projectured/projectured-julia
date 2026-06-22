@@ -64,10 +64,8 @@ function projection_print(p::DbCatalogColumnToSyntaxLeaf, recursion, col::DbCata
         map_reference_forward(p, nothing, path)
     end)
     SimpleIoMap(p, col, SyntaxLeaf(
-        TextString("", p.style.font, color_default),
-        TextString("", p.style.font, color_default),
-        TextString(() -> " " * col.name * "::" * col.data_type, p.style),
-        sel))
+        TextString(() -> " " * col.name * "::" * col.data_type, p.style);
+        selection=sel))
 end
 
 function map_reference_forward(::DbCatalogColumnToSyntaxLeaf, iomap, reference)
@@ -226,13 +224,10 @@ function _catalog_syntax_node(p, recursion, ctx, input_doc,
     # The keyword group holds the projected items directly and is the lazy /
     # collapsible unit. Collapsed until its child collection is materialized.
     keyword_node = SyntaxNode(
-        TextString(" " * keyword, font_ubuntu_monospace_regular_24, color_default),
-        TextString("", font_ubuntu_monospace_regular_24, color_default),
-        TextString("", font_ubuntu_monospace_regular_24, color_default),
-        CellVector(() -> SyntaxDocument[im.output for im in child_iomaps[]]),
-        -1,
-        Cell(!_children_realized(children)),
-        Cell(nothing))
+        CellVector(() -> SyntaxDocument[im.output for im in child_iomaps[]]);
+        open=TextString(" " * keyword, font_ubuntu_monospace_regular_24, color_default),
+        indentation=-1,
+        collapsed=Cell(!_children_realized(children)))
 
     iomap_cell = Cell(nothing)
     sel = Cell(() -> begin
@@ -245,13 +240,10 @@ function _catalog_syntax_node(p, recursion, ctx, input_doc,
 
     # The entity groups its keyword(s); it stays expanded (foldable by the user).
     entity_node = SyntaxNode(
-        TextString(label, name_style),
-        TextString("", name_style.font, color_default),
-        TextString("", name_style.font, color_default),
-        CellVector(Cell[Cell(keyword_node)]),
-        -1,
-        Cell(false),
-        sel)
+        CellVector(Cell[Cell(keyword_node)]);
+        open=TextString(label, name_style),
+        indentation=-1,
+        selection=sel)
 
     entity_node, child_iomaps, iomap_cell
 end

@@ -87,10 +87,10 @@ end
 
 function projection_print(p::InsertionToSyntaxLeaf, recursion, ins, ctx)
     SimpleIoMap(p, ins, SyntaxLeaf(
-        TextString(p.prefix, p.label),
-        TextString(p.suffix, p.label),
-        TextString(() -> something(ins.value, ""), p.value),
-        getfield(ins, :selection)))
+        TextString(() -> something(ins.value, ""), p.value);
+        open=TextString(p.prefix, p.label),
+        close=TextString(p.suffix, p.label),
+        selection=getfield(ins, :selection)))
 end
 
 # ── Value-edit helpers (mirror PrimitiveStringToSyntaxLeaf) ────────────────────

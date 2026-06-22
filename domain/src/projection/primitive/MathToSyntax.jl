@@ -44,8 +44,7 @@ MathInsertionToSyntaxLeaf(; style=StyleText(font_ubuntu_monospace_regular_24, co
 
 function projection_print(p::MathInsertionToSyntaxLeaf, recursion, m::MathInsertion, ctx)
     output_selection = Cell(() -> map_reference_forward(p, nothing, m.selection))
-    SimpleIoMap(p, m, SyntaxLeaf(TextString("", p.style.font, color_default), TextString("", p.style.font, color_default),
-                                  TextString("⌷", p.style), output_selection))
+    SimpleIoMap(p, m, SyntaxLeaf(TextString("⌷", p.style); selection=output_selection))
 end
 
 # ── MathVariableToSyntaxLeaf ──────────────────────────────────────────────────
@@ -70,10 +69,8 @@ end
 
 function projection_print(p::MathVariableToSyntaxLeaf, recursion, v::MathVariable, ctx)
     SimpleIoMap(p, v, SyntaxLeaf(
-        TextString("", p.style.font, color_default),
-        TextString("", p.style.font, color_default),
-        TextString(() -> v.name, p.style),
-        getfield(v, :selection)))
+        TextString(() -> v.name, p.style);
+        selection=getfield(v, :selection)))
 end
 
 function projection_read(::MathVariableToSyntaxLeaf, iomap::SimpleIoMap, op::ReplaceSelectionOperation)
@@ -142,11 +139,7 @@ function projection_print(p::MathBinaryOperationToSyntaxNode, recursion, m::Math
     left_iomap = Cell(() -> projection_printer_recurse(recursion, m.left, left_ctx))
     right_iomap = Cell(() -> projection_printer_recurse(recursion, m.right, right_ctx))
 
-    op_leaf = SyntaxLeaf(
-        TextString("", p.op.font, color_default),
-        TextString("", p.op.font, color_default),
-        TextString(() -> _operator_string(m.operator), p.op),
-        Cell(nothing))
+    op_leaf = SyntaxLeaf(TextString(() -> _operator_string(m.operator), p.op))
 
     sel = Cell(() -> begin
         path = skip_type_checkpoints(m.selection)
@@ -173,13 +166,9 @@ function projection_print(p::MathBinaryOperationToSyntaxNode, recursion, m::Math
     end)
 
     node = SyntaxNode(
-        TextString("", p.op.font, color_default),
-        TextString("", p.op.font, color_default),
-        TextString(" ", p.op.font, color_default),
-        CellVector(() -> SyntaxDocument[left_iomap[].output, op_leaf, right_iomap[].output]),
-        0,
-        Cell(false),
-        sel)
+        CellVector(() -> SyntaxDocument[left_iomap[].output, op_leaf, right_iomap[].output]);
+        sep=TextString(" ", p.op.font, color_default),
+        selection=sel)
     ChildrenIoMap(p, m, node, Cell(() -> [left_iomap[], right_iomap[]]))
 end
 
@@ -246,13 +235,10 @@ function projection_print(p::MathParenthesizedToSyntaxNode, recursion, m::MathPa
     end)
 
     node = SyntaxNode(
-        TextString("(", p.delim),
-        TextString(")", p.delim),
-        TextString("", p.delim.font, color_default),
-        CellVector(() -> SyntaxDocument[content_iomap[].output]),
-        0,
-        Cell(false),
-        sel)
+        CellVector(() -> SyntaxDocument[content_iomap[].output]);
+        open=TextString("(", p.delim),
+        close=TextString(")", p.delim),
+        selection=sel)
     ChildrenIoMap(p, m, node, content_iomap)
 end
 
@@ -321,11 +307,7 @@ function projection_print(p::MathAssignmentToSyntaxNode, recursion, m::MathAssig
     target_iomap = Cell(() -> projection_printer_recurse(recursion, m.target, target_ctx))
     value_iomap = Cell(() -> projection_printer_recurse(recursion, m.value, value_ctx))
 
-    eq_leaf = SyntaxLeaf(
-        TextString("", p.eq.font, color_default),
-        TextString("", p.eq.font, color_default),
-        TextString("=", p.eq),
-        Cell(nothing))
+    eq_leaf = SyntaxLeaf(TextString("=", p.eq))
 
     sel = Cell(() -> begin
         path = skip_type_checkpoints(m.selection)
@@ -352,13 +334,9 @@ function projection_print(p::MathAssignmentToSyntaxNode, recursion, m::MathAssig
     end)
 
     node = SyntaxNode(
-        TextString("", p.eq.font, color_default),
-        TextString("", p.eq.font, color_default),
-        TextString(" ", p.eq.font, color_default),
-        CellVector(() -> SyntaxDocument[target_iomap[].output, eq_leaf, value_iomap[].output]),
-        0,
-        Cell(false),
-        sel)
+        CellVector(() -> SyntaxDocument[target_iomap[].output, eq_leaf, value_iomap[].output]);
+        sep=TextString(" ", p.eq.font, color_default),
+        selection=sel)
     ChildrenIoMap(p, m, node, Cell(() -> [target_iomap[], value_iomap[]]))
 end
 

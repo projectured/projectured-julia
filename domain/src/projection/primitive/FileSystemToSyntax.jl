@@ -46,10 +46,8 @@ FileSystemFileToSyntaxLeaf(; style=StyleText(font_ubuntu_monospace_regular_24, c
 
 function projection_print(p::FileSystemFileToSyntaxLeaf, recursion, f::FileSystemFile, ctx)
     SimpleIoMap(p, f, SyntaxLeaf(
-        TextString("", p.style.font, color_default),
-        TextString("", p.style.font, color_default),
-        TextString(() -> " " * basename(f.pathname), p.style),
-        f.selection))
+        TextString(() -> " " * basename(f.pathname), p.style);
+        selection=f.selection))
 end
 
 # The name leaf shares the file's selection cell, so a file's input reference and
@@ -87,19 +85,12 @@ function projection_print(p::FileSystemDirectoryToSyntaxNode, recursion, d::File
                                for (i, elem) in enumerate(d.elements)])
 
     name_leaf = SyntaxLeaf(
-        TextString("", p.name.font, color_default),
-        TextString("", p.name.font, color_default),
-        TextString(() -> " " * _dir_name(d.pathname), p.name),
-        d.selection)
+        TextString(() -> " " * _dir_name(d.pathname), p.name);
+        selection=d.selection)
 
     body_node = SyntaxNode(
-        TextString("", p.name.font, color_default),
-        TextString("", p.name.font, color_default),
-        TextString("", p.name.font, color_default),
-        CellVector(() -> SyntaxDocument[im.output for im in child_iomaps[]]),
-        2,
-        Cell(false),
-        Cell(nothing))
+        CellVector(() -> SyntaxDocument[im.output for im in child_iomaps[]]);
+        indentation=2)
 
     # Wire the output selection canonically: map d.selection forward through this
     # projection's own map_reference_forward (School A — delegate the tail through
@@ -115,13 +106,8 @@ function projection_print(p::FileSystemDirectoryToSyntaxNode, recursion, d::File
     end)
 
     node = SyntaxNode(
-        TextString("", p.name.font, color_default),
-        TextString("", p.name.font, color_default),
-        TextString("", p.name.font, color_default),
-        CellVector(Cell[Cell(name_leaf), Cell(body_node)]),
-        0,
-        Cell(false),
-        sel)
+        CellVector(Cell[Cell(name_leaf), Cell(body_node)]);
+        selection=sel)
 
     iomap = ChildrenIoMap(p, d, node, child_iomaps)
     iomap_cell[] = iomap

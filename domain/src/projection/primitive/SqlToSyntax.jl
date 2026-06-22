@@ -59,11 +59,7 @@ export SqlAllColumnsToSyntaxLeaf, SqlColumnReferenceToSyntaxLeaf,
 
 # ── helpers ────────────────────────────────────────────────────────────────────
 
-_kw(text, font, color) = SyntaxLeaf(
-    TextString("", font, color_default),
-    TextString("", font, color_default),
-    TextString(text, font, color),
-    Cell(nothing))
+_kw(text, font, color) = SyntaxLeaf(TextString(text, font, color))
 
 _kw(text, style::StyleText) = _kw(text, style.font, style.color)
 
@@ -92,13 +88,11 @@ SqlAllColumnsToSyntaxLeaf(; style=StyleText(font_ubuntu_monospace_regular_24, co
 
 function projection_print(p::SqlAllColumnsToSyntaxLeaf, recursion, doc::SqlAllColumns, ctx)
     SimpleIoMap(p, doc, SyntaxLeaf(
-        TextString("", p.style.font, color_default),
-        TextString("", p.style.font, color_default),
         TextString(() -> begin
             q = doc.qualifier
             q === nothing ? "*" : "$(q.name).*"
-        end, p.style),
-        doc.selection))
+        end, p.style);
+        selection=doc.selection))
 end
 
 function map_reference_forward(::SqlAllColumnsToSyntaxLeaf, iomap::SimpleIoMap, reference)
@@ -125,14 +119,12 @@ SqlColumnReferenceToSyntaxLeaf(; style=StyleText(font_ubuntu_monospace_regular_2
 
 function projection_print(p::SqlColumnReferenceToSyntaxLeaf, recursion, doc::SqlColumnReference, ctx)
     SimpleIoMap(p, doc, SyntaxLeaf(
-        TextString("", p.style.font, color_default),
-        TextString("", p.style.font, color_default),
         TextString(() -> begin
             q = doc.qualifier
             col = doc.column_name.name
             q === nothing ? col : "$(q.name).$col"
-        end, p.style),
-        doc.selection))
+        end, p.style);
+        selection=doc.selection))
 end
 
 function map_reference_forward(::SqlColumnReferenceToSyntaxLeaf, iomap::SimpleIoMap, reference)
@@ -160,10 +152,8 @@ SqlColumnNameToSyntaxLeaf(; style=StyleText(font_ubuntu_monospace_regular_24, co
 
 function projection_print(p::SqlColumnNameToSyntaxLeaf, recursion, doc::SqlColumnName, ctx)
     SimpleIoMap(p, doc, SyntaxLeaf(
-        TextString("", p.style.font, color_default),
-        TextString("", p.style.font, color_default),
-        TextString(() -> doc.name, p.style),
-        doc.selection))
+        TextString(() -> doc.name, p.style);
+        selection=doc.selection))
 end
 
 function map_reference_forward(::SqlColumnNameToSyntaxLeaf, iomap::SimpleIoMap, reference)
@@ -191,11 +181,9 @@ SqlTableNameToSyntaxLeaf(; style=StyleText(font_ubuntu_monospace_regular_24, col
 
 function projection_print(p::SqlTableNameToSyntaxLeaf, recursion, doc::SqlTableName, ctx)
     SimpleIoMap(p, doc, SyntaxLeaf(
-        TextString("", p.style.font, color_default),
-        TextString("", p.style.font, color_default),
         TextString(() -> doc.schema_name === nothing ? doc.name : "$(doc.schema_name).$(doc.name)",
-                   p.style),
-        doc.selection))
+                   p.style);
+        selection=doc.selection))
 end
 
 function map_reference_forward(::SqlTableNameToSyntaxLeaf, iomap::SimpleIoMap, reference)
@@ -222,15 +210,13 @@ SqlTableExpressionToSyntaxLeaf(; style=StyleText(font_ubuntu_monospace_regular_2
 
 function projection_print(p::SqlTableExpressionToSyntaxLeaf, recursion, doc::SqlTableExpression, ctx)
     SimpleIoMap(p, doc, SyntaxLeaf(
-        TextString("", p.style.font, color_default),
-        TextString("", p.style.font, color_default),
         TextString(() -> begin
             tn = doc.table_name
             base = tn.schema_name === nothing ? tn.name : "$(tn.schema_name).$(tn.name)"
             a = doc.alias
             a === nothing ? base : "$base AS $(a.name)"
-        end, p.style),
-        doc.selection))
+        end, p.style);
+        selection=doc.selection))
 end
 
 function map_reference_forward(::SqlTableExpressionToSyntaxLeaf, iomap::SimpleIoMap, reference)
@@ -274,23 +260,18 @@ function projection_print(p::SqlSubqueryFromItemToSyntaxNode, recursion, doc::Sq
     end)
 
     node = SyntaxNode(
-        TextString("", p.keyword.font, color_default),
-        TextString("", p.keyword.font, color_default),
-        TextString(" ", p.keyword.font, color_default),
         CellVector(() -> begin
             docs = SyntaxDocument[paren_node]
             if doc.alias !== nothing
                 push!(docs, _kw("AS", p.keyword))
                 push!(docs, SyntaxLeaf(
-                    TextString("", p.identifier_font, color_default),
-                    TextString("", p.identifier_font, color_default),
                     TextString(() -> doc.alias === nothing ? "" : doc.alias.name,
-                               p.identifier_font, color_default),
-                    Cell(nothing)))
+                               p.identifier_font, color_default)))
             end
             docs
-        end),
-        0, Cell(false), sel)
+        end);
+        sep=TextString(" ", p.keyword.font, color_default),
+        selection=sel)
 
     iomap = ChildrenIoMap(p, doc, node, child_iomaps_cell)
     iomap_cell[] = iomap
@@ -389,23 +370,18 @@ function projection_print(p::SqlSelectItemToSyntaxNode, recursion, doc::SqlSelec
     end)
 
     node = SyntaxNode(
-        TextString("", p.keyword.font, color_default),
-        TextString("", p.keyword.font, color_default),
-        TextString(" ", p.keyword.font, color_default),
         CellVector(() -> begin
             docs = SyntaxDocument[expr_im[].output]
             if doc.column_alias !== nothing
                 push!(docs, _kw("AS", p.keyword))
                 push!(docs, SyntaxLeaf(
-                    TextString("", p.alias_font, color_default),
-                    TextString("", p.alias_font, color_default),
                     TextString(() -> doc.column_alias === nothing ? "" : doc.column_alias.name,
-                               p.alias_font, color_default),
-                    Cell(nothing)))
+                               p.alias_font, color_default)))
             end
             docs
-        end),
-        0, Cell(false), sel)
+        end);
+        sep=TextString(" ", p.keyword.font, color_default),
+        selection=sel)
 
     iomap = ChildrenIoMap(p, doc, node, child_iomaps_cell)
     iomap_cell[] = iomap
@@ -472,16 +448,14 @@ function projection_print(p::SqlSelectClauseToSyntaxNode, recursion, doc::SqlSel
     end)
 
     node = SyntaxNode(
-        TextString("", p.keyword.font, color_default),
-        TextString("", p.keyword.font, color_default),
-        TextString(" ", p.keyword.font, color_default),
         CellVector(() -> begin
             kws = SyntaxDocument[_kw("SELECT", p.keyword)]
             doc.distinct !== nothing && push!(kws, _kw("DISTINCT", p.keyword))
             push!(kws, items_body)
             kws
-        end),
-        0, Cell(false), sel)
+        end);
+        sep=TextString(" ", p.keyword.font, color_default),
+        selection=sel)
 
     iomap = ChildrenIoMap(p, doc, node, item_ims)
     iomap_cell[] = iomap
@@ -567,15 +541,13 @@ function projection_print(p::SqlJoinedFromItemToSyntaxNode, recursion, doc::SqlJ
     end)
 
     node = SyntaxNode(
-        TextString("", p.keyword.font, color_default),
-        TextString("", p.keyword.font, color_default),
-        TextString(" ", p.keyword.font, color_default),
         CellVector(() -> begin
             jt, fi, cond_im = projected[]
             cond_im === nothing ? SyntaxDocument[jt.output, fi.output] :
                                   SyntaxDocument[jt.output, fi.output, cond_im.output]
-        end),
-        0, Cell(false), sel)
+        end);
+        sep=TextString(" ", p.keyword.font, color_default),
+        selection=sel)
 
     iomap = ChildrenIoMap(p, doc, node, child_iomaps_cell)
     iomap_cell[] = iomap
@@ -669,11 +641,9 @@ function projection_print(p::SqlJoinOnConditionToSyntaxNode, recursion, doc::Sql
     end)
 
     node = SyntaxNode(
-        TextString("", p.keyword.font, color_default),
-        TextString("", p.keyword.font, color_default),
-        TextString(" ", p.keyword.font, color_default),
-        CellVector(() -> SyntaxDocument[_kw("ON", p.keyword), expr_im[].output]),
-        0, Cell(false), sel)
+        CellVector(() -> SyntaxDocument[_kw("ON", p.keyword), expr_im[].output]);
+        sep=TextString(" ", p.keyword.font, color_default),
+        selection=sel)
 
     iomap = ChildrenIoMap(p, doc, node, child_iomaps_cell)
     iomap_cell[] = iomap
@@ -749,15 +719,13 @@ function projection_print(p::SqlFromItemToSyntaxNode, recursion, doc::SqlFromIte
     end)
 
     node = SyntaxNode(
-        TextString("", p.keyword.font, color_default),
-        TextString("", p.keyword.font, color_default),
-        TextString(" ", p.keyword.font, color_default),
         CellVector(() -> begin
             base, joins = projected[]
             isempty(joins) ? SyntaxDocument[base.output] :
                              SyntaxDocument[base.output, joins_body]
-        end),
-        0, Cell(false), sel)
+        end);
+        sep=TextString(" ", p.keyword.font, color_default),
+        selection=sel)
 
     iomap = ChildrenIoMap(p, doc, node, child_iomaps_cell)
     iomap_cell[] = iomap
@@ -845,11 +813,9 @@ function projection_print(p::SqlFromClauseToSyntaxNode, recursion, doc::SqlFromC
     end)
 
     node = SyntaxNode(
-        TextString("", p.keyword.font, color_default),
-        TextString("", p.keyword.font, color_default),
-        TextString(" ", p.keyword.font, color_default),
-        CellVector(() -> SyntaxDocument[_kw("FROM", p.keyword), items_body]),
-        0, Cell(false), sel)
+        CellVector(() -> SyntaxDocument[_kw("FROM", p.keyword), items_body]);
+        sep=TextString(" ", p.keyword.font, color_default),
+        selection=sel)
 
     iomap = ChildrenIoMap(p, doc, node, item_ims)
     iomap_cell[] = iomap
@@ -922,11 +888,8 @@ function projection_print(p::SqlWhereFilterConditionToSyntaxNode, recursion, doc
     end)
 
     node = SyntaxNode(
-        TextString("", p.keyword.font, color_default),
-        TextString("", p.keyword.font, color_default),
-        TextString("", p.keyword.font, color_default),
-        CellVector(() -> SyntaxDocument[expr_im[].output]),
-        0, Cell(false), sel)
+        CellVector(() -> SyntaxDocument[expr_im[].output]);
+        selection=sel)
 
     iomap = ChildrenIoMap(p, doc, node, child_iomaps_cell)
     iomap_cell[] = iomap
@@ -996,11 +959,9 @@ function projection_print(p::SqlWhereClauseToSyntaxNode, recursion, doc::SqlWher
     end)
 
     node = SyntaxNode(
-        TextString("", p.keyword.font, color_default),
-        TextString("", p.keyword.font, color_default),
-        TextString(" ", p.keyword.font, color_default),
-        CellVector(() -> SyntaxDocument[_kw("WHERE", p.keyword), cond_body]),
-        0, Cell(false), sel)
+        CellVector(() -> SyntaxDocument[_kw("WHERE", p.keyword), cond_body]);
+        sep=TextString(" ", p.keyword.font, color_default),
+        selection=sel)
 
     iomap = ChildrenIoMap(p, doc, node, child_iomaps_cell)
     iomap_cell[] = iomap
@@ -1056,15 +1017,13 @@ SqlScalarValueToSyntaxLeaf(; style=StyleText(font_ubuntu_monospace_regular_24, c
 
 function projection_print(p::SqlScalarValueToSyntaxLeaf, recursion, doc::SqlScalarValue, ctx)
     SimpleIoMap(p, doc, SyntaxLeaf(
-        TextString("", p.style.font, color_default),
-        TextString("", p.style.font, color_default),
         TextString(() -> begin
             val = doc.value
             val isa Bool           ? (val ? "TRUE" : "FALSE") :
             val isa AbstractString ? "'$val'" :
             string(val)
-        end, p.style),
-        doc.selection))
+        end, p.style);
+        selection=doc.selection))
 end
 
 function map_reference_forward(::SqlScalarValueToSyntaxLeaf, iomap::SimpleIoMap, reference)
@@ -1109,14 +1068,12 @@ function projection_print(p::SqlComparisonToSyntaxNode, recursion, doc::SqlCompa
     end)
 
     node = SyntaxNode(
-        TextString("", p.keyword.font, color_default),
-        TextString("", p.keyword.font, color_default),
-        TextString(" ", p.keyword.font, color_default),
         CellVector(() -> begin
             left, right = projected[]
             SyntaxDocument[left.output, _kw(doc.operator, p.keyword), right.output]
-        end),
-        0, Cell(false), sel)
+        end);
+        sep=TextString(" ", p.keyword.font, color_default),
+        selection=sel)
 
     iomap = ChildrenIoMap(p, doc, node, child_iomaps_cell)
     iomap_cell[] = iomap
@@ -1199,14 +1156,14 @@ function projection_print(p::SqlBooleanBinaryToSyntaxNode, recursion, doc, ctx)
     end)
 
     node = SyntaxNode(
-        TextString("(", p.keyword_style.font, color_default),
-        TextString(")", p.keyword_style.font, color_default),
-        TextString(" ", p.keyword_style.font, color_default),
         CellVector(() -> begin
             left, right = projected[]
             SyntaxDocument[left.output, _kw(p.keyword, p.keyword_style), right.output]
-        end),
-        0, Cell(false), sel)
+        end);
+        open=TextString("(", p.keyword_style.font, color_default),
+        close=TextString(")", p.keyword_style.font, color_default),
+        sep=TextString(" ", p.keyword_style.font, color_default),
+        selection=sel)
 
     iomap = ChildrenIoMap(p, doc, node, child_iomaps_cell)
     iomap_cell[] = iomap
@@ -1283,12 +1240,12 @@ function projection_print(p::SqlNotToSyntaxNode, recursion, doc::SqlNot, ctx)
     end)
 
     node = SyntaxNode(
-        TextString("(", p.keyword.font, color_default),
-        TextString(")", p.keyword.font, color_default),
-        TextString(" ", p.keyword.font, color_default),
         CellVector(() ->
-            SyntaxDocument[_kw("NOT", p.keyword), expr_im[].output]),
-        0, Cell(false), sel)
+            SyntaxDocument[_kw("NOT", p.keyword), expr_im[].output]);
+        open=TextString("(", p.keyword.font, color_default),
+        close=TextString(")", p.keyword.font, color_default),
+        sep=TextString(" ", p.keyword.font, color_default),
+        selection=sel)
 
     iomap = ChildrenIoMap(p, doc, node, child_iomaps_cell)
     iomap_cell[] = iomap
@@ -1378,12 +1335,7 @@ function projection_print(p::SqlSelectStatementToSyntaxNode, recursion, stmt::Sq
         map_reference_forward(p, im, path)
     end)
 
-    node = SyntaxNode(
-        TextString("", p.keyword.font, color_default),
-        TextString("", p.keyword.font, color_default),
-        TextString("", p.keyword.font, color_default),
-        children,
-        0, Cell(false), sel)
+    node = SyntaxNode(children; selection=sel)
 
     iomap = ChildrenIoMap(p, stmt, node, child_iomaps_cell)
     iomap_cell[] = iomap
@@ -1498,9 +1450,6 @@ function projection_print(p::SqlInsertStatementToSyntaxNode, recursion, stmt::Sq
     end)
 
     node = SyntaxNode(
-        TextString("", p.keyword.font, color_default),
-        TextString("", p.keyword.font, color_default),
-        TextString(" ", p.keyword.font, color_default),
         CellVector(() -> begin
             _, col_ims, _ = projected[]
             docs = SyntaxDocument[_kw("INSERT", p.keyword),
@@ -1510,8 +1459,9 @@ function projection_print(p::SqlInsertStatementToSyntaxNode, recursion, stmt::Sq
             push!(docs, _kw("VALUES", p.keyword))
             push!(docs, values_paren)
             docs
-        end),
-        0, Cell(false), sel)
+        end);
+        sep=TextString(" ", p.keyword.font, color_default),
+        selection=sel)
 
     iomap = ChildrenIoMap(p, stmt, node, child_iomaps_cell)
     iomap_cell[] = iomap
@@ -1630,14 +1580,12 @@ function projection_print(p::SqlUpdateAssignmentToSyntaxNode, recursion, doc::Sq
     end)
 
     node = SyntaxNode(
-        TextString("", p.keyword.font, color_default),
-        TextString("", p.keyword.font, color_default),
-        TextString(" ", p.keyword.font, color_default),
         CellVector(() -> begin
             col_im, val_im = projected[]
             SyntaxDocument[col_im.output, _kw("=", p.keyword), val_im.output]
-        end),
-        0, Cell(false), sel)
+        end);
+        sep=TextString(" ", p.keyword.font, color_default),
+        selection=sel)
 
     iomap = ChildrenIoMap(p, doc, node, child_iomaps_cell)
     iomap_cell[] = iomap
@@ -1739,9 +1687,6 @@ function projection_print(p::SqlUpdateStatementToSyntaxNode, recursion, stmt::Sq
     end)
 
     node = SyntaxNode(
-        TextString("", p.keyword.font, color_default),
-        TextString("", p.keyword.font, color_default),
-        TextString(" ", p.keyword.font, color_default),
         CellVector(() -> begin
             table_im, _, where_im = projected[]
             docs = SyntaxDocument[_kw("UPDATE", p.keyword),
@@ -1753,8 +1698,9 @@ function projection_print(p::SqlUpdateStatementToSyntaxNode, recursion, stmt::Sq
                 push!(docs, where_im.output)
             end
             docs
-        end),
-        0, Cell(false), sel)
+        end);
+        sep=TextString(" ", p.keyword.font, color_default),
+        selection=sel)
 
     iomap = ChildrenIoMap(p, stmt, node, child_iomaps_cell)
     iomap_cell[] = iomap
@@ -1862,17 +1808,11 @@ function projection_print(p::SqlColumnDefinitionToSyntaxNode, recursion, doc::Sq
     end)
 
     node = SyntaxNode(
-        TextString("", p.type.font, color_default),
-        TextString("", p.type.font, color_default),
-        TextString(" ", p.type.font, color_default),
         CellVector(() -> SyntaxDocument[
             col_im[].output,
-            SyntaxLeaf(
-                TextString("", p.type.font, color_default),
-                TextString("", p.type.font, color_default),
-                TextString(() -> doc.data_type, p.type),
-                Cell(nothing))]),
-        0, Cell(false), sel)
+            SyntaxLeaf(TextString(() -> doc.data_type, p.type))]);
+        sep=TextString(" ", p.type.font, color_default),
+        selection=sel)
 
     iomap = ChildrenIoMap(p, doc, node, child_iomaps_cell)
     iomap_cell[] = iomap
@@ -1960,17 +1900,16 @@ function projection_print(p::SqlCreateTableStatementToSyntaxNode, recursion, stm
     end)
 
     node = SyntaxNode(
-        TextString("", p.keyword.font, color_default),
-        TextString(";", p.keyword.font, color_default),
-        TextString(" ", p.keyword.font, color_default),
         CellVector(() -> begin
             table_im, _ = projected[]
             SyntaxDocument[_kw("CREATE", p.keyword),
                            _kw("TABLE", p.keyword),
                            table_im.output,
                            columns_body]
-        end),
-        0, Cell(false), sel)
+        end);
+        close=TextString(";", p.keyword.font, color_default),
+        sep=TextString(" ", p.keyword.font, color_default),
+        selection=sel)
 
     iomap = ChildrenIoMap(p, stmt, node, child_iomaps_cell)
     iomap_cell[] = iomap
@@ -2059,18 +1998,13 @@ function projection_print(p::SqlCreateSchemaStatementToSyntaxNode, recursion, st
     end)
 
     node = SyntaxNode(
-        TextString("", p.keyword.font, color_default),
-        TextString(";", p.keyword.font, color_default),
-        TextString(" ", p.keyword.font, color_default),
         CellVector(() -> SyntaxDocument[
             _kw("CREATE", p.keyword),
             _kw("SCHEMA", p.keyword),
-            SyntaxLeaf(
-                TextString("", p.identifier_font, color_default),
-                TextString("", p.identifier_font, color_default),
-                TextString(() -> stmt.schema_name, p.identifier_font, color_solarized_green),
-                Cell(nothing))]),
-        0, Cell(false), sel)
+            SyntaxLeaf(TextString(() -> stmt.schema_name, p.identifier_font, color_solarized_green))]);
+        close=TextString(";", p.keyword.font, color_default),
+        sep=TextString(" ", p.keyword.font, color_default),
+        selection=sel)
 
     iomap = ChildrenIoMap(p, stmt, node, Cell(() -> Any[]))
     iomap_cell[] = iomap
@@ -2127,11 +2061,9 @@ function projection_print(p::SqlStatementListToSyntaxNode, recursion, doc::SqlSt
     end)
 
     node = SyntaxNode(
-        TextString("", p.font, color_default),
-        TextString("", p.font, color_default),
-        TextString("\n\n", p.font, color_default),
-        CellVector(() -> SyntaxDocument[im.output for im in stmt_ims[]]),
-        0, Cell(false), sel)
+        CellVector(() -> SyntaxDocument[im.output for im in stmt_ims[]]);
+        sep=TextString("\n\n", p.font, color_default),
+        selection=sel)
 
     iomap = ChildrenIoMap(p, doc, node, child_iomaps_cell)
     iomap_cell[] = iomap

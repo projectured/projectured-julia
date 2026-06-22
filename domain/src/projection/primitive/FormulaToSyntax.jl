@@ -64,9 +64,8 @@ FormulaInsertionToSyntaxLeaf(; style=StyleText(font_ubuntu_monospace_regular_24,
 
 function projection_print(p::FormulaInsertionToSyntaxLeaf, recursion, b::FormulaInsertion, ctx)
     SimpleIoMap(p, b, SyntaxLeaf(
-        _empty(p.style.font), _empty(p.style.font),
-        TextString("insert formula", p.style),
-        getfield(b, :selection)))
+        TextString("insert formula", p.style);
+        selection=getfield(b, :selection)))
 end
 
 # ── FormulaReferenceToSyntaxLeaf ───────────────────────────────────────────────
@@ -84,12 +83,11 @@ FormulaReferenceToSyntaxLeaf(; style=StyleText(font_ubuntu_monospace_bold_24, co
 
 function projection_print(p::FormulaReferenceToSyntaxLeaf, recursion, r::FormulaReference, ctx)
     SimpleIoMap(p, r, SyntaxLeaf(
-        _empty(p.style.font), _empty(p.style.font),
         TextString(() -> begin
             t = r.target
             t isa FormulaFormula ? t.name : "#REF!"
-        end, p.style),
-        getfield(r, :selection)))
+        end, p.style);
+        selection=getfield(r, :selection)))
 end
 
 # ── FormulaFormulaToSyntaxNode ─────────────────────────────────────────────────
@@ -132,25 +130,18 @@ function projection_print(p::FormulaFormulaToSyntaxNode, recursion, f::FormulaFo
 
     # The name leaf displays the formula name; renaming is a structural
     # operation, not character editing here, so it carries no input mapping.
-    name_leaf = SyntaxLeaf(
-        _empty(p.name.font), _empty(p.name.font),
-        TextString(() -> f.name, p.name),
-        Cell(nothing))
+    name_leaf = SyntaxLeaf(TextString(() -> f.name, p.name))
     eq_leaf = SyntaxLeaf(
-        TextString(" ", p.op.font, color_default),
-        TextString(" ", p.op.font, color_default),
-        TextString("=", p.op), Cell(nothing))
+        TextString("=", p.op);
+        open=TextString(" ", p.op.font, color_default),
+        close=TextString(" ", p.op.font, color_default))
     arrow_leaf = SyntaxLeaf(
-        TextString(" ", p.op.font, color_default),
-        TextString(" ", p.op.font, color_default),
-        TextString("⇒", p.op), Cell(nothing))
-    result_leaf = SyntaxLeaf(
-        _empty(p.op.font), _empty(p.op.font),
-        TextString(() -> _result_to_string(f.result), p.result),
-        Cell(nothing))
+        TextString("⇒", p.op);
+        open=TextString(" ", p.op.font, color_default),
+        close=TextString(" ", p.op.font, color_default))
+    result_leaf = SyntaxLeaf(TextString(() -> _result_to_string(f.result), p.result))
 
     node = SyntaxNode(
-        _empty(p.op.font), _empty(p.op.font), _empty(p.op.font),
         CellVector(() -> begin
             mode = f.display_mode
             if mode === :code
@@ -161,8 +152,7 @@ function projection_print(p::FormulaFormulaToSyntaxNode, recursion, f::FormulaFo
                 SyntaxDocument[name_leaf, eq_leaf, code_iomap[].output,
                                arrow_leaf, result_leaf]
             end
-        end),
-        0, Cell(false), Cell(nothing))
+        end))
     ChildrenIoMap(p, f, node, Cell(() -> IoMap[code_iomap[]]))
 end
 
@@ -224,10 +214,8 @@ function projection_print(p::FormulaEnvironmentToSyntaxNode, recursion, e::Formu
          for i in 1:length(e.formulas)])
 
     node = SyntaxNode(
-        _empty(p.font), _empty(p.font),
-        TextString("\n", p.font, color_default),
-        CellVector(() -> SyntaxDocument[im.output for im in child_iomaps[]]),
-        0, Cell(false), Cell(nothing))
+        CellVector(() -> SyntaxDocument[im.output for im in child_iomaps[]]);
+        sep=TextString("\n", p.font, color_default))
     ChildrenIoMap(p, e, node, child_iomaps)
 end
 

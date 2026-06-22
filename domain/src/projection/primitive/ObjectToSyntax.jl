@@ -42,7 +42,7 @@ NothingToSyntaxLeaf(; style=StyleText(font_ubuntu_monospace_regular_24, color_so
     NothingToSyntaxLeaf(style, include_selection)
 
 function projection_print(p::NothingToSyntaxLeaf, recursion, ::Nothing, ctx)
-    leaf = SyntaxLeaf(TextString("", p.style.font, color_default), TextString("", p.style.font, color_default), TextString("nothing", p.style))
+    leaf = SyntaxLeaf(TextString("nothing", p.style))
     SimpleIoMap(p, nothing, leaf)
 end
 
@@ -56,7 +56,7 @@ BoolToSyntaxLeaf(; style=StyleText(font_ubuntu_monospace_regular_24, color_solar
     BoolToSyntaxLeaf(style, include_selection)
 
 function projection_print(p::BoolToSyntaxLeaf, recursion, b::Bool, ctx)
-    leaf = SyntaxLeaf(TextString("", p.style.font, color_default), TextString("", p.style.font, color_default), TextString(b ? "true" : "false", p.style))
+    leaf = SyntaxLeaf(TextString(b ? "true" : "false", p.style))
     SimpleIoMap(p, b, leaf)
 end
 
@@ -70,7 +70,7 @@ NumberToSyntaxLeaf(; style=StyleText(font_ubuntu_monospace_regular_24, color_sol
     NumberToSyntaxLeaf(style, include_selection)
 
 function projection_print(p::NumberToSyntaxLeaf, recursion, n::Number, ctx)
-    leaf = SyntaxLeaf(TextString("", p.style.font, color_default), TextString("", p.style.font, color_default), TextString(string(n), p.style))
+    leaf = SyntaxLeaf(TextString(string(n), p.style))
     SimpleIoMap(p, n, leaf)
 end
 
@@ -88,9 +88,9 @@ StringToSyntaxLeaf(; quote_style=StyleText(font_ubuntu_monospace_regular_24, col
 
 function projection_print(p::StringToSyntaxLeaf, recursion, s::AbstractString, ctx)
     leaf = SyntaxLeaf(
-        TextString("\"", p.quote_style),
-        TextString("\"", p.quote_style),
-        TextString(s, p.value))
+        TextString(s, p.value);
+        open=TextString("\"", p.quote_style),
+        close=TextString("\"", p.quote_style))
     SimpleIoMap(p, s, leaf)
 end
 
@@ -104,7 +104,7 @@ SymbolToSyntaxLeaf(; style=StyleText(font_ubuntu_monospace_regular_24, color_sol
     SymbolToSyntaxLeaf(style, include_selection)
 
 function projection_print(p::SymbolToSyntaxLeaf, recursion, s::Symbol, ctx)
-    leaf = SyntaxLeaf(TextString("", p.style.font, color_default), TextString("", p.style.font, color_default), TextString(string(s), p.style))
+    leaf = SyntaxLeaf(TextString(string(s), p.style))
     SimpleIoMap(p, s, leaf)
 end
 
@@ -122,9 +122,9 @@ CharToSyntaxLeaf(; quote_style=StyleText(font_ubuntu_monospace_regular_24, color
 
 function projection_print(p::CharToSyntaxLeaf, recursion, c::Char, ctx)
     leaf = SyntaxLeaf(
-        TextString("'", p.quote_style),
-        TextString("'", p.quote_style),
-        TextString(string(c), p.value))
+        TextString(string(c), p.value);
+        open=TextString("'", p.quote_style),
+        close=TextString("'", p.quote_style))
     SimpleIoMap(p, c, leaf)
 end
 
@@ -140,10 +140,7 @@ CellToSyntax(; cycle=StyleText(font_ubuntu_monospace_italic_24, color_solarized_
 function projection_print(p::CellToSyntax, recursion, cell::Cell, ctx)
     visited = get_property(ctx, :objects_seen, nothing)
     if visited !== nothing && haskey(visited, cell)
-        cycle_leaf = SyntaxLeaf(
-            TextString("", p.cycle.font, color_default),
-            TextString("", p.cycle.font, color_default),
-            TextString("⟨cycle: Cell⟩", p.cycle))
+        cycle_leaf = SyntaxLeaf(TextString("⟨cycle: Cell⟩", p.cycle))
         return SimpleIoMap(p, cell, cycle_leaf)
     end
     new_visited = visited === nothing ? IdDict{Any,Bool}() : copy(visited)
@@ -195,22 +192,15 @@ _unwrap_cell(x) = x isa Cell ? x[] : x
 
 # Build the type-name leaf for `T`.
 _type_leaf(p::ObjectNodeToSyntaxNode, name::AbstractString) =
-    SyntaxLeaf(TextString("", p.type_name.font, color_default),
-               TextString("", p.type_name.font, color_default),
-               TextString(name, p.type_name))
+    SyntaxLeaf(TextString(name, p.type_name))
 
 # Build one `field_name <value>` node (inline: name leaf + projected value).
 function _field_node(p::ObjectNodeToSyntaxNode, recursion, obj, ctx, fn::Symbol)
-    name_leaf = SyntaxLeaf(
-        TextString("", p.field_name.font, color_default),
-        TextString("", p.field_name.font, color_default),
-        TextString(string(fn), p.field_name))
+    name_leaf = SyntaxLeaf(TextString(string(fn), p.field_name))
     value_node = isdefined(obj, fn) ?
         projection_printer_recurse(recursion, getfield(obj, fn),
                          child_context(ctx, FieldReference(string(fn)))).output :
-        SyntaxLeaf(TextString("", p.undef.font, color_default),
-                   TextString("", p.undef.font, color_default),
-                   TextString("<undefined>", p.undef))
+        SyntaxLeaf(TextString("<undefined>", p.undef))
     SyntaxNode("", "", " ", SyntaxDocument[name_leaf, value_node]; indentation=0)
 end
 

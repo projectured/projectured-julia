@@ -98,7 +98,7 @@ end
 
 function projection_print(p::XmlTextToSyntaxLeaf, recursion, t::XmlText, ctx)
     output_selection = _xml_text_sel(t)
-    SimpleIoMap(p, t, SyntaxLeaf(TextString("", p.style.font, color_default), TextString("", p.style.font, color_default), TextString(() -> t.content, p.style), output_selection))
+    SimpleIoMap(p, t, SyntaxLeaf(TextString(() -> t.content, p.style); selection=output_selection))
 end
 
 # ── XmlInsertionToSyntaxLeaf ───────────────────────────────────────────────────
@@ -110,7 +110,7 @@ XmlInsertionToSyntaxLeaf(; style=StyleText(font_ubuntu_monospace_regular_24, col
 
 function projection_print(p::XmlInsertionToSyntaxLeaf, recursion, x::XmlInsertion, ctx)
     output_selection = Cell(() -> map_reference_forward(p, nothing, x.selection))
-    SimpleIoMap(p, x, SyntaxLeaf(TextString("", p.style.font, color_default), TextString("", p.style.font, color_default), TextString("insert XML here", p.style), output_selection))
+    SimpleIoMap(p, x, SyntaxLeaf(TextString("insert XML here", p.style); selection=output_selection))
 end
 
 struct XmlElementToSyntaxNode <: Projection
@@ -269,39 +269,28 @@ function projection_print(p::XmlElementToSyntaxNode, recursion, e::XmlElement, c
         end
     end)
     tag_leaf = SyntaxLeaf(
-        TextString("<", p.delim),
-        TextString(() -> isempty(e.attrs) ? "" : " ", p.delim),
-        TextString(() -> e.tag, p.tag),
-        tag_sel)
+        TextString(() -> e.tag, p.tag);
+        open=TextString("<", p.delim),
+        close=TextString(() -> isempty(e.attrs) ? "" : " ", p.delim),
+        selection=tag_sel)
 
     attrs_node = SyntaxNode(
-        TextString("", p.delim.font, color_default),
-        TextString(">", p.delim),
-        TextString(" ", p.delim.font, color_default),
-        () -> SyntaxDocument[_attr_node(a, p) for a in e.attrs])
+        () -> SyntaxDocument[_attr_node(a, p) for a in e.attrs];
+        close=TextString(">", p.delim),
+        sep=TextString(" ", p.delim.font, color_default))
 
     body_node = SyntaxNode(
-        TextString("", p.delim.font, color_default),
-        TextString("", p.delim.font, color_default),
-        TextString("", p.delim.font, color_default),
-        CellVector(() -> SyntaxDocument[im.output for im in child_iomaps[]]),
-        1,
-        Cell(false),
-        Cell(nothing))
+        CellVector(() -> SyntaxDocument[im.output for im in child_iomaps[]]);
+        indentation=1)
 
     close_leaf = SyntaxLeaf(
-        TextString("</", p.delim),
-        TextString(">",  p.delim),
-        TextString(() -> e.tag, p.tag))
+        TextString(() -> e.tag, p.tag);
+        open=TextString("</", p.delim),
+        close=TextString(">",  p.delim))
 
     ChildrenIoMap(p, e, SyntaxNode(
-        TextString("", p.delim.font, color_default),
-        TextString("", p.delim.font, color_default),
-        TextString("", p.delim.font, color_default),
-        CellVector(Cell[Cell(tag_leaf), Cell(attrs_node), Cell(body_node), Cell(close_leaf)]),
-        0,
-        Cell(false),
-        sel), child_iomaps)
+        CellVector(Cell[Cell(tag_leaf), Cell(attrs_node), Cell(body_node), Cell(close_leaf)]);
+        selection=sel), child_iomaps)
 end
 
 # ── Utility functions ──────────────────────────────────────────────────────
@@ -345,21 +334,17 @@ function _attr_node(a::XmlAttribute, p::XmlElementToSyntaxNode)
         end
     end)
     SyntaxNode(
-        TextString("", p.delim.font, color_default),
-        TextString("", p.delim.font, color_default),
-        TextString("=", p.delim),
         SyntaxDocument[
             SyntaxLeaf(
-                TextString("", p.attr_name.font, color_default),
-                TextString("", p.attr_name.font, color_default),
-                TextString(() -> a.name, p.attr_name),
-                name_sel),
+                TextString(() -> a.name, p.attr_name);
+                selection=name_sel),
             SyntaxLeaf(
-                TextString("\"", p.quote_style),
-                TextString("\"", p.quote_style),
-                TextString(() -> xml_escape_attr(a.value), p.attr_value),
-                value_sel),
-        ])
+                TextString(() -> xml_escape_attr(a.value), p.attr_value);
+                open=TextString("\"", p.quote_style),
+                close=TextString("\"", p.quote_style),
+                selection=value_sel),
+        ];
+        sep=TextString("=", p.delim))
 end
 
 # ── Reader: the XML authoring command set ───────────────────────────────────

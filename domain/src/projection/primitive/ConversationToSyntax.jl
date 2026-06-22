@@ -85,8 +85,7 @@ function projection_print(p::ConversationConversationToSyntaxNode,
         projection_printer_recurse(recursion, c.turns[i], ctx).output
         for i in eachindex(c.turns)
     ])
-    node = SyntaxNode(_empty_ts(), _empty_ts(), _empty_ts(),
-                      children, 1, Cell(false), Cell(nothing))
+    node = SyntaxNode(children; indentation=1)
     SimpleIoMap(p, c, node)
 end
 
@@ -99,9 +98,9 @@ function projection_print(p::ConversationTurnToSyntaxNode,
         for i in eachindex(t.parts)
     ])
     label = string(t.role, ":\n")
-    node = SyntaxNode(_ts(label, _FONT_BOLD, _LABEL_COL),
-                      _empty_ts(), _ts("\n"),
-                      children, 0, Cell(false), Cell(nothing))
+    node = SyntaxNode(children;
+                      open=_ts(label, _FONT_BOLD, _LABEL_COL),
+                      sep=_ts("\n"))
     SimpleIoMap(p, t, node)
 end
 
@@ -115,8 +114,7 @@ function projection_print(p::ConversationPartToSyntaxNode,
     elseif content isa ConversationThinking
         return _thinking_node(p, part, content)
     end
-    leaf = SyntaxLeaf(_empty_ts(), _empty_ts(),
-                      _ts(() -> _content_to_string(part.content)))
+    leaf = SyntaxLeaf(_ts(() -> _content_to_string(part.content)))
     SimpleIoMap(p, part, leaf)
 end
 
@@ -125,25 +123,24 @@ end
 const _FONT_ITALIC = font_ubuntu_monospace_italic_24
 function _thinking_node(p, part, t::ConversationThinking)
     body() = t.redacted ? "[redacted thinking]" : _content_to_string(t.text)
-    leaf = SyntaxLeaf(_ts("∴ ", _FONT_BOLD, _DIM_COL),
-                      _empty_ts(),
-                      _ts(body, _FONT_ITALIC, _DIM_COL))
+    leaf = SyntaxLeaf(
+        _ts(body, _FONT_ITALIC, _DIM_COL);
+        open=_ts("∴ ", _FONT_BOLD, _DIM_COL))
     SimpleIoMap(p, part, leaf)
 end
 
 # An EvaluatorForm renders as "> code" over "= result" (or "! result" on error).
 function _eval_form_node(p, part, ef::EvaluatorForm)
-    code_leaf = SyntaxLeaf(_ts("> ", _FONT_BOLD, _LABEL_COL),
-                           _empty_ts(),
-                           _ts(() -> _content_to_string(ef.form), _FONT, _CODE_COL))
+    code_leaf = SyntaxLeaf(
+        _ts(() -> _content_to_string(ef.form), _FONT, _CODE_COL);
+        open=_ts("> ", _FONT_BOLD, _LABEL_COL))
     result_color = ef.is_error ? _ERR_COL : _DIM_COL
     result_label = ef.is_error ? "! " : "= "
-    result_leaf = SyntaxLeaf(_ts(result_label, _FONT_BOLD, result_color),
-                             _empty_ts(),
-                             _ts(() -> _content_to_string(ef.result), _FONT, result_color))
+    result_leaf = SyntaxLeaf(
+        _ts(() -> _content_to_string(ef.result), _FONT, result_color);
+        open=_ts(result_label, _FONT_BOLD, result_color))
     children = CellVector(SyntaxDocument[code_leaf, result_leaf])
-    node = SyntaxNode(_empty_ts(), _empty_ts(), _ts("\n"),
-                      children, 0, Cell(false), Cell(nothing))
+    node = SyntaxNode(children; sep=_ts("\n"))
     SimpleIoMap(p, part, node)
 end
 

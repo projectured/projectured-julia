@@ -51,9 +51,7 @@ BookInsertionToSyntaxLeaf(; style=StyleText(font_ubuntu_monospace_regular_24, co
 
 function projection_print(p::BookInsertionToSyntaxLeaf, recursion, b::BookInsertion, ctx)
     output_selection = Cell(() -> map_reference_forward(p, nothing, b.selection))
-    SimpleIoMap(p, b, SyntaxLeaf(
-        TextString("", p.style.font, color_default), TextString("", p.style.font, color_default),
-        TextString("insert here", p.style), output_selection))
+    SimpleIoMap(p, b, SyntaxLeaf(TextString("insert here", p.style); selection=output_selection))
 end
 
 # ── BookBookToSyntaxNode ──────────────────────────────────────────────────────
@@ -97,9 +95,7 @@ function projection_print(p::BookBookToSyntaxNode, recursion, b::BookBook, ctx)
         end
     end)
 
-    title_leaf = SyntaxLeaf(TextString("", p.title.font, color_default), TextString("", p.title.font, color_default),
-        TextString(() -> b.title, p.title),
-        0, Cell(false), title_sel)
+    title_leaf = SyntaxLeaf(TextString(() -> b.title, p.title); selection=title_sel)
 
     sel = Cell(() -> begin
         path = skip_type_checkpoints(b.selection)
@@ -142,10 +138,9 @@ function projection_print(p::BookBookToSyntaxNode, recursion, b::BookBook, ctx)
         result  = SyntaxDocument[title_leaf]
         if author !== nothing
             a_leaf = SyntaxLeaf(
-                TextString("Written by ", p.author_prefix),
-                TextString("", p.author_prefix.font, color_default),
-                TextString(() -> string(b.author), p.author),
-                0, Cell(false), author_sel)
+                TextString(() -> string(b.author), p.author);
+                open=TextString("Written by ", p.author_prefix),
+                selection=author_sel)
             push!(result, a_leaf)
         end
         for im in iomaps
@@ -154,8 +149,7 @@ function projection_print(p::BookBookToSyntaxNode, recursion, b::BookBook, ctx)
         result
     end)
 
-    output = SyntaxNode(TextString("", p.title.font, color_default), TextString("", p.title.font, color_default), TextString("", p.title.font, color_default),
-                        children_cv, 1, b.collapsed, sel)
+    output = SyntaxNode(children_cv; indentation=1, collapsed=b.collapsed, selection=sel)
     ChildrenIoMap(p, b, output, element_iomaps)
 end
 
@@ -270,13 +264,13 @@ function projection_print(p::BookChapterToSyntaxNode, recursion, b::BookChapter,
         end
     end)
 
-    title_leaf = SyntaxLeaf(TextString("", p.title.font, color_default), TextString("", p.title.font, color_default),
+    title_leaf = SyntaxLeaf(
         TextString(() -> begin
             num = b.numbering
             t   = b.title
             isempty(num) ? t : "$num  $t"
-        end, p.title),
-        0, Cell(false), title_sel)
+        end, p.title);
+        selection=title_sel)
 
     sel = Cell(() -> begin
         path = skip_type_checkpoints(b.selection)
@@ -317,8 +311,7 @@ function projection_print(p::BookChapterToSyntaxNode, recursion, b::BookChapter,
         result
     end)
 
-    output = SyntaxNode(TextString("", p.title.font, color_default), TextString("", p.title.font, color_default), TextString("", p.title.font, color_default),
-                        children_cv, 1, b.collapsed, sel)
+    output = SyntaxNode(children_cv; indentation=1, collapsed=b.collapsed, selection=sel)
     ChildrenIoMap(p, b, output, element_iomaps)
 end
 
@@ -424,9 +417,7 @@ function projection_print(p::BookParagraphToSyntaxLeaf, recursion, b::BookParagr
             content.rest... => @reference ::SyntaxLeaf.value::TextString.^(rest)
         end
     end)
-    leaf = SyntaxLeaf(TextString("", p.style.font, color_default), TextString("", p.style.font, color_default),
-        TextString(() -> _render_paragraph_content(b.content), p.style),
-        0, Cell(false), content_sel)
+    leaf = SyntaxLeaf(TextString(() -> _render_paragraph_content(b.content), p.style); selection=content_sel)
     SimpleIoMap(p, b, leaf)
 end
 
@@ -498,16 +489,12 @@ function projection_print(p::BookListToSyntaxNode, recursion, b::BookList, ctx)
     children_cv = CellVector(() -> begin
         iomaps = element_iomaps[]
         SyntaxDocument[
-            SyntaxNode(
-                TextString("• ", p.bullet),
-                TextString("", p.bullet.font, color_default), TextString("", p.bullet.font, color_default),
-                SyntaxDocument[im.output]; indentation=0)
+            SyntaxNode(SyntaxDocument[im.output]; open=TextString("• ", p.bullet))
             for im in iomaps
         ]
     end)
 
-    output = SyntaxNode(TextString("", p.bullet.font, color_default), TextString("", p.bullet.font, color_default), TextString("", p.bullet.font, color_default),
-                        children_cv, p.indentation, b.collapsed, sel)
+    output = SyntaxNode(children_cv; indentation=p.indentation, collapsed=b.collapsed, selection=sel)
     ChildrenIoMap(p, b, output, element_iomaps)
 end
 
@@ -591,23 +578,21 @@ function projection_print(p::BookPictureToSyntaxLeaf, recursion, b::BookPicture,
             content.rest... => @reference ::SyntaxLeaf.value::TextString.^(rest)
         end
     end)
-    title_leaf = SyntaxLeaf(TextString("", p.style.font, color_default), TextString("", p.style.font, color_default),
+    title_leaf = SyntaxLeaf(
         TextString(() -> begin
             t = b.title
             isempty(t) ? "untitled" : t
-        end, p.style),
-        0, Cell(false), title_sel)
-    content_leaf = SyntaxLeaf(TextString("", p.style.font, color_default), TextString("", p.style.font, color_default),
+        end, p.style);
+        selection=title_sel)
+    content_leaf = SyntaxLeaf(
         TextString(() -> begin
             c = b.content
             c === nothing ? "enter picture path" : string(c)
-        end, p.style),
-        0, Cell(false), content_sel)
-    node = SyntaxNode(TextString("", p.style.font, color_default),
-                      TextString("", p.style.font, color_default),
-                      TextString(": ", p.placeholder),
-                      CellVector(Cell[Cell(title_leaf), Cell(content_leaf)]),
-                      0, Cell(false), Cell(nothing))
+        end, p.style);
+        selection=content_sel)
+    node = SyntaxNode(
+        CellVector(Cell[Cell(title_leaf), Cell(content_leaf)]);
+        sep=TextString(": ", p.placeholder))
     SimpleIoMap(p, b, node)
 end
 
