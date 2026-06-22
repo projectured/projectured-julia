@@ -188,3 +188,34 @@ The generic method does not dispatch on these; leave their `show` alone.
 - Changing how projections render (printers don't use document `show`).
 - 3-arg `show(::MIME"text/plain", …)` customisation.
 - Round-trippable / parseable `show` output.
+
+## Implementation outcome (done)
+
+Implemented on branch `generic-document-show` (worktree
+`../projectured-julia-show`).
+
+- **Generic method added** to `DocumentModule`
+  ([program/src/common/Document.jl](../../program/src/common/Document.jl)) with
+  `DOCUMENT_SHOW_MAX_DEPTH = 2`. Commit `d5ffad6`.
+- **All 172 per-type document `show` methods removed** across 32 files
+  (`program/src/document/*` plus `document/Document.jl`). Commit `068d3ef`.
+- **Confirmed non-document keep-list** (left untouched): `Cell`
+  (`common/Reactive.jl`), the 8 `Reference*` steps/paths
+  (`reference/Reference.jl`), `Inset`/`Point2D` (`document/Geometry.jl`),
+  `StyleText`, `StyleStroke`, and `RawDatabaseResult` (`external/Database.jl`).
+  `StyleText`/`StyleStroke`/`Geometry` are plain structs, **not** `<:Document`,
+  so they keep their `show` — they are not documents, so the "no exceptions for
+  documents" rule does not touch them.
+- **No incidental consumers**: grep confirmed projection printers build spans
+  from fields (`string(...)` on primitives), never from document `show`/`repr`.
+- **Verification**:
+  - Package precompiles cleanly after the deletions.
+  - Generic `show` exercised on the real nested `json` example document — Cells
+    unwrapped, constructor form, depth cutoff renders `CellVector(…)` at the
+    boundary.
+  - Full `test_printers()` + `test_readers()` + `test_repls()` sweep over all 84
+    examples: **165,711 pass, 5 fail**. The 5 failures are all in `sql_table`
+    and are a **pre-existing** `length(::Cell)` bug — verified identical on
+    unmodified `main` (378 pass / 5 fail). This change regresses nothing.
+- **Depth threshold**: kept at `2`; the json example confirms it bounds deep
+  trees readably. Revisit only if a domain wants more/less.
