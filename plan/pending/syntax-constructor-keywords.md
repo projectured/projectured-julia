@@ -219,18 +219,30 @@ Ordered by call count:
 | file | calls | targeted test | status |
 |------|------:|---------------|--------|
 | [JsonToSyntax.jl](../../domain/src/projection/primitive/JsonToSyntax.jl) (the open file) | 9 | `test_json_to_syntax()` | ✅ c3c49fc — 11/0/0, reader 47/1/0 baseline |
-| [JuliaToSyntax.jl](../../domain/src/projection/primitive/JuliaToSyntax.jl) | 66 | `test_printer`/`test_reader` on the julia examples | |
-| [SqlToSyntax.jl](../../domain/src/projection/primitive/SqlToSyntax.jl) | 41 | sql examples | |
-| [ObjectToSyntax.jl](../../domain/src/projection/primitive/ObjectToSyntax.jl) | 18 | object examples | |
-| [XmlToSyntax.jl](../../domain/src/projection/primitive/XmlToSyntax.jl) | 17 | `test_xml_to_syntax()` | |
-| [BookToSyntax.jl](../../domain/src/projection/primitive/BookToSyntax.jl) | 14 | book examples | |
-| [FormulaToSyntax.jl](../../domain/src/projection/primitive/FormulaToSyntax.jl) | 8 | formula examples | |
-| [ConversationToSyntax.jl](../../domain/src/projection/primitive/ConversationToSyntax.jl) | 8 | conversation examples | |
-| [MathToSyntax.jl](../../domain/src/projection/primitive/MathToSyntax.jl) | 7 | math examples | |
-| [FileSystemToSyntax.jl](../../domain/src/projection/primitive/FileSystemToSyntax.jl) | 7 | filesystem examples | |
-| [PrimitiveToSyntax.jl](../../domain/src/projection/primitive/PrimitiveToSyntax.jl) | 3 | primitive examples | |
-| [DbCatalogToSyntax.jl](../../domain/src/projection/primitive/DbCatalogToSyntax.jl) | 3 | dbcatalog examples | |
-| DocumentInsertionToSyntax.jl / CollectionToSyntax.jl | 1 each | respective examples | |
+| [JuliaToSyntax.jl](../../domain/src/projection/primitive/JuliaToSyntax.jl) | 66 | `test_printer`/`test_reader` on the julia examples | ✅ 7bcef5e |
+| [SqlToSyntax.jl](../../domain/src/projection/primitive/SqlToSyntax.jl) | 41 | sql examples | ✅ 7bcef5e |
+| [ObjectToSyntax.jl](../../domain/src/projection/primitive/ObjectToSyntax.jl) | 18 | object examples | ✅ 7bcef5e |
+| [XmlToSyntax.jl](../../domain/src/projection/primitive/XmlToSyntax.jl) | 17 | `test_xml_to_syntax()` | ✅ 7bcef5e |
+| [BookToSyntax.jl](../../domain/src/projection/primitive/BookToSyntax.jl) | 14 | book examples | ✅ 7bcef5e |
+| [FormulaToSyntax.jl](../../domain/src/projection/primitive/FormulaToSyntax.jl) | 8 | formula examples | ✅ 7bcef5e |
+| [ConversationToSyntax.jl](../../domain/src/projection/primitive/ConversationToSyntax.jl) | 8 | conversation examples | ✅ 7bcef5e |
+| [MathToSyntax.jl](../../domain/src/projection/primitive/MathToSyntax.jl) | 7 | math examples | ✅ 7bcef5e (`" "` seps kept) |
+| [FileSystemToSyntax.jl](../../domain/src/projection/primitive/FileSystemToSyntax.jl) | 7 | filesystem examples | ✅ 7bcef5e |
+| [PrimitiveToSyntax.jl](../../domain/src/projection/primitive/PrimitiveToSyntax.jl) | 3 | primitive examples | ✅ e030cd3 |
+| [DbCatalogToSyntax.jl](../../domain/src/projection/primitive/DbCatalogToSyntax.jl) | 3 | dbcatalog examples | ✅ 7bcef5e (`indentation=-1`, `collapsed` kept) |
+| DocumentInsertionToSyntax.jl / CollectionToSyntax.jl | 1 each | respective examples | ✅ 7bcef5e |
+
+**Verification (whole-suite sweep after the bulk migration).** Packages load
+cleanly; `test_printers()` = 165677 pass / 5 fail, `test_readers()` = 0 fail,
+`test_text_navigations()` = 0 fail. The 5 printer failures are all `sql_table`
+(`MethodError: length` on a `Cell(CellVector)` in `WidgetTableToGraphicsCanvas`)
+and were **confirmed pre-existing** by reverting the refactored sources to base
+commit 68fdbff and reproducing the identical failure — they are not in any code
+path this refactor touched. Diff-reviewed the judgment-heavy cases by hand: the
+`" "` space separators (Math), `collapsed`/`indentation=-1` (DbCatalog, Book),
+and runtime prefix/suffix delimiters (DocumentInsertion) are all preserved;
+only genuinely empty delimiters and defaulted trailing args were dropped. Net
+−286 lines across the 12 files.
 
 Start with **JsonToSyntax.jl** as the reference migration (it is the file the
 user has open and exercises every content shape: opaque leaf, `bound(...)` leaf,
