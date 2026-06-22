@@ -127,9 +127,21 @@ Convert the 27 SQL projections to builders. The builder/walk model fits SQL's
 shapes directly, and crucially its *conditional* structure needs no new machinery:
 
 - **Leaves** (`SqlAllColumns`, `SqlColumnReference`, `SqlTableName`,
-  `SqlTableExpression`, `SqlJoinType`, `SqlScalarValue`, `SqlColumnName`) — opaque
-  computed value: `SyntaxLeaf("", "", TextString(() -> display(doc)))` (no marker),
-  multi-field display function, no interior mapping.
+  `SqlTableExpression`, `SqlJoinType`, `SqlScalarValue`, `SqlColumnName`) — **DONE**.
+  All seven are opaque display leaves (no marker): `SyntaxLeaf(TextString(() ->
+  display(doc), p.style))` (keyword-constructor form, open/close default empty). The
+  engine's opaque path derives the ∅↔∅ selection mapping; a shared
+  `projection_read = nothing` preserves the original "non-editable" contract (a
+  computed multi-field display has no editable interior). ~−100 lines, no engine
+  change. Re-ported onto `main`'s keyword `SyntaxLeaf` constructor and the
+  separate-optional-packages layout (the second rebase of this branch).
+  - **Gate (no regression vs. the pre-existing SQL baseline on `main`@2d16b33):**
+    `test_sql_to_syntax` 18/1 (the 1 error is line 15, a pre-existing
+    `iterate(::TextText)` orphan in the *test*); `test_sql_insert_update_selection`
+    13/1 (line 113, a pre-existing `::SqlSelectItem` checkpoint in the WHERE node);
+    `test_sql_ddl` 3/3, `test_sql_ddl_selection` 7/7 green. NB
+    `test_sql_to_syntax_selection` throws `UndefVarError: test_selection` — that
+    helper is genuinely undefined on `main`; the test is dead until it's supplied.
 - **Fixed nodes** (`Comparison`, `BooleanBinary`, `Not`, clauses, …) — interleaved
   keyword leaves are just plain `TextString` children (introduced); bound children
   use `project(:field)`; layout wrappers (`_comma_body`, paren lists) are ordinary

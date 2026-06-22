@@ -34,7 +34,8 @@ import ..ColorModule: StyleColor, color_default, color_solarized_blue, color_sol
 import ..StyleTextModule: StyleText
 import ..SyntaxModule: SyntaxDocument, SyntaxLeaf, SyntaxNode
 import ..TypeDispatchingModule: TypeDispatchingProjection
-import ..IoMapModule: SimpleIoMap, ChildrenIoMap
+import ..IoMapModule: ChildrenIoMap
+import ..ProjectionTemplateModule: var"@projection_template", RuleIoMap
 import ..ReferenceModule: ConcreteReferencePath, ElementReference, PositionReference, FieldReference, ProjectionReference, EmptyReferencePath
 import ..ReferenceCaseModule: var"@reference_case"
 import ..ReferenceBuilderModule: var"@reference"
@@ -86,28 +87,14 @@ end
 SqlAllColumnsToSyntaxLeaf(; style=StyleText(font_ubuntu_monospace_regular_24, color_default)) =
     SqlAllColumnsToSyntaxLeaf(style)
 
-function projection_print(p::SqlAllColumnsToSyntaxLeaf, recursion, doc::SqlAllColumns, ctx)
-    SimpleIoMap(p, doc, SyntaxLeaf(
-        TextString(() -> begin
-            q = doc.qualifier
-            q === nothing ? "*" : "$(q.name).*"
-        end, p.style);
-        selection=doc.selection))
-end
-
-function map_reference_forward(::SqlAllColumnsToSyntaxLeaf, iomap::SimpleIoMap, reference)
-    @reference_case reference begin
-        ∅ => @reference()
-    end
-end
-
-function map_reference_backward(::SqlAllColumnsToSyntaxLeaf, iomap::SimpleIoMap, reference)
-    @reference_case reference begin
-        ∅ => @reference()
-    end
-end
-
-projection_read(::SqlAllColumnsToSyntaxLeaf, iomap::SimpleIoMap, op) = nothing
+# Opaque display leaf (no marker): the rendered text is a pure multi-field
+# display with no editable interior. The engine derives the ∅↔∅ selection
+# mapping; the shared `projection_read = nothing` (below) keeps it non-editable.
+@projection_template SqlAllColumnsToSyntaxLeaf SqlAllColumns (p, doc) ->
+    SyntaxLeaf(TextString(() -> begin
+                   q = doc.qualifier
+                   q === nothing ? "*" : "$(q.name).*"
+               end, p.style))
 
 # ── SqlColumnReferenceToSyntaxLeaf ────────────────────────────────────────────
 
@@ -117,29 +104,12 @@ end
 SqlColumnReferenceToSyntaxLeaf(; style=StyleText(font_ubuntu_monospace_regular_24, color_default)) =
     SqlColumnReferenceToSyntaxLeaf(style)
 
-function projection_print(p::SqlColumnReferenceToSyntaxLeaf, recursion, doc::SqlColumnReference, ctx)
-    SimpleIoMap(p, doc, SyntaxLeaf(
-        TextString(() -> begin
-            q = doc.qualifier
-            col = doc.column_name.name
-            q === nothing ? col : "$(q.name).$col"
-        end, p.style);
-        selection=doc.selection))
-end
-
-function map_reference_forward(::SqlColumnReferenceToSyntaxLeaf, iomap::SimpleIoMap, reference)
-    @reference_case reference begin
-        ∅ => @reference()
-    end
-end
-
-function map_reference_backward(::SqlColumnReferenceToSyntaxLeaf, iomap::SimpleIoMap, reference)
-    @reference_case reference begin
-        ∅ => @reference()
-    end
-end
-
-projection_read(::SqlColumnReferenceToSyntaxLeaf, iomap::SimpleIoMap, op) = nothing
+@projection_template SqlColumnReferenceToSyntaxLeaf SqlColumnReference (p, doc) ->
+    SyntaxLeaf(TextString(() -> begin
+                   q = doc.qualifier
+                   col = doc.column_name.name
+                   q === nothing ? col : "$(q.name).$col"
+               end, p.style))
 
 # ── SqlColumnNameToSyntaxLeaf ─────────────────────────────────────────────────
 # Bare column name, used in INSERT column lists and UPDATE assignments.
@@ -150,25 +120,8 @@ end
 SqlColumnNameToSyntaxLeaf(; style=StyleText(font_ubuntu_monospace_regular_24, color_default)) =
     SqlColumnNameToSyntaxLeaf(style)
 
-function projection_print(p::SqlColumnNameToSyntaxLeaf, recursion, doc::SqlColumnName, ctx)
-    SimpleIoMap(p, doc, SyntaxLeaf(
-        TextString(() -> doc.name, p.style);
-        selection=doc.selection))
-end
-
-function map_reference_forward(::SqlColumnNameToSyntaxLeaf, iomap::SimpleIoMap, reference)
-    @reference_case reference begin
-        ∅ => @reference()
-    end
-end
-
-function map_reference_backward(::SqlColumnNameToSyntaxLeaf, iomap::SimpleIoMap, reference)
-    @reference_case reference begin
-        ∅ => @reference()
-    end
-end
-
-projection_read(::SqlColumnNameToSyntaxLeaf, iomap::SimpleIoMap, op) = nothing
+@projection_template SqlColumnNameToSyntaxLeaf SqlColumnName (p, doc) ->
+    SyntaxLeaf(TextString(() -> doc.name, p.style))
 
 # ── SqlTableNameToSyntaxLeaf ──────────────────────────────────────────────────
 # Bare table name (with optional schema), used as the INSERT/UPDATE target.
@@ -179,26 +132,9 @@ end
 SqlTableNameToSyntaxLeaf(; style=StyleText(font_ubuntu_monospace_regular_24, color_solarized_green)) =
     SqlTableNameToSyntaxLeaf(style)
 
-function projection_print(p::SqlTableNameToSyntaxLeaf, recursion, doc::SqlTableName, ctx)
-    SimpleIoMap(p, doc, SyntaxLeaf(
-        TextString(() -> doc.schema_name === nothing ? doc.name : "$(doc.schema_name).$(doc.name)",
-                   p.style);
-        selection=doc.selection))
-end
-
-function map_reference_forward(::SqlTableNameToSyntaxLeaf, iomap::SimpleIoMap, reference)
-    @reference_case reference begin
-        ∅ => @reference()
-    end
-end
-
-function map_reference_backward(::SqlTableNameToSyntaxLeaf, iomap::SimpleIoMap, reference)
-    @reference_case reference begin
-        ∅ => @reference()
-    end
-end
-
-projection_read(::SqlTableNameToSyntaxLeaf, iomap::SimpleIoMap, op) = nothing
+@projection_template SqlTableNameToSyntaxLeaf SqlTableName (p, doc) ->
+    SyntaxLeaf(TextString(() -> doc.schema_name === nothing ? doc.name : "$(doc.schema_name).$(doc.name)",
+                          p.style))
 
 # ── SqlTableExpressionToSyntaxLeaf ────────────────────────────────────────────
 
@@ -208,30 +144,13 @@ end
 SqlTableExpressionToSyntaxLeaf(; style=StyleText(font_ubuntu_monospace_regular_24, color_solarized_green)) =
     SqlTableExpressionToSyntaxLeaf(style)
 
-function projection_print(p::SqlTableExpressionToSyntaxLeaf, recursion, doc::SqlTableExpression, ctx)
-    SimpleIoMap(p, doc, SyntaxLeaf(
-        TextString(() -> begin
-            tn = doc.table_name
-            base = tn.schema_name === nothing ? tn.name : "$(tn.schema_name).$(tn.name)"
-            a = doc.alias
-            a === nothing ? base : "$base AS $(a.name)"
-        end, p.style);
-        selection=doc.selection))
-end
-
-function map_reference_forward(::SqlTableExpressionToSyntaxLeaf, iomap::SimpleIoMap, reference)
-    @reference_case reference begin
-        ∅ => @reference()
-    end
-end
-
-function map_reference_backward(::SqlTableExpressionToSyntaxLeaf, iomap::SimpleIoMap, reference)
-    @reference_case reference begin
-        ∅ => @reference()
-    end
-end
-
-projection_read(::SqlTableExpressionToSyntaxLeaf, iomap::SimpleIoMap, op) = nothing
+@projection_template SqlTableExpressionToSyntaxLeaf SqlTableExpression (p, doc) ->
+    SyntaxLeaf(TextString(() -> begin
+                   tn = doc.table_name
+                   base = tn.schema_name === nothing ? tn.name : "$(tn.schema_name).$(tn.name)"
+                   a = doc.alias
+                   a === nothing ? base : "$base AS $(a.name)"
+               end, p.style))
 
 # ── SqlSubqueryFromItemToSyntaxNode ──────────────────────────────────────────
 
@@ -327,23 +246,9 @@ end
 SqlJoinTypeToSyntaxLeaf(; style=StyleText(font_ubuntu_monospace_bold_24, color_solarized_blue)) =
     SqlJoinTypeToSyntaxLeaf(style)
 
-function projection_print(p::SqlJoinTypeToSyntaxLeaf, recursion, doc::SqlJoinType, ctx)
-    SimpleIoMap(p, doc, _kw(_join_type_display(doc), p.style))
-end
-
-function map_reference_forward(::SqlJoinTypeToSyntaxLeaf, iomap::SimpleIoMap, reference)
-    @reference_case reference begin
-        ∅ => @reference()
-    end
-end
-
-function map_reference_backward(::SqlJoinTypeToSyntaxLeaf, iomap::SimpleIoMap, reference)
-    @reference_case reference begin
-        ∅ => @reference()
-    end
-end
-
-projection_read(::SqlJoinTypeToSyntaxLeaf, iomap::SimpleIoMap, op) = nothing
+# The join keyword ("INNER JOIN", …) is a fixed display for the document's type.
+@projection_template SqlJoinTypeToSyntaxLeaf SqlJoinType (p, doc) ->
+    SyntaxLeaf(TextString(_join_type_display(doc), p.style))
 
 # ── SqlSelectItemToSyntaxNode ─────────────────────────────────────────────────
 
@@ -1015,30 +920,22 @@ end
 SqlScalarValueToSyntaxLeaf(; style=StyleText(font_ubuntu_monospace_regular_24, color_default)) =
     SqlScalarValueToSyntaxLeaf(style)
 
-function projection_print(p::SqlScalarValueToSyntaxLeaf, recursion, doc::SqlScalarValue, ctx)
-    SimpleIoMap(p, doc, SyntaxLeaf(
-        TextString(() -> begin
-            val = doc.value
-            val isa Bool           ? (val ? "TRUE" : "FALSE") :
-            val isa AbstractString ? "'$val'" :
-            string(val)
-        end, p.style);
-        selection=doc.selection))
-end
+@projection_template SqlScalarValueToSyntaxLeaf SqlScalarValue (p, doc) ->
+    SyntaxLeaf(TextString(() -> begin
+                   val = doc.value
+                   val isa Bool           ? (val ? "TRUE" : "FALSE") :
+                   val isa AbstractString ? "'$val'" :
+                   string(val)
+               end, p.style))
 
-function map_reference_forward(::SqlScalarValueToSyntaxLeaf, iomap::SimpleIoMap, reference)
-    @reference_case reference begin
-        ∅ => @reference()
-    end
-end
-
-function map_reference_backward(::SqlScalarValueToSyntaxLeaf, iomap::SimpleIoMap, reference)
-    @reference_case reference begin
-        ∅ => @reference()
-    end
-end
-
-projection_read(::SqlScalarValueToSyntaxLeaf, iomap::SimpleIoMap, op) = nothing
+# All seven SQL leaf projections are opaque display leaves: their content is a
+# computed multi-field display with no editable interior, so editing operations
+# are declined (matching the original per-leaf `projection_read = nothing`). The
+# engine's generic RuleIoMap readers would otherwise try to map an edit back.
+projection_read(::Union{SqlAllColumnsToSyntaxLeaf, SqlColumnReferenceToSyntaxLeaf,
+                        SqlColumnNameToSyntaxLeaf, SqlTableNameToSyntaxLeaf,
+                        SqlTableExpressionToSyntaxLeaf, SqlJoinTypeToSyntaxLeaf,
+                        SqlScalarValueToSyntaxLeaf}, iomap::RuleIoMap, op) = nothing
 
 # ── SqlComparisonToSyntaxNode ─────────────────────────────────────────────────
 
