@@ -49,6 +49,7 @@ function map_reference_forward(::SyntaxLeafToText, iomap, reference)
 end
 
 function map_reference_backward(::SyntaxLeafToText, iomap, reference)
+    reference = strip_reference_types(reference)   # selections are canonical (checkpointed)
     reference isa EmptyReferencePath && return @reference()
     # Tree selection path: .elements[i]∅ → select the whole leaf
     _parse_tree_elem_path(reference) !== nothing && return @reference()
@@ -70,7 +71,7 @@ end
 #   anything else  →  no cursor
 function projection_print(p::SyntaxLeafToText, recursion, leaf::SyntaxLeaf, ctx)
     sel = Cell(() -> begin
-        leaf_sel = leaf.selection
+        leaf_sel = strip_reference_types(leaf.selection)   # canonical → plain skeleton
         leaf_sel isa EmptyReferencePath && return @reference()
         c = _leaf_cursor(leaf)
         c < 0 ? nothing : _flat_to_text_elem_path([leaf.open, leaf.value, leaf.close], c)
@@ -151,6 +152,7 @@ struct SyntaxNodeToTextIoMap <: IoMap
 end
 
 function map_reference_forward(p::SyntaxNodeToText, iomap::SyntaxNodeToTextIoMap, reference)
+    reference = strip_reference_types(reference)   # selections are canonical (checkpointed)
     reference isa EmptyReferencePath && return @reference()
     flat_pos = _syntax_to_flat(iomap.input, reference, p, 0)
     flat_pos < 0 && return nothing
@@ -158,6 +160,7 @@ function map_reference_forward(p::SyntaxNodeToText, iomap::SyntaxNodeToTextIoMap
 end
 
 function map_reference_backward(p::SyntaxNodeToText, iomap::SyntaxNodeToTextIoMap, reference)
+    reference = strip_reference_types(reference)   # selections are canonical (checkpointed)
     reference isa EmptyReferencePath && return @reference()
     # Also accept bare flat char index: ConcreteReferencePath(PositionReference(n))
     if reference isa ConcreteReferencePath
@@ -199,7 +202,7 @@ function projection_print(p::SyntaxNodeToText, recursion, node::SyntaxNode, ctx)
     output = TextText(
         CellVector(() -> spans[][1]),
         Cell(() -> begin
-            node_sel = node.selection
+            node_sel = strip_reference_types(node.selection)   # canonical → plain skeleton
             node_sel isa EmptyReferencePath && return @reference()
             # Detect nested child whole-element selection (.children[i]…∅)
             # and emit a TextRectangularReference carrying the child's flat range.

@@ -39,7 +39,7 @@ end
 @testset "set/clear_selection! place ∅ at the target node" begin
     leaf = SyntaxLeaf("hi"; open="\"", close="\"")
     set_selection!(leaf, whole)
-    @test selof(leaf) isa EmptyReferencePath
+    @test strip_reference_types(selof(leaf)) isa EmptyReferencePath
     clear_selection!(leaf)
     @test selof(leaf) === nothing
 
@@ -51,7 +51,7 @@ end
     set_selection!(arr, nested)
     @test selof(arr) isa ConcreteReferencePath          # ancestor: non-empty path
     @test !isempty(selof(arr))
-    @test selof(arr[2]) isa EmptyReferencePath          # target: ∅
+    @test strip_reference_types(selof(arr[2])) isa EmptyReferencePath   # target: ∅
     @test selof(arr[1]) === nothing                     # sibling: nothing
     clear_selection!(arr)
     @test selof(arr) === nothing
@@ -63,7 +63,7 @@ end
     set_selection!(arr, whole)
 
     node_io = projection_print(j2s, arr)
-    @test node_io.output.selection isa EmptyReferencePath
+    @test strip_reference_types(node_io.output.selection) isa EmptyReferencePath
 
     text_io = projection_print(s2t, node_io.output)
     @test text_io.output.selection isa EmptyReferencePath
@@ -76,7 +76,7 @@ end
     set_selection!(obj, whole)
 
     node_io = projection_print(j2s, obj)
-    @test node_io.output.selection isa EmptyReferencePath
+    @test strip_reference_types(node_io.output.selection) isa EmptyReferencePath
 
     text_io = projection_print(s2t, node_io.output)
     @test text_io.output.selection isa EmptyReferencePath
@@ -101,7 +101,7 @@ end
 
     op_json = projection_read(j2s, node_io, op_syntax)
     @test op_json isa ReplaceSelectionOperation
-    @test op_json.path isa EmptyReferencePath
+    @test strip_reference_types(op_json.path) isa EmptyReferencePath
 end
 
 @testset "nested whole-child emits TextRectangularReference at Text level" begin
@@ -116,7 +116,7 @@ end
     node_io = projection_print(j2s, arr)
     expected_child = ConcreteReferencePath(FieldReference("children"),
                          ConcreteReferencePath(ElementReference(2), EmptyReferencePath()))
-    @test reference_equal(node_io.output.selection, expected_child)
+    @test reference_equal(strip_reference_types(node_io.output.selection), expected_child)
 
     # The text layer now emits a TextRectangularReference carrying the child's
     # flat character range for the highlight box.
@@ -133,7 +133,7 @@ end
     # Backward: `.children[2]` maps back to `.elements[2]` on the JSON array.
     op_json = projection_read(j2s, node_io, ReplaceSelectionOperation(node_io.output.selection))
     @test op_json isa ReplaceSelectionOperation
-    @test reference_equal(op_json.path, nested)
+    @test reference_equal(strip_reference_types(op_json.path), nested)
 end
 
 end # @testset "SyntaxTreeSelection"

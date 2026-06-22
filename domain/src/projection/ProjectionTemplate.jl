@@ -31,7 +31,8 @@ import ..ReactiveModule: Cell
 import ..CollectionModule: CellVector
 import ..IoMapApiModule: IoMap
 import ..ProjectionApiModule: map_reference_forward, map_reference_backward, projection_read, Projection,
-                              projection_printer_recurse
+                              projection_printer_recurse, as_change
+import ..RecursiveProjectionModule: RecursiveProjection
 import ..ReferenceModule: ConcreteReferencePath, EmptyReferencePath, FieldReference, RangeReference, ElementReference,
                           TypeReference, ProjectionReference, ReferencePath, Reference, skip_type_checkpoints
 import ..PrinterContextModule: child_context
@@ -476,6 +477,17 @@ function projection_read(p::Projection, iomap::RuleIoMap, op::ReplaceSelectionOp
     iomap.wiring isa NodeWiring || return nothing
     return ReplaceSelectionOperation(_path(ProjectionReference(p, op.path)))
 end
+
+# Disambiguation: the two generic RuleIoMap readers above (`Projection`) and the
+# transparent RecursiveProjection wrapper's `projection_read(rp, iomap, payload)`
+# both match `(RecursiveProjection, RuleIoMap, op)`, neither more specific. One
+# concrete-typed method per op (not a Union, which would still tie with the
+# `Projection`/exact-op reader on arg 3) defers to the wrapper, which threads the
+# read into its child projection.
+projection_read(rp::RecursiveProjection, iomap::RuleIoMap, op::StringReplaceRangeOperation) =
+    projection_read(rp, nothing, as_change(op), iomap).operation
+projection_read(rp::RecursiveProjection, iomap::RuleIoMap, op::ReplaceSelectionOperation) =
+    projection_read(rp, nothing, as_change(op), iomap).operation
 
 # ── Sugar ─────────────────────────────────────────────────────────────────────
 
