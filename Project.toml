@@ -12,6 +12,7 @@ ProjecturedKernel = "a3e3499a-684d-4df9-a0d6-de2d1797b1f3"
 ProjecturedLLM = "7bcfe799-d9db-4ade-8cf5-c076331403f9"
 ProjecturedMCP = "2b4e36b2-6b10-43fd-9b63-0a09efcd22da"
 ProjecturedODBC = "aed26263-2fd3-42de-9b03-7ee91ffa11a3"
+ProjecturedWeb = "893c803c-8c7c-42c1-85f1-cc97ca81befb"
 ProjecturedTest = "c3f1d2e8-4a5b-6c7d-8e9f-0a1b2c3d4e5f"
 Revise = "295af30f-e4ad-537b-8983-00126c2a3abe"
 SDL2_jll = "ab825dc5-c88e-5901-9575-1e5e20358fcf"
@@ -28,3 +29,4 @@ ProjecturedTest = {path = "test"}
 ProjecturedMCP = {path = "mcp"}
 ProjecturedLLM = {path = "llm"}
 ProjecturedODBC = {path = "odbc"}
+ProjecturedWeb = {path = "web"}

@@ -1,11 +1,12 @@
 """
-    ProjecturedWebExt
+    ProjecturedWeb
 
-Package extension: the HTTP/WebSocket web backend (browser-rendered editor).
-Loaded when HTTP and JSON3 are present alongside ProjecturedDomain. Relocated from the
-former program/src/backend/Web.jl (WebBackendModule).
+Opt-in package: the HTTP/WebSocket web backend (browser-rendered editor). Depends
+on `ProjecturedDomain` + HTTP/JSON3; `using ProjecturedWeb` registers
+`make_backend(:web)` and exports `WebBackend`. SDL-free — reuses Pdf's pure-Julia
+text metrics. Relocated from the former program/src/backend/Web.jl (WebBackendModule).
 """
-module ProjecturedWebExt
+module ProjecturedWeb
 
 using ProjecturedDomain
 
@@ -98,9 +99,9 @@ mutable struct WebBackend <: Backend
 end
 
 function WebBackend(; host::AbstractString="127.0.0.1", port::Integer=8080)
-    # Paths relative to this extension file at program/ext/ (moved here from
-    # program/src/backend/): web assets at program/web, fonts at <repo-root>/font.
-    webdir  = normpath(joinpath(@__DIR__, "..", "web"))
+    # Paths relative to this package's src/ (web/src/): web assets at web/assets,
+    # fonts at the shared <repo-root>/font.
+    webdir  = normpath(joinpath(@__DIR__, "..", "assets"))
     fontdir = normpath(joinpath(@__DIR__, "..", "..", "font"))
     WebBackend(String(host), Int(port), webdir, fontdir,
                nothing, Channel{Any}(256), nothing,
@@ -835,4 +836,4 @@ end
 # Backend factory method: `make_backend(:web; host=…, port=…)`.
 make_backend(::Val{:web}; kwargs...) = WebBackend(; kwargs...)
 
-end # module ProjecturedWebExt
+end # module ProjecturedWeb
