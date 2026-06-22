@@ -206,8 +206,8 @@ Work in a dedicated worktree. One package per commit, each verified before the n
 2. `ProjecturedLLM` (179 LOC, kernel-only). **DONE** — kernel now has zero weakdeps/extensions; `kernel/ext/` deleted.
 3. `ProjecturedODBC` (748 LOC) + retarget Example/Test off `get_extension`. **DONE.**
 4. `ProjecturedWeb` (838 LOC) + move `domain/web/` → `web/assets/` + path refit. **DONE.**
-5. `ProjecturedSDL` (2296 LOC) + `__init__` provider + retarget Test/executable.
-6. Strip `[weakdeps]`/`[extensions]` from kernel & domain; delete `*/ext/`.
+5. `ProjecturedSDL` (2296 LOC) + `__init__` provider + retarget Test/executable. **DONE.**
+6. Strip `[weakdeps]`/`[extensions]` from kernel & domain; delete `*/ext/`. **DONE incrementally** (kernel stripped with LLM, domain with SDL; `kernel/ext` and `domain/ext` deleted).
 7. Wire root env `[sources]`/`[deps]`; verification sweep.
 8. Docs: update `guide/architecture.md` module/package inventory, `README.md` reading order,
    and the CLAUDE.md "where does the SDL backend live" answer; move this plan to `plan/done/`.

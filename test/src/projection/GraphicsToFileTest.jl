@@ -24,10 +24,8 @@ end
 @testset "GraphicsCanvasToImageFile projection" begin
     doc  = make_json_document_example()
     filename = tempname() * ".bmp"
-    # GraphicsCanvasToImageFile lives in the SDL package extension (loaded by the
-    # test module's `using SimpleDirectMediaLayer, …`); reach it through the extension.
-    GraphicsCanvasToImageFile =
-        Base.get_extension(ProjecturedDomain, :ProjecturedSDLExt).GraphicsCanvasToImageFile
+    # GraphicsCanvasToImageFile is exported by the ProjecturedSDL package, which the
+    # test module opts into via `using ProjecturedSDL`.
     proj = SequentialProjection(
         make_graphics_image_projection_example(),
         GraphicsCanvasToImageFile(filename; width=400, height=300),

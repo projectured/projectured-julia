@@ -2,12 +2,11 @@ module ProjecturedTest
 
 using Test
 using Projectured
-import ProjecturedDomain   # owns the SDL/ODBC/Web extensions after the package split
 using ProjecturedExample
-# Trigger the SDL package extension so the test suite can drive the SDL backend
-# (rendering / write_image / click roundtrips). The library itself is SDL-optional;
-# the test package opts in.
-using SimpleDirectMediaLayer, SDL2_jll, FFMPEG
+# Opt into the SDL backend package so the test suite can drive rendering /
+# write_image / click roundtrips (provides SdlBackend + GraphicsCanvasToImageFile).
+# The library itself is SDL-optional; the test package opts in.
+using ProjecturedSDL
 # Likewise opt into the ProjecturedODBC package so the database tests can construct
 # adapters/pools/projections and assert on their types (all exported by the package).
 using ProjecturedODBC

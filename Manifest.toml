@@ -2,7 +2,7 @@
 
 julia_version = "1.12.6"
 manifest_format = "2.0"
-project_hash = "672dc0aeb6e4308882ff49d12819ebd4a3d4e6a7"
+project_hash = "e82424b7290a65b6ed90dbb692e3e3b3bb7ec3a4"
 
 [[deps.ArgTools]]
 uuid = "0dad84c5-d112-42e6-8d28-ef12dabb789f"
@@ -615,11 +615,6 @@ deps = ["Base64", "Markdown", "ProjecturedKernel"]
 path = "domain"
 uuid = "e0912940-0f50-4a55-a142-7b4aed3d6e35"
 version = "0.1.0"
-weakdeps = ["FFMPEG", "HTTP", "JSON3", "SDL2_jll", "SimpleDirectMediaLayer"]
-
-    [deps.ProjecturedDomain.extensions]
-    ProjecturedSDLExt = ["SimpleDirectMediaLayer", "SDL2_jll", "FFMPEG"]
-    ProjecturedWebExt = ["HTTP", "JSON3"]
 
 [[deps.ProjecturedExample]]
 deps = ["Profile", "Projectured", "ProjecturedODBC"]
@@ -650,10 +645,22 @@ path = "odbc"
 uuid = "aed26263-2fd3-42de-9b03-7ee91ffa11a3"
 version = "0.1.0"
 
+[[deps.ProjecturedSDL]]
+deps = ["FFMPEG", "ProjecturedDomain", "SDL2_jll", "SimpleDirectMediaLayer"]
+path = "sdl"
+uuid = "f0002b97-94ba-416c-b93c-86cdc095626f"
+version = "0.1.0"
+
 [[deps.ProjecturedTest]]
-deps = ["FFMPEG", "Projectured", "ProjecturedDomain", "ProjecturedExample", "ProjecturedODBC", "SDL2_jll", "SimpleDirectMediaLayer", "Test"]
+deps = ["Projectured", "ProjecturedExample", "ProjecturedODBC", "ProjecturedSDL", "Test"]
 path = "test"
 uuid = "c3f1d2e8-4a5b-6c7d-8e9f-0a1b2c3d4e5f"
+version = "0.1.0"
+
+[[deps.ProjecturedWeb]]
+deps = ["Base64", "HTTP", "JSON3", "ProjecturedDomain"]
+path = "web"
+uuid = "893c803c-8c7c-42c1-85f1-cc97ca81befb"
 version = "0.1.0"
 
 [[deps.PulseAudio_jll]]

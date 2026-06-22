@@ -1,14 +1,17 @@
 """
-    ProjecturedSDLExt
+    ProjecturedSDL
 
-Package extension: the SDL display/input backend (window, GPU rendering, SDL_ttf
-text rasterisation, offscreen image/PDF/video output). Loaded automatically when
-SimpleDirectMediaLayer, SDL2_jll and FFMPEG are present alongside ProjecturedDomain.
+Opt-in package: the SDL display/input backend (window, GPU rendering, SDL_ttf text
+rasterisation, offscreen image/PDF/video output). Depends on `ProjecturedDomain` +
+SimpleDirectMediaLayer/SDL2_jll/FFMPEG; `using ProjecturedSDL` registers
+`make_backend(:sdl)` plus the render/decode/image/video seam methods, and (via
+`__init__`) installs SDL as the real `display_size` provider. Exposes `SdlBackend`,
+`GraphicsCanvasToImageFile`, and the `sdl_*` helpers.
 
 Relocated from the former program/src/backend/Sdl.jl (SdlBackendModule); relative
 submodule imports were rewritten to absolute ProjecturedDomain.* references.
 """
-module ProjecturedSDLExt
+module ProjecturedSDL
 
 using ProjecturedDomain
 
@@ -2288,9 +2291,16 @@ end
 # `make_backend(:sdl; …)` without naming `SdlBackend` directly (extension-ready).
 make_backend(::Val{:sdl}; kwargs...) = SdlBackend(; kwargs...)
 
-# Image decode via the generic seam, and register SDL as the real display-size
-# provider (so `display_size()` returns the actual display when SDL is loaded).
+# Image decode via the generic seam.
 decode_image(filename::AbstractString) = sdl_decode_image(filename)
-set_display_size_provider!(sdl_display_size)
 
-end # module ProjecturedSDLExt
+# Register SDL as the real display-size provider so `display_size()` returns the
+# actual display once this package is loaded. This mutates a Ref owned by
+# ProjecturedKernel (via ProjecturedDomain), so it MUST run in `__init__` (at load
+# time) — doing it at top level would write the Ref during *this* package's
+# precompile, where the change would not persist into the loaded session.
+function __init__()
+    set_display_size_provider!(sdl_display_size)
+end
+
+end # module ProjecturedSDL

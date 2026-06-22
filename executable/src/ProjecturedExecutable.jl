@@ -7,6 +7,9 @@ This module provides basic commands for greetings, system information, and versi
 module ProjecturedExecutable
 
 using ProjecturedExample
+# The compiled GUI binary bakes in the SDL backend (no weakdep auto-activation in
+# the standalone executable): `using ProjecturedSDL` registers make_backend(:sdl).
+using ProjecturedSDL
 
 export print_banner, print_help, cmd_hello, cmd_info, cmd_version, main, cmd_workbench_example
 

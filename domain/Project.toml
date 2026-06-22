@@ -11,14 +11,6 @@ ProjecturedKernel = "a3e3499a-684d-4df9-a0d6-de2d1797b1f3"
 [sources]
 ProjecturedKernel = {path = "../kernel"}
 
-[weakdeps]
-FFMPEG = "c87230d0-a227-11e9-1b43-d7ebe4e7570a"
-SDL2_jll = "ab825dc5-c88e-5901-9575-1e5e20358fcf"
-SimpleDirectMediaLayer = "98e33af6-2ee5-5afd-9e75-cbc738b767c4"
-
-[extensions]
-# SDL display/input backend (window, rendering, image/video output)
-ProjecturedSDLExt = ["SimpleDirectMediaLayer", "SDL2_jll", "FFMPEG"]
-
-[compat]
-SDL2_jll = "2.32.10"
+# ProjecturedDomain has no extensions: the optional SDL/Web/ODBC backends are now
+# standalone opt-in packages (sdl/, web/, odbc/) that depend on this package,
+# rather than weakdep-triggered extensions of it.
