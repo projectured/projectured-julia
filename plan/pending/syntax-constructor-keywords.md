@@ -155,6 +155,33 @@ that printer/reader/navigation output is unchanged, but this must be
 font on an empty delimiter turns out to matter, the caller keeps passing
 `open=TextString("", font, color)` explicitly — the keyword still allows it.
 
+> **Finding (JsonToSyntax migration).** Where the omitted empty delimiter's font
+> *equals* the default regular monospace font (the four JSON scalar leaves —
+> null/insertion/bool/number — all use `font_ubuntu_monospace_regular_24`),
+> dropping it is byte-identical and `test_json_to_syntax` / `_reader` /
+> `test_syntax_to_text` stayed exactly at baseline (11/0/0, 47/1/0, clean). Where
+> the empty delimiter's font *differs* from the default (the JsonObject pair
+> node's `p.delim.font` is **bold**), the explicit `open=`/`close=` keyword is
+> kept rather than defaulted, so behaviour is preserved with zero risk. Rule of
+> thumb for the remaining files: default an omitted empty delimiter only when its
+> font matches the regular monospace default; otherwise keep it explicit.
+
+### Discovered constraint: fixed-children template nodes keep raw-Vector children
+
+A `@projection_template` node built by a `collection(:f) do x … end` element
+builder (e.g. the JsonObject per-entry pair node) is walked by the engine's
+`_fixed_print`, which **locates the children field by `getfield(out, f)[] isa
+Vector`** ([ProjectionTemplate.jl:266-271](../../domain/src/projection/ProjectionTemplate.jl#L266-L271))
+and iterates the raw vector to classify each child (`project(:value)` marker →
+delegated slot, a `bound` leaf → key slot). The new `SyntaxNode(children; …)`
+keyword path runs `_children`, which normalizes an `AbstractVector` to a
+`CellVector` (`<: Document`, **not** `Vector`) — so the walk would fail with
+"fixed-children node has no children vector". Therefore such a node must keep the
+**positional** form so its children stay a raw `Cell(Vector)` carrying the
+markers. Its inner leaves can still use keyword form. This affects only the
+fixed-children template nodes; ordinary nodes (homogeneous `collection(:f)`
+markers, or plain document-vector children) migrate freely.
+
 ### Scope
 
 In scope: `SyntaxLeaf` and `SyntaxNode` (the noisy 6/7-arg positional types).
@@ -169,7 +196,7 @@ surfaces a concrete gap.
 
 Do the work in a dedicated git worktree; commit after each step.
 
-### 1. Add the keyword constructors
+### 1. Add the keyword constructors — ✅ Done (commit 27dd65b)
 
 In [domain/src/document/Syntax.jl](../../domain/src/document/Syntax.jl):
 
@@ -189,21 +216,21 @@ Verify nothing broke before touching callers: `test_syntax()`, `test_cell()`.
 Migrate one file per commit, running that domain's targeted test after each.
 Ordered by call count:
 
-| file | calls | targeted test |
-|------|------:|---------------|
-| [JsonToSyntax.jl](../../domain/src/projection/primitive/JsonToSyntax.jl) (the open file) | 9 | `test_json_to_syntax()` |
-| [JuliaToSyntax.jl](../../domain/src/projection/primitive/JuliaToSyntax.jl) | 66 | `test_printer`/`test_reader` on the julia examples |
-| [SqlToSyntax.jl](../../domain/src/projection/primitive/SqlToSyntax.jl) | 41 | sql examples |
-| [ObjectToSyntax.jl](../../domain/src/projection/primitive/ObjectToSyntax.jl) | 18 | object examples |
-| [XmlToSyntax.jl](../../domain/src/projection/primitive/XmlToSyntax.jl) | 17 | `test_xml_to_syntax()` |
-| [BookToSyntax.jl](../../domain/src/projection/primitive/BookToSyntax.jl) | 14 | book examples |
-| [FormulaToSyntax.jl](../../domain/src/projection/primitive/FormulaToSyntax.jl) | 8 | formula examples |
-| [ConversationToSyntax.jl](../../domain/src/projection/primitive/ConversationToSyntax.jl) | 8 | conversation examples |
-| [MathToSyntax.jl](../../domain/src/projection/primitive/MathToSyntax.jl) | 7 | math examples |
-| [FileSystemToSyntax.jl](../../domain/src/projection/primitive/FileSystemToSyntax.jl) | 7 | filesystem examples |
-| [PrimitiveToSyntax.jl](../../domain/src/projection/primitive/PrimitiveToSyntax.jl) | 3 | primitive examples |
-| [DbCatalogToSyntax.jl](../../domain/src/projection/primitive/DbCatalogToSyntax.jl) | 3 | dbcatalog examples |
-| DocumentInsertionToSyntax.jl / CollectionToSyntax.jl | 1 each | respective examples |
+| file | calls | targeted test | status |
+|------|------:|---------------|--------|
+| [JsonToSyntax.jl](../../domain/src/projection/primitive/JsonToSyntax.jl) (the open file) | 9 | `test_json_to_syntax()` | ✅ c3c49fc — 11/0/0, reader 47/1/0 baseline |
+| [JuliaToSyntax.jl](../../domain/src/projection/primitive/JuliaToSyntax.jl) | 66 | `test_printer`/`test_reader` on the julia examples | |
+| [SqlToSyntax.jl](../../domain/src/projection/primitive/SqlToSyntax.jl) | 41 | sql examples | |
+| [ObjectToSyntax.jl](../../domain/src/projection/primitive/ObjectToSyntax.jl) | 18 | object examples | |
+| [XmlToSyntax.jl](../../domain/src/projection/primitive/XmlToSyntax.jl) | 17 | `test_xml_to_syntax()` | |
+| [BookToSyntax.jl](../../domain/src/projection/primitive/BookToSyntax.jl) | 14 | book examples | |
+| [FormulaToSyntax.jl](../../domain/src/projection/primitive/FormulaToSyntax.jl) | 8 | formula examples | |
+| [ConversationToSyntax.jl](../../domain/src/projection/primitive/ConversationToSyntax.jl) | 8 | conversation examples | |
+| [MathToSyntax.jl](../../domain/src/projection/primitive/MathToSyntax.jl) | 7 | math examples | |
+| [FileSystemToSyntax.jl](../../domain/src/projection/primitive/FileSystemToSyntax.jl) | 7 | filesystem examples | |
+| [PrimitiveToSyntax.jl](../../domain/src/projection/primitive/PrimitiveToSyntax.jl) | 3 | primitive examples | |
+| [DbCatalogToSyntax.jl](../../domain/src/projection/primitive/DbCatalogToSyntax.jl) | 3 | dbcatalog examples | |
+| DocumentInsertionToSyntax.jl / CollectionToSyntax.jl | 1 each | respective examples | |
 
 Start with **JsonToSyntax.jl** as the reference migration (it is the file the
 user has open and exercises every content shape: opaque leaf, `bound(...)` leaf,
