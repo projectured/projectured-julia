@@ -9,7 +9,7 @@ module FocusingProjectionModule
 import ..ProjectionApiModule: projection_print, projection_read, map_reference_forward, map_reference_backward, Projection
 import ..OperationApiModule: Operation, evaluate_operation
 import ..OperationModule: ReplaceSelectionOperation
-import ..ReferenceModule: ReferencePath, ConcreteReferencePath, EmptyReferencePath, evaluate_reference, append_reference
+import ..ReferenceModule: ReferencePath, ConcreteReferencePath, EmptyReferencePath, evaluate_reference, append_reference, strip_reference_types
 import ..IoMapModule: SimpleIoMap
 import ..KeyboardModule: KeyDown
 import ..EventCaseModule: var"@event_case"
@@ -44,7 +44,7 @@ function projection_print(p::FocusingProjection, recursion, input, ctx)
 end
 
 function map_reference_forward(p::FocusingProjection, iomap, reference)
-    _strip_prefix(p.part, reference)
+    _strip_prefix(p.part, strip_reference_types(reference))   # selections are canonical
 end
 
 function map_reference_backward(p::FocusingProjection, iomap, reference)

@@ -18,7 +18,8 @@ import ..ReactiveModule: Cell, setfn!
 import ..CollectionModule: CellVector
 import ..DocumentModule: Document
 import ..ReferenceModule: ReferencePath, EmptyReferencePath, ConcreteReferencePath,
-                          FieldReference, ElementReference, append_reference, head, tail
+                          FieldReference, ElementReference, append_reference, head, tail,
+                          strip_reference_types
 import ..ReferenceCaseModule: var"@reference_case"
 export SearchingProjection, SearchingProjectionIoMap
 
@@ -141,6 +142,7 @@ end
 
 function map_reference_forward(p::SearchingProjection, iomap::SearchingProjectionIoMap, reference)
     reference isa ReferencePath || return nothing
+    reference = strip_reference_types(reference)   # match the plain skeleton; selections are canonical
     # Choose the longest matching prefix so a selection inside a nested match
     # resolves to the most specific (deepest) result.
     best_j = 0
