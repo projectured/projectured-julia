@@ -1,65 +1,39 @@
 """
-    WebBackendModule
+    ProjecturedWebExt
 
-Web backend. Runs the editor inside an HTTP + WebSocket server; the **final
-rendering step happens in the browser**. A connected JavaScript client sends raw
-mouse/keyboard events and receives drawing primitives (a JSON draw-list) to paint
-onto an HTML `<canvas>`.
-
-This is a drop-in `Backend`: `run!(WebBackend(; port=8080), projection, document)`
-substitutes for `run!(SdlBackend(), …)` with no change to the editor loop,
-projection pipeline, or domains.
-
-Layering vs. SDL:
-- **Text metrics stay on the server, SDL-free.** Layout measures text with the
-  pure-Julia TrueType measurer `pdf_measure_text` (from the SDL-free PDF backend),
-  so the web backend needs no SDL/SDL_ttf at all — `init!` does no SDL setup. The
-  browser renders the same TTFs (served from `font/`), so metrics line up.
-- **Output**: `write_to_devices` serializes the projection-output
-  `ScreenDocument` into a per-window draw-list (mirroring the SDL renderer's
-  element set) and pushes it to the client over the WebSocket.
-- **Input**: a receive task decodes the client's JSON events into the
-  backend-agnostic vocabulary (`MouseDown`, `KeyPress`, …) wrapped in
-  `EventEnvelope`s on a `Channel`; `read_from_devices` drains it non-blocking.
-
-Incremental rendering (phase 2): instead of re-sending the whole window every
-frame, a reactive dirty-walk (keyed on the cells' `isuptodate` flags) computes
-the smallest rectangle covering everything that changed since the last paint, and
-only the primitives intersecting that rectangle are serialized and sent as a
-`patch`. The client repaints just that region over a retained backing canvas. A
-full `window` message is sent on first paint, on (re)connect, after a resize, or
-when the patch queue would overflow (`force_full`).
-
-Constraints (v1): exactly one client per editor (a second WS upgrade is
-rejected); JSON transport both directions; key-symbol mapping is done on the
-server (`web_key_to_symbol`, mirroring `sdl_keysym_to_symbol`).
+Package extension: the HTTP/WebSocket web backend (browser-rendered editor).
+Loaded when HTTP and JSON3 are present alongside Projectured. Relocated from the
+former program/src/backend/Web.jl (WebBackendModule).
 """
-module WebBackendModule
+module ProjecturedWebExt
+
+using Projectured
+
 
 using HTTP
 using JSON3
 using Base64: base64encode
 
-import ..BackendModule: Backend, init!, quit!, measure_text, make_backend
-import ..DeviceModule: Device, read_from_devices, write_to_devices
-import ..GraphicsModule: GraphicsCanvas, GraphicsText, GraphicsRect, GraphicsLine,
+import Projectured.BackendModule: Backend, init!, quit!, measure_text, make_backend
+import Projectured.DeviceModule: Device, read_from_devices, write_to_devices
+import Projectured.GraphicsModule: GraphicsCanvas, GraphicsText, GraphicsRect, GraphicsLine,
                          GraphicsCircle, GraphicsPolyline, GraphicsSpline,
                          GraphicsViewport, GraphicsImage, GraphicsFence,
                          _bounds_elem!, _accumulate_bounds!, tessellate_spline
-import ..CollectionModule: ListNode, CellVector
-import ..FontModule: StyleFont
-import ..ReactiveModule: Cell, isuptodate
-import ..ScreenModule: QuitEvent
-import ..ScreenDocumentModule: ScreenDocument, WindowDocument, EventEnvelope,
+import Projectured.CollectionModule: ListNode, CellVector
+import Projectured.FontModule: StyleFont
+import Projectured.ReactiveModule: Cell, isuptodate
+import Projectured.ScreenModule: QuitEvent
+import Projectured.ScreenDocumentModule: ScreenDocument, WindowDocument, EventEnvelope,
                                WindowCloseRequest, WindowResizeEvent
-import ..ModifiersModule: Modifiers
-import ..KeyboardModule: KeyDown, KeyUp, KeyPress
-import ..MouseModule: MouseDown, MouseUp, MousePress, MouseMove, MouseScroll
+import Projectured.ModifiersModule: Modifiers
+import Projectured.KeyboardModule: KeyDown, KeyUp, KeyPress
+import Projectured.MouseModule: MouseDown, MouseUp, MousePress, MouseMove, MouseScroll
 # SDL-free text measurement: reuse the pure-Julia TrueType metrics measurer from
 # the (SDL-free) PDF backend, so the web backend needs no SDL/SDL_ttf at all.
 # (This measurer is a general font-metrics utility that could later move to a
 # shared module; it lives in PdfBackendModule today.)
-import ..PdfBackendModule: pdf_measure_text
+import Projectured.PdfBackendModule: pdf_measure_text
 
 export WebBackend, web_key_to_symbol
 
@@ -124,8 +98,10 @@ mutable struct WebBackend <: Backend
 end
 
 function WebBackend(; host::AbstractString="127.0.0.1", port::Integer=8080)
-    webdir  = normpath(joinpath(@__DIR__, "..", "..", "web"))
-    fontdir = normpath(joinpath(@__DIR__, "..", "..", "..", "font"))
+    # Paths relative to this extension file at program/ext/ (moved here from
+    # program/src/backend/): web assets at program/web, fonts at <repo-root>/font.
+    webdir  = normpath(joinpath(@__DIR__, "..", "web"))
+    fontdir = normpath(joinpath(@__DIR__, "..", "..", "font"))
     WebBackend(String(host), Int(port), webdir, fontdir,
                nothing, Channel{Any}(256), nothing,
                Dict{Symbol,WebWindowState}(), Symbol[], false,
@@ -859,4 +835,4 @@ end
 # Backend factory method: `make_backend(:web; host=…, port=…)`.
 make_backend(::Val{:web}; kwargs...) = WebBackend(; kwargs...)
 
-end # module
+end # module ProjecturedWebExt

@@ -2,7 +2,7 @@
 
 julia_version = "1.12.6"
 manifest_format = "2.0"
-project_hash = "c27db5cb29ae515b3bb9b9745f189c430d0e387d"
+project_hash = "397e3aada601523e5a5f0515d3ec59da178cca35"
 
 [[deps.ArgTools]]
 uuid = "0dad84c5-d112-42e6-8d28-ef12dabb789f"
@@ -605,16 +605,18 @@ uuid = "9abbd945-dff8-562f-b5e8-e1ebf5ef1b79"
 version = "1.11.0"
 
 [[deps.Projectured]]
-deps = ["Base64", "HTTP", "JSON3", "Markdown"]
+deps = ["Base64", "Markdown"]
 path = "program"
 uuid = "92922de3-b970-4d9a-8b2a-9d6f361397b5"
 version = "0.1.0"
-weakdeps = ["DBInterface", "FFMPEG", "ModelContextProtocol", "ODBC", "SDL2_jll", "SimpleDirectMediaLayer", "Tables"]
+weakdeps = ["DBInterface", "FFMPEG", "HTTP", "JSON3", "ModelContextProtocol", "ODBC", "SDL2_jll", "SimpleDirectMediaLayer", "Tables"]
 
     [deps.Projectured.extensions]
+    ProjecturedLLMExt = ["HTTP", "JSON3"]
     ProjecturedMCPExt = "ModelContextProtocol"
     ProjecturedODBCExt = ["ODBC", "DBInterface", "Tables"]
     ProjecturedSDLExt = ["SimpleDirectMediaLayer", "SDL2_jll", "FFMPEG"]
+    ProjecturedWebExt = ["HTTP", "JSON3"]
 
 [[deps.ProjecturedExample]]
 deps = ["DBInterface", "ODBC", "Profile", "Projectured", "Tables"]

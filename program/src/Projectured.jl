@@ -82,12 +82,11 @@ include("parser/XmlParser.jl")
 include("parser/SqlParser.jl")
 # LLM backend (used as a field type by `WorkbenchAssistant`). Loads early
 # because no document or projection layer depends on it; it only needs
-# HTTP/JSON3 (external packages) and access to the Anthropic SSE client.
-# Llm before Anthropic: LlmModule defines the dependency-free LlmBackend/
-# AnthropicLlm/FakeLlm interface; AnthropicModule (HTTP/JSON3) adds the
-# stream_turn(::AnthropicLlm) method, so it must load after LlmModule.
+# LlmModule defines the dependency-free LlmBackend/AnthropicLlm/FakeLlm interface.
+# The Anthropic Messages API client (HTTP/JSON3) that adds the
+# stream_turn(::AnthropicLlm) method lives in the ProjecturedLLMExt extension
+# (program/ext/ProjecturedLLMExt.jl).
 include("editor/Llm.jl")
-include("editor/Anthropic.jl")
 include("document/Workbench.jl")
 include("document/Image.jl")
 include("document/Screen.jl")
@@ -193,10 +192,10 @@ include("device/Screen.jl")
 # The SDL backend lives in the ProjecturedSDLExt package extension
 # (program/ext/ProjecturedSDLExt.jl) — it needs SimpleDirectMediaLayer/SDL2_jll/FFMPEG.
 include("backend/Console.jl")
-# Pdf before Web: Pdf holds the pure-Julia TrueType metrics measurer
-# (pdf_measure_text) that the Web backend reuses for SDL-free text measurement.
+# The web backend lives in the ProjecturedWebExt package extension
+# (program/ext/ProjecturedWebExt.jl) — it needs HTTP/JSON3 (and reuses Pdf's
+# pure-Julia pdf_measure_text for SDL-free text metrics).
 include("backend/Pdf.jl")
-include("backend/Web.jl")
 include("external/Database.jl")
 # The live-ODBC modules (OdbcAdapter, ConnectionPool, DatabaseTabular, and the
 # DatabaseTableToTabularGrid / SqlToCellTable / DatabaseInstanceToDbCatalog
@@ -337,7 +336,7 @@ using .BackendModule: Backend, init!, quit!, measure_text, make_backend,
 # ProjecturedSDLExt extension; build the backend via make_backend(:sdl) and reach
 # rendering/decoding through the core seams (render_canvas/decode_image/write_image).
 using .ConsoleBackendModule: ConsoleBackend, console_render
-using .WebBackendModule: WebBackend, web_key_to_symbol
+# WebBackend lives in the ProjecturedWebExt extension; build it via make_backend(:web).
 using .PdfBackendModule: write_pdf, GraphicsCanvasToPdfFile, pdf_measure_text, truetype_measure_text
 
 using .DeviceModule: Device, write_to_device, read_from_device, write_to_devices, read_from_devices
@@ -532,7 +531,7 @@ using .ToolRegistryModule: Tool, Resource,
                             register_tool!, register_tools!, list_tools, call_tool,
                             register_resource!, register_resources!, list_resources, read_resource,
                             anthropic_tool_schema
-using .AnthropicModule: stream_message
+# stream_message (the Anthropic HTTP client) lives in the ProjecturedLLMExt extension.
 using .LlmModule: LlmBackend, AnthropicLlm, FakeLlm, stream_turn
 using .EvaluatorModule: EvaluatorDocument, EvaluatorForm, EvaluatorToplevel, result_text, eval_kind_label
 using .FormulaModule: FormulaDocument, FormulaInsertion, FormulaReference, FormulaFormula,
@@ -719,7 +718,7 @@ export Screen
 # write_image/record_video are exported above (BackendModule generics). SdlBackend and
 # the sdl_*/GraphicsCanvasToImageFile symbols are provided by ProjecturedSDLExt.
 export ConsoleBackend, console_render
-export WebBackend, web_key_to_symbol
+# WebBackend/web_key_to_symbol are provided by ProjecturedWebExt (make_backend(:web)).
 export write_pdf, GraphicsCanvasToPdfFile, pdf_measure_text, truetype_measure_text
 export Device, write_to_device, read_from_device, write_to_devices, read_from_devices
 export IoMap, SimpleIoMap, ChildrenIoMap, ContentIoMap
@@ -876,7 +875,7 @@ export search_documentation, search_api,
 export Tool, Resource, register_tool!, register_tools!, list_tools, call_tool,
        register_resource!, register_resources!, list_resources, read_resource,
        anthropic_tool_schema
-export stream_message
+# stream_message is provided by ProjecturedLLMExt.
 export LlmBackend, AnthropicLlm, FakeLlm, stream_turn
 export EvaluatorDocument, EvaluatorForm, EvaluatorToplevel, result_text, eval_kind_label
 export FormulaDocument, FormulaInsertion, FormulaReference, FormulaFormula,

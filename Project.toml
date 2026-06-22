@@ -1,6 +1,8 @@
 [deps]
 DBInterface = "a10d1c49-ce27-4219-8d33-6db1a4562965"
 FFMPEG = "c87230d0-a227-11e9-1b43-d7ebe4e7570a"
+HTTP = "cd3eb016-35fb-5094-929b-558a96fad6f3"
+JSON3 = "0f8b85d8-7281-11e9-16c2-39a750bddbf1"
 ModelContextProtocol = "c58f755f-f2a7-4f48-bf29-4e9659b78499"
 ODBC = "be6f12e9-ca4f-5eb2-a339-a4f995cc0291"
 Projectured = "92922de3-b970-4d9a-8b2a-9d6f361397b5"

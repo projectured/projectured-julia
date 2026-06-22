@@ -5,13 +5,13 @@ authors = []
 
 [deps]
 Base64 = "2a0f44e3-6c83-55bd-87e4-b1978d98bd5f"
-HTTP = "cd3eb016-35fb-5094-929b-558a96fad6f3"
-JSON3 = "0f8b85d8-7281-11e9-16c2-39a750bddbf1"
 Markdown = "d6f4376e-aef5-505a-96c1-9c027394607a"
 
 [weakdeps]
 DBInterface = "a10d1c49-ce27-4219-8d33-6db1a4562965"
 FFMPEG = "c87230d0-a227-11e9-1b43-d7ebe4e7570a"
+HTTP = "cd3eb016-35fb-5094-929b-558a96fad6f3"
+JSON3 = "0f8b85d8-7281-11e9-16c2-39a750bddbf1"
 ModelContextProtocol = "c58f755f-f2a7-4f48-bf29-4e9659b78499"
 ODBC = "be6f12e9-ca4f-5eb2-a339-a4f995cc0291"
 SDL2_jll = "ab825dc5-c88e-5901-9575-1e5e20358fcf"
@@ -28,6 +28,10 @@ ProjecturedODBCExt = ["ODBC", "DBInterface", "Tables"]
 # Loaded when SimpleDirectMediaLayer + SDL2_jll + FFMPEG are all present.
 # Provides the SDL display/input backend (window, rendering, image/video output).
 ProjecturedSDLExt = ["SimpleDirectMediaLayer", "SDL2_jll", "FFMPEG"]
+# Loaded when HTTP + JSON3 are present. The LLM extension provides the Anthropic
+# Messages API client; the Web extension provides the HTTP/WebSocket web backend.
+ProjecturedLLMExt = ["HTTP", "JSON3"]
+ProjecturedWebExt = ["HTTP", "JSON3"]
 
 [compat]
 DBInterface = "2.6.1"

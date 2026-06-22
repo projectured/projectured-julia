@@ -1,24 +1,19 @@
 """
-    AnthropicModule
+    ProjecturedLLMExt
 
-Minimal Anthropic Messages API client. One public function:
-`stream_message(api_key, model, system, messages, tools; on_event)`.
-
-POSTs to `https://api.anthropic.com/v1/messages` with `stream=true`,
-parses the SSE response incrementally, and invokes `on_event(event)`
-for every parsed event. Event types follow Anthropic's streaming spec:
-`message_start`, `content_block_start`, `content_block_delta`,
-`content_block_stop`, `message_delta`, `message_stop`, `ping`, `error`.
-
-This module owns only the wire protocol — it does not touch documents,
-cells, or projections.
+Package extension: the Anthropic Messages API client (real-Claude LlmBackend).
+Loaded when HTTP and JSON3 are present alongside Projectured. Relocated from the
+former program/src/editor/Anthropic.jl (AnthropicModule).
 """
-module AnthropicModule
+module ProjecturedLLMExt
+
+using Projectured
+
 
 using HTTP
 using JSON3
 
-import ..LlmModule: AnthropicLlm, stream_turn
+import Projectured.LlmModule: AnthropicLlm, stream_turn
 
 export stream_message
 
@@ -181,4 +176,4 @@ function stream_turn(b::AnthropicLlm,
                    output_config = output_config)
 end
 
-end # module
+end # module ProjecturedLLMExt
