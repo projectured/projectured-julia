@@ -208,7 +208,10 @@ Work in a dedicated worktree. One package per commit, each verified before the n
 4. `ProjecturedWeb` (838 LOC) + move `domain/web/` → `web/assets/` + path refit. **DONE.**
 5. `ProjecturedSDL` (2296 LOC) + `__init__` provider + retarget Test/executable. **DONE.**
 6. Strip `[weakdeps]`/`[extensions]` from kernel & domain; delete `*/ext/`. **DONE incrementally** (kernel stripped with LLM, domain with SDL; `kernel/ext` and `domain/ext` deleted).
-7. Wire root env `[sources]`/`[deps]`; verification sweep.
+7. Wire root env `[sources]`/`[deps]`; verification sweep. **DONE** — root env now lists
+   only the 10 Projectured packages + Revise/Test; the external libs (HTTP/JSON3/ODBC/
+   SDL2/...) are transitive via the opt-in packages. Broad sweep: 165711 passed, 5
+   failed (the pre-existing sql_table bug only — zero new regressions).
 8. Docs: update `guide/architecture.md` module/package inventory, `README.md` reading order,
    and the CLAUDE.md "where does the SDL backend live" answer; move this plan to `plan/done/`.
 
