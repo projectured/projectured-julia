@@ -7,7 +7,37 @@ both). This is done in two phases, in this order, because Phase 1 forces the cle
 interface boundaries that Phase 2 then cuts along while everything is still in one
 package and refactorable in single PRs.
 
-Status: **Phase 1 complete; Phase 2 boundary frozen (see "FROZEN BOUNDARY" below), extraction in progress.**
+Status: **COMPLETE.** Phase 1 (all five optional-dependency extensions) and Phase 2
+(the ProjecturedKernel / ProjecturedDomain / Projectured split) are both implemented
+and validated end-to-end. See "PHASE 2 — DONE" below.
+
+### PHASE 2 — DONE (2026-06-22)
+
+The split landed exactly along the frozen boundary, using the const-alias mechanism
+(no 1134-edit sweep). Five commits: boundary freeze → kernel extraction → domain
+extraction → umbrella reduction → env/Example/Test wiring. Validated:
+- **`ProjecturedKernel`** (48 files): precompiles **standalone in ~2s with zero
+  dependencies**; reactive cells, projection algebra, editor loop, and agent surface
+  all load; **no domain symbols** present.
+- **`ProjecturedDomain`** (93 files, 37 const aliases): precompiles atop the kernel;
+  every domain file kept its `..XxxModule` references verbatim, resolved through the
+  aliases. Const aliases are `===` identical to the kernel modules.
+- **`Projectured`** umbrella: `[deps]` = only the two packages (via `[sources]`);
+  re-exports the flat public API **and** binds all 140 submodules as const aliases so
+  `Projectured.XxxModule.foo` qualified access still works. `using Projectured`
+  reproduces the prior surface.
+- **Extensions re-parented:** SDL/ODBC/Web fire on `ProjecturedDomain`; **LLM/MCP fire
+  on `ProjecturedKernel`**. Confirmed the MCP ext loads with `ProjecturedKernel` **alone**
+  (no domain) — the agent control surface is genuinely headless/domain-free.
+- **Tests:** full env precompiles; `test_json` 29/29, `test_syntax` 10/10,
+  `test_json_to_syntax` 11/11, `test_repl(json)` 225/225; broad sweep
+  `test_printers()`+`test_readers()` = **165711 passed, 5 failed** — the 5 failures are
+  the **pre-existing `sql_table` `length(::Cell{CellVector})` bug, byte-identical on
+  `main` (HEAD 33f29c8)**, i.e. the split introduced **zero regressions**.
+
+Directory layout as planned: `kernel/`, `domain/` (with `domain/web/` assets and
+`domain/ext/`), `program/` kept as the umbrella `Projectured` (uuid unchanged), `kernel/ext/`
+for the LLM/MCP extensions. Root env declares all five packages via `[sources]`.
 
 ## Current state (grounding)
 
