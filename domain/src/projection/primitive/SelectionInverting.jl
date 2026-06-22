@@ -31,6 +31,7 @@ import ..CollectionModule: CellVector
 import ..IoMapApiModule: IoMap
 import ..ReferenceModule: ConcreteReferencePath, RangeReference, FieldReference, EmptyReferencePath, strip_reference_types
 import ..ReferenceBuilderModule: var"@reference"
+import ..OperationApiModule: Operation
 import ..OperationModule: ReplaceSelectionOperation
 import ..PrimitiveModule: StringReplaceRangeOperation
 export SelectionInverting, SelectionInvertingIoMap, SelSeg
@@ -273,8 +274,11 @@ function projection_read(p::SelectionInverting, iomap::SelectionInvertingIoMap, 
     nothing
 end
 
-# Forward arbitrary events upstream (KeyDown / KeyPress / etc.).
-projection_read(::SelectionInverting, ::SelectionInvertingIoMap, op) = op
+# Forward any Operation (ToggleCollapseOperation, collection ops, etc.) upstream
+# unchanged. Raw gestures (KeyDown, KeyPress, …) return nothing so the
+# SequentialProjection tries earlier steps (e.g. SyntaxToText's console fallback).
+projection_read(::SelectionInverting, ::SelectionInvertingIoMap, op::Operation) = op
+projection_read(::SelectionInverting, ::SelectionInvertingIoMap, op) = nothing
 
 # ── Path helpers ────────────────────────────────────────────────────────────
 

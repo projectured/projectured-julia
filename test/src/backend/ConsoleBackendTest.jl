@@ -12,7 +12,7 @@ function _drive_console(bytes::Vector{UInt8}, steps::Int)
     proj = make_json_console_projection_example()
     backend = ConsoleBackend(; io=IOBuffer(), input=IOBuffer(bytes), ansi=true, clear=false)
     editor = Editor(backend, doc, proj, Device[Keyboard()])
-    sels = Any[]
+    sels = String[]
     # The editor logs every applied operation via @info; quiet it for the test.
     Base.CoreLogging.with_logger(Base.CoreLogging.NullLogger()) do
         _ED.print!(editor)
@@ -20,7 +20,11 @@ function _drive_console(bytes::Vector{UInt8}, steps::Int)
             _ED.read!(editor)
             _ED.evaluate!(editor)
             _ED.print!(editor)
-            push!(sels, getfield(doc, :selection)[])
+            # Snapshot the selection as a stripped string so later update_selection!
+            # mutations (which reuse cells in-place) do not change already-recorded
+            # entries.  strip_reference_types removes TypeReference checkpoints so
+            # the string matches the plain navigation skeleton the tests assert on.
+            push!(sels, string(Projectured.strip_reference_types(getfield(doc, :selection)[])))
         end
     end
     return sels
@@ -33,14 +37,15 @@ function _drive_console_doc(bytes::Vector{UInt8}, steps::Int)
     proj = make_json_console_projection_example()
     backend = ConsoleBackend(; io=IOBuffer(), input=IOBuffer(bytes), ansi=true, clear=false)
     editor = Editor(backend, doc, proj, Device[Keyboard()])
-    sels = Any[]
+    sels = String[]
     Base.CoreLogging.with_logger(Base.CoreLogging.NullLogger()) do
         _ED.print!(editor)
         for _ in 1:steps
             _ED.read!(editor)
             _ED.evaluate!(editor)
             _ED.print!(editor)
-            push!(sels, getfield(doc, :selection)[])
+            # Snapshot stripped string (see _drive_console comment above).
+            push!(sels, string(Projectured.strip_reference_types(getfield(doc, :selection)[])))
         end
     end
     return doc, sels
@@ -144,10 +149,10 @@ function test_console_backend()
         # Home (ESC[H), Down (ESC[B), Down, Right (ESC[C).
         bytes = UInt8[0x1b,0x5b,0x48, 0x1b,0x5b,0x42, 0x1b,0x5b,0x42, 0x1b,0x5b,0x43]
         sels = _drive_console(bytes, 4)
-        @test sels[1] isa EmptyReferencePath                              # Home → root ∅
-        @test string(sels[2]) == ".entries[1]"                           # Down → first child
-        @test string(sels[3]) == ".entries[1].key"                       # Down → descend
-        @test string(sels[4]) == ".entries[1].value"                     # Right → sibling
+        @test sels[1] == "∅"                                              # Home → root ∅
+        @test sels[2] == ".entries[1]"                                   # Down → first child
+        @test sels[3] == ".entries[1].key"                               # Down → descend
+        @test sels[4] == ".entries[1].value"                             # Right → sibling
     end
 
     # ── character-level text editing through the console pipeline ──────────
@@ -172,20 +177,20 @@ function test_console_backend()
         # Cross-span / character cursor movement (Right then Left) drives the
         # text-domain `document_read` left/right arms through the fallback.
         _, sels = _drive_console_doc(vcat(nav, RIGHT, LEFT), 7)
-        @test string(sels[4]) == ".entries[1].value"              # on the value
-        @test string(sels[5]) == ".entries[1].value.value{0}"     # Ctrl+Space → text cursor
-        @test string(sels[6]) == ".entries[1].value.value{1}"     # Right → +1
-        @test string(sels[7]) == ".entries[1].value.value{0}"     # Left  → back
+        @test sels[4] == ".entries[1].value"              # on the value
+        @test sels[5] == ".entries[1].value.value{0}"     # Ctrl+Space → text cursor
+        @test sels[6] == ".entries[1].value.value{1}"     # Right → +1
+        @test sels[7] == ".entries[1].value.value{0}"     # Left  → back
 
         # Character insert: type 'X' at the text cursor (offset 0) inside "Alice".
         doc, sels = _drive_console_doc(vcat(nav, UInt8[UInt8('X')]), 6)
         @test entries(doc)[1].value.value == "XAlice"             # inserted at the cursor
-        @test string(sels[6]) == ".entries[1].value.value{1}"     # cursor advanced past insert
+        @test sels[6] == ".entries[1].value.value{1}"             # cursor advanced past insert
 
         # Backspace: move the cursor right by one, then delete the char before it.
         doc, sels = _drive_console_doc(vcat(nav, RIGHT, BACKSPACE), 7)
         @test entries(doc)[1].value.value == "lice"               # "Alice" → delete 'A'
-        @test string(sels[7]) == ".entries[1].value.value{0}"
+        @test sels[7] == ".entries[1].value.value{0}"
     end
 
     # ── wrong pipeline output fails loud ──────────────────────────────────
