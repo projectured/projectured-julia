@@ -10,7 +10,7 @@ submodule imports were rewritten to absolute ProjecturedDomain.* references.
 """
 module ProjecturedSDLExt
 
-using Projectured
+using ProjecturedDomain
 
 
 using SimpleDirectMediaLayer

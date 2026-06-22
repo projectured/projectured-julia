@@ -1,13 +1,14 @@
 module ProjecturedExample
 
 using Projectured
+import ProjecturedDomain   # owns the SDL/ODBC/Web extensions after the package split
 using Profile
 
 # Trigger the ODBC package extension and bind its public types so the database
 # example builders (and the eager `const …_example` constructions below) can name
 # them. ProjecturEd itself is ODBC-optional; the example package opts in.
 using ODBC, DBInterface, Tables
-const _ODBCEXT = Base.get_extension(Projectured, :ProjecturedODBCExt)
+const _ODBCEXT = Base.get_extension(ProjecturedDomain, :ProjecturedODBCExt)
 const OdbcConnectionPool        = _ODBCEXT.OdbcConnectionPool
 const OdbcDatabaseAdapter       = _ODBCEXT.OdbcDatabaseAdapter
 const DatabaseInstanceToDbCatalog = _ODBCEXT.DatabaseInstanceToDbCatalog

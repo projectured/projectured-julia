@@ -2,7 +2,7 @@
 
 julia_version = "1.12.6"
 manifest_format = "2.0"
-project_hash = "397e3aada601523e5a5f0515d3ec59da178cca35"
+project_hash = "ea26ca9d11ff64806b559a8218711df77311c9bb"
 
 [[deps.ArgTools]]
 uuid = "0dad84c5-d112-42e6-8d28-ef12dabb789f"
@@ -605,27 +605,41 @@ uuid = "9abbd945-dff8-562f-b5e8-e1ebf5ef1b79"
 version = "1.11.0"
 
 [[deps.Projectured]]
-deps = ["Base64", "Markdown"]
+deps = ["ProjecturedDomain", "ProjecturedKernel"]
 path = "program"
 uuid = "92922de3-b970-4d9a-8b2a-9d6f361397b5"
 version = "0.1.0"
-weakdeps = ["DBInterface", "FFMPEG", "HTTP", "JSON3", "ModelContextProtocol", "ODBC", "SDL2_jll", "SimpleDirectMediaLayer", "Tables"]
 
-    [deps.Projectured.extensions]
-    ProjecturedLLMExt = ["HTTP", "JSON3"]
-    ProjecturedMCPExt = "ModelContextProtocol"
+[[deps.ProjecturedDomain]]
+deps = ["Base64", "Markdown", "ProjecturedKernel"]
+path = "domain"
+uuid = "e0912940-0f50-4a55-a142-7b4aed3d6e35"
+version = "0.1.0"
+weakdeps = ["DBInterface", "FFMPEG", "HTTP", "JSON3", "ODBC", "SDL2_jll", "SimpleDirectMediaLayer", "Tables"]
+
+    [deps.ProjecturedDomain.extensions]
     ProjecturedODBCExt = ["ODBC", "DBInterface", "Tables"]
     ProjecturedSDLExt = ["SimpleDirectMediaLayer", "SDL2_jll", "FFMPEG"]
     ProjecturedWebExt = ["HTTP", "JSON3"]
 
 [[deps.ProjecturedExample]]
-deps = ["DBInterface", "ODBC", "Profile", "Projectured", "Tables"]
+deps = ["DBInterface", "ODBC", "Profile", "Projectured", "ProjecturedDomain", "Tables"]
 path = "example"
 uuid = "e5f6a7b8-c9d0-4e1f-2a3b-4c5d6e7f8a9b"
 version = "0.1.0"
 
+[[deps.ProjecturedKernel]]
+path = "kernel"
+uuid = "a3e3499a-684d-4df9-a0d6-de2d1797b1f3"
+version = "0.1.0"
+weakdeps = ["HTTP", "JSON3", "ModelContextProtocol"]
+
+    [deps.ProjecturedKernel.extensions]
+    ProjecturedLLMExt = ["HTTP", "JSON3"]
+    ProjecturedMCPExt = "ModelContextProtocol"
+
 [[deps.ProjecturedTest]]
-deps = ["DBInterface", "FFMPEG", "ODBC", "Projectured", "ProjecturedExample", "SDL2_jll", "SimpleDirectMediaLayer", "Tables", "Test"]
+deps = ["DBInterface", "FFMPEG", "ODBC", "Projectured", "ProjecturedDomain", "ProjecturedExample", "SDL2_jll", "SimpleDirectMediaLayer", "Tables", "Test"]
 path = "test"
 uuid = "c3f1d2e8-4a5b-6c7d-8e9f-0a1b2c3d4e5f"
 version = "0.1.0"

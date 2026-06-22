@@ -7,7 +7,7 @@ former program/src/editor/Anthropic.jl (AnthropicModule).
 """
 module ProjecturedLLMExt
 
-using Projectured
+using ProjecturedKernel
 
 
 using HTTP

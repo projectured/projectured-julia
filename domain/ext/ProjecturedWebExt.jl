@@ -7,7 +7,7 @@ former program/src/backend/Web.jl (WebBackendModule).
 """
 module ProjecturedWebExt
 
-using Projectured
+using ProjecturedDomain
 
 
 using HTTP

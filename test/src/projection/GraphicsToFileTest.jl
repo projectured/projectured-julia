@@ -27,7 +27,7 @@ end
     # GraphicsCanvasToImageFile lives in the SDL package extension (loaded by the
     # test module's `using SimpleDirectMediaLayer, …`); reach it through the extension.
     GraphicsCanvasToImageFile =
-        Base.get_extension(Projectured, :ProjecturedSDLExt).GraphicsCanvasToImageFile
+        Base.get_extension(ProjecturedDomain, :ProjecturedSDLExt).GraphicsCanvasToImageFile
     proj = SequentialProjection(
         make_graphics_image_projection_example(),
         GraphicsCanvasToImageFile(filename; width=400, height=300),

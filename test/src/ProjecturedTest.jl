@@ -2,6 +2,7 @@ module ProjecturedTest
 
 using Test
 using Projectured
+import ProjecturedDomain   # owns the SDL/ODBC/Web extensions after the package split
 using ProjecturedExample
 # Trigger the SDL package extension so the test suite can drive the SDL backend
 # (rendering / write_image / click roundtrips). The library itself is SDL-optional;
@@ -10,7 +11,7 @@ using SimpleDirectMediaLayer, SDL2_jll, FFMPEG
 # Likewise trigger the ODBC extension and bind its public types so the database
 # tests can construct adapters/pools/projections and assert on their types.
 using ODBC, DBInterface, Tables
-const _ODBCEXT = Base.get_extension(Projectured, :ProjecturedODBCExt)
+const _ODBCEXT = Base.get_extension(ProjecturedDomain, :ProjecturedODBCExt)
 const OdbcDatabaseAdapter         = _ODBCEXT.OdbcDatabaseAdapter
 const OdbcConnectionPool          = _ODBCEXT.OdbcConnectionPool
 const with_connection             = _ODBCEXT.with_connection

@@ -7,7 +7,7 @@ are all present alongside ProjecturedDomain.
 """
 module ProjecturedODBCExt
 
-using Projectured
+using ProjecturedDomain
 
 module OdbcAdapterModule
 
