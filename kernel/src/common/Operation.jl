@@ -378,6 +378,10 @@ function clear_selection!(document)
     rest = nav.tail
     child = if h isa FieldReference
         sym = Symbol(h.name)
+        # The path may not match this node (a stale or cross-domain selection):
+        # stop walking gracefully rather than throwing FieldError. Mirrors the
+        # hasproperty guard in annotate_reference_types.
+        hasproperty(document, sym) || return
         f = getfield(document, sym)
         f isa Cell ? f[] : f
     elseif h isa RangeReference
@@ -432,6 +436,10 @@ function _set_selection_walk!(document, path)
     rest = nav.tail
     child = if h isa FieldReference
         sym = Symbol(h.name)
+        # The path may not match this node (a stale or cross-domain selection):
+        # stop walking gracefully rather than throwing FieldError. Mirrors the
+        # hasproperty guard in annotate_reference_types.
+        hasproperty(document, sym) || return
         f = getfield(document, sym)
         f isa Cell ? f[] : f
     elseif h isa RangeReference

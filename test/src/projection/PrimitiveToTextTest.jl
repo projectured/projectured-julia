@@ -32,19 +32,19 @@ function test_primitive_to_text()
     p = PrimitiveBoolToText()
     out = projection_print(p, nothing, b, nothing).output
     @test out isa TextText
-    @test length(out) == 1
-    @test out[1].content == "true"
-    @test out[1].font == font_ubuntu_monospace_regular_24
-    @test out[1].font_color == color_solarized_cyan
+    @test length(out.elements) == 1
+    @test out.elements[1].content == "true"
+    @test out.elements[1].font == font_ubuntu_monospace_regular_24
+    @test out.elements[1].font_color == color_solarized_cyan
 end
 
 @testset "bool reacts to value change" begin
     b = PrimitiveBool(true)
     p = PrimitiveBoolToText()
     out = projection_print(p, nothing, b, nothing).output
-    @test out[1].content == "true"
+    @test out.elements[1].content == "true"
     b.value = false
-    @test out[1].content == "false"
+    @test out.elements[1].content == "false"
 end
 
 # ── PrimitiveNumberToText ────────────────────────────────────────────────────
@@ -53,16 +53,16 @@ end
     n = PrimitiveNumber(42)
     p = PrimitiveNumberToText()
     out = projection_print(p, nothing, n, nothing).output
-    @test length(out) == 1
-    @test out[1].content == "42"
-    @test out[1].font_color == color_solarized_magenta
+    @test length(out.elements) == 1
+    @test out.elements[1].content == "42"
+    @test out.elements[1].font_color == color_solarized_magenta
 end
 
 @testset "number nothing prints empty" begin
     n = PrimitiveNumber(nothing)
     p = PrimitiveNumberToText()
     out = projection_print(p, nothing, n, nothing).output
-    @test out[1].content == ""
+    @test out.elements[1].content == ""
 end
 
 # ── PrimitiveStringToTextText ────────────────────────────────────────────────────
@@ -71,18 +71,18 @@ end
     s = PrimitiveString("hi")
     p = PrimitiveStringToTextText()
     out = projection_print(p, nothing, s, nothing).output
-    @test length(out) == 1
-    @test out[1].content == "hi"
-    @test out[1].font_color == color_solarized_green
+    @test length(out.elements) == 1
+    @test out.elements[1].content == "hi"
+    @test out.elements[1].font_color == color_solarized_green
 end
 
 @testset "string reacts to value change" begin
     s = PrimitiveString("hi")
     p = PrimitiveStringToTextText()
     out = projection_print(p, nothing, s, nothing).output
-    @test out[1].content == "hi"
+    @test out.elements[1].content == "hi"
     s.value = "world"
-    @test out[1].content == "world"
+    @test out.elements[1].content == "world"
 end
 
 # ── Selection forward ────────────────────────────────────────────────────────

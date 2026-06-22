@@ -4,7 +4,7 @@ using Projectured: PositionReference, ConcreteReferencePath, EmptyReferencePath,
                     StringReplaceRangeOperation, NumberReplaceRangeOperation,
                     PrimitiveStringToSyntaxLeaf, SimpleIoMap, KeyPress, KeyDown,
                     Modifiers, evaluate_operation, projection_read, set_selection!,
-                    @reference
+                    strip_reference_types, @reference
 
 function _value_range_ref(start::Int, stop::Int)
     ConcreteReferencePath(FieldReference("value"),
@@ -12,7 +12,9 @@ function _value_range_ref(start::Int, stop::Int)
 end
 
 function _cursor_at(s)
-    sel = getfield(s, :selection)[]
+    # Selections are canonical (carry TypeReference checkpoints); strip them to
+    # match the plain `.value{k}` navigation skeleton this helper asserts on.
+    sel = strip_reference_types(getfield(s, :selection)[])
     @assert sel isa ConcreteReferencePath
     @assert sel.head isa FieldReference && sel.head.name == "value"
     inner = sel.tail

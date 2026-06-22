@@ -77,7 +77,7 @@ end
     ed = _XmlReaderEditor(e, nothing)
     evaluate_operation(ed, op)
     @test ed.document === e                     # root untouched: incremental write
-    @test e[1] isa XmlElement
+    @test e.children[1] isa XmlElement
 end
 
 @testset "element insert appends a child element and selects its tag" begin
@@ -87,9 +87,9 @@ end
     @test op.index == 1
     ed = _XmlReaderEditor(e, nothing)
     evaluate_operation(ed, op)
-    @test length(e) == 2
-    @test e[2] isa XmlElement
-    @test selof(e[2]) isa ConcreteReferencePath  # cursor in the new tag
+    @test length(e.children) == 2
+    @test e.children[2] isa XmlElement
+    @test selof(e.children[2]) isa ConcreteReferencePath  # cursor in the new tag
 end
 
 @testset "element insert appends a child text and selects its value" begin
@@ -98,9 +98,9 @@ end
     @test op isa CollectionInsertOperation
     ed = _XmlReaderEditor(e, nothing)
     evaluate_operation(ed, op)
-    @test length(e) == 1
-    @test e[1] isa XmlText
-    @test selof(e[1]) isa ConcreteReferencePath  # cursor in the new text
+    @test length(e.children) == 1
+    @test e.children[1] isa XmlText
+    @test selof(e.children[1]) isa ConcreteReferencePath  # cursor in the new text
 end
 
 @testset "Space inserts an attribute and selects its name" begin
@@ -124,8 +124,8 @@ end
     @test op isa CollectionInsertOperation
     ed = _XmlReaderEditor(e, nothing)
     evaluate_operation(ed, op)
-    @test length(e) == 1
-    @test e[1] isa XmlInsertion
+    @test length(e.children) == 1
+    @test e.children[1] isa XmlInsertion
 end
 
 @testset "= moves from an attribute name to its value" begin

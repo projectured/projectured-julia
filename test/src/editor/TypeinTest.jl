@@ -125,7 +125,7 @@ function _read_target_string(document, target)
     elseif target.kind == :texttext
         v isa TextText || return nothing
         buf = IOBuffer()
-        for span in v
+        for span in v.elements
             span isa TextString && print(buf, span.content)
         end
         return String(take!(buf))
