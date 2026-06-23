@@ -1,5 +1,23 @@
 # `@projection_template` generalizations (Stage C enabler)
 
+> **Status: DONE.** All five generalizations (A–E) are implemented in
+> `package/domain/src/projection/ProjectionTemplate.jl` and proven by driving the
+> full omnetpp-pred INI/NED refactor (all 22 projections now template-derived).
+> Regression gate held throughout: `test_json_to_syntax` 11/11, `test_sql_to_syntax`
+> 19/19, `test_text_navigation(json_example; check_reaches_all=true)` 543/543. The
+> consumer end-to-end gate (omnetpp-pred): `test_printer` ini 3538 / ned 5870,
+> `test_text_navigation` ini 820 / ned 711 — identical before and after every gap.
+> Commits: A+B `05b9822`, C `f96902a`, E `e8dbce5`, D `7918035`.
+>
+> - **A** named-field `bound` — DONE (`_atomic_print` value-lens).
+> - **B** top-level fixed-children node — DONE (`rule_print`→`_fixed_print`; KeySlot
+>   cursor auto-wiring also retired JSON's `_entry_key_sel`).
+> - **C** fixed prefix + spliced collection — DONE (`MixedNodeWiring`).
+> - **E** computed inline-token node — DONE (`tokens(thunk)` / `InlineWiring`; the
+>   reactive per-recompute marker-strip handles a varying token count).
+> - **D** section-grouped, skip-empty — DONE (`sections([...])` / `SectionsWiring`;
+>   consumer `make_wrapper` keeps the engine output-neutral).
+
 Follow-up to [projection-template-engine.md](projection-template-engine.md). That
 plan built the builder/walk engine and converted JSON (fully) and SQL (leaves).
 Its "Stage C — sweep other `XToSyntax` projections" needs the engine to express a
