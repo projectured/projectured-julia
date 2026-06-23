@@ -7,19 +7,17 @@ as projection-introduced elements via ProjectionReference. The reader inverts
 the mapping, routing tree-domain paths back to the correct JSON field, array
 index, or ProjectionReference for delimiters.
 
-Every value type is expressed as a `@projection_template` builder: an ordinary
-`(p, doc) -> output` that constructs the real SyntaxLeaf/SyntaxNode, dropping a
-`bound`/`project`/`collection` marker where special handling is needed. The
-ProjectionTemplate engine walks the built tree, strips the markers, and derives
-`projection_print` / `map_reference_forward` / `map_reference_backward` / the
-value-edit reader. Only the JSON *authoring* readers (type-to-replace, `,`
-insert, Tab) and the Syntax-specific structural fallback stay hand-written.
+Each value type is a `@projection_template` builder `(p, doc) -> output`; the
+engine derives the printer and reference mappers from the built tree. Only the
+JSON authoring readers (type-to-replace, `,` insert, Tab) and the structural
+fallback stay hand-written.
 """
 module JsonToSyntaxModule
 
 import ..ReactiveModule: Cell
 import ..CollectionModule: CellVector
 import ..ProjectionApiModule: projection_print, projection_printer_recurse, projection_read, map_reference_forward, map_reference_backward, Projection
+import ..ProjectionModule: var"@projection"
 import ..JsonModule: JsonDocument, JsonInsertion, JsonNull, JsonBool, JsonNumber, JsonString, JsonArray, JsonObject, JsonObjectEntry
 import ..TextModule: TextString
 import ..FontModule: StyleFont, font_ubuntu_monospace_regular_24, font_ubuntu_monospace_bold_24
@@ -43,53 +41,43 @@ export JsonInsertionToSyntaxLeaf, JsonNullToSyntaxLeaf, JsonBoolToSyntaxLeaf, Js
 
 # ── JsonNullToSyntaxLeaf ─────────────────────────────────────────────────────
 
-struct JsonNullToSyntaxLeaf <: Projection
-    style::StyleText
+@projection struct JsonNullToSyntaxLeaf <: Projection
+    style::StyleText = StyleText(font_ubuntu_monospace_regular_24, color_solarized_magenta)
 end
-JsonNullToSyntaxLeaf(; style=StyleText(font_ubuntu_monospace_regular_24, color_solarized_magenta)) = JsonNullToSyntaxLeaf(style)
 
-# "null" is a projection-introduced label with no editable input value (no
-# marker ⇒ opaque): the walk records no binding, so the default proj-unwrapping
-# mappers apply and the output selection is the input selection mapped forward.
+# Fixed label, no editable value: no marker, so the selection maps straight through.
 @projection_template JsonNullToSyntaxLeaf JsonNull (p, doc) ->
     SyntaxLeaf(TextString("null", p.style))
 
 # ── JsonInsertionToSyntaxLeaf ───────────────────────────────────────────────────
 
-struct JsonInsertionToSyntaxLeaf <: Projection
-    style::StyleText
+@projection struct JsonInsertionToSyntaxLeaf <: Projection
+    style::StyleText = StyleText(font_ubuntu_monospace_regular_24, color_solarized_gray)
 end
-JsonInsertionToSyntaxLeaf(; style=StyleText(font_ubuntu_monospace_regular_24, color_solarized_gray)) = JsonInsertionToSyntaxLeaf(style)
 
-# Same rationale as JsonNull — "insert JSON here" is an opaque
-# projection-introduced placeholder with no editable input value.
+# Fixed placeholder, like JsonNull.
 @projection_template JsonInsertionToSyntaxLeaf JsonInsertion (p, doc) ->
     SyntaxLeaf(TextString("insert JSON here", p.style))
 
 # ── JsonBoolToSyntaxLeaf ─────────────────────────────────────────────────────
 
-struct JsonBoolToSyntaxLeaf <: Projection
-    style::StyleText
+@projection struct JsonBoolToSyntaxLeaf <: Projection
+    style::StyleText = StyleText(font_ubuntu_monospace_regular_24, color_solarized_yellow)
 end
-JsonBoolToSyntaxLeaf(; style=StyleText(font_ubuntu_monospace_regular_24, color_solarized_yellow)) = JsonBoolToSyntaxLeaf(style)
 
-# Transparent value bound to JsonBool.value (Bool): the walk shares doc's
-# selection cell with the leaf, so .value{k} identity-maps both ways. The `bound`
-# marker in the value slot is stripped to its real TextString before the output
-# leaves the printer.
+# bound(:value) makes the leaf text track JsonBool.value and share its selection
+# cell, so .value{k} maps both ways.
 @projection_template JsonBoolToSyntaxLeaf JsonBool (p, doc) ->
     SyntaxLeaf(bound(:value, Bool, TextString(() -> doc[] ? "true" : "false", p.style)))
 
 # ── JsonNumberToSyntaxLeaf ───────────────────────────────────────────────────
 
-struct JsonNumberToSyntaxLeaf <: Projection
-    style::StyleText
+@projection struct JsonNumberToSyntaxLeaf <: Projection
+    style::StyleText = StyleText(font_ubuntu_monospace_regular_24, color_solarized_magenta)
 end
-JsonNumberToSyntaxLeaf(; style=StyleText(font_ubuntu_monospace_regular_24, color_solarized_magenta)) = JsonNumberToSyntaxLeaf(style)
 
-# Transparent value bound to JsonNumber.value (Real). Editing the value rewires
-# the StringReplaceRangeOperation into a NumberReplaceRangeOperation (the
-# `retype` marker arg) so the evaluator's tryparse logic kicks in.
+# bound(:value); `retype` rewrites the value edit into a NumberReplaceRangeOperation
+# so numeric parsing applies.
 @projection_template JsonNumberToSyntaxLeaf JsonNumber (p, doc) ->
     SyntaxLeaf(bound(:value, Real,
                      _hinted_text(() -> string(doc[]), () -> doc[] === nothing, "enter json number", p.style);
@@ -97,20 +85,14 @@ JsonNumberToSyntaxLeaf(; style=StyleText(font_ubuntu_monospace_regular_24, color
 
 # ── JsonStringToSyntaxLeaf ───────────────────────────────────────────────────
 
-struct JsonStringToSyntaxLeaf <: Projection
-    quote_style::StyleText
-    value::StyleText
+@projection struct JsonStringToSyntaxLeaf <: Projection
+    quote_style::StyleText = StyleText(font_ubuntu_monospace_regular_24, color_solarized_yellow)
+    value::StyleText = StyleText(font_ubuntu_monospace_regular_24, color_solarized_green)
 end
-JsonStringToSyntaxLeaf(; quote_style=StyleText(font_ubuntu_monospace_regular_24, color_solarized_yellow),
-                         value=StyleText(font_ubuntu_monospace_regular_24, color_solarized_green)) =
-    JsonStringToSyntaxLeaf(quote_style, value)
 
-# Transparent value bound to JsonString.value (String, identity lens — escaping
-# deferred). The `"` delimiters are non-empty introduced text, so the walk records
-# them as selectable delimiters: a cursor on them has no JSON pre-image, so the
-# backward mapper wraps an .open/.close reference into this projection's own
-# ProjectionReference (and forward unwraps it, so a quote selection round-trips
-# under School-A delegation). The value-edit reader falls to the default.
+# bound(:value) for the string text. The `"` delimiters are selectable introduced
+# text with no JSON pre-image, so a quote selection round-trips through this
+# projection's own ProjectionReference.
 @projection_template JsonStringToSyntaxLeaf JsonString (p, doc) ->
     SyntaxLeaf(bound(:value, String,
                      _hinted_text(() -> json_escape(doc[]), () -> isempty(doc[]), "enter json string", p.value));
@@ -119,20 +101,14 @@ JsonStringToSyntaxLeaf(; quote_style=StyleText(font_ubuntu_monospace_regular_24,
 
 # ── JsonArrayToSyntaxNode ────────────────────────────────────────────────────
 
-struct JsonArrayToSyntaxNode <: Projection
-    delim::StyleText
-    sep::StyleText
+@projection struct JsonArrayToSyntaxNode <: Projection
+    delim::StyleText = StyleText(font_ubuntu_monospace_bold_24, color_solarized_gray)
+    sep::StyleText = StyleText(font_ubuntu_monospace_regular_24, color_solarized_gray)
 end
-JsonArrayToSyntaxNode(; delim=StyleText(font_ubuntu_monospace_bold_24, color_solarized_gray),
-                        sep=StyleText(font_ubuntu_monospace_regular_24, color_solarized_gray)) =
-    JsonArrayToSyntaxNode(delim, sep)
 
-# Builder/walk node: the `collection(:elements)` marker in the children slot tells
-# the engine to recurse over doc.elements (School A) and build the projected
-# children. The walk records (.elements[i] ↔ .children[i]); the generic node
-# mappers delegate each element's tail through the stored child iomap. Structural
-# positions ([, ], ,) are projection-introduced: the reader fallback below maps
-# them to the flat character offset the text layer can navigate.
+# collection(:elements) recurses over doc.elements and records (.elements[i] ↔
+# .children[i]). The [, ], and , positions are projection-introduced; the reader
+# fallback below maps them to a flat text offset.
 @projection_template JsonArrayToSyntaxNode JsonArray (p, doc) ->
     SyntaxNode(collection(:elements);
                open=TextString("[", p.delim),
@@ -142,37 +118,22 @@ JsonArrayToSyntaxNode(; delim=StyleText(font_ubuntu_monospace_bold_24, color_sol
 
 # ── JsonObjectToSyntaxNode ───────────────────────────────────────────────────
 
-struct JsonObjectToSyntaxNode <: Projection
-    delim::StyleText
-    sep::StyleText
-    key::StyleText
-    colon::StyleText
+@projection struct JsonObjectToSyntaxNode <: Projection
+    delim::StyleText = StyleText(font_ubuntu_monospace_bold_24, color_solarized_gray)
+    sep::StyleText = StyleText(font_ubuntu_monospace_regular_24, color_solarized_gray)
+    key::StyleText = StyleText(font_ubuntu_monospace_regular_24, color_solarized_blue)
+    colon::StyleText = StyleText(font_ubuntu_monospace_regular_24, color_solarized_gray)
 end
-JsonObjectToSyntaxNode(; delim=StyleText(font_ubuntu_monospace_bold_24, color_solarized_gray),
-                         sep=StyleText(font_ubuntu_monospace_regular_24, color_solarized_gray),
-                         key=StyleText(font_ubuntu_monospace_regular_24, color_solarized_blue),
-                         colon=StyleText(font_ubuntu_monospace_regular_24, color_solarized_gray)) =
-    JsonObjectToSyntaxNode(delim, sep, key, colon)
 
-# Builder/walk node with a templated collection. `collection(:entries) do e … end`
-# builds a per-entry pair node `[key_leaf, value]`:
-#   - the key leaf carries `bound(:key, String, …)` → the walk records a KeySlot, so
-#     `.entries[i].key{k}` ↔ `.children[i].children[1].value{k}` and the whole key ↔
-#     the whole key leaf;
-#   - `project(:value)` delegates the value subtree to its own projection (School A),
-#     so `.entries[i].value.<tail>` ↔ `.children[i].children[2].<tail>`.
-# Selection is wired by the engine: the pair node uses the entry's selection cell
-# so set_selection! propagates into it, and `_fixed_print` auto-lenses the key
-# cursor `.key{k}` → the key leaf's `.value{k}` (KeySlot cursor wiring). Structural
-# positions ({, }, :, separators) are projection-introduced and map to a flat offset
-# via the reader fallback below.
+# collection(:entries) builds a per-entry pair node [key_leaf, value]: the key leaf
+# is bound(:key) and `project(:value)` delegates the value subtree to its own
+# projection. Structural positions ({, }, :, separators) map to a flat offset via
+# the reader fallback below.
 @projection_template JsonObjectToSyntaxNode JsonObject (p, doc) ->
     SyntaxNode(collection(:entries) do e
-                   # The pair node is a *fixed-children template node*: the engine's
-                   # `_fixed_print` locates its children with `isa Vector` and walks them
-                   # to find the `project(:value)` marker, so the children must stay a raw
-                   # Vector. The keyword `children` path normalizes to a CellVector, which
-                   # the walk would not recognise — hence the positional form is kept here.
+                   # Fixed-children template node: `_fixed_print` finds children via
+                   # `isa Vector` to locate the `project(:value)` marker, so they must stay
+                   # a raw Vector (not the CellVector the keyword `children` path produces).
                    SyntaxNode(TextString("", p.delim.font, color_default),
                               TextString("", p.delim.font, color_default),
                               TextString(": ", p.colon),
@@ -189,27 +150,22 @@ JsonObjectToSyntaxNode(; delim=StyleText(font_ubuntu_monospace_bold_24, color_so
 
 # ── Reader: the JSON authoring command set ──────────────────────────────────
 #
-# These mirror the Lisp `json/read-command` and the array/object/object-entry
-# readers (json-to-syntax.lisp:424-628). They run only when a *raw* key gesture
-# reaches the JSON layer — i.e. the cursor is on a whole JSON value (structural
-# mode), not a character cursor inside a string/number. A character cursor is
-# consumed downstream by TextToGraphics (which emits a StringReplaceRangeOperation
-# the typein path threads back up), so the gating Lisp does with
-# `(not (typep printer-input 'json/number))` falls out for free; we still guard
-# the digit case explicitly to match.
+# These run only when a raw key gesture reaches the JSON layer with the cursor on a
+# whole JSON value (structural mode). A character cursor inside a string/number is
+# consumed downstream by TextToGraphics, so it is skipped here (the digit case
+# guards explicitly).
 #
-# Only the *root* JSON projection's reader runs for a gesture (TypeDispatching
-# dispatches on the root document's type), so each method reads its own
-# `iomap.input.selection` — a full path from the root — and emits an operation
-# whose path is relative to the root. This is why every JSON projection carries
-# the type-to-replace command: any of them can be the whole document.
+# Only the root JSON projection's reader runs for a gesture (TypeDispatching keys on
+# the root document type), so each method reads its own root-relative
+# `iomap.input.selection` and emits a root-relative operation — which is why every
+# JSON projection carries the type-to-replace command.
 
-# Set a fresh replacement document's initial (self-relative) selection so the
-# evaluator can drop the cursor inside it after the swap.
+# Pre-place a fresh replacement document's (self-relative) selection so the cursor
+# lands inside it after the swap.
 _sel!(doc, path) = (getfield(doc, :selection)[] = path; doc)
 
-# A character cursor is a path ending in `…<value|key>{k}` — a RangeReference
-# step preceded by the value/key field. A whole-element selection ends in ∅.
+# A character cursor: a path ending in value{k} or key{k} (a RangeReference after a
+# value/key field). A whole-element selection ends in ∅.
 function _is_char_cursor(sel)
     prev = nothing
     cur = sel
@@ -224,9 +180,8 @@ function _is_char_cursor(sel)
     return false
 end
 
-# The `json/read-command` table: a printable key on a whole-element selection
-# replaces the selected value with a freshly-built one whose cursor is pre-placed
-# for continued authoring.
+# A printable key on a whole-element selection replaces the selected value with a
+# freshly-built one whose cursor is pre-placed for continued authoring.
 function _json_read_command(input, evt::KeyPress)
     evt.modifiers.ctrl && return nothing
     sel = getfield(input, :selection)[]
@@ -234,10 +189,9 @@ function _json_read_command(input, evt::KeyPress)
     _is_char_cursor(sel) && return nothing
     target = try evaluate_reference(input, sel) catch; nothing end
     target === nothing && return nothing
-    # A JsonObjectEntry is a key/value *wrapper*, not a replaceable JSON value —
-    # swapping it for a scalar would corrupt the enclosing object (its printer
-    # reads `entry.key`). The replaceable targets are values, array elements, and
-    # the root. (Selection-state gating, plan §2.)
+    # A JsonObjectEntry is a key/value wrapper, not a replaceable value — swapping it
+    # for a scalar would corrupt the enclosing object. Replaceable targets are values,
+    # array elements, and the root.
     target isa JsonObjectEntry && return nothing
     ch = evt.char
     newdoc = if ch == 'n'
@@ -255,8 +209,7 @@ function _json_read_command(input, evt::KeyPress)
     elseif ch == '{'
         _sel!(JsonObject(() -> [JsonObjectEntry("", JsonInsertion())]), @reference entries[1].key{0})
     elseif isdigit(ch)
-        # Don't reinvent a number the user is already editing — let the typein
-        # path own it (Lisp `(not (typep printer-input 'json/number))`).
+        # A number already being edited is owned by the typein path, not re-created here.
         target isa JsonNumber && return nothing
         _sel!(JsonNumber(parse(Int, string(ch))), @reference value{1})
     else
@@ -265,16 +218,14 @@ function _json_read_command(input, evt::KeyPress)
     ReplaceDocumentOperation(sel, newdoc)
 end
 
-# Append a JsonInsertion to an array's elements and select it whole, ready to be
-# type-to-replaced (Lisp json/array reader `,` / Insert, :550-569).
+# Append a JsonInsertion and select it whole, ready to type-to-replace.
 function _array_insert(input::JsonArray)
     n = length(input.elements)
     CollectionInsertOperation(@reference(elements), n, Any[JsonInsertion()],
                               @reference elements[n + 1])
 end
 
-# Append an empty entry to an object's entries and select its key for typing
-# (Lisp json/object reader `,` / Insert, :607-626).
+# Append an empty entry and select its key for typing.
 function _object_insert(input::JsonObject)
     n = length(input.entries)
     CollectionInsertOperation(@reference(entries), n,
@@ -282,8 +233,8 @@ function _object_insert(input::JsonObject)
                               @reference entries[n + 1].key{0})
 end
 
-# Tab moves the cursor from an entry's key to its value, selected whole so the
-# next keystroke type-to-replaces it (Lisp json/object-entry reader, :587-600).
+# Tab moves the cursor from an entry's key to its value, selected whole for
+# type-to-replace.
 function _object_tab(input::JsonObject)
     sel = getfield(input, :selection)[]
     sel === nothing && return nothing
@@ -303,12 +254,9 @@ projection_read(p::JsonBoolToSyntaxLeaf,      iomap::RuleIoMap, evt::KeyPress) =
 projection_read(p::JsonNumberToSyntaxLeaf,    iomap::RuleIoMap, evt::KeyPress) = _json_read_command(iomap.input, evt)
 projection_read(p::JsonStringToSyntaxLeaf,    iomap::RuleIoMap, evt::KeyPress) = _json_read_command(iomap.input, evt)
 
-# Structural-position fallback for SyntaxNode output: a bracket/brace/comma/colon
-# has no JSON pre-image, so it round-trips as the coarse `proj(p, {flat})` shortcut
-# — a single flattened character offset the text layer can navigate. This is the
-# Syntax→Text-specific counterpart of the engine's domain-neutral proj-wrap
-# fallback, so it overrides the generic `RuleIoMap` ReplaceSelection reader for the
-# JSON node projections (whose output feeds SyntaxToText).
+# Structural positions (brackets/braces/comma/colon) have no JSON pre-image, so they
+# round-trip as a flat character offset the text layer can navigate. Overrides the
+# generic `RuleIoMap` ReplaceSelection reader for the node projections.
 function projection_read(p::Union{JsonArrayToSyntaxNode, JsonObjectToSyntaxNode}, iomap::RuleIoMap, op::ReplaceSelectionOperation)
     result = map_reference_backward(p, iomap, op.path)
     result !== nothing && return ReplaceSelectionOperation(result)
@@ -326,10 +274,7 @@ function projection_read(p::JsonObjectToSyntaxNode, iomap::RuleIoMap, evt::KeyPr
     evt.char == ',' && return _object_insert(iomap.input)
     _json_read_command(iomap.input, evt)
 end
-# Tab moves key→value (§3.3). The Insert-key "generic insertion" variant of the
-# Lisp readers is deferred: the shared TextToGraphics layer would have to route
-# Insert inward for every domain, and doing so surfaces an unrelated typein bug
-# in the XML element reader. `,` already provides structural insert here.
+# Tab moves key → value.
 projection_read(p::JsonObjectToSyntaxNode, iomap::RuleIoMap, evt::KeyDown) =
     evt.key === :tab ? _object_tab(iomap.input) : nothing
 
@@ -351,11 +296,8 @@ end
 
 # ── Utility ──────────────────────────────────────────────────────────────────
 
-# Render a value leaf, falling back to a muted placeholder hint when the value is
-# empty (Lisp `text/make-default-text`). The hint is just an ordinary TextString —
-# no special field — distinguished only by colour, and both content and colour
-# recompute reactively with the value, so the hint vanishes the instant the user
-# types. (Same shape JsonInsertion already uses for its "insert JSON here" hint.)
+# A value leaf that shows a muted placeholder while the value is empty. Both text
+# and colour are reactive, so the hint disappears the moment the user types.
 function _hinted_text(content_thunk, empty_thunk, placeholder::AbstractString, style::StyleText)
     TextString(
         Cell(() -> empty_thunk() ? placeholder : content_thunk()),

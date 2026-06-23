@@ -140,6 +140,40 @@ overload is not worth the destabilisation risk): `CellVector`, `CellMatrix`, `Ce
 (`Collection.jl`, kernel — `CellVector()` alone is constructed in hundreds of places),
 `ScreenDocument` (kernel), `GraphicsCanvas` (five `Int32`-coercing siblings).
 
+### Projection config structs — `@projection` with inline defaults (related category)
+
+Simple projections are plain `struct … <: Projection`, and several carry a
+hand-written **keyword-only convenience constructor that only fills defaults** —
+the exact smell this migration targets. Convert them to **`@projection`** with the
+default inline and drop the constructor; the macro generates the keyword ctor (and
+transparent Cell-backed field access) while the positional ctor still works:
+
+```julia
+# before
+struct JsonNullToSyntaxLeaf <: Projection
+    style::StyleText
+end
+JsonNullToSyntaxLeaf(; style = StyleText(…)) = JsonNullToSyntaxLeaf(style)
+
+# after
+@projection struct JsonNullToSyntaxLeaf <: Projection
+    style::StyleText = StyleText(…)
+end
+```
+
+Use the project's own `@projection` macro here (not `Base.@kwdef`) for consistency
+with the rest of the codebase; it needs `import ..ProjectionModule: var"@projection"`.
+Safe whenever the type is only constructed zero-arg/keyword (no positional call site
+depends on the bare struct ctor). Other `*To*` projection files (`XmlToSyntax`,
+`SyntaxToText`, the `WidgetToGraphics` style-bearing projections, …) are candidates
+for the same treatment.
+
+- [x] **JsonToSyntax.jl**: 7 projection config structs (`JsonNullToSyntaxLeaf`,
+  `JsonInsertionToSyntaxLeaf`, `JsonBoolToSyntaxLeaf`, `JsonNumberToSyntaxLeaf`,
+  `JsonStringToSyntaxLeaf`, `JsonArrayToSyntaxNode`, `JsonObjectToSyntaxNode`)
+  converted to `@projection` with inline `StyleText` defaults. `test_json_to_syntax`
+  11/11.
+
 ### Out of scope — and why
 
 - **Leading-positional default ctors** `T(x) = T(x, nothing)` (`SyntaxNavigation`,
