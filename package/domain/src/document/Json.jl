@@ -51,11 +51,9 @@ editor to indicate where new content should be inserted.
 - `selection::Reference` — a `ReferencePath` or `nothing` (stored in a Cell)
 """
 @document struct JsonInsertion <: JsonDocument
-    value::Any
-    selection::Reference
+    value::Any = nothing
+    selection::Reference = nothing
 end
-
-JsonInsertion() = JsonInsertion(Cell(nothing), Cell(nothing))
 
 # ── Primitives ───────────────────────────────────────────────────────────
 
@@ -70,10 +68,8 @@ cursor at boundary k of the rendered text "null" (0-based).
 - `selection::Reference` — a `ReferencePath` or `nothing` (stored in a Cell)
 """
 @document struct JsonNull <: JsonDocument
-    selection::Reference
+    selection::Reference = nothing
 end
-
-JsonNull() = JsonNull(Cell(nothing))
 
 """
     JsonBool
