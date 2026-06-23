@@ -39,18 +39,20 @@ import ..PrinterContextModule: child_context
 import ..OperationModule: ReplaceSelectionOperation
 import ..PrimitiveModule: StringReplaceRangeOperation, NumberReplaceRangeOperation
 
-export Bound, Project, Collection, bound, project, collection, RuleIoMap, var"@projection_template"
+export Bound, Project, Collection, Tokens, bound, project, collection, tokens, RuleIoMap, var"@projection_template"
 
 # ── Markers (build-time only; stripped before the output reaches the API) ─────
 
 struct Bound;      input::Symbol; type::Any; render::Any; retype::Any; end
 struct Project;    input::Symbol; end
 struct Collection; input::Symbol; element::Any; end
+struct Tokens;     thunk::Any; end                                # computed inline token leaves
 
 bound(input::Symbol, T, render; retype=nothing) = Bound(input, T, render, retype)
 project(input::Symbol) = Project(input)
 collection(input::Symbol) = Collection(input, nothing)
 collection(element, input::Symbol) = Collection(input, element)   # collection(:f) do x … end
+tokens(thunk) = Tokens(thunk)                                     # tokens(() -> [leaf, bound-leaf, …])
 
 # ── Wiring + IoMap ───────────────────────────────────────────────────────────
 
@@ -102,6 +104,19 @@ struct MixedNodeWiring
     children_field::Symbol
     prefix_slots::Vector{Any}            # KeySlot|ProjectSlot|IntroSlot, children[1..prefix_len]
     coll_field::Symbol                   # input collection field spliced after the prefix
+end
+
+# An inline node whose children are a computed, variable-length token-leaf vector
+# (recomputed reactively); exactly one token is a `bound` leaf at a stable index,
+# the rest are decorative (no input pre-image → flat-offset fallback).
+struct InlineWiring
+    intype::Any
+    outtype::Any
+    children_field::Symbol
+    bound_index::Int                     # 1-based index of the bound token leaf
+    bound_field::Symbol                  # input field it edits
+    bound_type::Any
+    value_checkpoint::Any
 end
 
 struct RuleIoMap <: IoMap
@@ -156,6 +171,8 @@ function rule_print(p, recursion, doc, ctx, builder)
     out = builder(p, doc)
     coll_field, coll = _find_collection(out)
     coll !== nothing && return _node_print(p, recursion, doc, ctx, out, coll_field, coll)
+    tok_field, tok = _find_tokens(out)
+    tok !== nothing && return _inline_print(p, recursion, doc, ctx, out, tok_field, tok.thunk)
     # A node built with a raw children Vector (markers/leaves) but no Collection
     # marker *field* is a fixed-children node. If that Vector contains a Collection
     # marker among fixed children, it is a mixed node (fixed prefix + one spliced
@@ -170,6 +187,15 @@ function rule_print(p, recursion, doc, ctx, builder)
 end
 
 _has_fixed_children(out) = any(fname -> getfield(out, fname)[] isa Vector, fieldnames(typeof(out)))
+
+# Locate a `Tokens` marker among the built output's fields, if any.
+function _find_tokens(out)
+    for fname in fieldnames(typeof(out))
+        val = getfield(out, fname)[]
+        val isa Tokens && return (fname, val)
+    end
+    (nothing, nothing)
+end
 
 # Selection cell for a bound child leaf of a fixed node: lens `doc.<in_field>{k}`
 # onto the leaf's own `.value{k}` span (the only shape `_leaf_cursor` understands);
@@ -377,6 +403,53 @@ function _mixed_print(p, recursion, doc, ctx, out, children_field)
     return iomap
 end
 
+# An inline node over a *computed* token-leaf vector (`tokens(thunk)`). The thunk
+# yields decorative leaves plus exactly one `bound` leaf (the editable token) at a
+# stable index. The output children re-run the thunk reactively and strip the
+# marker each recompute (so a varying token count stays live); the wiring's
+# bound index is sampled once. Decorative tokens have no input pre-image and round-
+# trip via the consumer's flat-offset reader.
+function _inline_print(p, recursion, doc, ctx, out, children_field, thunk)
+    sample = thunk()
+    bound_index = 0; bound_field = :_; bound_type = nothing; value_checkpoint = nothing
+    for (i, leaf) in enumerate(sample)
+        for fname in fieldnames(typeof(leaf))
+            v = getfield(leaf, fname)[]
+            if v isa Bound
+                bound_index = i; bound_field = v.input; bound_type = v.type
+                value_checkpoint = typeof(v.render)
+                break
+            end
+        end
+        bound_index == 0 || break
+    end
+    children = CellVector(() -> begin
+        leaves = thunk()
+        for leaf in leaves
+            for fname in fieldnames(typeof(leaf))
+                v = getfield(leaf, fname)[]
+                if v isa Bound
+                    setproperty!(leaf, fname, v.render)
+                    setfield!(leaf, :selection, _key_leaf_sel(doc, v.input))
+                end
+            end
+        end
+        leaves
+    end)
+    setproperty!(out, children_field, children)
+    iomap_cell = Cell(nothing)
+    setfield!(out, :selection, Cell(() -> begin
+        im = iomap_cell[]; im === nothing && return nothing
+        path = doc.selection; path === nothing && return nothing
+        map_reference_forward(p, im, path)
+    end))
+    wiring = InlineWiring(typeof(doc), typeof(out), children_field, bound_index,
+                          bound_field, bound_type, value_checkpoint)
+    iomap = RuleIoMap(p, doc, out, wiring, nothing)
+    iomap_cell[] = iomap
+    return iomap
+end
+
 # ── Generic, data-driven mappers (one method, all template projections) ───────
 
 function map_reference_forward(p::Projection, iomap::RuleIoMap, reference)
@@ -385,6 +458,7 @@ function map_reference_forward(p::Projection, iomap::RuleIoMap, reference)
     w isa NodeWiring      && return _node_forward(p, w, iomap, reference)
     w isa FixedNodeWiring && return _fixed_forward(p, w, iomap, reference)
     w isa MixedNodeWiring && return _mixed_forward(p, w, iomap, reference)
+    w isa InlineWiring    && return _inline_forward(p, w, reference)
     return nothing
 end
 
@@ -394,6 +468,7 @@ function map_reference_backward(p::Projection, iomap::RuleIoMap, reference)
     w isa NodeWiring      && return _node_backward(p, w, iomap, reference)
     w isa FixedNodeWiring && return _fixed_backward(p, w, iomap, reference)
     w isa MixedNodeWiring && return _mixed_backward(p, w, iomap, reference)
+    w isa InlineWiring    && return _inline_backward(p, w, reference)
     return nothing
 end
 
@@ -649,6 +724,48 @@ function _mixed_backward(p, w, iomap, reference)
         inner === nothing && return nothing
         return _prepend(_strip_checkpoints(inner), FieldReference(String(w.coll_field)), ElementReference(i))
     end
+end
+
+# ── inline node (computed token leaves; one bound token, rest decorative) ───────
+#
+# Only the bound token is addressable: `.bound_field{k} ↔ .children[bound_index].
+# value{k}`, whole `.bound_field ↔ .children[bound_index]`. Decorative tokens have
+# no input pre-image, so a cursor on one is left to the consumer's flat-offset
+# reader (returns nothing here).
+
+function _inline_forward(p, w, reference)
+    reference === nothing && return nothing
+    core = skip_type_checkpoints(reference)
+    core isa EmptyReferencePath && return _typed(w.outtype)
+    if core isa ConcreteReferencePath && core.head isa ProjectionReference && core.head.projection === p
+        return reference
+    end
+    if core isa ConcreteReferencePath && core.head isa FieldReference && Symbol(core.head.name) === w.bound_field
+        inner = core.tail
+        skip_type_checkpoints(inner) isa EmptyReferencePath &&
+            return _path(FieldReference(String(w.children_field)), ElementReference(w.bound_index))
+        return _prepend(inner, FieldReference(String(w.children_field)), ElementReference(w.bound_index), FieldReference("value"))
+    end
+    return nothing
+end
+
+function _inline_backward(p, w, reference)
+    reference === nothing && return nothing
+    core = skip_type_checkpoints(reference)
+    core isa EmptyReferencePath && return _typed(w.intype)
+    (core isa ConcreteReferencePath && core.head isa FieldReference &&
+     core.head.name == String(w.children_field)) || return nothing
+    after = skip_type_checkpoints(core.tail)
+    (after isa ConcreteReferencePath && after.head isa RangeReference) || return nothing
+    after.head.start + 1 == w.bound_index || return nothing       # decorative ⇒ flat fallback
+    leaf_path = after.tail
+    skip_type_checkpoints(leaf_path) isa EmptyReferencePath &&
+        return _path(FieldReference(String(w.bound_field)))
+    lp = skip_type_checkpoints(leaf_path)
+    if lp isa ConcreteReferencePath && lp.head isa FieldReference && lp.head.name == "value"
+        return _prepend(lp.tail, FieldReference(String(w.bound_field)))
+    end
+    return nothing
 end
 
 # ── readers ───────────────────────────────────────────────────────────────────
