@@ -79,11 +79,9 @@ result_text(s::AbstractString) = TextText(TextString(String(s)))
 An ordered sequence of `EvaluatorForm`s.
 """
 @document struct EvaluatorToplevel <: EvaluatorDocument
-    elements::CellVector
-    selection::Reference
+    elements::CellVector = CellVector()
+    selection::Reference = nothing
 end
-
-EvaluatorToplevel() = EvaluatorToplevel(CellVector(), Cell(nothing))
 EvaluatorToplevel(elements::Vector) =
     EvaluatorToplevel(CellVector(Cell[Cell(e) for e in elements]), Cell(nothing))
 

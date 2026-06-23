@@ -92,12 +92,10 @@ Because `GraphGraph` is a `Document` and a vertex's `content` is arbitrary, a
 vertex may itself hold a `GraphGraph` (nested graphs) for free via type dispatch.
 """
 @document struct GraphGraph <: GraphDocument
-    vertices::CellVector
-    edges::CellVector
-    selection::Reference
+    vertices::CellVector = CellVector()
+    edges::CellVector = CellVector()
+    selection::Reference = nothing
 end
-
-GraphGraph() = GraphGraph(CellVector(), CellVector(), Cell(nothing))
 
 function GraphGraph(vertices::Vector, edges::Vector)
     GraphGraph(CellVector(Cell[v isa Cell ? v : Cell(v) for v in vertices]),

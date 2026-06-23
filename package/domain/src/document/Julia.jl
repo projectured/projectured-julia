@@ -398,12 +398,11 @@ JuliaWhile(condition, body) =
 A return statement. `value` may be a `Document` or `nothing` for a bare `return`.
 """
 @document struct JuliaReturn <: JuliaDocument
-    value::Union{Document,Nothing}
-    selection::Reference
+    value::Union{Document,Nothing} = nothing
+    selection::Reference = nothing
 end
 
 JuliaReturn(value) = JuliaReturn(Cell(value), Cell(nothing))
-JuliaReturn() = JuliaReturn(Cell(nothing), Cell(nothing))
 
 """
     JuliaBreak()

@@ -88,15 +88,13 @@ direction/spacing knobs fed to the engine. `direction` is a rank-direction hint
 (`:tb`, `:lr`, `:none`).
 """
 @document struct GraphLayout <: GraphLayoutDocument
-    vertex_layouts::CellVector
-    edge_layouts::CellVector
-    direction::Symbol
-    node_sep::Int
-    rank_sep::Int
-    selection::Reference
+    vertex_layouts::CellVector = CellVector()
+    edge_layouts::CellVector = CellVector()
+    direction::Symbol = :tb
+    node_sep::Int = 40
+    rank_sep::Int = 60
+    selection::Reference = nothing
 end
-
-GraphLayout() = GraphLayout(CellVector(), CellVector(), Cell(:tb), Cell(40), Cell(60), Cell(nothing))
 
 function GraphLayout(vertex_layouts, edge_layouts;
                      direction::Symbol=:tb, node_sep::Integer=40, rank_sep::Integer=60)

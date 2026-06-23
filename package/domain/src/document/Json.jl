@@ -167,12 +167,10 @@ operations like indexing, push, insert, delete, sort, and reverse.
 - `JsonArray(items::JsonDocument...)` — array from variadic items
 """
 @document struct JsonArray <: JsonDocument
-    elements::CellVector
-    collapsed::Bool
-    selection::Reference
+    elements::CellVector = CellVector()
+    collapsed::Bool = false
+    selection::Reference = nothing
 end
-
-JsonArray() = JsonArray(CellVector(), Cell(false), Cell(nothing))
 JsonArray(items::Vector{<:JsonDocument}) =
     JsonArray(CellVector(Cell[Cell(x) for x in items]), Cell(false), Cell(nothing))
 JsonArray(items::JsonDocument...) =
@@ -226,12 +224,10 @@ operations: `haskey`, `keys`, `values`, `getindex`, `setindex!`, `delete!`, `get
 - `JsonObject(pairs::Pair{<:AbstractString}...)` — object from key-value pairs
 """
 @document struct JsonObject <: JsonDocument
-    entries::CellVector
-    collapsed::Bool
-    selection::Reference
+    entries::CellVector = CellVector()
+    collapsed::Bool = false
+    selection::Reference = nothing
 end
-
-JsonObject() = JsonObject(CellVector(), Cell(false), Cell(nothing))
 function JsonObject(f::Function)
     cv = CellVector(f)
     JsonObject(cv, Cell(false), Cell(nothing))

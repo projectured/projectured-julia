@@ -32,13 +32,11 @@ WorkspaceFolder(name::AbstractString, pathname::AbstractString) =
 # ── Workspace ────────────────────────────────────────────────────────────────
 
 @document struct Workspace <: WorkspaceDocument
-    folders::CellVector
-    selection::Reference
+    folders::CellVector = CellVector()
+    selection::Reference = nothing
 end
 
 Workspace(folders::Vector{WorkspaceFolder}) =
     Workspace(CellVector(Cell[Cell(f) for f in folders]), Cell(nothing))
-
-Workspace() = Workspace(WorkspaceFolder[])
 
 end # module

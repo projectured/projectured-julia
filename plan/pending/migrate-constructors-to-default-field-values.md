@@ -218,9 +218,22 @@ for the same treatment.
         Workbench (`WorkbenchInsertion`/`WorkbenchOperator`/`WorkbenchSearcher`),
         Syntax, Document (`DocumentNothing`), Tooltip (`TooltipSource`), and
         Primitive (kernel).
-- [ ] **Step 2 — Tier 2 recommended subset (optional).** Drop the zero-arg overload
-      on the listed domain-local types; keep positional siblings; re-run the
-      per-domain test. Skip the core/excluded types.
+- [x] **Step 2 — Tier 2 recommended subset.** Dropped the zero-arg overload on 21
+      domain-local types (kept positional siblings), adding inline defaults to every
+      field: `ConversationConversation`, `EvaluatorToplevel`, `FormulaEnvironment`,
+      `GraphGraph`, `GraphLayout`, `JuliaReturn`, `SqlAllColumns`, `SqlWhereClause`,
+      `SqlInsertStatement`, `SqlUpdateStatement`, `SyntaxConcatenation`, `TabularRow`,
+      `TabularGrid`, `TextText`, `WorkbenchConsole`, `WorkbenchEvaluator`,
+      `WorkbenchNavigator`, `WorkbenchPage`, `Workspace`, `JsonArray`, `JsonObject`.
+      **Excluded `GraphVertex` and `TabularCell`** (originally in the subset): both
+      have a `content::Document` field whose zero-arg ctor stores `nothing`, but the
+      abstract `Document` annotation does not admit `Nothing`, so inlining
+      `content::Document = nothing` would encode a default that can't round-trip
+      through the `I`-snapshot (the honesty gotcha in macros.md). Their hand-written
+      zero-arg ctors are left as-is until the annotation is widened to
+      `Union{Document,Nothing}` (separate concern). Verified: all 21 construct +
+      snapshot (21/21); `test_cell`/`test_collection`/`test_json`/`test_syntax`/
+      `test_text`/`test_graphics_layout`/`test_json_to_syntax` all green.
 - [ ] **Step 3 — grep for stragglers.** Re-run the inventory scan to confirm no
       remaining zero-positional pure-default ctor was missed, and that no
       out-of-scope ctor was removed by mistake.

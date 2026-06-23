@@ -231,11 +231,9 @@ The `selection` cell holds a path into the span sequence, or `nothing`:
   `.elements[i]`  — cursor within element i
 """
 @document struct TextText <: TextDocument
-    elements::CollectionDocument
-    selection::Reference
+    elements::CollectionDocument = CellVector()
+    selection::Reference = nothing
 end
-
-TextText() = TextText(CellVector(), Cell(nothing))
 
 TextText(spans::Vector{<:TextDocument}) =
     TextText(CellVector(Cell[Cell(s) for s in spans]), Cell(nothing))

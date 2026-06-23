@@ -131,11 +131,9 @@ extraction, and cycle detection. Each contained formula's `result` is wired to a
 reactive thunk against this environment.
 """
 @document struct FormulaEnvironment <: FormulaDocument
-    formulas::CellVector
-    selection::Reference
+    formulas::CellVector = CellVector()
+    selection::Reference = nothing
 end
-
-FormulaEnvironment() = FormulaEnvironment(CellVector(), Cell(nothing))
 function FormulaEnvironment(formulas::Vector)
     env = FormulaEnvironment(CellVector(Cell[Cell(f) for f in formulas]), Cell(nothing))
     for f in formulas

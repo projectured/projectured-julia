@@ -172,14 +172,12 @@ join documents end-to-end.
 - `SyntaxConcatenation()` — empty concatenation
 """
 @document struct SyntaxConcatenation <: SyntaxDocument
-    children::CellVector
-    selection::Reference
+    children::CellVector = CellVector()
+    selection::Reference = nothing
 end
 
 SyntaxConcatenation(children::Vector{<:SyntaxDocument}) =
     SyntaxConcatenation(CellVector(Cell[Cell(c) for c in children]), nothing)
-
-SyntaxConcatenation() = SyntaxConcatenation(CellVector(), nothing)
 
 """
     SyntaxSeparation

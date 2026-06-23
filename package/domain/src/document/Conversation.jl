@@ -149,11 +149,9 @@ assistant_turn(content) = ConversationTurn(:assistant, [ConversationPart(content
 The whole chat history as an ordered sequence of `ConversationTurn`s.
 """
 @document struct ConversationConversation <: ConversationDocument
-    turns::CellVector
-    selection::Reference
+    turns::CellVector = CellVector()
+    selection::Reference = nothing
 end
-
-ConversationConversation() = ConversationConversation(CellVector(), Cell(nothing))
 ConversationConversation(turns::Vector) =
     ConversationConversation(CellVector(Cell[Cell(t) for t in turns]), Cell(nothing))
 

@@ -68,11 +68,9 @@ the grid's outer CellVector changes, not the cell data of other rows.
 - `selection::Reference` — a `ReferencePath` or `nothing` (stored in a Cell).
 """
 @document struct TabularRow <: TabularDocument
-    cells::CellVector
-    selection::Reference
+    cells::CellVector = CellVector()
+    selection::Reference = nothing
 end
-
-TabularRow() = TabularRow(CellVector(), Cell(nothing))
 TabularRow(cells::CellVector) = TabularRow(cells, Cell(nothing))
 
 # ── TabularGrid ──────────────────────────────────────────────────────────────
@@ -98,12 +96,10 @@ directions without copying.
 - `TabularGrid(rows, col_count)` — grid with given rows and column count
 """
 @document struct TabularGrid <: TabularDocument
-    rows::CellVector
-    col_count::Int
-    selection::Reference
+    rows::CellVector = CellVector()
+    col_count::Int = 0
+    selection::Reference = nothing
 end
-
-TabularGrid() = TabularGrid(CellVector(), Cell(0), Cell(nothing))
 TabularGrid(rows::CellVector, col_count::Integer) =
     TabularGrid(rows, Cell(col_count), Cell(nothing))
 

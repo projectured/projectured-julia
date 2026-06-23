@@ -108,10 +108,9 @@ SqlColumnAlias(name::AbstractString) = SqlColumnAlias(String(name), Cell(nothing
 end
 
 @document struct SqlAllColumns <: SqlSelectExpression
-    qualifier::Any                # SqlTableName | SqlTableAlias | nothing
-    selection::Reference
+    qualifier::Any = nothing      # SqlTableName | SqlTableAlias | nothing
+    selection::Reference = nothing
 end
-SqlAllColumns() = SqlAllColumns(nothing, Cell(nothing))
 SqlAllColumns(qualifier) = SqlAllColumns(qualifier, Cell(nothing))
 
 @document struct SqlColumnReference <: SqlSelectExpression
@@ -156,10 +155,9 @@ SqlWhereFilterCondition(expr::SqlBooleanExpression) =
     SqlWhereFilterCondition(expr, Cell(nothing))
 
 @document struct SqlWhereClause <: SqlDocument
-    condition::Any                # SqlWhereCondition | nothing
-    selection::Reference
+    condition::Any = nothing      # SqlWhereCondition | nothing
+    selection::Reference = nothing
 end
-SqlWhereClause() = SqlWhereClause(nothing, Cell(nothing))
 SqlWhereClause(cond::SqlWhereCondition) = SqlWhereClause(cond, Cell(nothing))
 
 # ── Boolean expression documents ───────────────────────────────────────────────
@@ -314,13 +312,11 @@ SqlSubqueryFromItem(sq::SqlSelectStatement, alias::SqlTableAlias) =
 # Single-row INSERT: `INSERT INTO <table> (<col>, …) VALUES (<val>, …)`.
 # `columns` may be empty, in which case the column list is omitted.
 @document struct SqlInsertStatement <: SqlStatement
-    table::Any                    # SqlTableName | nothing (empty stub)
-    columns::CellVector           # [SqlColumnName]
-    values::CellVector            # [SqlScalarValue]
-    selection::Reference
+    table::Any = nothing          # SqlTableName | nothing (empty stub)
+    columns::CellVector = CellVector() # [SqlColumnName]
+    values::CellVector = CellVector()  # [SqlScalarValue]
+    selection::Reference = nothing
 end
-SqlInsertStatement() =
-    SqlInsertStatement(nothing, CellVector(), CellVector(), Cell(nothing))
 SqlInsertStatement(table::SqlTableName, columns::CellVector, values::CellVector) =
     SqlInsertStatement(table, columns, values, Cell(nothing))
 SqlInsertStatement(table::SqlTableName,
@@ -340,13 +336,11 @@ SqlUpdateAssignment(col::SqlColumnName, value::SqlScalarValue) =
 
 # Single-line UPDATE: `UPDATE <table> SET <assignment>, … [WHERE …]`.
 @document struct SqlUpdateStatement <: SqlStatement
-    table::Any                    # SqlTableName | nothing (empty stub)
-    assignments::CellVector       # [SqlUpdateAssignment]
-    where_clause::SqlWhereClause
-    selection::Reference
+    table::Any = nothing          # SqlTableName | nothing (empty stub)
+    assignments::CellVector = CellVector() # [SqlUpdateAssignment]
+    where_clause::SqlWhereClause = SqlWhereClause()
+    selection::Reference = nothing
 end
-SqlUpdateStatement() =
-    SqlUpdateStatement(nothing, CellVector(), SqlWhereClause(), Cell(nothing))
 SqlUpdateStatement(table::SqlTableName, assignments::CellVector) =
     SqlUpdateStatement(table, assignments, SqlWhereClause(), Cell(nothing))
 SqlUpdateStatement(table::SqlTableName, assignments::CellVector, wc::SqlWhereClause) =

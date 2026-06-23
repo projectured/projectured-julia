@@ -58,15 +58,13 @@ end
 A page within the workbench that holds a sequence of panel documents.
 """
 @document struct WorkbenchPage <: WorkbenchDocument
-    elements::CellVector
-    selection::Reference
+    elements::CellVector = CellVector()
+    selection::Reference = nothing
 end
 
 function WorkbenchPage(elements::Vector)
     WorkbenchPage(CellVector(Cell[Cell(x) for x in elements]), Cell(nothing))
 end
-
-WorkbenchPage() = WorkbenchPage(WorkbenchDocument[])
 
 # ── WorkbenchWorkbench ────────────────────────────────────────────────────────
 
@@ -107,14 +105,12 @@ The navigator panel.  `workspace` is a `Workspace` document containing
 `WorkspaceFolder` entries.  Its title is the class-level constant `"Navigator"`.
 """
 @document struct WorkbenchNavigator <: WorkbenchDocument
-    workspace::Workspace
-    selection::Reference
+    workspace::Workspace = Workspace()
+    selection::Reference = nothing
 end
 
 WorkbenchNavigator(workspace::Workspace) =
     WorkbenchNavigator(Cell(workspace), Cell(nothing))
-
-WorkbenchNavigator() = WorkbenchNavigator(Workspace())
 
 title(::WorkbenchNavigator) = WORKBENCH_NAVIGATOR_TITLE
 
@@ -129,15 +125,13 @@ The console panel.  `content` is a `TextText` value.  Its title is the
 class-level constant `"Console"`.
 """
 @document struct WorkbenchConsole <: WorkbenchDocument
-    content::TextText
-    selection::Reference
+    content::TextText = TextText()
+    selection::Reference = nothing
 end
 
 function WorkbenchConsole(content::TextText)
     WorkbenchConsole(Cell(content), Cell(nothing))
 end
-
-WorkbenchConsole() = WorkbenchConsole(TextText())
 
 title(::WorkbenchConsole) = WORKBENCH_CONSOLE_TITLE
 setfn!(c::WorkbenchConsole, f::Function) = (setfn!(getfield(c, :content), f); c)
@@ -206,15 +200,13 @@ The evaluator panel.  `content` holds the evaluator toplevel document
 constant `"Evaluator"`.
 """
 @document struct WorkbenchEvaluator <: WorkbenchDocument
-    content::Any
-    selection::Reference
+    content::Any = nothing
+    selection::Reference = nothing
 end
 
 function WorkbenchEvaluator(content)
     WorkbenchEvaluator(Cell(content), Cell(nothing))
 end
-
-WorkbenchEvaluator() = WorkbenchEvaluator(nothing)
 
 title(::WorkbenchEvaluator) = WORKBENCH_EVALUATOR_TITLE
 setfn!(e::WorkbenchEvaluator, f::Function) = (setfn!(getfield(e, :content), f); e)
