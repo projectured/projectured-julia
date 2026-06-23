@@ -198,8 +198,8 @@ SdlBackend(; partial_render::Union{Bool,Nothing} = nothing,
              debug_dirty::Union{Bool,Nothing}    = nothing) =
     SdlBackend(Dict{Symbol, SdlWindowResources}(),
                Dict{UInt32, Symbol}(),
-               partial_render === nothing ? _envflag("PROJECTURED_PARTIAL_RENDER", true) : partial_render,
-               debug_dirty    === nothing ? _envflag("PROJECTURED_DEBUG_DIRTY", true)    : debug_dirty)
+               partial_render === nothing ? _envflag("PROJECTURED_PARTIAL_RENDER", false) : partial_render,
+               debug_dirty    === nothing ? _envflag("PROJECTURED_DEBUG_DIRTY", false)    : debug_dirty)
 
 # Module-level TTF font cache, keyed by (filename, scaled_size).
 # Shared by window rendering, offscreen image rendering, and text measurement.
