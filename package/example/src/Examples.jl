@@ -245,12 +245,15 @@ loop exits) a sampled backtrace report is printed via `Profile.print`.
 """
 function run_example(examples::Vector{Example}; width=nothing, height=nothing,
                      caching=false, scrolling=false, workbench=false, reset=false,
-                     tooltip=false, introspection=false,
+                     tooltip=false, inspector=false, introspection=false,
                      text_filtering=false, text_highlighting=false, selection=nothing,
                      profile=false, backend=nothing, partial_render=nothing, debug_dirty=nothing)
     isempty(examples) && error("run_example: empty examples vector")
     if text_filtering && text_highlighting
         error("run_example: text_filtering and text_highlighting are mutually exclusive")
+    end
+    if inspector && (tooltip || workbench)
+        error("run_example: inspector=true is not compatible with tooltip=true or workbench=true")
     end
     if width === nothing || height === nothing
         sw, sh = display_size()
@@ -352,11 +355,15 @@ function run_example(examples::Vector{Example}; width=nothing, height=nothing,
         break
     end
 
-    composed = tooltip ? _multi_window_projection_tooltipped(projs) :
-                         _multi_window_projection(projs)
     # An explicit `backend` (e.g. the WebBackend from run_web_example) wins;
     # otherwise build the SDL backend, threading the render-control knobs.
+    # Built before composing because the inspector pipeline needs a pointer
+    # closure over the backend's global mouse position.
     backend === nothing && (backend = make_backend(:sdl; partial_render=partial_render, debug_dirty=debug_dirty))
+    composed = inspector ? _multi_window_projection_inspector(projs;
+                              pointer = () -> pointer_position(backend)) :
+               tooltip   ? _multi_window_projection_tooltipped(projs) :
+                           _multi_window_projection(projs)
     if profile
         Profile.clear()
         try
@@ -484,6 +491,45 @@ function _multi_window_projection_tooltipped(projections::Vector; measure=truety
             TooltipSource  => decorator,
             TextText       => SequentialProjection(WordWrapping(measure=measure), TextToGraphics(measure=measure)),
             Any            => ref_dispatch,
+        ),
+    )
+end
+
+# Hover click-reference inspector pipeline. Same shape as the tooltip variant,
+# but: each example window's content projection is wrapped in a
+# `HoverProbeProjection` (which reverse-projects the pointer into the
+# would-be-click reference and drives the follower `:inspector` window), and a
+# `ReferenceInspector` type entry renders that window's content (compact +
+# human-readable reference) down to graphics. `pointer` is the global-mouse
+# closure used to make the follower window track the cursor.
+function _multi_window_projection_inspector(projections::Vector; measure=truetype_measure_text, pointer)
+    n = length(projections)
+    targets = Vector{Any}(undef, n)
+    for i in 1:n
+        targets[i] = @reference windows[i].content
+    end
+    ref_dispatch = ReferenceDispatchingProjection(ref -> begin
+        for i in 1:n
+            reference_equal(ref, targets[i]) || continue
+            inner = NestingProjection(projections[i]; recursion=PreservingProjection())
+            return HoverProbeProjection(inner = inner, id = :inspector, pointer = pointer)
+        end
+        for t in targets
+            is_prefix_of(ref, t) || continue
+            return CopyingProjection()
+        end
+        return PreservingProjection()
+    end)
+    RecursiveProjection(
+        TypeDispatchingProjection(
+            ScreenDocument     => WindowManagerProjection(inner = ScreenToScreen()),
+            WindowDocument     => ScreenToScreen(),
+            CellVector         => CopyingProjection(),
+            ReferenceInspector => SequentialProjection(ReferenceInspectorToText(),
+                                                       WordWrapping(measure=measure),
+                                                       TextToGraphics(measure=measure)),
+            TextText           => SequentialProjection(WordWrapping(measure=measure), TextToGraphics(measure=measure)),
+            Any                => ref_dispatch,
         ),
     )
 end
