@@ -106,6 +106,13 @@ What remains — and what this plan covers:
 
 ## 1. Structural operations (shared prerequisite — see JSON plan §1) — ✅ landed
 
+> ✅ VERIFIED (2026-06-23): present at
+> `package/kernel/src/common/Operation.jl:100` (`ReplaceDocumentOperation`),
+> `:209` (`CollectionInsertOperation`), `:235` (`CollectionDeleteOperation`).
+> XML readers emit them
+> (`package/domain/src/projection/primitive/XmlToSyntax.jl:382, 390, 395, 404, 427`).
+> No new operation types were needed here.
+
 > `ReplaceDocumentOperation`, `CollectionInsertOperation`, `CollectionDeleteOperation`
 > are present in [`Operation.jl`](../../program/src/common/Operation.jl); the XML
 > readers emit them. No new operation types were needed here.
@@ -170,6 +177,11 @@ alongside the existing `projection_read` methods.
 
 ### 3.1 Insertion replace (`xml/insertion->syntax/leaf` reader) — ✅ done
 
+> ✅ VERIFIED: `projection_read(::XmlInsertionToSyntaxLeaf, ::SimpleIoMap, ::KeyPress)`
+> at `XmlToSyntax.jl:442` → `_xml_read_command` (`:372-383`) returns a
+> `ReplaceDocumentOperation` with `XmlText("")` (cursor `content{0}`) on `"` or
+> `XmlElement("")` (cursor `tag{0}`) on `<`.
+
 `XmlInsertionToSyntaxLeaf` currently has **no reader**
 ([XmlToSyntax.jl:103-114](../../program/src/projection/primitive/XmlToSyntax.jl#L103-L114)).
 Add `projection_read(::XmlInsertionToSyntaxLeaf, iomap, ::KeyPress)` that, on an
@@ -186,6 +198,12 @@ pre-selects `.tag[0:0]` (Julia constructors: [Xml.jl:125](../../program/src/docu
 [Xml.jl:165](../../program/src/document/Xml.jl#L165)).
 
 ### 3.2 Element structural insert (`xml/element->syntax/node` reader) — ✅ done
+
+> ✅ VERIFIED: `KeyPress` reader at `XmlToSyntax.jl:445` (`<`→`_xml_child_element_insert`,
+> `"`→`_xml_child_text_insert`) and `KeyDown` reader at `:456`
+> (`:space`→`_xml_attr_insert`, `:insert`→`_xml_generic_insert`). Helpers at
+> `:388-429` emit `CollectionInsertOperation` into `.children`/`.attrs` with the
+> follow-up selection, appending at `length(...)`.
 
 On `XmlElementToSyntaxNode`
 ([XmlToSyntax.jl:225](../../program/src/projection/primitive/XmlToSyntax.jl#L225)),
@@ -211,6 +229,12 @@ Notes:
   Lisp does.
 
 ### 3.3 Attribute `=` navigation — and the missing attribute projection — ✅ done (option a)
+
+> ✅ VERIFIED: option (a) chosen — `_xml_attr_equals` at `XmlToSyntax.jl:434-440`
+> handles `=` inside `XmlElementToSyntaxNode`'s reader, returning a
+> `ReplaceSelectionOperation(@reference attrs[s+1].value{0})` when the cursor is in
+> `attrs[i].name`. Decision recorded in the comment at `:431-433`. No separate
+> `XmlAttributeToSyntaxNode` projection (option b) was introduced.
 
 The Lisp models attributes as a **separate projection**
 `xml/attribute->syntax/node` with its own reader, whose `=` command moves the
@@ -241,6 +265,13 @@ decision in the code comment either way.
 ---
 
 ## 4. Placeholder / default text (shared mechanism — see JSON plan §4) — ⏳ remaining (unblocked)
+
+> ⏳ VERIFIED OPEN (2026-06-23): `_hinted_text` exists **only** in
+> `package/domain/src/projection/primitive/JsonToSyntax.jl` — it is absent from
+> `XmlToSyntax.jl`. XML still hardcodes `"insert XML here"` as content
+> (`XmlToSyntax.jl:112`) and none of the four `"enter xml …"` placeholder strings
+> appear anywhere under `package/`. The four leaves (text content, tag, attr name,
+> attr value) render empty content with no hint. This step is genuinely not done.
 
 > **Not done, but no longer blocked.** The shared placeholder mechanism has
 > landed as `_hinted_text` in
@@ -281,6 +312,10 @@ keeps it inline; (b) is the faithful refactor. **Chose (a)**; the decision is
 recorded in the `_xml_attr_equals` comment.
 
 ### 5.2 End-tag editing — ✅ resolved (display-only)
+> ✅ VERIFIED: `map_reference_backward` `child_i == 4` falls through to `nothing`
+> with the display-only decision documented in the comment at
+> `XmlToSyntax.jl:202-210`.
+
 The Lisp maps end-tag edits to `xml/end-tag`
 ([xml-to-syntax.lisp:390-397](../../../projectured-lisp/source/projection/primitive/xml-to-syntax.lisp#L390-L397)).
 Julia renders the closing tag from the same `e.tag` field but the closing-tag
@@ -294,6 +329,9 @@ display-only and edited via the start tag. **Chose display-only**; recorded as a
 comment on the `child_i == 4` fall-through in `map_reference_backward`.
 
 ### 5.3 Indentation parity — ⏭ won't-do (cosmetic)
+> VERIFIED unchanged: body node still uses `indentation=1` at `XmlToSyntax.jl:276`.
+> Cosmetic; left as won't-do.
+
 The Lisp indents deep element children by 2 and gives the closing tag
 indentation 0 ([xml-to-syntax.lisp:279-285](../../../projectured-lisp/source/projection/primitive/xml-to-syntax.lisp#L279-L285));
 Julia's body node uses `indentation = 1`
@@ -319,6 +357,15 @@ items are individually optional.
 ---
 
 ## 7. Tests — ✅ done (placeholder test pending Phase 5)
+
+> ✅ VERIFIED: `package/test/src/projection/XmlToSyntaxTest.jl` exists with
+> `test_xml_to_syntax()` (printer) and `test_xml_to_syntax_reader()` (reader),
+> registered in `package/test/src/ProjecturedTest.jl` (`include` at `:50`, calls at
+> `:135-136`). Reader sections cover insertion replace, root swap, child-insertion
+> replace, element/text insert, Space attribute insert + gating, Insert key, and
+> `=` navigation. The **placeholder** test is absent (deferred with Phase 5), as
+> stated. `xml_example` is registered at
+> `package/example/src/Examples.jl:24`.
 
 > Created [`XmlToSyntaxTest.jl`](../../test/src/projection/XmlToSyntaxTest.jl)
 > with `test_xml_to_syntax()` (printer) + `test_xml_to_syntax_reader()` (reader),

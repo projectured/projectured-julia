@@ -1,5 +1,16 @@
 # Word-wise text navigation: Ctrl+Left / Ctrl+Right
 
+> **✅ DONE (verified 2026-06-23):** Word-wise Ctrl+Left/Right caret motion is
+> fully implemented and wired, plus the BFS test keys. **Note on location:** the
+> codebase was restructured since this plan was written. All character-cursor
+> motion moved out of `TextToGraphics.projection_read` into the Text *domain*
+> `document_read` in `package/domain/src/document/Text.jl` (TextToGraphics now
+> delegates to it via `document_read(iomap.input, evt)` at
+> `package/domain/src/projection/primitive/TextToGraphics.jl:133`). All the
+> helpers and key bindings this plan proposed live in `Text.jl`. See per-step
+> annotations below. The only un-done item is the *optional* focused unit test
+> (Testing step 3), which the plan itself marked optional.
+
 ## Goal
 
 Add **word-granular caret motion** to flat text editing: `Ctrl+Left` jumps the
@@ -75,6 +86,13 @@ consistent.
 
 ### Step 1 — Extract pure step helpers
 
+**✅ DONE (verified):** `_step_left` / `_step_right` exist as pure helpers,
+returning `nothing` for clamp, with the boundary-duplicate skip (`prev[2]-1`,
+`next[2] > 0 ? 1 : 0`). See `package/domain/src/document/Text.jl:388` and
+`:400`. The bare `:left` / `:right` cases now call them
+(`package/domain/src/document/Text.jl:365-374`). (In the current code they live
+in `Text.jl`, not `TextToGraphics.jl`, due to the restructure.)
+
 Refactor the inline bodies of the `:left` / `:right` cases into pure helpers
 (near the other reader helpers around
 [:737](../../program/src/projection/primitive/TextToGraphics.jl#L737)):
@@ -95,6 +113,11 @@ existing `:left` / `:right` cases then become one call each — a behavior-
 preserving refactor verifiable on its own before any new keys are added.
 
 ### Step 2 — Character lookup for class testing
+
+**✅ DONE (verified):** `span_text` lookup is built at
+`package/domain/src/document/Text.jl:341`. `_char_left` / `_char_right` exist at
+`:430` / `:422` (Unicode-safe via `nextind`, returning `nothing` at span ends).
+`_is_word_char(c) = isletter(c) || isdigit(c) || c == '_'` at `:416`.
 
 Build a span-content lookup alongside `span_infos` so the word loop can read the
 character it is crossing:
@@ -120,6 +143,10 @@ _is_word_char(c) = isletter(c) || isdigit(c) || c == '_'
 
 ### Step 3 — Word loop
 
+**✅ DONE (verified):** `_word_step_right` at
+`package/domain/src/document/Text.jl:438` and `_word_step_left` (the mirror) at
+`:450`, matching the proposed two-phase loop verbatim.
+
 ```julia
 # Ctrl+Right: skip the current word run, then the separator run → next word start.
 function _word_step_right(span_infos, span_text, span_idx, char_idx)
@@ -141,6 +168,11 @@ end
 start of the current/previous word.
 
 ### Step 4 — Wire the keys
+
+**✅ DONE (verified):** `KeyDown(:left; ctrl)` / `KeyDown(:right; ctrl)` rules
+are placed *before* the bare `:left` / `:right` rules in the main `@event_case`
+block at `package/domain/src/document/Text.jl:357-364`, calling the word-step
+helpers and returning `ReplaceSelectionOperation(_build_selection_path(...))`.
 
 Inside the main `@event_case evt` block, *before* the bare `:left` / `:right`
 rules:
@@ -175,6 +207,13 @@ end
   falls through to the tree layer.
 
 ## Testing
+
+**✅ DONE (verified):** The two Ctrl+Left/Right nav keys are present in
+`nav_keys` of `explore_text_selections` at
+`package/test/src/editor/TextNavigationTest.jl:35-36`. (Test file moved to
+`package/test/src/editor/`.) Items 1 and 2 below are satisfied; item 3 (the
+optional focused unit test) was **not** added — no `_word_step` / word-nav test
+exists anywhere under `package/test/` — and the plan itself flagged it optional.
 
 1. **Extend the BFS nav set.** Add the two keys to `nav_keys` in
    `explore_text_selections`

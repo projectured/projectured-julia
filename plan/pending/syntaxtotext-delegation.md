@@ -1,5 +1,22 @@
 # SyntaxToText: delegate children instead of flattening the subtree
 
+> **AUDIT (2026-06-23):** Verified against the current codebase (now restructured
+> under `package/<subpackage>/src/...`; the source file is
+> `package/domain/src/projection/primitive/SyntaxToText.jl`, the docs under
+> `documentation/`, not `guide/`).
+> - **Part A (the code fix): all OPEN.** `SyntaxNodeToText`/`SyntaxListToText`
+>   still flatten the whole subtree. `recursion` is threaded but never invoked —
+>   the only mention is the misleading comment at line 115. The IoMap still carries
+>   `child_char_ranges` (flat character ranges), not element-index ranges; the
+>   flat-char walkers (`_collect_child_spans`, `_subtree_len`, `_pos_to_selection`,
+>   `_pos_to_tree_selection`, `_node_at_collapse_glyph`) are all still present.
+> - **Part B (docs): B1, B2, B3 DONE and verified** in the current tree (see
+>   per-item notes). **B4 OPEN** (no single-level mention found in
+>   `documentation/concepts.md` / `documentation/architecture.md`).
+> - **Verification checklist: all OPEN** (the code change has not landed). The
+>   named test files exist under `package/test/src/...`.
+> - **Nothing is OBSOLETE.** The refactor remains applicable and unimplemented.
+
 ## Problem
 
 `SyntaxNodeToText` (and its sibling `SyntaxListToText`) in
@@ -54,6 +71,12 @@ follows whatever projection actually ran, so a different one could be substitute
 ---
 
 ## Part A — Refactor `SyntaxNodeToText` to delegate (the code fix)
+
+> ⏳ **OPEN (all of A0–A8).** Source file:
+> `package/domain/src/projection/primitive/SyntaxToText.jl`. None of the delegation
+> work has landed: `recursion` is never invoked (only the false comment at L115),
+> the IoMap still stores `child_char_ranges` (L147) instead of element ranges, and
+> `_collect_child_spans` (L765) still self-recurses over child SyntaxNodes.
 
 The output domain is a **flat `TextText`** (a list of `TextString`/`TextNewline`
 spans), so "composing children" means splicing each child's
@@ -159,12 +182,19 @@ projection; a projection that hand-walks the subtree forecloses those
 combinations. This is the printer-side statement of the existing School-A rule.
 
 ### B1. `program/src/api/Projection.jl` — **Done**
+> ✅ VERIFIED DONE — `package/kernel/src/api/Projection.jl:135` (the
+> "Delegate one level; never flatten the subtree" heading + paragraph in the
+> `projection_print` docstring, cross-referencing `map_reference_forward`).
 - [x] In the `projection_print` docstring, added a **"Delegate one level; never
   flatten the subtree"** principle paragraph and cross-referenced the
   `map_reference_forward` "delegate, don't re-walk by type" note so printer and
   mappers state one rule.
 
 ### B2. `guide/projection-system.md` — **Done**
+> ✅ VERIFIED DONE — file now at `documentation/projection-system.md`. The
+> "Principle: recurse as little as possible" blockquote is at L478; the printer
+> extension of the School B anti-pattern callout (naming `SyntaxNodeToText` and
+> this plan) is at L552–558.
 - [x] Added a **"Principle: recurse as little as possible"** blockquote under
   **"Recursion across projections"**.
 - [x] Extended the **"Anti-pattern — re-walking the input by type (School B)"**
@@ -172,16 +202,29 @@ combinations. This is the printer-side statement of the existing School-A rule.
   child subtree into your own output), naming `SyntaxNodeToText` + this plan.
 
 ### B3. `guide/higher-order-projections.md` — **Done**
+> ✅ VERIFIED DONE — file now at `documentation/higher-order-projections.md`. The
+> `RecursiveProjection` section (L116–121) explains `recursion` keeps each
+> projection "single-level and composable" and links back to the recursion
+> principle in projection-system.md.
 - [x] Added a paragraph to the `RecursiveProjection` section explaining that
   `recursion` exists to keep each projection single-level and composable.
 
 ### B4. (optional) `guide/concepts.md` / `architecture.md`
+> ⏳ OPEN — no single-level/`recursion`-composability mention found in
+> `documentation/concepts.md` or `documentation/architecture.md`.
 - [ ] One-line mention that projections are single-level transforms wired together
   by `recursion`, so domains compose in unforeseen ways. Keep light.
 
 ---
 
 ## Verification
+
+> ⏳ **OPEN (all items).** These are run after the Part A code change, which has
+> not landed. The named test files exist:
+> `package/test/src/projection/SyntaxToTextTest.jl`,
+> `package/test/src/projection/SyntaxTreeSelectionTest.jl`,
+> `package/test/src/editor/CollapseRoundtripTest.jl`,
+> `package/test/src/editor/SyntaxTreeNavigationTest.jl`.
 
 Behavior must be identical before/after (delegation re-enters the same
 dispatcher). Run the narrowest covering tests, not `test_all`:

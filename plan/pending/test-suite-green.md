@@ -1,5 +1,14 @@
 # Get the complete test suite green
 
+<!--
+AUDIT 2026-06-23 (verified against current codebase under package/*/src):
+Items 1–6 and all sub-items of 7: DONE — code evidence cited inline below.
+Items 8–14: OPEN — explicitly deferred by a documented scope decision; the
+stubs/gaps they describe still exist in the tree (verified). Plan paths were
+remapped from program/src → package/*/src.
+OVERALL: HAS_OPEN_STEPS (8–14 remain). Keep in plan/pending.
+-->
+
 `test_all()` on `main@8823a0a` reports **210158 passed, 1067 failed, 32 errored**.
 The failures collapse to a handful of root causes accumulated across the
 keyword-constructor / ProjectionTemplate / TypeReference-checkpoint migration
@@ -53,13 +62,13 @@ series. Several were documented as "pre-existing" in recent commit messages.
 - Final `test_all()` sweep only once everything else is green.
 
 ## Progress
-- [x] 1. Text-nav checkpoint normalisation
-- [x] 2. sql_table length (CellTableToTable raw-value thunks)
-- [x] 3. valid_reference_prefix checkpoint bug (probe getindex, not length)
-- [x] 4. Primitive/ConsoleBackend/TableNav checkpoint asserts
-- [~] 5. Conversation serialization (assistant-turn coalescing in build_messages)
-- [x] 6. SqlToSyntax test orphans
-- [~] 7. Tabular / AssistantMvp / Mcp / misc
+- [x] 1. Text-nav checkpoint normalisation **✅ DONE (verified):** `visited` stores `string(strip_reference_types(path))` — package/test/src/editor/TextNavigationTest.jl:66,92.
+- [x] 2. sql_table length (CellTableToTable raw-value thunks) **✅ DONE (verified):** `CellVector(() -> …)` lazy thunks return raw values (no `length(::Cell)`) — package/domain/src/projection/primitive/CellTableToTable.jl:43-60.
+- [x] 3. valid_reference_prefix checkpoint bug (probe getindex, not length) **✅ DONE (verified):** probes `document[idx]` in try/catch instead of `length` — package/kernel/src/reference/Reference.jl:513-521 (and annotate_reference_types:576-578).
+- [x] 4. Primitive/ConsoleBackend/TableNav checkpoint asserts **✅ DONE (verified):** `_cursor_at` strips checkpoints before asserting — package/test/src/document/PrimitiveTest.jl:17; `skip_type_checkpoints` exported (Reference.jl:32) and exercised TypeReferenceTest.jl:62-65.
+- [~] 5. Conversation serialization (assistant-turn coalescing in build_messages) **✅ DONE (verified):** consecutive `:assistant` turns coalesced into one logical turn before serialising — package/domain/src/editor/WorkbenchAssistant.jl:418-429,445.
+- [x] 6. SqlToSyntax test orphans **✅ DONE (verified):** `test_sql_to_syntax_selection` is now defined and exported (no longer undefined `test_selection`); SqlToSyntaxTest.jl:118,207.
+- [~] 7. Tabular / AssistantMvp / Mcp / misc **✅ DONE (verified):** all sub-bullets below are `[x]` and confirmed in tree (e.g. Dragging.jl:198, TypeDispatching.jl:75,80). The `[~]` top-level marker only reflects deferred items 8–14.
   - [x] **ProjectionConfiguring visibility** — ObjectToWidget now outputs a
     `WidgetComposite` wrapping the `GridLayout` (the bar is a real widget with
     `visible`; a layout has none). WidgetComposite renderer now renders embedded
@@ -114,7 +123,7 @@ series. Several were documented as "pre-existing" in recent commit messages.
 tractable rerooting-family bugs** — they were left per an explicit scope decision
 to fix only the tractable bugs (dragging/json) and document the rest:
 
-- [ ] 8. **conversation / conversation_widget (5, ReplTest)** — *unimplemented
+- [ ] 8. **conversation / conversation_widget (5, ReplTest)** — **⏳ OPEN (verified still stubbed):** ConversationToSyntax.jl:147-155 still has `map_reference_*=nothing` / `projection_read=op` for the 3 conversation→syntax projections. *unimplemented
   feature, not a bug.* `ConversationToSyntax.jl:147` is explicitly "v1: not wired":
   the 3 conversation→syntax projections stub `map_reference_*  = nothing` and
   `projection_read = op`, so a click's syntax-domain (`children`-rooted) path is
@@ -122,23 +131,24 @@ to fix only the tractable bugs (dragging/json) and document the rest:
   `turns`). Real fix = restructure to `ChildrenIoMap` + School-A delegation
   (children↔turns/parts) for both ConversationToSyntax **and** ConversationToWidget.
 - [ ] 9. **Ctrl+Home seed: filesystem, navigator, conversation_editor (3,
-  TextNavigationTest)** — composite documents return no selection for
+  TextNavigationTest)** — **⏳ OPEN (deferred by scope decision; see audit header).** composite documents return no selection for
   `Ctrl+Home` (`KeyDown(:home; ctrl) → TreeNavigateOperation(:root)`), so the BFS
   seed is empty (`state_count==0`). Composite-doc navigation feature gap.
 - [ ] 10. **dbcatalog / dvdrental_catalog walk-right (2, ClickRoundtripTest:271,
-  `@test steps>0`)** — *skip→fail surfaced by the (correct) catalog fix in
+  `@test steps>0`)** — **⏳ OPEN (deferred by scope decision; see audit header).** *skip→fail surfaced by the (correct) catalog fix in
   47e4ab1.* Before, `Ctrl+Home` returned no selection so the walk skipped; now it
   seeds a **structural** position `proj(p,{0})` (the rdbms entity name), and a plain
   right-arrow on a structural selection is declined (TextToGraphics:144-145, routed
   to the tree layer) which returns the same position → 0 advances. Needs
   structural/tree-nav semantics for catalog character positions (deep).
-- [ ] 11. **xml_widget (2, MouseClick + walk-right)** — widget-pipeline cursor not
+- [ ] 11. **xml_widget (2, MouseClick + walk-right)** — **⏳ OPEN (deferred by scope decision; see audit header).** widget-pipeline cursor not
   re-rendered after `set_selection!` (SyntaxToWidget selection-forward gap; deep).
-- [ ] 12. **table 3×3 Alt+arrow promote (1, TableNavigationTest:192)** — `Alt+Down`
+- [ ] 12. **table 3×3 Alt+arrow promote (1, TableNavigationTest:192)** — **⏳ OPEN (deferred by scope decision; see audit header).** `Alt+Down`
   from an *in-cell* cursor `.rows[2][2].value` returns `nothing` instead of
   promoting to the whole cell and moving (`.rows[3][2]`). Whole-cell Alt+Down (184)
   works. Nav-internals in the math_table TypeDispatching pipeline (deep).
 - [ ] 13. **SqlToSyntax INSERT/UPDATE round-trip (1, SqlToSyntaxTest:113)** —
+  **⏳ OPEN (verified still unresolved):** `SqlSelectItemToSyntaxNode` backward mapping reused for WHERE comparisons persists — package/domain/src/projection/primitive/SqlToSyntax.jl:279-312; `test_sql_insert_update_selection` still present (SqlToSyntaxTest.jl:207).
   `backward(forward(.where_clause.condition.expression.left))` returns
   `.where_clause.condition::SqlSelectItem.expression.left`. `SqlSelectItemToSyntaxNode`
   is reused to render the WHERE comparison and its backward hardcodes
@@ -147,4 +157,4 @@ to fix only the tractable bugs (dragging/json) and document the rest:
   `SqlComparison`) that a test-side strip would *mask*. Needs SqlToSyntax
   expression-reuse analysis before touching.
 - [ ] 14. **JSON ∅ tree-nav** and **JsonToSyntax reader line-117 array-insert
-  (1)** — documented pre-existing WIP/quirk.
+  (1)** — **⏳ OPEN (deferred by scope decision; see audit header).** documented pre-existing WIP/quirk.

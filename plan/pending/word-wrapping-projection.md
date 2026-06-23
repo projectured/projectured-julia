@@ -13,7 +13,9 @@ Existing coverage in
 covers character preservation, no-wrap, selection round-trip, and
 `available_width`-from-context. Still to add:
 
-### 1. Wrap parity
+### 1. Wrap parity ⏳
+
+**⏳ OPEN (verified):** No parity/snapshot test exists. `package/test/src/projection/WordWrappingTest.jl` contains no comparison against captured pre-refactor `GraphicsText` x/y or `canvas_w/h` output (no `parity`/`snapshot` references found).
 
 For a corpus of spans + a given `max_width`, assert the visual line breaks
 produced by `WordWrapping`+`TextToGraphics` match the pre-refactor output
@@ -21,7 +23,9 @@ produced by `WordWrapping`+`TextToGraphics` match the pre-refactor output
 regression net while we still remember the old behaviour. The fixture
 files would live alongside the test.
 
-### 2. Reactivity / incremental invalidation
+### 2. Reactivity / incremental invalidation ⏳
+
+**⏳ OPEN (verified):** No `perf_counters`-based invalidation test exists in `package/test/src/projection/WordWrappingTest.jl` (no `perf_counters` reference found).
 
 Using `perf_counters()` (see
 [guide/reactive-cells.md](../../guide/reactive-cells.md#L58-L63)), assert:
@@ -30,7 +34,9 @@ Using `perf_counters()` (see
   layout cells, not upstream syntax/text cells.
 - Editing a single input span re-wraps only the affected output portion.
 
-### 3. Keyboard navigation across soft-wrapped lines
+### 3. Keyboard navigation across soft-wrapped lines ⏳
+
+**⏳ OPEN (verified):** No end-to-end `KeyDown` navigation test for soft-wrapped lines exists in `package/test/src/projection/WordWrappingTest.jl` (no `KeyDown` reference found).
 
 End-to-end test through the full chain (`… → SyntaxToText → WordWrapping
 → TextToGraphics`): for a wrapped paragraph, simulate `KeyDown(:left)`,
@@ -43,7 +49,9 @@ forward+backward selection mapping pipeline that the load-bearing
 
 ## Optional follow-ups
 
-### Soft/hard newline distinction
+### Soft/hard newline distinction ⏳
+
+**⏳ OPEN (verified):** `TextNewline` still has no `soft` field — `package/domain/src/document/Text.jl:86` defines it with `font, font_color, fill_color, line_color, padding, selection` only.
 
 Add a `soft::Bool` flag to `TextNewline` set by `WordWrapping`. Today
 soft (wrap) and hard (source `\n`) breaks are indistinguishable to
@@ -72,6 +80,8 @@ needs it.
   separately when we have a large-document use case to profile.
 
 ## Adjacent fix that surfaced during this work
+
+**✅ DONE (verified):** `TextLineNumbering` now has a real reader. `package/domain/src/projection/primitive/LineNumbering.jl:97-110` implements `projection_read(::TextLineNumbering, ::SimpleIoMap, ::ReplaceSelectionOperation)`, mapping output `.elements[out_span].content{char}` paths back to the input span via `_output_to_input_map` (lines 117-141), plus a `KeyDown` pass-through (line 112) — exactly the "analogous to what `WordWrapping` now has" fix described below. `LineNumbering()` is still wired into the julia chain between `SyntaxToText` and `TextToGraphics` (`package/example/src/projection/Julia.jl:5`). (Note: this was tracked separately from this plan; the fix has since landed. Tests not re-run here — Julia is not installed in this environment — but the reader code is present.)
 
 The two failing `julia` selection tests are a pre-existing gap in
 `LineNumbering`'s selection mapping (after it was inserted between

@@ -1,5 +1,28 @@
 # Unify the parameter names of the four projection APIs
 
+> **⏳ AUDIT 2026-06-23 — ENTIRE PLAN STILL OPEN (verified against current code).**
+> The codebase was restructured (`program/src/...` → `package/<sub>/src/...`); the
+> referenced files now live at `package/kernel/src/api/Projection.jl`,
+> `package/kernel/src/common/Projection.jl`, and
+> `package/domain/src/projection/...`. None of the canonical renames have been
+> applied:
+> - **`prj`** appears **0 times** anywhere under `package/domain/src/projection/`;
+>   first param is still `p::...` (~200×) plus one stray `proj::TextTextToString`
+>   and the type-only `::T` forms.
+> - 2nd param is still **`recursion`** (169×), not `rec`.
+> - printer-input 3rd param is still a wide single-letter spread
+>   (`w`×35, `b`×13, `doc`×15, `v`×9, … only 11× `input`), not unified to `input`.
+> - mapper 3rd param is still **`reference`** (76×), not `ref`.
+> - legacy reader payloads still include 2× `operation` and many `evt` (e.g.
+>   `LayoutToGraphics.jl`, `WidgetToGraphics.jl`, `TextToGraphics.jl`).
+> - docstrings in `api/Projection.jl` + `common/Projection.jl` still document the
+>   OLD names; guide prose (`documentation/projection-system.md` lines 10-12, 117)
+>   still shows `projection/recursion/input/reference`.
+> The Conversation files do `rec, ref = recursion, ctx.reference` as local aliases
+> inside the printer body (pre-existing, as the plan itself notes) — their
+> *signatures* still use `p`/`reference`. RECOMMENDED_DESTINATION: leave in
+> `pending`; this is OPEN, not done.
+
 ## Context
 
 The four generic projection functions —
@@ -117,20 +140,32 @@ Also need the per-function `input` rename:
 [`api/Projection.jl`](../../program/src/api/Projection.jl) and
 [`common/Projection.jl`](../../program/src/common/Projection.jl): rename the
 default-method params **and** update the signature lines in the docstrings so
-the documented API matches.
+the documented API matches. *(⏳ OPEN — files moved to
+`package/kernel/src/api/Projection.jl` and `package/kernel/src/common/Projection.jl`;
+both still use old param names in signatures and docstrings.)*
 
 ## Phasing
 
-1. **Bucket C** — `api/Projection.jl` + `common/Projection.jl` (defaults +
-   docstrings). Establishes the canonical names.
-2. **Bucket A** — mechanical `prj`/`rec`/`ref` across the low-risk files. Group
+1. **⏳ OPEN (verified):** **Bucket C** — `api/Projection.jl` + `common/Projection.jl` (defaults +
+   docstrings). Establishes the canonical names. *Now at
+   `package/kernel/src/api/Projection.jl` (docstrings still use
+   `projection, recursion, input, context` / `..., reference`) and
+   `package/kernel/src/common/Projection.jl` (`projection_print(projection, input)`,
+   `map_reference_forward(projection::Projection, iomap, reference)`,
+   `projection_read(p::Projection, recursion, change::Change, iomap)` — old names).*
+2. **⏳ OPEN (verified):** **Bucket A** — mechanical `prj`/`rec`/`ref` across the low-risk files. Group
    by directory; one commit per directory is fine since the edits are uniform.
-3. **Bucket B** — the 13 domain printers, **one file per commit**, running the
+   *`prj` appears 0× anywhere; `recursion`/`reference` unchanged. Files now under
+   `package/domain/src/projection/{higherorder,generic,compound,...}`.*
+3. **⏳ OPEN (verified):** **Bucket B** — the 13 domain printers, **one file per commit**, running the
    narrowest covering test after each (see Verification). This is where the
-   `input` and `@reference`/`ref` hazards live.
-4. **Reader payload tidy** — normalize the 2 `operation`→`op` and 2
-   `event`→`evt` legacy readers (folds into the files they live in).
-5. **(Optional, separate)** guide-prose pass — the signature snippets in
+   `input` and `@reference`/`ref` hazards live. *All 13 still under
+   `package/domain/src/projection/primitive/`; inputs still single-letter.*
+4. **⏳ OPEN (verified):** **Reader payload tidy** — normalize the 2 `operation`→`op` and 2
+   `event`→`evt` legacy readers (folds into the files they live in). *2× `operation`
+   payload and many `evt` payloads still present (e.g. `LayoutToGraphics.jl`,
+   `WidgetToGraphics.jl`, `TextToGraphics.jl`).*
+5. **⏳ OPEN (verified, optional):** **(Optional, separate)** guide-prose pass — the signature snippets in
    [`guide/projection-system.md`](../../guide/projection-system.md),
    [`guide/editor/reference.md`](../../guide/editor/reference.md) and siblings
    still show `projection/recursion/input/context/reference`. Larger prose
