@@ -74,8 +74,47 @@ end
 - Independent of the [directory reorg](source-tree-reorganization.md) and
   [video extraction](extract-video-package.md).
 
+## Implementation notes (what actually shipped)
+
+Implemented in a worktree off `main`. The ~840-line hand-maintained block
+(141 `const XxxModule`, 138 `using …Module: …`, 191 `export …`) is replaced by a
+~25-line loop in `package/projectured/src/Projectured.jl`.
+
+**Empirical analysis first** (against the old umbrella, before editing) decided the shape:
+- Old surface: 928 exported names, 141 submodule aliases.
+- The loop (re-export every exported name of every kernel/domain submodule) would produce
+  **1380 exports / 142 aliases** — a strict **superset**. Names the loop would MISS:
+  just `Projectured` (the module's own name) → **0 real gaps**. So the "non-exported
+  hand-import" caveat (e.g. `skip_type_checkpoints`) did **not** materialize — those names
+  are in fact exported by their submodule (`ReferenceModule`), so no explicit `import`
+  block was needed.
+- **Collision check:** 1379 unique names across the submodules, **0** with conflicting
+  bindings → a per-submodule `using …: …` is unambiguous, no need to dedupe.
+
+**Two refinements vs. the sketch:**
+- Sources brought in with **`import`** (not `using`) so the loop is the *sole* re-export
+  path — nothing leaks from a top-level `using` to conflict with the `const` aliases.
+- The loop walks submodules via `names(src; all=true)` + `parentmodule(m) === src` (so
+  `ProjecturedDomain`'s aliases of kernel submodules are skipped and each submodule is
+  processed once under its true parent), and emits `const`/`using`/`export` via
+  `Core.eval(Expr(...))` (batched one `using …: a,b,c` + one `export …` per submodule).
+
+## Verification (all green)
+
+- `Projectured` precompiles (~0.5 s); 1380 exports, 142 aliases (⊇ old).
+- All critical flat names (`projection_print`, `GraphicsCanvas`, `skip_type_checkpoints`,
+  `record_video`, `make_backend`, …) and submodule aliases
+  (`SyntaxToTextModule`, `ConsoleBackendModule`, `McpModule`, `ReactiveModule`, …) present.
+- `ProjecturedExample` + `ProjecturedTest` precompile/load — resolving **every** qualified
+  `using Projectured.XxxModule: …` site (Object.jl, ConsoleBackendTest, SyntaxToTextTest,
+  TypeReferenceTest, AssistantMvpTest, …).
+- Tests: `test_printer(json)` 3551/3551, `test_reader(json)` 225/225,
+  `test_type_reference` 33/33 (uses `Projectured.skip_type_checkpoints`),
+  `test_console_backend` 36/36 (uses `Projectured.ConsoleBackendModule`),
+  `test_syntax_to_text` 124/124 (uses `Projectured.SyntaxToTextModule`).
+
 ## Status
 
-- [ ] Replace the manual re-export block in `Projectured.jl` with the loop
-- [ ] Add explicit imports for any non-exported symbols still referenced via `Projectured.*`
-- [ ] Verify `example` + `test` still load (qualified `Projectured.XxxModule.*` + flat names resolve)
+- [x] Replace the manual re-export block in `Projectured.jl` with the loop (`import` sources + `Core.eval` loop)
+- [x] No explicit non-exported-symbol imports needed (empirically 0 gaps; e.g. `skip_type_checkpoints` is submodule-exported)
+- [x] Verified `example` + `test` load (qualified `Projectured.XxxModule.*` + flat names resolve) + qualified-access tests pass
