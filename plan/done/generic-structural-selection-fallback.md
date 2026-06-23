@@ -174,4 +174,20 @@ Implemented in two worktrees: `pj-structural-fallback` (projectured-julia, Chang
   `test_json_to_syntax` 11/11, `test_click_roundtrips` 31/31,
   `test_syntax_tree_selection` 29/0/0. Only failure is the pre-existing
   `test_json_to_syntax_reader` line-117 array-insert quirk (47/1/0), unrelated.
-- [ ] Verify omnetpp-pred INI/NED navigation (in progress)
+- [x] Verify omnetpp-pred INI/NED navigation — against the pj worktree:
+  `test_example(ini_example)` fully clean (4871/0/0); `test_example(ned_example)`
+  unchanged vs. baseline — the same 34 NED type-in failures appear with **and**
+  without Change 3 (identical paths), so they are a pre-existing NED type-in gap,
+  not a regression. All NED printer/reader/navigation tests pass.
+
+Commits: projectured-julia `0b72792` (Changes 1+2), omnetpp-pred `086343b`
+(Change 3). Both on branch `generic-structural-selection-fallback`.
+
+### Pre-existing NED type-in gap (out of scope, recorded for follow-up)
+
+`test_typein(ned_example)` has 34 leaves where a `KeyPress` produces no
+`StringReplaceRangeOperation` (cursor renders fine; the edit reader returns
+nothing). These predate this change and are unrelated to structural selection —
+they are NED leaf projections lacking type-in/retype wiring (e.g.
+`.filename`, `.version`, submodule `.name`/`.type`/`.vector_size`, param/property
+`.name` and literal `.text`/`.value`). INI has no such gap.
