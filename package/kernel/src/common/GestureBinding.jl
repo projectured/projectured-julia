@@ -49,7 +49,7 @@ export GesturePattern, KeyPressPattern, KeyDownPattern, KeyUpPattern,
        GestureBinding, matches, describe,
        document_gestures, document_gestures_own, read_document_gesture,
        projection_gestures, collect_gestures, applicable_gestures,
-       var"@gestures"
+       is_help_gesture, var"@gestures"
 
 # ─────────────────────────────────────────────────────────────────────────
 # Gesture patterns
@@ -313,6 +313,24 @@ function applicable_gestures(doc, bindings)
     sel = getfield(doc, :selection)[]
     GestureBinding[b for b in bindings if b.applicable(doc, sel)]
 end
+
+# ─────────────────────────────────────────────────────────────────────────
+# Help-gesture recognition
+#
+# The gesture that summons the gesture-help overlay. Lisp uses Ctrl-H; here the
+# unambiguous F1 ("help") is used, since a letter chord under Ctrl is not yet a
+# distinct gesture (event-to-gesture.md Phase 2). When the named-intent keymap
+# lands this can switch to matching the `:help` intent (and Ctrl-? alongside).
+# ─────────────────────────────────────────────────────────────────────────
+
+"""
+    is_help_gesture(event) -> Bool
+
+True when `event` is the gesture that summons the gesture-help overlay (F1). The
+editor builds a `GestureMap` from `collect_gestures(editor)` on this gesture and
+overlays it for display; any next gesture dismisses it.
+"""
+is_help_gesture(event) = event isa KeyDown && event.key === :f1
 
 # ─────────────────────────────────────────────────────────────────────────
 # @gestures macro
