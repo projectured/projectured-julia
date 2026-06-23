@@ -684,11 +684,15 @@ function _syntax_to_flat(node::SyntaxNode, path::ReferencePath, p::SyntaxNodeToT
         return -1
     end
     if h isa ProjectionReference
+        # A ProjectionReference is a position some projection introduced. It is
+        # transparent here: strip the wrapper and keep navigating the inner path
+        # within this same node. The one terminal case — a bare flat {k} — is this
+        # node's own offset (what SyntaxToText itself emits, via `_pos_to_selection`).
         inner = h.output_path
         inner isa ConcreteReferencePath || return -1
-        idx = inner.head
-        idx isa RangeReference || return -1
-        return idx.start::Int
+        inner.head isa RangeReference && inner.tail isa EmptyReferencePath &&
+            return inner.head.start::Int
+        return _syntax_to_flat(node, inner, p, depth)
     end
     return -1
 end

@@ -907,7 +907,7 @@ end
 function projection_read(p::Projection, iomap::RuleIoMap, op::ReplaceSelectionOperation)
     result = map_reference_backward(p, iomap, op.path)
     result !== nothing && return ReplaceSelectionOperation(result)
-    iomap.wiring isa NodeWiring || return nothing
+    iomap.wiring isa Union{NodeWiring,MixedNodeWiring,InlineWiring,SectionsWiring,FixedNodeWiring} || return nothing
     return ReplaceSelectionOperation(_path(ProjectionReference(p, op.path)))
 end
 
