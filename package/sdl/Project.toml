@@ -4,7 +4,6 @@ version = "0.1.0"
 authors = []
 
 [deps]
-FFMPEG = "c87230d0-a227-11e9-1b43-d7ebe4e7570a"
 ProjecturedDomain = "e0912940-0f50-4a55-a142-7b4aed3d6e35"
 SDL2_jll = "ab825dc5-c88e-5901-9575-1e5e20358fcf"
 SimpleDirectMediaLayer = "98e33af6-2ee5-5afd-9e75-cbc738b767c4"

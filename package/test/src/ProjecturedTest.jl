@@ -7,6 +7,9 @@ using ProjecturedExample
 # write_image / click roundtrips (provides SdlBackend + GraphicsCanvasToImageFile).
 # The library itself is SDL-optional; the test package opts in.
 using ProjecturedSdl
+# Opt into the video package so VideoTest can drive record_video (it provides the
+# record_video method on the kernel seam; FFMPEG lives here, not in ProjecturedSdl).
+using ProjecturedVideo
 # Likewise opt into the Odbc package so the database tests can construct
 # adapters/pools/projections and assert on their types (all exported by the package).
 using ProjecturedOdbc

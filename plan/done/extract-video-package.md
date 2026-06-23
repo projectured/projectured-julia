@@ -92,10 +92,44 @@ This is a **code refactor**, independent of (and doable before or after) the
 end-state package set is **12**, with `video/` living at `package/video/` as a Layer-4
 opt-in package whose only twist is that it depends on another Layer-4 package (`sdl`).
 
+## Implementation notes (what actually shipped)
+
+Implemented on `main` post-reorg (paths are `package/…`, modules `Projectured*`). A few
+refinements vs. the original design, decided while implementing:
+
+- **`_emit_frames!` stayed in `ProjecturedSdl`** (the plan said move it). It is
+  SDL-internal-heavy (`_save_surface_bmp`, `SDL_FreeSurface`, `off.surface`,
+  `_render_canvas_offscreen!`, `_offscreen_output_surface`); moving it would drag raw SDL
+  calls into `ProjecturedVideo`. Instead `ProjecturedSdl` **exports 3 primitives**
+  (`_open_offscreen_renderer`, `_close_offscreen_renderer`, `_emit_frames!` — option A);
+  only `record_video` + `_VideoEditor` + `import FFMPEG` moved out. The other two
+  offscreen helpers stay internal (used by `_emit_frames!` + `write_image`).
+- **`ProjecturedVideo` deps = `ProjecturedSdl` + `ProjecturedDomain` + `FFMPEG`** (plan
+  said sdl + FFMPEG). `ProjecturedDomain` is needed directly because `record_video` calls
+  the editor/projection API (`projection_print/read`, `evaluate_operation`,
+  `clear/set_selection!`, `PrinterContext`, `Cell`, `EmptyReferencePath`, `GraphicsCanvas`)
+  — Julia requires direct deps to `import` them.
+- **`example` did NOT get a `ProjecturedVideo` dep** (plan said add to example + test).
+  `ProjecturedExample` only *references* the `record_video` generic (re-exported by
+  `Projectured`) inside `record_example_video`/`record_assistant_conversation_video`, so it
+  precompiles fine without the method; only the **caller** needs the method loaded. So just
+  `ProjecturedTest` opts in (`[deps]` + `using ProjecturedVideo`) — which also keeps FFMPEG
+  out of `example`.
+- `ProjecturedSdl` module docstring updated (no longer claims FFMPEG/video); `record_video`
+  dropped from its `BackendModule` import + export.
+
+## Verification (all green)
+
+- `Pkg.resolve()`: `ProjecturedSdl` deps = `[ProjecturedDomain, SDL2_jll, SimpleDirectMediaLayer]`
+  (**no FFMPEG**); `ProjecturedVideo` deps = `[FFMPEG, ProjecturedDomain, ProjecturedSdl]`.
+- `using Projectured, ProjecturedSdl` + `write_image` → 34 KB PNG (SDL functional without FFMPEG).
+- `using ProjecturedVideo` + `record_video` → MP4 produced.
+- `test_record_video()` (VideoTest) → **10/10 pass**, incl. the assistant-conversation demo.
+
 ## Status
 
-- [ ] Create `video/` package (`ProjecturedVideo`, deps ProjecturedSdl + FFMPEG)
-- [ ] Expose sdl offscreen-render API (option A)
-- [ ] Move `record_video` + `_emit_frames!` + `import FFMPEG` out of sdl; drop FFMPEG dep + export
-- [ ] Update `example` + `test` (deps + `using ProjecturedVideo`)
-- [ ] Verify (write_image still works; VideoTest; Pkg.resolve)
+- [x] Create `package/video/` package (`ProjecturedVideo`; deps ProjecturedSdl + ProjecturedDomain + FFMPEG)
+- [x] Expose sdl offscreen-render API (option A — export `_open`/`_close`/`_emit_frames!`)
+- [x] Move `record_video` + `_VideoEditor` + `import FFMPEG` out of sdl; drop FFMPEG dep + export + fix docstring
+- [x] Add `ProjecturedVideo` dep + `using` to `test` (example left FFMPEG-free by design)
+- [x] Verify (write_image without FFMPEG; record_video; VideoTest 10/10; Pkg.resolve)

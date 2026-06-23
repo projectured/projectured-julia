@@ -2,7 +2,7 @@
 
 julia_version = "1.12.6"
 manifest_format = "2.0"
-project_hash = "ef27bfd9340a9b08e54bb69c9066271f46271e01"
+project_hash = "f282543c87a4c98c8e2a53ef0e90aa886eedf9e2"
 
 [[deps.ArgTools]]
 uuid = "0dad84c5-d112-42e6-8d28-ef12dabb789f"
@@ -650,15 +650,21 @@ uuid = "aed26263-2fd3-42de-9b03-7ee91ffa11a3"
 version = "0.1.0"
 
 [[deps.ProjecturedSdl]]
-deps = ["FFMPEG", "ProjecturedDomain", "SDL2_jll", "SimpleDirectMediaLayer"]
+deps = ["ProjecturedDomain", "SDL2_jll", "SimpleDirectMediaLayer"]
 path = "package/sdl"
 uuid = "f0002b97-94ba-416c-b93c-86cdc095626f"
 version = "0.1.0"
 
 [[deps.ProjecturedTest]]
-deps = ["Projectured", "ProjecturedExample", "ProjecturedOdbc", "ProjecturedSdl", "Test"]
+deps = ["Projectured", "ProjecturedExample", "ProjecturedOdbc", "ProjecturedSdl", "ProjecturedVideo", "Test"]
 path = "package/test"
 uuid = "c3f1d2e8-4a5b-6c7d-8e9f-0a1b2c3d4e5f"
+version = "0.1.0"
+
+[[deps.ProjecturedVideo]]
+deps = ["FFMPEG", "ProjecturedDomain", "ProjecturedSdl"]
+path = "package/video"
+uuid = "8d225f56-7fda-4c1e-a58b-db6d64f8335c"
 version = "0.1.0"
 
 [[deps.ProjecturedWeb]]

@@ -2,11 +2,14 @@
     Sdl
 
 Opt-in package: the SDL display/input backend (window, GPU rendering, SDL_ttf text
-rasterisation, offscreen image/PDF/video output). Depends on `ProjecturedDomain` +
-SimpleDirectMediaLayer/SDL2_jll/FFMPEG; `using ProjecturedSdl` registers
-`make_backend(:sdl)` plus the render/decode/image/video seam methods, and (via
+rasterisation, offscreen image output). Depends on `ProjecturedDomain` +
+SimpleDirectMediaLayer/SDL2_jll; `using ProjecturedSdl` registers
+`make_backend(:sdl)` plus the render/decode/image seam methods, and (via
 `__init__`) installs SDL as the real `display_size` provider. Exposes `SdlBackend`,
-`GraphicsCanvasToImageFile`, and the `sdl_*` helpers.
+`GraphicsCanvasToImageFile`, and the `sdl_*` helpers. Also exports the offscreen
+primitives (`_open_offscreen_renderer`, `_close_offscreen_renderer`, `_emit_frames!`)
+that the opt-in `ProjecturedVideo` package builds `record_video` on (FFMPEG lives there,
+not here).
 
 Relocated from the former program/src/backend/Sdl.jl (SdlBackendModule); relative
 submodule imports were rewritten to absolute ProjecturedDomain.* references.
@@ -18,7 +21,7 @@ using ProjecturedDomain
 
 using SimpleDirectMediaLayer
 using SimpleDirectMediaLayer.LibSDL2
-import ProjecturedDomain.BackendModule: Backend, init!, quit!, measure_text, make_backend, write_image, record_video,
+import ProjecturedDomain.BackendModule: Backend, init!, quit!, measure_text, make_backend, write_image,
                         render_canvas, decode_image, display_size, set_display_size_provider!
 import ProjecturedDomain.DeviceModule: Device, read_from_devices, write_to_devices, write_to_device
 import ProjecturedDomain.GraphicsModule: GraphicsCanvas, GraphicsText, GraphicsRect, GraphicsLine, GraphicsCircle,
@@ -41,10 +44,10 @@ import ProjecturedDomain.PrinterContextModule: PrinterContext
 import ProjecturedDomain.ReactiveModule: Cell, isuptodate
 import ProjecturedDomain.ReferenceModule: EmptyReferencePath
 import ProjecturedDomain.IoMapModule: SimpleIoMap
-import FFMPEG
 
 export SdlBackend, sdl_measure_text, sdl_render_canvas, sdl_display_size,
-       write_image, record_video, GraphicsCanvasToImageFile,
+       write_image, GraphicsCanvasToImageFile,
+       _open_offscreen_renderer, _close_offscreen_renderer, _emit_frames!,
        sdl_decode_image, decode_image_file!
 
 # Pixel size of the primary monitor from xrandr's RandR 1.5
@@ -1809,17 +1812,11 @@ function map_reference_backward(::GraphicsCanvasToImageFile, iomap, reference)
 end
 
 # ════════════════════════════════════════════════════════════════════════
-# Headless video recording
+# Offscreen frame emission — the rendering primitive for headless video.
+# (`record_video` itself lives in the opt-in `ProjecturedVideo` package, which
+#  pulls FFMPEG; this package exports the offscreen primitives it builds on.)
 # ════════════════════════════════════════════════════════════════════════
 
-# A minimal mutable editor stand-in for `evaluate_operation`, mirroring the test
-# harness's `_ReplEditor`: an operation such as `ReplaceDocumentOperation` may
-# rebind `.document` (a whole-document swap) and null `.iomap`. `record_video`
-# re-reads `.document` afterwards so a root swap is picked up by the next print.
-mutable struct _VideoEditor
-    document::Any
-    iomap::Any
-end
 
 # Render `canvas` once and write `count` identical BMP frames (the post-event
 # state held on screen for `count` frames of video time), advancing `frame`.
@@ -1840,161 +1837,6 @@ function _emit_frames!(off, canvas::GraphicsCanvas, width::Integer, height::Inte
     nothing
 end
 
-"""
-    record_video(document, projection, gestures, filename::AbstractString;
-                 fps=30, width=1200, height=800,
-                 background=(0xfd,0xf6,0xe3,0xff),
-                 initial_hold=0.5, final_hold=initial_hold,
-                 supersample=2, scale=1) -> String
-
-Record a headless video of an editing session and encode it to `filename` (which
-must end in `.mp4`). No window is required — frames are rendered with the same
-offscreen software renderer as [`write_image`](@ref) and assembled with `ffmpeg`.
-
-`gestures` is a vector of timed entries. Each entry carries either an `event` or
-an `operation`, plus a `hold`:
-- `(event = …, hold = …)` — `event` is any backend-agnostic device event
-  (`KeyDown`, `KeyUp`, `KeyPress`, `MouseDown`, `MouseUp`, `MousePress`,
-  `MouseMove`, `MouseScroll`), translated to an operation via `projection_read`.
-- `(operation = …, hold = …)` — a domain `Operation` injected straight into
-  `evaluate_operation`, skipping the reader (for actions with no single-event
-  trigger: seed a selection, scroll, swap focus/document). `operation` may be an
-  `Operation` value or a `doc -> op` thunk evaluated at fire time.
-
-`hold` is the number of seconds to display the resulting state. Timing is in **video time** (frame
-counts, not wall-clock), so the output is deterministic regardless of how long
-rendering takes — `round(hold * fps)` identical frames are emitted per gesture.
-The initial state (before any gesture) is held for `initial_hold` seconds and the
-final state (after the last gesture) for `final_hold` seconds, giving a still
-margin at each end of the clip; both default to `0.5`.
-
-For each gesture the standard editor cycle runs: `projection_read` →
-`evaluate_operation` → `projection_print`, mirroring the live editor loop. Each
-frame is laid out at the fixed `width × height` video resolution so mouse-gesture
-coordinates line up with what is rendered. Errors from the pipeline propagate
-(callers want loud failures, not a partial video).
-
-```julia
-gestures = [
-    (event = KeyPress('h'),                        hold = 0.3),
-    (event = KeyPress('i'),                        hold = 0.3),
-    (event = KeyDown(:right, Modifiers(), false),  hold = 0.5),
-]
-record_video(doc, proj, gestures, "/tmp/demo.mp4"; fps=30)
-```
-
-`initial_selection` controls where the caret starts. Keyboard typein (e.g.
-`KeyPress`) only produces an edit when something is selected, so to record a
-typing demo either pass an `initial_selection` (a `ReferencePath` into the
-document) or make the first gesture a `MousePress` that places the caret. When
-`initial_selection` is `nothing` (the default) the selection is cleared and the
-recording starts caret-free, mirroring a freshly opened editor.
-
-`wait_for` records the result of asynchronous editor work. The gesture loop never
-yields, so an `@async` task started by a gesture (e.g. the assistant's streaming
-reply launched by ENTER) cannot progress on its own. When `wait_for` is a
-predicate, after the last gesture the recording spins (yielding) until it returns
-`true` — or `wait_timeout` wall-clock seconds elapse — then re-prints so the
-final-hold frames show the settled state (e.g. `wait_for = () -> a.status === :idle`).
-"""
-function record_video(document, projection, gestures::AbstractVector,
-                      filename::AbstractString;
-                      fps::Integer = 30,
-                      width::Integer = 1200,
-                      height::Integer = 800,
-                      background::NTuple{4,UInt8} = (0xfd, 0xf6, 0xe3, 0xff),
-                      initial_hold::Real = 0.5,
-                      final_hold::Real = initial_hold,
-                      initial_selection = nothing,
-                      wait_for::Union{Nothing,Function} = nothing,
-                      wait_timeout::Real = 5.0,
-                      supersample::Integer = 2,
-                      scale::Real = 1)
-    lowercase(splitext(filename)[2]) == ".mp4" ||
-        error("record_video: only .mp4 output is supported (got \"$filename\")")
-
-    # Lay out every frame at the fixed video resolution.
-    print_iomap = doc -> projection_print(projection, nothing, doc,
-        PrinterContext(EmptyReferencePath(), Cell(Int(width)), Cell(Int(height)),
-                       Dict{Symbol,Any}()))
-    canvas_of = iomap -> begin
-        canvas = iomap.output
-        canvas isa GraphicsCanvas ||
-            error("record_video: projection output is $(typeof(canvas)), expected GraphicsCanvas")
-        canvas
-    end
-
-    off = _open_offscreen_renderer(width, height; supersample=supersample, scale=scale)
-    tmpdir = mktempdir()
-    frame = Ref(0)
-    try
-        if initial_selection === nothing
-            clear_selection!(document)
-        else
-            set_selection!(document, initial_selection)
-        end
-        iomap = print_iomap(document)
-        _emit_frames!(off, canvas_of(iomap), width, height, background,
-                      tmpdir, frame, round(Int, initial_hold * fps))
-
-        for entry in gestures
-            # An entry carries either an `event` (translated to an operation via
-            # the reader, like live input) or an `operation` (a domain operation
-            # injected straight into the evaluator, for actions with no single
-            # device-event trigger). An `operation` may be an `Operation` value
-            # or a `doc -> op` thunk evaluated at fire time against the current
-            # document.
-            if haskey(entry, :operation)
-                op = entry.operation isa Function ? entry.operation(document) : entry.operation
-            else
-                op = projection_read(projection, iomap, entry.event)
-            end
-            if op !== nothing
-                ed = _VideoEditor(document, iomap)
-                evaluate_operation(ed, op)
-                document = ed.document   # pick up a whole-document swap
-            end
-            iomap = print_iomap(document)
-            _emit_frames!(off, canvas_of(iomap), width, height, background,
-                          tmpdir, frame, round(Int, entry.hold * fps))
-        end
-
-        # Let async editor work kicked off by the gestures settle before the
-        # final frames. The frame loop never yields, so an `@async` task (e.g.
-        # the assistant's streaming reply launched by ENTER) can't progress on
-        # its own; spin yielding until `wait_for()` is satisfied (or the
-        # `wait_timeout` wall-clock deadline passes), then re-print so the final
-        # state reflects the settled document.
-        if wait_for !== nothing
-            deadline = time() + wait_timeout
-            while !wait_for() && time() < deadline
-                yield()
-                sleep(0.01)
-            end
-            iomap = print_iomap(document)
-        end
-
-        # End margin: hold the final state.
-        _emit_frames!(off, canvas_of(iomap), width, height, background,
-                      tmpdir, frame, round(Int, final_hold * fps))
-
-        frame[] == 0 &&
-            error("record_video: no frames produced (gestures empty and initial_hold/final_hold ≈ 0)")
-
-        pattern = joinpath(tmpdir, "frame_%06d.bmp")
-        # Build the command from a string vector: a backtick literal would reject
-        # the unquoted parentheses/asterisks in the `pad` filter expression.
-        FFMPEG.exe(Cmd(String[
-            "-y", "-hide_banner", "-loglevel", "error",
-            "-framerate", string(fps), "-i", pattern,
-            "-c:v", "libx264", "-pix_fmt", "yuv420p",
-            "-vf", "pad=ceil(iw/2)*2:ceil(ih/2)*2", filename]))
-    finally
-        _close_offscreen_renderer(off)
-        rm(tmpdir; force=true, recursive=true)
-    end
-    filename
-end
 
 # ════════════════════════════════════════════════════════════════════════
 # Application lifecycle
