@@ -257,12 +257,17 @@ depends on the bare struct ctor).
       `Union{Document,Nothing}` (separate concern). Verified: all 21 construct +
       snapshot (21/21); `test_cell`/`test_collection`/`test_json`/`test_syntax`/
       `test_text`/`test_graphics_layout`/`test_json_to_syntax` all green.
-- [ ] **Step 3 — grep for stragglers.** Re-run the inventory scan to confirm no
-      remaining zero-positional pure-default ctor was missed, and that no
-      out-of-scope ctor was removed by mistake.
-- [ ] **Step 4 — docs.** Add a short note to `documentation/macros.md` that the
-      "empty document"/insertion-cursor types now express their defaults inline (so
-      contributors copy the new pattern, not the old convenience-ctor one).
+- [x] **Step 3 — grep for stragglers.** Re-ran the inventory scan: the only
+      remaining zero-arg `T() = …` ctors on macro types are the **7 deliberately
+      excluded** ones — `CellVector`/`CellMatrix`/`CellTable`/`ScreenDocument`
+      (kernel), `GraphicsCanvas`, and `GraphVertex`/`TabularCell`. No accidental
+      misses, and the green `test_printers`/`test_readers` sweep confirms no
+      out-of-scope ctor was removed.
+- [x] **Step 4 — docs.** Added to `documentation/macros.md`: a note that inline
+      defaults are now the codebase idiom (insertion-cursor types + `@projection`
+      style-config structs), **and** the new gotcha that a macro-wrapped field can't
+      hold a `Function` (`Cell(::Function)` becomes a thunk — the trap that kept
+      `SyntaxNodeToText` a plain struct).
 
 ## Verification
 

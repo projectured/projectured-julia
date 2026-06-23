@@ -133,6 +133,13 @@ Semantics deliberately match `Base.@kwdef`:
   every existing macro usage is byte-for-byte unchanged (no surprise keyword
   constructor appears on default-free types).
 
+This is now the standard idiom across the codebase: the insertion-cursor /
+empty-document types (`JsonInsertion`, `XmlInsertion`, `SyntaxInsertion`,
+`DocumentNothing`, …) and the `*To*` projection style-config structs
+(`@projection struct …ToSyntaxLeaf`) declare their defaults inline rather than via a
+convenience constructor. Copy that pattern, not the old `Foo() = Foo(Cell(nothing), …)`
+form.
+
 For `@document`, the keyword constructor is generated for **both** the Cell-based
 struct and its immutable `I`-prefixed snapshot. Why `Base.@kwdef` can't simply be
 stacked on these macros (macro-ordering and the dueling inner constructors), and
@@ -164,13 +171,17 @@ the cell holds a thunk rather than a value).
 All three macros (`@document`, `@projection`, `@iomap`) share the same generated
 machinery, and with it the same three sharp edges:
 
-- **A macro-wrapped field can never hold a `Cell` as its logical value.** The
-  auto-wrapping inner constructor runs `x isa Cell ? x : Cell(x)` on every
-  argument, so a value that *is* a `Cell` is stored unwrapped and read back
-  transparently — there is no way to have a field whose value is itself a `Cell`.
-  If you genuinely need to store a cell *as a value*, box it (e.g. in a
-  one-element tuple or a wrapper struct), or keep it in a plain hand-rolled
-  struct instead.
+- **A macro-wrapped field can never hold a `Cell` — or a `Function` — as its
+  logical value.** The auto-wrapping inner constructor runs `x isa Cell ? x : Cell(x)`
+  on every argument, so a value that *is* a `Cell` is stored unwrapped and read back
+  transparently — there is no way to have a field whose value is itself a `Cell`. A
+  `Function` is worse: `Cell(f)` builds a **computed thunk**, so the field would be
+  *called* (with no args) when read, not returned — a config field like
+  `marker_eligible::Any = some_predicate` silently breaks at runtime. (This is exactly
+  the trap that forced `SyntaxNodeToText` to stay a plain `struct` instead of becoming
+  `@projection`.) If you genuinely need to store a cell or a callable *as a value*, box
+  it (e.g. in a one-element tuple or a wrapper struct), or keep it in a plain
+  hand-rolled struct instead.
 - **The macro emits the *only inner* constructor.** Any convenience constructor
   you write must therefore be an **outer** constructor (`Foo(args...) = Foo(...)`
   outside the `@document struct` body); an inner one would collide with the
