@@ -1,5 +1,15 @@
 # Fix `text_filtering` / `text_highlighting` in `run_example`
 
+> **Audit 2026-06-23:** ALL STEPS OPEN. The current code is still in the exact
+> "before" state this plan describes. `make_text_configuring_projection` is the
+> 1-arg replacement form (`package/example/src/projection/Wrapper.jl:43`), the
+> `run_example` branches still replace the projection
+> (`package/example/src/Examples.jl:305,307`), and the proposed helper
+> `_find_text_insertion_index` does not exist anywhere in source. All referenced
+> types (`SequentialProjection`, `ProjectionConfiguringProjection`,
+> `TextHighlighting`, `TextFiltering`) still exist, so the plan is NOT obsolete —
+> just unimplemented.
+
 ## Problem
 
 When `run_example` is called with `text_filtering=true` or `text_highlighting=true`,
@@ -53,6 +63,8 @@ step** (or more generally, the first step that leaves the `TextText` domain).
 
 ### Step 1 — Detect insertion point in a `SequentialProjection`
 
+**⏳ OPEN (verified):** No `_find_text_insertion_index` (or any equivalent helper) exists in source — only referenced in this plan file.
+
 Write a helper that inspects a `SequentialProjection`'s `.projections` vector
 and returns the **index** of the step where a Text→Text projection should be
 spliced in.  The heuristic:
@@ -73,6 +85,8 @@ If the projection is **not** a `SequentialProjection` at all (e.g. a bare
 `TextToGraphics`), wrap it in one first: `SequentialProjection(projection)`.
 
 ### Step 2 — Splice the configuring projection
+
+**⏳ OPEN (verified):** `make_text_configuring_projection` (`package/example/src/projection/Wrapper.jl:43-58`) builds a fixed two-step `SequentialProjection(ProjectionConfiguringProjection, renderer)`; no splice into an existing pipeline.
 
 Build the augmented pipeline by inserting a
 `ProjectionConfiguringProjection(inner=TextHighlighting(...))` (or
@@ -102,6 +116,8 @@ already does for the hard-coded case.
 
 ### Step 3 — Update `make_text_configuring_projection`
 
+**⏳ OPEN (verified):** Still the single-arg signature `make_text_configuring_projection(inner_text_projection; measure, font)` at `package/example/src/projection/Wrapper.jl:43`; no `base_projection` parameter.
+
 Refactor `make_text_configuring_projection` (in `example/src/projection/Wrapper.jl`)
 to accept an **existing projection** to augment:
 
@@ -121,6 +137,8 @@ behaviour as a convenience fallback (backward-compatible).
 
 ### Step 4 — Update `run_example`
 
+**⏳ OPEN (verified):** `package/example/src/Examples.jl:305,307` still call the 1-arg form (`make_text_configuring_projection(TextHighlighting("dolor"))`), replacing the projection.
+
 In `Examples.jl`, change the `text_highlighting` / `text_filtering` branches
 from replacing the projection to augmenting it:
 
@@ -136,6 +154,8 @@ This preserves the example's full pipeline and inserts the text-config step at
 the correct position.
 
 ### Step 5 — Handle non-`SequentialProjection` cases
+
+**⏳ OPEN (verified):** Depends on Steps 1-3; no fallback wrapping logic exists since the splice mechanism is unimplemented.
 
 Some examples may have non-sequential projections (e.g. a bare
 `RecursiveProjection`, a `NestingProjection`, or a `TypeDispatchingProjection`

@@ -122,8 +122,19 @@ the new dirs into the reorg's `package/` move.
 
 ## Status
 
-- [ ] Create `ProjecturedGraphics` (vocabulary + Graphics + Pdf + graphics projections)
-- [ ] Create `ProjecturedText` (Text + Console + text projections; dep on Graphics)
-- [ ] Repoint `ProjecturedDomain` to depend on `ProjecturedText`; move cross projections' homes as needed
-- [ ] Create `ProjecturedGraphicsTest` + `ProjecturedTextTest`; shrink `ProjecturedTest`
-- [ ] Verify each package + test package loads and is green in isolation; `Pkg.resolve()`
+<!--
+Audit 2026-06-23: verified against current `package/` layout. NONE of these steps are done.
+No `package/graphics/` or `package/text/` subpackages exist (only domain, example, executable,
+kernel, llm, mcp, odbc, projectured, sdl, test, video, web). The vocabulary/document modules
+(Graphics.jl, Text.jl, Color.jl, Font.jl, Geometry.jl, StyleText.jl, StyleStroke.jl, Image.jl)
+still live in package/domain/src/document/. Both backends (Console.jl, Pdf.jl) still live in
+package/domain/src/backend/. package/domain/Project.toml depends ONLY on ProjecturedKernel —
+no ProjecturedText/ProjecturedGraphics edge. No ProjecturedGraphicsTest/ProjecturedTextTest
+packages; all graphics/text test files remain under package/test/src/. All steps OPEN.
+-->
+
+- [ ] ⏳ Create `ProjecturedGraphics` (vocabulary + Graphics + Pdf + graphics projections) — OPEN: no `package/graphics/`; Graphics/Color/Font/Geometry/StyleText/StyleStroke/Image and Pdf.jl still in `package/domain/src/`
+- [ ] ⏳ Create `ProjecturedText` (Text + Console + text projections; dep on Graphics) — OPEN: no `package/text/`; Text.jl and Console.jl still in `package/domain/src/`
+- [ ] ⏳ Repoint `ProjecturedDomain` to depend on `ProjecturedText`; move cross projections' homes as needed — OPEN: `package/domain/Project.toml` deps = ProjecturedKernel only
+- [ ] ⏳ Create `ProjecturedGraphicsTest` + `ProjecturedTextTest`; shrink `ProjecturedTest` — OPEN: no such test packages; graphics/text tests still under `package/test/src/`
+- [ ] ⏳ Verify each package + test package loads and is green in isolation; `Pkg.resolve()` — OPEN: blocked by the above

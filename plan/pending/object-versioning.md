@@ -66,6 +66,9 @@ exists.
 
 ### File: `program/src/document/Versioning.jl`
 
+**✅ DONE (verified):** implemented at
+`package/domain/src/document/Versioning.jl` (path remapped after restructure).
+
 A new domain module, modeled on `ClipboardModule`. All fields are `Cell`-backed
 via `@document` (see [`guide/macros.md`](../../guide/macros.md)).
 
@@ -138,6 +141,9 @@ no version matches (the projection then emits a `DocumentNothing`, mirroring
 `ClipboardSlice`'s empty-slice fallback).
 
 ### File: `program/src/projection/primitive/VersioningToAny.jl`
+
+**✅ DONE (verified):** implemented at
+`package/domain/src/projection/primitive/VersioningToAny.jl` (path remapped).
 
 The elimination projection — the direct analogue of
 `ClipboardSliceToAnyProjection`. One `VersionedObject` in, the projected
@@ -291,21 +297,62 @@ Wire-in points (match the clipboard's two include sites):
 
 ## Implementation Steps
 
-1. **`VersioningModule`** — `VersionProperties`, `ObjectVersion`,
-   `VersionedObject`, the `VersionCriterion` hierarchy, and `select_version`.
-   Include + export in `Projectured.jl`. Unit-test `select_version` for each
-   criterion (latest, index, by-author, as-of, predicate, no-match).
-2. **`VersioningToAnyProjection`** — printer + forward/backward reference
-   mapping + reader delegation/re-rooting, copied structurally from
-   `ClipboardToAny.jl`. Include + export.
-3. **Version operations** — `CreateVersionOperation`,
-   `SetVersionCriterionOperation`, `DeleteVersionOperation`; `SetVersionCriterion`
-   drops `editor.iomap`.
-4. **Example + tests** — the versioned-JSON example and the printer/reader/
-   navigation/recursion/empty assertions above.
-5. **History view (optional, later)** — a collection-style projection over
-   `versions` for browsing/diffing/pinning; defer until 1–4 pass.
-6. **Guide** — `guide/document/versioning.md`, linked from `CLAUDE.md`.
+> **Audit note (2026-06-23):** Steps 1–4 and 6 are implemented in the
+> restructured tree (`package/domain/src/...`, `package/example/src/...`,
+> `package/test/src/...`). Only the optional History view (step 5) remains open.
+> Old `program/src/...` / `guide/...` paths in this plan now map to
+> `package/<sub>/src/...` and `documentation/...`.
+
+1. **✅ DONE (verified):** **`VersioningModule`** — `VersionProperties`,
+   `ObjectVersion`, `VersionedObject`, the `VersionCriterion` hierarchy, and
+   `select_version`. Include + export in `Projectured.jl`. Unit-test
+   `select_version` for each criterion (latest, index, by-author, as-of,
+   predicate, no-match).
+   Evidence: `package/domain/src/document/Versioning.jl` defines all three
+   `@document` types, the five `VersionCriterion` subtypes, and `select_version`
+   (lines 58–229) with `export` (lines 35–39). Included at
+   `package/domain/src/ProjecturedDomain.jl:82` and re-exported by the
+   mechanical loop in `package/projectured/src/Projectured.jl:25-41`. All six
+   criteria are unit-tested in `package/test/src/projection/VersioningToAnyTest.jl`
+   ("select_version criteria" testset, lines 19–64).
+2. **✅ DONE (verified):** **`VersioningToAnyProjection`** — printer +
+   forward/backward reference mapping + reader delegation/re-rooting, copied
+   structurally from `ClipboardToAny.jl`. Include + export.
+   Evidence: `package/domain/src/projection/primitive/VersioningToAny.jl` —
+   `projection_print` (line 90), `map_reference_forward`/`map_reference_backward`
+   (lines 110/129), `projection_read` with `_prefix_op`/`_prepend` re-rooting
+   (lines 186, 208, 228), `export` (lines 61–62). Included at
+   `ProjecturedDomain.jl:106`.
+3. **✅ DONE (verified, with design refinement):** **Version operations** —
+   `SetVersionCriterionOperation` exists as a named `Operation`
+   (`VersioningToAny.jl:150`) and drops `editor.iomap` in `evaluate_operation`
+   (lines 155–159). `CreateVersionOperation`/`DeleteVersionOperation` were
+   implemented per the "school-A" pattern as standard
+   `CollectionInsertOperation`/`CollectionDeleteOperation` emitted by the reader
+   helpers `_create_version`/`_delete_version` (lines 170–182, bound to
+   Ctrl+Shift+S / Ctrl+Delete at lines 189–190) rather than as dedicated named
+   operation types — the deliverable (snapshot/delete version) is present and
+   tested ("own gestures" testsets, `VersioningToAnyTest.jl` lines 161–177).
+4. **✅ DONE (verified):** **Example + tests** — the versioned-JSON example and
+   the printer/reader/navigation/recursion/empty assertions above.
+   Evidence: `package/example/src/document/Versioning.jl`
+   (`make_versioning_document_example`, three `ObjectVersion`s over a
+   `JsonObject`) and `package/example/src/projection/Versioning.jl`
+   (`make_versioning_projection_example`), registered in
+   `package/example/src/ProjecturedExample.jl:48,89,212-213` (`versioning_example`).
+   Tests in `package/test/src/projection/VersioningToAnyTest.jl` cover printer,
+   reader re-rooting, empty/no-match → `DocumentNothing` (lines 84–101), and
+   recursion versioned-in-versioned (lines 179–194); registered at
+   `ProjecturedTest.jl:71,154`.
+5. **⏳ OPEN:** **History view (optional, later)** — a collection-style
+   projection over `versions` for browsing/diffing/pinning; defer until 1–4 pass.
+   No implementation found (grep for `history` / a history projection over
+   `versions` returns nothing in `package/domain/src/`). Explicitly optional and
+   deferrable per this plan.
+6. **✅ DONE (verified):** **Guide** — `guide/document/versioning.md`, linked
+   from `CLAUDE.md`.
+   Evidence: `documentation/document/versioning.md` exists (5219 bytes) and is
+   linked from the per-domain list in `CLAUDE.md` (per-domain guides line).
 
 ## Open Questions
 

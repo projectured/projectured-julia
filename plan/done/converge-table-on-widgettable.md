@@ -1,5 +1,12 @@
 # Converge Tables on WidgetTable (one table, GridLayout does the layout)
 
+> **✅ DONE (verified) — all phases complete.** The `Table` domain
+> (`TableTable`/`TableRow`/`TableColumn`/`TableCell`) and `TableToGraphics` no
+> longer exist under `package/`; `WidgetTable` is the single table abstraction
+> with a GridLayout-backed renderer reading geometry off `GridLayoutIoMap`.
+> Evidence cited per phase below. Note: source moved from `program/src/...` to
+> `package/<subpackage>/src/...` (domain, example, test).
+
 Make **`WidgetTable` the single table abstraction**. Delete the `Table` domain
 (`TableTable`/`TableRow`/`TableColumn`/`TableCell`) and its bespoke renderer
 `TableToGraphics` — they duplicate grid math and carry no value once `WidgetTable`
@@ -35,6 +42,13 @@ plan removes the duplication by:
 
 ## Phase 1 — Expose grid geometry on the GridLayout iomap
 
+**✅ DONE (verified):** `GridLayoutIoMap <: IoMap` added carrying `col_x`,
+`row_y`, `col_w`, `row_h`, `columns`, `row_count`, gaps and outer `w`/`h` cells —
+`package/domain/src/projection/primitive/LayoutToGraphics.jl:77-92`. GridLayout's
+`projection_print` constructs and returns it (`:756`); routing/forward helpers
+accept either iomap via `_LayoutChildrenIoMap = Union{ChildrenIoMap, GridLayoutIoMap}`
+(`:96`). Purely additive, as planned.
+
 ### File: `program/src/projection/primitive/LayoutToGraphics.jl`
 
 `GridLayoutToGraphicsCanvas` already computes `col_w`, `row_h`, `col_x`, `row_y`
@@ -55,6 +69,14 @@ knowing about tables.
 ---
 
 ## Phase 2 — Upgrade `WidgetTable` to the canonical table
+
+**✅ DONE (verified):** `@document struct WidgetTable` now holds
+`column_headers`/`row_headers`/`rows` as `CellVector` of document cells plus
+`column_count`, `padding`, `border_width`, `visible`, `selection` — matching the
+planned shape exactly at `package/domain/src/document/Widget.jl:1006-1016`. Cells
+are wrapped as `Document`s via `_table_cell_doc` (`:1019-1021`, passes Documents
+through, wraps raw values in `WidgetLabel`). The string convenience constructor
+`WidgetTable(position, headers::Vector, rows::Vector)` is kept (`:1047-1053`).
 
 ### File: `program/src/document/Widget.jl`
 
@@ -89,6 +111,18 @@ end
 
 ## Phase 3 — Rewrite `WidgetTableToGraphicsCanvas` on top of GridLayout
 
+**✅ DONE (verified):** `WidgetTableToGraphicsCanvas`'s `projection_print` builds a
+`GridLayout` from the recursed cell documents, projects it through `recursion`,
+reads geometry off the resulting `GridLayoutIoMap`, and overlays header fills,
+rules and selection bands —
+`package/domain/src/projection/primitive/WidgetToGraphics.jl:3026-3104`. Selection
+bands are ported (`_wt_selection_shape` / `_wt_highlight_rects`, `:2959-3024`)
+turning `∅` / `rows[r]∅` / `column_headers[c]∅` / `rows[r][c]∅` into 2-D rects from
+`col_x`/`row_y`. Cells are selectable: `map_reference_forward`/`backward`
+delegate to the GridLayout child iomaps (`:3116-3138`) and a gesture-aware
+`projection_read` does cell hit-testing and grid navigation (`:3215-3438`).
+Registered as `WidgetTable => WidgetTableToGraphicsCanvas(...)` (`:3600`).
+
 ### File: `program/src/projection/primitive/WidgetToGraphics.jl`
 
 `projection_print`:
@@ -120,6 +154,19 @@ routes clicks/scroll to children — reuse it for cell hit-testing.
 
 ## Phase 4 — Migrate consumers off the `Table` domain
 
+**✅ DONE (verified):** `CellTableToTable.jl` now defines `CellTableToWidgetTable`
+producing a `WidgetTable` (with `CellTableToTable` kept as a backward-compat alias)
+— `package/domain/src/projection/primitive/CellTableToTable.jl:36-69`. The SQL path
+uses `CellTableToWidgetTable()` then `WidgetTable → graphics`
+(`package/example/src/projection/Sql.jl:51-53`). Examples `make_table_document_example`
+/ `make_table_projection_example` build on `WidgetTable` projected through
+`WidgetToGraphics` (`package/example/src/document/Table.jl`,
+`package/example/src/projection/Table.jl`); `table_example`/`math_table_example`/
+`sql_table_example` are registered (`package/example/src/Examples.jl:80-132`). DB
+test (`package/test/src/external/DbCatalogTabularTest.jl`) asserts against the
+`CellTable`/SQL path. Grep confirms no live `TableTable`/`TableRow`/`TableColumn`/
+`TableCell` types remain (only doc comments reference the old name historically).
+
 Retarget everything that produced/rendered `TableTable` to `WidgetTable`:
 
 - `program/src/projection/primitive/CellTableToTable.jl` → produce a `WidgetTable`
@@ -140,6 +187,14 @@ Confirm there are no remaining references to the removed types before deletion
 
 ## Phase 5 — Delete the `Table` domain and its renderer
 
+**✅ DONE (verified):** No `document/Table.jl` (domain) and no `TableToGraphics.jl`
+exist anywhere under `package/` (glob `package/domain/src/**/Table*.jl` → none;
+the only `Table.jl` files are the *example* doc/projection on `WidgetTable`). The
+domain module include list has no Table-domain `include`
+(`package/domain/src/ProjecturedDomain.jl` — only `CellTableToTable.jl`). The
+dispatch table maps `WidgetTable => WidgetTableToGraphicsCanvas` with no
+`TableTable` entry (`WidgetToGraphics.jl:3600`).
+
 - Remove `program/src/document/Table.jl` and
   `program/src/projection/primitive/TableToGraphics.jl`.
 - Remove their `include` / `using` / `export` lines from `Projectured.jl` and the
@@ -152,6 +207,14 @@ final commit once the grep is clean.)
 ---
 
 ## Phase 6 — Tests
+
+**✅ DONE (verified):** Dedicated WidgetTable table tests exist:
+`package/test/src/projection/TableSelectionTest.jl` (whole cell/row/column/table
+selection bands in the WidgetTable → Graphics renderer, vocabulary
+`rows[r]∅`/`column_headers[c]∅`/`rows[r][c]∅`) and
+`package/test/src/projection/TableNavigationTest.jl` (grid navigation ported from
+the old renderer). The DB/SQL path is covered by
+`package/test/src/external/DbCatalogTabularTest.jl`.
 
 Per [testing.md](../testing.md) / CLAUDE.md, targeted helpers:
 

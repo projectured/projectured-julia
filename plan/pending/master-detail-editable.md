@@ -5,6 +5,20 @@
 > **read-only** detail. Do that one first. This plan upgrades the detail from an
 > inspection view to an editable one whose edits propagate into the master
 > document.
+>
+> **⏳ AUDIT (verified 2026-06-23): ALL STEPS OPEN.** The v1 prerequisite plan
+> `master-detail-document.md` is itself still in `plan/pending/` (not done), and
+> no MasterDetail document or projection exists in the codebase: there is no
+> `MasterDetail.jl` document, no `MasterDetailToWidget.jl` projection, and no
+> `detail_target`/`editable` predicate anywhere under `package/*/src/` (grep for
+> `MasterDetail`/`detail_target` finds only these plan files plus the unrelated
+> `package/domain/src/document/Component.jl`). The generic infrastructure this
+> plan *cites* does exist — `FocusingProjection`, `map_reference_backward`,
+> `_concat_path`/`_strip_prefix`, `ReplaceFocusPartOperation` live in
+> `package/kernel/src/projection/generic/Focusing.jl` (lines 33-125) — but those
+> predate this plan and are reference material, not deliverables. Nothing in this
+> plan has been built. Old `program/src/...` paths below map to
+> `package/kernel/src/projection/generic/Focusing.jl`.
 
 ## Context
 
@@ -50,18 +64,19 @@ identity and the **write/selection re-rooting** change.
 
 ## What this plan must add on top of v1
 
-1. **Detail-as-focus-of-master.** Replace the v1 read-only projected copy with one
+1. **⏳ OPEN.** **Detail-as-focus-of-master.** Replace the v1 read-only projected copy with one
    of the two mechanisms above. The `detail_target` resolver already yields the
    item node and its `ReferencePath`; feed that path into the focus.
+   *(Verified OPEN: no MasterDetail projection and no `detail_target` resolver exist; v1 not done.)*
 
-2. **Selection/operation re-rooting into the master.** The right pane's
+2. **⏳ OPEN.** **Selection/operation re-rooting into the master.** The right pane's
    `map_reference_backward` must produce a path **into the master subtree**
    (`master.<item-path>.<edit-suffix>`), not into a detached detail document, so
    `evaluate_operation` applies edits to the real node. Extend the base plan's
    slot-2 mapping accordingly; reuse `FocusingProjection._concat_path` /
    `_strip_prefix` if going the focus route.
 
-3. **Cache semantics under edits.** Edits change the master node, which interacts
+3. **⏳ OPEN.** **Cache semantics under edits.** Edits change the master node, which interacts
    with the dual-key cache (Resolved decision 1 of the base plan):
    - **id-preserving edits** (mutate a field of the existing node) keep the
      `by_id` hit valid — cache entry stays correct.
@@ -70,13 +85,13 @@ identity and the **write/selection re-rooting** change.
      and re-key it (already specified in the base plan — this plan just exercises
      it under real edits and adds the re-validation guard).
 
-4. **Master re-render on detail edit.** Because both panes read the same node
+4. **⏳ OPEN.** **Master re-render on detail edit.** Because both panes read the same node
    through reactive cells, a detail edit should invalidate the master pane's cells
    too. Verify the master tree actually re-renders (it should, via the shared
    node's cells) and that the cached detail state (sub-selection, collapse) is not
    clobbered by the re-render.
 
-5. **Editability scoping.** Not every detail target is sensibly editable (e.g. a
+5. **⏳ OPEN.** **Editability scoping.** Not every detail target is sensibly editable (e.g. a
    read-only DB catalog level vs an editable JSON value). Add an `editable`
    predicate (parallel to `detail_target`) so a master can declare which items get
    an editable detail and which stay inspection-only. DB catalog example: keep

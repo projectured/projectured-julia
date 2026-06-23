@@ -1,5 +1,7 @@
 # Injecting Projection — Generic Collection Decorator
 
+> **AUDIT (2026-06-23):** `InjectingProjection` and its supporting types (`InjectionSpec`, `InjectionSource`, `InjectingProjectionIoMap`, file `Injecting.jl`) **do not exist anywhere** in the codebase (grep across `package/` finds them only in this plan file). The codebase was restructured: source now lives under `package/<subpackage>/src/...`; the `FilteringProjection` "dual" cited below is real and lives at `package/kernel/src/projection/generic/Filtering.jl`. The only deliverable that is already satisfied is **Phase 3** — `TextToGraphics` already handles `TextGraphics` inline spans (see annotation there). Phases 1, 2, and 4 are OPEN.
+
 A domain-independent projection that splices extra elements into collection-based projection outputs at specified positions, with automatic reference index remapping — enabling any higher-level projection to insert additional elements into tightly-coupled spans without breaking the reference chain.
 
 ## Design Rationale
@@ -39,6 +41,8 @@ A projection pipeline like `JsonToSyntax → SyntaxToText → TextToGraphics` pr
 The `AnchoredLayout` (see `anchored-layout.md`) solves *overlay* positioning. This plan solves *inline* positioning: splicing elements *into* the collection flow so they participate in word-wrapping and reflow.
 
 ## Phase 1: InjectingProjection — Generic Collection Decorator
+
+**⏳ OPEN (verified):** No `Injecting.jl` exists under any `package/*/src/projection/generic/`. The `FilteringProjection` dual it mirrors lives at `package/kernel/src/projection/generic/Filtering.jl` (`FilteringProjection`, `FilteringProjectionIoMap`, `kept_indices::Vector{Int}` — confirmed). The target path should map to `package/kernel/src/projection/generic/Injecting.jl`.
 
 ### File: `program/src/projection/generic/Injecting.jl`
 
@@ -124,6 +128,8 @@ For events routed to an injected element (`index_map[j] == 0`): look up the corr
 For events routed to an original element: remap the index back to input space and forward to the inner projection.
 
 ## Phase 2: Usage Pattern — Graph-Based Injection via InjectionSource
+
+**⏳ OPEN (verified):** Depends entirely on Phase 1 (`InjectingProjection` / `InjectionSource`), which is unbuilt. No collector wiring or `SequentialProjection` `ctx` threading of `original_input`/`accumulated_iomap` for injection purposes exists.
 
 `InjectingProjection` is a low-level mechanism. Injection specs are produced by a **collector** supplied as an `InjectionSource` — a callback called at print-time with the full pipeline context. This is the bridge between input-domain knowledge (e.g. which JSON element has an annotation) and injection-point-domain knowledge (which Text span to inject after).
 
@@ -221,6 +227,8 @@ No iomap rebuilding, no projection changes — the cell system propagates the in
 
 ## Phase 3: TextToGraphics TextGraphics Support
 
+**✅ DONE (verified):** `TextToGraphics` already handles `TextGraphics` inline spans as an atomic word-wrappable box. See `package/domain/src/projection/primitive/TextToGraphics.jl:303-325`: it reads `span.width`/`span.height`, extracts the embedded image via `_extract_image_data` (line 796), emits a `GraphicsImage` at `(cx, cy)`, records a `SegCoord` in `coord_map` for hit-testing (line 310), advances the cursor by `img_w`, and grows `line_h` by `img_h`. The `TextGraphics` document type itself exists at `package/domain/src/document/Text.jl:203` (fields `content::Document`, `width::Int32`, `height::Int32`, reactive cells). NOTE: the "line 219 skips non-`TextString`" premise is stale — the skip guard is now at lines 327/532/561 and is reached only *after* the `TextGraphics` branch. The implemented design differs from the plan's hypothesis: sizing uses `width`/`height::Int32` cells + an embedded `ImageDocument`, not a `w`/`h`-bearing `GraphicsCanvas` sub-projection. Reflow on cell change is reactive as the plan intended.
+
 ### File: `program/src/projection/primitive/TextToGraphics.jl`
 
 `TextToGraphics` currently skips non-`TextString` spans (line 219: `span isa TextString || continue`). To support inline graphics injected by `InjectingProjection`, add handling for `TextGraphics`:
@@ -236,6 +244,8 @@ This makes `TextGraphics` a first-class inline element that participates in word
 
 ## Phase 4: Integration
 
+**⏳ OPEN (verified):** `package/projectured/src/Projectured.jl` contains no `include(".../Injecting.jl")` and no `InjectingProjection`/`InjectingProjectionIoMap`/`InjectionSpec` export (grep finds zero matches). Depends on Phase 1.
+
 ### File: `program/src/Projectured.jl`
 
 - Add `include("projection/generic/Injecting.jl")`
@@ -243,10 +253,10 @@ This makes `TextGraphics` a first-class inline element that participates in word
 
 ## Implementation Steps
 
-1. Create `InjectingProjection` in `projection/generic/Injecting.jl` with index remapping
-2. Add `TextGraphics` handling to `TextToGraphics` word-wrap engine
-3. Wire into `Projectured.jl`
-4. Add tests
+1. **⏳ OPEN (verified):** Create `InjectingProjection` in `projection/generic/Injecting.jl` with index remapping — file/types do not exist.
+2. **✅ DONE (verified):** Add `TextGraphics` handling to `TextToGraphics` word-wrap engine — implemented at `package/domain/src/projection/primitive/TextToGraphics.jl:303-325` (see Phase 3 annotation).
+3. **⏳ OPEN (verified):** Wire into `Projectured.jl` — no include/export present in `package/projectured/src/Projectured.jl`.
+4. **⏳ OPEN (verified):** Add tests — no `Injecting*` tests exist (grep across repo finds the symbols only in this plan file).
 
 ## Future Extensions
 

@@ -1,5 +1,15 @@
 # Excel-style Julia Formulas
 
+> **AUDIT (2026-06-23):** Phases 1–3, most of 4, and 7 are implemented and
+> registered. Phase 5 (operations + insertion parsing) and Phase 6 (embedding in
+> Table/Text) are still OPEN; the global-default view switch in Phase 4 and the
+> `test_printer`/`test_reader`/`test_text_navigation` sweep in Phase 8 are OPEN.
+> Source: `package/domain/src/document/Formula.jl`,
+> `package/domain/src/projection/primitive/FormulaToSyntax.jl`,
+> `package/example/src/{document,projection}/Formula.jl`,
+> `package/test/src/projection/FormulaToSyntaxTest.jl`. Tests could not be
+> executed (no Julia in audit environment); status is from static code evidence.
+
 A domain for **named, cross-referencing, evaluated formulas** whose code is a
 Julia expression. A formula renders either as its *code*, as its *evaluated
 result*, or as *both*; formulas reference each other by name; the reference graph
@@ -81,6 +91,14 @@ spreadsheet's `A1`) is just one naming convention among others.
 
 ## Phase 1 — Formula domain types
 
+**✅ DONE (verified):** `FormulaModule` exists at
+`package/domain/src/document/Formula.jl` with `FormulaDocument`,
+`FormulaInsertion`, `FormulaReference`, `FormulaFormula`, `FormulaEnvironment`
+(lines 51–143), and is registered via `include("document/Formula.jl")` in
+`package/domain/src/ProjecturedDomain.jl:91`. NOTE: `FormulaInsertion` holds a
+`value::String` buffer but its **commit/parse-into-`FormulaFormula`** is NOT
+implemented — see Phase 5.
+
 ### File: `program/src/document/Formula.jl` (`FormulaModule`)
 
 ```
@@ -122,6 +140,13 @@ Register in `Projectured.jl`: `include`, `using`, `export` (mirroring the
 
 ## Phase 2 — Environment, dependency graph, cycle detection
 
+**✅ DONE (verified):** All query/graph functions present in `Formula.jl`:
+`resolve` (155), `column_letter` (169), `cell_name` (187),
+`formula_references`/`formula_dependencies` (194, 227),
+`would_create_cycle` (245), `topological_order` (267). Covered by tests in
+`package/test/src/projection/FormulaToSyntaxTest.jl` (`would_create_cycle`,
+`topological_order`, `cell_name`/`column_letter` boundaries).
+
 ### File: `program/src/document/Formula.jl` (query/graph API, same module)
 
 - `resolve(env, name) -> FormulaFormula | nothing` — name lookup (built over a
@@ -142,6 +167,14 @@ document is never allowed to enter a cyclic state.
 ---
 
 ## Phase 3 — Evaluation
+
+**✅ DONE (verified):** Implemented as a section of `Formula.jl`:
+`formula_to_expr`/`_to_expr` (316–375), `evaluate_formula` (385) with a sandbox
+scratch module (`_FORMULA_SCRATCH`, 294) mirroring the Mcp eval pattern,
+reactive wiring via `wire_result!` (439) setting `result` to
+`Cell(() -> evaluate_formula(...))`, and the `_EVALUATING` cycle safety net
+(306, 386 returning `#CYCLE!`). Reactive recompute and safety-net behaviour are
+tested.
 
 ### File: `program/src/document/FormulaEvaluator.jl` (or a section of `Formula.jl`)
 
@@ -169,6 +202,19 @@ the named, reactive, cross-referencing evolution of that idea — reuse
 ---
 
 ## Phase 4 — Projections
+
+**✅ MOSTLY DONE (verified):** `FormulaToSyntaxModule` exists at
+`package/domain/src/projection/primitive/FormulaToSyntax.jl`, registered in
+`ProjecturedDomain.jl:140`. Implements `FormulaReferenceToSyntaxLeaf` (renders
+`target.name` reactively, 77–88), `FormulaFormulaToSyntaxNode` with the three
+`:code`/`:result`/`:both` layouts selected by `display_mode` (103–206, including
+School-A `map_reference_forward`/`backward`), `FormulaEnvironmentToSyntaxNode`
+(one-per-line list, 212–267), and the `FormulaToSyntax()` constructor merging the
+Julia dispatch table (279–287). **⏳ OPEN sub-item:** the AlternativeProjection
+mode cell is realised directly via a `display_mode`-driven `CellVector` rather
+than `AlternativeProjection`, and the **global default via
+`ProjectionConfiguringProjection`** is NOT wired (no reference anywhere). Only the
+per-formula toggle exists.
 
 ### File: `program/src/projection/primitive/FormulaToSyntax.jl`
 
@@ -206,6 +252,13 @@ Register the projection in `Projectured.jl` (include / using / export).
 
 ## Phase 5 — Operations (reader side)
 
+**⏳ OPEN (verified absent):** No `SetFormulaDisplayModeOperation`,
+`RenameFormulaOperation`, or `InsertFormulaReferenceOperation` exist anywhere
+(grep across `package/` finds these names only in this plan file). `FormulaToSyntax`
+defines no custom `projection_read`. `FormulaInsertion` commit/parse is also not
+implemented (Phase 1). Cycle-checked reference insertion is therefore not wired,
+even though the underlying `would_create_cycle` check exists (Phase 2).
+
 - `SetFormulaDisplayModeOperation` — cycle `:code → :result → :both` on the
   selected formula (bound to a key, e.g. a toggle).
 - `RenameFormulaOperation` — set `name`; references need no update (they display
@@ -224,6 +277,12 @@ consistent with how other domains add structural operations.
 
 ## Phase 6 — Embedding in host domains
 
+**⏳ OPEN (verified absent):** No Formula type is used in any Table/Tabular/Text
+domain or projection (grep for `Formula` across `package/domain/src/document/`
+and `.../projection/` returns only `FormulaToSyntax.jl`). No example or test
+embeds a `FormulaFormula` in a `TableCell` or in `TextText` prose. The claim
+"no host domain needs changes" is plausible but unexercised.
+
 - **Table.** A `TableCell.content` holds a `FormulaFormula`; the table's name
   thunk is set to `cell_name(col, row)`. The existing `TableToGraphics` /
   `CellTableToTable` path already recurses cell content, so once `FormulaToSyntax`
@@ -241,6 +300,16 @@ consistent with how other domains add structural operations.
 
 ## Phase 7 — Example
 
+**✅ DONE (verified):** `package/example/src/document/Formula.jl` defines
+`make_formula_document_example()` (A1/B1/A2=A1+B1 plus a free-standing `tax`
+formula, `:both` view). `package/example/src/projection/Formula.jl` defines
+`make_formula_projection_example()` as the
+`SequentialProjection(RecursiveProjection(FormulaToSyntax()), …)` pipeline. Both
+files are included in `ProjecturedExample.jl` (lines 40, 82) and
+`formula_example` is registered in `Examples.jl:147` and the examples list
+(179), so `run_example("formula")` resolves. NOTE: the example does not embed a
+formula in text (Phase 6).
+
 - `example/src/document/Formula.jl` — `make_formula_document_example()`: a small
   `FormulaEnvironment` (or a `TableTable` of formula cells) with `A1`, `B1`,
   `A2 = A1 + B1`, showing cross-references and a `:both` view; plus one
@@ -254,6 +323,15 @@ consistent with how other domains add structural operations.
 ---
 
 ## Phase 8 — Tests
+
+**✅ MOSTLY DONE (verified):** `package/test/src/projection/FormulaToSyntaxTest.jl`
+defines `test_formula_to_syntax()` covering: view modes (code/result/both),
+reference renders+tracks renames, evaluation `A2=A1+B1` with reactive recompute,
+`would_create_cycle` rejection, the cycle safety-net error result,
+`column_letter`/`cell_name` boundaries, environment one-per-line, and
+`topological_order`. Registered in `ProjecturedTest.jl` (include 48, call 128,
+export 218). **⏳ OPEN sub-item:** no `test_printer`/`test_reader`/
+`test_text_navigation` is run on `formula_example` (the last bullet below).
 
 Per the testing conventions ([testing.md](../testing.md), CLAUDE.md), add targeted
 helpers — do not lean on `test_all`:
@@ -272,14 +350,16 @@ helpers — do not lean on `test_all`:
 
 ## Implementation order
 
-1. Phase 1 domain types + registration.
-2. Phase 2 environment, naming, dependency graph, cycle detection.
-3. Phase 3 evaluation (reactive `result` cell + safety net).
-4. Phase 4 projections (code / result / both + reference-by-name), composed with
-   `JuliaToSyntax`.
-5. Phase 5 operations (display-mode toggle, rename, cycle-checked reference insert).
-6. Phase 6 embedding (table first, then text/inline).
-7. Phases 7–8 example + tests.
+1. **✅ DONE** — Phase 1 domain types + registration.
+2. **✅ DONE** — Phase 2 environment, naming, dependency graph, cycle detection.
+3. **✅ DONE** — Phase 3 evaluation (reactive `result` cell + safety net).
+4. **✅ DONE (global default ⏳ OPEN)** — Phase 4 projections (code / result / both
+   + reference-by-name), composed with `JuliaToSyntax`.
+5. **⏳ OPEN** — Phase 5 operations (display-mode toggle, rename, cycle-checked
+   reference insert; FormulaInsertion parse).
+6. **⏳ OPEN** — Phase 6 embedding (table first, then text/inline).
+7. **✅ DONE (formula_example printer/reader/navigation sweep ⏳ OPEN)** —
+   Phases 7–8 example + tests.
 
 ## Dependencies / prerequisites
 

@@ -11,6 +11,24 @@ maps *combinations and sequences of events* to gestures.
 
 ## Implementation status (2026-06-18)
 
+> **Audit 2026-06-23 (verified against current `package/` tree).** All four ✅
+> claims below re-confirmed in code after the restructure; the three ⏳ items are
+> still OPEN (not done). Path mapping for the audit:
+> - `program/src/editor/GestureRecognizer.jl` → `package/kernel/src/editor/GestureRecognizer.jl`
+> - `program/src/editor/Editor.jl` → `package/kernel/src/editor/Editor.jl`
+> - `program/src/backend/Sdl.jl` → `package/sdl/src/ProjecturedSdl.jl`
+> - `test/src/editor/GestureRecognizerTest.jl` → `package/test/src/editor/GestureRecognizerTest.jl`
+>
+> Evidence summary: `GestureRecognizer`/`recognize!`/`next_gesture!` defined at
+> `package/kernel/src/editor/GestureRecognizer.jl:66,99,133`; wired into `Editor`
+> (`recognizer::GestureRecognizer` field at `Editor.jl:51`, `next_gesture!` call
+> in `read!` at `Editor.jl:82`); SDL backend has **no** `MousePress(` construction
+> (synthesis removed — only doc comments remain, `ProjecturedSdl.jl:172,1911`);
+> recogniser test present and registered (`GestureRecognizerTest.jl`, included at
+> `package/test/src/ProjecturedTest.jl:89`). No `Gesture.jl`, no `@gesture_case`,
+> no `KeyGesture/ClickGesture/...` structs anywhere; `@event_case` still used in
+> ~14 reader files (deferred steps 1/2/6 confirmed OPEN).
+
 **The recognition-stage spine is implemented and tested.** During
 implementation the scope was split to manage risk (see "Decision: phased
 semantic depth" below); the first increment was deliberately reduced:
@@ -33,7 +51,7 @@ semantic depth" below); the first increment was deliberately reduced:
   roundtrips, repls, typeins (159), and the split-pane drag suite (31,
   confirming raw `MouseDown/Move/Up` still reach the splitter reader).
 
-**Deferred to follow-up increments (not yet implemented):**
+**Deferred to follow-up increments (not yet implemented):** *(audit 2026-06-23: all three still ⏳ OPEN — verified no `Gesture.jl` / `@gesture_case` / gesture structs exist, `@event_case` still in ~14 readers, no keymap.)*
 
 - ⏳ Distinct semantic gesture *types* + `@gesture_case` + migrating the ~14
   reader files to match gestures instead of raw events (original Phase 1
@@ -200,7 +218,7 @@ This keeps each step reviewable and never leaves the tree in a broken state.
 > `EventEnvelope` and queues synthesised gestures on `rec.pending`; a
 > `next_gesture!(rec, source)` helper drains that queue before pulling new input.
 
-### 1. `Gesture` types — `program/src/device/Gesture.jl` ⏳ deferred
+### 1. `Gesture` types — `program/src/device/Gesture.jl` ⏳ deferred (audit 2026-06-23: OPEN — no `Gesture.jl` and no gesture structs exist under `package/`)
 
 New `GestureModule`. Define `Gesture` (above) and constructors for the Phase-1
 gesture set that mirrors today's matched events plus the recognised composites:
@@ -209,7 +227,7 @@ gesture set that mirrors today's matched events plus the recognised composites:
 `ScrollGesture(dx, dy, x, y, mods)`. Include in
 [Projectured.jl](../../program/src/Projectured.jl) next to the device modules.
 
-### 2. `@gesture_case` macro — generalize `@event_case` ⏳ deferred
+### 2. `@gesture_case` macro — generalize `@event_case` ⏳ deferred (audit 2026-06-23: OPEN — no `@gesture_case` defined; `@event_case` unchanged at `package/kernel/src/device/EventCase.jl`)
 
 [EventCase.jl](../../program/src/device/EventCase.jl) is a first-match table over
 the event structs. Add a sibling `@gesture_case` (or extend `_EVENT_TYPES` to
@@ -217,7 +235,7 @@ include the gesture structs so the *same* macro matches both during migration).
 Same surface syntax — only the type table grows. Keep `@event_case` working so
 migration is incremental, file by file.
 
-### 3. `GestureRecognizer` — `program/src/editor/GestureRecognizer.jl` ✅ done
+### 3. `GestureRecognizer` — `program/src/editor/GestureRecognizer.jl` ✅ done (audit 2026-06-23: VERIFIED at `package/kernel/src/editor/GestureRecognizer.jl:66,99,133` — click-synthesis only, injectable clock; drag/multi-click state still ⏳)
 
 > Implemented with click synthesis only (queued on `rec.pending`, injectable
 > `clock` for deterministic tests). Drag/multi-click state shown below is ⏳.
@@ -255,7 +273,7 @@ recognize!(rec::GestureRecognizer, env::EventEnvelope) -> Union{Gesture, Nothing
 
 This subsumes the SDL backend's `MousePress` synthesis (step 5).
 
-### 4. Wire the recogniser into `Editor.read!` ✅ done
+### 4. Wire the recogniser into `Editor.read!` ✅ done (audit 2026-06-23: VERIFIED — `recognizer::GestureRecognizer` field at `package/kernel/src/editor/Editor.jl:51`, `next_gesture!(editor.recognizer, …)` at top of `read!`, `Editor.jl:82`; QuitEvent short-circuit + `Change(env, nothing)` seeding intact)
 
 > Implemented as `next_gesture!(editor.recognizer, () -> read_from_devices(...))`
 > at the top of the `read!` loop; the rest of `read!` (QuitEvent short-circuit,
@@ -275,7 +293,7 @@ change = projection_read(editor.projection, nothing, Change(gesture, nothing), e
 a `Gesture`; the threading invariant (gesture preserved unchanged through the
 chain) is unchanged.
 
-### 5. Remove `MousePress` synthesis from the SDL backend ✅ done
+### 5. Remove `MousePress` synthesis from the SDL backend ✅ done (audit 2026-06-23: VERIFIED — `package/sdl/src/ProjecturedSdl.jl` has zero `MousePress(` constructions; synthesis removed, only doc comments at lines 172 and 1911 note the recogniser now owns it)
 
 Strip the click-synthesis state and logic from
 [Sdl.jl](../../program/src/backend/Sdl.jl) (`last_down_*`, `pending_events`
@@ -284,7 +302,7 @@ press injection, ~L152–156, L1554–1572). The backend now emits only raw
 job. (Keep `MousePress` the *type* until readers migrate, or map
 `ClickGesture` ↔ the old reader expectations in step 6.)
 
-### 6. Migrate readers `@event_case` → `@gesture_case` ⏳ deferred
+### 6. Migrate readers `@event_case` → `@gesture_case` ⏳ deferred (audit 2026-06-23: OPEN — `@event_case` still present in ~14 reader files under `package/`, e.g. `package/kernel/src/projection/generic/Focusing.jl`, `package/domain/src/projection/primitive/SyntaxToText.jl`, `TextToGraphics.jl`, etc.; no gesture patterns used)
 
 For each of the 14 `@event_case` files, switch the scrutinee from the raw event
 to the gesture and the arms to gesture patterns. Phase-1 gestures carry the same
@@ -306,7 +324,7 @@ own commit; the generic `projection_read` bridge
 ([common/Projection.jl](../../program/src/common/Projection.jl)) is unaffected
 since it just unwraps `Change.gesture`.
 
-### 7. Tests ✅ done (for what landed)
+### 7. Tests ✅ done (for what landed) (audit 2026-06-23: VERIFIED — `package/test/src/editor/GestureRecognizerTest.jl` exists with the listed click/none/passthrough/queue cases via injectable clock + scripted source; registered at `package/test/src/ProjecturedTest.jl:89`. The drag/double-click test items remain ⏳.)
 
 - ✅ Recogniser unit tests added
   ([GestureRecognizerTest.jl](../../test/src/editor/GestureRecognizerTest.jl)):
@@ -323,6 +341,10 @@ since it just unwraps `Change.gesture`.
 ---
 
 ## Phase 2 — semantic keymap (optional, ships separately)
+
+> **Audit 2026-06-23: all of Phase 2 (A–D) is ⏳ OPEN.** No `Keymap` type, no
+> `device/Keymap.jl` (or equivalent under `package/`), no chord buffer, no intent
+> `Symbol`s in readers, and no `projection_available_gestures`. Not started.
 
 ### A. `Keymap` type
 

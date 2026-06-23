@@ -1,5 +1,19 @@
 # Separate domain gesture→operation mapping out of the projection
 
+> **✅ DONE (verified 2026-06-23):** Every step below is implemented in the
+> current (restructured) codebase. `document_read` is declared in
+> `package/kernel/src/api/Document.jl` (L53–67, exported L11), implemented for the
+> Text domain in `package/domain/src/document/Text.jl` (`document_read(::TextText, …)`
+> L303) and the Syntax domain in `package/domain/src/document/Syntax.jl`
+> (`document_read(::SyntaxNode, …)` L403, with `_tree_navigate`/`_is_tree_selection`/
+> `_promote_to_structural`/`_descend_to_text_cursor` relocated here, L432/495/512/537).
+> Both `TextToGraphics` (L108, L133) and `SyntaxToText` (L297) delegate, and the
+> console fallback is wired in `SyntaxToText` (L264–267). Re-export is automatic via
+> the mechanical loop in `package/projectured/src/Projectured.jl`. Docs updated in
+> `documentation/projection-system.md` (L177), `documentation/document/text.md`,
+> `documentation/document/syntax.md`. Console editing test in
+> `package/test/src/backend/ConsoleBackendTest.jl` (L164 "character editing").
+
 Move the **domain-document-specific** gesture→operation mapping (the
 geometry-independent navigation and editing logic) out of the projection reader
 and into the **domain document source file**. Today that logic lives inside
@@ -101,6 +115,10 @@ driven via `_node_at_collapse_glyph` / `_pos_to_tree_selection`.)
 
 ### 1. New document-layer generic: `document_read`
 
+**✅ DONE (verified):** declared in `package/kernel/src/api/Document.jl` L53–67
+(`function document_read end`; default `document_read(::Document, gesture) = nothing`
+L67) and exported from `DocumentApiModule` (L11). Matches the signature below.
+
 Declare in
 [program/src/api/Document.jl](../../program/src/api/Document.jl) (the natural
 home — it already declares the document-level `clear_selection!` /
@@ -137,6 +155,14 @@ it is a pure rename; the shape is what matters.
 
 ### 2. Text domain — `program/src/document/Text.jl`
 
+**✅ DONE (verified):** `document_read(text::TextText, evt)` implemented in
+`package/domain/src/document/Text.jl` L303 (KeyPress char insert, Backspace/Delete,
+left/right + word motion, Ctrl+Home/End, the Ctrl+. recognition, and the
+Alt-arrow/structural-arrow/Tab decline rules). Relocated helpers (`_step_left`,
+`_word_step_*`, `_build_selection_path`, `_cursor_position`, `_is_structural_selection`,
+`span_infos` table) live alongside it; `document_read` imported L38, exported via the API.
+(Old path `program/src/document/Text.jl` → `package/domain/src/document/Text.jl`.)
+
 Add `document_read(text::TextText, gesture)` methods covering the
 geometry-independent set above. Relocate (don't rewrite) the helpers they need
 from `TextToGraphics`:
@@ -152,6 +178,12 @@ via `OperationApiModule`); confirm/extend the imports.
 
 ### 3. Syntax domain — `program/src/document/Syntax.jl`
 
+**✅ DONE (verified):** `document_read(node::SyntaxNode, evt)` implemented in
+`package/domain/src/document/Syntax.jl` L403; `_tree_navigate` (L432), `_is_tree_selection`
+(L495), `_promote_to_structural` (L512), `_descend_to_text_cursor` (L537) moved here and
+no longer defined in `SyntaxToText.jl` (grep for their `function` defs there: none).
+(Old path → `package/domain/src/document/Syntax.jl`.)
+
 Add `document_read(node::SyntaxNode, gesture)` handling Ctrl+Alt+Home (root
 select), Ctrl+Space (structural⇄text toggle), and Alt/structural arrows. Move
 `_tree_navigate`, `_is_tree_selection`, `_promote_to_structural`,
@@ -160,6 +192,13 @@ into `Syntax.jl`. These already operate purely on the `SyntaxNode` and its
 selection path.
 
 ### 4. Projection readers delegate
+
+**✅ DONE (verified):** `TextToGraphics` delegates — KeyPress reader L108
+(`document_read(iomap.input, evt)`), KeyDown reader L133, with geometry arms and the
+decline-guard re-application retained (L142+); MousePress stays. `SyntaxToText`
+(`SyntaxNodeToText`) KeyDown reader delegates at L297. Files:
+`package/domain/src/projection/primitive/TextToGraphics.jl`,
+`package/domain/src/projection/primitive/SyntaxToText.jl`.
 
 - **`TextToGraphics`**: at the top of `projection_read(p, iomap, evt)`, try
   `op = document_read(iomap.input, evt); op === nothing || return op`. Keep only
@@ -175,6 +214,13 @@ selection path.
   Land whichever plan first and have the second rebase onto it.
 
 ### 5. The console payoff — reuse the existing `SyntaxToText` reader (no new projection)
+
+**✅ DONE (verified):** the empty-operation-slot fallback is in `SyntaxToText`'s 4-arg
+`Change` reader, `package/domain/src/projection/primitive/SyntaxToText.jl` L264–267:
+`if result === nothing && op === nothing; text_op = document_read(iomap.output, gesture)`
+… routed back through the existing op-typed readers. No new projection added. Console
+character editing is exercised by `package/test/src/backend/ConsoleBackendTest.jl`
+L164 ("character editing" testset).
 
 The console pipeline already contains `SyntaxToText`, the projection whose
 **output is the `TextText`**. No new projection is needed: extend that existing
@@ -239,6 +285,13 @@ Each phase is independently shippable and leaves the tree green.
   `test_example(xml_example)`.
 
 ## Files
+
+**✅ DONE (verified):** all edits below landed (mapped to the restructured
+`package/<subpackage>/src/...` layout). The re-export is now automatic — the mechanical
+loop in `package/projectured/src/Projectured.jl` re-exports every public name (including
+`document_read`), so no hand-edit there was needed. Docs updated in
+`documentation/projection-system.md` (L177), `documentation/document/text.md`,
+`documentation/document/syntax.md`.
 
 - **Edit:** `program/src/api/Document.jl` (declare `document_read` + default).
 - **Edit:** `program/src/document/Text.jl` (text `document_read` + relocated helpers).

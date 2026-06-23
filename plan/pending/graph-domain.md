@@ -1,5 +1,14 @@
 # Graph Domain
 
+> **AUDIT (2026-06-23):** All v1 phases are implemented and verified against the
+> current codebase (paths now under `package/<subpackage>/src/...`). The graph
+> domain, layout documents, fallback engine, both projections, the new graphics
+> primitives + all three backend renderers, the example, and the tests all exist.
+> The **only** unimplemented item is the optional `AdaptagramsEngine` native FFI
+> (the plan's own last step, gated on an Adaptagrams JLL / C shim) — it ships as a
+> documented erroring stub, with `FallbackLayoutEngine` the working default.
+> Per-step status is annotated inline below.
+
 A domain for **graphs** — vertices and edges — where a vertex's content is an
 arbitrary `Document` (a table, an XML tree, JSON, even another graph) and an edge
 connects two vertices. Graphs are laid out by an external constraint-based engine
@@ -15,17 +24,17 @@ placement.
 
 ## Goals (from the brainstorm)
 
-1. **Vertices + edges.** A graph is vertices and edges; an edge connects two
-   vertices (held by identity).
-2. **A vertex can be anything.** `GraphVertex.content::Document` accepts any
-   domain — table, XML, JSON, … — rendered via the shared recursion.
-3. **Layout documents with constraints.** First-class `GraphLayout`,
+1. **✅ DONE (verified):** **Vertices + edges.** A graph is vertices and edges; an edge connects two
+   vertices (held by identity). — `package/domain/src/document/Graph.jl` (`GraphGraph`, `GraphVertex`, `GraphEdge`).
+2. **✅ DONE (verified):** **A vertex can be anything.** `GraphVertex.content::Document` accepts any
+   domain — table, XML, JSON, … — rendered via the shared recursion. — `Graph.jl:55` `content::Document`; example mixes WidgetTable/Json/Xml.
+3. **✅ DONE (verified):** **Layout documents with constraints.** First-class `GraphLayout`,
    `VertexLayout`, `EdgeLayout` documents (mirroring `Layout.jl` /
-   `LayoutConstraint`) hold positions, sizes, edge routes, and layout constraints.
-4. **Graph → Graphics projection.** Nodes render as finite-size boxes; edges as
-   splines or polylines (with arrowheads).
-5. **External layout engine.** Adaptagrams via FFI — libcola places nodes,
-   libavoid routes edges — behind a swappable `GraphLayoutEngine` interface.
+   `LayoutConstraint`) hold positions, sizes, edge routes, and layout constraints. — `package/domain/src/document/GraphLayout.jl` (also `GraphConstraint`).
+4. **✅ DONE (verified):** **Graph → Graphics projection.** Nodes render as finite-size boxes; edges as
+   splines or polylines (with arrowheads). — `GraphLayoutToGraphics.jl` (GraphicsRect boxes + GraphicsPolyline with `end_arrow`).
+5. **⏳ PARTIAL:** **External layout engine.** Adaptagrams via FFI — libcola places nodes,
+   libavoid routes edges — behind a swappable `GraphLayoutEngine` interface. — Interface + `FallbackLayoutEngine` DONE (`GraphLayoutEngine.jl`); `AdaptagramsEngine` is an erroring stub (`GraphLayoutEngine.jl:155-160`), OPEN (the plan's own last step).
 
 ## Scope of v1
 
@@ -66,6 +75,14 @@ re-runs only when topology or a vertex size actually changes.
 
 ## Phase 1 — Graphics primitives for edges
 
+**✅ DONE (verified):** `GraphicsPolyline` + `GraphicsSpline` exist in
+`package/domain/src/document/Graphics.jl` (lines 197/232) with `tessellate_spline`,
+`polyline_arrowhead`, `point_near_polyline` helpers (exported lines 28). Hit-testing
+for both primitives at `Graphics.jl:594-598`; bounds at `Graphics.jl:674-679`.
+Backend renderers: SDL `package/sdl/src/ProjecturedSdl.jl:811-866`, PDF native
+vector path `package/domain/src/backend/Pdf.jl:418-458`, Web draw-list op
+`package/web/src/ProjecturedWeb.jl:223-233` + `package/web/assets/client.js:193,268`.
+
 ### File: `program/src/document/Graphics.jl`
 
 Add reactive primitives alongside `GraphicsLine` / `GraphicsCircle`:
@@ -101,6 +118,12 @@ add edge hit-testing here while the primitive is fresh.
 ---
 
 ## Phase 2 — Graph domain types
+
+**✅ DONE (verified):** `package/domain/src/document/Graph.jl` defines
+`GraphDocument`, `GraphInsertion`, `GraphVertex` (`content::Document`),
+`GraphEdge` (`source`/`target`/`directed`/`label`), `GraphGraph`
+(`vertices`/`edges`/`selection`) exactly as specified. Registered in
+`package/domain/src/ProjecturedDomain.jl:85`.
 
 ### File: `program/src/document/Graph.jl` (`GraphModule`)
 
@@ -144,6 +167,12 @@ Register in `Projectured.jl` (include / using / export), per the
 
 ## Phase 3 — Graph-layout documents + constraints
 
+**✅ DONE (verified):** `package/domain/src/document/GraphLayout.jl` defines
+`VertexLayout` (`vertex,x,y,w,h,pinned`), `EdgeLayout` (`edge,route,source_port,
+target_port`), `GraphLayout` (`vertex_layouts,edge_layouts,direction,node_sep,
+rank_sep`), and `GraphConstraint` (`target,kind,payload`). Registered in
+`ProjecturedDomain.jl:86`.
+
 ### File: `program/src/document/GraphLayout.jl` (`GraphLayoutModule`)
 
 Geometry layer mirroring `Layout.jl` / `LayoutConstraint`:
@@ -178,6 +207,13 @@ Geometry layer mirroring `Layout.jl` / `LayoutConstraint`:
 ---
 
 ## Phase 4 — GraphLayoutEngine interface + Adaptagrams FFI
+
+**⏳ PARTIAL:** Interface + `FallbackLayoutEngine` **✅ DONE** in
+`package/domain/src/layout/GraphLayoutEngine.jl` (abstract `GraphLayoutEngine`,
+`layout_graph`, grid placement + border-to-border routing, registered
+`ProjecturedDomain.jl:87`). `AdaptagramsEngine` is an erroring stub
+(`GraphLayoutEngine.jl:155-160`) — **OPEN** (libcola/libavoid FFI; gated on a JLL /
+C shim, the plan's own deferred final step).
 
 ### File: `program/src/layout/GraphLayoutEngine.jl`
 
@@ -217,6 +253,12 @@ purely functional); it re-runs only when that key changes.
 
 ## Phase 5 — GraphToGraphLayout projection
 
+**✅ DONE (verified):** `package/domain/src/projection/primitive/GraphToGraphLayout.jl`
+(`GraphGraphToGraphLayout`): recurses vertex content to measure w/h, memoizes the
+engine call in a reactive cell keyed on sizes/topology, builds `GraphLayout`, and
+maps `vertices[i].rest…` ↔ `vertex_layouts[i].vertex.rest…` forward/backward.
+Registered `ProjecturedDomain.jl:123`.
+
 ### File: `program/src/projection/primitive/GraphToGraphLayout.jl`
 
 The chicken-and-egg step: **sizing precedes placement.**
@@ -238,6 +280,13 @@ vertex content round-trips.
 ---
 
 ## Phase 6 — GraphLayoutToGraphics projection
+
+**✅ DONE (verified):**
+`package/domain/src/projection/primitive/GraphLayoutToGraphics.jl`
+(`GraphLayoutToGraphicsCanvas`): edges drawn first as `GraphicsPolyline`
+(`end_arrow=edge.directed`), then node `GraphicsRect` boxes with recursed content
+canvases on top; `ChildrenIoMap`-style child iomaps; forward mapper routes
+`vertex_layouts[i].vertex.content.rest…`. Registered `ProjecturedDomain.jl:124`.
 
 ### File: `program/src/projection/primitive/GraphLayoutToGraphics.jl`
 
@@ -261,6 +310,11 @@ needed — these go straight to a `GraphicsCanvas`, like `TableToGraphics`).
 
 ## Phase 7 — Selection / navigation (read path, v1)
 
+**✅ DONE (verified):** Forward/backward mappers in Phases 5–6 descend
+`graph → vertices[i] → content`; mouse click-to-select routes into node content via
+`_route_click`/`_forward_to_selected` in `GraphLayoutToGraphics.jl:147-193`,
+emitting a `ReplaceSelectionOperation` rooted at `vertex_layouts[i].vertex.content`.
+
 - Forward/backward mappers in Phases 5–6 already let the selection descend
   `graph → vertices[i] → content → …` into a vertex's own domain, where that
   domain's existing readers take over (cursor movement, char edit within a table
@@ -274,6 +328,14 @@ needed — these go straight to a `GraphicsCanvas`, like `TableToGraphics`).
 
 ## Phase 8 — Example
 
+**✅ DONE (verified):** `package/example/src/document/Graph.jl`
+(`make_graph_document_example` — WidgetTable + JsonObject + XmlElement vertices,
+directed/undirected edges) and `package/example/src/projection/Graph.jl`
+(`make_graph_projection_example` — `GraphGraphToGraphLayout`+`GraphLayoutToGraphicsCanvas`
+under a `NestingProjection`, default `FallbackLayoutEngine`). Registered as
+`graph_example` in `package/example/src/Examples.jl:82` and exported from
+`ProjecturedExample.jl:144,191`.
+
 - `example/src/document/Graph.jl` — `make_graph_document_example()`: a small graph
   whose vertices are *different domains* (one `TableTable`, one `JsonObject`, one
   `XmlElement`) with a few directed edges, to show "a vertex can be anything."
@@ -286,6 +348,12 @@ needed — these go straight to a `GraphicsCanvas`, like `TableToGraphics`).
 ---
 
 ## Phase 9 — Tests
+
+**✅ DONE (verified):** `package/test/src/projection/GraphTest.jl` (`test_graph`)
+covers all listed cases: edge primitives (construct/tessellate/hit-test/arrowhead),
+`FallbackLayoutEngine` (disjoint placement, route endpoints), `GraphToGraphLayout`
+sizing + reactivity, `GraphLayoutToGraphics` printer (boxes/content/directed-edge
+arrow), and selection descending into vertex content.
 
 Targeted helpers per [testing.md](../testing.md) / CLAUDE.md (not `test_all`):
 
@@ -304,16 +372,18 @@ Targeted helpers per [testing.md](../testing.md) / CLAUDE.md (not `test_all`):
 
 ## Implementation order
 
-1. Phase 1 graphics primitives + backend renderers + hit-tests.
-2. Phase 2 graph domain types.
-3. Phase 3 graph-layout documents + constraints.
-4. Phase 4 engine interface + `FallbackLayoutEngine` (Adaptagrams FFI can land in
+1. **✅ DONE** Phase 1 graphics primitives + backend renderers + hit-tests.
+2. **✅ DONE** Phase 2 graph domain types.
+3. **✅ DONE** Phase 3 graph-layout documents + constraints.
+4. **✅ DONE** Phase 4 engine interface + `FallbackLayoutEngine` (Adaptagrams FFI can land in
    parallel / later behind the same interface).
-5. Phase 5 GraphToGraphLayout (sizing + engine call).
-6. Phase 6 GraphLayoutToGraphics.
-7. Phase 7 read path (selection into vertex content).
-8. Phases 8–9 example + tests.
-9. Adaptagrams build (`Adaptagrams_jll` or C shim) + `AdaptagramsEngine`.
+5. **✅ DONE** Phase 5 GraphToGraphLayout (sizing + engine call).
+6. **✅ DONE** Phase 6 GraphLayoutToGraphics.
+7. **✅ DONE** Phase 7 read path (selection into vertex content).
+8. **✅ DONE** Phases 8–9 example + tests.
+9. **⏳ OPEN** Adaptagrams build (`Adaptagrams_jll` or C shim) + `AdaptagramsEngine`.
+   (Only remaining item; `AdaptagramsEngine` ships as an erroring stub behind the
+   working `FallbackLayoutEngine` default.)
 
 ## Dependencies / prerequisites
 

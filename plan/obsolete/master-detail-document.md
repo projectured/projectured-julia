@@ -4,6 +4,25 @@
 > review and refine before any code is written. The "Open decisions" section at the
 > end lists the choices that should be settled first.
 
+> **⛔ OBSOLETE (verified 2026-06-23): this specific design was NOT taken; the
+> master/detail feature was instead realized via the Component layer.** None of
+> this plan's named artifacts exist anywhere under `package/` — grep for
+> `MasterDetailMasterDetail`, `MasterDetailToWidget`, `MasterDetailModule`,
+> `MasterDetailDocument`, `DetailCache`, `DetailEntry`, `master_detail_example`,
+> `master_projection`, `detail_projection`, `detail_target` returns matches only in
+> this file and the follow-up `master-detail-editable.md`. Instead, a different
+> master/detail design was implemented: `ComponentMasterDetail`
+> (`package/domain/src/document/Component.jl:62`, in `ComponentModule`), a simpler
+> document with fields `master` / `detail` / `selected_item` / `master_title` /
+> `detail_title` / `split_ratio` / `selection` — it has **no** `DetailCache`
+> (dual `by_id`/`by_path` memo), **no** `orientation` field, **no** `detail_target`
+> resolver, and **no** split into separate `master_projection`/`detail_projection`
+> configs. The ongoing master/detail work is tracked under
+> [component-document.md](component-document.md) (document DONE; `ComponentToWidget`
+> projection and examples still OPEN there). This plan's standalone
+> `MasterDetail*`-typed architecture and its four NEW files are therefore
+> superseded and will not be built as written.
+
 ## Goal
 
 A generic, reusable UI behaviour with **two coupled presentations**:
@@ -130,6 +149,12 @@ MasterDetail stays domain-agnostic: it never names `DbCatalog` or `FileSystem`.
 
 ## Document types — NEW `program/src/document/MasterDetail.jl`
 
+**⛔ OBSOLETE:** No `MasterDetail.jl` document file exists under `package/*/src/`
+(glob `**/MasterDetail*.jl` → none) and there is no `MasterDetailModule` /
+`MasterDetailMasterDetail` / `DetailCache` / `DetailEntry` anywhere. The
+master/detail document that *was* built is `ComponentMasterDetail` in
+`package/domain/src/document/Component.jl:62` (a different, cache-less design).
+
 `module MasterDetailModule`, included in `program/src/Projectured.jl` near the
 other high-level domains (Workbench/Workspace).
 
@@ -155,6 +180,11 @@ derived, not edited as a list); selection moves come through the existing
 `ReplaceSelectionOperation` machinery.
 
 ## Projection — NEW `program/src/projection/primitive/MasterDetailToWidget.jl`
+
+**⛔ OBSOLETE:** No `MasterDetailToWidget` projection exists (grep → only this file
+and `master-detail-editable.md`). The analogous projection for the chosen design
+(`ComponentToWidget`) is itself still unimplemented — see `component-document.md`,
+where it is tracked as OPEN.
 
 A `Projection` struct `MasterDetailToWidget` carrying **two independent
 projections** (Resolved decision 4) plus the target resolver:
@@ -214,6 +244,10 @@ Export a `MasterDetailToWidget` factory and register the type in the outer
 
 ## Examples — NEW `example/src/document/MasterDetail.jl` + `example/src/projection/MasterDetail.jl`
 
+**⛔ OBSOLETE:** No master/detail example files exist (no `MasterDetail.jl` under
+`package/example/src/`, no `master_detail_example`). The DB-catalog master/detail
+example is instead tracked (still OPEN) under `component-document.md`.
+
 Two concrete masters demonstrate genericity:
 
 1. **DB catalog master/detail** — master = a `DbCatalogRdbms` (built lazily via
@@ -240,6 +274,14 @@ Register `master_detail_example` in `example/src/ProjecturedExample.jl` and
 `example/src/Examples.jl`.
 
 ## Critical files
+
+**⛔ OBSOLETE:** None of the four "Create" files were created and the listed
+"Edit" registrations were never made for these types (no `MasterDetailModule`
+include/export in any `Projectured*.jl`; no `master_detail_example` in
+`example/src/Examples.jl`). The "Reference / reuse" files do still exist, just at
+remapped paths under `package/` (e.g.
+`package/domain/src/projection/primitive/WorkbenchToWidget.jl`,
+`package/kernel/src/projection/generic/Focusing.jl`).
 
 **Create**
 - `program/src/document/MasterDetail.jl`
