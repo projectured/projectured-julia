@@ -161,10 +161,11 @@ JsonObjectToSyntaxNode(; delim=StyleText(font_ubuntu_monospace_bold_24, color_so
 #     the whole key leaf;
 #   - `project(:value)` delegates the value subtree to its own projection (School A),
 #     so `.entries[i].value.<tail>` ↔ `.children[i].children[2].<tail>`.
-# Selection is wired by the builder: the pair node uses the entry's selection cell
-# so set_selection! propagates into it, and `_entry_key_sel` remaps the key cursor
-# `.key{k}` → the key leaf's `.value{k}`. Structural positions ({, }, :, separators)
-# are projection-introduced and map to a flat offset via the reader fallback below.
+# Selection is wired by the engine: the pair node uses the entry's selection cell
+# so set_selection! propagates into it, and `_fixed_print` auto-lenses the key
+# cursor `.key{k}` → the key leaf's `.value{k}` (KeySlot cursor wiring). Structural
+# positions ({, }, :, separators) are projection-introduced and map to a flat offset
+# via the reader fallback below.
 @projection_template JsonObjectToSyntaxNode JsonObject (p, doc) ->
     SyntaxNode(collection(:entries) do e
                    # The pair node is a *fixed-children template node*: the engine's
@@ -177,8 +178,7 @@ JsonObjectToSyntaxNode(; delim=StyleText(font_ubuntu_monospace_bold_24, color_so
                               TextString(": ", p.colon),
                               [ SyntaxLeaf(bound(:key, String, _hinted_text(() -> json_escape(e.key), () -> isempty(e.key), "enter key", p.key));
                                            open=TextString("\"", p.key),
-                                           close=TextString("\"", p.key),
-                                           selection=_entry_key_sel(getfield(e, :selection))),
+                                           close=TextString("\"", p.key)),
                                 project(:value) ],
                               0, false, getfield(e, :selection))
                end;
@@ -381,19 +381,6 @@ function json_escape(s::AbstractString)
         end
     end
     String(take!(buf))
-end
-
-# The key SyntaxLeaf reads entry.selection[], which stores paths like
-# CP(.key, [k]) when the cursor is in the key. The leaf's
-# _leaf_cursor expects CP(.value, [k]), so we remap "key" → "value".
-function _entry_key_sel(entry_sel::Cell)
-    Cell(() -> begin
-        sel = entry_sel[]
-        sel isa ConcreteReferencePath && sel.head isa ProjectionReference && return sel
-        @reference_case sel begin
-            key.rest... => @reference value.^(rest)
-        end
-    end)
 end
 
 end # module

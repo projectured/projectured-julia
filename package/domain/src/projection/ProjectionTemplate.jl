@@ -143,8 +143,30 @@ selection cell is swapped directly — no copy.
 function rule_print(p, recursion, doc, ctx, builder)
     out = builder(p, doc)
     coll_field, coll = _find_collection(out)
-    coll === nothing && return _atomic_print(p, doc, out)
-    return _node_print(p, recursion, doc, ctx, out, coll_field, coll)
+    coll !== nothing && return _node_print(p, recursion, doc, ctx, out, coll_field, coll)
+    # A node built with a raw children Vector (markers/leaves) but no Collection
+    # marker is a top-level fixed-children node (e.g. a record rendered as a row of
+    # bound/delegated/introduced leaves). Leaves have no such field.
+    _has_fixed_children(out) && return _fixed_print(p, recursion, doc, ctx, out)
+    return _atomic_print(p, doc, out)
+end
+
+_has_fixed_children(out) = any(fname -> getfield(out, fname)[] isa Vector, fieldnames(typeof(out)))
+
+# Selection cell for a bound child leaf of a fixed node: lens `doc.<in_field>{k}`
+# onto the leaf's own `.value{k}` span (the only shape `_leaf_cursor` understands);
+# pass a proj-wrapped structural cursor through unchanged.
+function _key_leaf_sel(doc, in_field::Symbol)
+    fname = String(in_field)
+    Cell(() -> begin
+        sel = doc.selection
+        sel isa ConcreteReferencePath && sel.head isa ProjectionReference && return sel
+        core = skip_type_checkpoints(sel)
+        if core isa ConcreteReferencePath && core.head isa FieldReference && core.head.name == fname
+            return ConcreteReferencePath(FieldReference("value"), core.tail)
+        end
+        return nothing
+    end)
 end
 
 # Locate a `Collection` marker among the built output's fields, if any.
@@ -158,10 +180,20 @@ end
 
 function _atomic_print(p, doc, out)
     wiring = _scan_atomic!(p, doc, out)
-    setfield!(out, :selection, wiring.bound_field === nothing ?
-        Cell(() -> map_reference_forward(p, nothing, doc.selection)) :   # opaque ⇒ map forward
-        getfield(doc, :selection))                                      # transparent ⇒ share cell
-    RuleIoMap(p, doc, out, wiring, nothing)
+    iomap = RuleIoMap(p, doc, out, wiring, nothing)
+    # Wire the output leaf's selection cell:
+    #   opaque (no bound field) ⇒ forward-map (∅↔∅, else unmapped).
+    #   bound on :value         ⇒ share doc's cell raw — the leaf's value span is
+    #                             literally `.value`, so the input cursor already
+    #                             reads as a leaf cursor (JSON/SQL fast path).
+    #   bound on another field  ⇒ value-lens: forward-map `.field{k}` to the leaf's
+    #                             `.value{k}` so `SyntaxToText._leaf_cursor` (which
+    #                             only knows `.value`/`.open`/`.close`) renders it.
+    setfield!(out, :selection,
+        wiring.bound_field === nothing ? Cell(() -> map_reference_forward(p, nothing, doc.selection)) :
+        wiring.bound_field === :value  ? getfield(doc, :selection) :
+                                         Cell(() -> map_reference_forward(p, iomap, doc.selection)))
+    iomap
 end
 
 # A node-shaped output: recurse over `doc.<input>` (School A), reconstruct the
@@ -240,17 +272,24 @@ function _fixed_print(p, recursion, doc, ctx, out)
         elseif child isa Collection
             error("ProjectionTemplate: nested collection inside a fixed-children node is not supported")
         else
-            w = _scan_atomic!(p, doc, child)   # strips a `bound` marker if present; keeps the child's selection
-            push!(slots, w.bound_field === nothing ? IntroSlot() :
-                  KeySlot(w.bound_field, w.bound_type, w.value_checkpoint))
+            w = _scan_atomic!(p, doc, child)   # strips a `bound` marker if present
+            if w.bound_field === nothing
+                push!(slots, IntroSlot())
+            else
+                # A bound child leaf renders its own cursor from its own selection
+                # cell, which `_leaf_cursor` reads as `.value{k}`. Lens the element's
+                # `.<bound_field>{k}` onto the leaf's `.value{k}` generically, so the
+                # builder needn't hand-wire it (this replaces JSON's `_entry_key_sel`).
+                setfield!(child, :selection, _key_leaf_sel(doc, w.bound_field))
+                push!(slots, KeySlot(w.bound_field, w.bound_type, w.value_checkpoint))
+            end
             push!(outputs, child)
         end
     end
     setproperty!(out, children_field, CellVector(Cell[Cell(o) for o in outputs]))
     # The fixed node is a real output node, so its selection cell must hold an
     # *output* path: forward-map the element's input selection through this node's
-    # own wiring (deferred-iomap trick, as the top node does). Child leaves keep
-    # the selection cells the element builder gave them.
+    # own wiring (deferred-iomap trick, as the top node does).
     iomap_cell = Cell(nothing)
     setfield!(out, :selection, Cell(() -> begin
         im = iomap_cell[]
