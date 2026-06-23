@@ -68,12 +68,28 @@ same and makes the feature strictly opt-in.
 
 ## Steps
 
-- [ ] `@projection` (package/kernel/src/common/Projection.jl)
-- [ ] `@document` (package/kernel/src/common/Document.jl) — incl. `IFoo` kw ctor
-- [ ] `@iomap` (package/kernel/src/common/IoMap.jl)
-- [ ] Verify by macro-expanding + constructing a throwaway type in Julia
-- [ ] Update documentation/macros.md (note defaults + that the kw ctor is the
-      one exception to "convenience ctors must be outer / hand-written")
+- [x] `@projection` (package/kernel/src/common/Projection.jl)
+- [x] `@document` (package/kernel/src/common/Document.jl) — incl. `IFoo` kw ctor
+- [x] `@iomap` (package/kernel/src/common/IoMap.jl)
+- [x] Verify by constructing throwaway types in Julia against `ProjecturedKernel`
+      (defaults, keyword-only semantics, required keywords, default-referencing-
+      earlier-field, snapshot/hydrate round-trip, and the no-default path *not*
+      gaining a keyword ctor). Regression: `ProjecturedDomain` precompiles clean.
+- [x] Update documentation/macros.md (new "Default field values" section + the
+      gotcha now notes the generated outer keyword ctor)
+
+## Outcome / decisions confirmed during implementation
+
+- **Defaults are keyword-only** (matches `Base.@kwdef`): the positional
+  auto-wrapping inner ctor is untouched and still requires every field. A
+  fewer-than-all positional call does *not* pick up defaults — use the keyword
+  form. (The verification initially assumed partial-positional defaults;
+  corrected to keyword-only.)
+- **Gated on "≥1 default declared"** so default-free usages are byte-for-byte
+  unchanged (no surprise keyword ctor).
+- `@document` emits the keyword ctor for **both** `Foo` and `IFoo`.
+- The small addition was duplicated into each of the three macros, matching the
+  existing triplicated machinery (no shared helper module — out of scope).
 
 ## Risks / notes
 
