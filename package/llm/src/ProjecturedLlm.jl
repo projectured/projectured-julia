@@ -2,11 +2,11 @@
     Llm
 
 Opt-in package: the Anthropic Messages API client (real-Claude `LlmBackend`).
-Depends on `ProjecturedKernel` + HTTP/JSON3; `using Llm` adds the
+Depends on `ProjecturedKernel` + HTTP/JSON3; `using ProjecturedLlm` adds the
 `stream_turn(::AnthropicLlm)` method to the kernel's `LlmModule` seam. Relocated
 from the former program/src/editor/Anthropic.jl (AnthropicModule).
 """
-module Llm
+module ProjecturedLlm
 
 using ProjecturedKernel
 

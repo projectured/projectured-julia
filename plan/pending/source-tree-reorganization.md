@@ -369,4 +369,11 @@ Phase 2 documentation sweep), not part of the mechanical rename.
 
 - [x] Phase 1 — package/ + asset/ ✅ (resolve OK; Projectured/Example/Sdl load; font→asset/font (36 fonts); printer→GraphicsCanvas; write_image→34 KB PNG)
 - [x] Phase 2 — documentation/ (guide + presentation) ✅ (flattened; presentation README→presentations.md; runtime guide-dir reads fixed in Mcp.jl + Examples.jl, resource://guide/ scheme kept; doc-link sweep: 0 stale, 0 broken; MCP list_guides/search verified reading documentation/)
-- [ ] Phase 3 — rename Mcp/Llm/Odbc/Web/Sdl → Projectured* modules
+- [x] Phase 3 — rename Mcp/Llm/Odbc/Web/Sdl → Projectured* modules ✅ (5 entry files+module decls+name=; root [deps]/[sources] keys; example/test/executable [deps] keys; 4 real using stmts + docstring mentions; root Manifest regenerated for the name change. Verified: all 5 load; write_image; test_cell 25/25, test_printer(json) 3551/3551, test_reader(json) 225/225)
+
+**Note:** Phase-3 renames keep UUIDs unchanged, so `Pkg.resolve()` alone did NOT
+refresh the Manifest package *names* — the root `Manifest.toml` had to be deleted and
+regenerated. Committed per-package Manifests under `package/{example,test,executable,projectured}/`
+are now stale on the renamed names but are unused by the root dev-env workflow (and the
+example/test sub-envs have no `[sources]`, so they aren't independently resolvable); they
+regenerate on demand.

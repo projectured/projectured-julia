@@ -6,7 +6,7 @@ using Profile
 # Live database examples use the opt-in Odbc package, which exports
 # OdbcConnectionPool / OdbcDatabaseAdapter / DatabaseInstanceToDbCatalog /
 # SqlToCellTable. ProjecturEd itself is database-optional; the example opts in.
-using Odbc
+using ProjecturedOdbc
 
 const _EXAMPLE_DIR = @__DIR__
 

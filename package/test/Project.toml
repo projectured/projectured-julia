@@ -6,6 +6,6 @@ authors = []
 [deps]
 Projectured = "92922de3-b970-4d9a-8b2a-9d6f361397b5"
 ProjecturedExample = "e5f6a7b8-c9d0-4e1f-2a3b-4c5d6e7f8a9b"
-Odbc = "aed26263-2fd3-42de-9b03-7ee91ffa11a3"
-Sdl = "f0002b97-94ba-416c-b93c-86cdc095626f"
+ProjecturedOdbc = "aed26263-2fd3-42de-9b03-7ee91ffa11a3"
+ProjecturedSdl = "f0002b97-94ba-416c-b93c-86cdc095626f"
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"

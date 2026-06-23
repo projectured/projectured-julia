@@ -6,10 +6,10 @@ using ProjecturedExample
 # Opt into the SDL backend package so the test suite can drive rendering /
 # write_image / click roundtrips (provides SdlBackend + GraphicsCanvasToImageFile).
 # The library itself is SDL-optional; the test package opts in.
-using Sdl
+using ProjecturedSdl
 # Likewise opt into the Odbc package so the database tests can construct
 # adapters/pools/projections and assert on their types (all exported by the package).
-using Odbc
+using ProjecturedOdbc
 using Projectured: ElementReference, RangeReference, PositionReference, FieldReference, PointReference,
                    TextRectangularReference,
                    ConcreteReferencePath, EmptyReferencePath, ReferencePath,

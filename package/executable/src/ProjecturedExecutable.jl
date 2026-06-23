@@ -8,8 +8,8 @@ module ProjecturedExecutable
 
 using ProjecturedExample
 # The compiled GUI binary bakes in the SDL backend (no weakdep auto-activation in
-# the standalone executable): `using Sdl` registers make_backend(:sdl).
-using Sdl
+# the standalone executable): `using ProjecturedSdl` registers make_backend(:sdl).
+using ProjecturedSdl
 
 export print_banner, print_help, cmd_hello, cmd_info, cmd_version, main, cmd_workbench_example
 

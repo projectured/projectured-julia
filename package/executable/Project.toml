@@ -8,7 +8,7 @@ FixedPointNumbers = "53c48c17-4a7d-5ca2-90c5-79b7896eea93"
 PackageCompiler = "9b87118b-4619-50d2-8e1e-99f35a4d4d9d"
 Projectured = "92922de3-b970-4d9a-8b2a-9d6f361397b5"
 ProjecturedExample = "e5f6a7b8-c9d0-4e1f-2a3b-4c5d6e7f8a9b"
-Sdl = "f0002b97-94ba-416c-b93c-86cdc095626f"
+ProjecturedSdl = "f0002b97-94ba-416c-b93c-86cdc095626f"
 
 [compat]
 FixedPointNumbers = "0.8.4"
