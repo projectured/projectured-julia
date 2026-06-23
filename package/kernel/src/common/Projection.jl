@@ -27,6 +27,9 @@ import ..ReferenceModule: EmptyReferencePath
 import ..PrinterContextModule: PrinterContext
 import ..ReferenceCaseModule: var"@reference_case"
 import ..ReferenceBuilderModule: var"@reference"
+import ..KeyboardModule: KeyPress, KeyDown
+import ..MouseModule: MousePress
+import ..DocumentApiModule: Document, document_read
 
 export @projection
 
@@ -80,7 +83,17 @@ function projection_read(projection::Projection, iomap, operation)
     # stay in sync with `OperationRerootingModule.prepend_steps_to_op`. A new
     # path-bearing operation missing from either is silently passed through with
     # its reference left in the wrong domain. See documentation/operations.md.
-    if operation isa ReplaceSelectionOperation
+    if operation isa Union{KeyPress, KeyDown, MousePress}
+        # Generic event fallback: a leaf projection with no authoring reader of
+        # its own delegates a raw input gesture to the projection-independent
+        # `document_read` of its input document. This generalizes the per-projection
+        # delegation `SyntaxToText`/`TextToGraphics` already do by hand, so any
+        # `@gestures`-declared domain is reachable through any projection with no
+        # bespoke reader. (Higher-order projections route events through their own
+        # 4-arg readers and never reach this leaf default.)
+        input = (iomap !== nothing && hasproperty(iomap, :input)) ? iomap.input : nothing
+        return input isa Document ? document_read(input, operation) : nothing
+    elseif operation isa ReplaceSelectionOperation
         input_selection = map_reference_backward(projection, iomap, operation.path)
         input_selection === nothing && return nothing
         return ReplaceSelectionOperation(input_selection)

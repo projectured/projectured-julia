@@ -9,6 +9,7 @@ across individual projection methods.
 module TypeDispatchingModule
 
 import ..ProjectionApiModule: projection_print, projection_read, map_reference_forward, map_reference_backward, Projection, Change, as_change
+import ..GestureBindingModule: collect_gestures, GestureBinding
 export TypeDispatchingProjection
 
 """
@@ -65,6 +66,17 @@ end
 
 projection_read(tdp::TypeDispatchingProjection, iomap, payload) =
     projection_read(tdp, nothing, as_change(payload), iomap).operation
+
+# Gather from the projection that matches the (transparent) input's type, exactly
+# as the reader dispatches to it.
+function collect_gestures(tdp::TypeDispatchingProjection, recursion, iomap)
+    for (T, proj) in tdp.dispatch
+        if iomap.input isa T
+            return collect_gestures(proj, recursion, iomap)
+        end
+    end
+    return GestureBinding[]
+end
 
 function map_reference_forward(::TypeDispatchingProjection, iomap, reference)
     # TypeDispatchingProjection is transparent: it returns the selected inner

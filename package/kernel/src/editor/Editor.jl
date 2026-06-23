@@ -25,6 +25,7 @@ import ..OperationModule: QuitEditorException
 import ..OperationRerootingModule: prepend_steps_to_op
 import ..ReferenceModule: ReferencePath, ConcreteReferencePath, EmptyReferencePath
 import ..GestureRecognizerModule: GestureRecognizer, next_gesture!
+import ..GestureBindingModule: collect_gestures
 import ..AgentModule: make_agent_server, agent_server_start!, agent_server_stop!
 
 export Editor, run!, play_live!
@@ -53,6 +54,19 @@ end
 
 Editor(backend, document, projection, devices) =
     Editor(backend, document, projection, devices, nothing, nothing, GestureRecognizer())
+
+"""
+    collect_gestures(editor::Editor) -> Vector{GestureBinding}
+
+Every gesture binding reachable in the editor's current projection state — the
+structural union the gesture-help projection presents. Walks the projection
+chain over the latest printer `iomap` (so it degrades gracefully: layers not yet
+reified contribute nothing). Pair with `applicable_gestures(editor.document, …)`
+to mark which rows can fire for the current selection.
+"""
+collect_gestures(editor::Editor) =
+    editor.iomap === nothing ? Vector{Any}() :
+    collect_gestures(editor.projection, nothing, editor.iomap)
 
 # ── Read-Eval-Print ──────────────────────────────────────────────────
 

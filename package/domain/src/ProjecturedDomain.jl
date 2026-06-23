@@ -27,6 +27,7 @@ const DocumentApiModule = ProjecturedKernel.DocumentApiModule
 const DocumentCopyModule = ProjecturedKernel.DocumentCopyModule
 const DocumentModule = ProjecturedKernel.DocumentModule
 const EventCaseModule = ProjecturedKernel.EventCaseModule
+const GestureBindingModule = ProjecturedKernel.GestureBindingModule
 const IoMapApiModule = ProjecturedKernel.IoMapApiModule
 const IoMapModule = ProjecturedKernel.IoMapModule
 const KeyboardModule = ProjecturedKernel.KeyboardModule

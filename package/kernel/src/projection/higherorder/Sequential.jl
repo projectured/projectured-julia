@@ -9,6 +9,7 @@ input domain one step at a time.
 module SequentialProjectionModule
 
 import ..ProjectionApiModule: projection_print, projection_read, map_reference_forward, map_reference_backward, Projection, Change, as_change
+import ..GestureBindingModule: collect_gestures, GestureBinding
 import ..IoMapModule: SimpleIoMap
 import ..IoMapApiModule: IoMap
 export SequentialProjection, SequentialProjectionIoMap
@@ -97,6 +98,17 @@ end
 # bare event/operation get it wrapped into a Change and the operation back.
 projection_read(seq::SequentialProjection, iomap::SequentialProjectionIoMap, payload) =
     projection_read(seq, nothing, as_change(payload), iomap).operation
+
+# Where the reader threads one change through the chain, the collector gathers
+# every stage's gestures (each stage's own input document, plus projection-owned
+# gestures), so the help shows the union available across the whole pipeline.
+function collect_gestures(seq::SequentialProjection, recursion, iomap::SequentialProjectionIoMap)
+    result = GestureBinding[]
+    for (p, step) in zip(seq.projections, iomap.step_iomaps)
+        append!(result, collect_gestures(p, recursion, step))
+    end
+    return result
+end
 
 function map_reference_forward(::SequentialProjection, iomap, reference)
     return nothing
