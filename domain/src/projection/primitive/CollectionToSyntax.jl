@@ -22,7 +22,7 @@ import ..IoMapModule: SimpleIoMap, ChildrenIoMap
 import ..IoMapApiModule: IoMap
 import ..ReferenceModule: ConcreteReferencePath, ElementReference, FieldReference, RangeReference,
                           PositionReference, ProjectionReference, ReferencePath, skip_type_checkpoints,
-                          EmptyReferencePath, append_reference
+                          EmptyReferencePath, append_reference, is_element_reference
 import ..OperationModule: ReplaceSelectionOperation
 import ..SyntaxToTextModule: SyntaxNodeToText, _syntax_to_flat
 export CollectionCellVectorToSyntax, CollectionListNodeToSyntax, CollectionToSyntax
@@ -37,8 +37,36 @@ CollectionCellVectorToSyntax(; delim=StyleText(font_ubuntu_monospace_bold_24, co
                                 sep=StyleText(font_ubuntu_monospace_regular_24, color_solarized_gray)) =
     CollectionCellVectorToSyntax(delim, sep)
 
-function map_reference_forward(::CollectionCellVectorToSyntax, iomap, reference)
-    return nothing
+function map_reference_forward(p::CollectionCellVectorToSyntax, iomap::ChildrenIoMap, reference)
+    reference === nothing && return nothing
+    core = skip_type_checkpoints(reference)
+    core isa EmptyReferencePath && return EmptyReferencePath()
+    if core isa ConcreteReferencePath
+        # A projection-introduced position (structural delimiter) was encoded as
+        # proj(p, {flat}) by the reader.  Keep it wrapped so that
+        # SyntaxNodeToText._syntax_to_flat can extract the flat position via its
+        # `h isa ProjectionReference` branch — same pattern as JsonToSyntax's
+        # `_node_forward` which also returns the wrapped reference unchanged.
+        if core.head isa ProjectionReference && core.head.projection === p
+            return reference
+        end
+        # Structural child path: [j].rest → .children[j-1].rest (SyntaxNode domain).
+        # ElementReference(j) is RangeReference(j-1, j); start+1 recovers the
+        # 1-based child index.
+        h = core.head
+        if h isa RangeReference && is_element_reference(h)
+            j = h.start + 1  # 1-based child index
+            1 <= j <= length(iomap.input) || return nothing
+            child_iomaps_vec = iomap.child_iomaps[]
+            1 <= j <= length(child_iomaps_vec) || return nothing
+            child = child_iomaps_vec[j]
+            inner = map_reference_forward(child.projection, child, core.tail)
+            inner === nothing && return nothing
+            return ConcreteReferencePath(FieldReference("children"),
+                       ConcreteReferencePath(RangeReference(j - 1, j - 1), inner))
+        end
+    end
+    nothing
 end
 
 function map_reference_backward(::CollectionCellVectorToSyntax, iomap, reference)
@@ -49,13 +77,28 @@ function projection_print(p::CollectionCellVectorToSyntax, recursion, cv::CellVe
     child_iomaps = Cell(() -> [projection_printer_recurse(recursion, x,
                                    child_context(ctx, ElementReference(i)))
                                for (i, x) in enumerate(cv)])
+    # Wire the output SyntaxNode's selection cell to forward-project the input
+    # CellVector's selection.  The iomap_cell trick (same as DbCatalogToSyntax)
+    # avoids a forward reference: we build the iomap after the node, then fill in
+    # the cell so the lazy sel thunk closes over a valid iomap.
+    iomap_cell = Cell(nothing)
+    sel = Cell(() -> begin
+        im = iomap_cell[]
+        im === nothing && return nothing
+        path = cv.selection
+        path === nothing && return nothing
+        map_reference_forward(p, im, path)
+    end)
     node = SyntaxNode(
         CellVector(() -> SyntaxDocument[im.output for im in child_iomaps[]]);
         open=TextString("[", p.delim),
         close=TextString("]", p.delim),
         sep=TextString(", ", p.sep),
-        indentation=1)
-    ChildrenIoMap(p, cv, node, child_iomaps)
+        indentation=1,
+        selection=sel)
+    iomap = ChildrenIoMap(p, cv, node, child_iomaps)
+    iomap_cell[] = iomap
+    iomap
 end
 
 # Maps a SyntaxNode path (children[i].rest) back to the CellVector domain.

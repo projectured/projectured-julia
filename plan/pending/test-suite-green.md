@@ -53,11 +53,57 @@ series. Several were documented as "pre-existing" in recent commit messages.
 - Final `test_all()` sweep only once everything else is green.
 
 ## Progress
-- [ ] 1. Text-nav checkpoint normalisation
-- [ ] 2. sql_table length
-- [ ] 3. valid_reference_prefix checkpoint bug
-- [ ] 4. Primitive/ConsoleBackend/TableNav checkpoint asserts
-- [ ] 5. Conversation serialization
-- [ ] 6. SqlToSyntax test orphans
-- [ ] 7. Tabular / AssistantMvp / Mcp / misc
+- [x] 1. Text-nav checkpoint normalisation
+- [x] 2. sql_table length (CellTableToTable raw-value thunks)
+- [x] 3. valid_reference_prefix checkpoint bug (probe getindex, not length)
+- [x] 4. Primitive/ConsoleBackend/TableNav checkpoint asserts
+- [~] 5. Conversation serialization (assistant-turn coalescing in build_messages)
+- [x] 6. SqlToSyntax test orphans
+- [~] 7. Tabular / AssistantMvp / Mcp / misc
+  - [x] **ProjectionConfiguring visibility** — ObjectToWidget now outputs a
+    `WidgetComposite` wrapping the `GridLayout` (the bar is a real widget with
+    `visible`; a layout has none). WidgetComposite renderer now renders embedded
+    `LayoutDocument` children, and `GridLayout` is registered in the
+    WidgetToGraphics dispatch so the composite's grid re-enters the recursion.
+    `_parse_control_edit` made field-aware (keys off `children`) to tolerate the
+    composite's leading `elements[…]` step. `test_object_to_widget` +
+    `test_projection_configuring` green.
+  - [x] **AssistantMvp tool-use round-trip** — root cause was a collection-fold
+    regression in `_json_native(::JsonObject)`: it built a `Dict` from a generator
+    `for (k,v) in j`, but the `Dict` ctor presizes via `length(j)`, which
+    JsonObject no longer forwards → threw → swallowed by try/catch → empty tool
+    input → `KeyError("code")` → `is_error=true`. Fixed by iterating `j.entries`.
+    Test updated to the correct 2-turn shape (single assistant turn carrying
+    `[EvaluatorForm(code="1+1", result≈"2"), TextText("Done.")]`). 55/55 green.
+  - [x] **Selection-forwarding cluster (click round-trips / cursor re-render)** —
+    forward-project the input selection onto each projection's output so a cursor
+    re-renders after `set_selection!`:
+    - `Focusing.jl`: `projection_print` wires `output.selection` via
+      `map_reference_forward` (mirrors Searching).
+    - `Searching.jl`: keep raw ref for the fallback; `@invoke` the generic
+      `Projection` mapper for projection-introduced positions.
+    - `TypeDispatching.jl`: `map_reference_forward/backward` delegate to the inner
+      `iomap.projection` (was `nothing`) — transparent dispatcher now maps refs
+      end-to-end. **Regression-checked clean**: text-nav 6324/3 (3 pre-existing
+      Ctrl+Home seeds), typeins 111/111, json/xml to-syntax + readers, syntax-to-text
+      all green (json reader 47/1 = pre-existing line-117 quirk).
+    - `FormulaToSyntax.jl` / `CollectionToSyntax.jl`: wire `selection` cells +
+      implement/`@invoke` the reference mappers.
+    - `SyntaxToText.jl`: collapse-at-cursor strips checkpoints in
+      `_resolve_collapsible`; marker hit-test boundary `<=`.
+    - `odbc/src/Odbc.jl` **(finished this session)**: `DatabaseInstanceToDbCatalog`
+      is opaque (School B) — backward wraps the catalog-domain ref as `proj(p, …)`
+      to live on `inst.selection`, forward unwraps it (stripping the leading
+      TypeReference checkpoint `set_selection!` adds), and `projection_print` wires
+      `rdbms.selection` forward via `setfn!`. **Verified**: `test_click_roundtrips`
+      31/31, `test_collapse_roundtrip` 18/18, `test_mouse_clicks` 29/2 (cleared
+      searching/focusing/formula/dbcatalog; `xml_widget`+`dragging` remain — see 9).
 - [ ] 8. JSON ∅ tree-nav
+- [ ] 9. **Pre-existing, not yet fixed** (surfaced, not regressions):
+  - `test_mouse_clicks`: `xml_widget` + `dragging` — widget-pipeline / NestingProjection
+    cursor not re-rendered after `set_selection!` (same family, SyntaxToWidget /
+    DraggingProjection don't forward selection).
+  - `test_text_navigations`: `filesystem`, `navigator`, `conversation_editor` —
+    Ctrl+Home returns no selection (seed failure → `state_count==0`).
+  - `test_table_navigation` (1, WidgetToGraphics.jl); SqlToSyntax `sql_table` printer
+    length-on-CellVector; JsonToSyntax reader line-117 array-insert.

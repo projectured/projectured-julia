@@ -673,6 +673,10 @@ import ..ConnectionPoolModule: OdbcConnectionPool, with_connection
 import ProjecturedDomain.IoMapModule: SimpleIoMap
 import ProjecturedDomain.ProjectionApiModule: projection_print, projection_read,
                               map_reference_forward, map_reference_backward, Projection
+import ProjecturedDomain.ReactiveModule: setfn!
+import ProjecturedDomain.ReferenceModule: EmptyReferencePath, skip_type_checkpoints
+import ProjecturedDomain.ReferenceCaseModule: var"@reference_case"
+import ProjecturedDomain.ReferenceBuilderModule: var"@reference"
 
 export DatabaseInstanceToDbCatalog
 
@@ -728,14 +732,40 @@ end
 function projection_print(p::DatabaseInstanceToDbCatalog,
                           recursion, inst::DatabaseInstance, ctx)
     rdbms = DbCatalogRdbms(inst.host, inst.port, _build_databases(p.pool, inst))
-    SimpleIoMap(p, inst, rdbms)
+    iomap = SimpleIoMap(p, inst, rdbms)
+    # Forward-project the DatabaseInstance's selection onto the freshly-built
+    # catalog tree so DbCatalogToSyntax can render a cursor after set_selection!.
+    # The instance stores its selection in DbCatalog-domain coordinates wrapped
+    # as proj(p, …) (see map_reference_backward); the forward map unwraps it.
+    setfn!(getfield(rdbms, :selection), () -> begin
+        sel = inst.selection
+        sel === nothing && return nothing
+        map_reference_forward(p, iomap, sel)
+    end)
+    iomap
 end
 
-map_reference_forward(::DatabaseInstanceToDbCatalog, iomap, ref) = nothing
-map_reference_backward(::DatabaseInstanceToDbCatalog, iomap, ref) = nothing
+# DatabaseInstanceToDbCatalog is opaque (School B): the DbCatalog tree is derived
+# by querying the instance, so a selection has no structural counterpart in the
+# DatabaseInstance itself. Backward wraps the catalog-domain reference as
+# proj(p, …) so it can live on inst.selection; forward unwraps it. Mirrors the
+# generic Projection default but strips the leading TypeReference checkpoint that
+# set_selection! annotates onto the (now canonical) instance selection.
+function map_reference_forward(p::DatabaseInstanceToDbCatalog, iomap, reference)
+    reference === nothing && return nothing
+    @reference_case skip_type_checkpoints(reference) begin
+        ∅ => @reference()
+        proj(^(p), inner) => inner
+    end
+end
+
+function map_reference_backward(p::DatabaseInstanceToDbCatalog, iomap, reference)
+    skip_type_checkpoints(reference) isa EmptyReferencePath && return @reference()
+    @reference proj(p, ^(reference))
+end
 # No projection_read override — the generic default in Projection.jl handles
-# ToggleCollapseOperation (pass-through) and ReplaceSelectionOperation (returns
-# nothing because map_reference_backward returns nothing) correctly.
+# ToggleCollapseOperation (pass-through) and ReplaceSelectionOperation (which now
+# re-targets via the non-nothing map_reference_backward above).
 
 end # module DatabaseInstanceToDbCatalogModule
 

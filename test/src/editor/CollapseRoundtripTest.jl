@@ -59,7 +59,7 @@ function test_collapse_roundtrip()
         @test doc.collapsed == false
 
         # ── Keyboard: Ctrl+. folds the innermost node at the cursor ─────────
-        inner = doc[4][2]            # the (<= n 1) sub-expression
+        inner = doc.children[4].children[2]   # the (<= n 1) sub-expression
         clear_selection!(doc)
         set_selection!(doc, @reference children[4].children[2].children[1].value{1})
         op3 = projection_read(proj, projection_print(proj, doc), KeyDown(:period, Modifiers(ctrl=true)))

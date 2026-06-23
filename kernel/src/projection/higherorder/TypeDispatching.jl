@@ -67,11 +67,17 @@ projection_read(tdp::TypeDispatchingProjection, iomap, payload) =
     projection_read(tdp, nothing, as_change(payload), iomap).operation
 
 function map_reference_forward(::TypeDispatchingProjection, iomap, reference)
-    return nothing
+    # TypeDispatchingProjection is transparent: it returns the selected inner
+    # projection's IoMap directly, so iomap.projection is the inner projection.
+    # Delegate to it so that reference mapping works end-to-end (e.g. the Julia
+    # leaf projections fall through to the generic default which unwraps
+    # ProjectionReference wrappers).
+    map_reference_forward(iomap.projection, iomap, reference)
 end
 
 function map_reference_backward(::TypeDispatchingProjection, iomap, reference)
-    return nothing
+    # Mirror of map_reference_forward: delegate to the inner projection.
+    map_reference_backward(iomap.projection, iomap, reference)
 end
 
 end # module

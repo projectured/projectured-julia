@@ -1048,7 +1048,11 @@ _node_at_collapse_glyph(::SyntaxLeaf, _local_pos::Int, ::SyntaxNodeToText, _dept
 function _node_at_collapse_glyph(node::SyntaxNode, local_pos::Int, p::SyntaxNodeToText, depth::Int)
     marker_len = _marker_len(p, node)
     # The marker occupies [0, marker_len) and toggles this node in either state.
-    local_pos < marker_len && return node
+    # The boundary pixel (local_pos == marker_len) is the leftmost pixel of the
+    # open delimiter; because TextToGraphics can map a click at the right edge of
+    # the marker glyph to that boundary position, we include it so that clicking
+    # anywhere visually overlapping the marker still toggles the node.
+    local_pos <= marker_len && marker_len > 0 && return node
 
     open_len = length(node.open.content)
     char_count = marker_len + open_len
@@ -1094,7 +1098,9 @@ end
 function _resolve_collapsible(node::SyntaxNode, path)
     best = node
     cur = node
-    p = path
+    # Selections are canonical (carry TypeReference checkpoints); strip them so
+    # the plain structural skeleton (.children[i]...) is what we walk below.
+    p = strip_reference_types(path)
     while p isa ConcreteReferencePath
         h = p.head
         (h isa FieldReference && h.name == "children") || break
@@ -1109,7 +1115,7 @@ function _resolve_collapsible(node::SyntaxNode, path)
         child isa SyntaxNode || break
         best = child
         cur = child
-        p = t.tail
+        p = strip_reference_types(t.tail)
     end
     best
 end

@@ -20,7 +20,7 @@ with `JuliaToSyntax`).
 """
 module FormulaToSyntaxModule
 
-import ..ReactiveModule: Cell
+import ..ReactiveModule: Cell, setfn!, setval!
 import ..CollectionModule: CellVector
 import ..ProjectionApiModule: projection_print, projection_printer_recurse, projection_read,
                               map_reference_forward, map_reference_backward, Projection
@@ -38,7 +38,7 @@ import ..IoMapModule: SimpleIoMap, ChildrenIoMap
 import ..IoMapApiModule: IoMap
 import ..ReferenceModule: ConcreteReferencePath, ElementReference, PositionReference,
                           RangeReference, FieldReference, ProjectionReference,
-                          ReferencePath, EmptyReferencePath
+                          ReferencePath, EmptyReferencePath, skip_type_checkpoints
 import ..ReferenceCaseModule: var"@reference_case"
 import ..ReferenceBuilderModule: var"@reference"
 import ..PrinterContextModule: child_context
@@ -141,6 +141,14 @@ function projection_print(p::FormulaFormulaToSyntaxNode, recursion, f::FormulaFo
         close=TextString(" ", p.op.font, color_default))
     result_leaf = SyntaxLeaf(TextString(() -> _result_to_string(f.result), p.result))
 
+    iomap_cell = Cell(nothing)
+    sel = Cell(() -> begin
+        im = iomap_cell[]
+        im === nothing && return nothing
+        path = hasfield(typeof(f), :selection) ? f.selection : nothing
+        path === nothing && return nothing
+        map_reference_forward(p, im, path)
+    end)
     node = SyntaxNode(
         CellVector(() -> begin
             mode = f.display_mode
@@ -152,8 +160,11 @@ function projection_print(p::FormulaFormulaToSyntaxNode, recursion, f::FormulaFo
                 SyntaxDocument[name_leaf, eq_leaf, code_iomap[].output,
                                arrow_leaf, result_leaf]
             end
-        end))
-    ChildrenIoMap(p, f, node, Cell(() -> IoMap[code_iomap[]]))
+        end);
+        selection=sel)
+    iomap = ChildrenIoMap(p, f, node, Cell(() -> IoMap[code_iomap[]]))
+    iomap_cell[] = iomap
+    iomap
 end
 
 # School A for `code`. Its output child index depends on the mode:
@@ -176,7 +187,7 @@ function map_reference_forward(p::FormulaFormulaToSyntaxNode, iomap::ChildrenIoM
             inner = map_reference_forward(child.projection, child, rest)
             inner === nothing ? nothing : (@reference children[idx].^(inner))
         end
-        _ => nothing
+        _ => @invoke map_reference_forward(p::Projection, iomap, reference)
     end
 end
 
@@ -186,14 +197,19 @@ function map_reference_backward(p::FormulaFormulaToSyntaxNode, iomap::ChildrenIo
     @reference_case reference begin
         ∅ => @reference()
         children{s:_}.rest... => begin
-            idx === nothing && return nothing
             child_i = s + 1
-            child_i == idx || return nothing
-            child = iomap.child_iomaps[][1]
-            inner = map_reference_backward(child.projection, child, rest)
-            inner === nothing ? nothing : (@reference code.^(inner))
+            if idx !== nothing && child_i == idx
+                # This child is the code sub-tree: delegate to its mapper.
+                child = iomap.child_iomaps[][1]
+                inner = map_reference_backward(child.projection, child, rest)
+                inner === nothing ? nothing : (@reference code.^(inner))
+            else
+                # Projection-introduced child (name, "=", "⇒", result): wrap as
+                # structural reference so the roundtrip can place a cursor.
+                @invoke map_reference_backward(p::Projection, iomap, reference)
+            end
         end
-        _ => nothing
+        _ => @invoke map_reference_backward(p::Projection, iomap, reference)
     end
 end
 
@@ -213,13 +229,24 @@ function projection_print(p::FormulaEnvironmentToSyntaxNode, recursion, e::Formu
              child_context(ctx, @reference ^(ctx.reference).formulas[i]))
          for i in 1:length(e.formulas)])
 
+    iomap_cell = Cell(nothing)
+    sel = Cell(() -> begin
+        im = iomap_cell[]
+        im === nothing && return nothing
+        path = hasfield(typeof(e), :selection) ? e.selection : nothing
+        path === nothing && return nothing
+        map_reference_forward(p, im, path)
+    end)
     node = SyntaxNode(
         CellVector(() -> SyntaxDocument[im.output for im in child_iomaps[]]);
-        sep=TextString("\n", p.font, color_default))
-    ChildrenIoMap(p, e, node, child_iomaps)
+        sep=TextString("\n", p.font, color_default),
+        selection=sel)
+    iomap = ChildrenIoMap(p, e, node, child_iomaps)
+    iomap_cell[] = iomap
+    iomap
 end
 
-function map_reference_forward(::FormulaEnvironmentToSyntaxNode, iomap::ChildrenIoMap, reference)
+function map_reference_forward(p::FormulaEnvironmentToSyntaxNode, iomap::ChildrenIoMap, reference)
     @reference_case reference begin
         ∅ => @reference()
         formulas{s:_}.rest... => begin
@@ -230,11 +257,11 @@ function map_reference_forward(::FormulaEnvironmentToSyntaxNode, iomap::Children
             inner = map_reference_forward(child.projection, child, rest)
             inner === nothing ? nothing : (@reference children[child_i].^(inner))
         end
-        _ => nothing
+        _ => @invoke map_reference_forward(p::Projection, iomap, reference)
     end
 end
 
-function map_reference_backward(::FormulaEnvironmentToSyntaxNode, iomap::ChildrenIoMap, reference)
+function map_reference_backward(p::FormulaEnvironmentToSyntaxNode, iomap::ChildrenIoMap, reference)
     @reference_case reference begin
         ∅ => @reference()
         children{s:_}.rest... => begin
@@ -245,7 +272,7 @@ function map_reference_backward(::FormulaEnvironmentToSyntaxNode, iomap::Childre
             inner = map_reference_backward(child.projection, child, rest)
             inner === nothing ? nothing : (@reference formulas[child_i].^(inner))
         end
-        _ => nothing
+        _ => @invoke map_reference_backward(p::Projection, iomap, reference)
     end
 end
 

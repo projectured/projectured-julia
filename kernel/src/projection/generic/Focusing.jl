@@ -11,6 +11,7 @@ import ..OperationApiModule: Operation, evaluate_operation
 import ..OperationModule: ReplaceSelectionOperation
 import ..ReferenceModule: ReferencePath, ConcreteReferencePath, EmptyReferencePath, evaluate_reference, append_reference, strip_reference_types
 import ..IoMapModule: SimpleIoMap
+import ..ReactiveModule: setfn!
 import ..KeyboardModule: KeyDown
 import ..EventCaseModule: var"@event_case"
 
@@ -40,7 +41,19 @@ FocusingProjection(; part_type=Any, part::ReferencePath=EmptyReferencePath()) =
 
 function projection_print(p::FocusingProjection, recursion, input, ctx)
     output = p.part_evaluator(input)
-    SimpleIoMap(p, input, output)
+    iomap = SimpleIoMap(p, input, output)
+    # Forward-project the input selection onto the output sub-document so that
+    # downstream projections can render a cursor after set_selection! on the
+    # input. Lazy: re-derived whenever input.selection changes. Mirrors the
+    # SearchingProjection pattern.
+    if hasproperty(output, :selection)
+        setfn!(getfield(output, :selection), () -> begin
+            sel = hasfield(typeof(input), :selection) ? input.selection : nothing
+            sel === nothing && return nothing
+            map_reference_forward(p, iomap, sel)
+        end)
+    end
+    iomap
 end
 
 function map_reference_forward(p::FocusingProjection, iomap, reference)

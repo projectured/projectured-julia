@@ -142,14 +142,14 @@ end
 
 function map_reference_forward(p::SearchingProjection, iomap::SearchingProjectionIoMap, reference)
     reference isa ReferencePath || return nothing
-    reference = strip_reference_types(reference)   # match the plain skeleton; selections are canonical
+    stripped = strip_reference_types(reference)   # match the plain skeleton; selections are canonical
     # Choose the longest matching prefix so a selection inside a nested match
     # resolves to the most specific (deepest) result.
     best_j = 0
     best_rest = nothing
     best_len = -1
     for (j, mp) in enumerate(iomap.match_paths)
-        rest = _strip_prefix(reference, mp)
+        rest = _strip_prefix(stripped, mp)
         rest === nothing && continue
         len = length(mp)
         if len > best_len
@@ -158,8 +158,14 @@ function map_reference_forward(p::SearchingProjection, iomap::SearchingProjectio
             best_rest = rest
         end
     end
-    best_j == 0 && return nothing
-    ConcreteReferencePath(ElementReference(best_j), best_rest)
+    best_j != 0 && return ConcreteReferencePath(ElementReference(best_j), best_rest)
+    # Fallback: a projection-introduced position (e.g. a structural delimiter
+    # clicked by the user) has been wrapped in proj(SearchingProjection, inner)
+    # by map_reference_backward's wildcard branch. Strip the wrapper so the
+    # output CellVector carries the inner (collection-domain) reference as its
+    # selection, letting the downstream NestingProjection/CollectionToSyntax
+    # place a cursor at the nearest structural position.
+    @invoke map_reference_forward(p::Projection, iomap, reference)
 end
 
 function map_reference_backward(p::SearchingProjection, iomap::SearchingProjectionIoMap, reference)
