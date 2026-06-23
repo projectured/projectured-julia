@@ -8,7 +8,7 @@ BookPicture produce SyntaxLeaf terminals. The node projections map references
 by peeling the one step they own (title/author/numbering structural rewrites)
 and delegating each element tail through the stored child IO maps, so they do
 not dispatch on the element types — see the "Mapping references when the printer
-recurses" section of guide/projection-system.md.
+recurses" section of documentation/projection-system.md.
 """
 module BookToSyntaxModule
 

@@ -122,7 +122,7 @@ List all available documentation with a one-paragraph description for each guide
 Documentation files are markdown files containing tips and tricks for using ProjecturEd.
 """
 function list_guides()
-    doc_dir = joinpath(@__DIR__, "../../../guide")
+    doc_dir = joinpath(@__DIR__, "../../../../documentation")
     if !isdir(doc_dir)
         return "No guide directory found."
     end
@@ -171,7 +171,7 @@ end
 Read the full content of a specific documentation file by name.
 """
 function read_guide(guide_name)
-    doc_dir = joinpath(@__DIR__, "../../../guide")
+    doc_dir = joinpath(@__DIR__, "../../../../documentation")
     filepath = joinpath(doc_dir, guide_name * ".md")
 
     if !isfile(filepath)
@@ -417,7 +417,7 @@ function register_default_tools_and_resources!()
         list_modules,
     ))
 
-    doc_dir = joinpath(@__DIR__, "../../../guide")
+    doc_dir = joinpath(@__DIR__, "../../../../documentation")
     if isdir(doc_dir)
         for (root, dirs, files) in walkdir(doc_dir)
             for file in sort(files)
@@ -666,7 +666,7 @@ struct _GuideSection
 end
 
 function _index_guide_sections()
-    doc_dir = joinpath(@__DIR__, "../../../guide")
+    doc_dir = joinpath(@__DIR__, "../../../../documentation")
     sections = _GuideSection[]
     isdir(doc_dir) || return sections
     for (root, dirs, files) in walkdir(doc_dir)

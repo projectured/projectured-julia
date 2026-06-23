@@ -79,7 +79,7 @@ function projection_read(projection::Projection, iomap, operation)
     # INVARIANT: the set of reference-carrying operation types handled here must
     # stay in sync with `OperationRerootingModule.prepend_steps_to_op`. A new
     # path-bearing operation missing from either is silently passed through with
-    # its reference left in the wrong domain. See guide/operations.md.
+    # its reference left in the wrong domain. See documentation/operations.md.
     if operation isa ReplaceSelectionOperation
         input_selection = map_reference_backward(projection, iomap, operation.path)
         input_selection === nothing && return nothing

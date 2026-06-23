@@ -27,7 +27,7 @@ guide leans on — is:
 > how a path crosses the projection, written once and reused on both sides.
 
 All four are generic functions declared in
-[program/src/api/Projection.jl](../program/src/api/Projection.jl) and dispatched on
+[program/src/api/Projection.jl](../package/kernel/src/api/Projection.jl) and dispatched on
 the concrete projection struct.
 
 ## The four functions
@@ -35,7 +35,7 @@ the concrete projection struct.
 ### `projection_print` — the printer
 
 Forward transformation from the input domain to the output domain. Returns an
-`IoMap` (subtype of `IoMap`, see [api/IoMap.jl](../program/src/api/IoMap.jl))
+`IoMap` (subtype of `IoMap`, see [api/IoMap.jl](../package/kernel/src/api/IoMap.jl))
 that records the input, the output, and any extra data the reader needs to
 invert the transformation.
 
@@ -47,7 +47,7 @@ The two extra arguments are essential:
   that never descends ignores it. A node projection threads it **twice** — as
   the projection to call *and* as that call's own `recursion` argument; see
   [§ Recursion across projections](#recursion-across-projections).
-- **`context`** is a [`PrinterContext`](../program/src/context/PrinterContext.jl):
+- **`context`** is a [`PrinterContext`](../package/kernel/src/context/PrinterContext.jl):
   a downward-flowing, extensible struct carrying the `reference` path from the
   editor's document root to the *current* input, plus optional layout extent
   (`available_width`/`available_height`) and an open `properties` Dict. Each
@@ -60,7 +60,7 @@ The two extra arguments are essential:
   `EmptyReferencePath()`).
 
 A two-argument convenience overload `projection_print(p, input)` is defined in
-[common/Projection.jl](../program/src/common/Projection.jl) and supplies
+[common/Projection.jl](../package/kernel/src/common/Projection.jl) and supplies
 `nothing` and a fresh `PrinterContext()`. The editor uses this.
 
 **Wiring the selection.** The output document's `selection::Cell` is not a
@@ -89,7 +89,7 @@ reader route events by selection — see below and
 
 ### The `Change` the reader threads
 
-The reader's payload is a **`Change`** ([api/Projection.jl](../program/src/api/Projection.jl)) —
+The reader's payload is a **`Change`** ([api/Projection.jl](../package/kernel/src/api/Projection.jl)) —
 the backward-flowing dual of the document that flows forward through the printer:
 
 ```julia
@@ -191,7 +191,7 @@ really the *projection's* business:
 The geometry-independent half is a property of the **domain document**, not of
 the projection that happens to render it. It lives behind
 `document_read(document, gesture) -> Union{Operation, Nothing}`
-([api/Document.jl](../program/src/api/Document.jl)): the document maps the
+([api/Document.jl](../package/kernel/src/api/Document.jl)): the document maps the
 gesture to an operation in its **own** reference vocabulary (reading only its
 structure and `document.selection`), or returns `nothing` when it does not handle
 the gesture (which also serves as "I decline this gesture so an outer layer can

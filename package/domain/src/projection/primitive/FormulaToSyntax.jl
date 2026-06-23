@@ -12,7 +12,7 @@ shared `recursion`:
 - `FormulaEnvironment` → `SyntaxNode`, one formula per line.
 
 Mappers follow the School-A peel-and-delegate pattern (see the tutorial and
-guide/projection-system.md): each node peels the one step it owns and delegates
+documentation/projection-system.md): each node peels the one step it owns and delegates
 the tail through the stored child IO maps. `FormulaToSyntax()` merges the Julia
 type-dispatch table with the Formula entries into a single
 `TypeDispatchingProjection` (callers wrap it once in `RecursiveProjection`, as

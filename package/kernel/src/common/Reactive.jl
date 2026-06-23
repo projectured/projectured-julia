@@ -15,7 +15,7 @@ every `Cell` read via `c[]` is recorded as a dependency. When any upstream
 cell changes, all downstream dependents are invalidated and will recompute
 on next read.
 
-# Invariants (unchecked — see guide/reactive-cells.md)
+# Invariants (unchecked — see documentation/reactive-cells.md)
 - **Acyclic graph.** A thunk must never transitively read its own cell;
   `recompute!` would recurse forever. Only *direct* self-edges are skipped.
 - **Monotone invalidation.** `_invalidate_walk!` stops at already-invalid

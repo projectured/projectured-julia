@@ -60,7 +60,7 @@ Each span has:
 ## Gesture mapping (`document_read`)
 
 The geometry-free half of the Text reader lives on the document itself:
-`document_read(::TextText, gesture)` ([document/Text.jl](../../program/src/document/Text.jl))
+`document_read(::TextText, gesture)` ([document/Text.jl](../../package/domain/src/document/Text.jl))
 maps an input gesture to an operation expressed against the `TextText`'s own
 references (reading only `elements` and `selection`, never any pixel layout):
 
@@ -76,4 +76,4 @@ references (reading only `elements` and `selection`, never any pixel layout):
 (visual up/down, plain Home/End, mouse click). Any backend that renders a
 `TextText` directly — e.g. the `ConsoleBackend` — therefore gets character-level
 editing without a graphics layout pass. See
-[guide/projection-system.md](../projection-system.md) for the full reader split.
+[documentation/projection-system.md](../projection-system.md) for the full reader split.

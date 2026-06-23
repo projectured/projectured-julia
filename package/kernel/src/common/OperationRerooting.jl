@@ -50,7 +50,7 @@ function prepend_steps_to_op(op, steps::Tuple)
     # INVARIANT: the reference-carrying operation types matched here must stay in
     # sync with the default `ProjectionModule.projection_read`. A path-bearing
     # operation missing from this list falls through to the `else` and is returned
-    # unchanged — its reference never gets rerooted. See guide/operations.md.
+    # unchanged — its reference never gets rerooted. See documentation/operations.md.
     op === nothing && return nothing
     if op isa ReplaceSelectionOperation
         ReplaceSelectionOperation(prepend_steps_to_ref(op.path, steps))

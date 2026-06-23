@@ -27,7 +27,7 @@ julia> run_example(json_example)    # or pass the Example object directly
 ```
 
 The function lives at
-[example/src/Examples.jl](../example/src/Examples.jl) (the `Example` overload at
+[example/src/Examples.jl](../package/example/src/Examples.jl) (the `Example` overload at
 `run_example(example::Example; …)`, plus name/`Vector` overloads); it accepts a
 few keyword arguments worth knowing:
 
@@ -64,7 +64,7 @@ julia> print_example(syntax_example)
 ```
 
 Implementation is at
-[example/src/Examples.jl:75](../example/src/Examples.jl#L75). It calls
+[example/src/Examples.jl:75](../package/example/src/Examples.jl#L75). It calls
 `projection_print`, takes `iomap.output`, forces the outer cell if needed,
 and uses `print_object` to render the tree with brace delimiters.
 
@@ -100,7 +100,7 @@ julia> projection_print(proj, doc)                   # reprint after the edit
 ```
 
 This is exactly the read-eval-print loop from
-[program/src/editor/Editor.jl](../program/src/editor/Editor.jl), peeled
+[program/src/editor/Editor.jl](../package/kernel/src/editor/Editor.jl), peeled
 apart so you can step through it one call at a time.
 
 ## Tracing projection calls (event propagation)
@@ -117,7 +117,7 @@ When you want to see *what reads what* — how a single event propagates down
 through the projection stack — point logging at the four projection interface
 generic functions (`projection_read`, `projection_print`,
 `map_reference_forward`, `map_reference_backward`). These are declared in
-[program/src/api/Projection.jl](../program/src/api/Projection.jl) and each
+[program/src/api/Projection.jl](../package/kernel/src/api/Projection.jl) and each
 projection adds its own method; the recursion happens peer-to-peer (a
 projection's `projection_read` calls `projection_read` on its children
 directly), so to see the whole tree you must instrument the generic function
@@ -186,7 +186,7 @@ julia> doc.value[]       # forces evaluation
 ```
 
 The walker used by the test suite (`_walk!` in
-[test/src/editor/PrinterTest.jl](../test/src/editor/PrinterTest.jl)) is a
+[test/src/editor/PrinterTest.jl](../package/test/src/editor/PrinterTest.jl)) is a
 good template if you need to dump every reachable cell of a tree.
 
 ## Generating all screenshots
@@ -289,7 +289,7 @@ and the `timed_event` / `timed_operation` helpers.
 
 ## Workspace fixtures
 
-Sample documents live in [example/workspace/](../example/workspace/)
+Sample documents live in [example/workspace/](../package/example/workspace/)
 (`contact-list.json`, `hello-world.html`, `lorem-ipsum.txt`). The examples
 that load files read from this directory; point a new example there when
 you need an on-disk fixture.

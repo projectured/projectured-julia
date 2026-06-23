@@ -200,7 +200,7 @@ identity.
 
 ## Compound combinators
 
-[compound/HigherOrder.jl](../program/src/projection/compound/HigherOrder.jl)
+[compound/HigherOrder.jl](../package/domain/src/projection/compound/HigherOrder.jl)
 defines `ApplyAtProjection`, the most useful combinator built on top:
 
 ```julia

@@ -205,7 +205,7 @@ Anthropic HTTP client are in the opt-in `Mcp`/`Llm`.
 | `Editor.jl` | REPL loop: read → eval → print; `run!(backend, projection, document)` entry point |
 | `backend/Sdl.jl` | SDL2 + SDL_ttf backend: graphics rendering, event translation, `write_image` |
 | `backend/Console.jl` | Terminal backend: renders the **Text** domain (a `TextText`) to the terminal with ANSI colors and reads keystrokes — no `TextToGraphics`/SDL ([devices and backends](devices-and-backends.md#consolebackend)) |
-| `backend/Web.jl` | Web backend: HTTP + WebSocket server, JSON draw-list (with dirty-rect patches), browser renderer in [program/web/](../program/web/) |
+| `backend/Web.jl` | Web backend: HTTP + WebSocket server, JSON draw-list (with dirty-rect patches), browser renderer in [package/web/assets/](../package/web/assets/) |
 | `backend/Pdf.jl` | SDL-free vector-PDF export (`write_pdf`); hand-rolled TrueType embedding |
 | `device/Screen.jl` | `Screen` device; `QuitEvent` |
 | `device/Keyboard.jl` | `KeyDown`, `KeyUp`, `KeyPress` |

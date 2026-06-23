@@ -6,8 +6,8 @@ the projection pipeline produces operations; the editor applies them via
 `evaluate_operation`.
 
 The abstract supertype lives in
-[api/Operation.jl](../program/src/api/Operation.jl) and the built-in operations
-in [common/Operation.jl](../program/src/common/Operation.jl).
+[api/Operation.jl](../package/kernel/src/api/Operation.jl) and the built-in operations
+in [common/Operation.jl](../package/kernel/src/common/Operation.jl).
 
 ```julia
 abstract type Operation end
@@ -175,9 +175,9 @@ further toward the document's own domain.
   boundaries (like `ReplaceSelectionOperation` /
   `StringReplaceRangeOperation` / `NumberReplaceRangeOperation`), it is only
   retargeted/rerooted automatically if you add it to **both** the default
-  `projection_read` ([common/Projection.jl](../program/src/common/Projection.jl))
+  `projection_read` ([common/Projection.jl](../package/kernel/src/common/Projection.jl))
   **and** `prepend_steps_to_op`
-  ([common/OperationRerooting.jl](../program/src/common/OperationRerooting.jl)).
+  ([common/OperationRerooting.jl](../package/kernel/src/common/OperationRerooting.jl)).
   Both enumerate the path-bearing operation types explicitly; an operation
   missing from either is **silently passed through unmapped** — its reference
   stays in the wrong domain with no error. (An operation that carries its own

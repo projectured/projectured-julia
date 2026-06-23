@@ -269,7 +269,7 @@ const DEFAULT_ASSISTANT_SYSTEM = "You are Claude working inside the ProjecturEd 
                                   "- Call the `search_documentation` tool to find the relevant guide section.\n" *
                                   "- Read full text with `read_resource(uri)`; read a function's full docs with " *
                                   "`read_function_documentation(\"Module\", \"name\")`.\n" *
-                                  "- `list_resources` enumerates guide/module/class resources if you need to browse.\n\n" *
+                                  "- `list_resources` enumerates documentation/module/class resources if you need to browse.\n\n" *
                                   "NEVER guess names or signatures — search for them.\n" *
                                   "NEVER search in files, read files, or run shell commands — use the editor's search tools and resources."
 
@@ -364,7 +364,7 @@ setfn!(e::WorkbenchEditor, f::Function) = (setfn!(getfield(e, :content), f); e)
 # generically with `search_objects` / `search_references` (which walk through the
 # ScreenDocument → WindowDocument → … wrapping); there is deliberately no bespoke
 # imperative helper layer that re-navigates `editor.document`. See
-# guide/editor/finding-and-selecting.md and guide/operations.md.
+# documentation/editor/finding-and-selecting.md and documentation/operations.md.
 
 """
     WorkbenchOpenDocumentOperation(page, entry)

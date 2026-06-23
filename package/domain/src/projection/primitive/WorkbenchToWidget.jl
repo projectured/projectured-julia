@@ -24,7 +24,7 @@ the matching `map_reference_backward`, and `projection_print` wires the
 panes to it. That lets the widget readers route a keystroke to the child the
 selection points at (split panes via `_selected_split_slot`, tabbed panes by
 making the active tab follow the selection) instead of broadcasting to every
-pane. See the "Forward-Projecting Selection" section of guide/editor/selection.md.
+pane. See the "Forward-Projecting Selection" section of documentation/editor/selection.md.
 """
 module WorkbenchToWidgetModule
 

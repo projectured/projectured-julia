@@ -6,11 +6,11 @@ The widget domain is the UI layer that sits between domain-specific projections
 and the graphics domain. Widgets describe what a user interface looks like —
 labels, buttons, panes, scrollbars — in a backend-agnostic way. The
 `WidgetToGraphics` projection (in
-[projection/primitive/WidgetToGraphics.jl](../../program/src/projection/primitive/WidgetToGraphics.jl))
+[projection/primitive/WidgetToGraphics.jl](../../package/domain/src/projection/primitive/WidgetToGraphics.jl))
 turns a tree of widgets into a `GraphicsCanvas`.
 
 The widget module is
-[program/src/document/Widget.jl](../../program/src/document/Widget.jl).
+[program/src/document/Widget.jl](../../package/domain/src/document/Widget.jl).
 
 ## The widget hierarchy
 
@@ -120,14 +120,14 @@ The original widgets carry seven base styling fields:
 - `padding::Inset`, `padding_color::StyleColor` — inner padding
 
 These map to nested CSS-style boxes. `Inset` (defined in
-[document/Geometry.jl](../../program/src/document/Geometry.jl)) holds four
+[document/Geometry.jl](../../package/domain/src/document/Geometry.jl)) holds four
 sides; helpers `inset_size`, `inset_top_left`, etc. compute derived values.
 The default value is `inset_default`.
 
 ## Widget operations
 
 Defined alongside the widget types in
-[document/Widget.jl](../../program/src/document/Widget.jl):
+[document/Widget.jl](../../package/domain/src/document/Widget.jl):
 
 | Operation | Effect |
 |---|---|

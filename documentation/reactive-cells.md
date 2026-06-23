@@ -3,7 +3,7 @@
 The reactive cell system is the foundation of ProjecturEd's incrementality. It is a
 lightweight pull-based reactive engine that replaces the original Common Lisp
 ProjecturEd's `hu.dwim.computed-class`. It lives entirely in
-[program/src/common/Reactive.jl](../program/src/common/Reactive.jl) and has no
+[program/src/common/Reactive.jl](../package/kernel/src/common/Reactive.jl) and has no
 dependencies on the rest of the codebase — every other layer is built on top of it.
 
 ## Cell
@@ -96,7 +96,7 @@ perf_reset!()    # zero them
 ```
 
 The editor's main loop resets and reports these every frame (see
-[Editor.run!](../program/src/editor/Editor.jl)), which is the easiest way to
+[Editor.run!](../package/kernel/src/editor/Editor.jl)), which is the easiest way to
 profile what work a particular edit actually triggered.
 
 ## How the cell appears in the rest of the codebase

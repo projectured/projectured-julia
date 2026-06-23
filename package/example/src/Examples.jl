@@ -755,19 +755,19 @@ function generate_example_screenshots(; filter=nothing, max_width=1920, max_heig
 end
 
 """
-    update_guide_screenshots(; repo_root=joinpath(@__DIR__, "..", ".."))
+    update_guide_screenshots(; repo_root=joinpath(@__DIR__, "..", "..", ".."))
 
 Inject `![...](...)` image references into the guide files and `README.md`.
 Idempotent: re-running produces no changes once images are in place.
 """
-function update_guide_screenshots(; repo_root=joinpath(@__DIR__, "..", ".."))
-    _update_examples_tour(joinpath(repo_root, "guide", "examples-tour.md"))
-    _update_domain_guides(joinpath(repo_root, "guide", "document"))
+function update_guide_screenshots(; repo_root=joinpath(@__DIR__, "..", "..", ".."))
+    _update_examples_tour(joinpath(repo_root, "documentation", "examples-tour.md"))
+    _update_domain_guides(joinpath(repo_root, "documentation", "document"))
     _update_readme(joinpath(repo_root, "README.md"))
     # Convert any remaining plain Markdown example-images (thumbnail tables, the
     # README hero, etc.) to width-pinned <img> tags.
     md_files = String[joinpath(repo_root, "README.md")]
-    guide_dir = joinpath(repo_root, "guide")
+    guide_dir = joinpath(repo_root, "documentation")
     if isdir(guide_dir)
         for (root, _, files) in walkdir(guide_dir), f in files
             endswith(f, ".md") && push!(md_files, joinpath(root, f))

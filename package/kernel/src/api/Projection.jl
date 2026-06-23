@@ -19,8 +19,8 @@ The four functions form two symmetric pairs, one per direction of data flow:
 Rule of thumb: **`projection_print` uses `map_reference_forward`;
 `projection_read` uses `map_reference_backward`.** The two mappers are the
 single source of truth for how a path crosses this projection — written once,
-reused on both sides. See [guide/projection-system.md](../../../guide/projection-system.md)
-for worked recipes and [guide/selection-deep-dive.md](../../../guide/selection-deep-dive.md)
+reused on both sides. See [documentation/projection-system.md](../../../documentation/projection-system.md)
+for worked recipes and [documentation/selection-deep-dive.md](../../../documentation/selection-deep-dive.md)
 for the selection mechanism.
 """
 module ProjectionApiModule
@@ -235,14 +235,14 @@ This is the mapper `projection_print` uses to wire the output selection (see
 its docstring), so getting it right gives the forward cursor mapping for free.
 
 - Express the cases with `@reference_case` (see
-  [guide/editor/reference.md](../../../guide/editor/reference.md)).
+  [documentation/editor/reference.md](../../../documentation/editor/reference.md)).
 - **Recurse in lockstep with the printer.** If `projection_print` recursed into
   children, so must this: peel only the steps this projection owns, look up the
   child the peeled step selects in the **stored child IoMaps**, and delegate the
   remaining tail to that child projection's own `map_reference_forward`. Do *not*
   re-walk the input document dispatching on each child's concrete type — that
   couples the projection to its children's domains and breaks composition with
-  other domains (see [guide/projection-system.md](../../../guide/projection-system.md)).
+  other domains (see [documentation/projection-system.md](../../../documentation/projection-system.md)).
 - If the input reference begins with `ProjectionReference(projection, output_path)`,
   strip that step and return `output_path` directly — it exists precisely to
   embed an already-translated output reference inside an input reference, and

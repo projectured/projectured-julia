@@ -66,4 +66,4 @@ Conventions used in `projectured-overview.md`, reusable as you grow it:
 The overview deck is grounded in the guides and source. When the project
 gains features that are currently forthcoming (e.g. undo/redo, versioning,
 live collaboration), update the corresponding slide so claims stay honest —
-see [`../guide/roadmap.md`](../guide/roadmap.md).
+see [`../guide/roadmap.md`](../documentation/roadmap.md).

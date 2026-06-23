@@ -41,7 +41,7 @@ test_repls()
 test_mcp_tools()
 ```
 
-See [guide/testing.md](guide/testing.md) for the full list of per-layer
+See [documentation/testing.md](documentation/testing.md) for the full list of per-layer
 helpers and the walker utilities behind them.
 
 ## Running an example
@@ -112,7 +112,7 @@ makes review harder.
 
 ## Adding a new domain (quick checklist)
 
-A full walkthrough is in [guide/tutorial-new-domain.md](guide/tutorial-new-domain.md).
+A full walkthrough is in [documentation/tutorial-new-domain.md](documentation/tutorial-new-domain.md).
 The short version:
 
 - [ ] `program/src/document/MyDomain.jl` — define document types with `@document`,
