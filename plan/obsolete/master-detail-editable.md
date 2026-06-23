@@ -1,5 +1,14 @@
 # MasterDetail: editable detail (edits in the detail flow back into the master)
 
+> **⛔ OBSOLETE (2026-06-23):** This design direction is dead. It is a follow-up
+> to `master-detail-document.md` (v1), which was itself ruled obsolete — the
+> master/detail feature took the `ComponentMasterDetail` route instead (see
+> `package/domain/src/document/Component.jl` and `plan/pending/component-document.md`).
+> The `MasterDetail*`-typed architecture this plan extends (the `detail_target`
+> resolver, `MasterDetailToWidget` projection, dual-key detail cache) is not being
+> pursued, so the editable-detail upgrade described here no longer applies. Moved
+> to `plan/obsolete/`.
+
 > **Status: future plan, design only.** Follow-up to
 > [master-detail-document.md](master-detail-document.md), which delivers a v1
 > **read-only** detail. Do that one first. This plan upgrades the detail from an
