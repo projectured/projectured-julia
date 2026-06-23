@@ -9,7 +9,8 @@ etc.
 module BackendModule
 
 export Backend, init!, quit!, measure_text, make_backend, write_image, record_video,
-       render_canvas, decode_image, display_size, set_display_size_provider!
+       render_canvas, decode_image, display_size, set_display_size_provider!,
+       pointer_position
 
 """
     Backend
@@ -52,6 +53,17 @@ function quit!(::Backend) end
 Return the `(pixel_width, pixel_height)` of `text` rendered in `font`.
 """
 function measure_text(::Backend, text, font) end
+
+"""
+    pointer_position(::Backend) -> (x, y)
+
+The current global mouse pointer position in screen pixels, or `(-1, -1)` when
+the backend cannot report it. Implemented by the SDL backend; used to place a
+follower window (e.g. the hover reference inspector) near the cursor. A
+projection that needs it takes a `pointer` closure over this so it stays free
+of any concrete backend dependency (the same indirection as `measure_text`).
+"""
+pointer_position(::Backend) = (-1, -1)
 
 """
     write_image(document, projection, filename; kwargs...)

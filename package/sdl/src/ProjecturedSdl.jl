@@ -22,7 +22,8 @@ using ProjecturedDomain
 using SimpleDirectMediaLayer
 using SimpleDirectMediaLayer.LibSDL2
 import ProjecturedDomain.BackendModule: Backend, init!, quit!, measure_text, make_backend, write_image,
-                        render_canvas, decode_image, display_size, set_display_size_provider!
+                        render_canvas, decode_image, display_size, set_display_size_provider!,
+                        pointer_position
 import ProjecturedDomain.DeviceModule: Device, read_from_devices, write_to_devices, write_to_device
 import ProjecturedDomain.GraphicsModule: GraphicsCanvas, GraphicsText, GraphicsRect, GraphicsLine, GraphicsCircle,
                          GraphicsPolyline, GraphicsSpline, GraphicsViewport, GraphicsImage,
@@ -505,6 +506,26 @@ end
 # logical space everything else lives in.
 _to_device(px) = round(Int, px * _DISPLAY_SCALE[])
 _to_logical(px) = round(Int, px / _DISPLAY_SCALE[])
+
+# Idle (no-button) mouse motion is forwarded for hover features (e.g. the
+# reference inspector) but rate-limited so a probe does not run on every pixel.
+# Button-held motion (drag) is never throttled.
+const _HOVER_MOTION_INTERVAL = 0.03   # seconds (~33 Hz)
+const _LAST_HOVER_MOTION = Ref(0.0)
+
+"""
+    pointer_position(::SdlBackend) -> (x, y)
+
+Current global mouse position in screen pixels (the same coordinate space as
+`SDL_SetWindowPosition`, so the result can place a window directly). Not run
+through `_to_logical`: window positions and global mouse coordinates are both
+in SDL screen coordinates.
+"""
+function pointer_position(::SdlBackend)
+    x_ref, y_ref = Ref{Cint}(0), Ref{Cint}(0)
+    SDL_GetGlobalMouseState(x_ref, y_ref)
+    (Int(x_ref[]), Int(y_ref[]))
+end
 
 # Detect the effective display scale and update the module-wide font scale.
 #
@@ -1956,11 +1977,17 @@ function read_from_devices(backend::SdlBackend, devices)
             return EventEnvelope(wid, MouseUp(button, x, y, mods))
 
         elseif t == 0x00000400  # SDL_MOUSEMOTION
-            # Only forward motion while a button is held to avoid flooding.
             mx_ref, my_ref = Ref{Cint}(0), Ref{Cint}(0)
             bstate = UInt32(SDL_GetMouseState(mx_ref, my_ref))
             buttons = _held_button(bstate)
-            buttons == :none && continue
+            # Idle (no-button) motion drives hover features but is rate-limited
+            # so a hover probe does not run on every pixel; drag motion (a
+            # button held) is forwarded unthrottled.
+            if buttons == :none
+                now = time()
+                (now - _LAST_HOVER_MOTION[]) < _HOVER_MOTION_INTERVAL && continue
+                _LAST_HOVER_MOTION[] = now
+            end
             mods = _current_modifiers()
             wid = _lookup_window_id(backend, evt.motion.windowID)
             return EventEnvelope(wid,
