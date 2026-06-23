@@ -62,8 +62,14 @@ This is the projection-independent half of a domain's reader: any projection
 whose output (or input) is `document` can obtain navigation/editing operations
 without re-implementing them, and a backend that renders the domain directly
 (e.g. ConsoleBackend on a bare TextText) gets them for free.
+
+The catch-all `document_read(::Document, gesture)` is supplied by
+`GestureBindingModule` (`common/GestureBinding.jl`): it interprets the reified
+`document_gestures` table for the document's type, so a domain authored with
+`@gestures` needs no hand-written reader. Concrete `document_read(::SomeDoc, …)`
+methods (Text, Syntax) are more specific and still take precedence; a document
+type with neither a method nor any registered gestures yields `nothing`.
 """
 function document_read end
-document_read(::Document, gesture) = nothing   # default: not handled
 
 end # module

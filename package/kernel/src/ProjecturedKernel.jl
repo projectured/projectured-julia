@@ -42,6 +42,7 @@ include("device/Modifiers.jl")
 include("device/Keyboard.jl")
 include("device/Mouse.jl")
 include("device/EventCase.jl")
+include("common/GestureBinding.jl")
 include("document/Primitive.jl")
 include("common/OperationRerooting.jl")
 # Agent LLM client seam (dependency-free LlmBackend/AnthropicLlm/FakeLlm; the
