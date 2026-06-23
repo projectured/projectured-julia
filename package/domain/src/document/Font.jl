@@ -100,7 +100,7 @@ font_scaled_size(size::Integer) = max(1, round(Int, size * _DISPLAY_SCALE[]))
 
 # ── Font directory ─────────────────────────────────────────────────────────────
 
-const _FONT_DIR = joinpath(@__DIR__, "../../../font")
+const _FONT_DIR = joinpath(@__DIR__, "../../../../asset/font")
 
 # ── Inconsolata ───────────────────────────────────────────────────────────────
 

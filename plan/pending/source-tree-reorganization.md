@@ -367,6 +367,6 @@ Phase 2 documentation sweep), not part of the mechanical rename.
 
 ## Status
 
-- [ ] Phase 1 — package/ + asset/
+- [x] Phase 1 — package/ + asset/ ✅ (resolve OK; Projectured/Example/Sdl load; font→asset/font (36 fonts); printer→GraphicsCanvas; write_image→34 KB PNG)
 - [ ] Phase 2 — documentation/ (guide + presentation)
 - [ ] Phase 3 — rename Mcp/Llm/Odbc/Web/Sdl → Projectured* modules

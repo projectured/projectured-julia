@@ -1,11 +1,11 @@
-executable/build
+package/executable/build
 *.log
 
 # Generated cost-weight calibration cache (analyze-session.jl)
 session/history/.cost-weight
 
 # Local-only baseline reference screenshots (third-party docs captures)
-image/baseline-shadcn/
+asset/image/baseline-shadcn/
 
 # Transient agent worktrees (Claude Code isolation)
 .claude/worktrees/

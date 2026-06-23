@@ -703,7 +703,7 @@ end
 
 """
     generate_example_screenshots(; filter=nothing, max_width=1920, max_height=1080,
-                                 image_dir=joinpath(@__DIR__, "..", "..", "image", "example"))
+                                 image_dir=joinpath(@__DIR__, "..", "..", "..", "asset", "image", "example"))
 
 Generate a PNG screenshot for every example in `examples` into `image_dir`.
 Filename pattern: `{example-name-with-hyphens}.png`. One failure does not
@@ -727,7 +727,7 @@ const SCREENSHOT_SCALE = 2
 
 function generate_example_screenshots(; filter=nothing, max_width=1920, max_height=1080, supersample=3,
                                       scale=SCREENSHOT_SCALE,
-                                      image_dir=joinpath(@__DIR__, "..", "..", "image", "example"))
+                                      image_dir=joinpath(@__DIR__, "..", "..", "..", "asset", "image", "example"))
     mkpath(image_dir)
     # The default widget theme's background (slate-100); widget screenshots use
     # it so the canvas matches the themed surfaces rather than showing white.
@@ -839,7 +839,7 @@ function _update_examples_tour(path::AbstractString)
         if m !== nothing
             name = m.captures[1]
             safe_name = replace(name, "_" => "-")
-            img_line = _img_embed(_example_title(name), "../image/example/$safe_name.png", dirname(path))
+            img_line = _img_embed(_example_title(name), "../asset/image/example/$safe_name.png", dirname(path))
             j = i + 1
             while j <= length(lines) && isempty(strip(lines[j]))
                 push!(out, lines[j])
@@ -887,7 +887,7 @@ function _update_domain_guides(dir::AbstractString)
         heading_idx = findfirst(l -> startswith(l, "# "), lines)
         heading_idx === nothing && continue
         safe_name = replace(example_name, "_" => "-")
-        img_line = _img_embed(_example_title(example_name), "../../image/example/$safe_name.png", dirname(path))
+        img_line = _img_embed(_example_title(example_name), "../../asset/image/example/$safe_name.png", dirname(path))
         existing = findfirst(_is_image_embed, lines[1:min(end, 15)])
         new_lines = if existing !== nothing
             # Replace the existing embed in place (migrates Markdown ↔ <img>).
@@ -905,7 +905,7 @@ function _update_domain_guides(dir::AbstractString)
 end
 
 function _readme_screenshots_block(md_dir::AbstractString)
-    cell(name, title) = _img_embed(title, "image/example/$name.png", md_dir)
+    cell(name, title) = _img_embed(title, "asset/image/example/$name.png", md_dir)
     """
     ## Screenshots
 

@@ -434,7 +434,7 @@ version = "1.12.0"
 
 [[deps.Llm]]
 deps = ["HTTP", "JSON3", "ProjecturedKernel"]
-path = "llm"
+path = "package/llm"
 uuid = "7bcfe799-d9db-4ade-8cf5-c076331403f9"
 version = "0.1.0"
 
@@ -494,7 +494,7 @@ version = "2.28.1010+0"
 
 [[deps.Mcp]]
 deps = ["ModelContextProtocol", "ProjecturedKernel"]
-path = "mcp"
+path = "package/mcp"
 uuid = "2b4e36b2-6b10-43fd-9b63-0a09efcd22da"
 version = "0.1.0"
 
@@ -530,7 +530,7 @@ version = "1.2.1"
 
 [[deps.Odbc]]
 deps = ["DBInterface", "ODBC", "ProjecturedDomain", "Tables"]
-path = "odbc"
+path = "package/odbc"
 uuid = "aed26263-2fd3-42de-9b03-7ee91ffa11a3"
 version = "0.1.0"
 
@@ -628,30 +628,30 @@ version = "1.11.0"
 
 [[deps.Projectured]]
 deps = ["ProjecturedDomain", "ProjecturedKernel"]
-path = "program"
+path = "package/projectured"
 uuid = "92922de3-b970-4d9a-8b2a-9d6f361397b5"
 version = "0.1.0"
 
 [[deps.ProjecturedDomain]]
 deps = ["Base64", "Markdown", "ProjecturedKernel"]
-path = "domain"
+path = "package/domain"
 uuid = "e0912940-0f50-4a55-a142-7b4aed3d6e35"
 version = "0.1.0"
 
 [[deps.ProjecturedExample]]
 deps = ["Odbc", "Profile", "Projectured"]
-path = "example"
+path = "package/example"
 uuid = "e5f6a7b8-c9d0-4e1f-2a3b-4c5d6e7f8a9b"
 version = "0.1.0"
 
 [[deps.ProjecturedKernel]]
-path = "kernel"
+path = "package/kernel"
 uuid = "a3e3499a-684d-4df9-a0d6-de2d1797b1f3"
 version = "0.1.0"
 
 [[deps.ProjecturedTest]]
 deps = ["Odbc", "Projectured", "ProjecturedExample", "Sdl", "Test"]
-path = "test"
+path = "package/test"
 uuid = "c3f1d2e8-4a5b-6c7d-8e9f-0a1b2c3d4e5f"
 version = "0.1.0"
 
@@ -737,7 +737,7 @@ version = "1.3.0"
 
 [[deps.Sdl]]
 deps = ["FFMPEG", "ProjecturedDomain", "SDL2_jll", "SimpleDirectMediaLayer"]
-path = "sdl"
+path = "package/sdl"
 uuid = "f0002b97-94ba-416c-b93c-86cdc095626f"
 version = "0.1.0"
 
@@ -854,7 +854,7 @@ version = "1.11.0"
 
 [[deps.Web]]
 deps = ["Base64", "HTTP", "JSON3", "ProjecturedDomain"]
-path = "web"
+path = "package/web"
 uuid = "893c803c-8c7c-42c1-85f1-cc97ca81befb"
 version = "0.1.0"
 

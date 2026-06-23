@@ -26,7 +26,7 @@ Pkg.activate(@__DIR__)
 
 # Add local packages as developable dependencies FIRST
 println("Adding local packages...")
-Pkg.develop(PackageSpec(path = "../program"))
+Pkg.develop(PackageSpec(path = "../projectured"))
 Pkg.develop(PackageSpec(path = "../example"))
 
 # Use development version of FixedPointNumbers to fix Julia 1.12 compatibility

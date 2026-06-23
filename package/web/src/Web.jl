@@ -102,7 +102,7 @@ function WebBackend(; host::AbstractString="127.0.0.1", port::Integer=8080)
     # Paths relative to this package's src/ (web/src/): web assets at web/assets,
     # fonts at the shared <repo-root>/font.
     webdir  = normpath(joinpath(@__DIR__, "..", "assets"))
-    fontdir = normpath(joinpath(@__DIR__, "..", "..", "font"))
+    fontdir = normpath(joinpath(@__DIR__, "..", "..", "..", "asset", "font"))
     WebBackend(String(host), Int(port), webdir, fontdir,
                nothing, Channel{Any}(256), nothing,
                Dict{Symbol,WebWindowState}(), Symbol[], false,
