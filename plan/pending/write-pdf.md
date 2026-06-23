@@ -1,5 +1,15 @@
 # Plan: `write_pdf` — Save a Projected Document to a PDF File
 
+> **✅ DONE (audited 2026-06-23):** This plan is fully implemented. The backend lives at
+> `package/domain/src/backend/Pdf.jl` (`module PdfBackendModule`, ~890 lines), included by
+> `package/domain/src/ProjecturedDomain.jl:150` and exercised by `package/test/src/backend/PdfTest.jl`
+> (registered + invoked at `package/test/src/ProjecturedTest.jl:77,163`). The implementation goes
+> *beyond* this plan: multi-page **pagination** (the `paginate` kwarg, listed here only as a future
+> extension) and **polyline/spline** edge rendering are also implemented. Per-step evidence is inline
+> below. The only intentionally-deferred items (all explicitly scoped to v1 as future work in the plan)
+> are: `.otf`/CFF `FontFile3` embedding (Step 1 open question), and any extra `GraphicsImage`
+> texture-pointer support beyond the RGBA-buffer path (Step 6). See the "Open questions" section.
+
 The PDF analogue of [`write_image`](../done/write-image.md). The caller provides
 their own projection; `write_pdf` drives `projection_print`, takes the resulting
 `GraphicsCanvas`, and emits a **vector** PDF — rectangles, lines, circles, and
@@ -65,6 +75,11 @@ it is a second, independent backend over the graphics domain.
 
 ## Step 0: Relocate content-bounds helpers to `GraphicsModule`
 
+**✅ DONE (verified):** `_canvas_content_bounds` / `_accumulate_bounds!` / `_bounds_elem!` now live in
+`package/domain/src/document/Graphics.jl:621-681`. `Pdf.jl:29` imports `_canvas_content_bounds` from
+`GraphicsModule`, and the SDL backend (`package/sdl/src/ProjecturedSdl.jl`) shares the same helper.
+The `measure(text, font)->(w,h)` callback signature is preserved (called as `_canvas_content_bounds(canvas, measure)`).
+
 The page-sizing pass needs the bounding box of everything the canvas draws.
 That logic already exists in `Sdl.jl` as `_canvas_content_bounds` /
 `_accumulate_bounds!` / `_bounds_elem!` (`program/src/backend/Sdl.jl:1483-1541`).
@@ -88,6 +103,17 @@ after the move.
 ---
 
 ## Step 1: Minimal TrueType parser (`Pdf.jl`)
+
+**✅ DONE (verified):** `struct TrueTypeFont` + `_parse_ttf` at `Pdf.jl:58-124`, cached in
+`const _TTF_CACHE` (`Pdf.jl:74`) via `_load_ttf` (`Pdf.jl:76`). Parses `head` (units/bbox), `maxp`
+(numGlyphs), `hhea`/`hmtx` (ascent/descent/advances with last-advance reuse), `cmap` (format 12 preferred,
+else format 4 — `_select_cmap`/`_cmap4`/`_cmap12`, `Pdf.jl:127-194`), and optional `OS/2`/`post`
+(cap_height, italic_angle, fixed-pitch). Helpers `glyph_id`/`advance_1000`/`text_width`/`ascent_px` at
+`Pdf.jl:189-210`.
+**⏳ OPEN (scoped to v1 as future work):** The `.otf`/CFF `FontFile3` branch is NOT implemented — no
+`OTTO`/`FontFile3`/`Type1C` handling exists; the parser always emits `FontFile2`. This matches the plan's
+v1 decision to restrict to TrueType-outline fonts (all default example fonts are `.ttf`), so it does not
+block examples/tests. See Open Questions.
 
 A small, read-only parser over the raw font bytes. Cached per file path
 (`const _TTF_CACHE = Dict{String,TrueTypeFont}()`), parsed once.
@@ -142,6 +168,12 @@ the text baseline placement use.
 
 ## Step 2: `PdfWriter` — object/xref/stream emission (`Pdf.jl`)
 
+**✅ DONE (verified):** `mutable struct PdfWriter` + `new_object!`/`write_object!`/`write_stream!`/`finish!`
+at `Pdf.jl:248-285`. Emits `%PDF-1.7` + binary marker, objects, `xref`, `trailer << /Size /Root >>`,
+`startxref`, `%%EOF`. Locale-independent number formatting via `n2` (`Pdf.jl:238`) and color `c01`
+(`Pdf.jl:242`). The full Catalog→Pages→Page→Contents + per-font/per-alpha/per-image object layout is
+assembled in `_write_pdf_document` (`Pdf.jl:654-736`).
+
 A tiny builder that assigns object numbers, records byte offsets, and writes the
 file. PDF structure produced:
 
@@ -178,6 +210,16 @@ locale-independent helper (`@sprintf("%.3f", x)`), no thousands separators.
 ---
 
 ## Step 3: Canvas → content-stream walker (`Pdf.jl`)
+
+**✅ DONE (verified):** `paint_canvas!`/`paint_elem!` (`Pdf.jl:520-548`) recurse with accumulated
+`ox,oy` offsets and skip `GraphicsFence`. `PageCtx` (`Pdf.jl:299-311`) carries `page_height`, the
+`IOBuffer`, the per-font/per-alpha/per-image registries, and `_flip` (y-flip, `Pdf.jl:315`). Per-primitive
+painters: `paint_rect!` (square + rounded `_rrect_path!` with KAPPA Béziers, border via outer/inner fill,
+`Pdf.jl:336-380`), `paint_line!` (stroked, `Pdf.jl:406`), `paint_circle!` (4-Bézier disc + border,
+`Pdf.jl:382-404`), `paint_text!` (`BT … Tf … Tm <hexGIDs> Tj ET`, baseline = flip(y+ascent),
+`Pdf.jl:462-482`), `paint_viewport!` (clip `re W n` … `Q`, `Pdf.jl:510-518`). Alpha handled via per-op
+`/GSk gs` ExtGState (`gs_for!`, `Pdf.jl:330`). **Beyond plan:** `paint_polyline!`/`paint_spline!`
+(`Pdf.jl:449-460`) render `GraphicsPolyline`/`GraphicsSpline` with arrowheads.
 
 Mirror `_render_canvas!` / `_dispatch_render_elem!` (`Sdl.jl:825-905`) including
 its offset accumulation through nested canvases, but emit operators into an
@@ -232,6 +274,12 @@ moment an absolute coordinate is written, using the final accumulated position.
 
 ## Step 4: SDL-free text measure for page sizing (`Pdf.jl`)
 
+**✅ DONE (verified):** `pdf_measure_text(text, font::StyleFont)` at `Pdf.jl:219-220` returns
+`(Int, Int)` from the font's own `text_width`/metrics, matching `sdl_measure_text`'s contract. It is the
+default `measure=` kwarg on both `write_pdf` overloads (`Pdf.jl:756,808`). A neutral alias
+`truetype_measure_text` (`Pdf.jl:231`) is exported and is now the default `measure` for example
+projections across `package/example/src/projection/*.jl`.
+
 ```julia
 pdf_measure_text(text, font::StyleFont) =
     (text_width(_load_ttf(font.filename), font.size, String(text)), font.size)
@@ -248,6 +296,14 @@ cosmetic.)
 ---
 
 ## Step 5: Font registration + embedding (`Pdf.jl`)
+
+**✅ DONE (verified):** `FontReg` (`Pdf.jl:291-297`) keyed by `font.filename` in
+`register_font!` (`Pdf.jl:321-328`), tracking used GIDs + gid→codepoint. `_write_font!` (`Pdf.jl:585-618`)
+emits the full chain: `FontFile2` stream (raw bytes, `/Length1`), `FontDescriptor` (Flags incl. fixed/italic
+bits, scaled `FontBBox`, Ascent/Descent/CapHeight, StemV 80), `CIDFontType2` (`/CIDToGIDMap /Identity`,
+`/DW`, `/W` array from used GIDs), `Type0` (`/Encoding /Identity-H`, `/ToUnicode`), and a `ToUnicode` CMap
+(`_tounicode_cmap`/`_utf16be_hex`, `Pdf.jl:554-583`). BaseFont name sanitized from filename. **Note:** only
+the `FontFile2` (TrueType) path exists; `.otf`/CFF `FontFile3` is the deferred edge case (Step 1).
 
 A registry keyed by `StyleFont` (or by `(filename, size)` — but size only scales
 at show time via `Tf`, so key by `filename` and reuse one embedded font across
@@ -282,6 +338,12 @@ and serif (2) bits when known. `BaseFont` name: derive from the filename
 
 ## Step 6: `GraphicsImage` (minimal / deferred)
 
+**✅ DONE (verified, as scoped):** `paint_image!` (`Pdf.jl:484-508`) handles the RGBA-buffer forms
+(`(buf, nw, nh)` tuple or bare `Vector{UInt8}`), splits into `/DeviceRGB` base + `/DeviceGray` `/SMask`
+XObjects (emitted in `_write_pdf_document`, `Pdf.jl:690-695`), and positions via a `cm` transform
+(`Pdf.jl:507`). Raw SDL texture-pointer images are skipped (`Pdf.jl:493`), exactly the documented v1
+limitation.
+
 `GraphicsImage.data` is an SDL texture pointer or an RGBA byte buffer
 (`Sdl.jl:785-801`). In the export path the document is freshly printed, so image
 data is most often a decoded `(buf, nw, nh)` RGBA tuple. Emit it as an image
@@ -296,6 +358,14 @@ no `GraphicsImage` at all, so this is low-priority.)
 ---
 
 ## Step 7: Public functions (`Pdf.jl`)
+
+**✅ DONE (verified):** Both overloads exist — `write_pdf(canvas, filename; width, height, paginate, …)`
+(`Pdf.jl:753-769`, errors on non-`.pdf` extension) and `write_pdf(document, projection, filename; …)`
+(`Pdf.jl:801-852`) which runs `projection_print`, applies the same two-pass content-fit sizing as
+`write_image` (cap at `max_width`/`max_height`), errors if output isn't a `GraphicsCanvas`, and returns
+`ImageFile`. `GraphicsCanvasToPdfFile <: Projection` (`Pdf.jl:868-888`) is the printer-only projection
+returning a `SimpleIoMap` whose `output` is an `ImageFile`. **Beyond plan:** a `paginate` kwarg adds
+multi-page output (`_render_pages`, `Pdf.jl:627-649`).
 
 ```julia
 """
@@ -350,6 +420,17 @@ end
 
 ## Step 8: Module wiring
 
+**✅ DONE (verified, paths remapped):** `module PdfBackendModule` lives at
+`package/domain/src/backend/Pdf.jl` (not the old `program/src/...`). Imports are present at `Pdf.jl:26-38`
+(GraphicsModule incl. `_canvas_content_bounds`, FontModule `StyleFont`, ImageModule `ImageFile`,
+ProjectionApiModule `projection_print`/`Projection`, IoMapModule `SimpleIoMap`, PrinterContextModule,
+ReferenceModule, ReactiveModule). Exports `write_pdf, GraphicsCanvasToPdfFile, pdf_measure_text,
+truetype_measure_text` (`Pdf.jl:38`). Wiring differs from the plan's literal `using .PdfBackendModule`
+text: the file is `include`d directly into `ProjecturedDomain` (`package/domain/src/ProjecturedDomain.jl:150`),
+and the umbrella `Projectured` re-exports the flat API — verified by `PdfTest.jl` calling `write_pdf` /
+`GraphicsCanvasToPdfFile` unqualified under `using Projectured`. `Printf` not needed (custom `n2` formatter
+used instead).
+
 - **`program/src/backend/Pdf.jl`** — new `module PdfBackendModule`. Imports:
   `GraphicsModule` (the element types + `_canvas_content_bounds`), `FontModule`
   (`StyleFont`), `ImageModule` (`ImageFile`), `ProjectionApiModule`
@@ -364,6 +445,12 @@ end
 ---
 
 ## Step 9: Example wrapper
+
+**✅ DONE (verified, renamed):** Implemented as `write_example_pdf` (named for parity with the existing
+`write_example_image`, not `write_pdf_example`) at `package/example/src/Examples.jl:654-668`. It runs
+`write_pdf(example.document, example.projection, …)` with `measure=truetype_measure_text` for layout
+parity, and brings up SDL via `init!(make_backend(:sdl))` first (since `write_pdf` is itself SDL-free).
+Exported from `package/example/src/ProjecturedExample.jl:169`.
 
 In `example/src/Examples.jl`, next to `write_image_example`
 (`example/src/Examples.jl:466`):
@@ -390,6 +477,12 @@ exported to PDF directly.
 ---
 
 ## Step 10: Test
+
+**✅ DONE (verified, expanded):** `package/test/src/backend/PdfTest.jl` exists (`function test_write_pdf()`),
+included at `package/test/src/ProjecturedTest.jl:77` and invoked at line 163. It covers everything the plan
+sketched plus more: document/projection overload, content-fit sizing, canvas overload, an all-primitives +
+embedded-font case (asserts `filesize > 50_000`), the `GraphicsCanvasToPdfFile` projection, unsupported-extension
+error, and four pagination cases (`_page_count` helper). Header/`%%EOF` validated by `_is_pdf`.
 
 **New file:** `test/src/backend/PdfTest.jl`, registered in
 `test/src/ProjecturedTest.jl`.
@@ -442,6 +535,11 @@ Run the narrowest test during development:
 
 ## Step 11: Guide
 
+**✅ DONE (verified, path remapped):** A "Saving to PDF" subsection exists at
+`documentation/document/graphics.md:97` (the repo's guides live under `documentation/`, not `guide/`). It
+documents the same call shape, vector/selectable-text output, embedded fonts, SDL-free measure, the
+`write_example_pdf` helper, and pagination — including the v1 limitations.
+
 Add a "Saving to PDF" subsection to `guide/document/graphics.md` next to the
 existing `write_image` notes: same call shape, `.pdf` extension, vector output
 with selectable text, fonts embedded, one page sized to content (capped at
@@ -452,6 +550,8 @@ caveat from Step 1.
 ---
 
 ## Implementation order (incremental, each independently verifiable)
+
+**✅ DONE:** All six implementation-order milestones are complete — see the per-step annotations above.
 
 1. **Step 0** — relocate `_canvas_content_bounds` to `GraphicsModule`; confirm
    `write_image` unaffected (`test/.../GraphicsToFileTest.jl` still green).
@@ -472,7 +572,13 @@ caveat from Step 1.
 - **`.otf`/CFF fonts** (`Inconsolata.otf`): implement the `FontFile3` embedding
   branch, or restrict v1 to TrueType-outline fonts and remap. (All default
   example fonts are `.ttf`, so this does not block the example/tests.)
+  **⏳ OPEN (settled as "restrict to TrueType" for now):** No `FontFile3`/CFF branch in `Pdf.jl`; the
+  parser/embedder is TrueType-`FontFile2`-only. This is the one remaining future item; it does not block
+  any current example or test.
 - **Axis-aligned lines:** stroked path vs. filled `re` span — pick whichever
   matches SDL's crisp rules more faithfully on a side-by-side.
+  **✅ RESOLVED:** Implemented as a stroked path (`paint_line!`, `Pdf.jl:406-416`), which the plan stated
+  is acceptable in vector output.
 - **Return type:** reuse `ImageFile` (chosen, for `write_image` parity) vs. a new
   `PdfFile` document. Revisit only if a downstream consumer needs to distinguish.
+  **✅ RESOLVED:** `ImageFile` is returned (`Pdf.jl:735,851`), as chosen.
