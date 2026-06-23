@@ -14,6 +14,7 @@ module MathToSyntaxModule
 import ..ReactiveModule: Cell
 import ..CollectionModule: CellVector
 import ..ProjectionApiModule: projection_print, projection_printer_recurse, projection_read, map_reference_forward, map_reference_backward, Projection
+import ..ProjectionModule: var"@projection"
 import ..MathModule: MathDocument, MathInsertion, MathVariable, MathBinaryOperation, MathParenthesized, MathAssignment, _operator_string
 import ..PrimitiveModule: PrimitiveNumber
 import ..TextModule: TextString
@@ -36,11 +37,9 @@ export MathInsertionToSyntaxLeaf, MathVariableToSyntaxLeaf,
 
 # ── MathInsertionToSyntaxLeaf ─────────────────────────────────────────────────
 
-struct MathInsertionToSyntaxLeaf <: Projection
-    style::StyleText
+@projection struct MathInsertionToSyntaxLeaf <: Projection
+    style::StyleText = StyleText(font_ubuntu_monospace_regular_24, color_solarized_gray)
 end
-MathInsertionToSyntaxLeaf(; style=StyleText(font_ubuntu_monospace_regular_24, color_solarized_gray)) =
-    MathInsertionToSyntaxLeaf(style)
 
 function projection_print(p::MathInsertionToSyntaxLeaf, recursion, m::MathInsertion, ctx)
     output_selection = Cell(() -> map_reference_forward(p, nothing, m.selection))
@@ -49,11 +48,9 @@ end
 
 # ── MathVariableToSyntaxLeaf ──────────────────────────────────────────────────
 
-struct MathVariableToSyntaxLeaf <: Projection
-    style::StyleText
+@projection struct MathVariableToSyntaxLeaf <: Projection
+    style::StyleText = StyleText(font_ubuntu_monospace_regular_24, color_solarized_blue)
 end
-MathVariableToSyntaxLeaf(; style=StyleText(font_ubuntu_monospace_regular_24, color_solarized_blue)) =
-    MathVariableToSyntaxLeaf(style)
 
 function map_reference_forward(::MathVariableToSyntaxLeaf, iomap::SimpleIoMap, reference)
     @reference_case reference begin
@@ -83,11 +80,9 @@ end
 
 # ── MathBinaryOperationToSyntaxNode ───────────────────────────────────────────
 
-struct MathBinaryOperationToSyntaxNode <: Projection
-    op::StyleText
+@projection struct MathBinaryOperationToSyntaxNode <: Projection
+    op::StyleText = StyleText(font_ubuntu_monospace_regular_24, color_solarized_cyan)
 end
-MathBinaryOperationToSyntaxNode(; op=StyleText(font_ubuntu_monospace_regular_24, color_solarized_cyan)) =
-    MathBinaryOperationToSyntaxNode(op)
 
 # Selection mapping (School A). The output node's children are
 # [left (index 1), operator leaf (index 2), right (index 3)]; the operator is
@@ -182,11 +177,9 @@ end
 
 # ── MathParenthesizedToSyntaxNode ─────────────────────────────────────────────
 
-struct MathParenthesizedToSyntaxNode <: Projection
-    delim::StyleText
+@projection struct MathParenthesizedToSyntaxNode <: Projection
+    delim::StyleText = StyleText(font_ubuntu_monospace_regular_24, color_solarized_gray)
 end
-MathParenthesizedToSyntaxNode(; delim=StyleText(font_ubuntu_monospace_regular_24, color_solarized_gray)) =
-    MathParenthesizedToSyntaxNode(delim)
 
 # Selection mapping (School A). The single content child is output index 1; the
 # parentheses are projection-introduced. child_iomaps holds the one content IO map.
@@ -252,11 +245,9 @@ end
 
 # ── MathAssignmentToSyntaxNode ────────────────────────────────────────────────
 
-struct MathAssignmentToSyntaxNode <: Projection
-    eq::StyleText
+@projection struct MathAssignmentToSyntaxNode <: Projection
+    eq::StyleText = StyleText(font_ubuntu_monospace_regular_24, color_solarized_yellow)
 end
-MathAssignmentToSyntaxNode(; eq=StyleText(font_ubuntu_monospace_regular_24, color_solarized_yellow)) =
-    MathAssignmentToSyntaxNode(eq)
 
 # Selection mapping (School A). Output children are
 # [target (index 1), '=' leaf (index 2), value (index 3)]; the '=' is

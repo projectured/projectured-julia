@@ -162,17 +162,40 @@ end
 ```
 
 Use the project's own `@projection` macro here (not `Base.@kwdef`) for consistency
-with the rest of the codebase; it needs `import ..ProjectionModule: var"@projection"`.
-Safe whenever the type is only constructed zero-arg/keyword (no positional call site
-depends on the bare struct ctor). Other `*To*` projection files (`XmlToSyntax`,
-`SyntaxToText`, the `WidgetToGraphics` style-bearing projections, …) are candidates
-for the same treatment.
+with the rest of the codebase; it needs `import ..ProjectionModule: var"@projection"`
+**and `import ..ReactiveModule: Cell`** (the macro expands to `Cell(...)`).
+
+**Hard constraint — fields must not hold a function/callable.** `@projection`
+auto-wraps every field with `Cell(...)`, and `Cell(f::Function)` builds a *computed
+thunk*, not a stored function — so a config field that holds a callable (e.g.
+`marker_eligible::Any = _default_marker_eligible`, a `predicate`, a `measure`) would
+be **invoked** when read, silently breaking the projection (the documented gotcha in
+macros.md). Only convert structs whose fields are plain value config
+(`StyleText`/`StyleFont`/`StyleColor`/`Int`/`String`/`Bool`). This rules out
+`SyntaxNodeToText` (its `marker_eligible` is a function) and the generic/behavioural
+projections (`SortingProjection`, `FilteringProjection`, `WordWrapping`, …). Safe
+whenever the type is also only constructed zero-arg/keyword (no positional call site
+depends on the bare struct ctor).
 
 - [x] **JsonToSyntax.jl**: 7 projection config structs (`JsonNullToSyntaxLeaf`,
   `JsonInsertionToSyntaxLeaf`, `JsonBoolToSyntaxLeaf`, `JsonNumberToSyntaxLeaf`,
   `JsonStringToSyntaxLeaf`, `JsonArrayToSyntaxNode`, `JsonObjectToSyntaxNode`)
   converted to `@projection` with inline `StyleText` defaults. `test_json_to_syntax`
   11/11.
+- [x] **Phase B — the `*To*` style-config structs (98 across 13 files).** Converted
+  every plain `struct … <: Projection` with a pure default-forwarding keyword ctor in
+  JuliaToSyntax (31), SqlToSyntax (26), ObjectToSyntax (8), BookToSyntax (6),
+  MathToSyntax (5), DbCatalogToSyntax (5), FormulaToSyntax (4), XmlToSyntax (3),
+  PrimitiveToSyntax (3), DbCatalog/Primitive/FileSystem/Collection/ReferenceToText, …
+  Added the `@projection`/`Cell` imports per file. **Skipped** (not pure value config):
+  `SqlBooleanBinaryToSyntaxNode` (required positional arg), `SyntaxNodeToWidget`
+  (`String()`/`Int()` coercion), `PrimitiveStringToTextText` (cross-keyword default).
+  **Reverted `SyntaxNodeToText` (SyntaxToText.jl)** — converting it cascaded thousands
+  of failures across *every* syntax-rendered example (its `marker_eligible::Any` is a
+  function; see the hard constraint above). With it kept plain, the full
+  `test_printers` (168245) and `test_readers` (18900) sweep is **0 failures** — matching
+  the clean-tree baseline. Done in a dedicated worktree (`worktree-projection-config-defaults`)
+  since main had since advanced + been pushed.
 
 ### Out of scope — and why
 

@@ -16,6 +16,7 @@ import ..ReactiveModule: Cell
 import ..CollectionModule: CellVector
 import ..ProjectionApiModule: projection_print, projection_printer_recurse, projection_read,
                               map_reference_forward, map_reference_backward, Projection
+import ..ProjectionModule: var"@projection"
 import ..BookModule: BookDocument, BookInsertion, BookBook, BookChapter, BookParagraph, BookList, BookPicture
 import ..TextModule: TextDocument, TextString, TextText
 import ..FontModule: StyleFont, font_ubuntu_monospace_regular_24, font_ubuntu_monospace_bold_24, font_ubuntu_monospace_italic_24
@@ -43,11 +44,9 @@ export BookInsertionToSyntaxLeaf, BookBookToSyntaxNode, BookChapterToSyntaxNode,
 # JsonInsertionToSyntaxLeaf), so the default proj-unwrapping forward mapper is
 # correct and the iomap is threaded canonically.
 
-struct BookInsertionToSyntaxLeaf <: Projection
-    style::StyleText
+@projection struct BookInsertionToSyntaxLeaf <: Projection
+    style::StyleText = StyleText(font_ubuntu_monospace_regular_24, color_solarized_gray)
 end
-BookInsertionToSyntaxLeaf(; style=StyleText(font_ubuntu_monospace_regular_24, color_solarized_gray)) =
-    BookInsertionToSyntaxLeaf(style)
 
 function projection_print(p::BookInsertionToSyntaxLeaf, recursion, b::BookInsertion, ctx)
     output_selection = Cell(() -> map_reference_forward(p, nothing, b.selection))
@@ -66,16 +65,11 @@ end
 #   .author[k]        → .children[2].value[k]  (when author present)
 #   .elements[i].…    → .children[i+offset].…  (via element iomap)
 
-struct BookBookToSyntaxNode <: Projection
-    title::StyleText
-    author_prefix::StyleText
-    author::StyleText
+@projection struct BookBookToSyntaxNode <: Projection
+    title::StyleText        = StyleText(font_ubuntu_monospace_bold_24, color_solarized_blue)
+    author_prefix::StyleText = StyleText(font_ubuntu_monospace_italic_24, color_solarized_gray)
+    author::StyleText       = StyleText(font_ubuntu_monospace_regular_24, color_solarized_cyan)
 end
-BookBookToSyntaxNode(;
-        title=StyleText(font_ubuntu_monospace_bold_24, color_solarized_blue),
-        author_prefix=StyleText(font_ubuntu_monospace_italic_24, color_solarized_gray),
-        author=StyleText(font_ubuntu_monospace_regular_24, color_solarized_cyan)) =
-    BookBookToSyntaxNode(title, author_prefix, author)
 
 
 function projection_print(p::BookBookToSyntaxNode, recursion, b::BookBook, ctx)
@@ -233,16 +227,12 @@ end
 # When numbering is non-empty, the displayed string is "numbering  title".
 # Backward mapping subtracts length(numbering)+2 from character indices.
 
-struct BookChapterToSyntaxNode <: Projection
-    title::StyleText
+@projection struct BookChapterToSyntaxNode <: Projection
+    title::StyleText = StyleText(font_ubuntu_monospace_bold_24, color_solarized_blue)
     # Reserved for styling the numbering prefix distinctly; the title leaf
     # currently renders "numbering  title" in the title style.
-    numbering::StyleText
+    numbering::StyleText = StyleText(font_ubuntu_monospace_bold_24, color_solarized_magenta)
 end
-BookChapterToSyntaxNode(;
-        title=StyleText(font_ubuntu_monospace_bold_24, color_solarized_blue),
-        numbering=StyleText(font_ubuntu_monospace_bold_24, color_solarized_magenta)) =
-    BookChapterToSyntaxNode(title, numbering)
 
 
 function projection_print(p::BookChapterToSyntaxNode, recursion, b::BookChapter, ctx)
@@ -402,14 +392,11 @@ end
 #
 # Selection forward:  .content → .value
 
-struct BookParagraphToSyntaxLeaf <: Projection
-    style::StyleText
+@projection struct BookParagraphToSyntaxLeaf <: Projection
+    style::StyleText = StyleText(font_ubuntu_monospace_regular_24, color_solarized_green)
     # Reserved for an empty-content placeholder hint (not yet rendered).
-    placeholder::StyleText
+    placeholder::StyleText = StyleText(font_ubuntu_monospace_regular_24, color_solarized_gray)
 end
-BookParagraphToSyntaxLeaf(; style=StyleText(font_ubuntu_monospace_regular_24, color_solarized_green),
-        placeholder=StyleText(font_ubuntu_monospace_regular_24, color_solarized_gray)) =
-    BookParagraphToSyntaxLeaf(style, placeholder)
 
 function projection_print(p::BookParagraphToSyntaxLeaf, recursion, b::BookParagraph, ctx)
     content_sel = Cell(() -> begin
@@ -457,13 +444,10 @@ end
 #
 # Selection forward:  .elements[i].… → .children[i].children[1].…
 
-struct BookListToSyntaxNode <: Projection
-    bullet::StyleText
-    indentation::Int
+@projection struct BookListToSyntaxNode <: Projection
+    bullet::StyleText = StyleText(font_ubuntu_monospace_regular_24, color_solarized_yellow)
+    indentation::Int = 2
 end
-BookListToSyntaxNode(; bullet=StyleText(font_ubuntu_monospace_regular_24, color_solarized_yellow),
-        indentation=2) =
-    BookListToSyntaxNode(bullet, indentation)
 
 
 function projection_print(p::BookListToSyntaxNode, recursion, b::BookList, ctx)
@@ -559,13 +543,10 @@ end
 # An empty title renders a gray placeholder so the caption still has a cursor;
 # an empty content renders the path placeholder.
 
-struct BookPictureToSyntaxLeaf <: Projection
-    style::StyleText
-    placeholder::StyleText
+@projection struct BookPictureToSyntaxLeaf <: Projection
+    style::StyleText = StyleText(font_ubuntu_monospace_regular_24, color_solarized_magenta)
+    placeholder::StyleText = StyleText(font_ubuntu_monospace_regular_24, color_solarized_gray)
 end
-BookPictureToSyntaxLeaf(; style=StyleText(font_ubuntu_monospace_regular_24, color_solarized_magenta),
-        placeholder=StyleText(font_ubuntu_monospace_regular_24, color_solarized_gray)) =
-    BookPictureToSyntaxLeaf(style, placeholder)
 
 function projection_print(p::BookPictureToSyntaxLeaf, recursion, b::BookPicture, ctx)
     title_sel = Cell(() -> begin

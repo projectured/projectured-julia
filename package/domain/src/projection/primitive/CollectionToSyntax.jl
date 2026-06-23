@@ -13,6 +13,7 @@ module CollectionToSyntaxModule
 import ..ReactiveModule: Cell, setfn!, setval!
 import ..CollectionModule: CellVector, ListNode
 import ..ProjectionApiModule: projection_print, projection_printer_recurse, projection_read, map_reference_forward, map_reference_backward, Projection
+import ..ProjectionModule: var"@projection"
 import ..SyntaxModule: SyntaxDocument, SyntaxNode
 import ..TextModule: TextString
 import ..FontModule: StyleFont, font_ubuntu_monospace_regular_24, font_ubuntu_monospace_bold_24
@@ -29,13 +30,10 @@ export CollectionCellVectorToSyntax, CollectionListNodeToSyntax, CollectionToSyn
 
 # ── CollectionCellVectorToSyntax ─────────────────────────────────────────────
 
-struct CollectionCellVectorToSyntax <: Projection
-    delim::StyleText
-    sep::StyleText
+@projection struct CollectionCellVectorToSyntax <: Projection
+    delim::StyleText = StyleText(font_ubuntu_monospace_bold_24, color_solarized_gray)
+    sep::StyleText   = StyleText(font_ubuntu_monospace_regular_24, color_solarized_gray)
 end
-CollectionCellVectorToSyntax(; delim=StyleText(font_ubuntu_monospace_bold_24, color_solarized_gray),
-                                sep=StyleText(font_ubuntu_monospace_regular_24, color_solarized_gray)) =
-    CollectionCellVectorToSyntax(delim, sep)
 
 function map_reference_forward(p::CollectionCellVectorToSyntax, iomap::ChildrenIoMap, reference)
     reference === nothing && return nothing

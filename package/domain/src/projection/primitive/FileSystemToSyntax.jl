@@ -20,6 +20,7 @@ module FileSystemToSyntaxModule
 import ..ReactiveModule: Cell
 import ..CollectionModule: CellVector
 import ..ProjectionApiModule: projection_print, projection_printer_recurse, projection_read, map_reference_forward, map_reference_backward, Projection
+import ..ProjectionModule: var"@projection"
 import ..FileSystemModule: FileSystemDocument, FileSystemFile, FileSystemDirectory
 import ..TextModule: TextString
 import ..FontModule: StyleFont, font_ubuntu_monospace_regular_24, font_ubuntu_monospace_bold_24
@@ -38,11 +39,9 @@ export FileSystemFileToSyntaxLeaf, FileSystemDirectoryToSyntaxNode, FileSystemTo
 
 # ── FileSystemFileToSyntaxLeaf ────────────────────────────────────────────────
 
-struct FileSystemFileToSyntaxLeaf <: Projection
-    style::StyleText
+@projection struct FileSystemFileToSyntaxLeaf <: Projection
+    style::StyleText = StyleText(font_ubuntu_monospace_regular_24, color_solarized_blue)
 end
-FileSystemFileToSyntaxLeaf(; style=StyleText(font_ubuntu_monospace_regular_24, color_solarized_blue)) =
-    FileSystemFileToSyntaxLeaf(style)
 
 function projection_print(p::FileSystemFileToSyntaxLeaf, recursion, f::FileSystemFile, ctx)
     SimpleIoMap(p, f, SyntaxLeaf(
@@ -72,11 +71,9 @@ end
 # Selection mapping (filesystem domain → syntax domain):
 #   .elements[i] + rest  →  .children[2].children[i] + child_sel
 
-struct FileSystemDirectoryToSyntaxNode <: Projection
-    name::StyleText
+@projection struct FileSystemDirectoryToSyntaxNode <: Projection
+    name::StyleText = StyleText(font_ubuntu_monospace_bold_24, color_solarized_red)
 end
-FileSystemDirectoryToSyntaxNode(; name=StyleText(font_ubuntu_monospace_bold_24, color_solarized_red)) =
-    FileSystemDirectoryToSyntaxNode(name)
 
 
 function projection_print(p::FileSystemDirectoryToSyntaxNode, recursion, d::FileSystemDirectory, ctx)

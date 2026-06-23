@@ -10,6 +10,7 @@ module XmlToSyntaxModule
 import ..ReactiveModule: Cell
 import ..CollectionModule: CellVector
 import ..ProjectionApiModule: projection_print, projection_printer_recurse, projection_read, map_reference_forward, map_reference_backward, Projection
+import ..ProjectionModule: var"@projection"
 import ..XmlModule: XmlDocument, XmlInsertion, XmlText, XmlAttribute, XmlElement
 import ..TextModule: TextString
 import ..FontModule: StyleFont, font_ubuntu_monospace_regular_24, font_ubuntu_monospace_bold_24
@@ -50,10 +51,9 @@ export XmlInsertionToSyntaxLeaf, XmlTextToSyntaxLeaf, XmlElementToSyntaxNode, Xm
 # attribute is provided by a reactive close field on the tag-name leaf:
 # it evaluates to " " when attributes are present and "" otherwise.
 
-struct XmlTextToSyntaxLeaf <: Projection
-    style::StyleText
+@projection struct XmlTextToSyntaxLeaf <: Projection
+    style::StyleText = StyleText(font_ubuntu_monospace_regular_24, color_black)
 end
-XmlTextToSyntaxLeaf(; style=StyleText(font_ubuntu_monospace_regular_24, color_black)) = XmlTextToSyntaxLeaf(style)
 
 function map_reference_forward(::XmlTextToSyntaxLeaf, iomap, reference)
     @reference_case reference begin
@@ -103,30 +103,22 @@ end
 
 # ── XmlInsertionToSyntaxLeaf ───────────────────────────────────────────────────
 
-struct XmlInsertionToSyntaxLeaf <: Projection
-    style::StyleText
+@projection struct XmlInsertionToSyntaxLeaf <: Projection
+    style::StyleText = StyleText(font_ubuntu_monospace_regular_24, color_solarized_gray)
 end
-XmlInsertionToSyntaxLeaf(; style=StyleText(font_ubuntu_monospace_regular_24, color_solarized_gray)) = XmlInsertionToSyntaxLeaf(style)
 
 function projection_print(p::XmlInsertionToSyntaxLeaf, recursion, x::XmlInsertion, ctx)
     output_selection = Cell(() -> map_reference_forward(p, nothing, x.selection))
     SimpleIoMap(p, x, SyntaxLeaf(TextString("insert XML here", p.style); selection=output_selection))
 end
 
-struct XmlElementToSyntaxNode <: Projection
-    tag::StyleText
-    delim::StyleText
-    attr_name::StyleText
-    quote_style::StyleText
-    attr_value::StyleText
+@projection struct XmlElementToSyntaxNode <: Projection
+    tag::StyleText        = StyleText(font_ubuntu_monospace_bold_24, color_solarized_blue)
+    delim::StyleText      = StyleText(font_ubuntu_monospace_regular_24, color_solarized_gray)
+    attr_name::StyleText  = StyleText(font_ubuntu_monospace_regular_24, color_solarized_green)
+    quote_style::StyleText = StyleText(font_ubuntu_monospace_regular_24, color_solarized_yellow)
+    attr_value::StyleText = StyleText(font_ubuntu_monospace_regular_24, color_solarized_cyan)
 end
-XmlElementToSyntaxNode(;
-        tag=StyleText(font_ubuntu_monospace_bold_24, color_solarized_blue),
-        delim=StyleText(font_ubuntu_monospace_regular_24, color_solarized_gray),
-        attr_name=StyleText(font_ubuntu_monospace_regular_24, color_solarized_green),
-        quote_style=StyleText(font_ubuntu_monospace_regular_24, color_solarized_yellow),
-        attr_value=StyleText(font_ubuntu_monospace_regular_24, color_solarized_cyan)) =
-    XmlElementToSyntaxNode(tag, delim, attr_name, quote_style, attr_value)
 
 # Selection mapping (School A). The output node's children are
 # [tag leaf (1), attrs node (2), body node (3), close leaf (4)]. The recursively

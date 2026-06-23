@@ -22,6 +22,7 @@ import ..ReactiveModule: Cell
 import ..CollectionModule: CellVector
 import ..ProjectionApiModule: projection_print, projection_read,
                               map_reference_forward, map_reference_backward, Projection
+import ..ProjectionModule: var"@projection"
 import ..ReferenceModule: Reference, ReferencePath, EmptyReferencePath, ConcreteReferencePath,
                           ReferenceStep, RangeReference, FieldReference, ProjectionReference,
                           PointReference, TypeReference, FunctionReference,
@@ -69,10 +70,9 @@ Projection that renders a `Reference` as a single-line, color-coded
 token (delimiter, name, index, type) is a separate `TextString` span
 with its own color.
 """
-struct ReferenceToText <: Projection
-    font::StyleFont
+@projection struct ReferenceToText <: Projection
+    font::StyleFont = font_ubuntu_monospace_regular_24
 end
-ReferenceToText(; font=font_ubuntu_monospace_regular_24) = ReferenceToText(font)
 
 map_reference_forward(::ReferenceToText, ::SimpleIoMap, _) = nothing
 map_reference_backward(::ReferenceToText, ::SimpleIoMap, _) = nothing
@@ -183,12 +183,10 @@ document is captured at construction time — reactive callers should
 rebuild the projection inside a `Cell` keyed on the document if they
 need live updates.
 """
-struct ReferenceToHumanReadableText <: Projection
+@projection struct ReferenceToHumanReadableText <: Projection
     document::Any
-    font::StyleFont
+    font::StyleFont = font_ubuntu_monospace_regular_24
 end
-ReferenceToHumanReadableText(document; font=font_ubuntu_monospace_regular_24) =
-    ReferenceToHumanReadableText(document, font)
 
 map_reference_forward(::ReferenceToHumanReadableText, ::SimpleIoMap, _) = nothing
 map_reference_backward(::ReferenceToHumanReadableText, ::SimpleIoMap, _) = nothing

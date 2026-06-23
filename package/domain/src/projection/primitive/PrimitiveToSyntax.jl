@@ -8,6 +8,8 @@ with appropriate delimiters and colors.
 module PrimitiveToSyntaxModule
 
 import ..ProjectionApiModule: projection_print, projection_read, map_reference_forward, map_reference_backward, Projection
+import ..ProjectionModule: var"@projection"
+import ..ReactiveModule: Cell
 import ..PrimitiveModule: PrimitiveDocument, PrimitiveBool, PrimitiveNumber, PrimitiveString,
                           StringReplaceRangeOperation, NumberReplaceRangeOperation
 import ..SyntaxModule: SyntaxLeaf
@@ -28,11 +30,9 @@ export PrimitiveBoolToSyntaxLeaf, PrimitiveNumberToSyntaxLeaf, PrimitiveStringTo
 
 # ── PrimitiveBoolToSyntaxLeaf ────────────────────────────────────────────────
 
-struct PrimitiveBoolToSyntaxLeaf <: Projection
-    style::StyleText
+@projection struct PrimitiveBoolToSyntaxLeaf <: Projection
+    style::StyleText = StyleText(font_ubuntu_monospace_regular_24, color_solarized_cyan)
 end
-PrimitiveBoolToSyntaxLeaf(; style=StyleText(font_ubuntu_monospace_regular_24, color_solarized_cyan)) =
-    PrimitiveBoolToSyntaxLeaf(style)
 
 function map_reference_forward(::PrimitiveBoolToSyntaxLeaf, iomap::SimpleIoMap, reference)
     @reference_case reference begin
@@ -60,11 +60,9 @@ end
 
 # ── PrimitiveNumberToSyntaxLeaf ──────────────────────────────────────────────
 
-struct PrimitiveNumberToSyntaxLeaf <: Projection
-    style::StyleText
+@projection struct PrimitiveNumberToSyntaxLeaf <: Projection
+    style::StyleText = StyleText(font_ubuntu_monospace_regular_24, color_solarized_magenta)
 end
-PrimitiveNumberToSyntaxLeaf(; style=StyleText(font_ubuntu_monospace_regular_24, color_solarized_magenta)) =
-    PrimitiveNumberToSyntaxLeaf(style)
 
 function map_reference_forward(::PrimitiveNumberToSyntaxLeaf, iomap::SimpleIoMap, reference)
     @reference_case reference begin
@@ -92,13 +90,10 @@ end
 
 # ── PrimitiveStringToSyntaxLeaf ──────────────────────────────────────────────
 
-struct PrimitiveStringToSyntaxLeaf <: Projection
-    quote_style::StyleText
-    value::StyleText
+@projection struct PrimitiveStringToSyntaxLeaf <: Projection
+    quote_style::StyleText = StyleText(font_ubuntu_monospace_regular_24, color_solarized_yellow)
+    value::StyleText       = StyleText(font_ubuntu_monospace_regular_24, color_solarized_green)
 end
-PrimitiveStringToSyntaxLeaf(; quote_style=StyleText(font_ubuntu_monospace_regular_24, color_solarized_yellow),
-                               value=StyleText(font_ubuntu_monospace_regular_24, color_solarized_green)) =
-    PrimitiveStringToSyntaxLeaf(quote_style, value)
 
 function map_reference_forward(::PrimitiveStringToSyntaxLeaf, iomap::SimpleIoMap, reference)
     @reference_case reference begin

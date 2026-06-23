@@ -13,6 +13,7 @@ module ObjectToSyntaxModule
 import ..ReactiveModule: Cell
 import ..CollectionModule: CellVector
 import ..ProjectionApiModule: projection_print, projection_printer_recurse, projection_read, map_reference_forward, map_reference_backward, Projection
+import ..ProjectionModule: var"@projection"
 import ..TextModule: TextString
 import ..FontModule: StyleFont, font_ubuntu_monospace_regular_24, font_ubuntu_monospace_bold_24, font_ubuntu_monospace_italic_24
 import ..ColorModule: StyleColor, color_black, color_default, color_solarized_blue, color_solarized_green, color_solarized_magenta, color_solarized_cyan, color_solarized_yellow, color_solarized_gray
@@ -34,12 +35,10 @@ export NothingToSyntaxLeaf, BoolToSyntaxLeaf, NumberToSyntaxLeaf,
 
 # ── NothingToSyntaxLeaf ──────────────────────────────────────────────────────
 
-struct NothingToSyntaxLeaf <: Projection
-    style::StyleText
-    include_selection::Bool
+@projection struct NothingToSyntaxLeaf <: Projection
+    style::StyleText = StyleText(font_ubuntu_monospace_regular_24, color_solarized_magenta)
+    include_selection::Bool = false
 end
-NothingToSyntaxLeaf(; style=StyleText(font_ubuntu_monospace_regular_24, color_solarized_magenta), include_selection=false) =
-    NothingToSyntaxLeaf(style, include_selection)
 
 function projection_print(p::NothingToSyntaxLeaf, recursion, ::Nothing, ctx)
     leaf = SyntaxLeaf(TextString("nothing", p.style))
@@ -48,12 +47,10 @@ end
 
 # ── BoolToSyntaxLeaf ─────────────────────────────────────────────────────────
 
-struct BoolToSyntaxLeaf <: Projection
-    style::StyleText
-    include_selection::Bool
+@projection struct BoolToSyntaxLeaf <: Projection
+    style::StyleText = StyleText(font_ubuntu_monospace_regular_24, color_solarized_yellow)
+    include_selection::Bool = false
 end
-BoolToSyntaxLeaf(; style=StyleText(font_ubuntu_monospace_regular_24, color_solarized_yellow), include_selection=false) =
-    BoolToSyntaxLeaf(style, include_selection)
 
 function projection_print(p::BoolToSyntaxLeaf, recursion, b::Bool, ctx)
     leaf = SyntaxLeaf(TextString(b ? "true" : "false", p.style))
@@ -62,12 +59,10 @@ end
 
 # ── NumberToSyntaxLeaf ───────────────────────────────────────────────────────
 
-struct NumberToSyntaxLeaf <: Projection
-    style::StyleText
-    include_selection::Bool
+@projection struct NumberToSyntaxLeaf <: Projection
+    style::StyleText = StyleText(font_ubuntu_monospace_regular_24, color_solarized_magenta)
+    include_selection::Bool = false
 end
-NumberToSyntaxLeaf(; style=StyleText(font_ubuntu_monospace_regular_24, color_solarized_magenta), include_selection=false) =
-    NumberToSyntaxLeaf(style, include_selection)
 
 function projection_print(p::NumberToSyntaxLeaf, recursion, n::Number, ctx)
     leaf = SyntaxLeaf(TextString(string(n), p.style))
@@ -76,15 +71,11 @@ end
 
 # ── StringToSyntaxLeaf ───────────────────────────────────────────────────────
 
-struct StringToSyntaxLeaf <: Projection
-    quote_style::StyleText
-    value::StyleText
-    include_selection::Bool
+@projection struct StringToSyntaxLeaf <: Projection
+    quote_style::StyleText = StyleText(font_ubuntu_monospace_regular_24, color_solarized_yellow)
+    value::StyleText = StyleText(font_ubuntu_monospace_regular_24, color_solarized_green)
+    include_selection::Bool = false
 end
-StringToSyntaxLeaf(; quote_style=StyleText(font_ubuntu_monospace_regular_24, color_solarized_yellow),
-                     value=StyleText(font_ubuntu_monospace_regular_24, color_solarized_green),
-                     include_selection=false) =
-    StringToSyntaxLeaf(quote_style, value, include_selection)
 
 function projection_print(p::StringToSyntaxLeaf, recursion, s::AbstractString, ctx)
     leaf = SyntaxLeaf(
@@ -96,12 +87,10 @@ end
 
 # ── SymbolToSyntaxLeaf ───────────────────────────────────────────────────────
 
-struct SymbolToSyntaxLeaf <: Projection
-    style::StyleText
-    include_selection::Bool
+@projection struct SymbolToSyntaxLeaf <: Projection
+    style::StyleText = StyleText(font_ubuntu_monospace_regular_24, color_solarized_blue)
+    include_selection::Bool = false
 end
-SymbolToSyntaxLeaf(; style=StyleText(font_ubuntu_monospace_regular_24, color_solarized_blue), include_selection=false) =
-    SymbolToSyntaxLeaf(style, include_selection)
 
 function projection_print(p::SymbolToSyntaxLeaf, recursion, s::Symbol, ctx)
     leaf = SyntaxLeaf(TextString(string(s), p.style))
@@ -110,15 +99,11 @@ end
 
 # ── CharToSyntaxLeaf ─────────────────────────────────────────────────────────
 
-struct CharToSyntaxLeaf <: Projection
-    quote_style::StyleText
-    value::StyleText
-    include_selection::Bool
+@projection struct CharToSyntaxLeaf <: Projection
+    quote_style::StyleText = StyleText(font_ubuntu_monospace_regular_24, color_solarized_yellow)
+    value::StyleText = StyleText(font_ubuntu_monospace_regular_24, color_solarized_green)
+    include_selection::Bool = false
 end
-CharToSyntaxLeaf(; quote_style=StyleText(font_ubuntu_monospace_regular_24, color_solarized_yellow),
-                   value=StyleText(font_ubuntu_monospace_regular_24, color_solarized_green),
-                   include_selection=false) =
-    CharToSyntaxLeaf(quote_style, value, include_selection)
 
 function projection_print(p::CharToSyntaxLeaf, recursion, c::Char, ctx)
     leaf = SyntaxLeaf(
@@ -131,11 +116,9 @@ end
 # ── CellToSyntax ─────────────────────────────────────────────────────────────
 # Unwraps a Cell and projects its contents transparently.
 
-struct CellToSyntax <: Projection
-    cycle::StyleText
+@projection struct CellToSyntax <: Projection
+    cycle::StyleText = StyleText(font_ubuntu_monospace_italic_24, color_solarized_gray)
 end
-CellToSyntax(; cycle=StyleText(font_ubuntu_monospace_italic_24, color_solarized_gray)) =
-    CellToSyntax(cycle)
 
 function projection_print(p::CellToSyntax, recursion, cell::Cell, ctx)
     visited = get_property(ctx, :objects_seen, nothing)
@@ -166,26 +149,16 @@ end
 # Objects with no fields collapse to the type-name leaf alone.
 # Undefined mutable-struct fields render as an "<undefined>" leaf.
 
-struct ObjectNodeToSyntaxNode <: Projection
-    type_name::StyleText
-    field_name::StyleText
-    undef::StyleText
-    include_selection::Bool
-    open_delimiter::String
-    close_delimiter::String
-    newlines::Bool
-    filter::Any
+@projection struct ObjectNodeToSyntaxNode <: Projection
+    type_name::StyleText = StyleText(font_ubuntu_monospace_bold_24, color_solarized_blue)
+    field_name::StyleText = StyleText(font_ubuntu_monospace_regular_24, color_solarized_green)
+    undef::StyleText = StyleText(font_ubuntu_monospace_italic_24, color_solarized_gray)
+    include_selection::Bool = false
+    open_delimiter::String = ""
+    close_delimiter::String = ""
+    newlines::Bool = true
+    filter::Any = nothing
 end
-ObjectNodeToSyntaxNode(; type_name=StyleText(font_ubuntu_monospace_bold_24, color_solarized_blue),
-                         field_name=StyleText(font_ubuntu_monospace_regular_24, color_solarized_green),
-                         undef=StyleText(font_ubuntu_monospace_italic_24, color_solarized_gray),
-                         include_selection=false,
-                         open_delimiter="", close_delimiter="",
-                         newlines::Bool=true, filter=nothing) =
-    ObjectNodeToSyntaxNode(type_name, field_name,
-                           undef, include_selection,
-                           open_delimiter, close_delimiter,
-                           newlines, filter)
 
 # Unwrap a Cell for predicate/filter testing; pass non-cells through.
 _unwrap_cell(x) = x isa Cell ? x[] : x

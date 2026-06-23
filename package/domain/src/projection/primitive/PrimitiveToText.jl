@@ -12,6 +12,7 @@ module PrimitiveToTextModule
 import ..ReactiveModule: Cell
 import ..CollectionModule: CellVector
 import ..ProjectionApiModule: projection_print, projection_read, map_reference_forward, map_reference_backward, Projection
+import ..ProjectionModule: var"@projection"
 import ..PrimitiveModule: PrimitiveDocument, PrimitiveBool, PrimitiveNumber, PrimitiveString,
                           StringReplaceRangeOperation
 import ..TextModule: TextDocument, TextText, TextString
@@ -52,11 +53,9 @@ _value_selection_to_text(prim) = _forward_value(getfield(prim, :selection)[])
 
 # ── PrimitiveBoolToText ──────────────────────────────────────────────────────
 
-struct PrimitiveBoolToText <: Projection
-    style::StyleText
+@projection struct PrimitiveBoolToText <: Projection
+    style::StyleText = StyleText(font_ubuntu_monospace_regular_24, color_solarized_cyan)
 end
-PrimitiveBoolToText(; style=StyleText(font_ubuntu_monospace_regular_24, color_solarized_cyan)) =
-    PrimitiveBoolToText(style)
 
 map_reference_forward(::PrimitiveBoolToText, iomap::SimpleIoMap, reference) =
     _forward_value(reference)
@@ -78,11 +77,9 @@ end
 
 # ── PrimitiveNumberToText ────────────────────────────────────────────────────
 
-struct PrimitiveNumberToText <: Projection
-    style::StyleText
+@projection struct PrimitiveNumberToText <: Projection
+    style::StyleText = StyleText(font_ubuntu_monospace_regular_24, color_solarized_magenta)
 end
-PrimitiveNumberToText(; style=StyleText(font_ubuntu_monospace_regular_24, color_solarized_magenta)) =
-    PrimitiveNumberToText(style)
 
 map_reference_forward(::PrimitiveNumberToText, iomap::SimpleIoMap, reference) =
     _forward_value(reference)

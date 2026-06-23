@@ -24,6 +24,7 @@ import ..ReactiveModule: Cell, setfn!, setval!
 import ..CollectionModule: CellVector
 import ..ProjectionApiModule: projection_print, projection_printer_recurse, projection_read,
                               map_reference_forward, map_reference_backward, Projection
+import ..ProjectionModule: var"@projection"
 import ..FormulaModule: FormulaDocument, FormulaInsertion, FormulaReference,
                         FormulaFormula, FormulaEnvironment
 import ..TextModule: TextString
@@ -56,11 +57,9 @@ _empty(font) = TextString("", font, color_default)
 # The "insert formula" placeholder. A projection-introduced leaf with no editable
 # input value, so the default forward mapper (proj-unwrapping) is correct.
 
-struct FormulaInsertionToSyntaxLeaf <: Projection
-    style::StyleText
+@projection struct FormulaInsertionToSyntaxLeaf <: Projection
+    style::StyleText = StyleText(font_ubuntu_monospace_regular_24, color_solarized_gray)
 end
-FormulaInsertionToSyntaxLeaf(; style=StyleText(font_ubuntu_monospace_regular_24, color_solarized_gray)) =
-    FormulaInsertionToSyntaxLeaf(style)
 
 function projection_print(p::FormulaInsertionToSyntaxLeaf, recursion, b::FormulaInsertion, ctx)
     SimpleIoMap(p, b, SyntaxLeaf(
@@ -75,11 +74,9 @@ end
 # target, not editable here, so the leaf has no input value mapping (the cursor
 # selects the whole reference).
 
-struct FormulaReferenceToSyntaxLeaf <: Projection
-    style::StyleText
+@projection struct FormulaReferenceToSyntaxLeaf <: Projection
+    style::StyleText = StyleText(font_ubuntu_monospace_bold_24, color_solarized_violet)
 end
-FormulaReferenceToSyntaxLeaf(; style=StyleText(font_ubuntu_monospace_bold_24, color_solarized_violet)) =
-    FormulaReferenceToSyntaxLeaf(style)
 
 function projection_print(p::FormulaReferenceToSyntaxLeaf, recursion, r::FormulaReference, ctx)
     SimpleIoMap(p, r, SyntaxLeaf(
@@ -103,17 +100,12 @@ end
 # EvaluatorForm renders its result). Only `code` therefore needs School-A
 # delegation; its output child index depends on the mode.
 
-struct FormulaFormulaToSyntaxNode <: Projection
-    name::StyleText
-    op::StyleText
+@projection struct FormulaFormulaToSyntaxNode <: Projection
+    name::StyleText = StyleText(font_ubuntu_monospace_bold_24, color_solarized_blue)
+    op::StyleText   = StyleText(font_ubuntu_monospace_regular_24, color_solarized_gray)
     # The result run shares the op font but is coloured distinctly (green).
-    result::StyleText
+    result::StyleText = StyleText(font_ubuntu_monospace_regular_24, color_solarized_green)
 end
-FormulaFormulaToSyntaxNode(;
-        name=StyleText(font_ubuntu_monospace_bold_24, color_solarized_blue),
-        op=StyleText(font_ubuntu_monospace_regular_24, color_solarized_gray),
-        result=StyleText(font_ubuntu_monospace_regular_24, color_solarized_green)) =
-    FormulaFormulaToSyntaxNode(name, op, result)
 
 # Flatten a result TextText into a single rendered string.
 function _result_to_string(result)
@@ -217,11 +209,9 @@ end
 #
 # A plain list — one formula per line — like BookmarkList in the tutorial.
 
-struct FormulaEnvironmentToSyntaxNode <: Projection
-    font::StyleFont
+@projection struct FormulaEnvironmentToSyntaxNode <: Projection
+    font::StyleFont = font_ubuntu_monospace_regular_24
 end
-FormulaEnvironmentToSyntaxNode(; font=font_ubuntu_monospace_regular_24) =
-    FormulaEnvironmentToSyntaxNode(font)
 
 function projection_print(p::FormulaEnvironmentToSyntaxNode, recursion, e::FormulaEnvironment, ctx)
     child_iomaps = Cell(() ->
