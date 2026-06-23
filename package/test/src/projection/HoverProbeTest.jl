@@ -18,8 +18,10 @@ using Projectured
 using ProjecturedExample
 using Projectured: ReplaceSelectionOperation, OpenWindowOperation,
                     ReferenceInspector, HoverProbeProjection, ReferenceInspectorToText,
-                    NestingProjection, PreservingProjection,
-                    reference_equal, MouseMove, MousePress, Modifiers
+                    NestingProjection, PreservingProjection, SequentialProjection,
+                    WordWrapping, TextToGraphics, GraphicsCanvas, truetype_measure_text,
+                    reference_equal, MouseMove, MousePress, Modifiers,
+                    ScreenDocument, WindowDocument, EventEnvelope, Change
 using Projectured.TextModule: TextText, TextString
 
 _inspector_text(ref, target) =
@@ -59,6 +61,15 @@ function test_reference_inspector_text()
         none = _inspector_text(nothing, doc)
         @test none isa TextText
         @test occursin("compact", _flatten_text(none))
+
+        # The full follower-window content chain (the one the dispatcher runs
+        # for a ReferenceInspector window) must bottom out in a GraphicsCanvas —
+        # that is what the window reconciler requires.
+        chain = SequentialProjection(ReferenceInspectorToText(),
+                                     WordWrapping(measure = truetype_measure_text),
+                                     TextToGraphics(measure = truetype_measure_text))
+        canvas = projection_print(chain, ReferenceInspector(reference = ref, target = doc)).output
+        @test canvas isa GraphicsCanvas
     end
 end
 
@@ -128,5 +139,61 @@ function test_hover_probe()
         # A real click is not intercepted — it still selects through the probe.
         click = projection_read(hp, hpio, MousePress(:left, cx, cy, Modifiers()))
         @test click isa ReplaceSelectionOperation
+    end
+end
+
+"""
+    test_hover_probe_pipeline()
+
+End-to-end through the real `_multi_window_projection_inspector` pipeline: an
+`EventEnvelope`-wrapped hover routed into the main window's content makes the
+`WindowManagerProjection` add an `:inspector` follower window to the screen.
+"""
+function test_hover_probe_pipeline()
+    @testset "HoverProbe pipeline" begin
+        ex = examples[findfirst(e -> e.name == "json", examples)]
+        doc = ex.document
+        proj = ex.projection
+
+        # A valid content pixel (content layout is the same standalone or inside
+        # the window, which ScreenToScreen sizes but does not offset).
+        plain = projection_print(proj, doc)
+        t2g = _find_text_iomap(plain)
+        measure = _pipeline_measure(proj)
+        if t2g === nothing || measure === nothing
+            @warn "[hover_probe_pipeline] no TextToGraphics/measure; skipping"
+            @test true
+            return
+        end
+        pix = _first_content_pixel(t2g, measure)
+        if pix === nothing
+            @test true
+            return
+        end
+        (cx, cy) = pix
+
+        win = WindowDocument(; id = :json, title = "json",
+                               x = 100, y = 100, width = 1200, height = 600,
+                               content = doc)
+        screen = ScreenDocument([win])
+        composed = ProjecturedExample._multi_window_projection_inspector(
+                       [proj]; pointer = () -> (50, 60))
+        iomap = projection_print(composed, screen)
+
+        nbefore = length(screen.windows)
+        env = EventEnvelope(:json, MouseMove(cx, cy, :none, Modifiers()))
+        projection_read(composed, nothing, Change(env, nothing), iomap)
+
+        @test length(screen.windows) == nbefore + 1
+        insp = nothing
+        for w in screen.windows
+            w isa WindowDocument && w.id === :inspector && (insp = w)
+        end
+        @test insp !== nothing
+        if insp !== nothing
+            @test insp.content isa ReferenceInspector
+            @test insp.x == 50 + 16   # pointer() + default offset
+            @test insp.y == 60 + 20
+        end
     end
 end
