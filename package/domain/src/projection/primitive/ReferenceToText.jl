@@ -29,7 +29,7 @@ import ..ReferenceModule: Reference, ReferencePath, EmptyReferencePath, Concrete
                           is_element_reference, is_position_reference,
                           head, tail, evaluate_reference, append_reference
 import ..TextModule: TextDocument, TextText, TextString, TextNewline
-import ..FontModule: StyleFont, font_ubuntu_monospace_regular_24
+import ..FontModule: StyleFont, font_ubuntu_monospace_regular_24, font_ubuntu_monospace_italic_24
 import ..ColorModule: StyleColor, color_default,
                       color_solarized_gray, color_solarized_cyan,
                       color_solarized_magenta, color_solarized_orange,
@@ -57,6 +57,20 @@ function _ordinal(n::Integer)
 end
 
 _projection_name(p) = string(nameof(typeof(p)))
+
+# Short, unqualified name of a type (e.g. `NedParam`, `CellVector`) — far more
+# readable than the fully-qualified `OmnetppPred.NedModule.NedParam`.
+function _short_type(t)
+    try
+        string(nameof(t))
+    catch
+        string(t)
+    end
+end
+
+# Indefinite article for a type name, chosen by its leading letter.
+_article(name::AbstractString) =
+    (!isempty(name) && lowercase(first(name)) in ('a', 'e', 'i', 'o', 'u')) ? "an " : "a "
 
 # ─────────────────────────────────────────────────────────────────────────
 # ReferenceToText (short form)
@@ -103,7 +117,7 @@ end
 
 function _emit_step_short!(spans::Vector{TextDocument}, p::ReferenceToText, step::TypeReference)
     push!(spans, _tok("::", p.font, color_solarized_gray))
-    push!(spans, _tok(string(step.type), p.font, color_solarized_orange))
+    push!(spans, _tok(_short_type(step.type), p.font, color_solarized_orange))
 end
 
 function _emit_step_short!(spans::Vector{TextDocument}, p::ReferenceToText, step::FunctionReference)
@@ -194,32 +208,33 @@ map_reference_backward(::ReferenceToHumanReadableText, ::SimpleIoMap, _) = nothi
 function _parent_type_name(document, prefix::ReferencePath)
     document === nothing && return "?"
     try
-        string(typeof(evaluate_reference(document, prefix)))
+        _short_type(typeof(evaluate_reference(document, prefix)))
     catch
         "?"
     end
 end
 
 function _emit_type_tail!(line::Vector{TextDocument}, p::ReferenceToHumanReadableText,
-                          document, prefix::ReferencePath)
-    name = _parent_type_name(document, prefix)
-    push!(line, _tok(" of the ", p.font, color_solarized_gray))
+                          document, prefix::ReferencePath, parent_type)
+    name = parent_type !== nothing ? _short_type(parent_type) :
+                                     _parent_type_name(document, prefix)
+    push!(line, _tok(" of ", p.font, color_solarized_gray))
+    push!(line, _tok(_article(name), p.font, color_solarized_gray))
     color = name == "?" ? color_solarized_red : color_solarized_orange
     push!(line, _tok(name, p.font, color))
 end
 
-# Build the phrase spans for a single step. Returns `Vector{TextDocument}`.
-function _phrase_for(p::ReferenceToHumanReadableText, step::FieldReference,
-                     document, prefix::ReferencePath)
+# Build the leading "the <description>" spans for a single navigation step.
+# The type tail (" of a <Type>") is appended by `_walk_long!`, which knows the
+# parent type. Returns `Vector{TextDocument}`.
+function _phrase_for(p::ReferenceToHumanReadableText, step::FieldReference)
     line = TextDocument[]
     push!(line, _tok("the ", p.font, color_solarized_gray))
     push!(line, _tok(step.name, p.font, color_solarized_cyan))
-    _emit_type_tail!(line, p, document, prefix)
     line
 end
 
-function _phrase_for(p::ReferenceToHumanReadableText, step::RangeReference,
-                     document, prefix::ReferencePath)
+function _phrase_for(p::ReferenceToHumanReadableText, step::RangeReference)
     line = TextDocument[]
     push!(line, _tok("the ", p.font, color_solarized_gray))
     if is_element_reference(step)
@@ -234,55 +249,37 @@ function _phrase_for(p::ReferenceToHumanReadableText, step::RangeReference,
         push!(line, _tok(" to ", p.font, color_solarized_gray))
         push!(line, _tok(string(step.stop), p.font, color_solarized_magenta))
     end
-    _emit_type_tail!(line, p, document, prefix)
     line
 end
 
-function _phrase_for(p::ReferenceToHumanReadableText, step::TypeReference,
-                     document, prefix::ReferencePath)
-    line = TextDocument[]
-    push!(line, _tok("the elements of type ", p.font, color_solarized_gray))
-    push!(line, _tok(string(step.type), p.font, color_solarized_orange))
-    _emit_type_tail!(line, p, document, prefix)
-    line
-end
-
-function _phrase_for(p::ReferenceToHumanReadableText, step::FunctionReference,
-                     document, prefix::ReferencePath)
+function _phrase_for(p::ReferenceToHumanReadableText, step::FunctionReference)
     line = TextDocument[]
     push!(line, _tok("the elements matching ", p.font, color_solarized_gray))
     push!(line, _tok(string(step.f), p.font, color_solarized_green))
-    _emit_type_tail!(line, p, document, prefix)
     line
 end
 
-function _phrase_for(p::ReferenceToHumanReadableText, step::PointReference,
-                     document, prefix::ReferencePath)
+function _phrase_for(p::ReferenceToHumanReadableText, step::PointReference)
     line = TextDocument[]
     push!(line, _tok("the pixel at (", p.font, color_solarized_gray))
     push!(line, _tok(string(step.x), p.font, color_solarized_magenta))
     push!(line, _tok(", ", p.font, color_solarized_gray))
     push!(line, _tok(string(step.y), p.font, color_solarized_magenta))
     push!(line, _tok(")", p.font, color_solarized_gray))
-    _emit_type_tail!(line, p, document, prefix)
     line
 end
 
-function _phrase_for_projection(p::ReferenceToHumanReadableText, step::ProjectionReference,
-                                document, prefix::ReferencePath)
+function _phrase_for_projection(p::ReferenceToHumanReadableText, step::ProjectionReference)
     line = TextDocument[]
     push!(line, _tok("inside the ", p.font, color_solarized_gray))
     push!(line, _tok(_projection_name(step.projection), p.font, color_solarized_yellow))
     push!(line, _tok(" projection", p.font, color_solarized_gray))
-    _emit_type_tail!(line, p, document, prefix)
     line
 end
 
 # Fallback for unknown step subtypes — surface them in red.
-function _phrase_for(p::ReferenceToHumanReadableText, step::ReferenceStep,
-                     document, prefix::ReferencePath)
-    line = TextDocument[string(step) |> s -> _tok(s, p.font, color_solarized_red)]
-    line
+function _phrase_for(p::ReferenceToHumanReadableText, step::ReferenceStep)
+    TextDocument[_tok(string(step), p.font, color_solarized_red)]
 end
 
 # Walk a path front-to-back, appending one line per step to `lines`.
@@ -292,32 +289,44 @@ end
 # projection's output at nested levels — for nested levels we pass
 # `nothing` since the projection's output is not addressable here, which
 # yields "?" tails inside nested projection paths).
+# `TypeReference` checkpoints are not lines: each one supplies the parent type
+# of the navigation step that follows it (a canonical reference carries one
+# before every step). When no checkpoint precedes a step, the parent type falls
+# back to `evaluate_reference(document, prefix)`, so plain (un-annotated) refs
+# still read correctly. `prefix` is the path up to but not including the step.
 function _walk_long!(lines::Vector{Vector{TextDocument}},
                      p::ReferenceToHumanReadableText,
                      path::ConcreteReferencePath,
-                     document, prefix::ReferencePath)
+                     document, prefix::ReferencePath, parent_type)
     step = head(path)
-    if step isa ProjectionReference
-        if !(step.output_path isa EmptyReferencePath)
-            _walk_long!(lines, p, step.output_path, nothing, EmptyReferencePath())
-        end
-        push!(lines, _phrase_for_projection(p, step, document, prefix))
-    else
-        push!(lines, _phrase_for(p, step, document, prefix))
-    end
     new_prefix = append_reference(prefix, step)
     t = tail(path)
-    t isa EmptyReferencePath || _walk_long!(lines, p, t, document, new_prefix)
+    if step isa TypeReference
+        # Checkpoint: emit no line; carry its type to the next nav step.
+        t isa EmptyReferencePath || _walk_long!(lines, p, t, document, new_prefix, step.type)
+        return
+    end
+    if step isa ProjectionReference
+        if !(step.output_path isa EmptyReferencePath)
+            _walk_long!(lines, p, step.output_path, nothing, EmptyReferencePath(), nothing)
+        end
+        line = _phrase_for_projection(p, step)
+    else
+        line = _phrase_for(p, step)
+    end
+    _emit_type_tail!(line, p, document, prefix, parent_type)
+    push!(lines, line)
+    t isa EmptyReferencePath || _walk_long!(lines, p, t, document, new_prefix, nothing)
 end
 
 _walk_long!(::Vector{Vector{TextDocument}}, ::ReferenceToHumanReadableText,
-            ::EmptyReferencePath, _, ::ReferencePath) = nothing
+            ::EmptyReferencePath, _, ::ReferencePath, _) = nothing
 
 function _long_text(p::ReferenceToHumanReadableText, ref)
     if ref === nothing
         return TextText(_tok("no selection", p.font, color_solarized_gray))
     elseif ref isa EmptyReferencePath
-        type_name = p.document === nothing ? "document" : string(typeof(p.document))
+        type_name = p.document === nothing ? "document" : _short_type(typeof(p.document))
         type_color = p.document === nothing ? color_solarized_gray : color_solarized_orange
         return TextText(
             _tok("the whole ", p.font, color_solarized_gray),
@@ -325,12 +334,17 @@ function _long_text(p::ReferenceToHumanReadableText, ref)
         )
     end
     lines = Vector{Vector{TextDocument}}()
-    _walk_long!(lines, p, ref, p.document, EmptyReferencePath())
+    _walk_long!(lines, p, ref, p.document, EmptyReferencePath(), nothing)
     reverse!(lines)
     spans = TextDocument[]
     for (i, line) in enumerate(lines)
         append!(spans, line)
-        i < length(lines) && push!(spans, TextNewline(font=p.font))
+        if i < length(lines)
+            # "which is" connects each node to its role in its parent (the line
+            # below it), so the rows read as one sentence.
+            push!(spans, _tok(" which is", font_ubuntu_monospace_italic_24, color_solarized_gray))
+            push!(spans, TextNewline(font=p.font))
+        end
     end
     TextText(spans...)
 end

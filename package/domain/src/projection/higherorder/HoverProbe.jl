@@ -57,7 +57,7 @@ end
 
 """
     HoverProbeProjection(; inner, pointer, id=:inspector,
-                           offset=(16, 20), size=(820, 240), title="reference")
+                           offset=(16, 20), size=(1000, 400), title="reference")
 
 Wrap `inner` (the content projection whose clicks should be inspected).
 `pointer` is a 0-arg callable returning the current global mouse position
@@ -67,7 +67,7 @@ HoverProbeProjection(; inner::Projection,
                        pointer::Function,
                        id::Symbol = :inspector,
                        offset = (16, 20),
-                       size = (820, 240),
+                       size = (1000, 400),
                        title::AbstractString = "reference") =
     HoverProbeProjection(inner, id, pointer,
                          (Int(offset[1]), Int(offset[2])),

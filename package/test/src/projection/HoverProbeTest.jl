@@ -52,15 +52,19 @@ function test_reference_inspector_text()
         out = _inspector_text(ref, doc)
         @test out isa TextText
         flat = _flatten_text(out)
-        @test occursin("compact", flat)
-        @test occursin("human-readable", flat)
+        @test occursin("Compact", flat)
+        @test occursin("Human-readable", flat)
         # The compact form prints field/element tokens of the reference.
         @test occursin("entries", flat)
+        # The reference is annotated, so the compact form shows ::Type
+        # checkpoints and the human-readable form chains rows with "which is".
+        @test occursin("::", flat)
+        @test occursin("which is", flat)
 
         # A nothing reference degrades gracefully (no crash, still a TextText).
         none = _inspector_text(nothing, doc)
         @test none isa TextText
-        @test occursin("compact", _flatten_text(none))
+        @test occursin("Compact", _flatten_text(none))
 
         # The full follower-window content chain (the one the dispatcher runs
         # for a ReferenceInspector window) must bottom out in a GraphicsCanvas —
