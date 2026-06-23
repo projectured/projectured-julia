@@ -572,10 +572,19 @@ function annotate_reference_types(document, path::ReferencePath)
     checkpoint = TypeReference(typeof(document))
     child = try
         if step isa RangeReference
-            idx = step.start + 1
+            # A zero-width position is a cursor *between* items (a text caret or
+            # an insertion point), not a descent into an item — it is terminal,
+            # so it gets no child checkpoint. (Otherwise `value{3}` would wrongly
+            # annotate as `value::String{3}::Char`, claiming the cursor points at
+            # a character.) Element/range steps still descend into item start+1.
             # See valid_reference_prefix: probe via getindex, not length, so
             # container documents annotate their element checkpoints too.
-            idx < 1 ? nothing : document[idx]
+            if is_position_reference(step)
+                nothing
+            else
+                idx = step.start + 1
+                idx < 1 ? nothing : document[idx]
+            end
         elseif step isa FieldReference
             if hasproperty(document, Symbol(step.name))
                 f = getfield(document, Symbol(step.name))

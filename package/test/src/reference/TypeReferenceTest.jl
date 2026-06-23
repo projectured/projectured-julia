@@ -116,6 +116,26 @@ hit_whole = @reference_case whole begin
 end
 @test hit_whole == :whole
 
+# ── a position is a cursor *between* items, not a descent into one ─────────
+
+# `{3}` is a caret between characters: it annotates terminally, with NO
+# trailing checkpoint — it must not claim the cursor points at a `Char`. Only
+# the leading container-type checkpoint is added.
+pos_ann = annotate_reference_types("hello",
+              ConcreteReferencePath(PositionReference(3), EmptyReferencePath()))
+@test pos_ann.head isa TypeReference && pos_ann.head.type === String
+@test is_position_reference(pos_ann.tail.head)
+@test pos_ann.tail.tail === EmptyReferencePath()      # terminal — nothing after the cursor
+@test strip_reference_types(pos_ann) ==
+      ConcreteReferencePath(PositionReference(3), EmptyReferencePath())
+
+# Contrast: an element step (width 1) still descends and gets a trailing
+# destination checkpoint.
+elt_ann = annotate_reference_types(arr,
+              ConcreteReferencePath(ElementReference(1), EmptyReferencePath()))
+@test elt_ann.tail.tail isa ConcreteReferencePath     # trailing checkpoint present
+@test elt_ann.tail.tail.head isa TypeReference
+
 # ── Phase 2: producers return canonical (self-describing) references ───────
 
 # collect_references annotates each result against the document, so every search
