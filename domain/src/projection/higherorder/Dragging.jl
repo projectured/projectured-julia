@@ -186,9 +186,16 @@ function projection_read(p::DraggingProjection, recursion, change::Change, iomap
         return Change(change.gesture, _make_move(content, source, target))
 
     else
-        # Delegate everything else (real clicks, key events, …) to the inner chain.
+        # Delegate everything else (real clicks, key events, …) to the inner
+        # chain, then re-root the resulting *content-domain* operation up through
+        # the `content` field so its reference is valid against the DraggingState
+        # — the same lift `map_reference_backward` performs. Without this,
+        # `set_selection!` can't descend into `content` and the cursor never
+        # re-renders (and walk-right / repl round-trips stall). nothing /
+        # ToggleCollapseOperation pass through `prepend_steps_to_op` unchanged.
         inner = projection_read(iomap.inner_iomap.projection, recursion, change, iomap.inner_iomap)
-        return Change(change.gesture, inner isa Change ? inner.operation : inner)
+        inner_op = inner isa Change ? inner.operation : inner
+        return Change(change.gesture, prepend_steps_to_op(inner_op, (FieldReference("content"),)))
     end
 end
 

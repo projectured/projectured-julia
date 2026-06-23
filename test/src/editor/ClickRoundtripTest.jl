@@ -375,7 +375,7 @@ end
 
 function _collect_json_content_strings(j::Projectured.JsonModule.JsonArray)
     out = String[]
-    for e in j
+    for e in j.elements
         append!(out, _collect_json_content_strings(e))
     end
     out
