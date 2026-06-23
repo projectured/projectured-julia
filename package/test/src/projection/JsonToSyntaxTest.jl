@@ -153,3 +153,51 @@ end
 
 end # @testset "JsonToSyntax reader commands"
 end # test_json_to_syntax_reader
+
+# The contextual collector: collect_gestures walks the projection chain to the
+# reified JSON tables, and applicable_gestures reflects the current selection —
+# the data-driven dual of what the reader could fire.
+function test_json_gesture_collection()
+@testset "JsonToSyntax gesture collection" begin
+
+    j2s = RecursiveProjection(JsonToSyntax())
+    collect_for(doc, sel) = begin
+        set_selection!(doc, sel)
+        iomap = projection_print(j2s, doc)
+        bindings = collect_gestures(j2s, nothing, iomap)
+        (bindings, applicable_gestures(doc, bindings))
+    end
+
+    @testset "root scalar exposes the type-to-replace set" begin
+        all, app = collect_for(JsonNull(), EmptyReferencePath())
+        @test length(all) == 8                       # n f t " [ : { digit
+        @test length(app) == 8                        # whole value → all replaceable
+        @test "n" in [describe(b.pattern) for b in all]
+        # No selection greys the whole set.
+        _, none = collect_for(JsonNull(), nothing)
+        @test isempty(none)
+    end
+
+    @testset "array adds comma-insert; element selection stays replaceable" begin
+        whole_all, whole_app = collect_for(JsonArray([JsonNumber(1)]), EmptyReferencePath())
+        @test length(whole_all) == 9                  # 8 inherited + , insert
+        @test length(whole_app) == 9
+        @test "," in [describe(b.pattern) for b in whole_all]
+        # Selecting an element keeps the type-to-replace set applicable (it
+        # targets the element) plus the always-on comma.
+        _, elem_app = collect_for(JsonArray([JsonNumber(1)]), @reference elements[1])
+        @test length(elem_app) == 9
+    end
+
+    @testset "whole object entry greys type-to-replace, keeps comma + Tab" begin
+        all, app = collect_for(JsonObject("a" => 1), @reference entries[1])
+        @test length(all) == 10                       # 8 inherited + , insert + Tab
+        # A whole entry is a key/value wrapper, not a replaceable value — the
+        # type-to-replace set is greyed (its `applicable` precondition fails on a
+        # JsonObjectEntry target); only the two always-on object gestures remain.
+        descs = sort([describe(b.pattern) for b in app])
+        @test descs == [",", "Tab"]
+    end
+
+end # @testset "JsonToSyntax gesture collection"
+end # test_json_gesture_collection
