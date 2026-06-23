@@ -76,7 +76,7 @@ function projection_print(p::ReferenceInspectorToText, recursion, input::Referen
         # Annotate with TypeReference checkpoints so both forms show types.
         canonical = (ref isa ConcreteReferencePath && target !== nothing) ?
                     annotate_reference_types(target, ref) : ref
-        long_proj = ReferenceToHumanReadableText(target; font = p.font)
+        long_proj = ReferenceToHumanReadableText(document = target, font = p.font)
         ictx = PrinterContext()
         short = projection_print(short_proj, nothing, canonical, ictx).output
         long  = projection_print(long_proj,  nothing, canonical, ictx).output

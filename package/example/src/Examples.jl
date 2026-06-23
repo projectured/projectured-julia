@@ -448,7 +448,7 @@ end
 
 function _make_tooltip_source(doc; id::Symbol)
     short_proj = ReferenceToText()
-    long_proj  = ReferenceToHumanReadableText(doc)
+    long_proj  = ReferenceToHumanReadableText(document = doc)
     content = TextText(() -> begin
         sel = doc.selection
         ctx = PrinterContext()
