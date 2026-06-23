@@ -733,10 +733,17 @@ WidgetSeparator(position::Point2D; orientation::Symbol=:horizontal,
 # ── WidgetCard ──────────────────────────────────────────────────────────────
 
 """
-    WidgetCard(position; title, description, content, footer, width=320)
+    WidgetCard(position; title, description, content, footer, width=320, collapsed=false)
 
 A rounded, bordered surface with an optional title / description header, a
 content body and an optional footer, stacked vertically.
+
+`collapsed` is transient view state (like `WidgetScrollPane.scroll_position`): a
+header click emits `ToggleCollapseOperation(card)`, whose default handler flips
+this cell. Producers that want a collapsible card read `card.collapsed` from the
+reactive `title`/`content` they build (chevron glyph, empty body when collapsed),
+the way `SyntaxToWidget` drives collapse from `node.collapsed`. Cards left at the
+default `collapsed=false` render exactly as before.
 """
 @document struct WidgetCard <: WidgetDocument
     position::Point2D
@@ -746,12 +753,13 @@ content body and an optional footer, stacked vertically.
     footer::Any
     width::Int
     visible::Bool
+    collapsed::Bool
     selection::Reference
 end
 WidgetCard(position::Point2D; title=nothing, description=nothing, content=nothing,
-           footer=nothing, width::Integer=320, visible::Bool=true) =
+           footer=nothing, width::Integer=320, visible::Bool=true, collapsed::Bool=false) =
     WidgetCard(Cell(position), Cell(title), Cell(description), Cell(content),
-               Cell(footer), Cell(Int(width)), Cell(visible), Cell(nothing))
+               Cell(footer), Cell(Int(width)), Cell(visible), Cell(collapsed), Cell(nothing))
 
 # ── WidgetSwitch ────────────────────────────────────────────────────────────
 

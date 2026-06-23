@@ -19,7 +19,7 @@ _content_ref() = ConcreteReferencePath(FieldReference("content"), EmptyReference
     grid = out.elements[1]
     @test grid isa GridLayout
     @test length(grid.children) == 4
-    @test [nm for (_, nm) in iomap.controls] == ["pattern", "case_insensitive"]
+    @test [pth.head.name for (_, pth) in iomap.controls] == ["pattern", "case_insensitive"]
     @test iomap.controls[1][1] isa WidgetText
     @test iomap.controls[2][1] isa WidgetCheckbox
     # The string control is editable: its content is a TextText viewing the field.
@@ -108,6 +108,88 @@ end # @testset
     @test op.reference.head == FieldReference("content")
     @test op.value === true            # toggled from false
 
+end # @testset
+
+@testset "ObjectToWidget renders nested struct + vector as collapsible cards" begin
+
+    app = make_nested_object_to_widget_document_example()
+    iomap = projection_print(ObjectToWidget(), app)
+    out = iomap.output
+
+    # Root stays a bare composite wrapping a 2-column grid (no card) — flat-compat.
+    @test out isa WidgetComposite
+    grid = out.elements[1]
+    @test grid isa GridLayout
+    # 4 displayable fields (name, dark_mode, window, tags) → 8 label|value cells.
+    @test length(grid.children) == 8
+
+    # The struct field (`window`) and the vector field (`tags`) each become a card.
+    cards = filter(c -> c isa Projectured.WidgetCard, collect(grid.children))
+    @test length(cards) == 2
+    window_card, tags_card = cards[1], cards[2]
+
+    # A card's body is the reactive content wrapper; when expanded it holds one
+    # child (the composite/list body). Cards default to expanded.
+    @test window_card.collapsed == false
+    @test window_card.content isa Projectured.VerticalLayout
+    @test length(window_card.content.children) == 1
+    @test window_card.content.children[1] isa WidgetComposite   # window's own grid composite
+
+    # The vector card holds a VerticalLayout of its (read-only) elements.
+    @test tags_card.content isa Projectured.VerticalLayout
+    tags_body = tags_card.content.children[1]
+    @test tags_body isa Projectured.VerticalLayout
+    @test length(tags_body.children) == 2                       # "alpha", "beta"
+
+end # @testset
+
+@testset "ObjectToWidget collapse hides the body and is reversible" begin
+
+    app = make_nested_object_to_widget_document_example()
+    iomap = projection_print(ObjectToWidget(), app)
+    grid = iomap.output.elements[1]
+    window_card = first(c for c in collect(grid.children) if c isa Projectured.WidgetCard)
+
+    @test length(window_card.content.children) == 1            # expanded
+
+    # The card-graphics reader turns a header click into ToggleCollapseOperation(card);
+    # the default handler flips the card's own `collapsed` cell (output view state).
+    evaluate_operation(nothing, Projectured.ToggleCollapseOperation(window_card))
+    @test window_card.collapsed == true
+    @test isempty(window_card.content.children)                # body hidden reactively
+
+    evaluate_operation(nothing, Projectured.ToggleCollapseOperation(window_card))
+    @test window_card.collapsed == false
+    @test length(window_card.content.children) == 1            # restored
+
+end # @testset
+
+@testset "ObjectToWidget edits a nested field through its full path" begin
+
+    app = make_nested_object_to_widget_document_example()
+    iomap = projection_print(ObjectToWidget(), app)
+
+    # The deep checkbox is `window.visible`; its control path is window → visible.
+    vis = first((c, pth) for (c, pth) in iomap.controls
+                if c isa WidgetCheckbox && pth.head == FieldReference("window"))
+    vis_ctrl, vis_path = vis
+
+    op = projection_read(ObjectToWidget(), iomap,
+                         ReplaceReferencedValue(vis_ctrl, _content_ref(), false))
+    @test op isa ReplaceReferencedValue
+    @test op.document === app
+    @test op.reference.head == FieldReference("window")
+    @test op.reference.tail.head == FieldReference("visible")
+    @test op.value == false
+
+    # And it writes through to the nested cell.
+    evaluate_operation(nothing, op)
+    @test app.window.visible[] === false
+
+end # @testset
+
+@testset "WidgetCard defaults to not collapsed" begin
+    @test Projectured.WidgetCard(Point2D(0, 0); title="t", content="c").collapsed == false
 end # @testset
 
 end # test_object_to_widget
