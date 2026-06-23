@@ -39,7 +39,7 @@ import ..PrinterContextModule: child_context
 import ..OperationModule: ReplaceSelectionOperation
 import ..PrimitiveModule: StringReplaceRangeOperation, NumberReplaceRangeOperation
 
-export Bound, Project, Collection, Tokens, bound, project, collection, tokens, RuleIoMap, var"@projection_template"
+export Bound, Project, Collection, Tokens, Sections, bound, project, collection, tokens, sections, RuleIoMap, var"@projection_template"
 
 # ── Markers (build-time only; stripped before the output reaches the API) ─────
 
@@ -47,12 +47,16 @@ struct Bound;      input::Symbol; type::Any; render::Any; retype::Any; end
 struct Project;    input::Symbol; end
 struct Collection; input::Symbol; element::Any; end
 struct Tokens;     thunk::Any; end                                # computed inline token leaves
+struct Sections;   specs::Vector{Any}; end                        # grouped per-field sub-collections
 
 bound(input::Symbol, T, render; retype=nothing) = Bound(input, T, render, retype)
 project(input::Symbol) = Project(input)
 collection(input::Symbol) = Collection(input, nothing)
 collection(element, input::Symbol) = Collection(input, element)   # collection(:f) do x … end
 tokens(thunk) = Tokens(thunk)                                     # tokens(() -> [leaf, bound-leaf, …])
+# sections([(field::Symbol, make_wrapper), …]); make_wrapper(entry_outputs) builds
+# the per-section wrapper node. Empty sections are skipped; index is dynamic.
+sections(specs) = Sections(Any[specs...])
 
 # ── Wiring + IoMap ───────────────────────────────────────────────────────────
 
@@ -119,6 +123,16 @@ struct InlineWiring
     value_checkpoint::Any
 end
 
+# A node grouping several per-field sub-collections under labelled wrapper nodes,
+# skipping empty fields (dynamic section index). `child_iomaps` is a Cell yielding
+# a Vector of `(field=Symbol, entries=Vector{iomap})` for the non-empty sections in
+# render order. `.field[i].tail ↔ .children[sec].children[i].tail`.
+struct SectionsWiring
+    intype::Any
+    outtype::Any
+    children_field::Symbol
+end
+
 struct RuleIoMap <: IoMap
     projection::Any
     input::Any
@@ -173,6 +187,8 @@ function rule_print(p, recursion, doc, ctx, builder)
     coll !== nothing && return _node_print(p, recursion, doc, ctx, out, coll_field, coll)
     tok_field, tok = _find_tokens(out)
     tok !== nothing && return _inline_print(p, recursion, doc, ctx, out, tok_field, tok.thunk)
+    sec_field, secs = _find_sections(out)
+    secs !== nothing && return _sections_print(p, recursion, doc, ctx, out, sec_field, secs.specs)
     # A node built with a raw children Vector (markers/leaves) but no Collection
     # marker *field* is a fixed-children node. If that Vector contains a Collection
     # marker among fixed children, it is a mixed node (fixed prefix + one spliced
@@ -193,6 +209,15 @@ function _find_tokens(out)
     for fname in fieldnames(typeof(out))
         val = getfield(out, fname)[]
         val isa Tokens && return (fname, val)
+    end
+    (nothing, nothing)
+end
+
+# Locate a `Sections` marker among the built output's fields, if any.
+function _find_sections(out)
+    for fname in fieldnames(typeof(out))
+        val = getfield(out, fname)[]
+        val isa Sections && return (fname, val)
     end
     (nothing, nothing)
 end
@@ -450,6 +475,37 @@ function _inline_print(p, recursion, doc, ctx, out, children_field, thunk)
     return iomap
 end
 
+# A section-grouped node: each spec `(field, make_wrapper)` whose `doc.field` is
+# non-empty becomes a labelled wrapper child whose own children are that field's
+# recursively-projected entries (School A). Empty sections are skipped, so the
+# section index is dynamic; `make_wrapper(entry_outputs)` is consumer code that
+# builds the (output-domain) wrapper node, keeping the engine output-neutral.
+function _sections_print(p, recursion, doc, ctx, out, children_field, specs)
+    section_iomaps = Cell(() -> begin
+        res = NamedTuple[]
+        for (field, mk) in specs
+            coll = getproperty(doc, field)
+            isempty(coll) && continue
+            entries = [projection_printer_recurse(recursion, x,
+                           child_context(ctx, FieldReference(String(field)), ElementReference(i)))
+                       for (i, x) in enumerate(coll)]
+            push!(res, (field=field, mk=mk, entries=entries))
+        end
+        res
+    end)
+    children = CellVector(() -> [s.mk([im.output for im in s.entries]) for s in section_iomaps[]])
+    setproperty!(out, children_field, children)
+    iomap_cell = Cell(nothing)
+    setfield!(out, :selection, Cell(() -> begin
+        im = iomap_cell[]; im === nothing && return nothing
+        path = doc.selection; path === nothing && return nothing
+        map_reference_forward(p, im, path)
+    end))
+    iomap = RuleIoMap(p, doc, out, SectionsWiring(typeof(doc), typeof(out), children_field), section_iomaps)
+    iomap_cell[] = iomap
+    return iomap
+end
+
 # ── Generic, data-driven mappers (one method, all template projections) ───────
 
 function map_reference_forward(p::Projection, iomap::RuleIoMap, reference)
@@ -459,6 +515,7 @@ function map_reference_forward(p::Projection, iomap::RuleIoMap, reference)
     w isa FixedNodeWiring && return _fixed_forward(p, w, iomap, reference)
     w isa MixedNodeWiring && return _mixed_forward(p, w, iomap, reference)
     w isa InlineWiring    && return _inline_forward(p, w, reference)
+    w isa SectionsWiring  && return _sections_forward(p, w, iomap, reference)
     return nothing
 end
 
@@ -469,6 +526,7 @@ function map_reference_backward(p::Projection, iomap::RuleIoMap, reference)
     w isa FixedNodeWiring && return _fixed_backward(p, w, iomap, reference)
     w isa MixedNodeWiring && return _mixed_backward(p, w, iomap, reference)
     w isa InlineWiring    && return _inline_backward(p, w, reference)
+    w isa SectionsWiring  && return _sections_backward(p, w, iomap, reference)
     return nothing
 end
 
@@ -766,6 +824,68 @@ function _inline_backward(p, w, reference)
         return _prepend(lp.tail, FieldReference(String(w.bound_field)))
     end
     return nothing
+end
+
+# ── section-grouped node ───────────────────────────────────────────────────────
+#
+# `.field[i].tail ↔ .children[sec].children[i].tail`, where `sec` is the field's
+# index among the *non-empty* sections (from the stored section iomaps). Whole
+# section `.field ↔ .children[sec]`, whole node ∅ ↔ ∅. The wrapper's children field
+# is the same as the outer node's (both are the same output node type).
+
+function _sections_forward(p, w, iomap, reference)
+    reference === nothing && return nothing
+    secs = iomap.child_iomaps[]
+    core = skip_type_checkpoints(reference)
+    core isa EmptyReferencePath && return _typed(w.outtype)
+    if core isa ConcreteReferencePath && core.head isa ProjectionReference && core.head.projection === p
+        return reference
+    end
+    (core isa ConcreteReferencePath && core.head isa FieldReference) || return nothing
+    field = Symbol(core.head.name)
+    sec_i = findfirst(s -> s.field === field, secs)
+    sec_i === nothing && return nothing
+    cf = String(w.children_field)
+    rest = skip_type_checkpoints(core.tail)
+    rest isa EmptyReferencePath && return _path(FieldReference(cf), ElementReference(sec_i))
+    (rest isa ConcreteReferencePath && rest.head isa RangeReference) || return nothing
+    entry_i = rest.head.start + 1
+    entries = secs[sec_i].entries
+    1 <= entry_i <= length(entries) || return nothing
+    entry_rest = rest.tail
+    skip_type_checkpoints(entry_rest) isa EmptyReferencePath &&
+        return _path(FieldReference(cf), ElementReference(sec_i), FieldReference(cf), ElementReference(entry_i))
+    inner = map_reference_forward(entries[entry_i].projection, entries[entry_i], entry_rest)
+    inner === nothing && return nothing
+    return _prepend(inner, FieldReference(cf), ElementReference(sec_i), FieldReference(cf), ElementReference(entry_i))
+end
+
+function _sections_backward(p, w, iomap, reference)
+    reference === nothing && return nothing
+    secs = iomap.child_iomaps[]
+    cf = String(w.children_field)
+    core = skip_type_checkpoints(reference)
+    core isa EmptyReferencePath && return _typed(w.intype)
+    (core isa ConcreteReferencePath && core.head isa FieldReference && core.head.name == cf) || return nothing
+    after = skip_type_checkpoints(core.tail)
+    (after isa ConcreteReferencePath && after.head isa RangeReference) || return nothing
+    sec_i = after.head.start + 1
+    1 <= sec_i <= length(secs) || return nothing
+    sec = secs[sec_i]
+    rest = after.tail
+    skip_type_checkpoints(rest) isa EmptyReferencePath && return _path(FieldReference(String(sec.field)))
+    rest2 = skip_type_checkpoints(rest)
+    (rest2 isa ConcreteReferencePath && rest2.head isa FieldReference && rest2.head.name == cf) || return nothing
+    after2 = skip_type_checkpoints(rest2.tail)
+    (after2 isa ConcreteReferencePath && after2.head isa RangeReference) || return nothing
+    entry_i = after2.head.start + 1
+    1 <= entry_i <= length(sec.entries) || return nothing
+    inner_path = after2.tail
+    skip_type_checkpoints(inner_path) isa EmptyReferencePath &&
+        return _path(FieldReference(String(sec.field)), ElementReference(entry_i))
+    translated = map_reference_backward(sec.entries[entry_i].projection, sec.entries[entry_i], inner_path)
+    translated === nothing && return nothing
+    return _prepend(_strip_checkpoints(translated), FieldReference(String(sec.field)), ElementReference(entry_i))
 end
 
 # ── readers ───────────────────────────────────────────────────────────────────
