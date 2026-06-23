@@ -48,11 +48,9 @@ editor to indicate where new content should be inserted.
 - `selection::Reference` — a `ReferencePath` or `nothing` (stored in a Cell)
 """
 @document struct XmlInsertion <: XmlDocument
-    value::Any
-    selection::Reference
+    value::Any = nothing
+    selection::Reference = nothing
 end
-
-XmlInsertion() = XmlInsertion(Cell(nothing), Cell(nothing))
 
 # ── Attribute ─────────────────────────────────────────────────────────────
 

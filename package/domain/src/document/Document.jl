@@ -32,10 +32,8 @@ A document that represents the absence of content. Its display value is the
 class-level constant `"Empty document"`.
 """
 @document struct DocumentNothing <: DocumentBase
-    selection::Reference
+    selection::Reference = nothing
 end
-
-DocumentNothing(; selection=nothing) = DocumentNothing(Cell(selection))
 
 value(::DocumentNothing) = DOCUMENT_NOTHING_VALUE
 

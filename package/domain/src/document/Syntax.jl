@@ -50,10 +50,9 @@ abstract type SyntaxDocument <: Document end
 # ── SyntaxInsertion ───────────────────────────────────────────────────────
 
 @document struct SyntaxInsertion <: SyntaxDocument
-    value::Any
-    selection::Reference
+    value::Any = nothing
+    selection::Reference = nothing
 end
-SyntaxInsertion() = SyntaxInsertion(Cell(nothing), Cell(nothing))
 
 # ── Intermediate document types ──────────────────────────────────────────
 

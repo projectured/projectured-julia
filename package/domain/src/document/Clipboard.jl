@@ -22,10 +22,9 @@ abstract type ClipboardDocument <: Document end
 # ── ClipboardInsertion ─────────────────────────────────────────────────────
 
 @document struct ClipboardInsertion <: ClipboardDocument
-    value::Any
-    selection::Reference
+    value::Any = nothing
+    selection::Reference = nothing
 end
-ClipboardInsertion() = ClipboardInsertion(Cell(nothing), Cell(nothing))
 
 # ── ClipboardSlice ────────────────────────────────────────────────────────────
 

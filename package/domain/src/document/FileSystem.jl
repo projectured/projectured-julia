@@ -21,10 +21,9 @@ abstract type FileSystemDocument <: Document end
 # ── FileSystemInsertion ─────────────────────────────────────────────────
 
 @document struct FileSystemInsertion <: FileSystemDocument
-    value::Any
-    selection::Reference
+    value::Any = nothing
+    selection::Reference = nothing
 end
-FileSystemInsertion() = FileSystemInsertion(Cell(nothing), Cell(nothing))
 
 # ── File ──────────────────────────────────────────────────────────────────────
 

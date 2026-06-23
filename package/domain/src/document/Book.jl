@@ -29,10 +29,9 @@ abstract type BookDocument <: Document end
 # ── BookInsertion ───────────────────────────────────────────────────────
 
 @document struct BookInsertion <: BookDocument
-    value::Any
-    selection::Reference
+    value::Any = nothing
+    selection::Reference = nothing
 end
-BookInsertion() = BookInsertion(Cell(nothing), Cell(nothing))
 
 # ── BookBook ───────────────────────────────────────────────────────────────
 

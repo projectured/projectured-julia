@@ -38,10 +38,9 @@ abstract type GraphicsDocument <: Document end
 # ── GraphicsInsertion ─────────────────────────────────────────────────────
 
 @document struct GraphicsInsertion <: GraphicsDocument
-    value::Any
-    selection::Reference
+    value::Any = nothing
+    selection::Reference = nothing
 end
-GraphicsInsertion() = GraphicsInsertion(Cell(nothing), Cell(nothing))
 
 # ── GraphicsText ───────────────────────────────────────────────────────
 
@@ -449,10 +448,8 @@ the canvas's `layout` direction. It carries no visual representation
 and is skipped during rendering and hit-testing.
 """
 @document struct GraphicsFence <: GraphicsDocument
-    selection::Reference
+    selection::Reference = nothing
 end
-
-GraphicsFence() = GraphicsFence(Cell(nothing))
 
 # ── Hit testing ─────────────────────────────────────────────────────────────
 

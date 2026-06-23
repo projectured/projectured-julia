@@ -58,10 +58,9 @@ abstract type TextDocument <: Document end
 # ── TextInsertion ────────────────────────────────────────────────────
 
 @document struct TextInsertion <: TextDocument
-    value::Any
-    selection::Reference
+    value::Any = nothing
+    selection::Reference = nothing
 end
-TextInsertion() = TextInsertion(Cell(nothing), Cell(nothing))
 
 # ── TextNewline ─────────────────────────────────────────────────────
 

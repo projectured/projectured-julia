@@ -24,10 +24,9 @@ abstract type ImageDocument <: Document end
 # ── ImageInsertion ───────────────────────────────────────────────────────
 
 @document struct ImageInsertion <: ImageDocument
-    value::Any
-    selection::Reference
+    value::Any = nothing
+    selection::Reference = nothing
 end
-ImageInsertion() = ImageInsertion(Cell(nothing), Cell(nothing))
 
 # ── ImageFile ──────────────────────────────────────────────────────────────
 

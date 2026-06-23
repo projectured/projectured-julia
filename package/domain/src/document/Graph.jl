@@ -38,10 +38,9 @@ abstract type GraphDocument <: Document end
 # The domain's type-in entry point — the placeholder a user replaces by typing.
 
 @document struct GraphInsertion <: GraphDocument
-    value::Any
-    selection::Reference
+    value::Any = nothing
+    selection::Reference = nothing
 end
-GraphInsertion() = GraphInsertion(Cell(nothing), Cell(nothing))
 
 # ── GraphVertex ─────────────────────────────────────────────────────────────
 

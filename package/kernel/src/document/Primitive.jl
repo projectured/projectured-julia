@@ -27,10 +27,9 @@ abstract type PrimitiveDocument <: Document end
 # ── PrimitiveInsertion ──────────────────────────────────────────────────────
 
 @document struct PrimitiveInsertion <: PrimitiveDocument
-    value::Any
-    selection::Reference
+    value::Any = nothing
+    selection::Reference = nothing
 end
-PrimitiveInsertion() = PrimitiveInsertion(Cell(nothing), Cell(nothing))
 
 # ── PrimitiveBool ─────────────────────────────────────────────────────────────
 

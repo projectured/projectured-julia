@@ -145,10 +145,8 @@ JuliaBool(value::Bool) = JuliaBool(Cell(value), Cell(nothing))
 The literal `nothing`.
 """
 @document struct JuliaNothing <: JuliaDocument
-    selection::Reference
+    selection::Reference = nothing
 end
-
-JuliaNothing() = JuliaNothing(Cell(nothing))
 
 """
     JuliaSymbol(name::AbstractString)
@@ -413,10 +411,8 @@ JuliaReturn() = JuliaReturn(Cell(nothing), Cell(nothing))
 The `break` keyword.
 """
 @document struct JuliaBreak <: JuliaDocument
-    selection::Reference
+    selection::Reference = nothing
 end
-
-JuliaBreak() = JuliaBreak(Cell(nothing))
 
 """
     JuliaContinue()
@@ -424,10 +420,8 @@ JuliaBreak() = JuliaBreak(Cell(nothing))
 The `continue` keyword.
 """
 @document struct JuliaContinue <: JuliaDocument
-    selection::Reference
+    selection::Reference = nothing
 end
-
-JuliaContinue() = JuliaContinue(Cell(nothing))
 
 """
     JuliaTry(body, catch_var, catch_branch, finally_branch)

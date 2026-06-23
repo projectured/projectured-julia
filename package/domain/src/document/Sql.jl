@@ -104,9 +104,8 @@ SqlColumnAlias(name::AbstractString) = SqlColumnAlias(String(name), Cell(nothing
 # ── SELECT clause documents ────────────────────────────────────────────────────
 
 @document struct SqlDistinct <: SqlDocument
-    selection::Reference
+    selection::Reference = nothing
 end
-SqlDistinct() = SqlDistinct(Cell(nothing))
 
 @document struct SqlAllColumns <: SqlSelectExpression
     qualifier::Any                # SqlTableName | SqlTableAlias | nothing
@@ -205,29 +204,24 @@ SqlNot(expr::SqlBooleanExpression) = SqlNot(expr, Cell(nothing))
 # ── Join type leaf documents ───────────────────────────────────────────────────
 
 @document struct SqlInnerJoin <: SqlJoinType
-    selection::Reference
+    selection::Reference = nothing
 end
-SqlInnerJoin() = SqlInnerJoin(Cell(nothing))
 
 @document struct SqlLeftOuterJoin <: SqlJoinType
-    selection::Reference
+    selection::Reference = nothing
 end
-SqlLeftOuterJoin() = SqlLeftOuterJoin(Cell(nothing))
 
 @document struct SqlRightOuterJoin <: SqlJoinType
-    selection::Reference
+    selection::Reference = nothing
 end
-SqlRightOuterJoin() = SqlRightOuterJoin(Cell(nothing))
 
 @document struct SqlFullOuterJoin <: SqlJoinType
-    selection::Reference
+    selection::Reference = nothing
 end
-SqlFullOuterJoin() = SqlFullOuterJoin(Cell(nothing))
 
 @document struct SqlCrossJoin <: SqlJoinType
-    selection::Reference
+    selection::Reference = nothing
 end
-SqlCrossJoin() = SqlCrossJoin(Cell(nothing))
 
 # ── Join condition documents ───────────────────────────────────────────────────
 

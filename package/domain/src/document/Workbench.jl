@@ -46,10 +46,9 @@ abstract type WorkbenchDocument <: Document end
 # ── WorkbenchInsertion ───────────────────────────────────────────────────
 
 @document struct WorkbenchInsertion <: WorkbenchDocument
-    value::Any
-    selection::Reference
+    value::Any = nothing
+    selection::Reference = nothing
 end
-WorkbenchInsertion() = WorkbenchInsertion(Cell(nothing), Cell(nothing))
 
 # ── WorkbenchPage ─────────────────────────────────────────────────────────────
 
@@ -175,10 +174,8 @@ const WORKBENCH_OPERATOR_TITLE = "Operator"
 The operator panel.  Its title is the class-level constant `"Operator"`.
 """
 @document struct WorkbenchOperator <: WorkbenchDocument
-    selection::Reference
+    selection::Reference = nothing
 end
-
-WorkbenchOperator() = WorkbenchOperator(Cell(nothing))
 
 title(::WorkbenchOperator) = WORKBENCH_OPERATOR_TITLE
 
@@ -192,10 +189,8 @@ const WORKBENCH_SEARCHER_TITLE = "Searcher"
 The searcher panel.  Its title is the class-level constant `"Searcher"`.
 """
 @document struct WorkbenchSearcher <: WorkbenchDocument
-    selection::Reference
+    selection::Reference = nothing
 end
-
-WorkbenchSearcher() = WorkbenchSearcher(Cell(nothing))
 
 title(::WorkbenchSearcher) = WORKBENCH_SEARCHER_TITLE
 

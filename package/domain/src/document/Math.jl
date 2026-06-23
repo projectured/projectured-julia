@@ -43,11 +43,9 @@ abstract type MathDocument <: Document end
 # ── MathInsertion ─────────────────────────────────────────────────────────────
 
 @document struct MathInsertion <: MathDocument
-    value::Any
-    selection::Reference
+    value::Any = nothing
+    selection::Reference = nothing
 end
-
-MathInsertion() = MathInsertion(Cell(nothing), Cell(nothing))
 
 # ── MathVariable ──────────────────────────────────────────────────────────────
 

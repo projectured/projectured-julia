@@ -41,16 +41,9 @@ events arriving at this node and emits `OpenWindowOperation` /
 @document struct TooltipSource <: Document
     child::Document
     content::Document
-    style::Symbol
+    style::Symbol = :tooltip
     id::Symbol
-    selection::Reference
-end
-
-function TooltipSource(; child::Document,
-                         content::Document,
-                         style::Symbol = :tooltip,
-                         id::Symbol)
-    TooltipSource(Cell(child), Cell(content), Cell(style), Cell(id), Cell(nothing))
+    selection::Reference = nothing
 end
 
 end # module

@@ -202,14 +202,22 @@ for the same treatment.
       (zero-arg `T()` resolving to the generated keyword ctor when all fields default)
       is confirmed. `ProjecturedDomain` precompiles clean; `test_json()` 29/29 and
       `test_json_to_syntax()` 11/11 pass.
-- [ ] **Step 1 — Tier 1, one file/commit per domain.** Apply the recipe to the 27
-      zero-arg types + `DocumentNothing` + `TooltipSource`. Suggested grouping by
-      file: Json, Xml, Text, Math, Image, Graphics, Graph, Widget, Book, Clipboard,
-      FileSystem, Julia, Sql, Workbench, Syntax, Document, Tooltip, and Primitive
-      (kernel). Commit per file with the smallest covering test green (e.g.
-      `test_json()`, `test_syntax()`, `test_sql()`/`test_syntax` as applicable,
-      `test_cell()` for kernel).
-  - [x] **Json** (`Json.jl`): `JsonInsertion`, `JsonNull` migrated.
+- [x] **Step 1 — Tier 1 (all 29 types).** Applied the recipe to the 27 zero-arg
+      types + `DocumentNothing` + `TooltipSource` across 18 files. Every field
+      defaulted to `nothing` (all are `value::Any`/`selection::Reference`, both of
+      which admit `nothing`), except `TooltipSource` (`style::Symbol = :tooltip`;
+      `child`/`content`/`id` stay required keywords). Verified: `ProjecturedDomain`
+      precompiles clean; all 27 zero-arg/keyword types **construct via the generated
+      keyword ctor and snapshot to their `I`-type** (27/27); `test_cell` 25/25,
+      `test_collection` 32/32, `test_syntax` 10/10, `test_json_to_syntax` 11/11,
+      `test_json` 29/29.
+  - [x] **Json** (`Json.jl`): `JsonInsertion`, `JsonNull`.
+  - [x] **Rest**: Xml, Text, Math, Image, Graphics (`GraphicsInsertion`,
+        `GraphicsFence`), Graph, Widget, Book, Clipboard, FileSystem, Julia
+        (`JuliaNothing`/`JuliaBreak`/`JuliaContinue`), Sql (`SqlDistinct` + 5 joins),
+        Workbench (`WorkbenchInsertion`/`WorkbenchOperator`/`WorkbenchSearcher`),
+        Syntax, Document (`DocumentNothing`), Tooltip (`TooltipSource`), and
+        Primitive (kernel).
 - [ ] **Step 2 — Tier 2 recommended subset (optional).** Drop the zero-arg overload
       on the listed domain-local types; keep positional siblings; re-run the
       per-domain test. Skip the core/excluded types.

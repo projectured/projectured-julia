@@ -60,10 +60,9 @@ abstract type WidgetDocument <: Document end
 # ── WidgetInsertion ─────────────────────────────────────────────────────
 
 @document struct WidgetInsertion <: WidgetDocument
-    value::Any
-    selection::Reference
+    value::Any = nothing
+    selection::Reference = nothing
 end
-WidgetInsertion() = WidgetInsertion(Cell(nothing), Cell(nothing))
 
 # ── WidgetLabel ────────────────────────────────────────────────────────────
 
