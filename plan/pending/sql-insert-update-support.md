@@ -6,6 +6,13 @@
 > places where the implementation diverged from the original design are called out
 > with **As-built** notes.
 
+> **✅ AUDIT (verified 2026-06-23):** §1 (model), §2 (projection), §4 (examples),
+> §5 (tests) are all **DONE** against the current `package/` tree. §3 (parser) is
+> **OPEN** — `parse_sql` in `package/domain/src/parser/SqlParser.jl:325` still
+> dispatches only `SELECT`/`CREATE`, no INSERT/UPDATE. Per-step evidence inline below.
+> Note: old `program/src/...` and top-level `Projectured.jl` re-export paths in the
+> text are pre-restructure; symbols now live/export under `package/<subpkg>/src/...`.
+
 Flesh out the two statement stubs `SqlInsertStatement` and `SqlUpdateStatement`
 ([program/src/document/Sql.jl:314-322](program/src/document/Sql.jl#L314-L322)) into
 real document trees, give each a bidirectional `SqlToSyntax` projection
@@ -26,6 +33,13 @@ its leaf types (`SqlTableName`, `SqlColumnName`, `SqlScalarValue`) and the exist
 ---
 
 ## 1. Document model (`program/src/document/Sql.jl`)
+
+**✅ DONE (verified):** all types/constructors exist in
+`package/domain/src/document/Sql.jl` — `SqlInsertStatement` (314-325, incl. zero-arg
++ ergonomic ctors), `SqlUpdateAssignment` (329-335), `SqlUpdateStatement` (338-351,
+incl. zero-arg + ergonomic ctors). Exported from `SqlDocumentModule` (Sql.jl:48-50).
+**⛔ OBSOLETE sub-point:** the "re-export from `Projectured.jl:255-269`/`:551+`"
+wiring is pre-restructure path; exports now flow via the domain module export list.
 
 ### INSERT
 
@@ -80,6 +94,17 @@ interface) and the updated constructors from `SqlDocumentModule`.
 ---
 
 ## 2. Projection (`SqlToSyntax.jl`)
+
+**✅ DONE (verified):** all projections exist in
+`package/domain/src/projection/primitive/SqlToSyntax.jl` —
+`SqlInsertStatementToSyntaxNode` (1269, with forward/backward ref maps 1327/1362 and
+`projection_read(::ReplaceSelectionOperation)` 1399), `SqlUpdateAssignmentToSyntaxNode`
+(1413), `SqlUpdateStatementToSyntaxNode` (1506), plus the two bare-name leaves
+`SqlColumnNameToSyntaxLeaf` (114) and `SqlTableNameToSyntaxLeaf` (124). All registered
+in the `SqlToSyntax()` compound (1969-70, 1987-89) and exported from the module
+(48, 57-58). **⛔ OBSOLETE sub-point:** §2.5 "re-export in `Projectured.jl`" — the
+`package/projectured/src/Projectured.jl` file no longer references SQL; exports flow
+through the domain module export list instead.
 
 Add four projection types following the exact pattern already used by
 `SqlSelectClauseToSyntaxNode` / `SqlSelectItemToSyntaxNode` (keyword leaves via
@@ -149,6 +174,12 @@ separator helpers and keep keywords (`INSERT`, `INTO`, `VALUES`, `UPDATE`, `SET`
 
 ## 3. Parser (`SqlParser.jl`) — DEFERRED (open follow-up)
 
+**⏳ OPEN (verified still open):** `parse_sql` in
+`package/domain/src/parser/SqlParser.jl:325-341` dispatches only `SELECT` and
+`CREATE`; there are no `parse_insert!`/`parse_update!` functions and no
+`SqlInsertStatement`/`SqlUpdateStatement` construction in the parser. (INSERT/UPDATE
+appear only in the keyword set at SqlParser.jl:100-102.) Remains the sole open item.
+
 **Not implemented.** `sqlparse` still handles SELECT only. To finish: extend the entry
 point to dispatch on the leading keyword (`INSERT` / `UPDATE` / `SELECT`) and add two
 recursive-descent parse functions producing the new document trees. The shipped
@@ -158,6 +189,13 @@ separately without touching the rest of this work.
 ---
 
 ## 4. Examples
+
+**✅ DONE (verified):** `make_sql_insert_document_example` /
+`make_sql_update_document_example` in `package/example/src/document/Sql.jl:6,14`;
+`make_sql_insert_syntax_projection_example` / `…_update_…` in
+`package/example/src/projection/Sql.jl:9,17`. Registered as `sql_insert_syntax_example`
+/ `sql_update_syntax_example` in `package/example/src/Examples.jl:129-130` and the
+example list at 191-192; exported from `ProjecturedExample.jl:206-207`.
 
 In [example/src/document/Sql.jl](example/src/document/Sql.jl) add:
 
@@ -178,6 +216,15 @@ list at [Examples.jl:160-162](example/src/Examples.jl#L160-L162).
 ---
 
 ## 5. Tests
+
+**✅ DONE (verified):** in `package/test/src/projection/SqlToSyntaxTest.jl` the four
+render checks exist (51, 57, 65, 71 — incl. empty-column and no-WHERE branches) and the
+self-contained `test_sql_insert_update_selection()` (75-116) covers INSERT
+table/columns[i]/values[i] and UPDATE table/assignments[i].column_name/value plus a
+`where_clause.condition.expression.left` sub-reference, asserting backward∘forward==path.
+Exported (207) and wired into `test_projections()` (`ProjecturedTest.jl:131`).
+`ReferencePath`/`map_reference_forward`/`map_reference_backward` are imported in
+`ProjecturedTest.jl:18-19`.
 
 In [test/src/projection/SqlToSyntaxTest.jl](test/src/projection/SqlToSyntaxTest.jl):
 

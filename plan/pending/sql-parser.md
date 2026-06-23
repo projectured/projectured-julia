@@ -1,5 +1,7 @@
 # SqlParser — SQL parser module
 
+> **✅ DONE (verified):** Module implemented at `package/domain/src/parser/SqlParser.jl` (the plan's `program/src/parser/` path is the pre-restructure location). `SqlParserModule` exports `sqlparse`/`sqlparse_file` (line 42), is included from `package/domain/src/ProjecturedDomain.jl:96`, and is exercised by `package/test/src/document/SqlParserTest.jl` (`test_sql_parser`). Implementation now exceeds the SELECT-only scope described here — it also parses `CREATE TABLE`/`CREATE SCHEMA` DDL (SqlParser.jl:376-451). Per-step notes below.
+
 `sqlparse(text) → SqlSelectStatement`. A standalone parser that turns SQL source
 text into the `SqlDocument` hierarchy, mirroring the other parsers in
 `program/src/parser/` (`jsonparse`, `xmlparse`, …). The result round-trips back to
@@ -7,18 +9,26 @@ text through the rendering pipeline (`SqlToSyntax → SyntaxToText → TextToStr
 
 **File:** `program/src/parser/SqlParser.jl`
 
+**⛔ OBSOLETE (path):** File now lives at `package/domain/src/parser/SqlParser.jl` after the repo restructure (`program/src/...` no longer exists). The file itself exists and matches the described purpose.
+
 **Entry points:**
 - `sqlparse(text)` — parse a SQL string into a `SqlSelectStatement`.
 - `sqlparse_file(path)` — read and parse a `.sql` file from disk.
+
+**✅ DONE (verified):** Both entry points exist — `sqlparse(text::AbstractString)` at `SqlParser.jl:55` and `sqlparse_file(path)` at `SqlParser.jl:66` (`= sqlparse(read(path, String))`), both exported at `SqlParser.jl:42`. Note: `sqlparse` now returns the broader `SqlStatement` (SELECT or CREATE DDL), not strictly `SqlSelectStatement`.
 
 ---
 
 ## Scope
 
+**✅ DONE (verified):** All listed SELECT-related constructs are parsed and imported from `SqlDocumentModule` (`SqlParser.jl:31-40`): SELECT/FROM/WHERE clauses, joins (`parse_join_type!` SqlParser.jl:735 handles INNER/LEFT/RIGHT/FULL OUTER/CROSS), ON/USING conditions (`parse_join_condition!` SqlParser.jl:784), subqueries (`parse_from_base_item!` SqlParser.jl:656), boolean expressions (`parse_or!`/`parse_and!`/`parse_not!`/`parse_comparison!` SqlParser.jl:828-903), column references, aliases, DISTINCT (SqlParser.jl:486), and scalar values (numbers/strings/booleans, `parse_scalar_operand!` SqlParser.jl:905). The unsupported-fragment handling below is also all present. Scope has additionally grown to cover CREATE TABLE/SCHEMA DDL (not in original plan).
+
 Parses exactly the SELECT-related types defined in `Sql.jl`: SELECT/FROM/WHERE
 clauses, joins (INNER, LEFT/RIGHT/FULL OUTER, CROSS), ON and USING conditions,
 subqueries, boolean expressions (AND/OR/NOT/comparison), column references,
 aliases, DISTINCT, and scalar values (numbers, strings, booleans).
+
+**✅ DONE (verified):** All four unsupported-fragment behaviors are implemented as described — comments stripped in `tokenize` (line/block, SqlParser.jl:124-146); `skip_trailing!` (SqlParser.jl:1020); fallback to `SqlScalarValue(raw)` in `parse_fallback_expression!` (SqlParser.jl:973-1016); `parse_sql` returns `nothing` (SqlParser.jl:340) and `sqlparse` converts to `error("SQL: not a parseable statement")` (SqlParser.jl:57). Verified by test `@test_throws Exception sqlparse("INSERT INTO t VALUES (1)")` (SqlParserTest.jl:215).
 
 Unsupported fragments are silently handled:
 - **Comments** (`--`, `/* */`) — stripped by tokeniser.
@@ -32,6 +42,8 @@ Unsupported fragments are silently handled:
 ---
 
 ## Architecture
+
+**✅ DONE (verified):** Tokeniser produces `Vector{SqlToken}` with exactly 13 `SqlTokenKind` values (`@enum` SqlParser.jl:72-86), uses `SubString` zero-copy values (struct SqlParser.jl:88-92), and matches keywords against `SQL_KEYWORDS::Set{String}` (SqlParser.jl:94, used at SqlParser.jl:224). Parser is recursive-descent single-pass with one-token lookahead (`peek`/`advance!` SqlParser.jl:251-259); boolean precedence OR<AND<NOT realized by `parse_or!`→`parse_and!`→`parse_not!` (SqlParser.jl:828-862); `!=` normalised to `<>` at SqlParser.jl:887-889. The simplified grammar matches the implemented `parse_*!` functions.
 
 **Tokeniser**: scans raw string into `Vector{SqlToken}` with 13 token kinds
 (`TK_KEYWORD`, `TK_IDENT`, `TK_OP`, etc.). Zero-copy `SubString` values.
@@ -56,6 +68,12 @@ primary          := (boolean_expr) | scalar_operand comp_op scalar_operand
 
 ## Design decisions
 
+**✅ DONE (verified):** All four design decisions are reflected in code:
+- Fallback expression — `parse_fallback_expression!` greedily collects to a delimiter respecting paren depth, wrapping raw text in `SqlScalarValue` (SqlParser.jl:973-1016; `FALLBACK_DELIMITERS` SqlParser.jl:968).
+- `skip_trailing!` stops at `)` — `while !at_end(p) && peek(p).kind != TK_RPAREN` (SqlParser.jl:1021).
+- Bypassing typed constructors — `SqlSelectItem(expr, alias, Cell(nothing))` built directly (SqlParser.jl:531, with explanatory comment SqlParser.jl:528-530).
+- Error strategy — `try/catch` around `parse_select_statement!`/`parse_create_statement!` collapsing partial-parse exceptions to `nothing` (SqlParser.jl:328-338), surfaced as an error by `sqlparse` (SqlParser.jl:57).
+
 - **Fallback expression**: when the parser hits an unrecognised expression
   (e.g. `COUNT(*)`), it greedily collects tokens until a structural delimiter
   (`,`, `)`, `AS`, clause keywords), respecting paren depth, and wraps the
@@ -78,6 +96,8 @@ primary          := (boolean_expr) | scalar_operand comp_op scalar_operand
 ---
 
 ## Round-trip characteristics
+
+**✅ DONE (verified):** The round-trip pipeline is real and tested — `SequentialProjection(RecursiveProjection(SqlToSyntax()), RecursiveProjection(SyntaxToText()), RecursiveProjection(TextToString()))` in `SqlParserTest.jl:19-23`, asserting normalized round-trip equality (e.g. SqlParserTest.jl:34). The documented transformations hold: `JOIN → INNER JOIN` asserted at SqlParserTest.jl:90; join-type display strings at `SqlToSyntax.jl:223-224` (`SqlInnerJoin → "INNER JOIN"`, `SqlLeftOuterJoin → "LEFT OUTER JOIN"`). The final bullet — `SqlJoinUsingCondition` has no `SqlToSyntax` projection yet — **remains OPEN/accurate**: `SqlJoinUsingCondition` is not imported or registered in `SqlToSyntax.jl` (only `SqlJoinOnConditionToSyntaxNode` exists, SqlToSyntax.jl:506; USING round-trip is explicitly skipped at SqlParserTest.jl:134). This is the one residual gap.
 
 The pipeline (`SqlToSyntax → SyntaxToText → TextToString`) does not reproduce
 raw SQL verbatim. Known transformations:

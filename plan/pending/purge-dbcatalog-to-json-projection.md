@@ -1,5 +1,14 @@
 # Purge the bespoke `DbCatalogToJson` projection
 
+> **AUDIT 2026-06-23 — ALL STEPS OPEN (nothing purged yet).** Verified against
+> the restructured codebase (`package/<sub>/src/...`). Every target this plan
+> asks to delete still exists. Note the plan's old paths have moved:
+> `program/src/Projectured.jl` → `package/domain/src/ProjecturedDomain.jl`;
+> `program/src/projection/primitive/DbCatalogToJson.jl` →
+> `package/domain/src/projection/primitive/DbCatalogToJson.jl`;
+> `example/src/...` → `package/example/src/...`; `test/src/...` →
+> `package/test/src/...`; `guide/architecture.md` → `documentation/architecture.md`.
+
 Remove the domain-specific `DbCatalog → JsonDocument` projection
 (`DbCatalogToJson` and its five per-level sub-projections) and the example /
 test wiring that depends on it. **Plan only — do not implement yet.**
@@ -60,21 +69,41 @@ catalog* for two different consumers:
 
 ## Removal steps
 
-### 1. Delete the projection module
+### 1. Delete the projection module ⏳ OPEN
+
+**⏳ OPEN:** module still present at
+`package/domain/src/projection/primitive/DbCatalogToJson.jl` (144 lines;
+`module DbCatalogToJsonModule` at line 22, exports at line 36).
 
 - Delete `program/src/projection/primitive/DbCatalogToJson.jl`.
+  (Actual current path: `package/domain/src/projection/primitive/DbCatalogToJson.jl`.)
 
-### 2. `program/src/Projectured.jl`
+### 2. `program/src/Projectured.jl` ⏳ OPEN
+
+**⏳ OPEN:** the file is now `package/domain/src/ProjecturedDomain.jl`; the
+include is still present at line 153
+(`include("projection/primitive/DbCatalogToJson.jl")`). The module exports its
+own symbols (`export DbCatalogRdbmsToJson, …` at `DbCatalogToJson.jl:36`), so the
+import/export removal in this domain package centers on that include rather than
+the `using`/`export` block layout the plan describes for the old monolithic
+`Projectured.jl`.
 
 - Remove the include at line ~183:
   `include("projection/primitive/DbCatalogToJson.jl")`.
+  (Now `package/domain/src/ProjecturedDomain.jl:153`.)
 - Remove the `using .DbCatalogToJsonModule: …` import block (lines ~278-280).
 - Remove `DbCatalogToJson` (and the five `DbCatalog*ToJson` symbols) from the
   export list (line ~592 and the block it sits in).
 - Leave the `ObjectToJson.jl` include / imports / exports (lines ~139, ~362,
   ~729) untouched.
 
-### 3. Example wiring — `example/src/projection/DbCatalog.jl`
+### 3. Example wiring — `example/src/projection/DbCatalog.jl` ⏳ OPEN
+
+**⏳ OPEN:** `package/example/src/projection/DbCatalog.jl` still defines
+`make_dvdrental_catalog_json_projection_example` (line 87, with banner comment at
+line 76 and `RecursiveProjection(DbCatalogToJson())` at line 91). Also note the
+function is exported at `package/example/src/ProjecturedExample.jl:158` — that
+export must be removed too.
 
 - Delete `make_dvdrental_catalog_json_projection_example` (the
   `DbCatalogToJson → JsonToSyntax → …` pipeline, lines ~75-96) and its banner
@@ -82,7 +111,11 @@ catalog* for two different consumers:
 - Keep `make_dvdrental_object_json_projection_example` (the generic
   `ObjectToJson` JSON view) — that is the replacement.
 
-### 4. Example registry — `example/src/Examples.jl`
+### 4. Example registry — `example/src/Examples.jl` ⏳ OPEN
+
+**⏳ OPEN:** `package/example/src/Examples.jl` still has the
+`dvdrental_catalog_json_example` const (line 127) with its comment block (lines
+121-126). It is also exported at `package/example/src/ProjecturedExample.jl:158`.
 
 - Delete the `dvdrental_catalog_json_example` const and its comment block
   (lines ~120-126).
@@ -90,20 +123,31 @@ catalog* for two different consumers:
 - Grep for `dvdrental_catalog_json_example` elsewhere (registry lists, docs) and
   remove any remaining references.
 
-### 5. Tests
+### 5. Tests ⏳ OPEN
+
+**⏳ OPEN:** `package/test/src/external/DbCatalogJsonTest.jl` still exists; its
+include is at `package/test/src/ProjecturedTest.jl:101`, and
+`test_db_catalog_json` is still in the export list at
+`package/test/src/ProjecturedTest.jl:236`.
 
 - Delete `test/src/external/DbCatalogJsonTest.jl`.
+  (Now `package/test/src/external/DbCatalogJsonTest.jl`.)
 - Remove its include from `test/src/ProjecturedTest.jl` (line ~86:
   `include("external/DbCatalogJsonTest.jl")`).
 - Remove the corresponding `test_db_catalog_json()` call from any aggregate
   (e.g. wherever `test_all` / external suite wiring invokes it — grep
   `test_db_catalog_json`).
 
-### 6. Docs / guides
+### 6. Docs / guides ⏳ OPEN
+
+**⏳ OPEN:** `documentation/architecture.md:199` still lists
+`| `DbCatalogToJson` | `DbCatalog` → `Json` |` in the module inventory.
+`plan/pending/object-to-json-projection.md` also still mentions `DbCatalogToJson`.
 
 - `guide/architecture.md` references `DbCatalogToJson` — update the module
   inventory to drop it (and, if useful, note that the catalog's JSON view is the
   generic `ObjectToJson`).
+  (Actual current path: `documentation/architecture.md`.)
 - Check `plan/pending/object-to-json-projection.md`,
   `plan/pending/dbcatalog-sql-document-support.md`,
   `plan/pending/syntax-to-widget.md`, `plan/pending/component-document.md` for

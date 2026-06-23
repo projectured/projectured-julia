@@ -20,9 +20,34 @@ by choosing `SyntaxToWidget` downstream of its existing `…ToSyntax` projection
 `test/src/projection/SyntaxToWidgetTest.jl` (tests), and JSON / XML / catalog
 widget examples that wire `…ToSyntax → SyntaxToWidget → graphics`.
 
+> **✅ DONE (verified) — audit 2026-06-23.** The repo restructured `program/src/...`
+> → `package/<subpackage>/src/...`. The cited files exist at their new paths:
+> projection = `package/domain/src/projection/primitive/SyntaxToWidget.jl`
+> (module `SyntaxToWidgetModule`, exports `SyntaxLeafToWidget`,
+> `SyntaxNodeToWidget`, `SyntaxToWidget`); tests =
+> `package/test/src/projection/SyntaxToWidgetTest.jl` (`test_syntax_to_widget`,
+> registered & run in `package/test/src/ProjecturedTest.jl:64,149`). The three
+> widget example wirings exist and call `…ToSyntax → RecursiveProjection(SyntaxToWidget()) → make_syntax_widget_graphics`:
+> JSON (`package/example/src/projection/Json.jl:56-57`), XML
+> (`Xml.jl:15-16`), DbCatalog (`DbCatalog.jl:111-112,119-120`).
+> Sections §1, §2, §4, §5, §6 below are all DONE; §3 lists work that is still
+> genuinely DEFERRED/OPEN (verified against the test skips). See per-section tags.
+
 ---
 
 ## 1  Core design: structure as widgets, content as text
+
+> **✅ DONE (verified).** `SyntaxLeafToWidget.projection_print` builds a 3-span
+> `TextText` from `leaf.open/value/close` (SyntaxToWidget.jl:142-151);
+> `SyntaxNodeToWidget.projection_print` emits a `HorizontalLayout` for
+> `indentation == 0` (line 218-234) and a collapsible `WidgetCard` otherwise
+> (line 242-270). Per-level delegation via `projection_printer_recurse` storing a
+> `ChildrenIoMap` (line 212-216, 233, 269). Collapse retargeting reader
+> `projection_read(::SyntaxNodeToWidget, iomap, ::ToggleCollapseOperation)` +
+> `_find_collapse_target` (line 415-434). Inline collapsed-ellipsis appended to
+> header (line 249-253). Leaf selection forward/backward (`map_reference_forward`/
+> `map_reference_backward` lines 77-140) and node-level symmetric reference
+> de-interleaving (lines 291-411). All exercised by `test_syntax_to_widget`.
 
 A `SyntaxNode` projects to a widget *container*; a `SyntaxLeaf` projects to an
 embedded `TextText` rendered by `TextToGraphics` *inside* the widget tree —
@@ -104,6 +129,14 @@ its parent rather than on a separate line.
 
 ## 2  What the widget/layout layer gives for free
 
+> **✅ DONE (verified).** `SyntaxToWidget` emits only the widget/layout tree +
+> leaf selection/collapse wiring; the final graphics step is the single recursive
+> `TypeDispatchingProjection` built by `make_syntax_widget_graphics`
+> (`package/example/src/projection/Json.jl:40`), reused by the XML and DbCatalog
+> examples. No `WidgetAndTextToGraphics` combinator and no `_push_box_rects!`
+> box-model scaffolding appear in the projection (SyntaxToWidget.jl) — confirming
+> they were not needed.
+
 A large simplification discovered during implementation: the existing
 `*LayoutToGraphicsCanvas` / `Widget*ToGraphicsCanvas` projections already handle
 
@@ -127,6 +160,15 @@ debug scaffold, so it was dropped rather than shipped.
 ---
 
 ## 3  Deferred / not implemented
+
+> **⏳ OPEN (verified still deferred).** These remain unimplemented by design and
+> match the current test skips: `package/test/src/editor/TextNavigationTest.jl:152,158`
+> skips every `widget`/`*_widget` example from the keyboard-navigation sweep, and
+> `SyntaxTreeNavigationTest.jl:145` skips `widget*` from tree navigation. The
+> click-roundtrip harness (`ClickRoundtripTest.jl`) drives clicks via
+> `char_to_coord`. No widget-layer keyboard routing, node-level highlight, or
+> widget→screen coordinate metadata was found. The five bullets below are still
+> OPEN; none gate the projection.
 
 - **Keyboard tree navigation (Ctrl+Alt+Home, Ctrl+Space, arrow tree-move) and
   Alt+click whole-subtree selection.** `SyntaxNodeToText` handles these only at
@@ -157,6 +199,16 @@ These are independent enhancements; none gate the projection as it stands.
 ---
 
 ## 4  Lazy expansion
+
+> **✅ DONE (verified).** Non-forcing of collapsed children is implemented: the
+> body `VerticalLayout` returns `Any[]` when `node.collapsed`
+> (SyntaxToWidget.jl:258-259) so the child `CellVector` is never read. Initial
+> collapse driven by child-availability is implemented in `DbCatalogToSyntax`
+> (cheap, non-forcing predicate) and verified by the three catalog testsets in
+> `SyntaxToWidgetTest.jl:217-322`: initial projection forces nothing, expanding one
+> node forces exactly one level, pre-walked path renders expanded while off-path
+> nodes stay collapsed/unforced, and eager (materialized) collections render
+> expanded.
 
 Collapse is also the lever for **lazy loading**: any domain whose syntax
 children are computed on demand can defer that work until the node is expanded.
@@ -201,6 +253,12 @@ own label/delimiters).
 
 ## 5  Precedents followed
 
+> **✅ DONE (verified).** The `ConversationToWidget` delegation/`ChildrenIoMap`/
+> `_find_collapse_target` pattern, the `LayoutToGraphics` `children[i]` convention,
+> and the `WidgetCardToGraphicsCanvas` header-click → `ToggleCollapseOperation`
+> hit-test are all reflected in the implementation (SyntaxToWidget.jl module
+> docstring lines 1-27 and the cited methods).
+
 - **`ConversationToWidget`** (`ConversationToWidgetModule`) — the model copied
   for delegation, the `ChildrenIoMap` of child iomaps, embedded `TextText`
   content, and the `_find_collapse_target` retargeting reader.
@@ -210,6 +268,14 @@ own label/delimiters).
   hit-test that drives collapse.
 
 ## 6  Tests
+
+> **✅ DONE (verified).** `test_syntax_to_widget`
+> (`package/test/src/projection/SyntaxToWidgetTest.jl`) implements every listed
+> case: indented→WidgetCard, inline→HorizontalLayout, leaf→3-span TextText, leaf
+> selection forward/backward, node selection forward/backward, sep-chrome
+> rejection, inline-value click routing, collapse retargeting (incl. nested
+> cards), inline collapsed-ellipsis header, and the three lazy-expansion catalog
+> testsets. Registered/run via `ProjecturedTest.jl:64,149`.
 
 `test_syntax_to_widget` covers: indented node → `WidgetCard`, inline node →
 `HorizontalLayout`, leaf → three-span `TextText`, leaf selection

@@ -1,5 +1,17 @@
 # SelectionInverting: encode text selection into the Text domain via color inversion
 
+> **✅ FULLY IMPLEMENTED (verified 2026-06-23).** Every phase below is done in the
+> current codebase. Projection: `package/domain/src/projection/primitive/SelectionInverting.jl`
+> (module `SelectionInvertingModule`, struct `SelectionInverting <: Projection`,
+> exports `SelectionInverting, SelectionInvertingIoMap, SelSeg`). Shared helper:
+> `text_selection_flat` / `_text_cursor_flat` in `package/domain/src/document/Text.jl:606-636`.
+> Registered: `package/domain/src/ProjecturedDomain.jl:132`. Console wired & inline
+> reverse-video removed: `package/domain/src/backend/Console.jl` (doc comments at
+> :32-34, :165-169, :215). Pipeline insertion: `package/example/src/projection/Json.jl:28`.
+> Tests: `package/test/src/projection/SelectionInvertingTest.jl` (registered at
+> `package/test/src/ProjecturedTest.jl:62`). NOTE: paths below say `program/src/...`;
+> code now lives under `package/<subpackage>/src/...` after the repo restructure.
+
 A domain-preserving **`Text → Text`** projection that reads the input
 `TextText`'s selection and bakes it into the spans as **inverse video** — swapping
 `font_color` ↔ `fill_color` over the selected character range (and widening a
@@ -89,6 +101,8 @@ regex matches).
 
 ## Phase 1 — The projection
 
+**✅ DONE (verified):** Implemented at `package/domain/src/projection/primitive/SelectionInverting.jl`. Struct, options (`default_bg`/`default_fg`/`block_cursor=true`), `projection_print`, `_invert`/`_invert_string!`/`_invert_span`, `SelSeg` table, `map_reference_forward`/`map_reference_backward`/`projection_read`, and module export are all present. Registered (`include`) at `ProjecturedDomain.jl:132`.
+
 ### File: `program/src/projection/primitive/SelectionInverting.jl`
 
 - `SelectionInverting <: Projection` — options: `default_bg::StyleColor`,
@@ -114,6 +128,8 @@ regex matches).
 
 ## Phase 2 — Wire the console backend to use it
 
+**✅ DONE (verified):** `SelectionInverting()` is inserted at the end of the console pipeline (`package/example/src/projection/Json.jl:28`, in `make_json_console_projection_example`). The backend's inline selection/reverse-video rendering is removed — `Console.jl` has no `_ANSI_REVERSE`, `reverse` flag, or `_selection_flat` call left (only doc comments at :32-34, :165-169, :215 explaining the new arrangement). The shared `text_selection_flat`/`_text_cursor_flat` helper lives in the Text domain (`Text.jl:606-636`) and is consumed by both projection and (formerly) backend — one source of truth.
+
 ### File: `program/src/backend/Console.jl`
 
 - Insert `SelectionInverting` at the **end** of the console projection pipeline
@@ -134,6 +150,8 @@ multi-span range selections fall out of the same machinery.
 
 ## Phase 3 — Tests
 
+**✅ DONE (verified):** `package/test/src/projection/SelectionInvertingTest.jl` (registered at `ProjecturedTest.jl:62`) covers: pass-through `nothing` selection, range inverts exactly `[start,stop)`, span split at both boundaries, `fill_color=nothing` → `default_bg`, caret widening mid-span / offset 0 / end-of-text synthesized block, `block_cursor=false` zero-width caret, selection round-trip (`map_reference_backward`∘`map_reference_forward`), reader char-range shift, and multi-span out-of-range untouched.
+
 Per [testing.md](../testing.md) / CLAUDE.md, targeted helpers (not `test_all`):
 
 - **Inversion** — a caret in the middle of a span inverts exactly one character;
@@ -153,6 +171,8 @@ Per [testing.md](../testing.md) / CLAUDE.md, targeted helpers (not `test_all`):
 ---
 
 ## Implementation order
+
+**✅ DONE (verified):** All four ordered steps are complete — shared helper extracted (`Text.jl:606-636`), projection built, console pipeline wired & inline rendering deleted, tests written.
 
 1. Extract `_selection_flat` / `_text_cursor_flat` into a shared helper (no
    behaviour change; console keeps working).

@@ -73,6 +73,25 @@ Why this shape won out over a declarative slot-DSL (the abandoned first approach
 
 ## Status
 
+> **Audit (2026-06-23, verified against current `package/` layout):** the
+> three "Done" items below are confirmed landed in the current tree.
+> - `@document` emits a **mutable** struct: `package/kernel/src/common/Document.jl:196`
+>   (`structdef.args[1] = true`), with the rationale at lines 191–196.
+> - The builder/marker/walk engine lives at
+>   `package/domain/src/projection/ProjectionTemplate.jl` and is included via
+>   `package/domain/src/ProjecturedDomain.jl`. It implements `Bound`/`Project`/
+>   `Collection`/`Tokens`/`Sections` markers, the reflection walk
+>   (`rule_print`, `_atomic_print`, `_node_print`, `_fixed_print`, `_mixed_print`,
+>   `_inline_print`, `_sections_print`), `AtomicWiring`/`NodeWiring`/
+>   `FixedNodeWiring`/`MixedNodeWiring`/`InlineWiring`/`SectionsWiring`/`RuleIoMap`,
+>   the generic `map_reference_forward`/`backward`, and the readers — Syntax-type-free.
+>   (Note: the engine now exceeds the plan's docstring, which still says "node
+>   support is WIP".)
+> - All seven JSON value types are builders in
+>   `package/domain/src/projection/primitive/JsonToSyntax.jl` (lines 49, 59, 70, 81,
+>   96, 112, 132). Hand-written kept: authoring readers + the structural flat-offset
+>   fallback (lines 251–279).
+
 ### Done (branch `projection-rule-macro`, rebased onto `main` @ `cf0482c`)
 
 The branch was reconstructed on top of `main` after `main` landed the
@@ -121,7 +140,16 @@ clean ones on the new layout:
 
 ## Remaining
 
-### Stage B — SQL domain (`SqlToSyntax.jl`)
+### Stage B — SQL domain (`SqlToSyntax.jl`) ⏳ PARTIAL (leaves done; nodes open)
+
+**Audit:** in `package/domain/src/projection/primitive/SqlToSyntax.jl` only the
+seven leaves use `@projection_template` (lines 92, 104, 118, 128, 138, 236, 890).
+Every node projection (Comparison, BooleanBinary, Not, the clauses, the
+statements, Insert/Update/DDL) is **still hand-written** with `ChildrenIoMap` and
+hand-coded `map_reference_forward`/`backward` (e.g. `SqlComparisonToSyntaxNode`
+line 913, `SqlInsertStatementToSyntaxNode` line 1273, `SqlSelectClauseToSyntaxNode`
+line 320 with the `body_idx = distinct ? 3 : 2` arithmetic at line 362 the plan
+aimed to delete). So the fixed/conditional-node sub-steps below are OPEN.
 
 Convert the 27 SQL projections to builders. The builder/walk model fits SQL's
 shapes directly, and crucially its *conditional* structure needs no new machinery:
@@ -142,11 +170,11 @@ shapes directly, and crucially its *conditional* structure needs no new machiner
     `test_sql_ddl` 3/3, `test_sql_ddl_selection` 7/7 green. NB
     `test_sql_to_syntax_selection` throws `UndefVarError: test_selection` — that
     helper is genuinely undefined on `main`; the test is dead until it's supplied.
-- **Fixed nodes** (`Comparison`, `BooleanBinary`, `Not`, clauses, …) — interleaved
+- **⏳ OPEN (verified):** **Fixed nodes** (`Comparison`, `BooleanBinary`, `Not`, clauses, …) — interleaved
   keyword leaves are just plain `TextString` children (introduced); bound children
   use `project(:field)`; layout wrappers (`_comma_body`, paren lists) are ordinary
   nested `SyntaxNode`s in the builder.
-- **Conditional/statement nodes** (`SelectClause` DISTINCT, `InsertStatement`
+- **⏳ OPEN (verified):** **Conditional/statement nodes** (`SelectClause` DISTINCT, `InsertStatement`
   columns-paren, `Update`/`SelectStatement` optional WHERE) — the builder uses
   ordinary `if`/`push!`/comprehensions to assemble the children; the walk reads the
   actual positions, so the dynamic-index arithmetic that dominated the hand-written
@@ -154,7 +182,12 @@ shapes directly, and crucially its *conditional* structure needs no new machiner
 - Authoring readers (`,` insert, Tab key→value, type-to-replace) stay hand-written.
 - **Gate:** `test_sql_to_syntax`, `test_sql_to_syntax_selection`.
 
-### Stage C — sweep other `XToSyntax` projections
+### Stage C — sweep other `XToSyntax` projections ⏳ OPEN (verified)
+
+**Audit:** none of `XmlToSyntax.jl`, `MathToSyntax.jl`, `JuliaToSyntax.jl`,
+`FormulaToSyntax.jl`, `CollectionToSyntax.jl` (all under
+`package/domain/src/projection/primitive/`) reference `@projection_template`
+(0 uses each). Entirely OPEN.
 
 `XmlToSyntax`, `MathToSyntax`, `JuliaToSyntax`, `FormulaToSyntax`,
 `CollectionToSyntax`, etc. — same playbook once Stages A/B prove the templated and
@@ -168,6 +201,10 @@ conditional cases.
   only builders, but none are targeted here.
 
 ## Done criteria
+
+> **⏳ NOT MET (verified):** the engine + JSON are done, but the first bullet
+> below requires SQL nodes and all Stage-C projections as builders — they remain
+> hand-written (see the Stage B/C audits above). Plan stays in `pending`.
 
 - Every structural `*ToSyntax*` projection expressed as a builder; only authoring
   readers + display/utility functions remain hand-written.

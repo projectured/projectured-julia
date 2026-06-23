@@ -1,5 +1,17 @@
 # Selectable / editable document support
 
+> **⏳ AUDIT 2026-06-23 — ALL OPEN (verified design-only).** No part of this plan
+> is implemented. `GatingProjection`, `ReadOnlyProjection`, `InertProjection`,
+> `deny_selection`, `deny_content` appear *only* in this plan file (grep across
+> `package/` returns no source hits); no `package/**/Gating.jl` exists. Route A's
+> node flags are absent too: `TextText` (`package/domain/src/document/Text.jl:233`)
+> has only `elements`/`selection` fields — no `selectable::Cell`/`editable::Cell`.
+> The "editable" matches in `package/kernel/src/document/Primitive.jl` are the
+> English word in comments, not fields. The plan remains correctly OPEN.
+> Path note: old `program/src/...` references map to `package/<subpkg>/src/...`
+> (e.g. `program/src/projection/higherorder/` → `package/domain/src/projection/higherorder/`,
+> `program/src/document/Widget.jl` → `package/domain/src/document/Widget.jl`).
+
 > **Status: design only.** Captures a general mechanism for gating *selection*
 > and *content editing* — and, by the same mechanism, **any future behavioural
 > concept** — per node/subtree, independent of any one domain. No code yet.
@@ -188,6 +200,10 @@ edits have no caret to target, so in practice `!selectable ⇒ effectively
 ## Critical files
 
 **New (Route B — the primary mechanism)**
+- **⏳ OPEN (verified absent):** no `Gating.jl` exists under `package/` and no
+  `GatingProjection`/policy symbols are defined anywhere. Target path today would
+  be `package/domain/src/projection/higherorder/Gating.jl` (sibling of the existing
+  `Dragging.jl`/`ProjectionConfiguring.jl` there).
 - `program/src/projection/higherorder/Gating.jl` — `GatingProjection` +
   `GatingProjectionIoMap`, passthrough printer, policy-applying reader, passthrough
   reference mapping (mirror `Dragging.jl`'s transparent-decorator shape); the
@@ -195,6 +211,10 @@ edits have no caret to target, so in practice `!selectable ⇒ effectively
   `ReadOnlyProjection` / `InertProjection` convenience constructors.
 
 **Edit (Route A — only if/when a node needs an in-place flag; opt-in, start with TextText)**
+- **⏳ OPEN (verified absent):** `TextText` lives at
+  `package/domain/src/document/Text.jl:233` (not `Primitive.jl`) and currently has
+  only `elements::CollectionDocument` and `selection::Reference` — no
+  `selectable`/`editable` cells. No reader guard lines exist.
 - `program/src/document/Primitive.jl` (or wherever `TextText` lives) — add
   `selectable` / `editable` cells with `=true` defaults.
 - that domain's reader — guard lines delegating to the **same** shared policy
@@ -210,6 +230,10 @@ edits have no caret to target, so in practice `!selectable ⇒ effectively
 - `ApplyAtProjection` (compound/HigherOrder.jl) — scoping a decorator to a subtree.
 
 ## Verification (when implemented)
+
+> **⏳ OPEN — none of the verification scenarios below are exercisable yet**, since
+> the mechanism (Route B `GatingProjection` + policies, optional Route A flags) is
+> unimplemented. Listed for when the work lands.
 
 1. **TextText selectable & not editable** (the headline case):
    - click / drag / word-select / select-all → caret and ranges set (selection
