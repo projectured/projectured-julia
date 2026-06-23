@@ -98,12 +98,53 @@ series. Several were documented as "pre-existing" in recent commit messages.
       `rdbms.selection` forward via `setfn!`. **Verified**: `test_click_roundtrips`
       31/31, `test_collapse_roundtrip` 18/18, `test_mouse_clicks` 29/2 (cleared
       searching/focusing/formula/dbcatalog; `xml_widget`+`dragging` remain — see 9).
-- [ ] 8. JSON ∅ tree-nav
-- [ ] 9. **Pre-existing, not yet fixed** (surfaced, not regressions):
-  - `test_mouse_clicks`: `xml_widget` + `dragging` — widget-pipeline / NestingProjection
-    cursor not re-rendered after `set_selection!` (same family, SyntaxToWidget /
-    DraggingProjection don't forward selection).
-  - `test_text_navigations`: `filesystem`, `navigator`, `conversation_editor` —
-    Ctrl+Home returns no selection (seed failure → `state_count==0`).
-  - `test_table_navigation` (1, WidgetToGraphics.jl); SqlToSyntax `sql_table` printer
-    length-on-CellVector; JsonToSyntax reader line-117 array-insert.
+  - [x] **Dragging click/nav re-rooting + JsonArray iterate (commit 5aed380).**
+    `DraggingProjection`'s reader `else` branch delegated real clicks/keys to the
+    inner json chain and returned the inner *content-domain* op unchanged, so
+    `set_selection!` on the `DraggingState` couldn't descend into `content` and the
+    cursor never re-rendered (broke mouse-click cursor, walk-right termination, and
+    repl). Fixed with `prepend_steps_to_op(op, (FieldReference("content"),))`.
+    Also: the `_collect_json_content_strings(::JsonArray)` test helper iterated the
+    `JsonArray` directly (no `iterate` after the container migration) → iterate
+    `j.elements`. Cleared all 4 dragging fails + the 2 json/json_sorted errors.
+
+## Authoritative `test_all` after the above (commits through 5aed380)
+**215601 passed, 19 failed, 2 errored** → after 5aed380: **~13 failed, 0 errored.**
+(Down from the 1067/32 baseline.) Remaining failures, **none of which are
+tractable rerooting-family bugs** — they were left per an explicit scope decision
+to fix only the tractable bugs (dragging/json) and document the rest:
+
+- [ ] 8. **conversation / conversation_widget (5, ReplTest)** — *unimplemented
+  feature, not a bug.* `ConversationToSyntax.jl:147` is explicitly "v1: not wired":
+  the 3 conversation→syntax projections stub `map_reference_*  = nothing` and
+  `projection_read = op`, so a click's syntax-domain (`children`-rooted) path is
+  passed through unchanged and FieldErrors on `ConversationConversation` (it has
+  `turns`). Real fix = restructure to `ChildrenIoMap` + School-A delegation
+  (children↔turns/parts) for both ConversationToSyntax **and** ConversationToWidget.
+- [ ] 9. **Ctrl+Home seed: filesystem, navigator, conversation_editor (3,
+  TextNavigationTest)** — composite documents return no selection for
+  `Ctrl+Home` (`KeyDown(:home; ctrl) → TreeNavigateOperation(:root)`), so the BFS
+  seed is empty (`state_count==0`). Composite-doc navigation feature gap.
+- [ ] 10. **dbcatalog / dvdrental_catalog walk-right (2, ClickRoundtripTest:271,
+  `@test steps>0`)** — *skip→fail surfaced by the (correct) catalog fix in
+  47e4ab1.* Before, `Ctrl+Home` returned no selection so the walk skipped; now it
+  seeds a **structural** position `proj(p,{0})` (the rdbms entity name), and a plain
+  right-arrow on a structural selection is declined (TextToGraphics:144-145, routed
+  to the tree layer) which returns the same position → 0 advances. Needs
+  structural/tree-nav semantics for catalog character positions (deep).
+- [ ] 11. **xml_widget (2, MouseClick + walk-right)** — widget-pipeline cursor not
+  re-rendered after `set_selection!` (SyntaxToWidget selection-forward gap; deep).
+- [ ] 12. **table 3×3 Alt+arrow promote (1, TableNavigationTest:192)** — `Alt+Down`
+  from an *in-cell* cursor `.rows[2][2].value` returns `nothing` instead of
+  promoting to the whole cell and moving (`.rows[3][2]`). Whole-cell Alt+Down (184)
+  works. Nav-internals in the math_table TypeDispatching pipeline (deep).
+- [ ] 13. **SqlToSyntax INSERT/UPDATE round-trip (1, SqlToSyntaxTest:113)** —
+  `backward(forward(.where_clause.condition.expression.left))` returns
+  `.where_clause.condition::SqlSelectItem.expression.left`. `SqlSelectItemToSyntaxNode`
+  is reused to render the WHERE comparison and its backward hardcodes
+  `::SqlSelectItem` (line 316). **Ambiguous**: either a stale test that should compare
+  modulo checkpoints, or a wrong-type checkpoint (`::SqlSelectItem` on a
+  `SqlComparison`) that a test-side strip would *mask*. Needs SqlToSyntax
+  expression-reuse analysis before touching.
+- [ ] 14. **JSON ∅ tree-nav** and **JsonToSyntax reader line-117 array-insert
+  (1)** — documented pre-existing WIP/quirk.
