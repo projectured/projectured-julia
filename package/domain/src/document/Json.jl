@@ -25,7 +25,12 @@ module JsonModule
 import ..ReactiveModule: Cell, setfn!, setval!
 import ..DocumentModule: Document, @document
 import ..CollectionModule: CellVector
-import ..ReferenceModule: Reference, ReferencePath, ConcreteReferencePath, PositionReference, RangeReference, FieldReference, EmptyReferencePath
+import ..ReferenceModule: Reference, ReferencePath, ConcreteReferencePath, PositionReference, RangeReference, FieldReference, EmptyReferencePath, evaluate_reference
+import ..ReferenceBuilderModule: var"@reference"
+import ..ReferenceCaseModule: var"@reference_case"
+import ..OperationModule: ReplaceDocumentOperation, CollectionInsertOperation, ReplaceSelectionOperation
+import ..KeyboardModule: KeyPress, KeyDown
+import ..GestureBindingModule: var"@gestures"
 export JsonDocument, JsonInsertion, JsonNull, JsonBool, JsonNumber, JsonString, JsonArray, JsonObject, JsonObjectEntry, jsonvalue, entries, setfn!,
        IJsonInsertion, IJsonNull, IJsonBool, IJsonNumber, IJsonString, IJsonArray, IJsonObject, IJsonObjectEntry
 
@@ -386,5 +391,119 @@ end
 # strings (string representation); `JsonNumber.value` is a number (a string-domain
 # edit threaded through a parent array/object reader reparses it via the number
 # representation). No per-type method is needed.
+
+# ── Authoring gestures (the projection-independent JSON reader) ─────────────
+#
+# The JSON authoring command set, declared as reified `@gestures` on the document
+# types so it both *fires* operations and is *enumerable* by the gesture-help
+# projection. Relocated from `JsonToSyntaxModule` (where it was duplicated across
+# the leaf readers); the generic event fallback in `projection_read` now routes a
+# raw key on a JSON value here via `document_read`. Only the structural
+# flat-offset reader (delimiters/brackets/commas with no JSON pre-image) stays in
+# the projection, since it is genuinely projection-specific.
+#
+# These are *root-relative*: each JSON projection works as the whole document, so
+# the gesture reads `doc`'s own selection and emits a `doc`-relative operation.
+# `evaluate_reference(doc, sel)` resolves the actual edit target (which may be a
+# nested element). Modifiers are not matched on a `KeyPress` — the OS folds Shift
+# into the character and Ctrl-combinations never produce text input — so the old
+# defensive `ctrl` guard is dropped.
+
+# Pre-place a fresh replacement document's (self-relative) selection so the cursor
+# lands inside it after the swap.
+_sel!(doc, path) = (getfield(doc, :selection)[] = path; doc)
+
+# Replace the currently-selected value with `newdoc` (whose cursor is pre-placed).
+_replace(doc, newdoc) = ReplaceDocumentOperation(getfield(doc, :selection)[], newdoc)
+
+# A character cursor: a path ending in value{k} or key{k} (a RangeReference after a
+# value/key field). A whole-element selection ends in ∅.
+function _is_char_cursor(sel)
+    prev = nothing
+    cur = sel
+    while cur isa ConcreteReferencePath
+        if cur.tail isa EmptyReferencePath
+            return cur.head isa RangeReference && prev isa FieldReference &&
+                   (prev.name == "value" || prev.name == "key")
+        end
+        prev = cur.head
+        cur = cur.tail
+    end
+    return false
+end
+
+# Block precondition for the type-to-replace set: a whole JSON value (not a
+# character cursor) whose target exists and is replaceable (values / array
+# elements / root — not a key/value entry wrapper).
+function _json_replaceable(doc, sel)
+    sel === nothing && return false
+    _is_char_cursor(sel) && return false
+    target = try evaluate_reference(doc, sel) catch; nothing end
+    target === nothing && return false
+    target isa JsonObjectEntry && return false
+    return true
+end
+
+# A digit builds a fresh number, unless a whole number is already selected (that
+# edit belongs to the typein path, which appends digits to the existing value).
+function _replace_number(doc, c)
+    target = try evaluate_reference(doc, getfield(doc, :selection)[]) catch; nothing end
+    target isa JsonNumber && return nothing
+    _replace(doc, _sel!(JsonNumber(parse(Int, string(c))), @reference value{1}))
+end
+
+# Append a JsonInsertion and select it whole, ready to type-to-replace.
+function _array_insert(doc::JsonArray)
+    n = length(doc.elements)
+    CollectionInsertOperation(@reference(elements), n, Any[JsonInsertion()],
+                              @reference elements[n + 1])
+end
+
+# Append an empty entry and select its key for typing.
+function _object_insert(doc::JsonObject)
+    n = length(doc.entries)
+    CollectionInsertOperation(@reference(entries), n,
+                              Any[JsonObjectEntry("", JsonInsertion())],
+                              @reference entries[n + 1].key{0})
+end
+
+# Tab moves the cursor from an entry's key to its value, selected whole.
+function _object_tab(doc::JsonObject)
+    sel = getfield(doc, :selection)[]
+    sel === nothing && return nothing
+    @reference_case sel begin
+        entries{s:e}.rest... => begin
+            i = s + 1
+            @reference_case rest begin
+                key.inner... => ReplaceSelectionOperation(@reference entries[i].value)
+            end
+        end
+    end
+end
+
+# Shared type-to-replace set: a printable key on a whole JSON value replaces it
+# with a freshly-built value whose cursor is pre-placed for continued authoring.
+@gestures JsonDocument begin
+    when(_json_replaceable(doc, sel))
+    KeyPress('n') => "Replace with null"   => _replace(doc, _sel!(JsonNull(), EmptyReferencePath()))
+    KeyPress('f') => "Replace with false"  => _replace(doc, _sel!(JsonBool(false), EmptyReferencePath()))
+    KeyPress('t') => "Replace with true"   => _replace(doc, _sel!(JsonBool(true), EmptyReferencePath()))
+    KeyPress('"') => "Replace with a string" => _replace(doc, _sel!(JsonString(""), @reference value{0}))
+    KeyPress('[') => "Replace with an array" => _replace(doc, _sel!(JsonArray([JsonInsertion()]), @reference elements[1]))
+    KeyPress(':') => "Replace with an object entry" => _replace(doc, _sel!(JsonObjectEntry("", JsonInsertion()), @reference key{0}))
+    KeyPress('{') => "Replace with an object" => _replace(doc, _sel!(JsonObject(() -> [JsonObjectEntry("", JsonInsertion())]), @reference entries[1].key{0}))
+    when(KeyPress(c), isdigit(c)) => "Replace with a number" => _replace_number(doc, c)
+end
+
+# Arrays add `,`-insert; objects add `,`-insert and Tab (key → value). Both
+# inherit the type-to-replace set from JsonDocument.
+@gestures JsonArray begin
+    KeyPress(',') => "Insert a new element" => _array_insert(doc)
+end
+
+@gestures JsonObject begin
+    KeyPress(',') => "Insert a new entry" => _object_insert(doc)
+    KeyDown(:tab) => "Move from key to value" => _object_tab(doc)
+end
 
 end # module

@@ -26,14 +26,11 @@ import ..StyleTextModule: StyleText
 import ..SyntaxModule: SyntaxDocument, SyntaxLeaf, SyntaxNode
 import ..TypeDispatchingModule: TypeDispatchingProjection
 import ..CopyingProjectionModule: CopyingProjection
-import ..ReferenceModule: ConcreteReferencePath, ElementReference, PositionReference, RangeReference, FieldReference, ProjectionReference, ReferencePath, EmptyReferencePath, append_reference, evaluate_reference, skip_type_checkpoints
-import ..ReferenceCaseModule: var"@reference_case"
-import ..ReferenceBuilderModule: var"@reference"
+import ..ReferenceModule: ConcreteReferencePath, PositionReference, ProjectionReference
 import ..ProjectionTemplateModule: var"@projection_template", bound, project, collection, RuleIoMap
 import ..PrinterContextModule: PrinterContext, child_context
-import ..OperationModule: ReplaceSelectionOperation, ReplaceDocumentOperation, CollectionInsertOperation
+import ..OperationModule: ReplaceSelectionOperation
 import ..PrimitiveModule: StringReplaceRangeOperation, NumberReplaceRangeOperation
-import ..KeyboardModule: KeyPress, KeyDown
 import ..SyntaxToTextModule: SyntaxNodeToText, _syntax_to_flat
 export JsonInsertionToSyntaxLeaf, JsonNullToSyntaxLeaf, JsonBoolToSyntaxLeaf, JsonNumberToSyntaxLeaf,
        JsonStringToSyntaxLeaf, JsonArrayToSyntaxNode, JsonObjectToSyntaxNode,
@@ -148,111 +145,13 @@ end
                sep=TextString(", ", p.sep),
                indentation=1)
 
-# ── Reader: the JSON authoring command set ──────────────────────────────────
+# ── Reader: structural (projection-introduced) positions only ───────────────
 #
-# These run only when a raw key gesture reaches the JSON layer with the cursor on a
-# whole JSON value (structural mode). A character cursor inside a string/number is
-# consumed downstream by TextToGraphics, so it is skipped here (the digit case
-# guards explicitly).
-#
-# Only the root JSON projection's reader runs for a gesture (TypeDispatching keys on
-# the root document type), so each method reads its own root-relative
-# `iomap.input.selection` and emits a root-relative operation — which is why every
-# JSON projection carries the type-to-replace command.
-
-# Pre-place a fresh replacement document's (self-relative) selection so the cursor
-# lands inside it after the swap.
-_sel!(doc, path) = (getfield(doc, :selection)[] = path; doc)
-
-# A character cursor: a path ending in value{k} or key{k} (a RangeReference after a
-# value/key field). A whole-element selection ends in ∅.
-function _is_char_cursor(sel)
-    prev = nothing
-    cur = sel
-    while cur isa ConcreteReferencePath
-        if cur.tail isa EmptyReferencePath
-            return cur.head isa RangeReference && prev isa FieldReference &&
-                   (prev.name == "value" || prev.name == "key")
-        end
-        prev = cur.head
-        cur = cur.tail
-    end
-    return false
-end
-
-# A printable key on a whole-element selection replaces the selected value with a
-# freshly-built one whose cursor is pre-placed for continued authoring.
-function _json_read_command(input, evt::KeyPress)
-    evt.modifiers.ctrl && return nothing
-    sel = getfield(input, :selection)[]
-    sel === nothing && return nothing
-    _is_char_cursor(sel) && return nothing
-    target = try evaluate_reference(input, sel) catch; nothing end
-    target === nothing && return nothing
-    # A JsonObjectEntry is a key/value wrapper, not a replaceable value — swapping it
-    # for a scalar would corrupt the enclosing object. Replaceable targets are values,
-    # array elements, and the root.
-    target isa JsonObjectEntry && return nothing
-    ch = evt.char
-    newdoc = if ch == 'n'
-        _sel!(JsonNull(), EmptyReferencePath())
-    elseif ch == 'f'
-        _sel!(JsonBool(false), EmptyReferencePath())
-    elseif ch == 't'
-        _sel!(JsonBool(true), EmptyReferencePath())
-    elseif ch == '"'
-        _sel!(JsonString(""), @reference value{0})
-    elseif ch == '['
-        _sel!(JsonArray([JsonInsertion()]), @reference elements[1])
-    elseif ch == ':'
-        _sel!(JsonObjectEntry("", JsonInsertion()), @reference key{0})
-    elseif ch == '{'
-        _sel!(JsonObject(() -> [JsonObjectEntry("", JsonInsertion())]), @reference entries[1].key{0})
-    elseif isdigit(ch)
-        # A number already being edited is owned by the typein path, not re-created here.
-        target isa JsonNumber && return nothing
-        _sel!(JsonNumber(parse(Int, string(ch))), @reference value{1})
-    else
-        return nothing
-    end
-    ReplaceDocumentOperation(sel, newdoc)
-end
-
-# Append a JsonInsertion and select it whole, ready to type-to-replace.
-function _array_insert(input::JsonArray)
-    n = length(input.elements)
-    CollectionInsertOperation(@reference(elements), n, Any[JsonInsertion()],
-                              @reference elements[n + 1])
-end
-
-# Append an empty entry and select its key for typing.
-function _object_insert(input::JsonObject)
-    n = length(input.entries)
-    CollectionInsertOperation(@reference(entries), n,
-                              Any[JsonObjectEntry("", JsonInsertion())],
-                              @reference entries[n + 1].key{0})
-end
-
-# Tab moves the cursor from an entry's key to its value, selected whole for
-# type-to-replace.
-function _object_tab(input::JsonObject)
-    sel = getfield(input, :selection)[]
-    sel === nothing && return nothing
-    @reference_case sel begin
-        entries{s:e}.rest... => begin
-            i = s + 1
-            @reference_case rest begin
-                key.inner... => ReplaceSelectionOperation(@reference entries[i].value)
-            end
-        end
-    end
-end
-
-projection_read(p::JsonInsertionToSyntaxLeaf, iomap::RuleIoMap, evt::KeyPress) = _json_read_command(iomap.input, evt)
-projection_read(p::JsonNullToSyntaxLeaf,      iomap::RuleIoMap, evt::KeyPress) = _json_read_command(iomap.input, evt)
-projection_read(p::JsonBoolToSyntaxLeaf,      iomap::RuleIoMap, evt::KeyPress) = _json_read_command(iomap.input, evt)
-projection_read(p::JsonNumberToSyntaxLeaf,    iomap::RuleIoMap, evt::KeyPress) = _json_read_command(iomap.input, evt)
-projection_read(p::JsonStringToSyntaxLeaf,    iomap::RuleIoMap, evt::KeyPress) = _json_read_command(iomap.input, evt)
+# The JSON *authoring* command set (type-to-replace, `,`-insert, Tab) now lives on
+# the document types as reified `@gestures` in `JsonModule` and reaches the JSON
+# layer through the generic `document_read` fallback in `projection_read`. Only the
+# structural flat-offset reader below stays here: brackets/braces/commas/colons
+# have no JSON pre-image, so they are genuinely projection-specific.
 
 # Structural positions (brackets/braces/comma/colon) have no JSON pre-image, so they
 # round-trip as a flat character offset the text layer can navigate. Overrides the
@@ -264,19 +163,6 @@ function projection_read(p::Union{JsonArrayToSyntaxNode, JsonObjectToSyntaxNode}
     flat < 0 && return nothing
     return ReplaceSelectionOperation(ConcreteReferencePath(ProjectionReference(p, ConcreteReferencePath(PositionReference(flat)))))
 end
-
-function projection_read(p::JsonArrayToSyntaxNode, iomap::RuleIoMap, evt::KeyPress)
-    evt.char == ',' && return _array_insert(iomap.input)
-    _json_read_command(iomap.input, evt)
-end
-
-function projection_read(p::JsonObjectToSyntaxNode, iomap::RuleIoMap, evt::KeyPress)
-    evt.char == ',' && return _object_insert(iomap.input)
-    _json_read_command(iomap.input, evt)
-end
-# Tab moves key → value.
-projection_read(p::JsonObjectToSyntaxNode, iomap::RuleIoMap, evt::KeyDown) =
-    evt.key === :tab ? _object_tab(iomap.input) : nothing
 
 # ── Compound convenience constructor ────────────────────────────────────────
 
