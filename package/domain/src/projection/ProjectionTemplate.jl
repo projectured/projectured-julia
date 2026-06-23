@@ -92,6 +92,18 @@ struct FixedNodeWiring
     slots::Vector{Any}                   # KeySlot|ProjectSlot|IntroSlot per child index
 end
 
+# A node whose children are a fixed prefix (bound/delegated/introduced leaves)
+# followed by one spliced `collection(:field)` whose elements become the trailing
+# siblings (e.g. a section heading leaf + its entries). `child_iomaps` is a
+# NamedTuple `(prefix=Dict{Symbol,iomap}, coll=Cell{Vector{iomap}})`.
+struct MixedNodeWiring
+    intype::Any
+    outtype::Any
+    children_field::Symbol
+    prefix_slots::Vector{Any}            # KeySlot|ProjectSlot|IntroSlot, children[1..prefix_len]
+    coll_field::Symbol                   # input collection field spliced after the prefix
+end
+
 struct RuleIoMap <: IoMap
     projection::Any
     input::Any
@@ -145,9 +157,15 @@ function rule_print(p, recursion, doc, ctx, builder)
     coll_field, coll = _find_collection(out)
     coll !== nothing && return _node_print(p, recursion, doc, ctx, out, coll_field, coll)
     # A node built with a raw children Vector (markers/leaves) but no Collection
-    # marker is a top-level fixed-children node (e.g. a record rendered as a row of
-    # bound/delegated/introduced leaves). Leaves have no such field.
-    _has_fixed_children(out) && return _fixed_print(p, recursion, doc, ctx, out)
+    # marker *field* is a fixed-children node. If that Vector contains a Collection
+    # marker among fixed children, it is a mixed node (fixed prefix + one spliced
+    # collection); otherwise it is a pure fixed-children record. Leaves have neither.
+    if _has_fixed_children(out)
+        cf = _find_fixed_children(out)
+        any(c -> c isa Collection, getproperty(out, cf)) &&
+            return _mixed_print(p, recursion, doc, ctx, out, cf)
+        return _fixed_print(p, recursion, doc, ctx, out)
+    end
     return _atomic_print(p, doc, out)
 end
 
@@ -310,6 +328,55 @@ function _find_fixed_children(out)
     error("ProjectionTemplate: fixed-children node has no children vector")
 end
 
+# A mixed node: a fixed prefix of leaves/markers followed by one spliced
+# `collection(:field)` whose elements become the trailing children (e.g. a section
+# heading leaf + its entries). The collection must be last (no fixed suffix).
+function _mixed_print(p, recursion, doc, ctx, out, children_field)
+    raw = getproperty(out, children_field)
+    prefix_slots = Any[]; store = Dict{Symbol,Any}(); prefix_outputs = Any[]
+    coll_field = nothing
+    for child in raw
+        if child isa Collection
+            coll_field === nothing || error("ProjectionTemplate: only one spliced collection per mixed node")
+            coll_field = child.input
+        elseif coll_field !== nothing
+            error("ProjectionTemplate: fixed children after a spliced collection are not supported")
+        elseif child isa Project
+            im = projection_printer_recurse(recursion, getproperty(doc, child.input),
+                                            child_context(ctx, FieldReference(String(child.input))))
+            store[child.input] = im
+            push!(prefix_slots, ProjectSlot(child.input))
+            push!(prefix_outputs, im.output)
+        else
+            w = _scan_atomic!(p, doc, child)
+            if w.bound_field === nothing
+                push!(prefix_slots, IntroSlot())
+            else
+                setfield!(child, :selection, _key_leaf_sel(doc, w.bound_field))
+                push!(prefix_slots, KeySlot(w.bound_field, w.bound_type, w.value_checkpoint))
+            end
+            push!(prefix_outputs, child)
+        end
+    end
+    coll_field === nothing && error("ProjectionTemplate: mixed node has no spliced collection")
+    coll_iomaps = Cell(() -> [
+        projection_printer_recurse(recursion, x,
+            child_context(ctx, FieldReference(String(coll_field)), ElementReference(i)))
+        for (i, x) in enumerate(getproperty(doc, coll_field))])
+    children = CellVector(() -> vcat(prefix_outputs, [im.output for im in coll_iomaps[]]))
+    setproperty!(out, children_field, children)
+    iomap_cell = Cell(nothing)
+    setfield!(out, :selection, Cell(() -> begin
+        im = iomap_cell[]; im === nothing && return nothing
+        path = doc.selection; path === nothing && return nothing
+        map_reference_forward(p, im, path)
+    end))
+    wiring = MixedNodeWiring(typeof(doc), typeof(out), children_field, prefix_slots, coll_field)
+    iomap = RuleIoMap(p, doc, out, wiring, (prefix=store, coll=coll_iomaps))
+    iomap_cell[] = iomap
+    return iomap
+end
+
 # ── Generic, data-driven mappers (one method, all template projections) ───────
 
 function map_reference_forward(p::Projection, iomap::RuleIoMap, reference)
@@ -317,6 +384,7 @@ function map_reference_forward(p::Projection, iomap::RuleIoMap, reference)
     w isa AtomicWiring    && return _atomic_forward(p, w, reference)
     w isa NodeWiring      && return _node_forward(p, w, iomap, reference)
     w isa FixedNodeWiring && return _fixed_forward(p, w, iomap, reference)
+    w isa MixedNodeWiring && return _mixed_forward(p, w, iomap, reference)
     return nothing
 end
 
@@ -325,6 +393,7 @@ function map_reference_backward(p::Projection, iomap::RuleIoMap, reference)
     w isa AtomicWiring    && return _atomic_backward(p, w, reference)
     w isa NodeWiring      && return _node_backward(p, w, iomap, reference)
     w isa FixedNodeWiring && return _fixed_backward(p, w, iomap, reference)
+    w isa MixedNodeWiring && return _mixed_backward(p, w, iomap, reference)
     return nothing
 end
 
@@ -492,6 +561,94 @@ function _fixed_backward(p, w, iomap, reference)
         end
     end
     return nothing
+end
+
+# ── mixed node (fixed prefix + spliced collection) ─────────────────────────────
+#
+# Combines the fixed-children KeySlot/ProjectSlot handling (prefix children) with
+# the node collection delegation (trailing children), offset by the prefix length.
+# `.prefix_field{k}` ↔ `.children[slot].value{k}`; `.coll_field[i].tail` ↔
+# `.children[prefix_len+i].tail` (delegated). Paths are plain (checkpoint-free),
+# matching the surrounding node mappers.
+
+function _mixed_forward(p, w, iomap, reference)
+    reference === nothing && return nothing
+    core = skip_type_checkpoints(reference)
+    core isa EmptyReferencePath && return _typed(w.outtype)
+    if core isa ConcreteReferencePath && core.head isa ProjectionReference && core.head.projection === p
+        return reference
+    end
+    (core isa ConcreteReferencePath && core.head isa FieldReference) || return nothing
+    fname = Symbol(core.head.name)
+    for (k, slot) in enumerate(w.prefix_slots)
+        if slot isa KeySlot && slot.in_field === fname
+            inner = core.tail
+            skip_type_checkpoints(inner) isa EmptyReferencePath &&
+                return _path(FieldReference(String(w.children_field)), ElementReference(k))
+            return _prepend(inner, FieldReference(String(w.children_field)), ElementReference(k), FieldReference("value"))
+        elseif slot isa ProjectSlot && slot.in_field === fname
+            child = iomap.child_iomaps.prefix[fname]
+            inner = map_reference_forward(child.projection, child, core.tail)
+            inner === nothing && return nothing
+            return _prepend(inner, FieldReference(String(w.children_field)), ElementReference(k))
+        end
+    end
+    if fname === w.coll_field
+        after = skip_type_checkpoints(core.tail)
+        if after isa ConcreteReferencePath && after.head isa RangeReference
+            i = after.head.start + 1
+            ims = iomap.child_iomaps.coll[]
+            1 <= i <= length(ims) || return nothing
+            child_i = length(w.prefix_slots) + i
+            skip_type_checkpoints(after.tail) isa EmptyReferencePath &&
+                return _path(FieldReference(String(w.children_field)), ElementReference(child_i))
+            inner = map_reference_forward(ims[i].projection, ims[i], after.tail)
+            inner === nothing && return nothing
+            return _prepend(inner, FieldReference(String(w.children_field)), ElementReference(child_i))
+        end
+    end
+    return nothing
+end
+
+function _mixed_backward(p, w, iomap, reference)
+    reference === nothing && return nothing
+    core = skip_type_checkpoints(reference)
+    core isa EmptyReferencePath && return _typed(w.intype)
+    (core isa ConcreteReferencePath && core.head isa FieldReference &&
+     core.head.name == String(w.children_field)) || return nothing
+    after = skip_type_checkpoints(core.tail)
+    (after isa ConcreteReferencePath && after.head isa RangeReference) || return nothing
+    k = after.head.start + 1
+    leaf_path = after.tail
+    n_prefix = length(w.prefix_slots)
+    if k <= n_prefix
+        slot = w.prefix_slots[k]
+        if slot isa KeySlot
+            skip_type_checkpoints(leaf_path) isa EmptyReferencePath &&
+                return _path(FieldReference(String(slot.in_field)))
+            lp = skip_type_checkpoints(leaf_path)
+            if lp isa ConcreteReferencePath && lp.head isa FieldReference && lp.head.name == "value"
+                return _prepend(lp.tail, FieldReference(String(slot.in_field)))
+            end
+            return nothing
+        elseif slot isa ProjectSlot
+            child = iomap.child_iomaps.prefix[slot.in_field]
+            inner = map_reference_backward(child.projection, child, leaf_path)
+            inner === nothing && return nothing
+            return _prepend(inner, FieldReference(String(slot.in_field)))
+        else
+            return nothing
+        end
+    else
+        i = k - n_prefix
+        ims = iomap.child_iomaps.coll[]
+        1 <= i <= length(ims) || return nothing
+        skip_type_checkpoints(leaf_path) isa EmptyReferencePath &&
+            return _path(FieldReference(String(w.coll_field)), ElementReference(i))
+        inner = map_reference_backward(ims[i].projection, ims[i], leaf_path)
+        inner === nothing && return nothing
+        return _prepend(_strip_checkpoints(inner), FieldReference(String(w.coll_field)), ElementReference(i))
+    end
 end
 
 # ── readers ───────────────────────────────────────────────────────────────────
