@@ -1,5 +1,7 @@
 # Document Locator
 
+> **⏳ AUDIT STATUS (verified 2026-06-23): ALL STEPS OPEN.** No `DocumentLocator` abstract type, `DocumentLocatorPath`, `locator_equal`, or `is_whole_document` exists anywhere in source. No `common/DocumentLocator.jl` file exists (only `Document.jl`, `Operation.jl`, `Projection.jl`, `Reactive.jl`, `OperationRerooting.jl`, `IoMap.jl`, `DocumentCopy.jl` under `package/kernel/src/common/`). The only mention of "DocumentLocator" in source is a passing comment naming the *pattern* in `package/domain/src/document/Versioning.jl:125` (re `VersionCriterion`); it does not implement this type. No exports in any `Projectured.jl`. The integration targets (`DocumentGraph`/`GraphNode`, `AnnotationBinding*`) also do not exist as source structs — they belong to sibling pending plans. This plan is entirely unimplemented and remains relevant.
+
 A generic, domain-neutral abstraction for pointing at any element in the document universe. `DocumentLocator` is an **abstract type**; each addressing approach is a concrete subtype named `DocumentLocator<Mode>`. New addressing modes are added as new subtypes — existing code is unaffected.
 
 ## Goal
@@ -139,11 +141,11 @@ Features that should use `DocumentLocator` (abstract) as their field type, and `
 
 ## Implementation Steps
 
-1. **Create `DocumentLocator.jl`** with the abstract type, `DocumentLocatorPath`, and helpers.
-2. **Wire into `Projectured.jl`**: `include("common/DocumentLocator.jl")` and exports.
-3. **Write tests** — `DocumentLocatorPath` construction, `locator_equal` (same doc/path, different doc, different path, cross-type always false), `is_whole_document`.
-4. **Update `DocumentGraph`** to use `DocumentLocator` / `DocumentLocatorPath` instead of `GraphNode` (parallel with document-graph implementation work).
-5. **Update annotation bindings** to collapse the two binding subtypes using `target::DocumentLocator` (parallel with annotation-feature implementation work).
+1. **⏳ OPEN — Create `DocumentLocator.jl`** with the abstract type, `DocumentLocatorPath`, and helpers. *(No such file exists under `package/*/src/common/`; type not defined anywhere.)*
+2. **⏳ OPEN — Wire into `Projectured.jl`**: `include("common/DocumentLocator.jl")` and exports. *(No `include`/`export` of any `DocumentLocator` symbol in any `Projectured.jl`.)*
+3. **⏳ OPEN — Write tests** — `DocumentLocatorPath` construction, `locator_equal` (same doc/path, different doc, different path, cross-type always false), `is_whole_document`. *(No `locator_equal`/`is_whole_document`/`DocumentLocatorPath` references in `package/test/`.)*
+4. **⏳ OPEN — Update `DocumentGraph`** to use `DocumentLocator` / `DocumentLocatorPath` instead of `GraphNode` (parallel with document-graph implementation work). *(No `DocumentGraph`/`GraphNode` struct exists in source; depends on the unimplemented document-graph plan.)*
+5. **⏳ OPEN — Update annotation bindings** to collapse the two binding subtypes using `target::DocumentLocator` (parallel with annotation-feature implementation work). *(No `AnnotationBinding*` types exist in source; depends on the unimplemented annotation-feature plan.)*
 
 ## Dependencies
 

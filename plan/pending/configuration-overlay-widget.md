@@ -1,5 +1,19 @@
 # Show/hide a projection's configuration as an overlay
 
+> **⏳ AUDIT (2026-06-23): ALL STEPS OPEN — none implemented.**
+> Verified against the current codebase (paths now under `package/<sub>/src/...`).
+> `WidgetOverlay`, `WidgetOverlayToGraphicsCanvas`, `_strip_control_layer`, and
+> the `configuration_label`/`is_configuration_gesture`/`configuration_descriptor`
+> traits do **not** exist anywhere under `package/`. The current
+> `ProjectionConfiguringProjection`
+> (`package/domain/src/projection/higherorder/ProjectionConfiguring.jl`) still
+> builds a `WidgetSplitPane` (printer, line 85), still has `_strip_control_slot`
+> (line 139), and still hardcodes the `Ctrl+F` toggle in `_toggle_operation`
+> (line 155). The test
+> (`package/test/src/projection/ProjectionConfiguringTest.jl`) still asserts
+> `WidgetSplitPane` (line 19) and `Ctrl+F` (line 49). This plan describes the
+> intended future work and remains entirely OPEN.
+
 ## Goal
 
 Let the user **show and hide** the configuration UI that
@@ -162,30 +176,37 @@ Configure highlighting"* / *"Ctrl+R — Configure filtering"* contextually.
 
 ## Implementation steps
 
-1. **`WidgetOverlay` document** — add struct + ctor in `Widget.jl`, export from
+1. **⏳ OPEN: `WidgetOverlay` document** — add struct + ctor in `Widget.jl`, export from
    `Projectured.jl`. (Sonnet-delegable: mechanical, mirror `WidgetSplitPane`.)
-2. **`WidgetOverlayToGraphicsCanvas`** — renderer + hit-test in
+   _Verified OPEN: no `WidgetOverlay` exists in `package/domain/src/document/Widget.jl` (only `WidgetSplitPane`, line 520) nor any export._
+2. **⏳ OPEN: `WidgetOverlayToGraphicsCanvas`** — renderer + hit-test in
    `WidgetToGraphics.jl`, register in the dispatch table. Layout = base full-size
    + anchored content-sized layers; route top-first. (Opus: layout/hit-test
    logic; verify against the split-pane reference.)
-3. **Printer swap** in `ProjectionConfiguring.jl`: `WidgetSplitPane` →
+   _Verified OPEN: no `WidgetOverlayToGraphicsCanvas` in `package/domain/src/projection/primitive/WidgetToGraphics.jl`; dispatch table (line 3543) maps only `WidgetSplitPane`._
+3. **⏳ OPEN: Printer swap** in `ProjectionConfiguring.jl`: `WidgetSplitPane` →
    `WidgetOverlay`, control as the top (visible-gated) layer.
-4. **Reader swap**: `_strip_control_slot` → `_strip_control_layer` (new overlay
+   _Verified OPEN: printer still emits `WidgetSplitPane(p.orientation, Any[control_widget, doc_widget])` at `ProjectionConfiguring.jl:85`._
+4. **⏳ OPEN: Reader swap**: `_strip_control_slot` → `_strip_control_layer` (new overlay
    slot index); replace `_toggle_operation`'s `Ctrl+F` with
    `is_configuration_gesture(p.inner, …)`.
-5. **Per-projection trait**: define `configuration_label` /
+   _Verified OPEN: `_strip_control_slot` still present (`ProjectionConfiguring.jl:139`); `_toggle_operation` still hardcodes `gesture.key === :f && is_ctrl(gesture)` (line 155)._
+5. **⏳ OPEN: Per-projection trait**: define `configuration_label` /
    `is_configuration_gesture` / `configuration_descriptor` with defaults; add
    `TextHighlighting` and `TextFiltering` methods. Audit existing bindings for
    collisions before fixing letters.
-6. **F1 help**: annotate the toggle so `configuration_descriptor(p.inner)` flows
+   _Verified OPEN: none of the three trait functions exist anywhere under `package/`._
+6. **⏳ OPEN: F1 help**: annotate the toggle so `configuration_descriptor(p.inner)` flows
    into the context-help list.
-7. **Wrapper/Examples**: `make_text_configuring_projection` no longer needs the
+   _Verified OPEN: depends on step 5 trait which does not exist; toggle is not an annotated `@event_case`._
+7. **⏳ OPEN: Wrapper/Examples**: `make_text_configuring_projection` no longer needs the
    split-pane-specific combo for *layout*, but the renderer must still dispatch
    `WidgetOverlay` (it will, via the dispatch-table registration) and the control
    widgets inside it. Confirm the example tabs still render; update comments at
    [Wrapper.jl:37-58](../../example/src/projection/Wrapper.jl#L37-L58) and
    [Examples.jl:245-251](../../example/src/Examples.jl#L245).
-8. **Tests** — update
+   _Verified OPEN: no `WidgetOverlay` referenced in `package/example/src/projection/Wrapper.jl` or `Examples.jl`._
+8. **⏳ OPEN: Tests** — update
    [test/src/projection/ProjectionConfiguringTest.jl](../../test/src/projection/ProjectionConfiguringTest.jl):
    - "stacks control above document" → asserts a `WidgetOverlay` with
      `elements[1] === doc (base)` and `elements[2] === control_widget (top)`.

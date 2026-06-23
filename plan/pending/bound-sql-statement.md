@@ -1,5 +1,14 @@
 # Bound SQL statement document model
 
+> **⏳ AUDIT (2026-06-23): ALL STEPS OPEN.** No `BoundSql` code exists anywhere
+> under `package/` — `grep "BoundSql"` returns zero source hits and there is no
+> `BoundSql.jl` document nor `SqlToBoundSql.jl` projection. All dependencies are
+> present and current, so the plan is still applicable (not obsolete): `Sql.jl`,
+> `DbCatalog.jl`, `DatabaseInstance.jl` live under `package/domain/src/document/`,
+> and `DatabaseInstanceToDbCatalog` / `DbCatalogRdbms` / `DbCatalogSchema` all
+> exist. Note the OLD `program/src/...` paths below now map to
+> `package/domain/src/...`.
+
 Combines a database-agnostic `SqlStatement` document tree with live `DbCatalog`
 metadata to produce a `BoundSqlStatement` document tree. The projection rebuilds
 the `Sql*` tree with `BoundSql*` enrichment nodes substituted at leaf positions
@@ -260,20 +269,25 @@ Bottom-up (subqueries before enclosing query):
 
 ## 6. Implementation steps
 
-1. **Create `program/src/document/BoundSql.jl`** — 1 abstract type, 4 concrete
+1. **⏳ OPEN — Create `program/src/document/BoundSql.jl`** — 1 abstract type, 4 concrete
    `@document` structs; convenience constructors with default `nothing` catalog
    slots; `Base.show` methods.
-2. **Wire into `program/src/Projectured.jl`** — include after `Sql.jl` /
+   _Evidence: no `BoundSql.jl` under `package/*/src/document/`; `grep BoundSql package/` → 0 hits._
+2. **⏳ OPEN — Wire into `program/src/Projectured.jl`** — include after `Sql.jl` /
    `DbCatalog.jl`; add `using` and exports.
-3. **Create `program/src/projection/primitive/SqlToBoundSql.jl`** —
+   _Evidence: no `BoundSqlDocumentModule` referenced in any source file._
+3. **⏳ OPEN — Create `program/src/projection/primitive/SqlToBoundSql.jl`** —
    `projection_print` for `SqlSelectStatement` with internal walk helpers.
-4. **Wire projection into `program/src/Projectured.jl`** — include after
+   _Evidence: no `SqlToBoundSql.jl`; only `SqlToSyntax.jl` exists under `package/domain/src/projection/primitive/`._
+4. **⏳ OPEN — Wire projection into `program/src/Projectured.jl`** — include after
    `SqlRawToSql.jl`; add `using` and export.
-5. **Write projection tests** — bind `SELECT name, age FROM persons` against a
+   _Evidence: `grep SqlToBoundSql package/` → 0 hits._
+5. **⏳ OPEN — Write projection tests** — bind `SELECT name, age FROM persons` against a
    `DbCatalogSchema` containing `persons(name TEXT, age INT)`; assert
    `catalog_table` and `catalog_column` are the expected instances; verify
    unresolved names leave the slot as `nothing`; verify database context
    metadata on statement.
+   _Evidence: no `BoundSql`/`SqlToBoundSql` references in `package/test/`._
 
 ---
 

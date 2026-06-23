@@ -25,6 +25,8 @@ A component:
 
 ### ComponentMasterDetail (document only)
 
+**✅ DONE (verified):** `ComponentMasterDetail` exists at `package/domain/src/document/Component.jl:62` (in `ComponentModule`) with all six listed fields (`master`, `detail`, `selected_item`, `master_title`, `detail_title`, `split_ratio`) plus the standard `selection::Reference`. Registered at `package/domain/src/ProjecturedDomain.jl:88` (`include("document/Component.jl")`), placed after Widget/Layout (lines 83–84) and before Workbench (line 97), exactly as described.
+
 **File**: [Component.jl](../../program/src/document/Component.jl)
 
 A two-pane component: master (tree/list) on the left, detail (inspector/form) on the right. Selecting an item in the master pane reactively updates the detail pane.
@@ -43,6 +45,8 @@ Registered in [ProjecturEd.jl](../../program/src/ProjecturEd.jl) after Widget/La
 
 ### ComponentMasterDetail projection
 
+**⏳ OPEN:** No `ComponentToWidget` projection exists. The name `ComponentToWidget` appears only in a doc-comment in `package/domain/src/document/Component.jl:13`; there is no projection file or implementation anywhere under `package/` (grep finds zero references outside that comment). None of the described forward-projection/reader/reactive behaviors are implemented.
+
 Create `ComponentToWidget` projection that maps `ComponentMasterDetail` to:
 ```
 WidgetSplitPane(:horizontal)
@@ -57,6 +61,8 @@ Key behaviors:
 
 ### DbCatalog browser example
 
+**⏳ OPEN:** No example uses `ComponentMasterDetail` / master-detail. `package/example/src/document/DbCatalog.jl` exists but a search for `ComponentMasterDetail`/`MasterDetail`/`master.detail` across `package/example/` returns no matches. This depends on the (still OPEN) projection above.
+
 Build a concrete example using `ComponentMasterDetail`:
 - Master pane: `DbCatalogRdbms` → `DbCatalogToSyntax` → `SyntaxToText` → `TextToGraphics` (tree with expand/collapse)
 - Detail pane: reactive, type-dispatched on `selected_item`:
@@ -65,6 +71,8 @@ Build a concrete example using `ComponentMasterDetail`:
   - `DbCatalogColumn` → detail form via `WidgetComposite` with labels
 
 ### Future components
+
+**⏳ OPEN:** None of these candidate components exist. Grep across `package/` finds no `ComponentForm`, `ComponentTreeInspector`, `ComponentDashboard`, `ComponentWizard`, or `ComponentSearchableList`. Explicitly noted as "not yet planned in detail".
 
 Candidates for the component layer (not yet planned in detail):
 

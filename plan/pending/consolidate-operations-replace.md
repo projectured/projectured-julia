@@ -1,5 +1,13 @@
 # Consolidating operations into `ReplaceReferencedValue`
 
+> **Status (audit 2026-06-23): mostly OPEN.** Only the `CompoundOperation`
+> scaffold (migration step 1) is implemented. The actual consolidation — folding
+> the Group 1–4 operation families into `ReplaceReferencedValue`, the
+> `document === nothing` re-rooting rule, terminal-kind dispatch / `RangeReference`
+> splice, and the docs rewrite — is **not done**. See per-step annotations under
+> [Migration steps](#migration-steps). Paths below referencing `program/src/...`
+> and `guide/...` are stale post-restructure; current locations are noted inline.
+
 ## Thesis
 
 Most operations in the editor do one thing: **write a new value into one slot of
@@ -231,35 +239,60 @@ field of `CollectionInsertOperation`, matching Lisp `make-operation/compound`.
 
 ## Migration steps
 
-1. **Introduce `CompoundOperation`** in [`common/Operation.jl`](../../program/src/common/Operation.jl)
-   with a map-over-children evaluator. `ReplaceReferencedValue` already exists;
-   keep the existing `_split_terminal_step` / `_write_*_slot!` helpers.
-2. **Re-rooting**: replace the three special cases in
-   [`OperationRerooting.jl`](../../program/src/common/OperationRerooting.jl) with
-   the single `document === nothing` rule above for `ReplaceReferencedValue`,
-   plus a `CompoundOperation` map-over-children case.
-3. **Fold Group 1** by making `ReplaceDocumentOperation` a deprecated alias /
-   thin constructor that builds a `ReplaceReferencedValue(nothing, path, doc)`,
-   then delete it once call sites are migrated.
-4. **Fold Group 2** widget/focus ops: move the clamp/flip/add/derive logic into
-   the producing `projection_read` methods; have them emit
-   `ReplaceReferencedValue`. Delete the structs and their `evaluate_operation`
-   methods. Update the `guide/operations.md` table.
-5. **Fold Group 3** range replaces: route both through `ReplaceReferencedValue` +
-   `CompoundOperation`-with-cursor. This is the largest diff (58 sites) — provide
-   a transitional `StringReplaceRangeOperation(ref, repl)` constructor that
-   returns the compound so tests keep passing, then sweep the explicit sites.
-6. **Fold Group 4** sequence ops: express insert/delete as
-   `ReplaceReferencedValue` with a `RangeReference` terminal (zero-width for
-   insert, empty replacement for delete). Move the `selection` follow-up into a
-   `CompoundOperation`. Provide transitional constructors during the sweep.
-7. **Leave Group 5 and `ReplaceSelectionOperation`** untouched.
-8. **Docs**: rewrite the "Other domain operations" table and the worked examples
-   in [`guide/operations.md`](../../guide/operations.md); cross-link the
-   `evaluate_operation` signature question in
-   [`../tentative/evaluate-operation-document-arg.md`](../tentative/evaluate-operation-document-arg.md)
-   — consolidation makes "operations are self-contained" (its Option A) the
-   natural conclusion, since `ReplaceReferencedValue` already carries its own root.
+> **Audit (2026-06-23):** verified against the restructured tree under
+> `package/*/src/`. The partial-credit summary: only the `CompoundOperation`
+> scaffold (step 1) landed; the actual consolidation (steps 2–6) has not been
+> done — every targeted operation still exists as its own standalone `struct`,
+> `ReplaceReferencedValue` still only handles a `FieldReference` terminal and
+> still errors on an empty reference, and `OperationRerooting.jl` still keeps a
+> special case per op type. Steps 7–8 remain open. Plan stays in **pending**.
+
+1. **✅ DONE (verified):** **Introduce `CompoundOperation`** — exists at
+   `package/kernel/src/common/Operation.jl:36` (`struct CompoundOperation`) with a
+   varargs ctor (`:40`) and a map-over-children evaluator (`:42`). The
+   `_split_terminal_step` / `_write_*_slot!` helpers are still present
+   (`Operation.jl:134`, `:152`, `:193`). (Note: its docstring frames it as the
+   clipboard-cut helper, not yet the range/cursor compound this plan envisions.)
+2. **⏳ OPEN:** **Re-rooting single rule** — not done. `prepend_steps_to_op` in
+   `package/kernel/src/common/OperationRerooting.jl:49` still special-cases
+   `ReplaceSelectionOperation`, `StringReplaceRangeOperation`,
+   `NumberReplaceRangeOperation`, `ReplaceDocumentOperation`,
+   `CollectionInsertOperation`, `CollectionDeleteOperation`, `CompoundOperation`.
+   There is no `document === nothing` rule for `ReplaceReferencedValue`; it falls
+   through to the `else` (pass-through), which is only correct for the
+   self-contained case.
+3. **⏳ OPEN:** **Fold Group 1 (`ReplaceDocumentOperation`)** — not done. Still a
+   full standalone struct with its own evaluator at
+   `package/kernel/src/common/Operation.jl:100`–`124`; not an alias for
+   `ReplaceReferencedValue`.
+4. **⏳ OPEN:** **Fold Group 2 widget/focus ops** — not done. All structs still
+   present and standalone: `HideWidgetOperation`/`ShowWidgetOperation`/
+   `ScrollWidgetOperation`/`SelectTabOperation`/`SetScrollBarValueOperation` at
+   `package/domain/src/document/Widget.jl:1082,1092,1102,1114,1124`;
+   `ReplaceFocusPartOperation` at
+   `package/kernel/src/projection/generic/Focusing.jl:74`.
+5. **⏳ OPEN:** **Fold Group 3 range replaces** — not done.
+   `StringReplaceRangeOperation`/`NumberReplaceRangeOperation` still standalone at
+   `package/kernel/src/document/Primitive.jl:117,99`. `ReplaceReferencedValue`'s
+   evaluator (`Operation.jl:180`) only dispatches the `FieldReference` terminal
+   (`_write_value_slot!`, `:193`) and explicitly `error`s on an empty reference —
+   no `RangeReference` splice path exists.
+6. **⏳ OPEN:** **Fold Group 4 sequence ops** — not done.
+   `CollectionInsertOperation`/`CollectionDeleteOperation` still standalone with
+   their own evaluators at `package/kernel/src/common/Operation.jl:209,235`; not
+   re-expressed as `ReplaceReferencedValue` + `RangeReference`.
+7. **⏳ OPEN (correctly untouched, but plan not complete):** **Leave Group 5 and
+   `ReplaceSelectionOperation`** — these are intentionally still present
+   (`ReplaceSelectionOperation` at `Operation.jl:74`; Group 5 ops in
+   `package/domain/src/document/Document.jl:98,109,120`,
+   `package/domain/src/document/Database.jl:69,84`,
+   `package/domain/src/editor/WorkbenchAssistant.jl:101,112,121,130`). This step
+   is satisfied in isolation, but it only describes the *absence* of work, so it
+   does not move the plan toward completion on its own.
+8. **⏳ OPEN:** **Docs** — not done. The operations guide now lives at
+   `documentation/operations.md` (old `guide/operations.md` path is gone); it has
+   not been rewritten around `ReplaceReferencedValue`/`CompoundOperation`, since
+   the underlying consolidation has not happened.
 
 ---
 

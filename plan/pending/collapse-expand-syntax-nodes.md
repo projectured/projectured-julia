@@ -14,6 +14,15 @@ because the domain printers still hard-code `Cell(false)` for the node's
 
 ## 1. JSON hookup ⏳
 
+**⏳ OPEN (verified 2026-06-23):** still not wired. The file moved to
+`package/domain/src/projection/primitive/JsonToSyntax.jl`. The array node
+(`JsonArrayToSyntaxNode`, line 113) and the object node
+(`JsonObjectToSyntaxNode`, line 133) construct `SyntaxNode(...)` without a
+`collapsed=` keyword, so they fall back to the constructor default `false`
+(`Syntax.jl:326-329`). The `collapsed::Bool=false` domain fields exist
+(`Json.jl:171` JsonArray, `:228` JsonObject). No `json` case exists in
+`CollapseRoundtripTest.jl` (only the `syntax` example is covered).
+
 `JsonArrayToSyntaxNode` and `JsonObjectToSyntaxNode` build their `SyntaxNode`s
 with a hard-coded `Cell(false)` (grep `collapsed` in
 [`JsonToSyntax.jl`](../../program/src/projection/primitive/JsonToSyntax.jl)
@@ -32,6 +41,13 @@ remains dormant.
 
 ## 2. XML hookup ⏳
 
+**⏳ OPEN (verified 2026-06-23):** still not wired. File moved to
+`package/domain/src/projection/primitive/XmlToSyntax.jl`. The root element node
+(`XmlElementToSyntaxNode`, `SyntaxNode(...)` at line 283) passes only
+`selection=sel` — no `collapsed=`, so it defaults to `false`. `XmlElement`
+already has the `collapsed::Bool` field (`Xml.jl:160`). No `xml` case in
+`CollapseRoundtripTest.jl`.
+
 Same shape for `XmlElementToSyntaxNode`
 ([`XmlToSyntax.jl`](../../program/src/projection/primitive/XmlToSyntax.jl) —
 no live `collapsed` hookup today). `XmlElement` already has a `collapsed::Cell`.
@@ -41,6 +57,13 @@ no live `collapsed` hookup today). `XmlElement` already has a `collapsed::Cell`.
 - Add a `CollapseRoundtripTest` case for the `xml` example.
 
 ## 3. Verify Book inherits it ⏳
+
+**⏳ OPEN (verified 2026-06-23):** the code half is confirmed in place —
+`BookToSyntax.jl` passes `collapsed=b.collapsed` into the `SyntaxNode`
+constructor at all three call sites (lines 146, 304, 481). The remaining
+deliverable (a `book` roundtrip test case) is **not** present:
+`CollapseRoundtripTest.jl` only covers the `syntax` example; no `book` collapse
+test exists anywhere under `package/test/`.
 
 `BookBook`/`BookChapter`/`BookList` already pass `b.collapsed` into the
 `SyntaxNode` constructor, so Book should fold for free now that `SyntaxNodeToText`

@@ -1,5 +1,13 @@
 # DocumentLink Feature Implementation Plan
 
+> **⏳ AUDIT (verified 2026-06-23): ALL STEPS OPEN.** No `DocumentLink*` or `DocumentLocator*`
+> symbols exist anywhere under `package/*/src/` — grep for `DocumentLink` matches only this plan
+> file, and `DocumentLocator` appears only in plan files plus an unrelated comment in
+> `package/domain/src/document/Versioning.jl:125`. No `DocumentLink.jl`, `DocumentLocator.jl`, or
+> `DocumentLinkToSyntax.jl` files exist (glob found none). `package/projectured/src/Projectured.jl`
+> contains no `include`/export for either. The dependency `plan/pending/document-locator.md` is also
+> still pending and unimplemented. Nothing here is DONE or OBSOLETE.
+
 This plan implements a generic document link system that allows connecting documents through links stored in a global registry. Each link is a source-target pair where the source document provides the content (note, decoration, memo, mark, flag, etc.) and the target is the document element being linked to.
 
 ## Overview
@@ -60,14 +68,18 @@ DocumentLinkBinding(
 
 ## Implementation Order
 
-1. Implement `DocumentLocator` (see `plan/pending/document-locator.md`)
-2. DocumentLink domain types + query API (`DocumentLink.jl`)
-3. DocumentLink operations
-4. DocumentLink-centric projections (`DocumentLinkToSyntax.jl`)
-5. Integration (update `Projectured.jl`)
-6. Testing
+**⏳ OPEN (all unimplemented — verified, no symbols found in codebase):**
+
+1. ⏳ Implement `DocumentLocator` (see `plan/pending/document-locator.md`) — dependency plan still pending
+2. ⏳ DocumentLink domain types + query API (`DocumentLink.jl`) — file does not exist
+3. ⏳ DocumentLink operations — no `*DocumentLinkOperation` types exist
+4. ⏳ DocumentLink-centric projections (`DocumentLinkToSyntax.jl`) — file does not exist
+5. ⏳ Integration (update `Projectured.jl`) — no include/export present in `package/projectured/src/Projectured.jl`
+6. ⏳ Testing — no DocumentLink tests under `package/test/`
 
 ## Phase 1: DocumentLink Domain Types
+
+**⏳ OPEN:** No `DocumentLink.jl` exists under `package/*/src/`; no `DocumentLinkDocument`, `DocumentLinkBinding`, `DocumentLinkRegistry`, or `global_document_link_registry` symbols found.
 
 ### File: `program/src/document/DocumentLink.jl`
 
@@ -94,6 +106,8 @@ abstract type DocumentLinkDocument <: Document end
 
 ## Phase 2: Query API
 
+**⏳ OPEN:** None of `add_document_link!`, `remove_document_link!`, `document_links_from`, `document_links_to`, `neighbors`, etc. exist (grep found these names only in plan files).
+
 **File:** `program/src/document/DocumentLink.jl` (same file as domain types)
 
 Node equality uses `locator_equal(a, b)` from `DocumentLocator`.
@@ -110,6 +124,8 @@ Node equality uses `locator_equal(a, b)` from `DocumentLocator`.
 
 ## Phase 3: DocumentLink Operations
 
+**⏳ OPEN:** No `CreateDocumentLinkOperation`, `DeleteDocumentLinkOperation`, or `CleanupStaleDocumentLinksOperation` types exist in the codebase.
+
 **File:** `program/src/document/DocumentLink.jl` (same file as domain types)
 
 **Operations:**
@@ -121,6 +137,8 @@ Node equality uses `locator_equal(a, b)` from `DocumentLocator`.
 
 ## Phase 4: DocumentLink Projections
 
+**⏳ OPEN:** No `DocumentLinkToSyntax.jl` exists; no `DocumentLinkBindingToSyntaxNode` or `DocumentLinkRegistryToSyntaxNode` projection types found.
+
 **DocumentLinkToSyntax.jl:**
 - `DocumentLinkBindingToSyntaxNode` - Project binding with source/target references
 - `DocumentLinkRegistryToSyntaxNode` - Project entire registry as syntax tree
@@ -131,6 +149,8 @@ Node equality uses `locator_equal(a, b)` from `DocumentLocator`.
 
 ## Phase 5: Integration Points
 
+**⏳ OPEN:** `package/projectured/src/Projectured.jl` has no `include`/export for `DocumentLocator.jl` or `DocumentLink.jl`; editor has no DocumentLinkRegistry access.
+
 **Projectured.jl:**
 - `include("common/DocumentLocator.jl")` (must precede document link module)
 - `include("document/DocumentLink.jl")`
@@ -139,6 +159,8 @@ Node equality uses `locator_equal(a, b)` from `DocumentLocator`.
 **Editor.jl:** Ensure editor can access global `DocumentLinkRegistry`
 
 ## Future: Multi-Document Support
+
+**⏳ OPEN:** Explicitly deferred future work; `save_document_links_for_document` / `load_document_links_for_document` do not exist.
 
 Helper functions for per-document persistence: `save_document_links_for_document`, `load_document_links_for_document` using document locators. Cleanup on document close via `CleanupStaleDocumentLinksOperation`.
 
