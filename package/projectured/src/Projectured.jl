@@ -105,6 +105,7 @@ const PrinterContextModule = ProjecturedKernel.PrinterContextModule
 const ProjectionApiModule = ProjecturedKernel.ProjectionApiModule
 const ProjectionConfiguringProjectionModule = ProjecturedDomain.ProjectionConfiguringProjectionModule
 const ProjectionModule = ProjecturedKernel.ProjectionModule
+const ProjectionTemplateModule = ProjecturedDomain.ProjectionTemplateModule
 const ReactiveModule = ProjecturedKernel.ReactiveModule
 const RecursiveProjectionModule = ProjecturedKernel.RecursiveProjectionModule
 const ReferenceBuilderModule = ProjecturedKernel.ReferenceBuilderModule
