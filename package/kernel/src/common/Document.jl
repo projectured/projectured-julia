@@ -72,6 +72,11 @@ The programmer writes real value types; the macro generates:
 
 3. **Conversion constructors** — `IFoo(foo::Foo)` snapshots cells into an
    immutable value; `Foo(ifoo::IFoo)` hydrates back into reactive Cells.
+
+Fields may carry `@kwdef`-style defaults (`field::T = value`). When at least one
+default is present, keyword constructors are also generated for both `Foo` and
+`IFoo` — fields with a default are optional keywords, fields without one are
+required keywords.
 """
 macro document(structdef)
     structdef.head === :struct || error("@document expects a struct definition")
@@ -82,6 +87,7 @@ macro document(structdef)
     # ── Collect original field info and replace types with Cell ────────
     original_fields = Tuple{Symbol, Any}[]  # (name, original_type_or_nothing)
     cell_fields = Symbol[]
+    defaults = Pair{Symbol, Any}[]  # field => default-value expr (declaration order)
     for (i, ex) in enumerate(body.args)
         if ex isa Symbol
             push!(cell_fields, ex)
@@ -91,6 +97,20 @@ macro document(structdef)
             push!(cell_fields, ex.args[1])
             push!(original_fields, (ex.args[1], ex.args[2]))
             ex.args[2] = :Cell
+        elseif ex isa Expr && ex.head === :(=) && length(ex.args) == 2
+            # `name = v` / `name::T = v` — @kwdef-style default. Strip the default
+            # out of the (plain) struct body and remember it for the keyword ctor;
+            # the original declared type still feeds the immutable I-struct.
+            lhs = ex.args[1]
+            if lhs isa Symbol
+                fname, ftype = lhs, nothing
+            else
+                fname, ftype = lhs.args[1], lhs.args[2]
+            end
+            push!(cell_fields, fname)
+            push!(original_fields, (fname, ftype))
+            push!(defaults, fname => ex.args[2])
+            body.args[i] = :($(fname)::Cell)
         end
     end
     isempty(cell_fields) && return esc(structdef)
@@ -149,6 +169,25 @@ macro document(structdef)
     hyd_args = [:(obj.$(fname)) for (fname, _) in original_fields]
     hydrate = :($(struct_name)(obj::$(i_name)) = $(Expr(:call, struct_name, hyd_args...)))
 
+    # ── Keyword constructors (only when ≥1 default is declared) ────────
+    # Forward into the positional ctors of both the Cell-based `Foo` and the
+    # immutable `IFoo`, so defaults are available on either. Fields without a
+    # default become required keywords, à la `Base.@kwdef`.
+    extra = Any[]
+    if !isempty(defaults)
+        default_map = Dict(defaults)
+        kw_params = map(original_fields) do (fname, _)
+            haskey(default_map, fname) ? Expr(:kw, fname, default_map[fname]) : fname
+        end
+        field_names = [fname for (fname, _) in original_fields]
+        push!(extra, :(function $(struct_name)(; $(kw_params...))
+            $(Expr(:call, struct_name, field_names...))
+        end))
+        push!(extra, :(function $(i_name)(; $(kw_params...))
+            $(Expr(:call, i_name, field_names...))
+        end))
+    end
+
     # The Cell-based variant is a **mutable** struct: every field is a `Cell`, so
     # mutating field *contents* already worked via `setproperty!`, but making the
     # struct itself mutable additionally allows swapping a field's Cell object
@@ -157,7 +196,7 @@ macro document(structdef)
     structdef.args[1] = true
 
     return esc(Expr(:block, :(Base.@__doc__ $structdef), getprop, setprop,
-                     i_struct, snapshot, hydrate))
+                     i_struct, snapshot, hydrate, extra...))
 end
 
 end # module
