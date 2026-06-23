@@ -202,7 +202,7 @@ end
 """
     run_example(examples::Vector{Example}; width, height,
                 caching=false, scrolling=false, workbench=false, reset=false,
-                tooltip=false, introspection=false, selection=nothing,
+                tooltip=false, inspector=false, introspection=false, selection=nothing,
                 profile=false)
 
 Open one window per example, side by side. Each example contributes a
@@ -226,6 +226,17 @@ shape from `ReferenceToText` on the first line, followed by a blank
 line and the multi-line human-readable narrative from
 `ReferenceToHumanReadableText`. The tooltip closes when the selection
 is cleared.
+
+When `inspector=true`, a secondary `:inspector` window **follows the mouse**
+and shows the reference a single left-click *would* create at the current
+pointer — without committing it as a selection. Each example window's content
+projection is wrapped in a `HoverProbeProjection`, whose reader reverse-projects
+each idle `MouseMove` (feeding a synthetic `MousePress` to the wrapped reader)
+and drives the follower window via `OpenWindowOperation` / `CloseWindowOperation`.
+The window's content is a `ReferenceInspector` rendered the same two ways as the
+tooltip (compact `ReferenceToText` + human-readable `ReferenceToHumanReadableText`).
+It closes over dead space. Desktop-only (needs the SDL backend's global mouse via
+`pointer_position`); mutually exclusive with `tooltip` and `workbench`.
 
 When `introspection=true`, each example's content is wrapped in a
 `WidgetTabbedPane` with three tabs: the original content (rendered with

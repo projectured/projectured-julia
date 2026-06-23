@@ -1,5 +1,23 @@
 # Hover Click-Reference Inspector
 
+> **Status: IMPLEMENTED.** Run with `run_example("json"; inspector=true)`.
+>
+> What shipped (all green: 20 targeted asserts + no regression in `test_tooltip`
+> / `test_click_roundtrips`):
+> - **New document** `ReferenceInspector` — [package/domain/src/document/ReferenceInspector.jl](../../package/domain/src/document/ReferenceInspector.jl).
+> - **New projection** `ReferenceInspectorToText` (ReferenceInspector → two-section TextText) — [package/domain/src/projection/primitive/ReferenceInspectorToText.jl](../../package/domain/src/projection/primitive/ReferenceInspectorToText.jl).
+> - **New projection** `HoverProbeProjection` (the hover→would-be-click probe) — [package/domain/src/projection/higherorder/HoverProbe.jl](../../package/domain/src/projection/higherorder/HoverProbe.jl).
+> - **Backend** generic `pointer_position(::Backend)` ([Backend.jl](../../package/kernel/src/api/Backend.jl)) + SDL method and throttled idle-`MouseMove` forwarding ([ProjecturedSdl.jl](../../package/sdl/src/ProjecturedSdl.jl)).
+> - **Wiring** `_multi_window_projection_inspector` + `run_example(...; inspector=true)` ([Examples.jl](../../package/example/src/Examples.jl)).
+> - **Tests** [package/test/src/projection/HoverProbeTest.jl](../../package/test/src/projection/HoverProbeTest.jl).
+>
+> Decisions confirmed during implementation:
+> - Kept the `ReferenceInspector` document (the recommended option) over the inline-thunk fallback.
+> - **Skipped** the `HoverProbe` state-wrapper document — transient state lives on the projection instance (`open`/`last` Refs), matching `TooltipDecoratorProjection`; the probe communicates purely via window operations.
+> - Following the cursor uses **`pointer_position` (global mouse) + a fixed offset** and re-issues `OpenWindowOperation` (same id updates in place) — no `MoveWindowOperation`, no `screen_origin` needed. Idle motion is throttled to ~33 Hz in the SDL backend.
+> - Follower window is fixed-size (`820×240`) `:tooltip` style; closes over dead space.
+> - Live SDL window open/move/render was **not** re-verified by hand — it is the exact `OpenWindowOperation`→`WindowManager`→reconciler path the tooltip already exercises; the new pipeline test asserts the `:inspector` window is added with the right content/position.
+
 A secondary window that **follows the mouse** as it moves over a document and,
 for the current pointer position, shows **the reference a single left-click
 would create** — rendered in two forms simultaneously:

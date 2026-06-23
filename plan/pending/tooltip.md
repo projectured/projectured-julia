@@ -81,18 +81,22 @@ no test exercises it. Add a scenario with two `TooltipSource` wrappers in
 different sub-trees, each with a distinct `id`, and assert the manager
 keeps both windows open and closed independently.
 
-## Step 9 — Optional: pointer-based hover
+## Step 9 — Optional: pointer-based hover — DONE (via the hover inspector)
 
-Still deferred from the original plan; revisit only if a real use case
-appears.
+**Implemented** by the hover click-reference inspector — see
+[plan/done/hover-click-reference-inspector.md](../done/hover-click-reference-inspector.md).
+Rather than a `HoverTrackingProjection` that stores a `hovered::Reference` on the
+`ScreenDocument`, the chosen shape is a `HoverProbeProjection` that wraps a
+window's content projection and, on each idle `MouseMove`, reverse-projects the
+pointer (feeding a synthetic `MousePress` to the wrapped reader) into the
+would-be-click reference, then drives a follower window via
+`OpenWindowOperation` / `CloseWindowOperation` — the same window-management path
+this plan established. The two enabling pieces this step called out are both in:
 
-- A `HoverTrackingProjection` whose reader updates a `hovered::Reference`
-  cell on the input `ScreenDocument` in response to `MouseMotion`
-  envelopes.
-- Tooltip triggers can then read `hovered` instead of `selection`.
-- Routing `MouseMotion` events into the tree by position is the same
-  reverse-projection plumbing that `click-to-select` uses; the work is
-  wiring it up for motion as well as buttons.
+- Idle `MouseMotion` is now forwarded (throttled) by the SDL backend.
+- Routing motion into the tree by position reuses the click reverse-projection.
+
+Run it with `run_example("json"; inspector=true)`.
 
 ## Open Questions still open
 
