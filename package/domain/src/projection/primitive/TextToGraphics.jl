@@ -292,6 +292,7 @@ function _layout_text(p::TextToGraphics, styled::TextText, sel; collect_spans::B
     for (elem_idx, span) in enumerate(styled.elements)  # reads styled.elements cell
         span_flat_offsets[elem_idx] = cumulative_flat
         if span isa TextNewline
+            max_cx = max(max_cx, cx)   # fold this line's extent in before reset
             cx = p.start_x
             # An empty line (no glyphs since the previous break) still
             # occupies one line of height; fall back to the font's height
@@ -345,6 +346,7 @@ function _layout_text(p::TextToGraphics, styled::TextText, sel; collect_spans::B
                     cursor_y = cy
                     cursor_line_h = line_h
                 end
+                max_cx = max(max_cx, cx)   # fold this line's extent in before reset
                 cx = p.start_x
                 # Empty line keeps one line of height (see TextNewline above).
                 cy += line_h > 0 ? line_h : p.measure(" ", sf)[2]
