@@ -23,8 +23,6 @@ import ..ReferenceModule: ConcreteReferencePath, EmptyReferencePath, FieldRefere
 import ..ReferenceBuilderModule: var"@reference"
 import ..ReferenceCaseModule: var"@reference_case"
 import ..OperationModule: ReplaceSelectionOperation
-import ..KeyboardModule: KeyDown, KeyPress
-import ..EventCaseModule: var"@event_case"
 export PrimitiveBoolToSyntaxLeaf, PrimitiveNumberToSyntaxLeaf, PrimitiveStringToSyntaxLeaf,
        PrimitiveToSyntax
 
@@ -127,69 +125,11 @@ function projection_read(p::PrimitiveStringToSyntaxLeaf, iomap::SimpleIoMap, op:
     end
 end
 
-# Extract the `.value[range]` selection on a PrimitiveString as a
-# RangeReference, or return nothing if the selection is in a different shape.
-function _string_value_range(s::PrimitiveString)
-    sel = getfield(s, :selection)[]
-    sel = skip_type_checkpoints(sel)
-    sel isa ConcreteReferencePath || return nothing
-    head = sel.head
-    (head isa FieldReference && head.name == "value") || return nothing
-    inner = skip_type_checkpoints(sel.tail)
-    inner isa ConcreteReferencePath || return nothing
-    inner.head isa RangeReference || return nothing
-    inner.head
-end
-
-# Build a `.value[range]` reference path local to the PrimitiveString. The
-# caller is responsible for prepending any outer steps; for a single
-# PrimitiveString root, this path is already the full reference.
-function _string_value_path(range::RangeReference)
-    ConcreteReferencePath(FieldReference("value"),
-        ConcreteReferencePath(range, EmptyReferencePath()))
-end
-
-# KeyPress producer: printable character insertion / range replacement.
-# The reference is local to the PrimitiveString (no outer steps); translating
-# through enclosing projections for nested PrimitiveStrings is a follow-up.
-function projection_read(p::PrimitiveStringToSyntaxLeaf, iomap::SimpleIoMap, evt::KeyPress)
-    evt.modifiers.ctrl && return nothing
-    s = iomap.input
-    range = _string_value_range(s)
-    range === nothing && return nothing
-    StringReplaceRangeOperation(_string_value_path(range), evt.text)
-end
-
-# KeyDown producer: Backspace / Delete.
-function projection_read(p::PrimitiveStringToSyntaxLeaf, iomap::SimpleIoMap, evt::KeyDown)
-    s = iomap.input
-    range = _string_value_range(s)
-    range === nothing && return nothing
-    text = something(s.value, "")
-    n = length(text)
-    new_range = @event_case evt begin
-        KeyDown(:backspace) => begin
-            if range.start != range.stop
-                range
-            elseif range.start > 0
-                RangeReference(range.start - 1, range.start)
-            else
-                return nothing
-            end
-        end
-        KeyDown(:delete) => begin
-            if range.start != range.stop
-                range
-            elseif range.stop < n
-                RangeReference(range.stop, range.stop + 1)
-            else
-                return nothing
-            end
-        end
-    end
-    new_range === nothing && return nothing
-    StringReplaceRangeOperation(_string_value_path(new_range), "")
-end
+# String character-editing (insert / Backspace / Delete) is reified once as
+# `@gestures PrimitiveString` in `PrimitiveToText.jl` (a document-level concern in
+# the PrimitiveString's own `value[range]` vocabulary); this leaf reaches it
+# through the generic `document_read` fallback, so no bespoke event reader lives
+# here — only the structural `ReplaceSelectionOperation` mapping above.
 
 # ── PrimitiveToSyntax (composite) ────────────────────────────────────────────
 

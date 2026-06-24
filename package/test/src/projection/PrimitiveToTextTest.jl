@@ -163,13 +163,19 @@ end
     @test op.reference.tail.head.start == 0 && op.reference.tail.head.stop == 1
 end
 
-@testset "string KeyPress with ctrl returns nothing" begin
+@testset "string KeyPress inserts (KeyPress ignores modifiers)" begin
+    # Reified as document-level `@gestures PrimitiveString` reached via the generic
+    # `document_read` fallback: KeyPress patterns ignore modifiers (a real Ctrl-combo
+    # is a KeyDown, never a KeyPress), so a printable inserts regardless of a stray
+    # ctrl flag — the old defensive `ctrl` reject is intentionally gone (matches Text/JSON).
     s = PrimitiveString("ab")
     set_selection!(s, _value_range(0, 0))
     p = PrimitiveStringToTextText()
     iomap = SimpleIoMap(p, s, nothing)
     evt = KeyPress('x', "x", Modifiers(true, false, false, false))
-    @test projection_read(p, iomap, evt) === nothing
+    op = projection_read(p, iomap, evt)
+    @test op isa StringReplaceRangeOperation
+    @test op.replacement == "x"
 end
 
 @testset "string backspace at start returns nothing" begin

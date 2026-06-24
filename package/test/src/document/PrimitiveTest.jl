@@ -152,13 +152,21 @@ end
     @test op.reference.tail.head.start == 0 && op.reference.tail.head.stop == 1
 end
 
-@testset "PrimitiveStringToSyntaxLeaf rejects ctrl-printable" begin
+@testset "PrimitiveStringToSyntaxLeaf inserts a printable (KeyPress ignores modifiers)" begin
+    # String editing is now reified as document-level `@gestures PrimitiveString`,
+    # reached through the generic `document_read` fallback. Per the reification
+    # convention (shared with Text/JSON), KeyPress patterns ignore modifiers — a real
+    # Ctrl-combo arrives as a KeyDown, never a KeyPress — so a printable KeyPress
+    # inserts regardless of a stray ctrl flag; the old per-projection defensive
+    # `ctrl` reject is intentionally gone.
     s = PrimitiveString("ab")
     set_selection!(s, _value_range_ref(0, 0))
     p = PrimitiveStringToSyntaxLeaf()
     iomap = SimpleIoMap(p, s, nothing)
     evt = KeyPress('x', "x", Modifiers(true, false, false, false))
-    @test projection_read(p, iomap, evt) === nothing
+    op = projection_read(p, iomap, evt)
+    @test op isa StringReplaceRangeOperation
+    @test op.replacement == "x"
 end
 
 @testset "PrimitiveStringToSyntaxLeaf backspace at start returns nothing" begin

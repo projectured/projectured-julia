@@ -25,8 +25,7 @@ import ..ReferenceModule: ConcreteReferencePath, EmptyReferencePath, FieldRefere
 import ..ReferenceCaseModule: var"@reference_case"
 import ..ReferenceBuilderModule: var"@reference"
 import ..OperationModule: ReplaceSelectionOperation
-import ..KeyboardModule: KeyDown, KeyPress
-import ..EventCaseModule: var"@event_case"
+import ..GestureBindingModule: var"@gestures"
 import ..TypeDispatchingModule: TypeDispatchingProjection
 import ..PrinterContextModule: child_context
 export PrimitiveBoolToText, PrimitiveNumberToText, PrimitiveStringToTextText, PrimitiveToText
@@ -151,39 +150,36 @@ end
 
 _string_value_path(range::RangeReference) = @reference value.^(range)
 
-function projection_read(p::PrimitiveStringToTextText, iomap::SimpleIoMap, evt::KeyPress)
-    evt.modifiers.ctrl && return nothing
-    s = iomap.input
-    range = _string_value_range(s)
-    range === nothing && return nothing
-    StringReplaceRangeOperation(_string_value_path(range), evt.text)
+# String editing is a *document-level* concern (it produces a
+# `StringReplaceRangeOperation` in the `PrimitiveString`'s own `value[range]`
+# vocabulary), so it is reified once as `@gestures PrimitiveString` rather than
+# duplicated in every primitive projection's reader. Both `PrimitiveStringToTextText`
+# and `PrimitiveStringToSyntaxLeaf` reach it through the generic `document_read`
+# fallback (a leaf projection with no bespoke event reader delegates raw input
+# gestures to `document_read(iomap.input, …)`). The `when` precondition gates the
+# whole table on there being a `value[range]` cursor — a non-editing selection
+# (or none) declines, exactly as the old `range === nothing && return nothing`.
+@gestures PrimitiveString begin
+    when(_string_value_range(doc) !== nothing)
+    KeyPress(_, t)       => "Insert character" =>
+        StringReplaceRangeOperation(_string_value_path(_string_value_range(doc)), t)
+    KeyDown(:backspace;) => "Delete backward"  => _string_delete(doc, :backspace)
+    KeyDown(:delete;)    => "Delete forward"   => _string_delete(doc, :delete)
 end
 
-function projection_read(p::PrimitiveStringToTextText, iomap::SimpleIoMap, evt::KeyDown)
-    s = iomap.input
+# Compute the deletion range for Backspace/Delete and return the replace op, or
+# nothing at the string boundary. A non-empty selection deletes the selected span;
+# a collapsed cursor deletes the adjacent character.
+function _string_delete(s::PrimitiveString, dir::Symbol)
     range = _string_value_range(s)
     range === nothing && return nothing
-    text = something(s.value, "")
-    n = length(text)
-    new_range = @event_case evt begin
-        KeyDown(:backspace) => begin
-            if range.start != range.stop
-                range
-            elseif range.start > 0
-                RangeReference(range.start - 1, range.start)
-            else
-                return nothing
-            end
-        end
-        KeyDown(:delete) => begin
-            if range.start != range.stop
-                range
-            elseif range.stop < n
-                RangeReference(range.stop, range.stop + 1)
-            else
-                return nothing
-            end
-        end
+    n = length(something(s.value, ""))
+    new_range = if range.start != range.stop
+        range
+    elseif dir === :backspace
+        range.start > 0 ? RangeReference(range.start - 1, range.start) : nothing
+    else  # :delete
+        range.stop < n ? RangeReference(range.stop, range.stop + 1) : nothing
     end
     new_range === nothing && return nothing
     StringReplaceRangeOperation(_string_value_path(new_range), "")
