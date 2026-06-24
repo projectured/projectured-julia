@@ -6,11 +6,11 @@
 > Done so far: the keystone (step 1: `ReplaceReferencedValue` a reader-list citizen +
 > the `document === nothing` rule), Group 2 widget-state writes (step 2),
 > `ReplaceDocumentOperation` (step 3), Group 4 sequence edits (step 4), and the
-> generic-operations documentation (step 8, partial). Remaining: step 6 (reduce the
-> reroot duplication for the *generic* ops + **fix the latent gap** where the folded
-> document-replace/sequence-splice ops aren't rerooted through the
-> WorkbenchToWidget/ODBC/`_retarget_op` readers), Group 2b (step 7), and finishing
-> the docs. See [Migration steps](#migration-steps).
+> generic-operations documentation (step 8, partial), and step 6 (closed the latent
+> reroot gap for the folded ops in the WorkbenchToWidget/`_retarget_op` readers).
+> Remaining: Group 2b (step 7, optional) and finishing the docs (step 8). Step 5 was
+> tried and dropped — `String`/`NumberReplaceRange` are dispatch-load-bearing and
+> stay distinct. See [Migration steps](#migration-steps).
 >
 > Background: a 2026-06-24 re-survey (a) widened the inventory to operations added
 > since the 2026-06-23 audit (Group 2 widget-state writes, the projection-field
@@ -525,22 +525,28 @@ field of `CollectionInsertOperation`, matching Lisp `make-operation/compound`.
    element/insert/delete handler living in one place) was already achieved for Group 4;
    character splicing stays in `Primitive.splice_value!`.
 
-6. **🟢 OPEN (reframed) — reduce the reroot duplication for the *generic* ops + fix the
-   latent gap.** Independent of (the abandoned) step 5: the reference-rerooting dispatch
-   is hand-copied into **~10 readers across three packages**, and several were **never
-   taught `ReplaceReferencedValue` / `CompoundOperation`** in steps 1–4, so the
-   *already-folded* `replace_document` / `insert_elements` / `delete_elements` ops are
-   **not rerooted** if they flow through those readers — a **latent gap to verify and
-   fix**: `WidgetToGraphics._retarget_op` (`:655`, else → passes through unrerooted),
-   `WorkbenchToWidget` (`_prefix_operation`, `_retarget_panel_op`, shell reader),
-   `ProjecturedOdbc` (`:562`, else → **drops** the op), `ProjectionConfiguring` (`:106`).
-   The fix: teach each to handle `ReplaceReferencedValue` (`document === nothing` →
-   its `map_reference_backward`/`_prepend`) + `CompoundOperation`, ideally by
-   **delegating to a single shared helper** rather than enumerating op types. The
-   `String`/`Number` branches **stay** (they are a distinct op per step 5). This still
-   removes the `ReplaceDocument`/`Collection*` redundancy and closes the latent gap; it
-   is no longer the wholesale "one branch" collapse the plan originally imagined,
-   because character-range edits remain their own dispatch.
+6. **✅ DONE (commit `44a9ae1`, branch `worktree-consolidate-operations`) — closed the
+   latent reroot gap for the folded ops.** Steps 3–4 taught the five main dispatchers
+   about `ReplaceReferencedValue`/`CompoundOperation`, but the *bespoke* re-rooting
+   readers were missed, so a folded `replace_document`/`insert_elements`/`delete_elements`
+   op flowing through one was passed through unrerooted (or dropped):
+   - `WidgetToGraphics._retarget_op` — added `ReplaceReferencedValue` (reroot via
+     `map_reference_backward` when `document === nothing`; self-contained passes
+     through) + `CompoundOperation` branches.
+   - `WorkbenchToWidget` — the shell reader and `_retarget_panel_op` gained the same
+     two branches; **`_prefix_operation` now delegates to the shared
+     `prepend_steps_to_op`** (which already handles RRV/Compound), so the duplicated
+     `_prepend_path` helper was deleted — the small dedup the reframed step aimed for.
+   - `ProjectionConfiguring` already **delegates** document edits to the inner reader
+     (so the inner chain reroots them), and the **ODBC** tabular reader only handles
+     cell text edits (`String`/`Number`) that structural folded ops never reach — both
+     left unchanged after confirming they aren't gaps.
+   - `String`/`Number` branches stay (distinct op per step 5).
+   - *Verified:* object_to_widget, widget_button, projection_configuring, clipboard,
+     versioning, document_insertion, dragging, `test_repl(json_example)`,
+     `test_repl(workbench_example)` all green; split_pane_drag unchanged at the
+     pre-existing 23/8 baseline; `database_tabular` errored only on a live-DB SQL
+     teardown (environmental).
 
 7. **🟡 OPEN — Group 2b projection-field ops (cell-idiom conversion first).**
    `ToggleClipboardSliceDisplayOperation`/`ToggleClipboardCollectionDisplayOperation`
