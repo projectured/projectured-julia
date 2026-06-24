@@ -68,9 +68,15 @@ end
 
 # ── AdaptagramsEngine ────────────────────────────────────────────────────────
 
+# Auto node-margin policy (AdaptagramsEngine `node_margin=nothing`): the hard
+# minimum inter-box gap scales with the typical node size, floored so small
+# graphs keep a sensible constant margin.
+const _MARGIN_FRACTION = 0.2
+const _MIN_NODE_MARGIN = 16.0
+
 """
     AdaptagramsEngine(; ideal_length=60.0, avoid_overlaps=true, orthogonal=false,
-                      node_margin=16.0)
+                      node_margin=nothing)
 
 Native `GraphLayoutEngine`: libcola placement + libavoid routing.
 
@@ -84,10 +90,14 @@ Native `GraphLayoutEngine`: libcola placement + libavoid routing.
 - `avoid_overlaps` libcola prevents node-box overlaps when `true` (a hard
   guarantee via `makeFeasible`, not just the soft force-directed term).
 - `orthogonal`     libavoid orthogonal routes when `true`, else poly-line.
-- `node_margin`    gap kept on each side of every node during overlap removal, so
-  the boxes still clear each other once `GraphLayoutToGraphics` pads them
-  (`_PAD` = 8 per side); also the inset of the layout from the origin. Must
-  exceed that pad to leave a visible gap.
+- `node_margin`    the hard minimum gap kept on each side of every node during
+  overlap removal (so the boxes still clear each other once
+  `GraphLayoutToGraphics` pads them, `_PAD` = 8 per side); also the inset of the
+  layout from the origin. Pass `nothing` (the default) to derive it from the
+  vertex sizes — like `ideal_length`, a fixed margin leaves big card nodes nearly
+  touching, so the auto value scales with the typical node size
+  (`$(Int(round(100*_MARGIN_FRACTION)))%` of the mean half-extent, floored at
+  `$(Int(_MIN_NODE_MARGIN))px`). Pass a number to force a fixed margin.
 
 Returns the same `(positions, routes)` shape as `FallbackLayoutEngine`:
 `positions[objectid(vertex)] = (x,y,w,h)::NTuple{4,Int}` and
@@ -97,13 +107,13 @@ struct AdaptagramsEngine <: GraphLayoutEngine
     ideal_length::Float64
     avoid_overlaps::Bool
     orthogonal::Bool
-    node_margin::Float64
+    node_margin::Union{Nothing,Float64}   # nothing ⇒ size-derived (see layout_graph)
 end
 
 AdaptagramsEngine(; ideal_length::Real=60.0, avoid_overlaps::Bool=true,
-                  orthogonal::Bool=false, node_margin::Real=16.0) =
+                  orthogonal::Bool=false, node_margin::Union{Nothing,Real}=nothing) =
     AdaptagramsEngine(Float64(ideal_length), avoid_overlaps, orthogonal,
-                      Float64(node_margin))
+                      node_margin === nothing ? nothing : Float64(node_margin))
 
 function layout_graph(engine::AdaptagramsEngine, graph::GraphGraph, sizes::Dict,
                       constraints::Vector)
@@ -143,6 +153,17 @@ function layout_graph(engine::AdaptagramsEngine, graph::GraphGraph, sizes::Dict,
     # since libcola's effective length is `ideal_length * eLengths[i]`.
     base = engine.ideal_length > 0 ? engine.ideal_length : 60.0
     half_extent(i) = max(in_w[i], in_h[i]) / 2          # i is 1-based into in_w/in_h
+
+    # Hard minimum inter-box gap. A fixed margin (the old 16px) leaves big card
+    # nodes nearly touching, so when `node_margin` is left unset derive it from
+    # the typical node size — a fraction of the mean half-extent, floored so small
+    # graphs keep a sensible constant gap. An explicit `node_margin` overrides.
+    node_margin = engine.node_margin
+    if node_margin === nothing
+        mean_half = sum(half_extent(i) for i in 1:n) / n
+        node_margin = max(_MIN_NODE_MARGIN, _MARGIN_FRACTION * mean_half)
+    end
+
     edge_objs = GraphEdge[]
     esrc = Cint[]; edst = Cint[]; elen = Cdouble[]
     for i in 1:length(graph.edges)
@@ -162,7 +183,7 @@ function layout_graph(engine::AdaptagramsEngine, graph::GraphGraph, sizes::Dict,
                     Cdouble, Cint, Cint, Cdouble, Ptr{Cdouble}),
                    Cint(n), in_w, in_h, Cint(ne), esrc, edst,
                    engine.ideal_length, Cint(engine.avoid_overlaps),
-                   Cint(engine.orthogonal), engine.node_margin, elen)
+                   Cint(engine.orthogonal), node_margin, elen)
     handle == C_NULL && error("AdaptagramsEngine: native layout failed (see adaptagrams_shim.cpp).")
 
     try
