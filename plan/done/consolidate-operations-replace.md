@@ -7,9 +7,12 @@
 > edits), step 6 (closed the latent reroot gap in the WorkbenchToWidget/`_retarget_op`
 > readers), step 8 (docs). **Two steps were investigated and deliberately dropped:
 > step 5** (fold `String`/`NumberReplaceRange` — dispatch-load-bearing; ~19 reader
-> methods specialize on the type) **and step 7** (fold Group 2b — the `editor.iomap`
-> drop is the idiomatic *structural* switch; the reactive engine only propagates value
-> changes within a fixed structure). Outcome: `ReplaceDocumentOperation`, the six
+> methods specialize on the type) **and step 7** (fold Group 2b — empirically tested:
+> the projection's own derived output cell flips fine, but the projection-*composition*
+> boundary (`SequentialProjection` reads each stage's `.output` once as a raw value,
+> `_fixed_print` freezes children) consumes a stage's output exactly once at print
+> time, so a Cell-output crashes the pipeline and even unwrapping it doesn't propagate;
+> the `editor.iomap` drop forces the one re-print the frozen composition needs). Outcome: `ReplaceDocumentOperation`, the six
 > widget-state ops, and the `Collection*`/Workbench ops are folded into
 > `ReplaceReferencedValue` + builders (`replace_document`/`insert_elements`/`delete_elements`);
 > reader rerooting is consistent and the latent gap is closed; `String`/`Number`,
@@ -172,34 +175,43 @@ as currently authored:
   re-derive **structure** (which child / how many children). Changing the exposed
   child changes structure ⇒ rebuild ⇒ the iomap drop.
 
-> **Investigated 2026-06-24 — keep these distinct; the `editor.iomap` drop is
-> idiomatic, not a hack.** The appealing idea was: make the flag a `Cell` and express
-> the flag-dependent `output` as a *derived cell*, so flipping it recomputes the
-> selection reactively (lazily — only the selected branch is pulled) and no rebuild is
-> needed; then the op folds into a plain `ReplaceReferencedValue`. It does **not**
-> work, for a structural reason the codebase is consistent about:
+> **Empirically tested 2026-06-24 (worktree `clipboard-reactive-test`) — keep these
+> distinct; the `editor.iomap` drop is the pragmatic structural-switch mechanism.**
+> The appealing idea was: make the flag a `Cell` and express the flag-dependent
+> `output` as a *derived cell*, so flipping it recomputes the selection reactively and
+> the op folds into a plain `ReplaceReferencedValue`. I built exactly that
+> (`display_slice::Cell`, `output = Cell(() -> display_slice[] ? slice_iomap.output :
+> content_iomap.output)`, toggle drops the `editor.iomap` reset) and ran it. The
+> result is more precise than "the engine can't switch structure":
 >
-> - The reactive engine propagates **value** changes within a **fixed structure**.
->   `projection_print` chooses *which child a projection exposes* **eagerly at print
->   time**, frozen into the iomap. `CopyingProjection` embeds child documents as frozen
->   `im.output` nodes and makes only leaf value fields (e.g. `selection`) derived
->   cells; `AlternativeProjection` reads its `index` cell at print time and switches
->   only "on the next `projection_print`". There is no reactive structural-switch —
->   and switching the exposed child is exactly the "swap a subtree out from under the
->   projection" case that [operations.md](../../documentation/operations.md)'s invariant
->   says **must** drop the iomap.
-> - The clipboard/versioning projections output the **active child's type directly
->   (no wrapper)** — the projection chain's type contract requires it — so the
->   "derived content cell inside a stable wrapper" trick would change the output type
->   and break the chain.
+> - **The projection's *own* derived output cell DOES flip reactively** (verified):
+>   driving just the clipboard stage, flipping `display_slice[]` and re-reading
+>   `iomap.output[]` switches the exposed syntax from content to slice with **no
+>   re-print**. The earlier "no reactive structural-switch at all" framing was wrong
+>   at this level — the cell machinery works.
+> - **The blocker is the projection-*composition* boundary, not the engine.**
+>   `SequentialProjection.projection_print` does `current = iomap.output` (Sequential.jl:67)
+>   — a **one-time raw read** — and threads `current` as the *next stage's input
+>   document*; `_fixed_print` likewise freezes each child via `CellVector(Cell[Cell(im.output)…])`
+>   (ProjectionTemplate.jl:358). A stage's output is therefore consumed exactly once at
+>   print time. Two consequences, both reproduced:
+>   1. Making `output` a `Cell` **crashes the pipeline**: `TypeDispatchingProjection:
+>      no projection registered for type Cell` — the `Cell` is threaded downstream as a
+>      document to print.
+>   2. Even *unwrapping* the cell once at the boundary (the obvious crash fix) **does
+>      not propagate**: the downstream stage prints the captured syntax and a later
+>      `display_slice[]` flip leaves its output frozen on the old child.
 >
-> So folding Group 2b would need either unsupported reactive-structural-selection
-> machinery or an iomap-invalidation hook on the generic op (rejected). For 3
-> low-value ops that is not worth it: **they stay distinct** — a legitimate "switch
-> which child this projection exposes" operation. (`ReplaceFocusPartOperation` is
-> *not* a counter-example: its `part` change is re-read by the printer to navigate,
-> a value change, not a structural child-swap — which is why it needs no drop.) See
-> [Migration step 7](#migration-steps).
+> So making Group 2b reactive end-to-end would require re-architecting the print
+> *composition* pipeline (wrap each stage's print in a cell that re-pulls upstream
+> output), a cross-cutting change far beyond folding one op — not an iomap-invalidation
+> hook on the generic op (rejected). For 3 low-value ops that is not worth it: **they
+> stay distinct** — a legitimate "switch which child this projection exposes" op, with
+> the `editor.iomap` drop forcing the one re-print the frozen composition needs.
+> (`ReplaceFocusPartOperation` is *not* a counter-example: its `part` change is re-read
+> by the printer to navigate, a value change, not a structural child-swap — which is
+> why it needs no drop.) See [Migration step 7](#migration-steps). Experiment harness
+> kept at `experiment_group2b.jl` on branch `clipboard-reactive-test`.
 
 ### Group 3 — sub-value *range* writes (string/number) — **KEEP (reclassified)**
 
@@ -549,37 +561,41 @@ field of `CollectionInsertOperation`, matching Lisp `make-operation/compound`.
      pre-existing 23/8 baseline; `database_tabular` errored only on a live-DB SQL
      teardown (environmental).
 
-7. **❌ WON'T DO (investigated 2026-06-24) — leave Group 2b
-   (`Toggle{Clipboard…Display}` + `SetVersionCriterion`) as distinct ops.** The
-   earlier idea — make the flag a `Cell` + express the flag-dependent `output` as a
-   *derived cell*, so the `editor.iomap` drop disappears and the op folds into a
-   plain `ReplaceReferencedValue` — turns out **not to be supported by the
-   architecture**, for a principled reason:
+7. **❌ WON'T DO (empirically tested 2026-06-24, worktree `clipboard-reactive-test`)
+   — leave Group 2b (`Toggle{Clipboard…Display}` + `SetVersionCriterion`) as distinct
+   ops.** I built the reactive version (`display_slice::Cell`,
+   `output = Cell(() -> display_slice[] ? slice_iomap.output : content_iomap.output)`,
+   toggle does a plain cell write with **no** `editor.iomap` drop) and ran it through
+   the real clipboard pipeline. The finding is more precise than the earlier
+   analysis-only claim:
 
-   - The reactive engine propagates **value** changes within a **fixed structure**.
-     A projection's `projection_print` makes its structural choices (which child it
-     exposes) **eagerly at print time**, and they are frozen into the iomap.
-     Confirmed by `CopyingProjection` (child documents are embedded as frozen
-     `im.output` nodes; only leaf value fields like `selection` are derived cells)
-     and by `AlternativeProjection` (reads its `index` cell at print time; its
-     docstring says a switch "takes effect on the **next** `projection_print`").
-     There is **no reactive structural-switch** mechanism — switching the exposed
-     child is exactly the "swap a subtree out from under the projection" case the
-     [operations.md invariant](../../documentation/operations.md) says **must** drop
-     the iomap.
-   - The clipboard/versioning projections output the **active child's type
-     directly (no wrapper)** — required by the projection chain's type contract
-     (the parent expects e.g. a `SyntaxNode`, not a clipboard-shaped wrapper). So the
-     "derived content cell in a stable wrapper" trick can't apply without changing
-     the output type and breaking the chain.
+   - **The projection's *own* derived output cell flips reactively** — verified by
+     driving the clipboard stage alone: flipping `display_slice[]` and re-reading
+     `iomap.output[]` switches the exposed syntax content→slice with no re-print. So
+     "there is no reactive structural-switch *at all*" was wrong; the cell works.
+   - **The blocker is the projection-*composition* boundary.**
+     `SequentialProjection.projection_print` does `current = iomap.output`
+     (Sequential.jl:67) — a one-time raw read — and threads `current` as the next
+     stage's input *document*; `_fixed_print` freezes each child via
+     `CellVector(Cell[Cell(im.output)…])` (ProjectionTemplate.jl:358). A stage's output
+     is consumed exactly once at print time. Reproduced consequences:
+     1. A `Cell`-valued output **crashes the pipeline**: `TypeDispatchingProjection:
+        no projection registered for type Cell` (the `Cell` is threaded downstream as a
+        document).
+     2. Even *unwrapping* the cell once at the boundary **does not propagate**: the
+        downstream stage prints the captured syntax; a later flip leaves it frozen.
+   - The clipboard/versioning projections also output the **active child's type
+     directly (no wrapper)** — required by the chain's type contract (the parent
+     expects e.g. a `SyntaxNode`) — so a "derived content cell in a stable wrapper"
+     would change the output type and break the chain anyway.
 
-   So the `editor.iomap` drop is the **idiomatic** structural-switch mechanism here,
-   not a hack — and folding these into the generic `ReplaceReferencedValue` would
-   need either unsupported reactive-structural-selection machinery or an
-   iomap-invalidation hook on the generic op (rejected). For 3 low-value ops that is
-   not worth it. **They stay distinct** (a legitimate "switch which child this
-   projection exposes" operation), alongside `ReplaceSelectionOperation` and the
-   Group 3 range edits. `ToggleCollapseOperation` likewise stays (its `nothing`-target
+   So making Group 2b reactive end-to-end would require re-architecting the print
+   *composition* pipeline (each stage's print wrapped in a cell that re-pulls upstream
+   output), not an iomap-invalidation hook on the generic op (rejected). For 3
+   low-value ops that is not worth it. **They stay distinct** (a legitimate "switch
+   which child this projection exposes" operation, the `editor.iomap` drop forcing the
+   one re-print the frozen composition needs), alongside `ReplaceSelectionOperation`
+   and the Group 3 range edits. `ToggleCollapseOperation` likewise stays (its `nothing`-target
    resolution at the SyntaxToText layer is also non-trivial). `ReplaceFocusPartOperation`
    could still fold *if* `part_evaluator` were made lazy, but it is a single op of
    marginal value — defer.
