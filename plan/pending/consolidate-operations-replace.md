@@ -1,20 +1,21 @@
 # Consolidating operations into `ReplaceReferencedValue`
 
-> **Status (re-survey 2026-06-24): mostly OPEN, re-staged.** Only the
-> `CompoundOperation` scaffold is implemented. The consolidation itself —
-> folding the operation families into `ReplaceReferencedValue`, the
-> `document === nothing` re-rooting rule, terminal-kind dispatch / `RangeReference`
-> splice, and the docs rewrite — is **not done**.
+> **Status (updated 2026-06-24): steps 0–3 DONE, on branch
+> `worktree-consolidate-operations`.** The keystone (step 1: `ReplaceReferencedValue`
+> a reader-list citizen + the `document === nothing` rule), Group 2 widget-state
+> writes (step 2), and `ReplaceDocumentOperation` (step 3) are folded and verified.
+> Remaining: Group 4 sequence edits (step 4), Group 3 range replaces (step 5, the
+> big one), the reader-dispatch-list collapse (step 6), Group 2b (step 7), and the
+> docs rewrite (step 8). See [Migration steps](#migration-steps).
 >
-> This revision (a) widens the inventory to the operations added since the
-> 2026-06-23 audit (new Group 2 widget-state writes, a projection-field +
-> iomap-drop sub-family, Workbench open/close as structural edits, and several
-> new irreducibles), and (b) **re-orders the migration to lead with the easy,
-> clear-benefit, reader-simplifying steps** — see [Migration steps](#migration-steps).
-> The headline win is collapsing the *two* hand-maintained, "kept-in-sync"
+> Background: a 2026-06-24 re-survey (a) widened the inventory to operations added
+> since the 2026-06-23 audit (Group 2 widget-state writes, the projection-field
+> sub-family, Workbench open/close, new irreducibles), and (b) **re-ordered the
+> migration to lead with the easy, clear-benefit, reader-simplifying steps**. The
+> headline win is collapsing the *two* hand-maintained, "kept-in-sync"
 > reference-rerooting dispatch lists in the projection readers
 > (`prepend_steps_to_op` + the default `projection_read`) down to a single
-> `ReplaceReferencedValue` branch.
+> `ReplaceReferencedValue` branch — already shrinking as Groups 1–4 fold in.
 
 ## Thesis
 
@@ -60,10 +61,12 @@ of `struct … <: Operation` today (excluding the keep-as-is `ReplaceSelectionOp
 
 - **Single-slot writes** (the consolidation targets): `ReplaceDocumentOperation`,
   `HideWidgetOperation`, `ShowWidgetOperation`, `SetScrollBarValueOperation`,
-  `SelectTabOperation`, `ScrollWidgetOperation`, `SetWidgetHoverOperation`,
+  `ScrollWidgetOperation`, `SetWidgetHoverOperation`,
   `SetWidgetPressedOperation`, `ToggleCollapseOperation`, `ResizeWindowOperation`,
   `ReplaceFocusPartOperation`, `StringReplaceRangeOperation`,
-  `NumberReplaceRangeOperation`.
+  `NumberReplaceRangeOperation`. (`SelectTabOperation` looks single-slot but is
+  **not** — the workbench overloads it into a document-selection move; it is an
+  event-like signal, listed under irreducible below.)
 - **Structural sequence edits**: `CollectionInsertOperation`,
   `CollectionDeleteOperation`, `WorkbenchOpenDocumentOperation`,
   `WorkbenchCloseDocumentOperation`.
@@ -103,7 +106,6 @@ so they map to `ReplaceReferencedValue(target, <relative-ref>, value)`:
 | `SetWidgetHoverOperation(w, v)` | `ReplaceReferencedValue(w, @reference hovered, v)` | `Widget.jl:1236` |
 | `SetWidgetPressedOperation(w, v)` | `ReplaceReferencedValue(w, @reference pressed, v)` | `Widget.jl:1248` |
 | `SetScrollBarValueOperation(bar, v)` | `ReplaceReferencedValue(bar, @reference value, clamp(v,0,1))` | `Widget.jl:1173` |
-| `SelectTabOperation(pane, i)` | `ReplaceReferencedValue(pane, @reference selection, ElementReference(i)-path)` | `Widget.jl:1163` |
 | `ScrollWidgetOperation(sp, Δ)` | `ReplaceReferencedValue(sp, @reference scroll_position, old+Δ)` — reader computes `old+Δ` | `Widget.jl:1151` |
 | `ToggleCollapseOperation(node)` | `ReplaceReferencedValue(node, @reference collapsed, !node.collapsed)` — reader computes the flip | `Operation.jl:271` |
 | `ResizeWindowOperation(w, ow, oh)` | two writes → a `CompoundOperation` (see below) | `Operation.jl:347` |
@@ -276,6 +278,7 @@ operations:
 | `ClearInputOperation` / `ResetConversationOperation` | multi-field assistant resets — *could* become `CompoundOperation`s of `ReplaceOperation`s, optional follow-up |
 | nine `Composer*` operations | each manipulates the active conversation part (insert/parse/commit/revert/submit) on a carried `draft`; structural + parsing logic, not a single-slot write (`ConversationEditor.jl:128`–`186`) |
 | `InvokeWidgetActionOperation` | calls the widget's `action` callable (`Widget.jl:1225`) — arbitrary control flow |
+| `SelectTabOperation` | event-like "tab i clicked"; the workbench overloads it into a document-selection move (`WorkbenchPageToWidgetTabbedPane`), so not a single-slot write (`Widget.jl:1163`) |
 | `StartSplitterDragOperation` | materialises `sizes`/`pinned` vectors and records a `drag_anchor` tuple — multi-field + conditional vector init (`Widget.jl:1187`) |
 | `ResizeSplitPaneOperation` | writes `sizes[k]`,`sizes[k+1]` **and** pins both slots — multi-field with a length guard (`Widget.jl:1202`) |
 | `EndSplitterDragOperation` | resets `active_splitter`+`drag_anchor` — two writes; could be a trivial `CompoundOperation`, but the drag-state trio reads cleaner together (`Widget.jl:1214`) |
@@ -440,29 +443,44 @@ field of `CollectionInsertOperation`, matching Lisp `make-operation/compound`.
      they are **pre-existing on clean `main`** — confirmed by a baseline run — and
      unrelated to this change.)
 
-2. **🟢 OPEN — easiest fold: Group 2 identity-rooted widget-state writes.** Start
-   with the two trivial `Bool` writes, then the read-modify-write ones:
-   - `SetWidgetHoverOperation` → `ReplaceReferencedValue(w, @reference hovered, v)`
-     and `SetWidgetPressedOperation` → `…pressed, v` (`Widget.jl:1236,1248`) — pure
-     writes, no reader logic. **Do these two first.**
-   - `HideWidgetOperation`/`ShowWidgetOperation` (`Widget.jl:1131,1141`) →
-     `visible, false/true`.
-   - `SetScrollBarValueOperation` (`:1173`) → reader clamps to `[0,1]`.
-   - `SelectTabOperation` (`:1163`) → reader builds the `ElementReference(i)` path.
-   - `ScrollWidgetOperation` (`:1151`) → reader reads `old` and writes `old+Δ`.
-   - All identity-rooted, so step 1 already routes them; delete each struct + its
-     `evaluate_operation` and move any clamp/flip/add into the producing reader.
-   - *Test:* `test_repl(workbench_example)` / the widget examples; `WidgetButtonTest`,
-     `SplitPaneDragTest`.
+2. **✅ DONE (commit `9596824`):** fold Group 2 identity-rooted widget-state writes.
+   Deleted six structs + evaluators; the read-modify-write/clamp/path arithmetic
+   moved into the producing readers. Added a
+   `ReplaceReferencedValue(obj, field::AbstractString, value)` convenience ctor.
+   - `SetWidgetHover`/`SetWidgetPressed` → `ReplaceReferencedValue(w, "hovered"/"pressed", v)`
+   - `HideWidget`/`ShowWidget` → `"visible", false/true`
+   - `SetScrollBarValue` → `"value", clamped` (the producer already clamped)
+   - `ScrollWidget` → `"scroll_position", old+Δ` (reader reads `old` via `iomap.input`)
+   - **`SelectTabOperation` was NOT folded** (correction to the original plan): the
+     workbench *overloads* it into a document-selection move
+     (`WorkbenchPageToWidgetTabbedPane` returns `ReplaceSelectionOperation(@reference elements[idx])`,
+     since the tab's active state is a forward projection of the page selection). It
+     is an event-like signal, not a single-slot write — left in Group 5.
+   - Two bespoke readers updated: `TextToWidget` (was matching `ScrollWidgetOperation`)
+     now passes identity-rooted `ReplaceReferencedValue` through;
+     `WidgetHoverTracking._target_of` reads the target widget from `.document` (the
+     folded hover/press op has no `.widget` field). Tests: `WidgetButtonTest`,
+     `ProjectionConfiguringTest`.
+   - *Verified:* `test_widget_button_behavior`, `test_projection_configuring`,
+     `test_object_to_widget` all green; `test_repl(workbench_example)` 225/225;
+     `test_split_pane_drag` unchanged at the pre-existing 23/8 baseline.
 
-3. **🟡 OPEN — Fold Group 1 `ReplaceDocumentOperation`** → `ReplaceReferencedValue(nothing, path, doc)`.
-   Standalone struct + evaluator at `Operation.jl:100`–`124`. **Removes its branch
-   from both reader lists** — the reader-simplification payoff starts here. The
-   selection-follow-up (`replace_selection!` to `path ⧺ doc.selection`) moves into a
-   trailing `ReplaceSelectionOperation` inside a `CompoundOperation` at the
-   producing sites (clipboard copy/cut already build `CompoundOperation`s —
-   `ClipboardToAny.jl:256,266`). *Test:* `test_repl(json_example)` (type-to-replace
-   gestures), clipboard tests.
+3. **✅ DONE (commit `ea7f24c`):** fold `ReplaceDocumentOperation` →
+   `replace_document(path, doc)`, a helper that builds
+   `CompoundOperation([ReplaceReferencedValue(nothing, path, doc), ReplaceSelectionOperation(path ⧺ doc.selection)])`
+   — re-rooting prepends the same steps to both members, keeping write+cursor in
+   sync; empty path is the whole-root swap from step 1. The struct + evaluator are
+   deleted; `evaluate_operation(ReplaceReferencedValue)` now writes via the shared
+   `_write_slot!` (FieldReference cell-write **or** RangeReference element-overwrite),
+   covering the array-element replace. **Removed its branch from both central reader
+   lists**, and taught the three bespoke `_prefix_op` re-rooting readers (ScreenToScreen,
+   ClipboardToAny, VersioningToAny) to handle `ReplaceReferencedValue` + `CompoundOperation`
+   (the latter two previously dropped compounds). Producers swapped: `Json._replace`,
+   `XmlToSyntax`, `DocumentInsertion`, all six clipboard sites.
+   - *Verified:* `test_json_to_syntax` 11/11; `test_json_to_syntax_reader` 47/1 (the 1
+     is the pre-existing array-insert baseline); `test_xml_to_syntax_reader` 32/32;
+     `test_document_insertion` 14/14; clipboard, versioning, dragging,
+     `test_repl(json_example)`, `test_repl(workbench_example)` all green.
 
 4. **🟡 OPEN — Fold Group 4 structural sequence edits.**
    - `CollectionInsertOperation`/`CollectionDeleteOperation` (`Operation.jl:209,235`)
