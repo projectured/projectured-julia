@@ -25,10 +25,10 @@ import ..OperationModule: QuitEditorException
 import ..OperationRerootingModule: prepend_steps_to_op
 import ..ReferenceModule: ReferencePath, ConcreteReferencePath, EmptyReferencePath
 import ..GestureRecognizerModule: GestureRecognizer, next_gesture!
-import ..GestureBindingModule: collect_gestures
+import ..GestureBindingModule: collect_gestures, is_help_gesture
 import ..AgentModule: make_agent_server, agent_server_start!, agent_server_stop!
 
-export Editor, run!, play_live!
+export Editor, run!, play_live!, help_overlay
 
 """
     Editor(backend, document, projection, devices)
@@ -41,6 +41,9 @@ Holds the state for a read-eval-print loop:
   - `iomap`      — the latest IoMap from the printer (internal)
   - `operation`  — the latest operation from the reader (internal)
   - `recognizer` — the event → gesture recogniser (internal)
+  - `help_saved` — while the gesture-help overlay is shown, the saved
+                   `(document, projection, iomap)` to restore on dismiss;
+                   `nothing` when no overlay is active (internal)
 """
 mutable struct Editor
     backend::Backend
@@ -50,10 +53,11 @@ mutable struct Editor
     iomap::Union{IoMap, Nothing}
     operation::Union{Operation, Nothing}
     recognizer::GestureRecognizer
+    help_saved::Any
 end
 
 Editor(backend, document, projection, devices) =
-    Editor(backend, document, projection, devices, nothing, nothing, GestureRecognizer())
+    Editor(backend, document, projection, devices, nothing, nothing, GestureRecognizer(), nothing)
 
 """
     collect_gestures(editor::Editor) -> Vector{GestureBinding}
@@ -67,6 +71,49 @@ to mark which rows can fire for the current selection.
 collect_gestures(editor::Editor) =
     editor.iomap === nothing ? Vector{Any}() :
     collect_gestures(editor.projection, nothing, editor.iomap)
+
+# ── Gesture-help overlay ──────────────────────────────────────────────
+
+"""
+    help_overlay(editor::Editor) -> (; document, projection) or nothing
+
+Build the gesture-help overlay shown on the help gesture (F1): a `document` plus
+a `projection` whose output renders the editor's currently-available gestures
+(typically a `GestureMap` of `collect_gestures(editor)` projected to the editor's
+display type). Returns `nothing` to mean *no overlay* — then the help gesture is
+consumed harmlessly and nothing changes.
+
+This is the kernel **seam**: the default is `nothing` because building the
+overlay is display-coupled (it references domain rendering projections that the
+kernel cannot name). A domain method overrides it; `read!` shows the result on the
+help gesture and restores the prior state on the next gesture.
+"""
+help_overlay(::Editor) = nothing
+
+# Show the overlay (saving the current document/projection/iomap) and force the
+# next `print!` to render it. Returns `true` when an overlay was shown, `false`
+# when `help_overlay` declined (no overlay available).
+function _show_help_overlay!(editor::Editor)
+    overlay = help_overlay(editor)
+    overlay === nothing && return false
+    editor.help_saved = (document = editor.document,
+                         projection = editor.projection,
+                         iomap = editor.iomap)
+    editor.document = overlay.document
+    editor.projection = overlay.projection
+    editor.iomap = nothing                      # force the overlay to print
+    return true
+end
+
+# Restore the document/projection/iomap saved when the overlay was shown.
+function _dismiss_help_overlay!(editor::Editor)
+    saved = editor.help_saved
+    editor.document = saved.document
+    editor.projection = saved.projection
+    editor.iomap = saved.iomap
+    editor.help_saved = nothing
+    return nothing
+end
 
 # ── Read-Eval-Print ──────────────────────────────────────────────────
 
@@ -101,6 +148,20 @@ function read!(editor::Editor)
         elseif env isa EventEnvelope && env.event isa QuitEvent
             editor.operation = QuitEditorOperation()
             return true
+        elseif editor.help_saved !== nothing
+            # The gesture-help overlay is up: any gesture dismisses it and
+            # restores the prior state (the gesture is otherwise consumed).
+            _dismiss_help_overlay!(editor)
+            editor.operation = nothing
+            return true                              # repaint the restored state
+        elseif env isa EventEnvelope && is_help_gesture(env.event)
+            # The help gesture: show the overlay if the domain provides one,
+            # otherwise consume it and keep draining (default: no overlay).
+            if _show_help_overlay!(editor)
+                editor.operation = nothing
+                return true                          # repaint the overlay
+            end
+            continue
         elseif editor.iomap === nothing
             continue
         else

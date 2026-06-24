@@ -232,21 +232,37 @@ handling, so F1 is the unambiguous v1. (Now that key chords landed in Stage 0, a
 chord could also summon help, but that would need a `KeyChordPattern` / a chord
 entry in the recogniser's table — neither wired; F1 stays the v1.)
 
-**Invocation / overlay lifecycle (deferred — follow-up).** Building the overlay
-(`GestureMap` + `GestureMapToSyntax`) is **domain-coupled**, but `read!` lives in
-the **kernel**, which cannot reference domain types. A clean implementation needs
-a small kernel seam (`help_overlay(editor)` default → nothing; a domain method
-builds the pipeline), an Editor field holding the saved document/projection/iomap,
-and read!-level handling: on `is_help_gesture` swap in the overlay (force reprint);
-on any next gesture restore the prior state. Deferred to keep the core loop change
-out of this (otherwise green) pass; the building blocks (`collect_gestures(editor)`,
-`gesture_map`, `GestureMapToSyntax`, `is_help_gesture`) are all in place, so the
-wiring is a contained follow-up. The render path is proven by `test_gesture_map`.
+**Invocation / overlay lifecycle — kernel seam ✅ (2026-06-24); rendering ⏳.**
+
+The **kernel invocation seam is landed** ([`Editor.jl`](../../package/kernel/src/editor/Editor.jl)):
+- `help_overlay(editor::Editor)` seam, default `nothing` (exported), overridden by
+  a display-layer method that builds the overlay's `(; document, projection)`.
+- An `Editor.help_saved` field holding the saved `(document, projection, iomap)`
+  while the overlay is up, plus `_show_help_overlay!` / `_dismiss_help_overlay!`.
+- `read!` handling: on `is_help_gesture` (F1), show the overlay if one is available
+  (save state, swap in, force reprint) else consume the gesture; while the overlay
+  is up, **any** next gesture dismisses it and restores the prior state. Both
+  branches are **gated** (F1 / overlay-active) and the default is no-op, so with no
+  display-layer `help_overlay` the behaviour is byte-identical (verified:
+  `test_repls` shows only pre-existing failures; gesture suites green).
+
+⏳ **Remaining: the display-layer rendering.** A `help_overlay(editor::Editor)`
+method that builds `ScreenDocument([WindowDocument(content = gesture_map(collect_gestures(editor), editor.document))])`
++ the projection `RecursiveProjection(TypeDispatchingProjection(ScreenDocument =>
+WindowManagerProjection(inner=ScreenToScreen()), WindowDocument => ScreenToScreen(),
+GestureMap => SequentialProjection(GestureMapToSyntax(), RecursiveProjection(SyntaxToText()),
+WordWrapping(measure), TextToGraphics(measure))))` — mirroring `Examples.jl`'s
+screen pipeline. It belongs in the **example/backend layer** (it needs
+`truetype_measure_text` + window/geometry conventions the domain/kernel don't carry)
+and must extend the kernel generic module-qualified. The render path itself is
+proven by `test_gesture_map`; this step adds the screen wrapping + an integration
+test (drive F1 through a scripted backend, or `projection_print` the overlay).
 
 ## Follow-up passes (seams already built; reify incrementally)
 
-- **Wire the live help overlay** (Stage 4 invocation, above): kernel
-  `help_overlay` seam + Editor saved-state + read! show/dismiss.
+- **Live help overlay** (Stage 4 invocation, above): kernel seam + read!
+  show/dismiss ✅ landed; ⏳ remaining = the display-layer `help_overlay` rendering
+  method (screen pipeline, in the example/backend layer) + an integration test.
 - **Decision (2026-06-24): gestures match modifiers _exactly_.** A gesture is
   identified by its exact modifier set, so `Left`, `Shift+Left`, `Ctrl+Left`,
   `Alt+Left` are *distinct* gestures and an unbound combination simply declines.
