@@ -16,7 +16,7 @@ the prepend logic.
 module OperationRerootingModule
 
 import ..ReferenceModule: ReferencePath, ConcreteReferencePath
-import ..OperationModule: ReplaceSelectionOperation, ReplaceDocumentOperation,
+import ..OperationModule: ReplaceSelectionOperation, ReplaceDocumentOperation, ReplaceReferencedValue,
                           CollectionInsertOperation, CollectionDeleteOperation, CompoundOperation
 import ..PrimitiveModule: StringReplaceRangeOperation, NumberReplaceRangeOperation
 
@@ -42,9 +42,11 @@ end
 
 Prepend `steps` to the reference inside a path-bearing operation
 (`ReplaceSelectionOperation` / `StringReplaceRangeOperation` /
-`NumberReplaceRangeOperation`). `nothing` passes through as `nothing`; any other
-operation (e.g. an identity-bearing `ReplaceReferencedValue`) is returned
-unchanged.
+`NumberReplaceRangeOperation` / …). `nothing` passes through as `nothing`.
+
+`ReplaceReferencedValue` is rerooted only when it is **`editor.document`-rooted**
+(`document === nothing`); a self-contained one (carrying its own root object) is
+returned unchanged, as is any operation type not listed here.
 """
 function prepend_steps_to_op(op, steps::Tuple)
     # INVARIANT: the reference-carrying operation types matched here must stay in
@@ -52,7 +54,12 @@ function prepend_steps_to_op(op, steps::Tuple)
     # operation missing from this list falls through to the `else` and is returned
     # unchanged — its reference never gets rerooted. See documentation/operations.md.
     op === nothing && return nothing
-    if op isa ReplaceSelectionOperation
+    if op isa ReplaceReferencedValue
+        # Self-contained (carries its own root): pass through. Document-rooted:
+        # reroot the reference, exactly as the dedicated path-bearing ops below.
+        op.document === nothing || return op
+        ReplaceReferencedValue(nothing, prepend_steps_to_ref(op.reference, steps), op.value)
+    elseif op isa ReplaceSelectionOperation
         ReplaceSelectionOperation(prepend_steps_to_ref(op.path, steps))
     elseif op isa StringReplaceRangeOperation
         StringReplaceRangeOperation(prepend_steps_to_ref(op.reference, steps), op.replacement)

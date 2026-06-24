@@ -19,7 +19,8 @@ module ProjectionModule
 
 import ..ProjectionApiModule: projection_print, projection_read, map_reference_forward, map_reference_backward, Projection, Change
 import ..OperationModule: ReplaceSelectionOperation, ToggleCollapseOperation,
-                          ReplaceDocumentOperation, CollectionInsertOperation,
+                          ReplaceDocumentOperation, ReplaceReferencedValue,
+                          CollectionInsertOperation,
                           CollectionDeleteOperation, CompoundOperation
 import ..PrimitiveModule: StringReplaceRangeOperation, NumberReplaceRangeOperation
 import ..ReactiveModule: Cell
@@ -75,8 +76,10 @@ operation that carries a reference from output space to input space using
 `selection`), and `CollectionDeleteOperation`, plus each member of a
 `CompoundOperation` recursively (so edits flow back through generic projections
 such as `SortingProjection`/`ReversingProjection`/`CopyingProjection` without a
-bespoke reader). `ToggleCollapseOperation` is forwarded unchanged; all other
-operation types return `nothing`.
+bespoke reader). A `document === nothing` (`editor.document`-rooted)
+`ReplaceReferencedValue` has its `reference` re-targeted; a self-contained one
+(carrying its own root) is forwarded unchanged. `ToggleCollapseOperation` is
+forwarded unchanged; all other operation types return `nothing`.
 """
 function projection_read(projection::Projection, iomap, operation)
     # INVARIANT: the set of reference-carrying operation types handled here must
@@ -93,6 +96,15 @@ function projection_read(projection::Projection, iomap, operation)
         # 4-arg readers and never reach this leaf default.)
         input = (iomap !== nothing && hasproperty(iomap, :input)) ? iomap.input : nothing
         return input isa Document ? document_read(input, operation) : nothing
+    elseif operation isa ReplaceReferencedValue
+        # Self-contained (carries its own root): forward unchanged — this is the
+        # path identity-rooted controls (`ObjectToWidget`/`WidgetToGraphics`) take
+        # back through any generic projection. Document-rooted (`document === nothing`):
+        # re-target the reference, like the dedicated path-bearing ops below.
+        operation.document === nothing || return operation
+        input_ref = map_reference_backward(projection, iomap, operation.reference)
+        input_ref === nothing && return nothing
+        return ReplaceReferencedValue(nothing, input_ref, operation.value)
     elseif operation isa ReplaceSelectionOperation
         input_selection = map_reference_backward(projection, iomap, operation.path)
         input_selection === nothing && return nothing

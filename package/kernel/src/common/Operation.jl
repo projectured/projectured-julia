@@ -162,14 +162,25 @@ end
 """
     ReplaceReferencedValue(document, reference, value)
 
-Set the scalar `value` at `reference` (a `ReferencePath`) resolved against the
-explicit root `document`. Unlike `ReplaceDocumentOperation`, the root is carried
-by the operation rather than being `editor.document`, so this works on objects
-that do not live in the document tree — notably a projection's own reactive
-parameter `Cell`s (the controls produced by `ObjectToWidget` edit these).
+Set the scalar `value` at `reference` (a `ReferencePath`) resolved against a
+root selected by the `document` field:
 
-It is `ReplaceDocumentOperation` generalised: an explicit root + a field
-reference + a plain value, reusing the same terminal-slot-write split.
+- **`document !== nothing`** — the root is the carried object, so this works on
+  objects that do not live in the document tree (a widget, or a projection's own
+  reactive parameter `Cell`s — the controls produced by `ObjectToWidget` edit
+  these). The operation is *self-contained* and bubbles up the reader chain
+  unchanged.
+- **`document === nothing`** — the root is `editor.document` and `reference` is
+  rooted there, so container/generic projections reroot the reference as the
+  operation flows up (see `OperationRerooting.prepend_steps_to_op` and the default
+  `projection_read`). An empty `reference` then means a **whole-root swap** (rebind
+  `editor.document`, drop the cached iomap), mirroring `ReplaceDocumentOperation`'s
+  empty-path branch.
+
+It is `ReplaceDocumentOperation` generalised: an explicit-or-implicit root + a
+reference + a plain value, reusing the same terminal-slot-write split. (Folding
+`ReplaceDocumentOperation` and the Group 2–4 single-slot writes into this is the
+subject of `plan/pending/consolidate-operations-replace.md`.)
 """
 struct ReplaceReferencedValue <: Operation
     document::Any
@@ -179,12 +190,24 @@ end
 
 function evaluate_operation(editor, op::ReplaceReferencedValue)
     reference = strip_reference_types(op.reference)
+    # `document === nothing` ⇒ the reference is rooted at `editor.document`
+    # (the future home of `ReplaceDocumentOperation`); otherwise the operation
+    # carries its own root object (a widget, a projection parameter `Cell` owner, …).
+    root = op.document === nothing ? editor.document : op.document
     if reference isa EmptyReferencePath
-        error("ReplaceReferencedValue: empty reference has no slot to write")
+        # Whole-root swap: only meaningful when the root *is* `editor.document`
+        # (there is no in-place "replace the object itself" for a carried root).
+        # Rebind and drop the cached iomap so the next print rebuilds on the new
+        # root — a wholesale swap is not reactive (nested swaps write into Cells).
+        op.document === nothing ||
+            error("ReplaceReferencedValue: empty reference on a carried root has no slot to write")
+        editor.document = op.value
+        editor.iomap = nothing
+        return
     end
     parent_path, terminal = _split_terminal_step(reference)
-    parent = parent_path isa EmptyReferencePath ? op.document :
-             evaluate_reference(op.document, parent_path)
+    parent = parent_path isa EmptyReferencePath ? root :
+             evaluate_reference(root, parent_path)
     _write_value_slot!(parent, terminal, op.value)
 end
 
