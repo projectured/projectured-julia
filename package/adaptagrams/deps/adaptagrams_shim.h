@@ -37,8 +37,12 @@ int adaptagrams_shim_version(void);
  *   edge_src     per-edge source node index, 0-based (length ne)
  *   edge_dst     per-edge target node index, 0-based (length ne)
  *   ideal_length ideal edge length fed to libcola's force model
- *   avoid_overlaps  nonzero → libcola prevents node-box overlaps
+ *   avoid_overlaps  nonzero → libcola prevents node-box overlaps (via
+ *                   makeFeasible, a hard guarantee, not just the soft force)
  *   orthogonal      nonzero → libavoid orthogonal routing, else poly-line
+ *   node_margin     gap added to each side of every box during overlap removal,
+ *                   so the (padded) boxes drawn downstream also clear each other;
+ *                   also the inset of the top-left box from the origin
  *
  * Node indices in edge_src/edge_dst must be in [0, n). Edges referencing an
  * out-of-range node are skipped.
@@ -52,7 +56,8 @@ AdaptagramsLayout *adaptagrams_layout(int n,
                                       const int *edge_src, const int *edge_dst,
                                       double ideal_length,
                                       int avoid_overlaps,
-                                      int orthogonal);
+                                      int orthogonal,
+                                      double node_margin);
 
 /* Number of nodes / edges the handle holds (echo of the inputs). */
 int adaptagrams_node_count(const AdaptagramsLayout *h);

@@ -34,7 +34,7 @@ struct AdaptagramsLayout {
     std::vector<std::vector<double> > routes;  // each inner: x0,y0,x1,y1,...
 };
 
-extern "C" int adaptagrams_shim_version(void) { return 1; }
+extern "C" int adaptagrams_shim_version(void) { return 2; }
 
 extern "C" AdaptagramsLayout *adaptagrams_layout(int n,
         const double *in_w, const double *in_h,
@@ -42,9 +42,11 @@ extern "C" AdaptagramsLayout *adaptagrams_layout(int n,
         const int *edge_src, const int *edge_dst,
         double ideal_length,
         int avoid_overlaps,
-        int orthogonal) {
+        int orthogonal,
+        double node_margin) {
     if (n <= 0) return NULL;
     if (ideal_length <= 0.0) ideal_length = 50.0;
+    if (node_margin < 0.0) node_margin = 0.0;
 
     try {
         AdaptagramsLayout *out = new AdaptagramsLayout();
@@ -83,10 +85,20 @@ extern "C" AdaptagramsLayout *adaptagrams_layout(int n,
 
         {
             cola::ConstrainedFDLayout alg(rs, es, ideal_length);
-            // VERIFY: overlap avoidance spelling. Current libcola exposes
-            // setAvoidNodeOverlaps(bool); older trees used a ctor flag.
-            if (avoid_overlaps) alg.setAvoidNodeOverlaps(true);
-            alg.run();
+            if (avoid_overlaps) {
+                alg.setAvoidNodeOverlaps(true);
+                alg.run();
+                // run() treats non-overlap as a soft force and stops at
+                // convergence, which can leave boxes overlapping when the ideal
+                // edge length is small relative to node sizes. makeFeasible()
+                // then projects to a layout that *satisfies* the non-overlap
+                // constraints with minimal movement — a hard guarantee. The
+                // margin (added to each side) also leaves a gap so the drawn,
+                // padded boxes downstream clear each other.
+                alg.makeFeasible(node_margin, node_margin);
+            } else {
+                alg.run();
+            }
         }
 
         for (int i = 0; i < n; ++i) {
@@ -95,6 +107,19 @@ extern "C" AdaptagramsLayout *adaptagrams_layout(int n,
             out->y[i] = rs[i]->getMinY();
             out->w[i] = rs[i]->width();
             out->h[i] = rs[i]->height();
+        }
+
+        // Normalise to non-negative coordinates (libcola centres the layout on
+        // the origin, so positions can be negative and clip at the window edge).
+        // Shift so the top-left-most box sits at (node_margin, node_margin).
+        if (n > 0) {
+            double minx = out->x[0], miny = out->y[0];
+            for (int i = 1; i < n; ++i) {
+                if (out->x[i] < minx) minx = out->x[i];
+                if (out->y[i] < miny) miny = out->y[i];
+            }
+            double dx = node_margin - minx, dy = node_margin - miny;
+            for (int i = 0; i < n; ++i) { out->x[i] += dx; out->y[i] += dy; }
         }
 
         // ── Routing (libavoid) ───────────────────────────────────────────────

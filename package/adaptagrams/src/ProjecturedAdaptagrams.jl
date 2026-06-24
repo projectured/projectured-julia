@@ -69,13 +69,19 @@ end
 # ── AdaptagramsEngine ────────────────────────────────────────────────────────
 
 """
-    AdaptagramsEngine(; ideal_length=60.0, avoid_overlaps=true, orthogonal=false)
+    AdaptagramsEngine(; ideal_length=60.0, avoid_overlaps=true, orthogonal=false,
+                      node_margin=16.0)
 
 Native `GraphLayoutEngine`: libcola placement + libavoid routing.
 
 - `ideal_length`   ideal edge length fed to libcola's force model.
-- `avoid_overlaps` libcola prevents node-box overlaps when `true`.
+- `avoid_overlaps` libcola prevents node-box overlaps when `true` (a hard
+  guarantee via `makeFeasible`, not just the soft force-directed term).
 - `orthogonal`     libavoid orthogonal routes when `true`, else poly-line.
+- `node_margin`    gap kept on each side of every node during overlap removal, so
+  the boxes still clear each other once `GraphLayoutToGraphics` pads them
+  (`_PAD` = 8 per side); also the inset of the layout from the origin. Must
+  exceed that pad to leave a visible gap.
 
 Returns the same `(positions, routes)` shape as `FallbackLayoutEngine`:
 `positions[objectid(vertex)] = (x,y,w,h)::NTuple{4,Int}` and
@@ -85,11 +91,13 @@ struct AdaptagramsEngine <: GraphLayoutEngine
     ideal_length::Float64
     avoid_overlaps::Bool
     orthogonal::Bool
+    node_margin::Float64
 end
 
 AdaptagramsEngine(; ideal_length::Real=60.0, avoid_overlaps::Bool=true,
-                  orthogonal::Bool=false) =
-    AdaptagramsEngine(Float64(ideal_length), avoid_overlaps, orthogonal)
+                  orthogonal::Bool=false, node_margin::Real=16.0) =
+    AdaptagramsEngine(Float64(ideal_length), avoid_overlaps, orthogonal,
+                      Float64(node_margin))
 
 function layout_graph(engine::AdaptagramsEngine, graph::GraphGraph, sizes::Dict,
                       constraints::Vector)
@@ -132,11 +140,11 @@ function layout_graph(engine::AdaptagramsEngine, graph::GraphGraph, sizes::Dict,
 
     handle = ccall((:adaptagrams_layout, libadaptagrams_shim), Ptr{Cvoid},
                    (Cint, Ptr{Cdouble}, Ptr{Cdouble}, Cint, Ptr{Cint}, Ptr{Cint},
-                    Cdouble, Cint, Cint),
+                    Cdouble, Cint, Cint, Cdouble),
                    Cint(n), in_w, in_h, Cint(ne), esrc, edst,
                    engine.ideal_length, Cint(engine.avoid_overlaps),
-                   Cint(engine.orthogonal))
-    handle == C_NULL && error("AdaptagramsEngine: native layout failed (see VERIFY notes in adaptagrams_shim.cpp).")
+                   Cint(engine.orthogonal), engine.node_margin)
+    handle == C_NULL && error("AdaptagramsEngine: native layout failed (see adaptagrams_shim.cpp).")
 
     try
         rx = Ref{Cdouble}(0.0); ry = Ref{Cdouble}(0.0)
