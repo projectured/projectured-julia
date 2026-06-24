@@ -1,12 +1,15 @@
 # Consolidating operations into `ReplaceReferencedValue`
 
-> **Status (updated 2026-06-24): steps 0–3 DONE, merged to `main`.** The keystone
-> (step 1: `ReplaceReferencedValue`
-> a reader-list citizen + the `document === nothing` rule), Group 2 widget-state
-> writes (step 2), and `ReplaceDocumentOperation` (step 3) are folded and verified.
-> Remaining: Group 4 sequence edits (step 4), Group 3 range replaces (step 5, the
-> big one), the reader-dispatch-list collapse (step 6), Group 2b (step 7), and the
-> docs rewrite (step 8). See [Migration steps](#migration-steps).
+> **Status (updated 2026-06-24): steps 0–3 merged to `main`; step 4 + the docs
+> (step 8, partial) done on branch `worktree-consolidate-operations`.** Remaining:
+> Group 3 range replaces (step 5, the big one) and the reader-dispatch-list collapse
+> (step 6), then finish the docs. Done so far: the keystone (step 1:
+> `ReplaceReferencedValue` a reader-list citizen + the `document === nothing` rule),
+> Group 2 widget-state writes (step 2), `ReplaceDocumentOperation` (step 3), Group 4
+> sequence edits (step 4), and the generic-operations documentation (step 8,
+> partial). Remaining: Group 3 range replaces (step 5), the reader-dispatch-list
+> collapse (step 6), Group 2b (step 7), and finishing the docs. See
+> [Migration steps](#migration-steps).
 >
 > Background: a 2026-06-24 re-survey (a) widened the inventory to operations added
 > since the 2026-06-23 audit (Group 2 widget-state writes, the projection-field
@@ -482,17 +485,25 @@ field of `CollectionInsertOperation`, matching Lisp `make-operation/compound`.
      `test_document_insertion` 14/14; clipboard, versioning, dragging,
      `test_repl(json_example)`, `test_repl(workbench_example)` all green.
 
-4. **🟡 OPEN — Fold Group 4 structural sequence edits.**
-   - `CollectionInsertOperation`/`CollectionDeleteOperation` (`Operation.jl:209,235`)
-     → `ReplaceReferencedValue(nothing, path / RangeReference(...), items/[])`; the
-     `selection` field becomes a trailing `ReplaceSelectionOperation` in a
-     `CompoundOperation`.
-   - `WorkbenchOpenDocumentOperation`/`WorkbenchCloseDocumentOperation`
-     (`Workbench.jl:364,381`) → identity-rooted
-     `ReplaceReferencedValue(page, elements/Range, …)`.
-   - **Removes both `Collection*` branches from the reader lists.** *Test:*
-     `DocumentInsertionTest`, `test_repl(json_example)` array insert, versioning
-     create/delete (`VersioningToAny.jl` uses `CollectionInsert/Delete`).
+4. **✅ DONE (branch `worktree-consolidate-operations`, commit `fd56d12`):** fold
+   Group 4 structural sequence edits.
+   - `CollectionInsertOperation`/`CollectionDeleteOperation` deleted; replaced by the
+     `insert_elements(path, index, items[, selection]; root)` and
+     `delete_elements(path, index[, count]; root)` builders → a `ReplaceReferencedValue`
+     whose terminal step is a `RangeReference` (zero-width = insert, range+empty =
+     delete). A new `_write_slot!(parent, ::RangeReference, items::AbstractVector)`
+     does the splice; a single (non-vector) value still hits the element-overwrite
+     method. `insert` with a selection appends a trailing `ReplaceSelectionOperation`
+     in a `CompoundOperation`.
+   - `WorkbenchOpenDocumentOperation`/`WorkbenchCloseDocumentOperation` are now
+     builder functions returning an identity-rooted splice (`root=page`; close
+     converts its 1-based index to 0-based).
+   - **Removed both `Collection*` branches from ALL FIVE reader dispatchers**
+     (`prepend_steps_to_op`, default `projection_read`, and the ScreenToScreen /
+     Clipboard / Versioning `_prefix_op` readers). *Verified:* `xml_reader`,
+     `versioning`, `clipboard`, `doc_insertion`, `workbench_b1`, `dragging`,
+     `object_to_widget`, `test_repl(json_example)`, `test_repl(workbench_example)`
+     green; `json_reader` 47/1 (pre-existing array-insert selection baseline).
 
 5. **🔴 OPEN — Fold Group 3 range replaces (largest blast radius, do last).**
    `StringReplaceRangeOperation`/`NumberReplaceRangeOperation` (`Primitive.jl:117,99`)
@@ -531,9 +542,16 @@ field of `CollectionInsertOperation`, matching Lisp `make-operation/compound`.
    `part_evaluator` made lazy). The cell-idiom conversion is the real work and is a
    standalone consistency improvement; the fold itself is then trivial.
 
-8. **OPEN — Docs.** Rewrite [`documentation/operations.md`](../../documentation/operations.md)
-   around `ReplaceReferencedValue` + `CompoundOperation` once steps 1–6 land; update
-   the `CompoundOperation` docstring and the two `INVARIANT:` comments.
+8. **🟡 PARTIAL (branch `worktree-consolidate-operations`, commit `4eb38a3`):** Docs.
+   [`documentation/operations.md`](../../documentation/operations.md) now leads with the
+   generic `ReplaceReferencedValue` (rooting rule, terminal-kind dispatch, the
+   `replace_document`/`insert_elements`/`delete_elements` builder table, `CompoundOperation`),
+   has a "remain distinct" table, tells authors to prefer the generic op, and both
+   `INVARIANT:` notes are updated. Stale references in `widget.md`, `versioning.md`,
+   `architecture.md`, `concepts.md`, `orientation.md`, `editor.md`,
+   `tutorial-new-domain.md`, `roadmap.md` were fixed. **Remaining:** revisit once
+   steps 5–6 land (drop `String/NumberReplaceRange` from the "remain distinct" table
+   and from the two reader-dispatch lists in the invariants).
 
 9. **Leave alone — Group 5 irreducible** + `ReplaceSelectionOperation` (the
    multi-slot recursive selection write, `Operation.jl:74`). No work; listed for
