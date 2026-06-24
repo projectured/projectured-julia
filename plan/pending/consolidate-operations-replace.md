@@ -164,20 +164,35 @@ as currently authored:
 
 So the fix is **not** an iomap-invalidation hook in `evaluate_operation` (that would
 be a hack). The principled fix — matching the rest of the system — is to **author
-these projections reactively**: make the flag a `Cell` *and* express the
-flag-dependent `output` as a **derived cell** over it (print both/all branches so
-their outputs exist, then select reactively). Then a plain
-`ReplaceReferencedValue(projection, @reference <flag>, value)` cell write recomputes
-the selection with no rebuild, and Group 2b folds **exactly like Group 2** — no
-special handling. Cost: building child iomaps that may not be displayed (cheap for
-clipboard's two children; potentially wasteful for versioning's *N* versions — the
-likely reason the eager-select-one + rebuild shortcut was taken). `ReplaceFocusPartOperation`
-is the existing proof this works: it writes a projection field and does **not** drop
-the iomap, because the new `part` is re-read at print time.
+these projections in the cell idiom every other projection already uses**:
 
-So Group 2b is **lower priority / optional**: fold it only as part of (or after)
-re-authoring each projection's flag-dependent output reactively. See
-[Migration step 7](#migration-steps).
+- **All projection fields should be `Cell`s.** The [`@projection`](../../package/kernel/src/common/Projection.jl#L164)
+  macro turns every declared field into a `Cell`, auto-wraps ctor args, and
+  generates `getproperty`/`setproperty!` so `p.flag` reads `[]` (registering a
+  reactive dependency when read inside a recompute thunk) and `p.flag = v` writes
+  the cell (invalidating dependents). The clipboard projections are hand-written
+  `mutable struct … <: Projection` with a **plain `display_slice::Bool`**
+  (`ClipboardToAny.jl:68,81`) — they bypass `@projection`, which is the anomaly,
+  not the norm. Converting them to `@projection` (or otherwise making the flag a
+  `Cell`) is most of the work.
+- **Express the flag-dependent `output` as a derived `Cell`** over the flag, instead
+  of an eager ternary. A plain `ReplaceReferencedValue(projection, @reference <flag>, value)`
+  write then invalidates that cell; the next pull recomputes the selection and the
+  output switches — no `editor.iomap = nothing`.
+
+**No wasteful printing.** The engine is pull-based / lazy: *"invisible parts of the
+output don't recompute even when their inputs change, because nothing pulls on them"*
+([reactive-cells.md:46–55](../../documentation/reactive-cells.md#L46)). So a derived
+`output` that selects the active branch only ever forces the **selected** child's
+output cells; the unselected branch (and versioning's other *N−1* versions) is never
+pulled and never computes. You get both laziness and reactivity — the eager-select +
+rebuild shortcut buys nothing. `ReplaceFocusPartOperation` is the existing proof: it
+writes a projection field and does **not** drop the iomap, because the new `part` is
+re-read at print time.
+
+So Group 2b folds **exactly like Group 2** once each projection is moved to the cell
+idiom + a derived output cell — a small, principled fix (and a latent
+consistency/correctness improvement on its own). See [Migration step 7](#migration-steps).
 
 ### Group 3 — sub-value *range* writes (string/number)
 
@@ -480,21 +495,23 @@ field of `CollectionInsertOperation`, matching Lisp `make-operation/compound`.
    folds it). Delete the now-dead per-op branches and tighten the two `INVARIANT:`
    comments. This is the headline cleanup the whole plan exists for.
 
-7. **🟡 OPTIONAL — Group 2b projection-field ops (re-author reactively first).**
+7. **🟡 OPEN — Group 2b projection-field ops (cell-idiom conversion first).**
    `ToggleClipboardSliceDisplayOperation`/`ToggleClipboardCollectionDisplayOperation`
    (`ClipboardToAny.jl:212,226`) and `SetVersionCriterionOperation`
    (`VersioningToAny.jl:150`) currently drop `editor.iomap` because their printers
    make the flag-dependent child choice **eagerly at construction time** (frozen into
-   the iomap), not as a derived cell. The principled fold is **not** an
-   iomap-invalidation hook — it is to **author the flag-dependent `output` reactively**
-   (flag as `Cell`; print both/all branches; select the output via a derived cell over
-   the flag). Once a projection reads its flag reactively, the iomap drop disappears and
-   the op folds into a plain `ReplaceReferencedValue(projection, flag, value)` — exactly
-   like Group 2 (see the [Group 2b](#group-2b--projection-field-writes-that-today-drop-editoriomap)
-   write-up; `ReplaceFocusPartOperation` already works this way). Also fold
-   `ToggleCollapseOperation` and `ReplaceFocusPartOperation` here (the latter needs
-   `part_evaluator` made lazy). Low value — defer or skip; the reactive re-authoring is
-   the real work.
+   the iomap), not as a derived cell. The fix is **not** an iomap-invalidation hook —
+   it is to move the projection to the standard cell idiom: (a) make the flag a `Cell`
+   (the clipboard structs are hand-written `mutable struct`s with a plain
+   `display_slice::Bool` — convert to `@projection`), and (b) express the
+   flag-dependent `output` as a **derived cell** over the flag. The pull-based engine
+   then only forces the selected branch (no wasteful printing — see
+   [Group 2b](#group-2b--projection-field-writes-that-today-drop-editoriomap)), the iomap
+   drop disappears, and the op folds into a plain `ReplaceReferencedValue(projection, flag, value)`
+   — exactly like Group 2 (`ReplaceFocusPartOperation` already works this way). Also
+   fold `ToggleCollapseOperation` and `ReplaceFocusPartOperation` here (the latter needs
+   `part_evaluator` made lazy). The cell-idiom conversion is the real work and is a
+   standalone consistency improvement; the fold itself is then trivial.
 
 8. **OPEN — Docs.** Rewrite [`documentation/operations.md`](../../documentation/operations.md)
    around `ReplaceReferencedValue` + `CompoundOperation` once steps 1–6 land; update
