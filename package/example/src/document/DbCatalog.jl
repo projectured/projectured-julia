@@ -80,13 +80,30 @@ function make_dvdrental_dbcatalog_document_example(;
     explore_dbcatalog!(iomap.output)
 end
 
+# PostgreSQL spells many built-in types verbosely ("character varying",
+# "timestamp without time zone"), which makes the card's Type column — and so the
+# whole card — very wide (a `last_update timestamp without time zone` row alone is
+# wider than the 260px card floor). Map the verbose spellings to the conventional
+# short ER names so cards stay compact; unknown types pass through unchanged.
+const _SHORT_TYPES = Dict(
+    "timestamp without time zone" => "timestamp",
+    "timestamp with time zone"    => "timestamptz",
+    "time without time zone"      => "time",
+    "time with time zone"         => "timetz",
+    "character varying"           => "varchar",
+    "character"                   => "char",
+    "double precision"            => "double",
+    "bit varying"                 => "varbit",
+)
+_short_type(t::AbstractString) = get(_SHORT_TYPES, t, t)
+
 # One entity-relationship node: a WidgetCard titled with the table name whose
 # content is a WidgetTable of the table's columns (Column | Type). Reading
 # `t.name` / `t.columns` and `c.name` / `c.data_type` auto-derefs the @document
 # Cells; iterating the `columns` CellVector yields the child DbCatalogColumn docs
 # (and forces that table's lazy column query).
 function _table_card(t::DbCatalogTable)
-    rows  = [[c.name, c.data_type] for c in t.columns]
+    rows  = [[c.name, _short_type(c.data_type)] for c in t.columns]
     table = WidgetTable(Point2D(0, 0), ["Column", "Type"], rows; padding=6)
     WidgetCard(Point2D(0, 0); title=t.name, content=table, width=260)
 end
