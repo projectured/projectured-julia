@@ -6,12 +6,12 @@ rendered face of the reified `GestureBinding` data. Each [`GestureRow`](@ref)
 pairs a gesture rendering (`describe(pattern)`) with what it does and whether it
 is currently applicable; [`GestureMapToSyntax`](../projection/primitive/GestureMapToSyntax.jl)
 projects a `GestureMap` onto the existing Syntax → Text → Graphics pipeline so the
-help overlay reuses the normal display path.
+help window reuses the normal display path.
 
 Build one from a binding list and the document the bindings act on (applicability
 is evaluated against that document's current selection):
 
-    gesture_map(collect_gestures(editor), editor.document)
+    gesture_map(collect_gestures(pipeline, recursion, iomap), focused_doc)
     gesture_map(document_gestures(JsonObject), some_object)   # global, by type
 """
 module GestureMapModule

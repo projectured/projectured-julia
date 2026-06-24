@@ -347,7 +347,7 @@ end
 # ─────────────────────────────────────────────────────────────────────────
 # Help-gesture recognition
 #
-# The gesture that summons the gesture-help overlay. Lisp uses Ctrl-H; here the
+# The gesture that summons the gesture-help window. Lisp uses Ctrl-H; here the
 # unambiguous F1 ("help") is used, since Ctrl-? would need `Ctrl+Shift+/` handling.
 # A gesture carries no intent (event-to-gesture.md), so there is no keymap to bind
 # a `:help` intent — the summons is just whichever gesture this predicate matches.
@@ -358,9 +358,10 @@ end
 """
     is_help_gesture(event) -> Bool
 
-True when `event` is the gesture that summons the gesture-help overlay (F1). The
-editor builds a `GestureMap` from `collect_gestures(editor)` on this gesture and
-overlays it for display; any next gesture dismisses it.
+True when `event` is the gesture that summons the gesture-help window (F1). A
+content-level `GestureHelpProjection` decorator matches this and emits an
+`OpenWindowOperation` whose content renders `collect_gestures` over the focused
+pipeline; the help window closes itself.
 """
 is_help_gesture(event) = event isa KeyDown && event.key === :f1
 

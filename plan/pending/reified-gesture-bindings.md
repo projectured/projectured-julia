@@ -2,8 +2,8 @@
 
 > **Status (implemented on branch `worktree-reified-gesture-bindings`).**
 > Stages 0–3 **done**; Stage 4 **rendering + help-gesture predicate done**, the
-> live editor overlay invocation **deferred** (a clearly-scoped follow-up — see the
-> note in Stage 4). All targeted tests green; JSON `document_read` parity holds at
+> live help **redesigned as a new sibling window opened via the tooltip-as-window rail**
+> (2026-06-24, superseding the reverted editor seam — see the note in Stage 4). All targeted tests green; JSON `document_read` parity holds at
 > the pre-existing 47/1/0 baseline. New tests: `test_gesture_binding` (34+),
 > `test_json_gesture_collection` (10), `test_gesture_map` (14). Key decisions and
 > the resolution of the open questions are recorded inline and under
@@ -232,37 +232,105 @@ handling, so F1 is the unambiguous v1. (Now that key chords landed in Stage 0, a
 chord could also summon help, but that would need a `KeyChordPattern` / a chord
 entry in the recogniser's table — neither wired; F1 stays the v1.)
 
-**Invocation / overlay lifecycle — kernel seam ✅ (2026-06-24); rendering ⏳.**
+**Invocation / overlay lifecycle — _redesigned_ as a projection (2026-06-24).**
 
-The **kernel invocation seam is landed** ([`Editor.jl`](../../package/kernel/src/editor/Editor.jl)):
-- `help_overlay(editor::Editor)` seam, default `nothing` (exported), overridden by
-  a display-layer method that builds the overlay's `(; document, projection)`.
-- An `Editor.help_saved` field holding the saved `(document, projection, iomap)`
-  while the overlay is up, plus `_show_help_overlay!` / `_dismiss_help_overlay!`.
-- `read!` handling: on `is_help_gesture` (F1), show the overlay if one is available
-  (save state, swap in, force reprint) else consume the gesture; while the overlay
-  is up, **any** next gesture dismisses it and restores the prior state. Both
-  branches are **gated** (F1 / overlay-active) and the default is no-op, so with no
-  display-layer `help_overlay` the behaviour is byte-identical (verified:
-  `test_repls` shows only pre-existing failures; gesture suites green).
+> **Architecture correction.** The first cut put the overlay in the *editor*
+> (`help_overlay(editor)` seam + `Editor.help_saved` document/projection swap +
+> F1-gated branches in `read!`, commit `4d64447`). That is *fishy*: it special-cases
+> the core read-print loop and reaches *up* from `collect_gestures(editor)` to grab
+> editor state. In ProjecturEd **everything is a projection** — context-sensitive
+> help is a *view* concern, so it belongs in a decorator projection, not the editor.
+> **The editor seam is to be reverted** in favour of the design below. (The editor
+> already routes every gesture through `projection_read(editor.projection, …)`
+> [`Editor.jl:170`], and decorator projections override the 4-arg `Change` reader
+> [`Projection.jl:142`], so a top-of-chain projection intercepts F1 with no editor
+> change at all.)
 
-⏳ **Remaining: the display-layer rendering.** A `help_overlay(editor::Editor)`
-method that builds `ScreenDocument([WindowDocument(content = gesture_map(collect_gestures(editor), editor.document))])`
-+ the projection `RecursiveProjection(TypeDispatchingProjection(ScreenDocument =>
-WindowManagerProjection(inner=ScreenToScreen()), WindowDocument => ScreenToScreen(),
-GestureMap => SequentialProjection(GestureMapToSyntax(), RecursiveProjection(SyntaxToText()),
-WordWrapping(measure), TextToGraphics(measure))))` — mirroring `Examples.jl`'s
-screen pipeline. It belongs in the **example/backend layer** (it needs
-`truetype_measure_text` + window/geometry conventions the domain/kernel don't carry)
-and must extend the kernel generic module-qualified. The render path itself is
-proven by `test_gesture_map`; this step adds the screen wrapping + an integration
-test (drive F1 through a scripted backend, or `projection_print` the overlay).
+**Placement decision (2026-06-24): help is a _new window_, opened beside the
+content** (not a pane-replacement), so the user sees **both** the context and the
+available operations and can close the help when done. This maps **exactly** onto the
+existing tooltip-as-window rail — no new windowing machinery:
+
+`TooltipDecoratorProjection`
+([`TooltipDecorator.jl`](../../package/domain/src/projection/higherorder/TooltipDecorator.jl))
+is a content-level decorator whose reader emits `OpenWindowOperation` /
+`CloseWindowOperation` (carrying a `content::Document`); those bubble up to
+`WindowManagerProjection` ([`WindowManager.jl`](../../package/kernel/src/projection/higherorder/WindowManager.jl)),
+which appends/removes a real `WindowDocument` on the `ScreenDocument` and projects its
+content through the same recursion. The gesture-help window is the same shape.
+
+Two new pieces + one wiring change:
+
+- **`GestureHelpProjection`** — a content-level **decorator** (over the content
+  pipeline, like `TooltipDecoratorProjection`), transparent printer (passes the wrapped
+  content's output straight through — the content window is unchanged). **Reader:** on
+  `is_help_gesture` (F1) emit
+  `OpenWindowOperation(id=:gesture_help, style=:normal, content=GestureHelp(iomap.input))`
+  — i.e. open a sibling window targeting *the focused content document* (`iomap.input`);
+  child op has priority (tooltip rule). Re-pressing F1 re-emits the open, which the
+  manager treats as an **update** of the same id — so it *refreshes* the help to the
+  now-focused context (no fragile cross-window toggle state; the window is dismissed
+  from itself — see close, below). F1 reaches this decorator because the input
+  `EventEnvelope` is dispatched into the focused window's content sub-iomap
+  (`CopyingProjection`), exactly as tooltips receive their events.
+- **`GestureHelp(target::Document)`** content document + a
+  **`GestureHelp => GestureHelpRenderProjection`** arm on the screen
+  `TypeDispatchingProjection`. The render projection projects `target` through the
+  content pipeline, runs `bindings = collect_gestures(content_pipeline, recursion, iomap)`
+  — *this* is the correct entry point (the projection-form collector, **not**
+  `collect_gestures(editor)`) — builds `gesture_map(bindings, target)` (applicability vs
+  `target`'s selection → context-sensitive) and renders it via
+  `SequentialProjection(GestureMapToSyntax(), RecursiveProjection(SyntaxToText()),
+  WordWrapping(measure), TextToGraphics(measure))`. Because `target` is the **live**
+  focused document object, the help **updates reactively** as its selection changes while
+  the window stays open. The `measure` fn (the only display coupling) is injected at the
+  `Examples.jl` wiring layer, exactly like the rest of the render pipeline — so
+  `GestureHelpRenderProjection` is a plain **domain** projection.
+- **Wiring (`Examples.jl`):** wrap the content arm in `GestureHelpProjection`, and add
+  the `GestureHelp => GestureHelpRenderProjection(target_pipeline = content_core,
+  gesture_renderer = …)` arm to the screen `TypeDispatchingProjection`, passing the SDL
+  `measure`. (`target_pipeline` is the *undecorated* content `Sequential` so
+  `collect_gestures` over it doesn't have to descend back through the decorator. For v1
+  the example has one content type; a `TypeDispatching` of per-type content cores
+  generalizes it later.)
+
+**Close:** the help window's native close button (`WindowCloseRequest`) and/or `Esc`
+inside it → `CloseWindowOperation(:gesture_help)`. *(To verify in implementation: whether
+`WindowCloseRequest` is already translated to a `CloseWindowOperation`/remove for ordinary
+windows, or needs a tiny reader on the `GestureHelp` arm.)*
+
+> No `showing`/`help_saved` state, no editor branch, no document mutation by the editor:
+> F1 → `OpenWindowOperation` (bubbles up) → `WindowManager` opens the window; the window
+> renders the focused doc's collected gestures live and closes itself. Pure projection +
+> the existing window rail.
+
+⏳ **Remaining work:**
+1. **Revert the editor seam** (`help_overlay`, `Editor.help_saved`, `_show_help_overlay!`,
+   `_dismiss_help_overlay!`, the two `read!` branches, `collect_gestures(editor)`, the
+   `help_overlay` export + `collect_gestures`/`is_help_gesture` imports from Editor).
+   **Keep** kernel `is_help_gesture` (now consumed by the decorator) and the
+   projection-form `collect_gestures(projection, recursion, iomap)`.
+2. Add **`GestureHelp` document** + **`GestureHelpProjection`** (content decorator) +
+   **`GestureHelpRenderProjection`** (render arm) in the **domain** layer.
+3. **Wire into `Examples.jl`**: wrap the content arm, add the `GestureHelp` type-dispatch
+   arm, inject the SDL `measure`.
+4. **Tests:** (i) the render projection — `projection_print(GestureHelpRenderProjection,
+   GestureHelp(focused_doc))` yields gesture-map graphics whose rows are
+   `collect_gestures` over the focused chain (reuses `test_gesture_map` machinery);
+   (ii) an F1 roundtrip — the decorator's reader on `KeyDown(:f1)` returns an
+   `OpenWindowOperation(:gesture_help, …)`, and the `WindowManager` then carries a second
+   window; (iii) close roundtrip.
 
 ## Follow-up passes (seams already built; reify incrementally)
 
-- **Live help overlay** (Stage 4 invocation, above): kernel seam + read!
-  show/dismiss ✅ landed; ⏳ remaining = the display-layer `help_overlay` rendering
-  method (screen pipeline, in the example/backend layer) + an integration test.
+- **Live help window** (Stage 4 invocation, above) — **redesigned as a sibling
+  window opened via the tooltip-as-window rail** (2026-06-24): F1 in the focused content
+  emits `OpenWindowOperation(:gesture_help, content=GestureHelp(focused_doc))` (a
+  `GestureHelpProjection` content decorator), the `WindowManager` opens a real window
+  beside the content, and a `GestureHelpRenderProjection` arm renders the collected
+  gestures live; close from the window dismisses it. Help is a *projection* + the existing
+  window rail, **not** an editor concern. The editor-seam first cut (`4d64447`) is **to be
+  reverted**.
 - **Decision (2026-06-24): gestures match modifiers _exactly_.** A gesture is
   identified by its exact modifier set, so `Left`, `Shift+Left`, `Ctrl+Left`,
   `Alt+Left` are *distinct* gestures and an unbound combination simply declines.
