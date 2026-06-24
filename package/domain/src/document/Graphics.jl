@@ -504,6 +504,14 @@ along the layout axis.
 function hit_element_at(canvas::GraphicsCanvas, x::Int, y::Int)
     layout = canvas.layout
     elements = canvas.elements
+    # A hit must fall within the canvas's own bounds. Some elements are unbounded
+    # on one side (a GraphicsText has no right edge — see `_hit_test_element`), so
+    # without this clip a canvas would claim hits in a sibling's column and
+    # misroute pointer events in horizontal composites. Guarded so auto-sized
+    # canvases (`w`/`h` == 0) keep their previous, unclipped behaviour.
+    cw = canvas.w; ch = canvas.h
+    (cw > 0 && (x < 0 || x >= cw)) && return nothing
+    (ch > 0 && (y < 0 || y >= ch)) && return nothing
     early_stop = !canvas.overlapping_elements && layout != layout_none
     if elements isa ListNode
         # Check prev-direction elements (negative offsets)
