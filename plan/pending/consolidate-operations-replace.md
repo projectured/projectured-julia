@@ -8,9 +8,14 @@
 > `ReplaceDocumentOperation` (step 3), Group 4 sequence edits (step 4), and the
 > generic-operations documentation (step 8, partial), and step 6 (closed the latent
 > reroot gap for the folded ops in the WorkbenchToWidget/`_retarget_op` readers).
-> Remaining: Group 2b (step 7, optional) and finishing the docs (step 8). Step 5 was
-> tried and dropped — `String`/`NumberReplaceRange` are dispatch-load-bearing and
-> stay distinct. See [Migration steps](#migration-steps).
+> **Two steps were investigated and dropped: step 5** (fold `String`/`NumberReplaceRange`
+> — dispatch-load-bearing, ~19 reader methods specialize on the type) **and step 7**
+> (fold Group 2b — the `editor.iomap` drop is the idiomatic *structural* switch; the
+> reactive system only propagates value changes within a fixed structure). The core
+> consolidation is **essentially complete**: `ReplaceDocumentOperation`, the six
+> widget-state ops, and the `Collection*`/Workbench ops are folded into
+> `ReplaceReferencedValue` + builders, and reader rerooting is consistent. Remaining:
+> a final docs pass (step 8). See [Migration steps](#migration-steps).
 >
 > Background: a 2026-06-24 re-survey (a) widened the inventory to operations added
 > since the 2026-06-23 audit (Group 2 widget-state writes, the projection-field
@@ -168,37 +173,34 @@ as currently authored:
   re-derive **structure** (which child / how many children). Changing the exposed
   child changes structure ⇒ rebuild ⇒ the iomap drop.
 
-So the fix is **not** an iomap-invalidation hook in `evaluate_operation` (that would
-be a hack). The principled fix — matching the rest of the system — is to **author
-these projections in the cell idiom every other projection already uses**:
-
-- **All projection fields should be `Cell`s.** The [`@projection`](../../package/kernel/src/common/Projection.jl#L164)
-  macro turns every declared field into a `Cell`, auto-wraps ctor args, and
-  generates `getproperty`/`setproperty!` so `p.flag` reads `[]` (registering a
-  reactive dependency when read inside a recompute thunk) and `p.flag = v` writes
-  the cell (invalidating dependents). The clipboard projections are hand-written
-  `mutable struct … <: Projection` with a **plain `display_slice::Bool`**
-  (`ClipboardToAny.jl:68,81`) — they bypass `@projection`, which is the anomaly,
-  not the norm. Converting them to `@projection` (or otherwise making the flag a
-  `Cell`) is most of the work.
-- **Express the flag-dependent `output` as a derived `Cell`** over the flag, instead
-  of an eager ternary. A plain `ReplaceReferencedValue(projection, @reference <flag>, value)`
-  write then invalidates that cell; the next pull recomputes the selection and the
-  output switches — no `editor.iomap = nothing`.
-
-**No wasteful printing.** The engine is pull-based / lazy: *"invisible parts of the
-output don't recompute even when their inputs change, because nothing pulls on them"*
-([reactive-cells.md:46–55](../../documentation/reactive-cells.md#L46)). So a derived
-`output` that selects the active branch only ever forces the **selected** child's
-output cells; the unselected branch (and versioning's other *N−1* versions) is never
-pulled and never computes. You get both laziness and reactivity — the eager-select +
-rebuild shortcut buys nothing. `ReplaceFocusPartOperation` is the existing proof: it
-writes a projection field and does **not** drop the iomap, because the new `part` is
-re-read at print time.
-
-So Group 2b folds **exactly like Group 2** once each projection is moved to the cell
-idiom + a derived output cell — a small, principled fix (and a latent
-consistency/correctness improvement on its own). See [Migration step 7](#migration-steps).
+> **Investigated 2026-06-24 — keep these distinct; the `editor.iomap` drop is
+> idiomatic, not a hack.** The appealing idea was: make the flag a `Cell` and express
+> the flag-dependent `output` as a *derived cell*, so flipping it recomputes the
+> selection reactively (lazily — only the selected branch is pulled) and no rebuild is
+> needed; then the op folds into a plain `ReplaceReferencedValue`. It does **not**
+> work, for a structural reason the codebase is consistent about:
+>
+> - The reactive engine propagates **value** changes within a **fixed structure**.
+>   `projection_print` chooses *which child a projection exposes* **eagerly at print
+>   time**, frozen into the iomap. `CopyingProjection` embeds child documents as frozen
+>   `im.output` nodes and makes only leaf value fields (e.g. `selection`) derived
+>   cells; `AlternativeProjection` reads its `index` cell at print time and switches
+>   only "on the next `projection_print`". There is no reactive structural-switch —
+>   and switching the exposed child is exactly the "swap a subtree out from under the
+>   projection" case that [operations.md](../../documentation/operations.md)'s invariant
+>   says **must** drop the iomap.
+> - The clipboard/versioning projections output the **active child's type directly
+>   (no wrapper)** — the projection chain's type contract requires it — so the
+>   "derived content cell inside a stable wrapper" trick would change the output type
+>   and break the chain.
+>
+> So folding Group 2b would need either unsupported reactive-structural-selection
+> machinery or an iomap-invalidation hook on the generic op (rejected). For 3
+> low-value ops that is not worth it: **they stay distinct** — a legitimate "switch
+> which child this projection exposes" operation. (`ReplaceFocusPartOperation` is
+> *not* a counter-example: its `part` change is re-read by the printer to navigate,
+> a value change, not a structural child-swap — which is why it needs no drop.) See
+> [Migration step 7](#migration-steps).
 
 ### Group 3 — sub-value *range* writes (string/number) — **KEEP (reclassified)**
 
@@ -548,23 +550,40 @@ field of `CollectionInsertOperation`, matching Lisp `make-operation/compound`.
      pre-existing 23/8 baseline; `database_tabular` errored only on a live-DB SQL
      teardown (environmental).
 
-7. **🟡 OPEN — Group 2b projection-field ops (cell-idiom conversion first).**
-   `ToggleClipboardSliceDisplayOperation`/`ToggleClipboardCollectionDisplayOperation`
-   (`ClipboardToAny.jl:212,226`) and `SetVersionCriterionOperation`
-   (`VersioningToAny.jl:150`) currently drop `editor.iomap` because their printers
-   make the flag-dependent child choice **eagerly at construction time** (frozen into
-   the iomap), not as a derived cell. The fix is **not** an iomap-invalidation hook —
-   it is to move the projection to the standard cell idiom: (a) make the flag a `Cell`
-   (the clipboard structs are hand-written `mutable struct`s with a plain
-   `display_slice::Bool` — convert to `@projection`), and (b) express the
-   flag-dependent `output` as a **derived cell** over the flag. The pull-based engine
-   then only forces the selected branch (no wasteful printing — see
-   [Group 2b](#group-2b--projection-field-writes-that-today-drop-editoriomap)), the iomap
-   drop disappears, and the op folds into a plain `ReplaceReferencedValue(projection, flag, value)`
-   — exactly like Group 2 (`ReplaceFocusPartOperation` already works this way). Also
-   fold `ToggleCollapseOperation` and `ReplaceFocusPartOperation` here (the latter needs
-   `part_evaluator` made lazy). The cell-idiom conversion is the real work and is a
-   standalone consistency improvement; the fold itself is then trivial.
+7. **❌ WON'T DO (investigated 2026-06-24) — leave Group 2b
+   (`Toggle{Clipboard…Display}` + `SetVersionCriterion`) as distinct ops.** The
+   earlier idea — make the flag a `Cell` + express the flag-dependent `output` as a
+   *derived cell*, so the `editor.iomap` drop disappears and the op folds into a
+   plain `ReplaceReferencedValue` — turns out **not to be supported by the
+   architecture**, for a principled reason:
+
+   - The reactive engine propagates **value** changes within a **fixed structure**.
+     A projection's `projection_print` makes its structural choices (which child it
+     exposes) **eagerly at print time**, and they are frozen into the iomap.
+     Confirmed by `CopyingProjection` (child documents are embedded as frozen
+     `im.output` nodes; only leaf value fields like `selection` are derived cells)
+     and by `AlternativeProjection` (reads its `index` cell at print time; its
+     docstring says a switch "takes effect on the **next** `projection_print`").
+     There is **no reactive structural-switch** mechanism — switching the exposed
+     child is exactly the "swap a subtree out from under the projection" case the
+     [operations.md invariant](../../documentation/operations.md) says **must** drop
+     the iomap.
+   - The clipboard/versioning projections output the **active child's type
+     directly (no wrapper)** — required by the projection chain's type contract
+     (the parent expects e.g. a `SyntaxNode`, not a clipboard-shaped wrapper). So the
+     "derived content cell in a stable wrapper" trick can't apply without changing
+     the output type and breaking the chain.
+
+   So the `editor.iomap` drop is the **idiomatic** structural-switch mechanism here,
+   not a hack — and folding these into the generic `ReplaceReferencedValue` would
+   need either unsupported reactive-structural-selection machinery or an
+   iomap-invalidation hook on the generic op (rejected). For 3 low-value ops that is
+   not worth it. **They stay distinct** (a legitimate "switch which child this
+   projection exposes" operation), alongside `ReplaceSelectionOperation` and the
+   Group 3 range edits. `ToggleCollapseOperation` likewise stays (its `nothing`-target
+   resolution at the SyntaxToText layer is also non-trivial). `ReplaceFocusPartOperation`
+   could still fold *if* `part_evaluator` were made lazy, but it is a single op of
+   marginal value — defer.
 
 8. **🟡 PARTIAL (commit `33e767c`, on `main`):** Docs.
    [`documentation/operations.md`](../../documentation/operations.md) now leads with the
