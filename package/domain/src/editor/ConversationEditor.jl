@@ -51,7 +51,8 @@ import ..ColorModule: color_default, color_solarized_gray
 import ..ReferenceModule: Reference, ConcreteReferencePath, FieldReference,
                           RangeReference, EmptyReferencePath, skip_type_checkpoints
 import ..KeyboardModule: KeyDown, KeyPress
-import ..EventCaseModule: var"@event_case"
+import ..GestureBindingModule: GestureBinding, KeyDownPattern, KeyPressPattern,
+                              matches, projection_gestures
 import ..IoMapModule: SimpleIoMap
 
 export ConversationComposerToWidget, composer_read, finalize_draft!, new_draft, reset_draft!,
@@ -483,45 +484,84 @@ panel (which routes its input keys to the draft). `ENTER` on a plain text typein
 yields a `ComposerSubmitOperation`; the panel intercepts that to submit the draft
 into the conversation instead of merely normalizing it.
 """
-function composer_read(draft::ConversationDraft, evt::KeyPress)
-    evt.modifiers.ctrl && return nothing
-    _is_editable(_active_content(draft)) || return nothing
-    ComposerInputOperation(draft, String(evt.text))
-end
-
-function composer_read(draft::ConversationDraft, evt::KeyDown)
+# The composer's gesture table, reified as `GestureBinding`s and dispatched on the
+# **active** (last) part's mode, so the very set that fires (`composer_read`, shared
+# with the assistant panel) is the set the gesture-help window shows
+# (`projection_gestures`) — fire == show. Char insert + Backspace are shared by every
+# editable mode; the Return / Shift+Return / Alt+Return / Tab / Esc meaning is
+# mode-specific. Modifiers are matched as the old `@event_case` did: `[:shift]`/`[:alt]`
+# are exact, a bare key (`mods=nothing`) matches any modifiers, and the exact-modifier
+# rows precede the bare one so Shift/Alt+Return win over plain Return (first match).
+function _composer_bindings(draft::ConversationDraft)
+    insert = GestureBinding(KeyPressPattern(nothing),
+        (d, e) -> ComposerInputOperation(d, String(e.text)),
+        (d, sel) -> true, "Insert character", "composer")
+    backspace = GestureBinding(KeyDownPattern(:backspace, nothing, nothing),
+        (d, e) -> ComposerBackspaceOperation(d),
+        (d, sel) -> true, "Delete backward", "composer")
+    newline = GestureBinding(KeyDownPattern(:return, [:shift], nothing),
+        (d, e) -> ComposerNewlineOperation(d),
+        (d, sel) -> true, "New line", "composer")
+    revert = GestureBinding(KeyDownPattern(:escape, nothing, nothing),
+        (d, e) -> ComposerRevertOperation(d),
+        (d, sel) -> true, "Cancel", "composer")
     c = _active_content(draft)
     if c isa PrimitiveString
-        return @event_case evt begin
-            KeyDown(:return; shift) => ComposerNewlineOperation(draft)
-            KeyDown(:return)        => ComposerSubmitOperation(draft)
-            KeyDown(:tab)           => ComposerInsertPartOperation(draft)
-            KeyDown(:insert)        => ComposerInsertPartOperation(draft)
-            KeyDown(:backspace)     => ComposerBackspaceOperation(draft)
-        end
+        GestureBinding[
+            newline,
+            GestureBinding(KeyDownPattern(:return, nothing, nothing),
+                (d, e) -> ComposerSubmitOperation(d),
+                (d, sel) -> true, "Submit", "composer"),
+            GestureBinding(KeyDownPattern(:tab, nothing, nothing),
+                (d, e) -> ComposerInsertPartOperation(d),
+                (d, sel) -> true, "Add a structured part", "composer"),
+            GestureBinding(KeyDownPattern(:insert, nothing, nothing),
+                (d, e) -> ComposerInsertPartOperation(d),
+                (d, sel) -> true, "Add a structured part", "composer"),
+            backspace, insert,
+        ]
     elseif c isa DocumentInsertion
-        return @event_case evt begin
-            KeyDown(:return)    => ComposerCommitChooserOperation(draft)
-            KeyDown(:escape)    => ComposerRevertOperation(draft)
-            KeyDown(:backspace) => ComposerBackspaceOperation(draft)
-        end
+        GestureBinding[
+            GestureBinding(KeyDownPattern(:return, nothing, nothing),
+                (d, e) -> ComposerCommitChooserOperation(d),
+                (d, sel) -> true, "Choose insertion kind", "composer"),
+            revert, backspace, insert,
+        ]
     elseif c isa JuliaInsertion
-        return @event_case evt begin
-            KeyDown(:return; alt)   => ComposerEvaluateOperation(draft)
-            KeyDown(:return; shift) => ComposerNewlineOperation(draft)
-            KeyDown(:return)        => ComposerCommitSourceOperation(draft)
-            KeyDown(:escape)        => ComposerRevertOperation(draft)
-            KeyDown(:backspace)     => ComposerBackspaceOperation(draft)
-        end
+        GestureBinding[
+            GestureBinding(KeyDownPattern(:return, [:alt], nothing),
+                (d, e) -> ComposerEvaluateOperation(d),
+                (d, sel) -> true, "Evaluate", "composer"),
+            newline,
+            GestureBinding(KeyDownPattern(:return, nothing, nothing),
+                (d, e) -> ComposerCommitSourceOperation(d),
+                (d, sel) -> true, "Commit source", "composer"),
+            revert, backspace, insert,
+        ]
     elseif c isa JsonInsertion || c isa XmlInsertion
         # Editable source insertion: ENTER parses it into a JsonDocument/XmlElement
         # (no-op while it doesn't parse). Structural key-driven insertion (`[` →
         # JsonArray, …) is still future work.
-        return @event_case evt begin
-            KeyDown(:return; shift) => ComposerNewlineOperation(draft)
-            KeyDown(:return)        => ComposerCommitSourceOperation(draft)
-            KeyDown(:escape)        => ComposerRevertOperation(draft)
-            KeyDown(:backspace)     => ComposerBackspaceOperation(draft)
+        GestureBinding[
+            newline,
+            GestureBinding(KeyDownPattern(:return, nothing, nothing),
+                (d, e) -> ComposerCommitSourceOperation(d),
+                (d, sel) -> true, "Commit source", "composer"),
+            revert, backspace, insert,
+        ]
+    else
+        GestureBinding[]
+    end
+end
+
+# Fire the first binding whose pattern matches (and precondition holds). Shared by the
+# composer projection and the live assistant panel (both route input keys to the draft);
+# a non-`ConversationDraft` first argument has no composer gestures.
+function composer_read(draft::ConversationDraft, evt)
+    for b in _composer_bindings(draft)
+        if matches(b.pattern, evt) && b.applicable(draft, nothing)
+            op = b.operation(draft, evt)
+            op === nothing || return op
         end
     end
     nothing
@@ -547,5 +587,10 @@ function projection_read(::ConversationComposerToWidget, iomap::SimpleIoMap, evt
     end
     op
 end
+
+# The show side of the very table the reader fires (fire == show): the help window
+# enumerates exactly the composer gestures available for the draft's current mode.
+projection_gestures(::ConversationComposerToWidget, iomap) =
+    iomap.input isa ConversationDraft ? _composer_bindings(iomap.input) : GestureBinding[]
 
 end # module

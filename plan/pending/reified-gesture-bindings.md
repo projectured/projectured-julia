@@ -6,12 +6,15 @@
 > reverted editor seam — see the ✅ note in Stage 4); it is **default-on** in
 > `run_example` (F1).
 >
-> **Reification follow-ups (2026-06-25):** all the clean editing readers are now reified —
-> `VersioningToAny`, `DocumentInsertion`, and document-level `@gestures PrimitiveString`
-> (de-duping both primitive projections) — plus `collect_gestures` descent for the
-> Clipboard/Versioning decorators. The one remaining large reader is the mode-dependent,
-> assistant-shared **Conversation composer** (deferred with rationale below); the rest of
-> the tail is geometry-coupled mouse-describe and speculative no-consumer infra.
+> **Reification follow-ups (2026-06-25):** **all the document/projection editing readers
+> are now reified** — `VersioningToAny`, `DocumentInsertion`, document-level
+> `@gestures PrimitiveString` (de-duping both primitive projections), and the
+> mode-dependent, assistant-shared **Conversation composer** (one `_composer_bindings`
+> table that both `composer_read` fires and `projection_gestures` shows) — plus
+> `collect_gestures` descent for the Clipboard/Versioning decorators. The remaining tail
+> is **only** the geometry-coupled mouse-select *describe* (enumeration-only) and
+> speculative no-consumer infra (chord/multi-click patterns); no `@event_case` editing
+> reader remains.
 >
 > All targeted tests green; JSON `document_read` parity holds at
 > the pre-existing 47/1/0 baseline. New tests: `test_gesture_binding` (34+),
@@ -413,12 +416,19 @@ directly, already independent of `_multi_window_projection`).
     level — they need `p.commit`). Bare patterns kept loose (`mods=nothing`) to preserve
     the old `@event_case` semantics exactly. Green: `test_document_insertion` (14),
     `test_conversation_editor` (29).
-  - ⏳ `ConversationComposerToWidget` — **still deferred (genuinely not "small"):**
-    `composer_read` *dispatches on the active part type* (`PrimitiveString` /
-    `DocumentInsertion` / `JuliaInsertion` / `Json|XmlInsertion`, each with different
-    Return/Shift+Return/Tab/Esc), and is **shared with the live assistant panel** — a
-    clean fire==show needs `projection_gestures` to branch on mode and the shared reader
-    to route through it. Confirmed (2026-06-25) as the one remaining large/risky reader.
+  - ✅ **`ConversationComposerToWidget` (2026-06-25)** — the mode-dependent composer is
+    reified as **one** `_composer_bindings(draft)` table that branches on the active part
+    type (`PrimitiveString` / `DocumentInsertion` / `JuliaInsertion` / `Json|XmlInsertion`),
+    which **both** `composer_read` *fires* (a small first-match loop, preserving its
+    `(draft, evt)` signature — so the **shared assistant panel** path is unchanged) **and**
+    `projection_gestures` *exposes* (so the help window shows exactly what fires). The
+    projection reader's `ComposerSubmitOperation`→host-submit post-processing is untouched.
+    Modifier semantics preserved exactly (the old `@event_case` `[:shift]`/`[:alt]` exact
+    rows precede the bare any-modifier row). Char-insert now ignores modifiers (KeyPress
+    convention, like Text/JSON/Primitive). Green: `test_conversation_editor` (38, incl. a
+    new fire==show show-side test), `test_assistant_mvp` (only the pre-existing collapse-
+    width fail), `test_repl(conversation)` (221 key-event paths green; the 4 MousePress
+    `FieldError(...:children)` fails are pre-existing on main — conversation mouse not wired).
   - ⏳ Generic mouse-select describe for `TextToGraphics` / `WidgetToGraphics` /
     `LayoutToGraphics` (enumeration-only — the click hit-testing stays geometry-coupled;
     the *keyboard* parts already delegate to `document_read`).

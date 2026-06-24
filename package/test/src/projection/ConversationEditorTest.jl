@@ -11,6 +11,7 @@ using Projectured: ConversationTurn, ConversationPart, PrimitiveString, TextText
                    ComposerEvaluateOperation, ComposerRevertOperation,
                    ComposerSubmitOperation,
                    projection_print, projection_read, evaluate_operation,
+                   projection_gestures,
                    KeyPress, KeyDown
 using Projectured: Modifiers
 
@@ -115,6 +116,31 @@ function test_conversation_editor()
             @test projection_read(proj, iom, KeyDown(:return, Modifiers())) isa ComposerCommitSourceOperation
             @test projection_read(proj, iom, KeyDown(:return, Modifiers(alt=true))) isa ComposerEvaluateOperation
             @test projection_read(proj, iom, KeyDown(:return, Modifiers(shift=true))) isa ComposerNewlineOperation
+        end
+
+        @testset "show: projection_gestures mirrors what the reader fires (fire == show)" begin
+            proj = ConversationComposerToWidget()
+            turn = _ce_draft()
+            iom = projection_print(proj, turn)
+            descs() = Set(b.description for b in projection_gestures(proj, iom))
+
+            # text typein mode — Submit / New line / Add a structured part / Insert
+            @test "Submit" in descs()
+            @test "New line" in descs()
+            @test "Add a structured part" in descs()
+            @test "Insert character" in descs()
+            @test !("Choose insertion kind" in descs())   # chooser-only, not here
+
+            # kind chooser mode — Submit is gone, Choose appears
+            _ce_apply!(ComposerInsertPartOperation(turn))
+            @test "Choose insertion kind" in descs()
+            @test !("Submit" in descs())
+
+            # julia source mode — Evaluate + Commit source
+            _ce_type!(turn, "julia")
+            _ce_apply!(ComposerCommitChooserOperation(turn))
+            @test "Evaluate" in descs()
+            @test "Commit source" in descs()
         end
     end
 end
