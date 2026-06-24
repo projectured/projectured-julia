@@ -39,7 +39,7 @@ import ..WidgetModule: WidgetDocument, WidgetInsertion, WidgetLabel, WidgetText,
                        WidgetBadge, WidgetSeparator, WidgetCard, WidgetSwitch, WidgetProgress,
                        WidgetSlider, WidgetRadioGroup, WidgetAvatar, WidgetAlert, WidgetSkeleton,
                        WidgetToggle, WidgetToggleGroup, WidgetSelect, WidgetTextarea, WidgetAccordion,
-                       WidgetTable, WidgetTree,
+                       WidgetTable, WidgetTree, WidgetTreeNode,
                        Inset, Point2D, inset_default,
                        ScrollWidgetOperation, SelectTabOperation, SetScrollBarValueOperation,
                        StartSplitterDragOperation, ResizeSplitPaneOperation, EndSplitterDragOperation
@@ -3450,53 +3450,216 @@ end
 @projection struct WidgetTreeToGraphicsCanvas <: Projection
     measure::Function
     label_text::StyleText         # node labels
+    icon_text::StyleText          # node icon glyphs (own column)
     indent::Int                   # per-depth horizontal step
     chevron_column::Int           # width reserved for the expand chevron
+    icon_column::Int              # width reserved for the icon glyph
     row_padding::Int              # vertical padding per row
     chevron::StyleStroke          # chevron color + width
     chevron_size::Int
 end
 
-# A node is either a leaf label (String) or a (label, children::Vector) tuple.
-_tree_children(node) = (node isa Tuple && length(node) >= 2 && node[2] isa AbstractVector) ? node[2] : nothing
-_tree_label(node)    = node isa Tuple ? string(node[1]) : string(node)
+# A node is a WidgetTreeNode (icon + label + children), a leaf label (String), or
+# a legacy (label, children::Vector) tuple. Icon-less nodes report an empty icon.
+_tree_icon(node)  = node isa WidgetTreeNode ? node.icon : ""
+_tree_label(node) = node isa WidgetTreeNode ? string(node.label) :
+                    (node isa Tuple ? string(node[1]) : string(node))
+function _tree_children(node)
+    if node isa WidgetTreeNode
+        isempty(node.children) ? nothing : node.children
+    elseif node isa Tuple && length(node) >= 2 && node[2] isa AbstractVector
+        node[2]
+    else
+        nothing
+    end
+end
+
+# One flattened, rendered row. `path` is the 1-based index chain from the roots
+# down to this node (`[i]`, `[i, j]`, …); `y0`/`height` are its band in
+# outer-canvas coordinates. `depth`, `icon`, `label`, `has_children` carry
+# everything the element pass needs so it never re-walks the node tree.
+struct WTreeRow
+    path::Vector{Int}
+    depth::Int
+    icon::Any
+    label::String
+    has_children::Bool
+    y0::Int
+    height::Int
+end
+
+# Geometry snapshot: the flattened rows plus the canvas extent. Persisted on the
+# iomap so the reader can hit-test clicks and resolve keyboard navigation (the
+# tree analog of the table's `WTGeometry`).
+struct WTreeGeometry
+    rows::Vector{WTreeRow}
+    total_w::Int
+    total_h::Int
+end
+
+struct WidgetTreeToGraphicsCanvasIoMap <: IoMap
+    projection::Any
+    input::Any
+    output::Any
+    geometry::Cell
+end
+
+# ── Node-path ⇄ WidgetTree reference ─────────────────────────────────────────
+# A node at path `[i, j, k]` is addressed `roots[i].children[j].children[k]`
+# (a `FieldReference` + element `RangeReference` per level), mirroring how the
+# table addresses `rows[r][c]`. These are the single source of truth shared by
+# the selection band, the click reader, and the FileSystemToWidget mappers.
+
+function _wtree_path_ref(path::Vector{Int}, k::Int=1)
+    isempty(path) && return EmptyReferencePath()
+    field = k == 1 ? "roots" : "children"
+    idx = path[k]
+    tail = k == length(path) ? EmptyReferencePath() : _wtree_path_ref(path, k + 1)
+    ConcreteReferencePath(FieldReference(field),
+        ConcreteReferencePath(RangeReference(idx - 1, idx), tail))
+end
+
+function _wtree_ref_path(reference)
+    cur = skip_type_checkpoints(reference)
+    path = Int[]
+    first = true
+    while cur isa ConcreteReferencePath
+        h = cur.head
+        (h isa FieldReference && h.name == (first ? "roots" : "children")) || return nothing
+        t = skip_type_checkpoints(cur.tail)
+        (t isa ConcreteReferencePath && t.head isa RangeReference && is_element_reference(t.head)) || return nothing
+        push!(path, t.head.start + 1)
+        cur = skip_type_checkpoints(t.tail)
+        cur isa EmptyReferencePath && return path
+        first = false
+    end
+    isempty(path) ? nothing : path
+end
 
 function projection_print(p::WidgetTreeToGraphicsCanvas, recursion, w::WidgetTree, ctx)
     w.visible == false && return SimpleIoMap(p, w, _empty_canvas())
     position = w.position::Point2D
     indent = _sc(p.indent)
     chevron_column = _sc(p.chevron_column)
+    icon_column = _sc(p.icon_column)
     chevron_size = _sc(p.chevron_size)
+    pad = _sc(p.row_padding)
     _, line_height = _text_size(p.measure, p.label_text.font, "M")
-    row_height = line_height + 2 * _sc(p.row_padding)
-    elements = Any[]
-    max_width = Ref(0)
-    y_cursor = Ref(0)
-    label_red, label_green, label_blue, label_alpha = _rgbai(p.label_text.color)
-    function walk(node, depth)
-        x = depth * indent
-        kids = _tree_children(node)
-        label = _tree_label(node)
-        if kids !== nothing && !isempty(kids)
-            _push_chevron!(elements, x + chevron_column ÷ 2, y_cursor[] + row_height ÷ 2, chevron_size, :down,
-                           p.chevron.color; stroke=max(1, _sc(p.chevron.width)))
-        end
-        label_width, _ = _text_size(p.measure, p.label_text.font, label)
-        push!(elements, GraphicsText(label, x + chevron_column, y_cursor[] + _sc(p.row_padding), p.label_text.font, label_red, label_green, label_blue, label_alpha))
-        max_width[] = max(max_width[], x + chevron_column + label_width)
-        y_cursor[] += row_height
-        if kids !== nothing
-            for c in kids
-                walk(c, depth + 1)
+    row_height = line_height + 2 * pad
+
+    # Flatten the node tree into rows once; both the geometry (hit-testing) and the
+    # element pass (drawing) read these rows, so they can never drift apart.
+    geometry = Cell(() -> begin
+        rows = WTreeRow[]
+        max_width = Ref(0)
+        y = Ref(0)
+        function walk(node, depth, path)
+            x = depth * indent
+            label = _tree_label(node)
+            kids = _tree_children(node)
+            label_width, _ = _text_size(p.measure, p.label_text.font, label)
+            push!(rows, WTreeRow(path, depth, _tree_icon(node), label,
+                                 kids !== nothing && !isempty(kids), y[], row_height))
+            max_width[] = max(max_width[], x + chevron_column + icon_column + label_width)
+            y[] += row_height
+            if kids !== nothing
+                for (i, c) in enumerate(kids)
+                    walk(c, depth + 1, vcat(path, i))
+                end
             end
         end
-    end
-    for n in w.roots
-        walk(n, 0)
-    end
-    SimpleIoMap(p, w, _make_canvas(_origin(position)..., max_width[], y_cursor[], elements))
+        for (i, n) in enumerate(w.roots)
+            walk(n, 0, [i])
+        end
+        WTreeGeometry(rows, max_width[], y[])
+    end)
+
+    label_red, label_green, label_blue, label_alpha = _rgbai(p.label_text.color)
+    icon_red, icon_green, icon_blue, icon_alpha = _rgbai(p.icon_text.color)
+    chevron_stroke = max(1, _sc(p.chevron.width))
+
+    elements = CellVector(() -> begin
+        geom = geometry[]
+        result = Any[]
+        # 1. Selection band behind the row content, when a node is selected.
+        sel_path = _wtree_ref_path(w.selection)
+        if sel_path !== nothing
+            for row in geom.rows
+                if row.path == sel_path
+                    push!(result, GraphicsRect(0, row.y0, geom.total_w, row.height,
+                                               _WT_HL_R, _WT_HL_G, _WT_HL_B, _WT_HL_A, _WT_HL_RADIUS))
+                    break
+                end
+            end
+        end
+        # 2. Per-row decoration: chevron (parents) + icon glyph + label.
+        for row in geom.rows
+            x = row.depth * indent
+            if row.has_children
+                _push_chevron!(result, x + chevron_column ÷ 2, row.y0 + row_height ÷ 2,
+                               chevron_size, :down, p.chevron.color; stroke=chevron_stroke)
+            end
+            icon = row.icon
+            if icon isa AbstractString && !isempty(icon)
+                push!(result, GraphicsText(icon, x + chevron_column, row.y0 + pad,
+                                           p.icon_text.font, icon_red, icon_green, icon_blue, icon_alpha))
+            end
+            push!(result, GraphicsText(row.label, x + chevron_column + icon_column, row.y0 + pad,
+                                       p.label_text.font, label_red, label_green, label_blue, label_alpha))
+        end
+        result
+    end)
+
+    canvas = GraphicsCanvas(Cell(Int32(_origin(position)[1])), Cell(Int32(_origin(position)[2])),
+                            Cell(() -> Int32(geometry[].total_w)),
+                            Cell(() -> Int32(geometry[].total_h)),
+                            elements, layout_none, true, Cell(nothing))
+    WidgetTreeToGraphicsCanvasIoMap(p, w, canvas, geometry)
 end
-@_printer_only WidgetTreeToGraphicsCanvas
+
+# Whole-node handles have no in-canvas cursor image (the band is drawn in place at
+# print time), and nothing flows back from below the graphics layer — so both
+# reference mappers are the empty map, exactly as the table's whole-element case.
+map_reference_forward(::WidgetTreeToGraphicsCanvas, iomap, reference) = nothing
+map_reference_backward(::WidgetTreeToGraphicsCanvas, iomap, reference) = nothing
+
+# Gesture reader: a left click selects the node under the cursor; ↑/↓ walk the
+# flattened rows. Everything else defers to the generic operation re-targeter.
+function projection_read(p::WidgetTreeToGraphicsCanvas, recursion, change::Change,
+                         iomap::WidgetTreeToGraphicsCanvasIoMap)
+    g = change.gesture
+    if change.operation === nothing && g isa MousePress && g.button === :left
+        return Change(g, _wtree_mouse_select(iomap, g))
+    end
+    if change.operation === nothing && g isa KeyDown
+        op = _wtree_key_navigate(iomap, g)
+        op === nothing || return Change(g, op)
+    end
+    payload = change.operation === nothing ? g : change.operation
+    return Change(g, projection_read(p, iomap, payload))
+end
+
+function _wtree_mouse_select(iomap::WidgetTreeToGraphicsCanvasIoMap, g::MousePress)
+    geom = iomap.geometry[]
+    (0 <= g.x < geom.total_w && 0 <= g.y < geom.total_h) || return nothing
+    for row in geom.rows
+        if row.y0 <= g.y < row.y0 + row.height
+            return ReplaceSelectionOperation(_wtree_path_ref(row.path))
+        end
+    end
+    return nothing
+end
+
+function _wtree_key_navigate(iomap::WidgetTreeToGraphicsCanvasIoMap, g::KeyDown)
+    g.key in (:up, :down) || return nothing
+    geom = iomap.geometry[]
+    isempty(geom.rows) && return nothing
+    cur = _wtree_ref_path(iomap.input.selection)
+    idx = cur === nothing ? 0 : something(findfirst(r -> r.path == cur, geom.rows), 0)
+    ni = g.key === :down ? (idx == 0 ? 1 : min(length(geom.rows), idx + 1)) :
+                           (idx <= 1 ? 1 : idx - 1)
+    ReplaceSelectionOperation(_wtree_path_ref(geom.rows[ni].path))
+end
 
 # ── Factory ────────────────────────────────────────────────────────────────
 
@@ -3601,8 +3764,10 @@ function WidgetToGraphics(font::StyleFont; measure::Function,
             StyleText(theme.font, theme.foreground), StyleText(theme.font_small, theme.muted_foreground),
             StyleStroke(theme.border, theme.border_width),
             theme.muted),
-        WidgetTree        => WidgetTreeToGraphicsCanvas(measurer, StyleText(theme.font, theme.foreground),
-            22, 18, 4,
+        WidgetTree        => WidgetTreeToGraphicsCanvas(measurer,
+            StyleText(theme.font, theme.foreground),
+            StyleText(theme.font, theme.muted_foreground),
+            22, 18, 20, 4,
             StyleStroke(theme.muted_foreground, theme.stroke), theme.chevron),
     )
 end

@@ -63,7 +63,7 @@ the fields they need plus `visible`/`selection`:
 | `WidgetTextarea(position, content; width, rows)` | Multi-line text surface |
 | `WidgetAccordion(position, items; expanded)` | Expandable sections |
 | `WidgetTable(position, headers, rows)` | Data table with hairline rows |
-| `WidgetTree(position, roots)` | Indented outline / tree view |
+| `WidgetTree(position, roots)` | Indented outline / tree view; nodes carry a `WidgetTreeNode(icon, label, children)` (icon + text), or a bare `String` / `(label, children)` for icon-less trees |
 
 Each has a minimal isolated example — e.g. `run_example(widget_table_example)`,
 `write_example_image(widget_tree_example, "tree.png")`.

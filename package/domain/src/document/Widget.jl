@@ -26,7 +26,7 @@ export Inset, Point2D,
        WidgetBadge, WidgetSeparator, WidgetCard, WidgetSwitch, WidgetProgress,
        WidgetSlider, WidgetRadioGroup, WidgetAvatar, WidgetAlert, WidgetSkeleton,
        WidgetToggle, WidgetToggleGroup, WidgetSelect, WidgetTextarea, WidgetAccordion,
-       WidgetTable, WidgetTree,
+       WidgetTable, WidgetTree, WidgetTreeNode,
        HideWidgetOperation, ShowWidgetOperation, ScrollWidgetOperation, SelectTabOperation,
        SetScrollBarValueOperation,
        StartSplitterDragOperation, ResizeSplitPaneOperation, EndSplitterDragOperation,
@@ -1055,12 +1055,31 @@ end
 # ── WidgetTree ──────────────────────────────────────────────────────────────
 
 """
+    WidgetTreeNode(icon, label, children = [])
+
+A single node of a [`WidgetTree`](@ref) carrying a dedicated **icon** slot
+distinct from its text **label** (the decoration model used by typical widget
+libraries — Swing `JTree` renderers, Qt's `QTreeView` decoration role). `icon`
+is `Any`: a glyph `String` today, an image document later. `children` is a
+`Vector` of child nodes (each a `WidgetTreeNode`, a leaf `String`, or a
+legacy `(label, children)` tuple); an empty vector marks a leaf.
+"""
+struct WidgetTreeNode
+    icon::Any
+    label::Any
+    children::Vector
+end
+WidgetTreeNode(icon, label) = WidgetTreeNode(icon, label, Any[])
+
+"""
     WidgetTree(position, roots)
 
-A tree / outline view. `roots` is a `Vector` of nodes, where each node is either
+A tree / outline view. `roots` is a `Vector` of nodes. A node is a
+[`WidgetTreeNode`](@ref) (icon + label + children), or — for icon-less trees —
 a leaf label (`String`) or a `(label, children::Vector)` tuple. Parent nodes get
-an expand chevron; children are indented. (A widget-styled counterpart to the
-file-system / navigator trees.)
+an expand chevron; an icon (when present) is drawn in its own column before the
+label; children are indented. (A widget-styled counterpart to the file-system /
+navigator trees.)
 """
 @document struct WidgetTree <: WidgetDocument
     position::Point2D

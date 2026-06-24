@@ -70,6 +70,7 @@ const widget_tree_example        = Example("widget_tree",        make_widget_tre
 const layout_example         = Example("layout",         make_layout_document_example,         make_layout_projection_example)
 const book_example           = Example("book",           make_book_document_example,           make_book_projection_example)
 const filesystem_example     = Example("filesystem",     make_filesystem_document_example,     make_filesystem_projection_example)
+const filesystem_widget_example = Example("filesystem_widget", make_filesystem_document_example, make_filesystem_widget_projection_example)
 const navigator_example      = Example("navigator",      make_navigator_document_example,      make_navigator_projection_example)
 const collection_example     = Example("collection",     make_collection_document_example,     make_collection_projection_example)
 const reversing_example      = Example("reversing",      make_collection_document_example,     make_reversing_projection_example)
@@ -172,7 +173,7 @@ const examples = [
     widget_avatar_example, widget_alert_example, widget_skeleton_example,
     widget_toggle_example, widget_toggle_group_example, widget_select_example,
     widget_textarea_example, widget_accordion_example, widget_table_example, widget_tree_example,
-    layout_example, book_example, filesystem_example, navigator_example,
+    layout_example, book_example, filesystem_example, filesystem_widget_example, navigator_example,
     collection_example, reversing_example, filtering_example, searching_example, sorting_example, focusing_example, table_example, math_table_example, graph_example, workbench_example,
     math_example,
     julia_example,
