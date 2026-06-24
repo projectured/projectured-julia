@@ -1,9 +1,13 @@
 # Recursive gesture reader: delegate to the selected child, lift the operation
 
-> **Status: pending.** Design grounded in the current reader architecture
-> (verified empirically, 2026-06-24). The acceptance demo — a live example that
-> types the full nested `json_example` from an empty document, recorded to video —
-> is Stage 4 and is the original ask that surfaced the bug.
+> **Status: DONE (2026-06-24).** Implemented on branch `recursive-gesture-reader`.
+> All five stages landed; nested object/array authoring by typing works; parity
+> sweep green (JSON reader at the pre-existing 47/1/0 baseline, `test_repl(json)`
+> 225/0/0, `test_syntax_tree_selection` 29/0/0); `json_build_live` types the full
+> nested `json_example` from empty (214 pure-event entries, **zero** injected
+> operations) and reproduces `make_json_document_example()`; recorded to a 43s MP4.
+> Decisions and the open-question resolutions are recorded inline and under
+> **"Decisions made during implementation"** at the end.
 
 ## The design principle (to be documented)
 
@@ -143,33 +147,30 @@ Properties:
 Work in a dedicated worktree; commit per stage; keep the plan updated with
 decisions; run the **narrowest** covering test first (never `test_all`).
 
-- **Stage 1 — recursive event reader (kernel/template).** Add the
-  `focused_child_iomap` + lift helper and the recursive
-  `projection_read(p, iomap::RuleIoMap, evt)`; wire the leaf fallback to defer to
-  it. Tests: `test_json_to_syntax_reader` stays at 47/1/0 for root-level gestures.
-- **Stage 2 — nested authoring works.** Verify with a driver (the same
-  read→evaluate→reprint loop the recorder uses): from an empty doc, build a nested
-  object (`address`) and a nested array (`scores`) by typing only. New focused
-  tests: nested `,` inserts into the nested object/array; nested `Tab` moves
-  key→value inside a nested object; nested type-to-replace unchanged.
-- **Stage 3 — sweep + parity.** Run `test_json()` / `test_json_to_syntax()` /
-  `test_syntax_tree_selection` and the printer tests; confirm no regression beyond
-  the known-pre-existing baselines (see memory: JSON reader 47/1/0, syntax
-  tree-selection 12/9/4).
-- **Stage 4 — acceptance demo (the original ask).** Add
-  `json_build_live` to `LiveExamples.jl`: a `LiveExample` over a new empty-document
-  Example paired with the full `make_json_projection_example`, whose timeline types
-  the entire `json_example` (keys, values, nesting, arrays) using only
-  `timed_event` gestures (`{`, key, `Tab`, `"`/digits/`t`/`f`, `Alt+Up` to escape a
-  value before `,`, `,` for siblings). Verify the resulting document equals
-  `make_json_document_example()` (modulo the trailing insertion placeholder), then
-  **record it to a video** via `record_live_example(json_build_live, "…mp4")` and
-  report the path. Export + register in `live_examples`.
-- **Stage 5 — document the principle.** Write the principle (top of this file)
-  into `documentation/projection-system.md` (reader interface section) with a
-  pointer from `documentation/operations.md` (re-rooting) and the module docstrings
-  of `OperationRerooting.jl` / `Projection.jl`. Cross-link the existing precedents
-  (printer recursion, `map_reference_backward`, `WidgetToGraphics` routing).
+- ✅ **Stage 1 — recursive event reader (template).** Added `_focused_child` (one
+  method per child-carrying wiring) + the recursive
+  `projection_read(p, iomap::RuleIoMap, evt::Union{KeyPress,KeyDown})` in
+  `ProjectionTemplate.jl`, with the `RecursiveProjection`/`RuleIoMap`
+  disambiguation shim. `test_json_to_syntax_reader` stayed at 47/1/0.
+- ✅ **Stage 2 — nested authoring works.** Driver-verified: nested `,` inserts into
+  the nested object **and** array; nested `Tab` moves key→value inside a nested
+  object; nested type-to-replace unchanged.
+- ✅ **Stage 3 — sweep + parity.** `test_json` 29/0/0, `test_json_to_syntax` 11/0/0,
+  `test_json_to_syntax_reader` **47/1/0** (pre-existing array-insert quirk),
+  `test_syntax_tree_selection` **29/0/0** (the memory's 12/9/4 baseline is stale —
+  fully green now), `test_repl(json_example)` **225/0/0**.
+- ✅ **Stage 4 — acceptance demo (the original ask).** `json_build_live` over
+  `json_build_example` (a bare `JsonInsertion` under `make_json_projection_example`):
+  **214 pure `timed_event` entries, zero injected operations**, using `{`/`[`/`"`/
+  digits/`t`/`f` type-to-replace, `Tab` key→value, `,` siblings, and `Alt+Up`
+  tree-navigation to step out of a finished value. Driver-verified to reproduce
+  `make_json_document_example()` (numbers compared by value). Recorded headlessly
+  to `/home/projectured/json_build.mp4` (760×1000, h264, 1304 frames, 43.5s).
+- ✅ **Stage 5 — document the principle.** Added the "Recursive gesture reading"
+  subsection to `documentation/projection-system.md`, a cross-reference in
+  `documentation/operations.md`, and a note in the `OperationRerooting.jl` module
+  docstring. (`Projection.jl` needed no edit — the leaf default is simply
+  superseded by the more-specific template method; covered by the doc text.)
 
 ## Files (anticipated)
 
@@ -199,3 +200,49 @@ decisions; run the **narrowest** covering test first (never `test_all`).
 - `json_build_live` depends on Stage 1–3 landing; until then a flat-only or
   operation-assisted demo is the fallback (the already-committed `json_insert_live`
   shows the single-entry insert).
+
+## Decisions made during implementation
+
+- **Open Q1 (where it lives) → a single generic template method.**
+  `projection_read(p::Projection, iomap::RuleIoMap, evt::Union{KeyPress,KeyDown})`
+  in `ProjectionTemplate.jl` — every `@projection_template` structural projection
+  inherits the recursion, no JSON-specific code. `Projection.jl`'s leaf default was
+  *not* touched: the new method is strictly more specific (`RuleIoMap` + the event
+  `Union`) so it simply wins, and the leaf default still serves non-`RuleIoMap`
+  iomaps. The same `RecursiveProjection`/`RuleIoMap` ambiguity the op readers hit
+  was broken the same way (a concrete-typed shim deferring to the wrapper).
+- **Open Q2 (focused child + steps) → per-wiring `_focused_child`.** One small
+  method per child-carrying wiring (`NodeWiring`, `FixedNodeWiring`,
+  `MixedNodeWiring`, `SectionsWiring`; `AtomicWiring`/`InlineWiring` → `nothing`),
+  returning `(child_iomap, steps)`. Kept separate from `map_reference_backward`
+  (which maps an *output*-domain reference) because the event reader walks the
+  *input*-domain `selection` — clearer than overloading the existing walk.
+- **Open Q3 (selection freshness) → just read the propagated cell.** Each recursion
+  level reads its own `iomap.input.selection`. `set_selection!` already writes the
+  subtree-relative path into every nested `@document` node (incl. `JsonObjectEntry`),
+  so no threading or recomputation is needed; the cells are refreshed after every
+  operation. This made the change far smaller than feared.
+- **Open Q4 (type-to-replace) → unchanged, confirmed.** Under recursion `{`/`[`/`"`/
+  digit are produced by the focused value (relative) and lifted; the lifted path is
+  identical to the old root-relative one. The whole-root swap (`ReplaceReferencedValue`
+  with an empty path) only happens when the *root* is whole-selected (no focused
+  child), exactly as before.
+- **Open Q5 (`_object_insert` append point) → kept.** Appends at the focused
+  object's end; sequential authoring relies on it. No change to any `Json.jl`
+  gesture helper — they were already focus-relative; only the *dispatch target*
+  (focused doc vs. root) was wrong, which the recursive reader fixes.
+- **The `Alt+Up` ladder is the authoring "step out" gesture.** Mapped empirically
+  (with the new reader): from a scalar char-cursor, `Alt+Up×1` whole-selects the
+  value (scalars decline `,`, so it bubbles to the containing object); a finished
+  nested **array** needs `Alt+Up×3` and a nested **object** `Alt+Up×4` (or ×3 when
+  its last value is a bool, already whole-selected) to land on the enclosing entry
+  where `,` adds a root sibling. These fixed counts drive `json_build_live`.
+- **Number representation is a pre-existing modulo, left alone.** `splice_number`
+  (`kernel/src/api/Operation.jl`) reparses to `Float64`, so multi-digit typed
+  numbers render `30.0`/`95.0` (single digits stay `Int`). Making it parse integral
+  input as `Int` is a correct but out-of-scope core-primitive change with
+  cross-domain risk; `json_build_live` matches `make_json_document_example()` modulo
+  this. Noted as a possible separate follow-up.
+- **No `Json.jl` changes.** The audit in the Files section held: the JSON gesture
+  helpers were already correct for any focused object/array; the fix was purely the
+  recursive routing + lift at the template layer.
