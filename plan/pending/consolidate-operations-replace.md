@@ -1,14 +1,16 @@
 # Consolidating operations into `ReplaceReferencedValue`
 
 > **Status (updated 2026-06-24): steps 0–4 + the generic-operations docs (step 8,
-> partial) merged to `main`.** Remaining: Group 3 range replaces (step 5, the big
-> one) and the reader-dispatch-list collapse (step 6), then finish the docs. Done so far: the keystone (step 1:
-> `ReplaceReferencedValue` a reader-list citizen + the `document === nothing` rule),
-> Group 2 widget-state writes (step 2), `ReplaceDocumentOperation` (step 3), Group 4
-> sequence edits (step 4), and the generic-operations documentation (step 8,
-> partial). Remaining: Group 3 range replaces (step 5), the reader-dispatch-list
-> collapse (step 6), Group 2b (step 7), and finishing the docs. See
-> [Migration steps](#migration-steps).
+> partial) merged to `main`. Step 5 (fold `String`/`NumberReplaceRange`) was tried
+> and DROPPED — those ops are dispatch-load-bearing and stay distinct (see step 5).**
+> Done so far: the keystone (step 1: `ReplaceReferencedValue` a reader-list citizen +
+> the `document === nothing` rule), Group 2 widget-state writes (step 2),
+> `ReplaceDocumentOperation` (step 3), Group 4 sequence edits (step 4), and the
+> generic-operations documentation (step 8, partial). Remaining: step 6 (reduce the
+> reroot duplication for the *generic* ops + **fix the latent gap** where the folded
+> document-replace/sequence-splice ops aren't rerooted through the
+> WorkbenchToWidget/ODBC/`_retarget_op` readers), Group 2b (step 7), and finishing
+> the docs. See [Migration steps](#migration-steps).
 >
 > Background: a 2026-06-24 re-survey (a) widened the inventory to operations added
 > since the 2026-06-23 audit (Group 2 widget-state writes, the projection-field
@@ -198,31 +200,28 @@ So Group 2b folds **exactly like Group 2** once each projection is moved to the 
 idiom + a derived output cell — a small, principled fix (and a latent
 consistency/correctness improvement on its own). See [Migration step 7](#migration-steps).
 
-### Group 3 — sub-value *range* writes (string/number)
+### Group 3 — sub-value *range* writes (string/number) — **KEEP (reclassified)**
 
 | Operation | ctor sites |
 |---|---|
 | `StringReplaceRangeOperation(reference, replacement)` | 47 |
 | `NumberReplaceRangeOperation(reference, replacement)` | 11 |
 
-These splice a string into a character range whose terminal step is a
-`RangeReference`, then move the cursor. They fold into `ReplaceReferencedValue`
-if **evaluation dispatches on the terminal step kind**:
-
-- terminal `FieldReference` → overwrite the whole cell value (Group 1/2 path);
-- terminal `RangeReference` → splice `value` into the target's
-  string/sequence at `[start, stop]` (today's representation-dispatched
-  `splice_value!` in `Primitive.jl:202`, plus `_split_replace_reference` /
-  `_replace_terminal_with_cursor` — these already pick string vs. number by the
-  field's current value, not by the operation type).
-
-The cursor-move-after-edit is **not** part of the write — model it as a
-`CompoundOperation([replace, ReplaceSelectionOperation(cursor_path)])`, matching
-how `_replace_selection_with_cursor!` currently runs as a second step. String vs
-number is a property of the *target type*, not the operation, so the two ops
-merge into one path. (47+11 = 58 construction sites — the bulk of the migration;
-most are in tests and can be updated mechanically, or kept working via a
-deprecated constructor shim during transition.)
+> **Reclassified to keep (2026-06-24, after a trial fold + revert).** These look
+> like a `RangeReference` splice into a primitive value field — superficially a
+> `ReplaceReferencedValue` shape — but the *type* is **load-bearing for dispatch**:
+> ~19 `projection_read(p, iomap, op::StringReplaceRangeOperation)` methods across
+> ~12 projections specialize on it with non-trivial per-projection char-edit logic
+> (`SyntaxToText`/`SyntaxToWidget` span↔flat mapping, `ObjectToWidget` control-edit
+> parsing, `TextFiltering`/`TextHighlighting`/`WordWrapping`/`SelectionInverting`/
+> `TextFirstLine`/`XmlToSyntax`/`BookToSyntax`/…). They intercept *only* char-range
+> edits via the type; folding into the generic `ReplaceReferencedValue` would erase
+> that dispatch key and force a value-guard + generic-retarget tail into all 19
+> methods — more code, more fragile, on the most-used feature. So these are a
+> genuine distinct operation — *character-range edits* — and **stay**, alongside
+> `ReplaceSelectionOperation`. (Character splicing keeps living in the
+> representation-dispatched `splice_value!`, `Primitive.jl`.) See
+> [Migration step 5](#migration-steps) for the full rationale and the reverted trial.
 
 ### Group 4 — structural sequence edits (splice via `RangeReference`)
 
@@ -504,60 +503,44 @@ field of `CollectionInsertOperation`, matching Lisp `make-operation/compound`.
      `object_to_widget`, `test_repl(json_example)`, `test_repl(workbench_example)`
      green; `json_reader` 47/1 (pre-existing array-insert selection baseline).
 
-5. **🔴 OPEN — Fold Group 3 range replaces (largest blast radius, do last).**
-   `StringReplaceRangeOperation`/`NumberReplaceRangeOperation` (`Primitive.jl:117,99`)
-   → `ReplaceReferencedValue(nothing, path-with-terminal-RangeReference, replacement)`
-   + a trailing `ReplaceSelectionOperation(cursor_path)` in a `CompoundOperation`.
-   ~58+ construction/reference sites across many projection readers (see grep:
-   `String/NumberReplaceRangeOperation` appears in ~30 source files). Keep a
-   **deprecated constructor shim** during the transition so sites migrate
-   incrementally; update mechanically (delegate to a Sonnet subagent for the
-   repetitive edits, then verify). **Removes the two biggest branches from both
-   reader lists.** *Test:* `PrimitiveToTextTest`, `test_text_navigation` / typein
-   suites, `TextFilteringTest`, `TextHighlightingTest`.
+5. **❌ WON'T DO (attempted 2026-06-24, reverted) — do NOT fold
+   `String`/`NumberReplaceRange` into `ReplaceReferencedValue`.** The operation
+   *type* is **load-bearing for dispatch**: ~19 `projection_read(p, iomap, op::StringReplaceRangeOperation)`
+   methods across ~12 projections (`SyntaxToText`/`SyntaxToWidget` span↔flat mapping,
+   `ObjectToWidget` control-edit parsing, `TextFiltering`/`TextHighlighting`/
+   `WordWrapping`/`SelectionInverting`/`TextFirstLine`/`XmlToSyntax`/`BookToSyntax`/…)
+   specialize on it with **non-trivial per-projection char-edit logic**, intercepting
+   *only* character-range edits via the type. Folding it into the generic
+   `ReplaceReferencedValue` erases that dispatch key: every one of those 19 methods
+   would have to become `op::ReplaceReferencedValue` + an internal value-guard
+   (`document === nothing && value isa AbstractString && RangeReference terminal`) +
+   an `invoke`/replicated generic-retarget tail for the non-char RRVs they'd now also
+   catch — **more** code and more fragile than the current clean type-dispatch, on the
+   most-used feature (text editing). A trial fold (shim + char-splice evaluator + reader
+   reconciliation) was implemented and **reverted** at `bfc139c` once the 19-method
+   dispatch surface became clear. **Conclusion:** `String`/`NumberReplaceRange` are a
+   legitimate distinct operation — *character-range edits* — not a single-slot write.
+   They join `ReplaceSelectionOperation` as kept-by-design (Group 3 is reclassified as
+   "keep" in the inventory). The 2-line splice cleanup (a `RangeReference`+`CellVector`
+   element/insert/delete handler living in one place) was already achieved for Group 4;
+   character splicing stays in `Primitive.splice_value!`.
 
-   > **Discovery (2026-06-24) — steps 5 and 6 must merge; the reroot logic is
-   > duplicated far more widely than two lists.** Scoping step 5 found that the
-   > reference-rerooting dispatch is hand-copied into **~10 readers across three
-   > packages**, and several were **never taught `ReplaceReferencedValue` /
-   > `CompoundOperation`** (so they still only match `ReplaceSelection` / `String` /
-   > `NumberReplaceRange`): `WidgetToGraphics._retarget_op` (`:655`, else → pass
-   > through **unrerooted**), `WorkbenchToWidget` (`_prefix_operation` `:685`,
-   > `_retarget_panel_op`, and the shell reader), `ProjecturedOdbc` (`:562`, else →
-   > **drops** the op), and `ProjectionConfiguring` (`:106`). The five dispatchers
-   > updated in steps 1–4 (`prepend_steps_to_op`, default `projection_read`,
-   > ScreenToScreen/Clipboard/Versioning `_prefix_op`) are only half the story.
-   >
-   > **Consequence 1 (do first):** because those readers don't handle
-   > `ReplaceReferencedValue`/`CompoundOperation`, the already-folded
-   > `replace_document` / `insert_elements` / `delete_elements` ops are **not
-   > rerooted** if they flow through a workbench panel, the ODBC tabular editor, or
-   > `WidgetToGraphics._retarget_op` — a latent gap from steps 3–4 to **verify and
-   > fix** (no test currently exercises deep editing through those paths).
-   >
-   > **Consequence 2:** folding `String/NumberReplaceRange` (which removes their
-   > branches) would **break text/cell editing** through any reader that lacks an
-   > RRV branch. So step 5 *requires* the step-6 reconciliation first.
-   >
-   > **Recommended approach:** do step 6's reconciliation **before/with** step 5 —
-   > ideally make every bespoke reroot reader **delegate to the shared
-   > `prepend_steps_to_op` / `map_reference_backward`** (so RRV/Compound are handled
-   > in one place) instead of enumerating op types. Then folding `String/Number` is
-   > safe. Also: keep the char-splice **cursor move inside** the `ReplaceReferencedValue`
-   > evaluator (do **not** wrap it in a `CompoundOperation`) — otherwise every text
-   > reader would need new compound handling; and the string-vs-number discriminator
-   > moves to a target-typed `splice_value!(::PrimitiveNumber, …, ::Nothing, …)` so a
-   > cleared number field reparses as a number (verified: all `NumberReplaceRange`
-   > origins target a number-representation document).
-
-6. **🟢 OPEN — collapse the reader dispatch lists (merge with step 5; see discovery
-   above).** Make the bespoke reroot readers delegate to the shared
-   `prepend_steps_to_op` / `map_reference_backward` so `ReplaceReferencedValue`
-   (+ the `document === nothing` rule), `ReplaceSelectionOperation`, `CompoundOperation`,
-   and `ToggleCollapseOperation` (pass-through) are handled once, and the per-op
-   branches disappear everywhere — kernel, domain, **and `ProjecturedOdbc`**. This is
-   the headline cleanup the whole plan exists for; it is also the prerequisite that
-   makes the step-5 fold safe.
+6. **🟢 OPEN (reframed) — reduce the reroot duplication for the *generic* ops + fix the
+   latent gap.** Independent of (the abandoned) step 5: the reference-rerooting dispatch
+   is hand-copied into **~10 readers across three packages**, and several were **never
+   taught `ReplaceReferencedValue` / `CompoundOperation`** in steps 1–4, so the
+   *already-folded* `replace_document` / `insert_elements` / `delete_elements` ops are
+   **not rerooted** if they flow through those readers — a **latent gap to verify and
+   fix**: `WidgetToGraphics._retarget_op` (`:655`, else → passes through unrerooted),
+   `WorkbenchToWidget` (`_prefix_operation`, `_retarget_panel_op`, shell reader),
+   `ProjecturedOdbc` (`:562`, else → **drops** the op), `ProjectionConfiguring` (`:106`).
+   The fix: teach each to handle `ReplaceReferencedValue` (`document === nothing` →
+   its `map_reference_backward`/`_prepend`) + `CompoundOperation`, ideally by
+   **delegating to a single shared helper** rather than enumerating op types. The
+   `String`/`Number` branches **stay** (they are a distinct op per step 5). This still
+   removes the `ReplaceDocument`/`Collection*` redundancy and closes the latent gap; it
+   is no longer the wholesale "one branch" collapse the plan originally imagined,
+   because character-range edits remain their own dispatch.
 
 7. **🟡 OPEN — Group 2b projection-field ops (cell-idiom conversion first).**
    `ToggleClipboardSliceDisplayOperation`/`ToggleClipboardCollectionDisplayOperation`
