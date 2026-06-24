@@ -154,7 +154,22 @@ const json_select_and_edit_live = LiveExample("json_select_and_edit", json_examp
     );
     initial_selection = @reference entries[1].value.value{5})
 
+# Insert a brand-new `"role": "admin"` entry into the object. Starting from the
+# whole "name" value, `,` appends an empty entry (cursor on its key), type the
+# key, Tab moves to the value, `"` starts a string, then type the value. Pure
+# structural-authoring gestures (`,`-insert, Tab, type-to-replace).
+const json_insert_live = LiveExample("json_insert", json_example,
+    vcat(
+        [timed_event(KeyPress(','); hold=0.6)],               # add a new entry, cursor on its key
+        make_typein_gestures("role"),                          # type the key
+        [timed_event(KeyDown(:tab, Modifiers()); hold=0.6),    # Tab: key → value (whole)
+         timed_event(KeyPress('"'); hold=0.5)],                # start a string value
+        make_typein_gestures("admin"),                         # type the value
+    );
+    initial_selection = @reference entries[1].value)
+
 const live_examples = LiveExample[
     json_typein_live,
     json_select_and_edit_live,
+    json_insert_live,
 ]

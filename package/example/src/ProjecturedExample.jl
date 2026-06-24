@@ -177,7 +177,7 @@ export Example, examples, run_example, run_console_example, run_web_example, pri
 export make_json_console_projection_example
 export record_assistant_conversation_video
 export LiveExample, live_examples, play_live_example, record_live_example, timed_event, timed_operation
-export json_typein_live, json_select_and_edit_live
+export json_typein_live, json_select_and_edit_live, json_insert_live
 export generate_example_screenshots, update_guide_screenshots
 export json_example, json_sorted_example, json_null_example, json_string_example
 export json_widget_example, xml_widget_example
