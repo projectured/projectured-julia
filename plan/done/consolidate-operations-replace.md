@@ -604,6 +604,23 @@ field of `CollectionInsertOperation`, matching Lisp `make-operation/compound`.
    SyntaxToText layer is non-trivial); `ReplaceFocusPartOperation` could still fold *if*
    `part_evaluator` were made lazy, but is marginal — defer.
 
+   **Merged to `main` 2026-06-24 (commit `4019031`, fast-forward).** Rebased onto the
+   newer main cleanly: the Group 2b fold and main's interim gesture-reification both
+   touch `ClipboardToAny.jl`/`VersioningToAny.jl` but in non-overlapping regions, and
+   `test_clipboard_to_any`/`test_versioning_to_any` (covering *both*) stayed green;
+   `test_printers` 180050/180050, `test_readers` 20025/20025 on current main.
+
+   *Phantom regression resolved.* Before merging I saw the branch fail `graph_adaptagrams`
+   (~225 print/read failures) while main passed, and chased it as a reactive-Sequential
+   bug. It was **not** — a `git worktree` does not carry the gitignored native artifact
+   `package/adaptagrams/deps/libadaptagrams_shim.so`, so `AdaptagramsEngine.layout_graph`
+   hit `_unavailable_error()` (its `isavailable()` dlopens that per-checkout path) only in
+   the shim-less worktree. Proof: inlining both the eager and reactive Sequential
+   threadings into one process makes them identical (main: all OK; shim-less worktree: all
+   THREW); copying the built `.so` into the worktree flips it to OK and drops
+   `graph_adaptagrams` to the same 12 pre-existing typein failures main has. Lesson: for a
+   cross-checkout test diff, first check whether the worktree lacks a built native dep.
+
 8. **✅ DONE (commits `33e767c`, `343d9d6`, on `main`):** Docs.
    [`documentation/operations.md`](../../documentation/operations.md) leads with the
    generic `ReplaceReferencedValue` (rooting rule, terminal-kind dispatch, the
