@@ -23,7 +23,7 @@ All widgets subtype the abstract `WidgetDocument` (which subtypes `Document`).
 | `WidgetLabel(position, content)` | Static text label |
 | `WidgetText(position, content)` | Editable text |
 | `WidgetCheckbox(position, content)` | Boolean toggle (the `content` holds the checked state/label) |
-| `WidgetButton(position, size, content)` | Clickable button |
+| `WidgetButton(position, size, content; action)` | Clickable button — reacts to hover/press and invokes `action` on click |
 | `WidgetTooltip(position, size, content)` | Tooltip popup |
 | `WidgetMenuItem(content)` | Menu entry |
 
@@ -136,6 +136,8 @@ Defined alongside the widget types in
 | `SelectTabOperation(tabbed_pane, index)` | activate a tab |
 | `SetScrollBarValueOperation(bar, value)` | move the scroll-bar thumb |
 | `StartSplitterDragOperation` / `ResizeSplitPaneOperation` / `EndSplitterDragOperation` | drag a split-pane splitter to resize the two adjacent slots |
+| `InvokeWidgetActionOperation(widget)` | invoke a button's `action` callable (with the editor if it takes one) |
+| `SetWidgetHoverOperation(widget, value)` / `SetWidgetPressedOperation(widget, value)` | set a button's transient `hovered` / `pressed` flag |
 
 The `WidgetToGraphics` reader produces these in response to
 `MousePress`/`MouseScroll`, routing each through the appropriate container
@@ -164,6 +166,53 @@ conserved), clamped to each slot's `layout_min`/`layout_max`. In the
 the drag sticks instead of being undone by weighted redistribution. `sizes` is
 materialised from the measured slot extents on the first drag if it was empty.
 These cells are transient UI state and are not meant to be serialised.
+
+## Button behavior
+
+`WidgetButton` is interactive. Its reader maps mouse events to operations, and
+its printer renders from transient state — the same input → operation → input →
+printer loop every other widget uses:
+
+- **Click → action.** A `MousePress(:left)` on the button yields an
+  `InvokeWidgetActionOperation(button)`. The editor evaluates it by calling the
+  button's `action` callable — with the editor when the callable takes one
+  argument (so it can mutate `editor.document` / projection state), otherwise
+  with none. A `nothing` action is inert.
+- **Hover / press feedback.** The button carries two transient cells,
+  `hovered` and `pressed` (like the split pane's drag state — not serialised).
+  `MouseDown` / `MouseUp` set `pressed`; a `MouseMove` over the button sets
+  `hovered`. The printer reads both and picks the surface fill
+  (`pressed → active_color`, else `hovered → hover_color`, else
+  `background_color`) and drops the drop-shadow while pressed, so the button
+  re-renders reactively as its state changes.
+
+### Hover-out: `WidgetHoverTrackingProjection`
+
+Container hit-test routing delivers a `MouseMove` only to the child *under* the
+pointer, so a button learns when the pointer enters it but never when it leaves.
+`WidgetHoverTrackingProjection`
+([projection/higherorder/WidgetHoverTracking.jl](../../package/domain/src/projection/higherorder/WidgetHoverTracking.jl))
+closes that gap: wrap the widget pipeline in it (the standard
+`make_widget_projection_example` does). It is transparent on print; on each
+`MouseMove` it forwards the move to the inner pipeline to discover the
+now-hovered button, then emits a `CompoundOperation` that clears
+`hovered`/`pressed` on the previously-hovered button and sets `hovered` on the
+new one (or just clears, over dead space). It mirrors `HoverProbeProjection`.
+
+To make this work, the container readers (`WidgetComposite`, …) route
+`MouseMove` / `MouseDown` / `MouseUp` to the hit child, alongside the
+`MousePress` / `MouseScroll` they already routed.
+
+## Image content
+
+A leaf widget's `content` is polymorphic: besides a string (or, for some
+widgets, a child `Document`), `WidgetLabel` and `WidgetButton` accept an
+`ImageDocument` (`ImageFile` / `ImageMemory`). The printer detects it and emits a
+`GraphicsImage` sized to the image's natural size, centered like a text label
+(a muted placeholder rect until the image's `raw` cell is decoded). Decoding
+stays in the backend (`decode_image_file!`); the domain-layer printer only
+*reads* `content.raw`, the same seam inline text images use. See
+`widget_button_image_example`.
 
 ## Projection to graphics
 

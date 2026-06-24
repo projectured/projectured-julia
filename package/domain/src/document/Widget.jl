@@ -30,6 +30,7 @@ export Inset, Point2D,
        HideWidgetOperation, ShowWidgetOperation, ScrollWidgetOperation, SelectTabOperation,
        SetScrollBarValueOperation,
        StartSplitterDragOperation, ResizeSplitPaneOperation, EndSplitterDragOperation,
+       InvokeWidgetActionOperation, SetWidgetHoverOperation, SetWidgetPressedOperation,
        evaluate_operation,
        inset_default, inset_size, inset_width, inset_height,
        inset_top_left, inset_top_right, inset_bottom_left, inset_bottom_right,
@@ -180,14 +181,28 @@ setfn!(w::WidgetCheckbox, f::Function) = (setfn!(getfield(w, :content), f); w)
 # ── WidgetButton ───────────────────────────────────────────────────────────
 
 """
-    WidgetButton(position, size, content; <base kwargs>)
+    WidgetButton(position, size, content; action, <base kwargs>)
 
-A clickable button..
+A clickable button.
+
+`action` is an optional callable invoked when the button is clicked (via
+`InvokeWidgetActionOperation`). It is called with the editor when it accepts one
+argument, otherwise with none, so it can mutate `editor.document` / projection
+state. A `nothing` action makes the button inert on click.
+
+`hovered` and `pressed` are **transient UI state** holding the pointer
+interaction: `hovered` is `true` while the pointer is inside the button,
+`pressed` is `true` while the left button is held down on it. The printer reads
+them to pick the surface fill, so changing them re-renders only this button.
+They are written by the `WidgetButton` reader (`SetWidgetHoverOperation` /
+`SetWidgetPressedOperation`) and are not part of the document's content — they
+are not meant to be serialised.
 """
 @document struct WidgetButton <: WidgetDocument
     position::Point2D
     size::Point2D
     content::Any
+    action::Any
     visible::Bool
     margin::Inset
     margin_color::StyleColor
@@ -196,9 +211,12 @@ A clickable button..
     padding::Inset
     padding_color::StyleColor
     selection::Reference
+    hovered::Bool
+    pressed::Bool
 end
 
 function WidgetButton(position::Point2D, size::Point2D, content;
+                      action=nothing,
                       visible::Bool=true,
                       margin::Inset=inset_default,
                       margin_color=nothing,
@@ -206,11 +224,11 @@ function WidgetButton(position::Point2D, size::Point2D, content;
                       border_color=nothing,
                       padding::Inset=inset_default,
                       padding_color=nothing)
-    WidgetButton(Cell(position), Cell(size), Cell(content),
+    WidgetButton(Cell(position), Cell(size), Cell(content), Cell(action),
                  Cell(visible), Cell(margin), Cell(margin_color),
                  Cell(border), Cell(border_color),
                  Cell(padding), Cell(padding_color),
-                 Cell(nothing))
+                 Cell(nothing), Cell(false), Cell(false))
 end
 
 setfn!(w::WidgetButton, f::Function) = (setfn!(getfield(w, :content), f); w)
@@ -1193,6 +1211,41 @@ struct EndSplitterDragOperation <: Operation
     split::WidgetSplitPane
 end
 
+"""
+    InvokeWidgetActionOperation(widget)
+
+Invoke `widget`'s `action` callable (e.g. a `WidgetButton` click). The action is
+called with the editor when it accepts one argument, otherwise with none, so it
+can mutate `editor.document` or projection state. A `nothing` action is a no-op.
+"""
+struct InvokeWidgetActionOperation <: Operation
+    widget::WidgetDocument
+end
+
+"""
+    SetWidgetHoverOperation(widget, value)
+
+Set `widget`'s transient `hovered` flag to `value`. Emitted by widget readers as
+the pointer enters / leaves the widget; the printer reads `hovered` to pick the
+hover surface.
+"""
+struct SetWidgetHoverOperation <: Operation
+    widget::WidgetDocument
+    value::Bool
+end
+
+"""
+    SetWidgetPressedOperation(widget, value)
+
+Set `widget`'s transient `pressed` flag to `value`. Emitted on
+`MouseDown` / `MouseUp`; the printer reads `pressed` to pick the active
+(pressed-down) surface.
+"""
+struct SetWidgetPressedOperation <: Operation
+    widget::WidgetDocument
+    value::Bool
+end
+
 # ── Operation evaluation ───────────────────────────────────────────────────
 
 """
@@ -1261,6 +1314,26 @@ end
 function evaluate_operation(editor, op::EndSplitterDragOperation)
     op.split.active_splitter = 0
     op.split.drag_anchor = nothing
+end
+
+function evaluate_operation(editor, op::InvokeWidgetActionOperation)
+    action = op.widget.action
+    action === nothing && return
+    # Prefer an editor-taking action so it can reach the document/projection;
+    # fall back to a 0-arg callable.
+    if applicable(action, editor)
+        action(editor)
+    elseif applicable(action)
+        action()
+    end
+end
+
+function evaluate_operation(editor, op::SetWidgetHoverOperation)
+    op.widget.hovered = op.value
+end
+
+function evaluate_operation(editor, op::SetWidgetPressedOperation)
+    op.widget.pressed = op.value
 end
 
 end # module

@@ -8,11 +8,14 @@ function make_widget_projection_example(; measure=truetype_measure_text)
     # Several examples stack their variants with a VerticalLayout instead of
     # hand-positioned WidgetComposite children, so the renderer dispatches layout
     # nodes to LayoutToGraphics and widgets to WidgetToGraphics.
+    inner = RecursiveProjection(TypeDispatchingProjection(vcat(
+        LayoutToGraphics().dispatch,
+        w2g.dispatch,
+    )))
+    # Wrap in the hover tracker so a button's `hovered` flag clears when the
+    # pointer leaves it (container routing only delivers a move to the hit child).
     SequentialProjection(
-        RecursiveProjection(TypeDispatchingProjection(vcat(
-            LayoutToGraphics().dispatch,
-            w2g.dispatch,
-        ))),
+        WidgetHoverTrackingProjection(inner = inner),
     )
 end
 

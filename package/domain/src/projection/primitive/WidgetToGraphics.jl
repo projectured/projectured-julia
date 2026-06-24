@@ -42,9 +42,11 @@ import ..WidgetModule: WidgetDocument, WidgetInsertion, WidgetLabel, WidgetText,
                        WidgetTable, WidgetTree, WidgetTreeNode,
                        Inset, Point2D, inset_default,
                        ScrollWidgetOperation, SelectTabOperation, SetScrollBarValueOperation,
-                       StartSplitterDragOperation, ResizeSplitPaneOperation, EndSplitterDragOperation
+                       StartSplitterDragOperation, ResizeSplitPaneOperation, EndSplitterDragOperation,
+                       InvokeWidgetActionOperation, SetWidgetHoverOperation, SetWidgetPressedOperation
 import ..CollectionModule: CellVector, CollectionDocument
-import ..GraphicsModule: GraphicsText, GraphicsRect, GraphicsLine, GraphicsCircle, GraphicsCanvas, GraphicsViewport, hit_element_at, layout_none
+import ..ImageModule: ImageDocument
+import ..GraphicsModule: GraphicsText, GraphicsRect, GraphicsLine, GraphicsCircle, GraphicsCanvas, GraphicsViewport, GraphicsImage, hit_element_at, layout_none
 import ..FontModule: StyleFont,
                      font_ubuntu_regular_18, font_ubuntu_regular_24, font_ubuntu_bold_24
 import ..StyleTextModule: StyleText
@@ -350,7 +352,9 @@ end
 @projection struct WidgetButtonToGraphicsCanvas <: Projection
     measure::Function
     label::StyleText            # font + color of the button text
-    background_color::StyleColor
+    background_color::StyleColor # resting surface
+    hover_color::StyleColor      # surface while the pointer is inside
+    active_color::StyleColor     # surface while pressed (held down)
     border::StyleStroke         # outline color + width
     padding::Inset              # content padding (was pad_x / pad_y)
     corner_radius::Int
@@ -537,6 +541,50 @@ function _text_size(measure, font::StyleFont, text::AbstractString)
     measure(text, font)
 end
 
+# ── Image / polymorphic content helpers ─────────────────────────────────────
+
+# Decoded pixel payload of an ImageDocument and its natural size, read straight
+# from the image's `raw` cell (filled by the backend's `decode_image_file!`):
+#   (data, natural_w, natural_h)  when decoded
+#   (nothing, 0, 0)               until decoded (printer draws a placeholder)
+# Mirrors TextToGraphics' `_extract_image_data`: the domain layer only *reads*
+# the raw bytes, never decodes (that is the backend's job).
+function _image_payload(img::ImageDocument)
+    raw = hasproperty(img, :raw) ? img.raw : nothing
+    if raw isa Tuple && length(raw) == 3
+        return (raw, Int(raw[2]), Int(raw[3]))
+    end
+    (raw, 0, 0)
+end
+
+# The rendered content size of a widget's polymorphic `content`: an ImageDocument
+# measures to its natural size, anything else is stringified and text-measured.
+function _content_size(measure, font::StyleFont, content)
+    if content isa ImageDocument
+        _, iw, ih = _image_payload(content)
+        return (iw, ih)
+    end
+    _text_size(measure, font, string(content))
+end
+
+# Push a widget's polymorphic `content` into `elems` at (x, y). An ImageDocument
+# becomes a GraphicsImage (a muted placeholder rect when not yet decoded);
+# everything else is drawn as label text. `cw`/`ch` are the resolved content box.
+function _push_content!(elems::Vector, measure, label::StyleText, content,
+                        x::Int, y::Int, cw::Int, ch::Int)
+    if content isa ImageDocument
+        data, _, _ = _image_payload(content)
+        if data === nothing
+            # Not decoded yet — keep layout stable with a faint placeholder.
+            push!(elems, GraphicsRect(x, y, cw, ch, 0x00, 0x00, 0x00, 0x14))
+        else
+            push!(elems, GraphicsImage(Int32(x), Int32(y), Int32(cw), Int32(ch), data))
+        end
+    else
+        _push_text!(elems, label.font, string(content), x, y, _rgba(label.color))
+    end
+end
+
 # ── Width resolution (content-aware + layout-aware) ─────────────────────────
 
 # Resolve the rendered width for a width-bearing widget. The authored `intrinsic`
@@ -628,10 +676,10 @@ end
 function projection_print(p::WidgetLabelToGraphicsCanvas, recursion, w::WidgetLabel, ctx)
     w.visible == false && return SimpleIoMap(p, w, _empty_canvas())
     position = w.position::Point2D
-    content = string(w.content)
-    content_width, content_height = _text_size(p.measure, p.text.font, content)
+    content = w.content
+    content_width, content_height = _content_size(p.measure, p.text.font, content)
     elements = Any[]
-    _push_text!(elements, p.text.font, content, 0, 0, _rgba(p.text.color))
+    _push_content!(elements, p.measure, p.text, content, 0, 0, content_width, content_height)
     SimpleIoMap(p, w, _make_canvas(_origin(position)..., content_width, content_height, elements))
 end
 
@@ -809,23 +857,28 @@ function projection_print(p::WidgetButtonToGraphicsCanvas, recursion, w::WidgetB
     w.visible == false && return SimpleIoMap(p, w, _empty_canvas())
     position = w.position::Point2D
     minimum_size = w.size::Point2D
-    label = string(w.content)
-    text_width, text_height = _text_size(p.measure, p.label.font, label)
+    content_width, content_height = _content_size(p.measure, p.label.font, w.content)
     padding_x = _sc(Int(p.padding.left[]))
     padding_y = _sc(Int(p.padding.top[]))
-    button_width  = max(Int(minimum_size.x[]), text_width + 2padding_x)
-    button_height = max(Int(minimum_size.y[]), text_height + 2padding_y)
+    button_width  = max(Int(minimum_size.x[]), content_width + 2padding_x)
+    button_height = max(Int(minimum_size.y[]), content_height + 2padding_y)
     corner_radius = _sc(p.corner_radius)
+    # State-driven surface: pressed > hover > resting. The reader keeps the
+    # widget's transient `pressed`/`hovered` cells current; reading them here ties
+    # the rendered fill to that state reactively.
+    pressed = w.pressed === true
+    hovered = w.hovered === true
+    fill = pressed ? p.active_color : hovered ? p.hover_color : p.background_color
     elements = Any[]
     # Default button: light surface, subtle border, soft shadow, dark label —
     # matching the shadcn default button. A faint offset rect approximates the
-    # shadow-sm drop shadow.
-    push!(elements, GraphicsRect(0, _sc(p.shadow_offset), button_width, button_height, 0x00, 0x00, 0x00, 0x14, corner_radius))
-    _push_panel!(elements, 0, 0, button_width, button_height; fill=p.background_color,
+    # shadow-sm drop shadow; it is dropped while pressed so the button "sinks".
+    pressed || push!(elements, GraphicsRect(0, _sc(p.shadow_offset), button_width, button_height, 0x00, 0x00, 0x00, 0x14, corner_radius))
+    _push_panel!(elements, 0, 0, button_width, button_height; fill=fill,
                  border=p.border.color, border_w=max(1, _sc(p.border.width)), radius=corner_radius)
-    red, green, blue, alpha = _rgbai(p.label.color)
-    push!(elements, GraphicsText(label, (button_width - text_width) ÷ 2, (button_height - text_height) ÷ 2,
-                                 p.label.font, red, green, blue, alpha))
+    cx = (button_width - content_width) ÷ 2
+    cy = (button_height - content_height) ÷ 2
+    _push_content!(elements, p.measure, p.label, w.content, cx, cy, content_width, content_height)
     SimpleIoMap(p, w, _make_canvas(_origin(position)..., button_width, button_height, elements))
 end
 
@@ -837,8 +890,20 @@ function map_reference_backward(::WidgetButtonToGraphicsCanvas, iomap, reference
     return nothing
 end
 
+# The reader only runs when the parent container hit-tested the pointer onto this
+# button, so every event it sees is already "inside". A click invokes the
+# button's action; press/release drive the held-down look; a move marks the
+# button hovered (the hover *tracker* clears the previously-hovered widget — see
+# WidgetHoverTrackingProjection).
 function projection_read(::WidgetButtonToGraphicsCanvas, iomap::SimpleIoMap, evt)
-    return nothing
+    w = iomap.input
+    @event_case evt begin
+        MousePress(button, x, y) => button === :left ? InvokeWidgetActionOperation(w) : nothing
+        MouseDown(button, x, y)  => button === :left ? SetWidgetPressedOperation(w, true) : nothing
+        MouseUp(button, x, y)    => button === :left ? SetWidgetPressedOperation(w, false) : nothing
+        MouseMove                => SetWidgetHoverOperation(w, true)
+        _ => nothing
+    end
 end
 
 # ── WidgetTooltip ───────────────────────────────────────────────────────────
@@ -999,6 +1064,12 @@ function projection_read(p::WidgetCompositeToGraphicsCanvas, iomap::ChildrenIoMa
             (x, y) -> MouseScroll(evt.dx, evt.dy, x, y))
         MousePress => _route_composite_event(child_iomaps, evt.x, evt.y,
             (x, y) -> MousePress(evt.button, x, y, evt.modifiers))
+        MouseDown => _route_composite_event(child_iomaps, evt.x, evt.y,
+            (x, y) -> MouseDown(evt.button, x, y, evt.modifiers))
+        MouseUp => _route_composite_event(child_iomaps, evt.x, evt.y,
+            (x, y) -> MouseUp(evt.button, x, y, evt.modifiers))
+        MouseMove => _route_composite_event(child_iomaps, evt.x, evt.y,
+            (x, y) -> MouseMove(x, y, evt.buttons, evt.modifiers))
         _ => begin
             slot = iomap.input isa WidgetComposite ?
                    _selected_composite_slot(iomap.input, length(child_iomaps)) : 0
@@ -3687,6 +3758,7 @@ function WidgetToGraphics(font::StyleFont; measure::Function,
             theme.background, StyleStroke(theme.input, theme.stroke)),
         WidgetButton     => WidgetButtonToGraphicsCanvas(
             measurer, theme.label_text, theme.background,
+            theme.accent, theme.muted,
             StyleStroke(theme.border, theme.border_width),
             Inset(theme.pad_y, theme.pad_y, theme.pad_x, theme.pad_x),
             theme.radius, 2),

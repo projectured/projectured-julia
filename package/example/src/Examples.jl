@@ -40,6 +40,8 @@ const widget_label_example       = Example("widget_label",       make_widget_lab
 const widget_text_example        = Example("widget_text",        make_widget_text_document_example,        make_widget_text_projection_example)
 const widget_checkbox_example    = Example("widget_checkbox",    make_widget_checkbox_document_example,    make_widget_projection_example)
 const widget_button_example      = Example("widget_button",      make_widget_button_document_example,      make_widget_projection_example)
+const widget_button_action_example = Example("widget_button_action", make_widget_button_action_document_example, make_widget_projection_example)
+const widget_button_image_example  = Example("widget_button_image",  make_widget_button_image_document_example,  make_widget_projection_example)
 const widget_tooltip_example     = Example("widget_tooltip",     make_widget_tooltip_document_example,     make_widget_projection_example)
 const widget_menu_item_example   = Example("widget_menu_item",   make_widget_menu_item_document_example,   make_widget_projection_example)
 const widget_menu_example        = Example("widget_menu",        make_widget_menu_document_example,        make_widget_projection_example)
@@ -165,6 +167,7 @@ const examples = [
     object_example, object_to_widget_example, nested_object_to_widget_example, line_numbering_example, word_wrapping_example, text_filtering_example, text_highlighting_example,
     widget_example,
     widget_label_example, widget_text_example, widget_checkbox_example, widget_button_example,
+    widget_button_action_example, widget_button_image_example,
     widget_tooltip_example, widget_menu_item_example, widget_menu_example, widget_toolbar_example,
     widget_composite_example, widget_title_pane_example, widget_split_pane_example,
     widget_scroll_bar_example, widget_scroll_pane_example, widget_shell_example,

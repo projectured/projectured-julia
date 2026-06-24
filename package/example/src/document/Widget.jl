@@ -144,6 +144,40 @@ make_widget_button_document_example() =
                  border=Inset(1, 1, 1, 1), border_color=color_default,
                  padding=Inset(4, 4, 8, 8))
 
+# WidgetButton (behaviour) — a button whose `action` increments a counter shown
+# by a sibling label. Click it (real input or a scripted MousePress) and the
+# label re-renders; hovering re-styles the button via its transient `hovered`
+# flag (cleared by WidgetHoverTrackingProjection on leave). The action captures
+# the label so it can mutate it when the editor evaluates the
+# InvokeWidgetActionOperation.
+function make_widget_button_action_document_example()
+    count = Ref(0)
+    label = WidgetLabel(Point2D(40, 40), "count: 0")
+    button = WidgetButton(Point2D(40, 84), Point2D(180, 48), "Increment";
+                          action = (_editor) -> begin
+                              count[] += 1
+                              label.content = "count: $(count[])"
+                          end,
+                          border=Inset(1, 1, 1, 1), border_color=color_default,
+                          padding=Inset(4, 4, 8, 8))
+    WidgetComposite(Point2D(0, 0), Any[label, button])
+end
+
+# WidgetButton / WidgetLabel (image content) — a label and a button whose
+# `content` is an ImageFile instead of a string. The leaf printers detect the
+# ImageDocument and emit a GraphicsImage (a muted placeholder until the image is
+# decoded). Reuses the lazy-decoding inline-image loader.
+function make_widget_button_image_document_example()
+    logo = _load_inline_image("projectured.png")
+    icon = _load_inline_image("file.png")
+    picture_label = WidgetLabel(Point2D(40, 40), logo)
+    icon_button = WidgetButton(Point2D(40, 200), Point2D(72, 72), icon;
+                               action = (_editor) -> nothing,
+                               border=Inset(1, 1, 1, 1), border_color=color_default,
+                               padding=Inset(8, 8, 8, 8))
+    WidgetComposite(Point2D(0, 0), Any[picture_label, icon_button])
+end
+
 # WidgetTooltip — a floating tooltip overlay (visible so it renders standalone).
 make_widget_tooltip_document_example() =
     WidgetTooltip(Point2D(40, 40), Point2D(360, 56), "A floating tooltip";

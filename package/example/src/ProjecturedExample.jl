@@ -179,6 +179,7 @@ export xml_example, mixed_example, syntax_example, text_example, plain_text_exam
 export object_example, object_to_widget_example, nested_object_to_widget_example, line_numbering_example, word_wrapping_example, text_filtering_example, text_highlighting_example
 export widget_example, widget_tabbed_pane_example, widget_text_example
 export widget_label_example, widget_checkbox_example, widget_button_example
+export widget_button_action_example, widget_button_image_example
 export widget_tooltip_example, widget_menu_item_example, widget_menu_example
 export widget_toolbar_example, widget_composite_example, widget_title_pane_example
 export widget_split_pane_example, widget_scroll_bar_example, widget_scroll_pane_example
