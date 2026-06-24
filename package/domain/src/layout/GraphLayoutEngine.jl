@@ -1,10 +1,12 @@
 """
     GraphLayoutEngineModule
 
-A swappable interface for graph placement + edge routing. The native binding
-(Adaptagrams: libcola for placement, libavoid for routing) is one seam behind
-this interface; until that build lands, `FallbackLayoutEngine` (pure Julia) is
-the default so nothing downstream is blocked.
+A swappable interface for graph placement + edge routing. `FallbackLayoutEngine`
+(pure Julia) is the default so nothing downstream is blocked. The native binding
+(Adaptagrams: libcola for placement, libavoid for routing) lives in its own
+package, `ProjecturedAdaptagrams`, because it pulls in an external native
+dependency — it adds an `AdaptagramsEngine <: GraphLayoutEngine` method to
+`layout_graph` behind this same interface. Core domain code never depends on it.
 
 Interface:
 
@@ -27,7 +29,7 @@ module GraphLayoutEngineModule
 import ..GraphModule: GraphGraph, GraphVertex, GraphEdge
 import ..GraphLayoutModule: GraphConstraint
 
-export GraphLayoutEngine, FallbackLayoutEngine, AdaptagramsEngine, layout_graph
+export GraphLayoutEngine, FallbackLayoutEngine, layout_graph
 
 abstract type GraphLayoutEngine end
 
@@ -139,24 +141,12 @@ function layout_graph(engine::FallbackLayoutEngine, graph::GraphGraph, sizes::Di
     (positions, routes)
 end
 
-# ── AdaptagramsEngine (stub) ─────────────────────────────────────────────────
-
-"""
-    AdaptagramsEngine()
-
-TODO (Phase 9): FFI binding to Adaptagrams — libcola for constraint-honouring
-node placement and libavoid for obstacle-avoiding connector routing, bridged via
-`ccall` (the established pattern in `Sdl.jl`). Blocked on a native dependency:
-there is no Adaptagrams JLL yet, so either an `Adaptagrams_jll` (BinaryBuilder) or
-a small `extern "C"` C shim must land first. Until then this constructor exists
-behind the same interface but `layout_graph` is unimplemented; use
-`FallbackLayoutEngine`.
-"""
-struct AdaptagramsEngine <: GraphLayoutEngine end
-
-function layout_graph(::AdaptagramsEngine, graph::GraphGraph, sizes::Dict, constraints::Vector)
-    error("AdaptagramsEngine is not yet implemented (no Adaptagrams JLL / C shim). " *
-          "Use FallbackLayoutEngine. See plan/pending/graph-domain.md Phase 4/9.")
-end
+# ── AdaptagramsEngine lives in the ProjecturedAdaptagrams package ─────────────
+#
+# The native engine (`AdaptagramsEngine <: GraphLayoutEngine`, an FFI binding to
+# libcola/libavoid through a small C shim) is intentionally *not* defined here:
+# it carries an external native dependency that the core domain must not require.
+# It is a separate package that adds its own `layout_graph` method behind this
+# interface. See `package/adaptagrams/` and plan/pending/graph-domain.md Phase 4/9.
 
 end # module

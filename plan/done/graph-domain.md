@@ -4,10 +4,16 @@
 > current codebase (paths now under `package/<subpackage>/src/...`). The graph
 > domain, layout documents, fallback engine, both projections, the new graphics
 > primitives + all three backend renderers, the example, and the tests all exist.
-> The **only** unimplemented item is the optional `AdaptagramsEngine` native FFI
-> (the plan's own last step, gated on an Adaptagrams JLL / C shim) — it ships as a
-> documented erroring stub, with `FallbackLayoutEngine` the working default.
 > Per-step status is annotated inline below.
+>
+> **UPDATE (2026-06-24):** The native `AdaptagramsEngine` is now implemented — as
+> its own package `package/adaptagrams/` (`ProjecturedAdaptagrams`), kept separate
+> from `ProjecturedDomain` because it carries an external native dependency. It
+> binds libcola (placement) + libavoid (routing) through a vendored `extern "C"`
+> shim (`deps/adaptagrams_shim.cpp`) compiled by `deps/build.jl` and called via
+> `ccall`. Verified end-to-end against a system Adaptagrams install in `/usr/local`.
+> `FallbackLayoutEngine` remains the default; nothing in core depends on the native
+> engine.
 
 A domain for **graphs** — vertices and edges — where a vertex's content is an
 arbitrary `Document` (a table, an XML tree, JSON, even another graph) and an edge
@@ -33,8 +39,8 @@ placement.
    `LayoutConstraint`) hold positions, sizes, edge routes, and layout constraints. — `package/domain/src/document/GraphLayout.jl` (also `GraphConstraint`).
 4. **✅ DONE (verified):** **Graph → Graphics projection.** Nodes render as finite-size boxes; edges as
    splines or polylines (with arrowheads). — `GraphLayoutToGraphics.jl` (GraphicsRect boxes + GraphicsPolyline with `end_arrow`).
-5. **⏳ PARTIAL:** **External layout engine.** Adaptagrams via FFI — libcola places nodes,
-   libavoid routes edges — behind a swappable `GraphLayoutEngine` interface. — Interface + `FallbackLayoutEngine` DONE (`GraphLayoutEngine.jl`); `AdaptagramsEngine` is an erroring stub (`GraphLayoutEngine.jl:155-160`), OPEN (the plan's own last step).
+5. **✅ DONE (verified):** **External layout engine.** Adaptagrams via FFI — libcola places nodes,
+   libavoid routes edges — behind a swappable `GraphLayoutEngine` interface. — Interface + `FallbackLayoutEngine` in `GraphLayoutEngine.jl`; native `AdaptagramsEngine` in its own package `package/adaptagrams/` (`ProjecturedAdaptagrams`), binding libcola/libavoid through a C shim via `ccall`.
 
 ## Scope of v1
 
@@ -208,12 +214,55 @@ Geometry layer mirroring `Layout.jl` / `LayoutConstraint`:
 
 ## Phase 4 — GraphLayoutEngine interface + Adaptagrams FFI
 
-**⏳ PARTIAL:** Interface + `FallbackLayoutEngine` **✅ DONE** in
+**✅ DONE (verified):** Interface + `FallbackLayoutEngine` in
 `package/domain/src/layout/GraphLayoutEngine.jl` (abstract `GraphLayoutEngine`,
 `layout_graph`, grid placement + border-to-border routing, registered
-`ProjecturedDomain.jl:87`). `AdaptagramsEngine` is an erroring stub
-(`GraphLayoutEngine.jl:155-160`) — **OPEN** (libcola/libavoid FFI; gated on a JLL /
-C shim, the plan's own deferred final step).
+`ProjecturedDomain.jl:87`). Native `AdaptagramsEngine` implemented in the separate
+`ProjecturedAdaptagrams` package (`package/adaptagrams/`) — see "Engine packaging"
+below. The domain keeps a comment where the stub used to be, pointing at the
+package, so core never depends on Adaptagrams.
+
+### Engine packaging — `ProjecturedAdaptagrams` (separate package)
+
+Chosen over option (1)/(2) below: **option (2), a vendored `extern "C"` C shim**,
+housed in **its own Julia package** so the external native dependency stays out of
+`ProjecturedDomain`. Layout:
+
+- `package/adaptagrams/Project.toml` — `name = "ProjecturedAdaptagrams"`, depends
+  on `ProjecturedDomain` + `Libdl`. (No `[sources]` entry: the root project's
+  `[sources]` supplies `ProjecturedDomain`; a `[sources]` here makes
+  `Pkg.build` resolve `../domain` against the wrong dir in the monorepo.)
+- `deps/adaptagrams_shim.h` / `.cpp` — a flat C ABI over libcola
+  (`ConstrainedFDLayout`, `setAvoidNodeOverlaps`) + libavoid (`Router`, `ShapeRef`
+  obstacles, `ConnRef` centre-to-centre connectors, `displayRoute`). Opaque
+  two-phase handle (run → query node boxes + variable-length routes → free) so the
+  FFI needs no callbacks and no pre-sized route buffers.
+- `deps/build.jl` — finds Adaptagrams via pkg-config (`libcola libavoid libvpsc`)
+  or `$ADAPTAGRAMS_DIR` (a checkout's `cola/` dir), compiles
+  `libadaptagrams_shim.so` (baking `-rpath` for the lib dirs), and writes
+  `deps/deps.jl`. Never throws — if Adaptagrams is absent it warns and marks the
+  shim unavailable, so the package still loads and `FallbackLayoutEngine` is
+  unaffected.
+- `src/ProjecturedAdaptagrams.jl` — `AdaptagramsEngine(; ideal_length,
+  avoid_overlaps, orthogonal) <: GraphLayoutEngine` and the `layout_graph` method:
+  maps vertices/edges to 0-based shim indices, `ccall`s the shim, returns the same
+  `(positions::Dict{objectid→(x,y,w,h)}, routes::Dict{objectid→Vector{(x,y)}})`
+  shape as `FallbackLayoutEngine`. `isavailable()` `dlopen`s the shim to confirm
+  it (and its native deps) actually load before use; otherwise errors with build
+  guidance.
+
+Wired into the root `Project.toml` (`[deps]` + `[sources] = package/adaptagrams`).
+**Verified end-to-end** against a system Adaptagrams install in `/usr/local`:
+shim compiles clean against the real headers, `Pkg.build` succeeds, and
+`layout_graph(AdaptagramsEngine(), …)` places nodes disjoint (overlap-avoiding)
+with correct sizes and routes edges as ≥2-point polylines.
+
+> **API drift:** the libcola/libvpsc/libavoid calls flagged `VERIFY` in
+> `adaptagrams_shim.cpp` are the ones that have shifted spelling across
+> Adaptagrams revisions; against the installed version here they compiled
+> unchanged. Constraints (`GraphConstraint`) are accepted but ignored by the
+> native engine in v1 (placement honours `avoid_overlaps` only) — same scope as
+> `FallbackLayoutEngine`.
 
 ### File: `program/src/layout/GraphLayoutEngine.jl`
 
@@ -381,9 +430,8 @@ Targeted helpers per [testing.md](../testing.md) / CLAUDE.md (not `test_all`):
 6. **✅ DONE** Phase 6 GraphLayoutToGraphics.
 7. **✅ DONE** Phase 7 read path (selection into vertex content).
 8. **✅ DONE** Phases 8–9 example + tests.
-9. **⏳ OPEN** Adaptagrams build (`Adaptagrams_jll` or C shim) + `AdaptagramsEngine`.
-   (Only remaining item; `AdaptagramsEngine` ships as an erroring stub behind the
-   working `FallbackLayoutEngine` default.)
+9. **✅ DONE** Adaptagrams build (C shim) + `AdaptagramsEngine` — shipped as the
+   separate `ProjecturedAdaptagrams` package (see Phase 4 "Engine packaging").
 
 ## Dependencies / prerequisites
 

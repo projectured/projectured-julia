@@ -1,5 +1,6 @@
 [deps]
 Projectured = "92922de3-b970-4d9a-8b2a-9d6f361397b5"
+ProjecturedAdaptagrams = "c86b9063-147e-43d0-b3a0-65343fae9a66"
 ProjecturedDomain = "e0912940-0f50-4a55-a142-7b4aed3d6e35"
 ProjecturedExample = "e5f6a7b8-c9d0-4e1f-2a3b-4c5d6e7f8a9b"
 ProjecturedKernel = "a3e3499a-684d-4df9-a0d6-de2d1797b1f3"
@@ -16,6 +17,7 @@ Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 [sources]
 ProjecturedKernel = {path = "package/kernel"}
 ProjecturedDomain = {path = "package/domain"}
+ProjecturedAdaptagrams = {path = "package/adaptagrams"}
 Projectured = {path = "package/projectured"}
 ProjecturedExample = {path = "package/example"}
 ProjecturedTest = {path = "package/test"}

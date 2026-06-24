@@ -1,0 +1,58 @@
+# ProjecturedAdaptagrams
+
+The native graph-layout engine for ProjecturEd. Provides `AdaptagramsEngine`, a
+`GraphLayoutEngine` (see `ProjecturedDomain`) that places vertices with
+**libcola** and routes edges with **libavoid** from the
+[Adaptagrams](https://github.com/mjwybrow/adaptagrams) C++ libraries, bridged
+through a small `extern "C"` shim (`deps/adaptagrams_shim.cpp`) called via `ccall`.
+
+It is a **separate package** from `ProjecturedDomain` on purpose: it carries an
+external native dependency that core ProjecturEd must not require. The interface
+(`GraphLayoutEngine`, `layout_graph`) and the pure-Julia default
+(`FallbackLayoutEngine`) live in `ProjecturedDomain`; this package only adds the
+`AdaptagramsEngine` method behind the same seam.
+
+## 1. Install Adaptagrams (native)
+
+There is no apt package or Julia JLL; build it from source. From the cola/
+directory of a checkout:
+
+```bash
+sudo apt install build-essential autoconf automake libtool pkg-config
+cd ~/workspace/adaptagrams/cola
+./autogen.sh && ./configure && make
+sudo make install && sudo ldconfig    # optional; or use it in-tree
+```
+
+## 2. Build the shim
+
+```julia
+using Pkg
+Pkg.build("ProjecturedAdaptagrams")
+```
+
+`deps/build.jl` finds Adaptagrams via, in order:
+
+1. **pkg-config** — `pkg-config --exists libcola libavoid libvpsc` (works after
+   `make install` with the `.pc` files on `PKG_CONFIG_PATH`).
+2. **`ADAPTAGRAMS_DIR`** — the `cola/` directory of a checkout (contains
+   `libavoid/ libcola/ libvpsc/`). Defaults to `~/workspace/adaptagrams/cola`.
+   Used in-tree (links against each `*/.libs`) — no install needed.
+
+It compiles `libadaptagrams_shim.so` and writes `deps/deps.jl`. The build never
+throws: if Adaptagrams is missing or the compile fails it warns, and
+`AdaptagramsEngine` then errors at call time with this guidance —
+`FallbackLayoutEngine` stays available throughout.
+
+> **API drift:** a few libcola/libvpsc/libavoid calls have shifted spelling
+> across Adaptagrams revisions. The calls flagged `VERIFY` in
+> `adaptagrams_shim.cpp` are the ones to check against the installed headers if
+> the compile fails; the C ABI exposed to Julia does not change.
+
+## 3. Use
+
+```julia
+using ProjecturedExample, ProjecturedAdaptagrams
+proj = make_graph_projection_example(engine = AdaptagramsEngine())
+# AdaptagramsEngine(; ideal_length=60.0, avoid_overlaps=true, orthogonal=false)
+```

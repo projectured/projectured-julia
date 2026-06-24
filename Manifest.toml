@@ -2,7 +2,7 @@
 
 julia_version = "1.12.6"
 manifest_format = "2.0"
-project_hash = "f282543c87a4c98c8e2a53ef0e90aa886eedf9e2"
+project_hash = "269fa65f787d7df0b105d66cc20aad7ec8a22a64"
 
 [[deps.ArgTools]]
 uuid = "0dad84c5-d112-42e6-8d28-ef12dabb789f"
@@ -612,6 +612,12 @@ version = "1.11.0"
 deps = ["ProjecturedDomain", "ProjecturedKernel"]
 path = "package/projectured"
 uuid = "92922de3-b970-4d9a-8b2a-9d6f361397b5"
+version = "0.1.0"
+
+[[deps.ProjecturedAdaptagrams]]
+deps = ["Libdl", "ProjecturedDomain"]
+path = "package/adaptagrams"
+uuid = "c86b9063-147e-43d0-b3a0-65343fae9a66"
 version = "0.1.0"
 
 [[deps.ProjecturedDomain]]
