@@ -1,12 +1,20 @@
 # Consolidating operations into `ReplaceReferencedValue`
 
-> **Status (audit 2026-06-23): mostly OPEN.** Only the `CompoundOperation`
-> scaffold (migration step 1) is implemented. The actual consolidation — folding
-> the Group 1–4 operation families into `ReplaceReferencedValue`, the
+> **Status (re-survey 2026-06-24): mostly OPEN, re-staged.** Only the
+> `CompoundOperation` scaffold is implemented. The consolidation itself —
+> folding the operation families into `ReplaceReferencedValue`, the
 > `document === nothing` re-rooting rule, terminal-kind dispatch / `RangeReference`
-> splice, and the docs rewrite — is **not done**. See per-step annotations under
-> [Migration steps](#migration-steps). Paths below referencing `program/src/...`
-> and `guide/...` are stale post-restructure; current locations are noted inline.
+> splice, and the docs rewrite — is **not done**.
+>
+> This revision (a) widens the inventory to the operations added since the
+> 2026-06-23 audit (new Group 2 widget-state writes, a projection-field +
+> iomap-drop sub-family, Workbench open/close as structural edits, and several
+> new irreducibles), and (b) **re-orders the migration to lead with the easy,
+> clear-benefit, reader-simplifying steps** — see [Migration steps](#migration-steps).
+> The headline win is collapsing the *two* hand-maintained, "kept-in-sync"
+> reference-rerooting dispatch lists in the projection readers
+> (`prepend_steps_to_op` + the default `projection_read`) down to a single
+> `ReplaceReferencedValue` branch.
 
 ## Thesis
 
@@ -43,10 +51,32 @@ docstring already notes the compound precedent.
 
 ## Current inventory
 
-Source of truth: [`api/Operation.jl`](../../program/src/api/Operation.jl),
-[`common/Operation.jl`](../../program/src/common/Operation.jl), and the
-per-domain operation blocks. Construction counts are from a repo-wide grep, to
-gauge migration blast radius.
+Source of truth (verified 2026-06-24): the core operations in
+[`common/Operation.jl`](../../package/kernel/src/common/Operation.jl), the
+primitive replaces in [`document/Primitive.jl`](../../package/kernel/src/document/Primitive.jl),
+and the per-domain operation blocks under `package/domain/src/`. Construction
+counts are from a repo-wide grep, to gauge migration blast radius. The full set
+of `struct … <: Operation` today (excluding the keep-as-is `ReplaceSelectionOperation`):
+
+- **Single-slot writes** (the consolidation targets): `ReplaceDocumentOperation`,
+  `HideWidgetOperation`, `ShowWidgetOperation`, `SetScrollBarValueOperation`,
+  `SelectTabOperation`, `ScrollWidgetOperation`, `SetWidgetHoverOperation`,
+  `SetWidgetPressedOperation`, `ToggleCollapseOperation`, `ResizeWindowOperation`,
+  `ReplaceFocusPartOperation`, `StringReplaceRangeOperation`,
+  `NumberReplaceRangeOperation`.
+- **Structural sequence edits**: `CollectionInsertOperation`,
+  `CollectionDeleteOperation`, `WorkbenchOpenDocumentOperation`,
+  `WorkbenchCloseDocumentOperation`.
+- **Projection-field writes + iomap drop**: `ToggleClipboardSliceDisplayOperation`,
+  `ToggleClipboardCollectionDisplayOperation`, `SetVersionCriterionOperation`.
+- **Irreducible**: `QuitEditorOperation`, `LoadDocumentOperation`,
+  `SaveDocumentOperation`, `ExportDocumentOperation`, `OpenWindowOperation`,
+  `CloseWindowOperation`, `DatabaseUpdateOperation`, `DatabaseInsertOperation`,
+  `SubmitProseOperation`, `SubmitJuliaOperation`, `SubmitDraftTurnOperation`,
+  `ClearInputOperation`, `ResetConversationOperation`, the nine `Composer*`
+  operations (`ConversationEditor.jl`), `InvokeWidgetActionOperation`,
+  `StartSplitterDragOperation`, `ResizeSplitPaneOperation`,
+  `EndSplitterDragOperation`, `MoveRangeOperation`.
 
 ### Group 1 — already a replace; fold in directly
 
@@ -59,22 +89,29 @@ gauge migration blast radius.
 case where `document === nothing` (root is the editor document) and the
 reference may be empty (whole-root swap). Both share the `_split_terminal_step`
 / `_write_document_slot!` / `_write_value_slot!` machinery in
-[`common/Operation.jl`](../../program/src/common/Operation.jl).
+[`common/Operation.jl`](../../package/kernel/src/common/Operation.jl).
 
 ### Group 2 — single-slot writes carrying their target by identity
 
 These already carry the object they mutate (not a path from `editor.document`),
 so they map to `ReplaceReferencedValue(target, <relative-ref>, value)`:
 
-| Operation | Becomes |
-|---|---|
-| `HideWidgetOperation(w)` | `ReplaceReferencedValue(w, @reference visible, false)` |
-| `ShowWidgetOperation(w)` | `ReplaceReferencedValue(w, @reference visible, true)` |
-| `SetScrollBarValueOperation(bar, v)` | `ReplaceReferencedValue(bar, @reference value, clamp(v,0,1))` |
-| `SelectTabOperation(pane, i)` | `ReplaceReferencedValue(pane, @reference selection, ElementReference(i)-path)` |
-| `ScrollWidgetOperation(sp, Δ)` | `ReplaceReferencedValue(sp, @reference scroll_position, old+Δ)` — reader computes `old+Δ` |
-| `ToggleCollapseOperation(node)` | `ReplaceReferencedValue(node, @reference collapsed, !node.collapsed)` — reader computes the flip |
-| `ResizeWindowOperation(w, ow, oh)` | two writes → a `CompoundOperation` (see below) |
+| Operation | Becomes | Source |
+|---|---|---|
+| `HideWidgetOperation(w)` | `ReplaceReferencedValue(w, @reference visible, false)` | `Widget.jl:1131` |
+| `ShowWidgetOperation(w)` | `ReplaceReferencedValue(w, @reference visible, true)` | `Widget.jl:1141` |
+| `SetWidgetHoverOperation(w, v)` | `ReplaceReferencedValue(w, @reference hovered, v)` | `Widget.jl:1236` |
+| `SetWidgetPressedOperation(w, v)` | `ReplaceReferencedValue(w, @reference pressed, v)` | `Widget.jl:1248` |
+| `SetScrollBarValueOperation(bar, v)` | `ReplaceReferencedValue(bar, @reference value, clamp(v,0,1))` | `Widget.jl:1173` |
+| `SelectTabOperation(pane, i)` | `ReplaceReferencedValue(pane, @reference selection, ElementReference(i)-path)` | `Widget.jl:1163` |
+| `ScrollWidgetOperation(sp, Δ)` | `ReplaceReferencedValue(sp, @reference scroll_position, old+Δ)` — reader computes `old+Δ` | `Widget.jl:1151` |
+| `ToggleCollapseOperation(node)` | `ReplaceReferencedValue(node, @reference collapsed, !node.collapsed)` — reader computes the flip | `Operation.jl:271` |
+| `ResizeWindowOperation(w, ow, oh)` | two writes → a `CompoundOperation` (see below) | `Operation.jl:347` |
+| `ReplaceFocusPartOperation(proj, part)` | `ReplaceReferencedValue(proj, @reference part, part)` — if `part_evaluator` is made lazy | `Focusing.jl:74` |
+
+`SetWidgetHoverOperation` / `SetWidgetPressedOperation` are the simplest of the
+whole inventory — plain `Bool` writes into a carried widget, no read-modify-write
+— so they are the natural first fold (see Migration step 2).
 
 Notes:
 - **Clamp/flip/add happen in the reader**, where the current value is readable,
@@ -82,13 +119,38 @@ Notes:
   shift: read-modify-write logic moves from `evaluate_operation` into
   `projection_read`. For `ScrollWidget` and `ToggleCollapse` the reader already
   has the target object in hand, so it can read the current value.
+- All Group 2 ops are **identity-rooted** (`document !== nothing`), so once
+  `ReplaceReferencedValue` is a citizen of the reader dispatch lists (Migration
+  step 1) they bubble up through every container/generic projection **unchanged**
+  — no per-op branch is ever needed for them.
 - `ResizeWindowOperation` writes two fields (`width`, `height`); express it as
   `CompoundOperation([ReplaceReferencedValue(w, width, …), ReplaceReferencedValue(w, height, …)])`.
 - `ReplaceFocusPartOperation(proj, part)` writes `proj.part` **and** the derived
-  `proj.part_evaluator`. Either keep a tiny bespoke setter, or make the
-  `part_evaluator` a lazily-derived accessor so only `part` needs writing — then
-  it folds into `ReplaceReferencedValue(proj, @reference part, part)`. Prefer the
-  latter; the evaluator is a pure function of `part`.
+  `proj.part_evaluator` (`Focusing.jl:79`). Either keep a tiny bespoke setter, or
+  make the `part_evaluator` a lazily-derived accessor so only `part` needs
+  writing — then it folds into `ReplaceReferencedValue(proj, @reference part, part)`.
+  Prefer the latter; the evaluator is a pure function of `part`.
+
+### Group 2b — projection-field writes that also drop `editor.iomap`
+
+These flip a flag on a **projection object** (not a document) and then null
+`editor.iomap` to force a rebuild, because the flag selects which child becomes
+the output:
+
+| Operation | Writes | Source |
+|---|---|---|
+| `ToggleClipboardSliceDisplayOperation(p)` | `p.display_slice = !p.display_slice` | `ClipboardToAny.jl:212` |
+| `ToggleClipboardCollectionDisplayOperation(p)` | `p.display_collection = !…` | `ClipboardToAny.jl:226` |
+| `SetVersionCriterionOperation(target, c)` | `target.criterion = c` | `VersioningToAny.jl:150` |
+
+They fold into `ReplaceReferencedValue(projection, @reference <flag>, value)` only
+if `evaluate_operation` learns to **null `editor.iomap` when the write's root is a
+`Projection` rather than a `Document`** (the flag changes the projection's shape,
+not a reactive cell, so incremental re-print is not enough). This is a real
+semantic wrinkle — `ReplaceFocusPartOperation` writes a projection field but does
+*not* drop the iomap (the new `part` is re-read at print time). So Group 2b is
+**lower priority / optional**: fold it only after the iomap-invalidation hook is
+designed, or leave the three ops alone. See [Migration step 7](#migration-steps).
 
 ### Group 3 — sub-value *range* writes (string/number)
 
@@ -103,8 +165,10 @@ if **evaluation dispatches on the terminal step kind**:
 
 - terminal `FieldReference` → overwrite the whole cell value (Group 1/2 path);
 - terminal `RangeReference` → splice `value` into the target's
-  string/sequence at `[start, stop]` (today's `_apply_string_replace!` /
-  `_apply_number_replace!`, which already dispatch on target type).
+  string/sequence at `[start, stop]` (today's representation-dispatched
+  `splice_value!` in `Primitive.jl:202`, plus `_split_replace_reference` /
+  `_replace_terminal_with_cursor` — these already pick string vs. number by the
+  field's current value, not by the operation type).
 
 The cursor-move-after-edit is **not** part of the write — model it as a
 `CompoundOperation([replace, ReplaceSelectionOperation(cursor_path)])`, matching
@@ -116,10 +180,12 @@ deprecated constructor shim during transition.)
 
 ### Group 4 — structural sequence edits (splice via `RangeReference`)
 
-| Operation | ctor sites |
-|---|---|
-| `CollectionInsertOperation(path, index, items, selection)` | ~8 |
-| `CollectionDeleteOperation(path, index, count)` | ~6 |
+| Operation | Root | ctor sites |
+|---|---|---|
+| `CollectionInsertOperation(path, index, items, selection)` | `editor.document` | ~8 |
+| `CollectionDeleteOperation(path, index, count)` | `editor.document` | ~6 |
+| `WorkbenchOpenDocumentOperation(page, entry)` | `page` (by identity) | ~few |
+| `WorkbenchCloseDocumentOperation(page, index)` | `page` (by identity) | ~few |
 
 These grow/shrink a sequence, but `RangeReference` terminal dispatch already
 handles splice semantics for strings. The same logic extends to `CellVector`:
@@ -128,13 +194,26 @@ handles splice semantics for strings. The same logic extends to `CellVector`:
 |---|---|
 | `CollectionInsertOperation(path, i, items)` | `ReplaceReferencedValue(nothing, path / RangeReference(i, i), items)` — zero-width range = pure insert |
 | `CollectionDeleteOperation(path, i, count)` | `ReplaceReferencedValue(nothing, path / RangeReference(i, i+count), [])` — replace range with empty = delete |
+| `WorkbenchOpenDocumentOperation(page, entry)` | `ReplaceReferencedValue(page, @reference(elements) / RangeReference(n, n), [entry])` — identity-rooted append (`n = length`) |
+| `WorkbenchCloseDocumentOperation(page, i)` | `ReplaceReferencedValue(page, @reference(elements) / RangeReference(i-1, i), [])` — identity-rooted delete |
 
 Element *replacement* (delete-then-insert at same position) falls out for free
 as `ReplaceReferencedValue(nothing, path / RangeReference(i, i+1), [new_item])`.
 
+The Workbench pair already carry their `page` by identity (`Workbench.jl:364,381`),
+so they map to the **identity-rooted** form (`document !== nothing`) and bubble up
+unchanged — like Group 2. The two `Collection*` ops are `editor.document`-rooted.
+
 The `selection` field on `CollectionInsertOperation` becomes the second half of a
 `CompoundOperation([splice, ReplaceSelectionOperation(cursor_path)])`, matching
 the pattern used for Group 3.
+
+`MoveRangeOperation` (`Dragging.jl:112`) is *almost* Group 4 — it is a delete from
+the source range plus an insert at the destination — but it **relocates the raw
+`Cell`s to preserve element identity**, which a delete-`[]`-then-insert-copies
+splice would not. Expressing it as a `CompoundOperation` of two splices loses that
+identity guarantee, so it stays irreducible (Group 5) unless splice grows an
+identity-preserving move variant. Low value; leave alone.
 
 ### Group 5 — genuinely irreducible; leave alone
 
@@ -151,7 +230,14 @@ operations:
 | `DatabaseUpdateOperation` / `DatabaseInsertOperation` | external SQL via an adapter, not a document write |
 | `SubmitProseOperation` | async Claude turn + multi-field mutation |
 | `SubmitJuliaOperation` | evaluates code, appends messages |
+| `SubmitDraftTurnOperation` | async assistant turn (`WorkbenchAssistant.jl:283`) |
 | `ClearInputOperation` / `ResetConversationOperation` | multi-field assistant resets — *could* become `CompoundOperation`s of `ReplaceOperation`s, optional follow-up |
+| nine `Composer*` operations | each manipulates the active conversation part (insert/parse/commit/revert/submit) on a carried `draft`; structural + parsing logic, not a single-slot write (`ConversationEditor.jl:128`–`186`) |
+| `InvokeWidgetActionOperation` | calls the widget's `action` callable (`Widget.jl:1225`) — arbitrary control flow |
+| `StartSplitterDragOperation` | materialises `sizes`/`pinned` vectors and records a `drag_anchor` tuple — multi-field + conditional vector init (`Widget.jl:1187`) |
+| `ResizeSplitPaneOperation` | writes `sizes[k]`,`sizes[k+1]` **and** pins both slots — multi-field with a length guard (`Widget.jl:1202`) |
+| `EndSplitterDragOperation` | resets `active_splitter`+`drag_anchor` — two writes; could be a trivial `CompoundOperation`, but the drag-state trio reads cleaner together (`Widget.jl:1214`) |
+| `MoveRangeOperation` | identity-preserving cell relocation between `CellVector`s (see Group 4 note) |
 
 ### `ReplaceSelectionOperation` — a special case, keep it
 
@@ -166,24 +252,59 @@ every edit compound.
 
 ## The re-rooting rule (the key design decision)
 
-Operations bubble up the projection pipeline via `prepend_steps_to_op` in
-[`common/OperationRerooting.jl`](../../program/src/common/OperationRerooting.jl),
-which today special-cases each path-bearing op type and passes identity-carrying
-ops through unchanged. Once all single-slot writes are `ReplaceReferencedValue`,
-use the `document` field as the signal:
+Reference-bearing operations are re-targeted by the projection readers in **two**
+hand-maintained dispatch lists that must be kept in lock-step (each carries an
+explicit `INVARIANT:` comment pointing at the other):
+
+1. **`prepend_steps_to_op`** in
+   [`common/OperationRerooting.jl:49`](../../package/kernel/src/common/OperationRerooting.jl#L49)
+   — a container projection (split pane, layout, composite) **prepends** the steps
+   that lead from itself to the child the operation came from. Today it has a
+   branch per op type (`ReplaceSelectionOperation`, `StringReplaceRangeOperation`,
+   `NumberReplaceRangeOperation`, `ReplaceDocumentOperation`,
+   `CollectionInsertOperation`, `CollectionDeleteOperation`, `CompoundOperation`)
+   and its `else` returns the op **unchanged**.
+2. **the default `projection_read`** in
+   [`common/Projection.jl:81`](../../package/kernel/src/common/Projection.jl#L81)
+   — a generic projection (sorting, reversing, copying, …) re-targets the
+   operation's reference from output space to input space via
+   `map_reference_backward`. It has the *same* per-op branches, plus a
+   `ToggleCollapseOperation` pass-through, and its `else` returns **`nothing`
+   (drops the op)**.
+
+> **Latent inconsistency the consolidation fixes.** The two `else` branches
+> disagree: `prepend_steps_to_op` passes an unrecognised op through unchanged,
+> while `projection_read` drops it. `ReplaceReferencedValue` is in **neither**
+> list, so today an identity-rooted `ReplaceReferencedValue` (produced by
+> `ObjectToWidget`/`WidgetToGraphics` controls) is silently dropped if it ever
+> traverses a generic `projection_read`. Making `ReplaceReferencedValue` a
+> first-class citizen of both lists (Migration step 1) is the fix.
+
+Once all single-slot writes are `ReplaceReferencedValue`, use the `document` field
+as the signal in **both** lists:
 
 - **`document === nothing`** ⇒ reference is rooted at `editor.document`; container
-  projections **prepend their steps** to `reference` as the operation flows up.
+  projections **prepend their steps** / generic projections **`map_reference_backward`**
+  the `reference` as the operation flows up.
 - **`document !== nothing`** ⇒ self-contained (root is a carried object like a
-  widget); the operation **passes through unchanged**, exactly as the
-  identity-carrying ops do today.
+  widget); the operation **passes through unchanged** in both lists.
 
-This collapses the three special cases in `prepend_steps_to_op` into one:
+This collapses the per-op branches in `prepend_steps_to_op` into one:
 
 ```julia
 function prepend_steps_to_op(op::ReplaceReferencedValue, steps::Tuple)
     op.document === nothing || return op           # self-contained: pass through
     ReplaceReferencedValue(nothing, prepend_steps_to_ref(op.reference, steps), op.value)
+end
+```
+
+and, symmetrically, the branches in the default `projection_read`:
+
+```julia
+function _read_replace(projection, iomap, op::ReplaceReferencedValue)
+    op.document === nothing || return op           # self-contained: pass through
+    ref = map_reference_backward(projection, iomap, op.reference)
+    ref === nothing ? nothing : ReplaceReferencedValue(nothing, ref, op.value)
 end
 ```
 
@@ -212,9 +333,10 @@ end
 4. Dispatch on `terminal`:
    - `FieldReference` → write `op.value` into the `Cell`-backed field
      (reuse `_write_value_slot!` / `_write_document_slot!`).
-   - `RangeReference` → splice into the target sequence/string (reuse
-     `_apply_string_replace!` / `_apply_number_replace!` for primitives;
-     element overwrite for a `CellVector`, as `_write_document_slot!` does today).
+   - `RangeReference` → splice into the target sequence/string (reuse the
+     representation-dispatched `splice_value!` for primitives; element
+     overwrite/insert/delete for a `CellVector`, as `_write_document_slot!` and the
+     `Collection*` evaluators do today).
 
 Selection follow-up is **never** inside `ReplaceReferencedValue` — it is a sibling
 `ReplaceSelectionOperation` inside a `CompoundOperation`.
@@ -239,60 +361,112 @@ field of `CollectionInsertOperation`, matching Lisp `make-operation/compound`.
 
 ## Migration steps
 
-> **Audit (2026-06-23):** verified against the restructured tree under
-> `package/*/src/`. The partial-credit summary: only the `CompoundOperation`
-> scaffold (step 1) landed; the actual consolidation (steps 2–6) has not been
-> done — every targeted operation still exists as its own standalone `struct`,
-> `ReplaceReferencedValue` still only handles a `FieldReference` terminal and
-> still errors on an empty reference, and `OperationRerooting.jl` still keeps a
-> special case per op type. Steps 7–8 remain open. Plan stays in **pending**.
+> **Re-staged 2026-06-24.** The order below is deliberately **easiest-and-clearest
+> first**, front-loading the steps that simplify *reference updating in the
+> projection readers*. Each step is purely additive or a single-family fold, so it
+> lands as one commit with one narrow test, and a regression bisects to one step.
+> Status legend: ✅ done · 🟢 easy/clear-benefit · 🟡 medium · 🔴 high blast radius.
 
-1. **✅ DONE (verified):** **Introduce `CompoundOperation`** — exists at
-   `package/kernel/src/common/Operation.jl:36` (`struct CompoundOperation`) with a
-   varargs ctor (`:40`) and a map-over-children evaluator (`:42`). The
-   `_split_terminal_step` / `_write_*_slot!` helpers are still present
-   (`Operation.jl:134`, `:152`, `:193`). (Note: its docstring frames it as the
-   clipboard-cut helper, not yet the range/cursor compound this plan envisions.)
-2. **⏳ OPEN:** **Re-rooting single rule** — not done. `prepend_steps_to_op` in
-   `package/kernel/src/common/OperationRerooting.jl:49` still special-cases
-   `ReplaceSelectionOperation`, `StringReplaceRangeOperation`,
-   `NumberReplaceRangeOperation`, `ReplaceDocumentOperation`,
-   `CollectionInsertOperation`, `CollectionDeleteOperation`, `CompoundOperation`.
-   There is no `document === nothing` rule for `ReplaceReferencedValue`; it falls
-   through to the `else` (pass-through), which is only correct for the
-   self-contained case.
-3. **⏳ OPEN:** **Fold Group 1 (`ReplaceDocumentOperation`)** — not done. Still a
-   full standalone struct with its own evaluator at
-   `package/kernel/src/common/Operation.jl:100`–`124`; not an alias for
-   `ReplaceReferencedValue`.
-4. **⏳ OPEN:** **Fold Group 2 widget/focus ops** — not done. All structs still
-   present and standalone: `HideWidgetOperation`/`ShowWidgetOperation`/
-   `ScrollWidgetOperation`/`SelectTabOperation`/`SetScrollBarValueOperation` at
-   `package/domain/src/document/Widget.jl:1082,1092,1102,1114,1124`;
-   `ReplaceFocusPartOperation` at
-   `package/kernel/src/projection/generic/Focusing.jl:74`.
-5. **⏳ OPEN:** **Fold Group 3 range replaces** — not done.
-   `StringReplaceRangeOperation`/`NumberReplaceRangeOperation` still standalone at
-   `package/kernel/src/document/Primitive.jl:117,99`. `ReplaceReferencedValue`'s
-   evaluator (`Operation.jl:180`) only dispatches the `FieldReference` terminal
-   (`_write_value_slot!`, `:193`) and explicitly `error`s on an empty reference —
-   no `RangeReference` splice path exists.
-6. **⏳ OPEN:** **Fold Group 4 sequence ops** — not done.
-   `CollectionInsertOperation`/`CollectionDeleteOperation` still standalone with
-   their own evaluators at `package/kernel/src/common/Operation.jl:209,235`; not
-   re-expressed as `ReplaceReferencedValue` + `RangeReference`.
-7. **⏳ OPEN (correctly untouched, but plan not complete):** **Leave Group 5 and
-   `ReplaceSelectionOperation`** — these are intentionally still present
-   (`ReplaceSelectionOperation` at `Operation.jl:74`; Group 5 ops in
-   `package/domain/src/document/Document.jl:98,109,120`,
-   `package/domain/src/document/Database.jl:69,84`,
-   `package/domain/src/editor/WorkbenchAssistant.jl:101,112,121,130`). This step
-   is satisfied in isolation, but it only describes the *absence* of work, so it
-   does not move the plan toward completion on its own.
-8. **⏳ OPEN:** **Docs** — not done. The operations guide now lives at
-   `documentation/operations.md` (old `guide/operations.md` path is gone); it has
-   not been rewritten around `ReplaceReferencedValue`/`CompoundOperation`, since
-   the underlying consolidation has not happened.
+0. **✅ DONE:** **`CompoundOperation` scaffold** — exists at
+   [`Operation.jl:36`](../../package/kernel/src/common/Operation.jl#L36) with a
+   varargs ctor (`:40`) and a map-over-children evaluator (`:42`); re-rooting maps
+   over the children (`OperationRerooting.jl:68`) and the default `projection_read`
+   maps over them too (`Projection.jl:122`). The `_split_terminal_step` /
+   `_write_document_slot!` / `_write_value_slot!` helpers are present
+   (`Operation.jl:134,152,193`). (Its docstring still frames it as the clipboard-cut
+   helper — update when it becomes the range/cursor compound.)
+
+1. **🟢 OPEN — keystone, purely additive: make `ReplaceReferencedValue` capable +
+   a reader-list citizen.** No existing op changes; nothing else can be folded
+   cheaply until this lands. Three sub-changes, all behavior-preserving for current
+   callers (which are all identity-rooted, non-empty `FieldReference`):
+   - **Evaluator** (`Operation.jl:180`): add the **empty-reference ⇒ whole-root
+     swap** branch (only when `document === nothing`; reuses the
+     `ReplaceDocumentOperation` empty-path logic) and the **terminal `RangeReference`
+     ⇒ splice** branch (reuse the representation-dispatched `splice_value!` for
+     primitives and `CellVector` element/insert/delete for sequences). Leave the
+     existing `FieldReference` path untouched.
+   - **`prepend_steps_to_op`** (`OperationRerooting.jl:49`): add the single
+     `ReplaceReferencedValue` branch — reroot `reference` when `document === nothing`,
+     pass through otherwise.
+   - **default `projection_read`** (`Projection.jl:81`): add the symmetric
+     `ReplaceReferencedValue` branch — `map_reference_backward` the `reference` when
+     `document === nothing`, **pass the op through unchanged when `document !== nothing`**
+     (this also fixes the latent drop of identity-rooted `ReplaceReferencedValue`).
+   - *Test:* `test_repl(json_example)` + `ObjectToWidgetTest` (existing identity-rooted
+     producer) must stay green; no behavior should change yet.
+
+2. **🟢 OPEN — easiest fold: Group 2 identity-rooted widget-state writes.** Start
+   with the two trivial `Bool` writes, then the read-modify-write ones:
+   - `SetWidgetHoverOperation` → `ReplaceReferencedValue(w, @reference hovered, v)`
+     and `SetWidgetPressedOperation` → `…pressed, v` (`Widget.jl:1236,1248`) — pure
+     writes, no reader logic. **Do these two first.**
+   - `HideWidgetOperation`/`ShowWidgetOperation` (`Widget.jl:1131,1141`) →
+     `visible, false/true`.
+   - `SetScrollBarValueOperation` (`:1173`) → reader clamps to `[0,1]`.
+   - `SelectTabOperation` (`:1163`) → reader builds the `ElementReference(i)` path.
+   - `ScrollWidgetOperation` (`:1151`) → reader reads `old` and writes `old+Δ`.
+   - All identity-rooted, so step 1 already routes them; delete each struct + its
+     `evaluate_operation` and move any clamp/flip/add into the producing reader.
+   - *Test:* `test_repl(workbench_example)` / the widget examples; `WidgetButtonTest`,
+     `SplitPaneDragTest`.
+
+3. **🟡 OPEN — Fold Group 1 `ReplaceDocumentOperation`** → `ReplaceReferencedValue(nothing, path, doc)`.
+   Standalone struct + evaluator at `Operation.jl:100`–`124`. **Removes its branch
+   from both reader lists** — the reader-simplification payoff starts here. The
+   selection-follow-up (`replace_selection!` to `path ⧺ doc.selection`) moves into a
+   trailing `ReplaceSelectionOperation` inside a `CompoundOperation` at the
+   producing sites (clipboard copy/cut already build `CompoundOperation`s —
+   `ClipboardToAny.jl:256,266`). *Test:* `test_repl(json_example)` (type-to-replace
+   gestures), clipboard tests.
+
+4. **🟡 OPEN — Fold Group 4 structural sequence edits.**
+   - `CollectionInsertOperation`/`CollectionDeleteOperation` (`Operation.jl:209,235`)
+     → `ReplaceReferencedValue(nothing, path / RangeReference(...), items/[])`; the
+     `selection` field becomes a trailing `ReplaceSelectionOperation` in a
+     `CompoundOperation`.
+   - `WorkbenchOpenDocumentOperation`/`WorkbenchCloseDocumentOperation`
+     (`Workbench.jl:364,381`) → identity-rooted
+     `ReplaceReferencedValue(page, elements/Range, …)`.
+   - **Removes both `Collection*` branches from the reader lists.** *Test:*
+     `DocumentInsertionTest`, `test_repl(json_example)` array insert, versioning
+     create/delete (`VersioningToAny.jl` uses `CollectionInsert/Delete`).
+
+5. **🔴 OPEN — Fold Group 3 range replaces (largest blast radius, do last).**
+   `StringReplaceRangeOperation`/`NumberReplaceRangeOperation` (`Primitive.jl:117,99`)
+   → `ReplaceReferencedValue(nothing, path-with-terminal-RangeReference, replacement)`
+   + a trailing `ReplaceSelectionOperation(cursor_path)` in a `CompoundOperation`.
+   ~58+ construction/reference sites across many projection readers (see grep:
+   `String/NumberReplaceRangeOperation` appears in ~30 source files). Keep a
+   **deprecated constructor shim** during the transition so sites migrate
+   incrementally; update mechanically (delegate to a Sonnet subagent for the
+   repetitive edits, then verify). **Removes the two biggest branches from both
+   reader lists.** *Test:* `PrimitiveToTextTest`, `test_text_navigation` / typein
+   suites, `TextFilteringTest`, `TextHighlightingTest`.
+
+6. **🟢 OPEN — collapse the reader dispatch lists.** After steps 3–5, both
+   `prepend_steps_to_op` and the default `projection_read` reduce to:
+   `ReplaceReferencedValue` (+ the `document === nothing` rule), `ReplaceSelectionOperation`,
+   `CompoundOperation`, and `ToggleCollapseOperation` (pass-through, until Group 2
+   folds it). Delete the now-dead per-op branches and tighten the two `INVARIANT:`
+   comments. This is the headline cleanup the whole plan exists for.
+
+7. **🟡 OPTIONAL — Group 2b projection-field + iomap-drop ops.**
+   `ToggleClipboardSliceDisplayOperation`/`ToggleClipboardCollectionDisplayOperation`
+   (`ClipboardToAny.jl:212,226`) and `SetVersionCriterionOperation`
+   (`VersioningToAny.jl:150`) fold into `ReplaceReferencedValue(projection, flag, value)`
+   only if `evaluate_operation` gains an **iomap-invalidation hook for
+   projection-rooted writes**. Also fold `ToggleCollapseOperation` and
+   `ReplaceFocusPartOperation` here (the latter needs `part_evaluator` made lazy).
+   Low value — defer or skip.
+
+8. **OPEN — Docs.** Rewrite [`documentation/operations.md`](../../documentation/operations.md)
+   around `ReplaceReferencedValue` + `CompoundOperation` once steps 1–6 land; update
+   the `CompoundOperation` docstring and the two `INVARIANT:` comments.
+
+9. **Leave alone — Group 5 irreducible** + `ReplaceSelectionOperation` (the
+   multi-slot recursive selection write, `Operation.jl:74`). No work; listed for
+   completeness.
 
 ---
 
@@ -302,14 +476,15 @@ Per [CLAUDE.md](../../CLAUDE.md), run the narrowest test per stage rather than
 `test_all`:
 
 - Editor-level operation evaluation: `test_repl(<example>)` /
-  `test_repls()` after the re-rooting change — the REPL tests drive
+  `test_repls()` after the keystone step 1 — the REPL tests drive
   reader → operation → evaluate end-to-end.
-- String/number range folding: the primitive-to-text and selection tests
+- String/number range folding (step 5): the primitive-to-text and selection tests
   (`test_selection(<example>)`, `PrimitiveToTextTest`) exercise the cursor
   follow-up most directly.
-- Widget ops: the widget/workbench examples (`test_repl(workbench_example)`).
+- Widget ops (step 2): the widget/workbench examples (`test_repl(workbench_example)`),
+  `WidgetButtonTest`, `SplitPaneDragTest`.
 - Re-rooting itself is best covered by container examples (split pane, layout,
-  tabbed pane) — pick one `test_repl` per container after step 2.
+  tabbed pane) — pick one `test_repl` per container after step 1.
 
 Do each fold as its own commit so a regression bisects to a single operation
 family.
