@@ -1,7 +1,7 @@
 # Consolidating operations into `ReplaceReferencedValue`
 
-> **Status (updated 2026-06-24): steps 0–3 DONE, on branch
-> `worktree-consolidate-operations`.** The keystone (step 1: `ReplaceReferencedValue`
+> **Status (updated 2026-06-24): steps 0–3 DONE, merged to `main`.** The keystone
+> (step 1: `ReplaceReferencedValue`
 > a reader-list citizen + the `document === nothing` rule), Group 2 widget-state
 > writes (step 2), and `ReplaceDocumentOperation` (step 3) are folded and verified.
 > Remaining: Group 4 sequence edits (step 4), Group 3 range replaces (step 5, the
@@ -421,7 +421,7 @@ field of `CollectionInsertOperation`, matching Lisp `make-operation/compound`.
    (`Operation.jl:134,152,193`). (Its docstring still frames it as the clipboard-cut
    helper — update when it becomes the range/cursor compound.)
 
-1. **✅ DONE (commit `029af83`, branch `worktree-consolidate-operations`):** keystone,
+1. **✅ DONE (commit `c2af0f1`, on `main`):** keystone,
    purely additive — make `ReplaceReferencedValue` capable + a reader-list citizen.
    No existing op changed; behavior-preserving for current callers (all
    identity-rooted, non-empty `FieldReference`). Landed:
@@ -443,7 +443,7 @@ field of `CollectionInsertOperation`, matching Lisp `make-operation/compound`.
      they are **pre-existing on clean `main`** — confirmed by a baseline run — and
      unrelated to this change.)
 
-2. **✅ DONE (commit `9596824`):** fold Group 2 identity-rooted widget-state writes.
+2. **✅ DONE (commit `0514e91`):** fold Group 2 identity-rooted widget-state writes.
    Deleted six structs + evaluators; the read-modify-write/clamp/path arithmetic
    moved into the producing readers. Added a
    `ReplaceReferencedValue(obj, field::AbstractString, value)` convenience ctor.
@@ -465,7 +465,7 @@ field of `CollectionInsertOperation`, matching Lisp `make-operation/compound`.
      `test_object_to_widget` all green; `test_repl(workbench_example)` 225/225;
      `test_split_pane_drag` unchanged at the pre-existing 23/8 baseline.
 
-3. **✅ DONE (commit `ea7f24c`):** fold `ReplaceDocumentOperation` →
+3. **✅ DONE (commit `eefa529`):** fold `ReplaceDocumentOperation` →
    `replace_document(path, doc)`, a helper that builds
    `CompoundOperation([ReplaceReferencedValue(nothing, path, doc), ReplaceSelectionOperation(path ⧺ doc.selection)])`
    — re-rooting prepends the same steps to both members, keeping write+cursor in
