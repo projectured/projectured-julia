@@ -54,8 +54,8 @@ import ..ReferenceModule: ReferencePath, ConcreteReferencePath, EmptyReferencePa
                           evaluate_reference, head, tail
 import ..PrinterContextModule: PrinterContext, child_context
 import ..IoMapApiModule: IoMap
-import ..KeyboardModule: KeyDown
-import ..EventCaseModule: var"@event_case"
+import ..GestureBindingModule: GestureBinding, KeyDownPattern,
+                              projection_gestures, read_projection_gesture
 
 export VersioningToAnyProjection, VersioningToAnyProjectionIoMap,
        SetVersionCriterionOperation
@@ -180,14 +180,27 @@ function _delete_version(iomap::VersioningToAnyProjectionIoMap)
     delete_elements(_field_path("versions"), iomap.index - 1)
 end
 
+# Own gestures, reified as a `projection_gestures` table so the same set that
+# fires (via `read_projection_gesture`) is the one `collect_gestures` shows. The
+# operations capture `iomap` (they snapshot/delete the selected version) and
+# return `nothing` to decline (no selected version), falling through to the
+# value-child delegation. Modifiers are matched exactly.
+function projection_gestures(p::VersioningToAnyProjection, iomap)
+    GestureBinding[
+        GestureBinding(KeyDownPattern(:s, [:ctrl, :shift], nothing),
+            (doc, event) -> _create_version(iomap),
+            (doc, sel) -> true, "Create version", "versioning"),
+        GestureBinding(KeyDownPattern(:delete, [:ctrl], nothing),
+            (doc, event) -> _delete_version(iomap),
+            (doc, sel) -> true, "Delete version", "versioning"),
+    ]
+end
+
 # ── Reader ─────────────────────────────────────────────────────────────────────
 
 function projection_read(p::VersioningToAnyProjection, recursion, change::Change,
                          iomap::VersioningToAnyProjectionIoMap)
-    own = @event_case change.gesture begin
-        KeyDown(:s; ctrl, shift) => _create_version(iomap)
-        KeyDown(:delete; ctrl)   => _delete_version(iomap)
-    end
+    own = read_projection_gesture(p, iomap, change.gesture)
     own !== nothing && return Change(change.gesture, own)
     vim = iomap.value_iomap
     vim === nothing && return Change(change.gesture, nothing)
