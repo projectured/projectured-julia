@@ -1459,7 +1459,12 @@ function _render_window!(res::SdlWindowResources, canvas::GraphicsCanvas)
     # little history all fall back to a full copy. This is correct for any
     # swap-chain depth (no fixed double-buffer assumption).
     age = _back_buffer_age()
-    if !_PARTIAL_RENDER[] || age <= 0 || (age - 1) > length(res.damage_history)
+    if !_PARTIAL_RENDER[] || _DEBUG_DIRTY[] || age <= 0 || (age - 1) > length(res.damage_history)
+        # Full copy. Under `debug_dirty` we always copy the whole target so the
+        # previous frames' red outlines — drawn straight onto the window
+        # back-buffer below, never retained in `res.target` nor recorded in
+        # `damage_history` — are painted over instead of accumulating into a
+        # trail. The current frame's dirty region is still shown by its outline.
         SDL_RenderCopy(renderer, res.target, C_NULL, C_NULL)
     else
         cx0, cy0, cx1, cy1 = dirty
@@ -1478,7 +1483,10 @@ function _render_window!(res::SdlWindowResources, canvas::GraphicsCanvas)
     length(res.damage_history) > _DAMAGE_HISTORY_CAP && resize!(res.damage_history, _DAMAGE_HISTORY_CAP)
 
     if _DEBUG_DIRTY[]
-        # Outline the repainted region on the window (erased by next frame's copy).
+        # Outline this frame's repainted region on the window. The box is drawn
+        # straight onto the back-buffer (not into `res.target`), so it would ghost
+        # across frames; the forced full copy above repaints over the previous
+        # frame's outline, leaving only the current one visible.
         SDL_RenderSetScale(renderer, scale, scale)
         SDL_SetRenderDrawColor(renderer, 0xff, 0x00, 0x00, 0xff)
         SDL_RenderDrawRect(renderer, clip)
