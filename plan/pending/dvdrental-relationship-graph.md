@@ -160,7 +160,16 @@ Add to [package/example/src/document/DbCatalog.jl](package/example/src/document/
   projection reads `w.title`/`w.content` un-`[]`-ed, confirming auto-deref; verify
   the catalog side the same way.)
 
-### Step 3 — Projection-maker: graph → adaptagrams with `WidgetCard` nodes
+### Step 3 — Projection-maker: graph → adaptagrams with `WidgetCard` nodes — **Done**
+
+> Added a `content=nothing` kwarg to `make_graph_projection_example` (defaults to
+> the existing dispatcher; backwards-compatible) and
+> `make_dvdrental_relationship_projection_example` in the example projection
+> `Graph.jl`. Confirmed `make_table_projection_example`'s `WidgetToGraphics`
+> dispatch already covers `WidgetCard`, `WidgetTable`, and `WidgetLabel`
+> (`WidgetToGraphics.jl:3807/3851/3769`), so no new primitive projection was needed.
+
+
 
 In [package/example/src/projection/Graph.jl](package/example/src/projection/Graph.jl):
 
