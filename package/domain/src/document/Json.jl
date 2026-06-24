@@ -49,10 +49,6 @@ abstract type JsonDocument <: Document end
 
 Represents an insertion cursor position in a JSON document. Used by the
 editor to indicate where new content should be inserted.
-
-# Fields
-
-- `selection::Reference` — a `ReferencePath` or `nothing` (stored in a Cell)
 """
 @document struct JsonInsertion <: JsonDocument
     value::Any = nothing
@@ -66,10 +62,6 @@ end
 
 Represents the JSON `null` value. Selection semantics: `.value{k}` is the
 cursor at boundary k of the rendered text "null" (0-based).
-
-# Fields
-
-- `selection::Reference` — a `ReferencePath` or `nothing` (stored in a Cell)
 """
 @document struct JsonNull <: JsonDocument
     selection::Reference = nothing
@@ -80,16 +72,6 @@ end
 
 Represents a JSON boolean value (`true` or `false`). Selection semantics:
 `.value{k}` is the cursor at boundary k of the boolean text (0-based).
-
-# Fields
-
-- `value::Cell` — holds the `Bool` value
-- `selection::Reference` — a `ReferencePath` or `nothing` (stored in a Cell)
-
-# Constructors
-
-- `JsonBool(v::Bool)` — primitive cell with value `v`
-- `JsonBool(f::Function)` — computed cell with thunk `f`
 """
 @document struct JsonBool <: JsonDocument
     value::Bool
@@ -102,19 +84,9 @@ JsonBool(f::Function) = JsonBool(Cell(f), Cell(nothing))
 """
     JsonNumber
 
-Represents a JSON number value. Selection semantics: `.value{k}` is the cursor
-at boundary k of the number text (0-based); `.value[i]` is its i-th character.
-
-# Fields
-
-- `value::Real` or `nothing` — the numeric value, or `nothing` once the text is
-  emptied (stored in a Cell for reactivity)
-- `selection::Reference` — a `ReferencePath` or `nothing` (stored in a Cell)
-
-# Constructors
-
-- `JsonNumber(v::Real)` — primitive cell with value `v`
-- `JsonNumber(f::Function)` — computed cell with thunk `f`
+Represents a JSON number value. The value becomes `nothing` once the text is
+emptied. Selection semantics: `.value{k}` is the cursor at boundary k of the
+number text (0-based); `.value[i]` is its i-th character.
 """
 @document struct JsonNumber <: JsonDocument
     value::Union{Real, Nothing}
@@ -130,16 +102,6 @@ JsonNumber(f::Function) = JsonNumber(Cell(f), Cell(nothing))
 Represents a JSON string value. Selection semantics: `.value{k}` is the cursor
 at boundary k of the string value (0-based, excluding quotes); `.value[i]` is
 its i-th character.
-
-# Fields
-
-- `value::Cell` — holds the `String` value
-- `selection::Reference` — a `ReferencePath` or `nothing` (stored in a Cell)
-
-# Constructors
-
-- `JsonString(v::AbstractString)` — primitive cell with value `v`
-- `JsonString(f::Function)` — computed cell with thunk `f`
 """
 @document struct JsonString <: JsonDocument
     value::String
@@ -158,18 +120,6 @@ Represents a JSON array (ordered list of values). Selection semantics:
 `.elements[i]` refers to cursor within element i. A `JsonArray` is *not* itself a
 collection; mutate it through its `elements` CellVector
 (`push!(arr.elements, x)`, `insert!(arr.elements, i, x)`, `deleteat!(arr.elements, i)`).
-
-# Fields
-
-- `elements::CellVector` — holds the array elements as reactive cells
-- `collapsed::Cell` — holds `Bool` indicating if array is collapsed in UI
-- `selection::Reference` — a `ReferencePath` or `nothing` (stored in a Cell)
-
-# Constructors
-
-- `JsonArray()` — empty array
-- `JsonArray(items::Vector{<:JsonDocument}) — array with initial items
-- `JsonArray(items::JsonDocument...)` — array from variadic items
 """
 @document struct JsonArray <: JsonDocument
     elements::CellVector = CellVector()
@@ -187,17 +137,6 @@ JsonArray(items::JsonDocument...) =
 Represents a single key-value entry in a JSON object. Selection semantics:
 `.key{k}` is the cursor at boundary k of the key (0-based), `.value` descends
 into the value document.
-
-# Fields
-
-- `key::String` — the entry key
-- `value::Cell` — holds the value (any `Document` type)
-- `collapsed::Cell` — holds `Bool` indicating if entry is collapsed in UI
-- `selection::Reference` — a `ReferencePath` or `nothing` (stored in a Cell)
-
-# Constructor
-
-- `JsonObjectEntry(key::AbstractString, value)` — creates entry with key and value
 """
 @document struct JsonObjectEntry <: JsonDocument
     key::String
@@ -215,18 +154,6 @@ JsonObjectEntry(key::AbstractString, value::Document) =
 Represents a JSON object (unordered collection of key-value pairs). Selection
 semantics: `.entries[i]` refers to cursor within entry i. Supports dictionary-like
 operations: `haskey`, `keys`, `values`, `getindex`, `setindex!`, `delete!`, `get`.
-
-# Fields
-
-- `entries::CellVector` — holds the object entries as reactive cells
-- `collapsed::Cell` — holds `Bool` indicating if object is collapsed in UI
-- `selection::Reference` — a `ReferencePath` or `nothing` (stored in a Cell)
-
-# Constructors
-
-- `JsonObject()` — empty object
-- `JsonObject(f::Function)` — object with entries produced by thunk `f`
-- `JsonObject(pairs::Pair{<:AbstractString}...)` — object from key-value pairs
 """
 @document struct JsonObject <: JsonDocument
     entries::CellVector = CellVector()
