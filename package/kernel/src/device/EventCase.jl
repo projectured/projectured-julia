@@ -50,7 +50,8 @@ Per-event positional field order (modifiers always via `;`, never positional):
 | `KeyDown(key, repeat)`           | key, repeat      |
 | `KeyUp(key)`                     | key              |
 | `KeyPress(char, text)`           | char, text       |
-| `MouseDown/Up/Press(button, x, y)` | button, x, y   |
+| `MouseDown/Up(button, x, y)`     | button, x, y     |
+| `MousePress(button, x, y, count)` | button, x, y, count |
 | `MouseMove(x, y, buttons)`       | x, y, buttons    |
 | `MouseScroll(dx, dy, x, y)`      | dx, dy, x, y     |
 
@@ -81,7 +82,7 @@ const _EVENT_TYPES = Dict{Symbol,Tuple{Any,Vector{Symbol}}}(
     :KeyPress    => (:(KeyboardModule.KeyPress), [:char, :text]),
     :MouseDown   => (:(MouseModule.MouseDown),   [:button, :x, :y]),
     :MouseUp     => (:(MouseModule.MouseUp),     [:button, :x, :y]),
-    :MousePress  => (:(MouseModule.MousePress),  [:button, :x, :y]),
+    :MousePress  => (:(MouseModule.MousePress),  [:button, :x, :y, :count]),
     :MouseMove   => (:(MouseModule.MouseMove),   [:x, :y, :buttons]),
     :MouseEnter  => (:(MouseModule.MouseEnter),  [:x, :y, :buttons]),
     :MouseLeave  => (:(MouseModule.MouseLeave),  [:x, :y, :buttons]),

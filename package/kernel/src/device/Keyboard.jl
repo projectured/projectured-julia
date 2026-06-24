@@ -14,14 +14,19 @@ keyboard lifecycle:
                (from `SDL_TEXTINPUT`). Carries the decoded Unicode `Char`
                and the raw UTF-8 `text` string. Used for character insertion.
 
-All three carry a `Modifiers` struct for Ctrl/Shift/Alt/Meta state.
+The first three carry a `Modifiers` struct for Ctrl/Shift/Alt/Meta state.
+
+- `KeyChord` — a *synthesised* multi-key gesture: a recognised **sequence** of
+               `KeyDown`s (e.g. `Ctrl-C Ctrl-K`) collapsed into one event by the
+               editor's `GestureRecognizer`. Like `MousePress`, it is not
+               produced by the backend; it is a combination of raw key events.
 """
 module KeyboardModule
 
 import ..DeviceModule: Device
 import ..ModifiersModule: Modifiers
 
-export Keyboard, KeyDown, KeyUp, KeyPress
+export Keyboard, KeyDown, KeyUp, KeyPress, KeyChord
 export is_ctrl, is_shift, is_alt, is_meta
 
 """
@@ -97,6 +102,25 @@ end
 
 KeyPress(char::Char) = KeyPress(char, string(char), Modifiers())
 KeyPress(char::Char, mods::Modifiers) = KeyPress(char, string(char), mods)
+
+# ── KeyChord ───────────────────────────────────────────────────────────
+
+"""
+    KeyChord(keys::Vector{KeyDown})
+
+Synthesised key-chord event: a recognised *sequence* of `KeyDown`s (e.g.
+`Ctrl-C` then `Ctrl-K`) collapsed into a single gesture by the editor's
+`GestureRecognizer`. `keys` holds the constituent presses in order.
+
+A chord is purely a **combination of events** — it carries no intent. Which
+sequences are recognised is configured on the recogniser (its chord table,
+empty by default); what a particular chord *means* is each projection reader's
+decision, exactly as for any other gesture. The modifiers of each step live on
+the individual `KeyDown`s in `keys`.
+"""
+struct KeyChord
+    keys::Vector{KeyDown}
+end
 
 # ── Modifier convenience accessors ────────────────────────────────────
 

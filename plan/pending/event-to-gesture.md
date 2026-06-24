@@ -67,14 +67,39 @@ reduced:
   roundtrips, repls, typeins (159), and the split-pane drag suite (31,
   confirming raw `MouseDown/Move/Up` still reach the splitter reader).
 
-**Deferred to follow-up increments (not yet implemented):** *(audit 2026-06-23: all three still ⏳ OPEN — verified no `Gesture.jl` / `@gesture_case` / gesture structs exist, `@event_case` still in ~14 readers, no keymap.)*
+**Composite recognition landed (2026-06-24): multi-click + key chords.** The
+recogniser now recognises two more pure event combinations (Phase 2 A & B), both
+carrying no intent:
+
+- ✅ **Done — multi-click counting.** `MousePress` gained a `count` field
+  (1 = single, 2 = double, 3 = triple, …); the recogniser increments it for
+  consecutive same-button clicks within a 5 px / 0.3 s window and resets
+  otherwise. Back-compat constructors default `count = 1`, and `:count` was added
+  to the `@event_case` table, so existing readers matching `MousePress(:left,
+  x, y)` are untouched while a reader *can* now match `MousePress(:left, x, y, 2)`.
+- ✅ **Done — key chords.** A new synthesised `KeyChord` event (analogous to
+  `MousePress`, in `KeyboardModule`) collapses a recognised `KeyDown` *sequence*
+  (e.g. `Ctrl-C Ctrl-K`) into one gesture. Recognition is driven by a per-recogniser
+  **chord table that defaults empty** — so production behaviour is unchanged and no
+  reader consumes chords yet (consumption is a reader's future decision). Unit-tested
+  ([GestureRecognizerTest.jl](../../package/test/src/editor/GestureRecognizerTest.jl),
+  now 49 assertions): multi-click counting + resets, chord prefix-buffering /
+  completion / flush, empty-table passthrough, and the `next_gesture!` absorb-the-
+  prefix path. Verified no new failures: `test_event_case` (26), `test_gesture_binding`
+  (46), `test_click_roundtrips` (34); `test_mouse_clicks` deltas are the pre-existing
+  `xml_widget`/`filesystem_widget` cursor failures (identical on base `main`) plus a
+  worktree-only Adaptagrams native-shim build gap — none from this change.
+
+**Deferred to follow-up increments (not yet implemented):**
 
 - ⏳ Distinct gesture *types* (per-kind structs, no intent) + `@gesture_case` +
   migrating the ~14 reader files to match gestures instead of raw events
   (original Phase 1 steps 1, 2, 6).
-- ⏳ Richer composite gestures the recogniser is now positioned to add — all
-  still pure event combinations carrying no intent: double/triple-click counting,
-  drag begin/update/end, key chords (`Ctrl-C Ctrl-K`).
+- ⏳ Drag begin/update/end (Phase 2 C) — still blocked on reconciling drag
+  routing with [dragging.md](../pending/dragging.md).
+- ⏳ Wiring a production chord table + a reader that consumes `KeyChord`, and
+  exposing multi-click `count` to specific readers (both are the *consumer* side,
+  intent territory, left to whichever reader wants them).
 
 Rationale for the reduced first increment: a faithful "rename the matched event
 in every reader" change touches ~98 `KeyDown` + 44 `MousePress` + 40 `KeyPress`
@@ -402,24 +427,52 @@ since it just unwraps `Change.gesture`.
 > mapped keys → intent `Symbol`s. That is dropped: a gesture carries no intent, so
 > there is no keymap layer that assigns one — readers (projections) own meaning.
 > What remains is purely *more event-combination recognition* in the recogniser,
-> plus the mechanical reader migration. All items below are ⏳ OPEN (audit
-> 2026-06-23: no chord buffer, no drag/multi-click state, `@event_case` still in
-> ~14 readers).
+> plus the mechanical reader migration. **A & B landed 2026-06-24** (in the
+> `event-to-gesture-composites` worktree); C, D, E remain ⏳ OPEN.
 
-### A. Multi-click counting
+### A. Multi-click counting ✅ done (2026-06-24)
 
-Recognise double/triple-click by maintaining a click count over a time/position
-window in the recogniser, surfaced as `ClickGesture`'s `count` field. Still a
+Double/triple-click is recognised by maintaining a click count over a
+time/position window in the recogniser (`last_click_*` state +
+`MULTI_CLICK_MAX_DISPLACEMENT` 5 px / `MULTI_CLICK_MAX_INTERVAL` 0.3 s). Still a
 pure combination of `MouseDown`/`MouseUp` events — no intent.
 
-### B. Chords
+**As built (differs from the original sketch):** the count rides on the existing
+synthesised `MousePress` event as a new `count` field — there is *no* separate
+`ClickGesture` type (that belongs to the deferred per-kind gesture-type layer).
+`MousePress` keeps modifiers last; `count` is a positional non-modifier field, so
+`:count` was added to the `@event_case` table
+([EventCase.jl](../../package/kernel/src/device/EventCase.jl)) and back-compat
+3-arg / 4-arg(`::Modifiers`) constructors default `count = 1`. Every existing
+`MousePress(:left, x, y)` reader and call site is therefore unchanged.
 
-A chord is a *sequence* of key presses (`Ctrl-C Ctrl-K`) recognised as one
-`ChordGesture`. The recogniser accumulates the prefix in a chord buffer; while a
-prefix is pending it emits nothing (and can surface a "pending chord" indicator),
-a completed sequence emits the `ChordGesture`, a non-matching key flushes the
-buffer / falls back. This is recognition only — *what* a chord does is still each
+### B. Chords ✅ done (2026-06-24)
+
+A chord is a *sequence* of `KeyDown`s (`Ctrl-C Ctrl-K`) recognised as one event.
+The recogniser accumulates the prefix in `chord_buffer`; while a valid prefix is
+pending it absorbs the key (`recognize!` returns `nothing`), a completed sequence
+emits the chord, and a key that breaks the sequence flushes the buffered keys
+back as raw events. This is recognition only — *what* a chord does is still each
 reader's decision.
+
+**As built (differs from the original sketch):**
+
+- The chord event is a new synthesised `KeyChord(keys::Vector{KeyDown})` in
+  [`KeyboardModule`](../../package/kernel/src/device/Keyboard.jl) — analogous to
+  the synthesised `MousePress`, **not** the deferred per-kind `ChordGesture`
+  struct. It carries the constituent presses; modifiers live on each `KeyDown`.
+- Which sequences are chords is a per-recogniser **chord table that defaults
+  empty**, so production behaviour is unchanged and chords are opt-in. The table
+  says only *which* combinations are a chord, never what they mean.
+- `next_gesture!` now **loops**, so a buffered prefix is absorbed *inside* one
+  pull and never surfaces to `Editor.read!` as the "input exhausted" `nothing`.
+  A dangling prefix persists across an input-exhausted pull (recognised on a
+  later frame, Emacs-style).
+- Flush simplification: the breaking key is emitted raw and does **not** itself
+  start a new chord; auto-repeat `KeyDown`s never start/extend a chord.
+- No production reader consumes `KeyChord` yet (consumption is intent territory,
+  deferred). `KeyChord` is intentionally *not* in the `@event_case` table until a
+  reader needs it.
 
 ### C. Drag
 
@@ -453,8 +506,10 @@ keymap.
   data}` / "name Symbol added in Phase 2" idea is dropped; intent lives in the
   projection readers. Per-kind structs also keep `@gesture_case` field-matching as
   ergonomic as `@event_case`. Remaining: the exact field set of each struct.
-- **Where double/triple-click thresholds live.** Recogniser constants vs.
-  keymap/config. Start as recogniser constants (mirroring today's 5 px / 300 ms).
+- **Where double/triple-click thresholds live.** *Resolved (2026-06-24):*
+  recogniser constants — `MULTI_CLICK_MAX_DISPLACEMENT` (5 px) /
+  `MULTI_CLICK_MAX_INTERVAL` (0.3 s) in `GestureRecognizer.jl`, mirroring the
+  click window. Config/keymap overrides can come later if needed.
 - **Drag routing.** A drag spans many frames; does each `:drag(:update)` run the
   full reader pipeline, or does the editor cache the drag target from `:begin`?
   Interacts with [dragging.md](../pending/dragging.md) — reconcile before

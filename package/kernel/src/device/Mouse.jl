@@ -9,9 +9,10 @@ Five event types cover all mouse interactions:
 - `MouseUp`     — raw button-release.
 - `MousePress`  — synthesised click: emitted when a `MouseUp` occurs at
                   approximately the same position as the preceding `MouseDown`
-                  for the same button within a short time window. The backend
-                  is responsible for synthesis; projections that want
-                  click-selection semantics dispatch on `MousePress`.
+                  for the same button within a short time window. Synthesised by
+                  the editor's `GestureRecognizer` (not the backend); carries a
+                  multi-click `count` (1 = single, 2 = double, …). Projections
+                  that want click-selection semantics dispatch on `MousePress`.
 - `MouseMove`   — cursor motion, including the currently-held button (if any).
 - `MouseScroll` — mouse-wheel event.
 
@@ -68,22 +69,37 @@ end
 MouseUp(button::Symbol, x::Int, y::Int) = MouseUp(button, x, y, Modifiers())
 
 """
-    MousePress(button, x, y[, modifiers])
+    MousePress(button, x, y[, count][, modifiers])
 
-Synthesised click event. Emitted by the backend when a `MouseUp` occurs
-at approximately the same position as the preceding `MouseDown` for the
-same button within a short time window (≤ 300 ms, ≤ 5 px displacement).
+Synthesised click event. Emitted by the editor's `GestureRecognizer` when a
+`MouseUp` occurs at approximately the same position as the preceding `MouseDown`
+for the same button within a short time window (≤ 300 ms, ≤ 5 px displacement).
 Projections that want "select on click" semantics should dispatch on
 `MousePress` rather than `MouseDown`.
+
+`count` is the consecutive-click count for multi-click recognition: `1` for a
+single click, `2` for a double-click, `3` for a triple-click, … (a click counts
+as a continuation of the previous one when it lands within the same short
+window/displacement of the same button). It defaults to `1`, so a plain
+`MousePress(:left, x, y)` is an ordinary single click and existing readers that
+ignore `count` keep matching every click.
 """
 struct MousePress
     button::Symbol
     x::Int
     y::Int
+    count::Int
     modifiers::Modifiers
 end
 
-MousePress(button::Symbol, x::Int, y::Int) = MousePress(button, x, y, Modifiers())
+# Back-compat / convenience constructors default the multi-click count to 1.
+# The `::Modifiers` form disambiguates from the 5-arg primary by argument type,
+# so the many existing `MousePress(button, x, y, modifiers)` call sites are
+# unaffected.
+MousePress(button::Symbol, x::Int, y::Int, modifiers::Modifiers) =
+    MousePress(button, x, y, 1, modifiers)
+MousePress(button::Symbol, x::Int, y::Int) =
+    MousePress(button, x, y, 1, Modifiers())
 
 """
     MouseMove(x, y[, buttons, modifiers])
