@@ -66,6 +66,47 @@ function test_gesture_help()
         io = projection_print(help, arr)
         @test io.output === io.inner_iomap.output
     end
+
+    # End-to-end through a real screen pipeline, mirroring the example wiring:
+    # the content window is help-decorated, and a `GestureMap` type-dispatch arm
+    # renders the help window the manager opens. Proves F1 in the focused window
+    # opens a real sibling window carrying the collected gestures, and a second
+    # F1 closes it — the same OpenWindowOperation rail tooltips ride.
+    @testset "F1 opens (and closes) a real help window in a screen pipeline" begin
+        arr = mkarr()
+        state = GestureHelpState()
+        projection = RecursiveProjection(
+            TypeDispatchingProjection(
+                ScreenDocument => WindowManagerProjection(inner = ScreenToScreen()),
+                WindowDocument => ScreenToScreen(),
+                GestureMap     => GestureMapToSyntax(),
+                JsonArray      => GestureHelpProjection(inner = RecursiveProjection(JsonToSyntax()),
+                                                        state = state),
+                Any            => PreservingProjection(),
+            ),
+        )
+        screen = ScreenDocument([WindowDocument(; id = :main, content = arr)])
+        iomap = projection_print(projection, screen)
+        @test length(screen.windows) == 1
+
+        # F1 in the focused window → a help window appears beside it.
+        op = projection_read(projection, iomap, EventEnvelope(:main, f1))
+        @test !(op isa Operation)                       # consumed by the manager
+        @test length(screen.windows) == 2
+        @test length(iomap.output.windows) == 2         # output mirrors input
+        help_win = screen.windows[2]
+        @test help_win.id === :gesture_help
+        @test help_win.content isa GestureMap
+        @test length(help_win.content.rows) == 9        # the array's collected set
+        @test state.open
+
+        # F1 again → the help window closes.
+        op2 = projection_read(projection, iomap, EventEnvelope(:main, f1))
+        @test !(op2 isa Operation)
+        @test length(screen.windows) == 1
+        @test screen.windows[1].id === :main
+        @test !state.open
+    end
 end
 end
 
