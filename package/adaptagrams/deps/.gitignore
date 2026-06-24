@@ -1,5 +1,4 @@
 # Build artifacts produced by build.jl / Pkg.build
-deps.jl
 build.log
 *.so
 *.dylib

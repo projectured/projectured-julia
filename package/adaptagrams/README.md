@@ -39,10 +39,12 @@ Pkg.build("ProjecturedAdaptagrams")
    `libavoid/ libcola/ libvpsc/`). Defaults to `~/workspace/adaptagrams/cola`.
    Used in-tree (links against each `*/.libs`) — no install needed.
 
-It compiles `libadaptagrams_shim.so` and writes `deps/deps.jl`. The build never
-throws: if Adaptagrams is missing or the compile fails it warns, and
+It compiles `deps/libadaptagrams_shim.<ext>` — a fixed path the module loads
+directly (no generated `deps.jl`). The build never throws: if Adaptagrams is
+missing or the compile fails it warns and removes any stale shim, and
 `AdaptagramsEngine` then errors at call time with this guidance —
-`FallbackLayoutEngine` stays available throughout.
+`FallbackLayoutEngine` stays available throughout. Availability is a runtime
+check, so building the shim is picked up without a stale precompile cache.
 
 > **API drift:** a few libcola/libvpsc/libavoid calls have shifted spelling
 > across Adaptagrams revisions. The calls flagged `VERIFY` in

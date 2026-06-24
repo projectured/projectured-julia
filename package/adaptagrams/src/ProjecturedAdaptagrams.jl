@@ -37,19 +37,24 @@ import Libdl
 
 export AdaptagramsEngine
 
-# ── Native shim location (written by deps/build.jl) ──────────────────────────
-let depsjl = joinpath(@__DIR__, "..", "deps", "deps.jl")
-    if isfile(depsjl)
-        include(depsjl)
-    else
-        @eval const libadaptagrams_shim = ""
-    end
-end
+# ── Native shim location ─────────────────────────────────────────────────────
+# A *deterministic* path, not a generated deps.jl. Earlier we `include`d a
+# build-time deps.jl, but that is a precompile-staleness trap: if the module is
+# first loaded before `Pkg.build` (deps.jl absent), the empty path is baked into
+# the precompile image and the later-created deps.jl — never an `include`
+# dependency — does not invalidate it, so the shim stays "unavailable" even after
+# building and restarting. The shim always lives at this fixed location, so the
+# compiled-in value is correct regardless of build state; whether it has actually
+# been built is a *runtime* check (`isavailable`). Building the .so is then picked
+# up with no stale cache and without a restart.
+const libadaptagrams_shim =
+    joinpath(@__DIR__, "..", "deps", "libadaptagrams_shim." * Libdl.dlext)
 
 "`true` when the native shim is built and actually loadable (the shim and its
-libcola/libavoid/libvpsc dependencies resolve at runtime)."
+libcola/libavoid/libvpsc dependencies resolve at runtime). Re-checks the
+filesystem on each call, so a freshly-built shim is seen without a restart."
 isavailable() =
-    !isempty(libadaptagrams_shim) && isfile(libadaptagrams_shim) &&
+    isfile(libadaptagrams_shim) &&
     Libdl.dlopen(libadaptagrams_shim; throw_error = false) !== nothing
 
 function _unavailable_error()
