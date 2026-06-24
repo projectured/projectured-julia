@@ -83,8 +83,15 @@ This unifies three existing plans into one staged line of work:
 
 Reference [event-to-gesture.md](event-to-gesture.md). Realized here as the
 `GesturePattern` types in Stage 1 (rather than event-to-gesture's
-`@gesture_case`-in-readers shape), keeping the recognizer unchanged. The Phase 2
-named-intent keymap stays deferred there and is not required by this plan.
+`@gesture_case`-in-readers shape), keeping the recognizer unchanged.
+
+> **Reconciled 2026-06-24.** event-to-gesture.md was refined so that **a gesture
+> carries no intent** — there is no "named-intent keymap" anymore (that framing is
+> retired). Its Phase 2 is now *richer composite recognition*; **A (multi-click) +
+> B (key chords) landed 2026-06-24**, adding `MousePress.count` and a synthesised
+> `KeyChord` event. None of this is required by this plan (the `GesturePattern`
+> reification is independent of the recognizer), but the new composites are
+> available building blocks — see the updated Stage 4 note and follow-ups.
 
 ---
 
@@ -189,9 +196,12 @@ of `GestureRow`s (gesture / description / domain / applicable), built by
 renders `describe(pattern) → description` rows grouped by a domain heading, greyed
 + `(n/a)`-tagged when not applicable (the v1 of Lisp's `accessible` colouring),
 onto the existing `SyntaxToText → TextToGraphics` pipeline. `is_help_gesture(event)`
-(kernel) recognizes the help summons — **F1** (Lisp's `Ctrl-H` / `Ctrl-?` needs the
-char-under-Ctrl disambiguation from event-to-gesture.md Phase 2, so F1 is the
-unambiguous v1).
+(kernel) recognizes the help summons — **F1** (`event isa KeyDown && key === :f1`).
+Lisp's `Ctrl-H` / `Ctrl-?` is left for later: `Ctrl-?` needs `Ctrl+Shift+/`
+handling, so F1 is the unambiguous v1. (Now that key chords landed in
+event-to-gesture Phase 2 B, a chord could also summon help, but that would need a
+`KeyChordPattern` / a chord entry in the recogniser's table — neither wired; F1
+stays the v1.)
 
 **Invocation / overlay lifecycle (deferred — follow-up).** Building the overlay
 (`GestureMap` + `GestureMapToSyntax`) is **domain-coupled**, but `read!` lives in
@@ -222,8 +232,17 @@ wiring is a contained follow-up. The render path is proven by `test_gesture_map`
   selection into the focused sub-document for non-root-relative domains.
 - Make `_is_char_cursor` `skip_type_checkpoints` if document-layer char-cursor
   greying is wanted (see Stage 3 note).
-- Optional: event-to-gesture.md Phase 2 named-intent keymap, after which patterns
-  can match intent names (and `is_help_gesture` can match a `:help` intent).
+- **Composite-gesture patterns** (now that event-to-gesture Phase 2 A+B landed): add
+  a `KeyChordPattern` so `@gestures` can bind a `KeyChord` → operation and describe
+  it (e.g. `"Ctrl+C Ctrl+K"`), and let `MousePressPattern` optionally match the
+  `MousePress.count` for double/triple-click bindings. `MousePressPattern` currently
+  ignores `count` (so every click still matches); neither is wired (no consumer yet).
+- **gesture-help convergence:** event-to-gesture.md (reframed) sources its
+  "available gestures" catalogue from the readers'/documents' handled-gesture sets
+  — which is exactly this plan's `collect_gestures` over reified `@gestures` /
+  `projection_gestures`. The two plans converge here; there is no separate keymap
+  to feed (the retired named-intent layer). Reifying more domains (above) is what
+  grows that catalogue.
 
 ---
 
