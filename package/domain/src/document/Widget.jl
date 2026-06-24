@@ -224,7 +224,11 @@ function WidgetButton(position::Point2D, size::Point2D, content;
                       border_color=nothing,
                       padding::Inset=inset_default,
                       padding_color=nothing)
-    WidgetButton(Cell(position), Cell(size), Cell(content), Cell(action),
+    # `action` is a callback, not reactive content. `Cell(f::Function)` builds a
+    # *computed* cell (thunk called with 0 args), so wrapping the callback as
+    # `Cell(action)` would invoke it on read. Store it as a primitive cell value.
+    action_cell = Cell(nothing); setval!(action_cell, action)
+    WidgetButton(Cell(position), Cell(size), Cell(content), action_cell,
                  Cell(visible), Cell(margin), Cell(margin_color),
                  Cell(border), Cell(border_color),
                  Cell(padding), Cell(padding_color),
