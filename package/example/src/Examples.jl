@@ -427,21 +427,26 @@ run_web_example(arg="json"; host="127.0.0.1", port=8080, kwargs...) =
 # (and nothing above it) back through this dispatch, with the content's
 # reference being `windows[i].content` (the i-th window is an
 # `ElementReference`), which is how the target paths are built.
-function _multi_window_projection(projections::Vector)
+function _multi_window_projection(projections::Vector; measure=truetype_measure_text)
     n = length(projections)
     targets = Vector{Any}(undef, n)
     for i in 1:n
         targets[i] = @reference windows[i].content
     end
-    return RecursiveProjection(ReferenceDispatchingProjection(ref -> begin
-        # Exact match — apply that window's example projection here. Wrap
-        # in NestingProjection so the inner projection's own recursion
-        # takes over for everything below this point; the outer recursion
-        # is shut off via PreservingProjection.
+    # One shared open/closed flag for the gesture-help window, threaded into every
+    # (per-dispatch, transient) decorator so F1 toggles the same window.
+    help_state = GestureHelpState()
+    ref_dispatch = ReferenceDispatchingProjection(ref -> begin
+        # Exact match — apply that window's example projection here, wrapped in a
+        # GestureHelpProjection so F1 in the focused window opens a help window
+        # listing the gestures collected from this content's own pipeline. The
+        # NestingProjection (recursion=PreservingProjection) lets the inner
+        # projection's own recursion take over below this point.
         for i in 1:n
             reference_equal(ref, targets[i]) || continue
-            return NestingProjection(projections[i];
-                                      recursion=PreservingProjection())
+            return GestureHelpProjection(
+                inner = NestingProjection(projections[i]; recursion=PreservingProjection()),
+                state = help_state)
         end
         # The ScreenDocument root is the window-management seam: route it
         # through WindowManagerProjection (window open/close/resize ops are
@@ -451,7 +456,21 @@ function _multi_window_projection(projections::Vector)
             return WindowManagerProjection(inner = ScreenToScreen())
         # Anything outside a window's content target — preserve.
         return PreservingProjection()
-    end))
+    end)
+    # A type seam in front of the reference dispatch so dynamically-opened windows
+    # render by content type: a `WindowDocument` (re-projected by the manager when
+    # a window opens) recurses via ScreenToScreen, and a help `GestureMap` window
+    # renders down to graphics. Existing content is `Any` → the reference dispatch,
+    # unchanged (TypeDispatching is transparent for the matched arm).
+    return RecursiveProjection(
+        TypeDispatchingProjection(
+            WindowDocument => ScreenToScreen(),
+            GestureMap     => SequentialProjection(GestureMapToSyntax(),
+                                                   RecursiveProjection(SyntaxToText()),
+                                                   WordWrapping(measure=measure),
+                                                   TextToGraphics(measure=measure)),
+            Any            => ref_dispatch,
+        ))
 end
 
 # ── Tooltip variant ──────────────────────────────────────────────────────

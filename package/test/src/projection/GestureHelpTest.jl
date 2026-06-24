@@ -107,6 +107,28 @@ function test_gesture_help()
         @test screen.windows[1].id === :main
         @test !state.open
     end
+
+    # Through the *real* default editor pipeline (`_multi_window_projection`),
+    # rendering the help window all the way to graphics — guards the live wiring
+    # (the type seam + content decoration) against drift.
+    @testset "F1 opens a help window through the real editor pipeline" begin
+        arr = mkarr()
+        composed = ProjecturedExample._multi_window_projection([make_json_projection_example()])
+        screen = ScreenDocument([WindowDocument(; id = :json, content = arr)])
+        iomap = projection_print(composed, screen)
+
+        op = projection_read(composed, iomap, EventEnvelope(:json, f1))
+        @test !(op isa Operation)
+        @test length(screen.windows) == 2
+        @test screen.windows[2].id === :gesture_help
+        rows = screen.windows[2].content.rows
+        @test screen.windows[2].content isa GestureMap
+        # The full content pipeline (JsonToSyntax → SyntaxToText → TextToGraphics)
+        # contributes across every stage, so the collected set is richer than the
+        # JSON document's 9 own gestures — proving the chain-wide collection.
+        @test length(rows) > 9
+        @test any(r -> occursin("Insert a new element", r.description), rows)
+    end
 end
 end
 
