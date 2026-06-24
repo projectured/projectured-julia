@@ -1,9 +1,8 @@
 # Consolidating operations into `ReplaceReferencedValue`
 
-> **Status (updated 2026-06-24): steps 0–3 merged to `main`; step 4 + the docs
-> (step 8, partial) done on branch `worktree-consolidate-operations`.** Remaining:
-> Group 3 range replaces (step 5, the big one) and the reader-dispatch-list collapse
-> (step 6), then finish the docs. Done so far: the keystone (step 1:
+> **Status (updated 2026-06-24): steps 0–4 + the generic-operations docs (step 8,
+> partial) merged to `main`.** Remaining: Group 3 range replaces (step 5, the big
+> one) and the reader-dispatch-list collapse (step 6), then finish the docs. Done so far: the keystone (step 1:
 > `ReplaceReferencedValue` a reader-list citizen + the `document === nothing` rule),
 > Group 2 widget-state writes (step 2), `ReplaceDocumentOperation` (step 3), Group 4
 > sequence edits (step 4), and the generic-operations documentation (step 8,
@@ -485,7 +484,7 @@ field of `CollectionInsertOperation`, matching Lisp `make-operation/compound`.
      `test_document_insertion` 14/14; clipboard, versioning, dragging,
      `test_repl(json_example)`, `test_repl(workbench_example)` all green.
 
-4. **✅ DONE (branch `worktree-consolidate-operations`, commit `fd56d12`):** fold
+4. **✅ DONE (commit `5894a80`, on `main`):** fold
    Group 4 structural sequence edits.
    - `CollectionInsertOperation`/`CollectionDeleteOperation` deleted; replaced by the
      `insert_elements(path, index, items[, selection]; root)` and
@@ -542,7 +541,7 @@ field of `CollectionInsertOperation`, matching Lisp `make-operation/compound`.
    `part_evaluator` made lazy). The cell-idiom conversion is the real work and is a
    standalone consistency improvement; the fold itself is then trivial.
 
-8. **🟡 PARTIAL (branch `worktree-consolidate-operations`, commit `4eb38a3`):** Docs.
+8. **🟡 PARTIAL (commit `33e767c`, on `main`):** Docs.
    [`documentation/operations.md`](../../documentation/operations.md) now leads with the
    generic `ReplaceReferencedValue` (rooting rule, terminal-kind dispatch, the
    `replace_document`/`insert_elements`/`delete_elements` builder table, `CompoundOperation`),
