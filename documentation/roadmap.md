@@ -34,8 +34,8 @@ handles flat positions. This is the highest-impact, lowest-effort change.
 ### 3. Structural insert / delete
 
 Add/remove elements from `JsonArray`, entries from `JsonObject`, children from
-`SyntaxNode`. Requires `CollectionInsertOperation` / `CollectionDeleteOperation`
-and reader-side logic that detects when the cursor is on structural whitespace
+`SyntaxNode`. Requires `insert_elements` / `delete_elements` (a `ReplaceReferencedValue`
+splice) and reader-side logic that detects when the cursor is on structural whitespace
 and a structural key is pressed.
 
 ### 4. Undo / redo

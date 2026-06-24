@@ -68,11 +68,11 @@ is the direct analogue of `ClipboardSliceToAnyProjection`:
   `versions[idx].value`: forward strips them and delegates the tail to the value
   child; backward delegates to the value child and prepends them.
 - **Reader** — own gestures manage versions (`Ctrl+Shift+S` snapshots the active
-  value into a new front `ObjectVersion` via a standard `CollectionInsertOperation`
-  on `versions`; `Ctrl+Delete` deletes the active version via
-  `CollectionDeleteOperation`). Using the standard collection operations — rather
-  than bespoke version ops — is what lets every ancestor projection re-root them
-  when the `VersionedObject` is nested. `SetVersionCriterionOperation` switches the
+  value into a new front `ObjectVersion` via a standard `insert_elements` splice on
+  `versions`; `Ctrl+Delete` deletes the active version via `delete_elements`). Using
+  the standard sequence-splice helpers — which build a `ReplaceReferencedValue` with
+  a terminal `RangeReference`, rather than bespoke version ops — is what lets every
+  ancestor projection re-root them when the `VersionedObject` is nested. `SetVersionCriterionOperation` switches the
   active criterion (it drops `editor.iomap`, like the clipboard display toggle).
   Every other gesture is delegated into the value child's reader and the returned
   operation is re-rooted under `versions[idx].value`.

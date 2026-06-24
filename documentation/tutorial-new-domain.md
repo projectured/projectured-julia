@@ -484,8 +484,8 @@ BookmarkList
   leaf's value flows back through the default reader, which re-targets its
   reference via the `map_reference_backward` you defined (`[1].value{k}` →
   `title{k}`, `[2].value{k}` → `url{k}`). No extra `projection_read` needed.
-- **Structural editing:** `CollectionInsertOperation` to append bookmarks —
-  this *does* need a `projection_read` method, since it is more than a
+- **Structural editing:** `insert_elements` (a `ReplaceReferencedValue` splice) to
+  append bookmarks — this *does* need a `projection_read` method, since it is more than a
   reference re-target.
 - **A custom operation:** e.g. `BookmarkOpenOperation` that opens the URL
   in a browser when Enter is pressed.

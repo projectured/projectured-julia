@@ -133,8 +133,11 @@ root, and `set_selection!` writes to each node along the path independently.
 An **operation** is the description of a mutation in a domain's own terms.
 The most common is `ReplaceSelectionOperation` — move the selection to a new
 path. Character-level editing uses `StringReplaceRangeOperation` (insert or
-delete a range of characters in a string). Structural editing adds
-`CollectionInsertOperation`, `CollectionDeleteOperation`, and so on.
+delete a range of characters in a string). Most other edits — setting a field,
+swapping a value, inserting or deleting sequence elements — are the single
+generic `ReplaceReferencedValue` (a slot write, with the slot named by a
+reference), often built via `replace_document` / `insert_elements` /
+`delete_elements`. See [operations.md](operations.md).
 
 Operations are produced by the reader side of the projection chain. When you
 press `→`, `TextToGraphics` (the outermost projection) recognises the key and

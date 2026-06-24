@@ -126,18 +126,29 @@ The default value is `inset_default`.
 
 ## Widget operations
 
-Defined alongside the widget types in
+Most widget edits are a **single-field write into a carried widget**, so the
+`WidgetToGraphics` reader emits a self-contained
+`ReplaceReferencedValue(widget, "field", value)` (see
+[operations.md](../operations.md#the-generic-write-operation-replacereferencedvalue))
+rather than a bespoke operation. Because the widget is carried by identity
+(`document !== nothing`), the write bubbles up through every container unchanged.
+
+| Gesture | Operation emitted |
+|---|---|
+| show / hide | `ReplaceReferencedValue(w, "visible", true/false)` |
+| scroll wheel | `ReplaceReferencedValue(scroll_pane, "scroll_position", old + Δ)` (reader reads `old`) |
+| drag scroll-bar | `ReplaceReferencedValue(bar, "value", clamped)` |
+| hover / press a button | `ReplaceReferencedValue(widget, "hovered"/"pressed", bool)` |
+
+The operations that remain bespoke (genuinely not single-slot writes) are defined
+alongside the widget types in
 [document/Widget.jl](../../package/domain/src/document/Widget.jl):
 
 | Operation | Effect |
 |---|---|
-| `HideWidgetOperation(w)` / `ShowWidgetOperation(w)` | toggle visibility |
-| `ScrollWidgetOperation(scroll_pane, scroll_delta)` | adjust scroll offset (`scroll_delta::Point2D`) |
-| `SelectTabOperation(tabbed_pane, index)` | activate a tab |
-| `SetScrollBarValueOperation(bar, value)` | move the scroll-bar thumb |
+| `SelectTabOperation(tabbed_pane, index)` | event-like "tab clicked"; the workbench overloads it into a document-selection move |
 | `StartSplitterDragOperation` / `ResizeSplitPaneOperation` / `EndSplitterDragOperation` | drag a split-pane splitter to resize the two adjacent slots |
 | `InvokeWidgetActionOperation(widget)` | invoke a button's `action` callable (with the editor if it takes one) |
-| `SetWidgetHoverOperation(widget, value)` / `SetWidgetPressedOperation(widget, value)` | set a button's transient `hovered` / `pressed` flag |
 
 The `WidgetToGraphics` reader produces these in response to
 `MousePress`/`MouseScroll`, routing each through the appropriate container

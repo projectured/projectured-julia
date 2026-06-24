@@ -303,5 +303,5 @@ Reactive  (no deps)
 | Navigation operations | `Operation.jl` (`ReplaceSelectionOperation`) | ✅ |
 | Editor REPL | `Editor.jl` | ✅ |
 | All higher-order projections | `projection/higherorder/` | ✅ |
-| Insert / delete operations | `Operation.jl` (`CollectionInsertOperation` / `CollectionDeleteOperation`) | ✅ (collections; produced by JSON/XML readers) |
+| Insert / delete operations | `Operation.jl` (`insert_elements` / `delete_elements` → a `ReplaceReferencedValue` splice) | ✅ (collections; produced by JSON/XML readers) |
 | Undo / redo | — | ❌ |

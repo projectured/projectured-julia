@@ -66,8 +66,8 @@ defined per operation; methods reach for the document via `editor.document`. For
 `ReplaceSelectionOperation` the implementation is
 `clear_selection!(editor.document); set_selection!(editor.document, op.path)`. For
 `QuitEditorOperation` it throws `QuitEditorException`. Other operations
-(e.g. `ScrollWidgetOperation`, `ReplaceFocusPartOperation`) mutate the
-document or projection state directly. See [the operations guide](operations.md).
+(e.g. the generic `ReplaceReferencedValue`, or `ReplaceFocusPartOperation`) mutate
+the document or projection state directly. See [the operations guide](operations.md).
 
 ### Print
 

@@ -45,30 +45,78 @@ Produced when the user closes the window or presses Escape. Its evaluation
 throws a `QuitEditorException`, which the `run!` loop catches and uses to
 break out cleanly.
 
-## Other domain operations
+## The generic write operation: `ReplaceReferencedValue`
 
-| Operation | Where it lives | Effect |
+Most operations do one thing — **write a value into one slot of some object** — so
+they are all really the *same* operation, differing only in which object, which
+slot, and what value:
+
+```julia
+struct ReplaceReferencedValue
+    document    # root to resolve `reference` against; `nothing` ⇒ editor.document
+    reference   # ReferencePath to the slot being written
+    value       # the value to write
+end
+```
+
+**Rooting** is chosen by the `document` field:
+
+- `document === nothing` — rooted at `editor.document`, so container/generic
+  projections **reroot `reference`** as the operation bubbles up (it is a
+  reference-carrying operation; see the invariants below).
+- `document !== nothing` — **self-contained**: it carries its own root (a widget, a
+  `WorkbenchPage`, or a projection's own parameter `Cell`), so it bubbles up
+  **unchanged** and applying it never depends on where the document sits in the tree.
+
+**Terminal-step dispatch** on `reference`'s last step decides what "write" means:
+
+- `FieldReference` → set a `Cell`-backed field (`widget.visible`, `entry.value`, …).
+- `RangeReference` + a single value → overwrite that one element.
+- `RangeReference` + a *vector* → **splice**: replace the half-open element range
+  `[start, stop)` with the items (zero-width range = insert, empty vector = delete).
+- empty `reference` (only meaningful when `document === nothing`) → **whole-root
+  swap**: rebind `editor.document` and drop the cached iomap.
+
+**Builders** package the common shapes (and any cursor follow-up) so the producing
+readers stay small:
+
+| Builder | Builds |
+|---|---|
+| `ReplaceReferencedValue(obj, "field", v)` | a single field write on a carried root |
+| `replace_document(path, doc)` | write `doc` at `path`, then move the cursor to `path ⧺ doc.selection` — a `CompoundOperation` |
+| `insert_elements(path, i, items[, sel]; root=nothing)` | zero-width splice (insert); with `sel`, append a cursor move |
+| `delete_elements(path, i[, n]; root=nothing)` | range-with-empty splice (delete `n` elements) |
+
+`CompoundOperation([op₁, op₂, …])` applies several operations as one editor step;
+rerooting maps over the members, so a write and its cursor move stay in sync. This
+is how a document replace or a sequence insert-and-select is expressed, and what the
+clipboard cut/copy/paste produce.
+
+`ReplaceReferencedValue` and these builders **replace a whole family** of former
+single-purpose operations — `ReplaceDocumentOperation`, `HideWidgetOperation`,
+`ShowWidgetOperation`, `ScrollWidgetOperation`, `SetScrollBarValueOperation`,
+`SetWidgetHoverOperation`, `SetWidgetPressedOperation`, `CollectionInsertOperation`,
+`CollectionDeleteOperation`, and the Workbench open/close. **Reach for
+`ReplaceReferencedValue` (or a builder) before writing a new operation struct.** See
+[`plan/pending/consolidate-operations-replace.md`](../plan/pending/consolidate-operations-replace.md).
+
+## Operations that remain distinct
+
+These do something other than a single-slot write, so they stay their own types:
+
+| Operation | Where it lives | Why it stays |
 |---|---|---|
-| `HideWidgetOperation(widget)` | `document/Widget.jl` | sets `widget.visible = false` |
-| `ShowWidgetOperation(widget)` | `document/Widget.jl` | sets `widget.visible = true` |
-| `ScrollWidgetOperation(scroll_pane, dx, dy)` | `document/Widget.jl` | adjusts scroll offsets |
-| `SelectTabOperation(tabbed_pane, index)` | `document/Widget.jl` | switches the active tab |
-| `SetScrollBarValueOperation(bar, value)` | `document/Widget.jl` | sets scroll-bar position |
-| `NumberReplaceRangeOperation(...)` | `document/Primitive.jl` | edits a `PrimitiveNumber` |
-| `StringReplaceRangeOperation(...)` | `document/Primitive.jl` | edits a `PrimitiveString` |
+| `StringReplaceRangeOperation` / `NumberReplaceRangeOperation` | `document/Primitive.jl` | character-range edits on a string/number value (pending fold into a `RangeReference` splice) |
+| `SelectTabOperation(tabbed_pane, index)` | `document/Widget.jl` | event-like signal — the workbench overloads it into a document-selection move |
 | `ReplaceFocusPartOperation(projection, part)` | `projection/generic/Focusing.jl` | retargets a `FocusingProjection` |
-| `WorkbenchOpenDocumentOperation(page, entry)` | `document/Workbench.jl` | appends `entry` to `page.elements` (open a tab) |
-| `WorkbenchCloseDocumentOperation(page, index)` | `document/Workbench.jl` | removes `page.elements[index]` (close a tab) |
-| `MoveRangeOperation(src, a, b, dst, i)` | `projection/higherorder/Dragging.jl` | relocates `CellVector` elements `a:b` to index `i` of `dst` (drag-and-drop reorder); carries the `CellVector`s directly, like the split-pane ops carry the pane |
+| `MoveRangeOperation(src, a, b, dst, i)` | `projection/higherorder/Dragging.jl` | identity-preserving relocation of `CellVector` elements (carries the `CellVector`s directly) |
+| `ToggleCollapseOperation`, `ResizeWindowOperation`, `Open`/`CloseWindowOperation` | `common/Operation.jl` | view/window state |
+| `Load`/`Save`/`ExportDocumentOperation`, `Database*Operation` | `document/*.jl` | file/SQL I/O |
+| assistant/composer & splitter-drag operations | `editor/*`, `document/Widget.jl` | async turns, multi-field resets, transient drag state, arbitrary `action` callables |
 
-Operation modules are the right place to look when wiring a new gesture:
-the operation declares its semantics once, projections that emit it stay
-small, and the editor's `evaluate!` dispatches on type.
-
-Note that these operations **carry their own target** (a widget, a
-`WorkbenchPage`, a reference path), so applying one never depends on where the
-document sits in the tree — there is no "find the workbench from the editor"
-step baked into them. That is what makes the programmatic path below general.
+Operation modules are the right place to look when wiring a new gesture: the
+operation declares its semantics once, the projections that emit it stay small, and
+the editor's `evaluate_operation` dispatches on type.
 
 ## Driving operations programmatically (scripting the editor)
 
@@ -139,6 +187,16 @@ further toward the document's own domain.
 
 ## Adding a new operation
 
+**First ask whether you need one.** If the gesture just writes a value into a slot
+(a field, or an element of a sequence), emit a `ReplaceReferencedValue` — or a
+`replace_document` / `insert_elements` / `delete_elements` builder, optionally inside
+a `CompoundOperation` with a `ReplaceSelectionOperation` cursor move. No new type,
+no new evaluator, and rerooting already works. Add a new `Operation` struct only for
+genuinely different behaviour (control flow, I/O, async, multi-field/structural
+changes that are not a single splice).
+
+When you do need a new one:
+
 1. **Declare it.** `struct MyOp <: Operation; ...; end` in the most natural
    module (the domain that owns the affected document, or `OperationModule`
    for cross-domain operations).
@@ -167,22 +225,25 @@ further toward the document's own domain.
   change the document by writing into the Cells that are already wired into the
   projection graph. If an operation instead swaps a whole value/subtree out from
   under the projection (replacing the structure the iomap was built against), it
-  must **null `editor.iomap`** to force a fresh `projection_print` — exactly what
-  `ReplaceDocumentOperation` does for a whole-root replace. An operation that
-  silently rebinds structure without dropping the iomap renders stale.
+  must **null `editor.iomap`** to force a fresh `projection_print` — exactly what a
+  `ReplaceReferencedValue` with an empty reference (the `replace_document` whole-root
+  swap) does. An operation that silently rebinds structure without dropping the iomap
+  renders stale.
 - **A new *reference-carrying* operation must be registered in two places.** If
-  your operation embeds a `ReferencePath` that has to cross projection
-  boundaries (like `ReplaceSelectionOperation` /
-  `StringReplaceRangeOperation` / `NumberReplaceRangeOperation`), it is only
-  retargeted/rerooted automatically if you add it to **both** the default
-  `projection_read` ([common/Projection.jl](../package/kernel/src/common/Projection.jl))
-  **and** `prepend_steps_to_op`
+  your operation embeds a `ReferencePath` that has to cross projection boundaries
+  — the generic `ReplaceReferencedValue` (when `document === nothing`), or the
+  remaining path-bearing types `ReplaceSelectionOperation` /
+  `StringReplaceRangeOperation` / `NumberReplaceRangeOperation`, or a
+  `CompoundOperation` of them — it is only retargeted/rerooted automatically if it
+  is handled in **both** the default `projection_read`
+  ([common/Projection.jl](../package/kernel/src/common/Projection.jl)) **and**
+  `prepend_steps_to_op`
   ([common/OperationRerooting.jl](../package/kernel/src/common/OperationRerooting.jl)).
-  Both enumerate the path-bearing operation types explicitly; an operation
-  missing from either is **silently passed through unmapped** — its reference
-  stays in the wrong domain with no error. (An operation that carries its own
-  concrete target instead of a path — see the note above on `HideWidgetOperation`
-  et al. — needs neither.)
+  Both enumerate the path-bearing operation types explicitly; an operation missing
+  from either is **silently passed through unmapped** — its reference stays in the
+  wrong domain with no error. A `ReplaceReferencedValue` that carries its own root
+  (`document !== nothing`) needs no rerooting — it is passed through unchanged — so
+  prefer that form for an operation targeting a carried object.
 
 ## The fall-through cases
 
