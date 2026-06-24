@@ -318,9 +318,11 @@ end
 # Help-gesture recognition
 #
 # The gesture that summons the gesture-help overlay. Lisp uses Ctrl-H; here the
-# unambiguous F1 ("help") is used, since a letter chord under Ctrl is not yet a
-# distinct gesture (event-to-gesture.md Phase 2). When the named-intent keymap
-# lands this can switch to matching the `:help` intent (and Ctrl-? alongside).
+# unambiguous F1 ("help") is used, since Ctrl-? would need `Ctrl+Shift+/` handling.
+# A gesture carries no intent (event-to-gesture.md), so there is no keymap to bind
+# a `:help` intent — the summons is just whichever gesture this predicate matches.
+# It could later be a key chord (event-to-gesture.md Phase 2 B landed `KeyChord`),
+# but that needs a chord-table entry + a `KeyChordPattern`; F1 stays the v1.
 # ─────────────────────────────────────────────────────────────────────────
 
 """
