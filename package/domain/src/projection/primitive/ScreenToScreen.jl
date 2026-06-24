@@ -29,7 +29,7 @@ import ..ReferenceModule: ReferencePath, ConcreteReferencePath, EmptyReferencePa
                           FieldReference, RangeReference, ElementReference, head, tail
 import ..PrinterContextModule: PrinterContext, child_context, with_available_size
 import ..IoMapApiModule: IoMap
-import ..OperationModule: ReplaceSelectionOperation, ReplaceDocumentOperation,
+import ..OperationModule: ReplaceSelectionOperation, ReplaceReferencedValue,
                           CollectionInsertOperation, CollectionDeleteOperation, CompoundOperation
 import ..PrimitiveModule: StringReplaceRangeOperation, NumberReplaceRangeOperation
 
@@ -189,8 +189,9 @@ function _prefix_op(op, steps::Tuple)
         return NumberReplaceRangeOperation(_prepend(steps, op.reference), op.replacement)
     elseif op isa ReplaceSelectionOperation
         return ReplaceSelectionOperation(_prepend(steps, op.path))
-    elseif op isa ReplaceDocumentOperation
-        return ReplaceDocumentOperation(_prepend(steps, op.path), op.document)
+    elseif op isa ReplaceReferencedValue
+        return op.document === nothing ?
+            ReplaceReferencedValue(nothing, _prepend(steps, op.reference), op.value) : op
     elseif op isa CollectionInsertOperation
         return CollectionInsertOperation(_prepend(steps, op.path), op.index, op.items,
             op.selection === nothing ? nothing : _prepend(steps, op.selection))

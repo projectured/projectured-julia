@@ -35,7 +35,7 @@ import ..XmlModule: XmlInsertion
 import ..TextModule: TextText, TextString
 import ..JuliaParserModule: juliaparse
 import ..SyntaxModule: SyntaxLeaf
-import ..OperationModule: ReplaceDocumentOperation, ReplaceSelectionOperation
+import ..OperationModule: replace_document, ReplaceSelectionOperation
 import ..PrimitiveModule: StringReplaceRangeOperation
 import ..ReferenceModule: ConcreteReferencePath, FieldReference, RangeReference,
                           EmptyReferencePath, ProjectionReference, skip_type_checkpoints
@@ -139,9 +139,9 @@ function projection_read(p::InsertionToSyntaxLeaf, iomap::SimpleIoMap, evt::KeyD
     if action === :commit
         doc = p.commit(something(ins.value, ""))
         doc === nothing && return nothing
-        return ReplaceDocumentOperation(EmptyReferencePath(), doc)
+        return replace_document(EmptyReferencePath(), doc)
     elseif action === :abort
-        return ReplaceDocumentOperation(EmptyReferencePath(), DocumentNothing())
+        return replace_document(EmptyReferencePath(), DocumentNothing())
     end
     range = _value_range(ins)
     range === nothing && return nothing

@@ -16,7 +16,7 @@ the prepend logic.
 module OperationRerootingModule
 
 import ..ReferenceModule: ReferencePath, ConcreteReferencePath
-import ..OperationModule: ReplaceSelectionOperation, ReplaceDocumentOperation, ReplaceReferencedValue,
+import ..OperationModule: ReplaceSelectionOperation, ReplaceReferencedValue,
                           CollectionInsertOperation, CollectionDeleteOperation, CompoundOperation
 import ..PrimitiveModule: StringReplaceRangeOperation, NumberReplaceRangeOperation
 
@@ -65,8 +65,6 @@ function prepend_steps_to_op(op, steps::Tuple)
         StringReplaceRangeOperation(prepend_steps_to_ref(op.reference, steps), op.replacement)
     elseif op isa NumberReplaceRangeOperation
         NumberReplaceRangeOperation(prepend_steps_to_ref(op.reference, steps), op.replacement)
-    elseif op isa ReplaceDocumentOperation
-        ReplaceDocumentOperation(prepend_steps_to_ref(op.path, steps), op.document)
     elseif op isa CollectionInsertOperation
         CollectionInsertOperation(prepend_steps_to_ref(op.path, steps), op.index, op.items,
             op.selection === nothing ? nothing : prepend_steps_to_ref(op.selection, steps))

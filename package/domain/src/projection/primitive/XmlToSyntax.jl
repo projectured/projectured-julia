@@ -23,7 +23,7 @@ import ..ReferenceModule: ConcreteReferencePath, ElementReference, PositionRefer
 import ..ReferenceCaseModule: var"@reference_case"
 import ..ReferenceBuilderModule: var"@reference"
 import ..PrinterContextModule: child_context
-import ..OperationModule: ReplaceSelectionOperation, ReplaceDocumentOperation, CollectionInsertOperation
+import ..OperationModule: ReplaceSelectionOperation, replace_document, CollectionInsertOperation
 import ..PrimitiveModule: StringReplaceRangeOperation
 import ..KeyboardModule: KeyPress, KeyDown
 import ..SyntaxToTextModule: SyntaxNodeToText, _syntax_to_flat
@@ -379,7 +379,7 @@ function _xml_read_command(input, evt::KeyPress)
     target isa XmlInsertion || return nothing
     newdoc = ch == '"' ? _xml_sel!(XmlText(""), @reference content{0}) :
                          _xml_sel!(XmlElement(""), @reference tag{0})
-    ReplaceDocumentOperation(sel, newdoc)
+    replace_document(sel, newdoc)
 end
 
 # Append a child to an element's `.children` and drop the cursor into it, ready to

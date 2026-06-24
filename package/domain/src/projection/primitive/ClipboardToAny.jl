@@ -35,7 +35,7 @@ module ClipboardToAnyProjectionModule
 import ..ProjectionApiModule: projection_print, projection_printer_recurse, projection_read,
                               map_reference_forward, map_reference_backward, Projection, Change, as_change
 import ..OperationApiModule: Operation, evaluate_operation
-import ..OperationModule: ReplaceSelectionOperation, ReplaceDocumentOperation,
+import ..OperationModule: ReplaceSelectionOperation, ReplaceReferencedValue, replace_document,
                           CollectionInsertOperation, CollectionDeleteOperation, CompoundOperation
 import ..PrimitiveModule: StringReplaceRangeOperation, NumberReplaceRangeOperation
 import ..ReactiveModule: Cell
@@ -254,7 +254,7 @@ function _clipboard_copy(input)
     sel, obj = _selected(input)
     obj isa Document || return nothing
     CompoundOperation(Any[
-        ReplaceDocumentOperation(_field_path("slice"), copy_document(obj)),
+        replace_document(_field_path("slice"), copy_document(obj)),
         ReplaceSelectionOperation(sel),
     ])
 end
@@ -264,8 +264,8 @@ function _clipboard_cut(input)
     sel, obj = _selected(input)
     obj isa Document || return nothing
     CompoundOperation(Any[
-        ReplaceDocumentOperation(_field_path("slice"), obj),
-        ReplaceDocumentOperation(sel, DocumentNothing()),
+        replace_document(_field_path("slice"), obj),
+        replace_document(sel, DocumentNothing()),
     ])
 end
 
@@ -275,7 +275,7 @@ function _clipboard_note(input)
     sel, obj = _selected(input)
     obj isa Document || return nothing
     CompoundOperation(Any[
-        ReplaceDocumentOperation(_field_path("slice"), obj),
+        replace_document(_field_path("slice"), obj),
         ReplaceSelectionOperation(sel),
     ])
 end
@@ -289,7 +289,7 @@ function _clipboard_paste(input)
     sel = input.selection
     (sel === nothing || sel isa EmptyReferencePath) && return nothing
     CompoundOperation(Any[
-        ReplaceDocumentOperation(sel, slice),
+        replace_document(sel, slice),
         ReplaceSelectionOperation(sel),
     ])
 end
@@ -301,7 +301,7 @@ function _clipboard_paste_copy(input)
     sel = input.selection
     (sel === nothing || sel isa EmptyReferencePath) && return nothing
     CompoundOperation(Any[
-        ReplaceDocumentOperation(sel, copy_document(slice)),
+        replace_document(sel, copy_document(slice)),
         ReplaceSelectionOperation(sel),
     ])
 end
@@ -385,13 +385,16 @@ function _prefix_op(op, steps::Tuple)
         StringReplaceRangeOperation(_prepend(steps, op.reference), op.replacement)
     elseif op isa NumberReplaceRangeOperation
         NumberReplaceRangeOperation(_prepend(steps, op.reference), op.replacement)
-    elseif op isa ReplaceDocumentOperation
-        ReplaceDocumentOperation(_prepend(steps, op.path), op.document)
+    elseif op isa ReplaceReferencedValue
+        op.document === nothing ?
+            ReplaceReferencedValue(nothing, _prepend(steps, op.reference), op.value) : op
     elseif op isa CollectionInsertOperation
         CollectionInsertOperation(_prepend(steps, op.path), op.index, op.items,
             op.selection === nothing ? nothing : _prepend(steps, op.selection))
     elseif op isa CollectionDeleteOperation
         CollectionDeleteOperation(_prepend(steps, op.path), op.index, op.count)
+    elseif op isa CompoundOperation
+        CompoundOperation(Any[_prefix_op(o, steps) for o in op.operations])
     else
         op
     end

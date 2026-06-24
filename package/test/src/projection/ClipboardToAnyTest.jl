@@ -3,6 +3,12 @@ function test_clipboard_to_any()
 # A reference path built from raw steps.
 cpath(steps...) = foldr((s, acc) -> ConcreteReferencePath(s, acc), steps; init=EmptyReferencePath())
 
+# A `replace_document(path, doc)` fold is a CompoundOperation whose first member is
+# the ReplaceReferencedValue that writes `doc` at `path`. These read that target
+# reference and written value out of the (nested) compound.
+_rd_ref(rd) = rd.operations[1].reference
+_rd_val(rd) = rd.operations[1].value
+
 ctrl = Modifiers(ctrl=true)
 ctrl_shift = Modifiers(ctrl=true, shift=true)
 
@@ -73,19 +79,19 @@ end
     op = projection_read(p, iomap, KeyDown(:c, ctrl))
     @test op isa CompoundOperation
     @test length(op.operations) == 2
-    @test op.operations[1] isa ReplaceDocumentOperation
-    @test op.operations[1].path.head.name == "slice"
-    @test op.operations[1].document isa PrimitiveString
-    @test op.operations[1].document.value == "hello"
-    @test op.operations[1].document !== content             # deep copy
+    @test op.operations[1] isa CompoundOperation                # folded replace_document
+    @test _rd_ref(op.operations[1]).head.name == "slice"
+    @test _rd_val(op.operations[1]) isa PrimitiveString
+    @test _rd_val(op.operations[1]).value == "hello"
+    @test _rd_val(op.operations[1]) !== content                 # deep copy
     @test op.operations[2] isa ReplaceSelectionOperation
     @test op.operations[2].path == cpath(FieldReference("content"))
 
     # Note — stores the live object, then restores the original selection.
     op = projection_read(p, iomap, KeyDown(:n, ctrl))
     @test op isa CompoundOperation
-    @test op.operations[1] isa ReplaceDocumentOperation
-    @test op.operations[1].document === content
+    @test op.operations[1] isa CompoundOperation
+    @test _rd_val(op.operations[1]) === content
     @test op.operations[2] isa ReplaceSelectionOperation
     @test op.operations[2].path == cpath(FieldReference("content"))
 
@@ -93,12 +99,12 @@ end
     op = projection_read(p, iomap, KeyDown(:x, ctrl))
     @test op isa CompoundOperation
     @test length(op.operations) == 2
-    @test op.operations[1] isa ReplaceDocumentOperation
-    @test op.operations[1].path.head.name == "slice"
-    @test op.operations[1].document === content
-    @test op.operations[2] isa ReplaceDocumentOperation
-    @test op.operations[2].path.head.name == "content"
-    @test op.operations[2].document isa DocumentNothing
+    @test op.operations[1] isa CompoundOperation
+    @test _rd_ref(op.operations[1]).head.name == "slice"
+    @test _rd_val(op.operations[1]) === content
+    @test op.operations[2] isa CompoundOperation
+    @test _rd_ref(op.operations[2]).head.name == "content"
+    @test _rd_val(op.operations[2]) isa DocumentNothing
 end
 
 @testset "slice reader paste" begin
@@ -113,28 +119,28 @@ end
     # selection to the pasted target.
     op = projection_read(p, iomap, KeyDown(:v, ctrl))
     @test op isa CompoundOperation
-    @test op.operations[1] isa ReplaceDocumentOperation
-    @test op.operations[1].path.head.name == "content"
-    @test op.operations[1].document === stored
+    @test op.operations[1] isa CompoundOperation
+    @test _rd_ref(op.operations[1]).head.name == "content"
+    @test _rd_val(op.operations[1]) === stored
     @test op.operations[2] isa ReplaceSelectionOperation
     @test op.operations[2].path == cpath(FieldReference("content"))
 
     # Paste copy — a fresh deep copy each time.
     op = projection_read(p, iomap, KeyDown(:v, ctrl_shift))
     @test op isa CompoundOperation
-    @test op.operations[1] isa ReplaceDocumentOperation
-    @test op.operations[1].document !== stored
-    @test op.operations[1].document.value == "stored"
+    @test op.operations[1] isa CompoundOperation
+    @test _rd_val(op.operations[1]) !== stored
+    @test _rd_val(op.operations[1]).value == "stored"
     @test op.operations[2] isa ReplaceSelectionOperation
 
     # Paste with no stored slice does not fire: it falls through to the content
     # reader (matching Lisp's merge-commands). With no replace produced here, the
-    # clipboard does not emit a ReplaceDocumentOperation.
+    # clipboard does not emit a paste compound.
     empty_slice = ClipboardSlice(PrimitiveString("x"))
     empty_slice.selection = cpath(FieldReference("content"))
     pe = ClipboardSliceToAnyProjection()
     iomap_e = projection_print(pe, PreservingProjection(), empty_slice, PrinterContext())
-    @test !(projection_read(pe, iomap_e, KeyDown(:v, ctrl)) isa ReplaceDocumentOperation)
+    @test !(projection_read(pe, iomap_e, KeyDown(:v, ctrl)) isa CompoundOperation)
 end
 
 @testset "collection printer display toggle" begin

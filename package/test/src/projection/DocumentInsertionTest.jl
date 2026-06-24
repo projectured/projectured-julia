@@ -6,9 +6,13 @@ using Projectured: DocumentInsertion, JuliaInsertion, JsonInsertion, JuliaDocume
                    DocumentNothing, DocumentInsertionToSyntaxLeaf, JuliaInsertionToSyntaxLeaf,
                    default_factory, default_completion,
                    projection_print, projection_read, evaluate_operation,
-                   ReplaceDocumentOperation, StringReplaceRangeOperation,
+                   ReplaceReferencedValue, CompoundOperation, StringReplaceRangeOperation,
                    KeyPress, KeyDown, Modifiers,
                    ConcreteReferencePath, FieldReference, RangeReference, EmptyReferencePath
+
+# A `replace_document(path, doc)` fold expands to a CompoundOperation whose first
+# member is the ReplaceReferencedValue that writes `doc`.
+_written_doc(op) = op.operations[1].value
 
 _ins_vpath(n) = ConcreteReferencePath(FieldReference("value"),
                     ConcreteReferencePath(RangeReference(n, n), EmptyReferencePath()))
@@ -38,13 +42,13 @@ function test_document_insertion()
             # Enter commits via the factory → a JuliaInsertion.
             ins.selection = _ins_vpath(length(ins.value))
             commit = projection_read(proj, iom, KeyDown(:return, Modifiers()))
-            @test commit isa ReplaceDocumentOperation
-            @test commit.document isa JuliaInsertion
+            @test commit isa CompoundOperation
+            @test _written_doc(commit) isa JuliaInsertion
 
             # Escape aborts to DocumentNothing.
             esc = projection_read(proj, iom, KeyDown(:escape, Modifiers()))
-            @test esc isa ReplaceDocumentOperation
-            @test esc.document isa DocumentNothing
+            @test esc isa CompoundOperation
+            @test _written_doc(esc) isa DocumentNothing
         end
 
         @testset "JuliaInsertion commits source via juliaparse" begin
@@ -53,8 +57,8 @@ function test_document_insertion()
             jproj = JuliaInsertionToSyntaxLeaf()
             jiom = projection_print(jproj, jproj, ji, nothing)
             commit = projection_read(jproj, jiom, KeyDown(:return, Modifiers()))
-            @test commit isa ReplaceDocumentOperation
-            @test commit.document isa JuliaDocument
+            @test commit isa CompoundOperation
+            @test _written_doc(commit) isa JuliaDocument
 
             # Unparseable / empty source cannot commit.
             empty_ji = JuliaInsertion("")

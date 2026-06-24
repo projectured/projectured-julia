@@ -48,13 +48,17 @@ read_key(doc, sel, evt) = begin
     projection_read(x2s, iomap, evt)
 end
 
+# A type-to-replace gesture returns the folded `replace_document` compound;
+# `_written` is the document its first member (the ReplaceReferencedValue) writes.
+_written(op) = op.operations[1].value
+
 @testset "insertion replace builds the right node" begin
     op = read_key(XmlInsertion(), whole, KeyPress('"'))
-    @test op isa ReplaceDocumentOperation
-    @test op.document isa XmlText
+    @test op isa CompoundOperation
+    @test _written(op) isa XmlText
     op = read_key(XmlInsertion(), whole, KeyPress('<'))
-    @test op isa ReplaceDocumentOperation
-    @test op.document isa XmlElement
+    @test op isa CompoundOperation
+    @test _written(op) isa XmlElement
     # An unrelated key declines.
     @test read_key(XmlInsertion(), whole, KeyPress('q')) === nothing
 end
@@ -72,8 +76,8 @@ end
 @testset "replacing a selected child insertion writes the slot in place" begin
     e = XmlElement("a", XmlDocument[XmlInsertion()])
     op = read_key(e, (@reference children[1]), KeyPress('<'))
-    @test op isa ReplaceDocumentOperation
-    @test op.document isa XmlElement
+    @test op isa CompoundOperation
+    @test _written(op) isa XmlElement
     ed = _XmlReaderEditor(e, nothing)
     evaluate_operation(ed, op)
     @test ed.document === e                     # root untouched: incremental write

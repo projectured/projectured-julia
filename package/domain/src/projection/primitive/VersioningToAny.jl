@@ -40,7 +40,7 @@ module VersioningToAnyProjectionModule
 import ..ProjectionApiModule: projection_print, projection_printer_recurse, projection_read,
                               map_reference_forward, map_reference_backward, Projection, Change, as_change
 import ..OperationApiModule: Operation, evaluate_operation
-import ..OperationModule: ReplaceSelectionOperation, ReplaceDocumentOperation,
+import ..OperationModule: ReplaceSelectionOperation, ReplaceReferencedValue,
                           CollectionInsertOperation, CollectionDeleteOperation, CompoundOperation
 import ..PrimitiveModule: StringReplaceRangeOperation, NumberReplaceRangeOperation
 import ..ReactiveModule: Cell
@@ -213,13 +213,16 @@ function _prefix_op(op, steps::Tuple)
         StringReplaceRangeOperation(_prepend(steps, op.reference), op.replacement)
     elseif op isa NumberReplaceRangeOperation
         NumberReplaceRangeOperation(_prepend(steps, op.reference), op.replacement)
-    elseif op isa ReplaceDocumentOperation
-        ReplaceDocumentOperation(_prepend(steps, op.path), op.document)
+    elseif op isa ReplaceReferencedValue
+        op.document === nothing ?
+            ReplaceReferencedValue(nothing, _prepend(steps, op.reference), op.value) : op
     elseif op isa CollectionInsertOperation
         CollectionInsertOperation(_prepend(steps, op.path), op.index, op.items,
             op.selection === nothing ? nothing : _prepend(steps, op.selection))
     elseif op isa CollectionDeleteOperation
         CollectionDeleteOperation(_prepend(steps, op.path), op.index, op.count)
+    elseif op isa CompoundOperation
+        CompoundOperation(Any[_prefix_op(o, steps) for o in op.operations])
     else
         op
     end

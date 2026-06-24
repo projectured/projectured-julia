@@ -28,7 +28,7 @@ import ..CollectionModule: CellVector
 import ..ReferenceModule: Reference, ReferencePath, ConcreteReferencePath, PositionReference, RangeReference, FieldReference, EmptyReferencePath, evaluate_reference
 import ..ReferenceBuilderModule: var"@reference"
 import ..ReferenceCaseModule: var"@reference_case"
-import ..OperationModule: ReplaceDocumentOperation, CollectionInsertOperation, ReplaceSelectionOperation
+import ..OperationModule: replace_document, CollectionInsertOperation, ReplaceSelectionOperation
 import ..KeyboardModule: KeyPress, KeyDown
 import ..GestureBindingModule: var"@gestures"
 export JsonDocument, JsonInsertion, JsonNull, JsonBool, JsonNumber, JsonString, JsonArray, JsonObject, JsonObjectEntry, jsonvalue, entries, setfn!,
@@ -414,7 +414,7 @@ end
 _sel!(doc, path) = (getfield(doc, :selection)[] = path; doc)
 
 # Replace the currently-selected value with `newdoc` (whose cursor is pre-placed).
-_replace(doc, newdoc) = ReplaceDocumentOperation(getfield(doc, :selection)[], newdoc)
+_replace(doc, newdoc) = replace_document(getfield(doc, :selection)[], newdoc)
 
 # A character cursor: a path ending in value{k} or key{k} (a RangeReference after a
 # value/key field). A whole-element selection ends in ∅.

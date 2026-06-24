@@ -12,7 +12,7 @@ import ..ReferenceModule: ReferencePath, ConcreteReferencePath, EmptyReferencePa
 import ..ReactiveModule: Cell
 export ReplaceSelectionOperation, QuitEditorOperation, QuitEditorException, replace_selection!,
        OpenWindowOperation, CloseWindowOperation, ResizeWindowOperation, ToggleCollapseOperation,
-       ReplaceDocumentOperation, ReplaceReferencedValue, CollectionInsertOperation, CollectionDeleteOperation,
+       ReplaceReferencedValue, replace_document, CollectionInsertOperation, CollectionDeleteOperation,
        CompoundOperation
 
 function evaluate_operation(editor, op::Nothing) end
@@ -79,49 +79,11 @@ function evaluate_operation(editor, op::ReplaceSelectionOperation)
     update_selection!(editor.document, op.path)
 end
 
-"""
-    ReplaceDocumentOperation(path, document)
-
-Replace the document currently selected at `path` (a `ReferencePath` rooted at
-`editor.document`) with `document`. This is the structural analogue of the
-primitive replace-range operations: instead of editing the text inside a value,
-it swaps the value itself — the move every JSON `json/read-command`
-type-to-replace gesture makes (`[` → array, `{` → object, digit → number, …).
-
-`document` carries its own initial selection (in its `selection` field, relative
-to itself); after the swap the editor selection becomes `path ⧺ document.selection`
-so the cursor lands inside the freshly-created value.
-
-An empty `path` replaces the whole root: `editor.document` is rebound and the
-cached iomap is dropped so the next `print!` rebuilds the projection on the new
-root (a wholesale root swap is not reactive — every nested swap writes into a
-`Cell` and stays incremental).
-"""
-struct ReplaceDocumentOperation <: Operation
-    path::ReferencePath
-    document::Document
-end
-
-function evaluate_operation(editor, op::ReplaceDocumentOperation)
-    # The path is a document-mutation navigation path: strip any selection-style
-    # type checkpoints so the terminal-slot split and whole-root check see a
-    # plain navigation path. (The new selection built below is re-canonicalized
-    # by `replace_selection!`.)
-    path = strip_reference_types(op.path)
-    new_doc = op.document
-    inner_sel = getfield(new_doc, :selection)[]
-    inner_sel === nothing && (inner_sel = EmptyReferencePath())
-    if path isa EmptyReferencePath
-        editor.document = new_doc
-        editor.iomap = nothing
-        replace_selection!(new_doc, inner_sel)
-        return
-    end
-    parent_path, terminal = _split_terminal_step(path)
-    parent = evaluate_reference(editor.document, parent_path)
-    _write_document_slot!(parent, terminal, new_doc)
-    replace_selection!(editor.document, _concat_paths(path, inner_sel))
-end
+# ReplaceDocumentOperation was folded into ReplaceReferencedValue + a trailing
+# ReplaceSelectionOperation, bundled by `replace_document` (below). It replaced the
+# document at `path` (rooted at editor.document) with a new `document`, then moved
+# the editor selection to `path ⧺ document.selection` so the cursor landed inside
+# the new value. See plan/pending/consolidate-operations-replace.md (step 3).
 
 # Concatenate two reference *paths* (vs. `append_reference`, which appends raw
 # *steps* — splicing a whole path there would wrongly lodge a ReferencePath where
@@ -146,17 +108,19 @@ function _split_terminal_step(path::ConcreteReferencePath)
     (prefix, terminal)
 end
 
-# Write `new_doc` into the slot `step` selects on `parent`. A FieldReference
-# names a `Cell`-backed document field (e.g. `JsonObjectEntry.value`); a
-# RangeReference selects an element of a sequence container (`CellVector`).
-function _write_document_slot!(parent, step::FieldReference, new_doc)
+# Write `value` into the slot `step` selects on `parent`. A FieldReference names a
+# `Cell`-backed field (e.g. `JsonObjectEntry.value`, or a widget's `visible`); a
+# RangeReference selects an element of a sequence container (`CellVector`) and
+# overwrites it. Shared by `ReplaceReferencedValue` (single-slot writes of either a
+# document or a scalar) — terminal-kind dispatch is what unifies the two.
+function _write_slot!(parent, step::FieldReference, value)
     f = getfield(parent, Symbol(step.name))
-    f isa Cell || error("ReplaceDocumentOperation: field $(step.name) of $(typeof(parent)) is not a Cell")
-    f[] = new_doc
+    f isa Cell || error("ReplaceReferencedValue: field $(step.name) of $(typeof(parent)) is not a Cell")
+    f[] = value
 end
 
-function _write_document_slot!(parent, step::RangeReference, new_doc)
-    parent[step.start + 1] = new_doc
+function _write_slot!(parent, step::RangeReference, value)
+    parent[step.start + 1] = value
 end
 
 """
@@ -199,8 +163,8 @@ ReplaceReferencedValue(document, field::AbstractString, value) =
 function evaluate_operation(editor, op::ReplaceReferencedValue)
     reference = strip_reference_types(op.reference)
     # `document === nothing` ⇒ the reference is rooted at `editor.document`
-    # (the future home of `ReplaceDocumentOperation`); otherwise the operation
-    # carries its own root object (a widget, a projection parameter `Cell` owner, …).
+    # (where the former `ReplaceDocumentOperation` rooted its path); otherwise the
+    # operation carries its own root object (a widget, a projection parameter `Cell`).
     root = op.document === nothing ? editor.document : op.document
     if reference isa EmptyReferencePath
         # Whole-root swap: only meaningful when the root *is* `editor.document`
@@ -216,15 +180,31 @@ function evaluate_operation(editor, op::ReplaceReferencedValue)
     parent_path, terminal = _split_terminal_step(reference)
     parent = parent_path isa EmptyReferencePath ? root :
              evaluate_reference(root, parent_path)
-    _write_value_slot!(parent, terminal, op.value)
+    _write_slot!(parent, terminal, op.value)
 end
 
-# Write a scalar `value` into the slot `step` selects on `parent`. The scalar
-# twin of `_write_document_slot!`: a `FieldReference` names a `Cell`-backed field.
-function _write_value_slot!(parent, step::FieldReference, value)
-    f = getfield(parent, Symbol(step.name))
-    f isa Cell || error("ReplaceReferencedValue: field $(step.name) of $(typeof(parent)) is not a Cell")
-    f[] = value
+"""
+    replace_document(path, document) -> CompoundOperation
+
+Replace the document at `path` (rooted at `editor.document`) with `document`, then
+move the editor selection to `path ⧺ document.selection` so the cursor lands inside
+the freshly-created value. The structural analogue of the primitive replace-range
+edits — every JSON/XML type-to-replace gesture (`[` → array, `{` → object, …) and
+the clipboard cut/paste produce one.
+
+This is the folded form of the former `ReplaceDocumentOperation`: a
+`ReplaceReferencedValue(nothing, path, document)` write paired with a trailing
+`ReplaceSelectionOperation`, bundled in a `CompoundOperation` so re-rooting prepends
+the same steps to both as the operation bubbles up. An empty `path` is a whole-root
+swap (the `ReplaceReferencedValue` rebinds `editor.document` and drops the iomap).
+"""
+function replace_document(path::ReferencePath, document)
+    inner_sel = getfield(document, :selection)[]
+    inner_sel === nothing && (inner_sel = EmptyReferencePath())
+    CompoundOperation(Any[
+        ReplaceReferencedValue(nothing, path, document),
+        ReplaceSelectionOperation(_concat_paths(strip_reference_types(path), inner_sel)),
+    ])
 end
 
 """

@@ -57,22 +57,27 @@ read_key(doc, sel, evt) = begin
     projection_read(j2s, iomap, evt)
 end
 
+# A type-to-replace gesture now returns the folded `replace_document` compound:
+# CompoundOperation([ReplaceReferencedValue(writes the new doc), ReplaceSelection]).
+# `_written` pulls out the document that the first member writes.
+_written(op) = op.operations[1].value
+
 @testset "type-to-replace builds the right document" begin
     for (ch, T) in (('n', JsonNull), ('f', JsonBool), ('t', JsonBool),
                     ('"', JsonString), ('[', JsonArray), (':', JsonObjectEntry),
                     ('{', JsonObject))
         op = read_key(JsonInsertion(), whole, KeyPress(ch))
-        @test op isa ReplaceDocumentOperation
-        @test op.document isa T
+        @test op isa CompoundOperation
+        @test _written(op) isa T
     end
     # Booleans carry the literal the key names.
-    @test read_key(JsonInsertion(), whole, KeyPress('t')).document[] === true
-    @test read_key(JsonInsertion(), whole, KeyPress('f')).document[] === false
+    @test _written(read_key(JsonInsertion(), whole, KeyPress('t')))[] === true
+    @test _written(read_key(JsonInsertion(), whole, KeyPress('f')))[] === false
     # A digit on a non-number builds a number whose cursor sits after the digit.
     op = read_key(JsonInsertion(), whole, KeyPress('5'))
-    @test op isa ReplaceDocumentOperation
-    @test op.document isa JsonNumber
-    @test op.document[] == 5
+    @test op isa CompoundOperation
+    @test _written(op) isa JsonNumber
+    @test _written(op)[] == 5
 end
 
 @testset "replacing the whole root swaps editor.document" begin
@@ -89,8 +94,8 @@ end
 @testset "replacing a nested element writes the slot in place" begin
     arr = JsonArray([JsonInsertion()])
     op = read_key(arr, (@reference elements[1]), KeyPress('5'))
-    @test op isa ReplaceDocumentOperation
-    @test op.document isa JsonNumber
+    @test op isa CompoundOperation
+    @test _written(op) isa JsonNumber
     ed = _JsonReaderEditor(arr, nothing)
     evaluate_operation(ed, op)
     @test ed.document === arr              # root untouched: incremental write
