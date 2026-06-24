@@ -1,18 +1,15 @@
 # Assistant collapse defaults + part-widget layout containment
 
-> **Status: IMPLEMENTED (Stages 1–2); runtime test execution pending.** Two
-> small, independent changes to the in-editor AI assistant rendering:
+> **Status: DONE (all stages, verified green).** Two small, independent changes
+> to the in-editor AI assistant rendering:
 > 1. **Collapse-by-default for resource reads** (parallel to thinking, which is
 >    already collapsed by default).
 > 2. **Layout fix:** a collapsed/expanded part body must never draw outside its
 >    own assistant message-part card.
 >
-> Code changes are in place (see per-stage **Done** notes). The targeted tests
-> (`test_assistant_mvp()`, `test_printer(conversation_widget_example)`) were
-> **not run in the implementation environment — it has no Julia toolchain and the
-> network policy blocks installing one** (`install.julialang.org` → 403). They
-> must be run in CI or a local checkout to confirm green; the changes are
-> deliberately small and locally reviewed.
+> Stages 1–2 code was already in place; Stage 3 (verification) and the Stage 2
+> width assertion are now done as a containment test, and everything is verified
+> green in a local checkout. See **Implementation Steps Completed** at the end.
 
 Builds on [conversation-thinking.md](../done/conversation-thinking.md) (Stage 5
 established collapsed-by-default thinking and the `_maybe_clip` viewport-clip
@@ -148,8 +145,11 @@ collapsed `WidgetScrollPane` to the interior `width - 2*_CARD_PADDING` (new
 turn body passes `_CARD_WIDTH`, the part body passes `_PART_WIDTH` — fixing the
 prior hardcoded `_CARD_WIDTH` that made a collapsed 720px part card balloon to
 ~760px on the fallback path. No domain-struct/serialization change.
-**Verification still owed:** run `test_printer(conversation_widget_example)` and
-add the width-equality graphics assertion in an environment with Julia.
+**Verified.** `test_printer(conversation_widget_example)` green; the width
+assertion landed as the *no-balloon* check in `_mvp_test_collapse_containment()`
+(see Implementation Steps Completed). Empirically, on the fallback path a part
+card renders at its authored **720** (collapsed body **688** = 720 − 2·16), not
+the ~792 the bug produced.
 
 ## Stage 3 — Verify expanded bodies are also contained
 
@@ -175,6 +175,14 @@ the part widget") and decide whether any further clamp is needed.
 edge ≤ its turn card's content right edge. Document the result in the plan's
 status note (this is the "verify this is the case" deliverable).
 
+**Done / verified — no overflow, no follow-up needed.** The containment check in
+`_mvp_test_collapse_containment()` renders the conversation on the fallback path
+**and** at allocated panel widths (760 and 1200) and asserts every card's
+absolute right edge ≤ the conversation's own width. In all three the max right
+edge equals the root width exactly (760/760, 760/760, 1200/1200) — both expanded
+and collapsed bodies are fully contained, so the optional expanded-code
+horizontal-scroll clamp is **not** required (do not add it pre-emptively).
+
 ---
 
 ## Sequencing & risk
@@ -194,3 +202,31 @@ status note (this is the "verify this is the case" deliverable).
   theme value (16); threading the real card padding through the projection
   context is out of scope for this fix.
 - **Expanded wide-code clamp** — deferred to Stage 3's verification result.
+  **Resolved: not needed** — Stage 3 found no overflow (see Stage 3 Done note).
+
+---
+
+## Implementation Steps Completed
+
+- **Stages 1–2 (code)** landed previously on `main`: resource-read tool parts
+  collapse by default via `_collapse_tool_default` in `WorkbenchAssistant.jl`,
+  and `_maybe_clip` sizes a collapsed body to the owning card's interior
+  (`width − 2·_CARD_PADDING`) in `ConversationToWidget.jl` (turn → `_CARD_WIDTH`,
+  part → `_PART_WIDTH`). `test_assistant_mvp()` (incl. `_mvp_test_resource_collapse`)
+  was already green.
+- **Stages 2–3 (verification) completed in this worktree.** Added
+  `_mvp_test_collapse_containment()` to
+  [AssistantMvpTest.jl](../../package/test/src/editor/AssistantMvpTest.jl)
+  (registered in `test_assistant_mvp()`), with two graphics-walk helpers
+  (`_canvas_maxw`, `_canvas_max_absright`):
+  - **No-balloon (Stage 2):** the max card width of the default
+    (some-parts-collapsed) render equals that of an all-expanded render —
+    comparative, so it needs no internal width constants and still fails under
+    the original bug, which inflated the whole hierarchy (turn ~824 vs 760).
+  - **Containment (Stage 3):** on the fallback path and at allocated widths
+    (760, 1200), every card's absolute right edge ≤ the conversation's own width.
+- **Verified green:** `_mvp_test_collapse_containment()` 4/4, full
+  `test_assistant_mvp()` green, `test_printer(conversation_widget_example)` green.
+- **No production-code change was required** for this stage — the Stage 1–2 fix
+  already contains both collapsed and expanded bodies; Stage 3's optional
+  expanded-code horizontal-scroll clamp was confirmed unnecessary and not added.

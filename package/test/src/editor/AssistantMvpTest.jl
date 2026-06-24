@@ -40,6 +40,8 @@ using Projectured: ConversationConversation, ConversationTurn, ConversationPart,
                    EvaluatorForm, TextText, TextString, JuliaIdentifier, WidgetCard,
                    MousePress, ToggleCollapseOperation, ConversationThinking
 import Projectured.LlmModule: stream_turn
+using Projectured: with_available_size, GraphicsCanvas
+import Projectured.ReactiveModule: Cell
 
 # A multi-turn scripted backend: each call to `stream_turn` consumes the
 # next vector of SSE events from `scripts`. Useful for testing tool-use
@@ -235,6 +237,7 @@ function test_assistant_mvp()
         _mvp_test_collapse_click()
         _mvp_test_thinking_stream()
         _mvp_test_resource_collapse()
+        _mvp_test_collapse_containment()
     end
 end
 
@@ -262,6 +265,69 @@ function _mvp_test_resource_collapse()
         @test ef isa EvaluatorForm
         @test ef.tool_name == "read_resource"
         @test reply.parts[1].collapsed == true       # collapsed by default
+    end
+end
+
+# ── Collapse layout containment (plan: assistant-collapse-layout Stages 2–3) ──
+#
+# Stage 2 (no balloon): collapsing a part must not widen any card. A collapsed
+# body sized to the wrong (turn/card) width balloons the part card past its
+# authored width; that propagates up and widens the whole hierarchy — so the max
+# card width of the default (some-parts-collapsed) render must equal that of the
+# all-expanded render. (Comparative, so it needs no internal width constants and
+# survives the bug, which inflates the root too.)
+#
+# Stage 3 (containment): on the fallback path and at allocated panel widths,
+# every rendered card's right edge stays within the conversation's own width — no
+# expanded or collapsed body overflows its container.
+
+# Max `w` over every GraphicsCanvas in the tree.
+_canvas_maxw(node) = node isa GraphicsCanvas ?
+    max(Int(node.w), maximum(Int[_canvas_maxw(e) for e in node.elements]; init = 0)) : 0
+
+# Max absolute right edge over every sized (w > 0) GraphicsCanvas (offsets
+# accumulate through transparent w == 0 wrapper canvases).
+function _canvas_max_absright(node, ax = 0)
+    node isa GraphicsCanvas || return 0
+    ax2 = ax + Int(node.x)
+    here = Int(node.w) > 0 ? ax2 + Int(node.w) : 0
+    max(here, maximum(Int[_canvas_max_absright(e, ax2) for e in node.elements]; init = 0))
+end
+
+function _render_conversation_widget(doc, ctx)
+    proj = ProjecturedExample.make_conversation_widget_projection_example(
+        measure = (t, _f) -> (length(t) * 10, 20))
+    projection_print(proj, proj, doc, ctx).output
+end
+
+function _all_expanded_conversation()
+    doc = ProjecturedExample.make_conversation_document_example()
+    for t in doc.turns
+        t.collapsed = false
+        for p in t.parts
+            p.collapsed = false
+        end
+    end
+    doc
+end
+
+function _mvp_test_collapse_containment()
+    @testset "collapse layout: no balloon + body containment" begin
+        # Stage 2 — collapsing a part does not widen any card.
+        out_default  = _render_conversation_widget(
+            ProjecturedExample.make_conversation_document_example(), PrinterContext())
+        out_expanded = _render_conversation_widget(_all_expanded_conversation(), PrinterContext())
+        @test _canvas_maxw(out_default) == _canvas_maxw(out_expanded)
+
+        # Stage 3 — every card's right edge is within the conversation width, on
+        # the fallback path and at allocated panel widths (collapsed + expanded).
+        for ctx in (PrinterContext(),
+                    with_available_size(PrinterContext(); width = Cell(760)),
+                    with_available_size(PrinterContext(); width = Cell(1200)))
+            out = _render_conversation_widget(
+                ProjecturedExample.make_conversation_document_example(), ctx)
+            @test _canvas_max_absright(out) <= Int(out.w)
+        end
     end
 end
 
