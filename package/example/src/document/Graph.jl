@@ -30,7 +30,7 @@ function make_graph_document_example()
     graph = GraphGraph(
         [v_table, v_json, v_xml],
         [
-            GraphEdge(v_table, v_json;  directed=true),
+            GraphEdge(v_table, v_json;  directed=true, label=JsonString("uses")),
             GraphEdge(v_json,  v_xml;   directed=true),
             GraphEdge(v_table, v_xml;   directed=false),
         ],

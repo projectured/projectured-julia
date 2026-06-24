@@ -333,8 +333,10 @@ vertex content round-trips.
 **✅ DONE (verified):**
 `package/domain/src/projection/primitive/GraphLayoutToGraphics.jl`
 (`GraphLayoutToGraphicsCanvas`): edges drawn first as `GraphicsPolyline`
-(`end_arrow=edge.directed`), then node `GraphicsRect` boxes with recursed content
-canvases on top; `ChildrenIoMap`-style child iomaps; forward mapper routes
+(`end_arrow=edge.directed`) — each with its optional `label` recursed to a canvas
+centred on the route midpoint (`_route_midpoint`; a decoration, not selectable in
+v1) — then node `GraphicsRect` boxes with recursed content canvases on top;
+`ChildrenIoMap`-style child iomaps; forward mapper routes
 `vertex_layouts[i].vertex.content.rest…`. Registered `ProjecturedDomain.jl:124`.
 
 ### File: `program/src/projection/primitive/GraphLayoutToGraphics.jl`
@@ -451,7 +453,9 @@ Targeted helpers per [testing.md](../testing.md) / CLAUDE.md (not `test_all`):
 - **Drag-to-move** a vertex → write `VertexLayout.x/y`, set `pinned`, re-route only
   affected edges (reuse the dragging/hit-test precedent).
 - **Structural editing** — add/remove vertices and edges (operations + readers).
-- **Edge selection / editing** — waypoints draggable; labels editable.
+- **Edge selection / editing** — waypoints draggable; labels editable. (Label
+  *rendering* is done — drawn at the route midpoint; only selection/editing of
+  edges and labels remains.)
 - **Orthogonal routing & clustering** — expose more libavoid/libcola constraint
   kinds through `GraphConstraint` (`:same_rank`, `:cluster`, ports).
 - **Nested graphs** — a vertex whose content is a `GraphGraph` (works structurally

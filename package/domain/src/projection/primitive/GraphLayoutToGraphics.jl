@@ -4,7 +4,8 @@
 GraphLayout → Graphics projection. Draws each `VertexLayout` as a node box (a
 rounded `GraphicsRect` outline at `(x, y, w, h)`) with the vertex's projected
 content canvas placed inside, and each `EdgeLayout` as a `GraphicsPolyline`
-connector along its `route` (an end arrowhead when the edge is directed).
+connector along its `route` (an end arrowhead when the edge is directed), with the
+edge's optional `label` recursed to a canvas and centred on the route midpoint.
 Edges are drawn first, nodes on top.
 
 Selection: a path `vertex_layouts[i].vertex.content.…` routes into the i-th
@@ -48,6 +49,27 @@ const _EDGE = (0x58, 0x6e, 0x75, 0xff)
 const _EDGE_W = 2
 const _ARROW = 10
 
+# The point halfway along a polyline route by arc length — where an edge label
+# sits. Falls back to the single point / origin for degenerate routes.
+function _route_midpoint(route)
+    n = length(route)
+    n == 0 && return (0, 0)
+    n == 1 && return (Int(route[1][1]), Int(route[1][2]))
+    seglen(i) = hypot(route[i+1][1] - route[i][1], route[i+1][2] - route[i][2])
+    half = sum(seglen(i) for i in 1:n-1) / 2
+    acc = 0.0
+    for i in 1:n-1
+        s = seglen(i)
+        if acc + s >= half
+            t = s == 0 ? 0.0 : (half - acc) / s
+            return (round(Int, route[i][1] + t * (route[i+1][1] - route[i][1])),
+                    round(Int, route[i][2] + t * (route[i+1][2] - route[i][2])))
+        end
+        acc += s
+    end
+    (Int(route[n][1]), Int(route[n][2]))
+end
+
 struct GraphLayoutToGraphicsCanvas <: Projection end
 
 struct GraphLayoutToGraphicsCanvasIoMap <: IoMap
@@ -83,9 +105,30 @@ function projection_print(p::GraphLayoutToGraphicsCanvas, recursion, layout::Gra
         entries
     end)
 
+    # Recurse each edge's optional label into a canvas. A decoration, like the
+    # edges themselves — not selectable in v1, so no per-label iomap delegation.
+    edge_label_iomaps = Cell(() -> begin
+        m = length(layout.edge_layouts)
+        out = Any[]
+        for i in 1:m
+            el = layout.edge_layouts[i]
+            e = el isa EdgeLayout ? getfield(el, :edge)[] : nothing
+            label = e isa GraphEdge ? getfield(e, :label)[] : nothing
+            if label !== nothing
+                lref = @reference ^(reference).edge_layouts[i].edge.label
+                push!(out, projection_printer_recurse(recursion, label, child_context(ctx, lref)))
+            else
+                push!(out, nothing)
+            end
+        end
+        out
+    end)
+
     elements = CellVector(() -> begin
         result = Any[]
-        # Edges first (behind the nodes).
+        # Edges first (behind the nodes), each with its optional label centred on
+        # the route midpoint.
+        labels = edge_label_iomaps[]
         for i in 1:length(layout.edge_layouts)
             el = layout.edge_layouts[i]
             el isa EdgeLayout || continue
@@ -95,6 +138,15 @@ function projection_print(p::GraphLayoutToGraphicsCanvas, recursion, layout::Gra
             directed = e isa GraphEdge ? e.directed : false
             push!(result, GraphicsPolyline(route, _EDGE...;
                 width=_EDGE_W, end_arrow=directed, arrow_size=_ARROW))
+            lim = i <= length(labels) ? labels[i] : nothing
+            if lim !== nothing
+                lo = lim.output
+                lw = lo isa GraphicsCanvas ? Int(lo.w) : 0
+                lh = lo isa GraphicsCanvas ? Int(lo.h) : 0
+                mx, my = _route_midpoint(route)
+                push!(result, GraphicsCanvas(mx - lw ÷ 2, my - lh ÷ 2,
+                    CellVector(Cell[Cell(lo)]), layout_none, true))
+            end
         end
         # Node boxes + content on top.
         entries = child_iomaps[]
