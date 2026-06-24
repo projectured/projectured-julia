@@ -26,10 +26,9 @@ import ..TextModule: TextString
 import ..ReferenceModule: Reference, ConcreteReferencePath, EmptyReferencePath,
                           FieldReference, RangeReference, ReferencePath, skip_type_checkpoints
 import ..ReferenceBuilderModule: var"@reference"
-import ..DocumentApiModule: document_read
 import ..OperationModule: ReplaceSelectionOperation
 import ..KeyboardModule: KeyDown
-import ..EventCaseModule: var"@event_case"
+import ..GestureBindingModule: var"@gestures"
 import ..FontModule: font_ubuntu_monospace_regular_24
 import ..ColorModule: color_default
 export SyntaxNode, SyntaxLeaf, SyntaxDocument, SyntaxInsertion, render, setfn!,
@@ -381,52 +380,51 @@ end
 setfn!(t::SyntaxLeaf, f::Function) = (setfn!(getfield(t.value, :content), f); t)
 setfn!(n::SyntaxNode, f::Function) = (setfn!(getfield(n.children, :elements), () -> Cell[Cell(x) for x in f()]); n)
 
-# ── document_read: geometry-free tree-navigation gesture mapping ──────────
+# ── document_read via reified @gestures: geometry-free tree navigation ─────
 #
-# The projection-independent half of the Syntax domain's reader. The entire
-# keyboard mapping for a syntax tree is already geometry-free — it walks the
-# `SyntaxNode` tree and its selection *paths* — so all of it lives here on the
-# document. Any projection whose input is a `SyntaxNode` (e.g. `SyntaxToText`)
-# delegates here; the (geometry/output-driven) mouse hit-testing for collapse
-# glyphs and Alt+click stays in `SyntaxToText`'s 4-arg reader.
+# The projection-independent half of the Syntax domain's reader, now a reified
+# `@gestures` table on `SyntaxNode` (was a `document_read(::SyntaxNode)` method).
+# The generic `document_read` interpreter (`read_document_gesture`) fires it, so
+# the table that *fires* is exactly the one gesture-help enumerates. Any projection
+# whose input is a `SyntaxNode` (e.g. `SyntaxToText`) reaches it through that
+# interpreter; the geometry/output-driven mouse hit-testing for collapse glyphs
+# and Alt+click stays in `SyntaxToText`'s 4-arg reader.
 #
-# Relocated verbatim from `SyntaxNodeToText`'s `evt::KeyDown` reader and helpers.
-# The selection on the root node is a path like `.children[i].children[j]…∅`.
+# The entire mapping is geometry-free — it walks the `SyntaxNode` tree and its
+# selection *paths* (e.g. `.children[i].children[j]…∅`):
 # - Ctrl+Alt+Home → select the root node (∅)
 # - Ctrl+Space    → toggle structural ⇄ text (character-cursor) mode
-# - :up    → drop the last `.children[k]` step (select parent)
-# - :down  → append `.children[1]` (select first child)
-# - :left  → decrement the last child index
-# - :right → increment the last child index
-# Arrows require Alt only to *enter* structural mode from a character cursor;
-# once a whole element is selected, plain arrows continue node-to-node movement.
-function document_read(node::SyntaxNode, evt)
-    evt isa KeyDown || return nothing
-    sel = node.selection
-    # Loose modifier guards (via when) preserve the pre-migration behaviour:
-    # the chords ignore unlisted modifiers, and an arrow navigates whenever it
-    # is alt-modified or the selection is already structural.
-    @event_case evt begin
-        # Ctrl+Alt+Home → select the root node (∅).
-        when(KeyDown(:home), evt.modifiers.ctrl && evt.modifiers.alt) =>
-            return ReplaceSelectionOperation(EmptyReferencePath())
-        # Ctrl+Space → toggle structural ⇄ text (character-cursor) mode.
-        when(KeyDown(:space), evt.modifiers.ctrl) => begin
-            new_path = _is_tree_selection(sel) ? _descend_to_text_cursor(node, sel) :
-                                                 _promote_to_structural(sel)
-            new_path === nothing && return nothing
-            return ReplaceSelectionOperation(new_path)
-        end
-        # Arrows move node-to-node, but only to *enter* structural mode from a
-        # character cursor (Alt held) or once a whole element is already selected.
-        when(KeyDown(k), k in (:up, :down, :left, :right) &&
-                         (evt.modifiers.alt || _is_tree_selection(sel))) => begin
-            new_path = _tree_navigate(node, sel, k)
-            new_path === nothing && return nothing
-            return ReplaceSelectionOperation(new_path)
-        end
+# - Alt+arrow     → tree-navigate from any selection (enter structural)
+# - plain arrow   → tree-navigate, but only once a whole element is selected
+#
+# Behaviour is unchanged from the prior `@event_case` reader, with one deliberate
+# simplification: the chords / Alt-arrow match modifiers *exactly* (the old reader
+# matched them loosely, ignoring extra modifiers) — equivalent for every real
+# input, which never carries an extra incidental modifier. The selection-dependent
+# rules live in the operation, which returns `nothing` to decline so the gesture
+# keeps propagating inward, exactly as the old `return nothing` arms did. The
+# Alt-arrow rule is ordered before the plain-arrow rule (first match wins); when
+# it declines, the plain-arrow rule re-checks (and either recomputes the same
+# `nothing` or declines on the structural test) — same result as before.
+@gestures SyntaxNode begin
+    KeyDown(:home; ctrl, alt) => "Select the root node" =>
+        ReplaceSelectionOperation(EmptyReferencePath())
+    KeyDown(:space; ctrl) => "Toggle structural / text cursor" => begin
+        sel = doc.selection
+        new_path = _is_tree_selection(sel) ? _descend_to_text_cursor(doc, sel) :
+                                             _promote_to_structural(sel)
+        new_path === nothing ? nothing : ReplaceSelectionOperation(new_path)
     end
-    return nothing
+    when(KeyDown(k; alt), k in (:up, :down, :left, :right)) => "Navigate the tree" => begin
+        new_path = _tree_navigate(doc, doc.selection, k)
+        new_path === nothing ? nothing : ReplaceSelectionOperation(new_path)
+    end
+    when(KeyDown(k), k in (:up, :down, :left, :right)) => "Navigate the tree" => begin
+        sel = doc.selection
+        _is_tree_selection(sel) || return nothing
+        new_path = _tree_navigate(doc, sel, k)
+        new_path === nothing ? nothing : ReplaceSelectionOperation(new_path)
+    end
 end
 
 function _tree_navigate(node::SyntaxNode, sel, direction::Symbol)

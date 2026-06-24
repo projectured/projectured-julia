@@ -247,10 +247,26 @@ wiring is a contained follow-up. The render path is proven by `test_gesture_map`
 
 - **Wire the live help overlay** (Stage 4 invocation, above): kernel
   `help_overlay` seam + Editor saved-state + read! show/dismiss.
-- Reify the existing `document_read` impls into `document_gestures` tables:
-  `SyntaxNode` (arrows / Home / End / `Ctrl+.` collapse), `TextText` (char /
-  Backspace / Delete / nav) — behavior unchanged. (`KeyDownPattern` already
-  supports the exact-modifier chords these need.)
+- ✅ **`SyntaxNode` reified (2026-06-24).** Its tree-navigation `document_read`
+  method is now an `@gestures SyntaxNode` table — Ctrl+Alt+Home (select root),
+  Ctrl+Space (toggle structural/text cursor), Alt+arrow + plain-arrow tree-navigate
+  — and the method was removed so the generic interpreter fires it. Done with
+  **exact-modifier patterns and no kernel change**: the selection-dependent rules
+  live in the operation (which reads `doc.selection` and returns `nothing` to
+  decline). Behaviour unchanged: `test_tree_navigations` (40), `_complete` (144),
+  `test_syntax_to_text` (124), `test_syntax_tree_selection` (29) all green.
+- ⏳ **`TextText` reification needs a small `@gestures` extension first.** Unlike
+  SyntaxNode, its character-motion rules must *decline* Alt+arrow (a tree gesture)
+  while still matching plain/Shift+arrow — i.e. the **operation must inspect the
+  event's modifiers**, which the current macro does not expose (operations see
+  `doc` + bound positional fields, not the raw event; modifiers are matched only in
+  the pattern, exactly). The clean fix: **expose the matched `event` in `@gestures`
+  guards/operations** (small, backward-compatible kernel change — JSON/Syntax don't
+  reference `event`). Then TextText's char insert / Backspace / Delete / Ctrl+Home-End
+  / Ctrl+arrow word-motion / arrow char-motion / Ctrl+. collapse / Tab+alt-arrow
+  declines reify cleanly. *(Corrects the earlier note's assumption that exact-modifier
+  patterns alone suffice — true for SyntaxNode, not for TextText's "any modifier
+  except Alt" char-motion.)*
 - Reify projection-level contributors via `projection_gestures`:
   `FocusingProjection` (`Ctrl+,`), Clipboard (`Ctrl+C/X/V`),
   `ConversationComposerToWidget` (Return / Shift+Return / Tab), generic
