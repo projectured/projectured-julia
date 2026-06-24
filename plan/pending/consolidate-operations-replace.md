@@ -516,12 +516,48 @@ field of `CollectionInsertOperation`, matching Lisp `make-operation/compound`.
    reader lists.** *Test:* `PrimitiveToTextTest`, `test_text_navigation` / typein
    suites, `TextFilteringTest`, `TextHighlightingTest`.
 
-6. **🟢 OPEN — collapse the reader dispatch lists.** After steps 3–5, both
-   `prepend_steps_to_op` and the default `projection_read` reduce to:
-   `ReplaceReferencedValue` (+ the `document === nothing` rule), `ReplaceSelectionOperation`,
-   `CompoundOperation`, and `ToggleCollapseOperation` (pass-through, until Group 2
-   folds it). Delete the now-dead per-op branches and tighten the two `INVARIANT:`
-   comments. This is the headline cleanup the whole plan exists for.
+   > **Discovery (2026-06-24) — steps 5 and 6 must merge; the reroot logic is
+   > duplicated far more widely than two lists.** Scoping step 5 found that the
+   > reference-rerooting dispatch is hand-copied into **~10 readers across three
+   > packages**, and several were **never taught `ReplaceReferencedValue` /
+   > `CompoundOperation`** (so they still only match `ReplaceSelection` / `String` /
+   > `NumberReplaceRange`): `WidgetToGraphics._retarget_op` (`:655`, else → pass
+   > through **unrerooted**), `WorkbenchToWidget` (`_prefix_operation` `:685`,
+   > `_retarget_panel_op`, and the shell reader), `ProjecturedOdbc` (`:562`, else →
+   > **drops** the op), and `ProjectionConfiguring` (`:106`). The five dispatchers
+   > updated in steps 1–4 (`prepend_steps_to_op`, default `projection_read`,
+   > ScreenToScreen/Clipboard/Versioning `_prefix_op`) are only half the story.
+   >
+   > **Consequence 1 (do first):** because those readers don't handle
+   > `ReplaceReferencedValue`/`CompoundOperation`, the already-folded
+   > `replace_document` / `insert_elements` / `delete_elements` ops are **not
+   > rerooted** if they flow through a workbench panel, the ODBC tabular editor, or
+   > `WidgetToGraphics._retarget_op` — a latent gap from steps 3–4 to **verify and
+   > fix** (no test currently exercises deep editing through those paths).
+   >
+   > **Consequence 2:** folding `String/NumberReplaceRange` (which removes their
+   > branches) would **break text/cell editing** through any reader that lacks an
+   > RRV branch. So step 5 *requires* the step-6 reconciliation first.
+   >
+   > **Recommended approach:** do step 6's reconciliation **before/with** step 5 —
+   > ideally make every bespoke reroot reader **delegate to the shared
+   > `prepend_steps_to_op` / `map_reference_backward`** (so RRV/Compound are handled
+   > in one place) instead of enumerating op types. Then folding `String/Number` is
+   > safe. Also: keep the char-splice **cursor move inside** the `ReplaceReferencedValue`
+   > evaluator (do **not** wrap it in a `CompoundOperation`) — otherwise every text
+   > reader would need new compound handling; and the string-vs-number discriminator
+   > moves to a target-typed `splice_value!(::PrimitiveNumber, …, ::Nothing, …)` so a
+   > cleared number field reparses as a number (verified: all `NumberReplaceRange`
+   > origins target a number-representation document).
+
+6. **🟢 OPEN — collapse the reader dispatch lists (merge with step 5; see discovery
+   above).** Make the bespoke reroot readers delegate to the shared
+   `prepend_steps_to_op` / `map_reference_backward` so `ReplaceReferencedValue`
+   (+ the `document === nothing` rule), `ReplaceSelectionOperation`, `CompoundOperation`,
+   and `ToggleCollapseOperation` (pass-through) are handled once, and the per-op
+   branches disappear everywhere — kernel, domain, **and `ProjecturedOdbc`**. This is
+   the headline cleanup the whole plan exists for; it is also the prerequisite that
+   makes the step-5 fold safe.
 
 7. **🟡 OPEN — Group 2b projection-field ops (cell-idiom conversion first).**
    `ToggleClipboardSliceDisplayOperation`/`ToggleClipboardCollectionDisplayOperation`
