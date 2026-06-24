@@ -49,7 +49,7 @@ export GesturePattern, KeyPressPattern, KeyDownPattern, KeyUpPattern,
        GestureBinding, matches, describe,
        document_gestures, document_gestures_own, read_document_gesture,
        projection_gestures, collect_gestures, applicable_gestures,
-       is_help_gesture, var"@gestures"
+       is_help_gesture, var"@gestures", var"@gesture_set"
 
 # ─────────────────────────────────────────────────────────────────────────
 # Gesture patterns
@@ -407,11 +407,15 @@ function _bind_lets(tname::Symbol, posargs::Vector{EvPat}, evsym, body)
     body
 end
 
-macro gestures(doctype, block)
-    entries = block isa Expr && block.head == :block ? block.args : [block]
-
+# Parse a `@gestures` / `@gesture_set` body into `(applicable_ex, items)`: the
+# block precondition closure expression and the ordered list of table entries —
+# each either a `GestureBinding(...)` expression or a `splice`d
+# `Vector{GestureBinding}...` splat. `domain_str` tags every binding built here.
+# Bindings reference a hygienic `_applicable` local that the caller binds to
+# `applicable_ex`; both macros wrap the items in the same `let _applicable = …`.
+function _parse_gesture_block(entries, domain_str)
     precondition_ex = nothing       # closure expr (doc, sel) -> Bool
-    binding_exprs = Any[]
+    items = Any[]
 
     for e in entries
         e isa LineNumberNode && continue
@@ -420,9 +424,15 @@ macro gestures(doctype, block)
             precondition_ex = :(($(esc(:doc)), $(esc(:sel))) -> $(esc(e.args[2])))
             continue
         end
+        # Splice a reusable `Vector{GestureBinding}` (e.g. a `@gesture_set`) inline,
+        # preserving position — the cross-type sharing single inheritance can't do.
+        if e isa Expr && e.head == :call && e.args[1] == :splice && length(e.args) == 2
+            push!(items, :($(esc(e.args[2]))...))
+            continue
+        end
         # A rule: PATTERN => [ "desc" => ] rhs  (or when(PATTERN, guard) => …).
         (e isa Expr && e.head == :call && e.args[1] == :(=>)) ||
-            error("@gestures: expected `PATTERN => rhs` or `when(expr)`, got `$e`")
+            error("@gestures: expected `PATTERN => rhs`, `splice(set)`, or `when(expr)`, got `$e`")
         tname, posargs, mods, cond, rhs = _parse_rule(e)
         tname === nothing && error("@gestures: `_` catch-all is not allowed")
 
@@ -448,13 +458,38 @@ macro gestures(doctype, block)
 
         desc_ex = desc === nothing ? :(describe($pat_ex)) : desc
 
-        push!(binding_exprs,
-              :(GestureBinding($pat_ex, $op_ex, _applicable, $desc_ex,
-                               $(_typename_string(doctype)))))
+        push!(items, :(GestureBinding($pat_ex, $op_ex, _applicable, $desc_ex, $domain_str)))
     end
 
     applicable_ex = precondition_ex === nothing ?
         :((($(esc(:doc)), $(esc(:sel))) -> true)) : precondition_ex
+
+    return (applicable_ex, items)
+end
+
+"""
+    @gestures DocType begin … end
+
+Declare the reified gesture table for document type `DocType`. Each entry is one
+of:
+
+  - `PATTERN => "description" => rhs` — a rule (description optional); `PATTERN`
+    uses the `@event_case` surface, `rhs` builds the operation with `doc`, `event`
+    and any bound pattern variables in scope.
+  - `when(PATTERN, cond) => …` — a rule with a per-rule event guard.
+  - `when(<expr over doc, sel>)` — an optional block-level `applicable`
+    precondition (event-independent).
+  - `splice(set)` — splice a reusable `Vector{GestureBinding}` (typically a
+    [`@gesture_set`](@ref)) in at this position.
+
+Bindings shared by a whole type family go on the common abstract supertype (e.g.
+`@gestures JsonDocument`) and are inherited by every subtype via
+[`document_gestures`](@ref); a set shared by *unrelated* types (no common
+supertype) is a `@gesture_set` `splice`d into each.
+"""
+macro gestures(doctype, block)
+    entries = block isa Expr && block.head == :block ? block.args : [block]
+    applicable_ex, items = _parse_gesture_block(entries, _typename_string(doctype))
 
     # Emit a `document_gestures_own(::Type{DocType})` method holding the reified
     # table (built fresh per call; cached by `document_gestures`). A method, not a
@@ -466,7 +501,28 @@ macro gestures(doctype, block)
     quote
         function $(GestureBindingModule).document_gestures_own(::Type{$(esc(doctype))})
             _applicable = $applicable_ex
-            GestureBinding[$(binding_exprs...)]
+            GestureBinding[$(items...)]
+        end
+    end
+end
+
+"""
+    @gesture_set name begin … end
+
+Define a reusable, named `Vector{GestureBinding}` (a `const`) from the same body
+grammar as [`@gestures`](@ref). `splice(name)` then includes it in any number of
+`@gestures` blocks — the way to share a gesture group across document types that
+have no common supertype (e.g. the same clipboard commands on JSON and XML). The
+set carries its own `when(…)` precondition, independent of the blocks it lands in;
+its `domain` tag is `name`. Spliced bindings are shared objects, not copies.
+"""
+macro gesture_set(name, block)
+    name isa Symbol || error("@gesture_set: expected a name, got `$name`")
+    entries = block isa Expr && block.head == :block ? block.args : [block]
+    applicable_ex, items = _parse_gesture_block(entries, string(name))
+    quote
+        const $(esc(name)) = let _applicable = $applicable_ex
+            GestureBinding[$(items...)]
         end
     end
 end

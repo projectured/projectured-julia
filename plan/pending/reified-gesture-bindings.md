@@ -119,6 +119,14 @@ right after `EventCase.jl`.
   **module-qualified** `document_gestures_own(::Type{DocType})` method so it
   extends the kernel generic from any caller module (a bare `function
   document_gestures_own` would be hygienically gensym'd into a fresh local).
+- **Sharing across types: inheritance + `@gesture_set`/`splice`.** A rule common
+  to a whole type family goes on the common abstract supertype (`@gestures
+  JsonDocument` → inherited by every JSON value). For a set shared by *unrelated*
+  types with no common supertype, **`@gesture_set name begin … end`** defines a
+  reusable `const name::Vector{GestureBinding}` (same body grammar, own
+  precondition + `domain` tag), and **`splice(name)`** inside any `@gestures`
+  block includes it in position; spliced bindings are shared objects, not copies.
+  Both macros share one parser (`_parse_gesture_block`).
 - **`read_document_gesture(doc, event)`** — the single interpreter that walks
   `document_gestures(typeof(doc))` first-match (`matches && applicable`, skipping
   a binding whose `operation` returns `nothing`). It is wired in as the

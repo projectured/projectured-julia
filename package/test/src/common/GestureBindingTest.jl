@@ -32,6 +32,31 @@ end
     KeyPress(',')                  => "append"        => MarkOperation(:append)
 end
 
+# A reusable gesture set spliced into two UNRELATED document types (no common
+# supertype below Document) — the cross-type sharing single inheritance can't
+# express. The set carries its own precondition and domain tag.
+@gesture_set probe_clipboard begin
+    KeyDown(:c; ctrl)              => "Copy"          => MarkOperation(:copy)
+    KeyDown(:v; ctrl)              => "Paste"         => MarkOperation(:paste)
+end
+
+@document struct ProbeAlpha <: Document
+    selection::Reference = nothing
+end
+@document struct ProbeBeta <: Document
+    selection::Reference = nothing
+end
+
+@gestures ProbeAlpha begin
+    splice(probe_clipboard)
+    KeyPress('a')                  => "alpha only"    => MarkOperation(:alpha)
+end
+
+@gestures ProbeBeta begin
+    splice(probe_clipboard)
+    KeyPress('b')                  => "beta only"     => MarkOperation(:beta)
+end
+
 # A tiny operation stand-in so the binding RHS produces something identifiable.
 struct MarkOperation
     tag::Symbol
@@ -115,6 +140,31 @@ function test_gesture_binding()
         arr.selection = EmptyReferencePath()
         @test document_read(arr, KeyPress(',')) == MarkOperation(:append)   # own
         @test document_read(arr, KeyPress('p')) == MarkOperation(:pos)      # inherited
+    end
+
+    @testset "@gesture_set + splice shares a set across unrelated types" begin
+        # The set is a plain Vector{GestureBinding}, tagged by its own name.
+        @test probe_clipboard isa Vector{GestureBinding}
+        @test [b.description for b in probe_clipboard] == ["Copy", "Paste"]
+        @test all(b -> b.domain == "probe_clipboard", probe_clipboard)
+
+        alpha = document_gestures(ProbeAlpha)
+        beta = document_gestures(ProbeBeta)
+        # Each type = spliced set (in position) + its own rule.
+        @test [b.description for b in alpha] == ["Copy", "Paste", "alpha only"]
+        @test [b.description for b in beta] == ["Copy", "Paste", "beta only"]
+        # The spliced bindings are the *same objects*, not copies — shared, not duplicated.
+        @test alpha[1] === probe_clipboard[1]
+        @test beta[1] === probe_clipboard[1]
+
+        # Both unrelated types fire the shared gestures; each keeps its own.
+        a = ProbeAlpha(); a.selection = EmptyReferencePath()
+        b = ProbeBeta();  b.selection = EmptyReferencePath()
+        @test document_read(a, KeyDown(:c, Modifiers(ctrl=true))) == MarkOperation(:copy)
+        @test document_read(b, KeyDown(:c, Modifiers(ctrl=true))) == MarkOperation(:copy)
+        @test document_read(a, KeyPress('a')) == MarkOperation(:alpha)
+        @test document_read(b, KeyPress('b')) == MarkOperation(:beta)
+        @test document_read(a, KeyPress('b')) === nothing   # beta's own rule isn't on alpha
     end
 
 end
