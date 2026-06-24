@@ -12,8 +12,8 @@ import ..OperationModule: ReplaceSelectionOperation
 import ..ReferenceModule: ReferencePath, ConcreteReferencePath, EmptyReferencePath, evaluate_reference, append_reference, strip_reference_types
 import ..IoMapModule: SimpleIoMap
 import ..ReactiveModule: setfn!
-import ..KeyboardModule: KeyDown
-import ..EventCaseModule: var"@event_case"
+import ..GestureBindingModule: GestureBinding, KeyDownPattern,
+                              projection_gestures, read_projection_gesture
 
 export FocusingProjection, ReplaceFocusPartOperation
 
@@ -87,22 +87,34 @@ function projection_read(p::FocusingProjection, iomap::SimpleIoMap, event::Repla
     return ReplaceSelectionOperation(input_selection)
 end
 
-function projection_read(p::FocusingProjection, iomap::SimpleIoMap, event)
-    @event_case event begin
-        KeyDown(:comma; ctrl) => begin
-            isempty(p.part) && return nothing
-            return ReplaceFocusPartOperation(p, _drop_last(p.part))
-        end
-        KeyDown(:period; ctrl) => begin
-            hasproperty(iomap.input, :selection) || return nothing
-            sel = iomap.input.selection
-            (sel === nothing || isempty(sel)) && return nothing
-            new_part = _longest_prefix_of_type(iomap.input, sel, p.part_type)
-            new_part === nothing && return nothing
-            return ReplaceFocusPartOperation(p, new_part)
-        end
-    end
+# Own gestures, reified as a `projection_gestures` table so the firing path (via
+# `read_projection_gesture`) is the one `collect_gestures` shows. Focus-out is
+# gated by `applicable` (so its op may assume a non-empty part); focus-in
+# self-declines in its operation (no selection, or no deeper part of the right
+# type). Modifiers are matched exactly.
+function projection_gestures(p::FocusingProjection, iomap)
+    GestureBinding[
+        GestureBinding(KeyDownPattern(:comma, [:ctrl], nothing),
+            (doc, event) -> ReplaceFocusPartOperation(p, _drop_last(p.part)),
+            (doc, sel) -> !isempty(p.part), "Focus out", "focus"),
+        GestureBinding(KeyDownPattern(:period, [:ctrl], nothing),
+            (doc, event) -> _focus_in(p, iomap),
+            (doc, sel) -> true, "Focus in", "focus"),
+    ]
 end
+
+# Focus in: descend the focus to the longest prefix of the input's selection whose
+# target is of `part_type`. Declines (nothing) with no selection or no such prefix.
+function _focus_in(p::FocusingProjection, iomap)
+    hasproperty(iomap.input, :selection) || return nothing
+    sel = iomap.input.selection
+    (sel === nothing || isempty(sel)) && return nothing
+    new_part = _longest_prefix_of_type(iomap.input, sel, p.part_type)
+    new_part === nothing ? nothing : ReplaceFocusPartOperation(p, new_part)
+end
+
+projection_read(p::FocusingProjection, iomap::SimpleIoMap, event) =
+    read_projection_gesture(p, iomap, event)
 
 function _concat_path(prefix::EmptyReferencePath, suffix::ReferencePath)
     suffix

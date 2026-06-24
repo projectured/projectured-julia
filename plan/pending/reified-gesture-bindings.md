@@ -300,10 +300,22 @@ wiring is a contained follow-up. The render path is proven by `test_gesture_map`
     collection 11), `test_gesture_binding` (46), `test_json_gesture_collection`
     (10), `test_gesture_map` (14) green. *(applicable left as `true` for v1 — the
     ops self-decline; per-gesture greying for help is a refinement.)*
-  - ⏳ `FocusingProjection` (`Ctrl+,` / `Ctrl+.`) — same pattern; needs a
-    characterisation test first (no existing coverage).
-  - ⏳ `ConversationComposerToWidget` (Return / Shift+Return / Tab), generic
-    mouse-select describe for `TextToGraphics` / `WidgetToGraphics`.
+  - ✅ **`FocusingProjection` (2026-06-24)** — `Ctrl+,` focus-out / `Ctrl+.` focus-in
+    now author `projection_gestures` and fire via `read_projection_gesture`
+    (focus-out gated by `applicable = !isempty(part)`; focus-in self-declines via a
+    `_focus_in` helper). Added the missing test coverage — `test_focusing` (6), incl.
+    exact-modifier (a bare comma is not focus-out). Note: a multi-line
+    `(doc,event) -> begin…end` lambda will not parse inside a `GestureBinding(...)`
+    arg list — extract a named helper (single-expression lambdas are fine).
+  - ⏳ `ConversationComposerToWidget` — **deferred (more involved, not "small"):**
+    the composer reader is *mode-dependent* (dispatches on the active part type —
+    `PrimitiveString` / `DocumentInsertion` / `JuliaInsertion` / `Json|XmlInsertion`,
+    each with different Return/Shift+Return/Alt+Return/Tab/Esc gestures) **and** its
+    `composer_read` is shared with the live assistant panel, so a clean fire==show
+    reification needs `projection_gestures` to branch on mode and the shared reader
+    to route through it.
+  - ⏳ Generic mouse-select describe for `TextToGraphics` / `WidgetToGraphics`
+    (enumeration-only — the click hit-testing stays geometry-coupled).
 - Add `collect_gestures` methods for the remaining combinators (Nesting, Copying,
   Focusing, WindowManager, EnvelopeUnwrapping, Predicate/Reference-Dispatching) as
   their layers are reified, and teach the contextual collector to follow the
