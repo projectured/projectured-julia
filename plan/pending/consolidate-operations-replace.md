@@ -131,11 +131,10 @@ Notes:
   writing — then it folds into `ReplaceReferencedValue(proj, @reference part, part)`.
   Prefer the latter; the evaluator is a pure function of `part`.
 
-### Group 2b — projection-field writes that also drop `editor.iomap`
+### Group 2b — projection-field writes that today drop `editor.iomap`
 
-These flip a flag on a **projection object** (not a document) and then null
-`editor.iomap` to force a rebuild, because the flag selects which child becomes
-the output:
+These flip a flag that selects which child a projection exposes, then null
+`editor.iomap` to force a full rebuild:
 
 | Operation | Writes | Source |
 |---|---|---|
@@ -143,14 +142,42 @@ the output:
 | `ToggleClipboardCollectionDisplayOperation(p)` | `p.display_collection = !…` | `ClipboardToAny.jl:226` |
 | `SetVersionCriterionOperation(target, c)` | `target.criterion = c` | `VersioningToAny.jl:150` |
 
-They fold into `ReplaceReferencedValue(projection, @reference <flag>, value)` only
-if `evaluate_operation` learns to **null `editor.iomap` when the write's root is a
-`Projection` rather than a `Document`** (the flag changes the projection's shape,
-not a reactive cell, so incremental re-print is not enough). This is a real
-semantic wrinkle — `ReplaceFocusPartOperation` writes a projection field but does
-*not* drop the iomap (the new `part` is re-read at print time). So Group 2b is
-**lower priority / optional**: fold it only after the iomap-invalidation hook is
-designed, or leave the three ops alone. See [Migration step 7](#migration-steps).
+**Why the iomap drop exists today — and why it is not intrinsic.** A naïve reading
+says "the field is a `Cell`, so anything derived from it recomputes reactively, no
+drop needed." That is the right *principle*, but it does not apply to these three
+as currently authored:
+
+- `ClipboardSliceToAnyProjection.display_slice` is a **plain `Bool`, not a `Cell`**
+  (`ClipboardToAny.jl:69`), and `projection_print` reads it in an **eager ternary**
+  (`:114`: `output = display_slice ? slice_iomap.output : content_iomap.output`).
+  The choice is computed *once* and frozen into the iomap — there is no reactive
+  dependency for the engine to track, so flipping it changes nothing without a rebuild.
+- `VersionedObject.criterion` *is* a `Cell`, yet the drop is still required, which
+  exposes the real reason: `projection_print` reads it **eagerly inside the printer**
+  (`VersioningToAny.jl:91`: `select_version(input)`) to make a **structural** choice —
+  which version's subtree to build a child iomap for. `projection_print` is the
+  one-shot *construction* step that builds the cell graph; it is **not itself a
+  reactive computation that re-runs when the cell changes**. The reactive engine
+  propagates **values** through derived cells it was wired to depend on; it does not
+  re-derive **structure** (which child / how many children). Changing the exposed
+  child changes structure ⇒ rebuild ⇒ the iomap drop.
+
+So the fix is **not** an iomap-invalidation hook in `evaluate_operation` (that would
+be a hack). The principled fix — matching the rest of the system — is to **author
+these projections reactively**: make the flag a `Cell` *and* express the
+flag-dependent `output` as a **derived cell** over it (print both/all branches so
+their outputs exist, then select reactively). Then a plain
+`ReplaceReferencedValue(projection, @reference <flag>, value)` cell write recomputes
+the selection with no rebuild, and Group 2b folds **exactly like Group 2** — no
+special handling. Cost: building child iomaps that may not be displayed (cheap for
+clipboard's two children; potentially wasteful for versioning's *N* versions — the
+likely reason the eager-select-one + rebuild shortcut was taken). `ReplaceFocusPartOperation`
+is the existing proof this works: it writes a projection field and does **not** drop
+the iomap, because the new `part` is re-read at print time.
+
+So Group 2b is **lower priority / optional**: fold it only as part of (or after)
+re-authoring each projection's flag-dependent output reactively. See
+[Migration step 7](#migration-steps).
 
 ### Group 3 — sub-value *range* writes (string/number)
 
@@ -376,25 +403,27 @@ field of `CollectionInsertOperation`, matching Lisp `make-operation/compound`.
    (`Operation.jl:134,152,193`). (Its docstring still frames it as the clipboard-cut
    helper — update when it becomes the range/cursor compound.)
 
-1. **🟢 OPEN — keystone, purely additive: make `ReplaceReferencedValue` capable +
-   a reader-list citizen.** No existing op changes; nothing else can be folded
-   cheaply until this lands. Three sub-changes, all behavior-preserving for current
-   callers (which are all identity-rooted, non-empty `FieldReference`):
-   - **Evaluator** (`Operation.jl:180`): add the **empty-reference ⇒ whole-root
-     swap** branch (only when `document === nothing`; reuses the
-     `ReplaceDocumentOperation` empty-path logic) and the **terminal `RangeReference`
-     ⇒ splice** branch (reuse the representation-dispatched `splice_value!` for
-     primitives and `CellVector` element/insert/delete for sequences). Leave the
-     existing `FieldReference` path untouched.
-   - **`prepend_steps_to_op`** (`OperationRerooting.jl:49`): add the single
-     `ReplaceReferencedValue` branch — reroot `reference` when `document === nothing`,
-     pass through otherwise.
-   - **default `projection_read`** (`Projection.jl:81`): add the symmetric
-     `ReplaceReferencedValue` branch — `map_reference_backward` the `reference` when
-     `document === nothing`, **pass the op through unchanged when `document !== nothing`**
-     (this also fixes the latent drop of identity-rooted `ReplaceReferencedValue`).
-   - *Test:* `test_repl(json_example)` + `ObjectToWidgetTest` (existing identity-rooted
-     producer) must stay green; no behavior should change yet.
+1. **✅ DONE (commit `029af83`, branch `worktree-consolidate-operations`):** keystone,
+   purely additive — make `ReplaceReferencedValue` capable + a reader-list citizen.
+   No existing op changed; behavior-preserving for current callers (all
+   identity-rooted, non-empty `FieldReference`). Landed:
+   - **Evaluator** (`Operation.jl:180`): `root = document===nothing ? editor.document : document`;
+     **empty-reference ⇒ whole-root swap** when `document === nothing` (rebind
+     `editor.document`, drop iomap). *Deferred to steps 4/5:* the terminal
+     `RangeReference` ⇒ splice branch — it is only exercised once Groups 3/4 are
+     folded, and is cleanest to add alongside them where `splice_value!` / the
+     `CellVector` ops are in scope and there is a test.
+   - **`prepend_steps_to_op`** (`OperationRerooting.jl:49`): reroot when
+     `document === nothing`, pass through otherwise.
+   - **default `projection_read`** (`Projection.jl:81`): `map_reference_backward` the
+     reference when `document === nothing`, pass through unchanged when
+     `document !== nothing` (also fixes the latent drop of identity-rooted
+     `ReplaceReferencedValue`).
+   - *Verified:* `test_object_to_widget`, `test_widget_text_editing`,
+     `test_widget_button_behavior`, `test_versioning_to_any`, `test_clipboard_to_any`,
+     `test_repl(json_example)` all green. (`test_split_pane_drag` shows 8 failures, but
+     they are **pre-existing on clean `main`** — confirmed by a baseline run — and
+     unrelated to this change.)
 
 2. **🟢 OPEN — easiest fold: Group 2 identity-rooted widget-state writes.** Start
    with the two trivial `Bool` writes, then the read-modify-write ones:
@@ -451,14 +480,21 @@ field of `CollectionInsertOperation`, matching Lisp `make-operation/compound`.
    folds it). Delete the now-dead per-op branches and tighten the two `INVARIANT:`
    comments. This is the headline cleanup the whole plan exists for.
 
-7. **🟡 OPTIONAL — Group 2b projection-field + iomap-drop ops.**
+7. **🟡 OPTIONAL — Group 2b projection-field ops (re-author reactively first).**
    `ToggleClipboardSliceDisplayOperation`/`ToggleClipboardCollectionDisplayOperation`
    (`ClipboardToAny.jl:212,226`) and `SetVersionCriterionOperation`
-   (`VersioningToAny.jl:150`) fold into `ReplaceReferencedValue(projection, flag, value)`
-   only if `evaluate_operation` gains an **iomap-invalidation hook for
-   projection-rooted writes**. Also fold `ToggleCollapseOperation` and
-   `ReplaceFocusPartOperation` here (the latter needs `part_evaluator` made lazy).
-   Low value — defer or skip.
+   (`VersioningToAny.jl:150`) currently drop `editor.iomap` because their printers
+   make the flag-dependent child choice **eagerly at construction time** (frozen into
+   the iomap), not as a derived cell. The principled fold is **not** an
+   iomap-invalidation hook — it is to **author the flag-dependent `output` reactively**
+   (flag as `Cell`; print both/all branches; select the output via a derived cell over
+   the flag). Once a projection reads its flag reactively, the iomap drop disappears and
+   the op folds into a plain `ReplaceReferencedValue(projection, flag, value)` — exactly
+   like Group 2 (see the [Group 2b](#group-2b--projection-field-writes-that-today-drop-editoriomap)
+   write-up; `ReplaceFocusPartOperation` already works this way). Also fold
+   `ToggleCollapseOperation` and `ReplaceFocusPartOperation` here (the latter needs
+   `part_evaluator` made lazy). Low value — defer or skip; the reactive re-authoring is
+   the real work.
 
 8. **OPEN — Docs.** Rewrite [`documentation/operations.md`](../../documentation/operations.md)
    around `ReplaceReferencedValue` + `CompoundOperation` once steps 1–6 land; update
