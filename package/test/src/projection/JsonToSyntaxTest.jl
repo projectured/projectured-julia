@@ -113,8 +113,8 @@ end
 @testset "array insert appends an insertion and selects it" begin
     arr = JsonArray([JsonNumber(1)])
     op = read_key(arr, whole, KeyPress(','))
-    @test op isa CollectionInsertOperation
-    @test op.index == 1
+    @test op isa CompoundOperation                       # splice + select-new
+    @test op.operations[1] isa ReplaceReferencedValue
     ed = _JsonReaderEditor(arr, nothing)
     evaluate_operation(ed, op)
     @test length(arr.elements) == 2
@@ -125,7 +125,7 @@ end
 @testset "object insert appends an entry and selects its key" begin
     obj = JsonObject("a" => 1)
     op = read_key(obj, whole, KeyPress(','))
-    @test op isa CollectionInsertOperation
+    @test op isa CompoundOperation
     ed = _JsonReaderEditor(obj, nothing)
     evaluate_operation(ed, op)
     @test length(obj.entries) == 2

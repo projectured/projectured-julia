@@ -8,11 +8,11 @@ module OperationModule
 
 import ..OperationApiModule: Operation, evaluate_operation
 import ..DocumentApiModule: Document, clear_selection!, set_selection!
-import ..ReferenceModule: ReferencePath, ConcreteReferencePath, EmptyReferencePath, FieldReference, RangeReference, TypeReference, is_element_reference, evaluate_reference, reference_equal, skip_type_checkpoints, annotate_reference_types, strip_reference_types
+import ..ReferenceModule: ReferencePath, ConcreteReferencePath, EmptyReferencePath, FieldReference, RangeReference, TypeReference, is_element_reference, evaluate_reference, reference_equal, skip_type_checkpoints, annotate_reference_types, strip_reference_types, append_reference
 import ..ReactiveModule: Cell
 export ReplaceSelectionOperation, QuitEditorOperation, QuitEditorException, replace_selection!,
        OpenWindowOperation, CloseWindowOperation, ResizeWindowOperation, ToggleCollapseOperation,
-       ReplaceReferencedValue, replace_document, CollectionInsertOperation, CollectionDeleteOperation,
+       ReplaceReferencedValue, replace_document, insert_elements, delete_elements,
        CompoundOperation
 
 function evaluate_operation(editor, op::Nothing) end
@@ -123,6 +123,22 @@ function _write_slot!(parent, step::RangeReference, value)
     parent[step.start + 1] = value
 end
 
+# A terminal `RangeReference` whose value is a *vector* of items is a SPLICE:
+# replace the half-open element range `[start, stop)` of the sequence container
+# with `items` (each wrapped in a `Cell`). Zero-width range ⇒ pure insert; empty
+# items ⇒ pure delete; both ⇒ element replacement. This is the folded form of the
+# former `CollectionInsertOperation` / `CollectionDeleteOperation` (see
+# `insert_elements` / `delete_elements`); a single (non-vector) value still hits the
+# element-overwrite method above (the `replace_document` array-element case).
+function _write_slot!(parent, step::RangeReference, items::AbstractVector)
+    for _ in 1:(step.stop - step.start)
+        deleteat!(parent, step.start + 1)
+    end
+    for (k, item) in enumerate(items)
+        insert!(parent, step.start + k, item isa Cell ? item : Cell(item))
+    end
+end
+
 """
     ReplaceReferencedValue(document, reference, value)
 
@@ -208,55 +224,35 @@ function replace_document(path::ReferencePath, document)
 end
 
 """
-    CollectionInsertOperation(path, index, items[, selection])
+    insert_elements(path, index, items[, selection]; root=nothing) -> operation
 
-Insert each of `items` into the sequence container at `path` (a `CellVector`
-such as a JSON array's `.elements` or object's `.entries`), starting at the
-0-based `index`. When `selection` is non-`nothing` the editor selection is moved
-there afterwards (the reader uses this to drop the cursor into the new element —
-matching the Lisp `make-operation/compound` of a sequence insert plus a
-replace-selection).
+Insert each of `items` into the sequence container at `path` (a `CellVector` such
+as a JSON array's `.elements`), at the 0-based `index`. Expressed as a splice — a
+`ReplaceReferencedValue` whose terminal step is a **zero-width** `RangeReference(index, index)`
+and whose value is the item vector. When `selection` is non-`nothing`, a trailing
+`ReplaceSelectionOperation` is appended in a `CompoundOperation` to drop the cursor
+into the new element (re-rooting prepends the same steps to both members).
+
+`root` defaults to `nothing` (rooted at `editor.document`); pass a carried object
+for an identity-rooted splice (e.g. a `WorkbenchPage`).
 """
-struct CollectionInsertOperation <: Operation
-    path::ReferencePath
-    index::Int
-    items::Vector{Any}
-    selection::Union{ReferencePath, Nothing}
-end
-
-CollectionInsertOperation(path, index, items) =
-    CollectionInsertOperation(path, index, Vector{Any}(items), nothing)
-
-function evaluate_operation(editor, op::CollectionInsertOperation)
-    container = evaluate_reference(editor.document, op.path)
-    for (k, item) in enumerate(op.items)
-        insert!(container, op.index + k, Cell(item))
-    end
-    op.selection === nothing && return
-    replace_selection!(editor.document, op.selection)
+function insert_elements(path::ReferencePath, index::Integer, items, selection=nothing; root=nothing)
+    write = ReplaceReferencedValue(root, append_reference(path, RangeReference(index, index)),
+                                   Vector{Any}(items))
+    selection === nothing ? write :
+        CompoundOperation(Any[write, ReplaceSelectionOperation(selection)])
 end
 
 """
-    CollectionDeleteOperation(path, index, count)
+    delete_elements(path, index[, count]; root=nothing) -> operation
 
-Remove `count` elements from the sequence container at `path`, starting at the
-0-based `index`. The defined inverse of `CollectionInsertOperation`, so undo can
-build on the pair.
+Remove `count` (default 1) elements from the sequence container at `path`, starting
+at the 0-based `index`. Expressed as a splice — a `ReplaceReferencedValue` whose
+terminal step is `RangeReference(index, index+count)` and whose value is the empty
+vector (replace the range with nothing). The inverse of `insert_elements`.
 """
-struct CollectionDeleteOperation <: Operation
-    path::ReferencePath
-    index::Int
-    count::Int
-end
-
-CollectionDeleteOperation(path, index) = CollectionDeleteOperation(path, index, 1)
-
-function evaluate_operation(editor, op::CollectionDeleteOperation)
-    container = evaluate_reference(editor.document, op.path)
-    for _ in 1:op.count
-        deleteat!(container, op.index + 1)
-    end
-end
+delete_elements(path::ReferencePath, index::Integer, count::Integer=1; root=nothing) =
+    ReplaceReferencedValue(root, append_reference(path, RangeReference(index, index + count)), Any[])
 
 """
     ToggleCollapseOperation([target])

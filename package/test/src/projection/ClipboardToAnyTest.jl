@@ -173,22 +173,23 @@ end
     # Add — inserts the selected object at the front of `elements`.
     coll.selection = cpath(FieldReference("content"))
     op = projection_read(p, iomap, KeyDown(:equals, ctrl))
-    @test op isa CollectionInsertOperation
-    @test op.path.head.name == "elements"
-    @test op.index == 0
-    @test op.items[1] === content
+    @test op isa ReplaceReferencedValue                     # insert_elements splice
+    @test op.reference.head.name == "elements"
+    @test op.reference.tail.head isa RangeReference && op.reference.tail.head.start == 0
+    @test op.value[1] === content
 
-    # Remove — deletes the selected element (0-based index).
+    # Remove — deletes the selected element (0-based index → RangeReference start).
     coll.selection = cpath(FieldReference("elements"), ElementReference(2))
     op = projection_read(p, iomap, KeyDown(:minus, ctrl))
-    @test op isa CollectionDeleteOperation
-    @test op.path.head.name == "elements"
-    @test op.index == 1
+    @test op isa ReplaceReferencedValue                     # delete_elements splice
+    @test op.reference.head.name == "elements"
+    @test op.reference.tail.head isa RangeReference && op.reference.tail.head.start == 1
+    @test isempty(op.value)
 
     # Remove with a non-element selection does not delete: it falls through to
-    # the content reader rather than emitting a CollectionDeleteOperation.
+    # the content reader rather than emitting a splice.
     coll.selection = cpath(FieldReference("content"))
-    @test !(projection_read(p, iomap, KeyDown(:minus, ctrl)) isa CollectionDeleteOperation)
+    @test !(projection_read(p, iomap, KeyDown(:minus, ctrl)) isa ReplaceReferencedValue)
 end
 
 end # test_clipboard_to_any

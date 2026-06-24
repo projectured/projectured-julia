@@ -28,7 +28,7 @@ import ..CollectionModule: CellVector
 import ..ReferenceModule: Reference, ReferencePath, ConcreteReferencePath, PositionReference, RangeReference, FieldReference, EmptyReferencePath, evaluate_reference
 import ..ReferenceBuilderModule: var"@reference"
 import ..ReferenceCaseModule: var"@reference_case"
-import ..OperationModule: replace_document, CollectionInsertOperation, ReplaceSelectionOperation
+import ..OperationModule: replace_document, insert_elements, ReplaceSelectionOperation
 import ..KeyboardModule: KeyPress, KeyDown
 import ..GestureBindingModule: var"@gestures"
 export JsonDocument, JsonInsertion, JsonNull, JsonBool, JsonNumber, JsonString, JsonArray, JsonObject, JsonObjectEntry, jsonvalue, entries, setfn!,
@@ -455,16 +455,16 @@ end
 # Append a JsonInsertion and select it whole, ready to type-to-replace.
 function _array_insert(doc::JsonArray)
     n = length(doc.elements)
-    CollectionInsertOperation(@reference(elements), n, Any[JsonInsertion()],
-                              @reference elements[n + 1])
+    insert_elements(@reference(elements), n, Any[JsonInsertion()],
+                    @reference elements[n + 1])
 end
 
 # Append an empty entry and select its key for typing.
 function _object_insert(doc::JsonObject)
     n = length(doc.entries)
-    CollectionInsertOperation(@reference(entries), n,
-                              Any[JsonObjectEntry("", JsonInsertion())],
-                              @reference entries[n + 1].key{0})
+    insert_elements(@reference(entries), n,
+                    Any[JsonObjectEntry("", JsonInsertion())],
+                    @reference entries[n + 1].key{0})
 end
 
 # Tab moves the cursor from an entry's key to its value, selected whole.

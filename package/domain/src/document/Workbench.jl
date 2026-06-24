@@ -17,9 +17,10 @@ import ..TextModule: TextText
 import ..PrimitiveModule: PrimitiveString
 import ..ConversationModule: ConversationConversation, ConversationTurn, ConversationPart, ConversationDraft
 import ..LlmModule: LlmBackend
-import ..ReferenceModule: Reference, ReferencePath, ConcreteReferencePath, ElementReference, RangeReference, EmptyReferencePath, is_element_reference
+import ..ReferenceModule: Reference, ReferencePath, ConcreteReferencePath, ElementReference, RangeReference, EmptyReferencePath, FieldReference, is_element_reference
 import ..WorkspaceModule: Workspace, WorkspaceFolder
 import ..OperationApiModule: Operation, evaluate_operation
+import ..OperationModule: insert_elements, delete_elements
 import ..JsonParserModule: jsonparse_file
 import ..XmlParserModule: xmlparse_file
 import ..JuliaParserModule: juliaparse_file
@@ -353,39 +354,29 @@ setfn!(e::WorkbenchEditor, f::Function) = (setfn!(getfield(e, :content), f); e)
 # imperative helper layer that re-navigates `editor.document`. See
 # documentation/editor/finding-and-selecting.md and documentation/operations.md.
 
+# The `.elements` field path, shared by the open/close builders below.
+const _WORKBENCH_ELEMENTS = ConcreteReferencePath(FieldReference("elements"), EmptyReferencePath())
+
 """
-    WorkbenchOpenDocumentOperation(page, entry)
+    WorkbenchOpenDocumentOperation(page, entry) -> operation
 
 Open a workbench tab: append `entry` (a `WorkbenchEditor`) to `page`
-(a `WorkbenchPage`). Locate `page` with e.g.
+(a `WorkbenchPage`). An **identity-rooted** sequence splice — `insert_elements`
+with `root=page` appending at the end. Locate `page` with e.g.
 `search_objects(editor.document, x -> x isa WorkbenchPage)` and apply with
 `evaluate_operation(editor, WorkbenchOpenDocumentOperation(page, entry))`.
 """
-struct WorkbenchOpenDocumentOperation <: Operation
-    page::WorkbenchPage
-    entry::WorkbenchDocument
-end
-
-function evaluate_operation(editor, op::WorkbenchOpenDocumentOperation)
-    push!(op.page.elements, Cell(op.entry))
-    op.entry
-end
+WorkbenchOpenDocumentOperation(page::WorkbenchPage, entry::WorkbenchDocument) =
+    insert_elements(_WORKBENCH_ELEMENTS, length(page.elements), Any[entry]; root=page)
 
 """
-    WorkbenchCloseDocumentOperation(page, index)
+    WorkbenchCloseDocumentOperation(page, index) -> operation
 
-Close the workbench tab at 1-based `index` on `page` (a `WorkbenchPage`). Locate
-`page` with `search_objects` / `search_references` and apply with
-`evaluate_operation(editor, WorkbenchCloseDocumentOperation(page, index))`.
+Close the workbench tab at **1-based** `index` on `page` (a `WorkbenchPage`). An
+identity-rooted splice — `delete_elements` with `root=page` at the 0-based
+`index-1`. Locate `page` with `search_objects` / `search_references`.
 """
-struct WorkbenchCloseDocumentOperation <: Operation
-    page::WorkbenchPage
-    index::Int
-end
-
-function evaluate_operation(editor, op::WorkbenchCloseDocumentOperation)
-    deleteat!(op.page.elements, op.index)
-    nothing
-end
+WorkbenchCloseDocumentOperation(page::WorkbenchPage, index::Integer) =
+    delete_elements(_WORKBENCH_ELEMENTS, index - 1, 1; root=page)
 
 end # module

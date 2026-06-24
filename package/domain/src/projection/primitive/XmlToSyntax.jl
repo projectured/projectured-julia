@@ -23,7 +23,7 @@ import ..ReferenceModule: ConcreteReferencePath, ElementReference, PositionRefer
 import ..ReferenceCaseModule: var"@reference_case"
 import ..ReferenceBuilderModule: var"@reference"
 import ..PrinterContextModule: child_context
-import ..OperationModule: ReplaceSelectionOperation, replace_document, CollectionInsertOperation
+import ..OperationModule: ReplaceSelectionOperation, replace_document, insert_elements
 import ..PrimitiveModule: StringReplaceRangeOperation
 import ..KeyboardModule: KeyPress, KeyDown
 import ..SyntaxToTextModule: SyntaxNodeToText, _syntax_to_flat
@@ -387,12 +387,12 @@ end
 # `length(e.children)`), as the Lisp does.
 function _xml_child_element_insert(e::XmlElement)
     n = length(e.children)
-    CollectionInsertOperation(@reference(children), n, Any[XmlElement("")],
+    insert_elements(@reference(children), n, Any[XmlElement("")],
                               @reference children[n + 1].tag{0})
 end
 function _xml_child_text_insert(e::XmlElement)
     n = length(e.children)
-    CollectionInsertOperation(@reference(children), n, Any[XmlText("")],
+    insert_elements(@reference(children), n, Any[XmlText("")],
                               @reference children[n + 1].content{0})
 end
 
@@ -401,7 +401,7 @@ end
 # `XmlInsertion`, so it stands in for the Lisp generic `document/insertion`.
 function _xml_generic_insert(e::XmlElement)
     n = length(e.children)
-    CollectionInsertOperation(@reference(children), n, Any[XmlInsertion()],
+    insert_elements(@reference(children), n, Any[XmlInsertion()],
                               @reference children[n + 1])
 end
 
@@ -424,7 +424,7 @@ end
 function _xml_attr_insert(e::XmlElement)
     _xml_in_attr_context(getfield(e, :selection)[]) || return nothing
     n = length(e.attrs)
-    CollectionInsertOperation(@reference(attrs), n, Any[XmlAttribute("", "")],
+    insert_elements(@reference(attrs), n, Any[XmlAttribute("", "")],
                               @reference attrs[n + 1].name{0})
 end
 

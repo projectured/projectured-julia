@@ -36,7 +36,7 @@ import ..ProjectionApiModule: projection_print, projection_printer_recurse, proj
                               map_reference_forward, map_reference_backward, Projection, Change, as_change
 import ..OperationApiModule: Operation, evaluate_operation
 import ..OperationModule: ReplaceSelectionOperation, ReplaceReferencedValue, replace_document,
-                          CollectionInsertOperation, CollectionDeleteOperation, CompoundOperation
+                          insert_elements, delete_elements, CompoundOperation
 import ..PrimitiveModule: StringReplaceRangeOperation, NumberReplaceRangeOperation
 import ..ReactiveModule: Cell
 import ..DocumentModule: Document
@@ -310,14 +310,14 @@ end
 function _clipboard_collection_add(input)
     _, obj = _selected(input)
     obj isa Document || return nothing
-    CollectionInsertOperation(_field_path("elements"), 0, Any[obj])
+    insert_elements(_field_path("elements"), 0, Any[obj])
 end
 
 # Remove the selected element from the collection.
 function _clipboard_collection_remove(input)
     idx = _elements_index(input.selection)
     idx === nothing && return nothing
-    CollectionDeleteOperation(_field_path("elements"), idx)
+    delete_elements(_field_path("elements"), idx)
 end
 
 # 0-based index of the element a selection path addresses, or nothing when the
@@ -388,11 +388,6 @@ function _prefix_op(op, steps::Tuple)
     elseif op isa ReplaceReferencedValue
         op.document === nothing ?
             ReplaceReferencedValue(nothing, _prepend(steps, op.reference), op.value) : op
-    elseif op isa CollectionInsertOperation
-        CollectionInsertOperation(_prepend(steps, op.path), op.index, op.items,
-            op.selection === nothing ? nothing : _prepend(steps, op.selection))
-    elseif op isa CollectionDeleteOperation
-        CollectionDeleteOperation(_prepend(steps, op.path), op.index, op.count)
     elseif op isa CompoundOperation
         CompoundOperation(Any[_prefix_op(o, steps) for o in op.operations])
     else

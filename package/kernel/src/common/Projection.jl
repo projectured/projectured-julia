@@ -19,9 +19,7 @@ module ProjectionModule
 
 import ..ProjectionApiModule: projection_print, projection_read, map_reference_forward, map_reference_backward, Projection, Change
 import ..OperationModule: ReplaceSelectionOperation, ToggleCollapseOperation,
-                          ReplaceReferencedValue,
-                          CollectionInsertOperation,
-                          CollectionDeleteOperation, CompoundOperation
+                          ReplaceReferencedValue, CompoundOperation
 import ..PrimitiveModule: StringReplaceRangeOperation, NumberReplaceRangeOperation
 import ..ReactiveModule: Cell
 import ..ReferenceModule: EmptyReferencePath
@@ -71,15 +69,15 @@ end
 Default implementation for projection operation reading. Re-targets any
 operation that carries a reference from output space to input space using
 `map_reference_backward`: the path/reference of `ReplaceSelectionOperation`,
-`StringReplaceRangeOperation`, `NumberReplaceRangeOperation`,
-`CollectionInsertOperation` (both `path` and `selection`), and
-`CollectionDeleteOperation`, plus each member of a `CompoundOperation`
-recursively (so edits flow back through generic projections such as
-`SortingProjection`/`ReversingProjection`/`CopyingProjection` without a bespoke
-reader). A `document === nothing` (`editor.document`-rooted) `ReplaceReferencedValue`
-has its `reference` re-targeted; a self-contained one (carrying its own root) is
-forwarded unchanged. `ToggleCollapseOperation` is forwarded unchanged; all other
-operation types return `nothing`.
+`StringReplaceRangeOperation`, and `NumberReplaceRangeOperation`, plus each member
+of a `CompoundOperation` recursively (so edits flow back through generic
+projections such as `SortingProjection`/`ReversingProjection`/`CopyingProjection`
+without a bespoke reader). A `document === nothing` (`editor.document`-rooted)
+`ReplaceReferencedValue` has its `reference` re-targeted — this now covers the
+former document-replace and sequence-insert/delete operations, which are
+`ReplaceReferencedValue`s with a terminal `RangeReference`; a self-contained one
+(carrying its own root) is forwarded unchanged. `ToggleCollapseOperation` is
+forwarded unchanged; all other operation types return `nothing`.
 """
 function projection_read(projection::Projection, iomap, operation)
     # INVARIANT: the set of reference-carrying operation types handled here must
@@ -117,16 +115,6 @@ function projection_read(projection::Projection, iomap, operation)
         input_ref = map_reference_backward(projection, iomap, operation.reference)
         input_ref === nothing && return nothing
         return NumberReplaceRangeOperation(input_ref, operation.replacement)
-    elseif operation isa CollectionInsertOperation
-        input_path = map_reference_backward(projection, iomap, operation.path)
-        input_path === nothing && return nothing
-        input_sel = operation.selection === nothing ? nothing :
-                    map_reference_backward(projection, iomap, operation.selection)
-        return CollectionInsertOperation(input_path, operation.index, operation.items, input_sel)
-    elseif operation isa CollectionDeleteOperation
-        input_path = map_reference_backward(projection, iomap, operation.path)
-        input_path === nothing && return nothing
-        return CollectionDeleteOperation(input_path, operation.index, operation.count)
     elseif operation isa CompoundOperation
         mapped = Any[projection_read(projection, iomap, o) for o in operation.operations]
         any(isnothing, mapped) && return nothing

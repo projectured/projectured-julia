@@ -16,10 +16,9 @@ The reader delegates non-versioning gestures into the selected value's child
 reader and re-roots the returned operation under `versions[idx].value` (the
 School-A pattern — delegate through the stored child IoMap, never re-walk by
 document type). Own gestures snapshot a new version
-(`CollectionInsertOperation` on `versions`) or remove the active one
-(`CollectionDeleteOperation`) — the same standard, universally-rerooted
-collection operations the clipboard uses; `SetVersionCriterionOperation`
-switches the active criterion.
+(`insert_elements` on `versions`) or remove the active one (`delete_elements`) —
+the same standard, universally-rerooted sequence splices the clipboard uses;
+`SetVersionCriterionOperation` switches the active criterion.
 
 ## Criterion swapping
 
@@ -41,7 +40,7 @@ import ..ProjectionApiModule: projection_print, projection_printer_recurse, proj
                               map_reference_forward, map_reference_backward, Projection, Change, as_change
 import ..OperationApiModule: Operation, evaluate_operation
 import ..OperationModule: ReplaceSelectionOperation, ReplaceReferencedValue,
-                          CollectionInsertOperation, CollectionDeleteOperation, CompoundOperation
+                          insert_elements, delete_elements, CompoundOperation
 import ..PrimitiveModule: StringReplaceRangeOperation, NumberReplaceRangeOperation
 import ..ReactiveModule: Cell
 import ..DocumentModule: Document
@@ -164,21 +163,21 @@ _field_path(name::AbstractString) =
     ConcreteReferencePath(FieldReference(name), EmptyReferencePath())
 
 # Snapshot the current selected value into a new ObjectVersion (deep-copied) and
-# push it to the front of `versions` (index 0, newest-first). A standard
-# CollectionInsertOperation so every ancestor projection re-roots it. Returns
+# push it to the front of `versions` (index 0, newest-first). A standard sequence
+# splice (insert_elements) so every ancestor projection re-roots it. Returns
 # nothing when there is no selected value to snapshot.
 function _create_version(iomap::VersioningToAnyProjectionIoMap)
     version = iomap.index === nothing ? nothing : iomap.input.versions[iomap.index]
     version isa ObjectVersion || return nothing
     snapshot = ObjectVersion(copy_document(version.value))
-    CollectionInsertOperation(_field_path("versions"), 0, Any[snapshot])
+    insert_elements(_field_path("versions"), 0, Any[snapshot])
 end
 
-# Delete the currently selected version (the active one). A standard
-# CollectionDeleteOperation (0-based index), re-rooted by every ancestor.
+# Delete the currently selected version (the active one). A standard sequence
+# splice (delete_elements, 0-based index), re-rooted by every ancestor.
 function _delete_version(iomap::VersioningToAnyProjectionIoMap)
     iomap.index === nothing && return nothing
-    CollectionDeleteOperation(_field_path("versions"), iomap.index - 1)
+    delete_elements(_field_path("versions"), iomap.index - 1)
 end
 
 # ── Reader ─────────────────────────────────────────────────────────────────────
@@ -216,11 +215,6 @@ function _prefix_op(op, steps::Tuple)
     elseif op isa ReplaceReferencedValue
         op.document === nothing ?
             ReplaceReferencedValue(nothing, _prepend(steps, op.reference), op.value) : op
-    elseif op isa CollectionInsertOperation
-        CollectionInsertOperation(_prepend(steps, op.path), op.index, op.items,
-            op.selection === nothing ? nothing : _prepend(steps, op.selection))
-    elseif op isa CollectionDeleteOperation
-        CollectionDeleteOperation(_prepend(steps, op.path), op.index, op.count)
     elseif op isa CompoundOperation
         CompoundOperation(Any[_prefix_op(o, steps) for o in op.operations])
     else

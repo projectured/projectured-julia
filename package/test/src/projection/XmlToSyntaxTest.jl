@@ -87,8 +87,8 @@ end
 @testset "element insert appends a child element and selects its tag" begin
     e = XmlElement("a", XmlDocument[XmlText("hi")])
     op = read_key(e, whole, KeyPress('<'))
-    @test op isa CollectionInsertOperation
-    @test op.index == 1
+    @test op isa CompoundOperation                        # splice + select-new
+    @test op.operations[1] isa ReplaceReferencedValue
     ed = _XmlReaderEditor(e, nothing)
     evaluate_operation(ed, op)
     @test length(e.children) == 2
@@ -99,7 +99,7 @@ end
 @testset "element insert appends a child text and selects its value" begin
     e = XmlElement("a")
     op = read_key(e, whole, KeyPress('"'))
-    @test op isa CollectionInsertOperation
+    @test op isa CompoundOperation
     ed = _XmlReaderEditor(e, nothing)
     evaluate_operation(ed, op)
     @test length(e.children) == 1
@@ -111,7 +111,7 @@ end
     e = XmlElement("a")
     # Cursor in the start tag → fires.
     op = read_key(e, (@reference tag{0}), KeyDown(:space, Modifiers()))
-    @test op isa CollectionInsertOperation
+    @test op isa CompoundOperation
     ed = _XmlReaderEditor(e, nothing)
     evaluate_operation(ed, op)
     @test length(e.attrs) == 1
@@ -125,7 +125,7 @@ end
 @testset "Insert key inserts a generic insertion child" begin
     e = XmlElement("a")
     op = read_key(e, whole, KeyDown(:insert, Modifiers()))
-    @test op isa CollectionInsertOperation
+    @test op isa CompoundOperation
     ed = _XmlReaderEditor(e, nothing)
     evaluate_operation(ed, op)
     @test length(e.children) == 1

@@ -156,24 +156,26 @@ end
     p = VersioningToAnyProjection()
     iomap = projection_print(p, PreservingProjection(), vo, PrinterContext())
 
-    # Ctrl+Shift+S snapshots the active value into a new front ObjectVersion via
-    # a standard CollectionInsertOperation (index 0 = front, newest-first).
+    # Ctrl+Shift+S snapshots the active value into a new front ObjectVersion via a
+    # sequence splice (insert_elements) — a ReplaceReferencedValue whose terminal is
+    # a zero-width RangeReference(0,0) into `versions` and whose value is the items.
     op = projection_read(p, iomap, KeyDown(:s, ctrl_shift))
-    @test op isa CollectionInsertOperation
-    @test op.path.head.name == "versions"
-    @test op.index == 0
-    snapshot = op.items[1]
+    @test op isa ReplaceReferencedValue
+    @test op.reference.head.name == "versions"
+    @test op.reference.tail.head isa RangeReference && op.reference.tail.head.start == 0
+    snapshot = op.value[1]
     @test snapshot isa ObjectVersion
     @test snapshot.value isa PrimitiveString
     @test snapshot.value.value == "v3"
     @test snapshot.value !== vo.versions[1].value       # deep copy
 
-    # Ctrl+Delete deletes the active version via CollectionDeleteOperation
-    # (0-based index for the op).
+    # Ctrl+Delete deletes the active version via a splice (delete_elements): a
+    # ReplaceReferencedValue with terminal RangeReference(0,1) and an empty value.
     op = projection_read(p, iomap, KeyDown(:delete, ctrl))
-    @test op isa CollectionDeleteOperation
-    @test op.path.head.name == "versions"
-    @test op.index == 0
+    @test op isa ReplaceReferencedValue
+    @test op.reference.head.name == "versions"
+    @test op.reference.tail.head isa RangeReference && op.reference.tail.head.start == 0
+    @test isempty(op.value)
 end
 
 @testset "recursion: versioned-in-versioned" begin
