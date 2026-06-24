@@ -55,7 +55,7 @@ import ..ReferenceModule: ReferencePath, ConcreteReferencePath, EmptyReferencePa
 import ..PrinterContextModule: PrinterContext, child_context
 import ..IoMapApiModule: IoMap
 import ..GestureBindingModule: GestureBinding, KeyDownPattern,
-                              projection_gestures, read_projection_gesture
+                              projection_gestures, read_projection_gesture, collect_gestures
 
 export VersioningToAnyProjection, VersioningToAnyProjectionIoMap,
        SetVersionCriterionOperation
@@ -212,6 +212,16 @@ end
 # 3-arg legacy shim (used by tests and any parent that hands a bare payload).
 projection_read(p::VersioningToAnyProjection, iomap::VersioningToAnyProjectionIoMap, payload) =
     projection_read(p, nothing, as_change(payload), iomap).operation
+
+# Own gestures (create/delete version) plus the selected value's, so the help
+# window shows both -- the collector mirrors the reader's own-then-delegate shape.
+function collect_gestures(p::VersioningToAnyProjection, recursion, iomap::VersioningToAnyProjectionIoMap)
+    result = GestureBinding[]
+    append!(result, projection_gestures(p, iomap))
+    vim = iomap.value_iomap
+    vim === nothing || append!(result, collect_gestures(vim.projection, recursion, vim))
+    result
+end
 
 # ── Operation re-rooting ───────────────────────────────────────────────────────
 # Prepend `steps` to the reference path carried by a delegated value operation,

@@ -129,6 +129,19 @@ function test_gesture_help()
         @test length(rows) > 9
         @test any(r -> occursin("Insert a new element", r.description), rows)
     end
+
+    # A decorator projection's `collect_gestures` gathers its own gestures *and*
+    # descends into the wrapped content, so the help window shows both. Without the
+    # combinator method, only the clipboard's own commands would surface.
+    @testset "collect_gestures descends into a clipboard's content" begin
+        content = PrimitiveString("hello")
+        slice = ClipboardSlice(content)
+        p = ClipboardSliceToAnyProjection()
+        iomap = projection_print(p, PreservingProjection(), slice, PrinterContext())
+        descs = [b.description for b in collect_gestures(p, nothing, iomap)]
+        @test "Copy" in descs                # the clipboard's own gesture
+        @test "Insert character" in descs    # descended into the PrimitiveString content
+    end
 end
 end
 

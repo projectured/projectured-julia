@@ -50,7 +50,7 @@ import ..ReferenceModule: ReferencePath, ConcreteReferencePath, EmptyReferencePa
 import ..PrinterContextModule: PrinterContext, child_context
 import ..IoMapApiModule: IoMap
 import ..GestureBindingModule: GestureBinding, KeyDownPattern,
-                              projection_gestures, read_projection_gesture
+                              projection_gestures, read_projection_gesture, collect_gestures
 
 export ClipboardSliceToAnyProjection, ClipboardCollectionToAnyProjection,
        ClipboardSliceToAnyProjectionIoMap, ClipboardCollectionToAnyProjectionIoMap,
@@ -375,6 +375,17 @@ function projection_read(p::ClipboardSliceToAnyProjection, recursion, change::Ch
     Change(change.gesture, _prefix_op(inner.operation, (FieldReference("content"),)))
 end
 
+# Gather this projection's own gestures plus the content child's, mirroring the
+# reader's own-then-delegate structure, so `collect_gestures` (the help window)
+# shows both the clipboard commands and whatever the wrapped content offers.
+function collect_gestures(p::ClipboardSliceToAnyProjection, recursion, iomap::ClipboardSliceToAnyProjectionIoMap)
+    result = GestureBinding[]
+    append!(result, projection_gestures(p, iomap))
+    cim = iomap.content_iomap
+    cim === nothing || append!(result, collect_gestures(cim.projection, recursion, cim))
+    result
+end
+
 function projection_gestures(p::ClipboardCollectionToAnyProjection, iomap)
     GestureBinding[
         GestureBinding(KeyDownPattern(:asterisk, [:ctrl], nothing),
@@ -396,6 +407,14 @@ function projection_read(p::ClipboardCollectionToAnyProjection, recursion, chang
     cim = iomap.content_iomap
     inner = projection_read(cim.projection, recursion, change, cim)
     Change(change.gesture, _prefix_op(inner.operation, (FieldReference("content"),)))
+end
+
+function collect_gestures(p::ClipboardCollectionToAnyProjection, recursion, iomap::ClipboardCollectionToAnyProjectionIoMap)
+    result = GestureBinding[]
+    append!(result, projection_gestures(p, iomap))
+    cim = iomap.content_iomap
+    cim === nothing || append!(result, collect_gestures(cim.projection, recursion, cim))
+    result
 end
 
 # 3-arg legacy shims (used by tests and any parent that hands a bare payload).
