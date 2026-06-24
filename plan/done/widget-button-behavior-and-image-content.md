@@ -1,5 +1,8 @@
 # Widget Button Behavior + Image Content
 
+> **Status: DONE.** Both parts are implemented, exercised by examples and tests,
+> and verified green. See **Implementation Steps Completed** at the end.
+
 > **Note:** This document was generated with AI assistance as a planning
 > artifact. It is a design proposal grounded in the current code, not a frozen
 > specification. Evaluate and adapt each decision before implementing.
@@ -336,3 +339,47 @@ independently testable with the narrow `test_printer` / reader tests above.
   box from the start?
 - **Generalize image content** beyond button/label now, or land those two and
   extend the shared helper later?
+
+---
+
+## Implementation Steps Completed
+
+Landed on `main` (widget-button branch, then merged) plus two follow-up bug fixes
+without which the feature did not actually work:
+
+- **Part 1 — button behavior.** `WidgetButton` gained `action`, `hovered`,
+  `pressed`; `InvokeWidgetActionOperation` / `SetWidgetHoverOperation` /
+  `SetWidgetPressedOperation` and their `evaluate_operation` methods; the reader
+  fires action on `MousePress(:left)` and tracks pressed via down/up; the printer
+  picks the fill reactively from `hovered`/`pressed`. Two explicit flag ops were
+  kept (not the generic `SetWidgetFlagOperation`). Action arity resolved via
+  `applicable` (editor-taking preferred, 0-arg fallback).
+- **Hover-out — Option A.** `WidgetHoverTrackingProjection` (generic enter/leave
+  tracker, modeled on `HoverProbeProjection`); `MouseEnter`/`MouseLeave` are
+  synthesised and routed; the button reader owns its own state change; the
+  composite routes enter/leave to the hit child.
+- **Part 2 — image content.** `_image_payload` / content-size helper accept an
+  `ImageDocument` and emit a `GraphicsImage`; printer stays backend-pure (reads
+  `content.raw`, placeholder when undecoded).
+- **Part 3 — examples/tests/docs.** `widget_button`, `widget_button_action`,
+  `widget_button_image` examples; `WidgetButtonTest.jl`; `documentation/document/widget.md`
+  updated.
+
+**Two bugs found and fixed when the tests were first actually run** (the branch's
+own environment had no Julia toolchain, so its tests never executed):
+
+1. `WidgetButton` stored `action` as `Cell(action)`, which dispatches to the
+   *computed-cell* constructor (thunk called with 0 args), so reading
+   `button.action` invoked the callback instead of returning it — every button
+   with a non-`nothing` action was broken. Fixed by storing it as a primitive
+   value cell (`WidgetButton: store action as a value cell, not a computed thunk`).
+2. `hit_element_at` did not clip to a canvas's own `w`/`h`, and `GraphicsText`
+   has no right-edge bound — so in a horizontal composite the left button's label
+   text claimed hits across the right button's column, misrouting both
+   `MouseEnter`/`MouseLeave` and clicks. Fixed by clipping the hit test to the
+   canvas bounds (`hit_element_at: clip hits to the canvas's own bounds`).
+
+**Verified:** `test_widget_button_behavior` green; `test_printer` green for
+`widget_button_action_example` and `widget_button_image_example`; the
+hit-test-sensitive sweep (clicks, roundtrips, hover, dragging, text-edit,
+syntax→widget, object→widget) shows no regressions.
