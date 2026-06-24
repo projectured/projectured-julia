@@ -26,7 +26,8 @@ export DatabaseAdapter,
        db_rowid_column,
        db_query, db_execute_raw,
        db_insert!, db_update!, db_delete!,
-       db_catalog_databases, db_catalog_schemas, db_catalog_tables, db_catalog_columns
+       db_catalog_databases, db_catalog_schemas, db_catalog_tables, db_catalog_columns,
+       db_catalog_foreign_keys
 
 # ── Abstract adapter ──────────────────────────────────────────────────────────
 
@@ -119,6 +120,18 @@ Return a vector of `(name, data_type)` named tuples for each column of
 """
 function db_catalog_columns(adapter::DatabaseAdapter, schema::String, table::String)
     error("db_catalog_columns not implemented for $(typeof(adapter))")
+end
+
+"""
+    db_catalog_foreign_keys(adapter, schema)
+
+Return a vector of `(from_table, from_column, to_table, to_column)` named tuples,
+one per foreign-key column in `schema`, where `from_table.from_column` references
+`to_table.to_column`. Multi-column foreign keys yield one tuple per column.
+Used to draw entity-relationship edges from the live database constraints.
+"""
+function db_catalog_foreign_keys(adapter::DatabaseAdapter, schema::String)
+    error("db_catalog_foreign_keys not implemented for $(typeof(adapter))")
 end
 
 # ── RawDatabaseResult ─────────────────────────────────────────────────────────

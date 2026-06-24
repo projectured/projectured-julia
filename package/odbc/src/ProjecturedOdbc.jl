@@ -23,6 +23,7 @@ import ProjecturedDomain.DatabaseModule: DatabaseAdapter, RawDatabaseResult,
                          db_insert!, db_update!, db_delete!,
                          db_catalog_databases, db_catalog_schemas,
                          db_catalog_tables, db_catalog_columns,
+                         db_catalog_foreign_keys,
                          make_database_adapter
 
 export OdbcDatabaseAdapter
@@ -221,6 +222,30 @@ function db_catalog_columns(adapter::OdbcDatabaseAdapter,
         "WHERE table_schema = '$(schema)' AND table_name = '$(table)' ORDER BY ordinal_position")
     _, rows = _materialize(cursor)
     [(name=String(row[1]), data_type=String(row[2])) for row in rows]
+end
+
+function db_catalog_foreign_keys(adapter::OdbcDatabaseAdapter, schema::String)
+    if adapter._conn === nothing || !db_alive(adapter)
+        db_connect!(adapter)
+    end
+    cursor = DBInterface.execute(adapter._conn,
+        "SELECT tc.table_name  AS from_table, " *
+        "       kcu.column_name AS from_column, " *
+        "       ccu.table_name  AS to_table, " *
+        "       ccu.column_name AS to_column " *
+        "FROM information_schema.table_constraints tc " *
+        "JOIN information_schema.key_column_usage kcu " *
+        "  ON tc.constraint_name = kcu.constraint_name " *
+        " AND tc.table_schema    = kcu.table_schema " *
+        "JOIN information_schema.constraint_column_usage ccu " *
+        "  ON ccu.constraint_name = tc.constraint_name " *
+        " AND ccu.table_schema    = tc.table_schema " *
+        "WHERE tc.constraint_type = 'FOREIGN KEY' " *
+        "  AND tc.table_schema    = '$(schema)' " *
+        "ORDER BY from_table, from_column")
+    _, rows = _materialize(cursor)
+    [(from_table=String(row[1]), from_column=String(row[2]),
+      to_table=String(row[3]), to_column=String(row[4])) for row in rows]
 end
 
 end # module OdbcAdapterModule

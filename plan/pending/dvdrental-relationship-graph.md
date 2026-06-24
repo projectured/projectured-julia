@@ -79,7 +79,14 @@ dispatcher** route `WidgetCard` through `make_table_projection_example`.
 
 ## Implementation steps (one commit each)
 
-### Step 1 — Foreign-key query in the external DB layer
+### Step 1 — Foreign-key query in the external DB layer — **Done**
+
+> Implemented: generic `db_catalog_foreign_keys(adapter, schema)` declared +
+> exported in `DatabaseModule`; ODBC method added on `OdbcDatabaseAdapter`. No
+> other re-export surface needed editing — the `Projectured` umbrella
+> (`package/projectured/src/Projectured.jl`) mechanically re-exports every
+> `DatabaseModule` export, so the example layer (`using Projectured`) sees the
+> new generic automatically, and dispatch finds the ODBC method.
 
 - **Interface**: add `db_catalog_foreign_keys(adapter, schema)` to
   [package/domain/src/external/Database.jl](package/domain/src/external/Database.jl)
