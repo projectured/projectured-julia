@@ -9,6 +9,21 @@ maps *combinations and sequences of events* to gestures.
 > arrangement described in
 > [program/src/api/Projection.jl](../../program/src/api/Projection.jl).
 
+> **Conceptual refinement (2026-06-24).** A gesture is **just a combination or
+> sequence of raw events — it carries no intent.** A mouse click is a gesture
+> because its native events are a button *down* + *up*; a key chord like
+> `Ctrl-C Ctrl-K` is a gesture because it is two key presses combined. What a
+> gesture *means* (which operation it triggers) is decided by the **projection**,
+> never by the gesture itself. This retires the earlier "gesture = named input
+> intent" / "semantic keymap" framing: there is **no layer between the recogniser
+> and the readers that assigns intent**. The recogniser's job is purely to
+> recognise event combinations; intent assignment is, and stays, distributed
+> across the projection readers (each projection decides what a given gesture
+> means in its context). The already-implemented recogniser — passing single
+> events through and only *adding* the click composite — is exactly this thin,
+> intent-free shape. See [What is a "gesture"?](#what-is-a-gesture) and the
+> revised Phase 2 below.
+
 ## Implementation status (2026-06-18)
 
 > **Audit 2026-06-23 (verified against current `package/` tree).** All four ✅
@@ -30,8 +45,9 @@ maps *combinations and sequences of events* to gestures.
 > ~14 reader files (deferred steps 1/2/6 confirmed OPEN).
 
 **The recognition-stage spine is implemented and tested.** During
-implementation the scope was split to manage risk (see "Decision: phased
-semantic depth" below); the first increment was deliberately reduced:
+implementation the scope was split to manage risk (see "Decision: gestures stay
+thin; intent is the projection's" below); the first increment was deliberately
+reduced:
 
 - ✅ **Done — the event → gesture stage exists.** A stateful
   [`GestureRecognizer`](../../program/src/editor/GestureRecognizer.jl) is owned
@@ -53,12 +69,12 @@ semantic depth" below); the first increment was deliberately reduced:
 
 **Deferred to follow-up increments (not yet implemented):** *(audit 2026-06-23: all three still ⏳ OPEN — verified no `Gesture.jl` / `@gesture_case` / gesture structs exist, `@event_case` still in ~14 readers, no keymap.)*
 
-- ⏳ Distinct semantic gesture *types* + `@gesture_case` + migrating the ~14
-  reader files to match gestures instead of raw events (original Phase 1
-  steps 1, 2, 6).
-- ⏳ Richer composite gestures the recogniser is now positioned to add:
-  double/triple-click counting, drag begin/update/end, key chords.
-- ⏳ The named-intent keymap (Phase 2).
+- ⏳ Distinct gesture *types* (per-kind structs, no intent) + `@gesture_case` +
+  migrating the ~14 reader files to match gestures instead of raw events
+  (original Phase 1 steps 1, 2, 6).
+- ⏳ Richer composite gestures the recogniser is now positioned to add — all
+  still pure event combinations carrying no intent: double/triple-click counting,
+  drag begin/update/end, key chords (`Ctrl-C Ctrl-K`).
 
 Rationale for the reduced first increment: a faithful "rename the matched event
 in every reader" change touches ~98 `KeyDown` + 44 `MousePress` + 40 `KeyPress`
@@ -91,19 +107,25 @@ end
 
 Limits of matching raw events directly:
 
-1. **No multi-event gestures.** A gesture is exactly one event. Chords
-   (`Ctrl-K Ctrl-C`), double/triple-click, click-drag (down → move… → up),
-   and press-and-hold cannot be expressed — there is nowhere to accumulate
-   state across events.
+1. **No multi-event gestures.** Today each handled input is exactly one raw
+   event. Combinations of events — chords (`Ctrl-K Ctrl-C`), double/triple-click,
+   click-drag (down → move… → up), press-and-hold — cannot be expressed, because
+   there is nowhere to accumulate state across events. A gesture *is* such a
+   combination, so it needs a stateful place to be recognised.
 2. **Recognition is already leaking into the backend.** `MousePress` (click)
    is synthesised inside the SDL backend
    ([Sdl.jl](../../program/src/backend/Sdl.jl) ~L1554–1572: down/up within
    5 px and 300 ms). That is gesture recognition living in a backend, so every
    backend must re-implement it and it is untestable without SDL.
-3. **Physical keys are hard-coded in ~50 readers.** The binding "Ctrl-comma =
-   move focus out" is spelled out at the reader. There is no central keymap, no
-   rebinding, and the same intent is re-encoded in many places. (`@event_case`
-   appears in 14 files; `projection_read` in ~60.)
+3. **Raw physical events are matched directly in ~50 readers, with no
+   normalization of combinations.** Each reader pattern-matches a raw event
+   (`KeyDown(:comma; ctrl)`, `MouseDown`/`MouseUp`); there is no shared stage that
+   first turns event combinations into gestures, so any composite (click, drag,
+   chord) would have to be re-recognised ad hoc in every reader. Note this is
+   *not* a complaint that intent is decided per-reader — that is by design (the
+   projection owns meaning). The gap is the missing recognition seam, not a
+   missing intent table. (`@event_case` appears in 14 files; `projection_read` in
+   ~60.)
 4. **The `Change.gesture` slot is misnamed.** `Change(gesture, operation)`
    already calls slot 1 "gesture", but it currently carries the *raw event*.
    This plan makes the name honest: the slot carries an actual gesture.
@@ -133,72 +155,103 @@ SDL (raw KeyDown/KeyUp/KeyPress/MouseDown/Up/Move/Scroll)
 - The recogniser is **stateful** (chord buffer, pending mouse-down, click
   counter/timer, drag state). This is why it lives in the editor and not in the
   reactive projection pipeline, which is pull-based and stateless.
-- The recogniser is driven by a **keymap / gesture table** so bindings are data,
-  not code — rebindable and introspectable.
-- Readers stop matching raw event structs and match **`Gesture`** instead. The
+- The recogniser only **recognises event combinations** — it assigns no intent.
+  A `Gesture` is the combination of events, nothing more; what it *means* is each
+  reader's call.
+- Readers stop matching raw event structs and match **`Gesture`** instead, and it
+  is there — in the reader — that a gesture is turned into an `Operation`. The
   `Change.gesture` slot now genuinely carries a `Gesture`.
 
 ### What is a "gesture"?
 
-A gesture names an **input intent**, decoupled from the physical keys/buttons
-that produced it, but **not** yet domain-specific (it is not an `Operation`).
-The vocabulary is a shared convention between the keymap (producer) and the
-readers (consumers) — analogous to command ids in Emacs/VSCode: the keymap binds
-keys → command id, handlers handle command ids.
+A gesture is **a combination or sequence of raw input events, and nothing more.**
+It carries **no intent** and no domain meaning — it is a purely syntactic pattern
+recognised in the event stream. Deciding what a gesture *means* (which operation
+it triggers) is the **projection's** job, downstream of the gesture, never the
+gesture's own.
 
-Concretely a gesture is an intent name plus a typed payload:
+Two canonical examples:
 
-```julia
-struct Gesture
-    name::Symbol      # :navigate, :commit, :cancel, :focus_in, :insert_char, :select, :scroll, …
-    data::Any         # payload: direction Symbol, char, click position+count, scroll delta, …
-    source::Any       # originating raw event(s), kept for debugging / fallthrough
-end
+- A **mouse click** is a gesture: its native events are a `MouseDown` followed by
+  a `MouseUp` at roughly the same place within a short window. The recogniser
+  combines those two events into one click gesture. (This is exactly what the
+  implemented recogniser already does — see step 3.)
+- A **key chord** such as `Ctrl-C Ctrl-K` is a gesture: it is two successive
+  key-press events recognised as a single unit.
+
+Because a gesture is just "these events happened, in this combination," the same
+gesture can mean different things in different projections — a click selects in
+one reader, toggles a checkbox in another, opens a context menu in a third. The
+gesture layer never picks; each reader maps the gesture it receives to the
+operation it wants. That is the boundary:
+
+```
+raw events → GestureRecognizer → Gesture (combination of events, NO intent)
+           → projection reader  → Operation (intent decided HERE)
 ```
 
-Examples of the intended vocabulary (final list TBD during implementation):
+Concretely, gestures are per-kind structs that carry their constituent
+events/fields — there is **no intent `Symbol`** on a gesture:
 
-| Gesture name        | Produced from                              | Payload            |
-| ------------------- | ------------------------------------------ | ------------------ |
-| `:insert_char`      | `KeyPress(c)`                              | `char`             |
-| `:delete_backward`  | `KeyDown(:backspace)`                      | —                  |
-| `:delete_forward`   | `KeyDown(:delete)`                         | —                  |
-| `:navigate`         | arrow / home / end (± modifiers)           | direction `Symbol` |
-| `:focus_in`         | `Ctrl-.`                                   | —                  |
-| `:focus_out`        | `Ctrl-,`                                   | —                  |
-| `:toggle_collapse`  | `Ctrl-period`                              | —                  |
-| `:commit` / `:cancel` | `Return` / `Escape`                      | —                  |
-| `:select`           | single primary click                       | `x, y, count`      |
-| `:context`          | secondary click                            | `x, y`             |
-| `:drag`             | down → move… → up (primary)                | `from, to, phase`  |
-| `:scroll`           | wheel                                      | `dx, dy, x, y`     |
-| `:chord`            | a recognised key sequence                  | `Vector{Gesture}`  |
+```julia
+KeyGesture(key, mods, repeat)               # one key event
+CharGesture(char, text, mods)               # one text-producing key event
+ClickGesture(button, x, y, count, mods)     # MouseDown + MouseUp combination
+DragGesture(button, from, to, phase, mods)  # MouseDown + MouseMove… + MouseUp
+ScrollGesture(dx, dy, x, y, mods)           # one wheel event
+ChordGesture(keys::Vector{KeyGesture})      # a key sequence, e.g. Ctrl-C Ctrl-K
+```
 
-Note `:focus_in`/`:focus_out`/`:toggle_collapse` are intent names, not domain
-operations — only `FocusingProjection` / `SyntaxNodeToText` choose to handle
-them. The keymap may bind these without knowing which projection consumes them.
+Each gesture kind is named after the *combination of events* it represents, not
+after a meaning:
 
-### Decision: phased semantic depth
+| Gesture kind   | Combination of events                          | Carries                       |
+| -------------- | ---------------------------------------------- | ----------------------------- |
+| `KeyGesture`   | one `KeyDown`                                  | key, mods, repeat             |
+| `CharGesture`  | one `KeyPress`                                 | char, text, mods              |
+| `ClickGesture` | `MouseDown` + `MouseUp` (same spot/window)     | button, x, y, count, mods     |
+| `DragGesture`  | `MouseDown` + `MouseMove`… + `MouseUp`         | button, from, to, phase, mods |
+| `ScrollGesture`| one `MouseScroll`                              | dx, dy, x, y, mods            |
+| `ChordGesture` | a sequence of `KeyDown`s (e.g. `Ctrl-C Ctrl-K`)| keys (`Vector{KeyGesture}`)   |
 
-There is a tension between two extremes:
+A single event is the degenerate "combination of one event," so most raw events
+pass straight through as their one-event gesture; the recogniser only *adds*
+structure for the genuine multi-event combinations (click, drag, multi-click,
+chord). There is deliberately **no** `:focus_in` / `:select` / `:commit` gesture:
+`Ctrl-.` is just a `KeyGesture(:period; ctrl)`, and it is `FocusingProjection`
+that decides that means "focus in"; a left `ClickGesture` is just a click, and
+each reader decides whether that selects, toggles, or opens a menu.
+
+### Decision: gestures stay thin; intent is the projection's
+
+An earlier draft of this plan weighed two extremes:
 
 - **Thin normalization** — gestures are barely-enriched events (`KeyGesture`,
   `ClickGesture`, `DragGesture`) carrying raw key/button info; readers still see
   `Ctrl-comma`.
 - **Fully semantic** — gestures are abstract intents (`:focus_out`) and physical
-  keys live only in the keymap.
+  keys live only in a keymap.
 
-**Recommendation: build thin first, add the semantic keymap second.**
+**The fully-semantic extreme is rejected outright** (conceptual refinement
+2026-06-24): a gesture *never* carries intent. A gesture is permanently a thin
+combination of events; the semantic mapping (gesture → operation) lives in the
+projection readers, where it already lives today. There is therefore **no
+separate "named-intent keymap" layer** that owns intent — that framing is dropped.
 
-- **Phase 1** introduces the gesture *layer and recognition* (clicks, drags,
-  double-click, chords) but gestures still carry the normalized key/button so
-  readers migrate mechanically (`@event_case` → `@gesture_case` over the same
-  fields). This delivers multi-event gestures and removes backend-side click
-  synthesis with minimal churn and no behaviour change.
-- **Phase 2** layers a *named-intent keymap* on top (`Ctrl-, → :focus_out`) and
-  migrates readers to match intent names, enabling rebinding and feeding
-  [gesture-help.md](../tentative/gesture-help.md). Phase 2 is independently
-  shippable and can be deferred.
+Given that, phasing is purely about *how much composite recognition* the
+recogniser does, not about adding a semantic layer on top:
+
+- **Phase 1** introduces the recognition *seam* and the one real composite that
+  already existed (the click), passing every other event through unchanged. Done.
+- **Phase 2** grows the recogniser's repertoire of event combinations — drag,
+  double/triple-click, key chords — and (separately) migrates readers from
+  `@event_case` over raw events to `@gesture_case` over gesture structs. All of
+  this is still thin: every gesture is just a combination of events, and the
+  reader is still the only place intent is assigned.
+
+A user-facing *rebinding* feature (which physical key combo produces which
+gesture) is conceivable later, but it would live at the recognition level and
+still would **not** move intent into the gesture; it is out of scope here.
 
 This keeps each step reviewable and never leaves the tree in a broken state.
 
@@ -220,11 +273,13 @@ This keeps each step reviewable and never leaves the tree in a broken state.
 
 ### 1. `Gesture` types — `program/src/device/Gesture.jl` ⏳ deferred (audit 2026-06-23: OPEN — no `Gesture.jl` and no gesture structs exist under `package/`)
 
-New `GestureModule`. Define `Gesture` (above) and constructors for the Phase-1
-gesture set that mirrors today's matched events plus the recognised composites:
+New `GestureModule`. Define an abstract `Gesture` supertype (carrying **no**
+intent field) and the per-kind structs for the Phase-1 gesture set that mirrors
+today's matched events plus the recognised composites:
 `KeyGesture(key, mods, repeat)`, `CharGesture(char, text, mods)`,
 `ClickGesture(button, x, y, count, mods)`, `DragGesture(button, from, to, phase, mods)`,
-`ScrollGesture(dx, dy, x, y, mods)`. Include in
+`ScrollGesture(dx, dy, x, y, mods)`, `ChordGesture(keys)`. Each struct names a
+*combination of events*, not a meaning. Include in
 [Projectured.jl](../../program/src/Projectured.jl) next to the device modules.
 
 ### 2. `@gesture_case` macro — generalize `@event_case` ⏳ deferred (audit 2026-06-23: OPEN — no `@gesture_case` defined; `@event_case` unchanged at `package/kernel/src/device/EventCase.jl`)
@@ -249,8 +304,9 @@ mutable struct GestureRecognizer
     last_click_button::Symbol
     last_click_time::Float64
     click_count::Int
-    chord_buffer::Vector{KeyGesture}          # Phase 1: empty unless a chord prefix is active
-    keymap::Keymap                             # Phase 2; Phase 1 can use a fixed table
+    chord_buffer::Vector{KeyGesture}          # accumulates a chord prefix (e.g. after Ctrl-C)
+    chord_table::Set                           # recognised key sequences (no intent — just which
+                                               #   combinations count as a ChordGesture)
 end
 ```
 
@@ -340,44 +396,63 @@ since it just unwraps `Change.gesture`.
 
 ---
 
-## Phase 2 — semantic keymap (optional, ships separately)
+## Phase 2 — richer composite gestures (optional, ships separately)
 
-> **Audit 2026-06-23: all of Phase 2 (A–D) is ⏳ OPEN.** No `Keymap` type, no
-> `device/Keymap.jl` (or equivalent under `package/`), no chord buffer, no intent
-> `Symbol`s in readers, and no `projection_available_gestures`. Not started.
+> **Reframed 2026-06-24.** This phase was previously a "semantic keymap" that
+> mapped keys → intent `Symbol`s. That is dropped: a gesture carries no intent, so
+> there is no keymap layer that assigns one — readers (projections) own meaning.
+> What remains is purely *more event-combination recognition* in the recogniser,
+> plus the mechanical reader migration. All items below are ⏳ OPEN (audit
+> 2026-06-23: no chord buffer, no drag/multi-click state, `@event_case` still in
+> ~14 readers).
 
-### A. `Keymap` type
+### A. Multi-click counting
 
-A data structure mapping event/chord patterns → intent `Symbol` (+ a default
-keymap matching today's bindings). Lives in `device/Keymap.jl`. The recogniser
-consults it to label gestures: `KeyGesture(:comma; ctrl)` → `Gesture(:focus_out, …)`.
+Recognise double/triple-click by maintaining a click count over a time/position
+window in the recogniser, surfaced as `ClickGesture`'s `count` field. Still a
+pure combination of `MouseDown`/`MouseUp` events — no intent.
 
 ### B. Chords
 
-With a keymap, a binding can be a *sequence* (`Ctrl-K Ctrl-C`). The recogniser's
-`chord_buffer` accumulates the prefix; a partial match emits nothing (and can
-surface a "pending chord" indicator), a full match emits the intent, a miss
-flushes/falls back.
+A chord is a *sequence* of key presses (`Ctrl-C Ctrl-K`) recognised as one
+`ChordGesture`. The recogniser accumulates the prefix in a chord buffer; while a
+prefix is pending it emits nothing (and can surface a "pending chord" indicator),
+a completed sequence emits the `ChordGesture`, a non-matching key flushes the
+buffer / falls back. This is recognition only — *what* a chord does is still each
+reader's decision.
 
-### C. Migrate readers to intent names
+### C. Drag
 
-`KeyGesture(:comma; ctrl) => …` becomes `Gesture(:focus_out) => …`. Readers no
-longer mention physical keys; rebinding is pure keymap data.
+`MouseDown` → `MouseMove`… → `MouseUp` past a movement threshold becomes a
+`DragGesture` with `:begin`/`:update`/`:end` phases. Coordinate drag routing with
+[dragging.md](../pending/dragging.md) before implementing (see Open questions).
 
-### D. Feed gesture-help
+### D. Migrate readers `@event_case` → `@gesture_case`
+
+The reader migration from Phase 1 step 6: switch the scrutinee from the raw event
+to the gesture. The reader is, and remains, where intent is assigned — e.g.
+`KeyGesture(:comma; ctrl) => focus_out_op`, `ClickGesture(:left, x, y) =>
+select_at(x, y)`. Rebinding, if ever added, changes which gesture a reader
+matches (or which key combo forms a gesture), not where intent lives.
+
+### E. Feed gesture-help
 
 Implement `projection_available_gestures` (see
-[gesture-help.md](../tentative/gesture-help.md)) by walking the keymap + the
-readers' handled-intent sets, now that intents are first-class.
+[gesture-help.md](../tentative/gesture-help.md)) by walking the **readers'
+handled-gesture sets** — the catalogue of "available gestures" is sourced from
+the projections that consume them, since that is where meaning lives, not from a
+keymap.
 
 ---
 
 ## Open questions
 
-- **Gesture vocabulary granularity.** Exact Phase-1 gesture set and field
-  layout (single `Gesture{name,data}` vs. one struct per gesture kind). Leaning
-  to per-kind structs in Phase 1 (so `@gesture_case` field-matching stays as
-  ergonomic as `@event_case`), with the `name` Symbol introduced in Phase 2.
+- **Gesture vocabulary granularity.** *Resolved (2026-06-24):* per-kind structs
+  (`KeyGesture`, `ClickGesture`, …) carrying their constituent events, **no**
+  intent `name` Symbol — a gesture carries no intent. The earlier `Gesture{name,
+  data}` / "name Symbol added in Phase 2" idea is dropped; intent lives in the
+  projection readers. Per-kind structs also keep `@gesture_case` field-matching as
+  ergonomic as `@event_case`. Remaining: the exact field set of each struct.
 - **Where double/triple-click thresholds live.** Recogniser constants vs.
   keymap/config. Start as recogniser constants (mirroring today's 5 px / 300 ms).
 - **Drag routing.** A drag spans many frames; does each `:drag(:update)` run the
@@ -393,7 +468,8 @@ readers' handled-intent sets, now that intents are first-class.
 
 ## Dependencies & related plans
 
-- [gesture-help.md](../tentative/gesture-help.md) — consumes Phase 2 intents.
+- [gesture-help.md](../tentative/gesture-help.md) — its "available gestures"
+  catalogue is sourced from the readers' handled-gesture sets (Phase 2 E).
 - [dragging.md](../pending/dragging.md) — the `:drag` gesture is its input;
   coordinate drag routing.
 - No dependency on logging or other pending plans.
