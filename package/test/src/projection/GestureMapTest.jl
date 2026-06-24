@@ -9,7 +9,7 @@ function test_gesture_map()
     g2s = GestureMapToSyntax()
 
     @testset "renders gesture → description rows grouped by domain" begin
-        obj = JsonObject("a" => 1)
+        obj = JsonObject("a" => JsonNumber(1))
         set_selection!(obj, EmptyReferencePath())
         gmap = gesture_map(document_gestures(JsonObject), obj)
         text = render(projection_print(g2s, gmap).output)
@@ -25,7 +25,7 @@ function test_gesture_map()
     end
 
     @testset "greys rows whose precondition fails for the selection" begin
-        obj = JsonObject("a" => 1)         # selection === nothing → type-replace n/a
+        obj = JsonObject("a" => JsonNumber(1))         # selection === nothing → type-replace n/a
         gmap = gesture_map(document_gestures(JsonObject), obj)
         text = render(projection_print(g2s, gmap).output)
         @test occursin("n — Replace with null  (n/a)", text)   # greyed

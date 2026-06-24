@@ -9,7 +9,6 @@ The domain includes:
 - **Primitive types**: `JsonNull`, `JsonBool`, `JsonNumber`, `JsonString`
 - **Compound types**: `JsonArray`, `JsonObject`, `JsonObjectEntry`
 - **Utility types**: `JsonInsertion` for cursor positioning
-- **Conversion**: `jsonvalue` converts plain Julia values to JSON documents
 
 Primitive values expose their content through a single cell, while compound values
 hold their children in a `CellVector` so structural changes (insertions, deletions)
@@ -31,7 +30,7 @@ import ..ReferenceCaseModule: var"@reference_case"
 import ..OperationModule: replace_document, insert_elements, ReplaceSelectionOperation
 import ..KeyboardModule: KeyPress, KeyDown
 import ..GestureBindingModule: var"@gestures"
-export JsonDocument, JsonInsertion, JsonNull, JsonBool, JsonNumber, JsonString, JsonArray, JsonObject, JsonObjectEntry, jsonvalue, entries, setfn!,
+export JsonDocument, JsonInsertion, JsonNull, JsonBool, JsonNumber, JsonString, JsonArray, JsonObject, JsonObjectEntry, entries, setfn!,
        IJsonInsertion, IJsonNull, IJsonBool, IJsonNumber, IJsonString, IJsonArray, IJsonObject, IJsonObjectEntry
 
 """
@@ -156,8 +155,9 @@ JsonString(f::Function) = JsonString(Cell(f), Cell(nothing))
     JsonArray
 
 Represents a JSON array (ordered list of values). Selection semantics:
-`.elements[i]` refers to cursor within element i. Supports standard array
-operations like indexing, push, insert, delete, sort, and reverse.
+`.elements[i]` refers to cursor within element i. A `JsonArray` is *not* itself a
+collection; mutate it through its `elements` CellVector
+(`push!(arr.elements, x)`, `insert!(arr.elements, i, x)`, `deleteat!(arr.elements, i)`).
 
 # Fields
 
@@ -206,8 +206,8 @@ into the value document.
     selection::Reference
 end
 
-JsonObjectEntry(key::AbstractString, value) =
-    JsonObjectEntry(String(key), Cell(value isa Document ? value : jsonvalue(value)), Cell(false), Cell(nothing))
+JsonObjectEntry(key::AbstractString, value::Document) =
+    JsonObjectEntry(String(key), Cell(value), Cell(false), Cell(nothing))
 
 """
     JsonObject
@@ -246,35 +246,6 @@ function JsonObject(pairs::Pair{<:AbstractString}...)
     JsonObject(cv, Cell(false), Cell(nothing))
 end
 
-# ── Conversion from plain Julia ─────────────────────────────────────────
-
-"""
-    jsonvalue(x)
-
-Convert a plain Julia value into the corresponding `JsonDocument`.
-Provides automatic conversion from Julia types to JSON representation.
-
-# Conversions
-
-- `JsonDocument` → returned unchanged
-- `Nothing` → `JsonNull()`
-- `Bool` → `JsonBool(v)`
-- `Real` → `JsonNumber(v)`
-- `AbstractString` → `JsonString(v)`
-- `AbstractVector` → `JsonArray` with converted elements
-- `AbstractDict` → `JsonObject` with converted key-value pairs
-"""
-jsonvalue(j::JsonDocument) = j
-jsonvalue(::Nothing) = JsonNull()
-jsonvalue(v::Bool) = JsonBool(v)
-jsonvalue(v::Real) = JsonNumber(v)
-jsonvalue(v::AbstractString) = JsonString(v)
-jsonvalue(v::AbstractVector) = JsonArray(JsonDocument[jsonvalue(x) for x in v])
-function jsonvalue(d::AbstractDict)
-    cv = CellVector(Cell[Cell(JsonObjectEntry(string(k), jsonvalue(v))) for (k, v) in d])
-    JsonObject(cv, Cell(false), Cell(nothing))
-end
-
 # ── Primitive read / write ───────────────────────────────────────────────
 
 Base.getindex(::JsonNull) = nothing
@@ -296,38 +267,17 @@ setfn!(j::JsonObject, f::Function) = (setfn!(getfield(j.entries, :elements), () 
 setval!(j::Union{JsonBool, JsonNumber, JsonString}, v) = (setval!(getfield(j, :value), v); j)
 
 # ── Array internals ─────────────────────────────────────────────────────
-
-_items(j::JsonArray) = j.elements   # CellVector
+#
+# JsonArray is not a collection: mutate it through its `elements` CellVector
+# (`push!(j.elements, x)`, `insert!(j.elements, i, x)`, `deleteat!(j.elements, i)`).
+# Only the reference-indexing methods live here, because the JSON reference
+# convention indexes the array directly (no `.elements` field step).
 
 Base.size(j::JsonArray) = (length(j.elements),)
 
 # Needed by evaluate_reference when a PositionReference navigates directly into
 # a JsonArray (e.g. FocusingProjection with part=ReferencePath(PositionReference(n))).
 Base.getindex(j::JsonArray, i::Integer) = j.elements[i]
-
-function Base.setindex!(j::JsonArray, v, i::Integer)
-    j.elements[i] = v isa JsonDocument ? v : jsonvalue(v)
-    return v
-end
-
-function Base.push!(j::JsonArray, vs...)
-    for v in vs
-        push!(j.elements, Cell(v isa JsonDocument ? v : jsonvalue(v)))
-    end
-    return j
-end
-
-function Base.insert!(j::JsonArray, i::Integer, v)
-    doc = v isa JsonDocument ? v : jsonvalue(v)
-    insert!(j.elements, i, Cell(doc))
-    return j
-end
-
-Base.reverse(j::JsonArray) =
-    JsonArray(CellVector(reverse(j.elements.elements)), getfield(j, :collapsed), Cell(nothing))
-
-Base.sort(j::JsonArray; by=identity, lt=isless, rev=false) =
-    JsonArray(sort(j.elements; by=by, lt=lt, rev=rev), getfield(j, :collapsed), Cell(nothing))
 
 # ── Object internals ──────────────────────────────────────────────────────
 
@@ -359,8 +309,8 @@ function Base.getindex(j::JsonObject, key::AbstractString)
     throw(KeyError(key))
 end
 
-function Base.setindex!(j::JsonObject, v, key::AbstractString)
-    val = v isa JsonDocument ? v : jsonvalue(v)
+function Base.setindex!(j::JsonObject, v::Document, key::AbstractString)
+    val = v
     for i in eachindex(j.entries)
         e = j.entries[i]
         if e.key == key

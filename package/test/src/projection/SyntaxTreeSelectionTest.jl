@@ -72,7 +72,7 @@ end
 end
 
 @testset "forward: JsonObject whole → SyntaxNode ∅ → Text ∅" begin
-    obj = JsonObject("a" => 1)
+    obj = JsonObject("a" => JsonNumber(1))
     set_selection!(obj, whole)
 
     node_io = projection_print(j2s, obj)

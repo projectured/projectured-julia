@@ -14,12 +14,12 @@ ja = JsonArray([JsonNumber(1), JsonNumber(2)])
 @test render(projection_print(j2s, ja).output) == "[1, 2]"
 
 # object (order-independent check)
-jo = JsonObject("a" => 1)
+jo = JsonObject("a" => JsonNumber(1))
 rendered_obj = render(projection_print(j2s, jo).output)
 @test occursin("\"a\": 1", rendered_obj)
 
 # incremental: value change propagates through syntax tree
-jdoc = JsonObject("x" => 10)
+jdoc = JsonObject("x" => JsonNumber(10))
 jtree = projection_print(j2s, jdoc).output
 jout = Cell(() -> render(jtree))
 @test occursin("10", jout[])
@@ -29,7 +29,7 @@ jdoc["x"][] = 99
 @test occursin("99", jout[])
 
 # structural change
-push!(JsonArray([JsonNumber(1)]), JsonNumber(2))
+push!(JsonArray([JsonNumber(1)]).elements, JsonNumber(2))
 
 end # @testset "JsonToSyntax"
 end # test_json_to_syntax
@@ -123,7 +123,7 @@ end
 end
 
 @testset "object insert appends an entry and selects its key" begin
-    obj = JsonObject("a" => 1)
+    obj = JsonObject("a" => JsonNumber(1))
     op = read_key(obj, whole, KeyPress(','))
     @test op isa CompoundOperation
     ed = _JsonReaderEditor(obj, nothing)
@@ -136,7 +136,7 @@ end
 end
 
 @testset "Tab moves from an entry key to its value" begin
-    obj = JsonObject("a" => 1)
+    obj = JsonObject("a" => JsonNumber(1))
     op = read_key(obj, (@reference entries[1].key{0}), KeyDown(:tab, Modifiers()))
     @test op isa ReplaceSelectionOperation
     @test reference_equal(op.path, @reference entries[1].value)
@@ -195,7 +195,7 @@ function test_json_gesture_collection()
     end
 
     @testset "whole object entry greys type-to-replace, keeps comma + Tab" begin
-        all, app = collect_for(JsonObject("a" => 1), @reference entries[1])
+        all, app = collect_for(JsonObject("a" => JsonNumber(1)), @reference entries[1])
         @test length(all) == 10                       # 8 inherited + , insert + Tab
         # A whole entry is a key/value wrapper, not a replaceable value — the
         # type-to-replace set is greyed (its `applicable` precondition fails on a
