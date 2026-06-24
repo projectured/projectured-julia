@@ -383,7 +383,11 @@ directed/undirected edges) and `package/example/src/projection/Graph.jl`
 (`make_graph_projection_example` — `GraphGraphToGraphLayout`+`GraphLayoutToGraphicsCanvas`
 under a `NestingProjection`, default `FallbackLayoutEngine`). Registered as
 `graph_example` in `package/example/src/Examples.jl:82` and exported from
-`ProjecturedExample.jl:144,191`.
+`ProjecturedExample.jl:144,191`. A second `graph_adaptagrams_example` (same
+document, `make_graph_adaptagrams_projection_example` → `AdaptagramsEngine`)
+demonstrates the native engine; `ProjecturedExample` `using`s the opt-in
+`ProjecturedAdaptagrams` for it. Verified: both print cleanly
+(`walk_printer_output` → 0 errors).
 
 - `example/src/document/Graph.jl` — `make_graph_document_example()`: a small graph
   whose vertices are *different domains* (one `TableTable`, one `JsonObject`, one

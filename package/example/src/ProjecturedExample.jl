@@ -8,6 +8,11 @@ using Profile
 # SqlToCellTable. ProjecturEd itself is database-optional; the example opts in.
 using ProjecturedOdbc
 
+# The graph_adaptagrams example uses the opt-in native engine (libcola/libavoid),
+# which exports AdaptagramsEngine. It loads without the native shim built; the
+# native call only fires when that example is actually printed.
+using ProjecturedAdaptagrams
+
 const _EXAMPLE_DIR = @__DIR__
 
 include(joinpath(_EXAMPLE_DIR, "document", "Json.jl"))
@@ -142,7 +147,7 @@ export make_focusing_document_example, make_focusing_projection_example
 export make_workbench_document_example, make_workbench_projection_example
 export make_assistant_document_example, make_assistant_projection_example
 export make_table_document_example, make_table_projection_example
-export make_graph_document_example, make_graph_projection_example
+export make_graph_document_example, make_graph_projection_example, make_graph_adaptagrams_projection_example
 export make_math_table_document_example, make_math_table_projection_example
 export make_lazy_document_example, make_lazy_projection_example
 export make_lazy_bidirectional_document_example, make_lazy_bidirectional_projection_example
@@ -190,7 +195,7 @@ export widget_avatar_example, widget_alert_example, widget_skeleton_example
 export widget_toggle_example, widget_toggle_group_example, widget_select_example
 export widget_textarea_example, widget_accordion_example, widget_table_example, widget_tree_example
 export layout_example, book_example, filesystem_example, navigator_example
-export collection_example, reversing_example, filtering_example, searching_example, sorting_example, focusing_example, table_example, math_table_example, graph_example, workbench_example
+export collection_example, reversing_example, filtering_example, searching_example, sorting_example, focusing_example, table_example, math_table_example, graph_example, graph_adaptagrams_example, workbench_example
 export lazy_example, lazy_bidirectional_example
 export math_example
 export julia_example
