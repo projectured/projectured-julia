@@ -5,19 +5,22 @@
 > `document === nothing` rule), step 2 (Group 2 widget-state writes), step 3
 > (`ReplaceDocumentOperation`), step 4 (Group 4 `Collection*`/Workbench sequence
 > edits), step 6 (closed the latent reroot gap in the WorkbenchToWidget/`_retarget_op`
-> readers), step 8 (docs). **Two steps were investigated and deliberately dropped:
-> step 5** (fold `String`/`NumberReplaceRange` — dispatch-load-bearing; ~19 reader
-> methods specialize on the type) **and step 7** (fold Group 2b — empirically tested:
-> the projection's own derived output cell flips fine, but the projection-*composition*
-> boundary (`SequentialProjection` reads each stage's `.output` once as a raw value,
-> `_fixed_print` freezes children) consumes a stage's output exactly once at print
-> time, so a Cell-output crashes the pipeline and even unwrapping it doesn't propagate;
-> the `editor.iomap` drop forces the one re-print the frozen composition needs). Outcome: `ReplaceDocumentOperation`, the six
-> widget-state ops, and the `Collection*`/Workbench ops are folded into
-> `ReplaceReferencedValue` + builders (`replace_document`/`insert_elements`/`delete_elements`);
-> reader rerooting is consistent and the latent gap is closed; `String`/`Number`,
-> Group 2b, `SelectTab`, and the irreducibles stay distinct by design. See
-> [Migration steps](#migration-steps).
+> readers), step 8 (docs). **Step 5** (fold `String`/`NumberReplaceRange`) was
+> investigated and deliberately dropped — dispatch-load-bearing; ~19 reader methods
+> specialize on the type. **Step 7 (Group 2b) was reopened and DONE** (branch
+> `clipboard-reactive-test`): the structural-switch ops no longer drop `editor.iomap`.
+> The real blocker was never the reactive engine — it was that `SequentialProjection`
+> threaded each stage's `.output` as a one-time raw snapshot. Making composition thread
+> stage outputs through cells (reactive `SequentialProjection`) lets a structural
+> child-swap re-print only the downstream stages while value changes stay fine-grained,
+> so the clipboard slice/collection toggles and the version criterion become plain
+> reactive cell writes — and the projections stay domain-generic. Outcome:
+> `ReplaceDocumentOperation`, the six widget-state ops, and the `Collection*`/Workbench
+> ops are folded into `ReplaceReferencedValue` + builders
+> (`replace_document`/`insert_elements`/`delete_elements`); reader rerooting is
+> consistent and the latent gap is closed; Group 2b's `editor.iomap` drop is eliminated
+> via reactive composition; `String`/`Number` and the irreducibles stay distinct by
+> design. See [Migration steps](#migration-steps).
 >
 > Background: a 2026-06-24 re-survey (a) widened the inventory to operations added
 > since the 2026-06-23 audit (Group 2 widget-state writes, the projection-field
@@ -561,44 +564,45 @@ field of `CollectionInsertOperation`, matching Lisp `make-operation/compound`.
      pre-existing 23/8 baseline; `database_tabular` errored only on a live-DB SQL
      teardown (environmental).
 
-7. **❌ WON'T DO (empirically tested 2026-06-24, worktree `clipboard-reactive-test`)
-   — leave Group 2b (`Toggle{Clipboard…Display}` + `SetVersionCriterion`) as distinct
-   ops.** I built the reactive version (`display_slice::Cell`,
-   `output = Cell(() -> display_slice[] ? slice_iomap.output : content_iomap.output)`,
-   toggle does a plain cell write with **no** `editor.iomap` drop) and ran it through
-   the real clipboard pipeline. The finding is more precise than the earlier
-   analysis-only claim:
+7. **✅ DONE (reopened 2026-06-24, branch `clipboard-reactive-test`) — Group 2b's
+   `editor.iomap` drop is eliminated via reactive composition.** First I tried the
+   reactive version naively (make the projection's `output` *slot* a `Cell`) — that
+   crashed the pipeline (`TypeDispatchingProjection: no projection registered for type
+   Cell`), because `SequentialProjection.projection_print` did `current = iomap.output`
+   (a one-time raw read) and threaded the value as the next stage's input *document*.
+   The blocker was that **composition snapshotted each stage's output**, not the
+   reactive engine. Two fixes both propagate end-to-end with no `editor.iomap` drop;
+   the second was chosen because it keeps the projections domain-generic:
 
-   - **The projection's *own* derived output cell flips reactively** — verified by
-     driving the clipboard stage alone: flipping `display_slice[]` and re-reading
-     `iomap.output[]` switches the exposed syntax content→slice with no re-print. So
-     "there is no reactive structural-switch *at all*" was wrong; the cell works.
-   - **The blocker is the projection-*composition* boundary.**
-     `SequentialProjection.projection_print` does `current = iomap.output`
-     (Sequential.jl:67) — a one-time raw read — and threads `current` as the next
-     stage's input *document*; `_fixed_print` freezes each child via
-     `CellVector(Cell[Cell(im.output)…])` (ProjectionTemplate.jl:358). A stage's output
-     is consumed exactly once at print time. Reproduced consequences:
-     1. A `Cell`-valued output **crashes the pipeline**: `TypeDispatchingProjection:
-        no projection registered for type Cell` (the `Cell` is threaded downstream as a
-        document).
-     2. Even *unwrapping* the cell once at the boundary **does not propagate**: the
-        downstream stage prints the captured syntax; a later flip leaves it frozen.
-   - The clipboard/versioning projections also output the **active child's type
-     directly (no wrapper)** — required by the chain's type contract (the parent
-     expects e.g. a `SyntaxNode`) — so a "derived content cell in a stable wrapper"
-     would change the output type and break the chain anyway.
+   - *Stable host node* (the `MathParenthesizedToSyntaxNode` idiom): output is a stable
+     object whose child is a reactive `CellVector(() -> …flag…)`. Verified working, but
+     it couples the generic clipboard to a specific output domain (it must emit a
+     `SyntaxNode`). Rejected.
+   - *Reactive `SequentialProjection`* (chosen, see `Sequential.jl`): each stage's
+     IoMap is a computed cell over the previous stage's output cell, so a structural
+     output change re-prints only that stage and the ones after it; value changes still
+     propagate fine-grained through each stage's existing IoMap (the per-stage output
+     cell reads only the structural choice). `SequentialProjectionIoMap.output` reads
+     the reactive output cell via a `getproperty` override so value-expecting consumers
+     are unchanged; `step_iomaps` are cells the reader derefs.
 
-   So making Group 2b reactive end-to-end would require re-architecting the print
-   *composition* pipeline (each stage's print wrapped in a cell that re-pulls upstream
-   output), not an iomap-invalidation hook on the generic op (rejected). For 3
-   low-value ops that is not worth it. **They stay distinct** (a legitimate "switch
-   which child this projection exposes" operation, the `editor.iomap` drop forcing the
-   one re-print the frozen composition needs), alongside `ReplaceSelectionOperation`
-   and the Group 3 range edits. `ToggleCollapseOperation` likewise stays (its `nothing`-target
-   resolution at the SyntaxToText layer is also non-trivial). `ReplaceFocusPartOperation`
-   could still fold *if* `part_evaluator` were made lazy, but it is a single op of
-   marginal value — defer.
+   With that, the Group 2b ops become **plain reactive cell writes, no iomap drop**,
+   and the projections stay generic (no wrapper):
+   `ClipboardSliceToAnyProjection.display_slice` and
+   `ClipboardCollectionToAnyProjection.display_collection` → `Cell`, each with a derived
+   `output` cell; `VersioningToAnyProjection` defers `select_version` into a
+   `selection_cell` (output/index/value_iomap read it via `getproperty`), so
+   `SetVersionCriterionOperation` is a plain cell write. **Verified regression-free:**
+   `test_printers`/`test_readers`/`test_text_navigations`/`test_repls` sweeps match
+   clean main exactly (printers 178495/178495, readers 20025/20025; the 3 text-nav + 5
+   repl failures are pre-existing on main); `test_clipboard_to_any`,
+   `test_versioning_to_any`, and json/xml/widget/graphics pipelines all green. The
+   toggles target *projection* state (not document references), so they remain small
+   dedicated reactive ops rather than literal `ReplaceReferencedValue`s — the
+   consolidation win was removing the structural-switch `editor.iomap` hack, which is
+   done. `ToggleCollapseOperation` stays (its `nothing`-target resolution at the
+   SyntaxToText layer is non-trivial); `ReplaceFocusPartOperation` could still fold *if*
+   `part_evaluator` were made lazy, but is marginal — defer.
 
 8. **✅ DONE (commits `33e767c`, `343d9d6`, on `main`):** Docs.
    [`documentation/operations.md`](../../documentation/operations.md) leads with the
