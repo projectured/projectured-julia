@@ -4,7 +4,16 @@
 > Stages 0–4 **done**. Stage 4's **live help window** is now a `GestureHelpProjection`
 > sibling-window opened via the tooltip-as-window rail (2026-06-24, superseding the
 > reverted editor seam — see the ✅ note in Stage 4); it is **default-on** in
-> `run_example` (F1). All targeted tests green; JSON `document_read` parity holds at
+> `run_example` (F1).
+>
+> **Reification follow-ups (2026-06-25):** all the clean editing readers are now reified —
+> `VersioningToAny`, `DocumentInsertion`, and document-level `@gestures PrimitiveString`
+> (de-duping both primitive projections) — plus `collect_gestures` descent for the
+> Clipboard/Versioning decorators. The one remaining large reader is the mode-dependent,
+> assistant-shared **Conversation composer** (deferred with rationale below); the rest of
+> the tail is geometry-coupled mouse-describe and speculative no-consumer infra.
+>
+> All targeted tests green; JSON `document_read` parity holds at
 > the pre-existing 47/1/0 baseline. New tests: `test_gesture_binding` (34+),
 > `test_json_gesture_collection` (10), `test_gesture_map` (14), `test_gesture_help` (33),
 > `test_focusing` (6). Key decisions and the resolution of the open questions are recorded
@@ -394,27 +403,51 @@ directly, already independent of `_multi_window_projection`).
     exact-modifier (a bare comma is not focus-out). Note: a multi-line
     `(doc,event) -> begin…end` lambda will not parse inside a `GestureBinding(...)`
     arg list — extract a named helper (single-expression lambdas are fine).
-  - ⏳ `ConversationComposerToWidget` — **deferred (more involved, not "small"):**
-    the composer reader is *mode-dependent* (dispatches on the active part type —
-    `PrimitiveString` / `DocumentInsertion` / `JuliaInsertion` / `Json|XmlInsertion`,
-    each with different Return/Shift+Return/Alt+Return/Tab/Esc gestures) **and** its
-    `composer_read` is shared with the live assistant panel, so a clean fire==show
-    reification needs `projection_gestures` to branch on mode and the shared reader
-    to route through it.
-  - ⏳ Generic mouse-select describe for `TextToGraphics` / `WidgetToGraphics`
-    (enumeration-only — the click hit-testing stays geometry-coupled).
-- Add `collect_gestures` methods for the remaining combinators (Nesting, Copying,
-  Focusing, WindowManager, EnvelopeUnwrapping, Predicate/Reference-Dispatching) as
-  their layers are reified, and teach the contextual collector to follow the
-  selection into the focused sub-document for non-root-relative domains.
+  - ✅ **`VersioningToAnyProjection` (2026-06-25, `4ce634d`)** — `Ctrl+Shift+S` create
+    version / `Ctrl+Delete` delete version now author `projection_gestures` and fire via
+    `read_projection_gesture`; value-child delegation + op re-rooting unchanged. Green:
+    `test_versioning_to_any` (53), `test_clipboard_to_any` (66).
+  - ✅ **`DocumentInsertion` / `InsertionToSyntaxLeaf` (2026-06-25, `feaf40c`)** — char
+    insert / Commit (Return→`p.commit`) / Cancel (Escape→`DocumentNothing`) /
+    Backspace / Delete reified as `projection_gestures` (Commit/Cancel stay projection-
+    level — they need `p.commit`). Bare patterns kept loose (`mods=nothing`) to preserve
+    the old `@event_case` semantics exactly. Green: `test_document_insertion` (14),
+    `test_conversation_editor` (29).
+  - ⏳ `ConversationComposerToWidget` — **still deferred (genuinely not "small"):**
+    `composer_read` *dispatches on the active part type* (`PrimitiveString` /
+    `DocumentInsertion` / `JuliaInsertion` / `Json|XmlInsertion`, each with different
+    Return/Shift+Return/Tab/Esc), and is **shared with the live assistant panel** — a
+    clean fire==show needs `projection_gestures` to branch on mode and the shared reader
+    to route through it. Confirmed (2026-06-25) as the one remaining large/risky reader.
+  - ⏳ Generic mouse-select describe for `TextToGraphics` / `WidgetToGraphics` /
+    `LayoutToGraphics` (enumeration-only — the click hit-testing stays geometry-coupled;
+    the *keyboard* parts already delegate to `document_read`).
+- ✅ **Document-level `@gestures PrimitiveString` (2026-06-25, `efcdcf9`)** — char
+  insert / Backspace / Delete were duplicated verbatim in `PrimitiveStringToTextText`
+  and `PrimitiveStringToSyntaxLeaf` (both producing a `StringReplaceRangeOperation` in
+  the `value[range]` vocabulary). Reified once at the document level; both projections
+  reach it through the generic `document_read` fallback and their per-projection readers
+  are deleted. Convention note: KeyPress ignores modifiers (matches Text/JSON), so the
+  old defensive ctrl-printable reject is gone (two tests updated). Green:
+  `test_primitive` (33), `test_primitive_to_text` (46), `test_object_to_widget` (46),
+  `test_widget_text_editing` (9).
+- **`collect_gestures` combinator coverage** — ✅ `Nesting` (with the help window),
+  ✅ `Clipboard` (both) + ✅ `Versioning` decorators descend into their content/value
+  child (2026-06-25, `c9a6c1c`; test: collect over a clipboard wrapping a `PrimitiveString`
+  yields both `Copy` and `Insert character`). ⏳ Remaining (lower value / subtler):
+  `Copying` + `WindowManager` + `EnvelopeUnwrapping` + `Predicate/Reference-Dispatching`,
+  and teaching the collector to *follow the selection* into the focused sub-document for
+  `Focusing` / non-root-relative domains (the leaf default already shows focus in/out +
+  the root's gestures, so this is a de-duplication refinement, not a gap).
 - Make `_is_char_cursor` `skip_type_checkpoints` if document-layer char-cursor
-  greying is wanted (see Stage 3 note).
+  greying is wanted (see Stage 3 note). *(Inert/pre-existing — no behavioural benefit
+  until per-gesture greying is wanted; left as-is.)*
 - **Composite-gesture patterns** (now that Stage 0's multi-click + chords landed):
   add a `KeyChordPattern` so `@gestures` can bind a `KeyChord` → operation and
   describe it (e.g. `"Ctrl+C Ctrl+K"`), and let `MousePressPattern` optionally match
   the `MousePress.count` for double/triple-click bindings. `MousePressPattern`
-  currently ignores `count` (so every click still matches); neither is wired (no
-  consumer yet) — these are the consumer side of Stage 0's new gestures.
+  currently ignores `count` (so every click still matches); **neither is wired (no
+  consumer yet)** — left as speculative until a gesture actually needs a chord/multi-click.
 - **gesture-help is sourced from reified bindings, not a keymap.** The "available
   gestures" catalogue comes from the readers'/documents' handled-gesture sets — i.e.
   `collect_gestures` over reified `@gestures` / `projection_gestures`. Because a
