@@ -106,7 +106,7 @@ These do something other than a single-slot write, so they stay their own types:
 
 | Operation | Where it lives | Why it stays |
 |---|---|---|
-| `StringReplaceRangeOperation` / `NumberReplaceRangeOperation` | `document/Primitive.jl` | character-range edits on a string/number value (pending fold into a `RangeReference` splice) |
+| `StringReplaceRangeOperation` / `NumberReplaceRangeOperation` | `document/Primitive.jl` | character-range edits on a string/number value; kept distinct because ~19 projection readers dispatch on the type to specialize char-edit handling (span↔flat mapping, control-edit parsing, …) |
 | `SelectTabOperation(tabbed_pane, index)` | `document/Widget.jl` | event-like signal — the workbench overloads it into a document-selection move |
 | `ReplaceFocusPartOperation(projection, part)` | `projection/generic/Focusing.jl` | retargets a `FocusingProjection` |
 | `MoveRangeOperation(src, a, b, dst, i)` | `projection/higherorder/Dragging.jl` | identity-preserving relocation of `CellVector` elements (carries the `CellVector`s directly) |
