@@ -40,7 +40,7 @@ export GraphLayoutToGraphicsCanvas, GraphLayoutToGraphics, GraphToGraphics,
 # Node box visual style.
 const _BORDER_W = 2
 const _BORDER = (0x58, 0x6e, 0x75, 0xff)   # solarized base01
-const _FILL   = (0xff, 0xff, 0xff, 0x20)   # faint translucent fill
+const _FILL   = (0xff, 0xff, 0xff, 0xff)   # faint translucent fill
 const _RADIUS = 6
 const _PAD    = 8
 # Edge style.
