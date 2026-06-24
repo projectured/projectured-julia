@@ -74,9 +74,21 @@ The programmer writes real value types; the macro generates:
    immutable value; `Foo(ifoo::IFoo)` hydrates back into reactive Cells.
 
 Fields may carry `@kwdef`-style defaults (`field::T = value`). When at least one
-default is present, keyword constructors are also generated for both `Foo` and
-`IFoo` — fields with a default are optional keywords, fields without one are
-required keywords.
+default is present, the macro also generates:
+
+4. **Keyword constructors** for both `Foo` and `IFoo` — fields with a default are
+   optional keywords, fields without one are required keywords.
+
+5. **Positional default constructors** (Rule Y) — the positional analog of
+   `@kwdef`: for a trailing run of defaulted fields, ctors `Foo(f₁..f_k)` that fill
+   the omitted suffix with its defaults. Emitted only when ≥1 leading field is
+   required (so the zero-arg form never shadows the keyword ctor); fully-defaulted
+   structs get none.
+
+6. **Single-`CellVector` constructor** (Rule C) — when exactly one field is a
+   `CellVector` and every other field has a default, `Foo(items::AbstractVector)`
+   wraps the elements per-element via `CellVector(items)` and fills the rest. Used
+   instead of the all-fields positional ctor for collection documents.
 """
 macro document(structdef)
     structdef.head === :struct || error("@document expects a struct definition")
@@ -196,6 +208,47 @@ macro document(structdef)
         push!(extra, :(function $(i_name)(; $(kw_params...))
             $(Expr(:call, i_name, field_names...))
         end))
+
+        # ── Rule Y: positional ctors that omit a trailing run of defaulted
+        #    fields (the positional analog of `@kwdef`). Generated only when at
+        #    least one leading field is required (`req ≥ 1`), so we never emit a
+        #    zero-arg form colliding with the keyword ctor's `Foo()`; fully
+        #    defaulted structs are left to their keyword / hand-written ctors. ──
+        n = length(original_fields)
+        trailing = 0
+        for (fname, _) in Iterators.reverse(original_fields)
+            haskey(default_map, fname) || break
+            trailing += 1
+        end
+        req = n - trailing
+        if req ≥ 1
+            for k in req:(n-1)
+                kept   = field_names[1:k]
+                filled = Any[default_map[field_names[j]] for j in (k+1):n]
+                push!(extra, :($(struct_name)($(kept...)) =
+                    $(Expr(:call, struct_name, kept..., filled...))))
+                push!(extra, :($(i_name)($(kept...)) =
+                    $(Expr(:call, i_name, kept..., filled...))))
+            end
+        end
+
+        # ── Rule C: when the struct is backed by exactly one `CellVector` field
+        #    and every other field has a default, accept the elements as a plain
+        #    `AbstractVector` and wrap them per-element via `CellVector(items)`
+        #    (CollectionModule already defines `CellVector(::AbstractVector)`).
+        #    `AbstractVector` (not `Vector`) keeps this strictly less specific
+        #    than any hand-written `Foo(::Vector{…})`, so it never redefines or
+        #    makes ambiguous an existing ctor. No variadic form is generated (it
+        #    would clash with typed-variadic ctors like `JsonObject(::Pair...)`).
+        #    Cell-based `Foo` only. ──
+        cv_fields = [fname for (fname, ftype) in original_fields if ftype === :CellVector]
+        if length(cv_fields) == 1 &&
+           all(haskey(default_map, f) for (f, ft) in original_fields if ft !== :CellVector)
+            cvf   = cv_fields[1]
+            cargs = Any[f === cvf ? :(CellVector(items)) : default_map[f] for f in field_names]
+            push!(extra, :($(struct_name)(items::AbstractVector) =
+                $(Expr(:call, struct_name, cargs...))))
+        end
     end
 
     # The Cell-based variant is a **mutable** struct: every field is a `Cell`, so
