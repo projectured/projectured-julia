@@ -41,8 +41,8 @@ import ..ReferenceModule: ConcreteReferencePath, FieldReference, RangeReference,
                           EmptyReferencePath, ProjectionReference, skip_type_checkpoints
 import ..ReferenceCaseModule: var"@reference_case"
 import ..ReferenceBuilderModule: var"@reference"
-import ..KeyboardModule: KeyDown, KeyPress
-import ..EventCaseModule: var"@event_case"
+import ..GestureBindingModule: GestureBinding, KeyDownPattern, KeyPressPattern,
+                              projection_gestures, read_projection_gesture
 import ..FontModule: font_ubuntu_monospace_regular_24, StyleFont
 import ..ColorModule: color_solarized_gray, color_default, StyleColor
 import ..StyleTextModule: StyleText
@@ -122,56 +122,65 @@ function projection_read(p::InsertionToSyntaxLeaf, iomap::SimpleIoMap, op::Repla
     h.name == "value" ? op : ReplaceSelectionOperation(ConcreteReferencePath(ProjectionReference(p, path)))
 end
 
-function projection_read(p::InsertionToSyntaxLeaf, iomap::SimpleIoMap, evt::KeyPress)
-    evt.modifiers.ctrl && return nothing
+# Own gestures, reified as a `projection_gestures` table fired through
+# `read_projection_gesture` -- so the same set that fires is what `collect_gestures`
+# shows. Value char-editing (insert / Backspace / Delete) mirrors PrimitiveString;
+# Commit / Cancel are projection-specific (they call `p.commit` / abort to a
+# `DocumentNothing`), which is why this stays a projection table rather than a
+# document-level `@gestures`. Modifiers are matched loosely (`mods=nothing`) to
+# preserve the old bare `@event_case` patterns exactly. Operations capture `p`/`ins`
+# and return `nothing` to decline (no value cursor / commit refused).
+function projection_gestures(p::InsertionToSyntaxLeaf, iomap)
     ins = iomap.input
-    range = _value_range(ins)
-    range === nothing && return nothing
-    StringReplaceRangeOperation(_value_path(range), evt.text)
+    GestureBinding[
+        GestureBinding(KeyDownPattern(:return, nothing, nothing),
+            (doc, event) -> _insertion_commit(p, ins),
+            (doc, sel) -> true, "Commit insertion", "insertion"),
+        GestureBinding(KeyDownPattern(:escape, nothing, nothing),
+            (doc, event) -> replace_document(EmptyReferencePath(), DocumentNothing()),
+            (doc, sel) -> true, "Cancel insertion", "insertion"),
+        GestureBinding(KeyDownPattern(:backspace, nothing, nothing),
+            (doc, event) -> _insertion_delete(ins, :backspace),
+            (doc, sel) -> true, "Delete backward", "insertion"),
+        GestureBinding(KeyDownPattern(:delete, nothing, nothing),
+            (doc, event) -> _insertion_delete(ins, :delete),
+            (doc, sel) -> true, "Delete forward", "insertion"),
+        GestureBinding(KeyPressPattern(nothing),
+            (doc, event) -> _insertion_insert(ins, event.text),
+            (doc, sel) -> true, "Insert character", "insertion"),
+    ]
 end
 
-function projection_read(p::InsertionToSyntaxLeaf, iomap::SimpleIoMap, evt::KeyDown)
-    ins = iomap.input
-    action = @event_case evt begin
-        KeyDown(:return) => :commit
-        KeyDown(:escape) => :abort
-    end
-    if action === :commit
-        doc = p.commit(something(ins.value, ""))
-        doc === nothing && return nothing
-        return replace_document(EmptyReferencePath(), doc)
-    elseif action === :abort
-        return replace_document(EmptyReferencePath(), DocumentNothing())
-    end
+# Insert printable text at the value cursor; nothing without a value[range] cursor.
+function _insertion_insert(ins, text)
     range = _value_range(ins)
-    range === nothing && return nothing
-    text = something(ins.value, "")
-    n = length(text)
-    new_range = @event_case evt begin
-        KeyDown(:backspace) => begin
-            if range.start != range.stop
-                range
-            elseif range.start > 0
-                RangeReference(range.start - 1, range.start)
-            else
-                return nothing
-            end
-        end
-        KeyDown(:delete) => begin
-            if range.start != range.stop
-                range
-            elseif range.stop < n
-                RangeReference(range.stop, range.stop + 1)
-            else
-                return nothing
-            end
-        end
-    end
-    new_range === nothing && return nothing
-    StringReplaceRangeOperation(_value_path(new_range), "")
+    range === nothing ? nothing : StringReplaceRangeOperation(_value_path(range), text)
 end
 
-projection_read(::InsertionToSyntaxLeaf, ::SimpleIoMap, evt) = nothing
+# Commit the typed value through the projection's `commit` callback; nothing when
+# the callback refuses (unknown/incomplete value).
+function _insertion_commit(p::InsertionToSyntaxLeaf, ins)
+    doc = p.commit(something(ins.value, ""))
+    doc === nothing ? nothing : replace_document(EmptyReferencePath(), doc)
+end
+
+# Backspace/Delete range computation; nothing at the value boundary.
+function _insertion_delete(ins, dir::Symbol)
+    range = _value_range(ins)
+    range === nothing && return nothing
+    n = length(something(ins.value, ""))
+    new_range = if range.start != range.stop
+        range
+    elseif dir === :backspace
+        range.start > 0 ? RangeReference(range.start - 1, range.start) : nothing
+    else  # :delete
+        range.stop < n ? RangeReference(range.stop, range.stop + 1) : nothing
+    end
+    new_range === nothing ? nothing : StringReplaceRangeOperation(_value_path(new_range), "")
+end
+
+projection_read(p::InsertionToSyntaxLeaf, iomap::SimpleIoMap, event) =
+    read_projection_gesture(p, iomap, event)
 
 # ── Factory: name → domain document / insertion ───────────────────────────────
 
