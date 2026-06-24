@@ -1,11 +1,18 @@
 # Assistant collapse defaults + part-widget layout containment
 
-> **Status: PENDING.** Two small, independent changes to the in-editor AI
-> assistant rendering:
+> **Status: IMPLEMENTED (Stages 1–2); runtime test execution pending.** Two
+> small, independent changes to the in-editor AI assistant rendering:
 > 1. **Collapse-by-default for resource reads** (parallel to thinking, which is
 >    already collapsed by default).
 > 2. **Layout fix:** a collapsed/expanded part body must never draw outside its
 >    own assistant message-part card.
+>
+> Code changes are in place (see per-stage **Done** notes). The targeted tests
+> (`test_assistant_mvp()`, `test_printer(conversation_widget_example)`) were
+> **not run in the implementation environment — it has no Julia toolchain and the
+> network policy blocks installing one** (`install.julialang.org` → 403). They
+> must be run in CI or a local checkout to confirm green; the changes are
+> deliberately small and locally reviewed.
 
 Builds on [conversation-thinking.md](../done/conversation-thinking.md) (Stage 5
 established collapsed-by-default thinking and the `_maybe_clip` viewport-clip
@@ -87,6 +94,17 @@ to drive a `read_resource` tool call and assert the produced part's `collapsed`
 is `true`, while an `execute_julia_code` part stays `false`. `test_assistant_mvp()`
 green.
 
+**Done.** `_collapse_tool_default(tool_name) = eval_kind_label(tool_name) ==
+"resource"` added before `_run_agent_loop!` in
+[WorkbenchAssistant.jl](../../package/domain/src/editor/WorkbenchAssistant.jl)
+(import of `eval_kind_label` added to the `EvaluatorModule` line); the tool-call
+`ConversationPart` is now built with `collapsed = _collapse_tool_default(tu.name)`.
+Thinking unchanged (already collapsed). Tests: a new `_mvp_test_resource_collapse()`
+(drives a `read_resource` call, asserts `parts[1].collapsed == true`), registered
+in `test_assistant_mvp()`, plus an added `collapsed == false` assertion on the
+`execute_julia_code` part in `_mvp_test_tool_use_roundtrip()`. **Search tools left
+expanded** (only the literal `"resource"` kind collapses) per the open decision.
+
 ## Stage 2 — Contain the collapsed body within its card
 
 **Goal.** A collapsed part/turn body's clipped viewport is sized to its *own*
@@ -123,6 +141,15 @@ longer balloons past its authored width, and the part no longer uses the wrong
 assertion (walk the produced graphics for a collapsed part card) that the card's
 width equals its expanded/authored width — i.e. the collapsed scroll pane did
 not widen it. A `write_example_image` snapshot is a useful manual cross-check.
+
+**Done (code).** `_maybe_clip` now takes the owning card's `width` and sizes the
+collapsed `WidgetScrollPane` to the interior `width - 2*_CARD_PADDING` (new
+`_CARD_PADDING = 16` constant mirroring the theme's `WidgetCard` padding). The
+turn body passes `_CARD_WIDTH`, the part body passes `_PART_WIDTH` — fixing the
+prior hardcoded `_CARD_WIDTH` that made a collapsed 720px part card balloon to
+~760px on the fallback path. No domain-struct/serialization change.
+**Verification still owed:** run `test_printer(conversation_widget_example)` and
+add the width-equality graphics assertion in an environment with Julia.
 
 ## Stage 3 — Verify expanded bodies are also contained
 

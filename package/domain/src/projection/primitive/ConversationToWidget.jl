@@ -57,6 +57,11 @@ const _PART_WIDTH    = 720
 const _AVATAR_SIZE   = 22
 const _COLLAPSED_H   = 30   # clipped viewport height (≈ one row) when collapsed
 const _GAP           = 6
+# Mirrors the WidgetCard padding configured in the WidgetToGraphics theme builder
+# (the source of truth). Used to size a collapsed body's clip to the card's
+# *interior* width so the clipped viewport never widens the card past its
+# authored width.
+const _CARD_PADDING  = 16
 
 _role_glyph(role::Symbol) = role === :user ? "U" : role === :assistant ? "A" : "?"
 
@@ -84,9 +89,15 @@ _header(glyph::AbstractString, label::AbstractString) =
         WidgetLabel(Point2D(0, 0), String(label)),
     ]; vertical_align = :center, gap = 8)
 
-# Collapse a body document by clipping it into a short scroll-pane viewport.
-_maybe_clip(body, collapsed::Bool) =
-    collapsed ? WidgetScrollPane(body; size = Point2D(_CARD_WIDTH, _COLLAPSED_H),
+# Collapse a body document by clipping it into a short scroll-pane viewport,
+# sized to the owning card's *interior* width (`width - 2·padding`). The scroll
+# pane prefers the parent-allocated width in the live editor; this fallback width
+# keeps an isolated/unallocated render from widening the card past `width`. Using
+# the card's own width (not a hardcoded constant) is what stops a 720px part card
+# from ballooning to the 760px turn width when collapsed.
+_maybe_clip(body, collapsed::Bool, width::Integer) =
+    collapsed ? WidgetScrollPane(body;
+                                 size = Point2D(width - 2 * _CARD_PADDING, _COLLAPSED_H),
                                  padding = inset_default) : body
 
 # ── projection_print: conversation → vertical list of turn cards ──────────────
@@ -119,7 +130,7 @@ function projection_print(::ConversationTurnToWidgetComposite,
                           Cell(:left), Cell(_GAP), Cell(nothing))
     card = WidgetCard(Point2D(0, 0);
                       title = _header(_role_glyph(t.role), String(t.role)),
-                      content = _maybe_clip(body, t.collapsed === true),
+                      content = _maybe_clip(body, t.collapsed === true, _CARD_WIDTH),
                       width = _CARD_WIDTH)
     ChildrenIoMap(nothing, t, card, ioms)
 end
@@ -135,7 +146,7 @@ function projection_print(::ConversationPartToWidget,
            content
     card = WidgetCard(Point2D(0, 0);
                       title = _header(_kind_glyph(content), _kind_label(content)),
-                      content = _maybe_clip(body, part.collapsed === true),
+                      content = _maybe_clip(body, part.collapsed === true, _PART_WIDTH),
                       width = _PART_WIDTH)
     SimpleIoMap(nothing, part, card)
 end

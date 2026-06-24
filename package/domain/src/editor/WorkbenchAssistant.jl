@@ -49,7 +49,7 @@ import ..ReferenceCaseModule: var"@reference_case"
 import ..ReferenceBuilderModule: var"@reference"
 import ..ConversationModule: ConversationConversation, ConversationTurn, ConversationPart,
                               ConversationThinking, thinking_part
-import ..EvaluatorModule: EvaluatorForm, result_text
+import ..EvaluatorModule: EvaluatorForm, result_text, eval_kind_label
 import ..JuliaModule: JuliaDocument, JuliaIdentifier
 import ..WorkbenchModule: WorkbenchAssistant
 import ..WorkbenchToWidgetModule: WorkbenchAssistantToWidgetSplitPane
@@ -572,6 +572,12 @@ function _thinking_config(model::AbstractString)
     nothing
 end
 
+# Resource reads (`list_resources` / `read_resource`) collapse by default —
+# they are lookup chatter, secondary to the answer, like thinking. Evaluations
+# (`execute_julia_code`) and other tool calls stay expanded. Keyed off
+# `eval_kind_label` so the resource/eval/tool classification stays single-sourced.
+_collapse_tool_default(tool_name::AbstractString) = eval_kind_label(tool_name) == "resource"
+
 function _run_agent_loop!(editor, a::WorkbenchAssistant)
     # `AnthropicLlm.stream_turn` errors with a clear HTTP message if the
     # API key is empty. `FakeLlm` doesn't need one. So leave validation
@@ -658,7 +664,8 @@ function _run_agent_loop!(editor, a::WorkbenchAssistant)
                 EvaluatorForm(JuliaIdentifier(code);
                               result = result_text(output),
                               is_error = is_err, tool_use_id = tu.id,
-                              tool_name = tu.name))))
+                              tool_name = tu.name);
+                collapsed = _collapse_tool_default(tu.name))))
         end
     end
 

@@ -234,6 +234,34 @@ function test_assistant_mvp()
         _mvp_test_tool_use_roundtrip()
         _mvp_test_collapse_click()
         _mvp_test_thinking_stream()
+        _mvp_test_resource_collapse()
+    end
+end
+
+# ── Resource-read parts collapse by default ────────────────────────────
+#
+# A `read_resource` tool call is lookup chatter, secondary to the answer (like
+# thinking), so the agent loop must create its part collapsed by default —
+# unlike an `execute_julia_code` result, which stays expanded.
+
+function _mvp_test_resource_collapse()
+    @testset "resource-read tool part collapsed by default" begin
+        register_default_tools_and_resources!()
+        llm = ScriptedLlm([
+            _tool_use_script("tu_1", "read_resource",
+                             """{"uri":"resource://guides"}"""),
+            _final_text_script("Read it."),
+        ])
+        a = WorkbenchAssistant(; llm = llm)
+        push!(a.conversation.turns, ConversationTurn(:user, [ConversationPart("look it up")]))
+        _run_agent_loop!((document = a,), a)
+
+        reply = a.conversation.turns[end]
+        @test reply.role === :assistant
+        ef = reply.parts[1].content
+        @test ef isa EvaluatorForm
+        @test ef.tool_name == "read_resource"
+        @test reply.parts[1].collapsed == true       # collapsed by default
     end
 end
 
@@ -415,6 +443,8 @@ function _mvp_test_tool_use_roundtrip()
         @test ef isa EvaluatorForm
         @test _eval_code(ef)   == "1+1"
         @test ef.tool_use_id   == "tu_1"
+        # An `execute_julia_code` result is primary content — expanded by default.
+        @test msgs[2].parts[1].collapsed == false
         # The real `execute_julia_code` tool ran — `1+1` repr is "2".
         @test occursin("2", _eval_result(ef))
         @test ef.is_error == false
