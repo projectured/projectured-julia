@@ -283,10 +283,27 @@ wiring is a contained follow-up. The render path is proven by `test_gesture_map`
   adaptagrams-shim / conversation-v1 baselines — Ctrl+Home's pattern + logic are
   byte-identical to before), `_complete` (1443), `test_text_to_graphics` (55),
   `test_primitive_to_text` (45), `test_text` (19).
-- Reify projection-level contributors via `projection_gestures`:
-  `FocusingProjection` (`Ctrl+,`), Clipboard (`Ctrl+C/X/V`),
-  `ConversationComposerToWidget` (Return / Shift+Return / Tab), generic
-  mouse-select describe for `TextToGraphics` / `WidgetToGraphics`.
+- **Projection-level fire==show interpreter** ✅ **(2026-06-24).** Added
+  `read_projection_gesture(projection, iomap, event)` to `GestureBindingModule` —
+  the projection-layer analogue of `read_document_gesture`: it fires the first
+  matching binding from `projection_gestures(projection, iomap)` (passing
+  `iomap.input` + its selection as `doc`/`sel`), so a projection whose reader
+  delegates here *fires* exactly the table `collect_gestures` *shows*.
+- Reify projection-level contributors via `projection_gestures` + the interpreter:
+  - ✅ **Clipboard (2026-06-24)** — `ClipboardSliceToAnyProjection` (Ctrl+/ toggle,
+    Ctrl+C/X/N copy/cut/note, Ctrl+V paste, Ctrl+Shift+V paste-copy) and
+    `ClipboardCollectionToAnyProjection` (Ctrl+* toggle, Ctrl+= add, Ctrl+- remove)
+    now author `projection_gestures` and fire via `read_projection_gesture`; the
+    School-A content-child delegation is unchanged. Exact-modifier patterns make
+    Ctrl+Shift+V (paste-copy) and Ctrl+V (paste) distinct. Behaviour unchanged:
+    `test_clipboard_to_any` (all subtests incl. slice gestures 24, paste 12,
+    collection 11), `test_gesture_binding` (46), `test_json_gesture_collection`
+    (10), `test_gesture_map` (14) green. *(applicable left as `true` for v1 — the
+    ops self-decline; per-gesture greying for help is a refinement.)*
+  - ⏳ `FocusingProjection` (`Ctrl+,` / `Ctrl+.`) — same pattern; needs a
+    characterisation test first (no existing coverage).
+  - ⏳ `ConversationComposerToWidget` (Return / Shift+Return / Tab), generic
+    mouse-select describe for `TextToGraphics` / `WidgetToGraphics`.
 - Add `collect_gestures` methods for the remaining combinators (Nesting, Copying,
   Focusing, WindowManager, EnvelopeUnwrapping, Predicate/Reference-Dispatching) as
   their layers are reified, and teach the contextual collector to follow the

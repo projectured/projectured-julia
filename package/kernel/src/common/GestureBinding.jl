@@ -48,7 +48,7 @@ export GesturePattern, KeyPressPattern, KeyDownPattern, KeyUpPattern,
        MouseScrollPattern,
        GestureBinding, matches, describe,
        document_gestures, document_gestures_own, read_document_gesture,
-       projection_gestures, collect_gestures, applicable_gestures,
+       projection_gestures, read_projection_gesture, collect_gestures, applicable_gestures,
        is_help_gesture, var"@gestures", var"@gesture_set"
 
 # ─────────────────────────────────────────────────────────────────────────
@@ -265,9 +265,9 @@ function read_document_gesture(doc, event)
 end
 
 # The projection-independent reader for any `@gestures`-declared document is the
-# table interpreter. Concrete `document_read(::SomeDoc, evt)` methods (Text,
-# Syntax — not yet reified) are more specific and still win; documents with no
-# registered gestures get `nothing` (empty table), exactly as the old default.
+# table interpreter. JSON, Syntax and Text are all reified onto it; a domain may
+# still add a more-specific `document_read(::SomeDoc, evt)` that wins. Documents
+# with no registered gestures get `nothing` (empty table), exactly as the old default.
 document_read(doc::Document, event) = read_document_gesture(doc, event)
 
 # ─────────────────────────────────────────────────────────────────────────
@@ -283,6 +283,36 @@ rows to the contextual collector. The combinator `collect_gestures` methods
 (beside the `projection_read` combinators) gather these across the chain.
 """
 projection_gestures(::Projection, iomap) = GestureBinding[]
+
+"""
+    read_projection_gesture(projection, iomap, event) -> Operation | Nothing
+
+Fire the first reified `projection_gestures(projection, iomap)` binding whose
+pattern `matches` the event and whose `applicable` precondition holds; a binding
+whose `operation` returns `nothing` is skipped so a later one may still fire. The
+projection-layer analogue of [`read_document_gesture`](@ref): a projection whose
+reader delegates here (e.g. Clipboard) *fires* the very table `collect_gestures`
+*shows*, so fire == show holds at the projection layer too.
+
+The binding `operation`/`applicable` closures are built by `projection_gestures`
+over `projection` and `iomap`, so they already capture what they need; the `doc`
+and `selection` passed here are `iomap.input` and its selection (a binding may
+ignore them and use its captured `iomap`).
+"""
+function read_projection_gesture(projection, iomap, event)
+    bindings = projection_gestures(projection, iomap)
+    isempty(bindings) && return nothing
+    input = hasproperty(iomap, :input) ? iomap.input : nothing
+    sel = (input !== nothing && hasfield(typeof(input), :selection)) ?
+          getfield(input, :selection)[] : nothing
+    for b in bindings
+        if matches(b.pattern, event) && b.applicable(input, sel)
+            op = b.operation(input, event)
+            op === nothing || return op
+        end
+    end
+    return nothing
+end
 
 """
     collect_gestures(projection, recursion, iomap) -> Vector{GestureBinding}

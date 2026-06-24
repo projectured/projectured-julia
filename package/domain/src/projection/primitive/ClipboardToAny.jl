@@ -49,8 +49,8 @@ import ..ReferenceModule: ReferencePath, ConcreteReferencePath, EmptyReferencePa
                           evaluate_reference, head, tail, strip_reference_types
 import ..PrinterContextModule: PrinterContext, child_context
 import ..IoMapApiModule: IoMap
-import ..KeyboardModule: KeyDown
-import ..EventCaseModule: var"@event_case"
+import ..GestureBindingModule: GestureBinding, KeyDownPattern,
+                              projection_gestures, read_projection_gesture
 
 export ClipboardSliceToAnyProjection, ClipboardCollectionToAnyProjection,
        ClipboardSliceToAnyProjectionIoMap, ClipboardCollectionToAnyProjectionIoMap,
@@ -336,31 +336,62 @@ end
 
 # ── Readers ─────────────────────────────────────────────────────────────────
 
+# Own gestures, reified as a `projection_gestures` table so the same set that
+# fires (via `read_projection_gesture`) is the one `collect_gestures` shows. The
+# operations capture the projection `p` (for the display toggle) and take the
+# clipboard document as their `doc` argument; they return `nothing` to decline
+# (e.g. no usable selection), falling through to the content-child delegation.
+# Modifiers are matched exactly, so `Ctrl+Shift+V` (paste-copy) and `Ctrl+V`
+# (paste) are distinct — order between them is therefore immaterial.
+function projection_gestures(p::ClipboardSliceToAnyProjection, iomap)
+    GestureBinding[
+        GestureBinding(KeyDownPattern(:slash, [:ctrl], nothing),
+            (doc, event) -> ToggleClipboardSliceDisplayOperation(p),
+            (doc, sel) -> true, "Toggle stored slice", "clipboard"),
+        GestureBinding(KeyDownPattern(:c, [:ctrl], nothing),
+            (doc, event) -> _clipboard_copy(doc),
+            (doc, sel) -> true, "Copy", "clipboard"),
+        GestureBinding(KeyDownPattern(:x, [:ctrl], nothing),
+            (doc, event) -> _clipboard_cut(doc),
+            (doc, sel) -> true, "Cut", "clipboard"),
+        GestureBinding(KeyDownPattern(:n, [:ctrl], nothing),
+            (doc, event) -> _clipboard_note(doc),
+            (doc, sel) -> true, "Note", "clipboard"),
+        GestureBinding(KeyDownPattern(:v, [:ctrl, :shift], nothing),
+            (doc, event) -> _clipboard_paste_copy(doc),
+            (doc, sel) -> true, "Paste copy", "clipboard"),
+        GestureBinding(KeyDownPattern(:v, [:ctrl], nothing),
+            (doc, event) -> _clipboard_paste(doc),
+            (doc, sel) -> true, "Paste", "clipboard"),
+    ]
+end
+
 function projection_read(p::ClipboardSliceToAnyProjection, recursion, change::Change,
                          iomap::ClipboardSliceToAnyProjectionIoMap)
-    input = iomap.input
-    own = @event_case change.gesture begin
-        KeyDown(:slash; ctrl)    => ToggleClipboardSliceDisplayOperation(p)
-        KeyDown(:c; ctrl)        => _clipboard_copy(input)
-        KeyDown(:x; ctrl)        => _clipboard_cut(input)
-        KeyDown(:n; ctrl)        => _clipboard_note(input)
-        KeyDown(:v; ctrl, shift) => _clipboard_paste_copy(input)
-        KeyDown(:v; ctrl)        => _clipboard_paste(input)
-    end
+    own = read_projection_gesture(p, iomap, change.gesture)
     own !== nothing && return Change(change.gesture, own)
     cim = iomap.content_iomap
     inner = projection_read(cim.projection, recursion, change, cim)
     Change(change.gesture, _prefix_op(inner.operation, (FieldReference("content"),)))
 end
 
+function projection_gestures(p::ClipboardCollectionToAnyProjection, iomap)
+    GestureBinding[
+        GestureBinding(KeyDownPattern(:asterisk, [:ctrl], nothing),
+            (doc, event) -> ToggleClipboardCollectionDisplayOperation(p),
+            (doc, sel) -> true, "Toggle collection", "clipboard"),
+        GestureBinding(KeyDownPattern(:equals, [:ctrl], nothing),
+            (doc, event) -> _clipboard_collection_add(doc),
+            (doc, sel) -> true, "Add to collection", "clipboard"),
+        GestureBinding(KeyDownPattern(:minus, [:ctrl], nothing),
+            (doc, event) -> _clipboard_collection_remove(doc),
+            (doc, sel) -> true, "Remove from collection", "clipboard"),
+    ]
+end
+
 function projection_read(p::ClipboardCollectionToAnyProjection, recursion, change::Change,
                          iomap::ClipboardCollectionToAnyProjectionIoMap)
-    input = iomap.input
-    own = @event_case change.gesture begin
-        KeyDown(:asterisk; ctrl) => ToggleClipboardCollectionDisplayOperation(p)
-        KeyDown(:equals; ctrl)   => _clipboard_collection_add(input)
-        KeyDown(:minus; ctrl)    => _clipboard_collection_remove(input)
-    end
+    own = read_projection_gesture(p, iomap, change.gesture)
     own !== nothing && return Change(change.gesture, own)
     cim = iomap.content_iomap
     inner = projection_read(cim.projection, recursion, change, cim)
