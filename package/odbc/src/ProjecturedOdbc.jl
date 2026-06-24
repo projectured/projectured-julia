@@ -224,24 +224,35 @@ function db_catalog_columns(adapter::OdbcDatabaseAdapter,
     [(name=String(row[1]), data_type=String(row[2])) for row in rows]
 end
 
+# PostgreSQL-specific FK query against pg_catalog rather than the ANSI
+# information_schema. The information_schema constraint views
+# (table_constraints / key_column_usage / constraint_column_usage) are
+# privilege-filtered: they expose a table's constraints only to the table's
+# owner (or a role with non-SELECT privileges). Our examples connect as a
+# SELECT-only role (e.g. `projectured`) against tables owned by `postgres`, so
+# the information_schema query returns zero FKs even when they exist. pg_catalog
+# is visible to any role that can see the catalog, so it reports the real FKs
+# regardless of ownership. `unnest(... WITH ORDINALITY)` pairs each
+# `conkey[i]` (referencing column) with the matching `confkey[i]` (referenced
+# column), yielding one row per FK column — multi-column FKs span multiple rows.
 function db_catalog_foreign_keys(adapter::OdbcDatabaseAdapter, schema::String)
     if adapter._conn === nothing || !db_alive(adapter)
         db_connect!(adapter)
     end
     cursor = DBInterface.execute(adapter._conn,
-        "SELECT tc.table_name  AS from_table, " *
-        "       kcu.column_name AS from_column, " *
-        "       ccu.table_name  AS to_table, " *
-        "       ccu.column_name AS to_column " *
-        "FROM information_schema.table_constraints tc " *
-        "JOIN information_schema.key_column_usage kcu " *
-        "  ON tc.constraint_name = kcu.constraint_name " *
-        " AND tc.table_schema    = kcu.table_schema " *
-        "JOIN information_schema.constraint_column_usage ccu " *
-        "  ON ccu.constraint_name = tc.constraint_name " *
-        " AND ccu.table_schema    = tc.table_schema " *
-        "WHERE tc.constraint_type = 'FOREIGN KEY' " *
-        "  AND tc.table_schema    = '$(schema)' " *
+        "SELECT rel.relname  AS from_table, " *
+        "       att.attname  AS from_column, " *
+        "       frel.relname AS to_table, " *
+        "       fatt.attname AS to_column " *
+        "FROM pg_constraint con " *
+        "JOIN pg_class rel  ON rel.oid  = con.conrelid " *
+        "JOIN pg_class frel ON frel.oid = con.confrelid " *
+        "JOIN pg_namespace ns ON ns.oid = con.connamespace " *
+        "JOIN unnest(con.conkey)  WITH ORDINALITY AS ck(attnum, ord)  ON true " *
+        "JOIN unnest(con.confkey) WITH ORDINALITY AS fk(attnum, ord2) ON ck.ord = fk.ord2 " *
+        "JOIN pg_attribute att  ON att.attrelid  = con.conrelid  AND att.attnum  = ck.attnum " *
+        "JOIN pg_attribute fatt ON fatt.attrelid = con.confrelid AND fatt.attnum = fk.attnum " *
+        "WHERE con.contype = 'f' AND ns.nspname = '$(schema)' " *
         "ORDER BY from_table, from_column")
     _, rows = _materialize(cursor)
     [(from_table=String(row[1]), from_column=String(row[2]),

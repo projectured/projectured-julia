@@ -87,6 +87,23 @@ dispatcher** route `WidgetCard` through `make_table_projection_example`.
 > (`package/projectured/src/Projectured.jl`) mechanically re-exports every
 > `DatabaseModule` export, so the example layer (`using Projectured`) sees the
 > new generic automatically, and dispatch finds the ODBC method.
+>
+> **Discovered during verification — the `information_schema` SQL below does not
+> work for our setup, switched to `pg_catalog`.** The ANSI `information_schema`
+> constraint views (`table_constraints` / `key_column_usage` /
+> `constraint_column_usage`) are **privilege-filtered**: PostgreSQL exposes a
+> table's constraints only to the table's *owner* (or a role with non-SELECT
+> privileges). Our examples connect as a SELECT-only role (`projectured`) against
+> tables owned by `postgres`, so the `information_schema` query returned **0 FKs**
+> even though dvdrental has 18 (confirmed via `pg_constraint`). The shipped ODBC
+> impl therefore queries `pg_catalog` (`pg_constraint`/`pg_class`/`pg_attribute`,
+> `unnest(conkey/confkey) WITH ORDINALITY` to pair each referencing column with
+> its referenced column), which is visible to any role regardless of ownership.
+> This makes the ODBC `db_catalog_foreign_keys` PostgreSQL-specific (the sibling
+> `db_catalog_*` stay portable via `information_schema`) — acceptable, since the
+> only consumer is the PostgreSQL-only dvdrental relationship example, and it's
+> the only way to read FKs as a non-owner. Verified: returns all 18 dvdrental FKs
+> (`address.city_id → city`, `rental.customer_id → customer`, …).
 
 - **Interface**: add `db_catalog_foreign_keys(adapter, schema)` to
   [package/domain/src/external/Database.jl](package/domain/src/external/Database.jl)
@@ -215,7 +232,23 @@ In [package/example/src/projection/Graph.jl](package/example/src/projection/Grap
   add a short comment saying so + how to run it — mirroring the existing
   `dvdrental_object_example` note.
 
-### Step 5 — Verify end to end
+### Step 5 — Verify end to end — **Done**
+
+> Verified against the live dvdrental DB. Built the native shim
+> (`Pkg.build("ProjecturedAdaptagrams")` → `libadaptagrams_shim.so`). A
+> standalone script (`using Projectured, ProjecturedExample, ProjecturedOdbc,
+> ProjecturedAdaptagrams, ProjecturedSdl`) confirmed: FK query returns **18**
+> FKs; `make_dvdrental_relationship_graph_document_example()` builds a `GraphGraph`
+> with **15 vertices / 18 edges**; card titles read back correctly (`actor`,
+> `address`, … `width=260`). `write_example_image(dvdrental_relationship_example,
+> …)` rendered a non-empty PNG; eyeballed the full diagram (large caps) — all 15
+> table cards with `Column | Type` bodies, FK edges connecting them, non-overlapping
+> Adaptagrams placement (matches the target picture). The
+> `FallbackLayoutEngine` variant also rendered cleanly, isolating card-render from
+> native-engine concerns. Note: rendering these examples needs `ProjecturedSdl`
+> loaded (for `truetype_measure_text` + rasterization) and a display
+> (`DISPLAY=:0` here); `Projectured`/`ProjecturedExample` alone don't pull in SDL
+> or `ProjecturedOdbc` (both opt-in), so a manual driver must `using` them.
 
 - `using Pkg; Pkg.build("ProjecturedAdaptagrams")` once.
 - `run_example(dvdrental_relationship_example)` and/or
