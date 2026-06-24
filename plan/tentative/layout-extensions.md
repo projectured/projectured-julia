@@ -25,7 +25,8 @@ family rather than the originally proposed (and abandoned) "domain-preserving
 Remaining work:
 
 1. ~~**`StackLayout`** — z-ordered overlays / badges.~~ **Done.**
-2. **`ConstraintLayout`** — constraint-solved free-form arrangement (deferred).
+2. **`ConstraintLayout`** — constraint-solved free-form arrangement. Now has a
+   dedicated plan: [../pending/constraint-layout.md](../pending/constraint-layout.md).
 3. **Migrate existing positioners** — fold `TableToGraphics` and the widget
    containers onto the layout family (optional).
 4. **Future ideas** — layout debug overlay, `ProjectionContext` integration,
@@ -66,7 +67,12 @@ no axis early-stop applies.
 
 ---
 
-## 2. ConstraintLayout (deferred)
+## 2. ConstraintLayout
+
+> **Promoted to its own plan:** the design below is superseded by
+> [../pending/constraint-layout.md](../pending/constraint-layout.md), which
+> commits to an existing LP solver (Tulip-via-MathOptInterface, with Cassowary
+> as the algorithmic model) instead of the naive relaxation sketch here.
 
 The eventual end-state for arbitrary arrangements (dashboards, free-form
 document layout). Each child carries constraints relating its edges to
