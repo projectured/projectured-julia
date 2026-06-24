@@ -119,7 +119,19 @@ dispatcher** route `WidgetCard` through `make_table_projection_example`.
   returns the expected dvdrental FKs (e.g. `rental.customer_id → customer`,
   `payment.rental_id → rental`, `address.city_id → city`, …).
 
-### Step 2 — Document-maker: build the relationship `GraphGraph`
+### Step 2 — Document-maker: build the relationship `GraphGraph` — **Done**
+
+> Implemented `make_dvdrental_relationship_graph_document_example` + `_table_card`
+> in the example `DbCatalog.jl`. Confirmed during impl: `@document` `getproperty`
+> auto-derefs (`t.name`/`t.columns`, `c.name`/`c.data_type` give plain values —
+> matching `DbCatalogToSyntax.jl:66`), and iterating a `CellVector` yields the
+> child `DbCatalogColumn` documents (matching `DbCatalogToSyntax.jl:219`). The
+> `DatabaseInstance` is rebuilt locally (it isn't returned by
+> `make_dvdrental_dbcatalog_document_example`) and passed to `with_connection`
+> for the one-shot FK query. Added a self-reference guard (`from == to`) beyond
+> the plan as a defensive measure; dvdrental has no self-FKs so it's a no-op there.
+
+
 
 Add to [package/example/src/document/DbCatalog.jl](package/example/src/document/DbCatalog.jl)
 (it already hosts the dvdrental catalog makers and imports the DB stack):
