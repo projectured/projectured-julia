@@ -38,6 +38,9 @@ import ..ReferenceModule: ConcreteReferencePath, EmptyReferencePath, FieldRefere
 import ..PrinterContextModule: child_context
 import ..OperationModule: ReplaceSelectionOperation
 import ..PrimitiveModule: StringReplaceRangeOperation, NumberReplaceRangeOperation
+import ..DocumentApiModule: Document, document_read
+import ..KeyboardModule: KeyDown, KeyPress
+import ..OperationRerootingModule: prepend_steps_to_op
 
 export Bound, Project, Collection, Tokens, Sections, bound, project, collection, tokens, sections, RuleIoMap, var"@projection_template"
 
@@ -889,6 +892,112 @@ function _sections_backward(p, w, iomap, reference)
 end
 
 # ── readers ───────────────────────────────────────────────────────────────────
+
+# ── Recursive gesture reader (delegate to the selected child, lift the op) ──────
+#
+# A raw authoring gesture (a `KeyPress`/`KeyDown` the upstream Text/Syntax layers
+# declined) is delegated to the projection of the **selected child** element, and
+# the child's operation is lifted back into this node's input domain by prepending
+# the input step that leads to that child (`entries[i].value`, `elements[i]`, …).
+# A node handles the gesture itself — via its document's `@gestures`
+# (`document_read`) — only when the child declines: innermost-first, with bubbling
+# to the nearest enclosing structural node. This is the reader-side mirror of the
+# recursive printer (`collection`/`project`) and the recursive operation reader
+# (`map_reference_backward` below), and reuses the same lift (`prepend_steps_to_op`)
+# the container projections (`WidgetToGraphics`/`LayoutToGraphics`) use. The general
+# principle is documented in documentation/projection-system.md.
+#
+# Each level reads its own `iomap.input.selection`: `set_selection!` propagates the
+# selection down the document tree, so every focused node already holds its own
+# subtree-relative path (the root the full path, a nested object its relative one).
+
+# The input step(s) into the focused child plus that child's iomap, derived from
+# this node's input selection. `nothing` ⇒ the selection does not descend into a
+# recursable child projection (a leaf cursor, a key cursor, or no selection), so
+# the caller falls back to this node's own `document_read`.
+_focused_child(::Any, iomap, sel) = nothing
+
+function _focused_child(w::NodeWiring, iomap, sel)
+    core = skip_type_checkpoints(sel)
+    (core isa ConcreteReferencePath && core.head isa FieldReference &&
+     core.head.name == String(w.coll_input_field)) || return nothing
+    after = skip_type_checkpoints(core.tail)
+    (after isa ConcreteReferencePath && after.head isa RangeReference) || return nothing
+    i = after.head.start + 1
+    ims = iomap.child_iomaps[]
+    1 <= i <= length(ims) || return nothing
+    (ims[i], (FieldReference(String(w.coll_input_field)), ElementReference(i)))
+end
+
+function _focused_child(w::FixedNodeWiring, iomap, sel)
+    core = skip_type_checkpoints(sel)
+    (core isa ConcreteReferencePath && core.head isa FieldReference) || return nothing
+    fname = Symbol(core.head.name)
+    for slot in w.slots
+        slot isa ProjectSlot && slot.in_field === fname &&
+            return (iomap.child_iomaps[fname], (FieldReference(String(fname)),))
+    end
+    nothing   # KeySlot/IntroSlot ⇒ leaf, no child projection to recurse into
+end
+
+function _focused_child(w::MixedNodeWiring, iomap, sel)
+    core = skip_type_checkpoints(sel)
+    (core isa ConcreteReferencePath && core.head isa FieldReference) || return nothing
+    fname = Symbol(core.head.name)
+    for slot in w.prefix_slots
+        slot isa ProjectSlot && slot.in_field === fname &&
+            return (iomap.child_iomaps.prefix[fname], (FieldReference(String(fname)),))
+    end
+    if fname === w.coll_field
+        after = skip_type_checkpoints(core.tail)
+        (after isa ConcreteReferencePath && after.head isa RangeReference) || return nothing
+        i = after.head.start + 1
+        ims = iomap.child_iomaps.coll[]
+        1 <= i <= length(ims) || return nothing
+        return (ims[i], (FieldReference(String(w.coll_field)), ElementReference(i)))
+    end
+    nothing
+end
+
+function _focused_child(w::SectionsWiring, iomap, sel)
+    core = skip_type_checkpoints(sel)
+    (core isa ConcreteReferencePath && core.head isa FieldReference) || return nothing
+    fname = Symbol(core.head.name)
+    after = skip_type_checkpoints(core.tail)
+    (after isa ConcreteReferencePath && after.head isa RangeReference) || return nothing
+    i = after.head.start + 1
+    for s in iomap.child_iomaps[]
+        if s.field === fname
+            1 <= i <= length(s.entries) || return nothing
+            return (s.entries[i], (FieldReference(String(fname)), ElementReference(i)))
+        end
+    end
+    nothing
+end
+
+function projection_read(p::Projection, iomap::RuleIoMap, evt::Union{KeyPress, KeyDown})
+    input = iomap.input
+    input isa Document || return nothing
+    sel = getfield(input, :selection)[]
+    if sel !== nothing
+        fc = _focused_child(iomap.wiring, iomap, sel)
+        if fc !== nothing
+            child, steps = fc
+            child_op = projection_read(child.projection, child, evt)
+            child_op === nothing || return prepend_steps_to_op(child_op, steps)
+        end
+    end
+    # Own-level handling: the nearest enclosing node's reified gestures, and the
+    # override seam (a node that must special-case a gesture does so here).
+    return document_read(input, evt)
+end
+
+# Disambiguation (mirrors the op shims below): the recursive reader above
+# (`Projection`) and the transparent `RecursiveProjection` wrapper's 3-arg reader
+# both match `(RecursiveProjection, RuleIoMap, evt)`, neither more specific. Defer
+# to the wrapper so it threads the read into its child projection.
+projection_read(rp::RecursiveProjection, iomap::RuleIoMap, evt::Union{KeyPress, KeyDown}) =
+    projection_read(rp, nothing, as_change(evt), iomap).operation
 
 # Value-edit retype (atomic) + plain String/Number retargeting (both shapes).
 function projection_read(p::Projection, iomap::RuleIoMap, op::StringReplaceRangeOperation)
