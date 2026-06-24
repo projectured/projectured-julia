@@ -189,7 +189,16 @@ In [package/example/src/projection/Graph.jl](package/example/src/projection/Grap
   (`make_table_projection_example` already dispatches `WidgetCard`, `WidgetTable`,
   `WidgetLabel`, and the layout types — no new primitive projection needed.)
 
-### Step 4 — Register the example
+### Step 4 — Register the example — **Done**
+
+> Exported both makers + the const from `ProjecturedExample.jl` (next to the
+> `make_graph_*` / `make_dvdrental_*` exports) and registered
+> `dvdrental_relationship_example` in `Examples.jl` with a run-it-directly
+> comment. Left out of the `examples` tuple (needs live DB + native shim). No
+> custom `render_width`/`render_height`: the diagram is content-sized and capped
+> at 1800×1200 by `write_example_image`, like `graph_adaptagrams_example`.
+
+
 
 - Export the two new makers from
   [package/example/src/ProjecturedExample.jl](package/example/src/ProjecturedExample.jl)

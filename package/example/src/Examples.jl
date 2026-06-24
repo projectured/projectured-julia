@@ -130,6 +130,18 @@ const dvdrental_object_json_example = Example("dvdrental_object_json", make_dvdr
 # OUT of the `examples` registry (it hammers the live database); run directly:
 # `run_example(dvdrental_catalog_json_example)`.
 const dvdrental_catalog_json_example = Example("dvdrental_catalog_json", make_dvdrental_catalog_document_example, make_dvdrental_catalog_json_projection_example)
+# `dvdrental_relationship_example` is the entity-relationship diagram: one
+# `WidgetCard` node per catalog table (table name + a `Column | Type` table) laid
+# out by the native AdaptagramsEngine, with directed edges drawn from the live
+# foreign-key constraints. Kept OUT of the `examples` registry below — it needs a
+# live dvdrental DB *and* the built ProjecturedAdaptagrams native shim (like the
+# other `dvdrental_*` examples). Build the shim once
+# (`using Pkg; Pkg.build("ProjecturedAdaptagrams")`), then run directly:
+# `run_example(dvdrental_relationship_example)` /
+# `write_example_image(dvdrental_relationship_example, "dvdrental_relationship.png")`.
+const dvdrental_relationship_example = Example("dvdrental_relationship",
+    make_dvdrental_relationship_graph_document_example,
+    make_dvdrental_relationship_projection_example)
 const sql_syntax_example     = Example("sql_syntax",     make_sql_document_example,            make_sql_syntax_projection_example)
 const sql_insert_syntax_example = Example("sql_insert_syntax", make_sql_insert_document_example, make_sql_insert_syntax_projection_example)
 const sql_update_syntax_example = Example("sql_update_syntax", make_sql_update_document_example, make_sql_update_syntax_projection_example)
