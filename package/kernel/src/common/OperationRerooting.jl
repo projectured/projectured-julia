@@ -11,7 +11,11 @@ from itself to that child (e.g. `elements[i]` for a `WidgetComposite`,
 These helpers depend only on `Reference` paths and the path-bearing `Operation`
 types — no widget or layout knowledge — so both `WidgetToGraphics` and
 `LayoutToGraphics` (and any future container) reuse them instead of duplicating
-the prepend logic.
+the prepend logic. The same lift powers the **recursive gesture reader** in
+`ProjectionTemplate.jl`: a structural projection delegates a raw authoring gesture
+to the selected child's projection and lifts the returned operation by prepending
+the input step that reaches the child — see the "Recursive gesture reading"
+section of `documentation/projection-system.md`.
 """
 module OperationRerootingModule
 

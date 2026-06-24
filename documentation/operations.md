@@ -186,6 +186,15 @@ rides along unchanged; the first step that fills in a non-nothing `operation`
 short-circuits the walk, and subsequent earlier steps translate that operation
 further toward the document's own domain.
 
+Within a single structural projection, the reader recurses the same way the
+printer did: it **delegates a raw authoring gesture to the projection of the
+selected child** and **lifts** the child's operation back into its own domain by
+prepending the step that reaches the child (`prepend_steps_to_op`) — handling the
+gesture itself (via [`document_read`](projection-system.md#domain-owned-geometry-free-gesture-mapping-document_read))
+only when the child declines. This is what makes `,`/`Tab` reach the *nearest
+enclosing* object/array rather than only the root. See
+[Recursive gesture reading](projection-system.md#recursive-gesture-reading-delegate-to-the-selected-child-lift-the-operation).
+
 ## Adding a new operation
 
 **First ask whether you need one.** If the gesture just writes a value into a slot

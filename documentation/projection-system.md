@@ -221,6 +221,49 @@ so that fallback is a no-op and SDL behaviour is unchanged.
 > That form is **obsolete** — a transitional shim the generic bridge adapts to
 > the 4-arg `Change` interface. Write the 4-arg `Change` form in new code.
 
+#### Recursive gesture reading: delegate to the selected child, lift the operation
+
+The "Recurse, then extend" and "act only when the child declines" patterns above
+are not just options — together they are the **default** a structural (container)
+projection's reader should follow for a raw authoring gesture:
+
+> **A structural projection delegates a raw gesture to the projection of the
+> *selected child* element, and lifts the child's operation back into its own
+> domain. It handles the gesture itself only when the child declines — it may
+> override, but in general it should not.**
+
+This is the reader-side mirror of three things the printer side already does:
+
+- the **printer** is recursive — a `@projection_template`'s `collection`/`project`
+  delegate each child subtree to the child's projection and record the per-child
+  correspondence (`child_iomaps`);
+- the **operation reader** is recursive — `map_reference_backward` walks
+  `child_iomaps`, so an operation whose path points into a child is mapped through
+  the child projection (see [§ Mapping references when the printer recurses](#mapping-references-when-the-printer-recurses));
+- **container event routing already lifts** — `WidgetToGraphics` / `LayoutToGraphics`
+  route a mouse gesture to the hit child and lift the returned operation with
+  `prepend_steps_to_op` ([common/OperationRerooting.jl](../package/kernel/src/common/OperationRerooting.jl)).
+
+The template engine applies the rule **automatically**: the `RuleIoMap` reader in
+[projection/ProjectionTemplate.jl](../package/domain/src/projection/ProjectionTemplate.jl)
+handles a raw `KeyPress`/`KeyDown` (the keystrokes the Text/Syntax layers
+declined — the domain *authoring* gestures of [`document_read`](#domain-owned-geometry-free-gesture-mapping-document_read))
+by (1) finding the selected child from the node's `selection` and its
+`child_iomaps`, (2) delegating the gesture to that child's `projection_read`, and
+(3) **lifting** the child's operation with `prepend_steps_to_op`, prepending the
+input step that reaches the child (`entries[i].value`, `elements[i]`). Only when
+the focused child returns `nothing` does the node fall back to `document_read` on
+its own input document. So a node never needs to special-case nested editing — the
+recursion descends innermost-first and **bubbles**: the *nearest enclosing*
+structural node whose `document_read` produces an operation wins (e.g. `,` inserts
+a sibling into the nearest enclosing object/array, `Tab` steps key→value in the
+enclosing object), exactly where the cursor is.
+
+Each level reads its **own** `iomap.input.selection`: `set_selection!` propagates
+the selection down the document tree, so every focused node already holds its own
+subtree-relative path (the root the full path, a nested object its relative one).
+No selection threading is needed — the lift is purely prepending the input steps.
+
 ### `map_reference_forward` / `map_reference_backward` — the reference maps
 
 These translate a `ReferencePath` from input-domain coordinates to
