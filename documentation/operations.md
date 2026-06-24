@@ -98,7 +98,7 @@ single-purpose operations — `ReplaceDocumentOperation`, `HideWidgetOperation`,
 `SetWidgetHoverOperation`, `SetWidgetPressedOperation`, `CollectionInsertOperation`,
 `CollectionDeleteOperation`, and the Workbench open/close. **Reach for
 `ReplaceReferencedValue` (or a builder) before writing a new operation struct.** See
-[`plan/pending/consolidate-operations-replace.md`](../plan/pending/consolidate-operations-replace.md).
+[`plan/done/consolidate-operations-replace.md`](../plan/done/consolidate-operations-replace.md).
 
 ## Operations that remain distinct
 
@@ -111,6 +111,7 @@ These do something other than a single-slot write, so they stay their own types:
 | `ReplaceFocusPartOperation(projection, part)` | `projection/generic/Focusing.jl` | retargets a `FocusingProjection` |
 | `MoveRangeOperation(src, a, b, dst, i)` | `projection/higherorder/Dragging.jl` | identity-preserving relocation of `CellVector` elements (carries the `CellVector`s directly) |
 | `ToggleCollapseOperation`, `ResizeWindowOperation`, `Open`/`CloseWindowOperation` | `common/Operation.jl` | view/window state |
+| `Toggle{ClipboardSlice,ClipboardCollection}DisplayOperation`, `SetVersionCriterionOperation` | `projection/primitive/{ClipboardToAny,VersioningToAny}.jl` | switch *which child* a projection exposes — a structural change that drops `editor.iomap`, not an in-place cell write (the reactive engine only propagates value changes within a fixed structure) |
 | `Load`/`Save`/`ExportDocumentOperation`, `Database*Operation` | `document/*.jl` | file/SQL I/O |
 | assistant/composer & splitter-drag operations | `editor/*`, `document/Widget.jl` | async turns, multi-field resets, transient drag state, arbitrary `action` callables |
 

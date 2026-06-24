@@ -83,7 +83,7 @@ end
 # ReplaceSelectionOperation, bundled by `replace_document` (below). It replaced the
 # document at `path` (rooted at editor.document) with a new `document`, then moved
 # the editor selection to `path ⧺ document.selection` so the cursor landed inside
-# the new value. See plan/pending/consolidate-operations-replace.md (step 3).
+# the new value. See plan/done/consolidate-operations-replace.md (step 3).
 
 # Concatenate two reference *paths* (vs. `append_reference`, which appends raw
 # *steps* — splicing a whole path there would wrongly lodge a ReferencePath where
@@ -160,7 +160,7 @@ root selected by the `document` field:
 It is `ReplaceDocumentOperation` generalised: an explicit-or-implicit root + a
 reference + a plain value, reusing the same terminal-slot-write split. (Folding
 `ReplaceDocumentOperation` and the Group 2–4 single-slot writes into this is the
-subject of `plan/pending/consolidate-operations-replace.md`.)
+subject of `plan/done/consolidate-operations-replace.md`.)
 """
 struct ReplaceReferencedValue <: Operation
     document::Any

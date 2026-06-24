@@ -1127,7 +1127,7 @@ WidgetTree(position::Point2D, roots::Vector; visible::Bool=true) =
 # producing readers (ProjectionConfiguring, WidgetScrollPane/ScrollBar readers in
 # WidgetToGraphics) now emit `ReplaceReferencedValue(widget, "field", value)` and
 # do the clamp/old+delta arithmetic themselves. See
-# plan/pending/consolidate-operations-replace.md (step 2).
+# plan/done/consolidate-operations-replace.md (step 2).
 
 """
     SelectTabOperation(widget, tab_index)
@@ -1195,7 +1195,7 @@ end
 # SetWidgetHoverOperation / SetWidgetPressedOperation were folded into
 # ReplaceReferencedValue: the WidgetButton reader emits
 # `ReplaceReferencedValue(widget, "hovered"/"pressed", bool)`. See
-# plan/pending/consolidate-operations-replace.md (step 2).
+# plan/done/consolidate-operations-replace.md (step 2).
 
 # ── Operation evaluation ───────────────────────────────────────────────────
 

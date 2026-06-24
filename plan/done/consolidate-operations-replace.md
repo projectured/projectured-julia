@@ -1,21 +1,20 @@
 # Consolidating operations into `ReplaceReferencedValue`
 
-> **Status (updated 2026-06-24): steps 0–4 + the generic-operations docs (step 8,
-> partial) merged to `main`. Step 5 (fold `String`/`NumberReplaceRange`) was tried
-> and DROPPED — those ops are dispatch-load-bearing and stay distinct (see step 5).**
-> Done so far: the keystone (step 1: `ReplaceReferencedValue` a reader-list citizen +
-> the `document === nothing` rule), Group 2 widget-state writes (step 2),
-> `ReplaceDocumentOperation` (step 3), Group 4 sequence edits (step 4), and the
-> generic-operations documentation (step 8, partial), and step 6 (closed the latent
-> reroot gap for the folded ops in the WorkbenchToWidget/`_retarget_op` readers).
-> **Two steps were investigated and dropped: step 5** (fold `String`/`NumberReplaceRange`
-> — dispatch-load-bearing, ~19 reader methods specialize on the type) **and step 7**
-> (fold Group 2b — the `editor.iomap` drop is the idiomatic *structural* switch; the
-> reactive system only propagates value changes within a fixed structure). The core
-> consolidation is **essentially complete**: `ReplaceDocumentOperation`, the six
+> **Status (COMPLETE, 2026-06-24): merged to `main`; plan moved to `done/`.** Done:
+> step 1 (keystone — `ReplaceReferencedValue` a reader-list citizen + the
+> `document === nothing` rule), step 2 (Group 2 widget-state writes), step 3
+> (`ReplaceDocumentOperation`), step 4 (Group 4 `Collection*`/Workbench sequence
+> edits), step 6 (closed the latent reroot gap in the WorkbenchToWidget/`_retarget_op`
+> readers), step 8 (docs). **Two steps were investigated and deliberately dropped:
+> step 5** (fold `String`/`NumberReplaceRange` — dispatch-load-bearing; ~19 reader
+> methods specialize on the type) **and step 7** (fold Group 2b — the `editor.iomap`
+> drop is the idiomatic *structural* switch; the reactive engine only propagates value
+> changes within a fixed structure). Outcome: `ReplaceDocumentOperation`, the six
 > widget-state ops, and the `Collection*`/Workbench ops are folded into
-> `ReplaceReferencedValue` + builders, and reader rerooting is consistent. Remaining:
-> a final docs pass (step 8). See [Migration steps](#migration-steps).
+> `ReplaceReferencedValue` + builders (`replace_document`/`insert_elements`/`delete_elements`);
+> reader rerooting is consistent and the latent gap is closed; `String`/`Number`,
+> Group 2b, `SelectTab`, and the irreducibles stay distinct by design. See
+> [Migration steps](#migration-steps).
 >
 > Background: a 2026-06-24 re-survey (a) widened the inventory to operations added
 > since the 2026-06-23 audit (Group 2 widget-state writes, the projection-field
@@ -527,7 +526,7 @@ field of `CollectionInsertOperation`, matching Lisp `make-operation/compound`.
    element/insert/delete handler living in one place) was already achieved for Group 4;
    character splicing stays in `Primitive.splice_value!`.
 
-6. **✅ DONE (commit `44a9ae1`, branch `worktree-consolidate-operations`) — closed the
+6. **✅ DONE (commit `89a12de`, on `main`) — closed the
    latent reroot gap for the folded ops.** Steps 3–4 taught the five main dispatchers
    about `ReplaceReferencedValue`/`CompoundOperation`, but the *bespoke* re-rooting
    readers were missed, so a folded `replace_document`/`insert_elements`/`delete_elements`
@@ -585,16 +584,17 @@ field of `CollectionInsertOperation`, matching Lisp `make-operation/compound`.
    could still fold *if* `part_evaluator` were made lazy, but it is a single op of
    marginal value — defer.
 
-8. **🟡 PARTIAL (commit `33e767c`, on `main`):** Docs.
-   [`documentation/operations.md`](../../documentation/operations.md) now leads with the
+8. **✅ DONE (commits `33e767c`, `343d9d6`, on `main`):** Docs.
+   [`documentation/operations.md`](../../documentation/operations.md) leads with the
    generic `ReplaceReferencedValue` (rooting rule, terminal-kind dispatch, the
    `replace_document`/`insert_elements`/`delete_elements` builder table, `CompoundOperation`),
-   has a "remain distinct" table, tells authors to prefer the generic op, and both
-   `INVARIANT:` notes are updated. Stale references in `widget.md`, `versioning.md`,
-   `architecture.md`, `concepts.md`, `orientation.md`, `editor.md`,
-   `tutorial-new-domain.md`, `roadmap.md` were fixed. **Remaining:** revisit once
-   steps 5–6 land (drop `String/NumberReplaceRange` from the "remain distinct" table
-   and from the two reader-dispatch lists in the invariants).
+   tells authors to prefer the generic op, and both `INVARIANT:` notes are updated. The
+   "remain distinct" table records the kept-by-design ops with their rationale —
+   `String`/`NumberReplaceRange` (dispatch-load-bearing, step 5), `SelectTabOperation`,
+   the Group 2b `Toggle…Display`/`SetVersionCriterion` (structural switches, step 7),
+   `MoveRange`, control-flow/I/O/async ops. Stale references in `widget.md`,
+   `versioning.md`, `architecture.md`, `concepts.md`, `orientation.md`, `editor.md`,
+   `tutorial-new-domain.md`, `roadmap.md` were updated to the generic operations.
 
 9. **Leave alone — Group 5 irreducible** + `ReplaceSelectionOperation` (the
    multi-slot recursive selection write, `Operation.jl:74`). No work; listed for
