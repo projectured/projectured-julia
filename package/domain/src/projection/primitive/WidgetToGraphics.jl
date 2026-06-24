@@ -663,6 +663,15 @@ function _retarget_op(p, iomap, op)
     elseif op isa NumberReplaceRangeOperation
         new_ref = map_reference_backward(p, iomap, op.reference)
         return new_ref === nothing ? nothing : NumberReplaceRangeOperation(new_ref, op.replacement)
+    elseif op isa ReplaceReferencedValue
+        # `editor.document`-rooted (document === nothing) ⇒ reroot the reference;
+        # a self-contained one (carried root) passes through unchanged.
+        op.document === nothing || return op
+        new_ref = map_reference_backward(p, iomap, op.reference)
+        return new_ref === nothing ? nothing : ReplaceReferencedValue(nothing, new_ref, op.value)
+    elseif op isa CompoundOperation
+        mapped = Any[_retarget_op(p, iomap, o) for o in op.operations]
+        return any(isnothing, mapped) ? nothing : CompoundOperation(mapped)
     else
         return op
     end
