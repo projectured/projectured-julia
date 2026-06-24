@@ -43,6 +43,12 @@ int adaptagrams_shim_version(void);
  *   node_margin     gap added to each side of every box during overlap removal,
  *                   so the (padded) boxes drawn downstream also clear each other;
  *                   also the inset of the top-left box from the origin
+ *   edge_lengths    optional per-edge multiplier of ideal_length (length ne), so
+ *                   the effective ideal length of edge i is
+ *                   ideal_length * edge_lengths[i]. Pass NULL for a uniform
+ *                   ideal_length on every edge. Lets the caller make edge lengths
+ *                   scale with the endpoint node sizes — a fixed ideal_length
+ *                   packs large boxes nearly on top of each other.
  *
  * Node indices in edge_src/edge_dst must be in [0, n). Edges referencing an
  * out-of-range node are skipped.
@@ -57,7 +63,8 @@ AdaptagramsLayout *adaptagrams_layout(int n,
                                       double ideal_length,
                                       int avoid_overlaps,
                                       int orthogonal,
-                                      double node_margin);
+                                      double node_margin,
+                                      const double *edge_lengths);
 
 /* Number of nodes / edges the handle holds (echo of the inputs). */
 int adaptagrams_node_count(const AdaptagramsLayout *h);

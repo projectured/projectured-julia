@@ -34,7 +34,7 @@ struct AdaptagramsLayout {
     std::vector<std::vector<double> > routes;  // each inner: x0,y0,x1,y1,...
 };
 
-extern "C" int adaptagrams_shim_version(void) { return 2; }
+extern "C" int adaptagrams_shim_version(void) { return 3; }
 
 extern "C" AdaptagramsLayout *adaptagrams_layout(int n,
         const double *in_w, const double *in_h,
@@ -43,7 +43,8 @@ extern "C" AdaptagramsLayout *adaptagrams_layout(int n,
         double ideal_length,
         int avoid_overlaps,
         int orthogonal,
-        double node_margin) {
+        double node_margin,
+        const double *edge_lengths) {
     if (n <= 0) return NULL;
     if (ideal_length <= 0.0) ideal_length = 50.0;
     if (node_margin < 0.0) node_margin = 0.0;
@@ -74,17 +75,27 @@ extern "C" AdaptagramsLayout *adaptagrams_layout(int n,
             rs.push_back(new vpsc::Rectangle(cx, cx + bw, cy, cy + bh));
         }
 
+        // Build the edge list and a parallel per-edge ideal-length array. The
+        // effective length of edge i is ideal_length * eLengths[i]; eLengths
+        // mirrors the FILTERED es list (libcola indexes them together), so the
+        // multiplier is pushed in the same loop. A NULL edge_lengths (or a
+        // non-positive entry) falls back to a multiplier of 1 (uniform
+        // ideal_length).
         std::vector<cola::Edge> es;
+        cola::EdgeLengths eLengths;
         es.reserve(ne > 0 ? ne : 0);
+        eLengths.reserve(ne > 0 ? ne : 0);
         for (int e = 0; e < ne; ++e) {
             int s = edge_src ? edge_src[e] : -1;
             int t = edge_dst ? edge_dst[e] : -1;
             if (s < 0 || s >= n || t < 0 || t >= n || s == t) continue;
             es.push_back(cola::Edge((unsigned)s, (unsigned)t));
+            double mult = (edge_lengths && edge_lengths[e] > 0.0) ? edge_lengths[e] : 1.0;
+            eLengths.push_back(mult);
         }
 
         {
-            cola::ConstrainedFDLayout alg(rs, es, ideal_length);
+            cola::ConstrainedFDLayout alg(rs, es, ideal_length, eLengths);
             if (avoid_overlaps) {
                 alg.setAvoidNodeOverlaps(true);
                 alg.run();

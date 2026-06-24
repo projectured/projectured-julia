@@ -74,7 +74,13 @@ end
 
 Native `GraphLayoutEngine`: libcola placement + libavoid routing.
 
-- `ideal_length`   ideal edge length fed to libcola's force model.
+- `ideal_length`   the **size-independent base gap** between connected boxes.
+  The effective ideal edge length is computed *per edge* as
+  `ideal_length + half_extent(source) + half_extent(target)` (with
+  `half_extent = max(w, h) / 2`), so big card-sized nodes are spread apart in
+  proportion to their size instead of being packed nearly on top of each other
+  by a single fixed length. Passed to libcola as per-edge multipliers of
+  `ideal_length`.
 - `avoid_overlaps` libcola prevents node-box overlaps when `true` (a hard
   guarantee via `makeFeasible`, not just the soft force-directed term).
 - `orthogonal`     libavoid orthogonal routes when `true`, else poly-line.
@@ -125,9 +131,20 @@ function layout_graph(engine::AdaptagramsEngine, graph::GraphGraph, sizes::Dict,
         in_w[i] = Cdouble(w); in_h[i] = Cdouble(h)
     end
 
-    # Edges with both endpoints present, aligned to the route index space.
+    # Edges with both endpoints present, aligned to the route index space. For
+    # each edge also compute a per-edge ideal-length *multiplier* of
+    # `ideal_length`, so the effective ideal length grows with the endpoint node
+    # sizes: a fixed length packs large boxes nearly on top of each other (their
+    # centres want to sit `ideal_length` apart, far less than the boxes' own
+    # extent), leaving the connectors invisible. The target centre-to-centre
+    # distance is `ideal_length` (a base gap) plus each endpoint's half-extent
+    # (`max(w, h) / 2`), so connected boxes clear each other by ~`ideal_length`
+    # regardless of orientation. The multiplier divides that by `ideal_length`
+    # since libcola's effective length is `ideal_length * eLengths[i]`.
+    base = engine.ideal_length > 0 ? engine.ideal_length : 60.0
+    half_extent(i) = max(in_w[i], in_h[i]) / 2          # i is 1-based into in_w/in_h
     edge_objs = GraphEdge[]
-    esrc = Cint[]; edst = Cint[]
+    esrc = Cint[]; edst = Cint[]; elen = Cdouble[]
     for i in 1:length(graph.edges)
         e = graph.edges[i]
         e isa GraphEdge || continue
@@ -135,15 +152,17 @@ function layout_graph(engine::AdaptagramsEngine, graph::GraphGraph, sizes::Dict,
         si = get(index, objectid(s), -1); ti = get(index, objectid(t), -1)
         (si < 0 || ti < 0) && continue
         push!(edge_objs, e); push!(esrc, Cint(si)); push!(edst, Cint(ti))
+        target = base + half_extent(si + 1) + half_extent(ti + 1)
+        push!(elen, Cdouble(target / base))
     end
     ne = length(edge_objs)
 
     handle = ccall((:adaptagrams_layout, libadaptagrams_shim), Ptr{Cvoid},
                    (Cint, Ptr{Cdouble}, Ptr{Cdouble}, Cint, Ptr{Cint}, Ptr{Cint},
-                    Cdouble, Cint, Cint, Cdouble),
+                    Cdouble, Cint, Cint, Cdouble, Ptr{Cdouble}),
                    Cint(n), in_w, in_h, Cint(ne), esrc, edst,
                    engine.ideal_length, Cint(engine.avoid_overlaps),
-                   Cint(engine.orthogonal), engine.node_margin)
+                   Cint(engine.orthogonal), engine.node_margin, elen)
     handle == C_NULL && error("AdaptagramsEngine: native layout failed (see adaptagrams_shim.cpp).")
 
     try
