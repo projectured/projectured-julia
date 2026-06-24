@@ -12,13 +12,26 @@ import ..ProjectionApiModule: projection_print, projection_read, map_reference_f
 import ..GestureBindingModule: collect_gestures, GestureBinding
 import ..IoMapModule: SimpleIoMap
 import ..IoMapApiModule: IoMap
+import ..ReactiveModule: Cell
 export SequentialProjection, SequentialProjectionIoMap
 
+# Each `step_iomaps` cell holds one stage's IoMap, recomputed (re-printed) when an
+# upstream stage's output changes *structurally*. `iomap.output` returns the LAST
+# stage's raw output — exactly as the old eager Sequential threaded it
+# (`current = iomap.output`): if the final stage exposes a Cell-valued output, it is
+# preserved (consumers like an inner text pipe do `seqiomap.output[]`). Reading it
+# pulls the last stage cell, which recomputes lazily if a structural change upstream
+# invalidated the chain. (Only the threading *between* stages unwraps a Cell-valued
+# output to the plain value the next stage prints — see `_seq_stage`.)
 struct SequentialProjectionIoMap <: IoMap
     projection::Any
     input::Any
-    output::Any
-    step_iomaps::Vector{Any}
+    step_iomaps::Vector{Cell}
+end
+
+function Base.getproperty(io::SequentialProjectionIoMap, name::Symbol)
+    name === :output && return getfield(io, :step_iomaps)[end][].output
+    getfield(io, name)
 end
 
 """
@@ -55,18 +68,41 @@ SequentialProjection(ps...) = SequentialProjection(collect(Any, ps))
 """
     projection_print(seq::SequentialProjection, recursion, input, ctx) -> output
 
-Apply each projection in order, threading the reactive output of one
-as the input to the next.
+Apply each projection in order, threading the reactive output of one as the input
+to the next. Each stage's `projection_print` is wrapped in a computed cell keyed on
+the previous stage's output cell, so a *structural* change in a stage's output
+(e.g. a projection that swaps which child it exposes) re-prints exactly that stage
+and the stages after it — value changes still propagate through each stage's
+existing IoMap without re-printing (the per-stage output cell reads only the
+structural choice, not inner values).
+
+The chain is **forced once here** so the initial build happens eagerly at print
+time (the same timing the rest of the pipeline assumes), not lazily on the first
+reader/render access. Cells stay re-pullable, so a later structural change still
+recomputes only the affected stages; we just don't defer the *first* compute.
 """
 function projection_print(seq::SequentialProjection, recursion, input, ctx)
-    current = input
-    step_iomaps = Any[]
+    step_iomaps = Cell[]
+    out = Cell(input)                         # stage 1's input, as a (constant) cell
     for p in seq.projections
-        iomap = projection_print(p, recursion, current, ctx)
-        push!(step_iomaps, iomap)
-        current = iomap.output
+        iomap_cell, out = _seq_stage(p, recursion, out, ctx)
+        push!(step_iomaps, iomap_cell)
     end
-    return SequentialProjectionIoMap(seq, input, current, step_iomaps)
+    foreach(getindex, step_iomaps)            # eager initial build (forces every stage)
+    return SequentialProjectionIoMap(seq, input, step_iomaps)
+end
+
+# One stage: its IoMap is a cell over the previous stage's output cell (so it
+# re-prints when that output changes); its output cell unwraps a Cell-valued
+# `iomap.output` (projections may expose a reactive output) to the plain value the
+# next stage prints. A helper so each closure captures its own `p`/`prev`/`cell`.
+function _seq_stage(p, recursion, prev::Cell, ctx)
+    iomap_cell = Cell(() -> projection_print(p, recursion, prev[], ctx))
+    out_cell   = Cell(() -> begin
+        o = iomap_cell[].output
+        o isa Cell ? o[] : o
+    end)
+    (iomap_cell, out_cell)
 end
 
 """
@@ -81,15 +117,15 @@ constant at every step. A nothing-change short-circuits.
 function projection_read(seq::SequentialProjection, recursion, change::Change, iomap::SequentialProjectionIoMap)
     n = length(seq.projections)
     start_i = n
-    out = projection_read(seq.projections[n], recursion, change, iomap.step_iomaps[n])
+    out = projection_read(seq.projections[n], recursion, change, iomap.step_iomaps[n][])
     while out.operation === nothing && start_i > 1
         start_i -= 1
-        out = projection_read(seq.projections[start_i], recursion, change, iomap.step_iomaps[start_i])
+        out = projection_read(seq.projections[start_i], recursion, change, iomap.step_iomaps[start_i][])
     end
     out.operation === nothing && return out
     for i in (start_i-1):-1:1
         out.operation === nothing && return out
-        out = projection_read(seq.projections[i], recursion, out, iomap.step_iomaps[i])
+        out = projection_read(seq.projections[i], recursion, out, iomap.step_iomaps[i][])
     end
     return out
 end
@@ -105,7 +141,7 @@ projection_read(seq::SequentialProjection, iomap::SequentialProjectionIoMap, pay
 function collect_gestures(seq::SequentialProjection, recursion, iomap::SequentialProjectionIoMap)
     result = GestureBinding[]
     for (p, step) in zip(seq.projections, iomap.step_iomaps)
-        append!(result, collect_gestures(p, recursion, step))
+        append!(result, collect_gestures(p, recursion, step[]))
     end
     return result
 end

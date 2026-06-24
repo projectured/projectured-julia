@@ -41,11 +41,17 @@ end
 
     p = ClipboardSliceToAnyProjection()
     iomap = projection_print(p, PreservingProjection(), slice, PrinterContext())
-    @test iomap.output === content                           # content shown by default
+    @test iomap.output[] === content                         # content shown by default (reactive output cell)
 
     ps = ClipboardSliceToAnyProjection(display_slice=true)
     iomap_s = projection_print(ps, PreservingProjection(), slice, PrinterContext())
-    @test iomap_s.output === stored                          # slice shown when toggled
+    @test iomap_s.output[] === stored                        # slice shown when toggled
+
+    # The output cell re-derives reactively when display_slice flips — no re-print.
+    p.display_slice[] = true
+    @test iomap.output[] === stored
+    p.display_slice[] = false
+    @test iomap.output[] === content
 end
 
 @testset "slice reference mapping" begin
@@ -149,14 +155,21 @@ end
 
     p = ClipboardCollectionToAnyProjection()
     iomap = projection_print(p, PreservingProjection(), coll, PrinterContext())
-    @test iomap.output === content                           # content shown by default
+    @test iomap.output[] === content                         # content shown by default (reactive output cell)
 
     pc = ClipboardCollectionToAnyProjection(display_collection=true)
     iomap_c = projection_print(pc, PreservingProjection(), coll, PrinterContext())
-    @test iomap_c.output isa CellVector
-    @test length(iomap_c.output) == 2
-    @test iomap_c.output[1].value == "a"
-    @test iomap_c.output[2].value == "b"
+    cv = iomap_c.output[]
+    @test cv isa CellVector
+    @test length(cv) == 2
+    @test cv[1].value == "a"
+    @test cv[2].value == "b"
+
+    # The output cell re-derives reactively when display_collection flips.
+    p.display_collection[] = true
+    @test iomap.output[] isa CellVector
+    p.display_collection[] = false
+    @test iomap.output[] === content
 end
 
 @testset "collection reader gestures" begin

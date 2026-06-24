@@ -22,10 +22,11 @@ the same standard, universally-rerooted sequence splices the clipboard uses;
 
 ## Criterion swapping
 
-`SetVersionCriterionOperation` swaps which child becomes the output, so it
-cannot update reactively in place. Like the clipboard display toggle, it drops
-`editor.iomap`, forcing the next `print!` to rebuild the projection on the new
-criterion (mirroring `ToggleClipboardSliceDisplayOperation`).
+`criterion` lives on the document as a `Cell`, and the printer defers
+`select_version` into a derived `selection_cell`, so `SetVersionCriterionOperation`
+is a plain reactive cell write: the new version is selected and re-printed and the
+reactive `SequentialProjection` re-pulls the output downstream, with **no
+`editor.iomap` drop** (mirroring `ToggleClipboardSliceDisplayOperation`).
 
 ## Empty / no-match
 
@@ -76,27 +77,46 @@ struct VersioningToAnyProjection <: Projection end
 
 # ── IoMap ─────────────────────────────────────────────────────────────────────
 
+# `selection_cell` holds `(idx, value_iomap)` for the version `criterion` currently
+# selects, or `nothing`. It is derived from `input.criterion`, so a criterion change
+# re-derives it (re-printing the newly-selected version's value) with no
+# `editor.iomap` drop. `output`/`index`/`value_iomap` read it transparently via
+# `getproperty`, so the reference maps and reader see the *current* selection and the
+# reactive `SequentialProjection` re-pulls the output downstream.
 struct VersioningToAnyProjectionIoMap <: IoMap
     projection::VersioningToAnyProjection
-    input::Any              # VersionedObject
-    output::Any             # selected version's value child output, or DocumentNothing
-    index::Any              # 1-based index of the selected version, or nothing
-    value_iomap::Any        # iomap of the selected version's value, or nothing
+    input::Any                # VersionedObject
+    selection_cell::Cell      # Cell of (idx, value_iomap) or nothing
+    output_cell::Cell         # derived: value child output, or DocumentNothing
+end
+
+function Base.getproperty(io::VersioningToAnyProjectionIoMap, name::Symbol)
+    name === :output       && return getfield(io, :output_cell)[]
+    if name === :index || name === :value_iomap
+        sel = getfield(io, :selection_cell)[]
+        sel === nothing && return nothing
+        return name === :index ? sel[1] : sel[2]
+    end
+    getfield(io, name)
 end
 
 # ── Printer ───────────────────────────────────────────────────────────────────
 
 function projection_print(p::VersioningToAnyProjection, recursion, input::VersionedObject, ctx)
-    selected = select_version(input)
-    if selected === nothing
-        # No matching version: emit a DocumentNothing (the empty-slice fallback).
-        return VersioningToAnyProjectionIoMap(p, input, DocumentNothing(), nothing, nothing)
-    end
-    idx, version = selected
-    value_iomap = projection_printer_recurse(recursion, version.value,
-                      child_context(ctx, FieldReference("versions"),
-                                    ElementReference(idx), FieldReference("value")))
-    VersioningToAnyProjectionIoMap(p, input, value_iomap.output, idx, value_iomap)
+    selection_cell = Cell(() -> begin
+        selected = select_version(input)
+        selected === nothing && return nothing
+        idx, version = selected
+        value_iomap = projection_printer_recurse(recursion, version.value,
+                          child_context(ctx, FieldReference("versions"),
+                                        ElementReference(idx), FieldReference("value")))
+        (idx, value_iomap)
+    end)
+    output_cell = Cell(() -> begin
+        sel = selection_cell[]
+        sel === nothing ? DocumentNothing() : sel[2].output
+    end)
+    VersioningToAnyProjectionIoMap(p, input, selection_cell, output_cell)
 end
 
 # ── Reference mapping ─────────────────────────────────────────────────────────
@@ -142,9 +162,10 @@ end
     SetVersionCriterionOperation(target, criterion)
 
 Replace the `criterion` of the `target` `VersionedObject` (e.g. switch from
-*latest* to *as-of T*, or pin an index). Like the clipboard display toggle, this
-swaps which child becomes the output, so it drops `editor.iomap` to force a
-rebuild on the new criterion (see `ToggleClipboardSliceDisplayOperation`).
+*latest* to *as-of T*, or pin an index). A plain reactive cell write: the
+projection's `selection_cell` is derived from `criterion`, so the new version is
+selected (and re-printed) and the reactive `SequentialProjection` re-pulls it
+downstream — no `editor.iomap` drop (see `ToggleClipboardSliceDisplayOperation`).
 """
 struct SetVersionCriterionOperation <: Operation
     target::Any
@@ -153,8 +174,7 @@ end
 
 function evaluate_operation(editor, op::SetVersionCriterionOperation)
     op.target === nothing && return
-    op.target.criterion = op.criterion
-    editor.iomap = nothing
+    op.target.criterion = op.criterion   # reactive cell write — selection re-derives
 end
 
 # ── Reader gesture helpers ─────────────────────────────────────────────────────

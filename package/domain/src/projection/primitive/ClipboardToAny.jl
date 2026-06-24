@@ -20,10 +20,11 @@ delegate through the stored child IoMap, never re-walk by document type).
 
 ## Display toggling
 
-The display flag swaps which child document becomes the output, so a toggle
-cannot update reactively in place. The toggle operations therefore drop
-`editor.iomap`, forcing the next `print!` to rebuild the projection on the new
-flag (mirroring `ReplaceDocumentOperation`'s root-swap handling).
+The display flag is a `Cell`, and each projection's `output` is a derived cell over
+it. Flipping the flag is a plain reactive cell write: the reactive
+`SequentialProjection` re-pulls the changed output and re-prints only the downstream
+stages, so the view switches with **no `editor.iomap` drop**. (Earlier this swap
+required nulling `editor.iomap`; reactive composition makes that unnecessary.)
 
 ## Deferred (matches the Lisp `#+nil` branch)
 
@@ -66,10 +67,10 @@ projection of `content`; when `true` it is the projection of the stored `slice`
 (falling back to `content` when no slice is stored).
 """
 mutable struct ClipboardSliceToAnyProjection <: Projection
-    display_slice::Bool
+    display_slice::Cell   # reactive: flipping it switches the exposed child (content↔slice)
 end
 ClipboardSliceToAnyProjection(; display_slice::Bool=false) =
-    ClipboardSliceToAnyProjection(display_slice)
+    ClipboardSliceToAnyProjection(Cell(display_slice))
 
 """
     ClipboardCollectionToAnyProjection(; display_collection=false)
@@ -79,10 +80,10 @@ is the projection of `content`; when `true` it is a `CellVector` of the projecte
 `elements`.
 """
 mutable struct ClipboardCollectionToAnyProjection <: Projection
-    display_collection::Bool
+    display_collection::Cell   # reactive: flipping it switches content ↔ elements view
 end
 ClipboardCollectionToAnyProjection(; display_collection::Bool=false) =
-    ClipboardCollectionToAnyProjection(display_collection)
+    ClipboardCollectionToAnyProjection(Cell(display_collection))
 
 # ── IoMaps ────────────────────────────────────────────────────────────────────
 
@@ -111,8 +112,13 @@ function projection_print(p::ClipboardSliceToAnyProjection, recursion, input::Cl
     slice_iomap = slice_val isa Document ?
         projection_printer_recurse(recursion, slice_val,
             child_context(ctx, FieldReference("slice"))) : nothing
-    output = (p.display_slice && slice_iomap !== nothing) ? slice_iomap.output :
-                                                            content_iomap.output
+    # Reactive output: a derived cell over the display flag (the projection stays
+    # domain-generic — it still exposes the active child directly). The reactive
+    # SequentialProjection re-pulls this through its own per-stage cells, so
+    # flipping `display_slice` switches the exposed child with no `editor.iomap`
+    # drop — only the downstream stages re-print.
+    output = Cell(() -> (p.display_slice[] && slice_iomap !== nothing) ?
+                            slice_iomap.output : content_iomap.output)
     ClipboardSliceToAnyProjectionIoMap(p, input, output, content_iomap, slice_iomap)
 end
 
@@ -123,9 +129,11 @@ function projection_print(p::ClipboardCollectionToAnyProjection, recursion, inpu
     element_iomaps = [projection_printer_recurse(recursion, elements[i],
                           child_context(ctx, FieldReference("elements"), ElementReference(i)))
                       for i in 1:length(elements)]
-    output = p.display_collection ?
+    # Reactive output (see the slice printer): a derived cell over the display flag,
+    # re-pulled by the reactive SequentialProjection — no `editor.iomap` drop.
+    output = Cell(() -> p.display_collection[] ?
         CellVector(Cell[Cell(im.output) for im in element_iomaps]) :
-        content_iomap.output
+        content_iomap.output)
     ClipboardCollectionToAnyProjectionIoMap(p, input, output, content_iomap, element_iomaps)
 end
 
@@ -137,7 +145,7 @@ end
 
 # Active child for a slice projection: ("field-name", child-iomap).
 function _slice_active(iomap::ClipboardSliceToAnyProjectionIoMap)
-    (iomap.projection.display_slice && iomap.slice_iomap !== nothing) ?
+    (iomap.projection.display_slice[] && iomap.slice_iomap !== nothing) ?
         ("slice", iomap.slice_iomap) : ("content", iomap.content_iomap)
 end
 
@@ -158,7 +166,7 @@ end
 
 function map_reference_forward(::ClipboardCollectionToAnyProjection, iomap::ClipboardCollectionToAnyProjectionIoMap, reference)
     reference isa ConcreteReferencePath || return reference
-    if iomap.projection.display_collection
+    if iomap.projection.display_collection[]
         h = head(reference)
         (h isa FieldReference && h.name == "elements") || return nothing
         rest = tail(reference)
@@ -181,7 +189,7 @@ function map_reference_forward(::ClipboardCollectionToAnyProjection, iomap::Clip
 end
 
 function map_reference_backward(::ClipboardCollectionToAnyProjection, iomap::ClipboardCollectionToAnyProjectionIoMap, reference)
-    if iomap.projection.display_collection
+    if iomap.projection.display_collection[]
         reference isa ConcreteReferencePath || return reference
         e = head(reference)
         e isa RangeReference || return nothing
@@ -205,31 +213,34 @@ end
 """
     ToggleClipboardSliceDisplayOperation(projection)
 
-Flip the `display_slice` flag of a `ClipboardSliceToAnyProjection`, swapping the
-output between the wrapped content and the stored slice. Dropping `editor.iomap`
-forces the next print to rebuild on the new flag.
+Flip the `display_slice` `Cell` of a `ClipboardSliceToAnyProjection`, swapping the
+output between the wrapped content and the stored slice. This is a plain reactive
+cell write: the projection's derived `output` cell re-derives and the reactive
+`SequentialProjection` re-pulls it downstream — no `editor.iomap` drop.
 """
 struct ToggleClipboardSliceDisplayOperation <: Operation
     projection::ClipboardSliceToAnyProjection
 end
 
 function evaluate_operation(editor, op::ToggleClipboardSliceDisplayOperation)
-    op.projection.display_slice = !op.projection.display_slice
-    editor.iomap = nothing
+    # Reactive cell write only — NO editor.iomap drop. The derived output cell
+    # re-derives and the change propagates downstream through reactive Sequential.
+    op.projection.display_slice[] = !op.projection.display_slice[]
 end
 
 """
     ToggleClipboardCollectionDisplayOperation(projection)
 
-Flip the `display_collection` flag of a `ClipboardCollectionToAnyProjection`.
+Flip the `display_collection` `Cell` of a `ClipboardCollectionToAnyProjection`.
+A plain reactive cell write (see `ToggleClipboardSliceDisplayOperation`).
 """
 struct ToggleClipboardCollectionDisplayOperation <: Operation
     projection::ClipboardCollectionToAnyProjection
 end
 
 function evaluate_operation(editor, op::ToggleClipboardCollectionDisplayOperation)
-    op.projection.display_collection = !op.projection.display_collection
-    editor.iomap = nothing
+    # Reactive cell write only — NO editor.iomap drop.
+    op.projection.display_collection[] = !op.projection.display_collection[]
 end
 
 # ── Reader gesture helpers ─────────────────────────────────────────────────────
