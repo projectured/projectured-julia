@@ -397,15 +397,18 @@ setfn!(n::SyntaxNode, f::Function) = (setfn!(getfield(n.children, :elements), ()
 # - Alt+arrow     → tree-navigate from any selection (enter structural)
 # - plain arrow   → tree-navigate, but only once a whole element is selected
 #
-# Behaviour is unchanged from the prior `@event_case` reader, with one deliberate
-# simplification: the chords / Alt-arrow match modifiers *exactly* (the old reader
-# matched them loosely, ignoring extra modifiers) — equivalent for every real
-# input, which never carries an extra incidental modifier. The selection-dependent
-# rules live in the operation, which returns `nothing` to decline so the gesture
-# keeps propagating inward, exactly as the old `return nothing` arms did. The
-# Alt-arrow rule is ordered before the plain-arrow rule (first match wins); when
-# it declines, the plain-arrow rule re-checks (and either recomputes the same
-# `nothing` or declines on the structural test) — same result as before.
+# Gestures match modifiers *exactly*: each rule names its exact modifier set, so a
+# bare arrow (`KeyDown(k;)` — note the `;`: no modifiers held) and an `Alt+arrow`
+# are *distinct* gestures. The old `@event_case` reader matched arrows loosely (any
+# modifiers); exact matching is equivalent for every tested/real input (none
+# carries an extra incidental modifier) and is the cleaner model — an unbound combo
+# (e.g. Shift+arrow) simply declines instead of being filtered out by an explicit
+# arm. The selection-dependent rules live in the operation, which reads
+# `doc.selection` and returns `nothing` to decline so the gesture keeps propagating
+# inward, exactly as the old `return nothing` arms did. The Alt-arrow and
+# plain-arrow rules are disjoint (exact Alt vs. exact none); if Alt-arrow's
+# operation declines, the plain-arrow rule does not match it, so it declines too —
+# same result as the old reader.
 @gestures SyntaxNode begin
     KeyDown(:home; ctrl, alt) => "Select the root node" =>
         ReplaceSelectionOperation(EmptyReferencePath())
@@ -419,7 +422,7 @@ setfn!(n::SyntaxNode, f::Function) = (setfn!(getfield(n.children, :elements), ()
         new_path = _tree_navigate(doc, doc.selection, k)
         new_path === nothing ? nothing : ReplaceSelectionOperation(new_path)
     end
-    when(KeyDown(k), k in (:up, :down, :left, :right)) => "Navigate the tree" => begin
+    when(KeyDown(k;), k in (:up, :down, :left, :right)) => "Navigate the tree" => begin
         sel = doc.selection
         _is_tree_selection(sel) || return nothing
         new_path = _tree_navigate(doc, sel, k)

@@ -247,26 +247,42 @@ wiring is a contained follow-up. The render path is proven by `test_gesture_map`
 
 - **Wire the live help overlay** (Stage 4 invocation, above): kernel
   `help_overlay` seam + Editor saved-state + read! show/dismiss.
+- **Decision (2026-06-24): gestures match modifiers _exactly_.** A gesture is
+  identified by its exact modifier set, so `Left`, `Shift+Left`, `Ctrl+Left`,
+  `Alt+Left` are *distinct* gestures and an unbound combination simply declines.
+  This is what let SyntaxNode **and** TextText reify with **no kernel change**: the
+  modifier logic lives in the pattern (exact), and the only thing operations need —
+  the selection — they already get via `doc.selection`. The old readers matched
+  bare arrows *loosely* (any modifiers) and filtered the declines out by hand;
+  exact matching is equivalent for every tested/real input (verified: the nav/reader
+  suites drive arrows only with `Modifiers()` / `Modifiers(ctrl=…)` / `…(alt=…)`,
+  and every `Shift` in the suite is a distinct gesture like `Shift+Return`).
+  *Convention wrinkle / possible follow-up:* in the shared `@event_case`/`@gestures`
+  parser a bare `KeyDown(:left)` (no `;`) means *any* modifiers; an exact "plain
+  Left" is the explicit empty set `KeyDown(:left;)`. Flipping the default so bare =
+  exact-none would match the mental model but touches `@event_case` semantics +
+  JSON's `KeyDown(:tab)`, so it is left as a separate cleanup.
 - ✅ **`SyntaxNode` reified (2026-06-24).** Its tree-navigation `document_read`
   method is now an `@gestures SyntaxNode` table — Ctrl+Alt+Home (select root),
-  Ctrl+Space (toggle structural/text cursor), Alt+arrow + plain-arrow tree-navigate
-  — and the method was removed so the generic interpreter fires it. Done with
-  **exact-modifier patterns and no kernel change**: the selection-dependent rules
-  live in the operation (which reads `doc.selection` and returns `nothing` to
-  decline). Behaviour unchanged: `test_tree_navigations` (40), `_complete` (144),
+  Ctrl+Space (toggle structural/text cursor), Alt+arrow (`KeyDown(k; alt)`) and
+  plain-arrow (`KeyDown(k;)`, exact none) tree-navigate. The selection-dependent
+  rules live in the operation (reads `doc.selection`, returns `nothing` to decline).
+  Behaviour unchanged: `test_tree_navigations` (40), `_complete` (144),
   `test_syntax_to_text` (124), `test_syntax_tree_selection` (29) all green.
-- ⏳ **`TextText` reification needs a small `@gestures` extension first.** Unlike
-  SyntaxNode, its character-motion rules must *decline* Alt+arrow (a tree gesture)
-  while still matching plain/Shift+arrow — i.e. the **operation must inspect the
-  event's modifiers**, which the current macro does not expose (operations see
-  `doc` + bound positional fields, not the raw event; modifiers are matched only in
-  the pattern, exactly). The clean fix: **expose the matched `event` in `@gestures`
-  guards/operations** (small, backward-compatible kernel change — JSON/Syntax don't
-  reference `event`). Then TextText's char insert / Backspace / Delete / Ctrl+Home-End
-  / Ctrl+arrow word-motion / arrow char-motion / Ctrl+. collapse / Tab+alt-arrow
-  declines reify cleanly. *(Corrects the earlier note's assumption that exact-modifier
-  patterns alone suffice — true for SyntaxNode, not for TextText's "any modifier
-  except Alt" char-motion.)*
+- ✅ **`TextText` reified (2026-06-24).** Its `document_read` is now an
+  `@gestures TextText` table — char insert (`KeyPress(_, t)`), Ctrl+. collapse,
+  Backspace/Delete, Ctrl+Home/End jump, Ctrl+Left/Right word-motion, Left/Right
+  char-motion — and the method plus the `_text_keypress_op`/`_text_delete_op`
+  helpers were replaced by per-rule operation helpers (`_text_insert`,
+  `_text_delete`, `_text_jump`, `_text_word_motion`, `_text_char_motion`). The old
+  reader's explicit declines vanish under exact matching: `Alt+arrow`/`Tab` have no
+  binding and propagate inward; the plain-arrow-while-structural decline lives in
+  the char-motion op. Char-motion uses `KeyDown(:left;)` (exact none) so `Alt+Left`
+  doesn't match it. Behaviour unchanged: `test_typeins` (111),
+  `test_text_navigations` (6390 pass; the 4 fails are pre-existing Ctrl+Home-seed /
+  adaptagrams-shim / conversation-v1 baselines — Ctrl+Home's pattern + logic are
+  byte-identical to before), `_complete` (1443), `test_text_to_graphics` (55),
+  `test_primitive_to_text` (45), `test_text` (19).
 - Reify projection-level contributors via `projection_gestures`:
   `FocusingProjection` (`Ctrl+,`), Clipboard (`Ctrl+C/X/V`),
   `ConversationComposerToWidget` (Return / Shift+Return / Tab), generic

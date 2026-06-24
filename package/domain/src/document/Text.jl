@@ -35,11 +35,9 @@ import ..ReferenceModule: Reference, ConcreteReferencePath, EmptyReferencePath, 
 import ..ReferenceCaseModule: var"@reference_case"
 import ..ReferenceBuilderModule: var"@reference"
 import ..OperationApiModule: splice_string, splice_value!
-import ..DocumentApiModule: document_read
 import ..OperationModule: ReplaceSelectionOperation, ToggleCollapseOperation
 import ..PrimitiveModule: StringReplaceRangeOperation
-import ..KeyboardModule: KeyDown, KeyPress
-import ..EventCaseModule: var"@event_case"
+import ..GestureBindingModule: var"@gestures"
 export TextDocument, TextInsertion, TextNewline, TextSpacing, TextString, TextGraphics, TextText, setfn!,
        ITextInsertion, ITextNewline, ITextSpacing, ITextString, ITextGraphics, ITextText,
        text_flat_length, text_selection_flat
@@ -279,101 +277,35 @@ function splice_value!(owner, field::Symbol, text::TextText, s::Int, e::Int, rep
     text
 end
 
-# ── document_read: geometry-free gesture → operation mapping ─────────
+# ── document_read via reified @gestures: geometry-free text editing ───────
 #
-# The projection-independent half of the Text domain's reader. It reads only the
-# span structure (`text.elements`) and the flat-character `text.selection`; it
-# never touches pixel geometry (no laid-out coordinate map, no measurement). Any
-# projection whose input/output is a `TextText` (e.g. `TextToGraphics` for SDL,
-# or the `SyntaxToText` output for the console) delegates here for character
-# insert/delete and cross-span cursor movement.
+# The projection-independent half of the Text domain's reader, now a reified
+# `@gestures` table on `TextText` (was a `document_read(::TextText)` method); the
+# generic `read_document_gesture` interpreter fires it, so the table that fires is
+# the one gesture-help enumerates. It reads only the span structure
+# (`text.elements`) and the flat-character `text.selection` — never pixel geometry.
+# The geometry-DEPENDENT gestures (visual up/down, plain Home/End, mouse clicks)
+# stay in `TextToGraphics`, which needs the laid-out coordinate map.
 #
-# These methods were relocated verbatim from `TextToGraphics`'s reader (the
-# geometry-INDEPENDENT arms). The geometry-DEPENDENT arms — visual up/down, plain
-# (non-Ctrl) Home/End, and mouse click hit-testing — stay in `TextToGraphics`,
-# which needs the laid-out coordinate map.
-#
-# Returns:
-#   - an `Operation` for a handled gesture (char insert, delete, cursor move),
-#   - `nothing` for a gesture this layer declines so an outer (syntax) layer can
-#     own it — the "decline rules" (Alt+arrows, plain arrows while structural,
-#     Tab) and for any unhandled gesture. The `nothing` both means "not handled"
-#     and "deliberately declined"; both let the gesture propagate inward.
-
-function document_read(text::TextText, evt)
-    evt isa KeyPress && return _text_keypress_op(text, evt)
-    evt isa KeyDown  || return nothing
-
-    # Chords and tree-navigation gestures are recognised (or declined) before we
-    # touch the character cursor.
-    early = @event_case evt begin
-        # Fold chord: Ctrl+. toggles collapse of the innermost node containing
-        # the cursor. The empty-target operation is resolved upstream at the
-        # syntax layer (where the tree and selection live); we only recognise it.
-        KeyDown(:period; ctrl) => ToggleCollapseOperation()
-        # Alt-modified navigation keys (arrows, Home) are tree-navigation
-        # gestures. This layer handles only character/line cursor motion within
-        # flat text, so decline them: returning nothing lets the gesture fall
-        # through to the syntax layer, which owns the tree structure. Loose alt
-        # (any extra modifiers) keeps every alt-arrow a tree gesture.
-        when(KeyDown(k), evt.modifiers.alt && k in (:up, :down, :left, :right, :home)) => return nothing
-        # In structural mode (a whole-element / rectangular selection) plain
-        # arrows are tree navigation too — there is no character cursor to move,
-        # so decline them and let the syntax layer step between nodes. Home keeps
-        # its text meaning, so it is deliberately excluded here.
-        when(KeyDown(k), k in (:up, :down, :left, :right) &&
-                         _is_structural_selection(text.selection)) => return nothing
-        # Tab has no character-cursor meaning at this layer. Decline it (return
-        # nothing) so the Change-threaded reader chain keeps walking inward — the
-        # JSON reader uses Tab for key→value navigation.
-        KeyDown(:tab) => return nothing
-    end
-    early === nothing || return early
-
-    del_op = _text_delete_op(text, evt)
-    del_op === nothing || return del_op
-
-    span_infos = [(elem_idx, length(span.content::AbstractString))
-                  for (elem_idx, span) in enumerate(text.elements)
-                  if span isa TextString]
-    isempty(span_infos) && return nothing
-    # Span-content lookup (elem_idx → content String) for word-class testing.
-    span_text = Dict{Int,String}(elem_idx => String(span.content::AbstractString)
-                  for (elem_idx, span) in enumerate(text.elements)
-                  if span isa TextString)
-
-    jump = @event_case evt begin
-        KeyDown(:home; ctrl) => ReplaceSelectionOperation(_build_selection_path(span_infos[1][1], 0))
-        KeyDown(:end; ctrl)  => ReplaceSelectionOperation(_build_selection_path(span_infos[end][1], span_infos[end][2]))
-    end
-    jump === nothing || return jump
-
-    current = _cursor_position(text.selection)
-    current === nothing && return nothing
-
-    @event_case evt begin
-        # Word-wise motion. Placed before the bare :left/:right rules so it wins
-        # (first-match-wins); the bare rules match Left/Right with any modifiers.
-        KeyDown(:left; ctrl) => begin
-            s, c = _word_step_left(span_infos, span_text, current.span, current.char)
-            return ReplaceSelectionOperation(_build_selection_path(s, c))
-        end
-        KeyDown(:right; ctrl) => begin
-            s, c = _word_step_right(span_infos, span_text, current.span, current.char)
-            return ReplaceSelectionOperation(_build_selection_path(s, c))
-        end
-        KeyDown(:left) => begin
-            nxt = _step_left(span_infos, current.span, current.char)
-            s, c = nxt === nothing ? (current.span, current.char) : nxt  # clamp in place
-            return ReplaceSelectionOperation(_build_selection_path(s, c))
-        end
-        KeyDown(:right) => begin
-            nxt = _step_right(span_infos, current.span, current.char)
-            s, c = nxt === nothing ? (current.span, current.char) : nxt  # clamp in place
-            return ReplaceSelectionOperation(_build_selection_path(s, c))
-        end
-    end
-    return nothing
+# Gestures match modifiers *exactly* (`KeyDown(:left;)` — note the `;`: no
+# modifiers — is the plain-Left gesture; `Ctrl+Left` and `Alt+Left` are distinct).
+# This is why the old reader's explicit "decline" arms vanish: `Alt+arrow` (a tree
+# gesture) and `Tab` simply have no binding here and so propagate inward; a plain
+# arrow while a *whole element* is selected is declined inside the char-motion
+# operation (which reads `text.selection`). The old reader matched these arrows
+# loosely and filtered the declines out by hand; exact matching is equivalent for
+# every tested/real input and lets the absence of a binding be the decline.
+@gestures TextText begin
+    KeyPress(_, t)         => "Insert character"     => _text_insert(doc, t)
+    KeyDown(:period; ctrl) => "Toggle collapse"      => ToggleCollapseOperation()
+    KeyDown(:backspace;)   => "Delete backward"      => _text_delete(doc, :backspace)
+    KeyDown(:delete;)      => "Delete forward"       => _text_delete(doc, :delete)
+    KeyDown(:home; ctrl)   => "Cursor to text start" => _text_jump(doc, :start)
+    KeyDown(:end; ctrl)    => "Cursor to text end"   => _text_jump(doc, :end)
+    KeyDown(:left; ctrl)   => "Word left"            => _text_word_motion(doc, :left)
+    KeyDown(:right; ctrl)  => "Word right"           => _text_word_motion(doc, :right)
+    KeyDown(:left;)        => "Cursor left"          => _text_char_motion(doc, :left)
+    KeyDown(:right;)       => "Cursor right"         => _text_char_motion(doc, :right)
 end
 
 # ── Character-cursor step helpers ─────────────────────────────────────────
@@ -458,54 +390,97 @@ function _word_step_left(span_infos, span_text, span_idx, char_idx)
     (s, c)
 end
 
-# KeyPress producer: emit a StringReplaceRangeOperation against the input
-# TextText's `.elements[i].content[range]` shape. The selection must already
-# carry the same shape (i.e. the cursor is positioned inside a TextString span);
-# other shapes return `nothing`. Ctrl-modified key presses are not character
-# insertions, so they are declined.
-function _text_keypress_op(text::TextText, evt::KeyPress)
-    evt.modifiers.ctrl && return nothing
+# ── Reified-gesture operations ────────────────────────────────────────────
+#
+# Each builds the Operation for one `@gestures TextText` rule from the document
+# and its selection (the gesture's modifiers are matched in the pattern, so these
+# take no event). They return `nothing` to decline — e.g. when the selection is
+# not a character cursor — so the gesture keeps propagating inward.
+
+# The (elem_idx, content-length) of each TextString span, in element order — the
+# span layout the cursor/word helpers walk.
+_text_span_infos(text::TextText) =
+    [(elem_idx, length(span.content::AbstractString))
+     for (elem_idx, span) in enumerate(text.elements) if span isa TextString]
+
+# Span-content lookup (elem_idx → content String) for word-class testing.
+_text_span_text(text::TextText) =
+    Dict{Int,String}(elem_idx => String(span.content::AbstractString)
+        for (elem_idx, span) in enumerate(text.elements) if span isa TextString)
+
+# Insert (replace the selected range with) `str` at the text cursor. The selection
+# must carry the `.elements[i].content[range]` shape; other shapes decline.
+function _text_insert(text::TextText, str::AbstractString)
     rng = _text_selection_range(text)
     rng === nothing && return nothing
     span_idx, char_start, char_stop = rng
-    new_ref = _text_replace_path(span_idx, char_start, char_stop)
-    StringReplaceRangeOperation(new_ref, evt.text)
+    StringReplaceRangeOperation(_text_replace_path(span_idx, char_start, char_stop), str)
 end
 
-# KeyDown handler for Backspace / Delete. Emits a `StringReplaceRangeOperation`
-# against the TextText's `.elements[i].content[range]` shape; other keys return
-# nothing so the caller can fall through to cursor navigation.
-function _text_delete_op(text::TextText, evt::KeyDown)
-    (evt.key == :backspace || evt.key == :delete) || return nothing
+# Backspace / Delete: replace the appropriate character range with "".
+function _text_delete(text::TextText, key::Symbol)
     rng = _text_selection_range(text)
     rng === nothing && return nothing
     span_idx, char_start, char_stop = rng
     content = _span_content(text, span_idx)
     content === nothing && return nothing
     n = length(content)
-    new_range = @event_case evt begin
-        KeyDown(:backspace) => begin
-            if char_start != char_stop
-                (char_start, char_stop)
-            elseif char_start > 0
-                (char_start - 1, char_start)
-            else
-                return nothing
-            end
+    if key === :backspace
+        if char_start != char_stop
+            new_range = (char_start, char_stop)
+        elseif char_start > 0
+            new_range = (char_start - 1, char_start)
+        else
+            return nothing
         end
-        KeyDown(:delete) => begin
-            if char_start != char_stop
-                (char_start, char_stop)
-            elseif char_stop < n
-                (char_stop, char_stop + 1)
-            else
-                return nothing
-            end
+    else  # :delete
+        if char_start != char_stop
+            new_range = (char_start, char_stop)
+        elseif char_stop < n
+            new_range = (char_stop, char_stop + 1)
+        else
+            return nothing
         end
     end
-    new_range === nothing && return nothing
-    new_ref = _text_replace_path(span_idx, new_range[1], new_range[2])
-    StringReplaceRangeOperation(new_ref, "")
+    StringReplaceRangeOperation(_text_replace_path(span_idx, new_range[1], new_range[2]), "")
+end
+
+# Ctrl+Home / Ctrl+End: cursor to the very start / end of the text.
+function _text_jump(text::TextText, where::Symbol)
+    span_infos = _text_span_infos(text)
+    isempty(span_infos) && return nothing
+    where === :start ?
+        ReplaceSelectionOperation(_build_selection_path(span_infos[1][1], 0)) :
+        ReplaceSelectionOperation(_build_selection_path(span_infos[end][1], span_infos[end][2]))
+end
+
+# Ctrl+Left / Ctrl+Right: word-wise cursor motion.
+function _text_word_motion(text::TextText, direction::Symbol)
+    span_infos = _text_span_infos(text)
+    isempty(span_infos) && return nothing
+    current = _cursor_position(text.selection)
+    current === nothing && return nothing
+    span_text = _text_span_text(text)
+    s, c = direction === :left ?
+        _word_step_left(span_infos, span_text, current.span, current.char) :
+        _word_step_right(span_infos, span_text, current.span, current.char)
+    ReplaceSelectionOperation(_build_selection_path(s, c))
+end
+
+# Left / Right: per-character cursor motion. Declines when a whole element is
+# selected (no character cursor to move) so the syntax layer can tree-navigate;
+# clamps in place at a document end.
+function _text_char_motion(text::TextText, direction::Symbol)
+    _is_structural_selection(text.selection) && return nothing
+    span_infos = _text_span_infos(text)
+    isempty(span_infos) && return nothing
+    current = _cursor_position(text.selection)
+    current === nothing && return nothing
+    nxt = direction === :left ?
+        _step_left(span_infos, current.span, current.char) :
+        _step_right(span_infos, current.span, current.char)
+    s, c = nxt === nothing ? (current.span, current.char) : nxt  # clamp in place
+    ReplaceSelectionOperation(_build_selection_path(s, c))
 end
 
 # Extract the i-th span's content when it's a TextString; nothing otherwise.
