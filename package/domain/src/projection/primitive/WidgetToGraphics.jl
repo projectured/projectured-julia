@@ -41,9 +41,9 @@ import ..WidgetModule: WidgetDocument, WidgetInsertion, WidgetLabel, WidgetText,
                        WidgetToggle, WidgetToggleGroup, WidgetSelect, WidgetTextarea, WidgetAccordion,
                        WidgetTable, WidgetTree, WidgetTreeNode,
                        Inset, Point2D, inset_default,
-                       ScrollWidgetOperation, SelectTabOperation, SetScrollBarValueOperation,
+                       SelectTabOperation,
                        StartSplitterDragOperation, ResizeSplitPaneOperation, EndSplitterDragOperation,
-                       InvokeWidgetActionOperation, SetWidgetHoverOperation, SetWidgetPressedOperation
+                       InvokeWidgetActionOperation
 import ..CollectionModule: CellVector, CollectionDocument
 import ..ImageModule: ImageDocument
 import ..GraphicsModule: GraphicsText, GraphicsRect, GraphicsLine, GraphicsCircle, GraphicsCanvas, GraphicsViewport, GraphicsImage, hit_element_at, layout_none
@@ -648,8 +648,9 @@ _route_click_to_children(child_entries::Vector, evt::MousePress) =
 # Translate a path-bearing op from `op`'s current domain (this projection's
 # child's input domain — what the bubbled-up reader returned) into this
 # projection's own input domain by running its reference through
-# `map_reference_backward`. Non-path-bearing ops (ScrollWidgetOperation,
-# SelectTabOperation, …) pass through unchanged; `nothing` passes through.
+# `map_reference_backward`. Identity-rooted / non-path-bearing ops (an
+# identity-rooted `ReplaceReferencedValue`, `SelectTabOperation`, …) pass through
+# unchanged; `nothing` passes through.
 # Returns `nothing` if the backward mapping rejects the reference.
 function _retarget_op(p, iomap, op)
     op === nothing && return nothing
@@ -900,13 +901,13 @@ function projection_read(::WidgetButtonToGraphicsCanvas, iomap::SimpleIoMap, evt
     w = iomap.input
     @event_case evt begin
         MousePress(button, x, y) => button === :left ? InvokeWidgetActionOperation(w) : nothing
-        MouseDown(button, x, y)  => button === :left ? SetWidgetPressedOperation(w, true) : nothing
-        MouseUp(button, x, y)    => button === :left ? SetWidgetPressedOperation(w, false) : nothing
-        MouseEnter               => SetWidgetHoverOperation(w, true)
+        MouseDown(button, x, y)  => button === :left ? ReplaceReferencedValue(w, "pressed", true) : nothing
+        MouseUp(button, x, y)    => button === :left ? ReplaceReferencedValue(w, "pressed", false) : nothing
+        MouseEnter               => ReplaceReferencedValue(w, "hovered", true)
         # Leaving clears hover *and* any in-progress press (the release may land
         # off the button when dragged away).
-        MouseLeave               => CompoundOperation(Any[SetWidgetHoverOperation(w, false),
-                                                          SetWidgetPressedOperation(w, false)])
+        MouseLeave               => CompoundOperation(Any[ReplaceReferencedValue(w, "hovered", false),
+                                                          ReplaceReferencedValue(w, "pressed", false)])
         _ => nothing
     end
 end
@@ -2071,6 +2072,13 @@ function map_reference_backward(::WidgetScrollPaneToGraphicsCanvas, iomap::Widge
     ConcreteReferencePath(FieldReference("content"), reference)
 end
 
+# A scroll-wheel turn advances `scroll_position` by a delta. Expressed as a write
+# of the new (old+delta) value — the old value is read from the pane at read time,
+# which equals its value at evaluate time (no intervening mutation in the loop).
+_scroll_by(sp, dx, dy) = let old = sp.scroll_position
+    ReplaceReferencedValue(sp, "scroll_position", Point2D(old.x[] + dx, old.y[] + dy))
+end
+
 function projection_read(p::WidgetScrollPaneToGraphicsCanvas, iomap::WidgetScrollPaneToGraphicsCanvasIoMap, evt)
     canvas = iomap.output
     @event_case evt begin
@@ -2079,8 +2087,8 @@ function projection_read(p::WidgetScrollPaneToGraphicsCanvas, iomap::WidgetScrol
             hit_element_at(canvas, x, y) === nothing && return nothing
             _, scroll_step = p.measure("M", p.font)
             return dx != 0 && dy == 0 ?
-                ScrollWidgetOperation(iomap.input, Point2D(-dx * scroll_step, 0)) :
-                ScrollWidgetOperation(iomap.input, Point2D(0, -dy * scroll_step))
+                _scroll_by(iomap.input, -dx * scroll_step, 0) :
+                _scroll_by(iomap.input, 0, -dy * scroll_step)
         end
     end
     # Forward other events (MousePress, KeyDown, KeyPress) to the wrapped
@@ -2204,7 +2212,8 @@ function projection_read(p::WidgetScrollBarToGraphicsCanvas, iomap::SimpleIoMap,
         th = max(p.minimum_thumb_length, Int(round(thumb_sz * ch)))
         new_value = clamp(Float64(evt.y - coy - div(th, 2)) / max(1, ch - th), 0.0, 1.0)
     end
-    SetScrollBarValueOperation(w, new_value)
+    # new_value is already clamped to [0,1] above.
+    ReplaceReferencedValue(w, "value", new_value)
 end
 
 # ════════════════════════════════════════════════════════════════════════════
@@ -3903,9 +3912,9 @@ function projection_read(p::WidgetScrollPaneToGraphicsViewport, iomap::WidgetScr
         hit_element_at(iomap.output, mx, my) === nothing && return nothing
         _, scroll_step = p.measure("M", p.font)
         if evt.dx != 0 && evt.dy == 0
-            return ScrollWidgetOperation(iomap.input, Point2D(-evt.dx * scroll_step, 0))
+            return _scroll_by(iomap.input, -evt.dx * scroll_step, 0)
         else
-            return ScrollWidgetOperation(iomap.input, Point2D(0, -evt.dy * scroll_step))
+            return _scroll_by(iomap.input, 0, -evt.dy * scroll_step)
         end
     end
     content_iomap = iomap.content_iomap

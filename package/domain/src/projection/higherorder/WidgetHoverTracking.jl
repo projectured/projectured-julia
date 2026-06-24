@@ -40,7 +40,7 @@ import ..ProjectionApiModule: projection_print, projection_read,
                               Projection, Change, as_change
 import ..IoMapApiModule: IoMap
 import ..MouseModule: MouseMove, MouseEnter, MouseLeave
-import ..OperationModule: CompoundOperation
+import ..OperationModule: CompoundOperation, ReplaceReferencedValue
 
 export WidgetHoverTrackingProjection, WidgetHoverTrackingProjectionIoMap
 
@@ -120,10 +120,16 @@ function _route(p::WidgetHoverTrackingProjection, recursion, child_iomap, event)
     res isa Change ? res.operation : res
 end
 
-# Opaque identity of the widget an enter-response came from: its `widget` field,
-# or nothing. The tracker never interprets the operation beyond this token, so it
-# stays agnostic of any widget's concrete hover/press operations.
-_target_of(op) = op !== nothing && hasproperty(op, :widget) ? op.widget : nothing
+# Opaque identity of the widget an enter-response came from. The tracker never
+# interprets the operation beyond this token, so it stays agnostic of any widget's
+# concrete hover/press operations: a legacy widget-identity op exposes it as
+# `.widget`; an identity-rooted `ReplaceReferencedValue` (the folded hover/press
+# write) carries its target widget as the root `.document`.
+function _target_of(op)
+    op === nothing && return nothing
+    op isa ReplaceReferencedValue && return op.document
+    hasproperty(op, :widget) ? op.widget : nothing
+end
 
 # ── Reference mapping (passthrough — the tracker is transparent on print) ──
 

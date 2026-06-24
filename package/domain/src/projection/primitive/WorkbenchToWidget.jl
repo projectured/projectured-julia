@@ -653,8 +653,8 @@ function projection_read(p::WorkbenchWorkbenchToWidgetShell,
         new_ref = map_reference_backward(p, iomap, op.reference)
         return new_ref === nothing ? nothing : NumberReplaceRangeOperation(new_ref, op.replacement)
     end
-    # 3. Other operation types (e.g. ScrollWidgetOperation) target widgets
-    # directly, not paths — pass through.
+    # 3. Other operation types (e.g. an identity-rooted ReplaceReferencedValue that
+    # targets a widget directly, not a path) — pass through.
     op isa Operation && return op
     # 4. Raw events (KeyPress / KeyDown). Route them through each panel's
     # reader so focus-sensitive handlers (currently only the assistant) can
@@ -752,8 +752,8 @@ function projection_read(p::WorkbenchAssistantToWidgetSplitPane,
     # `WorkbenchAssistantModule` (loaded later in the include chain) and
     # take precedence via multiple dispatch. For everything else that
     # reaches us, translate path-bearing ops to the assistant's input
-    # domain and let widget-target ops (e.g. ScrollWidgetOperation) pass
-    # through; unhandled raw events return `nothing`.
+    # domain and let widget-target ops (an identity-rooted ReplaceReferencedValue)
+    # pass through; unhandled raw events return `nothing`.
     if op isa Operation
         return _retarget_panel_op(p, iomap, op)
     end

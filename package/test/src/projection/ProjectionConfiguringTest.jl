@@ -54,17 +54,18 @@ end # @testset
     # Control starts visible → Ctrl+F hides it.
     ctrl_f = KeyDown(:f, Modifiers(ctrl=true))
     op = projection_read(pcp, nothing, _mkchange(ctrl_f, nothing), iomap).operation
-    @test op isa HideWidgetOperation
-    @test op.widget === iomap.control_widget
+    @test op isa ReplaceReferencedValue && op.value == false   # hide = visible←false
+    @test op.document === iomap.control_widget
 
     # Escape also hides while visible.
     esc = KeyDown(:escape, Modifiers())
-    @test projection_read(pcp, nothing, _mkchange(esc, nothing), iomap).operation isa HideWidgetOperation
+    op_esc = projection_read(pcp, nothing, _mkchange(esc, nothing), iomap).operation
+    @test op_esc isa ReplaceReferencedValue && op_esc.value == false
 
     # After hiding, Ctrl+F shows again.
     iomap.control_widget.visible = false
     op2 = projection_read(pcp, nothing, _mkchange(ctrl_f, nothing), iomap).operation
-    @test op2 isa ShowWidgetOperation
+    @test op2 isa ReplaceReferencedValue && op2.value == true   # show = visible←true
 
 end # @testset
 

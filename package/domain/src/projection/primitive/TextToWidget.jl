@@ -24,9 +24,9 @@ import ..ReactiveModule: Cell
 import ..ProjectionApiModule: projection_print, projection_read,
                                map_reference_forward, map_reference_backward, Projection
 import ..TextModule: TextText
-import ..WidgetModule: WidgetScrollPane, Point2D, Inset, inset_default, ScrollWidgetOperation
+import ..WidgetModule: WidgetScrollPane, Point2D, Inset, inset_default
 import ..IoMapApiModule: IoMap
-import ..OperationModule: ReplaceSelectionOperation, ToggleCollapseOperation
+import ..OperationModule: ReplaceSelectionOperation, ToggleCollapseOperation, ReplaceReferencedValue
 import ..PrimitiveModule: StringReplaceRangeOperation
 import ..ReferenceModule: ConcreteReferencePath, FieldReference, skip_type_checkpoints
 import ..FontModule: StyleFont
@@ -105,8 +105,13 @@ function projection_read(p::TextToWidget, iomap::TextToWidgetIoMap, op)
     if op isa ReplaceSelectionOperation
         new_path = map_reference_backward(p, iomap, op.path)
         return new_path === nothing ? nothing : ReplaceSelectionOperation(new_path)
-    elseif op isa ToggleCollapseOperation || op isa ScrollWidgetOperation
+    elseif op isa ToggleCollapseOperation
         return op
+    elseif op isa ReplaceReferencedValue
+        # Identity-rooted writes (e.g. the scroll-pane's scroll_position) target a
+        # carried widget, not a path in this projection's domain — pass through.
+        # A document-rooted one would need re-targeting, but none reach here.
+        return op.document === nothing ? nothing : op
     elseif op isa StringReplaceRangeOperation
         new_ref = map_reference_backward(p, iomap, op.reference)
         return new_ref === nothing ? nothing : StringReplaceRangeOperation(new_ref, op.replacement)

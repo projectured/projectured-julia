@@ -188,6 +188,14 @@ struct ReplaceReferencedValue <: Operation
     value::Any
 end
 
+# Convenience for the common single-field write on a carried root:
+# `ReplaceReferencedValue(obj, "field", v)` writes `obj.field = v`. Dispatches by
+# the second argument's type (`AbstractString` vs `ReferencePath`), so it never
+# collides with the field-by-field constructor above.
+ReplaceReferencedValue(document, field::AbstractString, value) =
+    ReplaceReferencedValue(document,
+        ConcreteReferencePath(FieldReference(field), EmptyReferencePath()), value)
+
 function evaluate_operation(editor, op::ReplaceReferencedValue)
     reference = strip_reference_types(op.reference)
     # `document === nothing` ⇒ the reference is rooted at `editor.document`

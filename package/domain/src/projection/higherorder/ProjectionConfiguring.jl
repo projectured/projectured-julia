@@ -16,7 +16,7 @@ The reader routes backward-flowing changes three ways:
 - a `ReplaceReferencedValue` produced by a control is handed to the control
   reader, which redirects it onto the inner projection's parameter cell;
 - a show/hide gesture (`Ctrl+F` toggles, `Escape` hides) flips the control
-  widget's `visible` cell via `ShowWidgetOperation` / `HideWidgetOperation`;
+  widget's `visible` cell via `ReplaceReferencedValue(control_widget, "visible", …)`;
 - everything else delegates to the inner projection's reader (document edits).
 
 Because the control edits the *same* parameter `Cell`s the inner projection
@@ -31,8 +31,7 @@ import ..ProjectionApiModule: projection_print, projection_read,
                               map_reference_forward, map_reference_backward,
                               Projection, Change, as_change
 import ..IoMapApiModule: IoMap
-import ..WidgetModule: WidgetDocument, WidgetSplitPane, WidgetScrollPane,
-                       ShowWidgetOperation, HideWidgetOperation
+import ..WidgetModule: WidgetDocument, WidgetSplitPane, WidgetScrollPane
 import ..ObjectToWidgetModule: ObjectToWidget
 import ..OperationModule: ReplaceReferencedValue, ReplaceSelectionOperation
 import ..PrimitiveModule: StringReplaceRangeOperation
@@ -153,9 +152,9 @@ function _toggle_operation(gesture, control_widget)
     gesture isa KeyDown || return nothing
     hidden = control_widget.visible == false
     if gesture.key === :f && is_ctrl(gesture)
-        return hidden ? ShowWidgetOperation(control_widget) : HideWidgetOperation(control_widget)
+        return ReplaceReferencedValue(control_widget, "visible", hidden)
     elseif gesture.key === :escape
-        return hidden ? nothing : HideWidgetOperation(control_widget)
+        return hidden ? nothing : ReplaceReferencedValue(control_widget, "visible", false)
     end
     nothing
 end

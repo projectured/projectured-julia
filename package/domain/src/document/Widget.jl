@@ -27,10 +27,9 @@ export Inset, Point2D,
        WidgetSlider, WidgetRadioGroup, WidgetAvatar, WidgetAlert, WidgetSkeleton,
        WidgetToggle, WidgetToggleGroup, WidgetSelect, WidgetTextarea, WidgetAccordion,
        WidgetTable, WidgetTree, WidgetTreeNode,
-       HideWidgetOperation, ShowWidgetOperation, ScrollWidgetOperation, SelectTabOperation,
-       SetScrollBarValueOperation,
+       SelectTabOperation,
        StartSplitterDragOperation, ResizeSplitPaneOperation, EndSplitterDragOperation,
-       InvokeWidgetActionOperation, SetWidgetHoverOperation, SetWidgetPressedOperation,
+       InvokeWidgetActionOperation,
        evaluate_operation,
        inset_default, inset_size, inset_width, inset_height,
        inset_top_left, inset_top_right, inset_bottom_left, inset_bottom_right,
@@ -194,8 +193,8 @@ state. A `nothing` action makes the button inert on click.
 interaction: `hovered` is `true` while the pointer is inside the button,
 `pressed` is `true` while the left button is held down on it. The printer reads
 them to pick the surface fill, so changing them re-renders only this button.
-They are written by the `WidgetButton` reader (`SetWidgetHoverOperation` /
-`SetWidgetPressedOperation`) and are not part of the document's content — they
+They are written by the `WidgetButton` reader (a `ReplaceReferencedValue` into the
+`hovered` / `pressed` cell) and are not part of the document's content — they
 are not meant to be serialised.
 """
 @document struct WidgetButton <: WidgetDocument
@@ -1122,36 +1121,13 @@ WidgetTree(position::Point2D, roots::Vector; visible::Bool=true) =
 
 # ── Operations ─────────────────────────────────────────────────────────────
 
-"""
-    HideWidgetOperation(widget)
-
-Hides the target widget by setting its `visible` cell to `false`.
-
-"""
-struct HideWidgetOperation <: Operation
-    widget::WidgetDocument
-end
-
-"""
-    ShowWidgetOperation(widget)
-
-Shows the target widget by setting its `visible` cell to `true`.
-
-"""
-struct ShowWidgetOperation <: Operation
-    widget::WidgetDocument
-end
-
-"""
-    ScrollWidgetOperation(scroll_pane, scroll_delta)
-
-Advances the `scroll_position` of `scroll_pane` by `scroll_delta`.
-
-"""
-struct ScrollWidgetOperation <: Operation
-    scroll_pane::WidgetScrollPane
-    scroll_delta::Point2D
-end
+# HideWidgetOperation / ShowWidgetOperation / ScrollWidgetOperation /
+# SetScrollBarValueOperation were folded into ReplaceReferencedValue — a carried
+# widget + a single-field write (`visible` / `scroll_position` / `value`). The
+# producing readers (ProjectionConfiguring, WidgetScrollPane/ScrollBar readers in
+# WidgetToGraphics) now emit `ReplaceReferencedValue(widget, "field", value)` and
+# do the clamp/old+delta arithmetic themselves. See
+# plan/pending/consolidate-operations-replace.md (step 2).
 
 """
     SelectTabOperation(widget, tab_index)
@@ -1163,16 +1139,6 @@ between multiple tab panes on screen.
 struct SelectTabOperation <: Operation
     widget::WidgetTabbedPane
     tab_index::Int
-end
-
-"""
-    SetScrollBarValueOperation(scroll_bar, value)
-
-Sets the `value` of `scroll_bar` to `value`, clamped to [0, 1].
-"""
-struct SetScrollBarValueOperation <: Operation
-    scroll_bar::WidgetScrollBar
-    value::Float64
 end
 
 """
@@ -1226,29 +1192,10 @@ struct InvokeWidgetActionOperation <: Operation
     widget::WidgetDocument
 end
 
-"""
-    SetWidgetHoverOperation(widget, value)
-
-Set `widget`'s transient `hovered` flag to `value`. Emitted by widget readers as
-the pointer enters / leaves the widget; the printer reads `hovered` to pick the
-hover surface.
-"""
-struct SetWidgetHoverOperation <: Operation
-    widget::WidgetDocument
-    value::Bool
-end
-
-"""
-    SetWidgetPressedOperation(widget, value)
-
-Set `widget`'s transient `pressed` flag to `value`. Emitted on
-`MouseDown` / `MouseUp`; the printer reads `pressed` to pick the active
-(pressed-down) surface.
-"""
-struct SetWidgetPressedOperation <: Operation
-    widget::WidgetDocument
-    value::Bool
-end
+# SetWidgetHoverOperation / SetWidgetPressedOperation were folded into
+# ReplaceReferencedValue: the WidgetButton reader emits
+# `ReplaceReferencedValue(widget, "hovered"/"pressed", bool)`. See
+# plan/pending/consolidate-operations-replace.md (step 2).
 
 # ── Operation evaluation ───────────────────────────────────────────────────
 
@@ -1257,25 +1204,6 @@ end
 
 Apply a widget operation.
 """
-function evaluate_operation(editor, op::HideWidgetOperation)
-    op.widget.visible = false
-end
-
-function evaluate_operation(editor, op::ShowWidgetOperation)
-    op.widget.visible = true
-end
-
-function evaluate_operation(editor, op::ScrollWidgetOperation)
-    sp = op.scroll_pane
-    old = sp.scroll_position::Point2D
-    delta = op.scroll_delta
-    sp.scroll_position = Point2D(old.x[] + delta.x[], old.y[] + delta.y[])
-end
-
-function evaluate_operation(editor, op::SetScrollBarValueOperation)
-    op.scroll_bar.value = clamp(op.value, 0.0, 1.0)
-end
-
 function evaluate_operation(editor, op::SelectTabOperation)
     op.widget.selection = ConcreteReferencePath(ElementReference(op.tab_index), EmptyReferencePath())
 end
@@ -1330,14 +1258,6 @@ function evaluate_operation(editor, op::InvokeWidgetActionOperation)
     elseif applicable(action)
         action()
     end
-end
-
-function evaluate_operation(editor, op::SetWidgetHoverOperation)
-    op.widget.hovered = op.value
-end
-
-function evaluate_operation(editor, op::SetWidgetPressedOperation)
-    op.widget.pressed = op.value
 end
 
 end # module
