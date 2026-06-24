@@ -1,13 +1,23 @@
-# Reified gesture bindings + context-sensitive gesture collection
+# Gesture pipeline: recognition + reified bindings + context-sensitive collection
 
 > **Status (implemented on branch `worktree-reified-gesture-bindings`).**
 > Stages 0–3 **done**; Stage 4 **rendering + help-gesture predicate done**, the
 > live editor overlay invocation **deferred** (a clearly-scoped follow-up — see the
 > note in Stage 4). All targeted tests green; JSON `document_read` parity holds at
-> the pre-existing 47/1/0 baseline. New tests: `test_gesture_binding` (34),
+> the pre-existing 47/1/0 baseline. New tests: `test_gesture_binding` (34+),
 > `test_json_gesture_collection` (10), `test_gesture_map` (14). Key decisions and
 > the resolution of the open questions are recorded inline and under
 > **“Decisions made during implementation”** at the end.
+
+> **Merged 2026-06-24.** This is now the single umbrella plan for the whole gesture
+> pipeline — **recognition** (events → gesture, *no intent*) **and** mapping
+> (gesture → operation, reified). `event-to-gesture.md` was folded in here as
+> **Stage 0 (recognition)** and retired to
+> [`../done/event-to-gesture.md`](../done/event-to-gesture.md) (the full recogniser
+> design record). Its recogniser spine, click-out-of-backend, multi-click, and key
+> chords are **done**; the one open recognition item — **drag** — is tracked in
+> Stage 0 below (blocked on [dragging.md](../done/dragging.md)). The clean seam between the
+> two halves is exactly *"a gesture carries no intent"*.
 
 Make the **gesture → operation** mapping a *reified, projection-independent
 data structure* attached to the document types (and, via a sibling seam, to
@@ -23,11 +33,15 @@ projections), so that:
 
 This unifies three existing plans into one staged line of work:
 
-- **[event-to-gesture.md](event-to-gesture.md)** — the input side. Its Phase 1
-  recognizer spine is **done**; its deferred *"distinct, first-class gesture
-  types"* (Phase 1 step 1) is **merged in here as the earlier stage** (Stage 0),
-  because reified gesture *patterns* that both match and describe presuppose
-  gestures being first-class. We reference it rather than re-specify it.
+- **[event-to-gesture.md](../done/event-to-gesture.md)** (retired to `done/`) — the
+  input/recognition side, now **fully absorbed here as Stage 0 (recognition)**. Its
+  recogniser spine + composites (multi-click, chords) are done; its idea of
+  *"distinct, first-class gesture types"* was realized as the `GesturePattern` types
+  (Stage 1) over the raw/synthesised events rather than per-kind gesture structs +
+  `@gesture_case`; and its deferred reader migration is **superseded** by this plan's
+  `@gestures` reification (same readers, declarative tables instead of
+  `@gesture_case`). The full recogniser design record lives in
+  [`../done/event-to-gesture.md`](../done/event-to-gesture.md).
 - **[domain-gesture-mapping-separation.md](domain-gesture-mapping-separation.md)**
   — the `document_read` seam. Already landed for Text + Syntax; this plan adds
   the missing **data layer** (`document_gestures`) and ports JSON onto it.
@@ -79,19 +93,35 @@ This unifies three existing plans into one staged line of work:
 
 ---
 
-## Stage 0 (earlier — merged from event-to-gesture.md): first-class gestures ✅
+## Stage 0 — recognition (events → gesture) ✅ except drag
 
-Reference [event-to-gesture.md](event-to-gesture.md). Realized here as the
-`GesturePattern` types in Stage 1 (rather than event-to-gesture's
-`@gesture_case`-in-readers shape), keeping the recognizer unchanged.
+The input half of the pipeline: the `GestureRecognizer`
+(`program/src/editor/GestureRecognizer.jl`) turns raw device events into
+*gestures*, where **a gesture is just a combination of events and carries no
+intent** — what a gesture *means* is decided downstream (Stages 1–3), never by the
+recogniser. Folded in from the retired
+[event-to-gesture.md](../done/event-to-gesture.md), which holds the full design
+record; status:
 
-> **Reconciled 2026-06-24.** event-to-gesture.md was refined so that **a gesture
-> carries no intent** — there is no "named-intent keymap" anymore (that framing is
-> retired). Its Phase 2 is now *richer composite recognition*; **A (multi-click) +
-> B (key chords) landed 2026-06-24**, adding `MousePress.count` and a synthesised
-> `KeyChord` event. None of this is required by this plan (the `GesturePattern`
-> reification is independent of the recognizer), but the new composites are
-> available building blocks — see the updated Stage 4 note and follow-ups.
+- ✅ **Recogniser spine** — owned by `Editor`, driven once per event via
+  `next_gesture!` in `Editor.read!`.
+- ✅ **Click out of the backend** — `MouseDown`+`MouseUp` → `MousePress` is
+  recognised here, not in the SDL backend (backend-agnostic, unit-tested).
+- ✅ **Multi-click** — `MousePress.count` (1/2/3…), incremented for consecutive
+  same-button clicks within a 5 px / 0.3 s window; `:count` added to the
+  `@event_case` table; back-compatible.
+- ✅ **Key chords** — a synthesised `KeyChord(keys::Vector{KeyDown})` event
+  (e.g. `Ctrl-C Ctrl-K`) from a per-recogniser chord table that **defaults empty**
+  (opt-in, zero behaviour change). `next_gesture!` loops to absorb a buffered prefix.
+- ⏳ **Drag** — `MouseDown` → `MouseMove`… → `MouseUp` → begin/update/end.
+  **Blocked**: reconcile drag routing with [dragging.md](../done/dragging.md) before
+  implementing. The only open recognition item.
+
+These gestures (raw `KeyDown`/`MousePress`/`KeyChord`/… events) are exactly what
+the Stage 1 `GesturePattern`s match — the recogniser was realized this way (events
+as the gesture vocabulary) rather than as per-kind gesture structs + `@gesture_case`.
+The new composites (`count`, `KeyChord`) are available building blocks for the
+Stage 1 patterns and the follow-ups (a `KeyChordPattern`, `count` matching).
 
 ---
 
@@ -198,10 +228,9 @@ renders `describe(pattern) → description` rows grouped by a domain heading, gr
 onto the existing `SyntaxToText → TextToGraphics` pipeline. `is_help_gesture(event)`
 (kernel) recognizes the help summons — **F1** (`event isa KeyDown && key === :f1`).
 Lisp's `Ctrl-H` / `Ctrl-?` is left for later: `Ctrl-?` needs `Ctrl+Shift+/`
-handling, so F1 is the unambiguous v1. (Now that key chords landed in
-event-to-gesture Phase 2 B, a chord could also summon help, but that would need a
-`KeyChordPattern` / a chord entry in the recogniser's table — neither wired; F1
-stays the v1.)
+handling, so F1 is the unambiguous v1. (Now that key chords landed in Stage 0, a
+chord could also summon help, but that would need a `KeyChordPattern` / a chord
+entry in the recogniser's table — neither wired; F1 stays the v1.)
 
 **Invocation / overlay lifecycle (deferred — follow-up).** Building the overlay
 (`GestureMap` + `GestureMapToSyntax`) is **domain-coupled**, but `read!` lives in
@@ -232,17 +261,17 @@ wiring is a contained follow-up. The render path is proven by `test_gesture_map`
   selection into the focused sub-document for non-root-relative domains.
 - Make `_is_char_cursor` `skip_type_checkpoints` if document-layer char-cursor
   greying is wanted (see Stage 3 note).
-- **Composite-gesture patterns** (now that event-to-gesture Phase 2 A+B landed): add
-  a `KeyChordPattern` so `@gestures` can bind a `KeyChord` → operation and describe
-  it (e.g. `"Ctrl+C Ctrl+K"`), and let `MousePressPattern` optionally match the
-  `MousePress.count` for double/triple-click bindings. `MousePressPattern` currently
-  ignores `count` (so every click still matches); neither is wired (no consumer yet).
-- **gesture-help convergence:** event-to-gesture.md (reframed) sources its
-  "available gestures" catalogue from the readers'/documents' handled-gesture sets
-  — which is exactly this plan's `collect_gestures` over reified `@gestures` /
-  `projection_gestures`. The two plans converge here; there is no separate keymap
-  to feed (the retired named-intent layer). Reifying more domains (above) is what
-  grows that catalogue.
+- **Composite-gesture patterns** (now that Stage 0's multi-click + chords landed):
+  add a `KeyChordPattern` so `@gestures` can bind a `KeyChord` → operation and
+  describe it (e.g. `"Ctrl+C Ctrl+K"`), and let `MousePressPattern` optionally match
+  the `MousePress.count` for double/triple-click bindings. `MousePressPattern`
+  currently ignores `count` (so every click still matches); neither is wired (no
+  consumer yet) — these are the consumer side of Stage 0's new gestures.
+- **gesture-help is sourced from reified bindings, not a keymap.** The "available
+  gestures" catalogue comes from the readers'/documents' handled-gesture sets — i.e.
+  `collect_gestures` over reified `@gestures` / `projection_gestures`. Because a
+  gesture carries no intent (Stage 0), there is no separate named-intent keymap to
+  enumerate; reifying more domains (above) is what grows the catalogue.
 
 ---
 

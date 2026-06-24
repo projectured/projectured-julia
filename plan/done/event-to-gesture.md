@@ -1,5 +1,19 @@
 # Event → Gesture → Operation pipeline
 
+> **Retired 2026-06-24 — merged into
+> [reified-gesture-bindings.md](../pending/reified-gesture-bindings.md).** That plan
+> is now the single umbrella for the whole gesture pipeline (recognition + reified
+> mapping + gesture-help); the recognition half lives there as **Stage 0**. This
+> document is kept as the **full recogniser design record** (motivation, the
+> "a gesture carries no intent" refinement, the recogniser contract, and the
+> per-kind-gesture / `@gesture_case` direction that was *not* taken — superseded by
+> `GesturePattern` + `@gestures` reification). Implemented and done: the recogniser
+> spine, click-synthesis-out-of-backend, multi-click (`MousePress.count`), and key
+> chords (`KeyChord`). The **only open item is drag** (Phase 2 C below), which is
+> tracked in reified-gesture-bindings.md Stage 0 and remains blocked on
+> [dragging.md](dragging.md). Nothing here is active work; consult
+> reified-gesture-bindings.md for status.
+
 Introduce an explicit **gesture-recognition stage** between raw device events
 and the projection reader pipeline. Today readers pattern-match raw events
 (`KeyDown`, `MousePress`, …) directly; this plan inserts a stateful step that
@@ -96,7 +110,7 @@ carrying no intent:
   migrating the ~14 reader files to match gestures instead of raw events
   (original Phase 1 steps 1, 2, 6).
 - ⏳ Drag begin/update/end (Phase 2 C) — still blocked on reconciling drag
-  routing with [dragging.md](../pending/dragging.md).
+  routing with [dragging.md](dragging.md).
 - ⏳ Wiring a production chord table + a reader that consumes `KeyChord`, and
   exposing multi-click `count` to specific readers (both are the *consumer* side,
   intent territory, left to whichever reader wants them).
@@ -478,7 +492,7 @@ reader's decision.
 
 `MouseDown` → `MouseMove`… → `MouseUp` past a movement threshold becomes a
 `DragGesture` with `:begin`/`:update`/`:end` phases. Coordinate drag routing with
-[dragging.md](../pending/dragging.md) before implementing (see Open questions).
+[dragging.md](dragging.md) before implementing (see Open questions).
 
 ### D. Migrate readers `@event_case` → `@gesture_case`
 
@@ -512,7 +526,7 @@ keymap.
   click window. Config/keymap overrides can come later if needed.
 - **Drag routing.** A drag spans many frames; does each `:drag(:update)` run the
   full reader pipeline, or does the editor cache the drag target from `:begin`?
-  Interacts with [dragging.md](../pending/dragging.md) — reconcile before
+  Interacts with [dragging.md](dragging.md) — reconcile before
   implementing drags (Phase 1 can emit drag gestures but leave readers ignoring
   them until that plan lands).
 - **Backend compatibility shim.** Whether to keep emitting `MousePress` from a
@@ -525,6 +539,6 @@ keymap.
 
 - [gesture-help.md](../tentative/gesture-help.md) — its "available gestures"
   catalogue is sourced from the readers' handled-gesture sets (Phase 2 E).
-- [dragging.md](../pending/dragging.md) — the `:drag` gesture is its input;
+- [dragging.md](dragging.md) — the `:drag` gesture is its input;
   coordinate drag routing.
 - No dependency on logging or other pending plans.
