@@ -186,22 +186,38 @@ printer loop every other widget uses:
   `background_color`) and drops the drop-shadow while pressed, so the button
   re-renders reactively as its state changes.
 
-### Hover-out: `WidgetHoverTrackingProjection`
+### Enter / leave: `WidgetHoverTrackingProjection`
 
 Container hit-test routing delivers a `MouseMove` only to the child *under* the
 pointer, so a button learns when the pointer enters it but never when it leaves.
-`WidgetHoverTrackingProjection`
+
+The split of responsibility is deliberate: the **generic tracker decides *when*
+the pointer crosses a boundary; each widget decides *what that means* for its
+own state.** `WidgetHoverTrackingProjection`
 ([projection/higherorder/WidgetHoverTracking.jl](../../package/domain/src/projection/higherorder/WidgetHoverTracking.jl))
-closes that gap: wrap the widget pipeline in it (the standard
-`make_widget_projection_example` does). It is transparent on print; on each
-`MouseMove` it forwards the move to the inner pipeline to discover the
-now-hovered button, then emits a `CompoundOperation` that clears
-`hovered`/`pressed` on the previously-hovered button and sets `hovered` on the
-new one (or just clears, over dead space). It mirrors `HoverProbeProjection`.
+is transparent on print; on each `MouseMove` it:
+
+1. routes a synthetic `MouseEnter` at the pointer into the inner pipeline — the
+   widget under the pointer answers with an operation identifying itself (an
+   opaque `widget` field; the tracker inspects nothing else);
+2. if that target is unchanged, emits nothing;
+3. if it changed, routes a synthetic `MouseLeave` to the previously-entered
+   widget (at the last position over it) so *it* undoes its own state, and
+   forwards both responses (bundled as a `CompoundOperation`).
+
+So the tracker constructs **no** widget-specific operation — it only delivers
+`MouseEnter` / `MouseLeave` and forwards whatever the widget returns. The
+`WidgetButton` reader is what maps `MouseEnter` → `hovered = true` and
+`MouseLeave` → clear `hovered`/`pressed`. A different widget can react to the
+same crossings differently. `MouseEnter` / `MouseLeave` are first-class
+(synthesised, not backend) pointer gestures in `MouseModule`; the tracker
+mirrors `HoverProbeProjection` in shape.
 
 To make this work, the container readers (`WidgetComposite`, …) route
-`MouseMove` / `MouseDown` / `MouseUp` to the hit child, alongside the
-`MousePress` / `MouseScroll` they already routed.
+`MouseEnter` / `MouseLeave` / `MouseDown` / `MouseUp` to the hit child, alongside
+the `MousePress` / `MouseScroll` they already routed. (Wiring the remaining
+containers — toolbar, shell, split pane — is follow-up; the composite covers the
+current examples.)
 
 ## Image content
 

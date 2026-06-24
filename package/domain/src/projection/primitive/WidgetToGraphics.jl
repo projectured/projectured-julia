@@ -53,10 +53,10 @@ import ..StyleTextModule: StyleText
 import ..StyleStrokeModule: StyleStroke
 import ..IoMapModule: SimpleIoMap, ChildrenIoMap
 import ..IoMapApiModule: IoMap
-import ..MouseModule: MouseScroll, MousePress, MouseDown, MouseUp, MouseMove
+import ..MouseModule: MouseScroll, MousePress, MouseDown, MouseUp, MouseMove, MouseEnter, MouseLeave
 import ..EventCaseModule: var"@event_case"
 import ..OperationApiModule: Operation
-import ..OperationModule: ReplaceSelectionOperation, ReplaceReferencedValue, ToggleCollapseOperation
+import ..OperationModule: ReplaceSelectionOperation, ReplaceReferencedValue, ToggleCollapseOperation, CompoundOperation
 import ..PrimitiveModule: StringReplaceRangeOperation, NumberReplaceRangeOperation
 import ..ReferenceModule: ReferencePath, ConcreteReferencePath, FieldReference, RangeReference,
                           ElementReference, EmptyReferencePath, is_element_reference, skip_type_checkpoints
@@ -890,18 +890,23 @@ function map_reference_backward(::WidgetButtonToGraphicsCanvas, iomap, reference
     return nothing
 end
 
-# The reader only runs when the parent container hit-tested the pointer onto this
-# button, so every event it sees is already "inside". A click invokes the
-# button's action; press/release drive the held-down look; a move marks the
-# button hovered (the hover *tracker* clears the previously-hovered widget — see
-# WidgetHoverTrackingProjection).
+# The button owns ALL of its own state transitions. The generic
+# WidgetHoverTrackingProjection only decides *when* the pointer crosses this
+# button's boundary and delivers a MouseEnter / MouseLeave; the button decides
+# what that means for its state (hovered/pressed). A click invokes the action;
+# press/release drive the held-down look. (The reader only runs when the parent
+# hit-tested the pointer onto this button, so coordinate events are "inside".)
 function projection_read(::WidgetButtonToGraphicsCanvas, iomap::SimpleIoMap, evt)
     w = iomap.input
     @event_case evt begin
         MousePress(button, x, y) => button === :left ? InvokeWidgetActionOperation(w) : nothing
         MouseDown(button, x, y)  => button === :left ? SetWidgetPressedOperation(w, true) : nothing
         MouseUp(button, x, y)    => button === :left ? SetWidgetPressedOperation(w, false) : nothing
-        MouseMove                => SetWidgetHoverOperation(w, true)
+        MouseEnter               => SetWidgetHoverOperation(w, true)
+        # Leaving clears hover *and* any in-progress press (the release may land
+        # off the button when dragged away).
+        MouseLeave               => CompoundOperation(Any[SetWidgetHoverOperation(w, false),
+                                                          SetWidgetPressedOperation(w, false)])
         _ => nothing
     end
 end
@@ -1068,8 +1073,10 @@ function projection_read(p::WidgetCompositeToGraphicsCanvas, iomap::ChildrenIoMa
             (x, y) -> MouseDown(evt.button, x, y, evt.modifiers))
         MouseUp => _route_composite_event(child_iomaps, evt.x, evt.y,
             (x, y) -> MouseUp(evt.button, x, y, evt.modifiers))
-        MouseMove => _route_composite_event(child_iomaps, evt.x, evt.y,
-            (x, y) -> MouseMove(x, y, evt.buttons, evt.modifiers))
+        MouseEnter => _route_composite_event(child_iomaps, evt.x, evt.y,
+            (x, y) -> MouseEnter(x, y, evt.buttons, evt.modifiers))
+        MouseLeave => _route_composite_event(child_iomaps, evt.x, evt.y,
+            (x, y) -> MouseLeave(x, y, evt.buttons, evt.modifiers))
         _ => begin
             slot = iomap.input isa WidgetComposite ?
                    _selected_composite_slot(iomap.input, length(child_iomaps)) : 0

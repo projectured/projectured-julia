@@ -83,6 +83,8 @@ const _EVENT_TYPES = Dict{Symbol,Tuple{Any,Vector{Symbol}}}(
     :MouseUp     => (:(MouseModule.MouseUp),     [:button, :x, :y]),
     :MousePress  => (:(MouseModule.MousePress),  [:button, :x, :y]),
     :MouseMove   => (:(MouseModule.MouseMove),   [:x, :y, :buttons]),
+    :MouseEnter  => (:(MouseModule.MouseEnter),  [:x, :y, :buttons]),
+    :MouseLeave  => (:(MouseModule.MouseLeave),  [:x, :y, :buttons]),
     :MouseScroll => (:(MouseModule.MouseScroll), [:dx, :dy, :x, :y]),
 )
 

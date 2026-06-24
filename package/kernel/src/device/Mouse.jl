@@ -15,14 +15,20 @@ Five event types cover all mouse interactions:
 - `MouseMove`   — cursor motion, including the currently-held button (if any).
 - `MouseScroll` — mouse-wheel event.
 
-All five carry a `Modifiers` struct for the Ctrl/Shift/Alt state.
+Two further events are **synthesised from motion** (not produced by the backend)
+to express the pointer crossing a projection boundary — see
+`WidgetHoverTrackingProjection`, which derives them from `MouseMove`:
+- `MouseEnter`  — the pointer entered a region (a widget got the pointer).
+- `MouseLeave`  — the pointer left a region (a widget lost the pointer).
+
+All carry a `Modifiers` struct for the Ctrl/Shift/Alt state.
 """
 module MouseModule
 
 import ..DeviceModule: Device
 import ..ModifiersModule: Modifiers
 
-export Mouse, MouseDown, MouseUp, MousePress, MouseMove, MouseScroll
+export Mouse, MouseDown, MouseUp, MousePress, MouseMove, MouseScroll, MouseEnter, MouseLeave
 
 """
     Mouse()
@@ -94,6 +100,38 @@ struct MouseMove
 end
 
 MouseMove(x::Int, y::Int) = MouseMove(x, y, :none, Modifiers())
+
+"""
+    MouseEnter(x, y[, buttons, modifiers])
+
+Pointer-enter event: the pointer crossed into a region (e.g. a widget). Same
+fields as `MouseMove`. Synthesised from motion by a hover tracker, not by the
+backend; a widget reader translates it into its own hover state change.
+"""
+struct MouseEnter
+    x::Int
+    y::Int
+    buttons::Symbol
+    modifiers::Modifiers
+end
+
+MouseEnter(x::Int, y::Int) = MouseEnter(x, y, :none, Modifiers())
+
+"""
+    MouseLeave(x, y[, buttons, modifiers])
+
+Pointer-leave event: the pointer crossed out of a region. Same fields as
+`MouseMove`. Synthesised from motion by a hover tracker, not by the backend;
+`x`/`y` are the last position that was inside the region being left.
+"""
+struct MouseLeave
+    x::Int
+    y::Int
+    buttons::Symbol
+    modifiers::Modifiers
+end
+
+MouseLeave(x::Int, y::Int) = MouseLeave(x, y, :none, Modifiers())
 
 """
     MouseScroll(dx, dy, x, y[, modifiers])

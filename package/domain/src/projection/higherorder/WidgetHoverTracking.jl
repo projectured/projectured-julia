@@ -1,34 +1,37 @@
 """
     WidgetHoverTrackingProjectionModule
 
-A higher-order projection that wraps a widget pipeline and keeps the
-**`hovered` flag of exactly one widget** true as the pointer moves — the piece
-container hit-test routing cannot do on its own.
+A **generic** higher-order projection that turns raw pointer motion into
+`MouseEnter` / `MouseLeave` crossings and lets the widgets themselves decide
+what those mean. It owns *when* the pointer crosses a boundary; each widget owns
+*what changes* as a result (a button flips its `hovered`/`pressed` cells, another
+widget might do something else entirely). The tracker constructs **no**
+widget-specific operation — it only routes enter/leave and forwards whatever
+operation the widget returns.
 
-The problem: a container routes a `MouseMove` only to the child under the
-pointer (`_route_to_children`), so a widget learns when the pointer *enters* it
-but never when it *leaves* (the leaving move goes to whatever is under the
-pointer now, or to nothing). Individual widget readers therefore report
-"pointer is on me" (`SetWidgetHoverOperation(w, true)`) but cannot clear the
-*previously* hovered widget.
-
-This tracker closes the gap centrally, the same shape as `HoverProbeProjection`:
+The problem it solves: container hit-test routing delivers a `MouseMove` only to
+the child under the pointer, so a widget can learn it was entered but never that
+it was left (the leaving move goes to whatever is under the pointer now).
 
 **Printer** — transparent: projects the wrapped document through `inner` and
-returns its output unchanged. It remembers the inner iomap so the reader can
-reuse it.
+returns its output unchanged, remembering the inner iomap for the reader.
 
-**Reader** — on a `MouseMove`, forward the move to `inner`; whatever widget is
-under the pointer answers with `SetWidgetHoverOperation(w, true)` (or nothing
-over dead space). Compare that widget to the previously-hovered one held in
-`last`:
+**Reader** — on each `MouseMove`:
 
-- same widget → nothing (no state change);
-- a different widget (or dead space) → a `CompoundOperation` that clears
-  `hovered`/`pressed` on the old widget and sets `hovered` on the new one.
+1. Route a synthetic `MouseEnter` at the pointer to `inner`; the widget under the
+   pointer answers with an operation identifying itself (an opaque `widget`
+   field — the tracker never inspects the operation otherwise).
+2. If that target is the same as last time, nothing changed — emit nothing.
+3. If it changed, route a synthetic `MouseLeave` to the *previously* entered
+   widget (at the last position that was over it) so it can undo its own state,
+   and forward both the leave and the enter operations (as a `CompoundOperation`
+   when both are present).
 
-Every non-`MouseMove` event passes straight through to `inner`, so clicks,
-presses, keys and scroll behave exactly as before.
+Every non-`MouseMove` event passes straight through to `inner`.
+
+Mirrors `HoverProbeProjection` in shape (a transparent wrapper whose reader
+reverse-routes the pointer); here the synthesised events are `MouseEnter` /
+`MouseLeave` rather than a probe `MousePress`.
 """
 module WidgetHoverTrackingProjectionModule
 
@@ -36,25 +39,25 @@ import ..ProjectionApiModule: projection_print, projection_read,
                               map_reference_forward, map_reference_backward,
                               Projection, Change, as_change
 import ..IoMapApiModule: IoMap
-import ..MouseModule: MouseMove
-import ..WidgetModule: SetWidgetHoverOperation, SetWidgetPressedOperation
+import ..MouseModule: MouseMove, MouseEnter, MouseLeave
 import ..OperationModule: CompoundOperation
 
 export WidgetHoverTrackingProjection, WidgetHoverTrackingProjectionIoMap
 
 struct WidgetHoverTrackingProjection <: Projection
     inner::Projection
-    # transient state (a Ref so the immutable projection can update it):
-    last::Base.RefValue{Any}    # the currently-hovered widget, or nothing
+    # transient state (Refs so the immutable projection can update them):
+    last::Base.RefValue{Any}      # identity of the widget currently entered, or nothing
+    last_pos::Base.RefValue{Any}  # (x, y) last seen over it, or nothing
 end
 
 """
     WidgetHoverTrackingProjection(; inner)
 
-Wrap `inner` (the widget pipeline whose hover state should be tracked).
+Wrap `inner` (the widget pipeline whose hover crossings should be tracked).
 """
 WidgetHoverTrackingProjection(; inner::Projection) =
-    WidgetHoverTrackingProjection(inner, Ref{Any}(nothing))
+    WidgetHoverTrackingProjection(inner, Ref{Any}(nothing), Ref{Any}(nothing))
 
 struct WidgetHoverTrackingProjectionIoMap <: IoMap
     projection::WidgetHoverTrackingProjection
@@ -75,33 +78,52 @@ end
 function projection_read(p::WidgetHoverTrackingProjection, recursion, change::Change,
                          iomap::WidgetHoverTrackingProjectionIoMap)
     event = change.gesture
-    if event isa MouseMove
-        inner = projection_read(iomap.child_iomap.projection, recursion, change, iomap.child_iomap)
-        inner_op = inner isa Change ? inner.operation : inner
-        new_widget = (inner_op isa SetWidgetHoverOperation && inner_op.value) ? inner_op.widget : nothing
-        return Change(change.gesture, _track_hover(p, new_widget))
+    event isa MouseMove || return projection_read(iomap.child_iomap.projection, recursion, change, iomap.child_iomap)
+
+    child = iomap.child_iomap
+    # 1. Who is under the pointer now? Route an enter and read back the widget's
+    #    own response; its `widget` field is an opaque identity token.
+    enter_op = _route(p, recursion, child, MouseEnter(event.x, event.y, event.buttons, event.modifiers))
+    new_target = _target_of(enter_op)
+    old_target = p.last[]
+
+    if new_target === old_target
+        # Same widget (or both dead space): keep the inside position fresh so a
+        # future leave is routed at a point still over the target.
+        new_target === nothing || (p.last_pos[] = (event.x, event.y))
+        return Change(event, nothing)
     end
-    return projection_read(iomap.child_iomap.projection, recursion, change, iomap.child_iomap)
+
+    ops = Any[]
+    # 2. Leave the previously entered widget, at the last position over it, so it
+    #    undoes its own state. We forward whatever it returns; we never build it.
+    if old_target !== nothing && p.last_pos[] !== nothing
+        ox, oy = p.last_pos[]
+        leave_op = _route(p, recursion, child, MouseLeave(ox, oy, event.buttons, event.modifiers))
+        leave_op === nothing || push!(ops, leave_op)
+    end
+    # 3. Enter the new widget (forward the response we already have).
+    new_target === nothing || enter_op === nothing || push!(ops, enter_op)
+
+    p.last[] = new_target
+    p.last_pos[] = new_target === nothing ? nothing : (event.x, event.y)
+    Change(event, isempty(ops) ? nothing : length(ops) == 1 ? ops[1] : CompoundOperation(ops))
 end
 
 # 3-arg compatibility shim (tests / hit-test recursion).
 projection_read(p::WidgetHoverTrackingProjection, iomap::WidgetHoverTrackingProjectionIoMap, payload) =
     projection_read(p, nothing, as_change(payload), iomap).operation
 
-# Diff the newly-hovered widget against the last one and emit the minimal state
-# change: clear the old widget's hover/press, set the new one's hover.
-function _track_hover(p::WidgetHoverTrackingProjection, new_widget)
-    old = p.last[]
-    new_widget === old && return nothing
-    ops = Any[]
-    if old !== nothing
-        push!(ops, SetWidgetHoverOperation(old, false))
-        push!(ops, SetWidgetPressedOperation(old, false))
-    end
-    new_widget === nothing || push!(ops, SetWidgetHoverOperation(new_widget, true))
-    p.last[] = new_widget
-    isempty(ops) ? nothing : length(ops) == 1 ? ops[1] : CompoundOperation(ops)
+# Route a synthetic event through the inner pipeline and return the bare op.
+function _route(p::WidgetHoverTrackingProjection, recursion, child_iomap, event)
+    res = projection_read(child_iomap.projection, recursion, Change(event, nothing), child_iomap)
+    res isa Change ? res.operation : res
 end
+
+# Opaque identity of the widget an enter-response came from: its `widget` field,
+# or nothing. The tracker never interprets the operation beyond this token, so it
+# stays agnostic of any widget's concrete hover/press operations.
+_target_of(op) = op !== nothing && hasproperty(op, :widget) ? op.widget : nothing
 
 # ── Reference mapping (passthrough — the tracker is transparent on print) ──
 
