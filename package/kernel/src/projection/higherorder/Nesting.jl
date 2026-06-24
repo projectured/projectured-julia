@@ -15,6 +15,7 @@ module NestingProjectionModule
 
 import ..ProjectionApiModule: projection_print, projection_printer_recurse, projection_read, map_reference_forward, map_reference_backward, Projection, Change, as_change
 import ..IoMapApiModule: IoMap
+import ..GestureBindingModule: collect_gestures, GestureBinding
 export NestingProjection, NestingProjectionIoMap
 
 struct NestingProjectionIoMap <: IoMap
@@ -68,6 +69,20 @@ end
 
 projection_read(np::NestingProjection, iomap::NestingProjectionIoMap, payload) =
     projection_read(np, nothing, as_change(payload), iomap).operation
+
+# Gather gestures from the same place the reader delegates to: the first element
+# (or the stored recursion when empty), over the nested child iomap. This lets a
+# `collect_gestures` over a `NestingProjection(example_pipeline)` reach the example
+# pipeline's reified gestures (Sequential/document tables below it).
+function collect_gestures(np::NestingProjection, recursion, iomap::NestingProjectionIoMap)
+    if !isempty(np.elements)
+        return collect_gestures(np.elements[1], recursion, iomap.child_iomap)
+    elseif np.recursion !== nothing
+        return collect_gestures(np.recursion, recursion, iomap.child_iomap)
+    else
+        return GestureBinding[]
+    end
+end
 
 function map_reference_forward(np::NestingProjection, iomap::NestingProjectionIoMap, reference)
     if !isempty(np.elements)
