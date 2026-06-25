@@ -11,7 +11,7 @@ The domain includes:
 module JsonModule
 
 import ..ReactiveModule: Cell
-import ..DocumentModule: Document, @document
+import ..DocumentModule: Document, @document, @forward
 import ..CollectionModule: CellVector
 import ..ReferenceModule: Reference, ReferencePath, ConcreteReferencePath, PositionReference, RangeReference, FieldReference, EmptyReferencePath, evaluate_reference
 import ..ReferenceBuilderModule: var"@reference"
@@ -61,6 +61,11 @@ end
     selection::Reference = nothing
 end
 
+@forward JsonArray elements [Base.size, Base.length, Base.isempty,
+                             Base.firstindex, Base.lastindex, Base.eachindex,
+                             Base.getindex, Base.setindex!, Base.iterate,
+                             Base.push!, Base.pop!, Base.insert!, Base.deleteat!]
+
 @document struct JsonObjectEntry <: JsonDocument
     key::String
     value::Document
@@ -81,15 +86,6 @@ function JsonObject(pairs::Pair{<:AbstractString}...)
     end
     JsonObject(cv, Cell(false), Cell(nothing))
 end
-
-# ── Array internals ─────────────────────────────────────────────────────
-#
-# Mutate a JsonArray through its `elements` CellVector
-# (`push!(j.elements, x)`, `insert!(j.elements, i, x)`, `deleteat!(j.elements, i)`).
-# The JSON reference convention indexes the array directly (no `.elements` step).
-
-Base.size(j::JsonArray) = (length(j.elements),)
-Base.getindex(j::JsonArray, i::Integer) = j.elements[i]
 
 # ── Object internals ──────────────────────────────────────────────────────
 

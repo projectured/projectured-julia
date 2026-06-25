@@ -23,7 +23,7 @@ slot's dependents, not the entire collection.
 module CollectionModule
 
 import ..ReactiveModule: Cell, setfn!, setval!
-import ..DocumentModule: Document, @document
+import ..DocumentModule: Document, @document, @forward
 import ..ReferenceModule: Reference
 export CellVector, CellMatrix, CellTable, ListNode, CollectionDocument,
        left_tail, right_tail, cell_at, take_first_n,
@@ -51,11 +51,12 @@ end
 
 _elems(cv::CellVector) = cv.elements::Vector{Cell}
 
-Base.length(cv::CellVector)            = length(_elems(cv))
-Base.isempty(cv::CellVector)           = isempty(_elems(cv))
-Base.firstindex(::CellVector)          = 1
-Base.lastindex(cv::CellVector)         = length(cv)
-Base.eachindex(cv::CellVector)         = Base.OneTo(length(cv))
+Base.size(cv::CellVector)              = (length(cv),)
+# The pure structural queries delegate straight to the backing `Vector{Cell}`.
+# (`getindex`/`iterate`/the mutators are NOT forwarded — they un/rewrap Cells and
+# reassign `.elements` for reactivity, below.)
+@forward CellVector elements [Base.length, Base.isempty, Base.firstindex,
+                              Base.lastindex, Base.eachindex]
 function Base.iterate(cv::CellVector, s...)
     r = iterate(_elems(cv), s...)
     r === nothing && return nothing

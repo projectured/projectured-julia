@@ -11,7 +11,7 @@ module DocumentModule
 import ..DocumentApiModule: Document
 import ..ReactiveModule: Cell
 
-export Document, selection, @document
+export Document, selection, @document, @forward
 
 """
     selection(doc::Document)
@@ -274,6 +274,35 @@ macro document(structdef)
 
     return esc(Expr(:block, :(Base.@__doc__ $structdef), getprop, setprop,
                      i_struct, snapshot, hydrate, extra...))
+end
+
+"""
+    @forward T field [f₁, f₂, …]
+
+Generate delegating methods that forward each listed function on `T` to the
+value of `T`'s `field`. For example
+
+    @forward JsonArray elements [Base.length, Base.getindex]
+
+emits
+
+    Base.length(x::JsonArray, args...; kw...)   = Base.length(x.elements, args...; kw...)
+    Base.getindex(x::JsonArray, args...; kw...)  = Base.getindex(x.elements, args...; kw...)
+
+so a wrapper type can expose its field's protocol (e.g. a `CellVector`'s vector
+interface) without hand-writing one method per function. The field is read
+through `getproperty`, so it sees the unwrapped value of a `@document` Cell
+field.
+"""
+macro forward(T, field, fns)
+    (fns isa Expr && fns.head === :vect) ||
+        error("@forward: third argument must be a vector literal of functions, e.g. [Base.length, Base.size]")
+    fieldsym = QuoteNode(field)
+    defs = map(fns.args) do f
+        :($(esc(f))(x::$(esc(T)), args...; kw...) =
+              $(esc(f))(Base.getproperty(x, $fieldsym), args...; kw...))
+    end
+    Expr(:block, defs...)
 end
 
 end # module
