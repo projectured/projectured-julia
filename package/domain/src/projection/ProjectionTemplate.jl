@@ -34,7 +34,8 @@ import ..ProjectionApiModule: map_reference_forward, map_reference_backward, pro
                               projection_printer_recurse, as_change
 import ..RecursiveProjectionModule: RecursiveProjection
 import ..ReferenceModule: ConcreteReferencePath, EmptyReferencePath, FieldReference, RangeReference, ElementReference,
-                          TypeReference, ProjectionReference, ReferencePath, Reference, skip_type_checkpoints
+                          TypeReference, ProjectionReference, ReferencePath, Reference, skip_type_checkpoints,
+                          fold_reference_types, strip_reference_types
 import ..PrinterContextModule: child_context
 import ..OperationModule: ReplaceSelectionOperation
 import ..PrimitiveModule: StringReplaceRangeOperation, NumberReplaceRangeOperation
@@ -146,32 +147,33 @@ end
 
 # ── Path helpers (build the exact shapes @reference/@reference_case produce) ───
 
-_typed(T) = ConcreteReferencePath(TypeReference(T), EmptyReferencePath())
+# A whole-element selection typed `::T`: the folded terminal carrying T.
+_typed(T) = EmptyReferencePath(T)
+# Build a path from `steps...` (which may include transitional `TypeReference`
+# checkpoint steps), then fold those checkpoints into node types so the result is
+# the canonical folded form `@reference`/`@reference_case` produce.
 _path(steps...) = begin
     p = EmptyReferencePath()
     for i in length(steps):-1:1
         p = ConcreteReferencePath(steps[i], p)
     end
-    p
+    fold_reference_types(p)
 end
-# prepend `steps...` in front of an existing path tail
+# prepend `steps...` in front of an existing (already-folded) path tail, then fold
+# any prepended `TypeReference` checkpoint steps into node types.
 _prepend(tail::ReferencePath, steps...) = begin
     p = tail
     for i in length(steps):-1:1
         p = ConcreteReferencePath(steps[i], p)
     end
-    p
+    fold_reference_types(p)
 end
-# Remove every TypeReference checkpoint from a path. The JSON input boundary wants
-# clean, checkpoint-free reference paths (see test_json_content_clicks_clean); a
-# delegated child's backward result carries the child's canonical checkpoints
-# (e.g. `::JsonNumber.value::Real`), so the collection mapper strips them when it
-# splices the child's tail under `.elements[i]` / `.entries[i]`.
-_strip_checkpoints(p::EmptyReferencePath) = p
-_strip_checkpoints(p::ConcreteReferencePath) =
-    p.head isa TypeReference ? _strip_checkpoints(p.tail) :
-                               ConcreteReferencePath(p.head, _strip_checkpoints(p.tail))
-_strip_checkpoints(x) = x
+# Reduce a path to its plain navigation skeleton (node types blanked). The JSON
+# input boundary wants clean, type-free reference paths (see
+# test_json_content_clicks_clean); a delegated child's backward result carries the
+# child's folded node types, so the collection mapper strips them when it splices
+# the child's tail under `.elements[i]` / `.entries[i]`.
+_strip_checkpoints(x) = strip_reference_types(x)
 
 # ── The builder/walk printer ─────────────────────────────────────────────────
 
