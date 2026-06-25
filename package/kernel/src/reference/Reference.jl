@@ -29,7 +29,7 @@ export Reference, ReferenceStep, ElementReference, PositionReference, RangeRefer
        IRangeReference, IFieldReference, IConcreteReferencePath, IPointReference,
        reference_equal, is_prefix_of, reference_equal_ignoring_types, is_prefix_of_ignoring_types,
        ReferenceTypeMismatch, valid_reference_prefix, annotate_reference_types, strip_reference_types,
-       skip_type_checkpoints
+       skip_type_checkpoints, fold_reference_types
 
 # ── ReferenceStep ─────────────────────────────────────────────────────
 
@@ -682,6 +682,32 @@ end
 # to a non-path (e.g. `nothing` when there is no selection); pass it through
 # unchanged so the structural reads downstream handle the absence themselves.
 strip_reference_types(other) = other
+
+"""
+    fold_reference_types(path::ReferencePath) -> ReferencePath
+
+Convert a flat path that may carry interleaved `TypeReference` *steps* into the
+folded form where the type lives on each node. A `TypeReference(T)` step sets the
+`type` of the node built from the **following** navigation step (or the terminal
+node, if it is the last step). Nodes that already carry a folded `type` keep it
+(so concatenating an already-folded sub-path is preserved). Used by the
+`@reference` builder to fold the `::T` checkpoints it emits as steps.
+"""
+fold_reference_types(path::ReferencePath) = _fold_reference_types(path, nothing)
+
+_fold_reference_types(p::EmptyReferencePath, pending) =
+    EmptyReferencePath(pending === nothing ? p.type : pending)
+
+function _fold_reference_types(p::ConcreteReferencePath, pending)
+    if p.head isa TypeReference
+        # A checkpoint step types the *next* navigation node — carry it forward.
+        return _fold_reference_types(p.tail, p.head.type)
+    end
+    ConcreteReferencePath(pending === nothing ? p.type : pending, p.head,
+                          _fold_reference_types(p.tail, nothing))
+end
+
+fold_reference_types(other) = other
 
 # ── Reference collection ─────────────────────────────────────────────────────
 

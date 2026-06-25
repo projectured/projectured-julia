@@ -288,6 +288,13 @@ _concat(::ReferenceModule.EmptyReferencePath, b::ReferenceModule.ReferencePath) 
 _concat(a::ReferenceModule.ConcreteReferencePath, b::ReferenceModule.ReferencePath) =
     ReferenceModule.ConcreteReferencePath(a.head, _concat(a.tail, b))
 
+# Wrap a built (possibly TypeReference-bearing) path expression in the runtime
+# fold pass only when the literal carries a `::T` checkpoint — a plain navigation
+# skeleton needs no folding (its node types stay `nothing`, filled later by
+# `set_selection!`), so the common case allocates nothing extra.
+_maybe_fold(expr, steps) =
+    any(s -> s isa BSType, steps) ? :(ReferenceModule.fold_reference_types($expr)) : expr
+
 function _gen_build_path(steps::Vector{BuildStep})
     # No steps → empty path.
     if isempty(steps)
@@ -297,13 +304,14 @@ function _gen_build_path(steps::Vector{BuildStep})
     # Fast path: no splices at all.
     if !any(s -> s isa BSPathSplice, steps)
         stepexprs = [_gen_build_step(s) for s in steps]
-        return :(ReferenceModule.ReferencePath($(stepexprs...)))
+        return _maybe_fold(:(ReferenceModule.ReferencePath($(stepexprs...))), steps)
     end
 
     # Slice the chain at every splice and emit a `_concat` chain of literal
     # `ReferencePath(...)` segments interleaved with `_splice(...)` of the
-    # spliced runtime values.
-    return _gen_concat_chain(steps)
+    # spliced runtime values. Fold afterwards so `::T` checkpoints in the literal
+    # segments become node types, while already-folded spliced sub-paths are kept.
+    return _maybe_fold(_gen_concat_chain(steps), steps)
 end
 
 function _gen_concat_chain(steps::Vector{BuildStep})

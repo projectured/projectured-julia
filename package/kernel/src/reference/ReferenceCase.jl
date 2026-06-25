@@ -511,11 +511,14 @@ function _gen_path_match(path_ex, steps::Vector{PatStep}, success, bound::Set{Sy
         return :(let $(esc(name)) = ReferenceModule.skip_type_checkpoints($path_ex); $success end), union(bound, Set([name]))
     end
 
-    # A leading `(::T)` is an OPTIONAL assertion: if a checkpoint is present here it
-    # must be `<: T` (consume it, match the rest on the tail); if absent, match the
-    # rest on the same path. This lets `(::ChildType)` patterns match both a
-    # canonical reference (checkpoint present) and a skip-bound recursion tail
-    # (checkpoint already peeled), so recursive mappers keep `rest...` skip-bound.
+    # A leading `::T` is an OPTIONAL, non-navigating assertion on the type of the
+    # node reached here. Two forms are accepted:
+    #   • folded (canonical): the type lives in the node's `type` field — assert it
+    #     and match the rest on the SAME path (the assertion consumes no step);
+    #   • flat (transitional): a leading `TypeReference` *step* carries the type —
+    #     assert and consume it, matching the rest on the tail.
+    # In both cases an unknown (`nothing`) folded type matches, so `::T` patterns
+    # keep matching plain skeletons and skip-bound recursion tails.
     if steps[1] isa PSType
         ty = esc(steps[1].typeexpr)
         sp = gensym(:sp)
@@ -526,7 +529,9 @@ function _gen_path_match(path_ex, steps::Vector{PatStep}, success, bound::Set{Sy
                 if $sp isa ReferenceModule.ConcreteReferencePath && ReferenceModule.head($sp) isa ReferenceModule.TypeReference
                     ReferenceModule.head($sp).type <: $ty ? $rest_on_tail : _nomatch
                 else
-                    $rest_on_same
+                    local _nt = $sp isa ReferenceModule.ConcreteReferencePath ? $sp.type :
+                                $sp isa ReferenceModule.EmptyReferencePath ? $sp.type : nothing
+                    (_nt === nothing || _nt <: $ty) ? $rest_on_same : _nomatch
                 end
             end
         end
@@ -569,6 +574,27 @@ function _gen_prefix_match(path_ex, steps::Vector{PatStep}, success, bound::Set{
     if length(steps) == 1 && steps[1] isa PSPathInterp
         expr = esc(steps[1].expr)
         return :(ReferenceModule.is_prefix_of_ignoring_types($path_ex, $expr) ? $success : _nomatch), bound
+    end
+
+    # A leading `::T` is a non-navigating, optional type assertion (same folded /
+    # flat handling as in `_gen_path_match`).
+    if steps[1] isa PSType
+        ty = esc(steps[1].typeexpr)
+        sp = gensym(:sp)
+        rest_on_tail, b1 = _gen_prefix_match(:(ReferenceModule.tail($sp)), steps[2:end], success, bound)
+        rest_on_same, b2 = _gen_prefix_match(sp, steps[2:end], success, bound)
+        ex = quote
+            let $sp = $path_ex
+                if $sp isa ReferenceModule.ConcreteReferencePath && ReferenceModule.head($sp) isa ReferenceModule.TypeReference
+                    ReferenceModule.head($sp).type <: $ty ? $rest_on_tail : _nomatch
+                else
+                    local _nt = $sp isa ReferenceModule.ConcreteReferencePath ? $sp.type :
+                                $sp isa ReferenceModule.EmptyReferencePath ? $sp.type : nothing
+                    (_nt === nothing || _nt <: $ty) ? $rest_on_same : _nomatch
+                end
+            end
+        end
+        return ex, union(b1, b2)
     end
 
     p = gensym(:p)
