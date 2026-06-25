@@ -166,8 +166,6 @@ function _object_tab(doc::JsonObject)
     end
 end
 
-# Shared type-to-replace set: a printable key on a whole JSON value replaces it
-# with a freshly-built value whose cursor is pre-placed for continued authoring.
 @gestures JsonDocument begin
     when(_json_replaceable(doc, sel))
     KeyPress('n') => "Replace with null"   => _replace(doc, with_selection(JsonNull(), EmptyReferencePath()))
@@ -180,8 +178,6 @@ end
     when(KeyPress(c), isdigit(c)) => "Replace with a number" => _replace_number(doc, c)
 end
 
-# Arrays add `,`-insert; objects add `,`-insert and Tab (key → value). Both
-# inherit the type-to-replace set from JsonDocument.
 @gestures JsonArray begin
     KeyPress(',') => "Insert a new element" => _array_insert(doc)
 end
