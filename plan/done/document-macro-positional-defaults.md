@@ -389,3 +389,40 @@ struct's other ctors (variadic/thunk) are unaffected before deleting.
   `JsonArray(::JsonDocument...)` (the variadic is used at ~12 idiomatic sites, several
   multi-line array literals; it's domain convenience, not boilerplate). Json.jl floor = 2
   (`JsonArray(::JsonDocument...)` + `JsonObject(::Pair...)`).
+
+## Addendum — Rule C now generates a `Document`-typed variadic (Json.jl → 1)
+
+Follow-up after merge, prompted by the observation that **a collection may hold
+children of any domain** (mixed JSON / text / widget / …) — so the element ctors
+should be typed to the universal `Document` base, not a struct's own domain. The
+old hand-written `JsonArray(items::JsonDocument...)` was both boilerplate *and*
+wrongly domain-narrowed.
+
+Rule C now emits, for every single-`CellVector` struct, **two** element ctors:
+
+```julia
+Foo(items::AbstractVector)   # Foo([a, b, c])
+Foo(items::Document...)       # Foo(a, b, c)   — NEW
+```
+
+`Document` is known to the macro (it is the default supertype), so this needs no
+per-domain knowledge. Why the variadic is safe (verified empirically + by the test
+suite, no new ambiguities):
+- A `Document`-typed vararg **beats the all-fields inner ctor** at arity ==
+  field-count, because the non-element fields (`collapsed::Bool`,
+  `selection::Reference`, `col_count::Integer`, …) are not `Document`s — a genuine
+  inner call never matches the variadic.
+- It does **not** clash with typed-variadic sugar: a `Pair` is not a `Document`, so
+  `JsonObject(::Pair...)` is untouched; and a more specific hand-written
+  `Foo(::SomeDoc...)` (e.g. `TextText(::TextDocument...)`) always wins over it.
+- Disjoint from `Foo(::AbstractVector)` (no `Document` is an `AbstractVector`).
+
+**Result: Json.jl 11 → 1** hand-written ctor — only `JsonObject(::Pair...)` (the
+`"k" => v` sugar) remains; it can't be generated generically (a `Pair` carries the
+key/value association). This also supersedes the earlier "decision (a)" to keep
+`JsonArray`'s variadic: it's now macro-generated, not hand-written.
+
+Verified (main, native stack): focused checks incl. mixed-domain arrays
+(`JsonArray(JsonNumber, TextString)`) pass; full JSON suite unchanged —
+`test_json` / `test_json_to_syntax` / `test_json_gesture_collection` green, reader
+47/1 and `test_example(json_example)` 4399/22 (both pre-existing).
