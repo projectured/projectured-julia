@@ -363,13 +363,17 @@ struct's other ctors (variadic/thunk) are unaffected before deleting.
    script exercised every changed ctor path (primitives Rule-Y/keyword/computed; JsonArray
    vector+variadic+empty; JsonObject Pair+empty+vector-of-entries+gesture path;
    JsonObjectEntry 2-arg; TextText Rule-C non-breakage) → all pass.
-   ⚠️ **Deferred to post-merge (main checkout):** `test_json()` and
-   `test_example(json_example)` / `test_repl(json_example)`. The worktree can't
-   instantiate the native `ProjecturedAdaptagrams`/SDL stack the test package pulls in
-   (the gitignored `.so` isn't built here — a known worktree limitation). The focused
-   checks cover `test_json`'s assertions; the pipeline tests exercise unchanged projection
-   code plus the (behaviour-preserving) `{` gesture.
-6. Move this plan to `plan/done/` (done as part of finalizing).
+6. ✅ Post-rebase full verification (main checkout, native stack built). Rebased onto
+   current `main` (12 new commits, incl. the default-supertype macro rework and the
+   `_sel!`→`with_selection` change); the only conflict was the `{` gesture line, resolved
+   to `with_selection(JsonObject([…]), …)`. Results:
+   - `test_json`, `test_json_to_syntax`, `test_json_gesture_collection` → **all pass**.
+   - `test_json_to_syntax_reader` → 47/1; `test_example(json_example)` → 4399/22.
+   - **Both failure sets confirmed pre-existing** by running the same tests on `bcf130b`
+     (pre-change) in the same env: reader 47/1 *identical*; `test_typein(json_example)`
+     0/22 *identical* pre and post. The reader's lone failure is the documented
+     array-insert selection quirk; the 22 are pre-existing JSON typein (`KeyPress→no edit`)
+     failures. **No regressions from this change.**
 
 ## Open decisions
 
