@@ -7,7 +7,7 @@ as projection-introduced elements via ProjectionReference. The reader inverts
 the mapping, routing tree-domain paths back to the correct JSON field, array
 index, or ProjectionReference for delimiters.
 
-Each value type is a `@projection_template` builder `(p, doc) -> output`; the
+Each value type is a `@projection_template` builder `(prj, doc) -> output`; the
 engine derives the printer and reference mappers from the built tree. Only the
 JSON authoring readers (type-to-replace, `,` insert, Tab) and the structural
 fallback stay hand-written.
@@ -15,20 +15,18 @@ fallback stay hand-written.
 module JsonToSyntaxModule
 
 import ..ReactiveModule: Cell
-import ..CollectionModule: CellVector
-import ..ProjectionApiModule: projection_print, projection_printer_recurse, map_reference_forward, Projection
+import ..ProjectionApiModule: projection_print, Projection
 import ..ProjectionModule: var"@projection"
-import ..JsonModule: JsonDocument, JsonInsertion, JsonNull, JsonBool, JsonNumber, JsonString, JsonArray, JsonObject, JsonObjectEntry
+import ..JsonModule: JsonInsertion, JsonNull, JsonBool, JsonNumber, JsonString, JsonArray, JsonObject, JsonObjectEntry
 import ..TextModule: TextString
-import ..FontModule: StyleFont, font_ubuntu_monospace_regular_24, font_ubuntu_monospace_bold_24
-import ..ColorModule: StyleColor, color_black, color_solarized_blue, color_solarized_green, color_solarized_magenta, color_solarized_cyan, color_solarized_yellow, color_solarized_gray
+import ..FontModule: font_ubuntu_monospace_regular_24, font_ubuntu_monospace_bold_24
+import ..ColorModule: color_solarized_blue, color_solarized_green, color_solarized_magenta, color_solarized_yellow, color_solarized_gray
 import ..StyleTextModule: StyleText
-import ..SyntaxModule: SyntaxDocument, SyntaxLeaf, SyntaxNode
+import ..SyntaxModule: SyntaxLeaf, SyntaxNode
 import ..TypeDispatchingModule: TypeDispatchingProjection
 import ..CopyingProjectionModule: CopyingProjection
 import ..ProjectionTemplateModule: var"@projection_template", bound, project, collection
-import ..PrinterContextModule: PrinterContext, child_context
-import ..PrimitiveModule: StringReplaceRangeOperation, NumberReplaceRangeOperation
+import ..PrimitiveModule: NumberReplaceRangeOperation
 export JsonInsertionToSyntaxLeaf, JsonNullToSyntaxLeaf, JsonBoolToSyntaxLeaf, JsonNumberToSyntaxLeaf,
        JsonStringToSyntaxLeaf, JsonArrayToSyntaxNode, JsonObjectToSyntaxNode,
        JsonToSyntax
@@ -39,8 +37,8 @@ export JsonInsertionToSyntaxLeaf, JsonNullToSyntaxLeaf, JsonBoolToSyntaxLeaf, Js
     style::StyleText = StyleText(font_ubuntu_monospace_regular_24, color_solarized_magenta)
 end
 
-@projection_template JsonNullToSyntaxLeaf JsonNull (p, doc) ->
-    SyntaxLeaf(TextString("null", p.style))
+@projection_template JsonNullToSyntaxLeaf JsonNull (prj, doc) ->
+    SyntaxLeaf(TextString("null", prj.style))
 
 # ── JsonInsertionToSyntaxLeaf ───────────────────────────────────────────────────
 
@@ -48,8 +46,8 @@ end
     style::StyleText = StyleText(font_ubuntu_monospace_regular_24, color_solarized_gray)
 end
 
-@projection_template JsonInsertionToSyntaxLeaf JsonInsertion (p, doc) ->
-    SyntaxLeaf(TextString("insert JSON here", p.style))
+@projection_template JsonInsertionToSyntaxLeaf JsonInsertion (prj, doc) ->
+    SyntaxLeaf(TextString("insert JSON here", prj.style))
 
 # ── JsonBoolToSyntaxLeaf ─────────────────────────────────────────────────────
 
@@ -57,8 +55,8 @@ end
     style::StyleText = StyleText(font_ubuntu_monospace_regular_24, color_solarized_yellow)
 end
 
-@projection_template JsonBoolToSyntaxLeaf JsonBool (p, doc) ->
-    SyntaxLeaf(bound(:value, Bool, TextString(() -> doc[] ? "true" : "false", p.style)))
+@projection_template JsonBoolToSyntaxLeaf JsonBool (prj, doc) ->
+    SyntaxLeaf(bound(:value, Bool, TextString(() -> doc[] ? "true" : "false", prj.style)))
 
 # ── JsonNumberToSyntaxLeaf ───────────────────────────────────────────────────
 
@@ -66,9 +64,9 @@ end
     style::StyleText = StyleText(font_ubuntu_monospace_regular_24, color_solarized_magenta)
 end
 
-@projection_template JsonNumberToSyntaxLeaf JsonNumber (p, doc) ->
+@projection_template JsonNumberToSyntaxLeaf JsonNumber (prj, doc) ->
     SyntaxLeaf(bound(:value, Real,
-                     _hinted_text(() -> string(doc[]), () -> doc[] === nothing, "enter json number", p.style);
+                     _hinted_text(() -> string(doc[]), () -> doc[] === nothing, "enter json number", prj.style);
                      retype = NumberReplaceRangeOperation))
 
 # ── JsonStringToSyntaxLeaf ───────────────────────────────────────────────────
@@ -78,11 +76,11 @@ end
     value_style::StyleText = StyleText(font_ubuntu_monospace_regular_24, color_solarized_green)
 end
 
-@projection_template JsonStringToSyntaxLeaf JsonString (p, doc) ->
+@projection_template JsonStringToSyntaxLeaf JsonString (prj, doc) ->
     SyntaxLeaf(bound(:value, String,
-                     _hinted_text(() -> json_escape(doc[]), () -> isempty(doc[]), "enter json string", p.value_style));
-               open=TextString("\"", p.quote_style),
-               close=TextString("\"", p.quote_style))
+                     _hinted_text(() -> json_escape(doc[]), () -> isempty(doc[]), "enter json string", prj.value_style));
+               open=TextString("\"", prj.quote_style),
+               close=TextString("\"", prj.quote_style))
 
 # ── JsonArrayToSyntaxNode ────────────────────────────────────────────────────
 
@@ -91,11 +89,11 @@ end
     separator_style::StyleText = StyleText(font_ubuntu_monospace_regular_24, color_solarized_gray)
 end
 
-@projection_template JsonArrayToSyntaxNode JsonArray (p, doc) ->
+@projection_template JsonArrayToSyntaxNode JsonArray (prj, doc) ->
     SyntaxNode(collection(:elements);
-               open=TextString("[", p.delimiter_style),
-               close=TextString("]", p.delimiter_style),
-               sep=TextString(", ", p.separator_style),
+               open=TextString("[", prj.delimiter_style),
+               close=TextString("]", prj.delimiter_style),
+               sep=TextString(", ", prj.separator_style),
                indentation=1)
 
 # ── JsonObjectToSyntaxNode ───────────────────────────────────────────────────
@@ -107,20 +105,20 @@ end
     colon_style::StyleText = StyleText(font_ubuntu_monospace_regular_24, color_solarized_gray)
 end
 
-@projection_template JsonObjectToSyntaxNode JsonObject (p, doc) ->
+@projection_template JsonObjectToSyntaxNode JsonObject (prj, doc) ->
     SyntaxNode(collection(:entries) do e
-                   SyntaxNode(TextString("", p.delimiter_style),
-                              TextString("", p.delimiter_style),
-                              TextString(": ", p.colon_style),
-                              [ SyntaxLeaf(bound(:key, String, _hinted_text(() -> json_escape(e.key), () -> isempty(e.key), "enter key", p.key_style));
-                                           open=TextString("\"", p.key_style),
-                                           close=TextString("\"", p.key_style)),
+                   SyntaxNode(TextString("", prj.delimiter_style),
+                              TextString("", prj.delimiter_style),
+                              TextString(": ", prj.colon_style),
+                              [ SyntaxLeaf(bound(:key, String, _hinted_text(() -> json_escape(e.key), () -> isempty(e.key), "enter key", prj.key_style));
+                                           open=TextString("\"", prj.key_style),
+                                           close=TextString("\"", prj.key_style)),
                                 project(:value) ],
                               0, false, getfield(e, :selection))
                end;
-               open=TextString("{", p.delimiter_style),
-               close=TextString("}", p.delimiter_style),
-               sep=TextString(", ", p.separator_style),
+               open=TextString("{", prj.delimiter_style),
+               close=TextString("}", prj.delimiter_style),
+               sep=TextString(", ", prj.separator_style),
                indentation=1)
 
 # ── Compound convenience constructor ────────────────────────────────────────
