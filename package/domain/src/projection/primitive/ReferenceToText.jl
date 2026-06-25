@@ -149,10 +149,22 @@ function _emit_step_short!(spans::Vector{TextDocument}, p::ReferenceToText, step
     push!(spans, _tok(string(step), p.font, color_solarized_red))
 end
 
+# Emit the folded `::Type` checkpoint a node carries (the type the step descends
+# from), the same shape the old interleaved `TypeReference` step rendered.
+function _emit_type_short!(spans::Vector{TextDocument}, p::ReferenceToText, T)
+    push!(spans, _tok("::", p.font, color_solarized_gray))
+    push!(spans, _tok(_short_type(T), p.font, color_solarized_orange))
+end
+
 function _emit_path_short!(spans::Vector{TextDocument}, p::ReferenceToText, path::ConcreteReferencePath)
+    path.type === nothing || _emit_type_short!(spans, p, path.type)
     _emit_step_short!(spans, p, head(path))
     t = tail(path)
-    t isa EmptyReferencePath || _emit_path_short!(spans, p, t)
+    if t isa EmptyReferencePath
+        t.type === nothing || _emit_type_short!(spans, p, t.type)
+    else
+        _emit_path_short!(spans, p, t)
+    end
 end
 
 _emit_path_short!(::Vector{TextDocument}, ::ReferenceToText, ::EmptyReferencePath) = nothing
@@ -162,7 +174,9 @@ function _short_text(p::ReferenceToText, ref)
     if ref === nothing
         push!(spans, _tok("(no selection)", p.font, color_solarized_gray))
     elseif ref isa EmptyReferencePath
-        push!(spans, _tok("∅", p.font, color_solarized_gray))
+        # Whole-element selection: show its folded type if known, else ∅.
+        ref.type === nothing ? push!(spans, _tok("∅", p.font, color_solarized_gray)) :
+                               _emit_type_short!(spans, p, ref.type)
     else
         _emit_path_short!(spans, p, ref)
     end
