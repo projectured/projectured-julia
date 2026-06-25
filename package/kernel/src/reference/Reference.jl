@@ -157,11 +157,22 @@ the existing tail — no copying required.
 abstract type ReferencePath end
 
 """
-    EmptyReferencePath()
+    EmptyReferencePath([type])
 
-The empty reference path (root).
+The empty reference path — a path that terminates *at* a node. `type` records the
+Julia type of the node the path lands on (the **terminal** node's type); it is
+`nothing` for a plain/unknown path or for a cursor terminal (a `{k}` position
+between items lands on no child node). A whole-element (`∅`) selection of a typed
+node carries that node's type here.
+
+This is the folded form of what used to be a trailing `TypeReference` checkpoint:
+the type is a field of the terminal node, not a separate step.
 """
-struct EmptyReferencePath <: ReferencePath end
+struct EmptyReferencePath <: ReferencePath
+    type::Any
+end
+
+EmptyReferencePath() = EmptyReferencePath(nothing)
 
 """
     Reference
@@ -172,10 +183,21 @@ or a `ReferencePath` describing the selected location.
 const Reference = Union{Nothing, ReferencePath}
 
 """
-    ConcreteReferencePath(head, tail)
+    ConcreteReferencePath([type], head, tail)
 
-A non-empty path: `head` is the current `Reference`,
-`tail` is the remaining `ReferencePath`.
+A non-empty path node. `head` is **always a navigation step** (never a
+`TypeReference`); `tail` is the remaining `ReferencePath`. `type` records the
+Julia type of the node you are standing on *at this node* — i.e. the type the
+`head` step descends *from*. It is `nothing` when the type is unknown (a plain
+`@reference` skeleton, or a generic two-arg construction); `annotate_reference_types`
+fills it in against a document.
+
+This is the folded form of the old interleaved `TypeReference` checkpoint: the
+type that used to sit in a separate checkpoint *step* before `head` now lives in
+this node's `type` field. A step's *end* type is its `tail` node's `type`, so a
+`FieldReference` needs no second checkpoint — the boundary type is stored once, on
+the downstream node, and serves both as this step's result and the next step's
+source.
 
 # Example
 
@@ -184,12 +206,15 @@ A non-empty path: `head` is the current `Reference`,
                    EmptyReferencePath()))
 """
 @document struct ConcreteReferencePath <: ReferencePath
+    type::Any
     head::ReferenceStep
     tail::ReferencePath
 end
 
-ConcreteReferencePath(head::ReferenceStep, tail::ReferencePath) =
-    ConcreteReferencePath(Cell(head), Cell(tail))
+# Backward-compatible two-arg construction: type unknown (`nothing`). Fully
+# untyped so it also catches the pre-wrapped `ConcreteReferencePath(Cell(h), Cell(t))`
+# call sites; the `@document` inner constructor Cell-wraps each field as needed.
+ConcreteReferencePath(head, tail) = ConcreteReferencePath(nothing, head, tail)
 
 """
     ProjectionReference(projection, output_path)
@@ -240,7 +265,7 @@ end
 
 # ── Convenience constructors ─────────────────────────────────────────────
 
-ConcreteReferencePath(head::ReferenceStep) = ConcreteReferencePath(Cell(head), Cell(EmptyReferencePath()))
+ConcreteReferencePath(head::ReferenceStep) = ConcreteReferencePath(nothing, head, EmptyReferencePath())
 
 """
     ReferencePath(steps::Reference...)
