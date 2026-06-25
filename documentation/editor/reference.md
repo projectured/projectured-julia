@@ -14,8 +14,11 @@ A reference is a sequence of typed steps that descend through a document tree. E
 - `FieldReference(name::Cell)` — named struct field
 - `ProjectionReference(projection, output_path)` — projection-introduced element (e.g. delimiters)
 - `PointReference(x::Cell, y::Cell)` — pixel coordinates for hit-testing
-- `TypeReference(type)` — non-navigating type checkpoint (asserts the current node `isa type`; see [Type checkpoints](#type-checkpoints-and-replay-validity))
 - `FunctionReference(f)` — element produced by applying a function
+
+Note: a node's **type** is not a step. Each path node carries a `type` field (the
+type the step descends from); see [Type checkpoints](#type-checkpoints-and-replay-validity).
+`head` is always one of the navigation steps above.
 
 ### The boundary axis
 
@@ -231,49 +234,59 @@ A reference is often captured before an edit and replayed against the document
 (a `JsonString` swapped for a `JsonNumber`, a node retyped, …), the leftover
 steps would silently mis-navigate or throw a bare `getfield` error.
 
-`TypeReference(T)` guards against this. It is **not** a navigation step: it
-asserts that the node reached so far is a `T` and then continues on the *same*
-node. The match rule is `node isa T`.
+Per-node **type checkpoints** guard against this. The type is **folded into every
+path node**: each `ConcreteReferencePath` carries a `type` field recording the
+Julia type of the node it stands on (the type its `head` step descends *from*),
+and the terminal `EmptyReferencePath` records the type of the node the path lands
+on. A node's `head` is therefore **always a navigation step** — there is no
+separate interleaved `TypeReference` *step* and nothing to "skip" (the old
+`skip_type_checkpoints` helper was retired). The match rule is `node isa T`.
+
+A `FieldReference` does not need two checkpoints (a start and an end): a step's
+*start* type is its own node's `type`, its *end* type is its `tail` node's `type`.
+The boundary type is stored once, on the downstream node, serving both roles — so a
+k-step path has k+1 typed nodes (every boundary plus the terminal).
 
 - `evaluate_reference(document, path)` throws `ReferenceTypeMismatch(expected,
-  actual)` when a checkpoint's recorded type no longer matches.
+  actual)` when a node's recorded type no longer matches the document reached.
 - `valid_reference_prefix(document, path)` walks the path and returns the
-  **longest prefix that still resolves** — it stops at the first failing
-  checkpoint (or unfollowable structural step), so the invalid remainder is
-  dropped.
+  **longest prefix that still resolves** — it stops at the first node whose type
+  mismatches (or an unfollowable structural step), dropping the invalid remainder.
 - `is_valid_reference(document, path)` (the two-argument, document-aware method)
-  is `true` iff every checkpoint holds along the whole path. The one-argument
+  is `true` iff every node type holds along the whole path. The one-argument
   `is_valid_reference(obj)` remains a purely *structural* check and is unchanged.
 
 Checkpoints are created programmatically, not by hand:
 
-- `annotate_reference_types(document, path)` returns `path` interleaved with a
-  `TypeReference(typeof(node))` before each navigation step.
-- `strip_reference_types(path)` removes them again, recovering the plain
-  navigation-only path. The two are inverses on an unchanged document.
+- `annotate_reference_types(document, path)` returns `path` with each node's `type`
+  field filled in against `document` (a `{k}` cursor lands on no child, so the
+  terminal after it stays untyped).
+- `strip_reference_types(path)` blanks the node types again, recovering the plain
+  navigation skeleton. The two are inverses on an unchanged document.
+- `fold_reference_types(path)` converts a path that still carries transitional
+  `TypeReference` *steps* (e.g. the ones `@reference ::T` builds, or those the
+  generic `ProjectionTemplate` helpers prepend) into the folded node-type form. It
+  is applied at construction so no stored or consumed path ever holds a checkpoint
+  step.
 
-### Where checkpoints live (canonical at rest, stripped at the boundary)
+### Where checkpoints live (canonical, folded, everywhere)
 
-Checkpoints are now the **canonical form references are held in at rest** —
-*not* an opt-in annotation applied just before replay:
+Folded node types are the **canonical form references are held in** — at rest and
+in projected output alike:
 
 - **Document-domain selections are canonical.** `set_selection!(document, path)`
-  annotates the path against `document` (it does
-  `annotate_reference_types(document, strip_reference_types(path))`), so every
-  document's `selection` cell holds the canonical form. `collect_references`
-  likewise annotates its results, so search results are self-describing too.
-- **The projection boundary strips on entry.** Type checkpoints record an
-  *input-domain* type and are meaningless once a path crosses a projection, so
-  the public `map_reference_forward` / `map_reference_backward` wrappers
-  `strip_reference_types` the incoming path before handing it to the
-  per-projection mapper (the bespoke mappers stay navigation-only). Operation
-  evaluators that navigate by a selection-derived path strip likewise.
-- **`strip_reference_types` is the internal boundary tool**, not a step callers
-  run before applying a path. You normally hand `set_selection!` a plain skeleton
-  (built with `@reference`) and it becomes canonical for you.
+  fills node types against `document` (it does `annotate_reference_types(document,
+  strip_reference_types(path))`), so every document's `selection` cell holds the
+  folded form. `collect_references` likewise annotates its results, so search
+  results are self-describing too.
+- **Mappers and structure-creating printers emit the folded form.** Each printer
+  that builds output structure types the output path it constructs; the generic
+  `ProjectionTemplate` helpers (`_typed`, `_path`, `_prepend`) fold the type
+  checkpoints they assemble. Consumers read `head`/`tail` directly — no path they
+  see carries an interleaved checkpoint step.
 
-The replay/validation primitives are unchanged and still useful when you hold a
-reference across an edit:
+The replay/validation primitives still apply when you hold a reference across an
+edit:
 
 ```julia
 annotated = annotate_reference_types(document, path)   # or just read a selection cell
@@ -281,11 +294,11 @@ annotated = annotate_reference_types(document, path)   # or just read a selectio
 live     = valid_reference_prefix(document, annotated)  # truncate at first mismatch
 ```
 
-> **Projected output selections are currently plain**, not canonical: re-typing
-> them against each render domain (Option B "output residency") is deferred —
-> see `plan/pending/type-reference-everywhere.md`. The boundary wrapper has a
-> one-line switch to enable it once the render/layout selection consumers are
-> made checkpoint-tolerant.
+> **Implementation note.** `TypeReference(T)` survives only as an internal
+> *build-time token*: the `@reference ::T` DSL and the `ProjectionTemplate`
+> helpers emit it, and `fold_reference_types` immediately folds it into node
+> `type` fields. It never appears as a step in a stored or consumed path. Removing
+> the token type entirely (building folded nodes directly) is a possible follow-up.
 
 ## Reference DSL: `@reference`
 
