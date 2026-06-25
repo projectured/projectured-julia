@@ -61,8 +61,6 @@ end
     selection::Reference = nothing
 end
 
-JsonArray(items::JsonDocument...) = JsonArray(collect(items))
-
 @document struct JsonObjectEntry <: JsonDocument
     key::String
     value::Document

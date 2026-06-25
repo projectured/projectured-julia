@@ -85,10 +85,11 @@ default is present, the macro also generates:
    required (so the zero-arg form never shadows the keyword ctor); fully-defaulted
    structs get none.
 
-6. **Single-`CellVector` constructor** (Rule C) — when exactly one field is a
-   `CellVector` and every other field has a default, `Foo(items::AbstractVector)`
-   wraps the elements per-element via `CellVector(items)` and fills the rest. Used
-   instead of the all-fields positional ctor for collection documents.
+6. **Single-`CellVector` constructors** (Rule C) — when exactly one field is a
+   `CellVector` and every other field has a default, `Foo([a, b])` and the variadic
+   `Foo(a, b)` wrap the elements per-element via `CellVector(items)` and fill the
+   rest. Elements are typed `Document` (the universal base), so a collection may
+   hold children of any domain (mixed JSON / text / widget …).
 """
 macro document(structdef)
     structdef.head === :struct || error("@document expects a struct definition")
@@ -233,14 +234,25 @@ macro document(structdef)
         end
 
         # ── Rule C: when the struct is backed by exactly one `CellVector` field
-        #    and every other field has a default, accept the elements as a plain
-        #    `AbstractVector` and wrap them per-element via `CellVector(items)`
-        #    (CollectionModule already defines `CellVector(::AbstractVector)`).
-        #    `AbstractVector` (not `Vector`) keeps this strictly less specific
-        #    than any hand-written `Foo(::Vector{…})`, so it never redefines or
-        #    makes ambiguous an existing ctor. No variadic form is generated (it
-        #    would clash with typed-variadic ctors like `JsonObject(::Pair...)`).
-        #    Cell-based `Foo` only. ──
+        #    and every other field has a default, accept the elements directly and
+        #    wrap them per-element via `CellVector(items)` (CollectionModule already
+        #    defines `CellVector(::AbstractVector)`). Two element-accepting forms,
+        #    both Cell-based `Foo` only:
+        #
+        #      Foo(items::AbstractVector)   # bracketed: Foo([a, b, c])
+        #      Foo(items::Document...)      # variadic:  Foo(a, b, c)
+        #
+        #    The element type is `Document` (the universal base), not the struct's
+        #    own domain — a collection may hold children of any domain (mixed JSON /
+        #    text / widget …). That choice also makes both forms safe:
+        #      • `AbstractVector` (not `Vector`) stays strictly less specific than
+        #        any hand-written `Foo(::Vector{…})`, so it never redefines one.
+        #      • `Document...` doesn't clash with typed-variadic sugar like
+        #        `JsonObject(::Pair...)` (a `Pair` is not a `Document`), and a more
+        #        specific hand-written `Foo(::SomeDoc...)` always wins over it.
+        #      • At arity == field-count it beats the all-fields inner ctor (whose
+        #        non-element fields — `collapsed::Bool`, `selection::Reference`, … —
+        #        are not `Document`s, so a genuine inner call never matches it).
         cv_fields = [fname for (fname, ftype) in original_fields if ftype === :CellVector]
         if length(cv_fields) == 1 &&
            all(haskey(default_map, f) for (f, ft) in original_fields if ft !== :CellVector)
@@ -248,6 +260,8 @@ macro document(structdef)
             cargs = Any[f === cvf ? :(CellVector(items)) : default_map[f] for f in field_names]
             push!(extra, :($(struct_name)(items::AbstractVector) =
                 $(Expr(:call, struct_name, cargs...))))
+            push!(extra, :($(struct_name)(items::Document...) =
+                $(struct_name)(collect(items))))
         end
     end
 
