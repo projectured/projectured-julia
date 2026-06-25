@@ -8,7 +8,7 @@ the declaration from the implementation and avoids circular dependencies.
 """
 module DocumentApiModule
 
-export Document, clear_selection!, set_selection!, document_read
+export Document, clear_selection!, set_selection!, with_selection, document_read
 
 """
     Document
@@ -48,6 +48,18 @@ in the path navigates to a child document and sets that child's `selection` to
 the remaining tail of the path.
 """
 function set_selection! end
+
+"""
+    with_selection(document, path) -> document
+
+Construct-and-select: set `path` on `document` and propagate it deeply into the
+child documents it traverses (via [`set_selection!`](@ref)), returning
+`document`. The one-expression form of
+`d = SomeDocument(...); set_selection!(d, path); d` — for building a document
+literal whose cursor is fully placed (examples, fixtures, clipboard payloads, and
+the gesture→replace builders).
+"""
+function with_selection end
 
 """
     document_read(document, gesture) -> Union{Operation, Nothing}

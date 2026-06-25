@@ -7,7 +7,7 @@ EditorModule so the Editor type is available.
 module OperationModule
 
 import ..OperationApiModule: Operation, evaluate_operation
-import ..DocumentApiModule: Document, clear_selection!, set_selection!
+import ..DocumentApiModule: Document, clear_selection!, set_selection!, with_selection
 import ..ReferenceModule: ReferencePath, ConcreteReferencePath, EmptyReferencePath, FieldReference, RangeReference, TypeReference, is_element_reference, evaluate_reference, reference_equal, skip_type_checkpoints, annotate_reference_types, strip_reference_types, append_reference
 import ..ReactiveModule: Cell
 export ReplaceSelectionOperation, QuitEditorOperation, QuitEditorException, replace_selection!,
@@ -425,6 +425,16 @@ function set_selection!(document, path)
                 annotate_reference_types(document, strip_reference_types(path))
     _set_selection_walk!(document, canonical)
 end
+
+"""
+    with_selection(document, path) -> document
+
+Construct-and-select convenience: `set_selection!(document, path)` then return
+`document`, so a freshly-built document literal can be selected in a single
+expression. See [`set_selection!`](@ref) for the propagation/canonicalization
+semantics.
+"""
+with_selection(document, path) = (set_selection!(document, path); document)
 
 # Internal recursive walker: assumes `path` is already canonical and writes each
 # suffix into the matching child's selection cell, skipping type checkpoints to

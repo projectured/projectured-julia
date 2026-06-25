@@ -24,6 +24,7 @@ import ..ReferenceCaseModule: var"@reference_case"
 import ..ReferenceBuilderModule: var"@reference"
 import ..PrinterContextModule: child_context
 import ..OperationModule: ReplaceSelectionOperation, replace_document, insert_elements
+import ..DocumentApiModule: with_selection
 import ..PrimitiveModule: StringReplaceRangeOperation
 import ..KeyboardModule: KeyPress, KeyDown
 import ..SyntaxToTextModule: SyntaxNodeToText, _syntax_to_flat
@@ -357,10 +358,6 @@ end
 # its own structural inserts and (via the shared `_xml_read_command`) the
 # type-to-replace of a *selected child* insertion, the way the JSON readers do.
 
-# Set a fresh replacement document's initial (self-relative) selection so the
-# evaluator can drop the cursor inside it after the swap.
-_xml_sel!(doc, path) = (getfield(doc, :selection)[] = path; doc)
-
 # The insertion type-to-replace command (Lisp xml/insertion reader, :298-316):
 # `"` replaces the selected node with an empty text node (cursor in its value),
 # `<` with an empty element (cursor in its start tag). It fires only when the
@@ -377,8 +374,8 @@ function _xml_read_command(input, evt::KeyPress)
     sel === nothing && return nothing
     target = try evaluate_reference(input, sel) catch; nothing end
     target isa XmlInsertion || return nothing
-    newdoc = ch == '"' ? _xml_sel!(XmlText(""), @reference content{0}) :
-                         _xml_sel!(XmlElement(""), @reference tag{0})
+    newdoc = ch == '"' ? with_selection(XmlText(""), @reference content{0}) :
+                         with_selection(XmlElement(""), @reference tag{0})
     replace_document(sel, newdoc)
 end
 
