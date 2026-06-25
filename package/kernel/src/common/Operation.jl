@@ -566,7 +566,14 @@ end
 function _selection_child(document, path::ConcreteReferencePath)
     h = path.head
     child = if h isa FieldReference
-        f = getfield(document, Symbol(h.name))
+        sym = Symbol(h.name)
+        # The path may not match this node (a stale or cross-domain selection):
+        # stop walking gracefully rather than throwing FieldError, mirroring the
+        # guards in `set_selection!` / `clear_selection!`. Previously a leading
+        # `TypeReference` *step* kept `h` from being a `FieldReference` here; with
+        # types folded onto nodes, `h` is the navigation step, so guard explicitly.
+        hasproperty(document, sym) || return nothing
+        f = getfield(document, sym)
         f isa Cell ? f[] : f
     elseif h isa RangeReference
         document isa AbstractString && return nothing
