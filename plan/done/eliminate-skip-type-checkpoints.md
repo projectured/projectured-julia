@@ -381,9 +381,37 @@ structural field.
 - [x] **5** Eliminate `skip_type_checkpoints` — calls, function, export, imports (commit 5).
 - [x] **6** Render folded node types in the compact renderer (commit 6); docs.
 
+### Regressions found by the full sweep + fixed
+
+The base-commit `test_all` diff surfaced one real regression (navigator
+click-on-file repl, +3), traced to the fold removing the leading `TypeReference`
+*step* that had incidentally acted as a cross-domain tripwire. Two fixes (commit
+`fix(fold)`):
+
+1. **`_selection_child` (kernel `Operation.jl`)** did a raw `getfield(document,
+   name)` with **no `hasproperty` guard** — unlike its siblings
+   `set_selection!`/`clear_selection!`. A filesystem `.elements[…]` selection with
+   no Workspace pre-image used to be deflected because the leading `TypeReference`
+   step kept `head` from being a `FieldReference`; folded, `head` is the nav step,
+   so `getfield(Workspace, :elements)` threw `FieldError`. Added the matching
+   graceful guard.
+2. **`@reference_case ::T`** had been made an *enforcing* `<: T` gate in the macro
+   commit, which wrongly rejects re-rooted child selections whose folded node type
+   differs from the documented one. Restored to the documented **optional/tolerant**
+   semantics (a `::T` never fails a match), in both the path and prefix matchers.
+
 ### Test status
 
-Regression-free. Green: `test_cell`, `test_reference_builder` 22/22,
+**Full `test_all`: 230705 pass / 158 fail / 3 error — vs the base-commit
+(`d6c1ea5`) baseline of 165 fail / 3 error.** Every failing location is a strict
+subset of the baseline's (same or fewer), the 3 errors are identical
+(CollapseRoundtrip / DirtyRect / McpTest, pre-existing), and the branch
+incidentally **fixes 7 pre-existing failures** (`ReplTest:87` ×5,
+`SqlToSyntax:113`, `JsonToSyntax:122`) — **zero regressions introduced.** (The 455
+`graph_adaptagrams` failures seen in a fresh worktree are purely the gitignored
+native `.so` being absent; copying it in makes `graph` 4668/4668 + 225/225 pass.)
+
+Green: `test_cell`, `test_reference_builder` 22/22,
 `test_type_reference` 36/36 (updated to folded shapes), `test_json` /
 `test_syntax`, `JsonToSyntax` fwd 11/11 + reader 48/48, all `SyntaxToText`,
 `PrimitiveToText`, `TextToGraphics`, `WordWrapping`/`TextFiltering`/
