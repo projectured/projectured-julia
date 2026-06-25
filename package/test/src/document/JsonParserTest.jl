@@ -8,11 +8,11 @@ using Projectured: jsonparse, xmlparse,
 function test_json_parser()
     @testset "jsonparse" begin
         @test jsonparse("null")  isa JsonNull
-        @test jsonparse("true")[] == true
-        @test jsonparse("false")[] == false
-        @test jsonparse("42")[] == 42
-        @test jsonparse("-3.5")[] == -3.5
-        @test jsonparse("\"hi\\n\"")[] == "hi\n"
+        @test jsonparse("true").value == true
+        @test jsonparse("false").value == false
+        @test jsonparse("42").value == 42
+        @test jsonparse("-3.5").value == -3.5
+        @test jsonparse("\"hi\\n\"").value == "hi\n"
 
         arr = jsonparse("[1, 2, 3]")
         @test arr isa JsonArray

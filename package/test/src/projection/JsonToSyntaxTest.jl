@@ -24,7 +24,7 @@ jtree = projection_print(j2s, jdoc).output
 jout = Cell(() -> render(jtree))
 @test occursin("10", jout[])
 
-jdoc["x"][] = 99
+jdoc["x"].value = 99
 @test !isuptodate(jout)
 @test occursin("99", jout[])
 
@@ -71,13 +71,13 @@ _written(op) = op.operations[1].value
         @test _written(op) isa T
     end
     # Booleans carry the literal the key names.
-    @test _written(read_key(JsonInsertion(), whole, KeyPress('t')))[] === true
-    @test _written(read_key(JsonInsertion(), whole, KeyPress('f')))[] === false
+    @test _written(read_key(JsonInsertion(), whole, KeyPress('t'))).value === true
+    @test _written(read_key(JsonInsertion(), whole, KeyPress('f'))).value === false
     # A digit on a non-number builds a number whose cursor sits after the digit.
     op = read_key(JsonInsertion(), whole, KeyPress('5'))
     @test op isa CompoundOperation
     @test _written(op) isa JsonNumber
-    @test _written(op)[] == 5
+    @test _written(op).value == 5
 end
 
 @testset "replacing the whole root swaps editor.document" begin
@@ -100,7 +100,7 @@ end
     evaluate_operation(ed, op)
     @test ed.document === arr              # root untouched: incremental write
     @test arr[1] isa JsonNumber
-    @test arr[1][] == 5
+    @test arr[1].value == 5
     # Cursor landed inside the new number's text.
     @test selof(arr[1]) isa ConcreteReferencePath
 end

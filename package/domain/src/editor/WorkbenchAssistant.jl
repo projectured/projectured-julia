@@ -74,9 +74,9 @@ using Markdown
 # JSON can be parsed with the project's own parser instead of JSON3, keeping this
 # module dependency-free).
 _json_native(::JsonNull)   = nothing
-_json_native(j::JsonBool)   = j[]
-_json_native(j::JsonNumber) = j[]
-_json_native(j::JsonString) = String(j[])
+_json_native(j::JsonBool)   = j.value
+_json_native(j::JsonNumber) = j.value
+_json_native(j::JsonString) = String(j.value)
 _json_native(j::JsonArray)  = Any[_json_native(e) for e in j.elements]
 # Iterate the `entries` collection field directly: JsonObject no longer forwards
 # `length` (collection-fold), which the Dict constructor needs to presize the

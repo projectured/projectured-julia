@@ -23,8 +23,8 @@ function test_db_catalog_rdbms_to_json(; show_detail=false)
         end
         @test haskey(obj, "host")
         @test haskey(obj, "port")
-        @test obj["host"][] == "myhost"
-        @test obj["port"][] == 5433
+        @test obj["host"].value == "myhost"
+        @test obj["port"].value == 5433
 
         # Children render as a nested (here empty) array; selection is excluded.
         @test haskey(obj, "databases")
@@ -48,7 +48,7 @@ function test_db_catalog_database_to_json(; show_detail=false)
             println("  Database JSON: ", obj)
         end
         @test haskey(obj, "name")
-        @test obj["name"][] == "mydb"
+        @test obj["name"].value == "mydb"
 
         @test haskey(obj, "schemas")
         @test obj["schemas"] isa JsonArray
@@ -71,7 +71,7 @@ function test_db_catalog_schema_to_json(; show_detail=false)
             println("  Schema JSON: ", obj)
         end
         @test haskey(obj, "name")
-        @test obj["name"][] == "public"
+        @test obj["name"].value == "public"
 
         @test haskey(obj, "tables")
         @test obj["tables"] isa JsonArray
@@ -94,7 +94,7 @@ function test_db_catalog_table_to_json(; show_detail=false)
             println("  Table JSON: ", obj)
         end
         @test haskey(obj, "name")
-        @test obj["name"][] == "persons"
+        @test obj["name"].value == "persons"
 
         @test haskey(obj, "columns")
         @test obj["columns"] isa JsonArray
@@ -118,8 +118,8 @@ function test_db_catalog_column_to_json(; show_detail=false)
         end
         @test haskey(obj, "name")
         @test haskey(obj, "data_type")
-        @test obj["name"][] == "name"
-        @test obj["data_type"][] == "text"
+        @test obj["name"].value == "name"
+        @test obj["data_type"].value == "text"
 
         @test !haskey(obj, "selection")
     end
@@ -134,28 +134,28 @@ function test_db_catalog_to_json_dispatch(; show_detail=false)
         rdbms = DbCatalogRdbms("testhost", 5432, CellVector())
         iomap1 = projection_print(p, rdbms)
         @test iomap1.output isa JsonObject
-        @test iomap1.output["host"][] == "testhost"
+        @test iomap1.output["host"].value == "testhost"
 
         db = DbCatalogDatabase("testdb", CellVector())
         iomap2 = projection_print(p, db)
         @test iomap2.output isa JsonObject
-        @test iomap2.output["name"][] == "testdb"
+        @test iomap2.output["name"].value == "testdb"
 
         schema = DbCatalogSchema("public", CellVector())
         iomap3 = projection_print(p, schema)
         @test iomap3.output isa JsonObject
-        @test iomap3.output["name"][] == "public"
+        @test iomap3.output["name"].value == "public"
 
         table = DbCatalogTable("persons", CellVector())
         iomap4 = projection_print(p, table)
         @test iomap4.output isa JsonObject
-        @test iomap4.output["name"][] == "persons"
+        @test iomap4.output["name"].value == "persons"
 
         col = DbCatalogColumn("age", "integer")
         iomap5 = projection_print(p, col)
         @test iomap5.output isa JsonObject
-        @test iomap5.output["name"][] == "age"
-        @test iomap5.output["data_type"][] == "integer"
+        @test iomap5.output["name"].value == "age"
+        @test iomap5.output["data_type"].value == "integer"
     end
 end
 
@@ -180,20 +180,20 @@ function test_db_catalog_to_json_walk(; show_detail=false)
         @test length(obj["databases"]) == 1
 
         dbj = obj["databases"][1]
-        @test dbj["name"][] == "dvdrental"
+        @test dbj["name"].value == "dvdrental"
         @test length(dbj["schemas"]) == 1
 
         schemaj = dbj["schemas"][1]
-        @test schemaj["name"][] == "public"
+        @test schemaj["name"].value == "public"
         @test length(schemaj["tables"]) == 1
 
         tablej = schemaj["tables"][1]
-        @test tablej["name"][] == "film"
+        @test tablej["name"].value == "film"
         @test length(tablej["columns"]) == 1
 
         colj = tablej["columns"][1]
-        @test colj["name"][] == "id"
-        @test colj["data_type"][] == "integer"
+        @test colj["name"].value == "id"
+        @test colj["data_type"].value == "integer"
     end
 end
 

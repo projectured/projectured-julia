@@ -82,17 +82,6 @@ function JsonObject(pairs::Pair{<:AbstractString}...)
     JsonObject(cv, Cell(false), Cell(nothing))
 end
 
-# ── Primitive read / write ───────────────────────────────────────────────
-
-Base.getindex(::JsonNull) = nothing
-Base.getindex(j::JsonBool)   = j.value::Bool
-Base.getindex(j::JsonNumber) = j.value
-Base.getindex(j::JsonString) = j.value::AbstractString
-
-Base.setindex!(j::JsonBool,   v::Bool)          = (j.value = v)
-Base.setindex!(j::JsonNumber, v::Real)          = (j.value = v)
-Base.setindex!(j::JsonString, v::AbstractString) = (j.value = v)
-
 # ── Switch cell to computation ───────────────────────────────────────────
 
 setfn!(j::JsonBool,   f::Function) = (setfn!(getfield(j, :value),    f); j)

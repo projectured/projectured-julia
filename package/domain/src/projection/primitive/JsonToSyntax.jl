@@ -50,7 +50,7 @@ end
 end
 
 @projection_template JsonBoolToSyntaxLeaf JsonBool (prj, doc) ->
-    SyntaxLeaf(bound(:value, Bool, TextString(() -> doc[] ? "true" : "false", prj.style)))
+    SyntaxLeaf(bound(:value, Bool, TextString(() -> doc.value ? "true" : "false", prj.style)))
 
 # ── JsonNumberToSyntaxLeaf ───────────────────────────────────────────────────
 
@@ -60,7 +60,7 @@ end
 
 @projection_template JsonNumberToSyntaxLeaf JsonNumber (prj, doc) ->
     SyntaxLeaf(bound(:value, Real,
-                     hinted_text(() -> string(doc[]), () -> doc[] === nothing, "enter json number", prj.style);
+                     hinted_text(() -> string(doc.value), () -> doc.value === nothing, "enter json number", prj.style);
                      retype = NumberReplaceRangeOperation))
 
 # ── JsonStringToSyntaxLeaf ───────────────────────────────────────────────────
@@ -72,7 +72,7 @@ end
 
 @projection_template JsonStringToSyntaxLeaf JsonString (prj, doc) ->
     SyntaxLeaf(bound(:value, String,
-                     hinted_text(() -> json_escape(doc[]), () -> isempty(doc[]), "enter json string", prj.value_style));
+                     hinted_text(() -> json_escape(doc.value), () -> isempty(doc.value), "enter json string", prj.value_style));
                open=TextString("\"", prj.quote_style),
                close=TextString("\"", prj.quote_style))
 
