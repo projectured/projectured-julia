@@ -334,8 +334,9 @@ function test_search_object()
                 p = p.tail
             end
         end
-        @test any(s -> s.head isa TypeReference, steps)
-        @test ar.head isa TypeReference
+        @test any(s -> s.type !== nothing, steps)   # folded: nodes carry types
+        @test ar.head isa FieldReference             # head is always a nav step now
+        @test ar.type !== nothing                    # first node records the document type
         @test evaluate_reference(doc, strip_reference_types(ar)) == "Alice"
     end
 
