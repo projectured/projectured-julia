@@ -11,7 +11,7 @@ The domain includes:
 module JsonModule
 
 import ..ReactiveModule: Cell
-import ..DocumentModule: Document, @document, @forward
+import ..DocumentModule: Document, @document, @forward_vector, @forward_map
 import ..CollectionModule: CellVector
 import ..ReferenceModule: Reference, ReferencePath, ConcreteReferencePath, PositionReference, RangeReference, FieldReference, EmptyReferencePath, evaluate_reference
 import ..ReferenceBuilderModule: var"@reference"
@@ -61,88 +61,30 @@ end
     selection::Reference = nothing
 end
 
-@forward JsonArray elements [Base.size, Base.length, Base.isempty,
-                             Base.firstindex, Base.lastindex, Base.eachindex,
-                             Base.getindex, Base.setindex!, Base.iterate,
-                             Base.push!, Base.pop!, Base.insert!, Base.deleteat!]
+@forward_vector JsonArray elements
 
 @document struct JsonObjectEntry <: JsonDocument
     key::String
     value::Document
     collapsed::Bool = false
     selection::Reference = nothing
-end
+end    
 
 @document struct JsonObject <: JsonDocument
     entries::CellVector = CellVector()
     collapsed::Bool = false
     selection::Reference = nothing
-end
+end    
+
+@forward_map JsonObject entries key value JsonObjectEntry
 
 function JsonObject(pairs::Pair{<:AbstractString}...)
     cv = CellVector()
     for (k, v) in pairs
         push!(cv, Cell(JsonObjectEntry(String(k), v)))
-    end
+    end    
     JsonObject(cv, Cell(false), Cell(nothing))
-end
-
-# ── Object internals ──────────────────────────────────────────────────────
-
-"""
-    entries(j::JsonObject)
-
-Return the `CellVector` containing the object's entries. This is the underlying
-storage for the object's key-value pairs.
-"""
-entries(j::JsonObject) = j.entries   # CellVector
-
-function Base.haskey(j::JsonObject, key::AbstractString)
-    any(e -> e.key == key, j.entries)
-end
-
-Base.keys(j::JsonObject)   = [e.key    for e in j.entries]
-Base.values(j::JsonObject) = [e.value for e in j.entries]
-
-function Base.iterate(j::JsonObject, state=1)
-    state > length(j.entries) && return nothing
-    e = j.entries[state]
-    return ((e.key, e.value), state + 1)
-end
-
-function Base.getindex(j::JsonObject, key::AbstractString)
-    for e in j.entries
-        e.key == key && return e.value
-    end
-    throw(KeyError(key))
-end
-
-function Base.setindex!(j::JsonObject, v::Document, key::AbstractString)
-    val = v
-    for i in eachindex(j.entries)
-        e = j.entries[i]
-        if e.key == key
-            j.entries[i] = JsonObjectEntry(e.key, Cell(val), getfield(e, :collapsed), getfield(e, :selection))
-            return v
-        end
-    end
-    push!(j.entries, Cell(JsonObjectEntry(String(key), val)))
-    return v
-end
-
-function Base.delete!(j::JsonObject, key::AbstractString)
-    for i in length(j.entries):-1:1
-        j.entries[i].key == key && deleteat!(j.entries, i)
-    end
-    return j
-end
-
-function Base.get(j::JsonObject, key::AbstractString, default)
-    for e in j.entries
-        e.key == key && return e.value
-    end
-    return default
-end
+end    
 
 # Text/number replace edits need no per-type method: `JsonString.value` and
 # `JsonObjectEntry.key` are plain strings, and `JsonNumber.value` is a number
