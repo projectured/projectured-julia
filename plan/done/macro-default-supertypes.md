@@ -156,49 +156,58 @@ Only the **direct `<: Document`** sites are redundant. Domain-abstract
 supertypes (`<: JsonDocument`, etc.) carry real dispatch meaning and **must
 stay**. Do not blanket-strip every `<: …` from `@document` structs.
 
-## Implementation order
+## Implementation order — DONE
 
-Work in a dedicated git worktree. Commit per step.
+Implemented in worktree `macro-default-supertypes` (branch
+`worktree-macro-default-supertypes`). Commits per step.
 
-1. **Enable** — apply the three macro edits above (only #1 and #2 change code).
-   `@iomap` untouched. This alone changes no behavior of existing code.
-   - Verify: `test_cell()` plus one targeted domain that exercises both macros,
-     e.g. `test_json()` (JSON documents + JSON→Syntax projections), still green.
+1. ✅ **Enable** — applied the `@projection` and `@document` macro edits (#1, #2).
+   `@iomap` untouched. Commit `ab34765`.
+   - Verified: `test_cell()` 25/25, `test_json()` 24/24 green.
 
-2. **Migrate `@projection` call sites** — drop the trailing `<: Projection` from
-   every `@projection struct … <: Projection`. Purely mechanical
-   (`<: Projection` → ``), ~135 sites across `package/domain/src/projection/`.
-   Delegate to a **Sonnet subagent** (broad repetitive edit). Constraints for the
-   subagent:
-   - Only strip `<: Projection` (the exact base type), never a different
-     supertype.
-   - Leave the `import … Projection` lines in place — `Projection` is still
-     referenced by signatures like `map_reference_forward(p::Projection, …)`.
-   - Group commits by domain folder (json, julia, sql, widget, math, …) so each
-     commit is reviewable and individually testable.
-   - After each domain folder: run that domain's targeted test (`test_json()`,
-     `test_sql()`, `test_syntax()`, the widget/graphics pipeline test, …).
+2. ✅ **Migrate `@projection` call sites** — stripped `<: Projection` from
+   **137** sites (turned out to all live in one folder,
+   `package/domain/src/projection/primitive/`, 16 files — so one reviewable
+   commit rather than per-folder). Done with a single `sed`; `import … Projection`
+   lines left intact. Commit `d5e16ce`.
+   - Verified: `test_json`, `test_syntax`, `test_json_to_syntax` green;
+     `test_projections` 1439 pass with only the known pre-existing baselines
+     failing — proving the migrated projections still dispatch as `<: Projection`.
 
-3. **Migrate the ~15 direct `@document … <: Document` sites** — drop `<: Document`
-   from exactly those types listed in Background. Leave every domain-abstract
-   supertype alone. Smaller, can be done on Opus or delegated with an explicit
-   allow-list of the 15 type names.
-   - Verify each affected type still snapshots: the `I`-struct must remain a
-     `Document` subtype (e.g. `IAddress <: Document`). A quick REPL check
-     `IAddress <: Document` should be `true`.
+3. ✅ **Migrate the direct `@document … <: Document` sites** — **17** sites (the
+   plan estimated ~15) across domain/example/kernel/test. Domain-abstract
+   supertypes (194 of them, `<: JsonDocument` etc.) left untouched. Commit
+   `86de2d4`.
+   - Verified: all four packages precompile; `test_collection`,
+     `test_gesture_binding`, `test_gesture_map`, `test_object_to_widget`,
+     `test_tooltip`, `test_reference_inspector_text`,
+     `test_layout_constraint_helpers` all green (exercises the `I`-struct
+     snapshot path too).
 
-4. **Docs** — update `documentation/macros.md`:
-   - State that `@document`/`@projection`/`@iomap` now default to
-     `Document`/`Projection`/`IoMap` when no supertype is given, and that an
-     explicit supertype (including a domain abstract type) overrides the default.
-   - Update the illustrative snippets to use the bare form where appropriate.
-   - Update the "How this pattern threads through the codebase" notes.
+4. ✅ **Docs** — updated `documentation/macros.md`: added a "Default base
+   supertype" section, moved the `@projection`/kwdef examples to the bare form,
+   noted `@iomap` was the first to do this, and corrected the stale "projection
+   structs are usually plain `struct <: Projection`" claim. Commit `46ee756`.
 
-5. **Sweep** — `test_all()` once at the end as a broad regression check (per
-   CLAUDE.md, only after the targeted tests pass). Compare against the known
-   green baseline (~13 known-incomplete failures, not regressions).
+5. ✅ **Sweep** — `test_all()` run on the change AND on the base commit
+   `82a332a` in an identical environment (same copied native `.so`). The
+   per-failure fingerprint (by test `file:line`) is **byte-identical**:
+   **165 fail / 3 error on both**, zero delta. So the change introduces **zero
+   regressions**. (The "~13" figure in the old `test-suite-green` memory is stale
+   — the suite has since grown to ~230k tests; the 165 failures are all
+   pre-existing known-incomplete features: `TypeinTest:269` ×111 "KeyPress→no
+   edit", `MouseClickTest:218` ×31, conversation REPL ×5, SplitPaneDrag ×8,
+   SqlToSyntax/JSON-array-insert/TableNavigation ×1 each, plus the worktree's
+   environmental `DirtyRectTest` SDL `UndefVarError`.)
 
-6. Move this plan to `plan/done/`.
+6. ✅ Moved this plan to `plan/done/`.
+
+### Why this is provably safe
+
+For every migrated site the supertype was already written explicitly as the
+base type, so the macro now *injects the same symbol it used to read* — the
+generated struct/`I`-struct is byte-identical to before. The byte-identical
+`test_all` fingerprint is the empirical confirmation.
 
 ## Risks / edge cases
 
