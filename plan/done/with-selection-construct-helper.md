@@ -58,9 +58,9 @@ with_selection(document, path) = (set_selection!(document, path); document)
 Migrate the genuine **construct-and-select** sites (build a fresh document and
 hand it on as one value):
 
-- [ ] `Json.jl` — replace `_sel!` at its 8 gesture call sites, delete `_sel!`.
-- [ ] `XmlToSyntax.jl` — replace `_xml_sel!` at its 2 sites, delete `_xml_sel!`.
-- [ ] `Formula.jl` — `with_selection(FormulaEnvironment([...]), @reference formulas[1])`.
+- [x] `Json.jl` — replace `_sel!` at its 8 gesture call sites, delete `_sel!`.
+- [x] `XmlToSyntax.jl` — replace `_xml_sel!` at its 2 sites, delete `_xml_sel!`.
+- [x] `Formula.jl` — `with_selection(FormulaEnvironment([...]), @reference formulas[1])`.
 
 Deliberately **left on `set_selection!`** — these are in-place selection updates
 of an existing/reused document (or a long-lived screen), not construct-and-select,
@@ -83,6 +83,26 @@ but this must be confirmed empirically, not assumed.
 Tests: targeted JSON type-to-replace / repl, XML equivalent, and the Formula
 example still constructs with its seeded selection.
 
+## Test results (verified)
+
+Package compiles/loads cleanly with the new wiring. Targeted battery:
+
+- `test_json` 24/24; `test_repl(json_example)` 225/225; `test_repl(xml_example)`
+  225/225; `test_formula_to_syntax` 36/36 — all green.
+- `test_json_to_syntax_reader` 47/1/0 = documented baseline. The
+  **"type-to-replace builds the right document"** subtests (the path this change
+  touches) are **19/19 green**; the single failure is the pre-existing
+  "array insert appends an insertion" quirk (`_array_insert`, untouched).
+- `test_typein(json_example)` 0/22 and `test_typein(xml_example)` 0/51 fail
+  wholesale ("no cursor in Graphics image"). **Confirmed pre-existing**: reverting
+  the 5 files to the base commit reproduces the identical 0/22 and 0/51, so this
+  is unrelated to the change (typing into a leaf char-cursor never hits the
+  `when(_json_replaceable …)`-guarded type-to-replace gestures).
+
+Caveat resolved: the canonicalized top-cell selection threads through
+`replace_document`/`_concat_paths` correctly — the 19/19 type-to-replace
+assertions and 225/225 repl roundtrips confirm no behavioural change.
+
 ## Status
 
-In progress.
+Done — implemented in commit `55821d4`, verified no regressions.
