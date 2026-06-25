@@ -1,14 +1,14 @@
 using Projectured.DocumentModule: Document
 using Projectured.ReferenceModule: Reference
 
-@document struct Address <: Document
+@document struct Address
     street::String
     city::String
     zip::String
     selection::Reference
 end
 
-@document struct Person <: Document
+@document struct Person
     name::String
     age::Int
     active::Bool

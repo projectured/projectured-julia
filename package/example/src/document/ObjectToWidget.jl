@@ -5,7 +5,7 @@ using Projectured.ReferenceModule: Reference
 # an editable widget form: the String becomes an editable text field, each Bool
 # a checkbox. Typing edits the (single) text field; clicking a checkbox toggles
 # it.
-@document struct SearchSettings <: Document
+@document struct SearchSettings
     query::String
     case_insensitive::Bool
     whole_word::Bool
@@ -20,7 +20,7 @@ end
 # (`window`) renders as a collapsible card holding its own label|control grid, and
 # a vector (`tags`) renders as a collapsible card holding a vertical list. Scalar
 # fields at every level whose backing is a `Cell` stay editable.
-@document struct WindowSettings <: Document
+@document struct WindowSettings
     title::String
     width::Int
     height::Int
@@ -28,7 +28,7 @@ end
     selection::Reference
 end
 
-@document struct AppSettings <: Document
+@document struct AppSettings
     name::String
     dark_mode::Bool
     window::WindowSettings

@@ -204,7 +204,7 @@ these values to allocate available space across its children; a bare
 Each axis field is `nothing` by default. When `nothing`, the parent layout
 falls back to the bare-child interpretation for that field.
 """
-@document struct LayoutConstraint <: Document
+@document struct LayoutConstraint
     child::Document
     min_width::Any
     preferred_width::Any

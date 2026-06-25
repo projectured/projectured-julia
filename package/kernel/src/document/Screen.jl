@@ -43,7 +43,7 @@ Top-level container modelling a set of open windows. `windows` is a
 frames but carries no visual semantics — window identity is the
 `WindowDocument.id` `Symbol`.
 """
-@document struct ScreenDocument <: Document
+@document struct ScreenDocument
     windows::CellVector
     selection::Reference
 end
@@ -77,7 +77,7 @@ projected.
   projection: any domain document. After projection: typically a
   `GraphicsCanvas`.
 """
-@document struct WindowDocument <: Document
+@document struct WindowDocument
     id::Symbol
     title::String
     x::Int

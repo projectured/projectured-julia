@@ -45,7 +45,7 @@ A document wrapping the gesture rows for display. Read-only: it carries the
 `selection` field the `Document` contract requires, but no editing gestures of
 its own.
 """
-@document struct GestureMap <: Document
+@document struct GestureMap
     rows::Any = GestureRow[]
     selection::Reference = nothing
 end

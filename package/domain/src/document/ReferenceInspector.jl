@@ -39,7 +39,7 @@ the `target` document it points into.
   human-readable projection to resolve the parent type of each step. May be
   `nothing` when no type narration is wanted.
 """
-@document struct ReferenceInspector <: Document
+@document struct ReferenceInspector
     reference::Reference
     target::Any
     selection::Reference

@@ -40,10 +40,10 @@ end
     KeyDown(:v; ctrl)              => "Paste"         => MarkOperation(:paste)
 end
 
-@document struct ProbeAlpha <: Document
+@document struct ProbeAlpha
     selection::Reference = nothing
 end
-@document struct ProbeBeta <: Document
+@document struct ProbeBeta
     selection::Reference = nothing
 end
 

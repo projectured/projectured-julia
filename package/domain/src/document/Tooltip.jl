@@ -38,7 +38,7 @@ events arriving at this node and emits `OpenWindowOperation` /
 - `style::Symbol` — forwarded to the eventual `WindowDocument.style`.
 - `id::Symbol` — backend window id; must be unique within the screen.
 """
-@document struct TooltipSource <: Document
+@document struct TooltipSource
     child::Document
     content::Document
     style::Symbol = :tooltip

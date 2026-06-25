@@ -33,7 +33,7 @@ export CellVector, CellMatrix, CellTable, ListNode, CollectionDocument,
 # ── CellVector ────────────────────────────────────────────────────────────
 # A vector document where each slot is a reactive Cell.
 
-@document struct CellVector <: Document
+@document struct CellVector
     elements::Vector{Cell}
     selection::Reference
 end
@@ -129,7 +129,7 @@ end
 # Structural mutations (insert/delete row/column) reallocate the underlying
 # Matrix{Cell}, but Cell references remain stable.
 
-@document struct CellMatrix <: Document
+@document struct CellMatrix
     elements::Matrix{Cell}
     selection::Reference
 end
@@ -231,7 +231,7 @@ end
 # O(nrows) — the same cost as CellVector.insert! — without copying every
 # cell in the matrix. Column access requires iterating rows.
 
-@document struct CellTable <: Document
+@document struct CellTable
     rows::CellVector
     selection::Reference
 end
@@ -286,7 +286,7 @@ end
 # A doubly-linked list node. The node you hold IS the head (middle of the
 # list). `prev` and `next` are the two tails growing in opposite directions.
 
-@document struct ListNode <: Document
+@document struct ListNode
     value::Any
     prev::Union{ListNode, Nothing}
     next::Union{ListNode, Nothing}
