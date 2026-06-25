@@ -84,7 +84,7 @@ end
 
 @projection struct JsonStringToSyntaxLeaf <: Projection
     quote_style::StyleText = StyleText(font_ubuntu_monospace_regular_24, color_solarized_yellow)
-    value::StyleText = StyleText(font_ubuntu_monospace_regular_24, color_solarized_green)
+    value_style::StyleText = StyleText(font_ubuntu_monospace_regular_24, color_solarized_green)
 end
 
 # bound(:value) for the string text. The `"` delimiters are selectable introduced
@@ -92,15 +92,15 @@ end
 # projection's own ProjectionReference.
 @projection_template JsonStringToSyntaxLeaf JsonString (p, doc) ->
     SyntaxLeaf(bound(:value, String,
-                     _hinted_text(() -> json_escape(doc[]), () -> isempty(doc[]), "enter json string", p.value));
+                     _hinted_text(() -> json_escape(doc[]), () -> isempty(doc[]), "enter json string", p.value_style));
                open=TextString("\"", p.quote_style),
                close=TextString("\"", p.quote_style))
 
 # ── JsonArrayToSyntaxNode ────────────────────────────────────────────────────
 
 @projection struct JsonArrayToSyntaxNode <: Projection
-    delim::StyleText = StyleText(font_ubuntu_monospace_bold_24, color_solarized_gray)
-    sep::StyleText = StyleText(font_ubuntu_monospace_regular_24, color_solarized_gray)
+    delimiter_style::StyleText = StyleText(font_ubuntu_monospace_bold_24, color_solarized_gray)
+    separator_style::StyleText = StyleText(font_ubuntu_monospace_regular_24, color_solarized_gray)
 end
 
 # collection(:elements) recurses over doc.elements and records (.elements[i] ↔
@@ -108,18 +108,18 @@ end
 # fallback below maps them to a flat text offset.
 @projection_template JsonArrayToSyntaxNode JsonArray (p, doc) ->
     SyntaxNode(collection(:elements);
-               open=TextString("[", p.delim),
-               close=TextString("]", p.delim),
-               sep=TextString(", ", p.sep),
+               open=TextString("[", p.delimiter_style),
+               close=TextString("]", p.delimiter_style),
+               sep=TextString(", ", p.separator_style),
                indentation=1)
 
 # ── JsonObjectToSyntaxNode ───────────────────────────────────────────────────
 
 @projection struct JsonObjectToSyntaxNode <: Projection
-    delim::StyleText = StyleText(font_ubuntu_monospace_bold_24, color_solarized_gray)
-    sep::StyleText = StyleText(font_ubuntu_monospace_regular_24, color_solarized_gray)
-    key::StyleText = StyleText(font_ubuntu_monospace_regular_24, color_solarized_blue)
-    colon::StyleText = StyleText(font_ubuntu_monospace_regular_24, color_solarized_gray)
+    delimiter_style::StyleText = StyleText(font_ubuntu_monospace_bold_24, color_solarized_gray)
+    separator_style::StyleText = StyleText(font_ubuntu_monospace_regular_24, color_solarized_gray)
+    key_style::StyleText = StyleText(font_ubuntu_monospace_regular_24, color_solarized_blue)
+    colon_style::StyleText = StyleText(font_ubuntu_monospace_regular_24, color_solarized_gray)
 end
 
 # collection(:entries) builds a per-entry pair node [key_leaf, value]: the key leaf
@@ -131,18 +131,18 @@ end
                    # Fixed-children template node: `_fixed_print` finds children via
                    # `isa Vector` to locate the `project(:value)` marker, so they must stay
                    # a raw Vector (not the CellVector the keyword `children` path produces).
-                   SyntaxNode(TextString("", p.delim.font, color_default),
-                              TextString("", p.delim.font, color_default),
-                              TextString(": ", p.colon),
-                              [ SyntaxLeaf(bound(:key, String, _hinted_text(() -> json_escape(e.key), () -> isempty(e.key), "enter key", p.key));
-                                           open=TextString("\"", p.key),
-                                           close=TextString("\"", p.key)),
+                   SyntaxNode(TextString("", p.delimiter_style.font, color_default),
+                              TextString("", p.delimiter_style.font, color_default),
+                              TextString(": ", p.colon_style),
+                              [ SyntaxLeaf(bound(:key, String, _hinted_text(() -> json_escape(e.key), () -> isempty(e.key), "enter key", p.key_style));
+                                           open=TextString("\"", p.key_style),
+                                           close=TextString("\"", p.key_style)),
                                 project(:value) ],
                               0, false, getfield(e, :selection))
                end;
-               open=TextString("{", p.delim),
-               close=TextString("}", p.delim),
-               sep=TextString(", ", p.sep),
+               open=TextString("{", p.delimiter_style),
+               close=TextString("}", p.delimiter_style),
+               sep=TextString(", ", p.separator_style),
                indentation=1)
 
 # ── Reader: structural (projection-introduced) positions only ───────────────
