@@ -39,7 +39,6 @@ export JsonInsertionToSyntaxLeaf, JsonNullToSyntaxLeaf, JsonBoolToSyntaxLeaf, Js
     style::StyleText = StyleText(font_ubuntu_monospace_regular_24, color_solarized_magenta)
 end
 
-# Fixed label, no editable value: no marker, so the selection maps straight through.
 @projection_template JsonNullToSyntaxLeaf JsonNull (p, doc) ->
     SyntaxLeaf(TextString("null", p.style))
 
@@ -49,7 +48,6 @@ end
     style::StyleText = StyleText(font_ubuntu_monospace_regular_24, color_solarized_gray)
 end
 
-# Fixed placeholder, like JsonNull.
 @projection_template JsonInsertionToSyntaxLeaf JsonInsertion (p, doc) ->
     SyntaxLeaf(TextString("insert JSON here", p.style))
 
@@ -59,8 +57,6 @@ end
     style::StyleText = StyleText(font_ubuntu_monospace_regular_24, color_solarized_yellow)
 end
 
-# bound(:value) makes the leaf text track JsonBool.value and share its selection
-# cell, so .value{k} maps both ways.
 @projection_template JsonBoolToSyntaxLeaf JsonBool (p, doc) ->
     SyntaxLeaf(bound(:value, Bool, TextString(() -> doc[] ? "true" : "false", p.style)))
 
@@ -70,8 +66,6 @@ end
     style::StyleText = StyleText(font_ubuntu_monospace_regular_24, color_solarized_magenta)
 end
 
-# bound(:value); `retype` rewrites the value edit into a NumberReplaceRangeOperation
-# so numeric parsing applies.
 @projection_template JsonNumberToSyntaxLeaf JsonNumber (p, doc) ->
     SyntaxLeaf(bound(:value, Real,
                      _hinted_text(() -> string(doc[]), () -> doc[] === nothing, "enter json number", p.style);
@@ -84,9 +78,6 @@ end
     value_style::StyleText = StyleText(font_ubuntu_monospace_regular_24, color_solarized_green)
 end
 
-# bound(:value) for the string text. The `"` delimiters are selectable introduced
-# text with no JSON pre-image, so a quote selection round-trips through this
-# projection's own ProjectionReference.
 @projection_template JsonStringToSyntaxLeaf JsonString (p, doc) ->
     SyntaxLeaf(bound(:value, String,
                      _hinted_text(() -> json_escape(doc[]), () -> isempty(doc[]), "enter json string", p.value_style));
@@ -100,9 +91,6 @@ end
     separator_style::StyleText = StyleText(font_ubuntu_monospace_regular_24, color_solarized_gray)
 end
 
-# collection(:elements) recurses over doc.elements and records (.elements[i] ↔
-# .children[i]). The [, ], and , positions are projection-introduced; the reader
-# fallback below maps them to a flat text offset.
 @projection_template JsonArrayToSyntaxNode JsonArray (p, doc) ->
     SyntaxNode(collection(:elements);
                open=TextString("[", p.delimiter_style),
@@ -119,15 +107,8 @@ end
     colon_style::StyleText = StyleText(font_ubuntu_monospace_regular_24, color_solarized_gray)
 end
 
-# collection(:entries) builds a per-entry pair node [key_leaf, value]: the key leaf
-# is bound(:key) and `project(:value)` delegates the value subtree to its own
-# projection. Structural positions ({, }, :, separators) map to a flat offset via
-# the reader fallback below.
 @projection_template JsonObjectToSyntaxNode JsonObject (p, doc) ->
     SyntaxNode(collection(:entries) do e
-                   # Fixed-children template node: `_fixed_print` finds children via
-                   # `isa Vector` to locate the `project(:value)` marker, so they must stay
-                   # a raw Vector (not the CellVector the keyword `children` path produces).
                    SyntaxNode(TextString("", p.delimiter_style),
                               TextString("", p.delimiter_style),
                               TextString(": ", p.colon_style),
@@ -141,21 +122,6 @@ end
                close=TextString("}", p.delimiter_style),
                sep=TextString(", ", p.separator_style),
                indentation=1)
-
-# ── Reader: structural (projection-introduced) positions only ───────────────
-#
-# The JSON *authoring* command set (type-to-replace, `,`-insert, Tab) now lives on
-# the document types as reified `@gestures` in `JsonModule` and reaches the JSON
-# layer through the generic `document_read` fallback in `projection_read`. Only the
-# structural flat-offset reader below stays here: brackets/braces/commas/colons
-# have no JSON pre-image, so they are genuinely projection-specific.
-
-# Structural positions (brackets/braces/comma/colon) have no JSON pre-image. The
-# generic `projection_read(::Projection, ::RuleIoMap, ::ReplaceSelectionOperation)`
-# fallback in `ProjectionTemplate` already wraps such an unmapped output path into
-# this projection's own `ProjectionReference` step, and SyntaxToText's
-# `_syntax_to_flat` resolves that wrapped path transparently — so no JSON-specific
-# structural reader is needed here.
 
 # ── Compound convenience constructor ────────────────────────────────────────
 
