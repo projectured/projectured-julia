@@ -52,7 +52,7 @@ export DbCatalogColumnToSyntaxLeaf, DbCatalogTableToSyntaxNode, DbCatalogSchemaT
 
 # ── DbCatalogColumnToSyntaxLeaf ───────────────────────────────────────────────
 
-@projection struct DbCatalogColumnToSyntaxLeaf <: Projection
+@projection struct DbCatalogColumnToSyntaxLeaf
     style::StyleText = StyleText(font_ubuntu_monospace_regular_24, color_solarized_magenta)
 end
 
@@ -249,7 +249,7 @@ end
 
 # ── DbCatalogTableToSyntaxNode ────────────────────────────────────────────────
 
-@projection struct DbCatalogTableToSyntaxNode <: Projection
+@projection struct DbCatalogTableToSyntaxNode
     name::StyleText = StyleText(font_ubuntu_monospace_bold_24, color_solarized_green)
 end
 
@@ -271,7 +271,7 @@ projection_read(p::DbCatalogTableToSyntaxNode, iomap::ChildrenIoMap, op::Replace
 
 # ── DbCatalogSchemaToSyntaxNode ───────────────────────────────────────────────
 
-@projection struct DbCatalogSchemaToSyntaxNode <: Projection
+@projection struct DbCatalogSchemaToSyntaxNode
     name::StyleText = StyleText(font_ubuntu_monospace_bold_24, color_solarized_blue)
 end
 
@@ -293,7 +293,7 @@ projection_read(p::DbCatalogSchemaToSyntaxNode, iomap::ChildrenIoMap, op::Replac
 
 # ── DbCatalogDatabaseToSyntaxNode ─────────────────────────────────────────────
 
-@projection struct DbCatalogDatabaseToSyntaxNode <: Projection
+@projection struct DbCatalogDatabaseToSyntaxNode
     name::StyleText = StyleText(font_ubuntu_monospace_bold_24, color_solarized_red)
 end
 
@@ -315,7 +315,7 @@ projection_read(p::DbCatalogDatabaseToSyntaxNode, iomap::ChildrenIoMap, op::Repl
 
 # ── DbCatalogRdbmsToSyntaxNode ────────────────────────────────────────────────
 
-@projection struct DbCatalogRdbmsToSyntaxNode <: Projection
+@projection struct DbCatalogRdbmsToSyntaxNode
     name::StyleText = StyleText(font_ubuntu_monospace_bold_24, color_solarized_red)
 end
 

@@ -27,7 +27,7 @@ import ..PrinterContextModule: PrinterContext
 
 export GestureMapToSyntax
 
-@projection struct GestureMapToSyntax <: Projection
+@projection struct GestureMapToSyntax
     header::StyleText = StyleText(font_ubuntu_monospace_bold_24, color_solarized_blue)
     gesture::StyleText = StyleText(font_ubuntu_monospace_bold_24, color_solarized_green)
     description::StyleText = StyleText(font_ubuntu_monospace_regular_24, color_default)

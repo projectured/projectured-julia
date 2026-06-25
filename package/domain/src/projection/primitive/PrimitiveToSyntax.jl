@@ -28,7 +28,7 @@ export PrimitiveBoolToSyntaxLeaf, PrimitiveNumberToSyntaxLeaf, PrimitiveStringTo
 
 # ── PrimitiveBoolToSyntaxLeaf ────────────────────────────────────────────────
 
-@projection struct PrimitiveBoolToSyntaxLeaf <: Projection
+@projection struct PrimitiveBoolToSyntaxLeaf
     style::StyleText = StyleText(font_ubuntu_monospace_regular_24, color_solarized_cyan)
 end
 
@@ -58,7 +58,7 @@ end
 
 # ── PrimitiveNumberToSyntaxLeaf ──────────────────────────────────────────────
 
-@projection struct PrimitiveNumberToSyntaxLeaf <: Projection
+@projection struct PrimitiveNumberToSyntaxLeaf
     style::StyleText = StyleText(font_ubuntu_monospace_regular_24, color_solarized_magenta)
 end
 
@@ -88,7 +88,7 @@ end
 
 # ── PrimitiveStringToSyntaxLeaf ──────────────────────────────────────────────
 
-@projection struct PrimitiveStringToSyntaxLeaf <: Projection
+@projection struct PrimitiveStringToSyntaxLeaf
     quote_style::StyleText = StyleText(font_ubuntu_monospace_regular_24, color_solarized_yellow)
     value::StyleText       = StyleText(font_ubuntu_monospace_regular_24, color_solarized_green)
 end

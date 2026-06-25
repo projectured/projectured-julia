@@ -52,7 +52,7 @@ export XmlInsertionToSyntaxLeaf, XmlTextToSyntaxLeaf, XmlElementToSyntaxNode, Xm
 # attribute is provided by a reactive close field on the tag-name leaf:
 # it evaluates to " " when attributes are present and "" otherwise.
 
-@projection struct XmlTextToSyntaxLeaf <: Projection
+@projection struct XmlTextToSyntaxLeaf
     style::StyleText = StyleText(font_ubuntu_monospace_regular_24, color_black)
 end
 
@@ -104,7 +104,7 @@ end
 
 # ── XmlInsertionToSyntaxLeaf ───────────────────────────────────────────────────
 
-@projection struct XmlInsertionToSyntaxLeaf <: Projection
+@projection struct XmlInsertionToSyntaxLeaf
     style::StyleText = StyleText(font_ubuntu_monospace_regular_24, color_solarized_gray)
 end
 
@@ -113,7 +113,7 @@ function projection_print(p::XmlInsertionToSyntaxLeaf, recursion, x::XmlInsertio
     SimpleIoMap(p, x, SyntaxLeaf(TextString("insert XML here", p.style); selection=output_selection))
 end
 
-@projection struct XmlElementToSyntaxNode <: Projection
+@projection struct XmlElementToSyntaxNode
     tag::StyleText        = StyleText(font_ubuntu_monospace_bold_24, color_solarized_blue)
     delim::StyleText      = StyleText(font_ubuntu_monospace_regular_24, color_solarized_gray)
     attr_name::StyleText  = StyleText(font_ubuntu_monospace_regular_24, color_solarized_green)

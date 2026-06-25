@@ -39,7 +39,7 @@ export FileSystemFileToSyntaxLeaf, FileSystemDirectoryToSyntaxNode, FileSystemTo
 
 # ── FileSystemFileToSyntaxLeaf ────────────────────────────────────────────────
 
-@projection struct FileSystemFileToSyntaxLeaf <: Projection
+@projection struct FileSystemFileToSyntaxLeaf
     style::StyleText = StyleText(font_ubuntu_monospace_regular_24, color_solarized_blue)
 end
 
@@ -71,7 +71,7 @@ end
 # Selection mapping (filesystem domain → syntax domain):
 #   .elements[i] + rest  →  .children[2].children[i] + child_sel
 
-@projection struct FileSystemDirectoryToSyntaxNode <: Projection
+@projection struct FileSystemDirectoryToSyntaxNode
     name::StyleText = StyleText(font_ubuntu_monospace_bold_24, color_solarized_red)
 end
 

@@ -84,7 +84,7 @@ Projection that renders a `Reference` as a single-line, color-coded
 token (delimiter, name, index, type) is a separate `TextString` span
 with its own color.
 """
-@projection struct ReferenceToText <: Projection
+@projection struct ReferenceToText
     font::StyleFont = font_ubuntu_monospace_regular_24
 end
 
@@ -197,7 +197,7 @@ document is captured at construction time — reactive callers should
 rebuild the projection inside a `Cell` keyed on the document if they
 need live updates.
 """
-@projection struct ReferenceToHumanReadableText <: Projection
+@projection struct ReferenceToHumanReadableText
     document::Any
     font::StyleFont = font_ubuntu_monospace_regular_24
 end

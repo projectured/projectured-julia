@@ -57,7 +57,7 @@ _empty(font) = TextString("", font, color_default)
 # The "insert formula" placeholder. A projection-introduced leaf with no editable
 # input value, so the default forward mapper (proj-unwrapping) is correct.
 
-@projection struct FormulaInsertionToSyntaxLeaf <: Projection
+@projection struct FormulaInsertionToSyntaxLeaf
     style::StyleText = StyleText(font_ubuntu_monospace_regular_24, color_solarized_gray)
 end
 
@@ -74,7 +74,7 @@ end
 # target, not editable here, so the leaf has no input value mapping (the cursor
 # selects the whole reference).
 
-@projection struct FormulaReferenceToSyntaxLeaf <: Projection
+@projection struct FormulaReferenceToSyntaxLeaf
     style::StyleText = StyleText(font_ubuntu_monospace_bold_24, color_solarized_violet)
 end
 
@@ -100,7 +100,7 @@ end
 # EvaluatorForm renders its result). Only `code` therefore needs School-A
 # delegation; its output child index depends on the mode.
 
-@projection struct FormulaFormulaToSyntaxNode <: Projection
+@projection struct FormulaFormulaToSyntaxNode
     name::StyleText = StyleText(font_ubuntu_monospace_bold_24, color_solarized_blue)
     op::StyleText   = StyleText(font_ubuntu_monospace_regular_24, color_solarized_gray)
     # The result run shares the op font but is coloured distinctly (green).
@@ -209,7 +209,7 @@ end
 #
 # A plain list — one formula per line — like BookmarkList in the tutorial.
 
-@projection struct FormulaEnvironmentToSyntaxNode <: Projection
+@projection struct FormulaEnvironmentToSyntaxNode
     font::StyleFont = font_ubuntu_monospace_regular_24
 end
 

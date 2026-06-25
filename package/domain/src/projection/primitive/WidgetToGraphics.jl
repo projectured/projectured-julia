@@ -321,12 +321,12 @@ end
 
 # ── Projection structs ─────────────────────────────────────────────────────
 
-@projection struct WidgetLabelToGraphicsCanvas <: Projection
+@projection struct WidgetLabelToGraphicsCanvas
     measure::Function
     text::StyleText        # font + color of the label
 end
 
-@projection struct WidgetTextToGraphicsCanvas <: Projection
+@projection struct WidgetTextToGraphicsCanvas
     measure::Function
     text::StyleText            # font + color of the non-editable form
     background_color::StyleColor
@@ -334,7 +334,7 @@ end
     corner_radius::Int
 end
 
-@projection struct WidgetCheckboxToGraphicsCanvas <: Projection
+@projection struct WidgetCheckboxToGraphicsCanvas
     box_size::Int
     corner_radius::Int
     checked_color::StyleColor      # filled box when checked
@@ -349,7 +349,7 @@ end
 # `@projection` Cell-wraps every field (so each is live-editable via
 # ObjectToWidget and linkable by sharing a Cell) while keeping `p.field`
 # transparent; the factory may pass plain values or Cells.
-@projection struct WidgetButtonToGraphicsCanvas <: Projection
+@projection struct WidgetButtonToGraphicsCanvas
     measure::Function
     label::StyleText            # font + color of the button text
     background_color::StyleColor # resting surface
@@ -361,7 +361,7 @@ end
     shadow_offset::Int
 end
 
-@projection struct WidgetTooltipToGraphicsCanvas <: Projection
+@projection struct WidgetTooltipToGraphicsCanvas
     measure::Function
     text::StyleText             # font + popover foreground
     surface_color::StyleColor    # popover fill
@@ -370,37 +370,37 @@ end
     default_padding::Inset       # fallback padding when the document specifies none
 end
 
-@projection struct WidgetMenuToGraphicsCanvas <: Projection
+@projection struct WidgetMenuToGraphicsCanvas
     measure::Function
     font::StyleFont             # used to measure the per-item row height
 end
 
-@projection struct WidgetMenuItemToGraphicsCanvas <: Projection
+@projection struct WidgetMenuItemToGraphicsCanvas
     measure::Function
     text::StyleText             # font + foreground
 end
 
 struct WidgetCompositeToGraphicsCanvas <: Projection end
 
-@projection struct WidgetShellToGraphicsCanvas <: Projection
+@projection struct WidgetShellToGraphicsCanvas
     measure::Function
     font::StyleFont             # measures the menu/toolbar band heights
     background_color::StyleColor
     band_gap::Int               # gap below the toolbar band
 end
 
-@projection struct WidgetTitlePaneToGraphicsCanvas <: Projection
+@projection struct WidgetTitlePaneToGraphicsCanvas
     measure::Function
     title_text::StyleText        # bold title
     content_text::StyleText      # string-content body
     title_gap::Int
 end
 
-@projection struct WidgetSplitPaneToGraphicsCanvas <: Projection
+@projection struct WidgetSplitPaneToGraphicsCanvas
     splitter::StyleStroke    # divider color + thickness
 end
 
-@projection struct WidgetTabbedPaneToGraphicsCanvas <: Projection
+@projection struct WidgetTabbedPaneToGraphicsCanvas
     measure::Function
     font::StyleFont
     tab_padding::Int
@@ -411,19 +411,19 @@ end
     inactive_foreground::StyleColor
 end
 
-@projection struct WidgetScrollPaneToGraphicsCanvas <: Projection
+@projection struct WidgetScrollPaneToGraphicsCanvas
     measure::Function
     font::StyleFont                  # measures the scroll step
     background_color::StyleColor      # default viewport fill
 end
 
-@projection struct WidgetToolbarToGraphicsCanvas <: Projection
+@projection struct WidgetToolbarToGraphicsCanvas
     measure::Function
     font::StyleFont          # measures each item's advance
     item_gap::Int
 end
 
-@projection struct WidgetScrollBarToGraphicsCanvas <: Projection
+@projection struct WidgetScrollBarToGraphicsCanvas
     track_color::StyleColor       # rail fill
     thumb_color::StyleColor       # thumb fill
     minimum_thumb_length::Int
@@ -711,7 +711,7 @@ end
 # the origin. WidgetInsertion carries no `position`/`content` value of its own,
 # so there is nothing to map; like the sibling JsonInsertion handler it is a
 # projection-introduced placeholder and its reference maps are no-ops.
-@projection struct WidgetInsertionToGraphicsCanvas <: Projection
+@projection struct WidgetInsertionToGraphicsCanvas
     measure::Function
     text::StyleText
 end
@@ -2240,7 +2240,7 @@ end
 
 # ── WidgetBadge ─────────────────────────────────────────────────────────────
 
-@projection struct WidgetBadgeToGraphicsCanvas <: Projection
+@projection struct WidgetBadgeToGraphicsCanvas
     measure::Function
     font::StyleFont                # small pill font
     padding::Inset
@@ -2285,7 +2285,7 @@ end
 
 # ── WidgetSeparator ─────────────────────────────────────────────────────────
 
-@projection struct WidgetSeparatorToGraphicsCanvas <: Projection
+@projection struct WidgetSeparatorToGraphicsCanvas
     stroke::StyleStroke    # color + width of the rule
 end
 
@@ -2308,7 +2308,7 @@ end
 
 # ── WidgetCard ──────────────────────────────────────────────────────────────
 
-@projection struct WidgetCardToGraphicsCanvas <: Projection
+@projection struct WidgetCardToGraphicsCanvas
     measure::Function
     title_text::StyleText
     description_text::StyleText
@@ -2434,7 +2434,7 @@ map_reference_backward(::WidgetCardToGraphicsCanvas, iomap, reference) = nothing
 
 # ── WidgetSwitch ────────────────────────────────────────────────────────────
 
-@projection struct WidgetSwitchToGraphicsCanvas <: Projection
+@projection struct WidgetSwitchToGraphicsCanvas
     track_size::Point2D        # width × height of the track
     knob_padding::Int          # inset of the knob from the track edge
     knob_color::StyleColor     # knob fill
@@ -2464,7 +2464,7 @@ end
 
 # ── WidgetProgress ──────────────────────────────────────────────────────────
 
-@projection struct WidgetProgressToGraphicsCanvas <: Projection
+@projection struct WidgetProgressToGraphicsCanvas
     bar_height::Int
     track_color::StyleColor    # unfilled track
     fill_color::StyleColor     # filled portion
@@ -2490,7 +2490,7 @@ end
 
 # ── WidgetSlider ────────────────────────────────────────────────────────────
 
-@projection struct WidgetSliderToGraphicsCanvas <: Projection
+@projection struct WidgetSliderToGraphicsCanvas
     height::Int                 # control height
     track_thickness::Int
     knob_radius::Int
@@ -2523,7 +2523,7 @@ end
 
 # ── WidgetRadioGroup ────────────────────────────────────────────────────────
 
-@projection struct WidgetRadioGroupToGraphicsCanvas <: Projection
+@projection struct WidgetRadioGroupToGraphicsCanvas
     measure::Function
     label_text::StyleText          # option labels
     button_size::Int               # outer circle diameter
@@ -2569,7 +2569,7 @@ end
 
 # ── WidgetAvatar ────────────────────────────────────────────────────────────
 
-@projection struct WidgetAvatarToGraphicsCanvas <: Projection
+@projection struct WidgetAvatarToGraphicsCanvas
     measure::Function
     initials::StyleText          # font + color of the initials
     background_color::StyleColor  # circle fill
@@ -2592,7 +2592,7 @@ end
 
 # ── WidgetAlert ─────────────────────────────────────────────────────────────
 
-@projection struct WidgetAlertToGraphicsCanvas <: Projection
+@projection struct WidgetAlertToGraphicsCanvas
     measure::Function
     title_font::StyleFont
     description_text::StyleText        # muted description
@@ -2639,7 +2639,7 @@ end
 
 # ── WidgetSkeleton ──────────────────────────────────────────────────────────
 
-@projection struct WidgetSkeletonToGraphicsCanvas <: Projection
+@projection struct WidgetSkeletonToGraphicsCanvas
     fill_color::StyleColor
     corner_radius::Int
 end
@@ -2672,7 +2672,7 @@ end
 
 # ── WidgetToggle ────────────────────────────────────────────────────────────
 
-@projection struct WidgetToggleToGraphicsCanvas <: Projection
+@projection struct WidgetToggleToGraphicsCanvas
     measure::Function
     font::StyleFont
     padding::Inset
@@ -2709,7 +2709,7 @@ end
 
 # ── WidgetToggleGroup ───────────────────────────────────────────────────────
 
-@projection struct WidgetToggleGroupToGraphicsCanvas <: Projection
+@projection struct WidgetToggleGroupToGraphicsCanvas
     measure::Function
     font::StyleFont
     padding::Inset
@@ -2759,7 +2759,7 @@ end
 
 # ── WidgetSelect ────────────────────────────────────────────────────────────
 
-@projection struct WidgetSelectToGraphicsCanvas <: Projection
+@projection struct WidgetSelectToGraphicsCanvas
     measure::Function
     text::StyleText            # value font + color
     background_color::StyleColor
@@ -2796,7 +2796,7 @@ end
 
 # ── WidgetTextarea ──────────────────────────────────────────────────────────
 
-@projection struct WidgetTextareaToGraphicsCanvas <: Projection
+@projection struct WidgetTextareaToGraphicsCanvas
     measure::Function
     text::StyleText            # content font + color
     background_color::StyleColor
@@ -2829,7 +2829,7 @@ end
 
 # ── WidgetAccordion ─────────────────────────────────────────────────────────
 
-@projection struct WidgetAccordionToGraphicsCanvas <: Projection
+@projection struct WidgetAccordionToGraphicsCanvas
     measure::Function
     title_text::StyleText        # bold title
     body_text::StyleText          # muted body
@@ -2907,7 +2907,7 @@ end
 # 2-D highlight band. An in-cell cursor (`rows[r][c].…`) descends into the cell's
 # own sub-pipeline and is drawn there.
 
-@projection struct WidgetTableToGraphicsCanvas <: Projection
+@projection struct WidgetTableToGraphicsCanvas
     cell_text::StyleText          # (kept for theming parity; cells render via recursion)
     header_text::StyleText        # header strip text style
     rule::StyleStroke             # border / hairline rules
@@ -3543,7 +3543,7 @@ end
 
 # ── WidgetTree ──────────────────────────────────────────────────────────────
 
-@projection struct WidgetTreeToGraphicsCanvas <: Projection
+@projection struct WidgetTreeToGraphicsCanvas
     measure::Function
     label_text::StyleText         # node labels
     icon_text::StyleText          # node icon glyphs (own column)

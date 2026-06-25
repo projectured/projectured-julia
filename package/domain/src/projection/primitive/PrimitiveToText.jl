@@ -52,7 +52,7 @@ _value_selection_to_text(prim) = _forward_value(getfield(prim, :selection)[])
 
 # ── PrimitiveBoolToText ──────────────────────────────────────────────────────
 
-@projection struct PrimitiveBoolToText <: Projection
+@projection struct PrimitiveBoolToText
     style::StyleText = StyleText(font_ubuntu_monospace_regular_24, color_solarized_cyan)
 end
 
@@ -76,7 +76,7 @@ end
 
 # ── PrimitiveNumberToText ────────────────────────────────────────────────────
 
-@projection struct PrimitiveNumberToText <: Projection
+@projection struct PrimitiveNumberToText
     style::StyleText = StyleText(font_ubuntu_monospace_regular_24, color_solarized_magenta)
 end
 

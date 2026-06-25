@@ -30,7 +30,7 @@ export CollectionCellVectorToSyntax, CollectionListNodeToSyntax, CollectionToSyn
 
 # ── CollectionCellVectorToSyntax ─────────────────────────────────────────────
 
-@projection struct CollectionCellVectorToSyntax <: Projection
+@projection struct CollectionCellVectorToSyntax
     delim::StyleText = StyleText(font_ubuntu_monospace_bold_24, color_solarized_gray)
     sep::StyleText   = StyleText(font_ubuntu_monospace_regular_24, color_solarized_gray)
 end

@@ -82,7 +82,7 @@ _newline_body_compact(f::Function) =
 
 # ── SqlAllColumnsToSyntaxLeaf ─────────────────────────────────────────────────
 
-@projection struct SqlAllColumnsToSyntaxLeaf <: Projection
+@projection struct SqlAllColumnsToSyntaxLeaf
     style::StyleText = StyleText(font_ubuntu_monospace_regular_24, color_default)
 end
 
@@ -97,7 +97,7 @@ end
 
 # ── SqlColumnReferenceToSyntaxLeaf ────────────────────────────────────────────
 
-@projection struct SqlColumnReferenceToSyntaxLeaf <: Projection
+@projection struct SqlColumnReferenceToSyntaxLeaf
     style::StyleText = StyleText(font_ubuntu_monospace_regular_24, color_default)
 end
 
@@ -111,7 +111,7 @@ end
 # ── SqlColumnNameToSyntaxLeaf ─────────────────────────────────────────────────
 # Bare column name, used in INSERT column lists and UPDATE assignments.
 
-@projection struct SqlColumnNameToSyntaxLeaf <: Projection
+@projection struct SqlColumnNameToSyntaxLeaf
     style::StyleText = StyleText(font_ubuntu_monospace_regular_24, color_default)
 end
 
@@ -121,7 +121,7 @@ end
 # ── SqlTableNameToSyntaxLeaf ──────────────────────────────────────────────────
 # Bare table name (with optional schema), used as the INSERT/UPDATE target.
 
-@projection struct SqlTableNameToSyntaxLeaf <: Projection
+@projection struct SqlTableNameToSyntaxLeaf
     style::StyleText = StyleText(font_ubuntu_monospace_regular_24, color_solarized_green)
 end
 
@@ -131,7 +131,7 @@ end
 
 # ── SqlTableExpressionToSyntaxLeaf ────────────────────────────────────────────
 
-@projection struct SqlTableExpressionToSyntaxLeaf <: Projection
+@projection struct SqlTableExpressionToSyntaxLeaf
     style::StyleText = StyleText(font_ubuntu_monospace_regular_24, color_solarized_green)
 end
 
@@ -145,7 +145,7 @@ end
 
 # ── SqlSubqueryFromItemToSyntaxNode ──────────────────────────────────────────
 
-@projection struct SqlSubqueryFromItemToSyntaxNode <: Projection
+@projection struct SqlSubqueryFromItemToSyntaxNode
     keyword::StyleText = StyleText(font_ubuntu_monospace_bold_24, color_solarized_blue)
     identifier_font::StyleFont = font_ubuntu_monospace_regular_24
 end
@@ -228,7 +228,7 @@ _join_type_display(::SqlCrossJoin)      = "CROSS JOIN"
 
 # ── SqlJoinTypeToSyntaxLeaf ───────────────────────────────────────────────────
 
-@projection struct SqlJoinTypeToSyntaxLeaf <: Projection
+@projection struct SqlJoinTypeToSyntaxLeaf
     style::StyleText = StyleText(font_ubuntu_monospace_bold_24, color_solarized_blue)
 end
 
@@ -238,7 +238,7 @@ end
 
 # ── SqlSelectItemToSyntaxNode ─────────────────────────────────────────────────
 
-@projection struct SqlSelectItemToSyntaxNode <: Projection
+@projection struct SqlSelectItemToSyntaxNode
     keyword::StyleText = StyleText(font_ubuntu_monospace_bold_24, color_solarized_blue)
     alias_font::StyleFont = font_ubuntu_monospace_regular_24
 end
@@ -313,7 +313,7 @@ projection_read(::SqlSelectItemToSyntaxNode, iomap::ChildrenIoMap, op) = nothing
 
 # ── SqlSelectClauseToSyntaxNode ───────────────────────────────────────────────
 
-@projection struct SqlSelectClauseToSyntaxNode <: Projection
+@projection struct SqlSelectClauseToSyntaxNode
     keyword::StyleText = StyleText(font_ubuntu_monospace_bold_24, color_solarized_blue)
 end
 
@@ -395,7 +395,7 @@ projection_read(::SqlSelectClauseToSyntaxNode, iomap::ChildrenIoMap, op) = nothi
 
 # ── SqlJoinedFromItemToSyntaxNode ─────────────────────────────────────────────
 
-@projection struct SqlJoinedFromItemToSyntaxNode <: Projection
+@projection struct SqlJoinedFromItemToSyntaxNode
     keyword::StyleText = StyleText(font_ubuntu_monospace_bold_24, color_solarized_blue)
 end
 
@@ -503,7 +503,7 @@ projection_read(::SqlJoinedFromItemToSyntaxNode, iomap::ChildrenIoMap, op) = not
 
 # ── SqlJoinOnConditionToSyntaxNode ─────────────────────────────────────────────
 
-@projection struct SqlJoinOnConditionToSyntaxNode <: Projection
+@projection struct SqlJoinOnConditionToSyntaxNode
     keyword::StyleText = StyleText(font_ubuntu_monospace_bold_24, color_solarized_blue)
 end
 
@@ -569,7 +569,7 @@ projection_read(::SqlJoinOnConditionToSyntaxNode, iomap::ChildrenIoMap, op) = no
 
 # ── SqlFromItemToSyntaxNode ───────────────────────────────────────────────────
 
-@projection struct SqlFromItemToSyntaxNode <: Projection
+@projection struct SqlFromItemToSyntaxNode
     keyword::StyleText = StyleText(font_ubuntu_monospace_bold_24, color_solarized_blue)
 end
 
@@ -670,7 +670,7 @@ projection_read(::SqlFromItemToSyntaxNode, iomap::ChildrenIoMap, op) = nothing
 
 # ── SqlFromClauseToSyntaxNode ─────────────────────────────────────────────────
 
-@projection struct SqlFromClauseToSyntaxNode <: Projection
+@projection struct SqlFromClauseToSyntaxNode
     keyword::StyleText = StyleText(font_ubuntu_monospace_bold_24, color_solarized_blue)
 end
 
@@ -744,7 +744,7 @@ projection_read(::SqlFromClauseToSyntaxNode, iomap::ChildrenIoMap, op) = nothing
 
 # ── SqlWhereFilterConditionToSyntaxNode ──────────────────────────────────────
 
-@projection struct SqlWhereFilterConditionToSyntaxNode <: Projection
+@projection struct SqlWhereFilterConditionToSyntaxNode
     keyword::StyleText = StyleText(font_ubuntu_monospace_bold_24, color_solarized_blue)
 end
 
@@ -809,7 +809,7 @@ projection_read(::SqlWhereFilterConditionToSyntaxNode, iomap::ChildrenIoMap, op)
 
 # ── SqlWhereClauseToSyntaxNode ────────────────────────────────────────────────
 
-@projection struct SqlWhereClauseToSyntaxNode <: Projection
+@projection struct SqlWhereClauseToSyntaxNode
     keyword::StyleText = StyleText(font_ubuntu_monospace_bold_24, color_solarized_blue)
 end
 
@@ -883,7 +883,7 @@ projection_read(::SqlWhereClauseToSyntaxNode, iomap::ChildrenIoMap, op) = nothin
 
 # ── SqlScalarValueToSyntaxLeaf ───────────────────────────────────────────────
 
-@projection struct SqlScalarValueToSyntaxLeaf <: Projection
+@projection struct SqlScalarValueToSyntaxLeaf
     style::StyleText = StyleText(font_ubuntu_monospace_regular_24, color_default)
 end
 
@@ -906,7 +906,7 @@ projection_read(::Union{SqlAllColumnsToSyntaxLeaf, SqlColumnReferenceToSyntaxLea
 
 # ── SqlComparisonToSyntaxNode ─────────────────────────────────────────────────
 
-@projection struct SqlComparisonToSyntaxNode <: Projection
+@projection struct SqlComparisonToSyntaxNode
     keyword::StyleText = StyleText(font_ubuntu_monospace_bold_24, color_solarized_blue)
 end
 
@@ -1081,7 +1081,7 @@ projection_read(::SqlBooleanBinaryToSyntaxNode, iomap::ChildrenIoMap, op) = noth
 
 # ── SqlNotToSyntaxNode ────────────────────────────────────────────────────────
 
-@projection struct SqlNotToSyntaxNode <: Projection
+@projection struct SqlNotToSyntaxNode
     keyword::StyleText = StyleText(font_ubuntu_monospace_bold_24, color_solarized_blue)
 end
 
@@ -1156,7 +1156,7 @@ projection_read(::SqlNotToSyntaxNode, iomap::ChildrenIoMap, op) = nothing
 #     children[2] = from_clause node    → "FROM\n  item,\n  …\n"
 #     children[3] = where_clause node   → "WHERE\n  …\n"  (omitted if no condition)
 
-@projection struct SqlSelectStatementToSyntaxNode <: Projection
+@projection struct SqlSelectStatementToSyntaxNode
     keyword::StyleText = StyleText(font_ubuntu_monospace_bold_24, color_solarized_blue)
 end
 
@@ -1266,7 +1266,7 @@ end
 # present) then VALUES and values-paren. The column/value leaves live one level
 # deeper, inside their parenthesised comma list.
 
-@projection struct SqlInsertStatementToSyntaxNode <: Projection
+@projection struct SqlInsertStatementToSyntaxNode
     keyword::StyleText = StyleText(font_ubuntu_monospace_bold_24, color_solarized_blue)
 end
 
@@ -1410,7 +1410,7 @@ projection_read(::SqlInsertStatementToSyntaxNode, iomap::ChildrenIoMap, op) = no
 # Renders `<col> = <value>`. children[1]=column, children[3]=value (the `=`
 # keyword sits at children[2], like SqlComparison).
 
-@projection struct SqlUpdateAssignmentToSyntaxNode <: Projection
+@projection struct SqlUpdateAssignmentToSyntaxNode
     keyword::StyleText = StyleText(font_ubuntu_monospace_bold_24, color_solarized_blue)
 end
 
@@ -1503,7 +1503,7 @@ projection_read(::SqlUpdateAssignmentToSyntaxNode, iomap::ChildrenIoMap, op) = n
 # projected directly, not the multi-line SqlWhereClause projection), keeping the
 # statement on one line.
 
-@projection struct SqlUpdateStatementToSyntaxNode <: Projection
+@projection struct SqlUpdateStatementToSyntaxNode
     keyword::StyleText = StyleText(font_ubuntu_monospace_bold_24, color_solarized_blue)
 end
 
@@ -1639,7 +1639,7 @@ projection_read(::SqlUpdateStatementToSyntaxNode, iomap::ChildrenIoMap, op) = no
 # children[1] = column_name (projected); children[2] = data-type leaf (a plain
 # String on the document, so it has no projected child of its own).
 
-@projection struct SqlColumnDefinitionToSyntaxNode <: Projection
+@projection struct SqlColumnDefinitionToSyntaxNode
     type::StyleText = StyleText(font_ubuntu_monospace_regular_24, color_default)
 end
 
@@ -1715,7 +1715,7 @@ projection_read(::SqlColumnDefinitionToSyntaxNode, iomap::ChildrenIoMap, op) = n
 # The column definition leaves live one level deeper, inside the indented,
 # parenthesised comma body at children[4].
 
-@projection struct SqlCreateTableStatementToSyntaxNode <: Projection
+@projection struct SqlCreateTableStatementToSyntaxNode
     keyword::StyleText = StyleText(font_ubuntu_monospace_bold_24, color_solarized_blue)
 end
 
@@ -1827,7 +1827,7 @@ projection_read(::SqlCreateTableStatementToSyntaxNode, iomap::ChildrenIoMap, op)
 # The schema name is a plain String on the document (no projected child), so the
 # statement has no child iomaps; only whole-statement (∅) selection is mapped.
 
-@projection struct SqlCreateSchemaStatementToSyntaxNode <: Projection
+@projection struct SqlCreateSchemaStatementToSyntaxNode
     keyword::StyleText = StyleText(font_ubuntu_monospace_bold_24, color_solarized_blue)
     identifier_font::StyleFont = font_ubuntu_monospace_regular_24
 end
@@ -1884,7 +1884,7 @@ projection_read(::SqlCreateSchemaStatementToSyntaxNode, iomap::ChildrenIoMap, op
 # Renders an ordered statement list, blank-line separated (each statement node
 # already ends with its own `;`). children[i] = statements[i].
 
-@projection struct SqlStatementListToSyntaxNode <: Projection
+@projection struct SqlStatementListToSyntaxNode
     font::StyleFont = font_ubuntu_monospace_regular_24
 end
 

@@ -37,7 +37,7 @@ export MathInsertionToSyntaxLeaf, MathVariableToSyntaxLeaf,
 
 # ── MathInsertionToSyntaxLeaf ─────────────────────────────────────────────────
 
-@projection struct MathInsertionToSyntaxLeaf <: Projection
+@projection struct MathInsertionToSyntaxLeaf
     style::StyleText = StyleText(font_ubuntu_monospace_regular_24, color_solarized_gray)
 end
 
@@ -48,7 +48,7 @@ end
 
 # ── MathVariableToSyntaxLeaf ──────────────────────────────────────────────────
 
-@projection struct MathVariableToSyntaxLeaf <: Projection
+@projection struct MathVariableToSyntaxLeaf
     style::StyleText = StyleText(font_ubuntu_monospace_regular_24, color_solarized_blue)
 end
 
@@ -80,7 +80,7 @@ end
 
 # ── MathBinaryOperationToSyntaxNode ───────────────────────────────────────────
 
-@projection struct MathBinaryOperationToSyntaxNode <: Projection
+@projection struct MathBinaryOperationToSyntaxNode
     op::StyleText = StyleText(font_ubuntu_monospace_regular_24, color_solarized_cyan)
 end
 
@@ -177,7 +177,7 @@ end
 
 # ── MathParenthesizedToSyntaxNode ─────────────────────────────────────────────
 
-@projection struct MathParenthesizedToSyntaxNode <: Projection
+@projection struct MathParenthesizedToSyntaxNode
     delim::StyleText = StyleText(font_ubuntu_monospace_regular_24, color_solarized_gray)
 end
 
@@ -245,7 +245,7 @@ end
 
 # ── MathAssignmentToSyntaxNode ────────────────────────────────────────────────
 
-@projection struct MathAssignmentToSyntaxNode <: Projection
+@projection struct MathAssignmentToSyntaxNode
     eq::StyleText = StyleText(font_ubuntu_monospace_regular_24, color_solarized_yellow)
 end
 
