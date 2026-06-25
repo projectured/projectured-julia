@@ -11,6 +11,27 @@ All three share the same core pattern: declared field types are *what you
 mean*, but every field is *stored as a `Cell`* and accessed transparently
 through generated `getproperty` / `setproperty!` methods.
 
+## Default base supertype
+
+Each macro **supplies its framework base supertype by default**, so you don't
+repeat the obvious:
+
+| Macro | Bare form | Expands to |
+|---|---|---|
+| `@document struct T … end`   | no `<:` | `mutable struct T <: Document … end` |
+| `@projection struct T … end` | no `<:` | `struct T <: Projection … end` |
+| `@iomap struct T … end`      | no `<:` | `struct T <: IoMap … end` |
+
+An **explicit supertype always wins**. This is how a document declares its
+*domain* supertype — `@document struct JsonString <: JsonDocument` keeps
+`JsonDocument` (and since `JsonDocument <: Document`, it is still a `Document`).
+Likewise `@projection struct Foo <: SomethingElse` keeps `SomethingElse`.
+
+So the default only kicks in when you write no supertype at all; reach for it
+whenever the base type is the one you'd have written anyway. The injected
+`Document` / `Projection` / `IoMap` name resolves in the *calling* module, so
+that module must have it in scope (every framework module already imports it).
+
 ## `@document`
 
 ```julia
@@ -65,21 +86,25 @@ projection layer does this often, e.g. to make the `selection` field of a
 ## `@projection`
 
 ```julia
-# illustrative — a projection whose active branch is a reactive cell
-@projection struct ReactiveBranchProjection <: Projection
+# illustrative — a projection whose active branch is a reactive cell.
+# No `<: Projection`: the macro supplies it (see "Default base supertype").
+@projection struct ReactiveBranchProjection
     projections::Vector{Any}
     index::Cell
 end
 ```
 
 Identical mechanic to `@document`, minus the immutable I-struct and
-conversion constructors. Use it when your projection struct has reactive
-fields (e.g. an `index` cell that switches the active branch) and you want
-transparent access. In the current codebase `@projection` is used by the
-`Widget…ToGraphicsCanvas` projections.
+conversion constructors. In the current codebase `@projection` is the standard
+way to declare a projection struct — the `…ToSyntax*` / `…ToText` / the
+`Widget…ToGraphicsCanvas` projections all use it — so the `<: Projection` is
+defaulted in (it was redundant on every one of them).
 
-Most simple projections do not need `@projection` — a plain
-`struct MyProjection <: Projection ... end` suffices.
+A projection that genuinely needs a *different* supertype still writes it
+explicitly (`@projection struct Foo <: SomethingElse`). And a plain
+`struct MyProjection <: Projection ... end` — declared without the macro —
+remains a valid option for a projection with no reactive fields; a plain struct
+gets no defaulting, so it must spell out `<: Projection` itself.
 
 ## `@iomap`
 
@@ -92,10 +117,10 @@ Most simple projections do not need `@projection` — a plain
 end
 ```
 
-Same as `@projection` for IoMap structs. The macro additionally adds the
-`<: IoMap` supertype if it isn't already present, so the resulting struct
-satisfies the IoMap interface (every iomap has `projection`, `input`,
-`output` fields).
+Same as `@projection` for IoMap structs. It defaults the supertype to `<: IoMap`
+when none is given (see "Default base supertype" — `@iomap` was the first of the
+three to do this), so the resulting struct satisfies the IoMap interface (every
+iomap has `projection`, `input`, `output` fields).
 
 ## Default field values (`@kwdef`-style)
 
@@ -103,7 +128,7 @@ All three macros accept `Base.@kwdef`-style defaults on fields, so you no longer
 need an outer convenience constructor whose only job is to fill in defaults:
 
 ```julia
-@projection struct WidgetButtonToGraphicsCanvas <: Projection
+@projection struct WidgetButtonToGraphicsCanvas      # <: Projection is defaulted in
     measure::Function
     label::StyleText
     background_color::StyleColor
@@ -203,11 +228,14 @@ machinery, and with it the same three sharp edges:
 - IoMaps with reactive subfields (`SortingProjectionIoMap`,
   `TextToGraphicsIoMap`, `NestingProjectionIoMap`, …) use a mixture of
   hand-rolled structs and `@iomap`.
-- Projection structs are usually plain `struct ... <: Projection` because
-  their configuration is immutable. `AlternativeProjection` is itself a plain
-  `struct` even though it holds a reactive `index::Cell` (it reads the cell
-  explicitly rather than through `@projection`); the `Widget…ToGraphicsCanvas`
-  projections are the ones that actually use `@projection`.
+- Most projection structs use `@projection` (with the `<: Projection` defaulted
+  in) — the `…ToSyntax*` / `…ToText` / `Widget…ToGraphicsCanvas` families. A
+  plain `struct ... <: Projection` is the exception, used when the macro can't
+  be: `SyntaxNodeToText` stays plain because it stores a `Function` field (which
+  the auto-wrapping ctor would turn into a thunk — see "Gotchas"), and
+  `AlternativeProjection` stays plain even though it holds a reactive
+  `index::Cell`, reading the cell explicitly rather than through `@projection`.
+  A plain struct gets no supertype defaulting, so it must write `<: Projection`.
 
 The result is that domain and projection code reads like Julia you'd write
 without any framework — the reactivity is invisible until you reach for
