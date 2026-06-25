@@ -21,7 +21,7 @@ import ..ProjectionModule: var"@projection"
 import ..JsonModule: JsonDocument, JsonInsertion, JsonNull, JsonBool, JsonNumber, JsonString, JsonArray, JsonObject, JsonObjectEntry
 import ..TextModule: TextString
 import ..FontModule: StyleFont, font_ubuntu_monospace_regular_24, font_ubuntu_monospace_bold_24
-import ..ColorModule: StyleColor, color_black, color_default, color_solarized_blue, color_solarized_green, color_solarized_magenta, color_solarized_cyan, color_solarized_yellow, color_solarized_gray
+import ..ColorModule: StyleColor, color_black, color_solarized_blue, color_solarized_green, color_solarized_magenta, color_solarized_cyan, color_solarized_yellow, color_solarized_gray
 import ..StyleTextModule: StyleText
 import ..SyntaxModule: SyntaxDocument, SyntaxLeaf, SyntaxNode
 import ..TypeDispatchingModule: TypeDispatchingProjection
@@ -131,8 +131,8 @@ end
                    # Fixed-children template node: `_fixed_print` finds children via
                    # `isa Vector` to locate the `project(:value)` marker, so they must stay
                    # a raw Vector (not the CellVector the keyword `children` path produces).
-                   SyntaxNode(TextString("", p.delimiter_style.font, color_default),
-                              TextString("", p.delimiter_style.font, color_default),
+                   SyntaxNode(TextString("", p.delimiter_style),
+                              TextString("", p.delimiter_style),
                               TextString(": ", p.colon_style),
                               [ SyntaxLeaf(bound(:key, String, _hinted_text(() -> json_escape(e.key), () -> isempty(e.key), "enter key", p.key_style));
                                            open=TextString("\"", p.key_style),
