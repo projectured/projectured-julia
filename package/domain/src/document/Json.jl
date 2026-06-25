@@ -10,7 +10,7 @@ The domain includes:
 """
 module JsonModule
 
-import ..ReactiveModule: Cell, setfn!, setval!
+import ..ReactiveModule: Cell
 import ..DocumentModule: Document, @document
 import ..CollectionModule: CellVector
 import ..ReferenceModule: Reference, ReferencePath, ConcreteReferencePath, PositionReference, RangeReference, FieldReference, EmptyReferencePath, evaluate_reference
@@ -20,7 +20,7 @@ import ..OperationModule: replace_document, insert_elements, ReplaceSelectionOpe
 import ..DocumentApiModule: with_selection
 import ..KeyboardModule: KeyPress, KeyDown
 import ..GestureBindingModule: var"@gestures"
-export JsonDocument, JsonInsertion, JsonNull, JsonBool, JsonNumber, JsonString, JsonArray, JsonObject, JsonObjectEntry, entries, setfn!,
+export JsonDocument, JsonInsertion, JsonNull, JsonBool, JsonNumber, JsonString, JsonArray, JsonObject, JsonObjectEntry, entries,
        IJsonInsertion, IJsonNull, IJsonBool, IJsonNumber, IJsonString, IJsonArray, IJsonObject, IJsonObjectEntry
 
 abstract type JsonDocument <: Document end
@@ -81,15 +81,6 @@ function JsonObject(pairs::Pair{<:AbstractString}...)
     end
     JsonObject(cv, Cell(false), Cell(nothing))
 end
-
-# ── Switch cell to computation ───────────────────────────────────────────
-
-setfn!(j::JsonBool,   f::Function) = (setfn!(getfield(j, :value),    f); j)
-setfn!(j::JsonNumber, f::Function) = (setfn!(getfield(j, :value),    f); j)
-setfn!(j::JsonString, f::Function) = (setfn!(getfield(j, :value),    f); j)
-# setfn! for JsonArray is not supported with CellVector backing
-setfn!(j::JsonObject, f::Function) = (setfn!(getfield(j.entries, :elements), () -> Cell[Cell(x) for x in f()]); j)
-setval!(j::Union{JsonBool, JsonNumber, JsonString}, v) = (setval!(getfield(j, :value), v); j)
 
 # ── Array internals ─────────────────────────────────────────────────────
 #
