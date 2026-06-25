@@ -106,10 +106,11 @@ matched_plain = @reference_case plain_sel begin
 end
 @test matched_plain == (:hit, 1)
 
-# The whole-element `∅` pattern matches a canonical whole-element selection
-# (a single trailing checkpoint annotates from EmptyReferencePath).
+# The whole-element `∅` pattern matches a canonical whole-element selection.
+# Folded: a whole-element selection is a terminal `EmptyReferencePath` that
+# records the type of the node it lands on (no separate trailing checkpoint).
 whole = annotate_reference_types(obj, EmptyReferencePath())
-@test whole isa ConcreteReferencePath           # trailing checkpoint present
+@test whole isa EmptyReferencePath && whole.type === JsonObject
 hit_whole = @reference_case whole begin
     ∅ => :whole
     _ => :other
@@ -118,23 +119,21 @@ end
 
 # ── a position is a cursor *between* items, not a descent into one ─────────
 
-# `{3}` is a caret between characters: it annotates terminally, with NO
-# trailing checkpoint — it must not claim the cursor points at a `Char`. Only
-# the leading container-type checkpoint is added.
+# `{3}` is a caret between characters: it lands on no child, so the terminal is
+# left untyped — it must not claim the cursor points at a `Char`. This node
+# records the container type (String) and keeps its position step as `head`.
 pos_ann = annotate_reference_types("hello",
               ConcreteReferencePath(PositionReference(3), EmptyReferencePath()))
-@test pos_ann.head isa TypeReference && pos_ann.head.type === String
-@test is_position_reference(pos_ann.tail.head)
-@test pos_ann.tail.tail === EmptyReferencePath()      # terminal — nothing after the cursor
+@test pos_ann.type === String && is_position_reference(pos_ann.head)
+@test pos_ann.tail isa EmptyReferencePath && pos_ann.tail.type === nothing
 @test strip_reference_types(pos_ann) ==
       ConcreteReferencePath(PositionReference(3), EmptyReferencePath())
 
-# Contrast: an element step (width 1) still descends and gets a trailing
-# destination checkpoint.
+# Contrast: an element step (width 1) descends, so the terminal records the
+# destination node's type.
 elt_ann = annotate_reference_types(arr,
               ConcreteReferencePath(ElementReference(1), EmptyReferencePath()))
-@test elt_ann.tail.tail isa ConcreteReferencePath     # trailing checkpoint present
-@test elt_ann.tail.tail.head isa TypeReference
+@test elt_ann.tail isa EmptyReferencePath && elt_ann.tail.type === JsonString
 
 # ── Phase 2: producers return canonical (self-describing) references ───────
 
@@ -144,12 +143,12 @@ elt_ann = annotate_reference_types(arr,
 hits = collect_references(obj, "x")
 @test !isempty(hits)
 canonical_hit = first(hits)
-# Canonical: contains at least one TypeReference checkpoint, and is structurally
-# well-formed (single-arg validity).
+# Canonical: carries folded node types (so its skeleton differs under strict
+# equality), and is structurally well-formed (single-arg validity).
 @test strip_reference_types(canonical_hit) != canonical_hit
 @test is_valid_reference(canonical_hit)
-# The leading step records the document's own type.
-@test Projectured.skip_type_checkpoints(canonical_hit) !== canonical_hit
+# The first node records the document's own type (folded, not a separate step).
+@test canonical_hit isa ConcreteReferencePath && canonical_hit.type !== nothing
 
 end
 end
