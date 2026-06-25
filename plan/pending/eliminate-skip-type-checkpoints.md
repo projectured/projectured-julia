@@ -7,14 +7,18 @@ longer a variable number of leading checkpoints to peel — `head` is **always**
 navigation step. `skip_type_checkpoints` (184 call sites) becomes meaningless and
 is deleted; most of `strip_reference_types` (87 sites) follows.
 
-> Status: **PENDING.** Builds directly on the completed
+> Status: **IMPLEMENTED.** `skip_type_checkpoints` is fully eliminated (function,
+> export, 135 call sites, 4 matcher wrappers, ~30 import mentions all removed). A
+> node's type is now a mandatory `type` field on every `ReferencePath` node;
+> `head` is always a navigation step. See **"Implementation outcome"** at the end
+> for the as-built design, deviations from the draft below, and test status.
+> Builds on the completed
 > [`type-reference-everywhere`](../done/type-reference-everywhere.md) work, which
-> made `TypeReference(T)` checkpoints the canonical-at-rest *and* output-resident
-> form, but left every hand-written structural walker merely *tolerant* — each
-> calls `skip_type_checkpoints` to skip an **optional** number of leading
-> checkpoints. This plan promotes "a type before every object" from a tolerated
-> convention to a **structural invariant**: untyped/illegal states become
-> unrepresentable, and the tolerance machinery is removed.
+> had made `TypeReference(T)` checkpoints the canonical-at-rest *and*
+> output-resident form but left every hand-written structural walker merely
+> *tolerant* (calling `skip_type_checkpoints` to skip an **optional** number of
+> leading checkpoints). This plan promoted "a type before every object" from a
+> tolerated convention to a **structural invariant**.
 
 ## Design decision (chosen: fold type into the node)
 
@@ -309,3 +313,83 @@ Per `CLAUDE.md`, run the **narrowest** test for each change, never default to
   `EmptyReferencePath()` sites. The shim strategy contains the risk; the only
   *semantically* tricky edits are the macros, `ProjectionTemplate.jl`, and the
   two `Operation.jl` strips.
+
+---
+
+## Implementation outcome (2026-06-25)
+
+Landed on branch `eliminate-skip-type-checkpoints` in six incremental, individually
+green commits. `skip_type_checkpoints` is **gone**; a node's type is a mandatory
+structural field.
+
+### As-built design
+
+- **Data model** (`kernel/.../Reference.jl`). `ConcreteReferencePath` gained a
+  `type::Any` field (`type, head, tail`); `EmptyReferencePath` gained `type::Any`
+  (the terminal node's type). Backward-compatible constructors default `type` to
+  `nothing`, so all ~375 `ConcreteReferencePath(...)` / ~107 `EmptyReferencePath()`
+  sites compiled untouched. `head` is **always a navigation step**.
+- **Boundary-type sharing** (resolves the "two checkpoints per FieldReference?"
+  question): each node stores **one** type — the node it stands on. A step's start
+  type is its node's `type`, its end type is its `tail`'s `type`; the boundary type
+  lives once on the downstream node. `evaluate_reference` validates the end type
+  when the recursion lands on the tail. k steps → k+1 typed nodes.
+- **`annotate_reference_types`** fills node `type` fields (no longer inserts
+  checkpoint cons); **`strip_reference_types`** blanks them; **`evaluate_reference`
+  / `valid_reference_prefix`** assert per node; **`show`** prints `::Type` per node.
+- **Equality kept STRICT** over the `type` fields (matching the existing codebase
+  contract), *not* flipped to ignoring as the draft's §"Decision" suggested — this
+  was lower-risk and made the existing `strip != canonical` tests pass.
+  `reference_equal_ignoring_types` / `is_prefix_of_ignoring_types` (strip-then-`==`)
+  remain for cross-form comparison; the matcher uses them.
+- **Macros.** `@reference ::T` still *builds* `TypeReference` steps, then a new
+  `fold_reference_types` runtime pass folds them into node types (wrapped in only
+  when a `::T` is present, so plain skeletons stay allocation-free).
+  `@reference_case`'s `::T` reads the folded node `.type` (optional assertion:
+  `nothing` matches), with the transitional flat-step form still accepted.
+- **ProjectionTemplate.** `_typed(T) = EmptyReferencePath(T)`; `_path`/`_prepend`
+  fold the checkpoint steps their callers pass; `_strip_checkpoints` delegates to
+  `strip_reference_types`. This was the last producer of interleaved checkpoint
+  steps, which made `skip_type_checkpoints` **provably the identity** on every
+  consumed path.
+- **Elimination.** With skip provably identity, a balanced-paren script replaced
+  all 135 `skip_type_checkpoints(X)` → `X`; the function, its export, the 4 matcher
+  wrappers, and ~30 import mentions were removed.
+- **Renderer.** The compact `ReferenceToText` now emits each node's `::Type` (it
+  used to render the interleaved `TypeReference` step); the human-readable form was
+  unaffected (it derives types via `evaluate_reference`).
+
+### Deviation from the draft
+
+- **`strip_reference_types` was kept** (not eliminated): it is load-bearing at the
+  `set_selection!` annotate boundary and at the JSON input boundary. Only the
+  consumer-*tolerance* role went away. This narrowed scope and risk; the user's
+  explicit goal was `skip_type_checkpoints`.
+- **`TypeReference` the struct is kept** as an internal **build-time token** (DSL
+  + ProjectionTemplate emit it, `fold_reference_types` immediately folds it). It
+  never appears as a step in a stored/consumed path. Building folded nodes directly
+  and deleting the struct + the harmless transitional tolerance branches is a small
+  optional follow-up.
+- **Equality stayed strict** rather than flipping to type-ignoring (see above).
+
+### Phase checklist (as executed)
+
+- [x] **1** Struct prep — add `type` fields + back-compat constructors (commit 1).
+- [x] **2** Fold annotate/evaluate/valid/strip/show/`==` (commit 2).
+- [x] **3** `@reference`/`@reference_case` speak folded node types (commit 3).
+- [x] **4** Fold `ProjectionTemplate` output (commit 4).
+- [x] **5** Eliminate `skip_type_checkpoints` — calls, function, export, imports (commit 5).
+- [x] **6** Render folded node types in the compact renderer (commit 6); docs.
+
+### Test status
+
+Regression-free. Green: `test_cell`, `test_reference_builder` 22/22,
+`test_type_reference` 36/36 (updated to folded shapes), `test_json` /
+`test_syntax`, `JsonToSyntax` fwd 11/11 + reader 48/48, all `SyntaxToText`,
+`PrimitiveToText`, `TextToGraphics`, `WordWrapping`/`TextFiltering`/
+`TextHighlighting`/`SelectionInverting`, `ObjectToWidget`/`SyntaxToWidget`/
+`FileSystemToWidget`, `Tooltip`/`Dragging`/`ProjectionConfiguring`,
+`Copying`/`ClipboardToAny`/`VersioningToAny`, `XmlToSyntax` fwd+reader,
+`DbCatalogSql`, `ConversationEditor`, `ReferenceInspectorToText` 9/9, `HoverProbe`,
+`json` text-navigation 543/543 reaches-all. The `xml` reaches-all `1490/5` matches
+the **pre-existing** baseline on `d6c1ea5` (verified) — not a regression.
