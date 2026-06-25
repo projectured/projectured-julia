@@ -28,7 +28,7 @@ import ..ReactiveModule: Cell, setfn!, setval!
 import ..DocumentModule: Document, @document
 import ..CollectionModule: CellVector, ListNode, CollectionDocument
 import ..FontModule: StyleFont, font_ubuntu_monospace_regular_24
-import ..ColorModule: StyleColor, color_default
+import ..ColorModule: StyleColor, color_default, color_solarized_gray
 import ..StyleTextModule: StyleText
 import ..GeometryModule: Inset
 import ..ReferenceModule: Reference, ConcreteReferencePath, EmptyReferencePath, RangeReference, FieldReference, TextRectangularReference, skip_type_checkpoints, strip_reference_types
@@ -40,7 +40,7 @@ import ..PrimitiveModule: StringReplaceRangeOperation
 import ..GestureBindingModule: var"@gestures"
 export TextDocument, TextInsertion, TextNewline, TextSpacing, TextString, TextGraphics, TextText, setfn!,
        ITextInsertion, ITextNewline, ITextSpacing, ITextString, ITextGraphics, ITextText,
-       text_flat_length, text_selection_flat
+       text_flat_length, text_selection_flat, hinted_text
 
 # ── TextDocument (base) ───────────────────────────────────────────────────
 
@@ -171,6 +171,16 @@ TextString(content::Function, font::StyleFont, font_color::StyleColor) =
 # `style` is split into the existing `font` / `font_color` cells.
 TextString(content::AbstractString, style::StyleText) = TextString(content, style.font, style.color)
 TextString(content::Function,      style::StyleText) = TextString(content, style.font, style.color)
+
+# A text span that shows a muted placeholder while the value is empty. Both text
+# and colour are reactive, so the hint disappears the moment the user types.
+function hinted_text(content_thunk, empty_thunk, placeholder::AbstractString, style::StyleText)
+    TextString(
+        Cell(() -> empty_thunk() ? placeholder : content_thunk()),
+        Cell(style.font),
+        Cell(() -> empty_thunk() ? color_solarized_gray : style.color),
+        Cell(nothing), Cell(nothing), Cell(nothing), Cell(nothing))
+end
 
 # ── TextGraphics ─────────────────────────────────────────────────────
 

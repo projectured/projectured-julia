@@ -2,15 +2,9 @@
     JsonToSyntaxModule
 
 JSON → SyntaxDocument projection. Maps each JSON value type to a matching
-syntax tree shape, preserving delimiter characters (quotes, braces, brackets)
-as projection-introduced elements via ProjectionReference. The reader inverts
-the mapping, routing tree-domain paths back to the correct JSON field, array
-index, or ProjectionReference for delimiters.
-
-Each value type is a `@projection_template` builder `(prj, doc) -> output`; the
-engine derives the printer and reference mappers from the built tree. Only the
-JSON authoring readers (type-to-replace, `,` insert, Tab) and the structural
-fallback stay hand-written.
+syntax tree shape: null, bool, number, and string become leaves; arrays and
+objects become nodes that carry their quote, bracket, and brace delimiters and
+comma separators.
 """
 module JsonToSyntaxModule
 
@@ -18,7 +12,7 @@ import ..ReactiveModule: Cell
 import ..ProjectionApiModule: projection_print, Projection
 import ..ProjectionModule: var"@projection"
 import ..JsonModule: JsonInsertion, JsonNull, JsonBool, JsonNumber, JsonString, JsonArray, JsonObject, JsonObjectEntry
-import ..TextModule: TextString
+import ..TextModule: TextString, hinted_text
 import ..FontModule: font_ubuntu_monospace_regular_24, font_ubuntu_monospace_bold_24
 import ..ColorModule: color_solarized_blue, color_solarized_green, color_solarized_magenta, color_solarized_yellow, color_solarized_gray
 import ..StyleTextModule: StyleText
@@ -66,7 +60,7 @@ end
 
 @projection_template JsonNumberToSyntaxLeaf JsonNumber (prj, doc) ->
     SyntaxLeaf(bound(:value, Real,
-                     _hinted_text(() -> string(doc[]), () -> doc[] === nothing, "enter json number", prj.style);
+                     hinted_text(() -> string(doc[]), () -> doc[] === nothing, "enter json number", prj.style);
                      retype = NumberReplaceRangeOperation))
 
 # ── JsonStringToSyntaxLeaf ───────────────────────────────────────────────────
@@ -78,7 +72,7 @@ end
 
 @projection_template JsonStringToSyntaxLeaf JsonString (prj, doc) ->
     SyntaxLeaf(bound(:value, String,
-                     _hinted_text(() -> json_escape(doc[]), () -> isempty(doc[]), "enter json string", prj.value_style));
+                     hinted_text(() -> json_escape(doc[]), () -> isempty(doc[]), "enter json string", prj.value_style));
                open=TextString("\"", prj.quote_style),
                close=TextString("\"", prj.quote_style))
 
@@ -110,7 +104,7 @@ end
                    SyntaxNode(TextString("", prj.delimiter_style),
                               TextString("", prj.delimiter_style),
                               TextString(": ", prj.colon_style),
-                              [ SyntaxLeaf(bound(:key, String, _hinted_text(() -> json_escape(e.key), () -> isempty(e.key), "enter key", prj.key_style));
+                              [ SyntaxLeaf(bound(:key, String, hinted_text(() -> json_escape(e.key), () -> isempty(e.key), "enter key", prj.key_style));
                                            open=TextString("\"", prj.key_style),
                                            close=TextString("\"", prj.key_style)),
                                 project(:value) ],
@@ -138,16 +132,6 @@ function JsonToSyntax()
 end
 
 # ── Utility ──────────────────────────────────────────────────────────────────
-
-# A value leaf that shows a muted placeholder while the value is empty. Both text
-# and colour are reactive, so the hint disappears the moment the user types.
-function _hinted_text(content_thunk, empty_thunk, placeholder::AbstractString, style::StyleText)
-    TextString(
-        Cell(() -> empty_thunk() ? placeholder : content_thunk()),
-        Cell(style.font),
-        Cell(() -> empty_thunk() ? color_solarized_gray : style.color),
-        Cell(nothing), Cell(nothing), Cell(nothing), Cell(nothing))
-end
 
 function json_escape(s::AbstractString)
     buf = IOBuffer()
