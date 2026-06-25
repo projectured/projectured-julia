@@ -16,7 +16,7 @@ module JsonToSyntaxModule
 
 import ..ReactiveModule: Cell
 import ..CollectionModule: CellVector
-import ..ProjectionApiModule: projection_print, projection_printer_recurse, projection_read, map_reference_forward, map_reference_backward, Projection
+import ..ProjectionApiModule: projection_print, projection_printer_recurse, map_reference_forward, Projection
 import ..ProjectionModule: var"@projection"
 import ..JsonModule: JsonDocument, JsonInsertion, JsonNull, JsonBool, JsonNumber, JsonString, JsonArray, JsonObject, JsonObjectEntry
 import ..TextModule: TextString
@@ -26,12 +26,9 @@ import ..StyleTextModule: StyleText
 import ..SyntaxModule: SyntaxDocument, SyntaxLeaf, SyntaxNode
 import ..TypeDispatchingModule: TypeDispatchingProjection
 import ..CopyingProjectionModule: CopyingProjection
-import ..ReferenceModule: ConcreteReferencePath, PositionReference, ProjectionReference
-import ..ProjectionTemplateModule: var"@projection_template", bound, project, collection, RuleIoMap
+import ..ProjectionTemplateModule: var"@projection_template", bound, project, collection
 import ..PrinterContextModule: PrinterContext, child_context
-import ..OperationModule: ReplaceSelectionOperation
 import ..PrimitiveModule: StringReplaceRangeOperation, NumberReplaceRangeOperation
-import ..SyntaxToTextModule: SyntaxNodeToText, _syntax_to_flat
 export JsonInsertionToSyntaxLeaf, JsonNullToSyntaxLeaf, JsonBoolToSyntaxLeaf, JsonNumberToSyntaxLeaf,
        JsonStringToSyntaxLeaf, JsonArrayToSyntaxNode, JsonObjectToSyntaxNode,
        JsonToSyntax
@@ -153,16 +150,12 @@ end
 # structural flat-offset reader below stays here: brackets/braces/commas/colons
 # have no JSON pre-image, so they are genuinely projection-specific.
 
-# Structural positions (brackets/braces/comma/colon) have no JSON pre-image, so they
-# round-trip as a flat character offset the text layer can navigate. Overrides the
-# generic `RuleIoMap` ReplaceSelection reader for the node projections.
-function projection_read(p::Union{JsonArrayToSyntaxNode, JsonObjectToSyntaxNode}, iomap::RuleIoMap, op::ReplaceSelectionOperation)
-    result = map_reference_backward(p, iomap, op.path)
-    result !== nothing && return ReplaceSelectionOperation(result)
-    flat = _syntax_to_flat(iomap.output::SyntaxNode, op.path, SyntaxNodeToText(), 0)
-    flat < 0 && return nothing
-    return ReplaceSelectionOperation(ConcreteReferencePath(ProjectionReference(p, ConcreteReferencePath(PositionReference(flat)))))
-end
+# Structural positions (brackets/braces/comma/colon) have no JSON pre-image. The
+# generic `projection_read(::Projection, ::RuleIoMap, ::ReplaceSelectionOperation)`
+# fallback in `ProjectionTemplate` already wraps such an unmapped output path into
+# this projection's own `ProjectionReference` step, and SyntaxToText's
+# `_syntax_to_flat` resolves that wrapped path transparently — so no JSON-specific
+# structural reader is needed here.
 
 # ── Compound convenience constructor ────────────────────────────────────────
 
