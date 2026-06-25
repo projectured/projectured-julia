@@ -74,10 +74,10 @@ struct PSWholePathBind <: PatStep
     name::Symbol
 end
 
-# A first-class type checkpoint in a pattern: `(::T)` matches a TypeReference
-# step whose recorded type is a subtype of `T`. `f::T` matches `f`'s steps then
-# the checkpoint. When a pattern omits `::T`, checkpoints are skipped (tolerant),
-# so existing patterns keep matching canonical references unchanged.
+# A type assertion in a pattern: `f::T` matches `f`'s steps, then asserts the
+# folded `type` field of the node reached is a subtype of `T` (non-navigating).
+# The assertion is optional — an unknown (`nothing`) node type still matches — so
+# patterns that omit `::T`, and skeleton/skip-bound recursion tails, keep matching.
 struct PSType <: PatStep
     typeexpr
 end
@@ -499,16 +499,16 @@ function _gen_step_match(hex, tex, step::PSProjection, rest_success, bound::Set{
 end
 
 function _gen_path_match(path_ex, steps::Vector{PatStep}, success, bound::Set{Symbol}=Set{Symbol}())
-    # Skip any leading type checkpoints before matching: canonical references
-    # carry a `TypeReference` before every navigation step, but patterns are
-    # written against the navigation skeleton only.
+    # Folded references expose a navigation step directly as `head` (the type is a
+    # node field), so patterns written against the navigation skeleton match the
+    # path as-is — there are no interleaved checkpoint steps to skip.
     if isempty(steps)
-        return :((ReferenceModule.skip_type_checkpoints($path_ex) isa ReferenceModule.EmptyReferencePath) ? $success : _nomatch), bound
+        return :(($path_ex isa ReferenceModule.EmptyReferencePath) ? $success : _nomatch), bound
     end
 
     if length(steps) == 1 && steps[1] isa PSWholePathBind
         name = steps[1].name
-        return :(let $(esc(name)) = ReferenceModule.skip_type_checkpoints($path_ex); $success end), union(bound, Set([name]))
+        return :(let $(esc(name)) = $path_ex; $success end), union(bound, Set([name]))
     end
 
     # A leading `::T` is an OPTIONAL, non-navigating assertion on the type of the
@@ -551,7 +551,7 @@ function _gen_path_match(path_ex, steps::Vector{PatStep}, success, bound::Set{Sy
     step_success, bound2 = _gen_step_match(h, t, steps[1], rest_success, bound1)
 
     ex = quote
-        let $p = ReferenceModule.skip_type_checkpoints($path_ex)
+        let $p = $path_ex
             if $p isa ReferenceModule.ConcreteReferencePath
                 let $h = ReferenceModule.head($p),
                     $t = ReferenceModule.tail($p)
@@ -605,7 +605,7 @@ function _gen_prefix_match(path_ex, steps::Vector{PatStep}, success, bound::Set{
     step_match, bound2 = _gen_step_match(h, t, steps[1], rest_match, bound1)
 
     ex = quote
-        let $p = ReferenceModule.skip_type_checkpoints($path_ex)
+        let $p = $path_ex
             if $p isa ReferenceModule.EmptyReferencePath
                 $success
             elseif $p isa ReferenceModule.ConcreteReferencePath

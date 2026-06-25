@@ -24,7 +24,7 @@ import ..DocumentModule: Document, @document
 import ..CollectionModule: CellVector
 import ..TextModule: TextString
 import ..ReferenceModule: Reference, ConcreteReferencePath, EmptyReferencePath,
-                          FieldReference, RangeReference, ReferencePath, skip_type_checkpoints
+                          FieldReference, RangeReference, ReferencePath
 import ..ReferenceBuilderModule: var"@reference"
 import ..OperationModule: ReplaceSelectionOperation
 import ..KeyboardModule: KeyDown
@@ -433,7 +433,7 @@ end
 function _tree_navigate(node::SyntaxNode, sel, direction::Symbol)
     # sel must be a tree selection (path of .children[i] steps ending in ∅)
     sel === nothing && return nothing
-    sel = skip_type_checkpoints(sel)
+    sel = sel
 
     # ∅ on the root node: this node is wholly selected
     if sel isa EmptyReferencePath
@@ -451,14 +451,14 @@ function _tree_navigate(node::SyntaxNode, sel, direction::Symbol)
     sel isa ConcreteReferencePath || return nothing
     h = sel.head
     h isa FieldReference && h.name == "children" || return nothing
-    rest = skip_type_checkpoints(sel.tail)
+    rest = sel.tail
     rest isa ConcreteReferencePath || return nothing
     h2 = rest.head
     h2 isa RangeReference || return nothing
     child_idx = h2.start + 1  # 1-based
     children = node.children
     (1 <= child_idx <= length(children)) || return nothing
-    child_rest = skip_type_checkpoints(rest.tail)
+    child_rest = rest.tail
 
     if child_rest isa EmptyReferencePath
         # The selected node is children[child_idx]
@@ -495,15 +495,15 @@ end
 # / `.close{k}`), which breaks the all-`children` requirement here.
 _is_tree_selection(::EmptyReferencePath) = true
 function _is_tree_selection(sel)
-    sel = skip_type_checkpoints(sel)
+    sel = sel
     sel isa EmptyReferencePath && return true
     sel isa ConcreteReferencePath || return false
     h = sel.head
     h isa FieldReference && h.name == "children" || return false
-    t = skip_type_checkpoints(sel.tail)
+    t = sel.tail
     t isa ConcreteReferencePath || return false
     t.head isa RangeReference || return false
-    _is_tree_selection(skip_type_checkpoints(t.tail))
+    _is_tree_selection(t.tail)
 end
 
 # Text → structural (Ctrl+Space): promote a character cursor to the whole
@@ -512,16 +512,16 @@ end
 # root node's own delimiter (no `.children` prefix) promotes to the root (`∅`).
 function _promote_to_structural(sel)
     pairs = RangeReference[]
-    cur = skip_type_checkpoints(sel)
+    cur = sel
     while cur isa ConcreteReferencePath
         h = cur.head
         (h isa FieldReference && h.name == "children") || break
-        t = skip_type_checkpoints(cur.tail)
+        t = cur.tail
         t isa ConcreteReferencePath || break
         h2 = t.head
         h2 isa RangeReference || break
         push!(pairs, h2)
-        cur = skip_type_checkpoints(t.tail)
+        cur = t.tail
     end
     path = EmptyReferencePath()
     for h2 in Iterators.reverse(pairs)
@@ -538,11 +538,11 @@ end
 function _descend_to_text_cursor(node::SyntaxNode, sel)
     indices = Int[]
     cur = node
-    p = skip_type_checkpoints(sel)
+    p = sel
     while p isa ConcreteReferencePath
         h = p.head
         (h isa FieldReference && h.name == "children") || return nothing
-        t = skip_type_checkpoints(p.tail)
+        t = p.tail
         t isa ConcreteReferencePath || return nothing
         h2 = t.head
         h2 isa RangeReference || return nothing
@@ -551,7 +551,7 @@ function _descend_to_text_cursor(node::SyntaxNode, sel)
         (1 <= i <= length(children)) || return nothing
         push!(indices, i)
         cur = children[i]
-        p = skip_type_checkpoints(t.tail)
+        p = t.tail
     end
     while cur isa SyntaxNode
         isempty(cur.children) && return nothing

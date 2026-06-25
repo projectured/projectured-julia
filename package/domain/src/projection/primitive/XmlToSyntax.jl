@@ -19,7 +19,7 @@ import ..StyleTextModule: StyleText
 import ..SyntaxModule: SyntaxDocument, SyntaxLeaf, SyntaxNode
 import ..TypeDispatchingModule: TypeDispatchingProjection
 import ..IoMapModule: SimpleIoMap, ChildrenIoMap
-import ..ReferenceModule: ConcreteReferencePath, ElementReference, PositionReference, RangeReference, FieldReference, ProjectionReference, ReferencePath, EmptyReferencePath, append_reference, evaluate_reference, skip_type_checkpoints
+import ..ReferenceModule: ConcreteReferencePath, ElementReference, PositionReference, RangeReference, FieldReference, ProjectionReference, ReferencePath, EmptyReferencePath, append_reference, evaluate_reference
 import ..ReferenceCaseModule: var"@reference_case"
 import ..ReferenceBuilderModule: var"@reference"
 import ..PrinterContextModule: child_context
@@ -69,7 +69,7 @@ function map_reference_backward(::XmlTextToSyntaxLeaf, iomap, reference)
 end
 
 function projection_read(p::XmlTextToSyntaxLeaf, iomap, op::ReplaceSelectionOperation)
-    path = skip_type_checkpoints(op.path)
+    path = op.path
     path isa ConcreteReferencePath || return nothing
     h = path.head
     if h isa FieldReference && h.name == "value"
@@ -89,7 +89,7 @@ end
 
 function _xml_text_sel(t::XmlText)
     Cell(() -> begin
-        sel = skip_type_checkpoints(t.selection)
+        sel = t.selection
         sel isa ConcreteReferencePath && sel.head isa ProjectionReference && return sel
         @reference_case t.selection begin
             content.rest... => @reference ::SyntaxLeaf.value::TextString.^(rest)
@@ -239,7 +239,7 @@ function projection_print(p::XmlElementToSyntaxNode, recursion, e::XmlElement, c
                                for (i, child) in enumerate(e.children)])
 
     sel = Cell(() -> begin
-        path = skip_type_checkpoints(e.selection)
+        path = e.selection
         path isa ConcreteReferencePath && path.head isa ProjectionReference && return path
         @reference_case e.selection begin
             children{s:_}.rest... => begin
@@ -407,7 +407,7 @@ end
 # existing attribute — never while editing a child node.
 function _xml_in_attr_context(sel)
     sel === nothing && return false
-    sel = skip_type_checkpoints(sel)
+    sel = sel
     sel isa EmptyReferencePath && return true
     sel isa ConcreteReferencePath || return false
     h = sel.head

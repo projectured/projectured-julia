@@ -430,7 +430,7 @@ import ProjecturedDomain.ReactiveModule: Cell
 import ProjecturedDomain.ProjectionApiModule: projection_print, projection_read,
                               map_reference_forward, map_reference_backward, Projection
 import ProjecturedDomain.IoMapApiModule: IoMap
-import ProjecturedDomain.ReferenceModule: ReferencePath, EmptyReferencePath, ConcreteReferencePath, skip_type_checkpoints,
+import ProjecturedDomain.ReferenceModule: ReferencePath, EmptyReferencePath, ConcreteReferencePath,
                           FieldReference, RangeReference, is_element_reference, strip_reference_types
 import ProjecturedDomain.OperationModule: ReplaceSelectionOperation
 import ProjecturedDomain.PrimitiveModule: StringReplaceRangeOperation, NumberReplaceRangeOperation
@@ -582,11 +582,11 @@ end
 # ── Reference mapping ─────────────────────────────────────────────────────────
 
 function map_reference_forward(::DatabaseTableToTabularGrid, iomap, reference)
-    skip_type_checkpoints(reference) isa EmptyReferencePath ? EmptyReferencePath() : nothing
+    reference isa EmptyReferencePath ? EmptyReferencePath() : nothing
 end
 
 function map_reference_backward(p::DatabaseTableToTabularGrid, iomap, reference)
-    skip_type_checkpoints(reference) isa EmptyReferencePath && return EmptyReferencePath()
+    reference isa EmptyReferencePath && return EmptyReferencePath()
     @reference proj(p, ^(reference))
 end
 
@@ -710,7 +710,7 @@ import ProjecturedDomain.IoMapModule: SimpleIoMap
 import ProjecturedDomain.ProjectionApiModule: projection_print, projection_read,
                               map_reference_forward, map_reference_backward, Projection
 import ProjecturedDomain.ReactiveModule: setfn!
-import ProjecturedDomain.ReferenceModule: EmptyReferencePath, skip_type_checkpoints
+import ProjecturedDomain.ReferenceModule: EmptyReferencePath
 import ProjecturedDomain.ReferenceCaseModule: var"@reference_case"
 import ProjecturedDomain.ReferenceBuilderModule: var"@reference"
 
@@ -789,14 +789,14 @@ end
 # set_selection! annotates onto the (now canonical) instance selection.
 function map_reference_forward(p::DatabaseInstanceToDbCatalog, iomap, reference)
     reference === nothing && return nothing
-    @reference_case skip_type_checkpoints(reference) begin
+    @reference_case reference begin
         ∅ => @reference()
         proj(^(p), inner) => inner
     end
 end
 
 function map_reference_backward(p::DatabaseInstanceToDbCatalog, iomap, reference)
-    skip_type_checkpoints(reference) isa EmptyReferencePath && return @reference()
+    reference isa EmptyReferencePath && return @reference()
     @reference proj(p, ^(reference))
 end
 # No projection_read override — the generic default in Projection.jl handles

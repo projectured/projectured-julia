@@ -34,7 +34,7 @@ import ..ProjectionApiModule: map_reference_forward, map_reference_backward, pro
                               projection_printer_recurse, as_change
 import ..RecursiveProjectionModule: RecursiveProjection
 import ..ReferenceModule: ConcreteReferencePath, EmptyReferencePath, FieldReference, RangeReference, ElementReference,
-                          TypeReference, ProjectionReference, ReferencePath, Reference, skip_type_checkpoints,
+                          TypeReference, ProjectionReference, ReferencePath, Reference,
                           fold_reference_types, strip_reference_types
 import ..PrinterContextModule: child_context
 import ..OperationModule: ReplaceSelectionOperation
@@ -235,7 +235,7 @@ function _key_leaf_sel(doc, in_field::Symbol)
     Cell(() -> begin
         sel = doc.selection
         sel isa ConcreteReferencePath && sel.head isa ProjectionReference && return sel
-        core = skip_type_checkpoints(sel)
+        core = sel
         if core isa ConcreteReferencePath && core.head isa FieldReference && core.head.name == fname
             return ConcreteReferencePath(FieldReference("value"), core.tail)
         end
@@ -539,7 +539,7 @@ end
 
 function _atomic_forward(p, w, reference)
     reference === nothing && return nothing
-    core = skip_type_checkpoints(reference)
+    core = reference
     # unwrap this projection's own introduced step (both opaque & transparent)
     if core isa ConcreteReferencePath && core.head isa ProjectionReference && core.head.projection === p
         return core.head.output_path
@@ -551,7 +551,7 @@ function _atomic_forward(p, w, reference)
     end
     core isa EmptyReferencePath && return _typed(w.outtype)                 # whole ⇒ ::Out
     if core isa ConcreteReferencePath && core.head isa FieldReference && core.head.name == String(w.bound_field)
-        rest = skip_type_checkpoints(core.tail)
+        rest = core.tail
         if rest isa ConcreteReferencePath && rest.head isa RangeReference
             return _prepend(rest, TypeReference(w.outtype),
                             FieldReference(String(w.value_field)), TypeReference(w.value_checkpoint))
@@ -567,12 +567,12 @@ function _atomic_backward(p, w, reference)
         reference isa EmptyReferencePath && return EmptyReferencePath()
         return _path(ProjectionReference(p, reference))
     end
-    core = skip_type_checkpoints(reference)
+    core = reference
     core isa EmptyReferencePath && return _typed(w.intype)                  # whole ⇒ ::In
     if core isa ConcreteReferencePath && core.head isa FieldReference
         fname = Symbol(core.head.name)
         if fname == w.value_field
-            rest = skip_type_checkpoints(core.tail)
+            rest = core.tail
             if rest isa ConcreteReferencePath && rest.head isa RangeReference
                 return _prepend(rest, TypeReference(w.intype),
                                 FieldReference(String(w.bound_field)), TypeReference(w.bound_type))
@@ -594,13 +594,13 @@ end
 
 function _node_forward(p, w, iomap, reference)
     reference === nothing && return nothing
-    core = skip_type_checkpoints(reference)
+    core = reference
     core isa EmptyReferencePath && return _typed(w.outtype)                 # whole ⇒ ::Out
     if core isa ConcreteReferencePath && core.head isa ProjectionReference && core.head.projection === p
         return reference                                                   # keep wrapped
     end
     if core isa ConcreteReferencePath && core.head isa FieldReference && core.head.name == String(w.coll_input_field)
-        after = skip_type_checkpoints(core.tail)
+        after = core.tail
         if after isa ConcreteReferencePath && after.head isa RangeReference
             child_i = after.head.start + 1
             ims = iomap.child_iomaps[]
@@ -617,10 +617,10 @@ end
 
 function _node_backward(p, w, iomap, reference)
     reference === nothing && return nothing
-    core = skip_type_checkpoints(reference)
+    core = reference
     core isa EmptyReferencePath && return _typed(w.intype)                  # whole ⇒ ::In
     if core isa ConcreteReferencePath && core.head isa FieldReference && core.head.name == String(w.children_field)
-        after = skip_type_checkpoints(core.tail)
+        after = core.tail
         if after isa ConcreteReferencePath && after.head isa RangeReference
             child_i = after.head.start + 1
             ims = iomap.child_iomaps[]
@@ -647,14 +647,14 @@ end
 
 function _fixed_forward(p, w, iomap, reference)
     reference === nothing && return nothing
-    core = skip_type_checkpoints(reference)
+    core = reference
     core isa EmptyReferencePath && return _typed(w.outtype)                 # whole entry ⇒ ::Out
     if core isa ConcreteReferencePath && core.head isa FieldReference
         fname = Symbol(core.head.name)
         for (k, slot) in enumerate(w.slots)
             if slot isa KeySlot && slot.in_field === fname
                 inner = core.tail
-                skip_type_checkpoints(inner) isa EmptyReferencePath &&
+                inner isa EmptyReferencePath &&
                     return _path(FieldReference(String(w.children_field)), ElementReference(k))
                 return _prepend(inner, FieldReference(String(w.children_field)),
                                 ElementReference(k), FieldReference("value"))
@@ -671,19 +671,19 @@ end
 
 function _fixed_backward(p, w, iomap, reference)
     reference === nothing && return nothing
-    core = skip_type_checkpoints(reference)
+    core = reference
     core isa EmptyReferencePath && return _typed(w.intype)                  # whole pair ⇒ ::In
     if core isa ConcreteReferencePath && core.head isa FieldReference && core.head.name == String(w.children_field)
-        after = skip_type_checkpoints(core.tail)
+        after = core.tail
         if after isa ConcreteReferencePath && after.head isa RangeReference
             k = after.head.start + 1
             1 <= k <= length(w.slots) || return nothing
             slot = w.slots[k]
             leaf_path = after.tail
             if slot isa KeySlot
-                skip_type_checkpoints(leaf_path) isa EmptyReferencePath &&
+                leaf_path isa EmptyReferencePath &&
                     return _path(FieldReference(String(slot.in_field)))     # whole key leaf ⇒ .key
-                lp = skip_type_checkpoints(leaf_path)
+                lp = leaf_path
                 if lp isa ConcreteReferencePath && lp.head isa FieldReference && lp.head.name == "value"
                     return _prepend(lp.tail, FieldReference(String(slot.in_field)))   # .value char ⇒ .key char
                 end
@@ -711,7 +711,7 @@ end
 
 function _mixed_forward(p, w, iomap, reference)
     reference === nothing && return nothing
-    core = skip_type_checkpoints(reference)
+    core = reference
     core isa EmptyReferencePath && return _typed(w.outtype)
     if core isa ConcreteReferencePath && core.head isa ProjectionReference && core.head.projection === p
         return reference
@@ -721,7 +721,7 @@ function _mixed_forward(p, w, iomap, reference)
     for (k, slot) in enumerate(w.prefix_slots)
         if slot isa KeySlot && slot.in_field === fname
             inner = core.tail
-            skip_type_checkpoints(inner) isa EmptyReferencePath &&
+            inner isa EmptyReferencePath &&
                 return _path(FieldReference(String(w.children_field)), ElementReference(k))
             return _prepend(inner, FieldReference(String(w.children_field)), ElementReference(k), FieldReference("value"))
         elseif slot isa ProjectSlot && slot.in_field === fname
@@ -732,13 +732,13 @@ function _mixed_forward(p, w, iomap, reference)
         end
     end
     if fname === w.coll_field
-        after = skip_type_checkpoints(core.tail)
+        after = core.tail
         if after isa ConcreteReferencePath && after.head isa RangeReference
             i = after.head.start + 1
             ims = iomap.child_iomaps.coll[]
             1 <= i <= length(ims) || return nothing
             child_i = length(w.prefix_slots) + i
-            skip_type_checkpoints(after.tail) isa EmptyReferencePath &&
+            after.tail isa EmptyReferencePath &&
                 return _path(FieldReference(String(w.children_field)), ElementReference(child_i))
             inner = map_reference_forward(ims[i].projection, ims[i], after.tail)
             inner === nothing && return nothing
@@ -750,11 +750,11 @@ end
 
 function _mixed_backward(p, w, iomap, reference)
     reference === nothing && return nothing
-    core = skip_type_checkpoints(reference)
+    core = reference
     core isa EmptyReferencePath && return _typed(w.intype)
     (core isa ConcreteReferencePath && core.head isa FieldReference &&
      core.head.name == String(w.children_field)) || return nothing
-    after = skip_type_checkpoints(core.tail)
+    after = core.tail
     (after isa ConcreteReferencePath && after.head isa RangeReference) || return nothing
     k = after.head.start + 1
     leaf_path = after.tail
@@ -762,9 +762,9 @@ function _mixed_backward(p, w, iomap, reference)
     if k <= n_prefix
         slot = w.prefix_slots[k]
         if slot isa KeySlot
-            skip_type_checkpoints(leaf_path) isa EmptyReferencePath &&
+            leaf_path isa EmptyReferencePath &&
                 return _path(FieldReference(String(slot.in_field)))
-            lp = skip_type_checkpoints(leaf_path)
+            lp = leaf_path
             if lp isa ConcreteReferencePath && lp.head isa FieldReference && lp.head.name == "value"
                 return _prepend(lp.tail, FieldReference(String(slot.in_field)))
             end
@@ -781,7 +781,7 @@ function _mixed_backward(p, w, iomap, reference)
         i = k - n_prefix
         ims = iomap.child_iomaps.coll[]
         1 <= i <= length(ims) || return nothing
-        skip_type_checkpoints(leaf_path) isa EmptyReferencePath &&
+        leaf_path isa EmptyReferencePath &&
             return _path(FieldReference(String(w.coll_field)), ElementReference(i))
         inner = map_reference_backward(ims[i].projection, ims[i], leaf_path)
         inner === nothing && return nothing
@@ -798,14 +798,14 @@ end
 
 function _inline_forward(p, w, reference)
     reference === nothing && return nothing
-    core = skip_type_checkpoints(reference)
+    core = reference
     core isa EmptyReferencePath && return _typed(w.outtype)
     if core isa ConcreteReferencePath && core.head isa ProjectionReference && core.head.projection === p
         return reference
     end
     if core isa ConcreteReferencePath && core.head isa FieldReference && Symbol(core.head.name) === w.bound_field
         inner = core.tail
-        skip_type_checkpoints(inner) isa EmptyReferencePath &&
+        inner isa EmptyReferencePath &&
             return _path(FieldReference(String(w.children_field)), ElementReference(w.bound_index))
         return _prepend(inner, FieldReference(String(w.children_field)), ElementReference(w.bound_index), FieldReference("value"))
     end
@@ -814,17 +814,17 @@ end
 
 function _inline_backward(p, w, reference)
     reference === nothing && return nothing
-    core = skip_type_checkpoints(reference)
+    core = reference
     core isa EmptyReferencePath && return _typed(w.intype)
     (core isa ConcreteReferencePath && core.head isa FieldReference &&
      core.head.name == String(w.children_field)) || return nothing
-    after = skip_type_checkpoints(core.tail)
+    after = core.tail
     (after isa ConcreteReferencePath && after.head isa RangeReference) || return nothing
     after.head.start + 1 == w.bound_index || return nothing       # decorative ⇒ flat fallback
     leaf_path = after.tail
-    skip_type_checkpoints(leaf_path) isa EmptyReferencePath &&
+    leaf_path isa EmptyReferencePath &&
         return _path(FieldReference(String(w.bound_field)))
-    lp = skip_type_checkpoints(leaf_path)
+    lp = leaf_path
     if lp isa ConcreteReferencePath && lp.head isa FieldReference && lp.head.name == "value"
         return _prepend(lp.tail, FieldReference(String(w.bound_field)))
     end
@@ -841,7 +841,7 @@ end
 function _sections_forward(p, w, iomap, reference)
     reference === nothing && return nothing
     secs = iomap.child_iomaps[]
-    core = skip_type_checkpoints(reference)
+    core = reference
     core isa EmptyReferencePath && return _typed(w.outtype)
     if core isa ConcreteReferencePath && core.head isa ProjectionReference && core.head.projection === p
         return reference
@@ -851,14 +851,14 @@ function _sections_forward(p, w, iomap, reference)
     sec_i = findfirst(s -> s.field === field, secs)
     sec_i === nothing && return nothing
     cf = String(w.children_field)
-    rest = skip_type_checkpoints(core.tail)
+    rest = core.tail
     rest isa EmptyReferencePath && return _path(FieldReference(cf), ElementReference(sec_i))
     (rest isa ConcreteReferencePath && rest.head isa RangeReference) || return nothing
     entry_i = rest.head.start + 1
     entries = secs[sec_i].entries
     1 <= entry_i <= length(entries) || return nothing
     entry_rest = rest.tail
-    skip_type_checkpoints(entry_rest) isa EmptyReferencePath &&
+    entry_rest isa EmptyReferencePath &&
         return _path(FieldReference(cf), ElementReference(sec_i), FieldReference(cf), ElementReference(entry_i))
     inner = map_reference_forward(entries[entry_i].projection, entries[entry_i], entry_rest)
     inner === nothing && return nothing
@@ -869,24 +869,24 @@ function _sections_backward(p, w, iomap, reference)
     reference === nothing && return nothing
     secs = iomap.child_iomaps[]
     cf = String(w.children_field)
-    core = skip_type_checkpoints(reference)
+    core = reference
     core isa EmptyReferencePath && return _typed(w.intype)
     (core isa ConcreteReferencePath && core.head isa FieldReference && core.head.name == cf) || return nothing
-    after = skip_type_checkpoints(core.tail)
+    after = core.tail
     (after isa ConcreteReferencePath && after.head isa RangeReference) || return nothing
     sec_i = after.head.start + 1
     1 <= sec_i <= length(secs) || return nothing
     sec = secs[sec_i]
     rest = after.tail
-    skip_type_checkpoints(rest) isa EmptyReferencePath && return _path(FieldReference(String(sec.field)))
-    rest2 = skip_type_checkpoints(rest)
+    rest isa EmptyReferencePath && return _path(FieldReference(String(sec.field)))
+    rest2 = rest
     (rest2 isa ConcreteReferencePath && rest2.head isa FieldReference && rest2.head.name == cf) || return nothing
-    after2 = skip_type_checkpoints(rest2.tail)
+    after2 = rest2.tail
     (after2 isa ConcreteReferencePath && after2.head isa RangeReference) || return nothing
     entry_i = after2.head.start + 1
     1 <= entry_i <= length(sec.entries) || return nothing
     inner_path = after2.tail
-    skip_type_checkpoints(inner_path) isa EmptyReferencePath &&
+    inner_path isa EmptyReferencePath &&
         return _path(FieldReference(String(sec.field)), ElementReference(entry_i))
     translated = map_reference_backward(sec.entries[entry_i].projection, sec.entries[entry_i], inner_path)
     translated === nothing && return nothing
@@ -920,10 +920,10 @@ end
 _focused_child(::Any, iomap, sel) = nothing
 
 function _focused_child(w::NodeWiring, iomap, sel)
-    core = skip_type_checkpoints(sel)
+    core = sel
     (core isa ConcreteReferencePath && core.head isa FieldReference &&
      core.head.name == String(w.coll_input_field)) || return nothing
-    after = skip_type_checkpoints(core.tail)
+    after = core.tail
     (after isa ConcreteReferencePath && after.head isa RangeReference) || return nothing
     i = after.head.start + 1
     ims = iomap.child_iomaps[]
@@ -932,7 +932,7 @@ function _focused_child(w::NodeWiring, iomap, sel)
 end
 
 function _focused_child(w::FixedNodeWiring, iomap, sel)
-    core = skip_type_checkpoints(sel)
+    core = sel
     (core isa ConcreteReferencePath && core.head isa FieldReference) || return nothing
     fname = Symbol(core.head.name)
     for slot in w.slots
@@ -943,7 +943,7 @@ function _focused_child(w::FixedNodeWiring, iomap, sel)
 end
 
 function _focused_child(w::MixedNodeWiring, iomap, sel)
-    core = skip_type_checkpoints(sel)
+    core = sel
     (core isa ConcreteReferencePath && core.head isa FieldReference) || return nothing
     fname = Symbol(core.head.name)
     for slot in w.prefix_slots
@@ -951,7 +951,7 @@ function _focused_child(w::MixedNodeWiring, iomap, sel)
             return (iomap.child_iomaps.prefix[fname], (FieldReference(String(fname)),))
     end
     if fname === w.coll_field
-        after = skip_type_checkpoints(core.tail)
+        after = core.tail
         (after isa ConcreteReferencePath && after.head isa RangeReference) || return nothing
         i = after.head.start + 1
         ims = iomap.child_iomaps.coll[]
@@ -962,10 +962,10 @@ function _focused_child(w::MixedNodeWiring, iomap, sel)
 end
 
 function _focused_child(w::SectionsWiring, iomap, sel)
-    core = skip_type_checkpoints(sel)
+    core = sel
     (core isa ConcreteReferencePath && core.head isa FieldReference) || return nothing
     fname = Symbol(core.head.name)
-    after = skip_type_checkpoints(core.tail)
+    after = core.tail
     (after isa ConcreteReferencePath && after.head isa RangeReference) || return nothing
     i = after.head.start + 1
     for s in iomap.child_iomaps[]

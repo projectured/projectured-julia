@@ -21,7 +21,7 @@ module TooltipDecoratorProjectionModule
 import ..ProjectionApiModule: projection_print, projection_printer_recurse, projection_read, map_reference_forward, map_reference_backward, Projection, Change, as_change
 import ..IoMapApiModule: IoMap
 import ..ReactiveModule: Cell
-import ..ReferenceModule: ReferencePath, ConcreteReferencePath, FieldReference, head, tail, skip_type_checkpoints
+import ..ReferenceModule: ReferencePath, ConcreteReferencePath, FieldReference, head, tail
 import ..TooltipDocumentModule: TooltipSource
 import ..OperationModule: OpenWindowOperation, CloseWindowOperation
 import ..OperationApiModule: Operation
@@ -143,7 +143,7 @@ projection_read(p::TooltipDecoratorProjection, iomap::TooltipDecoratorProjection
 function map_reference_forward(::TooltipDecoratorProjection, iomap::TooltipDecoratorProjectionIoMap, reference)
     # Strip a leading FieldReference("child") if present, then delegate.
     # Skip canonical TypeReference checkpoints before reading the `child` step.
-    reference = skip_type_checkpoints(reference)
+    reference = reference
     if reference isa ConcreteReferencePath
         h = head(reference)
         if h isa FieldReference && h.name == "child"

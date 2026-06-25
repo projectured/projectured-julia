@@ -19,7 +19,7 @@ import ..ColorModule: StyleColor, color_default, color_solarized_magenta, color_
 import ..StyleTextModule: StyleText
 import ..IoMapModule: SimpleIoMap
 import ..IoMapApiModule: IoMap
-import ..ReferenceModule: ConcreteReferencePath, EmptyReferencePath, FieldReference, RangeReference, skip_type_checkpoints
+import ..ReferenceModule: ConcreteReferencePath, EmptyReferencePath, FieldReference, RangeReference
 import ..ReferenceBuilderModule: var"@reference"
 import ..ReferenceCaseModule: var"@reference_case"
 import ..OperationModule: ReplaceSelectionOperation
@@ -49,7 +49,7 @@ function projection_print(p::PrimitiveBoolToSyntaxLeaf, recursion, b::PrimitiveB
 end
 
 function projection_read(::PrimitiveBoolToSyntaxLeaf, iomap::SimpleIoMap, op::ReplaceSelectionOperation)
-    path = skip_type_checkpoints(op.path)
+    path = op.path
     path isa ConcreteReferencePath || return nothing
     h = path.head
     h isa FieldReference && h.name == "value" || return nothing
@@ -79,7 +79,7 @@ function projection_print(p::PrimitiveNumberToSyntaxLeaf, recursion, n::Primitiv
 end
 
 function projection_read(::PrimitiveNumberToSyntaxLeaf, iomap::SimpleIoMap, op::ReplaceSelectionOperation)
-    path = skip_type_checkpoints(op.path)
+    path = op.path
     path isa ConcreteReferencePath || return nothing
     h = path.head
     h isa FieldReference && h.name == "value" || return nothing

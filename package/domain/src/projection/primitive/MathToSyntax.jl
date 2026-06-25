@@ -24,7 +24,7 @@ import ..StyleTextModule: StyleText
 import ..SyntaxModule: SyntaxDocument, SyntaxLeaf, SyntaxNode
 import ..TypeDispatchingModule: TypeDispatchingProjection
 import ..IoMapModule: SimpleIoMap, ChildrenIoMap
-import ..ReferenceModule: ConcreteReferencePath, ElementReference, PositionReference, RangeReference, FieldReference, ProjectionReference, ReferencePath, EmptyReferencePath, append_reference, skip_type_checkpoints
+import ..ReferenceModule: ConcreteReferencePath, ElementReference, PositionReference, RangeReference, FieldReference, ProjectionReference, ReferencePath, EmptyReferencePath, append_reference
 import ..ReferenceCaseModule: var"@reference_case"
 import ..ReferenceBuilderModule: var"@reference"
 import ..PrinterContextModule: child_context
@@ -71,7 +71,7 @@ function projection_print(p::MathVariableToSyntaxLeaf, recursion, v::MathVariabl
 end
 
 function projection_read(::MathVariableToSyntaxLeaf, iomap::SimpleIoMap, op::ReplaceSelectionOperation)
-    path = skip_type_checkpoints(op.path)
+    path = op.path
     path isa ConcreteReferencePath || return nothing
     h = path.head
     h isa FieldReference && h.name == "value" || return nothing
@@ -137,7 +137,7 @@ function projection_print(p::MathBinaryOperationToSyntaxNode, recursion, m::Math
     op_leaf = SyntaxLeaf(TextString(() -> _operator_string(m.operator), p.op))
 
     sel = Cell(() -> begin
-        path = skip_type_checkpoints(m.selection)
+        path = m.selection
         path isa ConcreteReferencePath || return nothing
         h = path.head
         if h isa FieldReference
@@ -212,7 +212,7 @@ function projection_print(p::MathParenthesizedToSyntaxNode, recursion, m::MathPa
     content_iomap = Cell(() -> projection_printer_recurse(recursion, m.content, content_ctx))
 
     sel = Cell(() -> begin
-        path = skip_type_checkpoints(m.selection)
+        path = m.selection
         path isa ConcreteReferencePath || return nothing
         h = path.head
         if h isa FieldReference && h.name == "content"
@@ -301,7 +301,7 @@ function projection_print(p::MathAssignmentToSyntaxNode, recursion, m::MathAssig
     eq_leaf = SyntaxLeaf(TextString("=", p.eq))
 
     sel = Cell(() -> begin
-        path = skip_type_checkpoints(m.selection)
+        path = m.selection
         path isa ConcreteReferencePath || return nothing
         h = path.head
         if h isa FieldReference

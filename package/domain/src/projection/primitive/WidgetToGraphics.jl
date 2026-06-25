@@ -59,7 +59,7 @@ import ..OperationApiModule: Operation
 import ..OperationModule: ReplaceSelectionOperation, ReplaceReferencedValue, ToggleCollapseOperation, CompoundOperation
 import ..PrimitiveModule: StringReplaceRangeOperation, NumberReplaceRangeOperation
 import ..ReferenceModule: ReferencePath, ConcreteReferencePath, FieldReference, RangeReference,
-                          ElementReference, EmptyReferencePath, is_element_reference, skip_type_checkpoints
+                          ElementReference, EmptyReferencePath, is_element_reference
 import ..OperationRerootingModule: prepend_steps_to_op
 import ..TypeDispatchingModule: TypeDispatchingProjection
 import ..PrinterContextModule: child_context, with_available_size
@@ -1141,10 +1141,10 @@ end
 # or 0 when it carries no such selection.
 function _selected_composite_slot(w::WidgetComposite, n::Int)
     sel = getfield(w, :selection)[]
-    sel = skip_type_checkpoints(sel)
+    sel = sel
     sel isa ConcreteReferencePath || return 0
     (sel.head isa FieldReference && sel.head.name == "elements") || return 0
-    t = skip_type_checkpoints(sel.tail)
+    t = sel.tail
     (t isa ConcreteReferencePath && t.head isa RangeReference) || return 0
     slot = t.head.start + 1
     1 <= slot <= n ? slot : 0
@@ -1695,10 +1695,10 @@ end
 # when the split carries no such selection (route by fallback then).
 function _selected_split_slot(w::WidgetSplitPane, n::Int)
     sel = getfield(w, :selection)[]
-    sel = skip_type_checkpoints(sel)
+    sel = sel
     sel isa ConcreteReferencePath || return 0
     (sel.head isa FieldReference && sel.head.name == "elements") || return 0
-    t = skip_type_checkpoints(sel.tail)
+    t = sel.tail
     (t isa ConcreteReferencePath && t.head isa RangeReference) || return 0
     slot = t.head.start + 1
     1 <= slot <= n ? slot : 0
@@ -3039,21 +3039,21 @@ end
 function _wt_field_element_terminal(sel)
     # Selections are canonical (carry TypeReference checkpoints); skip them
     # before each structural step so the shape match is modulo checkpoints.
-    sel = skip_type_checkpoints(sel)
+    sel = sel
     sel isa ConcreteReferencePath || return nothing
     h = sel.head
     h isa FieldReference || return nothing
-    t = skip_type_checkpoints(sel.tail)
+    t = sel.tail
     t isa ConcreteReferencePath || return nothing
     r = t.head
     (r isa RangeReference && is_element_reference(r)) || return nothing
-    skip_type_checkpoints(t.tail) isa EmptyReferencePath || return nothing
+    t.tail isa EmptyReferencePath || return nothing
     (h.name, r.start + 1)
 end
 
 # (:table,_,_) | (:row,r,_) | (:col,c,_) | (:cell,r,c) | nothing
 function _wt_selection_shape(sel, geom::WTGeometry)
-    skip_type_checkpoints(sel) isa EmptyReferencePath && return (:table, 0, 0)
+    sel isa EmptyReferencePath && return (:table, 0, 0)
     fe = _wt_field_element_terminal(sel)
     if fe !== nothing
         field, idx = fe
@@ -3079,18 +3079,18 @@ end
 
 # `rows[r][c]∅` (element c of row r, terminating) → (r, c), else nothing.
 function _wt_cell_terminal(sel)
-    sel = skip_type_checkpoints(sel)
+    sel = sel
     sel isa ConcreteReferencePath || return nothing
     (sel.head isa FieldReference && sel.head.name == "rows") || return nothing
-    t = skip_type_checkpoints(sel.tail)
+    t = sel.tail
     t isa ConcreteReferencePath || return nothing
     (t.head isa RangeReference && is_element_reference(t.head)) || return nothing
     r = t.head.start + 1
-    t2 = skip_type_checkpoints(t.tail)
+    t2 = t.tail
     t2 isa ConcreteReferencePath || return nothing
     (t2.head isa RangeReference && is_element_reference(t2.head)) || return nothing
     c = t2.head.start + 1
-    skip_type_checkpoints(t2.tail) isa EmptyReferencePath || return nothing
+    t2.tail isa EmptyReferencePath || return nothing
     (r, c)
 end
 
@@ -3616,16 +3616,16 @@ function _wtree_path_ref(path::Vector{Int}, k::Int=1)
 end
 
 function _wtree_ref_path(reference)
-    cur = skip_type_checkpoints(reference)
+    cur = reference
     path = Int[]
     first = true
     while cur isa ConcreteReferencePath
         h = cur.head
         (h isa FieldReference && h.name == (first ? "roots" : "children")) || return nothing
-        t = skip_type_checkpoints(cur.tail)
+        t = cur.tail
         (t isa ConcreteReferencePath && t.head isa RangeReference && is_element_reference(t.head)) || return nothing
         push!(path, t.head.start + 1)
-        cur = skip_type_checkpoints(t.tail)
+        cur = t.tail
         cur isa EmptyReferencePath && return path
         first = false
     end

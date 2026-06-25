@@ -21,7 +21,7 @@ import ..ColorModule: StyleColor, color_solarized_cyan, color_solarized_magenta,
 import ..StyleTextModule: StyleText
 import ..IoMapModule: SimpleIoMap
 import ..ReferenceModule: ConcreteReferencePath, EmptyReferencePath, FieldReference, RangeReference,
-                          ElementReference, PositionReference, ReferencePath, skip_type_checkpoints
+                          ElementReference, PositionReference, ReferencePath
 import ..ReferenceCaseModule: var"@reference_case"
 import ..ReferenceBuilderModule: var"@reference"
 import ..OperationModule: ReplaceSelectionOperation
@@ -138,11 +138,11 @@ end
 # Extract a `.value[range]` selection on a PrimitiveString as a RangeReference.
 function _string_value_range(s::PrimitiveString)
     sel = getfield(s, :selection)[]
-    sel = skip_type_checkpoints(sel)
+    sel = sel
     sel isa ConcreteReferencePath || return nothing
     head = sel.head
     (head isa FieldReference && head.name == "value") || return nothing
-    inner = skip_type_checkpoints(sel.tail)
+    inner = sel.tail
     inner isa ConcreteReferencePath || return nothing
     inner.head isa RangeReference || return nothing
     inner.head

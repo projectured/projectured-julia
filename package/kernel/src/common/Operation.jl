@@ -8,7 +8,7 @@ module OperationModule
 
 import ..OperationApiModule: Operation, evaluate_operation
 import ..DocumentApiModule: Document, clear_selection!, set_selection!, with_selection
-import ..ReferenceModule: ReferencePath, ConcreteReferencePath, EmptyReferencePath, FieldReference, RangeReference, TypeReference, is_element_reference, evaluate_reference, reference_equal, skip_type_checkpoints, annotate_reference_types, strip_reference_types, append_reference
+import ..ReferenceModule: ReferencePath, ConcreteReferencePath, EmptyReferencePath, FieldReference, RangeReference, TypeReference, is_element_reference, evaluate_reference, reference_equal, annotate_reference_types, strip_reference_types, append_reference
 import ..ReactiveModule: Cell
 export ReplaceSelectionOperation, QuitEditorOperation, QuitEditorException, replace_selection!,
        OpenWindowOperation, CloseWindowOperation, ResizeWindowOperation, ToggleCollapseOperation,
@@ -378,8 +378,8 @@ function clear_selection!(document)
     path isa ConcreteReferencePath || return
     # Skip leading type checkpoints: a TypeReference is a non-navigating
     # assertion on the current node, so descent is driven by the next
-    # navigation step (mirrors evaluate_reference / skip_type_checkpoints).
-    nav = skip_type_checkpoints(path)
+    # navigation step (mirrors evaluate_reference / ).
+    nav = path
     nav isa ConcreteReferencePath || return
     h = nav.head
     rest = nav.tail
@@ -447,7 +447,7 @@ function _set_selection_walk!(document, path)
     # Skip leading type checkpoints to find the navigation step that descends
     # into a child; the checkpoint stays on the current node (canonical paths
     # carry a TypeReference before every navigation step).
-    nav = skip_type_checkpoints(path)
+    nav = path
     nav isa ConcreteReferencePath || return
     h = nav.head
     rest = nav.tail

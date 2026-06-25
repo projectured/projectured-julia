@@ -26,7 +26,7 @@ import ..SyntaxModule: SyntaxDocument, SyntaxLeaf, SyntaxNode
 import ..TypeDispatchingModule: TypeDispatchingProjection
 import ..IoMapModule: SimpleIoMap, ChildrenIoMap
 import ..ReferenceModule: ConcreteReferencePath, ElementReference, PositionReference, RangeReference, FieldReference,
-                         ProjectionReference, ReferencePath, EmptyReferencePath, append_reference, skip_type_checkpoints
+                         ProjectionReference, ReferencePath, EmptyReferencePath, append_reference
 import ..ReferenceCaseModule: var"@reference_case"
 import ..ReferenceBuilderModule: var"@reference"
 import ..OperationModule: ReplaceSelectionOperation
@@ -92,7 +92,7 @@ function projection_print(p::BookBookToSyntaxNode, recursion, b::BookBook, ctx)
     title_leaf = SyntaxLeaf(TextString(() -> b.title, p.title); selection=title_sel)
 
     sel = Cell(() -> begin
-        path = skip_type_checkpoints(b.selection)
+        path = b.selection
         path isa ConcreteReferencePath || return nothing
         h = path.head
         if h isa ProjectionReference
@@ -263,7 +263,7 @@ function projection_print(p::BookChapterToSyntaxNode, recursion, b::BookChapter,
         selection=title_sel)
 
     sel = Cell(() -> begin
-        path = skip_type_checkpoints(b.selection)
+        path = b.selection
         path isa ConcreteReferencePath || return nothing
         h = path.head
         if h isa ProjectionReference
@@ -456,7 +456,7 @@ function projection_print(p::BookListToSyntaxNode, recursion, b::BookList, ctx)
                                  for (i, e) in enumerate(b.elements)])
 
     sel = Cell(() -> begin
-        path = skip_type_checkpoints(b.selection)
+        path = b.selection
         path isa ConcreteReferencePath && path.head isa ProjectionReference && return b.selection
         @reference_case path begin
             elements{s:_}.rest... => begin

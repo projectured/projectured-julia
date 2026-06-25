@@ -21,7 +21,7 @@ import ..ReactiveModule: Cell
 import ..CollectionModule: CellVector
 import ..IoMapApiModule: IoMap
 import ..PrinterContextModule: PrinterContext
-import ..ReferenceModule: ConcreteReferencePath, RangeReference, FieldReference, EmptyReferencePath, ReferencePath, TextRectangularReference, skip_type_checkpoints, strip_reference_types
+import ..ReferenceModule: ConcreteReferencePath, RangeReference, FieldReference, EmptyReferencePath, ReferencePath, TextRectangularReference, strip_reference_types
 import ..ReferenceCaseModule: var"@reference_case"
 import ..ReferenceBuilderModule: var"@reference"
 import ..OperationModule: ReplaceSelectionOperation
@@ -322,7 +322,7 @@ projection_read(::WordWrapping, ::WordWrappingIoMap, op) = op
 # flat character space, which wrapping leaves unchanged, so they map identically
 # in either direction.
 function _is_structural_ref(ref)
-    ref = skip_type_checkpoints(ref)
+    ref = ref
     ref isa EmptyReferencePath ||
         (ref isa ConcreteReferencePath && ref.head isa TextRectangularReference)
 end

@@ -22,7 +22,7 @@ import ..StyleTextModule: StyleText
 import ..IoMapModule: SimpleIoMap, ChildrenIoMap
 import ..IoMapApiModule: IoMap
 import ..ReferenceModule: ConcreteReferencePath, ElementReference, FieldReference, RangeReference,
-                          PositionReference, ProjectionReference, ReferencePath, skip_type_checkpoints,
+                          PositionReference, ProjectionReference, ReferencePath,
                           EmptyReferencePath, append_reference, is_element_reference
 import ..OperationModule: ReplaceSelectionOperation
 import ..SyntaxToTextModule: SyntaxNodeToText, _syntax_to_flat
@@ -37,7 +37,7 @@ end
 
 function map_reference_forward(p::CollectionCellVectorToSyntax, iomap::ChildrenIoMap, reference)
     reference === nothing && return nothing
-    core = skip_type_checkpoints(reference)
+    core = reference
     core isa EmptyReferencePath && return EmptyReferencePath()
     if core isa ConcreteReferencePath
         # A projection-introduced position (structural delimiter) was encoded as
@@ -102,11 +102,11 @@ end
 # Maps a SyntaxNode path (children[i].rest) back to the CellVector domain.
 # Returns ConcreteReferencePath(ElementReference(child_i), rest) or nothing.
 function _translate_collection_path(cv::CellVector, path::ReferencePath)
-    path = skip_type_checkpoints(path)
+    path = path
     path isa ConcreteReferencePath || return nothing
     h = path.head
     h isa FieldReference && h.name == "children" || return nothing
-    rest0 = skip_type_checkpoints(path.tail)
+    rest0 = path.tail
     rest0 isa ConcreteReferencePath || return nothing
     h2 = rest0.head
     h2 isa RangeReference || return nothing

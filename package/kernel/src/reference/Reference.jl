@@ -29,7 +29,7 @@ export Reference, ReferenceStep, ElementReference, PositionReference, RangeRefer
        IRangeReference, IFieldReference, IConcreteReferencePath, IPointReference,
        reference_equal, is_prefix_of, reference_equal_ignoring_types, is_prefix_of_ignoring_types,
        ReferenceTypeMismatch, valid_reference_prefix, annotate_reference_types, strip_reference_types,
-       skip_type_checkpoints, fold_reference_types
+       fold_reference_types
 
 # ── ReferenceStep ─────────────────────────────────────────────────────
 
@@ -382,22 +382,11 @@ significant, so an annotated path is not equal to its stripped form. Use
 """
 reference_equal(a::ReferencePath, b::ReferencePath) = a == b
 
-"""
-    skip_type_checkpoints(path::ReferencePath) -> ReferencePath
-
-Return `path` advanced past any **leading** [`TypeReference`](@ref) checkpoints,
-so the result is either `EmptyReferencePath` or a `ConcreteReferencePath` whose
-head is a navigation step. Unlike [`strip_reference_types`](@ref) this only peels
-the front (it does not recurse into the tail); it is the primitive every
-checkpoint-tolerant consumer uses to find "the next navigation step".
-"""
-skip_type_checkpoints(path::EmptyReferencePath) = path
-function skip_type_checkpoints(path::ConcreteReferencePath)
-    path.head isa TypeReference ? skip_type_checkpoints(path.tail) : path
-end
-# Permissive fallback: the matcher may apply this to a non-path (e.g. `nothing`
-# when there is no selection); pass such values through unchanged.
-skip_type_checkpoints(other) = other
+# `skip_type_checkpoints` was retired: in the folded model a node's `head` is
+# always a navigation step (the type lives in the node's `type` field), so there
+# are no interleaved checkpoint *steps* to skip past — consumers read `head`/`tail`
+# directly. Cross-form comparison ignoring node types uses
+# `reference_equal_ignoring_types` / `is_prefix_of_ignoring_types`.
 
 """
     reference_equal_ignoring_types(a, b)

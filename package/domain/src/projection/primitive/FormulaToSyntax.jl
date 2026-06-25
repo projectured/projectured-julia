@@ -39,7 +39,7 @@ import ..IoMapModule: SimpleIoMap, ChildrenIoMap
 import ..IoMapApiModule: IoMap
 import ..ReferenceModule: ConcreteReferencePath, ElementReference, PositionReference,
                           RangeReference, FieldReference, ProjectionReference,
-                          ReferencePath, EmptyReferencePath, skip_type_checkpoints
+                          ReferencePath, EmptyReferencePath
 import ..ReferenceCaseModule: var"@reference_case"
 import ..ReferenceBuilderModule: var"@reference"
 import ..PrinterContextModule: child_context

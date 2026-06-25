@@ -31,7 +31,7 @@ import ..FontModule: StyleFont, font_ubuntu_monospace_regular_24
 import ..ColorModule: StyleColor, color_default, color_solarized_gray
 import ..StyleTextModule: StyleText
 import ..GeometryModule: Inset
-import ..ReferenceModule: Reference, ConcreteReferencePath, EmptyReferencePath, RangeReference, FieldReference, TextRectangularReference, skip_type_checkpoints, strip_reference_types
+import ..ReferenceModule: Reference, ConcreteReferencePath, EmptyReferencePath, RangeReference, FieldReference, TextRectangularReference, strip_reference_types
 import ..ReferenceCaseModule: var"@reference_case"
 import ..ReferenceBuilderModule: var"@reference"
 import ..OperationApiModule: splice_string, splice_value!
@@ -548,7 +548,7 @@ end
 # A whole-element selection projects to either `∅` (the root element) or a
 # `TextRectangularReference` box; both mean "structural mode" at this layer.
 function _is_structural_selection(sel)
-    sel = skip_type_checkpoints(sel)
+    sel = sel
     sel isa EmptyReferencePath ||
         (sel isa ConcreteReferencePath && sel.head isa TextRectangularReference)
 end
@@ -591,10 +591,10 @@ Two shapes occur, both with 0-based offsets:
 function text_selection_flat(text::TextText)
     # Selections are canonical at rest (carry TypeReference checkpoints); peel
     # leading ones so the structural checks below see the plain navigation steps.
-    sel = skip_type_checkpoints(text.selection)
+    sel = text.selection
     sel isa ConcreteReferencePath || return nothing
     h = sel.head
-    if h isa TextRectangularReference && skip_type_checkpoints(sel.tail) isa EmptyReferencePath
+    if h isa TextRectangularReference && sel.tail isa EmptyReferencePath
         return (h.start, h.stop, h.start == h.stop)
     end
     return _text_cursor_flat(text, sel)
@@ -603,12 +603,12 @@ end
 function _text_cursor_flat(text::TextText, sel::ConcreteReferencePath)
     (sel.head isa FieldReference && sel.head.name == "elements") || return nothing
     # Skip TypeReference checkpoints between each navigation step.
-    t1 = skip_type_checkpoints(sel.tail)
+    t1 = sel.tail
     t1 isa ConcreteReferencePath && t1.head isa RangeReference || return nothing
     span_idx = t1.head.start + 1   # 1-based span index
-    t2 = skip_type_checkpoints(t1.tail)
+    t2 = t1.tail
     t2 isa ConcreteReferencePath && t2.head isa FieldReference && t2.head.name == "content" || return nothing
-    t3 = skip_type_checkpoints(t2.tail)
+    t3 = t2.tail
     t3 isa ConcreteReferencePath && t3.head isa RangeReference || return nothing
     a, b = t3.head.start, t3.head.stop
     elements = text.elements

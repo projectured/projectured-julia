@@ -49,7 +49,7 @@ import ..LayoutModule: VerticalLayout, HorizontalLayout
 import ..FontModule: font_ubuntu_monospace_regular_24
 import ..ColorModule: color_default, color_solarized_gray
 import ..ReferenceModule: Reference, ConcreteReferencePath, FieldReference,
-                          RangeReference, EmptyReferencePath, skip_type_checkpoints
+                          RangeReference, EmptyReferencePath
 import ..KeyboardModule: KeyDown, KeyPress
 import ..GestureBindingModule: GestureBinding, KeyDownPattern, KeyPressPattern,
                               matches, projection_gestures
@@ -88,9 +88,9 @@ _valpath(k::Int) = ConcreteReferencePath(FieldReference("value"),
 function _cursor(c)
     # Selections are canonical at rest: skip the TypeReference checkpoints before
     # reading the `value[range]` cursor structure.
-    sel = skip_type_checkpoints(getfield(c, :selection)[])
+    sel = getfield(c, :selection)[]
     if sel isa ConcreteReferencePath && sel.head isa FieldReference && sel.head.name == "value"
-        t = skip_type_checkpoints(sel.tail)
+        t = sel.tail
         if t isa ConcreteReferencePath && t.head isa RangeReference
             return t.head.stop
         end

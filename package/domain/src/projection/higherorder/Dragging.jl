@@ -35,7 +35,7 @@ import ..ReactiveModule: Cell
 import ..CollectionModule: CellVector, cell_at
 import ..ReferenceModule: ReferencePath, EmptyReferencePath, ConcreteReferencePath,
                           RangeReference, FieldReference, is_element_reference, evaluate_reference,
-                          head, tail, skip_type_checkpoints
+                          head, tail
 import ..DraggingDocumentModule: DraggingState
 import ..OperationModule: ReplaceSelectionOperation
 import ..OperationApiModule: Operation, evaluate_operation
@@ -270,7 +270,7 @@ end
 
 function map_reference_forward(::DraggingProjection, iomap::DraggingProjectionIoMap, reference)
     # Skip canonical TypeReference checkpoints before reading the `content` step.
-    reference = skip_type_checkpoints(reference)
+    reference = reference
     if reference isa ConcreteReferencePath
         h = head(reference)
         if h isa FieldReference && h.name == "content"

@@ -55,14 +55,13 @@ oob = ConcreteReferencePath(ElementReference(5), EmptyReferencePath())
 @test is_valid_reference(TypeReference(JsonString))
 @test is_valid_reference(annotated)
 
-# ── Phase 1: infrastructure is checkpoint-tolerant ────────────────────────
+# ── Folded form: head is always a navigation step (no checkpoints to skip) ─
 
-# skip_type_checkpoints peels only leading checkpoints, leaving the first
-# navigation step (or the empty path) exposed.
-@test Projectured.skip_type_checkpoints(annotated) isa ConcreteReferencePath
-@test Projectured.skip_type_checkpoints(annotated).head == ElementReference(1)
-@test Projectured.skip_type_checkpoints(EmptyReferencePath()) === EmptyReferencePath()
-@test Projectured.skip_type_checkpoints(nothing) === nothing
+# A folded path exposes its navigation step directly as `head` — there are no
+# interleaved checkpoint steps, so `skip_type_checkpoints` is gone.
+@test annotated isa ConcreteReferencePath
+@test annotated.head == ElementReference(1)
+@test annotated.type === JsonArray            # the type is a node field, not a step
 
 # Ignoring-types equality treats an annotated path as equal to its skeleton,
 # while strict equality keeps them distinct.

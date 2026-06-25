@@ -24,7 +24,7 @@ import ..FileSystemModule: FileSystemDocument, FileSystemFile, FileSystemDirecto
 import ..WidgetModule: WidgetTree, WidgetTreeNode, Point2D
 import ..IoMapModule: SimpleIoMap
 import ..ReferenceModule: ConcreteReferencePath, FieldReference, RangeReference, EmptyReferencePath,
-                          is_element_reference, skip_type_checkpoints
+                          is_element_reference
 export FileSystemToWidgetTree, FileSystemToWidget
 
 # ── Projection ────────────────────────────────────────────────────────────────
@@ -102,16 +102,16 @@ end
 # Decode a file-system reference into a list of element indices ([] = root, the
 # directory itself), or nothing on an unexpected shape.
 function _fs_ref_indices(reference)
-    cur = skip_type_checkpoints(reference)
+    cur = reference
     idxs = Int[]
     while !(cur isa EmptyReferencePath)
         cur isa ConcreteReferencePath || return nothing
         h = cur.head
         (h isa FieldReference && h.name == "elements") || return nothing
-        t = skip_type_checkpoints(cur.tail)
+        t = cur.tail
         (t isa ConcreteReferencePath && t.head isa RangeReference && is_element_reference(t.head)) || return nothing
         push!(idxs, t.head.start + 1)
-        cur = skip_type_checkpoints(t.tail)
+        cur = t.tail
     end
     idxs
 end
@@ -139,21 +139,21 @@ end
 # Decode `roots[1].children[a].children[b]…` into the element indices [a, b, …]
 # ([] = the root node), or nothing on an unexpected shape.
 function _tree_ref_indices(reference)
-    cur = skip_type_checkpoints(reference)
+    cur = reference
     cur isa ConcreteReferencePath || return nothing
     (cur.head isa FieldReference && cur.head.name == "roots") || return nothing
-    t = skip_type_checkpoints(cur.tail)
+    t = cur.tail
     (t isa ConcreteReferencePath && t.head isa RangeReference && is_element_reference(t.head)) || return nothing
     (t.head.start + 1 == 1) || return nothing      # only one root node
-    cur = skip_type_checkpoints(t.tail)
+    cur = t.tail
     idxs = Int[]
     while !(cur isa EmptyReferencePath)
         cur isa ConcreteReferencePath || return nothing
         (cur.head isa FieldReference && cur.head.name == "children") || return nothing
-        t = skip_type_checkpoints(cur.tail)
+        t = cur.tail
         (t isa ConcreteReferencePath && t.head isa RangeReference && is_element_reference(t.head)) || return nothing
         push!(idxs, t.head.start + 1)
-        cur = skip_type_checkpoints(t.tail)
+        cur = t.tail
     end
     idxs
 end
