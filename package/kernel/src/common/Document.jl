@@ -80,8 +80,18 @@ required keywords.
 """
 macro document(structdef)
     structdef.head === :struct || error("@document expects a struct definition")
+    # Default the supertype to `Document` unless one is written explicitly, so
+    # `@document struct Foo … end` means `struct Foo <: Document … end`. A domain
+    # abstract supertype (`<: JsonDocument`, …) or any explicit `<: …` always
+    # wins. Normalizing `name_expr` to always carry a `<:` here also feeds the
+    # I-struct supertype logic below. The injected `:Document` resolves in the
+    # caller's scope (the result is `esc`'d) — same mechanic as `@iomap`/`IoMap`.
     name_expr = structdef.args[2]
-    struct_name = name_expr isa Expr && name_expr.head === :(<:) ? name_expr.args[1] : name_expr
+    if !(name_expr isa Expr && name_expr.head === :(<:))
+        name_expr = Expr(:(<:), name_expr, :Document)
+        structdef.args[2] = name_expr
+    end
+    struct_name = name_expr.args[1]
     body = structdef.args[3]
 
     # ── Collect original field info and replace types with Cell ────────
@@ -157,8 +167,8 @@ macro document(structdef)
     # ── I-prefixed immutable struct ───────────────────────────────────
     i_name = Symbol("I", struct_name)
     i_fields = [typ === nothing ? fname : :($fname::$typ) for (fname, typ) in original_fields]
-    i_supertype = name_expr isa Expr && name_expr.head === :(<:) ? name_expr.args[2] : nothing
-    i_name_expr = i_supertype !== nothing ? Expr(:(<:), i_name, i_supertype) : i_name
+    i_supertype = name_expr.args[2]   # always present: normalized at the top
+    i_name_expr = Expr(:(<:), i_name, i_supertype)
     i_struct = Expr(:struct, false, i_name_expr, Expr(:block, i_fields...))
 
     # Snapshot constructor: IFoo(foo::Foo) — reads all cells via getproperty

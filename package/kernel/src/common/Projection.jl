@@ -159,8 +159,17 @@ forwarding into the positional auto-wrapping constructor.
 """
 macro projection(structdef)
     structdef.head === :struct || error("@projection expects a struct definition")
+    # Default the supertype to `Projection` unless one is written explicitly, so
+    # `@projection struct Foo … end` means `struct Foo <: Projection … end`. An
+    # explicit supertype always wins. The injected `:Projection` resolves in the
+    # caller's scope (the result is `esc`'d) — same mechanic as `@iomap`/`IoMap`.
     name_expr = structdef.args[2]
-    struct_name = name_expr isa Expr && name_expr.head === :(<:) ? name_expr.args[1] : name_expr
+    if name_expr isa Expr && name_expr.head === :(<:)
+        struct_name = name_expr.args[1]
+    else
+        struct_name = name_expr
+        structdef.args[2] = Expr(:(<:), name_expr, :Projection)
+    end
     body = structdef.args[3]
     cell_fields = Symbol[]
     defaults = Pair{Symbol, Any}[]   # field => default-value expr (declaration order)
