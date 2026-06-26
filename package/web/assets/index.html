@@ -5,23 +5,19 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>ProjecturEd — Web</title>
   <style>
-    html, body { margin: 0; height: 100%; font-family: system-ui, sans-serif; background: #1b1b1b; color: #ddd; }
-    #host { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; gap: 1rem; }
-    #launch { font-size: 1.1rem; padding: 0.6rem 1.4rem; cursor: pointer; border-radius: 6px; border: 1px solid #555; background: #2d2d2d; color: #eee; }
-    #launch:disabled { opacity: 0.5; cursor: default; }
-    #status { font-size: 0.9rem; color: #999; max-width: 40rem; text-align: center; }
-    code { color: #b5cea8; }
+    html, body { margin: 0; height: 100%; overflow: hidden; background: #000;
+                 font-family: system-ui, sans-serif; color: #ddd; }
+    /* The page canvas IS the main window's paint surface (no popup, no Launch). */
+    #main { display: block; width: 100vw; height: 100vh; }
+    /* Connection-state overlay; hidden once the main window has painted. */
+    #overlay { position: fixed; inset: 0; display: flex; align-items: center;
+               justify-content: center; text-align: center; padding: 1rem;
+               background: #1b1b1b; color: #999; font-size: 0.95rem; }
   </style>
 </head>
 <body>
-  <div id="host">
-    <button id="launch" disabled>Launch editor windows</button>
-    <div id="status">Loading fonts…</div>
-    <div id="status2" style="font-size:0.8rem;color:#777;max-width:40rem;text-align:center;">
-      Each editor window opens as a browser popup. If nothing appears, allow
-      pop-ups for this site and click <em>Launch</em> again.
-    </div>
-  </div>
+  <canvas id="main"></canvas>
+  <div id="overlay">Loading…</div>
   <script src="/client.js"></script>
 </body>
 </html>

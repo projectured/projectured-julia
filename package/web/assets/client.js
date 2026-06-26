@@ -2,27 +2,48 @@
 //
 // The editor lives on the server. This client:
 //   - loads the server's TTF/OTF fonts so text metrics match server-side layout,
-//   - opens one browser popup per editor WindowDocument (the final paint surface),
-//   - renders the JSON draw-list the server sends into each popup's <canvas>,
+//   - renders the PRIMARY (first) WindowDocument directly in the page it was
+//     opened from — the entered browser tab is the main window's paint surface,
+//     so the editor appears immediately with no extra click and no popup,
+//   - renders any ADDITIONAL WindowDocuments as browser popups (window.open),
+//   - paints the JSON draw-list the server sends into each surface's <canvas>,
 //   - forwards raw mouse/keyboard/resize events back to the server.
 //
 // Protocol (JSON over one WebSocket). Server -> client:
 //   {type:"update", full:[win...], patches:[{window,clip,draw}...], close:[id...]}
-// A `full` entry carries a window's complete draw-list; a `patch` repaints only
-// its clip rectangle over the retained canvas (incremental rendering). The client
-// sends {type:"resync"} after opening popups to request fresh full state.
-// See program/src/backend/Web.jl for the server side.
+// A `full` entry carries a window's complete draw-list and a `primary` flag (the
+// in-tab window); a `patch` repaints only its clip rectangle over the retained
+// canvas (incremental rendering). See package/web/src/ProjecturedWeb.jl.
 
 (() => {
   "use strict";
 
-  const statusEl = document.getElementById("status");
-  const launchBtn = document.getElementById("launch");
+  const canvasEl = document.getElementById("main");
+  const overlayEl = document.getElementById("overlay");
 
   let ws = null;
-  let launched = false;                 // popups may only open after a user gesture
+  let mainId = null;                    // window id bound to the page canvas
+  let mainWired = false;                // page-surface listeners attached once
   const windowsMeta = new Map();        // id -> full window object {id,...,draw}
   const popups = new Map();             // id -> { win, canvas, ctx, dpr }
+
+  // The page itself is a popup-shaped surface ({win,canvas,ctx,dpr}) so the
+  // render/event helpers below are shared between the tab and the popups.
+  const pageSurface = {
+    win: window, canvas: canvasEl, ctx: canvasEl.getContext("2d"),
+    dpr: window.devicePixelRatio || 1,
+  };
+
+  function setOverlay(text) {
+    if (!overlayEl) return;
+    if (text) { overlayEl.textContent = text; overlayEl.style.display = ""; }
+    else { overlayEl.style.display = "none"; }
+  }
+
+  // The surface for a window id: the page for the primary window, else its popup.
+  function surfaceFor(id) {
+    return id === mainId ? pageSurface : popups.get(id);
+  }
 
   // ── Fonts ────────────────────────────────────────────────────────────────
 
@@ -51,14 +72,14 @@
   function connect() {
     const proto = location.protocol === "https:" ? "wss:" : "ws:";
     ws = new WebSocket(`${proto}//${location.host}/ws`);
-    ws.onopen = () => { statusEl.textContent = "Connected. Click Launch to open the editor."; launchBtn.disabled = false; };
-    ws.onclose = () => { statusEl.textContent = "Disconnected."; };
-    ws.onerror = () => { statusEl.textContent = "Connection error."; };
+    ws.onopen = () => { setOverlay("Connecting…"); };
+    ws.onclose = () => { resetClientState(); setOverlay("Disconnected. Reload to reconnect."); };
+    ws.onerror = () => { setOverlay("Connection error."); };
     ws.onmessage = (ev) => {
       let msg;
       try { msg = JSON.parse(ev.data); } catch { return; }
       if (msg.type === "update") handleUpdate(msg);
-      else if (msg.type === "busy") statusEl.textContent = "Another client is already connected to this editor.";
+      else if (msg.type === "busy") setOverlay("Another client is already connected to this editor.");
     };
   }
 
@@ -66,21 +87,69 @@
     if (ws && ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify(obj));
   }
 
+  // Drop per-connection state so a reconnect rebinds the page canvas cleanly.
+  // The page-level listeners persist (they read the live `mainId`).
+  function resetClientState() {
+    mainId = null;
+    windowsMeta.clear();
+    for (const p of popups.values()) { try { p.win.close(); } catch {} }
+    popups.clear();
+    clearSurface(pageSurface);
+  }
+
   function handleUpdate(msg) {
-    for (const f of msg.full || []) {
+    const fulls = msg.full || [];
+    // Bind the in-tab window the first time we see a frame: the server-flagged
+    // primary, or (older server / no flag) the first window in the batch.
+    if (mainId === null && fulls.length) {
+      bindMain((fulls.find((f) => f.primary) || fulls[0]).id);
+    }
+    for (const f of fulls) {
       windowsMeta.set(f.id, f);
-      if (launched) paintFull(f);
+      paintFull(f);
     }
-    for (const p of msg.patches || []) {
-      if (launched) applyPatch(p);
-    }
+    for (const p of msg.patches || []) applyPatch(p);
     for (const id of msg.close || []) {
-      closePopup(id);
+      if (id === mainId) {
+        // The editor closed the main window: blank the tab and show the overlay
+        // rather than trying to close the OS tab.
+        clearSurface(pageSurface);
+        setOverlay("Editor window closed.");
+        mainId = null;
+      } else {
+        closePopup(id);
+      }
       windowsMeta.delete(id);
     }
   }
 
-  // ── Popups ───────────────────────────────────────────────────────────────
+  // ── Page (in-tab) main window ──────────────────────────────────────────────
+
+  function bindMain(id) {
+    mainId = id;
+    sizeCanvas(pageSurface);
+    if (!mainWired) {
+      wireEvents(() => mainId, pageSurface);
+      window.addEventListener("resize", onTabResize);
+      mainWired = true;
+    }
+    // The server lays out at the WindowDocument's default size (e.g. 2400×1600);
+    // tell it the real tab size so it re-lays-out to fit, then ask for fresh
+    // full state at that size.
+    send({ type: "resize", window: id, w: window.innerWidth, h: window.innerHeight });
+    send({ type: "resync" });
+  }
+
+  function onTabResize() {
+    if (!mainId) return;
+    sizeCanvas(pageSurface);
+    const m = windowsMeta.get(mainId);
+    if (m) paint(pageSurface, m);          // repaint retained state so it isn't blank
+    send({ type: "resize", window: mainId, w: window.innerWidth, h: window.innerHeight });
+    send({ type: "resync" });              // server relayout -> fresh full state
+  }
+
+  // ── Popups (additional windows) ─────────────────────────────────────────────
 
   function ensurePopup(meta) {
     let p = popups.get(meta.id);
@@ -111,7 +180,7 @@
     const ctx = canvas.getContext("2d");
     const p = { win, canvas, ctx, dpr: win.devicePixelRatio || 1 };
     sizeCanvas(p);
-    wireEvents(meta.id, p);
+    wireEvents(() => meta.id, p);
 
     win.addEventListener("resize", () => {
       sizeCanvas(p);
@@ -142,15 +211,28 @@
     p.dpr = dpr;
   }
 
+  function clearSurface(p) {
+    if (!p.win || p.win.closed) return;
+    const ctx = p.ctx;
+    ctx.setTransform(p.dpr, 0, 0, p.dpr, 0, 0);
+    ctx.clearRect(0, 0, p.win.innerWidth, p.win.innerHeight);
+  }
+
   // ── Rendering ──────────────────────────────────────────────────────────────
 
   function col(c) { return `rgba(${c[0]},${c[1]},${c[2]},${(c[3] / 255).toFixed(4)})`; }
 
-  // Full repaint of a window from its complete draw-list.
+  // Full repaint of a window from its complete draw-list. The primary window
+  // paints into the page canvas; any other window into its popup.
   function paintFull(meta) {
-    const p = ensurePopup(meta);
+    const p = meta.id === mainId ? pageSurface : ensurePopup(meta);
     if (!p) return;
-    try { p.win.document.title = meta.title || "ProjecturEd"; } catch {}
+    if (meta.id === mainId) {
+      try { document.title = meta.title || "ProjecturEd"; } catch {}
+      setOverlay(null);
+    } else {
+      try { p.win.document.title = meta.title || "ProjecturEd"; } catch {}
+    }
     paint(p, meta);
   }
 
@@ -167,9 +249,9 @@
   // Incremental repaint: clip to the patch rectangle, clear it to the window
   // background, then paint the primitives the server sent for that region.
   function applyPatch(patch) {
-    const p = popups.get(patch.window);
+    const p = surfaceFor(patch.window);
     const meta = windowsMeta.get(patch.window);
-    if (!p || p.win.closed || !meta) return;
+    if (!p || (p.win && p.win.closed) || !meta) return;
     const [x, y, w, h] = patch.clip;
     const ctx = p.ctx;
     ctx.setTransform(p.dpr, 0, 0, p.dpr, 0, 0);
@@ -375,29 +457,31 @@
     "Delete", "Home", "End", "PageUp", "PageDown", "Enter", " ",
   ]);
 
-  function wireEvents(id, p) {
+  // `idFn` returns the current window id, so the page surface (whose binding can
+  // change across reconnects) always sends the live `mainId`.
+  function wireEvents(idFn, p) {
     const doc = p.win.document;
     const canvas = p.canvas;
 
     canvas.addEventListener("mousedown", (ev) => {
       const { x, y } = pos(ev, canvas);
-      send({ type: "mousedown", window: id, button: buttonSym(ev.button), x, y, mods: mods(ev) });
+      send({ type: "mousedown", window: idFn(), button: buttonSym(ev.button), x, y, mods: mods(ev) });
     });
     canvas.addEventListener("mouseup", (ev) => {
       const { x, y } = pos(ev, canvas);
-      send({ type: "mouseup", window: id, button: buttonSym(ev.button), x, y, mods: mods(ev) });
+      send({ type: "mouseup", window: idFn(), button: buttonSym(ev.button), x, y, mods: mods(ev) });
     });
     canvas.addEventListener("mousemove", (ev) => {
       const held = heldSym(ev.buttons);
       if (held === "none") return;             // only forward motion while held
       const { x, y } = pos(ev, canvas);
-      send({ type: "mousemove", window: id, x, y, buttons: held, mods: mods(ev) });
+      send({ type: "mousemove", window: idFn(), x, y, buttons: held, mods: mods(ev) });
     });
     canvas.addEventListener("wheel", (ev) => {
       ev.preventDefault();
       const { x, y } = pos(ev, canvas);
       send({
-        type: "scroll", window: id,
+        type: "scroll", window: idFn(),
         dx: Math.sign(ev.deltaX), dy: -Math.sign(ev.deltaY),
         x, y, mods: mods(ev),
       });
@@ -406,27 +490,19 @@
 
     doc.addEventListener("keydown", (ev) => {
       if (PREVENT_KEYS.has(ev.key) || ev.ctrlKey || ev.metaKey) ev.preventDefault();
-      send({ type: "keydown", window: id, key: ev.key, code: ev.code, repeat: ev.repeat, mods: mods(ev) });
+      send({ type: "keydown", window: idFn(), key: ev.key, code: ev.code, repeat: ev.repeat, mods: mods(ev) });
     });
     doc.addEventListener("keyup", (ev) => {
-      send({ type: "keyup", window: id, key: ev.key, code: ev.code, mods: mods(ev) });
+      send({ type: "keyup", window: idFn(), key: ev.key, code: ev.code, mods: mods(ev) });
     });
     doc.addEventListener("keypress", (ev) => {
       const ch = ev.key;                       // printable chars only (≈ SDL_TEXTINPUT)
       if (!ch || ch.length !== 1) return;
-      send({ type: "keypress", window: id, char: ch, text: ch, mods: mods(ev) });
+      send({ type: "keypress", window: idFn(), char: ch, text: ch, mods: mods(ev) });
     });
   }
 
   // ── Boot ───────────────────────────────────────────────────────────────────
-
-  launchBtn.addEventListener("click", () => {
-    launched = true;
-    launchBtn.disabled = true;
-    statusEl.textContent = "Editor running in pop-up window(s).";
-    for (const meta of windowsMeta.values()) paintFull(meta);
-    send({ type: "resync" });                  // get fresh full state + patches
-  });
 
   window.addEventListener("beforeunload", () => {
     for (const p of popups.values()) { try { p.win.close(); } catch {} }
@@ -434,8 +510,9 @@
   });
 
   (async () => {
+    setOverlay("Loading fonts…");
     await loadFonts();
-    statusEl.textContent = "Fonts loaded. Connecting…";
+    setOverlay("Connecting…");
     connect();
   })();
 })();

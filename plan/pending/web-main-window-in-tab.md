@@ -183,10 +183,14 @@ sends with `window: mainId`, exactly as a popup did with its own id).
 1. **Server primary flag.** ✅ Done. `_window_meta(w, draw; primary=false)` emits
    `"primary"`; `write_to_devices` sets `primary_id = wins[1].id` and tags the
    first window's `full`.
-2. **In-tab primary window.** Rework `index.html` (canvas+overlay) and `client.js`
-   to bind the primary window to the page canvas, paint immediately, wire events,
-   handle tab resize, and clean reconnect. Single-window examples now open with no
-   click. (commit)
+2. **In-tab primary window.** ✅ Done. `index.html` is now a full-viewport
+   `<canvas id="main">` + `#overlay`. `client.js` drops the `launched` gate and
+   the Launch button; a `pageSurface` ({win:window,canvas,ctx,dpr}) reuses
+   `paint`/`applyPatch`/`wireEvents`/`sizeCanvas`; `bindMain` binds the
+   server-flagged primary (fallback: first window seen), sizes the canvas, wires
+   events via an `idFn` closure (live `mainId`, survives reconnect), sends an
+   initial resize+resync, and `onTabResize` re-lays-out. `surfaceFor(id)` routes
+   patches; `resetClientState` rebinds cleanly on `ws.onclose`.
 3. **Lazy secondary popups.** `pendingPopups` queue flushed on first gesture, so
    `run_web_example(["json","xml"])` and tooltips still work without a Launch
    button. (commit)
