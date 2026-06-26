@@ -191,12 +191,29 @@ sends with `window: mainId`, exactly as a popup did with its own id).
    events via an `idFn` closure (live `mainId`, survives reconnect), sends an
    initial resize+resync, and `onTabResize` re-lays-out. `surfaceFor(id)` routes
    patches; `resetClientState` rebinds cleanly on `ws.onclose`.
-3. **Lazy secondary popups.** `pendingPopups` queue flushed on first gesture, so
-   `run_web_example(["json","xml"])` and tooltips still work without a Launch
-   button. (commit)
+3. **Lazy secondary popups.** ✅ Done. `pendingPopups` map; `paintFull` queues a
+   non-primary window when `window.open` is blocked; `flushPendingPopups` (bound
+   to the tab's first mousedown/keydown) opens them and sends a `resync`. Cleared
+   on reconnect and on window close.
 4. **Docs & launcher wording.** ✅ Done. Updated the `run_web_example` docstring,
    `devices-and-backends.md` (running instructions, diagram label, resync note),
    and `debugging.md`. README had no "Launch" wording, so no change there.
+
+## Verification
+
+Browser rendering can't be driven headlessly, but both ends of the contract were
+checked against a loaded `ProjecturedWeb`:
+
+- **Server primary flag.** A 2-window `ScreenDocument` driven through
+  `write_to_devices` (fake ws-less `WebConn`, `force_full`) emits an `update`
+  whose `full[main].primary == true` and `full[other].primary == false`.
+- **Asset pipeline.** `init!` + HTTP GET `/` and `/client.js`: `index.html` has
+  `<canvas id="main">` + `#overlay` and no "Launch editor windows" button;
+  `client.js` defines `bindMain`/`pendingPopups` and no longer references
+  `launchBtn`.
+
+`ProjecturedWeb.jl` parses (`Meta.parseall`). The in-tab paint / gesture-flushed
+popups / reconnect-rebind paths are reviewed but exercised only in a real browser.
 
 ## Edge cases
 
