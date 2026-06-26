@@ -303,7 +303,12 @@ focused iff `getfield(w,:selection)[] !== nothing` (background fact 3).
       documented in `widget.md`. *Not executed — Julia unavailable in sandbox; the
       existing keyboard/REPL tests should be run to catch any reliance on the
       removed fallback.*
-- [ ] Step 2 — local helpers: `first/last_focusable_path` + `_next_focusable_slot`
+- [~] Step 2 — `first_focusable_path`/`last_focusable_path` implemented (pure,
+      generic field/element descent, skips disabled leaves) + unit tests; exported
+      from `WidgetToGraphicsModule`. `_next_focusable_slot` lands with Step 3.
+      *Generic entry works for composite/layout subtrees; entry into split
+      (LayoutConstraint) / tabbed (selector pairs) path shapes still needs REPL
+      verification. Not executed — Julia unavailable in sandbox.*
 - [ ] Step 3 — distributed Tab in container readers (decline-and-advance via
       `ReplaceSelectionOperation`) + one top-level wrap/bootstrap rule
 - [ ] Step 4 — Enter/Space activation on focused Button/Checkbox

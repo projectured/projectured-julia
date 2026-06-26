@@ -240,4 +240,38 @@ end
     end
 end
 
+# Stage 2, Step 2: first/last_focusable_path locate enabled interactive leaves as
+# relative ∅ paths, skipping disabled ones, and recurse through containers.
+@testset "first/last_focusable_path find enabled leaves and skip disabled" begin
+    # A bare focusable leaf is its own whole-element (∅) selection.
+    @test first_focusable_path(WidgetButton(Point2D(0,0), Point2D(80,30), "A")) isa EmptyReferencePath
+    # A disabled leaf has no focusable path.
+    @test first_focusable_path(WidgetButton(Point2D(0,0), Point2D(80,30), "A"; enabled=false)) === nothing
+    # A display-only widget has none either.
+    @test first_focusable_path(WidgetLabel(Point2D(0,0), "x")) === nothing
+
+    comp = WidgetComposite(Point2D(0,0), Any[
+        WidgetButton(Point2D(0,0), Point2D(80,30), "A"),
+        WidgetButton(Point2D(0,0), Point2D(80,30), "B"; enabled=false),
+        WidgetCheckbox(Point2D(0,0), true),
+    ])
+    fp = first_focusable_path(comp)
+    @test fp isa ConcreteReferencePath
+    @test fp.head isa FieldReference && fp.head.name == "elements"
+    @test fp.tail.head isa RangeReference && fp.tail.head.start == 0      # slot 1 (enabled button)
+    @test fp.tail.tail isa EmptyReferencePath
+    lp = last_focusable_path(comp)
+    @test lp.tail.head.start == 2                                         # slot 3 (checkbox); disabled slot 2 skipped
+
+    # Nested: the first focusable descends into the child container.
+    nested = WidgetComposite(Point2D(0,0), Any[
+        WidgetLabel(Point2D(0,0), "x"),                                   # skipped (not focusable)
+        WidgetComposite(Point2D(0,0), Any[WidgetCheckbox(Point2D(0,0), false)]),
+    ])
+    np = first_focusable_path(nested)
+    @test np.head.name == "elements" && np.tail.head.start == 1          # outer slot 2
+    @test np.tail.tail.head isa FieldReference && np.tail.tail.head.name == "elements"
+    @test np.tail.tail.tail.head.start == 0                               # inner slot 1
+end
+
 end # test_widget_button_behavior
