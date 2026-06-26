@@ -15,9 +15,11 @@ the selected widget (every widget carries `selection::Reference`,
 `Widget.jl:49-85`). Three deliverables:
 
 1. **Uniform routing.** Every container routes coordless (keyboard) events to the
-   child the selection points at. This is *already true* for composite and split
-   pane; the tabbed pane is the one deviation (routes to the "active tab"). Close
-   that gap so the invariant holds everywhere.
+   child the selection points at — and to **nothing** when the selection is not
+   inside it (no "active tab", no broadcast, no first-slot guess). Composite and
+   split pane are already selection-routed (but carry a no-selection fallback to
+   drop); the tabbed pane still routes to the visible "active tab". Make all of
+   them selection-only.
 2. **Tab / Shift-Tab traversal.** Tab moves the selection to the next focusable
    (enabled, interactive) widget in a deterministic order; Shift-Tab to the
    previous. Wraps at the ends. Disabled widgets (Stage 1) are skipped.
@@ -85,26 +87,37 @@ case is exactly this) and is a prerequisite for real forms and for shortcuts
 
 ---
 
-## Step 1 — Unify coordless routing on the selection
+## Step 1 — Route coordless events by selection only (no fallback)
 
-Make the tabbed pane match the composite/split invariant: route coordless events
-to the **selected** descendant, not the visible tab.
+**Design decision (per review): selection is authoritative.** A container routes
+a coordless (keyboard) event to a child **iff** its selection points at that
+child. When the selection does not point into the container, the reader returns
+`nothing` — it does **not** guess a default (no "active tab", no broadcast, no
+first-slot fallback). The keystroke belongs wherever the selection actually is;
+this container is untouched and its prior state simply stays.
 
-- In the tabbed-pane reader (`WidgetToGraphics.jl:1935-1938`), replace the
-  `_route_active_tab` target for coordless events with the tab index from
-  `_tab_index_from_selection` (`:1989-2002`); fall back to `_active_tab_index`
-  only when the selection does not point into the pane (mirrors the composite's
-  `slot == 0` fallback at `:1124`).
-- Audit the title pane (`:1318-1322`) and toolbar (`:2184-2187`): they currently
-  handle only `MouseScroll`. If they should forward keys to a selected child, add
-  the same selection-routed branch; otherwise leave them (a note in each).
+- **Tabbed pane** (`WidgetToGraphics.jl:1935-1938`): replace the
+  `_route_active_tab` / `_active_tab_index` target with the tab index from
+  `_tab_index_from_selection` (`:1989-2002`). If the selection is not in the pane,
+  return `nothing` — never route to the visible tab.
+- **Composite / split pane** (`:1100-1125`, `:1665-1700`): remove the existing
+  "no selection → try each slot in order" fallback (`_forward_composite_event` /
+  `_forward_split_event` at `slot == 0`) so these too are selection-only. The
+  genuinely-unselected case (a freshly built tree before any click/Tab) is
+  handled by Tab traversal (Step 3) and clicks establishing the first selection,
+  not by a routing guess.
+- **Title pane** (`:1318-1322`) and **toolbar** (`:2184-2187`) handle only
+  `MouseScroll` today; leave them (note: when they need key forwarding, use the
+  same selection-only branch).
 - Document the invariant in [documentation/document/widget.md](../../documentation/document/widget.md):
-  *every container forwards coordless events to the child its selection points at;
-  fall back to broadcast/first-answer only when it carries no selection.*
+  *a container forwards a coordless event to the child its selection points at, or
+  returns `nothing` if the selection is not inside it — never to a default child.*
 
-**Tests:** with a tabbed pane whose selection is in tab 2 but tab 1 visible, a
-`KeyDown` reaches tab 2's content; with no selection, it falls back to the active
-tab (no regression of the existing tab tests).
+**Tests:** a tabbed pane with selection in tab 2 but tab 1 visible delivers a
+`KeyDown` to tab 2's content; **with the selection outside the pane the pane
+returns `nothing`** (the visible tab is *not* activated, and its content is
+unchanged). A composite with no selection returns `nothing` for a `KeyDown`
+(no slot guessed).
 
 ## Step 2 — Production focusable-enumeration helper
 
@@ -200,10 +213,13 @@ focused iff `getfield(w,:selection)[] !== nothing` (background fact 3).
 
 ## Risks / watch-outs
 
-- **Routing fallback semantics.** Containers fall back to broadcast/first-answer
-  when they carry no selection (`slot == 0`). Tab traversal must set a real
-  selection so subsequent keys route deterministically; verify the first Tab from
-  an unselected tree both selects *and* that following keys then reach it.
+- **No-fallback bootstrap.** With routing now selection-only, an unselected tree
+  delivers coordless events nowhere. That is fine *provided* there is always a way
+  to establish the first selection: clicks already set it, and Tab traversal
+  (Step 3) must work even when nothing is selected (land on the first focusable).
+  Verify the first Tab from an unselected tree both selects *and* that following
+  keys then reach the now-selected widget — this is the one path that previously
+  leaned on the removed fallback.
 - **Resolving the current index.** The global selection may point into a leaf's
   *content* (text cursor), not at the leaf's ∅. `collect_focusable_widgets` keys
   on the path *prefix* that reaches the widget; the "current index" lookup must
