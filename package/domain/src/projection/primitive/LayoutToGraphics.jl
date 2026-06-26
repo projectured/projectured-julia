@@ -25,7 +25,8 @@ import ..LayoutModule: HorizontalLayout, VerticalLayout, GridLayout, FlowLayout,
                        LayoutConstraint, ConstraintLayout, LayoutRelation, LayoutAnchor,
                        allocate_axis,
                        layout_min, layout_max, layout_preferred, layout_weight
-import ..ConstraintSolverModule: SolverAnchor, SolverRelation, solve_constraint_layout
+import ..ConstraintSolverModule: SolverAnchor, SolverRelation, solve_constraint_layout,
+                                 ConstraintSolver, FallbackConstraintSolver
 import ..CollectionModule: CellVector
 import ..GraphicsModule: GraphicsCanvas, layout_none, hit_element_at
 import ..IoMapModule: SimpleIoMap, ChildrenIoMap, ContentIoMap
@@ -52,7 +53,22 @@ struct GridLayoutToGraphicsCanvas       <: Projection end
 struct FlowLayoutToGraphicsCanvas       <: Projection end
 struct StackLayoutToGraphicsCanvas      <: Projection end
 struct LayoutConstraintToGraphicsCanvas <: Projection end
-struct ConstraintLayoutToGraphicsCanvas <: Projection end
+
+"""
+    ConstraintLayoutToGraphicsCanvas(; solver = FallbackConstraintSolver())
+
+Projects a `ConstraintLayout` by solving its relations with `solver`. The
+default `FallbackConstraintSolver` (core, dependency-free) stacks children at
+the origin; pass a `TulipConstraintSolver` (opt-in `ProjecturedTulip` package)
+for real LP-based constraint solving — same injection pattern as
+`GraphGraphToGraphLayout`'s `engine`.
+"""
+struct ConstraintLayoutToGraphicsCanvas <: Projection
+    solver::ConstraintSolver
+end
+
+ConstraintLayoutToGraphicsCanvas(; solver::ConstraintSolver=FallbackConstraintSolver()) =
+    ConstraintLayoutToGraphicsCanvas(solver)
 
 # ── GridLayout iomap (geometry-bearing) ─────────────────────────────────────
 
@@ -1157,7 +1173,7 @@ end
 # Recompute the whole laid-out constraint layout. Like `_hl_build`, reads
 # `doc.children` so the enclosing `build` cell re-runs on structural changes,
 # while the per-child position cells and the single `solve` cell stay lazy.
-function _cl_build(recursion, doc, ctx)
+function _cl_build(solver, recursion, doc, ctx)
     n = length(doc.children)
 
     # ── Pass 1: measure ──────────────────────────────────────────────────
@@ -1183,7 +1199,7 @@ function _cl_build(recursion, doc, ctx)
         iw = Int[_child_w(cim) for cim in measure_iomaps]
         ih = Int[_child_h(cim) for cim in measure_iomaps]
         rels = _solver_relations(relations_cv)
-        solve_constraint_layout(n, iw, ih, rels, Int(bw_cell[]), Int(bh_cell[]))
+        solve_constraint_layout(solver, n, iw, ih, rels, Int(bw_cell[]), Int(bh_cell[]))
     end)
 
     child_x = Cell[]
@@ -1261,7 +1277,8 @@ end
 
 function projection_print(p::ConstraintLayoutToGraphicsCanvas,
                           recursion, doc::ConstraintLayout, ctx)
-    build = Cell(() -> _cl_build(recursion, doc, ctx))
+    solver = p.solver
+    build = Cell(() -> _cl_build(solver, recursion, doc, ctx))
     outer = GraphicsCanvas(Cell(Int32(0)), Cell(Int32(0)),
                            Cell(() -> Int32(build[].w[])),
                            Cell(() -> Int32(build[].h[])),

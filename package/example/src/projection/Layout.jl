@@ -24,17 +24,23 @@ function make_layout_projection_example(; measure=truetype_measure_text)
 end
 
 """
-    make_constraint_layout_projection_example(; measure)
+    make_constraint_layout_projection_example(; measure, solver)
 
 Project a `ConstraintLayout` whose children are widgets. The dispatcher routes
 the constraint layout to `ConstraintLayoutToGraphicsCanvas` and any other
 document (the widgets) to `WidgetToGraphics`.
+
+`solver` defaults to the dependency-free `FallbackConstraintSolver` (children
+stack at the origin — a valid but unsolved layout). Pass a `TulipConstraintSolver`
+from the opt-in `ProjecturedTulip` package for real constraint solving; the
+`constraint_layout_tulip` example in `ProjecturedExtrasExample` does exactly that.
 """
-function make_constraint_layout_projection_example(; measure=truetype_measure_text)
+function make_constraint_layout_projection_example(; measure=truetype_measure_text,
+                                                   solver=FallbackConstraintSolver())
     font = font_ubuntu_regular_24
     SequentialProjection(
         RecursiveProjection(TypeDispatchingProjection(
-            ConstraintLayout => ConstraintLayoutToGraphicsCanvas(),
+            ConstraintLayout => ConstraintLayoutToGraphicsCanvas(solver=solver),
             Any              => WidgetToGraphics(font; measure=measure),
         )),
     )

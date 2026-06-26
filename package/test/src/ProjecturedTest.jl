@@ -13,6 +13,9 @@ using ProjecturedVideo
 # Likewise opt into the Odbc package so the database tests can construct
 # adapters/pools/projections and assert on their types (all exported by the package).
 using ProjecturedOdbc
+# Opt into the Tulip solver package so ConstraintSolverTest can construct a
+# TulipConstraintSolver and exercise the LP-backed constraint layout.
+using ProjecturedTulip
 using Projectured: ElementReference, RangeReference, PositionReference, FieldReference, PointReference,
                    TextRectangularReference,
                    ConcreteReferencePath, EmptyReferencePath, ReferencePath,

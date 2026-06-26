@@ -22,6 +22,9 @@ const sql_table_example                = Example("sql_table",                mak
 
 # Native AdaptagramsEngine graph layout.
 const graph_adaptagrams_example        = Example("graph_adaptagrams",        make_graph_document_example,             make_graph_adaptagrams_projection_example)
+# LP-solved ConstraintLayout (TulipConstraintSolver). Reuses the engine-free
+# constraint_layout document from ProjecturedExample with the real solver.
+const constraint_layout_tulip_example  = Example("constraint_layout_tulip",  make_constraint_layout_document_example, make_constraint_layout_tulip_projection_example)
 # The dvdrental entity-relationship diagram (live DB + native shim). Kept OUT of
 # the `examples` sweep — needs a live database and the built ProjecturedAdaptagrams
 # shim. Run directly: `run_example(dvdrental_relationship_example)`.
@@ -39,6 +42,7 @@ const examples = [
     dvdrental_catalog_widget_example,
     sql_table_example,
     graph_adaptagrams_example,
+    constraint_layout_tulip_example,
 ]
 
 export make_dbcatalog_document_example, make_dvdrental_catalog_document_example,
@@ -50,10 +54,12 @@ export make_dbcatalog_projection_example, make_dbcatalog_widget_projection_examp
        make_dvdrental_object_projection_example, make_dvdrental_object_json_projection_example,
        make_dvdrental_catalog_json_projection_example,
        make_sql_table_projection_example,
-       make_graph_adaptagrams_projection_example, make_dvdrental_relationship_projection_example
+       make_graph_adaptagrams_projection_example, make_dvdrental_relationship_projection_example,
+       make_constraint_layout_tulip_projection_example
 export dbcatalog_example, dvdrental_catalog_example, dbcatalog_widget_example, dvdrental_catalog_widget_example,
        dvdrental_object_example, dvdrental_object_json_example, dvdrental_catalog_json_example,
-       sql_table_example, graph_adaptagrams_example, dvdrental_relationship_example, examples
+       sql_table_example, graph_adaptagrams_example, dvdrental_relationship_example,
+       constraint_layout_tulip_example, examples
 # Re-export the core runners/renderers so `using ProjecturedExtrasExample` is enough.
 export Example, run_example, run_console_example, run_web_example,
        print_example, write_example_image, write_example_pdf, record_example_video

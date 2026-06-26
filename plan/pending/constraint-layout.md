@@ -1,24 +1,42 @@
 # Constraint Layout
 
 > **Audit status (implemented 2026-06-26): 🚧 CODE COMPLETE, UNVERIFIED.** All
-> seven implementation steps below are written. `ConstraintLayout`,
-> `LayoutRelation`, `LayoutAnchor` + the `anchor`/`constrain` DSL live in
-> `package/domain/src/document/Layout.jl`; the pure `solve_constraint_layout`
-> (Tulip-via-MOI goal programming) lives in the new
-> `package/domain/src/document/ConstraintSolver.jl`;
-> `ConstraintLayoutToGraphicsCanvas` lives in
-> `package/domain/src/projection/primitive/LayoutToGraphics.jl`; the
-> `constraint_layout` example and `test_constraint_solver` unit tests are
-> registered. `Tulip` + `MathOptInterface` are added to
-> `package/domain/Project.toml`.
+> seven implementation steps below are written, with the solver dependency
+> **extracted into a separate opt-in package** (see "Packaging" below) so core
+> `ProjecturedDomain` stays dependency-free.
+>
+> - `ConstraintLayout`, `LayoutRelation`, `LayoutAnchor` + the `anchor`/`constrain`
+>   DSL — `package/domain/src/document/Layout.jl`.
+> - The solver **seam** (`SolverAnchor`/`SolverRelation`, abstract
+>   `ConstraintSolver`, `solve_constraint_layout` generic, dependency-free
+>   `FallbackConstraintSolver`) — `package/domain/src/document/ConstraintSolver.jl`.
+>   **No `Tulip`/`MOI` in core.**
+> - `ConstraintLayoutToGraphicsCanvas` (with a `solver::ConstraintSolver` field,
+>   default `FallbackConstraintSolver`) —
+>   `package/domain/src/projection/primitive/LayoutToGraphics.jl`.
+> - The **LP solver** `TulipConstraintSolver` (goal-programming over
+>   `MathOptInterface` + `Tulip`) — new package `package/tulip/`
+>   (`ProjecturedTulip`), which adds a `solve_constraint_layout` method to the
+>   core seam. Mirrors `ProjecturedAdaptagrams`/`AdaptagramsEngine`.
+> - Examples: core `constraint_layout` (fallback solver, in the core sweep) +
+>   `constraint_layout_tulip` (real solver) in `ProjecturedExtrasExample`.
+> - Tests: `test_constraint_solver` (in `ProjecturedTest`, which now depends on
+>   `ProjecturedTulip`) covers both the fallback and the Tulip solver.
+>
+> **Packaging.** Core domain has zero heavy deps; the constraint layout works
+> out of the box (degraded: children stack at the origin) and upgrades to real
+> solving by loading `ProjecturedTulip` and passing
+> `ConstraintLayoutToGraphicsCanvas(solver = TulipConstraintSolver())` — the same
+> dependency-injection pattern as `GraphGraphToGraphLayout(engine = AdaptagramsEngine())`.
 >
 > **Not yet verified.** The work was done in an environment without a Julia
 > toolchain (the binary servers are blocked by egress policy), so nothing has
 > been compiled or run. Before this can be marked done a maintainer must:
 > (1) `julia --project=.` then `import Pkg; Pkg.resolve()` to pull `Tulip`/`MOI`
-> into the checked-in manifests; (2) run `test_constraint_solver()` and
-> `test_example(constraint_layout_example)`. Until then treat the code as a
-> draft pending a green test run.
+> into the checked-in manifests; (2) run `test_constraint_solver()`,
+> `test_example(constraint_layout_example)` (fallback), and
+> `test_example(constraint_layout_tulip_example)` (real solver). Until then treat
+> the code as a draft pending a green test run.
 
 Add a `ConstraintLayout` document type whose children are positioned by solving
 a system of **linear equality/inequality constraints** over their edges, using
@@ -354,16 +372,22 @@ Per `CLAUDE.md`, run the narrow `test_*` for the new example plus
 ## Implementation Steps
 
 1. ✅ DONE — Solver dependency confirmed by the maintainer: **Tulip-via-MOI**
-   (the plan's primary pick). Added to `package/domain/Project.toml` `[deps]` +
-   `[compat]` (`Tulip = "0.9"`, `MathOptInterface = "1"`).
+   (the plan's primary pick), but **isolated in a separate opt-in package**
+   `ProjecturedTulip` (`package/tulip/`) rather than added to core — core
+   `ProjecturedDomain` keeps zero heavy deps. `Tulip = "0.9"` /
+   `MathOptInterface = "1"` live in `package/tulip/Project.toml`.
 2. ✅ DONE — `LayoutAnchor`, `LayoutRelation`, `ConstraintLayout` document types
    + the `anchor`/`constrain` DSL (with a plain `LayoutExpr` affine layer; `==`
    / `<=` / `>=` intentionally *not* overloaded to preserve `@document`
    identity equality) in `package/domain/src/document/Layout.jl`.
-3. ✅ DONE — Pure `solve_constraint_layout` in
-   `package/domain/src/document/ConstraintSolver.jl` (goal-programming LP: hard
-   rows + slack-penalized soft rows, weak intrinsic/origin stays, intrinsic
-   fallback on infeasible/throw). `Tulip`/`MOI` wired into `Project.toml`.
+3. ✅ DONE — Solver **seam** in core
+   `package/domain/src/document/ConstraintSolver.jl` (plain `SolverAnchor`/
+   `SolverRelation`, abstract `ConstraintSolver`, `solve_constraint_layout`
+   generic, dependency-free `FallbackConstraintSolver`). The goal-programming LP
+   (`TulipConstraintSolver`: hard rows + slack-penalized soft rows, weak
+   intrinsic/origin stays, intrinsic fallback on infeasible/throw) lives in
+   `package/tulip/src/ProjecturedTulip.jl` and adds a `solve_constraint_layout`
+   method to the seam.
 4. ✅ DONE — `ConstraintLayoutToGraphicsCanvas` (`_cl_build` + single `solve`
    cell + `projection_print` + stack-style read + `_children_forward`) in
    `LayoutToGraphics.jl`. **Two-pass size override** implemented (open question
@@ -371,11 +395,15 @@ Per `CLAUDE.md`, run the narrow `test_*` for the new example plus
    just advisory.
 5. ✅ DONE — Factory entry (`ConstraintLayout => ConstraintLayoutToGraphicsCanvas()`),
    `include("document/ConstraintSolver.jl")` before `Layout.jl`; umbrella
-   re-exports are mechanical (driven by the module `export` lists).
+   re-exports are mechanical (driven by the module `export` lists). New package
+   `ProjecturedTulip` wired into the root `Project.toml` `[deps]` + `[sources]`.
 6. ✅ DONE — `constraint_layout` example (dashboard: header / sidebar / main /
-   footer) in `package/example/src/document/Layout.jl` +
-   `projection/Layout.jl`, registered as `constraint_layout_example` in
-   `Examples.jl` and the example exports.
+   footer) document in `package/example/src/document/Layout.jl`; the core
+   projection (`make_constraint_layout_projection_example`) takes a `solver`
+   kwarg defaulting to `FallbackConstraintSolver`, so `constraint_layout_example`
+   stays in the core sweep. The real-solver `constraint_layout_tulip` example
+   (`solver = TulipConstraintSolver()`) lives in `ProjecturedExtrasExample`,
+   alongside `graph_adaptagrams`.
 7. ✅ DONE — `package/test/src/document/ConstraintSolverTest.jl`
    (`test_constraint_solver`: pinning, min-size, fill-remaining, soft centering,
    infeasible fallback, empty) registered in `ProjecturedTest.jl`; the example

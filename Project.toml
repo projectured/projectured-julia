@@ -10,6 +10,7 @@ ProjecturedMcp = "2b4e36b2-6b10-43fd-9b63-0a09efcd22da"
 ProjecturedOdbc = "aed26263-2fd3-42de-9b03-7ee91ffa11a3"
 ProjecturedSdl = "f0002b97-94ba-416c-b93c-86cdc095626f"
 ProjecturedTest = "c3f1d2e8-4a5b-6c7d-8e9f-0a1b2c3d4e5f"
+ProjecturedTulip = "bf3b10cf-befa-4ac9-98d3-9c1678f27146"
 ProjecturedVideo = "8d225f56-7fda-4c1e-a58b-db6d64f8335c"
 ProjecturedWeb = "893c803c-8c7c-42c1-85f1-cc97ca81befb"
 Revise = "295af30f-e4ad-537b-8983-00126c2a3abe"
@@ -28,4 +29,5 @@ ProjecturedLlm = {path = "package/llm"}
 ProjecturedOdbc = {path = "package/odbc"}
 ProjecturedWeb = {path = "package/web"}
 ProjecturedSdl = {path = "package/sdl"}
+ProjecturedTulip = {path = "package/tulip"}
 ProjecturedVideo = {path = "package/video"}
