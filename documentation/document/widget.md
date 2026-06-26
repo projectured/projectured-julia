@@ -124,6 +124,43 @@ These map to nested CSS-style boxes. `Inset` (defined in
 sides; helpers `inset_size`, `inset_top_left`, etc. compute derived values.
 The default value is `inset_default`.
 
+## Interaction state
+
+Alongside `visible`, interactive widgets carry a shared **`enabled::Bool`**
+(default `true`) — the second cross-cutting interactivity flag. The convention
+for it is uniform:
+
+- **Reader gating.** A widget's `projection_read` returns `nothing` for every
+  event when `w.enabled === false` (guard at the top, before any operation is
+  produced). A disabled control emits no action, no edit, and no transient state
+  change.
+- **Muted appearance.** Its printer branches on `w.enabled === false` and renders
+  with the theme's `muted` / `muted_foreground` tokens instead of its normal
+  surface/foreground, and drops interaction affordances (the button's drop
+  shadow, any hover/press surface).
+
+`WidgetButton` and `WidgetCheckbox` are the reference implementations; other
+interactive widgets adopt `enabled` the same way (struct field next to `visible`,
+threaded through the convenience constructor, gate + muted branch).
+
+Note that **focus is not a separate flag** — the focused widget is the *selected*
+one (`selection::Reference`, see [Selection](#selection)); there is no `focused`
+field.
+
+### Transient hover / press state
+
+`hovered` and `pressed` (today on `WidgetButton`) are **transient UI state**, not
+document content — they are not serialised. The convention:
+
+- The **reader** writes them via `ReplaceReferencedValue(self, "hovered"/"pressed",
+  bool)` in response to `MouseEnter`/`MouseLeave` (hover) and `MouseDown`/`MouseUp`
+  (press); see [Button behavior](#button-behavior).
+- The **printer** reads them to pick the surface fill (`pressed → active`, else
+  `hovered → hover`, else resting), and a disabled widget ignores them entirely.
+
+A widget that needs interactive feedback copies this field-plus-cell pattern
+rather than inventing its own.
+
 ## Widget operations
 
 Most widget edits are a **single-field write into a carried widget**, so the
@@ -136,6 +173,7 @@ rather than a bespoke operation. Because the widget is carried by identity
 | Gesture | Operation emitted |
 |---|---|
 | show / hide | `ReplaceReferencedValue(w, "visible", true/false)` |
+| enable / disable | `ReplaceReferencedValue(w, "enabled", true/false)` (disabled readers emit nothing) |
 | scroll wheel | `ReplaceReferencedValue(scroll_pane, "scroll_position", old + Δ)` (reader reads `old`) |
 | drag scroll-bar | `ReplaceReferencedValue(bar, "value", clamped)` |
 | hover / press a button | `ReplaceReferencedValue(widget, "hovered"/"pressed", bool)` |

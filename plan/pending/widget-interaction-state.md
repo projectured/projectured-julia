@@ -229,8 +229,14 @@ there.
       construction test added to `WidgetButtonTest.jl` (defaults / kwarg /
       positional round-trip). *Not yet executed in CI — Julia is unavailable in
       the web session sandbox (distribution host blocked by egress policy).*
-- [ ] Step 2 — gate Button + Checkbox readers
-- [ ] Step 3 — disabled muted appearance for Button + Checkbox
-- [ ] Step 4 — document the `enabled` + hover/pressed convention
+- [x] Step 2 — gate Button + Checkbox readers (`w.enabled === false && return
+      nothing`); tests added (disabled button/checkbox swallow all pointer events).
+- [x] Step 3 — disabled muted appearance: `disabled_color`/`disabled_foreground`
+      added to both projections (fed `theme.muted`/`theme.muted_foreground`),
+      printers branch on `enabled`; button drops shadow + state surface, checkbox
+      mutes box/tick. Test asserts the disabled button renders flatter.
+- [x] Step 4 — documented the `enabled` + hover/pressed convention in
+      `documentation/document/widget.md` (new "Interaction state" section + ops
+      table row). *Steps 2–4 not yet executed — Julia unavailable in sandbox.*
 - [ ] Step 5 — `enabled` on remaining interactive widgets (gate where reader exists)
 - [ ] Step 6 — example showcase + printer/reader sweep

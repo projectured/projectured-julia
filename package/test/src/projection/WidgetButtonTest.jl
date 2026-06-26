@@ -166,4 +166,41 @@ end
     @test cb_off.content === false
 end
 
+# Stage 1, Step 2: a disabled control still prints, but its reader emits no
+# operation for any pointer event — no action, no toggle, no hover/press state.
+@testset "a disabled button is inert: no action, no hover/press" begin
+    fired = Ref(false)
+    btn = WidgetButton(Point2D(0, 0), Point2D(120, 40), "Go";
+                       action = (_e) -> (fired[] = true), enabled = false)
+    proj = _proj()
+    iomap = projection_print(proj, nothing, btn, PrinterContext())
+    @test iomap.output isa GraphicsCanvas                      # disabled still renders
+    @test projection_read(proj, iomap, MousePress(:left, 10, 10, Modifiers())) === nothing
+    @test projection_read(proj, iomap, MouseDown(:left, 10, 10, Modifiers())) === nothing
+    @test projection_read(proj, iomap, MouseMove(10, 10, :none, Modifiers())) === nothing
+    @test fired[] == false
+    @test btn.hovered == false && btn.pressed == false
+end
+
+@testset "a disabled checkbox swallows the toggle click" begin
+    cb = WidgetCheckbox(Point2D(0, 0), false; enabled = false)
+    proj = _proj()
+    iomap = projection_print(proj, nothing, cb, PrinterContext())
+    @test iomap.output isa GraphicsCanvas
+    @test projection_read(proj, iomap, MousePress(:left, 5, 5, Modifiers())) === nothing
+    @test cb.content === false                                # value unchanged
+end
+
+# Stage 1, Step 3: the disabled surface differs from the enabled one (muted fill
+# / no drop shadow). We compare the element count: an enabled resting button
+# carries an extra shadow rect that the disabled one drops.
+@testset "a disabled button renders flat (no shadow rect)" begin
+    on  = WidgetButton(Point2D(0, 0), Point2D(120, 40), "Go")
+    off = WidgetButton(Point2D(0, 0), Point2D(120, 40), "Go"; enabled = false)
+    proj = _proj()
+    on_canvas  = projection_print(proj, nothing, on,  PrinterContext()).output
+    off_canvas = projection_print(proj, nothing, off, PrinterContext()).output
+    @test length(off_canvas.elements) < length(on_canvas.elements)
+end
+
 end # test_widget_button_behavior

@@ -341,6 +341,8 @@ end
     check::StyleStroke             # the tick (color + width)
     background_color::StyleColor   # empty box fill
     outline::StyleStroke           # empty box outline (color + width)
+    disabled_color::StyleColor     # box fill when !enabled
+    disabled_foreground::StyleColor # tick / outline when !enabled
 end
 
 # Style parameters owned by the button projection (hybrid model, §8 of the plan):
@@ -359,6 +361,8 @@ end
     padding::Inset              # content padding (was pad_x / pad_y)
     corner_radius::Int
     shadow_offset::Int
+    disabled_color::StyleColor   # surface when !enabled
+    disabled_foreground::StyleColor # label color when !enabled
 end
 
 @projection struct WidgetTooltipToGraphicsCanvas
@@ -818,12 +822,20 @@ function projection_print(p::WidgetCheckboxToGraphicsCanvas, recursion, w::Widge
     w.visible == false && return SimpleIoMap(p, w, _empty_canvas())
     position = w.position::Point2D
     checked = w.content === true
+    enabled = !(w.enabled === false)
     box_size = _sc(p.box_size)
     corner_radius = _sc(p.corner_radius)
     elements = Any[]
+    # When disabled, the box uses the muted surface and the tick/outline render in
+    # the muted foreground, keeping the checked/unchecked shape but signalling that
+    # the control is inert (its reader also swallows clicks).
+    checked_fill = enabled ? p.checked_color : p.disabled_color
+    check_color  = enabled ? p.check.color   : p.disabled_foreground
+    empty_fill   = enabled ? p.background_color : p.disabled_color
+    outline_color = enabled ? p.outline.color : p.disabled_foreground
     if checked
-        _push_panel!(elements, 0, 0, box_size, box_size; fill=p.checked_color, radius=corner_radius)
-        red, green, blue, alpha = _rgbai(p.check.color)
+        _push_panel!(elements, 0, 0, box_size, box_size; fill=checked_fill, radius=corner_radius)
+        red, green, blue, alpha = _rgbai(check_color)
         check_width = max(1, _sc(p.check.width))
         # Crisp two-stroke checkmark instead of a glyph.
         x1, y1 = round(Int, 0.22box_size), round(Int, 0.52box_size)
@@ -832,8 +844,8 @@ function projection_print(p::WidgetCheckboxToGraphicsCanvas, recursion, w::Widge
         push!(elements, GraphicsLine(x1, y1, x2, y2, red, green, blue, alpha; width=check_width))
         push!(elements, GraphicsLine(x2, y2, x3, y3, red, green, blue, alpha; width=check_width))
     else
-        _push_panel!(elements, 0, 0, box_size, box_size; fill=p.background_color,
-                     border=p.outline.color, border_w=max(1, _sc(p.outline.width)), radius=corner_radius)
+        _push_panel!(elements, 0, 0, box_size, box_size; fill=empty_fill,
+                     border=outline_color, border_w=max(1, _sc(p.outline.width)), radius=corner_radius)
     end
     SimpleIoMap(p, w, _make_canvas(_origin(position)..., box_size, box_size, elements))
 end
@@ -853,6 +865,7 @@ end
 # unchanged.
 function projection_read(::WidgetCheckboxToGraphicsCanvas, iomap::SimpleIoMap, evt::MousePress)
     w = iomap.input
+    w.enabled === false && return nothing   # a disabled checkbox swallows the click
     new_value = !(w.content === true)
     ReplaceReferencedValue(w, ConcreteReferencePath(FieldReference("content"), EmptyReferencePath()), new_value)
 end
@@ -875,20 +888,28 @@ function projection_print(p::WidgetButtonToGraphicsCanvas, recursion, w::WidgetB
     corner_radius = _sc(p.corner_radius)
     # State-driven surface: pressed > hover > resting. The reader keeps the
     # widget's transient `pressed`/`hovered` cells current; reading them here ties
-    # the rendered fill to that state reactively.
-    pressed = w.pressed === true
-    hovered = w.hovered === true
-    fill = pressed ? p.active_color : hovered ? p.hover_color : p.background_color
+    # the rendered fill to that state reactively. A disabled button ignores that
+    # state entirely: flat muted surface, muted label, no shadow (its reader also
+    # never sets pressed/hovered, so the guard here is belt-and-braces).
+    enabled = !(w.enabled === false)
+    pressed = enabled && w.pressed === true
+    hovered = enabled && w.hovered === true
+    fill = !enabled ? p.disabled_color :
+           pressed ? p.active_color : hovered ? p.hover_color : p.background_color
+    label = enabled ? p.label : StyleText(p.label.font, p.disabled_foreground)
     elements = Any[]
     # Default button: light surface, subtle border, soft shadow, dark label —
     # matching the shadcn default button. A faint offset rect approximates the
-    # shadow-sm drop shadow; it is dropped while pressed so the button "sinks".
-    pressed || push!(elements, GraphicsRect(0, _sc(p.shadow_offset), button_width, button_height, 0x00, 0x00, 0x00, 0x14, corner_radius))
+    # shadow-sm drop shadow; it is dropped while pressed (so the button "sinks")
+    # and while disabled (so it reads as inert/flat).
+    if enabled && !pressed
+        push!(elements, GraphicsRect(0, _sc(p.shadow_offset), button_width, button_height, 0x00, 0x00, 0x00, 0x14, corner_radius))
+    end
     _push_panel!(elements, 0, 0, button_width, button_height; fill=fill,
                  border=p.border.color, border_w=max(1, _sc(p.border.width)), radius=corner_radius)
     cx = (button_width - content_width) ÷ 2
     cy = (button_height - content_height) ÷ 2
-    _push_content!(elements, p.measure, p.label, w.content, cx, cy, content_width, content_height)
+    _push_content!(elements, p.measure, label, w.content, cx, cy, content_width, content_height)
     SimpleIoMap(p, w, _make_canvas(_origin(position)..., button_width, button_height, elements))
 end
 
@@ -908,6 +929,9 @@ end
 # hit-tested the pointer onto this button, so coordinate events are "inside".)
 function projection_read(::WidgetButtonToGraphicsCanvas, iomap::SimpleIoMap, evt)
     w = iomap.input
+    # A disabled button is inert: no action, and no hover/press state changes, so
+    # it can never show an interaction surface (see the printer's enabled branch).
+    w.enabled === false && return nothing
     @event_case evt begin
         MousePress(button, x, y) => button === :left ? InvokeWidgetActionOperation(w) : nothing
         MouseDown(button, x, y)  => button === :left ? ReplaceReferencedValue(w, "pressed", true) : nothing
@@ -3780,13 +3804,15 @@ function WidgetToGraphics(font::StyleFont; measure::Function,
         WidgetCheckbox   => WidgetCheckboxToGraphicsCanvas(
             18, theme.radius ÷ 2,
             theme.primary, StyleStroke(theme.primary_foreground, theme.stroke),
-            theme.background, StyleStroke(theme.input, theme.stroke)),
+            theme.background, StyleStroke(theme.input, theme.stroke),
+            theme.muted, theme.muted_foreground),
         WidgetButton     => WidgetButtonToGraphicsCanvas(
             measurer, theme.label_text, theme.background,
             theme.accent, theme.muted,
             StyleStroke(theme.border, theme.border_width),
             Inset(theme.pad_y, theme.pad_y, theme.pad_x, theme.pad_x),
-            theme.radius, 2),
+            theme.radius, 2,
+            theme.muted, theme.muted_foreground),
         WidgetTooltip    => WidgetTooltipToGraphicsCanvas(measurer, StyleText(theme.font, theme.popover_foreground),
             theme.popover, StyleStroke(theme.border, theme.border_width), theme.radius,
             Inset(theme.pad_y, theme.pad_y, theme.pad_x, theme.pad_x)),
