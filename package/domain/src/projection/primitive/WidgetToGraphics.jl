@@ -1113,9 +1113,13 @@ function projection_read(p::WidgetCompositeToGraphicsCanvas, iomap::ChildrenIoMa
         MouseLeave => _route_composite_event(child_iomaps, evt.x, evt.y,
             (x, y) -> MouseLeave(x, y, evt.buttons, evt.modifiers))
         _ => begin
+            # Coordless (keyboard) events route to the child the selection points
+            # at, or to nothing when the selection is not inside this composite.
+            # Selection is authoritative — no broadcast/first-answer fallback.
+            # See documentation/document/widget.md.
             slot = iomap.input isa WidgetComposite ?
                    _selected_composite_slot(iomap.input, length(child_iomaps)) : 0
-            slot == 0 ? _forward_composite_event(child_iomaps, evt) :
+            slot == 0 ? nothing :
                         _forward_composite_event_slot(child_iomaps, evt, slot)
         end
     end
@@ -1136,18 +1140,6 @@ function _route_composite_event(child_iomaps::Vector, x::Int, y::Int, make_evt)
         hit_element_at(canvas, lx, ly) === nothing && continue
         result = projection_read(cim.projection, cim, make_evt(lx, ly))
         result !== nothing && return (result, i)
-    end
-    nothing
-end
-
-# Forward a coordless event through children in order; `(op, i)` for the first
-# that produced an Operation (a passthrough of the raw event doesn't count).
-function _forward_composite_event(child_iomaps::Vector, evt)
-    for (i, entry) in enumerate(child_iomaps)
-        entry === nothing && continue
-        (_, _, cim) = entry::Tuple{Int,Int,Any}
-        result = projection_read(cim.projection, cim, evt)
-        result isa Operation && return (result, i)
     end
     nothing
 end
@@ -1677,13 +1669,12 @@ function projection_read(p::WidgetSplitPaneToGraphicsCanvas, iomap::ChildrenIoMa
         _ => begin
             # Forward keyboard (and other coordless) events to the child the
             # forward-projected selection points at, so the keystroke reaches the
-            # focused descendant rather than whichever slot happens to answer
-            # first. When the split carries no selection (e.g. a split built
-            # outside the workbench, where nothing forward-projects onto it),
-            # fall back to trying each slot in order.
+            # focused descendant. When the split carries no such selection, route
+            # nowhere (return nothing) — selection is authoritative, with no
+            # try-each-slot fallback. See documentation/document/widget.md.
             slot = iomap.input isa WidgetSplitPane ?
                    _selected_split_slot(iomap.input, length(child_iomaps)) : 0
-            slot == 0 ? _forward_split_event(child_iomaps, evt) :
+            slot == 0 ? nothing :
                         _forward_split_event_slot(child_iomaps, evt, slot)
         end
     end
@@ -1697,21 +1688,6 @@ function projection_read(p::WidgetSplitPaneToGraphicsCanvas, iomap::ChildrenIoMa
             (FieldReference("elements"), RangeReference(slot_idx-1, slot_idx), FieldReference("child")) :
             (FieldReference("elements"), RangeReference(slot_idx-1, slot_idx))
     prepend_steps_to_op(op, steps)
-end
-
-# Forward a coordless event through split-pane slots; entries are
-# `(x_cell, y_cell, cim)` tuples — coords are ignored here. Returns
-# `(op, slot_index)` for the first slot whose reader produced an `Operation`.
-# A slot that only passes the raw event back through (see `_forward_to_children`)
-# has not handled it, so the next slot still gets a chance.
-function _forward_split_event(child_iomaps::Vector, evt)
-    for (i, entry) in enumerate(child_iomaps)
-        entry === nothing && continue
-        (_, _, cim) = entry::Tuple{Cell,Cell,Any}
-        result = projection_read(cim.projection, cim, evt)
-        result isa Operation && return (result, i)
-    end
-    nothing
 end
 
 # The split slot the node's forward-projected selection points at. The
@@ -1932,9 +1908,29 @@ function projection_read(p::WidgetTabbedPaneToGraphicsCanvas, iomap::ChildrenIoM
     if evt isa MouseScroll
         return _tab_prefix(_route_active_tab(iomap, child_iomaps, evt))
     end
-    # Coordless events (KeyDown, KeyPress, …): forward to the active tab
-    # only; the focused leaf produces an op, others return nothing.
-    _tab_prefix(_route_active_tab(iomap, child_iomaps, evt))
+    # Coordless events (KeyDown, KeyPress, …): forward to the tab the selection
+    # points at, or to nothing when the selection is not in this pane — selection
+    # is authoritative, with no active-tab fallback for keyboard events (the
+    # printer still falls back to tab 1 to *render* a tab). See widget.md.
+    _tab_prefix(_route_selected_tab(iomap, child_iomaps, evt))
+end
+
+# Coordless routing: forward to the tab the selection points at, or nothing when
+# the selection is not in this pane. Unlike `_route_active_tab` there is NO
+# fallback to a default/visible tab — selection is authoritative for keyboard
+# events. Coordless events need no coordinate translation, so `evt` is forwarded
+# as-is. Returns (op, idx) with the 1-based tab number for `_tab_prefix`.
+function _route_selected_tab(iomap::ChildrenIoMap, child_iomaps::Vector, evt)
+    w = iomap.input
+    w isa WidgetTabbedPane || return nothing
+    idx = _tab_index_from_selection(getfield(w, :selection)[], length(child_iomaps))
+    idx == 0 && return nothing
+    entry = child_iomaps[idx]
+    entry === nothing && return nothing
+    (_, _, cim) = entry::Tuple{Int,Int,Any}
+    op = projection_read(cim.projection, cim, evt)
+    op === nothing && return nothing
+    (op, idx)
 end
 
 # Returns (op, active_idx) — the index is the 1-based tab number so it can

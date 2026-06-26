@@ -294,7 +294,15 @@ focused iff `getfield(w,:selection)[] !== nothing` (background fact 3).
 
 ## Step status
 
-- [ ] Step 1 — selection-only coordless routing (drop active-tab/broadcast fallback)
+- [x] Step 1 — selection-only coordless routing: dropped the broadcast/try-each-slot
+      fallback in `WidgetComposite`, `WidgetSplitPane`, and the `LayoutDocument`
+      readers (removed the now-dead `_forward_composite_event`/`_forward_split_event`/
+      `_forward_layout_event` helpers), and routed the tabbed pane's coordless
+      events via a new `_route_selected_tab` (no active-tab fallback; the printer's
+      `_active_tab_index` is untouched so rendering still shows a tab). Invariant
+      documented in `widget.md`. *Not executed — Julia unavailable in sandbox; the
+      existing keyboard/REPL tests should be run to catch any reliance on the
+      removed fallback.*
 - [ ] Step 2 — local helpers: `first/last_focusable_path` + `_next_focusable_slot`
 - [ ] Step 3 — distributed Tab in container readers (decline-and-advance via
       `ReplaceSelectionOperation`) + one top-level wrap/bootstrap rule

@@ -170,20 +170,6 @@ _route_click(entries, evt::MousePress) =
     _route_to_children(entries, evt.x, evt.y,
         (x, y) -> MousePress(evt.button, x, y, evt.modifiers))
 
-# Forward a coordless event (keyboard, …) through children in order; `(op, i)`
-# for the first that produced an `Operation` (a passthrough of the raw event
-# doesn't count). Mirrors `_forward_composite_event` in WidgetToGraphics so a
-# layout can host an editable widget subtree.
-function _forward_layout_event(entries::Vector, evt)
-    for (i, entry) in enumerate(entries)
-        entry === nothing && continue
-        (_, _, cim) = entry::Tuple{Cell,Cell,Any}
-        result = projection_read(cim.projection, cim, evt)
-        result isa Operation && return (result, i)
-    end
-    nothing
-end
-
 # Forward a coordless event to the single child the layout's selection points at.
 function _forward_layout_event_slot(entries::Vector, evt, slot::Int)
     (1 <= slot <= length(entries)) || return nothing
@@ -220,8 +206,11 @@ function _route_layout_event(iomap::_LayoutChildrenIoMap, evt)
         MousePress  => _route_click(entries, evt)
         MouseScroll => _route_scroll(entries, evt)
         _ => begin
+            # Selection-only: route the coordless event to the child the
+            # selection points at, or nowhere (no broadcast fallback) — selection
+            # is authoritative. See documentation/document/widget.md.
             slot = _selected_layout_slot(iomap.input, length(entries))
-            slot == 0 ? _forward_layout_event(entries, evt) :
+            slot == 0 ? nothing :
                         _forward_layout_event_slot(entries, evt, slot)
         end
     end
@@ -1032,8 +1021,11 @@ function _route_stack_event(iomap::ChildrenIoMap, evt)
         MousePress  => _route_click_reverse(entries, evt)
         MouseScroll => _route_scroll_reverse(entries, evt)
         _ => begin
+            # Selection-only: route the coordless event to the child the
+            # selection points at, or nowhere (no broadcast fallback) — selection
+            # is authoritative. See documentation/document/widget.md.
             slot = _selected_layout_slot(iomap.input, length(entries))
-            slot == 0 ? _forward_layout_event(entries, evt) :
+            slot == 0 ? nothing :
                         _forward_layout_event_slot(entries, evt, slot)
         end
     end

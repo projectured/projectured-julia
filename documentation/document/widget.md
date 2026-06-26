@@ -329,6 +329,19 @@ Selection paths typically descend into `content` for leaf widgets, into
 fields like `scroll_position` of a scroll pane. The standard rules in
 [the reference guide](../editor/reference.md) apply.
 
+### Keyboard routing follows the selection
+
+The selection is the focus: a container forwards a coordless (keyboard) event to
+the child its selection points at, and returns `nothing` when the selection is
+not inside it — **never** to a default child (no "active tab", no broadcast, no
+first-answer fallback). When the selection is elsewhere the container is
+untouched and its prior state simply stays. This holds for `WidgetComposite`,
+`WidgetSplitPane`, `WidgetTabbedPane`, and the `LayoutDocument` family. (The
+tabbed pane still falls back to tab 1 to *render* a tab when nothing is selected;
+that is a printing concern, not routing.) An unselected tree therefore delivers
+keystrokes nowhere — the first selection is established by a click or by Tab
+traversal, not by a routing guess.
+
 ## When to use widgets vs. graphics
 
 - Build user interfaces (workbenches, menus, dialogs, IDE layouts) at the
