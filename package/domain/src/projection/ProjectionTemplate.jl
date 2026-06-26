@@ -32,6 +32,9 @@ import ..CollectionModule: CellVector
 import ..IoMapApiModule: IoMap
 import ..ProjectionApiModule: map_reference_forward, map_reference_backward, projection_read, Projection,
                               projection_printer_recurse, as_change
+# Bind the module itself so `@projection_template` can emit a module-qualified
+# `ProjectionApiModule.projection_print` method-definition name (see the macro).
+import ..ProjectionApiModule
 import ..RecursiveProjectionModule: RecursiveProjection
 import ..ReferenceModule: ConcreteReferencePath, EmptyReferencePath, FieldReference, RangeReference, ElementReference,
                           TypeReference, ProjectionReference, ReferencePath, Reference,
@@ -1043,7 +1046,15 @@ builder through `rule_print`.
 """
 macro projection_template(projname, intype, builder)
     quote
-        function $(esc(:projection_print))(p::$(esc(projname)), recursion, doc::$(esc(intype)), ctx)
+        # Define the method with a *module-qualified* name so it always extends
+        # the canonical `ProjectionApiModule.projection_print` the type-dispatcher
+        # calls — regardless of what the calling module imported. The unescaped
+        # `ProjectionApiModule` hygiene-resolves to this macro's defining module
+        # (which binds it via `import ..ProjectionApiModule`). The old
+        # `esc(:projection_print)` instead resolved the name in the *caller's*
+        # module and, if it hadn't imported the generic, silently defined a dead
+        # local one → a confusing MethodError at dispatch time.
+        function ProjectionApiModule.projection_print(p::$(esc(projname)), recursion, doc::$(esc(intype)), ctx)
             $(rule_print)(p, recursion, doc, ctx, $(esc(builder)))
         end
     end
