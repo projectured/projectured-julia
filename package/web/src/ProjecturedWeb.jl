@@ -764,8 +764,10 @@ measure_text(::WebBackend, text::AbstractString, font::StyleFont) = pdf_measure_
 read_from_devices(backend::WebBackend, devices) =
     isready(backend.inbound) ? take!(backend.inbound) : nothing
 
-_window_meta(w::WindowDocument, draw) = Dict(
-    "id" => String(w.id), "title" => w.title,
+# `primary` marks the in-tab window (the first `WindowDocument` in list order):
+# the client renders it directly in the page it was opened from, never a popup.
+_window_meta(w::WindowDocument, draw; primary::Bool=false) = Dict(
+    "id" => String(w.id), "title" => w.title, "primary" => primary,
     "x" => Int(w.x), "y" => Int(w.y), "w" => Int(w.width), "h" => Int(w.height),
     "bg" => Int[Int(w.bg[1]), Int(w.bg[2]), Int(w.bg[3]), Int(w.bg[4])],
     "style" => String(w.style), "draw" => draw)
@@ -798,6 +800,10 @@ function write_to_devices(backend::WebBackend, devices, screen::ScreenDocument)
     force = backend.force_full
     backend.force_full = false
 
+    # The first window in list order is the primary (in-tab) one; the client
+    # renders it in the page it was opened from rather than a popup.
+    primary_id = isempty(wins) ? :none : wins[1].id
+
     full = Any[]
     patches = Any[]
     for w in wins
@@ -805,7 +811,7 @@ function write_to_devices(backend::WebBackend, devices, screen::ScreenDocument)
         content = w.content
         if force || ws.first_paint
             draw = content isa GraphicsCanvas ? _serialize_children(content) : Any[]
-            push!(full, _window_meta(w, draw))
+            push!(full, _window_meta(w, draw; primary = (w.id == primary_id)))
             ws.first_paint = false
             empty!(ws.prev_bounds)
             content isa GraphicsCanvas && _record_all_bounds!(ws.prev_bounds, content, 0, 0)

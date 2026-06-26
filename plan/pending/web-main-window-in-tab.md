@@ -180,8 +180,9 @@ sends with `window: mainId`, exactly as a popup did with its own id).
 
 ## Milestones
 
-1. **Server primary flag.** Add `primary` to `_window_meta`; compute in
-   `write_to_devices`. (commit)
+1. **Server primary flag.** ✅ Done. `_window_meta(w, draw; primary=false)` emits
+   `"primary"`; `write_to_devices` sets `primary_id = wins[1].id` and tags the
+   first window's `full`.
 2. **In-tab primary window.** Rework `index.html` (canvas+overlay) and `client.js`
    to bind the primary window to the page canvas, paint immediately, wire events,
    handle tab resize, and clean reconnect. Single-window examples now open with no
