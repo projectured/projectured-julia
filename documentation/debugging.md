@@ -51,7 +51,7 @@ To drive the same example from a browser instead of an SDL window, use
 
 ```julia
 julia> run_web_example("json")              # serve on http://127.0.0.1:8080
-julia> run_web_example("json"; port=9000)   # then open the URL and click Launch
+julia> run_web_example("json"; port=9000)   # then open the URL; the editor appears in the tab
 ```
 
 ## Printing without rendering

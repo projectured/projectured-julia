@@ -410,9 +410,11 @@ end
 
 Run an example (or several side-by-side) through the **web backend** instead of
 SDL. Starts an HTTP + WebSocket server; open `http://host:port` in a browser and
-click *Launch* — each editor window opens as a browser popup that paints the
-server's draw-list and forwards input back. Accepts the same keyword arguments
-as [`run_example`](@ref) (e.g. `width`, `height`, `workbench`, `selection`).
+the main window appears immediately in that tab — no button to click. Any
+additional windows (e.g. a second example, or tooltips) open as browser popups on
+the first interaction in the tab. The browser paints the server's draw-list and
+forwards input back. Accepts the same keyword arguments as [`run_example`](@ref)
+(e.g. `width`, `height`, `workbench`, `selection`).
 """
 run_web_example(arg="json"; host="127.0.0.1", port=8080, kwargs...) =
     run_example(arg; backend=make_backend(:web; host=host, port=port), kwargs...)

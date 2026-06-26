@@ -194,7 +194,9 @@ sends with `window: mainId`, exactly as a popup did with its own id).
 3. **Lazy secondary popups.** `pendingPopups` queue flushed on first gesture, so
    `run_web_example(["json","xml"])` and tooltips still work without a Launch
    button. (commit)
-4. **Docs & launcher wording.** Drop "click Launch". (commit)
+4. **Docs & launcher wording.** ✅ Done. Updated the `run_web_example` docstring,
+   `devices-and-backends.md` (running instructions, diagram label, resync note),
+   and `debugging.md`. README had no "Launch" wording, so no change there.
 
 ## Edge cases
 

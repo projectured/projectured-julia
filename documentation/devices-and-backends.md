@@ -123,7 +123,7 @@ cells, and the read-eval-print loop; a connected JavaScript client
 keyboard events and paints a JSON **draw-list** onto an HTML `<canvas>`.
 
 ```
- browser popup (canvas)  ──events──▶  WebSocket  ──▶  read_from_devices
+ browser tab/popup (canvas) ─events─▶  WebSocket  ──▶  read_from_devices
         ▲                                                      │
         └──── draw-list (full / patch) ◀── write_to_devices ◀──┘
 ```
@@ -133,13 +133,16 @@ keyboard events and paints a JSON **draw-list** onto an HTML `<canvas>`.
 ```julia
 run_web_example("json")          # serve on http://127.0.0.1:8080
 run_web_example("json"; port=9000)
-run_web_example(["json", "xml"]) # one popup per window, side by side
+run_web_example(["json", "xml"]) # main window in-tab; the rest as popups
 ```
 
-Then open `http://127.0.0.1:8080` and click **Launch** (a user gesture is
-required before a browser will open pop-ups). Each editor `WindowDocument` opens
-as its own browser popup. `run_web_example` accepts the same keyword arguments as
-`run_example`; under the hood it is just `run_example(...; backend=WebBackend(...))`.
+Then open `http://127.0.0.1:8080`: the **primary** (first) `WindowDocument`
+renders directly in that tab immediately — no button to click. Any **additional**
+`WindowDocument`s open as their own browser popups, but on the **first
+interaction** in the tab (a click or key press), since a browser only opens
+pop-ups in response to a user gesture. `run_web_example` accepts the same keyword
+arguments as `run_example`; under the hood it is just
+`run_example(...; backend=WebBackend(...))`.
 
 ### How it satisfies the interface
 
@@ -196,8 +199,9 @@ and new extent so moved/shrunk content clears its vacated pixels.
   or on output-queue overflow (`force_full`); otherwise only a **`patch`** is
   sent. Idle frames send nothing.
 - The client repaints a patch by clipping to its rect, clearing to the window
-  background, and painting over the **retained** canvas. After (re)opening popups
-  it sends `{type:"resync"}` to request fresh full state.
+  background, and painting over the **retained** canvas. After binding the in-tab
+  window (or (re)opening a popup) and after a resize it sends `{type:"resync"}`
+  to request fresh full state.
 - The savings track the projection's reactivity granularity: a change confined to
   one computed cell yields a tight patch with just that primitive; a change that
   re-projects the whole canvas (e.g. a json caret move) yields a whole-window
