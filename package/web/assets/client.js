@@ -26,6 +26,7 @@
   let mainWired = false;                // page-surface listeners attached once
   const windowsMeta = new Map();        // id -> full window object {id,...,draw}
   const popups = new Map();             // id -> { win, canvas, ctx, dpr }
+  const pendingPopups = new Map();      // id -> meta, awaiting a user gesture to open
 
   // The page itself is a popup-shaped surface ({win,canvas,ctx,dpr}) so the
   // render/event helpers below are shared between the tab and the popups.
@@ -94,6 +95,7 @@
     windowsMeta.clear();
     for (const p of popups.values()) { try { p.win.close(); } catch {} }
     popups.clear();
+    pendingPopups.clear();
     clearSurface(pageSurface);
   }
 
@@ -118,6 +120,7 @@
         mainId = null;
       } else {
         closePopup(id);
+        pendingPopups.delete(id);
       }
       windowsMeta.delete(id);
     }
@@ -131,6 +134,11 @@
     if (!mainWired) {
       wireEvents(() => mainId, pageSurface);
       window.addEventListener("resize", onTabResize);
+      // Browsers block window.open outside a transient user activation, so any
+      // additional window that couldn't open from a server message is opened on
+      // the next gesture in the tab.
+      canvasEl.addEventListener("mousedown", flushPendingPopups);
+      window.addEventListener("keydown", flushPendingPopups);
       mainWired = true;
     }
     // The server lays out at the WindowDocument's default size (e.g. 2400×1600);
@@ -150,6 +158,22 @@
   }
 
   // ── Popups (additional windows) ─────────────────────────────────────────────
+
+  // Open every queued popup now that we have a user gesture, painting each from
+  // its retained state, then ask the server for fresh full state for all windows.
+  function flushPendingPopups() {
+    if (!pendingPopups.size) return;
+    let opened = false;
+    for (const meta of pendingPopups.values()) {
+      const p = ensurePopup(meta);
+      if (!p) continue;                 // still blocked; keep it queued for next gesture
+      try { p.win.document.title = meta.title || "ProjecturEd"; } catch {}
+      paint(p, windowsMeta.get(meta.id) || meta);
+      pendingPopups.delete(meta.id);
+      opened = true;
+    }
+    if (opened) send({ type: "resync" });
+  }
 
   function ensurePopup(meta) {
     let p = popups.get(meta.id);
@@ -225,14 +249,15 @@
   // Full repaint of a window from its complete draw-list. The primary window
   // paints into the page canvas; any other window into its popup.
   function paintFull(meta) {
-    const p = meta.id === mainId ? pageSurface : ensurePopup(meta);
-    if (!p) return;
     if (meta.id === mainId) {
       try { document.title = meta.title || "ProjecturEd"; } catch {}
       setOverlay(null);
-    } else {
-      try { p.win.document.title = meta.title || "ProjecturEd"; } catch {}
+      paint(pageSurface, meta);
+      return;
     }
+    const p = ensurePopup(meta);
+    if (!p) { pendingPopups.set(meta.id, meta); return; }  // blocked: open on next gesture
+    try { p.win.document.title = meta.title || "ProjecturEd"; } catch {}
     paint(p, meta);
   }
 
