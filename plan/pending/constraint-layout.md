@@ -366,8 +366,9 @@ Per `CLAUDE.md`, run the narrow `test_*` for the new example plus
    fallback on infeasible/throw). `Tulip`/`MOI` wired into `Project.toml`.
 4. ✅ DONE — `ConstraintLayoutToGraphicsCanvas` (`_cl_build` + single `solve`
    cell + `projection_print` + stack-style read + `_children_forward`) in
-   `LayoutToGraphics.jl`. **Position-only override** chosen for v1 (open
-   question below): solved sizes are advisory, positions are applied.
+   `LayoutToGraphics.jl`. **Two-pass size override** implemented (open question
+   below): solved sizes are applied via re-projection with available size, not
+   just advisory.
 5. ✅ DONE — Factory entry (`ConstraintLayout => ConstraintLayoutToGraphicsCanvas()`),
    `include("document/ConstraintSolver.jl")` before `Layout.jl`; umbrella
    re-exports are mechanical (driven by the module `export` lists).
@@ -386,14 +387,18 @@ Per `CLAUDE.md`, run the narrow `test_*` for the new example plus
 
 ## Open questions / risks
 
-- **Does the layout own child sizing?** *Resolved for v1: position-only.* The
-  shipped layouts never override a child's intrinsic `w`/`h`, and
-  `ConstraintLayoutToGraphicsCanvas` follows suit — the solver's `:width` /
-  `:height` solutions are *advisory* (they still drive the solve, so e.g.
-  `main.right == parent.right` resolves by moving `main`, not resizing it), and
-  each child is wrapped at its solved `(x, y)` at its intrinsic extent. A future
-  pass can add a size-override wrapper that rewrites the child canvas extent
-  when a relation explicitly constrains that axis (the recommended end-state).
+- **Does the layout own child sizing?** *Implemented — the recommended
+  end-state.* `ConstraintLayoutToGraphicsCanvas` is now **two-pass**: pass 1
+  measures every child with available size stripped (cycle-free intrinsics that
+  feed the solve); pass 2 re-projects each child whose size axis a relation
+  *explicitly* constrains (references its `:width`/`:right`/`:centerx` for x, or
+  `:height`/`:bottom`/`:centery` for y — see `_cl_size_constrained`), handing it
+  the solved extent as its available size so content that honors available size
+  reflows to fill. The available cells read `solve`, which depends only on the
+  measure pass, so it is cycle-free and a resize propagates without
+  re-projection. Children with no size axis constrained reuse the measure pass
+  unchanged. Children whose projection ignores available size simply keep their
+  intrinsic draw extent inside the solved box (no reflow, no error).
 - **Reactive granularity.** v1 re-solves the *entire* LP whenever any child
   extent or any relation changes (one `solve` cell). Fine for tens of children;
   for large dashboards or live dragging this is the latency bottleneck — see

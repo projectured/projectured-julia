@@ -64,8 +64,11 @@ footer yields to the hard pins around it).
 
 Children are widgets whose `…ToGraphicsCanvas` projections populate `w` / `h`;
 the solver reads those intrinsic extents and computes each child's position.
-Sizing solutions are advisory in v1 (positions are applied, child extents stay
-intrinsic), so each widget is given an explicit size here.
+Where a relation explicitly constrains a child's size axis (here the main
+panel's `:right` is pinned to the container), the layout *owns* that dimension:
+the child is re-projected with the solved extent as its available size, so
+content that honors available size reflows to fill. Each widget is given an
+explicit intrinsic size as its starting point.
 """
 function make_constraint_layout_document_example(; width=560, height=560)
     fg = StyleColor(40/255, 80/255, 160/255, 1.0)
@@ -89,8 +92,8 @@ function make_constraint_layout_document_example(; width=560, height=560)
         # Main panel to the right of the sidebar, aligned with its top.
         constrain(anchor(3, :left), :(==), anchor(2, :right) + 8),
         constrain(anchor(3, :top),  :(==), anchor(1, :bottom) + 8),
-        # Keep the main panel within the container's right edge (inequality).
-        constrain(anchor(3, :right), :(<=), anchor(0, :right)),
+        # Main panel fills to the container's right edge (drives size override).
+        constrain(anchor(3, :right), :(==), anchor(0, :right)),
         # Footer below the columns, softly centered horizontally.
         constrain(anchor(4, :top),     :(==), anchor(2, :bottom) + 8),
         constrain(anchor(4, :centerx), :(==), anchor(0, :centerx); strength=:weak),

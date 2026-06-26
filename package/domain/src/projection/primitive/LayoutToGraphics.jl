@@ -1124,8 +1124,35 @@ function _solver_relations(relations_cv)
     rels
 end
 
-_cl_child_x_cell(i::Int, solve::Cell) = Cell(() -> Int32(solve[][i][1]))
-_cl_child_y_cell(i::Int, solve::Cell) = Cell(() -> Int32(solve[][i][2]))
+_cl_pos_cell(solve::Cell, i::Int, k::Int)  = Cell(() -> Int32(solve[][i][k]))  # k = 1 (x) / 2 (y)
+_cl_size_cell(solve::Cell, i::Int, k::Int) = Cell(() -> solve[][i][k])         # k = 3 (w) / 4 (h), Int
+
+# Which children have a size axis *explicitly* constrained by some relation, so
+# the layout should own that dimension (size-override) rather than leave it
+# intrinsic. A relation owns a child's width if it references that child's
+# `:width`, `:right`, or `:centerx` (all involve the width variable); height is
+# symmetric (`:height`, `:bottom`, `:centery`). Read at build time so editing
+# *which* edges a relation references re-projects with the right override set.
+function _cl_size_constrained(relations_cv, n::Int)
+    xset = falses(n)
+    yset = falses(n)
+    for k in 1:length(relations_cv)
+        rel = relations_cv[k]
+        rel_terms = rel.terms
+        for j in 1:length(rel_terms)
+            a = rel_terms[j][1]::LayoutAnchor
+            ci = a.child
+            (1 <= ci <= n) || continue
+            e = a.edge
+            if e === :width || e === :right || e === :centerx
+                xset[ci] = true
+            elseif e === :height || e === :bottom || e === :centery
+                yset[ci] = true
+            end
+        end
+    end
+    (xset, yset)
+end
 
 # Recompute the whole laid-out constraint layout. Like `_hl_build`, reads
 # `doc.children` so the enclosing `build` cell re-runs on structural changes,
@@ -1133,14 +1160,17 @@ _cl_child_y_cell(i::Int, solve::Cell) = Cell(() -> Int32(solve[][i][2]))
 function _cl_build(recursion, doc, ctx)
     n = length(doc.children)
 
-    # Measure (recurse). Strip both available dims: constraint positions feed
-    # the solve, which reads child extents — a child carrying an available size
-    # derived from this layout's solved output would close a reactive loop.
-    child_iomaps = Any[]
+    # ── Pass 1: measure ──────────────────────────────────────────────────
+    # Recurse with both available dims stripped to read each child's intrinsic
+    # extent. Constraint positions/sizes feed the solve, which reads these
+    # extents — a child carrying an available size derived from this layout's
+    # own solved output would close a reactive loop, so the measure pass must
+    # never see one.
+    measure_iomaps = Any[]
     for i in 1:n
         cctx = child_context(ctx, @reference ^(ctx.reference).children[i])
         cctx = with_available_size(cctx; width=nothing, height=nothing)
-        push!(child_iomaps, _recurse_child(recursion, doc.children[i], cctx))
+        push!(measure_iomaps, _recurse_child(recursion, doc.children[i], cctx))
     end
 
     bw_cell = getfield(doc, :bounding_width)
@@ -1148,19 +1178,44 @@ function _cl_build(recursion, doc, ctx)
     relations_cv = doc.relations
 
     # One reactive cell wrapping the whole LP solve. Re-runs lazily when any
-    # child extent, any relation, or a bounding dimension changes.
+    # child intrinsic extent, any relation, or a bounding dimension changes.
     solve = Cell(function ()
-        iw = Int[_child_w(cim) for cim in child_iomaps]
-        ih = Int[_child_h(cim) for cim in child_iomaps]
+        iw = Int[_child_w(cim) for cim in measure_iomaps]
+        ih = Int[_child_h(cim) for cim in measure_iomaps]
         rels = _solver_relations(relations_cv)
         solve_constraint_layout(n, iw, ih, rels, Int(bw_cell[]), Int(bh_cell[]))
     end)
 
     child_x = Cell[]
     child_y = Cell[]
+    sw = Cell[]
+    sh = Cell[]
     for i in 1:n
-        push!(child_x, _cl_child_x_cell(i, solve))
-        push!(child_y, _cl_child_y_cell(i, solve))
+        push!(child_x, _cl_pos_cell(solve, i, 1))
+        push!(child_y, _cl_pos_cell(solve, i, 2))
+        push!(sw, _cl_size_cell(solve, i, 3))
+        push!(sh, _cl_size_cell(solve, i, 4))
+    end
+
+    # ── Pass 2: arrange (with size override) ─────────────────────────────
+    # Re-project children whose size the layout owns, handing them the solved
+    # extent as their available size so content that honors available size
+    # reflows to fill its allocation. The available cells read `solve`, which
+    # depends only on the measure pass, so this stays cycle-free and a resize
+    # propagates through the existing graph without re-projection. Children with
+    # no size axis constrained reuse the measure pass unchanged.
+    xset, yset = _cl_size_constrained(relations_cv, n)
+    final_iomaps = Any[]
+    for i in 1:n
+        if !xset[i] && !yset[i]
+            push!(final_iomaps, measure_iomaps[i])
+        else
+            cctx = child_context(ctx, @reference ^(ctx.reference).children[i])
+            cctx = with_available_size(cctx;
+                                       width  = xset[i] ? sw[i] : nothing,
+                                       height = yset[i] ? sh[i] : nothing)
+            push!(final_iomaps, _recurse_child(recursion, doc.children[i], cctx))
+        end
     end
 
     # The container is extrinsically sized when bounding dims are given;
@@ -1191,14 +1246,14 @@ function _cl_build(recursion, doc, ctx)
 
     wrapped = Any[]
     for i in 1:n
-        c = child_iomaps[i].output
+        c = final_iomaps[i].output
         c isa GraphicsCanvas || continue
         push!(wrapped, _wrap_child(c, child_x[i], child_y[i]))
     end
 
     entries = Tuple{Cell,Cell,Any}[]
     for i in 1:n
-        push!(entries, (child_x[i], child_y[i], child_iomaps[i]))
+        push!(entries, (child_x[i], child_y[i], final_iomaps[i]))
     end
 
     (wrapped = wrapped, w = outer_w, h = outer_h, entries = entries)
