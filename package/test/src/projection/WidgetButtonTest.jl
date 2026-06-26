@@ -274,4 +274,42 @@ end
     @test np.tail.tail.tail.head.start == 0                               # inner slot 1
 end
 
+# Stage 2, Step 3: distributed Tab traversal in the composite reader. Tab moves
+# the selection to the next focusable child (skipping disabled ones); bootstrap
+# focuses the first; the last child declines (no wrap yet). Shift-Tab reverses.
+@testset "composite Tab advances the selection across focusable children" begin
+    _mk(i) = ConcreteReferencePath(FieldReference("elements"),
+                ConcreteReferencePath(RangeReference(i - 1, i), EmptyReferencePath()))
+    _btn(t) = WidgetButton(Point2D(0, 0), Point2D(80, 30), t)
+    _slot(op) = op.path.tail.head.start + 1          # 1-based selected slot from the op
+    proj = _proj()
+    tab  = KeyDown(:tab, Modifiers())
+    stab = KeyDown(:tab, Modifiers(shift=true))
+    _read(c, ev) = projection_read(proj, projection_print(proj, nothing, c, PrinterContext()), ev)
+
+    comp = WidgetComposite(Point2D(0, 0), Any[_btn("A"), WidgetCheckbox(Point2D(0, 0), true), _btn("C")])
+
+    # Bootstrap: nothing selected (∅ on the composite) → first focusable (slot 1).
+    op = _read(comp, tab)
+    @test op isa ReplaceSelectionOperation && _slot(op) == 1
+
+    getfield(comp, :selection)[] = _mk(1)
+    @test _slot(_read(comp, tab)) == 2               # slot 1 → 2
+
+    getfield(comp, :selection)[] = _mk(2)
+    @test _slot(_read(comp, tab)) == 3               # slot 2 → 3
+
+    getfield(comp, :selection)[] = _mk(3)
+    @test _read(comp, tab) === nothing               # last declines (wrap is a follow-up)
+
+    getfield(comp, :selection)[] = _mk(2)
+    @test _slot(_read(comp, stab)) == 1              # Shift-Tab: slot 2 → 1
+
+    # Disabled children are not Tab stops.
+    comp2 = WidgetComposite(Point2D(0, 0), Any[_btn("A"),
+              WidgetButton(Point2D(0, 0), Point2D(80, 30), "B"; enabled=false), _btn("C")])
+    getfield(comp2, :selection)[] = _mk(1)
+    @test _slot(_read(comp2, tab)) == 3              # slot 2 skipped
+end
+
 end # test_widget_button_behavior

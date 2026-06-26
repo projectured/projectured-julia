@@ -1100,6 +1100,12 @@ end
 # from a control) pass through `prepend_steps_to_op` unchanged.
 function projection_read(p::WidgetCompositeToGraphicsCanvas, iomap::ChildrenIoMap, evt)
     child_iomaps = iomap.child_iomaps[]::Vector
+    # Tab traversal (Stage 2): distributed focus advance. Handle before the generic
+    # selection-only routing so a Tab the selected child declines can advance my
+    # own selection to the next focusable sibling.
+    if iomap.input isa WidgetComposite && evt isa KeyDown && evt.key === :tab
+        return _composite_tab(iomap.input, child_iomaps, evt)
+    end
     res = @event_case evt begin
         MouseScroll => _route_composite_event(child_iomaps, evt.x, evt.y,
             (x, y) -> MouseScroll(evt.dx, evt.dy, x, y))
@@ -1251,6 +1257,65 @@ widgets (Stage 1) are skipped.
 """
 first_focusable_path(node) = _focusable_path(node, false)
 last_focusable_path(node)  = _focusable_path(node, true)
+
+# The next slot after `after` (in `reverse` direction) among `children` whose
+# subtree contains a focusable widget; 0 if there is none. `children` is any
+# 1-indexed collection of child documents (a CellVector or Vector).
+function _next_focusable_in(children, after::Int, reverse::Bool)
+    n = length(children)
+    if reverse
+        for j in (after - 1):-1:1
+            _focusable_path(children[j], true) === nothing || return j
+        end
+    else
+        for j in (after + 1):n
+            _focusable_path(children[j], false) === nothing || return j
+        end
+    end
+    0
+end
+
+# ── Distributed Tab traversal (Stage 2, composite) ──────────────────────────
+#
+# Tab handling for `WidgetComposite`. Each container participates: it delegates
+# Tab to the selected child and, if the child declines (returns nothing — it ran
+# off its own end), advances the selection to its next focusable sibling; if it
+# has no next sibling it declines too, so its parent advances. The selection move
+# is a `ReplaceSelectionOperation` *relative to this composite*; the parent's
+# `prepend_steps_to_op` makes it absolute as it bubbles up (the same re-rooting
+# applied to edit ops). With selection-only routing (Step 1) a non-root container
+# only ever receives Tab when the selection is inside it, so a Tab that arrives
+# with no child slot selected means "the selection is on me (∅)" — bootstrap into
+# my first focusable (this also covers the root with no selection).
+#
+# NOTE: Wrap-around (Tab on the very last focusable → the first) is the one
+# non-local case and is NOT handled here — it needs a single top-level rule
+# (a follow-up; see plan/pending/widget-focus-traversal.md). Until then Tab
+# advances forward and stops at the last focusable.
+function _composite_tab(w::WidgetComposite, child_iomaps::Vector, evt)
+    n = length(child_iomaps)
+    reverse = evt.modifiers.shift
+    i = _selected_composite_slot(w, n)
+    if i == 0
+        # Selection is on me, not a child (∅), or I am the unselected root:
+        # focus my first (last) leaf.
+        sub = reverse ? last_focusable_path(w) : first_focusable_path(w)
+        return sub === nothing ? nothing : ReplaceSelectionOperation(sub)
+    end
+    # Delegate to the selected child; an internal advance re-roots through me.
+    deleg = _forward_composite_event_slot(child_iomaps, evt, i)
+    if deleg !== nothing
+        op, slot = deleg
+        return prepend_steps_to_op(op, (FieldReference("elements"), RangeReference(slot - 1, slot)))
+    end
+    # Child declined: advance to my next focusable sibling, entering its first leaf.
+    j = _next_focusable_in(w.elements, i, reverse)
+    j == 0 && return nothing                      # no next sibling — I decline; parent advances.
+    sub = reverse ? last_focusable_path(w.elements[j]) : first_focusable_path(w.elements[j])
+    sub === nothing && return nothing
+    ReplaceSelectionOperation(ConcreteReferencePath(FieldReference("elements"),
+        ConcreteReferencePath(RangeReference(j - 1, j), sub)))
+end
 
 # ── WidgetShell ─────────────────────────────────────────────────────────────
 

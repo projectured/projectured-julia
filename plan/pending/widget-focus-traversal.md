@@ -303,14 +303,24 @@ focused iff `getfield(w,:selection)[] !== nothing` (background fact 3).
       documented in `widget.md`. *Not executed — Julia unavailable in sandbox; the
       existing keyboard/REPL tests should be run to catch any reliance on the
       removed fallback.*
-- [~] Step 2 — `first_focusable_path`/`last_focusable_path` implemented (pure,
-      generic field/element descent, skips disabled leaves) + unit tests; exported
-      from `WidgetToGraphicsModule`. `_next_focusable_slot` lands with Step 3.
-      *Generic entry works for composite/layout subtrees; entry into split
-      (LayoutConstraint) / tabbed (selector pairs) path shapes still needs REPL
-      verification. Not executed — Julia unavailable in sandbox.*
-- [ ] Step 3 — distributed Tab in container readers (decline-and-advance via
-      `ReplaceSelectionOperation`) + one top-level wrap/bootstrap rule
+- [x] Step 2 — `first_focusable_path`/`last_focusable_path` + `_next_focusable_in`
+      implemented (pure, generic field/element descent, skips disabled leaves) +
+      unit tests; exported from `WidgetToGraphicsModule`. *Generic entry verified by
+      reading for composite/layout; split (LayoutConstraint) / tabbed (selector
+      pairs) entry still needs REPL verification.*
+- [~] Step 3 — distributed Tab implemented for **`WidgetComposite`**
+      (`_composite_tab`): delegate to selected child → on decline advance to next
+      focusable sibling via `ReplaceSelectionOperation` (re-rooted by the parent's
+      `prepend_steps_to_op`) → decline if none. Bootstrap is principled: a Tab that
+      arrives with no child slot selected (selection ∅ on the container, only
+      possible at the root or a whole-selected container under selection-only
+      routing) focuses the first/last leaf. Tests cover advance / Shift-Tab /
+      skip-disabled / bootstrap / last-declines. **Deferred (follow-ups):**
+      (a) the same branch for `WidgetLayout` readers (cross-module — needs the
+      helpers imported into `LayoutToGraphics`), `WidgetSplitPane`, `WidgetTabbedPane`;
+      (b) the single top-level **wrap-around** rule (last→first), so Tab currently
+      stops at the last focusable. *Not executed — Julia unavailable in sandbox;
+      this selection/reference behaviour especially needs REPL verification.*
 - [ ] Step 4 — Enter/Space activation on focused Button/Checkbox
 - [ ] Step 5 — focus ring (`theme.ring`) on the selected widget
 - [ ] Step 6 — `widget_focus` example, Tab-walk test, un-skip syntax-to-widget
