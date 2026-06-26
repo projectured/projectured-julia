@@ -29,7 +29,7 @@ import ProjecturedDomain.ScreenDocumentModule: ScreenDocument, WindowDocument, E
                                WindowCloseRequest, WindowResizeEvent
 import ProjecturedDomain.ModifiersModule: Modifiers
 import ProjecturedDomain.KeyboardModule: KeyDown, KeyUp, KeyPress
-import ProjecturedDomain.MouseModule: MouseDown, MouseUp, MousePress, MouseMove, MouseScroll
+import ProjecturedDomain.MouseModule: MouseDown, MouseUp, MouseMove, MouseScroll
 # SDL-free text measurement: reuse the pure-Julia TrueType metrics measurer from
 # the (SDL-free) PDF backend, so the web backend needs no SDL/SDL_ttf at all.
 # (This measurer is a general font-metrics utility that could later move to a
@@ -91,11 +91,6 @@ mutable struct WebBackend <: Backend
     windows::Dict{Symbol,WebWindowState}  # per-window incremental state
     last_ids::Vector{Symbol}              # window ids sent last frame (for close detection)
     force_full::Bool                      # send every window in full on the next frame
-    # MousePress synthesis state (mirrors SdlBackend).
-    last_down_button::Symbol
-    last_down_x::Int
-    last_down_y::Int
-    last_down_time::Float64
 end
 
 function WebBackend(; host::AbstractString="127.0.0.1", port::Integer=8080)
@@ -105,8 +100,7 @@ function WebBackend(; host::AbstractString="127.0.0.1", port::Integer=8080)
     fontdir = normpath(joinpath(@__DIR__, "..", "..", "..", "asset", "font"))
     WebBackend(String(host), Int(port), webdir, fontdir,
                nothing, Channel{Any}(256), nothing,
-               Dict{Symbol,WebWindowState}(), Symbol[], false,
-               :none, 0, 0, 0.0)
+               Dict{Symbol,WebWindowState}(), Symbol[], false)
 end
 
 # ════════════════════════════════════════════════════════════════════════
@@ -535,9 +529,12 @@ end
 _button(obj)::Symbol = Symbol(String(get(obj, :button, "left")))
 _winid(obj)::Symbol = haskey(obj, :window) ? Symbol(String(obj[:window])) : :none
 
-# Decode one client message and enqueue the resulting EventEnvelope(s). All
-# MousePress synthesis state lives on `backend` and is touched only here (single
-# receive task), so no locking is needed.
+# Decode one client message and enqueue the resulting EventEnvelope(s). Only raw
+# device events are emitted; click (`MousePress`) synthesis from a MouseDown/
+# MouseUp pair is the editor's `GestureRecognizer`'s job, not the backend's
+# (mirrors `SdlBackend`). Synthesising it here too made every click toggle/select
+# twice — the recogniser's own `MousePress` plus this one — which read as "no
+# change" for togglers (e.g. card collapse flips back immediately).
 function _decode_and_enqueue!(backend::WebBackend, msg)
     obj = JSON3.read(msg)
     typ = String(obj[:type])
@@ -545,20 +542,11 @@ function _decode_and_enqueue!(backend::WebBackend, msg)
 
     if typ == "mousedown"
         b = _button(obj); x = Int(obj[:x]); y = Int(obj[:y])
-        backend.last_down_button = b
-        backend.last_down_x = x
-        backend.last_down_y = y
-        backend.last_down_time = time()
         put!(backend.inbound, EventEnvelope(wid, MouseDown(b, x, y, _mods(obj))))
 
     elseif typ == "mouseup"
         b = _button(obj); x = Int(obj[:x]); y = Int(obj[:y]); m = _mods(obj)
         put!(backend.inbound, EventEnvelope(wid, MouseUp(b, x, y, m)))
-        if b == backend.last_down_button &&
-           abs(x - backend.last_down_x) < 5 && abs(y - backend.last_down_y) < 5 &&
-           (time() - backend.last_down_time) < 0.3
-            put!(backend.inbound, EventEnvelope(wid, MousePress(b, x, y, m)))
-        end
 
     elseif typ == "mousemove"
         buttons = Symbol(String(get(obj, :buttons, "none")))
