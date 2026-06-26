@@ -22,8 +22,10 @@ import ..ProjectionApiModule: projection_print, projection_printer_recurse, proj
                                map_reference_forward, map_reference_backward, Projection
 import ..DocumentApiModule: Document
 import ..LayoutModule: HorizontalLayout, VerticalLayout, GridLayout, FlowLayout, StackLayout,
-                       LayoutConstraint, allocate_axis,
+                       LayoutConstraint, ConstraintLayout, LayoutRelation, LayoutAnchor,
+                       allocate_axis,
                        layout_min, layout_max, layout_preferred, layout_weight
+import ..ConstraintSolverModule: SolverAnchor, SolverRelation, solve_constraint_layout
 import ..CollectionModule: CellVector
 import ..GraphicsModule: GraphicsCanvas, layout_none, hit_element_at
 import ..IoMapModule: SimpleIoMap, ChildrenIoMap, ContentIoMap
@@ -39,6 +41,7 @@ import ..PrinterContextModule: child_context, with_available_size
 export HorizontalLayoutToGraphicsCanvas, VerticalLayoutToGraphicsCanvas,
        GridLayoutToGraphicsCanvas, FlowLayoutToGraphicsCanvas,
        StackLayoutToGraphicsCanvas, LayoutConstraintToGraphicsCanvas,
+       ConstraintLayoutToGraphicsCanvas,
        LayoutToGraphics, GridLayoutIoMap
 
 # ── Projection structs ─────────────────────────────────────────────────────
@@ -49,6 +52,7 @@ struct GridLayoutToGraphicsCanvas       <: Projection end
 struct FlowLayoutToGraphicsCanvas       <: Projection end
 struct StackLayoutToGraphicsCanvas      <: Projection end
 struct LayoutConstraintToGraphicsCanvas <: Projection end
+struct ConstraintLayoutToGraphicsCanvas <: Projection end
 
 # ── GridLayout iomap (geometry-bearing) ─────────────────────────────────────
 
@@ -1098,6 +1102,133 @@ function projection_read(::StackLayoutToGraphicsCanvas, iomap::ChildrenIoMap, ev
     _route_stack_event(iomap, evt)
 end
 
+# ── ConstraintLayout ───────────────────────────────────────────────────────
+
+# Translate the editable `LayoutRelation` documents into the pure solver's
+# plain `SolverRelation`s. Reading the relation/anchor fields here (inside the
+# solve cell) registers the reactive dependencies, so editing any constraint
+# re-runs the solve.
+function _solver_relations(relations_cv)
+    rels = SolverRelation[]
+    for k in 1:length(relations_cv)
+        rel = relations_cv[k]
+        terms = Tuple{SolverAnchor,Float64}[]
+        rel_terms = rel.terms
+        for j in 1:length(rel_terms)
+            t = rel_terms[j]
+            a = t[1]::LayoutAnchor
+            push!(terms, (SolverAnchor(a.child, a.edge), Float64(t[2])))
+        end
+        push!(rels, SolverRelation(terms, rel.op, Float64(rel.constant), rel.strength))
+    end
+    rels
+end
+
+_cl_child_x_cell(i::Int, solve::Cell) = Cell(() -> Int32(solve[][i][1]))
+_cl_child_y_cell(i::Int, solve::Cell) = Cell(() -> Int32(solve[][i][2]))
+
+# Recompute the whole laid-out constraint layout. Like `_hl_build`, reads
+# `doc.children` so the enclosing `build` cell re-runs on structural changes,
+# while the per-child position cells and the single `solve` cell stay lazy.
+function _cl_build(recursion, doc, ctx)
+    n = length(doc.children)
+
+    # Measure (recurse). Strip both available dims: constraint positions feed
+    # the solve, which reads child extents — a child carrying an available size
+    # derived from this layout's solved output would close a reactive loop.
+    child_iomaps = Any[]
+    for i in 1:n
+        cctx = child_context(ctx, @reference ^(ctx.reference).children[i])
+        cctx = with_available_size(cctx; width=nothing, height=nothing)
+        push!(child_iomaps, _recurse_child(recursion, doc.children[i], cctx))
+    end
+
+    bw_cell = getfield(doc, :bounding_width)
+    bh_cell = getfield(doc, :bounding_height)
+    relations_cv = doc.relations
+
+    # One reactive cell wrapping the whole LP solve. Re-runs lazily when any
+    # child extent, any relation, or a bounding dimension changes.
+    solve = Cell(function ()
+        iw = Int[_child_w(cim) for cim in child_iomaps]
+        ih = Int[_child_h(cim) for cim in child_iomaps]
+        rels = _solver_relations(relations_cv)
+        solve_constraint_layout(n, iw, ih, rels, Int(bw_cell[]), Int(bh_cell[]))
+    end)
+
+    child_x = Cell[]
+    child_y = Cell[]
+    for i in 1:n
+        push!(child_x, _cl_child_x_cell(i, solve))
+        push!(child_y, _cl_child_y_cell(i, solve))
+    end
+
+    # The container is extrinsically sized when bounding dims are given;
+    # otherwise it falls back to the max solved child extent.
+    outer_w = Cell(function ()
+        bw = Int(bw_cell[])
+        bw > 0 && return bw
+        s = solve[]
+        w = 0
+        for i in 1:n
+            right = s[i][1] + s[i][3]
+            right > w && (w = right)
+        end
+        w
+    end)
+
+    outer_h = Cell(function ()
+        bh = Int(bh_cell[])
+        bh > 0 && return bh
+        s = solve[]
+        h = 0
+        for i in 1:n
+            bottom = s[i][2] + s[i][4]
+            bottom > h && (h = bottom)
+        end
+        h
+    end)
+
+    wrapped = Any[]
+    for i in 1:n
+        c = child_iomaps[i].output
+        c isa GraphicsCanvas || continue
+        push!(wrapped, _wrap_child(c, child_x[i], child_y[i]))
+    end
+
+    entries = Tuple{Cell,Cell,Any}[]
+    for i in 1:n
+        push!(entries, (child_x[i], child_y[i], child_iomaps[i]))
+    end
+
+    (wrapped = wrapped, w = outer_w, h = outer_h, entries = entries)
+end
+
+function projection_print(p::ConstraintLayoutToGraphicsCanvas,
+                          recursion, doc::ConstraintLayout, ctx)
+    build = Cell(() -> _cl_build(recursion, doc, ctx))
+    outer = GraphicsCanvas(Cell(Int32(0)), Cell(Int32(0)),
+                           Cell(() -> Int32(build[].w[])),
+                           Cell(() -> Int32(build[].h[])),
+                           CellVector(() -> build[].wrapped),
+                           layout_none, true, Cell(nothing))
+    ChildrenIoMap(p, doc, outer, Cell(() -> build[].entries))
+end
+
+function map_reference_forward(::ConstraintLayoutToGraphicsCanvas, iomap, reference)
+    return _children_forward(iomap, reference)
+end
+
+function map_reference_backward(::ConstraintLayoutToGraphicsCanvas, iomap, reference)
+    return nothing
+end
+
+# Children can overlap (the solver places them freely), so route like a stack:
+# scan topmost-first so the last-drawn child wins a click.
+function projection_read(::ConstraintLayoutToGraphicsCanvas, iomap::ChildrenIoMap, evt)
+    _route_stack_event(iomap, evt)
+end
+
 # ── Factory ────────────────────────────────────────────────────────────────
 
 """
@@ -1115,6 +1246,7 @@ function LayoutToGraphics()
         FlowLayout       => FlowLayoutToGraphicsCanvas(),
         StackLayout      => StackLayoutToGraphicsCanvas(),
         LayoutConstraint => LayoutConstraintToGraphicsCanvas(),
+        ConstraintLayout => ConstraintLayoutToGraphicsCanvas(),
     )
 end
 

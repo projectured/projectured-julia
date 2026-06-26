@@ -22,10 +22,13 @@ import ..ReferenceModule: Reference
 export LayoutDocument,
        HorizontalLayout, VerticalLayout, GridLayout, FlowLayout, StackLayout,
        LayoutConstraint,
+       ConstraintLayout, LayoutRelation, LayoutAnchor, LayoutExpr,
+       anchor, constrain,
        allocate_axis,
        layout_min, layout_max, layout_preferred, layout_weight,
        IHorizontalLayout, IVerticalLayout, IGridLayout, IFlowLayout, IStackLayout,
-       ILayoutConstraint
+       ILayoutConstraint,
+       IConstraintLayout, ILayoutRelation, ILayoutAnchor
 
 # ── Abstract base ───────────────────────────────────────────────────────────
 
@@ -381,6 +384,162 @@ function allocate_axis(available::Int, mins::Vector{Int}, maxs::Vector{Int},
         end
     end
     actual
+end
+
+# ── ConstraintLayout ─────────────────────────────────────────────────────────
+#
+# Free-form layout: children are positioned by *solving* a system of linear
+# equality/inequality relations over their edges, rather than by a fixed
+# positioning policy. The relations and their anchors are themselves documents
+# so the constraint system is editable/projectable like everything else.
+#
+# `LayoutConstraint` (above) is a *different* concept — the per-child sizing
+# policy wrapper used by the flex layouts. The names below (`LayoutRelation`,
+# `LayoutAnchor`) are deliberately distinct to avoid the collision.
+
+"""
+    LayoutAnchor(child, edge)
+
+A handle naming one solver variable: an `edge` of a child (or of the parent
+container). `child` is the 1-based index into `ConstraintLayout.children`, or
+`0` to denote the parent container itself. `edge` is one of `:left`, `:right`,
+`:top`, `:bottom`, `:width`, `:height`, `:centerx`, `:centery` — the derived
+edges (`:right`, `:bottom`, `:centerx`, `:centery`) are expanded during the
+solve, they are not independent variables.
+"""
+@document struct LayoutAnchor <: Document
+    child::Int                  # 0 = parent container
+    edge::Symbol
+    selection::Reference
+end
+
+LayoutAnchor(child::Integer, edge::Symbol) =
+    LayoutAnchor(Cell(Int(child)), Cell(edge), Cell(nothing))
+
+"""
+    anchor(child, edge) -> LayoutAnchor
+
+DSL convenience for [`LayoutAnchor`](@ref). `anchor(0, edge)` refers to the
+parent container.
+"""
+anchor(child::Integer, edge::Symbol) = LayoutAnchor(child, edge)
+
+"""
+    LayoutRelation(terms; op, constant, strength)
+
+One linear relation in the normalized form the solver consumes:
+
+    Σ coeffᵢ · anchorᵢ   (op)   constant
+
+`terms` is a list of `(LayoutAnchor, coefficient::Float64)` tuples, `op` is one
+of `:(==)`, `:(<=)`, `:(>=)`, and `strength` is one of `:required`, `:strong`,
+`:medium`, `:weak`. A `:required` relation is a hard constraint; the others are
+soft (least-violation, weighted by strength).
+
+Prefer the [`anchor`](@ref) / [`constrain`](@ref) DSL to build these.
+"""
+@document struct LayoutRelation <: Document
+    terms::CellVector           # of (LayoutAnchor, coefficient::Float64)
+    op::Symbol                  # :(==), :(<=), :(>=)
+    constant::Float64
+    strength::Symbol            # :required, :strong, :medium, :weak
+    selection::Reference
+end
+
+function LayoutRelation(terms::Vector;
+                        op::Symbol=:(==), constant::Real=0.0,
+                        strength::Symbol=:required)
+    LayoutRelation(CellVector(Cell[t isa Cell ? t : Cell(t) for t in terms]),
+                   Cell(op), Cell(Float64(constant)), Cell(strength), Cell(nothing))
+end
+
+"""
+    ConstraintLayout(children, relations; bounding_width, bounding_height)
+
+A free-form layout. `children` are positioned by solving `relations` (a list of
+[`LayoutRelation`](@ref)) over their edges. `bounding_width` / `bounding_height`
+fix the parent container's `:right` / `:bottom` (its `:left` / `:top` are pinned
+to 0) so relations can reference the container via `anchor(0, …)`; pass `0` to
+leave the container intrinsically sized (outer extent = max child extent).
+"""
+@document struct ConstraintLayout <: LayoutDocument
+    children::CellVector        # of arbitrary Document (the positioned content)
+    relations::CellVector       # of LayoutRelation
+    bounding_width::Int         # parent container width  (parent :width)
+    bounding_height::Int        # parent container height (parent :height)
+    selection::Reference
+end
+
+function ConstraintLayout(children::Vector, relations::Vector;
+                          bounding_width::Integer=0, bounding_height::Integer=0)
+    ConstraintLayout(CellVector(Cell[c isa Cell ? c : Cell(c) for c in children]),
+                     CellVector(Cell[r isa Cell ? r : Cell(r) for r in relations]),
+                     Cell(Int(bounding_width)), Cell(Int(bounding_height)),
+                     Cell(nothing))
+end
+
+ConstraintLayout(children::Vector; kwargs...) =
+    ConstraintLayout(children, Any[]; kwargs...)
+
+# ── Relation DSL ─────────────────────────────────────────────────────────────
+#
+# A small affine-expression layer so relations read well in examples/tests:
+#
+#     constrain(anchor(2, :left), :(==), anchor(1, :right) + 8)
+#     constrain(anchor(1, :width), :(>=), 120)
+#     constrain(anchor(3, :centerx), :(==), anchor(0, :centerx); strength=:weak)
+#
+# `LayoutExpr` is a *plain* struct (not a document); `anchor()` returns a
+# `LayoutAnchor` and the `+ - *` operators promote it into a `LayoutExpr`. We
+# deliberately do NOT overload `==`/`<=`/`>=` on these types — that would shadow
+# the identity equality every `@document` relies on — so comparisons go through
+# the `constrain` function instead.
+
+"""
+    LayoutExpr(terms, constant)
+
+A plain affine expression `Σ coeffᵢ · anchorᵢ + constant` used by the relation
+DSL. Built by applying `+`, `-`, `*` to [`LayoutAnchor`](@ref)s; consumed by
+[`constrain`](@ref).
+"""
+struct LayoutExpr
+    terms::Vector{Tuple{LayoutAnchor,Float64}}
+    constant::Float64
+end
+
+const _Termish = Union{LayoutAnchor, LayoutExpr}
+
+_expr(a::LayoutAnchor) = LayoutExpr(Tuple{LayoutAnchor,Float64}[(a, 1.0)], 0.0)
+_expr(e::LayoutExpr)   = e
+_expr(c::Real)         = LayoutExpr(Tuple{LayoutAnchor,Float64}[], Float64(c))
+
+_scale(e::LayoutExpr, k::Float64) =
+    LayoutExpr(Tuple{LayoutAnchor,Float64}[(a, k * c) for (a, c) in e.terms], k * e.constant)
+
+_add(x, y) = (ex = _expr(x); ey = _expr(y);
+              LayoutExpr(vcat(ex.terms, ey.terms), ex.constant + ey.constant))
+
+Base.:*(k::Real, x::_Termish) = _scale(_expr(x), Float64(k))
+Base.:*(x::_Termish, k::Real) = _scale(_expr(x), Float64(k))
+Base.:+(x::_Termish, y::Union{_Termish,Real}) = _add(x, y)
+Base.:+(x::Real, y::_Termish) = _add(x, y)
+Base.:-(x::_Termish) = _scale(_expr(x), -1.0)
+Base.:-(x::_Termish, y::Union{_Termish,Real}) = _add(x, -_expr(y))
+Base.:-(x::Real, y::_Termish) = _add(x, -_expr(y))
+
+"""
+    constrain(lhs, op, rhs; strength=:required) -> LayoutRelation
+
+Build a [`LayoutRelation`](@ref) from two affine expressions and a comparison
+`op` (`:(==)`, `:(<=)`, `:(>=)`). `lhs` / `rhs` may be `LayoutAnchor`,
+`LayoutExpr`, or a plain number. The relation is normalized to
+`Σ coeff·anchor (op) constant`.
+"""
+function constrain(lhs, op::Symbol, rhs; strength::Symbol=:required)
+    op in (:(==), :(<=), :(>=)) ||
+        error("constrain: op must be :(==), :(<=) or :(>=), got $(op)")
+    diff = _add(_expr(lhs), -_expr(rhs))     # Σ coeff·anchor + const (op) 0
+    LayoutRelation(diff.terms; op=op, constant=-diff.constant, strength=strength)
 end
 
 end # module

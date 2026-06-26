@@ -1,15 +1,24 @@
 # Constraint Layout
 
-> **Audit status (verified 2026-06-24): ⏳ ALL OPEN.** No part of this plan is
-> implemented. Searches for `ConstraintLayout`, `LayoutRelation`,
-> `solve_constraint_layout`, and `ConstraintLayoutToGraphicsCanvas` across
-> `package/*/src/` find no source definitions — the only hit is the deferred
-> section in [`plan/tentative/layout-extensions.md`](../tentative/layout-extensions.md#2-constraintlayout-deferred).
-> The target files (`package/domain/src/document/Layout.jl`,
-> `package/domain/src/projection/primitive/LayoutToGraphics.jl`) exist and host
-> the shipped layout family, but contain no `Constraint*` layout symbols
-> (`LayoutConstraint` there is the per-child *sizing policy* wrapper for the
-> existing layouts — a different concept, see "Naming" below).
+> **Audit status (implemented 2026-06-26): 🚧 CODE COMPLETE, UNVERIFIED.** All
+> seven implementation steps below are written. `ConstraintLayout`,
+> `LayoutRelation`, `LayoutAnchor` + the `anchor`/`constrain` DSL live in
+> `package/domain/src/document/Layout.jl`; the pure `solve_constraint_layout`
+> (Tulip-via-MOI goal programming) lives in the new
+> `package/domain/src/document/ConstraintSolver.jl`;
+> `ConstraintLayoutToGraphicsCanvas` lives in
+> `package/domain/src/projection/primitive/LayoutToGraphics.jl`; the
+> `constraint_layout` example and `test_constraint_solver` unit tests are
+> registered. `Tulip` + `MathOptInterface` are added to
+> `package/domain/Project.toml`.
+>
+> **Not yet verified.** The work was done in an environment without a Julia
+> toolchain (the binary servers are blocked by egress policy), so nothing has
+> been compiled or run. Before this can be marked done a maintainer must:
+> (1) `julia --project=.` then `import Pkg; Pkg.resolve()` to pull `Tulip`/`MOI`
+> into the checked-in manifests; (2) run `test_constraint_solver()` and
+> `test_example(constraint_layout_example)`. Until then treat the code as a
+> draft pending a green test run.
 
 Add a `ConstraintLayout` document type whose children are positioned by solving
 a system of **linear equality/inequality constraints** over their edges, using
@@ -344,28 +353,47 @@ Per `CLAUDE.md`, run the narrow `test_*` for the new example plus
 
 ## Implementation Steps
 
-1. ⏳ OPEN — Confirm the solver dependency (Tulip-via-MOI primary; HiGHS
-   fallback) — *Decision point in "Library decision".*
-2. ⏳ OPEN — Add `LayoutAnchor`, `LayoutRelation`, `ConstraintLayout` document
-   types + DSL to `package/domain/src/document/Layout.jl`.
-3. ⏳ OPEN — Implement pure `solve_constraint_layout` in
-   `package/domain/src/document/ConstraintSolver.jl`; wire `Tulip`/`MOI` into
-   the owning `Project.toml`.
-4. ⏳ OPEN — Add `ConstraintLayoutToGraphicsCanvas` (`_cl_build` +
-   `projection_print` + read/reference) to `LayoutToGraphics.jl`.
-5. ⏳ OPEN — Wire factory + module includes + umbrella re-exports.
-6. ⏳ OPEN — Add `constraint_layout` example (document + projection +
-   `Examples.jl` registration).
-7. ⏳ OPEN — Add `ConstraintSolverTest` + example printer/reader/navigation
-   tests.
+1. ✅ DONE — Solver dependency confirmed by the maintainer: **Tulip-via-MOI**
+   (the plan's primary pick). Added to `package/domain/Project.toml` `[deps]` +
+   `[compat]` (`Tulip = "0.9"`, `MathOptInterface = "1"`).
+2. ✅ DONE — `LayoutAnchor`, `LayoutRelation`, `ConstraintLayout` document types
+   + the `anchor`/`constrain` DSL (with a plain `LayoutExpr` affine layer; `==`
+   / `<=` / `>=` intentionally *not* overloaded to preserve `@document`
+   identity equality) in `package/domain/src/document/Layout.jl`.
+3. ✅ DONE — Pure `solve_constraint_layout` in
+   `package/domain/src/document/ConstraintSolver.jl` (goal-programming LP: hard
+   rows + slack-penalized soft rows, weak intrinsic/origin stays, intrinsic
+   fallback on infeasible/throw). `Tulip`/`MOI` wired into `Project.toml`.
+4. ✅ DONE — `ConstraintLayoutToGraphicsCanvas` (`_cl_build` + single `solve`
+   cell + `projection_print` + stack-style read + `_children_forward`) in
+   `LayoutToGraphics.jl`. **Position-only override** chosen for v1 (open
+   question below): solved sizes are advisory, positions are applied.
+5. ✅ DONE — Factory entry (`ConstraintLayout => ConstraintLayoutToGraphicsCanvas()`),
+   `include("document/ConstraintSolver.jl")` before `Layout.jl`; umbrella
+   re-exports are mechanical (driven by the module `export` lists).
+6. ✅ DONE — `constraint_layout` example (dashboard: header / sidebar / main /
+   footer) in `package/example/src/document/Layout.jl` +
+   `projection/Layout.jl`, registered as `constraint_layout_example` in
+   `Examples.jl` and the example exports.
+7. ✅ DONE — `package/test/src/document/ConstraintSolverTest.jl`
+   (`test_constraint_solver`: pinning, min-size, fill-remaining, soft centering,
+   infeasible fallback, empty) registered in `ProjecturedTest.jl`; the example
+   is in the `examples` list so the printer/reader/navigation sweeps pick it up.
+
+> **⚠ All of the above is written but UNVERIFIED** — see the audit-status note
+> at the top. Run `Pkg.resolve()` then the targeted tests before marking this
+> plan done and moving it to `plan/done/`.
 
 ## Open questions / risks
 
-- **Does the layout own child sizing?** The shipped layouts never override a
-  child's intrinsic `w`/`h`; constraint layout sometimes must (fill-remaining).
-  Decide in Phase 3 whether `:width`/`:height` solutions rewrite the child
-  canvas extent (needs a size-override wrapper) or stay advisory. Recommend:
-  override only when a relation explicitly constrains that axis.
+- **Does the layout own child sizing?** *Resolved for v1: position-only.* The
+  shipped layouts never override a child's intrinsic `w`/`h`, and
+  `ConstraintLayoutToGraphicsCanvas` follows suit — the solver's `:width` /
+  `:height` solutions are *advisory* (they still drive the solve, so e.g.
+  `main.right == parent.right` resolves by moving `main`, not resizing it), and
+  each child is wrapped at its solved `(x, y)` at its intrinsic extent. A future
+  pass can add a size-override wrapper that rewrites the child canvas extent
+  when a relation explicitly constrains that axis (the recommended end-state).
 - **Reactive granularity.** v1 re-solves the *entire* LP whenever any child
   extent or any relation changes (one `solve` cell). Fine for tens of children;
   for large dashboards or live dragging this is the latency bottleneck — see

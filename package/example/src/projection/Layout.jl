@@ -22,3 +22,20 @@ function make_layout_projection_example(; measure=truetype_measure_text)
         )),
     )
 end
+
+"""
+    make_constraint_layout_projection_example(; measure)
+
+Project a `ConstraintLayout` whose children are widgets. The dispatcher routes
+the constraint layout to `ConstraintLayoutToGraphicsCanvas` and any other
+document (the widgets) to `WidgetToGraphics`.
+"""
+function make_constraint_layout_projection_example(; measure=truetype_measure_text)
+    font = font_ubuntu_regular_24
+    SequentialProjection(
+        RecursiveProjection(TypeDispatchingProjection(
+            ConstraintLayout => ConstraintLayoutToGraphicsCanvas(),
+            Any              => WidgetToGraphics(font; measure=measure),
+        )),
+    )
+end
