@@ -21,8 +21,10 @@ the selected widget (every widget carries `selection::Reference`,
    drop); the tabbed pane still routes to the visible "active tab". Make all of
    them selection-only.
 2. **Tab / Shift-Tab traversal.** Tab moves the selection to the next focusable
-   (enabled, interactive) widget in a deterministic order; Shift-Tab to the
-   previous. Wraps at the ends. Disabled widgets (Stage 1) are skipped.
+   (enabled, interactive) widget; Shift-Tab to the previous; wraps at the ends;
+   disabled widgets (Stage 1) are skipped. Done **compositionally** — the focused
+   leaf gets Tab, declines if it can't advance, and its parent advances to the
+   next sibling — rather than via a central enumerator (see Steps 2–3).
 3. **Focus ring + activation.** Render `theme.ring` around the selected widget,
    and let Enter/Space activate the selected button/checkbox (the keystroke
    already reaches it via routing).
@@ -80,10 +82,16 @@ case is exactly this) and is a prerequisite for real forms and for shortcuts
    selection to this path" operation.
 8. **Tab is `KeyDown(:tab)`**, Shift-Tab is `KeyDown(:tab)` with
    `modifiers.shift` (`device/Keyboard.jl:40-140`).
-9. **Enumeration precedent (test-only):** `collect_tree_selections(document;
-   is_node=…)` DFS-enumerates every whole-element selection
-   (`test/.../SelectionEnumeration.jl:90-133`) — the shape to mirror for a
-   production focusable-enumeration helper.
+9. **A selection-move operation already exists.** `ReplaceSelectionOperation(path)`
+   (`Operation.jl:74-80`) is evaluated as `update_selection!(editor.document,
+   path)`, and `prepend_steps_to_op` already re-roots it
+   (`OperationRerooting.jl:65-66`) — exactly like the edit ops container readers
+   re-root today. So a container can emit a *relative* selection move and have it
+   become absolute as it bubbles up, with **no new operation type**.
+10. **Enumeration precedent (test-only):** `collect_tree_selections(document;
+    is_node=…)` DFS-enumerates every whole-element selection
+    (`test/.../SelectionEnumeration.jl:90-133`) — useful for the *test* Tab-walk,
+    though production traversal is distributed (Steps 2–3), not table-driven.
 
 ---
 
@@ -119,50 +127,88 @@ returns `nothing`** (the visible tab is *not* activated, and its content is
 unchanged). A composite with no selection returns `nothing` for a `KeyDown`
 (no slot guessed).
 
-## Step 2 — Production focusable-enumeration helper
+## Step 2 — Two local descent helpers (no global enumeration)
 
-Add `collect_focusable_widgets(document) -> Vector{ReferencePath}` (domain layer,
-next to the widget readers), modelled on `collect_tree_selections`
-(`SelectionEnumeration.jl:90-133`) but:
+**Design decision (per review): traversal is distributed across the container
+readers — no dedicated traversal projection and no flat enumeration table.** The
+focused leaf gets Tab first (selection routing already delivers it there); if it
+can't advance, it declines (`nothing`) and its parent advances the selection to
+the next sibling; if the parent can't, it declines to *its* parent; and so on.
+The two pieces of shared logic this needs are both **local subtree** operations,
+not whole-document walks:
 
-- DFS in **render order** (children in declaration order), returning the
-  whole-element (∅) path to each **interactive** widget (Button, Checkbox, Text,
-  Textarea, Select, Switch, Slider, Toggle, ToggleGroup, RadioGroup, MenuItem —
-  the Stage 1 `enabled`-bearing set), skipping pure containers/display widgets.
-- **Skip widgets with `enabled === false`** (Stage 1 synergy) — a disabled control
-  is not a Tab stop.
-- Keep it pure (document → list of paths) so it is unit-testable without rendering.
+- `first_focusable_path(widget) -> Reference` / `last_focusable_path(widget)` — the
+  relative path from `widget` down to its first (last) **enabled interactive**
+  leaf, or `nothing` if the subtree contains none. Used to *enter* a sibling: when
+  a container advances to sibling `j`, focus must land on a leaf, so the target
+  path is `slot_j ⧺ first_focusable_path(child_j)`. Recurses only into the entered
+  subtree. Skips `enabled === false` widgets (Stage 1 synergy).
+- `_next_focusable_slot(w, after, dir)` per container — the next slot index after
+  the currently-selected one whose child has *some* focusable (skipping disabled /
+  empty / non-interactive children). Builds on the existing `_selected_*_slot`
+  helpers (`WidgetToGraphics.jl:1167-1176` etc.).
 
-**Tests:** a composite of [enabled button, disabled button, text, checkbox]
-enumerates exactly [button, text, checkbox] in that order, each with the correct
-`.elements[i]` path.
+Both are pure (document → path / index), unit-testable without rendering.
 
-## Step 3 — Tab / Shift-Tab traversal projection
+**Tests:** `first_focusable_path` on a composite `[disabled button, text,
+checkbox]` returns the path to `text` (skips the disabled leaf); on a
+display-only composite returns `nothing`. `_next_focusable_slot` skips a disabled
+middle slot.
 
-Add `WidgetFocusTraversalProjection`, a higher-order projection mirroring
-`WidgetHoverTrackingProjection` (which wraps the tree to interpret mouse-move);
-this one wraps the tree to interpret Tab. In its `projection_read`:
+## Step 3 — Distributed Tab handling in the container readers
 
-- Non-`KeyDown(:tab)` events delegate to the inner projection unchanged (exactly
-  as the hover tracker passes through non-`MouseMove`).
-- On `KeyDown(:tab)`: enumerate `collect_focusable_widgets(iomap.input)`, resolve
-  the current global selection to find the current index (or -1 if the selection
-  is not on a focusable), compute `shift ? prev : next` with wraparound, and emit
-  a **selection-move operation** targeting that widget's path. Handle it directly
-  — do not delegate (Tab is never a leaf concern; cf. background fact 5).
-- Emit the move via the editor's existing selection mechanism: reuse the operation
-  clicks already use to set selection by reference; if no generic one exists, add
-  `MoveSelectionOperation(reference)` whose `evaluate_operation` calls
-  `set_selection!(editor.document, reference)` (`Operation.jl:423`) — the same
-  effect as `SelectTabOperation` (`Widget.jl:1230-1232`), generalised to any path.
+Each **container** reader gains a `KeyDown(:tab)` branch (Shift-Tab = the same
+with `modifiers.shift`, walking backward). The recursion is:
 
-Wire the projection into the widget renderers (the workbench/example
-`make_widget_projection_example` and the workbench projection) by composing it in
-the `SequentialProjection` alongside the hover tracker.
+1. Find the selected slot `i` via `_selected_*_slot`. (If the selection isn't in
+   me, I already return `nothing` per Step 1 — I'm not on the focus path.)
+2. **Delegate** Tab to child `i` (recurse). If it returns an op (the child or a
+   descendant advanced internally), re-root it with the existing
+   `prepend_steps_to_op(op, my_slot_steps)` and return it.
+3. If child `i` returns `nothing` (**declined** — ran off its own end), advance:
+   find `j = _next_focusable_slot(me, i, dir)`. If found, emit
+   `ReplaceSelectionOperation(slot_j_steps ⧺ first_focusable_path(child_j))`
+   — **relative to me**; my parent's `prepend_steps_to_op` turns it absolute as it
+   bubbles up.
+4. If there is no next focusable slot, return `nothing` — **I decline**, and my
+   parent advances to *its* next sibling.
 
-**Tests:** a composite of three text inputs — repeated Tab cycles the selection
-1→2→3→1; Shift-Tab reverses; a disabled middle widget is skipped; Tab from "no
-selection" lands on the first focusable.
+Each **leaf** interactive reader declines Tab (`KeyDown(:tab) => nothing`) — Tab is
+inter-widget, never intra-leaf (text already declines it,
+`TextToGraphics.jl:142-148`). This needs no per-leaf code if the leaf readers
+already fall through to `nothing` for unrecognised events; confirm each does.
+
+**Why this works with zero new machinery:** `ReplaceSelectionOperation(path)`
+already exists and is evaluated by `update_selection!(editor.document, path)`
+(`Operation.jl:74-80`); `prepend_steps_to_op` already re-roots it
+(`OperationRerooting.jl:65-66`); and container readers already call
+`prepend_steps_to_op` to re-root child ops. Tab traversal is just these existing
+parts wired through the decline-and-advance recursion.
+
+### The one genuinely global concern: wrap + bootstrap
+
+Wrap-around (Tab on the *last* focusable → *first*) and bootstrap (Tab with **no**
+selection → first focusable) cannot be local: a nested container must *not* wrap
+within itself (focus should leave a finished sub-form, not cycle inside it). Both
+collapse to a single top-level rule:
+
+> If a `KeyDown(:tab)` bubbles all the way to the top still unhandled
+> (`nothing`), set the selection to the whole tree's first focusable
+> (`first_focusable_path(root)`); Shift-Tab → `last_focusable_path(root)`.
+
+An unhandled Tab means either nothing was selected (bootstrap) or the last
+focusable declined (wrap) — both want the first focusable, so the one rule covers
+both. **This is the only non-local piece**, and it does **not** require a new
+dedicated projection: place it in the editor's top-level key handling (where the
+read loop already turns the root op into a selection update) or fold it into the
+existing outer `SequentialProjection`/hover-tracker seam that already wraps the
+widget renderer. No `WidgetFocusTraversalProjection` is introduced.
+
+**Tests:** a composite of three text inputs — repeated Tab cycles 1→2→3→1 (the
+3→1 step exercises the top-level wrap); Shift-Tab reverses; a disabled middle
+widget is skipped; Tab from "no selection" lands on the first focusable; a nested
+composite is traversed depth-first (entering it via `first_focusable_path`, and on
+exit the outer container advances to the sibling after it).
 
 ## Step 4 — Enter / Space activation on the focused leaf
 
@@ -224,23 +270,34 @@ focused iff `getfield(w,:selection)[] !== nothing` (background fact 3).
   *content* (text cursor), not at the leaf's ∅. `collect_focusable_widgets` keys
   on the path *prefix* that reaches the widget; the "current index" lookup must
   match a selection whose tail descends into the widget, not only exact-∅.
-- **Where Tab is caught.** The traversal projection must wrap the tree *outside*
-  the containers so it sees Tab regardless of which leaf is selected (the leaf
-  returns `nothing` for Tab, but the projection handles it top-down before
-  delegating — it never reaches the leaf). Confirm compose order in the
-  `SequentialProjection`.
-- **Operation re-rooting.** A `MoveSelectionOperation(reference)` carries an
-  absolute path from the root; ensure it is **not** re-rooted by container readers
-  the way edit ops are (it targets the root selection, not a slot-relative edit).
+- **Decline must be unambiguous.** The whole scheme relies on "child returned
+  `nothing` for Tab ⇒ it declined, so I advance." Confirm no leaf/container returns
+  a non-`nothing` op for Tab for some *other* reason; Tab should only ever produce
+  a `ReplaceSelectionOperation` (advance) or `nothing` (decline).
+- **Re-rooting the selection move.** Each container emits
+  `ReplaceSelectionOperation` **relative to itself** (targeting its own next
+  sibling) and relies on the *parent* to prepend its slot. Do **not** prepend the
+  container's own slot to its own advance op — only to ops delegated up from the
+  selected child. Verify the absolute path that reaches `update_selection!` is
+  correct for a 2-level nesting.
+- **`first_focusable_path` and empty subtrees.** Entering a sibling that turns out
+  to have no focusable (`first_focusable_path` → `nothing`) must make the container
+  keep scanning to the *next* sibling, not emit a selection into a dead subtree.
+- **Wrap/bootstrap placement.** The single top-level rule is the only non-local
+  part; put it where the read loop already converts the root op into a selection
+  update so it can't be bypassed, and make sure an inner container's legitimate
+  decline (no next sibling) still bubbles up to trigger it rather than being
+  swallowed.
 - **Ring projection churn.** Threading `ring` into every interactive projection is
   repetitive and (as in Stage 1) not runtime-verifiable in a sandbox without
   Julia; land Button+Checkbox first, sweep the rest in one reviewed pass.
 
 ## Step status
 
-- [ ] Step 1 — unify coordless routing on selection (tabbed pane + audit)
-- [ ] Step 2 — `collect_focusable_widgets` (enabled-aware, render-order)
-- [ ] Step 3 — `WidgetFocusTraversalProjection` + selection-move operation
+- [ ] Step 1 — selection-only coordless routing (drop active-tab/broadcast fallback)
+- [ ] Step 2 — local helpers: `first/last_focusable_path` + `_next_focusable_slot`
+- [ ] Step 3 — distributed Tab in container readers (decline-and-advance via
+      `ReplaceSelectionOperation`) + one top-level wrap/bootstrap rule
 - [ ] Step 4 — Enter/Space activation on focused Button/Checkbox
 - [ ] Step 5 — focus ring (`theme.ring`) on the selected widget
 - [ ] Step 6 — `widget_focus` example, Tab-walk test, un-skip syntax-to-widget
