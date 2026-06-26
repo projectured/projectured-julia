@@ -17,16 +17,27 @@ beyond the existing `visible` flag:
    `WidgetButton`) into a documented, shared convention so the next widgets that
    need them follow one pattern.
 
-This is the prerequisite Stage for forms (Stage 6), dialogs (Stage 3), and the
-focus model (Stage 2). It is deliberately the *smallest* cross-cutting feature:
-it extends the existing shared-field pattern (`visible` + box-model) rather than
-introducing new machinery.
+This is the prerequisite Stage for forms (Stage 6), dialogs (Stage 3), and
+keyboard routing (Stage 2). It is deliberately the *smallest* cross-cutting
+feature: it extends the existing shared-field pattern (`visible` + box-model)
+rather than introducing new machinery.
+
+**Note on focus (per review):** ProjecturEd has no separate focus concept and
+does not need one — **focus *is* selection**. Every widget already carries a
+`selection::Reference` (verified: all 33 `WidgetDocument` subtypes in
+`Widget.jl`), and keyboard routing already follows it in places (the split-pane
+reader forwards keystrokes to "the forward-projected selection",
+`WidgetToGraphics.jl:1654`). So there is **no `focused` field**, here or in any
+later stage; the "focus ring" is just rendering on the *selected* widget, and
+Stage 2 is about making coordless (keyboard) routing consistently follow the
+selection instead of the ad-hoc "active tab" path (`WidgetToGraphics.jl:1910`).
 
 ## Non-goals (explicitly deferred)
 
-- **Focus / `focused` state and the focus ring** — that is Stage 2. The `ring`
-  theme token already exists (`WidgetToGraphics.jl:129`) but no `focused` field
-  is added here.
+- **Focus visuals / keyboard routing** — Stage 2. There is no `focused` field to
+  add (focus = selection, see note above); the `ring` theme token already exists
+  (`WidgetToGraphics.jl:129`) and will render on the *selected* widget when
+  Stage 2 wires it, not on any new state.
 - **Hover/press for widgets that don't have it yet.** We formalize the
   *convention* and document it; we do not retrofit `hovered`/`pressed` onto every
   widget. They get added per widget when that widget grows interactive feedback.
