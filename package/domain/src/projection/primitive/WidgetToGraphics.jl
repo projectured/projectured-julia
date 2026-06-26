@@ -803,6 +803,7 @@ end
 # returned path-bearing operation through `map_reference_backward`. MousePress is
 # translated into the content's coordinate frame first.
 function projection_read(p::WidgetTextToGraphicsCanvas, iomap::WidgetTextToGraphicsCanvasIoMap, evt)
+    iomap.input.enabled === false && return nothing   # a disabled text widget accepts no edits
     content_iomap = iomap.content_iomap
     content_iomap === nothing && return nothing
     op = @event_case evt begin

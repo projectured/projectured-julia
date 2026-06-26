@@ -113,6 +113,7 @@ An editable text widget..
     content::Any
     content_fill_color::StyleColor
     visible::Bool
+    enabled::Bool
     margin::Inset
     margin_color::StyleColor
     border::Inset
@@ -125,6 +126,7 @@ end
 function WidgetText(position::Point2D, content;
                     content_fill_color=nothing,
                     visible::Bool=true,
+                    enabled::Bool=true,
                     margin::Inset=inset_default,
                     margin_color=nothing,
                     border::Inset=inset_default,
@@ -132,7 +134,7 @@ function WidgetText(position::Point2D, content;
                     padding::Inset=inset_default,
                     padding_color=nothing)
     WidgetText(Cell(position), Cell(content), Cell(content_fill_color),
-               Cell(visible), Cell(margin), Cell(margin_color),
+               Cell(visible), Cell(enabled), Cell(margin), Cell(margin_color),
                Cell(border), Cell(border_color),
                Cell(padding), Cell(padding_color),
                Cell(nothing))
@@ -334,6 +336,7 @@ A single item inside a `WidgetMenu`..
 @document struct WidgetMenuItem <: WidgetDocument
     content::Any
     visible::Bool
+    enabled::Bool
     margin::Inset
     margin_color::StyleColor
     border::Inset
@@ -345,6 +348,7 @@ end
 
 function WidgetMenuItem(content;
                         visible::Bool=true,
+                        enabled::Bool=true,
                         margin::Inset=inset_default,
                         margin_color=nothing,
                         border::Inset=inset_default,
@@ -352,7 +356,7 @@ function WidgetMenuItem(content;
                         padding::Inset=inset_default,
                         padding_color=nothing)
     WidgetMenuItem(Cell(content),
-                   Cell(visible), Cell(margin), Cell(margin_color),
+                   Cell(visible), Cell(enabled), Cell(margin), Cell(margin_color),
                    Cell(border), Cell(border_color),
                    Cell(padding), Cell(padding_color),
                    Cell(nothing))
@@ -805,10 +809,11 @@ An on/off toggle switch (rounded track + knob).
     position::Point2D
     checked::Bool
     visible::Bool
+    enabled::Bool
     selection::Reference
 end
-WidgetSwitch(position::Point2D, checked::Bool=false; visible::Bool=true) =
-    WidgetSwitch(Cell(position), Cell(checked), Cell(visible), Cell(nothing))
+WidgetSwitch(position::Point2D, checked::Bool=false; visible::Bool=true, enabled::Bool=true) =
+    WidgetSwitch(Cell(position), Cell(checked), Cell(visible), Cell(enabled), Cell(nothing))
 
 # ── WidgetProgress ──────────────────────────────────────────────────────────
 
@@ -839,10 +844,11 @@ A slider with a track, filled portion and a draggable knob. `value` ∈ [0, 1].
     value::Float64
     width::Int
     visible::Bool
+    enabled::Bool
     selection::Reference
 end
-WidgetSlider(position::Point2D, value::Real=0.5; width::Integer=240, visible::Bool=true) =
-    WidgetSlider(Cell(position), Cell(Float64(value)), Cell(Int(width)), Cell(visible), Cell(nothing))
+WidgetSlider(position::Point2D, value::Real=0.5; width::Integer=240, visible::Bool=true, enabled::Bool=true) =
+    WidgetSlider(Cell(position), Cell(Float64(value)), Cell(Int(width)), Cell(visible), Cell(enabled), Cell(nothing))
 
 # ── WidgetRadioGroup ────────────────────────────────────────────────────────
 
@@ -857,11 +863,12 @@ A vertical group of radio options (`options` is a `Vector` of labels);
     options::CellVector
     selected::Int
     visible::Bool
+    enabled::Bool
     selection::Reference
 end
-WidgetRadioGroup(position::Point2D, options::Vector; selected::Integer=1, visible::Bool=true) =
+WidgetRadioGroup(position::Point2D, options::Vector; selected::Integer=1, visible::Bool=true, enabled::Bool=true) =
     WidgetRadioGroup(Cell(position), CellVector(Cell[Cell(o) for o in options]),
-                     Cell(Int(selected)), Cell(visible), Cell(nothing))
+                     Cell(Int(selected)), Cell(visible), Cell(enabled), Cell(nothing))
 
 # ── WidgetAvatar ────────────────────────────────────────────────────────────
 
@@ -931,10 +938,11 @@ A two-state toggle button (pressed = accent surface).
     content::Any
     pressed::Bool
     visible::Bool
+    enabled::Bool
     selection::Reference
 end
-WidgetToggle(position::Point2D, content; pressed::Bool=false, visible::Bool=true) =
-    WidgetToggle(Cell(position), Cell(content), Cell(pressed), Cell(visible), Cell(nothing))
+WidgetToggle(position::Point2D, content; pressed::Bool=false, visible::Bool=true, enabled::Bool=true) =
+    WidgetToggle(Cell(position), Cell(content), Cell(pressed), Cell(visible), Cell(enabled), Cell(nothing))
 
 # ── WidgetToggleGroup ───────────────────────────────────────────────────────
 
@@ -948,11 +956,12 @@ A segmented control: a row of options with one selected segment.
     options::CellVector
     selected::Int
     visible::Bool
+    enabled::Bool
     selection::Reference
 end
-WidgetToggleGroup(position::Point2D, options::Vector; selected::Integer=1, visible::Bool=true) =
+WidgetToggleGroup(position::Point2D, options::Vector; selected::Integer=1, visible::Bool=true, enabled::Bool=true) =
     WidgetToggleGroup(Cell(position), CellVector(Cell[Cell(o) for o in options]),
-                      Cell(Int(selected)), Cell(visible), Cell(nothing))
+                      Cell(Int(selected)), Cell(visible), Cell(enabled), Cell(nothing))
 
 # ── WidgetSelect ────────────────────────────────────────────────────────────
 
@@ -967,10 +976,11 @@ chevron (the dropdown itself is a reader concern, out of scope here).
     value::Any
     width::Int
     visible::Bool
+    enabled::Bool
     selection::Reference
 end
-WidgetSelect(position::Point2D, value; width::Integer=220, visible::Bool=true) =
-    WidgetSelect(Cell(position), Cell(value), Cell(Int(width)), Cell(visible), Cell(nothing))
+WidgetSelect(position::Point2D, value; width::Integer=220, visible::Bool=true, enabled::Bool=true) =
+    WidgetSelect(Cell(position), Cell(value), Cell(Int(width)), Cell(visible), Cell(enabled), Cell(nothing))
 
 # ── WidgetTextarea ──────────────────────────────────────────────────────────
 
@@ -985,11 +995,12 @@ A multi-line text surface. `content` is a string (newlines split into rows).
     width::Int
     rows::Int
     visible::Bool
+    enabled::Bool
     selection::Reference
 end
-WidgetTextarea(position::Point2D, content; width::Integer=320, rows::Integer=4, visible::Bool=true) =
+WidgetTextarea(position::Point2D, content; width::Integer=320, rows::Integer=4, visible::Bool=true, enabled::Bool=true) =
     WidgetTextarea(Cell(position), Cell(content), Cell(Int(width)), Cell(Int(rows)),
-                   Cell(visible), Cell(nothing))
+                   Cell(visible), Cell(enabled), Cell(nothing))
 
 # ── WidgetAccordion ─────────────────────────────────────────────────────────
 

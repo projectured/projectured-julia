@@ -238,5 +238,16 @@ there.
 - [x] Step 4 — documented the `enabled` + hover/pressed convention in
       `documentation/document/widget.md` (new "Interaction state" section + ops
       table row). *Steps 2–4 not yet executed — Julia unavailable in sandbox.*
-- [ ] Step 5 — `enabled` on remaining interactive widgets (gate where reader exists)
+- [x] Step 5 — `enabled` field carried on all 11 interactive widgets (Button,
+      Checkbox, Text, MenuItem, Switch, Slider, RadioGroup, Toggle, ToggleGroup,
+      Select, Textarea); construction tests assert default/kwarg/neighbour-intact.
+      **Gated:** `WidgetText`'s edit reader (disabled = no edits; tested in
+      `WidgetTextEditTest.jl`). **Scope corrections vs. the plan's assumptions:**
+      (a) `WidgetMenuItem`'s reader only routes `MouseScroll` to children — it
+      emits no edit/select op, so there is nothing to gate yet (gating lands when
+      menu-item selection grows its own reader); (b) Switch/Slider/Toggle/
+      ToggleGroup/Select/RadioGroup are `@_printer_only` (no readers), so `enabled`
+      is currently inert for them — **muted appearance for these is deferred to a
+      focused follow-up** (would need a per-projection disabled color + factory
+      arg each; not runtime-verifiable in this sandbox, so kept out of this pass).
 - [ ] Step 6 — example showcase + printer/reader sweep

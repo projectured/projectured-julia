@@ -191,6 +191,31 @@ end
     @test cb.content === false                                # value unchanged
 end
 
+# Stage 1, Step 5: the `enabled` field is carried uniformly across the other
+# interactive controls — default true, settable by keyword, and threaded through
+# each order-sensitive positional constructor without shifting a neighbour field.
+@testset "enabled flag is present on the other interactive widgets" begin
+    @test WidgetText(Point2D(0, 0), "x").enabled === true
+    @test WidgetText(Point2D(0, 0), "x"; enabled=false).enabled === false
+    @test WidgetTextarea(Point2D(0, 0), "x").enabled === true
+    @test WidgetTextarea(Point2D(0, 0), "x"; rows=3, enabled=false).enabled === false
+    @test WidgetTextarea(Point2D(0, 0), "x"; rows=3).rows == 3          # neighbour intact
+    @test WidgetSelect(Point2D(0, 0), "v").enabled === true
+    @test WidgetSelect(Point2D(0, 0), "v"; enabled=false).enabled === false
+    @test WidgetSwitch(Point2D(0, 0), true).enabled === true
+    @test WidgetSwitch(Point2D(0, 0), true; enabled=false).checked === true   # neighbour intact
+    @test WidgetSlider(Point2D(0, 0), 0.3).enabled === true
+    @test WidgetSlider(Point2D(0, 0), 0.3; enabled=false).value == 0.3        # neighbour intact
+    @test WidgetToggle(Point2D(0, 0), "t"; pressed=true).enabled === true
+    @test WidgetToggle(Point2D(0, 0), "t"; pressed=true, enabled=false).pressed === true
+    @test WidgetToggleGroup(Point2D(0, 0), ["a","b"]; selected=2).enabled === true
+    @test WidgetToggleGroup(Point2D(0, 0), ["a","b"]; selected=2).selected == 2
+    @test WidgetRadioGroup(Point2D(0, 0), ["a","b"]; selected=2).enabled === true
+    @test WidgetRadioGroup(Point2D(0, 0), ["a","b"]; selected=2, enabled=false).selected == 2
+    @test WidgetMenuItem("m").enabled === true
+    @test WidgetMenuItem("m"; enabled=false).enabled === false
+end
+
 # Stage 1, Step 3: the disabled surface differs from the enabled one (muted fill
 # / no drop shadow). We compare the element count: an enabled resting button
 # carries an extra shadow rect that the disabled one drops.

@@ -50,6 +50,16 @@ end
     @test doc.content.elements[1].content == "ediXt me"
 end
 
+@testset "a disabled WidgetText accepts no edits" begin
+    content = TextText(TextString("edit me", _font, color_default))
+    doc = WidgetText(Point2D(0, 0), content; enabled=false)
+    set_selection!(doc, _cursor(3))
+    iomap = projection_print(_proj(), nothing, doc, PrinterContext())
+    @test iomap.output isa GraphicsCanvas                      # still renders
+    @test projection_read(_proj(), iomap, KeyPress('X', "X", Modifiers())) === nothing
+    @test doc.content.elements[1].content == "edit me"         # value unchanged
+end
+
 @testset "backspace and arrow navigation are re-rooted at content too" begin
     doc = _doc()
     set_selection!(doc, _cursor(4))            # cursor after "edit"
