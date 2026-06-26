@@ -70,6 +70,7 @@ const widget_textarea_example    = Example("widget_textarea",    make_widget_tex
 const widget_accordion_example   = Example("widget_accordion",   make_widget_accordion_document_example,   make_widget_projection_example)
 const widget_table_example       = Example("widget_table",       make_widget_table_document_example,       make_widget_projection_example)
 const widget_tree_example        = Example("widget_tree",        make_widget_tree_document_example,        make_widget_projection_example)
+const widget_disabled_example    = Example("widget_disabled",    make_widget_disabled_document_example,    make_widget_projection_example)
 const layout_example         = Example("layout",         make_layout_document_example,         make_layout_projection_example)
 const constraint_layout_example = Example("constraint_layout", make_constraint_layout_document_example, make_constraint_layout_projection_example)
 const book_example           = Example("book",           make_book_document_example,           make_book_projection_example)
@@ -153,6 +154,7 @@ const examples = [
     widget_avatar_example, widget_alert_example, widget_skeleton_example,
     widget_toggle_example, widget_toggle_group_example, widget_select_example,
     widget_textarea_example, widget_accordion_example, widget_table_example, widget_tree_example,
+    widget_disabled_example,
     layout_example, constraint_layout_example, book_example, filesystem_example, filesystem_widget_example, navigator_example,
     collection_example, reversing_example, filtering_example, searching_example, sorting_example, focusing_example, table_example, math_table_example, graph_example, workbench_example,
     math_example,

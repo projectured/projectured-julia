@@ -228,4 +228,16 @@ end
     @test length(off_canvas.elements) < length(on_canvas.elements)
 end
 
+# Stage 1, Step 6: the reader-less controls (Switch / Toggle / Select) gained a
+# muted disabled appearance. They have no reader to gate, so we just exercise the
+# disabled print branch (it must not error and must still produce a canvas).
+@testset "disabled Switch / Toggle / Select still render via the muted branch" begin
+    proj = _proj()
+    for w in (WidgetSwitch(Point2D(0, 0), true; enabled=false),
+              WidgetToggle(Point2D(0, 0), "Bold"; pressed=true, enabled=false),
+              WidgetSelect(Point2D(0, 0), "Apple"; width=180, enabled=false))
+        @test projection_print(proj, nothing, w, PrinterContext()).output isa GraphicsCanvas
+    end
+end
+
 end # test_widget_button_behavior

@@ -390,3 +390,21 @@ make_widget_tree_document_example() =
         ("test", Any["runtests.jl"]),
         "README.md",
     ])
+
+# Interaction state — each control shown enabled then disabled, stacked by a
+# VerticalLayout. The disabled variants render with the theme's muted tokens and
+# (for Button/Checkbox) their readers swallow clicks; see the `enabled` flag in
+# document/Widget.jl and plan/pending/widget-interaction-state.md.
+make_widget_disabled_document_example() =
+    VerticalLayout(Any[
+        WidgetButton(Point2D(0, 0), Point2D(180, 48), "Enabled"),
+        WidgetButton(Point2D(0, 0), Point2D(180, 48), "Disabled"; enabled=false),
+        WidgetCheckbox(Point2D(0, 0), true),
+        WidgetCheckbox(Point2D(0, 0), true; enabled=false),
+        WidgetSwitch(Point2D(0, 0), true),
+        WidgetSwitch(Point2D(0, 0), true; enabled=false),
+        WidgetToggle(Point2D(0, 0), "Bold"; pressed=true),
+        WidgetToggle(Point2D(0, 0), "Bold"; pressed=true, enabled=false),
+        WidgetSelect(Point2D(0, 0), "Apple"; width=220),
+        WidgetSelect(Point2D(0, 0), "Apple"; width=220, enabled=false),
+    ]; gap=12)

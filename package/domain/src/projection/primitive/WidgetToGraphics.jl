@@ -2466,16 +2466,19 @@ map_reference_backward(::WidgetCardToGraphicsCanvas, iomap, reference) = nothing
     knob_border::StyleStroke   # knob outline (color + width)
     on_color::StyleColor       # track fill when checked
     off_color::StyleColor      # track fill when unchecked
+    disabled_color::StyleColor # track fill when !enabled
 end
 
 function projection_print(p::WidgetSwitchToGraphicsCanvas, recursion, w::WidgetSwitch, ctx)
     w.visible == false && return SimpleIoMap(p, w, _empty_canvas())
     position = w.position::Point2D
     on  = w.checked === true
+    enabled = !(w.enabled === false)
     track_width  = _sc(Int(p.track_size.x[]))
     track_height = _sc(Int(p.track_size.y[]))
     elements = Any[]
-    track_red, track_green, track_blue, track_alpha = _rgba(on ? p.on_color : p.off_color)
+    track_color = !enabled ? p.disabled_color : on ? p.on_color : p.off_color
+    track_red, track_green, track_blue, track_alpha = _rgba(track_color)
     push!(elements, GraphicsRect(0, 0, track_width, track_height, track_red, track_green, track_blue, track_alpha, track_height ÷ 2))
     knob_padding = _sc(p.knob_padding)
     knob_radius  = (track_height - 2knob_padding) ÷ 2
@@ -2707,6 +2710,8 @@ end
     pressed_foreground::StyleColor
     released_fill::StyleColor
     released_foreground::StyleColor
+    disabled_fill::StyleColor
+    disabled_foreground::StyleColor
 end
 
 function projection_print(p::WidgetToggleToGraphicsCanvas, recursion, w::WidgetToggle, ctx)
@@ -2714,15 +2719,17 @@ function projection_print(p::WidgetToggleToGraphicsCanvas, recursion, w::WidgetT
     position = w.position::Point2D
     text = string(w.content)
     on  = w.pressed === true
+    enabled = !(w.enabled === false)
     padding_x = _sc(Int(p.padding.left[]))
     padding_y = _sc(Int(p.padding.top[]))
     text_width, text_height = _text_size(p.measure, p.font, text)
     control_width  = text_width + 2padding_x
     control_height = text_height + 2padding_y
-    fill       = on ? p.pressed_fill : p.released_fill
-    foreground = on ? p.pressed_foreground : p.released_foreground
-    border_color = on ? nothing : p.border.color
-    border_width = on ? 0 : max(1, _sc(p.border.width))
+    fill       = !enabled ? p.disabled_fill : on ? p.pressed_fill : p.released_fill
+    foreground = !enabled ? p.disabled_foreground : on ? p.pressed_foreground : p.released_foreground
+    # Disabled and released states both show the outline; pressed drops it.
+    border_color = (on && enabled) ? nothing : p.border.color
+    border_width = (on && enabled) ? 0 : max(1, _sc(p.border.width))
     elements = Any[]
     _push_panel!(elements, 0, 0, control_width, control_height; fill=fill, border=border_color,
                  border_w=border_width, radius=_sc(p.corner_radius))
@@ -2794,12 +2801,15 @@ end
     gap::Int                   # space between value and chevron
     chevron::StyleStroke        # chevron color + width
     chevron_size::Int
+    disabled_color::StyleColor  # box fill when !enabled
+    disabled_foreground::StyleColor # value + chevron when !enabled
 end
 
 function projection_print(p::WidgetSelectToGraphicsCanvas, recursion, w::WidgetSelect, ctx)
     w.visible == false && return SimpleIoMap(p, w, _empty_canvas())
     position = w.position::Point2D
     text = string(w.value)
+    enabled = !(w.enabled === false)
     padding_x = _sc(Int(p.padding.left[]))
     padding_y = _sc(Int(p.padding.top[]))
     text_width, text_height = _text_size(p.measure, p.text.font, text)
@@ -2808,13 +2818,16 @@ function projection_print(p::WidgetSelectToGraphicsCanvas, recursion, w::WidgetS
     content_min = 2padding_x + text_width + _sc(p.gap) + 2chevron_size
     control_width = _resolve_width(ctx, _sc(Int(w.width)), content_min)
     control_height = text_height + 2padding_y
+    box_fill   = enabled ? p.background_color : p.disabled_color
+    text_color = enabled ? p.text.color : p.disabled_foreground
+    chevron_color = enabled ? p.chevron.color : p.disabled_foreground
     elements = Any[]
-    _push_panel!(elements, 0, 0, control_width, control_height; fill=p.background_color, border=p.border.color,
+    _push_panel!(elements, 0, 0, control_width, control_height; fill=box_fill, border=p.border.color,
                  border_w=max(1, _sc(p.border.width)), radius=_sc(p.corner_radius))
-    red, green, blue, alpha = _rgbai(p.text.color)
+    red, green, blue, alpha = _rgbai(text_color)
     push!(elements, GraphicsText(text, padding_x, (control_height - text_height) ÷ 2, p.text.font, red, green, blue, alpha))
     _push_chevron!(elements, control_width - padding_x - chevron_size, control_height ÷ 2, chevron_size, :down,
-                   p.chevron.color; stroke=max(1, _sc(p.chevron.width)))
+                   chevron_color; stroke=max(1, _sc(p.chevron.width)))
     SimpleIoMap(p, w, _make_canvas(_origin(position)..., control_width, control_height, elements))
 end
 @_printer_only WidgetSelectToGraphicsCanvas
@@ -3848,7 +3861,7 @@ function WidgetToGraphics(font::StyleFont; measure::Function,
         WidgetSwitch     => WidgetSwitchToGraphicsCanvas(
             Point2D(44, 24), 3,
             color_white, StyleStroke(theme.border, theme.border_width),
-            theme.primary, theme.track_off),
+            theme.primary, theme.track_off, theme.muted),
         WidgetProgress   => WidgetProgressToGraphicsCanvas(8, theme.muted, theme.primary),
         WidgetSlider     => WidgetSliderToGraphicsCanvas(
             24, 4, 9,
@@ -3867,7 +3880,8 @@ function WidgetToGraphics(font::StyleFont; measure::Function,
         WidgetToggle      => WidgetToggleToGraphicsCanvas(measurer, theme.font,
             Inset(theme.pad_y, theme.pad_y, theme.pad_x, theme.pad_x), theme.radius,
             StyleStroke(theme.border, theme.border_width),
-            theme.accent, theme.accent_foreground, theme.background, theme.foreground),
+            theme.accent, theme.accent_foreground, theme.background, theme.foreground,
+            theme.muted, theme.muted_foreground),
         WidgetToggleGroup => WidgetToggleGroupToGraphicsCanvas(measurer, theme.font,
             Inset(theme.pad_y, theme.pad_y, theme.pad_x, theme.pad_x), theme.radius, 2,
             StyleStroke(theme.border, theme.border_width),
@@ -3875,7 +3889,8 @@ function WidgetToGraphics(font::StyleFont; measure::Function,
         WidgetSelect      => WidgetSelectToGraphicsCanvas(measurer, theme.body_text, theme.background,
             StyleStroke(theme.input, theme.border_width),
             Inset(theme.pad_y, theme.pad_y, theme.pad_x, theme.pad_x), theme.radius,
-            theme.gap, StyleStroke(theme.muted_foreground, theme.stroke), theme.chevron),
+            theme.gap, StyleStroke(theme.muted_foreground, theme.stroke), theme.chevron,
+            theme.muted, theme.muted_foreground),
         WidgetTextarea    => WidgetTextareaToGraphicsCanvas(measurer, theme.body_text, theme.background,
             StyleStroke(theme.input, theme.border_width),
             Inset(theme.pad_y, theme.pad_y, theme.pad_x, theme.pad_x), theme.radius),

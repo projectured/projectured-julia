@@ -250,4 +250,11 @@ there.
       is currently inert for them — **muted appearance for these is deferred to a
       focused follow-up** (would need a per-projection disabled color + factory
       arg each; not runtime-verifiable in this sandbox, so kept out of this pass).
-- [ ] Step 6 — example showcase + printer/reader sweep
+- [x] Step 6 — added `widget_disabled` example (enabled-vs-disabled Button,
+      Checkbox, Switch, Toggle, Select stacked in a `VerticalLayout`), registered
+      + exported + added to the `examples` sweep list. Folded in the deferred
+      muted appearance for **Switch / Toggle / Select** (per-projection
+      `disabled_color`/`disabled_foreground` fed `theme.muted`/`theme.muted_foreground`,
+      printer branches). **Still without a muted look:** Slider, RadioGroup,
+      ToggleGroup, Textarea — reader-less and lower-priority; left for a later
+      cosmetic pass. Sweep not executed here (Julia unavailable in sandbox).
