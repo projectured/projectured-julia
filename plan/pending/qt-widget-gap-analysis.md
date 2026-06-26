@@ -257,7 +257,8 @@ under `plan/pending/` before coding.
 
 ### Stage 2 — Selection-driven keyboard routing & traversal
 *Unblocks: forms, widget-layer keyboard nav (the `syntax-to-widget` blocker),
-shortcuts.*
+shortcuts.* **Detailed plan:**
+[widget-focus-traversal.md](widget-focus-traversal.md).
 
 - **No new focus concept** — focus is selection. Use the existing
   `selection::Reference` as the keyboard target.
