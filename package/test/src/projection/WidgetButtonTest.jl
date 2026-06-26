@@ -145,4 +145,25 @@ end
     @test _canvas_has_image(iomap.output)
 end
 
+# Stage 1, Step 1: the shared `enabled` interactivity flag. Defaults to `true`,
+# is settable by keyword, and — because it is threaded through the order-sensitive
+# positional constructor right after `visible` — must not shift any other field.
+@testset "enabled flag: defaults true, settable, and leaves other fields intact" begin
+    btn = WidgetButton(Point2D(0, 0), Point2D(120, 40), "Go")
+    @test btn.enabled === true
+    @test btn.visible === true                       # slot after visible not shifted
+    btn_off = WidgetButton(Point2D(0, 0), Point2D(120, 40), "Go"; enabled=false)
+    @test btn_off.enabled === false
+    @test btn_off.visible === true
+    # A disabled button is still a normal document: it prints to a canvas.
+    @test projection_print(_proj(), nothing, btn_off, PrinterContext()).output isa GraphicsCanvas
+
+    cb = WidgetCheckbox(Point2D(0, 0), true)
+    @test cb.enabled === true
+    @test cb.content === true                         # content slot intact
+    cb_off = WidgetCheckbox(Point2D(0, 0), false; enabled=false)
+    @test cb_off.enabled === false
+    @test cb_off.content === false
+end
+
 end # test_widget_button_behavior

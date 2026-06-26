@@ -146,11 +146,16 @@ setfn!(w::WidgetText, f::Function) = (setfn!(getfield(w, :content), f); w)
     WidgetCheckbox(position, content; <base kwargs>)
 
 A checkbox widget..
+
+`enabled` (default `true`) is a shared interactivity flag alongside `visible`:
+when `false` the checkbox renders muted and its reader refuses to emit the toggle
+operation.
 """
 @document struct WidgetCheckbox <: WidgetDocument
     position::Point2D
     content::Any
     visible::Bool
+    enabled::Bool
     margin::Inset
     margin_color::StyleColor
     border::Inset
@@ -162,6 +167,7 @@ end
 
 function WidgetCheckbox(position::Point2D, content;
                         visible::Bool=true,
+                        enabled::Bool=true,
                         margin::Inset=inset_default,
                         margin_color=nothing,
                         border::Inset=inset_default,
@@ -169,7 +175,7 @@ function WidgetCheckbox(position::Point2D, content;
                         padding::Inset=inset_default,
                         padding_color=nothing)
     WidgetCheckbox(Cell(position), Cell(content),
-                   Cell(visible), Cell(margin), Cell(margin_color),
+                   Cell(visible), Cell(enabled), Cell(margin), Cell(margin_color),
                    Cell(border), Cell(border_color),
                    Cell(padding), Cell(padding_color),
                    Cell(nothing))
@@ -189,6 +195,10 @@ A clickable button.
 argument, otherwise with none, so it can mutate `editor.document` / projection
 state. A `nothing` action makes the button inert on click.
 
+`enabled` (default `true`) is a shared interactivity flag alongside `visible`:
+when `false` the button renders muted, ignores hover/press, and its reader
+refuses to invoke the action.
+
 `hovered` and `pressed` are **transient UI state** holding the pointer
 interaction: `hovered` is `true` while the pointer is inside the button,
 `pressed` is `true` while the left button is held down on it. The printer reads
@@ -203,6 +213,7 @@ are not meant to be serialised.
     content::Any
     action::Any
     visible::Bool
+    enabled::Bool
     margin::Inset
     margin_color::StyleColor
     border::Inset
@@ -217,6 +228,7 @@ end
 function WidgetButton(position::Point2D, size::Point2D, content;
                       action=nothing,
                       visible::Bool=true,
+                      enabled::Bool=true,
                       margin::Inset=inset_default,
                       margin_color=nothing,
                       border::Inset=inset_default,
@@ -228,7 +240,7 @@ function WidgetButton(position::Point2D, size::Point2D, content;
     # `Cell(action)` would invoke it on read. Store it as a primitive cell value.
     action_cell = Cell(nothing); setval!(action_cell, action)
     WidgetButton(Cell(position), Cell(size), Cell(content), action_cell,
-                 Cell(visible), Cell(margin), Cell(margin_color),
+                 Cell(visible), Cell(enabled), Cell(margin), Cell(margin_color),
                  Cell(border), Cell(border_color),
                  Cell(padding), Cell(padding_color),
                  Cell(nothing), Cell(false), Cell(false))

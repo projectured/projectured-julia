@@ -225,7 +225,10 @@ there.
 
 ## Step status
 
-- [ ] Step 1 — `enabled` field on Button + Checkbox (struct + ctor + docstring)
+- [x] Step 1 — `enabled` field on Button + Checkbox (struct + ctor + docstring);
+      construction test added to `WidgetButtonTest.jl` (defaults / kwarg /
+      positional round-trip). *Not yet executed in CI — Julia is unavailable in
+      the web session sandbox (distribution host blocked by egress policy).*
 - [ ] Step 2 — gate Button + Checkbox readers
 - [ ] Step 3 — disabled muted appearance for Button + Checkbox
 - [ ] Step 4 — document the `enabled` + hover/pressed convention
