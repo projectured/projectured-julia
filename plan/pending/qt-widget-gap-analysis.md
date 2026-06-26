@@ -44,10 +44,14 @@ for the source of truth.
 - Seven shared box-model fields (`visible`, `margin`/`border`/`padding` + their
   colors) mapping to nested CSS-style boxes via `Inset`.
 - Selection plumbing (`selection::Reference` on every widget) and reference
-  forward/backward mapping through `WidgetToGraphics`.
+  forward/backward mapping through `WidgetToGraphics`. **This is also the focus
+  model** — in a projectional editor the focused widget is simply the selected
+  one; there is no separate focus concept (and we do not need one).
 - Event routing by hit-test (`MousePress`/`MouseScroll`) and **partial** coordless
-  (keyboard) routing: `KeyDown`/`KeyPress` are forwarded to the focused
-  tab/leaf in containers (see `WidgetToGraphics.jl` tab/split/scroll readers).
+  (keyboard) routing: `KeyDown`/`KeyPress` already follow the selection in places
+  (the split-pane reader forwards to "the forward-projected selection",
+  `WidgetToGraphics.jl:1654`) but elsewhere fall back to an ad-hoc "active tab"
+  path (`WidgetToGraphics.jl:1910`) instead of the selection.
 - A `WindowManager` (kernel) that composites multiple screens/windows — the
   substrate the inspector and tooltip overlays already use.
 - `ProjectionContext` threading `available_width`/`available_height` for
@@ -160,11 +164,16 @@ many widgets at once and because they touch the projectional architecture
    convention. Qt centralizes this; we should too (likely a small shared field
    set + theme tokens, mirroring how `visible`/box-model fields are shared).
 
-2. **Keyboard focus & tab order.** Coordless event routing exists but only
-   forwards to an *already-focused* leaf; there is no focus model (who is
-   focused, Tab/Shift-Tab traversal order, focus ring). This is the prerequisite
-   the `syntax-to-widget` plan calls out as blocking widget-layer keyboard
-   navigation, and it gates real form interaction.
+2. **Keyboard routing & tab order via selection.** Focus is **not** a new
+   concept here — the focused widget is the **selected** widget
+   (`selection::Reference` already exists on every widget). What is missing is
+   making coordless routing *consistently* follow the selection (it does in the
+   split-pane reader, `WidgetToGraphics.jl:1654`, but elsewhere falls back to an
+   "active tab" path, `:1910`), a Tab/Shift-Tab traversal order that *moves the
+   selection* across a container subtree, and a focus ring that renders on the
+   selected widget. This is the prerequisite the `syntax-to-widget` plan calls
+   out as blocking widget-layer keyboard navigation, and it gates real form
+   interaction. No `focused` field is added.
 
 3. **Icons.** No icon concept (confirmed: no `icon` field). Everything is text.
    Qt's `QIcon` is pervasive (buttons, menu items, tabs, tree nodes, toolbar).
@@ -212,17 +221,19 @@ Rank by **leverage** (how many widgets/use-cases it unblocks) × **architectural
 fit** (does it extend existing patterns cleanly):
 
 - **High leverage, good fit:** enabled/disabled + interaction states (#1),
-  focus model (#2), Actions (#4), popup/overlay layer (#5). These unblock
-  dialogs, context menus, editable combobox, shortcuts, and real forms.
+  selection-driven keyboard routing + tab order (#2), Actions (#4),
+  popup/overlay layer (#5). These unblock dialogs, context menus, editable
+  combobox, shortcuts, and real forms.
 - **Medium:** icons (#3), the small missing widgets that ride on the above
   (spinbox, dialog, message box, menu bar, status bar, list view, form layout).
 - **Low / deferred:** validators (#6), DnD generalization (#7), accessibility
   (#9), animation (#10), i18n/RTL (#11), and niche widgets (LCD, dial, calendar,
   column view, MDI, wizard).
 
-Guiding rule: **prefer cross-cutting features over one-off widgets** — a focus
-model + popup layer + Actions is worth more than ten new leaf widgets, and most
-of the "missing" widgets are cheap once those land.
+Guiding rule: **prefer cross-cutting features over one-off widgets** —
+selection-driven keyboard routing + a popup layer + Actions is worth more than
+ten new leaf widgets, and most of the "missing" widgets are cheap once those
+land.
 
 ---
 
@@ -244,18 +255,20 @@ under `plan/pending/` before coding.
 - Readers must refuse to emit operations from a disabled widget.
 - Tests: a disabled button/checkbox/select renders muted and swallows clicks.
 
-### Stage 2 — Focus model & keyboard traversal
+### Stage 2 — Selection-driven keyboard routing & traversal
 *Unblocks: forms, widget-layer keyboard nav (the `syntax-to-widget` blocker),
 shortcuts.*
 
-- Introduce a focus concept at the widget layer: which leaf is focused, and a
-  deterministic traversal order (Tab / Shift-Tab) across a container subtree.
-- Generalize the existing coordless-event forwarding into a real focus router so
-  `KeyDown` reaches the focused widget by *focus*, not by "happens to be the
-  active tab".
-- Render a focus ring (theme `ring`).
-- Tests: Tab cycles focus across a composite of text inputs; Enter/Space
-  activate the focused button/checkbox; un-skip a widget keyboard-nav case.
+- **No new focus concept** — focus is selection. Use the existing
+  `selection::Reference` as the keyboard target.
+- Generalize coordless-event forwarding so `KeyDown` consistently reaches the
+  **selected** widget (as the split-pane reader already does,
+  `WidgetToGraphics.jl:1654`), replacing the ad-hoc "active tab" path (`:1910`).
+- Define a deterministic traversal order (Tab / Shift-Tab) that **moves the
+  selection** across a container subtree.
+- Render a focus ring (theme `ring`) on the *selected* widget.
+- Tests: Tab moves the selection across a composite of text inputs; Enter/Space
+  activate the selected button/checkbox; un-skip a widget keyboard-nav case.
 
 ### Stage 3 — Popup / overlay layer
 *Unblocks: dropdowns, context menus, dialogs, message boxes.*
@@ -341,6 +354,6 @@ This analysis subsumes / sequences several existing plans:
 - [document-link-feature.md](document-link-feature.md) — rich-text links
   (`QTextBrowser`).
 - [syntax-to-widget.md](syntax-to-widget.md) — its deferred keyboard-navigation
-  blocker is exactly Stage 2 (focus model).
+  blocker is exactly Stage 2 (selection-driven keyboard routing).
 - [tooltip.md](tooltip.md) — already shipped; the overlay layer (Stage 3)
   generalizes its floating mechanism.
