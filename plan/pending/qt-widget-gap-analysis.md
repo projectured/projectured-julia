@@ -290,7 +290,8 @@ shortcuts.*
 - An `Action` document (label, icon, enabled, shortcut, callback/operation) that
   menu items, toolbar buttons, and shortcuts all reference.
 - `WidgetMenuBar` (window-top bar of menus) and `WidgetStatusBar`.
-- Mnemonics/accelerators (`Ctrl+S`, `&File`) routed through the focus model.
+- Mnemonics/accelerators (`Ctrl+S`, `&File`) routed through the selection-driven
+  keyboard routing from Stage 2.
 - Right-click → context menu via the popup layer.
 - Tests: one `Action` drives a menu item + toolbar button + shortcut; toggling
   the action's `enabled` disables all three.
