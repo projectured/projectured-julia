@@ -2,7 +2,7 @@
 
 julia_version = "1.12.6"
 manifest_format = "2.0"
-project_hash = "269fa65f787d7df0b105d66cc20aad7ec8a22a64"
+project_hash = "cc8f06ed53ae4c5f540176bb9f9a9e335a3a2fd4"
 
 [[deps.ArgTools]]
 uuid = "0dad84c5-d112-42e6-8d28-ef12dabb789f"
@@ -627,9 +627,15 @@ uuid = "e0912940-0f50-4a55-a142-7b4aed3d6e35"
 version = "0.1.0"
 
 [[deps.ProjecturedExample]]
-deps = ["Profile", "Projectured", "ProjecturedAdaptagrams", "ProjecturedOdbc"]
+deps = ["Profile", "Projectured"]
 path = "package/example"
 uuid = "e5f6a7b8-c9d0-4e1f-2a3b-4c5d6e7f8a9b"
+version = "0.1.0"
+
+[[deps.ProjecturedExtrasExample]]
+deps = ["Projectured", "ProjecturedAdaptagrams", "ProjecturedExample", "ProjecturedOdbc"]
+path = "package/extras-example"
+uuid = "fab2bd8f-1e88-4ba3-9632-02350794cb36"
 version = "0.1.0"
 
 [[deps.ProjecturedKernel]]

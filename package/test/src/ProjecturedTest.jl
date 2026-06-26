@@ -27,6 +27,22 @@ function __init__()
     init!(make_backend(:sdl))
 end
 
+# Live-DB fixture helpers used by the opt-in `external/` catalog tests. They used
+# to be re-exported from the example package's `document/Database.jl`; that code
+# moved to the opt-in `ProjecturedExtrasExample` (which pulls the native shim), so
+# the helpers are defined here directly to keep ProjecturedTest free of that
+# dependency. `db_execute_raw` / `db_insert!` / `RawDatabaseResult` come from
+# `using ProjecturedOdbc` above.
+function setup_persons_table(adapter)
+    db_execute_raw(adapter, "DROP TABLE IF EXISTS persons", RawDatabaseResult)
+    db_execute_raw(adapter, "CREATE TABLE persons (name TEXT, age INT)", RawDatabaseResult)
+    db_insert!(adapter, "persons", Dict("name" => "Alice", "age" => 30))
+end
+
+function teardown_persons_table(adapter)
+    db_execute_raw(adapter, "DROP TABLE IF EXISTS persons", RawDatabaseResult)
+end
+
 include("common/CellTest.jl")
 include("common/GestureBindingTest.jl")
 include("reference/ReferenceBuilderTest.jl")

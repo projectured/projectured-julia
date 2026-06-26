@@ -3,15 +3,10 @@ module ProjecturedExample
 using Projectured
 using Profile
 
-# Live database examples use the opt-in Odbc package, which exports
-# OdbcConnectionPool / OdbcDatabaseAdapter / DatabaseInstanceToDbCatalog /
-# SqlToCellTable. ProjecturEd itself is database-optional; the example opts in.
-using ProjecturedOdbc
-
-# The graph_adaptagrams example uses the opt-in native engine (libcola/libavoid),
-# which exports AdaptagramsEngine. It loads without the native shim built; the
-# native call only fires when that example is actually printed.
-using ProjecturedAdaptagrams
+# The opt-in examples that need a live database (ODBC) or the native graph-layout
+# engine (ProjecturedAdaptagrams C++ shim) live in the separate
+# `ProjecturedExtrasExample` package, so this base package depends on neither —
+# it precompiles with no native build and no database driver.
 
 const _EXAMPLE_DIR = @__DIR__
 
@@ -45,8 +40,6 @@ include(joinpath(_EXAMPLE_DIR, "document", "Julia.jl"))
 include(joinpath(_EXAMPLE_DIR, "document", "Formula.jl"))
 include(joinpath(_EXAMPLE_DIR, "document", "Wrapper.jl"))
 include(joinpath(_EXAMPLE_DIR, "document", "Primitive.jl"))
-include(joinpath(_EXAMPLE_DIR, "document", "DbCatalog.jl"))
-include(joinpath(_EXAMPLE_DIR, "document", "Database.jl"))
 include(joinpath(_EXAMPLE_DIR, "document", "DatabaseInstance.jl"))
 include(joinpath(_EXAMPLE_DIR, "document", "Sql.jl"))
 include(joinpath(_EXAMPLE_DIR, "document", "Clipboard.jl"))
@@ -88,7 +81,6 @@ include(joinpath(_EXAMPLE_DIR, "projection", "Formula.jl"))
 include(joinpath(_EXAMPLE_DIR, "projection", "Wrapper.jl"))
 include(joinpath(_EXAMPLE_DIR, "projection", "Graphics.jl"))
 include(joinpath(_EXAMPLE_DIR, "projection", "Primitive.jl"))
-include(joinpath(_EXAMPLE_DIR, "projection", "DbCatalog.jl"))
 include(joinpath(_EXAMPLE_DIR, "projection", "Sql.jl"))
 include(joinpath(_EXAMPLE_DIR, "projection", "Clipboard.jl"))
 include(joinpath(_EXAMPLE_DIR, "projection", "Versioning.jl"))
@@ -147,8 +139,7 @@ export make_focusing_document_example, make_focusing_projection_example
 export make_workbench_document_example, make_workbench_projection_example
 export make_assistant_document_example, make_assistant_projection_example
 export make_table_document_example, make_table_projection_example
-export make_graph_document_example, make_graph_projection_example, make_graph_adaptagrams_projection_example
-export make_dvdrental_relationship_graph_document_example, make_dvdrental_relationship_projection_example, dvdrental_relationship_example
+export make_graph_document_example, make_graph_projection_example
 export make_math_table_document_example, make_math_table_projection_example
 export make_lazy_document_example, make_lazy_projection_example
 export make_lazy_bidirectional_document_example, make_lazy_bidirectional_projection_example
@@ -157,15 +148,8 @@ export make_julia_document_example, make_julia_projection_example
 export make_formula_document_example, make_formula_projection_example
 export make_graphics_image_projection_example
 export make_primitive_string_document_example, make_primitive_string_projection_example
-export make_dbcatalog_document_example, make_dbcatalog_projection_example
-export make_dvdrental_catalog_document_example
-export make_dvdrental_dbcatalog_document_example, make_dvdrental_dbcatalog_projection_example, explore_dbcatalog!
-export make_dvdrental_object_projection_example, dvdrental_object_example
-export make_dvdrental_object_json_projection_example, dvdrental_object_json_example
-export make_dvdrental_catalog_json_projection_example, dvdrental_catalog_json_example
-export make_database_adapter_example, setup_persons_table, teardown_persons_table
 export make_database_instance_document_example
-export make_sql_document_example, make_sql_syntax_projection_example, make_sql_table_projection_example
+export make_sql_document_example, make_sql_syntax_projection_example
 export make_sql_nested_document_example, make_sql_nested_syntax_projection_example
 
 export make_graphics_caching
@@ -196,7 +180,7 @@ export widget_avatar_example, widget_alert_example, widget_skeleton_example
 export widget_toggle_example, widget_toggle_group_example, widget_select_example
 export widget_textarea_example, widget_accordion_example, widget_table_example, widget_tree_example
 export layout_example, book_example, filesystem_example, navigator_example
-export collection_example, reversing_example, filtering_example, searching_example, sorting_example, focusing_example, table_example, math_table_example, graph_example, graph_adaptagrams_example, workbench_example
+export collection_example, reversing_example, filtering_example, searching_example, sorting_example, focusing_example, table_example, math_table_example, graph_example, workbench_example
 export lazy_example, lazy_bidirectional_example
 export math_example
 export julia_example
@@ -206,15 +190,10 @@ export assistant_example
 export conversation_example
 export conversation_widget_example
 export conversation_editor_example
-export dbcatalog_example
-export dvdrental_catalog_example
-export dbcatalog_widget_example
-export dvdrental_catalog_widget_example
 export sql_syntax_example
 export sql_insert_syntax_example
 export sql_update_syntax_example
 export sql_nested_syntax_example
-export sql_table_example
 export make_clipboard_document_example, make_clipboard_projection_example
 export clipboard_example
 export make_versioning_document_example, make_versioning_projection_example

@@ -84,7 +84,6 @@ const focusing_example       = Example("focusing",       make_focusing_document_
 const table_example          = Example("table",          make_table_document_example,          make_table_projection_example)
 const math_table_example     = Example("math_table",     make_math_table_document_example,     make_math_table_projection_example)
 const graph_example          = Example("graph",          make_graph_document_example,          make_graph_projection_example)
-const graph_adaptagrams_example = Example("graph_adaptagrams", make_graph_document_example,       make_graph_adaptagrams_projection_example)
 const workbench_example      = Example("workbench",      make_workbench_document_example,      make_workbench_projection_example)
 # `lazy_example` / `lazy_bidirectional_example` are deliberately kept OUT of the
 # `examples` registry below. Their documents are infinite lazy linked lists, so
@@ -102,51 +101,14 @@ const assistant_example      = Example("assistant",      make_assistant_document
 const conversation_example   = Example("conversation",   make_conversation_document_example,   make_conversation_projection_example; render_width=1200, render_height=600)
 const conversation_widget_example = Example("conversation_widget", make_conversation_document_example, make_conversation_widget_projection_example; render_width=1200, render_height=700)
 const conversation_editor_example = Example("conversation_editor", make_conversation_editor_document_example, make_conversation_editor_projection_example; render_width=1200, render_height=400)
-const dbcatalog_example      = Example("dbcatalog",      make_dbcatalog_document_example,      make_dbcatalog_projection_example)
-const dvdrental_catalog_example = Example("dvdrental_catalog", make_dvdrental_catalog_document_example, make_dbcatalog_projection_example)
-const dbcatalog_widget_example  = Example("dbcatalog_widget",  make_dbcatalog_document_example,  make_dbcatalog_widget_projection_example)
-const dvdrental_catalog_widget_example = Example("dvdrental_catalog_widget", make_dvdrental_catalog_document_example, make_dbcatalog_widget_projection_example)
-# `dvdrental_object_example` projects the live dvdrental catalog through the
-# generic reflective `ObjectToSyntax` (→ Text → Graphics) instead of the
-# collapsible `DbCatalogToSyntax`, so the whole `databases → schemas → tables →
-# columns` tree is *fully walked* (every per-table column query is forced and
-# rendered, no collapse markers). It is deliberately kept OUT of the `examples`
-# registry below — `ObjectToSyntax` forces a column query for every table, so the
-# enumeration-based test sweeps would hammer the live database. Use it directly:
-# `run_example(dvdrental_object_example)`.
-const dvdrental_object_example = Example("dvdrental_object", make_dvdrental_catalog_document_example, make_dvdrental_object_projection_example)
-# `dvdrental_object_json_example` is the JSON flavour of `dvdrental_object_example`:
-# the same fully-walked catalog tree, but reflected through the generic
-# `ObjectToJson` (→ JsonToSyntax → Text → Graphics) instead of `ObjectToSyntax`,
-# producing the LLM-oriented JSON view. Kept OUT of the `examples` registry for the
-# same reason — it forces a column query for every table, so the enumeration-based
-# test sweeps would hammer the live database. Use it directly:
-# `run_example(dvdrental_object_json_example)`.
-const dvdrental_object_json_example = Example("dvdrental_object_json", make_dvdrental_catalog_document_example, make_dvdrental_object_json_projection_example)
-# `dvdrental_catalog_json_example` uses the bespoke, domain-idiomatic `DbCatalogToJson`
-# instead of the generic `ObjectToJson`. It renders the catalog as nested JSON of
-# just the meaningful fields + children (no `"type"`/noise entries) and, like its
-# siblings, **fully walks** the tree — every per-table column query is forced. Kept
-# OUT of the `examples` registry (it hammers the live database); run directly:
-# `run_example(dvdrental_catalog_json_example)`.
-const dvdrental_catalog_json_example = Example("dvdrental_catalog_json", make_dvdrental_catalog_document_example, make_dvdrental_catalog_json_projection_example)
-# `dvdrental_relationship_example` is the entity-relationship diagram: one
-# `WidgetCard` node per catalog table (table name + a `Column | Type` table) laid
-# out by the native AdaptagramsEngine, with directed edges drawn from the live
-# foreign-key constraints. Kept OUT of the `examples` registry below — it needs a
-# live dvdrental DB *and* the built ProjecturedAdaptagrams native shim (like the
-# other `dvdrental_*` examples). Build the shim once
-# (`using Pkg; Pkg.build("ProjecturedAdaptagrams")`), then run directly:
-# `run_example(dvdrental_relationship_example)` /
-# `write_example_image(dvdrental_relationship_example, "dvdrental_relationship.png")`.
-const dvdrental_relationship_example = Example("dvdrental_relationship",
-    make_dvdrental_relationship_graph_document_example,
-    make_dvdrental_relationship_projection_example)
+# The live-database (ODBC) catalog/object/sql_table examples and the native
+# AdaptagramsEngine graph examples (graph_adaptagrams, dvdrental_relationship) live
+# in the opt-in `ProjecturedExtrasExample` package, so this base package depends on
+# neither a database driver nor the native shim.
 const sql_syntax_example     = Example("sql_syntax",     make_sql_document_example,            make_sql_syntax_projection_example)
 const sql_insert_syntax_example = Example("sql_insert_syntax", make_sql_insert_document_example, make_sql_insert_syntax_projection_example)
 const sql_update_syntax_example = Example("sql_update_syntax", make_sql_update_document_example, make_sql_update_syntax_projection_example)
 const sql_nested_syntax_example = Example("sql_nested_syntax", make_sql_nested_document_example, make_sql_nested_syntax_projection_example)
-const sql_table_example      = Example("sql_table",      make_sql_document_example,            make_sql_table_projection_example)
 const dragging_example       = Example("dragging",        make_dragging_document_example,       make_dragging_projection_example)
 # `clipboard_example` is deliberately kept OUT of the `examples` registry below
 # (like `lazy_example`). The internal clipboard is stateful: its document is a
@@ -191,7 +153,7 @@ const examples = [
     widget_toggle_example, widget_toggle_group_example, widget_select_example,
     widget_textarea_example, widget_accordion_example, widget_table_example, widget_tree_example,
     layout_example, book_example, filesystem_example, filesystem_widget_example, navigator_example,
-    collection_example, reversing_example, filtering_example, searching_example, sorting_example, focusing_example, table_example, math_table_example, graph_example, graph_adaptagrams_example, workbench_example,
+    collection_example, reversing_example, filtering_example, searching_example, sorting_example, focusing_example, table_example, math_table_example, graph_example, workbench_example,
     math_example,
     julia_example,
     formula_example,
@@ -201,15 +163,10 @@ const examples = [
     conversation_example,
     conversation_widget_example,
     conversation_editor_example,
-    dbcatalog_example,
-    dvdrental_catalog_example,
-    dbcatalog_widget_example,
-    dvdrental_catalog_widget_example,
     sql_syntax_example,
     sql_insert_syntax_example,
     sql_update_syntax_example,
     sql_nested_syntax_example,
-    sql_table_example,
     dragging_example,
 ]
 

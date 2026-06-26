@@ -32,31 +32,7 @@ function make_graph_projection_example(; measure=truetype_measure_text,
     NestingProjection(graph_stages; recursion=content)
 end
 
-# The same graph, laid out by the native AdaptagramsEngine (libcola placement +
-# libavoid obstacle-avoiding routing) instead of the pure-Julia grid fallback —
-# a side-by-side demonstration that the engine is a swappable seam. Requires the
-# ProjecturedAdaptagrams native shim to be built
-# (`using Pkg; Pkg.build("ProjecturedAdaptagrams")`); otherwise it errors at
-# print time with build guidance. Building the projection is cheap and engine-
-# free — the native call happens lazily when the projection is printed.
-function make_graph_adaptagrams_projection_example(; measure=truetype_measure_text)
-    make_graph_projection_example(; measure=measure, engine=AdaptagramsEngine())
-end
-
-# The dvdrental entity-relationship diagram: the relationship `GraphGraph` (one
-# `WidgetCard` per table) laid out by the native AdaptagramsEngine. The content
-# dispatcher routes a vertex's `WidgetCard` content through
-# `make_table_projection_example`, which already dispatches `WidgetCard` (title +
-# nested column `WidgetTable`), `WidgetTable`, `WidgetLabel`, and the layout types
-# down to a `GraphicsCanvas` — so no new primitive projection is needed. Pair with
-# `make_dvdrental_relationship_graph_document_example`; requires the
-# ProjecturedAdaptagrams native shim to be built (see above).
-function make_dvdrental_relationship_projection_example(; measure=truetype_measure_text)
-    content = TypeDispatchingProjection(
-        WidgetCard  => make_table_projection_example(measure=measure),
-        WidgetTable => make_table_projection_example(measure=measure),
-        Any         => make_mixed_projection_example(measure=measure),
-    )
-    make_graph_projection_example(; measure=measure,
-                                  engine=AdaptagramsEngine(), content=content)
-end
+# The native AdaptagramsEngine graph projections (graph_adaptagrams,
+# dvdrental_relationship) live in the opt-in `ProjecturedExtrasExample` package so
+# the base example package does not depend on the native ProjecturedAdaptagrams
+# shim. They reuse `make_graph_projection_example` with the engine swapped in.
