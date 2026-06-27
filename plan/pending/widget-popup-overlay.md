@@ -421,18 +421,48 @@ exercised once Step 6 wires the window-route example projection.
 `Esc` and backdrop-click close; a button action closes and fires; while modal, an
 envelope targeting the base window is dropped (does not reach base widgets).
 
-## Step 6 — Example, sweep, docs
+## Step 6 — Example, window route, docs ✅ Done
 
-- A `widget_popup` example: a select + a "menu" button + a "show dialog" button
-  in a `VerticalLayout`, with one popup pre-opened (an extra `WindowDocument` in
-  the example's `ScreenDocument`) so the popup renders in the sweep/screenshot.
-  Register + export + add to the `examples` list (as for `widget_disabled` /
-  `widget_focus`).
-- Document the popup model in
-  [documentation/document/widget.md](../../documentation/document/widget.md): the
-  window route (popups are `WindowDocument`s via `OpenWindowOperation`), the
-  dismissal events (`WindowCloseRequest` / `WindowFocusLost` → `CloseWindowOperation`),
-  the `auto_dismiss` / `modal` flags, and how this relates to the tooltip float.
+**The hidden architecture (discovered here).** Steps 3c/4b/4c/4d tested the
+resolver only *without* a screen wrapper, so the captured anchor was empty /
+content-relative and resolved trivially. Through the real
+`WindowManager → ScreenToScreen` route the anchor becomes **screen-rooted**
+(`windows[i].content.children[k]`), and nothing yet forward-mapped a *coordinate
+image* through the window layers (`HoverProbe` sidesteps it by using the raw
+backend mouse position). So Step 6's real work was an architecture piece, not just
+wiring (chosen with the user: **extend `ScreenToScreen`**).
+
+- ✅ **Kernel — `ScreenToScreen` carries coordinate images.** `_map_window` shifts
+  a `PointReference` result by the window's screen `(x, y)` (instead of wrapping it
+  as `content.<path>`); `_map_screen` passes a `PointReference` straight up. Paths
+  still re-root as before — *coordinates accumulate, paths stay paths*. This is the
+  general fix: any windowed widget anchor (shell → layout → window) now resolves to
+  an absolute screen point.
+- ✅ **Window-route example projection** (`make_widget_popup_projection_example`):
+  `WindowManagerProjection(inner = WidgetPopupResolverProjection(inner =
+  ScreenToScreen()))` — the resolver sits **between** the manager and the screen so
+  its resolved `OpenWindowOperation` still bubbles up to `WindowManager` to open the
+  window. Each window's content renders through the standard widget projection
+  (`_is_window_content` ref-dispatch).
+- ✅ **Example document** (`make_widget_popup_document_example`): a `ScreenDocument`
+  with a main window (horizontal menu bar + select + right-click `WidgetContextMenu`
+  target) and a pre-opened floating popup window.
+- ✅ **Registration deviation (deliberate):** `widget_popup_example` is an exported
+  const but **not** added to the flat `examples` list. Screen/window-route examples
+  (the inspector, tooltip multi-window) live *outside* that list by convention, and
+  the reader sweep would feed raw non-`EventEnvelope` events to a `ScreenDocument`
+  root. The dedicated test covers it instead.
+- ✅ **End-to-end test** (`WidgetPopupExampleTest.jl`, 8 assertions): the screen
+  renders with its pre-opened popup; a click on the main window's select (an
+  `EventEnvelope` through the whole stack) opens a real `:widget_popup`
+  `WindowDocument` at the trigger's absolute screen position with the option-list
+  content. Screen-route regressions clean (`test_tooltip`, window-ops,
+  `test_anchor_point`, `test_hover_probe_pipeline`).
+- ✅ **Docs**: popup window route documented in
+  [documentation/document/widget.md](../../documentation/document/widget.md)
+  ("Popups (the window route)"): trigger → `OpenPopupOperation`, the resolver →
+  `OpenWindowOperation`, dismissal events, `auto_dismiss`, and the
+  coordinates-accumulate anchor resolution across windows.
 
 ---
 
@@ -501,7 +531,13 @@ envelope targeting the base window is dropped (does not reach base widgets).
       example projection (WindowManager + `WidgetPopupResolver`).
 - [ ] Step 5 — `WidgetDialog` modal (backdrop window + centered card + buttons,
       modality enforced by WindowManager) + MessageBox/InputDialog
-- [ ] Step 6 — `widget_popup` example, sweep, docs
+- [x] Step 6 — window route end-to-end + example + docs. Extended `ScreenToScreen`
+      to forward-map coordinate images (shift a `PointReference` by the window's
+      screen origin), placed `WidgetPopupResolver` between `WindowManager` and
+      `ScreenToScreen`, added `make_widget_popup_*_example` + `WidgetPopupExampleTest`
+      (8/8, real popup window opens at the trigger's screen position), documented the
+      route in `widget.md`. `widget_popup_example` is an exported const kept out of
+      the flat `examples` sweep (screen-route examples live outside it by convention).
 
 ## Relationship to other plans
 

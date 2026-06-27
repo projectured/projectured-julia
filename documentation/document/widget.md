@@ -268,6 +268,42 @@ the `MousePress` / `MouseScroll` they already routed. (Wiring the remaining
 containers — toolbar, shell, split pane — is follow-up; the composite covers the
 current examples.)
 
+## Popups (the window route)
+
+Dropdowns, click-menus, submenus, and context menus all open as **real
+`WindowDocument`s** through the same `WindowManager` route the tooltip uses —
+there is no separate in-window overlay layer. The flow:
+
+1. A **trigger** (`WidgetSelect`, a submenu-opener `WidgetMenuItem`, a
+   `WidgetContextMenu`) captures its own document path from `ctx.reference` at
+   print time and, on the opening gesture, emits an
+   **`OpenPopupOperation(anchor, dx, dy, content, auto_dismiss)`** — the *anchor*
+   names the widget to open under (or at, for a context menu) and `(dx, dy)` is a
+   trigger-baked offset (the trigger bakes its own size in, so "below the box" is
+   `(0, box_height + gap)` and a context menu uses the local click coordinates).
+   The trigger never computes its own absolute position.
+2. A **`WidgetPopupResolverProjection`** sits at the content root (for a windowed
+   app, *between* `WindowManagerProjection` and `ScreenToScreen`). It intercepts
+   the `OpenPopupOperation`, forward-maps the anchor to absolute coordinates via
+   `anchor_point` (which rides `map_reference_forward`), adds the offset, and
+   emits an **`OpenWindowOperation`**. That bubbles up to `WindowManager`, which
+   opens the popup window (`style = :floating`).
+3. **Dismissal** is a window-level event: the popup window's
+   `WindowCloseRequest` (Esc / close) or `WindowFocusLost` (outside-click) becomes
+   a `CloseWindowOperation`. The `auto_dismiss` flag gates focus-lost so only
+   popups (never the main window) self-close. An option/menu-item click writes its
+   value **and** closes the popup in one `CompoundOperation`.
+
+**Anchor resolution across windows.** A widget's forward image is a
+`PointReference` (its top-left in the output canvas frame), not a structural
+path. Containers shift that point by where they placed the child (a layout by the
+child's offset, `WidgetShell` by its band offset, and `ScreenToScreen` by the
+window's screen origin), while structural paths pass through unchanged —
+*coordinates accumulate, paths stay paths*. This is what lets a menu-bar entry or
+a select buried inside `shell → layout → window` resolve to an absolute screen
+position so its popup opens in the right place. See `make_widget_popup_*_example`
+and `WidgetPopupExampleTest` for the end-to-end wiring.
+
 ## Image content
 
 A leaf widget's `content` is polymorphic: besides a string (or, for some

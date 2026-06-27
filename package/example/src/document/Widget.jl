@@ -266,6 +266,35 @@ function make_widget_shell_document_example(; width=600, height=400)
                 size=Point2D(width, height))
 end
 
+# WidgetPopup — a screen of interactive popup-opening widgets (Stage 3 Step 6).
+# The main window holds a horizontal menu bar, a select dropdown, and a right-click
+# context-menu target; a pre-opened floating popup window shows an open menu so the
+# window route renders in a static sweep. Project it with the screen-route
+# make_widget_popup_projection_example (WindowManager + WidgetPopupResolver +
+# ScreenToScreen), which turns a trigger's OpenPopupOperation into a real popup
+# window anchored at the trigger's screen position.
+function make_widget_popup_document_example(; width=520, height=360)
+    select = WidgetSelect(Point2D(0, 0), "Apple";
+                          options=["Apple", "Banana", "Cherry"], width=200)
+    menu_bar = WidgetMenu([
+        WidgetMenuItem("File"; submenu=WidgetMenu([WidgetMenuItem("New"), WidgetMenuItem("Open")])),
+        WidgetMenuItem("Edit"; submenu=WidgetMenu([WidgetMenuItem("Undo"), WidgetMenuItem("Redo")])),
+    ]; orientation=:horizontal)
+    target = WidgetContextMenu(
+        WidgetLabel(Point2D(0, 0), "right-click for a context menu"),
+        WidgetMenu([WidgetMenuItem("Cut"), WidgetMenuItem("Copy"), WidgetMenuItem("Paste")]))
+    content = VerticalLayout(Any[menu_bar, select, target]; gap=20, horizontal_align=:left)
+
+    main = WindowDocument(; id=:widget_popup_main, title="Widget popup",
+                          x=0, y=0, width=width, height=height, content=content)
+    # A pre-opened floating popup so a static sweep/screenshot shows the window route.
+    popup_menu = WidgetMenu([WidgetMenuItem("New"), WidgetMenuItem("Open"), WidgetMenuItem("Save")])
+    popup = WindowDocument(; id=:widget_popup, title="", x=24, y=130,
+                           width=160, height=120, style=:floating, auto_dismiss=true,
+                           content=popup_menu)
+    ScreenDocument([main, popup])
+end
+
 # WidgetTabbedPane — a tabbed container with three tabs.
 function make_widget_tabbed_pane_document_example(; width=600, height=400)
     tab_alpha = WidgetLabel(Point2D(16, 16), "Content A")

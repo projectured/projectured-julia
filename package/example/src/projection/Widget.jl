@@ -19,6 +19,45 @@ function make_widget_projection_example(; measure=truetype_measure_text)
     )
 end
 
+# Window-route projection for the widget popup example (Stage 3 Step 6). Composites
+# the `ScreenDocument` through `WindowManager` + `ScreenToScreen`, with a
+# `WidgetPopupResolverProjection` between them: a trigger's `OpenPopupOperation`
+# bubbles up out of the window content; the resolver forward-maps its (screen-rooted)
+# anchor to absolute screen coordinates via ScreenToScreen's coordinate-image
+# forwarding, adds the trigger-baked offset, and emits an `OpenWindowOperation` that
+# `WindowManager` turns into a real popup window. Each window's content renders
+# through the standard widget projection.
+function make_widget_popup_projection_example(; measure=truetype_measure_text)
+    widget_proj = make_widget_projection_example(; measure=measure)
+    ref_dispatch = ReferenceDispatchingProjection(ref -> begin
+        _is_window_content(ref) &&
+            return NestingProjection(widget_proj; recursion=PreservingProjection())
+        ref isa EmptyReferencePath &&
+            return WindowManagerProjection(
+                inner = WidgetPopupResolverProjection(inner = ScreenToScreen()))
+        return PreservingProjection()
+    end)
+    RecursiveProjection(
+        TypeDispatchingProjection(
+            WindowDocument => ScreenToScreen(),
+            Any            => ref_dispatch,
+        ))
+end
+
+# True iff `ref` addresses a window's whole content: `windows[i].content`.
+function _is_window_content(ref)
+    ref isa ConcreteReferencePath || return false
+    h = ref.head
+    (h isa FieldReference && h.name == "windows") || return false
+    r1 = ref.tail
+    r1 isa ConcreteReferencePath || return false
+    r1.head isa RangeReference || return false
+    r2 = r1.tail
+    r2 isa ConcreteReferencePath || return false
+    (r2.head isa FieldReference && r2.head.name == "content") || return false
+    r2.tail isa EmptyReferencePath
+end
+
 # The editable-text widget projection. A WidgetText whose content is a TextText
 # recurses that content through the Text domain, so the combined renderer must
 # also dispatch TextText through TextToGraphics. All caret navigation / text

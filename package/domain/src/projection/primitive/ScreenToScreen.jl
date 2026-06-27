@@ -26,7 +26,7 @@ import ..ReactiveModule: Cell
 import ..ScreenDocumentModule: ScreenDocument, WindowDocument, EventEnvelope
 import ..CollectionModule: CellVector
 import ..ReferenceModule: ReferencePath, ConcreteReferencePath, EmptyReferencePath,
-                          FieldReference, RangeReference, ElementReference, head, tail
+                          FieldReference, RangeReference, ElementReference, PointReference, head, tail
 import ..PrinterContextModule: PrinterContext, child_context, with_available_size
 import ..IoMapApiModule: IoMap
 import ..OperationModule: ReplaceSelectionOperation, ReplaceReferencedValue, CompoundOperation
@@ -101,7 +101,12 @@ end
 
 # ── Reference mapping (order- and structure-preserving) ───────────────────────
 
+_wval(v) = Int(v isa Cell ? v[] : v)
+
 # Screen level: peel `windows` + `[i]`, delegate the tail to window `i`'s iomap.
+# A coordinate image (`PointReference`) from the window — already in screen space
+# (the window shifted it by its origin) — passes straight up; a structural path is
+# re-rooted at `windows[i]` (coordinates accumulate, paths stay paths).
 function _map_screen(fn, iomap::ScreenToScreenIoMap, reference)
     reference isa ConcreteReferencePath || return reference
     h = head(reference)
@@ -116,10 +121,14 @@ function _map_screen(fn, iomap::ScreenToScreenIoMap, reference)
     wim = ims[i]
     mapped = fn(wim.projection, wim, tail(rest1))
     mapped === nothing && return nothing
+    mapped isa PointReference && return mapped
     ConcreteReferencePath(FieldReference("windows"), ConcreteReferencePath(elem, mapped))
 end
 
-# Window level: peel `content`, delegate the tail to the content iomap.
+# Window level: peel `content`, delegate the tail to the content iomap. A
+# coordinate image (`PointReference`, the forward image of a positioned widget in
+# the content's frame) is shifted by this window's screen origin so the popup
+# resolver lands in screen space; a structural path is re-rooted at `content`.
 function _map_window(fn, iomap::ScreenWindowIoMap, reference)
     reference isa ConcreteReferencePath || return reference
     h = head(reference)
@@ -127,6 +136,10 @@ function _map_window(fn, iomap::ScreenWindowIoMap, reference)
     cim = iomap.content_iomap
     mapped = fn(cim.projection, cim, tail(reference))
     mapped === nothing && return nothing
+    if mapped isa PointReference
+        return PointReference(_wval(getfield(iomap.input, :x)) + Int(mapped.x[]),
+                              _wval(getfield(iomap.input, :y)) + Int(mapped.y[]))
+    end
     ConcreteReferencePath(FieldReference("content"), mapped)
 end
 

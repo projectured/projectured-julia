@@ -72,6 +72,7 @@ const widget_table_example       = Example("widget_table",       make_widget_tab
 const widget_tree_example        = Example("widget_tree",        make_widget_tree_document_example,        make_widget_projection_example)
 const widget_disabled_example    = Example("widget_disabled",    make_widget_disabled_document_example,    make_widget_projection_example)
 const widget_focus_example       = Example("widget_focus",       make_widget_focus_document_example,       make_widget_projection_example)
+const widget_popup_example       = Example("widget_popup",       make_widget_popup_document_example,       make_widget_popup_projection_example)
 const layout_example         = Example("layout",         make_layout_document_example,         make_layout_projection_example)
 const constraint_layout_example = Example("constraint_layout", make_constraint_layout_document_example, make_constraint_layout_projection_example)
 const book_example           = Example("book",           make_book_document_example,           make_book_projection_example)
