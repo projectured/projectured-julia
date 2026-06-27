@@ -304,6 +304,54 @@ data and can be a document that is projected and edited like anything else
 "everything is a projected document" story intact: the spec is editable data,
 the playback is a derived value.
 
+### 7. Arming an animation on a state change (interactive widgets)
+
+Examples A and B *self-start* — they capture `t0` at construction. The other
+big class is animation **triggered by an edit**: a toggle whose knob should
+*slide* when its bool flips, an accordion that expands when `collapsed` flips.
+Here `t0` and the start position must be captured at the moment of the change —
+which cannot be a thunk side effect (purity). The home for that is the
+operation/evaluate path, and the clean shape is a **`CompoundOperation`**:
+
+> The control's reader emits a compound of *[arm, …, logical edit]*. The arm
+> members record the animation's start parameters; the last member is the
+> ordinary domain edit (flip the bool). `evaluate_operation` runs the members in
+> order ([Operation.jl](../../package/kernel/src/common/Operation.jl)), and the
+> projection layer already maps a compound's members back through readers
+> recursively ([Projection.jl](../../package/kernel/src/common/Projection.jl)),
+> so bundling presentation arming with a domain edit is a first-class pattern.
+
+Two ways to carry the arm:
+
+- **Install a thunk into a presentation cell** (the original idea): a new
+  operation type that, at eval time, `peek`s the cell's current value and
+  `setfn!`s an interpolation thunk. Most faithful when the presentation has a
+  persistent cell distinct from the logical state.
+- **Write start parameters onto the widget** (what the `WidgetSwitch`
+  implementation does): the slide's `from`/`t0` are *sampled in the reader*
+  (`editor_time()` plus the knob's current fraction) and written via ordinary
+  `ReplaceReferencedValue`s carried on the widget; the printer's knob-position
+  cell reads those fields plus `reactive_editor_time()`. No new operation type
+  is needed, because reader-time and eval-time are the same frame. This fits a
+  re-print projection where the presentation has no separate persistent cell.
+
+**Opt-in via a `duration` field on the widget.** The animation is controlled by
+a `duration` field (milliseconds) on the widget itself: `duration > 0` arms the
+slide, `duration = 0` (the default) snaps — so animation is opt-in per instance
+and the existing behaviour is unchanged. The knob-position cell uses the
+subscribe/sample split for free settling: while `now < t0 + duration` it reads
+`reactive_editor_time()` (re-runs each frame); once past the end it only
+`editor_time()`-samples and holds the final value, dropping the time
+subscription — settling with no registry (§5).
+
+**No-jump on interrupt** falls out: arming samples the knob's *current* eased
+fraction, so toggling mid-slide resumes from where the knob visually is.
+
+This is implemented for `WidgetSwitch`
+([WidgetToGraphics.jl](../../package/domain/src/projection/primitive/WidgetToGraphics.jl),
+[Widget.jl](../../package/domain/src/document/Widget.jl)); the same shape covers
+the other finite widgets in the palette below.
+
 ---
 
 ## Worked example A — a value that settles (`x: 10 → 100`)
@@ -439,7 +487,7 @@ fire on a state change. All the widget types below already exist in
 
 | Widget | Animation | Interpolates | Kind | Trigger |
 |---|---|---|---|---|
-| `WidgetSwitch` | knob slides across the track + track colour crossfades | knob `cx` + colour | finite | state change (`checked` flips) |
+| `WidgetSwitch` ✅ *(implemented)* | knob slides across the track | knob `cx` | finite | state change (`checked` flips) |
 | `WidgetCard` / `WidgetAccordion` | height expand / collapse | height | finite | state change (`collapsed` flips) |
 | `WidgetSelect` | dropdown slides down + fades in on open, reverses on close | height + opacity | finite | state change (open / close) |
 | `WidgetButton` | press feedback (brief scale / ripple), focus-ring fade | scale / opacity | finite | gesture (press, focus) |
@@ -454,11 +502,9 @@ Cross-cutting notes:
   indeterminate `WidgetProgress` sweep self-start, exactly like the rotating
   vector — no `t0` to capture, no new machinery. They are the natural first
   widget examples to ship, the widget-domain counterpart to example B.
-- **The finite, state-change ones wait on the arming decision.** A switch knob
-  should slide *from* its current position *to* the new one when `checked` flips,
-  which means capturing `t0` and the from/to at the moment of the change — and
-  that cannot be a thunk side effect. Until "Arming on state change" is settled,
-  these stay sketches.
+- **The finite, state-change ones are armed by a compound operation** (§7). The
+  `WidgetSwitch` slide is implemented; the rest of the finite widgets follow the
+  same shape (reader emits *[arm, …, edit]*, gated by a `duration` field).
 - **`lerp` per type is on the critical path.** The switch alone needs both a
   numeric ease (knob position) and a colour ease (track), so the
   interpolation-typeclass open question must be answered before the first finite
@@ -567,12 +613,11 @@ Cross-cutting notes:
   stateful — decide how that state is owned without violating thunk purity
   (likely a primitive cell holding the buffer, written by an external sampler in
   the loop, exactly like `EDITOR_TIME` itself).
-- **Arming on state change.** Self-starting animations (examples A, B) capture
-  `t0` at construction. Animations triggered by an edit (a toggle sliding when
-  its bool flips) need to arm `t0` at the moment the state changes — which can't
-  be a thunk side effect. The natural home is the loop (an untracked per-frame
-  comparison of the watched value, rewiring the presentation cell on change) or
-  the operation/evaluate path. Worth a worked widget example before committing.
+- **Arming on state change — resolved (§7).** Triggered animations are armed by
+  a `CompoundOperation` of *[arm, …, edit]*, gated by a `duration` field on the
+  widget; `WidgetSwitch` implements it. Remaining sub-question: whether to keep
+  the per-widget "write start params onto the widget" form or introduce a generic
+  thunk-installing operation for widgets that have a persistent presentation cell.
 - **Spec as a document.** Modelling keyframes/curves as an editable document (a
   timeline editor projection) is attractive but a separate, larger effort; v1
   can hardcode animation specs in projection code.
