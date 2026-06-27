@@ -86,6 +86,7 @@ include(joinpath(_EXAMPLE_DIR, "projection", "Clipboard.jl"))
 include(joinpath(_EXAMPLE_DIR, "projection", "Versioning.jl"))
 include(joinpath(_EXAMPLE_DIR, "projection", "Dragging.jl"))
 
+include(joinpath(_EXAMPLE_DIR, "RotatingVector.jl"))
 include(joinpath(_EXAMPLE_DIR, "Examples.jl"))
 include(joinpath(_EXAMPLE_DIR, "LiveExamples.jl"))
 
@@ -189,6 +190,8 @@ export lazy_example, lazy_bidirectional_example
 export math_example
 export julia_example
 export graphics_image_example
+export rotating_vector_example
+export make_rotating_vector_document, make_rotating_vector_projection
 export primitive_string_example
 export assistant_example
 export conversation_example

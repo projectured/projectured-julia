@@ -30,6 +30,7 @@ on next read.
 module ReactiveModule
 
 export Cell, setval!, setfn!, isuptodate, perf_counters, perf_reset!, perf_record!, @perf_time
+export EDITOR_TIME, editor_time, reactive_editor_time, tick!
 
 """
     Cell
@@ -223,6 +224,43 @@ end
 """Return `true` if the cached value is up to date."""
 isuptodate(c::Cell) = c.valid
 isuptodate(cs::Vector{Cell}) = all(c -> c.valid, cs)
+
+# ── editor time (the animation clock) ──────────────────────────────────────
+# A single global, primitive cell holding the current logical time in seconds.
+# The editor's main loop writes it once per frame via `tick!`; because writes
+# invalidate dependents (write-driven propagation), any computed cell that read
+# the time is re-evaluated on the next pull — which is all animation needs.
+#
+# Two ways to read it, named so intent is obvious:
+#   • `reactive_editor_time()` — SUBSCRIBE. A tracked read; the calling cell
+#     becomes a dependent and re-runs every frame. Use inside an animated thunk.
+#     The `reactive_` prefix is the loud one: calling it makes you reactive.
+#   • `editor_time()` — SAMPLE. An untracked read (`peek`) that registers no
+#     dependency. Use to *arm* an animation (capture a start instant) without
+#     the arming code itself re-running every frame.
+const EDITOR_TIME = Cell(0.0)
+
+"""
+    peek(c::Cell)
+
+Read a cell's value **without** registering a dependency (an untracked read).
+Unlike `c[]`, calling this inside a computed thunk does not make the thunk a
+dependent of `c`. A generic reactive primitive (cf. Solid's `untrack`, MobX's
+`untracked`), used here to *sample* `EDITOR_TIME` rather than subscribe to it.
+"""
+function Base.peek(c::Cell)
+    c.valid || recompute!(c)
+    return c.value
+end
+
+"""Tracked read of the editor time — subscribe (re-run every frame)."""
+reactive_editor_time() = EDITOR_TIME[]
+
+"""Untracked read of the editor time — sample (no dependency)."""
+editor_time() = peek(EDITOR_TIME)
+
+"""Write the current logical time, invalidating everything that subscribed."""
+tick!(t::Real) = (EDITOR_TIME[] = Float64(t); nothing)
 
 # ── helpers ──────────────────────────────────────────────────────────────
 

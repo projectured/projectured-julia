@@ -141,6 +141,8 @@ const formula_example        = Example("formula",         make_formula_document_
 # `run_example(versioning_example)`.
 const versioning_example     = Example("versioning",      make_versioning_document_example,     make_versioning_projection_example)
 
+const rotating_vector_example = Example("rotating_vector", make_rotating_vector_document, make_rotating_vector_projection)
+
 const examples = [
     json_example, json_sorted_example, json_null_example, json_string_example, json_widget_example,
     xml_example, xml_widget_example, mixed_example, syntax_example, text_example, plain_text_example, text_with_image_example,
@@ -165,6 +167,7 @@ const examples = [
     julia_example,
     formula_example,
     graphics_image_example,
+    rotating_vector_example,
     primitive_string_example,
     assistant_example,
     conversation_example,

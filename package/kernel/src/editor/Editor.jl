@@ -15,7 +15,7 @@ import ..DeviceModule: Device, read_from_devices, write_to_devices
 import ..BackendModule: Backend, init!, quit!
 import ..ScreenModule: Screen, QuitEvent
 import ..ScreenDocumentModule: EventEnvelope
-import ..ReactiveModule: perf_counters, perf_reset!, @perf_time
+import ..ReactiveModule: perf_counters, perf_reset!, @perf_time, tick!
 import ..DocumentModule: Document
 import ..KeyboardModule: Keyboard, KeyDown
 import ..MouseModule: Mouse
@@ -205,9 +205,15 @@ function run!(editor::Editor; mcp::Bool=false,
         nothing
     end
     server === nothing || agent_server_start!(server)
+    # Advance the global animation clock once per frame. `tick!` writes
+    # EDITOR_TIME, so any computed cell that subscribed via
+    # `reactive_editor_time()` is invalidated and re-evaluated on the next pull.
+    # Logical time is wall-clock seconds since the loop started.
+    t_start = Base.time()
     try
         while true
             perf_reset!()
+            tick!(Base.time() - t_start)
             @perf_time :read_time     read!(editor)
             @perf_time :evaluate_time evaluate!(editor)
             @perf_time :print_time    print!(editor)
