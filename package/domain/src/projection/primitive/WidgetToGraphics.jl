@@ -865,15 +865,23 @@ end
 # (ObjectToWidget) intercepts it by control identity and redirects it onto the
 # bound parameter cell. A bare click that does not reach here leaves the value
 # unchanged.
+_checkbox_toggle(w) = ReplaceReferencedValue(w,
+    ConcreteReferencePath(FieldReference("content"), EmptyReferencePath()), !(w.content === true))
+
 function projection_read(::WidgetCheckboxToGraphicsCanvas, iomap::SimpleIoMap, evt::MousePress)
     w = iomap.input
     w.enabled === false && return nothing   # a disabled checkbox swallows the click
-    new_value = !(w.content === true)
-    ReplaceReferencedValue(w, ConcreteReferencePath(FieldReference("content"), EmptyReferencePath()), new_value)
+    _checkbox_toggle(w)
 end
 
+# Enter / Space toggle the focused checkbox (the keystroke reaches it via the
+# selection-driven routing). Tab is left to fall through (nothing) so focus
+# traversal can claim it.
 function projection_read(::WidgetCheckboxToGraphicsCanvas, iomap::SimpleIoMap, evt)
-    return nothing
+    w = iomap.input
+    (evt isa KeyDown && (evt.key === :return || evt.key === :space)) || return nothing
+    w.enabled === false && return nothing
+    _checkbox_toggle(w)
 end
 
 # ── WidgetButton ────────────────────────────────────────────────────────────
@@ -943,6 +951,10 @@ function projection_read(::WidgetButtonToGraphicsCanvas, iomap::SimpleIoMap, evt
         # off the button when dragged away).
         MouseLeave               => CompoundOperation(Any[ReplaceReferencedValue(w, "hovered", false),
                                                           ReplaceReferencedValue(w, "pressed", false)])
+        # Enter / Space activate the focused button (key reaches it via selection
+        # routing). `:tab` is intentionally not matched, so it falls through to
+        # `nothing` and focus traversal can claim it.
+        when(KeyDown(k), k === :return || k === :space) => InvokeWidgetActionOperation(w)
         _ => nothing
     end
 end

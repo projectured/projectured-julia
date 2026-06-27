@@ -330,6 +330,11 @@ focused iff `getfield(w,:selection)[] !== nothing` (background fact 3).
       currently lets Tab fall through to the top-level wrap). *Not executed — Julia
       unavailable in sandbox; this selection/reference behaviour especially needs
       REPL verification, and the module extraction is load-time-sensitive.*
-- [ ] Step 4 — Enter/Space activation on focused Button/Checkbox
+- [x] Step 4 — Enter/Space activation on the focused Button/Checkbox: the button
+      reader maps `KeyDown(:return)`/`:space` to `InvokeWidgetActionOperation`; the
+      checkbox catch-all toggles on the same keys (factored into `_checkbox_toggle`).
+      `:tab` is deliberately not matched, so traversal still claims it. Both stay
+      behind the Stage-1 `enabled` guard. Tests cover activate + disabled-inert.
+      *Not executed — Julia unavailable in sandbox.*
 - [ ] Step 5 — focus ring (`theme.ring`) on the selected widget
 - [ ] Step 6 — `widget_focus` example, Tab-walk test, un-skip syntax-to-widget

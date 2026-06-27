@@ -240,6 +240,28 @@ end
     end
 end
 
+# Stage 2, Step 4: Enter/Space activate the focused button/checkbox (the keystroke
+# reaches the focused leaf via selection routing). Disabled leaves stay inert.
+@testset "Enter/Space activate the focused button and checkbox" begin
+    proj = _proj()
+    btn = WidgetButton(Point2D(0, 0), Point2D(80, 30), "Go"; action = (_e) -> nothing)
+    biomap = projection_print(proj, nothing, btn, PrinterContext())
+    @test projection_read(proj, biomap, KeyDown(:return, Modifiers())) isa InvokeWidgetActionOperation
+    @test projection_read(proj, biomap, KeyDown(:space,  Modifiers())) isa InvokeWidgetActionOperation
+    dbtn = WidgetButton(Point2D(0, 0), Point2D(80, 30), "Go"; action = (_e) -> nothing, enabled = false)
+    @test projection_read(proj, projection_print(proj, nothing, dbtn, PrinterContext()),
+                          KeyDown(:return, Modifiers())) === nothing
+
+    cb = WidgetCheckbox(Point2D(0, 0), false)
+    ciomap = projection_print(proj, nothing, cb, PrinterContext())
+    op = projection_read(proj, ciomap, KeyDown(:space, Modifiers()))
+    @test op isa ReplaceReferencedValue && op.value == true
+    @test projection_read(proj, ciomap, KeyDown(:return, Modifiers())) isa ReplaceReferencedValue
+    dcb = WidgetCheckbox(Point2D(0, 0), false; enabled = false)
+    @test projection_read(proj, projection_print(proj, nothing, dcb, PrinterContext()),
+                          KeyDown(:space, Modifiers())) === nothing
+end
+
 # Stage 2, Step 2: first/last_focusable_path locate enabled interactive leaves as
 # relative ∅ paths, skipping disabled ones, and recurse through containers.
 @testset "first/last_focusable_path find enabled leaves and skip disabled" begin
