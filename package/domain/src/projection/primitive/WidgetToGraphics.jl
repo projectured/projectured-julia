@@ -344,6 +344,7 @@ end
     background_color::StyleColor
     border_color::StyleColor    # input outline
     corner_radius::Int
+    ring_color::StyleColor      # focus ring when selected
 end
 
 @projection struct WidgetCheckboxToGraphicsCanvas
@@ -779,6 +780,7 @@ function projection_print(p::WidgetTextToGraphicsCanvas, recursion, w::WidgetTex
         _push_box!(elems, w, iw, ih; fill=p.background_color, border=p.border_color, radius=radius)
         push!(elems, _make_canvas(cox, coy, Any[inner]))
         tx, ty = _inset_total(w)
+        _push_focus_ring!(elems, w, iw + tx, ih + ty, p.ring_color, radius)
         canvas = _make_canvas(_origin(pos)..., iw + tx, ih + ty, elems)
         return WidgetTextToGraphicsCanvasIoMap(p, w, canvas, content_iomap)
     end
@@ -790,6 +792,7 @@ function projection_print(p::WidgetTextToGraphicsCanvas, recursion, w::WidgetTex
     elems = Any[]
     _push_box!(elems, w, cw, ch; fill=p.background_color, border=p.border_color, radius=radius)
     _push_text!(elems, p.text.font, text, cox, coy, _rgba(p.text.color))
+    _push_focus_ring!(elems, w, cw + tx, ch + ty, p.ring_color, radius)
     SimpleIoMap(p, w, _make_canvas(_origin(pos)..., cw + tx, ch + ty, elems))
 end
 
@@ -3964,7 +3967,7 @@ function WidgetToGraphics(font::StyleFont; measure::Function,
     TypeDispatchingProjection(
         WidgetInsertion  => WidgetInsertionToGraphicsCanvas(measurer, theme.body_text),
         WidgetLabel      => WidgetLabelToGraphicsCanvas(measurer, theme.body_text),
-        WidgetText       => WidgetTextToGraphicsCanvas(measurer, theme.body_text, theme.background, theme.input, theme.radius),
+        WidgetText       => WidgetTextToGraphicsCanvas(measurer, theme.body_text, theme.background, theme.input, theme.radius, theme.ring),
         WidgetCheckbox   => WidgetCheckboxToGraphicsCanvas(
             18, theme.radius ÷ 2,
             theme.primary, StyleStroke(theme.primary_foreground, theme.stroke),

@@ -345,10 +345,11 @@ focused iff `getfield(w,:selection)[] !== nothing` (background fact 3).
 - [x] Step 5 — focus ring on the selected widget (focus = non-nothing selection):
       `_push_focus_ring!` draws a 2px `theme.ring` outline; threaded (`ring_color`
       field, fed `theme.ring`) into Button, Checkbox, Switch, Slider, Toggle,
-      ToggleGroup, Select, RadioGroup, and Textarea. Test asserts +1 canvas element
-      when a Button/Checkbox is selected. **Not ringed:** `WidgetText` (its
-      content-delegating printer) and `WidgetMenuItem` — minor follow-ups. *Not
-      executed — Julia unavailable in sandbox.*
+      ToggleGroup, Select, RadioGroup, Textarea, **and `WidgetText`** (both its
+      editable and non-editable printer paths). Test asserts +1 canvas element when
+      a Button/Checkbox is selected. **Intentionally not ringed:** `WidgetMenuItem`
+      — menu items signal the active item with a highlight, not a focus ring (and
+      open-menu behaviour is Stage 3). *Not executed — Julia unavailable in sandbox.*
 - [~] Step 6 — added the `widget_focus` example (a `VerticalLayout` of controls
       with an initial selection on the first via `first_focusable_path` +
       `set_selection!`, a disabled control mid-list to show skipping); registered,
