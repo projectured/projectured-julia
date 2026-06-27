@@ -4133,7 +4133,26 @@ function projection_read(p::WidgetScrollPaneToGraphicsViewport, iomap::WidgetScr
     end
     content_iomap = iomap.content_iomap
     content_iomap === nothing && return nothing
-    op = projection_read(content_iomap.projection, content_iomap, evt)
+    # Translate pointer coordinates into the scrolled content's frame for any
+    # event carrying coords. The viewport is drawn at (bx, by); the inner
+    # canvas inside it is offset by (-scroll_x, -scroll_y), so an element at
+    # content (cx, cy) renders at viewport (bx + cx - sx, by + cy - sy). To
+    # invert: content_x = (evt.x - bx) + sx, content_y = (evt.y - by) + sy.
+    # MouseScroll is intercepted above so the inner pipeline never sees it.
+    w = iomap.input
+    pos = w.position
+    bx = pos isa Point2D ? _sc(Int(pos.x[])) : 0
+    by = pos isa Point2D ? _sc(Int(pos.y[])) : 0
+    sp = getfield(w, :scroll_position)[]::Point2D
+    sx, sy = Int(sp.x[]), Int(sp.y[])
+    translated = @event_case evt begin
+        MousePress(button, x, y) => MousePress(button, x - bx + sx, y - by + sy, evt.count, evt.modifiers)
+        MouseDown(button, x, y)  => MouseDown(button, x - bx + sx, y - by + sy, evt.modifiers)
+        MouseUp(button, x, y)    => MouseUp(button, x - bx + sx, y - by + sy, evt.modifiers)
+        MouseMove(x, y)          => MouseMove(x - bx + sx, y - by + sy, evt.buttons, evt.modifiers)
+        _ => evt
+    end
+    op = projection_read(content_iomap.projection, content_iomap, translated)
     return _retarget_op(p, iomap, op)
 end
 
