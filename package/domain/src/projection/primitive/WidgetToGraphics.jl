@@ -1058,43 +1058,92 @@ end
 
 # ── WidgetMenuItem ──────────────────────────────────────────────────────────
 
+# Carries the anchor (the item's own document path, captured from `ctx.reference`
+# at print time) and the rendered item size, so a submenu-opener item can open its
+# `submenu` as a popup anchored just below itself without re-deriving its position
+# (Step 4b, mirroring `WidgetSelect`). `child_iomaps` keeps scroll routing into
+# embedded widget content working.
+struct WidgetMenuItemToGraphicsCanvasIoMap <: IoMap
+    projection::Any
+    input::WidgetMenuItem
+    output::GraphicsCanvas
+    child_iomaps::Cell
+    anchor::ReferencePath
+    control_width::Int
+    control_height::Int
+end
+
 function projection_print(p::WidgetMenuItemToGraphicsCanvas, recursion, w::WidgetMenuItem, ctx)
-    w.visible == false && return ChildrenIoMap(p, w, _empty_canvas(), Cell(Any[]))
+    w.visible == false && return SimpleIoMap(p, w, _empty_canvas())
     cox, coy = _content_offset(w)
     content = w.content
     child_iomaps = Any[]
     elems = Any[]
+    cw, ch = 0, 0
     if content isa WidgetDocument
         cim = projection_printer_recurse(recursion, content, ctx)
+        inner = cim.output
+        cw, ch = inner isa GraphicsCanvas ? (Int(inner.w[]), Int(inner.h[])) : (0, 0)
         push!(child_iomaps, (cox, coy, cim))
-        push!(elems, _make_canvas(cox, coy, Any[cim.output]))
+        push!(elems, _make_canvas(cox, coy, Any[inner]))
     else
         text = string(content)
         cw, ch = _text_size(p.measure, p.text.font, text)
         _push_text!(elems, p.text.font, text, cox, coy, _rgba(p.text.color))
     end
-    ChildrenIoMap(p, w, _make_canvas(0, 0, elems), Cell(child_iomaps))
+    WidgetMenuItemToGraphicsCanvasIoMap(p, w, _make_canvas(0, 0, elems),
+                                        Cell(child_iomaps), ctx.reference,
+                                        cw + 2cox, ch + 2coy)
 end
 
-function map_reference_forward(::WidgetMenuItemToGraphicsCanvas, iomap, reference)
-    return nothing
-end
+# Forward image (Step 2.0 leaf): the empty reference maps to the item's own
+# top-left so a content-root resolver can anchor a submenu popup under it; parent
+# containers shift it on the way up. Invisible item / non-empty ref: no image.
+map_reference_forward(::WidgetMenuItemToGraphicsCanvas, iomap::WidgetMenuItemToGraphicsCanvasIoMap, reference) =
+    _self_point(reference)
+map_reference_forward(::WidgetMenuItemToGraphicsCanvas, iomap::SimpleIoMap, reference) = nothing
+map_reference_backward(::WidgetMenuItemToGraphicsCanvas, iomap, reference) = nothing
 
-function map_reference_backward(::WidgetMenuItemToGraphicsCanvas, iomap, reference)
-    return nothing
-end
+# Invisible item (printer returned a bare empty canvas): inert.
+projection_read(::WidgetMenuItemToGraphicsCanvas, ::SimpleIoMap, evt) = nothing
 
-function projection_read(::WidgetMenuItemToGraphicsCanvas, iomap::ChildrenIoMap, evt)
+function projection_read(p::WidgetMenuItemToGraphicsCanvas, iomap::WidgetMenuItemToGraphicsCanvasIoMap, evt)
     w = iomap.input
     if evt isa MousePress
-        # A left click on an enabled item runs its action and dismisses the popup;
-        # the close is a no-op when the menu is rendered inline. Disabled ⇒ inert.
+        # A left click on an enabled item: open its submenu if it has one, else run
+        # its action and dismiss the enclosing popup (a no-op when rendered inline).
+        # Disabled ⇒ inert.
         (evt.button === :left && !(w.enabled === false)) || return nothing
+        submenu = w.submenu
+        submenu === nothing || return _open_submenu_popup(p, submenu, iomap)
         return CompoundOperation(Any[InvokeWidgetActionOperation(w),
                                      CloseWindowOperation(:widget_popup)])
     end
     evt isa MouseScroll || return nothing
     _route_scroll_to_children(iomap.child_iomaps[]::Vector, evt)
+end
+
+# Open the item's `submenu` as a floating popup anchored just below the item,
+# reusing the WidgetSelect dropdown route (Step 3c): an anchor-relative
+# `OpenPopupOperation` the content-root resolver turns into an absolute window.
+# Size the popup to the submenu's rows (its items share this item's row metrics);
+# placement beyond "below, clamped" is left to anchored-layout.md.
+function _open_submenu_popup(p::WidgetMenuItemToGraphicsCanvas, submenu,
+                             iomap::WidgetMenuItemToGraphicsCanvasIoMap)
+    items = collect(submenu.elements)
+    gap = 4
+    row_h = iomap.control_height
+    width = iomap.control_width
+    for it in items
+        it isa WidgetMenuItem && !(it.content isa WidgetDocument) || continue
+        icox, _ = _content_offset(it)
+        tw, _ = _text_size(p.measure, p.text.font, string(it.content))
+        width = max(width, tw + 2icox)
+    end
+    OpenPopupOperation(; id=:widget_popup, anchor=iomap.anchor,
+                       dx=0, dy=row_h + gap, width=width,
+                       height=max(1, length(items)) * row_h,
+                       auto_dismiss=true, content=submenu)
 end
 
 # ── WidgetMenu ──────────────────────────────────────────────────────────────

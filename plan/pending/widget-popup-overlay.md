@@ -338,12 +338,20 @@ disabled / non-left ⇒ inert. The `WidgetMenu` reader now routes `MousePress` t
 the hit child via `_route_click_to_children` (it only routed scroll before).
 Tested in `WidgetMenuTest.jl` (`test_widget_menu`).
 
-**4b — submenu-opener + open-on-click (next).** A clickable trigger that opens a
-`WidgetMenu` as a popup below itself, reusing the 3c path: capture `ctx.reference`
-at print time + emit `OpenPopupOperation(anchor=self, dy=height+gap,
-content=menu)`. Likely `WidgetMenuItem` gains an optional `submenu::WidgetMenu`
-(an item with a submenu opens it instead of running an action), so it serves both
-a top-level menu-bar entry and a nested submenu.
+**4b — submenu-opener + open-on-click. ✅ Done.** `WidgetMenuItem` gains an
+optional `submenu::Any` field (default `nothing`). The item projection now carries
+a custom `WidgetMenuItemToGraphicsCanvasIoMap` that captures `ctx.reference` (the
+anchor) + the rendered item size at print time, and `map_reference_forward =
+_self_point` (the Step 2.0 leaf) so a content-root resolver can anchor under it.
+Item reader: a left click on an *enabled* item with a submenu → emits
+`OpenPopupOperation(id=:widget_popup, anchor=self, dx=0, dy=item_height+gap,
+content=submenu, auto_dismiss=true)` (reusing the 3c dropdown route), sized to the
+submenu's rows; an item **without** a submenu keeps the 4a action+close behavior;
+disabled / non-left ⇒ inert. Placement is "below, clamped" — flip/right-opening
+for nested submenus is left to `anchored-layout.md`. Tested in `WidgetMenuTest.jl`
+(submenu opens an anchor-relative popup; submenu takes precedence over an action;
+disabled item inert; the `WidgetPopupResolver` seam maps the anchor forward to an
+absolute `OpenWindowOperation`).
 
 **4c — horizontal `menu_bar` in `WidgetShell`.** Render the shell's `menu_bar`
 items in a horizontal row of titles (today they stack vertically); each title is a
@@ -361,9 +369,10 @@ field can be the first consumer.)
   Stage-2 selection (arrow-key menu navigation can ride selection later, routed
   to the popup window while it holds focus).
 
-**Tests:** ✅ 4a (`test_widget_menu`). 4b/4c: a click on a menu-bar title opens the
-submenu as a popup below it; an item click runs its action and closes; outside-click
-(focus-lost) / Esc close. 4d: a right-click opens a context menu at the pointer.
+**Tests:** ✅ 4a + 4b (`test_widget_menu`, 29 assertions). 4c: a click on a
+menu-bar title opens the submenu as a popup below it (needs `Shell`'s forward map
+so the anchor resolves through the menu bar); outside-click (focus-lost) / Esc
+close. 4d: a right-click opens a context menu at the pointer.
 
 ## Step 5 — `WidgetDialog` (modal) + convenience dialogs
 
@@ -453,7 +462,13 @@ envelope targeting the base window is dropped (does not reach base widgets).
       options/iomap/reader/`_self_point`, new `WidgetOption` widget + projection,
       option-list, `WidgetSelectTest.jl`). The interactive `widget_popup` *example*
       (window-route example projection) is deferred to Step 6.
-- [ ] Step 4 — `WidgetMenu` open-on-click + right-click context menu
+- [~] Step 4 — `WidgetMenu` open-on-click + right-click context menu. **4a ✅**
+      (clickable `WidgetMenuItem` with `action`). **4b ✅** (optional `submenu`;
+      submenu-opener emits `OpenPopupOperation` anchored below itself via the 3c
+      route; `WidgetMenuItemToGraphicsCanvasIoMap` captures the anchor + size;
+      `map_reference_forward = _self_point`; `test_widget_menu` 29/29). **Next: 4c**
+      horizontal `menu_bar` in `WidgetShell` (needs `Shell`'s `map_reference_forward`
+      so a menu-bar entry's anchor resolves), then **4d** right-click context menu.
 - [ ] Step 5 — `WidgetDialog` modal (backdrop window + centered card + buttons,
       modality enforced by WindowManager) + MessageBox/InputDialog
 - [ ] Step 6 — `widget_popup` example, sweep, docs

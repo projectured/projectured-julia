@@ -80,5 +80,65 @@ end
     @test op === nothing
 end
 
+# ── Submenu-opener (Step 4b) ──────────────────────────────────────────────
+# An item with a `submenu` opens it as an anchor-relative popup *below itself*
+# (reusing the WidgetSelect dropdown route) instead of running an action. The
+# item is printed standalone — its reader does not hit-test the click position
+# (routing hit-tests upstream), so a left press anywhere triggers it.
+
+@testset "a submenu item opens its submenu as an anchor-relative popup" begin
+    submenu = WidgetMenu([WidgetMenuItem("New"), WidgetMenuItem("Open")])
+    item = WidgetMenuItem("File"; submenu = submenu)
+    iomap = projection_print(proj, item)
+
+    op = projection_read(proj, iomap, MousePress(:left, 5, 5, Modifiers()))
+    @test op isa OpenPopupOperation
+    @test op.id === :widget_popup
+    @test op.auto_dismiss === true
+    @test op.anchor isa EmptyReferencePath      # anchored to the item itself (root)
+    @test op.dx == 0                            # opens directly below
+    @test op.dy > 0
+    @test op.content === submenu                # the popup content is the submenu
+    @test op.height > 0
+end
+
+@testset "a submenu takes precedence over an action" begin
+    submenu = WidgetMenu([WidgetMenuItem("New")])
+    item = WidgetMenuItem("File"; action = (_e) -> error("must not fire"), submenu = submenu)
+    iomap = projection_print(proj, item)
+
+    op = projection_read(proj, iomap, MousePress(:left, 5, 5, Modifiers()))
+    @test op isa OpenPopupOperation            # opened the submenu, did not run the action
+    @test !(op isa CompoundOperation)
+end
+
+@testset "a disabled submenu item is inert" begin
+    submenu = WidgetMenu([WidgetMenuItem("New")])
+    item = WidgetMenuItem("File"; submenu = submenu, enabled = false)
+    iomap = projection_print(proj, item)
+    @test projection_read(proj, iomap, MousePress(:left, 5, 5, Modifiers())) === nothing
+end
+
+@testset "the resolver maps the submenu anchor to an absolute OpenWindowOperation" begin
+    submenu = WidgetMenu([WidgetMenuItem("New"), WidgetMenuItem("Open")])
+    item = WidgetMenuItem("File"; submenu = submenu)
+    # Mirror the real pipeline (as WidgetSelectTest does): the resolver wraps the
+    # content projection, isolated through a NestingProjection.
+    inner = NestingProjection(proj; recursion = PreservingProjection())
+    resolver = WidgetPopupResolverProjection(inner = inner)
+    rio = projection_print(resolver, item)
+
+    op = projection_read(resolver, rio, MousePress(:left, 5, 5, Modifiers()))
+    @test op isa OpenWindowOperation
+    @test op.id === :widget_popup
+    @test op.style === :floating
+    @test op.auto_dismiss === true
+    @test op.content === submenu
+    # The item sits at the origin, so its top-left resolves to (0, 0); the popup
+    # opens directly below (dx == 0, dy == item_height + gap > 0).
+    @test op.x == 0
+    @test op.y > 0
+end
+
 end # @testset
 end # function
