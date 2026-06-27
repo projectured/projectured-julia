@@ -35,7 +35,7 @@ import ..MouseModule: MouseScroll, MousePress
 import ..EventCaseModule: var"@event_case"
 import ..OperationApiModule: Operation
 import ..OperationRerootingModule: prepend_steps_to_op
-import ..ReferenceModule: ConcreteReferencePath, FieldReference, RangeReference
+import ..ReferenceModule: ConcreteReferencePath, FieldReference, RangeReference, PointReference
 import ..OperationModule: ReplaceSelectionOperation
 import ..KeyboardModule: KeyDown
 # Focus-path helpers live in the document-layer WidgetModule, included before this
@@ -349,25 +349,46 @@ function projection_read(::LayoutConstraintToGraphicsCanvas, iomap::ContentIoMap
     projection_read(inner.projection, inner, evt)
 end
 
-"""
-A reference of the form `children[i]/...` routes to the i-th child
-iomap's forward mapping.
-"""
-function _children_forward(iomap::_LayoutChildrenIoMap, reference)
-    reference = reference
+_off(v) = Int(v isa Cell ? v[] : v)
+
+# Shift a child's forwarded image by where THIS container placed the child —
+# but only when the image is a coordinate (`PointReference`). A structural path
+# image passes through unchanged. (coordinates accumulate, paths stay paths — see
+# `map_reference_forward`'s docstring.) The child canvas sits at the entry offset
+# `(off_x, off_y)` the container wrapped it at PLUS the child canvas's own origin.
+function _shift_child_image(child, off_x, off_y, cim)
+    child isa PointReference || return child
+    out = cim.output
+    out isa GraphicsCanvas || return child
+    PointReference(_off(off_x) + Int(out.x[]) + Int(child.x[]),
+                   _off(off_y) + Int(out.y[]) + Int(child.y[]))
+end
+
+# Peel a `field[i]/rest` reference into the i-th child entry `(off_x, off_y, cim)`,
+# forward-map the tail through the child's own mapper, and shift a coordinate
+# result by this container's placement. Shared by every container that addresses
+# children by an indexed field (`children` for layouts, `elements` for composite).
+function _forward_descend(entries::Vector, field::String, reference)
     reference isa ConcreteReferencePath || return nothing
     h = reference.head
-    h isa FieldReference && h.name == "children" || return nothing
+    (h isa FieldReference && h.name == field) || return nothing
     rest = reference.tail
     rest isa ConcreteReferencePath || return nothing
     h2 = rest.head
     h2 isa RangeReference || return nothing
     idx = h2.start + 1
-    entries = iomap.child_iomaps[]::Vector
     1 <= idx <= length(entries) || return nothing
-    cim = entries[idx][3]
-    map_reference_forward(cim.projection, cim, rest.tail)
+    (off_x, off_y, cim) = entries[idx]
+    child = map_reference_forward(cim.projection, cim, rest.tail)
+    _shift_child_image(child, off_x, off_y, cim)
 end
+
+"""
+A reference of the form `children[i]/...` routes to the i-th child iomap's
+forward mapping, shifting a coordinate image by the child's laid-out offset.
+"""
+_children_forward(iomap::_LayoutChildrenIoMap, reference) =
+    _forward_descend(iomap.child_iomaps[]::Vector, "children", reference)
 
 # ── Per-cell helpers (extracted to avoid begin/end inside comprehensions) ──
 

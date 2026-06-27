@@ -60,13 +60,13 @@ import ..OperationApiModule: Operation
 import ..OperationModule: ReplaceSelectionOperation, ReplaceReferencedValue, ToggleCollapseOperation, CompoundOperation
 import ..PrimitiveModule: StringReplaceRangeOperation, NumberReplaceRangeOperation
 import ..ReferenceModule: ReferencePath, ConcreteReferencePath, FieldReference, RangeReference,
-                          ElementReference, EmptyReferencePath, is_element_reference
+                          ElementReference, EmptyReferencePath, is_element_reference, PointReference
 import ..OperationRerootingModule: prepend_steps_to_op
 import ..TypeDispatchingModule: TypeDispatchingProjection
 import ..PrinterContextModule: child_context, with_available_size
 import ..LayoutModule: LayoutDocument, LayoutConstraint, GridLayout, allocate_axis, layout_min, layout_max,
                        layout_preferred, layout_weight
-import ..LayoutToGraphicsModule: GridLayoutToGraphicsCanvas, GridLayoutIoMap
+import ..LayoutToGraphicsModule: GridLayoutToGraphicsCanvas, GridLayoutIoMap, _forward_descend
 import ..KeyboardModule: KeyDown
 import ..ModifiersModule: Modifiers
 export WidgetInsertionToGraphicsCanvas, WidgetLabelToGraphicsCanvas, WidgetTextToGraphicsCanvas,
@@ -79,7 +79,25 @@ export WidgetInsertionToGraphicsCanvas, WidgetLabelToGraphicsCanvas, WidgetTextT
        WidgetToolbarToGraphicsCanvas, WidgetScrollBarToGraphicsCanvas,
        WidgetToGraphics, WidgetTheme, widget_theme_light, widget_theme_dark,
        widget_theme_slate_light, widget_theme_slate_dark,
-       WidgetScrollPaneToGraphicsViewport, WidgetScrollPaneToGraphicsViewportIoMap
+       WidgetScrollPaneToGraphicsViewport, WidgetScrollPaneToGraphicsViewportIoMap,
+       anchor_point
+
+# ── Anchor resolution ──────────────────────────────────────────────
+#
+# Resolve a document-domain `reference` to the anchor's absolute top-left within
+# the root output canvas, reusing `map_reference_forward` (no parallel generic —
+# wrappers compose it for free). Returns `(x, y)` or `nothing`. The forward image
+# of a positioned widget is a `PointReference` in the root output's frame; add the
+# root canvas's own origin to land in window-content coordinates. The trigger
+# bakes any size-relative offset (e.g. "below the box") into the open op itself.
+function anchor_point(iomap, reference)
+    img = map_reference_forward(iomap.projection, iomap, reference)
+    img isa PointReference || return nothing
+    out = iomap.output
+    bx = out isa GraphicsCanvas ? Int(out.x[]) : 0
+    by = out isa GraphicsCanvas ? Int(out.y[]) : 0
+    (bx + Int(img.x[]), by + Int(img.y[]))
+end
 
 # ── Theme (design tokens) ─────────────────────────────────────────
 
@@ -941,9 +959,16 @@ function projection_print(p::WidgetButtonToGraphicsCanvas, recursion, w::WidgetB
     SimpleIoMap(p, w, _make_canvas(_origin(position)..., button_width, button_height, elements))
 end
 
-function map_reference_forward(::WidgetButtonToGraphicsCanvas, iomap, reference)
-    return nothing
-end
+# Forward image of a positioned widget: the empty reference (the widget itself)
+# maps to its top-left in its own output canvas frame — `PointReference(0, 0)`.
+# Parent containers add their placement on the way up. A non-empty reference has
+# no image (the leaf has no addressable interior here). See `map_reference_forward`.
+_self_point(reference) =
+    (reference === nothing || reference isa EmptyReferencePath) ?
+        PointReference(0, 0) : nothing
+
+map_reference_forward(::WidgetButtonToGraphicsCanvas, iomap, reference) =
+    _self_point(reference)
 
 function map_reference_backward(::WidgetButtonToGraphicsCanvas, iomap, reference)
     return nothing
@@ -1114,9 +1139,11 @@ function projection_print(p::WidgetCompositeToGraphicsCanvas, recursion, w::Widg
     ChildrenIoMap(p, w, _make_canvas(_origin(pos)..., elems), Cell(child_iomaps))
 end
 
-function map_reference_forward(::WidgetCompositeToGraphicsCanvas, iomap, reference)
-    return nothing
-end
+# A composite addresses children by `elements[i]`, each wrapped at the content
+# offset; forward-mapping shifts a coordinate image by that placement (paths pass
+# through). Same hop as a layout, just a different field name.
+map_reference_forward(::WidgetCompositeToGraphicsCanvas, iomap::ChildrenIoMap, reference) =
+    _forward_descend(iomap.child_iomaps[]::Vector, "elements", reference)
 
 function map_reference_backward(::WidgetCompositeToGraphicsCanvas, iomap, reference)
     return nothing

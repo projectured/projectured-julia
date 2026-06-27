@@ -146,8 +146,21 @@ function collect_gestures(seq::SequentialProjection, recursion, iomap::Sequentia
     return result
 end
 
+# Compose forward-mapping through the chain: thread the reference through each
+# stage's own `map_reference_forward`, input domain → … → output domain. Stages
+# wire their own `output.selection`, so this is unused for cursor wiring; it
+# exists so a reference (including a graphics-domain `PointReference` produced by
+# the final stage) resolves end-to-end through a Sequential — e.g. anchoring a
+# popup to a widget. A stage that drops the reference returns `nothing`, which
+# short-circuits.
 function map_reference_forward(::SequentialProjection, iomap, reference)
-    return nothing
+    ref = reference
+    for cell in iomap.step_iomaps
+        ref === nothing && return nothing
+        step = cell[]
+        ref = map_reference_forward(step.projection, step, ref)
+    end
+    ref
 end
 
 function map_reference_backward(::SequentialProjection, iomap, reference)

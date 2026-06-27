@@ -164,76 +164,87 @@ to mark). It therefore ships with the first popup:
 window from input and output; an unknown id is a no-op; the main window can be
 closed. (`WindowFocusLost` / `open_popup` round-trip tests move to Step 3.)
 
-## Step 2.0 — Complete widget-layer forward-mapping to graphics coordinates (prerequisite)
+## Step 2.0 — Widget-layer forward-mapping to graphics coordinates (prerequisite) ✅ partial
 
 **Why this is here.** Placement is an *anchored-layout* problem, not a
 screen-coordinate problem (decided with the user, 2026-06-27). The deep trigger
 reader does **not** compute its own absolute position; instead the popup-open op
-carries **what to anchor to** (a reference path to the trigger in the document
-domain) and **where, relative to it** (a placement/offset). A receiver then maps
-the anchor **forward to the output (graphics) domain** via
-`map_reference_forward`, walks the resulting graphics path accumulating nested
-canvas `(x, y)` offsets to get the anchor's **absolute** rect, and adds the
-relative offset. This is exactly `anchored-layout.md`'s Phase 4
-`resolve_target_position`, so completing it unblocks **both** popups and
-AnchoredLayout.
+carries **what to anchor to** (a reference to the trigger) and **where, relative
+to it** (an offset). A receiver maps the anchor **forward to the graphics domain**
+via `map_reference_forward` — the existing mapper — and reads the resulting
+coordinate. This is `anchored-layout.md`'s Phase 4 `resolve_target_position`, so
+completing it unblocks **both** popups and AnchoredLayout.
 
-**Verified gap (REPL probe, 2026-06-27).** The forward path is sound *in
-principle* — at the root a reference should map completely forward to the output
-domain — but it is **not implemented across the widget layer**:
+**Design (corrected with the user, 2026-06-27): reuse `map_reference_forward`, no
+new generic.** A first cut added a parallel `resolve_anchor_rect` generic; that
+was reverted because it forced *every* wrapper (Sequential, Recursive, …) to
+re-implement the composition `map_reference_forward` already does. The principle
+is now documented on the mapper itself (`api/Projection.jl`):
 
-- ✅ **Layout tier already forwards.** `Horizontal`/`Vertical`/`Grid`/`Flow`/
-  `Stack`/`Constraint` layouts delegate a `children[i]/…` reference down via
-  `_children_forward`.
-- ❌ **Widget tier returns `nothing`.** Every widget container (`Composite`,
-  `Shell`, `SplitPane`, `TabbedPane`, `ScrollPane`) and every leaf (`Button`,
-  `Select`, `Checkbox`, `Label`, `Text`) stubs `map_reference_forward` to
-  `nothing`, so the chain dies the moment it reaches a widget and no coordinate
-  surfaces. (The focus ring / text cursor are drawn by each widget reading its
-  *own* selection at print time, which is why this forward path was never
-  needed before.)
+- **The output domain may be coordinates.** A positioned widget's forward image
+  is a `PointReference` (its top-left in the output canvas's frame), not a
+  structural path.
+- **Coordinates accumulate, paths stay paths.** A container shifts a
+  `PointReference` child image by where it placed the child (entry offset + child
+  canvas origin); a structural path image passes through unchanged. Distinguish by
+  the *result*, never the child's type — so widgets nest in anything and vice
+  versa.
+- **No size in the reference.** The image is a *point*. The trigger bakes its own
+  size into the relative offset (it knows its dimensions when it emits the open
+  op), so "below the box" needs no rect.
 
-**The work (two conventions):**
+**Verified gap (REPL probe).** Layout tier already forwarded via
+`_children_forward`; every widget container and leaf stubbed `map_reference_forward`
+to `nothing`. (`SequentialProjection.map_reference_forward` was also a no-op — the
+one non-transparent wrapper — so the chain died there too.)
 
-- **Leaf widgets** — given a reference that targets the widget, return a
-  forwarded reference that resolves to the widget's own output `GraphicsCanvas`
-  (so `x/y/w/h` are readable). A shared convention (likely via the projection
-  macro / a default) rather than per-leaf boilerplate.
-- **Widget containers** — delegate into the addressed child, the same way the
-  layout tier's `_children_forward` already does. Do `Composite` and `Shell`
-  first (the containers a `WidgetSelect` actually sits in); defer
-  `SplitPane`/`TabbedPane`/`ScrollPane` until a popup is nested in one.
-- **Receiver helper** — `resolve_anchor_rect(root_iomap, anchor_ref) -> (x,y,w,h)`:
-  `map_reference_forward`, then walk the returned graphics reference accumulating
-  canvas offsets to an absolute window-relative rect. Return the *graphics*
-  reference and accumulate by walking the output tree (matching the existing
-  `_children_forward` convention and anchored-layout's "resolve to a canvas, read
-  position cells"), rather than having each container try to compute absolute
-  coords itself — it only knows its child's *relative* offset.
+**Done (commit on this branch):**
 
-**Tests:** a reference to a leaf widget inside `Shell`→…→`Composite`→layout
-resolves, at the root iomap, to that widget's absolute `(x, y, w, h)` matching
-its rendered position; an unresolvable reference returns `nothing`.
+- ✅ `SequentialProjection.map_reference_forward` composes through its steps
+  (was a no-op; safe — stages wire their own `output.selection`, so nothing
+  consumed it before).
+- ✅ Widget leaf `WidgetButton` forward-maps the empty reference to
+  `PointReference(0, 0)` (shared `_self_point`).
+- ✅ Layouts (`_children_forward`) and `WidgetComposite` shift a `PointReference`
+  result by the child's laid-out offset, via a shared `_forward_descend` /
+  `_shift_child_image` (the `:children` vs `:elements` field is the only
+  difference). `LayoutConstraint` needed no change (its output *is* its child's,
+  so a point passes through). Paths pass through untouched — confirmed no
+  regression (`test_printers` 162617/0, selection/nav/button/text/tooltip clean).
+- ✅ `anchor_point(iomap, reference) -> (x, y) | nothing` — the single,
+  non-recursive root helper that reads the resolved `PointReference`. Tested in
+  `AnchorPointTest.jl` (8 assertions: buttons in a `VerticalLayout`, in a
+  `WidgetComposite`, and a nested `layout > composite > button` — each matches the
+  position walked from the output canvas tree; an unresolvable ref → `nothing`).
 
-## Step 2 — Anchored placement on top of the resolved rect
+**Deferred (each lands with its consumer):**
 
-With Step 2.0 resolving an anchor reference to an absolute rect, placement is the
-thin **minimal** slice of `anchored-layout.md`; defer the collision-avoiding
-engine.
+- `WidgetSelect`'s mapper — folds into Step 3 when it drops `@_printer_only`
+  (`_self_point`, one line).
+- `Shell` (field-addressed: `content`/`menu_bar`/… with conditional entries, so
+  not the indexed-field `_forward_descend` shape) and
+  `SplitPane`/`TabbedPane`/`ScrollPane` (the last shifts by its scroll offset) —
+  each gets its own self-contained method when a popup is anchored inside one.
 
-- The popup-open op carries `(anchor_ref, placement, offset)` — *not* absolute
-  coordinates. The receiver resolves `anchor_ref` to a rect (Step 2.0) and then
-  `anchor_below(rect; gap)` / `anchor_at(point)` compute the popup origin,
-  clamped to bounds.
-- Window-space conversion: the resolved rect is window-relative; for a child
+## Step 2 — Anchored placement on top of the resolved point
+
+With Step 2.0's `anchor_point` resolving an anchor reference to an absolute
+point, placement is a thin slice: clamp + the trigger-supplied offset. Defer the
+collision-avoiding engine to `anchored-layout.md`.
+
+- The popup-open op carries `(anchor_ref, offset)` — *not* absolute coordinates.
+  The receiver resolves `anchor_ref` to a point (Step 2.0) and adds `offset`.
+  Because the image is a point, the trigger bakes its own size into `offset`
+  (e.g. "below the box" = `(0, box_height + gap)`), so no rect is needed.
+- Window-space conversion: the resolved point is window-relative; for a child
   popup window add the source window's screen origin. (If a backend can't give a
   reliable parent-window origin, the popup opens relative to the parent — a
   backend detail, not a placement-logic one.)
-- **Out of scope:** flip-to-opposite-side, perpendicular fallback, multi-popup
-  stacking — those stay `anchored-layout.md`. Note the limitation in code.
+- Clamp the final origin to bounds. **Out of scope:** flip-to-opposite-side,
+  perpendicular fallback, multi-popup stacking — those stay `anchored-layout.md`.
 
-**Tests:** an anchor `(ref, :below, gap)` whose resolved rect is `(x,y,w,h)` gives
-popup origin `≈ (x, y+h+gap)`, clamped near an edge.
+**Tests:** an anchor `(ref, offset)` whose resolved point is `(x, y)` gives popup
+origin `(x, y) + offset`, clamped near an edge.
 
 ## Step 3 — `WidgetSelect` dropdown
 
@@ -355,13 +366,14 @@ envelope targeting the base window is dropped (does not reach base widgets).
       `TooltipTest.jl`. **Deferred to Step 3:** `WindowFocusLost` event (SDL +
       web) + `auto_dismiss` flag + `open_popup` helper — coupled, and consumer-less
       until the first popup, so they land with the dropdown.
-- [ ] Step 2.0 — **prerequisite:** complete widget-layer `map_reference_forward`
-      to graphics coordinates (leaf convention + `Composite`/`Shell`; defer
-      `SplitPane`/`TabbedPane`/`ScrollPane`) + `resolve_anchor_rect` receiver
-      helper. Verified gap: layout tier forwards, all widget projectors return
-      `nothing`. Reusable — also unblocks `anchored-layout.md` Phase 4.
-- [ ] Step 2 — anchored placement on the resolved rect (`anchor_below` /
-      `anchor_at`, clamp); op carries `(anchor_ref, placement, offset)`, not coords
+- [~] Step 2.0 — widget-layer `map_reference_forward` → graphics coords, reusing
+      the existing mapper (no new generic). **Done:** Sequential composition,
+      `WidgetButton` leaf point, layout + `Composite` offset accumulation,
+      `anchor_point` helper, `AnchorPointTest` (8/8). **Deferred to consumers:**
+      `WidgetSelect` mapper (Step 3), `Shell`/`SplitPane`/`TabbedPane`/`ScrollPane`.
+      Principle documented on `map_reference_forward`. Also unblocks `anchored-layout.md`.
+- [ ] Step 2 — anchored placement on the resolved point (`anchor_point` + clamp);
+      op carries `(anchor_ref, offset)`, not coords; trigger bakes its size into offset
 - [ ] Step 3 — `WidgetSelect` dropdown (options + open-popup + pick→value+close;
       WindowManager unpacks `CompoundOperation` for nested Open/Close);
       **also lands `WindowFocusLost` + `auto_dismiss` + `open_popup` from Step 1**
