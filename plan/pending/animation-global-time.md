@@ -422,6 +422,53 @@ setfn!(getfield(sin_link, :x2), () -> Int32(cx0 + R + GAP)); setfn!(getfield(sin
 
 ---
 
+## Candidate widget animations (deferred, implementation open)
+
+> **Later, and undecided.** These sit beside the rotating vector as a palette of
+> widget-domain targets to build *after* the graphics primitives (examples A, B)
+> land. How each is *armed* is intentionally left open — most fire on a state
+> change, and that arming question is itself unresolved (see "Arming on state
+> change" under Open Questions). Nothing here is wired or committed; the point is
+> to record the targets and their shape so the design can account for them.
+
+All of them reuse the same core as A and B: a presentation cell that subscribes
+to time via `reactive_editor_time()` plus an `animate`/easing helper. They differ
+only in what they interpolate and in whether they self-start, loop forever, or
+fire on a state change. All the widget types below already exist in
+[Widget.jl](../../package/domain/src/document/Widget.jl).
+
+| Widget | Animation | Interpolates | Kind | Trigger |
+|---|---|---|---|---|
+| `WidgetSwitch` | knob slides across the track + track colour crossfades | knob `cx` + colour | finite | state change (`checked` flips) |
+| `WidgetCard` / `WidgetAccordion` | height expand / collapse | height | finite | state change (`collapsed` flips) |
+| `WidgetSelect` | dropdown slides down + fades in on open, reverses on close | height + opacity | finite | state change (open / close) |
+| `WidgetButton` | press feedback (brief scale / ripple), focus-ring fade | scale / opacity | finite | gesture (press, focus) |
+| `WidgetProgress` | `value` eases toward its target instead of jumping | filled width | finite | state change (`value` set) |
+| `WidgetProgress` (indeterminate) | a band sweeps back and forth | offset | perpetual | self-start |
+| `WidgetSkeleton` | shimmer gradient sweeps across the placeholder while loading | gradient offset | perpetual | self-start |
+| `WidgetSlider` | knob eases to a programmatically-set value (not while dragging) | knob `cx` | finite | state change (`value` set) |
+
+Cross-cutting notes:
+
+- **The perpetual ones need no arming.** `WidgetSkeleton` shimmer and the
+  indeterminate `WidgetProgress` sweep self-start, exactly like the rotating
+  vector — no `t0` to capture, no new machinery. They are the natural first
+  widget examples to ship, the widget-domain counterpart to example B.
+- **The finite, state-change ones wait on the arming decision.** A switch knob
+  should slide *from* its current position *to* the new one when `checked` flips,
+  which means capturing `t0` and the from/to at the moment of the change — and
+  that cannot be a thunk side effect. Until "Arming on state change" is settled,
+  these stay sketches.
+- **`lerp` per type is on the critical path.** The switch alone needs both a
+  numeric ease (knob position) and a colour ease (track), so the
+  interpolation-typeclass open question must be answered before the first finite
+  widget example.
+- **All are output-only.** The widget's logical state (`checked`, `value`,
+  `collapsed`) stays bidirectional and edited normally; the animation is purely a
+  derived presentation of the transition, so none of these needs a reader.
+
+---
+
 ## Implementation Steps
 
 ### 1. Time cell, readers, clock
@@ -449,6 +496,9 @@ setfn!(getfield(sin_link, :x2), () -> Int32(cx0 + R + GAP)); setfn!(getfield(sin
 - **Rotating vector** (example B): the circle + sin/cos charts above, as a
   graphics-domain example wired entirely from time. Run via `run_example(...)`;
   capture a filmstrip via `write_image` at successive `seek!` values.
+- **Widget examples** are deferred (see "Candidate widget animations"). The
+  perpetual ones (skeleton shimmer, indeterminate progress) self-start and could
+  follow B directly; the finite state-change ones wait on the arming decision.
 
 ### 5. Determinism for tests / headless
 - `test_printers` and friends must pin time: `seek!(clock, FIXED_T)` (or
