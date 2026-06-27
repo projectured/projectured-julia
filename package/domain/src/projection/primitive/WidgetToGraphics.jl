@@ -2028,6 +2028,14 @@ function projection_read(p::WidgetTabbedPaneToGraphicsCanvas, iomap::ChildrenIoM
     if evt isa MouseScroll
         return _tab_prefix(_route_active_tab(iomap, child_iomaps, evt))
     end
+    # Drag events carry coordinates and target the visible tab regardless of
+    # selection — a splitter drag inside the active tab must keep receiving
+    # motion even when the pane carries no selection (the bootstrap case the
+    # SplitPaneDrag tests cover). `_route_active_tab` translates coords into
+    # the tab's frame for them.
+    if evt isa MouseDown || evt isa MouseUp || evt isa MouseMove
+        return _tab_prefix(_route_active_tab(iomap, child_iomaps, evt))
+    end
     # Coordless events (KeyDown, KeyPress, …): forward to the tab the selection
     # points at, or to nothing when the selection is not in this pane — selection
     # is authoritative, with no active-tab fallback for keyboard events (the
