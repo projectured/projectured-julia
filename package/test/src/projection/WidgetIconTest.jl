@@ -3,15 +3,17 @@
 # tinted to the label's foreground. v1 ships a built-in vector set (GraphicsPolyline);
 # glyph-font (GraphicsText) and raster (GraphicsImage) backings register the same way.
 
-using Projectured: GraphicsPolyline, GraphicsText, font_ubuntu_regular_24
+using Projectured: GraphicsPolyline, GraphicsText, GraphicsViewport, font_ubuntu_regular_24
 
-# Collect every graphics primitive of type T in a canvas tree.
+# Collect every graphics primitive of type T in a canvas tree, descending into both
+# nested canvases and viewports (the tab strip lives inside a GraphicsViewport).
 function _prims_of(canvas, ::Type{T}) where {T}
     out = T[]
     walk(c) = for el in c.elements
         el = el isa Projectured.ReactiveModule.Cell ? el[] : el
         el isa T && push!(out, el)
         el isa GraphicsCanvas && walk(el)
+        el isa GraphicsViewport && walk(el.content)
     end
     walk(canvas)
     out
@@ -67,6 +69,25 @@ end
     @test tb isa WidgetButton
     @test tb.icon === :save
     @test !isempty(_prims_of(projection_print(proj, tb).output, GraphicsPolyline))
+end
+
+@testset "a tabbed pane draws an icon on a 3-tuple tab" begin
+    plain = projection_print(proj, WidgetTabbedPane([("A", WidgetLabel(Point2D(0,0), "x")),
+                                                     ("B", WidgetLabel(Point2D(0,0), "y"))])).output
+    iconed = projection_print(proj, WidgetTabbedPane([("A", WidgetLabel(Point2D(0,0), "x"), :folder),
+                                                      ("B", WidgetLabel(Point2D(0,0), "y"))])).output
+    @test isempty(_prims_of(plain, GraphicsPolyline))      # icon-less tabs
+    @test !isempty(_prims_of(iconed, GraphicsPolyline))    # the :folder tab icon
+end
+
+@testset "a tree node draws its registered icon (chevrons are lines, not polylines)" begin
+    tr = WidgetTree(Point2D(0, 0), Any[
+        WidgetTreeNode(:folder, "src", Any[WidgetTreeNode(:file, "a.jl")]),
+    ])
+    @test !isempty(_prims_of(projection_print(proj, tr).output, GraphicsPolyline))
+    # An icon-less (legacy) tree draws no icon polylines.
+    legacy = WidgetTree(Point2D(0, 0), Any[("src", Any["a.jl"])])
+    @test isempty(_prims_of(projection_print(proj, legacy).output, GraphicsPolyline))
 end
 
 end # @testset

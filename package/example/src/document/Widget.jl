@@ -71,8 +71,12 @@ function make_widget_document_example(; width=1024, height=768)
                      ["INV002", "Pending", "\$150.00"],
                      ["INV003", "Unpaid",  "\$350.00"]]),
         WidgetTree(Point2D(0, 0), Any[
-            ("src", Any[("components", Any["button.jl", "card.jl"]), "app.jl"]),
-            "README.md",
+            WidgetTreeNode(:folder, "src", Any[
+                WidgetTreeNode(:folder, "components", Any[
+                    WidgetTreeNode(:file, "button.jl"),
+                    WidgetTreeNode(:file, "card.jl")]),
+                WidgetTreeNode(:file, "app.jl")]),
+            WidgetTreeNode(:file, "README.md"),
         ]),
         WidgetAccordion(Point2D(0, 0), [
             ("Is it accessible?", "Yes. It adheres to the WAI-ARIA design pattern."),
@@ -93,11 +97,11 @@ function make_widget_document_example(; width=1024, height=768)
     ]; sizes=[div(width, 2), div(width, 2)])
 
     tabs = WidgetTabbedPane([
-        ("Inputs",  inputs),
-        ("Buttons", buttons),
-        ("Display", display),
-        ("Data",    data),
-        ("Layout",  layout_split),
+        ("Inputs",  inputs,       :pencil),
+        ("Buttons", buttons,      :plus),
+        ("Display", display,      :search),
+        ("Data",    data,         :folder),
+        ("Layout",  layout_split, :menu),
     ])
 
     # ── Chrome: menu bar (shared actions) + toolbar + status bar + tooltip ─────

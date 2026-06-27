@@ -2334,22 +2334,28 @@ function projection_print(p::WidgetTabbedPaneToGraphicsCanvas, recursion, w::Wid
     end
 
     sel_pad = p.tab_padding
-    tabs = Any[]
+    # Each tab is `(label, content)` or `(label, content, icon)`. An icon (Stage 5)
+    # is drawn before the label in the tab strip; its width grows the tab.
+    tabs = Any[]   # (label, icon, content_w, icon_w, gap, th)
     for pair in pairs
         label = string(pair[1])
+        icon  = length(pair) >= 3 ? pair[3] : nothing
         tw, th = _text_size(p.measure, p.font, label)
-        push!(tabs, (label, tw, th))
+        iw  = icon_width(icon, th)
+        gap = iw > 0 ? _sc(6) : 0
+        push!(tabs, (label, icon, tw + iw + gap, iw, gap, th))
     end
-    tab_h = maximum(t[3] for t in tabs)
+    tab_h = maximum(t[6] for t in tabs)
     sel_h = tab_h + 2 * sel_pad
 
     tab_xs = Int[]
     tab_rws = Int[]
     x = cox
-    for (_, tw, _) in tabs
+    for t in tabs
+        cw = t[3]
         push!(tab_xs, x)
-        push!(tab_rws, tw + 2 * sel_pad)
-        x += tw + 2 * sel_pad
+        push!(tab_rws, cw + 2 * sel_pad)
+        x += cw + 2 * sel_pad
     end
 
     sel_cell = getfield(w, :selection)
@@ -2370,14 +2376,15 @@ function projection_print(p::WidgetTabbedPaneToGraphicsCanvas, recursion, w::Wid
         # Muted track behind the whole tab row.
         _push_panel!(result, cox, coy, strip_w, sel_h; fill=p.track_color, radius=tab_radius)
         for i in eachindex(tabs)
-            label, _, _ = tabs[i]
+            label, icon, _, iw, gap, _ = tabs[i]
             tx, rw = tab_xs[i], tab_rws[i]
             if i == active
                 # Active tab: a raised background pill.
                 _push_panel!(result, tx, coy, rw, sel_h; fill=p.active_color, radius=tab_radius)
             end
             fg = i == active ? p.active_foreground : p.inactive_foreground
-            _push_text!(result, p.font, label, tx + sel_pad, coy + sel_pad, _rgba(fg))
+            iw > 0 && _push_icon!(result, icon, tx + sel_pad, coy + sel_pad, iw, fg)
+            _push_text!(result, p.font, label, tx + sel_pad + iw + gap, coy + sel_pad, _rgba(fg))
         end
         result
     end)
@@ -4604,7 +4611,11 @@ function projection_print(p::WidgetTreeToGraphicsCanvas, recursion, w::WidgetTre
                                chevron_size, :down, p.chevron.color; stroke=chevron_stroke)
             end
             icon = row.icon
-            if icon isa AbstractString && !isempty(icon)
+            if icon isa Symbol
+                # A registered icon name (Stage 5): vector/glyph, tinted to the icon color.
+                _push_icon!(result, icon, x + chevron_column, row.y0 + pad, line_height, p.icon_text.color)
+            elseif icon isa AbstractString && !isempty(icon)
+                # A literal glyph string (e.g. an emoji), drawn as text.
                 push!(result, GraphicsText(icon, x + chevron_column, row.y0 + pad,
                                            p.icon_text.font, icon_red, icon_green, icon_blue, icon_alpha))
             end
