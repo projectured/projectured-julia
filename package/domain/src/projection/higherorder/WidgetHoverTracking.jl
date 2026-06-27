@@ -100,6 +100,13 @@ function projection_read(p::WidgetHoverTrackingProjection, recursion, change::Ch
     event isa MouseMove || return projection_read(iomap.child_iomap.projection, recursion, change, iomap.child_iomap)
 
     child = iomap.child_iomap
+    # 0. Forward the real MouseMove down the inner pipeline first, so widgets
+    #    that legitimately consume MouseMove (e.g. an active splitter drag in
+    #    WidgetSplitPane) get a chance to react. Hover enter/leave synthesis
+    #    runs afterwards and its ops are merged in with the inner result.
+    inner_res = projection_read(iomap.child_iomap.projection, recursion, change, iomap.child_iomap)
+    inner_op  = inner_res isa Change ? inner_res.operation : inner_res
+
     # 1. Who is under the pointer now? Route an enter and read back the widget's
     #    own response; its `widget` field is an opaque identity token.
     enter_op = _route(p, recursion, child, MouseEnter(event.x, event.y, event.buttons, event.modifiers))
@@ -110,7 +117,7 @@ function projection_read(p::WidgetHoverTrackingProjection, recursion, change::Ch
         # Same widget (or both dead space): keep the inside position fresh so a
         # future leave is routed at a point still over the target.
         new_target === nothing || (p.last_pos[] = (event.x, event.y))
-        return Change(event, nothing)
+        return Change(event, inner_op)
     end
 
     ops = Any[]
@@ -123,6 +130,8 @@ function projection_read(p::WidgetHoverTrackingProjection, recursion, change::Ch
     end
     # 3. Enter the new widget (forward the response we already have).
     new_target === nothing || enter_op === nothing || push!(ops, enter_op)
+    # 4. Merge in the inner pipeline's response to the MouseMove itself.
+    inner_op === nothing || push!(ops, inner_op)
 
     p.last[] = new_target
     p.last_pos[] = new_target === nothing ? nothing : (event.x, event.y)
