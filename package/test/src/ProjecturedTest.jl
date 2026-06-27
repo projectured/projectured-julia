@@ -117,6 +117,7 @@ include("backend/DirtyRectTest.jl")
 include("editor/PrinterTest.jl")
 include("editor/ExampleTest.jl")
 include("editor/SelectionEnumeration.jl")
+include("editor/PrinterLocalityTest.jl")
 include("editor/TextNavigationTest.jl")
 include("editor/ReaderTest.jl")
 include("editor/ReplTest.jl")
@@ -278,6 +279,7 @@ export test_table, test_table_selection, test_table_navigation, explore_table_se
 export test_graph
 export test_examples, test_text_navigations, test_text_navigations_complete
 export test_printer, test_printers, test_example, test_text_navigation
+export printer_locality_report, explore_selection_locality, test_selection_locality, test_selection_localities, LocalityReport, LocalityCell, is_selection_cell
 export explore_text_selections, collect_text_selections, collect_tree_selections, collect_json_tree_selections
 export test_reader, test_readers, walk_reader_events
 export test_repl, test_repls, walk_repl_loop
