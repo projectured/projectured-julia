@@ -31,6 +31,7 @@ end
 cref(steps...) = foldr((s, acc) -> ConcreteReferencePath(s, acc), steps; init=EmptyReferencePath())
 child(i) = (FieldReference("children"), RangeReference(i - 1, i))
 elem(i)  = (FieldReference("elements"), RangeReference(i - 1, i))
+field(name) = (FieldReference(name),)
 
 @testset "buttons in a VerticalLayout" begin
     doc = VerticalLayout(Any[mkbtn(120, 40, "A"), mkbtn(160, 50, "B"), mkbtn(100, 30, "C")];
@@ -63,6 +64,42 @@ end
     @test anchor_point(iomap, cref(child(1)..., elem(1)...)) == truth1
     truth2 = abs_top_left(iomap.output, (1, 1, 2, 1))
     @test anchor_point(iomap, cref(child(1)..., elem(2)...)) == truth2
+end
+
+# Step 4c: a horizontal WidgetMenu lays items left-to-right and forward-maps each
+# `elements[i]` to its placed position, so a menu-bar entry's submenu anchor
+# resolves.
+@testset "menu-bar entries in a horizontal WidgetMenu" begin
+    bar = WidgetMenu(Any[WidgetMenuItem("File"), WidgetMenuItem("Edit"), WidgetMenuItem("Help")];
+                     orientation = :horizontal)
+    iomap = projection_print(proj, bar)
+    xs = Int[]; ys = Int[]
+    for i in 1:3
+        # menu canvas -> item wrapper(i) -> item canvas: elements[i]/elements[1].
+        truth = abs_top_left(iomap.output, (i, 1))
+        @test anchor_point(iomap, cref(elem(i)...)) == truth
+        push!(xs, truth[1]); push!(ys, truth[2])
+    end
+    @test xs[1] < xs[2] < xs[3]      # laid out left-to-right
+    @test ys[1] == ys[2] == ys[3]    # on a single row
+    @test anchor_point(iomap, cref(elem(9)...)) === nothing
+end
+
+# Step 4c: the same entry resolves through a WidgetShell whose `menu_bar` is the
+# horizontal menu — the shell descends `.menu_bar`, the menu descends `elements[i]`.
+@testset "a menu-bar entry resolves through a WidgetShell" begin
+    bar = WidgetMenu(Any[WidgetMenuItem("File"; submenu = WidgetMenu(Any[WidgetMenuItem("New")])),
+                         WidgetMenuItem("Edit"),
+                         WidgetMenuItem("Help")]; orientation = :horizontal)
+    content = WidgetComposite(Point2D(0, 0), Any[mkbtn(80, 24, "x")])
+    shell = WidgetShell(content; menu_bar = bar, size = Point2D(600, 400))
+    iomap = projection_print(proj, shell)
+    # Shell canvas: [background rect, menu_bar wrapper, …]. The menu-bar entry is
+    # menu_bar-wrapper(2) -> menu canvas(1) -> item wrapper(i) -> item canvas(1).
+    for i in 1:3
+        truth = abs_top_left(iomap.output, (2, 1, i, 1))
+        @test anchor_point(iomap, cref(field("menu_bar")..., elem(i)...)) == truth
+    end
 end
 
 end # @testset

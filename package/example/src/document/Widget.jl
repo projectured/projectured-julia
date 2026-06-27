@@ -249,8 +249,16 @@ function make_widget_shell_document_example(; width=600, height=400)
         WidgetLabel(Point2D(0, _wy(0)),  "Inside a shell"),
         WidgetLabel(Point2D(0, _wy(40)), "with a menu bar and toolbar"),
     ])
-    menu_bar = WidgetMenu([WidgetMenuItem("File"), WidgetMenuItem("Edit"),
-                           WidgetMenuItem("Help")])
+    # A horizontal menu bar (QMenuBar): each top-level entry opens a submenu popup
+    # on click (Stage 3 Step 4c). The leaf submenu items carry plain callbacks.
+    menu_bar = WidgetMenu([
+        WidgetMenuItem("File"; submenu=WidgetMenu([
+            WidgetMenuItem("New"), WidgetMenuItem("Open"), WidgetMenuItem("Save")])),
+        WidgetMenuItem("Edit"; submenu=WidgetMenu([
+            WidgetMenuItem("Undo"), WidgetMenuItem("Redo")])),
+        WidgetMenuItem("Help"; submenu=WidgetMenu([
+            WidgetMenuItem("About")])),
+    ]; orientation=:horizontal)
     toolbar  = WidgetToolbar([WidgetMenuItem("New"), WidgetMenuItem("Open"),
                               WidgetMenuItem("Save")]; padding=Inset(4, 4, 4, 4))
     WidgetShell(content;

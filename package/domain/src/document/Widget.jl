@@ -298,6 +298,7 @@ A menu containing a sequence of `WidgetMenuItem`s..
 """
 @document struct WidgetMenu <: WidgetDocument
     elements::CellVector
+    orientation::Symbol
     visible::Bool
     margin::Inset
     margin_color::StyleColor
@@ -309,6 +310,7 @@ A menu containing a sequence of `WidgetMenuItem`s..
 end
 
 function WidgetMenu(elements::Vector;
+                    orientation::Symbol=:vertical,
                     visible::Bool=true,
                     margin::Inset=inset_default,
                     margin_color=nothing,
@@ -317,6 +319,7 @@ function WidgetMenu(elements::Vector;
                     padding::Inset=inset_default,
                     padding_color=nothing)
     WidgetMenu(CellVector(Cell[Cell(x) for x in elements]),
+               Cell(orientation),
                Cell(visible), Cell(margin), Cell(margin_color),
                Cell(border), Cell(border_color),
                Cell(padding), Cell(padding_color),

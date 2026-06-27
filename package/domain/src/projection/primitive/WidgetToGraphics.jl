@@ -67,7 +67,7 @@ import ..TypeDispatchingModule: TypeDispatchingProjection
 import ..PrinterContextModule: child_context, with_available_size
 import ..LayoutModule: LayoutDocument, LayoutConstraint, GridLayout, VerticalLayout, allocate_axis, layout_min, layout_max,
                        layout_preferred, layout_weight
-import ..LayoutToGraphicsModule: GridLayoutToGraphicsCanvas, GridLayoutIoMap, _forward_descend
+import ..LayoutToGraphicsModule: GridLayoutToGraphicsCanvas, GridLayoutIoMap, _forward_descend, _shift_child_image
 import ..KeyboardModule: KeyDown
 import ..ModifiersModule: Modifiers
 export WidgetInsertionToGraphicsCanvas, WidgetLabelToGraphicsCanvas, WidgetTextToGraphicsCanvas,
@@ -1148,26 +1148,46 @@ end
 
 # ── WidgetMenu ──────────────────────────────────────────────────────────────
 
+# A laid-out item's advance along the main axis. A `WidgetMenuItem` knows its own
+# rendered width (its canvas is 0-sized — the size lives on the iomap); any other
+# widget carries it on its output canvas.
+_menu_item_width(cim) =
+    cim isa WidgetMenuItemToGraphicsCanvasIoMap ? cim.control_width :
+        (cim.output isa GraphicsCanvas ? Int(cim.output.w[]) : 0)
+
 function projection_print(p::WidgetMenuToGraphicsCanvas, recursion, w::WidgetMenu, ctx)
     w.visible == false && return ChildrenIoMap(p, w, _empty_canvas(), Cell(Any[]))
     cox, coy = _content_offset(w)
+    horizontal = w.orientation === :horizontal
     child_iomaps = Any[]
     elems = Any[]
+    x_cursor = cox
     y_cursor = coy
     _, item_h = p.measure("M", p.font)
-    for item in w.elements
+    item_gap = horizontal ? 12 : 0
+    for (i, item) in enumerate(w.elements)
         item isa WidgetDocument || continue
-        cim = projection_printer_recurse(recursion, item, ctx)
-        push!(child_iomaps, (cox, y_cursor, cim))
-        push!(elems, _make_canvas(cox, y_cursor, Any[cim.output]))
-        y_cursor += item_h
+        # Extend the reference per item so a nested trigger (e.g. a submenu-opener)
+        # captures `…elements[i]` as its anchor, which a content-root resolver can
+        # forward-map back to graphics coordinates (Step 4c).
+        cctx = child_context(ctx, FieldReference("elements"), RangeReference(i - 1, i))
+        cim = projection_printer_recurse(recursion, item, cctx)
+        push!(child_iomaps, (x_cursor, y_cursor, cim))
+        push!(elems, _make_canvas(x_cursor, y_cursor, Any[cim.output]))
+        if horizontal
+            x_cursor += _menu_item_width(cim) + item_gap
+        else
+            y_cursor += item_h
+        end
     end
     ChildrenIoMap(p, w, _make_canvas(0, 0, elems), Cell(child_iomaps))
 end
 
-function map_reference_forward(::WidgetMenuToGraphicsCanvas, iomap, reference)
-    return nothing
-end
+# `elements[i]/…` routes to the i-th item's forward image, shifted by where this
+# menu placed it (paths pass through). Orientation-agnostic: the per-item offset is
+# stored on the entry regardless of layout direction.
+map_reference_forward(::WidgetMenuToGraphicsCanvas, iomap::ChildrenIoMap, reference) =
+    _forward_descend(iomap.child_iomaps[]::Vector, "elements", reference)
 
 function map_reference_backward(::WidgetMenuToGraphicsCanvas, iomap, reference)
     return nothing
@@ -1353,7 +1373,10 @@ function projection_print(p::WidgetShellToGraphicsCanvas, recursion, w::WidgetSh
     content_y = coy
     mb = w.menu_bar
     if mb isa WidgetDocument
-        cim = projection_printer_recurse(recursion, mb, ctx)
+        # Extend the reference into `menu_bar` so a menu-bar entry's submenu anchor
+        # (`menu_bar.elements[i]`) forward-maps back through the shell (Step 4c).
+        mb_ctx = child_context(ctx, FieldReference("menu_bar"))
+        cim = projection_printer_recurse(recursion, mb, mb_ctx)
         push!(child_iomaps, (cox, content_y, cim))
         push!(elems, _make_canvas(cox, content_y, Any[cim.output]))
         _, menu_h = p.measure("M", p.font)
@@ -1405,9 +1428,35 @@ function projection_print(p::WidgetShellToGraphicsCanvas, recursion, w::WidgetSh
     ChildrenIoMap(p, w, _make_canvas(0, 0, elems), Cell(child_iomaps))
 end
 
-function map_reference_forward(::WidgetShellToGraphicsCanvas, iomap, reference)
-    return nothing
+# A shell renders several field-addressed children (`menu_bar`, `toolbar`,
+# `content`, `tooltip`), each wrapped at its band offset. Descend the leading
+# field step to the matching child (found by identity, since the bands are
+# positional/conditional) and shift a coordinate image by that placement; paths
+# and unknown fields pass through with no image. Step 4c completes the Step 2.0
+# deferral for the menu-bar path so a menu-bar entry's submenu anchor resolves.
+_shell_field(w, name) =
+    name == "menu_bar" ? w.menu_bar :
+    name == "toolbar"  ? w.toolbar  :
+    name == "content"  ? w.content  :
+    name == "tooltip"  ? w.tooltip  : nothing
+
+function map_reference_forward(::WidgetShellToGraphicsCanvas, iomap::ChildrenIoMap, reference)
+    reference isa ConcreteReferencePath || return nothing
+    head = reference.head
+    head isa FieldReference || return nothing
+    target = _shell_field(iomap.input, head.name)
+    target === nothing && return nothing
+    for entry in iomap.child_iomaps[]::Vector
+        entry === nothing && continue
+        (ox, oy, cim) = entry
+        cim.input === target || continue
+        child = map_reference_forward(cim.projection, cim, reference.tail)
+        return _shift_child_image(child, ox, oy, cim)
+    end
+    nothing
 end
+
+map_reference_forward(::WidgetShellToGraphicsCanvas, iomap, reference) = nothing
 
 # The shell wraps a single child widget as its `.content` field. A path
 # coming up from the child's reader lives at `.content.<rest>` in the

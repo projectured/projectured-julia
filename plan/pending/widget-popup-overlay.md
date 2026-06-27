@@ -353,10 +353,23 @@ for nested submenus is left to `anchored-layout.md`. Tested in `WidgetMenuTest.j
 disabled item inert; the `WidgetPopupResolver` seam maps the anchor forward to an
 absolute `OpenWindowOperation`).
 
-**4c — horizontal `menu_bar` in `WidgetShell`.** Render the shell's `menu_bar`
-items in a horizontal row of titles (today they stack vertically); each title is a
-4b submenu-opener so clicking it drops its `WidgetMenu` as a popup. Makes
-`WidgetShell.menu_bar` a real `QMenuBar`.
+**4c — horizontal `menu_bar` in `WidgetShell`. ✅ Done** (chosen mechanism, with
+the user: a horizontal-orientation flag on `WidgetMenu`, no new widget type).
+`WidgetMenu` gains `orientation::Symbol` (default `:vertical`); its projection
+lays items left-to-right when `:horizontal` (advancing by each item's rendered
+width) and keeps the vertical stack otherwise. Crucially, the menu now **extends
+`ctx.reference` per item** (`elements[i]`) and forward-maps `elements[i]` via the
+shared `_forward_descend`, and `WidgetShell` **extends `ctx.reference` into
+`menu_bar`** + gained a field-addressed `map_reference_forward` (descends the
+leading field step to the child matched by identity, shifts via
+`_shift_child_image`) — completing the Step 2.0 Shell deferral for the menu-bar
+path. So a menu-bar entry's submenu anchor (`menu_bar.elements[i]`) resolves
+through the shell. The `widget_shell` example's `menu_bar` is now `:horizontal`
+with real File/Edit/Help submenus. Tested in `AnchorPointTest.jl` (horizontal menu
+lays out left-to-right and forward-maps each entry; the same entry resolves
+through a `WidgetShell`, vs the canvas-walked ground truth; `test_anchor_point`
+17/17). The live click→popup needs Step 6's window-route example projection
+(WindowManager + `WidgetPopupResolver` wrapping the shell).
 
 **4d — context menu (deferred; mechanism decided: wrapper + local-offset anchor).**
 A `WidgetContextMenu(child, menu)` wrapper (mirrors `TooltipSource`) captures its
@@ -466,9 +479,13 @@ envelope targeting the base window is dropped (does not reach base widgets).
       (clickable `WidgetMenuItem` with `action`). **4b ✅** (optional `submenu`;
       submenu-opener emits `OpenPopupOperation` anchored below itself via the 3c
       route; `WidgetMenuItemToGraphicsCanvasIoMap` captures the anchor + size;
-      `map_reference_forward = _self_point`; `test_widget_menu` 29/29). **Next: 4c**
-      horizontal `menu_bar` in `WidgetShell` (needs `Shell`'s `map_reference_forward`
-      so a menu-bar entry's anchor resolves), then **4d** right-click context menu.
+      `map_reference_forward = _self_point`; `test_widget_menu` 29/29). **4c ✅**
+      (`WidgetMenu.orientation` horizontal flag; menu + `WidgetShell` extend
+      `ctx.reference` and forward-map `elements[i]` / `.menu_bar`, completing the
+      Step 2.0 Shell deferral; `widget_shell` example menu bar now horizontal with
+      submenus; `test_anchor_point` 17/17). **Next: 4d** right-click context menu
+      (`WidgetContextMenu` wrapper + local-offset anchor); the live menu-bar
+      click→popup needs Step 6's window-route example projection.
 - [ ] Step 5 — `WidgetDialog` modal (backdrop window + centered card + buttons,
       modality enforced by WindowManager) + MessageBox/InputDialog
 - [ ] Step 6 — `widget_popup` example, sweep, docs
