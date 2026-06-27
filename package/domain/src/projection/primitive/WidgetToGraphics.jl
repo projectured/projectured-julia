@@ -35,7 +35,7 @@ import ..ColorModule: StyleColor,
 import ..WidgetModule: WidgetDocument, WidgetInsertion, WidgetLabel, WidgetText, WidgetCheckbox,
                        WidgetButton, WidgetTooltip, WidgetContextMenu, WidgetDialog, WidgetMenu, WidgetMenuItem,
                        WidgetComposite, WidgetShell, WidgetTitlePane, WidgetSplitPane,
-                       WidgetTabbedPane, WidgetScrollPane, WidgetToolbar, WidgetStatusBar, WidgetScrollBar,
+                       WidgetTabbedPane, WidgetScrollPane, WidgetTransformPane, WidgetToolbar, WidgetStatusBar, WidgetScrollBar,
                        WidgetBadge, WidgetSeparator, WidgetCard, WidgetSwitch, WidgetProgress,
                        WidgetSlider, WidgetRadioGroup, WidgetAvatar, WidgetAlert, WidgetSkeleton,
                        WidgetToggle, WidgetToggleGroup, WidgetSelect, WidgetOption, WidgetTextarea, WidgetAccordion,
@@ -50,6 +50,8 @@ import ..WidgetModule: WidgetDocument, WidgetInsertion, WidgetLabel, WidgetText,
 import ..CollectionModule: CellVector, CollectionDocument
 import ..ImageModule: ImageDocument
 import ..GraphicsModule: GraphicsText, GraphicsRect, GraphicsLine, GraphicsCircle, GraphicsPolyline, GraphicsCanvas, GraphicsViewport, GraphicsImage, hit_element_at, layout_none
+import ..GeometryModule: AffineTransform, affine_identity, affine_translate, affine_scale,
+                         affine_apply, affine_inverse, affine_is_axis_aligned
 import ..FontModule: StyleFont,
                      font_ubuntu_regular_18, font_ubuntu_regular_24, font_ubuntu_bold_24
 import ..StyleTextModule: StyleText
@@ -82,6 +84,7 @@ export WidgetInsertionToGraphicsCanvas, WidgetLabelToGraphicsCanvas, WidgetTextT
        WidgetShellToGraphicsCanvas, WidgetTitlePaneToGraphicsCanvas,
        WidgetSplitPaneToGraphicsCanvas, WidgetTabbedPaneToGraphicsCanvas,
        WidgetScrollPaneToGraphicsCanvas, WidgetScrollPaneToGraphicsCanvasIoMap,
+       WidgetTransformPaneToGraphicsCanvas, WidgetTransformPaneToGraphicsCanvasIoMap,
        WidgetToolbarToGraphicsCanvas, WidgetStatusBarToGraphicsCanvas, WidgetScrollBarToGraphicsCanvas,
        WidgetToGraphics, WidgetTheme, widget_theme_light, widget_theme_dark,
        widget_theme_slate_light, widget_theme_slate_dark,
@@ -486,6 +489,12 @@ end
     background_color::StyleColor      # default viewport fill
 end
 
+@projection struct WidgetTransformPaneToGraphicsCanvas
+    measure::Function
+    font::StyleFont                  # measures the pan step
+    background_color::StyleColor      # default viewport fill
+end
+
 @projection struct WidgetToolbarToGraphicsCanvas
     measure::Function
     font::StyleFont          # measures each item's advance
@@ -503,6 +512,15 @@ end
 struct WidgetScrollPaneToGraphicsCanvasIoMap <: IoMap
     projection::Any
     input::WidgetScrollPane
+    output::GraphicsCanvas
+    content_iomap::Any
+end
+
+# ── IoMap for WidgetTransformPane ──────────────────────────────────────────
+
+struct WidgetTransformPaneToGraphicsCanvasIoMap <: IoMap
+    projection::Any
+    input::WidgetTransformPane
     output::GraphicsCanvas
     content_iomap::Any
 end
@@ -2496,6 +2514,7 @@ function projection_print(p::WidgetTabbedPaneToGraphicsCanvas, recursion, w::Wid
     selector_viewport = GraphicsViewport(
         Cell(Int32(cox)), Cell(Int32(coy)), sel_view_w, Cell(Int32(sel_h)),
         Cell(GraphicsCanvas(-cox, -coy, selector_cv, layout_none, true)),
+        Cell(affine_identity),
         Cell(nothing))
 
     canvas = _make_canvas(0, 0, Any[
@@ -2723,6 +2742,7 @@ function projection_print(p::WidgetScrollPaneToGraphicsCanvas, recursion, w::Wid
                                       Cell(GraphicsCanvas(inner_x, inner_y, Int32(0), Int32(0),
                                                           inner_elems_cv isa CellVector ? inner_elems_cv : CellVector(Cell[Cell(inner_canvas)]),
                                                           layout_none, true, Cell(nothing))),
+                                      Cell(affine_identity),
                                       Cell(nothing)))
     end
     # Report the pane's own box as the outer canvas extent (viewport + insets)
@@ -2793,6 +2813,137 @@ function projection_read(p::WidgetScrollPaneToGraphicsCanvas, iomap::WidgetScrol
             lx, ly = x - cox + sx, y - coy + sy
             projection_read(content_iomap.projection, content_iomap,
                              MousePress(button, lx, ly, evt.modifiers))
+        end
+        _ => projection_read(content_iomap.projection, content_iomap, evt)
+    end
+    _retarget_op(p, iomap, op)
+end
+
+# ── WidgetTransformPane ───────────────────────────────────────────────────────
+#
+# A transform pane is the scroll pane's generalisation: instead of baking a
+# translation into the inner canvas origin, it leaves the inner canvas at the
+# origin and drives the viewport's `transform` (an AffineTransform). Today only
+# the translate+scale subset is honoured by the backends; rotation/shear is
+# future work. Ctrl+wheel zooms about the cursor, a plain wheel pans.
+
+const _ZOOM_STEP = 1.1     # multiplicative zoom per wheel notch
+const _ZOOM_MIN  = 0.25    # smallest total scale
+const _ZOOM_MAX  = 4.0     # largest total scale
+
+function projection_print(p::WidgetTransformPaneToGraphicsCanvas, recursion, w::WidgetTransformPane, ctx)
+    w.visible == false && return WidgetTransformPaneToGraphicsCanvasIoMap(p, w, _empty_canvas(), nothing)
+    pos = w.position
+    sz  = w.size
+    px = pos isa Point2D ? _sc(Int(pos.x[])) : 0
+    py = pos isa Point2D ? _sc(Int(pos.y[])) : 0
+    tx, ty = _inset_total(w)
+    avail_w = ctx.available_width
+    avail_h = ctx.available_height
+    vw_cell = avail_w !== nothing ?
+              Cell(() -> Int32(max(0, Int(avail_w[]) - tx))) :
+              Cell(Int32(sz isa Point2D ? Int(sz.x[]) : _SCROLL_FALLBACK_WIDTH))
+    vh_cell = avail_h !== nothing ?
+              Cell(() -> Int32(max(0, Int(avail_h[]) - ty))) :
+              Cell(Int32(sz isa Point2D ? Int(sz.y[]) : _SCROLL_FALLBACK_HEIGHT))
+    cox, coy = _content_offset(w)
+    # The pane's affine transform, read through a Cell so a zoom/pan re-zooms
+    # the viewport reactively.
+    transform_cell = Cell(() -> getfield(w, :transform)[]::AffineTransform)
+    elems = Any[]
+    cfc = w.content_fill_color
+    bgc = cfc isa StyleColor ? cfc : p.background_color
+    let (r, g, b, a) = _rgba(bgc)
+        push!(elems, GraphicsRect(Cell(Int32(cox)), Cell(Int32(coy)), vw_cell, vh_cell,
+                                  Cell(UInt8(r)), Cell(UInt8(g)), Cell(UInt8(b)), Cell(UInt8(a)),
+                                  Cell(Int32(0)), Cell(Int32(0)),
+                                  Cell(Int32(0)), Cell(Int32(0)),
+                                  Cell(Int32(0)),
+                                  Cell(UInt8(0)), Cell(UInt8(0)), Cell(UInt8(0)), Cell(UInt8(0)),
+                                  Cell(nothing)))
+    end
+    # Recurse into the content at the viewport's (unscaled) logical extent — the
+    # content lays out at 1× and the viewport's transform magnifies it.
+    content_iomap = nothing
+    content = w.content
+    if content isa Document
+        content_ctx = with_available_size(ctx; width=vw_cell, height=vh_cell)
+        content_iomap = projection_printer_recurse(recursion, content, content_ctx)
+        inner_canvas = content_iomap.output::GraphicsCanvas
+        inner_elems_cv = inner_canvas.elements
+        # Inner canvas stays at the origin; the transform carries pan + zoom.
+        push!(elems, GraphicsViewport(Cell(Int32(cox)), Cell(Int32(coy)),
+                                      vw_cell, vh_cell,
+                                      Cell(GraphicsCanvas(Cell(Int32(0)), Cell(Int32(0)), Int32(0), Int32(0),
+                                                          inner_elems_cv isa CellVector ? inner_elems_cv : CellVector(Cell[Cell(inner_canvas)]),
+                                                          layout_none, true, Cell(nothing))),
+                                      transform_cell,
+                                      Cell(nothing)))
+    end
+    outer_w = Cell(() -> Int32(Int(vw_cell[]) + tx))
+    outer_h = Cell(() -> Int32(Int(vh_cell[]) + ty))
+    outer = GraphicsCanvas(Cell(Int32(px)), Cell(Int32(py)), outer_w, outer_h,
+                           CellVector(Cell[Cell(e) for e in elems]),
+                           layout_none, true, Cell(nothing))
+    WidgetTransformPaneToGraphicsCanvasIoMap(p, w, outer, content_iomap)
+end
+
+function map_reference_forward(::WidgetTransformPaneToGraphicsCanvas, iomap, reference)
+    return nothing
+end
+
+# Like the scroll pane: prepend `.content` to re-root a bubbled path in the
+# transform pane's own input domain.
+function map_reference_backward(::WidgetTransformPaneToGraphicsCanvas, iomap::WidgetTransformPaneToGraphicsCanvasIoMap, reference)
+    reference === nothing && return nothing
+    ConcreteReferencePath(FieldReference("content"), reference)
+end
+
+# Zoom about a viewport-space point: scale by `factor` keeping `(ax, ay)` fixed,
+# composed onto the existing matrix. `M' = T(a) ∘ S(f) ∘ T(-a) ∘ M`.
+_zoom_about(M::AffineTransform, factor, ax, ay) =
+    affine_translate(ax, ay) ∘ affine_scale(factor, factor) ∘ affine_translate(-ax, -ay) ∘ M
+
+# Pan: prepend a screen-space translation. `M' = T(dx, dy) ∘ M`.
+_pan_by(M::AffineTransform, dx, dy) = affine_translate(dx, dy) ∘ M
+
+function projection_read(p::WidgetTransformPaneToGraphicsCanvas, iomap::WidgetTransformPaneToGraphicsCanvasIoMap, evt)
+    canvas = iomap.output
+    w = iomap.input
+    M = getfield(w, :transform)[]::AffineTransform
+    cox, coy = _content_offset(w)
+    # MouseScroll is consumed here (zoom or pan); each matched branch `return`s.
+    @event_case evt begin
+        # Ctrl+wheel: zoom about the cursor.
+        MouseScroll(dx, dy, x, y; ctrl) => begin
+            hit_element_at(canvas, x, y) === nothing && return nothing
+            cur = M.a == 0.0 ? 1.0 : M.a
+            f = dy >= 0 ? _ZOOM_STEP : 1.0 / _ZOOM_STEP
+            new_scale = clamp(cur * f, _ZOOM_MIN, _ZOOM_MAX)
+            f = new_scale / cur
+            f == 1.0 && return nothing
+            ax, ay = Float64(x - cox), Float64(y - coy)
+            return ReplaceReferencedValue(w, "transform", _zoom_about(M, f, ax, ay))
+        end
+        # Plain wheel: pan. Vertical by `dy`, horizontal by `dx`, step = line height.
+        MouseScroll(dx, dy, x, y) => begin
+            hit_element_at(canvas, x, y) === nothing && return nothing
+            _, step = p.measure("M", p.font)
+            return dx != 0 && dy == 0 ?
+                ReplaceReferencedValue(w, "transform", _pan_by(M, dx * step, 0)) :
+                ReplaceReferencedValue(w, "transform", _pan_by(M, 0, dy * step))
+        end
+    end
+    # Forward other events to the content, mapping pointer coords through the
+    # inverse transform (screen → content-local), then re-root the result.
+    content_iomap = iomap.content_iomap
+    content_iomap === nothing && return nothing
+    op = @event_case evt begin
+        MousePress(button, x, y) => begin
+            inv = affine_inverse(M)
+            lxf, lyf = affine_apply(inv, Float64(x - cox), Float64(y - coy))
+            projection_read(content_iomap.projection, content_iomap,
+                             MousePress(button, round(Int, lxf), round(Int, lyf), evt.modifiers))
         end
         _ => projection_read(content_iomap.projection, content_iomap, evt)
     end
@@ -4928,6 +5079,7 @@ function WidgetToGraphics(font::StyleFont; measure::Function,
         WidgetTabbedPane => WidgetTabbedPaneToGraphicsCanvas(measurer, theme.font, 4, theme.radius,
             theme.muted, theme.background, theme.foreground, theme.muted_foreground),
         WidgetScrollPane => WidgetScrollPaneToGraphicsCanvas(measurer, theme.font, theme.background),
+        WidgetTransformPane => WidgetTransformPaneToGraphicsCanvas(measurer, theme.font, theme.background),
         WidgetToolbar    => WidgetToolbarToGraphicsCanvas(measurer, theme.font, theme.gap),
         WidgetStatusBar  => WidgetStatusBarToGraphicsCanvas(measurer, theme.caption_text, theme.muted, theme.gap),
         WidgetScrollBar  => WidgetScrollBarToGraphicsCanvas(theme.muted, theme.border, 8),

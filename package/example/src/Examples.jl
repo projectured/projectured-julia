@@ -51,6 +51,7 @@ const widget_title_pane_example  = Example("widget_title_pane",  make_widget_tit
 const widget_split_pane_example  = Example("widget_split_pane",  make_widget_split_pane_document_example,  make_widget_projection_example)
 const widget_scroll_bar_example  = Example("widget_scroll_bar",  make_widget_scroll_bar_document_example,  make_widget_projection_example)
 const widget_scroll_pane_example = Example("widget_scroll_pane", make_widget_scroll_pane_document_example, make_widget_projection_example)
+const widget_transform_pane_example = Example("widget_transform_pane", make_widget_transform_pane_document_example, make_widget_projection_example)
 const widget_shell_example       = Example("widget_shell",       make_widget_shell_document_example,       make_widget_projection_example)
 const widget_tabbed_pane_example = Example("widget_tabbed_pane", make_widget_tabbed_pane_document_example, make_widget_projection_example)
 const widget_badge_example       = Example("widget_badge",       make_widget_badge_document_example,       make_widget_projection_example)
@@ -149,7 +150,8 @@ const examples = [
     widget_button_action_example, widget_button_image_example,
     widget_tooltip_example, widget_menu_item_example, widget_menu_example, widget_toolbar_example,
     widget_composite_example, widget_title_pane_example, widget_split_pane_example,
-    widget_scroll_bar_example, widget_scroll_pane_example, widget_shell_example,
+    widget_scroll_bar_example, widget_scroll_pane_example, widget_transform_pane_example,
+    widget_shell_example,
     widget_tabbed_pane_example,
     widget_badge_example, widget_separator_example, widget_card_example, widget_switch_example,
     widget_progress_example, widget_slider_example, widget_radio_group_example,

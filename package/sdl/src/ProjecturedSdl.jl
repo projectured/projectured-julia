@@ -31,6 +31,7 @@ import ProjecturedDomain.GraphicsModule: GraphicsCanvas, GraphicsText, GraphicsR
                          _canvas_content_bounds, _accumulate_bounds!, _bounds_elem!,
                          tessellate_spline, polyline_arrowhead
 import ProjecturedDomain.CollectionModule: ListNode, CellVector
+import ProjecturedDomain.GeometryModule: AffineTransform, affine_identity, affine_is_axis_aligned
 import ProjecturedDomain.FontModule: StyleFont, font_scaled_size, _DISPLAY_SCALE
 import ProjecturedDomain.ScreenModule: Screen, QuitEvent
 import ProjecturedDomain.ScreenDocumentModule: ScreenDocument, WindowDocument, EventEnvelope, WindowCloseRequest, WindowResizeEvent, WindowFocusLost
@@ -667,12 +668,47 @@ function _render_viewport!(renderer::Ptr{SDL_Renderer}, vp::GraphicsViewport, ox
     vy = Int(vp.y) + oy
     vw = Int(vp.w)
     vh = Int(vp.h)
-    clip = Ref(SDL_Rect(Int32(vx), Int32(vy), Int32(vw), Int32(vh)))
-    SDL_RenderSetClipRect(renderer, clip)
     canvas = vp.content::GraphicsCanvas
     cx, cy = Int(canvas.x), Int(canvas.y)
-    _render_canvas!(renderer, canvas, vx + cx, vy + cy, vx + vw, vy + vh)
+    M = vp.transform::AffineTransform
+    if M === affine_identity || (M.a == 1.0 && M.d == 1.0 && M.e == 0.0 && M.f == 0.0 &&
+                                 affine_is_axis_aligned(M))
+        # Fast path: identity transform — clip + draw exactly as before.
+        clip = Ref(SDL_Rect(Int32(vx), Int32(vy), Int32(vw), Int32(vh)))
+        SDL_RenderSetClipRect(renderer, clip)
+        _render_canvas!(renderer, canvas, vx + cx, vy + cy, vx + vw, vy + vh)
+        SDL_RenderSetClipRect(renderer, C_NULL)
+        return
+    end
+    # Translate+scale path. Rotation/shear (off-diagonal) is dropped for now —
+    # only the scale (a, d) and translation (e, f) are honoured.
+    sx = M.a == 0.0 ? 1.0 : M.a
+    sy = M.d == 0.0 ? 1.0 : M.d
+    tx = M.e
+    ty = M.f
+    # Compose the content scale onto the active render scale. Reading the
+    # current scale keeps this correct under the display scale and the
+    # offscreen supersample factor (see `_render_window!` / `write_image`).
+    fx = Ref{Cfloat}(0); fy = Ref{Cfloat}(0)
+    SDL_RenderGetScale(renderer, fx, fy)
+    base_x = Float64(fx[]); base_x <= 0 && (base_x = 1.0)
+    base_y = Float64(fy[]); base_y <= 0 && (base_y = 1.0)
+    SDL_RenderSetScale(renderer, Cfloat(base_x * sx), Cfloat(base_y * sy))
+    # Set the clip *after* the scale change, expressed in the new logical units
+    # (old-logical ÷ scale), so it lands on the same device rectangle as the
+    # viewport box regardless of the content scale.
+    clip = Ref(SDL_Rect(Int32(round(vx / sx)), Int32(round(vy / sy)),
+                        Int32(round(vw / sx)), Int32(round(vh / sy))))
+    SDL_RenderSetClipRect(renderer, clip)
+    # A content-local element coord `l` must land at viewport-space `t + s*(c+l)`;
+    # under the scaled renderer the passed origin is therefore `(v+t)/s + c`.
+    org_x = round(Int, (vx + tx) / sx) + cx
+    org_y = round(Int, (vy + ty) / sy) + cy
+    clip_r = round(Int, (vx + vw) / sx)
+    clip_b = round(Int, (vy + vh) / sy)
+    _render_canvas!(renderer, canvas, org_x, org_y, clip_r, clip_b)
     SDL_RenderSetClipRect(renderer, C_NULL)
+    SDL_RenderSetScale(renderer, Cfloat(base_x), Cfloat(base_y))
 end
 
 # ── Render a GraphicsRect element ────────────────────────────────────
@@ -1210,6 +1246,17 @@ function _collect_viewport_dirty!(res::SdlWindowResources, vp::GraphicsViewport,
     vw, vh = Int(vp.w), Int(vp.h)
     if _node_dirty(vp)
         _acc_extend!(acc, (vx, vy, vx + vw, vy + vh))
+        return
+    end
+    # Under a non-identity transform the content's dirty region is in unscaled
+    # content space; rather than map every sub-rect through the transform, treat
+    # any dirty content as dirtying the whole (clipped) viewport box. Correct,
+    # and zoom/pan repaints the whole pane anyway.
+    if (vp.transform::AffineTransform) !== affine_identity
+        tmp = _DirtyAcc()
+        content0 = vp.content::GraphicsCanvas
+        _collect_canvas_dirty!(res, content0, vx, vy, vx + vw, vy + vh, tmp)
+        _acc_empty(tmp) || _acc_extend!(acc, (vx, vy, vx + vw, vy + vh))
         return
     end
     content = vp.content::GraphicsCanvas

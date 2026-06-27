@@ -20,6 +20,7 @@ import ..DocumentModule: Document, @document
 import ..CollectionModule: CellVector, ListNode, CollectionDocument
 import ..FontModule: StyleFont
 import ..ReferenceModule: Reference
+import ..GeometryModule: AffineTransform, affine_identity, affine_is_axis_aligned
 export GraphicsDocument, LayoutDirection, layout_none, layout_horizontal, layout_vertical,
        GraphicsInsertion, GraphicsText, GraphicsRect, GraphicsLine, GraphicsCircle,
        GraphicsPolyline, GraphicsSpline,
@@ -395,11 +396,19 @@ GraphicsCanvas(x::Integer, y::Integer, w::Integer, h::Integer, elems::Collection
 # ── Viewport ─────────────────────────────────────────────────────────────
 
 """
-    GraphicsViewport(x, y, w, h, content)
+    GraphicsViewport(x, y, w, h, content; transform=affine_identity)
 
 A clipping viewport: renders `content` (a `GraphicsCanvas` whose element
 coordinates are relative to the viewport origin, with any scroll offset
 already applied) and clips the output to the rectangle `(x, y, w, h)`.
+
+`transform` is an [`AffineTransform`](@ref) applied to `content` *inside* the
+clip rectangle (local content space → viewport space). It defaults to the
+identity, so an ordinary scrolling viewport bakes its offset into the content
+canvas's origin as before and leaves `transform` alone. A `WidgetTransformPane`
+instead drives `transform` to zoom/pan its content. Backends honour the
+translate+scale subset (`affine_is_axis_aligned`); rotation/shear is future
+work.
 """
 @document struct GraphicsViewport <: GraphicsDocument
     x::Int32
@@ -407,14 +416,16 @@ already applied) and clips the output to the rectangle `(x, y, w, h)`.
     w::Int32
     h::Int32
     content::GraphicsCanvas
+    transform::AffineTransform
     selection::Reference
 end
 
 function GraphicsViewport(x::Integer, y::Integer, w::Integer, h::Integer,
-                          content::GraphicsCanvas)
+                          content::GraphicsCanvas; transform::AffineTransform=affine_identity)
     GraphicsViewport(Cell(Int32(x)), Cell(Int32(y)),
                      Cell(Int32(w)), Cell(Int32(h)),
                      Cell(content),
+                     Cell(transform),
                      Cell(nothing))
 end
 

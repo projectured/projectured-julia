@@ -18,14 +18,15 @@ import ..ReferenceModule: Reference, ReferencePath, ConcreteReferencePath, Eleme
                           EmptyReferencePath, FieldReference, RangeReference
 import ..GeometryModule: Inset, Point2D, inset_default,
                         inset_size, inset_width, inset_height,
-                        inset_top_left, inset_top_right, inset_bottom_left, inset_bottom_right
+                        inset_top_left, inset_top_right, inset_bottom_left, inset_bottom_right,
+                        AffineTransform, affine_identity
 export Inset, Point2D,
        WidgetDocument, WidgetInsertion,
        WidgetLabel, WidgetText, WidgetCheckbox, WidgetButton, WidgetToolButton,
        WidgetTooltip, WidgetContextMenu, WidgetDialog, WidgetMessageBox, WidgetInputDialog,
        WidgetMenu, WidgetMenuItem, WidgetComposite,
        WidgetShell, WidgetTitlePane, WidgetSplitPane, WidgetTabbedPane,
-       WidgetScrollPane, WidgetToolbar, WidgetStatusBar, WidgetScrollBar,
+       WidgetScrollPane, WidgetTransformPane, WidgetToolbar, WidgetStatusBar, WidgetScrollBar,
        WidgetBadge, WidgetSeparator, WidgetCard, WidgetSwitch, WidgetProgress,
        WidgetSlider, WidgetRadioGroup, WidgetAvatar, WidgetAlert, WidgetSkeleton,
        WidgetToggle, WidgetToggleGroup, WidgetSelect, WidgetOption, WidgetTextarea, WidgetAccordion,
@@ -44,7 +45,7 @@ export Inset, Point2D,
        IWidgetLabel, IWidgetText, IWidgetCheckbox, IWidgetButton,
        IWidgetTooltip, IWidgetContextMenu, IWidgetDialog, IWidgetMenu, IWidgetMenuItem, IWidgetComposite,
        IWidgetShell, IWidgetTitlePane, IWidgetSplitPane, IWidgetTabbedPane,
-       IWidgetScrollPane, IWidgetToolbar, IWidgetStatusBar, IWidgetScrollBar,
+       IWidgetScrollPane, IWidgetTransformPane, IWidgetToolbar, IWidgetStatusBar, IWidgetScrollBar,
        IWidgetBadge, IWidgetSeparator, IWidgetCard, IWidgetSwitch, IWidgetProgress,
        IWidgetSlider, IWidgetRadioGroup, IWidgetAvatar, IWidgetAlert, IWidgetSkeleton,
        IWidgetToggle, IWidgetToggleGroup, IWidgetSelect, IWidgetOption, IWidgetTextarea, IWidgetAccordion,
@@ -980,6 +981,61 @@ function WidgetScrollPane(content;
 end
 
 setfn!(w::WidgetScrollPane, f::Function) = (setfn!(getfield(w, :content), f); w)
+
+# ── WidgetTransformPane ──────────────────────────────────────────────────────
+
+"""
+    WidgetTransformPane(content; transform, content_fill_color, position, size,
+                        <base kwargs>)
+
+A pane that applies a 2-D affine [`AffineTransform`](@ref) to its `content` —
+the unification of scrolling (a pure translation) and zooming (a pure scale).
+The pane projects to a clipping `GraphicsViewport` whose `transform` carries the
+matrix, so content is magnified/panned inside a fixed on-screen box.
+
+`transform` is **transient view state** (like `WidgetScrollPane.scroll_position`)
+— it is not serialised. It defaults to `affine_identity`. Gestures edit it via a
+single-field `ReplaceReferencedValue(pane, "transform", M')`: Ctrl+wheel zooms
+about the cursor, a plain wheel pans, and Ctrl+0 resets to the identity. Only the
+translate+scale subset is rendered today; rotation/shear is future work.
+"""
+@document struct WidgetTransformPane <: WidgetDocument
+    content::Any
+    content_fill_color::StyleColor
+    position::Point2D
+    size::Point2D
+    transform::AffineTransform
+    visible::Bool
+    margin::Inset
+    margin_color::StyleColor
+    border::Inset
+    border_color::StyleColor
+    padding::Inset
+    padding_color::StyleColor
+    selection::Reference
+end
+
+function WidgetTransformPane(content;
+                            transform::AffineTransform=affine_identity,
+                            content_fill_color=nothing,
+                            position=nothing,
+                            size=nothing,
+                            visible::Bool=true,
+                            margin::Inset=inset_default,
+                            margin_color=nothing,
+                            border::Inset=inset_default,
+                            border_color=nothing,
+                            padding::Inset=inset_default,
+                            padding_color=nothing)
+    WidgetTransformPane(Cell(content), Cell(content_fill_color),
+                        Cell(position), Cell(size), Cell(transform),
+                        Cell(visible), Cell(margin), Cell(margin_color),
+                        Cell(border), Cell(border_color),
+                        Cell(padding), Cell(padding_color),
+                        Cell(nothing))
+end
+
+setfn!(w::WidgetTransformPane, f::Function) = (setfn!(getfield(w, :content), f); w)
 
 # ── WidgetScrollBar ────────────────────────────────────────────────────────
 

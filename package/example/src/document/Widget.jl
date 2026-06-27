@@ -299,6 +299,15 @@ function make_widget_scroll_pane_document_example(; width=400, height=300, line_
                      border=Inset(1, 1, 1, 1))
 end
 
+# WidgetTransformPane — a zoom/pan viewport over an over-tall composite.
+# Ctrl+wheel zooms about the cursor; a plain wheel pans.
+function make_widget_transform_pane_document_example(; width=400, height=300, line_height=40)
+    items = [WidgetLabel(Point2D(4, _wy((i - 1) * line_height)), "Item $i") for i in 1:20]
+    WidgetTransformPane(WidgetComposite(Point2D(0, 0), Any[items...]);
+                        size=Point2D(width, height),
+                        border=Inset(1, 1, 1, 1))
+end
+
 # WidgetShell — a top-level window shell with a menu bar and toolbar.
 function make_widget_shell_document_example(; width=600, height=400)
     # Content stays a positioned WidgetComposite: WidgetShell places its content
