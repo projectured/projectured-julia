@@ -1,105 +1,125 @@
-function make_widget_document_example(; width=1024, height=768, line_height=56)
-    # All colors come from the widget theme — this gallery only positions widgets.
-    field_border = Inset(1, 1, 1, 1)
+# The widget gallery: one document that demonstrates every widget type, grouped
+# into tabs inside a WidgetShell with a Stage-3/4 chrome (horizontal menu bar with
+# submenus + shared Actions + Ctrl+S, a toolbar of the same commands, a status bar,
+# a tooltip). Project it with make_widget_projection_example. Interactive popups
+# (the select dropdown, the context menu, the dialog button) render their closed /
+# inline state here; opening them live needs the window-route projection (see
+# make_widget_popup_projection_example).
+function make_widget_document_example(; width=1024, height=768)
+    fb = Inset(1, 1, 1, 1)   # field border
 
-    # ── Form tab ──────────────────────────────────────────────────────────────
-    name_label  = WidgetLabel(Point2D(0,           0),           "Username:")
-    name_field  = WidgetText( Point2D(280,          0),           "alice"; border=field_border)
+    # Shared commands (Stage 4): one Action drives a menu item AND a toolbar
+    # button; Save also carries a Ctrl+S shortcut the shell dispatches.
+    new_action  = Action("New")
+    open_action = Action("Open")
+    save_action = Action("Save"; shortcut=Shortcut(:s; ctrl=true))
 
-    email_label = WidgetLabel(Point2D(0,           line_height), "Email:")
-    email_field = WidgetText( Point2D(280,          line_height), "alice@example.com"; border=field_border)
+    # ── Inputs tab ────────────────────────────────────────────────────────────
+    inputs = VerticalLayout(Any[
+        HorizontalLayout(Any[WidgetLabel(Point2D(0, 0), "Username:"),
+                             WidgetText(Point2D(0, 0), "alice"; border=fb, padding=Inset(4, 4, 8, 8))]; gap=12),
+        HorizontalLayout(Any[WidgetLabel(Point2D(0, 0), "Email:"),
+                             WidgetText(Point2D(0, 0), "alice@example.com"; border=fb, padding=Inset(4, 4, 8, 8))]; gap=12),
+        HorizontalLayout(Any[WidgetCheckbox(Point2D(0, 0), true; border=fb, padding=Inset(4, 4, 4, 4)),
+                             WidgetLabel(Point2D(0, 0), "Enable notifications")]; gap=12),
+        WidgetSwitch(Point2D(0, 0), true),
+        WidgetRadioGroup(Point2D(0, 0), ["Default", "Comfortable", "Compact"]; selected=2),
+        WidgetSelect(Point2D(0, 0), "Apple"; options=["Apple", "Banana", "Cherry", "Date"], width=220),
+        WidgetSlider(Point2D(0, 0), 0.4; width=260),
+        WidgetTextarea(Point2D(0, 0), "Type your message here.\nIt can span several lines."; width=340, rows=3),
+    ]; gap=16, horizontal_align=:left)
 
-    notify_check = WidgetCheckbox(Point2D(0,   2 * line_height), true)
-    notify_label = WidgetLabel(  Point2D(100,  2 * line_height), "Enable notifications")
+    # ── Buttons & menus tab ───────────────────────────────────────────────────
+    buttons = VerticalLayout(Any[
+        WidgetButton(Point2D(0, 0), Point2D(180, 44), "Save";
+                     command=save_action, border=fb, padding=Inset(4, 4, 8, 8)),
+        WidgetButton(Point2D(0, 0), Point2D(180, 44), "Show dialog…";
+                     dialog=WidgetMessageBox("Confirm", "Proceed with the action?"),
+                     border=fb, padding=Inset(4, 4, 8, 8)),
+        WidgetToggle(Point2D(0, 0), "Bold"; pressed=true),
+        WidgetToggleGroup(Point2D(0, 0), ["Left", "Center", "Right"]; selected=2),
+        WidgetContextMenu(WidgetLabel(Point2D(0, 0), "Right-click for a context menu"),
+                          WidgetMenu([WidgetMenuItem("Cut"), WidgetMenuItem("Copy"),
+                                      WidgetMenuItem("Paste")])),
+    ]; gap=16, horizontal_align=:left)
 
-    save_btn = WidgetButton(Point2D(0, 3 * line_height), Point2D(180, line_height), "Save")
+    # ── Display tab ───────────────────────────────────────────────────────────
+    display = VerticalLayout(Any[
+        HorizontalLayout(Any[
+            WidgetBadge(Point2D(0, 0), "Default"),
+            WidgetBadge(Point2D(0, 0), "Secondary";   variant=:secondary),
+            WidgetBadge(Point2D(0, 0), "Destructive"; variant=:destructive),
+            WidgetBadge(Point2D(0, 0), "Outline";     variant=:outline),
+        ]; gap=8),
+        WidgetCard(Point2D(0, 0); title="Create project",
+                   description="Deploy your new project in one click.",
+                   content="Name and framework go here.", footer="You can change this later."),
+        WidgetAlert(Point2D(0, 0), "Heads up!", "You can add components using the CLI."),
+        HorizontalLayout(Any[WidgetAvatar(Point2D(0, 0), "JD"; size=56),
+                             WidgetProgress(Point2D(0, 0), 0.6; width=260)]; gap=16),
+        WidgetSeparator(Point2D(0, 0); length=320),
+        WidgetSkeleton(Point2D(0, 0); width=320, height=18),
+    ]; gap=16, horizontal_align=:left)
 
-    form_composite = WidgetComposite(Point2D(16, 16), Any[
-        name_label,  name_field,
-        email_label, email_field,
-        notify_check, notify_label,
-        save_btn,
-    ])
+    # ── Data tab ──────────────────────────────────────────────────────────────
+    data = VerticalLayout(Any[
+        WidgetTable(Point2D(0, 0), ["Invoice", "Status", "Amount"],
+                    [["INV001", "Paid",    "\$250.00"],
+                     ["INV002", "Pending", "\$150.00"],
+                     ["INV003", "Unpaid",  "\$350.00"]]),
+        WidgetTree(Point2D(0, 0), Any[
+            ("src", Any[("components", Any["button.jl", "card.jl"]), "app.jl"]),
+            "README.md",
+        ]),
+        WidgetAccordion(Point2D(0, 0), [
+            ("Is it accessible?", "Yes. It adheres to the WAI-ARIA design pattern."),
+            ("Is it styled?",     "Yes. It matches the theme."),
+        ]; expanded=1),
+    ]; gap=16, horizontal_align=:left)
 
-    form_scroll = WidgetScrollPane(form_composite;
-                                   size=Point2D(width - 2, height - 80))
+    # ── Layout tab (split pane + scrollable lists) ────────────────────────────
+    left_scroll  = WidgetScrollPane(WidgetComposite(Point2D(0, 0),
+                       Any[WidgetLabel(Point2D(4, (i - 1) * 44), "Left item $i") for i in 1:8]);
+                       size=Point2D(div(width, 2) - 12, height - 200))
+    right_scroll = WidgetScrollPane(WidgetComposite(Point2D(0, 0),
+                       Any[WidgetLabel(Point2D(4, (i - 1) * 44), "Detail $i") for i in 1:8]);
+                       size=Point2D(div(width, 2) - 12, height - 200))
+    layout_split = WidgetSplitPane(:horizontal, Any[
+        WidgetTitlePane("Navigation", left_scroll;  padding=Inset(4, 4, 4, 4)),
+        WidgetTitlePane("Details",    right_scroll; padding=Inset(4, 4, 4, 4)),
+    ]; sizes=[div(width, 2), div(width, 2)])
 
-    # ── List tab ──────────────────────────────────────────────────────────────
-    item_labels = [WidgetLabel(Point2D(4, (i - 1) * line_height), "Item $i")
-                   for i in 1:20]
-
-    list_composite = WidgetComposite(Point2D(0, 0), Any[item_labels...])
-
-    list_scroll = WidgetScrollPane(list_composite;
-                                   size=Point2D(width - 2, height - 80),
-                                   border=Inset(1, 1, 1, 1))
-
-    # ── Layout tab ────────────────────────────────────────────────────────────
-    left_labels = [WidgetLabel(Point2D(4, (i - 1) * line_height), "Left item $i")
-                   for i in 1:8]
-    right_labels = [WidgetLabel(Point2D(4, (i - 1) * line_height), "Right item $i")
-                    for i in 1:8]
-
-    left_scroll  = WidgetScrollPane(WidgetComposite(Point2D(0, 0), Any[left_labels...]);
-                                    size=Point2D(div(width, 2) - 4, height - 120))
-    right_scroll = WidgetScrollPane(WidgetComposite(Point2D(0, 0), Any[right_labels...]);
-                                    size=Point2D(div(width, 2) - 4, height - 120))
-
-    left_pane  = WidgetTitlePane("Navigation", left_scroll; padding=Inset(4, 4, 4, 4))
-    right_pane = WidgetTitlePane("Details", right_scroll; padding=Inset(4, 4, 4, 4))
-
-    layout_split = WidgetSplitPane(:horizontal, Any[left_pane, right_pane];
-                                   sizes=[div(width, 2), div(width, 2)])
-
-    # ── Controls tab ──────────────────────────────────────────────────────────
-    h_bar = WidgetScrollBar(:horizontal;
-                            value=0.3, thumb_size=0.25,
-                            position=Point2D(16, 16),
-                            size=Point2D(width - 64, 24))
-    v_bar = WidgetScrollBar(:vertical;
-                            value=0.6, thumb_size=0.3,
-                            position=Point2D(width - 36, 16),
-                            size=Point2D(20, height - 160))
-
-    controls_composite = WidgetComposite(Point2D(0, 0), Any[h_bar, v_bar])
-    controls_scroll = WidgetScrollPane(controls_composite;
-                                       size=Point2D(width - 2, height - 80))
-
-    # ── Tabbed content ────────────────────────────────────────────────────────
     tabs = WidgetTabbedPane([
-        ("Form",     form_scroll),
-        ("List",     list_scroll),
-        ("Layout",   layout_split),
-        ("Controls", controls_scroll),
+        ("Inputs",  inputs),
+        ("Buttons", buttons),
+        ("Display", display),
+        ("Data",    data),
+        ("Layout",  layout_split),
     ])
 
-    # ── Toolbar ───────────────────────────────────────────────────────────────
-    toolbar = WidgetToolbar([
-        WidgetMenuItem("New"),
-        WidgetMenuItem("Open"),
-        WidgetMenuItem("Save"),
-        WidgetMenuItem("|"),
-        WidgetMenuItem("Undo"),
-        WidgetMenuItem("Redo"),
-    ]; padding=Inset(4, 4, 4, 4))
-
-    # ── Menu bar ──────────────────────────────────────────────────────────────
+    # ── Chrome: menu bar (shared actions) + toolbar + status bar + tooltip ─────
     menu_bar = WidgetMenu([
-        WidgetMenuItem("File"),
-        WidgetMenuItem("Edit"),
-        WidgetMenuItem("View"),
-        WidgetMenuItem("Help"),
-    ])
-
-    # ── Tooltip ───────────────────────────────────────────────────────────────
-    tip = WidgetTooltip(Point2D(20, height - 80), Point2D(360, line_height),
-                        "Widget Gallery — hover items for tips";
-                        visible=false)
+        WidgetMenuItem("File"; submenu=WidgetMenu([
+            WidgetMenuItem("New";  command=new_action),
+            WidgetMenuItem("Open"; command=open_action),
+            WidgetMenuItem("Save"; command=save_action)])),
+        WidgetMenuItem("Edit"; submenu=WidgetMenu([
+            WidgetMenuItem("Undo"), WidgetMenuItem("Redo")])),
+        WidgetMenuItem("View"; submenu=WidgetMenu([
+            WidgetMenuItem("Zoom In"), WidgetMenuItem("Zoom Out")])),
+        WidgetMenuItem("Help"; submenu=WidgetMenu([WidgetMenuItem("About")])),
+    ]; orientation=:horizontal)
+    toolbar = WidgetToolbar([
+        WidgetMenuItem("New";  command=new_action),
+        WidgetMenuItem("Open"; command=open_action),
+        WidgetMenuItem("Save"; command=save_action),
+    ]; padding=Inset(4, 4, 4, 4))
+    status_bar = WidgetStatusBar(["Ready", "shadcn widget gallery", "Ln 1, Col 1"])
+    tip = WidgetTooltip(Point2D(20, height - 80), Point2D(360, 48),
+                        "Widget Gallery — hover items for tips"; visible=false)
 
     WidgetShell(tabs;
-                menu_bar=menu_bar,
-                toolbar=toolbar,
-                tooltip=tip,
+                menu_bar=menu_bar, toolbar=toolbar, status_bar=status_bar, tooltip=tip,
                 size=Point2D(width, height))
 end
 
