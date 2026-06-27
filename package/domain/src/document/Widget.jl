@@ -26,7 +26,7 @@ export Inset, Point2D,
        WidgetScrollPane, WidgetToolbar, WidgetScrollBar,
        WidgetBadge, WidgetSeparator, WidgetCard, WidgetSwitch, WidgetProgress,
        WidgetSlider, WidgetRadioGroup, WidgetAvatar, WidgetAlert, WidgetSkeleton,
-       WidgetToggle, WidgetToggleGroup, WidgetSelect, WidgetTextarea, WidgetAccordion,
+       WidgetToggle, WidgetToggleGroup, WidgetSelect, WidgetOption, WidgetTextarea, WidgetAccordion,
        WidgetTable, WidgetTree, WidgetTreeNode,
        SelectTabOperation,
        StartSplitterDragOperation, ResizeSplitPaneOperation, EndSplitterDragOperation,
@@ -42,7 +42,7 @@ export Inset, Point2D,
        IWidgetScrollPane, IWidgetToolbar, IWidgetScrollBar,
        IWidgetBadge, IWidgetSeparator, IWidgetCard, IWidgetSwitch, IWidgetProgress,
        IWidgetSlider, IWidgetRadioGroup, IWidgetAvatar, IWidgetAlert, IWidgetSkeleton,
-       IWidgetToggle, IWidgetToggleGroup, IWidgetSelect, IWidgetTextarea, IWidgetAccordion,
+       IWidgetToggle, IWidgetToggleGroup, IWidgetSelect, IWidgetOption, IWidgetTextarea, IWidgetAccordion,
        IWidgetTable, IWidgetTree
 
 # ── WidgetDocument (abstract base) ─────────────────────────────────────────────────
@@ -967,21 +967,56 @@ WidgetToggleGroup(position::Point2D, options::Vector; selected::Integer=1, visib
 # ── WidgetSelect ────────────────────────────────────────────────────────────
 
 """
-    WidgetSelect(position, value; width=220)
+    WidgetSelect(position, value; options=[], width=220)
 
-A closed select / combobox: an input-like box showing `value` with a trailing
-chevron (the dropdown itself is a reader concern, out of scope here).
+A select / combobox: an input-like box showing `value` with a trailing chevron.
+`options` lists the selectable values; clicking the box opens a dropdown of those
+options as a floating popup window (see `WidgetSelectToGraphicsCanvas`'s reader and
+[`WidgetOption`]). Picking an option writes it back to `value` and dismisses the
+popup. With no options the box is inert (renders the closed state only).
 """
 @document struct WidgetSelect <: WidgetDocument
     position::Point2D
     value::Any
+    options::CellVector
     width::Int
     visible::Bool
     enabled::Bool
     selection::Reference
 end
-WidgetSelect(position::Point2D, value; width::Integer=220, visible::Bool=true, enabled::Bool=true) =
-    WidgetSelect(Cell(position), Cell(value), Cell(Int(width)), Cell(visible), Cell(enabled), Cell(nothing))
+WidgetSelect(position::Point2D, value; options::Vector=Any[], width::Integer=220,
+             visible::Bool=true, enabled::Bool=true) =
+    WidgetSelect(Cell(position), Cell(value),
+                 CellVector(Cell[o isa Cell ? o : Cell(o) for o in options]),
+                 Cell(Int(width)), Cell(visible), Cell(enabled), Cell(nothing))
+
+# ── WidgetOption ──────────────────────────────────────────────────────────────
+
+"""
+    WidgetOption(position, select, value; label=string(value), popup_id=:widget_popup, width=220)
+
+One row of an open `WidgetSelect` dropdown. Holds the target `select` document (an
+identity pointer, so its click writes straight back to that object regardless of
+where it lives in the tree), the `value` to assign, the `label` to render, and the
+`popup_id` of the floating window to dismiss. A left click emits a
+`CompoundOperation` that writes `select.value = value` and closes `popup_id` — the
+window-route close is unpacked by `WindowManagerProjection`, the value write bubbles
+to `evaluate_operation`.
+"""
+@document struct WidgetOption <: WidgetDocument
+    position::Point2D
+    select::Any
+    value::Any
+    label::Any
+    popup_id::Symbol
+    width::Int
+    visible::Bool
+    selection::Reference
+end
+WidgetOption(position::Point2D, select, value; label=string(value),
+             popup_id::Symbol=:widget_popup, width::Integer=220, visible::Bool=true) =
+    WidgetOption(Cell(position), Cell(select), Cell(value), Cell(label),
+                 Cell(popup_id), Cell(Int(width)), Cell(visible), Cell(nothing))
 
 # ── WidgetTextarea ──────────────────────────────────────────────────────────
 

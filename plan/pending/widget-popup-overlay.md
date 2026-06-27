@@ -276,25 +276,46 @@ commit pending; behavior-tested via 3c).**
   WindowManager, which opens the window. `prepend_steps_to_op` passes the
   `OpenPopupOperation` up unchanged (the captured anchor must NOT be re-rooted).
 
-**3c — the select + option items (remaining).**
+**3c — the select + option items. ✅ Done.**
 
-- **`WidgetSelect`.** Add `options`. Custom `WidgetSelectIoMap` carrying the
-  captured `ctx.reference` + the rendered `control_height`. Drop `@_printer_only`;
-  `map_reference_forward = _self_point` (the deferred Step 2.0 leaf, one line);
-  reader: `MousePress` on the box → `OpenPopupOperation(id=:widget_popup,
-  anchor=iomap.anchor, dx=0, dy=control_height+gap, content=<option list>,
-  auto_dismiss=true)`. Printer's closed state unchanged.
-- **`WidgetOption`** (new widget: document + projection). Renders a label row;
-  reader on `MousePress` → `CompoundOperation([ReplaceReferencedValue(select,
-  "value", value), CloseWindowOperation(:widget_popup)])`. Carries the target
-  select (identity) + value + popup id. (Identity-rooted `ReplaceReferencedValue`
-  passes `prepend_steps_to_op` unchanged, so it round-trips to the select; the
-  WindowManager's 3a CompoundOperation unpacking applies the close.)
-- Option list = a `VerticalLayout` of `WidgetOption`s, built by the select reader.
+- **`WidgetSelect`** (`document/Widget.jl`, `projection/primitive/WidgetToGraphics.jl`).
+  Added an `options::CellVector` field. Custom `WidgetSelectToGraphicsCanvasIoMap`
+  carries the captured `ctx.reference` (the anchor) + the rendered
+  `control_width`/`control_height`. Dropped `@_printer_only`;
+  `map_reference_forward = _self_point` (the deferred Step 2.0 leaf, one line),
+  plus a `SimpleIoMap` no-op for the invisible case. Reader: a left `MousePress`
+  on the box → `OpenPopupOperation(id=:widget_popup, anchor=iomap.anchor, dx=0,
+  dy=control_height+gap, width=control_width, height=#options·control_height,
+  content=VerticalLayout(options), auto_dismiss=true)`. No options / disabled ⇒
+  inert. Printer's closed state unchanged.
+- **`WidgetOption`** (new widget: document + `WidgetOptionToGraphicsCanvas`).
+  Renders a flat label row; reader on a left `MousePress` →
+  `CompoundOperation([ReplaceReferencedValue(select, "value", value),
+  CloseWindowOperation(popup_id)])`. Carries the target select (identity) + value
+  + label + popup id. Identity-rooted `ReplaceReferencedValue` passes
+  `prepend_steps_to_op`/`_prefix_op` unchanged, so it round-trips to the real
+  select; the WindowManager's 3a CompoundOperation unpacking applies the close and
+  passes the value write upward to `evaluate_operation`.
+- Option list = a `VerticalLayout` of `WidgetOption`s, built by the select reader;
+  each option points back at the select object for the write.
+- Registered `WidgetOption` in the `WidgetToGraphics` factory.
 
-**Tests (3c):** clicking the select opens the option-list window at the resolved
-position; clicking an option round-trips `value` and closes; outside-click
-(focus-lost) / `Esc` close without changing value.
+**Tests (3c, `WidgetSelectTest.jl`, `test_widget_select_dropdown`):** clicking the
+select emits an anchor-relative `OpenPopupOperation` whose content is a
+`VerticalLayout` of options; an empty/disabled select is inert; the
+`WidgetPopupResolver` seam maps the anchor forward and turns the click into an
+absolute `OpenWindowOperation` (style `:floating`, `auto_dismiss`); clicking an
+option emits the value-write + close `CompoundOperation` and applying the write
+updates `select.value`; a non-left click is a no-op. (Focus-lost / `Esc`
+dismissal of the popup window is covered by `TooltipTest`'s WindowFocusLost /
+WindowCloseRequest testsets.)
+
+**Not in 3c (→ Step 6):** a dedicated end-to-end `widget_popup` *example* needs the
+screen/window-route example projection (WindowManager + `WidgetPopupResolver`
+wrapping the content), which `make_widget_projection_example` does not yet wire.
+The existing `widget_select` example gained `options` so the field is exercised,
+but it renders the closed state only until Step 6 supplies the window-route
+projection.
 
 ## Step 4 — `WidgetMenu` open-on-click + context menu
 
@@ -393,12 +414,13 @@ envelope targeting the base window is dropped (does not reach base widgets).
       Principle documented on `map_reference_forward`. Also unblocks `anchored-layout.md`.
 - [ ] Step 2 — anchored placement on the resolved point (`anchor_point` + clamp);
       op carries `(anchor_ref, offset)`, not coords; trigger bakes its size into offset
-- [~] Step 3 — `WidgetSelect` dropdown. **3a ✅** (focus-lost + `auto_dismiss` +
-      CompoundOperation unpacking, committed). **3b ✅ written/loads** (anchor wiring
-      = capture `ctx.reference` + `OpenPopupOperation` + `WidgetPopupResolver`
-      seam → `OpenWindowOperation` via `anchor_point`). **3c remaining:**
-      `WidgetSelect` options/iomap/reader/`_self_point`, new `WidgetOption` widget,
-      option-list, end-to-end test.
+- [x] Step 3 — `WidgetSelect` dropdown. **3a ✅** (focus-lost + `auto_dismiss` +
+      CompoundOperation unpacking, committed). **3b ✅** (anchor wiring = capture
+      `ctx.reference` + `OpenPopupOperation` + `WidgetPopupResolver` seam →
+      `OpenWindowOperation` via `anchor_point`). **3c ✅** (`WidgetSelect`
+      options/iomap/reader/`_self_point`, new `WidgetOption` widget + projection,
+      option-list, `WidgetSelectTest.jl`). The interactive `widget_popup` *example*
+      (window-route example projection) is deferred to Step 6.
 - [ ] Step 4 — `WidgetMenu` open-on-click + right-click context menu
 - [ ] Step 5 — `WidgetDialog` modal (backdrop window + centered card + buttons,
       modality enforced by WindowManager) + MessageBox/InputDialog

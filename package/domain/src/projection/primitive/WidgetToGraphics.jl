@@ -38,7 +38,7 @@ import ..WidgetModule: WidgetDocument, WidgetInsertion, WidgetLabel, WidgetText,
                        WidgetTabbedPane, WidgetScrollPane, WidgetToolbar, WidgetScrollBar,
                        WidgetBadge, WidgetSeparator, WidgetCard, WidgetSwitch, WidgetProgress,
                        WidgetSlider, WidgetRadioGroup, WidgetAvatar, WidgetAlert, WidgetSkeleton,
-                       WidgetToggle, WidgetToggleGroup, WidgetSelect, WidgetTextarea, WidgetAccordion,
+                       WidgetToggle, WidgetToggleGroup, WidgetSelect, WidgetOption, WidgetTextarea, WidgetAccordion,
                        WidgetTable, WidgetTree, WidgetTreeNode,
                        Inset, Point2D, inset_default,
                        SelectTabOperation,
@@ -57,14 +57,15 @@ import ..IoMapApiModule: IoMap
 import ..MouseModule: MouseScroll, MousePress, MouseDown, MouseUp, MouseMove, MouseEnter, MouseLeave
 import ..EventCaseModule: var"@event_case"
 import ..OperationApiModule: Operation
-import ..OperationModule: ReplaceSelectionOperation, ReplaceReferencedValue, ToggleCollapseOperation, CompoundOperation
+import ..OperationModule: ReplaceSelectionOperation, ReplaceReferencedValue, ToggleCollapseOperation, CompoundOperation,
+                          OpenPopupOperation, CloseWindowOperation
 import ..PrimitiveModule: StringReplaceRangeOperation, NumberReplaceRangeOperation
 import ..ReferenceModule: ReferencePath, ConcreteReferencePath, FieldReference, RangeReference,
                           ElementReference, EmptyReferencePath, is_element_reference, PointReference
 import ..OperationRerootingModule: prepend_steps_to_op
 import ..TypeDispatchingModule: TypeDispatchingProjection
 import ..PrinterContextModule: child_context, with_available_size
-import ..LayoutModule: LayoutDocument, LayoutConstraint, GridLayout, allocate_axis, layout_min, layout_max,
+import ..LayoutModule: LayoutDocument, LayoutConstraint, GridLayout, VerticalLayout, allocate_axis, layout_min, layout_max,
                        layout_preferred, layout_weight
 import ..LayoutToGraphicsModule: GridLayoutToGraphicsCanvas, GridLayoutIoMap, _forward_descend
 import ..KeyboardModule: KeyDown
@@ -80,6 +81,8 @@ export WidgetInsertionToGraphicsCanvas, WidgetLabelToGraphicsCanvas, WidgetTextT
        WidgetToGraphics, WidgetTheme, widget_theme_light, widget_theme_dark,
        widget_theme_slate_light, widget_theme_slate_dark,
        WidgetScrollPaneToGraphicsViewport, WidgetScrollPaneToGraphicsViewportIoMap,
+       WidgetSelectToGraphicsCanvas, WidgetSelectToGraphicsCanvasIoMap,
+       WidgetOptionToGraphicsCanvas,
        anchor_point
 
 # ── Anchor resolution ──────────────────────────────────────────────
@@ -2985,6 +2988,19 @@ end
     ring_color::StyleColor      # focus ring when selected
 end
 
+# Carries the anchor (the select's own document path, captured from `ctx.reference`
+# at print time) and the rendered box size, so the reader can open the dropdown
+# popup anchored under the box without re-deriving its position. `control_width`
+# fixes the popup width to the box; `control_height` places it just below.
+struct WidgetSelectToGraphicsCanvasIoMap <: IoMap
+    projection::Any
+    input::WidgetSelect
+    output::GraphicsCanvas
+    anchor::ReferencePath
+    control_width::Int
+    control_height::Int
+end
+
 function projection_print(p::WidgetSelectToGraphicsCanvas, recursion, w::WidgetSelect, ctx)
     w.visible == false && return SimpleIoMap(p, w, _empty_canvas())
     position = w.position::Point2D
@@ -3009,9 +3025,95 @@ function projection_print(p::WidgetSelectToGraphicsCanvas, recursion, w::WidgetS
     _push_chevron!(elements, control_width - padding_x - chevron_size, control_height ÷ 2, chevron_size, :down,
                    chevron_color; stroke=max(1, _sc(p.chevron.width)))
     _push_focus_ring!(elements, w, control_width, control_height, p.ring_color, _sc(p.corner_radius))
-    SimpleIoMap(p, w, _make_canvas(_origin(position)..., control_width, control_height, elements))
+    canvas = _make_canvas(_origin(position)..., control_width, control_height, elements)
+    WidgetSelectToGraphicsCanvasIoMap(p, w, canvas, ctx.reference, control_width, control_height)
 end
-@_printer_only WidgetSelectToGraphicsCanvas
+
+# Forward image (Step 2.0): the select is a positioned leaf, so the empty
+# reference maps to its top-left in its own frame; parent containers shift it on
+# the way up. A content-root resolver reads this to anchor the dropdown popup.
+map_reference_forward(::WidgetSelectToGraphicsCanvas, iomap::WidgetSelectToGraphicsCanvasIoMap, reference) =
+    _self_point(reference)
+map_reference_forward(::WidgetSelectToGraphicsCanvas, iomap::SimpleIoMap, reference) = nothing
+map_reference_backward(::WidgetSelectToGraphicsCanvas, iomap, reference) = nothing
+
+# Invisible select (printer returned a bare empty canvas): inert.
+projection_read(::WidgetSelectToGraphicsCanvas, iomap::SimpleIoMap, evt) = nothing
+
+# A left click on the box opens the option list as a floating popup window,
+# anchored just below the box. The reader carries only the anchor reference + a
+# trigger-baked offset; a content-root resolver (`WidgetPopupResolver`) maps the
+# anchor forward to absolute coordinates and turns this into an `OpenWindowOperation`.
+# The deep reader never computes its own screen position.
+function projection_read(p::WidgetSelectToGraphicsCanvas, iomap::WidgetSelectToGraphicsCanvasIoMap, evt)
+    w = iomap.input
+    w.enabled === false && return nothing
+    @event_case evt begin
+        MousePress(button, x, y) => button === :left ? _open_select_popup(w, iomap) : nothing
+        _ => nothing
+    end
+end
+
+# Build the dropdown: a `VerticalLayout` of `WidgetOption`s (one per selectable
+# value, each pointing back at this select for the value write) wrapped in an
+# `OpenPopupOperation` anchored under the box. No options ⇒ nothing to open.
+function _open_select_popup(w::WidgetSelect, iomap::WidgetSelectToGraphicsCanvasIoMap)
+    opts = collect(w.options)
+    isempty(opts) && return nothing
+    gap = 4
+    items = Any[WidgetOption(Point2D(0, 0), w, opt; width=iomap.control_width) for opt in opts]
+    OpenPopupOperation(; id=:widget_popup, anchor=iomap.anchor,
+                       dx=0, dy=iomap.control_height + gap,
+                       width=iomap.control_width, height=length(opts) * iomap.control_height,
+                       auto_dismiss=true, content=VerticalLayout(items))
+end
+
+# ── WidgetOption ──────────────────────────────────────────────────────────────
+# One row of an open select dropdown. A plain label on a flat surface; a left
+# click writes the value back to the target select and dismisses the popup.
+
+@projection struct WidgetOptionToGraphicsCanvas
+    measure::Function
+    text::StyleText
+    background_color::StyleColor
+    padding::Inset
+end
+
+function projection_print(p::WidgetOptionToGraphicsCanvas, recursion, w::WidgetOption, ctx)
+    w.visible == false && return SimpleIoMap(p, w, _empty_canvas())
+    position = w.position::Point2D
+    label = string(w.label)
+    padding_x = _sc(Int(p.padding.left[]))
+    padding_y = _sc(Int(p.padding.top[]))
+    text_width, text_height = _text_size(p.measure, p.text.font, label)
+    row_width = _resolve_width(ctx, _sc(Int(w.width)), text_width + 2padding_x)
+    row_height = text_height + 2padding_y
+    elements = Any[]
+    _push_panel!(elements, 0, 0, row_width, row_height; fill=p.background_color)
+    red, green, blue, alpha = _rgbai(p.text.color)
+    push!(elements, GraphicsText(label, padding_x, (row_height - text_height) ÷ 2, p.text.font, red, green, blue, alpha))
+    SimpleIoMap(p, w, _make_canvas(_origin(position)..., row_width, row_height, elements))
+end
+
+map_reference_forward(::WidgetOptionToGraphicsCanvas, iomap, reference) = _self_point(reference)
+map_reference_backward(::WidgetOptionToGraphicsCanvas, iomap, reference) = nothing
+
+# Pick: write `value` onto the target select (identity-rooted, so it round-trips
+# unchanged to the real select in the main window) and close the popup. The
+# WindowManager's CompoundOperation unpacking applies the close; the value write
+# bubbles to `evaluate_operation`.
+_pick_option(w::WidgetOption) = CompoundOperation(Any[
+    ReplaceReferencedValue(w.select, "value", w.value),
+    CloseWindowOperation(w.popup_id),
+])
+
+function projection_read(::WidgetOptionToGraphicsCanvas, iomap::SimpleIoMap, evt)
+    w = iomap.input
+    @event_case evt begin
+        MousePress(button, x, y) => button === :left ? _pick_option(w) : nothing
+        _ => nothing
+    end
+end
 
 # ── WidgetTextarea ──────────────────────────────────────────────────────────
 
@@ -4080,6 +4182,8 @@ function WidgetToGraphics(font::StyleFont; measure::Function,
             Inset(theme.pad_y, theme.pad_y, theme.pad_x, theme.pad_x), theme.radius,
             theme.gap, StyleStroke(theme.muted_foreground, theme.stroke), theme.chevron,
             theme.muted, theme.muted_foreground, theme.ring),
+        WidgetOption      => WidgetOptionToGraphicsCanvas(measurer, theme.body_text, theme.background,
+            Inset(theme.pad_y, theme.pad_y, theme.pad_x, theme.pad_x)),
         WidgetTextarea    => WidgetTextareaToGraphicsCanvas(measurer, theme.body_text, theme.background,
             StyleStroke(theme.input, theme.border_width),
             Inset(theme.pad_y, theme.pad_y, theme.pad_x, theme.pad_x), theme.radius,

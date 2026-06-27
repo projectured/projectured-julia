@@ -356,9 +356,12 @@ make_widget_toggle_document_example() =
 make_widget_toggle_group_document_example() =
     WidgetToggleGroup(Point2D(40, 40), ["Left", "Center", "Right"]; selected=2)
 
-# WidgetSelect — a closed select showing a value + chevron.
+# WidgetSelect — a select showing a value + chevron, with a list of options a
+# click opens as a dropdown popup (the window route is wired by the screen-level
+# pipeline; see plan/pending/widget-popup-overlay.md Step 6).
 make_widget_select_document_example() =
-    WidgetSelect(Point2D(40, 40), "Apple"; width=220)
+    WidgetSelect(Point2D(40, 40), "Apple";
+                 options=["Apple", "Banana", "Cherry", "Date"], width=220)
 
 # WidgetTextarea — a multi-line text surface.
 make_widget_textarea_document_example() =
