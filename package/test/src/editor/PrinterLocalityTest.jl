@@ -170,13 +170,21 @@ function explore_selection_locality(document, projection; onstate=nothing)
         r = printer_locality_report(document, projection, doc -> set_selection!(doc, target))
         msgs = String[]
         append!(msgs, r.errors)
+        # Dimension A is measured by the INVALIDATION set, not object identity: a
+        # selection cell legitimately recomputes to a fresh ReferencePath value
+        # (the old path object is "lost"), so lost_objects > 0 is expected here
+        # and is NOT a violation — only a *content* cell going stale is.
+        #
+        # Scope: exact for projections that carry selection as a `:selection`
+        # field (the syntax/widget/structural layers — most printers). A full
+        # pipeline that lowers selection into caret geometry (… → TextToGraphics)
+        # invalidates non-:selection geometry cells by design; those need a
+        # cursor-field allow-list (Phase 2 follow-up) before this check is exact
+        # for them, which is why it is not yet wired into test_all.
         bad = filter(lc -> !is_selection_cell(lc), r.invalidated)
         if !isempty(bad)
             tags = join(sort(unique(["$(lc.owner).$(lc.field)" for lc in bad])), ", ")
             push!(msgs, "→ $(string(target)): invalidated non-selection cells [$tags]")
-        end
-        if r.lost_objects > 0
-            push!(msgs, "→ $(string(target)): rebuilt $(r.lost_objects) output object(s) (expected 0)")
         end
         ok = isempty(msgs)
         append!(errors, msgs)
@@ -212,3 +220,97 @@ function test_selection_localities()
         end
     end
 end
+
+# ── Dimension C: structural-edit minimality ───────────────────────────────────
+#
+# Inserting one element into a collection should rebuild only the changed slot
+# and the structural envelope, preserving the OUTPUT objects of the unaffected
+# siblings (cell identity), so downstream layout reuses them. A rebuilt slot
+# cell / re-projected sibling is *not* an invalidation (the old object is
+# orphaned, not marked invalid) — it shows up as a LOST object in the report's
+# identity diff. So dimension C is measured by `lost_objects`, not by the
+# invalidation footprint.
+#
+# This is currently a MEASUREMENT, not a pass/fail assertion: the central
+# template engine rebuilds the whole children vector on any structural change
+# (`CellVector(() -> …)` recreates every slot cell; `child_iomaps` re-projects
+# every sibling — see plan/pending/printer-locality.md Phase 4 / dimension C),
+# so most collections will report large `lost_objects` until that fix lands.
+# Phase 4 decides fix-vs-justified-exception; until then we report the numbers.
+
+# Every `CellVector` reachable from an input document, with a short path label.
+# Mirrors SelectionEnumeration._walk_document's descent (Cell-unwrapping fields
+# and CellVector elements) so it visits exactly the navigable structure.
+function _find_input_collections(document)
+    found = Tuple{String,Any}[]
+    seen = Set{UInt64}()
+    function walk(node, label)
+        node === nothing && return
+        node isa Union{Bool,Number,AbstractString,Symbol} && return
+        oid = objectid(node)
+        oid in seen && return
+        push!(seen, oid)
+        if node isa CellVector
+            length(node) >= 1 && push!(found, (label, node))
+            for i in 1:length(node)
+                walk(node[i], "$label[$i]")
+            end
+            return
+        end
+        T = typeof(node)
+        isstructtype(T) || return
+        for fname in fieldnames(T)
+            fname === :selection && continue
+            fv = try getfield(node, fname) catch; continue end
+            v = fv isa Cell ? fv[] : fv
+            (v isa CellVector || (v !== nothing && hasproperty(v, :selection))) &&
+                walk(v, label == "" ? ".$fname" : "$label.$fname")
+        end
+    end
+    walk(document, "")
+    found
+end
+
+"""
+    explore_structural_locality(document, projection; onresult=nothing)
+        -> (count, results)
+
+Measure dimension C over every input `CellVector` of length ≥ 1: append a
+duplicate of the first element, then report how many output objects survived
+(`preserved`) vs. were rebuilt (`lost`). The document is restored afterwards
+(the appended slot is popped), so the call leaves it as found. Returns one
+`(label, lost, preserved, total)` NamedTuple per collection.
+"""
+function explore_structural_locality(document, projection; onresult=nothing)
+    results = NamedTuple[]
+    for (label, cv) in _find_input_collections(document)
+        n0 = length(cv)
+        r = printer_locality_report(document, projection, _ -> push!(cv, cv[1]))
+        # Restore the document to its original shape regardless of outcome.
+        while length(cv) > n0
+            try pop!(cv) catch; break end
+        end
+        res = (label = label, lost = r.lost_objects,
+               preserved = r.preserved_objects, total = r.before_objects,
+               errors = r.errors)
+        push!(results, res)
+        onresult === nothing || onresult(res)
+    end
+    (count = length(results), results = results)
+end
+
+# Report-only (no @test): the engine fix has not landed, so this prints the
+# per-collection identity-churn measurement for the Phase 3 audit table rather
+# than asserting. Promote to assertions in Phase 5 once dimension C is enforced.
+function report_structural_locality(label, document, projection)
+    res = explore_structural_locality(document, projection;
+        onresult = r -> begin
+            for e in r.errors; @warn "[$label] $(r.label): $e"; end
+            @info "[$label] $(r.label): lost $(r.lost)/$(r.total) output objects on insert (preserved $(r.preserved))"
+        end)
+    res.count == 0 && @info "[$label] no input collections to probe (structural locality not exercised)"
+    res
+end
+
+report_structural_locality(example::Example) =
+    report_structural_locality(example.name, example.document, example.projection)
