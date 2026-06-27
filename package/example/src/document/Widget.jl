@@ -8,11 +8,11 @@
 function make_widget_document_example(; width=1024, height=768)
     fb = Inset(1, 1, 1, 1)   # field border
 
-    # Shared commands (Stage 4): one Action drives a menu item AND a toolbar
-    # button; Save also carries a Ctrl+S shortcut the shell dispatches.
-    new_action  = Action("New")
-    open_action = Action("Open")
-    save_action = Action("Save"; shortcut=Shortcut(:s; ctrl=true))
+    # Shared commands (Stage 4) with icons (Stage 5): one Action drives a menu item
+    # AND a toolbar button, both showing the icon; Save also carries Ctrl+S.
+    new_action  = Action("New";  icon=:file)
+    open_action = Action("Open"; icon=:folder)
+    save_action = Action("Save"; icon=:save, shortcut=Shortcut(:s; ctrl=true))
 
     # ── Inputs tab ────────────────────────────────────────────────────────────
     inputs = VerticalLayout(Any[
@@ -30,12 +30,15 @@ function make_widget_document_example(; width=1024, height=768)
     ]; gap=16, horizontal_align=:left)
 
     # ── Buttons & menus tab ───────────────────────────────────────────────────
+    tool = (icon) -> WidgetToolButton(icon; size=Point2D(40, 40), border=fb, padding=Inset(8, 8, 8, 8))
     buttons = VerticalLayout(Any[
-        WidgetButton(Point2D(0, 0), Point2D(180, 44), "Save";
+        WidgetButton(Point2D(0, 0), Point2D(180, 44), "Save";    # icon from the command
                      command=save_action, border=fb, padding=Inset(4, 4, 8, 8)),
-        WidgetButton(Point2D(0, 0), Point2D(180, 44), "Show dialog…";
-                     dialog=WidgetMessageBox("Confirm", "Proceed with the action?"),
+        WidgetButton(Point2D(0, 0), Point2D(180, 44), "Edit";    # icon on the button itself
+                     icon=:pencil, dialog=WidgetMessageBox("Confirm", "Proceed with the action?"),
                      border=fb, padding=Inset(4, 4, 8, 8)),
+        # A row of icon-first tool buttons (Stage 5 WidgetToolButton).
+        HorizontalLayout(Any[tool(:save), tool(:pencil), tool(:trash), tool(:search)]; gap=8),
         WidgetToggle(Point2D(0, 0), "Bold"; pressed=true),
         WidgetToggleGroup(Point2D(0, 0), ["Left", "Center", "Right"]; selected=2),
         WidgetContextMenu(WidgetLabel(Point2D(0, 0), "Right-click for a context menu"),

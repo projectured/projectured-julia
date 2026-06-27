@@ -2759,9 +2759,10 @@ function projection_print(p::WidgetToolbarToGraphicsCanvas, recursion, w::Widget
         cim = projection_printer_recurse(recursion, item, ctx)
         push!(child_iomaps, (x_cursor, coy, cim))
         push!(elems, _make_canvas(x_cursor, coy, Any[cim.output]))
-        content = hasproperty(item, :content) ? item.content : nothing
-        iw, _ = content !== nothing ? _text_size(p.measure, p.font, string(content)) :
-                                      p.measure("    ", p.font)
+        # Advance by the item's *rendered* width (includes a leading icon, Stage 5),
+        # not just its text — otherwise an icon'd item overlaps the next one.
+        iw = _menu_item_width(cim)
+        iw <= 0 && ((iw, _) = p.measure("    ", p.font))
         x_cursor += iw + item_gap
     end
     ChildrenIoMap(p, w, _make_canvas(0, 0, elems), Cell(child_iomaps))

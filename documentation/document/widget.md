@@ -357,8 +357,37 @@ reference the **same** `Action`, so one object drives all three and toggling its
   via its `status_bar` field and it renders along the bottom edge. *(v1: a
   fixed print-time bottom position, like the other bands.)*
 
-`Action.icon` is a slot filled by Stage 5 (icons). See `make_widget_shell_document_example`
-(menu + toolbar sharing `Action`s, `Ctrl+S`, a status bar) and `WidgetActionTest`.
+See `make_widget_shell_document_example` (menu + toolbar sharing `Action`s,
+`Ctrl+S`, a status bar) and `WidgetActionTest`.
+
+## Icons (`icon = :name`)
+
+An **icon is a named, theme-aware value — not a `GraphicsImage`**. `GraphicsImage`
+is a baked raster blit (no color field); an icon must tint to the widget
+foreground (and mute when disabled) and scale with the font, like text. So an icon
+is a **name**, and a registry maps it to a *renderer* with the uniform signature
+`(elems, x, y, size, color) -> nothing`. The widget printers ask the registry to
+*draw `icon` at the label's color and size* — they never branch on the backing, so
+three backings coexist:
+
+| Backing | Emits | Tints / scales |
+|---|---|---|
+| **Vector** (built-in set) | `GraphicsPolyline` / `Circle` | ✅ — generalises the chevron drawer |
+| **Glyph-font** (`glyph_icon(font, codepoint)`) | `GraphicsText` | ✅ — needs a bundled icon font |
+| **Raster** (`image_icon(image)`) | `GraphicsImage` | ❌ — for brand art |
+
+- **Built-in vector names** (v1): `:save :folder :file :check :x/:close :plus
+  :minus :chevron_down :chevron_right :menu :pencil/:edit :trash/:delete :search`.
+- **Register your own:** `register_icon!(:name, renderer)` — pass a vector closure,
+  or `glyph_icon` / `image_icon`. An unknown name draws nothing (zero width).
+- **On widgets:** `WidgetButton` and `WidgetMenuItem` take an optional `icon`,
+  drawn left of the label, tinted to its foreground. A command-bound widget takes
+  its icon from **`command.icon`** (so a menu item and a toolbar button share one),
+  else the widget's own `icon`. `WidgetToolButton(:save; …)` is an icon-first
+  button (Qt's `QToolButton`).
+
+See `make_widget_document_example` (File menu / toolbar / tool-button row with
+icons) and `WidgetIconTest`.
 
 ## Image content
 
