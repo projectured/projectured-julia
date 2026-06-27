@@ -35,7 +35,7 @@ import ..ColorModule: StyleColor,
 import ..WidgetModule: WidgetDocument, WidgetInsertion, WidgetLabel, WidgetText, WidgetCheckbox,
                        WidgetButton, WidgetTooltip, WidgetContextMenu, WidgetDialog, WidgetMenu, WidgetMenuItem,
                        WidgetComposite, WidgetShell, WidgetTitlePane, WidgetSplitPane,
-                       WidgetTabbedPane, WidgetScrollPane, WidgetToolbar, WidgetScrollBar,
+                       WidgetTabbedPane, WidgetScrollPane, WidgetToolbar, WidgetStatusBar, WidgetScrollBar,
                        WidgetBadge, WidgetSeparator, WidgetCard, WidgetSwitch, WidgetProgress,
                        WidgetSlider, WidgetRadioGroup, WidgetAvatar, WidgetAlert, WidgetSkeleton,
                        WidgetToggle, WidgetToggleGroup, WidgetSelect, WidgetOption, WidgetTextarea, WidgetAccordion,
@@ -81,7 +81,7 @@ export WidgetInsertionToGraphicsCanvas, WidgetLabelToGraphicsCanvas, WidgetTextT
        WidgetShellToGraphicsCanvas, WidgetTitlePaneToGraphicsCanvas,
        WidgetSplitPaneToGraphicsCanvas, WidgetTabbedPaneToGraphicsCanvas,
        WidgetScrollPaneToGraphicsCanvas, WidgetScrollPaneToGraphicsCanvasIoMap,
-       WidgetToolbarToGraphicsCanvas, WidgetScrollBarToGraphicsCanvas,
+       WidgetToolbarToGraphicsCanvas, WidgetStatusBarToGraphicsCanvas, WidgetScrollBarToGraphicsCanvas,
        WidgetToGraphics, WidgetTheme, widget_theme_light, widget_theme_dark,
        widget_theme_slate_light, widget_theme_slate_dark,
        WidgetScrollPaneToGraphicsViewport, WidgetScrollPaneToGraphicsViewportIoMap,
@@ -1656,6 +1656,10 @@ function projection_print(p::WidgetShellToGraphicsCanvas, recursion, w::WidgetSh
         _, toolbar_h = p.measure("M", p.font)
         content_y += toolbar_h + p.band_gap
     end
+    # Status bar (Stage 4): reserve a fixed-height bottom band so the content does
+    # not draw under it; it is placed at the shell's bottom after the content.
+    sb = w.status_bar
+    _, status_h = sb isa WidgetDocument ? p.measure("M", p.font) : (0, 0)
     content = w.content
     if content isa WidgetDocument
         # Seed available size on the context so that any layout/split
@@ -1668,6 +1672,7 @@ function projection_print(p::WidgetShellToGraphicsCanvas, recursion, w::WidgetSh
         padding_cell = getfield(w, :padding)
         content_y_now = content_y
         coy_now = coy
+        status_h_now = status_h
         avail_w_cell = Cell(function ()
             sz = size_cell[]
             sz isa Point2D || return 0
@@ -1678,12 +1683,21 @@ function projection_print(p::WidgetShellToGraphicsCanvas, recursion, w::WidgetSh
             sz = size_cell[]
             sz isa Point2D || return 0
             _, ty = _inset_total(w)
-            max(0, Int(sz.y[]) - ty - (content_y_now - coy_now))
+            max(0, Int(sz.y[]) - ty - (content_y_now - coy_now) - status_h_now)
         end)
         content_ctx = with_available_size(ctx; width=avail_w_cell, height=avail_h_cell)
         cim = projection_printer_recurse(recursion, content, content_ctx)
         push!(child_iomaps, (cox, content_y, cim))
         push!(elems, _make_canvas(cox, content_y, Any[cim.output]))
+    end
+    # Place the status bar along the shell's bottom edge (a fixed print-time y from
+    # the size; live-resize repositioning is a v1 limitation, like the other bands).
+    if sb isa WidgetDocument && sz isa Point2D
+        cim = projection_printer_recurse(recursion, sb, ctx)
+        _, ty = _inset_total(w)
+        sb_y = coy + Int(sz.y[]) - ty - status_h
+        push!(child_iomaps, (cox, sb_y, cim))
+        push!(elems, _make_canvas(cox, sb_y, Any[cim.output]))
     end
     tt = w.tooltip
     if tt isa WidgetDocument
@@ -2743,6 +2757,41 @@ function projection_read(::WidgetToolbarToGraphicsCanvas, iomap::ChildrenIoMap, 
     evt isa MouseScroll || return nothing
     _route_scroll_to_children(iomap.child_iomaps[]::Vector, evt)
 end
+
+# ── WidgetStatusBar (Stage 4) ─────────────────────────────────────────────────
+# A non-interactive bottom band: stringified `segments` laid left-to-right on a
+# muted surface, filling the available width when a parent seeded one.
+
+@projection struct WidgetStatusBarToGraphicsCanvas
+    measure::Function
+    text::StyleText
+    background_color::StyleColor
+    gap::Int
+end
+
+function projection_print(p::WidgetStatusBarToGraphicsCanvas, recursion, w::WidgetStatusBar, ctx)
+    w.visible == false && return SimpleIoMap(p, w, _empty_canvas())
+    cox, coy = _content_offset(w)
+    gap = _sc(p.gap)
+    labels = Any[]
+    x = cox; text_h = 0
+    for seg in w.elements
+        s = string(seg)
+        tw, th = _text_size(p.measure, p.text.font, s)
+        _push_text!(labels, p.text.font, s, x, coy, _rgba(p.text.color))
+        x += tw + gap; text_h = max(text_h, th)
+    end
+    width  = _resolve_width(ctx, x, x)
+    height = text_h + 2coy
+    elements = Any[]
+    _push_panel!(elements, 0, 0, width, height; fill=p.background_color)
+    append!(elements, labels)
+    SimpleIoMap(p, w, _make_canvas(0, 0, width, height, elements))
+end
+
+map_reference_forward(::WidgetStatusBarToGraphicsCanvas, iomap, reference) = nothing
+map_reference_backward(::WidgetStatusBarToGraphicsCanvas, iomap, reference) = nothing
+projection_read(::WidgetStatusBarToGraphicsCanvas, iomap::SimpleIoMap, evt) = nothing
 
 # ── WidgetScrollBar ─────────────────────────────────────────────────────────
 
@@ -4543,6 +4592,7 @@ function WidgetToGraphics(font::StyleFont; measure::Function,
             theme.muted, theme.background, theme.foreground, theme.muted_foreground),
         WidgetScrollPane => WidgetScrollPaneToGraphicsCanvas(measurer, theme.font, theme.background),
         WidgetToolbar    => WidgetToolbarToGraphicsCanvas(measurer, theme.font, theme.gap),
+        WidgetStatusBar  => WidgetStatusBarToGraphicsCanvas(measurer, theme.caption_text, theme.muted, theme.gap),
         WidgetScrollBar  => WidgetScrollBarToGraphicsCanvas(theme.muted, theme.border, 8),
         WidgetBadge      => WidgetBadgeToGraphicsCanvas(measurer, theme.font_small,
             Inset(3, 3, 10, 10), theme.border_width,

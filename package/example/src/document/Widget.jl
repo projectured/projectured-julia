@@ -247,22 +247,32 @@ function make_widget_shell_document_example(; width=600, height=400)
     # layout child is not the right fit here.
     content = WidgetComposite(Point2D(16, 16), Any[
         WidgetLabel(Point2D(0, _wy(0)),  "Inside a shell"),
-        WidgetLabel(Point2D(0, _wy(40)), "with a menu bar and toolbar"),
+        WidgetLabel(Point2D(0, _wy(40)), "menu + toolbar share Actions; Ctrl+S is a shortcut"),
     ])
+    # Shared commands (Stage 4): one Action drives both a File-menu item and a
+    # toolbar button; Save additionally has a Ctrl+S shortcut the shell dispatches.
+    new_action  = Action("New")
+    open_action = Action("Open")
+    save_action = Action("Save"; shortcut=Shortcut(:s; ctrl=true))
     # A horizontal menu bar (QMenuBar): each top-level entry opens a submenu popup
-    # on click (Stage 3 Step 4c). The leaf submenu items carry plain callbacks.
+    # on click (Stage 3 Step 4c); the File items present the shared commands.
     menu_bar = WidgetMenu([
         WidgetMenuItem("File"; submenu=WidgetMenu([
-            WidgetMenuItem("New"), WidgetMenuItem("Open"), WidgetMenuItem("Save")])),
+            WidgetMenuItem("New";  command=new_action),
+            WidgetMenuItem("Open"; command=open_action),
+            WidgetMenuItem("Save"; command=save_action)])),
         WidgetMenuItem("Edit"; submenu=WidgetMenu([
             WidgetMenuItem("Undo"), WidgetMenuItem("Redo")])),
         WidgetMenuItem("Help"; submenu=WidgetMenu([
             WidgetMenuItem("About")])),
     ]; orientation=:horizontal)
-    toolbar  = WidgetToolbar([WidgetMenuItem("New"), WidgetMenuItem("Open"),
-                              WidgetMenuItem("Save")]; padding=Inset(4, 4, 4, 4))
+    toolbar  = WidgetToolbar([WidgetMenuItem("New";  command=new_action),
+                              WidgetMenuItem("Open"; command=open_action),
+                              WidgetMenuItem("Save"; command=save_action)];
+                             padding=Inset(4, 4, 4, 4))
+    status_bar = WidgetStatusBar(["Ready", "Ln 1, Col 1"])
     WidgetShell(content;
-                menu_bar=menu_bar, toolbar=toolbar,
+                menu_bar=menu_bar, toolbar=toolbar, status_bar=status_bar,
                 size=Point2D(width, height))
 end
 

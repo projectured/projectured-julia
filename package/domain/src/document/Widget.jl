@@ -25,7 +25,7 @@ export Inset, Point2D,
        WidgetTooltip, WidgetContextMenu, WidgetDialog, WidgetMessageBox, WidgetInputDialog,
        WidgetMenu, WidgetMenuItem, WidgetComposite,
        WidgetShell, WidgetTitlePane, WidgetSplitPane, WidgetTabbedPane,
-       WidgetScrollPane, WidgetToolbar, WidgetScrollBar,
+       WidgetScrollPane, WidgetToolbar, WidgetStatusBar, WidgetScrollBar,
        WidgetBadge, WidgetSeparator, WidgetCard, WidgetSwitch, WidgetProgress,
        WidgetSlider, WidgetRadioGroup, WidgetAvatar, WidgetAlert, WidgetSkeleton,
        WidgetToggle, WidgetToggleGroup, WidgetSelect, WidgetOption, WidgetTextarea, WidgetAccordion,
@@ -42,7 +42,7 @@ export Inset, Point2D,
        IWidgetLabel, IWidgetText, IWidgetCheckbox, IWidgetButton,
        IWidgetTooltip, IWidgetContextMenu, IWidgetDialog, IWidgetMenu, IWidgetMenuItem, IWidgetComposite,
        IWidgetShell, IWidgetTitlePane, IWidgetSplitPane, IWidgetTabbedPane,
-       IWidgetScrollPane, IWidgetToolbar, IWidgetScrollBar,
+       IWidgetScrollPane, IWidgetToolbar, IWidgetStatusBar, IWidgetScrollBar,
        IWidgetBadge, IWidgetSeparator, IWidgetCard, IWidgetSwitch, IWidgetProgress,
        IWidgetSlider, IWidgetRadioGroup, IWidgetAvatar, IWidgetAlert, IWidgetSkeleton,
        IWidgetToggle, IWidgetToggleGroup, IWidgetSelect, IWidgetOption, IWidgetTextarea, IWidgetAccordion,
@@ -598,6 +598,47 @@ WidgetToolbar(; kwargs...) = WidgetToolbar(Any[]; kwargs...)
 setfn!(w::WidgetToolbar, f::Function) =
     (setfn!(getfield(w.elements, :elements), () -> Cell[Cell(x) for x in f()]); w)
 
+# ── WidgetStatusBar ──────────────────────────────────────────────────────────
+
+"""
+    WidgetStatusBar(segments; <base kwargs>)
+
+A thin bottom band of status text `segments` (each stringified) — Qt's
+`QStatusBar`. Non-interactive in v1. Place one on a `WidgetShell` via its
+`status_bar` field; it is rendered below the content.
+"""
+@document struct WidgetStatusBar <: WidgetDocument
+    elements::CellVector
+    visible::Bool
+    margin::Inset
+    margin_color::StyleColor
+    border::Inset
+    border_color::StyleColor
+    padding::Inset
+    padding_color::StyleColor
+    selection::Reference
+end
+
+function WidgetStatusBar(segments::Vector;
+                         visible::Bool=true,
+                         margin::Inset=inset_default,
+                         margin_color=nothing,
+                         border::Inset=inset_default,
+                         border_color=nothing,
+                         padding::Inset=inset_default,
+                         padding_color=nothing)
+    WidgetStatusBar(CellVector(Cell[Cell(x) for x in segments]),
+                    Cell(visible), Cell(margin), Cell(margin_color),
+                    Cell(border), Cell(border_color),
+                    Cell(padding), Cell(padding_color),
+                    Cell(nothing))
+end
+
+WidgetStatusBar(; kwargs...) = WidgetStatusBar(Any[]; kwargs...)
+
+setfn!(w::WidgetStatusBar, f::Function) =
+    (setfn!(getfield(w.elements, :elements), () -> Cell[Cell(x) for x in f()]); w)
+
 # ── WidgetShell ────────────────────────────────────────────────────────────
 
 """
@@ -614,6 +655,7 @@ Top-level window shell..
     menu_bar::WidgetMenu
     toolbar::WidgetToolbar
     context_menu::WidgetMenu
+    status_bar::WidgetStatusBar
     visible::Bool
     margin::Inset
     margin_color::StyleColor
@@ -631,6 +673,7 @@ function WidgetShell(content;
                      menu_bar=nothing,
                      toolbar=nothing,
                      context_menu=nothing,
+                     status_bar=nothing,
                      visible::Bool=true,
                      margin::Inset=inset_default,
                      margin_color=nothing,
@@ -640,6 +683,7 @@ function WidgetShell(content;
                      padding_color=nothing)
     WidgetShell(Cell(content), Cell(content_fill_color), Cell(size),
                 Cell(tooltip), Cell(menu_bar), Cell(toolbar), Cell(context_menu),
+                Cell(status_bar),
                 Cell(visible), Cell(margin), Cell(margin_color),
                 Cell(border), Cell(border_color),
                 Cell(padding), Cell(padding_color),

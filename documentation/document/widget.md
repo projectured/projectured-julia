@@ -332,6 +332,34 @@ a screen-size source the document model does not yet carry (`ScreenDocument` hol
 only per-window `x/y/w/h`). The modal *input blocking* is complete regardless of
 window size.
 
+## Actions & shortcuts (`Action`)
+
+An `Action(label; icon, enabled, shortcut, callback)` is a shared command object
+(Qt's `QAction`): a menu item, a toolbar button, and a keyboard shortcut can all
+reference the **same** `Action`, so one object drives all three and toggling its
+`enabled` disables all of them at once.
+
+- **Binding.** `WidgetMenuItem` and `WidgetButton` take an optional
+  `command::Action`. When bound, the widget renders the action's `label` and
+  follows its `enabled` (muting when disabled), and a click emits
+  `InvokeActionOperation(command)` — which runs the action's `callback`
+  (editor-arg preferred, else 0-arg), guarded by `enabled`. Without a command they
+  keep their own `content` + callback behaviour, so existing widgets are
+  unaffected. Toolbar entries are `WidgetMenuItem`s, so they inherit this.
+- **Shortcuts.** `Shortcut(:s; ctrl=true)` builds the chord (a `KeyDownPattern`
+  with exact-modifier matching). The `WidgetShell` reader collects the commands
+  carrying a shortcut from its `menu_bar`/`toolbar` — the menu *is* the registry —
+  and, on a `KeyDown`, fires a matching enabled action **before** forwarding the
+  key to the focused child. So `Ctrl+S` works regardless of which widget is
+  selected; a non-matching key still reaches the selection.
+- **Status bar.** `WidgetStatusBar(segments)` is a thin, non-interactive bottom
+  band of stringified segments (Qt's `QStatusBar`); place one on a `WidgetShell`
+  via its `status_bar` field and it renders along the bottom edge. *(v1: a
+  fixed print-time bottom position, like the other bands.)*
+
+`Action.icon` is a slot filled by Stage 5 (icons). See `make_widget_shell_document_example`
+(menu + toolbar sharing `Action`s, `Ctrl+S`, a status bar) and `WidgetActionTest`.
+
 ## Image content
 
 A leaf widget's `content` is polymorphic: besides a string (or, for some

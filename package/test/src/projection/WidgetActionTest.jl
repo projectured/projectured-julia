@@ -102,5 +102,17 @@ end
     @test fired[] == 1
 end
 
+@testset "WidgetStatusBar renders its segments as a bottom band" begin
+    sb = WidgetStatusBar(["Ready", "Ln 1, Col 1"])
+    iomap = projection_print(proj, sb)
+    @test iomap.output isa GraphicsCanvas
+    @test Int(iomap.output.w[]) > 0
+    # Both segments are drawn as text (helper defined in WidgetDialogTest).
+    @test _dialog_text_xy(iomap.output, "Ready") !== nothing
+    @test _dialog_text_xy(iomap.output, "Ln 1, Col 1") !== nothing
+    # A status bar is inert.
+    @test projection_read(proj, iomap, MousePress(:left, 2, 2, Modifiers())) === nothing
+end
+
 end # @testset
 end # function
