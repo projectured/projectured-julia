@@ -119,6 +119,7 @@ include("editor/ExampleTest.jl")
 include("editor/SelectionEnumeration.jl")
 include("editor/PrinterLocalityTest.jl")
 include("editor/TextNavigationTest.jl")
+include("editor/RecursionContractTest.jl")
 include("editor/ReaderTest.jl")
 include("editor/ReplTest.jl")
 include("editor/TypeinTest.jl")
@@ -283,6 +284,7 @@ export printer_locality_report, explore_selection_locality, test_selection_local
 export explore_structural_locality, report_structural_locality
 export explore_value_locality, test_value_locality, test_value_localities
 export explore_text_selections, collect_text_selections, collect_tree_selections, collect_json_tree_selections
+export test_recursion_contract, test_recursion_contracts, walk_recursion_contract, walk_reference_roundtrip, probe_delegation
 export test_reader, test_readers, walk_reader_events
 export test_repl, test_repls, walk_repl_loop
 export test_typein, test_typeins, walk_typein

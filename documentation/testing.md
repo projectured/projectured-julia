@@ -155,12 +155,24 @@ walkers rather than introducing an interface method:
   effect; a flattening one ignores `recursion` and the swap is a no-op — the test
   fails. This is what flags `SyntaxToText`.
 
-The harness and entry points (`test_recursion_contract(example)` /
-`test_recursion_contracts()` / `walk_recursion_contract(doc, proj)`) are designed in
-`plan/pending/recursive-validation-core-functions.md`. The one example pipeline that
-fails today is the syntax-to-text chain (`SyntaxNodeToText`/`SyntaxListToText` flatten
-their subtree); it is recorded as a known exception pending the refactor in
-`plan/pending/syntaxtotext-delegation.md`.
+The harness lives in
+[package/test/src/editor/RecursionContractTest.jl](../package/test/src/editor/RecursionContractTest.jl):
+
+| Function | What it does |
+|---|---|
+| `test_recursion_contract(example)` / `test_recursion_contracts()` | `@testset` running the delegation probe over the curated structural pipelines (`json`, `xml`, `syntax`, `math`). |
+| `probe_delegation(doc, proj)` | Re-invokes each node projection with a spy `recursion` and reports `(projection_name, count, delegated, broken)` per node. |
+| `walk_reference_roundtrip(doc, proj)` | The reachability + round-trip check, returning findings as a `Vector{String}` for REPL use. |
+| `walk_recursion_contract(doc, proj)` | Both checks combined, findings as a `Vector{String}`. |
+
+The asserted check is the **delegation probe** — the discriminating test, which adds
+no per-projection generic function (the spy is an ordinary higher-order projection).
+The one node that does not delegate today is `SyntaxNodeToText` (the syntax→text
+flattener, reached transitively by all four examples); it is recorded with
+`@test_broken`, so the suite stays green and flips to an unexpected pass the moment
+the refactor in `plan/pending/syntaxtotext-delegation.md` lands. `test_recursion_contracts()`
+is opt-in (not yet wired into `test_all`); the reference round-trip is exposed as the
+REPL walkers above rather than asserted, pending calibration on a running editor.
 
 ## Running tests via Pkg
 

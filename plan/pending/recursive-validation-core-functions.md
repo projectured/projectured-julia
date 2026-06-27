@@ -1,10 +1,13 @@
 # Validate the four core functions are recursive — without a fifth recursive function
 
-> **Status (2026-06-27):** Plan + documentation pass. The contract is now stated
-> explicitly in the API and guides (see "Part C — Documentation" below, landed in
-> this change). The audit is recorded. The **validation harness (Part B)** is
-> designed here but not yet implemented; the **one known violator (Part A)** is
-> documented and deferred to [syntaxtotext-delegation.md](syntaxtotext-delegation.md).
+> **Status (2026-06-27):** Plan + documentation + harness. The contract is stated
+> explicitly in the API and guides (Part C, landed). The audit is recorded (Part A).
+> The **validation harness (Part B) is implemented** in
+> [package/test/src/editor/RecursionContractTest.jl](../../package/test/src/editor/RecursionContractTest.jl):
+> the delegation probe is asserted (`@test_broken` for the one known flattener), and
+> the reference round-trip is exposed as REPL walkers pending calibration. The **known
+> violator (Part A)** itself is documented and deferred to
+> [syntaxtotext-delegation.md](syntaxtotext-delegation.md).
 
 ## Context
 
@@ -113,6 +116,21 @@ Distinguish "walks **its own** input domain" (allowed) from "walks / flattens
 ---
 
 ## Part B — Validation strategy (no fifth recursive function)
+
+> **Implemented** in
+> [package/test/src/editor/RecursionContractTest.jl](../../package/test/src/editor/RecursionContractTest.jl).
+> The realized harness keeps the two highest-value, lowest-false-positive checks:
+> the **delegation probe** (the composition-substitution idea below, realized with a
+> spy `recursion`) is the asserted test, and the **reference reachability + round-trip**
+> is shipped as REPL walkers (`walk_reference_roundtrip` / `walk_recursion_contract`)
+> pending calibration on a running editor before promotion to a hard assertion. The
+> printer-lockstep splice-identity check was dropped as largely redundant with the
+> existing `test_printer` walk and prone to false positives on legitimately
+> copy-then-splice projections (e.g. `CopyingProjection`). The spy is an ordinary
+> higher-order projection, so **no new per-projection generic function is added** —
+> the core requirement. Entry points: `test_recursion_contract(example)`,
+> `test_recursion_contracts()`, `probe_delegation`, `walk_reference_roundtrip`,
+> `walk_recursion_contract`.
 
 Validate the contract **externally**: a test harness that drives the existing four
 functions over **composed / nested** examples and asserts observable recursion
