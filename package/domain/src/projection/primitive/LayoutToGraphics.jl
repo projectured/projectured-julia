@@ -698,15 +698,46 @@ function _gl_row_y_cell(row::Int, row_h::Vector{Cell}, vgap::Cell)
     end)
 end
 
+# Per-column stretch weight / alignment (Stage 6 grid generalization). Empty
+# vectors fall back to today's behaviour (no stretch, the single `horizontal_align`).
+_col_stretch(v, col::Int) = (v isa AbstractVector && 1 <= col <= length(v)) ? Int(v[col]) : 0
+_col_align(v, col::Int, default::Symbol) =
+    (v isa AbstractVector && 1 <= col <= length(v)) ? Symbol(v[col]) : default
+
+# A column's laid-out width: its content max, plus — when the parent seeded an
+# `available_width` and this column has a positive stretch weight — its share of
+# the leftover space (`available − Σcontent − gaps`) by weight.
+function _gl_stretched_col_w_cell(col::Int, content_col_w::Vector{Cell}, cols_cell::Cell,
+                                  hgap::Cell, stretch_cell::Cell, avail_w)
+    Cell(function ()
+        base = content_col_w[col][]
+        avail_w === nothing && return base
+        c = cols_cell[]
+        (col > c) && return base
+        sv = stretch_cell[]
+        sc = _col_stretch(sv, col)
+        sc == 0 && return base
+        total_stretch = 0; total_content = 0
+        for cc in 1:c
+            total_stretch += _col_stretch(sv, cc)
+            total_content += content_col_w[cc][]
+        end
+        total_stretch == 0 && return base
+        gaps = max(0, c - 1) * hgap[]
+        leftover = max(0, Int(avail_w[]) - total_content - gaps)
+        base + (leftover * sc) ÷ total_stretch
+    end)
+end
+
 function _gl_child_x(i::Int, child_iomaps::Vector,
                     cols_cell::Cell, col_w::Vector{Cell}, col_x::Vector{Cell},
-                    halign::Cell)
+                    halign::Cell, column_align_cell::Cell)
     Cell(function ()
         c = cols_cell[]
         cw = _child_w(child_iomaps[i])
         col = _grid_col(i, c)
         cellw = col_w[col][]
-        a = halign[]
+        a = _col_align(column_align_cell[], col, halign[])
         off = a === :center ? div(cellw - cw, 2) :
               a === :right  ? cellw - cw         :
                               0
@@ -753,14 +784,22 @@ function projection_print(p::GridLayoutToGraphicsCanvas,
     vgap      = getfield(doc, :vertical_gap)
     halign    = getfield(doc, :horizontal_align)
     valign    = getfield(doc, :vertical_align)
+    column_align_cell   = getfield(doc, :column_align)
+    column_stretch_cell = getfield(doc, :column_stretch)
+    avail_w = ctx === nothing ? nothing : ctx.available_width
 
     # Pre-allocate up to n column / row extents — at most n columns
-    # (one child per column, n rows of 1) or n rows (one column).
+    # (one child per column, n rows of 1) or n rows (one column). `col_w` adds a
+    # per-column stretch share over the content max (Stage 6 generalization).
+    content_col_w = Cell[]
     col_w = Cell[]
     row_h = Cell[]
     for k in 1:n
-        push!(col_w, _gl_col_w_cell(k, n, child_iomaps, cols_cell))
+        push!(content_col_w, _gl_col_w_cell(k, n, child_iomaps, cols_cell))
         push!(row_h, _gl_row_h_cell(k, n, child_iomaps, cols_cell))
+    end
+    for k in 1:n
+        push!(col_w, _gl_stretched_col_w_cell(k, content_col_w, cols_cell, hgap, column_stretch_cell, avail_w))
     end
 
     col_x = Cell[]
@@ -773,7 +812,7 @@ function projection_print(p::GridLayoutToGraphicsCanvas,
     child_x = Cell[]
     child_y = Cell[]
     for i in 1:n
-        push!(child_x, _gl_child_x(i, child_iomaps, cols_cell, col_w, col_x, halign))
+        push!(child_x, _gl_child_x(i, child_iomaps, cols_cell, col_w, col_x, halign, column_align_cell))
         push!(child_y, _gl_child_y(i, child_iomaps, cols_cell, row_h, row_y, valign))
     end
 
@@ -1114,20 +1153,24 @@ function projection_print(p::StackLayoutToGraphicsCanvas,
         push!(child_iomaps, cim)
     end
 
+    # `active` (Stage 6 page container): 0 ⇒ z-stack (all children, the original
+    # behaviour); i ⇒ show only page i (a QStackedWidget). Visible pages drive the
+    # extent, the rendered elements, and event routing — all reactive to `active`.
+    active_cell = getfield(doc, :active)
+    _visible(a) = a == 0 ? (1:n) : (1 <= a <= n ? (a:a) : (1:0))
+
     outer_w = Cell(function ()
         w = 0
-        for cim in child_iomaps
-            cw = _child_w(cim)
-            cw > w && (w = cw)
+        for i in _visible(active_cell[])
+            cw = _child_w(child_iomaps[i]); cw > w && (w = cw)
         end
         w
     end)
 
     outer_h = Cell(function ()
         h = 0
-        for cim in child_iomaps
-            ch = _child_h(cim)
-            ch > h && (h = ch)
+        for i in _visible(active_cell[])
+            ch = _child_h(child_iomaps[i]); ch > h && (h = ch)
         end
         h
     end)
@@ -1139,25 +1182,30 @@ function projection_print(p::StackLayoutToGraphicsCanvas,
         push!(child_y, _sl_child_y_cell(i, child_iomaps, outer_h, valign))
     end
 
-    wrapped = Any[]
-    for i in 1:n
-        c = child_iomaps[i].output
-        c isa GraphicsCanvas || continue
-        push!(wrapped, _wrap_child(c, child_x[i], child_y[i]))
-    end
+    elements_cv = CellVector(() -> begin
+        out = Any[]
+        for i in _visible(active_cell[])
+            c = child_iomaps[i].output
+            c isa GraphicsCanvas && push!(out, _wrap_child(c, child_x[i], child_y[i]))
+        end
+        out
+    end)
 
     outer = GraphicsCanvas(Cell(Int32(0)), Cell(Int32(0)),
                            Cell(() -> Int32(outer_w[])),
                            Cell(() -> Int32(outer_h[])),
-                           CellVector(Cell[Cell(e) for e in wrapped]),
+                           elements_cv,
                            layout_none, true, Cell(nothing))
 
-    entries = Tuple{Cell,Cell,Any}[]
-    for i in 1:n
-        push!(entries, (child_x[i], child_y[i], child_iomaps[i]))
-    end
+    entries_cell = Cell(() -> begin
+        out = Tuple{Cell,Cell,Any}[]
+        for i in _visible(active_cell[])
+            push!(out, (child_x[i], child_y[i], child_iomaps[i]))
+        end
+        out
+    end)
 
-    ChildrenIoMap(p, doc, outer, Cell(entries))
+    ChildrenIoMap(p, doc, outer, entries_cell)
 end
 
 function map_reference_forward(::StackLayoutToGraphicsCanvas, iomap, reference)

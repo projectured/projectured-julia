@@ -20,7 +20,7 @@ import ..CollectionModule: CellVector
 import ..ReferenceModule: Reference
 
 export LayoutDocument,
-       HorizontalLayout, VerticalLayout, GridLayout, FlowLayout, StackLayout,
+       HorizontalLayout, VerticalLayout, GridLayout, FormLayout, FlowLayout, StackLayout,
        LayoutConstraint,
        ConstraintLayout, LayoutRelation, LayoutAnchor, LayoutExpr,
        anchor, constrain,
@@ -110,6 +110,8 @@ of `w` across children in that column; row heights are the max of
     vertical_align::Symbol
     horizontal_gap::Int
     vertical_gap::Int
+    column_align::Any        # Vector{Symbol}; empty ⇒ use horizontal_align for every column
+    column_stretch::Any      # Vector{Int} weights; empty/all-zero ⇒ content-sized columns
     selection::Reference
 end
 
@@ -117,13 +119,40 @@ function GridLayout(children::Vector, columns::Integer;
                     horizontal_align::Symbol=:left,
                     vertical_align::Symbol=:top,
                     horizontal_gap::Integer=0,
-                    vertical_gap::Integer=0)
+                    vertical_gap::Integer=0,
+                    column_align=Symbol[],
+                    column_stretch=Int[])
     columns >= 1 || error("GridLayout: columns must be >= 1")
     GridLayout(CellVector(Cell[c isa Cell ? c : Cell(c) for c in children]),
                Cell(Int(columns)),
                Cell(horizontal_align), Cell(vertical_align),
                Cell(Int(horizontal_gap)), Cell(Int(vertical_gap)),
+               Cell(collect(column_align)), Cell(Int[Int(s) for s in column_stretch]),
                Cell(nothing))
+end
+
+"""
+    FormLayout(rows; label_align=:right, horizontal_gap=12, vertical_gap=8)
+
+A two-column form (Qt's `QFormLayout`): each `row` is a `(label, field)` pair of
+**documents** (wrap text labels in `WidgetLabel`). The label column hugs (its
+width = the widest label) and is `label_align`-aligned; the field column fills the
+available width. Sugar over `GridLayout(2; column_align=[label_align, :left],
+column_stretch=[0, 1])` — see the column-stretch generalization there.
+"""
+function FormLayout(rows::Vector;
+                    label_align::Symbol=:right,
+                    horizontal_gap::Integer=12,
+                    vertical_gap::Integer=8)
+    children = Any[]
+    for row in rows
+        (row isa Tuple && length(row) == 2) ||
+            error("FormLayout: each row must be a (label, field) pair")
+        push!(children, row[1]); push!(children, row[2])
+    end
+    GridLayout(children, 2;
+               horizontal_gap=horizontal_gap, vertical_gap=vertical_gap,
+               column_align=[label_align, :left], column_stretch=[0, 1])
 end
 
 # ── FlowLayout ──────────────────────────────────────────────────────────────
@@ -180,14 +209,16 @@ badges, and composing background / foreground layers.
     children::CellVector
     horizontal_align::Symbol
     vertical_align::Symbol
+    active::Int
     selection::Reference
 end
 
 function StackLayout(children::Vector;
                      horizontal_align::Symbol=:left,
-                     vertical_align::Symbol=:top)
+                     vertical_align::Symbol=:top,
+                     active::Integer=0)
     StackLayout(CellVector(Cell[c isa Cell ? c : Cell(c) for c in children]),
-                Cell(horizontal_align), Cell(vertical_align), Cell(nothing))
+                Cell(horizontal_align), Cell(vertical_align), Cell(Int(active)), Cell(nothing))
 end
 
 StackLayout(; kwargs...) = StackLayout(Any[]; kwargs...)
