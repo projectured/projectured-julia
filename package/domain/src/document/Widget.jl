@@ -330,12 +330,17 @@ setfn!(w::WidgetMenu, f::Function) = (setfn!(getfield(w.elements, :elements), ()
 # ── WidgetMenuItem ─────────────────────────────────────────────────────────
 
 """
-    WidgetMenuItem(content; <base kwargs>)
+    WidgetMenuItem(content; action=nothing, <base kwargs>)
 
-A single item inside a `WidgetMenu`..
+A single item inside a `WidgetMenu`. `action` is an optional callback (same
+contract as `WidgetButton.action`: called with the editor when it accepts one
+argument, else with none) invoked via `InvokeWidgetActionOperation` on a left
+click. A click on an enabled item also closes the enclosing popup (a no-op when
+the menu is rendered inline). A disabled item is inert.
 """
 @document struct WidgetMenuItem <: WidgetDocument
     content::Any
+    action::Any
     visible::Bool
     enabled::Bool
     margin::Inset
@@ -348,6 +353,7 @@ A single item inside a `WidgetMenu`..
 end
 
 function WidgetMenuItem(content;
+                        action=nothing,
                         visible::Bool=true,
                         enabled::Bool=true,
                         margin::Inset=inset_default,
@@ -356,7 +362,10 @@ function WidgetMenuItem(content;
                         border_color=nothing,
                         padding::Inset=inset_default,
                         padding_color=nothing)
-    WidgetMenuItem(Cell(content),
+    # `action` is a callback, not reactive content — store it as a primitive cell
+    # value (a computed `Cell(f)` would invoke it on read). Mirrors WidgetButton.
+    action_cell = Cell(nothing); setval!(action_cell, action)
+    WidgetMenuItem(Cell(content), action_cell,
                    Cell(visible), Cell(enabled), Cell(margin), Cell(margin_color),
                    Cell(border), Cell(border_color),
                    Cell(padding), Cell(padding_color),

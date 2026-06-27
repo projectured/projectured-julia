@@ -317,21 +317,53 @@ The existing `widget_select` example gained `options` so the field is exercised,
 but it renders the closed state only until Step 6 supplies the window-route
 projection.
 
-## Step 4 — `WidgetMenu` open-on-click + context menu
+## Step 4 — `WidgetMenu` open-on-click + menu bar + context menu
 
-- `WidgetMenu` gains a click-to-open path: a trigger (a `WidgetButton`/menu-bar
-  entry, Stage 4) emits `open_popup(menu, anchor_below(trigger_rect))`. The
-  menu's existing inline-item printer becomes the popup window's content; a menu
-  item click emits its action + `CloseWindowOperation`.
-- **Context menu:** a right-click (`MousePress(:right, …)`) on a widget that
-  declares a context menu emits `open_popup(menu, anchor_at(pointer))`.
+**Direction (decided with the user, 2026-06-27): real menu bar first.** Survey of
+the existing surface: `WidgetShell` already declares `menu_bar::WidgetMenu` (today
+rendered as a non-interactive vertically-stacked band) and a dormant
+`context_menu::WidgetMenu` (never rendered or triggered). `QMenuBar` is flagged ❌
+in the gap analysis. A *menu-bar entry is just a clickable title that opens a
+submenu* — so the building block is "a clickable thing that opens a `WidgetMenu`
+popup", which the menu bar composes horizontally and a context menu reuses. The
+shared `Action` (`QAction`) object is **deferred**: menu items take a plain
+`action` callback for now (callbacks-now, Action-later).
+
+**4a — clickable `WidgetMenuItem`.** `WidgetMenuItem` gains an optional
+`action::Any` callback (same contract as `WidgetButton.action`, stored as a
+primitive cell value via `setval!`). Item reader: a left click on an *enabled*
+item → `CompoundOperation([InvokeWidgetActionOperation(item),
+CloseWindowOperation(:widget_popup)])` (the close is a no-op for an inline menu);
+disabled / non-left ⇒ inert. The `WidgetMenu` reader now routes `MousePress` to
+the hit child via `_route_click_to_children` (it only routed scroll before).
+Tested in `WidgetMenuTest.jl` (`test_widget_menu`).
+
+**4b — submenu-opener + open-on-click (next).** A clickable trigger that opens a
+`WidgetMenu` as a popup below itself, reusing the 3c path: capture `ctx.reference`
+at print time + emit `OpenPopupOperation(anchor=self, dy=height+gap,
+content=menu)`. Likely `WidgetMenuItem` gains an optional `submenu::WidgetMenu`
+(an item with a submenu opens it instead of running an action), so it serves both
+a top-level menu-bar entry and a nested submenu.
+
+**4c — horizontal `menu_bar` in `WidgetShell`.** Render the shell's `menu_bar`
+items in a horizontal row of titles (today they stack vertically); each title is a
+4b submenu-opener so clicking it drops its `WidgetMenu` as a popup. Makes
+`WidgetShell.menu_bar` a real `QMenuBar`.
+
+**4d — context menu (deferred; mechanism decided: wrapper + local-offset anchor).**
+A `WidgetContextMenu(child, menu)` wrapper (mirrors `TooltipSource`) captures its
+anchor; a right-click emits `OpenPopupOperation(anchor=self, dx/dy = local click
+coords, content=menu)` so the resolver places the menu at the pointer — reusing the
+whole 3c path, no pointer injection. (The existing dormant `WidgetShell.context_menu`
+field can be the first consumer.)
+
 - Menu items reuse Stage-1 `enabled` (disabled items don't dismiss/activate) and
   Stage-2 selection (arrow-key menu navigation can ride selection later, routed
   to the popup window while it holds focus).
 
-**Tests:** a click opens the menu as a popup window; an item click runs its
-action and closes; outside-click (focus-lost) / Esc close; a right-click opens a
-context menu at the pointer.
+**Tests:** ✅ 4a (`test_widget_menu`). 4b/4c: a click on a menu-bar title opens the
+submenu as a popup below it; an item click runs its action and closes; outside-click
+(focus-lost) / Esc close. 4d: a right-click opens a context menu at the pointer.
 
 ## Step 5 — `WidgetDialog` (modal) + convenience dialogs
 

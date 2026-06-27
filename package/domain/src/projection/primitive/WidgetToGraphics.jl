@@ -1085,9 +1085,16 @@ function map_reference_backward(::WidgetMenuItemToGraphicsCanvas, iomap, referen
 end
 
 function projection_read(::WidgetMenuItemToGraphicsCanvas, iomap::ChildrenIoMap, evt)
+    w = iomap.input
+    if evt isa MousePress
+        # A left click on an enabled item runs its action and dismisses the popup;
+        # the close is a no-op when the menu is rendered inline. Disabled ⇒ inert.
+        (evt.button === :left && !(w.enabled === false)) || return nothing
+        return CompoundOperation(Any[InvokeWidgetActionOperation(w),
+                                     CloseWindowOperation(:widget_popup)])
+    end
     evt isa MouseScroll || return nothing
-    child_iomaps = iomap.child_iomaps[]::Vector
-    _route_scroll_to_children(child_iomaps, evt)
+    _route_scroll_to_children(iomap.child_iomaps[]::Vector, evt)
 end
 
 # ── WidgetMenu ──────────────────────────────────────────────────────────────
@@ -1118,8 +1125,9 @@ function map_reference_backward(::WidgetMenuToGraphicsCanvas, iomap, reference)
 end
 
 function projection_read(::WidgetMenuToGraphicsCanvas, iomap::ChildrenIoMap, evt)
-    evt isa MouseScroll || return nothing
     child_iomaps = iomap.child_iomaps[]::Vector
+    evt isa MousePress && return _route_click_to_children(child_iomaps, evt)
+    evt isa MouseScroll || return nothing
     _route_scroll_to_children(child_iomaps, evt)
 end
 
