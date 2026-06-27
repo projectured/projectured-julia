@@ -136,9 +136,14 @@ function solve_constraint_layout(solver::TulipConstraintSolver, n::Int,
 
         objective = MOI.ScalarAffineTerm{Float64}[]
 
-        # Soft equality `Σ a·v == rhs` penalized at `weight`, via slacks sp,sn ≥ 0:
-        #   Σ a·v − sp + sn == rhs ;  objective += weight·(sp + sn).
-        function soft_equal!(terms, rhs, weight)
+        # Soft equality `Σ a·v == rhs` penalized via slacks sp,sn ≥ 0:
+        #   Σ a·v − sp + sn == rhs ;  objective += w_pos·sp + w_neg·sn.
+        # `soft_equal!(terms, rhs, w)` uses `w` on both sides (symmetric L1).
+        # Origin stays pass an asymmetric `w_neg > w_pos` so that, when an
+        # equality chain like `b.left == a.right + 8` leaves the absolute origin
+        # of the chain undetermined, the LP prefers the leftmost valid placement
+        # (a.left → 0) over the symmetric centroid (a.left → -54).
+        function soft_equal!(terms, rhs, w_pos, w_neg=w_pos)
             sp = MOI.add_variable(model)
             sn = MOI.add_variable(model)
             MOI.add_constraint(model, sp, MOI.GreaterThan(0.0))
@@ -149,18 +154,19 @@ function solve_constraint_layout(solver::TulipConstraintSolver, n::Int,
                      MOI.ScalarAffineTerm(1.0, sn)),
                 0.0)
             MOI.add_constraint(model, f, MOI.EqualTo(rhs))
-            push!(objective, MOI.ScalarAffineTerm(weight, sp))
-            push!(objective, MOI.ScalarAffineTerm(weight, sn))
+            push!(objective, MOI.ScalarAffineTerm(w_pos, sp))
+            push!(objective, MOI.ScalarAffineTerm(w_neg, sn))
             return
         end
 
         # Weak stay constraints keep the system determined.
+        origin_stay_pos = STAY_WEIGHT * 0.1
+        origin_stay_neg = STAY_WEIGHT * 0.2
         for i in 1:n
             soft_equal!([MOI.ScalarAffineTerm(1.0, W[i])], Float64(intrinsic_w[i]), STAY_WEIGHT)
             soft_equal!([MOI.ScalarAffineTerm(1.0, H[i])], Float64(intrinsic_h[i]), STAY_WEIGHT)
-            # Origin stays are weaker still so any positioning relation wins.
-            soft_equal!([MOI.ScalarAffineTerm(1.0, L[i])], 0.0, STAY_WEIGHT * 0.1)
-            soft_equal!([MOI.ScalarAffineTerm(1.0, T[i])], 0.0, STAY_WEIGHT * 0.1)
+            soft_equal!([MOI.ScalarAffineTerm(1.0, L[i])], 0.0, origin_stay_pos, origin_stay_neg)
+            soft_equal!([MOI.ScalarAffineTerm(1.0, T[i])], 0.0, origin_stay_pos, origin_stay_neg)
         end
 
         # User relations.
