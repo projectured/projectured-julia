@@ -156,7 +156,7 @@ function test_text_navigations()
             # keyboard events to its children, so Ctrl+Home can't seed an initial
             # selection (same reason the bare widget examples above are skipped).
             endswith(example.name, "_widget") && continue
-            example.name in ("layout", "workbench", "assistant",
+            example.name in ("layout", "constraint_layout", "workbench", "assistant",
                              "dbcatalog", "sql_syntax", "sql_table") && continue
             @testset "$(example.name)" begin
                 test_text_navigation(example)
