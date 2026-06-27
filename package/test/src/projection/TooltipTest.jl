@@ -162,4 +162,40 @@ projection_read(projection, iomap, EventEnvelope(:main, WindowCloseRequest()))
 
 end # @testset
 
+@testset "WindowFocusLost dismisses only auto_dismiss windows" begin
+
+# Losing focus closes a transient popup (auto_dismiss=true) but never the main
+# window or a tooltip (auto_dismiss=false), so opening a popup — which takes focus
+# from the main window — does not close the main window.
+main  = WindowDocument(; id=:main, content=PrimitiveNumber(0))                 # auto_dismiss=false
+popup = WindowDocument(; id=:popup, auto_dismiss=true, content=PrimitiveString("p"))
+screen = ScreenDocument([main, popup])
+
+projection = RecursiveProjection(
+    TypeDispatchingProjection(
+        ScreenDocument => WindowManagerProjection(inner=ScreenToScreen()),
+        WindowDocument => ScreenToScreen(),
+        CellVector     => CopyingProjection(),
+        Any            => PreservingProjection(),
+    ),
+)
+iomap = projection_print(projection, screen)
+@test length(screen.windows) == 2
+
+# Focus-lost on the main window: ignored (not a popup).
+projection_read(projection, iomap, EventEnvelope(:main, WindowFocusLost()))
+@test length(screen.windows) == 2
+
+# Focus-lost on the popup: dismissed, on both input and output.
+projection_read(projection, iomap, EventEnvelope(:popup, WindowFocusLost()))
+@test length(screen.windows) == 1
+@test screen.windows[1].id === :main
+@test length(iomap.output.windows) == 1
+
+# Focus-lost for an unknown id: no-op.
+projection_read(projection, iomap, EventEnvelope(:ghost, WindowFocusLost()))
+@test length(screen.windows) == 1
+
+end # @testset
+
 end # function

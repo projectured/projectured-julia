@@ -308,6 +308,7 @@ struct OpenWindowOperation <: Operation
     height::Int
     bg::NTuple{4,UInt8}
     style::Symbol
+    auto_dismiss::Bool
     content::Document
 end
 
@@ -319,10 +320,11 @@ OpenWindowOperation(; id::Symbol,
                       height::Integer = 0,
                       bg::NTuple{4,Integer} = (UInt8(253), UInt8(246), UInt8(227), UInt8(255)),
                       style::Symbol = :tooltip,
+                      auto_dismiss::Bool = false,
                       content::Document) =
     OpenWindowOperation(id, String(title), Int(x), Int(y), Int(width), Int(height),
                         (UInt8(bg[1]), UInt8(bg[2]), UInt8(bg[3]), UInt8(bg[4])),
-                        style, content)
+                        style, auto_dismiss, content)
 
 """
     CloseWindowOperation(id)

@@ -33,7 +33,7 @@ import ProjecturedDomain.GraphicsModule: GraphicsCanvas, GraphicsText, GraphicsR
 import ProjecturedDomain.CollectionModule: ListNode, CellVector
 import ProjecturedDomain.FontModule: StyleFont, font_scaled_size, _DISPLAY_SCALE
 import ProjecturedDomain.ScreenModule: Screen, QuitEvent
-import ProjecturedDomain.ScreenDocumentModule: ScreenDocument, WindowDocument, EventEnvelope, WindowCloseRequest, WindowResizeEvent
+import ProjecturedDomain.ScreenDocumentModule: ScreenDocument, WindowDocument, EventEnvelope, WindowCloseRequest, WindowResizeEvent, WindowFocusLost
 import ProjecturedDomain.ModifiersModule: Modifiers
 import ProjecturedDomain.KeyboardModule: KeyDown, KeyUp, KeyPress
 import ProjecturedDomain.MouseModule: MouseDown, MouseUp, MousePress, MouseMove, MouseScroll
@@ -1934,6 +1934,8 @@ function read_from_devices(backend::SdlBackend, devices)
             wid = _lookup_window_id(backend, evt.window.windowID)
             if sub == UInt8(14)  # SDL_WINDOWEVENT_CLOSE
                 return EventEnvelope(wid, WindowCloseRequest())
+            elseif sub == UInt8(12)  # SDL_WINDOWEVENT_FOCUS_LOST
+                return EventEnvelope(wid, WindowFocusLost())
             elseif sub == UInt8(5)  # SDL_WINDOWEVENT_RESIZED (external/user only)
                 # SDL reports device pixels; the document works in logical pixels.
                 nw = _to_logical(Int(evt.window.data1))

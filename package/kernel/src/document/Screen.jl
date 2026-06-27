@@ -30,7 +30,7 @@ import ..CollectionModule: CellVector
 import ..ReferenceModule: Reference
 
 export ScreenDocument, WindowDocument, EventEnvelope, WindowCloseRequest,
-       WindowResizeEvent, IScreenDocument, IWindowDocument
+       WindowResizeEvent, WindowFocusLost, IScreenDocument, IWindowDocument
 
 # ── ScreenDocument ────────────────────────────────────────────────────────
 
@@ -73,6 +73,10 @@ projected.
 - `bg::NTuple{4,UInt8}` — background RGBA.
 - `style::Symbol` — `:normal`, `:tooltip`, `:floating`, … Backend
   applies per-style behaviour (default `:normal`).
+- `auto_dismiss::Bool` — when `true`, the window closes itself on a
+  `WindowFocusLost` (it is a transient popup: a dropdown/menu/context menu that
+  should vanish when the pointer acts elsewhere). The main window and tooltips
+  stay `false`, so losing focus to a popup never closes them. Default `false`.
 - `content::Document` — the document tree this window displays. Before
   projection: any domain document. After projection: typically a
   `GraphicsCanvas`.
@@ -86,6 +90,7 @@ projected.
     height::Int
     bg::NTuple{4,UInt8}
     style::Symbol
+    auto_dismiss::Bool
     content::Document
     selection::Reference
 end
@@ -98,12 +103,14 @@ function WindowDocument(; id::Symbol = :main,
                           height::Integer = 1600,
                           bg::NTuple{4,Integer} = DEFAULT_BG,
                           style::Symbol = :normal,
+                          auto_dismiss::Bool = false,
                           content)
     WindowDocument(Cell(id), Cell(String(title)),
                    Cell(Int(x)), Cell(Int(y)),
                    Cell(Int(width)), Cell(Int(height)),
                    Cell((UInt8(bg[1]), UInt8(bg[2]), UInt8(bg[3]), UInt8(bg[4]))),
                    Cell(style),
+                   Cell(auto_dismiss),
                    Cell(content),
                    Cell(nothing))
 end
@@ -155,5 +162,19 @@ struct WindowResizeEvent
     width::Int
     height::Int
 end
+
+# ── WindowFocusLost ───────────────────────────────────────────────────────
+
+"""
+    WindowFocusLost()
+
+Inner event carried by an `EventEnvelope` when a window loses input focus
+(SDL `SDL_WINDOWEVENT_FOCUS_LOST` / web `blur`). `WindowManagerProjection`'s
+reader closes the window **only when its `auto_dismiss` is `true`** — a transient
+popup dismissing because the pointer acted elsewhere. The main window and
+tooltips (`auto_dismiss = false`) ignore it, so focusing a popup never closes
+them.
+"""
+struct WindowFocusLost end
 
 end # module

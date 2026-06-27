@@ -26,7 +26,7 @@ import ProjecturedDomain.FontModule: StyleFont
 import ProjecturedDomain.ReactiveModule: Cell, isuptodate
 import ProjecturedDomain.ScreenModule: QuitEvent
 import ProjecturedDomain.ScreenDocumentModule: ScreenDocument, WindowDocument, EventEnvelope,
-                               WindowCloseRequest, WindowResizeEvent
+                               WindowCloseRequest, WindowResizeEvent, WindowFocusLost
 import ProjecturedDomain.ModifiersModule: Modifiers
 import ProjecturedDomain.KeyboardModule: KeyDown, KeyUp, KeyPress
 import ProjecturedDomain.MouseModule: MouseDown, MouseUp, MouseMove, MouseScroll
@@ -583,6 +583,9 @@ function _decode_and_enqueue!(backend::WebBackend, msg)
 
     elseif typ == "close"
         put!(backend.inbound, EventEnvelope(wid, WindowCloseRequest()))
+
+    elseif typ == "blur"
+        put!(backend.inbound, EventEnvelope(wid, WindowFocusLost()))
 
     elseif typ == "quit"
         put!(backend.inbound, EventEnvelope(:none, QuitEvent()))

@@ -25,8 +25,8 @@ module WindowManagerProjectionModule
 import ..ProjectionApiModule: projection_print, projection_printer_recurse, projection_read, map_reference_forward, map_reference_backward, Projection, Change, as_change
 import ..IoMapApiModule: IoMap
 import ..ReactiveModule: Cell
-import ..ScreenDocumentModule: ScreenDocument, WindowDocument, EventEnvelope, WindowResizeEvent, WindowCloseRequest
-import ..OperationModule: OpenWindowOperation, CloseWindowOperation, ResizeWindowOperation
+import ..ScreenDocumentModule: ScreenDocument, WindowDocument, EventEnvelope, WindowResizeEvent, WindowCloseRequest, WindowFocusLost
+import ..OperationModule: OpenWindowOperation, CloseWindowOperation, ResizeWindowOperation, CompoundOperation
 
 export WindowManagerProjection, WindowManagerProjectionIoMap
 
@@ -83,8 +83,25 @@ function projection_read(p::WindowManagerProjection, recursion, change::Change, 
         _apply_close!(iomap, CloseWindowOperation(env.window_id))
         return Change(change.gesture, nothing)
     end
+    # Losing focus dismisses only a popup (`auto_dismiss`), so the pointer acting
+    # elsewhere closes a dropdown/menu but never the main window or a tooltip.
+    if env isa EventEnvelope && env.event isa WindowFocusLost
+        win = _find_window(iomap.input, env.window_id)
+        (win !== nothing && win.auto_dismiss === true) || return Change(change.gesture, nothing)
+        _apply_close!(iomap, CloseWindowOperation(env.window_id))
+        return Change(change.gesture, nothing)
+    end
 
     inner = projection_read(p.inner, recursion, change, iomap.inner_iomap)
+    return _apply_window_ops(iomap, change, inner)
+end
+
+# Intercept window-management operations bubbling up from below and apply them
+# (the manager mutates both the input screen and the mirrored output). A window
+# op may be bundled with document edits in a `CompoundOperation` — e.g. picking a
+# dropdown option writes the value AND closes the popup — so unpack it: apply the
+# Open/Close ops here and pass any remaining ops upward for `evaluate_operation`.
+function _apply_window_ops(iomap, change, inner)
     op = inner.operation
     if op isa OpenWindowOperation
         _apply_open!(iomap, op)
@@ -92,6 +109,20 @@ function projection_read(p::WindowManagerProjection, recursion, change::Change, 
     elseif op isa CloseWindowOperation
         _apply_close!(iomap, op)
         return Change(change.gesture, nothing)
+    elseif op isa CompoundOperation
+        rest = Any[]
+        for o in op.operations
+            if o isa OpenWindowOperation
+                _apply_open!(iomap, o)
+            elseif o isa CloseWindowOperation
+                _apply_close!(iomap, o)
+            else
+                push!(rest, o)
+            end
+        end
+        isempty(rest) && return Change(change.gesture, nothing)
+        length(rest) == 1 && return Change(change.gesture, rest[1])
+        return Change(change.gesture, CompoundOperation(rest))
     else
         return inner
     end
@@ -136,6 +167,7 @@ function _apply_open!(iomap::WindowManagerProjectionIoMap, op::OpenWindowOperati
                               x=op.x, y=op.y,
                               width=op.width, height=op.height,
                               bg=op.bg, style=op.style,
+                              auto_dismiss=op.auto_dismiss,
                               content=op.content)
     new_iomap = projection_printer_recurse(iomap.recursion, new_in, iomap.ctx)
     new_out = new_iomap.output
@@ -154,6 +186,7 @@ function _update_window!(w::WindowDocument, op::OpenWindowOperation;
     w.height = op.height
     w.bg     = op.bg
     w.style  = op.style
+    w.auto_dismiss = op.auto_dismiss
     if project_content
         # Re-project the new content for the output side.
         content_iomap = projection_printer_recurse(recursion, op.content, ctx)
