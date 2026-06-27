@@ -11,7 +11,7 @@ import ..DocumentApiModule: Document, clear_selection!, set_selection!, with_sel
 import ..ReferenceModule: ReferencePath, ConcreteReferencePath, EmptyReferencePath, FieldReference, RangeReference, TypeReference, is_element_reference, evaluate_reference, reference_equal, annotate_reference_types, strip_reference_types, append_reference
 import ..ReactiveModule: Cell
 export ReplaceSelectionOperation, QuitEditorOperation, QuitEditorException, replace_selection!,
-       OpenWindowOperation, CloseWindowOperation, ResizeWindowOperation, ToggleCollapseOperation,
+       OpenWindowOperation, OpenPopupOperation, CloseWindowOperation, ResizeWindowOperation, ToggleCollapseOperation,
        ReplaceReferencedValue, replace_document, insert_elements, delete_elements,
        CompoundOperation
 
@@ -325,6 +325,39 @@ OpenWindowOperation(; id::Symbol,
     OpenWindowOperation(id, String(title), Int(x), Int(y), Int(width), Int(height),
                         (UInt8(bg[1]), UInt8(bg[2]), UInt8(bg[3]), UInt8(bg[4])),
                         style, auto_dismiss, content)
+
+"""
+    OpenPopupOperation(; id, anchor, dx, dy, width, height, auto_dismiss, content)
+
+Request a popup window **anchored to a widget** rather than at absolute
+coordinates. `anchor` is a `ReferencePath` (captured at print time by the
+trigger, e.g. a `WidgetSelect`) naming the widget to anchor under; `(dx, dy)` is
+the trigger-supplied offset (the trigger bakes its own size in, so "below the
+box" is `(0, box_height + gap)`).
+
+A content-level resolver projection intercepts it, resolves `anchor` to the
+widget's absolute position via `map_reference_forward` / `anchor_point`, and
+turns it into an `OpenWindowOperation` at `position + (dx, dy)` — so the deep
+trigger reader never needs to know its own absolute coordinates. Never reaches
+`evaluate_operation` (the resolver consumes it before the WindowManager).
+"""
+struct OpenPopupOperation <: Operation
+    id::Symbol
+    anchor::ReferencePath
+    dx::Int
+    dy::Int
+    width::Int
+    height::Int
+    auto_dismiss::Bool
+    content::Document
+end
+
+OpenPopupOperation(; id::Symbol, anchor::ReferencePath,
+                     dx::Integer = 0, dy::Integer = 0,
+                     width::Integer = 0, height::Integer = 0,
+                     auto_dismiss::Bool = true, content::Document) =
+    OpenPopupOperation(id, anchor, Int(dx), Int(dy), Int(width), Int(height),
+                       auto_dismiss, content)
 
 """
     CloseWindowOperation(id)

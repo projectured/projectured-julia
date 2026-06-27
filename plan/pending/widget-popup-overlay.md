@@ -250,32 +250,51 @@ origin `(x, y) + offset`, clamped near an edge.
 
 Make the select interactive, the first end-to-end popup over the window route.
 
-- **Document.** Add `options::CellVector` (and an optional open marker);
-  `value` stays the displayed/selected entry.
-- **Reader (new — drop `@_printer_only`).** `MousePress` on the closed box →
-  `open_popup(content = a menu/list of the options; anchor = (self_ref, :below,
-  gap); auto_dismiss=true)` — the op carries the *anchor reference* to the select,
-  not absolute coords; the receiver resolves it via Step 2.0. The option list is
-  an ordinary widget subtree rendered as the popup window's content. Picking an
-  option emits `ReplaceReferencedValue(self, "value", option)` **and**
-  `CloseWindowOperation` (a `CompoundOperation`; the WindowManager must unpack the
-  compound to catch the close — see below).
-- **Op bubbling (verified).** `prepend_steps_to_op` returns unknown op types and
-  identity-rooted `ReplaceReferencedValue` unchanged (the `else` branch,
-  `OperationRerooting.jl:73`), so an `OpenWindowOperation` from the deep select
-  reader bubbles up to the WindowManager untouched, and the option click's
-  identity-rooted value-write round-trips to the select. **One required add:** the
-  WindowManager reader must unpack a `CompoundOperation` to apply Open/Close ops
-  nested in it (today it only matches a top-level Open/Close).
-- **Printer.** Unchanged closed state; the open list lives in the popup window,
-  not the select's own canvas.
-- **Re-rooting.** The option list's reader ops target the popup window's content
-  subtree; re-root them back to the select via the open op's recorded reference,
-  the way container readers re-root child ops (`prepend_steps_to_op`).
+**Anchor wiring (decided with the user): capture `ctx.reference` (A) + a
+content-root resolver seam (X).** The select captures its own document path at
+**print time** from `ctx.reference` (the printer already threads it; the original
+Lisp version captured a single path on the iomap the same way) and stores it on
+its iomap. No op re-rooting — the captured path is already content-root-relative.
 
-**Tests:** clicking the select opens the option-list window; clicking an option
-round-trips `value` and closes; clicking elsewhere (focus-lost) closes without
-changing value; `Esc` closes.
+**3a — dismissal foundation. ✅ Done (commit `5d00aaf`).** `WindowFocusLost` event
+(SDL + web) + `auto_dismiss` flag on `WindowDocument`/`OpenWindowOperation` +
+WindowManager closes only `auto_dismiss` windows on focus-lost + `_apply_window_ops`
+unpacks a `CompoundOperation` (so an option click can write the value AND close in
+one bundled op). Tested in `TooltipTest`.
+
+**3b — anchor-relative open + resolver seam. ✅ Written, loads (uncommitted →
+commit pending; behavior-tested via 3c).**
+
+- `OpenPopupOperation(id, anchor::ReferencePath, dx, dy, w, h, auto_dismiss,
+  content)` in kernel `Operation.jl` — carries the anchor reference + the
+  trigger-baked offset, not absolute coords. (Kernel placement avoids a module
+  cycle: the select reader creates it, the resolver needs `anchor_point`.)
+- `WidgetPopupResolverProjection` (`projection/higherorder/WidgetPopupResolver.jl`)
+  — a content-root seam (mirrors `HoverProbe`): intercepts an `OpenPopupOperation`
+  bubbling up, resolves `anchor` via `anchor_point(content_iomap, anchor)`, and
+  emits `OpenWindowOperation` at `point + (dx, dy)`. That op bubbles to the
+  WindowManager, which opens the window. `prepend_steps_to_op` passes the
+  `OpenPopupOperation` up unchanged (the captured anchor must NOT be re-rooted).
+
+**3c — the select + option items (remaining).**
+
+- **`WidgetSelect`.** Add `options`. Custom `WidgetSelectIoMap` carrying the
+  captured `ctx.reference` + the rendered `control_height`. Drop `@_printer_only`;
+  `map_reference_forward = _self_point` (the deferred Step 2.0 leaf, one line);
+  reader: `MousePress` on the box → `OpenPopupOperation(id=:widget_popup,
+  anchor=iomap.anchor, dx=0, dy=control_height+gap, content=<option list>,
+  auto_dismiss=true)`. Printer's closed state unchanged.
+- **`WidgetOption`** (new widget: document + projection). Renders a label row;
+  reader on `MousePress` → `CompoundOperation([ReplaceReferencedValue(select,
+  "value", value), CloseWindowOperation(:widget_popup)])`. Carries the target
+  select (identity) + value + popup id. (Identity-rooted `ReplaceReferencedValue`
+  passes `prepend_steps_to_op` unchanged, so it round-trips to the select; the
+  WindowManager's 3a CompoundOperation unpacking applies the close.)
+- Option list = a `VerticalLayout` of `WidgetOption`s, built by the select reader.
+
+**Tests (3c):** clicking the select opens the option-list window at the resolved
+position; clicking an option round-trips `value` and closes; outside-click
+(focus-lost) / `Esc` close without changing value.
 
 ## Step 4 — `WidgetMenu` open-on-click + context menu
 
@@ -374,9 +393,12 @@ envelope targeting the base window is dropped (does not reach base widgets).
       Principle documented on `map_reference_forward`. Also unblocks `anchored-layout.md`.
 - [ ] Step 2 — anchored placement on the resolved point (`anchor_point` + clamp);
       op carries `(anchor_ref, offset)`, not coords; trigger bakes its size into offset
-- [ ] Step 3 — `WidgetSelect` dropdown (options + open-popup + pick→value+close;
-      WindowManager unpacks `CompoundOperation` for nested Open/Close);
-      **also lands `WindowFocusLost` + `auto_dismiss` + `open_popup` from Step 1**
+- [~] Step 3 — `WidgetSelect` dropdown. **3a ✅** (focus-lost + `auto_dismiss` +
+      CompoundOperation unpacking, committed). **3b ✅ written/loads** (anchor wiring
+      = capture `ctx.reference` + `OpenPopupOperation` + `WidgetPopupResolver`
+      seam → `OpenWindowOperation` via `anchor_point`). **3c remaining:**
+      `WidgetSelect` options/iomap/reader/`_self_point`, new `WidgetOption` widget,
+      option-list, end-to-end test.
 - [ ] Step 4 — `WidgetMenu` open-on-click + right-click context menu
 - [ ] Step 5 — `WidgetDialog` modal (backdrop window + centered card + buttons,
       modality enforced by WindowManager) + MessageBox/InputDialog
