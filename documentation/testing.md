@@ -121,6 +121,47 @@ If you write a domain that stores state outside of struct fields (e.g. in a
 side table), `_walk!` will not see it; either expose it as a field or add a
 dedicated test under [test/src/document/](../package/test/src/document/).
 
+## Validating the recursion contract
+
+The four core projection functions (`projection_print`, `projection_read`,
+`map_reference_forward`, `map_reference_backward`) must each be **recursive** —
+descending into children only by delegating to the child projection's own version
+of the same function. That is [the recursion contract](projection-system.md#the-recursion-contract),
+and a load-bearing half of it is that **no fifth recursive function may be
+introduced** to do the descent: the four functions are the only interface every
+projection implements, so any extra recursive function would break the moment a
+pipeline composed a projection that lacks it.
+
+The same constraint binds the *validation*: it is done **externally**, by a harness
+that drives the four functions over composed examples, and it must add **no new
+per-projection generic function** of its own. The harness reuses the existing
+walkers rather than introducing an interface method:
+
+- **Reachability** — enumerate every reference with `collect_text_selections` /
+  `collect_tree_selections` and assert `map_reference_forward` returns a non-`nothing`
+  image for each. A deeply nested reference can only have an image if the mapper
+  delegated all the way down; a flattening mapper drops what it never recursed into.
+- **Round-trip** — `map_reference_backward(map_reference_forward(ref))` returns the
+  original (modulo the documented `ProjectionReference`/flat-offset collapse for
+  projection-introduced positions). Round-tripping at every level is the signature
+  of lockstep recursion.
+- **Printer lockstep** — reuse `_walk!` to reach every iomap; for any iomap carrying
+  `child_iomaps`, assert each `child_iomap.output` is object-identical to the
+  corresponding child of the parent output (the printer spliced delegated children,
+  it did not rebuild the subtree).
+- **Composition substitution** — the discriminating check: substitute the projection
+  used for one child subtree (via an existing higher-order projection), and assert
+  the parent output reflects it. A compliant projection delegates, so the swap takes
+  effect; a flattening one ignores `recursion` and the swap is a no-op — the test
+  fails. This is what flags `SyntaxToText`.
+
+The harness and entry points (`test_recursion_contract(example)` /
+`test_recursion_contracts()` / `walk_recursion_contract(doc, proj)`) are designed in
+`plan/pending/recursive-validation-core-functions.md`. The one example pipeline that
+fails today is the syntax-to-text chain (`SyntaxNodeToText`/`SyntaxListToText` flatten
+their subtree); it is recorded as a known exception pending the refactor in
+`plan/pending/syntaxtotext-delegation.md`.
+
 ## Running tests via Pkg
 
 The standard `Pkg` workflow also works and is what CI uses:

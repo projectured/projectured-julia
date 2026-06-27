@@ -30,6 +30,50 @@ All four are generic functions declared in
 [program/src/api/Projection.jl](../package/kernel/src/api/Projection.jl) and dispatched on
 the concrete projection struct.
 
+## The recursion contract
+
+These four functions are **the** interface a projection implements — nothing else
+is universal across every projection. The single contract that makes arbitrary
+projections compose is that **all recursion flows through these four, and only
+these four**:
+
+> When a projection descends into a child document, each of the four functions
+> hands that child to the **child projection's own** version of *the same*
+> function — the printer via the `recursion` argument
+> (`projection_printer_recurse(recursion, child, ctx)`), the reader and both
+> mappers via the **stored child IoMaps** (`ChildrenIoMap.child_iomaps`). Every
+> function maps its **own single level** and delegates the rest.
+
+Two corollaries, both load-bearing:
+
+1. **You may not introduce a fifth recursive function.** It is tempting, when a
+   projection needs to walk a tree, to add a new generic helper that each
+   projection implements and that recurses by calling itself. Do not. The four
+   functions are implemented by *every* projection; a fifth would not be. The
+   moment a pipeline composes a projection that relies on the fifth function with
+   one that does not, recursion breaks at that boundary — which is the opposite of
+   composition. Express all descent through the four functions everyone already
+   implements. (This is also why the contract is **validated externally**, by a
+   test harness that drives the four functions over composed examples — see
+   [Validating the recursion contract](testing.md#validating-the-recursion-contract) —
+   rather than by adding an introspection method projections would have to
+   implement.)
+
+2. **You may not self-walk or flatten a subtree by child type.** A function must
+   not recurse over the input/output subtree itself, dispatching on each child's
+   concrete type, and bake the whole subtree into its result. That is the "School
+   B" anti-pattern (see [Mapping references when the printer recurses](#mapping-references-when-the-printer-recurses)
+   and [Recursion across projections](#recursion-across-projections)). Delegate one
+   level through the child IoMap / `recursion` instead ("School A").
+
+The rest of this guide is the contract spelled out per function: the printer
+recurses via `recursion` ([§ Recursion across projections](#recursion-across-projections)),
+and the reader and both mappers recurse via the stored child IoMaps
+([§ Mapping references when the printer recurses](#mapping-references-when-the-printer-recurses)).
+The one projection in the tree that currently breaks the contract is
+`SyntaxNodeToText`/`SyntaxListToText` (it flattens the syntax subtree); the repair is
+scoped in `plan/pending/syntaxtotext-delegation.md`.
+
 ## The four functions
 
 ### `projection_print` — the printer
@@ -526,7 +570,10 @@ not recursively at all.)
 > combinations of documents and projections**: a child could be a different
 > domain, or a substituted projection, and only single-level delegation lets the
 > recursion follow whatever projection actually runs. Keeping each projection to
-> one level is exactly what makes the library composable.
+> one level is exactly what makes the library composable. This is one half of
+> [the recursion contract](#the-recursion-contract); its other half is that you
+> may not reach for a *new* recursive function to do the descent — the four
+> functions are the only recursion the contract permits.
 
 ## Mapping references when the printer recurses
 

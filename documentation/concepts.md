@@ -183,7 +183,12 @@ general rather than tied to any one domain or any one display.
   projections wrap an inner projection and modify its behaviour. The
   combinators are themselves projections, so they compose freely with each
   other. See [higher-order projections](higher-order-projections.md) for the
-  full catalogue.
+  full catalogue. What makes this composition work is that each projection is a
+  **single-level transform**: it renders one level and delegates every child back
+  through the four core functions (via the `recursion` parameter and the stored
+  child IO maps), never walking the subtree itself. That is the
+  [recursion contract](projection-system.md#the-recursion-contract), and it is why
+  any domain immediately works under any higher-order projection.
 - **Abstraction** is again ordinary Julia code. A function that returns a
   fully wired `SequentialProjection(...)` configured for a particular display
   — a JSON viewer, a syntax-highlighted Lisp editor, a workbench pane — is a

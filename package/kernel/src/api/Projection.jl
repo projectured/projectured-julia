@@ -19,8 +19,41 @@ The four functions form two symmetric pairs, one per direction of data flow:
 Rule of thumb: **`projection_print` uses `map_reference_forward`;
 `projection_read` uses `map_reference_backward`.** The two mappers are the
 single source of truth for how a path crosses this projection — written once,
-reused on both sides. See [documentation/projection-system.md](../../../documentation/projection-system.md)
-for worked recipes and [documentation/selection-deep-dive.md](../../../documentation/selection-deep-dive.md)
+reused on both sides.
+
+# The recursion contract
+
+These four functions are **the** interface every projection implements — nothing
+else is universal. The contract that keeps arbitrary projections composable is:
+
+> Recursion across projections flows **only** through these four functions. When a
+> projection descends into a child document, each function hands that child to the
+> **child projection's own** version of *the same* function. The vehicles are the
+> `recursion` parameter — invoked via `projection_printer_recurse(recursion, child,
+> ctx)` on the printer side — and the **stored child IoMaps**
+> (`ChildrenIoMap.child_iomaps`) that the reader and both mappers walk on the
+> backward side. Each function maps its **own single level** and delegates the rest.
+
+Two things are therefore **forbidden**:
+
+1. **No fifth recursive function.** A projection must not introduce a *new*
+   generic function to perform descent. The four above are implemented by every
+   projection; a fifth would not be, so the first pipeline that composes a
+   projection needing it with one that does not breaks at that boundary. All
+   descent must ride the functions everyone already implements. (This is also why
+   the contract is validated *externally*, by a harness driving these four — see
+   [documentation/testing.md](../../../documentation/testing.md) — never by adding
+   an interface method.)
+2. **No self-walking / flattening by child type.** A function must not recurse over
+   the input (or output) subtree itself, dispatching on each child's concrete type,
+   and bake the whole subtree into its result. That hard-codes which projection
+   renders each descendant and forecloses composing a child with another domain or
+   a substituted projection — the "School B" anti-pattern. Delegate through the
+   child IoMap / `recursion` instead ("School A").
+
+See [documentation/projection-system.md](../../../documentation/projection-system.md)
+("The recursion contract" and "Recursion across projections") for worked recipes
+and [documentation/selection-deep-dive.md](../../../documentation/selection-deep-dive.md)
 for the selection mechanism.
 """
 module ProjectionApiModule
