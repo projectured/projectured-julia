@@ -224,6 +224,7 @@ rather than a bespoke operation. Because the widget is carried by identity
 | enable / disable | `ReplaceReferencedValue(w, "enabled", true/false)` (disabled readers emit nothing) |
 | scroll wheel | `ReplaceReferencedValue(scroll_pane, "scroll_position", old + Δ)` (reader reads `old`) |
 | Ctrl+wheel / wheel on a transform pane | `ReplaceReferencedValue(transform_pane, "transform", M')` (zoom about cursor / pan) |
+| Ctrl+`=`/`-`/`0` on a transform pane | `ReplaceReferencedValue(transform_pane, "transform", M')` (zoom in/out / reset, about centre) |
 | drag scroll-bar | `ReplaceReferencedValue(bar, "value", clamped)` |
 | hover / press a button | `ReplaceReferencedValue(widget, "hovered"/"pressed", bool)` |
 
@@ -457,17 +458,20 @@ the same machinery — a scroll is `translate(−offset)`, a zoom is `scale(z)`.
   cross-widget `scroll`+`zoom` coordination.
 - **Gestures (reader).** `Ctrl`+wheel zooms about the cursor
   (`M' = T(c)∘S(f)∘T(−c)∘M`, total scale clamped to `[0.25, 4.0]`); a plain wheel
-  pans (`M' = T(Δ)∘M`). Both are a single `ReplaceReferencedValue(pane,
-  "transform", M')`, like every other widget edit. Other events are forwarded to
-  the content with the pointer mapped through `affine_inverse(M)`, then re-rooted
-  at `.content` exactly as the scroll pane does.
+  pans (`M' = T(Δ)∘M`). **Keyboard:** `Ctrl`+`=`/`-` zoom in/out and `Ctrl`+`0`
+  resets, all about the viewport centre. The keyboard zoom is a *fallback* —
+  the key is forwarded to the content first, so a `Ctrl`+`=`/`-` bound inside the
+  content (e.g. collection add/remove) still wins. Every edit is a single
+  `ReplaceReferencedValue(pane, "transform", M')`, like other widget edits; other
+  events are forwarded to the content with the pointer mapped through
+  `affine_inverse(M)`, then re-rooted at `.content` exactly as the scroll pane.
 - **`transform` is transient view state** (like `scroll_position`) — not
   serialised.
 - **Renderer scope.** The SDL, web (`ctx.transform`), and PDF (`cm`) backends
   honour the **translate+scale** subset; rotation/shear is future work (it needs
   `RenderGeometry`/rotated glyphs/stencil clipping on SDL — the document, reader,
   and hit-test math are already general). The console backend is text-only and
-  unaffected. Keyboard zoom (`Ctrl +/−`, reset) is not wired yet.
+  unaffected.
 
 Try `run_example(widget_transform_pane_example)`.
 

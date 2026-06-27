@@ -161,6 +161,7 @@ function web_key_to_symbol(key::AbstractString, code::AbstractString, mods::Modi
         c == '*' && return :asterisk
         (c == '=' || c == '+') && return :equals
         c == '-' && return :minus
+        c == '0' && return :zero          # Ctrl+0 — reset transform/zoom
         lc = lowercase(c)
         lc == 'c' && return :c
         lc == 'x' && return :x

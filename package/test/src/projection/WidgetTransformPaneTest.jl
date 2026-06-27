@@ -78,5 +78,48 @@ function test_widget_transform_pane()
         @test op2.value.a ≈ 1.1 * 1.1
     end
 
+    @testset "Ctrl+= zooms in about the viewport centre" begin
+        doc   = _doc()                       # 200×200, no insets → centre (100,100)
+        proj  = _proj()
+        iomap = projection_print(proj, doc)
+        op = projection_read(proj, iomap, KeyDown(:equals, Modifiers(ctrl=true)))
+        @test op isa ReplaceReferencedValue
+        @test op.value.a ≈ 1.1
+        @test all(affine_apply(op.value, 100.0, 100.0) .≈ (100.0, 100.0))
+    end
+
+    @testset "Ctrl+- zooms out" begin
+        doc   = _doc()
+        proj  = _proj()
+        iomap = projection_print(proj, doc)
+        op = projection_read(proj, iomap, KeyDown(:minus, Modifiers(ctrl=true)))
+        @test op isa ReplaceReferencedValue
+        @test op.value.a ≈ 1.0 / 1.1
+    end
+
+    @testset "Ctrl+0 resets to the identity" begin
+        doc   = WidgetTransformPane(WidgetComposite(Point2D(0, 0), Any[WidgetLabel(Point2D(0, 0), "x")]);
+                                    size=Point2D(200, 200), transform=affine_scale(2.0, 2.0))
+        proj  = _proj()
+        iomap = projection_print(proj, doc)
+        op = projection_read(proj, iomap, KeyDown(:zero, Modifiers(ctrl=true)))
+        @test op isa ReplaceReferencedValue
+        @test op.value == affine_identity
+    end
+
+    @testset "Ctrl+0 at the identity is a no-op" begin
+        doc   = _doc()
+        proj  = _proj()
+        iomap = projection_print(proj, doc)
+        @test projection_read(proj, iomap, KeyDown(:zero, Modifiers(ctrl=true))) === nothing
+    end
+
+    @testset "plain = (no Ctrl) does not zoom" begin
+        doc   = _doc()
+        proj  = _proj()
+        iomap = projection_print(proj, doc)
+        @test projection_read(proj, iomap, KeyDown(:equals, Modifiers())) === nothing
+    end
+
 end
 end

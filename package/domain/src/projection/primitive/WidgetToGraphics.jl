@@ -2907,6 +2907,18 @@ _zoom_about(M::AffineTransform, factor, ax, ay) =
 # Pan: prepend a screen-space translation. `M' = T(dx, dy) ∘ M`.
 _pan_by(M::AffineTransform, dx, dy) = affine_translate(dx, dy) ∘ M
 
+# One zoom step about `(ax, ay)`: `dir > 0` zooms in, `dir < 0` out. Returns the
+# `ReplaceReferencedValue`, or `nothing` if the clamp leaves the scale unchanged
+# (already at `_ZOOM_MIN`/`_ZOOM_MAX`). Shared by the wheel and keyboard readers.
+function _zoom_op(w, M::AffineTransform, dir, ax, ay)
+    cur = M.a == 0.0 ? 1.0 : M.a
+    f = dir > 0 ? _ZOOM_STEP : 1.0 / _ZOOM_STEP
+    new_scale = clamp(cur * f, _ZOOM_MIN, _ZOOM_MAX)
+    f = new_scale / cur
+    f == 1.0 && return nothing
+    ReplaceReferencedValue(w, "transform", _zoom_about(M, f, ax, ay))
+end
+
 function projection_read(p::WidgetTransformPaneToGraphicsCanvas, iomap::WidgetTransformPaneToGraphicsCanvasIoMap, evt)
     canvas = iomap.output
     w = iomap.input
@@ -2917,13 +2929,7 @@ function projection_read(p::WidgetTransformPaneToGraphicsCanvas, iomap::WidgetTr
         # Ctrl+wheel: zoom about the cursor.
         MouseScroll(dx, dy, x, y; ctrl) => begin
             hit_element_at(canvas, x, y) === nothing && return nothing
-            cur = M.a == 0.0 ? 1.0 : M.a
-            f = dy >= 0 ? _ZOOM_STEP : 1.0 / _ZOOM_STEP
-            new_scale = clamp(cur * f, _ZOOM_MIN, _ZOOM_MAX)
-            f = new_scale / cur
-            f == 1.0 && return nothing
-            ax, ay = Float64(x - cox), Float64(y - coy)
-            return ReplaceReferencedValue(w, "transform", _zoom_about(M, f, ax, ay))
+            return _zoom_op(w, M, dy >= 0 ? 1 : -1, Float64(x - cox), Float64(y - coy))
         end
         # Plain wheel: pan. Vertical by `dy`, horizontal by `dx`, step = line height.
         MouseScroll(dx, dy, x, y) => begin
@@ -2937,8 +2943,7 @@ function projection_read(p::WidgetTransformPaneToGraphicsCanvas, iomap::WidgetTr
     # Forward other events to the content, mapping pointer coords through the
     # inverse transform (screen → content-local), then re-root the result.
     content_iomap = iomap.content_iomap
-    content_iomap === nothing && return nothing
-    op = @event_case evt begin
+    op = content_iomap === nothing ? nothing : @event_case evt begin
         MousePress(button, x, y) => begin
             inv = affine_inverse(M)
             lxf, lyf = affine_apply(inv, Float64(x - cox), Float64(y - coy))
@@ -2947,7 +2952,22 @@ function projection_read(p::WidgetTransformPaneToGraphicsCanvas, iomap::WidgetTr
         end
         _ => projection_read(content_iomap.projection, content_iomap, evt)
     end
-    _retarget_op(p, iomap, op)
+    op = _retarget_op(p, iomap, op)
+    op === nothing || return op
+    # Keyboard zoom — a *fallback* only when the content did not consume the key,
+    # so a Ctrl+= / Ctrl+- bound inside the content (e.g. collection add/remove)
+    # still wins. Ctrl+= / keypad-+ zooms in, Ctrl+- / keypad-- out, Ctrl+0
+    # resets — all about the viewport centre (no cursor for keyboard).
+    tx, ty = _inset_total(w)
+    cw = Int(canvas.w); ch = Int(canvas.h)
+    acx, acy = (cw - tx) / 2.0, (ch - ty) / 2.0
+    @event_case evt begin
+        KeyDown(:equals; ctrl) => return _zoom_op(w, M, 1, acx, acy)
+        KeyDown(:minus; ctrl)  => return _zoom_op(w, M, -1, acx, acy)
+        KeyDown(:zero; ctrl)   => return M === affine_identity ? nothing :
+                                         ReplaceReferencedValue(w, "transform", affine_identity)
+    end
+    nothing
 end
 
 # ── WidgetToolbar ───────────────────────────────────────────────────────────

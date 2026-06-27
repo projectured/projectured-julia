@@ -364,6 +364,8 @@ function sdl_keysym_to_symbol(keysym::Int32)::Symbol
     keysym == Int32(1073741911) && return :equals   # keypad '+'
     keysym == Int32(45)         && return :minus    # '-' — remove from collection
     keysym == Int32(1073741910) && return :minus    # keypad '-'
+    keysym == Int32(48)         && return :zero     # '0' — reset transform/zoom (Ctrl+0)
+    keysym == Int32(1073741922) && return :zero     # keypad '0'
     keysym == Int32(1073741881) && return :caps_lock
     # Modifier-only keys
     keysym == Int32(1073742048) && return :lctrl

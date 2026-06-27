@@ -190,9 +190,11 @@ but that is not required and is out of scope here.)
 9. ✅ Web `ctx.transform` (serialized `"m"` matrix in the clip dict + `drawClip`
    apply), PDF `cm` (translate+scale, flip-aware, identity-guarded). Console is
    text-only (renders `TextText`, never `GraphicsViewport`) — nothing to do.
-10. ⏳ Keyboard zoom (`Ctrl +/−`, reset) — **not done** (the `+`/`-`/`0` key
-    symbols need confirming at runtime); `make_transform_projection` wrapper —
-    not done.
+10. ✅ Keyboard zoom: `Ctrl`+`=`/keypad-`+` zoom in, `Ctrl`+`-` out, `Ctrl`+`0`
+    reset — about the viewport centre, as a *fallback* after the content (so a
+    collection's `=`/`-` bindings still win). Uses the existing `:equals`/`:minus`
+    key symbols plus a new `:zero` keysym mapping (SDL keysym 48 / keypad 1073741922).
+    `make_transform_projection` wrapper — still optional, not done.
 11. ✅ Guide row + gesture-table row + "Transform pane (zoom & pan)" subsection in
     [documentation/document/widget.md](../../documentation/document/widget.md).
 

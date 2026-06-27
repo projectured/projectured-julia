@@ -49,7 +49,8 @@ Physical key-press event (fired on `SDL_KEYDOWN`).
   `:page_up`, `:page_down`
 - **Editing:** `:backspace`, `:delete`, `:return`, `:tab`, `:insert`
 - **Function:** `:f1`…`:f12`
-- **Misc:** `:escape`, `:space`, `:period`, `:caps_lock`
+- **Misc:** `:escape`, `:space`, `:period`, `:caps_lock`, `:zero` (the `0`
+  key — used by the Ctrl+0 transform-pane reset)
 - **Modifier-only:** `:lctrl`, `:rctrl`, `:lshift`, `:rshift`,
   `:lalt`, `:ralt`, `:lmeta`, `:rmeta`
 - **Printable fallback:** `:char` (physical key identity not important;
