@@ -1,21 +1,21 @@
 # Stage 5 — Icons (named, theme-aware, pluggable backings)
 
-> **Status: ✅ DONE** (core shipped; tab/tree-node icons (#4) deferred as the
-> optional follow-up). Detailed plan for **Stage 5** of
+> **Status: ✅ DONE** (all sub-steps, including the tab/tree-node follow-up).
+> Detailed plan for **Stage 5** of
 > [qt-widget-gap-analysis.md](qt-widget-gap-analysis.md) ("Icons"). Fills the
 > `Action.icon` slot left as a hook by **Stage 4**
 > ([widget-actions-shortcuts.md](widget-actions-shortcuts.md)).
 >
-> **Implemented & tested** (commits `5260fe1`, `56bef16`; `WidgetIconTest` 13
-> assertions): ✅ 1 registry (`register_icon!` + `_push_icon!`) + built-in vector
-> set + `glyph_icon`/`image_icon` pluggable backings; ✅ 2 `icon` slot on
-> `WidgetButton`/`WidgetMenuItem` (+ toolbar) taking `command.icon` then the
-> widget's own, tinted to the foreground and muted when disabled; ✅ 3
-> `WidgetToolButton`; ✅ 5 gallery icons (File menu / toolbar / tool-button row,
-> rendered & verified) + `widget.md` docs; plus a `WidgetToolbar` advance fix so an
-> icon'd item no longer overlaps the next. **Deferred (#4, optional):** an `icon`
-> on `WidgetTabbedPane` tabs / `WidgetTree` nodes — the button/menu/toolbar path
-> was the core deliverable.
+> **Implemented & tested** (commits `5260fe1`, `56bef16`, `0a311f7`;
+> `WidgetIconTest` 17 assertions): ✅ 1 registry (`register_icon!` + `_push_icon!`)
+> + built-in vector set + `glyph_icon`/`image_icon` pluggable backings; ✅ 2 `icon`
+> slot on `WidgetButton`/`WidgetMenuItem` (+ toolbar) taking `command.icon` then
+> the widget's own, tinted to the foreground and muted when disabled; ✅ 3
+> `WidgetToolButton`; ✅ 4 `WidgetTabbedPane` 3-tuple tab icons + registry-aware
+> `WidgetTreeNode` icons (Symbol → vector, String → glyph); ✅ 5 gallery icons
+> (menu / toolbar / tool-button row / tab strip / folder-file tree, rendered &
+> verified) + `widget.md` docs; plus a `WidgetToolbar` advance fix so an icon'd
+> item no longer overlaps the next.
 
 ## Context
 
