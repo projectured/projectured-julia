@@ -21,7 +21,7 @@ import ..GeometryModule: Inset, Point2D, inset_default,
 export Inset, Point2D,
        WidgetDocument, WidgetInsertion,
        WidgetLabel, WidgetText, WidgetCheckbox, WidgetButton,
-       WidgetTooltip, WidgetMenu, WidgetMenuItem, WidgetComposite,
+       WidgetTooltip, WidgetContextMenu, WidgetMenu, WidgetMenuItem, WidgetComposite,
        WidgetShell, WidgetTitlePane, WidgetSplitPane, WidgetTabbedPane,
        WidgetScrollPane, WidgetToolbar, WidgetScrollBar,
        WidgetBadge, WidgetSeparator, WidgetCard, WidgetSwitch, WidgetProgress,
@@ -37,7 +37,7 @@ export Inset, Point2D,
        setfn!,
        IWidgetInsertion,
        IWidgetLabel, IWidgetText, IWidgetCheckbox, IWidgetButton,
-       IWidgetTooltip, IWidgetMenu, IWidgetMenuItem, IWidgetComposite,
+       IWidgetTooltip, IWidgetContextMenu, IWidgetMenu, IWidgetMenuItem, IWidgetComposite,
        IWidgetShell, IWidgetTitlePane, IWidgetSplitPane, IWidgetTabbedPane,
        IWidgetScrollPane, IWidgetToolbar, IWidgetScrollBar,
        IWidgetBadge, IWidgetSeparator, IWidgetCard, IWidgetSwitch, IWidgetProgress,
@@ -288,6 +288,51 @@ function WidgetTooltip(position::Point2D, size::Point2D, content;
 end
 
 setfn!(w::WidgetTooltip, f::Function) = (setfn!(getfield(w, :content), f); w)
+
+# ── WidgetContextMenu ──────────────────────────────────────────────────────
+
+"""
+    WidgetContextMenu(child, menu; <base kwargs>)
+
+Wraps `child`, rendering it unchanged (a transparent behavioural wrapper). A
+**right** click anywhere over it opens `menu` (a `WidgetMenu`) as a popup placed at
+the pointer (Stage 3 Step 4d). It reuses the popup window route: the right click
+emits an `OpenPopupOperation` anchored to this wrapper with the *local* click
+coordinates as the offset, so a content-root resolver places the menu at the
+pointer — no pointer injection. Non-right events route to `child`. A disabled
+wrapper ignores the right click (the child still works).
+"""
+@document struct WidgetContextMenu <: WidgetDocument
+    child::Any
+    menu::Any
+    visible::Bool
+    enabled::Bool
+    margin::Inset
+    margin_color::StyleColor
+    border::Inset
+    border_color::StyleColor
+    padding::Inset
+    padding_color::StyleColor
+    selection::Reference
+end
+
+function WidgetContextMenu(child, menu;
+                          visible::Bool=true,
+                          enabled::Bool=true,
+                          margin::Inset=inset_default,
+                          margin_color=nothing,
+                          border::Inset=inset_default,
+                          border_color=nothing,
+                          padding::Inset=inset_default,
+                          padding_color=nothing)
+    WidgetContextMenu(Cell(child), Cell(menu),
+                      Cell(visible), Cell(enabled), Cell(margin), Cell(margin_color),
+                      Cell(border), Cell(border_color),
+                      Cell(padding), Cell(padding_color),
+                      Cell(nothing))
+end
+
+setfn!(w::WidgetContextMenu, f::Function) = (setfn!(getfield(w, :child), f); w)
 
 # ── WidgetMenu ─────────────────────────────────────────────────────────────
 

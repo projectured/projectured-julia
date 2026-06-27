@@ -371,21 +371,32 @@ through a `WidgetShell`, vs the canvas-walked ground truth; `test_anchor_point`
 17/17). The live click→popup needs Step 6's window-route example projection
 (WindowManager + `WidgetPopupResolver` wrapping the shell).
 
-**4d — context menu (deferred; mechanism decided: wrapper + local-offset anchor).**
-A `WidgetContextMenu(child, menu)` wrapper (mirrors `TooltipSource`) captures its
-anchor; a right-click emits `OpenPopupOperation(anchor=self, dx/dy = local click
-coords, content=menu)` so the resolver places the menu at the pointer — reusing the
-whole 3c path, no pointer injection. (The existing dormant `WidgetShell.context_menu`
-field can be the first consumer.)
+**4d — context menu. ✅ Done.** A `WidgetContextMenu(child, menu)` wrapper (a
+transparent single-child wrapper, modelled on `WidgetText`) renders `child`
+unchanged and captures its own `ctx.reference` as the anchor
+(`map_reference_forward = _self_point`, backward prepends `.child`). A **right**
+click emits `OpenPopupOperation(anchor=self, dx=localX, dy=localY, content=menu)`
+— the local click coordinates are the offset, so the resolver places the menu at
+the pointer, reusing the whole 3c path with no pointer injection. Every other
+event routes to `child` (its op re-rooted through `.child`). A disabled wrapper or
+one with no menu ignores the right click. Registered in the `WidgetToGraphics`
+factory. Tested in `WidgetContextMenuTest.jl` (21 assertions): right-click opens
+the menu at the pointer; left-click reaches the child (its button action fires);
+disabled / no-menu inert; the `WidgetPopupResolver` seam maps it to an absolute
+`OpenWindowOperation` at the pointer. The dormant `WidgetShell.context_menu` field
+can adopt this wrapper later. **Note:** the live click→popup window still needs
+Step 6's window-route example projection (WindowManager + `WidgetPopupResolver`).
 
 - Menu items reuse Stage-1 `enabled` (disabled items don't dismiss/activate) and
   Stage-2 selection (arrow-key menu navigation can ride selection later, routed
   to the popup window while it holds focus).
 
-**Tests:** ✅ 4a + 4b (`test_widget_menu`, 29 assertions). 4c: a click on a
-menu-bar title opens the submenu as a popup below it (needs `Shell`'s forward map
-so the anchor resolves through the menu bar); outside-click (focus-lost) / Esc
-close. 4d: a right-click opens a context menu at the pointer.
+**Tests:** ✅ 4a + 4b (`test_widget_menu`, 29). ✅ 4c (`test_anchor_point`, 17 —
+horizontal menu lays out + forward-maps; entry resolves through a `WidgetShell`).
+✅ 4d (`test_widget_context_menu`, 21 — right-click opens at the pointer; left-click
+reaches the child; resolver → absolute `OpenWindowOperation`). The live
+click→popup-window flow (focus-lost / Esc dismissal of a real popup window) is
+exercised once Step 6 wires the window-route example projection.
 
 ## Step 5 — `WidgetDialog` (modal) + convenience dialogs
 
@@ -475,7 +486,7 @@ envelope targeting the base window is dropped (does not reach base widgets).
       options/iomap/reader/`_self_point`, new `WidgetOption` widget + projection,
       option-list, `WidgetSelectTest.jl`). The interactive `widget_popup` *example*
       (window-route example projection) is deferred to Step 6.
-- [~] Step 4 — `WidgetMenu` open-on-click + right-click context menu. **4a ✅**
+- [x] Step 4 — `WidgetMenu` open-on-click + right-click context menu. **4a ✅**
       (clickable `WidgetMenuItem` with `action`). **4b ✅** (optional `submenu`;
       submenu-opener emits `OpenPopupOperation` anchored below itself via the 3c
       route; `WidgetMenuItemToGraphicsCanvasIoMap` captures the anchor + size;
@@ -483,9 +494,11 @@ envelope targeting the base window is dropped (does not reach base widgets).
       (`WidgetMenu.orientation` horizontal flag; menu + `WidgetShell` extend
       `ctx.reference` and forward-map `elements[i]` / `.menu_bar`, completing the
       Step 2.0 Shell deferral; `widget_shell` example menu bar now horizontal with
-      submenus; `test_anchor_point` 17/17). **Next: 4d** right-click context menu
-      (`WidgetContextMenu` wrapper + local-offset anchor); the live menu-bar
-      click→popup needs Step 6's window-route example projection.
+      submenus; `test_anchor_point` 17/17). **4d ✅** (`WidgetContextMenu` wrapper;
+      right-click → `OpenPopupOperation` at the pointer via a local-offset anchor;
+      left-click routes to the child; `test_widget_context_menu` 21/21). The live
+      menu-bar / context-menu click→popup window needs Step 6's window-route
+      example projection (WindowManager + `WidgetPopupResolver`).
 - [ ] Step 5 — `WidgetDialog` modal (backdrop window + centered card + buttons,
       modality enforced by WindowManager) + MessageBox/InputDialog
 - [ ] Step 6 — `widget_popup` example, sweep, docs

@@ -33,7 +33,7 @@ import ..ColorModule: StyleColor,
                       color_indigo_600, color_indigo_700, color_indigo_950,
                       color_destructive, color_destructive_fg
 import ..WidgetModule: WidgetDocument, WidgetInsertion, WidgetLabel, WidgetText, WidgetCheckbox,
-                       WidgetButton, WidgetTooltip, WidgetMenu, WidgetMenuItem,
+                       WidgetButton, WidgetTooltip, WidgetContextMenu, WidgetMenu, WidgetMenuItem,
                        WidgetComposite, WidgetShell, WidgetTitlePane, WidgetSplitPane,
                        WidgetTabbedPane, WidgetScrollPane, WidgetToolbar, WidgetScrollBar,
                        WidgetBadge, WidgetSeparator, WidgetCard, WidgetSwitch, WidgetProgress,
@@ -72,7 +72,8 @@ import ..KeyboardModule: KeyDown
 import ..ModifiersModule: Modifiers
 export WidgetInsertionToGraphicsCanvas, WidgetLabelToGraphicsCanvas, WidgetTextToGraphicsCanvas,
        WidgetCheckboxToGraphicsCanvas, WidgetButtonToGraphicsCanvas,
-       WidgetTooltipToGraphicsCanvas, WidgetMenuToGraphicsCanvas,
+       WidgetTooltipToGraphicsCanvas, WidgetContextMenuToGraphicsCanvas,
+       WidgetContextMenuToGraphicsCanvasIoMap, WidgetMenuToGraphicsCanvas,
        WidgetMenuItemToGraphicsCanvas, WidgetCompositeToGraphicsCanvas,
        WidgetShellToGraphicsCanvas, WidgetTitlePaneToGraphicsCanvas,
        WidgetSplitPaneToGraphicsCanvas, WidgetTabbedPaneToGraphicsCanvas,
@@ -1054,6 +1055,92 @@ function projection_read(::WidgetTooltipToGraphicsCanvas, iomap::ChildrenIoMap, 
     evt isa MouseScroll || return nothing
     child_iomaps = iomap.child_iomaps[]::Vector
     _route_scroll_to_children(child_iomaps, evt)
+end
+
+# ── WidgetContextMenu ─────────────────────────────────────────────────────────
+
+@projection struct WidgetContextMenuToGraphicsCanvas
+    measure::Function
+    font::StyleFont    # measures the popup menu's row size
+end
+
+# Carries the recursed child's iomap (for event routing + re-rooting) and the
+# wrapper's own document path (captured from `ctx.reference`) — the anchor a right
+# click uses to place the context-menu popup at the pointer.
+struct WidgetContextMenuToGraphicsCanvasIoMap <: IoMap
+    projection::Any
+    input::WidgetContextMenu
+    output::GraphicsCanvas
+    child_iomap::Any
+    anchor::ReferencePath
+end
+
+function projection_print(p::WidgetContextMenuToGraphicsCanvas, recursion, w::WidgetContextMenu, ctx)
+    w.visible == false && return SimpleIoMap(p, w, _empty_canvas())
+    child = w.child
+    child isa Document || return SimpleIoMap(p, w, _empty_canvas())
+    cox, coy = _content_offset(w)
+    child_iomap = projection_printer_recurse(recursion, child, ctx)
+    inner = child_iomap.output::GraphicsCanvas
+    iw, ih = Int(inner.w[]), Int(inner.h[])
+    tx, ty = _inset_total(w)
+    canvas = _make_canvas(0, 0, iw + tx, ih + ty, Any[_make_canvas(cox, coy, Any[inner])])
+    WidgetContextMenuToGraphicsCanvasIoMap(p, w, canvas, child_iomap, ctx.reference)
+end
+
+# Forward image: the wrapper is a positioned leaf for anchoring — the empty
+# reference maps to its own top-left, so a content-root resolver places the popup
+# at `wrapper_top_left + (local click)`. (A `.child` descent for a trigger nested
+# in the child is not needed here and stays unmapped.)
+map_reference_forward(::WidgetContextMenuToGraphicsCanvas, iomap::WidgetContextMenuToGraphicsCanvasIoMap, reference) =
+    _self_point(reference)
+map_reference_forward(::WidgetContextMenuToGraphicsCanvas, iomap, reference) = nothing
+
+# Child ops re-root by prepending `.child`.
+map_reference_backward(::WidgetContextMenuToGraphicsCanvas, iomap::WidgetContextMenuToGraphicsCanvasIoMap, reference) =
+    reference === nothing ? nothing : ConcreteReferencePath(FieldReference("child"), reference)
+map_reference_backward(::WidgetContextMenuToGraphicsCanvas, iomap, reference) = nothing
+
+projection_read(::WidgetContextMenuToGraphicsCanvas, iomap::SimpleIoMap, evt) = nothing
+
+# A right click opens the context menu at the pointer (Step 4d): an anchor-relative
+# `OpenPopupOperation` whose offset is the *local* click coordinates, so the
+# resolver places the menu under the pointer. Every other event routes to the
+# child (its returned op is re-rooted through `.child`).
+function projection_read(p::WidgetContextMenuToGraphicsCanvas, iomap::WidgetContextMenuToGraphicsCanvasIoMap, evt)
+    w = iomap.input
+    if evt isa MousePress && evt.button === :right
+        (w.enabled === false || w.menu === nothing) && return nothing
+        return _open_context_menu(p, w.menu, iomap, evt.x, evt.y)
+    end
+    child_iomap = iomap.child_iomap
+    child_iomap === nothing && return nothing
+    cox, coy = _content_offset(w)
+    op = @event_case evt begin
+        MousePress(button, x, y) =>
+            projection_read(child_iomap.projection, child_iomap, MousePress(button, x - cox, y - coy, evt.modifiers))
+        MouseScroll(dx, dy, x, y) =>
+            projection_read(child_iomap.projection, child_iomap, MouseScroll(dx, dy, x - cox, y - coy))
+        _ => projection_read(child_iomap.projection, child_iomap, evt)
+    end
+    _retarget_op(p, iomap, op)
+end
+
+# Estimate the popup size from the menu's rows (it renders with the same font once
+# the popup window opens). Precise sizing is the popup window's job (Step 6).
+function _open_context_menu(p::WidgetContextMenuToGraphicsCanvas, menu, iomap, lx, ly)
+    items = collect(menu.elements)
+    _, row_h = p.measure("M", p.font)
+    width = 0
+    for it in items
+        it isa WidgetMenuItem && !(it.content isa WidgetDocument) || continue
+        tw, _ = _text_size(p.measure, p.font, string(it.content))
+        width = max(width, tw)
+    end
+    OpenPopupOperation(; id=:widget_popup, anchor=iomap.anchor,
+                       dx=lx, dy=ly, width=max(width, 1) + 16,
+                       height=max(1, length(items)) * row_h,
+                       auto_dismiss=true, content=menu)
 end
 
 # ── WidgetMenuItem ──────────────────────────────────────────────────────────
@@ -4226,6 +4313,7 @@ function WidgetToGraphics(font::StyleFont; measure::Function,
         WidgetTooltip    => WidgetTooltipToGraphicsCanvas(measurer, StyleText(theme.font, theme.popover_foreground),
             theme.popover, StyleStroke(theme.border, theme.border_width), theme.radius,
             Inset(theme.pad_y, theme.pad_y, theme.pad_x, theme.pad_x)),
+        WidgetContextMenu => WidgetContextMenuToGraphicsCanvas(measurer, theme.font),
         WidgetMenu       => WidgetMenuToGraphicsCanvas(measurer, theme.font),
         WidgetMenuItem   => WidgetMenuItemToGraphicsCanvas(measurer, theme.body_text),
         WidgetComposite  => WidgetCompositeToGraphicsCanvas(),
