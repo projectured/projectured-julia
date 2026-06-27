@@ -325,9 +325,15 @@ focused iff `getfield(w,:selection)[] !== nothing` (background fact 3).
       issue was resolved by extracting the focus-path helpers into the document-layer
       `WidgetModule` (included before both `LayoutToGraphics` and `WidgetToGraphics`),
       which both now import. Tests cover the layout `children[i]` path + wrap.
-      **Deferred (follow-ups):** `WidgetSplitPane` (LayoutConstraint child shape),
-      `WidgetTabbedPane` (selector-pair shape), and `GridLayout` (2-D — its reader
-      currently lets Tab fall through to the top-level wrap). *Not executed — Julia
+      **All containers now covered:** `WidgetSplitPane` (`_split_tab`, walking a
+      `LayoutConstraint`'s `.child` on the delegate re-root; `first_focusable_path`
+      descends the constraint generically for the advance) and `StackLayout`
+      (`_route_stack_event` Tab branch reusing `_layout_tab`). `GridLayout` was
+      already covered (its reader delegates to `_route_layout_event`).
+      `WidgetTabbedPane` needs no extra code — its coordless branch delegates Tab
+      into the *selected tab's content*, which advances via its own reader and
+      declines when exhausted, so the pane declines and the parent advances past it
+      (Tab does not switch tabs, which is correct). *Not executed — Julia
       unavailable in sandbox; this selection/reference behaviour especially needs
       REPL verification, and the module extraction is load-time-sensitive.*
 - [x] Step 4 — Enter/Space activation on the focused Button/Checkbox: the button

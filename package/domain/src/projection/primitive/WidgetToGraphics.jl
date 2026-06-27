@@ -1742,6 +1742,11 @@ function projection_read(p::WidgetSplitPaneToGraphicsCanvas, iomap::ChildrenIoMa
         drag !== nothing && return drag
     end
     child_iomaps = iomap.child_iomaps[]::Vector
+    # Tab traversal (Stage 2): distributed focus advance, handled before the
+    # selection-only coordless routing.
+    if w isa WidgetSplitPane && evt isa KeyDown && evt.key === :tab
+        return _split_tab(w, child_iomaps, evt)
+    end
     res = @event_case evt begin
         MouseScroll => _route_split_event(child_iomaps, evt.x, evt.y,
             (x, y) -> MouseScroll(evt.dx, evt.dy, x, y))
@@ -1769,6 +1774,37 @@ function projection_read(p::WidgetSplitPaneToGraphicsCanvas, iomap::ChildrenIoMa
             (FieldReference("elements"), RangeReference(slot_idx-1, slot_idx), FieldReference("child")) :
             (FieldReference("elements"), RangeReference(slot_idx-1, slot_idx))
     prepend_steps_to_op(op, steps)
+end
+
+# Tab traversal for a split pane (Stage 2), mirroring `_composite_tab` but with the
+# split's slot shape: slots live under `elements[i]`, optionally wrapped in a
+# `LayoutConstraint` (then the path walks through `.child`). `first_focusable_path`
+# descends through the LayoutConstraint's `child` field generically, so the advance
+# path is correct without special-casing; only the *delegate* re-rooting needs the
+# `.child` step (as the reader above does).
+function _split_tab(w::WidgetSplitPane, child_iomaps::Vector, evt)
+    n = length(child_iomaps)
+    reverse = evt.modifiers.shift
+    i = _selected_split_slot(w, n)
+    if i == 0
+        sub = reverse ? last_focusable_path(w) : first_focusable_path(w)
+        return sub === nothing ? nothing : ReplaceSelectionOperation(sub)
+    end
+    deleg = _forward_split_event_slot(child_iomaps, evt, i)
+    if deleg !== nothing
+        op, slot = deleg
+        elem = w.elements[slot]
+        steps = elem isa LayoutConstraint ?
+                (FieldReference("elements"), RangeReference(slot-1, slot), FieldReference("child")) :
+                (FieldReference("elements"), RangeReference(slot-1, slot))
+        return prepend_steps_to_op(op, steps)
+    end
+    j = _next_focusable_in(w.elements, i, reverse)
+    j == 0 && return nothing
+    sub = reverse ? last_focusable_path(w.elements[j]) : first_focusable_path(w.elements[j])
+    sub === nothing && return nothing
+    ReplaceSelectionOperation(ConcreteReferencePath(FieldReference("elements"),
+        ConcreteReferencePath(RangeReference(j - 1, j), sub)))
 end
 
 # The split slot the node's forward-projected selection points at. The

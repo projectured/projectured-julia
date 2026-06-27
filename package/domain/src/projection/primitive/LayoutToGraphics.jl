@@ -1053,6 +1053,11 @@ _route_click_reverse(entries, evt::MousePress) =
 
 function _route_stack_event(iomap::ChildrenIoMap, evt)
     entries = iomap.child_iomaps[]::Vector
+    # Tab traversal: distributed focus advance, handled before the selection-only
+    # coordless routing (same as the other layout readers).
+    if evt isa KeyDown && evt.key === :tab
+        return _layout_tab(iomap.input, entries, evt)
+    end
     res = @event_case evt begin
         MousePress  => _route_click_reverse(entries, evt)
         MouseScroll => _route_scroll_reverse(entries, evt)
