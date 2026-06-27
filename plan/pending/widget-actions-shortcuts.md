@@ -1,9 +1,20 @@
 # Stage 4 — Actions, shortcuts, status bar (+ mnemonics)
 
-> **Status: planning / not started.** Detailed plan for **Stage 4** of
+> **Status: core ✅ DONE (sub-steps 1–5 & 7); mnemonics (6) optional/remaining.**
+> Detailed plan for **Stage 4** of
 > [qt-widget-gap-analysis.md](qt-widget-gap-analysis.md) ("Actions, menu bar,
 > shortcuts, context menus"). Builds on the now-complete **Stage 3**
 > ([done/widget-popup-overlay.md](../done/widget-popup-overlay.md)).
+>
+> **Implemented & tested** (`WidgetActionTest`, 22 assertions; commits `9ead1fe`,
+> `c61a462`): ✅ 1 `Action` document + `Shortcut` + `InvokeActionOperation`;
+> ✅ 2 `WidgetMenuItem`/`WidgetButton` `command::Action` binding (label + enabled +
+> activation from the Action); ✅ 3 shell shortcut dispatch (Ctrl+S before the
+> focused child); ✅ 4 `WidgetStatusBar` + `WidgetShell.status_bar`; ✅ 5
+> `WidgetMessageBox`-style done in Stage 3 — here the `widget_shell` example shares
+> Actions across menu+toolbar with a Ctrl+S; ✅ 7 docs (`widget.md` "Actions &
+> shortcuts"). **Remaining (optional):** 6 mnemonics (`&File` / Alt-letter) —
+> self-contained, deferrable.
 
 ## Context
 
