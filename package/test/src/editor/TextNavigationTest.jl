@@ -156,7 +156,15 @@ function test_text_navigations()
             # keyboard events to its children, so Ctrl+Home can't seed an initial
             # selection (same reason the bare widget examples above are skipped).
             endswith(example.name, "_widget") && continue
-            example.name in ("layout", "constraint_layout", "workbench", "assistant",
+            # `table` / `math_table`: Stage 2 made coordless keyboard routing
+            # selection-only (no default-child fallback), so Ctrl+Home can no
+            # longer seed an initial selection from an unselected document — the
+            # bootstrap selection now comes from a click or a Tab. The other
+            # examples below were already on this list for the same kind of
+            # widget/graphics-keyboard-routing limitation.
+            example.name in ("layout", "constraint_layout",
+                             "table", "math_table",
+                             "workbench", "assistant",
                              "dbcatalog", "sql_syntax", "sql_table") && continue
             @testset "$(example.name)" begin
                 test_text_navigation(example)
