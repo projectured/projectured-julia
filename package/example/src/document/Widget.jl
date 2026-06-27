@@ -421,7 +421,10 @@ make_widget_card_document_example() =
 # WidgetSwitch — on and off, stacked by a VerticalLayout.
 make_widget_switch_document_example() =
     VerticalLayout(Any[
-        WidgetSwitch(Point2D(0, 0), true),
+        # `duration` (ms) opts each switch into a knob-slide animation on toggle;
+        # the third snaps instantly (duration defaults to 0).
+        WidgetSwitch(Point2D(0, 0), true;  duration=200),
+        WidgetSwitch(Point2D(0, 0), false; duration=200),
         WidgetSwitch(Point2D(0, 0), false),
     ]; gap=12)
 

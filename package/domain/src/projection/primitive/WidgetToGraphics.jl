@@ -17,7 +17,7 @@ the content projection via the recursion argument.
 """
 module WidgetToGraphicsModule
 
-import ..ReactiveModule: Cell
+import ..ReactiveModule: Cell, setfn!, editor_time, reactive_editor_time
 import ..ProjectionApiModule: projection_print, projection_printer_recurse, projection_read,
                                map_reference_forward, map_reference_backward, Projection, Change
 import ..ProjectionModule: var"@projection"
@@ -3328,6 +3328,24 @@ map_reference_backward(::WidgetCardToGraphicsCanvas, iomap, reference) = nothing
     ring_color::StyleColor     # focus ring when selected
 end
 
+# Smoothstep easing on a normalised [0,1] progress.
+_switch_ease(u::Real) = (u = clamp(u, 0.0, 1.0); u * u * (3 - 2u))
+
+# The knob fraction (0 = off/left, 1 = on/right) the switch is *currently*
+# displaying at time `now`. Untracked — used by the reader to capture `anim_from`.
+# Mid-slide it returns the in-flight eased fraction (so interrupting a slide
+# resumes from where the knob visually is, with no jump).
+function _switch_fraction(w::WidgetSwitch, now::Float64)
+    target = (w.checked === true) ? 1.0 : 0.0
+    dur = w.duration
+    t0  = w.anim_t0
+    (dur <= 0 || isnan(t0)) && return target
+    t1 = t0 + dur / 1000
+    now >= t1 && return target
+    from = w.anim_from
+    from + (target - from) * _switch_ease((now - t0) / (t1 - t0))
+end
+
 function projection_print(p::WidgetSwitchToGraphicsCanvas, recursion, w::WidgetSwitch, ctx)
     w.visible == false && return SimpleIoMap(p, w, _empty_canvas())
     position = w.position::Point2D
@@ -3341,14 +3359,71 @@ function projection_print(p::WidgetSwitchToGraphicsCanvas, recursion, w::WidgetS
     push!(elements, GraphicsRect(0, 0, track_width, track_height, track_red, track_green, track_blue, track_alpha, track_height ÷ 2))
     knob_padding = _sc(p.knob_padding)
     knob_radius  = (track_height - 2knob_padding) ÷ 2
-    knob_center_x = on ? (track_width - knob_padding - knob_radius) : (knob_padding + knob_radius)
+    left_x  = knob_padding + knob_radius
+    right_x = track_width - knob_padding - knob_radius
     knob_red, knob_green, knob_blue, knob_alpha = _rgbai(p.knob_color)
-    push!(elements, GraphicsCircle(knob_center_x, track_height ÷ 2, knob_radius, knob_red, knob_green, knob_blue, knob_alpha;
-                                   border_width=max(1, _sc(p.knob_border.width)), border_color=_rgbai(p.knob_border.color)))
+    knob = GraphicsCircle(on ? right_x : left_x, track_height ÷ 2, knob_radius, knob_red, knob_green, knob_blue, knob_alpha;
+                          border_width=max(1, _sc(p.knob_border.width)), border_color=_rgbai(p.knob_border.color))
+    # The knob's x is a computed cell. It reads `checked` (so it tracks the
+    # logical state and snaps when there is no animation) and, while a slide is
+    # in flight, `reactive_editor_time()` (so it re-evaluates every frame). Once
+    # the slide is over it only *samples* the time (`editor_time()`), drops the
+    # time subscription, and holds the final position — settling with no
+    # registry (see plan/pending/animation-global-time.md §5).
+    setfn!(getfield(knob, :cx), () -> begin
+        target_x = (w.checked === true) ? right_x : left_x
+        dur = w.duration
+        t0  = w.anim_t0
+        (dur <= 0 || isnan(t0)) && return Int32(target_x)
+        t1 = t0 + dur / 1000
+        now = editor_time()                       # SAMPLE: decide done, no subscription
+        now >= t1 && return Int32(target_x)       # settled → stops animating
+        from_x = left_x + (right_x - left_x) * w.anim_from
+        t = reactive_editor_time()                # SUBSCRIBE while sliding
+        Int32(round(from_x + (target_x - from_x) * _switch_ease((t - t0) / (t1 - t0))))
+    end)
+    push!(elements, knob)
     _push_focus_ring!(elements, w, track_width, track_height, p.ring_color, track_height ÷ 2)
     SimpleIoMap(p, w, _make_canvas(_origin(position)..., track_width, track_height, elements))
 end
-@_printer_only WidgetSwitchToGraphicsCanvas
+
+# A click (or Return/Space on the focused switch) toggles `checked`. When the
+# widget has a non-zero `duration`, the toggle is bundled into a
+# `CompoundOperation` that first arms the slide — recording the knob fraction the
+# switch is currently showing (`anim_from`) and the start time (`anim_t0`),
+# sampled now — and then flips `checked`. The printer's knob-cx cell reads those
+# fields, so the next frames animate. `anim_from`/`anim_t0` are written via
+# ordinary `ReplaceReferencedValue`s on the carried widget; no new operation type
+# is needed because the time and current position are sampled here, in the reader.
+function _switch_toggle(w::WidgetSwitch)
+    new_checked = !(w.checked === true)
+    toggle = ReplaceReferencedValue(w,
+        ConcreteReferencePath(FieldReference("checked"), EmptyReferencePath()), new_checked)
+    w.duration <= 0 && return toggle
+    now  = editor_time()
+    from = _switch_fraction(w, now)
+    CompoundOperation(Any[
+        ReplaceReferencedValue(w, ConcreteReferencePath(FieldReference("anim_from"), EmptyReferencePath()), from),
+        ReplaceReferencedValue(w, ConcreteReferencePath(FieldReference("anim_t0"),   EmptyReferencePath()), now),
+        toggle,
+    ])
+end
+
+function projection_read(::WidgetSwitchToGraphicsCanvas, iomap::SimpleIoMap, evt::MousePress)
+    w = iomap.input
+    w.enabled === false && return nothing   # a disabled switch swallows the click
+    _switch_toggle(w)
+end
+
+function projection_read(::WidgetSwitchToGraphicsCanvas, iomap::SimpleIoMap, evt)
+    w = iomap.input
+    (evt isa KeyDown && (evt.key === :return || evt.key === :space)) || return nothing
+    w.enabled === false && return nothing
+    _switch_toggle(w)
+end
+
+map_reference_forward(::WidgetSwitchToGraphicsCanvas, iomap, reference) = nothing
+map_reference_backward(::WidgetSwitchToGraphicsCanvas, iomap, reference) = nothing
 
 # ── WidgetProgress ──────────────────────────────────────────────────────────
 

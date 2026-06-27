@@ -1160,19 +1160,30 @@ WidgetCard(position::Point2D; title=nothing, description=nothing, content=nothin
 # ── WidgetSwitch ────────────────────────────────────────────────────────────
 
 """
-    WidgetSwitch(position, checked)
+    WidgetSwitch(position, checked; duration=0)
 
-An on/off toggle switch (rounded track + knob).
+An on/off toggle switch (rounded track + knob). When `duration` is greater than
+zero the knob *slides* between the off and on positions over `duration`
+milliseconds on each toggle; `duration = 0` (the default) snaps instantly. The
+slide is armed by the switch's reader (see `WidgetSwitchToGraphicsCanvas`): a
+toggle becomes a `CompoundOperation` that records `anim_from` (the knob fraction
+at the moment of the toggle) and `anim_t0` (the editor time when it started),
+then flips `checked`. `anim_from`/`anim_t0` are presentation state, not part of
+the logical on/off value.
 """
 @document struct WidgetSwitch <: WidgetDocument
     position::Point2D
     checked::Bool
     visible::Bool
     enabled::Bool
+    duration::Int        # slide length in ms; 0 disables the animation
+    anim_from::Float64   # knob fraction [0,1] when the current slide began
+    anim_t0::Float64     # editor time (s) when the current slide began; NaN = idle
     selection::Reference
 end
-WidgetSwitch(position::Point2D, checked::Bool=false; visible::Bool=true, enabled::Bool=true) =
-    WidgetSwitch(Cell(position), Cell(checked), Cell(visible), Cell(enabled), Cell(nothing))
+WidgetSwitch(position::Point2D, checked::Bool=false; visible::Bool=true, enabled::Bool=true, duration::Integer=0) =
+    WidgetSwitch(Cell(position), Cell(checked), Cell(visible), Cell(enabled),
+                 Cell(Int(duration)), Cell(0.0), Cell(NaN), Cell(nothing))
 
 # ── WidgetProgress ──────────────────────────────────────────────────────────
 
