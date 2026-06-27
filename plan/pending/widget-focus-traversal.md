@@ -315,12 +315,18 @@ focused iff `getfield(w,:selection)[] !== nothing` (background fact 3).
       arrives with no child slot selected (selection ∅ on the container, only
       possible at the root or a whole-selected container under selection-only
       routing) focuses the first/last leaf. Tests cover advance / Shift-Tab /
-      skip-disabled / bootstrap / last-declines. **Deferred (follow-ups):**
-      (a) the same branch for `WidgetLayout` readers (cross-module — needs the
-      helpers imported into `LayoutToGraphics`), `WidgetSplitPane`, `WidgetTabbedPane`;
-      (b) the single top-level **wrap-around** rule (last→first), so Tab currently
-      stops at the last focusable. *Not executed — Julia unavailable in sandbox;
-      this selection/reference behaviour especially needs REPL verification.*
+      skip-disabled / bootstrap / wrap-around. The single top-level **wrap-around**
+      rule (last→first) is implemented in the `WidgetHoverTracking` reader — the
+      outer widget seam, included after the widget module so it can import the
+      focus helpers, so **no new projection**: a Tab that bubbles up declined wraps
+      to the root's first (last for Shift) focusable; bootstrap stays in the
+      containers. **Deferred (follow-ups):** the same per-container branch for the
+      `LayoutDocument` readers, `WidgetSplitPane`, and `WidgetTabbedPane`. Layout is
+      cross-module — `LayoutToGraphics` is included *before* `WidgetToGraphics`, and
+      the latter depends on the former, so the shared focus helpers must move to a
+      small module included before both (a clean extraction, deferred so it can be
+      REPL-verified rather than done blind). *Not executed — Julia unavailable in
+      sandbox; this selection/reference behaviour especially needs REPL verification.*
 - [ ] Step 4 — Enter/Space activation on focused Button/Checkbox
 - [ ] Step 5 — focus ring (`theme.ring`) on the selected widget
 - [ ] Step 6 — `widget_focus` example, Tab-walk test, un-skip syntax-to-widget

@@ -300,10 +300,13 @@ end
     @test _slot(_read(comp, tab)) == 3               # slot 2 → 3
 
     getfield(comp, :selection)[] = _mk(3)
-    @test _read(comp, tab) === nothing               # last declines (wrap is a follow-up)
+    @test _slot(_read(comp, tab)) == 1               # last wraps to first (top-level rule)
 
     getfield(comp, :selection)[] = _mk(2)
     @test _slot(_read(comp, stab)) == 1              # Shift-Tab: slot 2 → 1
+
+    getfield(comp, :selection)[] = _mk(1)
+    @test _slot(_read(comp, stab)) == 3              # Shift-Tab on first wraps to last
 
     # Disabled children are not Tab stops.
     comp2 = WidgetComposite(Point2D(0, 0), Any[_btn("A"),

@@ -40,7 +40,11 @@ import ..ProjectionApiModule: projection_print, projection_read,
                               Projection, Change, as_change
 import ..IoMapApiModule: IoMap
 import ..MouseModule: MouseMove, MouseEnter, MouseLeave
-import ..OperationModule: CompoundOperation, ReplaceReferencedValue
+import ..OperationModule: CompoundOperation, ReplaceReferencedValue, ReplaceSelectionOperation
+import ..KeyboardModule: KeyDown
+# WidgetToGraphics is included before this module (see ProjecturedDomain.jl), so
+# the focus-path helpers are available for the top-level Tab wrap-around rule.
+import ..WidgetToGraphicsModule: first_focusable_path, last_focusable_path
 
 export WidgetHoverTrackingProjection, WidgetHoverTrackingProjectionIoMap
 
@@ -78,6 +82,21 @@ end
 function projection_read(p::WidgetHoverTrackingProjection, recursion, change::Change,
                          iomap::WidgetHoverTrackingProjectionIoMap)
     event = change.gesture
+    # Top-level Tab wrap-around (Stage 2): the only non-local part of focus
+    # traversal. Containers advance the selection locally and decline (return
+    # nothing) when focus runs off the end of the whole tree. Here, at the outer
+    # widget seam, a declined Tab wraps to the first focusable leaf (last for
+    # Shift-Tab). Bootstrap (no selection) is handled by the containers themselves,
+    # so this only fires for genuine wrap-around. See
+    # plan/pending/widget-focus-traversal.md.
+    if event isa KeyDown && event.key === :tab
+        res = projection_read(iomap.child_iomap.projection, recursion, change, iomap.child_iomap)
+        op = res isa Change ? res.operation : res
+        op === nothing || return res
+        root = iomap.child_iomap.input
+        wrap = event.modifiers.shift ? last_focusable_path(root) : first_focusable_path(root)
+        return Change(event, wrap === nothing ? nothing : ReplaceSelectionOperation(wrap))
+    end
     event isa MouseMove || return projection_read(iomap.child_iomap.projection, recursion, change, iomap.child_iomap)
 
     child = iomap.child_iomap
