@@ -42,9 +42,9 @@ import ..IoMapApiModule: IoMap
 import ..MouseModule: MouseMove, MouseEnter, MouseLeave
 import ..OperationModule: CompoundOperation, ReplaceReferencedValue, ReplaceSelectionOperation
 import ..KeyboardModule: KeyDown
-# WidgetToGraphics is included before this module (see ProjecturedDomain.jl), so
-# the focus-path helpers are available for the top-level Tab wrap-around rule.
-import ..WidgetToGraphicsModule: first_focusable_path, last_focusable_path
+# The focus-path helpers live in WidgetModule (document layer), available for the
+# top-level Tab wrap-around rule.
+import ..WidgetModule: first_focusable_path, last_focusable_path
 
 export WidgetHoverTrackingProjection, WidgetHoverTrackingProjectionIoMap
 

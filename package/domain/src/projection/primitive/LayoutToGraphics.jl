@@ -36,6 +36,11 @@ import ..EventCaseModule: var"@event_case"
 import ..OperationApiModule: Operation
 import ..OperationRerootingModule: prepend_steps_to_op
 import ..ReferenceModule: ConcreteReferencePath, FieldReference, RangeReference
+import ..OperationModule: ReplaceSelectionOperation
+import ..KeyboardModule: KeyDown
+# Focus-path helpers live in the document-layer WidgetModule, included before this
+# module, so layout containers can share Tab traversal with the widget readers.
+import ..WidgetModule: first_focusable_path, last_focusable_path, _next_focusable_in
 import ..TypeDispatchingModule: TypeDispatchingProjection
 import ..ReferenceBuilderModule: var"@reference"
 import ..PrinterContextModule: child_context, with_available_size
@@ -200,8 +205,39 @@ end
 # the selected child (or are tried against each). The child's op is re-rooted by
 # prepending `children[i]`, matching `_children_forward`'s convention so forward
 # mapping and reads agree. Identity-bearing ops pass through unchanged.
+# Tab traversal for a layout container (Stage 2), mirroring the composite reader:
+# delegate Tab to the selected child; on decline advance my selection to the next
+# focusable sibling (entering its first leaf); decline if none so the parent
+# advances. A Tab with no child slot selected (∅ on me) bootstraps into my first
+# (last) leaf. Selection move is relative to me; the parent's prepend re-roots it.
+function _layout_tab(w, entries::Vector, evt)
+    n = length(entries)
+    reverse = evt.modifiers.shift
+    i = _selected_layout_slot(w, n)
+    if i == 0
+        sub = reverse ? last_focusable_path(w) : first_focusable_path(w)
+        return sub === nothing ? nothing : ReplaceSelectionOperation(sub)
+    end
+    deleg = _forward_layout_event_slot(entries, evt, i)
+    if deleg !== nothing
+        op, slot = deleg
+        return prepend_steps_to_op(op, (FieldReference("children"), RangeReference(slot - 1, slot)))
+    end
+    j = _next_focusable_in(w.children, i, reverse)
+    j == 0 && return nothing
+    sub = reverse ? last_focusable_path(w.children[j]) : first_focusable_path(w.children[j])
+    sub === nothing && return nothing
+    ReplaceSelectionOperation(ConcreteReferencePath(FieldReference("children"),
+        ConcreteReferencePath(RangeReference(j - 1, j), sub)))
+end
+
 function _route_layout_event(iomap::_LayoutChildrenIoMap, evt)
     entries = iomap.child_iomaps[]::Vector
+    # Tab traversal: distributed focus advance, handled before the selection-only
+    # coordless routing (so a declined Tab advances my own selection).
+    if evt isa KeyDown && evt.key === :tab
+        return _layout_tab(iomap.input, entries, evt)
+    end
     res = @event_case evt begin
         MousePress  => _route_click(entries, evt)
         MouseScroll => _route_scroll(entries, evt)

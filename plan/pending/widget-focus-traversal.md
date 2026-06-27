@@ -320,13 +320,16 @@ focused iff `getfield(w,:selection)[] !== nothing` (background fact 3).
       outer widget seam, included after the widget module so it can import the
       focus helpers, so **no new projection**: a Tab that bubbles up declined wraps
       to the root's first (last for Shift) focusable; bootstrap stays in the
-      containers. **Deferred (follow-ups):** the same per-container branch for the
-      `LayoutDocument` readers, `WidgetSplitPane`, and `WidgetTabbedPane`. Layout is
-      cross-module — `LayoutToGraphics` is included *before* `WidgetToGraphics`, and
-      the latter depends on the former, so the shared focus helpers must move to a
-      small module included before both (a clean extraction, deferred so it can be
-      REPL-verified rather than done blind). *Not executed — Julia unavailable in
-      sandbox; this selection/reference behaviour especially needs REPL verification.*
+      containers. Also implemented for the **`LayoutDocument`** readers
+      (`_layout_tab` in `LayoutToGraphics`, `children[i]` shape) — the cross-module
+      issue was resolved by extracting the focus-path helpers into the document-layer
+      `WidgetModule` (included before both `LayoutToGraphics` and `WidgetToGraphics`),
+      which both now import. Tests cover the layout `children[i]` path + wrap.
+      **Deferred (follow-ups):** `WidgetSplitPane` (LayoutConstraint child shape),
+      `WidgetTabbedPane` (selector-pair shape), and `GridLayout` (2-D — its reader
+      currently lets Tab fall through to the top-level wrap). *Not executed — Julia
+      unavailable in sandbox; this selection/reference behaviour especially needs
+      REPL verification, and the module extraction is load-time-sensitive.*
 - [ ] Step 4 — Enter/Space activation on focused Button/Checkbox
 - [ ] Step 5 — focus ring (`theme.ring`) on the selected widget
 - [ ] Step 6 — `widget_focus` example, Tab-walk test, un-skip syntax-to-widget

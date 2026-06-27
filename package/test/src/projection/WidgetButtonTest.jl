@@ -315,4 +315,31 @@ end
     @test _slot(_read(comp2, tab)) == 3              # slot 2 skipped
 end
 
+# Stage 2, Step 3: the same distributed Tab in the LayoutDocument readers. Layout
+# children sit under `children[i]` (vs the composite's `elements[i]`), so this
+# exercises the layout-specific path shape and the cross-module focus helpers.
+@testset "layout Tab advances the selection across focusable children" begin
+    _mk(i) = ConcreteReferencePath(FieldReference("children"),
+                ConcreteReferencePath(RangeReference(i - 1, i), EmptyReferencePath()))
+    _btn(t) = WidgetButton(Point2D(0, 0), Point2D(80, 30), t)
+    _slot(op) = op.path.tail.head.start + 1
+    # A renderer that dispatches both layout nodes and widget nodes (as the widget
+    # examples do), wrapped in the hover tracker for the top-level Tab wrap-around.
+    lproj = SequentialProjection(WidgetHoverTrackingProjection(inner =
+        RecursiveProjection(TypeDispatchingProjection(vcat(
+            LayoutToGraphics().dispatch,
+            WidgetToGraphics(_font; measure=_stub).dispatch)))))
+    tab = KeyDown(:tab, Modifiers())
+    _read(c, ev) = projection_read(lproj, projection_print(lproj, nothing, c, PrinterContext()), ev)
+
+    lay = VerticalLayout(Any[_btn("A"), WidgetCheckbox(Point2D(0, 0), true), _btn("C")]; gap=8)
+    op = _read(lay, tab)                              # bootstrap → first focusable
+    @test op isa ReplaceSelectionOperation && op.path.head isa FieldReference
+    @test op.path.head.name == "children" && _slot(op) == 1
+    getfield(lay, :selection)[] = _mk(1)
+    @test _slot(_read(lay, tab)) == 2                # slot 1 → 2
+    getfield(lay, :selection)[] = _mk(3)
+    @test _slot(_read(lay, tab)) == 1               # last wraps to first
+end
+
 end # test_widget_button_behavior
