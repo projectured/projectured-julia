@@ -44,6 +44,7 @@ import ..WidgetModule: WidgetDocument, WidgetInsertion, WidgetLabel, WidgetText,
                        SelectTabOperation,
                        StartSplitterDragOperation, ResizeSplitPaneOperation, EndSplitterDragOperation,
                        InvokeWidgetActionOperation,
+                       Action, InvokeActionOperation, action_shortcut_matches,
                        first_focusable_path, last_focusable_path, _next_focusable_in
 import ..CollectionModule: CellVector, CollectionDocument
 import ..ImageModule: ImageDocument
@@ -421,6 +422,7 @@ end
 @projection struct WidgetMenuItemToGraphicsCanvas
     measure::Function
     text::StyleText             # font + foreground
+    disabled_foreground::StyleColor   # label color when disabled (item or bound command)
 end
 
 struct WidgetCompositeToGraphicsCanvas <: Projection end
@@ -927,11 +929,19 @@ end
 
 # ── WidgetButton ────────────────────────────────────────────────────────────
 
+# A bound command (Stage 4) supplies the button's label, enabled-state, and
+# callback, so a menu item / toolbar button / shortcut can share one `Action`.
+_button_command(w::WidgetButton) = (c = w.command; c isa Action ? c : nothing)
+_button_enabled(w::WidgetButton) =
+    !(w.enabled === false) && !((c = _button_command(w)) !== nothing && c.enabled === false)
+_button_label_content(w::WidgetButton) = (c = _button_command(w); c !== nothing ? string(c.label) : w.content)
+
 function projection_print(p::WidgetButtonToGraphicsCanvas, recursion, w::WidgetButton, ctx)
     w.visible == false && return SimpleIoMap(p, w, _empty_canvas())
     position = w.position::Point2D
     minimum_size = w.size::Point2D
-    content_width, content_height = _content_size(p.measure, p.label.font, w.content)
+    label_content = _button_label_content(w)
+    content_width, content_height = _content_size(p.measure, p.label.font, label_content)
     padding_x = _sc(Int(p.padding.left[]))
     padding_y = _sc(Int(p.padding.top[]))
     button_width  = max(Int(minimum_size.x[]), content_width + 2padding_x)
@@ -939,10 +949,10 @@ function projection_print(p::WidgetButtonToGraphicsCanvas, recursion, w::WidgetB
     corner_radius = _sc(p.corner_radius)
     # State-driven surface: pressed > hover > resting. The reader keeps the
     # widget's transient `pressed`/`hovered` cells current; reading them here ties
-    # the rendered fill to that state reactively. A disabled button ignores that
-    # state entirely: flat muted surface, muted label, no shadow (its reader also
-    # never sets pressed/hovered, so the guard here is belt-and-braces).
-    enabled = !(w.enabled === false)
+    # the rendered fill to that state reactively. A disabled button (or one bound to
+    # a disabled command) ignores that state entirely: flat muted surface, muted
+    # label, no shadow (its reader also never sets pressed/hovered).
+    enabled = _button_enabled(w)
     pressed = enabled && w.pressed === true
     hovered = enabled && w.hovered === true
     fill = !enabled ? p.disabled_color :
@@ -960,7 +970,7 @@ function projection_print(p::WidgetButtonToGraphicsCanvas, recursion, w::WidgetB
                  border=p.border.color, border_w=max(1, _sc(p.border.width)), radius=corner_radius)
     cx = (button_width - content_width) ÷ 2
     cy = (button_height - content_height) ÷ 2
-    _push_content!(elements, p.measure, label, w.content, cx, cy, content_width, content_height)
+    _push_content!(elements, p.measure, label, label_content, cx, cy, content_width, content_height)
     _push_focus_ring!(elements, w, button_width, button_height, p.ring_color, corner_radius)
     SimpleIoMap(p, w, _make_canvas(_origin(position)..., button_width, button_height, elements))
 end
@@ -988,9 +998,10 @@ end
 # hit-tested the pointer onto this button, so coordinate events are "inside".)
 function projection_read(::WidgetButtonToGraphicsCanvas, iomap::SimpleIoMap, evt)
     w = iomap.input
-    # A disabled button is inert: no action, and no hover/press state changes, so
-    # it can never show an interaction surface (see the printer's enabled branch).
-    w.enabled === false && return nothing
+    # A disabled button (or one bound to a disabled command) is inert: no action,
+    # and no hover/press state changes, so it can never show an interaction surface
+    # (see the printer's enabled branch).
+    _button_enabled(w) || return nothing
     @event_case evt begin
         MousePress(button, x, y) => button === :left ? _activate_button(w) : nothing
         MouseDown(button, x, y)  => button === :left ? ReplaceReferencedValue(w, "pressed", true) : nothing
@@ -1008,11 +1019,14 @@ function projection_read(::WidgetButtonToGraphicsCanvas, iomap::SimpleIoMap, evt
     end
 end
 
-# Activating a button: open its `dialog` as a modal window if it has one (Step 5),
-# otherwise run its `action`. A modal dialog is centered, not anchored, so it opens
-# directly as an `OpenWindowOperation` (no popup resolver). v1 uses a generous
-# fixed window box; true screen-sizing/centering is deferred (see widget.md).
+# Activating a button: invoke its bound `command` (Stage 4) if it has one; else open
+# its `dialog` as a modal window (Step 5); else run its plain `action`. A modal
+# dialog is centered, not anchored, so it opens directly as an `OpenWindowOperation`
+# (no popup resolver). v1 uses a generous fixed window box; true screen-sizing /
+# centering is deferred (see widget.md).
 function _activate_button(w::WidgetButton)
+    command = _button_command(w)
+    command === nothing || return InvokeActionOperation(command)
     dlg = w.dialog
     dlg === nothing && return InvokeWidgetActionOperation(w)
     OpenWindowOperation(; id=dlg.popup_id, modal=true, style=:dialog,
@@ -1311,10 +1325,21 @@ struct WidgetMenuItemToGraphicsCanvasIoMap <: IoMap
     control_height::Int
 end
 
+# A bound command (Stage 4) supplies the item's label, enabled-state, and callback,
+# so a menu item / toolbar button / shortcut can share one `Action`.
+_menu_item_command(w::WidgetMenuItem) = (c = w.command; c isa Action ? c : nothing)
+_menu_item_enabled(w::WidgetMenuItem) =
+    !(w.enabled === false) && !((c = _menu_item_command(w)) !== nothing && c.enabled === false)
+
 function projection_print(p::WidgetMenuItemToGraphicsCanvas, recursion, w::WidgetMenuItem, ctx)
     w.visible == false && return SimpleIoMap(p, w, _empty_canvas())
     cox, coy = _content_offset(w)
-    content = w.content
+    command = _menu_item_command(w)
+    enabled = _menu_item_enabled(w)
+    fg = enabled ? p.text.color : p.disabled_foreground
+    # A bound command's label overrides the content; otherwise the content is the
+    # label (text) or a recursed widget.
+    content = command !== nothing ? string(command.label) : w.content
     child_iomaps = Any[]
     elems = Any[]
     cw, ch = 0, 0
@@ -1327,7 +1352,7 @@ function projection_print(p::WidgetMenuItemToGraphicsCanvas, recursion, w::Widge
     else
         text = string(content)
         cw, ch = _text_size(p.measure, p.text.font, text)
-        _push_text!(elems, p.text.font, text, cox, coy, _rgba(p.text.color))
+        _push_text!(elems, p.text.font, text, cox, coy, _rgba(fg))
     end
     WidgetMenuItemToGraphicsCanvasIoMap(p, w, _make_canvas(0, 0, elems),
                                         Cell(child_iomaps), ctx.reference,
@@ -1348,14 +1373,17 @@ projection_read(::WidgetMenuItemToGraphicsCanvas, ::SimpleIoMap, evt) = nothing
 function projection_read(p::WidgetMenuItemToGraphicsCanvas, iomap::WidgetMenuItemToGraphicsCanvasIoMap, evt)
     w = iomap.input
     if evt isa MousePress
-        # A left click on an enabled item: open its submenu if it has one, else run
-        # its action and dismiss the enclosing popup (a no-op when rendered inline).
-        # Disabled ⇒ inert.
-        (evt.button === :left && !(w.enabled === false)) || return nothing
+        # A left click on an enabled item: open its submenu if it has one, else
+        # invoke its bound command (Stage 4) or its plain action, and dismiss the
+        # enclosing popup (a no-op when rendered inline). Disabled (item or bound
+        # command) ⇒ inert.
+        (evt.button === :left && _menu_item_enabled(w)) || return nothing
         submenu = w.submenu
         submenu === nothing || return _open_submenu_popup(p, submenu, iomap)
-        return CompoundOperation(Any[InvokeWidgetActionOperation(w),
-                                     CloseWindowOperation(:widget_popup)])
+        command = _menu_item_command(w)
+        invoke = command !== nothing ? InvokeActionOperation(command) :
+                                       InvokeWidgetActionOperation(w)
+        return CompoundOperation(Any[invoke, CloseWindowOperation(:widget_popup)])
     end
     evt isa MouseScroll || return nothing
     _route_scroll_to_children(iomap.child_iomaps[]::Vector, evt)
@@ -1704,7 +1732,39 @@ function map_reference_backward(p::WidgetShellToGraphicsCanvas, iomap::ChildrenI
     ConcreteReferencePath(FieldReference("content"), reference)
 end
 
+# Collect the shared `Action`s that carry a keyboard shortcut, reachable from a
+# shell's `menu_bar` + `toolbar` (recursing submenus). The menu *is* the shortcut
+# registry, so there is no separate list to keep in sync (Stage 4).
+function _collect_command_actions!(acc::Vector{Action}, w)
+    if w isa WidgetMenuItem
+        c = w.command; (c isa Action && c.shortcut !== nothing) && push!(acc, c)
+        sm = w.submenu; sm isa WidgetMenu && _collect_command_actions!(acc, sm)
+    elseif w isa WidgetButton
+        c = w.command; (c isa Action && c.shortcut !== nothing) && push!(acc, c)
+    elseif w isa WidgetMenu || w isa WidgetToolbar
+        for e in w.elements
+            e isa WidgetDocument && _collect_command_actions!(acc, e)
+        end
+    end
+    acc
+end
+
+function _shell_shortcut_actions(w::WidgetShell)
+    acc = Action[]
+    mb = w.menu_bar; mb isa WidgetDocument && _collect_command_actions!(acc, mb)
+    tb = w.toolbar;  tb isa WidgetDocument && _collect_command_actions!(acc, tb)
+    acc
+end
+
 function projection_read(p::WidgetShellToGraphicsCanvas, iomap::ChildrenIoMap, evt)
+    # Stage 4 shortcuts: a `KeyDown` matching an (enabled) menu/toolbar command's
+    # shortcut fires it globally — before the focused child sees the key — so e.g.
+    # Ctrl+S works regardless of which widget is selected.
+    if evt isa KeyDown
+        for action in _shell_shortcut_actions(iomap.input)
+            action_shortcut_matches(action, evt) && return InvokeActionOperation(action)
+        end
+    end
     child_iomaps = iomap.child_iomaps[]::Vector
     op = @event_case evt begin
         MouseScroll => _route_scroll_to_children(child_iomaps, evt)
@@ -4469,7 +4529,7 @@ function WidgetToGraphics(font::StyleFont; measure::Function,
             theme.card, StyleStroke(theme.border, theme.border_width), theme.radius,
             Inset(theme.pad_y, theme.pad_y, theme.pad_x, theme.pad_x), theme.gap),
         WidgetMenu       => WidgetMenuToGraphicsCanvas(measurer, theme.font),
-        WidgetMenuItem   => WidgetMenuItemToGraphicsCanvas(measurer, theme.body_text),
+        WidgetMenuItem   => WidgetMenuItemToGraphicsCanvas(measurer, theme.body_text, theme.muted_foreground),
         WidgetComposite  => WidgetCompositeToGraphicsCanvas(),
         # Widgets embed layouts (a composite/table holds a GridLayout); register
         # it so the recursion can render an embedded grid without an outer

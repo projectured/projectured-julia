@@ -12,6 +12,7 @@ import ..ReactiveModule: Cell, setfn!, setval!
 import ..DocumentModule: Document, @document
 import ..CollectionModule: CellVector
 import ..OperationApiModule: Operation, evaluate_operation
+import ..GestureBindingModule: KeyDownPattern, matches
 import ..ColorModule: StyleColor
 import ..ReferenceModule: Reference, ReferencePath, ConcreteReferencePath, ElementReference,
                           EmptyReferencePath, FieldReference, RangeReference
@@ -32,6 +33,7 @@ export Inset, Point2D,
        SelectTabOperation,
        StartSplitterDragOperation, ResizeSplitPaneOperation, EndSplitterDragOperation,
        InvokeWidgetActionOperation,
+       Action, Shortcut, action_shortcut_matches, InvokeActionOperation,
        evaluate_operation,
        inset_default, inset_size, inset_width, inset_height,
        inset_top_left, inset_top_right, inset_bottom_left, inset_bottom_right,
@@ -44,7 +46,7 @@ export Inset, Point2D,
        IWidgetBadge, IWidgetSeparator, IWidgetCard, IWidgetSwitch, IWidgetProgress,
        IWidgetSlider, IWidgetRadioGroup, IWidgetAvatar, IWidgetAlert, IWidgetSkeleton,
        IWidgetToggle, IWidgetToggleGroup, IWidgetSelect, IWidgetOption, IWidgetTextarea, IWidgetAccordion,
-       IWidgetTable, IWidgetTree
+       IWidgetTable, IWidgetTree, IAction
 
 # ── WidgetDocument (abstract base) ─────────────────────────────────────────────────
 
@@ -216,6 +218,7 @@ are not meant to be serialised.
     size::Point2D
     content::Any
     action::Any
+    command::Any
     dialog::Any
     visible::Bool
     enabled::Bool
@@ -232,6 +235,7 @@ end
 
 function WidgetButton(position::Point2D, size::Point2D, content;
                       action=nothing,
+                      command=nothing,
                       dialog=nothing,
                       visible::Bool=true,
                       enabled::Bool=true,
@@ -245,9 +249,9 @@ function WidgetButton(position::Point2D, size::Point2D, content;
     # *computed* cell (thunk called with 0 args), so wrapping the callback as
     # `Cell(action)` would invoke it on read. Store it as a primitive cell value.
     action_cell = Cell(nothing); setval!(action_cell, action)
-    # `dialog` (optional) is a child `WidgetDialog` opened as a modal window on
-    # click instead of running `action`. Stored as reactive content.
-    WidgetButton(Cell(position), Cell(size), Cell(content), action_cell, Cell(dialog),
+    # `command` (optional) is a shared `Action` (Stage 4); `dialog` (optional) is a
+    # child `WidgetDialog` opened modally on click. Both are reactive content.
+    WidgetButton(Cell(position), Cell(size), Cell(content), action_cell, Cell(command), Cell(dialog),
                  Cell(visible), Cell(enabled), Cell(margin), Cell(margin_color),
                  Cell(border), Cell(border_color),
                  Cell(padding), Cell(padding_color),
@@ -461,20 +465,25 @@ setfn!(w::WidgetMenu, f::Function) = (setfn!(getfield(w.elements, :elements), ()
 # ── WidgetMenuItem ─────────────────────────────────────────────────────────
 
 """
-    WidgetMenuItem(content; action=nothing, submenu=nothing, <base kwargs>)
+    WidgetMenuItem(content; action=nothing, command=nothing, submenu=nothing, <base kwargs>)
 
 A single item inside a `WidgetMenu`. `action` is an optional callback (same
 contract as `WidgetButton.action`: called with the editor when it accepts one
 argument, else with none) invoked via `InvokeWidgetActionOperation` on a left
-click. `submenu` is an optional `WidgetMenu` opened as a popup just below the item
-on a left click; an item with a submenu opens it **instead of** running its
-action, so the one item type serves a menu-bar entry, a nested submenu, and a leaf
-command. A click on an enabled leaf item also closes the enclosing popup (a no-op
-when the menu is rendered inline). A disabled item is inert.
+click. `command` is an optional shared [`Action`] (Stage 4): when bound, the item
+shows the action's `label`, follows its `enabled`, and a click emits
+`InvokeActionOperation(command)` — so a menu item, a toolbar button, and a keyboard
+shortcut can share one command. `submenu` is an optional `WidgetMenu` opened as a
+popup just below the item on a left click; an item with a submenu opens it
+**instead of** running its action/command, so the one item type serves a menu-bar
+entry, a nested submenu, and a leaf command. A click on an enabled leaf item also
+closes the enclosing popup (a no-op when the menu is rendered inline). A disabled
+item (or one bound to a disabled command) is inert.
 """
 @document struct WidgetMenuItem <: WidgetDocument
     content::Any
     action::Any
+    command::Any
     submenu::Any
     visible::Bool
     enabled::Bool
@@ -489,6 +498,7 @@ end
 
 function WidgetMenuItem(content;
                         action=nothing,
+                        command=nothing,
                         submenu=nothing,
                         visible::Bool=true,
                         enabled::Bool=true,
@@ -501,7 +511,7 @@ function WidgetMenuItem(content;
     # `action` is a callback, not reactive content — store it as a primitive cell
     # value (a computed `Cell(f)` would invoke it on read). Mirrors WidgetButton.
     action_cell = Cell(nothing); setval!(action_cell, action)
-    WidgetMenuItem(Cell(content), action_cell, Cell(submenu),
+    WidgetMenuItem(Cell(content), action_cell, Cell(command), Cell(submenu),
                    Cell(visible), Cell(enabled), Cell(margin), Cell(margin_color),
                    Cell(border), Cell(border_color),
                    Cell(padding), Cell(padding_color),
@@ -1385,6 +1395,57 @@ struct EndSplitterDragOperation <: Operation
     split::WidgetSplitPane
 end
 
+# ── Action (Stage 4) ────────────────────────────────────────────────────────
+
+"""
+    Action(label; icon=nothing, enabled=true, shortcut=nothing, callback=nothing)
+
+A shared command object (Qt's `QAction`): a menu item, a toolbar button, and a
+keyboard shortcut can all reference the same `Action`, so its `label`/`enabled`
+drive every presenter and toggling `enabled` disables all of them at once.
+`shortcut` is a `KeyDownPattern` (build one with [`Shortcut`]); `callback` runs on
+invocation (called with the editor when it accepts one argument, else with none).
+`icon` is a slot populated by Stage 5. Invoked via [`InvokeActionOperation`].
+"""
+@document struct Action
+    label::Any
+    icon::Any
+    enabled::Bool
+    shortcut::Any
+    callback::Any
+end
+
+function Action(label;
+               icon=nothing,
+               enabled::Bool=true,
+               shortcut=nothing,
+               callback=nothing)
+    # `callback` is a callable, not reactive content — store it as a primitive cell
+    # value (a computed `Cell(f)` would invoke it on read). Mirrors WidgetButton.
+    callback_cell = Cell(nothing); setval!(callback_cell, callback)
+    Action(Cell(label), Cell(icon), Cell(enabled), Cell(shortcut), callback_cell)
+end
+
+"""
+    Shortcut(key; ctrl=false, alt=false, shift=false, meta=false) -> KeyDownPattern
+
+Build an `Action.shortcut` that matches the physical `key` with exactly the given
+modifiers — e.g. `Shortcut(:s; ctrl=true)` for Ctrl+S.
+"""
+function Shortcut(key::Symbol; ctrl::Bool=false, alt::Bool=false, shift::Bool=false, meta::Bool=false)
+    mods = Symbol[]
+    ctrl  && push!(mods, :ctrl)
+    shift && push!(mods, :shift)
+    alt   && push!(mods, :alt)
+    meta  && push!(mods, :meta)
+    KeyDownPattern(key, mods, nothing)
+end
+
+# True when `evt` fires `action`'s shortcut and the action is enabled. Reuses the
+# gesture-layer `matches` (exact-modifier `KeyDownPattern` matching).
+action_shortcut_matches(action::Action, evt) =
+    action.shortcut !== nothing && !(action.enabled === false) && matches(action.shortcut, evt)
+
 """
     InvokeWidgetActionOperation(widget)
 
@@ -1394,6 +1455,17 @@ can mutate `editor.document` or projection state. A `nothing` action is a no-op.
 """
 struct InvokeWidgetActionOperation <: Operation
     widget::WidgetDocument
+end
+
+"""
+    InvokeActionOperation(action)
+
+Invoke an [`Action`]'s `callback` — the command shared by a menu item, a toolbar
+button, and a keyboard shortcut. Called with the editor when it accepts one
+argument, else with none. A disabled action, or a `nothing` callback, is a no-op.
+"""
+struct InvokeActionOperation <: Operation
+    action::Action
 end
 
 # SetWidgetHoverOperation / SetWidgetPressedOperation were folded into
@@ -1461,6 +1533,18 @@ function evaluate_operation(editor, op::InvokeWidgetActionOperation)
         action(editor)
     elseif applicable(action)
         action()
+    end
+end
+
+function evaluate_operation(editor, op::InvokeActionOperation)
+    action = op.action
+    action.enabled === false && return        # a disabled action is inert
+    callback = action.callback
+    callback === nothing && return
+    if applicable(callback, editor)
+        callback(editor)
+    elseif applicable(callback)
+        callback()
     end
 end
 
