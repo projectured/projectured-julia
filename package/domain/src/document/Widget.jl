@@ -21,7 +21,7 @@ import ..GeometryModule: Inset, Point2D, inset_default,
                         inset_top_left, inset_top_right, inset_bottom_left, inset_bottom_right
 export Inset, Point2D,
        WidgetDocument, WidgetInsertion,
-       WidgetLabel, WidgetText, WidgetCheckbox, WidgetButton,
+       WidgetLabel, WidgetText, WidgetCheckbox, WidgetButton, WidgetToolButton,
        WidgetTooltip, WidgetContextMenu, WidgetDialog, WidgetMessageBox, WidgetInputDialog,
        WidgetMenu, WidgetMenuItem, WidgetComposite,
        WidgetShell, WidgetTitlePane, WidgetSplitPane, WidgetTabbedPane,
@@ -219,6 +219,7 @@ are not meant to be serialised.
     content::Any
     action::Any
     command::Any
+    icon::Any
     dialog::Any
     visible::Bool
     enabled::Bool
@@ -236,6 +237,7 @@ end
 function WidgetButton(position::Point2D, size::Point2D, content;
                       action=nothing,
                       command=nothing,
+                      icon=nothing,
                       dialog=nothing,
                       visible::Bool=true,
                       enabled::Bool=true,
@@ -249,9 +251,10 @@ function WidgetButton(position::Point2D, size::Point2D, content;
     # *computed* cell (thunk called with 0 args), so wrapping the callback as
     # `Cell(action)` would invoke it on read. Store it as a primitive cell value.
     action_cell = Cell(nothing); setval!(action_cell, action)
-    # `command` (optional) is a shared `Action` (Stage 4); `dialog` (optional) is a
-    # child `WidgetDialog` opened modally on click. Both are reactive content.
-    WidgetButton(Cell(position), Cell(size), Cell(content), action_cell, Cell(command), Cell(dialog),
+    # `command` (optional) is a shared `Action` (Stage 4); `icon` (optional) is an
+    # icon name drawn left of the label (Stage 5); `dialog` (optional) is a child
+    # `WidgetDialog` opened modally on click.
+    WidgetButton(Cell(position), Cell(size), Cell(content), action_cell, Cell(command), Cell(icon), Cell(dialog),
                  Cell(visible), Cell(enabled), Cell(margin), Cell(margin_color),
                  Cell(border), Cell(border_color),
                  Cell(padding), Cell(padding_color),
@@ -259,6 +262,16 @@ function WidgetButton(position::Point2D, size::Point2D, content;
 end
 
 setfn!(w::WidgetButton, f::Function) = (setfn!(getfield(w, :content), f); w)
+
+"""
+    WidgetToolButton(icon; label="", size=Point2D(0, 0), <WidgetButton kwargs>)
+
+An icon-first button (Qt's `QToolButton`): a `WidgetButton` showing `icon` with an
+optional short `label`. A thin convenience over `WidgetButton`, so it accepts the
+same keywords (`command`, `action`, `enabled`, `border`, …). Stage 5.
+"""
+WidgetToolButton(icon; label="", size::Point2D=Point2D(0, 0), kwargs...) =
+    WidgetButton(Point2D(0, 0), size, label; icon=icon, kwargs...)
 
 # ── WidgetTooltip ──────────────────────────────────────────────────────────
 
@@ -484,6 +497,7 @@ item (or one bound to a disabled command) is inert.
     content::Any
     action::Any
     command::Any
+    icon::Any
     submenu::Any
     visible::Bool
     enabled::Bool
@@ -499,6 +513,7 @@ end
 function WidgetMenuItem(content;
                         action=nothing,
                         command=nothing,
+                        icon=nothing,
                         submenu=nothing,
                         visible::Bool=true,
                         enabled::Bool=true,
@@ -511,7 +526,7 @@ function WidgetMenuItem(content;
     # `action` is a callback, not reactive content — store it as a primitive cell
     # value (a computed `Cell(f)` would invoke it on read). Mirrors WidgetButton.
     action_cell = Cell(nothing); setval!(action_cell, action)
-    WidgetMenuItem(Cell(content), action_cell, Cell(command), Cell(submenu),
+    WidgetMenuItem(Cell(content), action_cell, Cell(command), Cell(icon), Cell(submenu),
                    Cell(visible), Cell(enabled), Cell(margin), Cell(margin_color),
                    Cell(border), Cell(border_color),
                    Cell(padding), Cell(padding_color),

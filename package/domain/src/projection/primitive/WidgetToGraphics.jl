@@ -48,7 +48,7 @@ import ..WidgetModule: WidgetDocument, WidgetInsertion, WidgetLabel, WidgetText,
                        first_focusable_path, last_focusable_path, _next_focusable_in
 import ..CollectionModule: CellVector, CollectionDocument
 import ..ImageModule: ImageDocument
-import ..GraphicsModule: GraphicsText, GraphicsRect, GraphicsLine, GraphicsCircle, GraphicsCanvas, GraphicsViewport, GraphicsImage, hit_element_at, layout_none
+import ..GraphicsModule: GraphicsText, GraphicsRect, GraphicsLine, GraphicsCircle, GraphicsPolyline, GraphicsCanvas, GraphicsViewport, GraphicsImage, hit_element_at, layout_none
 import ..FontModule: StyleFont,
                      font_ubuntu_regular_18, font_ubuntu_regular_24, font_ubuntu_bold_24
 import ..StyleTextModule: StyleText
@@ -87,7 +87,8 @@ export WidgetInsertionToGraphicsCanvas, WidgetLabelToGraphicsCanvas, WidgetTextT
        WidgetScrollPaneToGraphicsViewport, WidgetScrollPaneToGraphicsViewportIoMap,
        WidgetSelectToGraphicsCanvas, WidgetSelectToGraphicsCanvasIoMap,
        WidgetOptionToGraphicsCanvas,
-       anchor_point
+       anchor_point,
+       register_icon!, glyph_icon, image_icon
 
 # ── Anchor resolution ──────────────────────────────────────────────
 #
@@ -935,6 +936,8 @@ _button_command(w::WidgetButton) = (c = w.command; c isa Action ? c : nothing)
 _button_enabled(w::WidgetButton) =
     !(w.enabled === false) && !((c = _button_command(w)) !== nothing && c.enabled === false)
 _button_label_content(w::WidgetButton) = (c = _button_command(w); c !== nothing ? string(c.label) : w.content)
+# Icon (Stage 5): a bound command's icon wins, else the button's own.
+_button_icon(w::WidgetButton) = (c = _button_command(w); (c !== nothing && c.icon !== nothing) ? c.icon : w.icon)
 
 function projection_print(p::WidgetButtonToGraphicsCanvas, recursion, w::WidgetButton, ctx)
     w.visible == false && return SimpleIoMap(p, w, _empty_canvas())
@@ -944,7 +947,14 @@ function projection_print(p::WidgetButtonToGraphicsCanvas, recursion, w::WidgetB
     content_width, content_height = _content_size(p.measure, p.label.font, label_content)
     padding_x = _sc(Int(p.padding.left[]))
     padding_y = _sc(Int(p.padding.top[]))
-    button_width  = max(Int(minimum_size.x[]), content_width + 2padding_x)
+    # Optional leading icon (Stage 5): a square the size of the label text, with a
+    # gap before the label. An unknown icon name contributes nothing.
+    icon = _button_icon(w)
+    icon_sz = content_height
+    icon_w  = icon_width(icon, icon_sz)
+    icon_gap = icon_w > 0 ? _sc(6) : 0
+    full_w = icon_w + icon_gap + content_width
+    button_width  = max(Int(minimum_size.x[]), full_w + 2padding_x)
     button_height = max(Int(minimum_size.y[]), content_height + 2padding_y)
     corner_radius = _sc(p.corner_radius)
     # State-driven surface: pressed > hover > resting. The reader keeps the
@@ -968,9 +978,14 @@ function projection_print(p::WidgetButtonToGraphicsCanvas, recursion, w::WidgetB
     end
     _push_panel!(elements, 0, 0, button_width, button_height; fill=fill,
                  border=p.border.color, border_w=max(1, _sc(p.border.width)), radius=corner_radius)
-    cx = (button_width - content_width) ÷ 2
+    # Lay out icon + label as one centered group; the icon tints to the label color
+    # (so it mutes with the button), the label sits to its right.
+    start_x = (button_width - full_w) ÷ 2
     cy = (button_height - content_height) ÷ 2
-    _push_content!(elements, p.measure, label, label_content, cx, cy, content_width, content_height)
+    if icon_w > 0
+        _push_icon!(elements, icon, start_x, (button_height - icon_sz) ÷ 2, icon_sz, label.color)
+    end
+    _push_content!(elements, p.measure, label, label_content, start_x + icon_w + icon_gap, cy, content_width, content_height)
     _push_focus_ring!(elements, w, button_width, button_height, p.ring_color, corner_radius)
     SimpleIoMap(p, w, _make_canvas(_origin(position)..., button_width, button_height, elements))
 end
@@ -1330,6 +1345,7 @@ end
 _menu_item_command(w::WidgetMenuItem) = (c = w.command; c isa Action ? c : nothing)
 _menu_item_enabled(w::WidgetMenuItem) =
     !(w.enabled === false) && !((c = _menu_item_command(w)) !== nothing && c.enabled === false)
+_menu_item_icon(w::WidgetMenuItem) = (c = _menu_item_command(w); (c !== nothing && c.icon !== nothing) ? c.icon : w.icon)
 
 function projection_print(p::WidgetMenuItemToGraphicsCanvas, recursion, w::WidgetMenuItem, ctx)
     w.visible == false && return SimpleIoMap(p, w, _empty_canvas())
@@ -1352,7 +1368,13 @@ function projection_print(p::WidgetMenuItemToGraphicsCanvas, recursion, w::Widge
     else
         text = string(content)
         cw, ch = _text_size(p.measure, p.text.font, text)
-        _push_text!(elems, p.text.font, text, cox, coy, _rgba(fg))
+        # Optional leading icon (Stage 5), tinted to the item's foreground.
+        icon = _menu_item_icon(w)
+        icon_w = icon_width(icon, ch)
+        gap = icon_w > 0 ? _sc(6) : 0
+        icon_w > 0 && _push_icon!(elems, icon, cox, coy, ch, fg)
+        _push_text!(elems, p.text.font, text, cox + icon_w + gap, coy, _rgba(fg))
+        cw += icon_w + gap
     end
     WidgetMenuItemToGraphicsCanvasIoMap(p, w, _make_canvas(0, 0, elems),
                                         Cell(child_iomaps), ctx.reference,
@@ -3320,6 +3342,110 @@ function _push_chevron!(elems::Vector, cx::Int, cy::Int, s::Int, dir::Symbol, co
         push!(elems, GraphicsLine(cx - s, cy - s ÷ 2, cx, cy + s ÷ 2, r, g, b, a; width=w))
         push!(elems, GraphicsLine(cx, cy + s ÷ 2, cx + s, cy - s ÷ 2, r, g, b, a; width=w))
     end
+end
+
+# ── Icons (Stage 5) ───────────────────────────────────────────────────────────
+#
+# An icon is a *named* value, not a `GraphicsImage`. A registry maps each name to a
+# renderer with the uniform signature `(elems, x, y, size, color) -> nothing`; the
+# widget printers ask the registry to draw an icon at the label's color + size
+# (tinting like text), never branching on the backing. v1 ships a built-in vector
+# set (tinted `GraphicsPolyline`/`Line`/`Circle`); a glyph-font or raster icon drops
+# in by name via `glyph_icon` / `image_icon` with no widget-code change.
+
+const ICON_REGISTRY = Dict{Symbol,Function}()
+
+"""
+    register_icon!(name, renderer)
+
+Register an icon `renderer(elems, x, y, size, color)` under `name`. The renderer
+pushes graphics into `elems`, drawing within a `size × size` box at `(x, y)` and
+tinting with `color`. Returns `name`.
+"""
+register_icon!(name::Symbol, renderer) = (ICON_REGISTRY[name] = renderer; name)
+
+# Draw the named icon, if registered. `color` is the caller's foreground (already
+# muted when the widget is disabled). Returns whether anything was drawn.
+function _push_icon!(elems::Vector, name, x::Int, y::Int, size::Int, color::StyleColor)
+    name === nothing && return false
+    renderer = get(ICON_REGISTRY, name, nothing)
+    renderer === nothing && return false
+    renderer(elems, x, y, size, color)
+    true
+end
+
+# Layout extent of an icon (square). Zero for `nothing` / unknown names so a widget
+# without an icon is unchanged.
+icon_width(name, size::Int) = (name !== nothing && haskey(ICON_REGISTRY, name)) ? size : 0
+
+# A glyph-font icon: render a codepoint as text in an icon font (tintable, scales).
+# (No icon font is bundled yet; use any `StyleFont` whose glyph the backend has.)
+glyph_icon(font::StyleFont, codepoint) =
+    (elems, x, y, size, color) -> begin
+        r, g, b, a = _rgba(color)
+        push!(elems, GraphicsText(string(codepoint), x, y, font, r, g, b, a))
+    end
+
+# A raster icon: blit an `ImageDocument`'s decoded pixels (NOT tinted — for art).
+image_icon(image::ImageDocument) =
+    (elems, x, y, size, color) -> begin
+        data, _, _ = _image_payload(image)
+        data === nothing || push!(elems, GraphicsImage(Int32(x), Int32(y), Int32(size), Int32(size), data))
+    end
+
+# Push a vector glyph: each point is normalized to the unit box, scaled to `size`
+# and offset to `(x, y)`. `closed` repeats the first point to close the outline.
+function _icon_path!(elems::Vector, x::Int, y::Int, size::Int, color::StyleColor,
+                     pts::Vector{<:Tuple}; closed::Bool=false, width::Int=0)
+    r, g, b, a = _rgba(color)
+    w = width > 0 ? width : max(1, size ÷ 8)
+    P = Tuple{Int,Int}[(x + round(Int, px * size), y + round(Int, py * size)) for (px, py) in pts]
+    closed && length(P) > 1 && push!(P, P[1])
+    push!(elems, GraphicsPolyline(P, r, g, b, a; width=w))
+end
+
+# ── Built-in vector icon set ────────────────────────────────────────────────
+# Each draws inside a unit box (insets keep strokes off the very edge), tinted by
+# the caller's color. Generalises the chevron / checkmark drawers.
+
+_icon_chevron_down(e, x, y, s, c) = _icon_path!(e, x, y, s, c, [(0.25, 0.40), (0.50, 0.65), (0.75, 0.40)])
+_icon_chevron_right(e, x, y, s, c) = _icon_path!(e, x, y, s, c, [(0.40, 0.25), (0.65, 0.50), (0.40, 0.75)])
+_icon_check(e, x, y, s, c) = _icon_path!(e, x, y, s, c, [(0.20, 0.55), (0.42, 0.78), (0.80, 0.25)])
+_icon_x(e, x, y, s, c) = (_icon_path!(e, x, y, s, c, [(0.25, 0.25), (0.75, 0.75)]);
+                          _icon_path!(e, x, y, s, c, [(0.75, 0.25), (0.25, 0.75)]))
+_icon_plus(e, x, y, s, c) = (_icon_path!(e, x, y, s, c, [(0.50, 0.20), (0.50, 0.80)]);
+                             _icon_path!(e, x, y, s, c, [(0.20, 0.50), (0.80, 0.50)]))
+_icon_minus(e, x, y, s, c) = _icon_path!(e, x, y, s, c, [(0.20, 0.50), (0.80, 0.50)])
+_icon_menu(e, x, y, s, c) = (_icon_path!(e, x, y, s, c, [(0.18, 0.30), (0.82, 0.30)]);
+                             _icon_path!(e, x, y, s, c, [(0.18, 0.50), (0.82, 0.50)]);
+                             _icon_path!(e, x, y, s, c, [(0.18, 0.70), (0.82, 0.70)]))
+_icon_file(e, x, y, s, c) = _icon_path!(e, x, y, s, c,
+    [(0.28, 0.15), (0.62, 0.15), (0.74, 0.30), (0.74, 0.85), (0.28, 0.85)]; closed=true)
+_icon_folder(e, x, y, s, c) = _icon_path!(e, x, y, s, c,
+    [(0.15, 0.30), (0.42, 0.30), (0.50, 0.40), (0.85, 0.40), (0.85, 0.78), (0.15, 0.78)]; closed=true)
+_icon_save(e, x, y, s, c) = (_icon_path!(e, x, y, s, c,
+    [(0.20, 0.20), (0.66, 0.20), (0.80, 0.34), (0.80, 0.80), (0.20, 0.80)]; closed=true);
+    _icon_path!(e, x, y, s, c, [(0.34, 0.20), (0.34, 0.42), (0.62, 0.42), (0.62, 0.20)]))
+_icon_pencil(e, x, y, s, c) = (_icon_path!(e, x, y, s, c, [(0.62, 0.18), (0.82, 0.38), (0.34, 0.86), (0.16, 0.86), (0.16, 0.68)]; closed=true);
+                               _icon_path!(e, x, y, s, c, [(0.55, 0.25), (0.75, 0.45)]))
+_icon_trash(e, x, y, s, c) = (_icon_path!(e, x, y, s, c, [(0.20, 0.30), (0.80, 0.30)]);
+                              _icon_path!(e, x, y, s, c, [(0.40, 0.30), (0.40, 0.20), (0.60, 0.20), (0.60, 0.30)]);
+                              _icon_path!(e, x, y, s, c, [(0.27, 0.30), (0.31, 0.82), (0.69, 0.82), (0.73, 0.30)]))
+_icon_search(e, x, y, s, c) = begin
+    r, g, b, a = _rgba(c)
+    cx = x + round(Int, 0.42s); cy = y + round(Int, 0.42s); rad = max(2, round(Int, 0.22s))
+    # Hollow ring (transparent fill, tinted outline) + a diagonal handle.
+    push!(e, GraphicsCircle(cx, cy, rad, r, g, b, 0x00; border_width=max(1, s ÷ 9), border_color=(r, g, b, a)))
+    _icon_path!(e, x, y, s, c, [(0.60, 0.60), (0.84, 0.84)])
+end
+
+for (name, fn) in (:chevron_down => _icon_chevron_down, :chevron_right => _icon_chevron_right,
+                   :check => _icon_check, :x => _icon_x, :close => _icon_x,
+                   :plus => _icon_plus, :minus => _icon_minus, :menu => _icon_menu,
+                   :file => _icon_file, :folder => _icon_folder, :save => _icon_save,
+                   :pencil => _icon_pencil, :edit => _icon_pencil, :trash => _icon_trash,
+                   :delete => _icon_trash, :search => _icon_search)
+    register_icon!(name, fn)
 end
 
 # ── WidgetToggle ────────────────────────────────────────────────────────────
