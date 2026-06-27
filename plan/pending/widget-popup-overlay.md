@@ -164,23 +164,76 @@ to mark). It therefore ships with the first popup:
 window from input and output; an unknown id is a no-op; the main window can be
 closed. (`WindowFocusLost` / `open_popup` round-trip tests move to Step 3.)
 
-## Step 2 — Minimal anchored placement
+## Step 2.0 — Complete widget-layer forward-mapping to graphics coordinates (prerequisite)
 
-Popups need a screen position relative to their trigger. Take a **minimal**
-subset of `anchored-layout.md` now; defer the collision-avoiding engine.
+**Why this is here.** Placement is an *anchored-layout* problem, not a
+screen-coordinate problem (decided with the user, 2026-06-27). The deep trigger
+reader does **not** compute its own absolute position; instead the popup-open op
+carries **what to anchor to** (a reference path to the trigger in the document
+domain) and **where, relative to it** (a placement/offset). A receiver then maps
+the anchor **forward to the output (graphics) domain** via
+`map_reference_forward`, walks the resulting graphics path accumulating nested
+canvas `(x, y)` offsets to get the anchor's **absolute** rect, and adds the
+relative offset. This is exactly `anchored-layout.md`'s Phase 4
+`resolve_target_position`, so completing it unblocks **both** popups and
+AnchoredLayout.
 
-- A helper `anchor_below(trigger_rect; gap) -> (x, y)` (and `anchor_at(point)`
-  for context menus) computing the popup window's screen origin from the
-  trigger's on-screen rect. Clamp to the screen bounds.
-- The trigger supplies its own rect (it knows its canvas bounds at print time);
-  the open op carries the computed `(x, y)` as the popup window position. Because
-  the popup is its own window, the origin is **screen-space** — no inner
-  scroll/offset math, unlike an in-window overlay.
+**Verified gap (REPL probe, 2026-06-27).** The forward path is sound *in
+principle* — at the root a reference should map completely forward to the output
+domain — but it is **not implemented across the widget layer**:
+
+- ✅ **Layout tier already forwards.** `Horizontal`/`Vertical`/`Grid`/`Flow`/
+  `Stack`/`Constraint` layouts delegate a `children[i]/…` reference down via
+  `_children_forward`.
+- ❌ **Widget tier returns `nothing`.** Every widget container (`Composite`,
+  `Shell`, `SplitPane`, `TabbedPane`, `ScrollPane`) and every leaf (`Button`,
+  `Select`, `Checkbox`, `Label`, `Text`) stubs `map_reference_forward` to
+  `nothing`, so the chain dies the moment it reaches a widget and no coordinate
+  surfaces. (The focus ring / text cursor are drawn by each widget reading its
+  *own* selection at print time, which is why this forward path was never
+  needed before.)
+
+**The work (two conventions):**
+
+- **Leaf widgets** — given a reference that targets the widget, return a
+  forwarded reference that resolves to the widget's own output `GraphicsCanvas`
+  (so `x/y/w/h` are readable). A shared convention (likely via the projection
+  macro / a default) rather than per-leaf boilerplate.
+- **Widget containers** — delegate into the addressed child, the same way the
+  layout tier's `_children_forward` already does. Do `Composite` and `Shell`
+  first (the containers a `WidgetSelect` actually sits in); defer
+  `SplitPane`/`TabbedPane`/`ScrollPane` until a popup is nested in one.
+- **Receiver helper** — `resolve_anchor_rect(root_iomap, anchor_ref) -> (x,y,w,h)`:
+  `map_reference_forward`, then walk the returned graphics reference accumulating
+  canvas offsets to an absolute window-relative rect. Return the *graphics*
+  reference and accumulate by walking the output tree (matching the existing
+  `_children_forward` convention and anchored-layout's "resolve to a canvas, read
+  position cells"), rather than having each container try to compute absolute
+  coords itself — it only knows its child's *relative* offset.
+
+**Tests:** a reference to a leaf widget inside `Shell`→…→`Composite`→layout
+resolves, at the root iomap, to that widget's absolute `(x, y, w, h)` matching
+its rendered position; an unresolvable reference returns `nothing`.
+
+## Step 2 — Anchored placement on top of the resolved rect
+
+With Step 2.0 resolving an anchor reference to an absolute rect, placement is the
+thin **minimal** slice of `anchored-layout.md`; defer the collision-avoiding
+engine.
+
+- The popup-open op carries `(anchor_ref, placement, offset)` — *not* absolute
+  coordinates. The receiver resolves `anchor_ref` to a rect (Step 2.0) and then
+  `anchor_below(rect; gap)` / `anchor_at(point)` compute the popup origin,
+  clamped to bounds.
+- Window-space conversion: the resolved rect is window-relative; for a child
+  popup window add the source window's screen origin. (If a backend can't give a
+  reliable parent-window origin, the popup opens relative to the parent — a
+  backend detail, not a placement-logic one.)
 - **Out of scope:** flip-to-opposite-side, perpendicular fallback, multi-popup
-  stacking — those are `anchored-layout.md`. Note the limitation in code.
+  stacking — those stay `anchored-layout.md`. Note the limitation in code.
 
-**Tests:** a dropdown opened from a trigger at screen `(x,y,h)` gets window
-origin `≈ (x, y+h+gap)`; near the bottom edge it is clamped within the screen.
+**Tests:** an anchor `(ref, :below, gap)` whose resolved rect is `(x,y,w,h)` gives
+popup origin `≈ (x, y+h+gap)`, clamped near an edge.
 
 ## Step 3 — `WidgetSelect` dropdown
 
@@ -189,11 +242,20 @@ Make the select interactive, the first end-to-end popup over the window route.
 - **Document.** Add `options::CellVector` (and an optional open marker);
   `value` stays the displayed/selected entry.
 - **Reader (new — drop `@_printer_only`).** `MousePress` on the closed box →
-  `open_popup(content = a menu/list of the options, anchor_below(self_rect);
-  auto_dismiss=true)`. The option list is an ordinary widget subtree rendered as
-  the popup window's content. Picking an option emits
-  `ReplaceReferencedValue(self, "value", option)` **and** `CloseWindowOperation`
-  (a `CompoundOperation`).
+  `open_popup(content = a menu/list of the options; anchor = (self_ref, :below,
+  gap); auto_dismiss=true)` — the op carries the *anchor reference* to the select,
+  not absolute coords; the receiver resolves it via Step 2.0. The option list is
+  an ordinary widget subtree rendered as the popup window's content. Picking an
+  option emits `ReplaceReferencedValue(self, "value", option)` **and**
+  `CloseWindowOperation` (a `CompoundOperation`; the WindowManager must unpack the
+  compound to catch the close — see below).
+- **Op bubbling (verified).** `prepend_steps_to_op` returns unknown op types and
+  identity-rooted `ReplaceReferencedValue` unchanged (the `else` branch,
+  `OperationRerooting.jl:73`), so an `OpenWindowOperation` from the deep select
+  reader bubbles up to the WindowManager untouched, and the option click's
+  identity-rooted value-write round-trips to the select. **One required add:** the
+  WindowManager reader must unpack a `CompoundOperation` to apply Open/Close ops
+  nested in it (today it only matches a top-level Open/Close).
 - **Printer.** Unchanged closed state; the open list lives in the popup window,
   not the select's own canvas.
 - **Re-rooting.** The option list's reader ops target the popup window's content
@@ -276,9 +338,12 @@ envelope targeting the base window is dropped (does not reach base widgets).
   a modal is open" must still let the modal window's own events through — track
   the modal id and compare against `env.window_id`, allowing only that window
   (and its backdrop) through.
-- **Placement is minimal.** No flip/collision avoidance — a dropdown near the
-  bottom edge clamps (may overlap the trigger). Acceptable for v1; full behavior
-  is `anchored-layout.md`. Comment the limitation; don't let it read as complete.
+- **Placement is anchored-layout, resolved by a receiver.** The trigger reader
+  must **not** try to compute its own absolute coords (it only has local ones);
+  it carries an *anchor reference* + relative offset, and the receiver forward-
+  maps + accumulates offsets (Step 2.0). The placement *policy* is minimal — no
+  flip/collision avoidance, near an edge it clamps (may overlap the trigger).
+  Acceptable for v1; full behavior is `anchored-layout.md`. Comment the limitation.
 - **Don't duplicate compositing.** Resist re-introducing an in-window
   `StackLayout` overlay path alongside the window route — one mechanism (windows)
   for every float keeps the inspector/tooltip/popup story uniform.
@@ -290,9 +355,15 @@ envelope targeting the base window is dropped (does not reach base widgets).
       `TooltipTest.jl`. **Deferred to Step 3:** `WindowFocusLost` event (SDL +
       web) + `auto_dismiss` flag + `open_popup` helper — coupled, and consumer-less
       until the first popup, so they land with the dropdown.
-- [ ] Step 2 — minimal anchored placement (`anchor_below` / `anchor_at`, clamp),
-      screen-space window origin
-- [ ] Step 3 — `WidgetSelect` dropdown (options + open-popup + pick→value+close);
+- [ ] Step 2.0 — **prerequisite:** complete widget-layer `map_reference_forward`
+      to graphics coordinates (leaf convention + `Composite`/`Shell`; defer
+      `SplitPane`/`TabbedPane`/`ScrollPane`) + `resolve_anchor_rect` receiver
+      helper. Verified gap: layout tier forwards, all widget projectors return
+      `nothing`. Reusable — also unblocks `anchored-layout.md` Phase 4.
+- [ ] Step 2 — anchored placement on the resolved rect (`anchor_below` /
+      `anchor_at`, clamp); op carries `(anchor_ref, placement, offset)`, not coords
+- [ ] Step 3 — `WidgetSelect` dropdown (options + open-popup + pick→value+close;
+      WindowManager unpacks `CompoundOperation` for nested Open/Close);
       **also lands `WindowFocusLost` + `auto_dismiss` + `open_popup` from Step 1**
 - [ ] Step 4 — `WidgetMenu` open-on-click + right-click context menu
 - [ ] Step 5 — `WidgetDialog` modal (backdrop window + centered card + buttons,
@@ -301,8 +372,11 @@ envelope targeting the base window is dropped (does not reach base widgets).
 
 ## Relationship to other plans
 
-- [anchored-layout.md](anchored-layout.md) — Step 2 takes a minimal placement
-  subset; the full collision-avoiding engine stays that plan's scope.
+- [anchored-layout.md](anchored-layout.md) — **shared foundation, not just
+  adjacent.** Step 2.0 (forward-mapping a reference to a graphics rect) is exactly
+  that plan's Phase 4 `resolve_target_position`; doing it here unblocks
+  AnchoredLayout too. Step 2 then takes only the minimal placement slice; the full
+  collision-avoiding engine stays that plan's scope.
 - [tooltip.md](tooltip.md) — the WindowManager float precedent this plan
   generalizes: tooltips open/close a window via operations already; popups add
   the interactive dismissal (close/focus-lost) on top of the same route.
