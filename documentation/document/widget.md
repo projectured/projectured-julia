@@ -304,6 +304,34 @@ a select buried inside `shell → layout → window` resolve to an absolute scre
 position so its popup opens in the right place. See `make_widget_popup_*_example`
 and `WidgetPopupExampleTest` for the end-to-end wiring.
 
+### Modal dialogs (`WidgetDialog`)
+
+A `WidgetDialog(title, content, buttons)` is a centered card over a translucent
+scrim, opened as a window with **`modal = true`**. Unlike the popups above it is
+**not anchored** (it is centered, so it needs none of the anchor-resolution
+machinery) but it **is modal**:
+
+- **Modality is a `WindowManager` concern.** While any window has `modal = true`,
+  the manager's reader **drops every `EventEnvelope` routed to a different
+  window** — the base content receives no input, with no per-widget swallowing.
+  This reuses the existing `window_id` routing rather than fighting it. A modal
+  window ignores focus-lost auto-dismiss (it is dismissed by an explicit choice).
+- **Dismissal**: `Esc`, a **backdrop click** (on the scrim, outside the card), or
+  a **button** — a button click runs its action *and* closes the window named by
+  the dialog's `popup_id`, in one `CompoundOperation` (the same pattern as a menu
+  item / dropdown option).
+- **Opening**: a `WidgetButton` with a `dialog` field emits
+  `OpenWindowOperation(modal = true, content = dialog)` on click;
+  `WidgetMessageBox` / `WidgetInputDialog` are convenience builders.
+- **`modal` flag**: carried on `WindowDocument` and `OpenWindowOperation` beside
+  `auto_dismiss`, copied through by `WindowManager`/`ScreenToScreen`.
+
+**Deferred (v1 limitation):** the scrim fills the dialog's own window, which opens
+at a generous fixed box — a true full-screen scrim and exact screen-centering need
+a screen-size source the document model does not yet carry (`ScreenDocument` holds
+only per-window `x/y/w/h`). The modal *input blocking* is complete regardless of
+window size.
+
 ## Image content
 
 A leaf widget's `content` is polymorphic: besides a string (or, for some

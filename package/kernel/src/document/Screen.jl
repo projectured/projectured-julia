@@ -91,6 +91,7 @@ projected.
     bg::NTuple{4,UInt8}
     style::Symbol
     auto_dismiss::Bool
+    modal::Bool
     content::Document
     selection::Reference
 end
@@ -104,6 +105,7 @@ function WindowDocument(; id::Symbol = :main,
                           bg::NTuple{4,Integer} = DEFAULT_BG,
                           style::Symbol = :normal,
                           auto_dismiss::Bool = false,
+                          modal::Bool = false,
                           content)
     WindowDocument(Cell(id), Cell(String(title)),
                    Cell(Int(x)), Cell(Int(y)),
@@ -111,6 +113,7 @@ function WindowDocument(; id::Symbol = :main,
                    Cell((UInt8(bg[1]), UInt8(bg[2]), UInt8(bg[3]), UInt8(bg[4]))),
                    Cell(style),
                    Cell(auto_dismiss),
+                   Cell(modal),
                    Cell(content),
                    Cell(nothing))
 end

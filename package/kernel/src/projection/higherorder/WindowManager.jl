@@ -62,10 +62,19 @@ end
 # ── Reader ────────────────────────────────────────────────────────────────
 
 function projection_read(p::WindowManagerProjection, recursion, change::Change, iomap::WindowManagerProjectionIoMap)
+    env = change.gesture
+    # Modality: while a modal window is open, only it receives input. Drop any
+    # envelope routed to a different window — base content gets no events, with no
+    # per-widget input swallowing (this reuses the existing window_id routing). A
+    # modal window is dismissed by an explicit choice (Esc / button / backdrop),
+    # never by focus-lost, so it is opened with auto_dismiss=false.
+    if env isa EventEnvelope
+        modal = _modal_window(iomap.input)
+        (modal !== nothing && env.window_id !== modal.id) && return Change(change.gesture, nothing)
+    end
     # A window resize is a window-management concern owned here: resolve the
     # window by id (no coordinate mapping needed) and emit a
     # ResizeWindowOperation, before the inner copier ever sees the envelope.
-    env = change.gesture
     if env isa EventEnvelope && env.event isa WindowResizeEvent
         win = _find_window(iomap.input, env.window_id)
         win === nothing && return Change(change.gesture, nothing)
@@ -167,7 +176,7 @@ function _apply_open!(iomap::WindowManagerProjectionIoMap, op::OpenWindowOperati
                               x=op.x, y=op.y,
                               width=op.width, height=op.height,
                               bg=op.bg, style=op.style,
-                              auto_dismiss=op.auto_dismiss,
+                              auto_dismiss=op.auto_dismiss, modal=op.modal,
                               content=op.content)
     new_iomap = projection_printer_recurse(iomap.recursion, new_in, iomap.ctx)
     new_out = new_iomap.output
@@ -187,6 +196,7 @@ function _update_window!(w::WindowDocument, op::OpenWindowOperation;
     w.bg     = op.bg
     w.style  = op.style
     w.auto_dismiss = op.auto_dismiss
+    w.modal  = op.modal
     if project_content
         # Re-project the new content for the output side.
         content_iomap = projection_printer_recurse(recursion, op.content, ctx)
@@ -221,6 +231,16 @@ function _find_window(screen, id::Symbol)
     screen isa ScreenDocument || return nothing
     for w in screen.windows
         w isa WindowDocument && w.id === id && return w
+    end
+    nothing
+end
+
+# The open modal window, if any (at most one is expected). While it is open the
+# reader routes input only to it.
+function _modal_window(screen)
+    screen isa ScreenDocument || return nothing
+    for w in screen.windows
+        w isa WindowDocument && w.modal === true && return w
     end
     nothing
 end

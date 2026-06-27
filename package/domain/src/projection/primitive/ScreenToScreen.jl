@@ -92,7 +92,7 @@ function projection_print(p::ScreenToScreen, recursion, input::WindowDocument, c
                             getfield(input, :x), getfield(input, :y),
                             getfield(input, :width), getfield(input, :height),
                             getfield(input, :bg), getfield(input, :style),
-                            getfield(input, :auto_dismiss),
+                            getfield(input, :auto_dismiss), getfield(input, :modal),
                             Cell(content_iomap.output), sel)
     iomap = ScreenWindowIoMap(p, input, output, content_iomap)
     iomap_cell[] = iomap

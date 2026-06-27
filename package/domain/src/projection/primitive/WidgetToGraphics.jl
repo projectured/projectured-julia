@@ -33,7 +33,7 @@ import ..ColorModule: StyleColor,
                       color_indigo_600, color_indigo_700, color_indigo_950,
                       color_destructive, color_destructive_fg
 import ..WidgetModule: WidgetDocument, WidgetInsertion, WidgetLabel, WidgetText, WidgetCheckbox,
-                       WidgetButton, WidgetTooltip, WidgetContextMenu, WidgetMenu, WidgetMenuItem,
+                       WidgetButton, WidgetTooltip, WidgetContextMenu, WidgetDialog, WidgetMenu, WidgetMenuItem,
                        WidgetComposite, WidgetShell, WidgetTitlePane, WidgetSplitPane,
                        WidgetTabbedPane, WidgetScrollPane, WidgetToolbar, WidgetScrollBar,
                        WidgetBadge, WidgetSeparator, WidgetCard, WidgetSwitch, WidgetProgress,
@@ -58,7 +58,7 @@ import ..MouseModule: MouseScroll, MousePress, MouseDown, MouseUp, MouseMove, Mo
 import ..EventCaseModule: var"@event_case"
 import ..OperationApiModule: Operation
 import ..OperationModule: ReplaceSelectionOperation, ReplaceReferencedValue, ToggleCollapseOperation, CompoundOperation,
-                          OpenPopupOperation, CloseWindowOperation
+                          OpenPopupOperation, OpenWindowOperation, CloseWindowOperation
 import ..PrimitiveModule: StringReplaceRangeOperation, NumberReplaceRangeOperation
 import ..ReferenceModule: ReferencePath, ConcreteReferencePath, FieldReference, RangeReference,
                           ElementReference, EmptyReferencePath, is_element_reference, PointReference
@@ -73,7 +73,9 @@ import ..ModifiersModule: Modifiers
 export WidgetInsertionToGraphicsCanvas, WidgetLabelToGraphicsCanvas, WidgetTextToGraphicsCanvas,
        WidgetCheckboxToGraphicsCanvas, WidgetButtonToGraphicsCanvas,
        WidgetTooltipToGraphicsCanvas, WidgetContextMenuToGraphicsCanvas,
-       WidgetContextMenuToGraphicsCanvasIoMap, WidgetMenuToGraphicsCanvas,
+       WidgetContextMenuToGraphicsCanvasIoMap,
+       WidgetDialogToGraphicsCanvas, WidgetDialogToGraphicsCanvasIoMap,
+       WidgetMenuToGraphicsCanvas,
        WidgetMenuItemToGraphicsCanvas, WidgetCompositeToGraphicsCanvas,
        WidgetShellToGraphicsCanvas, WidgetTitlePaneToGraphicsCanvas,
        WidgetSplitPaneToGraphicsCanvas, WidgetTabbedPaneToGraphicsCanvas,
@@ -990,7 +992,7 @@ function projection_read(::WidgetButtonToGraphicsCanvas, iomap::SimpleIoMap, evt
     # it can never show an interaction surface (see the printer's enabled branch).
     w.enabled === false && return nothing
     @event_case evt begin
-        MousePress(button, x, y) => button === :left ? InvokeWidgetActionOperation(w) : nothing
+        MousePress(button, x, y) => button === :left ? _activate_button(w) : nothing
         MouseDown(button, x, y)  => button === :left ? ReplaceReferencedValue(w, "pressed", true) : nothing
         MouseUp(button, x, y)    => button === :left ? ReplaceReferencedValue(w, "pressed", false) : nothing
         MouseEnter               => ReplaceReferencedValue(w, "hovered", true)
@@ -1001,9 +1003,20 @@ function projection_read(::WidgetButtonToGraphicsCanvas, iomap::SimpleIoMap, evt
         # Enter / Space activate the focused button (key reaches it via selection
         # routing). `:tab` is intentionally not matched, so it falls through to
         # `nothing` and focus traversal can claim it.
-        when(KeyDown(k), k === :return || k === :space) => InvokeWidgetActionOperation(w)
+        when(KeyDown(k), k === :return || k === :space) => _activate_button(w)
         _ => nothing
     end
+end
+
+# Activating a button: open its `dialog` as a modal window if it has one (Step 5),
+# otherwise run its `action`. A modal dialog is centered, not anchored, so it opens
+# directly as an `OpenWindowOperation` (no popup resolver). v1 uses a generous
+# fixed window box; true screen-sizing/centering is deferred (see widget.md).
+function _activate_button(w::WidgetButton)
+    dlg = w.dialog
+    dlg === nothing && return InvokeWidgetActionOperation(w)
+    OpenWindowOperation(; id=dlg.popup_id, modal=true, style=:dialog,
+                        x=80, y=60, width=480, height=320, content=dlg)
 end
 
 # ── WidgetTooltip ───────────────────────────────────────────────────────────
@@ -1141,6 +1154,144 @@ function _open_context_menu(p::WidgetContextMenuToGraphicsCanvas, menu, iomap, l
                        dx=lx, dy=ly, width=max(width, 1) + 16,
                        height=max(1, length(items)) * row_h,
                        auto_dismiss=true, content=menu)
+end
+
+# ── WidgetDialog ──────────────────────────────────────────────────────────────
+
+@projection struct WidgetDialogToGraphicsCanvas
+    measure::Function
+    title::StyleText        # title font + color
+    body::StyleText         # content/label fallback font + color
+    card_color::StyleColor  # card fill
+    border::StyleStroke      # card outline
+    corner_radius::Int
+    padding::Inset
+    gap::Int                # vertical gap between title / content / buttons
+end
+
+# Carries the centered card's bounds (for the backdrop hit-test) plus the content
+# and button child-iomaps (for routing + re-rooting), all in dialog-canvas coords.
+struct WidgetDialogToGraphicsCanvasIoMap <: IoMap
+    projection::Any
+    input::WidgetDialog
+    output::GraphicsCanvas
+    card::NTuple{4,Int}      # (x, y, w, h)
+    content_entry::Any       # (ox, oy, cim) | nothing
+    button_entries::Cell     # Vector of (ox, oy, cim)
+end
+
+function projection_print(p::WidgetDialogToGraphicsCanvas, recursion, w::WidgetDialog, ctx)
+    w.visible == false && return SimpleIoMap(p, w, _empty_canvas())
+    pad_x = _sc(Int(p.padding.left[])); pad_y = _sc(Int(p.padding.top[]))
+    gap = _sc(p.gap); radius = _sc(p.corner_radius)
+    # The dialog fills its (modal) window; the scrim covers that whole area.
+    aw = ctx === nothing ? nothing : ctx.available_width
+    ah = ctx === nothing ? nothing : ctx.available_height
+    avail_w = aw !== nothing ? max(0, Int(aw[])) : 480
+    avail_h = ah !== nothing ? max(0, Int(ah[])) : 320
+
+    title = string(w.title)
+    title_w, title_h = _text_size(p.measure, p.title.font, title)
+
+    # Content: a recursed child widget, a plain string, or nothing.
+    content = w.content
+    content_iomap = nothing; content_w = 0; content_h = 0
+    if content isa Document
+        content_iomap = projection_printer_recurse(recursion, content, ctx)
+        cc = content_iomap.output
+        content_w, content_h = cc isa GraphicsCanvas ? (Int(cc.w[]), Int(cc.h[])) : (0, 0)
+    elseif content !== nothing
+        content_w, content_h = _text_size(p.measure, p.body.font, string(content))
+    end
+
+    # Buttons laid out in a row.
+    button_iomaps = Any[]
+    btn_w = 0; btn_h = 0
+    for b in w.buttons
+        b isa WidgetDocument || continue
+        bim = projection_printer_recurse(recursion, b, ctx)
+        bc = bim.output
+        bw, bh = bc isa GraphicsCanvas ? (Int(bc.w[]), Int(bc.h[])) : (0, 0)
+        push!(button_iomaps, (bim, bw, bh))
+        btn_w += bw; btn_h = max(btn_h, bh)
+    end
+    nbtn = length(button_iomaps)
+    nbtn > 1 && (btn_w += (nbtn - 1) * gap)
+
+    has_content = content_w > 0 || content_h > 0
+    has_buttons = nbtn > 0
+    inner_w = max(title_w, content_w, btn_w)
+    inner_h = title_h
+    has_content && (inner_h += gap + content_h)
+    has_buttons && (inner_h += gap + btn_h)
+    card_w = inner_w + 2pad_x; card_h = inner_h + 2pad_y
+    card_x = max(0, (avail_w - card_w) ÷ 2); card_y = max(0, (avail_h - card_h) ÷ 2)
+
+    elements = Any[]
+    push!(elements, GraphicsRect(0, 0, avail_w, avail_h, 0x00, 0x00, 0x00, 0x66))  # scrim
+    _push_panel!(elements, card_x, card_y, card_w, card_h; fill=p.card_color,
+                 border=p.border.color, border_w=max(1, _sc(p.border.width)), radius=radius)
+    tx = card_x + pad_x; ty = card_y + pad_y
+    _push_text!(elements, p.title.font, title, tx, ty, _rgba(p.title.color))
+    cursor_y = ty + title_h
+
+    content_entry = nothing
+    if has_content
+        cursor_y += gap
+        if content_iomap !== nothing
+            ox = card_x + pad_x; oy = cursor_y
+            push!(elements, _make_canvas(ox, oy, Any[content_iomap.output]))
+            content_entry = (ox, oy, content_iomap)
+        else
+            _push_text!(elements, p.body.font, string(content), card_x + pad_x, cursor_y, _rgba(p.body.color))
+        end
+        cursor_y += content_h
+    end
+
+    button_entries = Any[]
+    if has_buttons
+        cursor_y += gap
+        bx = card_x + pad_x + max(0, inner_w - btn_w)   # right-align the row
+        for (bim, bw, _bh) in button_iomaps
+            push!(elements, _make_canvas(bx, cursor_y, Any[bim.output]))
+            push!(button_entries, (bx, cursor_y, bim))
+            bx += bw + gap
+        end
+    end
+
+    canvas = _make_canvas(0, 0, avail_w, avail_h, elements)
+    WidgetDialogToGraphicsCanvasIoMap(p, w, canvas, (card_x, card_y, card_w, card_h),
+                                      content_entry, Cell(button_entries))
+end
+
+# A dialog is centered, not anchored, so it is never a popup anchor source.
+map_reference_forward(::WidgetDialogToGraphicsCanvas, iomap, reference) = nothing
+# Content ops (e.g. an editable WidgetText field) re-root by prepending `.content`.
+map_reference_backward(::WidgetDialogToGraphicsCanvas, iomap::WidgetDialogToGraphicsCanvasIoMap, reference) =
+    reference === nothing ? nothing : ConcreteReferencePath(FieldReference("content"), reference)
+map_reference_backward(::WidgetDialogToGraphicsCanvas, iomap, reference) = nothing
+
+projection_read(::WidgetDialogToGraphicsCanvas, iomap::SimpleIoMap, evt) = nothing
+
+# Esc / a backdrop click (on the scrim, outside the card) dismiss; a button click
+# runs its action AND closes (one CompoundOperation); a click inside the card on
+# the content routes to it (re-rooted through `.content`).
+function projection_read(p::WidgetDialogToGraphicsCanvas, iomap::WidgetDialogToGraphicsCanvasIoMap, evt)
+    pid = iomap.input.popup_id
+    if evt isa KeyDown
+        return evt.key === :escape ? CloseWindowOperation(pid) : nothing
+    end
+    evt isa MousePress || return nothing
+    evt.button === :left || return nothing
+    (cx, cy, cw, ch) = iomap.card
+    (cx <= evt.x < cx + cw && cy <= evt.y < cy + ch) || return CloseWindowOperation(pid)
+    bop = _route_click_to_children(iomap.button_entries[]::Vector, evt)
+    bop !== nothing && return CompoundOperation(Any[bop, CloseWindowOperation(pid)])
+    ce = iomap.content_entry
+    ce === nothing && return nothing
+    (ox, oy, cim) = ce
+    op = projection_read(cim.projection, cim, MousePress(evt.button, evt.x - ox, evt.y - oy, evt.modifiers))
+    _retarget_op(p, iomap, op)
 end
 
 # ── WidgetMenuItem ──────────────────────────────────────────────────────────
@@ -4314,6 +4465,9 @@ function WidgetToGraphics(font::StyleFont; measure::Function,
             theme.popover, StyleStroke(theme.border, theme.border_width), theme.radius,
             Inset(theme.pad_y, theme.pad_y, theme.pad_x, theme.pad_x)),
         WidgetContextMenu => WidgetContextMenuToGraphicsCanvas(measurer, theme.font),
+        WidgetDialog     => WidgetDialogToGraphicsCanvas(measurer, theme.title_text, theme.body_text,
+            theme.card, StyleStroke(theme.border, theme.border_width), theme.radius,
+            Inset(theme.pad_y, theme.pad_y, theme.pad_x, theme.pad_x), theme.gap),
         WidgetMenu       => WidgetMenuToGraphicsCanvas(measurer, theme.font),
         WidgetMenuItem   => WidgetMenuItemToGraphicsCanvas(measurer, theme.body_text),
         WidgetComposite  => WidgetCompositeToGraphicsCanvas(),

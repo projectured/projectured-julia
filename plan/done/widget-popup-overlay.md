@@ -1,9 +1,9 @@
 # Popup / overlay layer
 
-> **Status: planning / not started.** Detailed plan for **Stage 3** of
-> [qt-widget-gap-analysis.md](qt-widget-gap-analysis.md) ("Popup / overlay
-> layer"). Generated 2026-06-27; **architecture revised 2026-06-27** to use the
-> existing `WindowManager` window route instead of an in-window `StackLayout`
+> **Status: ✅ COMPLETE (Steps 1–6 all implemented & tested).** Detailed plan for
+> **Stage 3** of [qt-widget-gap-analysis.md](qt-widget-gap-analysis.md) ("Popup /
+> overlay layer"). Generated 2026-06-27; **architecture revised 2026-06-27** to use
+> the existing `WindowManager` window route instead of an in-window `StackLayout`
 > overlay (see "Architectural decision" — the original objection to windows did
 > not hold up against the code). Builds on Stage 1
 > ([widget-interaction-state.md](widget-interaction-state.md), `enabled`) and
@@ -398,28 +398,48 @@ reaches the child; resolver → absolute `OpenWindowOperation`). The live
 click→popup-window flow (focus-lost / Esc dismissal of a real popup window) is
 exercised once Step 6 wires the window-route example projection.
 
-## Step 5 — `WidgetDialog` (modal) + convenience dialogs
+## Step 5 — `WidgetDialog` (modal) + convenience dialogs ✅ Done
 
-- **`WidgetDialog`** document: `title`, `content`, `buttons::CellVector` (of
-  `WidgetButton`). Opened as a **modal** popup window (`open_popup(...,
-  modal=true)`) centered on screen, over a full-screen semi-transparent
-  **backdrop window** at a lower z (or the dialog window's own full-bleed scrim
-  behind a centered card).
-- **Modality is a WindowManager concern.** While a modal window is open,
-  `WindowManager` tracks its id and **drops envelopes routed to any other
-  window** — base content receives no events without any per-widget swallowing.
-  This reuses the existing `window_id` routing rather than fighting it.
-- **Dismissal.** `Esc` closes; backdrop-click closes (configurable for "must
-  choose"); a button's action closes via `CloseWindowOperation`. A modal window
-  ignores focus-lost auto-dismiss (it is dismissed by an explicit choice, not by
-  clicking away).
-- **Convenience.** `WidgetMessageBox(title, message; buttons)` and
-  `WidgetInputDialog(title, prompt; value)` built on `WidgetDialog` + existing
-  `WidgetText`/`WidgetButton`.
+- ✅ **`modal` flag on the window primitives.** `WindowDocument` and
+  `OpenWindowOperation` gained `modal::Bool` (beside `auto_dismiss`, default
+  `false`); `WindowManager` `_apply_open!`/`_update_window!` and `ScreenToScreen`
+  copy it through.
+- ✅ **Modality is a `WindowManager` concern.** A `_modal_window(screen)` helper +
+  a gate at the top of the manager's reader: while a modal window is open, **drop
+  every `EventEnvelope` routed to a different window** — base content gets no
+  input, no per-widget swallowing, reusing the existing `window_id` routing. A
+  modal opens with `auto_dismiss=false`, so the focus-lost branch already leaves it
+  alone (dismissed only by an explicit choice).
+- ✅ **`WidgetDialog(title, content, buttons; popup_id=:widget_dialog)`** document
+  + `WidgetDialogToGraphicsCanvas`: a translucent scrim filling the (modal)
+  window's area + a **centered card** (title, recursed content, right-aligned
+  button row). Reader: `Esc` / **backdrop-click** (scrim outside the card) →
+  `CloseWindowOperation(popup_id)`; a **button** click →
+  `CompoundOperation([InvokeWidgetActionOperation(button),
+  CloseWindowOperation(popup_id)])` (fires *and* closes, the menu-item pattern);
+  content clicks route through `.content`. Registered in the factory.
+- ✅ **Opening: `WidgetButton.dialog`.** A button gained an optional `dialog`
+  field (mirrors `WidgetMenuItem.submenu`); clicking a button with a dialog emits
+  `OpenWindowOperation(id=dialog.popup_id, modal=true, style=:dialog,
+  content=dialog)` instead of its action. A dialog is centered, not anchored, so it
+  opens directly — none of the Step 6 resolver machinery.
+- ✅ **Convenience.** `WidgetMessageBox(title, message; buttons)` and
+  `WidgetInputDialog(title, prompt; value)` built on `WidgetDialog` +
+  `WidgetLabel`/`WidgetText`/`WidgetButton`.
+- ✅ **Docs**: modal-dialog subsection in `widget.md`.
 
-**Tests:** opening a dialog dims the base (backdrop window) and centers the card;
-`Esc` and backdrop-click close; a button action closes and fires; while modal, an
-envelope targeting the base window is dropped (does not reach base widgets).
+**Scope note (v1 deferral):** the scrim fills the dialog's own window, opened at a
+generous fixed box (`80,60` / `480×320`); a **true full-screen scrim + exact
+screen-centering** needs a screen-size source the document model doesn't carry
+(`ScreenDocument` has only per-window `x/y/w/h`). The modal **input blocking** is
+complete regardless of window size — that is the architecturally important part.
+
+**Tests (`WidgetDialogTest.jl`, 18 assertions):** `Esc` / backdrop-click / button
+(action fires + close) dismissal; custom `popup_id`; the **modal gate** (a click on
+the base window is dropped while a modal is open, and `Esc` to the modal closes
+it); and a `WidgetButton` with a `dialog` opens it as a modal window through the
+screen route. Regressions green (`test_widget_button_behavior`, `test_tooltip`,
+`test_widget_popup_example`, `test_anchor_point`, printer sweeps).
 
 ## Step 6 — Example, window route, docs ✅ Done
 
@@ -507,8 +527,11 @@ wiring (chosen with the user: **extend `ScreenToScreen`**).
       `anchor_point` helper, `AnchorPointTest` (8/8). **Deferred to consumers:**
       `WidgetSelect` mapper (Step 3), `Shell`/`SplitPane`/`TabbedPane`/`ScrollPane`.
       Principle documented on `map_reference_forward`. Also unblocks `anchored-layout.md`.
-- [ ] Step 2 — anchored placement on the resolved point (`anchor_point` + clamp);
-      op carries `(anchor_ref, offset)`, not coords; trigger bakes its size into offset
+- [x] Step 2 — anchored placement on the resolved point. **Folded into Step 3b**:
+      `OpenPopupOperation` carries `(anchor_ref, offset)` not coords, and the
+      `WidgetPopupResolver` resolves the anchor via `anchor_point` and adds the
+      trigger-baked offset. The edge-clamp / flip-to-opposite-side polish stays
+      `anchored-layout.md`'s scope (near an edge a popup may overlap the trigger).
 - [x] Step 3 — `WidgetSelect` dropdown. **3a ✅** (focus-lost + `auto_dismiss` +
       CompoundOperation unpacking, committed). **3b ✅** (anchor wiring = capture
       `ctx.reference` + `OpenPopupOperation` + `WidgetPopupResolver` seam →
@@ -529,8 +552,11 @@ wiring (chosen with the user: **extend `ScreenToScreen`**).
       left-click routes to the child; `test_widget_context_menu` 21/21). The live
       menu-bar / context-menu click→popup window needs Step 6's window-route
       example projection (WindowManager + `WidgetPopupResolver`).
-- [ ] Step 5 — `WidgetDialog` modal (backdrop window + centered card + buttons,
-      modality enforced by WindowManager) + MessageBox/InputDialog
+- [x] Step 5 — `WidgetDialog` modal (scrim + centered card + button row), modality
+      enforced by a `WindowManager` gate (`modal` flag drops envelopes to other
+      windows); `WidgetButton.dialog` opener; MessageBox/InputDialog;
+      `test_widget_dialog` 18/18. Full-screen scrim / exact screen-centering
+      deferred (no screen-size source in the document model).
 - [x] Step 6 — window route end-to-end + example + docs. Extended `ScreenToScreen`
       to forward-map coordinate images (shift a `PointReference` by the window's
       screen origin), placed `WidgetPopupResolver` between `WindowManager` and

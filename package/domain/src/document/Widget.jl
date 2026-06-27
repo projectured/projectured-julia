@@ -21,7 +21,8 @@ import ..GeometryModule: Inset, Point2D, inset_default,
 export Inset, Point2D,
        WidgetDocument, WidgetInsertion,
        WidgetLabel, WidgetText, WidgetCheckbox, WidgetButton,
-       WidgetTooltip, WidgetContextMenu, WidgetMenu, WidgetMenuItem, WidgetComposite,
+       WidgetTooltip, WidgetContextMenu, WidgetDialog, WidgetMessageBox, WidgetInputDialog,
+       WidgetMenu, WidgetMenuItem, WidgetComposite,
        WidgetShell, WidgetTitlePane, WidgetSplitPane, WidgetTabbedPane,
        WidgetScrollPane, WidgetToolbar, WidgetScrollBar,
        WidgetBadge, WidgetSeparator, WidgetCard, WidgetSwitch, WidgetProgress,
@@ -37,7 +38,7 @@ export Inset, Point2D,
        setfn!,
        IWidgetInsertion,
        IWidgetLabel, IWidgetText, IWidgetCheckbox, IWidgetButton,
-       IWidgetTooltip, IWidgetContextMenu, IWidgetMenu, IWidgetMenuItem, IWidgetComposite,
+       IWidgetTooltip, IWidgetContextMenu, IWidgetDialog, IWidgetMenu, IWidgetMenuItem, IWidgetComposite,
        IWidgetShell, IWidgetTitlePane, IWidgetSplitPane, IWidgetTabbedPane,
        IWidgetScrollPane, IWidgetToolbar, IWidgetScrollBar,
        IWidgetBadge, IWidgetSeparator, IWidgetCard, IWidgetSwitch, IWidgetProgress,
@@ -215,6 +216,7 @@ are not meant to be serialised.
     size::Point2D
     content::Any
     action::Any
+    dialog::Any
     visible::Bool
     enabled::Bool
     margin::Inset
@@ -230,6 +232,7 @@ end
 
 function WidgetButton(position::Point2D, size::Point2D, content;
                       action=nothing,
+                      dialog=nothing,
                       visible::Bool=true,
                       enabled::Bool=true,
                       margin::Inset=inset_default,
@@ -242,7 +245,9 @@ function WidgetButton(position::Point2D, size::Point2D, content;
     # *computed* cell (thunk called with 0 args), so wrapping the callback as
     # `Cell(action)` would invoke it on read. Store it as a primitive cell value.
     action_cell = Cell(nothing); setval!(action_cell, action)
-    WidgetButton(Cell(position), Cell(size), Cell(content), action_cell,
+    # `dialog` (optional) is a child `WidgetDialog` opened as a modal window on
+    # click instead of running `action`. Stored as reactive content.
+    WidgetButton(Cell(position), Cell(size), Cell(content), action_cell, Cell(dialog),
                  Cell(visible), Cell(enabled), Cell(margin), Cell(margin_color),
                  Cell(border), Cell(border_color),
                  Cell(padding), Cell(padding_color),
@@ -333,6 +338,84 @@ function WidgetContextMenu(child, menu;
 end
 
 setfn!(w::WidgetContextMenu, f::Function) = (setfn!(getfield(w, :child), f); w)
+
+# ── WidgetDialog ───────────────────────────────────────────────────────────
+
+"""
+    WidgetDialog(title, content, buttons; popup_id=:widget_dialog, <base kwargs>)
+
+A **modal** dialog (Stage 3 Step 5): a centered card holding `title`, `content`
+(a child widget or string), and a row of `buttons` (`WidgetButton`s), over a
+translucent scrim. Opened as a window with `modal=true`, so `WindowManager` drops
+input to every other window until it is dismissed. Dismissed by **Esc**, a
+**backdrop click** (on the scrim outside the card), or a **button**: a button
+click runs its action *and* closes the window named by `popup_id` in one
+`CompoundOperation`. Build one with `WidgetMessageBox` / `WidgetInputDialog`, or
+open it from a `WidgetButton`'s `dialog` field.
+"""
+@document struct WidgetDialog <: WidgetDocument
+    title::Any
+    content::Any
+    buttons::CellVector
+    popup_id::Symbol
+    visible::Bool
+    margin::Inset
+    margin_color::StyleColor
+    border::Inset
+    border_color::StyleColor
+    padding::Inset
+    padding_color::StyleColor
+    selection::Reference
+end
+
+function WidgetDialog(title, content, buttons::Vector;
+                     popup_id::Symbol=:widget_dialog,
+                     visible::Bool=true,
+                     margin::Inset=inset_default,
+                     margin_color=nothing,
+                     border::Inset=inset_default,
+                     border_color=nothing,
+                     padding::Inset=inset_default,
+                     padding_color=nothing)
+    WidgetDialog(Cell(title), Cell(content),
+                 CellVector(Cell[Cell(b) for b in buttons]),
+                 Cell(popup_id),
+                 Cell(visible), Cell(margin), Cell(margin_color),
+                 Cell(border), Cell(border_color),
+                 Cell(padding), Cell(padding_color),
+                 Cell(nothing))
+end
+
+setfn!(w::WidgetDialog, f::Function) = (setfn!(getfield(w, :content), f); w)
+
+"""
+    WidgetMessageBox(title, message; buttons=["OK"], popup_id=:widget_dialog)
+
+A `WidgetDialog` whose content is a `WidgetLabel(message)` and whose buttons are
+plain closing `WidgetButton`s — the `QMessageBox` analogue.
+"""
+function WidgetMessageBox(title, message; buttons=["OK"], popup_id::Symbol=:widget_dialog)
+    btns = Any[WidgetButton(Point2D(0, 0), Point2D(72, 0), b) for b in buttons]
+    WidgetDialog(title, WidgetLabel(Point2D(0, 0), message), btns; popup_id=popup_id)
+end
+
+"""
+    WidgetInputDialog(title, prompt; value="", popup_id=:widget_dialog)
+
+A `WidgetDialog` whose content is a prompt label above a `WidgetText` field, with
+Cancel / OK buttons — the `QInputDialog` analogue. (Editing the field needs the
+text-widget projection, as for any `WidgetText`.)
+"""
+function WidgetInputDialog(title, prompt; value="", popup_id::Symbol=:widget_dialog)
+    content = WidgetComposite(Point2D(0, 0), Any[
+        WidgetLabel(Point2D(0, 0), prompt),
+        WidgetText(Point2D(0, 28), value),
+    ])
+    WidgetDialog(title, content,
+                 Any[WidgetButton(Point2D(0, 0), Point2D(72, 0), "Cancel"),
+                     WidgetButton(Point2D(0, 0), Point2D(72, 0), "OK")];
+                 popup_id=popup_id)
+end
 
 # ── WidgetMenu ─────────────────────────────────────────────────────────────
 
