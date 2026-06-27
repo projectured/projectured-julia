@@ -314,3 +314,110 @@ end
 
 report_structural_locality(example::Example) =
     report_structural_locality(example.name, example.document, example.projection)
+
+# ── Dimension B: value-edit isolation ─────────────────────────────────────────
+#
+# Editing one leaf's scalar value must invalidate only that leaf's value/text
+# cell and the cells strictly derived from it — never a sibling subtree, and
+# never any output STRUCTURE. Because a value edit writes into an existing
+# slot's cell (CellVector `cv[i] = val` keeps `.elements`, so the structure cell
+# is untouched — Collection.jl invariants), no output object should be rebuilt:
+# the leaf's text cell recomputes to a new (uncounted) String in place. So the
+# clean, generic dimension-B invariant is `lost_objects == 0`.
+#
+# This is predicted CLEAN for the template engine (value cells read `doc.value`,
+# children cells read `child_iomaps` which does not depend on an element's value
+# cell — see plan/pending/printer-locality-findings.md Finding 1), so it is an
+# assertion, not a report.
+
+# Every input leaf carrying an editable scalar `:value` field (String / Real /
+# Bool), with a path label and the original value, so the edit can be undone.
+function _find_input_value_leaves(document)
+    found = Tuple{String,Any,Any}[]   # (label, node, original_value)
+    seen = Set{UInt64}()
+    function walk(node, label)
+        node === nothing && return
+        node isa Union{Bool,Number,AbstractString,Symbol} && return
+        oid = objectid(node)
+        oid in seen && return
+        push!(seen, oid)
+        if node isa CellVector
+            for i in 1:length(node)
+                walk(node[i], "$label[$i]")
+            end
+            return
+        end
+        T = typeof(node)
+        isstructtype(T) || return
+        if hasproperty(node, :value)
+            v = try node.value catch; nothing end
+            v isa Union{AbstractString,Real,Bool} && push!(found, (label, node, v))
+        end
+        for fname in fieldnames(T)
+            fname === :selection && continue
+            fv = try getfield(node, fname) catch; continue end
+            fval = fv isa Cell ? fv[] : fv
+            (fval isa CellVector || (fval !== nothing && hasproperty(fval, :selection))) &&
+                walk(fval, label == "" ? ".$fname" : "$label.$fname")
+        end
+    end
+    walk(document, "")
+    found
+end
+
+# A minimal same-typed perturbation of a scalar value (so the projection still
+# renders without error): flip a Bool, bump a Real, extend a String.
+_perturb(v::Bool)          = !v
+_perturb(v::Real)          = v + oneunit(v)
+_perturb(v::AbstractString) = v * "x"
+
+"""
+    explore_value_locality(document, projection; onstate=nothing)
+        -> (count, errors)
+
+Drive dimension B over every input scalar leaf: perturb its value (restoring it
+afterwards) and require that the edit rebuilt NO output object (`lost == 0`).
+`onstate(ok, msg)` is invoked once per leaf for one `@test` apiece.
+"""
+function explore_value_locality(document, projection; onstate=nothing)
+    errors = String[]
+    leaves = _find_input_value_leaves(document)
+    for (label, node, original) in leaves
+        r = printer_locality_report(document, projection,
+                                    _ -> (node.value = _perturb(original)))
+        try node.value = original catch end   # restore
+        msgs = String[]
+        append!(msgs, r.errors)
+        if r.lost_objects > 0
+            push!(msgs, "→ $label: value edit rebuilt $(r.lost_objects)/$(r.before_objects) output object(s) (expected 0)")
+        end
+        ok = isempty(msgs)
+        append!(errors, msgs)
+        onstate === nothing || onstate(ok, ok ? "" : join(msgs, "; "))
+    end
+    (count = length(leaves), errors = errors)
+end
+
+function test_value_locality(label, document, projection)
+    @testset "$label" begin
+        res = explore_value_locality(document, projection;
+            onstate = (ok, msg) -> begin
+                ok || @warn "[$label] $msg"
+                @test ok
+            end)
+        res.count == 0 && @info "[$label] no scalar value leaves to probe (value locality not exercised)"
+    end
+end
+
+test_value_locality(example::Example) =
+    test_value_locality(example.name, example.document, example.projection)
+
+function test_value_localities()
+    @testset "Value locality" begin
+        for example in examples
+            @testset "$(example.name)" begin
+                test_value_locality(example)
+            end
+        end
+    end
+end
