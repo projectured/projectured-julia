@@ -7,12 +7,13 @@
 
 > Animation support falls out of the existing reactive system almost for free
 > by introducing **time** as a single global `Cell` that is rewritten once per
-> printer cycle. Any projection can *subscribe* to it (read `TIME[]`, become a
-> dependent, re-run every frame) or merely *sample* it (read `time_now()`, no
-> dependency). No new evaluation model, no tweening engine bolted onto the side
-> — animation is just an ordinary reactive dependency on one extra cell, and
-> retirement of finished animations is done from *above* the engine, leaving
-> the reactive layer untouched.
+> printer cycle. Any projection can *subscribe* to it
+> (`reactive_editor_time()` — become a dependent, re-run every frame) or merely
+> *sample* it (`editor_time()` — read the value, no dependency). No new
+> evaluation model, no tweening engine bolted onto the side — animation is just
+> an ordinary reactive dependency on one extra cell, and retirement of finished
+> animations is done from *above* the engine, leaving the reactive layer
+> untouched.
 
 ---
 
@@ -40,25 +41,25 @@ pull*. Animation is the same shape with exactly one new input: **a clock**.
 
 ## Core Idea
 
-Introduce a single global, primitive `Cell` — call it `TIME` — that holds the
+Introduce a single global, primitive `Cell` — `EDITOR_TIME` — that holds the
 current logical time. The main loop **writes** it once per cycle:
 
 ```julia
 # inside run!, each frame, before print!
-tick!(TIME)      # TIME[] = <current logical time>
+tick!()      # EDITOR_TIME[] = <current logical time>
 ```
 
 Because invalidation is **write-driven** (see
 [design-decisions §10](../../documentation/design-decisions.md) and
-[reactive-cells.md](../../documentation/reactive-cells.md)), writing `TIME`
-unconditionally invalidates every cell that *read* it — transitively — and the
-next pull during `write_to_devices` recomputes exactly those cells and nothing
-else. A projection animates a field by wiring a *computed* cell that reads
-`TIME`:
+[reactive-cells.md](../../documentation/reactive-cells.md)), writing
+`EDITOR_TIME` unconditionally invalidates every cell that *read* it —
+transitively — and the next pull during `write_to_devices` recomputes exactly
+those cells and nothing else. A projection animates a field by wiring a
+*computed* cell that subscribes to time:
 
 ```julia
 # x = 10 at t0, eases to 100 at t1, holds at 100 afterwards
-position_x = Cell(() -> animate(10.0, 100.0, t0, t1; easing = ease_out)(TIME[]))
+position_x = Cell(() -> animate(10.0, 100.0, t0, t1; easing = ease_out)(reactive_editor_time()))
 ```
 
 That is the entire mechanism. The reactive graph already does the rest:
@@ -70,21 +71,24 @@ off-screen animated node is never pulled, so it costs nothing).
 
 ## Two read modes: subscribe vs sample
 
-A single `TIME[]` conflates two genuinely different intents, and the conflation
-is a footgun: *anyone* who reads `TIME[]` from inside a computation silently
-becomes reactive on it, whether they meant to or not.
+A single tracked read conflates two genuinely different intents, and the
+conflation is a footgun: *anyone* who subscribes to time from inside a
+computation becomes reactive on it, whether they meant to or not. So expose two
+named reads, backed by **one cell** (single source of truth):
 
-- **Subscribe** — "wake me every frame." This is what an animated value wants:
-  read `TIME[]`, register the dependency, re-run on every tick.
-- **Sample** — "what time is it right now?" This is what *arming* an animation
-  wants (capture the start instant), and what the retirement sweep wants (decide
-  whether an animation is finished). These must **not** subscribe — otherwise
-  the arming/bookkeeping code itself starts re-running every frame.
+- **`reactive_editor_time()` — subscribe.** "Wake me every frame." A tracked
+  read of `EDITOR_TIME`; the calling cell becomes a dependent and re-runs on
+  every tick. This is what an animated value wants. The `reactive_` prefix is
+  deliberately loud: it announces that calling this makes you reactive.
+- **`editor_time()` — sample.** "What time is it right now?" An *untracked* read
+  that registers no dependency. This is what *arming* an animation wants (capture
+  the start instant) and what the retirement sweep wants (decide whether an
+  animation is finished). These must not subscribe — otherwise the
+  arming/bookkeeping code itself starts re-running every frame.
 
-Back both modes with **one cell** (single source of truth), exposing a second,
-untracked read. The untracked read is a *generic reactive primitive* — Solid has
-`untrack`/`peek`, MobX has `untracked`; it is not an animation concept, so it
-belongs in the engine without leaking anything downward:
+The untracked read is a *generic reactive primitive* — Solid has `untrack`/
+`peek`, MobX has `untracked`; it is not an animation concept, so it belongs in
+the engine without leaking anything downward:
 
 ```julia
 # Layer 0 (Reactive.jl) — generic untracked read, no dependency registered:
@@ -93,26 +97,27 @@ peek(c::Cell) = (c.valid || recompute!(c); c.value)
 
 ```julia
 # time layer:
-const TIME  = Cell(0.0)
-time_now()  = peek(TIME)   # SAMPLE  — no subscription, essentially free
-# TIME[]                    # SUBSCRIBE — tracked, re-runs every tick
+const EDITOR_TIME      = Cell(0.0)
+reactive_editor_time() = EDITOR_TIME[]      # SUBSCRIBE — tracked, re-runs every tick
+editor_time()          = peek(EDITOR_TIME)  # SAMPLE    — untracked, essentially free
 ```
 
-For a *primitive* cell like `TIME`, `peek` never recomputes (`TIME.value` is
-always valid after the loop writes it), registers no edge, and skips the
-dependency-tracking branch in `getindex` — strictly cheaper than `TIME[]`.
+For a *primitive* cell like `EDITOR_TIME`, `peek` never recomputes
+(`EDITOR_TIME.value` is always valid after the loop writes it), registers no
+edge, and skips the dependency-tracking branch in `getindex` — strictly cheaper
+than the subscribing read.
 
-> **The footgun is symmetric — name for intent.** Reading the *sample* form
-> inside a thunk that *should* animate yields a value that is correct once and
-> then frozen forever (no dependency → never re-runs). Make the call sites
-> impossible to confuse. `TIME[]` vs `time_now()` is acceptable; louder still is
-> `animated_time()` vs `sample_time()`.
+> **The footgun is symmetric — the names guard against it.** Sampling
+> (`editor_time()`) inside a thunk that *should* animate yields a value that is
+> correct once and then frozen forever (no dependency → never re-runs). The
+> `reactive_` prefix makes the subscribing call the conspicuous one, so reaching
+> for the bare `editor_time()` reads as the deliberate "just the number" choice.
 
-Why not two independent globals (`NOW::Ref` + `TIME::Cell`)? It works and needs
-no `peek`, but it duplicates the source of truth: the loop must write both, and a
-future edit that updates one and forgets the other gives a silent intra-frame
-divergence that is miserable to debug. One cell + `peek` keeps a single place
-where time lives; "sample" and "subscribe" are just two reads of it.
+Why not two independent globals (a plain `Ref` plus the cell)? It works and
+needs no `peek`, but it duplicates the source of truth: the loop must write both,
+and a future edit that updates one and forgets the other gives a silent
+intra-frame divergence that is miserable to debug. One cell read two ways keeps a
+single place where time lives; "sample" and "subscribe" are just two reads of it.
 
 ---
 
@@ -132,18 +137,18 @@ engine cannot see, so its cached result would be silently stale and never
 invalidated.
 
 Making time a **cell that the loop writes** is precisely what makes this legal.
-The thunk reads `TIME[]` — a real cell — so:
+A thunk that calls `reactive_editor_time()` reads a real cell, so:
 
-- the dependency is tracked (the thunk becomes a dependent of `TIME`);
-- the value only changes when `TIME` is *written*, which the loop does
+- the dependency is tracked (the thunk becomes a dependent of `EDITOR_TIME`);
+- the value only changes when `EDITOR_TIME` is *written*, which the loop does
   explicitly and observably;
 - the cached value is correct between writes and invalidated on each write.
 
 So the rule isn't "animation is impossible", it's "the clock must enter the
 graph through a cell, not through a side channel". This plan is the disciplined
 way to add a clock without breaking purity. (The existing wording in
-reactive-cells.md should be updated to say "no *ad-hoc* clocks — read the global
-`TIME` cell, or sample it via `peek`".)
+reactive-cells.md should be updated to say "no *ad-hoc* clocks — subscribe via
+`reactive_editor_time()`, or sample via `editor_time()`".)
 
 ---
 
@@ -156,18 +161,19 @@ next to the engine it belongs to (and the existing global `_computing` stack),
 so any layer can read it without a dependency cycle:
 
 ```julia
-const TIME = Cell(0.0)          # current logical time, seconds (single source of truth)
+const EDITOR_TIME = Cell(0.0)   # current logical time, seconds (single source of truth)
 
 peek(c::Cell) = (c.valid || recompute!(c); c.value)   # generic untracked read
 
-now_time()  = TIME[]            # SUBSCRIBE: tracked read (use in animated thunks)
-time_now()  = peek(TIME)        # SAMPLE:    untracked read (use to arm / to bookkeep)
-tick!(t)    = (TIME[] = t)      # loop writes the new time
+reactive_editor_time() = EDITOR_TIME[]       # SUBSCRIBE: tracked read (animated thunks)
+editor_time()          = peek(EDITOR_TIME)   # SAMPLE:    untracked read (arm / bookkeep)
+tick!(t)               = (EDITOR_TIME[] = t) # loop writes the new time
 ```
 
 `Float64` seconds is the natural unit for easing math; a frame counter is the
 alternative but couples animations to frame rate and makes easing awkward.
-`peek` is added to the engine's exports as a first-class, generic primitive.
+`peek`, `reactive_editor_time`, and `editor_time` are added to the engine's
+exports; `peek` is a generic untracked read, not animation-specific.
 
 ### 2. A small clock abstraction (logical, not wall-clock)
 
@@ -181,14 +187,15 @@ mutable struct Clock
     paused_at::Union{Float64,Nothing}
     rate::Float64       # 1.0 = realtime; 0 = frozen; >1 = fast
 end
-advance!(clock) → writes TIME[] with the current logical time
-seek!(clock, t)  → TIME[] = t   (scrubbing / tests)
+advance!(clock) → writes EDITOR_TIME[] with the current logical time
+seek!(clock, t)  → EDITOR_TIME[] = t   (scrubbing / tests)
 pause!/resume!/set_rate!
 ```
 
 The loop calls `advance!(clock)` each frame; tests call `seek!`. The cell stays
-the single source of truth (so both `TIME[]` and `time_now()` see the new value
-immediately); the `Clock` is just policy over *what value gets written*.
+the single source of truth (so both `reactive_editor_time()` and `editor_time()`
+see the new value immediately); the `Clock` is just policy over *what value gets
+written*.
 
 ### 3. Main-loop integration
 
@@ -198,11 +205,11 @@ after (see §5):
 ```julia
 while true
     perf_reset!()
-    advance!(editor.clock)                  # ← TIME[] = logical now
+    advance!(editor.clock)                  # ← EDITOR_TIME[] = logical now
     @perf_time :read_time     read!(editor)
     @perf_time :evaluate_time evaluate!(editor)
     @perf_time :print_time    print!(editor)        # re-pulls invalidated cells
-    retire_finished!(editor.animations, time_now()) # external retirement (§5)
+    retire_finished!(editor.animations, editor_time())  # external retirement (§5)
     perf!(editor)
     sleep(0.01)
 end
@@ -213,15 +220,15 @@ cells every frame (confirmed in
 [ProjecturedSdl.jl `write_to_devices`](../../package/sdl/src/ProjecturedSdl.jl)
 — it walks `screen.windows` → `w.content` → renders the canvas, all
 cell-backed). So no structural change to the print path is needed: bumping
-`TIME` invalidates the animated cells, and the existing per-frame pull
+`EDITOR_TIME` invalidates the animated cells, and the existing per-frame pull
 recomputes them. The cached `editor.iomap` does **not** need to be discarded —
 the *structure* is unchanged, only animated *values* recompute. This is the
 whole reason it's cheap.
 
 > Note one consequence: today idle frames recompute nothing. After this change,
 > idle frames still recompute nothing *as long as no animated cell subscribes to
-> TIME*. Writing `TIME` with zero dependents only walks an empty dependent set —
-> cheap. CPU cost appears only when something is actually animating. See
+> time*. Writing `EDITOR_TIME` with zero dependents only walks an empty dependent
+> set — cheap. CPU cost appears only when something is actually animating. See
 > Performance below.
 
 ### 4. Animation helpers (value-level)
@@ -248,14 +255,14 @@ A projection wires one into a computed cell, **sampling** the start instant so
 the arming code does not itself subscribe to time:
 
 ```julia
-t0 = time_now()                 # SAMPLE the absolute start (no subscription)
+t0 = editor_time()              # SAMPLE the absolute start (no subscription)
 t1 = t0 + 0.5
 setfn!(getfield(node, :position_x),
-       () -> animate(10.0, 100.0, t0, t1; easing = ease_out)(TIME[]))  # SUBSCRIBE
+       () -> animate(10.0, 100.0, t0, t1; easing = ease_out)(reactive_editor_time()))  # SUBSCRIBE
 ```
 
 **Absolute vs. relative start times.** Animation start times should be
-*absolute* (`t0` captured from `time_now()` at the moment the animation is
+*absolute* (`t0` captured from `editor_time()` at the moment the animation is
 armed), not "N seconds from when this cell was built". Cells get rebuilt
 whenever the iomap is dropped (e.g. after a whole-document swap,
 [Operation.jl](../../package/kernel/src/common/Operation.jl) sets
@@ -267,7 +274,7 @@ mid-flight animations.
 A finished animation that keeps recomputing to a constant is wasteful (the
 engine has no value-equality short-circuit — it re-runs the thunk every frame
 even when the result is unchanged). We want such a cell to stop subscribing to
-`TIME` once it is done. **The retirement must not touch the engine and must not
+time once it is done. **The retirement must not touch the engine and must not
 happen inside a thunk** — it is an animation-layer concern, expressed only
 through the engine's existing public API.
 
@@ -295,23 +302,23 @@ end
 
 `setval!(cell, cell[])` is the whole trick: at `now >= t1`, `cell[]` already
 returns the final value, and `setval!` converts the cell to a primitive holding
-it — which severs its `TIME` dependency via the engine's existing
+it — which severs its `EDITOR_TIME` dependency via the engine's existing
 `_detach_upstream!`. It runs **between frames**, outside `_computing`, so there
 is no mid-recompute hazard and no purity violation. It is the same kind of
-external write the loop already performs on `TIME`.
+external write the loop already performs on `EDITOR_TIME`.
 
 Properties of this approach:
 
 - **Engine untouched** — no sentinel, no return-type check, no knowledge of
   animation in Layer 0. Reactivity never hears the word "animation".
-- **Thunks stay pure** — they only read `TIME` and compute; nothing mutates
-  itself.
+- **Thunks stay pure** — they only subscribe to time and compute; nothing
+  mutates itself.
 - **Removable** — retirement is a pure optimization layered on top. Delete the
   manager and everything still works, just with the per-frame churn (kept cheap
   by dirty-rect rendering; see Performance).
 - **Perpetual animations are never registered** — a rotating dot or a blinking
-  cursor has no end, so it simply stays subscribed to `TIME` and is *not* added
-  to the manager. Only finite animations retire.
+  cursor has no end, so it simply stays subscribed via `reactive_editor_time()`
+  and is *not* added to the manager. Only finite animations retire.
 
 Two things the manager must get right:
 
@@ -343,19 +350,19 @@ the playback is a derived value.
 `x = 10` at `t0`, animates to `100` at `t1`, then stays at `100`:
 
 ```julia
-t0 = time_now()                 # SAMPLE the absolute start
+t0 = editor_time()              # SAMPLE the absolute start
 t1 = t0 + 0.5                   # half-second slide
 setfn!(getfield(rect, :x),
-       () -> animate(10.0, 100.0, t0, t1; easing = ease_out)(TIME[]))  # SUBSCRIBE
+       () -> animate(10.0, 100.0, t0, t1; easing = ease_out)(reactive_editor_time()))  # SUBSCRIBE
 register!(editor.animations, LiveAnimation(getfield(rect, :x), now -> now >= t1))
 ```
 
 - Before `t0`: pulls return `10`.
-- Between `t0` and `t1`: each frame `TIME` is written → the `x` cell is
+- Between `t0` and `t1`: each frame `EDITOR_TIME` is written → the `x` cell is
   invalidated → next pull recomputes the eased value → the rect redraws.
 - At `t1`: the value reaches `100`; the next `retire_finished!` sweep pins the
   cell to `100` as a primitive and unregisters it. From then on it costs
-  nothing — it no longer subscribes to `TIME`.
+  nothing — it no longer subscribes to time.
 
 This is the *finite* path. The next example is the *perpetual* path.
 
@@ -368,7 +375,7 @@ point rotates forever on a circle, while two line charts trace its coordinates �
 the **sine** of the angle (the y-coordinate) aligned to the vertical axis, and
 the **cosine** (the x-coordinate) aligned to the horizontal axis. Because it
 never ends, nothing here is registered with the `AnimationManager`; it simply
-stays subscribed to `TIME`. This exercises the always-on path.
+stays subscribed to time. This exercises the always-on path.
 
 ### Layout
 
@@ -390,7 +397,7 @@ stays subscribed to `TIME`. This exercises the always-on path.
 
 Center `(cx0, cy0)`, radius `R`, angular velocity `ω`. Screen-y grows downward,
 so we negate the sine to make "up" positive. The phase origin is **sampled** at
-arm time; every animated value **subscribes** to `TIME`.
+arm time; every animated value **subscribes** to time.
 
 ```julia
 const ω  = 2.0          # rad / s
@@ -399,18 +406,18 @@ const N  = 240          # samples in each chart's time window
 const dθ = 0.02         # angle between adjacent samples
 const GAP = 24
 
-phase0 = time_now()                 # SAMPLE the start instant (no subscription)
+phase0 = editor_time()              # SAMPLE the start instant (no subscription)
 θ(t)   = ω * (t - phase0)
 
 # ── the rotating dot (GraphicsCircle) — perpetual, NOT registered ──────────
-setfn!(getfield(dot, :cx), () -> round(Int32, cx0 + R * cos(θ(TIME[]))))   # SUBSCRIBE
-setfn!(getfield(dot, :cy), () -> round(Int32, cy0 - R * sin(θ(TIME[]))))   # SUBSCRIBE
+setfn!(getfield(dot, :cx), () -> round(Int32, cx0 + R * cos(θ(reactive_editor_time()))))
+setfn!(getfield(dot, :cy), () -> round(Int32, cy0 - R * sin(θ(reactive_editor_time()))))
 
 # ── sine chart (GraphicsPolyline) — aligned to the Y axis, scrolling right ─
 # newest sample (i = 0) sits at the chart's left edge, at the dot's exact cy,
 # so a horizontal link line meets the curve where the dot is.
 setfn!(getfield(sin_chart, :points), () -> begin
-    t = TIME[]                                                              # SUBSCRIBE
+    t = reactive_editor_time()                                             # SUBSCRIBE
     [(cx0 + R + GAP + i, round(Int, cy0 - R * sin(θ(t) - i * dθ))) for i in 0:N]
 end)
 
@@ -418,13 +425,13 @@ end)
 # newest sample (i = 0) sits at the chart's top edge, at the dot's exact cx,
 # so a vertical link line meets the curve where the dot is.
 setfn!(getfield(cos_chart, :points), () -> begin
-    t = TIME[]                                                              # SUBSCRIBE
+    t = reactive_editor_time()                                             # SUBSCRIBE
     [(round(Int, cx0 + R * cos(θ(t) - i * dθ)), cy0 + R + GAP + i) for i in 0:N]
 end)
 ```
 
 Two optional connector lines (`GraphicsLine`) make the projection legible — each
-reads the dot's animated coordinate (so it animates transitively, no new `TIME`
+reads the dot's animated coordinate (so it animates transitively, no new time
 read needed):
 
 ```julia
@@ -436,14 +443,14 @@ setfn!(getfield(sin_link, :x2), () -> Int32(cx0 + R + GAP)); setfn!(getfield(sin
 
 ### Why this is a good test
 
-- **Analytic, fully pure.** The charts recompute their whole polyline from
-  `TIME` each frame — no stored history, no per-frame side effect. The curve
-  *scrolls* because the window `[θ(t) − N·dθ, θ(t)]` slides forward; this is the
-  clean, side-effect-free way to draw a moving signal. (For a non-analytic
-  signal you'd keep a ring buffer instead — stateful, and explicitly the
-  not-pure case; call it out where used.)
-- **Composition.** The link lines depend on the dot's cells, which depend on
-  `TIME`; invalidation flows through two hops with no special handling.
+- **Analytic, fully pure.** The charts recompute their whole polyline from time
+  each frame — no stored history, no per-frame side effect. The curve *scrolls*
+  because the window `[θ(t) − N·dθ, θ(t)]` slides forward; this is the clean,
+  side-effect-free way to draw a moving signal. (For a non-analytic signal you'd
+  keep a ring buffer instead — stateful, and explicitly the not-pure case; call
+  it out where used.)
+- **Composition.** The link lines depend on the dot's cells, which subscribe to
+  time; invalidation flows through two hops with no special handling.
 - **Alignment falls out of the math.** The newest chart sample equals the dot's
   projected coordinate by construction, so "aligned to the corresponding axis"
   needs no extra layout logic.
@@ -459,15 +466,15 @@ setfn!(getfield(sin_link, :x2), () -> Int32(cx0 + R + GAP)); setfn!(getfield(sin
 ## Implementation Steps
 
 ### 1. Time cell, readers, clock
-- Add `TIME`, `peek`, `now_time()` (subscribe), `time_now()` (sample),
-  `tick!`/`seek!` to `Reactive.jl`; export them. `peek` is a generic untracked
-  read, not animation-specific.
+- Add `EDITOR_TIME`, `peek`, `reactive_editor_time()` (subscribe),
+  `editor_time()` (sample), `tick!`/`seek!` to `Reactive.jl`; export them.
+  `peek` is a generic untracked read, not animation-specific.
 - Add a `Clock` struct with `advance!/seek!/pause!/resume!/set_rate!`.
 - Hold a `Clock` and an `AnimationManager` on the `Editor`.
 
 ### 2. Loop integration
 - Call `advance!(editor.clock)` at the top of each `run!` frame and
-  `retire_finished!(editor.animations, time_now())` after `print!` (all three
+  `retire_finished!(editor.animations, editor_time())` after `print!` (all three
   loop variants: plain, bootstrap, and the timeline-driven `run!`).
 - Confirm `write_to_devices` re-pulls animated cells with the iomap cached
   (verify with a one-cell smoke test).
@@ -486,38 +493,38 @@ setfn!(getfield(sin_link, :x2), () -> Int32(cx0 + R + GAP)); setfn!(getfield(sin
 - **Settling demo** (example A): a value that eases and retires; assert via
   `perf_counters()` that it stops recomputing after `t1`.
 - **Rotating vector** (example B): the circle + sin/cos charts above, as a
-  graphics-domain example wired entirely from `TIME`. Run via
-  `run_example(...)`; capture a filmstrip via `write_image` at successive
-  `seek!` values.
+  graphics-domain example wired entirely from time. Run via `run_example(...)`;
+  capture a filmstrip via `write_image` at successive `seek!` values.
 
 ### 6. Determinism for tests / headless
 - `test_printers` and friends must pin time: `seek!(clock, FIXED_T)` (or
-  `TIME[] = 0.0`) before projecting, so printer output is reproducible.
+  `EDITOR_TIME[] = 0.0`) before projecting, so printer output is reproducible.
 - `write_example_image` / screenshot helpers take an optional `at::Float64`
   that does `seek!` before rendering.
-- Add a test that bumps `TIME` across two values and asserts an animated
+- Add a test that bumps `EDITOR_TIME` across two values and asserts an animated
   coordinate changed (and that a non-animated sibling did **not** recompute —
   the incrementality guarantee), plus a test that a finite animation retires
   (subscribes before `t1`, primitive after).
 
 ### 7. Idle/active gating (performance)
-- Detect whether anything is animating by inspecting `TIME`'s dependent set
-  (non-empty ⇒ animations live). When empty, the loop can `sleep` longer / skip
-  the redraw entirely.
+- Detect whether anything is animating by inspecting `EDITOR_TIME`'s dependent
+  set (non-empty ⇒ animations live). When empty, the loop can `sleep` longer /
+  skip the redraw entirely.
 
 ---
 
 ## Performance
 
-- **Idle is still free.** Writing `TIME` with no subscribers walks an empty set.
-  The only always-on cost is the write itself plus the existing 10 ms poll loop.
-- **`time_now()` is cheaper than `TIME[]`.** Sampling skips dependency tracking
-  and never recomputes a primitive cell — so arming and the retirement sweep add
-  negligible cost and, crucially, register no edges.
+- **Idle is still free.** Writing `EDITOR_TIME` with no subscribers walks an
+  empty set. The only always-on cost is the write itself plus the existing 10 ms
+  poll loop.
+- **`editor_time()` is cheaper than `reactive_editor_time()`.** Sampling skips
+  dependency tracking and never recomputes a primitive cell — so arming and the
+  retirement sweep add negligible cost and, crucially, register no edges.
 - **Active cost is proportional to the animated subtree**, by construction of
-  the pull-based engine — siblings that don't subscribe to `TIME` never
-  recompute. Use `perf_counters()` to confirm `:computes` per frame tracks only
-  the animated nodes.
+  the pull-based engine — siblings that don't subscribe to time never recompute.
+  Use `perf_counters()` to confirm `:computes` per frame tracks only the
+  animated nodes.
 - **Retirement removes finished finite animations** from the subscriber set, so
   a screen that accumulates many one-shot effects (fades, slides) does not slowly
   accrue per-frame churn. Perpetual animations stay subscribed by design.
@@ -534,27 +541,23 @@ setfn!(getfield(sin_link, :x2), () -> Int32(cx0 + R + GAP)); setfn!(getfield(sin
   proposal. Confirm easing math and `keyframes` read cleanly in those units;
   decide whether `Clock.rate`/pause are needed in v1 or can be deferred (realtime
   monotonic clock is the minimum).
-- **Naming for the subscribe/sample split.** `TIME[]`/`now_time()` vs
-  `time_now()` may be too quiet given the symmetric footgun (sampling where you
-  meant to subscribe freezes silently). Consider louder names
-  (`animated_time()`/`sample_time()`).
 - **Retirement registry lifetime.** Clearing on iomap rebuild vs `WeakRef`
   cells. `WeakRef` is robust but adds indirection; clear-on-rebuild is simple but
   must hook every iomap-drop site. Decide once the rebuild paths are enumerated.
 - **Determinism vs. realtime.** Tests/headless use `seek!`; the live editor uses
   `advance!`. Audit projection code for any direct `Base.time()`/`time_ns()` —
-  everything must go through `TIME`/`peek`.
+  everything must go through `EDITOR_TIME` (subscribe or sample).
 - **Where helpers live.** `Animation.jl` in the graphics layer vs a standalone
-  package. The cell + `peek` belong in the kernel; the easing/keyframe/manager
-  vocabulary belongs with graphics.
+  package. The cell + `peek` + the two readers belong in the kernel; the
+  easing/keyframe/manager vocabulary belongs with graphics.
 - **Generality of interpolation.** `animate` over numbers is obvious; over colors
   (fades), points (motion paths), and styled-string attributes needs an
   interpolation typeclass (`lerp(a, b, fraction)` per type).
-- **Non-analytic signals.** Example B is analytic (recomputed from `TIME`).
-  Charts of measured/streamed signals need a stored history (ring buffer), which
-  is stateful — decide how that state is owned without violating thunk purity
+- **Non-analytic signals.** Example B is analytic (recomputed from time). Charts
+  of measured/streamed signals need a stored history (ring buffer), which is
+  stateful — decide how that state is owned without violating thunk purity
   (likely a primitive cell holding the buffer, written by an external sampler in
-  the loop, exactly like `TIME` itself).
+  the loop, exactly like `EDITOR_TIME` itself).
 - **Spec as a document.** Modelling keyframes/curves as an editable document (a
   timeline editor projection) is attractive but a separate, larger effort; v1
   can hardcode animation specs in projection code.
@@ -574,17 +577,17 @@ setfn!(getfield(sin_link, :x2), () -> Int32(cx0 + R + GAP)); setfn!(getfield(sin
 - **Self-elimination inside the thunk** (the thunk calls `setval!` on its own
   cell when done). It happens to work — under the monotone-invalidation
   invariant the self-write's dependent walk is a no-op, because every dependent
-  is already invalid while the cell is being recomputed from a `TIME` write. But
-  it violates the thunk-purity contract (a side effect inside a thunk that may
-  run 0/1/many times), relies on a non-obvious proof, has a read-ordering trap
-  (must not read any cell after eliminating), and is fragile against any future
-  engine change (value-equality short-circuit, speculative/parallel recompute).
-  The external `AnimationManager` (§5) achieves the same retirement with a pure
-  thunk and an untouched engine.
-- **Two independent time globals** (`NOW::Ref` + `TIME::Cell`). Works and needs
+  is already invalid while the cell is being recomputed from a time write. But it
+  violates the thunk-purity contract (a side effect inside a thunk that may run
+  0/1/many times), relies on a non-obvious proof, has a read-ordering trap (must
+  not read any cell after eliminating), and is fragile against any future engine
+  change (value-equality short-circuit, speculative/parallel recompute). The
+  external `AnimationManager` (§5) achieves the same retirement with a pure thunk
+  and an untouched engine.
+- **Two independent time globals** (a plain `Ref` plus the cell). Works and needs
   no `peek`, but duplicates the source of truth and invites silent intra-frame
-  divergence. One cell read two ways (`TIME[]` / `peek`) is the same ergonomics
-  without the duplication.
+  divergence. One cell read two ways (`reactive_editor_time()` / `editor_time()`)
+  is the same ergonomics without the duplication.
 
 ---
 
@@ -603,7 +606,8 @@ setfn!(getfield(sin_link, :x2), () -> Int32(cx0 + R + GAP)); setfn!(getfield(sin
 ## Dependencies
 
 - The reactive cell engine ([Reactive.jl](../../package/kernel/src/common/Reactive.jl))
-  — `TIME` and the generic `peek` (untracked read) are added there; write-driven
+  — `EDITOR_TIME`, the generic `peek` (untracked read), and the two readers
+  `reactive_editor_time()` / `editor_time()` are added there; write-driven
   invalidation is the load-bearing mechanism and already exists.
 - The main loop ([Editor.jl](../../package/kernel/src/editor/Editor.jl)) — one
   `advance!` and one `retire_finished!` call per frame; the per-frame
@@ -611,11 +615,12 @@ setfn!(getfield(sin_link, :x2), () -> Int32(cx0 + R + GAP)); setfn!(getfield(sin
 - The graphics domain primitives used by example B already exist:
   `GraphicsCircle`, `GraphicsPolyline`, `GraphicsLine`, `GraphicsCanvas`
   ([Graphics.jl](../../package/domain/src/document/Graphics.jl)) — all
-  cell-backed, so their fields can be driven by computed cells that read `TIME`.
+  cell-backed, so their fields can be driven by computed cells that subscribe to
+  time.
 - No backend changes for in-canvas animation (the SDL/web/console backends
   already re-render the cell-backed canvas each frame).
 - A doc correction to
   [reactive-cells.md](../../documentation/reactive-cells.md): the purity rule
-  should clarify that the clock enters the graph through the `TIME` cell
-  (subscribe via `TIME[]`, sample via `peek`), never via an ad-hoc wall-clock
-  read inside a thunk.
+  should clarify that the clock enters the graph through the `EDITOR_TIME` cell
+  (subscribe via `reactive_editor_time()`, sample via `editor_time()`), never via
+  an ad-hoc wall-clock read inside a thunk.
