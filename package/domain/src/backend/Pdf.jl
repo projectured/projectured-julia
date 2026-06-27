@@ -27,6 +27,7 @@ import ..GraphicsModule: GraphicsCanvas, GraphicsText, GraphicsRect, GraphicsLin
                          GraphicsCircle, GraphicsPolyline, GraphicsSpline,
                          GraphicsViewport, GraphicsImage, GraphicsFence,
                          _canvas_content_bounds, tessellate_spline, polyline_arrowhead
+import ..GeometryModule: AffineTransform, affine_identity, affine_is_axis_aligned
 import ..FontModule: StyleFont
 import ..ImageModule: ImageFile
 import ..ProjectionApiModule: projection_print, Projection
@@ -512,6 +513,18 @@ function paint_viewport!(ctx, vp, ox, oy)
     _on_page(ctx, vy, vy + vh) || return
     yb = _flip(ctx, vy + vh)
     print(ctx.buf, "q ", n2(vx), " ", n2(yb), " ", n2(vw), " ", n2(vh), " re W n\n")
+    # Apply the viewport's affine transform (translate+scale subset) as a PDF `cm`
+    # *after* the clip, so content is magnified within the fixed viewport box.
+    # The matrix is derived in PDF (bottom-up) space from the top-down transform:
+    # output = (sx·P.x + Ex, sy·P.y + Fy), accounting for the per-element y-flip.
+    M = vp.transform::AffineTransform
+    if M !== affine_identity && affine_is_axis_aligned(M) &&
+       !(M.a == 1.0 && M.d == 1.0 && M.e == 0.0 && M.f == 0.0)
+        sx, sy = M.a, M.d
+        ex = vx * (1.0 - sx) + M.e
+        fy = (1.0 - sy) * _flip(ctx, vy) - M.f
+        print(ctx.buf, n2(sx), " 0 0 ", n2(sy), " ", n2(ex), " ", n2(fy), " cm\n")
+    end
     content = vp.content
     paint_canvas!(ctx, content, vx + Int(content.x), vy + Int(content.y))
     print(ctx.buf, "Q\n")

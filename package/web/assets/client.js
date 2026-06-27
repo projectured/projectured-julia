@@ -439,6 +439,9 @@
     ctx.beginPath();
     ctx.rect(0, 0, e.w, e.h);
     ctx.clip();
+    // Optional viewport affine transform (zoom/pan): [a,b,c,d,e,f], applied
+    // after the clip so it magnifies content within the fixed viewport box.
+    if (e.m) ctx.transform(e.m[0], e.m[1], e.m[2], e.m[3], e.m[4], e.m[5]);
     ctx.translate(e.ox, e.oy);
     renderList(ctx, e.content || []);
     ctx.restore();

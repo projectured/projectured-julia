@@ -37,6 +37,7 @@ All widgets subtype the abstract `WidgetDocument` (which subtypes `Document`).
 | `WidgetSplitPane(orientation, elements; sizes)` | Split with drag-resizable splitters (fields `elements`/`sizes`) |
 | `WidgetTabbedPane(selector_element_pairs)` | Tab switcher |
 | `WidgetScrollPane(content; position, size, scroll_position)` | Scrollable viewport (offset is `scroll_position`) |
+| `WidgetTransformPane(content; position, size, transform)` | Zoom/pan viewport — content under an affine `transform` (Ctrl+wheel zooms, plain wheel pans) |
 | `WidgetScrollBar(orientation; value, thumb_size)` | Scrollbar control (fields `value`/`thumb_size`) |
 | `WidgetToolbar(elements)` | Horizontal toolbar |
 | `WidgetMenu(elements)` | Dropdown/menu |
@@ -222,6 +223,7 @@ rather than a bespoke operation. Because the widget is carried by identity
 | show / hide | `ReplaceReferencedValue(w, "visible", true/false)` |
 | enable / disable | `ReplaceReferencedValue(w, "enabled", true/false)` (disabled readers emit nothing) |
 | scroll wheel | `ReplaceReferencedValue(scroll_pane, "scroll_position", old + Δ)` (reader reads `old`) |
+| Ctrl+wheel / wheel on a transform pane | `ReplaceReferencedValue(transform_pane, "transform", M')` (zoom about cursor / pan) |
 | drag scroll-bar | `ReplaceReferencedValue(bar, "value", clamped)` |
 | hover / press a button | `ReplaceReferencedValue(widget, "hovered"/"pressed", bool)` |
 
@@ -438,6 +440,36 @@ three backings coexist:
 
 See `make_widget_document_example` (File menu / toolbar / tool-button row with
 icons) and `WidgetIconTest`.
+
+## Transform pane (zoom & pan)
+
+`WidgetTransformPane` is the scroll pane's generalisation: where a scroll pane
+carries a transient *offset* (`scroll_position`) and translates its content, a
+transform pane carries a transient *affine `transform`* (an `AffineTransform`,
+default `affine_identity`) and magnifies/pans it. Both project to a clipping
+`GraphicsViewport`; the viewport now carries a `transform` field, so the two are
+the same machinery — a scroll is `translate(−offset)`, a zoom is `scale(z)`.
+
+- **Why one node, not two nested panes.** A viewport *clips* at a fixed box, so
+  nesting a zoom viewport inside a scroll viewport makes the inner clip fight the
+  outer pan. A single viewport carrying one matrix and one clip composes cleanly,
+  and makes **zoom-toward-cursor** a single-document matrix update rather than a
+  cross-widget `scroll`+`zoom` coordination.
+- **Gestures (reader).** `Ctrl`+wheel zooms about the cursor
+  (`M' = T(c)∘S(f)∘T(−c)∘M`, total scale clamped to `[0.25, 4.0]`); a plain wheel
+  pans (`M' = T(Δ)∘M`). Both are a single `ReplaceReferencedValue(pane,
+  "transform", M')`, like every other widget edit. Other events are forwarded to
+  the content with the pointer mapped through `affine_inverse(M)`, then re-rooted
+  at `.content` exactly as the scroll pane does.
+- **`transform` is transient view state** (like `scroll_position`) — not
+  serialised.
+- **Renderer scope.** The SDL, web (`ctx.transform`), and PDF (`cm`) backends
+  honour the **translate+scale** subset; rotation/shear is future work (it needs
+  `RenderGeometry`/rotated glyphs/stencil clipping on SDL — the document, reader,
+  and hit-test math are already general). The console backend is text-only and
+  unaffected. Keyboard zoom (`Ctrl +/−`, reset) is not wired yet.
+
+Try `run_example(widget_transform_pane_example)`.
 
 ## Image content
 

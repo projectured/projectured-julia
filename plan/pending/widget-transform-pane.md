@@ -187,9 +187,13 @@ but that is not required and is out of scope here.)
 8. Factory entry + viewport variant + example `widget_transform_pane_example`.
 
 ### Phase 3 — other backends + keyboard + docs
-9. Web `setTransform`, PDF `cm`, console no-op.
-10. Keyboard zoom (`Ctrl +/−`), `make_transform_projection` wrapper.
-11. Guide row + "Transform / zoom-pan" subsection in
+9. ✅ Web `ctx.transform` (serialized `"m"` matrix in the clip dict + `drawClip`
+   apply), PDF `cm` (translate+scale, flip-aware, identity-guarded). Console is
+   text-only (renders `TextText`, never `GraphicsViewport`) — nothing to do.
+10. ⏳ Keyboard zoom (`Ctrl +/−`, reset) — **not done** (the `+`/`-`/`0` key
+    symbols need confirming at runtime); `make_transform_projection` wrapper —
+    not done.
+11. ✅ Guide row + gesture-table row + "Transform pane (zoom & pan)" subsection in
     [documentation/document/widget.md](../../documentation/document/widget.md).
 
 ### Phase 4 — rotation / shear (future, out of scope)

@@ -22,6 +22,7 @@ import ProjecturedDomain.GraphicsModule: GraphicsCanvas, GraphicsText, GraphicsR
                          GraphicsViewport, GraphicsImage, GraphicsFence,
                          _bounds_elem!, _accumulate_bounds!, tessellate_spline
 import ProjecturedDomain.CollectionModule: ListNode, CellVector
+import ProjecturedDomain.GeometryModule: AffineTransform, affine_identity
 import ProjecturedDomain.FontModule: StyleFont
 import ProjecturedDomain.ReactiveModule: Cell, isuptodate
 import ProjecturedDomain.ScreenModule: QuitEvent
@@ -230,10 +231,12 @@ function _serialize_node(elem)
                     "as" => Int(elem.arrow_size))
     elseif elem isa GraphicsViewport
         content = elem.content::GraphicsCanvas
-        return Dict("t" => "clip", "x" => Int(elem.x), "y" => Int(elem.y),
-                    "w" => Int(elem.w), "h" => Int(elem.h),
-                    "ox" => Int(content.x), "oy" => Int(content.y),
-                    "content" => _serialize_children(content))
+        d = Dict("t" => "clip", "x" => Int(elem.x), "y" => Int(elem.y),
+                 "w" => Int(elem.w), "h" => Int(elem.h),
+                 "ox" => Int(content.x), "oy" => Int(content.y),
+                 "content" => _serialize_children(content))
+        _add_transform!(d, elem.transform)
+        return d
     elseif elem isa GraphicsCanvas
         return Dict("t" => "group", "x" => Int(elem.x), "y" => Int(elem.y),
                     "content" => _serialize_children(elem))
@@ -241,6 +244,16 @@ function _serialize_node(elem)
         return _serialize_image(elem)
     end
     return nothing  # GraphicsFence / unknown
+end
+
+# A viewport's affine transform, emitted as the canvas matrix [a,b,c,d,e,f]
+# (matches `CanvasRenderingContext2D.transform`). Omitted for the identity so
+# ordinary scrolling viewports carry no extra payload and older clients ignore it.
+function _add_transform!(d::Dict, M::AffineTransform)
+    M === affine_identity && return d
+    (M.a == 1.0 && M.b == 0.0 && M.c == 0.0 && M.d == 1.0 && M.e == 0.0 && M.f == 0.0) && return d
+    d["m"] = Float64[M.a, M.b, M.c, M.d, M.e, M.f]
+    d
 end
 
 # Only the decoded-buffer image forms are serializable; the SDL-texture `Ptr`
@@ -318,12 +331,19 @@ function _serialize_node_clipped(elem, ox::Int, oy::Int, clip)
         vx, vy = ox + Int(elem.x), oy + Int(elem.y)
         vw, vh = Int(elem.w), Int(elem.h)
         _intersects((vx, vy, vx + vw, vy + vh), clip) || return nothing
+        # Under a non-identity transform the content's *untransformed* bounds no
+        # longer line up with the screen-space clip, so per-element culling would
+        # be wrong. Serialize the whole viewport (the transform is applied
+        # client-side); correct, just a larger patch.
+        elem.transform !== affine_identity && return _serialize_node(elem)
         content = elem.content::GraphicsCanvas
         children = _serialize_clipped(content, vx + Int(content.x), vy + Int(content.y), clip)
         isempty(children) && return nothing
-        return Dict("t" => "clip", "x" => Int(elem.x), "y" => Int(elem.y),
-                    "w" => vw, "h" => vh, "ox" => Int(content.x), "oy" => Int(content.y),
-                    "content" => children)
+        d = Dict("t" => "clip", "x" => Int(elem.x), "y" => Int(elem.y),
+                 "w" => vw, "h" => vh, "ox" => Int(content.x), "oy" => Int(content.y),
+                 "content" => children)
+        _add_transform!(d, elem.transform)
+        return d
     else
         b = _bounds_of_elem(elem, ox, oy)
         b === nothing && return nothing
