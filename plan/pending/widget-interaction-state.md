@@ -255,6 +255,7 @@ there.
       + exported + added to the `examples` sweep list. Folded in the deferred
       muted appearance for **Switch / Toggle / Select** (per-projection
       `disabled_color`/`disabled_foreground` fed `theme.muted`/`theme.muted_foreground`,
-      printer branches). **Still without a muted look:** Slider, RadioGroup,
-      ToggleGroup, Textarea — reader-less and lower-priority; left for a later
-      cosmetic pass. Sweep not executed here (Julia unavailable in sandbox).
+      printer branches). **Muted appearance now also added for Slider, RadioGroup,
+      ToggleGroup, and Textarea** (per-projection disabled colors + printer
+      branches), completing the disabled look across every interactive widget.
+      Sweep not executed here (Julia unavailable in sandbox).

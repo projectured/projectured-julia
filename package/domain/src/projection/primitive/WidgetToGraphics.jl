@@ -2580,6 +2580,7 @@ map_reference_backward(::WidgetCardToGraphicsCanvas, iomap, reference) = nothing
     on_color::StyleColor       # track fill when checked
     off_color::StyleColor      # track fill when unchecked
     disabled_color::StyleColor # track fill when !enabled
+    ring_color::StyleColor     # focus ring when selected
 end
 
 function projection_print(p::WidgetSwitchToGraphicsCanvas, recursion, w::WidgetSwitch, ctx)
@@ -2599,6 +2600,7 @@ function projection_print(p::WidgetSwitchToGraphicsCanvas, recursion, w::WidgetS
     knob_red, knob_green, knob_blue, knob_alpha = _rgbai(p.knob_color)
     push!(elements, GraphicsCircle(knob_center_x, track_height ÷ 2, knob_radius, knob_red, knob_green, knob_blue, knob_alpha;
                                    border_width=max(1, _sc(p.knob_border.width)), border_color=_rgbai(p.knob_border.color)))
+    _push_focus_ring!(elements, w, track_width, track_height, p.ring_color, track_height ÷ 2)
     SimpleIoMap(p, w, _make_canvas(_origin(position)..., track_width, track_height, elements))
 end
 @_printer_only WidgetSwitchToGraphicsCanvas
@@ -2639,11 +2641,14 @@ end
     knob_border::StyleStroke    # knob outline (color + width)
     track_color::StyleColor     # unfilled track
     fill_color::StyleColor      # filled portion
+    disabled_color::StyleColor  # track / fill / knob when !enabled
+    ring_color::StyleColor      # focus ring when selected
 end
 
 function projection_print(p::WidgetSliderToGraphicsCanvas, recursion, w::WidgetSlider, ctx)
     w.visible == false && return SimpleIoMap(p, w, _empty_canvas())
     position = w.position::Point2D
+    enabled = !(w.enabled === false)
     value = clamp(Float64(w.value), 0.0, 1.0)
     slider_width  = _resolve_width(ctx, _sc(Int(w.width)))
     slider_height = _sc(p.height)
@@ -2651,13 +2656,17 @@ function projection_print(p::WidgetSliderToGraphicsCanvas, recursion, w::WidgetS
     track_thickness = _sc(p.track_thickness)
     filled_width = round(Int, value * slider_width)
     elements = Any[]
-    track_red, track_green, track_blue, track_alpha = _rgba(p.track_color)
+    track_c = enabled ? p.track_color : p.disabled_color
+    fill_c  = enabled ? p.fill_color  : p.disabled_color
+    knob_c  = enabled ? p.knob_color  : p.disabled_color
+    track_red, track_green, track_blue, track_alpha = _rgba(track_c)
     push!(elements, GraphicsRect(0, center_y - track_thickness ÷ 2, slider_width, track_thickness, track_red, track_green, track_blue, track_alpha, track_thickness ÷ 2))
-    fill_red, fill_green, fill_blue, fill_alpha = _rgba(p.fill_color)
+    fill_red, fill_green, fill_blue, fill_alpha = _rgba(fill_c)
     filled_width > 0 && push!(elements, GraphicsRect(0, center_y - track_thickness ÷ 2, filled_width, track_thickness, fill_red, fill_green, fill_blue, fill_alpha, track_thickness ÷ 2))
-    knob_red, knob_green, knob_blue, knob_alpha = _rgbai(p.knob_color)
+    knob_red, knob_green, knob_blue, knob_alpha = _rgbai(knob_c)
     push!(elements, GraphicsCircle(filled_width, center_y, _sc(p.knob_radius), knob_red, knob_green, knob_blue, knob_alpha;
                                    border_width=max(1, _sc(p.knob_border.width)), border_color=_rgbai(p.knob_border.color)))
+    _push_focus_ring!(elements, w, slider_width, slider_height, p.ring_color, slider_height ÷ 2)
     SimpleIoMap(p, w, _make_canvas(_origin(position)..., slider_width, slider_height, elements))
 end
 @_printer_only WidgetSliderToGraphicsCanvas
@@ -2675,15 +2684,22 @@ end
     selected_ring::StyleStroke     # ring + inner-dot color when selected
     unselected_ring::StyleStroke   # ring when unselected
     selected_color::StyleColor     # inner dot fill
+    disabled_foreground::StyleColor # rings / dot / labels when !enabled
+    ring_color::StyleColor         # focus ring when selected
 end
 
 function projection_print(p::WidgetRadioGroupToGraphicsCanvas, recursion, w::WidgetRadioGroup, ctx)
     w.visible == false && return SimpleIoMap(p, w, _empty_canvas())
     position = w.position::Point2D
+    enabled = !(w.enabled === false)
     selected = Int(w.selected)
     diameter = _sc(p.button_size)
     label_gap = _sc(p.label_gap)
     row_gap = _sc(p.row_gap)
+    sel_ring   = enabled ? p.selected_ring.color   : p.disabled_foreground
+    unsel_ring = enabled ? p.unselected_ring.color : p.disabled_foreground
+    dot_color  = enabled ? p.selected_color        : p.disabled_foreground
+    label_col  = enabled ? p.label_text.color      : p.disabled_foreground
     elements = Any[]
     y = 0
     max_width = 0
@@ -2694,16 +2710,17 @@ function projection_print(p::WidgetRadioGroupToGraphicsCanvas, recursion, w::Wid
         center_y = y + row_height ÷ 2
         if i == selected
             push!(elements, GraphicsCircle(diameter ÷ 2, center_y, diameter ÷ 2, _rgbai(p.button_fill)...;
-                                           border_width=max(1, _sc(p.selected_ring.width)), border_color=_rgbai(p.selected_ring.color)))
-            push!(elements, GraphicsCircle(diameter ÷ 2, center_y, _sc(p.dot_radius), _rgbai(p.selected_color)...))
+                                           border_width=max(1, _sc(p.selected_ring.width)), border_color=_rgbai(sel_ring)))
+            push!(elements, GraphicsCircle(diameter ÷ 2, center_y, _sc(p.dot_radius), _rgbai(dot_color)...))
         else
             push!(elements, GraphicsCircle(diameter ÷ 2, center_y, diameter ÷ 2, _rgbai(p.button_fill)...;
-                                           border_width=max(1, _sc(p.unselected_ring.width)), border_color=_rgbai(p.unselected_ring.color)))
+                                           border_width=max(1, _sc(p.unselected_ring.width)), border_color=_rgbai(unsel_ring)))
         end
-        _push_text!(elements, p.label_text.font, label, diameter + label_gap, y + (row_height - label_height) ÷ 2, _rgba(p.label_text.color))
+        _push_text!(elements, p.label_text.font, label, diameter + label_gap, y + (row_height - label_height) ÷ 2, _rgba(label_col))
         max_width = max(max_width, diameter + label_gap + label_width)
         y += row_height + row_gap
     end
+    _push_focus_ring!(elements, w, max_width, max(0, y - row_gap), p.ring_color, 0)
     SimpleIoMap(p, w, _make_canvas(_origin(position)..., max_width, max(0, y - row_gap), elements))
 end
 @_printer_only WidgetRadioGroupToGraphicsCanvas
@@ -2825,6 +2842,7 @@ end
     released_foreground::StyleColor
     disabled_fill::StyleColor
     disabled_foreground::StyleColor
+    ring_color::StyleColor
 end
 
 function projection_print(p::WidgetToggleToGraphicsCanvas, recursion, w::WidgetToggle, ctx)
@@ -2848,6 +2866,7 @@ function projection_print(p::WidgetToggleToGraphicsCanvas, recursion, w::WidgetT
                  border_w=border_width, radius=_sc(p.corner_radius))
     red, green, blue, alpha = _rgbai(foreground)
     push!(elements, GraphicsText(text, (control_width - text_width) ÷ 2, (control_height - text_height) ÷ 2, p.font, red, green, blue, alpha))
+    _push_focus_ring!(elements, w, control_width, control_height, p.ring_color, _sc(p.corner_radius))
     SimpleIoMap(p, w, _make_canvas(_origin(position)..., control_width, control_height, elements))
 end
 @_printer_only WidgetToggleToGraphicsCanvas
@@ -2865,11 +2884,15 @@ end
     selected_fill::StyleColor          # raised segment fill
     selected_foreground::StyleColor
     unselected_foreground::StyleColor
+    disabled_color::StyleColor         # track / selected segment when !enabled
+    disabled_foreground::StyleColor    # labels when !enabled
+    ring_color::StyleColor             # focus ring when selected
 end
 
 function projection_print(p::WidgetToggleGroupToGraphicsCanvas, recursion, w::WidgetToggleGroup, ctx)
     w.visible == false && return SimpleIoMap(p, w, _empty_canvas())
     position = w.position::Point2D
+    enabled = !(w.enabled === false)
     selected = Int(w.selected)
     padding_x = _sc(Int(p.padding.left[]))
     padding_y = _sc(Int(p.padding.top[]))
@@ -2880,9 +2903,13 @@ function projection_print(p::WidgetToggleGroupToGraphicsCanvas, recursion, w::Wi
     control_width  = sum(segment_widths; init=0)
     corner_radius = _sc(p.corner_radius)
     segment_inset = _sc(p.segment_inset)
+    track_c    = enabled ? p.track_color    : p.disabled_color
+    seg_fill   = enabled ? p.selected_fill  : p.disabled_color
+    sel_fg     = enabled ? p.selected_foreground   : p.disabled_foreground
+    unsel_fg   = enabled ? p.unselected_foreground : p.disabled_foreground
     elements = Any[]
     # Outer container (track + border).
-    _push_panel!(elements, 0, 0, control_width, control_height; fill=p.track_color, border=p.border.color,
+    _push_panel!(elements, 0, 0, control_width, control_height; fill=track_c, border=p.border.color,
                  border_w=max(1, _sc(p.border.width)), radius=corner_radius)
     x = 0
     for i in eachindex(labels)
@@ -2890,14 +2917,15 @@ function projection_print(p::WidgetToggleGroupToGraphicsCanvas, recursion, w::Wi
         if i == selected
             _push_panel!(elements, x + segment_inset, segment_inset,
                          segment_width - 2segment_inset, control_height - 2segment_inset;
-                         fill=p.selected_fill, radius=max(0, corner_radius - segment_inset))
+                         fill=seg_fill, radius=max(0, corner_radius - segment_inset))
         end
         text_width, segment_text_height = _text_size(p.measure, p.font, labels[i])
-        foreground = i == selected ? p.selected_foreground : p.unselected_foreground
+        foreground = i == selected ? sel_fg : unsel_fg
         red, green, blue, alpha = _rgbai(foreground)
         push!(elements, GraphicsText(labels[i], x + (segment_width - text_width) ÷ 2, (control_height - segment_text_height) ÷ 2, p.font, red, green, blue, alpha))
         x += segment_width
     end
+    _push_focus_ring!(elements, w, control_width, control_height, p.ring_color, corner_radius)
     SimpleIoMap(p, w, _make_canvas(_origin(position)..., control_width, control_height, elements))
 end
 @_printer_only WidgetToggleGroupToGraphicsCanvas
@@ -2916,6 +2944,7 @@ end
     chevron_size::Int
     disabled_color::StyleColor  # box fill when !enabled
     disabled_foreground::StyleColor # value + chevron when !enabled
+    ring_color::StyleColor      # focus ring when selected
 end
 
 function projection_print(p::WidgetSelectToGraphicsCanvas, recursion, w::WidgetSelect, ctx)
@@ -2941,6 +2970,7 @@ function projection_print(p::WidgetSelectToGraphicsCanvas, recursion, w::WidgetS
     push!(elements, GraphicsText(text, padding_x, (control_height - text_height) ÷ 2, p.text.font, red, green, blue, alpha))
     _push_chevron!(elements, control_width - padding_x - chevron_size, control_height ÷ 2, chevron_size, :down,
                    chevron_color; stroke=max(1, _sc(p.chevron.width)))
+    _push_focus_ring!(elements, w, control_width, control_height, p.ring_color, _sc(p.corner_radius))
     SimpleIoMap(p, w, _make_canvas(_origin(position)..., control_width, control_height, elements))
 end
 @_printer_only WidgetSelectToGraphicsCanvas
@@ -2954,11 +2984,15 @@ end
     border::StyleStroke         # input outline
     padding::Inset
     corner_radius::Int
+    disabled_color::StyleColor  # background when !enabled
+    disabled_foreground::StyleColor # text when !enabled
+    ring_color::StyleColor      # focus ring when selected
 end
 
 function projection_print(p::WidgetTextareaToGraphicsCanvas, recursion, w::WidgetTextarea, ctx)
     w.visible == false && return SimpleIoMap(p, w, _empty_canvas())
     position = w.position::Point2D
+    enabled = !(w.enabled === false)
     padding_x = _sc(Int(p.padding.left[]))
     padding_y = _sc(Int(p.padding.top[]))
     lines = split(string(w.content), '\n')
@@ -2967,13 +3001,16 @@ function projection_print(p::WidgetTextareaToGraphicsCanvas, recursion, w::Widge
     area_height = row_count * line_height + 2padding_y
     longest_line = isempty(lines) ? 0 : maximum(_text_size(p.measure, p.text.font, String(l))[1] for l in lines)
     area_width = _resolve_width(ctx, _sc(Int(w.width)), longest_line + 2padding_x)
+    box_fill   = enabled ? p.background_color : p.disabled_color
+    text_color = enabled ? p.text.color       : p.disabled_foreground
     elements = Any[]
-    _push_panel!(elements, 0, 0, area_width, area_height; fill=p.background_color, border=p.border.color,
+    _push_panel!(elements, 0, 0, area_width, area_height; fill=box_fill, border=p.border.color,
                  border_w=max(1, _sc(p.border.width)), radius=_sc(p.corner_radius))
-    red, green, blue, alpha = _rgbai(p.text.color)
+    red, green, blue, alpha = _rgbai(text_color)
     for (i, line) in enumerate(lines)
         push!(elements, GraphicsText(String(line), padding_x, padding_y + (i - 1) * line_height, p.text.font, red, green, blue, alpha))
     end
+    _push_focus_ring!(elements, w, area_width, area_height, p.ring_color, _sc(p.corner_radius))
     SimpleIoMap(p, w, _make_canvas(_origin(position)..., area_width, area_height, elements))
 end
 @_printer_only WidgetTextareaToGraphicsCanvas
@@ -3974,16 +4011,16 @@ function WidgetToGraphics(font::StyleFont; measure::Function,
         WidgetSwitch     => WidgetSwitchToGraphicsCanvas(
             Point2D(44, 24), 3,
             color_white, StyleStroke(theme.border, theme.border_width),
-            theme.primary, theme.track_off, theme.muted),
+            theme.primary, theme.track_off, theme.muted, theme.ring),
         WidgetProgress   => WidgetProgressToGraphicsCanvas(8, theme.muted, theme.primary),
         WidgetSlider     => WidgetSliderToGraphicsCanvas(
             24, 4, 9,
             color_white, StyleStroke(theme.primary, theme.stroke),
-            theme.muted, theme.primary),
+            theme.muted, theme.primary, theme.muted, theme.ring),
         WidgetRadioGroup => WidgetRadioGroupToGraphicsCanvas(measurer, StyleText(theme.font, theme.foreground),
             18, 10, 12, 5,
             theme.background, StyleStroke(theme.primary, theme.stroke), StyleStroke(theme.input, theme.stroke),
-            theme.primary),
+            theme.primary, theme.muted_foreground, theme.ring),
         WidgetAvatar     => WidgetAvatarToGraphicsCanvas(measurer, StyleText(theme.font, theme.muted_foreground), theme.muted),
         WidgetAlert      => WidgetAlertToGraphicsCanvas(measurer, theme.font_bold,
             StyleText(theme.font_small, theme.muted_foreground), theme.background,
@@ -3994,19 +4031,21 @@ function WidgetToGraphics(font::StyleFont; measure::Function,
             Inset(theme.pad_y, theme.pad_y, theme.pad_x, theme.pad_x), theme.radius,
             StyleStroke(theme.border, theme.border_width),
             theme.accent, theme.accent_foreground, theme.background, theme.foreground,
-            theme.muted, theme.muted_foreground),
+            theme.muted, theme.muted_foreground, theme.ring),
         WidgetToggleGroup => WidgetToggleGroupToGraphicsCanvas(measurer, theme.font,
             Inset(theme.pad_y, theme.pad_y, theme.pad_x, theme.pad_x), theme.radius, 2,
             StyleStroke(theme.border, theme.border_width),
-            theme.muted, theme.background, theme.foreground, theme.muted_foreground),
+            theme.muted, theme.background, theme.foreground, theme.muted_foreground,
+            theme.muted, theme.muted_foreground, theme.ring),
         WidgetSelect      => WidgetSelectToGraphicsCanvas(measurer, theme.body_text, theme.background,
             StyleStroke(theme.input, theme.border_width),
             Inset(theme.pad_y, theme.pad_y, theme.pad_x, theme.pad_x), theme.radius,
             theme.gap, StyleStroke(theme.muted_foreground, theme.stroke), theme.chevron,
-            theme.muted, theme.muted_foreground),
+            theme.muted, theme.muted_foreground, theme.ring),
         WidgetTextarea    => WidgetTextareaToGraphicsCanvas(measurer, theme.body_text, theme.background,
             StyleStroke(theme.input, theme.border_width),
-            Inset(theme.pad_y, theme.pad_y, theme.pad_x, theme.pad_x), theme.radius),
+            Inset(theme.pad_y, theme.pad_y, theme.pad_x, theme.pad_x), theme.radius,
+            theme.muted, theme.muted_foreground, theme.ring),
         WidgetAccordion   => WidgetAccordionToGraphicsCanvas(measurer,
             StyleText(theme.font_bold, theme.foreground), StyleText(theme.font_small, theme.muted_foreground),
             StyleStroke(theme.border, theme.border_width),
