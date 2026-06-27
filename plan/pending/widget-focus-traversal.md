@@ -342,4 +342,12 @@ focused iff `getfield(w,:selection)[] !== nothing` (background fact 3).
       asserts +1 canvas element when selected. **Remaining:** fan the ring out to
       the other interactive widgets (Text/Select/Switch/Toggle/…). *Not executed —
       Julia unavailable in sandbox.*
-- [ ] Step 6 — `widget_focus` example, Tab-walk test, un-skip syntax-to-widget
+- [~] Step 6 — added the `widget_focus` example (a `VerticalLayout` of controls
+      with an initial selection on the first via `first_focusable_path` +
+      `set_selection!`, a disabled control mid-list to show skipping); registered,
+      exported, added to the `examples` sweep. Tab traversal itself is covered by
+      the composite/layout Tab tests in `WidgetButtonTest`. **Not done:** un-skip
+      the syntax-to-widget keyboard-nav sweep — that skip covers *full keyboard
+      tree navigation* (Ctrl+Alt+Home, arrow tree-moves), which Stage 2's Tab
+      focus does not provide; un-skipping needs broader widget keyboard support.
+      *Not executed — Julia unavailable in sandbox.*

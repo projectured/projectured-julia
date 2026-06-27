@@ -408,3 +408,18 @@ make_widget_disabled_document_example() =
         WidgetSelect(Point2D(0, 0), "Apple"; width=220),
         WidgetSelect(Point2D(0, 0), "Apple"; width=220, enabled=false),
     ]; gap=12)
+
+# Focus traversal — a column of controls with an initial selection on the first,
+# so the focus ring is visible and Tab / Shift-Tab cycle the selection (the
+# disabled control is skipped). See plan/pending/widget-focus-traversal.md.
+function make_widget_focus_document_example()
+    layout = VerticalLayout(Any[
+        WidgetButton(Point2D(0, 0), Point2D(180, 44), "First"),
+        WidgetCheckbox(Point2D(0, 0), true),
+        WidgetButton(Point2D(0, 0), Point2D(180, 44), "Disabled"; enabled=false),
+        WidgetButton(Point2D(0, 0), Point2D(180, 44), "Last"),
+    ]; gap=12)
+    sel = first_focusable_path(layout)
+    sel === nothing || set_selection!(layout, sel)
+    layout
+end
