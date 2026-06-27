@@ -320,6 +320,17 @@ function _push_box!(elems::Vector, w::WidgetDocument, cw::Int, ch::Int;
                  fill=fill, border=(bw > 0 ? border : nothing), border_w=bw, radius=radius)
 end
 
+# A focus ring around a focused widget (Stage 2). Focus is selection, so this
+# renders only when the widget carries a (non-nothing) selection. Drawn as a
+# transparent-fill rect at the control bounds so only the ring-coloured border
+# shows; reading the selection cell ties the ring to focus reactively.
+function _push_focus_ring!(elems::Vector, w::WidgetDocument, cw::Int, ch::Int,
+                           ring_color::StyleColor, radius::Int)
+    getfield(w, :selection)[] === nothing && return
+    push!(elems, GraphicsRect(0, 0, cw, ch, 0x00, 0x00, 0x00, 0x00, radius;
+                              border_width=2, border_color=_rgbai(ring_color)))
+end
+
 # ── Projection structs ─────────────────────────────────────────────────────
 
 @projection struct WidgetLabelToGraphicsCanvas
@@ -344,6 +355,7 @@ end
     outline::StyleStroke           # empty box outline (color + width)
     disabled_color::StyleColor     # box fill when !enabled
     disabled_foreground::StyleColor # tick / outline when !enabled
+    ring_color::StyleColor         # focus ring when selected
 end
 
 # Style parameters owned by the button projection (hybrid model, §8 of the plan):
@@ -364,6 +376,7 @@ end
     shadow_offset::Int
     disabled_color::StyleColor   # surface when !enabled
     disabled_foreground::StyleColor # label color when !enabled
+    ring_color::StyleColor       # focus ring when selected
 end
 
 @projection struct WidgetTooltipToGraphicsCanvas
@@ -849,6 +862,7 @@ function projection_print(p::WidgetCheckboxToGraphicsCanvas, recursion, w::Widge
         _push_panel!(elements, 0, 0, box_size, box_size; fill=empty_fill,
                      border=outline_color, border_w=max(1, _sc(p.outline.width)), radius=corner_radius)
     end
+    _push_focus_ring!(elements, w, box_size, box_size, p.ring_color, corner_radius)
     SimpleIoMap(p, w, _make_canvas(_origin(position)..., box_size, box_size, elements))
 end
 
@@ -920,6 +934,7 @@ function projection_print(p::WidgetButtonToGraphicsCanvas, recursion, w::WidgetB
     cx = (button_width - content_width) ÷ 2
     cy = (button_height - content_height) ÷ 2
     _push_content!(elements, p.measure, label, w.content, cx, cy, content_width, content_height)
+    _push_focus_ring!(elements, w, button_width, button_height, p.ring_color, corner_radius)
     SimpleIoMap(p, w, _make_canvas(_origin(position)..., button_width, button_height, elements))
 end
 
@@ -3881,14 +3896,14 @@ function WidgetToGraphics(font::StyleFont; measure::Function,
             18, theme.radius ÷ 2,
             theme.primary, StyleStroke(theme.primary_foreground, theme.stroke),
             theme.background, StyleStroke(theme.input, theme.stroke),
-            theme.muted, theme.muted_foreground),
+            theme.muted, theme.muted_foreground, theme.ring),
         WidgetButton     => WidgetButtonToGraphicsCanvas(
             measurer, theme.label_text, theme.background,
             theme.accent, theme.muted,
             StyleStroke(theme.border, theme.border_width),
             Inset(theme.pad_y, theme.pad_y, theme.pad_x, theme.pad_x),
             theme.radius, 2,
-            theme.muted, theme.muted_foreground),
+            theme.muted, theme.muted_foreground, theme.ring),
         WidgetTooltip    => WidgetTooltipToGraphicsCanvas(measurer, StyleText(theme.font, theme.popover_foreground),
             theme.popover, StyleStroke(theme.border, theme.border_width), theme.radius,
             Inset(theme.pad_y, theme.pad_y, theme.pad_x, theme.pad_x)),

@@ -336,5 +336,10 @@ focused iff `getfield(w,:selection)[] !== nothing` (background fact 3).
       `:tab` is deliberately not matched, so traversal still claims it. Both stay
       behind the Stage-1 `enabled` guard. Tests cover activate + disabled-inert.
       *Not executed — Julia unavailable in sandbox.*
-- [ ] Step 5 — focus ring (`theme.ring`) on the selected widget
+- [~] Step 5 — focus ring on the selected widget (focus = non-nothing selection):
+      `_push_focus_ring!` draws a 2px `theme.ring` outline; threaded into the
+      Button + Checkbox projections (`ring_color` field, fed `theme.ring`). Test
+      asserts +1 canvas element when selected. **Remaining:** fan the ring out to
+      the other interactive widgets (Text/Select/Switch/Toggle/…). *Not executed —
+      Julia unavailable in sandbox.*
 - [ ] Step 6 — `widget_focus` example, Tab-walk test, un-skip syntax-to-widget

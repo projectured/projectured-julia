@@ -240,6 +240,23 @@ end
     end
 end
 
+# Stage 2, Step 5: the focus ring renders on the selected widget (focus = a
+# non-nothing selection), adding exactly one ring element to the canvas.
+@testset "focus ring renders on the selected widget" begin
+    proj = _proj()
+    btn = WidgetButton(Point2D(0, 0), Point2D(80, 30), "Go")
+    unfocused = projection_print(proj, nothing, btn, PrinterContext()).output
+    getfield(btn, :selection)[] = EmptyReferencePath()
+    focused = projection_print(proj, nothing, btn, PrinterContext()).output
+    @test length(focused.elements) == length(unfocused.elements) + 1
+
+    cb = WidgetCheckbox(Point2D(0, 0), false)
+    u = projection_print(proj, nothing, cb, PrinterContext()).output
+    getfield(cb, :selection)[] = EmptyReferencePath()
+    f = projection_print(proj, nothing, cb, PrinterContext()).output
+    @test length(f.elements) == length(u.elements) + 1
+end
+
 # Stage 2, Step 4: Enter/Space activate the focused button/checkbox (the keystroke
 # reaches the focused leaf via selection routing). Disabled leaves stay inert.
 @testset "Enter/Space activate the focused button and checkbox" begin
