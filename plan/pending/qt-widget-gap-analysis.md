@@ -272,7 +272,9 @@ shortcuts.* **Detailed plan:**
   activate the selected button/checkbox; un-skip a widget keyboard-nav case.
 
 ### Stage 3 — Popup / overlay layer
-*Unblocks: dropdowns, context menus, dialogs, message boxes.*
+*Unblocks: dropdowns, context menus, dialogs, message boxes.* **Detailed plan:**
+[widget-popup-overlay.md](widget-popup-overlay.md) (chooses **in-window overlays**
+over new windows — WindowManager has no outside-click hit-test).
 
 - A widget-level overlay/popup mechanism layered on `WindowManager` (or a
   `StackLayout`-based in-window overlay): open a floating child anchored to a
