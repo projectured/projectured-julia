@@ -132,9 +132,10 @@ end
     WindowCloseRequest()
 
 Inner event carried by an `EventEnvelope` when the user clicks a
-window's native close button (`SDL_WINDOWEVENT_CLOSE`). Readers
-translate it into a document mutation that removes the matching
-`WindowDocument` from `ScreenDocument.windows`.
+window's native close button (`SDL_WINDOWEVENT_CLOSE`).
+`WindowManagerProjection`'s reader resolves the window by
+`EventEnvelope.window_id` and removes the matching `WindowDocument`
+from `ScreenDocument.windows` (via `CloseWindowOperation`).
 """
 struct WindowCloseRequest end
 

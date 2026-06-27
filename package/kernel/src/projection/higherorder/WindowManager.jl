@@ -25,7 +25,7 @@ module WindowManagerProjectionModule
 import ..ProjectionApiModule: projection_print, projection_printer_recurse, projection_read, map_reference_forward, map_reference_backward, Projection, Change, as_change
 import ..IoMapApiModule: IoMap
 import ..ReactiveModule: Cell
-import ..ScreenDocumentModule: ScreenDocument, WindowDocument, EventEnvelope, WindowResizeEvent
+import ..ScreenDocumentModule: ScreenDocument, WindowDocument, EventEnvelope, WindowResizeEvent, WindowCloseRequest
 import ..OperationModule: OpenWindowOperation, CloseWindowOperation, ResizeWindowOperation
 
 export WindowManagerProjection, WindowManagerProjectionIoMap
@@ -71,6 +71,17 @@ function projection_read(p::WindowManagerProjection, recursion, change::Change, 
         win === nothing && return Change(change.gesture, nothing)
         return Change(change.gesture,
                       ResizeWindowOperation(win, env.event.width, env.event.height))
+    end
+    # The native window close button (SDL_WINDOWEVENT_CLOSE / web close) arrives
+    # as a WindowCloseRequest carrying the window id. Resolve the window and
+    # remove it from both input and output here — the same dual-mutation the
+    # manager performs for a CloseWindowOperation bubbling up from below, so the
+    # close is owned in one place rather than relying on evaluate_operation.
+    if env isa EventEnvelope && env.event isa WindowCloseRequest
+        win = _find_window(iomap.input, env.window_id)
+        win === nothing && return Change(change.gesture, nothing)
+        _apply_close!(iomap, CloseWindowOperation(env.window_id))
+        return Change(change.gesture, nothing)
     end
 
     inner = projection_read(p.inner, recursion, change, iomap.inner_iomap)

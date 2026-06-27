@@ -123,4 +123,43 @@ projection_read(projection, iomap, EventEnvelope(:main, :tick))
 
 end # @testset
 
+@testset "WindowCloseRequest removes the matching window" begin
+
+# A bare WindowManager over a two-window screen: the native close button on a
+# window arrives as an EventEnvelope(window_id, WindowCloseRequest()) and must
+# remove exactly that window from both the input and the mirrored output.
+main  = WindowDocument(; id=:main,  content=PrimitiveNumber(0))
+popup = WindowDocument(; id=:popup, content=PrimitiveString("p"))
+screen = ScreenDocument([main, popup])
+
+projection = RecursiveProjection(
+    TypeDispatchingProjection(
+        ScreenDocument => WindowManagerProjection(inner=ScreenToScreen()),
+        WindowDocument => ScreenToScreen(),
+        CellVector     => CopyingProjection(),
+        Any            => PreservingProjection(),
+    ),
+)
+iomap = projection_print(projection, screen)
+@test length(screen.windows) == 2
+
+# Close the popup via its native close button.
+op = projection_read(projection, iomap, EventEnvelope(:popup, WindowCloseRequest()))
+@test !(op isa Operation)
+@test length(screen.windows) == 1
+@test length(iomap.output.windows) == 1
+@test screen.windows[1].id === :main
+@test iomap.output.windows[1].id === :main
+
+# A close for an unknown id is a silent no-op.
+projection_read(projection, iomap, EventEnvelope(:ghost, WindowCloseRequest()))
+@test length(screen.windows) == 1
+
+# The main window can be closed too (e.g. quitting via the frame).
+projection_read(projection, iomap, EventEnvelope(:main, WindowCloseRequest()))
+@test length(screen.windows) == 0
+@test length(iomap.output.windows) == 0
+
+end # @testset
+
 end # function

@@ -120,35 +120,49 @@ click-catcher; with it, dismissal is automatic.
 
 ---
 
-## Step 1 — Window close/focus-lost → `CloseWindowOperation` (the core wire)
+## Step 1 — Window close → `CloseWindowOperation` (the core wire) ✅
 
-The one new piece of routing: make the popup window's own dismissal events close
-it, completing the event→operation pattern resize already follows.
+The one new piece of routing: make the native window-close event remove the
+window, completing the event→operation pattern resize already follows.
 
-- **`WindowCloseRequest` branch.** In `WindowManagerProjection`'s reader
-  (`WindowManager.jl:64-87`), before the inner copier, add: if the envelope's
-  inner event is a `WindowCloseRequest`, resolve the window by `env.window_id`
-  and emit `CloseWindowOperation(window)` (mirrors the `WindowResizeEvent`
-  branch). This alone makes the OS close button work for *every* window,
-  independent of Stage 3.
+- **`WindowCloseRequest` branch.** ✅ Done. In `WindowManagerProjection`'s reader,
+  before the inner copier: if the envelope's inner event is a
+  `WindowCloseRequest`, resolve the window by `env.window_id` and apply a
+  `CloseWindowOperation` via `_apply_close!` (the same dual input+output mutation
+  the manager performs for a close bubbling up from below), returning
+  `Change(gesture, nothing)`. This makes the native close button work for *every*
+  window, independent of Stage 3. Also corrected the `WindowCloseRequest`
+  docstring (`Screen.jl`), which previously claimed a reader already handled it.
+  Tested in `TooltipTest.jl` (`WindowCloseRequest removes the matching window`,
+  9 assertions): popup closes leaving main; unknown id is a no-op; main can be
+  closed too, leaving zero windows.
+
+**Design note — apply directly, don't bubble.** `CloseWindowOperation` is
+*intercepted* by the manager (it must mutate both the input screen and the
+mirrored output `CellVector`), not handled by `evaluate_operation`. So the
+close-request branch applies it in place rather than returning it upward.
+
+**Deferred to Step 3 (folded in, where they gain a real consumer):** the
+focus-lost dismissal pair was pulled out of Step 1 because it is speculative
+until a popup exists to dismiss — and it cannot land *safely* on its own (an
+unconditional focus-lost→close would close the main window whenever the app
+loses focus, so it needs the `auto_dismiss` gate, which in turn needs a popup
+to mark). It therefore ships with the first popup:
+
 - **Focus-lost event.** Add a `WindowFocusLost` inner event (`Screen.jl`, beside
-  `WindowCloseRequest`). Map SDL `SDL_WINDOWEVENT_FOCUS_LOST` (sub 12) and the
-  web `blur` to it. In the WindowManager reader, treat it like close **only for
-  windows flagged auto-dismiss** (a popup), so the main window losing focus does
-  not self-close — see the popup flag below.
+  `WindowCloseRequest`); map SDL `SDL_WINDOWEVENT_FOCUS_LOST` (sub 12) and the
+  web `blur`. In the WindowManager reader, treat it like close **only for windows
+  flagged auto-dismiss**, so the main window losing focus does not self-close.
 - **Popup marker.** `OpenWindowOperation` / `WindowDocument` gains an optional
   `auto_dismiss::Bool` (default `false`). Tooltips and the main window stay
-  `false`; dropdowns/menus/context-menus open with `true`. Focus-lost closes an
-  `auto_dismiss` window; a non-popup ignores it.
+  `false`; dropdowns/menus/context-menus open with `true`.
 - **Open helper.** Factor the tooltip's "build a `WindowDocument` and emit
-  `OpenWindowOperation`" into a small reusable `open_popup(content, x, y, w, h;
-  auto_dismiss=true, modal=false)` so triggers (Steps 3–5) don't each re-derive
-  it.
+  `OpenWindowOperation`" into a reusable `open_popup(content, x, y, w, h;
+  auto_dismiss=true, modal=false)` once Step 3 needs it.
 
-**Tests:** a `WindowCloseRequest` for a window id emits a `CloseWindowOperation`
-removing exactly that window; a `WindowFocusLost` closes an `auto_dismiss` popup
-window but is a no-op for the main window; `open_popup` + close round-trips a
-window in/out of `ScreenDocument.windows`.
+**Tests (done):** a `WindowCloseRequest` for a window id removes exactly that
+window from input and output; an unknown id is a no-op; the main window can be
+closed. (`WindowFocusLost` / `open_popup` round-trip tests move to Step 3.)
 
 ## Step 2 — Minimal anchored placement
 
@@ -271,12 +285,15 @@ envelope targeting the base window is dropped (does not reach base widgets).
 
 ## Step status
 
-- [ ] Step 1 — `WindowCloseRequest` → `CloseWindowOperation` branch in
-      WindowManager; `WindowFocusLost` event (SDL + web) + `auto_dismiss` flag;
-      `open_popup` helper factored from the tooltip path
+- [x] Step 1 — `WindowCloseRequest` → `CloseWindowOperation` branch in
+      WindowManager (native close button works for every window); tested in
+      `TooltipTest.jl`. **Deferred to Step 3:** `WindowFocusLost` event (SDL +
+      web) + `auto_dismiss` flag + `open_popup` helper — coupled, and consumer-less
+      until the first popup, so they land with the dropdown.
 - [ ] Step 2 — minimal anchored placement (`anchor_below` / `anchor_at`, clamp),
       screen-space window origin
-- [ ] Step 3 — `WidgetSelect` dropdown (options + open-popup + pick→value+close)
+- [ ] Step 3 — `WidgetSelect` dropdown (options + open-popup + pick→value+close);
+      **also lands `WindowFocusLost` + `auto_dismiss` + `open_popup` from Step 1**
 - [ ] Step 4 — `WidgetMenu` open-on-click + right-click context menu
 - [ ] Step 5 — `WidgetDialog` modal (backdrop window + centered card + buttons,
       modality enforced by WindowManager) + MessageBox/InputDialog
