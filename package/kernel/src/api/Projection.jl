@@ -243,6 +243,28 @@ its docstring), so getting it right gives the forward cursor mapping for free.
   re-walk the input document dispatching on each child's concrete type — that
   couples the projection to its children's domains and breaks composition with
   other domains (see [documentation/projection-system.md](../../../documentation/projection-system.md)).
+- **The output domain may be coordinates, not only structure.** "Output
+  reference" means *whatever reference addresses this projection's output
+  domain*. At the bottom of a render chain that is the **graphics** domain, where
+  a positioned element's image is a `PointReference` (its location), not a
+  structural path. So a forward map legitimately returns a `PointReference` once
+  the chain reaches graphics. A container that places a child at a pixel offset
+  then contributes **only its own offset**: if the child's image is a
+  `PointReference` (a coordinate), add this container's offset to it; if it is a
+  structural path, prepend / pass the structural steps unchanged. Distinguish by
+  the *result*, never by the child's type — **coordinates accumulate, paths stay
+  paths**. This is what lets the one mapper serve both selection wiring (paths)
+  and position resolution (coordinates — e.g. anchoring a popup window to the
+  widget that triggered it).
+- **Do not add a parallel "resolve position" generic.** Because forward mapping
+  is this *single* recursive map method, every compositional wrapper
+  (`SequentialProjection`, `RecursiveProjection`, `TypeDispatchingProjection`, …)
+  already threads or composes it for free. A second generic for coordinate
+  resolution would force each of those wrappers to re-implement the same
+  composition. Reuse `map_reference_forward` instead: a projection takes part
+  just by mapping its own one step. Widgets nest in any container and vice versa
+  precisely because each step is self-contained — peel your step, delegate the
+  tail, add only your own contribution.
 - If the input reference begins with `ProjectionReference(projection, output_path)`,
   strip that step and return `output_path` directly — it exists precisely to
   embed an already-translated output reference inside an input reference, and
@@ -286,6 +308,16 @@ whole group to a single flattened character offset, `ProjectionReference(p,
 {flat})`, which `_syntax_to_flat` inverts; the `*ToSyntax` node readers use this
 for the delimiters they own. Use the fine-grained form above when the individual
 positions matter.)
+
+## Coordinates are an input domain too
+
+The mirror of `map_reference_forward`'s "the output domain may be coordinates":
+at the bottom of a render chain the *output* reference handed to this mapper can
+be a `PointReference` (a click point) rather than a structural step. A container
+inverts its own placement — subtract the offset it positioned the child at, then
+delegate the translated point to the child's own `map_reference_backward` — never
+dispatching on the child's type. Coordinates and structural paths travel the same
+single mapper in both directions; do not add a parallel generic for either.
 """
 function map_reference_backward end
 
