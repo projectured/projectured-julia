@@ -1,7 +1,45 @@
 # Readability scaling: independent font-zoom and full-zoom knobs
 
 **Date:** 2026-06-27 (revised)
-**Status:** 📝 proposed — not yet implemented
+**Status:** ✅ implemented 2026-06-27 — see "Implementation notes" below.
+
+## Implementation notes (what shipped)
+
+Both knobs landed, as designed, plus an editor-global gesture. Not yet run
+through the Julia test suite (no Julia toolchain in the authoring environment) —
+the targeted tests in the Testing section still need a green run.
+
+- **`Font.jl`** — split the old single `_DISPLAY_SCALE` into
+  `_BASE_DISPLAY_SCALE` (DPI) × `_USER_ZOOM` (uniform zoom), folded by
+  `recompute_display_scale!()`. Added `_FONT_ZOOM` as a reactive **`Cell`**
+  (not a `Ref`) so font-zoom changes invalidate text-layout cells.
+  New helpers: `font_logical_size(font)` (layout), `font_device_size(font)`
+  (rasterization), `_ZOOM_STEPS`/`_stepped_zoom`, `adjust_user_zoom!`,
+  `adjust_font_zoom!`. All are exact no-ops at the default zoom, so existing
+  behaviour/tests are unchanged until the user zooms.
+- **Layout reads routed through `font_logical_size`:** `Graphics.jl` (hit-test
+  + bounds), `TextToGraphics.jl` (highlight + clickable-band heights),
+  `GraphicsCaching.jl` (cache bounds), web draw-size + measure. Text *positions*
+  already scale because they derive from `measure`, which now measures at the
+  font-zoomed size.
+- **SDL backend** — `_get_font` / text-texture key now rasterize at
+  `font_device_size`; `measure_text` empty path uses `font_logical_size`; DPI
+  detection writes `_BASE_DISPLAY_SCALE` then recomputes; added `:0` keysym
+  (= `Symbol("0")`), `evaluate_operation` for both ops, `_reflow_for_scale!`
+  (keeps the device window fixed, reflows the logical viewport via the shared
+  width/height cells) and `_force_full_repaint!`.
+- **Kernel** — `AdjustZoomOperation` / `AdjustFontZoomOperation` structs (no-op
+  default evaluate for non-SDL backends); `read!` recognises the zoom gesture
+  via `_zoom_operation` *after* the pipeline, so a projection binding the same
+  keys still wins.
+- **Binding deviation from the table below:** to avoid the "`Ctrl++` is
+  `Ctrl+Shift+=`" ambiguity, the split is **`Ctrl` → uniform** (Shift allowed)
+  and **`Ctrl+Alt` → font-only**, not `Ctrl+Shift`. `=`/`+` in, `-` out, `0`
+  reset; keypad variants included.
+
+The original (pre-implementation) plan follows.
+
+---
 
 ## Goal
 

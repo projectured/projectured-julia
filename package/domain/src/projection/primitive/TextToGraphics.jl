@@ -24,7 +24,7 @@ import ..TextModule: TextText, TextString, TextNewline, TextGraphics, TextDocume
                      _build_selection_path, _cursor_position, _is_structural_selection
 import ..GraphicsModule: GraphicsText, GraphicsRect, GraphicsImage, GraphicsCanvas, layout_none, layout_vertical
 import ..ImageModule: ImageDocument
-import ..FontModule: StyleFont
+import ..FontModule: StyleFont, font_logical_size
 import ..ColorModule: StyleColor
 import ..ReferenceModule: ReferencePath, ConcreteReferencePath, ElementReference, PositionReference, RangeReference, PointReference, EmptyReferencePath, FieldReference, TextRectangularReference, head, tail
 import ..ReferenceCaseModule: var"@reference_case"
@@ -767,7 +767,7 @@ function _compute_highlight_geo(coord_map::Vector{SegCoord}, span_flat_offsets::
         seg_hl_end = min(hl_stop, abs_end) - base
         px_left = _seg_cursor_x(sc, seg_hl_start, p.measure)
         px_right = _seg_cursor_x(sc, seg_hl_end, p.measure)
-        fs = sc.font.size
+        fs = font_logical_size(sc.font)
         x0 = min(x0, px_left)
         y0 = min(y0, sc.y)
         x1 = max(x1, px_right)
@@ -817,7 +817,7 @@ logical font size; an inline image extends its band over the whole image
 height so a click anywhere on a tall image still lands on it.
 """
 _seg_band_height(sc::SegCoord) =
-    _is_image_seg(sc) ? max(sc.font.size, sc.height) :
-                        sc.font.size
+    _is_image_seg(sc) ? max(font_logical_size(sc.font), sc.height) :
+                        font_logical_size(sc.font)
 
 end # module

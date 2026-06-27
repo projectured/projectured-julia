@@ -6,7 +6,11 @@ file path and a point size.
 """
 module FontModule
 
-export StyleFont, make_style_font, font_scaled_size, _DISPLAY_SCALE, _FONT_DIR,
+import ..ReactiveModule: Cell, setval!
+
+export StyleFont, make_style_font, font_scaled_size, font_logical_size, font_device_size,
+       _DISPLAY_SCALE, _BASE_DISPLAY_SCALE, _USER_ZOOM, _FONT_ZOOM,
+       recompute_display_scale!, adjust_user_zoom!, adjust_font_zoom!, _FONT_DIR,
        font_inconsolata_regular_18,
        font_ubuntu_monospace_regular_14, font_ubuntu_monospace_italic_14, font_ubuntu_monospace_bold_14,
        font_ubuntu_monospace_regular_16, font_ubuntu_monospace_italic_16, font_ubuntu_monospace_bold_16,
@@ -72,21 +76,36 @@ end
 
 make_style_font(filename::AbstractString, size::Integer) = StyleFont(filename, size)
 
-# ── Global display scale (logical → device) ────────────────────────────────────
-
-# The single factor that maps the editor's *logical* pixel coordinate space —
-# which every document, projection and selection is authored and computed in —
-# to *device* pixels on screen. It is NOT a font-only knob: the SDL backend
-# applies it uniformly to all geometry (sizes, widths, positions) at the render
-# boundary via `SDL_RenderSetScale`, so a logical `font_*_24` glyph and the box
-# around it occupy the same physical size on every display.
+# ── Readability scaling: display scale + zoom knobs ─────────────────────────────
 #
-# Set by the SDL backend from the display DPI at window open; defaults to 1.0
-# (no scaling). Layout code never reads this — it works purely in logical
-# pixels. Only the backend reads it, in exactly three roles: rasterizing glyphs
-# at device size, converting device-space input (mouse/window) back to logical,
-# and scaling the renderer.
-const _DISPLAY_SCALE = Ref(1.0)
+# `_DISPLAY_SCALE` is the *effective* logical→device factor everything reads. It
+# is the product of two independently-set inputs:
+#
+#   _BASE_DISPLAY_SCALE — the display's DPI scale, detected once by the SDL
+#                         backend at window open (the role this factor played
+#                         before user zoom existed).
+#   _USER_ZOOM          — the user's *uniform* readability zoom (Ctrl+=/-/0),
+#                         1.0 by default. Magnifies everything because it feeds
+#                         the device-edge scale uniformly.
+#
+# `recompute_display_scale!()` folds them back into `_DISPLAY_SCALE`. Keep these
+# as plain `Ref`s: layout never reads the display scale (it is scale-invariant —
+# see plan/done/global-display-scale.md), so changing it needs no reactive
+# invalidation, only a backend repaint.
+const _BASE_DISPLAY_SCALE = Ref(1.0)
+const _USER_ZOOM          = Ref(1.0)
+const _DISPLAY_SCALE      = Ref(1.0)
+
+recompute_display_scale!() = (_DISPLAY_SCALE[] = _BASE_DISPLAY_SCALE[] * _USER_ZOOM[])
+
+# `_FONT_ZOOM` is the *font-only* readability zoom (Ctrl+Alt+=/-/0): it scales the
+# *logical* size of text so text-derived layout reflows bigger while fixed
+# geometry (paddings, image boxes, explicit spacing) stays put. Unlike the
+# display scale, layout DOES read it (`font_logical_size`), so it must be a
+# reactive `Cell` — writing it invalidates the text-layout cells that read it
+# during their thunks, which is what makes a font-zoom change relayout. A plain
+# value would leave those cached layouts stale (see documentation/reactive-cells.md).
+const _FONT_ZOOM = Cell(1.0)
 
 """
     font_scaled_size(size::Integer) -> Int
@@ -94,9 +113,62 @@ const _DISPLAY_SCALE = Ref(1.0)
 Device-pixel size at which a logical font `size` must be *rasterized* so that,
 once the renderer is scaled by [`_DISPLAY_SCALE`](@ref), the glyph lands 1:1 on
 device pixels and stays crisp. Backend-only: layout measures and positions text
-in logical pixels (plain `font.size`), never through this.
+in logical pixels (via [`font_logical_size`](@ref)), never through this.
 """
 font_scaled_size(size::Integer) = max(1, round(Int, size * _DISPLAY_SCALE[]))
+
+"""
+    font_logical_size(font::StyleFont) -> Int
+
+A font's size in *logical* pixels after the font-only zoom — what layout must use
+in place of the raw `font.size`. At the default zoom (`_FONT_ZOOM == 1.0`) this is
+exactly `font.size`, so every layout substitution is a no-op until the user zooms.
+Reads the reactive `_FONT_ZOOM` cell, so callers inside computed cells relayout
+when font zoom changes.
+"""
+font_logical_size(font::StyleFont) = max(1, round(Int, font.size * _FONT_ZOOM[]))
+
+"""
+    font_device_size(font::StyleFont) -> Int
+
+A font's size in *device* pixels: the logical (font-zoomed) size scaled by the
+display factor. The size the backend rasterizes glyphs at. Equals
+`font_scaled_size(font.size)` at the default font zoom.
+"""
+font_device_size(font::StyleFont) = max(1, round(Int, font.size * _FONT_ZOOM[] * _DISPLAY_SCALE[]))
+
+# Discrete, browser-like zoom factors and a stepper that snaps `cur` to the
+# nearest one then moves `delta` steps (clamped). `delta == 0` resets to 1.0.
+const _ZOOM_STEPS = (0.5, 0.67, 0.8, 0.9, 1.0, 1.1, 1.25, 1.5, 1.75, 2.0, 2.5, 3.0)
+function _stepped_zoom(cur::Real, delta::Integer)
+    delta == 0 && return 1.0
+    i = argmin(abs.(collect(_ZOOM_STEPS) .- cur))
+    _ZOOM_STEPS[clamp(i + delta, 1, length(_ZOOM_STEPS))]
+end
+
+"""
+    adjust_user_zoom!(delta::Integer) -> Float64
+
+Step the uniform display zoom (+1 in, -1 out, 0 reset) and refold it into
+`_DISPLAY_SCALE`. Returns the new `_USER_ZOOM`.
+"""
+function adjust_user_zoom!(delta::Integer)
+    _USER_ZOOM[] = _stepped_zoom(_USER_ZOOM[], delta)
+    recompute_display_scale!()
+    _USER_ZOOM[]
+end
+
+"""
+    adjust_font_zoom!(delta::Integer) -> Float64
+
+Step the font-only zoom (+1 in, -1 out, 0 reset). Writes the reactive `_FONT_ZOOM`
+cell via `setval!`, which invalidates the text-layout cells that read it so the
+next print relayouts. Returns the new font zoom.
+"""
+function adjust_font_zoom!(delta::Integer)
+    setval!(_FONT_ZOOM, _stepped_zoom(_FONT_ZOOM[], delta))
+    _FONT_ZOOM[]
+end
 
 # ── Font directory ─────────────────────────────────────────────────────────────
 

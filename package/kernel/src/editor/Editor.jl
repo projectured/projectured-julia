@@ -17,10 +17,10 @@ import ..ScreenModule: Screen, QuitEvent
 import ..ScreenDocumentModule: EventEnvelope
 import ..ReactiveModule: perf_counters, perf_reset!, @perf_time
 import ..DocumentModule: Document
-import ..KeyboardModule: Keyboard
+import ..KeyboardModule: Keyboard, KeyDown
 import ..MouseModule: Mouse
 import ..OperationApiModule: Operation, evaluate_operation
-import ..OperationModule: ReplaceSelectionOperation, QuitEditorOperation
+import ..OperationModule: ReplaceSelectionOperation, QuitEditorOperation, AdjustZoomOperation, AdjustFontZoomOperation
 import ..OperationModule: QuitEditorException
 import ..OperationRerootingModule: prepend_steps_to_op
 import ..ReferenceModule: ReferencePath, ConcreteReferencePath, EmptyReferencePath
@@ -98,8 +98,39 @@ function read!(editor::Editor)
                 editor.operation = op
                 return true
             end
+            # Editor-global readability zoom, recognised *after* the pipeline so a
+            # projection that explicitly binds these keys (e.g. clipboard add/remove
+            # on Ctrl+=/-) still wins when active.
+            z = _zoom_operation(env)
+            if z !== nothing
+                editor.operation = z
+                return true
+            end
         end
     end
+end
+
+"""
+    _zoom_operation(env) -> Operation or nothing
+
+Map a Ctrl-modified `=`/`-`/`0` key gesture to a readability-zoom operation:
+`Ctrl` (optionally with Shift, so `Ctrl++` also works) → uniform
+[`AdjustZoomOperation`](@ref); add `Alt` → font-only [`AdjustFontZoomOperation`](@ref).
+`=`/`+` zooms in (+1), `-` out (-1), `0` resets (0). Returns `nothing` for
+anything else. Recognised at the editor level so zoom works regardless of what
+is selected.
+"""
+function _zoom_operation(env)
+    env isa EventEnvelope || return nothing
+    ev = env.event
+    ev isa KeyDown || return nothing
+    m = ev.modifiers
+    (m.ctrl && !m.meta) || return nothing
+    delta = ev.key === :equals ? 1  :
+            ev.key === :minus  ? -1 :
+            ev.key === :zero   ? 0  : nothing
+    delta === nothing && return nothing
+    m.alt ? AdjustFontZoomOperation(delta) : AdjustZoomOperation(delta)
 end
 
 """

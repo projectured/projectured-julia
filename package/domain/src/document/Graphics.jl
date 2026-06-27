@@ -18,7 +18,7 @@ module GraphicsModule
 import ..ReactiveModule: Cell, setfn!, setval!
 import ..DocumentModule: Document, @document
 import ..CollectionModule: CellVector, ListNode, CollectionDocument
-import ..FontModule: StyleFont
+import ..FontModule: StyleFont, font_logical_size
 import ..ReferenceModule: Reference
 import ..GeometryModule: AffineTransform, affine_identity, affine_is_axis_aligned
 export GraphicsDocument, LayoutDirection, layout_none, layout_horizontal, layout_vertical,
@@ -599,7 +599,7 @@ function _hit_test_element(elem, x::Int, y::Int)
         _rect_hit(elem, x, y)
     elseif elem isa GraphicsText
         ex, ey = Int(elem.x), Int(elem.y)
-        fs = elem.font.size
+        fs = font_logical_size(elem.font)
         x >= ex && y >= ey && y < ey + fs
     elseif elem isa GraphicsCircle
         dx, dy = x - Int(elem.cx), y - Int(elem.cy)
@@ -662,7 +662,7 @@ function _bounds_elem!(elem, ox::Int, oy::Int, measure, minx, miny, maxx, maxy)
     if elem isa GraphicsText
         x, y = ox + Int(elem.x), oy + Int(elem.y)
         w, _ = measure(elem.text, elem.font)
-        h = elem.font.size
+        h = font_logical_size(elem.font)
         _bounds_extend!(minx, miny, maxx, maxy, x, y, x + Int(w), y + h)
     elseif elem isa GraphicsRect
         x, y = ox + Int(elem.x), oy + Int(elem.y)

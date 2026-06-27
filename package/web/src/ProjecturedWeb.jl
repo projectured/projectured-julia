@@ -23,7 +23,7 @@ import ProjecturedDomain.GraphicsModule: GraphicsCanvas, GraphicsText, GraphicsR
                          _bounds_elem!, _accumulate_bounds!, tessellate_spline
 import ProjecturedDomain.CollectionModule: ListNode, CellVector
 import ProjecturedDomain.GeometryModule: AffineTransform, affine_identity
-import ProjecturedDomain.FontModule: StyleFont
+import ProjecturedDomain.FontModule: StyleFont, font_logical_size
 import ProjecturedDomain.ReactiveModule: Cell, isuptodate
 import ProjecturedDomain.ScreenModule: QuitEvent
 import ProjecturedDomain.ScreenDocumentModule: ScreenDocument, WindowDocument, EventEnvelope,
@@ -201,7 +201,7 @@ function _serialize_node(elem)
         font = elem.font::StyleFont
         return Dict("t" => "text", "x" => Int(elem.x), "y" => Int(elem.y),
                     "s" => elem.text, "f" => _font_family(font.filename),
-                    "sz" => font.size, "c" => _rgba(elem))
+                    "sz" => font_logical_size(font), "c" => _rgba(elem))
     elseif elem isa GraphicsRect
         return Dict("t" => "rect", "x" => Int(elem.x), "y" => Int(elem.y),
                     "w" => Int(elem.w), "h" => Int(elem.h), "c" => _rgba(elem),
@@ -770,7 +770,11 @@ function quit!(backend::WebBackend)
     return nothing
 end
 
-measure_text(::WebBackend, text::AbstractString, font::StyleFont) = pdf_measure_text(text, font)
+# Measure at the font-zoomed logical size so web layout reflows with Ctrl+Alt zoom
+# (no-op at the default font zoom). Web has no display-scale knob — full zoom is
+# the browser's own; font zoom rides the backend-agnostic `_FONT_ZOOM` cell.
+measure_text(::WebBackend, text::AbstractString, font::StyleFont) =
+    pdf_measure_text(text, StyleFont(font.filename, font_logical_size(font)))
 
 # Non-blocking poll: hand back the next decoded event, or nothing.
 read_from_devices(backend::WebBackend, devices) =

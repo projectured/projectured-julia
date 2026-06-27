@@ -13,7 +13,7 @@ import ..ReactiveModule: Cell
 export ReplaceSelectionOperation, QuitEditorOperation, QuitEditorException, replace_selection!,
        OpenWindowOperation, OpenPopupOperation, CloseWindowOperation, ResizeWindowOperation, ToggleCollapseOperation,
        ReplaceReferencedValue, replace_document, insert_elements, delete_elements,
-       CompoundOperation
+       CompoundOperation, AdjustZoomOperation, AdjustFontZoomOperation
 
 function evaluate_operation(editor, op::Nothing) end
 
@@ -55,6 +55,30 @@ struct QuitEditorOperation <: Operation end
 
 function evaluate_operation(editor, op::QuitEditorOperation)
     throw(QuitEditorException())
+end
+
+"""
+    AdjustZoomOperation(delta)
+
+Editor-global *uniform* readability zoom: `delta` is +1 (in), -1 (out) or 0
+(reset). Magnifies the whole editor. The concrete behaviour — rescaling the
+display factor, reflowing windows and repainting — lives in the SDL backend's
+`evaluate_operation`; the generic no-op fallback above keeps it harmless under
+backends (Console/PDF) that do not implement it.
+"""
+struct AdjustZoomOperation <: Operation
+    delta::Int
+end
+
+"""
+    AdjustFontZoomOperation(delta)
+
+Editor-global *font-only* readability zoom, like [`AdjustZoomOperation`](@ref)
+but scaling only text (via the reactive `_FONT_ZOOM` cell), so fixed graphics and
+spacing keep their size. Behaviour also lives in the SDL backend.
+"""
+struct AdjustFontZoomOperation <: Operation
+    delta::Int
 end
 
 """

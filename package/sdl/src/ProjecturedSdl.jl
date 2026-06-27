@@ -32,7 +32,9 @@ import ProjecturedDomain.GraphicsModule: GraphicsCanvas, GraphicsText, GraphicsR
                          tessellate_spline, polyline_arrowhead
 import ProjecturedDomain.CollectionModule: ListNode, CellVector
 import ProjecturedDomain.GeometryModule: AffineTransform, affine_identity, affine_is_axis_aligned
-import ProjecturedDomain.FontModule: StyleFont, font_scaled_size, _DISPLAY_SCALE
+import ProjecturedDomain.FontModule: StyleFont, font_scaled_size, font_logical_size, font_device_size,
+                         _DISPLAY_SCALE, _BASE_DISPLAY_SCALE, recompute_display_scale!,
+                         adjust_user_zoom!, adjust_font_zoom!
 import ProjecturedDomain.ScreenModule: Screen, QuitEvent
 import ProjecturedDomain.ScreenDocumentModule: ScreenDocument, WindowDocument, EventEnvelope, WindowCloseRequest, WindowResizeEvent, WindowFocusLost
 import ProjecturedDomain.ModifiersModule: Modifiers
@@ -41,6 +43,7 @@ import ProjecturedDomain.MouseModule: MouseDown, MouseUp, MousePress, MouseMove,
 import ProjecturedDomain.ImageModule: ImageFile
 import ProjecturedDomain.ProjectionApiModule: projection_print, projection_read, Projection
 import ProjecturedDomain.OperationApiModule: Operation, evaluate_operation
+import ProjecturedDomain.OperationModule: AdjustZoomOperation, AdjustFontZoomOperation
 import ProjecturedDomain.DocumentApiModule: clear_selection!, set_selection!
 import ProjecturedDomain.PrinterContextModule: PrinterContext
 import ProjecturedDomain.ReactiveModule: Cell, isuptodate
@@ -105,7 +108,7 @@ function sdl_display_size(; display::Integer=0)
     SDL_Init(SDL_INIT_VIDEO) == 0 || return (1280, 720)
     # Ensure the scale is known before converting device → logical, since this
     # may run before `init!` (early detection is window-free: env + Xft.dpi).
-    _DISPLAY_SCALE[] == 1.0 && _detect_display_scale!()
+    _BASE_DISPLAY_SCALE[] == 1.0 && _detect_display_scale!()
 
     # Detect the SDL-collapses-multiple-monitors case and prefer the real
     # primary-monitor size. Only when SDL reports a single display (so we do
@@ -364,7 +367,7 @@ function sdl_keysym_to_symbol(keysym::Int32)::Symbol
     keysym == Int32(1073741911) && return :equals   # keypad '+'
     keysym == Int32(45)         && return :minus    # '-' — remove from collection
     keysym == Int32(1073741910) && return :minus    # keypad '-'
-    keysym == Int32(48)         && return :zero     # '0' — reset transform/zoom (Ctrl+0)
+    keysym == Int32(48)         && return :zero     # '0' — reset transform/zoom (Ctrl+0 / Ctrl+Alt+0)
     keysym == Int32(1073741922) && return :zero     # keypad '0'
     keysym == Int32(1073741881) && return :caps_lock
     # Modifier-only keys
@@ -551,8 +554,8 @@ function _detect_display_scale!()
     if !isempty(env_val)
         scale = tryparse(Float64, env_val)
         if scale !== nothing && scale > 0
-            _DISPLAY_SCALE[] = scale
-            println("Display scale: $(_DISPLAY_SCALE[]) (PROJECTURED_DISPLAY_SCALE)")
+            _BASE_DISPLAY_SCALE[] = scale; recompute_display_scale!()
+            println("Display scale: $(_BASE_DISPLAY_SCALE[]) (PROJECTURED_DISPLAY_SCALE)")
             return true
         end
     end
@@ -566,8 +569,8 @@ function _detect_display_scale!()
             if m !== nothing
                 xft_dpi = parse(Float64, m.captures[1])
                 if xft_dpi > 0
-                    _DISPLAY_SCALE[] = xft_dpi / 96.0
-                    println("Display scale: $(_DISPLAY_SCALE[]) (Xft.dpi = $xft_dpi)")
+                    _BASE_DISPLAY_SCALE[] = xft_dpi / 96.0; recompute_display_scale!()
+                    println("Display scale: $(_BASE_DISPLAY_SCALE[]) (Xft.dpi = $xft_dpi)")
                     return true
                 end
             end
@@ -581,7 +584,7 @@ end
 
 function _update_display_scale!(win::Ptr{SDL_Window}, renderer::Ptr{SDL_Renderer})
     # Skip if already resolved during init!.
-    _DISPLAY_SCALE[] != 1.0 && return
+    _BASE_DISPLAY_SCALE[] != 1.0 && return
 
     # SDL renderer output size vs logical window size.
     dw = Ref{Cint}(0); dh = Ref{Cint}(0)
@@ -589,8 +592,8 @@ function _update_display_scale!(win::Ptr{SDL_Window}, renderer::Ptr{SDL_Renderer
     SDL_GetRendererOutputSize(renderer, dw, dh)
     SDL_GetWindowSize(win, ww, wh)
     if ww[] > 0 && dw[] > ww[]
-        _DISPLAY_SCALE[] = Float64(dw[]) / Float64(ww[])
-        println("Display scale: $(_DISPLAY_SCALE[]) (SDL renderer ratio)")
+        _BASE_DISPLAY_SCALE[] = Float64(dw[]) / Float64(ww[]); recompute_display_scale!()
+        println("Display scale: $(_BASE_DISPLAY_SCALE[]) (SDL renderer ratio)")
         return
     end
 
@@ -601,8 +604,8 @@ function _update_display_scale!(win::Ptr{SDL_Window}, renderer::Ptr{SDL_Renderer
     hdpi = Ref{Cfloat}(0)
     vdpi = Ref{Cfloat}(0)
     if SDL_GetDisplayDPI(display_index, ddpi, hdpi, vdpi) == 0 && ddpi[] > 0
-        _DISPLAY_SCALE[] = Float64(ddpi[]) / 96.0
-        println("Display scale: $(_DISPLAY_SCALE[]) (SDL DPI = $(ddpi[]))")
+        _BASE_DISPLAY_SCALE[] = Float64(ddpi[]) / 96.0; recompute_display_scale!()
+        println("Display scale: $(_BASE_DISPLAY_SCALE[]) (SDL DPI = $(ddpi[]))")
     end
 end
 
@@ -618,7 +621,7 @@ end
 # ── Font resolution ────────────────────────────────────────────────────
 
 function _get_font(font::StyleFont)
-    size = font_scaled_size(font.size)
+    size = font_device_size(font)
     key = (font.filename, size)
     get!(_font_cache, key) do
         f = TTF_OpenFont(font.filename, size)
@@ -636,7 +639,7 @@ function _render_element!(renderer::Ptr{SDL_Renderer}, elem::GraphicsText, ox::I
     font_style = elem.font::StyleFont
     color = (elem.r, elem.g, elem.b, elem.a)
     key = _TextTextureKey(renderer, String(text), font_style.filename,
-                          font_scaled_size(font_style.size), color)
+                          font_device_size(font_style), color)
 
     # Reuse the uploaded texture for an unchanged (text, font, colour) span;
     # rasterize + upload only on a cache miss. The texture is rasterized at
@@ -1558,7 +1561,7 @@ size (for crispness) and the device measurement is divided back by
 [`_font_cache`](@ref).
 """
 function measure_text(::SdlBackend, text::AbstractString, font::StyleFont)
-    isempty(text) && return (0, font.size)
+    isempty(text) && return (0, font_logical_size(font))
     cached_font = _get_font(font)
     w_ref, h_ref = Ref{Cint}(0), Ref{Cint}(0)
     TTF_SizeUTF8(cached_font, String(text), w_ref, h_ref)
@@ -2157,6 +2160,58 @@ function _update_window_geometry!(res::SdlWindowResources, w::WindowDocument)
     # style changes mid-life would require flag-bit toggles that SDL
     # only partly supports; for now we just remember the latest value.
     res.style = w.style
+end
+
+# ════════════════════════════════════════════════════════════════════════
+# Readability zoom (Ctrl+=/-/0 uniform, Ctrl+Alt+=/-/0 font-only)
+# ════════════════════════════════════════════════════════════════════════
+#
+# The gesture is recognised editor-globally in the kernel's `read!`; here the SDL
+# backend supplies the concrete behaviour. `AdjustZoomOperation` rescales the
+# display factor (everything magnifies); `AdjustFontZoomOperation` writes the
+# `_FONT_ZOOM` cell (only text relayouts). Both force a full repaint because a
+# zoom change moves every pixel, defeating the dirty-rect path.
+
+# Mark every open window so its next paint repaints in full.
+function _force_full_repaint!(editor)
+    be = editor.backend
+    be isa SdlBackend || return
+    for res in values(be.windows)
+        res.first_paint = true
+    end
+    nothing
+end
+
+# Keep each window's *device* size fixed across a uniform-zoom change: scale its
+# logical `width`/`height` by `old/new` so `_to_device(new) == old_device`. The
+# OS window therefore does not resize, while the content relayouts to the new
+# logical viewport — those cells are the printer's `available_width/height`, so
+# the write reflows reactively (no re-projection), exactly like a user resize.
+function _reflow_for_scale!(editor, ratio::Float64)
+    (ratio == 1.0 || !isfinite(ratio)) && return
+    out = editor.iomap === nothing ? nothing : editor.iomap.output
+    out isa ScreenDocument || return
+    for w in out.windows
+        w isa WindowDocument || continue
+        w.width  = max(1, round(Int, Int(w.width)  * ratio))
+        w.height = max(1, round(Int, Int(w.height) * ratio))
+    end
+    nothing
+end
+
+function evaluate_operation(editor, op::AdjustZoomOperation)
+    old = _DISPLAY_SCALE[]
+    adjust_user_zoom!(op.delta)
+    new = _DISPLAY_SCALE[]
+    _reflow_for_scale!(editor, old / new)
+    _force_full_repaint!(editor)
+    nothing
+end
+
+function evaluate_operation(editor, op::AdjustFontZoomOperation)
+    adjust_font_zoom!(op.delta)   # writes the _FONT_ZOOM cell → text-layout cells invalidate
+    _force_full_repaint!(editor)
+    nothing
 end
 
 # ════════════════════════════════════════════════════════════════════════
