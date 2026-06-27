@@ -11,9 +11,9 @@
 > (`reactive_editor_time()` — become a dependent, re-run every frame) or merely
 > *sample* it (`editor_time()` — read the value, no dependency). No new
 > evaluation model, no tweening engine bolted onto the side — animation is just
-> an ordinary reactive dependency on one extra cell, and retirement of finished
-> animations is done from *above* the engine, leaving the reactive layer
-> untouched.
+> an ordinary reactive dependency on one extra cell. Finished animations simply
+> evaluate to their final value; there is no retirement machinery, and the
+> reactive layer is left untouched.
 
 ---
 
@@ -81,10 +81,9 @@ named reads, backed by **one cell** (single source of truth):
   every tick. This is what an animated value wants. The `reactive_` prefix is
   deliberately loud: it announces that calling this makes you reactive.
 - **`editor_time()` — sample.** "What time is it right now?" An *untracked* read
-  that registers no dependency. This is what *arming* an animation wants (capture
-  the start instant) and what the retirement sweep wants (decide whether an
-  animation is finished). These must not subscribe — otherwise the
-  arming/bookkeeping code itself starts re-running every frame.
+  that registers no dependency. This is what *arming* an animation wants —
+  capturing the start instant — without the arming code itself becoming reactive
+  and re-running every frame.
 
 The untracked read is a *generic reactive primitive* — Solid has `untrack`/
 `peek`, MobX has `untracked`; it is not an animation concept, so it belongs in
@@ -166,7 +165,7 @@ const EDITOR_TIME = Cell(0.0)   # current logical time, seconds (single source o
 peek(c::Cell) = (c.valid || recompute!(c); c.value)   # generic untracked read
 
 reactive_editor_time() = EDITOR_TIME[]       # SUBSCRIBE: tracked read (animated thunks)
-editor_time()          = peek(EDITOR_TIME)   # SAMPLE:    untracked read (arm / bookkeep)
+editor_time()          = peek(EDITOR_TIME)   # SAMPLE:    untracked read (arm animations)
 tick!(t)               = (EDITOR_TIME[] = t) # loop writes the new time
 ```
 
@@ -199,8 +198,7 @@ written*.
 
 ### 3. Main-loop integration
 
-In `run!`, write time every frame before printing, and sweep finished animations
-after (see §5):
+In `run!`, write time every frame before printing:
 
 ```julia
 while true
@@ -209,7 +207,6 @@ while true
     @perf_time :read_time     read!(editor)
     @perf_time :evaluate_time evaluate!(editor)
     @perf_time :print_time    print!(editor)        # re-pulls invalidated cells
-    retire_finished!(editor.animations, editor_time())  # external retirement (§5)
     perf!(editor)
     sleep(0.01)
 end
@@ -269,67 +266,31 @@ whenever the iomap is dropped (e.g. after a whole-document swap,
 `editor.iomap = nothing`). Absolute start times mean a rebuild doesn't restart
 mid-flight animations.
 
-### 5. Retiring finished animations — from above the engine
+### 5. When an animation finishes
 
-A finished animation that keeps recomputing to a constant is wasteful (the
-engine has no value-equality short-circuit — it re-runs the thunk every frame
-even when the result is unchanged). We want such a cell to stop subscribing to
-time once it is done. **The retirement must not touch the engine and must not
-happen inside a thunk** — it is an animation-layer concern, expressed only
-through the engine's existing public API.
+A finite animation's thunk simply evaluates to its final value once `t >= t1`
+and keeps doing so every frame. We deliberately do **not** convert the cell back
+to a primitive — there is no retirement registry, no manager, no sweep.
 
-An `AnimationManager` (held on the `Editor`, next to the `Clock`) keeps a
-registry of live, *finite* animations and sweeps it once per frame, between
-ticks — never inside a computation:
+Why that is the right call:
 
-```julia
-struct LiveAnimation
-    cell::Cell
-    done::Function        # (now)::Float64 -> Bool, e.g. now -> now >= t1
-end
+- **The leftover work is trivial.** A settled animation recomputes to a constant:
+  read time, return `to`. Cheap arithmetic, no downstream change.
+- **Dirty-rect rendering elides the repaint.** The recomputed value equals last
+  frame's, so the renderer sees nothing to redraw. The residual cost is a thunk
+  evaluation, not pixels — and only while the node is actually on-screen (an
+  off-screen settled cell is invalidated but never pulled, so it costs nothing).
+- **Every mechanism for *actually* stopping the subscription is worse than the
+  problem.** An engine sentinel leaks animation into Layer 0; a self-`setval!`
+  thunk breaks purity; an external registry adds bookkeeping (stale entries on
+  iomap rebuild, `WeakRef`s, ordering after print) to save what dirty-rect
+  already saves. See Rejected Alternatives.
 
-function retire_finished!(mgr, now)            # called in the loop, after print!
-    filter!(mgr.live) do a
-        if a.done(now)                          # SAMPLE-based predicate
-            setval!(a.cell, a.cell[])           # pull final value, pin it as primitive
-            false                               # drop from registry
-        else
-            true
-        end
-    end
-end
-```
-
-`setval!(cell, cell[])` is the whole trick: at `now >= t1`, `cell[]` already
-returns the final value, and `setval!` converts the cell to a primitive holding
-it — which severs its `EDITOR_TIME` dependency via the engine's existing
-`_detach_upstream!`. It runs **between frames**, outside `_computing`, so there
-is no mid-recompute hazard and no purity violation. It is the same kind of
-external write the loop already performs on `EDITOR_TIME`.
-
-Properties of this approach:
-
-- **Engine untouched** — no sentinel, no return-type check, no knowledge of
-  animation in Layer 0. Reactivity never hears the word "animation".
-- **Thunks stay pure** — they only subscribe to time and compute; nothing
-  mutates itself.
-- **Removable** — retirement is a pure optimization layered on top. Delete the
-  manager and everything still works, just with the per-frame churn (kept cheap
-  by dirty-rect rendering; see Performance).
-- **Perpetual animations are never registered** — a rotating dot or a blinking
-  cursor has no end, so it simply stays subscribed via `reactive_editor_time()`
-  and is *not* added to the manager. Only finite animations retire.
-
-Two things the manager must get right:
-
-1. **Stale registrations on rebuild.** When an operation drops `editor.iomap`
-   ([Operation.jl:193](../../package/kernel/src/common/Operation.jl)) the
-   animated cells are orphaned and rebuilt. Clear the registry on iomap rebuild
-   (or hold cells by `WeakRef`) so it does not pin garbage or freeze a cell that
-   no longer renders.
-2. **Order: retire after print.** Render the `t >= t1` frame with the computed
-   value first, then freeze. Since the frozen value equals the computed one this
-   is cosmetic, but it keeps the rule simple.
+The one real consequence is honest to state: a settled, on-screen animation
+keeps `EDITOR_TIME`'s dependent set non-empty, so the idle-gating optimization
+(§7) cannot treat the editor as fully idle while any finished animation is
+visible. In practice the per-frame work is negligible. If it ever does bite, the
+fix is a better idle signal — not a registry.
 
 ### 6. Output-only, but the *spec* is editable
 
@@ -354,17 +315,15 @@ t0 = editor_time()              # SAMPLE the absolute start
 t1 = t0 + 0.5                   # half-second slide
 setfn!(getfield(rect, :x),
        () -> animate(10.0, 100.0, t0, t1; easing = ease_out)(reactive_editor_time()))  # SUBSCRIBE
-register!(editor.animations, LiveAnimation(getfield(rect, :x), now -> now >= t1))
 ```
 
 - Before `t0`: pulls return `10`.
 - Between `t0` and `t1`: each frame `EDITOR_TIME` is written → the `x` cell is
   invalidated → next pull recomputes the eased value → the rect redraws.
-- At `t1`: the value reaches `100`; the next `retire_finished!` sweep pins the
-  cell to `100` as a primitive and unregisters it. From then on it costs
-  nothing — it no longer subscribes to time.
-
-This is the *finite* path. The next example is the *perpetual* path.
+- After `t1`: the thunk returns the constant `100` every frame. The cell keeps
+  subscribing to time, but the value never changes, so dirty-rect skips the
+  repaint and the leftover cost is one trivial recompute per frame while the rect
+  is on-screen (§5).
 
 ---
 
@@ -373,9 +332,9 @@ This is the *finite* path. The next example is the *perpetual* path.
 The canonical unit-circle demonstration, and a good stress of composition: a
 point rotates forever on a circle, while two line charts trace its coordinates —
 the **sine** of the angle (the y-coordinate) aligned to the vertical axis, and
-the **cosine** (the x-coordinate) aligned to the horizontal axis. Because it
-never ends, nothing here is registered with the `AnimationManager`; it simply
-stays subscribed to time. This exercises the always-on path.
+the **cosine** (the x-coordinate) aligned to the horizontal axis. It never ends,
+so it stays subscribed to time forever — the always-on counterpart to the
+settling example A.
 
 ### Layout
 
@@ -409,7 +368,7 @@ const GAP = 24
 phase0 = editor_time()              # SAMPLE the start instant (no subscription)
 θ(t)   = ω * (t - phase0)
 
-# ── the rotating dot (GraphicsCircle) — perpetual, NOT registered ──────────
+# ── the rotating dot (GraphicsCircle) ──────────────────────────────────────
 setfn!(getfield(dot, :cx), () -> round(Int32, cx0 + R * cos(θ(reactive_editor_time()))))
 setfn!(getfield(dot, :cy), () -> round(Int32, cy0 - R * sin(θ(reactive_editor_time()))))
 
@@ -454,10 +413,10 @@ setfn!(getfield(sin_link, :x2), () -> Int32(cx0 + R + GAP)); setfn!(getfield(sin
 - **Alignment falls out of the math.** The newest chart sample equals the dot's
   projected coordinate by construction, so "aligned to the corresponding axis"
   needs no extra layout logic.
-- **Perpetual ⇒ exercises the always-on path.** Nothing settles, so the
-  retirement machinery is correctly *not* involved; this is the counterpart to
-  example A. Ship both as examples (`run_example("rotating_vector")` and a
-  settling demo) so reviewers see retirement and non-retirement side by side.
+- **Perpetual ⇒ exercises the always-on path.** Nothing settles — the
+  counterpart to example A. Ship both as examples
+  (`run_example("rotating_vector")` and a settling demo) so reviewers see the
+  always-on and settle-to-constant behaviours side by side.
 - **Deterministic capture.** Frames at `seek!(clock, kΔt)` produce a filmstrip
   of the rotation for image/video tests (see Determinism and the video plans).
 
@@ -470,12 +429,11 @@ setfn!(getfield(sin_link, :x2), () -> Int32(cx0 + R + GAP)); setfn!(getfield(sin
   `editor_time()` (sample), `tick!`/`seek!` to `Reactive.jl`; export them.
   `peek` is a generic untracked read, not animation-specific.
 - Add a `Clock` struct with `advance!/seek!/pause!/resume!/set_rate!`.
-- Hold a `Clock` and an `AnimationManager` on the `Editor`.
+- Hold a `Clock` on the `Editor`.
 
 ### 2. Loop integration
-- Call `advance!(editor.clock)` at the top of each `run!` frame and
-  `retire_finished!(editor.animations, editor_time())` after `print!` (all three
-  loop variants: plain, bootstrap, and the timeline-driven `run!`).
+- Call `advance!(editor.clock)` at the top of each `run!` frame (all three loop
+  variants: plain, bootstrap, and the timeline-driven `run!`).
 - Confirm `write_to_devices` re-pulls animated cells with the iomap cached
   (verify with a one-cell smoke test).
 
@@ -484,32 +442,29 @@ setfn!(getfield(sin_link, :x2), () -> Int32(cx0 + R + GAP)); setfn!(getfield(sin
   `sequence` in a new `Animation.jl` (graphics layer).
 - All pure and generic over interpolatable values (numbers, colors, points).
 
-### 4. External retirement
-- `AnimationManager` + `LiveAnimation` + `register!` + `retire_finished!`,
-  using only `setval!`/`peek` from the engine.
-- Clear the registry when the iomap is rebuilt (or use `WeakRef`).
-
-### 5. Examples
-- **Settling demo** (example A): a value that eases and retires; assert via
-  `perf_counters()` that it stops recomputing after `t1`.
+### 4. Examples
+- **Settling demo** (example A): a value that eases to a constant and then holds.
+  Use `perf_counters()` to confirm the settled cell does only a trivial constant
+  recompute and triggers no repaint.
 - **Rotating vector** (example B): the circle + sin/cos charts above, as a
   graphics-domain example wired entirely from time. Run via `run_example(...)`;
   capture a filmstrip via `write_image` at successive `seek!` values.
 
-### 6. Determinism for tests / headless
+### 5. Determinism for tests / headless
 - `test_printers` and friends must pin time: `seek!(clock, FIXED_T)` (or
   `EDITOR_TIME[] = 0.0`) before projecting, so printer output is reproducible.
 - `write_example_image` / screenshot helpers take an optional `at::Float64`
   that does `seek!` before rendering.
 - Add a test that bumps `EDITOR_TIME` across two values and asserts an animated
   coordinate changed (and that a non-animated sibling did **not** recompute —
-  the incrementality guarantee), plus a test that a finite animation retires
-  (subscribes before `t1`, primitive after).
+  the incrementality guarantee).
 
-### 7. Idle/active gating (performance)
+### 6. Idle/active gating (performance)
 - Detect whether anything is animating by inspecting `EDITOR_TIME`'s dependent
   set (non-empty ⇒ animations live). When empty, the loop can `sleep` longer /
-  skip the redraw entirely.
+  skip the redraw entirely. Note this gate is conservative: a settled but
+  on-screen animation keeps the set non-empty (§5), so it only fully idles a
+  document with no live animated cells at all.
 
 ---
 
@@ -519,19 +474,22 @@ setfn!(getfield(sin_link, :x2), () -> Int32(cx0 + R + GAP)); setfn!(getfield(sin
   empty set. The only always-on cost is the write itself plus the existing 10 ms
   poll loop.
 - **`editor_time()` is cheaper than `reactive_editor_time()`.** Sampling skips
-  dependency tracking and never recomputes a primitive cell — so arming and the
-  retirement sweep add negligible cost and, crucially, register no edges.
+  dependency tracking and never recomputes a primitive cell — so arming an
+  animation adds negligible cost and, crucially, registers no edges.
 - **Active cost is proportional to the animated subtree**, by construction of
   the pull-based engine — siblings that don't subscribe to time never recompute.
   Use `perf_counters()` to confirm `:computes` per frame tracks only the
   animated nodes.
-- **Retirement removes finished finite animations** from the subscriber set, so
-  a screen that accumulates many one-shot effects (fades, slides) does not slowly
-  accrue per-frame churn. Perpetual animations stay subscribed by design.
-- **Synergy with dirty-rect rendering**
-  ([optimize-rendering-dirty-rect.md](../pending/optimize-rendering-dirty-rect.md)):
-  animation makes per-frame partial redraw worthwhile — only the moving region
-  needs repainting, and the reactive graph already knows which cells changed.
+- **Settled animations cost a constant recompute, not a repaint.** A finished
+  finite animation keeps subscribing to time and re-evaluates to its final value
+  each frame; dirty-rect rendering
+  ([optimize-rendering-dirty-rect.md](../pending/optimize-rendering-dirty-rect.md))
+  sees no change and skips the draw. The residual is arithmetic, and only for
+  on-screen nodes.
+- **Synergy with dirty-rect rendering.** Animation is the strongest motivation
+  for per-frame partial redraw — only the moving region needs repainting, and the
+  reactive graph already knows which cells changed. It is also what makes
+  not-retiring acceptable.
 
 ---
 
@@ -541,15 +499,16 @@ setfn!(getfield(sin_link, :x2), () -> Int32(cx0 + R + GAP)); setfn!(getfield(sin
   proposal. Confirm easing math and `keyframes` read cleanly in those units;
   decide whether `Clock.rate`/pause are needed in v1 or can be deferred (realtime
   monotonic clock is the minimum).
-- **Retirement registry lifetime.** Clearing on iomap rebuild vs `WeakRef`
-  cells. `WeakRef` is robust but adds indirection; clear-on-rebuild is simple but
-  must hook every iomap-drop site. Decide once the rebuild paths are enumerated.
+- **Idle after animations.** Without a retirement step, a settled on-screen
+  animation keeps the editor out of the fully-idle state (§5, §6). If
+  battery/CPU at rest becomes a concern, find a cheaper idle signal (e.g. "no
+  cell's value changed this frame") rather than reintroducing a registry.
 - **Determinism vs. realtime.** Tests/headless use `seek!`; the live editor uses
   `advance!`. Audit projection code for any direct `Base.time()`/`time_ns()` —
   everything must go through `EDITOR_TIME` (subscribe or sample).
 - **Where helpers live.** `Animation.jl` in the graphics layer vs a standalone
   package. The cell + `peek` + the two readers belong in the kernel; the
-  easing/keyframe/manager vocabulary belongs with graphics.
+  easing/keyframe vocabulary belongs with graphics.
 - **Generality of interpolation.** `animate` over numbers is obvious; over colors
   (fades), points (motion paths), and styled-string attributes needs an
   interpolation typeclass (`lerp(a, b, fraction)` per type).
@@ -558,6 +517,12 @@ setfn!(getfield(sin_link, :x2), () -> Int32(cx0 + R + GAP)); setfn!(getfield(sin
   stateful — decide how that state is owned without violating thunk purity
   (likely a primitive cell holding the buffer, written by an external sampler in
   the loop, exactly like `EDITOR_TIME` itself).
+- **Arming on state change.** Self-starting animations (examples A, B) capture
+  `t0` at construction. Animations triggered by an edit (a toggle sliding when
+  its bool flips) need to arm `t0` at the moment the state changes — which can't
+  be a thunk side effect. The natural home is the loop (an untracked per-frame
+  comparison of the watched value, rewiring the presentation cell on change) or
+  the operation/evaluate path. Worth a worked widget example before committing.
 - **Spec as a document.** Modelling keyframes/curves as an editable document (a
   timeline editor projection) is attractive but a separate, larger effort; v1
   can hardcode animation specs in projection code.
@@ -569,6 +534,14 @@ setfn!(getfield(sin_link, :x2), () -> Int32(cx0 + R + GAP)); setfn!(getfield(sin
 
 ## Rejected Alternatives
 
+- **A retirement registry** (an `AnimationManager` that tracks finite animations
+  and converts each finished cell back to a primitive via `setval!`). Considered
+  and dropped: its only real benefit is letting the editor go fully idle again
+  after an animation ends, and that does not justify the bookkeeping it requires
+  (stale registrations on iomap rebuild, `WeakRef` cells, retire-after-print
+  ordering, coupling projections to a manager). Dirty-rect rendering already
+  elides the repaint of a settled animation, so the saving is a trivial constant
+  recompute (§5). Not worth a subsystem.
 - **An engine-level "freeze" sentinel** (a `Frozen` value the thunk returns and
   `recompute!` special-cases to retire the cell). Rejected: it drags a
   higher-layer lifetime/animation concept *down* into Layer 0, which must stay
@@ -581,9 +554,7 @@ setfn!(getfield(sin_link, :x2), () -> Int32(cx0 + R + GAP)); setfn!(getfield(sin
   violates the thunk-purity contract (a side effect inside a thunk that may run
   0/1/many times), relies on a non-obvious proof, has a read-ordering trap (must
   not read any cell after eliminating), and is fragile against any future engine
-  change (value-equality short-circuit, speculative/parallel recompute). The
-  external `AnimationManager` (§5) achieves the same retirement with a pure thunk
-  and an untouched engine.
+  change (value-equality short-circuit, speculative/parallel recompute).
 - **Two independent time globals** (a plain `Ref` plus the cell). Works and needs
   no `peek`, but duplicates the source of truth and invites silent intra-frame
   divergence. One cell read two ways (`reactive_editor_time()` / `editor_time()`)
@@ -595,11 +566,11 @@ setfn!(getfield(sin_link, :x2), () -> Int32(cx0 + R + GAP)); setfn!(getfield(sin
 
 | Plan | Overlap |
 |---|---|
-| [optimize-rendering-dirty-rect.md](../pending/optimize-rendering-dirty-rect.md) | Animation is the strongest motivation for partial redraw — only the moving region changes each frame. Should land together or at least be co-designed. |
+| [optimize-rendering-dirty-rect.md](../pending/optimize-rendering-dirty-rect.md) | Animation is the strongest motivation for partial redraw — only the moving region changes each frame. It is also what makes *not* retiring settled animations acceptable (the repaint is skipped). Should land together or at least be co-designed. |
 | [headless-video-recording.md](../done/headless-video-recording.md) / [extract-video-package.md](../done/extract-video-package.md) | Rendering successive `seek!(t)` frames to images *is* video. The rotating-vector example is a natural recorded-animation test case. |
 | [generate-screenshots.md](../done/generate-screenshots.md) / [write-image.md](../done/write-image.md) | Deterministic screenshots require pinning time; these helpers should grow an `at::Float64` parameter. |
 | timeline-driven `run!` (in [Editor.jl](../../package/kernel/src/editor/Editor.jl)) | That loop injects *operations* on a schedule (event-level scripting). Animation is the *value-level* analog — interpolated state rather than discrete operations. Conceptually complementary; both are "the editor changing without live user input". |
-| [tooltip.md](../pending/tooltip.md) / [annotation.md](../tentative/annotation.md) | Fade-in/out and slide presentations for popups and annotations become trivial once a time cell exists (and they retire via §5). |
+| [tooltip.md](../pending/tooltip.md) / [annotation.md](../tentative/annotation.md) | Fade-in/out and slide presentations for popups and annotations become trivial once a time cell exists. |
 
 ---
 
@@ -610,8 +581,8 @@ setfn!(getfield(sin_link, :x2), () -> Int32(cx0 + R + GAP)); setfn!(getfield(sin
   `reactive_editor_time()` / `editor_time()` are added there; write-driven
   invalidation is the load-bearing mechanism and already exists.
 - The main loop ([Editor.jl](../../package/kernel/src/editor/Editor.jl)) — one
-  `advance!` and one `retire_finished!` call per frame; the per-frame
-  `write_to_devices` re-pull already happens.
+  `advance!` call per frame; the per-frame `write_to_devices` re-pull already
+  happens.
 - The graphics domain primitives used by example B already exist:
   `GraphicsCircle`, `GraphicsPolyline`, `GraphicsLine`, `GraphicsCanvas`
   ([Graphics.jl](../../package/domain/src/document/Graphics.jl)) — all
