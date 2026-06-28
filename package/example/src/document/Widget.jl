@@ -96,9 +96,41 @@ function make_widget_document_example(; width=1024, height=768)
         WidgetTitlePane("Details",    right_scroll; padding=Inset(4, 4, 4, 4)),
     ]; sizes=[div(width, 2), div(width, 2)])
 
+    # ── Forms tab (FormLayout + spin box + list + stacked pages) ──────────────
+    # FormLayout is sugar over a 2-column GridLayout: the label column hugs and is
+    # right-aligned, the field column fills the seeded width (column stretch). The
+    # spin box and list are the new data-entry widgets; StackLayout(active=2) shows
+    # a single page (QStackedWidget).
+    form = FormLayout([
+        (WidgetLabel(Point2D(0, 0), "Name"),
+         WidgetText(Point2D(0, 0), "Ada Lovelace"; border=fb, padding=Inset(4, 4, 8, 8))),
+        (WidgetLabel(Point2D(0, 0), "Email"),
+         WidgetText(Point2D(0, 0), "ada@analytical.engine"; border=fb, padding=Inset(4, 4, 8, 8))),
+        (WidgetLabel(Point2D(0, 0), "Quantity"),
+         WidgetSpinBox(Point2D(0, 0), 3; min=0, max=99, step=1)),
+    ])
+    fruits = WidgetList(Point2D(0, 0), ["Apples", "Bananas", "Cherries", "Dates"];
+                        selected=2, width=240)
+    pages = StackLayout(Any[
+        WidgetCard(Point2D(0, 0); title="Page 1", content="First page."),
+        WidgetCard(Point2D(0, 0); title="Page 2", content="Second page is active."),
+        WidgetCard(Point2D(0, 0); title="Page 3", content="Third page."),
+    ]; active=2)
+    forms = VerticalLayout(Any[
+        form,
+        WidgetSeparator(Point2D(0, 0); length=360),
+        HorizontalLayout(Any[
+            VerticalLayout(Any[WidgetLabel(Point2D(0, 0), "Favorite fruit"), fruits];
+                           gap=8, horizontal_align=:left),
+            VerticalLayout(Any[WidgetLabel(Point2D(0, 0), "Stacked pages (2 of 3 active)"), pages];
+                           gap=8, horizontal_align=:left),
+        ]; gap=24),
+    ]; gap=16, horizontal_align=:left)
+
     tabs = WidgetTabbedPane([
         ("Inputs",  inputs,       :pencil),
         ("Buttons", buttons,      :plus),
+        ("Forms",   forms,        :file),
         ("Display", display,      :search),
         ("Data",    data,         :folder),
         ("Layout",  layout_split, :menu),
