@@ -404,11 +404,9 @@ iomap whose element is the same object at the same index — so a structural edi
 rebuilds only the changed slot and the envelope, not the whole children vector.
 
 Measured at the SYNTAX layer (`RecursiveProjection(JsonToSyntax())`) to isolate the
-template engine: the downstream render layers (`SyntaxToText` → `TextToGraphics`)
-still rebuild their children from scratch on any change, so they re-orphan the
-output end-to-end (the full graphics pipeline is a separate follow-up). Without
-reconciliation each JSON collection orphaned ≈97% of its output objects on insert;
-with it, ≤1%.
+template engine from the downstream render layers (which are exercised separately
+by `test_graphics_structural_locality`). Without reconciliation each JSON collection
+orphaned ≈97% of its output objects on insert; with it, ≤1%.
 """
 function test_template_structural_locality()
     @testset "Template structural locality (dimension C)" begin
@@ -421,6 +419,33 @@ function test_template_structural_locality()
             frac = r.total == 0 ? 0.0 : r.lost / r.total
             frac < 0.05 || @warn "[$(r.label)] structural loss $(round(100*frac; digits=1))% (>5%): reconciliation regressed"
             @test frac < 0.05
+        end
+    end
+end
+
+"""
+    test_graphics_structural_locality()
+
+Dimension C end-to-end, through the full JSON render pipeline
+(`JsonToSyntax → SyntaxToText → TextToGraphics`): a structural insert must preserve
+the output-object identity of the unchanged siblings all the way down to the
+graphics. Each layer reconciles — the template engine reuses child iomaps, the text
+layer shares decorative whitespace spans, and `TextToGraphics` reuses a persistent
+GraphicsText per segment (its geometry derived reactively). Without these the
+graphics output orphaned ≈97% of its objects on insert; with them, ≈9% (essentially
+the newly inserted element plus the decoration that genuinely shifted).
+"""
+function test_graphics_structural_locality()
+    @testset "Graphics structural locality (dimension C, end-to-end)" begin
+        doc = make_json_document_example()
+        proj = make_json_projection_example()
+        res = explore_structural_locality(doc, proj)
+        @test res.count >= 1
+        for r in res.results
+            @test isempty(r.errors)
+            frac = r.total == 0 ? 0.0 : r.lost / r.total
+            frac < 0.20 || @warn "[$(r.label)] end-to-end graphics loss $(round(100*frac; digits=1))% (>20%): downstream reconciliation regressed"
+            @test frac < 0.20
         end
     end
 end

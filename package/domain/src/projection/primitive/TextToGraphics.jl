@@ -250,10 +250,30 @@ function projection_print(p::TextToGraphics, recursion, styled::TextText, ctx)
     # Element vector: highlight (behind) + text spans + cursor (in front). Reads
     # only `layout` (the text), so the caret moving never regenerates it. The
     # highlight is always element 1, so the click-mapping offset is constant 1.
+    #
+    # Each text/fill placement becomes a PERSISTENT GraphicsText/GraphicsRect that
+    # is created once per key and reused across re-layouts — its geometry/content
+    # are `setfn!` cells that read the placement back out of `layout`, exactly like
+    # the cursor/highlight overlays above. So a structural edit preserves the
+    # output-object identity of every unchanged segment and only re-derives the
+    # cells of those that moved (printer locality — dimension C). A non-placement
+    # entry (an inline image) has no reuse key and passes through as-is.
+    gt_cache = Dict{Any,Any}()
     elements = CellVector(function ()
-        spans = layout[].spans
+        pls = layout[].spans
         out = Any[highlight_rect]
-        append!(out, spans)
+        live = Set{Any}()
+        for pl in pls
+            if pl isa NamedTuple
+                push!(live, pl.key)
+                push!(out, _persistent_graphic!(gt_cache, layout, pl))
+            else
+                push!(out, pl)
+            end
+        end
+        for k in collect(keys(gt_cache))
+            k in live || delete!(gt_cache, k)
+        end
         push!(out, cursor_rect)
         out
     end)
@@ -276,6 +296,10 @@ end
 # map still run so caret/highlight placement is identical to the rendered text.
 function _layout_text(p::TextToGraphics, styled::TextText, sel; collect_spans::Bool=true)
     result = Any[]
+    by_key = Dict{Any,Any}()
+    occ = Dict{UInt64,Int}()   # per-span occurrence counter so a shared decorative
+                               # span (one TextString at several flat positions)
+                               # gets a distinct stable key per occurrence.
     coord_map = SegCoord[]
     span_flat_offsets = Dict{Int,Int}()  # elem_idx → cumulative flat char offset
     cumulative_flat = 0
@@ -327,6 +351,8 @@ function _layout_text(p::TextToGraphics, styled::TextText, sel; collect_spans::B
         end
         span isa TextString || continue
         span_idx = elem_idx                            # 1-based index in elements
+        span_oid = objectid(span)
+        span_occ = (occ[span_oid] = get(occ, span_oid, 0) + 1)
         char_offset = 0                               # local offset within this span
         txt  = span.content::AbstractString             # reads span content cell
         cumulative_flat += length(txt)
@@ -370,8 +396,16 @@ function _layout_text(p::TextToGraphics, styled::TextText, sel; collect_spans::B
             seg_char_start = char_offset
             seg_len = length(line)
             if collect_spans
-                _push_fill_rect!(result, span, seg_x, cy, seg_w, seg_h)
-                push!(result, _make_sdl(line, seg_x, cy, sf, r, g, b, a))
+                fpl = _fill_placement(span, (span_oid, span_occ, li, :fill), seg_x, cy, seg_w, seg_h)
+                if fpl !== nothing
+                    push!(result, fpl)
+                    by_key[fpl.key] = fpl
+                end
+                tpl = (kind = :text, key = (span_oid, span_occ, li),
+                       text = String(line), x = seg_x, y = cy, font = sf,
+                       r = r, g = g, b = b, a = a)
+                push!(result, tpl)
+                by_key[tpl.key] = tpl
             end
             push!(coord_map, SegCoord(span_idx, seg_char_start, seg_char_start + seg_len, seg_x, cy, sf, line, seg_w, seg_h))
             if cursor_pos !== nothing && cursor_x < 0 &&
@@ -396,8 +430,66 @@ function _layout_text(p::TextToGraphics, styled::TextText, sel; collect_spans::B
     end
 
     max_cx = max(max_cx, cx)
-    (spans = result, coord_map = coord_map, width = max_cx, height = cy + line_h,
+    (spans = result, by_key = by_key, coord_map = coord_map, width = max_cx, height = cy + line_h,
      span_flat_offsets = span_flat_offsets, cursor = cursor, highlight = highlight)
+end
+
+# ── Persistent per-segment graphics (printer locality — dimension C) ───────────
+#
+# `_layout_text` emits a *placement* (a stable key + geometry/content values) per
+# text/fill segment instead of a graphic. The element builder turns each placement
+# into a GraphicsText/GraphicsRect that is created ONCE per key and reused across
+# re-layouts; its fields are `setfn!` cells that read the placement back out of the
+# `layout` cell (via `by_key`). So a structural edit keeps the object identity of
+# every unchanged segment and only re-derives the cells of those whose placement
+# moved — the cursor/highlight overlay idiom, generalised to every span. No cell is
+# ever written from inside another cell's computation.
+
+_plget(layout, key) = get(layout[].by_key, key, nothing)
+
+# A background fill placement for a span carrying a non-default `fill_color`, or
+# `nothing` for the (default) transparent fill. Mirrors `_push_fill_rect!`.
+function _fill_placement(span, key, x, y, w, h)
+    fill = span.fill_color
+    fill isa StyleColor || return nothing
+    (kind = :fill, key = key, x = x, y = y, w = w, h = h,
+     r = UInt8(round(fill.red * 255)), g = UInt8(round(fill.green * 255)),
+     b = UInt8(round(fill.blue * 255)), a = UInt8(round(fill.alpha * 255)))
+end
+
+_persistent_graphic!(cache, layout, pl) =
+    get!(() -> pl.kind === :fill ? _make_persistent_rect(layout, pl) :
+                                   _make_persistent_text(layout, pl),
+         cache, pl.key)
+
+function _make_persistent_text(layout, pl0)
+    key = pl0.key
+    gt = GraphicsText(pl0.text, Int(pl0.x), Int(pl0.y), pl0.font,
+                      Int(pl0.r), Int(pl0.g), Int(pl0.b), Int(pl0.a))
+    setfn!(getfield(gt, :text), () -> (q = _plget(layout, key); q === nothing ? "" : q.text))
+    setfn!(getfield(gt, :x),    () -> (q = _plget(layout, key); Int32(q === nothing ? 0 : q.x)))
+    setfn!(getfield(gt, :y),    () -> (q = _plget(layout, key); Int32(q === nothing ? 0 : q.y)))
+    setfn!(getfield(gt, :font), () -> (q = _plget(layout, key); q === nothing ? pl0.font : q.font))
+    setfn!(getfield(gt, :r),    () -> (q = _plget(layout, key); UInt8(q === nothing ? 0 : q.r)))
+    setfn!(getfield(gt, :g),    () -> (q = _plget(layout, key); UInt8(q === nothing ? 0 : q.g)))
+    setfn!(getfield(gt, :b),    () -> (q = _plget(layout, key); UInt8(q === nothing ? 0 : q.b)))
+    setfn!(getfield(gt, :a),    () -> (q = _plget(layout, key); UInt8(q === nothing ? 0 : q.a)))
+    gt
+end
+
+function _make_persistent_rect(layout, pl0)
+    key = pl0.key
+    rect = GraphicsRect(Int(pl0.x), Int(pl0.y), Int(pl0.w), Int(pl0.h),
+                        Int(pl0.r), Int(pl0.g), Int(pl0.b), Int(pl0.a))
+    setfn!(getfield(rect, :x), () -> (q = _plget(layout, key); Int32(q === nothing ? 0 : q.x)))
+    setfn!(getfield(rect, :y), () -> (q = _plget(layout, key); Int32(q === nothing ? 0 : q.y)))
+    setfn!(getfield(rect, :w), () -> (q = _plget(layout, key); Int32(q === nothing ? 0 : q.w)))
+    setfn!(getfield(rect, :h), () -> (q = _plget(layout, key); Int32(q === nothing ? 0 : q.h)))
+    setfn!(getfield(rect, :r), () -> (q = _plget(layout, key); UInt8(q === nothing ? 0 : q.r)))
+    setfn!(getfield(rect, :g), () -> (q = _plget(layout, key); UInt8(q === nothing ? 0 : q.g)))
+    setfn!(getfield(rect, :b), () -> (q = _plget(layout, key); UInt8(q === nothing ? 0 : q.b)))
+    setfn!(getfield(rect, :a), () -> (q = _plget(layout, key); UInt8(q === nothing ? 0 : q.a)))
+    rect
 end
 
 # ── ListNode path: lazy paragraph-level mapping ──────────────────────

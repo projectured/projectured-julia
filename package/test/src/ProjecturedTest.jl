@@ -166,6 +166,7 @@ function test_projections()
     @testset "Projections" begin
         test_projection_template_hygiene()
         test_template_structural_locality()
+        test_graphics_structural_locality()
         test_json_to_syntax()
         test_json_to_syntax_reader()
         test_json_gesture_collection()
@@ -282,7 +283,7 @@ export test_graph
 export test_examples, test_text_navigations, test_text_navigations_complete
 export test_printer, test_printers, test_example, test_text_navigation
 export printer_locality_report, explore_selection_locality, test_selection_locality, test_selection_localities, LocalityReport, LocalityCell, is_selection_cell
-export explore_structural_locality, report_structural_locality, test_template_structural_locality
+export explore_structural_locality, report_structural_locality, test_template_structural_locality, test_graphics_structural_locality
 export explore_value_locality, test_value_locality, test_value_localities
 export explore_text_selections, collect_text_selections, collect_tree_selections, collect_json_tree_selections
 export test_recursion_contract, test_recursion_contracts, walk_recursion_contract, walk_reference_roundtrip, probe_delegation
