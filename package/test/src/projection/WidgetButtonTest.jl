@@ -313,6 +313,21 @@ end
     @test np.tail.tail.tail.head.start == 0                               # inner slot 1
 end
 
+# Regression: an embedded `ListNode` (the doubly-linked backing of text/syntax/
+# collection lists) is cyclic — `prev`/`next` point at each other — so the focus
+# walk recursed `next → prev → next …` forever and Tab stack-overflowed on the
+# workbench/assistant examples. The objectid `visited` guard must make it terminate.
+@testset "focus traversal terminates on a cyclic ListNode graph" begin
+    a = ListNode("x"); b = ListNode("y")
+    a.next = b; b.prev = a                                  # a ⇄ b (the prev/next cycle)
+    @test first_focusable_path(a) === nothing               # no focusable; terminates (was StackOverflow)
+    @test last_focusable_path(a)  === nothing
+    # A focusable widget stored as a node's value is still reached (the walk doesn't loop).
+    c = ListNode(WidgetButton(Point2D(0,0), Point2D(40,20), "OK")); d = ListNode("z")
+    c.next = d; d.prev = c
+    @test first_focusable_path(c) isa ConcreteReferencePath
+end
+
 # Stage 2, Step 3: distributed Tab traversal in the composite reader. Tab moves
 # the selection to the next focusable child (skipping disabled ones); bootstrap
 # focuses the first; the last child declines (no wrap yet). Shift-Tab reverses.
