@@ -29,11 +29,13 @@ export Inset, Point2D,
        WidgetBadge, WidgetSeparator, WidgetCard, WidgetSwitch, WidgetProgress,
        WidgetSlider, WidgetRadioGroup, WidgetAvatar, WidgetAlert, WidgetSkeleton,
        WidgetToggle, WidgetToggleGroup, WidgetSelect, WidgetOption, WidgetTextarea, WidgetAccordion,
+       WidgetSpinBox, WidgetList,
        WidgetTable, WidgetTree, WidgetTreeNode,
        SelectTabOperation,
        StartSplitterDragOperation, ResizeSplitPaneOperation, EndSplitterDragOperation,
        InvokeWidgetActionOperation,
        Action, Shortcut, action_shortcut_matches, InvokeActionOperation,
+       numeric_validator,
        evaluate_operation,
        inset_default, inset_size, inset_width, inset_height,
        inset_top_left, inset_top_right, inset_bottom_left, inset_bottom_right,
@@ -46,6 +48,7 @@ export Inset, Point2D,
        IWidgetBadge, IWidgetSeparator, IWidgetCard, IWidgetSwitch, IWidgetProgress,
        IWidgetSlider, IWidgetRadioGroup, IWidgetAvatar, IWidgetAlert, IWidgetSkeleton,
        IWidgetToggle, IWidgetToggleGroup, IWidgetSelect, IWidgetOption, IWidgetTextarea, IWidgetAccordion,
+       IWidgetSpinBox, IWidgetList,
        IWidgetTable, IWidgetTree, IAction
 
 # ── WidgetDocument (abstract base) ─────────────────────────────────────────────────
@@ -116,6 +119,7 @@ An editable text widget..
     position::Point2D
     content::Any
     content_fill_color::StyleColor
+    validator::Any
     visible::Bool
     enabled::Bool
     margin::Inset
@@ -129,6 +133,7 @@ end
 
 function WidgetText(position::Point2D, content;
                     content_fill_color=nothing,
+                    validator=nothing,
                     visible::Bool=true,
                     enabled::Bool=true,
                     margin::Inset=inset_default,
@@ -137,7 +142,10 @@ function WidgetText(position::Point2D, content;
                     border_color=nothing,
                     padding::Inset=inset_default,
                     padding_color=nothing)
-    WidgetText(Cell(position), Cell(content), Cell(content_fill_color),
+    # `validator` (optional) is a callable consulted before an edit commits
+    # (Stage 6). Stored as a primitive cell value, like an action callback.
+    validator_cell = Cell(nothing); setval!(validator_cell, validator)
+    WidgetText(Cell(position), Cell(content), Cell(content_fill_color), validator_cell,
                Cell(visible), Cell(enabled), Cell(margin), Cell(margin_color),
                Cell(border), Cell(border_color),
                Cell(padding), Cell(padding_color),
@@ -145,6 +153,85 @@ function WidgetText(position::Point2D, content;
 end
 
 setfn!(w::WidgetText, f::Function) = (setfn!(getfield(w, :content), f); w)
+
+"""
+    numeric_validator(; integer=false, allow_negative=true) -> (String) -> Bool
+
+A text-input validator (input mask, Stage 6): accepts an inserted edit string
+made only of digits — plus, when allowed, `-` (sign) and `.` (decimal point). An
+empty string (a deletion) is always accepted. Used by `WidgetSpinBox`; pass it
+to `WidgetText(...; validator=…)` for a numeric field. A validator is any
+`(String) -> Bool` acceptor; the editable reader drops an edit it rejects.
+"""
+function numeric_validator(; integer::Bool=false, allow_negative::Bool=true)
+    function (s::AbstractString)
+        isempty(s) && return true
+        for c in s
+            (isdigit(c) ||
+             (allow_negative && c == '-') ||
+             (!integer && c == '.')) || return false
+        end
+        true
+    end
+end
+
+# ── WidgetSpinBox ────────────────────────────────────────────────────────────
+
+"""
+    WidgetSpinBox(position, value; min=nothing, max=nothing, step=1, width=120,
+                  validator=numeric_validator(), <enabled/visible>)
+
+A numeric stepper (Qt's `QSpinBox`): shows `value` with up/down steppers that add
+/ subtract `step`, clamped to `[min, max]` (a `nothing` bound is unbounded). The
+`validator` is a hook for future typed entry; stepping is always numeric. Stage 6.
+"""
+@document struct WidgetSpinBox <: WidgetDocument
+    position::Point2D
+    value::Any
+    min::Any
+    max::Any
+    step::Any
+    width::Int
+    validator::Any
+    visible::Bool
+    enabled::Bool
+    selection::Reference
+end
+
+function WidgetSpinBox(position::Point2D, value;
+                       min=nothing, max=nothing, step=1, width::Integer=120,
+                       validator=numeric_validator(),
+                       visible::Bool=true, enabled::Bool=true)
+    validator_cell = Cell(nothing); setval!(validator_cell, validator)
+    WidgetSpinBox(Cell(position), Cell(value), Cell(min), Cell(max), Cell(step),
+                  Cell(Int(width)), validator_cell, Cell(visible), Cell(enabled), Cell(nothing))
+end
+
+# ── WidgetList ───────────────────────────────────────────────────────────────
+
+"""
+    WidgetList(position, items; selected=0, width=220, <enabled/visible>)
+
+A single-column selectable list (Qt's `QListWidget`): `items` are stringified
+rows; the `selected` row (1-based; `0` = none) draws a selection band. A click
+selects the hit row; Up/Down move the selection. Stage 6.
+"""
+@document struct WidgetList <: WidgetDocument
+    position::Point2D
+    items::CellVector
+    selected::Int
+    width::Int
+    visible::Bool
+    enabled::Bool
+    selection::Reference
+end
+
+function WidgetList(position::Point2D, items::Vector;
+                    selected::Integer=0, width::Integer=220,
+                    visible::Bool=true, enabled::Bool=true)
+    WidgetList(Cell(position), CellVector(Cell[Cell(x) for x in items]),
+               Cell(Int(selected)), Cell(Int(width)), Cell(visible), Cell(enabled), Cell(nothing))
+end
 
 # ── WidgetCheckbox ─────────────────────────────────────────────────────────
 

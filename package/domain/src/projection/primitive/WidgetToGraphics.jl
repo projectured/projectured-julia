@@ -39,6 +39,7 @@ import ..WidgetModule: WidgetDocument, WidgetInsertion, WidgetLabel, WidgetText,
                        WidgetBadge, WidgetSeparator, WidgetCard, WidgetSwitch, WidgetProgress,
                        WidgetSlider, WidgetRadioGroup, WidgetAvatar, WidgetAlert, WidgetSkeleton,
                        WidgetToggle, WidgetToggleGroup, WidgetSelect, WidgetOption, WidgetTextarea, WidgetAccordion,
+                       WidgetSpinBox, WidgetList,
                        WidgetTable, WidgetTree, WidgetTreeNode,
                        Inset, Point2D, inset_default,
                        SelectTabOperation,
@@ -86,6 +87,8 @@ export WidgetInsertionToGraphicsCanvas, WidgetLabelToGraphicsCanvas, WidgetTextT
        widget_theme_slate_light, widget_theme_slate_dark,
        WidgetScrollPaneToGraphicsViewport, WidgetScrollPaneToGraphicsViewportIoMap,
        WidgetSelectToGraphicsCanvas, WidgetSelectToGraphicsCanvasIoMap,
+       WidgetSpinBoxToGraphicsCanvas, WidgetSpinBoxToGraphicsCanvasIoMap,
+       WidgetListToGraphicsCanvas, WidgetListToGraphicsCanvasIoMap,
        WidgetOptionToGraphicsCanvas,
        anchor_point,
        register_icon!, glyph_icon, image_icon
@@ -858,7 +861,17 @@ function projection_read(p::WidgetTextToGraphicsCanvas, iomap::WidgetTextToGraph
         end
         _ => projection_read(content_iomap.projection, content_iomap, evt)
     end
-    _retarget_op(p, iomap, op)
+    _validate_text_edit(iomap.input, _retarget_op(p, iomap, op))
+end
+
+# Stage 6 validators: drop a string edit whose inserted text the widget's
+# `validator` (an acceptor `(String) -> Bool`) rejects. Non-string ops, a
+# `nothing` validator, and deletions (empty replacement) pass through.
+function _validate_text_edit(w::WidgetText, op)
+    v = w.validator
+    (v === nothing || op === nothing) && return op
+    op isa StringReplaceRangeOperation || return op
+    (v(string(op.replacement)) === true) ? op : nothing
 end
 
 # ── WidgetCheckbox ──────────────────────────────────────────────────────────
@@ -3702,6 +3715,155 @@ function projection_read(::WidgetOptionToGraphicsCanvas, iomap::SimpleIoMap, evt
     end
 end
 
+# ── WidgetSpinBox (Stage 6) ───────────────────────────────────────────────────
+
+_spin_clamp(v, lo, hi) = (lo !== nothing && v < lo) ? lo : ((hi !== nothing && v > hi) ? hi : v)
+
+@projection struct WidgetSpinBoxToGraphicsCanvas
+    measure::Function
+    text::StyleText
+    background_color::StyleColor
+    border::StyleStroke
+    padding::Inset
+    corner_radius::Int
+    disabled_color::StyleColor
+    disabled_foreground::StyleColor
+    stepper_color::StyleColor
+    ring_color::StyleColor
+end
+
+struct WidgetSpinBoxToGraphicsCanvasIoMap <: IoMap
+    projection::Any
+    input::WidgetSpinBox
+    output::GraphicsCanvas
+    control_width::Int
+    control_height::Int
+    stepper_w::Int
+end
+
+function projection_print(p::WidgetSpinBoxToGraphicsCanvas, recursion, w::WidgetSpinBox, ctx)
+    w.visible == false && return SimpleIoMap(p, w, _empty_canvas())
+    position = w.position::Point2D
+    enabled = !(w.enabled === false)
+    text = string(w.value)
+    pad_x = _sc(Int(p.padding.left[])); pad_y = _sc(Int(p.padding.top[]))
+    tw, th = _text_size(p.measure, p.text.font, text)
+    control_height = th + 2pad_y
+    stepper_w = control_height
+    content_min = 2pad_x + tw + stepper_w
+    control_width = _resolve_width(ctx, _sc(Int(w.width)), content_min)
+    box_fill   = enabled ? p.background_color : p.disabled_color
+    text_color = enabled ? p.text.color : p.disabled_foreground
+    step_color = enabled ? p.stepper_color : p.disabled_foreground
+    bw = max(1, _sc(p.border.width))
+    elements = Any[]
+    _push_panel!(elements, 0, 0, control_width, control_height; fill=box_fill,
+                 border=p.border.color, border_w=bw, radius=_sc(p.corner_radius))
+    _push_text!(elements, p.text.font, text, pad_x, (control_height - th) ÷ 2, _rgba(text_color))
+    sx = control_width - stepper_w
+    r, g, b, a = _rgba(p.border.color)
+    push!(elements, GraphicsLine(sx, 0, sx, control_height, r, g, b, a; width=bw))
+    isz = max(8, control_height ÷ 2 - _sc(3))
+    ix = sx + (stepper_w - isz) ÷ 2
+    _push_icon!(elements, :plus,  ix, (control_height ÷ 2 - isz) ÷ 2, isz, step_color)
+    _push_icon!(elements, :minus, ix, control_height ÷ 2 + (control_height ÷ 2 - isz) ÷ 2, isz, step_color)
+    _push_focus_ring!(elements, w, control_width, control_height, p.ring_color, _sc(p.corner_radius))
+    canvas = _make_canvas(_origin(position)..., control_width, control_height, elements)
+    WidgetSpinBoxToGraphicsCanvasIoMap(p, w, canvas, control_width, control_height, stepper_w)
+end
+
+map_reference_forward(::WidgetSpinBoxToGraphicsCanvas, iomap::WidgetSpinBoxToGraphicsCanvasIoMap, reference) = _self_point(reference)
+map_reference_forward(::WidgetSpinBoxToGraphicsCanvas, iomap, reference) = nothing
+map_reference_backward(::WidgetSpinBoxToGraphicsCanvas, iomap, reference) = nothing
+
+projection_read(::WidgetSpinBoxToGraphicsCanvas, iomap::SimpleIoMap, evt) = nothing
+function projection_read(p::WidgetSpinBoxToGraphicsCanvas, iomap::WidgetSpinBoxToGraphicsCanvasIoMap, evt)
+    w = iomap.input
+    (w.enabled === false) && return nothing
+    _step(delta) = ReplaceReferencedValue(w, "value", _spin_clamp(w.value + delta, w.min, w.max))
+    @event_case evt begin
+        MousePress(button, x, y) =>
+            (button === :left && x >= iomap.control_width - iomap.stepper_w) ?
+                (y < iomap.control_height ÷ 2 ? _step(w.step) : _step(-w.step)) : nothing
+        when(KeyDown(k), k === :up)   => _step(w.step)
+        when(KeyDown(k), k === :down) => _step(-w.step)
+        _ => nothing
+    end
+end
+
+# ── WidgetList (Stage 6) ──────────────────────────────────────────────────────
+
+@projection struct WidgetListToGraphicsCanvas
+    measure::Function
+    text::StyleText
+    background_color::StyleColor
+    border::StyleStroke
+    selected_color::StyleColor
+    selected_foreground::StyleColor
+    padding::Inset
+    corner_radius::Int
+end
+
+struct WidgetListToGraphicsCanvasIoMap <: IoMap
+    projection::Any
+    input::WidgetList
+    output::GraphicsCanvas
+    row_height::Int
+    control_width::Int
+end
+
+function projection_print(p::WidgetListToGraphicsCanvas, recursion, w::WidgetList, ctx)
+    w.visible == false && return SimpleIoMap(p, w, _empty_canvas())
+    position = w.position::Point2D
+    pad_x = _sc(Int(p.padding.left[])); pad_y = _sc(Int(p.padding.top[]))
+    items = collect(w.items)
+    n = length(items)
+    _, th = _text_size(p.measure, p.text.font, "M")
+    row_height = th + 2pad_y
+    intrinsic = 0
+    for it in items
+        tw, _ = _text_size(p.measure, p.text.font, string(it))
+        intrinsic = max(intrinsic, tw + 2pad_x)
+    end
+    control_width = _resolve_width(ctx, _sc(Int(w.width)), intrinsic)
+    control_height = max(row_height, n * row_height)
+    sel = Int(w.selected)
+    elements = Any[]
+    _push_panel!(elements, 0, 0, control_width, control_height; fill=p.background_color,
+                 border=p.border.color, border_w=max(1, _sc(p.border.width)), radius=_sc(p.corner_radius))
+    for (i, it) in enumerate(items)
+        y = (i - 1) * row_height
+        fg = p.text.color
+        if i == sel
+            _push_panel!(elements, 0, y, control_width, row_height; fill=p.selected_color)
+            fg = p.selected_foreground
+        end
+        _push_text!(elements, p.text.font, string(it), pad_x, y + pad_y, _rgba(fg))
+    end
+    canvas = _make_canvas(_origin(position)..., control_width, control_height, elements)
+    WidgetListToGraphicsCanvasIoMap(p, w, canvas, row_height, control_width)
+end
+
+map_reference_forward(::WidgetListToGraphicsCanvas, iomap::WidgetListToGraphicsCanvasIoMap, reference) = _self_point(reference)
+map_reference_forward(::WidgetListToGraphicsCanvas, iomap, reference) = nothing
+map_reference_backward(::WidgetListToGraphicsCanvas, iomap, reference) = nothing
+
+projection_read(::WidgetListToGraphicsCanvas, iomap::SimpleIoMap, evt) = nothing
+function projection_read(p::WidgetListToGraphicsCanvas, iomap::WidgetListToGraphicsCanvasIoMap, evt)
+    w = iomap.input
+    (w.enabled === false) && return nothing
+    n = length(collect(w.items))
+    n == 0 && return nothing
+    sel = Int(w.selected)
+    click_row(yy) = (r = yy ÷ iomap.row_height + 1; (1 <= r <= n) ? ReplaceReferencedValue(w, "selected", r) : nothing)
+    @event_case evt begin
+        MousePress(button, x, y) => button === :left ? click_row(y) : nothing
+        when(KeyDown(k), k === :down) => ReplaceReferencedValue(w, "selected", sel == 0 ? 1 : min(sel + 1, n))
+        when(KeyDown(k), k === :up)   => ReplaceReferencedValue(w, "selected", sel <= 1 ? 1 : sel - 1)
+        _ => nothing
+    end
+end
+
 # ── WidgetTextarea ──────────────────────────────────────────────────────────
 
 @projection struct WidgetTextareaToGraphicsCanvas
@@ -4778,6 +4940,14 @@ function WidgetToGraphics(font::StyleFont; measure::Function,
             Inset(theme.pad_y, theme.pad_y, theme.pad_x, theme.pad_x), theme.radius,
             theme.gap, StyleStroke(theme.muted_foreground, theme.stroke), theme.chevron,
             theme.muted, theme.muted_foreground, theme.ring),
+        WidgetSpinBox     => WidgetSpinBoxToGraphicsCanvas(measurer, theme.body_text, theme.background,
+            StyleStroke(theme.input, theme.border_width),
+            Inset(theme.pad_y, theme.pad_y, theme.pad_x, theme.pad_x), theme.radius,
+            theme.muted, theme.muted_foreground, theme.foreground, theme.ring),
+        WidgetList        => WidgetListToGraphicsCanvas(measurer, theme.body_text, theme.background,
+            StyleStroke(theme.border, theme.border_width),
+            theme.accent, theme.accent_foreground,
+            Inset(theme.pad_y, theme.pad_y, theme.pad_x, theme.pad_x), theme.radius),
         WidgetOption      => WidgetOptionToGraphicsCanvas(measurer, theme.body_text, theme.background,
             Inset(theme.pad_y, theme.pad_y, theme.pad_x, theme.pad_x)),
         WidgetTextarea    => WidgetTextareaToGraphicsCanvas(measurer, theme.body_text, theme.background,
