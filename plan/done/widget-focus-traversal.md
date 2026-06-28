@@ -1,11 +1,15 @@
 # Selection-driven keyboard routing & Tab traversal
 
-> **Status: planning / not started.** Detailed plan for **Stage 2** of
+> **Status: ✅ DONE (verified in tree 2026-06-28).** Shipped: selection-driven
+> coordless routing + Tab/Shift+Tab traversal, with `first_focusable_path` /
+> `last_focusable_path` / `_next_focusable_in` in
+> `package/domain/src/document/Widget.jl` (the traversal's cyclic-ListNode
+> stack-overflow was later fixed; composite/layout Tab covered by
+> `WidgetButtonTest`). Detailed plan for **Stage 2** of
 > [qt-widget-gap-analysis.md](qt-widget-gap-analysis.md) ("Selection-driven
-> keyboard routing & traversal"). Generated 2026-06-26 against the current tree.
-> Verified file:line citations below. Depends on Stage 1
+> keyboard routing & traversal"). Depended on Stage 1
 > ([widget-interaction-state.md](widget-interaction-state.md)) for the `enabled`
-> flag — Tab must skip disabled widgets.
+> flag — Tab skips disabled widgets.
 
 ## Goal
 

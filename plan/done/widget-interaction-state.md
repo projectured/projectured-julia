@@ -1,9 +1,12 @@
 # Widget interaction state — shared `enabled` + formalized hover/pressed
 
-> **Status: planning / not started.** Detailed plan for **Stage 1** of
+> **Status: ✅ DONE (verified in tree 2026-06-28).** Shipped via the Qt-widget
+> stage work: `enabled::Bool` + reader-side gating + the formalized
+> `hovered`/`pressed` convention (the latter generalized in the Qt-gap closeout's
+> hover work) are all in `package/domain/src/document/Widget.jl` and exercised by
+> `WidgetButtonTest`. Detailed plan for **Stage 1** of
 > [qt-widget-gap-analysis.md](qt-widget-gap-analysis.md) ("Shared interaction
-> state"). Generated 2026-06-26 against the current tree
-> (`package/domain/src/...`). Verified file:line citations below.
+> state").
 
 ## Goal
 
