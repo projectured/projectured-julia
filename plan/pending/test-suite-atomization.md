@@ -298,6 +298,29 @@ Consequences:
   ([`RecursionContractTest.jl`](../../package/test/src/editor/RecursionContractTest.jl))
   rather than inventing a new check.
 
+## Handoff status (2026-06-28)
+
+A first proof slice is committed (`package/test/src/projection/AtomicFixtureTest.jl`,
+wired into `ProjecturedTest.jl`, exported `AtomicFixture` / `test_atomic_render` /
+`test_atomic_fixtures`; **not** in `test_all` yet):
+
+- Datafies `test_json_to_syntax`'s render goldens as `AtomicFixture` rows + one
+  generic `test_atomic_render` asserter (render String|predicate, plus a
+  `mutate`/`render_after` reactivity probe).
+- Covers both worked shapes: leaf-bare (`JsonString`+`JsonStringToSyntaxLeaf`) and
+  node-with-mocked-children (`JsonArray` of `SyntaxLeaf`s + `JsonArrayToSyntaxNode`
+  with `SyntaxLeaf ⇒ Preserving`).
+
+**Not yet verified in a REPL** — this environment has no Julia runtime, so the
+fixtures were written against the source, not executed. Next agent: run
+`test_atomic_fixtures()` first. The leaf rows restate existing
+`test_json_to_syntax` assertions (high confidence); the **`json_array_node`** row
+is the one to watch — if the recursion/`Preserving` dispatch needs different arms
+(the `Vector{Cell} ⇒ Copying` arm, or an `Any` fallback) or the golden differs,
+it is a 1–2 line fix. Then: datafy `SyntaxToText` next to prove the asserter
+generalizes across stages, and build the mockup *terminal* so fixtures become
+`run_example`-able (Phase 0/1).
+
 ## Progress
 
 - [ ] Phase 0 — mockup kit (terminal + spy child + named minimal documents)
