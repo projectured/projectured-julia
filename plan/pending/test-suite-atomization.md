@@ -63,6 +63,14 @@ JSON-element regression three levels down. The same shape covers every container
 stage (`JsonObjectToSyntaxNode`, the XML/SQL/formula nodes, …): real parent
 stage + `Preserving` over mocked, already-projected children.
 
+This relies on a domain document legitimately holding **children from a different
+(here, already-projected) domain** — a `JsonArray` whose elements are
+`SyntaxLeaf`s. In ProjecturEd-Julia that mixing is supported, not a hack:
+documents are not type-closed over their element domain, which is exactly what
+makes mockup children possible. So the node-fixture rule applies uniformly to
+every container stage; no container needs a real child projection just to satisfy
+an element-type constraint.
+
 This is also why the combinator fixtures below use the *same* `Preserving`/spy
 children — testing a container stage and testing the `Recursive`/`Type-`/`Reference-`
 dispatch that drives it are the same exercise viewed from two ends.
