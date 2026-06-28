@@ -38,6 +38,27 @@ end
 
 is_selection_cell(lc::LocalityCell) = lc.field === :selection
 
+# The selection-derived **overlay** geometry — the text caret, the selection
+# highlight, and a widget focus ring — are graphics-primitive geometry cells
+# (`:x`/`:y`/`:w`/`:h` of a `Graphics*` struct) whose values are computed from the
+# selection. `TextToGraphics` builds the cursor/highlight rects from a
+# selection-reading `overlay` cell, deliberately separate from the
+# selection-independent `layout` cell that lays out the text spans (see
+# TextToGraphics.jl) — so on a pure caret move *only* the overlay geometry moves,
+# which is the whole point of a caret, not a locality violation.
+#
+# Content geometry reads `layout` (never the selection), so it is never in a
+# selection move's invalidation set; exempting `Graphics*` geometry here therefore
+# only ever clears these overlay cells in a correct projection. (Caveat: it would
+# also mask a hypothetical future bug where *content* geometry wrongly depended on
+# the selection. The exact-for-all-pipelines fix is to structurally separate the
+# overlay under a `:selection` field so the plain `is_selection_cell` test catches
+# it — see plan/pending/printer-locality.md Phase 5.)
+const _OVERLAY_GEOMETRY_FIELDS = (:x, :y, :w, :h)
+_is_selection_overlay_cell(lc::LocalityCell) =
+    lc.field in _OVERLAY_GEOMETRY_FIELDS &&
+    lc.owner isa DataType && startswith(string(nameof(lc.owner)), "Graphics")
+
 # Reflexively force every Cell reachable from `x`, recording each as a
 # LocalityCell tagged with the (owner_type, field) it was reached through, and
 # the objectid of every reachable object (for identity diffing). Mirrors
@@ -181,7 +202,7 @@ function explore_selection_locality(document, projection; onstate=nothing)
         # invalidates non-:selection geometry cells by design; those need a
         # cursor-field allow-list (Phase 2 follow-up) before this check is exact
         # for them, which is why it is not yet wired into test_all.
-        bad = filter(lc -> !is_selection_cell(lc), r.invalidated)
+        bad = filter(lc -> !is_selection_cell(lc) && !_is_selection_overlay_cell(lc), r.invalidated)
         if !isempty(bad)
             tags = join(sort(unique(["$(lc.owner).$(lc.field)" for lc in bad])), ", ")
             push!(msgs, "→ $(string(target)): invalidated non-selection cells [$tags]")
