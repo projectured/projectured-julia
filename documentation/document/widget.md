@@ -159,7 +159,54 @@ document content — they are not serialised. The convention:
   `hovered → hover`, else resting), and a disabled widget ignores them entirely.
 
 A widget that needs interactive feedback copies this field-plus-cell pattern
-rather than inventing its own.
+rather than inventing its own. Two shared helpers in
+[WidgetToGraphics.jl](../../package/domain/src/projection/primitive/WidgetToGraphics.jl)
+package it so a new widget opts in with two lines: `_hover_state_op(w, evt)` maps
+a `MouseEnter`/`MouseLeave` to the `hovered` write (call it from the reader), and
+`_push_hover_surface!(elems, w, enabled, …)` paints a faint themed surface behind
+the control while `enabled && w.hovered === true` (call it from the printer,
+*before* the content so it sits underneath). `WidgetButton` and `WidgetMenuItem`
+are the reference adopters — the latter gives every menu, submenu, context menu,
+menu bar, and toolbar a highlight on the row under the pointer.
+
+## Form & data widgets
+
+The data-entry surface (Qt's `QFormLayout` / `QSpinBox` / `QListWidget` /
+`QStackedWidget`) is built from two new widgets, two layout features, and a
+validation hook. The gallery's **Forms** tab
+([example/document/Widget.jl](../../package/example/src/document/Widget.jl))
+shows them together.
+
+- **`WidgetSpinBox(pos, value; min, max, step, width, validator)`** — a numeric
+  field with up/down steppers (the `:plus` / `:minus` icons). A click on a stepper
+  emits `ReplaceReferencedValue(spin, "value", clamp(value ± step, min, max))`;
+  `Up`/`Down` do the same from the keyboard. The default `validator` is
+  `numeric_validator()`, so typing only commits numeric text. Disabled is inert.
+- **`WidgetList(pos, items; selected, width)`** — a first-class single-column
+  selectable list (the sanctioned `QListWidget`; previously expressible only as a
+  one-column table). A left click selects the hit row (drawing the accent
+  selection band); `Up`/`Down` move the selection. An empty list is inert.
+- **`FormLayout(rows; label_align=:right, …)`** — thin sugar over a two-column
+  `GridLayout`: each `row` is a `(label, field)` pair of **documents** (wrap text
+  labels in `WidgetLabel`). It builds `GridLayout(2; column_align=[label_align,
+  :left], column_stretch=[0, 1])` — the label column hugs (uniform width = widest
+  label), the field column fills. The per-column `column_align` / `column_stretch`
+  are a general `GridLayout` feature (Qt-grade grids); their defaults (empty)
+  reproduce the previous content-sized, single-`horizontal_align` behaviour, so
+  existing grids are unchanged. The field column only stretches when a parent
+  seeded an `available_width`. `FormLayout` lives in
+  [document/Layout.jl](../../package/domain/src/document/Layout.jl) (not Widget.jl)
+  because layouts load before widgets — hence it takes pre-built label documents
+  rather than wrapping strings itself.
+- **`StackLayout(children; active=0)`** — `active = 0` keeps the original z-stack
+  (all children overlaid); `active = i` lays out **only** child `i`, sized to it —
+  the `QStackedWidget` page container. Out-of-range clamps to empty.
+- **Validators** — a `validator::Any` callable on `WidgetText` (and
+  `WidgetSpinBox`), consulted by the editable-text reader before a
+  `StringReplaceRangeOperation` commits: an **acceptor** `(String) -> Bool` drops
+  the edit when it returns `false`. `nothing` (the default) imposes no constraint.
+  The built-in `numeric_validator(; integer=false, allow_negative=true)` accepts
+  digits with an optional sign / decimal point.
 
 ## Widget operations
 
@@ -262,11 +309,14 @@ same crossings differently. `MouseEnter` / `MouseLeave` are first-class
 (synthesised, not backend) pointer gestures in `MouseModule`; the tracker
 mirrors `HoverProbeProjection` in shape.
 
-To make this work, the container readers (`WidgetComposite`, …) route
-`MouseEnter` / `MouseLeave` / `MouseDown` / `MouseUp` to the hit child, alongside
-the `MousePress` / `MouseScroll` they already routed. (Wiring the remaining
-containers — toolbar, shell, split pane — is follow-up; the composite covers the
-current examples.)
+To make this work, the container readers route `MouseEnter` / `MouseLeave` /
+`MouseDown` / `MouseUp` to the hit child, alongside the `MousePress` /
+`MouseScroll` they already routed. `WidgetComposite` does it for free-positioned
+children; `WidgetMenu` and `WidgetToolbar` route the crossings to their items
+(`_route_crossing_to_children`) so the menu/toolbar hover surfaces light up — and
+the toolbar now routes `MousePress` too, so its items are clickable. (Wiring the
+remaining containers — shell, split pane — is follow-up; these cover the menu,
+toolbar, and free-layout examples.)
 
 ## Popups (the window route)
 
