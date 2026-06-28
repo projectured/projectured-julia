@@ -129,7 +129,7 @@ end
     ed = _JsonReaderEditor(obj, nothing)
     evaluate_operation(ed, op)
     @test length(obj.entries) == 2
-    new_entry = entries(obj)[2]
+    new_entry = obj.entries[2]
     @test new_entry isa JsonObjectEntry
     @test new_entry.key == ""
     @test selof(new_entry) isa ConcreteReferencePath   # cursor in the key
