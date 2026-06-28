@@ -1,9 +1,20 @@
 # `WidgetTransformPane` — one affine-transform pane subsuming scroll + zoom
 
-> **Status: in progress.** Rewritten 2026-06-27 from the earlier separate
-> `WidgetZoomPane` draft, after working through how zoom and scroll compose (a
-> single transform node beats two nested clipping viewports). File:line
-> citations verified against the current tree (`package/...`).
+> **Status: DONE — Phases 1–3 shipped & landed on `main` (2026-06-28).** Rebased
+> onto `main` and accepted after a full test pass: AffineTransform + reader unit
+> tests green, the printer/reader example sweeps green (incl. `widget_transform_pane`
+> and the shared `widget_scroll_pane` viewport), click-roundtrips/write_image/
+> write_pdf green, and a 2× non-identity zoom render verified. **Phase 4
+> (rotation/shear) remains deferred future work** — the document/reader/hit-test
+> math is already general; only the SDL renderer is the gate (see Phase 4 below).
+>
+> Rebase note: a redundant `AffineTransform(a,b,c,d,e,f)` convenience constructor
+> was removed — Julia's auto-generated typed-field constructor already converts
+> `Int→Float64`, and the duplicate signature broke precompilation.
+>
+> Rewritten 2026-06-27 from the earlier separate `WidgetZoomPane` draft, after
+> working through how zoom and scroll compose (a single transform node beats two
+> nested clipping viewports). File:line citations verified against the tree.
 
 ## Goal
 
