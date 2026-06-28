@@ -29,7 +29,7 @@ export Inset, Point2D,
        WidgetScrollPane, WidgetTransformPane, WidgetToolbar, WidgetStatusBar, WidgetScrollBar,
        WidgetBadge, WidgetSeparator, WidgetCard, WidgetSwitch, WidgetProgress,
        WidgetSlider, WidgetRadioGroup, WidgetAvatar, WidgetAlert, WidgetSkeleton,
-       WidgetToggle, WidgetToggleGroup, WidgetSelect, WidgetOption, WidgetTextarea, WidgetAccordion,
+       WidgetToggle, WidgetToggleGroup, WidgetSelect, WidgetOption, WidgetTextarea, WidgetAccordion, WidgetAccordionItem,
        WidgetSpinBox, WidgetList,
        WidgetTable, WidgetTree, WidgetTreeNode,
        SelectTabOperation,
@@ -48,7 +48,7 @@ export Inset, Point2D,
        IWidgetScrollPane, IWidgetTransformPane, IWidgetToolbar, IWidgetStatusBar, IWidgetScrollBar,
        IWidgetBadge, IWidgetSeparator, IWidgetCard, IWidgetSwitch, IWidgetProgress,
        IWidgetSlider, IWidgetRadioGroup, IWidgetAvatar, IWidgetAlert, IWidgetSkeleton,
-       IWidgetToggle, IWidgetToggleGroup, IWidgetSelect, IWidgetOption, IWidgetTextarea, IWidgetAccordion,
+       IWidgetToggle, IWidgetToggleGroup, IWidgetSelect, IWidgetOption, IWidgetTextarea, IWidgetAccordion, IWidgetAccordionItem,
        IWidgetSpinBox, IWidgetList,
        IWidgetTable, IWidgetTree, IAction
 
@@ -1433,11 +1433,28 @@ WidgetTextarea(position::Point2D, content; width::Integer=320, rows::Integer=4, 
 
 # ── WidgetAccordion ─────────────────────────────────────────────────────────
 
+# A single accordion item: a `title` and a `body`. A first-class Document rather
+# than a raw `(title, body)` tuple, so the selection chain descends
+# Document→Document and an in-place caret move in a title/body leaves the
+# accordion's routing untouched (printer-locality dimension A; the WidgetTabPage
+# fix applied to the accordion).
+@document struct WidgetAccordionItem <: WidgetDocument
+    title::Any
+    body::Any
+    selection::Reference
+end
+
+WidgetAccordionItem(title, body) = WidgetAccordionItem(Cell(title), Cell(body), Cell(nothing))
+
+_as_accordion_item(it::WidgetAccordionItem) = it
+_as_accordion_item(it::Tuple) = WidgetAccordionItem(it[1], it[2])
+
 """
     WidgetAccordion(position, items; expanded=1, width=360)
 
-A vertical accordion. `items` is a `Vector` of `(title, body)` tuples;
-`expanded` is the 1-based index of the open item (0 = all collapsed).
+A vertical accordion. `items` is a `Vector` of `(title, body)` tuples (each wrapped
+in a [`WidgetAccordionItem`](@ref)); `expanded` is the 1-based index of the open
+item (0 = all collapsed).
 """
 @document struct WidgetAccordion <: WidgetDocument
     position::Point2D
@@ -1448,7 +1465,7 @@ A vertical accordion. `items` is a `Vector` of `(title, body)` tuples;
     selection::Reference
 end
 WidgetAccordion(position::Point2D, items::Vector; expanded::Integer=1, width::Integer=360, visible::Bool=true) =
-    WidgetAccordion(Cell(position), CellVector(Cell[Cell(it) for it in items]),
+    WidgetAccordion(Cell(position), CellVector(Cell[Cell(_as_accordion_item(it)) for it in items]),
                     Cell(Int(expanded)), Cell(Int(width)), Cell(visible), Cell(nothing))
 
 # ── WidgetTable ─────────────────────────────────────────────────────────────

@@ -38,7 +38,7 @@ import ..WidgetModule: WidgetDocument, WidgetInsertion, WidgetLabel, WidgetText,
                        WidgetTabbedPane, WidgetTabPage, WidgetScrollPane, WidgetTransformPane, WidgetToolbar, WidgetStatusBar, WidgetScrollBar,
                        WidgetBadge, WidgetSeparator, WidgetCard, WidgetSwitch, WidgetProgress,
                        WidgetSlider, WidgetRadioGroup, WidgetAvatar, WidgetAlert, WidgetSkeleton,
-                       WidgetToggle, WidgetToggleGroup, WidgetSelect, WidgetOption, WidgetTextarea, WidgetAccordion,
+                       WidgetToggle, WidgetToggleGroup, WidgetSelect, WidgetOption, WidgetTextarea, WidgetAccordion, WidgetAccordionItem,
                        WidgetSpinBox, WidgetList,
                        WidgetTable, WidgetTree, WidgetTreeNode,
                        Inset, Point2D, inset_default,
@@ -4219,9 +4219,9 @@ function projection_print(p::WidgetAccordionToGraphicsCanvas, recursion, w::Widg
     # the widest visible (expanded) body. The authored width is the minimum.
     title_min = 0; body_min = 0
     for (i, item) in enumerate(w.items)
-        title_min = max(title_min, _text_size(p.measure, p.title_text.font, string(item[1]))[1])
-        if i == expanded && length(item) >= 2
-            body_min = max(body_min, _text_size(p.measure, p.body_text.font, string(item[2]))[1])
+        title_min = max(title_min, _text_size(p.measure, p.title_text.font, string(item.title))[1])
+        if i == expanded && item.body !== nothing
+            body_min = max(body_min, _text_size(p.measure, p.body_text.font, string(item.body))[1])
         end
     end
     content_min = max(2padding_x + title_min + _sc(p.gap) + 2chevron_size, 2padding_x + body_min)
@@ -4233,8 +4233,8 @@ function projection_print(p::WidgetAccordionToGraphicsCanvas, recursion, w::Widg
     title_red, title_green, title_blue, title_alpha = _rgbai(p.title_text.color)
     body_red, body_green, body_blue, body_alpha = _rgbai(p.body_text.color)
     for (i, item) in enumerate(w.items)
-        title = string(item[1])
-        body  = length(item) >= 2 ? string(item[2]) : ""
+        title = string(item.title)
+        body  = item.body === nothing ? "" : string(item.body)
         _, title_height = _text_size(p.measure, p.title_text.font, title)
         row_height = title_height + 2padding_y
         push!(elements, GraphicsText(title, padding_x, y + padding_y, p.title_text.font, title_red, title_green, title_blue, title_alpha))
