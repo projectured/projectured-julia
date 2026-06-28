@@ -352,15 +352,22 @@ function _push_box!(elems::Vector, w::WidgetDocument, cw::Int, ch::Int;
                  fill=fill, border=(bw > 0 ? border : nothing), border_w=bw, radius=radius)
 end
 
-# A focus ring around a focused widget (Stage 2). Focus is selection, so this
-# renders only when the widget carries a (non-nothing) selection. Drawn as a
-# transparent-fill rect at the control bounds so only the ring-coloured border
-# shows; reading the selection cell ties the ring to focus reactively.
+# A focus ring around a focused widget (Stage 2). Focus is selection. The ring is
+# a **persistent overlay** (always pushed) whose `w`/`h` read the selection — full
+# control bounds when focused, 0 when not (a zero-size rect the renderer skips).
+# Pushing it unconditionally keeps the selection read OUT of the elements-vector
+# thunk, so a pure focus/caret move invalidates only the ring's own geometry cells
+# (selection-overlay geometry), not the whole content `CellVector` — the widget
+# analogue of the TextToGraphics cursor overlay, preserving selection isolation
+# (dimension A; see plan/pending/printer-locality.md). Transparent fill so only the
+# ring-coloured border shows.
 function _push_focus_ring!(elems::Vector, w::WidgetDocument, cw::Int, ch::Int,
                            ring_color::StyleColor, radius::Int)
-    getfield(w, :selection)[] === nothing && return
-    push!(elems, GraphicsRect(0, 0, cw, ch, 0x00, 0x00, 0x00, 0x00, radius;
-                              border_width=2, border_color=_rgbai(ring_color)))
+    ring = GraphicsRect(0, 0, 0, 0, 0x00, 0x00, 0x00, 0x00, radius;
+                        border_width=2, border_color=_rgbai(ring_color))
+    setfn!(getfield(ring, :w), () -> getfield(w, :selection)[] === nothing ? Int32(0) : Int32(cw))
+    setfn!(getfield(ring, :h), () -> getfield(w, :selection)[] === nothing ? Int32(0) : Int32(ch))
+    push!(elems, ring)
 end
 
 # ── Hover feedback (Stage 6) ─────────────────────────────────────────────────

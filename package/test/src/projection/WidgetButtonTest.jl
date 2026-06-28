@@ -244,17 +244,29 @@ end
 # non-nothing selection), adding exactly one ring element to the canvas.
 @testset "focus ring renders on the selected widget" begin
     proj = _proj()
-    btn = WidgetButton(Point2D(0, 0), Point2D(80, 30), "Go")
-    unfocused = projection_print(proj, nothing, btn, PrinterContext()).output
-    getfield(btn, :selection)[] = EmptyReferencePath()
-    focused = projection_print(proj, nothing, btn, PrinterContext()).output
-    @test length(focused.elements) == length(unfocused.elements) + 1
-
-    cb = WidgetCheckbox(Point2D(0, 0), false)
-    u = projection_print(proj, nothing, cb, PrinterContext()).output
-    getfield(cb, :selection)[] = EmptyReferencePath()
-    f = projection_print(proj, nothing, cb, PrinterContext()).output
-    @test length(f.elements) == length(u.elements) + 1
+    # The focus ring is a *persistent* overlay element (present whether or not the
+    # widget is focused) so a pure selection move never rebuilds the elements vector
+    # — printer-locality dimension A. Focus drives its w/h from 0 (hidden; the
+    # renderer skips a zero-size rect) to the full control bounds. The ring is the
+    # transparent-fill (a=0) bordered (border_width>0) rect. Distinct instances per
+    # case, since each ring's lazy w/h reads its own widget's live selection.
+    _ring(canvas) = let els = [e isa Cell ? e[] : e for e in collect(canvas.elements)]
+        i = findfirst(e -> e isa GraphicsRect && Int(e.a) == 0 && Int(e.border_width) > 0, els)
+        i === nothing ? nothing : els[i]
+    end
+    for mk in (() -> WidgetButton(Point2D(0, 0), Point2D(80, 30), "Go"),
+               () -> WidgetCheckbox(Point2D(0, 0), false))
+        un = projection_print(proj, nothing, mk(), PrinterContext()).output
+        fw = mk(); getfield(fw, :selection)[] = EmptyReferencePath()
+        fo = projection_print(proj, nothing, fw, PrinterContext()).output
+        # Same element count in both states (the ring element is persistent)…
+        @test length(collect(fo.elements)) == length(collect(un.elements))
+        ru = _ring(un); rf = _ring(fo)
+        @test ru !== nothing && rf !== nothing
+        # …and the ring is collapsed to 0×0 when unfocused, full bounds when focused.
+        @test Int(ru.w) == 0 && Int(ru.h) == 0
+        @test Int(rf.w) > 0 && Int(rf.h) > 0
+    end
 end
 
 # Stage 2, Step 4: Enter/Space activate the focused button/checkbox (the keystroke
