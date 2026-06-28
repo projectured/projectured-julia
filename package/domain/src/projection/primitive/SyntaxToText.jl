@@ -197,7 +197,19 @@ function projection_print(p::SyntaxNodeToText, recursion, node::SyntaxNode, ctx)
     # TextText's element vector is stable across caret moves and only the
     # separate selection cell below changes. (The cursor pass re-runs the same
     # collection to locate the flat cursor, identical to the spans layout.)
-    spans = Cell(() -> _collect_spans(node, p, 0, recursion, false))
+    # Per-projection decorative-span cache (no module-global state): reused across
+    # re-layouts so a structural edit keeps the identity of every unchanged newline/
+    # indent span. Evict slots not seen this pass so the cache cannot grow unbounded.
+    # The cursor pass below uses no cache — its spans are thrown away.
+    deco = _DecoCache()
+    spans = Cell(() -> begin
+        empty!(deco.seen)
+        res = _collect_spans(node, p, 0, recursion, false; deco=deco)
+        for k in collect(keys(deco.spans))
+            k in deco.seen || delete!(deco.spans, k)
+        end
+        res
+    end)
     cursor_cell = Cell(() -> _collect_spans(node, p, 0, recursion, true)[2])
     output = TextText(
         CellVector(() -> spans[][1]),
@@ -510,21 +522,33 @@ end
 
 # ── Utility ──────────────────────────────────────────────────────────────────
 
-# Decorative whitespace spans (newline + indentation) are pure, immutable content
-# that is NEVER a selection target — the selection only ever descends into a leaf's
-# `.content{k}` (see `_leaf_cursor`), so a decorative span's `selection` cell is
-# never written and one instance can be safely shared across every position it
-# occupies. `_collect_spans` re-runs whole on any structural change; sharing these
-# (rather than allocating fresh `TextString`s each pass) keeps their output-object
-# identity stable so a structural edit does not orphan them (printer locality —
-# dimension C). Keyed by the rendered string (indents differ only by space count).
-const _NEWLINE_SPAN = TextString("\n")
-const _INDENT_SPANS = Dict{Int,TextString}()
+_indent_span(p::SyntaxNodeToText, depth::Int) = TextString(" " ^ (depth * p.indent_size))
+_newline_span() = TextString("\n")
 
-_indent_span(p::SyntaxNodeToText, depth::Int) =
-    get!(() -> TextString(" " ^ (depth * p.indent_size)), _INDENT_SPANS, depth * p.indent_size)
+# `_collect_spans` re-runs whole on any structural change, allocating fresh newline
+# and indentation `TextString`s each pass — so a structural edit orphans all of them
+# (printer locality — dimension C). They are pure, immutable content never used as a
+# selection target (the selection only ever descends into a leaf's `.content{k}`,
+# see `_leaf_cursor`), so each decorative position can keep ONE reused span across
+# re-layouts. `_DecoCache` is the reuse cache: a per-projection-invocation cache (it
+# lives in the `spans` cell's closure — never module-global state), keyed by the
+# decorative span's *structural slot* `(node objectid, child index, role)`, which is
+# stable across edits because the syntax nodes are themselves identity-stable (the
+# template engine reconciles them). `seen` records the slots touched in the current
+# pass so the caller can evict the rest.
+struct _DecoCache
+    spans::Dict{Any,TextString}
+    seen::Set{Any}
+end
+_DecoCache() = _DecoCache(Dict{Any,TextString}(), Set{Any}())
 
-_newline_span() = _NEWLINE_SPAN
+# Reuse the decorative span for `key`, or make and cache it. With no cache (the
+# cursor pass, whose spans are thrown away) just make a fresh one.
+function _deco_span(deco, key, make)
+    deco === nothing && return make()
+    push!(deco.seen, key)
+    get!(make, deco.spans, key)
+end
 
 # The optional inline expand/collapse marker rendered immediately before the
 # open delimiter, in BOTH the expanded and collapsed states. Which glyph is
@@ -770,12 +794,12 @@ function _syntax_to_flat_range(node::SyntaxNode, path::ConcreteReferencePath, p:
     return nothing
 end
 
-function _collect_child_spans(leaf::SyntaxLeaf, p::SyntaxNodeToText, depth::Int, recursion, want_cursor::Bool)
+function _collect_child_spans(leaf::SyntaxLeaf, p::SyntaxNodeToText, depth::Int, recursion, want_cursor::Bool; deco=nothing)
     (TextDocument[leaf.open, leaf.value, leaf.close], want_cursor ? _leaf_cursor(leaf) : -1)
 end
 
-function _collect_child_spans(node::SyntaxNode, p::SyntaxNodeToText, depth::Int, recursion, want_cursor::Bool)
-    spans, cursor, _ = _collect_spans(node, p, depth, recursion, want_cursor)
+function _collect_child_spans(node::SyntaxNode, p::SyntaxNodeToText, depth::Int, recursion, want_cursor::Bool; deco=nothing)
+    spans, cursor, _ = _collect_spans(node, p, depth, recursion, want_cursor; deco=deco)
     (spans, cursor)
 end
 
@@ -783,8 +807,9 @@ function _span_len(s::TextString)
     length(s.content::AbstractString)
 end
 
-function _collect_spans(node::SyntaxNode, p::SyntaxNodeToText, depth::Int, recursion, want_cursor::Bool=true)
+function _collect_spans(node::SyntaxNode, p::SyntaxNodeToText, depth::Int, recursion, want_cursor::Bool=true; deco=nothing)
     spans = TextDocument[]
+    nid = objectid(node)               # structural-slot key prefix for decorative spans
     cursor_offset = -1
     char_count = 0
     children = node.children
@@ -819,15 +844,15 @@ function _collect_spans(node::SyntaxNode, p::SyntaxNodeToText, depth::Int, recur
                 push!(spans, node.sep)
                 char_count += _span_len(node.sep)
             end
-            nl = _newline_span()
+            nl = _deco_span(deco, (nid, i, :nl), _newline_span)
             push!(spans, nl)
             char_count += 1
-            ind = _indent_span(p, child_depth)
+            ind = _deco_span(deco, (nid, i, :ind), () -> _indent_span(p, child_depth))
             push!(spans, ind)
             char_count += _span_len(ind)
 
             child_start = char_count
-            child_spans, child_cursor = _collect_child_spans(child, p, child_depth, recursion, want_cursor)
+            child_spans, child_cursor = _collect_child_spans(child, p, child_depth, recursion, want_cursor; deco=deco)
             if child_cursor >= 0 && cursor_offset < 0
                 cursor_offset = char_count + child_cursor
             end
@@ -838,9 +863,9 @@ function _collect_spans(node::SyntaxNode, p::SyntaxNodeToText, depth::Int, recur
             push!(child_ranges, child_start:char_count-1)
         end
         if node.indentation > 0
-            push!(spans, _newline_span())
+            push!(spans, _deco_span(deco, (nid, 0, :tnl), _newline_span))
             char_count += 1
-            ind = _indent_span(p, depth)
+            ind = _deco_span(deco, (nid, 0, :tind), () -> _indent_span(p, depth))
             push!(spans, ind)
             char_count += _span_len(ind)
         end
@@ -851,7 +876,7 @@ function _collect_spans(node::SyntaxNode, p::SyntaxNodeToText, depth::Int, recur
                 char_count += _span_len(node.sep)
             end
             child_start = char_count
-            child_spans, child_cursor = _collect_child_spans(child, p, depth, recursion, want_cursor)
+            child_spans, child_cursor = _collect_child_spans(child, p, depth, recursion, want_cursor; deco=deco)
             if child_cursor >= 0 && cursor_offset < 0
                 cursor_offset = char_count + child_cursor
             end
