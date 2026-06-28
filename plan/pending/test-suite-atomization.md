@@ -174,6 +174,64 @@ fail loudly if broken:
 `CopyingProjection` / `PreservingProjection` need no fixture of their own — they
 *are* the mockups, and the table above exercises them as the trivial children.
 
+## Generalizing the oracle: goldens as fixture data
+
+The hand-written stage tests (`test_json_to_syntax`
+([`JsonToSyntaxTest.jl`](../../package/test/src/projection/JsonToSyntaxTest.jl)),
+`test_syntax_to_text`, …) are not logic — they are tables of hardcoded
+`(input → expected)` pairs of three kinds: **golden render** (`render(print(j2s,
+JsonNull())) == "null"`), **golden reactivity** (mutate a value, assert
+`!isuptodate` then the new render), and **golden interaction** (fire an event from
+a selection, assert the resulting op/document). The generalization is to move the
+oracle **out of the function body and into the fixture as data**, then assert it
+generically.
+
+Extend the atomic fixture with optional oracle fields and write each asserter
+once:
+
+```julia
+struct AtomicFixture
+    name; document; projection
+    render        # nothing | String | (output -> Bool)   ← golden render
+    mutate        # nothing | (document -> ())            ← reactivity probe
+    render_after  # nothing | (output -> Bool)
+    interaction   # nothing | (selection, event, after::Function)
+end
+
+function test_render(fx)
+    out = projection_print(fx.projection, fx.document).output
+    fx.render === nothing && return walk_printer_output(fx.document, fx.projection) # fallback: no-throw walk
+    fx.render isa AbstractString ? (@test render(out) == fx.render) : (@test fx.render(out))
+end
+```
+
+`test_json_to_syntax`'s assertions become fixture rows:
+
+```julia
+AtomicFixture("json_str_leaf",   JsonString("hi"),    JsonStringToSyntaxLeaf(); render="\"hi\"")
+AtomicFixture("json_array_node", JsonArray([SyntaxLeaf("1"), SyntaxLeaf("2")]),
+              node_with_preserving(JsonArrayToSyntaxNode());                    render="[1, 2]")
+AtomicFixture("json_obj_node",   JsonObject("a"=>JsonNumber(1)), j2s;
+              render = out -> occursin("\"a\": 1", render(out)))   # predicate ⇒ order-independent
+```
+
+Consequences:
+
+- **The per-stage `test_<proj>()` functions are obsoleted as code** — they
+  collapse into fixture rows plus three generic asserters (`test_render`,
+  `test_reactive`, `test_interaction`). Adding a new stage means adding fixtures,
+  not writing a test.
+- **No expected value is lost** — the oracle is relocated, not deleted. Because
+  the fixture is `run_example`-able, the golden render *is what appears on screen*:
+  the oracle is verifiable by eye and doubles as documentation.
+- **A small bespoke residue remains** — deep structural contracts (e.g. "a root
+  swap nulls `ed.iomap`", "the cursor lands at exactly `value{1}`") that don't
+  datafy cleanly stay as hand-written tests. Budget ~10–20% of today's stage
+  assertions as residue; the rest become data.
+- **A fixture with no oracle still gets coverage** — it falls back to the generic
+  no-throw printer walk, so every atomic fixture is at minimum a smoke test even
+  before anyone writes its goldens.
+
 ## Tiers
 
 - `test_atomic()` — the five testers over `atomic_examples` (documents + stages +
@@ -194,9 +252,12 @@ fail loudly if broken:
   five testers to loop the new registry; make every fixture `run_example`-able and
   confirm each opens in the editor. This alone moves the *document* axis off the
   complex examples.
-- **Phase 2 — stage fixtures.** One mockup-surrounded fixture per projection
-  stage; fold the existing hand-written stage tests (JsonToSyntax, SyntaxToText,
-  …) onto the shared fixtures so they stop re-building documents inline.
+- **Phase 2 — stage fixtures + oracle datafication.** One mockup-surrounded
+  fixture per projection stage; add the `render`/`mutate`/`interaction` oracle
+  fields and the three generic asserters; **datafy** the existing hand-written
+  stage tests (JsonToSyntax, SyntaxToText, …) into fixture rows, leaving only the
+  deep-contract residue as bespoke tests. Net: the per-stage `test_<proj>()`
+  functions disappear as code.
 - **Phase 3 — combinator fixtures.** Build the woven fixtures from the table;
   reuse the `_SpyRecursion` pattern for the delegation/order assertions. This is
   the coverage that *did not exist directly* before.
