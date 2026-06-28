@@ -1,12 +1,25 @@
 # FileSystemFile Content Projection with Live File Synchronization
 
-> **Status (2026-06-28): ⏳ ALL OPEN.** Nothing in this plan is implemented yet.
-> Searches for `content` on `FileSystemFile`, `FileSystemFileToText`,
-> `FileSystemSynchronizer`, and `synchronize!` across `package/*/src/` find no
-> definitions. Today `FileSystemFile` (`package/domain/src/document/FileSystem.jl`)
-> carries only `pathname` + `selection`, and the only file-system projections —
-> `FileSystemToSyntax` and `FileSystemToWidget` — render a node's *basename* for
-> the directory-tree view; neither reads, watches, or writes file *contents*.
+> **Note:** This document was generated with AI assistance as a brainstorming
+> artifact. It is a collection of raw ideas and directions, not a specification.
+> Everything here needs to be critically evaluated, refined, and adapted before
+> any of it gets implemented.
+
+> **Status (2026-06-28): tentative — nothing implemented.** Searches for `content`
+> on `FileSystemFile`, `FileSystemFileToText`, `FileSystemSynchronizer`, and
+> `synchronize!` across `package/*/src/` find no definitions. Today `FileSystemFile`
+> (`package/domain/src/document/FileSystem.jl`) carries only `pathname` +
+> `selection`, and the only file-system projections — `FileSystemToSyntax` and
+> `FileSystemToWidget` — render a node's *basename* for the directory-tree view;
+> neither reads, watches, or writes file *contents*.
+>
+> **Central open question (why this is tentative):** how the external→document
+> update is delivered. Two shapes are in play — (A) a loop-level synchronizer that
+> **writes the `content` cell directly** (the minimal `EDITOR_TIME` precedent), or
+> (B) the synchronizer **emits an `Operation`** that flows through `evaluate!`
+> (undoable, logged, consistent). This plan now leans toward (B), keeps (A) as the
+> fallback, and analyzes a fuller "file access as a `Device`" evolution under
+> Alternatives. None of it is settled.
 
 Add a projection that presents a `FileSystemFile`'s **contents** as an editable
 text document, backed by a loop-level synchronizer that (a) detects external
@@ -81,14 +94,19 @@ plugged in — the same way `Device`/`Backend` are abstract in the kernel
   selection vocabulary `content{k}`. No disk access.
 - **Synchronizer** (`FileSystemSynchronizer`): side-effecting, loop-driven.
   Holds per-file bookkeeping (`last_disk_mtime`, `last_known_content`) and
-  reconciles disk ⇄ cell each frame (throttled).
+  reconciles disk ⇄ document each frame (throttled). On an external change it
+  **emits an `Operation`** the loop applies via `evaluate!` (recommended shape B),
+  or writes the `content` cell directly (fallback shape A); on a local edit it
+  writes the file back.
 - **Kernel hook**: `Editor` grows a `synchronizers` list and a generic
-  `synchronize!(s, editor)` called once per frame in every loop variant.
+  `synchronize!(s, editor)` called once per frame in every loop variant, which may
+  yield an operation for that frame.
 
-Crucially, the synchronizer **writes the `content` cell directly** and **reads
-the disk directly** — both from the loop, never from a thunk. This is the exact
-`EDITOR_TIME` pattern: external state enters the graph through a primitive cell
-the loop writes.
+Crucially, **all disk reads/writes happen in the loop, never in a thunk** — the
+`content` cell is the primitive boundary through which external state enters the
+graph, the exact `EDITOR_TIME` discipline. Whether the reload reaches `content`
+via an operation (B) or a direct cell write (A) is the open question above; either
+way the side effect is loop-bound.
 
 ## Phase 1 — Document: content + editing gestures
 
@@ -196,30 +214,39 @@ The kernel can't reference `FileSystemFile`, so add a generic extension point:
 # api/Synchronizer.jl
 abstract type Synchronizer end
 # Called once per frame from the loop; concrete methods live in higher layers.
+# Returns an Operation to apply this frame (shape B), or nothing.
 synchronize!(::Synchronizer, editor) = nothing
 ```
 
 Extend `Editor` with a `synchronizers::Vector{Synchronizer}` field (default
 empty, so existing call sites are unaffected) and call them each frame in **all
 three** loop bodies (`run!`, the timeline `play_live!`, and any future loop),
-next to `tick!`:
+next to `tick!`. An operation a synchronizer returns is applied this frame —
+slotted in only when live input produced none, so a real keystroke still wins:
 
 ```julia
 while true
     perf_reset!()
     tick!(Base.time() - t_start)
-    foreach(s -> synchronize!(s, editor), editor.synchronizers)   # ← new
-    @perf_time :read_time     read!(editor)
+    @perf_time :read_time read!(editor)
+    if editor.operation === nothing                               # ← new: external sync
+        for s in editor.synchronizers
+            op = synchronize!(s, editor)
+            if op !== nothing; editor.operation = op; break; end
+        end
+    end
     @perf_time :evaluate_time evaluate!(editor)
     @perf_time :print_time    print!(editor)
     ...
 end
 ```
 
-Placing it before `read!`/`print!` means an external reread is visible the same
-frame. A directly-written `content` cell invalidates its dependents (the text
-span) exactly like any other write, so the existing per-frame re-pull renders it
-with no further plumbing — identical to how `EDITOR_TIME` animates.
+(The fallback shape A needs no operation slot — `synchronize!` just writes the
+`content` cell and returns `nothing`; the call can then sit anywhere in the frame,
+e.g. right after `tick!`.) Either way the change is visible the same frame: an
+operation runs through `evaluate!` before `print!`, and a direct cell write
+invalidates the text span's dependents so the existing per-frame re-pull renders
+it — identical to how `EDITOR_TIME` animates.
 
 > Lighter alternative: a `frame_hooks::Vector{Function}` of `editor -> nothing`
 > closures instead of a typed `Synchronizer`. The typed form is preferred because
@@ -250,43 +277,63 @@ end
 
 Per-frame logic (`synchronize!`), throttled by `poll_interval` against
 `editor_time()` (sample, not subscribe — the loop is not a thunk, but sampling is
-the right idiom and stays consistent with the clock plan):
+the right idiom and stays consistent with the clock plan).
+
+**Recommended shape (B) — emit an operation.** Rather than mutating the `content`
+cell in place, the synchronizer detects the external change and **returns/enqueues
+an `Operation`** rooted at the file's `content` reference, which the loop feeds to
+`evaluate!` exactly like a reader-produced operation. The reload then goes through
+`evaluate_operation` — so it is undoable, logged (`@info "[operation]"`), and
+consistent with every other mutation. The synchronizer already holds the
+file→document mapping, so rooting the path is trivial. This needs a small
+extension to the kernel hook: `synchronize!` may **produce an operation** the loop
+applies (e.g. return it, or push onto an `editor.pending_operations` queue drained
+next to `read!`). Write-back stays a direct side effect (there is nothing to make
+undoable about flushing bytes).
 
 ```julia
+# Returns an Operation to apply this frame, or nothing.
 function synchronize!(s::FileSystemSynchronizer, editor)
     now = editor_time()
-    now - s.last_poll < s.poll_interval && return
+    now - s.last_poll < s.poll_interval && return nothing
     s.last_poll = now
     for w in s.watches
         isfile(w.file.pathname) || continue          # deleted/renamed: see Open Questions
-        m = mtime(w.file.pathname)
-        cur = w.file.content                          # current cell value (peek/read)
+        m   = mtime(w.file.pathname)
+        cur = w.file.content                          # current cell value (plain read)
         if m > w.last_disk_mtime
-            # External change on disk.
             if cur === nothing || cur == w.last_known_content
                 disk = read(w.file.pathname, String)  # SIDE EFFECT — in the loop, OK
-                w.file.content = disk                 # primitive-cell write (EDITOR_TIME pattern)
-                clamp_file_selection!(w.file)
                 w.last_known_content = disk
                 w.last_disk_mtime    = m
+                # (B) hand the reload to evaluate! as an operation rooted at this file.
+                return reload_operation(w.file, disk) # e.g. StringReplaceRangeOperation(content[0:len], disk)
             else
                 # Conflict: both disk and editor changed. v1 policy below.
             end
         elseif cur !== nothing && cur != w.last_known_content
-            # Local edit, disk unchanged → write back.
-            write(w.file.pathname, cur)               # SIDE EFFECT — in the loop, OK
+            write(w.file.pathname, cur)               # SIDE EFFECT — write-back, in the loop, OK
             w.last_known_content = cur
             w.last_disk_mtime    = mtime(w.file.pathname)  # re-stat to absorb our own write
         end
     end
+    return nothing
 end
 ```
 
-Why this is legal: every disk read/write and every `content` cell write happens
-**in the loop**, never in a thunk. The `content` cell is the primitive boundary
-through which external state enters the graph — exactly the `EDITOR_TIME`
-discipline. The synchronizer reads `content` as a plain value (no dependency is
-registered because the loop isn't a computed cell).
+`reload_operation` produces a `StringReplaceRangeOperation` over the whole
+`content` (or a dedicated `ReloadFileOperation`); the existing evaluate path
+splices `content`, and `evaluate_operation` is the natural place to also
+`clamp_file_selection!` after the swap.
+
+**Fallback shape (A) — direct cell write.** If the operation plumbing isn't worth
+it for v1, the synchronizer can instead set `w.file.content = disk` directly. This
+is still legal because every disk read/write and every `content` cell write
+happens **in the loop, never in a thunk** — the `content` cell is the primitive
+boundary through which external state enters the graph, exactly the `EDITOR_TIME`
+discipline. The cost is that a reload is a side-channel mutation: not undoable, not
+logged, invisible to the operation history. That trade-off is the crux of the
+central open question above.
 
 **Registration.** Provide
 `watch_file!(sync, f::FileSystemFile)` and a convenience that walks a document
@@ -362,18 +409,46 @@ are deterministic and fast. Tests must use the session scratch dir for temp file
 
 ## Alternatives considered
 
-- **File access as a `Device`.** A `FileSyncDevice` could surface external changes
-  as *operations* on `read_from_devices` and flush dirty content on
-  `write_to_devices`, reusing the editor's existing device iteration. This routes
-  external reloads through the operation/evaluate path (arguably cleaner than a
-  side-channel cell write) but couples the device to specific document types and
-  operations, and needs a dedicated "replace whole content" operation. Heavier than
-  v1 warrants; revisit if reloads should be undoable.
-- **Reload via an operation instead of a direct cell write.** Same trade-off:
-  routing the reread through `evaluate_operation` makes it undoable/loggable but
-  needs a new operation type and a way for a loop-level sampler to enqueue an
-  operation. The animation plan explicitly blesses the direct primitive-cell write
-  for external samplers; v1 follows that precedent.
+- **File access as a `Device` that emits change events.** The most "native"
+  framing — a `FileSystemDevice` in `editor.devices` that surfaces external
+  changes as input *events* (flowing through `projection_read` → operation →
+  `evaluate!`) and flushes dirty content on write. Conceptually clean and
+  backend-swappable, but it **does not fit the current `Device` interface**
+  (`package/kernel/src/api/Device.jl`) without non-trivial changes, for two
+  concrete reasons:
+
+  1. **Polling is backend-mediated, not device-driven.** `read_from_devices(::Backend, devices)`
+     is dispatched on the **Backend**; SDL/web/console each override it to poll
+     *their own* event queue and classify — the device list is advisory. The loop
+     only ever calls that one batch
+     (`read_from_devices(editor.backend, editor.devices)`), so a `FileSystemDevice`
+     never gets polled unless either every backend learns to also stat the
+     filesystem (filesystem leaking into the SDL/web/console packages — wrong
+     layer) or the loop is changed to also drain a generic per-device
+     `read_from_device` path (declared in the interface but unused today). That is
+     a change to the core input path of every editor.
+  2. **A file event has no window or geometry, so the reader pipeline can't route
+     it.** Device events become `EventEnvelope(window_id, event)`; readers map them
+     via the current `iomap`, with `ScreenToScreen` routing by `window_id` and the
+     geometry readers hit-testing pixel coordinates. A "file changed" event has
+     neither. To become a `StringReplaceRangeOperation` on the right
+     `FileSystemFile.content`, the event must **carry a document reference** to the
+     target file and a reader must root the operation there — a route-by-reference
+     mechanism that does not exist yet (everything routes by
+     window/coordinate/selection). Trivial in a single-file editor; real new work
+     in the tree/master-detail case.
+
+  Write-back is a poor fit for the device path too: `write_to_devices` is handed
+  the *pipeline output* (a `ScreenDocument`), not the input document, so a file
+  device on that path can't reach the dirty `content` cell to flush it.
+
+  **Verdict:** capture the value (reload-as-operation) via shape (B) above — a
+  loop-level synchronizer that *emits* an operation — which needs none of the
+  device/backend surgery. Promote to a real `Device` later, when file I/O should
+  be a first-class backend-swappable channel (e.g. a remote-filesystem backend, or
+  unifying with OS inotify notifications). Prerequisites for that step are now
+  explicit: (i) generalize the loop to drain per-device inputs, (ii) add a
+  `FileChangedEvent` carrying a target reference, (iii) add a reader that roots it.
 - **`frame_hooks::Vector{Function}` instead of typed `Synchronizer`.** Lighter,
   but less testable and less discoverable. Chosen against for the reasons in
   Phase 3.
