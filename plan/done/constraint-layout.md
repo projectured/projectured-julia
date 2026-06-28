@@ -1,9 +1,10 @@
 # Constraint Layout
 
-> **Audit status (implemented 2026-06-26): 🚧 CODE COMPLETE, UNVERIFIED.** All
-> seven implementation steps below are written, with the solver dependency
-> **extracted into a separate opt-in package** (see "Packaging" below) so core
-> `ProjecturedDomain` stays dependency-free.
+> **Status: ✅ DONE — verified green 2026-06-28.** All seven implementation steps
+> are written, with the solver dependency **extracted into a separate opt-in
+> package** (see "Packaging" below) so core `ProjecturedDomain` stays
+> dependency-free. The pending verification has now run clean (see "Verification
+> result" below).
 >
 > - `ConstraintLayout`, `LayoutRelation`, `LayoutAnchor` + the `anchor`/`constrain`
 >   DSL — `package/domain/src/document/Layout.jl`.
@@ -29,14 +30,14 @@
 > `ConstraintLayoutToGraphicsCanvas(solver = TulipConstraintSolver())` — the same
 > dependency-injection pattern as `GraphGraphToGraphLayout(engine = AdaptagramsEngine())`.
 >
-> **Not yet verified.** The work was done in an environment without a Julia
-> toolchain (the binary servers are blocked by egress policy), so nothing has
-> been compiled or run. Before this can be marked done a maintainer must:
-> (1) `julia --project=.` then `import Pkg; Pkg.resolve()` to pull `Tulip`/`MOI`
-> into the checked-in manifests; (2) run `test_constraint_solver()`,
-> `test_example(constraint_layout_example)` (fallback), and
-> `test_example(constraint_layout_tulip_example)` (real solver). Until then treat
-> the code as a draft pending a green test run.
+> **Verification result (2026-06-28).** Tulip/MOI resolve and precompile cleanly;
+> `test_constraint_solver()` (fallback + Tulip: equality pinning, inequality
+> min-size, fill, soft centering, infeasible-falls-back-no-throw, empty) and
+> `test_layout_constraint_helpers()` are all green; `constraint_layout` printer
+> 872 / reader 225 green; and `constraint_layout_tulip` printer 872 green — the
+> real Tulip LP solver prints end-to-end. (`test_example` was not used for the
+> examples because `constraint_layout` is on the text-navigation exclusion list;
+> printer + reader were run instead.)
 
 Add a `ConstraintLayout` document type whose children are positioned by solving
 a system of **linear equality/inequality constraints** over their edges, using
