@@ -1,197 +1,192 @@
-# Atomize the test harness: stop re-deriving coverage through composed examples
+# Atomize the test harness: woven atomic fixtures, not accidental complex examples
 
-## Problem
+## The idea (in one paragraph)
 
-The suite spends most of its wall-clock running a handful of **generic,
-example-enumeration suites over the whole `examples` registry** (~88 composed
-`(document, projection)` pairs, see
-[`package/example/src/Examples.jl`](../../package/example/src/Examples.jl)).
-Each example's `projection` is a *full pipeline* — e.g. the JSON example is
-`JsonToSyntax → SyntaxToText → TextToGraphics`
-([`example/src/projection/Json.jl:1`](../../package/example/src/projection/Json.jl)) —
-so every sweep re-runs the entire stack (including the expensive TrueType
-`TextToGraphics` layout) for every example.
+The **example tester functions are good and stay** — `test_printer`,
+`test_reader`, `test_repl`, `test_text_navigation`, `test_typein`
+([`PrinterTest.jl`](../../package/test/src/editor/PrinterTest.jl),
+[`ReaderTest.jl`](../../package/test/src/editor/ReaderTest.jl),
+[`ReplTest.jl`](../../package/test/src/editor/ReplTest.jl),
+[`TextNavigationTest.jl`](../../package/test/src/editor/TextNavigationTest.jl),
+[`TypeinTest.jl`](../../package/test/src/editor/TypeinTest.jl)) already take a
+labelled `(document, projection)` pair and need no changes. What's wrong is
+**what we run them on**: ~88 large, *accidentally* composed real-world examples
+([`Examples.jl`](../../package/example/src/Examples.jl)), each dragging a full
+`…ToSyntax → SyntaxToText → TextToGraphics` pipeline through the slow TrueType
+layout, so coverage of any one document, stage, or combinator is buried inside a
+composition and re-paid dozens of times. Replace that primary fixture set with a
+**library of small, hand-woven atomic fixtures** — one minimal document per
+domain, one projection *stage* surrounded by *mockup* projections, one
+*combinator* woven over a trivial child — run the existing testers over them, and
+keep the complex examples as an **opt-in integration tier** for when you want
+end-to-end confidence. Because each atomic fixture is a real `(document,
+projection)` pair, it is also `run_example`-able: a minimal feature gallery and
+manual-debugging aid, useful in its own right.
 
-The cross-cutting suites that loop the registry, from `test_all()`
-([`ProjecturedTest.jl:225`](../../package/test/src/ProjecturedTest.jl)):
-`test_printers`, `test_readers`, `test_repls`, `test_typeins`,
-`test_text_navigations`, `test_text_navigations_complete`, `test_mouse_clicks`,
-`test_click_roundtrips`, `test_text_nav_invariants_all`,
-`test_json_content_clicks_clean_all`, `test_tree_navigations`,
-`test_tree_navigations_complete`. Most are **generic walkers**
-(`_walk!` in [`PrinterTest.jl:45`](../../package/test/src/editor/PrinterTest.jl))
-that assert "no cell throws / navigation doesn't get stuck" — they carry **no
-domain- or projection-specific knowledge**. They give crash/smoke coverage at
-O(examples × events × cells × full-pipeline-cost).
+## Why this beats "pick a representative per pipeline shape" (the earlier draft)
 
-Two structural symptoms confirm the redundancy the request points at:
+The earlier version of this plan tried to tag the 88-example registry with
+`shape`/`coverage` metadata and sweep only representatives. That keeps the
+*accidental* fixtures and just runs fewer of them. The better move is to stop
+deriving coverage from accidental compositions at all:
 
-1. **The registry is mostly one projection with many documents.** ~38 of the 88
-   examples are widget examples (`widget_label` … `widget_focus`) that **all share
-   `make_widget_projection_example`** and differ only in their document. Running
-   the 12-suite sweep over all 38 re-exercises the *identical* pipeline 38 times;
-   the only discriminating fact each adds is "this widget document prints" — one
-   printer assertion, not a full reader/repl/typein/nav/click sweep. Same pattern
-   for the collection family (`collection`/`reversing`/`filtering`/`searching`/
-   `sorting` share `make_collection_document_example`) and the
-   `make_json_document_example` reuse (json / json_sorted / json_widget /
-   graphics_image).
+- **Direct, not transitive.** A combinator like `SortingProjection` is today only
+  exercised because `json_sorted` happens to sort an object's entries. A woven
+  fixture (trivial leaf child + a 3-element collection in scrambled order)
+  exercises the *sort contract itself* and fails with a name that points at the
+  combinator, not at a JSON pipeline.
+- **No fragile skip-lists.** The scattered `startswith(name,"widget")` /
+  `endswith(name,"_widget")` skip heuristics in
+  [`TextNavigationTest.jl:142-168`](../../package/test/src/editor/TextNavigationTest.jl),
+  [`MouseClickTest.jl:304`](../../package/test/src/editor/MouseClickTest.jl),
+  [`ClickRoundtripTest.jl:194`](../../package/test/src/editor/ClickRoundtripTest.jl)
+  exist because the registry mixes navigable and non-navigable examples. An
+  atomic fixture is *built* to be editable-or-not, so it simply declares which
+  testers apply — the heuristics dissolve.
+- **The fixtures pay their way twice.** Each is a runnable editor demo. The big
+  composed examples stay for screenshots and integration, but the atomic library
+  is what you open when you want to *see one feature working in isolation*.
 
-2. **"Which examples are meaningful for me" is re-derived, ad hoc, in every
-   suite.** `test_text_navigations` skips widgets/layout/workbench/assistant/SQL
-   with inline name-prefix heuristics
-   ([`TextNavigationTest.jl:142-168`](../../package/test/src/editor/TextNavigationTest.jl));
-   `test_mouse_clicks` and `test_click_roundtrips` skip non-`TextToGraphics`
-   pipelines the same way
-   ([`MouseClickTest.jl:304`](../../package/test/src/editor/MouseClickTest.jl),
-   [`ClickRoundtripTest.jl:194`](../../package/test/src/editor/ClickRoundtripTest.jl)).
-   These fragile, duplicated skip-lists are a smell that the registry is doing
-   double duty: a **screenshot gallery** (every widget kind needs a picture, see
-   `generate_example_screenshots`, [`ExampleTest.jl:791`](../../package/test/src/editor/ExampleTest.jl))
-   *and* a **test-fixture matrix** — and the second job is mostly redundant with
-   the atomic tests that already exist.
+## The pieces, and what already exists
 
-The good news: the atomic layer the request asks for **already exists and is the
-better-factored half of the suite.** `test_json()`
-([`JsonTest.jl`](../../package/test/src/document/JsonTest.jl)) exercises the JSON
-domain directly; `test_json_to_syntax()`
-([`JsonToSyntaxTest.jl:1`](../../package/test/src/projection/JsonToSyntaxTest.jl))
-prints `JsonToSyntax` on bare `JsonNull()`/`JsonBool(true)`/… with **no pipeline
-below it**, and `test_json_to_syntax_reader()` drives the reader on minimal
-documents. These are fast, precise, and name the failing unit. The plan is to
-**make the atomic layer the primary coverage and demote the registry sweep to a
-thin, representative smoke tier** — not to delete coverage, but to stop paying
-for the same coverage ~40× through the slowest path.
+### 1. Mockup kit (mostly already in the tree)
 
-## Coverage model: separate the axes
+Small reusable stand-ins that let a single unit be wrapped into a runnable
+pipeline without the real stack:
 
-Today one mechanism (enumerate the registry, run a generic walker) is asked to
-cover four independent axes at once. Name them and cover each at its cheapest
-level:
+- **Terminal / pass-through projections** — `PreservingProjection`,
+  `CopyingProjection` already exist
+  ([`HigherOrder.jl`](../../package/domain/src/projection/compound/HigherOrder.jl)).
+  Add (if missing) a *minimal leaf-to-text/graphics terminal* so a stage's output
+  is observable and the fixture is `run_example`-able, without pulling the full
+  `SyntaxToText`/`TextToGraphics` chain when the unit under test sits above them.
+- **Spy / observer projections** — model on `_SpyRecursion`
+  ([`RecursionContractTest.jl:43`](../../package/test/src/editor/RecursionContractTest.jl)),
+  a higher-order projection used as the `recursion` argument that counts
+  delegations. The same trick gives combinator fixtures an *observable child*
+  (records what input it was handed, in what order) without adding any
+  per-projection generic function.
+- **Minimal documents per domain** — the bare structs the document tests already
+  build (`JsonNull()`, `JsonBool(true)`, a 2-element `JsonArray`, …, cf.
+  [`JsonTest.jl`](../../package/test/src/document/JsonTest.jl)). Promote these from
+  inline test locals to named fixtures so both the tester and `run_example` share
+  them.
 
-| Axis | Question | Cheapest home | Today |
-|---|---|---|---|
-| **A. Document** | Does a domain's data model behave (construct, mutate, react)? | `test_<domain>()` on bare structs | ✅ exists (`test_json`, `test_syntax`, …) |
-| **B. Stage** | Does one projection print/read correctly in isolation? | `test_<proj>()` printing the stage on a *minimal* document, no pipeline below | ✅ partial (`test_json_to_syntax`, `test_syntax_to_text`, …); gaps below |
-| **C. Composition** | Do stages wire together (references map end-to-end, selection forwards, recursion delegates)? | One representative example per *distinct pipeline shape* | ⚠️ done by sweeping **all** 88, not the ~12 distinct shapes |
-| **D. Invariants** | Crash-free cell forcing, navigation reachability, click round-trip | Representative example per shape + the existing curated completeness subsets | ⚠️ run over the whole registry via fragile skip-lists |
+### 2. Atomic example registry
 
-The waste is entirely in **C** and **D** being run per-example instead of
-per-pipeline-shape. A/B are already atomic and should *absorb* the
-discriminating coverage that C/D currently get by accident.
+A new `atomic_examples::Vector{Example}` in the example package, parallel to
+`examples`. Three families:
 
-## Strategy
+- **Document fixtures** — `(minimal domain document, minimal mockup terminal)`,
+  one per domain. Exercises the document model + its leaf rendering.
+- **Stage fixtures** — `(mockup input document, stage-under-test ∘ mockup
+  terminal)`, one per projection *stage*. This is exactly the shape
+  `test_json_to_syntax()` already uses by hand
+  ([`JsonToSyntaxTest.jl:4`](../../package/test/src/projection/JsonToSyntaxTest.jl):
+  `RecursiveProjection(JsonToSyntax())` printed on bare `JsonNull()`); the plan
+  generalizes it into a runnable, reusable fixture so the *navigation/repl/typein*
+  testers — not just `render(...)` assertions — also run against the isolated
+  stage.
+- **Combinator fixtures** — `(woven document, higher-order projection over a
+  trivial/spy child)`, one per combinator, each constructed so the combinator's
+  contract is observable (see the table below).
 
-1. **Tag the registry with coverage metadata instead of re-deriving it.** Give
-   `Example` (struct at [`ExampleTest.jl:1`](../../package/test/src/editor/ExampleTest.jl), via `Examples.jl`)
-   two new fields:
-   - `shape::Symbol` — the pipeline shape it represents (`:text_graphics`,
-     `:widget_graphics`, `:syntax_text`, `:collection`, `:read_only`, …). All ~38
-     widget examples share `shape = :widget_graphics`.
-   - `coverage::Vector{Symbol}` — which cross-cutting suites are *meaningful*
-     (e.g. a static widget screenshot example is `[:printer]`; the canonical
-     editable JSON example is `[:printer, :reader, :repl, :navigation, :typein, :click]`).
+### 3. The testers loop the atomic registry
 
-   Drive every enumeration suite off `coverage`/`shape` and **delete the inline
-   skip-lists** in TextNavigationTest/MouseClickTest/ClickRoundtripTest. The skip
-   logic becomes one declaration per example, in one place, instead of N fragile
-   name-prefix heuristics.
+`test_atomic()` does for `atomic_examples` exactly what `test_printers()` /
+`test_readers()` / … do for `examples` today — same functions, new fixture list.
+No new tester code.
 
-2. **Pick one representative example per `shape` for the heavy C/D sweep.** The
-   full read/repl/typein/nav/click suites run only over the representatives
-   (~12 pipeline shapes), not all 88. This is the bulk of the time saving and
-   loses no *pipeline-wiring* coverage, because non-representative examples of a
-   shape exercise the same wiring.
+## Combinators and their woven-fixture contracts
 
-3. **Push discriminating per-example facts down to axis A/B.** For each widget
-   kind that today only earns coverage by being swept, add (or confirm) a cheap
-   assertion in the widget document/stage test that the kind constructs and
-   prints — a single `@test` next to `test_object_to_widget` / `test_syntax_to_widget`,
-   not a registry entry that triggers 12 sweeps. The widget *screenshot* entry
-   stays (it's a gallery artifact, `coverage = [:printer]`), but it no longer
-   pulls the full matrix.
+The higher-order projections that must be tested directly (struct defs across
+`package/*/src/projection`), each with the minimal weave that makes its contract
+fail loudly if broken:
 
-4. **Fill the B-axis gaps** so demoting C/D is safe. Audit the projection stages
-   that have **no standalone `test_<proj>()`** and only get touched through
-   examples (candidates from the registry: the per-widget projections, the
-   graphics/layout stages reached only via `*_graphics`). Each gap gets a
-   minimal-document stage test in the `JsonToSyntaxTest` style.
+| Combinator | Woven fixture | Observable contract |
+|---|---|---|
+| `SequentialProjection` | two spy stages over a 1-node doc | stage 2 receives stage 1's output, in order |
+| `RecursiveProjection` | container doc + spy child | child invoked once per projectable child node (delegation) |
+| `TypeDispatchingProjection` | doc with two node types + two leaf children | each node routed to the child registered for its type |
+| `ReferenceDispatchingProjection` | doc with two sibling sub-paths | each sub-path routed by reference, others preserved |
+| `PredicateDispatchingProjection` | doc whose nodes split on a predicate | predicate decides the child |
+| `NestingProjection` | inner stage + `Preserving` below | recursion handed to inner; nodes below the seam preserved |
+| `FocusingProjection` | doc + focus sub-path | output re-rooted at the focus; edits/selection map back under it |
+| `FilteringProjection` / `SearchingProjection` | 3-element collection + predicate/query | failing elements hidden; references map past the gaps |
+| `SortingProjection` / `SortingAtProjection` | scrambled 3-element collection | output reordered; references map through the permutation |
+| `ReversingProjection` | ordered 3-element collection | output reversed; reference inversion round-trips |
+| `ProjectionConfiguringProjection` | text doc + control bar | bar stacks above; editing controls re-projects |
 
-5. **Tier the entry points** so the dev-loop default is the fast atomic layer and
-   the registry sweep is opt-in / CI-only:
-   - `test_atomic()` — documents (A) + stages (B) + primitives/cells/references.
-     Fast; the default per-change loop. (CLAUDE.md already pushes "smallest test
-     that covers the change"; this gives it a named home.)
-   - `test_smoke()` — `test_printer` over the per-`shape` representatives only (C
-     wiring + D crash, cheap).
-   - `test_all()` — unchanged surface, still the full registry sweep, for CI.
+`CopyingProjection` / `PreservingProjection` need no fixture of their own — they
+*are* the mockups, and the table above exercises them as the trivial children.
 
-   No public function is removed; `test_all()` stays a superset.
+## Tiers
+
+- `test_atomic()` — the five testers over `atomic_examples` (documents + stages +
+  combinators), plus the existing direct-assertion stage tests. **Primary
+  coverage, fast, the dev-loop default.**
+- `test_printers()` / `test_readers()` / `test_repls()` / … over the complex
+  `examples` registry stay exactly as they are — now an **opt-in integration
+  tier** ("if one wants that").
+- `test_all()` runs both, for CI.
 
 ## Phases (each independently shippable, suite stays green)
 
-- **Phase 0 — measure.** Record per-suite timings from one `test_all()` run
-  (wrap each `test_*` in `@elapsed`/`@info`). This is the baseline the plan is
-  judged against and tells us which sweeps actually dominate (hypothesis:
-  `test_repls` + `test_click_roundtrips` + the `*_navigations`, all ×88).
-
-- **Phase 1 — metadata, no behavior change.** Add `shape` + `coverage` to
-  `Example` with defaults that reproduce *exactly today's* skip behavior, then
-  rewrite the three suites with inline skip-lists to read the metadata. Net
-  coverage identical; the skip logic is now declarative. (Safe, mechanical,
-  high-confidence.)
-
-- **Phase 2 — B-axis gap audit.** List projection stages with no standalone
-  test; add minimal-document stage tests for each. Gate the rest of the plan on
-  this — we only demote a sweep once the stage it covered has an atomic test.
-
-- **Phase 3 — representatives.** Introduce `test_smoke()` and switch the heavy
-  C/D suites to iterate representatives by `shape` instead of the full registry.
-  Keep the curated completeness subsets (`_text_navigation_complete_examples`,
-  the tree-nav curation) — those are already representative by design.
-
-- **Phase 4 — retier & document.** Add `test_atomic()`; update
-  [`documentation/testing.md`](../../documentation/testing.md) and `CLAUDE.md`'s
-  "Testing a change" section to point at `test_atomic` / single-stage tests as
-  the default and `test_all` as the CI sweep. Re-measure against Phase 0.
+- **Phase 0 — mockup kit.** Inventory existing pass-through/spy projections;
+  add the minimal leaf terminal and a reusable spy-child if missing; promote the
+  per-domain minimal documents to named fixtures. No new coverage yet — just the
+  building blocks.
+- **Phase 1 — document fixtures + `atomic_examples` + `test_atomic()`.** Wire the
+  five testers to loop the new registry; make every fixture `run_example`-able and
+  confirm each opens in the editor. This alone moves the *document* axis off the
+  complex examples.
+- **Phase 2 — stage fixtures.** One mockup-surrounded fixture per projection
+  stage; fold the existing hand-written stage tests (JsonToSyntax, SyntaxToText,
+  …) onto the shared fixtures so they stop re-building documents inline.
+- **Phase 3 — combinator fixtures.** Build the woven fixtures from the table;
+  reuse the `_SpyRecursion` pattern for the delegation/order assertions. This is
+  the coverage that *did not exist directly* before.
+- **Phase 4 — retier & document.** Make `test_atomic()` the documented default in
+  [`documentation/testing.md`](../../documentation/testing.md) and CLAUDE.md's
+  "Testing a change"; mark the complex-registry sweeps as the integration tier.
+  Re-measure dev-loop time vs. the Phase 0 baseline.
 
 ## What explicitly does NOT change
 
-- **The `examples` registry stays complete** — every widget kind keeps its entry
-  so `generate_example_screenshots` still produces the gallery. Atomization is
-  about *which suites run over which examples*, not deleting examples.
-- **`test_all()` stays a full sweep.** CI still gets exhaustive crash coverage;
-  the win is that the *dev loop* and the *common case* stop paying for it.
-- **Lazy/stateful exclusions are unaffected** — `lazy_example`,
-  `clipboard_example`, `versioning_example` are already kept out of the registry
-  for documented reasons ([`Examples.jl:93-142`](../../package/example/src/Examples.jl));
-  the `coverage` field just makes that kind of exclusion uniform.
+- **Complex examples stay fully testable.** `test_printers()` & friends keep
+  working over `examples`; the request is to make them *optional*, not gone — "if
+  one wants that."
+- **The screenshot gallery is untouched** — `generate_example_screenshots`
+  ([`ExampleTest.jl:791`](../../package/test/src/editor/ExampleTest.jl)) still runs
+  over the full `examples` registry.
+- **Lazy/stateful exclusions** (`lazy`, `clipboard`, `versioning`,
+  [`Examples.jl:93-142`](../../package/example/src/Examples.jl)) are unaffected;
+  atomic fixtures are by construction finite and stateless.
 
 ## Risks / open questions
 
-- **Lost crash coverage on non-representative examples.** Mitigated by keeping
-  `test_printer` (the cheapest sweep) over *all* examples in `test_smoke`/`test_all`
-  — only the expensive reader/repl/nav/click/typein sweeps drop to representatives.
-  A bug that only manifests in, say, `widget_accordion`'s reader but not the
-  `:widget_graphics` representative would be caught by `test_all` in CI, not the
-  dev loop — an acceptable trade given those readers share one pipeline.
-- **Reactive-incrementality coverage.** The generic `_walk!` forces every cell;
-  some examples may be the only thing forcing a particular cell graph. Phase 2's
-  gap audit must check that each stage's atomic test forces its own cells (the
-  `JsonToSyntaxTest` "value change propagates" assertions are the model).
-- **Choosing representatives.** "One per shape" needs the shape taxonomy to be
-  honest — two examples that look like the same shape but wire references
-  differently must be different shapes, or C-axis coverage silently narrows. The
-  taxonomy should be derived from the actual projection *composition*, not the
-  example name.
+- **Fixture fidelity vs. the real pipeline.** A stage tested only behind a mockup
+  terminal could pass while failing in the real composition (e.g. a downstream
+  stage relies on output shape the mockup tolerates). Mitigation: the complex-
+  example integration sweep stays in CI as the end-to-end gate; the atomic tier is
+  the fast dev signal, not the sole one. Model mockup fidelity on the existing
+  minimal-document stage tests, which already catch real regressions.
+- **The mockup terminal must force the cells that matter.** `_walk!` only finds
+  bugs in cells it reaches; a too-trivial terminal may short-circuit the reactive
+  graph. Each stage fixture must assert (via the printer walk) that its
+  characteristic cells are forced — the "value change propagates" assertions in
+  `test_json_to_syntax` are the template.
+- **One honest contract per combinator.** The table must describe a contract that
+  *actually fails* when the combinator is broken (a spy that's never consulted, a
+  permutation that doesn't invert). Where a combinator's contract is subtle
+  (focusing/filtering reference mapping), reuse `walk_reference_roundtrip`
+  ([`RecursionContractTest.jl`](../../package/test/src/editor/RecursionContractTest.jl))
+  rather than inventing a new check.
 
 ## Progress
 
-- [ ] Phase 0 — per-suite timing baseline captured
-- [ ] Phase 1 — `shape`/`coverage` metadata on `Example`; inline skip-lists in
-      TextNavigation/MouseClick/ClickRoundtrip replaced by metadata reads
-- [ ] Phase 2 — projection-stage gap audit + minimal-document stage tests for
-      every stage lacking a standalone `test_<proj>()`
-- [ ] Phase 3 — `test_smoke()`; heavy C/D suites iterate per-`shape`
-      representatives
-- [ ] Phase 4 — `test_atomic()`; docs/CLAUDE.md retiered; re-measured vs Phase 0
+- [ ] Phase 0 — mockup kit (terminal + spy child + named minimal documents)
+- [ ] Phase 1 — document fixtures, `atomic_examples`, `test_atomic()`; each fixture verified `run_example`-able
+- [ ] Phase 2 — per-stage mockup-surrounded fixtures; existing stage tests folded onto them
+- [ ] Phase 3 — per-combinator woven fixtures + direct contract assertions
+- [ ] Phase 4 — retier (`test_atomic` default, complex sweep = integration); docs/CLAUDE.md updated; re-measured
