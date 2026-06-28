@@ -5,6 +5,8 @@
 # Disabled items and non-left clicks are inert. The close is a harmless no-op when
 # the menu is rendered inline (no such window).
 
+using Projectured: MouseEnter
+
 mutable struct _MenuMockEditor
     document::Any
 end
@@ -138,6 +140,28 @@ end
     # opens directly below (dx == 0, dy == item_height + gap > 0).
     @test op.x == 0
     @test op.y > 0
+end
+
+# ── Hover feedback (Qt-gap Part F) ─────────────────────────────────────────
+@testset "hovering a menu item sets its hovered flag and draws a surface" begin
+    item = WidgetMenuItem("New")
+    menu = WidgetMenu([item, WidgetMenuItem("Open")])
+    iomap = projection_print(proj, menu)
+    xy = _first_text_xy(iomap.output)
+    # The menu routes the crossing to the hit item, which flips `hovered`.
+    op = projection_read(proj, iomap, MouseEnter(xy[1] + 2, xy[2] + 2, :none, Modifiers()))
+    @test op isa ReplaceReferencedValue
+    @test op.value === true
+
+    # A hovered item renders an extra (hover surface) element vs an un-hovered one.
+    plain = projection_print(proj, WidgetMenuItem("New"))
+    hov   = WidgetMenuItem("New"); hov.hovered = true
+    hovio = projection_print(proj, hov)
+    @test length(collect(hovio.output.elements)) > length(collect(plain.output.elements))
+    # A disabled hovered item shows no surface (same element count as plain).
+    dis = WidgetMenuItem("New"; enabled=false); dis.hovered = true
+    @test length(collect(projection_print(proj, dis).output.elements)) ==
+          length(collect(plain.output.elements))
 end
 
 end # @testset

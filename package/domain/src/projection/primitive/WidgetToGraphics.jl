@@ -360,6 +360,25 @@ function _push_focus_ring!(elems::Vector, w::WidgetDocument, cw::Int, ch::Int,
                               border_width=2, border_color=_rgbai(ring_color)))
 end
 
+# ── Hover feedback (Stage 6) ─────────────────────────────────────────────────
+# The shared convention: an actionable widget carries a `hovered` cell, set by the
+# WidgetHoverTrackingProjection via MouseEnter/MouseLeave, and renders a faint
+# surface behind itself while hovered + enabled. A disabled widget never hovers.
+
+# A widget's reader falls through to this for crossing events: it writes the
+# `hovered` state, or `nothing` for any other event.
+_hover_state_op(w, evt) =
+    evt isa MouseEnter ? ReplaceReferencedValue(w, "hovered", true) :
+    evt isa MouseLeave ? ReplaceReferencedValue(w, "hovered", false) : nothing
+
+# Draw the hover surface behind a widget when its `hovered` cell is set and it is
+# enabled. Pushed first so the content draws over it.
+function _push_hover_surface!(elems::Vector, w, enabled::Bool, cw::Int, ch::Int,
+                              color::StyleColor, radius::Int=0)
+    (enabled && hasproperty(w, :hovered) && w.hovered === true) || return
+    _push_panel!(elems, 0, 0, cw, ch; fill=color, radius=radius)
+end
+
 # ── Projection structs ─────────────────────────────────────────────────────
 
 @projection struct WidgetLabelToGraphicsCanvas
@@ -427,6 +446,7 @@ end
     measure::Function
     text::StyleText             # font + foreground
     disabled_foreground::StyleColor   # label color when disabled (item or bound command)
+    hover_color::StyleColor           # hover surface behind the item (Stage 6)
 end
 
 struct WidgetCompositeToGraphicsCanvas <: Projection end
@@ -693,6 +713,13 @@ _route_scroll_to_children(child_entries::Vector, evt::MouseScroll) =
 _route_click_to_children(child_entries::Vector, evt::MousePress) =
     _route_to_children(child_entries, evt.x, evt.y,
         (x, y) -> MousePress(evt.button, x, y, evt.modifiers))
+
+# Route a MouseEnter / MouseLeave crossing to the hit child (for hover feedback,
+# Stage 6) — the child reader flips its `hovered` cell.
+_route_crossing_to_children(child_entries::Vector, evt) =
+    _route_to_children(child_entries, evt.x, evt.y,
+        (x, y) -> evt isa MouseEnter ? MouseEnter(x, y, evt.buttons, evt.modifiers) :
+                                       MouseLeave(x, y, evt.buttons, evt.modifiers))
 
 # Translate a path-bearing op from `op`'s current domain (this projection's
 # child's input domain — what the bubbled-up reader returned) into this
@@ -1389,9 +1416,14 @@ function projection_print(p::WidgetMenuItemToGraphicsCanvas, recursion, w::Widge
         _push_text!(elems, p.text.font, text, cox + icon_w + gap, coy, _rgba(fg))
         cw += icon_w + gap
     end
-    WidgetMenuItemToGraphicsCanvasIoMap(p, w, _make_canvas(0, 0, elems),
+    # Hover surface behind the content (Stage 6), only when hovered + enabled.
+    control_w = cw + 2cox; control_h = ch + 2coy
+    final = Any[]
+    _push_hover_surface!(final, w, enabled, control_w, control_h, p.hover_color)
+    append!(final, elems)
+    WidgetMenuItemToGraphicsCanvasIoMap(p, w, _make_canvas(0, 0, final),
                                         Cell(child_iomaps), ctx.reference,
-                                        cw + 2cox, ch + 2coy)
+                                        control_w, control_h)
 end
 
 # Forward image (Step 2.0 leaf): the empty reference maps to the item's own
@@ -1420,6 +1452,7 @@ function projection_read(p::WidgetMenuItemToGraphicsCanvas, iomap::WidgetMenuIte
                                        InvokeWidgetActionOperation(w)
         return CompoundOperation(Any[invoke, CloseWindowOperation(:widget_popup)])
     end
+    (evt isa MouseEnter || evt isa MouseLeave) && return _hover_state_op(w, evt)
     evt isa MouseScroll || return nothing
     _route_scroll_to_children(iomap.child_iomaps[]::Vector, evt)
 end
@@ -1497,6 +1530,7 @@ end
 function projection_read(::WidgetMenuToGraphicsCanvas, iomap::ChildrenIoMap, evt)
     child_iomaps = iomap.child_iomaps[]::Vector
     evt isa MousePress && return _route_click_to_children(child_iomaps, evt)
+    (evt isa MouseEnter || evt isa MouseLeave) && return _route_crossing_to_children(child_iomaps, evt)
     evt isa MouseScroll || return nothing
     _route_scroll_to_children(child_iomaps, evt)
 end
@@ -2797,8 +2831,11 @@ function map_reference_backward(::WidgetToolbarToGraphicsCanvas, iomap, referenc
 end
 
 function projection_read(::WidgetToolbarToGraphicsCanvas, iomap::ChildrenIoMap, evt)
+    entries = iomap.child_iomaps[]::Vector
+    evt isa MousePress && return _route_click_to_children(entries, evt)
+    (evt isa MouseEnter || evt isa MouseLeave) && return _route_crossing_to_children(entries, evt)
     evt isa MouseScroll || return nothing
-    _route_scroll_to_children(iomap.child_iomaps[]::Vector, evt)
+    _route_scroll_to_children(entries, evt)
 end
 
 # ── WidgetStatusBar (Stage 4) ─────────────────────────────────────────────────
@@ -4878,7 +4915,7 @@ function WidgetToGraphics(font::StyleFont; measure::Function,
             theme.card, StyleStroke(theme.border, theme.border_width), theme.radius,
             Inset(theme.pad_y, theme.pad_y, theme.pad_x, theme.pad_x), theme.gap),
         WidgetMenu       => WidgetMenuToGraphicsCanvas(measurer, theme.font),
-        WidgetMenuItem   => WidgetMenuItemToGraphicsCanvas(measurer, theme.body_text, theme.muted_foreground),
+        WidgetMenuItem   => WidgetMenuItemToGraphicsCanvas(measurer, theme.body_text, theme.muted_foreground, theme.accent),
         WidgetComposite  => WidgetCompositeToGraphicsCanvas(),
         # Widgets embed layouts (a composite/table holds a GridLayout); register
         # it so the recursion can render an embedded grid without an outer

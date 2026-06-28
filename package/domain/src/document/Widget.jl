@@ -595,6 +595,7 @@ item (or one bound to a disabled command) is inert.
     padding::Inset
     padding_color::StyleColor
     selection::Reference
+    hovered::Bool
 end
 
 function WidgetMenuItem(content;
@@ -617,7 +618,7 @@ function WidgetMenuItem(content;
                    Cell(visible), Cell(enabled), Cell(margin), Cell(margin_color),
                    Cell(border), Cell(border_color),
                    Cell(padding), Cell(padding_color),
-                   Cell(nothing))
+                   Cell(nothing), Cell(false))
 end
 
 setfn!(w::WidgetMenuItem, f::Function) = (setfn!(getfield(w, :content), f); w)
