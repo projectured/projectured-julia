@@ -25,7 +25,7 @@ export Inset, Point2D,
        WidgetLabel, WidgetText, WidgetCheckbox, WidgetButton, WidgetToolButton,
        WidgetTooltip, WidgetContextMenu, WidgetDialog, WidgetMessageBox, WidgetInputDialog,
        WidgetMenu, WidgetMenuItem, WidgetComposite,
-       WidgetShell, WidgetTitlePane, WidgetSplitPane, WidgetTabbedPane,
+       WidgetShell, WidgetTitlePane, WidgetSplitPane, WidgetTabbedPane, WidgetTabPage,
        WidgetScrollPane, WidgetTransformPane, WidgetToolbar, WidgetStatusBar, WidgetScrollBar,
        WidgetBadge, WidgetSeparator, WidgetCard, WidgetSwitch, WidgetProgress,
        WidgetSlider, WidgetRadioGroup, WidgetAvatar, WidgetAlert, WidgetSkeleton,
@@ -44,7 +44,7 @@ export Inset, Point2D,
        IWidgetInsertion,
        IWidgetLabel, IWidgetText, IWidgetCheckbox, IWidgetButton,
        IWidgetTooltip, IWidgetContextMenu, IWidgetDialog, IWidgetMenu, IWidgetMenuItem, IWidgetComposite,
-       IWidgetShell, IWidgetTitlePane, IWidgetSplitPane, IWidgetTabbedPane,
+       IWidgetShell, IWidgetTitlePane, IWidgetSplitPane, IWidgetTabbedPane, IWidgetTabPage,
        IWidgetScrollPane, IWidgetTransformPane, IWidgetToolbar, IWidgetStatusBar, IWidgetScrollBar,
        IWidgetBadge, IWidgetSeparator, IWidgetCard, IWidgetSwitch, IWidgetProgress,
        IWidgetSlider, IWidgetRadioGroup, IWidgetAvatar, IWidgetAlert, IWidgetSkeleton,
@@ -899,11 +899,35 @@ setfn!(w::WidgetSplitPane, f::Function) = (setfn!(getfield(w.elements, :elements
 
 # ── WidgetTabbedPane ───────────────────────────────────────────────────────
 
+# A single tab page: the tab `selector` (label), its content `element`, and an
+# optional `icon`. A first-class Document rather than a raw `(selector, element,
+# icon)` tuple, so the selection chain descends Document→Document through a tabbed
+# pane. With a tuple in the path, the in-place selection sync (`update_selection!`)
+# could not step past the non-Document tuple and diverged, re-pointing the pane's
+# active-tab path on every within-tab caret move — a printer-locality dimension-A
+# violation (see plan/pending/printer-locality.md). With a Document the in-place
+# mutation reaches the leaf and leaves the routing ancestors untouched.
+@document struct WidgetTabPage <: WidgetDocument
+    selector::Any
+    element::Any
+    icon::Any
+    selection::Reference
+end
+
+WidgetTabPage(selector, element, icon=nothing) =
+    WidgetTabPage(Cell(selector), Cell(element), Cell(icon), Cell(nothing))
+
+# Wrap a caller's tab entry — a `(selector, element)` or `(selector, element, icon)`
+# tuple, or an already-built `WidgetTabPage` — into a `WidgetTabPage`.
+_as_tab_page(p::WidgetTabPage) = p
+_as_tab_page(p::Tuple) = WidgetTabPage(p[1], p[2], length(p) >= 3 ? p[3] : nothing)
+
 """
     WidgetTabbedPane(selector_element_pairs; <base kwargs>)
 
 A tabbed container.  `selector_element_pairs` is a `Vector` of
-`(selector, element)` tuples..
+`(selector, element)` or `(selector, element, icon)` tuples (each wrapped in a
+[`WidgetTabPage`](@ref)).
 """
 @document struct WidgetTabbedPane <: WidgetDocument
     selector_element_pairs::CellVector
@@ -925,7 +949,7 @@ function WidgetTabbedPane(selector_element_pairs::Vector;
                           border_color=nothing,
                           padding::Inset=inset_default,
                           padding_color=nothing)
-    WidgetTabbedPane(CellVector(Cell[Cell(p) for p in selector_element_pairs]),
+    WidgetTabbedPane(CellVector(Cell[Cell(_as_tab_page(p)) for p in selector_element_pairs]),
                      Cell(visible), Cell(margin), Cell(margin_color),
                      Cell(border), Cell(border_color),
                      Cell(padding), Cell(padding_color),

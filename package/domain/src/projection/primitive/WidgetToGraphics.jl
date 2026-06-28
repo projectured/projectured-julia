@@ -35,7 +35,7 @@ import ..ColorModule: StyleColor,
 import ..WidgetModule: WidgetDocument, WidgetInsertion, WidgetLabel, WidgetText, WidgetCheckbox,
                        WidgetButton, WidgetTooltip, WidgetContextMenu, WidgetDialog, WidgetMenu, WidgetMenuItem,
                        WidgetComposite, WidgetShell, WidgetTitlePane, WidgetSplitPane,
-                       WidgetTabbedPane, WidgetScrollPane, WidgetTransformPane, WidgetToolbar, WidgetStatusBar, WidgetScrollBar,
+                       WidgetTabbedPane, WidgetTabPage, WidgetScrollPane, WidgetTransformPane, WidgetToolbar, WidgetStatusBar, WidgetScrollBar,
                        WidgetBadge, WidgetSeparator, WidgetCard, WidgetSwitch, WidgetProgress,
                        WidgetSlider, WidgetRadioGroup, WidgetAvatar, WidgetAlert, WidgetSkeleton,
                        WidgetToggle, WidgetToggleGroup, WidgetSelect, WidgetOption, WidgetTextarea, WidgetAccordion,
@@ -2410,8 +2410,8 @@ function projection_print(p::WidgetTabbedPaneToGraphicsCanvas, recursion, w::Wid
     # is drawn before the label in the tab strip; its width grows the tab.
     tabs = Any[]   # (label, icon, content_w, icon_w, gap, th)
     for pair in pairs
-        label = string(pair[1])
-        icon  = length(pair) >= 3 ? pair[3] : nothing
+        label = string(pair.selector)
+        icon  = pair.icon
         tw, th = _text_size(p.measure, p.font, label)
         iw  = icon_width(icon, th)
         gap = iw > 0 ? _sc(6) : 0
@@ -2482,7 +2482,7 @@ function projection_print(p::WidgetTabbedPaneToGraphicsCanvas, recursion, w::Wid
         with_available_size(ctx; width=avail_w_inner, height=avail_h_inner)
     all_cims = Any[]
     for pair in pairs
-        content = pair[2]
+        content = pair.element
         if content !== nothing
             cim = projection_printer_recurse(recursion, content, content_ctx)
             push!(child_iomaps, (cox, coy + sel_h, cim))
@@ -2559,7 +2559,7 @@ function projection_read(p::WidgetTabbedPaneToGraphicsCanvas, iomap::ChildrenIoM
             sizes = Tuple{Int,Int}[]
             tab_h = 0
             for pair in pairs
-                tw, th = _text_size(p.measure, p.font, string(pair[1]))
+                tw, th = _text_size(p.measure, p.font, string(pair.selector))
                 push!(sizes, (tw, th))
                 tab_h = max(tab_h, th)
             end
