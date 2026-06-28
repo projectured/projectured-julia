@@ -23,6 +23,50 @@ end-to-end confidence. Because each atomic fixture is a real `(document,
 projection)` pair, it is also `run_example`-able: a minimal feature gallery and
 manual-debugging aid, useful in its own right.
 
+## The technique, by example
+
+Atomization comes down to one rule: **test a leaf stage bare; test a node stage
+with its children mocked as already-projected values passed through
+`Preserving` — never recurse the real child pipeline just to test the parent.**
+
+**Leaf stage — no recursion, no combinator.** A leaf projection has no children
+to descend into, so it stands completely alone:
+
+```julia
+# fixture: minimal leaf document + the leaf stage under test
+doc  = JsonString("hi")
+proj = JsonStringToSyntaxLeaf()          # no RecursiveProjection wrapper needed
+# test_printer("json_string_leaf", doc, proj) — asserts the leaf renders "hi"
+```
+
+**Node stage — children mocked, `Preserving` instead of recursion.** A container
+projection (`JsonArrayToSyntaxNode`,
+[`JsonToSyntax.jl:81`](../../package/domain/src/projection/primitive/JsonToSyntax.jl))
+assembles a `SyntaxNode` from its elements — delimiters `[`/`]`, separator `, `,
+indentation. To test *that assembly* you do not need the real per-element JSON
+projection: populate the document with elements that are **already in the target
+syntax domain** (mockups) and pass them through with `Preserving`:
+
+```julia
+# fixture: a JsonArray whose elements are already SyntaxLeafs (mocked children)
+doc  = JsonArray([SyntaxLeaf(TextString("1")), SyntaxLeaf(TextString("2"))])
+proj = RecursiveProjection(TypeDispatchingProjection(
+           JsonArray => JsonArrayToSyntaxNode(),   # the node stage under test
+           SyntaxLeaf => PreservingProjection(),   # children pre-projected → pass through
+       ))
+# test_printer("json_array_node", doc, proj) — asserts the node is "[1, 2]"
+```
+
+The parent's node-assembly contract is exercised in isolation; the children are
+inert mockups, so a failure points squarely at `JsonArrayToSyntaxNode`, not at a
+JSON-element regression three levels down. The same shape covers every container
+stage (`JsonObjectToSyntaxNode`, the XML/SQL/formula nodes, …): real parent
+stage + `Preserving` over mocked, already-projected children.
+
+This is also why the combinator fixtures below use the *same* `Preserving`/spy
+children — testing a container stage and testing the `Recursive`/`Type-`/`Reference-`
+dispatch that drives it are the same exercise viewed from two ends.
+
 ## Why this beats "pick a representative per pipeline shape" (the earlier draft)
 
 The earlier version of this plan tried to tag the 88-example registry with
@@ -79,14 +123,16 @@ A new `atomic_examples::Vector{Example}` in the example package, parallel to
 
 - **Document fixtures** — `(minimal domain document, minimal mockup terminal)`,
   one per domain. Exercises the document model + its leaf rendering.
-- **Stage fixtures** — `(mockup input document, stage-under-test ∘ mockup
-  terminal)`, one per projection *stage*. This is exactly the shape
-  `test_json_to_syntax()` already uses by hand
-  ([`JsonToSyntaxTest.jl:4`](../../package/test/src/projection/JsonToSyntaxTest.jl):
-  `RecursiveProjection(JsonToSyntax())` printed on bare `JsonNull()`); the plan
-  generalizes it into a runnable, reusable fixture so the *navigation/repl/typein*
-  testers — not just `render(...)` assertions — also run against the isolated
-  stage.
+- **Stage fixtures** — one per projection *stage*, built by the leaf/node rule in
+  "The technique, by example" above: leaf stages bare (`JsonString` +
+  `JsonStringToSyntaxLeaf`), node stages with children mocked as already-projected
+  values behind `Preserving` (`JsonArray` of `SyntaxLeaf`s +
+  `JsonArrayToSyntaxNode`). This is the shape `test_json_to_syntax()` already uses
+  by hand for *render assertions*
+  ([`JsonToSyntaxTest.jl:4`](../../package/test/src/projection/JsonToSyntaxTest.jl));
+  the plan turns each into a runnable, reusable fixture so the
+  *navigation/repl/typein* testers run against the isolated stage too — and so the
+  fixture opens in the editor.
 - **Combinator fixtures** — `(woven document, higher-order projection over a
   trivial/spy child)`, one per combinator, each constructed so the combinator's
   contract is observable (see the table below).
