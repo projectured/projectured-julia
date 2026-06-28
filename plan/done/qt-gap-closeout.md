@@ -1,10 +1,13 @@
 # Qt-gap closeout — generalized grid, stacked pages, spin box, list, validators, hover feedback
 
-> **Status: planning / not started.** The final batch the user wants before
-> considering the Qt widget gap **closed**
+> **Status: DONE (2026-06-28).** All six parts shipped + a gallery Forms tab + docs.
+> With this batch the user considers the Qt widget gap **closed**
 > ([qt-widget-gap-analysis.md](qt-widget-gap-analysis.md)). Everything else in that
 > analysis (mnemonics, DnD, dock panels, accessibility, animation, RTL, niche
 > widgets) is explicitly **out of scope** — "the rest is not important."
+>
+> See **[As-built notes](#as-built-notes)** at the bottom for where the
+> implementation diverged from this plan.
 
 ## Context
 
@@ -178,3 +181,42 @@ example+docs), no `Co-Authored-By`. Update this plan as I go; move it to
   affordances reuse the icon set and interaction-state conventions.
 - [layout-extensions.md](../tentative/layout-extensions.md) — `FormLayout` was
   flagged there; this supersedes it for the form/grid piece.
+
+---
+
+## As-built notes
+
+What actually shipped, and where it diverged from the plan above:
+
+- **Part A (grid/form).** `GridLayout` gained `column_align::Vector{Symbol}` +
+  `column_stretch::Vector{Int}` (empty defaults reproduce the old output — verified
+  against `test_object_to_widget`). `FormLayout` is sugar over it but lives in
+  `document/Layout.jl`, **not** `Widget.jl`: layouts load *before* widgets, so it
+  takes pre-built `(label, field)` **documents** rather than wrapping strings.
+  Stretch only kicks in when a parent seeds `available_width` (the gallery's
+  tabbed pane does). Commit `b41fe1b`.
+- **Part B (stack).** `StackLayout` gained `active::Int` (0 = z-stack,
+  `i` = page `i`, out-of-range = empty). No `SelectPageOperation` — setting
+  `active` is enough for v1. Same commit as A.
+- **Parts C/D (spin box / list).** `WidgetSpinBox` + `WidgetList` as planned;
+  steppers reuse the `:plus`/`:minus` icons. Tests live in **`WidgetFormsTest.jl`**
+  (one file), not separate `WidgetSpinBoxTest`/`WidgetListTest`. Commit `9b552fa`.
+- **Part E (validators).** Shipped as **acceptor only** (`(String) -> Bool`); the
+  normaliser shape was dropped as unused (YAGNI). Field is on `WidgetText` +
+  `WidgetSpinBox` (not `WidgetTextarea`). The reader drops a
+  `StringReplaceRangeOperation` whose replacement the validator rejects.
+  `numeric_validator(; integer=false, allow_negative=true)` — no min/max in the
+  validator (clamping is the spin box reader's job). Same commit as C/D.
+- **Part F (hover).** Scoped to **`WidgetMenuItem`** — which covers menus,
+  submenus, context menus, menu bars, **and** toolbars (the biggest visible win),
+  plus `WidgetButton` (already had it). Shared helpers `_hover_state_op` +
+  `_push_hover_surface!`; `WidgetMenu`/`WidgetToolbar` readers route crossings via
+  `_route_crossing_to_children` (toolbar also gained `MousePress` routing, so its
+  items are now clickable). **Deferred (same convention, follow-up):**
+  `WidgetOption`/`WidgetSelect`/`WidgetToggle`/`WidgetCheckbox`/list rows/tree
+  rows/inactive tabs/accordion headers. Commit `947711c`.
+- **Closeout.** Gallery gained a 6th **Forms** tab (commit `e945d16`), rendered
+  with that tab selected to verify (widget printer 7429/7429). Layout tests in
+  **`LayoutCloseoutTest.jl`**, hover test folded into `WidgetMenuTest.jl`. Docs in
+  [widget.md](../../documentation/document/widget.md): a "Form & data widgets"
+  section + the generalized hover convention.
