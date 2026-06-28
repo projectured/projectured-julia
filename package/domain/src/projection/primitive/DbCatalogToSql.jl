@@ -15,16 +15,16 @@ executable `CREATE …` script:
 The DDL view is the compound `SequentialProjection(DbCatalogToSql(), SqlToSyntax())`
 (each stage wrapped in `RecursiveProjection`) — `SqlToSyntax` stays the single
 source of truth for SQL text. This projection **constructs the SQL documents
-directly** (not print-and-parse), mirroring `DbCatalogToJson`.
+directly** (not print-and-parse).
 
 The enclosing schema name is threaded down through the printer context (the
 `:sql_schema_name` property) so a table can schema-qualify its `CREATE TABLE`.
 
 Read-only: a serialiser for LLM consumption, not an editor view, so reference
-mapping / read support return `nothing` (exactly like `DbCatalogToJson`). The
-catalog child collections are lazy `CellVector`s, and — like `DbCatalogToJson` —
-recursing each child through `projection_printer_recurse` forces the whole
-subtree, so wrapping this in a `RecursiveProjection` fully walks the catalog.
+mapping / read support return `nothing`. The catalog child collections are lazy
+`CellVector`s, and recursing each child through `projection_printer_recurse`
+forces the whole subtree, so wrapping this in a `RecursiveProjection` fully walks
+the catalog.
 """
 module DbCatalogToSqlModule
 

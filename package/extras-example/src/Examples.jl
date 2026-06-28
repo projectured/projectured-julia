@@ -14,8 +14,6 @@ const dvdrental_catalog_widget_example = Example("dvdrental_catalog_widget",  ma
 # Fully-walked catalog views — kept OUT of the `examples` sweep below (each forces
 # a column query for every table, hammering the live database). Run directly.
 const dvdrental_object_example         = Example("dvdrental_object",         make_dvdrental_catalog_document_example, make_dvdrental_object_projection_example)
-const dvdrental_object_json_example    = Example("dvdrental_object_json",    make_dvdrental_catalog_document_example, make_dvdrental_object_json_projection_example)
-const dvdrental_catalog_json_example   = Example("dvdrental_catalog_json",   make_dvdrental_catalog_document_example, make_dvdrental_catalog_json_projection_example)
 
 # Live-query SQL → table (ODBC).
 const sql_table_example                = Example("sql_table",                make_sql_document_example,               make_sql_table_projection_example)
@@ -51,13 +49,12 @@ export make_dbcatalog_document_example, make_dvdrental_catalog_document_example,
        make_database_adapter_example, setup_persons_table, teardown_persons_table
 export make_dbcatalog_projection_example, make_dbcatalog_widget_projection_example,
        make_dvdrental_dbcatalog_projection_example, make_dvdrental_dbcatalog_widget_projection_example,
-       make_dvdrental_object_projection_example, make_dvdrental_object_json_projection_example,
-       make_dvdrental_catalog_json_projection_example,
+       make_dvdrental_object_projection_example,
        make_sql_table_projection_example,
        make_graph_adaptagrams_projection_example, make_dvdrental_relationship_projection_example,
        make_constraint_layout_tulip_projection_example
 export dbcatalog_example, dvdrental_catalog_example, dbcatalog_widget_example, dvdrental_catalog_widget_example,
-       dvdrental_object_example, dvdrental_object_json_example, dvdrental_catalog_json_example,
+       dvdrental_object_example,
        sql_table_example, graph_adaptagrams_example, dvdrental_relationship_example,
        constraint_layout_tulip_example, examples
 # Re-export the core runners/renderers so `using ProjecturedExtrasExample` is enough.

@@ -196,7 +196,6 @@ Anthropic HTTP client are in the opt-in `Mcp`/`Llm`.
 | `DatabaseInstanceToDbCatalog` | `DatabaseInstance` → `DbCatalog` |
 | `DatabaseTableToTabularGrid` | `DatabaseTable` → `TabularGrid` |
 | `DbCatalogToSyntax` | `DbCatalog` → `Syntax` |
-| `DbCatalogToJson` | `DbCatalog` → `Json` |
 
 ### Layer 3 — Editor and backend
 
