@@ -394,6 +394,37 @@ end
 report_structural_locality(example::Example) =
     report_structural_locality(example.name, example.document, example.projection)
 
+"""
+    test_template_structural_locality()
+
+Dimension C for the projection-template engine (`ProjectionTemplate._node_print`):
+inserting one element into a template `collection()` must preserve the OUTPUT
+identity of every unchanged sibling — keyed reconciliation reuses each prior child
+iomap whose element is the same object at the same index — so a structural edit
+rebuilds only the changed slot and the envelope, not the whole children vector.
+
+Measured at the SYNTAX layer (`RecursiveProjection(JsonToSyntax())`) to isolate the
+template engine: the downstream render layers (`SyntaxToText` → `TextToGraphics`)
+still rebuild their children from scratch on any change, so they re-orphan the
+output end-to-end (the full graphics pipeline is a separate follow-up). Without
+reconciliation each JSON collection orphaned ≈97% of its output objects on insert;
+with it, ≤1%.
+"""
+function test_template_structural_locality()
+    @testset "Template structural locality (dimension C)" begin
+        doc = make_json_document_example()
+        proj = RecursiveProjection(JsonToSyntax())
+        res = explore_structural_locality(doc, proj)
+        @test res.count >= 1
+        for r in res.results
+            @test isempty(r.errors)
+            frac = r.total == 0 ? 0.0 : r.lost / r.total
+            frac < 0.05 || @warn "[$(r.label)] structural loss $(round(100*frac; digits=1))% (>5%): reconciliation regressed"
+            @test frac < 0.05
+        end
+    end
+end
+
 # ── Dimension B: value-edit isolation ─────────────────────────────────────────
 #
 # Editing one leaf's scalar value must invalidate only that leaf's value/text

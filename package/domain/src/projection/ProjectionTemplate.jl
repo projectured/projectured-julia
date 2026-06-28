@@ -273,24 +273,62 @@ function _atomic_print(p, doc, out)
     iomap
 end
 
+# Reconcile the child-iomap list across recomputes so a structural edit rebuilds
+# only the changed slots, not every sibling (printer locality — dimension C). The
+# children-iomap cell recomputes whenever the input collection's structure changes
+# (an element added / removed / replaced); a from-scratch thunk then re-projects
+# EVERY element, orphaning every sibling's output object (the eager engine has no
+# value short-circuit). This cache reuses the prior child iomap for any element
+# that is the SAME object at the SAME index — so the absolute context that some
+# child projections bake into their iomap (`ctx.reference`, available size) is
+# provably unchanged — and projects only new or moved elements.
+#
+# Keyed by `(objectid(element), index)`: an append keeps every surviving element's
+# index, so all are reused and only the new slot is built; a delete / front-insert
+# that shifts indices re-projects the shifted tail, whose absolute reference
+# genuinely moved (so reuse there would be *wrong*, not merely unminimal). The
+# `enumerate` over the live collection still runs every recompute, so the cell's
+# reactive dependency on the collection's structure and slot cells is unchanged.
+function _reconciling_child_iomaps(elements_fn, make_iomap)
+    cache = Dict{Tuple{UInt64,Int},Any}()
+    Cell(() -> begin
+        elems = elements_fn()
+        result = Vector{Any}(undef, length(elems))
+        live = Set{Tuple{UInt64,Int}}()
+        for (i, x) in enumerate(elems)
+            key = (objectid(x), i)
+            push!(live, key)
+            im = get(cache, key, nothing)
+            if im === nothing
+                im = make_iomap(i, x)
+                cache[key] = im
+            end
+            result[i] = im
+        end
+        for k in collect(keys(cache))
+            k in live || delete!(cache, k)
+        end
+        result
+    end)
+end
+
 # A node-shaped output: recurse over `doc.<input>` (School A), reconstruct the
 # node with the projected children and a deferred selection cell, and store the
 # child iomaps so the mappers can delegate each child's tail.
 function _node_print(p, recursion, doc, ctx, out, children_field, coll)
     input_field = coll.input
+    elements_fn = () -> getproperty(doc, input_field)
     child_iomaps = if coll.element === nothing
         # homogeneous: each element projected by its own projection
-        Cell(() -> [
+        _reconciling_child_iomaps(elements_fn, (i, x) ->
             projection_printer_recurse(recursion, x,
-                child_context(ctx, FieldReference(String(input_field)), ElementReference(i)))
-            for (i, x) in enumerate(getproperty(doc, input_field))])
+                child_context(ctx, FieldReference(String(input_field)), ElementReference(i))))
     else
         # templated: build a fixed-children node per element via the element builder
-        Cell(() -> [
+        _reconciling_child_iomaps(elements_fn, (i, x) ->
             _fixed_print(p, recursion, x,
                 child_context(ctx, FieldReference(String(input_field)), ElementReference(i)),
-                coll.element(x))
-            for (i, x) in enumerate(getproperty(doc, input_field))])
+                coll.element(x)))
     end
     iomap_cell = Cell(nothing)
     sel = Cell(() -> begin
