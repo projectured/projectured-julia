@@ -510,13 +510,21 @@ end
 
 # ── Utility ──────────────────────────────────────────────────────────────────
 
-function _indent_span(p::SyntaxNodeToText, depth::Int)
-    TextString(" " ^ (depth * p.indent_size))
-end
+# Decorative whitespace spans (newline + indentation) are pure, immutable content
+# that is NEVER a selection target — the selection only ever descends into a leaf's
+# `.content{k}` (see `_leaf_cursor`), so a decorative span's `selection` cell is
+# never written and one instance can be safely shared across every position it
+# occupies. `_collect_spans` re-runs whole on any structural change; sharing these
+# (rather than allocating fresh `TextString`s each pass) keeps their output-object
+# identity stable so a structural edit does not orphan them (printer locality —
+# dimension C). Keyed by the rendered string (indents differ only by space count).
+const _NEWLINE_SPAN = TextString("\n")
+const _INDENT_SPANS = Dict{Int,TextString}()
 
-function _newline_span()
-    TextString("\n")
-end
+_indent_span(p::SyntaxNodeToText, depth::Int) =
+    get!(() -> TextString(" " ^ (depth * p.indent_size)), _INDENT_SPANS, depth * p.indent_size)
+
+_newline_span() = _NEWLINE_SPAN
 
 # The optional inline expand/collapse marker rendered immediately before the
 # open delimiter, in BOTH the expanded and collapsed states. Which glyph is
