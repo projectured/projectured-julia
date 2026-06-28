@@ -4461,29 +4461,29 @@ function _wt_cell_terminal(sel)
     (r, c)
 end
 
-# Pixel rects of the named selection shape (outer-canvas coordinates).
-function _wt_highlight_rects(sel, geom::WTGeometry)
+# (x, y, w, h) of the selection highlight band in outer-canvas coordinates, or
+# (0, 0, 0, 0) when there is no valid selection — a 0-size rect the renderer skips.
+# Drawn as a persistent overlay whose geometry reads the selection, so a caret
+# move never rebuilds the table's content vector (printer-locality dimension A).
+function _wt_highlight_bounds(sel, geom::WTGeometry)
     shape = _wt_selection_shape(sel, geom)
-    shape === nothing && return GraphicsRect[]
+    shape === nothing && return (0, 0, 0, 0)
     kind = shape[1]
-    rect = if kind === :table
-        (0, 0, geom.total_w, geom.total_h)
+    if kind === :table
+        return (0, 0, geom.total_w, geom.total_h)
     elseif kind === :row
         gr = shape[2] + geom.row_offset
-        (0, geom.row_y[gr], geom.total_w, geom.row_y[gr + 1] - geom.row_y[gr])
+        return (0, geom.row_y[gr], geom.total_w, geom.row_y[gr + 1] - geom.row_y[gr])
     elseif kind === :col
         gc = shape[2] + geom.col_offset
-        (geom.col_x[gc], 0, geom.col_x[gc + 1] - geom.col_x[gc], geom.total_h)
+        return (geom.col_x[gc], 0, geom.col_x[gc + 1] - geom.col_x[gc], geom.total_h)
     elseif kind === :cell
         gr = shape[2] + geom.row_offset
         gc = shape[3] + geom.col_offset
-        (geom.col_x[gc], geom.row_y[gr],
-         geom.col_x[gc + 1] - geom.col_x[gc], geom.row_y[gr + 1] - geom.row_y[gr])
-    else
-        return GraphicsRect[]
+        return (geom.col_x[gc], geom.row_y[gr],
+                geom.col_x[gc + 1] - geom.col_x[gc], geom.row_y[gr + 1] - geom.row_y[gr])
     end
-    x, y, ww, hh = rect
-    GraphicsRect[GraphicsRect(x, y, ww, hh, _WT_HL_R, _WT_HL_G, _WT_HL_B, _WT_HL_A, _WT_HL_RADIUS)]
+    (0, 0, 0, 0)
 end
 
 function projection_print(p::WidgetTableToGraphicsCanvas, recursion, w::WidgetTable, ctx)
@@ -4522,6 +4522,18 @@ function projection_print(p::WidgetTableToGraphicsCanvas, recursion, w::WidgetTa
     rule_r, rule_g, rule_b, rule_a = _rgba(p.rule.color)
     hf_r, hf_g, hf_b, hf_a = _rgba(p.header_fill)
 
+    # Persistent selection-highlight overlay: one rect whose bounds read the
+    # selection (collapsed to 0×0 when there is none — the renderer skips it).
+    # Keeping the selection read OUT of the elements thunk means a caret move
+    # invalidates only this rect's geometry, not the whole content vector
+    # (printer-locality dimension A; the focus-ring / text-cursor overlay pattern).
+    hl_bounds = Cell(() -> _wt_highlight_bounds(w.selection, geometry[]))
+    highlight_rect = GraphicsRect(0, 0, 0, 0, _WT_HL_R, _WT_HL_G, _WT_HL_B, _WT_HL_A, _WT_HL_RADIUS)
+    setfn!(getfield(highlight_rect, :x), () -> Int32(hl_bounds[][1]))
+    setfn!(getfield(highlight_rect, :y), () -> Int32(hl_bounds[][2]))
+    setfn!(getfield(highlight_rect, :w), () -> Int32(hl_bounds[][3]))
+    setfn!(getfield(highlight_rect, :h), () -> Int32(hl_bounds[][4]))
+
     elements = CellVector(() -> begin
         geom = geometry[]
         gim = grid_iomap[]
@@ -4535,10 +4547,9 @@ function projection_print(p::WidgetTableToGraphicsCanvas, recursion, w::WidgetTa
         if geom.has_row_headers
             push!(result, GraphicsRect(0, 0, geom.col_x[2], geom.total_h, hf_r, hf_g, hf_b, hf_a))
         end
-        # 2. Selection highlight band(s), behind the grid content and rules.
-        for hr in _wt_highlight_rects(w.selection, geom)
-            push!(result, hr)
-        end
+        # 2. Selection highlight overlay (persistent; its geometry reads the
+        #    selection so this thunk does not), behind the grid content and rules.
+        push!(result, highlight_rect)
         # 3. The positioned grid content (from GridLayout), offset by grid_off.
         if gim isa GridLayoutIoMap
             gcanvas = gim.output
@@ -4999,6 +5010,18 @@ function _wtree_ref_path(reference)
     isempty(path) ? nothing : path
 end
 
+# (y0, height) of the selected row's highlight band, or (0, 0) when no node is
+# selected — a 0-height rect the renderer skips. Drawn as a persistent overlay so
+# a selection move never rebuilds the tree's content vector (dimension A).
+function _wtree_highlight_band(sel, geom)
+    sel_path = _wtree_ref_path(sel)
+    sel_path === nothing && return (0, 0)
+    for row in geom.rows
+        row.path == sel_path && return (row.y0, row.height)
+    end
+    (0, 0)
+end
+
 function projection_print(p::WidgetTreeToGraphicsCanvas, recursion, w::WidgetTree, ctx)
     w.visible == false && return SimpleIoMap(p, w, _empty_canvas())
     position = w.position::Point2D
@@ -5041,20 +5064,23 @@ function projection_print(p::WidgetTreeToGraphicsCanvas, recursion, w::WidgetTre
     icon_red, icon_green, icon_blue, icon_alpha = _rgbai(p.icon_text.color)
     chevron_stroke = max(1, _sc(p.chevron.width))
 
+    # Persistent selection-band overlay: one full-width rect whose y/height read
+    # the selection (0 height when no node is selected → the renderer skips it).
+    # Keeping the selection read OUT of the elements thunk means a node move
+    # invalidates only this rect's geometry, not the content vector (dimension A;
+    # the focus-ring / text-cursor overlay pattern).
+    band_yh = Cell(() -> _wtree_highlight_band(w.selection, geometry[]))
+    selection_band = GraphicsRect(0, 0, 0, 0, _WT_HL_R, _WT_HL_G, _WT_HL_B, _WT_HL_A, _WT_HL_RADIUS)
+    setfn!(getfield(selection_band, :y), () -> Int32(band_yh[][1]))
+    setfn!(getfield(selection_band, :h), () -> Int32(band_yh[][2]))
+    setfn!(getfield(selection_band, :w), () -> Int32(geometry[].total_w))
+
     elements = CellVector(() -> begin
         geom = geometry[]
         result = Any[]
-        # 1. Selection band behind the row content, when a node is selected.
-        sel_path = _wtree_ref_path(w.selection)
-        if sel_path !== nothing
-            for row in geom.rows
-                if row.path == sel_path
-                    push!(result, GraphicsRect(0, row.y0, geom.total_w, row.height,
-                                               _WT_HL_R, _WT_HL_G, _WT_HL_B, _WT_HL_A, _WT_HL_RADIUS))
-                    break
-                end
-            end
-        end
+        # 1. Selection band overlay (persistent; its geometry reads the selection
+        #    so this thunk does not), behind the row content.
+        push!(result, selection_band)
         # 2. Per-row decoration: chevron (parents) + icon glyph + label.
         for row in geom.rows
             x = row.depth * indent
