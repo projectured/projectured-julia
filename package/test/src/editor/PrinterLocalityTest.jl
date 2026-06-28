@@ -178,17 +178,25 @@ end
     explore_selection_locality(document, projection; onstate=nothing)
         -> (count, errors)
 
-Drive dimension A over every enumerated text caret: for each caret, measure a
-`set_selection!` to it and require that it invalidated ONLY `:selection` cells
+Drive dimension A over every enumerated text caret: for each caret, measure an
+`update_selection!` to it and require that it invalidated ONLY `:selection` cells
 and rebuilt NO output object. Returns the number of carets exercised and a flat
 `errors::Vector{String}`; `onstate(ok, msg)` is invoked once per caret so a
 `@testset` wrapper can emit one `@test` per selection state.
+
+The mutation is `update_selection!` — the editor's real caret-move fast path
+(every `ReplaceSelectionOperation` uses it), which writes the shared selection
+chain *in place*, touching only the cells whose content actually changed. This is
+the mutation whose locality we care about. (`set_selection!` is the from-scratch
+re-walk that rewrites every node's selection cell — it never happens on a caret
+move, so measuring it would flag unchanged routing ancestors, e.g. a tabbed pane's
+active-tab cell, as false positives.)
 """
 function explore_selection_locality(document, projection; onstate=nothing)
     errors = String[]
     carets = collect_text_selections(document)
     for target in carets
-        r = printer_locality_report(document, projection, doc -> set_selection!(doc, target))
+        r = printer_locality_report(document, projection, doc -> update_selection!(doc, target))
         msgs = String[]
         append!(msgs, r.errors)
         # Dimension A is measured by the INVALIDATION set, not object identity: a

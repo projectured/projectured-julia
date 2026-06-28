@@ -13,7 +13,7 @@ import ..ReactiveModule: Cell
 export ReplaceSelectionOperation, QuitEditorOperation, QuitEditorException, replace_selection!,
        OpenWindowOperation, OpenPopupOperation, CloseWindowOperation, ResizeWindowOperation, ToggleCollapseOperation,
        ReplaceReferencedValue, replace_document, insert_elements, delete_elements,
-       CompoundOperation, AdjustZoomOperation, AdjustFontZoomOperation
+       CompoundOperation, AdjustZoomOperation, AdjustFontZoomOperation, update_selection!
 
 function evaluate_operation(editor, op::Nothing) end
 
