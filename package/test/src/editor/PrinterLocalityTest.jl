@@ -59,6 +59,17 @@ _is_selection_overlay_cell(lc::LocalityCell) =
     lc.field in _OVERLAY_GEOMETRY_FIELDS &&
     lc.owner isa DataType && startswith(string(nameof(lc.owner)), "Graphics")
 
+# A `CellVector`'s `elements` thunk — the only cell that rebuilds a whole children
+# vector. A *router* (a tabbed pane's selector/content strip, a "show the selected
+# thing" pane) builds its children from the selection, so on a move that switches
+# the active branch this cell legitimately recomputes. It is exempt ONLY on a
+# routing move (see `_is_routing_change`); on a pure within-branch caret move a
+# `CellVector.elements` invalidation is still a real violation (a content vector
+# that wrongly read the selection). The owner is matched by name so a future
+# parametric `CellVector{T}` still matches.
+_is_router_rebuild_cell(lc::LocalityCell) =
+    lc.field === :elements && lc.owner isa DataType && nameof(lc.owner) === :CellVector
+
 # Reflexively force every Cell reachable from `x`, recording each as a
 # LocalityCell tagged with the (owner_type, field) it was reached through, and
 # the objectid of every reachable object (for identity diffing). Mirrors
@@ -66,7 +77,9 @@ _is_selection_overlay_cell(lc::LocalityCell) =
 # Reuses `_WALK_MAX_DEPTH` / `_WALK_MAX_NODES` from PrinterTest.jl.
 function _collect_locality!(x, owner, field::Symbol,
                             visited::Set{UInt64}, cells::Vector{LocalityCell},
-                            objects::Set{UInt64}, errors::Vector{String}, depth::Int)
+                            objects::Set{UInt64}, errors::Vector{String}, depth::Int;
+                            sel_objects::Union{Set{UInt64},Nothing}=nothing,
+                            under_sel::Bool=false)
     x === nothing        && return
     x isa Bool           && return
     x isa Number         && return
@@ -78,10 +91,18 @@ function _collect_locality!(x, owner, field::Symbol,
     depth >= _WALK_MAX_DEPTH && return
     length(visited) >= _WALK_MAX_NODES && return
 
+    # Once the walk crosses a `:selection` cell, everything below it is a
+    # selection-path artifact (a ReferencePath / Reference), never output content.
+    # `sel_objects` records those ids so a move's lost objects can be split into
+    # selection churn (expected) vs. lost content (a routing change). See
+    # `printer_locality_report`.
+    under_sel = under_sel || (field === :selection)
+
     id = objectid(x)
     id in visited && return
     push!(visited, id)
     push!(objects, id)
+    (under_sel && sel_objects !== nothing) && push!(sel_objects, id)
 
     if x isa Cell
         push!(cells, LocalityCell(x, owner, field))
@@ -91,10 +112,12 @@ function _collect_locality!(x, owner, field::Symbol,
             push!(errors, "Cell[] threw: $e")
             return
         end
-        _collect_locality!(val, nothing, :_, visited, cells, objects, errors, depth + 1)
+        _collect_locality!(val, nothing, :_, visited, cells, objects, errors, depth + 1;
+                           sel_objects=sel_objects, under_sel=under_sel)
     elseif x isa Vector
         for el in x
-            _collect_locality!(el, nothing, :_, visited, cells, objects, errors, depth + 1)
+            _collect_locality!(el, nothing, :_, visited, cells, objects, errors, depth + 1;
+                               sel_objects=sel_objects, under_sel=under_sel)
         end
     else
         for fname in fieldnames(typeof(x))
@@ -105,9 +128,11 @@ function _collect_locality!(x, owner, field::Symbol,
                 continue
             end
             if fval isa Cell
-                _collect_locality!(fval, typeof(x), fname, visited, cells, objects, errors, depth + 1)
+                _collect_locality!(fval, typeof(x), fname, visited, cells, objects, errors, depth + 1;
+                                   sel_objects=sel_objects, under_sel=under_sel)
             else
-                _collect_locality!(fval, nothing, :_, visited, cells, objects, errors, depth + 1)
+                _collect_locality!(fval, nothing, :_, visited, cells, objects, errors, depth + 1;
+                                   sel_objects=sel_objects, under_sel=under_sel)
             end
         end
     end
@@ -119,10 +144,20 @@ struct LocalityReport
     cell_count::Int                     # total output cells snapshotted
     preserved_objects::Int              # objectids reachable before AND after
     lost_objects::Int                   # objectids reachable before but NOT after
+    lost_content::Int                   # lost objectids that are NOT selection-path
+                                        # artifacts ⇒ a routing change (the active
+                                        # branch switched, dropping old content)
     before_objects::Int                 # objectids reachable before
     perf::Dict{Symbol,Int}              # counters accrued by mutate! + reforce
     errors::Vector{String}
 end
+
+# A selection move is a *routing change* when it drops reachable output content
+# (not just selection-path churn): switching the active tab/page makes the old
+# branch's output unreachable. On such a move a router's `CellVector.elements`
+# rebuild is expected, so it is exempt; a pure within-branch caret move drops only
+# selection artifacts (`lost_content == 0`) and stays under the strict invariant.
+_is_routing_change(r::LocalityReport) = r.lost_content > 0
 
 """
     printer_locality_report(document, projection, mutate!) -> LocalityReport
@@ -143,13 +178,15 @@ function printer_locality_report(document, projection, mutate!)
         projection_print(projection, document)
     catch e
         push!(errors, "projection_print threw: $e")
-        return LocalityReport(LocalityCell[], 0, 0, 0, 0, perf_counters(), errors)
+        return LocalityReport(LocalityCell[], 0, 0, 0, 0, 0, perf_counters(), errors)
     end
     output = iomap.output
 
     cells = LocalityCell[]
     before_objs = Set{UInt64}()
-    _collect_locality!(output, nothing, :_, Set{UInt64}(), cells, before_objs, errors, 0)
+    before_sel_objs = Set{UInt64}()
+    _collect_locality!(output, nothing, :_, Set{UInt64}(), cells, before_objs, errors, 0;
+                       sel_objects=before_sel_objs)
 
     perf_reset!()
     try
@@ -168,8 +205,11 @@ function printer_locality_report(document, projection, mutate!)
     perf = perf_counters()
 
     preserved = length(intersect(before_objs, after_objs))
-    lost = length(setdiff(before_objs, after_objs))
-    LocalityReport(invalidated, length(cells), preserved, lost, length(before_objs), perf, errors)
+    lost_set = setdiff(before_objs, after_objs)
+    lost = length(lost_set)
+    # Lost objects minus the selection-path artifacts ⇒ dropped output content.
+    lost_content = length(setdiff(lost_set, before_sel_objs))
+    LocalityReport(invalidated, length(cells), preserved, lost, lost_content, length(before_objs), perf, errors)
 end
 
 # ── Dimension A: selection isolation ──────────────────────────────────────────
@@ -210,7 +250,17 @@ function explore_selection_locality(document, projection; onstate=nothing)
         # invalidates non-:selection geometry cells by design; those need a
         # cursor-field allow-list (Phase 2 follow-up) before this check is exact
         # for them, which is why it is not yet wired into test_all.
-        bad = filter(lc -> !is_selection_cell(lc) && !_is_selection_overlay_cell(lc), r.invalidated)
+        # A routing move (the active tab/page switched) legitimately rebuilds the
+        # router's children vector, so a `CellVector.elements` invalidation is
+        # exempt *only then*; everything else, and any non-selection cell on a pure
+        # within-branch move, is still a violation.
+        routing = _is_routing_change(r)
+        bad = filter(r.invalidated) do lc
+            is_selection_cell(lc) && return false
+            _is_selection_overlay_cell(lc) && return false
+            routing && _is_router_rebuild_cell(lc) && return false
+            return true
+        end
         if !isempty(bad)
             tags = join(sort(unique(["$(lc.owner).$(lc.field)" for lc in bad])), ", ")
             push!(msgs, "→ $(string(target)): invalidated non-selection cells [$tags]")
