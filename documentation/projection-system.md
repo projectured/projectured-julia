@@ -451,6 +451,39 @@ function map_reference_backward(::MyProjection, iomap, reference)
 end
 ```
 
+### Purity: no global state, no side effects
+
+Two invariants keep projections composable and the reactive graph consistent.
+
+**No global mutable state.** A projection must not read or write module-level
+mutable state — no `const cache = Dict(...)` populated at runtime, no mutable
+global `Ref`/counter. Every cache, memo, or reconciliation table must be created
+*per projection invocation* and live in that invocation's `IoMap` or in the
+closures of its own cells. Global state silently leaks across unrelated documents
+(two documents rendered in the same process would share — and corrupt — each
+other's entries), is never evicted, and is unsafe under the editor's reuse of one
+process for many documents.
+
+**No side effects from inside a cell.** A reactive computation — a `Cell(() -> …)`
+thunk, or the part of `projection_print` that builds them — must be a pure
+function of its inputs *as observed by every other reactive node*. In particular
+it must never **write another cell** (`other_cell[] = v`) or mutate shared
+document state. The eager engine invalidates a written cell's consumers
+immediately (see [reactive-cells.md](reactive-cells.md)), so writing a cell from
+inside another cell's computation invalidates those consumers *mid-computation* —
+and graphics-domain cells *do* have consumers (e.g. `GraphicsCaching` reads them).
+That makes recomputation order-dependent and the graph inconsistent.
+
+To preserve output-object identity across recomputes (printer locality —
+reconciliation), do **not** rebuild objects, and do **not** reuse-then-mutate them
+with imperative cell writes. Instead reuse a *persistent* object whose
+geometry/content fields are `setfn!` cells that **derive** their value from the
+upstream layout cell — the cursor/highlight overlays in `TextToGraphics` are the
+canonical example, generalised to every span by its per-segment graphics cache. A
+projection's *own* private reconciliation cache (a plain `Dict` held in its cell
+closure, populated idempotently and observed by no other node) is not a side
+effect in this sense, and is the correct way to key that reuse.
+
 ### A compound (node-shaped) projection
 
 A leaf projection maps one document value to one output value. A compound
