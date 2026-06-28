@@ -107,9 +107,6 @@ struct AffineTransform
     a::Float64; b::Float64; c::Float64; d::Float64; e::Float64; f::Float64
 end
 
-AffineTransform(a, b, c, d, e, f) =
-    AffineTransform(Float64(a), Float64(b), Float64(c), Float64(d), Float64(e), Float64(f))
-
 "The identity transform (no scale, no translation)."
 const affine_identity = AffineTransform(1.0, 0.0, 0.0, 1.0, 0.0, 0.0)
 
