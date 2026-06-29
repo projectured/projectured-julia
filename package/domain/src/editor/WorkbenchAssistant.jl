@@ -60,7 +60,8 @@ import ..KeyboardModule: KeyPress
 import ..EventCaseModule: var"@event_case"
 import ..PrimitiveModule: StringReplaceRangeOperation
 import ..LlmModule: LlmBackend, stream_turn, FakeLlm, AnthropicLlm
-import ..McpModule: execute_julia_code, register_default_tools_and_resources!
+import ..McpModule: execute_julia_code, last_eval_value, register_default_tools_and_resources!
+import ..DocumentModule: Document
 import ..ConversationModule: ConversationDraft
 import ..ConversationEditorModule: composer_read, ComposerSubmitOperation,
                                     finalize_draft!, reset_draft!, SUBMIT_HANDLER
@@ -232,10 +233,14 @@ function evaluate_operation(editor, op::SubmitJuliaOperation)
         sprint(showerror, e, catch_backtrace())
     end
     is_error = occursin("ERROR", output) || occursin("Error", output)
+    # A Document return value (e.g. a live SimulationTaskDocument) is embedded as
+    # the result so it renders live; anything else falls back to its text repr.
+    val = last_eval_value()
+    result = val isa Document ? val : result_text(output)
     push!(a.conversation.turns,
           ConversationTurn(:user, [ConversationPart(
               EvaluatorForm(JuliaIdentifier(code);
-                            result = result_text(output), is_error = is_error))]))
+                            result = result, is_error = is_error))]))
 
     _set_input!(a, "")
     nothing
@@ -660,9 +665,15 @@ function _run_agent_loop!(editor, a::WorkbenchAssistant)
             code = tu.input isa AbstractDict && haskey(tu.input, "code") ?
                        String(tu.input["code"]) : ""
             is_err = occursin("ERROR", output) || occursin("Error", output)
+            # For execute_julia_code, a Document return value is embedded as the
+            # live result (renders in place); other tools / non-Document values
+            # keep the text repr. (Claude still sees the text tool_result, which
+            # build_messages derives from this result.)
+            val = tu.name == "execute_julia_code" ? last_eval_value() : nothing
+            result = val isa Document ? val : result_text(output)
             push!(turn.parts, Cell(ConversationPart(
                 EvaluatorForm(JuliaIdentifier(code);
-                              result = result_text(output),
+                              result = result,
                               is_error = is_err, tool_use_id = tu.id,
                               tool_name = tu.name);
                 collapsed = _collapse_tool_default(tu.name))))

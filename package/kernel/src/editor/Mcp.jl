@@ -20,7 +20,7 @@ import ..ToolRegistryModule: Tool, Resource,
                               register_tool!, register_resource!,
                               list_tools, list_resources
 
-export execute_julia_code, list_guides, read_guide,
+export execute_julia_code, last_eval_value, list_guides, read_guide,
        list_modules, list_classes, list_functions,
        read_module_documentation, read_class_documentation, read_function_documentation,
        search_documentation, search_api,
@@ -37,6 +37,23 @@ export execute_julia_code, list_guides, read_guide,
 # `using Projectured` is done once, by binding the running package module and
 # importing its exports, so every export resolves without re-prepending it.
 const _SCRATCH = Ref{Module}()
+
+# The actual last value produced by the most recent `execute_julia_code` call —
+# reset to `nothing` at the start of each call, set on success. The conversation
+# eval reads this (via `last_eval_value()`) so a `Document` return value (e.g. a
+# live `SimulationTaskDocument`) can be embedded as the EvaluatorForm result and
+# render live, instead of only its text repr. `nothing` after an error or a
+# `nothing` result.
+const LAST_VALUE = Ref{Any}(nothing)
+
+"""
+    last_eval_value()
+
+The value produced by the most recent `execute_julia_code` call (`nothing` if it
+errored or returned `nothing`). Lets the conversation eval embed a `Document`
+return value as a live EvaluatorForm result instead of stringifying it.
+"""
+last_eval_value() = LAST_VALUE[]
 
 # The umbrella `Projectured` package (loaded but not a dependency of the kernel —
 # that would be circular) re-exports both kernel and domain names. Prefer it so
@@ -69,6 +86,7 @@ repr of the last value plus captured stdout/stderr.
 """
 function execute_julia_code(editor, code)
     @info "[mcp] execute_julia_code call" code
+    LAST_VALUE[] = nothing
     output = try
         m = _scratch_module()
         # (Re)bind `editor` as a module global each call so user code can reference
@@ -91,6 +109,11 @@ function execute_julia_code(editor, code)
             else
                 result = Core.eval(m, expr)
             end
+
+            # Remember the actual last value so the conversation eval can embed a
+            # Document return value (e.g. a live SimulationTaskDocument) as the
+            # EvaluatorForm result instead of only its text repr.
+            LAST_VALUE[] = result
 
             # Append the repr of the result if it's not nothing
             if result !== nothing
