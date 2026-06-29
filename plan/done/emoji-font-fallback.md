@@ -69,8 +69,8 @@ run → unchanged fast path.
 - [x] **2. Emoji font loader.** `_EMOJI_FONT_FILE` (from `_FONT_DIR`) + `_get_emoji_font(size)` caching into `_font_cache`, returning `C_NULL` on missing/failed load. `quit!` null-guard added. `_FONT_DIR` imported from `FontModule`.
 - [x] **3. Run splitter + compositor.** `_font_runs(text, primary, emoji)` + `_render_runs_blended(runs, color)`; wired into `_render_element!(::GraphicsText)` with the single-run fast path.
 - [x] **4. Measurement.** `measure_text` splits runs and sums per-run metrics. **Bug found & fixed:** the single-run fast path measured with `primary`, so an all-emoji span was sized from the text font's `.notdef` box (8px) — now uses the run's own font.
-- [ ] **5. Build + verify.** Offscreen `write_image` render confirms 😀 ✅ 🎉 etc. render as glyphs (verified once; re-running after the complete-font swap to confirm 🤖). Commit steps 1–5.
-- [ ] **6.** Move this plan to `plan/done/`.
+- [x] **5. Build + verify.** Offscreen `write_image` render confirms 😀 ✅ 🎉 🤖 render as glyphs (`✓ ★ →` remain boxes — out of scope, see discoveries). Regression tests `test_write_image`, `test_hover_probe`, `test_hover_probe_pipeline` all pass. Committed steps 1–5.
+- [x] **6.** Plan moved to `plan/done/`.
 
 ## Decisions / discoveries (filled in during implementation)
 
