@@ -59,6 +59,7 @@ const ToolRegistryModule = ProjecturedKernel.ToolRegistryModule
 const TypeDispatchingModule = ProjecturedKernel.TypeDispatchingModule
 
 # ── Concrete domains, parsers, projections, backends, editors ──────────────
+include("common/OsClipboard.jl")
 include("document/Document.jl")
 include("document/Font.jl")
 include("document/Color.jl")

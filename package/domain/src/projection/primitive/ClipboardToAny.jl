@@ -26,10 +26,16 @@ it. Flipping the flag is a plain reactive cell write: the reactive
 stages, so the view switches with **no `editor.iomap` drop**. (Earlier this swap
 required nulling `editor.iomap`; reactive composition makes that unnecessary.)
 
-## Deferred (matches the Lisp `#+nil` branch)
+## OS-clipboard bridge (the Lisp `#+nil` `xclip` branch, now ported)
 
-Pasting from / copying to the **system** clipboard (Lisp shells out to `xclip`)
-is not ported; only the internal clipboard is implemented.
+`ClipboardSliceToAnyProjection` takes optional `to_text` / `from_text` converters.
+When set, copy/cut/note mirror the copied sub-document out to the OS clipboard (via a
+`WriteOsClipboardOperation`), and `Ctrl+V` falls back to the OS clipboard when the
+internal slice is empty. The actual OS read/write goes through
+[`OsClipboardModule`](@ref) (shell-out to `xclip`/`xsel`/`wl-*`/`pb*`), which is
+stubbable and degrades gracefully when no clipboard tool is present. With both
+converters `nothing` (the default) there is no OS interaction — only the internal
+clipboard, exactly as before.
 """
 module ClipboardToAnyProjectionModule
 
@@ -52,25 +58,35 @@ import ..PrinterContextModule: PrinterContext, child_context
 import ..IoMapApiModule: IoMap
 import ..GestureBindingModule: GestureBinding, KeyDownPattern,
                               projection_gestures, read_projection_gesture, collect_gestures
+import ..OsClipboardModule: os_clipboard_read, os_clipboard_write
 
 export ClipboardSliceToAnyProjection, ClipboardCollectionToAnyProjection,
        ClipboardSliceToAnyProjectionIoMap, ClipboardCollectionToAnyProjectionIoMap,
-       ToggleClipboardSliceDisplayOperation, ToggleClipboardCollectionDisplayOperation
+       ToggleClipboardSliceDisplayOperation, ToggleClipboardCollectionDisplayOperation,
+       WriteOsClipboardOperation
 
 # ── Projections ─────────────────────────────────────────────────────────────
 
 """
-    ClipboardSliceToAnyProjection(; display_slice=false)
+    ClipboardSliceToAnyProjection(; display_slice=false, to_text=nothing, from_text=nothing)
 
 Projects a `ClipboardSlice`. When `display_slice` is `false` the output is the
 projection of `content`; when `true` it is the projection of the stored `slice`
 (falling back to `content` when no slice is stored).
+
+`to_text` / `from_text` are the optional OS-clipboard converters. When `to_text`
+(a `Document -> String`) is set, copy/cut/note also mirror the copied sub-document
+out to the OS clipboard. When `from_text` (a `String -> Document`) is set, `Ctrl+V`
+falls back to the OS clipboard if the internal slice is empty. Both default to
+`nothing`, in which case there is no OS-clipboard interaction at all.
 """
 mutable struct ClipboardSliceToAnyProjection <: Projection
     display_slice::Cell   # reactive: flipping it switches the exposed child (content↔slice)
+    to_text::Any          # Document -> String, or nothing  (copy/cut/note mirror → OS)
+    from_text::Any        # String -> Document, or nothing   (paste fallback ← OS)
 end
-ClipboardSliceToAnyProjection(; display_slice::Bool=false) =
-    ClipboardSliceToAnyProjection(Cell(display_slice))
+ClipboardSliceToAnyProjection(; display_slice::Bool=false, to_text=nothing, from_text=nothing) =
+    ClipboardSliceToAnyProjection(Cell(display_slice), to_text, from_text)
 
 """
     ClipboardCollectionToAnyProjection(; display_collection=false)
@@ -243,10 +259,45 @@ function evaluate_operation(editor, op::ToggleClipboardCollectionDisplayOperatio
     op.projection.display_collection[] = !op.projection.display_collection[]
 end
 
+"""
+    WriteOsClipboardOperation(text)
+
+Side-effecting operation that writes `text` to the OS clipboard at evaluate time.
+It is appended to the copy/cut/note compound when the clipboard projection has a
+`to_text` converter, so a ProjecturEd copy is mirrored to the system clipboard.
+Best-effort: `os_clipboard_write` degrades to a no-op (returns `false`) when no
+clipboard tool is available, so this never fails an edit.
+"""
+struct WriteOsClipboardOperation <: Operation
+    text::String
+end
+
+evaluate_operation(editor, op::WriteOsClipboardOperation) = (os_clipboard_write(op.text); nothing)
+
 # ── Reader gesture helpers ─────────────────────────────────────────────────────
 
 _field_path(name::AbstractString) =
     ConcreteReferencePath(FieldReference(name), EmptyReferencePath())
+
+# Append an OS-clipboard mirror write to `ops` when the projection can serialize
+# `obj` to text (a `to_text` converter is set and yields a String). No-op otherwise.
+function _maybe_os_mirror!(ops, p, obj)
+    p.to_text === nothing && return ops
+    txt = try p.to_text(obj) catch; nothing end
+    txt isa AbstractString && push!(ops, WriteOsClipboardOperation(String(txt)))
+    ops
+end
+
+# Build a Document from the OS clipboard text via the projection's `from_text`
+# converter, or `nothing` when there is no converter, no readable OS text, or the
+# converter declines / errors. Used as the empty-slice paste fallback.
+function _os_paste_document(p)
+    p.from_text === nothing && return nothing
+    text = os_clipboard_read()
+    text === nothing && return nothing
+    doc = try p.from_text(text) catch; nothing end
+    doc isa Document ? doc : nothing
+end
 
 # The selected sub-document and its path, or (nothing, nothing) when there is no
 # usable (non-empty) selection.
@@ -260,57 +311,80 @@ end
 # Copy: store an independent deep copy of the selected object in the slice. The
 # write retargets the selection to `.slice` (ReplaceDocumentOperation moves the
 # selection to where it writes), so a trailing ReplaceSelectionOperation restores
-# the user's original selection on the copied source.
-function _clipboard_copy(input)
+# the user's original selection on the copied source. When the projection has a
+# `to_text` converter, the copy is also mirrored to the OS clipboard.
+function _clipboard_copy(p, input)
     sel, obj = _selected(input)
     obj isa Document || return nothing
-    CompoundOperation(Any[
+    ops = Any[
         replace_document(_field_path("slice"), copy_document(obj)),
         ReplaceSelectionOperation(sel),
-    ])
+    ]
+    _maybe_os_mirror!(ops, p, obj)
+    CompoundOperation(ops)
 end
 
 # Cut: store the live object in the slice and blank out its source position.
-function _clipboard_cut(input)
+function _clipboard_cut(p, input)
     sel, obj = _selected(input)
     obj isa Document || return nothing
-    CompoundOperation(Any[
+    ops = Any[
         replace_document(_field_path("slice"), obj),
         replace_document(sel, DocumentNothing()),
-    ])
+    ]
+    _maybe_os_mirror!(ops, p, obj)
+    CompoundOperation(ops)
 end
 
 # Note: like copy, but stores the live object (no deep copy). Restores the
 # original selection after the slice write (see `_clipboard_copy`).
-function _clipboard_note(input)
+function _clipboard_note(p, input)
     sel, obj = _selected(input)
     obj isa Document || return nothing
-    CompoundOperation(Any[
+    ops = Any[
         replace_document(_field_path("slice"), obj),
         ReplaceSelectionOperation(sel),
-    ])
+    ]
+    _maybe_os_mirror!(ops, p, obj)
+    CompoundOperation(ops)
 end
 
 # Paste: replace the selection target with the stored slice. The trailing
 # ReplaceSelectionOperation pins the selection to the pasted target (rather than
-# letting it follow the slice's stale inner selection).
-function _clipboard_paste(input)
-    slice = input.slice
-    slice isa Document || return nothing
+# letting it follow the slice's stale inner selection). When the internal slice is
+# empty, fall back to the OS clipboard via the projection's `from_text` converter.
+function _clipboard_paste(p, input)
     sel = input.selection
     (sel === nothing || sel isa EmptyReferencePath) && return nothing
+    slice = input.slice
+    if !(slice isa Document)
+        doc = _os_paste_document(p)
+        doc === nothing && return nothing
+        return CompoundOperation(Any[
+            replace_document(sel, doc),
+            ReplaceSelectionOperation(sel),
+        ])
+    end
     CompoundOperation(Any[
         replace_document(sel, slice),
         ReplaceSelectionOperation(sel),
     ])
 end
 
-# Paste-copy: like paste, but a fresh deep copy each time.
-function _clipboard_paste_copy(input)
-    slice = input.slice
-    slice isa Document || return nothing
+# Paste-copy: like paste, but a fresh deep copy each time. The OS fallback already
+# produces a fresh document per read, so it needs no extra copy.
+function _clipboard_paste_copy(p, input)
     sel = input.selection
     (sel === nothing || sel isa EmptyReferencePath) && return nothing
+    slice = input.slice
+    if !(slice isa Document)
+        doc = _os_paste_document(p)
+        doc === nothing && return nothing
+        return CompoundOperation(Any[
+            replace_document(sel, doc),
+            ReplaceSelectionOperation(sel),
+        ])
+    end
     CompoundOperation(Any[
         replace_document(sel, copy_document(slice)),
         ReplaceSelectionOperation(sel),
@@ -360,19 +434,19 @@ function projection_gestures(p::ClipboardSliceToAnyProjection, iomap)
             (doc, event) -> ToggleClipboardSliceDisplayOperation(p),
             (doc, sel) -> true, "Toggle stored slice", "clipboard"),
         GestureBinding(KeyDownPattern(:c, [:ctrl], nothing),
-            (doc, event) -> _clipboard_copy(doc),
+            (doc, event) -> _clipboard_copy(p, doc),
             (doc, sel) -> true, "Copy", "clipboard"),
         GestureBinding(KeyDownPattern(:x, [:ctrl], nothing),
-            (doc, event) -> _clipboard_cut(doc),
+            (doc, event) -> _clipboard_cut(p, doc),
             (doc, sel) -> true, "Cut", "clipboard"),
         GestureBinding(KeyDownPattern(:n, [:ctrl], nothing),
-            (doc, event) -> _clipboard_note(doc),
+            (doc, event) -> _clipboard_note(p, doc),
             (doc, sel) -> true, "Note", "clipboard"),
         GestureBinding(KeyDownPattern(:v, [:ctrl, :shift], nothing),
-            (doc, event) -> _clipboard_paste_copy(doc),
+            (doc, event) -> _clipboard_paste_copy(p, doc),
             (doc, sel) -> true, "Paste copy", "clipboard"),
         GestureBinding(KeyDownPattern(:v, [:ctrl], nothing),
-            (doc, event) -> _clipboard_paste(doc),
+            (doc, event) -> _clipboard_paste(p, doc),
             (doc, sel) -> true, "Paste", "clipboard"),
     ]
 end
