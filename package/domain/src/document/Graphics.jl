@@ -387,10 +387,10 @@ overlap along the layout axis. This enables the renderer and hit-testing
 to stop early once past the viewport or click point.
 """
 @document struct GraphicsCanvas <: GraphicsDocument
-    x::Int
-    y::Int
-    w::Int
-    h::Int
+    x::Int32
+    y::Int32
+    w::Int32
+    h::Int32
     elements::CollectionDocument
     layout::LayoutDirection
     overlapping_elements::Bool
