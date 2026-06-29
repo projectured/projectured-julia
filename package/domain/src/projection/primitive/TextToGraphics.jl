@@ -220,21 +220,35 @@ function projection_print(p::TextToGraphics, recursion, styled::TextText, ctx)
     if styled.elements isa ListNode
         return _print_listnode(p, styled, ctx)
     end
-    # The text spans depend only on the text, not on the caret: the `layout`
-    # cell lays them out *without* reading `styled.selection`, so moving the
-    # caret does not invalidate (and regenerate) the whole span vector. Only the
-    # separate, persistent cursor/highlight overlay rects below depend on the
-    # selection — so the backend's dirty-rectangle pass repaints just the caret
-    # slivers, not the entire block. (`overlay` re-runs the layout to locate the
-    # caret/highlight, which keeps placement identical to the spans, including
-    # the newline-boundary and empty-line cases; it skips building the span
-    # objects via `collect_spans=false`.)
-    layout  = Cell(() -> _layout_text(p, styled, nothing))
+    # Per-line decomposition (printer locality — dimension B). The output is a
+    # vertical stack of one reactive sub-canvas per visual line, where lines are
+    # split at `TextNewline` *elements* — a structural boundary that never reads
+    # span content. Each line's sub-canvas lays out only that line's spans, so a
+    # content edit invalidates just the edited line's cells (and, via the y-offset
+    # height chain, the lines below it). The backend dirty-rectangle pass then
+    # repaints only the edited line instead of the whole block.
+    #
+    # The crucial property is that the *list* of line sub-canvases depends only on
+    # the line grouping (structure), so a content edit leaves it up to date and the
+    # dirty walk descends into it to find just the edited line stale. Editing the
+    # last line moves nothing below it, so its dirty rect is tight.
+    #
+    # Embedded '\n' inside a span (e.g. SyntaxToText emits `TextString("\n")`
+    # separators and no `TextNewline` elements) collapses into one big line group,
+    # which stays whole-block dirty exactly as before — no regression for those
+    # pipelines (already non-local via SyntaxToText flattening).
+    #
+    # The caret/highlight stay a single selection-driven `overlay`, laid out in
+    # absolute coordinates over the whole stack, so a pure caret move still
+    # invalidates only the two overlay rects (dimension A): the spans never read
+    # the selection. `overlay` re-runs the full layout via `_layout_text` to locate
+    # the caret/highlight identically to the per-line spans (`collect_spans=false`
+    # skips building the span objects).
     overlay = Cell(() -> _layout_text(p, styled, styled.selection; collect_spans=false))
 
     # Persistent overlay elements. Their geometry cells read the selection-
     # dependent `overlay`; a zero width hides them when inactive (the renderer
-    # skips a zero-width rect).
+    # skips a zero-width rect, and the bounds machinery ignores it).
     cursor_rect = GraphicsRect(0, 0, 0, 0, color_black)
     setfn!(getfield(cursor_rect, :x), () -> (g = overlay[].cursor; g === nothing ? Int32(0) : Int32(g[1])))
     setfn!(getfield(cursor_rect, :y), () -> (g = overlay[].cursor; g === nothing ? Int32(0) : Int32(g[2])))
@@ -247,42 +261,116 @@ function projection_print(p::TextToGraphics, recursion, styled::TextText, ctx)
     setfn!(getfield(highlight_rect, :w), () -> (g = overlay[].highlight; g === nothing ? Int32(0) : Int32(g[3])))
     setfn!(getfield(highlight_rect, :h), () -> (g = overlay[].highlight; g === nothing ? Int32(0) : Int32(g[4])))
 
-    # Element vector: highlight (behind) + text spans + cursor (in front). Reads
-    # only `layout` (the text), so the caret moving never regenerates it. The
-    # highlight is always element 1, so the click-mapping offset is constant 1.
-    #
-    # Each text/fill placement becomes a PERSISTENT GraphicsText/GraphicsRect that
-    # is created once per key and reused across re-layouts — its geometry/content
-    # are `setfn!` cells that read the placement back out of `layout`, exactly like
-    # the cursor/highlight overlays above. So a structural edit preserves the
-    # output-object identity of every unchanged segment and only re-derives the
-    # cells of those that moved (printer locality — dimension C). A non-placement
-    # entry (an inline image) has no reuse key and passes through as-is.
-    gt_cache = Dict{Any,Any}()
-    elements = CellVector(function ()
-        pls = layout[].spans
-        out = Any[highlight_rect]
-        live = Set{Any}()
-        for pl in pls
-            if pl isa NamedTuple
-                push!(live, pl.key)
-                push!(out, _persistent_graphic!(gt_cache, layout, pl))
+    # Group elements into lines at `TextNewline` boundaries. Reads only the element
+    # structure and types (the slot values / `isa TextNewline`), never `.content`,
+    # so it is invariant under content edits. Each group carries its spans tagged
+    # with their global element index (for `SegCoord.span_idx`) and the terminating
+    # newline (for an empty line's fallback height).
+    lines_cell = Cell(function ()
+        groups = NamedTuple[]
+        cur = Tuple{Int,Any}[]
+        for (gi, el) in enumerate(styled.elements)
+            if el isa TextNewline
+                push!(groups, (spans = cur, newline = el))
+                cur = Tuple{Int,Any}[]
             else
-                push!(out, pl)
+                push!(cur, (gi, el))
             end
         end
-        for k in collect(keys(gt_cache))
-            k in live || delete!(gt_cache, k)
-        end
-        push!(out, cursor_rect)
-        out
+        push!(groups, (spans = cur, newline = nothing))
+        groups
     end)
 
-    char_to_coord = Cell(() -> layout[].coord_map)
-    highlight_offset = Cell(1)
-    canvas_w = Cell(() -> Int32(layout[].width))
-    canvas_h = Cell(() -> Int32(layout[].height))
-    canvas = GraphicsCanvas(Cell(Int32(0)), Cell(Int32(0)), canvas_w, canvas_h, elements, layout_none, false, Cell(nothing))
+    # Per-line reactive cells, built once per line index and reused. A line's
+    # `layout` reads only that line's spans' content; its `y` chains off the
+    # cumulative height of the lines above (editing the last line moves nothing;
+    # editing a middle line reflows the lines below — matching ListNode spines).
+    # Each placement becomes a PERSISTENT GraphicsText/GraphicsRect reused across
+    # re-layouts, its fields `setfn!` cells reading the placement back out of the
+    # line's `layout` (printer locality — dimension C, now line-local).
+    line_cells = Dict{Int,NamedTuple}()
+    function get_line_cells(L::Int)
+        haskey(line_cells, L) && return line_cells[L]
+        line_layout = Cell(() -> _layout_line(p, lines_cell[][L]))
+        line_h = Cell(() -> Int32(line_layout[].height))
+        line_y = if L == 1
+            Cell(Int32(0))
+        else
+            prev = get_line_cells(L - 1)
+            Cell(() -> Int32(prev.y[] + prev.h[]))
+        end
+        cache = Dict{Any,Any}()
+        segs = CellVector(function ()
+            pls = line_layout[].spans
+            out = Any[]
+            live = Set{Any}()
+            for pl in pls
+                if pl isa NamedTuple
+                    push!(live, pl.key)
+                    push!(out, _persistent_graphic!(cache, line_layout, pl))
+                else
+                    push!(out, pl)
+                end
+            end
+            for k in collect(keys(cache))
+                k in live || delete!(cache, k)
+            end
+            out
+        end)
+        sub = GraphicsCanvas(Cell(Int32(0)), line_y, Cell(Int32(0)), Cell(Int32(0)),
+                             segs, layout_none, false, Cell(nothing))
+        nt = (layout = line_layout, h = line_h, y = line_y, canvas = sub)
+        line_cells[L] = nt
+        nt
+    end
+
+    # Vertical stack of line sub-canvases. Its membership reads only `lines_cell`
+    # (structure); `get_line_cells` builds/looks up cells without forcing them, so
+    # no content is read here and the stack stays up to date across content edits.
+    # `layout_vertical` + non-overlapping lets the dirty walk and renderer
+    # early-stop past off-screen lines.
+    lines_stack_elements = CellVector(function ()
+        n = length(lines_cell[])
+        Any[get_line_cells(L).canvas for L in 1:n]
+    end)
+    lines_stack = GraphicsCanvas(Cell(Int32(0)), Cell(Int32(0)), Cell(Int32(0)), Cell(Int32(0)),
+                                 lines_stack_elements, layout_vertical, false, Cell(nothing))
+
+    # Top canvas: the line stack with the selection-driven caret/highlight overlays
+    # floating above it in absolute coordinates. A fixed three-slot vector, so its
+    # membership never regenerates.
+    top_elements = CellVector(Cell[Cell(highlight_rect), Cell(lines_stack), Cell(cursor_rect)])
+
+    # coord_map (reader-only — not in the rendered tree) assembled from the per-line
+    # layouts, shifted into absolute coordinates by each line's y-offset so clicks
+    # and key-navigation see exactly the same SegCoords as before.
+    char_to_coord = Cell(function ()
+        out = SegCoord[]
+        n = length(lines_cell[])
+        for L in 1:n
+            lc = get_line_cells(L)
+            ly = Int(lc.y[])
+            for sc in lc.layout[].coord_map
+                push!(out, SegCoord(sc.span_idx, sc.char_start, sc.char_end,
+                                    sc.x, sc.y + ly, sc.font, sc.text, sc.width, sc.height))
+            end
+        end
+        out
+    end)
+    highlight_offset = Cell(0)
+    canvas_w = Cell(function ()
+        w = 0
+        for L in 1:length(lines_cell[])
+            w = max(w, get_line_cells(L).layout[].width)
+        end
+        Int32(w)
+    end)
+    canvas_h = Cell(function ()
+        n = length(lines_cell[])
+        n == 0 ? Int32(0) : (lc = get_line_cells(n); Int32(lc.y[] + lc.h[]))
+    end)
+    canvas = GraphicsCanvas(Cell(Int32(0)), Cell(Int32(0)), canvas_w, canvas_h,
+                            top_elements, layout_none, true, Cell(nothing))
     TextToGraphicsIoMap(p, styled, canvas, char_to_coord, highlight_offset)
 end
 
@@ -430,6 +518,86 @@ function _layout_text(p::TextToGraphics, styled::TextText, sel; collect_spans::B
     max_cx = max(max_cx, cx)
     (spans = result, by_key = by_key, coord_map = coord_map, width = max_cx, height = cy + line_h,
      span_flat_offsets = span_flat_offsets, cursor = cursor, highlight = highlight)
+end
+
+# Lay out ONE visual line (a `(spans, newline)` group from `lines_cell`) into
+# placements + a coordinate map, in coordinates *relative* to the line origin
+# `(start_x, 0)`. `group.spans` is a vector of `(global_elem_idx, span)` tuples;
+# `global_elem_idx` becomes the `SegCoord.span_idx` so the reader's character
+# positions stay in the input element's index space. Embedded '\n' inside a span
+# still breaks into multiple sub-lines within this group (the renderer cannot draw
+# a multi-line glyph run), advancing `cy`; the group's sub-canvas spans the full
+# height. This is the per-line counterpart of `_layout_text`'s inner span loop,
+# minus the caret/highlight (those live in the global `overlay`). An all-empty
+# group falls back to the terminating newline's font height so a blank line still
+# occupies one row.
+function _layout_line(p::TextToGraphics, group)
+    result = Any[]
+    by_key = Dict{Any,Any}()
+    occ = Dict{UInt64,Int}()
+    coord_map = SegCoord[]
+    cx = p.start_x
+    cy = 0
+    max_cx = cx
+    line_h = 0
+
+    for (elem_idx, span) in group.spans
+        if span isa TextGraphics
+            img_w = Int(span.width::Int32)
+            img_h = Int(span.height::Int32)
+            img_data = _extract_image_data(span)
+            push!(result, GraphicsImage(cx, cy, img_w, img_h, img_data))
+            push!(coord_map, SegCoord(elem_idx, 0, 1, cx, cy, span.font::StyleFont, "", img_w, img_h))
+            line_h = max(line_h, img_h)
+            cx += img_w
+            continue
+        end
+        span isa TextString || continue
+        span_idx = elem_idx
+        span_oid = objectid(span)
+        span_occ = (occ[span_oid] = get(occ, span_oid, 0) + 1)
+        char_offset = 0
+        txt = span.content::AbstractString
+        sf  = span.font::StyleFont
+        col = span.font_color::StyleColor
+
+        lines = split(txt, '\n')
+        for (li, line) in enumerate(lines)
+            if li > 1
+                max_cx = max(max_cx, cx)
+                cx = p.start_x
+                cy += line_h > 0 ? line_h : p.measure(" ", sf)[2]
+                line_h = 0
+                char_offset += 1
+            end
+            isempty(line) && continue
+            seg_w, seg_h = p.measure(line, sf)
+            line_h = max(line_h, seg_h)
+            seg_x = cx
+            seg_char_start = char_offset
+            seg_len = length(line)
+            fpl = _fill_placement(span, (span_oid, span_occ, li, :fill), seg_x, cy, seg_w, seg_h)
+            if fpl !== nothing
+                push!(result, fpl)
+                by_key[fpl.key] = fpl
+            end
+            tpl = (kind = :text, key = (span_oid, span_occ, li),
+                   text = String(line), x = seg_x, y = cy, font = sf, color = col)
+            push!(result, tpl)
+            by_key[tpl.key] = tpl
+            push!(coord_map, SegCoord(span_idx, seg_char_start, seg_char_start + seg_len, seg_x, cy, sf, line, seg_w, seg_h))
+            cx += seg_w
+            char_offset += seg_len
+        end
+    end
+
+    max_cx = max(max_cx, cx)
+    height = cy + line_h
+    if isempty(coord_map) && group.newline !== nothing
+        # A blank line still occupies one row (matches `_layout_text`).
+        height = p.measure(" ", group.newline.font::StyleFont)[2]
+    end
+    (spans = result, by_key = by_key, coord_map = coord_map, width = max_cx, height = height)
 end
 
 # ── Persistent per-segment graphics (printer locality — dimension C) ───────────
