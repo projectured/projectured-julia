@@ -1028,7 +1028,7 @@ function projection_print(p::WidgetButtonToGraphicsCanvas, recursion, w::WidgetB
     # shadow-sm drop shadow; it is dropped while pressed (so the button "sinks")
     # and while disabled (so it reads as inert/flat).
     if enabled && !pressed
-        push!(elements, GraphicsRect(0, _sc(p.shadow_offset), button_width, button_height, 0x00, 0x00, 0x00, 0x14, corner_radius))
+        push!(elements, GraphicsRect(0, _sc(p.shadow_offset), button_width, button_height, StyleColor(0.0, 0.0, 0.0, 0x14 / 255), corner_radius))
     end
     _push_panel!(elements, 0, 0, button_width, button_height; fill=fill,
                  border=p.border.color, border_w=max(1, _sc(p.border.width)), radius=corner_radius)
