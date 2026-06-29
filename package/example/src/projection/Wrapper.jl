@@ -67,12 +67,10 @@ function make_workbench_projection(; measure=truetype_measure_text,
                                        conversation_widget_entry(measure=measure),
                                        PrimitiveDocument    => SequentialProjection(RecursiveProjection(PrimitiveToSyntax()), RecursiveProjection(SyntaxToText()), WordWrapping(measure=measure), TextToGraphics(measure=measure)),
                                    ])
-    font = font_ubuntu_monospace_regular_24
-    fg   = (0xee, 0xee, 0xee, 0xff)
-    w2g  = WidgetToGraphics(font; measure=measure)
-    combined_w2g = RecursiveProjection(TypeDispatchingProjection(vcat(
-        w2g.dispatch,
-        content_projections,
-    )))
-    SequentialProjection(RecursiveProjection(WorkbenchToWidget()), combined_w2g)
+    # `NaturalToGraphics` provides the widget/layout/Any rendering; the caller's
+    # `content_projections` are passed as `extra` (matched first, so they win).
+    SequentialProjection(
+        RecursiveProjection(WorkbenchToWidget()),
+        NaturalToGraphics(measure=measure, extra=content_projections),
+    )
 end
