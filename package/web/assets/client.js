@@ -534,8 +534,18 @@
     canvas.addEventListener("contextmenu", (ev) => ev.preventDefault());
 
     doc.addEventListener("keydown", (ev) => {
-      if (PREVENT_KEYS.has(ev.key) || ev.ctrlKey || ev.metaKey) ev.preventDefault();
+      const prevented = PREVENT_KEYS.has(ev.key) || ev.ctrlKey || ev.metaKey;
+      if (prevented) ev.preventDefault();
       send({ type: "keydown", window: idFn(), key: ev.key, code: ev.code, repeat: ev.repeat, mods: mods(ev) });
+      // preventDefault() on keydown suppresses the browser's keypress event, so a
+      // printable key we prevented would never deliver its type-in character. In
+      // practice this is Space (kept in PREVENT_KEYS so it doesn't scroll/activate
+      // the page): synthesize the keypress here for the single-character case so a
+      // space inserts like any other typed character. Ctrl/Meta combos are excluded
+      // — those are chords, not text input.
+      if (prevented && ev.key.length === 1 && !ev.ctrlKey && !ev.metaKey) {
+        send({ type: "keypress", window: idFn(), char: ev.key, text: ev.key, mods: mods(ev) });
+      }
     });
     doc.addEventListener("keyup", (ev) => {
       send({ type: "keyup", window: idFn(), key: ev.key, code: ev.code, mods: mods(ev) });
