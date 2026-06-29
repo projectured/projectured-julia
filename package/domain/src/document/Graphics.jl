@@ -26,7 +26,7 @@ export GraphicsDocument, LayoutDirection, layout_none, layout_horizontal, layout
        GraphicsInsertion, GraphicsText, GraphicsRect, GraphicsLine, GraphicsCircle,
        GraphicsPolyline, GraphicsSpline,
        GraphicsCanvas, GraphicsViewport, GraphicsImage,
-       GraphicsFence, setfn!, hit_element_at,
+       GraphicsFence, setfn!, hit_element_at, graphics_size,
        tessellate_spline, polyline_arrowhead, point_near_polyline,
        IGraphicsInsertion, IGraphicsText, IGraphicsRect, IGraphicsLine, IGraphicsCircle,
        IGraphicsPolyline, IGraphicsSpline,
@@ -694,6 +694,29 @@ function _bounds_elem!(elem, ox::Int, oy::Int, measure, minx, miny, maxx, maxy)
                             minx, miny, maxx, maxy)
     end
     # GraphicsFence and unknown types contribute nothing.
+end
+
+# Text-width fallback for `graphics_size`: this layer has no font backend, so a
+# bare `GraphicsText` contributes height (from its font) but no width.
+_zero_text_measure(_, _) = (0, 0)
+
+"""
+    graphics_size(doc::GraphicsDocument[, measure]) -> (w, h)
+
+The natural pixel extent of any graphics document, measured from the origin —
+the maximum x / y its content reaches. This lets a layout place a bare primitive
+(a `GraphicsCircle`, `GraphicsLine`, …) directly, asking it for its size, instead
+of requiring it to be wrapped in a sized `GraphicsCanvas`. Shares the per-element
+extent logic with the content-bounds machinery. `measure(text, font) -> (w, h)`
+sizes a `GraphicsText`; the default ignores text width (no font backend here), so
+pass a real `measure` when laying out bare text.
+"""
+function graphics_size(doc::GraphicsDocument, measure = _zero_text_measure)
+    minx = Ref(typemax(Int)); miny = Ref(typemax(Int))
+    maxx = Ref(typemin(Int)); maxy = Ref(typemin(Int))
+    _bounds_elem!(doc, 0, 0, measure, minx, miny, maxx, maxy)
+    maxx[] == typemin(Int) && return (0, 0)   # nothing drawn
+    (max(Int(maxx[]), 0), max(Int(maxy[]), 0))
 end
 
 end # module

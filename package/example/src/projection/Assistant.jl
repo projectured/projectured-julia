@@ -13,6 +13,9 @@ function _conversation_widget_graphics(; measure=truetype_measure_text)
             JuliaDocument    => make_julia_projection_example(measure=measure),
             JsonDocument     => make_json_projection_example(measure=measure),
             XmlDocument      => make_xml_projection_example(measure=measure),
+            # Pass a graphics document straight through; the layout sizes/places it
+            # via the generic graphics_size seam (so `GraphicsCircle(10,10,10)` shows).
+            GraphicsDocument => PreservingProjection(),
         ],
     )))
 end

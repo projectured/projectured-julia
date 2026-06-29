@@ -28,7 +28,7 @@ import ..LayoutModule: HorizontalLayout, VerticalLayout, GridLayout, FlowLayout,
 import ..ConstraintSolverModule: SolverAnchor, SolverRelation, solve_constraint_layout,
                                  ConstraintSolver, FallbackConstraintSolver
 import ..CollectionModule: CellVector
-import ..GraphicsModule: GraphicsCanvas, layout_none, hit_element_at
+import ..GraphicsModule: GraphicsCanvas, GraphicsDocument, graphics_size, layout_none, hit_element_at
 import ..IoMapModule: SimpleIoMap, ChildrenIoMap, ContentIoMap
 import ..IoMapApiModule: IoMap
 import ..MouseModule: MouseScroll, MousePress
@@ -126,11 +126,13 @@ _empty_canvas() = GraphicsCanvas(Int32(0), Int32(0), Int32(0), Int32(0),
                                  CellVector(), layout_none, true, Cell(nothing))
 
 """
-Wrap a child `GraphicsCanvas` at the (x, y) given by two cells. The
-wrapper is a fresh canvas at (x, y) whose single element is the child
-canvas — same pattern as `_make_canvas` in `WidgetToGraphics`.
+Wrap a child graphics document at the (x, y) given by two cells. The wrapper is
+a fresh canvas at (x, y) whose single element is the child — usually a
+`GraphicsCanvas`, but any `GraphicsDocument` (a bare primitive) works too, so a
+primitive can be positioned directly. Same pattern as `_make_canvas` in
+`WidgetToGraphics`.
 """
-function _wrap_child(child::GraphicsCanvas, x_cell::Cell, y_cell::Cell)
+function _wrap_child(child::GraphicsDocument, x_cell::Cell, y_cell::Cell)
     GraphicsCanvas(x_cell, y_cell,
                    Cell(Int32(0)), Cell(Int32(0)),
                    CellVector(Cell[Cell(child)]),
@@ -268,16 +270,23 @@ Read `w` from a child iomap's output. Returns 0 when the output isn't
 a `GraphicsCanvas` (defensive — the layout still works, just collapses
 to the children that are canvases).
 """
+# A child's intrinsic extent. A laid-out child is normally a `GraphicsCanvas`
+# (its `w`/`h` are the authored size). A bare graphics primitive
+# (`GraphicsCircle`, `GraphicsLine`, …) reports its size generically via
+# `graphics_size`, so it can be a layout child directly without being wrapped in
+# a sized canvas.
 function _child_w(cim)
     c = cim.output
-    c isa GraphicsCanvas || return 0
-    Int(c.w[])
+    c isa GraphicsCanvas && return Int(c.w[])
+    c isa GraphicsDocument && return graphics_size(c)[1]
+    0
 end
 
 function _child_h(cim)
     c = cim.output
-    c isa GraphicsCanvas || return 0
-    Int(c.h[])
+    c isa GraphicsCanvas && return Int(c.h[])
+    c isa GraphicsDocument && return graphics_size(c)[2]
+    0
 end
 
 # ── Allocation cell helpers ────────────────────────────────────────────────
@@ -327,7 +336,7 @@ function projection_print(p::LayoutConstraintToGraphicsCanvas,
             SimpleIoMap(nothing, child, child) :
             projection_printer_recurse(recursion, child,
                              child_context(ctx, @reference ^(ctx.reference).child))
-    output = inner.output isa GraphicsCanvas ? inner.output : _empty_canvas()
+    output = inner.output isa GraphicsDocument ? inner.output : _empty_canvas()
     ContentIoMap(p, doc, output, inner)
 end
 
@@ -512,7 +521,7 @@ function _hl_build(recursion, doc, ctx)
     wrapped = Any[]
     for i in 1:n
         c = child_iomaps[i].output
-        c isa GraphicsCanvas || continue
+        c isa GraphicsDocument || continue
         push!(wrapped, _wrap_child(c, child_x[i], child_y[i]))
     end
 
@@ -603,7 +612,7 @@ function _vl_build(recursion, doc, ctx)
     wrapped = Any[]
     for i in 1:n
         c = child_iomaps[i].output
-        c isa GraphicsCanvas || continue
+        c isa GraphicsDocument || continue
         push!(wrapped, _wrap_child(c, child_x[i], child_y[i]))
     end
 
@@ -838,7 +847,7 @@ function projection_print(p::GridLayoutToGraphicsCanvas,
     wrapped = Any[]
     for i in 1:n
         c = child_iomaps[i].output
-        c isa GraphicsCanvas || continue
+        c isa GraphicsDocument || continue
         push!(wrapped, _wrap_child(c, child_x[i], child_y[i]))
     end
 
@@ -1029,7 +1038,7 @@ function projection_print(p::FlowLayoutToGraphicsCanvas,
     wrapped = Any[]
     for i in 1:n
         c = child_iomaps[i].output
-        c isa GraphicsCanvas || continue
+        c isa GraphicsDocument || continue
         push!(wrapped, _wrap_child(c, child_x[i], child_y[i]))
     end
 
@@ -1365,7 +1374,7 @@ function _cl_build(solver, recursion, doc, ctx)
     wrapped = Any[]
     for i in 1:n
         c = final_iomaps[i].output
-        c isa GraphicsCanvas || continue
+        c isa GraphicsDocument || continue
         push!(wrapped, _wrap_child(c, child_x[i], child_y[i]))
     end
 
