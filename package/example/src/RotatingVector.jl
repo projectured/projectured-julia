@@ -48,8 +48,7 @@ function make_rotating_vector_document()
 
     # static circle outline marking the path: an *unfilled* ring (transparent
     # fill + grey outline). Only the dot below is a filled disc.
-    ring = GraphicsCircle(_RV_CX, _RV_CY, _RV_R, 0, 0, 0, 0;
-                          border_width = 2, border_color = _RV_AXIS)
+    ring = GraphicsCircle(_RV_CX, _RV_CY, _RV_R, 0, 0, 0, 0; border_width = 2, border_color = _RV_AXIS)
 
     # chart axes — static. Each wave gets a zero baseline (the time axis) and an
     # amplitude axis spanning ±R, so the oscillation is read against a frame.
@@ -130,7 +129,3 @@ function make_rotating_vector_document()
                     ring, sin_link, cos_link, sin_chart, cos_chart, dot];
                    w = _RV_W, h = _RV_H)
 end
-
-# The document is already a GraphicsCanvas, so the example uses the identity
-# `PreservingProjection` directly (see `Examples.jl`): it passes the canvas
-# straight through to the backend / `write_image`.
