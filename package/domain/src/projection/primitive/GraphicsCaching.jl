@@ -15,6 +15,7 @@ module GraphicsCachingModule
 
 import ..ProjectionApiModule: projection_print, projection_read, map_reference_forward, map_reference_backward, Projection
 import ..GraphicsModule: GraphicsCanvas, GraphicsText, GraphicsRect, GraphicsViewport, hit_element_at
+import ..ColorModule: StyleColor
 import ..FontModule: font_logical_size
 import ..CollectionModule: CellVector, ListNode
 import ..ReactiveModule: Cell, setfn!
@@ -55,12 +56,12 @@ end
 
 # Color palette for distinguishing cached images
 const _checker_colors = [
-    (UInt8(255), UInt8(230), UInt8(230), UInt8(40)),  # pale red
-    (UInt8(230), UInt8(255), UInt8(230), UInt8(40)),  # pale green
-    (UInt8(230), UInt8(230), UInt8(255), UInt8(40)),  # pale blue
-    (UInt8(255), UInt8(255), UInt8(210), UInt8(40)),  # pale yellow
-    (UInt8(255), UInt8(220), UInt8(255), UInt8(40)),  # pale magenta
-    (UInt8(220), UInt8(255), UInt8(255), UInt8(40)),  # pale cyan
+    StyleColor(255 / 255, 230 / 255, 230 / 255, 40 / 255),  # pale red
+    StyleColor(230 / 255, 255 / 255, 230 / 255, 40 / 255),  # pale green
+    StyleColor(230 / 255, 230 / 255, 255 / 255, 40 / 255),  # pale blue
+    StyleColor(255 / 255, 255 / 255, 210 / 255, 40 / 255),  # pale yellow
+    StyleColor(255 / 255, 220 / 255, 255 / 255, 40 / 255),  # pale magenta
+    StyleColor(220 / 255, 255 / 255, 255 / 255, 40 / 255),  # pale cyan
 ]
 const _checker_counter = Ref(0)
 
@@ -88,7 +89,6 @@ end
 function _make_checker_background(canvas::GraphicsCanvas)
     _checker_counter[] += 1
     color = _checker_colors[mod1(_checker_counter[], length(_checker_colors))]
-    r, g, b, a = color
     bx, by, bw, bh = _compute_bounds(canvas)
     step = 16
     rects = Cell[]
@@ -98,7 +98,7 @@ function _make_checker_background(canvas::GraphicsCanvas)
                 push!(rects, Cell(GraphicsRect(
                     Int32(bx + col * step), Int32(by + row * step),
                     Int32(min(step, bw - col * step)), Int32(min(step, bh - row * step)),
-                    r, g, b, a)))
+                    color)))
             end
         end
     end

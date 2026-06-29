@@ -19,6 +19,7 @@ import ..ReactiveModule: Cell, setfn!, setval!
 import ..DocumentModule: Document, @document
 import ..CollectionModule: CellVector, ListNode, CollectionDocument
 import ..FontModule: StyleFont, font_logical_size
+import ..ColorModule: StyleColor, color_white, color_black
 import ..ReferenceModule: Reference
 import ..GeometryModule: AffineTransform, affine_identity, affine_is_axis_aligned
 export GraphicsDocument, LayoutDirection, layout_none, layout_horizontal, layout_vertical,
@@ -46,30 +47,26 @@ end
 # ── GraphicsText ───────────────────────────────────────────────────────
 
 """
-    GraphicsText(text, x, y, font, r, g, b, a)
+    GraphicsText(text, x, y, font, color::StyleColor=color_white)
 
 A reactive text element for rendering.
 Each field is a `Cell`, so changes to any property are tracked
-and can trigger incremental redraws.
+and can trigger incremental redraws. `color` is a [`StyleColor`](@ref); each
+backend converts it to its own device encoding at draw time.
 """
 @document struct GraphicsText <: GraphicsDocument
     text::String
     x::Int32
     y::Int32
     font::StyleFont
-    r::UInt8
-    g::UInt8
-    b::UInt8
-    a::UInt8
+    color::StyleColor
     selection::Reference
 end
 
 function GraphicsText(text::AbstractString, x::Integer, y::Integer,
-                      font::StyleFont,
-                      r::Integer=255, g::Integer=255, b::Integer=255, a::Integer=255)
+                      font::StyleFont, color::StyleColor=color_white)
     GraphicsText(Cell(text), Cell(Int32(x)), Cell(Int32(y)),
-                 Cell(font),
-                 Cell(UInt8(r)), Cell(UInt8(g)), Cell(UInt8(b)), Cell(UInt8(a)),
+                 Cell(font), Cell(color),
                  Cell(nothing))
 end
 
@@ -84,9 +81,10 @@ Each corner has an independent radius in pixels (`0` means a square
 corner). The positional `radius` is a shorthand that applies to all four
 corners; per-corner keyword arguments override it.
 
-An optional `border_width` (pixels) + `border_color` (an `(r,g,b,a)` tuple,
-0–255) paints a rounded outline *inside* the rect, so a single primitive can
-express the "rounded fill + 1px outline" idiom without stacking rects.
+An optional `border_width` (pixels) + `border_color` (a [`StyleColor`](@ref))
+paints a rounded outline *inside* the rect, so a single primitive can express
+the "rounded fill + 1px outline" idiom without stacking rects. `border_color`
+may be passed as `nothing` for "no border" (a transparent default).
 Each field is a `Cell`.
 """
 @document struct GraphicsRect <: GraphicsDocument
@@ -94,49 +92,45 @@ Each field is a `Cell`.
     y::Int32
     w::Int32
     h::Int32
-    r::UInt8
-    g::UInt8
-    b::UInt8
-    a::UInt8
+    color::StyleColor
     radius_tl::Int32
     radius_tr::Int32
     radius_br::Int32
     radius_bl::Int32
     border_width::Int32
-    border_r::UInt8
-    border_g::UInt8
-    border_b::UInt8
-    border_a::UInt8
+    border_color::StyleColor
     selection::Reference
 end
 
-_norm_rgba(::Nothing) = (UInt8(0), UInt8(0), UInt8(0), UInt8(0))
-_norm_rgba(c::NTuple{4,<:Integer}) = (UInt8(c[1]), UInt8(c[2]), UInt8(c[3]), UInt8(c[4]))
+# Normalize a `border_color` argument: `nothing` → fully transparent (no border
+# drawn; `border_width` still gates whether an outline is painted).
+_norm_border(::Nothing) = StyleColor(0.0, 0.0, 0.0, 0.0)
+_norm_border(c::StyleColor) = c
 
 function GraphicsRect(x::Integer, y::Integer, w::Integer, h::Integer,
-                      r::Integer=255, g::Integer=255, b::Integer=255, a::Integer=255,
+                      color::StyleColor=color_white,
                       radius::Integer=0;
                       radius_tl::Integer=radius, radius_tr::Integer=radius,
                       radius_br::Integer=radius, radius_bl::Integer=radius,
                       border_width::Integer=0, border_color=nothing)
-    br, bg, bb, ba = _norm_rgba(border_color)
     GraphicsRect(Cell(Int32(x)), Cell(Int32(y)), Cell(Int32(w)), Cell(Int32(h)),
-                 Cell(UInt8(r)), Cell(UInt8(g)), Cell(UInt8(b)), Cell(UInt8(a)),
+                 Cell(color),
                  Cell(Int32(radius_tl)), Cell(Int32(radius_tr)),
                  Cell(Int32(radius_br)), Cell(Int32(radius_bl)),
                  Cell(Int32(border_width)),
-                 Cell(br), Cell(bg), Cell(bb), Cell(ba),
+                 Cell(_norm_border(border_color)),
                  Cell(nothing))
 end
 
 # ── GraphicsLine ───────────────────────────────────────────────────────────
 
 """
-    GraphicsLine(x1, y1, x2, y2, r, g, b, a; width=1, dash=nothing)
+    GraphicsLine(x1, y1, x2, y2, color::StyleColor=color_black; width=1, dash=nothing)
 
-A reactive straight line from `(x1,y1)` to `(x2,y2)` in color `(r,g,b,a)` with
-the given stroke `width`. Axis-aligned lines (separators, rules) render as a
-crisp filled span; diagonal lines render anti-aliased.
+A reactive straight line from `(x1,y1)` to `(x2,y2)` in `color` (a
+[`StyleColor`](@ref)) with the given stroke `width`. Axis-aligned lines
+(separators, rules) render as a crisp filled span; diagonal lines render
+anti-aliased.
 
 `dash` selects a dashed stroke: `nothing` is solid, an integer `n` repeats an
 `n`-pixel dash and `n`-pixel gap, and a `(on, off)` tuple gives independent
@@ -148,10 +142,7 @@ stay crisp on axis-aligned lines and follow the slope on diagonals.
     y1::Int32
     x2::Int32
     y2::Int32
-    r::UInt8
-    g::UInt8
-    b::UInt8
-    a::UInt8
+    color::StyleColor
     width::Int32
     dash::Any              # nothing | (on::Int, off::Int) — dash pattern in pixels
     selection::Reference
@@ -163,66 +154,58 @@ _norm_dash(n::Integer) = (Int(n), Int(n))
 _norm_dash(d) = (Int(d[1]), Int(d[2]))
 
 function GraphicsLine(x1::Integer, y1::Integer, x2::Integer, y2::Integer,
-                      r::Integer=0, g::Integer=0, b::Integer=0, a::Integer=255;
+                      color::StyleColor=color_black;
                       width::Integer=1, dash=nothing)
     GraphicsLine(Cell(Int32(x1)), Cell(Int32(y1)), Cell(Int32(x2)), Cell(Int32(y2)),
-                 Cell(UInt8(r)), Cell(UInt8(g)), Cell(UInt8(b)), Cell(UInt8(a)),
+                 Cell(color),
                  Cell(Int32(width)), Cell(_norm_dash(dash)), Cell(nothing))
 end
 
 # ── GraphicsCircle ─────────────────────────────────────────────────────────
 
 """
-    GraphicsCircle(cx, cy, radius, r, g, b, a; border_width=0, border_color=nothing)
+    GraphicsCircle(cx, cy, radius, color::StyleColor=color_black; border_width=0, border_color=nothing)
 
-A reactive filled circle centered at `(cx,cy)`. Optional anti-aliased outline
-via `border_width` + `border_color` (an `(r,g,b,a)` tuple). Used for avatars,
-radio dots, switch knobs and slider thumbs.
+A reactive filled circle centered at `(cx,cy)` in `color` (a [`StyleColor`](@ref)).
+Optional anti-aliased outline via `border_width` + `border_color` (a
+[`StyleColor`](@ref), or `nothing` for no border). Used for avatars, radio dots,
+switch knobs and slider thumbs.
 """
 @document struct GraphicsCircle <: GraphicsDocument
     cx::Int32
     cy::Int32
     radius::Int32
-    r::UInt8
-    g::UInt8
-    b::UInt8
-    a::UInt8
+    color::StyleColor
     border_width::Int32
-    border_r::UInt8
-    border_g::UInt8
-    border_b::UInt8
-    border_a::UInt8
+    border_color::StyleColor
     selection::Reference
 end
 
 function GraphicsCircle(cx::Integer, cy::Integer, radius::Integer,
-                        r::Integer=0, g::Integer=0, b::Integer=0, a::Integer=255;
+                        color::StyleColor=color_black;
                         border_width::Integer=0, border_color=nothing)
-    bor, bog, bob, boa = _norm_rgba(border_color)
     GraphicsCircle(Cell(Int32(cx)), Cell(Int32(cy)), Cell(Int32(radius)),
-                   Cell(UInt8(r)), Cell(UInt8(g)), Cell(UInt8(b)), Cell(UInt8(a)),
+                   Cell(color),
                    Cell(Int32(border_width)),
-                   Cell(bor), Cell(bog), Cell(bob), Cell(boa),
+                   Cell(_norm_border(border_color)),
                    Cell(nothing))
 end
 
 # ── GraphicsPolyline ─────────────────────────────────────────────────────
 
 """
-    GraphicsPolyline(points, r, g, b, a; width=1, start_arrow=false, end_arrow=false, arrow_size=8)
+    GraphicsPolyline(points, color::StyleColor=color_black; width=1, start_arrow=false, end_arrow=false, arrow_size=8)
 
 A reactive connected sequence of straight segments through `points` (a
-`Vector{Tuple{Int,Int}}` of absolute `(x, y)` pixels) in color `(r,g,b,a)` with
-stroke `width`. This is the canonical edge primitive for a routed connector — a
-libavoid-style polyline route. Optional filled-triangle arrowheads at the start
-and/or end, sized `arrow_size` pixels, oriented along the adjacent segment.
+`Vector{Tuple{Int,Int}}` of absolute `(x, y)` pixels) in `color` (a
+[`StyleColor`](@ref)) with stroke `width`. This is the canonical edge primitive
+for a routed connector — a libavoid-style polyline route. Optional
+filled-triangle arrowheads at the start and/or end, sized `arrow_size` pixels,
+oriented along the adjacent segment.
 """
 @document struct GraphicsPolyline <: GraphicsDocument
     points::Any            # Vector{Tuple{Int,Int}}
-    r::UInt8
-    g::UInt8
-    b::UInt8
-    a::UInt8
+    color::StyleColor
     width::Int32
     start_arrow::Bool
     end_arrow::Bool
@@ -231,12 +214,11 @@ and/or end, sized `arrow_size` pixels, oriented along the adjacent segment.
 end
 
 function GraphicsPolyline(points::AbstractVector,
-                          r::Integer=0, g::Integer=0, b::Integer=0, a::Integer=255;
+                          color::StyleColor=color_black;
                           width::Integer=1, start_arrow::Bool=false,
                           end_arrow::Bool=false, arrow_size::Integer=8)
     pts = Tuple{Int,Int}[(Int(p[1]), Int(p[2])) for p in points]
-    GraphicsPolyline(Cell(pts),
-                     Cell(UInt8(r)), Cell(UInt8(g)), Cell(UInt8(b)), Cell(UInt8(a)),
+    GraphicsPolyline(Cell(pts), Cell(color),
                      Cell(Int32(width)), Cell(start_arrow), Cell(end_arrow),
                      Cell(Int32(arrow_size)), Cell(nothing))
 end
@@ -244,10 +226,11 @@ end
 # ── GraphicsSpline ───────────────────────────────────────────────────────
 
 """
-    GraphicsSpline(points, r, g, b, a; kind=:catmullrom, width=1,
+    GraphicsSpline(points, color::StyleColor=color_black; kind=:catmullrom, width=1,
                    start_arrow=false, end_arrow=false, arrow_size=8, segments=12)
 
-A reactive smooth curve through/along `points` (a `Vector{Tuple{Int,Int}}`).
+A reactive smooth curve through/along `points` (a `Vector{Tuple{Int,Int}}`) in
+`color` (a [`StyleColor`](@ref)).
 `kind` is `:catmullrom` (curve passes through the points) or `:bezier` (the
 points are control points of a cubic Bézier chain). Backends tessellate to a
 polyline at render time via [`tessellate_spline`](@ref) (`segments` samples per
@@ -257,10 +240,7 @@ span), so curve quality is one shared knob. Arrowhead flags as on
 @document struct GraphicsSpline <: GraphicsDocument
     points::Any            # Vector{Tuple{Int,Int}}
     kind::Symbol
-    r::UInt8
-    g::UInt8
-    b::UInt8
-    a::UInt8
+    color::StyleColor
     width::Int32
     start_arrow::Bool
     end_arrow::Bool
@@ -270,13 +250,12 @@ span), so curve quality is one shared knob. Arrowhead flags as on
 end
 
 function GraphicsSpline(points::AbstractVector,
-                        r::Integer=0, g::Integer=0, b::Integer=0, a::Integer=255;
+                        color::StyleColor=color_black;
                         kind::Symbol=:catmullrom, width::Integer=1,
                         start_arrow::Bool=false, end_arrow::Bool=false,
                         arrow_size::Integer=8, segments::Integer=12)
     pts = Tuple{Int,Int}[(Int(p[1]), Int(p[2])) for p in points]
-    GraphicsSpline(Cell(pts), Cell(kind),
-                   Cell(UInt8(r)), Cell(UInt8(g)), Cell(UInt8(b)), Cell(UInt8(a)),
+    GraphicsSpline(Cell(pts), Cell(kind), Cell(color),
                    Cell(Int32(width)), Cell(start_arrow), Cell(end_arrow),
                    Cell(Int32(arrow_size)), Cell(Int32(segments)), Cell(nothing))
 end

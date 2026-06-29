@@ -323,19 +323,14 @@ _sc(px::Integer) = Int(px)
 # A widget's authored `position` is in logical pixels, like insets.
 _origin(pos::Point2D) = (Int(pos.x[]), Int(pos.y[]))
 
-# (r,g,b,a) tuple of integers for a StyleColor, for GraphicsRect/Circle kwargs.
-_rgbai(c::StyleColor) = (Int(round(c.red * 255)), Int(round(c.green * 255)),
-                         Int(round(c.blue * 255)), Int(round(c.alpha * 255)))
-
 # Push a themed rounded box (fill + optional outline) of size cw×ch at (x,y).
 function _push_panel!(elems::Vector, x::Int, y::Int, cw::Int, ch::Int;
                       fill::StyleColor, border=nothing, border_w::Int=0, radius::Int=0)
-    r, g, b, a = _rgbai(fill)
     if border !== nothing && border_w > 0
-        push!(elems, GraphicsRect(x, y, cw, ch, r, g, b, a, radius;
-                                  border_width=border_w, border_color=_rgbai(border)))
+        push!(elems, GraphicsRect(x, y, cw, ch, fill, radius;
+                                  border_width=border_w, border_color=border))
     else
-        push!(elems, GraphicsRect(x, y, cw, ch, r, g, b, a, radius))
+        push!(elems, GraphicsRect(x, y, cw, ch, fill, radius))
     end
 end
 
@@ -363,8 +358,8 @@ end
 # ring-coloured border shows.
 function _push_focus_ring!(elems::Vector, w::WidgetDocument, cw::Int, ch::Int,
                            ring_color::StyleColor, radius::Int)
-    ring = GraphicsRect(0, 0, 0, 0, 0x00, 0x00, 0x00, 0x00, radius;
-                        border_width=2, border_color=_rgbai(ring_color))
+    ring = GraphicsRect(0, 0, 0, 0, StyleColor(0.0, 0.0, 0.0, 0.0), radius;
+                        border_width=2, border_color=ring_color)
     setfn!(getfield(ring, :w), () -> getfield(w, :selection)[] === nothing ? Int32(0) : Int32(cw))
     setfn!(getfield(ring, :h), () -> getfield(w, :selection)[] === nothing ? Int32(0) : Int32(ch))
     push!(elems, ring)
@@ -534,7 +529,6 @@ end
 
 # ── Color helpers ──────────────────────────────────────────────────────────
 
-_rgba(c::StyleColor) = (UInt8(round(c.red * 255)), UInt8(round(c.green * 255)), UInt8(round(c.blue * 255)), UInt8(round(c.alpha * 255)))
 
 # ── Box model helpers ──────────────────────────────────────────────────────
 
@@ -589,37 +583,33 @@ function _push_box_rects!(elems::Vector, w::WidgetDocument,
 
     mc = w.margin_color
     if mc isa StyleColor
-        r, g, blu, a = _rgba(mc)
         total_w = ml + bl + pw + br + mr
-        mt > 0 && push!(elems, GraphicsRect(bx,                      by, total_w, mt,  r, g, blu, a))
-        mb > 0 && push!(elems, GraphicsRect(bx, by + mt + bt + ph + bb, total_w, mb,  r, g, blu, a))
-        ml > 0 && push!(elems, GraphicsRect(bx,              by + mt,   ml, bt + ph + bb, r, g, blu, a))
-        mr > 0 && push!(elems, GraphicsRect(bx + ml + bl + pw + br, by + mt, mr, bt + ph + bb, r, g, blu, a))
+        mt > 0 && push!(elems, GraphicsRect(bx,                      by, total_w, mt,  mc))
+        mb > 0 && push!(elems, GraphicsRect(bx, by + mt + bt + ph + bb, total_w, mb,  mc))
+        ml > 0 && push!(elems, GraphicsRect(bx,              by + mt,   ml, bt + ph + bb, mc))
+        mr > 0 && push!(elems, GraphicsRect(bx + ml + bl + pw + br, by + mt, mr, bt + ph + bb, mc))
     end
 
     bc = w.border_color
     if bc isa StyleColor
-        r, g, blu, a = _rgba(bc)
         bx2, by2 = bx + ml, by + mt
-        bt > 0 && push!(elems, GraphicsRect(bx2,              by2,         bl + pw + br, bt,  r, g, blu, a))
-        bb > 0 && push!(elems, GraphicsRect(bx2, by2 + bt + ph,            bl + pw + br, bb,  r, g, blu, a))
-        bl > 0 && push!(elems, GraphicsRect(bx2,         by2 + bt,         bl, ph,           r, g, blu, a))
-        br > 0 && push!(elems, GraphicsRect(bx2 + bl + pw, by2 + bt,       br, ph,           r, g, blu, a))
+        bt > 0 && push!(elems, GraphicsRect(bx2,              by2,         bl + pw + br, bt,  bc))
+        bb > 0 && push!(elems, GraphicsRect(bx2, by2 + bt + ph,            bl + pw + br, bb,  bc))
+        bl > 0 && push!(elems, GraphicsRect(bx2,         by2 + bt,         bl, ph,           bc))
+        br > 0 && push!(elems, GraphicsRect(bx2 + bl + pw, by2 + bt,       br, ph,           bc))
     end
 
     pc = w.padding_color
     if pc isa StyleColor
-        r, g, blu, a = _rgba(pc)
-        push!(elems, GraphicsRect(bx + ml + bl, by + mt + bt, pw, ph, r, g, blu, a))
+        push!(elems, GraphicsRect(bx + ml + bl, by + mt + bt, pw, ph, pc))
     end
 end
 
 # ── Text helpers ───────────────────────────────────────────────────────────
 
 function _push_text!(elems::Vector, font::StyleFont, text::AbstractString,
-                     x::Int, y::Int, fg::NTuple{4,UInt8})
-    r, g, b, a = fg
-    push!(elems, GraphicsText(text, x, y, font, r, g, b, a))
+                     x::Int, y::Int, fg::StyleColor)
+    push!(elems, GraphicsText(text, x, y, font, fg))
 end
 
 # A callable wrapper so the backend text-measure function can be stored as a
@@ -670,12 +660,12 @@ function _push_content!(elems::Vector, measure, label::StyleText, content,
         data, _, _ = _image_payload(content)
         if data === nothing
             # Not decoded yet — keep layout stable with a faint placeholder.
-            push!(elems, GraphicsRect(x, y, cw, ch, 0x00, 0x00, 0x00, 0x14))
+            push!(elems, GraphicsRect(x, y, cw, ch, StyleColor(0.0, 0.0, 0.0, 0x14 / 255)))
         else
             push!(elems, GraphicsImage(Int32(x), Int32(y), Int32(cw), Int32(ch), data))
         end
     else
-        _push_text!(elems, label.font, string(content), x, y, _rgba(label.color))
+        _push_text!(elems, label.font, string(content), x, y, label.color)
     end
 end
 
@@ -821,7 +811,7 @@ function projection_print(p::WidgetInsertionToGraphicsCanvas, recursion, w::Widg
     content = "insert here"
     content_width, content_height = _text_size(p.measure, p.text.font, content)
     elements = Any[]
-    _push_text!(elements, p.text.font, content, 0, 0, _rgba(p.text.color))
+    _push_text!(elements, p.text.font, content, 0, 0, p.text.color)
     SimpleIoMap(p, w, _make_canvas(0, 0, content_width, content_height, elements))
 end
 
@@ -873,7 +863,7 @@ function projection_print(p::WidgetTextToGraphicsCanvas, recursion, w::WidgetTex
     tx, ty = _inset_total(w)
     elems = Any[]
     _push_box!(elems, w, cw, ch; fill=p.background_color, border=p.border_color, radius=radius)
-    _push_text!(elems, p.text.font, text, cox, coy, _rgba(p.text.color))
+    _push_text!(elems, p.text.font, text, cox, coy, p.text.color)
     _push_focus_ring!(elems, w, cw + tx, ch + ty, p.ring_color, radius)
     SimpleIoMap(p, w, _make_canvas(_origin(pos)..., cw + tx, ch + ty, elems))
 end
@@ -945,14 +935,13 @@ function projection_print(p::WidgetCheckboxToGraphicsCanvas, recursion, w::Widge
     outline_color = enabled ? p.outline.color : p.disabled_foreground
     if checked
         _push_panel!(elements, 0, 0, box_size, box_size; fill=checked_fill, radius=corner_radius)
-        red, green, blue, alpha = _rgbai(check_color)
         check_width = max(1, _sc(p.check.width))
         # Crisp two-stroke checkmark instead of a glyph.
         x1, y1 = round(Int, 0.22box_size), round(Int, 0.52box_size)
         x2, y2 = round(Int, 0.42box_size), round(Int, 0.70box_size)
         x3, y3 = round(Int, 0.78box_size), round(Int, 0.30box_size)
-        push!(elements, GraphicsLine(x1, y1, x2, y2, red, green, blue, alpha; width=check_width))
-        push!(elements, GraphicsLine(x2, y2, x3, y3, red, green, blue, alpha; width=check_width))
+        push!(elements, GraphicsLine(x1, y1, x2, y2, check_color; width=check_width))
+        push!(elements, GraphicsLine(x2, y2, x3, y3, check_color; width=check_width))
     else
         _push_panel!(elements, 0, 0, box_size, box_size; fill=empty_fill,
                      border=outline_color, border_w=max(1, _sc(p.outline.width)), radius=corner_radius)
@@ -1134,7 +1123,7 @@ function projection_print(p::WidgetTooltipToGraphicsCanvas, recursion, w::Widget
     body = Any[]
     if content isa AbstractString
         cw, ch = _text_size(p.measure, p.text.font, content)
-        _push_text!(body, p.text.font, content, cox, coy, _rgba(p.text.color))
+        _push_text!(body, p.text.font, content, cox, coy, p.text.color)
     elseif content isa WidgetDocument
         cim = projection_printer_recurse(recursion, content, ctx)
         inner = cim.output
@@ -1322,11 +1311,11 @@ function projection_print(p::WidgetDialogToGraphicsCanvas, recursion, w::WidgetD
     card_x = max(0, (avail_w - card_w) ÷ 2); card_y = max(0, (avail_h - card_h) ÷ 2)
 
     elements = Any[]
-    push!(elements, GraphicsRect(0, 0, avail_w, avail_h, 0x00, 0x00, 0x00, 0x66))  # scrim
+    push!(elements, GraphicsRect(0, 0, avail_w, avail_h, StyleColor(0.0, 0.0, 0.0, 0x66 / 255)))  # scrim
     _push_panel!(elements, card_x, card_y, card_w, card_h; fill=p.card_color,
                  border=p.border.color, border_w=max(1, _sc(p.border.width)), radius=radius)
     tx = card_x + pad_x; ty = card_y + pad_y
-    _push_text!(elements, p.title.font, title, tx, ty, _rgba(p.title.color))
+    _push_text!(elements, p.title.font, title, tx, ty, p.title.color)
     cursor_y = ty + title_h
 
     content_entry = nothing
@@ -1337,7 +1326,7 @@ function projection_print(p::WidgetDialogToGraphicsCanvas, recursion, w::WidgetD
             push!(elements, _make_canvas(ox, oy, Any[content_iomap.output]))
             content_entry = (ox, oy, content_iomap)
         else
-            _push_text!(elements, p.body.font, string(content), card_x + pad_x, cursor_y, _rgba(p.body.color))
+            _push_text!(elements, p.body.font, string(content), card_x + pad_x, cursor_y, p.body.color)
         end
         cursor_y += content_h
     end
@@ -1438,7 +1427,7 @@ function projection_print(p::WidgetMenuItemToGraphicsCanvas, recursion, w::Widge
         icon_w = icon_width(icon, ch)
         gap = icon_w > 0 ? _sc(6) : 0
         icon_w > 0 && _push_icon!(elems, icon, cox, coy, ch, fg)
-        _push_text!(elems, p.text.font, text, cox + icon_w + gap, coy, _rgba(fg))
+        _push_text!(elems, p.text.font, text, cox + icon_w + gap, coy, fg)
         cw += icon_w + gap
     end
     # Hover surface behind the content (Stage 6), only when hovered + enabled.
@@ -1727,8 +1716,7 @@ function projection_print(p::WidgetShellToGraphicsCanvas, recursion, w::WidgetSh
     child_iomaps = Any[]
     sz  = w.size
     if sz isa Point2D
-        r, g, b, a = _rgba(p.background_color)
-        push!(elems, GraphicsRect(cox, coy, Int(sz.x[]), Int(sz.y[]), r, g, b, a))
+        push!(elems, GraphicsRect(cox, coy, Int(sz.x[]), Int(sz.y[]), p.background_color))
     end
     content_y = coy
     mb = w.menu_bar
@@ -1912,7 +1900,7 @@ function projection_print(p::WidgetTitlePaneToGraphicsCanvas, recursion, w::Widg
     title = string(w.title)
     tw, th = _text_size(p.measure, p.title_text.font, title)
     # Card-like: bold title, body in the content style.
-    _push_text!(elems, p.title_text.font, title, cox, coy, _rgba(p.title_text.color))
+    _push_text!(elems, p.title_text.font, title, cox, coy, p.title_text.color)
     content_y = coy + th + _sc(p.title_gap)
     content = w.content
     if content isa WidgetDocument
@@ -1920,7 +1908,7 @@ function projection_print(p::WidgetTitlePaneToGraphicsCanvas, recursion, w::Widg
         push!(child_iomaps, (cox, content_y, cim))
         push!(elems, _make_canvas(cox, content_y, Any[cim.output]))
     elseif content isa AbstractString
-        _push_text!(elems, p.content_text.font, content, cox, content_y, _rgba(p.content_text.color))
+        _push_text!(elems, p.content_text.font, content, cox, content_y, p.content_text.color)
     end
     ChildrenIoMap(p, w, _make_canvas(0, 0, elems), Cell(child_iomaps))
 end
@@ -1974,7 +1962,7 @@ function projection_print(p::WidgetSplitPaneToGraphicsCanvas, recursion, w::Widg
     main_axis = orientation === :horizontal ? :x : :y
     sizes = w.sizes
     splitter_thickness = max(1, _sc(p.splitter.width))
-    splitter_rgba = _rgba(p.splitter.color)
+    splitter_color = p.splitter.color
 
     # Keep only Document children; LayoutConstraint and bare widgets both
     # work — the wrapper is transparent for projection (we recurse into
@@ -2141,7 +2129,7 @@ function projection_print(p::WidgetSplitPaneToGraphicsCanvas, recursion, w::Widg
             for i in 1:(n-1)
                 cursor += Int(slot_main[i][])
                 push!(result, GraphicsRect(cursor, coy, splitter_thickness, cross_extent,
-                                           splitter_rgba...))
+                                           splitter_color))
                 cursor += splitter_thickness
             end
         else
@@ -2149,7 +2137,7 @@ function projection_print(p::WidgetSplitPaneToGraphicsCanvas, recursion, w::Widg
             for i in 1:(n-1)
                 cursor += Int(slot_main[i][])
                 push!(result, GraphicsRect(cox, cursor, cross_extent, splitter_thickness,
-                                           splitter_rgba...))
+                                           splitter_color))
                 cursor += splitter_thickness
             end
         end
@@ -2456,7 +2444,7 @@ function projection_print(p::WidgetTabbedPaneToGraphicsCanvas, recursion, w::Wid
             end
             fg = i == active ? p.active_foreground : p.inactive_foreground
             iw > 0 && _push_icon!(result, icon, tx + sel_pad, coy + sel_pad, iw, fg)
-            _push_text!(result, p.font, label, tx + sel_pad + iw + gap, coy + sel_pad, _rgba(fg))
+            _push_text!(result, p.font, label, tx + sel_pad + iw + gap, coy + sel_pad, fg)
         end
         result
     end)
@@ -2725,16 +2713,13 @@ function projection_print(p::WidgetScrollPaneToGraphicsCanvas, recursion, w::Wid
     elems = Any[]
     cfc = w.content_fill_color
     bgc = cfc isa StyleColor ? cfc : p.background_color
-    let (r, g, b, a) = _rgba(bgc)
-        # Cell-backed rect so it tracks the viewport extent.
-        push!(elems, GraphicsRect(Cell(Int32(cox)), Cell(Int32(coy)), vw_cell, vh_cell,
-                                  Cell(UInt8(r)), Cell(UInt8(g)), Cell(UInt8(b)), Cell(UInt8(a)),
-                                  Cell(Int32(0)), Cell(Int32(0)),
-                                  Cell(Int32(0)), Cell(Int32(0)),
-                                  Cell(Int32(0)),
-                                  Cell(UInt8(0)), Cell(UInt8(0)), Cell(UInt8(0)), Cell(UInt8(0)),
-                                  Cell(nothing)))
-    end
+    # Cell-backed rect so it tracks the viewport extent.
+    push!(elems, GraphicsRect(Cell(Int32(cox)), Cell(Int32(coy)), vw_cell, vh_cell,
+                              Cell(bgc),
+                              Cell(Int32(0)), Cell(Int32(0)), Cell(Int32(0)), Cell(Int32(0)),
+                              Cell(Int32(0)),
+                              Cell(StyleColor(0.0, 0.0, 0.0, 0.0)),
+                              Cell(nothing)))
     # Recurse into the content with the viewport extent on each axis — the
     # context cells are already deferred, so the recursion stays lazy.
     content_iomap = nothing
@@ -2860,15 +2845,12 @@ function projection_print(p::WidgetTransformPaneToGraphicsCanvas, recursion, w::
     elems = Any[]
     cfc = w.content_fill_color
     bgc = cfc isa StyleColor ? cfc : p.background_color
-    let (r, g, b, a) = _rgba(bgc)
-        push!(elems, GraphicsRect(Cell(Int32(cox)), Cell(Int32(coy)), vw_cell, vh_cell,
-                                  Cell(UInt8(r)), Cell(UInt8(g)), Cell(UInt8(b)), Cell(UInt8(a)),
-                                  Cell(Int32(0)), Cell(Int32(0)),
-                                  Cell(Int32(0)), Cell(Int32(0)),
-                                  Cell(Int32(0)),
-                                  Cell(UInt8(0)), Cell(UInt8(0)), Cell(UInt8(0)), Cell(UInt8(0)),
-                                  Cell(nothing)))
-    end
+    push!(elems, GraphicsRect(Cell(Int32(cox)), Cell(Int32(coy)), vw_cell, vh_cell,
+                              Cell(bgc),
+                              Cell(Int32(0)), Cell(Int32(0)), Cell(Int32(0)), Cell(Int32(0)),
+                              Cell(Int32(0)),
+                              Cell(StyleColor(0.0, 0.0, 0.0, 0.0)),
+                              Cell(nothing)))
     # Recurse into the content at the viewport's (unscaled) logical extent — the
     # content lays out at 1× and the viewport's transform magnifies it.
     content_iomap = nothing
@@ -3036,7 +3018,7 @@ function projection_print(p::WidgetStatusBarToGraphicsCanvas, recursion, w::Widg
     for seg in w.elements
         s = string(seg)
         tw, th = _text_size(p.measure, p.text.font, s)
-        _push_text!(labels, p.text.font, s, x, coy, _rgba(p.text.color))
+        _push_text!(labels, p.text.font, s, x, coy, p.text.color)
         x += tw + gap; text_h = max(text_h, th)
     end
     width  = _resolve_width(ctx, x, x)
@@ -3066,20 +3048,18 @@ function projection_print(p::WidgetScrollBarToGraphicsCanvas, _, w::WidgetScroll
     cw = max(1, bw - tx)
     ch = max(1, bh - ty)
     elems = Any[]
-    tr, tg, tb, ta = _rgba(p.track_color)
     trad = min(cw, ch) ÷ 2
-    push!(elems, GraphicsRect(cox, coy, cw, ch, tr, tg, tb, ta, trad))
+    push!(elems, GraphicsRect(cox, coy, cw, ch, p.track_color, trad))
     value    = clamp(Float64(w.value),     0.0, 1.0)
     thumb_sz = clamp(Float64(w.thumb_size), 0.05, 1.0)
-    hr, hg, hb, ha = _rgba(p.thumb_color)
     if w.orientation === :horizontal
         tw = max(p.minimum_thumb_length, Int(round(thumb_sz * cw)))
         tx_pos = cox + Int(round(value * (cw - tw)))
-        push!(elems, GraphicsRect(tx_pos, coy, tw, ch, hr, hg, hb, ha, ch ÷ 2))
+        push!(elems, GraphicsRect(tx_pos, coy, tw, ch, p.thumb_color, ch ÷ 2))
     else
         th = max(p.minimum_thumb_length, Int(round(thumb_sz * ch)))
         ty_pos = coy + Int(round(value * (ch - th)))
-        push!(elems, GraphicsRect(cox, ty_pos, cw, th, hr, hg, hb, ha, cw ÷ 2))
+        push!(elems, GraphicsRect(cox, ty_pos, cw, th, p.thumb_color, cw ÷ 2))
     end
     SimpleIoMap(p, w, _make_canvas(px, py, elems))
 end
@@ -3167,8 +3147,7 @@ function projection_print(p::WidgetBadgeToGraphicsCanvas, recursion, w::WidgetBa
     border_width = border !== nothing ? max(1, _sc(p.border_width)) : 0
     elements = Any[]
     _push_panel!(elements, 0, 0, badge_width, badge_height; fill=fill, border=border, border_w=border_width, radius=badge_height ÷ 2)
-    red, green, blue, alpha = _rgbai(foreground)
-    push!(elements, GraphicsText(text, padding_x, (badge_height - text_height) ÷ 2, p.font, red, green, blue, alpha))
+    push!(elements, GraphicsText(text, padding_x, (badge_height - text_height) ÷ 2, p.font, foreground))
     SimpleIoMap(p, w, _make_canvas(_origin(position)..., badge_width, badge_height, elements))
 end
 @_printer_only WidgetBadgeToGraphicsCanvas
@@ -3183,14 +3162,13 @@ function projection_print(p::WidgetSeparatorToGraphicsCanvas, recursion, w::Widg
     w.visible == false && return SimpleIoMap(p, w, _empty_canvas())
     position = w.position::Point2D
     rule_length = _sc(Int(w.length))
-    red, green, blue, alpha = _rgba(p.stroke.color)
     thickness = max(1, _sc(p.stroke.width))
     elements = Any[]
     if w.orientation === :vertical
-        push!(elements, GraphicsLine(0, 0, 0, rule_length, red, green, blue, alpha; width=thickness))
+        push!(elements, GraphicsLine(0, 0, 0, rule_length, p.stroke.color; width=thickness))
         SimpleIoMap(p, w, _make_canvas(_origin(position)..., thickness, rule_length, elements))
     else
-        push!(elements, GraphicsLine(0, 0, rule_length, 0, red, green, blue, alpha; width=thickness))
+        push!(elements, GraphicsLine(0, 0, rule_length, 0, p.stroke.color; width=thickness))
         SimpleIoMap(p, w, _make_canvas(_origin(position)..., rule_length, thickness, elements))
     end
 end
@@ -3236,13 +3214,13 @@ function _card_build(p, w, ctx, tim, cim)
     elseif w.title !== nothing
         title = string(w.title)
         title_width, title_height = _text_size(p.measure, p.title_text.font, title)
-        _push_text!(elements, p.title_text.font, title, padding, y, _rgba(p.title_text.color))
+        _push_text!(elements, p.title_text.font, title, padding, y, p.title_text.color)
         max_content_width = max(max_content_width, title_width); y += title_height + _sc(p.title_gap)
     end
     if w.description !== nothing
         description = string(w.description)
         description_width, description_height = _text_size(p.measure, p.description_text.font, description)
-        _push_text!(elements, p.description_text.font, description, padding, y, _rgba(p.description_text.color))
+        _push_text!(elements, p.description_text.font, description, padding, y, p.description_text.color)
         max_content_width = max(max_content_width, description_width); y += description_height + _sc(p.section_gap)
     end
     content = w.content
@@ -3254,13 +3232,13 @@ function _card_build(p, w, ctx, tim, cim)
         y += inner isa GraphicsCanvas ? Int(inner.h[]) + _sc(p.section_gap) : _sc(p.section_gap)
     elseif content isa AbstractString
         content_width, content_height = _text_size(p.measure, p.content_text.font, content)
-        _push_text!(elements, p.content_text.font, content, padding, y, _rgba(p.content_text.color))
+        _push_text!(elements, p.content_text.font, content, padding, y, p.content_text.color)
         max_content_width = max(max_content_width, content_width); y += content_height + _sc(p.section_gap)
     end
     if w.footer !== nothing
         footer = string(w.footer)
         footer_width, footer_height = _text_size(p.measure, p.footer_text.font, footer)
-        _push_text!(elements, p.footer_text.font, footer, padding, y, _rgba(p.footer_text.color))
+        _push_text!(elements, p.footer_text.font, footer, padding, y, p.footer_text.color)
         max_content_width = max(max_content_width, footer_width); y += footer_height
     end
     card_width = _resolve_width(ctx, _sc(Int(w.width)), max_content_width + 2padding)
@@ -3362,15 +3340,13 @@ function projection_print(p::WidgetSwitchToGraphicsCanvas, recursion, w::WidgetS
     track_height = _sc(Int(p.track_size.y[]))
     elements = Any[]
     track_color = !enabled ? p.disabled_color : on ? p.on_color : p.off_color
-    track_red, track_green, track_blue, track_alpha = _rgba(track_color)
-    push!(elements, GraphicsRect(0, 0, track_width, track_height, track_red, track_green, track_blue, track_alpha, track_height ÷ 2))
+    push!(elements, GraphicsRect(0, 0, track_width, track_height, track_color, track_height ÷ 2))
     knob_padding = _sc(p.knob_padding)
     knob_radius  = (track_height - 2knob_padding) ÷ 2
     left_x  = knob_padding + knob_radius
     right_x = track_width - knob_padding - knob_radius
-    knob_red, knob_green, knob_blue, knob_alpha = _rgbai(p.knob_color)
-    knob = GraphicsCircle(on ? right_x : left_x, track_height ÷ 2, knob_radius, knob_red, knob_green, knob_blue, knob_alpha;
-                          border_width=max(1, _sc(p.knob_border.width)), border_color=_rgbai(p.knob_border.color))
+    knob = GraphicsCircle(on ? right_x : left_x, track_height ÷ 2, knob_radius, p.knob_color;
+                          border_width=max(1, _sc(p.knob_border.width)), border_color=p.knob_border.color)
     # The knob's x is a computed cell. It reads `checked` (so it tracks the
     # logical state and snaps when there is no animation) and, while a slide is
     # in flight, `reactive_editor_time()` (so it re-evaluates every frame). Once
@@ -3447,12 +3423,10 @@ function projection_print(p::WidgetProgressToGraphicsCanvas, recursion, w::Widge
     bar_width  = _resolve_width(ctx, _sc(Int(w.width)))
     bar_height = _sc(p.bar_height)
     elements = Any[]
-    track_red, track_green, track_blue, track_alpha = _rgba(p.track_color)
-    push!(elements, GraphicsRect(0, 0, bar_width, bar_height, track_red, track_green, track_blue, track_alpha, bar_height ÷ 2))
+    push!(elements, GraphicsRect(0, 0, bar_width, bar_height, p.track_color, bar_height ÷ 2))
     filled_width = round(Int, value * bar_width)
     if filled_width > 0
-        fill_red, fill_green, fill_blue, fill_alpha = _rgba(p.fill_color)
-        push!(elements, GraphicsRect(0, 0, filled_width, bar_height, fill_red, fill_green, fill_blue, fill_alpha, bar_height ÷ 2))
+        push!(elements, GraphicsRect(0, 0, filled_width, bar_height, p.fill_color, bar_height ÷ 2))
     end
     SimpleIoMap(p, w, _make_canvas(_origin(position)..., bar_width, bar_height, elements))
 end
@@ -3486,13 +3460,10 @@ function projection_print(p::WidgetSliderToGraphicsCanvas, recursion, w::WidgetS
     track_c = enabled ? p.track_color : p.disabled_color
     fill_c  = enabled ? p.fill_color  : p.disabled_color
     knob_c  = enabled ? p.knob_color  : p.disabled_color
-    track_red, track_green, track_blue, track_alpha = _rgba(track_c)
-    push!(elements, GraphicsRect(0, center_y - track_thickness ÷ 2, slider_width, track_thickness, track_red, track_green, track_blue, track_alpha, track_thickness ÷ 2))
-    fill_red, fill_green, fill_blue, fill_alpha = _rgba(fill_c)
-    filled_width > 0 && push!(elements, GraphicsRect(0, center_y - track_thickness ÷ 2, filled_width, track_thickness, fill_red, fill_green, fill_blue, fill_alpha, track_thickness ÷ 2))
-    knob_red, knob_green, knob_blue, knob_alpha = _rgbai(knob_c)
-    push!(elements, GraphicsCircle(filled_width, center_y, _sc(p.knob_radius), knob_red, knob_green, knob_blue, knob_alpha;
-                                   border_width=max(1, _sc(p.knob_border.width)), border_color=_rgbai(p.knob_border.color)))
+    push!(elements, GraphicsRect(0, center_y - track_thickness ÷ 2, slider_width, track_thickness, track_c, track_thickness ÷ 2))
+    filled_width > 0 && push!(elements, GraphicsRect(0, center_y - track_thickness ÷ 2, filled_width, track_thickness, fill_c, track_thickness ÷ 2))
+    push!(elements, GraphicsCircle(filled_width, center_y, _sc(p.knob_radius), knob_c;
+                                   border_width=max(1, _sc(p.knob_border.width)), border_color=p.knob_border.color))
     _push_focus_ring!(elements, w, slider_width, slider_height, p.ring_color, slider_height ÷ 2)
     SimpleIoMap(p, w, _make_canvas(_origin(position)..., slider_width, slider_height, elements))
 end
@@ -3536,14 +3507,14 @@ function projection_print(p::WidgetRadioGroupToGraphicsCanvas, recursion, w::Wid
         row_height = max(diameter, label_height)
         center_y = y + row_height ÷ 2
         if i == selected
-            push!(elements, GraphicsCircle(diameter ÷ 2, center_y, diameter ÷ 2, _rgbai(p.button_fill)...;
-                                           border_width=max(1, _sc(p.selected_ring.width)), border_color=_rgbai(sel_ring)))
-            push!(elements, GraphicsCircle(diameter ÷ 2, center_y, _sc(p.dot_radius), _rgbai(dot_color)...))
+            push!(elements, GraphicsCircle(diameter ÷ 2, center_y, diameter ÷ 2, p.button_fill;
+                                           border_width=max(1, _sc(p.selected_ring.width)), border_color=sel_ring))
+            push!(elements, GraphicsCircle(diameter ÷ 2, center_y, _sc(p.dot_radius), dot_color))
         else
-            push!(elements, GraphicsCircle(diameter ÷ 2, center_y, diameter ÷ 2, _rgbai(p.button_fill)...;
-                                           border_width=max(1, _sc(p.unselected_ring.width)), border_color=_rgbai(unsel_ring)))
+            push!(elements, GraphicsCircle(diameter ÷ 2, center_y, diameter ÷ 2, p.button_fill;
+                                           border_width=max(1, _sc(p.unselected_ring.width)), border_color=unsel_ring))
         end
-        _push_text!(elements, p.label_text.font, label, diameter + label_gap, y + (row_height - label_height) ÷ 2, _rgba(label_col))
+        _push_text!(elements, p.label_text.font, label, diameter + label_gap, y + (row_height - label_height) ÷ 2, label_col)
         max_width = max(max_width, diameter + label_gap + label_width)
         y += row_height + row_gap
     end
@@ -3567,10 +3538,9 @@ function projection_print(p::WidgetAvatarToGraphicsCanvas, recursion, w::WidgetA
     radius = size ÷ 2
     initials = string(w.initials)
     elements = Any[]
-    push!(elements, GraphicsCircle(radius, radius, radius, _rgbai(p.background_color)...))
+    push!(elements, GraphicsCircle(radius, radius, radius, p.background_color))
     initials_width, initials_height = _text_size(p.measure, p.initials.font, initials)
-    red, green, blue, alpha = _rgbai(p.initials.color)
-    push!(elements, GraphicsText(initials, radius - initials_width ÷ 2, radius - initials_height ÷ 2, p.initials.font, red, green, blue, alpha))
+    push!(elements, GraphicsText(initials, radius - initials_width ÷ 2, radius - initials_height ÷ 2, p.initials.font, p.initials.color))
     SimpleIoMap(p, w, _make_canvas(_origin(position)..., size, size, elements))
 end
 @_printer_only WidgetAvatarToGraphicsCanvas
@@ -3603,13 +3573,13 @@ function projection_print(p::WidgetAlertToGraphicsCanvas, recursion, w::WidgetAl
     y = padding
     title = string(w.title)
     title_width, title_height = _text_size(p.measure, p.title_font, title)
-    _push_text!(elements, p.title_font, title, padding, y, _rgba(title_color))
+    _push_text!(elements, p.title_font, title, padding, y, title_color)
     max_content_width = max(max_content_width, title_width); y += title_height
     if w.description !== nothing
         y += _sc(p.title_gap)
         description = string(w.description)
         description_width, description_height = _text_size(p.measure, p.description_text.font, description)
-        _push_text!(elements, p.description_text.font, description, padding, y, _rgba(p.description_text.color))
+        _push_text!(elements, p.description_text.font, description, padding, y, p.description_text.color)
         max_content_width = max(max_content_width, description_width); y += description_height
     end
     alert_width = _resolve_width(ctx, _sc(Int(w.width)), max_content_width + 2padding)
@@ -3634,8 +3604,7 @@ function projection_print(p::WidgetSkeletonToGraphicsCanvas, recursion, w::Widge
     position = w.position::Point2D
     block_width  = _resolve_width(ctx, _sc(Int(w.width)))
     block_height = _sc(Int(w.height))
-    red, green, blue, alpha = _rgba(p.fill_color)
-    elements = Any[GraphicsRect(0, 0, block_width, block_height, red, green, blue, alpha, _sc(p.corner_radius))]
+    elements = Any[GraphicsRect(0, 0, block_width, block_height, p.fill_color, _sc(p.corner_radius))]
     SimpleIoMap(p, w, _make_canvas(_origin(position)..., block_width, block_height, elements))
 end
 @_printer_only WidgetSkeletonToGraphicsCanvas
@@ -3644,14 +3613,13 @@ end
 # `stroke` is the line width; callers pass the theme's icon stroke.
 function _push_chevron!(elems::Vector, cx::Int, cy::Int, s::Int, dir::Symbol, color::StyleColor;
                         stroke::Int=max(1, _sc(2)))
-    r, g, b, a = _rgba(color)
     w = stroke
     if dir === :right
-        push!(elems, GraphicsLine(cx - s ÷ 2, cy - s, cx + s ÷ 2, cy, r, g, b, a; width=w))
-        push!(elems, GraphicsLine(cx + s ÷ 2, cy, cx - s ÷ 2, cy + s, r, g, b, a; width=w))
+        push!(elems, GraphicsLine(cx - s ÷ 2, cy - s, cx + s ÷ 2, cy, color; width=w))
+        push!(elems, GraphicsLine(cx + s ÷ 2, cy, cx - s ÷ 2, cy + s, color; width=w))
     else
-        push!(elems, GraphicsLine(cx - s, cy - s ÷ 2, cx, cy + s ÷ 2, r, g, b, a; width=w))
-        push!(elems, GraphicsLine(cx, cy + s ÷ 2, cx + s, cy - s ÷ 2, r, g, b, a; width=w))
+        push!(elems, GraphicsLine(cx - s, cy - s ÷ 2, cx, cy + s ÷ 2, color; width=w))
+        push!(elems, GraphicsLine(cx, cy + s ÷ 2, cx + s, cy - s ÷ 2, color; width=w))
     end
 end
 
@@ -3693,8 +3661,7 @@ icon_width(name, size::Int) = (name !== nothing && haskey(ICON_REGISTRY, name)) 
 # (No icon font is bundled yet; use any `StyleFont` whose glyph the backend has.)
 glyph_icon(font::StyleFont, codepoint) =
     (elems, x, y, size, color) -> begin
-        r, g, b, a = _rgba(color)
-        push!(elems, GraphicsText(string(codepoint), x, y, font, r, g, b, a))
+        push!(elems, GraphicsText(string(codepoint), x, y, font, color))
     end
 
 # A raster icon: blit an `ImageDocument`'s decoded pixels (NOT tinted — for art).
@@ -3708,11 +3675,10 @@ image_icon(image::ImageDocument) =
 # and offset to `(x, y)`. `closed` repeats the first point to close the outline.
 function _icon_path!(elems::Vector, x::Int, y::Int, size::Int, color::StyleColor,
                      pts::Vector{<:Tuple}; closed::Bool=false, width::Int=0)
-    r, g, b, a = _rgba(color)
     w = width > 0 ? width : max(1, size ÷ 8)
     P = Tuple{Int,Int}[(x + round(Int, px * size), y + round(Int, py * size)) for (px, py) in pts]
     closed && length(P) > 1 && push!(P, P[1])
-    push!(elems, GraphicsPolyline(P, r, g, b, a; width=w))
+    push!(elems, GraphicsPolyline(P, color; width=w))
 end
 
 # ── Built-in vector icon set ────────────────────────────────────────────────
@@ -3743,10 +3709,9 @@ _icon_trash(e, x, y, s, c) = (_icon_path!(e, x, y, s, c, [(0.20, 0.30), (0.80, 0
                               _icon_path!(e, x, y, s, c, [(0.40, 0.30), (0.40, 0.20), (0.60, 0.20), (0.60, 0.30)]);
                               _icon_path!(e, x, y, s, c, [(0.27, 0.30), (0.31, 0.82), (0.69, 0.82), (0.73, 0.30)]))
 _icon_search(e, x, y, s, c) = begin
-    r, g, b, a = _rgba(c)
     cx = x + round(Int, 0.42s); cy = y + round(Int, 0.42s); rad = max(2, round(Int, 0.22s))
     # Hollow ring (transparent fill, tinted outline) + a diagonal handle.
-    push!(e, GraphicsCircle(cx, cy, rad, r, g, b, 0x00; border_width=max(1, s ÷ 9), border_color=(r, g, b, a)))
+    push!(e, GraphicsCircle(cx, cy, rad, StyleColor(c.red, c.green, c.blue, 0.0); border_width=max(1, s ÷ 9), border_color=c))
     _icon_path!(e, x, y, s, c, [(0.60, 0.60), (0.84, 0.84)])
 end
 
@@ -3795,8 +3760,7 @@ function projection_print(p::WidgetToggleToGraphicsCanvas, recursion, w::WidgetT
     elements = Any[]
     _push_panel!(elements, 0, 0, control_width, control_height; fill=fill, border=border_color,
                  border_w=border_width, radius=_sc(p.corner_radius))
-    red, green, blue, alpha = _rgbai(foreground)
-    push!(elements, GraphicsText(text, (control_width - text_width) ÷ 2, (control_height - text_height) ÷ 2, p.font, red, green, blue, alpha))
+    push!(elements, GraphicsText(text, (control_width - text_width) ÷ 2, (control_height - text_height) ÷ 2, p.font, foreground))
     _push_focus_ring!(elements, w, control_width, control_height, p.ring_color, _sc(p.corner_radius))
     SimpleIoMap(p, w, _make_canvas(_origin(position)..., control_width, control_height, elements))
 end
@@ -3852,8 +3816,7 @@ function projection_print(p::WidgetToggleGroupToGraphicsCanvas, recursion, w::Wi
         end
         text_width, segment_text_height = _text_size(p.measure, p.font, labels[i])
         foreground = i == selected ? sel_fg : unsel_fg
-        red, green, blue, alpha = _rgbai(foreground)
-        push!(elements, GraphicsText(labels[i], x + (segment_width - text_width) ÷ 2, (control_height - segment_text_height) ÷ 2, p.font, red, green, blue, alpha))
+        push!(elements, GraphicsText(labels[i], x + (segment_width - text_width) ÷ 2, (control_height - segment_text_height) ÷ 2, p.font, foreground))
         x += segment_width
     end
     _push_focus_ring!(elements, w, control_width, control_height, p.ring_color, corner_radius)
@@ -3910,8 +3873,7 @@ function projection_print(p::WidgetSelectToGraphicsCanvas, recursion, w::WidgetS
     elements = Any[]
     _push_panel!(elements, 0, 0, control_width, control_height; fill=box_fill, border=p.border.color,
                  border_w=max(1, _sc(p.border.width)), radius=_sc(p.corner_radius))
-    red, green, blue, alpha = _rgbai(text_color)
-    push!(elements, GraphicsText(text, padding_x, (control_height - text_height) ÷ 2, p.text.font, red, green, blue, alpha))
+    push!(elements, GraphicsText(text, padding_x, (control_height - text_height) ÷ 2, p.text.font, text_color))
     _push_chevron!(elements, control_width - padding_x - chevron_size, control_height ÷ 2, chevron_size, :down,
                    chevron_color; stroke=max(1, _sc(p.chevron.width)))
     _push_focus_ring!(elements, w, control_width, control_height, p.ring_color, _sc(p.corner_radius))
@@ -3980,8 +3942,7 @@ function projection_print(p::WidgetOptionToGraphicsCanvas, recursion, w::WidgetO
     row_height = text_height + 2padding_y
     elements = Any[]
     _push_panel!(elements, 0, 0, row_width, row_height; fill=p.background_color)
-    red, green, blue, alpha = _rgbai(p.text.color)
-    push!(elements, GraphicsText(label, padding_x, (row_height - text_height) ÷ 2, p.text.font, red, green, blue, alpha))
+    push!(elements, GraphicsText(label, padding_x, (row_height - text_height) ÷ 2, p.text.font, p.text.color))
     SimpleIoMap(p, w, _make_canvas(_origin(position)..., row_width, row_height, elements))
 end
 
@@ -4049,10 +4010,9 @@ function projection_print(p::WidgetSpinBoxToGraphicsCanvas, recursion, w::Widget
     elements = Any[]
     _push_panel!(elements, 0, 0, control_width, control_height; fill=box_fill,
                  border=p.border.color, border_w=bw, radius=_sc(p.corner_radius))
-    _push_text!(elements, p.text.font, text, pad_x, (control_height - th) ÷ 2, _rgba(text_color))
+    _push_text!(elements, p.text.font, text, pad_x, (control_height - th) ÷ 2, text_color)
     sx = control_width - stepper_w
-    r, g, b, a = _rgba(p.border.color)
-    push!(elements, GraphicsLine(sx, 0, sx, control_height, r, g, b, a; width=bw))
+    push!(elements, GraphicsLine(sx, 0, sx, control_height, p.border.color; width=bw))
     isz = max(8, control_height ÷ 2 - _sc(3))
     ix = sx + (stepper_w - isz) ÷ 2
     _push_icon!(elements, :plus,  ix, (control_height ÷ 2 - isz) ÷ 2, isz, step_color)
@@ -4128,7 +4088,7 @@ function projection_print(p::WidgetListToGraphicsCanvas, recursion, w::WidgetLis
             _push_panel!(elements, 0, y, control_width, row_height; fill=p.selected_color)
             fg = p.selected_foreground
         end
-        _push_text!(elements, p.text.font, string(it), pad_x, y + pad_y, _rgba(fg))
+        _push_text!(elements, p.text.font, string(it), pad_x, y + pad_y, fg)
     end
     canvas = _make_canvas(_origin(position)..., control_width, control_height, elements)
     WidgetListToGraphicsCanvasIoMap(p, w, canvas, row_height, control_width)
@@ -4185,9 +4145,8 @@ function projection_print(p::WidgetTextareaToGraphicsCanvas, recursion, w::Widge
     elements = Any[]
     _push_panel!(elements, 0, 0, area_width, area_height; fill=box_fill, border=p.border.color,
                  border_w=max(1, _sc(p.border.width)), radius=_sc(p.corner_radius))
-    red, green, blue, alpha = _rgbai(text_color)
     for (i, line) in enumerate(lines)
-        push!(elements, GraphicsText(String(line), padding_x, padding_y + (i - 1) * line_height, p.text.font, red, green, blue, alpha))
+        push!(elements, GraphicsText(String(line), padding_x, padding_y + (i - 1) * line_height, p.text.font, text_color))
     end
     _push_focus_ring!(elements, w, area_width, area_height, p.ring_color, _sc(p.corner_radius))
     SimpleIoMap(p, w, _make_canvas(_origin(position)..., area_width, area_height, elements))
@@ -4228,25 +4187,22 @@ function projection_print(p::WidgetAccordionToGraphicsCanvas, recursion, w::Widg
     accordion_width = _resolve_width(ctx, _sc(Int(w.width)), content_min)
     elements = Any[]
     y = 0
-    rule_red, rule_green, rule_blue, rule_alpha = _rgba(p.rule.color)
     rule_width = max(1, _sc(p.rule.width))
-    title_red, title_green, title_blue, title_alpha = _rgbai(p.title_text.color)
-    body_red, body_green, body_blue, body_alpha = _rgbai(p.body_text.color)
     for (i, item) in enumerate(w.items)
         title = string(item.title)
         body  = item.body === nothing ? "" : string(item.body)
         _, title_height = _text_size(p.measure, p.title_text.font, title)
         row_height = title_height + 2padding_y
-        push!(elements, GraphicsText(title, padding_x, y + padding_y, p.title_text.font, title_red, title_green, title_blue, title_alpha))
+        push!(elements, GraphicsText(title, padding_x, y + padding_y, p.title_text.font, p.title_text.color))
         _push_chevron!(elements, accordion_width - padding_x - chevron_size, y + row_height ÷ 2, chevron_size,
                        i == expanded ? :down : :right, p.chevron.color; stroke=max(1, _sc(p.chevron.width)))
         y += row_height
         if i == expanded && !isempty(body)
             _, body_height = _text_size(p.measure, p.body_text.font, body)
-            push!(elements, GraphicsText(body, padding_x, y + _sc(p.body_gap), p.body_text.font, body_red, body_green, body_blue, body_alpha))
+            push!(elements, GraphicsText(body, padding_x, y + _sc(p.body_gap), p.body_text.font, p.body_text.color))
             y += body_height + padding_y
         end
-        push!(elements, GraphicsLine(0, y, accordion_width, y, rule_red, rule_green, rule_blue, rule_alpha; width=rule_width))
+        push!(elements, GraphicsLine(0, y, accordion_width, y, p.rule.color; width=rule_width))
     end
     SimpleIoMap(p, w, _make_canvas(_origin(position)..., accordion_width, y, elements))
 end
@@ -4282,10 +4238,7 @@ end
 end
 
 # Translucent selection accent (same blue the syntax-text / old table highlight used).
-const _WT_HL_R = 0x88
-const _WT_HL_G = 0xbb
-const _WT_HL_B = 0xee
-const _WT_HL_A = 0x40
+const _WT_HL_COLOR = StyleColor(0x88 / 255, 0xbb / 255, 0xee / 255, 0x40 / 255)
 const _WT_HL_RADIUS = 4
 
 # Grid geometry snapshot for a WidgetTable, derived from the GridLayoutIoMap plus
@@ -4519,16 +4472,13 @@ function projection_print(p::WidgetTableToGraphicsCanvas, recursion, w::WidgetTa
                      nrows, ncols, has_ch, has_rh, pad, bw)
     end)
 
-    rule_r, rule_g, rule_b, rule_a = _rgba(p.rule.color)
-    hf_r, hf_g, hf_b, hf_a = _rgba(p.header_fill)
-
     # Persistent selection-highlight overlay: one rect whose bounds read the
     # selection (collapsed to 0×0 when there is none — the renderer skips it).
     # Keeping the selection read OUT of the elements thunk means a caret move
     # invalidates only this rect's geometry, not the whole content vector
     # (printer-locality dimension A; the focus-ring / text-cursor overlay pattern).
     hl_bounds = Cell(() -> _wt_highlight_bounds(w.selection, geometry[]))
-    highlight_rect = GraphicsRect(0, 0, 0, 0, _WT_HL_R, _WT_HL_G, _WT_HL_B, _WT_HL_A, _WT_HL_RADIUS)
+    highlight_rect = GraphicsRect(0, 0, 0, 0, _WT_HL_COLOR, _WT_HL_RADIUS)
     setfn!(getfield(highlight_rect, :x), () -> Int32(hl_bounds[][1]))
     setfn!(getfield(highlight_rect, :y), () -> Int32(hl_bounds[][2]))
     setfn!(getfield(highlight_rect, :w), () -> Int32(hl_bounds[][3]))
@@ -4542,10 +4492,10 @@ function projection_print(p::WidgetTableToGraphicsCanvas, recursion, w::WidgetTa
         # 1. Header strip backgrounds (behind everything). The column-header strip
         #    occupies grid row 1; the row-header strip occupies grid column 1.
         if geom.has_col_headers
-            push!(result, GraphicsRect(0, 0, geom.total_w, geom.row_y[2], hf_r, hf_g, hf_b, hf_a))
+            push!(result, GraphicsRect(0, 0, geom.total_w, geom.row_y[2], p.header_fill))
         end
         if geom.has_row_headers
-            push!(result, GraphicsRect(0, 0, geom.col_x[2], geom.total_h, hf_r, hf_g, hf_b, hf_a))
+            push!(result, GraphicsRect(0, 0, geom.col_x[2], geom.total_h, p.header_fill))
         end
         # 2. Selection highlight overlay (persistent; its geometry reads the
         #    selection so this thunk does not), behind the grid content and rules.
@@ -4561,12 +4511,12 @@ function projection_print(p::WidgetTableToGraphicsCanvas, recursion, w::WidgetTa
         #    inner rules, bottom border).
         for gr in 1:(geom.grid_rows + 1)
             push!(result, GraphicsRect(0, geom.row_y[gr], geom.total_w, bw,
-                                       rule_r, rule_g, rule_b, rule_a))
+                                       p.rule.color))
         end
         # 5. Vertical rules — at col_x[gc] for gc in 1..grid_cols+1.
         for gc in 1:(geom.grid_cols + 1)
             push!(result, GraphicsRect(geom.col_x[gc], 0, bw, geom.total_h,
-                                       rule_r, rule_g, rule_b, rule_a))
+                                       p.rule.color))
         end
         result
     end)
@@ -5060,8 +5010,6 @@ function projection_print(p::WidgetTreeToGraphicsCanvas, recursion, w::WidgetTre
         WTreeGeometry(rows, max_width[], y[])
     end)
 
-    label_red, label_green, label_blue, label_alpha = _rgbai(p.label_text.color)
-    icon_red, icon_green, icon_blue, icon_alpha = _rgbai(p.icon_text.color)
     chevron_stroke = max(1, _sc(p.chevron.width))
 
     # Persistent selection-band overlay: one full-width rect whose y/height read
@@ -5070,7 +5018,7 @@ function projection_print(p::WidgetTreeToGraphicsCanvas, recursion, w::WidgetTre
     # invalidates only this rect's geometry, not the content vector (dimension A;
     # the focus-ring / text-cursor overlay pattern).
     band_yh = Cell(() -> _wtree_highlight_band(w.selection, geometry[]))
-    selection_band = GraphicsRect(0, 0, 0, 0, _WT_HL_R, _WT_HL_G, _WT_HL_B, _WT_HL_A, _WT_HL_RADIUS)
+    selection_band = GraphicsRect(0, 0, 0, 0, _WT_HL_COLOR, _WT_HL_RADIUS)
     setfn!(getfield(selection_band, :y), () -> Int32(band_yh[][1]))
     setfn!(getfield(selection_band, :h), () -> Int32(band_yh[][2]))
     setfn!(getfield(selection_band, :w), () -> Int32(geometry[].total_w))
@@ -5095,10 +5043,10 @@ function projection_print(p::WidgetTreeToGraphicsCanvas, recursion, w::WidgetTre
             elseif icon isa AbstractString && !isempty(icon)
                 # A literal glyph string (e.g. an emoji), drawn as text.
                 push!(result, GraphicsText(icon, x + chevron_column, row.y0 + pad,
-                                           p.icon_text.font, icon_red, icon_green, icon_blue, icon_alpha))
+                                           p.icon_text.font, p.icon_text.color))
             end
             push!(result, GraphicsText(row.label, x + chevron_column + icon_column, row.y0 + pad,
-                                       p.label_text.font, label_red, label_green, label_blue, label_alpha))
+                                       p.label_text.font, p.label_text.color))
         end
         result
     end)

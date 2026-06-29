@@ -25,7 +25,7 @@ import ..TextModule: TextText, TextString, TextNewline, TextGraphics, TextDocume
 import ..GraphicsModule: GraphicsText, GraphicsRect, GraphicsImage, GraphicsCanvas, layout_none, layout_vertical
 import ..ImageModule: ImageDocument
 import ..FontModule: StyleFont, font_logical_size
-import ..ColorModule: StyleColor
+import ..ColorModule: StyleColor, color_black
 import ..ReferenceModule: ReferencePath, ConcreteReferencePath, ElementReference, PositionReference, RangeReference, PointReference, EmptyReferencePath, FieldReference, TextRectangularReference, head, tail
 import ..ReferenceCaseModule: var"@reference_case"
 import ..ReferenceBuilderModule: var"@reference"
@@ -235,13 +235,13 @@ function projection_print(p::TextToGraphics, recursion, styled::TextText, ctx)
     # Persistent overlay elements. Their geometry cells read the selection-
     # dependent `overlay`; a zero width hides them when inactive (the renderer
     # skips a zero-width rect).
-    cursor_rect = GraphicsRect(0, 0, 0, 0, 0x00, 0x00, 0x00, 0xff)
+    cursor_rect = GraphicsRect(0, 0, 0, 0, color_black)
     setfn!(getfield(cursor_rect, :x), () -> (g = overlay[].cursor; g === nothing ? Int32(0) : Int32(g[1])))
     setfn!(getfield(cursor_rect, :y), () -> (g = overlay[].cursor; g === nothing ? Int32(0) : Int32(g[2])))
     setfn!(getfield(cursor_rect, :w), () -> overlay[].cursor === nothing ? Int32(0) : Int32(2))
     setfn!(getfield(cursor_rect, :h), () -> (g = overlay[].cursor; g === nothing ? Int32(0) : Int32(max(g[3], 1))))
 
-    highlight_rect = GraphicsRect(0, 0, 0, 0, 0x88, 0xbb, 0xee, 0x40, 4)
+    highlight_rect = GraphicsRect(0, 0, 0, 0, StyleColor(0x88 / 255, 0xbb / 255, 0xee / 255, 0x40 / 255), 4)
     setfn!(getfield(highlight_rect, :x), () -> (g = overlay[].highlight; g === nothing ? Int32(0) : Int32(g[1])))
     setfn!(getfield(highlight_rect, :y), () -> (g = overlay[].highlight; g === nothing ? Int32(0) : Int32(g[2])))
     setfn!(getfield(highlight_rect, :w), () -> (g = overlay[].highlight; g === nothing ? Int32(0) : Int32(g[3])))
@@ -359,8 +359,6 @@ function _layout_text(p::TextToGraphics, styled::TextText, sel; collect_spans::B
         sf   = span.font::StyleFont                     # reads span font cell
         col  = span.font_color::StyleColor              # reads span font_color cell
 
-        r, g, b, a = (UInt8(round(col.red * 255)), UInt8(round(col.green * 255)), UInt8(round(col.blue * 255)), UInt8(round(col.alpha * 255)))
-
         lines = split(txt, '\n')
         for (li, line) in enumerate(lines)
             # Hard newline embedded in the span content.
@@ -403,7 +401,7 @@ function _layout_text(p::TextToGraphics, styled::TextText, sel; collect_spans::B
                 end
                 tpl = (kind = :text, key = (span_oid, span_occ, li),
                        text = String(line), x = seg_x, y = cy, font = sf,
-                       r = r, g = g, b = b, a = a)
+                       color = col)
                 push!(result, tpl)
                 by_key[tpl.key] = tpl
             end
@@ -452,9 +450,7 @@ _plget(layout, key) = get(layout[].by_key, key, nothing)
 function _fill_placement(span, key, x, y, w, h)
     fill = span.fill_color
     fill isa StyleColor || return nothing
-    (kind = :fill, key = key, x = x, y = y, w = w, h = h,
-     r = UInt8(round(fill.red * 255)), g = UInt8(round(fill.green * 255)),
-     b = UInt8(round(fill.blue * 255)), a = UInt8(round(fill.alpha * 255)))
+    (kind = :fill, key = key, x = x, y = y, w = w, h = h, color = fill)
 end
 
 _persistent_graphic!(cache, layout, pl) =
@@ -462,33 +458,29 @@ _persistent_graphic!(cache, layout, pl) =
                                    _make_persistent_text(layout, pl),
          cache, pl.key)
 
+# When a placement disappears (segment removed in a re-layout), the cell falls
+# back to a fully transparent color so the persistent graphic paints nothing.
+const _transparent = StyleColor(0.0, 0.0, 0.0, 0.0)
+
 function _make_persistent_text(layout, pl0)
     key = pl0.key
-    gt = GraphicsText(pl0.text, Int(pl0.x), Int(pl0.y), pl0.font,
-                      Int(pl0.r), Int(pl0.g), Int(pl0.b), Int(pl0.a))
-    setfn!(getfield(gt, :text), () -> (q = _plget(layout, key); q === nothing ? "" : q.text))
-    setfn!(getfield(gt, :x),    () -> (q = _plget(layout, key); Int32(q === nothing ? 0 : q.x)))
-    setfn!(getfield(gt, :y),    () -> (q = _plget(layout, key); Int32(q === nothing ? 0 : q.y)))
-    setfn!(getfield(gt, :font), () -> (q = _plget(layout, key); q === nothing ? pl0.font : q.font))
-    setfn!(getfield(gt, :r),    () -> (q = _plget(layout, key); UInt8(q === nothing ? 0 : q.r)))
-    setfn!(getfield(gt, :g),    () -> (q = _plget(layout, key); UInt8(q === nothing ? 0 : q.g)))
-    setfn!(getfield(gt, :b),    () -> (q = _plget(layout, key); UInt8(q === nothing ? 0 : q.b)))
-    setfn!(getfield(gt, :a),    () -> (q = _plget(layout, key); UInt8(q === nothing ? 0 : q.a)))
+    gt = GraphicsText(pl0.text, Int(pl0.x), Int(pl0.y), pl0.font, pl0.color)
+    setfn!(getfield(gt, :text),  () -> (q = _plget(layout, key); q === nothing ? "" : q.text))
+    setfn!(getfield(gt, :x),     () -> (q = _plget(layout, key); Int32(q === nothing ? 0 : q.x)))
+    setfn!(getfield(gt, :y),     () -> (q = _plget(layout, key); Int32(q === nothing ? 0 : q.y)))
+    setfn!(getfield(gt, :font),  () -> (q = _plget(layout, key); q === nothing ? pl0.font : q.font))
+    setfn!(getfield(gt, :color), () -> (q = _plget(layout, key); q === nothing ? _transparent : q.color))
     gt
 end
 
 function _make_persistent_rect(layout, pl0)
     key = pl0.key
-    rect = GraphicsRect(Int(pl0.x), Int(pl0.y), Int(pl0.w), Int(pl0.h),
-                        Int(pl0.r), Int(pl0.g), Int(pl0.b), Int(pl0.a))
-    setfn!(getfield(rect, :x), () -> (q = _plget(layout, key); Int32(q === nothing ? 0 : q.x)))
-    setfn!(getfield(rect, :y), () -> (q = _plget(layout, key); Int32(q === nothing ? 0 : q.y)))
-    setfn!(getfield(rect, :w), () -> (q = _plget(layout, key); Int32(q === nothing ? 0 : q.w)))
-    setfn!(getfield(rect, :h), () -> (q = _plget(layout, key); Int32(q === nothing ? 0 : q.h)))
-    setfn!(getfield(rect, :r), () -> (q = _plget(layout, key); UInt8(q === nothing ? 0 : q.r)))
-    setfn!(getfield(rect, :g), () -> (q = _plget(layout, key); UInt8(q === nothing ? 0 : q.g)))
-    setfn!(getfield(rect, :b), () -> (q = _plget(layout, key); UInt8(q === nothing ? 0 : q.b)))
-    setfn!(getfield(rect, :a), () -> (q = _plget(layout, key); UInt8(q === nothing ? 0 : q.a)))
+    rect = GraphicsRect(Int(pl0.x), Int(pl0.y), Int(pl0.w), Int(pl0.h), pl0.color)
+    setfn!(getfield(rect, :x),     () -> (q = _plget(layout, key); Int32(q === nothing ? 0 : q.x)))
+    setfn!(getfield(rect, :y),     () -> (q = _plget(layout, key); Int32(q === nothing ? 0 : q.y)))
+    setfn!(getfield(rect, :w),     () -> (q = _plget(layout, key); Int32(q === nothing ? 0 : q.w)))
+    setfn!(getfield(rect, :h),     () -> (q = _plget(layout, key); Int32(q === nothing ? 0 : q.h)))
+    setfn!(getfield(rect, :color), () -> (q = _plget(layout, key); q === nothing ? _transparent : q.color))
     rect
 end
 
@@ -627,15 +619,13 @@ function _layout_paragraph(p::TextToGraphics, spans::Vector, y_offset::Int)
         txt = span.content::AbstractString
         sf  = span.font::StyleFont
         col = span.font_color::StyleColor
-        r, g, b, a = (UInt8(round(col.red * 255)), UInt8(round(col.green * 255)),
-                       UInt8(round(col.blue * 255)), UInt8(round(col.alpha * 255)))
 
         isempty(txt) && continue
 
         seg_w, seg_h = p.measure(txt, sf)
         line_h = max(line_h, seg_h)
         _push_fill_rect!(result, span, cx, 0, seg_w, seg_h)
-        push!(result, _make_sdl(txt, cx, 0, sf, r, g, b, a))
+        push!(result, _make_sdl(txt, cx, 0, sf, col))
         cx += seg_w
     end
 
@@ -670,10 +660,9 @@ end
 # geometry-free `document_read` (in TextModule) and the geometry-dependent layout
 # / mouse / line-motion code that remains here.
 
-function _make_sdl(text, x, y, font, r, g, b, a)
+function _make_sdl(text, x, y, font, color::StyleColor)
     GraphicsText(Cell(text), Cell(Int32(x)), Cell(Int32(y)),
-                Cell(font),
-                Cell(UInt8(r)), Cell(UInt8(g)), Cell(UInt8(b)), Cell(UInt8(a)),
+                Cell(font), Cell(color),
                 Cell(nothing))
 end
 
@@ -684,11 +673,7 @@ end
 function _push_fill_rect!(result, span, x::Integer, y::Integer, w::Integer, h::Integer)
     fill = span.fill_color
     fill isa StyleColor || return
-    fr = UInt8(round(fill.red * 255))
-    fg = UInt8(round(fill.green * 255))
-    fb = UInt8(round(fill.blue * 255))
-    fa = UInt8(round(fill.alpha * 255))
-    push!(result, GraphicsRect(Int(x), Int(y), Int(w), Int(h), fr, fg, fb, fa))
+    push!(result, GraphicsRect(Int(x), Int(y), Int(w), Int(h), fill))
 end
 
 # ── Reader helpers ──────────────────────────────────────────────────────

@@ -22,6 +22,7 @@ import ProjecturedDomain.GraphicsModule: GraphicsCanvas, GraphicsText, GraphicsR
                          GraphicsViewport, GraphicsImage, GraphicsFence,
                          _bounds_elem!, _accumulate_bounds!, tessellate_spline
 import ProjecturedDomain.CollectionModule: ListNode, CellVector
+import ProjecturedDomain.ColorModule: StyleColor
 import ProjecturedDomain.GeometryModule: AffineTransform, affine_identity
 import ProjecturedDomain.FontModule: StyleFont, font_logical_size
 import ProjecturedDomain.ReactiveModule: Cell, isuptodate
@@ -176,8 +177,10 @@ end
 # Draw-list serialization (mirrors Sdl's _dispatch_render_elem!)
 # ════════════════════════════════════════════════════════════════════════
 
-_rgba(e) = Int[Int(e.r), Int(e.g), Int(e.b), Int(e.a)]
-_border_rgba(e) = Int[Int(e.border_r), Int(e.border_g), Int(e.border_b), Int(e.border_a)]
+# Convert a domain `StyleColor` (Float64 RGBA in [0,1]) to the 0–255 int array the
+# browser draw-list consumes (it builds a CSS `rgba()` from it).
+_rgba(c::StyleColor) = Int[round(Int, c.red * 255), round(Int, c.green * 255),
+                           round(Int, c.blue * 255), round(Int, c.alpha * 255)]
 _font_family(path::AbstractString) = splitext(basename(path))[1]
 
 # A canvas's element list in render order: the `ListNode` prev-chain (nearest the
@@ -201,26 +204,26 @@ function _serialize_node(elem)
         font = elem.font::StyleFont
         return Dict("t" => "text", "x" => Int(elem.x), "y" => Int(elem.y),
                     "s" => elem.text, "f" => _font_family(font.filename),
-                    "sz" => font_logical_size(font), "c" => _rgba(elem))
+                    "sz" => font_logical_size(font), "c" => _rgba(elem.color))
     elseif elem isa GraphicsRect
         return Dict("t" => "rect", "x" => Int(elem.x), "y" => Int(elem.y),
-                    "w" => Int(elem.w), "h" => Int(elem.h), "c" => _rgba(elem),
+                    "w" => Int(elem.w), "h" => Int(elem.h), "c" => _rgba(elem.color),
                     "rtl" => Int(elem.radius_tl), "rtr" => Int(elem.radius_tr),
                     "rbr" => Int(elem.radius_br), "rbl" => Int(elem.radius_bl),
-                    "bw" => Int(elem.border_width), "bc" => _border_rgba(elem))
+                    "bw" => Int(elem.border_width), "bc" => _rgba(elem.border_color))
     elseif elem isa GraphicsLine
         d = Dict("t" => "line", "x1" => Int(elem.x1), "y1" => Int(elem.y1),
                  "x2" => Int(elem.x2), "y2" => Int(elem.y2),
-                 "c" => _rgba(elem), "w" => Int(elem.width))
+                 "c" => _rgba(elem.color), "w" => Int(elem.width))
         elem.dash === nothing || (d["dash"] = [Int(elem.dash[1]), Int(elem.dash[2])])
         return d
     elseif elem isa GraphicsCircle
         return Dict("t" => "circle", "cx" => Int(elem.cx), "cy" => Int(elem.cy),
-                    "r" => Int(elem.radius), "c" => _rgba(elem),
-                    "bw" => Int(elem.border_width), "bc" => _border_rgba(elem))
+                    "r" => Int(elem.radius), "c" => _rgba(elem.color),
+                    "bw" => Int(elem.border_width), "bc" => _rgba(elem.border_color))
     elseif elem isa GraphicsPolyline
         pts = [[Int(p[1]), Int(p[2])] for p in elem.points]
-        return Dict("t" => "polyline", "pts" => pts, "c" => _rgba(elem),
+        return Dict("t" => "polyline", "pts" => pts, "c" => _rgba(elem.color),
                     "w" => Int(elem.width),
                     "sa" => elem.start_arrow, "ea" => elem.end_arrow,
                     "as" => Int(elem.arrow_size))
@@ -228,7 +231,7 @@ function _serialize_node(elem)
         # Tessellate server-side so the browser only needs the polyline path.
         tess = tessellate_spline(elem.points, elem.kind, elem.segments)
         pts = [[round(Int, p[1]), round(Int, p[2])] for p in tess]
-        return Dict("t" => "polyline", "pts" => pts, "c" => _rgba(elem),
+        return Dict("t" => "polyline", "pts" => pts, "c" => _rgba(elem.color),
                     "w" => Int(elem.width),
                     "sa" => elem.start_arrow, "ea" => elem.end_arrow,
                     "as" => Int(elem.arrow_size))

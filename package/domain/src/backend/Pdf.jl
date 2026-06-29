@@ -27,6 +27,7 @@ import ..GraphicsModule: GraphicsCanvas, GraphicsText, GraphicsRect, GraphicsLin
                          GraphicsCircle, GraphicsPolyline, GraphicsSpline,
                          GraphicsViewport, GraphicsImage, GraphicsFence,
                          _canvas_content_bounds, tessellate_spline, polyline_arrowhead
+import ..ColorModule: StyleColor
 import ..GeometryModule: AffineTransform, affine_identity, affine_is_axis_aligned
 import ..FontModule: StyleFont
 import ..ImageModule: ImageFile
@@ -242,6 +243,12 @@ function n2(x::Real)
 end
 c01(u::Integer) = n2(u / 255)
 
+# Convert a domain `StyleColor` (Float64 RGBA in [0,1]) to device bytes, so the
+# existing byte-based painter helpers (and the UInt8-keyed ExtGState alpha dedup)
+# are reused unchanged.
+_rgba8(c::StyleColor) = (UInt8(round(c.red * 255)), UInt8(round(c.green * 255)),
+                         UInt8(round(c.blue * 255)), UInt8(round(c.alpha * 255)))
+
 # ════════════════════════════════════════════════════════════════════════
 # PDF object / xref / trailer writer
 # ════════════════════════════════════════════════════════════════════════
@@ -368,15 +375,14 @@ function paint_rect!(ctx, rect, ox, oy)
     rtl, rtr = Int(rect.radius_tl), Int(rect.radius_tr)
     rbr, rbl = Int(rect.radius_br), Int(rect.radius_bl)
     bw = Int(rect.border_width)
-    if bw > 0 && rect.border_a > 0
-        _fill_rrect!(ctx, L, B, w, h, rtl, rtr, rbr, rbl,
-                     rect.border_r, rect.border_g, rect.border_b, rect.border_a)
-        rect.a > 0 && _fill_rrect!(ctx, L + bw, B + bw, w - 2bw, h - 2bw,
+    if bw > 0 && rect.border_color.alpha > 0
+        _fill_rrect!(ctx, L, B, w, h, rtl, rtr, rbr, rbl, _rgba8(rect.border_color)...)
+        rect.color.alpha > 0 && _fill_rrect!(ctx, L + bw, B + bw, w - 2bw, h - 2bw,
                                    max(0, rtl - bw), max(0, rtr - bw),
                                    max(0, rbr - bw), max(0, rbl - bw),
-                                   rect.r, rect.g, rect.b, rect.a)
+                                   _rgba8(rect.color)...)
     else
-        _fill_rrect!(ctx, L, B, w, h, rtl, rtr, rbr, rbl, rect.r, rect.g, rect.b, rect.a)
+        _fill_rrect!(ctx, L, B, w, h, rtl, rtr, rbr, rbl, _rgba8(rect.color)...)
     end
 end
 
@@ -414,21 +420,22 @@ function paint_circle!(ctx, circ, ox, oy)
     cyG = oy + Int(circ.cy); rad = Int(circ.radius); bw = Int(circ.border_width)
     _on_page(ctx, cyG - rad - bw, cyG + rad + bw) || return
     cx = ox + Int(circ.cx); cy = _flip(ctx, cyG)
-    if bw > 0 && circ.border_a > 0
-        if circ.a > 0
-            _fill_disc!(ctx, cx, cy, rad, circ.border_r, circ.border_g, circ.border_b, circ.border_a)
-            _fill_disc!(ctx, cx, cy, rad - bw, circ.r, circ.g, circ.b, circ.a)
+    if bw > 0 && circ.border_color.alpha > 0
+        if circ.color.alpha > 0
+            _fill_disc!(ctx, cx, cy, rad, _rgba8(circ.border_color)...)
+            _fill_disc!(ctx, cx, cy, rad - bw, _rgba8(circ.color)...)
         else
             # transparent fill: a true hollow ring, centre unpainted
-            _stroke_ring!(ctx, cx, cy, rad, bw, circ.border_r, circ.border_g, circ.border_b, circ.border_a)
+            _stroke_ring!(ctx, cx, cy, rad, bw, _rgba8(circ.border_color)...)
         end
     else
-        _fill_disc!(ctx, cx, cy, rad, circ.r, circ.g, circ.b, circ.a)
+        _fill_disc!(ctx, cx, cy, rad, _rgba8(circ.color)...)
     end
 end
 
 function paint_line!(ctx, line, ox, oy)
-    line.a == 0 && return
+    line.color.alpha == 0 && return
+    lr, lg, lb, la = _rgba8(line.color)
     wdt = max(1, Int(line.width))
     g1 = oy + Int(line.y1); g2 = oy + Int(line.y2)
     _on_page(ctx, min(g1, g2) - wdt, max(g1, g2) + wdt) || return
@@ -438,8 +445,8 @@ function paint_line!(ctx, line, ox, oy)
     # dashed line never leaks its pattern onto a later solid stroke.
     dash = line.dash
     dashop = dash === nothing ? "[] 0 d " : string("[", Int(dash[1]), " ", Int(dash[2]), "] 0 d ")
-    print(ctx.buf, "/", gs_for!(ctx, line.a), " gs ",
-          c01(line.r), " ", c01(line.g), " ", c01(line.b), " RG ",
+    print(ctx.buf, "/", gs_for!(ctx, la), " gs ",
+          c01(lr), " ", c01(lg), " ", c01(lb), " RG ",
           n2(wdt), " w 2 J ", dashop, n2(x1), " ", n2(y1), " m ", n2(x2), " ", n2(y2), " l S\n")
 end
 
@@ -476,19 +483,20 @@ end
 
 function paint_polyline!(ctx, pl, ox, oy)
     gpts = [(ox + Int(p[1]), oy + Int(p[2])) for p in pl.points]
-    _paint_polyline_points!(ctx, gpts, max(1, Int(pl.width)), pl.r, pl.g, pl.b, pl.a,
+    _paint_polyline_points!(ctx, gpts, max(1, Int(pl.width)), _rgba8(pl.color)...,
                             pl.start_arrow, pl.end_arrow, Int(pl.arrow_size))
 end
 
 function paint_spline!(ctx, sp, ox, oy)
     tess = tessellate_spline(sp.points, sp.kind, sp.segments)
     gpts = [(ox + p[1], oy + p[2]) for p in tess]
-    _paint_polyline_points!(ctx, gpts, max(1, Int(sp.width)), sp.r, sp.g, sp.b, sp.a,
+    _paint_polyline_points!(ctx, gpts, max(1, Int(sp.width)), _rgba8(sp.color)...,
                             sp.start_arrow, sp.end_arrow, Int(sp.arrow_size))
 end
 
 function paint_text!(ctx, t, ox, oy)
-    (isempty(t.text) || t.a == 0) && return
+    (isempty(t.text) || t.color.alpha == 0) && return
+    tr, tg, tb, ta = _rgba8(t.color)
     gy = oy + Int(t.y)
     _on_page(ctx, gy, gy + t.font.size) || return
     reg = register_font!(ctx, t.font)
@@ -504,8 +512,8 @@ function paint_text!(ctx, t, ox, oy)
     hex = String(take!(io))
     size = t.font.size
     baseline = _flip(ctx, gy + ascent_px(ttf, size))
-    print(ctx.buf, "/", gs_for!(ctx, t.a), " gs ",
-          c01(t.r), " ", c01(t.g), " ", c01(t.b), " rg BT /", reg.resname, " ",
+    print(ctx.buf, "/", gs_for!(ctx, ta), " gs ",
+          c01(tr), " ", c01(tg), " ", c01(tb), " rg BT /", reg.resname, " ",
           n2(size), " Tf 1 0 0 1 ", n2(ox + Int(t.x)), " ", n2(baseline), " Tm <", hex, "> Tj ET\n")
 end
 

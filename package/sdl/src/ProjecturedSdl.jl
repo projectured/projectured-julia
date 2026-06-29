@@ -32,6 +32,7 @@ import ProjecturedDomain.GraphicsModule: GraphicsCanvas, GraphicsText, GraphicsR
                          tessellate_spline, polyline_arrowhead
 import ProjecturedDomain.CollectionModule: ListNode, CellVector
 import ProjecturedDomain.GeometryModule: AffineTransform, affine_identity, affine_is_axis_aligned
+import ProjecturedDomain.ColorModule: StyleColor
 import ProjecturedDomain.FontModule: StyleFont, font_scaled_size, font_logical_size, font_device_size,
                          _DISPLAY_SCALE, _BASE_DISPLAY_SCALE, recompute_display_scale!,
                          adjust_user_zoom!, adjust_font_zoom!
@@ -630,6 +631,10 @@ function _get_font(font::StyleFont)
     end
 end
 
+# Convert a domain `StyleColor` (Float64 RGBA in [0,1]) to SDL's device bytes.
+_rgba8(c::StyleColor) = (UInt8(round(c.red * 255)), UInt8(round(c.green * 255)),
+                         UInt8(round(c.blue * 255)), UInt8(round(c.alpha * 255)))
+
 # ── Render a single GraphicsText element ───────────────────────────────
 
 function _render_element!(renderer::Ptr{SDL_Renderer}, elem::GraphicsText, ox::Int, oy::Int)
@@ -637,7 +642,7 @@ function _render_element!(renderer::Ptr{SDL_Renderer}, elem::GraphicsText, ox::I
     isempty(text) && return
 
     font_style = elem.font::StyleFont
-    color = (elem.r, elem.g, elem.b, elem.a)
+    color = _rgba8(elem.color)
     key = _TextTextureKey(renderer, String(text), font_style.filename,
                           font_device_size(font_style), color)
 
@@ -780,19 +785,19 @@ function _render_rect!(renderer::Ptr{SDL_Renderer}, rect::GraphicsRect, ox::Int,
     r_tl, r_tr = Int(rect.radius_tl), Int(rect.radius_tr)
     r_br, r_bl = Int(rect.radius_br), Int(rect.radius_bl)
     bw = Int(rect.border_width)
-    if bw > 0 && rect.border_a > 0
+    if bw > 0 && rect.border_color.alpha > 0
         # Outer border-colored rounded rect, then the fill inset by the border
         # width (radii shrink to stay concentric).
-        SDL_SetRenderDrawColor(renderer, rect.border_r, rect.border_g, rect.border_b, rect.border_a)
+        SDL_SetRenderDrawColor(renderer, _rgba8(rect.border_color)...)
         _fill_rounded!(renderer, x, y, w, h_px, r_tl, r_tr, r_br, r_bl)
-        if rect.a > 0
-            SDL_SetRenderDrawColor(renderer, rect.r, rect.g, rect.b, rect.a)
+        if rect.color.alpha > 0
+            SDL_SetRenderDrawColor(renderer, _rgba8(rect.color)...)
             _fill_rounded!(renderer, x + bw, y + bw, w - 2bw, h_px - 2bw,
                            max(0, r_tl - bw), max(0, r_tr - bw),
                            max(0, r_br - bw), max(0, r_bl - bw))
         end
     else
-        SDL_SetRenderDrawColor(renderer, rect.r, rect.g, rect.b, rect.a)
+        SDL_SetRenderDrawColor(renderer, _rgba8(rect.color)...)
         _fill_rounded!(renderer, x, y, w, h_px, r_tl, r_tr, r_br, r_bl)
     end
 end
@@ -820,13 +825,14 @@ function _draw_line_span!(renderer::Ptr{SDL_Renderer}, x1::Int, y1::Int, x2::Int
 end
 
 function _render_line!(renderer::Ptr{SDL_Renderer}, line::GraphicsLine, ox::Int, oy::Int)
-    SDL_SetRenderDrawColor(renderer, line.r, line.g, line.b, line.a)
+    lr, lg, lb, la = _rgba8(line.color)
+    SDL_SetRenderDrawColor(renderer, lr, lg, lb, la)
     x1, y1 = Int(line.x1) + ox, Int(line.y1) + oy
     x2, y2 = Int(line.x2) + ox, Int(line.y2) + oy
     wdt = max(1, Int(line.width))
     dash = line.dash
     if dash === nothing
-        _draw_line_span!(renderer, x1, y1, x2, y2, wdt, line.r, line.g, line.b, line.a)
+        _draw_line_span!(renderer, x1, y1, x2, y2, wdt, lr, lg, lb, la)
     else
         # Step the (on, off) pattern along the line, emitting one span per "on"
         # run. Rounding the endpoints keeps axis-aligned dashes crisp (one of
@@ -835,7 +841,7 @@ function _render_line!(renderer::Ptr{SDL_Renderer}, line::GraphicsLine, ox::Int,
         dx, dy = x2 - x1, y2 - y1
         len = sqrt(Float64(dx * dx + dy * dy))
         if len == 0
-            _draw_line_span!(renderer, x1, y1, x2, y2, wdt, line.r, line.g, line.b, line.a)
+            _draw_line_span!(renderer, x1, y1, x2, y2, wdt, lr, lg, lb, la)
         else
             ux, uy = dx / len, dy / len
             pos = 0.0
@@ -843,7 +849,7 @@ function _render_line!(renderer::Ptr{SDL_Renderer}, line::GraphicsLine, ox::Int,
                 e = min(pos + on, len)
                 sx = round(Int, x1 + ux * pos); sy = round(Int, y1 + uy * pos)
                 ex = round(Int, x1 + ux * e);   ey = round(Int, y1 + uy * e)
-                _draw_line_span!(renderer, sx, sy, ex, ey, wdt, line.r, line.g, line.b, line.a)
+                _draw_line_span!(renderer, sx, sy, ex, ey, wdt, lr, lg, lb, la)
                 pos = e + off
             end
         end
@@ -925,17 +931,17 @@ function _stroke_polyline!(renderer::Ptr{SDL_Renderer}, pts, wdt::Int,
 end
 
 function _render_polyline!(renderer::Ptr{SDL_Renderer}, pl::GraphicsPolyline, ox::Int, oy::Int)
-    pl.a == 0 && return
+    pl.color.alpha == 0 && return
     pts = [(Int(p[1]) + ox, Int(p[2]) + oy) for p in pl.points]
-    _stroke_polyline!(renderer, pts, Int(pl.width), pl.r, pl.g, pl.b, pl.a,
+    _stroke_polyline!(renderer, pts, Int(pl.width), _rgba8(pl.color)...,
                       pl.start_arrow, pl.end_arrow, Int(pl.arrow_size))
 end
 
 function _render_spline!(renderer::Ptr{SDL_Renderer}, sp::GraphicsSpline, ox::Int, oy::Int)
-    sp.a == 0 && return
+    sp.color.alpha == 0 && return
     tess = tessellate_spline(sp.points, sp.kind, sp.segments)
     pts = [(p[1] + ox, p[2] + oy) for p in tess]
-    _stroke_polyline!(renderer, pts, Int(sp.width), sp.r, sp.g, sp.b, sp.a,
+    _stroke_polyline!(renderer, pts, Int(sp.width), _rgba8(sp.color)...,
                       sp.start_arrow, sp.end_arrow, Int(sp.arrow_size))
 end
 
@@ -999,20 +1005,20 @@ function _render_circle!(renderer::Ptr{SDL_Renderer}, circ::GraphicsCircle, ox::
     cx, cy = Int(circ.cx) + ox, Int(circ.cy) + oy
     rad = Int(circ.radius)
     bw = Int(circ.border_width)
-    if bw > 0 && circ.border_a > 0
-        SDL_SetRenderDrawColor(renderer, circ.border_r, circ.border_g, circ.border_b, circ.border_a)
-        if circ.a > 0
+    if bw > 0 && circ.border_color.alpha > 0
+        SDL_SetRenderDrawColor(renderer, _rgba8(circ.border_color)...)
+        if circ.color.alpha > 0
             # Opaque fill: paint the border-colored disc, then the fill inset by
             # the border so a solid rim remains.
             _fill_disc!(renderer, cx, cy, rad)
-            SDL_SetRenderDrawColor(renderer, circ.r, circ.g, circ.b, circ.a)
+            SDL_SetRenderDrawColor(renderer, _rgba8(circ.color)...)
             _fill_disc!(renderer, cx, cy, rad - bw)
         else
             # Transparent fill: a true hollow ring, leaving the centre unpainted.
             _stroke_ring!(renderer, cx, cy, rad, bw)
         end
     else
-        SDL_SetRenderDrawColor(renderer, circ.r, circ.g, circ.b, circ.a)
+        SDL_SetRenderDrawColor(renderer, _rgba8(circ.color)...)
         _fill_disc!(renderer, cx, cy, rad)
     end
 end

@@ -25,7 +25,7 @@ import ..ProjectionApiModule: projection_print, projection_printer_recurse, proj
 import ..GraphLayoutModule: GraphLayout, VertexLayout, EdgeLayout
 import ..GraphModule: GraphVertex, GraphEdge
 import ..GraphicsModule: GraphicsCanvas, GraphicsRect, GraphicsPolyline, layout_none, hit_element_at
-import ..ColorModule: color_default
+import ..ColorModule: color_default, StyleColor
 import ..IoMapModule: ChildrenIoMap
 import ..IoMapApiModule: IoMap
 import ..ReferenceModule: ConcreteReferencePath, FieldReference, RangeReference, EmptyReferencePath
@@ -40,12 +40,12 @@ export GraphLayoutToGraphicsCanvas, GraphLayoutToGraphics, GraphToGraphics,
 
 # Node box visual style.
 const _BORDER_W = 2
-const _BORDER = (0x58, 0x6e, 0x75, 0xff)   # solarized base01
-const _FILL   = (0xff, 0xff, 0xff, 0xff)   # faint translucent fill
+const _BORDER = StyleColor(0x58 / 255, 0x6e / 255, 0x75 / 255, 1.0)   # solarized base01
+const _FILL   = StyleColor(1.0, 1.0, 1.0, 1.0)   # opaque white fill
 const _RADIUS = 6
 const _PAD    = 8
 # Edge style.
-const _EDGE = (0x58, 0x6e, 0x75, 0xff)
+const _EDGE = StyleColor(0x58 / 255, 0x6e / 255, 0x75 / 255, 1.0)
 const _EDGE_W = 2
 const _ARROW = 10
 
@@ -136,7 +136,7 @@ function projection_print(p::GraphLayoutToGraphicsCanvas, recursion, layout::Gra
             length(route) < 2 && continue
             e = getfield(el, :edge)[]
             directed = e isa GraphEdge ? e.directed : false
-            push!(result, GraphicsPolyline(route, _EDGE...;
+            push!(result, GraphicsPolyline(route, _EDGE;
                 width=_EDGE_W, end_arrow=directed, arrow_size=_ARROW))
             lim = i <= length(labels) ? labels[i] : nothing
             if lim !== nothing
@@ -157,7 +157,7 @@ function projection_print(p::GraphLayoutToGraphicsCanvas, recursion, layout::Gra
             bx, by = x - _PAD, y - _PAD
             bw, bh = w + 2*_PAD, h + 2*_PAD
             push!(result, GraphicsRect(bx, by, bw, bh,
-                _FILL[1], _FILL[2], _FILL[3], _FILL[4], _RADIUS;
+                _FILL, _RADIUS;
                 border_width=_BORDER_W, border_color=_BORDER))
             entry = i <= length(entries) ? entries[i] : nothing
             if entry !== nothing && entry[3] !== nothing
