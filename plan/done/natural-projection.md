@@ -209,31 +209,54 @@ The structural stage stays explicit in the caller: the assistant is still
 `SequentialProjection(RecursiveProjection(WorkbenchToWidget()), …NaturalToGraphics…)`
 — special structural stage in front, universal renderer behind.
 
-### Phase 2 — Migrate remaining callers (follow-up, optional)
-The on-target caller (the conversation/assistant content renderer) is migrated
-in Phase 3. The remaining hand-rolled tables —
-`make_workbench_projection_example`'s inline JSON/XML/Book/Workspace/FileSystem
-entries, `make_mixed_projection_example`, `make_table_projection_example`,
-`make_conversation_projection_example` — can likewise be reduced to
-`NaturalToGraphics(; extra=…)`. Deferred: it is duplication cleanup with
-regression risk, lower value than the stated goal, and each needs its
-context-specific overrides (no-wrap, placeholders, EditorIntrospection) audited
-against the generic defaults before swapping. Do it incrementally, re-running
-each affected example's `test_printer`/`test_reader`.
+### Phase 2 — Migrate remaining callers ✅ DONE
+Reduced the hand-rolled `RecursiveProjection(TypeDispatchingProjection(…))` tables
+to `NaturalToGraphics(; extra=…)`, with context-specific projections passed via
+`extra` (matched first, so they win):
 
-### Stretch / follow-ups
-- **Prose-in-collection (known limitation).** A `TextText` placed *directly* in a
-  collection recurses through `natural_to_syntax`, which has no `TextText` entry
-  (a multi-run/multi-line `TextText` ≠ one `SyntaxLeaf` value), so it reflects via
-  `ObjectToSyntax` instead of rendering as prose. Prose at top level or embedded
-  in a widget (conversation-part content) renders correctly via the to-graphics
-  `TextDocument` entry. **Cleaner fix:** a to-graphics `CellVector`/`ListNode`
-  entry that lays elements out as stacked graphics blocks — each element
-  re-enters the to-graphics fabric, so prose→prose, JSON→JSON, widget→widget —
-  rather than collapsing the collection to one syntax tree. This generalizes
-  collection rendering and removes the wart.
-- `SqlDocument`, `DbCatalog`/`DatabaseInstance`, `GraphDocument`,
-  `WorkspaceDocument`; a `wrap`-per-category table; optional `GraphicsCaching` tail.
+- [Table.jl](../../package/example/src/projection/Table.jl): `make_table_projection_example`
+  / `make_math_table_projection_example` → `NaturalToGraphics(font=sans)`. WidgetTable
+  + GridLayout + JSON/Primitive/Math cells all covered.
+- [Conversation.jl](../../package/example/src/projection/Conversation.jl): the widget and
+  editor examples reuse `_conversation_widget_graphics`.
+- [Workbench.jl](../../package/example/src/projection/Workbench.jl): keeps the
+  functionally-distinct entries (Book wrap, Julia styling, lazy `ListNode`,
+  collection demo, `Primitive` placeholder, `Workspace`, `EditorIntrospection`,
+  conversation) as `extra`; Json/Xml/Text/FileSystem/`Any` come from `NaturalToGraphics`.
+- [Wrapper.jl](../../package/example/src/projection/Wrapper.jl): `make_workbench_projection`
+  routes `content_projections` through `extra` and gains layout dispatch.
+
+**Intentionally NOT migrated** (genuinely special, not duplication):
+`make_conversation_projection_example` (conversation-as-syntax view — `NaturalToGraphics`
+has no `ConversationDocument` entry by design); `make_mixed_projection_example`
+(`JsonXmlToSyntax` co-mingles XML *inside* a JSON tree — the generic renderer would
+route the JSON root to `JsonToSyntax`, which can't descend into embedded XML);
+`make_introspection_projection` / `make_text_configuring_projection` (Nesting /
+ProjectionConfiguring wrappers).
+
+Behavior-preserving: `test_printer`+`test_reader` pass for table (1909), math_table
+(3408), conversation_widget (3153), conversation_editor (1080), workbench (27105),
+assistant (2165), natural (13055), conversation (1049). Workbench and table renders
+visually confirmed unchanged.
+
+### Prose-in-collection ✅ FIXED
+A `CellVector` now renders as a `VerticalLayout` of independent graphics blocks
+([CollectionToLayout.jl](../../package/domain/src/projection/primitive/CollectionToLayout.jl):
+`CellVectorToVerticalLayout`, a non-recursive structural rewrap, then
+`VerticalLayoutToGraphicsCanvas`). Each element re-enters the to-graphics fabric
+in its own domain — prose→prose, JSON→JSON, widget→widget — so a `TextText` in a
+collection renders as wrapped prose instead of a reflected `ObjectToSyntax` tree.
+No forward-reference knot: the layout renderer is terminal and receives the outer
+recursion through the `SequentialProjection`. `ListNode` is **not** treated this
+way (it may be lazy/infinite — must not be forced into a finite layout); it stays
+in the to-syntax fabric, so a `TextText` directly inside a `ListNode` still
+reflects (accepted edge case).
+
+### Stretch (not done — genuinely optional)
+- `SqlDocument`, `DbCatalog`/`DatabaseInstance`, `GraphDocument` entries; a
+  `wrap`-per-category table; optional `GraphicsCaching` tail.
+- A `ListNode` layout treatment that stacks a *bounded prefix* of a (possibly
+  lazy) list, if prose-in-`ListNode` ever matters.
 
 ## Testing
 
