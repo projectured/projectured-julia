@@ -198,11 +198,14 @@ function projection_print(p::ObjectNodeToSyntaxNode, recursion, obj, ctx)
 
     ind = p.newlines ? 1 : 0
 
-    # Collections (CellVector and raw arrays) render as a braced element list
-    # with NO type-name leaf: the CellVector/Array wrapper carries no selection
-    # and no structural meaning, so it would only be noise. Elements keep their
-    # ElementReference so the references stay valid.
-    if obj isa CellVector || obj isa AbstractArray
+    # Collections (CellVector, raw arrays, tuples) render as a braced element
+    # list with NO type-name leaf: the wrapper carries no selection and no
+    # structural meaning, so it would only be noise. Elements keep their
+    # ElementReference so the references stay valid. Tuples must go here too —
+    # `fieldnames` of a Tuple type yields integer indices, not Symbols, so the
+    # struct branch below cannot reflect over them (e.g. an RGBA color stored
+    # as NTuple{4,UInt8}).
+    if obj isa CellVector || obj isa AbstractArray || obj isa Tuple
         idxs = p.filter === nothing ? collect(1:length(obj)) :
                [i for i in 1:length(obj) if p.filter(_unwrap_cell(obj[i]))]
         element_nodes = SyntaxDocument[
