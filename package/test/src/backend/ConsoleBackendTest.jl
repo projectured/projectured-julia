@@ -184,12 +184,12 @@ function test_console_backend()
 
         # Character insert: type 'X' at the text cursor (offset 0) inside "Alice".
         doc, sels = _drive_console_doc(vcat(nav, UInt8[UInt8('X')]), 6)
-        @test entries(doc)[1].value.value == "XAlice"             # inserted at the cursor
+        @test doc.entries[1].value.value == "XAlice"             # inserted at the cursor
         @test sels[6] == ".entries[1].value.value{1}"             # cursor advanced past insert
 
         # Backspace: move the cursor right by one, then delete the char before it.
         doc, sels = _drive_console_doc(vcat(nav, RIGHT, BACKSPACE), 7)
-        @test entries(doc)[1].value.value == "lice"               # "Alice" → delete 'A'
+        @test doc.entries[1].value.value == "lice"               # "Alice" → delete 'A'
         @test sels[7] == ".entries[1].value.value{0}"
     end
 
