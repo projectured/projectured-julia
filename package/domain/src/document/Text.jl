@@ -40,7 +40,8 @@ import ..PrimitiveModule: StringReplaceRangeOperation
 import ..GestureBindingModule: var"@gestures"
 export TextDocument, TextInsertion, TextNewline, TextSpacing, TextString, TextGraphics, TextText, setfn!,
        ITextInsertion, ITextNewline, ITextSpacing, ITextString, ITextGraphics, ITextText,
-       text_flat_length, text_selection_flat, hinted_text
+       text_flat_length, text_selection_flat, hinted_text,
+       text_selection_substring, text_insert_op
 
 # ── TextDocument (base) ───────────────────────────────────────────────────
 
@@ -534,6 +535,40 @@ function _text_replace_path(span_idx::Int, char_start::Int, char_stop::Int)
             ConcreteReferencePath(FieldReference("content"),
                 ConcreteReferencePath(RangeReference(char_start, char_stop), EmptyReferencePath()))))
 end
+
+# ── Clipboard support ──────────────────────────────────────────────────────────
+# Public helpers used by the clipboard projection's text branch
+# (`ClipboardSliceToAnyProjection` in text mode); see
+# `plan/done/clipboard-os-bridge-and-run-example-wrapper.md`.
+
+"""
+    text_selection_substring(text::TextText) -> Union{String,Nothing}
+
+The substring currently selected within a single span, or `nothing` when the
+selection is an empty caret, spans no characters, or is not a single-span character
+range. Used by the clipboard to copy / cut text.
+"""
+function text_selection_substring(text::TextText)
+    rng = _text_selection_range(text)
+    rng === nothing && return nothing
+    span_idx, a, b = rng
+    a == b && return nothing                         # empty caret — nothing to copy
+    content = _span_content(text, span_idx)
+    content === nothing && return nothing
+    chars = collect(content)
+    (a < 0 || b > length(chars) || a > b) && return nothing
+    String(chars[a + 1:b])
+end
+
+"""
+    text_insert_op(text::TextText, str) -> Union{Operation,Nothing}
+
+The `StringReplaceRangeOperation` that inserts `str` at the text cursor, replacing
+any selected range. `nothing` when the selection is not a character cursor/range.
+The caret advances past the inserted text automatically on evaluation. Used by the
+clipboard to paste text.
+"""
+text_insert_op(text::TextText, str::AbstractString) = _text_insert(text, str)
 
 # Parse a flat-character cursor selection (`.elements[i].content{c}`) into a
 # (span, char) NamedTuple, or nothing when the selection is not a character

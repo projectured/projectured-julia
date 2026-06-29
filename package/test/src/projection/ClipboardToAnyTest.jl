@@ -269,4 +269,81 @@ end
     end
 end
 
+@testset "slice text clipboard" begin
+    # text mode: copy/cut/paste move character ranges over a TextText content; the
+    # slice stores a TextString and the OS clipboard mirrors/falls back.
+    buf = Ref("")
+    set_os_clipboard_backend!(read = () -> buf[], write = t -> (buf[] = String(t); true))
+    try
+        # "world" = chars 6..11 (0-based boundaries) in span 1 of "hello world".
+        trange = cpath(FieldReference("elements"), RangeReference(0, 1),
+                       FieldReference("content"), RangeReference(6, 11))
+        mkslice(; stored=nothing) = begin
+            content = TextText(TextString("hello world"))
+            content.selection = trange
+            s = ClipboardSlice(content; slice=stored)
+            s.selection = ConcreteReferencePath(FieldReference("content"), trange)
+            s
+        end
+        p = ClipboardSliceToAnyProjection(text=true)
+
+        # Copy: stores the substring as a TextString in the slice and mirrors to OS.
+        s = mkslice()
+        iom = projection_print(p, PreservingProjection(), s, PrinterContext())
+        op = projection_read(p, iom, KeyDown(:c, ctrl))
+        @test op isa CompoundOperation
+        @test _rd_val(op.operations[1]) isa TextString
+        @test _rd_val(op.operations[1]).content == "world"
+        @test op.operations[end] isa WriteOsClipboardOperation
+        @test op.operations[end].text == "world"
+        evaluate_operation(nothing, op.operations[end])
+        @test buf[] == "world"
+
+        # Cut: stores the substring + a delete (StringReplaceRangeOperation "") rooted
+        # under content + OS mirror.
+        s = mkslice()
+        iom = projection_print(p, PreservingProjection(), s, PrinterContext())
+        op = projection_read(p, iom, KeyDown(:x, ctrl))
+        @test op isa CompoundOperation
+        @test _rd_val(op.operations[1]) isa TextString
+        del = op.operations[2]
+        @test del isa StringReplaceRangeOperation
+        @test del.replacement == ""
+        @test del.reference.head.name == "content"
+        @test op.operations[end] isa WriteOsClipboardOperation
+
+        # Paste from the projectured slice: a content-rooted StringReplaceRangeOperation
+        # splicing the stored text over the selected range.
+        s = mkslice(stored = TextString("ZZZ"))
+        iom = projection_print(p, PreservingProjection(), s, PrinterContext())
+        op = projection_read(p, iom, KeyDown(:v, ctrl))
+        @test op isa StringReplaceRangeOperation
+        @test op.replacement == "ZZZ"
+        @test op.reference.head.name == "content"
+
+        # Paste with an empty slice falls back to the OS clipboard text.
+        buf[] = "OSPASTE"
+        s = mkslice()                                   # no stored slice
+        iom = projection_print(p, PreservingProjection(), s, PrinterContext())
+        op = projection_read(p, iom, KeyDown(:v, ctrl))
+        @test op isa StringReplaceRangeOperation
+        @test op.replacement == "OSPASTE"
+
+        # An empty caret (no range) declines copy.
+        content = TextText(TextString("hello world"))
+        content.selection = cpath(FieldReference("elements"), RangeReference(0, 1),
+                                  FieldReference("content"), RangeReference(3, 3))
+        sc = ClipboardSlice(content)
+        sc.selection = ConcreteReferencePath(FieldReference("content"),
+            cpath(FieldReference("elements"), RangeReference(0, 1),
+                  FieldReference("content"), RangeReference(3, 3)))
+        iom = projection_print(p, PreservingProjection(), sc, PrinterContext())
+        # Declines (no range): no copy compound is produced — it falls through to the
+        # content child, which echoes the event rather than a clipboard operation.
+        @test !(projection_read(p, iom, KeyDown(:c, ctrl)) isa CompoundOperation)
+    finally
+        reset_os_clipboard_backend!()
+    end
+end
+
 end # test_clipboard_to_any

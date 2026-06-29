@@ -61,10 +61,10 @@ end
 # collection display mode exposes a CellVector, which only the matching example
 # projection can render — slice mode is the general case).
 function make_clipboard_projection(projection; collection=false,
-                                   to_text=nothing, from_text=nothing)
+                                   to_text=nothing, from_text=nothing, text=false)
     clip = collection ?
         ClipboardCollectionToAnyProjection() :
-        ClipboardSliceToAnyProjection(; to_text=to_text, from_text=from_text)
+        ClipboardSliceToAnyProjection(; to_text=to_text, from_text=from_text, text=text)
     SequentialProjection(
         RecursiveProjection(TypeDispatchingProjection(Pair{DataType,Any}[
             (collection ? ClipboardCollection : ClipboardSlice) => clip,

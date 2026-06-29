@@ -241,10 +241,14 @@ clipboard projection is stacked on top of the example's own pipeline (the
 introspection wrapper pattern), so the selection-driven copy / cut / note /
 paste flow (`Ctrl+C` / `Ctrl+X` / `Ctrl+N` / `Ctrl+V`, `Ctrl+/` to toggle the
 stored slice) works over any example. `clipboard_collection=true` uses a
-`ClipboardCollection` (the elements view) instead. The generic wrapper leaves
-the OS-clipboard bridge off (pasting OS text into an arbitrary domain is not
-type-safe); the dedicated `clipboard_example` wires JSON converters for it.
-Incompatible with `tooltip` and `inspector`.
+`ClipboardCollection` (the elements view) instead. For a `TextText` example the
+wrapper enables **text mode**: copy / cut / paste operate on character ranges,
+the ProjecturEd clipboard is the primary store, and the **OS clipboard** is
+mirrored on copy/cut and used as the paste fallback (needs `xclip`/`xsel`/`wl-*`).
+For other (structured) domains the generic wrapper leaves the OS-clipboard bridge
+off (pasting OS text into an arbitrary node domain is not type-safe); the
+dedicated `clipboard_example` wires JSON converters for it. Incompatible with
+`tooltip` and `inspector`.
 
 When `profile=true`, the read-eval-print loop runs under `Profile.@profile`.
 The profile buffer is cleared first; once the editor window is closed (the
@@ -303,8 +307,12 @@ function run_example(examples::Vector{Example}; width=nothing, height=nothing,
             # the clipboard projection on top of the example's own pipeline. The
             # seeded selection (set on the bare document above) now lives behind the
             # clipboard's `content`; the selection-lifting loop below re-roots it.
+            # For a TextText document, enable text mode: copy/cut/paste over character
+            # ranges, with the OS clipboard mirrored on copy/cut and used as the paste
+            # fallback (the projectured slice is the primary store).
+            is_text    = document isa TextText
             document   = make_clipboard_document(document; collection=clipboard_collection)
-            projection = make_clipboard_projection(projection; collection=clipboard_collection)
+            projection = make_clipboard_projection(projection; collection=clipboard_collection, text=is_text)
         elseif text_highlighting
             # Stack a TextHighlighting control bar above the (text) document; the
             # example's own projection is replaced by the configuring pipeline.
