@@ -1,12 +1,28 @@
 function test_text_to_graphics()
 _test_measure(cw, lh) = (text, font) -> (length(text) * cw, lh)
 
-# The flat TextToGraphics canvas always carries a persistent highlight rect
-# (element 1, behind the text) and cursor rect (last, in front) so that moving
-# the caret never regenerates the span vector. Both are zero-width/invisible
-# when no selection is set. These helpers pull out the real content elements.
-_all(c) = [c.elements[i] for i in 1:length(c.elements)]
-_texts(c) = filter(e -> e isa GraphicsText, _all(c))
+# The TextToGraphics canvas carries a persistent highlight rect (behind the text)
+# and cursor rect (in front) so that moving the caret never regenerates the spans;
+# both are zero-width/invisible when no selection is set. The content is laid out
+# as one sub-canvas per visual line (line at `y`, segments at `y` relative to it),
+# so these helpers recursively flatten the tree into entries with ABSOLUTE
+# coordinates, exposing the same `.x/.y/.text/.color/.w/.h` fields the assertions
+# read regardless of nesting depth.
+function _flat(c, ox::Int=0, oy::Int=0, acc=Tuple{Any,Int,Int}[])
+    for i in 1:length(c.elements)
+        e = c.elements[i]
+        if e isa GraphicsCanvas
+            _flat(e, ox + Int(e.x), oy + Int(e.y), acc)
+        else
+            push!(acc, (e, ox + Int(e.x), oy + Int(e.y)))
+        end
+    end
+    acc
+end
+_all(c) = _flat(c)
+_texts(c) = [(text = e.text, color = e.color, x = ax, y = ay) for (e, ax, ay) in _flat(c) if e isa GraphicsText]
+_imgs(c)  = [(x = ax, y = ay, w = Int(e.w), h = Int(e.h)) for (e, ax, ay) in _flat(c) if e isa GraphicsImage]
+_rects(c) = [(x = ax, y = ay, w = Int(e.w), h = Int(e.h), color = e.color) for (e, ax, ay) in _flat(c) if e isa GraphicsRect && Int(e.w) > 0]
 
 @testset "TextToGraphics" begin
 
@@ -50,15 +66,17 @@ items_c = _texts(sdl_color)
 @test items_c[2].y == items_c[1].y  # same line
 @test items_c[2].x > items_c[1].x   # to the right
 
-# reactivity: text change triggers relayout
+# reactivity: a text change invalidates that line's segment vector (but, by
+# per-line locality, NOT the top-level line list — see the locality testset).
 st_react = TextText(
     TextString("short", font_ubuntu_monospace_regular_24, color_white),
 )
 sdl_react = projection_print(TextToGraphics(measure=_test_measure(10, 48)), st_react).output
-_ = length(sdl_react.elements)
-@test isuptodate(getfield(sdl_react.elements, :elements))
+line1 = sdl_react.elements[2].elements[1]   # top[2]=line stack, [1]=first line sub-canvas
+_ = length(line1.elements)
+@test isuptodate(getfield(line1.elements, :elements))
 st_react.elements[1].content = "changed"
-@test !isuptodate(getfield(sdl_react.elements, :elements))
+@test !isuptodate(getfield(line1.elements, :elements))
 items_r = _texts(sdl_react)
 @test items_r[1].text == "changed"
 
@@ -156,10 +174,9 @@ st = TextText(
     TextString("cd", font_ubuntu_monospace_regular_24, color_white),
 )
 canvas = projection_print(TextToGraphics(measure=m), st).output
-items = [canvas.elements[i] for i in 1:length(canvas.elements)]
 
 # Exactly one GraphicsImage, at the expected box (after "ab" = 20px).
-imgs = filter(e -> e isa GraphicsImage, items)
+imgs = _imgs(canvas)
 @test length(imgs) == 1
 gi = imgs[1]
 @test gi.x == 20
@@ -171,7 +188,7 @@ gi = imgs[1]
 @test canvas.h >= 64
 
 # Surrounding text flows before/after the image on the same line.
-texts = filter(e -> e isa GraphicsText, items)
+texts = _texts(canvas)
 @test length(texts) == 2
 @test texts[1].text == "ab" && texts[1].x == 0
 @test texts[2].text == "cd" && texts[2].x == 20 + 64
@@ -213,11 +230,10 @@ hl.fill_color = color_blue              # a highlighted span opts into a swatch
 plain = TextString("xy", font_ubuntu_monospace_regular_24, color_red)
 st = TextText(hl, plain)
 canvas = projection_print(TextToGraphics(measure=m), st).output
-items = [canvas.elements[i] for i in 1:length(canvas.elements)]
 
 # Exactly one *visible* rect — the filled span; the default-`nothing` span gets
 # none. The always-present highlight/cursor overlay rects are zero-width here.
-rects = filter(e -> e isa GraphicsRect && e.w > 0, items)
+rects = _rects(canvas)
 @test length(rects) == 1
 rect = rects[1]
 @test rect.x == 0 && rect.y == 0
@@ -225,11 +241,59 @@ rect = rects[1]
 @test rect.color == color_blue   # blue fill
 
 # The fill rect is drawn before its text, so it paints behind.
-rect_idx = findfirst(e -> e isa GraphicsRect && e.w > 0, items)
-hi_idx   = findfirst(e -> e isa GraphicsText && e.text == "hi", items)
+flat = _flat(canvas)
+rect_idx = findfirst(t -> t[1] isa GraphicsRect && Int(t[1].w) > 0, flat)
+hi_idx   = findfirst(t -> t[1] isa GraphicsText && t[1].text == "hi", flat)
 @test rect_idx !== nothing && hi_idx !== nothing
 @test rect_idx < hi_idx
 
 end # @testset "TextToGraphics fill_color rect"
+
+@testset "TextToGraphics per-line dirty-rect locality" begin
+
+# Lines split at TextNewline elements become independent reactive sub-canvases.
+# Editing one line must invalidate only that line's segment vector — never the
+# top-level line list (so the backend dirty-walk descends and repaints just the
+# edited line) and never an earlier line.
+m = _test_measure(10, 20)
+nl() = TextNewline(font=font_ubuntu_monospace_regular_24)
+st = TextText(
+    TextString("alpha", font_ubuntu_monospace_regular_24, color_white), nl(),
+    TextString("beta",  font_ubuntu_monospace_regular_24, color_white), nl(),
+    TextString("gamma", font_ubuntu_monospace_regular_24, color_white),
+)
+canvas = projection_print(TextToGraphics(measure=m), st).output
+
+# Top canvas: [highlight, vertical line stack, cursor].
+stack = canvas.elements[2]
+@test stack isa GraphicsCanvas
+@test stack.layout == layout_vertical
+@test length(stack.elements) == 3
+lines = [stack.elements[i] for i in 1:3]
+@test all(l -> l isa GraphicsCanvas, lines)
+@test [Int(l.y) for l in lines] == [0, 20, 40]      # cumulative line heights
+@test [_texts(l)[1].text for l in lines] == ["alpha", "beta", "gamma"]
+
+# Force every line's segment vector + text, then snapshot validity.
+for l in lines
+    _ = length(l.elements)
+    for i in 1:length(l.elements); _ = l.elements[i].text; end
+end
+topback   = getfield(canvas.elements, :elements)
+stackback = getfield(stack.elements, :elements)
+lineback(L) = getfield(lines[L].elements, :elements)
+@test isuptodate(topback) && isuptodate(stackback)
+@test all(L -> isuptodate(lineback(L)), 1:3)
+
+# Edit the LAST line. Only its segment vector goes stale.
+st.elements[5].content = "gamma!"          # element 5 = the 3rd TextString
+@test isuptodate(topback)                  # line list is structural — untouched
+@test isuptodate(stackback)
+@test isuptodate(lineback(1))
+@test isuptodate(lineback(2))
+@test !isuptodate(lineback(3))
+@test _texts(lines[3])[1].text == "gamma!"
+
+end # @testset "TextToGraphics per-line locality"
 
 end # test_text_to_graphics

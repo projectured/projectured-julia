@@ -357,7 +357,13 @@ function projection_print(p::TextToGraphics, recursion, styled::TextText, ctx)
         end
         out
     end)
-    highlight_offset = Cell(0)
+    # `highlight_offset` keeps its legacy value of 1 — the rasterized-image click
+    # path (`_translate_click`) indexes the coord_map past a leading highlight
+    # rect. That path is only reached when a *leaf* canvas is rasterized by
+    # GraphicsCanvasToGraphicsImage; this canvas is now non-leaf (it nests line
+    # sub-canvases), so the bare text examples use the MousePress/coord_map reader
+    # instead, but the value is preserved for the legacy path.
+    highlight_offset = Cell(1)
     canvas_w = Cell(function ()
         w = 0
         for L in 1:length(lines_cell[])
