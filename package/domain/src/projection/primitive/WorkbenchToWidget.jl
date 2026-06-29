@@ -243,25 +243,47 @@ function projection_print(::WorkbenchPageToWidgetTabbedPane,
     # Forward-project the page's selection onto the tabbed pane so the active
     # tab follows the document selection (and coordless events route to it).
     #
-    # Forward only the *head* step (`elements[i]` → `selector_element_pairs[i]`),
-    # not the deep suffix: every consumer of a tabbed pane's selection
-    # (`_tab_index_from_selection`, `_route_active_tab`) reads only the tab index
-    # `i`; the caret inside the active tab is carried by that tab content's own
-    # forward-projected selection. Truncating to the head keeps this cell from
-    # reading the deep cursor cells, so a caret move inside a tab — which (thanks
-    # to the in-place `update_selection!`) mutates only the terminal cursor step,
-    # leaving the page-level head step untouched — does not invalidate this cell
-    # and therefore does not regenerate the tab strip or active-content wrapper
-    # (incremental selection propagation).
+    # Forward only the tab-identifying prefix `elements[i]` →
+    # `selector_element_pairs[i]`, not the deep suffix: every consumer of a tabbed
+    # pane's selection (`_tab_index_from_selection`, `_route_active_tab`) reads only
+    # the tab index `i`; the caret inside the active tab is carried by that tab
+    # content's own forward-projected selection. Keeping just `elements[i]` stops
+    # this cell from reading the deep cursor cells, so a caret move inside a tab —
+    # which (thanks to the in-place `update_selection!`) mutates only the terminal
+    # cursor step, leaving the `elements[i]` prefix untouched — does not invalidate
+    # this cell and therefore does not regenerate the tab strip or active-content
+    # wrapper (incremental selection propagation).
+    #
+    # The prefix is two nodes: the `elements` field step *and* the `[i]` index step.
+    # With type checkpoints folded into nodes, `elements` and `[i]` are separate
+    # path nodes, so truncating to `sel.head` alone drops the index and the tab
+    # routing can no longer tell which tab is selected (clicking a tab would not
+    # switch the active page).
     psel = getfield(page, :selection)
     setfn!(getfield(tabbed, :selection), () -> begin
         sel = psel[]
         sel === nothing && return nothing
-        head_only = sel isa ConcreteReferencePath ?
-            ConcreteReferencePath(sel.head, EmptyReferencePath()) : sel
-        map_reference_forward(WorkbenchPageToWidgetTabbedPane(), iomap, head_only)
+        map_reference_forward(WorkbenchPageToWidgetTabbedPane(), iomap, _tab_index_prefix(sel))
     end)
     iomap
+end
+
+# The tab-identifying prefix of a page selection: `elements[i]` — the field step
+# and the index step — with any deeper cursor suffix dropped. Type checkpoints fold
+# into the nodes, so `elements` and `[i]` are two distinct `ConcreteReferencePath`
+# nodes; keep both and re-terminate after the index, carrying the index node's
+# result type onto the new `EmptyReferencePath` terminal. Returns `sel` unchanged
+# when it is not the `elements[i]…` shape (e.g. a whole-page `∅` selection), which
+# forwards to no tab and the printer falls back to tab 1.
+function _tab_index_prefix(sel)
+    sel isa ConcreteReferencePath || return sel
+    tail = sel.tail
+    if tail isa ConcreteReferencePath && tail.head isa RangeReference
+        return ConcreteReferencePath(sel.type, sel.head,
+                   ConcreteReferencePath(tail.type, tail.head,
+                       EmptyReferencePath(tail.tail.type)))
+    end
+    ConcreteReferencePath(sel.type, sel.head, EmptyReferencePath())
 end
 
 function projection_print(::WorkbenchNavigatorToWidgetScrollPane,
