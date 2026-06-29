@@ -398,7 +398,10 @@ to stop early once past the viewport or click point.
 end
 
 GraphicsCanvas() = GraphicsCanvas(Int32(0), Int32(0), Int32(0), Int32(0), CellVector(), layout_none, true, Cell(nothing))
-GraphicsCanvas(elems::Vector) = GraphicsCanvas(Int32(0), Int32(0), Int32(0), Int32(0), CellVector(Cell[Cell(e) for e in elems]), layout_none, true, Cell(nothing))
+GraphicsCanvas(elems::Vector; x::Integer=0, y::Integer=0, w::Integer=0, h::Integer=0,
+               layout::LayoutDirection=layout_none, overlapping::Bool=true) =
+    GraphicsCanvas(Int32(x), Int32(y), Int32(w), Int32(h),
+                   CellVector(Cell[Cell(e) for e in elems]), layout, overlapping, Cell(nothing))
 GraphicsCanvas(elems::CollectionDocument, layout::LayoutDirection) = GraphicsCanvas(Int32(0), Int32(0), Int32(0), Int32(0), elems, layout, true, Cell(nothing))
 GraphicsCanvas(elems::CollectionDocument, layout::LayoutDirection, overlapping::Bool) = GraphicsCanvas(Int32(0), Int32(0), Int32(0), Int32(0), elems, layout, overlapping, Cell(nothing))
 GraphicsCanvas(x::Integer, y::Integer, elems::CollectionDocument, layout::LayoutDirection, overlapping::Bool) = GraphicsCanvas(Int32(x), Int32(y), Int32(0), Int32(0), elems, layout, overlapping, Cell(nothing))

@@ -125,12 +125,10 @@ function make_rotating_vector_document()
         (5, 5),             # dash (on, off)
         nothing)            # selection
 
-    canvas = GraphicsCanvas([background,
-                             sin_baseline, sin_axis, cos_baseline, cos_axis,
-                             ring, sin_link, cos_link, sin_chart, cos_chart, dot])
-    canvas.w = Int32(_RV_W)
-    canvas.h = Int32(_RV_H)
-    canvas
+    GraphicsCanvas([background,
+                    sin_baseline, sin_axis, cos_baseline, cos_axis,
+                    ring, sin_link, cos_link, sin_chart, cos_chart, dot];
+                   w = _RV_W, h = _RV_H)
 end
 
 # The document is already a GraphicsCanvas, so the example uses the identity
