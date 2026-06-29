@@ -2,6 +2,10 @@ module ProjecturedExample
 
 using Projectured
 using Profile
+# Loaded for its side effect: registers `stream_turn(::AnthropicLlm, …)` on the
+# kernel LLM seam so the assistant example can use a real Claude model when
+# ANTHROPIC_API_KEY is set (otherwise the agent loop falls back to FakeLlm).
+using ProjecturedLlm
 
 # The opt-in examples that need a live database (ODBC) or the native graph-layout
 # engine (ProjecturedAdaptagrams C++ shim) live in the separate
