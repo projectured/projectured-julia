@@ -13,8 +13,8 @@
 # on a light base3 background: the rotation path is an *unfilled* ring, only the
 # small rotating dot is a filled disc, and dashed grey links project the dot onto
 # each chart. Both charts carry their own x/y axes (a zero baseline + an
-# amplitude axis). Geometry/timing are keyword arguments; colours are inlined as
-# `StyleColor` literals with the Solarized name in a comment.
+# amplitude axis). Geometry/timing are keyword arguments; colours are the named
+# Solarized `color_solarized_*` constants.
 #
 # It is perpetual — nothing settles. The projection is the identity
 # `PreservingProjection`: the document already *is* the animated `GraphicsCanvas`,
@@ -34,20 +34,20 @@ function make_rotating_vector_document(; w = 600, h = 600,   # canvas size
     y_top  = cy + r + gap                      # cosine chart's top edge
 
     # solarized-light backdrop (base3) behind everything
-    background = GraphicsRect(0, 0, w, h, StyleColor(0xfd / 255, 0xf6 / 255, 0xe3 / 255, 1.0))
+    background = GraphicsRect(0, 0, w, h, color_solarized_background_lighter)  # base3
 
     # static circle outline marking the path: an *unfilled* ring (transparent
     # fill + base01 grey outline). Only the dot below is a filled disc.
     ring = GraphicsCircle(cx, cy, r, StyleColor(0.0, 0.0, 0.0, 0.0);
-                          border_width = 2, border_color = StyleColor(0x58 / 255, 0x6e / 255, 0x75 / 255, 1.0))
+                          border_width = 2, border_color = color_solarized_content_darker)
 
     # chart axes — static, base01 grey. Each wave gets a zero baseline (the time
     # axis) and an amplitude axis spanning ±R, so the oscillation is read against
     # a frame.
-    sin_baseline = GraphicsLine(x_left, cy, x_left + n, cy, StyleColor(0x58 / 255, 0x6e / 255, 0x75 / 255, 1.0); width = 1)
-    sin_axis     = GraphicsLine(x_left, cy - r, x_left, cy + r, StyleColor(0x58 / 255, 0x6e / 255, 0x75 / 255, 1.0); width = 1)
-    cos_baseline = GraphicsLine(cx, y_top, cx, y_top + n, StyleColor(0x58 / 255, 0x6e / 255, 0x75 / 255, 1.0); width = 1)
-    cos_axis     = GraphicsLine(cx - r, y_top, cx + r, y_top, StyleColor(0x58 / 255, 0x6e / 255, 0x75 / 255, 1.0); width = 1)
+    sin_baseline = GraphicsLine(x_left, cy, x_left + n, cy, color_solarized_content_darker; width = 1)
+    sin_axis     = GraphicsLine(x_left, cy - r, x_left, cy + r, color_solarized_content_darker; width = 1)
+    cos_baseline = GraphicsLine(cx, y_top, cx, y_top + n, color_solarized_content_darker; width = 1)
+    cos_axis     = GraphicsLine(cx - r, y_top, cx + r, y_top, color_solarized_content_darker; width = 1)
 
     # The animated elements use the cell-level positional constructor, which
     # wraps each argument in a `Cell` automatically: a function argument becomes
@@ -60,7 +60,7 @@ function make_rotating_vector_document(; w = 600, h = 600,   # canvas size
         () -> round(Int32, cx + r * cos(angle(reactive_editor_time()))),  # cx
         () -> round(Int32, cy - r * sin(angle(reactive_editor_time()))),  # cy
         7,                                          # radius
-        StyleColor(0xd3 / 255, 0x36 / 255, 0x82 / 255, 1.0),  # fill (magenta)
+        color_solarized_magenta,                    # fill (magenta)
         0,                                          # border_width — filled, no outline
         StyleColor(0.0, 0.0, 0.0, 0.0),             # border_color (none)
         nothing)                                    # selection
@@ -74,7 +74,7 @@ function make_rotating_vector_document(; w = 600, h = 600,   # canvas size
             Tuple{Int,Int}[(x_left + i,
                             round(Int, cy - r * sin(angle(t) - i * dt))) for i in 0:n]
         end,
-        StyleColor(0x26 / 255, 0x8b / 255, 0xd2 / 255, 1.0),  # color (blue)
+        color_solarized_blue,       # color (blue)
         2,                          # width
         false, false, 8,            # start_arrow, end_arrow, arrow_size
         nothing)                    # selection
@@ -87,7 +87,7 @@ function make_rotating_vector_document(; w = 600, h = 600,   # canvas size
             Tuple{Int,Int}[(round(Int, cx + r * cos(angle(t) - i * dt)),
                             y_top + i) for i in 0:n]
         end,
-        StyleColor(0x85 / 255, 0x99 / 255, 0x00 / 255, 1.0),  # color (green)
+        color_solarized_green,      # color (green)
         2,                          # width
         false, false, 8,            # start_arrow, end_arrow, arrow_size
         nothing)                    # selection
@@ -102,7 +102,7 @@ function make_rotating_vector_document(; w = 600, h = 600,   # canvas size
         () -> dot.cy,               # y1
         () -> dot.cx,               # x2
         () -> dot.cy,               # y2
-        StyleColor(0x93 / 255, 0xa1 / 255, 0xa1 / 255, 1.0),  # color (base1)
+        color_solarized_content_lighter,  # color (base1)
         1,                          # width
         (5, 5),                     # dash (on, off)
         nothing)                    # selection
@@ -112,7 +112,7 @@ function make_rotating_vector_document(; w = 600, h = 600,   # canvas size
         y_top,                      # y1 — fixed chart edge
         () -> dot.cx,               # x2
         () -> dot.cy,               # y2
-        StyleColor(0x93 / 255, 0xa1 / 255, 0xa1 / 255, 1.0),  # color (base1)
+        color_solarized_content_lighter,  # color (base1)
         1,                          # width
         (5, 5),                     # dash (on, off)
         nothing)                    # selection
