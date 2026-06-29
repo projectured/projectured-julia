@@ -42,18 +42,20 @@ panels as a separate top-level stage; a `ConversationDocument` / `WorkbenchDocum
 reaching a content slot here falls through to the reflective `Any` fallback. A
 caller that wants the real rendering injects an entry via `extra`.
 
-## Known limitation — prose inside the syntax fabric
+## Collections render as stacked blocks
 
-A `TextText` (prose) reaches its clean renderer through the **to-graphics**
-`TextDocument` entry — i.e. at top level, or embedded in a widget (a conversation
-part's content, a card). But a `TextText` placed *directly inside a collection*
-recurses through `natural_to_syntax`, which has no `TextText` entry (a multi-run,
-multi-line `TextText` does not map to a single `SyntaxLeaf` value), so it falls to
-the `ObjectToSyntax` reflection and renders as a structural tree rather than as
-prose. This is acceptable degradation for the relaxed scope; the cleaner
-long-term fix is a to-graphics `CellVector`/`ListNode` entry that lays elements
-out as stacked graphics blocks (each element re-entering the to-graphics fabric,
-so prose→prose, JSON→JSON, …) — see the plan's follow-ups.
+A `CellVector` renders as a `VerticalLayout` of independent graphics blocks
+(`CellVectorToVerticalLayout` → `VerticalLayoutToGraphicsCanvas`): each element
+re-enters *this* renderer in its own domain (prose→prose, JSON→JSON,
+widget→widget), rather than the whole collection collapsing to one syntax tree.
+So a `CellVector` of mixed content — including `TextText` prose — renders
+naturally.
+
+A `ListNode` is **not** treated this way: it stays in the to-syntax fabric
+(`CollectionToSyntax`), because a list may be lazy/infinite and must not be forced
+into a finite layout. A `TextText` placed directly inside a `ListNode` therefore
+still reflects via `ObjectToSyntax` rather than rendering as prose — an accepted
+edge case.
 """
 module NaturalProjectionModule
 
@@ -62,7 +64,9 @@ import ..TypeDispatchingModule: TypeDispatchingProjection
 import ..RecursiveProjectionModule: RecursiveProjection
 import ..SequentialProjectionModule: SequentialProjection
 import ..WidgetToGraphicsModule: WidgetToGraphics
-import ..LayoutToGraphicsModule: LayoutToGraphics
+import ..LayoutToGraphicsModule: LayoutToGraphics, VerticalLayoutToGraphicsCanvas
+import ..CollectionToLayoutModule: CellVectorToVerticalLayout
+import ..CollectionModule: CellVector
 import ..TextToGraphicsModule: TextToGraphics
 import ..WordWrappingModule: WordWrapping
 import ..SyntaxToTextModule: SyntaxToText
@@ -154,6 +158,11 @@ function NaturalToGraphics(; measure::Function,
         w2g.dispatch,                  # every widget node (incl. WidgetTable)
         Pair{Type,Any}[
             TextDocument => prose_chain,
+            # A collection renders as a stack of independent graphics blocks: each
+            # element re-enters this renderer in its own domain (prose→prose,
+            # JSON→JSON, widget→widget), instead of collapsing to one syntax tree.
+            CellVector   => SequentialProjection(CellVectorToVerticalLayout(),
+                                                 VerticalLayoutToGraphicsCanvas()),
             Any          => syntax_to_graphics,
         ],
     )
