@@ -19,6 +19,12 @@ function make_introspection_document(document, projection; title="content")
     ])
 end
 
+# Wrap any example document in a clipboard so the copy/cut/paste flow can operate
+# over it. `collection=true` uses a ClipboardCollection (the elements view), else a
+# ClipboardSlice (the single-slice view). Pairs with `make_clipboard_projection`.
+make_clipboard_document(document; collection=false) =
+    collection ? ClipboardCollection(document) : ClipboardSlice(document)
+
 function make_workbench_document(document; title="untitled", filename=title)
     edit_page = WorkbenchPage([
         WorkbenchEditor(document; title=title, filename=filename),

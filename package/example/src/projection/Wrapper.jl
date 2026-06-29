@@ -34,6 +34,29 @@ function make_introspection_projection(projection; measure=truetype_measure_text
     )))
 end
 
+# Stack the clipboard projection on top of an arbitrary example projection. The
+# clipboard projection exposes the active child (the wrapped content, or the stored
+# slice) directly; the dispatcher routes that child's type to `Any =>
+# NestingProjection(projection)`, which renders it to graphics through the example's
+# own complete pipeline (the introspection wrapper pattern). So, unlike the
+# hand-written `make_clipboard_projection_example`, no JSON-specific downstream
+# stages are needed here — the inner projection already goes all the way to graphics.
+#
+# `to_text`/`from_text` are the optional OS-clipboard converters; they default to
+# `nothing` (OS bridge off), because pasting OS text into an arbitrary domain is not
+# generally type-safe. A caller that knows the wrapped domain accepts the converted
+# node can opt in. `collection=true` uses the elements view instead of a slice.
+function make_clipboard_projection(projection; collection=false,
+                                   to_text=nothing, from_text=nothing)
+    clip = collection ?
+        ClipboardCollectionToAnyProjection() :
+        ClipboardSliceToAnyProjection(; to_text=to_text, from_text=from_text)
+    RecursiveProjection(TypeDispatchingProjection(Pair{DataType,Any}[
+        (collection ? ClipboardCollection : ClipboardSlice) => clip,
+        Any => NestingProjection(projection; recursion=PreservingProjection()),
+    ]))
+end
+
 # Wrap a Text→Text projection (TextHighlighting / TextFiltering) in a
 # ProjectionConfiguringProjection so a control bar for its parameters stacks
 # above the projected text, then render the resulting widget+text tree. The

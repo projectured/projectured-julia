@@ -236,6 +236,16 @@ projection above the projected text. Editing the controls re-highlights /
 re-filters live; `Ctrl+F` toggles the bar, `Escape` hides it. Expects a
 `TextText` document (the text examples). The two flags are mutually exclusive.
 
+When `clipboard=true`, each example is wrapped in a `ClipboardSlice` and the
+clipboard projection is stacked on top of the example's own pipeline (the
+introspection wrapper pattern), so the selection-driven copy / cut / note /
+paste flow (`Ctrl+C` / `Ctrl+X` / `Ctrl+N` / `Ctrl+V`, `Ctrl+/` to toggle the
+stored slice) works over any example. `clipboard_collection=true` uses a
+`ClipboardCollection` (the elements view) instead. The generic wrapper leaves
+the OS-clipboard bridge off (pasting OS text into an arbitrary domain is not
+type-safe); the dedicated `clipboard_example` wires JSON converters for it.
+Incompatible with `tooltip` and `inspector`.
+
 When `profile=true`, the read-eval-print loop runs under `Profile.@profile`.
 The profile buffer is cleared first; once the editor window is closed (the
 loop exits) a sampled backtrace report is printed via `Profile.print`.
@@ -243,6 +253,7 @@ loop exits) a sampled backtrace report is printed via `Profile.print`.
 function run_example(examples::Vector{Example}; width=nothing, height=nothing,
                      caching=false, scrolling=false, workbench=false, reset=false,
                      tooltip=false, inspector=false, introspection=false,
+                     clipboard=false, clipboard_collection=false,
                      text_filtering=false, text_highlighting=false, selection=nothing,
                      profile=false, backend=nothing, partial_render=nothing, debug_dirty=nothing)
     isempty(examples) && error("run_example: empty examples vector")
@@ -251,6 +262,10 @@ function run_example(examples::Vector{Example}; width=nothing, height=nothing,
     end
     if inspector && (tooltip || workbench)
         error("run_example: inspector=true is not compatible with tooltip=true or workbench=true")
+    end
+    clipboard = clipboard || clipboard_collection
+    if clipboard && (tooltip || inspector)
+        error("run_example: clipboard=true is not compatible with tooltip=true or inspector=true")
     end
     if width === nothing || height === nothing
         sw, sh = display_size()
@@ -283,6 +298,13 @@ function run_example(examples::Vector{Example}; width=nothing, height=nothing,
         elseif introspection
             document   = make_introspection_document(document, projection; title=ex.name)
             projection = make_introspection_projection(projection)
+        elseif clipboard
+            # Wrap the example in a ClipboardSlice (or ClipboardCollection) and stack
+            # the clipboard projection on top of the example's own pipeline. The
+            # seeded selection (set on the bare document above) now lives behind the
+            # clipboard's `content`; the selection-lifting loop below re-roots it.
+            document   = make_clipboard_document(document; collection=clipboard_collection)
+            projection = make_clipboard_projection(projection; collection=clipboard_collection)
         elseif text_highlighting
             # Stack a TextHighlighting control bar above the (text) document; the
             # example's own projection is replaced by the configuring pipeline.
@@ -340,14 +362,17 @@ function run_example(examples::Vector{Example}; width=nothing, height=nothing,
     # appear to be ignored. When no `selection` was passed every document
     # keeps `selection = nothing` and this loop is a no-op.
     for (i, win) in enumerate(windows)
-        # For the tooltip variant the original document sits one level
-        # deeper, behind the TooltipSource wrapper's `child` field.
-        root_doc = tooltip ? win.content.child : win.content
+        # For some variants the original document sits one level deeper, behind a
+        # wrapper field: tooltip → `.child`, clipboard → `.content` (the
+        # ClipboardSlice/ClipboardCollection's wrapped content).
+        root_doc = tooltip   ? win.content.child :
+                   clipboard ? win.content.content :
+                               win.content
         inner_sel = getfield(root_doc, :selection)[]
         inner_sel === nothing && continue
-        full_path = tooltip ?
-            (@reference windows[i].content.child.^(inner_sel)) :
-            (@reference windows[i].content.^(inner_sel))
+        full_path = tooltip   ? (@reference windows[i].content.child.^(inner_sel)) :
+                    clipboard ? (@reference windows[i].content.content.^(inner_sel)) :
+                                (@reference windows[i].content.^(inner_sel))
         set_selection!(screen, full_path)
         break
     end
