@@ -58,73 +58,72 @@ function make_rotating_vector_document()
     cos_baseline = GraphicsLine(_RV_CX, y_top, _RV_CX, y_top + _RV_N, _RV_AXIS...; width = 1)
     cos_axis     = GraphicsLine(_RV_CX - _RV_R, y_top, _RV_CX + _RV_R, y_top, _RV_AXIS...; width = 1)
 
-    # The animated elements are built with the cell-level positional constructor
-    # (every field is a `Cell`), so the reactive fields are computed cells passed
-    # straight in — `Cell(thunk)` makes a computed cell, `Cell(value)` a plain one
-    # (see Reactive.jl). No post-hoc `setfn!` is needed; the thunks read
-    # `reactive_editor_time()`, so they re-evaluate each frame.
+    # The animated elements use the cell-level positional constructor, which
+    # wraps each argument in a `Cell` automatically: a function argument becomes
+    # a *computed* cell, a plain value a static one (see Reactive.jl). So the
+    # reactive fields are just thunks passed in place — no `setfn!` — and they
+    # re-evaluate each frame because they read `reactive_editor_time()`.
 
     # the rotating dot — its centre (cx, cy) SUBSCRIBES to time.
     dot = GraphicsCircle(
-        Cell(() -> round(Int32, _RV_CX + _RV_R * cos(angle(reactive_editor_time())))),  # cx
-        Cell(() -> round(Int32, _RV_CY - _RV_R * sin(angle(reactive_editor_time())))),  # cy
-        Cell(Int32(7)),                                  # radius
-        Cell.(_RV_DOT)...,                               # fill rgba (magenta)
-        Cell(Int32(0)),                                  # border_width — filled, no outline
-        Cell(0x00), Cell(0x00), Cell(0x00), Cell(0x00),  # border rgba (unused)
-        Cell(nothing))                                   # selection
+        () -> round(Int32, _RV_CX + _RV_R * cos(angle(reactive_editor_time()))),  # cx
+        () -> round(Int32, _RV_CY - _RV_R * sin(angle(reactive_editor_time()))),  # cy
+        7,                  # radius
+        _RV_DOT...,         # fill rgba (magenta)
+        0, 0, 0, 0, 0,      # border_width + rgba — filled, no outline
+        nothing)            # selection
 
     # sine chart — aligned to the Y axis, scrolling right. Newest sample (i = 0)
     # sits at the chart's left edge at the dot's exact cy. `points` is the only
     # computed field.
     sin_chart = GraphicsPolyline(
-        Cell(() -> begin
-            t = reactive_editor_time()                   # SUBSCRIBE
+        () -> begin
+            t = reactive_editor_time()             # SUBSCRIBE
             Tuple{Int,Int}[(x_left + i,
                             round(Int, _RV_CY - _RV_R * sin(angle(t) - i * _RV_DT))) for i in 0:_RV_N]
-        end),
-        Cell.(_RV_SIN)...,                               # rgba (blue)
-        Cell(Int32(2)),                                  # width
-        Cell(false), Cell(false), Cell(Int32(8)),        # start_arrow, end_arrow, arrow_size
-        Cell(nothing))                                   # selection
+        end,
+        _RV_SIN...,         # rgba (blue)
+        2,                  # width
+        false, false, 8,    # start_arrow, end_arrow, arrow_size
+        nothing)            # selection
 
     # cosine chart — aligned to the X axis, scrolling down. Newest sample (i = 0)
     # sits at the chart's top edge at the dot's exact cx.
     cos_chart = GraphicsPolyline(
-        Cell(() -> begin
-            t = reactive_editor_time()                   # SUBSCRIBE
+        () -> begin
+            t = reactive_editor_time()             # SUBSCRIBE
             Tuple{Int,Int}[(round(Int, _RV_CX + _RV_R * cos(angle(t) - i * _RV_DT)),
                             y_top + i) for i in 0:_RV_N]
-        end),
-        Cell.(_RV_COS)...,                               # rgba (green)
-        Cell(Int32(2)),                                  # width
-        Cell(false), Cell(false), Cell(Int32(8)),        # start_arrow, end_arrow, arrow_size
-        Cell(nothing))                                   # selection
+        end,
+        _RV_COS...,         # rgba (green)
+        2,                  # width
+        false, false, 8,    # start_arrow, end_arrow, arrow_size
+        nothing)            # selection
 
     # dashed link lines from the dot to the newest sample of each chart. The
-    # moving endpoints are computed cells reading the dot's animated cells, so
-    # they animate transitively (no extra time read). The fixed chart-edge
-    # endpoint is `(x1, y1)`, so the dash pattern is anchored there and the
-    # dashes don't crawl as the dot moves.
+    # moving endpoints are thunks reading the dot's animated cells, so they
+    # animate transitively (no extra time read). The fixed chart-edge endpoint
+    # is `(x1, y1)`, so the dash pattern is anchored there and the dashes don't
+    # crawl as the dot moves.
     sin_link = GraphicsLine(
-        Cell(Int32(x_left)),                             # x1 — fixed chart edge
-        Cell(() -> Int32(dot.cy)),                       # y1
-        Cell(() -> Int32(dot.cx)),                       # x2
-        Cell(() -> Int32(dot.cy)),                       # y2
-        Cell.(_RV_LINK)...,                              # rgba
-        Cell(Int32(1)),                                  # width
-        Cell((5, 5)),                                    # dash (on, off)
-        Cell(nothing))                                   # selection
+        x_left,             # x1 — fixed chart edge
+        () -> dot.cy,       # y1
+        () -> dot.cx,       # x2
+        () -> dot.cy,       # y2
+        _RV_LINK...,        # rgba
+        1,                  # width
+        (5, 5),             # dash (on, off)
+        nothing)            # selection
 
     cos_link = GraphicsLine(
-        Cell(() -> Int32(dot.cx)),                       # x1
-        Cell(Int32(y_top)),                              # y1 — fixed chart edge
-        Cell(() -> Int32(dot.cx)),                       # x2
-        Cell(() -> Int32(dot.cy)),                       # y2
-        Cell.(_RV_LINK)...,                              # rgba
-        Cell(Int32(1)),                                  # width
-        Cell((5, 5)),                                    # dash (on, off)
-        Cell(nothing))                                   # selection
+        () -> dot.cx,       # x1
+        y_top,              # y1 — fixed chart edge
+        () -> dot.cx,       # x2
+        () -> dot.cy,       # y2
+        _RV_LINK...,        # rgba
+        1,                  # width
+        (5, 5),             # dash (on, off)
+        nothing)            # selection
 
     canvas = GraphicsCanvas([background,
                              sin_baseline, sin_axis, cos_baseline, cos_axis,
