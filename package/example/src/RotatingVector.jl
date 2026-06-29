@@ -103,5 +103,6 @@ function make_rotating_vector_document()
     canvas
 end
 
-# The document is already a GraphicsCanvas; pass it through unchanged.
-make_rotating_vector_projection() = PreservingProjection()
+# The document is already a GraphicsCanvas, so the example uses the identity
+# `PreservingProjection` directly (see `Examples.jl`): it passes the canvas
+# straight through to the backend / `write_image`.

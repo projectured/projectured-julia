@@ -191,7 +191,7 @@ export math_example
 export julia_example
 export graphics_image_example
 export rotating_vector_example
-export make_rotating_vector_document, make_rotating_vector_projection
+export make_rotating_vector_document
 export primitive_string_example
 export assistant_example
 export conversation_example
