@@ -88,98 +88,110 @@ becomes the single source of truth; callers pass context-specific overrides.
 
 ## Design
 
-### Shape
+### Shape (as implemented)
 
 ```
-NaturalToGraphics(; measure, font, theme, wrap=:auto, extra=Pair{Type,Any}[])
+NaturalToGraphics(; measure, font=font_ubuntu_monospace_regular_24,
+                    wrap=true, extra=Pair{Type,Any}[])
   → RecursiveProjection(TypeDispatchingProjection(table))
 ```
 
-`table` (ordered, specific → general):
+The implementation refined the original sketch into **two recursion fabrics**
+instead of enumerating every domain in the to-graphics layer. This handles
+collections and cross-domain mixes uniformly and shrinks the to-graphics table
+to four kinds of entry.
 
-1. **`extra`** — caller overrides, first so they win the `isa` race (e.g. the
-   assistant routing `PrimitiveDocument` to a placeholder-bearing text chain, or
-   forcing a no-wrap variant).
-2. **`LayoutToGraphics().dispatch`** — layout combinators (`GridLayout`,
-   `HorizontalLayout`, `VerticalLayout`, …). **Must precede widgets**: a
-   `WidgetTable` builds a `GridLayout` and recurses it through this same
-   dispatcher (see the comment in
-   [Workbench.jl](../../package/example/src/projection/Workbench.jl#L19-L23)).
-3. **`w2g.dispatch`** — every `WidgetDocument` node type (from `WidgetToGraphics`).
-4. **Domain documents**, each with its known chain to graphics:
-   - `TextDocument`      → `WordWrapping?` → `TextToGraphics`
-   - `JsonDocument`      → `JsonToSyntax` → `SyntaxToText` → text→graphics
-   - `XmlDocument`       → `XmlToSyntax` → …
-   - `JuliaDocument`     → `JuliaToSyntax` → …
-   - `MathDocument`      → `MathToSyntax` → …
-   - `BookDocument`      → `BookToSyntax` → …
-   - `PrimitiveDocument` → `PrimitiveToSyntax` → …
-   - `TableDocument`     → `TableToGraphics` (direct)
-   - `FileSystemDocument`→ `FileSystemToSyntax` → …
-   - `CellVector` / `CellMatrix` / `CellTable` / `ListNode` → `CollectionToSyntax` → …
-   - (stretch) `SqlDocument`, `DbCatalog`, `GraphDocument`, `WorkspaceDocument`
-5. **`Any => object_chain`** — `ObjectToSyntax → SyntaxToText → text→graphics`.
-   The backstop that lets the assistant render literally anything.
-
-Each syntax-backed chain is built by a local helper
-`syntax_chain(p) = SequentialProjection(RecursiveProjection(p),
-RecursiveProjection(SyntaxToText(…)), text_chain)` so the table reads as a flat
-list of `Domain => syntax_chain(DomainToSyntax())`.
+**Fabric 1 — `natural_to_syntax_dispatch()`** (the shared *to-syntax* table).
+Every syntax-producible domain → its `*ToSyntax`; collections → `CollectionToSyntax`;
+then `ObjectToSyntax().dispatch` spliced as the tail
+(`Cell`/`Nothing`/`Bool`/`Number`/`String`/`Symbol`/`Char`/`Any`). Wrapped in a
+`RecursiveProjection`, this is the shared element-recursion fabric: a
+mixed-domain `CellVector`, or any cross-domain nesting, projects to one syntax
+tree because each element re-enters this table by type. `CollectionToSyntax`'s
+elements recurse through *this* fabric (its docstring: "element projection is
+supplied by the surrounding `recursion`").
 
 ```julia
-function NaturalToGraphics(; measure, font, theme=…, wrap=:auto, extra=Pair{Type,Any}[])
-    w2g         = WidgetToGraphics(font; measure, theme)
-    text_chain  = SequentialProjection(WordWrapping(measure), TextToGraphics(measure))  # per `wrap`
-    syntax_chain(p) = SequentialProjection(RecursiveProjection(p),
-                                           RecursiveProjection(SyntaxToText(…)), text_chain)
-    object_chain = syntax_chain(ObjectToSyntax())
+natural_to_syntax_dispatch() = vcat(
+    Pair{Type,Any}[
+        JsonDocument => JsonToSyntax(), XmlDocument => XmlToSyntax(),
+        MathDocument => MathToSyntax(), JuliaDocument => JuliaToSyntax(),
+        BookDocument => BookToSyntax(), PrimitiveDocument => PrimitiveToSyntax(),
+        FileSystemDocument => FileSystemToSyntax(),
+    ],
+    CollectionToSyntax().dispatch,   # CellVector, ListNode
+    ObjectToSyntax().dispatch,       # leaves + Any => reflected node
+)
+```
+
+**Fabric 2 — the to-graphics dispatcher** (what `NaturalToGraphics` returns).
+Ordered, specific → general:
+
+1. **`extra`** — caller overrides, first so they win the `isa` race.
+2. **`LayoutToGraphics().dispatch`** — layout combinators. **Before widgets**: a
+   `WidgetTable` builds a `GridLayout` recursed through this same dispatcher.
+3. **`w2g.dispatch`** — every `WidgetDocument` node (incl. `WidgetTable`; there
+   is **no** separate `TableToGraphics` — the Table domain converged on
+   `WidgetTable`).
+4. **`TextDocument => prose_chain`** — prose, word-wrapped when `wrap`.
+5. **`Any => syntax_to_graphics`** — everything else (JSON, XML, Math, Julia,
+   Book, Primitive, FileSystem, collections, and unknown values) goes through
+   `RecursiveProjection(natural_to_syntax) → SyntaxToText → Text→Graphics`. The
+   `Any` catch-all means the renderer **never errors**: an unregistered value
+   degrades to a reflected object tree.
+
+```julia
+function NaturalToGraphics(; measure, font=font_ubuntu_monospace_regular_24,
+                           wrap=true, extra=Pair{Type,Any}[])
+    w2g = WidgetToGraphics(font; measure=measure)
+    prose_chain = wrap ?
+        SequentialProjection(WordWrapping(measure=measure), TextToGraphics(measure=measure)) :
+        TextToGraphics(measure=measure)
+    syntax_to_graphics = SequentialProjection(
+        RecursiveProjection(TypeDispatchingProjection(natural_to_syntax_dispatch())),
+        RecursiveProjection(SyntaxToText()),
+        TextToGraphics(measure=measure))
     table = vcat(
-        extra,
-        LayoutToGraphics().dispatch,
-        w2g.dispatch,
-        Pair{Type,Any}[
-            TextDocument      => text_chain,
-            JsonDocument      => syntax_chain(JsonToSyntax()),
-            XmlDocument       => syntax_chain(XmlToSyntax()),
-            JuliaDocument     => syntax_chain(JuliaToSyntax()),
-            MathDocument      => syntax_chain(MathToSyntax()),
-            BookDocument      => syntax_chain(BookToSyntax()),
-            PrimitiveDocument => syntax_chain(PrimitiveToSyntax()),
-            TableDocument     => TableToGraphics(),
-            FileSystemDocument=> syntax_chain(FileSystemToSyntax()),
-            CellVector        => syntax_chain(CollectionToSyntax()),
-            ListNode          => syntax_chain(CollectionToSyntax()),
-            Any               => object_chain,
-        ],
-    )
+        Pair{Type,Any}[p for p in extra],
+        LayoutToGraphics().dispatch, w2g.dispatch,
+        Pair{Type,Any}[ TextDocument => prose_chain, Any => syntax_to_graphics ])
     RecursiveProjection(TypeDispatchingProjection(table))
 end
 ```
 
-Built in one shot — no forward reference, because no entry needs to re-enter the
-renderer (see "Why this stays a one-shot dispatcher").
+Built in one shot — no forward reference, because no entry produces widgets that
+must re-enter the renderer (see "Why this stays a one-shot dispatcher").
 
-### Parameters
+### Parameters (as implemented)
 
-- `measure` / `font` / `theme` — threaded to `WidgetToGraphics`, `TextToGraphics`,
-  `WordWrapping`, matching the existing factories' signatures.
-- `wrap` — `:auto` (default; prose wraps, code/data render no-wrap like the
-  workbench), `:always`, or `:never`. Controls whether `WordWrapping` is in the
-  text chain per category.
-- `extra` — `Pair{Type,Any}[]` prepended so a caller can override or add entries
-  without forking the whole table.
+- `measure` — **required**; the backend text-measurement fn. No domain-level
+  default (`truetype_measure_text` is in the Pdf backend / SDL is heavier);
+  callers pass it.
+- `font` — defaults to `font_ubuntu_monospace_regular_24` (domain `FontModule`).
+- `wrap::Bool=true` — word-wrap prose only. Structured syntax/code is **always**
+  no-wrap (its layout carries meaning; overflow is the viewport's job). Simpler
+  than the originally-planned `:auto/:always/:never`; per-domain wrap can be a
+  follow-up via `extra`.
+- `extra` — `Pair{Type,Any}` entries prepended; first match wins, so a caller can
+  override or add routing (placeholder text chain, a real renderer for a
+  structural document) without forking the table.
 
 ## Phasing
 
-### Phase 1 — The renderer
-The full table above (layout + widgets + domain chains + `Any` fallback). This
-already "displays almost anything," including heterogeneous nestings, because
-embedding points recurse through the renderer. Lives at domain level (it
-references concrete domain projections): new file
-`package/domain/src/projection/NaturalProjection.jl`, exported from the domain
-module. Add a heterogeneous example (a `CellVector` / layout holding [Text,
-Julia, JSON, Table]) to the example registry and verify with `test_printer` /
-`test_reader`.
+### Phase 1 — The renderer ✅ DONE
+The renderer (Fabric 1 + Fabric 2 above). Lives at domain level:
+[NaturalProjection.jl](../../package/domain/src/projection/primitive/NaturalProjection.jl),
+included in `ProjecturedDomain` and auto-reexported by the umbrella (`NaturalToGraphics`,
+`natural_to_syntax_dispatch`). Registered a heterogeneous example —
+`natural_example`, a mixed-domain `CellVector` of [JSON, Math, Text, XML]
+([document/Natural.jl](../../package/example/src/document/Natural.jl),
+[projection/Natural.jl](../../package/example/src/projection/Natural.jl)).
+
+Verified: `test_printer(natural_example)` + `test_reader(natural_example)` pass
+(13944 assertions). Headless smoke (stub measure) via `walk_printer_output` /
+`walk_repl_loop` over json/xml/text/math/julia/book/collection/mixed, a
+mixed-domain `CellVector`, and an unknown struct — all produce a `GraphicsCanvas`,
+reader cycle clean.
 
 ### Phase 2 — Migrate callers
 Reimplement the hand-rolled tables in terms of `NaturalToGraphics(; extra=…)`:
