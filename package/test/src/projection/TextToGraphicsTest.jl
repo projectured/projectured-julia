@@ -43,8 +43,8 @@ st_color = TextText(
 )
 sdl_color = projection_print(TextToGraphics(measure=_test_measure(10, 48)), st_color).output
 items_c = _texts(sdl_color)
-@test items_c[1].r == 0xff && items_c[1].g == 0x00  # red
-@test items_c[2].r == 0x00 && items_c[2].b == 0xff  # blue
+@test items_c[1].color == color_red    # red
+@test items_c[2].color == color_blue   # blue
 
 # continuation on same line
 @test items_c[2].y == items_c[1].y  # same line
@@ -66,9 +66,8 @@ items_r = _texts(sdl_react)
 st_hex = TextText(TextString("hex", font_ubuntu_monospace_regular_24, StyleColor(1.0, 0.53, 0.0, 1.0)))
 sdl_hex = projection_print(TextToGraphics(measure=_test_measure(10, 48)), st_hex).output
 h = _texts(sdl_hex)[1]
-@test h.r == 0xff
-@test h.g == 0x87  # rounding of 0.53 * 255
-@test h.b == 0x00
+# StyleColor is now carried through unchanged (no byte round-trip).
+@test h.color == StyleColor(1.0, 0.53, 0.0, 1.0)
 
 end # @testset "TextToGraphics"
 
@@ -223,7 +222,7 @@ rects = filter(e -> e isa GraphicsRect && e.w > 0, items)
 rect = rects[1]
 @test rect.x == 0 && rect.y == 0
 @test rect.w == 20 && rect.h == 18      # tight measured box of "hi"
-@test rect.r == 0x00 && rect.g == 0x00 && rect.b == 0xff   # blue fill
+@test rect.color == color_blue   # blue fill
 
 # The fill rect is drawn before its text, so it paints behind.
 rect_idx = findfirst(e -> e isa GraphicsRect && e.w > 0, items)

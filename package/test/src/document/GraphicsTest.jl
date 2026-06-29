@@ -1,13 +1,11 @@
 function test_graphics()
 @testset "ReactiveSDL" begin
 
-sdlt = GraphicsText("test", 10, 20, font_ubuntu_monospace_regular_24, 255, 0, 0, 255)
+sdlt = GraphicsText("test", 10, 20, font_ubuntu_monospace_regular_24, color_red)
 @test sdlt.text == "test"
 @test sdlt.x == 10
 @test sdlt.y == 20
-@test sdlt.r == 0xff
-@test sdlt.g == 0x00
-@test sdlt.a == 0xff
+@test sdlt.color == color_red
 
 sdlt.text = "changed"
 @test sdlt.text == "changed"
@@ -19,10 +17,7 @@ sdlt2 = GraphicsText(
     Cell(() -> Int32(off[] * 10)),
     Cell(Int32(0)),
     Cell(font_ubuntu_monospace_regular_24),
-    Cell(UInt8(0)),
-    Cell(UInt8(0)),
-    Cell(UInt8(0)),
-    Cell(UInt8(255)),
+    Cell(color_black),
     Cell(nothing)
 )
 @test sdlt2.x == 50

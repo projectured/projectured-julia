@@ -31,7 +31,7 @@ _wt_cell(r, c) = ConcreteReferencePath(FieldReference("rows"),
 
 # The translucent selection rects the renderer prepends (alpha 0x40).
 function _table_highlights(io)
-    GraphicsRect[c for c in collect(io.output.elements) if c isa GraphicsRect && c.a == 0x40]
+    GraphicsRect[c for c in collect(io.output.elements) if c isa GraphicsRect && c.color.alpha == 0x40 / 255]
 end
 
 function _print_with(doc, proj, path)

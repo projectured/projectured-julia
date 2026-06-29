@@ -57,11 +57,11 @@ end
 @testset "write_pdf renders every primitive + embedded font" begin
     fnt = Projectured.FontModule.font_dejavu_sans_regular_18
     canvas = GraphicsCanvas([
-        GraphicsRect(10, 10, 120, 40, 220, 60, 60, 255, 8;
-                     border_width=2, border_color=(0, 0, 0, 255)),
-        GraphicsCircle(180, 30, 20, 60, 120, 220, 200),
-        GraphicsLine(10, 70, 200, 70, 0, 0, 0, 255; width=2),
-        GraphicsText("Hello PDF — café", 12, 80, fnt, 20, 20, 20, 255),
+        GraphicsRect(10, 10, 120, 40, StyleColor(220 / 255, 60 / 255, 60 / 255, 1.0), 8;
+                     border_width=2, border_color=color_black),
+        GraphicsCircle(180, 30, 20, StyleColor(60 / 255, 120 / 255, 220 / 255, 200 / 255)),
+        GraphicsLine(10, 70, 200, 70, color_black; width=2),
+        GraphicsText("Hello PDF — café", 12, 80, fnt, StyleColor(20 / 255, 20 / 255, 20 / 255, 1.0)),
     ])
     filename = tempname() * ".pdf"
     write_pdf(canvas, filename; width=240, height=120)
@@ -94,7 +94,7 @@ end
 # A tall stack of text lines used by the pagination tests.
 function _tall_canvas(nlines)
     fnt = Projectured.FontModule.font_dejavu_sans_regular_18
-    GraphicsCanvas(Any[GraphicsText("paginated line $(i+1)", 10, 10 + 20i, fnt, 20, 20, 20, 255)
+    GraphicsCanvas(Any[GraphicsText("paginated line $(i+1)", 10, 10 + 20i, fnt, StyleColor(20 / 255, 20 / 255, 20 / 255, 1.0))
                        for i in 0:(nlines - 1)])
 end
 
