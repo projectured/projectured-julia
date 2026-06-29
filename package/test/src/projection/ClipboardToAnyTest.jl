@@ -205,4 +205,68 @@ end
     @test !(projection_read(p, iomap, KeyDown(:minus, ctrl)) isa ReplaceReferencedValue)
 end
 
+@testset "slice OS clipboard bridge" begin
+    # An in-memory fake OS clipboard (CI has no xclip/xsel/wl-*). The try/finally
+    # restores the real shell-out backend afterwards.
+    buf = Ref("")
+    set_os_clipboard_backend!(read = () -> buf[], write = t -> (buf[] = String(t); true))
+    try
+        to_text   = d -> d isa PrimitiveString ? d.value : nothing
+        from_text = t -> PrimitiveString(String(t))
+
+        # Copy mirrors the selected object's text out to the OS clipboard via a
+        # trailing WriteOsClipboardOperation; evaluating it performs the write.
+        content = PrimitiveString("hello")
+        slice = ClipboardSlice(content)
+        slice.selection = cpath(FieldReference("content"))
+        p = ClipboardSliceToAnyProjection(to_text=to_text, from_text=from_text)
+        iomap = projection_print(p, PreservingProjection(), slice, PrinterContext())
+
+        op = projection_read(p, iomap, KeyDown(:c, ctrl))
+        @test op isa CompoundOperation
+        @test op.operations[end] isa WriteOsClipboardOperation
+        @test op.operations[end].text == "hello"
+        evaluate_operation(nothing, op.operations[end])
+        @test buf[] == "hello"                                   # mirrored to OS
+
+        # Cut also mirrors out (and still blanks the source).
+        buf[] = ""
+        op = projection_read(p, iomap, KeyDown(:x, ctrl))
+        @test op.operations[end] isa WriteOsClipboardOperation
+        evaluate_operation(nothing, op.operations[end])
+        @test buf[] == "hello"
+
+        # Paste with an EMPTY internal slice falls back to the OS clipboard,
+        # converting its text via from_text.
+        buf[] = "from-os"
+        empty = ClipboardSlice(PrimitiveString("x"))
+        empty.selection = cpath(FieldReference("content"))
+        iomap_e = projection_print(p, PreservingProjection(), empty, PrinterContext())
+        op = projection_read(p, iomap_e, KeyDown(:v, ctrl))
+        @test op isa CompoundOperation
+        @test _rd_val(op.operations[1]) isa PrimitiveString
+        @test _rd_val(op.operations[1]).value == "from-os"
+        @test op.operations[2] isa ReplaceSelectionOperation
+
+        # Without a from_text converter, empty-slice paste still declines (today's
+        # behavior — no OS read happens at all).
+        pn = ClipboardSliceToAnyProjection()                     # converters nothing
+        iomap_n = projection_print(pn, PreservingProjection(), empty, PrinterContext())
+        @test !(projection_read(pn, iomap_n, KeyDown(:v, ctrl)) isa CompoundOperation)
+
+        # A failed/empty OS read (nothing) declines gracefully rather than erroring.
+        set_os_clipboard_backend!(read = () -> nothing, write = t -> false)
+        @test !(projection_read(p, iomap_e, KeyDown(:v, ctrl)) isa CompoundOperation)
+
+        # Copy with no to_text converter emits no WriteOsClipboardOperation.
+        p2 = ClipboardSliceToAnyProjection()
+        iomap2 = projection_print(p2, PreservingProjection(), slice, PrinterContext())
+        op = projection_read(p2, iomap2, KeyDown(:c, ctrl))
+        @test op isa CompoundOperation
+        @test !any(o -> o isa WriteOsClipboardOperation, op.operations)
+    finally
+        reset_os_clipboard_backend!()
+    end
+end
+
 end # test_clipboard_to_any
