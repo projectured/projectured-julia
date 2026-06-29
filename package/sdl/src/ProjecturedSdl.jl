@@ -35,7 +35,7 @@ import ProjecturedDomain.GeometryModule: AffineTransform, affine_identity, affin
 import ProjecturedDomain.ColorModule: StyleColor
 import ProjecturedDomain.FontModule: StyleFont, font_scaled_size, font_logical_size, font_device_size,
                          _DISPLAY_SCALE, _BASE_DISPLAY_SCALE, recompute_display_scale!,
-                         adjust_user_zoom!, adjust_font_zoom!
+                         adjust_user_zoom!, adjust_font_zoom!, _FONT_DIR
 import ProjecturedDomain.ScreenModule: Screen, QuitEvent
 import ProjecturedDomain.ScreenDocumentModule: ScreenDocument, WindowDocument, EventEnvelope, WindowCloseRequest, WindowResizeEvent, WindowFocusLost
 import ProjecturedDomain.ModifiersModule: Modifiers
@@ -631,6 +631,117 @@ function _get_font(font::StyleFont)
     end
 end
 
+# ── Emoji fallback font ────────────────────────────────────────────────
+#
+# The bundled text fonts (Ubuntu, DejaVu, Liberation) carry no emoji glyphs, and
+# SDL2_ttf has no fallback-font mechanism, so emoji codepoints would otherwise
+# rasterize as `.notdef` boxes. We bundle a *monochrome* emoji font — it renders
+# through the same blended path, with none of SDL2's fragile colour-emoji
+# plumbing — and route glyphs the primary font lacks to it (see `_font_runs`).
+const _EMOJI_FONT_FILE = joinpath(_FONT_DIR, "NotoEmoji-Regular.ttf")
+
+# Open (and cache) the emoji font at `size` device px. Returns C_NULL when the
+# font is absent or fails to load, so callers transparently degrade to the
+# primary font (i.e. today's box behaviour) instead of erroring.
+function _get_emoji_font(size::Int)
+    key = (_EMOJI_FONT_FILE, size)
+    get!(_font_cache, key) do
+        isfile(_EMOJI_FONT_FILE) ? TTF_OpenFont(_EMOJI_FONT_FILE, size) : Ptr{TTF_Font}(C_NULL)
+    end
+end
+
+# Which font should render codepoint `cp`? SDL2_ttf does no shaping and
+# `TTF_GlyphIsProvided` is BMP-only (UInt16), so: astral-plane codepoints (nearly
+# all pictographic emoji) go to the emoji font; for BMP codepoints we keep glyphs
+# the primary font actually has (✓ ★ → and box-drawing render best there) and
+# fall back to the emoji font only for the ones it lacks.
+@inline function _glyph_font(cp::UInt32, primary::Ptr{TTF_Font}, emoji::Ptr{TTF_Font})
+    emoji == C_NULL && return primary
+    if cp > 0xFFFF
+        return emoji
+    elseif TTF_GlyphIsProvided(primary, UInt16(cp)) != 0
+        return primary
+    elseif TTF_GlyphIsProvided(emoji, UInt16(cp)) != 0
+        return emoji
+    else
+        return primary
+    end
+end
+
+# Split `text` into maximal consecutive runs that share one font. Variation
+# selectors (U+FE0E/U+FE0F) are dropped — zero-width presentation hints that
+# would otherwise draw a stray box in the emoji font; ZWJ (U+200D) and skin-tone
+# modifiers stay in the current run so they bind to the preceding emoji. With no
+# emoji font loaded this returns a single primary-font run (the fast path). Note:
+# without shaping, ZWJ/skin-tone sequences render as their separate base glyphs.
+function _font_runs(text::AbstractString, primary::Ptr{TTF_Font}, emoji::Ptr{TTF_Font})
+    runs = Tuple{Ptr{TTF_Font},String}[]
+    if emoji == C_NULL
+        push!(runs, (primary, String(text)))
+        return runs
+    end
+    buf = IOBuffer()
+    cur = primary
+    started = false
+    for ch in text
+        cp = UInt32(ch)
+        (cp == 0xFE0E || cp == 0xFE0F) && continue          # drop variation selectors
+        sticky = started && (cp == 0x200D || 0x1F3FB <= cp <= 0x1F3FF)
+        f = sticky ? cur : _glyph_font(cp, primary, emoji)
+        if !started
+            cur = f
+        elseif f !== cur
+            push!(runs, (cur, String(take!(buf))))
+            cur = f
+        end
+        print(buf, ch)
+        started = true
+    end
+    started && push!(runs, (cur, String(take!(buf))))
+    return runs
+end
+
+# Rasterize multi-font `runs` into one blended surface, laid out left-to-right and
+# aligned on the text baseline (each run's surface sits its glyphs on the baseline
+# at `TTF_FontAscent` from its top). Returns C_NULL if nothing rendered. The
+# caller treats the result exactly like a single `TTF_RenderUTF8_Blended` surface
+# (upload, query size, free).
+function _render_runs_blended(runs::Vector{Tuple{Ptr{TTF_Font},String}}, color::NTuple{4,UInt8})
+    col = SDL_Color(color...)
+    pieces = Tuple{Ptr{SDL_Surface},Int,Int,Int}[]   # (surface, w, h, ascent)
+    total_w = 0; max_ascent = 0; max_below = 0
+    for (f, s) in runs
+        isempty(s) && continue
+        srf = TTF_RenderUTF8_Blended(f, s, col)
+        srf == C_NULL && continue
+        su = unsafe_load(srf)
+        asc = Int(TTF_FontAscent(f))
+        push!(pieces, (srf, Int(su.w), Int(su.h), asc))
+        total_w += Int(su.w)
+        max_ascent = max(max_ascent, asc)
+        max_below = max(max_below, Int(su.h) - asc)
+    end
+    isempty(pieces) && return Ptr{SDL_Surface}(C_NULL)
+    height = max_ascent + max_below
+    combined = SDL_CreateRGBSurfaceWithFormat(UInt32(0), Cint(total_w), Cint(height),
+                                              Cint(32), UInt32(SDL_PIXELFORMAT_ARGB8888))
+    if combined == C_NULL
+        for (srf, _, _, _) in pieces
+            SDL_FreeSurface(srf)
+        end
+        return Ptr{SDL_Surface}(C_NULL)
+    end
+    x = 0
+    for (srf, w, h, asc) in pieces
+        SDL_SetSurfaceBlendMode(srf, SDL_BLENDMODE_NONE)     # straight RGBA copy, no over-blend
+        dst = Ref(SDL_Rect(Cint(x), Cint(max_ascent - asc), Cint(w), Cint(h)))
+        SDL_BlitSurface(srf, C_NULL, combined, dst)
+        x += w
+        SDL_FreeSurface(srf)
+    end
+    return combined
+end
+
 # Convert a domain `StyleColor` (Float64 RGBA in [0,1]) to SDL's device bytes.
 _rgba8(c::StyleColor) = (UInt8(round(c.red * 255)), UInt8(round(c.green * 255)),
                          UInt8(round(c.blue * 255)), UInt8(round(c.alpha * 255)))
@@ -652,7 +763,11 @@ function _render_element!(renderer::Ptr{SDL_Renderer}, elem::GraphicsText, ox::I
     entry = get(_text_texture_cache, key, nothing)
     if entry === nothing
         font = _get_font(font_style)
-        surface = TTF_RenderUTF8_Blended(font, text, SDL_Color(color...))
+        emoji = _get_emoji_font(font_device_size(font_style))
+        runs = _font_runs(text, font, emoji)
+        surface = length(runs) == 1 ?
+            TTF_RenderUTF8_Blended(runs[1][1], runs[1][2], SDL_Color(color...)) :
+            _render_runs_blended(runs, color)
         surface == C_NULL && return
         texture = SDL_CreateTextureFromSurface(renderer, surface)
         w_ref, h_ref = Ref{Cint}(0), Ref{Cint}(0)
@@ -1637,10 +1752,31 @@ size (for crispness) and the device measurement is divided back by
 """
 function measure_text(::SdlBackend, text::AbstractString, font::StyleFont)
     isempty(text) && return (0, font_logical_size(font))
-    cached_font = _get_font(font)
-    w_ref, h_ref = Ref{Cint}(0), Ref{Cint}(0)
-    TTF_SizeUTF8(cached_font, String(text), w_ref, h_ref)
-    return (_to_logical(Int(w_ref[])), _to_logical(Int(h_ref[])))
+    primary = _get_font(font)
+    emoji = _get_emoji_font(font_device_size(font))
+    runs = _font_runs(text, primary, emoji)
+    # Fast path: a single run — all-text (the common case, font == primary) or
+    # all-emoji. Measure with that run's own font, not `primary`, otherwise a
+    # pure-emoji span would be sized from the text font's `.notdef` box.
+    if length(runs) == 1
+        f, s = runs[1]
+        w_ref, h_ref = Ref{Cint}(0), Ref{Cint}(0)
+        TTF_SizeUTF8(f, s, w_ref, h_ref)
+        return (_to_logical(Int(w_ref[])), _to_logical(Int(h_ref[])))
+    end
+    # Mixed-font span: sum per-run widths and baseline-align heights, matching the
+    # composite produced by `_render_runs_blended`.
+    total_w = 0; max_ascent = 0; max_below = 0
+    for (f, s) in runs
+        isempty(s) && continue
+        w_ref, h_ref = Ref{Cint}(0), Ref{Cint}(0)
+        TTF_SizeUTF8(f, s, w_ref, h_ref)
+        asc = Int(TTF_FontAscent(f))
+        total_w += Int(w_ref[])
+        max_ascent = max(max_ascent, asc)
+        max_below = max(max_below, Int(h_ref[]) - asc)
+    end
+    return (_to_logical(total_w), _to_logical(max_ascent + max_below))
 end
 
 # ── Standalone convenience function ──────────────────────────────────
@@ -2012,7 +2148,9 @@ function quit!(::SdlBackend)
     # Free cached textures while their renderers are still alive (before SDL_Quit).
     _clear_text_texture_cache!()
     for font in values(_font_cache)
-        TTF_CloseFont(font)
+        # `_get_emoji_font` caches C_NULL when the emoji font is absent; skip those
+        # (TTF_CloseFont(NULL) dereferences a null pointer).
+        font != C_NULL && TTF_CloseFont(font)
     end
     empty!(_font_cache)
     TTF_Quit()

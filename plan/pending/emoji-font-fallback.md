@@ -65,11 +65,11 @@ run → unchanged fast path.
 
 ## Steps
 
-- [ ] **1. Bundle the emoji font.** Acquire OFL Noto Emoji (monochrome) → `asset/font/NotoEmoji-Regular.ttf` + `NotoEmoji-OFL.txt`. Verify: valid TTF, monochrome, provides U+1F600. *(Sonnet subagent.)* Commit.
-- [ ] **2. Emoji font loader.** `_EMOJI_FONT_FILE` (from `_FONT_DIR`) + `_get_emoji_font(size)` that caches into `_font_cache` and returns `C_NULL` on missing/failed load (graceful degradation). Add null-guard to the `quit!` font-close loop. Import `_FONT_DIR` from `FontModule`.
-- [ ] **3. Run splitter + compositor.** `_font_runs(text, primary, emoji)` and `_render_runs_blended(runs, color)`; wire into `_render_element!(::GraphicsText)` with the single-run fast path.
-- [ ] **4. Measurement.** Update `measure_text` to split runs and sum per-run metrics.
-- [ ] **5. Build + verify.** Load the SDL package; render an emoji-bearing string offscreen (`write_image`) and confirm glyphs are not tofu; run the smallest relevant test. Commit steps 2–4.
+- [x] **1. Bundle the emoji font.** Monochrome OFL Noto Emoji → `asset/font/NotoEmoji-Regular.ttf` + `NotoEmoji-OFL.txt`. *(See discovery: first build was an incomplete v2.034 static — missing U+1F916 robot — so swapped for the complete modern monochrome Noto Emoji.)*
+- [x] **2. Emoji font loader.** `_EMOJI_FONT_FILE` (from `_FONT_DIR`) + `_get_emoji_font(size)` caching into `_font_cache`, returning `C_NULL` on missing/failed load. `quit!` null-guard added. `_FONT_DIR` imported from `FontModule`.
+- [x] **3. Run splitter + compositor.** `_font_runs(text, primary, emoji)` + `_render_runs_blended(runs, color)`; wired into `_render_element!(::GraphicsText)` with the single-run fast path.
+- [x] **4. Measurement.** `measure_text` splits runs and sums per-run metrics. **Bug found & fixed:** the single-run fast path measured with `primary`, so an all-emoji span was sized from the text font's `.notdef` box (8px) — now uses the run's own font.
+- [ ] **5. Build + verify.** Offscreen `write_image` render confirms 😀 ✅ 🎉 etc. render as glyphs (verified once; re-running after the complete-font swap to confirm 🤖). Commit steps 1–5.
 - [ ] **6.** Move this plan to `plan/done/`.
 
 ## Decisions / discoveries (filled in during implementation)
@@ -80,3 +80,13 @@ run → unchanged fast path.
 - Texture cache key `(renderer, text, filename, size, color)` is unchanged: emoji
   routing is a deterministic function of `text` + primary font, so the key still
   uniquely identifies the composite.
+- **Emoji font coverage matters.** The first bundled file (static Noto Emoji
+  v2.034) was incomplete — `fc-query` charset showed U+1F916 (🤖 robot) absent,
+  rendering as a box even though it routed to the emoji font. Swapped to the
+  complete modern monochrome Noto Emoji.
+- **Out of scope — text-presentation symbols.** ✓ (U+2713), ★ (U+2605),
+  → (U+2192) render as boxes: Ubuntu lacks them (they were boxes before this
+  change too) and Noto Emoji intentionally covers only emoji, not text symbols.
+  Not a regression. A future improvement could add the already-bundled DejaVu
+  Sans as a *second* BMP-symbol fallback ahead of the emoji font — deferred to
+  keep this change emoji-scoped.
