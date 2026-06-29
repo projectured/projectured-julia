@@ -2384,39 +2384,49 @@ end
 
 # ── WidgetTabbedPane ────────────────────────────────────────────────────────
 
+# Shared tab-strip layout, so the printer's drawing and the reader's hit-testing /
+# scroll-clamping agree exactly (including any per-tab icon width — measuring text
+# only would shift the reader's tab boundaries left of where they are drawn). Returns
+# the content offset, the tab padding, the strip height, the natural strip width, and
+# one tuple per tab: `(label, icon, icon_w, gap, x, rw)` where `x`/`rw` are the tab's
+# left edge and full width in strip coordinates.
+function _tab_strip_geometry(p::WidgetTabbedPaneToGraphicsCanvas, w::WidgetTabbedPane)
+    cox, coy = _content_offset(w)
+    sel_pad = p.tab_padding
+    tabs = Any[]   # (label, icon, icon_w, gap, x, rw)
+    tab_h = 0
+    x = cox
+    for pair in w.selector_element_pairs
+        label = string(pair.selector)
+        icon  = pair.icon
+        tw, th = _text_size(p.measure, p.font, label)
+        iw  = icon_width(icon, th)
+        gap = iw > 0 ? _sc(6) : 0
+        rw  = tw + iw + gap + 2 * sel_pad
+        push!(tabs, (label, icon, iw, gap, x, rw))
+        x += rw
+        tab_h = max(tab_h, th)
+    end
+    sel_h = tab_h + 2 * sel_pad
+    strip_w = isempty(tabs) ? 0 : (tabs[end][5] + tabs[end][6] - cox)
+    (cox, coy, sel_pad, sel_h, strip_w, tabs)
+end
+
+# Rendered horizontal scroll offset of the strip: the stored `tab_scroll` clamped to
+# the strip's overflow past the viewport (0 when it fits). Shared by printer (draws
+# at `-offset`) and reader (offsets hit-testing and the scroll delta base).
+_tab_scroll_offset(w::WidgetTabbedPane, strip_w::Int, view_w::Int) =
+    clamp(Int(getfield(w, :tab_scroll)[]), 0, max(0, strip_w - view_w))
+
 function projection_print(p::WidgetTabbedPaneToGraphicsCanvas, recursion, w::WidgetTabbedPane, ctx)
     w.visible == false && return ChildrenIoMap(p, w, _empty_canvas(), Cell(Any[]))
-    cox, coy = _content_offset(w)
     pairs = w.selector_element_pairs
     child_iomaps = Any[]
     if isempty(pairs)
         return ChildrenIoMap(p, w, _empty_canvas(), Cell(child_iomaps))
     end
 
-    sel_pad = p.tab_padding
-    # Each tab is `(label, content)` or `(label, content, icon)`. An icon (Stage 5)
-    # is drawn before the label in the tab strip; its width grows the tab.
-    tabs = Any[]   # (label, icon, content_w, icon_w, gap, th)
-    for pair in pairs
-        label = string(pair.selector)
-        icon  = pair.icon
-        tw, th = _text_size(p.measure, p.font, label)
-        iw  = icon_width(icon, th)
-        gap = iw > 0 ? _sc(6) : 0
-        push!(tabs, (label, icon, tw + iw + gap, iw, gap, th))
-    end
-    tab_h = maximum(t[6] for t in tabs)
-    sel_h = tab_h + 2 * sel_pad
-
-    tab_xs = Int[]
-    tab_rws = Int[]
-    x = cox
-    for t in tabs
-        cw = t[3]
-        push!(tab_xs, x)
-        push!(tab_rws, cw + 2 * sel_pad)
-        x += cw + 2 * sel_pad
-    end
+    cox, coy, sel_pad, sel_h, strip_w, tabs = _tab_strip_geometry(p, w)
 
     sel_cell = getfield(w, :selection)
 
@@ -2425,10 +2435,6 @@ function projection_print(p::WidgetTabbedPaneToGraphicsCanvas, recursion, w::Wid
         i == 0 ? 1 : i
     end
 
-    # Natural width of the whole tab row (loop-invariant: the tab geometry does
-    # not depend on the active selection).
-    strip_w = isempty(tab_xs) ? 0 : (tab_xs[end] + tab_rws[end] - cox)
-
     selector_cv = CellVector(() -> begin
         active = _active_idx(sel_cell[])
         result = Any[]
@@ -2436,8 +2442,7 @@ function projection_print(p::WidgetTabbedPaneToGraphicsCanvas, recursion, w::Wid
         # Muted track behind the whole tab row.
         _push_panel!(result, cox, coy, strip_w, sel_h; fill=p.track_color, radius=tab_radius)
         for i in eachindex(tabs)
-            label, icon, _, iw, gap, _ = tabs[i]
-            tx, rw = tab_xs[i], tab_rws[i]
+            label, icon, iw, gap, tx, rw = tabs[i]
             if i == active
                 # Active tab: a raised background pill.
                 _push_panel!(result, tx, coy, rw, sel_h; fill=p.active_color, radius=tab_radius)
@@ -2489,26 +2494,26 @@ function projection_print(p::WidgetTabbedPaneToGraphicsCanvas, recursion, w::Wid
 
     # Clip the selector row to the pane's own width so a tab strip wider than
     # the tabbed pane cannot overflow the widget. When the parent seeded an
-    # available width, clip to the content box (allocation minus insets);
-    # otherwise there is no constraint, so the viewport is as wide as the strip
-    # and clips nothing.
-    #
-    # Reuse the distinctly-named `inset_x` (computed above) rather than a fresh
-    # `tx` local: the selector builder closure binds `tx` as a tab x-position,
-    # and because both closures capture the same enclosing-scope variable, a
-    # `tx` here would be clobbered once the strip renders — leaving the viewport
-    # width at `avail_w - last_tab_x` (a "random" narrow clip) instead of
-    # `avail_w - insets`.
+    # available width, clip to the content box (allocation minus insets) using the
+    # distinctly-named `inset_x` (computed above); otherwise there is no constraint,
+    # so the viewport is as wide as the strip and clips nothing.
     sel_view_w = if avail_w === nothing
         Cell(Int32(strip_w))
     else
         Cell(() -> Int32(max(0, Int(avail_w[]) - inset_x)))
     end
+    # Horizontal scroll: when the strip is wider than the viewport, shift its inner
+    # canvas left by the clamped `tab_scroll` so overflow tabs scroll into view (a
+    # wheel over the strip drives it — see projection_read). Reactive on both the
+    # stored offset and the viewport width.
+    scroll_x = Cell(() -> Int32(-cox - _tab_scroll_offset(w, strip_w, Int(sel_view_w[]))))
     # The viewport sits at the content origin; its inner canvas is shifted back
-    # by that origin so the strip elements keep their original coordinates.
+    # by that origin (minus any scroll) so the strip elements keep their original
+    # coordinates at scroll 0.
     selector_viewport = GraphicsViewport(
         Cell(Int32(cox)), Cell(Int32(coy)), sel_view_w, Cell(Int32(sel_h)),
-        Cell(GraphicsCanvas(-cox, -coy, selector_cv, layout_none, true)),
+        Cell(GraphicsCanvas(scroll_x, Cell(Int32(-coy)), Int32(0), Int32(0),
+                            selector_cv, layout_none, true, Cell(nothing))),
         Cell(affine_identity),
         Cell(nothing))
 
@@ -2532,6 +2537,18 @@ function map_reference_backward(::WidgetTabbedPaneToGraphicsCanvas, iomap, refer
     return nothing
 end
 
+# Selector-viewport width as drawn (the clip box). Read back from the output so the
+# reader clamps scroll / hit-tests against exactly what the printer produced; falls
+# back to `strip_w` (no clip) when the pane is empty/invisible.
+function _tab_view_w(iomap::ChildrenIoMap, strip_w::Int)
+    canvas = iomap.output
+    canvas isa GraphicsCanvas || return strip_w
+    els = canvas.elements
+    length(els) >= 1 || return strip_w
+    vp = els[1]
+    vp isa GraphicsViewport ? Int(vp.w[]) : strip_w
+end
+
 function projection_read(p::WidgetTabbedPaneToGraphicsCanvas, iomap::ChildrenIoMap, evt)
     child_iomaps = iomap.child_iomaps[]::Vector
     if evt isa MousePress
@@ -2540,30 +2557,40 @@ function projection_read(p::WidgetTabbedPaneToGraphicsCanvas, iomap::ChildrenIoM
             res = _route_active_tab(iomap, child_iomaps, evt)
             return _tab_prefix(res)
         end
-        cox, coy = _content_offset(w)
-        pairs = w.selector_element_pairs
-        if !isempty(pairs)
-            sel_pad = p.tab_padding
-            sizes = Tuple{Int,Int}[]
-            tab_h = 0
-            for pair in pairs
-                tw, th = _text_size(p.measure, p.font, string(pair.selector))
-                push!(sizes, (tw, th))
-                tab_h = max(tab_h, th)
-            end
-            sel_h = tab_h + 2 * sel_pad
-            tab_x = cox
-            for (i, (tw, _)) in enumerate(sizes)
-                rw = tw + 2 * sel_pad
-                if evt.x >= tab_x && evt.x < tab_x + rw && evt.y >= coy && evt.y < coy + sel_h
-                    return SelectTabOperation(w, i)
+        cox, coy, sel_pad, sel_h, strip_w, tabs = _tab_strip_geometry(p, w)
+        if !isempty(tabs) && evt.y >= coy && evt.y < coy + sel_h
+            view_w = _tab_view_w(iomap, strip_w)
+            # A click in the (clipped) strip maps to a tab through the scroll offset:
+            # the tab drawn at screen x sits at strip coordinate `x + scroll`.
+            if evt.x >= cox && evt.x < cox + view_w
+                xx = evt.x + _tab_scroll_offset(w, strip_w, view_w)
+                for (i, t) in enumerate(tabs)
+                    tx, rw = t[5], t[6]
+                    xx >= tx && xx < tx + rw && return SelectTabOperation(w, i)
                 end
-                tab_x += rw
             end
         end
         return _tab_prefix(_route_active_tab(iomap, child_iomaps, evt))
     end
     if evt isa MouseScroll
+        w = iomap.input
+        if w isa WidgetTabbedPane
+            cox, coy, sel_pad, sel_h, strip_w, tabs = _tab_strip_geometry(p, w)
+            # A wheel over the strip scrolls it horizontally (the strip is a horizontal
+            # row, so vertical wheel maps to horizontal motion); over the content it
+            # scrolls the active tab as before.
+            if !isempty(tabs) && evt.y >= coy && evt.y < coy + sel_h
+                view_w = _tab_view_w(iomap, strip_w)
+                max_s = max(0, strip_w - view_w)
+                if max_s > 0
+                    step, _ = _text_size(p.measure, p.font, "M")
+                    delta = evt.dx != 0 ? evt.dx : -evt.dy
+                    s = _tab_scroll_offset(w, strip_w, view_w)
+                    new_s = clamp(s + delta * step, 0, max_s)
+                    return ReplaceReferencedValue(w, "tab_scroll", new_s)
+                end
+            end
+        end
         return _tab_prefix(_route_active_tab(iomap, child_iomaps, evt))
     end
     # Drag events carry coordinates and target the visible tab regardless of

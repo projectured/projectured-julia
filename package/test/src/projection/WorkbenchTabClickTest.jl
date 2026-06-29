@@ -13,10 +13,15 @@
 # These tests pin both halves: the page selection drives the active tab index
 # (print side, the regression), and the user gesture — a left click on a tab label —
 # routes to a `ReplaceSelectionOperation` that selects that tab's element (read side).
+#
+# A third testset covers tab-strip overflow scrolling: when more tabs are open than
+# fit the column, a mouse wheel over the strip scrolls it horizontally so the hidden
+# tabs become reachable.
 
 using Projectured: WorkbenchToWidget, RecursiveProjection, ReplaceSelectionOperation,
-    evaluate_operation, ConcreteReferencePath, FieldReference, RangeReference,
-    GraphicsText, GraphicsCanvas, GraphicsViewport, MousePress, Modifiers, Change
+    ReplaceReferencedValue, evaluate_operation, ConcreteReferencePath, FieldReference,
+    RangeReference, GraphicsText, GraphicsCanvas, GraphicsViewport, MousePress, MouseScroll,
+    Modifiers, Change, PrinterContext, EmptyReferencePath
 
 # The 1-based active tab index encoded in a tabbed pane's forward-projected
 # `:selection` (shape `selector_element_pairs[i].<rest>`); 0 when no tab is selected
@@ -103,6 +108,49 @@ end
     # The editing page's tabbed pane now reports the JSON tab (index 3) as active.
     iomap2 = projection_print(RecursiveProjection(WorkbenchToWidget()), doc)
     @test _active_tab_index(iomap2.editing_page_iomap.output) == 3
+end
+
+# ── Overflow scrolling: a wheel over the strip reveals tabs that don't fit ──
+@testset "scrolling the tab strip reveals overflow tabs" begin
+    doc  = make_workbench_document_example()
+    proj = make_workbench_projection_example()
+    # A narrow window so the six editor tabs overflow the centre column — the last
+    # ones are clipped off and unreachable until scrolled in. One persistent iomap,
+    # re-forced after each write, mirrors the editor (the WidgetTabbedPane carrying
+    # `tab_scroll` is transient output, rebuilt by a fresh print).
+    ctx = PrinterContext(EmptyReferencePath(),
+                         Projectured.Cell(1280), Projectured.Cell(1000), Dict{Symbol,Any}())
+    iomap = projection_print(proj, nothing, doc, ctx)
+
+    # Click a tab label on the current (re-forced) iomap; true iff it selects an editor.
+    function click_selects_editor(title)
+        acc = Tuple{Int,Int,String}[]; _collect_texts!(acc, iomap.output, 0, 0)
+        m = filter(p -> p[3] == title && p[2] < 40, acc)
+        isempty(m) && return false
+        (tx, ty, _) = first(m)
+        ch = projection_read(proj, nothing,
+                             Change(MousePress(:left, tx + 5, ty + 8, Modifiers()), nothing), iomap)
+        op = ch === nothing ? nothing : ch.operation
+        op isa ReplaceSelectionOperation && occursin("editing_page", string(op))
+    end
+
+    # The leading tabs fit and are reachable; the last one overflows and is not.
+    @test click_selects_editor("contact-list.json")
+    @test !click_selects_editor("table.pred")
+
+    # A wheel over the strip (top row of the editing column) produces a horizontal
+    # scroll write on the tabbed pane.
+    sch = projection_read(proj, nothing,
+                          Change(MouseScroll(0, -3, 430, 17, Modifiers()), nothing), iomap)
+    sop = sch === nothing ? nothing : sch.operation
+    @test sop isa ReplaceReferencedValue
+    @test sop.value isa Integer && sop.value > 0    # scrolled the strip rightwards
+
+    # Scroll the strip to its end (the printer clamps the offset) and the overflow tab
+    # becomes reachable; a leading tab scrolls off and is no longer reachable.
+    evaluate_operation((; document = doc), ReplaceReferencedValue(sop.document, "tab_scroll", 100000))
+    @test click_selects_editor("table.pred")
+    @test !click_selects_editor("book")
 end
 
 end # @testset

@@ -35,7 +35,7 @@ All widgets subtype the abstract `WidgetDocument` (which subtypes `Document`).
 | `WidgetShell(children)` | Top-level window contents |
 | `WidgetTitlePane(title, content)` | Pane with a title bar |
 | `WidgetSplitPane(orientation, elements; sizes)` | Split with drag-resizable splitters (fields `elements`/`sizes`) |
-| `WidgetTabbedPane(selector_element_pairs)` | Tab switcher |
+| `WidgetTabbedPane(selector_element_pairs)` | Tab switcher; a wheel over the strip scrolls it horizontally (`tab_scroll`) when the tabs overflow the pane width |
 | `WidgetScrollPane(content; position, size, scroll_position)` | Scrollable viewport (offset is `scroll_position`) |
 | `WidgetTransformPane(content; position, size, transform)` | Zoom/pan viewport — content under an affine `transform` (Ctrl+wheel zooms, plain wheel pans) |
 | `WidgetScrollBar(orientation; value, thumb_size)` | Scrollbar control (fields `value`/`thumb_size`) |
@@ -223,6 +223,7 @@ rather than a bespoke operation. Because the widget is carried by identity
 | show / hide | `ReplaceReferencedValue(w, "visible", true/false)` |
 | enable / disable | `ReplaceReferencedValue(w, "enabled", true/false)` (disabled readers emit nothing) |
 | scroll wheel | `ReplaceReferencedValue(scroll_pane, "scroll_position", old + Δ)` (reader reads `old`) |
+| wheel over a tab strip | `ReplaceReferencedValue(tabbed_pane, "tab_scroll", clamped)` — scrolls overflow tabs into view |
 | Ctrl+wheel / wheel on a transform pane | `ReplaceReferencedValue(transform_pane, "transform", M')` (zoom about cursor / pan) |
 | Ctrl+`=`/`-`/`0` on a transform pane | `ReplaceReferencedValue(transform_pane, "transform", M')` (zoom in/out / reset, about centre) |
 | drag scroll-bar | `ReplaceReferencedValue(bar, "value", clamped)` |

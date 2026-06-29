@@ -938,9 +938,13 @@ A tabbed container.  `selector_element_pairs` is a `Vector` of
     border_color::StyleColor
     padding::Inset
     padding_color::StyleColor
+    tab_scroll::Int
     selection::Reference
 end
 
+# `tab_scroll` is transient view state (like `WidgetScrollPane.scroll_position`): a
+# horizontal pixel offset (≥0) that scrolls the tab strip when it is wider than the
+# pane, so overflow tabs stay reachable. 0 ⇒ no scroll.
 function WidgetTabbedPane(selector_element_pairs::Vector;
                           visible::Bool=true,
                           margin::Inset=inset_default,
@@ -948,11 +952,13 @@ function WidgetTabbedPane(selector_element_pairs::Vector;
                           border::Inset=inset_default,
                           border_color=nothing,
                           padding::Inset=inset_default,
-                          padding_color=nothing)
+                          padding_color=nothing,
+                          tab_scroll::Integer=0)
     WidgetTabbedPane(CellVector(Cell[Cell(_as_tab_page(p)) for p in selector_element_pairs]),
                      Cell(visible), Cell(margin), Cell(margin_color),
                      Cell(border), Cell(border_color),
                      Cell(padding), Cell(padding_color),
+                     Cell(Int(tab_scroll)),
                      Cell(nothing))
 end
 
