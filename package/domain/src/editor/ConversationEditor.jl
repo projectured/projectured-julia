@@ -43,7 +43,8 @@ import ..TextModule: TextText, TextString
 import ..JuliaParserModule: juliaparse
 import ..JsonParserModule: jsonparse
 import ..XmlParserModule: xmlparse
-import ..McpModule: execute_julia_code
+import ..McpModule: execute_julia_code, last_eval_value
+import ..DocumentModule: Document
 import ..WidgetModule: WidgetCard, WidgetAvatar, WidgetLabel, Point2D
 import ..LayoutModule: VerticalLayout, HorizontalLayout
 import ..FontModule: font_ubuntu_monospace_regular_24
@@ -274,10 +275,14 @@ function evaluate_operation(editor, op::ComposerEvaluateOperation)
     end
     is_err = occursin("ERROR", output) || occursin("Error", output)
     form = something(_try_parse(juliaparse, src), JuliaIdentifier(src))
+    # A Document return value (e.g. a live GraphicsCircle / SimulationTaskDocument)
+    # is kept as the result so it renders live; otherwise the text repr.
     # `execute_julia_code` `println`s the result repr, so the captured output ends
     # in a newline — strip it so the result text doesn't render a trailing tofu box.
+    val = last_eval_value()
+    result = val isa Document ? val : result_text(rstrip(output))
     _replace_active!(op.draft,
-        EvaluatorForm(form; result = result_text(rstrip(output)), is_error = is_err))
+        EvaluatorForm(form; result = result, is_error = is_err))
     push!(op.draft.parts, _new_typein())
     nothing
 end
