@@ -9,7 +9,7 @@
 # redraws. The phase origin is *sampled* once at construction via `editor_time()`
 # so the angle starts at zero without the constructor itself becoming reactive.
 #
-# The scene is painted in the Solarized palette on a dark base03 background: the
+# The scene is painted in the Solarized palette on a light base3 background: the
 # rotation path is an *unfilled* ring, only the small rotating dot is a filled
 # disc, and dashed grey links project the dot onto each chart. Both charts carry
 # their own x/y axes (a zero baseline + an amplitude axis).
@@ -29,9 +29,9 @@ const _RV_DT  = 0.02         # angle between adjacent samples
 const _RV_GAP = 20           # gap between circle and charts
 
 # Solarized palette — https://ethanschoonover.com/solarized/
-const _RV_BG   = (0x00, 0x2b, 0x36, 0xff)  # base03  — dark background
+const _RV_BG   = (0xfd, 0xf6, 0xe3, 0xff)  # base3   — light background
 const _RV_AXIS = (0x58, 0x6e, 0x75, 0xff)  # base01  — ring outline + chart axes
-const _RV_LINK = (0x83, 0x94, 0x96, 0xff)  # base0   — dashed projection links
+const _RV_LINK = (0x93, 0xa1, 0xa1, 0xff)  # base1   — dashed projection links
 const _RV_DOT  = (0xd3, 0x36, 0x82, 0xff)  # magenta — the rotating dot
 const _RV_SIN  = (0x26, 0x8b, 0xd2, 0xff)  # blue    — sine   (y-coordinate)
 const _RV_COS  = (0x85, 0x99, 0x00, 0xff)  # green    — cosine (x-coordinate)
@@ -43,7 +43,7 @@ function make_rotating_vector_document()
     x_left = _RV_CX + _RV_R + _RV_GAP          # sine chart's left edge
     y_top  = _RV_CY + _RV_R + _RV_GAP          # cosine chart's top edge
 
-    # solarized-dark backdrop behind everything
+    # solarized-light backdrop behind everything
     background = GraphicsRect(0, 0, _RV_W, _RV_H, _RV_BG...)
 
     # static circle outline marking the path: an *unfilled* ring (transparent
