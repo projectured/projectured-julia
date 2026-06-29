@@ -41,6 +41,19 @@ chat bubbles, the workbench tabs/panes) are projected to widgets by their own
 panels as a separate top-level stage; a `ConversationDocument` / `WorkbenchDocument`
 reaching a content slot here falls through to the reflective `Any` fallback. A
 caller that wants the real rendering injects an entry via `extra`.
+
+## Known limitation — prose inside the syntax fabric
+
+A `TextText` (prose) reaches its clean renderer through the **to-graphics**
+`TextDocument` entry — i.e. at top level, or embedded in a widget (a conversation
+part's content, a card). But a `TextText` placed *directly inside a collection*
+recurses through `natural_to_syntax`, which has no `TextText` entry (a multi-run,
+multi-line `TextText` does not map to a single `SyntaxLeaf` value), so it falls to
+the `ObjectToSyntax` reflection and renders as a structural tree rather than as
+prose. This is acceptable degradation for the relaxed scope; the cleaner
+long-term fix is a to-graphics `CellVector`/`ListNode` entry that lays elements
+out as stacked graphics blocks (each element re-entering the to-graphics fabric,
+so prose→prose, JSON→JSON, …) — see the plan's follow-ups.
 """
 module NaturalProjectionModule
 

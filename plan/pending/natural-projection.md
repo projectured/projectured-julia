@@ -193,31 +193,47 @@ Verified: `test_printer(natural_example)` + `test_reader(natural_example)` pass
 mixed-domain `CellVector`, and an unknown struct — all produce a `GraphicsCanvas`,
 reader cycle clean.
 
-### Phase 2 — Migrate callers
-Reimplement the hand-rolled tables in terms of `NaturalToGraphics(; extra=…)`:
-start with `make_conversation_projection_example`, `_conversation_widget_graphics`,
-`make_mixed_projection_example`, then `make_workbench_projection(_example)`. Each
-becomes `NaturalToGraphics(measure=…, extra=[context-specific overrides])`. This
-both removes duplication and is the real regression test for the abstraction.
+### Phase 3 — Wire into the assistant ✅ DONE
+`_conversation_widget_graphics` ([projection/Assistant.jl](../../package/example/src/projection/Assistant.jl))
+— the renderer of conversation part content within the widget chat bubbles,
+shared by the assistant, workbench, and wrapper panels — is now
+`NaturalToGraphics(measure=…, extra=[Julia/JSON/XML overrides])`. So a
+conversation part can hold *any* content document and render; unknown types
+degrade to the reflective `Any` fallback instead of erroring. Behavior-preserving
+for known types (Julia/JSON/XML kept as `extra`; prose/layouts/widgets identical
+or a superset). No regressions: `test_printer`+`test_reader` pass for
+`assistant` (2161), `workbench` (27059), `conversation_widget` (2966),
+`conversation_editor` (954).
 
-The structural stages stay explicit in the callers that own them: e.g. the
-assistant remains `SequentialProjection(RecursiveProjection(ConversationToWidget()),
-NaturalToGraphics(extra=…))` — special structural stage in front, universal
-renderer behind. Where a caller *embeds* a conversation/workbench as content
-(e.g. the workbench's assistant panel), it supplies that entry via `extra`
-(a `SequentialProjection(RecursiveProjection(ConversationToWidget()),
-NaturalToGraphics(…))` two-stage chain it builds itself — the knot lives in the
-caller that needs it, not in the generic projection).
+The structural stage stays explicit in the caller: the assistant is still
+`SequentialProjection(RecursiveProjection(WorkbenchToWidget()), …NaturalToGraphics…)`
+— special structural stage in front, universal renderer behind.
 
-### Phase 3 — Wire into the assistant
-Use `NaturalToGraphics` as the part-content renderer behind the assistant's
-`ConversationToWidget` stage, so any future content document type renders
-without touching the panel. (`ConversationToWidget` leaves part content embedded;
-the renderer picks it up by type.)
+### Phase 2 — Migrate remaining callers (follow-up, optional)
+The on-target caller (the conversation/assistant content renderer) is migrated
+in Phase 3. The remaining hand-rolled tables —
+`make_workbench_projection_example`'s inline JSON/XML/Book/Workspace/FileSystem
+entries, `make_mixed_projection_example`, `make_table_projection_example`,
+`make_conversation_projection_example` — can likewise be reduced to
+`NaturalToGraphics(; extra=…)`. Deferred: it is duplication cleanup with
+regression risk, lower value than the stated goal, and each needs its
+context-specific overrides (no-wrap, placeholders, EditorIntrospection) audited
+against the generic defaults before swapping. Do it incrementally, re-running
+each affected example's `test_printer`/`test_reader`.
 
-### Stretch
-`SqlDocument`, `DbCatalog`/`DatabaseInstance`, `GraphDocument`,
-`WorkspaceDocument`; a `wrap`-per-category table; optional `GraphicsCaching` tail.
+### Stretch / follow-ups
+- **Prose-in-collection (known limitation).** A `TextText` placed *directly* in a
+  collection recurses through `natural_to_syntax`, which has no `TextText` entry
+  (a multi-run/multi-line `TextText` ≠ one `SyntaxLeaf` value), so it reflects via
+  `ObjectToSyntax` instead of rendering as prose. Prose at top level or embedded
+  in a widget (conversation-part content) renders correctly via the to-graphics
+  `TextDocument` entry. **Cleaner fix:** a to-graphics `CellVector`/`ListNode`
+  entry that lays elements out as stacked graphics blocks — each element
+  re-enters the to-graphics fabric, so prose→prose, JSON→JSON, widget→widget —
+  rather than collapsing the collection to one syntax tree. This generalizes
+  collection rendering and removes the wart.
+- `SqlDocument`, `DbCatalog`/`DatabaseInstance`, `GraphDocument`,
+  `WorkspaceDocument`; a `wrap`-per-category table; optional `GraphicsCaching` tail.
 
 ## Testing
 
