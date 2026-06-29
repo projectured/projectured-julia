@@ -27,6 +27,19 @@ What was actually built, including decisions that diverged from the draft:
 5. **Test environment = repo ROOT project (`julia --project=.`)**, not `package/test`. The root
    `Project.toml` carries `[sources]` for every sub-package (including `ProjecturedTulip`);
    `package/test` on its own can't resolve them.
+6. **Follow-up fix (post-merge): the generic wrapper must be a two-stage SequentialProjection.**
+   `ClipboardSliceToAnyProjection.output` is a reactive `Cell` (required for the no-iomap-drop
+   display toggle). A SequentialProjection de-references a stage's cell output only *between*
+   stages — the **last** stage's output is returned raw — so the first draft, which made the
+   clipboard dispatcher the outermost projection (`Any => NestingProjection(projection)` rendering
+   to graphics inside the clipboard's `Any` branch), leaked a `Cell` to the SDL backend
+   (`write_to_devices: …content is Cell, expected GraphicsCanvas`, surfaced by
+   `run_example(plain_text_example; clipboard=true)`). The `walk_printer_output` smoke missed it (it
+   walks references, not the top output type). Fixed `make_clipboard_projection` to a two-stage
+   form: stage 1 = clipboard dispatcher with `Any => PreservingProjection()` (exposes the active
+   child *document*), stage 2 = `NestingProjection(projection)` (renders to a non-`Cell`
+   `GraphicsCanvas` and forces the de-reference). Verified top output is `GraphicsCanvas`, 0
+   printer/repl errors for both the plain-text and JSON wrappers.
 
 Tests: `test_clipboard_to_any()` green incl. the new 14-assertion `slice OS clipboard bridge`
 testset; `test_printer/reader/repl(clipboard_example)` = 699/225/225; generic-wrapper smoke
