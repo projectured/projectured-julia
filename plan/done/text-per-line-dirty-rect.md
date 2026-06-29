@@ -84,36 +84,59 @@ the reader and downstream consumers see the same SegCoords.
 
 ## Steps
 
-- [ ] 1. Extract `_layout_line(p, spans, start_y, base_flat; collect_spans)` from
-  `_layout_text`'s per-span inner loop (TextString embedded-`\n`, TextGraphics,
-  fill, placements, coord in absolute coords). No cursor/highlight (those stay
-  global). Returns `(spans=placements, by_key, coord_map, width, height,
-  flat_len)`.
-- [ ] 2. Restructure `projection_print` non-`ListNode` path:
-  - `lines_cell` groups `styled.elements` by `TextNewline` (structure only).
-  - per-line `line_layout`, `line_height`, `line_y` (cumulative) cells.
-  - per-line persistent sub-canvas with a content-independent element `CellVector`
-    keyed by line index; segs are persistent GraphicsText/Rect keyed by
-    `(span_oid, occ, li)` reading `line_layout[L]`.
-  - keep global `overlay` → `cursor_rect` + `highlight_rect`.
-  - top canvas `[highlight_rect, line sub-canvases…, cursor_rect]`.
-  - `char_to_coord` = concat of per-line coord maps (absolute).
-- [ ] 3. Verify locality with the headless probe (only the edited line's segs
-  stale; line-list backing stays uptodate; editing last line → nothing below
-  stale).
-- [ ] 4. Tests (narrowest first): `test_printer(plain_text_example)`,
-  `test_reader(plain_text_example)`,
-  `test_text_navigation(plain_text_example; check_reaches_all=true)`,
-  `test_repl(plain_text_example)`; then `text_example`, then
-  `test_dirty_rect()`, then a broader `test_syntax_to_text()` /
-  `test_printers()` sweep for regressions.
-- [ ] 5. Add a dirty-rect test asserting per-line behaviour for plain_text (edit
-  last line → rect bounded to the last line; edit middle line → reflow below).
+- [x] 1. Added `_layout_line(p, group)` (extracted from `_layout_text`'s per-span
+  inner loop: TextString embedded-`\n`, TextGraphics, fill, placements, coord_map)
+  in coordinates **relative** to the line origin. No cursor/highlight (those stay
+  global). `group.spans` carries `(global_elem_idx, span)` so `SegCoord.span_idx`
+  stays in the input element index space; an all-empty group falls back to the
+  terminating newline's font height.
+- [x] 2. Restructured `projection_print` non-`ListNode` path:
+  - `lines_cell` groups `styled.elements` by `TextNewline` (reads element
+    identities/types only — never `.content`).
+  - lazy per-line `line_layout`, `line_h`, `line_y` (cumulative chain) cells built
+    once per line index (`get_line_cells`), reused across recomputes.
+  - per-line persistent sub-canvas at `y = line_y`, its element `CellVector`
+    reading only `line_layout[L]`; segs are persistent GraphicsText/Rect keyed by
+    `(span_oid, occ, li)` (the existing `_persistent_graphic!`).
+  - kept the global selection-driven `overlay` → `cursor_rect` + `highlight_rect`.
+  - top canvas (`layout_none`) = `[highlight_rect, vertical line-stack, cursor_rect]`;
+    the line-stack is `layout_vertical`, non-overlapping for early-stop.
+  - `char_to_coord` = concat of per-line coord maps shifted by `line_y` (absolute,
+    reader-only — identical SegCoords to before).
+  - `highlight_offset` kept at `1` (legacy `_translate_click` path is now
+    unreachable for these non-leaf canvases but preserved).
+- [x] 3. Verified locality with a headless probe: editing the last line marks only
+  that line's segs stale; the line-list / stack backings stay `isuptodate`;
+  coord_map y-values are unchanged (0,24,…,168). Middle-line edit reflows lines
+  below via the y chain (expected).
+- [x] 4. Tests — text examples (`plain_text`/`text`/`text_with_image`) printer +
+  reader + nav + repl: **3035 pass**. `test_text_to_graphics()`: **67 pass**
+  (helpers updated to flatten nested sub-canvases to absolute coords). Full
+  `test_printers()`+`test_readers()` sweep: **197448 pass, 0 fail**.
+  `test_text_navigations()`+`test_repls()`: only 5 pre-existing seed failures
+  (natural/filesystem/navigator/rotating_vector/conversation_editor — identical on
+  `main`). `plain_text` `check_reaches_all` 420/7 = same as `main` baseline.
+- [x] 5. Added a font-free dirty-rect test (`DirtyRectTest.jl`) mirroring the
+  per-line output: editing the last line's width yields a rect bounded to that
+  line (`y 38..60`), not the whole document. **20 pass** (was 14).
 
-## Risks / notes
+## Risks / notes (as implemented)
 
-- Embedded-`\n`-only pipelines (SyntaxToText) collapse to one line group → no
-  improvement, no regression. Documented as expected.
-- Middle-line edits reflow lines below (height chain) — acceptable and matches
-  the ListNode spine behaviour.
-- Keep `_render_canvas!` recursion / bounds (already handle nested canvases).
+- **Segment `.y` is now relative** to its line sub-canvas (absolute = sub-canvas
+  `y` + segment `y`). Rendering / bounds / coord_map all account for this; only
+  direct tests inspecting `GraphicsText.y` needed updating (done, via a flatten
+  helper).
+- Embedded-`\n`-only pipelines (SyntaxToText `TextString("\n")` separators, no
+  `TextNewline` elements) collapse into one line group → stay whole-block dirty
+  exactly as before. No improvement, no regression (already non-local via
+  SyntaxToText flattening).
+- Middle-line edits reflow lines below (height chain) — acceptable, matches the
+  ListNode spine behaviour. Editing the **last** line is tight (nothing below).
+- Granularity is **per-line** (chosen with the user): a single-span line still
+  dirties its full width, not just the appended glyph — inherent to one
+  GraphicsText per line. Sub-line "from-cursor" tightening was explicitly out of
+  scope.
+- Rasterized text (opt-in `scrolling`/`introspection` wrappers via GraphicsCaching)
+  now sees a non-leaf text canvas and recurses instead of rasterizing the whole
+  block; not covered by the registered-example suite — flagged for follow-up if it
+  matters.
