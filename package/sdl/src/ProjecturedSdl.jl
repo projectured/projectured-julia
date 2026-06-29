@@ -799,11 +799,11 @@ end
 
 # ── Render a GraphicsLine element ────────────────────────────────────
 
-function _render_line!(renderer::Ptr{SDL_Renderer}, line::GraphicsLine, ox::Int, oy::Int)
-    SDL_SetRenderDrawColor(renderer, line.r, line.g, line.b, line.a)
-    x1, y1 = Int(line.x1) + ox, Int(line.y1) + oy
-    x2, y2 = Int(line.x2) + ox, Int(line.y2) + oy
-    wdt = max(1, Int(line.width))
+# Draw one straight stroke span from (x1,y1) to (x2,y2) of width `wdt` using the
+# renderer's current draw color. Axis-aligned spans render as a crisp filled
+# rect; diagonals as an anti-aliased quad. Shared by solid and dashed lines.
+function _draw_line_span!(renderer::Ptr{SDL_Renderer}, x1::Int, y1::Int, x2::Int, y2::Int,
+                          wdt::Int, r::UInt8, g::UInt8, b::UInt8, a::UInt8)
     if y1 == y2          # horizontal rule
         SDL_RenderFillRect(renderer, Ref(SDL_Rect(Int32(min(x1, x2)), Int32(y1 - wdt ÷ 2),
                                                   Int32(abs(x2 - x1) + 1), Int32(wdt))))
@@ -815,7 +815,38 @@ function _render_line!(renderer::Ptr{SDL_Renderer}, line::GraphicsLine, ox::Int,
         # whose edges are rasterized at device resolution, so the supersample
         # downsample anti-aliases them — O(1) regardless of length.
         _fill_thick_line!(renderer, Float64(x1), Float64(y1), Float64(x2), Float64(y2),
-                          Float64(wdt), line.r, line.g, line.b, line.a)
+                          Float64(wdt), r, g, b, a)
+    end
+end
+
+function _render_line!(renderer::Ptr{SDL_Renderer}, line::GraphicsLine, ox::Int, oy::Int)
+    SDL_SetRenderDrawColor(renderer, line.r, line.g, line.b, line.a)
+    x1, y1 = Int(line.x1) + ox, Int(line.y1) + oy
+    x2, y2 = Int(line.x2) + ox, Int(line.y2) + oy
+    wdt = max(1, Int(line.width))
+    dash = line.dash
+    if dash === nothing
+        _draw_line_span!(renderer, x1, y1, x2, y2, wdt, line.r, line.g, line.b, line.a)
+    else
+        # Step the (on, off) pattern along the line, emitting one span per "on"
+        # run. Rounding the endpoints keeps axis-aligned dashes crisp (one of
+        # the unit components is exactly zero) and lets diagonals follow the slope.
+        on, off = max(1, Int(dash[1])), max(1, Int(dash[2]))
+        dx, dy = x2 - x1, y2 - y1
+        len = sqrt(Float64(dx * dx + dy * dy))
+        if len == 0
+            _draw_line_span!(renderer, x1, y1, x2, y2, wdt, line.r, line.g, line.b, line.a)
+        else
+            ux, uy = dx / len, dy / len
+            pos = 0.0
+            while pos < len
+                e = min(pos + on, len)
+                sx = round(Int, x1 + ux * pos); sy = round(Int, y1 + uy * pos)
+                ex = round(Int, x1 + ux * e);   ey = round(Int, y1 + uy * e)
+                _draw_line_span!(renderer, sx, sy, ex, ey, wdt, line.r, line.g, line.b, line.a)
+                pos = e + off
+            end
+        end
     end
 end
 
@@ -931,16 +962,54 @@ function _fill_disc!(renderer::Ptr{SDL_Renderer}, cx::Int, cy::Int, rad::Int)
     end
 end
 
+# Stroke a ring (annulus) of border `bw` at outer radius `rad`, current draw
+# color. Like `_fill_disc!` it samples one float rect per *device* row so the
+# supersample downsample anti-aliases both edges; rows that clear the inner
+# radius emit two bands (left/right) leaving the centre transparent.
+function _stroke_ring!(renderer::Ptr{SDL_Renderer}, cx::Int, cy::Int, rad::Int, bw::Int)
+    rad <= 0 && return
+    bw = clamp(bw, 1, rad)
+    rin = rad - bw
+    fx = Ref{Cfloat}(0); fy = Ref{Cfloat}(0)
+    SDL_RenderGetScale(renderer, fx, fy)
+    f = Float64(fx[]); f <= 0 && (f = 1.0)
+    n = round(Int, rad * f)
+    for k in -n:(n - 1)
+        yc = (k + 0.5) / f
+        outer = sqrt(max(0.0, rad * rad - yc * yc))
+        outer <= 0 && continue
+        ylog = cy + k / f
+        h = 1.0 / f
+        if rin <= 0 || abs(yc) >= rin
+            SDL_RenderFillRectF(renderer, Ref(SDL_FRect(Cfloat(cx - outer), Cfloat(ylog),
+                                                        Cfloat(2 * outer), Cfloat(h))))
+        else
+            inner = sqrt(max(0.0, rin * rin - yc * yc))
+            band = outer - inner
+            band <= 0 && continue
+            SDL_RenderFillRectF(renderer, Ref(SDL_FRect(Cfloat(cx - outer), Cfloat(ylog),
+                                                        Cfloat(band), Cfloat(h))))
+            SDL_RenderFillRectF(renderer, Ref(SDL_FRect(Cfloat(cx + inner), Cfloat(ylog),
+                                                        Cfloat(band), Cfloat(h))))
+        end
+    end
+end
+
 function _render_circle!(renderer::Ptr{SDL_Renderer}, circ::GraphicsCircle, ox::Int, oy::Int)
     cx, cy = Int(circ.cx) + ox, Int(circ.cy) + oy
     rad = Int(circ.radius)
     bw = Int(circ.border_width)
     if bw > 0 && circ.border_a > 0
         SDL_SetRenderDrawColor(renderer, circ.border_r, circ.border_g, circ.border_b, circ.border_a)
-        _fill_disc!(renderer, cx, cy, rad)
         if circ.a > 0
+            # Opaque fill: paint the border-colored disc, then the fill inset by
+            # the border so a solid rim remains.
+            _fill_disc!(renderer, cx, cy, rad)
             SDL_SetRenderDrawColor(renderer, circ.r, circ.g, circ.b, circ.a)
             _fill_disc!(renderer, cx, cy, rad - bw)
+        else
+            # Transparent fill: a true hollow ring, leaving the centre unpainted.
+            _stroke_ring!(renderer, cx, cy, rad, bw)
         end
     else
         SDL_SetRenderDrawColor(renderer, circ.r, circ.g, circ.b, circ.a)

@@ -392,13 +392,36 @@ function _fill_disc!(ctx, cx, cy, rad, r, g, b, a)
     p(cx + k, cy - rad); p(cx + rad, cy - k); p(cx + rad, cy); print(ctx.buf, "c h f\n")
 end
 
+# Stroke a ring (annulus) whose outer edge sits at `rad`, with border width `bw`.
+# Stroking the Bézier circle centred at radius `rad - bw/2` leaves the centre
+# unpainted — the native vector equivalent of SDL's `_stroke_ring!`.
+function _stroke_ring!(ctx, cx, cy, rad, bw, r, g, b, a)
+    (rad <= 0 || a == 0 || bw <= 0) && return
+    rm = rad - bw / 2
+    rm <= 0 && (rm = rad / 2)
+    k = KAPPA * rm
+    p(x, y) = print(ctx.buf, n2(x), " ", n2(y), " ")
+    print(ctx.buf, "/", gs_for!(ctx, a), " gs ", c01(r), " ", c01(g), " ", c01(b), " RG ",
+          n2(bw), " w [] 0 d ")
+    p(cx + rm, cy); print(ctx.buf, "m ")
+    p(cx + rm, cy + k); p(cx + k, cy + rm); p(cx, cy + rm); print(ctx.buf, "c ")
+    p(cx - k, cy + rm); p(cx - rm, cy + k); p(cx - rm, cy); print(ctx.buf, "c ")
+    p(cx - rm, cy - k); p(cx - k, cy - rm); p(cx, cy - rm); print(ctx.buf, "c ")
+    p(cx + k, cy - rm); p(cx + rm, cy - k); p(cx + rm, cy); print(ctx.buf, "c h S\n")
+end
+
 function paint_circle!(ctx, circ, ox, oy)
     cyG = oy + Int(circ.cy); rad = Int(circ.radius); bw = Int(circ.border_width)
     _on_page(ctx, cyG - rad - bw, cyG + rad + bw) || return
     cx = ox + Int(circ.cx); cy = _flip(ctx, cyG)
     if bw > 0 && circ.border_a > 0
-        _fill_disc!(ctx, cx, cy, rad, circ.border_r, circ.border_g, circ.border_b, circ.border_a)
-        circ.a > 0 && _fill_disc!(ctx, cx, cy, rad - bw, circ.r, circ.g, circ.b, circ.a)
+        if circ.a > 0
+            _fill_disc!(ctx, cx, cy, rad, circ.border_r, circ.border_g, circ.border_b, circ.border_a)
+            _fill_disc!(ctx, cx, cy, rad - bw, circ.r, circ.g, circ.b, circ.a)
+        else
+            # transparent fill: a true hollow ring, centre unpainted
+            _stroke_ring!(ctx, cx, cy, rad, bw, circ.border_r, circ.border_g, circ.border_b, circ.border_a)
+        end
     else
         _fill_disc!(ctx, cx, cy, rad, circ.r, circ.g, circ.b, circ.a)
     end
@@ -411,9 +434,13 @@ function paint_line!(ctx, line, ox, oy)
     _on_page(ctx, min(g1, g2) - wdt, max(g1, g2) + wdt) || return
     x1 = ox + Int(line.x1); y1 = _flip(ctx, g1)
     x2 = ox + Int(line.x2); y2 = _flip(ctx, g2)
+    # Dash array via the PDF `d` operator; always emitted (`[] 0 d` = solid) so a
+    # dashed line never leaks its pattern onto a later solid stroke.
+    dash = line.dash
+    dashop = dash === nothing ? "[] 0 d " : string("[", Int(dash[1]), " ", Int(dash[2]), "] 0 d ")
     print(ctx.buf, "/", gs_for!(ctx, line.a), " gs ",
           c01(line.r), " ", c01(line.g), " ", c01(line.b), " RG ",
-          n2(wdt), " w 2 J ", n2(x1), " ", n2(y1), " m ", n2(x2), " ", n2(y2), " l S\n")
+          n2(wdt), " w 2 J ", dashop, n2(x1), " ", n2(y1), " m ", n2(x2), " ", n2(y2), " l S\n")
 end
 
 # Stroke a polyline of absolute (gx, gy) points (page-top coordinates) with
@@ -427,7 +454,7 @@ function _paint_polyline_points!(ctx, gpts, wdt::Int, r, g, b, a,
     flip = [(p[1], _flip(ctx, p[2])) for p in gpts]
     if length(flip) >= 2
         print(ctx.buf, "/", gs_for!(ctx, a), " gs ",
-              c01(r), " ", c01(g), " ", c01(b), " RG ", n2(wdt), " w 1 J 1 j ")
+              c01(r), " ", c01(g), " ", c01(b), " RG ", n2(wdt), " w 1 J 1 j [] 0 d ")
         print(ctx.buf, n2(flip[1][1]), " ", n2(flip[1][2]), " m ")
         for i in 2:length(flip)
             print(ctx.buf, n2(flip[i][1]), " ", n2(flip[i][2]), " l ")

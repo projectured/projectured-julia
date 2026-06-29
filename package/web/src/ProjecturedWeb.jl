@@ -209,9 +209,11 @@ function _serialize_node(elem)
                     "rbr" => Int(elem.radius_br), "rbl" => Int(elem.radius_bl),
                     "bw" => Int(elem.border_width), "bc" => _border_rgba(elem))
     elseif elem isa GraphicsLine
-        return Dict("t" => "line", "x1" => Int(elem.x1), "y1" => Int(elem.y1),
-                    "x2" => Int(elem.x2), "y2" => Int(elem.y2),
-                    "c" => _rgba(elem), "w" => Int(elem.width))
+        d = Dict("t" => "line", "x1" => Int(elem.x1), "y1" => Int(elem.y1),
+                 "x2" => Int(elem.x2), "y2" => Int(elem.y2),
+                 "c" => _rgba(elem), "w" => Int(elem.width))
+        elem.dash === nothing || (d["dash"] = [Int(elem.dash[1]), Int(elem.dash[2])])
+        return d
     elseif elem isa GraphicsCircle
         return Dict("t" => "circle", "cx" => Int(elem.cx), "cy" => Int(elem.cy),
                     "r" => Int(elem.radius), "c" => _rgba(elem),

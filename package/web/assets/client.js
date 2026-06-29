@@ -355,20 +355,25 @@
 
   function drawLine(ctx, e) {
     const wdt = Math.max(1, e.w | 0);
-    if (e.y1 === e.y2) {
+    const dash = e.dash;
+    if (!dash && e.y1 === e.y2) {
       ctx.fillStyle = col(e.c);
       ctx.fillRect(Math.min(e.x1, e.x2), e.y1 - (wdt >> 1), Math.abs(e.x2 - e.x1) + 1, wdt);
-    } else if (e.x1 === e.x2) {
+    } else if (!dash && e.x1 === e.x2) {
       ctx.fillStyle = col(e.c);
       ctx.fillRect(e.x1 - (wdt >> 1), Math.min(e.y1, e.y2), wdt, Math.abs(e.y2 - e.y1) + 1);
     } else {
+      // Dashed (any orientation) and solid diagonals both stroke a path; the
+      // dash pattern is applied via setLineDash and reset afterwards.
       ctx.strokeStyle = col(e.c);
       ctx.lineWidth = wdt;
-      ctx.lineCap = "square";
+      ctx.lineCap = dash ? "butt" : "square";
+      if (dash) ctx.setLineDash(dash);
       ctx.beginPath();
       ctx.moveTo(e.x1, e.y1);
       ctx.lineTo(e.x2, e.y2);
       ctx.stroke();
+      if (dash) ctx.setLineDash([]);
     }
   }
 
@@ -417,8 +422,20 @@
     const bw = e.bw | 0;
     const disc = (r, c) => { if (r <= 0) return; ctx.beginPath(); ctx.arc(e.cx, e.cy, r, 0, Math.PI * 2); ctx.fillStyle = c; ctx.fill(); };
     if (bw > 0 && e.bc[3] > 0) {
-      disc(e.r, col(e.bc));
-      if (e.c[3] > 0) disc(e.r - bw, col(e.c));
+      if (e.c[3] > 0) {
+        disc(e.r, col(e.bc));
+        disc(e.r - bw, col(e.c));
+      } else {
+        // transparent fill: a true hollow ring (outer edge at e.r), centre unpainted
+        const rm = Math.max(0, e.r - bw / 2);
+        if (rm > 0) {
+          ctx.beginPath();
+          ctx.arc(e.cx, e.cy, rm, 0, Math.PI * 2);
+          ctx.strokeStyle = col(e.bc);
+          ctx.lineWidth = bw;
+          ctx.stroke();
+        }
+      }
     } else {
       disc(e.r, col(e.c));
     }

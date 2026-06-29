@@ -132,11 +132,16 @@ end
 # ── GraphicsLine ───────────────────────────────────────────────────────────
 
 """
-    GraphicsLine(x1, y1, x2, y2, r, g, b, a; width=1)
+    GraphicsLine(x1, y1, x2, y2, r, g, b, a; width=1, dash=nothing)
 
 A reactive straight line from `(x1,y1)` to `(x2,y2)` in color `(r,g,b,a)` with
 the given stroke `width`. Axis-aligned lines (separators, rules) render as a
 crisp filled span; diagonal lines render anti-aliased.
+
+`dash` selects a dashed stroke: `nothing` is solid, an integer `n` repeats an
+`n`-pixel dash and `n`-pixel gap, and a `(on, off)` tuple gives independent
+dash/gap lengths in pixels. Backends step the pattern along the line, so dashes
+stay crisp on axis-aligned lines and follow the slope on diagonals.
 """
 @document struct GraphicsLine <: GraphicsDocument
     x1::Int32
@@ -148,15 +153,21 @@ crisp filled span; diagonal lines render anti-aliased.
     b::UInt8
     a::UInt8
     width::Int32
+    dash::Any              # nothing | (on::Int, off::Int) — dash pattern in pixels
     selection::Reference
 end
 
+# Normalize a `dash` argument to `nothing` (solid) or a `(on, off)` pixel tuple.
+_norm_dash(::Nothing) = nothing
+_norm_dash(n::Integer) = (Int(n), Int(n))
+_norm_dash(d) = (Int(d[1]), Int(d[2]))
+
 function GraphicsLine(x1::Integer, y1::Integer, x2::Integer, y2::Integer,
                       r::Integer=0, g::Integer=0, b::Integer=0, a::Integer=255;
-                      width::Integer=1)
+                      width::Integer=1, dash=nothing)
     GraphicsLine(Cell(Int32(x1)), Cell(Int32(y1)), Cell(Int32(x2)), Cell(Int32(y2)),
                  Cell(UInt8(r)), Cell(UInt8(g)), Cell(UInt8(b)), Cell(UInt8(a)),
-                 Cell(Int32(width)), Cell(nothing))
+                 Cell(Int32(width)), Cell(_norm_dash(dash)), Cell(nothing))
 end
 
 # ── GraphicsCircle ─────────────────────────────────────────────────────────
