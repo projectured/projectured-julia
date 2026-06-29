@@ -86,7 +86,7 @@ include(joinpath(_EXAMPLE_DIR, "projection", "Clipboard.jl"))
 include(joinpath(_EXAMPLE_DIR, "projection", "Versioning.jl"))
 include(joinpath(_EXAMPLE_DIR, "projection", "Dragging.jl"))
 
-include(joinpath(_EXAMPLE_DIR, "RotatingVector.jl"))
+include(joinpath(_EXAMPLE_DIR, "document", "RotatingVector.jl"))
 include(joinpath(_EXAMPLE_DIR, "Examples.jl"))
 include(joinpath(_EXAMPLE_DIR, "LiveExamples.jl"))
 
