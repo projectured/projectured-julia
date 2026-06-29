@@ -1,10 +1,46 @@
 # Clipboard `run_example` Wrapper + OS-Clipboard Bridge
 
-> **Status: PENDING (drafted 2026-06-29).** Two related features for the internal-clipboard
-> projection. Nothing here is implemented yet. Verified against current `main`:
+> **Status: DONE (implemented 2026-06-29, worktree `clipboard-os-bridge`).** Both features
+> shipped. See **Implementation outcomes** below for what changed vs. the drafted plan.
+
+## Implementation outcomes (2026-06-29)
+
+What was actually built, including decisions that diverged from the draft:
+
+1. **OS backend = direct shell-out, not `InteractiveUtils.clipboard`.** The draft recommended
+   Julia's built-in `clipboard`, but adding `InteractiveUtils` to the domain package's `[deps]`
+   would churn manifests across the multi-package workspace. Since `InteractiveUtils.clipboard`
+   itself just shells out, [`OsClipboardModule`](../../package/domain/src/common/OsClipboard.jl)
+   shells out directly to the first available of `xclip` / `xsel` / `wl-paste`/`wl-copy` /
+   `pbpaste`/`pbcopy`, behind a `Ref`-based stub seam (`set_os_clipboard_backend!` /
+   `reset_os_clipboard_backend!`). No new dependency.
+2. **JSON `from_text` reuses the existing `jsonparse`.** `package/domain/src/parser/JsonParser.jl`
+   already provides a full recursive `jsonparse(text) -> JsonDocument`, so **Open Question #1 is
+   resolved in favor of full JSON paste** (not scalar-only): `_json_from_text` tries `jsonparse`
+   and falls back to wrapping non-JSON text as a `JsonString`. `_json_to_text` is a small
+   hand-written compact serializer (no serializer existed).
+3. **Generic wrapper OS bridge defaults OFF** (Open Question #2 recommendation adopted) — pasting
+   OS text into an arbitrary domain isn't type-safe. JSON converters are wired only into the
+   dedicated `clipboard_example`.
+4. **Slice-only OS bridge** (Open Question #3): `to_text`/`from_text` live on
+   `ClipboardSliceToAnyProjection`; `ClipboardCollectionToAnyProjection` is unchanged.
+5. **Test environment = repo ROOT project (`julia --project=.`)**, not `package/test`. The root
+   `Project.toml` carries `[sources]` for every sub-package (including `ProjecturedTulip`);
+   `package/test` on its own can't resolve them.
+
+Tests: `test_clipboard_to_any()` green incl. the new 14-assertion `slice OS clipboard bridge`
+testset; `test_printer/reader/repl(clipboard_example)` = 699/225/225; generic-wrapper smoke
+(`walk_printer_output` + `walk_repl_loop` over the JSON example wrapped via
+`make_clipboard_*`) = 0 errors, 33 selections; no regression in `test_gesture_help`,
+`test_printer(json_example)` (3143), `test_printer(widget_example)` (6913).
+
+---
+
+> **Original draft status (PENDING, 2026-06-29).** Two related features for the internal-clipboard
+> projection. Verified against `main` at drafting time:
 > `ClipboardSliceToAnyProjection` / `ClipboardCollectionToAnyProjection` live in
-> `package/domain/src/projection/primitive/ClipboardToAny.jl`; the OS-clipboard branch is still the
-> unported `#+nil` case (see the module docstring lines 29–32). `run_example` has wrapper flags
+> `package/domain/src/projection/primitive/ClipboardToAny.jl`; the OS-clipboard branch is the
+> unported `#+nil` case. `run_example` had wrapper flags
 > `workbench` / `scrolling` / `introspection` / `tooltip` / `inspector` / `text_*` but **no**
 > `clipboard` flag. The generic doc/projection wrappers live in
 > `package/example/src/document/Wrapper.jl` and `package/example/src/projection/Wrapper.jl`.
@@ -267,26 +303,29 @@ into `ClipboardSliceToAnyProjection(; to_text=json_to_text, from_text=json_from_
 
 ## Step-by-step checklist
 
-- [ ] **B0** `OsClipboard` helper module: `os_clipboard_read` / `os_clipboard_write` over
-      `InteractiveUtils.clipboard`, behind stubbable `Ref`s, try/catch degradation. Include + export
-      from `ProjecturedDomain.jl`.
-- [ ] **B1** Add `to_text` / `from_text` fields (default `nothing`) to `ClipboardSliceToAnyProjection`
-      + keyword constructor; thread `p` into the paste/copy reader helpers.
-- [ ] **B2** Paste fallback in `_clipboard_paste` / `_clipboard_paste_copy` (empty slice + `from_text`
-      ⇒ read OS, convert, replace).
-- [ ] **B3** `WriteOsClipboardOperation` + `evaluate_operation`; append to copy/cut/note compounds
-      when `to_text` set. Export the op.
-- [ ] **B4** Converters: generic text/`PrimitiveString` pair in `example/.../Wrapper.jl`; JSON
-      `json_to_text` / `json_from_text` for `clipboard_example`; wire into
-      `make_clipboard_projection_example`.
-- [ ] **A1** `make_clipboard_document` (document/Wrapper.jl) + `make_clipboard_projection`
+- [x] **B0** `OsClipboard` helper module (`common/OsClipboard.jl`): `os_clipboard_read` /
+      `os_clipboard_write` via **direct shell-out** (xclip/xsel/wl-*/pb*) — *not* InteractiveUtils,
+      see outcome #1 — behind stubbable `Ref`s, try/catch degradation. Included in
+      `ProjecturedDomain.jl`; symbols re-export via the `Projectured` umbrella.
+- [x] **B1** Added `to_text` / `from_text` fields (default `nothing`) to `ClipboardSliceToAnyProjection`
+      + keyword constructor; threaded `p` into the paste/copy/cut/note reader helpers.
+- [x] **B2** Paste fallback in `_clipboard_paste` / `_clipboard_paste_copy` (empty slice + `from_text`
+      ⇒ read OS, convert, replace) via `_os_paste_document`.
+- [x] **B3** `WriteOsClipboardOperation` + `evaluate_operation`; appended to copy/cut/note compounds
+      when `to_text` set (`_maybe_os_mirror!`). Exported.
+- [x] **B4** JSON `_json_to_text` (hand-written serializer) / `_json_from_text` (reuses existing
+      `jsonparse`, JsonString fallback) in `example/.../projection/Clipboard.jl`; wired into
+      `make_clipboard_projection_example`. (Generic-text converter pair dropped — generic wrapper
+      keeps the OS bridge off, outcome #3.)
+- [x] **A1** `make_clipboard_document` (document/Wrapper.jl) + `make_clipboard_projection`
       (projection/Wrapper.jl).
-- [ ] **A2** `run_example`: `clipboard` (+ `clipboard_collection`) kwarg, per-example wrap branch,
-      mutual-exclusivity guards, selection-lifting through `.content`.
-- [ ] **Tests** extend `ClipboardToAnyTest.jl` (stubbed OS clipboard, both directions, default-off
-      regression); `test_printer/reader/repl(clipboard_example)` on fresh docs; wrapper smoke test.
-- [ ] **Docs** update the `ClipboardToAny.jl` module docstring "Deferred" note (no longer `#+nil`);
-      document the `clipboard` flag in `run_example`'s docstring; cross-link
-      [documentation/document/collection.md] / clipboard docs if present.
-- [ ] Move this plan to `plan/done/` when complete.
+- [x] **A2** `run_example`: `clipboard` (+ `clipboard_collection`) kwarg, per-example wrap branch,
+      mutual-exclusivity guards (vs tooltip/inspector), selection-lifting through `.content`.
+- [x] **Tests** extended `ClipboardToAnyTest.jl` (`slice OS clipboard bridge`, stubbed backend, both
+      directions, default-off regression); `test_printer/reader/repl(clipboard_example)` on fresh
+      docs; generic-wrapper smoke via `walk_printer_output`/`walk_repl_loop`.
+- [x] **Docs** updated the `ClipboardToAny.jl` module docstring (OS bridge no longer `#+nil`),
+      documented the `clipboard` flag in `run_example`'s docstring, and added
+      `WriteOsClipboardOperation` to `documentation/operations.md`.
+- [x] Moved to `plan/done/`.
 ```

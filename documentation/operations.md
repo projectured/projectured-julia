@@ -113,6 +113,7 @@ These do something other than a single-slot write, so they stay their own types:
 | `ToggleCollapseOperation`, `ResizeWindowOperation`, `Open`/`CloseWindowOperation` | `common/Operation.jl` | view/window state |
 | `Toggle{ClipboardSlice,ClipboardCollection}DisplayOperation`, `SetVersionCriterionOperation` | `projection/primitive/{ClipboardToAny,VersioningToAny}.jl` | switch *which child* a projection exposes — a structural change that drops `editor.iomap`, not an in-place cell write (the reactive engine only propagates value changes within a fixed structure) |
 | `Load`/`Save`/`ExportDocumentOperation`, `Database*Operation` | `document/*.jl` | file/SQL I/O |
+| `WriteOsClipboardOperation` | `projection/primitive/ClipboardToAny.jl` | side-effecting OS-clipboard write — mirrors a copy/cut/note out to the system clipboard at evaluate time (best-effort; degrades to a no-op when no clipboard tool exists) |
 | assistant/composer & splitter-drag operations | `editor/*`, `document/Widget.jl` | async turns, multi-field resets, transient drag state, arbitrary `action` callables |
 
 Operation modules are the right place to look when wiring a new gesture: the
