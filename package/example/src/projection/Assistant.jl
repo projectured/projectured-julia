@@ -1,24 +1,23 @@
 # Render a widget tree (from ConversationToWidget / the composer) to graphics,
 # including the part-content documents embedded in the cards.
-function _conversation_widget_graphics(; measure=truetype_measure_text)
-    font = font_ubuntu_monospace_regular_24
-    w2g  = WidgetToGraphics(font; measure=measure)
-    text_to_graphics = SequentialProjection(WordWrapping(measure=measure), TextToGraphics(measure=measure))
-    RecursiveProjection(TypeDispatchingProjection(vcat(
-        w2g.dispatch,
-        Pair{DataType,Any}[
-            HorizontalLayout => HorizontalLayoutToGraphicsCanvas(),
-            VerticalLayout   => VerticalLayoutToGraphicsCanvas(),
-            TextDocument     => text_to_graphics,
-            JuliaDocument    => make_julia_projection_example(measure=measure),
-            JsonDocument     => make_json_projection_example(measure=measure),
-            XmlDocument      => make_xml_projection_example(measure=measure),
-            # Pass a graphics document straight through; the layout sizes/places it
-            # via the generic graphics_size seam (so `GraphicsCircle(10,10,10)` shows).
-            GraphicsDocument => PreservingProjection(),
-        ],
-    )))
-end
+#
+# This is the generic `NaturalToGraphics`, so a conversation part can hold *any*
+# content document — not just the few types the assistant historically listed —
+# and still render (unknown types degrade to the reflective `Any` fallback). The
+# example-specific Julia/JSON/XML projections are kept as `extra` overrides to
+# preserve their established styling, and a bare graphics document passes straight
+# through so the layout sizes/places it (the generic graphics_size seam); prose,
+# layouts, widgets, every other domain, and the `Any` backstop come from
+# `NaturalToGraphics`.
+_conversation_widget_graphics(; measure=truetype_measure_text) =
+    NaturalToGraphics(measure=measure, extra=Pair{Type,Any}[
+        JuliaDocument    => make_julia_projection_example(measure=measure),
+        JsonDocument     => make_json_projection_example(measure=measure),
+        XmlDocument      => make_xml_projection_example(measure=measure),
+        # Pass a graphics document straight through; the layout sizes/places it
+        # via the generic graphics_size seam (so `GraphicsCircle(10,10,10)` shows).
+        GraphicsDocument => PreservingProjection(),
+    ])
 
 """
     conversation_draft_entry(; measure=truetype_measure_text) -> Pair
