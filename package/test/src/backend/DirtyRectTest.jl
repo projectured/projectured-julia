@@ -81,5 +81,39 @@ end
     @test SDL._compute_dirty_rect(res, canvas) === nothing
 end
 
+@testset "nested line sub-canvases: per-line edit stays local" begin
+    # Mirror TextToGraphics' per-line output: a top canvas (layout_none) whose
+    # child is a vertical stack of one sub-canvas per line. Each line's elements
+    # come from a computed cell; the line list and the stack are fixed vectors
+    # (structural), so editing one line invalidates only that line's sub-canvas
+    # and the dirty walk descends to repaint just that line.
+    line_canvas(y, wcell) = GraphicsCanvas(
+        Int32(0), Int32(y), Int32(0), Int32(0),
+        CellVector(() -> [GraphicsRect(0, 0, Int(wcell[]), 18)]),
+        layout_none, false, Cell(nothing))
+    src3 = Cell(50)                       # width of line 3's rect
+    l1 = line_canvas(0,  Cell(100))
+    l2 = line_canvas(20, Cell(100))
+    l3 = line_canvas(40, src3)
+    stack = GraphicsCanvas(Int32(0), Int32(0), Int32(0), Int32(0),
+                           CellVector(Cell[Cell(l1), Cell(l2), Cell(l3)]),
+                           layout_vertical, false, Cell(nothing))
+    top = GraphicsCanvas(CellVector(Cell[Cell(stack)]), layout_none)
+    res = make_res()
+
+    # Seed every line's bounds, then settle.
+    @test SDL._compute_dirty_rect(res, top) !== nothing
+    @test SDL._compute_dirty_rect(res, top) === nothing
+
+    # Editing the LAST line dirties only line 3 (y≈40..58, +2px pad) — not the
+    # lines above and not the whole document.
+    src3[] = 80
+    d = SDL._compute_dirty_rect(res, top)
+    @test d !== nothing
+    @test d[2] == 38                      # top edge just above line 3
+    @test d[4] == 60                      # bottom edge of line 3 — no reach into 1-2
+    @test SDL._compute_dirty_rect(res, top) === nothing
+end
+
 end # testset
 end # test_dirty_rect
