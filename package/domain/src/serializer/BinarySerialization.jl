@@ -24,9 +24,10 @@ module BinarySerializationModule
 
 import ..ReactiveModule: Cell
 import ..DocumentApiModule: Document
+import ..OperationApiModule: Operation, evaluate_operation
 using Serialization
 
-export save_document, load_document
+export save_document, load_document, SaveDocumentOperation, LoadDocumentOperation
 
 # ── Cell: serialize the value only ─────────────────────────────────────────
 #
@@ -95,6 +96,44 @@ function load_document(path::AbstractString)
             error("load_document: payload is not a Document (got $(typeof(doc)))")
         doc
     end
+end
+
+# ── Editor operations ──────────────────────────────────────────────────────
+
+"""
+    SaveDocumentOperation(path)
+
+Write `editor.document` to `path` in the binary format (see [`save_document`](@ref)).
+A pure side effect: the document is not mutated. The `path` is carried on the
+operation, so it is drivable from the REPL, tests, MCP tools, and timelines.
+"""
+struct SaveDocumentOperation <: Operation
+    path::String
+end
+
+SaveDocumentOperation(path::AbstractString) = SaveDocumentOperation(String(path))
+
+evaluate_operation(editor, op::SaveDocumentOperation) =
+    save_document(editor.document, op.path)
+
+"""
+    LoadDocumentOperation(path)
+
+Replace `editor.document` with the document read from `path` (see
+[`load_document`](@ref)). A **whole-root swap**, identical to the empty-path
+branch of `ReplaceReferencedValue`: rebind `editor.document` and drop the cached
+`editor.iomap` so the next print rebuilds the projection on the freshly loaded
+root.
+"""
+struct LoadDocumentOperation <: Operation
+    path::String
+end
+
+LoadDocumentOperation(path::AbstractString) = LoadDocumentOperation(String(path))
+
+function evaluate_operation(editor, op::LoadDocumentOperation)
+    editor.document = load_document(op.path)
+    editor.iomap = nothing
 end
 
 end # module
