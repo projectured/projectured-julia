@@ -1,5 +1,5 @@
 function make_xml_document_example()
-    document = XmlElement("library",
+    XmlElement("library",
         [XmlAttribute("version", "2.0"), XmlAttribute("lang", "en")],
         [
             XmlElement("book",
@@ -34,6 +34,4 @@ function make_xml_document_example()
                 ]),
             XmlInsertion(),
         ])
-
-    document
 end

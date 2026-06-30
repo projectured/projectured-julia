@@ -1,5 +1,5 @@
 function make_book_document_example()
-    document = BookBook(
+    BookBook(
         [
             BookChapter(
                 [
@@ -67,6 +67,4 @@ function make_book_document_example()
         title="Projectured User Guide",
         author="The Projectured Authors",
     )
-
-    document
 end

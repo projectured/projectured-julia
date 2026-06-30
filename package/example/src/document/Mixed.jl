@@ -1,5 +1,5 @@
 function make_mixed_document_example()
-    document = JsonObject(
+    JsonObject(
         "meta" => JsonObject(
             "title"   => JsonString("Q1 Report"),
             "author"  => JsonString("Alice"),
@@ -33,6 +33,4 @@ function make_mixed_document_example()
                 ]),
             ]),
     )
-
-    document
 end

@@ -1,6 +1,6 @@
 function make_math_document_example()
     # X = (3 * A + B) / 2
-    document = MathAssignment(
+    MathAssignment(
         MathVariable("X"),
         MathBinaryOperation(:/,
             MathParenthesized(
@@ -8,5 +8,4 @@ function make_math_document_example()
                     MathBinaryOperation(:*, PrimitiveNumber(3), MathVariable("A")),
                     MathVariable("B"))),
             PrimitiveNumber(2)))
-    document
 end

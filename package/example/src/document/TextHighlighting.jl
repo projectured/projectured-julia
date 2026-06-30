@@ -1,6 +1,6 @@
 function make_text_highlighting_document_example()
     newline = TextNewline(font=font_ubuntu_monospace_regular_24)
-    document = TextText(
+    TextText(
         TextString("Lorem ipsum dolor sit amet,", font_ubuntu_monospace_regular_24, color_default),
         newline,
         TextString("consectetur adipiscing elit, sed do", font_ubuntu_monospace_regular_24, color_default),
@@ -13,5 +13,4 @@ function make_text_highlighting_document_example()
         newline,
         TextString("laboris nisi ut aliquip ex ea commodo.", font_ubuntu_monospace_regular_24, color_default),
     )
-    return document
 end

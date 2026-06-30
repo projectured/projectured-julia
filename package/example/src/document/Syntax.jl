@@ -1,5 +1,5 @@
 function make_syntax_document_example()
-    document = SyntaxNode(SyntaxDocument[
+    SyntaxNode(SyntaxDocument[
         SyntaxLeaf("defun"),
         SyntaxLeaf("factorial"),
         SyntaxNode(SyntaxDocument[SyntaxLeaf("n")]; open="(", close=")", sep=" "),
@@ -21,5 +21,4 @@ function make_syntax_document_example()
             ]; open="(", close=")", sep=" "),
         ]; open="(", close=")", sep=" "),
     ]; open="(", close=")", sep=" ", indentation=1)
-    document
 end

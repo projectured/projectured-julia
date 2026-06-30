@@ -1,10 +1,9 @@
 function make_text_document_example()
     regular = font_ubuntu_monospace_regular_24
     nl() = TextNewline(font=regular)
-    document = TextText(
+    TextText(
         TextString("Lorem ipsum dolor sit amet, consectetur adipiscing elit. Cras eu nunc nibh. Cras imperdiet faucibus tortor ac dictum. Aliquam sit amet justo nec ligula lobortis ornare. Aenean a odio id dolor adipiscing interdum. Maecenas nec nisl neque. Suspendisse interdum rutrum neque, in volutpat orci varius in. Praesent a ipsum ac erat pulvinar adipiscing quis sit amet magna. Etiam semper vulputate mi ac interdum. Nunc a tortor non purus fringilla aliquam.", regular, color_default),
     )
-    document
 end
 
 # A short, fixed multi-line text — one `TextString` span per line, separated by
@@ -34,14 +33,13 @@ function make_text_with_image_example()
     regular = font_ubuntu_monospace_regular_24
     photo = _load_inline_image("projectured.png")
     icon  = _load_inline_image("file.png")
-    document = TextText(
+    TextText(
         TextString("Inline images flow with text ", regular, color_default),
         TextGraphics(photo, 64, 64),
         TextString(" and small icons ", regular, color_default),
         TextGraphics(icon, 24, 24),
         TextString(" sit on the same line as the surrounding words. The line height grows to fit the tallest glyph, and the cursor can be placed before or after each image.", regular, color_default),
     )
-    document
 end
 
 # Build an ImageFile whose decoded RGBA pixels are produced lazily — the
