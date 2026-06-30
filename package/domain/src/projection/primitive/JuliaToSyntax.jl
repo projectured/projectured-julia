@@ -25,7 +25,7 @@ import ..JuliaModule: JuliaDocument,
                       JuliaTypeAnnotation,
                       JuliaAssignment, JuliaFor, JuliaForIterator, JuliaWhile,
                       JuliaReturn, JuliaBreak, JuliaContinue, JuliaTry, JuliaBegin,
-                      JuliaIf, JuliaFunction, JuliaBlock, _julia_operator_string
+                      JuliaIf, JuliaFunction, JuliaBlock, JuliaUsing, _julia_operator_string
 import ..TextModule: TextString
 import ..FontModule: StyleFont, font_ubuntu_monospace_regular_20, font_ubuntu_monospace_bold_20
 import ..ColorModule: StyleColor, color_default, color_solarized_blue, color_solarized_cyan,
@@ -52,6 +52,7 @@ export JuliaIdentifierToSyntaxLeaf, JuliaIntegerToSyntaxLeaf,
        JuliaBreakToSyntaxLeaf, JuliaContinueToSyntaxLeaf,
        JuliaTryToSyntaxNode, JuliaBeginToSyntaxNode,
        JuliaIfToSyntaxNode, JuliaFunctionToSyntaxNode, JuliaBlockToSyntaxNode,
+       JuliaUsingToSyntaxNode,
        JuliaToSyntax
 
 # ── Leaf helpers ─────────────────────────────────────────────────────────────
@@ -532,6 +533,25 @@ function projection_print(p::JuliaReturnToSyntaxNode, recursion, r::JuliaReturn,
     end))
 end
 
+# ── JuliaUsingToSyntaxNode ──────────────────────────────────────────────────
+
+@projection struct JuliaUsingToSyntaxNode
+    keyword::StyleText = StyleText(font_ubuntu_monospace_bold_20, color_solarized_magenta)
+    path::StyleText    = StyleText(font_ubuntu_monospace_regular_20, color_default)
+end
+
+function projection_print(p::JuliaUsingToSyntaxNode, recursion, u::JuliaUsing, ctx)
+    # `using`/`import` keyword (highlighted) followed by the module path leaf.
+    # Reference mapping uses the generic Julia defaults (see the note above the
+    # composite table), like the other statement projections here.
+    keyword_leaf = SyntaxLeaf(
+        TextString(() -> string(u.keyword), p.keyword);
+        close=TextString(" ", p.keyword.font, color_default))
+    path_leaf = SyntaxLeaf(TextString(() -> string(u.path), p.path))
+    node = SyntaxNode(CellVector(Cell[Cell(keyword_leaf), Cell(path_leaf)]))
+    SimpleIoMap(p, u, node)
+end
+
 # ── JuliaBreakToSyntaxLeaf ──────────────────────────────────────────────────
 
 @projection struct JuliaBreakToSyntaxLeaf
@@ -779,6 +799,7 @@ function JuliaToSyntax()
         JuliaBlock           => JuliaBlockToSyntaxNode(),
         JuliaIf              => JuliaIfToSyntaxNode(),
         JuliaFunction        => JuliaFunctionToSyntaxNode(),
+        JuliaUsing           => JuliaUsingToSyntaxNode(),
     )
 end
 

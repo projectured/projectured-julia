@@ -28,7 +28,7 @@ import ..JuliaModule: JuliaIdentifier, JuliaInteger, JuliaFloat, JuliaString, Ju
     JuliaTernary, JuliaIndex, JuliaFieldAccess, JuliaTuple, JuliaArray, JuliaRange,
     JuliaTypeAnnotation, JuliaAssignment, JuliaFor, JuliaForIterator, JuliaWhile,
     JuliaReturn, JuliaBreak, JuliaContinue, JuliaTry, JuliaBegin, JuliaIf, JuliaFunction,
-    JuliaBlock, JuliaDocument
+    JuliaBlock, JuliaUsing, JuliaDocument
 export juliaparse, juliaparse_file
 
 # ── Operator classification ───────────────────────────────────────────────────
@@ -116,7 +116,21 @@ _convert_head(::Val{H}, x::Expr) where {H} =
 
 function _convert_head(::Val{:call}, x::Expr)
     callee = x.args[1]
-    args = x.args[2:end]
+    # Keyword arguments arrive as a leading `Expr(:parameters, kw…)` (the args
+    # after `;`). Flatten them into the argument list as `key = value`
+    # assignments — `f(a; k=v)` and `f(a, k=v)` are equivalent Julia. Emit the
+    # positional arguments first, then the keywords, so the rendering reads
+    # naturally (`f(editor, title = …)`), regardless of AST order.
+    positional = Any[]
+    keywords   = Any[]
+    for a in x.args[2:end]
+        if a isa Expr && a.head === :parameters
+            append!(keywords, a.args)
+        else
+            push!(positional, a)
+        end
+    end
+    args = vcat(positional, keywords)
     if callee === :(:)
         if length(args) == 2
             return JuliaRange(convert_expr(args[1]), convert_expr(args[2]))
@@ -143,6 +157,33 @@ for op in (:(+=), :(-=), :(*=), :(/=))
     @eval _convert_head(::Val{$(QuoteNode(op))}, x::Expr) =
         JuliaAssignment($(QuoteNode(op)), convert_expr(x.args[1]), convert_expr(x.args[2]))
 end
+
+# A keyword argument `k = v` (inside a call) is structurally a plain assignment.
+_convert_head(::Val{:kw}, x::Expr) =
+    JuliaAssignment(:(=), convert_expr(x.args[1]), convert_expr(x.args[2]))
+
+# ── using / import ───────────────────────────────────────────────────────────
+# `using A.B`        → Expr(:using, Expr(:., :A, :B))
+# `using A, B`       → Expr(:using, Expr(:., :A), Expr(:., :B))
+# `import A: x, y`   → Expr(:import, Expr(:(:), Expr(:., :A), Expr(:., :x), …))
+# The spec is a module *path*, so render it straight to a string rather than a
+# nested expression tree.
+function _module_path_string(e)
+    if e isa Expr && e.head === :.
+        return join(string.(e.args), ".")
+    elseif e isa Expr && e.head === :(:)
+        head  = _module_path_string(e.args[1])
+        names = join((_module_path_string(a) for a in e.args[2:end]), ", ")
+        return string(head, ": ", names)
+    else
+        return string(e)
+    end
+end
+
+_convert_head(::Val{:using}, x::Expr) =
+    JuliaUsing(:using, join((_module_path_string(a) for a in x.args), ", "))
+_convert_head(::Val{:import}, x::Expr) =
+    JuliaUsing(:import, join((_module_path_string(a) for a in x.args), ", "))
 
 # ── Compound expressions ─────────────────────────────────────────────────────
 

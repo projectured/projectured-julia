@@ -42,7 +42,7 @@ export JuliaDocument, JuliaInsertion,
        JuliaTypeAnnotation,
        JuliaAssignment, JuliaFor, JuliaForIterator, JuliaWhile,
        JuliaReturn, JuliaBreak, JuliaContinue, JuliaTry, JuliaBegin,
-       JuliaIf, JuliaFunction, JuliaBlock,
+       JuliaIf, JuliaFunction, JuliaBlock, JuliaUsing,
        _julia_operator_string,
        IJuliaInsertion,
        IJuliaIdentifier, IJuliaInteger, IJuliaFloat, IJuliaString, IJuliaBool,
@@ -331,6 +331,24 @@ end
 
 JuliaBlock(statements::Vector) =
     JuliaBlock(CellVector(Cell[Cell(s) for s in statements]), Cell(nothing))
+
+"""
+    JuliaUsing(keyword::Symbol, path::AbstractString)
+
+A `using`/`import` statement. `keyword` is `:using` or `:import`; `path` is the
+rendered module spec exactly as written, e.g. `"Main.OmnetppPredExample"`,
+`"A, B"`, or `"A: x, y"`. Kept as a flat string (the spec is a path, not a nested
+expression), so the projection renders the keyword highlighted and the path
+verbatim.
+"""
+@document struct JuliaUsing <: JuliaDocument
+    keyword::Symbol
+    path::String
+    selection::Reference
+end
+
+JuliaUsing(keyword::Symbol, path::AbstractString) =
+    JuliaUsing(Cell(keyword), Cell(String(path)), Cell(nothing))
 
 """
     JuliaAssignment(operator::Symbol, target, value)
