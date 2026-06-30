@@ -143,7 +143,14 @@ function projection_print(p::BookBookToSyntaxNode, recursion, b::BookBook, ctx)
         result
     end)
 
-    output = SyntaxNode(children_cv; indentation=1, collapsed=b.collapsed, selection=sel)
+    # Flush-left prose blocks: indentation=0 drops the depth-based indent (an
+    # indent before every chapter/paragraph is atypical for English text), while
+    # a newline `sep` still puts each child (title, author, chapters, paragraphs)
+    # on its own line. Embedded code fragments are separate SyntaxNodes, so they
+    # keep their own internal indentation.
+    output = SyntaxNode(children_cv; indentation=0,
+                        sep=TextString("\n", font_ubuntu_monospace_regular_20, color_black),
+                        collapsed=b.collapsed, selection=sel)
     ChildrenIoMap(p, b, output, element_iomaps)
 end
 
@@ -301,7 +308,14 @@ function projection_print(p::BookChapterToSyntaxNode, recursion, b::BookChapter,
         result
     end)
 
-    output = SyntaxNode(children_cv; indentation=1, collapsed=b.collapsed, selection=sel)
+    # Flush-left prose blocks: indentation=0 drops the depth-based indent (an
+    # indent before every chapter/paragraph is atypical for English text), while
+    # a newline `sep` still puts each child (title, author, chapters, paragraphs)
+    # on its own line. Embedded code fragments are separate SyntaxNodes, so they
+    # keep their own internal indentation.
+    output = SyntaxNode(children_cv; indentation=0,
+                        sep=TextString("\n", font_ubuntu_monospace_regular_20, color_black),
+                        collapsed=b.collapsed, selection=sel)
     ChildrenIoMap(p, b, output, element_iomaps)
 end
 
