@@ -32,8 +32,10 @@ import ..DocumentCoreModule: DocumentInsertion, DocumentNothing
 import ..JuliaModule: JuliaInsertion, JuliaDocument
 import ..JsonModule: JsonInsertion
 import ..XmlModule: XmlInsertion
+import ..SqlDocumentModule: SqlInsertion
 import ..TextModule: TextText, TextString
 import ..JuliaParserModule: juliaparse
+import ..SqlParserModule: sqlparse
 import ..SyntaxModule: SyntaxLeaf
 import ..OperationModule: replace_document, ReplaceSelectionOperation
 import ..PrimitiveModule: StringReplaceRangeOperation
@@ -50,7 +52,7 @@ import ..IoMapModule: SimpleIoMap
 import ..ReactiveModule: Cell
 
 export InsertionToSyntaxLeaf, DocumentInsertionToSyntaxLeaf, JuliaInsertionToSyntaxLeaf,
-       default_factory, default_completion
+       SqlInsertionToSyntaxLeaf, default_factory, default_completion
 
 # ── Projection ────────────────────────────────────────────────────────────────
 
@@ -188,6 +190,7 @@ const _FACTORY = Tuple{String,Function}[
     ("julia", () -> JuliaInsertion("")),
     ("json",  () -> JsonInsertion()),
     ("xml",   () -> XmlInsertion()),
+    ("sql",   () -> SqlInsertion("")),
     ("text",  () -> TextText()),
 ]
 
@@ -229,6 +232,16 @@ function _julia_commit(value::AbstractString)
     end
 end
 
+# Commit SQL source by parsing it; partial / invalid source can't commit.
+function _sql_commit(value::AbstractString)
+    isempty(strip(value)) && return nothing
+    try
+        sqlparse(value)
+    catch
+        nothing
+    end
+end
+
 # ── Convenience constructors ───────────────────────────────────────────────────
 
 """
@@ -246,5 +259,12 @@ DocumentInsertionToSyntaxLeaf() =
 A Julia source insertion, committing `value` via `juliaparse`.
 """
 JuliaInsertionToSyntaxLeaf() = InsertionToSyntaxLeaf(_julia_commit)
+
+"""
+    SqlInsertionToSyntaxLeaf()
+
+A SQL source insertion, committing `value` via `sqlparse`.
+"""
+SqlInsertionToSyntaxLeaf() = InsertionToSyntaxLeaf(_sql_commit)
 
 end # module

@@ -57,12 +57,32 @@ export SqlDocument, SqlStatement,
        SqlComparison,     ISqlComparison,
        SqlAnd,            ISqlAnd,
        SqlOr,             ISqlOr,
-       SqlNot,            ISqlNot
+       SqlNot,            ISqlNot,
+       SqlInsertion,      ISqlInsertion
 
 # ── Abstract types ─────────────────────────────────────────────────────────────
 
 abstract type SqlDocument <: Document end
 abstract type SqlStatement <: SqlDocument end
+
+# ── SqlInsertion (editable SQL source being entered) ───────────────────────────
+
+"""
+    SqlInsertion(value="")
+
+A placeholder holding SQL source text being typed; committed (e.g. on Enter)
+by parsing `value` with `sqlparse` into a real `SqlStatement`. The SQL analogue
+of `JuliaInsertion`: SQL has no in-place type-to-build gesture set, so a fresh
+SQL document (e.g. a new `.sql` file) is authored by typing source into this
+insertion and committing. Its `value` is a plain string, so character edits are
+handled generically by `splice_value!`.
+"""
+@document struct SqlInsertion <: SqlStatement
+    value::String
+    selection::Reference
+end
+
+SqlInsertion(value::AbstractString="") = SqlInsertion(Cell(String(value)), Cell(nothing))
 abstract type SqlSelectExpression <: SqlDocument end
 abstract type SqlFromBaseItem <: SqlDocument end
 abstract type SqlJoinType <: SqlDocument end

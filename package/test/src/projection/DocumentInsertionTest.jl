@@ -3,6 +3,7 @@
 # domain's document/insertion, and committing Julia source via JuliaInsertion.
 
 using Projectured: DocumentInsertion, JuliaInsertion, JsonInsertion, JuliaDocument,
+                   SqlInsertion, SqlInsertionToSyntaxLeaf, SqlStatement,
                    DocumentNothing, DocumentInsertionToSyntaxLeaf, JuliaInsertionToSyntaxLeaf,
                    default_factory, default_completion,
                    projection_print, projection_read, evaluate_operation,
@@ -22,6 +23,7 @@ function test_document_insertion()
         @testset "factory + completion" begin
             @test default_factory("julia") isa JuliaInsertion
             @test default_factory("json")  isa JsonInsertion
+            @test default_factory("sql")   isa SqlInsertion
             @test default_factory("zzz")   === nothing
             @test default_completion("jso") == "n"
             @test default_completion("xyz") == ""
@@ -65,6 +67,22 @@ function test_document_insertion()
             empty_ji.selection = _ins_vpath(0)
             eiom = projection_print(jproj, jproj, empty_ji, nothing)
             @test projection_read(jproj, eiom, KeyDown(:return, Modifiers())) === nothing
+        end
+
+        @testset "SqlInsertion commits source via sqlparse" begin
+            si = SqlInsertion("SELECT * FROM persons")
+            si.selection = _ins_vpath(length("SELECT * FROM persons"))
+            sproj = SqlInsertionToSyntaxLeaf()
+            siom = projection_print(sproj, sproj, si, nothing)
+            commit = projection_read(sproj, siom, KeyDown(:return, Modifiers()))
+            @test commit isa CompoundOperation
+            @test _written_doc(commit) isa SqlStatement
+
+            # Unparseable / empty source cannot commit.
+            empty_si = SqlInsertion("")
+            empty_si.selection = _ins_vpath(0)
+            esiom = projection_print(sproj, sproj, empty_si, nothing)
+            @test projection_read(sproj, esiom, KeyDown(:return, Modifiers())) === nothing
         end
     end
 end

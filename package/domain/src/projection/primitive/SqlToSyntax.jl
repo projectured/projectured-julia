@@ -28,7 +28,8 @@ import ..SqlDocumentModule: SqlSelectStatement, SqlSelectClause, SqlFromClause, 
                             SqlScalarValue, SqlComparison, SqlAnd, SqlOr, SqlNot,
                             SqlInsertStatement, SqlUpdateAssignment, SqlUpdateStatement,
                             SqlColumnDefinition, SqlCreateTableStatement, SqlCreateSchemaStatement,
-                            SqlStatementList
+                            SqlStatementList, SqlInsertion
+import ..DocumentInsertionToSyntaxModule: SqlInsertionToSyntaxLeaf
 import ..TextModule: TextString
 import ..FontModule: StyleFont, font_ubuntu_monospace_regular_20, font_ubuntu_monospace_bold_20
 import ..ColorModule: StyleColor, color_default, color_solarized_blue, color_solarized_green
@@ -1959,6 +1960,7 @@ projection_read(::SqlStatementListToSyntaxNode, iomap::ChildrenIoMap, op) = noth
 function SqlToSyntax()
     jt = SqlJoinTypeToSyntaxLeaf()
     TypeDispatchingProjection(
+        SqlInsertion            => SqlInsertionToSyntaxLeaf(),
         SqlSelectStatement      => SqlSelectStatementToSyntaxNode(),
         SqlSelectClause         => SqlSelectClauseToSyntaxNode(),
         SqlFromClause           => SqlFromClauseToSyntaxNode(),
