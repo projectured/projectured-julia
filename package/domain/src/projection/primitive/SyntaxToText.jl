@@ -13,8 +13,8 @@ import ..CollectionModule: CellVector, ListNode
 import ..ProjectionApiModule: projection_print, projection_read, map_reference_forward, map_reference_backward, Projection, Change
 import ..SyntaxModule: SyntaxDocument, SyntaxLeaf, SyntaxNode
 import ..TextModule: TextText, TextString, TextNewline, TextDocument
-import ..FontModule: font_ubuntu_monospace_regular_24, font_dejavu_monospace_regular_24
-import ..ColorModule: color_solarized_gray
+import ..FontModule: StyleFont, font_ubuntu_monospace_regular_24, font_dejavu_monospace_regular_24
+import ..ColorModule: color_default, color_solarized_gray
 import ..TypeDispatchingModule: TypeDispatchingProjection
 import ..ReferenceModule: ConcreteReferencePath, ElementReference, PositionReference, RangeReference, FieldReference, ProjectionReference, EmptyReferencePath, ReferencePath, TextRectangularReference, strip_reference_types
 import ..ReferenceCaseModule: var"@reference_case"
@@ -448,7 +448,11 @@ function _syntax_list_to_text_node(input_node::ListNode, recursion, cache::IdDic
         cur_out = next_out
     end
 
-    nl_node = ListNode(TextNewline(font=font_ubuntu_monospace_regular_24))
+    # The paragraph separator inherits this element's content font (the first
+    # rendered span) so a blank line's height tracks the content size rather than a
+    # baked-in default; fall back to the module default only for an empty render.
+    nl_font = !isempty(spans) && spans[1] isa TextString ? spans[1].font : font_ubuntu_monospace_regular_24
+    nl_node = ListNode(TextNewline(font=nl_font))
     setval!(getfield(cur_out, :next), nl_node)
     setval!(getfield(nl_node, :prev), cur_out)
 
@@ -522,8 +526,16 @@ end
 
 # ── Utility ──────────────────────────────────────────────────────────────────
 
-_indent_span(p::SyntaxNodeToText, depth::Int) = TextString(" " ^ (depth * p.indent_size))
-_newline_span() = TextString("\n")
+# Decoration spans (indentation, line breaks) are pure whitespace: their font is
+# irrelevant to what is drawn, but it DOES set the line's measured height
+# downstream (TextToGraphics measures every span and takes the max). So they must
+# carry the *content* font, not a hardcoded default — otherwise shrinking a
+# document's token font would leave the line pitch stuck at the old size. The font
+# is the enclosing node's own delimiter font (`node.open.font`, passed in as
+# `font`), so decoration tracks whatever size the upstream projection chose.
+_indent_span(p::SyntaxNodeToText, depth::Int, font::StyleFont) =
+    TextString(" " ^ (depth * p.indent_size), font, color_default)
+_newline_span(font::StyleFont) = TextString("\n", font, color_default)
 
 # `_collect_spans` re-runs whole on any structural change, allocating fresh newline
 # and indentation `TextString`s each pass — so a structural edit orphans all of them
@@ -814,6 +826,9 @@ function _collect_spans(node::SyntaxNode, p::SyntaxNodeToText, depth::Int, recur
     char_count = 0
     children = node.children
     open_str = node.open.content
+    # Whitespace decorations (newline/indent) inherit this node's delimiter font so
+    # the line height tracks the content size rather than a baked-in default.
+    deco_font = node.open.font
 
     # optional inline expand/collapse marker, before the open delimiter
     marker = _active_marker(p, node)
@@ -834,8 +849,15 @@ function _collect_spans(node::SyntaxNode, p::SyntaxNodeToText, depth::Int, recur
         # editing inside a collapsed node triggers no re-render here). A
         # childless node gets no ellipsis (nothing to fold).
         if length(children) > 0
-            push!(spans, p.ellipsis_text)
-            char_count += _span_len(p.ellipsis_text)
+            # The ellipsis keeps its own font *family* (DejaVu, which carries the …
+            # glyph) and gray chrome color, but takes this node's font *size* so a
+            # collapsed line's height matches the surrounding content. Same content
+            # length as `p.ellipsis_text`, so every offset/length stays unchanged.
+            ell = p.ellipsis_text
+            ellipsis = _deco_span(deco, (nid, 0, :ellipsis),
+                () -> TextString(ell.content, StyleFont(ell.font.filename, deco_font.size), ell.font_color))
+            push!(spans, ellipsis)
+            char_count += _span_len(ellipsis)
         end
     elseif node.indentation != 0
         child_depth = depth + 1
@@ -844,10 +866,10 @@ function _collect_spans(node::SyntaxNode, p::SyntaxNodeToText, depth::Int, recur
                 push!(spans, node.sep)
                 char_count += _span_len(node.sep)
             end
-            nl = _deco_span(deco, (nid, i, :nl), _newline_span)
+            nl = _deco_span(deco, (nid, i, :nl), () -> _newline_span(deco_font))
             push!(spans, nl)
             char_count += 1
-            ind = _deco_span(deco, (nid, i, :ind), () -> _indent_span(p, child_depth))
+            ind = _deco_span(deco, (nid, i, :ind), () -> _indent_span(p, child_depth, deco_font))
             push!(spans, ind)
             char_count += _span_len(ind)
 
@@ -863,9 +885,9 @@ function _collect_spans(node::SyntaxNode, p::SyntaxNodeToText, depth::Int, recur
             push!(child_ranges, child_start:char_count-1)
         end
         if node.indentation > 0
-            push!(spans, _deco_span(deco, (nid, 0, :tnl), _newline_span))
+            push!(spans, _deco_span(deco, (nid, 0, :tnl), () -> _newline_span(deco_font)))
             char_count += 1
-            ind = _deco_span(deco, (nid, 0, :tind), () -> _indent_span(p, depth))
+            ind = _deco_span(deco, (nid, 0, :tind), () -> _indent_span(p, depth, deco_font))
             push!(spans, ind)
             char_count += _span_len(ind)
         end
