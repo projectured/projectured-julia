@@ -1262,9 +1262,14 @@ function _dispatch_render_elem!(renderer::Ptr{SDL_Renderer}, elem, ox::Int, oy::
     elseif elem isa GraphicsImage
         _render_image!(renderer, elem, ox, oy)
     elseif elem isa GraphicsCanvas
-        # Nested canvas: offset by its position, remaining viewport
+        # Nested canvas: offset its origin by its position. `vw`/`vh` are the
+        # *absolute* screen-space clip edges (right/bottom) used only by the
+        # early-stop culling, so they are passed through unchanged — a child's
+        # local offset moves `oy` (and thus the element's absolute y), not the
+        # clip bound. Subtracting the offset here culled lower/deeper content
+        # prematurely (e.g. chat-bubble bodies past the first viewport-height).
         cx, cy = Int(elem.x), Int(elem.y)
-        _render_canvas!(renderer, elem, ox + cx, oy + cy, vw - cx, vh - cy)
+        _render_canvas!(renderer, elem, ox + cx, oy + cy, vw, vh)
     end
     # GraphicsFence and unknown types are silently skipped
 end
