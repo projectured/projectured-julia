@@ -75,14 +75,6 @@ function make_json_null_projection_example(; measure=truetype_measure_text)
     )
 end
 
-function make_json_insertion_projection_example(; measure=truetype_measure_text)
-    SequentialProjection(
-        JsonInsertionToSyntaxLeaf(),
-        SyntaxLeafToText(),
-        TextToGraphics(measure=measure),
-    )
-end
-
 function make_json_string_projection_example(; measure=truetype_measure_text)
     SequentialProjection(
         JsonStringToSyntaxLeaf(),
