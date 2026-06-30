@@ -289,6 +289,7 @@ Pass an explicit `llm` (e.g. `FakeLlm("ok")` in tests) to bypass resolution.
     system::String
     api_key::String
     status::Symbol
+    collapse_thinking::Bool
     llm::Union{Nothing,LlmBackend}
     selection::Reference
 end
@@ -303,10 +304,12 @@ function WorkbenchAssistant(; conversation::ConversationConversation = Conversat
                               system::AbstractString = DEFAULT_ASSISTANT_SYSTEM,
                               api_key::AbstractString = "",
                               status::Symbol = :idle,
+                              collapse_thinking::Bool = true,
                               llm::Union{Nothing,LlmBackend} = nothing)
     a = WorkbenchAssistant(Cell(conversation), Cell(input), Cell(draft),
                            Cell(String(model)), Cell(String(system)),
                            Cell(String(api_key)), Cell(status),
+                           Cell(collapse_thinking),
                            Cell(llm),
                            Cell(nothing))
     # Back-link the draft to its owning assistant so the composer's ENTER can be
@@ -331,14 +334,16 @@ path on disk.
     title::String
     filename::String
     content::Any
+    follow_end::Bool
     selection::Reference
 end
 
 function WorkbenchEditor(content;
                         title::AbstractString="",
-                        filename::AbstractString="")
+                        filename::AbstractString="",
+                        follow_end::Bool=false)
     WorkbenchEditor(Cell(String(title)), Cell(String(filename)),
-                   Cell(content), Cell(nothing))
+                   Cell(content), Cell(follow_end), Cell(nothing))
 end
 
 title(e::WorkbenchEditor) = e.title

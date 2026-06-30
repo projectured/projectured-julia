@@ -369,6 +369,7 @@ function projection_print(::WorkbenchEditorToWidgetScrollPane,
                            recursion, e::WorkbenchEditor, ctx)
     content_iomap = _recurse(recursion, e.content, child_context(ctx, @reference ^(ctx.reference).content))
     scroll = WidgetScrollPane(content_iomap.output;
+                              follow_end=e.follow_end === true,
                               padding=_PAD5, padding_color=_WHITE)
     ContentIoMap(nothing, e, scroll, content_iomap)
 end

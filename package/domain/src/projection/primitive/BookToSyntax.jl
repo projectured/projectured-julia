@@ -393,7 +393,7 @@ end
 # Selection forward:  .content → .value
 
 @projection struct BookParagraphToSyntaxLeaf
-    style::StyleText = StyleText(font_ubuntu_monospace_regular_20, color_solarized_green)
+    style::StyleText = StyleText(font_ubuntu_monospace_regular_20, color_black)
     # Reserved for an empty-content placeholder hint (not yet rendered).
     placeholder::StyleText = StyleText(font_ubuntu_monospace_regular_20, color_solarized_gray)
 end

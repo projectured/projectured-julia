@@ -239,7 +239,7 @@ function evaluate_operation(editor, op::SubmitJuliaOperation)
     result = val isa Document ? val : result_text(output)
     push!(a.conversation.turns,
           ConversationTurn(:user, [ConversationPart(
-              EvaluatorForm(JuliaIdentifier(code);
+              EvaluatorForm(_eval_form_doc(code);
                             result = result, is_error = is_error))]))
 
     _set_input!(a, "")
@@ -304,13 +304,20 @@ end
 SUBMIT_HANDLER[] = a -> SubmitDraftTurnOperation(a)
 
 # ═══════════════════════════════════════════════════════════════════════
-# Placeholder JuliaDocument
+# Code → JuliaDocument for an EvaluatorForm
 # ═══════════════════════════════════════════════════════════════════════
-# v1 keeps the structural representation minimal — we wrap the code text in
-# the smallest JuliaDocument that can still be projected. The Conversation
-# code-block projection treats `body` polymorphically, so this is fine.
+# Parse the executed code into a real `JuliaDocument` so it renders as a
+# syntax-highlighted Julia document in the conversation (its natural form), not a
+# single opaque identifier. Fall back to the smallest projectable wrapper
+# (`JuliaIdentifier`) if the snippet doesn't parse.
 
-_placeholder_julia_doc(code::AbstractString) = JuliaIdentifier(String(code))
+function _eval_form_doc(code::AbstractString)
+    try
+        juliaparse(String(code))
+    catch
+        JuliaIdentifier(String(code))
+    end
+end
 
 # ═══════════════════════════════════════════════════════════════════════
 # Tool schemas exposed to Claude
@@ -672,7 +679,7 @@ function _run_agent_loop!(editor, a::WorkbenchAssistant)
             val = tu.name == "execute_julia_code" ? last_eval_value() : nothing
             result = val isa Document ? val : result_text(output)
             push!(turn.parts, Cell(ConversationPart(
-                EvaluatorForm(JuliaIdentifier(code);
+                EvaluatorForm(_eval_form_doc(code);
                               result = result,
                               is_error = is_err, tool_use_id = tu.id,
                               tool_name = tu.name);
@@ -703,8 +710,9 @@ function _handle_sse_event!(ev, a, turn, state)
             push!(turn.parts, Cell(part))
             state[:current_block] = part
         elseif block_type == "thinking"
-            # Collapsed by default — reasoning is verbose and secondary.
-            part = thinking_part("")
+            # Collapsed by default — reasoning is verbose and secondary — unless the
+            # assistant opts to keep thinking expanded (`collapse_thinking=false`).
+            part = thinking_part(""; collapsed = a.collapse_thinking)
             push!(turn.parts, Cell(part))
             state[:current_thinking] = part
         elseif block_type == "redacted_thinking"
