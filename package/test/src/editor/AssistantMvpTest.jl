@@ -31,7 +31,8 @@ using Projectured: PrimitiveDocument, PrimitiveToSyntax, SyntaxToText,
                    VerticalLayout
 using Projectured: ConcreteReferencePath, FieldReference, RangeReference,
                    EmptyReferencePath
-using Projectured: LlmBackend, FakeLlm
+using Projectured: LlmBackend, FakeLlm, ScriptedLlm,
+                   scripted_turn, scripted_think, scripted_say, scripted_run
 using Projectured: ComposerInputOperation, SubmitDraftTurnOperation, SubmitProseOperation
 using Projectured.McpModule: register_default_tools_and_resources!
 using Projectured.WorkbenchAssistantModule: _text_to_string, _run_agent_loop!,
@@ -43,33 +44,10 @@ import Projectured.LlmModule: stream_turn
 using Projectured: with_available_size, GraphicsCanvas
 import Projectured.ReactiveModule: Cell
 
-# A multi-turn scripted backend: each call to `stream_turn` consumes the
-# next vector of SSE events from `scripts`. Useful for testing tool-use
-# round-trips where turn N requests a tool and turn N+1 (after the agent
-# loop dispatches the tool and appends a result) emits the final reply.
-mutable struct ScriptedLlm <: LlmBackend
-    scripts::Vector{Vector{NamedTuple}}
-    cursor::Int
-end
-ScriptedLlm(scripts) = ScriptedLlm([Vector{NamedTuple}(s) for s in scripts], 0)
-
-function stream_turn(b::ScriptedLlm,
-                     _api_key::AbstractString,
-                     _model::AbstractString,
-                     _system::AbstractString,
-                     _messages::AbstractVector,
-                     _tools::AbstractVector;
-                     on_event::Function,
-                     thinking = nothing,
-                     output_config = nothing)
-    b.cursor += 1
-    b.cursor > length(b.scripts) &&
-        error("ScriptedLlm: exhausted at turn $(b.cursor) (have $(length(b.scripts)))")
-    for ev in b.scripts[b.cursor]
-        on_event(ev)
-    end
-    nothing
-end
+# The multi-round scripted backend `ScriptedLlm` (each `stream_turn` consumes the
+# next round of SSE events) now lives in `Projectured.LlmModule` so examples can
+# reuse it; imported above. The `_tool_use_script` / `_final_text_script` builders
+# below produce the same event-vector shape it consumes.
 
 # ── Test fixture ────────────────────────────────────────────────────────
 
@@ -234,6 +212,7 @@ function test_assistant_mvp()
         _mvp_test_scenes()
         _mvp_test_fake_llm_dispatch()
         _mvp_test_tool_use_roundtrip()
+        _mvp_test_scripted_builders()
         _mvp_test_collapse_click()
         _mvp_test_thinking_stream()
         _mvp_test_resource_collapse()
@@ -469,6 +448,40 @@ function _final_text_script(text::AbstractString)
                                   Dict{Symbol,Any}(:stop_reason => "end_turn"))),
         (type = :message_stop, data = Dict{Symbol,Any}()),
     ]
+end
+
+# ── Timestamped scripted builders + JSON round-trip ────────────────────
+#
+# The `scripted_turn` / `scripted_think` / `scripted_say` / `scripted_run`
+# helpers must produce rounds the agent loop consumes exactly as the hand-built
+# `_tool_use_script` does — including a multi-line `execute_julia_code` block that
+# round-trips through the JSON `{"code": …}` encode/parse without corruption.
+
+function _mvp_test_scripted_builders()
+    @testset "ScriptedLlm timestamped builders" begin
+        register_default_tools_and_resources!()
+        # Multi-line code with an embedded quote — stresses the JSON escaper.
+        code = "v = 6 * 7\nstring(\"n=\", v)"
+        llm = ScriptedLlm([
+            scripted_turn(
+                scripted_think("Let me compute this carefully"; delay = 0.0),
+                scripted_say("Working on it."; delay = 0.0),
+                scripted_run(code; tool_id = "tu_demo", delay = 0.0);
+                stop_reason = "tool_use"),
+            scripted_turn(scripted_say("Done."; delay = 0.0)),
+        ]; delay = 0.0)
+        a = WorkbenchAssistant(; llm = llm)
+        push!(a.conversation.turns, ConversationTurn(:user, [ConversationPart("compute")]))
+        _run_agent_loop!((document = a,), a)
+
+        reply = a.conversation.turns[end]
+        @test reply.role === :assistant
+        @test any(p -> p.content isa ConversationThinking, reply.parts)
+        ef = first(p.content for p in reply.parts if p.content isa EvaluatorForm)
+        @test _eval_code(ef) == code                       # survived the JSON round-trip
+        @test occursin("n=42", _eval_result(ef))           # the code actually ran
+        @test _text_to_string(reply.parts[end].content) == "Done."
+    end
 end
 
 function _mvp_test_tool_use_roundtrip()
