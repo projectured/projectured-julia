@@ -293,11 +293,19 @@ out of scope (added later) and are **not** phases here.
       The registry keys by *content* domain only (`:json`, later `:xml`/`:text`).
       Verified: clean precompile, registry + `_build_window_scene` assertions pass,
       dup-id / unknown-domain error paths work, `print_example(json_example)` runs.
-- [ ] **Phase 1 — `run_file_editor`.** Resolve `EditorDomain`; load-or-scratch
-      document; bare single-window (v1) vs workbench composition; resolve backend;
-      run loop; expose `document`/`file`/`save_file` for the save seam. Verify in
-      the REPL: `run_file_editor(:json; file="/tmp/x.json")` opens and edits the
-      file. Commit.
+- [x] **Phase 1 — `run_file_editor`. DONE.** Split into two functions in
+      `FileEditor.jl`: `build_file_editor(domain; file, workbench) ->
+      (document, projection, name)` — the **testable** core (load via `load_file`
+      when the file exists, else `make_empty_document`; workbench-wrap via
+      `make_workbench_*`; name = file basename or domain) — and `run_file_editor`
+      which adds `display_size` width/height defaulting, SDL backend defaulting, and
+      the `_run_window_scene` call. Added an `mcp::Bool` passthrough to
+      `_run_window_scene` (forwarded to `run!`; default false keeps `run_example`
+      identical). Verified `build_file_editor` headlessly: JSON file → `JsonObject`,
+      no file → `JsonInsertion`, missing path → scratch fallback, `workbench=true`
+      → `WorkbenchWorkbench` wrap, unknown domain errors. (Full `run_file_editor`
+      opens a blocking SDL window — exercised end-to-end via the built binary in
+      Phase 3.)
 - [ ] **Phase 2 — `BuildSpec` + `build_executable` function.** Spec struct +
       `build_executable(; …)`; generate the dep set from `backends`, `AppConfig.jl`,
       and a config-specific precompile workload; checked-in `AppConfig.default.jl`

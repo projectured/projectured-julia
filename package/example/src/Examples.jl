@@ -410,18 +410,19 @@ end
 # and run the editor loop on `backend` (optionally under the profiler). The shared tail
 # of `run_example` and `run_file_editor`.
 function _run_window_scene(docs, projs, names; width, height, backend,
-                           compose, profile::Bool=false, content_unwrap::Symbol=:plain)
+                           compose, profile::Bool=false, content_unwrap::Symbol=:plain,
+                           mcp::Bool=false)
     screen = _build_window_scene(docs, names; width=width, height=height, content_unwrap=content_unwrap)
     composed = compose(projs, backend)
     if profile
         Profile.clear()
         try
-            Profile.@profile run!(backend, composed, screen)
+            Profile.@profile run!(backend, composed, screen; mcp=mcp)
         finally
             Profile.print(; mincount=10)
         end
     else
-        run!(backend, composed, screen)
+        run!(backend, composed, screen; mcp=mcp)
     end
 end
 
