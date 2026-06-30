@@ -1985,11 +1985,18 @@ function projection_print(p::WidgetSplitPaneToGraphicsCanvas, recursion, w::Widg
     # extent. Built up-front so we can seed it into each child's available
     # size before recursion — without it the child (typically a scroll
     # pane) has no way to size its viewport to its slot.
-    alloc_main_ref = Ref{Union{Nothing,Cell}}(nothing)
+    # The allocation is a forward-declared *reactive* cell: slot cells read it now
+    # (before it has a value) and the real allocation thunk is installed via
+    # `setfn!` once intrinsic sizes are readable (below). Reading it before then
+    # yields `nothing` → a transient 0 slot; `setfn!` invalidates the slot cells so
+    # they recompute with the real allocation. (A plain `Ref` was not reactive, so
+    # a slot forced early — e.g. by a follow-end scroll pane measuring its
+    # word-wrapped content — both crashed and could cache a stale size.)
+    alloc_cell = Cell(nothing)
     slot_main = Cell[]
     if avail_main !== nothing
         for i in 1:n
-            push!(slot_main, Cell(() -> (alloc_main_ref[])[][i]))
+            push!(slot_main, Cell(() -> begin v = alloc_cell[]; v === nothing ? 0 : Int(v[i]) end))
         end
     else
         for i in 1:n
@@ -2023,7 +2030,7 @@ function projection_print(p::WidgetSplitPaneToGraphicsCanvas, recursion, w::Widg
         n_local     = n
         sizes_local = sizes
         pinned_cv   = w.pinned
-        alloc_main_ref[] = Cell(function ()
+        setfn!(alloc_cell, function ()
             mins  = Vector{Int}(undef, n_local)
             maxs  = Vector{Int}(undef, n_local)
             prefs = Vector{Int}(undef, n_local)
@@ -2735,8 +2742,8 @@ function projection_print(p::WidgetScrollPaneToGraphicsCanvas, recursion, w::Wid
               Cell(Int32(sz isa Point2D ? Int(sz.y[]) : _SCROLL_FALLBACK_HEIGHT))
     cox, coy = _content_offset(w)
     scroll_cell = getfield(w, :scroll_position)
+    follow_cell = getfield(w, :follow_end)
     inner_x = Cell(() -> begin sp = scroll_cell[]::Point2D; Int32(-Int(sp.x[])) end)
-    inner_y = Cell(() -> begin sp = scroll_cell[]::Point2D; Int32(-Int(sp.y[])) end)
     elems = Any[]
     cfc = w.content_fill_color
     bgc = cfc isa StyleColor ? cfc : p.background_color
@@ -2756,6 +2763,19 @@ function projection_print(p::WidgetScrollPaneToGraphicsCanvas, recursion, w::Wid
         content_iomap = projection_printer_recurse(recursion, content, content_ctx)
         inner_canvas = content_iomap.output::GraphicsCanvas
         inner_elems_cv = inner_canvas.elements
+        # Vertical offset of the content inside the viewport. Normally this is the
+        # negated `scroll_position.y`; with `follow_end` the pane sticks to the
+        # bottom of its content — offset by `viewport - content` (≤ 0), so newly
+        # appended content (a streaming chat) stays in view as the content grows.
+        content_h_cell = inner_canvas.h
+        inner_y = Cell(() -> begin
+            if follow_cell[]
+                Int32(-max(0, Int(content_h_cell[]) - Int(vh_cell[])))
+            else
+                sp = scroll_cell[]::Point2D
+                Int32(-Int(sp.y[]))
+            end
+        end)
         push!(elems, GraphicsViewport(Cell(Int32(cox)), Cell(Int32(coy)),
                                       vw_cell, vh_cell,
                                       Cell(GraphicsCanvas(inner_x, inner_y, Int32(0), Int32(0),

@@ -970,9 +970,12 @@ setfn!(w::WidgetTabbedPane, f::Function) = (setfn!(getfield(w.selector_element_p
 
 """
     WidgetScrollPane(content; content_fill_color, position, size,
-                     scroll_position, <base kwargs>)
+                     scroll_position, follow_end, <base kwargs>)
 
-A scrollable viewport..
+A scrollable viewport. With `follow_end=true` the pane sticks to the *bottom* of
+its content — newly appended content (e.g. streaming chat turns) stays in view
+instead of scrolling below the fold — ignoring `scroll_position` on the vertical
+axis.
 """
 @document struct WidgetScrollPane <: WidgetDocument
     content::Any
@@ -980,6 +983,7 @@ A scrollable viewport..
     position::Point2D
     size::Point2D
     scroll_position::Point2D
+    follow_end::Bool
     visible::Bool
     margin::Inset
     margin_color::StyleColor
@@ -995,6 +999,7 @@ function WidgetScrollPane(content;
                           position=nothing,
                           size=nothing,
                           scroll_position::Point2D=Point2D(0, 0),
+                          follow_end::Bool=false,
                           visible::Bool=true,
                           margin::Inset=inset_default,
                           margin_color=nothing,
@@ -1004,6 +1009,7 @@ function WidgetScrollPane(content;
                           padding_color=nothing)
     WidgetScrollPane(Cell(content), Cell(content_fill_color),
                      Cell(position), Cell(size), Cell(scroll_position),
+                     Cell(follow_end),
                      Cell(visible), Cell(margin), Cell(margin_color),
                      Cell(border), Cell(border_color),
                      Cell(padding), Cell(padding_color),

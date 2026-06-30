@@ -343,7 +343,10 @@ function projection_print(::WorkbenchAssistantToWidgetSplitPane,
     # `ConversationToWidget` and `PrimitiveDocument` (the input) to the
     # Primitive→Syntax→Text→Graphics chain. This is also what makes the
     # `PrimitiveStringToSyntaxLeaf` reader receive `KeyPress` events.
+    # Stick to the bottom: as streamed turns/parts are appended, the latest
+    # message stays in view instead of scrolling below the fold (standard chat UX).
     conv_pane  = WidgetScrollPane(a.conversation;
+                                  follow_end=true,
                                   padding=_PAD5, padding_color=_WHITE)
     # The input pane is the composer on `a.draft` (a `ConversationDraft`, so it
     # dispatches to the composer rather than the history presentation; it already
