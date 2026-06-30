@@ -57,6 +57,22 @@ current document — use the thunk form when the op must reference live state.
 """
 timed_operation(operation; hold::Real=0.4) = (operation = operation, hold = Float64(hold))
 
+"""
+    timed_await(predicate; max_hold=8.0) -> NamedTuple
+
+A timeline entry that lets *asynchronous* editor work settle while it is
+recorded. `predicate` is a `doc -> Bool` thunk evaluated against the current
+document (e.g. `doc -> assistant_of(doc).status === :idle` after an ENTER kicked
+off a streaming assistant turn).
+
+In `record_video` the recorder spins — yielding and emitting roughly `fps`
+frames per second — until `predicate` holds or `max_hold` seconds elapse, so the
+streamed thinking/text/tool output is captured as a gradual reveal. In
+`play_live!` the entry injects no operation; it is a pure `max_hold`-second
+dwell during which the live loop renders the streaming turn frame by frame.
+"""
+timed_await(predicate; max_hold::Real=8.0) = (await = predicate, hold = Float64(max_hold))
+
 # Resolve an `initial_selection` (path or `doc -> path` thunk) against `document`.
 _resolve_selection(::Nothing, document) = nothing
 _resolve_selection(sel::Function, document) = sel(document)

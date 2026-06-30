@@ -288,6 +288,10 @@ directly-injected operation bypasses the reader's rerooting. Returns `nothing`
 when nothing applies.
 """
 function _timeline_operation(editor::Editor, entry, window_id::Symbol, op_prefix::Tuple)
+    # An `await` entry (see `timed_await`) is a pure pause: it injects no
+    # operation. The live loop renders and yields every frame, so an async turn
+    # already kicked off by a prior ENTER streams in live during its dwell.
+    haskey(entry, :await) && return nothing
     if haskey(entry, :operation)
         op = entry.operation isa Function ? entry.operation(editor.document) : entry.operation
         op isa Operation || return nothing

@@ -138,12 +138,35 @@ function record_video(document, projection, gestures::AbstractVector,
                       tmpdir, frame, round(Int, initial_hold * fps))
 
         for entry in gestures
-            # An entry carries either an `event` (translated to an operation via
-            # the reader, like live input) or an `operation` (a domain operation
-            # injected straight into the evaluator, for actions with no single
-            # device-event trigger). An `operation` may be an `Operation` value
-            # or a `doc -> op` thunk evaluated at fire time against the current
-            # document.
+            # An `await` entry captures the gradual reveal of asynchronous editor
+            # work (e.g. the assistant's streaming reply launched by a prior
+            # ENTER). The gesture loop is the only task that yields, so frames are
+            # only captured here: spin — printing and emitting one frame per ~1/fps
+            # — until the `doc -> Bool` predicate holds or the `hold` cap elapses,
+            # so the streamed thinking/text/tool output appears along the time axis
+            # instead of popping in fully formed. (Plain gestures still never
+            # yield mid-hold, preserving their deterministic frame counts.)
+            if haskey(entry, :await)
+                pred = entry.await
+                deadline = time() + Float64(entry.hold)
+                while !(pred isa Function ? pred(document) : pred) && time() < deadline
+                    iomap = print_iomap(document)
+                    _emit_frames!(off, canvas_of(iomap), width, height, background,
+                                  tmpdir, frame, 1)
+                    yield()
+                    sleep(1 / fps)
+                end
+                iomap = print_iomap(document)
+                _emit_frames!(off, canvas_of(iomap), width, height, background,
+                              tmpdir, frame, 1)
+                continue
+            end
+            # A non-await entry carries either an `event` (translated to an
+            # operation via the reader, like live input) or an `operation` (a
+            # domain operation injected straight into the evaluator, for actions
+            # with no single device-event trigger). An `operation` may be an
+            # `Operation` value or a `doc -> op` thunk evaluated at fire time
+            # against the current document.
             if haskey(entry, :operation)
                 op = entry.operation isa Function ? entry.operation(document) : entry.operation
             else
