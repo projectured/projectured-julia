@@ -35,6 +35,13 @@ const BACKEND_LOCALS = Dict{Symbol,Tuple{String,String}}(
 )
 const KNOWN_BACKENDS = Set{Symbol}([:sdl, :web, :console])
 
+# Local (path) packages the app always needs, developed by path so they resolve
+# without a registry. `projectured` (the meta-package) brings `kernel`+`domain` via
+# its own `[sources]`, but `example` depends on `llm` and declares no `[sources]`
+# of its own, so `llm` must be developed explicitly too. Backends are added on top
+# from `spec.backends`.
+const LOCAL_CORE_PACKAGES = ["projectured", "example", "llm"]
+
 # ── BuildSpec ────────────────────────────────────────────────────────────────
 
 """
@@ -163,11 +170,10 @@ function build_executable(spec::BuildSpec; exe_dir::AbstractString=@__DIR__,
     package_dir = normpath(joinpath(exe_dir, ".."))
     Pkg.activate(exe_dir)
     # Develop the local packages this app needs by path, so they resolve even when
-    # the committed Manifest is stale: the meta-package, the examples, and each
-    # baked backend (e.g. ProjecturedSdl → package/sdl).
+    # the committed Manifest is stale: the core packages (meta-package + examples +
+    # their local deps) and each baked backend (e.g. ProjecturedSdl → package/sdl).
     local_specs = Pkg.PackageSpec[
-        Pkg.PackageSpec(path = joinpath(package_dir, "projectured")),
-        Pkg.PackageSpec(path = joinpath(package_dir, "example")),
+        Pkg.PackageSpec(path = joinpath(package_dir, p)) for p in LOCAL_CORE_PACKAGES
     ]
     for b in spec.backends
         haskey(BACKEND_LOCALS, b) || continue

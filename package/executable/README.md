@@ -1,92 +1,94 @@
-# Projectured Native Executable
+# Projectured native executable
 
-This directory contains a Julia program that can be compiled to a native binary executable using PackageCompiler.jl.
+This directory builds a **standalone native binary** of a Projectured editor with
+PackageCompiler.jl. The build is *configurable*: a `BuildSpec` chooses which kind
+of editor gets baked in (which document domain, with or without the workbench,
+file-backed or not) and which display backend(s) are compiled in — and whether the
+backend choice is fixed ("baked in") or selectable at runtime ("delayed").
 
-## Overview
+## Building
 
-The executable is a simple command-line tool demonstrating Julia's native compilation capabilities. It provides basic commands for greetings, system information, and version display.
+The build interface is a plain Julia function, `build_executable` (in
+[`Builder.jl`](Builder.jl)) — there is no CLI to learn.
 
-## Building the Executable
-
-### Prerequisites
-
-- Julia 1.6 or later
-- PackageCompiler.jl (automatically installed by the build script)
-
-### Build Instructions
-
-1. Navigate to the executable directory:
-   ```bash
-   cd projectured/executable
-   ```
-
-2. Run the build script:
-   ```bash
-   julia Build.jl
-   ```
-
-   This will:
-   - Install dependencies (PackageCompiler.jl)
-   - Compile the program to a native binary
-   - Create the executable in `build/bin/main`
-
-3. Run the executable:
-   ```bash
-   ./build/bin/main help
-   ```
-
-## Usage
-
-The executable supports the following commands:
+### Default build (v1)
 
 ```bash
-./build/bin/main hello [name]    # Print a greeting (default: "World")
-./build/bin/main info            # Print system information
-./build/bin/main version         # Print version information
-./build/bin/main help            # Show help message
+cd package/executable
+julia Build.jl
 ```
 
-### Examples
+[`Build.jl`](Build.jl) is a one-line wrapper that calls `build_executable()` with
+the default spec: **a JSON file editor with the SDL backend baked in**. Output goes
+to `build/bin/projectured`, and all build output is logged to `build.log`.
+
+### Custom builds (from the REPL)
+
+```julia
+include("package/executable/Builder.jl")
+using .ProjecturedBuilder
+
+# A workbench-less JSON file editor, SDL baked in, named "json-editor":
+build_executable(; app_name="json-editor", domain=:json, workbench=false,
+                   file_backed=true, backends=[:sdl])
+
+# Generate the config only (no multi-minute compile) — useful for inspection:
+build_executable(BuildSpec(; domain=:json); compile=false)
+```
+
+`build_executable` (1) generates [`src/AppConfig.jl`](src/) — the baked
+configuration constants plus the `using` line(s) for exactly the compiled-in
+backends; (2) develops the local Projectured packages it needs by path (so they
+resolve without a registry); and (3) runs `create_app`.
+
+### `BuildSpec` options
+
+| keyword | default | meaning |
+|---|---|---|
+| `app_name` | `"projectured"` | binary name (`build/bin/<app_name>`) |
+| `domain` | `:json` | content domain — a key in `ProjecturedExample.EDITOR_DOMAINS` |
+| `workbench` | `false` | wrap the content in the workbench shell |
+| `file_backed` | `true` | the binary takes a `FILE` argument to open/edit |
+| `backends` | `[:sdl]` | display backends compiled in (`:sdl`, `:web`, `:console`) |
+| `default_backend` | `:sdl` | backend used when none is requested at runtime |
+| `expose_backend_flag` | `false` | whether the binary honors `--backend` at runtime |
+| `width`, `height` | `nothing` | fixed window size (defaults to the display size) |
+| `mcp` | `false` | start an MCP server alongside the editor loop |
+
+The generated `src/AppConfig.jl` is git-ignored; the checked-in
+[`src/AppConfig.default.jl`](src/AppConfig.default.jl) (the v1 spec) is the fallback
+used when no build has run yet.
+
+## Running the produced binary
 
 ```bash
-# Greet the world
-./build/bin/main hello
-
-# Greet a specific person
-./build/bin/main hello Alice
-
-# Show system information
-./build/bin/main info
-
-# Show version
-./build/bin/main version
+build/bin/projectured path/to/document.json   # open and edit a JSON file
+build/bin/projectured                          # start on a scratch document
+build/bin/projectured --help
+build/bin/projectured --version
 ```
 
-## Project Structure
+When the build was made with `expose_backend_flag=true` and multiple `backends`,
+the binary also accepts `--backend KIND` (e.g. `--backend web`) to pick among the
+compiled-in backends; on a baked build `--backend` is rejected.
+
+> **Note:** saving / loading / export / import of the edited file is integrated
+> separately and is not part of this build yet — the binary currently opens and
+> edits a file in memory.
+
+## Project structure
 
 ```
 executable/
-├── Project.toml          # Package configuration with dependencies
-├── Build.jl              # Build script for compiling the executable
-├── README.md             # This file
+├── Build.jl                  # thin entry: calls build_executable() (default spec)
+├── Builder.jl                # ProjecturedBuilder: BuildSpec + build_executable
+├── Project.toml              # package configuration / dependencies
+├── README.md                 # this file
 ├── src/
-│   ├── Main.jl           # Main program entry point
-│   └── Precompile.jl     # Precompilation script for faster builds
-└── build/                # Generated build output (created during build)
-    └── bin/
-        └── main          # Compiled native executable
+│   ├── ProjecturedExecutable.jl  # generic, AppConfig-driven entry module (julia_main)
+│   ├── AppConfig.default.jl      # checked-in default config (v1 spec) — the fallback
+│   ├── AppConfig.jl              # GENERATED per build (git-ignored)
+│   └── Precompile.jl             # config-agnostic warm-up (calls precompile_warmup)
+└── build/                    # generated build output (git-ignored)
+    └── bin/<app_name>
 ```
-
-## Customization
-
-To modify the executable behavior:
-
-1. Edit `src/Main.jl` to change the program logic
-2. Edit `src/Precompile.jl` to add functions for precompilation
-3. Rebuild using `julia Build.jl`
-
-## Notes
-
-- The first build may take several minutes as PackageCompiler compiles the Julia runtime
-- Subsequent builds are faster if using incremental compilation
-- The compiled binary is self-contained and can be distributed without Julia installed

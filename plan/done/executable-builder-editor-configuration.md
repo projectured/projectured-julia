@@ -1,6 +1,8 @@
 # Configurable executable builder — choose the editor at build time
 
-Status: **pending** (design)
+Status: **DONE** (v1 implemented — Phases 0–3). Phase 4 (multi-backend / other
+domains / CLI / docs) remains as v2 follow-ups. Save/load/export/import is out of
+scope (integrated separately).
 
 ## Goal
 
@@ -326,10 +328,26 @@ out of scope (added later) and are **not** phases here.
       console/sized specs, validation errors, `compile=false` file write, and
       `AppConfig.default.jl` matching the rendered default. The real `create_app`
       run is Phase 3.
-- [ ] **Phase 3 — Generic `julia_main` + runtime args.** `AppConfig`-driven:
-      file-path arg, help/version, baked SDL (no `--backend` since
-      `APP_EXPOSE_BACKEND=false`). Build and run the v1 JSON-editor binary on a real
-      file end-to-end (open + edit). Commit.
+- [x] **Phase 3 — Generic `julia_main` + binary. DONE.** Rewrote
+      `ProjecturedExecutable` to be `AppConfig`-driven: `include` the generated
+      `AppConfig.jl` (else `AppConfig.default.jl`) — which is where the backend
+      `using` lives now, no more hardcoded `using ProjecturedSdl`; `parse_runtime_args`
+      (FILE positional, `--backend KIND`/`=KIND`, `-h`/`-v`); `resolve_backend`
+      (default `APP_DEFAULT_BACKEND`, reject `--backend` on a baked build / a backend
+      not in `APP_BACKENDS`); `julia_main` → `run_file_editor(APP_DOMAIN; …)`;
+      `precompile_warmup` (config-driven, offscreen render when `:sdl` baked) called
+      by `Precompile.jl`. **Build fix:** `build_executable` now develops the core
+      local packages `["projectured","example","llm"]` + backends — `example`
+      depends on the local `ProjecturedLlm`, which declares no `[sources]`, so it
+      could not resolve (the original `Build.jl` had this latent break). **Decision:**
+      the committed executable `Manifest.toml`/`Project.toml` are **not** updated —
+      `build_executable` regenerates them each build, and `Pkg.develop` writes
+      absolute worktree paths (non-portable), so that churn is reverted.
+      **Verified end-to-end:** `create_app` produced `build/bin/projectured`;
+      `--version`/`--help` reflect the baked JSON/SDL config; `--backend web` is
+      rejected on the baked build; launching `projectured /tmp/sample.json` parsed
+      the file into a `JsonObject` and opened an SDL (OpenGL) window titled
+      `sample.json` rendering it (the live loop was timeout-killed — not a crash).
 - [ ] **Phase 4 — v2 follow-ups (separate plan if large).** Delayed/multi-backend
       (`backends=[:sdl,:web]`, `expose_backend_flag=true`, `--backend` runtime arg
       + "not built in" rejection); other domains (`:xml`/`:text`, pending their
