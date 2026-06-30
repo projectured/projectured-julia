@@ -60,7 +60,7 @@ end
 
 function make_json_sorted_projection_example(; measure=truetype_measure_text)
     SequentialProjection(
-        SortingAtProjection(@reference(entries), x -> x.key),
+        SortingAtProjection(@reference(windows[1].content.entries), x -> x.key),
         RecursiveProjection(JsonToSyntax()),
         RecursiveProjection(SyntaxToText()),
         TextToGraphics(measure=measure),
