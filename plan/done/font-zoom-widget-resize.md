@@ -1,8 +1,8 @@
 # Font-zoom: widgets do not resize
 
 **Date:** 2026-06-30
-**Status:** ✅ implemented 2026-06-30
-**Branch / worktree:** `font-zoom-widget-resize` (`../projectured-julia-font-zoom`)
+**Status:** ✅ implemented 2026-06-30 (two parts — see "Follow-up" below)
+**Branch / worktree:** `font-zoom-widget-resize`, then `font-zoom-measurer`
 
 ## Symptom
 
@@ -118,15 +118,49 @@ small, and low-risk.
 - The two text measurers disagree on font-zoom: **`sdl_measure_text`** loads the
   font at `font_device_size` (includes `_FONT_ZOOM`) and divides back by
   `_DISPLAY_SCALE` only, so it *does* scale with font-zoom. **`pdf_measure_text`
-  / `truetype_measure_text`** (the SDL-free default used by the test harness)
-  measures at the raw `font.size` and **ignores `_FONT_ZOOM`**. So in the real
-  GUI widgets grow; the pure-Julia layout (PDF export, tests) does not. Not
-  changed here (export at a fixed size is the right default), but noted as a
-  latent inconsistency.
+  / `truetype_measure_text`** measured at the raw `font.size` and **ignored
+  `_FONT_ZOOM`**. ⚠️ **This part-1 plan wrongly assumed the live GUI uses
+  `sdl_measure_text`** — it does not (see Follow-up): `run_example` wires the
+  example's default `measure = truetype_measure_text`, so the SDL app measured
+  layout zoom-blind while rendering glyphs zoomed → overflow. Part 2 fixes this.
 - The gallery `widget_example` is a fixed-size `WidgetShell` (≈1024×768): its
   outer extent is pinned, so growth shows on the inner widgets, not the frame.
   The per-widget examples (`WidgetLabel`, …) are content-sized and show it
   directly.
+
+## Follow-up (part 2): the measurer ignored `_FONT_ZOOM`
+
+After part 1 shipped, `Ctrl+Alt+=` in the live SDL widget gallery still made text
+**overflow** the (unchanged) boxes. Re-projection *was* re-running the eager
+widget measurements — but `run_example` wires the example projections with the
+default `measure = truetype_measure_text` (= `pdf_measure_text`), which sized text
+at the raw `font.size`, **ignoring `_FONT_ZOOM`**. So the re-measured boxes came
+back the same size while SDL drew glyphs at `font_device_size` (zoomed) → overflow.
+
+The web backend had already worked around this by measuring through
+`StyleFont(font.filename, font_logical_size(font))` — proof that the canonical
+measurer *should* be zoom-aware.
+
+**Fix:**
+
+- `package/domain/src/backend/Pdf.jl` — `pdf_measure_text` now measures at
+  `font_logical_size(font)` (width metric + height), matching `sdl_measure_text`.
+  No-op at the default zoom (`font_logical_size == size`), so PDF export and the
+  whole test suite are byte-identical at rest.
+- `package/web/src/ProjecturedWeb.jl` — dropped the now-redundant
+  `StyleFont(…, font_logical_size(font))` wrap (it would otherwise apply zoom
+  twice); `measure_text(::WebBackend, …)` just calls `pdf_measure_text(text, font)`.
+
+Both parts are required: part 1 makes the editor *re-run* the eager widget
+measurements on font-zoom; part 2 makes those measurements actually grow.
+
+### Verification (part 2)
+
+- `truetype_measure_text("Hello", 20)`: zoom 1.0 → (48,20), zoom 2.0 → (96,40).
+- `WidgetLabel` example via the **default** pipeline: re-projected canvas grows
+  (142,60) → (244,80) at zoom 2.0 (was unchanged before the fix).
+- `test_printer(widget_example)` 6913/6913, `test_reader(widget_example)` 225/225,
+  `test_write_pdf()` green — all no-ops at the default zoom.
 
 ## Progress
 
@@ -135,3 +169,6 @@ small, and low-risk.
 - [x] Fix stale comment in example/Widget.jl
 - [x] Targeted test run (`test_printer(widget_example)` 6913/6913; SDL precompiles; premise script PASS)
 - [x] Move plan to `plan/done/`
+- [x] Part 2: make `pdf_measure_text`/`truetype_measure_text` zoom-aware (`font_logical_size`)
+- [x] Part 2: drop web's redundant double-wrap
+- [x] Part 2: tests green (widget printer/reader, write_pdf) + measurer/geometry growth verified

@@ -29,7 +29,7 @@ import ..GraphicsModule: GraphicsCanvas, GraphicsText, GraphicsRect, GraphicsLin
                          _canvas_content_bounds, tessellate_spline, polyline_arrowhead
 import ..ColorModule: StyleColor
 import ..GeometryModule: AffineTransform, affine_identity, affine_is_axis_aligned
-import ..FontModule: StyleFont
+import ..FontModule: StyleFont, font_logical_size
 import ..ImageModule: ImageFile
 import ..ProjectionApiModule: projection_print, Projection
 import ..IoMapModule: SimpleIoMap
@@ -217,9 +217,17 @@ ascent_px(f::TrueTypeFont, size::Real) = f.ascent * size / f.units_per_em
 SDL-free text measurement from the embedded font's own metrics, used to size the
 page. Returns `(width, height)` in logical pixels — both `Int`, matching
 `sdl_measure_text`'s contract so the same projections can be driven without SDL.
+
+Measures at the font's *logical* (font-zoomed) size — [`font_logical_size`](@ref),
+which reads the reactive `_FONT_ZOOM` cell — exactly like `sdl_measure_text`
+(which rasterizes at `font_device_size` and divides back by `_DISPLAY_SCALE`).
+This is what makes layout reflow with `Ctrl+Alt` font-zoom even on the SDL path,
+since `truetype_measure_text` (this alias) is the measurer the live editor wires
+into its projections. A no-op at the default zoom (`font_logical_size == size`).
 """
 pdf_measure_text(text, font::StyleFont) =
-    (round(Int, text_width(_load_ttf(font.filename), font.size, String(text))), Int(font.size))
+    (round(Int, text_width(_load_ttf(font.filename), font_logical_size(font), String(text))),
+     font_logical_size(font))
 
 """
     truetype_measure_text(text, font::StyleFont) -> (Int, Int)

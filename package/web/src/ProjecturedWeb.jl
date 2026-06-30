@@ -775,11 +775,12 @@ function quit!(backend::WebBackend)
     return nothing
 end
 
-# Measure at the font-zoomed logical size so web layout reflows with Ctrl+Alt zoom
-# (no-op at the default font zoom). Web has no display-scale knob — full zoom is
-# the browser's own; font zoom rides the backend-agnostic `_FONT_ZOOM` cell.
+# `pdf_measure_text` already measures at the font-zoomed logical size (it reads
+# `_FONT_ZOOM` via `font_logical_size`), so web layout reflows with Ctrl+Alt zoom
+# for free (no-op at the default font zoom). Web has no display-scale knob — full
+# zoom is the browser's own; font zoom rides the backend-agnostic `_FONT_ZOOM` cell.
 measure_text(::WebBackend, text::AbstractString, font::StyleFont) =
-    pdf_measure_text(text, StyleFont(font.filename, font_logical_size(font)))
+    pdf_measure_text(text, font)
 
 # Non-blocking poll: hand back the next decoded event, or nothing.
 read_from_devices(backend::WebBackend, devices) =
