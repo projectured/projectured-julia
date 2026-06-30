@@ -19,7 +19,8 @@ import ..ProjectionApiModule: projection_print, projection_printer_recurse, proj
 import ..ProjectionModule: var"@projection"
 import ..BookModule: BookDocument, BookInsertion, BookBook, BookChapter, BookParagraph, BookList, BookPicture
 import ..TextModule: TextDocument, TextString, TextText
-import ..FontModule: StyleFont, font_ubuntu_monospace_regular_20, font_ubuntu_monospace_bold_20, font_ubuntu_monospace_italic_20
+import ..FontModule: StyleFont, font_ubuntu_monospace_regular_20, font_ubuntu_monospace_bold_20, font_ubuntu_monospace_italic_20,
+                     font_ubuntu_bold_36, font_ubuntu_bold_24, font_ubuntu_italic_20
 import ..ColorModule: StyleColor, color_black, color_default, color_solarized_blue, color_solarized_green, color_solarized_magenta, color_solarized_cyan, color_solarized_yellow, color_solarized_gray
 import ..StyleTextModule: StyleText
 import ..SyntaxModule: SyntaxDocument, SyntaxLeaf, SyntaxNode
@@ -65,10 +66,12 @@ end
 #   .author[k]        → .children[2].value[k]  (when author present)
 #   .elements[i].…    → .children[i+offset].…  (via element iomap)
 
+# Titles use a proportional (sans) font, distinct from the monospace body, and a
+# larger size; the author line is italic.
 @projection struct BookBookToSyntaxNode
-    title::StyleText        = StyleText(font_ubuntu_monospace_bold_20, color_solarized_blue)
-    author_prefix::StyleText = StyleText(font_ubuntu_monospace_italic_20, color_solarized_gray)
-    author::StyleText       = StyleText(font_ubuntu_monospace_regular_20, color_solarized_cyan)
+    title::StyleText        = StyleText(font_ubuntu_bold_36, color_solarized_blue)
+    author_prefix::StyleText = StyleText(font_ubuntu_italic_20, color_solarized_gray)
+    author::StyleText       = StyleText(font_ubuntu_italic_20, color_solarized_cyan)
 end
 
 
@@ -149,7 +152,7 @@ function projection_print(p::BookBookToSyntaxNode, recursion, b::BookBook, ctx)
     # on its own line. Embedded code fragments are separate SyntaxNodes, so they
     # keep their own internal indentation.
     output = SyntaxNode(children_cv; indentation=0,
-                        sep=TextString("\n", font_ubuntu_monospace_regular_20, color_black),
+                        sep=TextString("\n\n", font_ubuntu_monospace_regular_20, color_black),
                         collapsed=b.collapsed, selection=sel)
     ChildrenIoMap(p, b, output, element_iomaps)
 end
@@ -235,10 +238,10 @@ end
 # Backward mapping subtracts length(numbering)+2 from character indices.
 
 @projection struct BookChapterToSyntaxNode
-    title::StyleText = StyleText(font_ubuntu_monospace_bold_20, color_solarized_blue)
+    title::StyleText = StyleText(font_ubuntu_bold_24, color_solarized_blue)
     # Reserved for styling the numbering prefix distinctly; the title leaf
     # currently renders "numbering  title" in the title style.
-    numbering::StyleText = StyleText(font_ubuntu_monospace_bold_20, color_solarized_magenta)
+    numbering::StyleText = StyleText(font_ubuntu_bold_24, color_solarized_magenta)
 end
 
 
@@ -314,7 +317,7 @@ function projection_print(p::BookChapterToSyntaxNode, recursion, b::BookChapter,
     # on its own line. Embedded code fragments are separate SyntaxNodes, so they
     # keep their own internal indentation.
     output = SyntaxNode(children_cv; indentation=0,
-                        sep=TextString("\n", font_ubuntu_monospace_regular_20, color_black),
+                        sep=TextString("\n\n", font_ubuntu_monospace_regular_20, color_black),
                         collapsed=b.collapsed, selection=sel)
     ChildrenIoMap(p, b, output, element_iomaps)
 end
