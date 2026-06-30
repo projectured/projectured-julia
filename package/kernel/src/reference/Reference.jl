@@ -476,6 +476,30 @@ is_valid_reference(::Any) = false
 
 # ── Reference evaluation ─────────────────────────────────────────────────
 
+# Cells are transparent to reference navigation: a step that lands on a `Cell`
+# descends into its value. Field access already unwraps inline (`f isa Cell ?
+# f[] : f`); element/range access must do the same, otherwise a step into a plain
+# `Vector{Cell}` (e.g. an iomap's `step_iomaps`) would stop on the raw `Cell` and
+# the rest of the path — recorded by `search_references` against the *unwrapped*
+# value — would fail to resolve (and `annotate_reference_types` would stop adding
+# type checkpoints there). `CellVector` already unwraps on `getindex`, so this is
+# a no-op for it.
+_deref_cell(x) = x isa Cell ? x[] : x
+
+# A `FieldReference` addresses a struct field by name — OR, when the document is
+# an `AbstractDict`, a dict entry by key. `search_references` records dict entries
+# this way (the reference grammar has no dedicated key step), so navigation must
+# follow them back. Dict keys may be stored as `String` or `Symbol`; the recorded
+# name is the `string(key)`, so try it as both. Results are cell-unwrapped.
+_has_field(document::AbstractDict, name) = haskey(document, name) || haskey(document, Symbol(name))
+_has_field(document, name) = hasproperty(document, Symbol(name))
+
+function _get_field(document::AbstractDict, name)
+    haskey(document, name) && return _deref_cell(document[name])
+    _deref_cell(document[Symbol(name)])
+end
+_get_field(document, name) = _deref_cell(getfield(document, Symbol(name)))
+
 """
     evaluate_reference(document, path::ReferencePath)
 
@@ -503,15 +527,10 @@ function evaluate_reference(document, path::ConcreteReferencePath)
         return evaluate_reference(document, rest)
     end
     child = if step isa RangeReference
-        if is_element_reference(step)
-            document[step.start + 1]
-        else
-            # cursor / range — treat as element access at start+1 when possible
-            document[step.start + 1]
-        end
+        # element / cursor / range — element access at start+1 (cell-transparent)
+        _deref_cell(document[step.start + 1])
     elseif step isa FieldReference
-        f = getfield(document, Symbol(step.name))
-        f isa Cell ? f[] : f
+        _get_field(document, step.name)
     elseif step isa FunctionReference
         step.f(document)
     else
@@ -558,11 +577,10 @@ function valid_reference_prefix(document, path::ConcreteReferencePath)
             # forward `length` (cf0482c). An out-of-range / unindexable access
             # throws and is caught below, truncating the path.
             idx < 1 && return EmptyReferencePath()
-            document[idx]
+            _deref_cell(document[idx])
         elseif step isa FieldReference
-            hasproperty(document, Symbol(step.name)) || return EmptyReferencePath()
-            f = getfield(document, Symbol(step.name))
-            f isa Cell ? f[] : f
+            _has_field(document, step.name) || return EmptyReferencePath()
+            _get_field(document, step.name)
         elseif step isa FunctionReference
             step.f(document)
         else
@@ -630,15 +648,10 @@ function annotate_reference_types(document, path::ConcreteReferencePath)
                 nothing
             else
                 idx = step.start + 1
-                idx < 1 ? nothing : document[idx]
+                idx < 1 ? nothing : _deref_cell(document[idx])
             end
         elseif step isa FieldReference
-            if hasproperty(document, Symbol(step.name))
-                f = getfield(document, Symbol(step.name))
-                f isa Cell ? f[] : f
-            else
-                nothing
-            end
+            _has_field(document, step.name) ? _get_field(document, step.name) : nothing
         elseif step isa FunctionReference
             step.f(document)
         else

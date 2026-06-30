@@ -410,8 +410,18 @@ function _search_references!(results, obj, predicate, path, seen, include_select
             _search_references!(results, _unwrap_cell(obj[i]), predicate,
                             append_reference(path, ElementReference(i)), seen, include_selection, depth - 1)
         end
+    elseif obj isa AbstractDict
+        # Walk a Dict by its values, not its `fieldnames` (which would descend into
+        # the hash-table internals — `.keys`/`.vals` `Memory` buffers whose unused
+        # slots are undefined references). Use the key as the field step so the
+        # reference is meaningful (matches how a JSON object field is addressed).
+        for (k, v) in obj
+            _search_references!(results, _unwrap_cell(v), predicate,
+                            append_reference(path, FieldReference(string(k))), seen, include_selection, depth - 1)
+        end
     elseif obj isa AbstractArray
         for i in 1:length(obj)
+            isassigned(obj, i) || continue
             _search_references!(results, _unwrap_cell(obj[i]), predicate,
                             append_reference(path, ElementReference(i)), seen, include_selection, depth - 1)
         end
@@ -470,8 +480,15 @@ function _search_objects!(results, obj, predicate, seen, include_selection, dept
         for i in 1:length(obj)
             _search_objects!(results, _unwrap_cell(obj[i]), predicate, seen, include_selection, depth - 1)
         end
+    elseif obj isa AbstractDict
+        # Walk values, not `fieldnames` (which descends into hash-table internals
+        # whose `Memory` buffers have undefined slots — see `_search_references!`).
+        for v in values(obj)
+            _search_objects!(results, _unwrap_cell(v), predicate, seen, include_selection, depth - 1)
+        end
     elseif obj isa AbstractArray
         for i in 1:length(obj)
+            isassigned(obj, i) || continue
             _search_objects!(results, _unwrap_cell(obj[i]), predicate, seen, include_selection, depth - 1)
         end
     else
