@@ -12,6 +12,7 @@ module ObjectToSyntaxModule
 
 import ..ReactiveModule: Cell
 import ..CollectionModule: CellVector
+import ..LlmModule: LlmBackend
 import ..ProjectionApiModule: projection_print, projection_printer_recurse, projection_read, map_reference_forward, map_reference_backward, Projection
 import ..ProjectionModule: var"@projection"
 import ..TextModule: TextString
@@ -320,8 +321,11 @@ end
 
 # ── search_references / search_objects ─────────────────────────────────────────
 
+# An `LlmBackend` is opaque assistant configuration (it may hold large scripted
+# event payloads, API config, etc.), never document content — treat it as a leaf
+# so `search_objects`/`search_references` never descend into it.
 _is_search_leaf(x) = x === nothing || x isa Number || x isa AbstractString ||
-                     x isa Symbol || x isa Char
+                     x isa Symbol || x isa Char || x isa LlmBackend
 
 # A search query is either a predicate (called on each node) or a String / Regex.
 # A String/Regex is turned into a predicate matching any *leaf* node whose textual
