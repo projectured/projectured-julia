@@ -155,7 +155,9 @@ multi-minute `create_app`, and the executable stays a thin arg-parser.
       make_json_projection_example, jsonparse_file, nothing), …)  # save_file = nothing in v1
   ```
   v1 registers `:json` (load via existing `jsonparse_file`, `save_file = nothing`).
-  `:examples`/`:workbench` reuse existing makers; `:xml`/`:text` follow in v2.
+  The registry keys by *content* domain only; `:xml`/`:text` follow in v2.
+  (`workbench` is a wrapping flag handled in `run_file_editor`, not a domain; the
+  `examples` gallery stays the `run_example` path — neither is a registry entry.)
 - **JSON serializer** — *out of scope.* The `save_file` field stays `nothing`; a
   serializer/save (`jsonunparse_file(doc, path)`, the inverse of `jsonparse`) can
   be dropped into it later without touching the rest. This plan does not write one.
@@ -273,12 +275,24 @@ arguments — not part of this plan.
 v1 = JSON file editor, SDL baked in. The save/load serializer + save trigger are
 out of scope (added later) and are **not** phases here.
 
-- [ ] **Phase 0 — Refactor (no behavior change).** Factor the single-window
-      scene composition (`WindowDocument`/`ScreenDocument` + `_multi_window_projection`
-      + backend resolve + `run!`) out of `run_example` into a private helper both
-      `run_example` and the new `run_file_editor` call. Add the `EditorDomain`
-      registry with `:json` (load via existing `jsonparse_file`, `save_file = nothing`)
-      and `:examples`/`:workbench` adapters. Commit.
+- [x] **Phase 0 — Refactor (no behavior change). DONE.** Factored `run_example`'s
+      windows→screen→run! tail into two helpers in `Examples.jl`:
+      `_build_window_scene(docs, names; width, height, content_unwrap)` (pure —
+      builds the `ScreenDocument` and lifts the first window's selection; testable
+      with no backend/window) and `_run_window_scene(docs, projs, names; …, backend,
+      compose, profile, content_unwrap)` (adds compose + run loop). `run_example`
+      delegates via a `compose(projs, backend)` closure (the inspector pipeline
+      needs the backend for its pointer closure) and a `content_unwrap` symbol
+      (`:plain`/`:tooltip`/`:clipboard`) — behavior preserved exactly (backend knobs,
+      profiler path, selection-lift depth). Added `EditorDomain` + `EDITOR_DOMAINS`
+      + `editor_domain(name)` in new `FileEditor.jl` (registers `:json`;
+      `load_file = jsonparse_file`, `save_file = nothing`); wired include + exports.
+      **Decision:** `:examples`/`:workbench` are *not* registry domains —
+      `workbench` is a wrapping flag (`make_workbench_*`) applied in
+      `run_file_editor`, and the `examples` gallery stays the `run_example` path.
+      The registry keys by *content* domain only (`:json`, later `:xml`/`:text`).
+      Verified: clean precompile, registry + `_build_window_scene` assertions pass,
+      dup-id / unknown-domain error paths work, `print_example(json_example)` runs.
 - [ ] **Phase 1 — `run_file_editor`.** Resolve `EditorDomain`; load-or-scratch
       document; bare single-window (v1) vs workbench composition; resolve backend;
       run loop; expose `document`/`file`/`save_file` for the save seam. Verify in

@@ -340,18 +340,48 @@ function run_example(examples::Vector{Example}; width=nothing, height=nothing,
         docs = tt_docs
     end
 
-    # Lay out the WindowDocuments side by side. Each example.name becomes
-    # the window id — must be unique within the screen, so duplicate
-    # names are an error.
+    # An explicit `backend` (e.g. the WebBackend from run_web_example) wins;
+    # otherwise build the SDL backend, threading the render-control knobs.
+    # Built before composing because the inspector pipeline needs a pointer
+    # closure over the backend's global mouse position.
+    backend === nothing && (backend = make_backend(:sdl; partial_render=partial_render, debug_dirty=debug_dirty))
+    # How deep the original (selection-bearing) document sits under `win.content`.
+    content_unwrap = tooltip ? :tooltip : clipboard ? :clipboard : :plain
+    # `compose(projs, backend)` — the inspector pipeline needs the backend for its
+    # pointer closure, hence the second argument.
+    compose = inspector ? (p, b) -> _multi_window_projection_inspector(p; pointer = () -> pointer_position(b)) :
+              tooltip   ? (p, b) -> _multi_window_projection_tooltipped(p) :
+                          (p, b) -> _multi_window_projection(p)
+    _run_window_scene(docs, projs, String[ex.name for ex in examples];
+                      width=width, height=height, backend=backend,
+                      compose=compose, profile=profile, content_unwrap=content_unwrap)
+end
+
+# Lay out `docs` as side-by-side WindowDocuments into a ScreenDocument and lift the
+# first window-content's selection to a screen-rooted path. Each `names[i]` becomes
+# window i's id/title (ids must be unique within the screen). `content_unwrap` says
+# how deep the original (selection-bearing) document sits under `win.content`:
+# `:plain` (the content itself), `:tooltip` (`.child`), or `:clipboard` (`.content`).
+#
+# The selection lift matters because the screen and intermediate WindowDocument keep
+# `selection = nothing` while the inner document may carry a deep selection; without
+# re-rooting it, the next click traverses a different branch and the stale leaf
+# selection is never cleared (`_collect_spans` then picks the first cursor it finds,
+# so new clicks look ignored). With no seeded selection every document keeps
+# `selection = nothing` and this loop is a no-op.
+#
+# Factored out of `run_example` so other entry points (e.g. `run_file_editor`) share
+# the exact same scene assembly. Pure (no backend, no window) so it is testable.
+function _build_window_scene(docs, names; width, height, content_unwrap::Symbol=:plain)
     seen_ids = Set{Symbol}()
     windows = WindowDocument[]
-    for (i, ex) in enumerate(examples)
-        id = Symbol(ex.name)
+    for (i, nm) in enumerate(names)
+        id = Symbol(nm)
         id in seen_ids && error("run_example: duplicate example name :$id; window ids must be unique")
         push!(seen_ids, id)
         push!(windows, WindowDocument(;
             id     = id,
-            title  = ex.name,
+            title  = nm,
             x      = 100 + (i - 1) * (width + 40),
             y      = 100,
             width  = width,
@@ -361,40 +391,28 @@ function run_example(examples::Vector{Example}; width=nothing, height=nothing,
     end
     screen = ScreenDocument(windows)
 
-    # Lift the first window-content's selection (seeded from the `selection`
-    # keyword above) to a screen-rooted path. Without this, the screen and
-    # intermediate WindowDocument keep `selection = nothing` while the inner
-    # document carries a deep selection. The next click then traverses a
-    # different branch via `set_selection!` and the stale leaf selection on
-    # the original branch is never cleared — `_collect_spans` walks both
-    # branches and picks the first cursor it finds, which makes new clicks
-    # appear to be ignored. When no `selection` was passed every document
-    # keeps `selection = nothing` and this loop is a no-op.
     for (i, win) in enumerate(windows)
-        # For some variants the original document sits one level deeper, behind a
-        # wrapper field: tooltip → `.child`, clipboard → `.content` (the
-        # ClipboardSlice/ClipboardCollection's wrapped content).
-        root_doc = tooltip   ? win.content.child :
-                   clipboard ? win.content.content :
-                               win.content
+        root_doc = content_unwrap === :tooltip   ? win.content.child :
+                   content_unwrap === :clipboard ? win.content.content :
+                                                   win.content
         inner_sel = getfield(root_doc, :selection)[]
         inner_sel === nothing && continue
-        full_path = tooltip   ? (@reference windows[i].content.child.^(inner_sel)) :
-                    clipboard ? (@reference windows[i].content.content.^(inner_sel)) :
-                                (@reference windows[i].content.^(inner_sel))
+        full_path = content_unwrap === :tooltip   ? (@reference windows[i].content.child.^(inner_sel)) :
+                    content_unwrap === :clipboard ? (@reference windows[i].content.content.^(inner_sel)) :
+                                                    (@reference windows[i].content.^(inner_sel))
         set_selection!(screen, full_path)
         break
     end
+    screen
+end
 
-    # An explicit `backend` (e.g. the WebBackend from run_web_example) wins;
-    # otherwise build the SDL backend, threading the render-control knobs.
-    # Built before composing because the inspector pipeline needs a pointer
-    # closure over the backend's global mouse position.
-    backend === nothing && (backend = make_backend(:sdl; partial_render=partial_render, debug_dirty=debug_dirty))
-    composed = inspector ? _multi_window_projection_inspector(projs;
-                              pointer = () -> pointer_position(backend)) :
-               tooltip   ? _multi_window_projection_tooltipped(projs) :
-                           _multi_window_projection(projs)
+# Build the scene (above), compose the screen projection via `compose(projs, backend)`,
+# and run the editor loop on `backend` (optionally under the profiler). The shared tail
+# of `run_example` and `run_file_editor`.
+function _run_window_scene(docs, projs, names; width, height, backend,
+                           compose, profile::Bool=false, content_unwrap::Symbol=:plain)
+    screen = _build_window_scene(docs, names; width=width, height=height, content_unwrap=content_unwrap)
+    composed = compose(projs, backend)
     if profile
         Profile.clear()
         try
