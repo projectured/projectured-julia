@@ -170,23 +170,30 @@ const json_insert_live = LiveExample("json_insert", json_example,
 
 # Type the entire nested `json_example` from an empty document, using only typing
 # and cursor navigation. Each value is built by type-to-replace (`"` string, digit
-# number, `t`/`f` bool, `{` object, `[` array); `Tab` steps an entry key→value; `,`
-# inserts a sibling; `Alt+Up` (tree-navigation) steps the caret out of a finished
-# value before the next `,`. This exercises the recursive gesture reader: nested
-# `,`/`Tab` reach the *focused* object/array (the projection delegates the gesture to
-# the selected child and lifts the resulting operation). The result equals
-# `make_json_document_example()` modulo number representation (multi-digit numbers
-# reparse to Float) and the trailing `"placeholder"` insertion left under the caret.
+# number, `t`/`f` bool, `{` object, `[` array); `Tab` steps an entry key→value.
+#
+# `,` is **contextual**: from a non-string value caret it inserts a sibling in the
+# enclosing object/array directly (no need to first select the value), while inside
+# a string it is a literal comma. So a sibling after a number/bool needs no step-out
+# at all; after a *string* a single `Right` leaves the string before `,`. Stepping up
+# to an *outer* container for a root-level sibling still needs `Alt+Up`
+# tree-navigation (that is a genuine level change, not a same-container step). This
+# exercises the recursive gesture reader: nested `,`/`Tab` reach the *focused*
+# object/array. The result equals `make_json_document_example()` modulo number
+# representation (multi-digit numbers reparse to Float) and the trailing
+# `"placeholder"` insertion left under the caret.
 #
 # Empty-document example: a bare `JsonInsertion` ("insert JSON here") under the full
 # JSON projection, whole-selected so the first `{` replaces it with an object.
 const json_build_example = Example("json_build", () -> JsonInsertion(), make_json_projection_example)
 
-# Step out of a just-typed value with `n` Alt+Up tree-navigation gestures, landing
-# the caret where the next `,` inserts a sibling at the intended level: 1 for a
-# scalar sibling in the same container, 3/4 to escape a nested array/object back to
-# the enclosing (root) entry. See `plan/done/recursive-gesture-reader.md`.
+# `_jb_up(n)`: step up `n` container levels with Alt+Up tree-navigation, to insert a
+# sibling at an outer (root) level (3/4 to escape a nested array/object). `_jb_right`:
+# a single plain Right to leave a finished *string* value (where `,` is literal) for
+# the structural caret just past it. A same-container sibling after a number/bool
+# needs neither — `,` inserts there directly.
 _jb_up(n) = [timed_event(KeyDown(:up, Modifiers(alt=true)); hold=0.22) for _ in 1:n]
+_jb_right() = timed_event(KeyDown(:right, Modifiers()); hold=0.25)
 _jb_tab()   = timed_event(KeyDown(:tab, Modifiers()); hold=0.32)
 _jb_comma() = timed_event(KeyPress(','); hold=0.40)
 _jb_open(c) = timed_event(KeyPress(c); hold=0.40)            # '{' or '['
@@ -199,27 +206,27 @@ _jb_ebool(k, b) = vcat(_jb_key(k), [_jb_tab()], [timed_event(KeyPress(b ? 't' : 
 const json_build_live = LiveExample("json_build", json_build_example,
     vcat(
         [_jb_open('{')],
-        _jb_estr("name", "Alice"),       _jb_up(1), [_jb_comma()],
-        _jb_enum("age", "30"),           _jb_up(1), [_jb_comma()],
-        _jb_ebool("active", true),                  [_jb_comma()],   # bool already whole-selected
+        _jb_estr("name", "Alice"),       [_jb_right(), _jb_comma()],  # string: Right out, then ,
+        _jb_enum("age", "30"),           [_jb_comma()],               # number: , inserts directly
+        _jb_ebool("active", true),       [_jb_comma()],               # bool already whole-selected
         _jb_key("address"), [_jb_tab(), _jb_open('{')],
-            _jb_estr("street", "123 Main St"), _jb_up(1), [_jb_comma()],
-            _jb_estr("city", "Wonderland"),    _jb_up(1), [_jb_comma()],
+            _jb_estr("street", "123 Main St"), [_jb_right(), _jb_comma()],
+            _jb_estr("city", "Wonderland"),    [_jb_right(), _jb_comma()],
             _jb_estr("zip", "12345"),
         _jb_up(4), [_jb_comma()],                                    # escape nested object → root sibling
         _jb_key("scores"), [_jb_tab(), _jb_open('[')],
-            make_typein_gestures("95"),  _jb_up(1), [_jb_comma()],
-            make_typein_gestures("87"),  _jb_up(1), [_jb_comma()],
+            make_typein_gestures("95"),  [_jb_comma()],
+            make_typein_gestures("87"),  [_jb_comma()],
             make_typein_gestures("100"),
         _jb_up(3), [_jb_comma()],                                    # escape nested array → root sibling
         _jb_key("tags"), [_jb_tab(), _jb_open('[')],
-            _jb_str("admin"),    _jb_up(1), [_jb_comma()],
-            _jb_str("editor"),   _jb_up(1), [_jb_comma()],
+            _jb_str("admin"),    [_jb_right(), _jb_comma()],
+            _jb_str("editor"),   [_jb_right(), _jb_comma()],
             _jb_str("reviewer"),
         _jb_up(3), [_jb_comma()],
         _jb_key("meta"), [_jb_tab(), _jb_open('{')],
-            _jb_estr("created", "2025-01-15"), _jb_up(1), [_jb_comma()],
-            _jb_enum("version", "2"),          _jb_up(1), [_jb_comma()],
+            _jb_estr("created", "2025-01-15"), [_jb_right(), _jb_comma()],
+            _jb_enum("version", "2"),          [_jb_comma()],
             _jb_ebool("draft", false),
         _jb_up(3), [_jb_comma()],                                    # escape nested object (bool last) → root sibling
         _jb_key("placeholder"), [_jb_tab()],                         # leave value as the insertion
