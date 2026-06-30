@@ -2381,9 +2381,17 @@ end
 #
 # The gesture is recognised editor-globally in the kernel's `read!`; here the SDL
 # backend supplies the concrete behaviour. `AdjustZoomOperation` rescales the
-# display factor (everything magnifies); `AdjustFontZoomOperation` writes the
-# `_FONT_ZOOM` cell (only text relayouts). Both force a full repaint because a
-# zoom change moves every pixel, defeating the dirty-rect path.
+# display factor (everything magnifies) and reflows the logical viewport — no
+# re-projection. `AdjustFontZoomOperation` writes the `_FONT_ZOOM` cell, which
+# relayouts text-derived geometry that is held in cells (TextToGraphics), but the
+# widget layer measures content *eagerly* during `projection_print` and bakes
+# constant sizes (WidgetToGraphics' `_make_canvas`), so those boxes only re-fit
+# the larger text when the tree is re-projected. Dropping `editor.iomap` forces
+# `print!` to re-run `projection_print` with the new zoom; this is safe because
+# window resources reconcile by `WindowDocument.id`, transient widget state
+# (scroll/hover/selection) lives on the document, and the SDL caches are
+# content-keyed and bounded (so nothing leaks). Both ops force a full repaint
+# because a zoom change moves every pixel, defeating the dirty-rect path.
 
 # Mark every open window so its next paint repaints in full.
 function _force_full_repaint!(editor)
@@ -2423,6 +2431,7 @@ end
 
 function evaluate_operation(editor, op::AdjustFontZoomOperation)
     adjust_font_zoom!(op.delta)   # writes the _FONT_ZOOM cell → text-layout cells invalidate
+    editor.iomap = nothing        # re-project so eagerly-measured widget boxes re-fit the new text size
     _force_full_repaint!(editor)
     nothing
 end

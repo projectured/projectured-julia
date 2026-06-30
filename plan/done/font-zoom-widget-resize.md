@@ -1,7 +1,7 @@
 # Font-zoom: widgets do not resize
 
 **Date:** 2026-06-30
-**Status:** 🚧 in progress
+**Status:** ✅ implemented 2026-06-30
 **Branch / worktree:** `font-zoom-widget-resize` (`../projectured-julia-font-zoom`)
 
 ## Symptom
@@ -101,21 +101,37 @@ small, and low-risk.
 - Scaling authored widget **positions/paddings** with font-zoom — intentionally
   left fixed per the font-size-scaling design.
 
-## Verification
+## Verification (done)
 
-- `test_example(widget_example)` (printer + reader + navigation) stays green —
-  the change is a no-op at the default zoom (`_FONT_ZOOM == 1.0`), so existing
-  output is unchanged.
-- Targeted widget tests: `test_printer(widget_example)` / any widget-domain
-  test that was green before stays green.
-- Manual (SDL): open the widget example, press `Ctrl+Alt+=` a few times — widget
-  boxes grow with their text; `Ctrl+Alt+0` resets. (Recorded; GUI not run in
-  this environment if unavailable.)
+- **`test_printer(widget_example)` → 6913/6913 pass.** No regression; the change
+  is a no-op at the default zoom (`_FONT_ZOOM == 1.0`).
+- **ProjecturedSdl precompiles clean** with the edit.
+- **Premise check (SDL-free, scratch script):** re-running `projection_print`
+  for the content-sized `WidgetLabel` example at `_FONT_ZOOM = 2.0` grows its
+  geometry `(160,60) → (280,80)` — proportional to `font_logical_size`. This is
+  exactly what `print!` re-runs once `editor.iomap` is dropped, so under SDL the
+  widget boxes re-fit the larger text.
+- Manual (SDL GUI) not run in this environment.
+
+### Findings worth recording
+
+- The two text measurers disagree on font-zoom: **`sdl_measure_text`** loads the
+  font at `font_device_size` (includes `_FONT_ZOOM`) and divides back by
+  `_DISPLAY_SCALE` only, so it *does* scale with font-zoom. **`pdf_measure_text`
+  / `truetype_measure_text`** (the SDL-free default used by the test harness)
+  measures at the raw `font.size` and **ignores `_FONT_ZOOM`**. So in the real
+  GUI widgets grow; the pure-Julia layout (PDF export, tests) does not. Not
+  changed here (export at a fixed size is the right default), but noted as a
+  latent inconsistency.
+- The gallery `widget_example` is a fixed-size `WidgetShell` (≈1024×768): its
+  outer extent is pinned, so growth shows on the inner widgets, not the frame.
+  The per-widget examples (`WidgetLabel`, …) are content-sized and show it
+  directly.
 
 ## Progress
 
-- [ ] Worktree + plan
-- [ ] Implement re-projection in the SDL font-zoom handler + comment updates
-- [ ] Fix stale comment in example/Widget.jl
-- [ ] Targeted test run
-- [ ] Move plan to `plan/done/`
+- [x] Worktree + plan
+- [x] Implement re-projection in the SDL font-zoom handler + comment updates
+- [x] Fix stale comment in example/Widget.jl
+- [x] Targeted test run (`test_printer(widget_example)` 6913/6913; SDL precompiles; premise script PASS)
+- [x] Move plan to `plan/done/`

@@ -170,9 +170,11 @@ end
 # be tested in isolation. Pair each with make_widget_projection_example, except
 # the editable text widget, which needs make_widget_text_projection_example.
 
-# Layout offsets are authored in logical pixels. The widget projection scales
-# every widget's position by the font scale at render time, so these stay
-# logical here (scaling them now would double-count on hi-dpi displays).
+# Layout offsets are authored in logical pixels and stay fixed: the single global
+# `_DISPLAY_SCALE` is applied uniformly at the SDL render boundary (so authoring
+# them in device pixels would double-count on hi-dpi displays), and font-zoom
+# deliberately leaves hard-coded geometry put — only text-derived content boxes
+# re-fit the larger glyphs (via re-projection on `AdjustFontZoomOperation`).
 _wy(px::Integer) = px
 
 # WidgetLabel — a positioned, non-interactive label.
