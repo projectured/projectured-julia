@@ -1,21 +1,14 @@
 #!/usr/bin/env julia
 
 """
-Precompilation script for PackageCompiler.
+Precompilation workload for PackageCompiler.
 
-This file is used to precompile functions and warm up the Julia runtime
-before creating the native executable, which improves startup time.
+Config-agnostic: it warms whatever editor the build is configured for, via
+`ProjecturedExecutable.precompile_warmup()` (which reads the baked `AppConfig`).
+So this one file serves every `build_executable` spec — no per-build generation.
 """
 
-# Precompile the main program by calling its functions
-include("ProjecturedExecutable.jl")
-
-# Import the functions into Main scope
+include(joinpath(@__DIR__, "ProjecturedExecutable.jl"))
 using .ProjecturedExecutable
 
-# Warm up the functions with typical usage patterns
-cmd_hello("TestUser")
-cmd_info()
-cmd_version()
-print_help()
-cmd_workbench_example()
+ProjecturedExecutable.precompile_warmup()
