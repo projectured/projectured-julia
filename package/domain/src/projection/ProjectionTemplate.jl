@@ -312,6 +312,34 @@ function _reconciling_child_iomaps(elements_fn, make_iomap)
     end)
 end
 
+# Reconcile a *single* delegated child (a `project(:field)`) by the value's
+# identity. Reading `value_fn()` (a field cell) makes the returned cell react to
+# the field changing; while the value object stays the same (e.g. char-editing a
+# string in place) the built child iomap is reused, but when the field is *swapped*
+# for a new object — crucially a different *type*, as JSON type-to-replace does
+# (`JsonInsertion` → `JsonString`) — `objectid` changes and the child iomap is
+# rebuilt against the new value. The fixed-node analogue of `_reconciling_child_iomaps`;
+# without it a fixed node's `project(:field)` child froze at its first projection and
+# a later type-swap left a stale (and mis-routing) child iomap.
+function _reconciling_child_iomap(value_fn, make_iomap)
+    cached_id = Ref{UInt64}(0)
+    cached_im = Ref{Any}(nothing)
+    Cell(() -> begin
+        v = value_fn()
+        id = objectid(v)
+        if cached_im[] === nothing || cached_id[] != id
+            cached_im[] = make_iomap(v)
+            cached_id[] = id
+        end
+        cached_im[]
+    end)
+end
+
+# Reactive output of a reconciling delegated child: tracks the (possibly rebuilt)
+# child iomap's `output`. A free function so the closure captures *this* cell, not
+# a loop variable reassigned on the next iteration.
+_project_output_cell(child_cell) = Cell(() -> child_cell[].output)
+
 # A node-shaped output: recurse over `doc.<input>` (School A), reconstruct the
 # node with the projected children and a deferred selection cell, and store the
 # child iomaps so the mappers can delegate each child's tail.
@@ -376,14 +404,20 @@ end
 function _fixed_print(p, recursion, doc, ctx, out)
     children_field = _find_fixed_children(out)
     raw = getproperty(out, children_field)
-    slots = Any[]; store = Dict{Symbol,Any}(); outputs = Any[]
+    slots = Any[]; store = Dict{Symbol,Any}(); output_cells = Cell[]
     for child in raw
         if child isa Project
-            im = projection_printer_recurse(recursion, getproperty(doc, child.input),
-                                            child_context(ctx, FieldReference(String(child.input))))
-            store[child.input] = im
-            push!(slots, ProjectSlot(child.input))
-            push!(outputs, im.output)
+            # Delegated child reconciled by value identity, so a later type-swap of
+            # `doc.<field>` (JSON type-to-replace on a JsonInsertion slot) rebuilds it
+            # instead of leaving a stale child iomap. The store now holds the *cell*;
+            # mappers/reader force it (`[]`) for the current child iomap.
+            fld = child.input
+            cell = _reconciling_child_iomap(() -> getproperty(doc, fld),
+                v -> projection_printer_recurse(recursion, v,
+                        child_context(ctx, FieldReference(String(fld)))))
+            store[fld] = cell
+            push!(slots, ProjectSlot(fld))
+            push!(output_cells, _project_output_cell(cell))
         elseif child isa Collection
             error("ProjectionTemplate: nested collection inside a fixed-children node is not supported")
         else
@@ -398,10 +432,10 @@ function _fixed_print(p, recursion, doc, ctx, out)
                 setfield!(child, :selection, _key_leaf_sel(doc, w.bound_field))
                 push!(slots, KeySlot(w.bound_field, w.bound_type, w.value_checkpoint))
             end
-            push!(outputs, child)
+            push!(output_cells, Cell(child))
         end
     end
-    setproperty!(out, children_field, CellVector(Cell[Cell(o) for o in outputs]))
+    setproperty!(out, children_field, CellVector(output_cells))
     # The fixed node is a real output node, so its selection cell must hold an
     # *output* path: forward-map the element's input selection through this node's
     # own wiring (deferred-iomap trick, as the top node does).
@@ -430,7 +464,10 @@ end
 # heading leaf + its entries). The collection must be last (no fixed suffix).
 function _mixed_print(p, recursion, doc, ctx, out, children_field)
     raw = getproperty(out, children_field)
-    prefix_slots = Any[]; store = Dict{Symbol,Any}(); prefix_outputs = Any[]
+    # Each prefix output source is either a reconciling child cell (a `project(:f)`,
+    # forced for its current output) or a static leaf node. Keeping the project ones
+    # reactive lets a prefix value type-swap rebuild its child (see `_fixed_print`).
+    prefix_slots = Any[]; store = Dict{Symbol,Any}(); prefix_sources = Any[]
     coll_field = nothing
     for child in raw
         if child isa Collection
@@ -439,11 +476,13 @@ function _mixed_print(p, recursion, doc, ctx, out, children_field)
         elseif coll_field !== nothing
             error("ProjectionTemplate: fixed children after a spliced collection are not supported")
         elseif child isa Project
-            im = projection_printer_recurse(recursion, getproperty(doc, child.input),
-                                            child_context(ctx, FieldReference(String(child.input))))
-            store[child.input] = im
-            push!(prefix_slots, ProjectSlot(child.input))
-            push!(prefix_outputs, im.output)
+            fld = child.input
+            cell = _reconciling_child_iomap(() -> getproperty(doc, fld),
+                v -> projection_printer_recurse(recursion, v,
+                        child_context(ctx, FieldReference(String(fld)))))
+            store[fld] = cell
+            push!(prefix_slots, ProjectSlot(fld))
+            push!(prefix_sources, cell)
         else
             w = _scan_atomic!(p, doc, child)
             if w.bound_field === nothing
@@ -452,7 +491,7 @@ function _mixed_print(p, recursion, doc, ctx, out, children_field)
                 setfield!(child, :selection, _key_leaf_sel(doc, w.bound_field))
                 push!(prefix_slots, KeySlot(w.bound_field, w.bound_type, w.value_checkpoint))
             end
-            push!(prefix_outputs, child)
+            push!(prefix_sources, child)
         end
     end
     coll_field === nothing && error("ProjectionTemplate: mixed node has no spliced collection")
@@ -460,7 +499,9 @@ function _mixed_print(p, recursion, doc, ctx, out, children_field)
         projection_printer_recurse(recursion, x,
             child_context(ctx, FieldReference(String(coll_field)), ElementReference(i)))
         for (i, x) in enumerate(getproperty(doc, coll_field))])
-    children = CellVector(() -> vcat(prefix_outputs, [im.output for im in coll_iomaps[]]))
+    children = CellVector(() -> vcat(
+        [s isa Cell ? s[].output : s for s in prefix_sources],
+        [im.output for im in coll_iomaps[]]))
     setproperty!(out, children_field, children)
     iomap_cell = Cell(nothing)
     setfield!(out, :selection, Cell(() -> begin
@@ -700,7 +741,7 @@ function _fixed_forward(p, w, iomap, reference)
                 return _prepend(inner, FieldReference(String(w.children_field)),
                                 ElementReference(k), FieldReference("value"))
             elseif slot isa ProjectSlot && slot.in_field === fname
-                child = iomap.child_iomaps[fname]
+                child = iomap.child_iomaps[fname][]
                 inner = map_reference_forward(child.projection, child, core.tail)
                 inner === nothing && return nothing
                 return _prepend(inner, FieldReference(String(w.children_field)), ElementReference(k))
@@ -730,7 +771,7 @@ function _fixed_backward(p, w, iomap, reference)
                 end
                 return nothing
             elseif slot isa ProjectSlot
-                child = iomap.child_iomaps[slot.in_field]
+                child = iomap.child_iomaps[slot.in_field][]
                 inner = map_reference_backward(child.projection, child, leaf_path)
                 inner === nothing && return nothing
                 return _prepend(inner, FieldReference(String(slot.in_field)))
@@ -766,7 +807,7 @@ function _mixed_forward(p, w, iomap, reference)
                 return _path(FieldReference(String(w.children_field)), ElementReference(k))
             return _prepend(inner, FieldReference(String(w.children_field)), ElementReference(k), FieldReference("value"))
         elseif slot isa ProjectSlot && slot.in_field === fname
-            child = iomap.child_iomaps.prefix[fname]
+            child = iomap.child_iomaps.prefix[fname][]
             inner = map_reference_forward(child.projection, child, core.tail)
             inner === nothing && return nothing
             return _prepend(inner, FieldReference(String(w.children_field)), ElementReference(k))
@@ -811,7 +852,7 @@ function _mixed_backward(p, w, iomap, reference)
             end
             return nothing
         elseif slot isa ProjectSlot
-            child = iomap.child_iomaps.prefix[slot.in_field]
+            child = iomap.child_iomaps.prefix[slot.in_field][]
             inner = map_reference_backward(child.projection, child, leaf_path)
             inner === nothing && return nothing
             return _prepend(inner, FieldReference(String(slot.in_field)))
@@ -978,7 +1019,7 @@ function _focused_child(w::FixedNodeWiring, iomap, sel)
     fname = Symbol(core.head.name)
     for slot in w.slots
         slot isa ProjectSlot && slot.in_field === fname &&
-            return (iomap.child_iomaps[fname], (FieldReference(String(fname)),))
+            return (iomap.child_iomaps[fname][], (FieldReference(String(fname)),))
     end
     nothing   # KeySlot/IntroSlot ⇒ leaf, no child projection to recurse into
 end
@@ -989,7 +1030,7 @@ function _focused_child(w::MixedNodeWiring, iomap, sel)
     fname = Symbol(core.head.name)
     for slot in w.prefix_slots
         slot isa ProjectSlot && slot.in_field === fname &&
-            return (iomap.child_iomaps.prefix[fname], (FieldReference(String(fname)),))
+            return (iomap.child_iomaps.prefix[fname][], (FieldReference(String(fname)),))
     end
     if fname === w.coll_field
         after = core.tail
