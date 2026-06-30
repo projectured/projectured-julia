@@ -3,18 +3,20 @@
 
 The core document domain. Models document-level identity and basic structural
 documents: a base abstract type, a nothing-document, an insertion placeholder,
-and a reference document. Also defines the load/save/export document operations
-and their evaluators.
+and a reference document.
+
+The load/save/import/export document operations live with the serializers:
+binary `Save`/`LoadDocumentOperation` in `BinarySerializationModule`, natural
+`Export`/`ImportDocumentOperation` in `NaturalFormatModule`. (They previously sat
+here as an incomplete, non-functional port that read a `content` field no
+document type carried; that stub has been replaced by the working serializers.)
 """
 module DocumentCoreModule
 
 import ..ReactiveModule: Cell
 import ..DocumentModule: Document, @document
 import ..ReferenceModule: Reference, ReferencePath
-import ..OperationApiModule: Operation, evaluate_operation
 export DocumentBase, DocumentNothing, DocumentInsertion, DocumentReference,
-       LoadDocumentOperation, SaveDocumentOperation, ExportDocumentOperation,
-       evaluate_operation,
        IDocumentNothing, IDocumentInsertion, IDocumentReference
 
 # ── DocumentBase (abstract) ───────────────────────────────────────────────────
@@ -80,67 +82,8 @@ end
 DocumentReference(path::ReferencePath; selection=nothing) =
     DocumentReference(Cell(path), Cell(selection))
 
-# ── Operations ────────────────────────────────────────────────────────────────
-#
-# WIP / NOT YET FUNCTIONAL. These three operations are an incomplete port: their
-# evaluators read and write a `content` field (`document.content`) that no
-# `DocumentBase` subtype currently has. They are waiting on a `content`-bearing
-# document wrapper to be ported. Do not treat them as live API; they will error
-# if dispatched against any existing document type.
-
-"""
-    LoadDocumentOperation(document, filename)
-
-**WIP (incompletely ported).** Operation that loads a document from `filename`
-and stores the result in `document`'s content cell, updating its selection
-accordingly. Needs a `content`-bearing document wrapper (not yet ported).
-"""
-struct LoadDocumentOperation <: Operation
-    document::Document
-    filename::String
-end
-
-"""
-    SaveDocumentOperation(document, filename)
-
-**WIP (incompletely ported).** Operation that serialises the content of
-`document` to `filename`. Needs a `content`-bearing document wrapper.
-"""
-struct SaveDocumentOperation <: Operation
-    document::Document
-    filename::String
-end
-
-"""
-    ExportDocumentOperation(document, filename)
-
-**WIP (incompletely ported).** Operation that exports a human-readable rendering
-of `document`'s content to `filename`. Needs a `content`-bearing document wrapper.
-"""
-struct ExportDocumentOperation <: Operation
-    document::Document
-    filename::String
-end
-
-# ── Operation evaluation ──────────────────────────────────────────────────────
-# WIP: see the note above — these reference a `content` field no current document
-# type carries.
-
-function evaluate_operation(editor, op::LoadDocumentOperation)
-    doc = op.document
-    content = call_loader(op.filename)
-    doc.content = content
-    doc.selection = nothing
-end
-
-function evaluate_operation(editor, op::SaveDocumentOperation)
-    call_saver(op.filename, op.document.content)
-end
-
-function evaluate_operation(editor, op::ExportDocumentOperation)
-    open(op.filename, "w") do output
-        print_document(op.document.content, output)
-    end
-end
+# The load/save/import/export document operations now live with the serializers
+# (see the module docstring): binary in `BinarySerializationModule`, natural in
+# `NaturalFormatModule`.
 
 end # module
