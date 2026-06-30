@@ -1,5 +1,5 @@
 function make_json_document_example()
-    document = JsonObject(
+    JsonObject(
         "name"    => JsonString("Alice"),
         "age"     => JsonNumber(30),
         "active"  => JsonBool(true),
@@ -25,14 +25,16 @@ function make_json_document_example()
         ),
         "placeholder" => JsonInsertion(),
     )
-    document
 end
 
 function make_json_null_document_example()
     JsonNull()
 end
 
+function make_json_insertion_document_example()
+    JsonInsertion()
+end
+
 function make_json_string_document_example()
-    document = JsonString("Hello, world")
-    document
+    JsonString("Hello, world")
 end
