@@ -113,9 +113,27 @@ one produces an operation (a change whose `operation !== nothing`), then walk
 backwards through the earlier steps translating that change into each step's input
 domain. The gesture rides along for free — it is a field of the threaded `Change`,
 constant at every step. A nothing-change short-circuits.
+
+**Input-domain authoring gestures get first say.** A printable key can be a text
+edit (output domain) *or* a structural authoring gesture (input domain). Before
+threading any output-domain operation back, give the **first** stage — the
+input-domain projection — a direct read of the raw gesture. When it recognizes
+the gesture (returns an operation) that wins, overriding whatever the output
+layers would produce (e.g. JSON `,` inserts a sibling instead of a literal comma,
+even when the caret sits on a delimiter where the text edit would otherwise die).
+When it declines (no operation — `,` while editing a string, or an ordinary
+character) the normal output→input threading runs and the text edit / navigation
+is produced as before. Only at the start of a read (`change.operation === nothing`)
+so a re-entrant thread is not re-overridden, and only with output stages present
+(`n ≥ 2`) since a single stage already handles its own gesture.
 """
 function projection_read(seq::SequentialProjection, recursion, change::Change, iomap::SequentialProjectionIoMap)
     n = length(seq.projections)
+    g = change.gesture
+    if n >= 2 && g !== nothing && change.operation === nothing
+        first_out = projection_read(seq.projections[1], recursion, Change(g, nothing), iomap.step_iomaps[1][])
+        first_out.operation === nothing || return first_out
+    end
     start_i = n
     out = projection_read(seq.projections[n], recursion, change, iomap.step_iomaps[n][])
     while out.operation === nothing && start_i > 1

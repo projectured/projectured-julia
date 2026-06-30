@@ -13,7 +13,7 @@ module JsonModule
 import ..ReactiveModule: Cell
 import ..DocumentModule: Document, @document, @forward_vector, @forward_map
 import ..CollectionModule: CellVector
-import ..ReferenceModule: Reference, ReferencePath, ConcreteReferencePath, PositionReference, RangeReference, FieldReference, EmptyReferencePath, evaluate_reference
+import ..ReferenceModule: Reference, ReferencePath, ConcreteReferencePath, PositionReference, RangeReference, FieldReference, EmptyReferencePath, ProjectionReference, evaluate_reference
 import ..ReferenceBuilderModule: var"@reference"
 import ..ReferenceCaseModule: var"@reference_case"
 import ..OperationModule: replace_document, insert_elements, ReplaceSelectionOperation
@@ -97,9 +97,18 @@ end
 # Gestures are root-relative: each reads `doc`'s own selection and emits a
 # `doc`-relative operation that resolves to the actual (possibly nested) target.
 
+# A projection-introduced caret: the cursor sits on a part the projection added
+# (a delimiter, separator, or the `JsonInsertion` placeholder), so its head is a
+# `ProjectionReference` with no document pre-image (`evaluate_reference` throws).
+# Structural gestures treat such a caret as naming the whole focused node.
+_is_introduced(sel) = sel isa ConcreteReferencePath && sel.head isa ProjectionReference
+
 # Replace the currently-selected value with `newdoc` (whose cursor is pre-placed
-# via `with_selection`).
-_replace(doc, newdoc) = replace_document(getfield(doc, :selection)[], newdoc)
+# via `with_selection`). An introduced caret targets the whole focused node, so
+# normalize it to `∅` (the proj-wrapped ref does not resolve for replacement).
+_replace(doc, newdoc) =
+    replace_document(_is_introduced(getfield(doc, :selection)[]) ?
+                     EmptyReferencePath() : getfield(doc, :selection)[], newdoc)
 
 # A character cursor: a path ending in value{k} or key{k} (a RangeReference after a
 # value/key field). A whole-element selection ends in ∅.
@@ -117,12 +126,56 @@ function _is_char_cursor(sel)
     return false
 end
 
+# The node whose `.value` / `.key` a char cursor edits, as `(owner_ref, field)`
+# (the path with the trailing `<field>{k}` stripped), or `nothing` when `sel` is
+# not a char cursor. Used to tell a string-text caret from a number caret.
+function _char_cursor_owner(sel)
+    steps = Any[]
+    cur = sel
+    while cur isa ConcreteReferencePath
+        if cur.tail isa EmptyReferencePath && cur.head isa RangeReference
+            isempty(steps) && return nothing
+            field = steps[end]
+            (field isa FieldReference && (field.name == "value" || field.name == "key")) || return nothing
+            owner = EmptyReferencePath()
+            for i in (length(steps) - 1):-1:1
+                owner = ConcreteReferencePath(steps[i], owner)
+            end
+            return (owner, field.name)
+        end
+        push!(steps, cur.head)
+        cur = cur.tail
+    end
+    return nothing
+end
+
+# True when the caret is editing *string* text: an object key (keys are strings),
+# or a `value{k}` cursor whose owning node is a `JsonString`. A `value{k}` cursor
+# in a `JsonNumber` is not a string context. Keeps `,` a literal comma while
+# typing inside a string/key (everywhere else `,` is a structural insert).
+function _in_string_context(doc, sel)
+    oc = _char_cursor_owner(sel)
+    oc === nothing && return false
+    owner_ref, field = oc
+    field == "key" && return true
+    target = try evaluate_reference(doc, owner_ref) catch; nothing end
+    return target isa JsonString
+end
+
 # Block precondition for the type-to-replace set: a whole JSON value (not a
 # character cursor) whose target exists and is replaceable (values / array
-# elements / root — not a key/value entry wrapper).
+# elements / root — not a key/value entry wrapper). An introduced caret names the
+# whole focused node, so it is replaceable too.
 function _json_replaceable(doc, sel)
     sel === nothing && return false
     _is_char_cursor(sel) && return false
+    # An introduced caret (on a delimiter / placeholder) names the focused node.
+    # Enable type-to-replace there for a `JsonInsertion` placeholder or a container
+    # (you are on its bracket / brace), but not on a concrete scalar's own quotes /
+    # keyword — a whole-element selection is the way to retype an existing value.
+    if _is_introduced(sel)
+        return doc isa JsonInsertion || doc isa JsonArray || doc isa JsonObject
+    end
     target = try evaluate_reference(doc, sel) catch; nothing end
     target === nothing && return false
     target isa JsonObjectEntry && return false
@@ -137,15 +190,20 @@ function _replace_number(doc, c)
     _replace(doc, with_selection(JsonNumber(parse(Int, string(c))), @reference value{1}))
 end
 
-# Append a JsonInsertion and select it whole, ready to type-to-replace.
+# Append a JsonInsertion and select it whole, ready to type-to-replace. Declines
+# (`,` stays a literal comma) while the caret is editing string text, so a comma
+# can be typed into a string element / key; structural everywhere else.
 function _array_insert(doc::JsonArray)
+    _in_string_context(doc, getfield(doc, :selection)[]) && return nothing
     n = length(doc.elements)
     insert_elements(@reference(elements), n, Any[JsonInsertion()],
                     @reference elements[n + 1])
 end
 
-# Append an empty entry and select its key for typing.
+# Append an empty entry and select its key for typing. Declines in a string
+# context (see `_array_insert`).
 function _object_insert(doc::JsonObject)
+    _in_string_context(doc, getfield(doc, :selection)[]) && return nothing
     n = length(doc.entries)
     insert_elements(@reference(entries), n,
                     Any[JsonObjectEntry("", JsonInsertion())],

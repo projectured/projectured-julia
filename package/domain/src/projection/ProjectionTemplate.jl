@@ -1045,6 +1045,11 @@ projection_read(rp::RecursiveProjection, iomap::RuleIoMap, evt::Union{KeyPress, 
 # Value-edit retype (atomic) + plain String/Number retargeting (both shapes).
 function projection_read(p::Projection, iomap::RuleIoMap, op::StringReplaceRangeOperation)
     w = iomap.wiring
+    # An opaque atomic leaf (no bound field — `JsonInsertion`, `JsonNull`, …) has
+    # no editable text, so a character insert there is never a valid text edit.
+    # Reject it (rather than mapping to a bogus introduced-position op) so a
+    # non-gesture key is a clean NO-OP and a structural gesture can take over.
+    w isa AtomicWiring && w.bound_field === nothing && return nothing
     new_ref = map_reference_backward(p, iomap, op.reference)
     new_ref === nothing && return nothing
     if w isa AtomicWiring && w.retype !== nothing
