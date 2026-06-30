@@ -202,9 +202,11 @@ runs the same steps `Build.jl` runs today, parametrized by the spec:
    `APP_FILE_BACKED = true`, `APP_NAME = "json-editor"`, …) **and** the exact
    `using` line(s) for the baked backends (`using ProjecturedSdl` [, `ProjecturedWeb`]).
    The `ProjecturedExecutable.jl` module `include`s this and stays generic.
-3. **Generate the precompile workload** to exercise *this* configuration (e.g.
-   load a tiny sample file through `run_file_editor`'s document-build + a headless
-   `write_image`/print pass) so startup is warm for the built editor, not the demo.
+3. **Precompile workload.** *(Decision during impl: no per-build generation.)* The
+   workload is config-driven via a single `ProjecturedExecutable.precompile_warmup()`
+   that reads the baked `APP_*` and warms that editor (build the document/projection,
+   headless render when an SDL backend is baked). So the static checked-in
+   `src/Precompile.jl` serves every spec — only `AppConfig.jl` is generated.
 4. `create_app(...)` as today, naming the binary `app_name`.
 
 `build_executable` lives in the `executable` package (or a small build module it
@@ -306,11 +308,24 @@ out of scope (added later) and are **not** phases here.
       → `WorkbenchWorkbench` wrap, unknown domain errors. (Full `run_file_editor`
       opens a blocking SDL window — exercised end-to-end via the built binary in
       Phase 3.)
-- [ ] **Phase 2 — `BuildSpec` + `build_executable` function.** Spec struct +
-      `build_executable(; …)`; generate the dep set from `backends`, `AppConfig.jl`,
-      and a config-specific precompile workload; checked-in `AppConfig.default.jl`
-      (v1 spec). `Build.jl` reduced to call `build_executable()`. Verify a plain
-      `julia Build.jl` still produces a working binary. Commit.
+- [x] **Phase 2 — `BuildSpec` + `build_executable` function. DONE.** New
+      `executable/Builder.jl` (module `ProjecturedBuilder`, a *build-time* module
+      not compiled into the app): `BuildSpec(; …)` (validated keyword ctor),
+      `render_app_config`/`write_app_config` (pure, testable string/file
+      generation), and `build_executable(spec; exe_dir, output, compile=true)`.
+      With `compile=false` it only generates `src/AppConfig.jl` (the testable
+      seam); with `compile=true` it develops the local packages by path —
+      **including the baked backend(s)**, which fixes a latent inconsistency
+      (`ProjecturedSdl` is a dep in `Project.toml` but absent from the committed
+      Manifest) — then `Pkg.resolve/instantiate` and `create_app` (naming the binary
+      `app_name`, entry `julia_main`). Checked-in `src/AppConfig.default.jl` (v1
+      JSON/SDL spec) is the fallback; generated `src/AppConfig.jl` is git-ignored.
+      `Build.jl` reduced to `include Builder.jl` + `build_executable()`. **Decision:**
+      no per-build precompile generation (config-driven `precompile_warmup`, Phase 3).
+      Verified headlessly (bare Julia, no compile): render for default/multi-backend/
+      console/sized specs, validation errors, `compile=false` file write, and
+      `AppConfig.default.jl` matching the rendered default. The real `create_app`
+      run is Phase 3.
 - [ ] **Phase 3 — Generic `julia_main` + runtime args.** `AppConfig`-driven:
       file-path arg, help/version, baked SDL (no `--backend` since
       `APP_EXPOSE_BACKEND=false`). Build and run the v1 JSON-editor binary on a real
