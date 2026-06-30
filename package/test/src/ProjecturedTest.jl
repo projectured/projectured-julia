@@ -22,7 +22,7 @@ using Projectured: ElementReference, RangeReference, PositionReference, FieldRef
                    map_reference_forward, map_reference_backward,
                    color_red, color_blue, color_green, color_white, color_default,
                    color_solarized_background_dark,
-                   font_ubuntu_monospace_regular_24
+                   font_ubuntu_monospace_regular_20
 
 # Built lazily in __init__ (runtime, after the SDL extension has loaded) rather
 # than as a precompile-time const, so precompilation doesn't depend on the extension.

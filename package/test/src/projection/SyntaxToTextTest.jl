@@ -8,8 +8,8 @@ sst = projection_print(s2st, stree).output
 @test sst.elements[1].content == "["
 @test sst.elements[2].content == "val"
 @test sst.elements[3].content == "]"
-@test sst.elements[1].font == font_ubuntu_monospace_regular_24   # style comes from tree node (plain string = no style)
-@test sst.elements[2].font == font_ubuntu_monospace_regular_24   # style comes from tree node
+@test sst.elements[1].font == font_ubuntu_monospace_regular_20   # style comes from tree node (plain string = no style)
+@test sst.elements[2].font == font_ubuntu_monospace_regular_20   # style comes from tree node
 
 # node flattening
 sn = SyntaxNode(SyntaxDocument[SyntaxLeaf("a"), SyntaxLeaf("b")]; open="(", close=")", sep=", ")

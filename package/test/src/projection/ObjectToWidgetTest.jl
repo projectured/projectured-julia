@@ -95,7 +95,7 @@ end # @testset
 @testset "WidgetCheckbox click emits the toggle convention operation" begin
 
     stub(t, f) = (length(t) * 10, 24)
-    font = font_ubuntu_monospace_regular_24
+    font = font_ubuntu_monospace_regular_20
     w2g  = WidgetToGraphics(font; measure=stub)
     cb_proj = first(pr for (T, pr) in w2g.dispatch if T === WidgetCheckbox)
 

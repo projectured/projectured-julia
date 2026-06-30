@@ -4,7 +4,7 @@
 # spacing — see WidgetTheme. Use this for every per-widget example whose content
 # is a plain string (label, checkbox, button, menu, composite, panes, …).
 function make_widget_projection_example(; measure=truetype_measure_text)
-    w2g = WidgetToGraphics(font_ubuntu_regular_24; measure=measure)
+    w2g = WidgetToGraphics(font_ubuntu_regular_20; measure=measure)
     # Several examples stack their variants with a VerticalLayout instead of
     # hand-positioned WidgetComposite children, so the renderer dispatches layout
     # nodes to LayoutToGraphics and widgets to WidgetToGraphics.
@@ -64,7 +64,7 @@ end
 # editing then comes from TextToGraphics and the widget only maps the resulting
 # references backward (see make_widget_text_document_example).
 function make_widget_text_projection_example(; measure=truetype_measure_text)
-    font = font_ubuntu_monospace_regular_24
+    font = font_ubuntu_monospace_regular_20
     w2g  = WidgetToGraphics(font; measure=measure)
     RecursiveProjection(TypeDispatchingProjection(vcat(
         w2g.dispatch,

@@ -185,7 +185,7 @@ make_widget_label_document_example() =
 # backward). Click to place the cursor, then type / backspace to edit. Render
 # with make_widget_text_projection_example.
 function make_widget_text_document_example()
-    content = TextText(TextString("edit me", font_ubuntu_monospace_regular_24, color_default))
+    content = TextText(TextString("edit me", font_ubuntu_monospace_regular_20, color_default))
     WidgetText(Point2D(40, 40), content;
                border=Inset(1, 1, 1, 1),
                padding=Inset(8, 8, 12, 12))

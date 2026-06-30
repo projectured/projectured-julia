@@ -27,7 +27,7 @@ import ..JuliaModule: JuliaDocument,
                       JuliaReturn, JuliaBreak, JuliaContinue, JuliaTry, JuliaBegin,
                       JuliaIf, JuliaFunction, JuliaBlock, _julia_operator_string
 import ..TextModule: TextString
-import ..FontModule: StyleFont, font_ubuntu_monospace_regular_24, font_ubuntu_monospace_bold_24
+import ..FontModule: StyleFont, font_ubuntu_monospace_regular_20, font_ubuntu_monospace_bold_20
 import ..ColorModule: StyleColor, color_default, color_solarized_blue, color_solarized_cyan,
                       color_solarized_green, color_solarized_magenta, color_solarized_gray
 import ..StyleTextModule: StyleText
@@ -62,7 +62,7 @@ _text(value, font, color) = TextString(value, font, color)
 # ── JuliaIdentifierToSyntaxLeaf ─────────────────────────────────────────────
 
 @projection struct JuliaIdentifierToSyntaxLeaf
-    style::StyleText = StyleText(font_ubuntu_monospace_regular_24, color_solarized_blue)
+    style::StyleText = StyleText(font_ubuntu_monospace_regular_20, color_solarized_blue)
 end
 
 function projection_print(p::JuliaIdentifierToSyntaxLeaf, recursion, v::JuliaIdentifier, ctx)
@@ -74,7 +74,7 @@ end
 # ── JuliaIntegerToSyntaxLeaf ────────────────────────────────────────────────
 
 @projection struct JuliaIntegerToSyntaxLeaf
-    style::StyleText = StyleText(font_ubuntu_monospace_regular_24, color_solarized_green)
+    style::StyleText = StyleText(font_ubuntu_monospace_regular_20, color_solarized_green)
 end
 
 function projection_print(p::JuliaIntegerToSyntaxLeaf, recursion, v::JuliaInteger, ctx)
@@ -86,7 +86,7 @@ end
 # ── JuliaFloatToSyntaxLeaf ──────────────────────────────────────────────────
 
 @projection struct JuliaFloatToSyntaxLeaf
-    style::StyleText = StyleText(font_ubuntu_monospace_regular_24, color_solarized_green)
+    style::StyleText = StyleText(font_ubuntu_monospace_regular_20, color_solarized_green)
 end
 
 function projection_print(p::JuliaFloatToSyntaxLeaf, recursion, v::JuliaFloat, ctx)
@@ -98,8 +98,8 @@ end
 # ── JuliaStringToSyntaxLeaf ─────────────────────────────────────────────────
 
 @projection struct JuliaStringToSyntaxLeaf
-    style::StyleText = StyleText(font_ubuntu_monospace_regular_24, color_solarized_green)
-    quote_style::StyleText = StyleText(font_ubuntu_monospace_regular_24, color_solarized_gray)
+    style::StyleText = StyleText(font_ubuntu_monospace_regular_20, color_solarized_green)
+    quote_style::StyleText = StyleText(font_ubuntu_monospace_regular_20, color_solarized_gray)
 end
 
 function projection_print(p::JuliaStringToSyntaxLeaf, recursion, v::JuliaString, ctx)
@@ -113,7 +113,7 @@ end
 # ── JuliaBoolToSyntaxLeaf ───────────────────────────────────────────────────
 
 @projection struct JuliaBoolToSyntaxLeaf
-    style::StyleText = StyleText(font_ubuntu_monospace_bold_24, color_solarized_magenta)
+    style::StyleText = StyleText(font_ubuntu_monospace_bold_20, color_solarized_magenta)
 end
 
 function projection_print(p::JuliaBoolToSyntaxLeaf, recursion, v::JuliaBool, ctx)
@@ -125,7 +125,7 @@ end
 # ── JuliaNothingToSyntaxLeaf ────────────────────────────────────────────────
 
 @projection struct JuliaNothingToSyntaxLeaf
-    style::StyleText = StyleText(font_ubuntu_monospace_bold_24, color_solarized_magenta)
+    style::StyleText = StyleText(font_ubuntu_monospace_bold_20, color_solarized_magenta)
 end
 
 function projection_print(p::JuliaNothingToSyntaxLeaf, recursion, v::JuliaNothing, ctx)
@@ -137,7 +137,7 @@ end
 # ── JuliaSymbolToSyntaxLeaf ─────────────────────────────────────────────────
 
 @projection struct JuliaSymbolToSyntaxLeaf
-    style::StyleText = StyleText(font_ubuntu_monospace_regular_24, color_solarized_magenta)
+    style::StyleText = StyleText(font_ubuntu_monospace_regular_20, color_solarized_magenta)
 end
 
 function projection_print(p::JuliaSymbolToSyntaxLeaf, recursion, v::JuliaSymbol, ctx)
@@ -150,8 +150,8 @@ end
 # ── JuliaCharToSyntaxLeaf ───────────────────────────────────────────────────
 
 @projection struct JuliaCharToSyntaxLeaf
-    style::StyleText = StyleText(font_ubuntu_monospace_regular_24, color_solarized_green)
-    quote_style::StyleText = StyleText(font_ubuntu_monospace_regular_24, color_solarized_gray)
+    style::StyleText = StyleText(font_ubuntu_monospace_regular_20, color_solarized_green)
+    quote_style::StyleText = StyleText(font_ubuntu_monospace_regular_20, color_solarized_gray)
 end
 
 function projection_print(p::JuliaCharToSyntaxLeaf, recursion, v::JuliaChar, ctx)
@@ -165,7 +165,7 @@ end
 # ── JuliaBinaryOpToSyntaxNode ───────────────────────────────────────────────
 
 @projection struct JuliaBinaryOpToSyntaxNode
-    op::StyleText = StyleText(font_ubuntu_monospace_regular_24, color_solarized_cyan)
+    op::StyleText = StyleText(font_ubuntu_monospace_regular_20, color_solarized_cyan)
 end
 
 function projection_print(p::JuliaBinaryOpToSyntaxNode, recursion, m::JuliaBinaryOp, ctx)
@@ -187,7 +187,7 @@ end
 # ── JuliaUnaryOpToSyntaxNode ────────────────────────────────────────────────
 
 @projection struct JuliaUnaryOpToSyntaxNode
-    op::StyleText = StyleText(font_ubuntu_monospace_regular_24, color_solarized_cyan)
+    op::StyleText = StyleText(font_ubuntu_monospace_regular_20, color_solarized_cyan)
 end
 
 function projection_print(p::JuliaUnaryOpToSyntaxNode, recursion, u::JuliaUnaryOp, ctx)
@@ -205,7 +205,7 @@ end
 # ── JuliaCallToSyntaxNode ───────────────────────────────────────────────────
 
 @projection struct JuliaCallToSyntaxNode
-    delim::StyleText = StyleText(font_ubuntu_monospace_regular_24, color_solarized_gray)
+    delim::StyleText = StyleText(font_ubuntu_monospace_regular_20, color_solarized_gray)
 end
 
 function projection_print(p::JuliaCallToSyntaxNode, recursion, c::JuliaCall, ctx)
@@ -230,7 +230,7 @@ end
 # ── JuliaTernaryToSyntaxNode ────────────────────────────────────────────────
 
 @projection struct JuliaTernaryToSyntaxNode
-    op::StyleText = StyleText(font_ubuntu_monospace_regular_24, color_solarized_cyan)
+    op::StyleText = StyleText(font_ubuntu_monospace_regular_20, color_solarized_cyan)
 end
 
 function projection_print(p::JuliaTernaryToSyntaxNode, recursion, t::JuliaTernary, ctx)
@@ -259,7 +259,7 @@ end
 # ── JuliaIndexToSyntaxNode ──────────────────────────────────────────────────
 
 @projection struct JuliaIndexToSyntaxNode
-    delim::StyleText = StyleText(font_ubuntu_monospace_regular_24, color_solarized_gray)
+    delim::StyleText = StyleText(font_ubuntu_monospace_regular_20, color_solarized_gray)
 end
 
 function projection_print(p::JuliaIndexToSyntaxNode, recursion, x::JuliaIndex, ctx)
@@ -284,7 +284,7 @@ end
 # ── JuliaFieldAccessToSyntaxNode ────────────────────────────────────────────
 
 @projection struct JuliaFieldAccessToSyntaxNode
-    dot::StyleText = StyleText(font_ubuntu_monospace_regular_24, color_solarized_cyan)
+    dot::StyleText = StyleText(font_ubuntu_monospace_regular_20, color_solarized_cyan)
 end
 
 function projection_print(p::JuliaFieldAccessToSyntaxNode, recursion, f::JuliaFieldAccess, ctx)
@@ -303,7 +303,7 @@ end
 # ── JuliaTupleToSyntaxNode ──────────────────────────────────────────────────
 
 @projection struct JuliaTupleToSyntaxNode
-    delim::StyleText = StyleText(font_ubuntu_monospace_regular_24, color_solarized_gray)
+    delim::StyleText = StyleText(font_ubuntu_monospace_regular_20, color_solarized_gray)
 end
 
 function projection_print(p::JuliaTupleToSyntaxNode, recursion, t::JuliaTuple, ctx)
@@ -322,7 +322,7 @@ end
 # ── JuliaArrayToSyntaxNode ──────────────────────────────────────────────────
 
 @projection struct JuliaArrayToSyntaxNode
-    delim::StyleText = StyleText(font_ubuntu_monospace_regular_24, color_solarized_gray)
+    delim::StyleText = StyleText(font_ubuntu_monospace_regular_20, color_solarized_gray)
 end
 
 function projection_print(p::JuliaArrayToSyntaxNode, recursion, a::JuliaArray, ctx)
@@ -341,7 +341,7 @@ end
 # ── JuliaRangeToSyntaxNode ──────────────────────────────────────────────────
 
 @projection struct JuliaRangeToSyntaxNode
-    op::StyleText = StyleText(font_ubuntu_monospace_regular_24, color_solarized_cyan)
+    op::StyleText = StyleText(font_ubuntu_monospace_regular_20, color_solarized_cyan)
 end
 
 function projection_print(p::JuliaRangeToSyntaxNode, recursion, r::JuliaRange, ctx)
@@ -380,7 +380,7 @@ end
 # ── JuliaTypeAnnotationToSyntaxNode ─────────────────────────────────────────
 
 @projection struct JuliaTypeAnnotationToSyntaxNode
-    op::StyleText = StyleText(font_ubuntu_monospace_regular_24, color_solarized_cyan)
+    op::StyleText = StyleText(font_ubuntu_monospace_regular_20, color_solarized_cyan)
 end
 
 function projection_print(p::JuliaTypeAnnotationToSyntaxNode, recursion, t::JuliaTypeAnnotation, ctx)
@@ -399,7 +399,7 @@ end
 # ── JuliaAssignmentToSyntaxNode ─────────────────────────────────────────────
 
 @projection struct JuliaAssignmentToSyntaxNode
-    op::StyleText = StyleText(font_ubuntu_monospace_regular_24, color_solarized_cyan)
+    op::StyleText = StyleText(font_ubuntu_monospace_regular_20, color_solarized_cyan)
 end
 
 function projection_print(p::JuliaAssignmentToSyntaxNode, recursion, a::JuliaAssignment, ctx)
@@ -421,7 +421,7 @@ end
 # ── JuliaForIteratorToSyntaxNode ────────────────────────────────────────────
 
 @projection struct JuliaForIteratorToSyntaxNode
-    keyword::StyleText = StyleText(font_ubuntu_monospace_bold_24, color_solarized_magenta)
+    keyword::StyleText = StyleText(font_ubuntu_monospace_bold_20, color_solarized_magenta)
 end
 
 function projection_print(p::JuliaForIteratorToSyntaxNode, recursion, it::JuliaForIterator, ctx)
@@ -443,8 +443,8 @@ end
 # ── JuliaForToSyntaxNode ────────────────────────────────────────────────────
 
 @projection struct JuliaForToSyntaxNode
-    keyword::StyleText = StyleText(font_ubuntu_monospace_bold_24, color_solarized_magenta)
-    delim::StyleText = StyleText(font_ubuntu_monospace_regular_24, color_solarized_gray)
+    keyword::StyleText = StyleText(font_ubuntu_monospace_bold_20, color_solarized_magenta)
+    delim::StyleText = StyleText(font_ubuntu_monospace_regular_20, color_solarized_gray)
 end
 
 function projection_print(p::JuliaForToSyntaxNode, recursion, f::JuliaFor, ctx)
@@ -476,7 +476,7 @@ end
 # ── JuliaWhileToSyntaxNode ──────────────────────────────────────────────────
 
 @projection struct JuliaWhileToSyntaxNode
-    keyword::StyleText = StyleText(font_ubuntu_monospace_bold_24, color_solarized_magenta)
+    keyword::StyleText = StyleText(font_ubuntu_monospace_bold_20, color_solarized_magenta)
 end
 
 function projection_print(p::JuliaWhileToSyntaxNode, recursion, w::JuliaWhile, ctx)
@@ -502,7 +502,7 @@ end
 # ── JuliaReturnToSyntaxNode ─────────────────────────────────────────────────
 
 @projection struct JuliaReturnToSyntaxNode
-    keyword::StyleText = StyleText(font_ubuntu_monospace_bold_24, color_solarized_magenta)
+    keyword::StyleText = StyleText(font_ubuntu_monospace_bold_20, color_solarized_magenta)
 end
 
 function projection_print(p::JuliaReturnToSyntaxNode, recursion, r::JuliaReturn, ctx)
@@ -535,7 +535,7 @@ end
 # ── JuliaBreakToSyntaxLeaf ──────────────────────────────────────────────────
 
 @projection struct JuliaBreakToSyntaxLeaf
-    keyword::StyleText = StyleText(font_ubuntu_monospace_bold_24, color_solarized_magenta)
+    keyword::StyleText = StyleText(font_ubuntu_monospace_bold_20, color_solarized_magenta)
 end
 
 function projection_print(p::JuliaBreakToSyntaxLeaf, recursion, b::JuliaBreak, ctx)
@@ -547,7 +547,7 @@ end
 # ── JuliaContinueToSyntaxLeaf ───────────────────────────────────────────────
 
 @projection struct JuliaContinueToSyntaxLeaf
-    keyword::StyleText = StyleText(font_ubuntu_monospace_bold_24, color_solarized_magenta)
+    keyword::StyleText = StyleText(font_ubuntu_monospace_bold_20, color_solarized_magenta)
 end
 
 function projection_print(p::JuliaContinueToSyntaxLeaf, recursion, c::JuliaContinue, ctx)
@@ -559,7 +559,7 @@ end
 # ── JuliaTryToSyntaxNode ────────────────────────────────────────────────────
 
 @projection struct JuliaTryToSyntaxNode
-    keyword::StyleText = StyleText(font_ubuntu_monospace_bold_24, color_solarized_magenta)
+    keyword::StyleText = StyleText(font_ubuntu_monospace_bold_20, color_solarized_magenta)
 end
 
 function projection_print(p::JuliaTryToSyntaxNode, recursion, t::JuliaTry, ctx)
@@ -621,7 +621,7 @@ end
 # ── JuliaBeginToSyntaxNode ──────────────────────────────────────────────────
 
 @projection struct JuliaBeginToSyntaxNode
-    keyword::StyleText = StyleText(font_ubuntu_monospace_bold_24, color_solarized_magenta)
+    keyword::StyleText = StyleText(font_ubuntu_monospace_bold_20, color_solarized_magenta)
 end
 
 function projection_print(p::JuliaBeginToSyntaxNode, recursion, b::JuliaBegin, ctx)
@@ -639,7 +639,7 @@ end
 # ── JuliaBlockToSyntaxNode ──────────────────────────────────────────────────
 
 @projection struct JuliaBlockToSyntaxNode
-    font::StyleFont = font_ubuntu_monospace_regular_24
+    font::StyleFont = font_ubuntu_monospace_regular_20
     indentation::Int = 1
 end
 
@@ -657,7 +657,7 @@ end
 # ── JuliaIfToSyntaxNode ─────────────────────────────────────────────────────
 
 @projection struct JuliaIfToSyntaxNode
-    keyword::StyleText = StyleText(font_ubuntu_monospace_bold_24, color_solarized_magenta)
+    keyword::StyleText = StyleText(font_ubuntu_monospace_bold_20, color_solarized_magenta)
 end
 
 function projection_print(p::JuliaIfToSyntaxNode, recursion, m::JuliaIf, ctx)
@@ -688,8 +688,8 @@ end
 # ── JuliaFunctionToSyntaxNode ───────────────────────────────────────────────
 
 @projection struct JuliaFunctionToSyntaxNode
-    keyword::StyleText = StyleText(font_ubuntu_monospace_bold_24, color_solarized_magenta)
-    delim::StyleText = StyleText(font_ubuntu_monospace_regular_24, color_solarized_gray)
+    keyword::StyleText = StyleText(font_ubuntu_monospace_bold_20, color_solarized_magenta)
+    delim::StyleText = StyleText(font_ubuntu_monospace_regular_20, color_solarized_gray)
 end
 
 function projection_print(p::JuliaFunctionToSyntaxNode, recursion, f::JuliaFunction, ctx)

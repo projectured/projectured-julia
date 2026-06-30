@@ -40,7 +40,7 @@ import ..WidgetModule: WidgetDocument, WidgetLabel, WidgetText, WidgetShell, Wid
                        SelectTabOperation
 import ..LayoutModule: LayoutConstraint
 import ..TextModule: TextText, TextString
-import ..FontModule: font_ubuntu_monospace_regular_24
+import ..FontModule: font_ubuntu_monospace_regular_20
 import ..ColorModule: StyleColor, color_default
 import ..IoMapModule: SimpleIoMap, ContentIoMap, ChildrenIoMap
 import ..ReactiveModule: Cell, setfn!
@@ -305,7 +305,7 @@ function projection_print(::WorkbenchDescriptorToWidgetScrollPane,
                            recursion, d::WorkbenchDescriptor, ctx)
     text = TextText(
         TextString(() -> string(d.content),
-                   font_ubuntu_monospace_regular_24, color_default),
+                   font_ubuntu_monospace_regular_20, color_default),
     )
     scroll = WidgetScrollPane(text;
                               padding=_PAD5, padding_color=_WHITE)

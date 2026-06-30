@@ -23,7 +23,7 @@ import ..ProjectionApiModule: projection_print, projection_printer_recurse, proj
 import ..ProjectionModule: var"@projection"
 import ..FileSystemModule: FileSystemDocument, FileSystemFile, FileSystemDirectory
 import ..TextModule: TextString
-import ..FontModule: StyleFont, font_ubuntu_monospace_regular_24, font_ubuntu_monospace_bold_24
+import ..FontModule: StyleFont, font_ubuntu_monospace_regular_20, font_ubuntu_monospace_bold_20
 import ..ColorModule: StyleColor, color_black, color_default, color_solarized_blue, color_solarized_red
 import ..StyleTextModule: StyleText
 import ..SyntaxModule: SyntaxDocument, SyntaxLeaf, SyntaxNode
@@ -40,7 +40,7 @@ export FileSystemFileToSyntaxLeaf, FileSystemDirectoryToSyntaxNode, FileSystemTo
 # ── FileSystemFileToSyntaxLeaf ────────────────────────────────────────────────
 
 @projection struct FileSystemFileToSyntaxLeaf
-    style::StyleText = StyleText(font_ubuntu_monospace_regular_24, color_solarized_blue)
+    style::StyleText = StyleText(font_ubuntu_monospace_regular_20, color_solarized_blue)
 end
 
 function projection_print(p::FileSystemFileToSyntaxLeaf, recursion, f::FileSystemFile, ctx)
@@ -72,7 +72,7 @@ end
 #   .elements[i] + rest  →  .children[2].children[i] + child_sel
 
 @projection struct FileSystemDirectoryToSyntaxNode
-    name::StyleText = StyleText(font_ubuntu_monospace_bold_24, color_solarized_red)
+    name::StyleText = StyleText(font_ubuntu_monospace_bold_20, color_solarized_red)
 end
 
 

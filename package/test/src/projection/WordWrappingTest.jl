@@ -4,7 +4,7 @@ _test_measure(cw, lh) = (text, font) -> (length(text) * cw, lh)
 @testset "WordWrapping characters preserved" begin
 
 src = "Lorem ipsum dolor sit amet"
-input = TextText(TextString(src, font_ubuntu_monospace_regular_24, color_default))
+input = TextText(TextString(src, font_ubuntu_monospace_regular_20, color_default))
 m = _test_measure(10, 18)
 out = projection_print(WordWrapping(max_width=100, measure=m), input).output
 
@@ -18,7 +18,7 @@ end # @testset "WordWrapping characters preserved"
 
 @testset "WordWrapping no-wrap fits on one line" begin
 
-input = TextText(TextString("short", font_ubuntu_monospace_regular_24, color_default))
+input = TextText(TextString("short", font_ubuntu_monospace_regular_20, color_default))
 m = _test_measure(10, 18)
 out = projection_print(WordWrapping(max_width=1000, measure=m), input).output
 @test length(out.elements) == 1
@@ -30,7 +30,7 @@ end # @testset "WordWrapping no-wrap"
 @testset "WordWrapping selection round-trip" begin
 
 src = "Lorem ipsum dolor"           # words at chars [0..4), [6..10), [12..16)
-input = TextText(TextString(src, font_ubuntu_monospace_regular_24, color_default))
+input = TextText(TextString(src, font_ubuntu_monospace_regular_20, color_default))
 m = _test_measure(10, 18)
 iomap = projection_print(WordWrapping(max_width=80, measure=m), input)
 segs = iomap.segs[]
@@ -57,7 +57,7 @@ end # @testset "WordWrapping selection round-trip"
 @testset "WordWrapping reads available_width from context" begin
 
 src = "alpha beta gamma delta"
-input = TextText(TextString(src, font_ubuntu_monospace_regular_24, color_default))
+input = TextText(TextString(src, font_ubuntu_monospace_regular_20, color_default))
 m = _test_measure(10, 18)
 # Construct with a generous max_width fallback; the context value should win.
 proj = WordWrapping(max_width=10_000, measure=m)
@@ -79,7 +79,7 @@ m = _test_measure(10, 18)
 # (cx=60) but 60+64 > 80, so a soft TextNewline must be inserted *before*
 # the image, dropping it whole onto the next line (never split).
 input = TextText(
-    TextString("abcdef", font_ubuntu_monospace_regular_24, color_default),
+    TextString("abcdef", font_ubuntu_monospace_regular_20, color_default),
     TextGraphics(ImageMemory(nothing), 64, 64),
 )
 out = projection_print(WordWrapping(max_width=80, measure=m), input).output
@@ -99,7 +99,7 @@ end # @testset "WordWrapping image unbreakable"
 m = _test_measure(10, 18)
 # Short string (20px) + 40px image under a generous wrap width: no newline.
 input = TextText(
-    TextString("ab", font_ubuntu_monospace_regular_24, color_default),
+    TextString("ab", font_ubuntu_monospace_regular_20, color_default),
     TextGraphics(ImageMemory(nothing), 40, 40),
 )
 out = projection_print(WordWrapping(max_width=1000, measure=m), input).output
@@ -113,7 +113,7 @@ end # @testset "WordWrapping image fits"
 
 m = _test_measure(10, 18)
 input = TextText(
-    TextString("abcdef", font_ubuntu_monospace_regular_24, color_default),
+    TextString("abcdef", font_ubuntu_monospace_regular_20, color_default),
     TextGraphics(ImageMemory(nothing), 64, 64),
 )
 proj  = WordWrapping(max_width=80, measure=m)

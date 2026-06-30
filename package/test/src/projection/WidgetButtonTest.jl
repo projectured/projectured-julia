@@ -4,7 +4,7 @@ end
 
 function test_widget_button_behavior()
 
-_font = font_ubuntu_monospace_regular_24
+_font = font_ubuntu_monospace_regular_20
 _stub(t, f) = (length(t) * 10, 24)
 
 # Recursively scan a canvas's elements for a GraphicsImage (canvases nest other

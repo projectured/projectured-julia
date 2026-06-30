@@ -4,13 +4,13 @@ function test_text_filtering()
 # containing "dolor". Spans are 1-based input element indices:
 #   1: "alpha dolor"   2: newline   3: "beta gamma"   4: newline   5: "delta dolor"
 function _fixture()
-    nl() = TextNewline(font=font_ubuntu_monospace_regular_24)
+    nl() = TextNewline(font=font_ubuntu_monospace_regular_20)
     TextText(
-        TextString("alpha dolor", font_ubuntu_monospace_regular_24, color_default),
+        TextString("alpha dolor", font_ubuntu_monospace_regular_20, color_default),
         nl(),
-        TextString("beta gamma", font_ubuntu_monospace_regular_24, color_default),
+        TextString("beta gamma", font_ubuntu_monospace_regular_20, color_default),
         nl(),
-        TextString("delta dolor", font_ubuntu_monospace_regular_24, color_default),
+        TextString("delta dolor", font_ubuntu_monospace_regular_20, color_default),
     )
 end
 

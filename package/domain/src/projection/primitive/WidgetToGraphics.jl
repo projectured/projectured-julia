@@ -53,7 +53,7 @@ import ..GraphicsModule: GraphicsText, GraphicsRect, GraphicsLine, GraphicsCircl
 import ..GeometryModule: AffineTransform, affine_identity, affine_translate, affine_scale,
                          affine_apply, affine_inverse, affine_is_axis_aligned
 import ..FontModule: StyleFont,
-                     font_ubuntu_regular_18, font_ubuntu_regular_24, font_ubuntu_bold_24
+                     font_ubuntu_regular_18, font_ubuntu_regular_20, font_ubuntu_bold_20
 import ..StyleTextModule: StyleText
 import ..StyleStrokeModule: StyleStroke
 import ..IoMapModule: SimpleIoMap, ChildrenIoMap
@@ -216,13 +216,13 @@ function _widget_theme(; background, foreground, card, card_foreground, popover,
 end
 
 """
-    widget_theme_light(; font=font_ubuntu_regular_24) -> WidgetTheme
+    widget_theme_light(; font=font_ubuntu_regular_20) -> WidgetTheme
 
 The neutral zinc light theme (a neutral zinc palette on a white background).
 Kept as an alternative; the expressed slate/indigo theme is the default — see
 [`widget_theme_slate_light`](@ref).
 """
-function widget_theme_light(; font::StyleFont=font_ubuntu_regular_24)
+function widget_theme_light(; font::StyleFont=font_ubuntu_regular_20)
     _widget_theme(
         background=color_white,       foreground=color_zinc_950,
         card=color_white,             card_foreground=color_zinc_950,
@@ -234,17 +234,17 @@ function widget_theme_light(; font::StyleFont=font_ubuntu_regular_24)
         destructive=color_destructive, destructive_foreground=color_destructive_fg,
         border=color_zinc_200,        input=color_zinc_200,    ring=color_zinc_400,
         track_off=color_zinc_300,
-        font=font, font_bold=font_ubuntu_bold_24, font_small=font_ubuntu_regular_18)
+        font=font, font_bold=font_ubuntu_bold_20, font_small=font_ubuntu_regular_18)
 end
 
 """
-    widget_theme_dark(; font=font_ubuntu_regular_24) -> WidgetTheme
+    widget_theme_dark(; font=font_ubuntu_regular_20) -> WidgetTheme
 
 The neutral zinc dark theme (zinc-950 surfaces). Ships alongside the light
 default; the editor chrome can opt in. For the expressed slate/indigo variant
 see [`widget_theme_slate_dark`](@ref).
 """
-function widget_theme_dark(; font::StyleFont=font_ubuntu_regular_24)
+function widget_theme_dark(; font::StyleFont=font_ubuntu_regular_20)
     _widget_theme(
         background=color_zinc_950,    foreground=color_zinc_50,
         card=color_zinc_900,          card_foreground=color_zinc_50,
@@ -256,16 +256,16 @@ function widget_theme_dark(; font::StyleFont=font_ubuntu_regular_24)
         destructive=color_destructive, destructive_foreground=color_destructive_fg,
         border=color_zinc_800,        input=color_zinc_800,    ring=color_zinc_600,
         track_off=color_zinc_700,
-        font=font, font_bold=font_ubuntu_bold_24, font_small=font_ubuntu_regular_18)
+        font=font, font_bold=font_ubuntu_bold_20, font_small=font_ubuntu_regular_18)
 end
 
 """
-    widget_theme_slate_light(; font=font_ubuntu_regular_24) -> WidgetTheme
+    widget_theme_slate_light(; font=font_ubuntu_regular_20) -> WidgetTheme
 
 The default light theme: a cool slate palette with an indigo accent, on tinted
 (non-white) surfaces so the colors read as expressed rather than washed out.
 """
-function widget_theme_slate_light(; font::StyleFont=font_ubuntu_regular_24)
+function widget_theme_slate_light(; font::StyleFont=font_ubuntu_regular_20)
     _widget_theme(
         background=color_slate_100,    foreground=color_slate_950,
         card=color_slate_50,           card_foreground=color_slate_950,
@@ -277,16 +277,16 @@ function widget_theme_slate_light(; font::StyleFont=font_ubuntu_regular_24)
         destructive=color_destructive, destructive_foreground=color_destructive_fg,
         border=color_slate_300,        input=color_slate_300,   ring=color_indigo_500,
         track_off=color_slate_300,
-        font=font, font_bold=font_ubuntu_bold_24, font_small=font_ubuntu_regular_18)
+        font=font, font_bold=font_ubuntu_bold_20, font_small=font_ubuntu_regular_18)
 end
 
 """
-    widget_theme_slate_dark(; font=font_ubuntu_regular_24) -> WidgetTheme
+    widget_theme_slate_dark(; font=font_ubuntu_regular_20) -> WidgetTheme
 
 The expressed dark theme: deep slate surfaces with a bright indigo accent, the
 dark counterpart to [`widget_theme_slate_light`](@ref).
 """
-function widget_theme_slate_dark(; font::StyleFont=font_ubuntu_regular_24)
+function widget_theme_slate_dark(; font::StyleFont=font_ubuntu_regular_20)
     _widget_theme(
         background=color_slate_950,    foreground=color_slate_50,
         card=color_slate_900,          card_foreground=color_slate_50,
@@ -298,7 +298,7 @@ function widget_theme_slate_dark(; font::StyleFont=font_ubuntu_regular_24)
         destructive=color_destructive, destructive_foreground=color_destructive_fg,
         border=color_slate_800,        input=color_slate_800,   ring=color_indigo_400,
         track_off=color_slate_700,
-        font=font, font_bold=font_ubuntu_bold_24, font_small=font_ubuntu_regular_18)
+        font=font, font_bold=font_ubuntu_bold_20, font_small=font_ubuntu_regular_18)
 end
 
 # ── Styling helpers ─────────────────────────────────────────────────────────

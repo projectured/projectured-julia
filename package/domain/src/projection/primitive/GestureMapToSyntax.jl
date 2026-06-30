@@ -19,7 +19,7 @@ import ..ProjectionModule: var"@projection"
 import ..IoMapModule: SimpleIoMap
 import ..GestureMapModule: GestureMap, GestureRow
 import ..TextModule: TextString
-import ..FontModule: font_ubuntu_monospace_regular_24, font_ubuntu_monospace_bold_24
+import ..FontModule: font_ubuntu_monospace_regular_20, font_ubuntu_monospace_bold_20
 import ..ColorModule: color_solarized_blue, color_solarized_green, color_solarized_gray, color_default
 import ..StyleTextModule: StyleText
 import ..SyntaxModule: SyntaxDocument, SyntaxLeaf, SyntaxNode
@@ -28,10 +28,10 @@ import ..PrinterContextModule: PrinterContext
 export GestureMapToSyntax
 
 @projection struct GestureMapToSyntax
-    header::StyleText = StyleText(font_ubuntu_monospace_bold_24, color_solarized_blue)
-    gesture::StyleText = StyleText(font_ubuntu_monospace_bold_24, color_solarized_green)
-    description::StyleText = StyleText(font_ubuntu_monospace_regular_24, color_default)
-    muted::StyleText = StyleText(font_ubuntu_monospace_regular_24, color_solarized_gray)
+    header::StyleText = StyleText(font_ubuntu_monospace_bold_20, color_solarized_blue)
+    gesture::StyleText = StyleText(font_ubuntu_monospace_bold_20, color_solarized_green)
+    description::StyleText = StyleText(font_ubuntu_monospace_regular_20, color_default)
+    muted::StyleText = StyleText(font_ubuntu_monospace_regular_20, color_solarized_gray)
 end
 
 # One leaf per row ("<gesture> — <description>"), preceded by a domain heading

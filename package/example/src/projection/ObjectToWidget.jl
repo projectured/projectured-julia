@@ -4,7 +4,7 @@
 # editable text controls' TextText content via TextToGraphics). Editing a control
 # writes back to the object's field cell.
 function make_object_to_widget_projection_example(; measure=truetype_measure_text)
-    font = font_ubuntu_monospace_regular_24
+    font = font_ubuntu_monospace_regular_20
     fg   = (0x22, 0x22, 0x22, 0xff)
     w2g  = WidgetToGraphics(font; measure=measure)
     SequentialProjection(

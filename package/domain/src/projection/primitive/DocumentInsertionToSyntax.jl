@@ -43,7 +43,7 @@ import ..ReferenceCaseModule: var"@reference_case"
 import ..ReferenceBuilderModule: var"@reference"
 import ..GestureBindingModule: GestureBinding, KeyDownPattern, KeyPressPattern,
                               projection_gestures, read_projection_gesture
-import ..FontModule: font_ubuntu_monospace_regular_24, StyleFont
+import ..FontModule: font_ubuntu_monospace_regular_20, StyleFont
 import ..ColorModule: color_solarized_gray, color_default, StyleColor
 import ..StyleTextModule: StyleText
 import ..IoMapModule: SimpleIoMap
@@ -65,8 +65,8 @@ struct InsertionToSyntaxLeaf <: Projection
 end
 
 InsertionToSyntaxLeaf(commit; prefix::AbstractString = "", suffix::AbstractString = "",
-                      label = StyleText(font_ubuntu_monospace_regular_24, color_solarized_gray),
-                      value = StyleText(font_ubuntu_monospace_regular_24, color_default)) =
+                      label = StyleText(font_ubuntu_monospace_regular_20, color_solarized_gray),
+                      value = StyleText(font_ubuntu_monospace_regular_20, color_default)) =
     InsertionToSyntaxLeaf(String(prefix), String(suffix), commit, label, value)
 
 # ── Selection mapping (value{k} identity, mirrors PrimitiveStringToSyntaxLeaf) ─

@@ -1,6 +1,6 @@
 
 function make_workbench_projection_example(; measure=truetype_measure_text)
-    font = font_ubuntu_regular_24
+    font = font_ubuntu_regular_20
     # Dark text for the assistant input: the SDL backend renders on a light
     # (cream) background, so the pale `#eeeeee` that suits a dark theme is
     # almost invisible here. Keep it dark enough to read against the light
@@ -29,7 +29,7 @@ function make_workbench_projection_example(; measure=truetype_measure_text)
         CellVector            => make_collection_projection_example(measure=measure),
         # Assistant input → text directly (no SyntaxLeaf → no quotes), with a
         # pale "type message here" hint when empty.
-        PrimitiveDocument     => SequentialProjection(RecursiveProjection(PrimitiveToText(string_kw=(style=StyleText(font_ubuntu_monospace_regular_24, fg), placeholder="type message here", placeholder_style=StyleText(font_ubuntu_monospace_regular_24, hint)))), text_to_graphics),
+        PrimitiveDocument     => SequentialProjection(RecursiveProjection(PrimitiveToText(string_kw=(style=StyleText(font_ubuntu_monospace_regular_20, fg), placeholder="type message here", placeholder_style=StyleText(font_ubuntu_monospace_regular_20, hint)))), text_to_graphics),
         # Assistant panel: composer input (draft) + widget chat-bubble history.
         # ConversationDraft precedes ConversationDocument (its subtype).
         conversation_draft_entry(measure=measure),

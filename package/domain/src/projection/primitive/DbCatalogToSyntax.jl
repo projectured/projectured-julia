@@ -32,7 +32,7 @@ import ..ProjectionModule: var"@projection"
 import ..DbCatalogDocumentModule: DbCatalogRdbms, DbCatalogDatabase,
                                    DbCatalogSchema, DbCatalogTable, DbCatalogColumn
 import ..TextModule: TextString
-import ..FontModule: StyleFont, font_ubuntu_monospace_regular_24, font_ubuntu_monospace_bold_24
+import ..FontModule: StyleFont, font_ubuntu_monospace_regular_20, font_ubuntu_monospace_bold_20
 import ..ColorModule: StyleColor, color_default, color_solarized_blue, color_solarized_red, color_solarized_green, color_solarized_magenta
 import ..StyleTextModule: StyleText
 import ..SyntaxModule: SyntaxDocument, SyntaxLeaf, SyntaxNode
@@ -53,7 +53,7 @@ export DbCatalogColumnToSyntaxLeaf, DbCatalogTableToSyntaxNode, DbCatalogSchemaT
 # ── DbCatalogColumnToSyntaxLeaf ───────────────────────────────────────────────
 
 @projection struct DbCatalogColumnToSyntaxLeaf
-    style::StyleText = StyleText(font_ubuntu_monospace_regular_24, color_solarized_magenta)
+    style::StyleText = StyleText(font_ubuntu_monospace_regular_20, color_solarized_magenta)
 end
 
 function projection_print(p::DbCatalogColumnToSyntaxLeaf, recursion, col::DbCatalogColumn, ctx)
@@ -224,7 +224,7 @@ function _catalog_syntax_node(p, recursion, ctx, input_doc,
     # collapsible unit. Collapsed until its child collection is materialized.
     keyword_node = SyntaxNode(
         CellVector(() -> SyntaxDocument[im.output for im in child_iomaps[]]);
-        open=TextString(" " * keyword, font_ubuntu_monospace_regular_24, color_default),
+        open=TextString(" " * keyword, font_ubuntu_monospace_regular_20, color_default),
         indentation=-1,
         collapsed=Cell(!_children_realized(children)))
 
@@ -250,7 +250,7 @@ end
 # ── DbCatalogTableToSyntaxNode ────────────────────────────────────────────────
 
 @projection struct DbCatalogTableToSyntaxNode
-    name::StyleText = StyleText(font_ubuntu_monospace_bold_24, color_solarized_green)
+    name::StyleText = StyleText(font_ubuntu_monospace_bold_20, color_solarized_green)
 end
 
 function projection_print(p::DbCatalogTableToSyntaxNode, recursion, table::DbCatalogTable, ctx)
@@ -272,7 +272,7 @@ projection_read(p::DbCatalogTableToSyntaxNode, iomap::ChildrenIoMap, op::Replace
 # ── DbCatalogSchemaToSyntaxNode ───────────────────────────────────────────────
 
 @projection struct DbCatalogSchemaToSyntaxNode
-    name::StyleText = StyleText(font_ubuntu_monospace_bold_24, color_solarized_blue)
+    name::StyleText = StyleText(font_ubuntu_monospace_bold_20, color_solarized_blue)
 end
 
 function projection_print(p::DbCatalogSchemaToSyntaxNode, recursion, schema::DbCatalogSchema, ctx)
@@ -294,7 +294,7 @@ projection_read(p::DbCatalogSchemaToSyntaxNode, iomap::ChildrenIoMap, op::Replac
 # ── DbCatalogDatabaseToSyntaxNode ─────────────────────────────────────────────
 
 @projection struct DbCatalogDatabaseToSyntaxNode
-    name::StyleText = StyleText(font_ubuntu_monospace_bold_24, color_solarized_red)
+    name::StyleText = StyleText(font_ubuntu_monospace_bold_20, color_solarized_red)
 end
 
 function projection_print(p::DbCatalogDatabaseToSyntaxNode, recursion, db::DbCatalogDatabase, ctx)
@@ -316,7 +316,7 @@ projection_read(p::DbCatalogDatabaseToSyntaxNode, iomap::ChildrenIoMap, op::Repl
 # ── DbCatalogRdbmsToSyntaxNode ────────────────────────────────────────────────
 
 @projection struct DbCatalogRdbmsToSyntaxNode
-    name::StyleText = StyleText(font_ubuntu_monospace_bold_24, color_solarized_red)
+    name::StyleText = StyleText(font_ubuntu_monospace_bold_20, color_solarized_red)
 end
 
 function projection_print(p::DbCatalogRdbmsToSyntaxNode, recursion, rdbms::DbCatalogRdbms, ctx)

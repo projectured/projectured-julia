@@ -19,7 +19,7 @@ import ..ProjectionApiModule: projection_print, projection_printer_recurse, proj
 import ..ProjectionModule: var"@projection"
 import ..BookModule: BookDocument, BookInsertion, BookBook, BookChapter, BookParagraph, BookList, BookPicture
 import ..TextModule: TextDocument, TextString, TextText
-import ..FontModule: StyleFont, font_ubuntu_monospace_regular_24, font_ubuntu_monospace_bold_24, font_ubuntu_monospace_italic_24
+import ..FontModule: StyleFont, font_ubuntu_monospace_regular_20, font_ubuntu_monospace_bold_20, font_ubuntu_monospace_italic_20
 import ..ColorModule: StyleColor, color_black, color_default, color_solarized_blue, color_solarized_green, color_solarized_magenta, color_solarized_cyan, color_solarized_yellow, color_solarized_gray
 import ..StyleTextModule: StyleText
 import ..SyntaxModule: SyntaxDocument, SyntaxLeaf, SyntaxNode
@@ -45,7 +45,7 @@ export BookInsertionToSyntaxLeaf, BookBookToSyntaxNode, BookChapterToSyntaxNode,
 # correct and the iomap is threaded canonically.
 
 @projection struct BookInsertionToSyntaxLeaf
-    style::StyleText = StyleText(font_ubuntu_monospace_regular_24, color_solarized_gray)
+    style::StyleText = StyleText(font_ubuntu_monospace_regular_20, color_solarized_gray)
 end
 
 function projection_print(p::BookInsertionToSyntaxLeaf, recursion, b::BookInsertion, ctx)
@@ -66,9 +66,9 @@ end
 #   .elements[i].…    → .children[i+offset].…  (via element iomap)
 
 @projection struct BookBookToSyntaxNode
-    title::StyleText        = StyleText(font_ubuntu_monospace_bold_24, color_solarized_blue)
-    author_prefix::StyleText = StyleText(font_ubuntu_monospace_italic_24, color_solarized_gray)
-    author::StyleText       = StyleText(font_ubuntu_monospace_regular_24, color_solarized_cyan)
+    title::StyleText        = StyleText(font_ubuntu_monospace_bold_20, color_solarized_blue)
+    author_prefix::StyleText = StyleText(font_ubuntu_monospace_italic_20, color_solarized_gray)
+    author::StyleText       = StyleText(font_ubuntu_monospace_regular_20, color_solarized_cyan)
 end
 
 
@@ -228,10 +228,10 @@ end
 # Backward mapping subtracts length(numbering)+2 from character indices.
 
 @projection struct BookChapterToSyntaxNode
-    title::StyleText = StyleText(font_ubuntu_monospace_bold_24, color_solarized_blue)
+    title::StyleText = StyleText(font_ubuntu_monospace_bold_20, color_solarized_blue)
     # Reserved for styling the numbering prefix distinctly; the title leaf
     # currently renders "numbering  title" in the title style.
-    numbering::StyleText = StyleText(font_ubuntu_monospace_bold_24, color_solarized_magenta)
+    numbering::StyleText = StyleText(font_ubuntu_monospace_bold_20, color_solarized_magenta)
 end
 
 
@@ -393,9 +393,9 @@ end
 # Selection forward:  .content → .value
 
 @projection struct BookParagraphToSyntaxLeaf
-    style::StyleText = StyleText(font_ubuntu_monospace_regular_24, color_solarized_green)
+    style::StyleText = StyleText(font_ubuntu_monospace_regular_20, color_solarized_green)
     # Reserved for an empty-content placeholder hint (not yet rendered).
-    placeholder::StyleText = StyleText(font_ubuntu_monospace_regular_24, color_solarized_gray)
+    placeholder::StyleText = StyleText(font_ubuntu_monospace_regular_20, color_solarized_gray)
 end
 
 function projection_print(p::BookParagraphToSyntaxLeaf, recursion, b::BookParagraph, ctx)
@@ -445,7 +445,7 @@ end
 # Selection forward:  .elements[i].… → .children[i].children[1].…
 
 @projection struct BookListToSyntaxNode
-    bullet::StyleText = StyleText(font_ubuntu_monospace_regular_24, color_solarized_yellow)
+    bullet::StyleText = StyleText(font_ubuntu_monospace_regular_20, color_solarized_yellow)
     indentation::Int = 2
 end
 
@@ -544,8 +544,8 @@ end
 # an empty content renders the path placeholder.
 
 @projection struct BookPictureToSyntaxLeaf
-    style::StyleText = StyleText(font_ubuntu_monospace_regular_24, color_solarized_magenta)
-    placeholder::StyleText = StyleText(font_ubuntu_monospace_regular_24, color_solarized_gray)
+    style::StyleText = StyleText(font_ubuntu_monospace_regular_20, color_solarized_magenta)
+    placeholder::StyleText = StyleText(font_ubuntu_monospace_regular_20, color_solarized_gray)
 end
 
 function projection_print(p::BookPictureToSyntaxLeaf, recursion, b::BookPicture, ctx)

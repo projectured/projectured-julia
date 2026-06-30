@@ -31,7 +31,7 @@ import ..ReferenceInspectorDocumentModule: ReferenceInspector
 import ..ReferenceModule: ConcreteReferencePath, annotate_reference_types
 import ..ReferenceToTextModule: ReferenceToText, ReferenceToHumanReadableText
 import ..TextModule: TextDocument, TextText, TextString, TextNewline
-import ..FontModule: StyleFont, font_ubuntu_monospace_regular_24, font_liberation_sans_bold_30
+import ..FontModule: StyleFont, font_ubuntu_monospace_regular_20, font_liberation_sans_bold_30
 import ..ColorModule: StyleColor, color_solarized_blue
 import ..PrinterContextModule: PrinterContext
 import ..IoMapModule: SimpleIoMap
@@ -39,7 +39,7 @@ import ..IoMapModule: SimpleIoMap
 export ReferenceInspectorToText
 
 """
-    ReferenceInspectorToText(; font=font_ubuntu_monospace_regular_24,
+    ReferenceInspectorToText(; font=font_ubuntu_monospace_regular_20,
                                header_font=font_liberation_sans_bold_30,
                                header_color=color_solarized_blue)
 
@@ -52,7 +52,7 @@ struct ReferenceInspectorToText <: Projection
     header_font::StyleFont
     header_color::StyleColor
 end
-ReferenceInspectorToText(; font = font_ubuntu_monospace_regular_24,
+ReferenceInspectorToText(; font = font_ubuntu_monospace_regular_20,
                            header_font = font_liberation_sans_bold_30,
                            header_color = color_solarized_blue) =
     ReferenceInspectorToText(font, header_font, header_color)

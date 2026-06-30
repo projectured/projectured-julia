@@ -16,7 +16,7 @@ import ..ProjectionModule: var"@projection"
 import ..PrimitiveModule: PrimitiveDocument, PrimitiveBool, PrimitiveNumber, PrimitiveString,
                           StringReplaceRangeOperation
 import ..TextModule: TextDocument, TextText, TextString
-import ..FontModule: StyleFont, font_ubuntu_monospace_regular_24
+import ..FontModule: StyleFont, font_ubuntu_monospace_regular_20
 import ..ColorModule: StyleColor, color_solarized_cyan, color_solarized_magenta, color_solarized_green
 import ..StyleTextModule: StyleText
 import ..IoMapModule: SimpleIoMap
@@ -53,7 +53,7 @@ _value_selection_to_text(prim) = _forward_value(getfield(prim, :selection)[])
 # ── PrimitiveBoolToText ──────────────────────────────────────────────────────
 
 @projection struct PrimitiveBoolToText
-    style::StyleText = StyleText(font_ubuntu_monospace_regular_24, color_solarized_cyan)
+    style::StyleText = StyleText(font_ubuntu_monospace_regular_20, color_solarized_cyan)
 end
 
 map_reference_forward(::PrimitiveBoolToText, iomap::SimpleIoMap, reference) =
@@ -77,7 +77,7 @@ end
 # ── PrimitiveNumberToText ────────────────────────────────────────────────────
 
 @projection struct PrimitiveNumberToText
-    style::StyleText = StyleText(font_ubuntu_monospace_regular_24, color_solarized_magenta)
+    style::StyleText = StyleText(font_ubuntu_monospace_regular_20, color_solarized_magenta)
 end
 
 map_reference_forward(::PrimitiveNumberToText, iomap::SimpleIoMap, reference) =
@@ -107,7 +107,7 @@ struct PrimitiveStringToTextText <: Projection
     placeholder::String
     placeholder_style::StyleText
 end
-PrimitiveStringToTextText(; style=StyleText(font_ubuntu_monospace_regular_24, color_solarized_green),
+PrimitiveStringToTextText(; style=StyleText(font_ubuntu_monospace_regular_20, color_solarized_green),
                             placeholder="", placeholder_style=style) =
     PrimitiveStringToTextText(style, placeholder, placeholder_style)
 

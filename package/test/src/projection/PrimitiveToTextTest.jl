@@ -10,7 +10,7 @@ using Projectured: PrimitiveBool, PrimitiveNumber, PrimitiveString,
                     FieldReference, RangeReference, ElementReference, PositionReference,
                     set_selection!,
                     color_solarized_cyan, color_solarized_magenta, color_solarized_green,
-                    font_ubuntu_monospace_regular_24
+                    font_ubuntu_monospace_regular_20
 
 _value_range(start::Int, stop::Int) =
     ConcreteReferencePath(FieldReference("value"),
@@ -34,7 +34,7 @@ function test_primitive_to_text()
     @test out isa TextText
     @test length(out.elements) == 1
     @test out.elements[1].content == "true"
-    @test out.elements[1].font == font_ubuntu_monospace_regular_24
+    @test out.elements[1].font == font_ubuntu_monospace_regular_20
     @test out.elements[1].font_color == color_solarized_cyan
 end
 

@@ -15,7 +15,7 @@ import ..CollectionModule: CellVector
 import ..ProjectionApiModule: projection_print, projection_printer_recurse, projection_read, map_reference_forward, map_reference_backward, Projection
 import ..ProjectionModule: var"@projection"
 import ..TextModule: TextString
-import ..FontModule: StyleFont, font_ubuntu_monospace_regular_24, font_ubuntu_monospace_bold_24, font_ubuntu_monospace_italic_24
+import ..FontModule: StyleFont, font_ubuntu_monospace_regular_20, font_ubuntu_monospace_bold_20, font_ubuntu_monospace_italic_20
 import ..ColorModule: StyleColor, color_black, color_default, color_solarized_blue, color_solarized_green, color_solarized_magenta, color_solarized_cyan, color_solarized_yellow, color_solarized_gray
 import ..StyleTextModule: StyleText
 import ..SyntaxModule: SyntaxDocument, SyntaxLeaf, SyntaxNode
@@ -36,7 +36,7 @@ export NothingToSyntaxLeaf, BoolToSyntaxLeaf, NumberToSyntaxLeaf,
 # ── NothingToSyntaxLeaf ──────────────────────────────────────────────────────
 
 @projection struct NothingToSyntaxLeaf
-    style::StyleText = StyleText(font_ubuntu_monospace_regular_24, color_solarized_magenta)
+    style::StyleText = StyleText(font_ubuntu_monospace_regular_20, color_solarized_magenta)
     include_selection::Bool = false
 end
 
@@ -48,7 +48,7 @@ end
 # ── BoolToSyntaxLeaf ─────────────────────────────────────────────────────────
 
 @projection struct BoolToSyntaxLeaf
-    style::StyleText = StyleText(font_ubuntu_monospace_regular_24, color_solarized_yellow)
+    style::StyleText = StyleText(font_ubuntu_monospace_regular_20, color_solarized_yellow)
     include_selection::Bool = false
 end
 
@@ -60,7 +60,7 @@ end
 # ── NumberToSyntaxLeaf ───────────────────────────────────────────────────────
 
 @projection struct NumberToSyntaxLeaf
-    style::StyleText = StyleText(font_ubuntu_monospace_regular_24, color_solarized_magenta)
+    style::StyleText = StyleText(font_ubuntu_monospace_regular_20, color_solarized_magenta)
     include_selection::Bool = false
 end
 
@@ -72,8 +72,8 @@ end
 # ── StringToSyntaxLeaf ───────────────────────────────────────────────────────
 
 @projection struct StringToSyntaxLeaf
-    quote_style::StyleText = StyleText(font_ubuntu_monospace_regular_24, color_solarized_yellow)
-    value::StyleText = StyleText(font_ubuntu_monospace_regular_24, color_solarized_green)
+    quote_style::StyleText = StyleText(font_ubuntu_monospace_regular_20, color_solarized_yellow)
+    value::StyleText = StyleText(font_ubuntu_monospace_regular_20, color_solarized_green)
     include_selection::Bool = false
 end
 
@@ -88,7 +88,7 @@ end
 # ── SymbolToSyntaxLeaf ───────────────────────────────────────────────────────
 
 @projection struct SymbolToSyntaxLeaf
-    style::StyleText = StyleText(font_ubuntu_monospace_regular_24, color_solarized_blue)
+    style::StyleText = StyleText(font_ubuntu_monospace_regular_20, color_solarized_blue)
     include_selection::Bool = false
 end
 
@@ -100,8 +100,8 @@ end
 # ── CharToSyntaxLeaf ─────────────────────────────────────────────────────────
 
 @projection struct CharToSyntaxLeaf
-    quote_style::StyleText = StyleText(font_ubuntu_monospace_regular_24, color_solarized_yellow)
-    value::StyleText = StyleText(font_ubuntu_monospace_regular_24, color_solarized_green)
+    quote_style::StyleText = StyleText(font_ubuntu_monospace_regular_20, color_solarized_yellow)
+    value::StyleText = StyleText(font_ubuntu_monospace_regular_20, color_solarized_green)
     include_selection::Bool = false
 end
 
@@ -117,7 +117,7 @@ end
 # Unwraps a Cell and projects its contents transparently.
 
 @projection struct CellToSyntax
-    cycle::StyleText = StyleText(font_ubuntu_monospace_italic_24, color_solarized_gray)
+    cycle::StyleText = StyleText(font_ubuntu_monospace_italic_20, color_solarized_gray)
 end
 
 function projection_print(p::CellToSyntax, recursion, cell::Cell, ctx)
@@ -150,9 +150,9 @@ end
 # Undefined mutable-struct fields render as an "<undefined>" leaf.
 
 @projection struct ObjectNodeToSyntaxNode
-    type_name::StyleText = StyleText(font_ubuntu_monospace_bold_24, color_solarized_blue)
-    field_name::StyleText = StyleText(font_ubuntu_monospace_regular_24, color_solarized_green)
-    undef::StyleText = StyleText(font_ubuntu_monospace_italic_24, color_solarized_gray)
+    type_name::StyleText = StyleText(font_ubuntu_monospace_bold_20, color_solarized_blue)
+    field_name::StyleText = StyleText(font_ubuntu_monospace_regular_20, color_solarized_green)
+    undef::StyleText = StyleText(font_ubuntu_monospace_italic_20, color_solarized_gray)
     include_selection::Bool = false
     open_delimiter::String = ""
     close_delimiter::String = ""
@@ -238,8 +238,8 @@ end
 
 # ── Compound convenience constructor ────────────────────────────────────────
 
-function ObjectToSyntax(; type_name_font=font_ubuntu_monospace_bold_24, type_name_color=color_solarized_blue,
-                          field_name_font=font_ubuntu_monospace_regular_24,    field_name_color=color_solarized_green,
+function ObjectToSyntax(; type_name_font=font_ubuntu_monospace_bold_20, type_name_color=color_solarized_blue,
+                          field_name_font=font_ubuntu_monospace_regular_20,    field_name_color=color_solarized_green,
                           nothing_color=color_solarized_magenta,
                           bool_color=color_solarized_yellow,
                           number_color=color_solarized_magenta,
@@ -251,12 +251,12 @@ function ObjectToSyntax(; type_name_font=font_ubuntu_monospace_bold_24, type_nam
                           newlines::Bool=true, filter=nothing)
     TypeDispatchingProjection(
         Cell           => CellToSyntax(),
-        Nothing        => NothingToSyntaxLeaf(style=StyleText(font_ubuntu_monospace_regular_24, nothing_color), include_selection=include_selection),
-        Bool           => BoolToSyntaxLeaf(style=StyleText(font_ubuntu_monospace_regular_24, bool_color), include_selection=include_selection),
-        Number         => NumberToSyntaxLeaf(style=StyleText(font_ubuntu_monospace_regular_24, number_color), include_selection=include_selection),
-        AbstractString => StringToSyntaxLeaf(value=StyleText(font_ubuntu_monospace_regular_24, string_color), include_selection=include_selection),
-        Symbol         => SymbolToSyntaxLeaf(style=StyleText(font_ubuntu_monospace_regular_24, symbol_color), include_selection=include_selection),
-        Char           => CharToSyntaxLeaf(value=StyleText(font_ubuntu_monospace_regular_24, char_color), include_selection=include_selection),
+        Nothing        => NothingToSyntaxLeaf(style=StyleText(font_ubuntu_monospace_regular_20, nothing_color), include_selection=include_selection),
+        Bool           => BoolToSyntaxLeaf(style=StyleText(font_ubuntu_monospace_regular_20, bool_color), include_selection=include_selection),
+        Number         => NumberToSyntaxLeaf(style=StyleText(font_ubuntu_monospace_regular_20, number_color), include_selection=include_selection),
+        AbstractString => StringToSyntaxLeaf(value=StyleText(font_ubuntu_monospace_regular_20, string_color), include_selection=include_selection),
+        Symbol         => SymbolToSyntaxLeaf(style=StyleText(font_ubuntu_monospace_regular_20, symbol_color), include_selection=include_selection),
+        Char           => CharToSyntaxLeaf(value=StyleText(font_ubuntu_monospace_regular_20, char_color), include_selection=include_selection),
         Any            => ObjectNodeToSyntaxNode(type_name=StyleText(type_name_font, type_name_color),
                                                  field_name=StyleText(field_name_font, field_name_color),
                                                  include_selection=include_selection,

@@ -38,7 +38,7 @@ end
 # widgets-for-structure / text-for-content composition (mirrors the
 # conversation_widget inner dispatch).
 function make_syntax_widget_graphics(; measure=truetype_measure_text)
-    font = font_ubuntu_monospace_regular_24
+    font = font_ubuntu_monospace_regular_20
     w2g  = WidgetToGraphics(font; measure=measure)
     RecursiveProjection(TypeDispatchingProjection(vcat(
         w2g.dispatch,

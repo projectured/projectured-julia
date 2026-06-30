@@ -50,7 +50,7 @@ import ..WidgetModule: WidgetDocument, WidgetLabel, WidgetText, WidgetCheckbox,
                        WidgetComposite, WidgetCard, Point2D
 import ..LayoutModule: GridLayout, VerticalLayout, HorizontalLayout
 import ..TextModule: TextText, TextString
-import ..FontModule: StyleFont, font_ubuntu_monospace_regular_24
+import ..FontModule: StyleFont, font_ubuntu_monospace_regular_20
 import ..ColorModule: StyleColor, color_default
 import ..StyleTextModule: StyleText
 import ..ReferenceModule: ReferencePath, ConcreteReferencePath, EmptyReferencePath,
@@ -93,7 +93,7 @@ struct ObjectToWidget <: Projection
 end
 
 ObjectToWidget(; fields=nothing,
-               style::StyleText=StyleText(font_ubuntu_monospace_regular_24, color_default)) = ObjectToWidget(fields, style)
+               style::StyleText=StyleText(font_ubuntu_monospace_regular_20, color_default)) = ObjectToWidget(fields, style)
 
 # Inter-column / inter-row gaps for the parameter form. The label column width
 # and row heights are content-driven by GridLayout; only these spacing tokens are

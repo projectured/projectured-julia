@@ -29,7 +29,7 @@ import ..ReferenceModule: Reference, ReferencePath, EmptyReferencePath, Concrete
                           is_element_reference, is_position_reference,
                           head, tail, evaluate_reference, append_reference
 import ..TextModule: TextDocument, TextText, TextString, TextNewline
-import ..FontModule: StyleFont, font_ubuntu_monospace_regular_24, font_ubuntu_monospace_italic_24
+import ..FontModule: StyleFont, font_ubuntu_monospace_regular_20, font_ubuntu_monospace_italic_20
 import ..ColorModule: StyleColor, color_default,
                       color_solarized_gray, color_solarized_cyan,
                       color_solarized_magenta, color_solarized_orange,
@@ -77,7 +77,7 @@ _article(name::AbstractString) =
 # ─────────────────────────────────────────────────────────────────────────
 
 """
-    ReferenceToText(; font=font_ubuntu_monospace_regular_24)
+    ReferenceToText(; font=font_ubuntu_monospace_regular_20)
 
 Projection that renders a `Reference` as a single-line, color-coded
 `TextText`. Mirrors the shape of `Base.show` for references but each
@@ -85,7 +85,7 @@ token (delimiter, name, index, type) is a separate `TextString` span
 with its own color.
 """
 @projection struct ReferenceToText
-    font::StyleFont = font_ubuntu_monospace_regular_24
+    font::StyleFont = font_ubuntu_monospace_regular_20
 end
 
 map_reference_forward(::ReferenceToText, ::SimpleIoMap, _) = nothing
@@ -197,7 +197,7 @@ projection_print(p::ReferenceToText, recursion, ref::ConcreteReferencePath, ctx)
 # ─────────────────────────────────────────────────────────────────────────
 
 """
-    ReferenceToHumanReadableText(document; font=font_ubuntu_monospace_regular_24)
+    ReferenceToHumanReadableText(document; font=font_ubuntu_monospace_regular_20)
 
 Projection that renders a `Reference` as a multi-line narrative
 `TextText`. One phrase per line, in **reverse order** (innermost step
@@ -213,7 +213,7 @@ need live updates.
 """
 @projection struct ReferenceToHumanReadableText
     document::Any
-    font::StyleFont = font_ubuntu_monospace_regular_24
+    font::StyleFont = font_ubuntu_monospace_regular_20
 end
 
 map_reference_forward(::ReferenceToHumanReadableText, ::SimpleIoMap, _) = nothing
@@ -356,7 +356,7 @@ function _long_text(p::ReferenceToHumanReadableText, ref)
         if i < length(lines)
             # "which is" connects each node to its role in its parent (the line
             # below it), so the rows read as one sentence.
-            push!(spans, _tok(" which is", font_ubuntu_monospace_italic_24, color_solarized_gray))
+            push!(spans, _tok(" which is", font_ubuntu_monospace_italic_20, color_solarized_gray))
             push!(spans, TextNewline(font=p.font))
         end
     end

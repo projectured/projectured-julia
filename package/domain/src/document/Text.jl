@@ -27,7 +27,7 @@ module TextModule
 import ..ReactiveModule: Cell, setfn!, setval!
 import ..DocumentModule: Document, @document
 import ..CollectionModule: CellVector, ListNode, CollectionDocument
-import ..FontModule: StyleFont, font_ubuntu_monospace_regular_24
+import ..FontModule: StyleFont, font_ubuntu_monospace_regular_20
 import ..ColorModule: StyleColor, color_default, color_solarized_gray
 import ..StyleTextModule: StyleText
 import ..GeometryModule: Inset
@@ -162,7 +162,7 @@ TextString(content::AbstractString, font::StyleFont, font_color::StyleColor) =
     TextString(Cell(content), Cell(font), Cell(font_color), Cell(nothing), Cell(nothing), Cell(nothing), Cell(nothing))
 
 TextString(content::AbstractString) =
-    TextString(Cell(content), Cell(font_ubuntu_monospace_regular_24), Cell(color_default), Cell(nothing), Cell(nothing), Cell(nothing), Cell(nothing))
+    TextString(Cell(content), Cell(font_ubuntu_monospace_regular_20), Cell(color_default), Cell(nothing), Cell(nothing), Cell(nothing), Cell(nothing))
 
 TextString(content::Function, font::StyleFont, font_color::StyleColor) =
     TextString(Cell(content), Cell(font), Cell(font_color), Cell(nothing), Cell(nothing), Cell(nothing), Cell(nothing))
@@ -221,7 +221,7 @@ contributes its height to the line and occupies one atomic cursor position.
     selection::Reference
 end
 
-TextGraphics(content, width::Integer, height::Integer; font=font_ubuntu_monospace_regular_24, font_color="", fill_color=nothing, line_color=nothing, padding=nothing) =
+TextGraphics(content, width::Integer, height::Integer; font=font_ubuntu_monospace_regular_20, font_color="", fill_color=nothing, line_color=nothing, padding=nothing) =
     TextGraphics(Cell(content), Cell(Int32(width)), Cell(Int32(height)), Cell(font), Cell(font_color), Cell(fill_color), Cell(line_color), Cell(padding), Cell(nothing))
 
 TextGraphics(content; font, font_color="", fill_color=nothing, line_color=nothing, padding=nothing) =

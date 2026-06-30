@@ -12,7 +12,7 @@ module TextLineNumberingModule
 import ..ProjectionApiModule: projection_print, projection_read, map_reference_forward, map_reference_backward, Projection
 import ..TextModule: TextText, TextDocument, TextString, TextNewline
 import ..ColorModule: StyleColor, color_default
-import ..FontModule: StyleFont, font_ubuntu_monospace_regular_24
+import ..FontModule: StyleFont, font_ubuntu_monospace_regular_20
 import ..ReactiveModule: Cell
 import ..CollectionModule: CellVector
 import ..IoMapModule: SimpleIoMap
@@ -31,7 +31,7 @@ struct TextLineNumbering <: Projection
     font::StyleFont
 end
 
-TextLineNumbering(; width::Int = 0, separator::String = " | ", font=font_ubuntu_monospace_regular_24) =
+TextLineNumbering(; width::Int = 0, separator::String = " | ", font=font_ubuntu_monospace_regular_20) =
     TextLineNumbering(width, separator, font)
 
 # Projection print: wraps input.elements in a reactive Cell that rebuilds
@@ -164,7 +164,7 @@ end
 
 # ── Compound convenience constructor ────────────────────────────────────────
 
-function LineNumbering(; width::Int = 0, separator::String = " | ", font=font_ubuntu_monospace_regular_24)
+function LineNumbering(; width::Int = 0, separator::String = " | ", font=font_ubuntu_monospace_regular_20)
     TextLineNumbering(width=width, separator=separator, font=font)
 end
 

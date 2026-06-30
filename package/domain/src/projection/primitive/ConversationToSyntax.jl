@@ -26,8 +26,8 @@ import ..ConversationModule: ConversationDocument, ConversationConversation,
                               ConversationTurn, ConversationPart, ConversationThinking
 import ..EvaluatorModule: EvaluatorForm
 import ..TextModule: TextText, TextString
-import ..FontModule: font_ubuntu_monospace_regular_24,
-                     font_ubuntu_monospace_bold_24, font_ubuntu_monospace_italic_24
+import ..FontModule: font_ubuntu_monospace_regular_20,
+                     font_ubuntu_monospace_bold_20, font_ubuntu_monospace_italic_20
 import ..ColorModule: color_default,
                      color_solarized_blue, color_solarized_green,
                      color_solarized_magenta, color_solarized_gray
@@ -49,8 +49,8 @@ struct ConversationPartToSyntaxNode         <: Projection end
 
 # ── Style palette ──────────────────────────────────────────────────────────────
 
-const _FONT      = font_ubuntu_monospace_regular_24
-const _FONT_BOLD = font_ubuntu_monospace_bold_24
+const _FONT      = font_ubuntu_monospace_regular_20
+const _FONT_BOLD = font_ubuntu_monospace_bold_20
 const _LABEL_COL = color_solarized_blue
 const _TEXT_COL  = color_default
 const _CODE_COL  = color_solarized_green
@@ -120,7 +120,7 @@ end
 
 # A thinking block renders as a dimmed/italic "∴ <reasoning>" (or, for a redacted
 # block, "∴ [redacted]"), de-emphasised since reasoning is secondary prose.
-const _FONT_ITALIC = font_ubuntu_monospace_italic_24
+const _FONT_ITALIC = font_ubuntu_monospace_italic_20
 function _thinking_node(p, part, t::ConversationThinking)
     body() = t.redacted ? "[redacted thinking]" : _content_to_string(t.text)
     leaf = SyntaxLeaf(

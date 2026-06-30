@@ -28,7 +28,7 @@ import ..ProjectionModule: var"@projection"
 import ..FormulaModule: FormulaDocument, FormulaInsertion, FormulaReference,
                         FormulaFormula, FormulaEnvironment
 import ..TextModule: TextString
-import ..FontModule: StyleFont, font_ubuntu_monospace_regular_24, font_ubuntu_monospace_bold_24
+import ..FontModule: StyleFont, font_ubuntu_monospace_regular_20, font_ubuntu_monospace_bold_20
 import ..ColorModule: StyleColor, color_default, color_solarized_blue, color_solarized_cyan,
                       color_solarized_green, color_solarized_magenta, color_solarized_gray,
                       color_solarized_violet
@@ -58,7 +58,7 @@ _empty(font) = TextString("", font, color_default)
 # input value, so the default forward mapper (proj-unwrapping) is correct.
 
 @projection struct FormulaInsertionToSyntaxLeaf
-    style::StyleText = StyleText(font_ubuntu_monospace_regular_24, color_solarized_gray)
+    style::StyleText = StyleText(font_ubuntu_monospace_regular_20, color_solarized_gray)
 end
 
 function projection_print(p::FormulaInsertionToSyntaxLeaf, recursion, b::FormulaInsertion, ctx)
@@ -75,7 +75,7 @@ end
 # selects the whole reference).
 
 @projection struct FormulaReferenceToSyntaxLeaf
-    style::StyleText = StyleText(font_ubuntu_monospace_bold_24, color_solarized_violet)
+    style::StyleText = StyleText(font_ubuntu_monospace_bold_20, color_solarized_violet)
 end
 
 function projection_print(p::FormulaReferenceToSyntaxLeaf, recursion, r::FormulaReference, ctx)
@@ -101,10 +101,10 @@ end
 # delegation; its output child index depends on the mode.
 
 @projection struct FormulaFormulaToSyntaxNode
-    name::StyleText = StyleText(font_ubuntu_monospace_bold_24, color_solarized_blue)
-    op::StyleText   = StyleText(font_ubuntu_monospace_regular_24, color_solarized_gray)
+    name::StyleText = StyleText(font_ubuntu_monospace_bold_20, color_solarized_blue)
+    op::StyleText   = StyleText(font_ubuntu_monospace_regular_20, color_solarized_gray)
     # The result run shares the op font but is coloured distinctly (green).
-    result::StyleText = StyleText(font_ubuntu_monospace_regular_24, color_solarized_green)
+    result::StyleText = StyleText(font_ubuntu_monospace_regular_20, color_solarized_green)
 end
 
 # Flatten a result TextText into a single rendered string.
@@ -210,7 +210,7 @@ end
 # A plain list — one formula per line — like BookmarkList in the tutorial.
 
 @projection struct FormulaEnvironmentToSyntaxNode
-    font::StyleFont = font_ubuntu_monospace_regular_24
+    font::StyleFont = font_ubuntu_monospace_regular_20
 end
 
 function projection_print(p::FormulaEnvironmentToSyntaxNode, recursion, e::FormulaEnvironment, ctx)

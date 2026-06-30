@@ -13,7 +13,7 @@ import ..ProjectionApiModule: projection_print, Projection
 import ..ProjectionModule: var"@projection"
 import ..JsonModule: JsonInsertion, JsonNull, JsonBool, JsonNumber, JsonString, JsonArray, JsonObject, JsonObjectEntry
 import ..TextModule: TextString, hinted_text
-import ..FontModule: font_ubuntu_monospace_regular_24, font_ubuntu_monospace_bold_24
+import ..FontModule: font_ubuntu_monospace_regular_20, font_ubuntu_monospace_bold_20
 import ..ColorModule: color_solarized_blue, color_solarized_green, color_solarized_magenta, color_solarized_yellow, color_solarized_gray
 import ..StyleTextModule: StyleText
 import ..SyntaxModule: SyntaxLeaf, SyntaxNode
@@ -28,7 +28,7 @@ export JsonInsertionToSyntaxLeaf, JsonNullToSyntaxLeaf, JsonBoolToSyntaxLeaf, Js
 # ── JsonNullToSyntaxLeaf ─────────────────────────────────────────────────────
 
 @projection struct JsonNullToSyntaxLeaf
-    style::StyleText = StyleText(font_ubuntu_monospace_regular_24, color_solarized_magenta)
+    style::StyleText = StyleText(font_ubuntu_monospace_regular_20, color_solarized_magenta)
 end
 
 @projection_template JsonNullToSyntaxLeaf JsonNull (prj, doc) ->
@@ -37,7 +37,7 @@ end
 # ── JsonInsertionToSyntaxLeaf ───────────────────────────────────────────────────
 
 @projection struct JsonInsertionToSyntaxLeaf
-    style::StyleText = StyleText(font_ubuntu_monospace_regular_24, color_solarized_gray)
+    style::StyleText = StyleText(font_ubuntu_monospace_regular_20, color_solarized_gray)
 end
 
 @projection_template JsonInsertionToSyntaxLeaf JsonInsertion (prj, doc) ->
@@ -46,7 +46,7 @@ end
 # ── JsonBoolToSyntaxLeaf ─────────────────────────────────────────────────────
 
 @projection struct JsonBoolToSyntaxLeaf
-    style::StyleText = StyleText(font_ubuntu_monospace_regular_24, color_solarized_yellow)
+    style::StyleText = StyleText(font_ubuntu_monospace_regular_20, color_solarized_yellow)
 end
 
 @projection_template JsonBoolToSyntaxLeaf JsonBool (prj, doc) ->
@@ -55,7 +55,7 @@ end
 # ── JsonNumberToSyntaxLeaf ───────────────────────────────────────────────────
 
 @projection struct JsonNumberToSyntaxLeaf
-    style::StyleText = StyleText(font_ubuntu_monospace_regular_24, color_solarized_magenta)
+    style::StyleText = StyleText(font_ubuntu_monospace_regular_20, color_solarized_magenta)
 end
 
 @projection_template JsonNumberToSyntaxLeaf JsonNumber (prj, doc) ->
@@ -66,8 +66,8 @@ end
 # ── JsonStringToSyntaxLeaf ───────────────────────────────────────────────────
 
 @projection struct JsonStringToSyntaxLeaf
-    quote_style::StyleText = StyleText(font_ubuntu_monospace_regular_24, color_solarized_yellow)
-    value_style::StyleText = StyleText(font_ubuntu_monospace_regular_24, color_solarized_green)
+    quote_style::StyleText = StyleText(font_ubuntu_monospace_regular_20, color_solarized_yellow)
+    value_style::StyleText = StyleText(font_ubuntu_monospace_regular_20, color_solarized_green)
 end
 
 @projection_template JsonStringToSyntaxLeaf JsonString (prj, doc) ->
@@ -79,8 +79,8 @@ end
 # ── JsonArrayToSyntaxNode ────────────────────────────────────────────────────
 
 @projection struct JsonArrayToSyntaxNode
-    delimiter_style::StyleText = StyleText(font_ubuntu_monospace_bold_24, color_solarized_gray)
-    separator_style::StyleText = StyleText(font_ubuntu_monospace_regular_24, color_solarized_gray)
+    delimiter_style::StyleText = StyleText(font_ubuntu_monospace_bold_20, color_solarized_gray)
+    separator_style::StyleText = StyleText(font_ubuntu_monospace_regular_20, color_solarized_gray)
 end
 
 @projection_template JsonArrayToSyntaxNode JsonArray (prj, doc) ->
@@ -93,10 +93,10 @@ end
 # ── JsonObjectToSyntaxNode ───────────────────────────────────────────────────
 
 @projection struct JsonObjectToSyntaxNode
-    delimiter_style::StyleText = StyleText(font_ubuntu_monospace_bold_24, color_solarized_gray)
-    separator_style::StyleText = StyleText(font_ubuntu_monospace_regular_24, color_solarized_gray)
-    key_style::StyleText = StyleText(font_ubuntu_monospace_regular_24, color_solarized_blue)
-    colon_style::StyleText = StyleText(font_ubuntu_monospace_regular_24, color_solarized_gray)
+    delimiter_style::StyleText = StyleText(font_ubuntu_monospace_bold_20, color_solarized_gray)
+    separator_style::StyleText = StyleText(font_ubuntu_monospace_regular_20, color_solarized_gray)
+    key_style::StyleText = StyleText(font_ubuntu_monospace_regular_20, color_solarized_blue)
+    colon_style::StyleText = StyleText(font_ubuntu_monospace_regular_20, color_solarized_gray)
 end
 
 @projection_template JsonObjectToSyntaxNode JsonObject (prj, doc) ->

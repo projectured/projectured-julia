@@ -13,7 +13,7 @@ import ..CollectionModule: CellVector, ListNode
 import ..ProjectionApiModule: projection_print, projection_read, map_reference_forward, map_reference_backward, Projection, Change
 import ..SyntaxModule: SyntaxDocument, SyntaxLeaf, SyntaxNode
 import ..TextModule: TextText, TextString, TextNewline, TextDocument
-import ..FontModule: StyleFont, font_ubuntu_monospace_regular_24, font_dejavu_monospace_regular_24
+import ..FontModule: StyleFont, font_ubuntu_monospace_regular_20, font_dejavu_monospace_regular_20
 import ..ColorModule: color_default, color_solarized_gray
 import ..TypeDispatchingModule: TypeDispatchingProjection
 import ..ReferenceModule: ConcreteReferencePath, ElementReference, PositionReference, RangeReference, FieldReference, ProjectionReference, EmptyReferencePath, ReferencePath, TextRectangularReference, strip_reference_types
@@ -123,7 +123,7 @@ _default_marker_eligible(node) = length(node.children) > 0
 # Default ellipsis glyph for a collapsed node's body. Uses the DejaVu mono
 # font (which carries the … glyph) and a muted gray so the placeholder reads
 # as projection chrome rather than content.
-_default_ellipsis() = TextString("…", font_dejavu_monospace_regular_24, color_solarized_gray)
+_default_ellipsis() = TextString("…", font_dejavu_monospace_regular_20, color_solarized_gray)
 
 struct SyntaxNodeToText <: Projection
     indent_size::Int
@@ -451,7 +451,7 @@ function _syntax_list_to_text_node(input_node::ListNode, recursion, cache::IdDic
     # The paragraph separator inherits this element's content font (the first
     # rendered span) so a blank line's height tracks the content size rather than a
     # baked-in default; fall back to the module default only for an empty render.
-    nl_font = !isempty(spans) && spans[1] isa TextString ? spans[1].font : font_ubuntu_monospace_regular_24
+    nl_font = !isempty(spans) && spans[1] isa TextString ? spans[1].font : font_ubuntu_monospace_regular_20
     nl_node = ListNode(TextNewline(font=nl_font))
     setval!(getfield(cur_out, :next), nl_node)
     setval!(getfield(nl_node, :prev), cur_out)

@@ -59,7 +59,7 @@ edge case.
 """
 module NaturalProjectionModule
 
-import ..FontModule: font_ubuntu_monospace_regular_24
+import ..FontModule: font_ubuntu_monospace_regular_20
 import ..TypeDispatchingModule: TypeDispatchingProjection
 import ..RecursiveProjectionModule: RecursiveProjection
 import ..SequentialProjectionModule: SequentialProjection
@@ -116,7 +116,7 @@ function natural_to_syntax_dispatch()
 end
 
 """
-    NaturalToGraphics(; measure, font=font_ubuntu_monospace_regular_24,
+    NaturalToGraphics(; measure, font=font_ubuntu_monospace_regular_20,
                         wrap=true, extra=Pair{Type,Any}[])
         -> RecursiveProjection
 
@@ -134,7 +134,7 @@ text-measurement function (backend-supplied; e.g. `truetype_measure_text`).
               First match wins, so `extra` beats the defaults.
 """
 function NaturalToGraphics(; measure::Function,
-                           font = font_ubuntu_monospace_regular_24,
+                           font = font_ubuntu_monospace_regular_20,
                            wrap::Bool = true,
                            extra = Pair{Type,Any}[])
     w2g = WidgetToGraphics(font; measure = measure)

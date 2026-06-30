@@ -1,7 +1,7 @@
 function test_graphics()
 @testset "ReactiveSDL" begin
 
-sdlt = GraphicsText("test", 10, 20, font_ubuntu_monospace_regular_24, color_red)
+sdlt = GraphicsText("test", 10, 20, font_ubuntu_monospace_regular_20, color_red)
 @test sdlt.text == "test"
 @test sdlt.x == 10
 @test sdlt.y == 20
@@ -16,7 +16,7 @@ sdlt2 = GraphicsText(
     Cell("hi"),
     Cell(() -> Int32(off[] * 10)),
     Cell(Int32(0)),
-    Cell(font_ubuntu_monospace_regular_24),
+    Cell(font_ubuntu_monospace_regular_20),
     Cell(color_black),
     Cell(nothing)
 )
@@ -39,7 +39,7 @@ end # @testset "ReactiveSDL"
 end
 
 @testset "PreservingProjection" begin
-    canvas = GraphicsCanvas([GraphicsText("a", 0, 0, font_ubuntu_monospace_regular_24)])
+    canvas = GraphicsCanvas([GraphicsText("a", 0, 0, font_ubuntu_monospace_regular_20)])
     proj = PreservingProjection()
     iomap = projection_print(proj, nothing, canvas, nothing)
     @test iomap.input === canvas

@@ -6,7 +6,7 @@
 # Chain: Conversation → Syntax → Text → (WordWrap) → Graphics, with `JuliaDocument`
 # code bodies routed through the Julia projection and `TextText` straight to text.
 function make_conversation_projection_example(; measure=truetype_measure_text)
-    font = font_ubuntu_monospace_regular_24
+    font = font_ubuntu_monospace_regular_20
     w2g  = WidgetToGraphics(font; measure=measure)
     text_to_graphics = SequentialProjection(WordWrapping(measure=measure),
                                             TextToGraphics(measure=measure))

@@ -6,7 +6,7 @@
 # workbench/table chrome uses. JSON/Primitive/Math cells render through the
 # shared syntax fabric (no word-wrap), as before.
 make_table_projection_example(; measure=truetype_measure_text) =
-    NaturalToGraphics(measure=measure, font=font_ubuntu_regular_24)
+    NaturalToGraphics(measure=measure, font=font_ubuntu_regular_20)
 
 make_math_table_projection_example(; measure=truetype_measure_text) =
-    NaturalToGraphics(measure=measure, font=font_ubuntu_regular_24)
+    NaturalToGraphics(measure=measure, font=font_ubuntu_regular_20)

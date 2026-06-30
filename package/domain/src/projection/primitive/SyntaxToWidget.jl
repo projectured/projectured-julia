@@ -34,7 +34,7 @@ import ..ProjectionApiModule: projection_print, projection_printer_recurse,
                               map_reference_backward, Projection
 import ..SyntaxModule: SyntaxDocument, SyntaxLeaf, SyntaxNode
 import ..TextModule: TextText, TextString, TextDocument
-import ..FontModule: font_ubuntu_monospace_regular_24, font_dejavu_monospace_regular_24
+import ..FontModule: font_ubuntu_monospace_regular_20, font_dejavu_monospace_regular_20
 import ..ColorModule: color_default, color_solarized_gray
 import ..WidgetModule: WidgetCard, WidgetLabel, Point2D
 import ..LayoutModule: HorizontalLayout, VerticalLayout
@@ -201,7 +201,7 @@ _delim_text(ts::TextString) = TextText(CellVector(() -> TextDocument[ts]), Cell(
 # A projection-introduced chrome glyph (marker / ellipsis) in the muted DejaVu
 # mono font that carries ▾ ▸ … glyphs.
 _chrome_text(s::AbstractString) =
-    TextText(CellVector(() -> TextDocument[TextString(s, font_dejavu_monospace_regular_24, color_solarized_gray)]),
+    TextText(CellVector(() -> TextDocument[TextString(s, font_dejavu_monospace_regular_20, color_solarized_gray)]),
              Cell(nothing))
 
 function projection_print(p::SyntaxNodeToWidget, recursion, node::SyntaxNode, ctx)

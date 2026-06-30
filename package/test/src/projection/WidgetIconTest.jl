@@ -3,7 +3,7 @@
 # tinted to the label's foreground. v1 ships a built-in vector set (GraphicsPolyline);
 # glyph-font (GraphicsText) and raster (GraphicsImage) backings register the same way.
 
-using Projectured: GraphicsPolyline, GraphicsText, GraphicsViewport, font_ubuntu_regular_24
+using Projectured: GraphicsPolyline, GraphicsText, GraphicsViewport, font_ubuntu_regular_20
 
 # Collect every graphics primitive of type T in a canvas tree, descending into both
 # nested canvases and viewports (the tab strip lives inside a GraphicsViewport).
@@ -54,7 +54,7 @@ end
 end
 
 @testset "a glyph-font icon registers and renders as text (pluggable backing)" begin
-    register_icon!(:test_glyph_A, glyph_icon(font_ubuntu_regular_24, 'A'))
+    register_icon!(:test_glyph_A, glyph_icon(font_ubuntu_regular_20, 'A'))
     b = _btn(icon = :test_glyph_A)
     @test "A" in [string(t.text) for t in _prims_of(b, GraphicsText)]
 end

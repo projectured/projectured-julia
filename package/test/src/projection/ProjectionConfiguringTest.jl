@@ -4,7 +4,7 @@ end
 
 function test_projection_configuring()
 
-_font = font_ubuntu_monospace_regular_24
+_font = font_ubuntu_monospace_regular_20
 _mkchange(g, o) = Projectured.ProjectionApiModule.Change(g, o)
 _content_ref() = ConcreteReferencePath(FieldReference("content"), EmptyReferencePath())
 _input() = TextText(TextString("alpha dolor", _font, color_default))
@@ -72,7 +72,7 @@ end # @testset
 @testset "end-to-end: clicking a control-bar checkbox flips the inner field" begin
 
     stub(t, f) = (length(t) * 10, 24)
-    font = font_ubuntu_monospace_regular_24
+    font = font_ubuntu_monospace_regular_20
     fg   = (0xee, 0xee, 0xee, 0xff)
 
     inner = TextFiltering()                       # case_insensitive=false, invert=false
@@ -106,7 +106,7 @@ end # @testset
 @testset "end-to-end: typing edits the inner projection's pattern live" begin
 
     stub(t, f) = (max(1, length(t)) * 10, 24)
-    font = font_ubuntu_monospace_regular_24
+    font = font_ubuntu_monospace_regular_20
 
     inner = TextHighlighting("dolor")
     pcp   = ProjectionConfiguringProjection(inner=inner)

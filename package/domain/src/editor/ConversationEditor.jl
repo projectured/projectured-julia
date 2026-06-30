@@ -47,7 +47,7 @@ import ..McpModule: execute_julia_code, last_eval_value
 import ..DocumentModule: Document
 import ..WidgetModule: WidgetCard, WidgetAvatar, WidgetLabel, Point2D
 import ..LayoutModule: VerticalLayout, HorizontalLayout
-import ..FontModule: font_ubuntu_monospace_regular_24
+import ..FontModule: font_ubuntu_monospace_regular_20
 import ..ColorModule: color_default, color_solarized_gray
 import ..ReferenceModule: Reference, ConcreteReferencePath, FieldReference,
                           RangeReference, EmptyReferencePath
@@ -390,7 +390,7 @@ _header(glyph::AbstractString, label::AbstractString) =
         WidgetLabel(Point2D(0, 0), String(label)),
     ]; vertical_align = :center, gap = 8)
 
-const _FONT        = font_ubuntu_monospace_regular_24
+const _FONT        = font_ubuntu_monospace_regular_20
 const _PLACEHOLDER = "type here…"
 
 # A zero-width cursor at offset `k` inside span `span` (1-based) of a body

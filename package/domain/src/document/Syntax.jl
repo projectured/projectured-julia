@@ -29,7 +29,7 @@ import ..ReferenceBuilderModule: var"@reference"
 import ..OperationModule: ReplaceSelectionOperation
 import ..KeyboardModule: KeyDown
 import ..GestureBindingModule: var"@gestures"
-import ..FontModule: font_ubuntu_monospace_regular_24
+import ..FontModule: font_ubuntu_monospace_regular_20
 import ..ColorModule: color_default
 export SyntaxNode, SyntaxLeaf, SyntaxDocument, SyntaxInsertion, render, setfn!,
        SyntaxDelimitation, SyntaxIndentation, SyntaxCollapsible,
@@ -269,7 +269,7 @@ SyntaxLeaf(value; open=TextString(""), close=TextString(""),
 # they inherit the same defaults.
 SyntaxLeaf(value::AbstractString; kwargs...) = SyntaxLeaf(TextString(value); kwargs...)
 SyntaxLeaf(f::Function; kwargs...) =
-    SyntaxLeaf(TextString(f, font_ubuntu_monospace_regular_24, color_default); kwargs...)
+    SyntaxLeaf(TextString(f, font_ubuntu_monospace_regular_20, color_default); kwargs...)
 
 # Positional delimiter forms retained for callers not yet migrated to keywords.
 SyntaxLeaf(open::TextString, close::TextString, value::TextString) =
@@ -282,7 +282,7 @@ SyntaxLeaf(open::AbstractString, close::AbstractString, value::AbstractString) =
     SyntaxLeaf(TextString(open), TextString(close), TextString(value), 0, false, nothing)
 
 SyntaxLeaf(open::AbstractString, close::AbstractString, f::Function) =
-    SyntaxLeaf(TextString(open), TextString(close), TextString(f, font_ubuntu_monospace_regular_24, color_default), 0, false, nothing)
+    SyntaxLeaf(TextString(open), TextString(close), TextString(f, font_ubuntu_monospace_regular_20, color_default), 0, false, nothing)
 
 # ── Node ─────────────────────────────────────────────────────────────────
 

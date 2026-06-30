@@ -7,7 +7,7 @@ function make_sql_table_projection_example(; measure=truetype_measure_text,
                                              pool=OdbcConnectionPool(),
                                              instance=make_database_instance_document_example())
     # The query result cells are JSON documents; render them like the table example.
-    w2g  = WidgetToGraphics(font_ubuntu_regular_24; measure=measure)
+    w2g  = WidgetToGraphics(font_ubuntu_regular_20; measure=measure)
     json = SequentialProjection(
         RecursiveProjection(JsonToSyntax()),
         RecursiveProjection(SyntaxToText()),

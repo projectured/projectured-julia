@@ -3,7 +3,7 @@ function make_graphics_caching(projection; render=render_canvas)
 end
 
 function make_scrolling_projection(projection; measure=truetype_measure_text,
-                                    font=font_ubuntu_monospace_regular_24)
+                                    font=font_ubuntu_monospace_regular_20)
     NestingProjection(
         WidgetScrollPaneToGraphicsViewport(font, measure);
         recursion=projection,
@@ -11,7 +11,7 @@ function make_scrolling_projection(projection; measure=truetype_measure_text,
 end
 
 function make_introspection_projection(projection; measure=truetype_measure_text)
-    font = font_ubuntu_monospace_regular_24
+    font = font_ubuntu_monospace_regular_20
     fg   = (0xee, 0xee, 0xee, 0xff)
     w2g  = WidgetToGraphics(font; measure=measure)
     object_chain = SequentialProjection(
@@ -82,7 +82,7 @@ end
 # Expects a TextText document (the text examples).
 function make_text_configuring_projection(inner_text_projection;
                                           measure=truetype_measure_text,
-                                          font=font_ubuntu_monospace_regular_24)
+                                          font=font_ubuntu_monospace_regular_20)
     fg  = (0x22, 0x22, 0x22, 0xff)   # dark text for the light example background
     w2g = WidgetToGraphics(font; measure=measure)
     renderer = RecursiveProjection(TypeDispatchingProjection(vcat(

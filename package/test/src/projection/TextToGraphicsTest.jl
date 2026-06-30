@@ -28,7 +28,7 @@ _rects(c) = [(x = ax, y = ay, w = Int(e.w), h = Int(e.h), color = e.color) for (
 
 # basic layout (wrapping is now done by WordWrapping upstream)
 st_wrap = TextText(
-    TextString("Hello world this is a long text", font_ubuntu_monospace_regular_24, color_red),
+    TextString("Hello world this is a long text", font_ubuntu_monospace_regular_20, color_red),
 )
 m = _test_measure(10, 18)
 chain = SequentialProjection(WordWrapping(max_width=200, measure=m), TextToGraphics(measure=m))
@@ -40,7 +40,7 @@ texts = _texts(sdl_cell)
 
 # newline handling
 st_nl = TextText(
-    TextString("line1\nline2\nline3", font_ubuntu_monospace_regular_24, color_white),
+    TextString("line1\nline2\nline3", font_ubuntu_monospace_regular_20, color_white),
 )
 sdl_nl = projection_print(TextToGraphics(measure=_test_measure(10, 20)), st_nl).output
 items_nl = _texts(sdl_nl)
@@ -54,8 +54,8 @@ items_nl = _texts(sdl_nl)
 
 # color preservation
 st_color = TextText(
-    TextString("red text", font_ubuntu_monospace_regular_24, color_red),
-    TextString(" blue text", font_ubuntu_monospace_regular_24, color_blue),
+    TextString("red text", font_ubuntu_monospace_regular_20, color_red),
+    TextString(" blue text", font_ubuntu_monospace_regular_20, color_blue),
 )
 sdl_color = projection_print(TextToGraphics(measure=_test_measure(10, 48)), st_color).output
 items_c = _texts(sdl_color)
@@ -69,7 +69,7 @@ items_c = _texts(sdl_color)
 # reactivity: a text change invalidates that line's segment vector (but, by
 # per-line locality, NOT the top-level line list — see the locality testset).
 st_react = TextText(
-    TextString("short", font_ubuntu_monospace_regular_24, color_white),
+    TextString("short", font_ubuntu_monospace_regular_20, color_white),
 )
 sdl_react = projection_print(TextToGraphics(measure=_test_measure(10, 48)), st_react).output
 line1 = sdl_react.elements[2].elements[1]   # top[2]=line stack, [1]=first line sub-canvas
@@ -81,7 +81,7 @@ items_r = _texts(sdl_react)
 @test items_r[1].text == "changed"
 
 # hex color parsing
-st_hex = TextText(TextString("hex", font_ubuntu_monospace_regular_24, StyleColor(1.0, 0.53, 0.0, 1.0)))
+st_hex = TextText(TextString("hex", font_ubuntu_monospace_regular_20, StyleColor(1.0, 0.53, 0.0, 1.0)))
 sdl_hex = projection_print(TextToGraphics(measure=_test_measure(10, 48)), st_hex).output
 h = _texts(sdl_hex)[1]
 # StyleColor is now carried through unchanged (no byte round-trip).
@@ -92,9 +92,9 @@ end # @testset "TextToGraphics"
 @testset "TextToGraphics ListNode path" begin
 
 # Build a TextText with ListNode elements: two paragraphs separated by TextNewline
-node = ListNode(TextString("Hello world", font_ubuntu_monospace_regular_24, color_red))
-push!(node, TextNewline(font=font_ubuntu_monospace_regular_24))
-push!(node, TextString("Second paragraph", font_ubuntu_monospace_regular_24, color_blue))
+node = ListNode(TextString("Hello world", font_ubuntu_monospace_regular_20, color_red))
+push!(node, TextNewline(font=font_ubuntu_monospace_regular_20))
+push!(node, TextString("Second paragraph", font_ubuntu_monospace_regular_20, color_blue))
 
 tt = TextText()
 tt.elements = node
@@ -133,14 +133,14 @@ end # @testset "TextToGraphics ListNode path"
 
 # Verify laziness: next paragraphs are not computed until forced
 counter = Ref(0)
-node = ListNode(TextString("Para 1", font_ubuntu_monospace_regular_24, color_white))
+node = ListNode(TextString("Para 1", font_ubuntu_monospace_regular_20, color_white))
 
 # Build a lazy chain of paragraphs
-node2 = ListNode(TextNewline(font=font_ubuntu_monospace_regular_24))
+node2 = ListNode(TextNewline(font=font_ubuntu_monospace_regular_20))
 node.next = node2
 node2.prev = node
 
-node3 = ListNode(TextString("Para 2", font_ubuntu_monospace_regular_24, color_white))
+node3 = ListNode(TextString("Para 2", font_ubuntu_monospace_regular_20, color_white))
 setfn!(getfield(node2, :next), () -> begin
     counter[] += 1
     node3.prev = node2
@@ -169,9 +169,9 @@ end # @testset "TextToGraphics ListNode lazy evaluation"
 
 m = _test_measure(10, 18)
 st = TextText(
-    TextString("ab", font_ubuntu_monospace_regular_24, color_white),
+    TextString("ab", font_ubuntu_monospace_regular_20, color_white),
     TextGraphics(ImageMemory(nothing), 64, 64),
-    TextString("cd", font_ubuntu_monospace_regular_24, color_white),
+    TextString("cd", font_ubuntu_monospace_regular_20, color_white),
 )
 canvas = projection_print(TextToGraphics(measure=m), st).output
 
@@ -200,9 +200,9 @@ end # @testset "TextToGraphics inline image"
 m = _test_measure(10, 18)
 p = TextToGraphics(measure=m)
 st = TextText(
-    TextString("ab", font_ubuntu_monospace_regular_24, color_white),
+    TextString("ab", font_ubuntu_monospace_regular_20, color_white),
     TextGraphics(ImageMemory(nothing), 64, 64),
-    TextString("cd", font_ubuntu_monospace_regular_24, color_white),
+    TextString("cd", font_ubuntu_monospace_regular_20, color_white),
 )
 iomap = projection_print(p, st)
 
@@ -225,9 +225,9 @@ end # @testset "TextToGraphics inline image hit-test"
 @testset "TextToGraphics renders fill_color as a background rect" begin
 
 m = _test_measure(10, 18)
-hl = TextString("hi", font_ubuntu_monospace_regular_24, color_red)
+hl = TextString("hi", font_ubuntu_monospace_regular_20, color_red)
 hl.fill_color = color_blue              # a highlighted span opts into a swatch
-plain = TextString("xy", font_ubuntu_monospace_regular_24, color_red)
+plain = TextString("xy", font_ubuntu_monospace_regular_20, color_red)
 st = TextText(hl, plain)
 canvas = projection_print(TextToGraphics(measure=m), st).output
 
@@ -256,11 +256,11 @@ end # @testset "TextToGraphics fill_color rect"
 # top-level line list (so the backend dirty-walk descends and repaints just the
 # edited line) and never an earlier line.
 m = _test_measure(10, 20)
-nl() = TextNewline(font=font_ubuntu_monospace_regular_24)
+nl() = TextNewline(font=font_ubuntu_monospace_regular_20)
 st = TextText(
-    TextString("alpha", font_ubuntu_monospace_regular_24, color_white), nl(),
-    TextString("beta",  font_ubuntu_monospace_regular_24, color_white), nl(),
-    TextString("gamma", font_ubuntu_monospace_regular_24, color_white),
+    TextString("alpha", font_ubuntu_monospace_regular_20, color_white), nl(),
+    TextString("beta",  font_ubuntu_monospace_regular_20, color_white), nl(),
+    TextString("gamma", font_ubuntu_monospace_regular_20, color_white),
 )
 canvas = projection_print(TextToGraphics(measure=m), st).output
 

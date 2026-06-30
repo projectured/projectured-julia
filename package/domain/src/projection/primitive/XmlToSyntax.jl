@@ -13,7 +13,7 @@ import ..ProjectionApiModule: projection_print, projection_printer_recurse, proj
 import ..ProjectionModule: var"@projection"
 import ..XmlModule: XmlDocument, XmlInsertion, XmlText, XmlAttribute, XmlElement
 import ..TextModule: TextString
-import ..FontModule: StyleFont, font_ubuntu_monospace_regular_24, font_ubuntu_monospace_bold_24
+import ..FontModule: StyleFont, font_ubuntu_monospace_regular_20, font_ubuntu_monospace_bold_20
 import ..ColorModule: StyleColor, color_black, color_default, color_solarized_blue, color_solarized_green, color_solarized_magenta, color_solarized_cyan, color_solarized_yellow, color_solarized_gray
 import ..StyleTextModule: StyleText
 import ..SyntaxModule: SyntaxDocument, SyntaxLeaf, SyntaxNode
@@ -53,7 +53,7 @@ export XmlInsertionToSyntaxLeaf, XmlTextToSyntaxLeaf, XmlElementToSyntaxNode, Xm
 # it evaluates to " " when attributes are present and "" otherwise.
 
 @projection struct XmlTextToSyntaxLeaf
-    style::StyleText = StyleText(font_ubuntu_monospace_regular_24, color_black)
+    style::StyleText = StyleText(font_ubuntu_monospace_regular_20, color_black)
 end
 
 function map_reference_forward(::XmlTextToSyntaxLeaf, iomap, reference)
@@ -105,7 +105,7 @@ end
 # ── XmlInsertionToSyntaxLeaf ───────────────────────────────────────────────────
 
 @projection struct XmlInsertionToSyntaxLeaf
-    style::StyleText = StyleText(font_ubuntu_monospace_regular_24, color_solarized_gray)
+    style::StyleText = StyleText(font_ubuntu_monospace_regular_20, color_solarized_gray)
 end
 
 function projection_print(p::XmlInsertionToSyntaxLeaf, recursion, x::XmlInsertion, ctx)
@@ -114,11 +114,11 @@ function projection_print(p::XmlInsertionToSyntaxLeaf, recursion, x::XmlInsertio
 end
 
 @projection struct XmlElementToSyntaxNode
-    tag::StyleText        = StyleText(font_ubuntu_monospace_bold_24, color_solarized_blue)
-    delim::StyleText      = StyleText(font_ubuntu_monospace_regular_24, color_solarized_gray)
-    attr_name::StyleText  = StyleText(font_ubuntu_monospace_regular_24, color_solarized_green)
-    quote_style::StyleText = StyleText(font_ubuntu_monospace_regular_24, color_solarized_yellow)
-    attr_value::StyleText = StyleText(font_ubuntu_monospace_regular_24, color_solarized_cyan)
+    tag::StyleText        = StyleText(font_ubuntu_monospace_bold_20, color_solarized_blue)
+    delim::StyleText      = StyleText(font_ubuntu_monospace_regular_20, color_solarized_gray)
+    attr_name::StyleText  = StyleText(font_ubuntu_monospace_regular_20, color_solarized_green)
+    quote_style::StyleText = StyleText(font_ubuntu_monospace_regular_20, color_solarized_yellow)
+    attr_value::StyleText = StyleText(font_ubuntu_monospace_regular_20, color_solarized_cyan)
 end
 
 # Selection mapping (School A). The output node's children are
