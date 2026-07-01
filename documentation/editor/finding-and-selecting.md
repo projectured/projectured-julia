@@ -175,6 +175,26 @@ jsondoc = first(search_objects(editor.document, x -> x isa JsonDocument))
 `editor.document`, so those paths are not directly selectable on the screen —
 search `editor.document` with a domain-typed predicate when you intend to select.)
 
+## Searching more than the document (iomaps)
+
+Both search functions walk **any** object graph, not only documents — so you can
+point them at an **iomap** to search the *whole projection pipeline* at once:
+every intermediate document and every projected output tree, at every stage.
+
+```julia
+iomap = projection_print(proj, doc)          # links input → output, holds every stage
+search_references(iomap, "Wonderland")       # every location across the pipeline
+search_objects(iomap, x -> x isa JsonNumber) # every number, source through output
+```
+
+This is a **debugging / inspection** tool: the returned paths are rooted at the
+iomap (`::…IoMap.input…` / `.output…`), so — like searching `jsondoc` above —
+they are **not** selectable on the screen. It is the go-to move for "the value is
+in the document but not on screen — which stage dropped it?" and for diagnosing
+reactivity. The [debugging guide](../debugging.md#searching-the-pipeline-state-iomaps)
+covers the workflow (reading iomap paths, `search_references` vs `search_objects`
+counts as a reactivity signal).
+
 ## Notes
 
 - All three primitives unwrap reactive `Cell`s transparently — you do **not**

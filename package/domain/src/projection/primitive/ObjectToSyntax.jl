@@ -376,6 +376,12 @@ are dropped, which keeps cyclic graphs (e.g. a doubly-linked list's `prev`/`next
 finite. `maxdepth` separately bounds recursion depth for structures that are never
 the *same* object, e.g. an infinite lazy list whose nodes are generated fresh on
 demand. See [`search_objects`](@ref) for the matching objects themselves (each once).
+
+`obj` need not be a document: passing an **iomap** (`projection_print(proj, doc)`)
+walks the whole projection pipeline — every stage's input and output — so you can
+find where a value lives across all stages. Paths rooted at an iomap are for
+inspection only (not selectable); see the debugging guide's
+"Searching the pipeline state".
 """
 function search_references(obj, predicate; include_selection::Bool=false, maxdepth::Int=64)
     results = ReferencePath[]

@@ -17,7 +17,7 @@ browsing tools below. Do not guess names — search for them.
 | Projection composition | `SequentialProjection`, `RecursiveProjection`, `TypeDispatchingProjection`, `NestingProjection`, `AlternativeProjection`; generic: `CopyingProjection`, `SortingProjection`, `FilteringProjection`, `FocusingProjection` | `higher-order-projections`, `generic-projections` |
 | Reference | `ReferencePath`, `EmptyReferencePath`, `ConcreteReferencePath`; steps `FieldReference`, `RangeReference` (`ElementReference`/`PositionReference`), `ProjectionReference`, `TypeReference`; DSL `@reference`, `@reference_case`; `evaluate_reference` | `editor/reference` |
 | Selection | `set_selection!`, `clear_selection!`, `replace_selection!` | `editor/selection`, `selection-deep-dive` |
-| Search (by content) | `search_references`, `search_objects`, `print_object` | `editor/finding-and-selecting` |
+| Search (by content) | `search_references`, `search_objects`, `print_object` (search a document **or an iomap** — the whole pipeline) | `editor/finding-and-selecting`, `debugging` |
 | Operation | `Operation`, `evaluate_operation`, `ReplaceSelectionOperation`, `ReplaceReferencedValue` (+ `replace_document` / `insert_elements` / `delete_elements`), `StringReplaceRangeOperation`, `CompoundOperation` | `operations` |
 | Editor & loop | `Editor`, `run!`, `read!`/`evaluate!`/`print!`, `McpServer`, `execute_julia_code` | `editor` |
 | Screen / workbench | `ScreenDocument` → `WindowDocument` → `WorkbenchWorkbench` → `WorkbenchPage` → `WorkbenchEditor`; `ScreenToScreen`, `WindowManagerProjection` | `document/workbench`, `editor` |
@@ -34,7 +34,9 @@ browsing tools below. Do not guess names — search for them.
 
 - **Find** — `search_references(editor.document, query)` → paths;
   `search_objects(...)` → nodes. `query` is a predicate `node -> Bool`, or a
-  `String`/`Regex` matching leaf text.
+  `String`/`Regex` matching leaf text. Both walk **any** graph, so passing an
+  **iomap** (`projection_print(proj, doc)`) searches the whole projection
+  pipeline — a debugging move for "where did the value go?" (see `debugging`).
 - **Resolve** — `evaluate_reference(editor.document, path)` → the node at a path.
 - **Change** — build an `Operation`, then `evaluate_operation(editor, op)`
   (e.g. `ReplaceSelectionOperation(path)` to select). This is the *one* way to

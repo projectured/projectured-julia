@@ -105,6 +105,79 @@ This is exactly the read-eval-print loop from
 [program/src/editor/Editor.jl](../package/kernel/src/editor/Editor.jl), peeled
 apart so you can step through it one call at a time.
 
+## Searching the pipeline state (iomaps)
+
+`search_references` / `search_objects` (the content-search primitives from the
+[finding-and-selecting guide](editor/finding-and-selecting.md)) are usually run
+against `editor.document`, but they walk **any** object graph — unwrapping cells,
+descending struct fields and collections. An **iomap** is exactly such a graph:
+the value `projection_print` returns links a projection's *input* to its *output*
+and stores every nested stage (`input`, `output`, `child_iomaps`, `step_iomaps`,
+`inner_iomap`). Searching an iomap therefore searches the **entire projection
+pipeline at once** — every intermediate document and every projected output tree,
+at every stage — not just the source document.
+
+```julia
+julia> iomap = projection_print(make_json_projection_example(),
+                                make_json_document_example());
+
+julia> search_references(iomap, "Wonderland")   # 16 paths — one per pipeline location
+julia> search_objects(iomap,    "Wonderland")   # 1 object  — the value itself, once
+julia> search_references(make_json_document_example(), "Wonderland")   # 1 path — source only
+```
+
+The value shows up **16 times** in the iomap because it appears at 16 distinct
+*locations* along the pipeline — the source `JsonString`, each projection step's
+input, the projected `SyntaxNode` tree, the text, … — yet `search_objects`
+returns it **once**, because all 16 locations are the *same* `String` object,
+shared by reference. That gap is itself a diagnostic (below).
+
+### Reading an iomap path
+
+An iomap-rooted `ReferencePath` prints as its stages, so the path tells you which
+pipeline stage each hit is in at a glance:
+
+```
+::SequentialProjectionIoMap.input::JsonObject.entries…::JsonString               # source document
+::SequentialProjectionIoMap.step_iomaps::Array[1]::RuleIoMap.input::JsonObject…   # a stage's input
+::SequentialProjectionIoMap.step_iomaps::Array[1]::RuleIoMap.output::SyntaxNode…  # a stage's output
+::…child_iomaps::Array[4]::RuleIoMap.input::JsonObjectEntry…                      # nested projection
+```
+
+- `.input` — a stage's input document.
+- `.output` — a stage's projected output tree.
+- `.child_iomaps` / `.step_iomaps` / `.inner_iomap` — descend into nested /
+  sequential projections.
+
+`evaluate_reference(iomap, path)` resolves an iomap path back to the value at that
+location, exactly as it resolves a document path.
+
+### Debugging reactivity: where did the value go?
+
+This is the payoff of searching the iomap rather than the document. When a value
+is present in the source but *missing from the rendered output* — a projection
+silently dropped it, a reactive cell didn't invalidate, a structural child-swap
+didn't propagate — search the iomap and read which stages it survives to:
+
+- **Present in an early `.input`, absent from a later stage's `.output`** → that
+  stage's printer dropped it. Narrow to the projection between those two stages.
+- **`search_references` count high but `search_objects` count > 1** → the value
+  was *copied* somewhere instead of flowing by reference: a stale copy is sitting
+  next to the fresh one, the classic signature of a broken reactive link. When
+  reactivity is healthy the same object flows through and `search_objects`
+  collapses to one.
+- **Nothing in any `.output`** → the value never entered the projected tree; look
+  at the first projection, not the renderer.
+
+Because one call covers every stage, you can bisect the pipeline without
+hand-stepping `projection_print` layer by layer.
+
+> The paths returned from an **iomap** search are rooted at the iomap
+> (`::…IoMap.input…` / `.output…`), so they are for **inspection only** — do
+> **not** feed them to `set_selection!` / `replace_selection!`. For a selectable
+> path, search `editor.document` instead (see the
+> [finding-and-selecting guide](editor/finding-and-selecting.md)).
+
 ## Tracing projection calls (event propagation)
 
 > ⚠️ **Not working on the current Julia (1.12).** The approach below relies on
