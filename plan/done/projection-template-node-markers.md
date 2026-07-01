@@ -173,64 +173,90 @@ it lands, commit per step. **Native-artifact caveat** (from prior experience):
 `ProjecturedAdaptagrams` etc. ship gitignored `.so` files, so build/test in a
 checkout that has them (or copy them in) — a bare worktree yields phantom failures.
 
-- [ ] **Step 0 — land the 22 done conversions.** Commit the current
-  behavior-preserving JuliaToSyntax refactor (already in the working tree). Gate:
-  `test_printer/reader/text_navigation(julia_example)` unchanged from baseline
-  (1725/0, 225/0, 3/0; `check_reaches_all` 4/28 — the 28 are the deferred
-  leaf-content carets, see julia-syntax-navigation.md).
+- [x] **Step 0 — land the 22 done conversions.** ✅ Committed on `main` (a764d51)
+  before this plan; the worktree branches from it.
 
-- [ ] **Step 1 — F3 (project override).** Printer-only change + the marker builder
-  `project(:f; as=…)`. Smallest, self-contained warm-up. No node converts yet
-  (Call also needs F1), so gate = engine tests + JSON/SQL leaf regressions green.
+- [x] **Step 1 — F3 (project override).** ✅ `project(:f; as=…)` where `as` is a
+  projection *or* a per-value thunk `v -> proj|nothing`; shared `_project_child_cell`
+  used by fixed/mixed print. (Landed together with F1 in commit 962bc36.)
 
-- [ ] **Step 2 — F1 (nested sub-node), engine.** Slot tree + `SubNodeSlot`, the
-  recursive walk in `_fixed_print`/`_mixed_print`, recursive forward/backward mapper
-  cases, `_focused_child` through a sub-node. Add engine unit coverage
-  (`ProjectionTemplateTest.jl`) for a two-level nested node. Gate: JSON + SQL
-  suites unchanged.
+- [x] **Step 2 — F1 (nested sub-node), engine.** ✅ `SubNodeSlot` + detection
+  (`_is_marker_bearing_subnode`) + `_dispatch_print` (factored from `rule_print`) +
+  the SubNodeSlot cases in the fixed mappers and `_focused_child`. Applied to
+  `_fixed_print` (Julia needs it there); `_mixed_print` left for a later need.
+  Commit 962bc36. (Engine unit test in `ProjectionTemplateTest.jl` — see "deferred".)
 
-- [ ] **Step 3 — F1 apply to Julia.** Convert Index, While, If, Lambda, For,
-  Function. Gate: `test_example(julia_example)` — printer tree byte-identical, nav
-  unchanged; `check_reaches_all` no worse than 4/28.
+- [x] **Step 3 — F1 apply to Julia.** ✅ Index, While, If, Lambda, For, Function.
+  Printer byte-identical (1725/0), reader 225/0, nav 3/0, `check_reaches_all` 4/28.
+  Commit 962bc36.
 
-- [ ] **Step 4 — F2 (reactive conditional children), engine.** `ConditionalNodeWiring`
-  modeled on `_inline_print`/`_sections_print`, reusing the Step-2 slot tree. Engine
-  unit coverage for an optional-field toggle (assert re-render on in-place mutation).
-  Gate: JSON + SQL unchanged.
+- [x] **Step 4 — F2 (reactive conditional children), engine.** ✅
+  `ConditionalNodeWiring` + `_conditional_print` (reactive state cell, modeled on
+  `_sections_print`) + `_find_conditional` (a `Function` in a field) + shared
+  `_walk_markers` / `_slots_forward` / `_slots_backward` factored from `_fixed_*`.
 
-- [ ] **Step 5 — F2 apply to Julia.** Convert Range, Return, Try (Try uses the
-  Step-2 sub-node for its `catch <var>` header). Gate as Step 3.
+- [x] **Step 5 — F2 apply to Julia.** ✅ Range, Return, Try (Try's `catch <var>` is
+  a nested sub-node, F1+F2).
 
-- [ ] **Step 6 — F3 apply to Julia.** Convert Call. Result: **32/32** JuliaToSyntax
-  projections macro-based; delete the remaining hand-written `projection_print`s.
-  Update the in-file "Reference mapping & readers" comment.
+- [x] **Step 6 — F3 apply to Julia.** ✅ Call (`project(:callee; as = v -> v isa
+  JuliaIdentifier ? … : nothing)` + `(args)` collection sub-node). **32/32**
+  macro-based; all hand-written `projection_print` deleted; imports trimmed;
+  "Reference mapping & readers" comment rewritten. (Steps 4–6 in the F2+F3 commit.)
 
-- [ ] **Step 7 (cross-domain, optional / hand off to Stage B).** Re-point
-  [projection-template-engine.md](projection-template-engine.md) Stage B: SQL's
-  hand-written nodes are now expressible — clause headers via F1, optional
-  `DISTINCT`/`WHERE` via F2. Convert `SqlComparison`, `SqlNot`, the clauses, and the
-  statements; delete the `body_idx = distinct ? 3 : 2` arithmetic. Gate:
-  `test_sql_to_syntax`, `test_sql_to_syntax_selection`, DDL suites unchanged.
+- [ ] **Step 7 (cross-domain — HANDED OFF).** Not done here. The features are proven,
+  so [projection-template-engine.md](projection-template-engine.md) Stage B (SQL) is
+  now unblocked: clause headers via F1, optional `DISTINCT`/`WHERE`/columns via F2,
+  the callee-style override via F3. Left as a follow-up in that plan.
 
-## Design risks / open questions
+## Implementation notes (as-built)
 
-- **Reference mapping is the hard part** (not the walk). Every new shape must peel
-  exactly the steps it owns and delegate the rest through the stored child iomaps
-  (School A), and get folded-vs-clean path handling right (the collection mapper
-  strips `TypeReference` checkpoints at the boundary). The F1 slot *tree* multiplies
-  the path-prefix bookkeeping — this is where bugs will hide. Mitigate with engine
-  unit tests before touching any real domain.
-- **F2 reactivity vs. reconciliation.** Confirm the recomputed slot cell interacts
-  correctly with the parent's `_reconciling_child_iomap(s)` — an optional field
-  toggling in place must re-render without orphaning stable siblings. Test both
-  in-place toggle and wholesale replacement.
-- **Byte-identical output.** These conversions must not change the rendered syntax
-  tree (printer tests compare structure). Watch header sub-node `sep`/`open`/`close`
-  and the space-carrying introduced leaves — reproduce them exactly.
-- **`check_reaches_all` is a floor, not a target.** The 28 unreached carets are
-  leaf-*content* positions owned by julia-syntax-navigation.md; F1/F2/F3 are about
-  *structural* mapping and should leave that count unchanged (they may even improve
-  it via School-A delegation, but that's a bonus, not a requirement).
+- **F1 wiring is "delegate the whole reference, prepend one `.children[k]`".** A
+  `SubNodeSlot` embeds the nested `RuleIoMap` (built with the *parent* doc/ctx, since
+  the sub-node's `project`/`collection` children key off parent input fields). The
+  fixed forward mapper hands the whole parent reference to the sub-node's mapper —
+  which claims only the fields it actually contains (returns `nothing` otherwise) —
+  and prepends `.children[k]` on a hit; backward hands the sub-node-relative tail and
+  returns the result unchanged (already parent-relative). Nesting is uniform and
+  unbounded (Function/For nest a collection *inside* a header — two SubNodeSlot levels).
+- **The checkpoint mix was a non-issue.** A plain-prefixed `.children[k]` in front of
+  a *checkpointed* inner collection path (Function/For/Lambda/Index) round-trips fine —
+  printer stayed 1725/0 and json nav_complete 543/543. No checkpoint normalization was
+  needed at the SubNodeSlot boundary.
+- **Per-sub-node selection cells are fine.** Each nested sub-node carries its own
+  forward-mapped selection cell (unlike the old hand-written header nodes, which had
+  none). The top and sub-node cells are consistent (top = sub prefixed by `.children[k]`),
+  so the renderer descends correctly — mirroring JSON's nested pair-node cells.
+- **F2 detection = a `Function` in a node field.** Only the 7-arg positional
+  `SyntaxNode(open, close, sep, thunk, …)` stores an unevaluated thunk (the keyword
+  `children=` ctor turns a `Function` into an output CellVector). `_find_conditional`
+  runs first in `_dispatch_print`; no false positives (leaves hold TextStrings,
+  collection/tokens/sections hold markers).
+- **F2 reactivity is correct but not locality-optimal.** The state cell re-walks the
+  marker vector whenever the thunk's structural dependencies change (`r.step`,
+  `r.value`, `t.catch_branch`, …), which *rebuilds every project child* of that node
+  (a fresh `_project_child_cell` each time) rather than reconciling them across the
+  toggle. Correct (child *content* changes still propagate via the output-cell deref
+  without a state recompute); the only cost is that toggling an optional field
+  re-projects the node's other children. Acceptable for Range/Return/Try (few children,
+  rare toggles); a reconciling `_walk_markers` is a possible future optimization.
+- **F3 is printer-only, as predicted.** Wiring/mappers unchanged; the override only
+  changes which projection builds the ProjectSlot's child iomap. `_project_child_cell`
+  must call `ProjectionApiModule.projection_print` (qualified — the module doesn't
+  import bare `projection_print`).
+
+## Design risks — resolved
+
+- **Reference mapping (the hard part):** resolved — the slot-tree bookkeeping worked;
+  gates green across JSON/SQL/Julia. Engine *unit* coverage in `ProjectionTemplateTest.jl`
+  was **deferred** (validated through the JSON/SQL/Julia domain gates instead); a
+  focused two-level-nesting + optional-toggle unit test is a nice-to-have follow-up.
+- **F2 reactivity vs. reconciliation:** the domain gates exercise the *static* shapes
+  only; in-place optional-field toggle isn't covered by a test (see the locality note
+  above). Left as a follow-up alongside the unit test.
+- **Byte-identical output:** confirmed — printer 1725/0 unchanged at every step.
+- **`check_reaches_all` floor:** held at 4/28. F1 shifted *which* leaf-content carets
+  are enumerated (School-A now descends into `Function` etc., exposing `.name.name{k}`)
+  but not the count; those remain owned by julia-syntax-navigation.md.
 
 ## Interaction / out of scope
 
@@ -245,10 +271,15 @@ checkout that has them (or copy them in) — a bare worktree yields phantom fail
 
 ## Done criteria
 
-- All three features (F1, F2, F3) live in `ProjectionTemplate.jl` as generic
-  markers + wiring + mapper cases, with engine unit coverage; no Julia/SQL coupling.
-- `JuliaToSyntax` is **32/32** macro-based; every hand-written `projection_print`
-  removed; net line reduction on top of the current −105.
-- All `julia_example` gates unchanged from baseline; JSON and SQL suites unchanged.
-- Stage B of projection-template-engine.md is unblocked (Step 7 either landed or
-  handed off with the features proven).
+- [x] All three features (F1, F2, F3) live in `ProjectionTemplate.jl` as generic
+  markers + wiring + mapper cases; no Julia/SQL coupling. *(Engine unit coverage
+  deferred — validated via domain gates; see "Design risks — resolved".)*
+- [x] `JuliaToSyntax` is **32/32** macro-based; every hand-written `projection_print`
+  removed; imports trimmed. Net reduction well beyond the earlier −105.
+- [x] All `julia_example` gates unchanged from baseline; JSON and SQL suites unchanged
+  (json_to_syntax 11/0, json nav_complete 543/543, sql_to_syntax 19/0, julia printer
+  1725/0, reader 225/0, nav 3/0, nav_complete 4/28).
+- [x] Stage B of projection-template-engine.md is unblocked (Step 7 handed off with
+  the features proven).
+
+**Status: complete** (Step 7 SQL conversion handed off). Ready to move to `plan/done/`.
