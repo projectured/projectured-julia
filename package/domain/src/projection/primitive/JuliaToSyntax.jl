@@ -25,11 +25,12 @@ import ..JuliaModule: JuliaDocument,
                       JuliaTypeAnnotation,
                       JuliaAssignment, JuliaFor, JuliaForIterator, JuliaWhile,
                       JuliaReturn, JuliaBreak, JuliaContinue, JuliaTry, JuliaBegin,
-                      JuliaIf, JuliaFunction, JuliaBlock, JuliaUsing, _julia_operator_string
+                      JuliaIf, JuliaFunction, JuliaBlock, JuliaUsing, JuliaLambda, _julia_operator_string
 import ..TextModule: TextString
 import ..FontModule: StyleFont, font_ubuntu_monospace_regular_20, font_ubuntu_monospace_bold_20
 import ..ColorModule: StyleColor, color_default, color_solarized_blue, color_solarized_cyan,
-                      color_solarized_green, color_solarized_magenta, color_solarized_gray
+                      color_solarized_green, color_solarized_magenta, color_solarized_gray,
+                      color_solarized_violet
 import ..StyleTextModule: StyleText
 import ..SyntaxModule: SyntaxDocument, SyntaxLeaf, SyntaxNode
 import ..TypeDispatchingModule: TypeDispatchingProjection
@@ -52,7 +53,7 @@ export JuliaIdentifierToSyntaxLeaf, JuliaIntegerToSyntaxLeaf,
        JuliaBreakToSyntaxLeaf, JuliaContinueToSyntaxLeaf,
        JuliaTryToSyntaxNode, JuliaBeginToSyntaxNode,
        JuliaIfToSyntaxNode, JuliaFunctionToSyntaxNode, JuliaBlockToSyntaxNode,
-       JuliaUsingToSyntaxNode,
+       JuliaUsingToSyntaxNode, JuliaLambdaToSyntaxNode,
        JuliaToSyntax
 
 # ── Leaf helpers ─────────────────────────────────────────────────────────────
@@ -62,11 +63,11 @@ _text(value, font, color) = TextString(value, font, color)
 
 # ── JuliaIdentifierToSyntaxLeaf ─────────────────────────────────────────────
 
-# A standalone identifier is a *variable* reference — rendered in the base text
-# colour. Function names get a distinct colour via `JuliaCallToSyntaxNode`, which
-# styles its callee with a function-coloured instance of this leaf.
+# A standalone identifier is a *variable* reference — rendered in a distinct
+# variable colour (violet), separate from keywords (magenta), function names
+# (blue, applied by `JuliaCallToSyntaxNode`), literals (green) and operators.
 @projection struct JuliaIdentifierToSyntaxLeaf
-    style::StyleText = StyleText(font_ubuntu_monospace_regular_20, color_default)
+    style::StyleText = StyleText(font_ubuntu_monospace_regular_20, color_solarized_violet)
 end
 
 function projection_print(p::JuliaIdentifierToSyntaxLeaf, recursion, v::JuliaIdentifier, ctx)
@@ -544,6 +545,30 @@ function projection_print(p::JuliaReturnToSyntaxNode, recursion, r::JuliaReturn,
     end))
 end
 
+# ── JuliaLambdaToSyntaxNode ─────────────────────────────────────────────────
+
+@projection struct JuliaLambdaToSyntaxNode
+    delim::StyleText = StyleText(font_ubuntu_monospace_regular_20, color_solarized_gray)
+    arrow::StyleText = StyleText(font_ubuntu_monospace_regular_20, color_solarized_magenta)
+end
+
+function projection_print(p::JuliaLambdaToSyntaxNode, recursion, l::JuliaLambda, ctx)
+    param_iomaps = Cell(() -> [projection_printer_recurse(recursion, pd,
+                                  child_context(ctx, @reference ^(ctx.reference).parameters[i]))
+                               for (i, pd) in enumerate(l.parameters)])
+    body_ref = child_context(ctx, @reference ^(ctx.reference).body)
+    body_iomap = Cell(() -> projection_printer_recurse(recursion, l.body, body_ref))
+
+    params_node = SyntaxNode(
+        CellVector(() -> SyntaxDocument[im.output for im in param_iomaps[]]);
+        open=TextString("(", p.delim),
+        close=TextString(") -> ", p.arrow),
+        sep=TextString(", ", p.delim))
+
+    node = SyntaxNode(CellVector(() -> SyntaxDocument[params_node, body_iomap[].output]))
+    ChildrenIoMap(p, l, node, Cell(() -> IoMap[param_iomaps[]..., body_iomap[]]))
+end
+
 # ── JuliaUsingToSyntaxNode ──────────────────────────────────────────────────
 
 @projection struct JuliaUsingToSyntaxNode
@@ -811,6 +836,7 @@ function JuliaToSyntax()
         JuliaIf              => JuliaIfToSyntaxNode(),
         JuliaFunction        => JuliaFunctionToSyntaxNode(),
         JuliaUsing           => JuliaUsingToSyntaxNode(),
+        JuliaLambda          => JuliaLambdaToSyntaxNode(),
     )
 end
 

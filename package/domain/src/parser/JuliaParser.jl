@@ -28,7 +28,7 @@ import ..JuliaModule: JuliaIdentifier, JuliaInteger, JuliaFloat, JuliaString, Ju
     JuliaTernary, JuliaIndex, JuliaFieldAccess, JuliaTuple, JuliaArray, JuliaRange,
     JuliaTypeAnnotation, JuliaAssignment, JuliaFor, JuliaForIterator, JuliaWhile,
     JuliaReturn, JuliaBreak, JuliaContinue, JuliaTry, JuliaBegin, JuliaIf, JuliaFunction,
-    JuliaBlock, JuliaUsing, JuliaDocument
+    JuliaBlock, JuliaUsing, JuliaLambda, JuliaDocument
 export juliaparse, juliaparse_file
 
 # ── Operator classification ───────────────────────────────────────────────────
@@ -184,6 +184,28 @@ _convert_head(::Val{:using}, x::Expr) =
     JuliaUsing(:using, join((_module_path_string(a) for a in x.args), ", "))
 _convert_head(::Val{:import}, x::Expr) =
     JuliaUsing(:import, join((_module_path_string(a) for a in x.args), ", "))
+
+# Anonymous function `args -> body`. `args` is a single symbol (`x -> …`), a
+# tuple (`(x, y) -> …`, `() -> …`), and the body is usually a `:block` wrapping
+# one expression.
+function _convert_head(::Val{:->}, x::Expr)
+    a = x.args[1]
+    params = if a isa Expr && a.head === :tuple
+        Any[p for p in a.args]
+    elseif a isa Expr && a.head === :block
+        Any[p for p in a.args if !(p isa LineNumberNode)]
+    else
+        Any[a]
+    end
+    b = x.args[2]
+    body = if b isa Expr && b.head === :block
+        stmts = _convert_statements(b.args)
+        length(stmts) == 1 ? stmts[1] : JuliaBlock(stmts)
+    else
+        convert_expr(b)
+    end
+    JuliaLambda(JuliaDocument[convert_expr(p) for p in params], body)
+end
 
 # ── Compound expressions ─────────────────────────────────────────────────────
 

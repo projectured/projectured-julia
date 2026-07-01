@@ -42,7 +42,7 @@ export JuliaDocument, JuliaInsertion,
        JuliaTypeAnnotation,
        JuliaAssignment, JuliaFor, JuliaForIterator, JuliaWhile,
        JuliaReturn, JuliaBreak, JuliaContinue, JuliaTry, JuliaBegin,
-       JuliaIf, JuliaFunction, JuliaBlock, JuliaUsing,
+       JuliaIf, JuliaFunction, JuliaBlock, JuliaUsing, JuliaLambda,
        _julia_operator_string,
        IJuliaInsertion,
        IJuliaIdentifier, IJuliaInteger, IJuliaFloat, IJuliaString, IJuliaBool,
@@ -349,6 +349,21 @@ end
 
 JuliaUsing(keyword::Symbol, path::AbstractString) =
     JuliaUsing(Cell(keyword), Cell(String(path)), Cell(nothing))
+
+"""
+    JuliaLambda(parameters::Vector, body)
+
+An anonymous function `(p₁, p₂, …) -> body`. `parameters` are the argument
+documents (empty for `() -> …`); `body` is the returned expression.
+"""
+@document struct JuliaLambda <: JuliaDocument
+    parameters::CellVector
+    body::Document
+    selection::Reference
+end
+
+JuliaLambda(parameters::Vector, body) =
+    JuliaLambda(CellVector(Cell[Cell(p) for p in parameters]), Cell(body), Cell(nothing))
 
 """
     JuliaAssignment(operator::Symbol, target, value)
