@@ -50,7 +50,8 @@ import ..OperationModule: ReplaceSelectionOperation, ReplaceReferencedValue, Com
 import ..OperationApiModule: Operation
 import ..OperationRerootingModule: prepend_steps_to_op
 import ..PrimitiveModule: StringReplaceRangeOperation, NumberReplaceRangeOperation
-import ..KeyboardModule: KeyDown
+import ..KeyboardModule: KeyDown, KeyPress
+import ..DocumentApiModule: document_read
 import ..ReferenceModule: ReferencePath, ConcreteReferencePath, ElementReference, PositionReference, RangeReference, EmptyReferencePath, FieldReference, append_reference
 import ..ReferenceBuilderModule: var"@reference"
 import ..ReferenceCaseModule: var"@reference_case"
@@ -783,6 +784,17 @@ end
 
 function projection_read(p::WorkbenchEditorToWidgetScrollPane,
                           iomap::ContentIoMap, op)
+    # Give the WorkbenchEditor tab first crack at a raw input gesture — its
+    # `@gestures` table (Ctrl+S save, Ctrl+O reload, in `WorkbenchFileModule`) —
+    # before the event descends into the tab's content. `iomap.input` is the
+    # `WorkbenchEditor`. This mirrors the generic leaf delegation to
+    # `document_read` in `Projection.jl`, which this projection's own reader
+    # override would otherwise shadow. A handled gesture yields a self-contained
+    # operation (it carries the tab), so it bubbles up unchanged.
+    if op isa Union{KeyDown, KeyPress}
+        tab_op = document_read(iomap.input, op)
+        tab_op === nothing || return tab_op
+    end
     _retarget_panel_op(p, iomap, op)
 end
 
