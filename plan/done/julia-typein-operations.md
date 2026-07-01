@@ -194,31 +194,34 @@ identifier/integer commit; the `⇥` after each drives `SelectNextInsertionOpera
 - [x] **D. Completion-hint leaf** — `JuliaInsertionToSyntaxLeaf` reimplemented printer-only
       (mirrors `PrimitiveStringToSyntaxLeaf`): buffer + pale-green completion `close` span,
       `value{k}` mapping, no key reader. `test_document_insertion` stays 18/18.
-- [x] **E. End-to-end** — `test_julia_typein` (`editor/JuliaTypeinTest.jl`): the gesture
-      operations (rerooted) build **exactly** `make_julia_document_example()`; navigation
-      unit test; interactive nested-typing `@test_broken` (the gate). Result **7 pass /
-      1 broken**. Wired into `test_all`.
+- [x] **E. End-to-end** — `test_julia_typein` (`editor/JuliaTypeinTest.jl`): (1) navigation
+      unit test; (2) the gesture operations (rerooted) build **exactly**
+      `make_julia_document_example()`; (3) **interactive** — replaying the full keystroke
+      script as real key events through `RecursiveProjection(JuliaToSyntax())` builds the
+      same factorial tree. Result **8 pass / 0 broken**. Wired into `test_all`.
 - [ ] **F. (optional) Structural operator/call/list gestures** — deferred; not needed for
       factorial (the buffer+`juliaparse` commit builds `n == 0`, `n * factorial(n - 1)`).
 - [x] **@gestures-first** — all `JuliaInsertion` editing reified as `@gestures JuliaInsertion`
       (char insert/delete/commit/Tab), reached via the generic `document_read` fallback.
 
-## Results (2026-07-02)
+## Results (2026-07-02) — complete, interactive path live
 
-**Operations layer complete and verified.** Starting from an empty `JuliaInsertion`, the
-reified gesture operations compose into the exact `factorial` tree
-(`_jt_equal(built, make_julia_document_example())` is `true`). Commits: `ce26802` (A/B/D +
-`@gestures`), `74df1d5` (C), test commit. Regression: `test_document_insertion` 18/18,
-`test_repl(json_example)` 225/225, `test_repl(julia_example)` 225/225.
+**Operations layer + interactive end-to-end verified.** Starting from an empty
+`JuliaInsertion`, the reified gesture operations compose into the exact `factorial` tree,
+both applied directly (rerooted) and — the acceptance — driven as **real key events**
+through `RecursiveProjection(JuliaToSyntax())`:
+`function⇥ factorial⇥ n⇥ if⇥ n == 0⇥ 1⇥ n * factorial(n - 1)⏎` →
+`make_julia_document_example()`. `test_julia_typein` = **8 pass / 0 broken**. Regression:
+`test_document_insertion` 18/18, `test_repl(json_example)` 225/225,
+`test_repl(julia_example)` 225/225.
 
-**Interactive gate (open, external).** Feeding key events through
-`RecursiveProjection(JuliaToSyntax())` commits a **root** hole (`function`+Tab →
-`JuliaFunction`), but **nested-hole char input does not route** through `JuliaFunction`'s
-still-hand-written projection to the child, so `factorial` never reaches the name hole. This
-is exactly [julia-syntax-navigation.md](julia-syntax-navigation.md): the compound nodes
-(`JuliaFunction`/`JuliaIf`/`JuliaCall`) need School-A mappers + `projection_read` routing
-(and the flat-offset traversal of their introduced tokens). When that lands, the `@test_broken`
-in `test_julia_typein` flips to pass — the natural signal that the interactive type-in is live.
+**Interactive gate: lifted.** The gate was the compound-node projection routing of
+`julia-syntax-navigation.md`. It closed when the `@projection_template` refactor **finished
+JuliaToSyntax** (`bf8de12` "finish JuliaToSyntax" / `2d098c9` "Julia 32/32" — nested
+sub-node F1 + conditional-children F2 markers): every node now routes nested-hole input and
+reroots the resulting edits, so the interactive build works with no changes to this plan's
+operations layer. (An earlier `@test_broken` mis-checked for a committed identifier after
+typing without a commit; it was replaced by the full interactive-build assertion.)
 
 ## Notes on the risks that materialised
 
