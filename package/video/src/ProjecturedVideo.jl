@@ -24,7 +24,7 @@ import ProjecturedDomain.ProjectionApiModule: projection_print, projection_read
 import ProjecturedDomain.OperationApiModule: evaluate_operation
 import ProjecturedDomain.DocumentApiModule: clear_selection!, set_selection!
 import ProjecturedDomain.PrinterContextModule: PrinterContext
-import ProjecturedDomain.ReactiveModule: Cell
+import ProjecturedDomain.ReactiveModule: Cell, tick!
 import ProjecturedDomain.ReferenceModule: EmptyReferencePath
 
 import ProjecturedSdl: _open_offscreen_renderer, _close_offscreen_renderer, _emit_frames!
@@ -127,6 +127,17 @@ function record_video(document, projection, gestures::AbstractVector,
     off = _open_offscreen_renderer(width, height; supersample=supersample, scale=scale)
     tmpdir = mktempdir()
     frame = Ref(0)
+    # Wall-clock origin for the reactive editor clock. Every emitted frame ticks
+    # `reactive_editor_time()` to the elapsed wall time and re-prints, so an
+    # animated document (a canvas whose cells read the editor time) actually moves
+    # across the recording — including during otherwise-static hold frames.
+    anim_t0 = time()
+    iomap = nothing   # last printed iomap, kept fresh for event/operation readers
+    emit_frames! = (n::Integer) -> for _ in 1:max(n, 0)
+        tick!(time() - anim_t0)
+        iomap = print_iomap(document)
+        _emit_frames!(off, canvas_of(iomap), width, height, background, tmpdir, frame, 1)
+    end
     try
         if initial_selection === nothing
             clear_selection!(document)
@@ -134,8 +145,7 @@ function record_video(document, projection, gestures::AbstractVector,
             set_selection!(document, initial_selection)
         end
         iomap = print_iomap(document)
-        _emit_frames!(off, canvas_of(iomap), width, height, background,
-                      tmpdir, frame, round(Int, initial_hold * fps))
+        emit_frames!(round(Int, initial_hold * fps))
 
         for entry in gestures
             # An `await` entry captures the gradual reveal of asynchronous editor
@@ -144,21 +154,16 @@ function record_video(document, projection, gestures::AbstractVector,
             # only captured here: spin — printing and emitting one frame per ~1/fps
             # — until the `doc -> Bool` predicate holds or the `hold` cap elapses,
             # so the streamed thinking/text/tool output appears along the time axis
-            # instead of popping in fully formed. (Plain gestures still never
-            # yield mid-hold, preserving their deterministic frame counts.)
+            # instead of popping in fully formed.
             if haskey(entry, :await)
                 pred = entry.await
                 deadline = time() + Float64(entry.hold)
                 while !(pred isa Function ? pred(document) : pred) && time() < deadline
-                    iomap = print_iomap(document)
-                    _emit_frames!(off, canvas_of(iomap), width, height, background,
-                                  tmpdir, frame, 1)
+                    emit_frames!(1)
                     yield()
                     sleep(1 / fps)
                 end
-                iomap = print_iomap(document)
-                _emit_frames!(off, canvas_of(iomap), width, height, background,
-                              tmpdir, frame, 1)
+                emit_frames!(1)
                 continue
             end
             # A non-await entry carries either an `event` (translated to an
@@ -177,29 +182,24 @@ function record_video(document, projection, gestures::AbstractVector,
                 evaluate_operation(ed, op)
                 document = ed.document   # pick up a whole-document swap
             end
-            iomap = print_iomap(document)
-            _emit_frames!(off, canvas_of(iomap), width, height, background,
-                          tmpdir, frame, round(Int, entry.hold * fps))
+            emit_frames!(round(Int, entry.hold * fps))
         end
 
         # Let async editor work kicked off by the gestures settle before the
         # final frames. The frame loop never yields, so an `@async` task (e.g.
         # the assistant's streaming reply launched by ENTER) can't progress on
         # its own; spin yielding until `wait_for()` is satisfied (or the
-        # `wait_timeout` wall-clock deadline passes), then re-print so the final
-        # state reflects the settled document.
+        # `wait_timeout` wall-clock deadline passes).
         if wait_for !== nothing
             deadline = time() + wait_timeout
             while !wait_for() && time() < deadline
                 yield()
                 sleep(0.01)
             end
-            iomap = print_iomap(document)
         end
 
-        # End margin: hold the final state.
-        _emit_frames!(off, canvas_of(iomap), width, height, background,
-                      tmpdir, frame, round(Int, final_hold * fps))
+        # End margin: hold (and keep animating) the final state.
+        emit_frames!(max(round(Int, final_hold * fps), 1))
 
         frame[] == 0 &&
             error("record_video: no frames produced (gestures empty and initial_hold/final_hold ≈ 0)")
