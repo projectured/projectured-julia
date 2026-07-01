@@ -12,7 +12,7 @@ import ..ReferenceModule: ReferencePath, ConcreteReferencePath, EmptyReferencePa
 import ..ReactiveModule: Cell
 export ReplaceSelectionOperation, QuitEditorOperation, QuitEditorException, replace_selection!,
        OpenWindowOperation, OpenPopupOperation, CloseWindowOperation, ResizeWindowOperation, ToggleCollapseOperation,
-       ReplaceReferencedValue, replace_document, insert_elements, delete_elements,
+       ReplaceReferencedValue, replace_document, insert_elements, delete_elements, SelectNextInsertionOperation,
        CompoundOperation, AdjustZoomOperation, AdjustFontZoomOperation, update_selection!
 
 function evaluate_operation(editor, op::Nothing) end
@@ -277,6 +277,96 @@ vector (replace the range with nothing). The inverse of `insert_elements`.
 """
 delete_elements(path::ReferencePath, index::Integer, count::Integer=1; root=nothing) =
     ReplaceReferencedValue(root, append_reference(path, RangeReference(index, index + count)), Any[])
+
+# ─────────────────────────────────────────────────────────────────────────
+# SelectNextInsertionOperation — move the cursor to the next "hole"
+#
+# An editor-global navigation step: walk `editor.document` in pre-order and move
+# the selection to the first Document satisfying `predicate` (a "hole", e.g. a
+# `JuliaInsertion`) that comes *after* the currently-selected node, placing the
+# cursor at `<hole> ⧺ cursor` (the hole's own char cursor, e.g. `value{0}`). It
+# carries no reference of its own, so it bubbles up the reader chain unchanged
+# (the pass-through arms in `ProjectionModule.projection_read` and the else-branch
+# of `prepend_steps_to_op`). The domain gesture supplies the predicate/cursor, so
+# the kernel stays domain-agnostic; the Julia Tab gesture builds
+# `SelectNextInsertionOperation(d -> d isa JuliaInsertion, @reference value{0})`.
+"""
+    SelectNextInsertionOperation(predicate[, cursor])
+
+Move the selection to the next hole (a Document for which `predicate` holds) after
+the currently-selected node, in document pre-order, and place the cursor at that
+hole's `cursor` suffix (default whole-element). Clamps at the last hole.
+"""
+struct SelectNextInsertionOperation <: Operation
+    predicate::Any        # (node::Document) -> Bool ; true marks a hole to land on
+    cursor::ReferencePath # suffix appended to the found hole's path (e.g. value{0})
+end
+
+SelectNextInsertionOperation(predicate) =
+    SelectNextInsertionOperation(predicate, EmptyReferencePath())
+
+function evaluate_operation(editor, op::SelectNextInsertionOperation)
+    root = editor.document
+    root isa Document || return
+    nodes = Tuple{ReferencePath,Any}[]
+    _preorder_documents!(root, EmptyReferencePath(), Base.IdSet{Any}(), nodes)
+    owner = _selection_owner_node(root, getfield(root, :selection)[])
+    cur = 0
+    if owner !== nothing
+        for (i, (_, nd)) in enumerate(nodes)
+            nd === owner && (cur = i; break)
+        end
+    end
+    for j in (cur + 1):length(nodes)
+        if op.predicate(nodes[j][2])
+            set_selection!(root, _concat_paths(nodes[j][1], op.cursor))
+            return
+        end
+    end
+    return
+end
+
+# Pre-order Document walk building set_selection!-compatible paths: FieldReference
+# for fields, RangeReference(i-1, i) for CellVector elements (a raw `CellVector`
+# field is itself a Document, reached by its field then indexed). Skips `selection`
+# and guards cycles/shared substructure by identity. `CellVector` is matched by
+# type name (not `isa`) so this file need not import `CollectionModule`, which
+# loads after `Operation.jl` — and so an `@forward_vector` Document (indexable but
+# holding its sequence in a field) is not mistaken for a raw element vector.
+function _preorder_documents!(node, path::ReferencePath, seen, out)
+    node isa Document || return
+    node in seen && return
+    push!(seen, node)
+    push!(out, (path, node))
+    if nameof(typeof(node)) === :CellVector
+        for i in 1:length(node)
+            _preorder_documents!(node[i], append_reference(path, RangeReference(i - 1, i)), seen, out)
+        end
+        return
+    end
+    for nm in fieldnames(typeof(node))
+        nm === :selection && continue
+        raw = getfield(node, nm)
+        val = raw isa Cell ? raw[] : raw
+        val isa Document || continue
+        _preorder_documents!(val, append_reference(path, FieldReference(string(nm))), seen, out)
+    end
+    return
+end
+
+# The deepest Document a selection anchors at: strip type checkpoints, then drop
+# trailing steps until the path resolves to a Document (a `value{k}` char cursor
+# resolves to a String, so it is dropped to reach the owning leaf). Empty ⇒ root.
+function _selection_owner_node(root, sel)
+    sel === nothing && return nothing
+    p = strip_reference_types(sel)
+    while true
+        v = try evaluate_reference(root, p) catch; nothing end
+        v isa Document && return v
+        p isa EmptyReferencePath && return root
+        (p, _) = _split_terminal_step(p)
+    end
+end
 
 """
     ToggleCollapseOperation([target])

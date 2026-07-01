@@ -19,7 +19,7 @@ module ProjectionModule
 
 import ..ProjectionApiModule: projection_print, projection_read, map_reference_forward, map_reference_backward, Projection, Change
 import ..OperationModule: ReplaceSelectionOperation, ToggleCollapseOperation,
-                          ReplaceReferencedValue, CompoundOperation
+                          ReplaceReferencedValue, CompoundOperation, SelectNextInsertionOperation
 import ..PrimitiveModule: StringReplaceRangeOperation, NumberReplaceRangeOperation
 import ..ReactiveModule: Cell
 import ..ReferenceModule: EmptyReferencePath
@@ -122,6 +122,11 @@ function projection_read(projection::Projection, iomap, operation)
     elseif operation isa ToggleCollapseOperation
         # Collapse state lives at the syntax layer; every other projection
         # forwards the operation up the chain unchanged.
+        return operation
+    elseif operation isa SelectNextInsertionOperation
+        # Editor-global "jump to next hole": carries no reference, so every
+        # projection forwards it up the chain unchanged (it resolves against
+        # `editor.document` at evaluation time).
         return operation
     else
         return nothing

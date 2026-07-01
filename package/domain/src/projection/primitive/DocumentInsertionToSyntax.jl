@@ -39,7 +39,8 @@ import ..TextModule: TextText, TextString
 import ..JuliaParserModule: juliaparse
 import ..SqlParserModule: sqlparse
 import ..SyntaxModule: SyntaxLeaf
-import ..OperationModule: replace_document, ReplaceSelectionOperation
+import ..OperationModule: replace_document, ReplaceSelectionOperation,
+                          SelectNextInsertionOperation, CompoundOperation
 import ..PrimitiveModule: StringReplaceRangeOperation
 import ..ReferenceModule: ConcreteReferencePath, FieldReference, RangeReference,
                           EmptyReferencePath, ProjectionReference
@@ -389,15 +390,42 @@ _julia_ins_commit(ins) =
     (doc = _julia_commit(something(ins.value, ""));
      doc === nothing ? nothing : replace_document(EmptyReferencePath(), doc))
 
+# The Tab navigation predicate + in-hole cursor: land on the next `JuliaInsertion`,
+# cursor at its buffer offset 0 so it is ready to type.
+_is_julia_hole(node) = node isa JuliaInsertion
+const _JULIA_HOLE_CURSOR = @reference value{0}
+
+# Tab: commit the buffer and jump to the next hole.
+#  - empty buffer            → just advance (skip the untouched hole).
+#  - keyword prefix          → expand to its scaffold; the scaffold already pre-selects
+#                              its own first hole, so do NOT advance past it.
+#  - complete parseable expr → commit, then advance to the next hole (the mid
+#                              ReplaceSelectionOperation leaves the cursor on the
+#                              just-committed node, which `SelectNextInsertion` steps past).
+#  - otherwise (unparseable) → decline (stay in the buffer, keep typing).
+function _julia_ins_tab(ins)
+    value = something(ins.value, "")
+    isempty(strip(value)) &&
+        return SelectNextInsertionOperation(_is_julia_hole, _JULIA_HOLE_CURSOR)
+    scaffold = julia_scaffold(value)
+    scaffold === nothing || return replace_document(EmptyReferencePath(), scaffold)
+    parsed = try juliaparse(value) catch; nothing end
+    parsed === nothing && return nothing
+    commit = replace_document(EmptyReferencePath(), parsed)
+    CompoundOperation(Any[commit.operations...,
+                          SelectNextInsertionOperation(_is_julia_hole, _JULIA_HOLE_CURSOR)])
+end
+
 # All `JuliaInsertion` editing, reified. Char insert / Backspace / Delete reuse the
 # shared `_insertion_*` helpers (they decline with `nothing` off a `value[range]`
-# cursor, so the gesture keeps propagating); Enter commits. Tab (commit + jump to the
-# next hole) is added with step C's `SelectNextInsertionOperation`.
+# cursor, so the gesture keeps propagating); Enter commits in place; Tab commits and
+# jumps to the next hole.
 @gestures JuliaInsertion begin
-    KeyPress(_, t)       => "Insert character" => _insertion_insert(doc, t)
-    KeyDown(:backspace;) => "Delete backward"  => _insertion_delete(doc, :backspace)
-    KeyDown(:delete;)    => "Delete forward"   => _insertion_delete(doc, :delete)
-    KeyDown(:return;)    => "Commit hole"      => _julia_ins_commit(doc)
+    KeyPress(_, t)       => "Insert character"  => _insertion_insert(doc, t)
+    KeyDown(:backspace;) => "Delete backward"   => _insertion_delete(doc, :backspace)
+    KeyDown(:delete;)    => "Delete forward"    => _insertion_delete(doc, :delete)
+    KeyDown(:return;)    => "Commit hole"       => _julia_ins_commit(doc)
+    KeyDown(:tab;)       => "Commit + next hole" => _julia_ins_tab(doc)
 end
 
 end # module
