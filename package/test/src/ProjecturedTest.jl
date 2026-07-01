@@ -125,6 +125,7 @@ include("editor/RecursionContractTest.jl")
 include("editor/ReaderTest.jl")
 include("editor/ReplTest.jl")
 include("editor/TypeinTest.jl")
+include("editor/JuliaTypeinTest.jl")
 include("editor/McpTest.jl")
 include("editor/ConversationSerializationTest.jl")
 include("editor/ConversationParsingTest.jl")
@@ -252,6 +253,7 @@ function test_all()
     test_conversation_serialization()
     test_parse_markdown_blocks()
     test_document_insertion()
+    test_julia_typein()
     test_conversation_editor()
     test_assistant_mvp()
     test_workbench_file_keys()
@@ -298,6 +300,7 @@ export test_recursion_contract, test_recursion_contracts, walk_recursion_contrac
 export test_reader, test_readers, walk_reader_events
 export test_repl, test_repls, walk_repl_loop
 export test_typein, test_typeins, walk_typein
+export test_julia_typein
 export test_mouse_click_roundtrip, test_mouse_clicks
 export test_click_roundtrip, test_click_roundtrips, test_text_nav_invariants, test_text_nav_invariants_all
 export test_json_content_clicks_clean, test_json_content_clicks_clean_all
