@@ -27,6 +27,10 @@ abstract type JsonDocument <: Document end
 
 # ── Insertion cursor ─────────────────────────────────────────────────────
 
+"""
+A placeholder for a JSON value being entered (the insert-by-typing cursor);
+type-to-replace swaps it for a concrete value.
+"""
 @document struct JsonInsertion <: JsonDocument
     value::Any = nothing
     selection::Reference = nothing
@@ -34,20 +38,32 @@ end
 
 # ── Primitives ───────────────────────────────────────────────────────────
 
+"""
+The JSON `null` literal.
+"""
 @document struct JsonNull <: JsonDocument
     selection::Reference = nothing
 end
 
+"""
+A JSON boolean literal (`true` or `false`).
+"""
 @document struct JsonBool <: JsonDocument
     value::Bool
     selection::Reference = nothing
 end
 
+"""
+A JSON number literal. `value` may be `nothing` while its text has been fully deleted.
+"""
 @document struct JsonNumber <: JsonDocument
     value::Union{Real, Nothing}
     selection::Reference = nothing
 end
 
+"""
+A JSON string literal.
+"""
 @document struct JsonString <: JsonDocument
     value::String
     selection::Reference = nothing
@@ -55,6 +71,9 @@ end
 
 # ── Compounds ────────────────────────────────────────────────────────────
 
+"""
+A JSON array `[…]`. `collapsed` hides its elements behind a marker in the projection.
+"""
 @document struct JsonArray <: JsonDocument
     elements::CellVector = CellVector()
     collapsed::Bool = false
@@ -63,6 +82,9 @@ end
 
 @forward_vector JsonArray elements
 
+"""
+One `"key": value` member of a JSON object.
+"""
 @document struct JsonObjectEntry <: JsonDocument
     key::String
     value::Document
@@ -70,6 +92,10 @@ end
     selection::Reference = nothing
 end    
 
+"""
+A JSON object `{…}` — an ordered sequence of `JsonObjectEntry` members.
+`collapsed` hides them in the projection.
+"""
 @document struct JsonObject <: JsonDocument
     entries::CellVector = CellVector()
     collapsed::Bool = false
@@ -78,6 +104,7 @@ end
 
 @forward_map JsonObject entries key value JsonObjectEntry
 
+# build an object from `key => value` pairs
 function JsonObject(pairs::Pair{<:AbstractString}...)
     cv = CellVector()
     for (k, v) in pairs
