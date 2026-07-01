@@ -35,11 +35,12 @@ import ..StyleTextModule: StyleText
 import ..SyntaxModule: SyntaxDocument, SyntaxLeaf, SyntaxNode
 import ..TypeDispatchingModule: TypeDispatchingProjection
 import ..DocumentInsertionToSyntaxModule: JuliaInsertionToSyntaxLeaf
-import ..IoMapModule: SimpleIoMap, ChildrenIoMap
+import ..IoMapModule: ChildrenIoMap
 import ..IoMapApiModule: IoMap
 import ..ReferenceModule: ConcreteReferencePath, ElementReference, PositionReference, RangeReference,
                           FieldReference, ProjectionReference, ReferencePath, EmptyReferencePath, append_reference
 import ..ReferenceBuilderModule: var"@reference"
+import ..ProjectionTemplateModule: var"@projection_template", project, collection
 import ..PrinterContextModule: child_context
 import ..OperationModule: ReplaceSelectionOperation
 export JuliaIdentifierToSyntaxLeaf, JuliaIntegerToSyntaxLeaf,
@@ -57,11 +58,6 @@ export JuliaIdentifierToSyntaxLeaf, JuliaIntegerToSyntaxLeaf,
        JuliaUsingToSyntaxNode, JuliaLambdaToSyntaxNode,
        JuliaToSyntax
 
-# ── Leaf helpers ─────────────────────────────────────────────────────────────
-
-_empty(font) = TextString("", font, color_default)
-_text(value, font, color) = TextString(value, font, color)
-
 # ── JuliaIdentifierToSyntaxLeaf ─────────────────────────────────────────────
 
 # A standalone identifier is a *variable* reference — rendered in a distinct
@@ -71,11 +67,8 @@ _text(value, font, color) = TextString(value, font, color)
     style::StyleText = StyleText(font_ubuntu_monospace_regular_20, color_solarized_violet)
 end
 
-function projection_print(p::JuliaIdentifierToSyntaxLeaf, recursion, v::JuliaIdentifier, ctx)
-    SimpleIoMap(p, v, SyntaxLeaf(
-        TextString(() -> v.name, p.style);
-        selection=getfield(v, :selection)))
-end
+@projection_template JuliaIdentifierToSyntaxLeaf JuliaIdentifier (p, v) ->
+    SyntaxLeaf(TextString(() -> v.name, p.style))
 
 # ── JuliaIntegerToSyntaxLeaf ────────────────────────────────────────────────
 
@@ -83,11 +76,8 @@ end
     style::StyleText = StyleText(font_ubuntu_monospace_regular_20, color_solarized_green)
 end
 
-function projection_print(p::JuliaIntegerToSyntaxLeaf, recursion, v::JuliaInteger, ctx)
-    SimpleIoMap(p, v, SyntaxLeaf(
-        TextString(() -> string(v.value), p.style);
-        selection=getfield(v, :selection)))
-end
+@projection_template JuliaIntegerToSyntaxLeaf JuliaInteger (p, v) ->
+    SyntaxLeaf(TextString(() -> string(v.value), p.style))
 
 # ── JuliaFloatToSyntaxLeaf ──────────────────────────────────────────────────
 
@@ -95,11 +85,8 @@ end
     style::StyleText = StyleText(font_ubuntu_monospace_regular_20, color_solarized_green)
 end
 
-function projection_print(p::JuliaFloatToSyntaxLeaf, recursion, v::JuliaFloat, ctx)
-    SimpleIoMap(p, v, SyntaxLeaf(
-        TextString(() -> string(v.value), p.style);
-        selection=getfield(v, :selection)))
-end
+@projection_template JuliaFloatToSyntaxLeaf JuliaFloat (p, v) ->
+    SyntaxLeaf(TextString(() -> string(v.value), p.style))
 
 # ── JuliaStringToSyntaxLeaf ─────────────────────────────────────────────────
 
@@ -108,13 +95,10 @@ end
     quote_style::StyleText = StyleText(font_ubuntu_monospace_regular_20, color_solarized_gray)
 end
 
-function projection_print(p::JuliaStringToSyntaxLeaf, recursion, v::JuliaString, ctx)
-    SimpleIoMap(p, v, SyntaxLeaf(
-        TextString(() -> v.value, p.style);
-        open=TextString("\"", p.quote_style),
-        close=TextString("\"", p.quote_style),
-        selection=getfield(v, :selection)))
-end
+@projection_template JuliaStringToSyntaxLeaf JuliaString (p, v) ->
+    SyntaxLeaf(TextString(() -> v.value, p.style);
+               open=TextString("\"", p.quote_style),
+               close=TextString("\"", p.quote_style))
 
 # ── JuliaBoolToSyntaxLeaf ───────────────────────────────────────────────────
 
@@ -122,11 +106,8 @@ end
     style::StyleText = StyleText(font_ubuntu_monospace_bold_20, color_solarized_magenta)
 end
 
-function projection_print(p::JuliaBoolToSyntaxLeaf, recursion, v::JuliaBool, ctx)
-    SimpleIoMap(p, v, SyntaxLeaf(
-        TextString(() -> v.value ? "true" : "false", p.style);
-        selection=getfield(v, :selection)))
-end
+@projection_template JuliaBoolToSyntaxLeaf JuliaBool (p, v) ->
+    SyntaxLeaf(TextString(() -> v.value ? "true" : "false", p.style))
 
 # ── JuliaNothingToSyntaxLeaf ────────────────────────────────────────────────
 
@@ -134,11 +115,8 @@ end
     style::StyleText = StyleText(font_ubuntu_monospace_bold_20, color_solarized_magenta)
 end
 
-function projection_print(p::JuliaNothingToSyntaxLeaf, recursion, v::JuliaNothing, ctx)
-    SimpleIoMap(p, v, SyntaxLeaf(
-        TextString("nothing", p.style);
-        selection=getfield(v, :selection)))
-end
+@projection_template JuliaNothingToSyntaxLeaf JuliaNothing (p, v) ->
+    SyntaxLeaf(TextString("nothing", p.style))
 
 # ── JuliaSymbolToSyntaxLeaf ─────────────────────────────────────────────────
 
@@ -146,12 +124,9 @@ end
     style::StyleText = StyleText(font_ubuntu_monospace_regular_20, color_solarized_magenta)
 end
 
-function projection_print(p::JuliaSymbolToSyntaxLeaf, recursion, v::JuliaSymbol, ctx)
-    SimpleIoMap(p, v, SyntaxLeaf(
-        TextString(() -> v.name, p.style);
-        open=TextString(":", p.style),
-        selection=getfield(v, :selection)))
-end
+@projection_template JuliaSymbolToSyntaxLeaf JuliaSymbol (p, v) ->
+    SyntaxLeaf(TextString(() -> v.name, p.style);
+               open=TextString(":", p.style))
 
 # ── JuliaCharToSyntaxLeaf ───────────────────────────────────────────────────
 
@@ -160,13 +135,10 @@ end
     quote_style::StyleText = StyleText(font_ubuntu_monospace_regular_20, color_solarized_gray)
 end
 
-function projection_print(p::JuliaCharToSyntaxLeaf, recursion, v::JuliaChar, ctx)
-    SimpleIoMap(p, v, SyntaxLeaf(
-        TextString(() -> string(v.value), p.style);
-        open=TextString("'", p.quote_style),
-        close=TextString("'", p.quote_style),
-        selection=getfield(v, :selection)))
-end
+@projection_template JuliaCharToSyntaxLeaf JuliaChar (p, v) ->
+    SyntaxLeaf(TextString(() -> string(v.value), p.style);
+               open=TextString("'", p.quote_style),
+               close=TextString("'", p.quote_style))
 
 # ── JuliaBinaryOpToSyntaxNode ───────────────────────────────────────────────
 
@@ -174,21 +146,14 @@ end
     op::StyleText = StyleText(font_ubuntu_monospace_regular_20, color_solarized_cyan)
 end
 
-function projection_print(p::JuliaBinaryOpToSyntaxNode, recursion, m::JuliaBinaryOp, ctx)
-    left_ref = child_context(ctx, @reference ^(ctx.reference).left)
-    right_ref = child_context(ctx, @reference ^(ctx.reference).right)
-    left_iomap = Cell(() -> projection_printer_recurse(recursion, m.left, left_ref))
-    right_iomap = Cell(() -> projection_printer_recurse(recursion, m.right, right_ref))
-
-    op_leaf = SyntaxLeaf(
-        TextString(() -> _julia_operator_string(m.operator), p.op);
-        open=TextString(" ", p.op.font, color_default),
-        close=TextString(" ", p.op.font, color_default))
-
-    node = SyntaxNode(
-        CellVector(() -> SyntaxDocument[left_iomap[].output, op_leaf, right_iomap[].output]))
-    ChildrenIoMap(p, m, node, Cell(() -> IoMap[left_iomap[], right_iomap[]]))
-end
+@projection_template JuliaBinaryOpToSyntaxNode JuliaBinaryOp (p, m) ->
+    SyntaxNode(TextString(""), TextString(""), TextString(""),
+               [ project(:left),
+                 SyntaxLeaf(TextString(() -> _julia_operator_string(m.operator), p.op);
+                            open=TextString(" ", p.op.font, color_default),
+                            close=TextString(" ", p.op.font, color_default)),
+                 project(:right) ],
+               0, false, nothing)
 
 # ── JuliaUnaryOpToSyntaxNode ────────────────────────────────────────────────
 
@@ -196,17 +161,11 @@ end
     op::StyleText = StyleText(font_ubuntu_monospace_regular_20, color_solarized_cyan)
 end
 
-function projection_print(p::JuliaUnaryOpToSyntaxNode, recursion, u::JuliaUnaryOp, ctx)
-    operand_ref = child_context(ctx, @reference ^(ctx.reference).operand)
-    operand_iomap = Cell(() -> projection_printer_recurse(recursion, u.operand, operand_ref))
-
-    op_leaf = SyntaxLeaf(
-        TextString(() -> _julia_operator_string(u.operator), p.op))
-
-    node = SyntaxNode(
-        CellVector(() -> SyntaxDocument[op_leaf, operand_iomap[].output]))
-    ChildrenIoMap(p, u, node, Cell(() -> IoMap[operand_iomap[]]))
-end
+@projection_template JuliaUnaryOpToSyntaxNode JuliaUnaryOp (p, u) ->
+    SyntaxNode(TextString(""), TextString(""), TextString(""),
+               [ SyntaxLeaf(TextString(() -> _julia_operator_string(u.operator), p.op)),
+                 project(:operand) ],
+               0, false, nothing)
 
 # ── JuliaCallToSyntaxNode ───────────────────────────────────────────────────
 
@@ -247,28 +206,18 @@ end
     op::StyleText = StyleText(font_ubuntu_monospace_regular_20, color_solarized_cyan)
 end
 
-function projection_print(p::JuliaTernaryToSyntaxNode, recursion, t::JuliaTernary, ctx)
-    cond_ref = child_context(ctx, @reference ^(ctx.reference).condition)
-    then_ref = child_context(ctx, @reference ^(ctx.reference).then_branch)
-    else_ref = child_context(ctx, @reference ^(ctx.reference).else_branch)
-
-    cond_iomap = Cell(() -> projection_printer_recurse(recursion, t.condition, cond_ref))
-    then_iomap = Cell(() -> projection_printer_recurse(recursion, t.then_branch, then_ref))
-    else_iomap = Cell(() -> projection_printer_recurse(recursion, t.else_branch, else_ref))
-
-    q_leaf = SyntaxLeaf(
-        TextString("?", p.op);
-        open=TextString(" ", p.op.font, color_default),
-        close=TextString(" ", p.op.font, color_default))
-    c_leaf = SyntaxLeaf(
-        TextString(":", p.op);
-        open=TextString(" ", p.op.font, color_default),
-        close=TextString(" ", p.op.font, color_default))
-
-    node = SyntaxNode(
-        CellVector(() -> SyntaxDocument[cond_iomap[].output, q_leaf, then_iomap[].output, c_leaf, else_iomap[].output]))
-    ChildrenIoMap(p, t, node, Cell(() -> IoMap[cond_iomap[], then_iomap[], else_iomap[]]))
-end
+@projection_template JuliaTernaryToSyntaxNode JuliaTernary (p, t) ->
+    SyntaxNode(TextString(""), TextString(""), TextString(""),
+               [ project(:condition),
+                 SyntaxLeaf(TextString("?", p.op);
+                            open=TextString(" ", p.op.font, color_default),
+                            close=TextString(" ", p.op.font, color_default)),
+                 project(:then_branch),
+                 SyntaxLeaf(TextString(":", p.op);
+                            open=TextString(" ", p.op.font, color_default),
+                            close=TextString(" ", p.op.font, color_default)),
+                 project(:else_branch) ],
+               0, false, nothing)
 
 # ── JuliaIndexToSyntaxNode ──────────────────────────────────────────────────
 
@@ -301,18 +250,12 @@ end
     dot::StyleText = StyleText(font_ubuntu_monospace_regular_20, color_solarized_cyan)
 end
 
-function projection_print(p::JuliaFieldAccessToSyntaxNode, recursion, f::JuliaFieldAccess, ctx)
-    object_ref = child_context(ctx, @reference ^(ctx.reference).object)
-    field_ref = child_context(ctx, @reference ^(ctx.reference).field)
-    object_iomap = Cell(() -> projection_printer_recurse(recursion, f.object, object_ref))
-    field_iomap = Cell(() -> projection_printer_recurse(recursion, f.field, field_ref))
-
-    dot_leaf = SyntaxLeaf(TextString(".", p.dot))
-
-    node = SyntaxNode(
-        CellVector(() -> SyntaxDocument[object_iomap[].output, dot_leaf, field_iomap[].output]))
-    ChildrenIoMap(p, f, node, Cell(() -> IoMap[object_iomap[], field_iomap[]]))
-end
+@projection_template JuliaFieldAccessToSyntaxNode JuliaFieldAccess (p, f) ->
+    SyntaxNode(TextString(""), TextString(""), TextString(""),
+               [ project(:object),
+                 SyntaxLeaf(TextString(".", p.dot)),
+                 project(:field) ],
+               0, false, nothing)
 
 # ── JuliaTupleToSyntaxNode ──────────────────────────────────────────────────
 
@@ -320,18 +263,11 @@ end
     delim::StyleText = StyleText(font_ubuntu_monospace_regular_20, color_solarized_gray)
 end
 
-function projection_print(p::JuliaTupleToSyntaxNode, recursion, t::JuliaTuple, ctx)
-    elem_iomaps = Cell(() -> [projection_printer_recurse(recursion, e,
-                                child_context(ctx, @reference ^(ctx.reference).elements[i]))
-                              for (i, e) in enumerate(t.elements)])
-
-    node = SyntaxNode(
-        CellVector(() -> SyntaxDocument[im.output for im in elem_iomaps[]]);
-        open=TextString("(", p.delim),
-        close=TextString(")", p.delim),
-        sep=TextString(", ", p.delim))
-    ChildrenIoMap(p, t, node, elem_iomaps)
-end
+@projection_template JuliaTupleToSyntaxNode JuliaTuple (p, t) ->
+    SyntaxNode(collection(:elements);
+               open=TextString("(", p.delim),
+               close=TextString(")", p.delim),
+               sep=TextString(", ", p.delim))
 
 # ── JuliaArrayToSyntaxNode ──────────────────────────────────────────────────
 
@@ -339,18 +275,11 @@ end
     delim::StyleText = StyleText(font_ubuntu_monospace_regular_20, color_solarized_gray)
 end
 
-function projection_print(p::JuliaArrayToSyntaxNode, recursion, a::JuliaArray, ctx)
-    elem_iomaps = Cell(() -> [projection_printer_recurse(recursion, e,
-                                child_context(ctx, @reference ^(ctx.reference).elements[i]))
-                              for (i, e) in enumerate(a.elements)])
-
-    node = SyntaxNode(
-        CellVector(() -> SyntaxDocument[im.output for im in elem_iomaps[]]);
-        open=TextString("[", p.delim),
-        close=TextString("]", p.delim),
-        sep=TextString(", ", p.delim))
-    ChildrenIoMap(p, a, node, elem_iomaps)
-end
+@projection_template JuliaArrayToSyntaxNode JuliaArray (p, a) ->
+    SyntaxNode(collection(:elements);
+               open=TextString("[", p.delim),
+               close=TextString("]", p.delim),
+               sep=TextString(", ", p.delim))
 
 # ── JuliaRangeToSyntaxNode ──────────────────────────────────────────────────
 
@@ -397,18 +326,12 @@ end
     op::StyleText = StyleText(font_ubuntu_monospace_regular_20, color_solarized_cyan)
 end
 
-function projection_print(p::JuliaTypeAnnotationToSyntaxNode, recursion, t::JuliaTypeAnnotation, ctx)
-    value_ref = child_context(ctx, @reference ^(ctx.reference).value)
-    type_ref = child_context(ctx, @reference ^(ctx.reference).type)
-    value_iomap = Cell(() -> projection_printer_recurse(recursion, t.value, value_ref))
-    type_iomap = Cell(() -> projection_printer_recurse(recursion, t.type, type_ref))
-
-    dc_leaf = SyntaxLeaf(TextString("::", p.op))
-
-    node = SyntaxNode(
-        CellVector(() -> SyntaxDocument[value_iomap[].output, dc_leaf, type_iomap[].output]))
-    ChildrenIoMap(p, t, node, Cell(() -> IoMap[value_iomap[], type_iomap[]]))
-end
+@projection_template JuliaTypeAnnotationToSyntaxNode JuliaTypeAnnotation (p, t) ->
+    SyntaxNode(TextString(""), TextString(""), TextString(""),
+               [ project(:value),
+                 SyntaxLeaf(TextString("::", p.op)),
+                 project(:type) ],
+               0, false, nothing)
 
 # ── JuliaAssignmentToSyntaxNode ─────────────────────────────────────────────
 
@@ -416,21 +339,14 @@ end
     op::StyleText = StyleText(font_ubuntu_monospace_regular_20, color_solarized_cyan)
 end
 
-function projection_print(p::JuliaAssignmentToSyntaxNode, recursion, a::JuliaAssignment, ctx)
-    target_ref = child_context(ctx, @reference ^(ctx.reference).target)
-    value_ref = child_context(ctx, @reference ^(ctx.reference).value)
-    target_iomap = Cell(() -> projection_printer_recurse(recursion, a.target, target_ref))
-    value_iomap = Cell(() -> projection_printer_recurse(recursion, a.value, value_ref))
-
-    op_leaf = SyntaxLeaf(
-        TextString(() -> _julia_operator_string(a.operator), p.op);
-        open=TextString(" ", p.op.font, color_default),
-        close=TextString(" ", p.op.font, color_default))
-
-    node = SyntaxNode(
-        CellVector(() -> SyntaxDocument[target_iomap[].output, op_leaf, value_iomap[].output]))
-    ChildrenIoMap(p, a, node, Cell(() -> IoMap[target_iomap[], value_iomap[]]))
-end
+@projection_template JuliaAssignmentToSyntaxNode JuliaAssignment (p, a) ->
+    SyntaxNode(TextString(""), TextString(""), TextString(""),
+               [ project(:target),
+                 SyntaxLeaf(TextString(() -> _julia_operator_string(a.operator), p.op);
+                            open=TextString(" ", p.op.font, color_default),
+                            close=TextString(" ", p.op.font, color_default)),
+                 project(:value) ],
+               0, false, nothing)
 
 # ── JuliaForIteratorToSyntaxNode ────────────────────────────────────────────
 
@@ -438,21 +354,14 @@ end
     keyword::StyleText = StyleText(font_ubuntu_monospace_bold_20, color_solarized_magenta)
 end
 
-function projection_print(p::JuliaForIteratorToSyntaxNode, recursion, it::JuliaForIterator, ctx)
-    var_ref = child_context(ctx, @reference ^(ctx.reference).variable)
-    iter_ref = child_context(ctx, @reference ^(ctx.reference).iterable)
-    var_iomap = Cell(() -> projection_printer_recurse(recursion, it.variable, var_ref))
-    iter_iomap = Cell(() -> projection_printer_recurse(recursion, it.iterable, iter_ref))
-
-    in_leaf = SyntaxLeaf(
-        TextString("in", p.keyword);
-        open=TextString(" ", p.keyword.font, color_default),
-        close=TextString(" ", p.keyword.font, color_default))
-
-    node = SyntaxNode(
-        CellVector(() -> SyntaxDocument[var_iomap[].output, in_leaf, iter_iomap[].output]))
-    ChildrenIoMap(p, it, node, Cell(() -> IoMap[var_iomap[], iter_iomap[]]))
-end
+@projection_template JuliaForIteratorToSyntaxNode JuliaForIterator (p, it) ->
+    SyntaxNode(TextString(""), TextString(""), TextString(""),
+               [ project(:variable),
+                 SyntaxLeaf(TextString("in", p.keyword);
+                            open=TextString(" ", p.keyword.font, color_default),
+                            close=TextString(" ", p.keyword.font, color_default)),
+                 project(:iterable) ],
+               0, false, nothing)
 
 # ── JuliaForToSyntaxNode ────────────────────────────────────────────────────
 
@@ -577,17 +486,16 @@ end
     path::StyleText    = StyleText(font_ubuntu_monospace_regular_20, color_default)
 end
 
-function projection_print(p::JuliaUsingToSyntaxNode, recursion, u::JuliaUsing, ctx)
-    # `using`/`import` keyword (highlighted) followed by the module path leaf.
-    # Reference mapping uses the generic Julia defaults (see the note above the
-    # composite table), like the other statement projections here.
-    keyword_leaf = SyntaxLeaf(
-        TextString(() -> string(u.keyword), p.keyword);
-        close=TextString(" ", p.keyword.font, color_default))
-    path_leaf = SyntaxLeaf(TextString(() -> string(u.path), p.path))
-    node = SyntaxNode(CellVector(Cell[Cell(keyword_leaf), Cell(path_leaf)]))
-    SimpleIoMap(p, u, node)
-end
+# `using`/`import` keyword (highlighted) followed by the module path leaf. Both
+# are introduced display leaves (the path is a flat string, not a nested
+# expression), so the node has no recursive children; reference mapping uses the
+# template's generic ∅↔∅ default (see the note above the composite table).
+@projection_template JuliaUsingToSyntaxNode JuliaUsing (p, u) ->
+    SyntaxNode(TextString(""), TextString(""), TextString(""),
+               [ SyntaxLeaf(TextString(() -> string(u.keyword), p.keyword);
+                            close=TextString(" ", p.keyword.font, color_default)),
+                 SyntaxLeaf(TextString(() -> string(u.path), p.path)) ],
+               0, false, nothing)
 
 # ── JuliaBreakToSyntaxLeaf ──────────────────────────────────────────────────
 
@@ -595,11 +503,8 @@ end
     keyword::StyleText = StyleText(font_ubuntu_monospace_bold_20, color_solarized_magenta)
 end
 
-function projection_print(p::JuliaBreakToSyntaxLeaf, recursion, b::JuliaBreak, ctx)
-    SimpleIoMap(p, b, SyntaxLeaf(
-        TextString("break", p.keyword);
-        selection=getfield(b, :selection)))
-end
+@projection_template JuliaBreakToSyntaxLeaf JuliaBreak (p, b) ->
+    SyntaxLeaf(TextString("break", p.keyword))
 
 # ── JuliaContinueToSyntaxLeaf ───────────────────────────────────────────────
 
@@ -607,11 +512,8 @@ end
     keyword::StyleText = StyleText(font_ubuntu_monospace_bold_20, color_solarized_magenta)
 end
 
-function projection_print(p::JuliaContinueToSyntaxLeaf, recursion, c::JuliaContinue, ctx)
-    SimpleIoMap(p, c, SyntaxLeaf(
-        TextString("continue", p.keyword);
-        selection=getfield(c, :selection)))
-end
+@projection_template JuliaContinueToSyntaxLeaf JuliaContinue (p, c) ->
+    SyntaxLeaf(TextString("continue", p.keyword))
 
 # ── JuliaTryToSyntaxNode ────────────────────────────────────────────────────
 
@@ -681,17 +583,12 @@ end
     keyword::StyleText = StyleText(font_ubuntu_monospace_bold_20, color_solarized_magenta)
 end
 
-function projection_print(p::JuliaBeginToSyntaxNode, recursion, b::JuliaBegin, ctx)
-    body_ref = child_context(ctx, @reference ^(ctx.reference).body)
-    body_iomap = Cell(() -> projection_printer_recurse(recursion, b.body, body_ref))
-
-    begin_leaf = SyntaxLeaf(TextString("begin", p.keyword))
-    end_leaf = SyntaxLeaf(TextString("end", p.keyword))
-
-    node = SyntaxNode(
-        CellVector(() -> SyntaxDocument[begin_leaf, body_iomap[].output, end_leaf]))
-    ChildrenIoMap(p, b, node, Cell(() -> IoMap[body_iomap[]]))
-end
+@projection_template JuliaBeginToSyntaxNode JuliaBegin (p, b) ->
+    SyntaxNode(TextString(""), TextString(""), TextString(""),
+               [ SyntaxLeaf(TextString("begin", p.keyword)),
+                 project(:body),
+                 SyntaxLeaf(TextString("end", p.keyword)) ],
+               0, false, nothing)
 
 # ── JuliaBlockToSyntaxNode ──────────────────────────────────────────────────
 
@@ -700,16 +597,8 @@ end
     indentation::Int = 1
 end
 
-function projection_print(p::JuliaBlockToSyntaxNode, recursion, b::JuliaBlock, ctx)
-    stmt_iomaps = Cell(() -> [projection_printer_recurse(recursion, s,
-                                  child_context(ctx, @reference ^(ctx.reference).statements[i]))
-                              for (i, s) in enumerate(b.statements)])
-
-    node = SyntaxNode(
-        CellVector(() -> SyntaxDocument[im.output for im in stmt_iomaps[]]);
-        indentation=p.indentation)
-    ChildrenIoMap(p, b, node, stmt_iomaps)
-end
+@projection_template JuliaBlockToSyntaxNode JuliaBlock (p, b) ->
+    SyntaxNode(collection(:statements); indentation=p.indentation)
 
 # ── JuliaIfToSyntaxNode ─────────────────────────────────────────────────────
 
@@ -780,27 +669,33 @@ function projection_print(p::JuliaFunctionToSyntaxNode, recursion, f::JuliaFunct
     ChildrenIoMap(p, f, node, Cell(() -> IoMap[name_iomap[]; param_iomaps[]; body_iomap[]]))
 end
 
-# ── Reference mapping & readers (deferred) ──────────────────────────────────
+# ── Reference mapping & readers ─────────────────────────────────────────────
 #
-# None of the sub-projections above define `map_reference_forward`,
-# `map_reference_backward`, or `projection_read`, so each falls through to the
-# generic `Projection` defaults in common/Projection.jl: the node printers store
-# `Cell(nothing)` for the output selection, and the default backward mapper wraps
-# an output reference in a `proj(p, …)` step rather than translating it into a
-# Julia-domain path. Consequence: a selection can be set and round-tripped at the
-# projection-wrapped / whole-element granularity (which is what keeps
-# `test_text_navigation(julia_example)` green), but the cursor does NOT map
-# bidirectionally into nested Julia content (this is the High finding in
-# plan/pending/consistency-report.md, §D).
+# The projections written with `@projection_template` above (every leaf, the
+# `collection(:…)` nodes, and the flat fixed-children nodes) get their reference
+# mapping and readers for free from the template engine's generic `RuleIoMap`
+# machinery: opaque leaves map `∅↔∅` (mirroring the old generic default), and the
+# collection / fixed nodes delegate each recursive child through its stored child
+# IoMap (School A), like JsonToSyntax.
 #
-# Per-node School-A mappers (delegating through the stored child IoMaps, like
-# JsonToSyntax) are the eventual fix, but content mappers alone are not enough:
-# the Julia syntax is dense with projection-introduced structural tokens
-# (`function`, `(`, `)`, `==`, `*`, `-`, `if`, `else`, `end`, …) that have no
-# Julia pre-image, so keyboard navigation can only traverse *through* them with
-# the flat-offset projection-reference machinery that JsonToSyntax carries
-# (`_syntax_to_flat`). Wiring that for Julia is a dedicated follow-up; until then
-# the reference maps are intentionally left on the generic defaults.
+# The remaining hand-written composite nodes (`JuliaCall`, `JuliaIndex`,
+# `JuliaRange`, `JuliaFor`, `JuliaWhile`, `JuliaReturn`, `JuliaLambda`,
+# `JuliaTry`, `JuliaIf`, `JuliaFunction`) still use `ChildrenIoMap` without
+# per-node `map_reference_*`/`projection_read`, so they fall through to the
+# generic `Projection` defaults (whole-element / proj-wrapped granularity). They
+# have a nested structural sub-node (a header wrapping a keyword + a recursive
+# child, or a bracketed argument/index/parameter collection) or a variable-length
+# child list, neither of which the current template node forms express.
+#
+# Independently, the leaves are still *opaque* (no `bound(…)` marker), so a cursor
+# does NOT descend into a leaf's own text: an identifier/number/string edits at
+# whole-element granularity only. Making the leaves `bound` would need the
+# flat-offset projection-reference machinery JsonToSyntax carries
+# (`_syntax_to_flat`) to traverse the projection-introduced structural tokens
+# (`function`, `(`, `)`, `==`, `if`, `end`, …) that have no Julia pre-image; that
+# is the still-deferred follow-up (the High finding in
+# plan/pending/consistency-report.md, §D — the source of the 28 unreached
+# `…name{k}` carets in `test_text_navigation(julia_example; check_reaches_all=true)`).
 
 # ── JuliaToSyntax (composite) ───────────────────────────────────────────────
 
