@@ -27,9 +27,11 @@ module DocumentInsertionToSyntaxModule
 
 import ..ProjectionApiModule: projection_print, projection_read,
                               map_reference_forward, map_reference_backward, Projection
-import ..DocumentApiModule: Document
+import ..DocumentApiModule: Document, with_selection
 import ..DocumentCoreModule: DocumentInsertion, DocumentNothing
-import ..JuliaModule: JuliaInsertion, JuliaDocument
+import ..JuliaModule: JuliaInsertion, JuliaDocument,
+                      JuliaFunction, JuliaIf, JuliaWhile, JuliaFor, JuliaForIterator,
+                      JuliaBegin, JuliaReturn, JuliaBlock
 import ..JsonModule: JsonInsertion
 import ..XmlModule: XmlInsertion
 import ..SqlDocumentModule: SqlInsertion
@@ -44,15 +46,16 @@ import ..ReferenceModule: ConcreteReferencePath, FieldReference, RangeReference,
 import ..ReferenceCaseModule: var"@reference_case"
 import ..ReferenceBuilderModule: var"@reference"
 import ..GestureBindingModule: GestureBinding, KeyDownPattern, KeyPressPattern,
-                              projection_gestures, read_projection_gesture
+                              projection_gestures, read_projection_gesture, var"@gestures"
 import ..FontModule: font_ubuntu_monospace_regular_20, StyleFont
-import ..ColorModule: color_solarized_gray, color_default, StyleColor
+import ..ColorModule: color_solarized_gray, color_solarized_green, color_default, StyleColor
 import ..StyleTextModule: StyleText
 import ..IoMapModule: SimpleIoMap
 import ..ReactiveModule: Cell
 
 export InsertionToSyntaxLeaf, DocumentInsertionToSyntaxLeaf, JuliaInsertionToSyntaxLeaf,
-       SqlInsertionToSyntaxLeaf, default_factory, default_completion
+       SqlInsertionToSyntaxLeaf, default_factory, default_completion,
+       julia_completion, julia_scaffold
 
 # ── Projection ────────────────────────────────────────────────────────────────
 
@@ -222,9 +225,73 @@ function default_completion(name::AbstractString)
     ""
 end
 
-# Commit Julia source by parsing it; partial / invalid source can't commit.
+# ── Julia keyword scaffolds + completion ───────────────────────────────────────
+#
+# Keyword-introduced constructs (`function`, `if`, …) don't parse as complete source
+# on their own — typing one and committing expands it into a **scaffold of holes**
+# (nested `JuliaInsertion`s) with the first hole's char-cursor pre-selected. A
+# partially-typed prefix of a keyword shows a pale-green completion continuation (see
+# `julia_completion`), signalling it is committable as that keyword. Everything else
+# commits by `juliaparse` (a complete sub-expression such as `n == 0`).
+
+# Each scaffold pre-selects its first hole's own char cursor (`…value{0}`, the buffer
+# offset 0), so it is ready to type into the moment the keyword commits.
+const _JULIA_KEYWORD_SCAFFOLDS = Tuple{String,Function}[
+    ("function", () -> with_selection(
+        JuliaFunction(JuliaInsertion(), Any[JuliaInsertion()], JuliaBlock(Any[JuliaInsertion()])),
+        @reference name.value{0})),
+    ("if", () -> with_selection(
+        JuliaIf(JuliaInsertion(), JuliaBlock(Any[JuliaInsertion()]), JuliaBlock(Any[JuliaInsertion()])),
+        @reference condition.value{0})),
+    ("while", () -> with_selection(
+        JuliaWhile(JuliaInsertion(), JuliaBlock(Any[JuliaInsertion()])),
+        @reference condition.value{0})),
+    ("for", () -> with_selection(
+        JuliaFor(Any[JuliaForIterator(JuliaInsertion(), JuliaInsertion())], JuliaBlock(Any[JuliaInsertion()])),
+        @reference iterators[1].variable.value{0})),
+    ("begin", () -> with_selection(
+        JuliaBegin(JuliaBlock(Any[JuliaInsertion()])),
+        @reference body.statements[1].value{0})),
+    ("return", () -> with_selection(
+        JuliaReturn(JuliaInsertion()),
+        @reference value.value{0})),
+]
+
+"""
+    julia_scaffold(text) -> Document | nothing
+
+The keyword scaffold for `text` when it exactly names a keyword-introduced construct
+(cursor pre-placed on the first hole), else `nothing`.
+"""
+function julia_scaffold(text::AbstractString)
+    s = strip(text)
+    for (kw, make) in _JULIA_KEYWORD_SCAFFOLDS
+        s == kw && return make()
+    end
+    nothing
+end
+
+"""
+    julia_completion(text) -> String
+
+The pale-green continuation for a partially-typed keyword (`"fun"` → `"ction"`), or
+`""` when `text` is empty, already a full keyword, or matches no keyword prefix.
+"""
+function julia_completion(text::AbstractString)
+    s = strip(text)
+    isempty(s) && return ""
+    for (kw, _) in _JULIA_KEYWORD_SCAFFOLDS
+        (kw != s && startswith(kw, s)) && return kw[length(s)+1:end]
+    end
+    ""
+end
+
+# Commit a Julia hole: a keyword prefix expands to its scaffold; otherwise parse the
+# buffer as complete source. Partial / invalid non-keyword source can't commit.
 function _julia_commit(value::AbstractString)
     isempty(strip(value)) && return nothing
+    scaffold = julia_scaffold(value)
+    scaffold === nothing || return scaffold
     try
         juliaparse(value)
     catch
@@ -254,17 +321,83 @@ DocumentInsertionToSyntaxLeaf() =
     InsertionToSyntaxLeaf(default_factory; prefix = "Insert a new ", suffix = " here")
 
 """
-    JuliaInsertionToSyntaxLeaf()
-
-A Julia source insertion, committing `value` via `juliaparse`.
-"""
-JuliaInsertionToSyntaxLeaf() = InsertionToSyntaxLeaf(_julia_commit)
-
-"""
     SqlInsertionToSyntaxLeaf()
 
 A SQL source insertion, committing `value` via `sqlparse`.
 """
 SqlInsertionToSyntaxLeaf() = InsertionToSyntaxLeaf(_sql_commit)
+
+# ── JuliaInsertion: gesture-driven structural hole ─────────────────────────────
+#
+# `JuliaInsertion` is a text-buffer hole whose editing, commit, and (step C)
+# navigation are reified as document-level `@gestures JuliaInsertion` below — the
+# way `@gestures PrimitiveString` reifies string char-editing. `JuliaInsertionToSyntaxLeaf`
+# is therefore a **printer-only** leaf (mirroring `PrimitiveStringToSyntaxLeaf`): it
+# renders the buffer plus a pale-green completion continuation, maps the `value{k}`
+# char cursor, and carries **no key-capturing reader**, so raw input falls through the
+# generic `document_read` fallback to the gesture table — the single source of truth.
+
+"""
+    JuliaInsertionToSyntaxLeaf()
+
+A Julia source-insertion hole. Renders the typed buffer plus a pale-green keyword
+completion continuation; all editing/commit is `@gestures JuliaInsertion`.
+"""
+struct JuliaInsertionToSyntaxLeaf <: Projection
+    value::StyleText
+    completion::StyleText
+end
+
+JuliaInsertionToSyntaxLeaf() = JuliaInsertionToSyntaxLeaf(
+    StyleText(font_ubuntu_monospace_regular_20, color_default),
+    StyleText(font_ubuntu_monospace_regular_20, color_solarized_green))
+
+# `value{k}` char-cursor ↔ the rendered `SyntaxLeaf`'s value span (identity offset).
+function map_reference_forward(::JuliaInsertionToSyntaxLeaf, iomap, reference)
+    @reference_case reference begin
+        value{k} => @reference ::SyntaxLeaf.value::TextString{k}
+    end
+end
+
+function map_reference_backward(::JuliaInsertionToSyntaxLeaf, iomap, reference)
+    @reference_case reference begin
+        ::SyntaxLeaf.value{k} => @reference value{k}
+    end
+end
+
+function projection_print(p::JuliaInsertionToSyntaxLeaf, recursion, ins::JuliaInsertion, ctx)
+    SimpleIoMap(p, ins, SyntaxLeaf(
+        TextString(() -> something(ins.value, ""), p.value);
+        close=TextString(() -> julia_completion(something(ins.value, "")), p.completion),
+        selection=getfield(ins, :selection)))
+end
+
+# Only the structural selection mapping lives here; raw key input has no method and
+# falls through to the generic `document_read` fallback → `@gestures JuliaInsertion`.
+function projection_read(p::JuliaInsertionToSyntaxLeaf, iomap::SimpleIoMap, op::ReplaceSelectionOperation)
+    path = op.path
+    path isa ConcreteReferencePath || return nothing
+    h = path.head
+    h isa FieldReference || return nothing
+    h.name == "value" ? op : ReplaceSelectionOperation(ConcreteReferencePath(ProjectionReference(p, path)))
+end
+
+# Commit the buffer via `_julia_commit` (keyword scaffold or `juliaparse`); the
+# rerooted `∅` targets this hole, so a nested hole is replaced in place and the
+# cursor lands on the committed value's own selection (a scaffold's first hole).
+_julia_ins_commit(ins) =
+    (doc = _julia_commit(something(ins.value, ""));
+     doc === nothing ? nothing : replace_document(EmptyReferencePath(), doc))
+
+# All `JuliaInsertion` editing, reified. Char insert / Backspace / Delete reuse the
+# shared `_insertion_*` helpers (they decline with `nothing` off a `value[range]`
+# cursor, so the gesture keeps propagating); Enter commits. Tab (commit + jump to the
+# next hole) is added with step C's `SelectNextInsertionOperation`.
+@gestures JuliaInsertion begin
+    KeyPress(_, t)       => "Insert character" => _insertion_insert(doc, t)
+    KeyDown(:backspace;) => "Delete backward"  => _insertion_delete(doc, :backspace)
+    KeyDown(:delete;)    => "Delete forward"   => _insertion_delete(doc, :delete)
+    KeyDown(:return;)    => "Commit hole"      => _julia_ins_commit(doc)
+end
 
 end # module
