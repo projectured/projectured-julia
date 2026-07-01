@@ -136,6 +136,7 @@ include("editor/SyntaxTreeNavigationTest.jl")
 include("editor/AssistantMvpTest.jl")
 include("editor/ConversationPanelTest.jl")
 include("editor/VideoTest.jl")
+include("editor/WorkbenchFileTest.jl")
 include("external/DatabaseTest.jl")
 include("external/DatabaseTabularTest.jl")
 include("external/DbCatalogTest.jl")
@@ -253,6 +254,7 @@ function test_all()
     test_document_insertion()
     test_conversation_editor()
     test_assistant_mvp()
+    test_workbench_file_keys()
     test_mouse_clicks()
     test_click_roundtrips()
     test_text_nav_invariants_all()
@@ -303,6 +305,7 @@ export test_collapse_roundtrip
 export test_tree_navigation, test_tree_navigations, test_tree_navigations_complete, explore_tree_selections
 export test_assistant_mvp, make_assistant_mvp_setup, make_assistant_mvp_projection
 export test_conversation_editor, test_conversation_serialization, test_parse_markdown_blocks
+export test_workbench_file_keys
 export test_database_connection, test_database, test_database_no_db, test_database_tabular
 export test_db_catalog, test_db_catalog_tabular, test_db_catalog_syntax, test_db_catalog_sql
 
