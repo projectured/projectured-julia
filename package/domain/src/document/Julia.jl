@@ -61,8 +61,6 @@ abstract type JuliaDocument <: Document end
 # ── Insertion (editable Julia source being entered) ────────────────────────────
 
 """
-    JuliaInsertion(value="")
-
 A placeholder holding Julia source text being typed; committed (e.g. on Enter)
 by parsing `value` with `juliaparse` into a real `JuliaDocument`.
 """
@@ -73,15 +71,11 @@ end
 
 JuliaInsertion(value::AbstractString) = JuliaInsertion(value, nothing)
 
-# A JuliaInsertion's `value` (the buffer of typed text) is a plain string, so
-# text-replace edits are handled generically by `splice_value!` (see
-# OperationApiModule). No per-type method is needed.
+# `value` is a plain string, so text-replace edits go through the generic `splice_value!`.
 
 # ── Literals ──────────────────────────────────────────────────────────────────
 
 """
-    JuliaIdentifier(name::AbstractString)
-
 A named identifier in a Julia expression (e.g. `n`, `factorial`).
 """
 @document struct JuliaIdentifier <: JuliaDocument
@@ -90,8 +84,6 @@ A named identifier in a Julia expression (e.g. `n`, `factorial`).
 end
 
 """
-    JuliaInteger(value::Int)
-
 An integer literal in a Julia expression.
 """
 @document struct JuliaInteger <: JuliaDocument
@@ -100,8 +92,6 @@ An integer literal in a Julia expression.
 end
 
 """
-    JuliaFloat(value::Float64)
-
 A floating-point literal (e.g. `3.14`).
 """
 @document struct JuliaFloat <: JuliaDocument
@@ -110,8 +100,6 @@ A floating-point literal (e.g. `3.14`).
 end
 
 """
-    JuliaString(value::AbstractString)
-
 A plain string literal (e.g. `"hello"`). No interpolation.
 """
 @document struct JuliaString <: JuliaDocument
@@ -120,8 +108,6 @@ A plain string literal (e.g. `"hello"`). No interpolation.
 end
 
 """
-    JuliaBool(value::Bool)
-
 A boolean literal (`true` or `false`).
 """
 @document struct JuliaBool <: JuliaDocument
@@ -130,8 +116,6 @@ A boolean literal (`true` or `false`).
 end
 
 """
-    JuliaNothing()
-
 The literal `nothing`.
 """
 @document struct JuliaNothing <: JuliaDocument
@@ -139,8 +123,6 @@ The literal `nothing`.
 end
 
 """
-    JuliaSymbol(name::AbstractString)
-
 A symbol literal (e.g. `:foo`). `name` stores the text without the leading colon.
 """
 @document struct JuliaSymbol <: JuliaDocument
@@ -149,8 +131,6 @@ A symbol literal (e.g. `:foo`). `name` stores the text without the leading colon
 end
 
 """
-    JuliaChar(value::Char)
-
 A character literal (e.g. `'x'`).
 """
 @document struct JuliaChar <: JuliaDocument
@@ -161,8 +141,6 @@ end
 # ── Expressions ───────────────────────────────────────────────────────────────
 
 """
-    JuliaBinaryOp(operator::Symbol, left, right)
-
 A binary operation. `operator` is one of `:+`, `:-`, `:*`, `:/`, `:(==)`, etc.
 """
 @document struct JuliaBinaryOp <: JuliaDocument
@@ -173,8 +151,6 @@ A binary operation. `operator` is one of `:+`, `:-`, `:*`, `:/`, `:(==)`, etc.
 end
 
 """
-    JuliaUnaryOp(operator::Symbol, operand)
-
 A prefix unary operation (e.g. `-x`, `!flag`, `~bits`).
 """
 @document struct JuliaUnaryOp <: JuliaDocument
@@ -184,8 +160,6 @@ A prefix unary operation (e.g. `-x`, `!flag`, `~bits`).
 end
 
 """
-    JuliaCall(callee, arguments::Vector)
-
 A function call expression.
 """
 @document struct JuliaCall <: JuliaDocument
@@ -195,8 +169,6 @@ A function call expression.
 end
 
 """
-    JuliaTernary(condition, then_branch, else_branch)
-
 A ternary expression `cond ? a : b`.
 """
 @document struct JuliaTernary <: JuliaDocument
@@ -207,8 +179,6 @@ A ternary expression `cond ? a : b`.
 end
 
 """
-    JuliaIndex(collection, indices::Vector)
-
 An indexing expression `a[i, j, …]`.
 """
 @document struct JuliaIndex <: JuliaDocument
@@ -218,8 +188,6 @@ An indexing expression `a[i, j, …]`.
 end
 
 """
-    JuliaFieldAccess(object, field)
-
 A field access expression `object.field`. `field` is typically a `JuliaIdentifier`.
 """
 @document struct JuliaFieldAccess <: JuliaDocument
@@ -229,8 +197,6 @@ A field access expression `object.field`. `field` is typically a `JuliaIdentifie
 end
 
 """
-    JuliaTuple(elements::Vector)
-
 A tuple literal `(a, b, c)`.
 """
 @document struct JuliaTuple <: JuliaDocument
@@ -239,8 +205,6 @@ A tuple literal `(a, b, c)`.
 end
 
 """
-    JuliaArray(elements::Vector)
-
 An array literal `[a, b, c]`.
 """
 @document struct JuliaArray <: JuliaDocument
@@ -249,8 +213,6 @@ An array literal `[a, b, c]`.
 end
 
 """
-    JuliaRange(start, step, stop)
-
 A range expression `start:stop` or `start:step:stop`. `step` may be `nothing`.
 """
 @document struct JuliaRange <: JuliaDocument
@@ -264,8 +226,6 @@ end
 JuliaRange(start, stop) = JuliaRange(start, nothing, stop)
 
 """
-    JuliaTypeAnnotation(value, type)
-
 A type annotation expression `value::type`.
 """
 @document struct JuliaTypeAnnotation <: JuliaDocument
@@ -277,8 +237,6 @@ end
 # ── Statements ────────────────────────────────────────────────────────────────
 
 """
-    JuliaBlock(statements::Vector)
-
 A sequence of statements/expressions.
 """
 @document struct JuliaBlock <: JuliaDocument
@@ -287,8 +245,6 @@ A sequence of statements/expressions.
 end
 
 """
-    JuliaUsing(keyword::Symbol, path::AbstractString)
-
 A `using`/`import` statement. `keyword` is `:using` or `:import`; `path` is the
 rendered module spec exactly as written, e.g. `"Main.OmnetppPredExample"`,
 `"A, B"`, or `"A: x, y"`. Kept as a flat string (the spec is a path, not a nested
@@ -302,8 +258,6 @@ verbatim.
 end
 
 """
-    JuliaLambda(parameters::Vector, body)
-
 An anonymous function `(p₁, p₂, …) -> body`. `parameters` are the argument
 documents (empty for `() -> …`); `body` is the returned expression.
 """
@@ -314,8 +268,6 @@ documents (empty for `() -> …`); `body` is the returned expression.
 end
 
 """
-    JuliaAssignment(operator::Symbol, target, value)
-
 An assignment statement. `operator` is one of `:(=)`, `:(+=)`, `:(-=)`, `:(*=)`, `:(/=)`.
 """
 @document struct JuliaAssignment <: JuliaDocument
@@ -329,8 +281,6 @@ end
 JuliaAssignment(target, value) = JuliaAssignment(:(=), target, value)
 
 """
-    JuliaForIterator(variable, iterable)
-
 One `var in iter` clause of a `for` loop. `JuliaFor` holds a `CellVector` of these.
 """
 @document struct JuliaForIterator <: JuliaDocument
@@ -340,8 +290,6 @@ One `var in iter` clause of a `for` loop. `JuliaFor` holds a `CellVector` of the
 end
 
 """
-    JuliaFor(iterators::Vector, body)
-
 A for loop `for v1 in i1, v2 in i2 … end`. Each entry of `iterators` is a
 `JuliaForIterator`. `body` is typically a `JuliaBlock`.
 """
@@ -352,8 +300,6 @@ A for loop `for v1 in i1, v2 in i2 … end`. Each entry of `iterators` is a
 end
 
 """
-    JuliaWhile(condition, body)
-
 A while loop `while cond … end`.
 """
 @document struct JuliaWhile <: JuliaDocument
@@ -363,8 +309,6 @@ A while loop `while cond … end`.
 end
 
 """
-    JuliaReturn(value)
-
 A return statement. `value` may be a `Document` or `nothing` for a bare `return`.
 """
 @document struct JuliaReturn <: JuliaDocument
@@ -375,8 +319,6 @@ end
 JuliaReturn(value) = JuliaReturn(value, nothing)
 
 """
-    JuliaBreak()
-
 The `break` keyword.
 """
 @document struct JuliaBreak <: JuliaDocument
@@ -384,8 +326,6 @@ The `break` keyword.
 end
 
 """
-    JuliaContinue()
-
 The `continue` keyword.
 """
 @document struct JuliaContinue <: JuliaDocument
@@ -393,8 +333,6 @@ The `continue` keyword.
 end
 
 """
-    JuliaTry(body, catch_var, catch_branch, finally_branch)
-
 A try expression. `catch_var`, `catch_branch`, and `finally_branch` may each be
 `nothing` independently.
 """
@@ -407,8 +345,6 @@ A try expression. `catch_var`, `catch_branch`, and `finally_branch` may each be
 end
 
 """
-    JuliaBegin(body)
-
 A `begin … end` block expression.
 """
 @document struct JuliaBegin <: JuliaDocument
@@ -417,8 +353,6 @@ A `begin … end` block expression.
 end
 
 """
-    JuliaIf(condition, then_branch, else_branch)
-
 An if-else expression.
 """
 @document struct JuliaIf <: JuliaDocument
@@ -429,8 +363,6 @@ An if-else expression.
 end
 
 """
-    JuliaFunction(name, params::Vector, body)
-
 A function definition.
 """
 @document struct JuliaFunction <: JuliaDocument
