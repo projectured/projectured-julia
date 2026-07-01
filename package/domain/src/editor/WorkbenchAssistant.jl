@@ -312,10 +312,14 @@ SUBMIT_HANDLER[] = a -> SubmitDraftTurnOperation(a)
 # (`JuliaIdentifier`) if the snippet doesn't parse.
 
 function _eval_form_doc(code::AbstractString)
+    # Strip surrounding blank lines so the rendered form does not carry an empty
+    # leading/trailing gutter line (common when the snippet is a triple-quoted
+    # block). Execution still runs the original code; only the display is trimmed.
+    src = strip(String(code))
     try
-        juliaparse(String(code))
+        juliaparse(src)
     catch
-        JuliaIdentifier(String(code))
+        JuliaIdentifier(src)
     end
 end
 
