@@ -86,10 +86,12 @@ default is present, the macro also generates:
    structs get none.
 
 6. **Single-`CellVector` constructors** (Rule C) — when exactly one field is a
-   `CellVector` and every other field has a default, `Foo([a, b])` and the variadic
-   `Foo(a, b)` wrap the elements per-element via `CellVector(items)` and fill the
-   rest. Elements are typed `Document` (the universal base), so a collection may
-   hold children of any domain (mixed JSON / text / widget …).
+   `CellVector`, a positional ctor accepts that slot as an `AbstractVector` and
+   wraps it per-element via `CellVector(items)`, filling any trailing defaults.
+   This holds whether the sibling fields are **required** (`Foo(callee, [args])`)
+   or all default (`Foo([a, b])`, plus the variadic `Foo(a, b)` when the collection
+   is the sole content). Elements are typed `Document` (the universal base), so a
+   collection may hold children of any domain (mixed JSON / text / widget …).
 """
 macro document(structdef)
     structdef.head === :struct || error("@document expects a struct definition")
@@ -222,6 +224,21 @@ macro document(structdef)
             trailing += 1
         end
         req = n - trailing
+
+        # Position of the sole `CellVector` field (0 if there isn't exactly one).
+        # When a positional ctor's kept prefix includes it, Rule Y passes that slot
+        # *raw* — but the auto-wrapping inner ctor would then store `Cell(vector)`
+        # (a Cell wrapping a plain Vector) instead of a `CellVector`. So alongside
+        # the raw form we emit a variant whose CellVector slot is typed
+        # `::AbstractVector` and wrapped via `CellVector(...)` — Rule C, generalized
+        # to non-defaulted siblings (`Foo(callee, [args])`). The two coexist: the
+        # `::AbstractVector` variant is more specific for a `Vector` arg, while a
+        # real `CellVector` (which is `<: Document`, not `<: AbstractVector`) falls
+        # through to the raw form. Element type is `Document` (the universal base),
+        # so a collection may hold children of any domain.
+        cv_fields = [fname for (fname, ftype) in original_fields if ftype === :CellVector]
+        p = length(cv_fields) == 1 ? findfirst(==(cv_fields[1]), field_names) : 0
+
         if req ≥ 1
             for k in req:(n-1)
                 kept   = field_names[1:k]
@@ -230,36 +247,33 @@ macro document(structdef)
                     $(Expr(:call, struct_name, kept..., filled...))))
                 push!(extra, :($(i_name)($(kept...)) =
                     $(Expr(:call, i_name, kept..., filled...))))
+                if 1 ≤ p ≤ k                       # kept prefix contains the CellVector
+                    params   = Any[j == p ? :($(field_names[p])::AbstractVector) : field_names[j] for j in 1:k]
+                    callargs = Any[j == p ? :(CellVector($(field_names[p])))     : field_names[j] for j in 1:k]
+                    push!(extra, :($(struct_name)($(params...)) =
+                        $(Expr(:call, struct_name, callargs..., filled...))))
+                end
             end
         end
 
-        # ── Rule C: when the struct is backed by exactly one `CellVector` field
-        #    and every other field has a default, accept the elements directly and
-        #    wrap them per-element via `CellVector(items)` (CollectionModule already
-        #    defines `CellVector(::AbstractVector)`). Two element-accepting forms,
-        #    both Cell-based `Foo` only:
-        #
-        #      Foo(items::AbstractVector)   # bracketed: Foo([a, b, c])
-        #      Foo(items::Document...)      # variadic:  Foo(a, b, c)
-        #
-        #    The element type is `Document` (the universal base), not the struct's
-        #    own domain — a collection may hold children of any domain (mixed JSON /
-        #    text / widget …). That choice also makes both forms safe:
-        #      • `AbstractVector` (not `Vector`) stays strictly less specific than
-        #        any hand-written `Foo(::Vector{…})`, so it never redefines one.
-        #      • `Document...` doesn't clash with typed-variadic sugar like
-        #        `JsonObject(::Pair...)` (a `Pair` is not a `Document`), and a more
-        #        specific hand-written `Foo(::SomeDoc...)` always wins over it.
-        #      • At arity == field-count it beats the all-fields inner ctor (whose
-        #        non-element fields — `collapsed::Bool`, `selection::Reference`, … —
-        #        are not `Document`s, so a genuine inner call never matches it).
-        cv_fields = [fname for (fname, ftype) in original_fields if ftype === :CellVector]
-        if length(cv_fields) == 1 &&
+        # ── Rule C tail: element-accepting sugar for a struct backed by exactly
+        #    one `CellVector` whose every *other* field defaults. The bracketed
+        #    `Foo(items::AbstractVector)` "fill everything" form is only needed when
+        #    Rule Y did not run (`req == 0`, i.e. the CellVector itself defaults) —
+        #    otherwise the loop above already emitted the arity-`k` bracketed ctor.
+        #    The variadic `Foo(a, b, c)` sugar never collides, so it is always
+        #    emitted here. Both are Cell-based `Foo` only. `AbstractVector` (not
+        #    `Vector`) stays less specific than any hand-written `Foo(::Vector{…})`;
+        #    `Document...` doesn't clash with typed-variadic sugar like
+        #    `JsonObject(::Pair...)` and loses to a more specific `Foo(::SomeDoc...)`.
+        if p ≥ 1 &&
            all(haskey(default_map, f) for (f, ft) in original_fields if ft !== :CellVector)
-            cvf   = cv_fields[1]
-            cargs = Any[f === cvf ? :(CellVector(items)) : default_map[f] for f in field_names]
-            push!(extra, :($(struct_name)(items::AbstractVector) =
-                $(Expr(:call, struct_name, cargs...))))
+            cvf = field_names[p]
+            if req == 0
+                cargs = Any[f === cvf ? :(CellVector(items)) : default_map[f] for f in field_names]
+                push!(extra, :($(struct_name)(items::AbstractVector) =
+                    $(Expr(:call, struct_name, cargs...))))
+            end
             push!(extra, :($(struct_name)(items::Document...) =
                 $(struct_name)(collect(items))))
         end
