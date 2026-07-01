@@ -67,21 +67,15 @@ and assignment via `[]` and `[]=`.
 - `value::String` — the attribute value (stored in a Cell)
 - `selection::Reference` — a `ReferencePath` or `nothing` (stored in a Cell)
 
-# Constructors
-
-- `XmlAttribute(name::AbstractString, value::AbstractString)` — primitive cell with value
-- `XmlAttribute(name::AbstractString, f::Function)` — computed cell with thunk
+The macro's Rule Y generates the `XmlAttribute(name, value)` constructor; its
+auto-wrapping inner constructor turns a plain string into a primitive cell and a
+`Function` into a computed thunk, so it covers both the value and reactive forms.
 """
 @document struct XmlAttribute <: XmlDocument
     name::String
     value::String
-    selection::Reference
+    selection::Reference = nothing
 end
-
-XmlAttribute(name::AbstractString, value::AbstractString) =
-    XmlAttribute(String(name), Cell(String(value)), Cell(nothing))
-XmlAttribute(name::AbstractString, f::Function) =
-    XmlAttribute(String(name), Cell(f), Cell(nothing))
 
 """
     xmlattr(name::AbstractString, value::AbstractString)
@@ -89,7 +83,7 @@ XmlAttribute(name::AbstractString, f::Function) =
 Convenience constructor for creating an `XmlAttribute`. Creates an attribute
 with a primitive cell holding the given string value.
 """
-xmlattr(name::AbstractString, value::AbstractString) = XmlAttribute(String(name), Cell(String(value)), Cell(nothing))
+xmlattr(name::AbstractString, value::AbstractString) = XmlAttribute(name, value)
 
 Base.getindex(a::XmlAttribute) = a.value::String
 Base.setindex!(a::XmlAttribute, v::AbstractString) = (a.value = String(v))
@@ -110,18 +104,14 @@ assignment via `[]` and `[]=`.
 - `content::String` — the text content (stored in a Cell)
 - `selection::Reference` — a `ReferencePath` or `nothing` (stored in a Cell)
 
-# Constructors
-
-- `XmlText(v::AbstractString)` — primitive cell with value
-- `XmlText(f::Function)` — computed cell with thunk
+The macro's Rule Y generates the `XmlText(content)` constructor; its auto-wrapping
+inner constructor turns a plain string into a primitive cell and a `Function` into
+a computed thunk, so it covers both the value and reactive forms.
 """
 @document struct XmlText <: XmlDocument
     content::String
-    selection::Reference
+    selection::Reference = nothing
 end
-
-XmlText(v::AbstractString) = XmlText(Cell(String(v)), Cell(nothing))
-XmlText(f::Function) = XmlText(Cell(f), Cell(nothing))
 
 Base.getindex(t::XmlText) = t.content::String
 Base.setindex!(t::XmlText, v::AbstractString) = (t.content = String(v))
@@ -148,34 +138,33 @@ and dictionary-like operations on attributes.
 
 # Constructors
 
-- `XmlElement(tag::AbstractString)` — empty element
+The macro's Rule Y generates the empty `XmlElement(tag)` form. The remaining
+constructors disambiguate an attribute vector from a child vector by element type
+— something the macro cannot do, since `attrs` and `children` are both
+`CellVector` fields:
+
 - `XmlElement(tag, attrs::Vector{XmlAttribute})` — element with attributes
 - `XmlElement(tag, children::Vector{<:XmlDocument})` — element with children
 - `XmlElement(tag, attrs, children)` — element with both attributes and children
 """
 @document struct XmlElement <: XmlDocument
     tag::String
-    attrs::CellVector
-    children::CellVector  # holds XmlDocument children
-    collapsed::Bool
-    selection::Reference
+    attrs::CellVector = CellVector()
+    children::CellVector = CellVector()  # holds XmlDocument children
+    collapsed::Bool = false
+    selection::Reference = nothing
 end
 
-XmlElement(tag::AbstractString) =
-    XmlElement(String(tag), CellVector(), CellVector(), Cell(false), Cell(nothing))
+XmlElement(tag::AbstractString, attrs::Vector{XmlAttribute}) =
+    XmlElement(tag, attrs, XmlDocument[])
 
-function XmlElement(tag::AbstractString, attrs::Vector{XmlAttribute})
-    XmlElement(String(tag), CellVector(Cell[Cell(a) for a in attrs]), CellVector(), Cell(false), Cell(nothing))
-end
+XmlElement(tag::AbstractString, children::Vector{<:XmlDocument}) =
+    XmlElement(tag, XmlAttribute[], children)
 
-function XmlElement(tag::AbstractString, children::Vector{<:XmlDocument})
-    XmlElement(String(tag), CellVector(), CellVector(Cell[Cell(c) for c in children]), Cell(false), Cell(nothing))
-end
-
-function XmlElement(tag::AbstractString, attrs::Vector{XmlAttribute}, children::Vector{<:XmlDocument})
-    XmlElement(String(tag), CellVector(Cell[Cell(a) for a in attrs]),
-               CellVector(Cell[Cell(c) for c in children]), Cell(false), Cell(nothing))
-end
+# The 3-arg CellVector call lands on the macro's generated positional ctor, which
+# fills the `collapsed`/`selection` defaults.
+XmlElement(tag::AbstractString, attrs::Vector{XmlAttribute}, children::Vector{<:XmlDocument}) =
+    XmlElement(tag, CellVector(attrs), CellVector(children))
 
 # ── Attribute access ────────────────────────────────────────────────────────────
 
