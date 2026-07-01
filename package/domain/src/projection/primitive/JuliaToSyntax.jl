@@ -62,8 +62,11 @@ _text(value, font, color) = TextString(value, font, color)
 
 # ── JuliaIdentifierToSyntaxLeaf ─────────────────────────────────────────────
 
+# A standalone identifier is a *variable* reference — rendered in the base text
+# colour. Function names get a distinct colour via `JuliaCallToSyntaxNode`, which
+# styles its callee with a function-coloured instance of this leaf.
 @projection struct JuliaIdentifierToSyntaxLeaf
-    style::StyleText = StyleText(font_ubuntu_monospace_regular_20, color_solarized_blue)
+    style::StyleText = StyleText(font_ubuntu_monospace_regular_20, color_default)
 end
 
 function projection_print(p::JuliaIdentifierToSyntaxLeaf, recursion, v::JuliaIdentifier, ctx)
@@ -207,11 +210,19 @@ end
 
 @projection struct JuliaCallToSyntaxNode
     delim::StyleText = StyleText(font_ubuntu_monospace_regular_20, color_solarized_gray)
+    # A call's function name is coloured distinctly from a plain variable.
+    callee::StyleText = StyleText(font_ubuntu_monospace_regular_20, color_solarized_blue)
 end
 
 function projection_print(p::JuliaCallToSyntaxNode, recursion, c::JuliaCall, ctx)
     callee_ref = child_context(ctx, @reference ^(ctx.reference).callee)
-    callee_iomap = Cell(() -> projection_printer_recurse(recursion, c.callee, callee_ref))
+    # A bare identifier callee is a function name → render it through a
+    # function-coloured identifier leaf; anything else (a field access, an
+    # expression) recurses normally.
+    callee_leaf = JuliaIdentifierToSyntaxLeaf(p.callee)
+    callee_iomap = Cell(() -> c.callee isa JuliaIdentifier ?
+        projection_print(callee_leaf, recursion, c.callee, callee_ref) :
+        projection_printer_recurse(recursion, c.callee, callee_ref))
 
     arg_iomaps = Cell(() -> [projection_printer_recurse(recursion, arg,
                                 child_context(ctx, @reference ^(ctx.reference).arguments[i]))
