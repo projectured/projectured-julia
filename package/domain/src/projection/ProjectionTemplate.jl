@@ -81,7 +81,7 @@ _project_child_cell(recursion, doc, ctx, prj::Project) =
             cctx = child_context(ctx, FieldReference(String(prj.input)))
             ov = _override(prj.override, v)
             ov === nothing ? projection_printer_recurse(recursion, v, cctx) :
-                             projection_print(ov, recursion, v, cctx)
+                             ProjectionApiModule.projection_print(ov, recursion, v, cctx)
         end)
 
 # ── Wiring + IoMap ───────────────────────────────────────────────────────────
@@ -127,6 +127,16 @@ struct FixedNodeWiring
     outtype::Any
     children_field::Symbol               # output field holding the fixed children
     slots::Vector{Any}                   # KeySlot|ProjectSlot|IntroSlot|SubNodeSlot per child index
+end
+
+# A fixed-shaped node whose child *slot list* is reactive (F2): the children are a
+# thunk returning a marker vector, recomputed on each structural change (an optional
+# field toggling appears/disappears a slot). Like `FixedNodeWiring` but the slots +
+# project store live in a Cell (`child_iomaps`), read fresh by the mappers.
+struct ConditionalNodeWiring
+    intype::Any
+    outtype::Any
+    children_field::Symbol
 end
 
 # A node whose children are a fixed prefix (bound/delegated/introduced leaves)
@@ -219,6 +229,8 @@ rule_print(p, recursion, doc, ctx, builder) = _dispatch_print(p, recursion, doc,
 # nested marker-bearing sub-node (a `SubNodeSlot`) is walked by the same rules with
 # the parent doc/ctx (F1), not just the top-level builder output.
 function _dispatch_print(p, recursion, doc, ctx, out)
+    cond_field, cond = _find_conditional(out)
+    cond !== nothing && return _conditional_print(p, recursion, doc, ctx, out, cond_field, cond)
     coll_field, coll = _find_collection(out)
     coll !== nothing && return _node_print(p, recursion, doc, ctx, out, coll_field, coll)
     tok_field, tok = _find_tokens(out)
@@ -239,6 +251,18 @@ function _dispatch_print(p, recursion, doc, ctx, out)
 end
 
 _has_fixed_children(out) = any(fname -> getfield(out, fname)[] isa Vector, fieldnames(typeof(out)))
+
+# Locate a reactive children *thunk* (F2): a field holding a bare `Function`. Only
+# the 7-arg positional `SyntaxNode(open, close, sep, thunk, …)` stores an unevaluated
+# thunk (the keyword `children=` ctor wraps a Function as an output CellVector), so a
+# `Function` here unambiguously marks a conditional-children node.
+function _find_conditional(out)
+    for fname in fieldnames(typeof(out))
+        val = getfield(out, fname)[]
+        val isa Function && return (fname, val)
+    end
+    (nothing, nothing)
+end
 
 # ── Nested-marker detection (F1) ─────────────────────────────────────────────
 # A child in a fixed-children vector is a `SubNodeSlot` iff it is itself an output
@@ -452,15 +476,18 @@ end
 # a built leaf carrying a `bound` marker → key slot (its value holds a doc field);
 # anything else → introduced. The element's own selection cells (set by the
 # element builder, e.g. the entry selection and key→value remap) are left intact.
-function _fixed_print(p, recursion, doc, ctx, out)
-    children_field = _find_fixed_children(out)
-    raw = getproperty(out, children_field)
+# Walk a marker vector into (slots, project-store, output cells). Each child is
+# classified: `project(:f)` → ProjectSlot (reconciling iomap in the store); a nested
+# marker-bearing node → SubNodeSlot (F1); a `bound` leaf → KeySlot; anything else →
+# IntroSlot. Shared by `_fixed_print` (static vector) and `_conditional_print`
+# (reactive thunk, F2).
+function _walk_markers(p, recursion, doc, ctx, markers)
     slots = Any[]; store = Dict{Symbol,Any}(); output_cells = Cell[]
-    for child in raw
+    for child in markers
         if child isa Project
             # Delegated child reconciled by value identity, so a later type-swap of
             # `doc.<field>` (JSON type-to-replace on a JsonInsertion slot) rebuilds it
-            # instead of leaving a stale child iomap. The store now holds the *cell*;
+            # instead of leaving a stale child iomap. The store holds the *cell*;
             # mappers/reader force it (`[]`) for the current child iomap.
             fld = child.input
             cell = _project_child_cell(recursion, doc, ctx, child)
@@ -491,6 +518,12 @@ function _fixed_print(p, recursion, doc, ctx, out)
             push!(output_cells, Cell(child))
         end
     end
+    (slots, store, output_cells)
+end
+
+function _fixed_print(p, recursion, doc, ctx, out)
+    children_field = _find_fixed_children(out)
+    slots, store, output_cells = _walk_markers(p, recursion, doc, ctx, getproperty(out, children_field))
     setproperty!(out, children_field, CellVector(output_cells))
     # The fixed node is a real output node, so its selection cell must hold an
     # *output* path: forward-map the element's input selection through this node's
@@ -504,6 +537,27 @@ function _fixed_print(p, recursion, doc, ctx, out)
         map_reference_forward(p, im, sel)
     end))
     im = RuleIoMap(p, doc, out, FixedNodeWiring(typeof(doc), typeof(out), children_field, slots), store)
+    iomap_cell[] = im
+    return im
+end
+
+# F2: a node whose children are a *reactive thunk* returning a marker vector (an
+# optional-field toggle appears/disappears a `project`/leaf slot). The state cell
+# re-walks the markers on each structural change; the mappers read the current
+# (slots, store) from it, and the output children double-track the state cell
+# (structure) and each output cell (child content / type-swap).
+function _conditional_print(p, recursion, doc, ctx, out, children_field, thunk)
+    state = Cell(() -> _walk_markers(p, recursion, doc, ctx, thunk()))
+    setproperty!(out, children_field, CellVector(() -> [c[] for c in state[][3]]))
+    iomap_cell = Cell(nothing)
+    setfield!(out, :selection, Cell(() -> begin
+        im = iomap_cell[]
+        im === nothing && return nothing
+        sel = doc.selection
+        sel === nothing && return nothing
+        map_reference_forward(p, im, sel)
+    end))
+    im = RuleIoMap(p, doc, out, ConditionalNodeWiring(typeof(doc), typeof(out), children_field), state)
     iomap_cell[] = im
     return im
 end
@@ -654,6 +708,7 @@ function map_reference_forward(p::Projection, iomap::RuleIoMap, reference)
     w isa AtomicWiring    && return _atomic_forward(p, w, reference)
     w isa NodeWiring      && return _node_forward(p, w, iomap, reference)
     w isa FixedNodeWiring && return _fixed_forward(p, w, iomap, reference)
+    w isa ConditionalNodeWiring && return _conditional_forward(p, w, iomap, reference)
     w isa MixedNodeWiring && return _mixed_forward(p, w, iomap, reference)
     w isa InlineWiring    && return _inline_forward(p, w, reference)
     w isa SectionsWiring  && return _sections_forward(p, w, iomap, reference)
@@ -665,6 +720,7 @@ function map_reference_backward(p::Projection, iomap::RuleIoMap, reference)
     w isa AtomicWiring    && return _atomic_backward(p, w, reference)
     w isa NodeWiring      && return _node_backward(p, w, iomap, reference)
     w isa FixedNodeWiring && return _fixed_backward(p, w, iomap, reference)
+    w isa ConditionalNodeWiring && return _conditional_backward(p, w, iomap, reference)
     w isa MixedNodeWiring && return _mixed_backward(p, w, iomap, reference)
     w isa InlineWiring    && return _inline_backward(p, w, reference)
     w isa SectionsWiring  && return _sections_backward(p, w, iomap, reference)
@@ -781,46 +837,49 @@ end
 # whole child leaf, a char reference to `.children[k].value`. A ProjectSlot's child
 # is delegated through the per-slot stored iomap.
 
-function _fixed_forward(p, w, iomap, reference)
+# Shared slot-vector mappers. `project_child(fname)` returns the current child iomap
+# for a `ProjectSlot` (the store is a Dict in the fixed case, in the reactive state in
+# the conditional case); SubNodeSlots carry their own embedded iomap.
+function _slots_forward(slots, project_child, children_field, outtype, reference)
     reference === nothing && return nothing
     core = reference
-    core isa EmptyReferencePath && return _typed(w.outtype)                 # whole entry ⇒ ::Out
+    core isa EmptyReferencePath && return _typed(outtype)                   # whole ⇒ ::Out
     if core isa ConcreteReferencePath && core.head isa FieldReference
         fname = Symbol(core.head.name)
-        for (k, slot) in enumerate(w.slots)
+        for (k, slot) in enumerate(slots)
             if slot isa KeySlot && slot.in_field === fname
                 inner = core.tail
                 inner isa EmptyReferencePath &&
-                    return _path(FieldReference(String(w.children_field)), ElementReference(k))
-                return _prepend(inner, FieldReference(String(w.children_field)),
+                    return _path(FieldReference(String(children_field)), ElementReference(k))
+                return _prepend(inner, FieldReference(String(children_field)),
                                 ElementReference(k), FieldReference("value"))
             elseif slot isa ProjectSlot && slot.in_field === fname
-                child = iomap.child_iomaps[fname][]
+                child = project_child(fname)
                 inner = map_reference_forward(child.projection, child, core.tail)
                 inner === nothing && return nothing
-                return _prepend(inner, FieldReference(String(w.children_field)), ElementReference(k))
+                return _prepend(inner, FieldReference(String(children_field)), ElementReference(k))
             elseif slot isa SubNodeSlot
                 # The sub-node's mapper owns the same parent input; delegate the whole
                 # reference and, on a hit, prepend this sub-node's `.children[k]` hop.
                 inner = map_reference_forward(slot.iomap.projection, slot.iomap, reference)
                 inner === nothing && continue
-                return _prepend(inner, FieldReference(String(w.children_field)), ElementReference(k))
+                return _prepend(inner, FieldReference(String(children_field)), ElementReference(k))
             end
         end
     end
     return nothing
 end
 
-function _fixed_backward(p, w, iomap, reference)
+function _slots_backward(slots, project_child, children_field, intype, reference)
     reference === nothing && return nothing
     core = reference
-    core isa EmptyReferencePath && return _typed(w.intype)                  # whole pair ⇒ ::In
-    if core isa ConcreteReferencePath && core.head isa FieldReference && core.head.name == String(w.children_field)
+    core isa EmptyReferencePath && return _typed(intype)                    # whole ⇒ ::In
+    if core isa ConcreteReferencePath && core.head isa FieldReference && core.head.name == String(children_field)
         after = core.tail
         if after isa ConcreteReferencePath && after.head isa RangeReference
             k = after.head.start + 1
-            1 <= k <= length(w.slots) || return nothing
-            slot = w.slots[k]
+            1 <= k <= length(slots) || return nothing
+            slot = slots[k]
             leaf_path = after.tail
             if slot isa KeySlot
                 leaf_path isa EmptyReferencePath &&
@@ -831,7 +890,7 @@ function _fixed_backward(p, w, iomap, reference)
                 end
                 return nothing
             elseif slot isa ProjectSlot
-                child = iomap.child_iomaps[slot.in_field][]
+                child = project_child(slot.in_field)
                 inner = map_reference_backward(child.projection, child, leaf_path)
                 inner === nothing && return nothing
                 return _prepend(inner, FieldReference(String(slot.in_field)))
@@ -846,6 +905,17 @@ function _fixed_backward(p, w, iomap, reference)
     end
     return nothing
 end
+
+_fixed_forward(p, w, iomap, reference) =
+    _slots_forward(w.slots, fn -> iomap.child_iomaps[fn][], w.children_field, w.outtype, reference)
+_fixed_backward(p, w, iomap, reference) =
+    _slots_backward(w.slots, fn -> iomap.child_iomaps[fn][], w.children_field, w.intype, reference)
+
+# Conditional node: read the current (slots, store) from the reactive state cell.
+_conditional_forward(p, w, iomap, reference) =
+    (st = iomap.child_iomaps[]; _slots_forward(st[1], fn -> st[2][fn][], w.children_field, w.outtype, reference))
+_conditional_backward(p, w, iomap, reference) =
+    (st = iomap.child_iomaps[]; _slots_backward(st[1], fn -> st[2][fn][], w.children_field, w.intype, reference))
 
 # ── mixed node (fixed prefix + spliced collection) ─────────────────────────────
 #
@@ -1094,6 +1164,22 @@ function _focused_child(w::FixedNodeWiring, iomap, sel)
     nothing   # KeySlot/IntroSlot ⇒ leaf, no child projection to recurse into
 end
 
+function _focused_child(w::ConditionalNodeWiring, iomap, sel)
+    st = iomap.child_iomaps[]
+    core = sel
+    (core isa ConcreteReferencePath && core.head isa FieldReference) || return nothing
+    fname = Symbol(core.head.name)
+    for slot in st[1]
+        if slot isa ProjectSlot && slot.in_field === fname
+            return (st[2][fname][], (FieldReference(String(fname)),))
+        elseif slot isa SubNodeSlot
+            fc = _focused_child(slot.iomap.wiring, slot.iomap, sel)
+            fc === nothing || return fc
+        end
+    end
+    nothing
+end
+
 function _focused_child(w::MixedNodeWiring, iomap, sel)
     core = sel
     (core isa ConcreteReferencePath && core.head isa FieldReference) || return nothing
@@ -1175,7 +1261,7 @@ end
 function projection_read(p::Projection, iomap::RuleIoMap, op::ReplaceSelectionOperation)
     result = map_reference_backward(p, iomap, op.path)
     result !== nothing && return ReplaceSelectionOperation(result)
-    iomap.wiring isa Union{NodeWiring,MixedNodeWiring,InlineWiring,SectionsWiring,FixedNodeWiring} || return nothing
+    iomap.wiring isa Union{NodeWiring,MixedNodeWiring,InlineWiring,SectionsWiring,FixedNodeWiring,ConditionalNodeWiring} || return nothing
     return ReplaceSelectionOperation(_path(ProjectionReference(p, op.path)))
 end
 

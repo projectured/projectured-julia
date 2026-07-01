@@ -15,7 +15,7 @@ module JuliaToSyntaxModule
 
 import ..ReactiveModule: Cell
 import ..CollectionModule: CellVector
-import ..ProjectionApiModule: projection_print, projection_printer_recurse, projection_read, map_reference_forward, map_reference_backward, Projection
+import ..ProjectionApiModule: projection_print, Projection
 import ..ProjectionModule: var"@projection"
 import ..JuliaModule: JuliaDocument,
                       JuliaIdentifier, JuliaInteger, JuliaFloat, JuliaString, JuliaBool,
@@ -32,17 +32,10 @@ import ..ColorModule: StyleColor, color_default, color_solarized_blue, color_sol
                       color_solarized_green, color_solarized_magenta, color_solarized_gray,
                       color_solarized_violet
 import ..StyleTextModule: StyleText
-import ..SyntaxModule: SyntaxDocument, SyntaxLeaf, SyntaxNode
+import ..SyntaxModule: SyntaxLeaf, SyntaxNode
 import ..TypeDispatchingModule: TypeDispatchingProjection
 import ..DocumentInsertionToSyntaxModule: JuliaInsertionToSyntaxLeaf
-import ..IoMapModule: ChildrenIoMap
-import ..IoMapApiModule: IoMap
-import ..ReferenceModule: ConcreteReferencePath, ElementReference, PositionReference, RangeReference,
-                          FieldReference, ProjectionReference, ReferencePath, EmptyReferencePath, append_reference
-import ..ReferenceBuilderModule: var"@reference"
 import ..ProjectionTemplateModule: var"@projection_template", project, collection
-import ..PrinterContextModule: child_context
-import ..OperationModule: ReplaceSelectionOperation
 export JuliaIdentifierToSyntaxLeaf, JuliaIntegerToSyntaxLeaf,
        JuliaFloatToSyntaxLeaf, JuliaStringToSyntaxLeaf, JuliaBoolToSyntaxLeaf,
        JuliaNothingToSyntaxLeaf, JuliaSymbolToSyntaxLeaf, JuliaCharToSyntaxLeaf,
@@ -175,30 +168,17 @@ end
     callee::StyleText = StyleText(font_ubuntu_monospace_regular_20, color_solarized_blue)
 end
 
-function projection_print(p::JuliaCallToSyntaxNode, recursion, c::JuliaCall, ctx)
-    callee_ref = child_context(ctx, @reference ^(ctx.reference).callee)
-    # A bare identifier callee is a function name → render it through a
-    # function-coloured identifier leaf; anything else (a field access, an
-    # expression) recurses normally.
-    callee_leaf = JuliaIdentifierToSyntaxLeaf(p.callee)
-    callee_iomap = Cell(() -> c.callee isa JuliaIdentifier ?
-        projection_print(callee_leaf, recursion, c.callee, callee_ref) :
-        projection_printer_recurse(recursion, c.callee, callee_ref))
-
-    arg_iomaps = Cell(() -> [projection_printer_recurse(recursion, arg,
-                                child_context(ctx, @reference ^(ctx.reference).arguments[i]))
-                             for (i, arg) in enumerate(c.arguments)])
-
-    args_node = SyntaxNode(
-        CellVector(() -> SyntaxDocument[im.output for im in arg_iomaps[]]);
-        open=TextString("(", p.delim),
-        close=TextString(")", p.delim),
-        sep=TextString(", ", p.delim))
-
-    node = SyntaxNode(
-        CellVector(() -> SyntaxDocument[callee_iomap[].output, args_node]))
-    ChildrenIoMap(p, c, node, Cell(() -> IoMap[callee_iomap[]; arg_iomaps[]]))
-end
+# F1 (nested `(args)` sub-node) + F3 (callee override): a bare identifier callee is
+# a function name → render it through a function-coloured identifier leaf; anything
+# else (a field access, an expression) recurses through its own projection.
+@projection_template JuliaCallToSyntaxNode JuliaCall (p, c) ->
+    SyntaxNode(TextString(""), TextString(""), TextString(""),
+        [ project(:callee; as = v -> v isa JuliaIdentifier ? JuliaIdentifierToSyntaxLeaf(p.callee) : nothing),
+          SyntaxNode(collection(:arguments);
+                     open=TextString("(", p.delim),
+                     close=TextString(")", p.delim),
+                     sep=TextString(", ", p.delim)) ],
+        0, false, nothing)
 
 # ── JuliaTernaryToSyntaxNode ────────────────────────────────────────────────
 
@@ -277,38 +257,14 @@ end
     op::StyleText = StyleText(font_ubuntu_monospace_regular_20, color_solarized_cyan)
 end
 
-function projection_print(p::JuliaRangeToSyntaxNode, recursion, r::JuliaRange, ctx)
-    start_ref = child_context(ctx, @reference ^(ctx.reference).start)
-    step_ref = child_context(ctx, @reference ^(ctx.reference).step)
-    stop_ref = child_context(ctx, @reference ^(ctx.reference).stop)
-
-    start_iomap = Cell(() -> projection_printer_recurse(recursion, r.start, start_ref))
-    stop_iomap = Cell(() -> projection_printer_recurse(recursion, r.stop, stop_ref))
-    step_iomap = Cell(() -> begin
-        s = r.step
-        s === nothing ? nothing : projection_printer_recurse(recursion, s, step_ref)
-    end)
-
-    colon_leaf() = SyntaxLeaf(TextString(":", p.op))
-
-    node = SyntaxNode(
-        CellVector(() -> begin
-            s = r.step
-            if s === nothing
-                SyntaxDocument[start_iomap[].output, colon_leaf(), stop_iomap[].output]
-            else
-                SyntaxDocument[start_iomap[].output, colon_leaf(), step_iomap[].output, colon_leaf(), stop_iomap[].output]
-            end
-        end))
-    ChildrenIoMap(p, r, node, Cell(() -> begin
-        s = r.step
-        if s === nothing
-            IoMap[start_iomap[], stop_iomap[]]
-        else
-            IoMap[start_iomap[], step_iomap[], stop_iomap[]]
-        end
-    end))
-end
+# F2: the child list depends on the optional `step` — a reactive marker thunk.
+@projection_template JuliaRangeToSyntaxNode JuliaRange (p, r) ->
+    SyntaxNode(TextString(""), TextString(""), TextString(""),
+        () -> r.step === nothing ?
+            [ project(:start), SyntaxLeaf(TextString(":", p.op)), project(:stop) ] :
+            [ project(:start), SyntaxLeaf(TextString(":", p.op)),
+              project(:step),  SyntaxLeaf(TextString(":", p.op)), project(:stop) ],
+        0, false, nothing)
 
 # ── JuliaTypeAnnotationToSyntaxNode ─────────────────────────────────────────
 
@@ -394,32 +350,15 @@ end
     keyword::StyleText = StyleText(font_ubuntu_monospace_bold_20, color_solarized_magenta)
 end
 
-function projection_print(p::JuliaReturnToSyntaxNode, recursion, r::JuliaReturn, ctx)
-    value_ref = child_context(ctx, @reference ^(ctx.reference).value)
-    value_iomap = Cell(() -> begin
-        v = r.value
-        v === nothing ? nothing : projection_printer_recurse(recursion, v, value_ref)
-    end)
-
-    return_leaf_alone = SyntaxLeaf(TextString("return", p.keyword))
-    return_leaf_with_value = SyntaxLeaf(
-        TextString("return", p.keyword);
-        close=TextString(" ", p.keyword.font, color_default))
-
-    node = SyntaxNode(
-        CellVector(() -> begin
-            v = r.value
-            if v === nothing
-                SyntaxDocument[return_leaf_alone]
-            else
-                SyntaxDocument[return_leaf_with_value, value_iomap[].output]
-            end
-        end))
-    ChildrenIoMap(p, r, node, Cell(() -> begin
-        v = r.value
-        v === nothing ? IoMap[] : IoMap[value_iomap[]]
-    end))
-end
+# F2: bare `return` vs `return <value>` — a reactive marker thunk on optional `value`.
+@projection_template JuliaReturnToSyntaxNode JuliaReturn (p, r) ->
+    SyntaxNode(TextString(""), TextString(""), TextString(""),
+        () -> r.value === nothing ?
+            [ SyntaxLeaf(TextString("return", p.keyword)) ] :
+            [ SyntaxLeaf(TextString("return", p.keyword);
+                         close=TextString(" ", p.keyword.font, color_default)),
+              project(:value) ],
+        0, false, nothing)
 
 # ── JuliaLambdaToSyntaxNode ─────────────────────────────────────────────────
 
@@ -479,61 +418,28 @@ end
     keyword::StyleText = StyleText(font_ubuntu_monospace_bold_20, color_solarized_magenta)
 end
 
-function projection_print(p::JuliaTryToSyntaxNode, recursion, t::JuliaTry, ctx)
-    body_ref = child_context(ctx, @reference ^(ctx.reference).body)
-    catch_var_ref = child_context(ctx, @reference ^(ctx.reference).catch_var)
-    catch_branch_ref = child_context(ctx, @reference ^(ctx.reference).catch_branch)
-    finally_branch_ref = child_context(ctx, @reference ^(ctx.reference).finally_branch)
-
-    body_iomap = Cell(() -> projection_printer_recurse(recursion, t.body, body_ref))
-    catch_var_iomap = Cell(() -> begin
-        v = t.catch_var
-        v === nothing ? nothing : projection_printer_recurse(recursion, v, catch_var_ref)
-    end)
-    catch_branch_iomap = Cell(() -> begin
-        v = t.catch_branch
-        v === nothing ? nothing : projection_printer_recurse(recursion, v, catch_branch_ref)
-    end)
-    finally_branch_iomap = Cell(() -> begin
-        v = t.finally_branch
-        v === nothing ? nothing : projection_printer_recurse(recursion, v, finally_branch_ref)
-    end)
-
-    try_leaf = SyntaxLeaf(TextString("try", p.keyword))
-    catch_leaf = SyntaxLeaf(TextString("catch", p.keyword))
-    catch_leaf_with_var = SyntaxLeaf(
-        TextString("catch", p.keyword);
-        close=TextString(" ", p.keyword.font, color_default))
-    finally_leaf = SyntaxLeaf(TextString("finally", p.keyword))
-    end_leaf = SyntaxLeaf(TextString("end", p.keyword))
-
-    catch_header_alone = catch_leaf
-    catch_header_with_var = SyntaxNode(
-        CellVector(() -> SyntaxDocument[catch_leaf_with_var, catch_var_iomap[].output]))
-
-    node = SyntaxNode(
-        CellVector(() -> begin
-            result = SyntaxDocument[try_leaf, body_iomap[].output]
-            cb = t.catch_branch
-            if cb !== nothing
-                header = t.catch_var === nothing ? catch_header_alone : catch_header_with_var
-                push!(result, header, catch_branch_iomap[].output)
+# F2 + F1: an optional `catch`/`catch <var>`/`finally` child list (reactive marker
+# thunk), where the `catch <var>` form is a nested header sub-node.
+@projection_template JuliaTryToSyntaxNode JuliaTry (p, t) ->
+    SyntaxNode(TextString(""), TextString(""), TextString(""),
+        () -> begin
+            kids = Any[ SyntaxLeaf(TextString("try", p.keyword)), project(:body) ]
+            if t.catch_branch !== nothing
+                push!(kids, t.catch_var === nothing ?
+                    SyntaxLeaf(TextString("catch", p.keyword)) :
+                    SyntaxNode(TextString(""), TextString(""), TextString(""),
+                        [ SyntaxLeaf(TextString("catch", p.keyword);
+                                     close=TextString(" ", p.keyword.font, color_default)),
+                          project(:catch_var) ], 0, false, nothing))
+                push!(kids, project(:catch_branch))
             end
-            fb = t.finally_branch
-            if fb !== nothing
-                push!(result, finally_leaf, finally_branch_iomap[].output)
+            if t.finally_branch !== nothing
+                push!(kids, SyntaxLeaf(TextString("finally", p.keyword)), project(:finally_branch))
             end
-            push!(result, end_leaf)
-            result
-        end))
-    ChildrenIoMap(p, t, node, Cell(() -> begin
-        result = IoMap[body_iomap[]]
-        t.catch_var !== nothing && push!(result, catch_var_iomap[])
-        t.catch_branch !== nothing && push!(result, catch_branch_iomap[])
-        t.finally_branch !== nothing && push!(result, finally_branch_iomap[])
-        result
-    end))
-end
+            push!(kids, SyntaxLeaf(TextString("end", p.keyword)))
+            kids
+        end,
+        0, false, nothing)
 
 # ── JuliaBeginToSyntaxNode ──────────────────────────────────────────────────
 
@@ -601,21 +507,17 @@ end
 
 # ── Reference mapping & readers ─────────────────────────────────────────────
 #
-# The projections written with `@projection_template` above (every leaf, the
-# `collection(:…)` nodes, and the flat fixed-children nodes) get their reference
-# mapping and readers for free from the template engine's generic `RuleIoMap`
-# machinery: opaque leaves map `∅↔∅` (mirroring the old generic default), and the
-# collection / fixed nodes delegate each recursive child through its stored child
-# IoMap (School A), like JsonToSyntax.
-#
-# The remaining hand-written composite nodes (`JuliaCall`, `JuliaIndex`,
-# `JuliaRange`, `JuliaFor`, `JuliaWhile`, `JuliaReturn`, `JuliaLambda`,
-# `JuliaTry`, `JuliaIf`, `JuliaFunction`) still use `ChildrenIoMap` without
-# per-node `map_reference_*`/`projection_read`, so they fall through to the
-# generic `Projection` defaults (whole-element / proj-wrapped granularity). They
-# have a nested structural sub-node (a header wrapping a keyword + a recursive
-# child, or a bracketed argument/index/parameter collection) or a variable-length
-# child list, neither of which the current template node forms express.
+# Every projection here is written with `@projection_template`; all 32 get their
+# reference mapping and readers for free from the template engine's generic
+# `RuleIoMap` machinery. Opaque leaves map `∅↔∅` (mirroring the old generic
+# default); the collection / fixed nodes delegate each recursive child through its
+# stored child IoMap (School A), like JsonToSyntax. The composite/statement nodes
+# that used to be hand-written `ChildrenIoMap` printers now use the general node
+# markers: a keyword/bracket header is a nested `SyntaxNode` sub-node (F1), a
+# function-name-coloured callee is `project(:callee; as=…)` (F3), and a
+# variable-length child list (Range's `step`, Return's `value`, Try's optional
+# `catch`/`finally`) is a reactive marker thunk (F2). See
+# plan/done/projection-template-node-markers.md.
 #
 # Independently, the leaves are still *opaque* (no `bound(…)` marker), so a cursor
 # does NOT descend into a leaf's own text: an identifier/number/string edits at
