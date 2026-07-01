@@ -26,6 +26,12 @@ make_clipboard_document(document; collection=false) =
     collection ? ClipboardCollection(document) : ClipboardSlice(document)
 
 function make_workbench_document(document; title="untitled", filename=title)
+    # Start the navigator in the current working directory, so the workbench opens
+    # showing the files next to wherever the editor was launched from.
+    cwd = pwd()
+    nav_page = WorkbenchPage([
+        WorkbenchNavigator(Workspace([WorkspaceFolder(basename(cwd), cwd)])),
+    ])
     edit_page = WorkbenchPage([
         WorkbenchEditor(document; title=title, filename=filename),
     ])
@@ -39,5 +45,5 @@ function make_workbench_document(document; title="untitled", filename=title)
     control_page = WorkbenchPage([
         WorkbenchAssistant(),
     ])
-    WorkbenchWorkbench(WorkbenchPage([]), edit_page, info_page, control_page)
+    WorkbenchWorkbench(nav_page, edit_page, info_page, control_page)
 end

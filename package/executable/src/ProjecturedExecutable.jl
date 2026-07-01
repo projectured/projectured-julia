@@ -23,15 +23,27 @@ export julia_main, main, print_help, print_version, precompile_warmup
 
 # ── Help / version ─────────────────────────────────────────────────────────
 
+# Extensions this build actually accepts: the baked domains' entries in the
+# extension→domain map.
+_baked_extensions() = sort!([ext for (ext, d) in EXTENSION_DOMAINS if d in APP_DOMAINS])
+
 function print_help()
     file_suffix = APP_FILE_BACKED ? " [FILE]" : ""
-    println("$(APP_NAME) — a Projectured editor (domain: :$(APP_DOMAIN))")
+    multi = length(APP_DOMAINS) > 1
+    domain_desc = multi ? "domains: $(join(map(d -> ":$d", APP_DOMAINS), ", "))" :
+                          "domain: :$(APP_DOMAIN)"
+    println("$(APP_NAME) — a Projectured editor ($(domain_desc))")
     println()
     println("Usage: $(APP_NAME) [options]$(file_suffix)")
     println()
     println("Options:")
-    APP_FILE_BACKED &&
-        println("  FILE              open and edit FILE (a :$(APP_DOMAIN) file); omitted → scratch document")
+    if APP_FILE_BACKED
+        if multi
+            println("  FILE              open and edit FILE (domain chosen by extension: $(join(_baked_extensions(), ", "))); omitted → :$(APP_DOMAIN) scratch")
+        else
+            println("  FILE              open and edit FILE (a :$(APP_DOMAIN) file); omitted → scratch document")
+        end
+    end
     APP_EXPOSE_BACKEND &&
         println("  --backend KIND    display backend, one of $(APP_BACKENDS) (default: :$(APP_DEFAULT_BACKEND))")
     println("  -h, --help        show this help")
@@ -89,34 +101,44 @@ function resolve_backend(requested)
     requested
 end
 
+# Pick the content domain for a run: from the FILE's extension when file-backed and a
+# file was given (restricted to the baked APP_DOMAINS), otherwise the default
+# APP_DOMAIN. A single-domain build always resolves to APP_DOMAIN.
+resolve_domain(file) =
+    (APP_FILE_BACKED && file !== nothing) ?
+        domain_for_path(file; default = APP_DOMAIN, allowed = APP_DOMAINS) : APP_DOMAIN
+
 # ── Precompile warm-up (config-driven) ─────────────────────────────────────
 
 """
     precompile_warmup()
 
 Exercise the *configured* editor without opening a window, so PackageCompiler warms
-the right code paths. Builds the document + projection for the baked domain and,
-when an SDL backend is compiled in, renders one offscreen frame to warm the printer
-and rasteriser. Used by `src/Precompile.jl`.
+the right code paths. For **every** baked domain (`APP_DOMAINS`) it builds the
+document + projection and, when an SDL backend is compiled in, renders one offscreen
+frame to warm the printer and rasteriser, then drives the interactive path. Used by
+`src/Precompile.jl`.
 """
 function precompile_warmup()
     print_help()
     print_version()
-    doc, proj, _name = build_file_editor(APP_DOMAIN; workbench = APP_WORKBENCH)
-    if :sdl in APP_BACKENDS
-        try
-            mktempdir() do d
-                write_image(doc, proj, joinpath(d, "warm.png"))
+    for domain in APP_DOMAINS
+        doc, proj, _name = build_file_editor(domain; workbench = APP_WORKBENCH)
+        if :sdl in APP_BACKENDS
+            try
+                mktempdir() do d
+                    write_image(doc, proj, joinpath(d, "warm.png"))
+                end
+            catch err
+                @warn "precompile_warmup: offscreen warm render failed" domain err
             end
-        catch err
-            @warn "precompile_warmup: offscreen warm render failed" err
         end
+        # Warm the *interactive* path (reader → operation-evaluation → reprint) of the
+        # windowed pipeline the binary actually runs, so the first keystroke of the
+        # built app doesn't pay first-call JIT. Backend-independent, so it runs for
+        # every baked backend (not just SDL). Self-guards against throwing.
+        warm_file_editor(domain; workbench = APP_WORKBENCH)
     end
-    # Warm the *interactive* path (reader → operation-evaluation → reprint) of the
-    # windowed pipeline the binary actually runs, so the first keystroke of the
-    # built app doesn't pay first-call JIT. Backend-independent, so run it for every
-    # baked backend (not just SDL). Self-guards against throwing.
-    warm_file_editor(APP_DOMAIN; workbench = APP_WORKBENCH)
     nothing
 end
 
@@ -142,7 +164,7 @@ function julia_main(args::Vector{String})::Cint
     end
 
     try
-        run_file_editor(APP_DOMAIN;
+        run_file_editor(resolve_domain(opts.file);
                         file      = APP_FILE_BACKED ? opts.file : nothing,
                         workbench = APP_WORKBENCH,
                         backend   = make_backend(backend_kind),

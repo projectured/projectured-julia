@@ -12,6 +12,7 @@ using ProjecturedSdl
 
 const APP_NAME            = "projectured"
 const APP_DOMAIN          = :json
+const APP_DOMAINS         = (:json,)
 const APP_WORKBENCH       = false
 const APP_FILE_BACKED     = true
 const APP_BACKENDS        = (:sdl,)

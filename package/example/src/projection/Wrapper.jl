@@ -101,7 +101,13 @@ function make_workbench_projection(; measure=truetype_measure_text,
                                    content_projections=Pair{DataType,Any}[
                                        JsonDocument         => SequentialProjection(RecursiveProjection(JsonToSyntax()), RecursiveProjection(SyntaxToText()), WordWrapping(measure=measure), TextToGraphics(measure=measure)),
                                        XmlDocument          => SequentialProjection(RecursiveProjection(XmlToSyntax()), RecursiveProjection(SyntaxToText()), WordWrapping(measure=measure), TextToGraphics(measure=measure)),
+                                       JuliaDocument        => make_julia_projection_example(measure=measure),
+                                       SqlDocument          => make_sql_syntax_projection_example(measure=measure),
                                        TextDocument         => SequentialProjection(WordWrapping(measure=measure), TextToGraphics(measure=measure)),
+                                       # Navigator: render the workspace file system as a native WidgetTree
+                                       # (icons, chevrons, selection band) — `Workspace → FileSystem →
+                                       # WidgetTree → Graphics` — instead of the generic object projection.
+                                       WorkspaceDocument    => SequentialProjection(RecursiveProjection(WorkspaceToFileSystem()), RecursiveProjection(FileSystemToWidget()), WidgetToGraphics(font_ubuntu_monospace_regular_20; measure=measure)),
                                        # Assistant panel: composer input + widget chat history.
                                        conversation_draft_entry(measure=measure),
                                        conversation_widget_entry(measure=measure),

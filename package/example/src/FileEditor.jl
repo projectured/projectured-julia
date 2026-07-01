@@ -90,6 +90,35 @@ function editor_domain(name::Symbol)
 end
 
 """
+    EXTENSION_DOMAINS :: Dict{String,Symbol}
+
+Maps a file extension (lowercased, with the dot) to the editor domain that opens
+it — the runtime seam that lets *one* executable edit several file kinds by looking
+at the argument's extension. Mirrors the extension set `read_document_file`
+understands (see `DocumentFileModule`).
+"""
+const EXTENSION_DOMAINS = Dict{String,Symbol}(
+    ".json" => :json,
+    ".xml"  => :xml,
+    ".sql"  => :sql,
+    ".jl"   => :julia,
+)
+
+"""
+    domain_for_path(path; default::Symbol, allowed=keys(EDITOR_DOMAINS)) -> Symbol
+
+Pick the editor domain for `path` from its file extension (via
+[`EXTENSION_DOMAINS`](@ref)), restricted to `allowed`. Falls back to `default` when
+the extension is unknown/absent or maps to a domain not in `allowed` — so a
+multi-domain binary opens `foo.xml` as XML, `foo.jl` as Julia, etc., and anything
+else as its default domain.
+"""
+function domain_for_path(path; default::Symbol, allowed=keys(EDITOR_DOMAINS))
+    d = get(EXTENSION_DOMAINS, lowercase(splitext(String(path))[2]), default)
+    d in allowed ? d : default
+end
+
+"""
     build_file_editor(domain::Symbol; file=nothing, workbench=false) -> (document, projection, name)
 
 Assemble the `(document, projection, window-name)` triple a file editor runs,

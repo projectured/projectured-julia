@@ -45,17 +45,24 @@ const LOCAL_CORE_PACKAGES = ["projectured", "example", "llm"]
 # ── BuildSpec ────────────────────────────────────────────────────────────────
 
 """
-    BuildSpec(; app_name="projectured", domain=:json, workbench=false,
+    BuildSpec(; app_name="projectured", domain=:json, domains=[domain], workbench=false,
                 file_backed=true, backends=[:sdl], default_backend=:sdl,
                 expose_backend_flag=false, width=nothing, height=nothing, mcp=false)
 
 Description of the editor to bake into the executable. See
 `plan/.../executable-builder-editor-configuration.md`. The keyword constructor
-validates the spec (non-empty/known backends; `default_backend` ∈ `backends`).
+validates the spec (non-empty/known backends; `default_backend` ∈ `backends`;
+non-empty `domains` with `domain` ∈ `domains`).
+
+`domains` is the set of content domains the binary accepts at runtime, chosen per
+file by extension (`.json`/`.xml`/`.sql`/`.jl`); `domain` is the default/fallback
+used for a scratch document or an unrecognised extension. A single-domain build is
+just `domains=[domain]` (the default), so existing specs are unchanged.
 """
 struct BuildSpec
     app_name::String
     domain::Symbol
+    domains::Vector{Symbol}
     workbench::Bool
     file_backed::Bool
     backends::Vector{Symbol}
@@ -68,6 +75,7 @@ end
 
 function BuildSpec(; app_name::AbstractString="projectured",
                      domain::Symbol=:json,
+                     domains::AbstractVector=[domain],
                      workbench::Bool=false,
                      file_backed::Bool=true,
                      backends::AbstractVector=[:sdl],
@@ -76,8 +84,9 @@ function BuildSpec(; app_name::AbstractString="projectured",
                      width::Union{Integer,Nothing}=nothing,
                      height::Union{Integer,Nothing}=nothing,
                      mcp::Bool=false)
-    spec = BuildSpec(String(app_name), domain, workbench, file_backed,
-                     Symbol.(collect(backends)), default_backend, expose_backend_flag,
+    spec = BuildSpec(String(app_name), domain, Symbol.(collect(domains)), workbench,
+                     file_backed, Symbol.(collect(backends)), default_backend,
+                     expose_backend_flag,
                      width === nothing ? nothing : Int(width),
                      height === nothing ? nothing : Int(height), mcp)
     validate(spec)
@@ -85,6 +94,9 @@ function BuildSpec(; app_name::AbstractString="projectured",
 end
 
 function validate(spec::BuildSpec)
+    isempty(spec.domains) && error("BuildSpec: `domains` must not be empty")
+    spec.domain in spec.domains ||
+        error("BuildSpec: default domain :$(spec.domain) is not in domains $(spec.domains)")
     isempty(spec.backends) && error("BuildSpec: `backends` must not be empty")
     known = join(sort!(collect(KNOWN_BACKENDS)), ", ")
     for b in spec.backends
@@ -125,6 +137,7 @@ function render_app_config(spec::BuildSpec)
         "",
         "const APP_NAME            = $(repr(spec.app_name))",
         "const APP_DOMAIN          = $(repr(spec.domain))",
+        "const APP_DOMAINS         = $(repr(Tuple(spec.domains)))",
         "const APP_WORKBENCH       = $(spec.workbench)",
         "const APP_FILE_BACKED     = $(spec.file_backed)",
         "const APP_BACKENDS        = $(repr(Tuple(spec.backends)))",
