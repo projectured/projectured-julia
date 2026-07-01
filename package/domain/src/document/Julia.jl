@@ -67,11 +67,11 @@ A placeholder holding Julia source text being typed; committed (e.g. on Enter)
 by parsing `value` with `juliaparse` into a real `JuliaDocument`.
 """
 @document struct JuliaInsertion <: JuliaDocument
-    value::String
-    selection::Reference
+    value::String = ""
+    selection::Reference = nothing
 end
 
-JuliaInsertion(value::AbstractString="") = JuliaInsertion(Cell(String(value)), Cell(nothing))
+JuliaInsertion(value::AbstractString) = JuliaInsertion(value, nothing)
 
 # A JuliaInsertion's `value` (the buffer of typed text) is a plain string, so
 # text-replace edits are handled generically by `splice_value!` (see
@@ -86,10 +86,8 @@ A named identifier in a Julia expression (e.g. `n`, `factorial`).
 """
 @document struct JuliaIdentifier <: JuliaDocument
     name::String
-    selection::Reference
+    selection::Reference = nothing
 end
-
-JuliaIdentifier(name::AbstractString) = JuliaIdentifier(Cell(String(name)), Cell(nothing))
 
 """
     JuliaInteger(value::Int)
@@ -98,10 +96,8 @@ An integer literal in a Julia expression.
 """
 @document struct JuliaInteger <: JuliaDocument
     value::Int
-    selection::Reference
+    selection::Reference = nothing
 end
-
-JuliaInteger(value::Int) = JuliaInteger(Cell(value), Cell(nothing))
 
 """
     JuliaFloat(value::Float64)
@@ -110,10 +106,8 @@ A floating-point literal (e.g. `3.14`).
 """
 @document struct JuliaFloat <: JuliaDocument
     value::Float64
-    selection::Reference
+    selection::Reference = nothing
 end
-
-JuliaFloat(value::Real) = JuliaFloat(Cell(Float64(value)), Cell(nothing))
 
 """
     JuliaString(value::AbstractString)
@@ -122,10 +116,8 @@ A plain string literal (e.g. `"hello"`). No interpolation.
 """
 @document struct JuliaString <: JuliaDocument
     value::String
-    selection::Reference
+    selection::Reference = nothing
 end
-
-JuliaString(value::AbstractString) = JuliaString(Cell(String(value)), Cell(nothing))
 
 """
     JuliaBool(value::Bool)
@@ -134,10 +126,8 @@ A boolean literal (`true` or `false`).
 """
 @document struct JuliaBool <: JuliaDocument
     value::Bool
-    selection::Reference
+    selection::Reference = nothing
 end
-
-JuliaBool(value::Bool) = JuliaBool(Cell(value), Cell(nothing))
 
 """
     JuliaNothing()
@@ -155,10 +145,8 @@ A symbol literal (e.g. `:foo`). `name` stores the text without the leading colon
 """
 @document struct JuliaSymbol <: JuliaDocument
     name::String
-    selection::Reference
+    selection::Reference = nothing
 end
-
-JuliaSymbol(name::AbstractString) = JuliaSymbol(Cell(String(name)), Cell(nothing))
 
 """
     JuliaChar(value::Char)
@@ -167,10 +155,8 @@ A character literal (e.g. `'x'`).
 """
 @document struct JuliaChar <: JuliaDocument
     value::Char
-    selection::Reference
+    selection::Reference = nothing
 end
-
-JuliaChar(value::Char) = JuliaChar(Cell(value), Cell(nothing))
 
 # ── Expressions ───────────────────────────────────────────────────────────────
 
@@ -183,11 +169,8 @@ A binary operation. `operator` is one of `:+`, `:-`, `:*`, `:/`, `:(==)`, etc.
     operator::Symbol
     left::Document
     right::Document
-    selection::Reference
+    selection::Reference = nothing
 end
-
-JuliaBinaryOp(op::Symbol, left, right) =
-    JuliaBinaryOp(Cell(op), Cell(left), Cell(right), Cell(nothing))
 
 """
     JuliaUnaryOp(operator::Symbol, operand)
@@ -197,11 +180,8 @@ A prefix unary operation (e.g. `-x`, `!flag`, `~bits`).
 @document struct JuliaUnaryOp <: JuliaDocument
     operator::Symbol
     operand::Document
-    selection::Reference
+    selection::Reference = nothing
 end
-
-JuliaUnaryOp(op::Symbol, operand) =
-    JuliaUnaryOp(Cell(op), Cell(operand), Cell(nothing))
 
 """
     JuliaCall(callee, arguments::Vector)
@@ -211,11 +191,8 @@ A function call expression.
 @document struct JuliaCall <: JuliaDocument
     callee::Document
     arguments::CellVector
-    selection::Reference
+    selection::Reference = nothing
 end
-
-JuliaCall(callee, arguments::Vector) =
-    JuliaCall(Cell(callee), CellVector(Cell[Cell(a) for a in arguments]), Cell(nothing))
 
 """
     JuliaTernary(condition, then_branch, else_branch)
@@ -226,11 +203,8 @@ A ternary expression `cond ? a : b`.
     condition::Document
     then_branch::Document
     else_branch::Document
-    selection::Reference
+    selection::Reference = nothing
 end
-
-JuliaTernary(cond, then_branch, else_branch) =
-    JuliaTernary(Cell(cond), Cell(then_branch), Cell(else_branch), Cell(nothing))
 
 """
     JuliaIndex(collection, indices::Vector)
@@ -240,11 +214,8 @@ An indexing expression `a[i, j, …]`.
 @document struct JuliaIndex <: JuliaDocument
     collection::Document
     indices::CellVector
-    selection::Reference
+    selection::Reference = nothing
 end
-
-JuliaIndex(collection, indices::Vector) =
-    JuliaIndex(Cell(collection), CellVector(Cell[Cell(i) for i in indices]), Cell(nothing))
 
 """
     JuliaFieldAccess(object, field)
@@ -254,11 +225,8 @@ A field access expression `object.field`. `field` is typically a `JuliaIdentifie
 @document struct JuliaFieldAccess <: JuliaDocument
     object::Document
     field::Document
-    selection::Reference
+    selection::Reference = nothing
 end
-
-JuliaFieldAccess(object, field) =
-    JuliaFieldAccess(Cell(object), Cell(field), Cell(nothing))
 
 """
     JuliaTuple(elements::Vector)
@@ -266,12 +234,9 @@ JuliaFieldAccess(object, field) =
 A tuple literal `(a, b, c)`.
 """
 @document struct JuliaTuple <: JuliaDocument
-    elements::CellVector
-    selection::Reference
+    elements::CellVector = CellVector()
+    selection::Reference = nothing
 end
-
-JuliaTuple(elements::Vector) =
-    JuliaTuple(CellVector(Cell[Cell(e) for e in elements]), Cell(nothing))
 
 """
     JuliaArray(elements::Vector)
@@ -279,12 +244,9 @@ JuliaTuple(elements::Vector) =
 An array literal `[a, b, c]`.
 """
 @document struct JuliaArray <: JuliaDocument
-    elements::CellVector
-    selection::Reference
+    elements::CellVector = CellVector()
+    selection::Reference = nothing
 end
-
-JuliaArray(elements::Vector) =
-    JuliaArray(CellVector(Cell[Cell(e) for e in elements]), Cell(nothing))
 
 """
     JuliaRange(start, step, stop)
@@ -295,12 +257,10 @@ A range expression `start:stop` or `start:step:stop`. `step` may be `nothing`.
     start::Document
     step::Union{Document,Nothing}
     stop::Document
-    selection::Reference
+    selection::Reference = nothing
 end
 
-JuliaRange(start, step, stop) =
-    JuliaRange(Cell(start), Cell(step), Cell(stop), Cell(nothing))
-
+# a range with no step
 JuliaRange(start, stop) = JuliaRange(start, nothing, stop)
 
 """
@@ -311,11 +271,8 @@ A type annotation expression `value::type`.
 @document struct JuliaTypeAnnotation <: JuliaDocument
     value::Document
     type::Document
-    selection::Reference
+    selection::Reference = nothing
 end
-
-JuliaTypeAnnotation(value, type) =
-    JuliaTypeAnnotation(Cell(value), Cell(type), Cell(nothing))
 
 # ── Statements ────────────────────────────────────────────────────────────────
 
@@ -325,12 +282,9 @@ JuliaTypeAnnotation(value, type) =
 A sequence of statements/expressions.
 """
 @document struct JuliaBlock <: JuliaDocument
-    statements::CellVector
-    selection::Reference
+    statements::CellVector = CellVector()
+    selection::Reference = nothing
 end
-
-JuliaBlock(statements::Vector) =
-    JuliaBlock(CellVector(Cell[Cell(s) for s in statements]), Cell(nothing))
 
 """
     JuliaUsing(keyword::Symbol, path::AbstractString)
@@ -344,11 +298,8 @@ verbatim.
 @document struct JuliaUsing <: JuliaDocument
     keyword::Symbol
     path::String
-    selection::Reference
+    selection::Reference = nothing
 end
-
-JuliaUsing(keyword::Symbol, path::AbstractString) =
-    JuliaUsing(Cell(keyword), Cell(String(path)), Cell(nothing))
 
 """
     JuliaLambda(parameters::Vector, body)
@@ -359,11 +310,8 @@ documents (empty for `() -> …`); `body` is the returned expression.
 @document struct JuliaLambda <: JuliaDocument
     parameters::CellVector
     body::Document
-    selection::Reference
+    selection::Reference = nothing
 end
-
-JuliaLambda(parameters::Vector, body) =
-    JuliaLambda(CellVector(Cell[Cell(p) for p in parameters]), Cell(body), Cell(nothing))
 
 """
     JuliaAssignment(operator::Symbol, target, value)
@@ -374,12 +322,10 @@ An assignment statement. `operator` is one of `:(=)`, `:(+=)`, `:(-=)`, `:(*=)`,
     operator::Symbol
     target::Document
     value::Document
-    selection::Reference
+    selection::Reference = nothing
 end
 
-JuliaAssignment(op::Symbol, target, value) =
-    JuliaAssignment(Cell(op), Cell(target), Cell(value), Cell(nothing))
-
+# assignment defaulting the operator to `=`
 JuliaAssignment(target, value) = JuliaAssignment(:(=), target, value)
 
 """
@@ -390,11 +336,8 @@ One `var in iter` clause of a `for` loop. `JuliaFor` holds a `CellVector` of the
 @document struct JuliaForIterator <: JuliaDocument
     variable::Document
     iterable::Document
-    selection::Reference
+    selection::Reference = nothing
 end
-
-JuliaForIterator(variable, iterable) =
-    JuliaForIterator(Cell(variable), Cell(iterable), Cell(nothing))
 
 """
     JuliaFor(iterators::Vector, body)
@@ -405,11 +348,8 @@ A for loop `for v1 in i1, v2 in i2 … end`. Each entry of `iterators` is a
 @document struct JuliaFor <: JuliaDocument
     iterators::CellVector
     body::Document
-    selection::Reference
+    selection::Reference = nothing
 end
-
-JuliaFor(iterators::Vector, body) =
-    JuliaFor(CellVector(Cell[Cell(it) for it in iterators]), Cell(body), Cell(nothing))
 
 """
     JuliaWhile(condition, body)
@@ -419,11 +359,8 @@ A while loop `while cond … end`.
 @document struct JuliaWhile <: JuliaDocument
     condition::Document
     body::Document
-    selection::Reference
+    selection::Reference = nothing
 end
-
-JuliaWhile(condition, body) =
-    JuliaWhile(Cell(condition), Cell(body), Cell(nothing))
 
 """
     JuliaReturn(value)
@@ -435,7 +372,7 @@ A return statement. `value` may be a `Document` or `nothing` for a bare `return`
     selection::Reference = nothing
 end
 
-JuliaReturn(value) = JuliaReturn(Cell(value), Cell(nothing))
+JuliaReturn(value) = JuliaReturn(value, nothing)
 
 """
     JuliaBreak()
@@ -466,11 +403,8 @@ A try expression. `catch_var`, `catch_branch`, and `finally_branch` may each be
     catch_var::Union{Document,Nothing}
     catch_branch::Union{Document,Nothing}
     finally_branch::Union{Document,Nothing}
-    selection::Reference
+    selection::Reference = nothing
 end
-
-JuliaTry(body, catch_var, catch_branch, finally_branch) =
-    JuliaTry(Cell(body), Cell(catch_var), Cell(catch_branch), Cell(finally_branch), Cell(nothing))
 
 """
     JuliaBegin(body)
@@ -479,10 +413,8 @@ A `begin … end` block expression.
 """
 @document struct JuliaBegin <: JuliaDocument
     body::Document
-    selection::Reference
+    selection::Reference = nothing
 end
-
-JuliaBegin(body) = JuliaBegin(Cell(body), Cell(nothing))
 
 """
     JuliaIf(condition, then_branch, else_branch)
@@ -493,11 +425,8 @@ An if-else expression.
     condition::Document
     then_branch::Document
     else_branch::Document
-    selection::Reference
+    selection::Reference = nothing
 end
-
-JuliaIf(condition, then_branch, else_branch) =
-    JuliaIf(Cell(condition), Cell(then_branch), Cell(else_branch), Cell(nothing))
 
 """
     JuliaFunction(name, params::Vector, body)
@@ -508,11 +437,8 @@ A function definition.
     name::Document
     params::CellVector
     body::Document
-    selection::Reference
+    selection::Reference = nothing
 end
-
-JuliaFunction(name, params::Vector, body) =
-    JuliaFunction(Cell(name), CellVector(Cell[Cell(p) for p in params]), Cell(body), Cell(nothing))
 
 # ── Utility ──────────────────────────────────────────────────────────────────
 
