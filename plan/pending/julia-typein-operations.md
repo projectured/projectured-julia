@@ -175,42 +175,58 @@ identifier/integer commit; the `⇥` after each drives `SelectNextInsertionOpera
 
 ## Steps
 
-- [ ] **0. Gate on the dependency.** Confirm the `@projection_template` `JuliaToSyntax`
-      refactor lands: `test_printer(julia_example)` green **and**
-      `test_text_navigation(julia_example)` reaches nested name/param/cond states (the
-      `explore_selections` count grows past 3). Until then a nested-hole commit cannot
-      reroot and this plan cannot be verified end-to-end.
-- [ ] **A. Scaffold + completion table** in `document/Julia.jl`: `_JULIA_SCAFFOLDS`,
-      `julia_scaffold`, `julia_completion`. Unit-test scaffold shapes + cursor refs.
-- [ ] **B. Smarter commit**: extend `_julia_commit` (keyword-scaffold vs parse). Test:
-      `_julia_commit("function")` returns a `JuliaFunction` with 3 holes & name-cursor;
-      `_julia_commit("n == 0")` returns the `JuliaBinaryOp`.
-- [ ] **C. Hole navigation**: `SelectNextInsertionOperation` (+ previous) and
-      `next_insertion_path` tree walk; Tab gesture = commit+advance. Test on a
-      hand-built partial factorial that Tab visits holes in print order.
-- [ ] **D. Completion-hint leaf**: render the pale-green suffix; wire `julia_completion`.
-      `test_printer(julia_example)` stays green; a print of a partial buffer shows the hint.
-- [ ] **E. End-to-end**: a `walk`-style test that replays the keystroke script from a root
-      `JuliaInsertion` and asserts the final tree `==` `make_julia_document_example()`
-      (ignoring selection). Add as `test_julia_typein` alongside the JSON/XML typein tests.
-- [ ] **F. (optional) Structural operator/call/list gestures** (block E above) as a
-      follow-up once the parse-commit flow is solid.
+- [x] **0. Gate on the dependency.** ✅ The `@projection_template` `JuliaToSyntax` refactor
+      landed on `main` (`a764d51`…`f400ef0`) mid-implementation; this worktree was rebased
+      onto it. Leaf/collection/templated nodes route + map; **compound nodes
+      (`JuliaFunction`/`JuliaIf`/`JuliaCall`) are still hand-written** and do NOT route
+      nested char input — see the interactive gate under Results.
+- [x] **A. Scaffold + completion table** — `_JULIA_KEYWORD_SCAFFOLDS`, `julia_scaffold`,
+      `julia_completion` in `DocumentInsertionToSyntax.jl` (NOT `document/Julia.jl`, to avoid
+      the refactor's edit set). Verified: `julia_scaffold("function")` → `JuliaFunction` with
+      3 holes, cursor `name.value{0}`; `julia_completion("fun")` → `"ction"`.
+- [x] **B. Smarter commit** — `_julia_commit`: keyword prefix → scaffold, else `juliaparse`.
+      Verified: `_julia_commit("if")`→`JuliaIf`, `("n == 0")`→`JuliaBinaryOp`, `("1")`→
+      `JuliaInteger`, `("")`→`nothing`.
+- [x] **C. Hole navigation** — `SelectNextInsertionOperation(predicate, cursor)` (kernel
+      `Operation.jl`) + pass-through arm in `Projection.jl`; `@gestures JuliaInsertion` Tab
+      (`_julia_ins_tab`) = commit-and-advance. Verified: pre-order walk visits
+      name → params[1] → body.statements[1], cursor `value{0}`, clamps at last.
+- [x] **D. Completion-hint leaf** — `JuliaInsertionToSyntaxLeaf` reimplemented printer-only
+      (mirrors `PrimitiveStringToSyntaxLeaf`): buffer + pale-green completion `close` span,
+      `value{k}` mapping, no key reader. `test_document_insertion` stays 18/18.
+- [x] **E. End-to-end** — `test_julia_typein` (`editor/JuliaTypeinTest.jl`): the gesture
+      operations (rerooted) build **exactly** `make_julia_document_example()`; navigation
+      unit test; interactive nested-typing `@test_broken` (the gate). Result **7 pass /
+      1 broken**. Wired into `test_all`.
+- [ ] **F. (optional) Structural operator/call/list gestures** — deferred; not needed for
+      factorial (the buffer+`juliaparse` commit builds `n == 0`, `n * factorial(n - 1)`).
+- [x] **@gestures-first** — all `JuliaInsertion` editing reified as `@gestures JuliaInsertion`
+      (char insert/delete/commit/Tab), reached via the generic `document_read` fallback.
 
-## Risks / open items
+## Results (2026-07-02)
 
-- **Reroot correctness at depth.** The whole plan hinges on step 0: a `replace_document`
-  emitted at, say, the `else`-block hole must reroot to the full document path. This is
-  the School-A + flat-offset machinery from `julia-syntax-navigation.md`; if the refactor
-  delivers mappers but not structural traversal, hole *commit* may work while Tab
-  *navigation through* keyword tokens does not — verify both.
-- **Tab precedence (hybrid model).** `InsertionToSyntaxLeaf.projection_gestures` currently
-  owns every key. Tab must be added there (or a Julia leaf subtype) so it beats any
-  ancestor Tab; audit that no enclosing projection already claims Tab on a Julia pipeline.
-- **`SelectNextInsertionOperation` is editor-global.** It reads `editor.document`, unlike
-  the doc-relative authoring ops. Confirm that fits `evaluate_operation` and does not need
-  rerooting (it sets an absolute selection, so it should pass through readers unchanged —
-  mirror `ReplaceSelectionOperation`).
-- **Empty-list holes.** Scaffolds seed one hole per list (`[JuliaInsertion()]` params,
-  single-statement blocks) so Tab has somewhere to land; committing a hole to empty +
-  Tab should *remove* the stray hole (a later refinement; not needed for factorial).
-```
+**Operations layer complete and verified.** Starting from an empty `JuliaInsertion`, the
+reified gesture operations compose into the exact `factorial` tree
+(`_jt_equal(built, make_julia_document_example())` is `true`). Commits: `ce26802` (A/B/D +
+`@gestures`), `74df1d5` (C), test commit. Regression: `test_document_insertion` 18/18,
+`test_repl(json_example)` 225/225, `test_repl(julia_example)` 225/225.
+
+**Interactive gate (open, external).** Feeding key events through
+`RecursiveProjection(JuliaToSyntax())` commits a **root** hole (`function`+Tab →
+`JuliaFunction`), but **nested-hole char input does not route** through `JuliaFunction`'s
+still-hand-written projection to the child, so `factorial` never reaches the name hole. This
+is exactly [julia-syntax-navigation.md](julia-syntax-navigation.md): the compound nodes
+(`JuliaFunction`/`JuliaIf`/`JuliaCall`) need School-A mappers + `projection_read` routing
+(and the flat-offset traversal of their introduced tokens). When that lands, the `@test_broken`
+in `test_julia_typein` flips to pass — the natural signal that the interactive type-in is live.
+
+## Notes on the risks that materialised
+
+- **Tab precedence** was resolved cleanly by making `JuliaInsertionToSyntaxLeaf` printer-only
+  (no `projection_gestures`), so `@gestures JuliaInsertion` owns every key via `document_read`.
+  The shared `InsertionToSyntaxLeaf` (DocumentInsertion/SQL) is untouched.
+- **`SelectNextInsertionOperation` is editor-global** — carries no reference, added a
+  pass-through arm to the default `projection_read` (like `ToggleCollapseOperation`); the
+  `else`-branch of `prepend_steps_to_op` already forwards it. Confirmed non-regressing.
+- **Empty-list holes**: scaffolds seed one hole per list so Tab lands; deleting a hole to
+  empty + removing the stray hole is a later refinement (not needed for factorial).
