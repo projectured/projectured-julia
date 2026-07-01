@@ -186,10 +186,11 @@ mutable struct ScriptedLlm <: LlmBackend
     scripts::Vector{Vector{NamedTuple}}
     cursor::Int
     delay::Float64
+    jitter::Float64
 end
 
-ScriptedLlm(scripts; delay::Real = 0.0) =
-    ScriptedLlm([Vector{NamedTuple}(s) for s in scripts], 0, Float64(delay))
+ScriptedLlm(scripts; delay::Real = 0.0, jitter::Real = 0.0) =
+    ScriptedLlm([Vector{NamedTuple}(s) for s in scripts], 0, Float64(delay), Float64(jitter))
 
 function stream_turn(b::ScriptedLlm,
                      _api_key::AbstractString,
@@ -206,6 +207,9 @@ function stream_turn(b::ScriptedLlm,
     for ev in b.scripts[b.cursor]
         on_event(ev)
         d = get(ev, :delay, b.delay)
+        # Jitter each delay by a random factor in [1-jitter, 1+jitter] so the
+        # streamed prose lands unevenly — like a real model, not a metronome.
+        b.jitter > 0 && (d *= 1 + b.jitter * (2 * rand() - 1))
         d > 0 && sleep(d)
     end
     nothing
