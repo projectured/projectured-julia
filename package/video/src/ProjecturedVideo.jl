@@ -132,10 +132,17 @@ function record_video(document, projection, gestures::AbstractVector,
     # animated document (a canvas whose cells read the editor time) actually moves
     # across the recording — including during otherwise-static hold frames.
     anim_t0 = time()
-    iomap = nothing   # last printed iomap, kept fresh for event/operation readers
+    # Print the projection ONCE and keep the resulting canvas; every frame just
+    # re-renders that same canvas. Re-rendering re-forces the reactive cells, so
+    # streamed parts, typed characters, the live progress card and the animation
+    # all appear incrementally — *without* re-running the whole (heavy) projection
+    # per frame, which would allocate a fresh graphics tree every frame and thrash
+    # GC / memory. `tick!` advances the editor clock so time-reading cells recompute.
+    # The projection is only re-printed if an operation swaps the whole document.
+    iomap = nothing
+    reprint!() = (iomap = print_iomap(document); nothing)
     emit_frames! = (n::Integer) -> for _ in 1:max(n, 0)
         tick!(time() - anim_t0)
-        iomap = print_iomap(document)
         _emit_frames!(off, canvas_of(iomap), width, height, background, tmpdir, frame, 1)
     end
     try
@@ -144,7 +151,7 @@ function record_video(document, projection, gestures::AbstractVector,
         else
             set_selection!(document, initial_selection)
         end
-        iomap = print_iomap(document)
+        reprint!()
         emit_frames!(round(Int, initial_hold * fps))
 
         for entry in gestures
@@ -180,7 +187,13 @@ function record_video(document, projection, gestures::AbstractVector,
             if op !== nothing
                 ed = _VideoEditor(document, iomap)
                 evaluate_operation(ed, op)
-                document = ed.document   # pick up a whole-document swap
+                # In-place edits (typing, submit, streamed parts) propagate through
+                # the reactive graph, so the cached canvas re-renders them. Only a
+                # whole-document *swap* needs a re-print.
+                if ed.document !== document
+                    document = ed.document
+                    reprint!()
+                end
             end
             emit_frames!(round(Int, entry.hold * fps))
         end
@@ -204,7 +217,7 @@ function record_video(document, projection, gestures::AbstractVector,
         frame[] == 0 &&
             error("record_video: no frames produced (gestures empty and initial_hold/final_hold ≈ 0)")
 
-        pattern = joinpath(tmpdir, "frame_%06d.bmp")
+        pattern = joinpath(tmpdir, "frame_%06d.png")
         # Build the command from a string vector: a backtick literal would reject
         # the unquoted parentheses/asterisks in the `pad` filter expression.
         FFMPEG.exe(Cmd(String[

@@ -2126,7 +2126,12 @@ function _emit_frames!(off, canvas::GraphicsCanvas, width::Integer, height::Inte
     try
         for _ in 1:count
             frame[] += 1
-            _save_surface_bmp(out_surface, joinpath(tmpdir, "frame_$(lpad(frame[], 6, '0')).bmp"))
+            # PNG (lossless, compressed) rather than raw BMP: UI frames are mostly
+            # flat colour and compress ~10-50x, so the frame pile stays small
+            # instead of filling the disk quota on a long high-resolution recording.
+            fn = joinpath(tmpdir, "frame_$(lpad(frame[], 6, '0')).png")
+            IMG_SavePNG(out_surface, fn) == 0 ||
+                error("_emit_frames!: IMG_SavePNG failed for $fn: $(unsafe_string(SDL_GetError()))")
         end
     finally
         out_surface !== off.surface && SDL_FreeSurface(out_surface)
