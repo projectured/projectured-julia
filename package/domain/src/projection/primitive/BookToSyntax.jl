@@ -16,6 +16,7 @@ import ..ReactiveModule: Cell, setfn!
 import ..CollectionModule: CellVector
 import ..ImageModule: ImageFile
 import ..BackendModule: decode_image
+import ..GraphicsModule: GraphicsDocument
 import ..ProjectionApiModule: projection_print, projection_printer_recurse, projection_read,
                               map_reference_forward, map_reference_backward, Projection
 import ..ProjectionModule: var"@projection"
@@ -573,6 +574,17 @@ end
 # to its natural extent capped at `max_w`); otherwise the path/placeholder text.
 # The field type on `SyntaxLeaf.value` is only a hint — the Cell holds either.
 function _picture_leaf_value(content, style::StyleText, placeholder::StyleText; max_w::Int = 640)
+    if content isa GraphicsDocument
+        # A pre-projected sub-document (e.g. a `WidgetTable` run through
+        # `WidgetToGraphics`, or any ad-hoc `GraphicsCanvas`): embed the graphics
+        # live, exactly like an image span but WITHOUT rasterizing — TextToGraphics
+        # splices the canvas in as a nested, real graphics element. Sized to the
+        # canvas's own `w`/`h` (a `GraphicsCanvas` carries them; else zero).
+        gw = Cell(() -> Int32(hasproperty(content, :w) ? Int(content.w) : 0))
+        gh = Cell(() -> Int32(hasproperty(content, :h) ? Int(content.h) : 0))
+        return TextGraphics(Cell(content), gw, gh, Cell(style.font), Cell(""),
+                            Cell(nothing), Cell(nothing), Cell(nothing), Cell(nothing))
+    end
     if content isa AbstractString && !isempty(content) && isfile(String(content))
         path = String(content)
         img  = ImageFile(path)

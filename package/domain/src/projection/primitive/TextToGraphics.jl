@@ -422,9 +422,9 @@ function _layout_text(p::TextToGraphics, styled::TextText, sel; collect_spans::B
         if span isa TextGraphics
             img_w = Int(span.width::Int32)
             img_h = Int(span.height::Int32)
-            # Extract raw pixel data from the embedded ImageDocument
-            img_data = _extract_image_data(span)
-            collect_spans && push!(result, GraphicsImage(cx, cy, img_w, img_h, img_data))
+            # Embed the span: a raster GraphicsImage for an image document, or a
+            # live nested canvas for a pre-projected GraphicsCanvas (widget etc.).
+            collect_spans && push!(result, _graphics_span_element(span, cx, cy, img_w, img_h))
             # Record a SegCoord for hit-testing: atomic position (0..1)
             push!(coord_map, SegCoord(elem_idx, 0, 1, cx, cy, span.font::StyleFont, "", img_w, img_h))
             cumulative_flat += 1  # image spans occupy 1 char in the flat space
@@ -551,8 +551,7 @@ function _layout_line(p::TextToGraphics, group)
         if span isa TextGraphics
             img_w = Int(span.width::Int32)
             img_h = Int(span.height::Int32)
-            img_data = _extract_image_data(span)
-            push!(result, GraphicsImage(cx, cy, img_w, img_h, img_data))
+            push!(result, _graphics_span_element(span, cx, cy, img_w, img_h))
             push!(coord_map, SegCoord(elem_idx, 0, 1, cx, cy, span.font::StyleFont, "", img_w, img_h))
             line_h = max(line_h, img_h)
             cx += img_w
@@ -1050,6 +1049,33 @@ function _extract_image_data(span::TextGraphics)
     content = span.content
     content === nothing && return nothing
     hasproperty(content, :raw) ? content.raw : nothing
+end
+
+"""
+    _graphics_span_element(span::TextGraphics, x, y, w, h)
+
+The rendered element for an inline `TextGraphics` span, placed at `(x, y)` with
+display size `w × h`:
+
+- when the embedded `content` is already a **`GraphicsCanvas`** — a sub-document
+  projected to graphics (e.g. a `WidgetTable` run through `WidgetToGraphics`) — it
+  is spliced in live as a nested canvas, so it renders as real, selectable graphics
+  rather than a raster (this is "handle a widget like an image, projected to
+  graphics"). The canvas is positioned via a fresh single-child wrapper so the
+  persistent inner canvas's own `x`/`y` cells are never written from inside this
+  layout cell.
+- otherwise (an `ImageFile`/`ImageMemory`, the original case) it is rasterized to
+  a `GraphicsImage` from the content's decoded `.raw` bytes.
+
+The field type on `TextGraphics.content` is only a hint — the `Cell` holds either.
+"""
+function _graphics_span_element(span::TextGraphics, x::Integer, y::Integer, w::Integer, h::Integer)
+    content = span.content
+    if content isa GraphicsCanvas
+        return GraphicsCanvas(Cell(Int32(x)), Cell(Int32(y)), Cell(Int32(w)), Cell(Int32(h)),
+                              CellVector(Cell[Cell(content)]), layout_none, false, Cell(nothing))
+    end
+    GraphicsImage(x, y, w, h, _extract_image_data(span))
 end
 
 """
