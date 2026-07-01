@@ -146,6 +146,21 @@ function Base.getindex(c::Cell)
     return c.value
 end
 
+# Force a computed cell's thunk. The fast path is a direct call; if that raises a
+# `MethodError` (typically a world-age miss — a thunk built at runtime by, say,
+# the assistant's `execute_julia_code`, then forced later by the older-world
+# render loop), retry once through `Base.invokelatest`, which resolves against the
+# latest method table. A genuine `MethodError` simply rethrows from the retry.
+# Thunks are contractually pure, so a second evaluation is safe.
+function _force_thunk(@nospecialize(f))
+    try
+        return f()
+    catch e
+        e isa MethodError || rethrow()
+        return Base.invokelatest(f)
+    end
+end
+
 function recompute!(c::Cell)
     if c.thunk === nothing
         c.valid = true
@@ -159,7 +174,7 @@ function recompute!(c::Cell)
     # evaluate thunk while tracking dependencies
     push!(_computing, c)
     try
-        c.value = c.thunk()
+        c.value = _force_thunk(c.thunk)
     finally
         pop!(_computing)
     end
