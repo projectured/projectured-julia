@@ -112,6 +112,11 @@ function precompile_warmup()
             @warn "precompile_warmup: offscreen warm render failed" err
         end
     end
+    # Warm the *interactive* path (reader → operation-evaluation → reprint) of the
+    # windowed pipeline the binary actually runs, so the first keystroke of the
+    # built app doesn't pay first-call JIT. Backend-independent, so run it for every
+    # baked backend (not just SDL). Self-guards against throwing.
+    warm_file_editor(APP_DOMAIN; workbench = APP_WORKBENCH)
     nothing
 end
 

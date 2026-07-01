@@ -97,7 +97,7 @@ include(joinpath(_EXAMPLE_DIR, "Examples.jl"))
 include(joinpath(_EXAMPLE_DIR, "LiveExamples.jl"))
 include(joinpath(_EXAMPLE_DIR, "FileEditor.jl"))
 
-export EditorDomain, EDITOR_DOMAINS, editor_domain, build_file_editor, run_file_editor
+export EditorDomain, EDITOR_DOMAINS, editor_domain, build_file_editor, run_file_editor, warm_file_editor
 export make_json_document_example, make_json_projection_example
 export make_json_sorted_projection_example
 export make_json_null_document_example, make_json_null_projection_example

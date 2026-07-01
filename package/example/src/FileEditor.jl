@@ -132,3 +132,102 @@ function run_file_editor(domain::Symbol; file=nothing, workbench::Bool=false,
                       width=width, height=height, backend=backend,
                       compose=(p, b) -> _multi_window_projection(p), mcp=mcp)
 end
+
+# ── Headless warm-up (for PackageCompiler / TTFX) ────────────────────────────
+
+# A spread of synthetic input events that exercises the reader → operation →
+# reprint machinery: seed the first caret (Ctrl+Home), navigate, type a couple of
+# characters, and delete. Events that don't apply to a given domain still warm the
+# reader pipeline (the reader runs regardless of whether it yields an operation).
+const _WARMUP_EVENTS = Any[
+    KeyDown(:home,  Modifiers(ctrl = true)),   # seed the first caret
+    KeyDown(:right, Modifiers()),
+    KeyDown(:left,  Modifiers()),
+    KeyDown(:down,  Modifiers()),
+    KeyDown(:up,    Modifiers()),
+    KeyDown(:end,   Modifiers(ctrl = true)),
+    KeyPress('x'),                             # insert a character
+    KeyPress('1'),
+    KeyDown(:backspace, Modifiers()),
+    KeyDown(:delete,    Modifiers()),
+]
+
+const _WARMUP_WALK_MAX_DEPTH = 200
+const _WARMUP_WALK_MAX_NODES = 20_000
+
+# Force every reachable reactive `Cell` in a printed iomap so PackageCompiler
+# compiles the cell bodies (the printer closures), not just the graph assembly.
+# Depth/node caps keep a legitimately lazy/large document from walking forever.
+# Mirrors the test suite's `_walk!` but is self-contained (no test dependency).
+function _force_reactive!(x, visited::Set{UInt64} = Set{UInt64}(),
+                          count::Base.RefValue{Int} = Ref(0), depth::Int = 0)
+    (x === nothing || x isa Bool || x isa Number || x isa AbstractString ||
+     x isa Symbol || x isa Function || x isa DataType || x isa Module) && return
+    (depth >= _WARMUP_WALK_MAX_DEPTH || count[] >= _WARMUP_WALK_MAX_NODES) && return
+    id = objectid(x)
+    id in visited && return
+    push!(visited, id); count[] += 1
+    if x isa Cell
+        v = try x[] catch; return end
+        _force_reactive!(v, visited, count, depth + 1)
+    elseif x isa Vector
+        for el in x
+            _force_reactive!(el, visited, count, depth + 1)
+        end
+    else
+        for fn in fieldnames(typeof(x))
+            f = try getfield(x, fn) catch; continue end
+            _force_reactive!(f, visited, count, depth + 1)
+        end
+    end
+    return
+end
+
+"""
+    warm_file_editor(domain::Symbol; workbench=false) -> nothing
+
+Headlessly drive the **exact windowed editor pipeline** [`run_file_editor`](@ref)
+runs — the composed multi-window projection over a `ScreenDocument` — through one
+print and a spread of synthetic input events (navigation, typing, deletion),
+*without opening a window*.
+
+This exists to warm the read → evaluate → reprint code paths for PackageCompiler,
+so the first real keystroke of the built binary doesn't pay first-call JIT (the
+offscreen `write_image` warm-up only covers the initial paint, not interaction).
+The reader/evaluator are backend-independent, so this is worth running for any
+baked backend.
+
+Never throws: any hiccup is logged and swallowed, so a warm-up miss can't fail the
+build.
+"""
+function warm_file_editor(domain::Symbol; workbench::Bool = false)
+    try
+        document, projection, name = build_file_editor(domain; workbench = workbench)
+        # The same scene + composed projection `run_file_editor` uses, at a fixed
+        # size so no display probe is needed.
+        screen    = _build_window_scene(Any[document], String[name]; width = 800, height = 600)
+        composed  = _multi_window_projection(Any[projection])
+        window_id = Symbol(name)
+        # A real `Editor`, but never `init!`ed: we drive read/eval/print by hand and
+        # skip `write_to_devices`, so no window opens. The backend is only a field
+        # here — `evaluate_operation` dispatches on the operation, not the backend —
+        # so the window-free console backend is enough.
+        editor = Editor(make_backend(:console), screen, composed,
+                        Device[Screen(), Keyboard(), Mouse()])
+        editor.iomap = projection_print(composed, screen)
+        _force_reactive!(editor.iomap)
+        for event in _WARMUP_EVENTS
+            env    = EventEnvelope(window_id, event)
+            change = projection_read(composed, nothing, Change(env), editor.iomap)
+            op     = change isa Change ? change.operation : change
+            op isa Operation || continue
+            editor.operation = op
+            evaluate_operation(editor, op)
+            editor.iomap = projection_print(composed, editor.document)
+            _force_reactive!(editor.iomap)
+        end
+    catch err
+        @warn "warm_file_editor: headless warm-up failed (non-fatal)" domain err
+    end
+    nothing
+end
