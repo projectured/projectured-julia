@@ -25,7 +25,7 @@ import ..JuliaModule: JuliaDocument,
                       JuliaTypeAnnotation,
                       JuliaAssignment, JuliaFor, JuliaForIterator, JuliaWhile,
                       JuliaReturn, JuliaBreak, JuliaContinue, JuliaTry, JuliaBegin,
-                      JuliaIf, JuliaFunction, JuliaBlock, JuliaUsing, JuliaLambda, _julia_operator_string
+                      JuliaIf, JuliaFunction, JuliaBlock, JuliaUsing, JuliaLambda, JuliaInsertion, _julia_operator_string
 import ..TextModule: TextString
 import ..FontModule: StyleFont, font_ubuntu_monospace_regular_20, font_ubuntu_monospace_bold_20
 import ..ColorModule: StyleColor, color_default, color_solarized_blue, color_solarized_cyan,
@@ -34,6 +34,7 @@ import ..ColorModule: StyleColor, color_default, color_solarized_blue, color_sol
 import ..StyleTextModule: StyleText
 import ..SyntaxModule: SyntaxDocument, SyntaxLeaf, SyntaxNode
 import ..TypeDispatchingModule: TypeDispatchingProjection
+import ..DocumentInsertionToSyntaxModule: JuliaInsertionToSyntaxLeaf
 import ..IoMapModule: SimpleIoMap, ChildrenIoMap
 import ..IoMapApiModule: IoMap
 import ..ReferenceModule: ConcreteReferencePath, ElementReference, PositionReference, RangeReference,
@@ -805,6 +806,7 @@ end
 
 function JuliaToSyntax()
     TypeDispatchingProjection(
+        JuliaInsertion       => JuliaInsertionToSyntaxLeaf(),
         JuliaIdentifier      => JuliaIdentifierToSyntaxLeaf(),
         JuliaInteger         => JuliaIntegerToSyntaxLeaf(),
         JuliaFloat           => JuliaFloatToSyntaxLeaf(),

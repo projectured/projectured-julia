@@ -144,9 +144,12 @@ include("projection/primitive/ReferenceToText.jl")
 include("projection/primitive/ReferenceInspectorToText.jl")
 include("projection/higherorder/HoverProbe.jl")
 include("projection/primitive/MathToSyntax.jl")
+# DocumentInsertionToSyntax before JuliaToSyntax/SqlToSyntax: it defines the
+# per-domain insertion→syntax leaves (JuliaInsertionToSyntaxLeaf, …) those
+# projections register, and it depends on none of them.
+include("projection/primitive/DocumentInsertionToSyntax.jl")
 include("projection/primitive/JuliaToSyntax.jl")
 include("projection/primitive/FormulaToSyntax.jl")
-include("projection/primitive/DocumentInsertionToSyntax.jl")
 include("projection/primitive/SqlToSyntax.jl")
 include("projection/primitive/CollectionToSyntax.jl")
 include("projection/primitive/ConversationToSyntax.jl")
