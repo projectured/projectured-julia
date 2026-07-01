@@ -6,14 +6,14 @@
 # (keyword scaffolds + completion, char commit/parse, Tab commit-and-advance),
 # and the kernel `SelectNextInsertionOperation` hole navigation.
 #
-# Two layers are exercised:
+# Three layers are exercised:
 #   1. SelectNextInsertionOperation walks holes in document pre-order.
 #   2. The gesture-produced operations, applied to a document (with rerooting),
 #      compose into exactly `make_julia_document_example()`.
-# The *interactive* path (feeding key events through the JuliaToSyntax pipeline)
-# works for a root hole but not yet for a nested hole — that is gated on the
-# compound-node (JuliaFunction/JuliaIf) projection routing still being finished
-# (plan/pending/julia-syntax-navigation.md); a `@test_broken` pins that state.
+#   3. Interactive: replaying the full keystroke script as real key events through
+#      `RecursiveProjection(JuliaToSyntax())` builds the same factorial tree — the
+#      end-to-end acceptance, now that every JuliaToSyntax node is templated and so
+#      routes nested-hole input and reroots the resulting edits.
 # ═══════════════════════════════════════════════════════════════════════════
 
 using Projectured
@@ -88,6 +88,31 @@ function _jt_step!(ed::_JtEditor, text::AbstractString; via::Symbol=:tab)
     ed.document
 end
 
+# ── Interactive driver: real key events through the JuliaToSyntax pipeline ──────
+_jt_keys(s) = [KeyPress(c, string(c), Modifiers()) for c in s]
+const _JT_TAB = KeyDown(:tab, Modifiers())
+const _JT_RET = KeyDown(:return, Modifiers())
+
+# Feed one event through `proj`; returns the (possibly root-swapped) document.
+function _jt_feed(proj, doc, ev)
+    iom = projection_print(proj, doc)
+    op  = projection_read(proj, iom, ev)
+    op === nothing && return doc
+    ed = _JtEditor(doc, iom)
+    evaluate_operation(ed, op)
+    ed.document
+end
+
+# Replay an event script from a fresh root `JuliaInsertion` through `JuliaToSyntax`.
+function _jt_interactive(script)
+    proj = RecursiveProjection(JuliaToSyntax())
+    doc  = with_selection(JuliaInsertion(""), _jt_v0())
+    for ev in script
+        doc = _jt_feed(proj, doc, ev)
+    end
+    doc
+end
+
 function test_julia_typein()
     @testset "Julia type-in" begin
         @testset "SelectNextInsertion walks holes in pre-order" begin
@@ -118,23 +143,19 @@ function test_julia_typein()
             @test _jt_equal(ed.document, make_julia_document_example())
         end
 
-        @testset "interactive nested-hole typing (gated on JuliaFunction routing)" begin
-            proj = RecursiveProjection(JuliaToSyntax())
-            doc  = with_selection(JuliaInsertion(""), _jt_v0())
-            feed!(ev) = begin
-                iom = projection_print(proj, doc)
-                op  = projection_read(proj, iom, ev)
-                op === nothing && return
-                ed = _JtEditor(doc, iom); evaluate_operation(ed, op); doc = ed.document
-            end
-            for c in "function"; feed!(KeyPress(c, string(c), Modifiers())); end
-            feed!(KeyDown(:tab, Modifiers()))
-            @test doc isa JuliaFunction                       # root swap routes fine
-            for c in "factorial"; feed!(KeyPress(c, string(c), Modifiers())); end
-            name = evaluate_reference(doc, ConcreteReferencePath(FieldReference("name"), EmptyReferencePath()))
-            # Nested-hole char input does not yet route through JuliaFunction's
-            # projection; flips to a pass when the compound-node routing lands.
-            @test_broken name isa JuliaIdentifier && name.name == "factorial"
+        @testset "interactive build through the JuliaToSyntax pipeline" begin
+            # The full keystroke script (see the plan's walkthrough): type each
+            # keyword/expression, Tab to commit-and-advance, Enter for the last.
+            script = vcat(_jt_keys("function"),           _JT_TAB,
+                          _jt_keys("factorial"),          _JT_TAB,
+                          _jt_keys("n"),                  _JT_TAB,
+                          _jt_keys("if"),                 _JT_TAB,
+                          _jt_keys("n == 0"),             _JT_TAB,
+                          _jt_keys("1"),                  _JT_TAB,
+                          _jt_keys("n * factorial(n - 1)"), _JT_RET)
+            doc = _jt_interactive(script)
+            @test doc isa JuliaFunction
+            @test _jt_equal(doc, make_julia_document_example())
         end
     end
 end
