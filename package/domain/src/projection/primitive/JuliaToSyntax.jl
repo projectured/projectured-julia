@@ -225,24 +225,14 @@ end
     delim::StyleText = StyleText(font_ubuntu_monospace_regular_20, color_solarized_gray)
 end
 
-function projection_print(p::JuliaIndexToSyntaxNode, recursion, x::JuliaIndex, ctx)
-    coll_ref = child_context(ctx, @reference ^(ctx.reference).collection)
-    coll_iomap = Cell(() -> projection_printer_recurse(recursion, x.collection, coll_ref))
-
-    idx_iomaps = Cell(() -> [projection_printer_recurse(recursion, ix,
-                                child_context(ctx, @reference ^(ctx.reference).indices[i]))
-                             for (i, ix) in enumerate(x.indices)])
-
-    idx_node = SyntaxNode(
-        CellVector(() -> SyntaxDocument[im.output for im in idx_iomaps[]]);
-        open=TextString("[", p.delim),
-        close=TextString("]", p.delim),
-        sep=TextString(", ", p.delim))
-
-    node = SyntaxNode(
-        CellVector(() -> SyntaxDocument[coll_iomap[].output, idx_node]))
-    ChildrenIoMap(p, x, node, Cell(() -> IoMap[coll_iomap[]; idx_iomaps[]]))
-end
+@projection_template JuliaIndexToSyntaxNode JuliaIndex (p, x) ->
+    SyntaxNode(TextString(""), TextString(""), TextString(""),
+        [ project(:collection),
+          SyntaxNode(collection(:indices);
+                     open=TextString("[", p.delim),
+                     close=TextString("]", p.delim),
+                     sep=TextString(", ", p.delim)) ],
+        0, false, nothing)
 
 # ── JuliaFieldAccessToSyntaxNode ────────────────────────────────────────────
 
@@ -370,31 +360,16 @@ end
     delim::StyleText = StyleText(font_ubuntu_monospace_regular_20, color_solarized_gray)
 end
 
-function projection_print(p::JuliaForToSyntaxNode, recursion, f::JuliaFor, ctx)
-    body_ref = child_context(ctx, @reference ^(ctx.reference).body)
-    body_iomap = Cell(() -> projection_printer_recurse(recursion, f.body, body_ref))
-
-    iter_iomaps = Cell(() -> [projection_printer_recurse(recursion, it,
-                                  child_context(ctx, @reference ^(ctx.reference).iterators[i]))
-                              for (i, it) in enumerate(f.iterators)])
-
-    for_leaf = SyntaxLeaf(
-        TextString("for", p.keyword);
-        close=TextString(" ", p.keyword.font, color_default))
-
-    iters_node = SyntaxNode(
-        CellVector(() -> SyntaxDocument[im.output for im in iter_iomaps[]]);
-        sep=TextString(", ", p.delim))
-
-    header_node = SyntaxNode(
-        CellVector(() -> SyntaxDocument[for_leaf, iters_node]))
-
-    end_leaf = SyntaxLeaf(TextString("end", p.keyword))
-
-    node = SyntaxNode(
-        CellVector(() -> SyntaxDocument[header_node, body_iomap[].output, end_leaf]))
-    ChildrenIoMap(p, f, node, Cell(() -> IoMap[iter_iomaps[]; body_iomap[]]))
-end
+@projection_template JuliaForToSyntaxNode JuliaFor (p, f) ->
+    SyntaxNode(TextString(""), TextString(""), TextString(""),
+        [ SyntaxNode(TextString(""), TextString(""), TextString(""),
+              [ SyntaxLeaf(TextString("for", p.keyword);
+                           close=TextString(" ", p.keyword.font, color_default)),
+                SyntaxNode(collection(:iterators); sep=TextString(", ", p.delim)) ],
+              0, false, nothing),
+          project(:body),
+          SyntaxLeaf(TextString("end", p.keyword)) ],
+        0, false, nothing)
 
 # ── JuliaWhileToSyntaxNode ──────────────────────────────────────────────────
 
@@ -402,25 +377,16 @@ end
     keyword::StyleText = StyleText(font_ubuntu_monospace_bold_20, color_solarized_magenta)
 end
 
-function projection_print(p::JuliaWhileToSyntaxNode, recursion, w::JuliaWhile, ctx)
-    cond_ref = child_context(ctx, @reference ^(ctx.reference).condition)
-    body_ref = child_context(ctx, @reference ^(ctx.reference).body)
-    cond_iomap = Cell(() -> projection_printer_recurse(recursion, w.condition, cond_ref))
-    body_iomap = Cell(() -> projection_printer_recurse(recursion, w.body, body_ref))
-
-    while_leaf = SyntaxLeaf(
-        TextString("while", p.keyword);
-        close=TextString(" ", p.keyword.font, color_default))
-
-    header_node = SyntaxNode(
-        CellVector(() -> SyntaxDocument[while_leaf, cond_iomap[].output]))
-
-    end_leaf = SyntaxLeaf(TextString("end", p.keyword))
-
-    node = SyntaxNode(
-        CellVector(() -> SyntaxDocument[header_node, body_iomap[].output, end_leaf]))
-    ChildrenIoMap(p, w, node, Cell(() -> IoMap[cond_iomap[], body_iomap[]]))
-end
+@projection_template JuliaWhileToSyntaxNode JuliaWhile (p, w) ->
+    SyntaxNode(TextString(""), TextString(""), TextString(""),
+        [ SyntaxNode(TextString(""), TextString(""), TextString(""),
+              [ SyntaxLeaf(TextString("while", p.keyword);
+                           close=TextString(" ", p.keyword.font, color_default)),
+                project(:condition) ],
+              0, false, nothing),
+          project(:body),
+          SyntaxLeaf(TextString("end", p.keyword)) ],
+        0, false, nothing)
 
 # ── JuliaReturnToSyntaxNode ─────────────────────────────────────────────────
 
@@ -462,22 +428,14 @@ end
     arrow::StyleText = StyleText(font_ubuntu_monospace_regular_20, color_solarized_magenta)
 end
 
-function projection_print(p::JuliaLambdaToSyntaxNode, recursion, l::JuliaLambda, ctx)
-    param_iomaps = Cell(() -> [projection_printer_recurse(recursion, pd,
-                                  child_context(ctx, @reference ^(ctx.reference).parameters[i]))
-                               for (i, pd) in enumerate(l.parameters)])
-    body_ref = child_context(ctx, @reference ^(ctx.reference).body)
-    body_iomap = Cell(() -> projection_printer_recurse(recursion, l.body, body_ref))
-
-    params_node = SyntaxNode(
-        CellVector(() -> SyntaxDocument[im.output for im in param_iomaps[]]);
-        open=TextString("(", p.delim),
-        close=TextString(") -> ", p.arrow),
-        sep=TextString(", ", p.delim))
-
-    node = SyntaxNode(CellVector(() -> SyntaxDocument[params_node, body_iomap[].output]))
-    ChildrenIoMap(p, l, node, Cell(() -> IoMap[param_iomaps[]..., body_iomap[]]))
-end
+@projection_template JuliaLambdaToSyntaxNode JuliaLambda (p, l) ->
+    SyntaxNode(TextString(""), TextString(""), TextString(""),
+        [ SyntaxNode(collection(:parameters);
+                     open=TextString("(", p.delim),
+                     close=TextString(") -> ", p.arrow),
+                     sep=TextString(", ", p.delim)),
+          project(:body) ],
+        0, false, nothing)
 
 # ── JuliaUsingToSyntaxNode ──────────────────────────────────────────────────
 
@@ -606,30 +564,18 @@ end
     keyword::StyleText = StyleText(font_ubuntu_monospace_bold_20, color_solarized_magenta)
 end
 
-function projection_print(p::JuliaIfToSyntaxNode, recursion, m::JuliaIf, ctx)
-    cond_ref = child_context(ctx, @reference ^(ctx.reference).condition)
-    then_ref = child_context(ctx, @reference ^(ctx.reference).then_branch)
-    else_ref = child_context(ctx, @reference ^(ctx.reference).else_branch)
-
-    cond_iomap = Cell(() -> projection_printer_recurse(recursion, m.condition, cond_ref))
-    then_iomap = Cell(() -> projection_printer_recurse(recursion, m.then_branch, then_ref))
-    else_iomap = Cell(() -> projection_printer_recurse(recursion, m.else_branch, else_ref))
-
-    if_leaf = SyntaxLeaf(
-        TextString("if", p.keyword);
-        close=TextString(" ", p.keyword.font, color_default))
-
-    header_node = SyntaxNode(
-        CellVector(() -> SyntaxDocument[if_leaf, cond_iomap[].output]))
-
-    else_leaf = SyntaxLeaf(TextString("else", p.keyword))
-
-    end_leaf = SyntaxLeaf(TextString("end", p.keyword))
-
-    node = SyntaxNode(
-        CellVector(() -> SyntaxDocument[header_node, then_iomap[].output, else_leaf, else_iomap[].output, end_leaf]))
-    ChildrenIoMap(p, m, node, Cell(() -> IoMap[cond_iomap[], then_iomap[], else_iomap[]]))
-end
+@projection_template JuliaIfToSyntaxNode JuliaIf (p, m) ->
+    SyntaxNode(TextString(""), TextString(""), TextString(""),
+        [ SyntaxNode(TextString(""), TextString(""), TextString(""),
+              [ SyntaxLeaf(TextString("if", p.keyword);
+                           close=TextString(" ", p.keyword.font, color_default)),
+                project(:condition) ],
+              0, false, nothing),
+          project(:then_branch),
+          SyntaxLeaf(TextString("else", p.keyword)),
+          project(:else_branch),
+          SyntaxLeaf(TextString("end", p.keyword)) ],
+        0, false, nothing)
 
 # ── JuliaFunctionToSyntaxNode ───────────────────────────────────────────────
 
@@ -638,36 +584,20 @@ end
     delim::StyleText = StyleText(font_ubuntu_monospace_regular_20, color_solarized_gray)
 end
 
-function projection_print(p::JuliaFunctionToSyntaxNode, recursion, f::JuliaFunction, ctx)
-    name_ref = child_context(ctx, @reference ^(ctx.reference).name)
-    body_ref = child_context(ctx, @reference ^(ctx.reference).body)
-
-    name_iomap = Cell(() -> projection_printer_recurse(recursion, f.name, name_ref))
-    body_iomap = Cell(() -> projection_printer_recurse(recursion, f.body, body_ref))
-
-    param_iomaps = Cell(() -> [projection_printer_recurse(recursion, param,
-                                   child_context(ctx, @reference ^(ctx.reference).params[i]))
-                               for (i, param) in enumerate(f.params)])
-
-    function_leaf = SyntaxLeaf(
-        TextString("function", p.keyword);
-        close=TextString(" ", p.keyword.font, color_default))
-
-    params_node = SyntaxNode(
-        CellVector(() -> SyntaxDocument[im.output for im in param_iomaps[]]);
-        open=TextString("(", p.delim),
-        close=TextString(")", p.delim),
-        sep=TextString(", ", p.delim))
-
-    header_node = SyntaxNode(
-        CellVector(() -> SyntaxDocument[function_leaf, name_iomap[].output, params_node]))
-
-    end_leaf = SyntaxLeaf(TextString("end", p.keyword))
-
-    node = SyntaxNode(
-        CellVector(() -> SyntaxDocument[header_node, body_iomap[].output, end_leaf]))
-    ChildrenIoMap(p, f, node, Cell(() -> IoMap[name_iomap[]; param_iomaps[]; body_iomap[]]))
-end
+@projection_template JuliaFunctionToSyntaxNode JuliaFunction (p, f) ->
+    SyntaxNode(TextString(""), TextString(""), TextString(""),
+        [ SyntaxNode(TextString(""), TextString(""), TextString(""),
+              [ SyntaxLeaf(TextString("function", p.keyword);
+                           close=TextString(" ", p.keyword.font, color_default)),
+                project(:name),
+                SyntaxNode(collection(:params);
+                           open=TextString("(", p.delim),
+                           close=TextString(")", p.delim),
+                           sep=TextString(", ", p.delim)) ],
+              0, false, nothing),
+          project(:body),
+          SyntaxLeaf(TextString("end", p.keyword)) ],
+        0, false, nothing)
 
 # ── Reference mapping & readers ─────────────────────────────────────────────
 #

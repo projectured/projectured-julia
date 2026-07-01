@@ -51,19 +51,38 @@ export Bound, Project, Collection, Tokens, Sections, bound, project, collection,
 # ── Markers (build-time only; stripped before the output reaches the API) ─────
 
 struct Bound;      input::Symbol; type::Any; render::Any; retype::Any; end
-struct Project;    input::Symbol; end
+struct Project;    input::Symbol; override::Any; end              # override: `as=` projection|thunk|nothing
 struct Collection; input::Symbol; element::Any; end
 struct Tokens;     thunk::Any; end                                # computed inline token leaves
 struct Sections;   specs::Vector{Any}; end                        # grouped per-field sub-collections
 
 bound(input::Symbol, T, render; retype=nothing) = Bound(input, T, render, retype)
-project(input::Symbol) = Project(input)
+# `project(:f)` delegates the child to its type-dispatched projection; `project(:f;
+# as=proj)` delegates through a supplied projection instead. `as` may be a projection
+# instance (always used) or a function `v -> projection|nothing` (chosen per child
+# value; `nothing` ⇒ fall back to the type-dispatcher) — the latter lets a callee
+# render as a function name only when it is a bare identifier.
+project(input::Symbol; as=nothing) = Project(input, as)
 collection(input::Symbol) = Collection(input, nothing)
 collection(element, input::Symbol) = Collection(input, element)   # collection(:f) do x … end
 tokens(thunk) = Tokens(thunk)                                     # tokens(() -> [leaf, bound-leaf, …])
 # sections([(field::Symbol, make_wrapper), …]); make_wrapper(entry_outputs) builds
 # the per-section wrapper node. Empty sections are skipped; index is dynamic.
 sections(specs) = Sections(Any[specs...])
+
+# Resolve a `project(:f; as=…)` override for a concrete child value.
+_override(as, v) = as === nothing ? nothing : (as isa Function ? as(v) : as)
+
+# Build the (reconciling) child iomap for a `project(:f)` slot, honouring an `as=`
+# override. Shared by `_fixed_print`/`_mixed_print`.
+_project_child_cell(recursion, doc, ctx, prj::Project) =
+    _reconciling_child_iomap(() -> getproperty(doc, prj.input),
+        v -> begin
+            cctx = child_context(ctx, FieldReference(String(prj.input)))
+            ov = _override(prj.override, v)
+            ov === nothing ? projection_printer_recurse(recursion, v, cctx) :
+                             projection_print(ov, recursion, v, cctx)
+        end)
 
 # ── Wiring + IoMap ───────────────────────────────────────────────────────────
 
@@ -97,12 +116,17 @@ end
 struct KeySlot;     in_field::Symbol; in_type::Any; checkpoint::Any; end  # child is a leaf: whole↔child, char↔child.value
 struct ProjectSlot; in_field::Symbol; end                                 # child delegated (iomap in the store)
 struct IntroSlot end                                                      # introduced child (keyword/delimiter)
+# A child that is itself a marker-bearing output node (a header/bracket grouping
+# with no input pre-image whose `project`/`collection` children key off the *same*
+# parent input). Walked recursively with the parent doc/ctx; its nested iomap is
+# embedded here so the mappers can delegate through it (prepending one `.children[k]`).
+struct SubNodeSlot; iomap::Any; end
 
 struct FixedNodeWiring
     intype::Any
     outtype::Any
     children_field::Symbol               # output field holding the fixed children
-    slots::Vector{Any}                   # KeySlot|ProjectSlot|IntroSlot per child index
+    slots::Vector{Any}                   # KeySlot|ProjectSlot|IntroSlot|SubNodeSlot per child index
 end
 
 # A node whose children are a fixed prefix (bound/delegated/introduced leaves)
@@ -189,8 +213,12 @@ selection cell), and return a `RuleIoMap`. `@document` outputs are mutable struc
 of `Cell` fields, so the bound value's cell content is overwritten and the
 selection cell is swapped directly — no copy.
 """
-function rule_print(p, recursion, doc, ctx, builder)
-    out = builder(p, doc)
+rule_print(p, recursion, doc, ctx, builder) = _dispatch_print(p, recursion, doc, ctx, builder(p, doc))
+
+# Dispatch an *already-built* output on its shape. Factored out of `rule_print` so a
+# nested marker-bearing sub-node (a `SubNodeSlot`) is walked by the same rules with
+# the parent doc/ctx (F1), not just the top-level builder output.
+function _dispatch_print(p, recursion, doc, ctx, out)
     coll_field, coll = _find_collection(out)
     coll !== nothing && return _node_print(p, recursion, doc, ctx, out, coll_field, coll)
     tok_field, tok = _find_tokens(out)
@@ -211,6 +239,29 @@ function rule_print(p, recursion, doc, ctx, builder)
 end
 
 _has_fixed_children(out) = any(fname -> getfield(out, fname)[] isa Vector, fieldnames(typeof(out)))
+
+# ── Nested-marker detection (F1) ─────────────────────────────────────────────
+# A child in a fixed-children vector is a `SubNodeSlot` iff it is itself an output
+# *node* (has a children vector or a Collection/Tokens/Sections marker field) that
+# *contains markers*. A bound/opaque leaf (marker in its `value`, no children field)
+# is NOT a sub-node — it stays a Key/Intro slot.
+_is_marker(v) = v isa Union{Bound, Project, Collection, Tokens, Sections}
+
+function _vector_has_markers(node)
+    cf = _find_fixed_children(node)
+    for c in getproperty(node, cf)
+        (_is_marker(c) || _is_marker_bearing_subnode(c)) && return true
+    end
+    return false
+end
+
+function _is_marker_bearing_subnode(child)
+    _is_marker(child) && return false                       # a bare marker is handled by the caller
+    (_find_collection(child)[1] !== nothing || _find_tokens(child)[1] !== nothing ||
+     _find_sections(child)[1] !== nothing) && return true
+    _has_fixed_children(child) && _vector_has_markers(child) && return true
+    return false
+end
 
 # Locate a `Tokens` marker among the built output's fields, if any.
 function _find_tokens(out)
@@ -412,14 +463,19 @@ function _fixed_print(p, recursion, doc, ctx, out)
             # instead of leaving a stale child iomap. The store now holds the *cell*;
             # mappers/reader force it (`[]`) for the current child iomap.
             fld = child.input
-            cell = _reconciling_child_iomap(() -> getproperty(doc, fld),
-                v -> projection_printer_recurse(recursion, v,
-                        child_context(ctx, FieldReference(String(fld)))))
+            cell = _project_child_cell(recursion, doc, ctx, child)
             store[fld] = cell
             push!(slots, ProjectSlot(fld))
             push!(output_cells, _project_output_cell(cell))
         elseif child isa Collection
             error("ProjectionTemplate: nested collection inside a fixed-children node is not supported")
+        elseif _is_marker_bearing_subnode(child)
+            # F1: a nested marker-bearing node (a header/bracket grouping). Walk it
+            # recursively with the *parent* doc/ctx — its `project`/`collection`
+            # children key off parent input fields — and embed the nested iomap.
+            sub = _dispatch_print(p, recursion, doc, ctx, child)
+            push!(slots, SubNodeSlot(sub))
+            push!(output_cells, Cell(sub.output))
         else
             w = _scan_atomic!(p, doc, child)   # strips a `bound` marker if present
             if w.bound_field === nothing
@@ -477,9 +533,7 @@ function _mixed_print(p, recursion, doc, ctx, out, children_field)
             error("ProjectionTemplate: fixed children after a spliced collection are not supported")
         elseif child isa Project
             fld = child.input
-            cell = _reconciling_child_iomap(() -> getproperty(doc, fld),
-                v -> projection_printer_recurse(recursion, v,
-                        child_context(ctx, FieldReference(String(fld)))))
+            cell = _project_child_cell(recursion, doc, ctx, child)
             store[fld] = cell
             push!(prefix_slots, ProjectSlot(fld))
             push!(prefix_sources, cell)
@@ -745,6 +799,12 @@ function _fixed_forward(p, w, iomap, reference)
                 inner = map_reference_forward(child.projection, child, core.tail)
                 inner === nothing && return nothing
                 return _prepend(inner, FieldReference(String(w.children_field)), ElementReference(k))
+            elseif slot isa SubNodeSlot
+                # The sub-node's mapper owns the same parent input; delegate the whole
+                # reference and, on a hit, prepend this sub-node's `.children[k]` hop.
+                inner = map_reference_forward(slot.iomap.projection, slot.iomap, reference)
+                inner === nothing && continue
+                return _prepend(inner, FieldReference(String(w.children_field)), ElementReference(k))
             end
         end
     end
@@ -775,6 +835,10 @@ function _fixed_backward(p, w, iomap, reference)
                 inner = map_reference_backward(child.projection, child, leaf_path)
                 inner === nothing && return nothing
                 return _prepend(inner, FieldReference(String(slot.in_field)))
+            elseif slot isa SubNodeSlot
+                # `leaf_path` is relative to the sub-node's output; its backward mapper
+                # already yields a parent-input path (its input *is* the parent doc).
+                return map_reference_backward(slot.iomap.projection, slot.iomap, leaf_path)
             else
                 return nothing                                             # introduced
             end
@@ -1018,8 +1082,14 @@ function _focused_child(w::FixedNodeWiring, iomap, sel)
     (core isa ConcreteReferencePath && core.head isa FieldReference) || return nothing
     fname = Symbol(core.head.name)
     for slot in w.slots
-        slot isa ProjectSlot && slot.in_field === fname &&
+        if slot isa ProjectSlot && slot.in_field === fname
             return (iomap.child_iomaps[fname][], (FieldReference(String(fname)),))
+        elseif slot isa SubNodeSlot
+            # Recurse: the sub-node shares the parent input, so the steps it reports
+            # are already parent-relative.
+            fc = _focused_child(slot.iomap.wiring, slot.iomap, sel)
+            fc === nothing || return fc
+        end
     end
     nothing   # KeySlot/IntroSlot ⇒ leaf, no child projection to recurse into
 end
