@@ -778,9 +778,12 @@ function projection_print(p::WidgetLabelToGraphicsCanvas, recursion, w::WidgetLa
     w.visible == false && return SimpleIoMap(p, w, _empty_canvas())
     position = w.position::Point2D
     content = w.content
-    content_width, content_height = _content_size(p.measure, p.text.font, content)
+    # A label may carry its own font+color (e.g. a chat card's title) that
+    # overrides the theme's default label style.
+    style = w.text_style === nothing ? p.text : w.text_style
+    content_width, content_height = _content_size(p.measure, style.font, content)
     elements = Any[]
-    _push_content!(elements, p.measure, p.text, content, 0, 0, content_width, content_height)
+    _push_content!(elements, p.measure, style, content, 0, 0, content_width, content_height)
     SimpleIoMap(p, w, _make_canvas(_origin(position)..., content_width, content_height, elements))
 end
 

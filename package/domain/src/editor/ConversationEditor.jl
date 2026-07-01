@@ -47,8 +47,9 @@ import ..McpModule: execute_julia_code, last_eval_value
 import ..DocumentModule: Document
 import ..WidgetModule: WidgetCard, WidgetAvatar, WidgetLabel, Point2D
 import ..LayoutModule: VerticalLayout, HorizontalLayout
-import ..FontModule: font_ubuntu_monospace_regular_20
-import ..ColorModule: color_default, color_solarized_gray
+import ..StyleTextModule: StyleText
+import ..FontModule: font_ubuntu_monospace_regular_20, font_ubuntu_bold_22
+import ..ColorModule: color_default, color_solarized_gray, color_slate_600
 import ..ReferenceModule: Reference, ConcreteReferencePath, FieldReference,
                           RangeReference, EmptyReferencePath
 import ..KeyboardModule: KeyDown, KeyPress
@@ -383,11 +384,14 @@ _kind_label(f::EvaluatorForm)    = eval_kind_label(f)
 _kind_label(::TextText)          = "text"
 _kind_label(_)                   = "doc"
 
-# A header row: a small avatar glyph followed by a label.
+# A header row: a small avatar glyph followed by a styled kind-title label.
+# Matches the part-kind heading style of the conversation history cards
+# (bigger/bold, muted accent) so a draft's parts read the same as committed ones.
+const _KIND_STYLE = StyleText(font_ubuntu_bold_22, color_slate_600)
 _header(glyph::AbstractString, label::AbstractString) =
     HorizontalLayout(Any[
         WidgetAvatar(Point2D(0, 0), String(glyph); size = _AVATAR_SIZE),
-        WidgetLabel(Point2D(0, 0), String(label)),
+        WidgetLabel(Point2D(0, 0), String(label); text_style = _KIND_STYLE),
     ]; vertical_align = :center, gap = 8)
 
 const _FONT        = font_ubuntu_monospace_regular_20

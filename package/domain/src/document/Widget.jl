@@ -14,6 +14,7 @@ import ..CollectionModule: CellVector
 import ..OperationApiModule: Operation, evaluate_operation
 import ..GestureBindingModule: KeyDownPattern, matches
 import ..ColorModule: StyleColor
+import ..StyleTextModule: StyleText
 import ..ReferenceModule: Reference, ReferencePath, ConcreteReferencePath, ElementReference,
                           EmptyReferencePath, FieldReference, RangeReference
 import ..GeometryModule: Inset, Point2D, inset_default,
@@ -82,6 +83,7 @@ A positioned, non-interactive label..
 @document struct WidgetLabel <: WidgetDocument
     position::Point2D
     content::Any
+    text_style::StyleText   # per-label font+color override (nothing → theme label style)
     visible::Bool
     margin::Inset
     margin_color::StyleColor
@@ -93,6 +95,7 @@ A positioned, non-interactive label..
 end
 
 function WidgetLabel(position::Point2D, content;
+                     text_style=nothing,
                      visible::Bool=true,
                      margin::Inset=inset_default,
                      margin_color=nothing,
@@ -100,7 +103,7 @@ function WidgetLabel(position::Point2D, content;
                      border_color=nothing,
                      padding::Inset=inset_default,
                      padding_color=nothing)
-    WidgetLabel(Cell(position), Cell(content),
+    WidgetLabel(Cell(position), Cell(content), Cell(text_style),
                 Cell(visible), Cell(margin), Cell(margin_color),
                 Cell(border), Cell(border_color),
                 Cell(padding), Cell(padding_color),

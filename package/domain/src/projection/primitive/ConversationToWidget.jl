@@ -32,6 +32,9 @@ import ..WidgetModule: WidgetDocument, WidgetCard, WidgetAvatar, WidgetLabel,
                        WidgetScrollPane, Point2D, Inset, inset_default
 import ..LayoutModule: VerticalLayout, HorizontalLayout
 import ..TextModule: TextText, TextString
+import ..StyleTextModule: StyleText
+import ..FontModule: font_ubuntu_bold_22
+import ..ColorModule: color_indigo_600, color_solarized_cyan, color_slate_600
 import ..IoMapModule: SimpleIoMap, ChildrenIoMap
 import ..OperationModule: ToggleCollapseOperation
 import ..ReactiveModule: Cell
@@ -63,6 +66,15 @@ const _GAP           = 6
 # authored width.
 const _CARD_PADDING  = 16
 
+# Card titles render bigger and bolder than the body, in a distinct accent, so a
+# turn's role and a part's kind read as headings rather than body text. Roles are
+# color-coded (user vs assistant); every part kind shares one muted heading color.
+const _TITLE_FONT = font_ubuntu_bold_22
+_role_style(role::Symbol) =
+    StyleText(_TITLE_FONT, role === :user      ? color_indigo_600 :
+                           role === :assistant ? color_solarized_cyan : color_slate_600)
+const _KIND_STYLE = StyleText(_TITLE_FONT, color_slate_600)
+
 _role_glyph(role::Symbol) = role === :user ? "U" : role === :assistant ? "A" : "?"
 
 function _kind_glyph(content)
@@ -82,11 +94,11 @@ end
 
 # ── Helpers ────────────────────────────────────────────────────────────────
 
-# A header row: a small avatar glyph followed by a label.
-_header(glyph::AbstractString, label::AbstractString) =
+# A header row: a small avatar glyph followed by a styled title label.
+_header(glyph::AbstractString, label::AbstractString, style::StyleText) =
     HorizontalLayout(Any[
         WidgetAvatar(Point2D(0, 0), String(glyph); size = _AVATAR_SIZE),
-        WidgetLabel(Point2D(0, 0), String(label)),
+        WidgetLabel(Point2D(0, 0), String(label); text_style = style),
     ]; vertical_align = :center, gap = 8)
 
 # Collapse a body document by clipping it into a short scroll-pane viewport,
@@ -129,7 +141,7 @@ function projection_print(::ConversationTurnToWidgetComposite,
     body = VerticalLayout(CellVector(() -> Any[im.output for im in ioms[]]),
                           Cell(:left), Cell(_GAP), Cell(nothing))
     card = WidgetCard(Point2D(0, 0);
-                      title = _header(_role_glyph(t.role), String(t.role)),
+                      title = _header(_role_glyph(t.role), String(t.role), _role_style(t.role)),
                       content = _maybe_clip(body, t.collapsed === true, _CARD_WIDTH),
                       width = _CARD_WIDTH)
     ChildrenIoMap(nothing, t, card, ioms)
@@ -145,7 +157,7 @@ function projection_print(::ConversationPartToWidget,
            content isa ConversationThinking ? _thinking_body(content) :
            content
     card = WidgetCard(Point2D(0, 0);
-                      title = _header(_kind_glyph(content), _kind_label(content)),
+                      title = _header(_kind_glyph(content), _kind_label(content), _KIND_STYLE),
                       content = _maybe_clip(body, part.collapsed === true, _PART_WIDTH),
                       width = _PART_WIDTH)
     SimpleIoMap(nothing, part, card)
