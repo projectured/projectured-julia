@@ -12,7 +12,7 @@ import ..ReactiveModule: Cell, setfn!, setval!
 import ..CollectionModule: CellVector, ListNode
 import ..ProjectionApiModule: projection_print, projection_read, map_reference_forward, map_reference_backward, Projection, Change
 import ..SyntaxModule: SyntaxDocument, SyntaxLeaf, SyntaxNode
-import ..TextModule: TextText, TextString, TextNewline, TextDocument
+import ..TextModule: TextText, TextString, TextNewline, TextGraphics, TextDocument
 import ..FontModule: StyleFont, font_ubuntu_monospace_regular_20, font_dejavu_monospace_regular_20
 import ..ColorModule: color_default, color_solarized_gray
 import ..TypeDispatchingModule: TypeDispatchingProjection
@@ -615,7 +615,7 @@ function _leaf_cursor(leaf::SyntaxLeaf)
         elseif fname == "open"
             return k
         elseif fname == "close"
-            return length(leaf.open.content) + length(leaf.value.content) + k
+            return length(leaf.open.content) + _span_len(leaf.value) + k
         end
     elseif h isa ProjectionReference
         inner = h.output_path
@@ -631,7 +631,7 @@ function _leaf_cursor(leaf::SyntaxLeaf)
         if fname == "open"
             return k
         elseif fname == "close"
-            return length(leaf.open.content) + length(leaf.value.content) + k
+            return length(leaf.open.content) + _span_len(leaf.value) + k
         end
     end
     return -1
@@ -650,7 +650,7 @@ function _syntax_to_flat(leaf::SyntaxLeaf, path::ReferencePath, ::SyntaxNodeToTe
     k = begin idx = rest.head; idx isa RangeReference ? idx.start::Int : return -1 end
     fname == "open"  && return k
     fname == "value" && return length(leaf.open.content) + k
-    fname == "close" && return length(leaf.open.content) + length(leaf.value.content) + k
+    fname == "close" && return length(leaf.open.content) + _span_len(leaf.value) + k
     return -1
 end
 
@@ -818,6 +818,10 @@ end
 function _span_len(s::TextString)
     length(s.content::AbstractString)
 end
+# An embedded graphic (e.g. a `BookPicture` image placed in a leaf's value)
+# occupies exactly one column in the flat character space — matching how
+# `TextToGraphics` advances its cursor over an image span.
+_span_len(::TextGraphics) = 1
 
 function _collect_spans(node::SyntaxNode, p::SyntaxNodeToText, depth::Int, recursion, want_cursor::Bool=true; deco=nothing)
     spans = TextDocument[]
@@ -926,7 +930,7 @@ function _collect_spans(node::SyntaxNode, p::SyntaxNodeToText, depth::Int, recur
 end
 
 function _subtree_len(leaf::SyntaxLeaf, ::SyntaxNodeToText, _depth::Int)
-    length(leaf.open.content) + length(leaf.value.content) + length(leaf.close.content)
+    length(leaf.open.content) + _span_len(leaf.value) + length(leaf.close.content)
 end
 
 function _subtree_len(node::SyntaxNode, p::SyntaxNodeToText, depth::Int)
@@ -1014,7 +1018,7 @@ end
 
 function _pos_to_selection(leaf::SyntaxLeaf, local_pos::Int, ::SyntaxNodeToText, _depth::Int)
     open_len    = length(leaf.open.content::AbstractString)
-    value_len   = length(leaf.value.content::AbstractString)
+    value_len   = _span_len(leaf.value)
     close_start = open_len + value_len
     if local_pos < open_len
         @reference open{local_pos}

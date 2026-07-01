@@ -12,13 +12,15 @@ recurses" section of documentation/projection-system.md.
 """
 module BookToSyntaxModule
 
-import ..ReactiveModule: Cell
+import ..ReactiveModule: Cell, setfn!
 import ..CollectionModule: CellVector
+import ..ImageModule: ImageFile
+import ..BackendModule: decode_image
 import ..ProjectionApiModule: projection_print, projection_printer_recurse, projection_read,
                               map_reference_forward, map_reference_backward, Projection
 import ..ProjectionModule: var"@projection"
 import ..BookModule: BookDocument, BookInsertion, BookBook, BookChapter, BookParagraph, BookList, BookPicture
-import ..TextModule: TextDocument, TextString, TextText
+import ..TextModule: TextDocument, TextString, TextText, TextGraphics
 import ..FontModule: StyleFont, font_ubuntu_monospace_regular_20, font_ubuntu_monospace_bold_20, font_ubuntu_monospace_italic_20,
                      font_ubuntu_bold_36, font_ubuntu_bold_24, font_ubuntu_italic_20
 import ..ColorModule: StyleColor, color_black, color_default, color_solarized_blue, color_solarized_green, color_solarized_magenta, color_solarized_cyan, color_solarized_yellow, color_solarized_gray
@@ -565,6 +567,26 @@ end
     placeholder::StyleText = StyleText(font_ubuntu_monospace_regular_20, color_solarized_gray)
 end
 
+# The value span for a picture's content: when the content is a path to an image
+# file on disk, an inline `TextGraphics` carrying a lazily-decoded `ImageFile`
+# (which `SyntaxToText`/`WordWrapping`/`TextToGraphics` render as an image, sized
+# to its natural extent capped at `max_w`); otherwise the path/placeholder text.
+# The field type on `SyntaxLeaf.value` is only a hint — the Cell holds either.
+function _picture_leaf_value(content, style::StyleText, placeholder::StyleText; max_w::Int = 640)
+    if content isa AbstractString && !isempty(content) && isfile(String(content))
+        path = String(content)
+        img  = ImageFile(path)
+        raw  = getfield(img, :raw)
+        setfn!(raw, () -> (try decode_image(path) catch; nothing end))
+        _nat(i, fb) = (r = raw[]; (r isa Tuple && length(r) == 3) ? Int(r[i]) : fb)
+        dw = Cell(() -> Int32(min(_nat(2, 720), max_w)))
+        dh = Cell(() -> begin w = min(_nat(2, 720), max_w); Int32(round(Int, _nat(3, 460) * w / _nat(2, 720))) end)
+        return TextGraphics(Cell(img), dw, dh, Cell(style.font), Cell(""),
+                            Cell(nothing), Cell(nothing), Cell(nothing), Cell(nothing))
+    end
+    TextString(content === nothing ? "enter picture path" : string(content), placeholder)
+end
+
 function projection_print(p::BookPictureToSyntaxLeaf, recursion, b::BookPicture, ctx)
     title_sel = Cell(() -> begin
         @reference_case b.selection begin
@@ -583,14 +605,12 @@ function projection_print(p::BookPictureToSyntaxLeaf, recursion, b::BookPicture,
         end, p.style);
         selection=title_sel)
     content_leaf = SyntaxLeaf(
-        TextString(() -> begin
-            c = b.content
-            c === nothing ? "enter picture path" : string(c)
-        end, p.style);
+        _picture_leaf_value(b.content, p.style, p.placeholder);
         selection=content_sel)
+    # Caption above, figure below (a newline separates them).
     node = SyntaxNode(
         CellVector(Cell[Cell(title_leaf), Cell(content_leaf)]);
-        sep=TextString(": ", p.placeholder))
+        sep=TextString("\n", p.placeholder))
     SimpleIoMap(p, b, node)
 end
 
