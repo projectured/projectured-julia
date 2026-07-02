@@ -335,12 +335,41 @@ reach it.
       pointing at merged modules for compatibility.
 
 ### Phase 3 — API surface
-- [ ] Purify the api tier: move `splice_*` to `operation/`, `make_backend` registry +
-      `display_size` provider + `pointer_position` default to `device/`,
-      `make_agent_server` dispatch to `agent/`.
-- [ ] Audit the silent no-op interface methods (`write_to_device` etc.): convert to
-      true stubs where no caller relies on the no-op, document the rest.
-      **Behavior-sensitive — needs a call-site audit per method.**
+
+**Reframing (2026-07-02): the api layer is the 3rd-party SPI** — the interfaces an
+external party implements to extend Projectured (a `Backend`, `Device`, agent server,
+domain `Document`, `Projection`). Purity therefore means: abstract types + generic
+function *declarations* (`function f end`) + the protocol data types that cross the seam
+(`Change`, `NoOperation`) + docstrings; **no** algorithms, factory registries, or mutable
+globals. Two deliberate exceptions kept as "the SPI registration entry itself": the
+stateless factory seams `make_backend(kind)` / `make_agent_server(kind)` (Symbol→Val
+dispatch + not-registered error, no state) and the meaningful `pointer_position(::Backend)
+= (-1,-1)` default. "An interface is its functions, not just its type" — so api modules
+are expected to grow accessor/behaviour operations (see the IoMap accessors below).
+
+- [x] **Extend the IoMap interface with its accessor operations** (`57872a8`).
+      `iomap_projection`/`iomap_input`/`iomap_output` added to `IoMapApiModule`, defaulting
+      to the conventional fields (SimpleIoMap/ChildrenIoMap/ContentIoMap get them free; a
+      custom IoMap overrides). Prefixed names chosen (over bare `projection`/`input`/
+      `output`) to avoid colliding with those pervasive parameter names in the flat
+      umbrella namespace. Field call-sites (`iomap.output`) intentionally NOT migrated —
+      additive only.
+- [~] Purify the api tier. **Done:** `splice_string`/`splice_number`/`splice_value!` and
+      the default `evaluate_operation` methods moved from `OperationApiModule` →
+      `OperationModule` (`fd547ab`); `OperationApiModule` is now pure (Operation +
+      NoOperation types + `evaluate_operation` decl). **Deferred:** `make_backend`
+      registry stays (kept as SPI seam); `display_size` provider + its mutable
+      `_DISPLAY_SIZE_PROVIDER` `Ref` + `set_display_size_provider!` — the one genuinely
+      impure piece left in `BackendModule` — moves to `device/` **when Layer D (devices)
+      is established** (the provider has no home there yet); `make_agent_server` dispatch
+      kept as SPI seam (moves to `agent/` if/when that layer is grouped).
+- [x] **Decouple Device from Backend + drop silent no-ops** (`447c5f5`). `DeviceModule` no
+      longer imports `Backend`; `write_to_devices`/`read_from_devices` are pure stubs
+      (backend-typed methods live only in concrete backends), the empty `::Backend`
+      no-op catch-alls are gone (unimplemented backend → `MethodError`, verified every
+      real backend defines its own), and the vestigial singular `write_to_device`/
+      `read_from_device` (no impls, no callers) are removed. This resolves the original
+      "silent no-op interface methods" audit item for the device-io generics.
 - [ ] Give the kernel (and domain) their own flat export surface: move the umbrella's
       mechanical re-export loop into each package — but **curated**: an explicit export
       list at the top module (internals stay reachable via qualified names; optionally
@@ -354,8 +383,15 @@ reach it.
    (fix naming/order only) vs single flat namespace.
 2. **PrinterContext home**: `projection/` (its consumers) vs `editor/` (current, recent
    deliberate move) — what was the rationale for the move into `editor/`?
-3. **One api module vs per-area api modules** — one pure `KernelApiModule` minimizes
-   import boilerplate; per-area keeps today's shape.
+3. **One api module vs per-area api modules** — **leaning per-area now**, given the SPI
+   reframing (Phase 3): a backend/domain author benefits from a clearly-named
+   `BackendModule`/`DocumentModule` to implement against, so discoverability beats saving
+   import lines. Recommendation: keep the genuine SPIs as distinct interface modules; only
+   fold the pure internal cycle-breakers (e.g. `IoMapApiModule`, which has one implementor)
+   into their impl. Bigger open question the SPI lens raises: should the api layer become
+   its own zero-dep package (`ProjecturedInterfaces`) so out-of-tree extenders depend on a
+   small contract, not the whole engine? Only worth it if out-of-tree extension is a real
+   goal (in-tree, sdl/web depend on the whole stack anyway).
 4. **GestureRecognizer home**: `gesture/` (with its kin) vs `editor/` (its only caller).
 5. Whether the umbrella's "re-export everything" convenience should survive as-is on
    top of a curated kernel/domain export list, or become curated itself.
