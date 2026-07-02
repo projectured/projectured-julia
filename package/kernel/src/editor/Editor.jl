@@ -21,7 +21,7 @@ import ..EditorTimeModule: tick!
 import ..DocumentModule: Document
 import ..KeyboardModule: Keyboard, KeyDown
 import ..MouseModule: Mouse
-import ..OperationApiModule: Operation, evaluate_operation
+import ..OperationApiModule: Operation, evaluate_operation, invalidate_projection!
 import ..OperationModule: ReplaceSelectionOperation, QuitEditorOperation, AdjustZoomOperation, AdjustFontZoomOperation
 import ..OperationModule: QuitEditorException
 import ..GestureRecognizerModule: GestureRecognizer, next_gesture!
@@ -53,6 +53,12 @@ end
 
 Editor(backend, document, projection, devices) =
     Editor(backend, document, projection, devices, nothing, nothing, GestureRecognizer())
+
+# Drop the cached IoMap so the next `print!` rebuilds the projection from scratch.
+# The default `invalidate_projection!` (in `OperationApiModule`) is a no-op; this
+# method is what an operation like a whole-root `ReplaceReferencedValue` swap
+# actually reaches when it runs against a real `Editor`.
+invalidate_projection!(editor::Editor) = (editor.iomap = nothing)
 
 # ── Read-Eval-Print ──────────────────────────────────────────────────
 

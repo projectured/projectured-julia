@@ -8,7 +8,7 @@ from the raw device event that triggered it.
 """
 module OperationApiModule
 
-export Operation, evaluate_operation
+export Operation, evaluate_operation, invalidate_projection!
 
 """
     Operation
@@ -31,5 +31,18 @@ the default `::Nothing`/catch-all methods live in `OperationModule`
 (`common/Operation.jl`).
 """
 function evaluate_operation end
+
+"""
+    invalidate_projection!(editor)
+
+Ask `editor` to drop any cached projection/IoMap so the next print rebuilds from
+scratch. An operation that changes the document in a way the reactive pipeline
+cannot propagate incrementally (e.g. a whole-root swap) calls this. The default is
+a **no-op**, so a caller that keeps no cache — or a non-editor `editor` argument —
+is unaffected; the editor loop adds the method that actually clears its cache. The
+generic lives here so `evaluate_operation` methods can call it without depending on
+the concrete editor type.
+"""
+invalidate_projection!(editor) = nothing
 
 end # module

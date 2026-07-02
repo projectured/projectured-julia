@@ -16,7 +16,7 @@ still works against whatever object carries `editor.document`.
 """
 module OperationModule
 
-import ..OperationApiModule: Operation, evaluate_operation
+import ..OperationApiModule: Operation, evaluate_operation, invalidate_projection!
 import ..DocumentApiModule: Document, clear_selection!, set_selection!, with_selection
 import ..ReferenceModule: ReferencePath, ConcreteReferencePath, EmptyReferencePath, FieldReference, RangeReference, TypeReference, is_element_reference, evaluate_reference, reference_equal, annotate_reference_types, strip_reference_types, append_reference, concat_references, reference_steps
 import ..ReactiveModule: Cell
@@ -282,12 +282,14 @@ function evaluate_operation(editor, op::ReplaceReferencedValue)
     if reference isa EmptyReferencePath
         # Whole-root swap: only meaningful when the root *is* `editor.document`
         # (there is no in-place "replace the object itself" for a carried root).
-        # Rebind and drop the cached iomap so the next print rebuilds on the new
-        # root — a wholesale swap is not reactive (nested swaps write into Cells).
+        # Rebind and ask the editor to drop its cached projection so the next print
+        # rebuilds on the new root — a wholesale swap is not reactive (nested swaps
+        # write into Cells). `invalidate_projection!` is the editor's own concern
+        # (default no-op); this module does not know how the projection is cached.
         op.document === nothing ||
             error("ReplaceReferencedValue: empty reference on a carried root has no slot to write")
         editor.document = op.value
-        editor.iomap = nothing
+        invalidate_projection!(editor)
         return
     end
     parent_path, terminal = _split_terminal_step(reference)

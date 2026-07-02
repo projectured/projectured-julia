@@ -149,7 +149,7 @@ Layer 1 — core:
   `JsonObject` (Rule C comment), "mixed JSON / text / widget" (`@document`
   docstring), "clipboard / versioning projections" (`copy_document` header) —
   use neutral or kernel-resident examples.
-- [ ] **L10. `editor.iomap` in layer 1 (code-level).** `evaluate_operation(editor,
+- [x] **L10. `editor.iomap` in layer 1 (code-level).** `evaluate_operation(editor,
   ::ReplaceReferencedValue)`'s whole-root swap writes `editor.iomap = nothing` —
   layer 1 knowing the editor caches an iomap and how to invalidate it. Per D-3:
   add an api-level `invalidate_projection!(editor)` stub (default no-op),
