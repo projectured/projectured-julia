@@ -2,9 +2,12 @@
     BookModule
 
 The book document domain. Models structured prose: books, chapters,
-paragraphs, lists, and pictures. Every node subtypes the abstract
-BookDocument base (itself a Document) and carries a reactive `collapsed`
-Cell.
+paragraphs, lists, and pictures.
+
+The domain includes:
+- **Structure**: `BookBook`, `BookChapter`
+- **Content**: `BookParagraph`, `BookList`, `BookPicture`
+- **Utility types**: `BookInsertion` for cursor positioning
 """
 module BookModule
 
@@ -15,33 +18,25 @@ import ..ReferenceModule: Reference
 export BookDocument, BookInsertion, BookBook, BookChapter, BookParagraph, BookList, BookPicture,
        IBookInsertion, IBookBook, IBookChapter, IBookParagraph, IBookList, IBookPicture
 
-# ── BookDocument (abstract base) ───────────────────────────────────────────────
-
-"""
-    BookDocument
-
-Abstract base type for all book document nodes.  Every concrete subtype
-carries a `collapsed::Cell` and a `selection::Reference`.
-"""
 abstract type BookDocument <: Document end
 
-# ── BookInsertion ───────────────────────────────────────────────────────
+# ── Insertion cursor ─────────────────────────────────────────────────────
 
+"""
+A placeholder for a book node being entered (the insert-by-typing cursor);
+type-to-replace swaps it for concrete content.
+"""
 @document struct BookInsertion <: BookDocument
     value::Any = nothing
     selection::Reference = nothing
 end
 
-# ── BookBook ───────────────────────────────────────────────────────────────
+# ── Structure ────────────────────────────────────────────────────────────
 
 """
-    BookBook(title, author, elements)
-
-The top-level book document.  `title` is required (a leading positional
-argument, so `elements` reaches the `CellVector`-wrapping constructor);
-`author`/`elements` and the `collapsed`/`selection` state all default. The
-projection renders an author line only when `author !== nothing`.  `elements`
-holds the sequence of child nodes (typically `BookChapter`s).
+The top-level book document — a `title`, an optional `author`, and a sequence
+of child nodes (typically `BookChapter`s). `collapsed` hides them behind a
+marker in the projection.
 """
 @document struct BookBook <: BookDocument
     title::String
@@ -51,14 +46,9 @@ holds the sequence of child nodes (typically `BookChapter`s).
     selection::Reference = nothing
 end
 
-# ── BookChapter ────────────────────────────────────────────────────────────
-
 """
-    BookChapter(title, numbering, elements)
-
-A chapter grouping child nodes.  `title` is the required leading argument (so
-`elements` reaches the `CellVector`-wrapping constructor); `numbering` (e.g.
-`"1"`, `""` for none) and the `collapsed`/`selection` state default.
+A chapter grouping child nodes under a `title` and optional `numbering` (e.g.
+`"1"`). `collapsed` hides them in the projection.
 """
 @document struct BookChapter <: BookDocument
     title::String
@@ -68,14 +58,11 @@ A chapter grouping child nodes.  `title` is the required leading argument (so
     selection::Reference = nothing
 end
 
-# ── BookParagraph ──────────────────────────────────────────────────────────
+# ── Content ──────────────────────────────────────────────────────────────
 
 """
-    BookParagraph(content)
-
-A prose paragraph.  `content` is the required leading argument (typically a
-`TextText` value); `alignment` — one of `:left`, `:center`, `:right`, or
-`:justified` — and the `collapsed`/`selection` state default.
+A prose paragraph. `content` is typically a `TextText`; `alignment` is one of
+`:left`, `:center`, `:right`, or `:justified`.
 """
 @document struct BookParagraph <: BookDocument
     content::Any
@@ -84,14 +71,8 @@ A prose paragraph.  `content` is the required leading argument (typically a
     selection::Reference = nothing
 end
 
-# ── BookList ───────────────────────────────────────────────────────────────
-
 """
-    BookList(elements)
-
-An unordered list of child nodes.  Every field defaults, so the sole
-`CellVector` accepts a bracketed vector (`BookList([…])`) or a variadic run of
-nodes.
+An unordered list of child nodes. `collapsed` hides them in the projection.
 """
 @document struct BookList <: BookDocument
     elements::CellVector = CellVector()
@@ -99,14 +80,9 @@ nodes.
     selection::Reference = nothing
 end
 
-# ── BookPicture ────────────────────────────────────────────────────────────
-
 """
-    BookPicture(content)
-
-A figure with an optional title.  `content` is the required leading argument
-(an image value or path); `title` and `alignment` — one of `:left`, `:center`,
-`:right`, or `:justified` — and the `collapsed`/`selection` state default.
+A figure with an optional `title`. `content` is an image value or path;
+`alignment` is one of `:left`, `:center`, `:right`, or `:justified`.
 """
 @document struct BookPicture <: BookDocument
     content::Any
@@ -116,10 +92,8 @@ A figure with an optional title.  `content` is the required leading argument
     selection::Reference = nothing
 end
 
-# Text-replace edits for the book domain are handled generically by
-# `splice_value!` (see OperationApiModule): `title`/`author`/`numbering` are
-# plain strings (string representation), and a paragraph's `content` is a
-# `TextText` (the TextText representation defined in TextModule locates and
-# splices the right span). No per-type method is needed.
+# Text-replace edits need no per-type method: `title`/`author`/`numbering` are
+# plain strings, and a paragraph's `content` is a `TextText` whose representation
+# locates and splices the right span.
 
 end # module
