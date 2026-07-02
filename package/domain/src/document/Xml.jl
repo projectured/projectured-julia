@@ -12,10 +12,10 @@ The domain includes:
 module XmlModule
 
 import ..ReactiveModule: Cell
-import ..DocumentModule: Document, @document
+import ..DocumentModule: Document, @document, @forward_map
 import ..CollectionModule: CellVector
 import ..ReferenceModule: Reference
-export XmlDocument, XmlInsertion, XmlText, XmlAttribute, XmlElement, setattr!, deleteattr!,
+export XmlDocument, XmlInsertion, XmlText, XmlAttribute, XmlElement,
        IXmlInsertion, IXmlText, IXmlAttribute, IXmlElement
 
 abstract type XmlDocument <: Document end
@@ -80,45 +80,11 @@ XmlElement(tag::AbstractString, children::Vector{<:XmlDocument}) =
 XmlElement(tag::AbstractString, attrs::Vector{XmlAttribute}, children::Vector{<:XmlDocument}) =
     XmlElement(tag, CellVector(attrs), CellVector(children))
 
-# ── Attribute access ────────────────────────────────────────────────────────────
-
-function Base.getindex(e::XmlElement, name::AbstractString)
-    for a in e.attrs
-        a.name == name && return a
-    end
-    error("XmlElement <$(e.tag)> has no attribute \"$name\"")
-end
-
-Base.haskey(e::XmlElement, name::AbstractString) = any(a -> a.name == name, e.attrs)
-
-"""
-    setattr!(e::XmlElement, name, value)
-
-Set attribute `name` to `value` (updating it in place if present, else adding it),
-returning `e`.
-"""
-function setattr!(e::XmlElement, name::AbstractString, value::AbstractString)
-    for a in e.attrs
-        if a.name == name
-            a.value = String(value)
-            return e
-        end
-    end
-    push!(e.attrs, Cell(XmlAttribute(name, value)))
-    return e
-end
-
-"""
-    deleteattr!(e::XmlElement, name)
-
-Remove attribute `name` if present (else leave `e` unchanged), returning `e`.
-"""
-function deleteattr!(e::XmlElement, name::AbstractString)
-    for i in length(e.attrs):-1:1
-        e.attrs[i].name == name && deleteat!(e.attrs, i)
-    end
-    return e
-end
+# Dictionary-like attribute access, keyed by attribute name. As with `JsonObject`,
+# `@forward_map` generates `getindex`/`setindex!`/`haskey`/`keys`/`values`/`get`/
+# `delete!` and a pair-`iterate` over the `attrs` map (so `e[name]` reads a value,
+# `e[name] = v` sets one, `delete!(e, name)` removes it).
+@forward_map XmlElement attrs name value XmlAttribute
 
 # Text-replace edits need no per-type method: the type-in target fields —
 # `XmlText.content`, `XmlAttribute.name`/`value`, and `XmlElement.tag` — are all
