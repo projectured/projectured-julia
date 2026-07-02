@@ -14,8 +14,8 @@ module McpModule
 # (code execution, documentation / API search) and their registration into the
 # shared ToolRegistry. The MCP *transport* (McpServer, the HTTP lifecycle, and
 # the registry→MCP wire-format bridges mcp_tools/mcp_resources) needs
-# ModelContextProtocol and lives in the `ProjecturedMCPExt` package extension
-# (program/ext/ProjecturedMCPExt.jl), which imports this module.
+# ModelContextProtocol and lives in the standalone `ProjecturedMcp` package
+# (package/mcp/src/ProjecturedMcp.jl), which imports this module.
 import ..ToolRegistryModule: Tool, Resource,
                               register_tool!, register_resource!,
                               list_tools, list_resources
@@ -489,7 +489,7 @@ function register_default_tools_and_resources!()
 end
 
 # (The registry→MCP wire-format bridges mcp_tools/mcp_resources and the
-# _make_tools/_make_resources helpers live in the ProjecturedMCPExt extension —
+# _make_tools/_make_resources helpers live in the `ProjecturedMcp` package —
 # they need ModelContextProtocol.)
 
 # ═══════════════════════════════════════════════════════════════════════

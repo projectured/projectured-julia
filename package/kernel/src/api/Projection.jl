@@ -67,7 +67,7 @@ export projection_print, projection_printer_recurse, projection_read, map_refere
 Abstract base type for all projection types, primitive and higher-order alike.
 Subtype this to register with the default `map_reference_forward`,
 `map_reference_backward`, and `projection_read` fallbacks (defined in
-`ProjectionModule`, `program/src/common/Projection.jl`).
+`ProjectionModule`, `package/kernel/src/common/Projection.jl`).
 """
 abstract type Projection end
 

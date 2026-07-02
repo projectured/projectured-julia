@@ -8,8 +8,10 @@ read-eval-print loop, and the agent control surface (LLM/MCP). It carries the
 foundational document *vocabulary* (`CollectionModule`, `PrimitiveModule`,
 `ScreenDocumentModule`) that the engine itself depends on, but no concrete
 domains (JSON/XML/Text/Syntax/Widget/...), no backends, and **no heavy
-dependencies** — `using ProjecturedKernel` precompiles and loads with only the
-optional LLM/MCP extensions available when their weakdeps are present.
+dependencies** — `using ProjecturedKernel` precompiles and loads on its own.
+The real LLM/MCP transports are standalone opt-in packages (`ProjecturedLlm`
+in `package/llm`, `ProjecturedMcp` in `package/mcp`) that depend on this
+package; the kernel carries only their dependency-free seams.
 
 The concrete domains live in `ProjecturedDomain`; the flat public API is
 re-exported by the `Projectured` umbrella.
@@ -45,7 +47,7 @@ include("common/GestureBinding.jl")
 include("document/Primitive.jl")
 include("common/OperationRerooting.jl")
 # Agent LLM client seam (dependency-free LlmBackend/AnthropicLlm/FakeLlm; the
-# Anthropic HTTP client lives in the ProjecturedLLMExt extension).
+# Anthropic HTTP client lives in the `ProjecturedLlm` package, package/llm).
 include("editor/Llm.jl")
 include("document/Screen.jl")
 
@@ -74,7 +76,7 @@ include("device/Screen.jl")
 include("editor/GestureRecognizer.jl")
 include("editor/ToolRegistry.jl")
 # Mcp.jl holds the dependency-free editor tools; the MCP transport (McpServer,
-# wire bridges) lives in the ProjecturedMCPExt extension.
+# wire bridges) lives in the `ProjecturedMcp` package, package/mcp.
 include("editor/Mcp.jl")
 include("editor/Editor.jl")
 

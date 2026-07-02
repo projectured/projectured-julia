@@ -3,8 +3,8 @@
 
 Abstract backend interface. A `Backend` encapsulates everything needed to
 initialise, shut down, read input from, and write output to a particular
-display/input system (e.g. SDL). Concrete subtypes live in `backend/Sdl.jl`
-etc.
+display/input system (e.g. SDL). Concrete subtypes live in opt-in backend
+packages such as `ProjecturedSdl` (`package/sdl`).
 """
 module BackendModule
 

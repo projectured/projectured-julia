@@ -10,7 +10,8 @@ stream that `_handle_sse_event!` already consumes.
 Two concrete backends:
 
 - `AnthropicLlm` — real Claude over HTTP+SSE; thin wrapper around
-  `AnthropicModule.stream_message`.
+  `ProjecturedLlm.stream_message` (the opt-in `ProjecturedLlm` package,
+  `package/llm`).
 - `FakeLlm` — canned-reply backend that synthesises the SSE event shapes
   in-process. Useful for offline development, deterministic tests, and
   exercising the streaming-render path without a network call.
@@ -65,9 +66,9 @@ AnthropicLlm(; base_url::AbstractString = "https://api.anthropic.com/v1/messages
                max_tokens::Integer = 4096) =
     AnthropicLlm(String(base_url), Int(max_tokens))
 
-# The `stream_turn(::AnthropicLlm, …)` method calls `AnthropicModule.stream_message`
-# (HTTP/JSON3) and therefore lives in `AnthropicModule` — the future LLM package
-# extension — not here. This module stays dependency-free: it holds only the
+# The `stream_turn(::AnthropicLlm, …)` method calls `ProjecturedLlm.stream_message`
+# (HTTP/JSON3) and therefore lives in the standalone `ProjecturedLlm` package
+# (package/llm) — not here. This module stays dependency-free: it holds only the
 # abstract `LlmBackend`, the `stream_turn` generic, the (dep-free) `AnthropicLlm`
 # struct, and the in-process `FakeLlm`.
 
