@@ -26,6 +26,14 @@ abstract type PrimitiveDocument <: Document end
 
 # ── PrimitiveInsertion ──────────────────────────────────────────────────────
 
+"""
+    PrimitiveInsertion(; value=nothing, selection=nothing)
+
+An empty primitive-domain slot — a "hole" awaiting a value, the primitive
+counterpart of a domain's insertion placeholder. `value` holds whatever pending
+content has been typed into it (or `nothing` while still empty); editing it is how
+a concrete primitive value comes to replace the insertion.
+"""
 @document struct PrimitiveInsertion <: PrimitiveDocument
     value::Any = nothing
     selection::Reference = nothing

@@ -1,3 +1,14 @@
+"""
+    ReferenceBuilderModule
+
+The `@reference` / `@step` construction DSL: a compact surface syntax for building
+`ReferencePath`s and `ReferenceStep`s. `@reference address.city` expands to the
+nested `ConcreteReferencePath(FieldReference("address"), …)` you would otherwise
+write by hand, with `[i]` / `{k}` / `.field(e)` / `.point(x,y)` / `.proj(p, sub)`
+covering the other step kinds and `^(expr)` splicing a runtime path/step into the
+literal. The pattern-matching counterpart is `@reference_case` in
+`ReferenceCaseModule`.
+"""
 module ReferenceBuilderModule
 
 using ..ReferenceModule
@@ -337,6 +348,27 @@ function _gen_concat_chain(steps::Vector{BuildStep})
     return :(ReferenceBuilderModule._concat($prefix_expr, $tail))
 end
 
+"""
+    @reference()
+    @reference(path)
+
+Build a `ReferencePath` from the construction DSL. `@reference()` is the empty
+path (terminates at the current node); `@reference(path)` parses a rootless chain
+of steps, left = outermost:
+
+- `a.b`               — `FieldReference` steps (`.a` then `.b`)
+- `xs[i]`             — 1-based `ElementReference` (a single-element range)
+- `xs{k}` / `xs{s:e}` — 0-based `PositionReference` (cursor) / `RangeReference`
+- `.field(e)`         — a field whose name is the runtime value of `e`
+- `.point(x, y)`      — a `PointReference` at pixel `(x, y)`
+- `.proj(p, sub)`     — a `ProjectionReference` into projection `p`'s output `sub`
+- `x::T`              — a `TypeReference(T)` checkpoint after `x` (folded onto the node)
+- `^(expr)`           — splice a runtime `ReferencePath`/`ReferenceStep` into the literal
+
+Inside `[]`, `{}`, `field(...)`, `point(...)`, `proj(...)` the arguments are
+ordinary Julia expressions evaluated at runtime; bare symbols in *path* position
+are literal field names. See `@reference_case` for the matching counterpart.
+"""
 macro reference()
     return _gen_build_path(BuildStep[])
 end
@@ -346,14 +378,16 @@ macro reference(ex)
     return _gen_build_path(steps)
 end
 
-# ------------------------------------------------------------
-# @step companion macro
-#
-# Builds a single ReferenceStep from a one-step DSL expression. Useful for
-# passing varargs to `append_reference`, or any other API that takes raw
-# steps rather than full paths.
-# ------------------------------------------------------------
+"""
+    @step(expr)
 
+Build a single `ReferenceStep` from a one-step DSL expression (the same step
+grammar as `@reference`, e.g. `xs[i]`, `xs{k}`, `c.point(x, y)`, or a bare
+`value` for a field). Useful for passing varargs to `append_reference`, or any
+API that takes raw steps rather than whole paths. Unlike `@reference`, a leading
+identifier before an operator (`xs[i]`) is a placeholder, not a field name; only
+a bare symbol (`value`) is taken as a field name.
+"""
 macro step(ex)
     return _gen_build_step(_parse_step(ex))
 end

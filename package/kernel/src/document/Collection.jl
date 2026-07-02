@@ -375,17 +375,12 @@ end
 # Take first n elements from a ListNode in specified direction
 # direction = :next for forward, :prev for backward
 function take_first_n(node::ListNode, n::Int, direction::Symbol=:next)
-    result = []
+    result = Any[]
     current = node
-    for i in 1:n
-        if current === nothing
-            break
-        end
+    for _ in 1:n
         push!(result, current.value)
         next_node = direction == :next ? current.next : current.prev
-        if next_node === nothing
-            break
-        end
+        next_node === nothing && break
         current = next_node
     end
     result
@@ -394,18 +389,13 @@ end
 # Take n elements in prev direction and m elements in next direction from center node
 # Returns a vector with prev elements first (in reverse order), then center, then next elements
 function take_first_n(node::ListNode, n_prev::Int, n_next::Int)
-    result = []
+    result = Any[]
     # Collect prev elements (in reverse order since we traverse from center outward)
-    prev_elements = []
+    prev_elements = Any[]
     current = node
-    for i in 1:n_prev
-        if current === nothing
-            break
-        end
+    for _ in 1:n_prev
         prev_node = current.prev
-        if prev_node === nothing
-            break
-        end
+        prev_node === nothing && break
         push!(prev_elements, prev_node.value)
         current = prev_node
     end
@@ -417,14 +407,9 @@ function take_first_n(node::ListNode, n_prev::Int, n_next::Int)
     push!(result, node.value)
     # Collect next elements
     current = node
-    for i in 1:n_next
-        if current === nothing
-            break
-        end
+    for _ in 1:n_next
         next_node = current.next
-        if next_node === nothing
-            break
-        end
+        next_node === nothing && break
         push!(result, next_node.value)
         current = next_node
     end

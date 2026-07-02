@@ -1,3 +1,14 @@
+"""
+    ReferenceCaseModule
+
+The `@reference_case` pattern-matching DSL — the destructuring counterpart of the
+`@reference` construction DSL (`ReferenceBuilderModule`). It matches a reference
+path against a series of `pattern => result` rules (much like Julia's `match`),
+binding the variable parts of the path (indices, field names, tails) for the
+result expression. The pattern grammar mirrors `@reference`'s step syntax; the
+`when(pattern, cond)` and `prefix(pattern)` surface helpers add a guard and a
+prefix (rather than exact) match.
+"""
 module ReferenceCaseModule
 
 using ..ReferenceModule
@@ -635,6 +646,30 @@ end
 # Macro entry point
 # ------------------------------------------------------------
 
+"""
+    @reference_case ref begin
+        pattern => result
+        ...
+    end
+
+Match the reference path `ref` against each `pattern => result` rule in order and
+return the `result` of the first that matches, or `nothing` if none do. Patterns
+use the same step grammar as `@reference` (`a.b`, `xs[i]`, `xs{k}`, `.proj(p, sub)`,
+a leading/suffix `::T` checkpoint, …), with these matching conventions:
+
+- Bare symbols in *path* position are literal field names; bare symbols in *value*
+  position (inside `[]`, `field(...)`, …) **bind** the matched value.
+- `_` is a wildcard; `name::T` binds `name` only if the value `isa T`; `^(expr)`
+  interpolates a value to compare against.
+- `when(pattern, cond)` matches `pattern` then requires the guard `cond` (which may
+  read the pattern's bindings); `prefix(pattern)` matches a leading prefix rather
+  than the whole path; `name...` binds the entire remaining tail; `∅` matches the
+  empty (whole-element) path.
+
+A `::T` checkpoint is a **tolerant** assertion: it documents the expected node
+type but never fails a match, so a pattern keeps matching whether the path carries
+folded node types or is a plain skeleton.
+"""
 macro reference_case(ref, block)
     entries =
         block isa Expr && block.head == :block ? block.args :

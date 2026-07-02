@@ -207,12 +207,12 @@ Layer 1 — core:
 
 ## Group I — idiomatic / documentation gaps
 
-- [ ] **I1.** Docstrings for `@reference`, `@reference_case`, `@step` (currently
+- [x] **I1.** Docstrings for `@reference`, `@reference_case`, `@step` (currently
   no REPL help at all for the two most-used DSL entry points; the grammar lives
   only in `#` header comments) and module docstrings for
   `ReferenceCaseModule` / `ReferenceBuilderModule`.
-- [ ] **I2.** `PrimitiveInsertion` docstring (siblings all have one).
-- [ ] **I3 (optional).** `take_first_n` (`document/Collection.jl`): **kept** per
+- [x] **I2.** `PrimitiveInsertion` docstring (siblings all have one).
+- [x] **I3 (optional).** `take_first_n` (`document/Collection.jl`): **kept** per
   D-5. Optional tidy only — type the accumulator (`result = Any[]`), drop the
   dead `current === nothing` checks; leave both overloads and their semantics
   intact.
