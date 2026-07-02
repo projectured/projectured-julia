@@ -15,7 +15,8 @@ import ..DeviceModule: Device, read_from_devices, write_to_devices
 import ..BackendModule: Backend, init!, quit!
 import ..ScreenModule: Screen, QuitEvent
 import ..ScreenDocumentModule: EventEnvelope
-import ..ReactiveModule: perf_counters, perf_reset!, @perf_time, tick!
+import ..PerformanceCounterModule: perf_counters, perf_reset!, @perf_time
+import ..EditorTimeModule: tick!
 import ..DocumentModule: Document
 import ..KeyboardModule: Keyboard, KeyDown
 import ..MouseModule: Mouse

@@ -24,7 +24,8 @@ import ProjecturedDomain.ProjectionApiModule: projection_print, projection_read
 import ProjecturedDomain.OperationApiModule: evaluate_operation
 import ProjecturedDomain.DocumentApiModule: clear_selection!, set_selection!
 import ProjecturedDomain.PrinterContextModule: PrinterContext
-import ProjecturedDomain.ReactiveModule: Cell, tick!
+import ProjecturedDomain.ReactiveModule: Cell
+import ProjecturedDomain.EditorTimeModule: tick!
 import ProjecturedDomain.ReferenceModule: EmptyReferencePath
 
 import ProjecturedSdl: _open_offscreen_renderer, _close_offscreen_renderer, _emit_frames!

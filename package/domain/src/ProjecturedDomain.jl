@@ -20,11 +20,13 @@ using ProjecturedKernel
 # ── Kernel submodule aliases (make relative ..XxxModule refs resolve into the
 #    kernel; see the module docstring) ──────────────────────────────────────
 const BackendModule = ProjecturedKernel.BackendModule
+const ChangeModule = ProjecturedKernel.ChangeModule
 const CollectionModule = ProjecturedKernel.CollectionModule
 const CopyingProjectionModule = ProjecturedKernel.CopyingProjectionModule
 const DeviceModule = ProjecturedKernel.DeviceModule
 const DocumentApiModule = ProjecturedKernel.DocumentApiModule
 const DocumentModule = ProjecturedKernel.DocumentModule
+const EditorTimeModule = ProjecturedKernel.EditorTimeModule
 const EventCaseModule = ProjecturedKernel.EventCaseModule
 const GestureBindingModule = ProjecturedKernel.GestureBindingModule
 const IoMapApiModule = ProjecturedKernel.IoMapApiModule
@@ -38,6 +40,7 @@ const NestingProjectionModule = ProjecturedKernel.NestingProjectionModule
 const OperationApiModule = ProjecturedKernel.OperationApiModule
 const OperationModule = ProjecturedKernel.OperationModule
 const OperationRerootingModule = ProjecturedKernel.OperationRerootingModule
+const PerformanceCounterModule = ProjecturedKernel.PerformanceCounterModule
 const PredicateDispatchingModule = ProjecturedKernel.PredicateDispatchingModule
 const PreservingProjectionModule = ProjecturedKernel.PreservingProjectionModule
 const PrimitiveModule = ProjecturedKernel.PrimitiveModule

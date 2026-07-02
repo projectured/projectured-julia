@@ -58,6 +58,10 @@ for the selection mechanism.
 """
 module ProjectionApiModule
 
+# Change/as_change live in ChangeModule (api/Change.jl); re-exported here so
+# `import ..ProjectionApiModule: Change, as_change` keeps resolving.
+import ..ChangeModule: Change, as_change
+
 export projection_print, projection_printer_recurse, projection_read, map_reference_forward, map_reference_backward, Projection,
        Change, as_change
 
@@ -70,45 +74,6 @@ Subtype this to register with the default `map_reference_forward`,
 `ProjectionModule`, `package/kernel/src/common/Projection.jl`).
 """
 abstract type Projection end
-
-"""
-    Change(gesture, operation = nothing)
-
-The backward-flowing unit of the reader pipeline — the symmetric dual of the
-document that flows forward through the printer. It carries the same user change
-in two coordinate frames:
-
-- `gesture` — the originating input (a device event such as `MousePress`/`KeyDown`,
-  or an `EventEnvelope` at the screen layer). **Invariant**: it is threaded
-  unchanged through the whole reader chain, so any reader can inspect *what the
-  user did*, not just what it currently means.
-- `operation` — the change expressed in the current projection's input domain.
-  Starts as `nothing` (a "nothing-change") and is filled in / re-mapped by the
-  readers as the change travels one domain inward at each step.
-
-A reader returns a `Change`: it either keeps `operation === nothing` (it had
-nothing to say) or returns a fresh `Change` with the gesture preserved and a real
-operation swapped in (cf. Lisp's `clone-command`).
-"""
-struct Change
-    gesture::Any
-    operation::Any
-end
-
-Change(gesture) = Change(gesture, nothing)
-
-"""
-    as_change(payload) -> Change
-
-Wrap a legacy reader payload (a raw gesture/event, an `EventEnvelope`, or a
-backward-threaded operation) into a `Change`. Used by the 3-argument
-compatibility shims so existing 3-arg `projection_read(projection, iomap, x)`
-call sites keep working against the 4-arg `Change` interface. The payload goes in
-the gesture slot; the generic reader bridge falls back to the gesture slot
-whenever the operation slot is empty, so an operation passed this way is still
-applied correctly.
-"""
-as_change(payload) = payload isa Change ? payload : Change(payload, nothing)
 
 """
     projection_print(projection, recursion, input, context::PrinterContext) -> iomap

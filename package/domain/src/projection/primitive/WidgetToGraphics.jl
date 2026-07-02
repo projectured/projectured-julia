@@ -17,7 +17,8 @@ the content projection via the recursion argument.
 """
 module WidgetToGraphicsModule
 
-import ..ReactiveModule: Cell, setfn!, editor_time, reactive_editor_time
+import ..ReactiveModule: Cell, setfn!
+import ..EditorTimeModule: editor_time, reactive_editor_time
 import ..ProjectionApiModule: projection_print, projection_printer_recurse, projection_read,
                                map_reference_forward, map_reference_backward, Projection, Change
 import ..ProjectionModule: var"@projection"

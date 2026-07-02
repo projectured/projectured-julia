@@ -8,7 +8,13 @@ dependents as stale; recomputation is lazy — it happens on the next read.
 
 The module includes:
 - **Cell**: Reactive cell that holds either a primitive value or a lazy computation
-- **Functions**: `setval!`, `setfn!`, `isuptodate`, `perf_counters`, `perf_reset!`, `perf_record!`, `@perf_time`
+- **Functions**: `setval!`, `setfn!`, `isuptodate`, `peek`
+
+Two sibling concerns were split out of this file into their own modules within
+the reactive layer: the instrumentation counters (`PerformanceCounterModule`,
+`reactive/PerformanceCounter.jl`, whose `_perf` dict this module still bumps
+inline on the hot path) and the animation clock (`EditorTimeModule`,
+`reactive/EditorTime.jl`, layered on top of `Cell`).
 
 Dependency tracking is automatic: when a computed cell evaluates its thunk,
 every `Cell` read via `c[]` is recorded as a dependency. When any upstream
@@ -29,8 +35,9 @@ on next read.
 """
 module ReactiveModule
 
-export Cell, setval!, setfn!, isuptodate, perf_counters, perf_reset!, perf_record!, @perf_time
-export EDITOR_TIME, editor_time, reactive_editor_time, tick!
+import ..PerformanceCounterModule: _perf
+
+export Cell, setval!, setfn!, isuptodate
 
 """
     Cell
@@ -66,59 +73,9 @@ end
 # any Cell read during evaluation can register itself as a dependency.
 const _computing = Cell[]
 
-# ── performance counters ─────────────────────────────────────────────────
-const _perf = Dict{Symbol,Int}(
-    :reads => 0, :computes => 0, :invalidations => 0, :writes => 0,
-    :read_time => 0, :evaluate_time => 0, :print_time => 0)
-
-"""
-    perf_counters() -> Dict{Symbol,Int}
-
-Return a copy of the performance counters dictionary. The counters track:
-- `:reads` — number of cell reads
-- `:computes` — number of cell re-computations
-- `:invalidations` — number of cell invalidations
-- `:writes` — number of cell writes
-- `:read_time` — nanoseconds spent in the editor's read stage
-- `:evaluate_time` — nanoseconds spent in the editor's evaluate stage
-- `:print_time` — nanoseconds spent in the editor's print stage
-"""
-perf_counters() = copy(_perf)
-
-"""
-    perf_reset!()
-
-Reset all performance counters to zero.
-"""
-function perf_reset!()
-    for k in keys(_perf); _perf[k] = 0; end
-end
-
-"""
-    perf_record!(key::Symbol, value::Integer)
-
-Add `value` to the counter at `key`, creating it if absent. Used to fold in
-externally measured quantities (e.g. per-stage timings) alongside the
-reactive engine's own counters.
-"""
-function perf_record!(key::Symbol, value::Integer)
-    _perf[key] = get(_perf, key, 0) + Int(value)
-end
-
-"""
-    @perf_time key expr
-
-Evaluate `expr`, record the elapsed nanoseconds under `key` via
-`perf_record!`, and return the value of `expr`.
-"""
-macro perf_time(key, expr)
-    quote
-        local t = time_ns()
-        local result = $(esc(expr))
-        perf_record!($(esc(key)), time_ns() - t)
-        result
-    end
-end
+# Performance counters (`_perf`, `perf_counters`, `perf_reset!`, `perf_record!`,
+# `@perf_time`) live in `PerformanceCounterModule` (reactive/PerformanceCounter.jl).
+# `_perf` is imported above so the Cell hot path below stays a bare `Dict` write.
 
 # ── constructors ─────────────────────────────────────────────────────────
 
@@ -240,20 +197,7 @@ end
 isuptodate(c::Cell) = c.valid
 isuptodate(cs::Vector{Cell}) = all(c -> c.valid, cs)
 
-# ── editor time (the animation clock) ──────────────────────────────────────
-# A single global, primitive cell holding the current logical time in seconds.
-# The editor's main loop writes it once per frame via `tick!`; because writes
-# invalidate dependents (write-driven propagation), any computed cell that read
-# the time is re-evaluated on the next pull — which is all animation needs.
-#
-# Two ways to read it, named so intent is obvious:
-#   • `reactive_editor_time()` — SUBSCRIBE. A tracked read; the calling cell
-#     becomes a dependent and re-runs every frame. Use inside an animated thunk.
-#     The `reactive_` prefix is the loud one: calling it makes you reactive.
-#   • `editor_time()` — SAMPLE. An untracked read (`peek`) that registers no
-#     dependency. Use to *arm* an animation (capture a start instant) without
-#     the arming code itself re-running every frame.
-const EDITOR_TIME = Cell(0.0)
+# ── untracked read ─────────────────────────────────────────────────────────
 
 """
     peek(c::Cell)
@@ -261,21 +205,14 @@ const EDITOR_TIME = Cell(0.0)
 Read a cell's value **without** registering a dependency (an untracked read).
 Unlike `c[]`, calling this inside a computed thunk does not make the thunk a
 dependent of `c`. A generic reactive primitive (cf. Solid's `untrack`, MobX's
-`untracked`), used here to *sample* `EDITOR_TIME` rather than subscribe to it.
+`untracked`). The animation clock in `EditorTimeModule`
+(reactive/EditorTime.jl) uses it to *sample* the editor time rather than
+subscribe to it.
 """
 function Base.peek(c::Cell)
     c.valid || recompute!(c)
     return c.value
 end
-
-"""Tracked read of the editor time — subscribe (re-run every frame)."""
-reactive_editor_time() = EDITOR_TIME[]
-
-"""Untracked read of the editor time — sample (no dependency)."""
-editor_time() = peek(EDITOR_TIME)
-
-"""Write the current logical time, invalidating everything that subscribed."""
-tick!(t::Real) = (EDITOR_TIME[] = Float64(t); nothing)
 
 # ── helpers ──────────────────────────────────────────────────────────────
 
