@@ -69,7 +69,7 @@ the side.
    └───────────────────────────────┬──────────────────────────────┘
                                     ▼
    ┌──────────────────────────────────────────────────────────────┐
- A │  REACTIVE ENGINE     PerformanceCounter → Reactive → EditorTime│
+ A │  REACTIVE ENGINE     PerformanceCounter → Reactive            │
    │  (reactive/, layer A — the DAG's dependency-free base)         │
    └──────────────────────────────────────────────────────────────┘
 ```
@@ -132,14 +132,14 @@ Current shape:
 
 | Folder | Holds |
 | --- | --- |
-| `reactive/` | the reactive engine layer — `Reactive` (Cell), `PerformanceCounter`, `EditorTime` (see [reactive.md](reactive.md)) |
+| `reactive/` | the reactive engine layer — `Reactive` (Cell), `PerformanceCounter` (see [reactive.md](reactive.md)) |
 | `api/` | the pure interface/SPI tier (tier B) |
 | `reference/` | reference paths, `@reference`, `@reference_case` |
 | `device/` | Modifiers, Keyboard, Mouse, EventCase, ScreenDevice |
 | `document/` | Collection, Primitive, ScreenDocument (the engine's own vocabulary) |
 | `common/` | remaining cross-layer impl (Document, IoMap, Operation, GestureBinding, Projection defaults) — being dissolved into per-layer folders |
 | `projection/` | the projection algebra (`higherorder/`, `generic/`) |
-| `editor/` | PrinterContext, GestureRecognizer, ToolRegistry, Llm, Mcp, Editor |
+| `editor/` | EditorTime (the animation clock), PrinterContext, GestureRecognizer, ToolRegistry, Llm, Mcp, Editor |
 
 ## How the kernel is consumed
 

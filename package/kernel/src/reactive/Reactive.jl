@@ -10,11 +10,11 @@ The module includes:
 - **Cell**: Reactive cell that holds either a primitive value or a lazy computation
 - **Functions**: `setval!`, `setfn!`, `isuptodate`, `peek`
 
-Two sibling concerns were split out of this file into their own modules within
-the reactive layer: the instrumentation counters (`PerformanceCounterModule`,
-`reactive/PerformanceCounter.jl`, whose `_perf` dict this module still bumps
-inline on the hot path) and the animation clock (`EditorTimeModule`,
-`reactive/EditorTime.jl`, layered on top of `Cell`).
+Two concerns were split out of this file. The instrumentation counters
+(`PerformanceCounterModule`, `reactive/PerformanceCounter.jl`, whose `_perf` dict
+this module still bumps inline on the hot path) stay in the reactive layer. The
+animation clock (`EditorTimeModule`, `editor/EditorTime.jl`) is *built on* `Cell`
+rather than part of the engine, so it lives in the editor layer.
 
 Dependency tracking is automatic: when a computed cell evaluates its thunk,
 every `Cell` read via `c[]` is recorded as a dependency. When any upstream

@@ -8,19 +8,20 @@ the invariants, and idioms — see the repository-level
 [documentation/reactive-cells.md](../../../documentation/reactive-cells.md); this
 page does not repeat it.
 
-The layer lives in [src/reactive/](../src/reactive/) and is three single-purpose
+The layer lives in [src/reactive/](../src/reactive/) and is two single-purpose
 modules, loaded in this order:
 
 ```
 PerformanceCounter.jl   (PerformanceCounterModule)   — instrumentation
         │  _perf imported by ↓
 Reactive.jl             (ReactiveModule)             — the Cell engine
-        │  Cell used by ↓
-EditorTime.jl           (EditorTimeModule)           — the animation clock
 ```
 
 They were split out of a single `Reactive.jl` so each concern has its own home; the
-load order above is the dependency order the include-order guard checks.
+load order above is the dependency order the include-order guard checks. A third
+concern once bundled here — the animation clock (`EditorTimeModule`) — is *built on*
+`Cell` rather than part of the engine, so it lives in the **editor** layer
+([src/editor/EditorTime.jl](../src/editor/EditorTime.jl)), not here.
 
 ## ReactiveModule — the Cell engine
 

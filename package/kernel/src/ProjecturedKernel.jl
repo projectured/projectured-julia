@@ -37,11 +37,9 @@ include("api/IoMap.jl")
 include("api/Agent.jl")
 
 # ── Reactive engine (layer A — the DAG's single dependency-free source) ─────
-# PerformanceCounter (leaf) before Reactive (bumps its `_perf` on the hot path);
-# EditorTime (the animation clock) after, since it is layered on top of `Cell`.
+# PerformanceCounter (leaf) before Reactive, which bumps its `_perf` on the hot path.
 include("reactive/PerformanceCounter.jl")
 include("reactive/Reactive.jl")
-include("reactive/EditorTime.jl")
 
 # ── Document core & references ──────────────────────────────────────────────
 # Reactive-backed Document/IoMap, the reference machinery, operations, and the
@@ -115,9 +113,10 @@ include("editor/ToolRegistry.jl")
 include("editor/Mcp.jl")
 
 # ── Editor ─────────────────────────────────────────────────────────────────
-# The read-eval-print loop and its immediate dependencies: the Screen device
-# and the gesture recognizer (which needs ScreenDocument). Editor pulls in
-# nearly every layer above.
+# The read-eval-print loop and its immediate dependencies: the animation clock
+# (built on Cell, advanced once per frame), the Screen device, and the gesture
+# recognizer (which needs ScreenDocument). Editor pulls in nearly every layer above.
+include("editor/EditorTime.jl")
 include("device/ScreenDevice.jl")
 include("editor/GestureRecognizer.jl")
 include("editor/Editor.jl")
