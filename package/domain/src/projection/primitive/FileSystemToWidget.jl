@@ -75,7 +75,7 @@ function projection_print(p::FileSystemToWidgetTree, recursion, doc::FileSystemD
     # The roots are a reactive thunk so structural file-system changes rebuild the
     # node tree without re-running `projection_print`.
     roots = CellVector(() -> Any[_fs_node(doc)])
-    tree = WidgetTree(Cell(p.position), roots, Cell(true), sel)
+    tree = WidgetTree(Cell(p.position), roots, Cell(true), sel, Cell(nothing), Cell(Set{Vector{Int}}()))
     iomap = SimpleIoMap(p, doc, tree)
     iomap_cell[] = iomap
     return iomap

@@ -4289,6 +4289,9 @@ end
 
 # Translucent selection accent (same blue the syntax-text / old table highlight used).
 const _WT_HL_COLOR = StyleColor(0x88 / 255, 0xbb / 255, 0xee / 255, 0x40 / 255)
+# Fainter still: the hover band drawn behind the row under the pointer (half the
+# selection alpha, so a selected+hovered row still reads as selected).
+const _WT_HOVER_COLOR = StyleColor(0x88 / 255, 0xbb / 255, 0xee / 255, 0x20 / 255)
 const _WT_HL_RADIUS = 4
 
 # Grid geometry snapshot for a WidgetTable, derived from the GridLayoutIoMap plus
@@ -4952,12 +4955,18 @@ end
 # down to this node (`[i]`, `[i, j]`, …); `y0`/`height` are its band in
 # outer-canvas coordinates. `depth`, `icon`, `label`, `has_children` carry
 # everything the element pass needs so it never re-walks the node tree.
+# `collapsed` (true only for a parent whose children are hidden) drives the
+# chevron direction; `chevron_x0`/`chevron_x1` are its horizontal click hit-box,
+# so the reader can distinguish a chevron toggle from a row select.
 struct WTreeRow
     path::Vector{Int}
     depth::Int
     icon::Any
     label::String
     has_children::Bool
+    collapsed::Bool
+    chevron_x0::Int
+    chevron_x1::Int
     y0::Int
     height::Int
 end
@@ -5034,8 +5043,11 @@ function projection_print(p::WidgetTreeToGraphicsCanvas, recursion, w::WidgetTre
     row_height = line_height + 2 * pad
 
     # Flatten the node tree into rows once; both the geometry (hit-testing) and the
-    # element pass (drawing) read these rows, so they can never drift apart.
+    # element pass (drawing) read these rows, so they can never drift apart. Reading
+    # `w.collapsed` here ties the flattened geometry to the collapse state, so a
+    # chevron toggle re-runs the walk (hiding / revealing subtrees) reactively.
     geometry = Cell(() -> begin
+        collapsed = w.collapsed
         rows = WTreeRow[]
         max_width = Ref(0)
         y = Ref(0)
@@ -5043,12 +5055,14 @@ function projection_print(p::WidgetTreeToGraphicsCanvas, recursion, w::WidgetTre
             x = depth * indent
             label = _tree_label(node)
             kids = _tree_children(node)
+            has_kids = kids !== nothing && !isempty(kids)
+            is_collapsed = has_kids && (path in collapsed)
             label_width, _ = _text_size(p.measure, p.label_text.font, label)
             push!(rows, WTreeRow(path, depth, _tree_icon(node), label,
-                                 kids !== nothing && !isempty(kids), y[], row_height))
+                                 has_kids, is_collapsed, x, x + chevron_column, y[], row_height))
             max_width[] = max(max_width[], x + chevron_column + icon_column + label_width)
             y[] += row_height
-            if kids !== nothing
+            if has_kids && !is_collapsed
                 for (i, c) in enumerate(kids)
                     walk(c, depth + 1, vcat(path, i))
                 end
@@ -5073,18 +5087,29 @@ function projection_print(p::WidgetTreeToGraphicsCanvas, recursion, w::WidgetTre
     setfn!(getfield(selection_band, :h), () -> Int32(band_yh[][2]))
     setfn!(getfield(selection_band, :w), () -> Int32(geometry[].total_w))
 
+    # Persistent hover-band overlay, same pattern as the selection band but reading
+    # `w.hovered` (the row under the pointer). Drawn behind the selection band so a
+    # selected+hovered row still reads as selected.
+    hover_yh = Cell(() -> _wtree_highlight_band(w.hovered, geometry[]))
+    hover_band = GraphicsRect(0, 0, 0, 0, _WT_HOVER_COLOR, _WT_HL_RADIUS)
+    setfn!(getfield(hover_band, :y), () -> Int32(hover_yh[][1]))
+    setfn!(getfield(hover_band, :h), () -> Int32(hover_yh[][2]))
+    setfn!(getfield(hover_band, :w), () -> Int32(geometry[].total_w))
+
     elements = CellVector(() -> begin
         geom = geometry[]
         result = Any[]
-        # 1. Selection band overlay (persistent; its geometry reads the selection
-        #    so this thunk does not), behind the row content.
+        # 1. Hover + selection band overlays (persistent; their geometry reads the
+        #    hovered / selected node so this thunk does not), behind the row content.
+        push!(result, hover_band)
         push!(result, selection_band)
         # 2. Per-row decoration: chevron (parents) + icon glyph + label.
         for row in geom.rows
             x = row.depth * indent
             if row.has_children
                 _push_chevron!(result, x + chevron_column ÷ 2, row.y0 + row_height ÷ 2,
-                               chevron_size, :down, p.chevron.color; stroke=chevron_stroke)
+                               chevron_size, row.collapsed ? :right : :down, p.chevron.color;
+                               stroke=chevron_stroke)
             end
             icon = row.icon
             if icon isa Symbol
@@ -5114,31 +5139,79 @@ end
 map_reference_forward(::WidgetTreeToGraphicsCanvas, iomap, reference) = nothing
 map_reference_backward(::WidgetTreeToGraphicsCanvas, iomap, reference) = nothing
 
-# Gesture reader: a left click selects the node under the cursor; ↑/↓ walk the
-# flattened rows. Everything else defers to the generic operation re-targeter.
+# Gesture reader: a left click on a parent's chevron toggles collapse, otherwise
+# selects the node under the cursor; pointer crossings (`MouseEnter`/`MouseMove`/
+# `MouseLeave`, synthesised by `WidgetHoverTrackingProjection`) drive the hover
+# band; ↑/↓ walk the flattened rows. Everything else defers to the generic
+# operation re-targeter.
 function projection_read(p::WidgetTreeToGraphicsCanvas, recursion, change::Change,
                          iomap::WidgetTreeToGraphicsCanvasIoMap)
     g = change.gesture
-    if change.operation === nothing && g isa MousePress && g.button === :left
-        return Change(g, _wtree_mouse_select(iomap, g))
-    end
-    if change.operation === nothing && g isa KeyDown
-        op = _wtree_key_navigate(iomap, g)
-        op === nothing || return Change(g, op)
+    if change.operation === nothing
+        if g isa MousePress && g.button === :left
+            return Change(g, _wtree_mouse_press(iomap, g))
+        elseif g isa MouseEnter
+            return Change(g, _wtree_hover_set(iomap, g.x, g.y, true))
+        elseif g isa MouseMove
+            return Change(g, _wtree_hover_set(iomap, g.x, g.y, false))
+        elseif g isa MouseLeave
+            return Change(g, _wtree_hover_clear(iomap))
+        elseif g isa KeyDown
+            op = _wtree_key_navigate(iomap, g)
+            op === nothing || return Change(g, op)
+        end
     end
     payload = change.operation === nothing ? g : change.operation
     return Change(g, projection_read(p, iomap, payload))
 end
 
-function _wtree_mouse_select(iomap::WidgetTreeToGraphicsCanvasIoMap, g::MousePress)
+# A left click on a parent row's chevron column toggles its collapse; anywhere
+# else on a row selects it.
+function _wtree_mouse_press(iomap::WidgetTreeToGraphicsCanvasIoMap, g::MousePress)
     geom = iomap.geometry[]
     (0 <= g.x < geom.total_w && 0 <= g.y < geom.total_h) || return nothing
     for row in geom.rows
         if row.y0 <= g.y < row.y0 + row.height
+            if row.has_children && row.chevron_x0 <= g.x < row.chevron_x1
+                return _wtree_toggle_collapse(iomap, row.path)
+            end
             return ReplaceSelectionOperation(_wtree_path_ref(row.path))
         end
     end
     return nothing
+end
+
+# Toggle `path`'s membership in the tree's collapse set. Stores a *new* Set so the
+# backing cell invalidates and the geometry thunk re-flattens.
+function _wtree_toggle_collapse(iomap::WidgetTreeToGraphicsCanvasIoMap, path::Vector{Int})
+    w = iomap.input
+    next = copy(w.collapsed)
+    path in next ? delete!(next, path) : push!(next, path)
+    ReplaceReferencedValue(w, "collapsed", next)
+end
+
+# Set the hovered row to the one under (x, y). `force` (a `MouseEnter`, i.e. a
+# tree-boundary crossing) always re-emits the write so the hover tracker keeps the
+# tree as its target; a plain `MouseMove` emits only when the row actually changes,
+# and returns nothing outside every row (the tracker's MouseLeave clears it).
+function _wtree_hover_set(iomap::WidgetTreeToGraphicsCanvasIoMap, x::Int, y::Int, force::Bool)
+    geom = iomap.geometry[]
+    w = iomap.input
+    if 0 <= x < geom.total_w && 0 <= y < geom.total_h
+        for row in geom.rows
+            if row.y0 <= y < row.y0 + row.height
+                (!force && _wtree_ref_path(w.hovered) == row.path) && return nothing
+                return ReplaceReferencedValue(w, "hovered", _wtree_path_ref(row.path))
+            end
+        end
+    end
+    return nothing
+end
+
+function _wtree_hover_clear(iomap::WidgetTreeToGraphicsCanvasIoMap)
+    w = iomap.input
+    w.hovered === nothing && return nothing
+    ReplaceReferencedValue(w, "hovered", nothing)
 end
 
 function _wtree_key_navigate(iomap::WidgetTreeToGraphicsCanvasIoMap, g::KeyDown)

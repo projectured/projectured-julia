@@ -1593,15 +1593,25 @@ a leaf label (`String`) or a `(label, children::Vector)` tuple. Parent nodes get
 an expand chevron; an icon (when present) is drawn in its own column before the
 label; children are indented. (A widget-styled counterpart to the file-system /
 navigator trees.)
+
+`hovered` and `collapsed` are **transient UI state** (like [`WidgetButton`](@ref)'s
+`hovered`): `hovered` holds the node-path reference of the row under the pointer
+(or `nothing`), written by the reader from `MouseEnter`/`MouseMove`/`MouseLeave`
+crossings; `collapsed` is the set of node paths (1-based index chains) whose
+children are currently hidden, toggled by clicking a parent's chevron. Neither is
+part of the tree's content.
 """
 @document struct WidgetTree <: WidgetDocument
     position::Point2D
     roots::CellVector
     visible::Bool
     selection::Reference
+    hovered::Reference           # transient: node-path ref of the row under the pointer, or nothing
+    collapsed::Set{Vector{Int}}  # transient: node paths whose children are hidden
 end
 WidgetTree(position::Point2D, roots::Vector; visible::Bool=true) =
-    WidgetTree(Cell(position), CellVector(Cell[Cell(n) for n in roots]), Cell(visible), Cell(nothing))
+    WidgetTree(Cell(position), CellVector(Cell[Cell(n) for n in roots]), Cell(visible),
+               Cell(nothing), Cell(nothing), Cell(Set{Vector{Int}}()))
 
 # ── Operations ─────────────────────────────────────────────────────────────
 
