@@ -1,8 +1,9 @@
 # Per-instance widget behavior via a reified gesture table
 
-Status: **Steps 1–7 implemented** (2026-07-02) on branch
-`worktree-widget-per-instance-gestures`. Step 8 (sibling widgets) remains a
-follow-up. Not yet verified by a test run — see *Verification* below.
+Status: **Steps 1–8 implemented** (2026-07-02) on branch
+`worktree-widget-per-instance-gestures` — button, tree/tree-node, and the sibling
+widgets (checkbox, switch, menu item). Not yet verified by a test run — see
+*Verification* below.
 
 ## Implementation notes (2026-07-02)
 
@@ -35,8 +36,8 @@ Built as planned, with one deliberate simplification recorded here:
   `gestures` cell field threaded through their hand-written constructors.
   `FileSystemToWidget`'s direct inner-ctor call was updated for the new arity.
 
-Commits: `142db82` (kernel), `bb29860` (widget+reader), `eb02944` (collector),
-`5c95205` (tests).
+Commits: `142db82` (kernel), `bb29860` (button+tree reader), `eb02944` (collector),
+`5c95205` (button+tree tests), `27c541e` (checkbox/switch/menu-item — Step 8).
 
 ### Verification (deferred to the user — external terminal)
 
@@ -261,11 +262,17 @@ cannot reuse the widget mechanism verbatim:
       in; **defer those** — the built-in select/collapse already covers structural
       changes, and double-click activation is the concrete ask here.
 
-### Step 8 — extend to sibling widgets (follow-up)
-- [ ] Apply the same pattern to `WidgetMenuItem`
-      ([reader](../../package/domain/src/projection/primitive/WidgetToGraphics.jl#L1457)),
-      `WidgetCheckbox`, `WidgetSwitch`. Consider hoisting `gestures` +
-      `instance_gestures` onto `WidgetDocument` so it's declared once.
+### Step 8 — extend to sibling widgets — **done** (`27c541e`)
+- [x] `WidgetCheckbox`, `WidgetSwitch`, `WidgetMenuItem` each gained a `gestures`
+      field + `instance_gestures`; their readers consult `read_document_gesture`
+      before the built-in toggle/click, gated by the same enabled check (menu item
+      gated by `_menu_item_enabled`, so hover crossings are unaffected). Checkbox
+      and switch have tests; the menu item shares the mechanism (heavier iomap, so
+      no bespoke test).
+- Deferred: hoisting `gestures` + `instance_gestures` onto the `WidgetDocument`
+      abstract base so it is declared once. Left per-struct for now because the
+      `gestures` field must be threaded through each order-sensitive positional
+      constructor individually anyway; a shared abstract field buys little.
 
 ## Testing
 
