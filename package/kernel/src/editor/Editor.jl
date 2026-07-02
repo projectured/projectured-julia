@@ -9,7 +9,8 @@ the current coordinate mapping.
 """
 module EditorModule
 
-import ..ProjectionApiModule: Projection, projection_print, projection_read, Change
+import ..ProjectionApiModule: Projection, projection_print, projection_read
+import ..ChangeModule: Change
 import ..IoMapApiModule: IoMap
 import ..DeviceModule: Device, read_from_devices, write_to_devices
 import ..BackendModule: Backend, init!, quit!

@@ -21,7 +21,8 @@ module GraphLayoutToGraphicsModule
 import ..ReactiveModule: Cell
 import ..CollectionModule: CellVector
 import ..ProjectionApiModule: projection_print, projection_printer_recurse, projection_read,
-                              map_reference_forward, map_reference_backward, Projection, Change, as_change
+                              map_reference_forward, map_reference_backward, Projection
+import ..ChangeModule: Change, as_change
 import ..GraphLayoutModule: GraphLayout, VertexLayout, EdgeLayout
 import ..GraphModule: GraphVertex, GraphEdge
 import ..GraphicsModule: GraphicsCanvas, GraphicsRect, GraphicsPolyline, layout_none, hit_element_at

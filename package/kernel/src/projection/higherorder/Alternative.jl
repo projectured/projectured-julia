@@ -7,7 +7,8 @@ switches which branch is active on the next projection_print call.
 """
 module AlternativeProjectionModule
 
-import ..ProjectionApiModule: projection_print, projection_read, map_reference_forward, map_reference_backward, Projection, Change, as_change
+import ..ProjectionApiModule: projection_print, projection_read, map_reference_forward, map_reference_backward, Projection
+import ..ChangeModule: Change, as_change
 import ..ReactiveModule: Cell
 import ..IoMapApiModule: IoMap
 export AlternativeProjection, AlternativeProjectionIoMap

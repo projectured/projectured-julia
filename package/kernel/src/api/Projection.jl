@@ -58,12 +58,7 @@ for the selection mechanism.
 """
 module ProjectionApiModule
 
-# Change/as_change live in ChangeModule (api/Change.jl); re-exported here so
-# `import ..ProjectionApiModule: Change, as_change` keeps resolving.
-import ..ChangeModule: Change, as_change
-
-export projection_print, projection_printer_recurse, projection_read, map_reference_forward, map_reference_backward, Projection,
-       Change, as_change
+export projection_print, projection_printer_recurse, projection_read, map_reference_forward, map_reference_backward, Projection
 
 """
     Projection

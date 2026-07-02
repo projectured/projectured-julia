@@ -20,7 +20,8 @@ module WidgetToGraphicsModule
 import ..ReactiveModule: Cell, setfn!
 import ..EditorTimeModule: editor_time, reactive_editor_time
 import ..ProjectionApiModule: projection_print, projection_printer_recurse, projection_read,
-                               map_reference_forward, map_reference_backward, Projection, Change
+                               map_reference_forward, map_reference_backward, Projection
+import ..ChangeModule: Change
 import ..ProjectionModule: var"@projection"
 import ..DocumentApiModule: Document
 import ..ColorModule: StyleColor,

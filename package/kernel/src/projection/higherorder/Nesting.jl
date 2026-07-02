@@ -13,7 +13,8 @@ Mirrors the design of `nesting.lisp` in the Common Lisp codebase.
 """
 module NestingProjectionModule
 
-import ..ProjectionApiModule: projection_print, projection_printer_recurse, projection_read, map_reference_forward, map_reference_backward, Projection, Change, as_change
+import ..ProjectionApiModule: projection_print, projection_printer_recurse, projection_read, map_reference_forward, map_reference_backward, Projection
+import ..ChangeModule: Change, as_change
 import ..IoMapApiModule: IoMap
 import ..GestureBindingModule: collect_gestures, GestureBinding
 export NestingProjection, NestingProjectionIoMap

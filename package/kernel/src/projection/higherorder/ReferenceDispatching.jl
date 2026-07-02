@@ -10,7 +10,8 @@ reference path.
 """
 module ReferenceDispatchingModule
 
-import ..ProjectionApiModule: projection_print, projection_read, map_reference_forward, map_reference_backward, Projection, Change, as_change
+import ..ProjectionApiModule: projection_print, projection_read, map_reference_forward, map_reference_backward, Projection
+import ..ChangeModule: Change, as_change
 import ..ReferenceModule: ReferencePath, EmptyReferencePath, ConcreteReferencePath,
                           FieldReference, RangeReference, PointReference, ProjectionReference,
                           head, tail, reference_equal, is_prefix_of

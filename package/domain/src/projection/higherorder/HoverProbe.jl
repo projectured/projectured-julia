@@ -35,7 +35,8 @@ module HoverProbeProjectionModule
 
 import ..ProjectionApiModule: projection_print, projection_read,
                               map_reference_forward, map_reference_backward,
-                              Projection, Change, as_change
+                              Projection
+import ..ChangeModule: Change, as_change
 import ..IoMapApiModule: IoMap
 import ..MouseModule: MouseMove, MousePress
 import ..OperationModule: ReplaceSelectionOperation, OpenWindowOperation, CloseWindowOperation

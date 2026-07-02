@@ -40,7 +40,8 @@ clipboard, exactly as before.
 module ClipboardToAnyProjectionModule
 
 import ..ProjectionApiModule: projection_print, projection_printer_recurse, projection_read,
-                              map_reference_forward, map_reference_backward, Projection, Change, as_change
+                              map_reference_forward, map_reference_backward, Projection
+import ..ChangeModule: Change, as_change
 import ..OperationApiModule: Operation, evaluate_operation
 import ..OperationModule: ReplaceSelectionOperation, ReplaceReferencedValue, replace_document,
                           insert_elements, delete_elements, CompoundOperation

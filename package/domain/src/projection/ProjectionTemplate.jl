@@ -31,7 +31,8 @@ import ..ReactiveModule: Cell
 import ..CollectionModule: CellVector
 import ..IoMapApiModule: IoMap
 import ..ProjectionApiModule: map_reference_forward, map_reference_backward, projection_read, Projection,
-                              projection_printer_recurse, as_change
+                              projection_printer_recurse
+import ..ChangeModule: as_change
 # Bind the module itself so `@projection_template` can emit a module-qualified
 # `ProjectionApiModule.projection_print` method-definition name (see the macro).
 import ..ProjectionApiModule

@@ -10,7 +10,8 @@ module SyntaxToTextModule
 
 import ..ReactiveModule: Cell, setfn!, setval!
 import ..CollectionModule: CellVector, ListNode
-import ..ProjectionApiModule: projection_print, projection_read, map_reference_forward, map_reference_backward, Projection, Change
+import ..ProjectionApiModule: projection_print, projection_read, map_reference_forward, map_reference_backward, Projection
+import ..ChangeModule: Change
 import ..SyntaxModule: SyntaxDocument, SyntaxLeaf, SyntaxNode
 import ..TextModule: TextText, TextString, TextNewline, TextGraphics, TextDocument
 import ..FontModule: StyleFont, font_ubuntu_monospace_regular_20, font_dejavu_monospace_regular_20

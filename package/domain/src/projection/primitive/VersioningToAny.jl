@@ -38,7 +38,8 @@ delegating reader then have no child to descend into and decline.
 module VersioningToAnyProjectionModule
 
 import ..ProjectionApiModule: projection_print, projection_printer_recurse, projection_read,
-                              map_reference_forward, map_reference_backward, Projection, Change, as_change
+                              map_reference_forward, map_reference_backward, Projection
+import ..ChangeModule: Change, as_change
 import ..OperationApiModule: Operation, evaluate_operation
 import ..OperationModule: ReplaceSelectionOperation, ReplaceReferencedValue,
                           insert_elements, delete_elements, CompoundOperation

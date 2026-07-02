@@ -21,7 +21,8 @@ nesting above the document.
 """
 module EnvelopeUnwrappingModule
 
-import ..ProjectionApiModule: projection_print, projection_read, map_reference_forward, map_reference_backward, Projection, Change, as_change
+import ..ProjectionApiModule: projection_print, projection_read, map_reference_forward, map_reference_backward, Projection
+import ..ChangeModule: Change, as_change
 import ..IoMapApiModule: IoMap
 import ..ScreenDocumentModule: EventEnvelope
 export EnvelopeUnwrappingProjection, EnvelopeUnwrappingIoMap

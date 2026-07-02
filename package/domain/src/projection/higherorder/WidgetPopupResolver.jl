@@ -21,7 +21,8 @@ module WidgetPopupResolverProjectionModule
 
 import ..ProjectionApiModule: projection_print, projection_read,
                               map_reference_forward, map_reference_backward,
-                              Projection, Change, as_change
+                              Projection
+import ..ChangeModule: Change, as_change
 import ..IoMapApiModule: IoMap
 import ..OperationModule: OpenPopupOperation, OpenWindowOperation
 import ..WidgetToGraphicsModule: anchor_point

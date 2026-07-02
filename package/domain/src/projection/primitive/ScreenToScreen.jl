@@ -21,7 +21,8 @@ separate concerns: structural projection here, operation interception there.
 module ScreenToScreenModule
 
 import ..ProjectionApiModule: projection_print, projection_printer_recurse, projection_read,
-                              map_reference_forward, map_reference_backward, Projection, Change, as_change
+                              map_reference_forward, map_reference_backward, Projection
+import ..ChangeModule: Change, as_change
 import ..ReactiveModule: Cell
 import ..ScreenDocumentModule: ScreenDocument, WindowDocument, EventEnvelope
 import ..CollectionModule: CellVector

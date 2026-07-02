@@ -17,7 +17,8 @@ directly mirrors the input structure.
 """
 module ProjectionModule
 
-import ..ProjectionApiModule: projection_print, projection_read, map_reference_forward, map_reference_backward, Projection, Change
+import ..ProjectionApiModule: projection_print, projection_read, map_reference_forward, map_reference_backward, Projection
+import ..ChangeModule: Change
 import ..OperationModule: ReplaceSelectionOperation, ToggleCollapseOperation,
                           ReplaceReferencedValue, CompoundOperation, SelectNextInsertionOperation
 import ..PrimitiveModule: StringReplaceRangeOperation, NumberReplaceRangeOperation
