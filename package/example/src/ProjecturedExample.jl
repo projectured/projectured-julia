@@ -31,6 +31,7 @@ include(joinpath(_EXAMPLE_DIR, "document", "TextHighlighting.jl"))
 include(joinpath(_EXAMPLE_DIR, "document", "Widget.jl"))
 include(joinpath(_EXAMPLE_DIR, "document", "Layout.jl"))
 include(joinpath(_EXAMPLE_DIR, "document", "Book.jl"))
+include(joinpath(_EXAMPLE_DIR, "document", "Markdown.jl"))
 include(joinpath(_EXAMPLE_DIR, "document", "FileSystem.jl"))
 include(joinpath(_EXAMPLE_DIR, "document", "Navigator.jl"))
 include(joinpath(_EXAMPLE_DIR, "document", "Collection.jl"))
@@ -71,6 +72,7 @@ include(joinpath(_EXAMPLE_DIR, "projection", "TextHighlighting.jl"))
 include(joinpath(_EXAMPLE_DIR, "projection", "Widget.jl"))
 include(joinpath(_EXAMPLE_DIR, "projection", "Layout.jl"))
 include(joinpath(_EXAMPLE_DIR, "projection", "Book.jl"))
+include(joinpath(_EXAMPLE_DIR, "projection", "Markdown.jl"))
 include(joinpath(_EXAMPLE_DIR, "projection", "FileSystem.jl"))
 include(joinpath(_EXAMPLE_DIR, "projection", "Navigator.jl"))
 include(joinpath(_EXAMPLE_DIR, "projection", "Collection.jl"))
@@ -145,6 +147,7 @@ export make_widget_popup_document_example, make_widget_popup_projection_example
 export make_layout_document_example, make_layout_projection_example
 export make_constraint_layout_document_example, make_constraint_layout_projection_example
 export make_book_document_example, make_book_projection_example
+export make_markdown_document_example, make_markdown_projection_example
 export make_filesystem_document_example, make_filesystem_projection_example, make_filesystem_widget_projection_example
 export make_navigator_document_example, make_navigator_projection_example
 export make_collection_document_example, make_collection_projection_example
@@ -199,7 +202,7 @@ export widget_avatar_example, widget_alert_example, widget_skeleton_example
 export widget_toggle_example, widget_toggle_group_example, widget_select_example
 export widget_textarea_example, widget_accordion_example, widget_table_example, widget_tree_example
 export widget_disabled_example, widget_focus_example
-export layout_example, constraint_layout_example, book_example, filesystem_example, navigator_example
+export layout_example, constraint_layout_example, book_example, markdown_example, filesystem_example, navigator_example
 export collection_example, reversing_example, filtering_example, searching_example, sorting_example, focusing_example, table_example, math_table_example, graph_example, workbench_example
 export lazy_example, lazy_bidirectional_example
 export math_example
