@@ -254,3 +254,81 @@ dispatcher). Run the narrowest covering tests, not `test_all`:
 - Decide whether to keep `SyntaxNodeToTextIoMap` (extended) or move to the shared
   `ChildrenIoMap` — prefer reusing `ChildrenIoMap` if its shape fits, for
   consistency with the `*ToSyntax` nodes.
+- **How indentation composes is a design decision A1 must settle** — fixed
+  per-level vs depth-threaded vs re-indent-on-splice. The YAML consumer below
+  needs *re-indent-on-splice* (indent a child's whole multi-line output), which is
+  also what keeps each node depth-agnostic. See
+  [§ Follow-on consumer: YAML block layout](#follow-on-consumer-yaml-block-layout-depends-on-this-refactor).
+
+---
+
+## Follow-on consumer: YAML block layout depends on this refactor
+
+> **Context (2026-07-02):** Surfaced while adding the YAML domain
+> (`package/domain/src/document/Yaml.jl`,
+> `package/domain/src/projection/primitive/YamlToSyntax.jl`). Recorded here because
+> the clean fix *is* this refactor, not a `SyntaxToText` special-case.
+
+`YamlToSyntax(style=:block)` renders idiomatic block YAML by making each mapping /
+sequence a **block `SyntaxNode`** (`indentation=-1`, empty open/close) laid out one
+entry / item per indented line. It works, but the **root** container carries two
+cosmetic artifacts:
+
+- a **2-space left margin** on every line, and
+- a **leading blank line**.
+
+### Why it happens
+
+A block node emits `\n + indent(child_depth)` before each child, with
+`child_depth = depth + 1`. The root mapping is at `depth 0`, so its entries land at
+`depth 1` → indent 2 (the margin), and the first child's leading `\n` is the blank
+line. The root mapping node and every nested mapping node are **byte-for-byte
+identical** (`Node indentation=-1 open=""`); only the render depth differs. Nested
+indentation (e.g. `street` under `address`) is correct and wanted — only the root's
+own self-indent is spurious.
+
+### Why a "flush the root" flag is the wrong fix — and this refactor rules it out
+
+The obvious patch is `SyntaxToText(flush_root=true)`, special-casing the outermost
+node (keyed on the single top-level `_collect_spans(node, 0)` call / an `is_top`
+flag / `ctx.depth == 0`). **Part A deletes exactly that entry point.** After
+delegation, `SyntaxNodeToText` is applied per-node and independently; no application
+can tell whether its node is the root, and threading a depth just to reintroduce
+that knowledge fights the "delegate one level; never flatten" principle (Part B). So
+`flush_root` is a dead end.
+
+### The clean, root-agnostic fix — enabled by delegation
+
+Put the block indentation on the **value edge**, not the container edge:
+
+- **Mapping** → an *inline* node (entries joined by a newline separator, **adds no
+  indent**).
+- **Entry** with a scalar value → inline `key: value`.
+- **Entry** with a block value → `key:` + an *indented wrapper* around the value.
+- **Sequence** → inline `- item` lines; a block item-value is indented the same way.
+
+Then a mapping's entries always sit at the mapping's own column: the **root** is
+composed by the pipeline (nothing indents it) → column 0; a nested mapping is
+composed by its `key:` entry, which indents it → +2. Correct YAML, and **no node
+ever asks "am I root?"** — the margin falls out of composition. Same
+"recurse-as-little-as-possible" shape Part B documents.
+
+### Design constraint this puts on A1
+
+For value-edge indentation to compose, a block wrapper must indent its child's
+**entire multi-line** output — i.e. **re-indent every line of the spliced child
+element list**, not just prepend one `newline+indent` before it (A1's "splice the
+element list" must push the child's *interior* newlines right too). Re-indent-on-
+splice is preferable to threading a depth: it keeps each `SyntaxNodeToText`
+depth-agnostic, which is exactly what lets the root stay flush with no
+root-detection. Today's depth-threaded `\n+indent`-before-first-line does neither,
+which is why the inline-container shape is impossible pre-refactor (an inline
+container's *interior* newlines never get pushed right).
+
+### Action
+
+- [ ] After Part A lands, restructure `YamlToSyntax` (block style) to inline
+  containers + value-edge indentation per the above, dropping the `indentation=-1`
+  block-container shape, and remove the cosmetic-margin caveat from the module
+  docstring. Gate with `test_text_navigation(yaml_example; check_reaches_all=true)`
+  (every caret still reachable) once the suite runs.
