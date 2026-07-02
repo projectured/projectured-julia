@@ -17,16 +17,94 @@ aspects that motivated the review; a phased execution plan and the open decision
 | `projection/generic/` | 8 | 8 | Preserving, Reversing, Filtering, Searching, Sorting, Copying, Invariably, Focusing |
 | `editor/` | 6 | 6 | PrinterContext, GestureRecognizer, ToolRegistry, Llm, Mcp, Editor |
 
-Actual dependency strata (from the `import ..X` headers):
+## Kernel layer diagram
 
-- **L0** (no kernel imports): Reactive, Modifiers, Llm, ToolRegistry, and the api stubs
-  (Backend, ProjectionApi, OperationApi, DocumentApi, IoMapApi, Agent)
-- **L1**: Device(→Backend), Document(→DocumentApi,Reactive), IoMap(→IoMapApi,Reactive), Mcp(→ToolRegistry)
-- **L2**: Keyboard/Mouse(→Device,Modifiers), Reference(→Reactive,Document)
-- **L3**: EventCase, ReferenceCase/ReferenceBuilder, PrinterContext, Operation, Collection, Primitive, ScreenDocument
-- **L4**: GestureBinding, OperationRerooting
-- **L5**: the 17 projection modules + ProjectionModule (defaults/`@projection`)
-- **L6**: Screen device, GestureRecognizer, Editor
+The 48 modules form a **single acyclic dependency DAG** (machine-checked by the Phase 1
+guard, `package/kernel/test/runtests.jl`). Two views of it matter.
+
+### A. Architectural tiers — what depends on what
+
+Grouped by role, top = highest level. **Every arrow points *down*: "depends on".** The
+API-stub tier (B) is the cycle-breaker — implementation tiers depend downward onto the
+abstract stubs, never up; the editor reaches the agent surface only through the
+`AgentModule` *stub* (a `make_agent_server(:mcp,…)` factory seam), so it does **not**
+depend on `Mcp`/`Llm` at all, which is why the agent surface hangs off to the side.
+
+```
+   ┌──────────────────────────────────────────────────────────────┐
+ H │  EDITOR      EditorModule  ·  ScreenModule(device)  ·          │  run!/play_live!
+   │              GestureRecognizerModule                           │
+   └───┬───────────────────────────────┬─────────────────┬─────────┘
+       │ (pulls in nearly every tier)  │                 │ via AgentModule stub
+       │                               │                 ▼
+       │                               │      ┌───────────────────────────┐
+       │                               │    G │ AGENT SURFACE             │
+       │                               │      │  ToolRegistry · Llm ·      │
+       │                               │      │  Mcp(→ToolRegistry)        │  (independent
+       │                               │      └───────────────────────────┘   side-stack)
+       ▼                               ▼
+   ┌──────────────────────────────────────────────────────────────┐
+ F │  PROJECTION ALGEBRA + DEFAULTS   17 projection modules  +      │
+   │  ProjectionModule (@projection, four-generic fallbacks)        │
+   └───┬───────────────────────────┬──────────────────┬────────────┘
+       │                           │                  │
+       ▼                           ▼                  ▼
+   ┌─────────────────────────┐ ┌──────────────────────────────────┐
+ D │ FOUNDATIONAL DOCUMENTS  │ │ E  INPUT DEVICES & GESTURES       │
+   │  Collection · Primitive │ │  Modifiers · Keyboard · Mouse ·   │
+   │  · ScreenDocument       │ │  EventCase · GestureBinding       │
+   └───────────┬─────────────┘ └───────────────┬──────────────────┘
+               │                               │
+               ▼                               ▼
+   ┌──────────────────────────────────────────────────────────────┐
+ C │  CORE DATA & REFERENCES                                        │
+   │  Document · IoMap · Reference · Operation · OperationRerooting │
+   │  · PrinterContext                                              │
+   └───────────────────────────────┬──────────────────────────────┘
+                                    ▼
+   ┌──────────────────────────────────────────────────────────────┐
+ B │  API STUBS (abstract types + `function foo end`)               │
+   │  ProjectionApi · OperationApi · DocumentApi · IoMapApi ·       │
+   │  Backend · Device(→Backend) · Agent      ← the cycle-breaker   │
+   └───────────────────────────────┬──────────────────────────────┘
+                                    ▼
+   ┌──────────────────────────────────────────────────────────────┐
+ A │  REACTIVE ENGINE     ReactiveModule   (no dependencies)        │
+   └──────────────────────────────────────────────────────────────┘
+```
+
+Four modules carry almost all the fan-in (they are the ones a consolidation must keep
+cheap to import); the rest are depended on ≤7 times:
+
+| Hub | Tier | Depended on by |
+| --- | --- | --- |
+| `ProjectionApiModule` | B | 20 modules |
+| `ReactiveModule` | A | 19 |
+| `ReferenceModule` | C | 17 |
+| `IoMapApiModule` | B | 12 |
+
+### B. Dependency depth — why the include order is what it is
+
+The include list is one valid **linearization** of the DAG above. Layering each module by
+its *longest path from a source* (its true earliest-safe include position) gives:
+
+- **D0** (sources, no kernel imports): Reactive, Modifiers, ToolRegistry, Llm, and the
+  api stubs ProjectionApi/OperationApi/DocumentApi/IoMapApi/Backend/Agent
+- **D1**: Device(→Backend), Document, IoMap, Mcp(→ToolRegistry), Alternative &
+  PredicateDispatching (touch only D0 api stubs)
+- **D2**: Keyboard, Mouse, Reference, Screen(device), Invariably, Preserving
+- **D3**: Collection, EventCase, Operation, Primitive, PrinterContext,
+  ReferenceCase/Builder, ReferenceDispatching
+- **D4**: GestureBinding, OperationRerooting, ScreenDocument, ProjectionModule, and the
+  Copying/Filtering/Reversing/Searching/Sorting projections
+- **D5**: Envelope, Focusing, GestureRecognizer, Nesting, Recursive, Sequential,
+  TypeDispatching, WindowManager
+- **D6**: Editor (deepest — pulls in nearly everything)
+
+Depth ≠ include index: a projection like `AlternativeProjectionModule` sits at D1 by
+depth (only api-stub deps) yet is included much later for readability. The Phase 1 guard
+enforces only the real constraint — every `..XxxModule` precedes its users — not a
+specific linearization, so Phase 2 is free to re-group as long as that holds.
 
 ## Findings
 
@@ -210,10 +288,21 @@ layer-module middle ground keeps the boundaries that the architecture docs teach
       Historical `plan/done/*.md` archives that mention the old path were left as-is
       (point-in-time records, mostly under the defunct `program/src/` tree).
 
-### Phase 1 — guard rails
-- [ ] Add a test (or generator script) that parses each file's `import ..X` headers and
+### Phase 1 — guard rails  **(DONE 2026-07-02)**
+- [x] Add a test (or generator script) that parses each file's `import ..X` headers and
       asserts the include list is a valid topological order — makes the hand-maintained
       order self-checking before anything moves.
+      Done: `package/kernel/test/runtests.jl`. It parses each file's **AST** (not a
+      regex, so `import ..Foo` example text in docstrings is ignored), extracts the
+      ordered `include(...)` list from `ProjecturedKernel.jl`, and asserts every relative
+      `..XxxModule` import resolves to a module defined by an *earlier* include — plus
+      that every src file is included exactly once and each module is defined once. The
+      core `topo_errors` is a pure function, self-tested on a synthetic forward edge and a
+      dangling reference (so the guard is itself guarded). Runs in ~0.4s **without loading
+      the package** (pure static parse — safe here). Invoke with
+      `julia --project=package/kernel package/kernel/test/runtests.jl` (or `Pkg.test`; the
+      `Test` stdlib is wired into `[extras]`/`[targets]`). The authoritative layer diagram
+      above ("Kernel layer diagram") was generated from the same parse.
 
 ### Phase 2 — module consolidation (the big one; order within phase = risk order)
 - [ ] Merge Reference + ReferenceCase + ReferenceBuilder → one `ReferenceModule`.
