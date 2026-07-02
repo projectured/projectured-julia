@@ -35,15 +35,18 @@ import ..CollectionModule: CellVector
 import ..JuliaModule: JuliaDocument
 import ..JsonModule: JsonDocument
 import ..XmlModule: XmlDocument
+import ..YamlModule: YamlDocument
 import ..SequentialProjectionModule: SequentialProjection
 import ..RecursiveProjectionModule: RecursiveProjection
 import ..JuliaToSyntaxModule: JuliaToSyntax
 import ..JsonToSyntaxModule: JsonToSyntax
 import ..XmlToSyntaxModule: XmlToSyntax
+import ..YamlToSyntaxModule: YamlToSyntax
 import ..SyntaxToTextModule: SyntaxToText
 import ..JuliaParserModule: juliaparse
 import ..JsonParserModule: jsonparse
 import ..XmlParserModule: xmlparse
+import ..YamlParserModule: yamlparse
 import ..ReferenceModule: ConcreteReferencePath, FieldReference, RangeReference, EmptyReferencePath
 import ..ReferenceCaseModule: var"@reference_case"
 import ..ReferenceBuilderModule: var"@reference"
@@ -163,6 +166,8 @@ const _JSON_TO_TEXT  = SequentialProjection(RecursiveProjection(JsonToSyntax()),
                                             RecursiveProjection(SyntaxToText()))
 const _XML_TO_TEXT   = SequentialProjection(RecursiveProjection(XmlToSyntax()),
                                             RecursiveProjection(SyntaxToText()))
+const _YAML_TO_TEXT  = SequentialProjection(RecursiveProjection(YamlToSyntax()),
+                                            RecursiveProjection(SyntaxToText()))
 
 _flatten_text!(io, s::TextString) = (c = s.content; c isa AbstractString && print(io, c); nothing)
 _flatten_text!(io, t::TextText)   = (for e in t.elements; _flatten_text!(io, e); end; nothing)
@@ -182,14 +187,16 @@ end
 _doc_source(c::JuliaDocument) = _via_chain(_JULIA_TO_TEXT, c)
 _doc_source(c::JsonDocument)  = _via_chain(_JSON_TO_TEXT, c)
 _doc_source(c::XmlDocument)   = _via_chain(_XML_TO_TEXT, c)
+_doc_source(c::YamlDocument)  = _via_chain(_YAML_TO_TEXT, c)
 _doc_source(c)               = _content_to_string(c)
 
 # One LLM text-block string for a part's content: prose as-is, a structured
-# document fenced with its kind (```julia / ```json / ```xml).
+# document fenced with its kind (```julia / ```json / ```xml / ```yaml).
 _block_text(c::TextText)      = _content_to_string(c)
 _block_text(c::JuliaDocument) = "```julia\n" * _doc_source(c) * "\n```"
 _block_text(c::JsonDocument)  = "```json\n"  * _doc_source(c) * "\n```"
 _block_text(c::XmlDocument)   = "```xml\n"   * _doc_source(c) * "\n```"
+_block_text(c::YamlDocument)  = "```yaml\n"  * _doc_source(c) * "\n```"
 _block_text(c)               = _content_to_string(c)
 
 # Part / turn helpers for the uniform turn/part model.
@@ -836,8 +843,8 @@ end
     parse_markdown_blocks(text::AbstractString) -> Vector{ConversationBlock}
 
 Parse a completed assistant text-block body into structured blocks.
-Recognises headings, fenced code (with `julia`/`json`/`xml` parsed into real
-`JuliaDocument`/`JsonDocument`/`XmlElement` content), bulleted lists, and prose
+Recognises headings, fenced code (with `julia`/`json`/`xml`/`yaml` parsed into real
+`JuliaDocument`/`JsonDocument`/`XmlElement`/`YamlDocument` content), bulleted lists, and prose
 paragraphs. A block whose language is unknown or that fails to parse falls back
 to fenced text, so a malformed block never breaks the turn.
 """
@@ -846,7 +853,8 @@ to fenced text, so a malformed block never breaks the turn.
 function _code_part(lang::AbstractString, body::AbstractString)
     parser = lang == "julia" ? juliaparse :
              lang == "json"  ? jsonparse  :
-             lang == "xml"   ? xmlparse   : nothing
+             lang == "xml"   ? xmlparse   :
+             (lang == "yaml" || lang == "yml") ? yamlparse : nothing
     if parser !== nothing
         doc = try
             parser(body)
