@@ -21,7 +21,7 @@ item here as it lands, and record any decision changes inline.
 
 ## Group C — correctness
 
-- [ ] **C1. Type-preserving path concatenation.** Three copies of path-concat all
+- [x] **C1. Type-preserving path concatenation.** Three copies of path-concat all
   rebuild the left spine with the 2-arg `ConcreteReferencePath` ctor, silently
   blanking the folded node `type` fields — so appending to an annotated
   (canonical) path de-canonicalizes it under the strict `==`:

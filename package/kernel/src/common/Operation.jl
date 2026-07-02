@@ -18,7 +18,7 @@ module OperationModule
 
 import ..OperationApiModule: Operation, evaluate_operation
 import ..DocumentApiModule: Document, clear_selection!, set_selection!, with_selection
-import ..ReferenceModule: ReferencePath, ConcreteReferencePath, EmptyReferencePath, FieldReference, RangeReference, TypeReference, is_element_reference, evaluate_reference, reference_equal, annotate_reference_types, strip_reference_types, append_reference
+import ..ReferenceModule: ReferencePath, ConcreteReferencePath, EmptyReferencePath, FieldReference, RangeReference, TypeReference, is_element_reference, evaluate_reference, reference_equal, annotate_reference_types, strip_reference_types, append_reference, concat_references
 import ..ReactiveModule: Cell
 import ..CollectionModule: CellVector
 export NoOperation, ReplaceSelectionOperation, QuitEditorOperation, QuitEditorException, replace_selection!,
@@ -197,12 +197,6 @@ end
 # the editor selection to `path ⧺ document.selection` so the cursor landed inside
 # the new value. See plan/done/consolidate-operations-replace.md (step 3).
 
-# Concatenate two reference *paths* (vs. `append_reference`, which appends raw
-# *steps* — splicing a whole path there would wrongly lodge a ReferencePath where
-# a ReferenceStep belongs).
-_concat_paths(::EmptyReferencePath, b::ReferencePath) = b
-_concat_paths(a::ConcreteReferencePath, b::ReferencePath) =
-    ConcreteReferencePath(a.head, _concat_paths(a.tail, b))
 
 # Split a non-empty path into (everything-but-last-step, last-step).
 function _split_terminal_step(path::ConcreteReferencePath)
@@ -331,7 +325,7 @@ function replace_document(path::ReferencePath, document)
     inner_sel === nothing && (inner_sel = EmptyReferencePath())
     CompoundOperation(Any[
         ReplaceReferencedValue(nothing, path, document),
-        ReplaceSelectionOperation(_concat_paths(strip_reference_types(path), inner_sel)),
+        ReplaceSelectionOperation(concat_references(strip_reference_types(path), inner_sel)),
     ])
 end
 
@@ -407,7 +401,7 @@ function evaluate_operation(editor, op::SelectNextInsertionOperation)
     end
     for j in (cur + 1):length(nodes)
         if op.predicate(nodes[j][2])
-            set_selection!(root, _concat_paths(nodes[j][1], op.cursor))
+            set_selection!(root, concat_references(nodes[j][1], op.cursor))
             return
         end
     end

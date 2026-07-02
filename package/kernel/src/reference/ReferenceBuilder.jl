@@ -294,10 +294,11 @@ _splice(p::ReferenceModule.ReferencePath) = p
 _splice(s::ReferenceModule.ReferenceStep) =
     ReferenceModule.ConcreteReferencePath(s, ReferenceModule.EmptyReferencePath())
 
-# Concatenate two paths by walking the left and reusing the right's tail.
-_concat(::ReferenceModule.EmptyReferencePath, b::ReferenceModule.ReferencePath) = b
-_concat(a::ReferenceModule.ConcreteReferencePath, b::ReferenceModule.ReferencePath) =
-    ReferenceModule.ConcreteReferencePath(a.head, _concat(a.tail, b))
+# Concatenate two paths via the canonical, type-preserving `concat_references`
+# (ReferenceModule), so an already-folded spliced sub-path keeps its node types
+# even when it is not the last segment (e.g. `^(expr).field`). The `_concat` name
+# is kept because the generated code below emits `ReferenceBuilderModule._concat`.
+const _concat = ReferenceModule.concat_references
 
 # Wrap a built (possibly TypeReference-bearing) path expression in the runtime
 # fold pass only when the literal carries a `::T` checkpoint — a plain navigation

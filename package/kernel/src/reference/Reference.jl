@@ -26,7 +26,7 @@ module ReferenceModule
 
 import ..ReactiveModule: Cell
 import ..DocumentModule: @document
-export Reference, ReferenceStep, ElementReference, PositionReference, RangeReference, FieldReference, TypeReference, FunctionReference, ProjectionReference, PointReference, TextRectangularReference, ReferencePath, EmptyReferencePath, ConcreteReferencePath, append_reference, evaluate_reference, is_valid_reference, collect_references,
+export Reference, ReferenceStep, ElementReference, PositionReference, RangeReference, FieldReference, TypeReference, FunctionReference, ProjectionReference, PointReference, TextRectangularReference, ReferencePath, EmptyReferencePath, ConcreteReferencePath, append_reference, concat_references, evaluate_reference, is_valid_reference, collect_references,
        is_element_reference, is_position_reference, is_range_reference,
        IRangeReference, IFieldReference, IConcreteReferencePath, IPointReference,
        reference_equal, is_prefix_of, reference_equal_ignoring_types, is_prefix_of_ignoring_types,
@@ -427,15 +427,42 @@ is_prefix_of(a::ConcreteReferencePath, b::ConcreteReferencePath) =
 Return a new `ReferencePath` formed by appending `steps` to the end of
 `base`. The first step in `steps` becomes the direct successor of the last
 step already in `base`.
+
+Folded node types are preserved: every node of `base` keeps its recorded `type`,
+and `base`'s terminal type — the type of the node the first appended step descends
+*from* — is carried onto that first new node. Later appended nodes are untyped
+(`nothing`), since the types they would stand on are not yet known. For an untyped
+`base` this is a plain skeleton, exactly as before.
 """
 function append_reference(base::EmptyReferencePath, steps...)
     isempty(steps) && return base
-    ConcreteReferencePath(steps[1], append_reference(EmptyReferencePath(), steps[2:end]...))
+    # `base.type` is the type of the node the first appended step descends from.
+    ConcreteReferencePath(base.type, steps[1], append_reference(EmptyReferencePath(), steps[2:end]...))
 end
 
 function append_reference(base::ConcreteReferencePath, steps...)
-    ConcreteReferencePath(base.head, append_reference(tail(base), steps...))
+    ConcreteReferencePath(base.type, base.head, append_reference(tail(base), steps...))
 end
+
+"""
+    concat_references(a::ReferencePath, b::ReferencePath) -> ReferencePath
+
+Concatenate two reference paths, **preserving folded node types** on both. Every
+node of `a` and of `b` keeps its own recorded `type`. The single junction boundary
+— where `a`'s terminal meets `b`'s first node — takes `b`'s type, or, when `b`'s
+first node has none, `a`'s terminal type, so an annotated prefix is not silently
+de-annotated. It never invents a type. For untyped inputs the result is a plain
+skeleton, identical to a naive rebuild.
+
+This is the one canonical path-concatenation (vs `append_reference`, which appends
+raw *steps*); readers/builders that splice whole paths route through it.
+"""
+concat_references(a::ConcreteReferencePath, b::ReferencePath) =
+    ConcreteReferencePath(a.type, a.head, concat_references(tail(a), b))
+concat_references(a::EmptyReferencePath, b::ConcreteReferencePath) =
+    b.type === nothing ? ConcreteReferencePath(a.type, b.head, tail(b)) : b
+concat_references(a::EmptyReferencePath, b::EmptyReferencePath) =
+    EmptyReferencePath(b.type === nothing ? a.type : b.type)
 
 # ── Reference validation ─────────────────────────────────────────────────
 
