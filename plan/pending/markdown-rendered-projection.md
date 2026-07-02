@@ -75,16 +75,26 @@ typed `backward` methods. Verified: `test_printer`/`test_reader`/
 `test_parse_markdown_blocks` = **4826 pass / 0 fail / 0 error**; source view
 unchanged.
 
-**Deferred (documented, not done)**:
-- **Images** render as real pictures (`TextGraphics` + `decode_image`) — rendered
-  `Image` currently reuses the source `![alt](url)` leaf.
-- **Code blocks** drop their ` ``` ` fences — rendered `CodeBlock` currently reuses
-  the source fenced node.
-- **Ordered-list numbering** (`1.`) — both list kinds render `•`.
-- **bold-italic** combined face (no such font; nesting keeps the inner weight).
-- **Assistant follow-on**: switch the conversation/assistant `MarkdownDocument`
-  on-screen dispatch to the rendered chain (keep `_block_text`/`_doc_source` on the
-  source chain so the model still receives real markdown). Not yet wired.
+**Done (follow-up increment)** — the previously-deferred items:
+- **Real images**: rendered `MarkdownImageToStyledNode` (hand-written, modelled on
+  `BookPictureToSyntaxLeaf`) — an `alt` caption above the decoded image
+  (`TextGraphics` + lazy `decode_image` when `url` is a file on disk), falling back
+  to the url text otherwise. Both `alt` and `url` remain editable.
+- **Code-block fences dropped**: `MarkdownCodeBlockToSyntaxNode` gained
+  `open_fence`/`close_fence` fields; the rendered constructor sets them `""` (mono
+  block, dim language label).
+- **Ordered-list numbering**: rendered `MarkdownListToStyledNode` (hand-written,
+  modelled on `YamlSequenceToBlockSyntaxNode`) wraps each item with a per-index
+  marker — `1. 2. 3.` when `ordered`, `•` otherwise; rendered `MarkdownListItem`
+  carries no bullet. (The source view's list is unchanged.)
+- **Assistant on-screen rendering**: the conversation/assistant `MarkdownDocument`
+  dispatch (`_conversation_widget_graphics`, `make_conversation_projection_example`)
+  now uses the rendered chain; `_block_text`/`_doc_source` in `WorkbenchAssistant`
+  stay on the source chain, so the model still receives raw markdown.
+
+**Still a known limitation** (not fixable without a font/backend change):
+- **bold-italic** combined face — no such font exists; nesting keeps the inner
+  weight (bold inside italic → bold, etc.).
 
 ## Design
 

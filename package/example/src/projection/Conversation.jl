@@ -15,7 +15,8 @@ function make_conversation_projection_example(; measure=truetype_measure_text)
         Pair{DataType,Any}[
             TextDocument         => text_to_graphics,
             JuliaDocument        => make_julia_projection_example(measure=measure),
-            MarkdownDocument     => make_markdown_projection_example(measure=measure),
+            # Rendered markdown on screen; the model still gets raw source.
+            MarkdownDocument     => make_markdown_rendered_projection_example(measure=measure),
             # `indent_size=0` keeps newlines inside message bodies aligned at
             # column 0 with the surrounding messages (same as the assistant).
             ConversationDocument => SequentialProjection(

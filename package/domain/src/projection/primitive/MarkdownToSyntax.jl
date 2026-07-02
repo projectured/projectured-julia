@@ -22,7 +22,7 @@ idiom); inline runs concatenate (`sep=""`).
 """
 module MarkdownToSyntaxModule
 
-import ..ReactiveModule: Cell
+import ..ReactiveModule: Cell, setfn!
 import ..CollectionModule: CellVector
 import ..ProjectionApiModule: Projection, projection_print, projection_printer_recurse, projection_read,
                               map_reference_forward, map_reference_backward
@@ -31,7 +31,10 @@ import ..MarkdownModule: MarkdownInsertion, MarkdownText, MarkdownCode, Markdown
                          MarkdownStrong, MarkdownLink, MarkdownImage, MarkdownHeading,
                          MarkdownParagraph, MarkdownCodeBlock, MarkdownThematicBreak,
                          MarkdownQuote, MarkdownList, MarkdownListItem, MarkdownRoot
-import ..TextModule: TextString, hinted_text
+import ..TextModule: TextString, hinted_text, TextGraphics
+import ..ImageModule: ImageFile
+import ..BackendModule: decode_image
+import ..GraphicsModule: GraphicsDocument
 import ..FontModule: font_ubuntu_monospace_regular_20, font_ubuntu_monospace_bold_20,
                      font_ubuntu_regular_20, font_ubuntu_bold_20, font_ubuntu_italic_20,
                      font_ubuntu_bold_36, font_ubuntu_bold_24, font_ubuntu_bold_22, font_ubuntu_bold_18,
@@ -59,6 +62,7 @@ export MarkdownInsertionToSyntaxLeaf, MarkdownTextToSyntaxLeaf, MarkdownCodeToSy
        MarkdownLinkToSyntaxNode, MarkdownImageToSyntaxNode, MarkdownCodeBlockToSyntaxNode,
        MarkdownStyledTextToSyntaxLeaf, MarkdownStyledInline, MarkdownStrongToStyledNode,
        MarkdownEmphasisToStyledNode, MarkdownHeadingToStyledNode, MarkdownLinkToStyledNode,
+       MarkdownImageToStyledNode, MarkdownListToStyledNode,
        MarkdownToSyntax
 
 const _MONO      = font_ubuntu_monospace_regular_20
@@ -243,10 +247,12 @@ end
     fence_style::StyleText = StyleText(_MONO, color_solarized_gray)
     lang_style::StyleText  = StyleText(_MONO, color_solarized_magenta)
     code_style::StyleText  = StyleText(_MONO, color_solarized_green)
+    open_fence::String     = "```"     # "" rendered
+    close_fence::String    = "\n```"   # "" rendered
 end
 
 @projection_template MarkdownCodeBlockToSyntaxNode MarkdownCodeBlock (prj, doc) ->
-    SyntaxNode(TextString("```", prj.fence_style), TextString("\n```", prj.fence_style), TextString(""),
+    SyntaxNode(TextString(prj.open_fence, prj.fence_style), TextString(prj.close_fence, prj.fence_style), TextString(""),
         [ SyntaxLeaf(bound(:language, String,
                            hinted_text(() -> doc.language, () -> isempty(doc.language), "lang", prj.lang_style))),
           SyntaxLeaf(bound(:code, String,
@@ -414,6 +420,157 @@ function projection_read(p::MarkdownStyledInline, iomap::ChildrenIoMap, op::Stri
     r === nothing ? nothing : StringReplaceRangeOperation(r, op.replacement)
 end
 
+# ── MarkdownImageToStyledNode (rendered; real image via TextGraphics) ─────────
+# An `alt` caption above the decoded image (from `url`), falling back to the url
+# text when the file is not on disk. Modelled on BookPictureToSyntaxLeaf.
+#   .alt[k] → .children[1].value[k]   .url[k] → .children[2].value[k]
+
+@projection struct MarkdownImageToStyledNode
+    caption_style::StyleText = StyleText(font_ubuntu_italic_20, color_solarized_gray)
+    placeholder::StyleText   = StyleText(_MONO, color_solarized_gray)
+end
+
+# The image span: an inline `TextGraphics` with a lazily-decoded `ImageFile` when
+# `url` names a file on disk (sized to its natural extent, capped at `max_w`);
+# otherwise the url / a placeholder as text.
+function _md_image_value(url, style::StyleText, placeholder::StyleText; max_w::Int = 640)
+    if url isa AbstractString && !isempty(url) && isfile(String(url))
+        path = String(url)
+        img  = ImageFile(path)
+        raw  = getfield(img, :raw)
+        setfn!(raw, () -> (try decode_image(path) catch; nothing end))
+        _nat(i, fb) = (r = raw[]; (r isa Tuple && length(r) == 3) ? Int(r[i]) : fb)
+        dw = Cell(() -> Int32(min(_nat(2, 720), max_w)))
+        dh = Cell(() -> begin w = min(_nat(2, 720), max_w); Int32(round(Int, _nat(3, 460) * w / _nat(2, 720))) end)
+        return TextGraphics(Cell(img), dw, dh, Cell(style.font), Cell(""),
+                            Cell(nothing), Cell(nothing), Cell(nothing), Cell(nothing))
+    end
+    TextString(isempty(String(url)) ? "image" : String(url), placeholder)
+end
+
+function projection_print(p::MarkdownImageToStyledNode, recursion, doc::MarkdownImage, ctx)
+    alt_sel = Cell(() -> begin
+        @reference_case doc.selection begin
+            alt.rest... => @reference ::SyntaxLeaf.value::TextString.^(rest)
+        end
+    end)
+    url_sel = Cell(() -> begin
+        @reference_case doc.selection begin
+            url.rest... => @reference ::SyntaxLeaf.value::TextString.^(rest)
+        end
+    end)
+    alt_leaf = SyntaxLeaf(
+        hinted_text(() -> doc.alt, () -> isempty(doc.alt), "image", p.caption_style);
+        selection=alt_sel)
+    img_leaf = SyntaxLeaf(_md_image_value(doc.url, p.caption_style, p.placeholder); selection=url_sel)
+    node = SyntaxNode(CellVector(Cell[Cell(alt_leaf), Cell(img_leaf)]); sep=TextString("\n", p.placeholder))
+    SimpleIoMap(p, doc, node)
+end
+
+function map_reference_forward(::MarkdownImageToStyledNode, iomap::SimpleIoMap, reference)
+    @reference_case reference begin
+        ::MarkdownImage.alt.rest... => @reference ::SyntaxNode.children[1].value::TextString.^(rest)
+        ::MarkdownImage.url.rest... => @reference ::SyntaxNode.children[2].value::TextString.^(rest)
+    end
+end
+
+function map_reference_backward(::MarkdownImageToStyledNode, iomap::SimpleIoMap, reference)
+    @reference_case reference begin
+        ::SyntaxNode.children{s:_}.value.rest... => begin
+            child_i = s + 1
+            child_i == 1 ? (@reference ::MarkdownImage.alt::String.^(rest)) :
+            child_i == 2 ? (@reference ::MarkdownImage.url::String.^(rest)) : nothing
+        end
+    end
+end
+
+function projection_read(p::MarkdownImageToStyledNode, iomap::SimpleIoMap, op::ReplaceSelectionOperation)
+    r = map_reference_backward(p, iomap, op.path)
+    r === nothing ? nothing : ReplaceSelectionOperation(r)
+end
+function projection_read(p::MarkdownImageToStyledNode, iomap::SimpleIoMap, op::StringReplaceRangeOperation)
+    r = map_reference_backward(p, iomap, op.reference)
+    r === nothing ? nothing : StringReplaceRangeOperation(r, op.replacement)
+end
+
+# ── MarkdownListToStyledNode (rendered; `1.` ordered / `•` unordered) ──────────
+# The marker depends on the item index + `ordered`, which the template's
+# homogeneous collection cannot inject, so this is hand-written like
+# YamlSequenceToBlockSyntaxNode: each item is wrapped in a node whose `open` is the
+# marker. Rendered `MarkdownListItem` carries no bullet (the List supplies it).
+#   .items[i].rest ↔ .children[i].children[1].<item-mapped rest>
+
+@projection struct MarkdownListToStyledNode
+    marker_style::StyleText = StyleText(font_dejavu_monospace_regular_20, color_solarized_gray)
+end
+
+_md_list_marker(ordered::Bool, i::Int) = ordered ? "$(i). " : "• "
+
+function projection_print(p::MarkdownListToStyledNode, recursion, lst::MarkdownList, ctx)
+    child_iomaps = Cell(() -> [projection_printer_recurse(recursion, item,
+                                   child_context(ctx, FieldReference("items"), ElementReference(i)))
+                               for (i, item) in enumerate(lst.items)])
+    items = CellVector(() -> begin
+        ord = lst.ordered
+        SyntaxDocument[
+            SyntaxNode(CellVector(Cell[Cell(im.output)]);
+                       open=TextString(_md_list_marker(ord, i), p.marker_style))
+            for (i, im) in enumerate(child_iomaps[]) ]
+    end)
+    iomap_cell = Cell(nothing)
+    sel = Cell(() -> begin
+        im = iomap_cell[]
+        im === nothing && return nothing
+        path = lst.selection
+        path === nothing && return nothing
+        map_reference_forward(p, im, path)
+    end)
+    node = SyntaxNode(items; sep=TextString("\n", p.marker_style), indentation=0, selection=sel)
+    iomap = ChildrenIoMap(p, lst, node, child_iomaps)
+    iomap_cell[] = iomap
+    return iomap
+end
+
+function map_reference_forward(p::MarkdownListToStyledNode, iomap::ChildrenIoMap, reference)
+    @reference_case reference begin
+        ∅ => @reference ::SyntaxNode
+        proj(^(p), _) => reference
+        ::MarkdownList.items{s:e}.rest... => begin
+            child_i = s + 1
+            iomaps = iomap.child_iomaps[]
+            1 <= child_i <= length(iomaps) || return nothing
+            child = iomaps[child_i]
+            inner = map_reference_forward(child.projection, child, rest)
+            inner === nothing && return nothing
+            @reference ::SyntaxNode.children[child_i].children[1].^(inner)
+        end
+    end
+end
+
+function map_reference_backward(p::MarkdownListToStyledNode, iomap::ChildrenIoMap, reference)
+    @reference_case reference begin
+        ∅ => @reference ::MarkdownList
+        ::SyntaxNode.children{s:e}.children[1].rest... => begin
+            child_i = s + 1
+            iomaps = iomap.child_iomaps[]
+            1 <= child_i <= length(iomaps) || return nothing
+            child = iomaps[child_i]
+            inner = map_reference_backward(child.projection, child, rest)
+            inner === nothing && return nothing
+            @reference ::MarkdownList.items[child_i].^(inner)
+        end
+    end
+end
+
+function projection_read(p::MarkdownListToStyledNode, iomap::ChildrenIoMap, op::ReplaceSelectionOperation)
+    r = map_reference_backward(p, iomap, op.path)
+    r === nothing ? nothing : ReplaceSelectionOperation(r)
+end
+function projection_read(p::MarkdownListToStyledNode, iomap::ChildrenIoMap, op::StringReplaceRangeOperation)
+    r = map_reference_backward(p, iomap, op.reference)
+    r === nothing ? nothing : StringReplaceRangeOperation(r, op.replacement)
+end
+
 # ══════════════════════════════════════════════════════════════════════════════
 # Dispatcher
 # ══════════════════════════════════════════════════════════════════════════════
@@ -440,13 +597,14 @@ function MarkdownToSyntax(; style::Symbol = :source)
             MarkdownStrong        => MarkdownStrongToStyledNode(),
             MarkdownParagraph     => MarkdownParagraphToSyntaxNode(),
             MarkdownHeading       => MarkdownHeadingToStyledNode(),
-            MarkdownCodeBlock     => MarkdownCodeBlockToSyntaxNode(),
+            MarkdownCodeBlock     => MarkdownCodeBlockToSyntaxNode(open_fence="", close_fence="",
+                                        lang_style=gray_dejavu),
             MarkdownQuote         => MarkdownQuoteToSyntaxNode(open_marker="▏ ", sep_marker="\n▏ ",
                                         marker_style=gray_dejavu),
-            MarkdownList          => MarkdownListToSyntaxNode(),
-            MarkdownListItem      => MarkdownListItemToSyntaxNode(bullet="• ", bullet_style=gray_dejavu),
+            MarkdownList          => MarkdownListToStyledNode(),
+            MarkdownListItem      => MarkdownListItemToSyntaxNode(bullet=""),
             MarkdownLink          => MarkdownLinkToStyledNode(),
-            MarkdownImage         => MarkdownImageToSyntaxNode(),
+            MarkdownImage         => MarkdownImageToStyledNode(),
             MarkdownRoot          => MarkdownRootToSyntaxNode(),
             Vector{Cell}          => CopyingProjection(),
         )
