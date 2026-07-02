@@ -20,9 +20,10 @@ Internal helpers:
   tools `list_resources` and `read_resource`.
 - `dispatch_assistant_tool(name, args, editor)` — calls registered tools and
   resolves the bridging tools to `ToolRegistry.list_resources` / `read_resource`.
-- `parse_markdown_blocks(text)`   — chop a finished assistant text block into
-  `ConversationBlock`s. Streaming-safe: invoked once per text block at
-  `content_block_stop`.
+- `parse_markdown_blocks(text)`   — split a finished assistant text block into
+  parts: top-level fenced code blocks become live domain documents, prose runs
+  become real `MarkdownRoot` documents. Streaming-safe: invoked once per text
+  block at `content_block_stop`.
 """
 module WorkbenchAssistantModule
 
@@ -74,8 +75,7 @@ import ..ConversationEditorModule: composer_read, ComposerSubmitOperation,
 import ..JsonModule: JsonDocument, JsonNull, JsonBool, JsonNumber, JsonString,
                      JsonArray, JsonObject
 import ..JsonParserModule: jsonparse
-
-using Markdown
+import ..MarkdownModule: MarkdownText, MarkdownCode
 
 # Convert a parsed JsonDocument into native Julia values (so LLM tool-call argument
 # JSON can be parsed with the project's own parser instead of JSON3, keeping this
@@ -154,8 +154,27 @@ end
 
 _text_to_string(s::PrimitiveString) = something(s.value, "")
 
+# Plain (marker-free) text of a parsed-Markdown content: concatenate its string
+# leaves. `MarkdownText`/`MarkdownCode` carry a `content::String`; container nodes
+# (root, paragraph, strong, …) forward the vector protocol over their children, so
+# recurse through those; non-text leaves (thematic break, image, …) contribute
+# nothing. Assistant prose is stored as a `MarkdownRoot`, so this reads back its text.
+_markdown_plain(d::MarkdownText) = d.content
+_markdown_plain(d::MarkdownCode) = d.content
+function _markdown_plain(d::MarkdownDocument)
+    applicable(length, d) || return ""
+    io = IOBuffer()
+    for i in 1:length(d)
+        c = d[i]
+        c isa MarkdownDocument && print(io, _markdown_plain(c))
+    end
+    String(take!(io))
+end
+_text_to_string(d::MarkdownDocument) = _markdown_plain(d)
+
 # Stringify an arbitrary part content (text / Julia placeholder / etc).
 _content_to_string(t::TextText) = _text_to_string(t)
+_content_to_string(d::MarkdownDocument) = _markdown_plain(d)
 _content_to_string(d) = hasproperty(d, :name) ? String(d.name) : string(d)
 
 # ── Domain document → source text, via its print chain ─────────────────────────
@@ -197,13 +216,16 @@ _doc_source(c::MarkdownDocument) = _via_chain(_MARKDOWN_TO_TEXT, c)
 _doc_source(c)               = _content_to_string(c)
 
 # One LLM text-block string for a part's content: prose as-is, a structured
-# document fenced with its kind (```julia / ```json / ```xml / ```yaml / ```markdown).
+# document fenced with its kind (```julia / ```json / ```xml / ```yaml). A
+# MarkdownDocument is prose the assistant wrote (or a ```markdown block), so it
+# round-trips as its raw markdown *source* — unfenced — which is exactly the text
+# Claude produced.
 _block_text(c::TextText)      = _content_to_string(c)
 _block_text(c::JuliaDocument) = "```julia\n" * _doc_source(c) * "\n```"
 _block_text(c::JsonDocument)  = "```json\n"  * _doc_source(c) * "\n```"
 _block_text(c::XmlDocument)   = "```xml\n"   * _doc_source(c) * "\n```"
 _block_text(c::YamlDocument)  = "```yaml\n"  * _doc_source(c) * "\n```"
-_block_text(c::MarkdownDocument) = "```markdown\n" * _doc_source(c) * "\n```"
+_block_text(c::MarkdownDocument) = _doc_source(c)
 _block_text(c)               = _content_to_string(c)
 
 # Part / turn helpers for the uniform turn/part model.
@@ -843,19 +865,9 @@ function _replace_last_part!(turn::ConversationTurn, new_parts::Vector)
 end
 
 # ═══════════════════════════════════════════════════════════════════════
-# Markdown → structured blocks
+# Markdown → structured parts
 # ═══════════════════════════════════════════════════════════════════════
 
-"""
-    parse_markdown_blocks(text::AbstractString) -> Vector{ConversationBlock}
-
-Parse a completed assistant text-block body into structured blocks.
-Recognises headings, fenced code (with `julia`/`json`/`xml`/`yaml`/`markdown`
-parsed into real `JuliaDocument`/`JsonDocument`/`XmlElement`/`YamlDocument`/
-`MarkdownRoot` content), bulleted lists, and prose paragraphs. A block whose
-language is unknown or that fails to parse falls back to fenced text, so a
-malformed block never breaks the turn.
-"""
 # A fenced code block → a part whose content is the parsed domain document, with
 # a graceful fallback to fenced text when the language is unknown or won't parse.
 function _code_part(lang::AbstractString, body::AbstractString)
@@ -875,70 +887,66 @@ function _code_part(lang::AbstractString, body::AbstractString)
     ConversationPart("```" * lang * "\n" * body * "\n```")
 end
 
+# A run of prose → one real `MarkdownRoot` part, so headings / lists / **bold** /
+# `code` / links become a genuine projectured Markdown document (rendered by the
+# conversation's `MarkdownDocument` projection) instead of flat text. `markdownparse`
+# is contractually total; the try/catch is belt-and-braces so a bug there can never
+# break the turn — it degrades to a plain-text part.
+function _prose_part(s::AbstractString)
+    doc = try
+        markdownparse(s)
+    catch
+        nothing
+    end
+    doc === nothing ? ConversationPart(String(s)) : ConversationPart(doc)
+end
+
+"""
+    parse_markdown_blocks(text::AbstractString) -> Vector{ConversationPart}
+
+Split a completed assistant text block into conversation parts. Top-level fenced
+code blocks are peeled out at the source level so a ```julia / ```json / ```xml /
+```yaml block becomes a live parsed `JuliaDocument` / `JsonDocument` /
+`XmlElement` / `YamlDocument`; every run of prose between and around the fences
+(headings, lists, **bold**, `code`, links, …) is parsed by the project's own
+`markdownparse` into a real `MarkdownRoot`. So the assistant's markdown becomes a
+genuine projectured document rather than the flat text it used to degrade to. A
+fenced block whose language is unknown or that fails to parse falls back to fenced
+text; a ```markdown block is parsed to `MarkdownRoot` like prose. Nothing here
+throws — a malformed block never breaks the turn.
+"""
 function parse_markdown_blocks(text::AbstractString)
     out = Any[]
-    md = try
-        Markdown.parse(text)
-    catch
-        return Any[ConversationPart(String(text))]
+    lines = split(replace(String(text), "\r\n" => "\n", "\r" => "\n"), '\n')
+    n = length(lines)
+    prose = String[]
+    # Flush the accumulated prose run as one MarkdownRoot part (blank runs drop).
+    flush_prose! = function ()
+        body = strip(join(prose, "\n"))
+        empty!(prose)
+        isempty(body) || push!(out, _prose_part(body))
     end
-    for node in md.content
-        if node isa Markdown.Header
-            level = _header_level(node)
-            push!(out, ConversationPart(repeat("#", level) * " " * _md_to_plain(node.text)))
-        elseif node isa Markdown.Code
-            push!(out, _code_part(String(node.language), String(node.code)))
-        elseif node isa Markdown.List
-            io = IOBuffer()
-            for it in node.items
-                println(io, "- ", _md_to_plain(it))
+    i = 1
+    while i <= n
+        open = match(r"^[ \t]*```[ \t]*([^`]*)$", lines[i])
+        if open !== nothing
+            flush_prose!()
+            lang = lowercase(strip(String(open.captures[1])))
+            code = String[]
+            i += 1
+            while i <= n && match(r"^[ \t]*```[ \t]*$", lines[i]) === nothing
+                push!(code, lines[i]); i += 1
             end
-            push!(out, ConversationPart(String(take!(io))))
-        elseif node isa Markdown.Paragraph
-            push!(out, ConversationPart(_md_to_plain(node.content)))
+            i <= n && (i += 1)              # consume the closing fence
+            push!(out, _code_part(lang, join(code, "\n")))
         else
-            push!(out, ConversationPart(_md_to_plain(node)))
+            push!(prose, lines[i]); i += 1
         end
     end
-    isempty(out) && push!(out, ConversationPart(String(text)))
+    flush_prose!()
+    # A wholly-blank block still yields one part so the turn is never partless.
+    isempty(out) && push!(out, _prose_part(String(text)))
     out
-end
-
-_header_level(::Markdown.Header{L}) where {L} = L::Int
-
-function _md_to_plain(x)
-    io = IOBuffer()
-    _md_walk(io, x)
-    String(take!(io))
-end
-
-function _md_walk(io, x::AbstractString)
-    print(io, x)
-end
-
-function _md_walk(io, x::AbstractVector)
-    for el in x
-        _md_walk(io, el)
-    end
-end
-
-# Inline code span (`code`) — render the code text, not the `Markdown.Code(...)`
-# constructor repr the generic fallback would produce.
-_md_walk(io, x::Markdown.Code)    = print(io, '`', x.code, '`')
-_md_walk(io, x::Markdown.LaTeX)   = print(io, x.formula)
-_md_walk(io, ::Markdown.LineBreak) = print(io, '\n')
-
-function _md_walk(io, x)
-    # Generic fallback for Markdown inline nodes (Bold/Italic/Link carry `.text`).
-    if hasproperty(x, :text)
-        _md_walk(io, x.text)
-    elseif hasproperty(x, :content)
-        _md_walk(io, x.content)
-    elseif hasproperty(x, :code)
-        print(io, x.code)
-    else
-        print(io, string(x))
-    end
 end
 
 # ═══════════════════════════════════════════════════════════════════════

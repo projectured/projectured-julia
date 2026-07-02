@@ -39,7 +39,8 @@ using Projectured.WorkbenchAssistantModule: _text_to_string, _run_agent_loop!,
                                             _eval_code, _eval_result
 using Projectured: ConversationConversation, ConversationTurn, ConversationPart,
                    EvaluatorForm, TextText, TextString, JuliaIdentifier, WidgetCard,
-                   MousePress, ToggleCollapseOperation, ConversationThinking
+                   MousePress, ToggleCollapseOperation, ConversationThinking,
+                   MarkdownDocument
 import Projectured.LlmModule: stream_turn
 using Projectured: with_available_size, GraphicsCanvas
 import Projectured.ReactiveModule: Cell
@@ -334,7 +335,7 @@ function _mvp_test_thinking_stream()
         @test think.content.redacted == false
         @test think.collapsed == true        # collapsed by default
 
-        @test reply.parts[2].content isa TextText
+        @test reply.parts[2].content isa MarkdownDocument   # prose parsed to Markdown
         @test _text_to_string(reply.parts[2].content) == "Hello"
     end
 end
@@ -528,7 +529,7 @@ function _mvp_test_tool_use_roundtrip()
         @test occursin("2", _eval_result(ef))
         @test ef.is_error == false
 
-        @test msgs[2].parts[2].content isa TextText
+        @test msgs[2].parts[2].content isa MarkdownDocument  # prose parsed to Markdown
         @test _text_to_string(msgs[2].parts[2].content) == "Done."
     end
 end

@@ -1,10 +1,14 @@
 # Stage 5 — LLM response → documents.
-# parse_markdown_blocks turns a finished assistant text block into ConversationParts
-# whose content is the right document: julia/json/xml fenced blocks become real
-# parsed documents, unknown/malformed blocks fall back to fenced text.
+# parse_markdown_blocks splits a finished assistant text block into ConversationParts:
+# julia/json/xml fenced blocks become real parsed documents; every run of prose is
+# parsed by the project's own markdownparse into a real MarkdownRoot (headings /
+# **bold** / inline `code` become structure, not flat text); unknown/malformed fenced
+# blocks fall back to fenced text.
 
 using Projectured: parse_markdown_blocks, ConversationPart,
-                   TextText, JuliaDocument, JsonDocument, XmlDocument
+                   TextText, JuliaDocument, JsonDocument, XmlDocument,
+                   MarkdownDocument, MarkdownHeading, MarkdownParagraph,
+                   MarkdownCode, MarkdownStrong
 
 function _cp_flat(t::TextText)
     io = IOBuffer()
@@ -13,6 +17,10 @@ function _cp_flat(t::TextText)
     end
     String(take!(io))
 end
+
+# The inline/block children of a container Markdown node (root, paragraph, …),
+# which forward the vector protocol over their children (@forward_vector).
+_md_kids(d) = [d[i] for i in 1:length(d)]
 
 function test_parse_markdown_blocks()
     @testset "parse_markdown_blocks (Stage 5)" begin
@@ -36,25 +44,36 @@ function test_parse_markdown_blocks()
         ```
         """
         contents = [p.content for p in parse_markdown_blocks(md)]
-        @test contents[1] isa TextText                       # prose
+        @test contents[1] isa MarkdownDocument                # prose → real Markdown
         @test any(c -> c isa JuliaDocument, contents)         # ```julia parsed
         @test any(c -> c isa JsonDocument, contents)          # ```json parsed
         @test any(c -> c isa XmlDocument, contents)           # ```xml parsed
         # Unknown language → fenced text fallback.
         @test any(c -> c isa TextText && occursin("unknownlang", _cp_flat(c)), contents)
 
+        # Prose markdown is parsed into a *structured* document, not flat text:
+        # a heading becomes a MarkdownHeading node.
+        head = parse_markdown_blocks("# Hello world")[1].content
+        @test head isa MarkdownDocument
+        @test any(n -> n isa MarkdownHeading, _md_kids(head))
+
+        # Inline **bold** becomes a MarkdownStrong node inside the paragraph.
+        para = parse_markdown_blocks("Some **bold** words")[1].content[1]
+        @test para isa MarkdownParagraph
+        @test any(n -> n isa MarkdownStrong, _md_kids(para))
+
+        # Inline code spans become MarkdownCode nodes carrying the verbatim code.
+        inline = parse_markdown_blocks("Nice `factorial(6) = 720` done")[1].content
+        @test inline isa MarkdownDocument
+        codes = filter(n -> n isa MarkdownCode, _md_kids(inline[1]))
+        @test any(c -> occursin("factorial(6) = 720", c.content), codes)
+
         # Malformed code must not break the turn — falls back to fenced text.
         bad = parse_markdown_blocks("```julia\n(((\n```")
         @test bad[1].content isa TextText
 
-        # Plain prose only → a single text part.
+        # Plain prose only → a single Markdown part.
         plain = parse_markdown_blocks("just words")
-        @test length(plain) == 1 && plain[1].content isa TextText
-
-        # Inline code spans render as text (not the `Markdown.Code(...)` repr).
-        inline = parse_markdown_blocks("Nice `factorial(6) = 720` done")
-        txt = _cp_flat(inline[1].content)
-        @test occursin("factorial(6) = 720", txt)
-        @test !occursin("Markdown.Code", txt)
+        @test length(plain) == 1 && plain[1].content isa MarkdownDocument
     end
 end
