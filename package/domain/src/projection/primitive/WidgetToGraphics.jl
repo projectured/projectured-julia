@@ -2331,6 +2331,23 @@ function projection_read(p::WidgetSplitPaneToGraphicsCanvas, iomap::ChildrenIoMa
             (x, y) -> MouseScroll(evt.dx, evt.dy, x, y))
         MousePress => _route_split_event(child_iomaps, evt.x, evt.y,
             (x, y) -> MousePress(evt.button, x, y, evt.modifiers))
+        # Coordinate-bearing pointer events (a non-drag press/release, plain motion,
+        # and the hover crossings) route to the slot *under the pointer*, exactly as
+        # the composite does — a hover crossing must reach whatever the pointer is
+        # over, not the selected slot (routing these to the selection left the
+        # navigator, and any other unselected pane, unhoverable). A splitter drag was
+        # already consumed above by `_split_drag_read`, so a `MouseDown`/`MouseMove`/
+        # `MouseUp` reaching here is not part of a drag and belongs to a child.
+        MouseDown => _route_split_event(child_iomaps, evt.x, evt.y,
+            (x, y) -> MouseDown(evt.button, x, y, evt.modifiers))
+        MouseUp => _route_split_event(child_iomaps, evt.x, evt.y,
+            (x, y) -> MouseUp(evt.button, x, y, evt.modifiers))
+        MouseMove => _route_split_event(child_iomaps, evt.x, evt.y,
+            (x, y) -> MouseMove(x, y, evt.buttons, evt.modifiers))
+        MouseEnter => _route_split_event(child_iomaps, evt.x, evt.y,
+            (x, y) -> MouseEnter(x, y, evt.buttons, evt.modifiers))
+        MouseLeave => _route_split_event(child_iomaps, evt.x, evt.y,
+            (x, y) -> MouseLeave(x, y, evt.buttons, evt.modifiers))
         _ => begin
             # Forward keyboard (and other coordless) events to the child the
             # forward-projected selection points at, so the keystroke reaches the

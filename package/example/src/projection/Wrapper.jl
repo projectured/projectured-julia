@@ -115,8 +115,13 @@ function make_workbench_projection(; measure=truetype_measure_text,
                                    ])
     # `NaturalToGraphics` provides the widget/layout/Any rendering; the caller's
     # `content_projections` are passed as `extra` (matched first, so they win).
-    SequentialProjection(
+    # The hover tracker wraps the whole pipeline so a hovered widget (e.g. a
+    # navigator tree row) clears when the pointer leaves it — container hit-routing
+    # only delivers a MouseMove to the child under the pointer, so the tracker is
+    # what synthesises the MouseEnter/MouseLeave crossings (cf.
+    # make_workbench_projection_example / make_widget_projection_example).
+    WidgetHoverTrackingProjection(inner = SequentialProjection(
         RecursiveProjection(WorkbenchToWidget()),
         NaturalToGraphics(measure=measure, extra=content_projections),
-    )
+    ))
 end

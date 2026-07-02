@@ -40,5 +40,12 @@ function make_workbench_projection_example(; measure=truetype_measure_text)
         WorkspaceDocument     => SequentialProjection(RecursiveProjection(WorkspaceToFileSystem()), RecursiveProjection(FileSystemToWidget()), WidgetToGraphics(font_ubuntu_monospace_regular_20; measure=measure)),
         EditorIntrospection   => object_chain,
     ])
-    SequentialProjection(RecursiveProjection(WorkbenchToWidget()), renderer)
+    # Wrap in the hover tracker so a hovered widget (e.g. a navigator tree row)
+    # clears when the pointer leaves it: container hit-routing only delivers a
+    # MouseMove to the child under the pointer, so a widget can learn it was
+    # entered but never that it was left. The tracker synthesises the
+    # MouseEnter/MouseLeave crossings the widgets react to (cf.
+    # make_widget_projection_example).
+    WidgetHoverTrackingProjection(inner =
+        SequentialProjection(RecursiveProjection(WorkbenchToWidget()), renderer))
 end
