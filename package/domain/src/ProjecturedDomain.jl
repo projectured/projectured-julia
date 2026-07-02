@@ -32,6 +32,7 @@ const GestureBindingModule = ProjecturedKernel.GestureBindingModule
 const IoMapApiModule = ProjecturedKernel.IoMapApiModule
 const IoMapModule = ProjecturedKernel.IoMapModule
 const KeyboardModule = ProjecturedKernel.KeyboardModule
+const LivePlaybackModule = ProjecturedKernel.LivePlaybackModule
 const LlmModule = ProjecturedKernel.LlmModule
 const McpModule = ProjecturedKernel.McpModule
 const ModifiersModule = ProjecturedKernel.ModifiersModule
