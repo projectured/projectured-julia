@@ -22,6 +22,7 @@ import ..CollectionModule: CellVector
 import ..ProjectionApiModule: projection_print, map_reference_forward, map_reference_backward, Projection
 import ..FileSystemModule: FileSystemDocument, FileSystemFile, FileSystemDirectory
 import ..WidgetModule: WidgetTree, WidgetTreeNode, Point2D
+import ..GestureBindingModule: GestureBinding
 import ..IoMapModule: SimpleIoMap
 import ..ReferenceModule: ConcreteReferencePath, FieldReference, RangeReference, EmptyReferencePath,
                           is_element_reference
@@ -75,7 +76,7 @@ function projection_print(p::FileSystemToWidgetTree, recursion, doc::FileSystemD
     # The roots are a reactive thunk so structural file-system changes rebuild the
     # node tree without re-running `projection_print`.
     roots = CellVector(() -> Any[_fs_node(doc)])
-    tree = WidgetTree(Cell(p.position), roots, Cell(true), sel, Cell(nothing), Cell(Set{Vector{Int}}()))
+    tree = WidgetTree(Cell(p.position), roots, Cell(true), sel, Cell(nothing), Cell(Set{Vector{Int}}()), Cell(GestureBinding[]))
     iomap = SimpleIoMap(p, doc, tree)
     iomap_cell[] = iomap
     return iomap

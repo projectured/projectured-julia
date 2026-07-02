@@ -74,6 +74,7 @@ import ..LayoutModule: LayoutDocument, LayoutConstraint, GridLayout, VerticalLay
 import ..LayoutToGraphicsModule: GridLayoutToGraphicsCanvas, GridLayoutIoMap, _forward_descend, _shift_child_image
 import ..KeyboardModule: KeyDown
 import ..ModifiersModule: Modifiers
+import ..GestureBindingModule: read_document_gesture, read_node_gesture
 export WidgetInsertionToGraphicsCanvas, WidgetLabelToGraphicsCanvas, WidgetTextToGraphicsCanvas,
        WidgetCheckboxToGraphicsCanvas, WidgetButtonToGraphicsCanvas,
        WidgetTooltipToGraphicsCanvas, WidgetContextMenuToGraphicsCanvas,
@@ -1080,8 +1081,14 @@ function projection_read(::WidgetButtonToGraphicsCanvas, iomap::SimpleIoMap, evt
     # and no hover/press state changes, so it can never show an interaction surface
     # (see the printer's enabled branch).
     _button_enabled(w) || return nothing
+    # Per-instance gestures are consulted first, so a binding can add a gesture
+    # (right-click, shift-click, …), override a built-in (same pattern shadows it),
+    # or suppress one (map the pattern to `NoOperation()`). An empty table returns
+    # `nothing` immediately, so a plain button behaves exactly as before.
+    op = read_document_gesture(w, evt)
+    op === nothing || return op
     @event_case evt begin
-        MousePress(button, x, y) => button === :left ? _activate_button(w) : nothing
+        MousePress(button, x, y) => button === :left ? _button_primary_op(w) : nothing
         MouseDown(button, x, y)  => button === :left ? ReplaceReferencedValue(w, "pressed", true) : nothing
         MouseUp(button, x, y)    => button === :left ? ReplaceReferencedValue(w, "pressed", false) : nothing
         MouseEnter               => ReplaceReferencedValue(w, "hovered", true)
@@ -1092,17 +1099,20 @@ function projection_read(::WidgetButtonToGraphicsCanvas, iomap::SimpleIoMap, evt
         # Enter / Space activate the focused button (key reaches it via selection
         # routing). `:tab` is intentionally not matched, so it falls through to
         # `nothing` and focus traversal can claim it.
-        when(KeyDown(k), k === :return || k === :space) => _activate_button(w)
+        when(KeyDown(k), k === :return || k === :space) => _button_primary_op(w)
         _ => nothing
     end
 end
 
-# Activating a button: invoke its bound `command` (Stage 4) if it has one; else open
-# its `dialog` as a modal window (Step 5); else run its plain `action`. A modal
-# dialog is centered, not anchored, so it opens directly as an `OpenWindowOperation`
-# (no popup resolver). v1 uses a generous fixed window box; true screen-sizing /
+# The button's *primary* gesture (the built-in default that left-click / Enter /
+# Space map to): invoke its bound `command` (Stage 4) if it has one; else open its
+# `dialog` as a modal window (Step 5); else run its plain `action`. This is just
+# the default primary op — it is not privileged; any gesture (double/right/shift-
+# click, …) is expressed as its own per-instance binding. A modal dialog is
+# centered, not anchored, so it opens directly as an `OpenWindowOperation` (no
+# popup resolver). v1 uses a generous fixed window box; true screen-sizing /
 # centering is deferred (see widget.md).
-function _activate_button(w::WidgetButton)
+function _button_primary_op(w::WidgetButton)
     command = _button_command(w)
     command === nothing || return InvokeActionOperation(command)
     dlg = w.dialog
@@ -5259,7 +5269,16 @@ map_reference_backward(::WidgetTreeToGraphicsCanvas, iomap, reference) = nothing
 # `projection_read(cim.projection, cim, evt)` reaches it — the default 4-arg
 # `projection_read` bridges the editor's top-level `Change` to this. Non-gestures
 # return nothing: the tree is a leaf (no child ops bubble up to re-target).
+#
+# Per-instance gestures are consulted first — tree-level, then per-node — so a
+# binding can add / override (shadow) / suppress; the built-in select / collapse /
+# hover / nav below is the fallback.
 function projection_read(p::WidgetTreeToGraphicsCanvas, iomap::WidgetTreeToGraphicsCanvasIoMap, evt)
+    w = iomap.input
+    op = read_document_gesture(w, evt)
+    op === nothing || return op
+    nop = _wtree_node_gesture(iomap, evt)
+    nop === nothing || return nop
     if evt isa MousePress && evt.button === :left
         return _wtree_mouse_press(iomap, evt)
     elseif evt isa MouseEnter
@@ -5272,6 +5291,48 @@ function projection_read(p::WidgetTreeToGraphicsCanvas, iomap::WidgetTreeToGraph
         return _wtree_key_navigate(iomap, evt)
     end
     return nothing
+end
+
+# Resolve the node at 1-based path `[i, j, …]`, mirroring the printer's flatten
+# walk (`roots[i]`, then `children[j]`, …). Returns `nothing` for an out-of-range
+# path or a leaf that has no such child level.
+function _wtree_node_at(w::WidgetTree, path::Vector{Int})
+    isempty(path) && return nothing
+    coll = w.roots
+    node = nothing
+    for (level, i) in enumerate(path)
+        (coll !== nothing && 1 <= i <= length(coll)) || return nothing
+        node = coll[i]
+        level < length(path) && (coll = _tree_children(node))
+    end
+    return node
+end
+
+# Per-node gesture consult: find the node targeted by `g` — the row under the
+# pointer for a `MousePress` (any button/modifier; the binding's own pattern does
+# the matching), or the currently selected node for a `KeyDown` — and fire its
+# `instance_gestures` against the enclosing tree's selection. A node has no
+# `selection` of its own, hence `read_node_gesture` rather than
+# `read_document_gesture`.
+function _wtree_node_gesture(iomap::WidgetTreeToGraphicsCanvasIoMap, g)
+    w = iomap.input
+    geom = iomap.geometry[]
+    path = nothing
+    if g isa MousePress
+        (0 <= g.x < geom.total_w && 0 <= g.y < geom.total_h) || return nothing
+        for row in geom.rows
+            if row.y0 <= g.y < row.y0 + row.height
+                path = row.path
+                break
+            end
+        end
+    elseif g isa KeyDown
+        path = _wtree_ref_path(w.selection)
+    end
+    path === nothing && return nothing
+    node = _wtree_node_at(w, path)
+    node === nothing && return nothing
+    return read_node_gesture(node, g, w.selection)
 end
 
 # A left click on a parent row's chevron column toggles its collapse; anywhere

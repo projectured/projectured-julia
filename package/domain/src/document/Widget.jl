@@ -12,7 +12,7 @@ import ..ReactiveModule: Cell, setfn!, setval!
 import ..DocumentModule: Document, @document
 import ..CollectionModule: CellVector
 import ..OperationApiModule: Operation, evaluate_operation
-import ..GestureBindingModule: KeyDownPattern, matches
+import ..GestureBindingModule: KeyDownPattern, matches, GestureBinding, instance_gestures
 import ..ColorModule: StyleColor
 import ..StyleTextModule: StyleText
 import ..ReferenceModule: Reference, ReferencePath, ConcreteReferencePath, ElementReference,
@@ -292,6 +292,14 @@ A clickable button.
 argument, otherwise with none, so it can mutate `editor.document` / projection
 state. A `nothing` action makes the button inert on click.
 
+`gestures` is an optional per-instance `Vector{GestureBinding}` for behavior
+beyond the plain click: the reader consults it *before* the built-in
+click/Enter/Space handling, so a binding can add a gesture (e.g. right-click,
+shift-click), override a default (same pattern shadows it), or suppress one (map
+the pattern to a `NoOperation()`). Each binding maps a `GesturePattern` to an
+`(doc, event) -> Operation | Nothing` builder — the same reified vocabulary the
+gesture-help window shows.
+
 `enabled` (default `true`) is a shared interactivity flag alongside `visible`:
 when `false` the button renders muted, ignores hover/press, and its reader
 refuses to invoke the action.
@@ -309,6 +317,7 @@ are not meant to be serialised.
     size::Point2D
     content::Any
     action::Any
+    gestures::Any
     command::Any
     icon::Any
     dialog::Any
@@ -327,6 +336,7 @@ end
 
 function WidgetButton(position::Point2D, size::Point2D, content;
                       action=nothing,
+                      gestures=GestureBinding[],
                       command=nothing,
                       icon=nothing,
                       dialog=nothing,
@@ -342,10 +352,16 @@ function WidgetButton(position::Point2D, size::Point2D, content;
     # *computed* cell (thunk called with 0 args), so wrapping the callback as
     # `Cell(action)` would invoke it on read. Store it as a primitive cell value.
     action_cell = Cell(nothing); setval!(action_cell, action)
+    # `gestures` is a per-instance `Vector{GestureBinding}` (behavior, not content).
+    # It is consulted by the reader ahead of the built-in click/key handling, so a
+    # binding can add (right-click, shift-click, …), override (same pattern), or
+    # suppress (map to `NoOperation()`) a default. Stored as a plain primitive cell.
+    gestures_cell = Cell(nothing); setval!(gestures_cell, gestures)
     # `command` (optional) is a shared `Action` (Stage 4); `icon` (optional) is an
     # icon name drawn left of the label (Stage 5); `dialog` (optional) is a child
     # `WidgetDialog` opened modally on click.
-    WidgetButton(Cell(position), Cell(size), Cell(content), action_cell, Cell(command), Cell(icon), Cell(dialog),
+    WidgetButton(Cell(position), Cell(size), Cell(content), action_cell, gestures_cell,
+                 Cell(command), Cell(icon), Cell(dialog),
                  Cell(visible), Cell(enabled), Cell(margin), Cell(margin_color),
                  Cell(border), Cell(border_color),
                  Cell(padding), Cell(padding_color),
@@ -353,6 +369,9 @@ function WidgetButton(position::Point2D, size::Point2D, content;
 end
 
 setfn!(w::WidgetButton, f::Function) = (setfn!(getfield(w, :content), f); w)
+
+# Per-instance gesture bindings (see `instance_gestures` / `read_document_gesture`).
+instance_gestures(w::WidgetButton) = w.gestures
 
 """
     WidgetToolButton(icon; label="", size=Point2D(0, 0), <WidgetButton kwargs>)
@@ -1582,8 +1601,19 @@ struct WidgetTreeNode
     icon::Any
     label::Any
     children::Vector
+    gestures::Any
 end
-WidgetTreeNode(icon, label) = WidgetTreeNode(icon, label, Any[])
+# A node is a plain value (not a `Document`), so it has no `selection`; its
+# per-instance `gestures` are fired by `read_node_gesture` against the enclosing
+# tree's selection. `gestures` defaults empty so existing 2-/3-arg calls are
+# unaffected; pass `gestures=[…]` to give a node its own behavior (e.g. a
+# right-click / Enter binding that opens what the node stands for).
+WidgetTreeNode(icon, label, children; gestures=GestureBinding[]) =
+    WidgetTreeNode(icon, label, children, gestures)
+WidgetTreeNode(icon, label; gestures=GestureBinding[]) =
+    WidgetTreeNode(icon, label, Any[], gestures)
+
+instance_gestures(node::WidgetTreeNode) = node.gestures
 
 """
     WidgetTree(position, roots)
@@ -1609,10 +1639,15 @@ part of the tree's content.
     selection::Reference
     hovered::Reference           # transient: node-path ref of the row under the pointer, or nothing
     collapsed::Set{Vector{Int}}  # transient: node paths whose children are hidden
+    gestures::Any                # per-instance tree-level gesture bindings
 end
-WidgetTree(position::Point2D, roots::Vector; visible::Bool=true) =
+WidgetTree(position::Point2D, roots::Vector; visible::Bool=true, gestures=GestureBinding[]) =
     WidgetTree(Cell(position), CellVector(Cell[Cell(n) for n in roots]), Cell(visible),
-               Cell(nothing), Cell(nothing), Cell(Set{Vector{Int}}()))
+               Cell(nothing), Cell(nothing), Cell(Set{Vector{Int}}()), Cell(gestures))
+
+# Tree-level gestures (over the whole tree); per-node gestures live on each
+# `WidgetTreeNode`. See `instance_gestures` / `read_document_gesture`.
+instance_gestures(w::WidgetTree) = w.gestures
 
 # ── Operations ─────────────────────────────────────────────────────────────
 
