@@ -450,22 +450,26 @@ function build_messages(conversation::ConversationConversation)
     while i <= length(turns)
         t = turns[i]
         if t.role === :user
-            content = Any[]
+            texts = String[]
             for part in t.parts
                 c = part.content
                 if c isa ConversationThinking
                     # User turns never legitimately contain thinking; drop it.
                     continue
                 elseif c isa EvaluatorForm
-                    text = "I ran the following Julia code:\n```julia\n" * _eval_code(c) *
-                           "\n```\nResult:\n```\n" * _eval_result(c) * "\n```"
-                    push!(content, Dict("type" => "text", "text" => text))
+                    push!(texts, "I ran the following Julia code:\n```julia\n" * _eval_code(c) *
+                                 "\n```\nResult:\n```\n" * _eval_result(c) * "\n```")
                 else
-                    push!(content, Dict("type" => "text", "text" => _block_text(c)))
+                    push!(texts, _block_text(c))
                 end
             end
-            isempty(content) && push!(content, Dict("type" => "text", "text" => " "))
-            push!(out, Dict("role" => "user", "content" => content))
+            # The turn's parts serialize into one text block, blank-line separated so
+            # a heading / prose part never runs straight into the next fenced source
+            # (adjacent API text blocks concatenate with no separator). An empty turn
+            # still needs a non-empty block.
+            merged = isempty(texts) ? " " : join(texts, "\n\n")
+            push!(out, Dict("role" => "user",
+                            "content" => Any[Dict("type" => "text", "text" => merged)]))
             i += 1
         elseif t.role === :assistant
             # Coalesce consecutive assistant turns into one logical turn before
@@ -496,13 +500,15 @@ end
 # tool-use continuation 400s.
 function _emit_assistant_turn!(out, parts)
     thinking = Any[]
-    text     = Any[]
+    text     = String[]
     evals    = EvaluatorForm[]
 
     flush_segment! = function ()
         content = Any[]
         append!(content, thinking)    # thinking first
-        append!(content, text)        # then text
+        # The segment's text parts join into ONE block, blank-line separated —
+        # adjacent API text blocks concatenate with no separator otherwise.
+        isempty(text) || push!(content, Dict("type" => "text", "text" => join(text, "\n\n")))
         for ef in evals               # then tool_use blocks
             push!(content, Dict("type"  => "tool_use",
                                  "id"    => ef.tool_use_id,
@@ -533,7 +539,7 @@ function _emit_assistant_turn!(out, parts)
             if c isa ConversationThinking
                 push!(thinking, _thinking_block(c))
             else
-                push!(text, Dict("type" => "text", "text" => _block_text(c)))
+                push!(text, _block_text(c))
             end
             prev_was_eval = false
         end

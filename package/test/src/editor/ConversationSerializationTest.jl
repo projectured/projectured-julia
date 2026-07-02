@@ -12,7 +12,7 @@ using Projectured: ConversationConversation, ConversationTurn, ConversationPart,
 function test_conversation_serialization()
     @testset "Conversation serialization (Stage 4)" begin
 
-        @testset "multi-part user turn → one message, fenced blocks" begin
+        @testset "multi-part user turn → one message, fenced blocks joined" begin
             turn = ConversationTurn(:user, [
                 ConversationPart("hello"),
                 ConversationPart(juliaparse("2+2")),
@@ -23,12 +23,15 @@ function test_conversation_serialization()
             @test length(msgs) == 1
             @test msgs[1]["role"] == "user"
             blocks = msgs[1]["content"]
-            @test length(blocks) == 4
-            @test all(b -> b["type"] == "text", blocks)
-            @test blocks[1]["text"] == "hello"
-            @test occursin("```julia", blocks[2]["text"]) && occursin("2 + 2", blocks[2]["text"])
-            @test occursin("```json", blocks[3]["text"]) && occursin("\"a\": 1", blocks[3]["text"])
-            @test occursin("```xml", blocks[4]["text"]) && occursin("<a", blocks[4]["text"])
+            # The parts join into a single text block, blank-line separated so the
+            # fenced sources stay apart (adjacent API text blocks concatenate raw).
+            @test length(blocks) == 1
+            @test blocks[1]["type"] == "text"
+            txt = blocks[1]["text"]
+            @test startswith(txt, "hello")
+            @test occursin("\n\n```julia", txt) && occursin("2 + 2", txt)
+            @test occursin("\n\n```json", txt)  && occursin("\"a\": 1", txt)
+            @test occursin("\n\n```xml", txt)   && occursin("<a", txt)
         end
 
         @testset "user inline eval → single user text block" begin
