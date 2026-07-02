@@ -8,7 +8,7 @@ the declaration from the implementation and avoids circular dependencies.
 """
 module DocumentApiModule
 
-export Document, clear_selection!, set_selection!, with_selection, document_read
+export Document, document_selection, clear_selection!, set_selection!, with_selection, document_read
 
 """
     Document
@@ -31,6 +31,16 @@ Two contracts bind every concrete document:
    and treat them as a stable interface, not an implementation detail.
 """
 abstract type Document end
+
+"""
+    document_selection(document) -> reference or nothing
+
+The document's current selection — a `ReferencePath` or `nothing`. Every document
+has one (the [`Document`](@ref) contract requires a `selection` field); the default
+reads that conventional field, so a concrete document gets it for free, and one that
+stores its selection differently overrides this method.
+"""
+document_selection(document::Document) = document.selection
 
 """
     clear_selection!(document)
