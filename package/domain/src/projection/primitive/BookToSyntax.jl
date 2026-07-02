@@ -2,13 +2,24 @@
     BookToSyntaxModule
 
 Book → SyntaxDocument projection. Maps each Book node type to a matching
-syntax tree shape. BookBook/BookChapter/BookList produce SyntaxNodes whose
-children are recursively projected sub-documents; BookParagraph and
-BookPicture produce SyntaxLeaf terminals. The node projections map references
-by peeling the one step they own (title/author/numbering structural rewrites)
-and delegating each element tail through the stored child IO maps, so they do
-not dispatch on the element types — see the "Mapping references when the printer
-recurses" section of documentation/projection-system.md.
+syntax tree shape.
+
+The simple rules are written with `@projection_template` (like JsonToSyntax /
+XmlToSyntax): `BookInsertion` is an opaque placeholder leaf, `BookParagraph` a
+single `bound(:content)` leaf, and `BookPicture` a fixed-children node with a
+`bound(:title)` caption leaf and a `bound(:content)` figure leaf. The engine
+records the wiring, strips the markers, and derives the reference mappers and
+readers generically.
+
+`BookBook`, `BookChapter`, and `BookList` remain hand-written because their
+mapping cannot be expressed by the template markers — a conditional author leaf
+in front of a spliced collection (BookBook), a title leaf fusing numbering+title
+with a character offset (BookChapter), and a per-item bullet decorator wrapping
+each whole projected element (BookList); see the note above each. They map
+references by peeling the one step they own (title/author/numbering structural
+rewrites) and delegating each element tail through the stored child IO maps, so
+they do not dispatch on the element types — see the "Mapping references when the
+printer recurses" section of documentation/projection-system.md.
 """
 module BookToSyntaxModule
 
@@ -28,7 +39,7 @@ import ..ColorModule: StyleColor, color_black, color_default, color_solarized_bl
 import ..StyleTextModule: StyleText
 import ..SyntaxModule: SyntaxDocument, SyntaxLeaf, SyntaxNode
 import ..TypeDispatchingModule: TypeDispatchingProjection
-import ..IoMapModule: SimpleIoMap, ChildrenIoMap
+import ..IoMapModule: ChildrenIoMap
 import ..ReferenceModule: ConcreteReferencePath, ElementReference, PositionReference, RangeReference, FieldReference,
                          ProjectionReference, ReferencePath, EmptyReferencePath, append_reference
 import ..ReferenceCaseModule: var"@reference_case"
@@ -37,6 +48,7 @@ import ..OperationModule: ReplaceSelectionOperation
 import ..PrimitiveModule: StringReplaceRangeOperation
 import ..SyntaxToTextModule: SyntaxNodeToText, _syntax_to_flat
 import ..PrinterContextModule: child_context
+import ..ProjectionTemplateModule: var"@projection_template", bound, RuleIoMap
 
 export BookInsertionToSyntaxLeaf, BookBookToSyntaxNode, BookChapterToSyntaxNode, BookParagraphToSyntaxLeaf,
        BookListToSyntaxNode, BookPictureToSyntaxLeaf, BookToSyntax
@@ -45,17 +57,15 @@ export BookInsertionToSyntaxLeaf, BookBookToSyntaxNode, BookChapterToSyntaxNode,
 #
 # Maps BookInsertion → SyntaxLeaf. "insert here" is a projection-introduced
 # placeholder with no editable input value (same rationale as
-# JsonInsertionToSyntaxLeaf), so the default proj-unwrapping forward mapper is
-# correct and the iomap is threaded canonically.
+# JsonInsertionToSyntaxLeaf / XmlInsertionToSyntaxLeaf), so it is an opaque
+# `@projection_template` leaf (no `bound`): the engine wires ∅↔∅ and nothing else.
 
 @projection struct BookInsertionToSyntaxLeaf
     style::StyleText = StyleText(font_ubuntu_monospace_regular_20, color_solarized_gray)
 end
 
-function projection_print(p::BookInsertionToSyntaxLeaf, recursion, b::BookInsertion, ctx)
-    output_selection = Cell(() -> map_reference_forward(p, nothing, b.selection))
-    SimpleIoMap(p, b, SyntaxLeaf(TextString("insert here", p.style); selection=output_selection))
-end
+@projection_template BookInsertionToSyntaxLeaf BookInsertion (prj, doc) ->
+    SyntaxLeaf(TextString("insert here", prj.style))
 
 # ── BookBookToSyntaxNode ──────────────────────────────────────────────────────
 #
@@ -68,6 +78,12 @@ end
 #   .title[k]         → .children[1].value[k]
 #   .author[k]        → .children[2].value[k]  (when author present)
 #   .elements[i].…    → .children[i+offset].…  (via element iomap)
+#
+# Kept hand-written (not @projection_template): the author leaf is *conditional*
+# and precedes a spliced element collection, so the collection's child offset is 1
+# or 2 depending on `author`. No template wiring expresses a conditional prefix
+# combined with a spliced collection — the mixed node has a static prefix, and the
+# conditional (F2) node has no spliced collection.
 
 # Titles use a proportional (sans) font, distinct from the monospace body, and a
 # larger size; the author line is italic.
@@ -239,6 +255,11 @@ end
 #
 # When numbering is non-empty, the displayed string is "numbering  title".
 # Backward mapping subtracts length(numbering)+2 from character indices.
+#
+# Kept hand-written (not @projection_template): the title leaf fuses *two* input
+# fields (`numbering` and `title`) into one value span with a character offset, so
+# both `.title[k]` (shifted right by length(numbering)+2) and `.numbering[k]` map
+# into the same leaf. A `bound(:field)`/KeySlot binds a single field with no offset.
 
 @projection struct BookChapterToSyntaxNode
     title::StyleText = StyleText(font_ubuntu_bold_24, color_solarized_blue)
@@ -418,39 +439,14 @@ end
     placeholder::StyleText = StyleText(font_ubuntu_monospace_regular_20, color_solarized_gray)
 end
 
-function projection_print(p::BookParagraphToSyntaxLeaf, recursion, b::BookParagraph, ctx)
-    content_sel = Cell(() -> begin
-        @reference_case b.selection begin
-            content.rest... => @reference ::SyntaxLeaf.value::TextString.^(rest)
-        end
-    end)
-    leaf = SyntaxLeaf(TextString(() -> _render_paragraph_content(b.content), p.style); selection=content_sel)
-    SimpleIoMap(p, b, leaf)
-end
-
-function map_reference_forward(::BookParagraphToSyntaxLeaf, iomap::SimpleIoMap, reference)
-    @reference_case reference begin
-        ::BookParagraph.content.rest... => @reference ::SyntaxLeaf.value::TextString.^(rest)
-    end
-end
-
-function map_reference_backward(::BookParagraphToSyntaxLeaf, iomap::SimpleIoMap, reference)
-    @reference_case reference begin
-        ::SyntaxLeaf.value.rest... => @reference ::BookParagraph.content.^(rest)
-    end
-end
-
-function projection_read(p::BookParagraphToSyntaxLeaf, iomap::SimpleIoMap, op::ReplaceSelectionOperation)
-    result = map_reference_backward(p, iomap, op.path)
-    result !== nothing ? ReplaceSelectionOperation(result) : nothing
-end
-
-# Type-in: `.value[s:e]` → `.content[s:e]` (the paragraph's flat content range).
-function projection_read(p::BookParagraphToSyntaxLeaf, iomap::SimpleIoMap, op::StringReplaceRangeOperation)
-    new_ref = map_reference_backward(p, iomap, op.reference)
-    new_ref === nothing && return nothing
-    StringReplaceRangeOperation(new_ref, op.replacement)
-end
+# A single bound leaf (like XmlTextToSyntaxLeaf / MarkdownTextToSyntaxLeaf): the
+# `.content` field is rendered flat into the leaf's `.value` span, so a `.content`
+# cursor maps to `.value` and back. The engine derives every reader from the
+# `bound(:content, …)` wiring. Type-in on the flat span is spliced back into the
+# paragraph's `content` (a TextText) generically by `splice_value!`.
+@projection_template BookParagraphToSyntaxLeaf BookParagraph (prj, doc) ->
+    SyntaxLeaf(bound(:content, String,
+                     TextString(() -> _render_paragraph_content(doc.content), prj.style)))
 
 # ── BookListToSyntaxNode ──────────────────────────────────────────────────────
 #
@@ -463,6 +459,13 @@ end
 #   ])
 #
 # Selection forward:  .elements[i].… → .children[i].children[1].…
+#
+# Kept hand-written (not @projection_template): each element is wrapped in a
+# per-item bullet decorator node around the *whole* projected element (School A
+# delegation to the element's own projection, like MarkdownListToStyledNode). The
+# template's homogeneous `collection(:elements)` maps `.elements[i]→.children[i]`
+# with no per-item wrapper, and its element-builder form (`collection(:f) do x`)
+# builds a node from x's *fields* — neither expresses "wrap the whole element".
 
 @projection struct BookListToSyntaxNode
     bullet::StyleText = StyleText(font_ubuntu_monospace_regular_20, color_solarized_yellow)
@@ -560,8 +563,8 @@ end
 # own value span:
 #   .title[k]   → .children[1].value[k]
 #   .content[k] → .children[2].value[k]
-# An empty title renders a gray placeholder so the caption still has a cursor;
-# an empty content renders the path placeholder.
+# An empty title renders "untitled"; an empty content renders the path
+# placeholder. Written as an `@projection_template` fixed-children node.
 
 @projection struct BookPictureToSyntaxLeaf
     style::StyleText = StyleText(font_ubuntu_monospace_regular_20, color_solarized_magenta)
@@ -599,60 +602,33 @@ function _picture_leaf_value(content, style::StyleText, placeholder::StyleText; 
     TextString(content === nothing ? "enter picture path" : string(content), placeholder)
 end
 
-function projection_print(p::BookPictureToSyntaxLeaf, recursion, b::BookPicture, ctx)
-    title_sel = Cell(() -> begin
-        @reference_case b.selection begin
-            title.rest... => @reference ::SyntaxLeaf.value::TextString.^(rest)
-        end
-    end)
-    content_sel = Cell(() -> begin
-        @reference_case b.selection begin
-            content.rest... => @reference ::SyntaxLeaf.value::TextString.^(rest)
-        end
-    end)
-    title_leaf = SyntaxLeaf(
-        TextString(() -> begin
-            t = b.title
-            isempty(t) ? "untitled" : t
-        end, p.style);
-        selection=title_sel)
-    content_leaf = SyntaxLeaf(
-        _picture_leaf_value(b.content, p.style, p.placeholder);
-        selection=content_sel)
-    # Caption above, figure below (a newline separates them).
-    node = SyntaxNode(
-        CellVector(Cell[Cell(title_leaf), Cell(content_leaf)]);
-        sep=TextString("\n", p.placeholder))
-    SimpleIoMap(p, b, node)
-end
+# A fixed-children node with two bound leaves (like MarkdownImageToSyntaxNode's
+# source form / XmlElement's `name="value"` attributes): the caption leaf is
+# `bound(:title)`, the figure leaf `bound(:content)`. The engine wires each
+# `.field{k} ↔ .children[k].value{k}` and derives the readers. The content leaf's
+# value is a live image / graphics span or the path text (`_picture_leaf_value`);
+# the fixed-node KeySlot mapping keys on the field name only, so it is agnostic to
+# whether the rendered value is a `TextString` or a `TextGraphics`.
+@projection_template BookPictureToSyntaxLeaf BookPicture (prj, doc) ->
+    SyntaxNode(TextString(""), TextString(""), TextString("\n", prj.placeholder),
+        [ SyntaxLeaf(bound(:title, String,
+                           TextString(() -> isempty(doc.title) ? "untitled" : doc.title, prj.style))),
+          SyntaxLeaf(bound(:content, String,
+                           _picture_leaf_value(doc.content, prj.style, prj.placeholder))) ],
+        0, false, nothing)
 
-function map_reference_forward(::BookPictureToSyntaxLeaf, iomap::SimpleIoMap, reference)
-    @reference_case reference begin
-        ::BookPicture.title.rest...   => @reference ::SyntaxNode.children[1].value::TextString.^(rest)
-        ::BookPicture.content.rest... => @reference ::SyntaxNode.children[2].value::TextString.^(rest)
-    end
-end
-
-function map_reference_backward(::BookPictureToSyntaxLeaf, iomap::SimpleIoMap, reference)
-    @reference_case reference begin
-        ::SyntaxNode.children{s:_}.value.rest... => begin
-            child_i = s + 1
-            child_i == 1 ? (@reference ::BookPicture.title::String.^(rest)) :
-            child_i == 2 ? (@reference ::BookPicture.content.^(rest)) : nothing
-        end
-    end
-end
-
-function projection_read(p::BookPictureToSyntaxLeaf, iomap::SimpleIoMap, op::ReplaceSelectionOperation)
+# The newline `sep` between caption and figure is a projection-introduced position
+# with no input pre-image. The generic template `ReplaceSelectionOperation`
+# fallback would wrap such an unmapped caret in a `ProjectionReference`, which
+# `strip_reference_types` cannot collapse — growing the path without bound on every
+# navigation round-trip (the reason XmlElementToSyntaxNode adds a flat-offset
+# reader). Match the previous behaviour instead: an unmapped caret yields nothing
+# (that position is simply not selectable), which keeps navigation bounded.
+# Everything else — the printer, both reference mappers, and the type-in reader —
+# comes from the template.
+function projection_read(p::BookPictureToSyntaxLeaf, iomap::RuleIoMap, op::ReplaceSelectionOperation)
     result = map_reference_backward(p, iomap, op.path)
     result !== nothing ? ReplaceSelectionOperation(result) : nothing
-end
-
-# Type-in: `.value[s:e]` → `.content[s:e]` (the picture path string range).
-function projection_read(p::BookPictureToSyntaxLeaf, iomap::SimpleIoMap, op::StringReplaceRangeOperation)
-    new_ref = map_reference_backward(p, iomap, op.reference)
-    new_ref === nothing && return nothing
-    StringReplaceRangeOperation(new_ref, op.replacement)
 end
 
 # ── Compound convenience constructor ─────────────────────────────────────────
