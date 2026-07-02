@@ -63,7 +63,7 @@ item here as it lands, and record any decision changes inline.
 - [x] **S2.** `set_selection!` docstring says a fresh `TypeReference(typeof(node))`
   is "inserted before every navigation step" — the folded model fills node
   `type` *fields*; no step is inserted (`common/Operation.jl`).
-- [ ] **S3.** Vestiges in `clear_selection!` / `_set_selection_walk!`: the
+- [x] **S3.** Vestiges in `clear_selection!` / `_set_selection_walk!`: the
   "Skip leading type checkpoints" comments describe skipping that no longer
   happens; one ends with a dangling "(mirrors evaluate_reference / )"; the
   `nav = path; nav isa ConcreteReferencePath || return` re-check is redundant
@@ -169,7 +169,7 @@ Layer 1 — core:
   in `common/IoMap.jl` vs `common/Document.jl`. Extract shared helper functions
   (the way `_forward_defs` already serves `@forward*`); `@iomap` is a strict
   subset of `@document`'s features, minus the I-struct/Rule Y/Rule C parts.
-- [ ] **D2. Selection descent triplicated.** `clear_selection!`,
+- [x] **D2. Selection descent triplicated.** `clear_selection!`,
   `_set_selection_walk!`, and `_selection_child` each carry the identical
   FieldReference/RangeReference descent block with the same comment
   (`common/Operation.jl`). Express the first two via `_selection_child`.

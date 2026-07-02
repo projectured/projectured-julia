@@ -609,35 +609,11 @@ function clear_selection!(document)
     path = sel[]
     sel[] = nothing
     path isa ConcreteReferencePath || return
-    # Skip leading type checkpoints: a TypeReference is a non-navigating
-    # assertion on the current node, so descent is driven by the next
-    # navigation step (mirrors evaluate_reference / ).
-    nav = path
-    nav isa ConcreteReferencePath || return
-    h = nav.head
-    rest = nav.tail
-    child = if h isa FieldReference
-        sym = Symbol(h.name)
-        # The path may not match this node (a stale or cross-domain selection):
-        # stop walking gracefully rather than throwing FieldError. Mirrors the
-        # hasproperty guard in annotate_reference_types.
-        hasproperty(document, sym) || return
-        f = getfield(document, sym)
-        f isa Cell ? f[] : f
-    elseif h isa RangeReference
-        # A RangeReference into a string leaf is a character cursor/range that
-        # terminates here — there is no child Document to descend into, and
-        # byte-indexing a multibyte String by a character position throws.
-        document isa AbstractString && return
-        idx = h.start + 1
-        (!applicable(length, document) || idx < 1 || idx > length(document)) && return
-        document[idx]
-    else
-        return
-    end
-    # Only descend into child Documents (which carry their own selection cell);
-    # leaf values (String/Char/Number) hold no selection and are not navigable.
-    child isa Document || return
+    # Descend into the child the path's head step routes to (see `_selection_child`,
+    # which returns `nothing` when the head terminates here — a leaf char cursor,
+    # a stale/cross-domain step, or a non-Document field) and clear it too.
+    child = _selection_child(document, path)
+    child === nothing && return
     clear_selection!(child)
 end
 
@@ -672,43 +648,18 @@ semantics.
 with_selection(document, path) = (set_selection!(document, path); document)
 
 # Internal recursive walker: assumes `path` is already canonical and writes each
-# suffix into the matching child's selection cell, skipping type checkpoints to
-# find the navigation step that descends.
+# suffix into the matching child's selection cell, descending one navigation step
+# per level.
 function _set_selection_walk!(document, path)
     if hasproperty(document, :selection)
         getfield(document, :selection)[] = path
     end
     path isa ConcreteReferencePath || return
-    # Skip leading type checkpoints to find the navigation step that descends
-    # into a child; the checkpoint stays on the current node (canonical paths
-    # carry a TypeReference before every navigation step).
-    nav = path
-    nav isa ConcreteReferencePath || return
-    h = nav.head
-    rest = nav.tail
-    child = if h isa FieldReference
-        sym = Symbol(h.name)
-        # The path may not match this node (a stale or cross-domain selection):
-        # stop walking gracefully rather than throwing FieldError. Mirrors the
-        # hasproperty guard in annotate_reference_types.
-        hasproperty(document, sym) || return
-        f = getfield(document, sym)
-        f isa Cell ? f[] : f
-    elseif h isa RangeReference
-        # A RangeReference into a string leaf is a character cursor/range that
-        # terminates here — there is no child Document to descend into, and
-        # byte-indexing a multibyte String by a character position throws.
-        document isa AbstractString && return
-        idx = h.start + 1
-        (!applicable(length, document) || idx < 1 || idx > length(document)) && return
-        document[idx]
-    else
-        return
-    end
-    # Only descend into child Documents (which carry their own selection cell);
-    # leaf values (String/Char/Number) hold no selection and are not navigable.
-    child isa Document || return
-    _set_selection_walk!(child, rest)
+    # Descend into the child this step routes to and write the remaining tail there
+    # (see `_selection_child`: `nothing` means the step terminates at a leaf here).
+    child = _selection_child(document, path)
+    child === nothing && return
+    _set_selection_walk!(child, path.tail)
 end
 
 """
@@ -797,16 +748,16 @@ end
 
 # The child Document that `path`'s head step descends into, or `nothing` when
 # the head terminates at `document` (a leaf cursor: string char, out-of-range,
-# or a non-Document field). Mirrors the descent in clear_selection!/set_selection!.
+# or a non-Document field). This is the single descent helper shared by
+# `clear_selection!`, `_set_selection_walk!`, and `_sync_selection!`.
 function _selection_child(document, path::ConcreteReferencePath)
     h = path.head
     child = if h isa FieldReference
         sym = Symbol(h.name)
         # The path may not match this node (a stale or cross-domain selection):
-        # stop walking gracefully rather than throwing FieldError, mirroring the
-        # guards in `set_selection!` / `clear_selection!`. Previously a leading
-        # `TypeReference` *step* kept `h` from being a `FieldReference` here; with
-        # types folded onto nodes, `h` is the navigation step, so guard explicitly.
+        # stop walking gracefully rather than throwing FieldError. In the folded
+        # model `h` is always the navigation step (the node type is a field), so
+        # guard the field's presence explicitly.
         hasproperty(document, sym) || return nothing
         f = getfield(document, sym)
         f isa Cell ? f[] : f
