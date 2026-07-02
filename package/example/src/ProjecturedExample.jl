@@ -15,6 +15,7 @@ using ProjecturedLlm
 const _EXAMPLE_DIR = @__DIR__
 
 include(joinpath(_EXAMPLE_DIR, "document", "Json.jl"))
+include(joinpath(_EXAMPLE_DIR, "document", "Yaml.jl"))
 include(joinpath(_EXAMPLE_DIR, "document", "Xml.jl"))
 include(joinpath(_EXAMPLE_DIR, "document", "Mixed.jl"))
 include(joinpath(_EXAMPLE_DIR, "document", "Natural.jl"))
@@ -52,6 +53,7 @@ include(joinpath(_EXAMPLE_DIR, "document", "Versioning.jl"))
 include(joinpath(_EXAMPLE_DIR, "document", "Dragging.jl"))
 
 include(joinpath(_EXAMPLE_DIR, "projection", "Json.jl"))
+include(joinpath(_EXAMPLE_DIR, "projection", "Yaml.jl"))
 include(joinpath(_EXAMPLE_DIR, "projection", "Table.jl"))
 include(joinpath(_EXAMPLE_DIR, "projection", "Graph.jl"))
 include(joinpath(_EXAMPLE_DIR, "projection", "Xml.jl"))
@@ -104,6 +106,7 @@ export make_json_sorted_projection_example
 export make_json_null_document_example, make_json_null_projection_example
 export make_json_insertion_document_example
 export make_json_string_document_example, make_json_string_projection_example
+export make_yaml_document_example, make_yaml_projection_example
 export make_xml_document_example, make_xml_projection_example, make_xml_widget_projection_example
 export make_json_widget_projection_example, make_syntax_widget_graphics
 export make_mixed_document_example, make_mixed_projection_example
@@ -179,6 +182,7 @@ export json_typein_live, json_select_and_edit_live, json_insert_live, json_build
 export generate_example_screenshots, update_guide_screenshots
 export json_example, json_sorted_example, json_null_example, json_insertion_example, json_string_example
 export json_widget_example, xml_widget_example
+export yaml_example
 export xml_example, mixed_example, natural_example, syntax_example, text_example, plain_text_example, text_with_image_example
 export object_example, object_to_widget_example, nested_object_to_widget_example, line_numbering_example, word_wrapping_example, text_filtering_example, text_highlighting_example
 export widget_example, widget_tabbed_pane_example, widget_text_example
