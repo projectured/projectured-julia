@@ -1,15 +1,16 @@
 """
     DeviceModule
 
-Device interface. Declares per-device and batch I/O functions, all
-dispatched on a `Backend` first argument so the backend provides the
-*how* while the device identifies the *what*.
+Device interface. Declares the batch I/O the editor loop uses to render a
+document to, and poll input from, a set of devices. These are pure interface
+stubs: a concrete backend adds the methods, dispatching on its own backend type
+(e.g. `write_to_devices(::SdlBackend, devices, doc)`). The interface itself names
+no backend type, so `Device` does not depend on `Backend` — the two abstractions
+are independent siblings, and only a concrete implementation binds them together.
 """
 module DeviceModule
 
-import ..BackendModule: Backend
-
-export Device, write_to_device, read_from_device, write_to_devices, read_from_devices
+export Device, write_to_devices, read_from_devices
 
 """
     Device
@@ -19,35 +20,22 @@ Abstract supertype for all I/O devices (screen, keyboard, mouse, …).
 abstract type Device end
 
 """
-    write_to_device(::Backend, device, document)
+    write_to_devices(backend, devices, document)
 
-Render or transmit `document` to a single `device` using the backend.
+Render `document` to all output devices in `devices` using `backend`. A concrete
+backend adds a method dispatched on its own type; there is deliberately no
+catch-all, so an unimplemented backend raises `MethodError` rather than silently
+doing nothing.
 """
-function write_to_device(::Backend, device, document) end
-
-"""
-    read_from_device(::Backend, device)
-
-Poll a single `device` for the next pending input event using the backend.
-Returns `nothing` if no event is available.
-"""
-function read_from_device(::Backend, device) end
+function write_to_devices end
 
 """
-    write_to_devices(::Backend, devices, document)
-
-Render `document` to all output devices in `devices`. Backends with
-shared rendering contexts (e.g. SDL) can override this to batch writes.
-"""
-function write_to_devices(::Backend, devices, document) end
-
-"""
-    read_from_devices(::Backend, devices)
+    read_from_devices(backend, devices) -> event or nothing
 
 Poll all input devices in one shot and return the next event, or `nothing`.
-Backends with a shared event queue (e.g. SDL) override this to poll once
-and classify events across device types.
+A concrete backend adds a method dispatched on its own type (typically polling a
+shared event queue and classifying events across device types).
 """
-function read_from_devices(::Backend, devices) end
+function read_from_devices end
 
 end # module

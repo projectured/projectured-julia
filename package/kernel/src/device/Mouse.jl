@@ -34,8 +34,8 @@ export Mouse, MouseDown, MouseUp, MousePress, MouseMove, MouseScroll, MouseEnter
 """
     Mouse()
 
-A mouse input device. Passed to `read_from_device(backend, mouse)`
-to poll for mouse events.
+A mouse input device. Included among the `devices` passed to
+`read_from_devices(backend, devices)` to poll for mouse events.
 """
 struct Mouse <: Device end
 

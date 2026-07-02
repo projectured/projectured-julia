@@ -32,8 +32,8 @@ export is_ctrl, is_shift, is_alt, is_meta
 """
     Keyboard()
 
-A keyboard input device. Passed to `read_from_device(backend, keyboard)`
-to poll for keyboard events.
+A keyboard input device. Included among the `devices` passed to
+`read_from_devices(backend, devices)` to poll for keyboard events.
 """
 struct Keyboard <: Device end
 
