@@ -223,13 +223,17 @@ end
 # needed; the value field is a plain `String`/`Number`.
 
 # ── Sequence interface for PrimitiveString ────────────────────────────────────
+# Indexing is by **character position** (1-based), consistent with `length` (a
+# character count). The underlying `String` is byte-indexed, so every access goes
+# through character-aware helpers (`collect`, `splice_string`) rather than raw
+# `str[i]`, which would be a byte index and break on multibyte content.
 
 Base.length(s::PrimitiveString) = length(something(s.value, ""))
 
-Base.getindex(s::PrimitiveString, i::Integer) = something(s.value, "")[i]
+Base.getindex(s::PrimitiveString, i::Integer) = collect(something(s.value, ""))[i]
 
 function Base.getindex(s::PrimitiveString, r::UnitRange{Int})
-    PrimitiveString(something(s.value, "")[r])
+    PrimitiveString(String(collect(something(s.value, ""))[r]))
 end
 
 Base.iterate(s::PrimitiveString, state...) = iterate(something(s.value, ""), state...)
@@ -237,11 +241,12 @@ Base.iterate(s::PrimitiveString, state...) = iterate(something(s.value, ""), sta
 Base.isempty(s::PrimitiveString) = isempty(something(s.value, ""))
 
 Base.firstindex(::PrimitiveString) = 1
-Base.lastindex(s::PrimitiveString) = lastindex(something(s.value, ""))
+Base.lastindex(s::PrimitiveString) = length(s)
 
 function Base.setindex!(s::PrimitiveString, ch::AbstractChar, i::Integer)
-    str = something(s.value, "")
-    s.value = str[1:i-1] * string(ch) * str[i+1:end]
+    # Replace the i-th character (multibyte-safe) via the canonical splice helper
+    # on 0-based boundaries [i-1, i].
+    s.value = splice_string(something(s.value, ""), i - 1, i, string(ch))
     return ch
 end
 

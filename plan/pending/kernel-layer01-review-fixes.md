@@ -41,7 +41,7 @@ item here as it lands, and record any decision changes inline.
   with unit tests (folded × skeleton × spliced, both directions) since strict
   `==` makes the junction rule observable.
 
-- [ ] **C2. `PrimitiveString` byte-indexing.** `Base.setindex!(::PrimitiveString,
+- [x] **C2. `PrimitiveString` byte-indexing.** `Base.setindex!(::PrimitiveString,
   ch, i)` splices with byte indices (`str[1:i-1] * … * str[i+1:end]`) and
   `getindex(s, r::UnitRange)` byte-slices, while `splice_string` is deliberately
   character-aware. Multibyte content breaks both. Route them through
