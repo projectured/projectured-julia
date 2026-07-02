@@ -91,6 +91,17 @@ means "in the active editor, character 3 of the value of the first JSON
 object entry". This is the mechanism that lets a single global selection
 mechanism address every cursor in the IDE.
 
+**Keyboard focus follows this selection.** A raw key event (a printable
+`KeyPress`, a `KeyDown`) is offered only to the panel the workbench selection
+currently points at — so clicking into the JSON editor moves typing there rather
+than leaving it in the assistant composer. The assistant composer manages its own
+cursor and forward-projects no selection of its own, and its reader claims every
+printable key; routing raw keys through the selected panel is what stops it from
+swallowing keystrokes meant for another document. When nothing is selected the
+composer keeps focus as the sensible default (so `ENTER` still submits a draft in
+a freshly opened workbench). See the raw-event branch of
+`WorkbenchWorkbenchToWidgetShell`'s `projection_read` in `WorkbenchToWidget.jl`.
+
 ## Where to look for the layout details
 
 The columns, tab bars, scroll panes, and split pane geometry are all

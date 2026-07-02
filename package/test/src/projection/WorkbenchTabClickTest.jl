@@ -21,7 +21,7 @@
 using Projectured: WorkbenchToWidget, RecursiveProjection, ReplaceSelectionOperation,
     ReplaceReferencedValue, evaluate_operation, ConcreteReferencePath, FieldReference,
     RangeReference, GraphicsText, GraphicsCanvas, GraphicsViewport, MousePress, MouseScroll,
-    Modifiers, Change, PrinterContext, EmptyReferencePath
+    Modifiers, Change, PrinterContext, EmptyReferencePath, KeyPress, ComposerInputOperation
 
 # The 1-based active tab index encoded in a tabbed pane's forward-projected
 # `:selection` (shape `selector_element_pairs[i].<rest>`); 0 when no tab is selected
@@ -151,6 +151,38 @@ end
     evaluate_operation((; document = doc), ReplaceReferencedValue(sop.document, "tab_scroll", 100000))
     @test click_selects_editor("table.pred")
     @test !click_selects_editor("book")
+end
+
+# ── Keyboard focus follows the selection (regression) ───────────────────────
+#
+# The shell's raw-key reader used to broadcast every KeyPress/KeyDown to *all*
+# panels, and the assistant composer (whose `insert` binding matches any
+# printable key) always claimed it — so after clicking the JSON editor, typing
+# still landed in the draft message. The reader now offers a raw key only to the
+# panel the workbench selection points at, falling back to the composer's default
+# focus only when nothing is selected.
+@testset "typing routes to the selected panel, not the assistant draft" begin
+    doc  = make_workbench_document_example()
+    proj = make_workbench_projection_example()
+
+    function type_op(ref)
+        ref === nothing || evaluate_operation((; document = doc),
+                                              ReplaceSelectionOperation(ref))
+        iomap = projection_print(proj, doc)
+        ch = projection_read(proj, nothing, Change(KeyPress('X'), nothing), iomap)
+        ch === nothing ? nothing : ch.operation
+    end
+
+    # Nothing selected: the composer keeps the default focus.
+    @test type_op(nothing) isa ComposerInputOperation
+
+    # Selecting the JSON editor takes focus away from the draft — a printable key
+    # no longer becomes a composer edit (no caret in the tab content yet, so it
+    # routes nowhere rather than into the draft).
+    @test !(type_op(@reference editing_page.elements[3]) isa ComposerInputOperation)
+
+    # Selecting the assistant panel routes keys back to the draft composer.
+    @test type_op(@reference control_page.elements[1]) isa ComposerInputOperation
 end
 
 end # @testset

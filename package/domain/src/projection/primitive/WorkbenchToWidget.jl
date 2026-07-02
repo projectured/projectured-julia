@@ -695,27 +695,75 @@ function projection_read(p::WorkbenchWorkbenchToWidgetShell,
     # 3. Other operation types (an identity-rooted ReplaceReferencedValue that
     # targets a widget directly, not a path) — pass through.
     op isa Operation && return op
-    # 4. Raw events (KeyPress / KeyDown). Route them through each panel's
-    # reader so focus-sensitive handlers (currently only the assistant) can
-    # pick them up. Path-bearing results get re-rooted via the panel's
-    # location so `evaluate_operation` can walk the path against the
-    # workbench root.
-    wb2w = WorkbenchToWidget()
+    # 4. Raw events (KeyPress / KeyDown). Focus follows the workbench selection:
+    # offer the key ONLY to the panel the selection currently points at, so
+    # clicking the JSON editor moves typing there instead of the assistant
+    # composer. The composer grabs every printable key (its `insert` binding
+    # matches any KeyPress) and forward-projects no selection of its own, so a
+    # blind broadcast to every panel here let it swallow the keystroke no matter
+    # where the selection was — clicking the JSON document could never take focus
+    # away from the draft. A panel that declines (its reader hands the raw key
+    # back rather than an Operation — e.g. an editor tab passing a plain character
+    # down to its own text cursor) yields `nothing`, so the normal output→input
+    # threading then routes the key through the forward-projected selection to the
+    # focused descendant.
+    sel_panel = _selected_panel(iomap)
+    if sel_panel !== nothing
+        field_name, elem_idx, elem_iomap = sel_panel
+        return _panel_raw_key(field_name, elem_idx, elem_iomap, op)
+    end
+    # No panel is selected (a fresh workbench, nothing clicked yet): the assistant
+    # composer keeps the default focus, so offer the key to each panel — only the
+    # assistant claims a raw key. Guards the "ENTER through the nested workbench"
+    # path (ConversationPanelTest); once anything is clicked, the selection-gated
+    # branch above takes over.
     for (field_name, page_iomap) in (("navigation_page",  iomap.navigation_page_iomap),
                                       ("editing_page",     iomap.editing_page_iomap),
                                       ("information_page", iomap.information_page_iomap),
                                       ("control_page",     iomap.control_page_iomap))
         page_iomap isa WorkbenchPageToWidgetTabbedPaneIoMap || continue
         for (elem_idx, elem_iomap) in enumerate(page_iomap.element_iomaps)
-            result = projection_read(wb2w, elem_iomap, op)
-            result isa Operation || continue
-            prefix = (FieldReference(field_name),
-                      FieldReference("elements"),
-                      RangeReference(elem_idx - 1, elem_idx))
-            return _prefix_operation(result, prefix)
+            handled = _panel_raw_key(field_name, elem_idx, elem_iomap, op)
+            handled === nothing || return handled
         end
     end
     return nothing
+end
+
+# The panel `(page_field_name, 1-based index, element iomap)` the workbench
+# selection currently points at, or `nothing` when the selection is empty or
+# does not name a panel. A selection is `page.elements[i].<rest>`: match the
+# leading page field, then the `elements` field and its index step (type
+# checkpoints fold into the nodes, so `elements` and `[i]` are two nodes).
+function _selected_panel(iomap::WorkbenchWorkbenchToWidgetShellIoMap)
+    sel = getfield(iomap.input, :selection)[]
+    sel isa ConcreteReferencePath || return nothing
+    sel.head isa FieldReference || return nothing
+    page_iomap = sel.head.name == "navigation_page"  ? iomap.navigation_page_iomap  :
+                 sel.head.name == "editing_page"     ? iomap.editing_page_iomap      :
+                 sel.head.name == "information_page" ? iomap.information_page_iomap  :
+                 sel.head.name == "control_page"     ? iomap.control_page_iomap      : nothing
+    page_iomap isa WorkbenchPageToWidgetTabbedPaneIoMap || return nothing
+    rest = sel.tail
+    (rest isa ConcreteReferencePath && rest.head isa FieldReference &&
+        rest.head.name == "elements") || return nothing
+    rest = rest.tail
+    (rest isa ConcreteReferencePath && rest.head isa RangeReference) || return nothing
+    idx = rest.head.start + 1
+    (1 <= idx <= length(page_iomap.element_iomaps)) || return nothing
+    (sel.head.name, idx, page_iomap.element_iomaps[idx])
+end
+
+# Offer a raw event to a single panel's reader, re-rooting a produced Operation
+# under `page.elements[idx]`. Returns `nothing` when the panel declines (its
+# reader returns a non-Operation, e.g. the raw key passed straight through so it
+# can be threaded to the panel's own text cursor instead).
+function _panel_raw_key(field_name, elem_idx, elem_iomap, op)
+    result = projection_read(WorkbenchToWidget(), elem_iomap, op)
+    result isa Operation || return nothing
+    _prefix_operation(result, (FieldReference(field_name),
+                               FieldReference("elements"),
+                               RangeReference(elem_idx - 1, elem_idx)))
 end
 
 # Prepend `prefix_steps` to the path inside `op`, if the op carries a path.
