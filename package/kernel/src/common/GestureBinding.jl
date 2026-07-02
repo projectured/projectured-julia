@@ -369,7 +369,13 @@ function collect_gestures(p::Projection, recursion, iomap)
     result = GestureBinding[]
     append!(result, projection_gestures(p, iomap))
     input = hasproperty(iomap, :input) ? iomap.input : nothing
-    input isa Document && append!(result, document_gestures(typeof(input)))
+    if input isa Document
+        # Per-instance bindings first (they shadow same-pattern type defaults in
+        # the reader), then the per-type table — the same order `read_document_gesture`
+        # fires, so the help window shows exactly what would fire.
+        append!(result, instance_gestures(input))
+        append!(result, document_gestures(typeof(input)))
+    end
     return result
 end
 
