@@ -34,25 +34,25 @@ make_backend(::Val{K}; kwargs...) where {K} = error(
     "No backend registered for :$(K). Is the package/extension that provides it loaded?")
 
 """
-    init!(::Backend)
+    init!(backend)
 
 Initialise the backend (create windows, load libraries, …).
 """
-function init!(::Backend) end
+function init! end
 
 """
-    quit!(::Backend)
+    quit!(backend)
 
 Tear down the backend and release resources.
 """
-function quit!(::Backend) end
+function quit! end
 
 """
-    measure_text(::Backend, text, font) -> (Int, Int)
+    measure_text(backend, text, font) -> (Int, Int)
 
 Return the `(pixel_width, pixel_height)` of `text` rendered in `font`.
 """
-function measure_text(::Backend, text, font) end
+function measure_text end
 
 """
     pointer_position(::Backend) -> (x, y)
