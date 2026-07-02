@@ -53,7 +53,7 @@ function test_xml_parser()
 
         # Entity unescaping in text.
         ent = xmlparse("<p>a &amp; b &lt; c</p>")
-        @test ent.children[1][] == "a & b < c"
+        @test ent.children[1].content == "a & b < c"
 
         # Mismatched close tag errors.
         @test_throws Exception xmlparse("<a></b>")

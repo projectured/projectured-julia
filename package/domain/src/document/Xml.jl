@@ -11,11 +11,11 @@ The domain includes:
 """
 module XmlModule
 
-import ..ReactiveModule: Cell, setfn!, setval!
+import ..ReactiveModule: Cell
 import ..DocumentModule: Document, @document
 import ..CollectionModule: CellVector
 import ..ReferenceModule: Reference
-export XmlDocument, XmlInsertion, XmlText, XmlAttribute, XmlElement, xmlattr, setattr!, deleteattr!, setfn!,
+export XmlDocument, XmlInsertion, XmlText, XmlAttribute, XmlElement, setattr!, deleteattr!,
        IXmlInsertion, IXmlText, IXmlAttribute, IXmlElement
 
 abstract type XmlDocument <: Document end
@@ -34,8 +34,7 @@ end
 # ── Attribute ─────────────────────────────────────────────────────────────
 
 """
-An XML attribute, a first-class document so the selection can descend into its
-value. Supports `[]` / `[]=` on the value.
+An XML attribute, a first-class document so the selection can descend into its value.
 """
 @document struct XmlAttribute <: XmlDocument
     name::String
@@ -43,28 +42,15 @@ value. Supports `[]` / `[]=` on the value.
     selection::Reference = nothing
 end
 
-# convenience: an `XmlAttribute` holding the given plain string value
-xmlattr(name::AbstractString, value::AbstractString) = XmlAttribute(name, value)
-
-Base.getindex(a::XmlAttribute) = a.value::String
-Base.setindex!(a::XmlAttribute, v::AbstractString) = (a.value = String(v))
-setfn!(a::XmlAttribute, f::Function) = (setfn!(getfield(a, :value), f); a)
-setval!(a::XmlAttribute, v::AbstractString) = (setval!(getfield(a, :value), String(v)); a)
-
 # ── Text node ─────────────────────────────────────────────────────────────
 
 """
-A text node in an XML element. Supports `[]` / `[]=` on the content.
+A text node in an XML element.
 """
 @document struct XmlText <: XmlDocument
     content::String
     selection::Reference = nothing
 end
-
-Base.getindex(t::XmlText) = t.content::String
-Base.setindex!(t::XmlText, v::AbstractString) = (t.content = String(v))
-setfn!(t::XmlText, f::Function) = (setfn!(getfield(t, :content), f); t)
-setval!(t::XmlText, v::AbstractString) = (setval!(getfield(t, :content), String(v)); t)
 
 # ── Element ───────────────────────────────────────────────────────────────
 
