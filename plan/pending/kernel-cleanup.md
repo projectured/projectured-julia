@@ -167,14 +167,48 @@ layer-module middle ground keeps the boundaries that the architecture docs teach
 
 ## Execution plan (phased, each phase independently landable)
 
-### Phase 0 — hygiene, no structural change
-- [ ] Fix docstring rot: extension→package wording in `ProjecturedKernel.jl`, `Llm.jl`,
+### Phase 0 — hygiene, no structural change  **(DONE 2026-07-02)**
+- [x] Fix docstring rot: extension→package wording in `ProjecturedKernel.jl`, `Llm.jl`,
       `Mcp.jl`; stale `program/src`/`program/ext`/`backend/Sdl.jl` paths.
-- [ ] Rewrite the include-list section comments to tell the truth (or reorder includes
+      Done: rewrote the module docstring + Llm/Mcp include comments to the standalone
+      `ProjecturedLlm` (`package/llm`) / `ProjecturedMcp` (`package/mcp`) reality;
+      `AnthropicModule.stream_message` → `ProjecturedLlm.stream_message` (2 spots in
+      `Llm.jl`); `program/src/common/Projection.jl` → `package/kernel/src/...`;
+      `backend/Sdl.jl` → the opt-in `ProjecturedSdl` (`package/sdl`). Full
+      `grep -rn "program/src|program/ext|Ext extension|weakdep|AnthropicModule|
+      ProjecturedLLMExt|ProjecturedMCPExt|backend/Sdl" package/kernel/src` now clean.
+- [x] Rewrite the include-list section comments to tell the truth (or reorder includes
       into honest sections where no dependency forbids it).
-- [ ] Export (or stop importing) the EventCase internals used by GestureBinding.
-- [ ] Rename the twin basenames: `device/Screen.jl` → `ScreenDevice.jl` (or
+      Done: reordered the 48 includes (same set — verified by diffing the sorted include
+      lists) into honestly-labelled sections: API stubs / Reactive engine / Document core
+      & references / Input devices & events / Foundational documents / Gestures /
+      Projection infrastructure & algebra / Projection defaults / Agent surface / Editor.
+      Moves made: `common/Projection.jl` (ProjectionModule) → after the whole algebra
+      (nothing in the kernel imports it); `editor/PrinterContext.jl` → leads the
+      projection section (its only kernel consumers are projection-side); device modules
+      grouped under "Input devices & events"; `editor/Llm.jl` → the agent-surface section
+      with ToolRegistry + Mcp. Verified two ways: a static topo-check script (every file's
+      `..Module` imports precede it) and the live load below.
+- [x] Export (or stop importing) the EventCase internals used by GestureBinding.
+      **Decision: documented, NOT exported** (and not renamed). Rationale: the
+      `Projectured` umbrella mechanically re-exports *every* exported name of *every*
+      kernel submodule, so exporting `_parse_rule`/`_EVENT_TYPES`/`EvPat`/`EvWild`/
+      `EvBind`/`EvLit`/`EvInterp` would push these internals into the public flat API —
+      strictly worse than a private cross-module import. The private-import seam is left
+      in place with a "deliberately-shared parser internals" note at the definitions in
+      `device/EventCase.jl` and a back-reference at the import site in
+      `common/GestureBinding.jl`. The real fix is the **Phase 2** merge of EventCase +
+      GestureBinding into one gesture module, after which the cross-module import vanishes.
+- [x] Rename the twin basenames: `device/Screen.jl` → `ScreenDevice.jl` (or
       `document/Screen.jl` → `ScreenDocument.jl`).
+      Done **both** renames via `git mv`: `device/Screen.jl` → `device/ScreenDevice.jl`
+      and `document/Screen.jl` → `document/ScreenDocument.jl`. Module names left
+      **unchanged** (`ScreenModule`, `ScreenDocumentModule`) since ProjecturedDomain, the
+      SDL backend and tests alias them by module name. Updated the two `include(...)`
+      lines, the sibling cross-ref inside `ScreenDevice.jl`, and the two live docs
+      (`documentation/architecture.md`, `documentation/devices-and-backends.md`).
+      Historical `plan/done/*.md` archives that mention the old path were left as-is
+      (point-in-time records, mostly under the defunct `program/src/` tree).
 
 ### Phase 1 — guard rails
 - [ ] Add a test (or generator script) that parses each file's `import ..X` headers and
