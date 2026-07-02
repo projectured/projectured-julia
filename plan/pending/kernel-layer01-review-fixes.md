@@ -180,7 +180,7 @@ Layer 1 — core:
   same "steps vector ↔ path" walk. Provide shared helpers in `ReferenceModule`
   (pairs naturally with C1; the rebuild side must be type-preserving or
   explicitly skeleton-producing).
-- [ ] **D4. Include reorder + real `isa`.** `document/Collection.jl` imports
+- [x] **D4. Include reorder + real `isa`.** `document/Collection.jl` imports
   nothing from `OperationModule`, so include it *before* `common/Operation.jl`
   and replace the `nameof(typeof(node)) === :CellVector` name-match hack in
   `_preorder_documents!` with a real import + `isa`.

@@ -20,6 +20,7 @@ import ..OperationApiModule: Operation, evaluate_operation
 import ..DocumentApiModule: Document, clear_selection!, set_selection!, with_selection
 import ..ReferenceModule: ReferencePath, ConcreteReferencePath, EmptyReferencePath, FieldReference, RangeReference, TypeReference, is_element_reference, evaluate_reference, reference_equal, annotate_reference_types, strip_reference_types, append_reference
 import ..ReactiveModule: Cell
+import ..CollectionModule: CellVector
 export NoOperation, ReplaceSelectionOperation, QuitEditorOperation, QuitEditorException, replace_selection!,
        OpenWindowOperation, OpenPopupOperation, CloseWindowOperation, ResizeWindowOperation, ToggleCollapseOperation,
        ReplaceReferencedValue, replace_document, insert_elements, delete_elements, SelectNextInsertionOperation,
@@ -416,16 +417,16 @@ end
 # Pre-order Document walk building set_selection!-compatible paths: FieldReference
 # for fields, RangeReference(i-1, i) for CellVector elements (a raw `CellVector`
 # field is itself a Document, reached by its field then indexed). Skips `selection`
-# and guards cycles/shared substructure by identity. `CellVector` is matched by
-# type name (not `isa`) so this file need not import `CollectionModule`, which
-# loads after `Operation.jl` — and so an `@forward_vector` Document (indexable but
-# holding its sequence in a field) is not mistaken for a raw element vector.
+# and guards cycles/shared substructure by identity. Matching `CellVector` by `isa`
+# (CollectionModule loads before this file) keeps an `@forward_vector` Document
+# (indexable but holding its sequence in a field) from being mistaken for a raw
+# element vector.
 function _preorder_documents!(node, path::ReferencePath, seen, out)
     node isa Document || return
     node in seen && return
     push!(seen, node)
     push!(out, (path, node))
-    if nameof(typeof(node)) === :CellVector
+    if node isa CellVector
         for i in 1:length(node)
             _preorder_documents!(node[i], append_reference(path, RangeReference(i - 1, i)), seen, out)
         end

@@ -43,16 +43,19 @@ include("api/Agent.jl")
 # ── Document core & references ──────────────────────────────────────────────
 # Reactive-backed Document/IoMap, the reference machinery, operations, and the
 # foundational document vocabulary (Collection, Primitive) the engine depends
-# on. OperationRerooting needs Operation + Primitive, so it closes the section.
-# Change (the reader's backward-flowing protocol type) is a dependency-free leaf.
+# on. Collection precedes Operation so the latter can dispatch on `CellVector`
+# directly (a pre-order walk needs it); Operation precedes Primitive, which
+# imports its splice helpers; OperationRerooting needs Operation + Primitive, so
+# it closes the section. Change (the reader's backward-flowing protocol type) is
+# a dependency-free leaf.
 include("common/Change.jl")
 include("common/Document.jl")
 include("common/IoMap.jl")
 include("reference/Reference.jl")
 include("reference/ReferenceCase.jl")
 include("reference/ReferenceBuilder.jl")
-include("common/Operation.jl")
 include("document/Collection.jl")
+include("common/Operation.jl")
 include("document/Primitive.jl")
 include("common/OperationRerooting.jl")
 
