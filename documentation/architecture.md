@@ -214,7 +214,7 @@ composes with any higher-order projection.
 | `backend/Console.jl` | Terminal backend: renders the **Text** domain (a `TextText`) to the terminal with ANSI colors and reads keystrokes — no `TextToGraphics`/SDL ([devices and backends](devices-and-backends.md#consolebackend)) |
 | `backend/Web.jl` | Web backend: HTTP + WebSocket server, JSON draw-list (with dirty-rect patches), browser renderer in [package/web/assets/](../package/web/assets/) |
 | `backend/Pdf.jl` | SDL-free vector-PDF export (`write_pdf`); hand-rolled TrueType embedding |
-| `device/Screen.jl` | `Screen` device; `QuitEvent` |
+| `device/ScreenDevice.jl` | `Screen` device; `QuitEvent` |
 | `device/Keyboard.jl` | `KeyDown`, `KeyUp`, `KeyPress` |
 | `device/Mouse.jl` | `MouseDown`, `MouseUp`, `MousePress`, `MouseMove`, `MouseScroll` |
 | `editor/Mcp.jl` | MCP server: JSON-RPC over HTTP exposing documents and operations |

@@ -49,7 +49,7 @@ include("common/OperationRerooting.jl")
 # Agent LLM client seam (dependency-free LlmBackend/AnthropicLlm/FakeLlm; the
 # Anthropic HTTP client lives in the `ProjecturedLlm` package, package/llm).
 include("editor/Llm.jl")
-include("document/Screen.jl")
+include("document/ScreenDocument.jl")
 
 # ── Domain-agnostic projection algebra ─────────────────────────────────────
 include("projection/higherorder/Sequential.jl")
@@ -72,7 +72,7 @@ include("projection/generic/Invariably.jl")
 include("projection/generic/Focusing.jl")
 
 # ── Devices, editor loop, agent control surface ────────────────────────────
-include("device/Screen.jl")
+include("device/ScreenDevice.jl")
 include("editor/GestureRecognizer.jl")
 include("editor/ToolRegistry.jl")
 # Mcp.jl holds the dependency-free editor tools; the MCP transport (McpServer,

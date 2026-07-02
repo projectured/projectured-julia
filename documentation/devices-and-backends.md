@@ -24,7 +24,7 @@ projection pipeline, or domains changes.
 
 | Device | Defined in | Purpose |
 |---|---|---|
-| `Screen` | `device/Screen.jl` | Output surface — native windows are reconciled on demand against the projection-output `ScreenDocument` |
+| `Screen` | `device/ScreenDevice.jl` | Output surface — native windows are reconciled on demand against the projection-output `ScreenDocument` |
 | `Keyboard` | `device/Keyboard.jl` | Input — emits `KeyPress(char::Char)` for character input and `KeyDown(key::Symbol, modifiers::Modifiers)` for navigation |
 | `Mouse` | `device/Mouse.jl` | Input — emits `MouseDown`, `MouseUp`, `MousePress`, `MouseMove`, `MouseScroll` |
 
