@@ -248,10 +248,10 @@ end
     # widget is focused) so a pure selection move never rebuilds the elements vector
     # — printer-locality dimension A. Focus drives its w/h from 0 (hidden; the
     # renderer skips a zero-size rect) to the full control bounds. The ring is the
-    # transparent-fill (a=0) bordered (border_width>0) rect. Distinct instances per
+    # transparent-fill (color.alpha=0) bordered (border_width>0) rect. Distinct instances per
     # case, since each ring's lazy w/h reads its own widget's live selection.
     _ring(canvas) = let els = [e isa Cell ? e[] : e for e in collect(canvas.elements)]
-        i = findfirst(e -> e isa GraphicsRect && Int(e.a) == 0 && Int(e.border_width) > 0, els)
+        i = findfirst(e -> e isa GraphicsRect && e.color.alpha == 0 && Int(e.border_width) > 0, els)
         i === nothing ? nothing : els[i]
     end
     for mk in (() -> WidgetButton(Point2D(0, 0), Point2D(80, 30), "Go"),
