@@ -23,7 +23,7 @@ slot's dependents, not the entire collection.
 module CollectionModule
 
 import ..ReactiveModule: Cell, setfn!, setval!
-import ..DocumentModule: Document, @document, @forward
+import ..DocumentModule: Document, copy_document, @document, @forward
 import ..ReferenceModule: Reference
 export CellVector, CellMatrix, CellTable, ListNode, CollectionDocument,
        left_tail, right_tail, cell_at, take_first_n,
@@ -439,5 +439,13 @@ Documents use either `CellVector` (finite, eager) or `ListNode`
 (potentially infinite, lazy).
 """
 const CollectionDocument = Union{CellVector, CellMatrix, CellTable, ListNode}
+
+# ── Deep copy ──────────────────────────────────────────────────────────────
+# `CellVector`-specific case of `DocumentModule.copy_document` (the generic and
+# `Document` methods live in `Document.jl`). The generic `Document` path would
+# shallow-share `elements`' inner `Cell`s, so clone each element into a fresh
+# `Cell`; `selection` resets to `nothing` via the `CellVector` constructor.
+copy_document(cv::CellVector) =
+    CellVector(Cell[Cell(copy_document(cv[i])) for i in 1:length(cv)])
 
 end # module

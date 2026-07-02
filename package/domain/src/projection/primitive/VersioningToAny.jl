@@ -46,7 +46,7 @@ import ..PrimitiveModule: StringReplaceRangeOperation, NumberReplaceRangeOperati
 import ..ReactiveModule: Cell
 import ..DocumentModule: Document
 import ..DocumentCoreModule: DocumentNothing
-import ..DocumentCopyModule: copy_document
+import ..DocumentModule: copy_document
 import ..VersioningModule: VersionedObject, ObjectVersion, VersionProperties,
                           VersionCriterion, VersionCriterionLatest, select_version
 import ..CollectionModule: CellVector

@@ -11,7 +11,8 @@ module DocumentModule
 import ..DocumentApiModule: Document
 import ..ReactiveModule: Cell
 
-export Document, selection, @document, @forward, @forward_vector, @forward_map
+export Document, selection, copy_document,
+       @document, @forward, @forward_vector, @forward_map
 
 """
     selection(doc::Document)
@@ -405,6 +406,46 @@ macro forward_map(T, field, keyfield, valfield, ctor)
             ((Base.getproperty(e, $k), Base.getproperty(e, $v)), state + 1)
         end
     end
+end
+
+# ── Deep copy of document subtrees ─────────────────────────────────────────
+# The Julia counterpart of Lisp's `deep-copy`, used by the clipboard / versioning
+# projections' copy / note / paste gestures. Unlike `Base.deepcopy` it understands
+# the `@document` Cell-wrapped field convention, allocates **fresh** `Cell`s so the
+# copy is independent of the original's reactive graph, and **resets** the copy's
+# `selection` to `nothing` rather than duplicating the original's selection path.
+#
+# The `CellVector`-specific method lives in `CollectionModule` (`Collection.jl`),
+# where `CellVector` is defined — it loads after this module, so it extends this
+# `copy_document` there rather than here.
+
+"""
+    copy_document(value)
+
+Recursively clone `value`. For a `Document` every field is cloned into a fresh
+`Cell`, except `selection`, which is reset to `nothing` (the copy starts with no
+selection). Plain immutable leaves (strings, numbers, symbols, reference paths)
+are returned as-is. `CollectionModule` adds a `CellVector` method that clones each
+element into a fresh `Cell`.
+
+The result shares **no** `Cell` with the original, so mutating the original's
+reactive graph after copying leaves the copy untouched.
+"""
+copy_document(value) = value
+
+function copy_document(doc::Document)
+    T = typeof(doc)
+    args = Any[]
+    for nm in fieldnames(T)
+        if nm === :selection
+            push!(args, Cell(nothing))
+        else
+            raw = getfield(doc, nm)
+            val = raw isa Cell ? raw[] : raw
+            push!(args, Cell(copy_document(val)))
+        end
+    end
+    T(args...)
 end
 
 end # module

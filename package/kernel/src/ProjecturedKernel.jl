@@ -37,7 +37,6 @@ include("common/Operation.jl")
 
 # ── Foundational document vocabulary the engine depends on ─────────────────
 include("document/Collection.jl")
-include("common/DocumentCopy.jl")
 include("device/Modifiers.jl")
 include("device/Keyboard.jl")
 include("device/Mouse.jl")
