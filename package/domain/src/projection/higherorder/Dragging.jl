@@ -30,7 +30,7 @@ module DraggingProjectionModule
 
 import ..ProjectionApiModule: projection_print, projection_printer_recurse, projection_read,
                               map_reference_forward, map_reference_backward, Projection
-import ..ChangeModule: Change, as_change
+import ..ChangeModule: Change
 import ..IoMapApiModule: IoMap
 import ..ReactiveModule: Cell
 import ..CollectionModule: CellVector, cell_at
@@ -202,7 +202,7 @@ end
 
 # 3-arg compatibility shim (legacy reader entry point).
 projection_read(p::DraggingProjection, iomap::DraggingProjectionIoMap, payload) =
-    projection_read(p, nothing, as_change(payload), iomap).operation
+    projection_read(p, nothing, Change(payload), iomap).operation
 
 # Hit-test a window pixel `(x, y)` by synthesising a left `MousePress` there and
 # delegating it to the inner chain — exactly the path a real click takes through

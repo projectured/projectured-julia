@@ -23,7 +23,7 @@ import ..ReactiveModule: Cell
 import ..CollectionModule: CellVector
 import ..ProjectionApiModule: projection_print, projection_printer_recurse, projection_read,
                               map_reference_forward, map_reference_backward, Projection
-import ..ChangeModule: Change, as_change
+import ..ChangeModule: Change
 import ..GraphModule: GraphGraph, GraphVertex, GraphEdge
 import ..GraphLayoutModule: GraphLayout, VertexLayout, EdgeLayout, GraphConstraint
 import ..GraphLayoutEngineModule: GraphLayoutEngine, FallbackLayoutEngine, layout_graph

@@ -9,7 +9,7 @@ input domain one step at a time.
 module SequentialProjectionModule
 
 import ..ProjectionApiModule: projection_print, projection_read, map_reference_forward, map_reference_backward, Projection
-import ..ChangeModule: Change, as_change
+import ..ChangeModule: Change
 import ..GestureBindingModule: collect_gestures, GestureBinding
 import ..IoMapModule: SimpleIoMap
 import ..IoMapApiModule: IoMap
@@ -152,7 +152,7 @@ end
 # 3-arg compatibility shim: legacy callers (tests, hit-test recursion) that pass a
 # bare event/operation get it wrapped into a Change and the operation back.
 projection_read(seq::SequentialProjection, iomap::SequentialProjectionIoMap, payload) =
-    projection_read(seq, nothing, as_change(payload), iomap).operation
+    projection_read(seq, nothing, Change(payload), iomap).operation
 
 # Where the reader threads one change through the chain, the collector gathers
 # every stage's gestures (each stage's own input document, plus projection-owned

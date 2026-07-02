@@ -23,7 +23,7 @@ recursion on each new window to produce the output side.
 module WindowManagerProjectionModule
 
 import ..ProjectionApiModule: projection_print, projection_printer_recurse, projection_read, map_reference_forward, map_reference_backward, Projection
-import ..ChangeModule: Change, as_change
+import ..ChangeModule: Change
 import ..IoMapApiModule: IoMap
 import ..ReactiveModule: Cell
 import ..ScreenDocumentModule: ScreenDocument, WindowDocument, EventEnvelope, WindowResizeEvent, WindowCloseRequest, WindowFocusLost
@@ -139,7 +139,7 @@ function _apply_window_ops(iomap, change, inner)
 end
 
 projection_read(p::WindowManagerProjection, iomap::WindowManagerProjectionIoMap, payload) =
-    projection_read(p, nothing, as_change(payload), iomap).operation
+    projection_read(p, nothing, Change(payload), iomap).operation
 
 # Apply Open: add a new window (or update an existing one with the same
 # id) on both the input and the output. The output side requires

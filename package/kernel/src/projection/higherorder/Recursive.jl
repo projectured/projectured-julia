@@ -9,7 +9,7 @@ step, enabling self-referential tree traversal.
 module RecursiveProjectionModule
 
 import ..ProjectionApiModule: projection_print, projection_printer_recurse, projection_read, map_reference_forward, map_reference_backward, Projection
-import ..ChangeModule: Change, as_change
+import ..ChangeModule: Change
 import ..GestureBindingModule: collect_gestures
 export RecursiveProjection
 
@@ -50,7 +50,7 @@ projection_read(rp::RecursiveProjection, recursion, change::Change, iomap) =
     projection_read(rp.child, rp, change, iomap)
 
 projection_read(rp::RecursiveProjection, iomap, payload) =
-    projection_read(rp, nothing, as_change(payload), iomap).operation
+    projection_read(rp, nothing, Change(payload), iomap).operation
 
 # Gather like the reader recurses: pass self as the recursion so the child's
 # gathering re-enters this wrapper.

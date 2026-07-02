@@ -41,7 +41,7 @@ module ClipboardToAnyProjectionModule
 
 import ..ProjectionApiModule: projection_print, projection_printer_recurse, projection_read,
                               map_reference_forward, map_reference_backward, Projection
-import ..ChangeModule: Change, as_change
+import ..ChangeModule: Change
 import ..OperationApiModule: Operation, evaluate_operation
 import ..OperationModule: ReplaceSelectionOperation, ReplaceReferencedValue, replace_document,
                           insert_elements, delete_elements, CompoundOperation
@@ -573,9 +573,9 @@ end
 
 # 3-arg legacy shims (used by tests and any parent that hands a bare payload).
 projection_read(p::ClipboardSliceToAnyProjection, iomap::ClipboardSliceToAnyProjectionIoMap, payload) =
-    projection_read(p, nothing, as_change(payload), iomap).operation
+    projection_read(p, nothing, Change(payload), iomap).operation
 projection_read(p::ClipboardCollectionToAnyProjection, iomap::ClipboardCollectionToAnyProjectionIoMap, payload) =
-    projection_read(p, nothing, as_change(payload), iomap).operation
+    projection_read(p, nothing, Change(payload), iomap).operation
 
 # ── Operation re-rooting ───────────────────────────────────────────────────────
 # Prepend `steps` to the reference path carried by a delegated content operation,

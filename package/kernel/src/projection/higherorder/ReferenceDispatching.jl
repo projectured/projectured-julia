@@ -11,7 +11,7 @@ reference path.
 module ReferenceDispatchingModule
 
 import ..ProjectionApiModule: projection_print, projection_read, map_reference_forward, map_reference_backward, Projection
-import ..ChangeModule: Change, as_change
+import ..ChangeModule: Change
 import ..ReferenceModule: ReferencePath, EmptyReferencePath, ConcreteReferencePath,
                           FieldReference, RangeReference, PointReference, ProjectionReference,
                           head, tail, reference_equal, is_prefix_of
@@ -88,7 +88,7 @@ function projection_read(rdp::ReferenceDispatchingProjection, recursion, change:
 end
 
 projection_read(rdp::ReferenceDispatchingProjection, iomap::ReferenceDispatchingIoMap, payload) =
-    projection_read(rdp, nothing, as_change(payload), iomap).operation
+    projection_read(rdp, nothing, Change(payload), iomap).operation
 
 function map_reference_forward(::ReferenceDispatchingProjection, iomap::ReferenceDispatchingIoMap, reference)
     proj = _dispatch_proj(iomap.projection, iomap.reference)

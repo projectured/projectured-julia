@@ -2,13 +2,13 @@
     ChangeModule
 
 The backward-flowing unit of the reader pipeline — the reader-side protocol data
-type (`Change`) plus its `as_change` shim. It is a concrete data vehicle, not an
-interface to implement, so it lives in `common/` rather than the pure-interface
-`api/` tier; readers import `Change`/`as_change` from here directly.
+type `Change`. It is a concrete data vehicle, not an interface to implement, so it
+lives in `common/` rather than the pure-interface `api/` tier; readers import
+`Change` from here directly.
 """
 module ChangeModule
 
-export Change, as_change
+export Change
 
 """
     Change(gesture, operation = nothing)
@@ -35,18 +35,5 @@ struct Change
 end
 
 Change(gesture) = Change(gesture, nothing)
-
-"""
-    as_change(payload) -> Change
-
-Wrap a legacy reader payload (a raw gesture/event, an `EventEnvelope`, or a
-backward-threaded operation) into a `Change`. Used by the 3-argument
-compatibility shims so existing 3-arg `projection_read(projection, iomap, x)`
-call sites keep working against the 4-arg `Change` interface. The payload goes in
-the gesture slot; the generic reader bridge falls back to the gesture slot
-whenever the operation slot is empty, so an operation passed this way is still
-applied correctly.
-"""
-as_change(payload) = payload isa Change ? payload : Change(payload, nothing)
 
 end # module

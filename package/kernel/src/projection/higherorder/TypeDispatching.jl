@@ -9,7 +9,7 @@ across individual projection methods.
 module TypeDispatchingModule
 
 import ..ProjectionApiModule: projection_print, projection_read, map_reference_forward, map_reference_backward, Projection
-import ..ChangeModule: Change, as_change
+import ..ChangeModule: Change
 import ..GestureBindingModule: collect_gestures, GestureBinding
 export TypeDispatchingProjection
 
@@ -66,7 +66,7 @@ function projection_read(tdp::TypeDispatchingProjection, recursion, change::Chan
 end
 
 projection_read(tdp::TypeDispatchingProjection, iomap, payload) =
-    projection_read(tdp, nothing, as_change(payload), iomap).operation
+    projection_read(tdp, nothing, Change(payload), iomap).operation
 
 # Gather from the projection that matches the (transparent) input's type, exactly
 # as the reader dispatches to it.

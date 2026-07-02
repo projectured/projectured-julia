@@ -23,7 +23,7 @@ caller threads one state object through every decorator so the toggle is stable.
 module GestureHelpDecoratorProjectionModule
 
 import ..ProjectionApiModule: projection_print, projection_read, map_reference_forward, map_reference_backward, Projection
-import ..ChangeModule: Change, as_change
+import ..ChangeModule: Change
 import ..IoMapApiModule: IoMap
 import ..OperationModule: OpenWindowOperation, CloseWindowOperation
 import ..OperationApiModule: Operation
@@ -108,7 +108,7 @@ function projection_read(p::GestureHelpProjection, recursion, change::Change, io
 end
 
 projection_read(p::GestureHelpProjection, iomap::GestureHelpProjectionIoMap, payload) =
-    projection_read(p, nothing, as_change(payload), iomap).operation
+    projection_read(p, nothing, Change(payload), iomap).operation
 
 # ── Reference mapping (transparent — output is the inner's output) ──────────
 

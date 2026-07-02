@@ -10,7 +10,7 @@ sufficient discriminator.
 module PredicateDispatchingModule
 
 import ..ProjectionApiModule: projection_print, projection_read, map_reference_forward, map_reference_backward, Projection
-import ..ChangeModule: Change, as_change
+import ..ChangeModule: Change
 export PredicateDispatchingProjection
 
 """
@@ -64,7 +64,7 @@ function projection_read(pdp::PredicateDispatchingProjection, recursion, change:
 end
 
 projection_read(pdp::PredicateDispatchingProjection, iomap, payload) =
-    projection_read(pdp, nothing, as_change(payload), iomap).operation
+    projection_read(pdp, nothing, Change(payload), iomap).operation
 
 function map_reference_forward(::PredicateDispatchingProjection, iomap, reference)
     return nothing

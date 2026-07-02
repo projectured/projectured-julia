@@ -22,7 +22,7 @@ module WidgetPopupResolverProjectionModule
 import ..ProjectionApiModule: projection_print, projection_read,
                               map_reference_forward, map_reference_backward,
                               Projection
-import ..ChangeModule: Change, as_change
+import ..ChangeModule: Change
 import ..IoMapApiModule: IoMap
 import ..OperationModule: OpenPopupOperation, OpenWindowOperation
 import ..WidgetToGraphicsModule: anchor_point
@@ -75,7 +75,7 @@ function projection_read(p::WidgetPopupResolverProjection, recursion, change::Ch
 end
 
 projection_read(p::WidgetPopupResolverProjection, iomap::WidgetPopupResolverProjectionIoMap, payload) =
-    projection_read(p, nothing, as_change(payload), iomap).operation
+    projection_read(p, nothing, Change(payload), iomap).operation
 
 # ── Reference mapping (passthrough — transparent on print) ─────────────────
 

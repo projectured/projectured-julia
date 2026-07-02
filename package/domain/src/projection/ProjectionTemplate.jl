@@ -32,7 +32,7 @@ import ..CollectionModule: CellVector
 import ..IoMapApiModule: IoMap
 import ..ProjectionApiModule: map_reference_forward, map_reference_backward, projection_read, Projection,
                               projection_printer_recurse
-import ..ChangeModule: as_change
+import ..ChangeModule: Change
 # Bind the module itself so `@projection_template` can emit a module-qualified
 # `ProjectionApiModule.projection_print` method-definition name (see the macro).
 import ..ProjectionApiModule
@@ -1258,7 +1258,7 @@ end
 # both match `(RecursiveProjection, RuleIoMap, evt)`, neither more specific. Defer
 # to the wrapper so it threads the read into its child projection.
 projection_read(rp::RecursiveProjection, iomap::RuleIoMap, evt::Union{KeyPress, KeyDown}) =
-    projection_read(rp, nothing, as_change(evt), iomap).operation
+    projection_read(rp, nothing, Change(evt), iomap).operation
 
 # Value-edit retype (atomic) + plain String/Number retargeting (both shapes).
 function projection_read(p::Projection, iomap::RuleIoMap, op::StringReplaceRangeOperation)
@@ -1293,9 +1293,9 @@ end
 # `Projection`/exact-op reader on arg 3) defers to the wrapper, which threads the
 # read into its child projection.
 projection_read(rp::RecursiveProjection, iomap::RuleIoMap, op::StringReplaceRangeOperation) =
-    projection_read(rp, nothing, as_change(op), iomap).operation
+    projection_read(rp, nothing, Change(op), iomap).operation
 projection_read(rp::RecursiveProjection, iomap::RuleIoMap, op::ReplaceSelectionOperation) =
-    projection_read(rp, nothing, as_change(op), iomap).operation
+    projection_read(rp, nothing, Change(op), iomap).operation
 
 # ── Sugar ─────────────────────────────────────────────────────────────────────
 

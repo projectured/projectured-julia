@@ -39,7 +39,7 @@ module VersioningToAnyProjectionModule
 
 import ..ProjectionApiModule: projection_print, projection_printer_recurse, projection_read,
                               map_reference_forward, map_reference_backward, Projection
-import ..ChangeModule: Change, as_change
+import ..ChangeModule: Change
 import ..OperationApiModule: Operation, evaluate_operation
 import ..OperationModule: ReplaceSelectionOperation, ReplaceReferencedValue,
                           insert_elements, delete_elements, CompoundOperation
@@ -232,7 +232,7 @@ end
 
 # 3-arg legacy shim (used by tests and any parent that hands a bare payload).
 projection_read(p::VersioningToAnyProjection, iomap::VersioningToAnyProjectionIoMap, payload) =
-    projection_read(p, nothing, as_change(payload), iomap).operation
+    projection_read(p, nothing, Change(payload), iomap).operation
 
 # Own gestures (create/delete version) plus the selected value's, so the help
 # window shows both -- the collector mirrors the reader's own-then-delegate shape.

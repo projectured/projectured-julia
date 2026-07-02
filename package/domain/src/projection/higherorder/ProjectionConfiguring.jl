@@ -30,7 +30,7 @@ module ProjectionConfiguringProjectionModule
 import ..ProjectionApiModule: projection_print, projection_read,
                               map_reference_forward, map_reference_backward,
                               Projection
-import ..ChangeModule: Change, as_change
+import ..ChangeModule: Change
 import ..IoMapApiModule: IoMap
 import ..WidgetModule: WidgetDocument, WidgetSplitPane, WidgetScrollPane
 import ..ObjectToWidgetModule: ObjectToWidget
@@ -131,7 +131,7 @@ end
 # 3-arg compatibility shim (tests / hit-test recursion).
 projection_read(p::ProjectionConfiguringProjection,
                 iomap::ProjectionConfiguringProjectionIoMap, payload) =
-    projection_read(p, nothing, as_change(payload), iomap).operation
+    projection_read(p, nothing, Change(payload), iomap).operation
 
 # Strip the control split-slot step (`elements[1]`, 0-based start 0) from a
 # reference rooted at our output split pane, returning the remainder (rooted at

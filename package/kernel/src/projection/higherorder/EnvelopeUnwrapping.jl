@@ -22,7 +22,7 @@ nesting above the document.
 module EnvelopeUnwrappingModule
 
 import ..ProjectionApiModule: projection_print, projection_read, map_reference_forward, map_reference_backward, Projection
-import ..ChangeModule: Change, as_change
+import ..ChangeModule: Change
 import ..IoMapApiModule: IoMap
 import ..ScreenDocumentModule: EventEnvelope
 export EnvelopeUnwrappingProjection, EnvelopeUnwrappingIoMap
@@ -63,7 +63,7 @@ function projection_read(p::EnvelopeUnwrappingProjection, recursion, change::Cha
 end
 
 projection_read(p::EnvelopeUnwrappingProjection, iomap::EnvelopeUnwrappingIoMap, payload) =
-    projection_read(p, nothing, as_change(payload), iomap).operation
+    projection_read(p, nothing, Change(payload), iomap).operation
 
 map_reference_forward(p::EnvelopeUnwrappingProjection, iomap::EnvelopeUnwrappingIoMap, reference) =
     map_reference_forward(p.inner, iomap.inner_iomap, reference)

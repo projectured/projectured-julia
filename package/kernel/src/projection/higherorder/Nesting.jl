@@ -14,7 +14,7 @@ Mirrors the design of `nesting.lisp` in the Common Lisp codebase.
 module NestingProjectionModule
 
 import ..ProjectionApiModule: projection_print, projection_printer_recurse, projection_read, map_reference_forward, map_reference_backward, Projection
-import ..ChangeModule: Change, as_change
+import ..ChangeModule: Change
 import ..IoMapApiModule: IoMap
 import ..GestureBindingModule: collect_gestures, GestureBinding
 export NestingProjection, NestingProjectionIoMap
@@ -69,7 +69,7 @@ function projection_read(np::NestingProjection, recursion, change::Change, iomap
 end
 
 projection_read(np::NestingProjection, iomap::NestingProjectionIoMap, payload) =
-    projection_read(np, nothing, as_change(payload), iomap).operation
+    projection_read(np, nothing, Change(payload), iomap).operation
 
 # Gather gestures from the same place the reader delegates to: the first element
 # (or the stored recursion when empty), over the nested child iomap. This lets a

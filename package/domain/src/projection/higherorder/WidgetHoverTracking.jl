@@ -38,7 +38,7 @@ module WidgetHoverTrackingProjectionModule
 import ..ProjectionApiModule: projection_print, projection_read,
                               map_reference_forward, map_reference_backward,
                               Projection
-import ..ChangeModule: Change, as_change
+import ..ChangeModule: Change
 import ..IoMapApiModule: IoMap
 import ..GestureBindingModule: collect_gestures
 import ..MouseModule: MouseMove, MouseEnter, MouseLeave
@@ -142,7 +142,7 @@ end
 
 # 3-arg compatibility shim (tests / hit-test recursion).
 projection_read(p::WidgetHoverTrackingProjection, iomap::WidgetHoverTrackingProjectionIoMap, payload) =
-    projection_read(p, nothing, as_change(payload), iomap).operation
+    projection_read(p, nothing, Change(payload), iomap).operation
 
 # Route a synthetic event through the inner pipeline and return the bare op.
 function _route(p::WidgetHoverTrackingProjection, recursion, child_iomap, event)

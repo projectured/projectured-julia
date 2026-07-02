@@ -19,7 +19,7 @@ sources independently.
 module TooltipDecoratorProjectionModule
 
 import ..ProjectionApiModule: projection_print, projection_printer_recurse, projection_read, map_reference_forward, map_reference_backward, Projection
-import ..ChangeModule: Change, as_change
+import ..ChangeModule: Change
 import ..IoMapApiModule: IoMap
 import ..ReactiveModule: Cell
 import ..ReferenceModule: ReferencePath, ConcreteReferencePath, FieldReference, head, tail
@@ -132,7 +132,7 @@ function projection_read(p::TooltipDecoratorProjection, recursion, change::Chang
 end
 
 projection_read(p::TooltipDecoratorProjection, iomap::TooltipDecoratorProjectionIoMap, payload) =
-    projection_read(p, nothing, as_change(payload), iomap).operation
+    projection_read(p, nothing, Change(payload), iomap).operation
 
 # ── Reference mapping ────────────────────────────────────────────────────
 # The decorator's output is the child's output (the TooltipSource's

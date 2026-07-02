@@ -36,7 +36,7 @@ module HoverProbeProjectionModule
 import ..ProjectionApiModule: projection_print, projection_read,
                               map_reference_forward, map_reference_backward,
                               Projection
-import ..ChangeModule: Change, as_change
+import ..ChangeModule: Change
 import ..IoMapApiModule: IoMap
 import ..MouseModule: MouseMove, MousePress
 import ..OperationModule: ReplaceSelectionOperation, OpenWindowOperation, CloseWindowOperation
@@ -107,7 +107,7 @@ function projection_read(p::HoverProbeProjection, recursion, change::Change, iom
 end
 
 projection_read(p::HoverProbeProjection, iomap::HoverProbeProjectionIoMap, payload) =
-    projection_read(p, nothing, as_change(payload), iomap).operation
+    projection_read(p, nothing, Change(payload), iomap).operation
 
 # Decide the follower-window operation for a probed reference (or `nothing`).
 function _hover_op(p::HoverProbeProjection, iomap::HoverProbeProjectionIoMap, ref)
