@@ -1,7 +1,11 @@
 function make_book_document_example()
     BookBook(
+        "Projectured User Guide",
+        "The Projectured Authors",
         [
             BookChapter(
+                "Introduction",
+                "1",
                 [
                     BookParagraph(
                         TextText(
@@ -23,11 +27,11 @@ function make_book_document_example()
                         BookParagraph(TextText(TextString("Forward and backward reference mapping enables editing.", font_ubuntu_monospace_regular_20, color_default))),
                         BookParagraph(TextText(TextString("Projections are composable via SequentialProjection.", font_ubuntu_monospace_regular_20, color_default))),
                     ]),
-                ];
-                title="Introduction",
-                numbering="1",
+                ],
             ),
             BookChapter(
+                "Projection Pipeline",
+                "2",
                 [
                     BookParagraph(
                         TextText(
@@ -47,11 +51,11 @@ function make_book_document_example()
                         )
                     ),
                     BookPicture("projectured.png"),
-                ];
-                title="Projection Pipeline",
-                numbering="2",
+                ],
             ),
             BookChapter(
+                "Future Work",
+                "3",
                 [
                     BookParagraph(
                         TextText(
@@ -59,12 +63,8 @@ function make_book_document_example()
                             TextString("collaborative editing, and export to HTML and PDF.", font_ubuntu_monospace_regular_20, color_default),
                         )
                     ),
-                ];
-                title="Future Work",
-                numbering="3",
+                ],
             ),
-        ];
-        title="Projectured User Guide",
-        author="The Projectured Authors",
+        ],
     )
 end

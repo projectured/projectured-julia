@@ -8,12 +8,11 @@ Cell.
 """
 module BookModule
 
-import ..ReactiveModule: Cell, setfn!, setval!
+import ..ReactiveModule: Cell
 import ..DocumentModule: Document, @document
 import ..CollectionModule: CellVector
 import ..ReferenceModule: Reference
-import ..TextModule: TextText, TextString
-export BookDocument, BookInsertion, BookBook, BookChapter, BookParagraph, BookList, BookPicture, setfn!,
+export BookDocument, BookInsertion, BookBook, BookChapter, BookParagraph, BookList, BookPicture,
        IBookInsertion, IBookBook, IBookChapter, IBookParagraph, IBookList, IBookPicture
 
 # ── BookDocument (abstract base) ───────────────────────────────────────────────
@@ -36,130 +35,86 @@ end
 # ── BookBook ───────────────────────────────────────────────────────────────
 
 """
-    BookBook(elements; title, author, collapsed)
+    BookBook(title, author, elements)
 
-The top-level book document.  `elements` holds the sequence of child
-nodes (typically `BookChapter`s)..
+The top-level book document.  `title` is required (a leading positional
+argument, so `elements` reaches the `CellVector`-wrapping constructor);
+`author`/`elements` and the `collapsed`/`selection` state all default. The
+projection renders an author line only when `author !== nothing`.  `elements`
+holds the sequence of child nodes (typically `BookChapter`s).
 """
 @document struct BookBook <: BookDocument
     title::String
-    author::Any
-    elements::CellVector
-    collapsed::Bool
-    selection::Reference
+    author::Any = nothing
+    elements::CellVector = CellVector()
+    collapsed::Bool = false
+    selection::Reference = nothing
 end
-
-function BookBook(elements::Vector;
-                  title::AbstractString="",
-                  author=nothing,
-                  collapsed::Bool=false)
-    BookBook(Cell(String(title)), Cell(author),
-             CellVector(Cell[Cell(x) for x in elements]),
-             Cell(collapsed), Cell(nothing))
-end
-
-BookBook(; kwargs...) = BookBook(BookDocument[]; kwargs...)
-
-setfn!(b::BookBook, f::Function) = (setfn!(getfield(b.elements, :elements), () -> Cell[Cell(x) for x in f()]); b)
 
 # ── BookChapter ────────────────────────────────────────────────────────────
 
 """
-    BookChapter(elements; title, numbering, collapsed)
+    BookChapter(title, numbering, elements)
 
-A chapter grouping child nodes..
+A chapter grouping child nodes.  `title` is the required leading argument (so
+`elements` reaches the `CellVector`-wrapping constructor); `numbering` (e.g.
+`"1"`, `""` for none) and the `collapsed`/`selection` state default.
 """
 @document struct BookChapter <: BookDocument
     title::String
-    numbering::String
-    elements::CellVector
-    collapsed::Bool
-    selection::Reference
+    numbering::String = ""
+    elements::CellVector = CellVector()
+    collapsed::Bool = false
+    selection::Reference = nothing
 end
-
-function BookChapter(elements::Vector;
-                     title::AbstractString="",
-                     numbering::AbstractString="",
-                     collapsed::Bool=false)
-    BookChapter(Cell(String(title)), Cell(String(numbering)),
-                CellVector(Cell[Cell(x) for x in elements]),
-                Cell(collapsed), Cell(nothing))
-end
-
-BookChapter(; kwargs...) = BookChapter(BookDocument[]; kwargs...)
-
-setfn!(b::BookChapter, f::Function) = (setfn!(getfield(b.elements, :elements), () -> Cell[Cell(x) for x in f()]); b)
 
 # ── BookParagraph ──────────────────────────────────────────────────────────
 
 """
-    BookParagraph(content; alignment, collapsed)
+    BookParagraph(content)
 
-A prose paragraph.  `content` is typically a `TextText` value
-`alignment` is one of `:left`, `:center`, `:right`, or `:justified`.
+A prose paragraph.  `content` is the required leading argument (typically a
+`TextText` value); `alignment` — one of `:left`, `:center`, `:right`, or
+`:justified` — and the `collapsed`/`selection` state default.
 """
 @document struct BookParagraph <: BookDocument
-    alignment::Symbol
     content::Any
-    collapsed::Bool
-    selection::Reference
+    alignment::Symbol = :left
+    collapsed::Bool = false
+    selection::Reference = nothing
 end
-
-function BookParagraph(content;
-                       alignment::Symbol=:left,
-                       collapsed::Bool=false)
-    BookParagraph(Cell(alignment), Cell(content),
-                  Cell(collapsed), Cell(nothing))
-end
-
-setfn!(b::BookParagraph, f::Function) = (setfn!(getfield(b, :content), f); b)
 
 # ── BookList ───────────────────────────────────────────────────────────────
 
 """
-    BookList(elements; collapsed)
+    BookList(elements)
 
-An unordered list of child nodes..
+An unordered list of child nodes.  Every field defaults, so the sole
+`CellVector` accepts a bracketed vector (`BookList([…])`) or a variadic run of
+nodes.
 """
 @document struct BookList <: BookDocument
-    elements::CellVector
-    collapsed::Bool
-    selection::Reference
+    elements::CellVector = CellVector()
+    collapsed::Bool = false
+    selection::Reference = nothing
 end
-
-function BookList(elements::Vector; collapsed::Bool=false)
-    BookList(CellVector(Cell[Cell(x) for x in elements]), Cell(collapsed), Cell(nothing))
-end
-
-BookList(; kwargs...) = BookList(BookDocument[]; kwargs...)
-
-setfn!(b::BookList, f::Function) = (setfn!(getfield(b.elements, :elements), () -> Cell[Cell(x) for x in f()]); b)
 
 # ── BookPicture ────────────────────────────────────────────────────────────
 
 """
-    BookPicture(content; title, alignment, collapsed)
+    BookPicture(content)
 
-A figure with an optional title.  `content` is an image value
-`alignment` is one of `:left`, `:center`, `:right`, or `:justified`.
+A figure with an optional title.  `content` is the required leading argument
+(an image value or path); `title` and `alignment` — one of `:left`, `:center`,
+`:right`, or `:justified` — and the `collapsed`/`selection` state default.
 """
 @document struct BookPicture <: BookDocument
-    title::String
-    alignment::Symbol
     content::Any
-    collapsed::Bool
-    selection::Reference
+    title::String = ""
+    alignment::Symbol = :left
+    collapsed::Bool = false
+    selection::Reference = nothing
 end
-
-function BookPicture(content;
-                     title::AbstractString="",
-                     alignment::Symbol=:left,
-                     collapsed::Bool=false)
-    BookPicture(Cell(String(title)), Cell(alignment), Cell(content),
-                Cell(collapsed), Cell(nothing))
-end
-
-setfn!(b::BookPicture, f::Function) = (setfn!(getfield(b, :content), f); b)
 
 # Text-replace edits for the book domain are handled generically by
 # `splice_value!` (see OperationApiModule): `title`/`author`/`numbering` are
