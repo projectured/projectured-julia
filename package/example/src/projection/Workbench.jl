@@ -9,7 +9,6 @@ function make_workbench_projection_example(; measure=truetype_measure_text)
     # Dimmed gray for the empty assistant-input "type message here" placeholder.
     hint = StyleColor(0x88/255, 0x88/255, 0x88/255, 1.0)
     text_to_graphics = SequentialProjection(WordWrapping(measure=measure), TextToGraphics(measure=measure))
-    text_to_graphics_no_wrap = TextToGraphics(measure=measure)
     object_chain = SequentialProjection(
         RecursiveProjection(ObjectToSyntax()),
         RecursiveProjection(SyntaxToText()),
@@ -34,7 +33,11 @@ function make_workbench_projection_example(; measure=truetype_measure_text)
         # ConversationDraft precedes ConversationDocument (its subtype).
         conversation_draft_entry(measure=measure),
         conversation_widget_entry(measure=measure),
-        WorkspaceDocument     => SequentialProjection(RecursiveProjection(WorkspaceToFileSystem()), RecursiveProjection(FileSystemToSyntax()), RecursiveProjection(SyntaxToText()), text_to_graphics_no_wrap),
+        # Navigator: render the workspace file system as a native WidgetTree
+        # (icons, chevrons, selection band) — `Workspace → FileSystem →
+        # WidgetTree → Graphics` — matching the real workbench projection
+        # (make_workbench_projection) instead of the generic text tree.
+        WorkspaceDocument     => SequentialProjection(RecursiveProjection(WorkspaceToFileSystem()), RecursiveProjection(FileSystemToWidget()), WidgetToGraphics(font_ubuntu_monospace_regular_20; measure=measure)),
         EditorIntrospection   => object_chain,
     ])
     SequentialProjection(RecursiveProjection(WorkbenchToWidget()), renderer)
