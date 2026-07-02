@@ -3,8 +3,13 @@
 
 Abstract backend interface. A `Backend` encapsulates everything needed to
 initialise, shut down, read input from, and write output to a particular
-display/input system (e.g. SDL). Concrete subtypes live in opt-in backend
-packages such as `ProjecturedSdl` (`package/sdl`).
+display/input system. Concrete subtypes and the methods of the generic functions
+declared here live in **opt-in backend packages** that depend on this kernel;
+this module carries only the abstract type and the forward-declared generics, so
+generic code can name a capability (measure text, write an image, …) without
+referencing any concrete backend at load time. A generic that isn't implemented
+because its backend package isn't loaded raises a `MethodError` (or, for the
+`make_backend` factory seam, a helpful error).
 """
 module BackendModule
 
@@ -57,10 +62,10 @@ function measure_text end
     pointer_position(::Backend) -> (x, y)
 
 The current global mouse pointer position in screen pixels, or `(-1, -1)` when
-the backend cannot report it. Implemented by the SDL backend; used to place a
-follower window (e.g. the hover reference inspector) near the cursor. A
-projection that needs it takes a `pointer` closure over this so it stays free
-of any concrete backend dependency (the same indirection as `measure_text`).
+the backend cannot report it (the default). A caller that needs it — e.g. to
+place a follower window near the cursor — closes over this behind a `pointer`
+callback so it stays free of any concrete backend dependency (the same
+indirection as `measure_text`).
 """
 pointer_position(::Backend) = (-1, -1)
 
@@ -68,40 +73,34 @@ pointer_position(::Backend) = (-1, -1)
     write_image(document, projection, filename; kwargs...)
     write_image(canvas, filename; kwargs...)
 
-Render to a raster image file. Implemented by a rendering backend (currently the
-SDL backend, via offscreen software rendering) — the method lives wherever that
-backend does, so it is only available when that backend's optional dependency is
-loaded. Generic forward-declaration kept here so callers need not name the
-concrete backend module.
+Render to a raster image file. Implemented by a rendering backend package via
+offscreen software rendering; forward-declared here so callers need not name it.
 """
 function write_image end
 
 """
     record_video(document, projection, gestures, filename; kwargs...)
 
-Render a timeline of gestures to a video file. Implemented by the SDL backend
-(offscreen frames assembled with `ffmpeg`), so it requires both the SDL backend
-and `FFMPEG` to be available. Generic forward-declaration kept here so callers
-need not name the concrete backend module.
+Render a timeline of gestures to a video file (offscreen frames assembled into a
+movie). Implemented by a rendering backend package that also has a video encoder
+available; forward-declared here so callers need not name it.
 """
 function record_video end
 
 """
-    render_canvas(canvas::GraphicsCanvas) -> GraphicsImage
+    render_canvas(canvas) -> image
 
-Rasterize a graphics canvas to an image. Implemented by a rendering backend
-(the SDL backend), so it needs that backend's optional dependency. Generic
-forward-declaration so callers (e.g. the graphics-caching projection) need not
-name the concrete backend module.
+Rasterize a graphics-canvas document to an image document. Implemented by a
+rendering backend package; forward-declared here so callers (e.g. a
+graphics-caching projection) need not name it.
 """
 function render_canvas end
 
 """
     decode_image(filename) -> (data::Vector{UInt8}, width, height)
 
-Decode an image file to raw RGBA pixels. Implemented by the SDL backend (the
-only image decoder), so it requires SDL. Generic forward-declaration so callers
-need not name the concrete backend module.
+Decode an image file to raw RGBA pixels. Implemented by a backend package with an
+image decoder; forward-declared here so callers need not name it.
 """
 function decode_image end
 

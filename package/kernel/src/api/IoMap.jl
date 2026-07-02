@@ -1,3 +1,13 @@
+"""
+    IoMapApiModule
+
+IoMap interface. An IoMap is the record a projection's forward pass leaves behind:
+the correspondence between the `input` it consumed and the `output` it produced,
+which the reader and the reference mappers walk to invert the transformation. This
+module declares only the abstract `IoMap` supertype and the three accessors every
+IoMap exposes (`iomap_projection`, `iomap_input`, `iomap_output`); the concrete
+IoMap structs and the `@iomap` macro live in `IoMapModule` (`common/IoMap.jl`).
+"""
 module IoMapApiModule
 
 export IoMap, iomap_projection, iomap_input, iomap_output

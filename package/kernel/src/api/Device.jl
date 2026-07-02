@@ -1,12 +1,12 @@
 """
     DeviceModule
 
-Device interface. Declares the batch I/O the editor loop uses to render a
-document to, and poll input from, a set of devices. These are pure interface
-stubs: a concrete backend adds the methods, dispatching on its own backend type
-(e.g. `write_to_devices(::SdlBackend, devices, doc)`). The interface itself names
-no backend type, so `Device` does not depend on `Backend` — the two abstractions
-are independent siblings, and only a concrete implementation binds them together.
+Device interface. Declares the batch I/O used to render a document to, and poll
+input from, a set of devices. These are pure interface stubs: a concrete backend
+adds the methods, dispatching on its own backend type (e.g.
+`write_to_devices(::SomeBackend, devices, doc)`). The interface itself names no
+backend type, so `Device` does not depend on `Backend` — the two abstractions are
+independent siblings, and only a concrete implementation binds them together.
 """
 module DeviceModule
 

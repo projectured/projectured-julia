@@ -195,11 +195,11 @@ these are the moves available — from the lightest touch to the most involved:
   `StringReplaceRangeOperation` / `NumberReplaceRangeOperation`, or the `.path`
   of a `ReplaceSelectionOperation` (what the default does), then rebuild the op.
 - **Convert to a different operation.** It is perfectly valid to turn the
-  incoming operation into a *completely different* one — retype it (e.g.
-  `JsonNumberToSyntaxLeaf` turns an incoming `StringReplaceRangeOperation` into a
-  `NumberReplaceRangeOperation` so the evaluator re-parses the value), or replace
-  it outright with whatever operation expresses the same intent in this
-  projection's input domain.
+  incoming operation into a *completely different* one — retype it (e.g. a
+  projection over a numeric leaf turns an incoming `StringReplaceRangeOperation`
+  into a `NumberReplaceRangeOperation` so the evaluator re-parses the edited text
+  as a number), or replace it outright with whatever operation expresses the same
+  intent in this projection's input domain.
 - **Recurse, then extend.** When `projection_print` descended into children, the
   reader mirrors it: forward the event/operation to the matching child's
   `projection_read`, take the operation it returns, and extend that operation to
@@ -238,26 +238,26 @@ its docstring), so getting it right gives the forward cursor mapping for free.
   other domains (see [documentation/projection-system.md](../../../documentation/projection-system.md)).
 - **The output domain may be coordinates, not only structure.** "Output
   reference" means *whatever reference addresses this projection's output
-  domain*. At the bottom of a render chain that is the **graphics** domain, where
+  domain*. At the bottom of a render chain that is a **coordinate** domain, where
   a positioned element's image is a `PointReference` (its location), not a
   structural path. So a forward map legitimately returns a `PointReference` once
-  the chain reaches graphics. A container that places a child at a pixel offset
-  then contributes **only its own offset**: if the child's image is a
+  the chain reaches that coordinate domain. A container that places a child at a
+  pixel offset then contributes **only its own offset**: if the child's image is a
   `PointReference` (a coordinate), add this container's offset to it; if it is a
   structural path, prepend / pass the structural steps unchanged. Distinguish by
   the *result*, never by the child's type — **coordinates accumulate, paths stay
   paths**. This is what lets the one mapper serve both selection wiring (paths)
-  and position resolution (coordinates — e.g. anchoring a popup window to the
-  widget that triggered it).
+  and position resolution (coordinates — e.g. anchoring a follower element to the
+  one that triggered it).
 - **Do not add a parallel "resolve position" generic.** Because forward mapping
   is this *single* recursive map method, every compositional wrapper
   (`SequentialProjection`, `RecursiveProjection`, `TypeDispatchingProjection`, …)
   already threads or composes it for free. A second generic for coordinate
   resolution would force each of those wrappers to re-implement the same
   composition. Reuse `map_reference_forward` instead: a projection takes part
-  just by mapping its own one step. Widgets nest in any container and vice versa
-  precisely because each step is self-contained — peel your step, delegate the
-  tail, add only your own contribution.
+  just by mapping its own one step. An element nests in any container and vice
+  versa precisely because each step is self-contained — peel your step, delegate
+  the tail, add only your own contribution.
 - If the input reference begins with `ProjectionReference(projection, output_path)`,
   strip that step and return `output_path` directly — it exists precisely to
   embed an already-translated output reference inside an input reference, and
@@ -298,9 +298,9 @@ output. Because `map_reference_forward` strips that same step, the path
 round-trips cleanly. (When a projection's introduced positions are not separately
 addressable — the brackets/commas of a node, say — it is fine to collapse the
 whole group to a single flattened character offset, `ProjectionReference(p,
-{flat})`, which `_syntax_to_flat` inverts; the `*ToSyntax` node readers use this
-for the delimiters they own. Use the fine-grained form above when the individual
-positions matter.)
+{flat})`, which the projection's own flat-offset reader inverts; this is the usual
+choice for the delimiters a node owns. Use the fine-grained form above when the
+individual positions matter.)
 
 ## Coordinates are an input domain too
 

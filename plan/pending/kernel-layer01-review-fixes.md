@@ -102,25 +102,25 @@ Layer 0:
 
 Layer 1 — api stubs:
 
-- [ ] **L3. api/Backend.jl.** Five docstrings each say "Implemented by the SDL
+- [x] **L3. api/Backend.jl.** Five docstrings each say "Implemented by the SDL
   backend"; `render_canvas` types its signature with `GraphicsCanvas ->
   GraphicsImage` (domain types); `pointer_position` cites "the hover reference
   inspector". State the provenance pattern once in the module docstring
   ("methods are registered by opt-in backend packages") and keep per-function
   text and signatures generic.
-- [ ] **L4. api/Projection.jl.** Keep the four-function contract text but move
+- [x] **L4. api/Projection.jl.** Keep the four-function contract text but move
   the domain-package examples (`JsonNumberToSyntaxLeaf`, `_syntax_to_flat`,
   "`*ToSyntax` node readers", graphics/widget/popup-anchoring stories) into
   `documentation/projection-system.md` (already cross-referenced). The
   kernel-resident combinators (`SequentialProjection` …) may stay as examples.
-- [ ] **L5. api/Document.jl.** `document_read` docstring: keep the load-bearing
+- [x] **L5. api/Document.jl.** `document_read` docstring: keep the load-bearing
   `GestureBindingModule` note, drop the `ConsoleBackend`/`TextText`/"(Text,
   Syntax)" domain examples. Also clarify the `Document` selection contract
   wording ("a `selection::Reference` field … stored in a `Cell`"): the struct
   field holds a `Cell`; `document.selection` reads through it via the
   `@document`-generated `getproperty`, so `selection(::Document)` returns the
   path/`nothing`, not the Cell.
-- [ ] **L6. api smaller.** `api/Operation.jl`: drop "concretely an
+- [x] **L6. api smaller.** `api/Operation.jl`: drop "concretely an
   `EditorModule.Editor` in production" and the "used to carry splice_*"
   provenance note. `api/Device.jl`: replace the `SdlBackend` example with a
   generic one. `api/IoMap.jl`: add the missing module docstring (only api file

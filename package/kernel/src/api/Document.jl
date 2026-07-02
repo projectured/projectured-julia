@@ -17,9 +17,11 @@ Abstract base type for all document types.
 
 Two contracts bind every concrete document:
 
-1. **Selection field.** Every document must have a `selection::Reference` field
-   (a `ReferencePath` or `nothing`, stored in a `Cell`) tracking the current
-   selection state.
+1. **Selection field.** Every document must carry a `selection` field holding a
+   `Reference` (a `ReferencePath` or `nothing`) that tracks the current selection.
+   The field is stored in a `Cell`; `document.selection` reads through it (the
+   `@document`-generated `getproperty` unwraps the Cell), so [`selection`](@ref)
+   returns the path/`nothing`, not the Cell itself.
 
 2. **Field names ARE the reference vocabulary.** A `FieldReference("foo")` in a
    selection/reference path is resolved by `getfield(document, :foo)` — so a
@@ -83,14 +85,14 @@ to its own geometry-dependent handling or let the gesture propagate.
 This is the projection-independent half of a domain's reader: any projection
 whose output (or input) is `document` can obtain navigation/editing operations
 without re-implementing them, and a backend that renders the domain directly
-(e.g. ConsoleBackend on a bare TextText) gets them for free.
+(without a projection pipeline) gets them for free.
 
 The catch-all `document_read(::Document, gesture)` is supplied by
 `GestureBindingModule` (`common/GestureBinding.jl`): it interprets the reified
 `document_gestures` table for the document's type, so a domain authored with
-`@gestures` needs no hand-written reader. Concrete `document_read(::SomeDoc, …)`
-methods (Text, Syntax) are more specific and still take precedence; a document
-type with neither a method nor any registered gestures yields `nothing`.
+`@gestures` needs no hand-written reader. A concrete `document_read(::SomeDoc, …)`
+method is more specific and still takes precedence; a document type with neither a
+method nor any registered gestures yields `nothing`.
 """
 function document_read end
 
