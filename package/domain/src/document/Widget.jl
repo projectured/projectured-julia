@@ -260,9 +260,11 @@ operation.
     padding::Inset
     padding_color::StyleColor
     selection::Reference
+    gestures::Any               # per-instance gesture bindings (see instance_gestures)
 end
 
 function WidgetCheckbox(position::Point2D, content;
+                        gestures=GestureBinding[],
                         visible::Bool=true,
                         enabled::Bool=true,
                         margin::Inset=inset_default,
@@ -275,10 +277,11 @@ function WidgetCheckbox(position::Point2D, content;
                    Cell(visible), Cell(enabled), Cell(margin), Cell(margin_color),
                    Cell(border), Cell(border_color),
                    Cell(padding), Cell(padding_color),
-                   Cell(nothing))
+                   Cell(nothing), Cell(gestures))
 end
 
 setfn!(w::WidgetCheckbox, f::Function) = (setfn!(getfield(w, :content), f); w)
+instance_gestures(w::WidgetCheckbox) = w.gestures
 
 # ── WidgetButton ───────────────────────────────────────────────────────────
 
@@ -606,6 +609,7 @@ item (or one bound to a disabled command) is inert.
 @document struct WidgetMenuItem <: WidgetDocument
     content::Any
     action::Any
+    gestures::Any
     command::Any
     icon::Any
     submenu::Any
@@ -623,6 +627,7 @@ end
 
 function WidgetMenuItem(content;
                         action=nothing,
+                        gestures=GestureBinding[],
                         command=nothing,
                         icon=nothing,
                         submenu=nothing,
@@ -637,12 +642,13 @@ function WidgetMenuItem(content;
     # `action` is a callback, not reactive content — store it as a primitive cell
     # value (a computed `Cell(f)` would invoke it on read). Mirrors WidgetButton.
     action_cell = Cell(nothing); setval!(action_cell, action)
-    WidgetMenuItem(Cell(content), action_cell, Cell(command), Cell(icon), Cell(submenu),
+    WidgetMenuItem(Cell(content), action_cell, Cell(gestures), Cell(command), Cell(icon), Cell(submenu),
                    Cell(visible), Cell(enabled), Cell(margin), Cell(margin_color),
                    Cell(border), Cell(border_color),
                    Cell(padding), Cell(padding_color),
                    Cell(nothing), Cell(false))
 end
+instance_gestures(w::WidgetMenuItem) = w.gestures
 
 setfn!(w::WidgetMenuItem, f::Function) = (setfn!(getfield(w, :content), f); w)
 
@@ -1238,10 +1244,13 @@ the logical on/off value.
     anim_from::Float64   # knob fraction [0,1] when the current slide began
     anim_t0::Float64     # editor time (s) when the current slide began; NaN = idle
     selection::Reference
+    gestures::Any        # per-instance gesture bindings (see instance_gestures)
 end
-WidgetSwitch(position::Point2D, checked::Bool=false; visible::Bool=true, enabled::Bool=true, duration::Integer=0) =
+WidgetSwitch(position::Point2D, checked::Bool=false; visible::Bool=true, enabled::Bool=true,
+             duration::Integer=0, gestures=GestureBinding[]) =
     WidgetSwitch(Cell(position), Cell(checked), Cell(visible), Cell(enabled),
-                 Cell(Int(duration)), Cell(0.0), Cell(NaN), Cell(nothing))
+                 Cell(Int(duration)), Cell(0.0), Cell(NaN), Cell(nothing), Cell(gestures))
+instance_gestures(w::WidgetSwitch) = w.gestures
 
 # ── WidgetProgress ──────────────────────────────────────────────────────────
 

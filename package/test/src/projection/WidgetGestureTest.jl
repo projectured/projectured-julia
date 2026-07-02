@@ -5,7 +5,7 @@
 # tables leave a widget's behavior exactly as before. See
 # plan/pending/widget-per-instance-gestures.md.
 
-using Projectured: WidgetButton, WidgetTree, WidgetTreeNode, Point2D,
+using Projectured: WidgetButton, WidgetCheckbox, WidgetSwitch, WidgetTree, WidgetTreeNode, Point2D,
     WidgetToGraphics, Change, PrinterContext,
     SequentialProjection, WidgetHoverTrackingProjection, RecursiveProjection, TypeDispatchingProjection,
     MousePress, KeyDown, Modifiers,
@@ -84,6 +84,37 @@ end
     iomap = projection_print(proj, nothing, btn, PrinterContext())
     @test projection_read(proj, iomap, MousePress(:left, 10, 10, Modifiers())) isa InvokeWidgetActionOperation
     @test projection_read(proj, iomap, MousePress(:right, 10, 10, Modifiers())) === nothing
+end
+
+# ── WidgetCheckbox / WidgetSwitch (same pattern as the button) ───────────────
+# The menu item carries a `gestures` field too and its reader consults it the same
+# way, but it is driven through a heavier menu iomap; it is covered by the shared
+# mechanism rather than a bespoke test here.
+
+@testset "checkbox: a right-click binding fires; left-click still toggles" begin
+    fired = Ref(false)
+    rc = GestureBinding(MousePressPattern(:right, nothing, nothing),
+                        (doc, evt) -> (fired[] = true; NoOperation()),
+                        _always, "context", "test")
+    cb = WidgetCheckbox(Point2D(0, 0), false; gestures = [rc])
+    proj = _bproj()
+    iomap = projection_print(proj, nothing, cb, PrinterContext())
+    op = projection_read(proj, iomap, MousePress(:right, 5, 5, Modifiers()))
+    @test fired[] == true && op isa NoOperation
+    @test projection_read(proj, iomap, MousePress(:left, 5, 5, Modifiers())) isa ReplaceReferencedValue
+end
+
+@testset "switch: a right-click binding fires; left-click still toggles" begin
+    fired = Ref(false)
+    rc = GestureBinding(MousePressPattern(:right, nothing, nothing),
+                        (doc, evt) -> (fired[] = true; NoOperation()),
+                        _always, "context", "test")
+    sw = WidgetSwitch(Point2D(0, 0), false; gestures = [rc])
+    proj = _bproj()
+    iomap = projection_print(proj, nothing, sw, PrinterContext())
+    op = projection_read(proj, iomap, MousePress(:right, 5, 5, Modifiers()))
+    @test fired[] == true && op isa NoOperation
+    @test projection_read(proj, iomap, MousePress(:left, 5, 5, Modifiers())) isa ReplaceReferencedValue
 end
 
 # ── WidgetTree / WidgetTreeNode ──────────────────────────────────────────────

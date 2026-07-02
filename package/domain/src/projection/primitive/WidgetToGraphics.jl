@@ -979,6 +979,7 @@ _checkbox_toggle(w) = ReplaceReferencedValue(w,
 function projection_read(::WidgetCheckboxToGraphicsCanvas, iomap::SimpleIoMap, evt::MousePress)
     w = iomap.input
     w.enabled === false && return nothing   # a disabled checkbox swallows the click
+    op = read_document_gesture(w, evt); op === nothing || return op   # per-instance gestures win
     _checkbox_toggle(w)
 end
 
@@ -987,8 +988,9 @@ end
 # traversal can claim it.
 function projection_read(::WidgetCheckboxToGraphicsCanvas, iomap::SimpleIoMap, evt)
     w = iomap.input
-    (evt isa KeyDown && (evt.key === :return || evt.key === :space)) || return nothing
     w.enabled === false && return nothing
+    op = read_document_gesture(w, evt); op === nothing || return op   # per-instance gestures win
+    (evt isa KeyDown && (evt.key === :return || evt.key === :space)) || return nothing
     _checkbox_toggle(w)
 end
 
@@ -1478,6 +1480,12 @@ projection_read(::WidgetMenuItemToGraphicsCanvas, ::SimpleIoMap, evt) = nothing
 
 function projection_read(p::WidgetMenuItemToGraphicsCanvas, iomap::WidgetMenuItemToGraphicsCanvasIoMap, evt)
     w = iomap.input
+    # Per-instance gestures win over the built-in click/submenu handling (an enabled
+    # item only, matching the built-in gate). Hover crossings below are unaffected.
+    if _menu_item_enabled(w)
+        op = read_document_gesture(w, evt)
+        op === nothing || return op
+    end
     if evt isa MousePress
         # A left click on an enabled item: open its submenu if it has one, else
         # invoke its bound command (Stage 4) or its plain action, and dismiss the
@@ -3486,13 +3494,15 @@ end
 function projection_read(::WidgetSwitchToGraphicsCanvas, iomap::SimpleIoMap, evt::MousePress)
     w = iomap.input
     w.enabled === false && return nothing   # a disabled switch swallows the click
+    op = read_document_gesture(w, evt); op === nothing || return op   # per-instance gestures win
     _switch_toggle(w)
 end
 
 function projection_read(::WidgetSwitchToGraphicsCanvas, iomap::SimpleIoMap, evt)
     w = iomap.input
-    (evt isa KeyDown && (evt.key === :return || evt.key === :space)) || return nothing
     w.enabled === false && return nothing
+    op = read_document_gesture(w, evt); op === nothing || return op   # per-instance gestures win
+    (evt isa KeyDown && (evt.key === :return || evt.key === :space)) || return nothing
     _switch_toggle(w)
 end
 
