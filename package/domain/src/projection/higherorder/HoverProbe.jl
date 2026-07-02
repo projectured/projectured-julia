@@ -39,7 +39,8 @@ import ..ProjectionApiModule: projection_print, projection_read,
 import ..ChangeModule: Change
 import ..IoMapApiModule: IoMap
 import ..MouseModule: MouseMove, MousePress
-import ..OperationModule: ReplaceSelectionOperation, OpenWindowOperation, CloseWindowOperation
+import ..OperationModule: ReplaceSelectionOperation
+import ..ScreenDocumentModule: OpenWindowOperation, CloseWindowOperation
 import ..ReferenceInspectorDocumentModule: ReferenceInspector
 
 export HoverProbeProjection, HoverProbeProjectionIoMap

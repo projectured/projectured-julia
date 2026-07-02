@@ -24,7 +24,7 @@ import ..IoMapApiModule: IoMap
 import ..ReactiveModule: Cell
 import ..ReferenceModule: ReferencePath, ConcreteReferencePath, FieldReference, head, tail
 import ..TooltipDocumentModule: TooltipSource
-import ..OperationModule: OpenWindowOperation, CloseWindowOperation
+import ..ScreenDocumentModule: OpenWindowOperation, CloseWindowOperation
 import ..OperationApiModule: Operation
 
 export TooltipDecoratorProjection, TooltipDecoratorProjectionIoMap

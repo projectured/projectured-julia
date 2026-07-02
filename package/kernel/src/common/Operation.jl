@@ -22,7 +22,7 @@ import ..ReferenceModule: ReferencePath, ConcreteReferencePath, EmptyReferencePa
 import ..ReactiveModule: Cell
 import ..CollectionModule: CellVector
 export NoOperation, ReplaceSelectionOperation, QuitEditorOperation, QuitEditorException, replace_selection!,
-       OpenWindowOperation, OpenPopupOperation, CloseWindowOperation, ResizeWindowOperation, ToggleCollapseOperation,
+       ToggleCollapseOperation,
        ReplaceReferencedValue, replace_document, insert_elements, delete_elements, SelectNextInsertionOperation,
        CompoundOperation, AdjustZoomOperation, AdjustFontZoomOperation, update_selection!,
        splice_string, splice_number, splice_value!
@@ -470,118 +470,10 @@ function evaluate_operation(editor, op::ToggleCollapseOperation)
     target.collapsed = !target.collapsed
 end
 
-"""
-    OpenWindowOperation(; id, title, x, y, width, height, bg, style, content)
-
-Operation that requests a new `WindowDocument` (with the given fields) be
-added to the screen. Produced by `TooltipDecoratorProjection` when a
-tooltip should become visible; intercepted by `WindowManagerProjection`,
-which appends (or updates) the matching `WindowDocument` on its input
-`ScreenDocument.windows`.
-
-The fields mirror `WindowDocument`'s schema 1:1 — the manager hands them
-straight through.
-"""
-struct OpenWindowOperation <: Operation
-    id::Symbol
-    title::String
-    x::Int
-    y::Int
-    width::Int
-    height::Int
-    bg::NTuple{4,UInt8}
-    style::Symbol
-    auto_dismiss::Bool
-    modal::Bool
-    content::Document
-end
-
-OpenWindowOperation(; id::Symbol,
-                      title::AbstractString = "",
-                      x::Integer = -1,
-                      y::Integer = -1,
-                      width::Integer = 0,
-                      height::Integer = 0,
-                      bg::NTuple{4,Integer} = (UInt8(253), UInt8(246), UInt8(227), UInt8(255)),
-                      style::Symbol = :tooltip,
-                      auto_dismiss::Bool = false,
-                      modal::Bool = false,
-                      content::Document) =
-    OpenWindowOperation(id, String(title), Int(x), Int(y), Int(width), Int(height),
-                        (UInt8(bg[1]), UInt8(bg[2]), UInt8(bg[3]), UInt8(bg[4])),
-                        style, auto_dismiss, modal, content)
-
-"""
-    OpenPopupOperation(; id, anchor, dx, dy, width, height, auto_dismiss, content)
-
-Request a popup window **anchored to a widget** rather than at absolute
-coordinates. `anchor` is a `ReferencePath` (captured at print time by the
-trigger, e.g. a `WidgetSelect`) naming the widget to anchor under; `(dx, dy)` is
-the trigger-supplied offset (the trigger bakes its own size in, so "below the
-box" is `(0, box_height + gap)`).
-
-A content-level resolver projection intercepts it, resolves `anchor` to the
-widget's absolute position via `map_reference_forward` / `anchor_point`, and
-turns it into an `OpenWindowOperation` at `position + (dx, dy)` — so the deep
-trigger reader never needs to know its own absolute coordinates. Never reaches
-`evaluate_operation` (the resolver consumes it before the WindowManager).
-"""
-struct OpenPopupOperation <: Operation
-    id::Symbol
-    anchor::ReferencePath
-    dx::Int
-    dy::Int
-    width::Int
-    height::Int
-    auto_dismiss::Bool
-    content::Document
-end
-
-OpenPopupOperation(; id::Symbol, anchor::ReferencePath,
-                     dx::Integer = 0, dy::Integer = 0,
-                     width::Integer = 0, height::Integer = 0,
-                     auto_dismiss::Bool = true, content::Document) =
-    OpenPopupOperation(id, anchor, Int(dx), Int(dy), Int(width), Int(height),
-                       auto_dismiss, content)
-
-"""
-    CloseWindowOperation(id)
-
-Operation that requests the `WindowDocument` with the matching `id` be
-removed from the screen. Produced by `TooltipDecoratorProjection` when a
-tooltip should disappear; intercepted by `WindowManagerProjection`.
-A close for an unknown id is silently ignored.
-"""
-struct CloseWindowOperation <: Operation
-    id::Symbol
-end
-
-"""
-    ResizeWindowOperation(target, width, height)
-
-Set the `width`/`height` cells of `target` (a `WindowDocument`) to a new pixel
-size. Produced by `WindowManagerProjection` when the user resizes the native
-window frame. Because those cells are the
-`available_width`/`available_height` the printer threads into the window's
-content, writing them re-lays-out the content reactively — no re-projection.
-The output `WindowDocument` shares the same cells (a `CopyingProjection`
-property), so the backend reconciler also sees the new size on the next frame.
-
-Carries the target document directly (like `ToggleCollapseOperation`), so it
-bubbles up through every reader layer unchanged and is applied by the editor's
-`evaluate_operation`.
-"""
-struct ResizeWindowOperation <: Operation
-    target::Any
-    width::Int
-    height::Int
-end
-
-function evaluate_operation(editor, op::ResizeWindowOperation)
-    op.target === nothing && return
-    op.target.width = op.width
-    op.target.height = op.height
-end
+# The window operations (`OpenWindowOperation`, `OpenPopupOperation`,
+# `CloseWindowOperation`, `ResizeWindowOperation`) are the screen domain's
+# vocabulary and live with `WindowDocument` in `ScreenDocumentModule`
+# (`document/ScreenDocument.jl`), not here.
 
 """
     clear_selection!(document)

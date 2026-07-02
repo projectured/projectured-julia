@@ -128,7 +128,7 @@ Layer 1 — api stubs:
 
 Layer 1 — core:
 
-- [ ] **L7. common/Operation.jl operation docstrings.** Trim the layer-2/3/domain
+- [x] **L7. common/Operation.jl operation docstrings.** Trim the layer-2/3/domain
   narration to each operation's *semantics*, moving producer/consumer inventory
   to `documentation/operations.md`: `TooltipDecoratorProjection` /
   `WindowManagerProjection` / `CopyingProjection` / `WidgetSelect` (window ops),
@@ -155,7 +155,7 @@ Layer 1 — core:
   add an api-level `invalidate_projection!(editor)` stub (default no-op),
   implement it in EditorModule to drop the cached iomap, and call it here
   instead of the direct field write.
-- [ ] **L11. Move window operations next to `WindowDocument`.** Per D-2,
+- [x] **L11. Move window operations next to `WindowDocument`.** Per D-2,
   relocate `OpenWindowOperation` / `OpenPopupOperation` / `CloseWindowOperation`
   / `ResizeWindowOperation` and their `evaluate_operation` methods from
   `common/Operation.jl` into `document/ScreenDocument.jl` (their schema mirrors

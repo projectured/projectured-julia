@@ -26,8 +26,8 @@ import ..ProjectionApiModule: projection_print, projection_printer_recurse, proj
 import ..ChangeModule: Change
 import ..IoMapApiModule: IoMap
 import ..ReactiveModule: Cell
-import ..ScreenDocumentModule: ScreenDocument, WindowDocument, EventEnvelope, WindowResizeEvent, WindowCloseRequest, WindowFocusLost
-import ..OperationModule: OpenWindowOperation, CloseWindowOperation, ResizeWindowOperation, CompoundOperation
+import ..ScreenDocumentModule: ScreenDocument, WindowDocument, EventEnvelope, WindowResizeEvent, WindowCloseRequest, WindowFocusLost, OpenWindowOperation, CloseWindowOperation, ResizeWindowOperation
+import ..OperationModule: CompoundOperation
 
 export WindowManagerProjection, WindowManagerProjectionIoMap
 

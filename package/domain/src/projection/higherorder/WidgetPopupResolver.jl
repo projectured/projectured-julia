@@ -24,7 +24,7 @@ import ..ProjectionApiModule: projection_print, projection_read,
                               Projection
 import ..ChangeModule: Change
 import ..IoMapApiModule: IoMap
-import ..OperationModule: OpenPopupOperation, OpenWindowOperation
+import ..ScreenDocumentModule: OpenPopupOperation, OpenWindowOperation
 import ..WidgetToGraphicsModule: anchor_point
 
 export WidgetPopupResolverProjection, WidgetPopupResolverProjectionIoMap

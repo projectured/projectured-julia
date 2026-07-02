@@ -25,7 +25,7 @@ module GestureHelpDecoratorProjectionModule
 import ..ProjectionApiModule: projection_print, projection_read, map_reference_forward, map_reference_backward, Projection
 import ..ChangeModule: Change
 import ..IoMapApiModule: IoMap
-import ..OperationModule: OpenWindowOperation, CloseWindowOperation
+import ..ScreenDocumentModule: OpenWindowOperation, CloseWindowOperation
 import ..OperationApiModule: Operation
 import ..GestureBindingModule: is_help_gesture, collect_gestures
 import ..GestureMapModule: gesture_map
