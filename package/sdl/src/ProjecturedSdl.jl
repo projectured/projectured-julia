@@ -22,8 +22,8 @@ using ProjecturedDomain
 using SimpleDirectMediaLayer
 using SimpleDirectMediaLayer.LibSDL2
 import ProjecturedDomain.BackendModule: Backend, init!, quit!, measure_text, make_backend, write_image,
-                        render_canvas, decode_image, display_size, set_display_size_provider!,
-                        pointer_position
+                        render_canvas, decode_image, pointer_position
+import ProjecturedDomain.DisplayModule: display_size, set_display_size_provider!
 import ProjecturedDomain.DeviceModule: Device, read_from_devices, write_to_devices, write_to_device
 import ProjecturedDomain.GraphicsModule: GraphicsCanvas, GraphicsText, GraphicsRect, GraphicsLine, GraphicsCircle,
                          GraphicsPolyline, GraphicsSpline, GraphicsViewport, GraphicsImage,

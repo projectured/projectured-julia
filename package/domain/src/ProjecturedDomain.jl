@@ -24,6 +24,7 @@ const ChangeModule = ProjecturedKernel.ChangeModule
 const CollectionModule = ProjecturedKernel.CollectionModule
 const CopyingProjectionModule = ProjecturedKernel.CopyingProjectionModule
 const DeviceModule = ProjecturedKernel.DeviceModule
+const DisplayModule = ProjecturedKernel.DisplayModule
 const DocumentApiModule = ProjecturedKernel.DocumentApiModule
 const DocumentModule = ProjecturedKernel.DocumentModule
 const EditorTimeModule = ProjecturedKernel.EditorTimeModule

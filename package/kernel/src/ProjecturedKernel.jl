@@ -59,6 +59,8 @@ include("common/OperationRerooting.jl")
 # ── Input devices & events ─────────────────────────────────────────────────
 # Keyboard/Mouse need Modifiers + the Device stub; EventCase (the `@event_case`
 # pattern parser) needs the event types. These must precede GestureBinding.
+# Display (display-size query + provider glue) is a dependency-free leaf.
+include("device/Display.jl")
 include("device/Modifiers.jl")
 include("device/Keyboard.jl")
 include("device/Mouse.jl")
