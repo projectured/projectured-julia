@@ -44,7 +44,8 @@ end
     en = _prims_of(_btn(icon = :save), GraphicsPolyline)
     di = _prims_of(_btn(icon = :save, enabled = false), GraphicsPolyline)
     @test !isempty(en) && !isempty(di)
-    @test (en[1].r, en[1].g, en[1].b) != (di[1].r, di[1].g, di[1].b)   # different tint
+    ec, dc = en[1].color, di[1].color
+    @test (ec.red, ec.green, ec.blue) != (dc.red, dc.green, dc.blue)   # different tint
 end
 
 @testset "a bound command's icon drives the button (Action.icon)" begin
