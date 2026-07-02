@@ -895,8 +895,16 @@ function _slots_backward(slots, project_child, children_field, intype, reference
                 inner === nothing && return nothing
                 return _prepend(inner, FieldReference(String(slot.in_field)))
             elseif slot isa SubNodeSlot
-                # `leaf_path` is relative to the sub-node's output; its backward mapper
-                # already yields a parent-input path (its input *is* the parent doc).
+                # A *whole-element* selection of an introduced grouping sub-node (e.g.
+                # the Julia `function name(params)` header) has no input pre-image;
+                # delegating maps ∅ back to the whole parent (∅), colliding with the
+                # root and stalling tree navigation. Represent it as an opaque
+                # structural position — a ProjectionReference into this node's output —
+                # so it round-trips distinctly (forward via `_own_introduced`;
+                # `SyntaxToText._syntax_to_flat` renders it transparently). A *deeper*
+                # selection delegates: its `leaf_path` may resolve to a real child.
+                leaf_path isa EmptyReferencePath &&
+                    return _path(ProjectionReference(slot.iomap.projection, reference))
                 return map_reference_backward(slot.iomap.projection, slot.iomap, leaf_path)
             else
                 return nothing                                             # introduced
@@ -906,13 +914,25 @@ function _slots_backward(slots, project_child, children_field, intype, reference
     return nothing
 end
 
+# A `ProjectionReference(^(p), …)` head is this projection's own introduced output
+# (a delimiter / structural position with no input pre-image) — keep it wrapped
+# forward, mirroring `_node_forward` / `_mixed_forward` / `_inline_forward`. Without
+# this the cursor on an introduced token of a fixed/conditional node fails to
+# forward-project (selection → nothing), so no caret renders and relative navigation
+# and typein die (the Julia `function`/`if`/operator tokens are all such positions).
+_own_introduced(p, reference) =
+    reference isa ConcreteReferencePath && reference.head isa ProjectionReference &&
+    reference.head.projection === p
+
 _fixed_forward(p, w, iomap, reference) =
+    _own_introduced(p, reference) ? reference :
     _slots_forward(w.slots, fn -> iomap.child_iomaps[fn][], w.children_field, w.outtype, reference)
 _fixed_backward(p, w, iomap, reference) =
     _slots_backward(w.slots, fn -> iomap.child_iomaps[fn][], w.children_field, w.intype, reference)
 
 # Conditional node: read the current (slots, store) from the reactive state cell.
 _conditional_forward(p, w, iomap, reference) =
+    _own_introduced(p, reference) ? reference :
     (st = iomap.child_iomaps[]; _slots_forward(st[1], fn -> st[2][fn][], w.children_field, w.outtype, reference))
 _conditional_backward(p, w, iomap, reference) =
     (st = iomap.child_iomaps[]; _slots_backward(st[1], fn -> st[2][fn][], w.children_field, w.intype, reference))

@@ -24,7 +24,7 @@ import ..DocumentModule: Document, @document
 import ..CollectionModule: CellVector
 import ..TextModule: TextString
 import ..ReferenceModule: Reference, ConcreteReferencePath, EmptyReferencePath,
-                          FieldReference, RangeReference, ReferencePath
+                          FieldReference, RangeReference, ReferencePath, ProjectionReference
 import ..ReferenceBuilderModule: var"@reference"
 import ..OperationModule: ReplaceSelectionOperation
 import ..KeyboardModule: KeyDown
@@ -430,10 +430,21 @@ setfn!(n::SyntaxNode, f::Function) = (setfn!(getfield(n.children, :elements), ()
     end
 end
 
+# A whole-element selection of a projection-introduced sub-node (e.g. Julia's
+# `function name(params)` header) is carried as `ProjectionReference(_, .children[i]…)`
+# so it round-trips through the projection above. For tree navigation it *is* a
+# `.children[i]…` selection: unwrap to the inner output path and navigate that. The
+# result re-wraps downstream — the projection's own backward mapper / reader
+# fallback re-introduces the wrapper when the move lands on introduced structure
+# again. A native SyntaxNode selection never carries this head, so it is a no-op there.
+_unwrap_projection_ref(sel) =
+    (sel isa ConcreteReferencePath && sel.head isa ProjectionReference) ?
+        sel.head.output_path : sel
+
 function _tree_navigate(node::SyntaxNode, sel, direction::Symbol)
     # sel must be a tree selection (path of .children[i] steps ending in ∅)
     sel === nothing && return nothing
-    sel = sel
+    sel = _unwrap_projection_ref(sel)
 
     # ∅ on the root node: this node is wholly selected
     if sel isa EmptyReferencePath
@@ -495,7 +506,7 @@ end
 # / `.close{k}`), which breaks the all-`children` requirement here.
 _is_tree_selection(::EmptyReferencePath) = true
 function _is_tree_selection(sel)
-    sel = sel
+    sel = _unwrap_projection_ref(sel)
     sel isa EmptyReferencePath && return true
     sel isa ConcreteReferencePath || return false
     h = sel.head
