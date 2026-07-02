@@ -1,21 +1,13 @@
 """
     XmlModule
 
-The XML document domain provides reactive representations of XML data structures.
-Every XML node is a Document with reactive Cell fields. Attributes are first-class
-documents so the selection mechanism can descend into attribute values as well as
-into element children and text content.
+The XML document domain. Attributes are first-class documents, so the selection
+mechanism can descend into attribute values as well as element children and text.
 
 The domain includes:
 - **Node types**: `XmlText`, `XmlElement`, `XmlInsertion`
-- **Attribute type**: `XmlAttribute` (first-class document for attribute values)
-- **Base type**: `XmlDocument` abstract type for all XML documents
-
-Selection semantics (`[i]` = 1-based item, `{k}` = 0-based cursor):
-- Elements: `.children[i]` for the i-th child node, `.attrs[i].value{k}` for a
-  cursor in the i-th attribute's value
-- Text: `.content{k}` — cursor at boundary k of the text content
-- Attributes: `.value{k}` — cursor at boundary k of the attribute value
+- **Attribute type**: `XmlAttribute`
+- **Base type**: `XmlDocument`
 """
 module XmlModule
 
@@ -26,26 +18,13 @@ import ..ReferenceModule: Reference
 export XmlDocument, XmlInsertion, XmlText, XmlAttribute, XmlElement, xmlattr, setattr!, deleteattr!, setfn!,
        IXmlInsertion, IXmlText, IXmlAttribute, IXmlElement
 
-"""
-    XmlDocument
-
-Abstract base type for all XML document types. Every concrete XML type
-subtypes `XmlDocument` and must have a `selection::Reference` field as required
-by the `Document` contract.
-"""
 abstract type XmlDocument <: Document end
 
 # ── Insertion cursor ────────────────────────────────────────────────
 
 """
-    XmlInsertion
-
-Represents an insertion cursor position in an XML document. Used by the
-editor to indicate where new content should be inserted.
-
-# Fields
-
-- `selection::Reference` — a `ReferencePath` or `nothing` (stored in a Cell)
+A placeholder for an XML node being entered (the insert-by-typing cursor);
+type-to-replace swaps it for concrete content.
 """
 @document struct XmlInsertion <: XmlDocument
     value::Any = nothing
@@ -55,21 +34,8 @@ end
 # ── Attribute ─────────────────────────────────────────────────────────────
 
 """
-    XmlAttribute
-
-Represents an XML attribute as a first-class document. This allows the
-selection mechanism to descend into attribute values. Supports indexing
-and assignment via `[]` and `[]=`.
-
-# Fields
-
-- `name::String` — the attribute name
-- `value::String` — the attribute value (stored in a Cell)
-- `selection::Reference` — a `ReferencePath` or `nothing` (stored in a Cell)
-
-The macro's Rule Y generates the `XmlAttribute(name, value)` constructor; its
-auto-wrapping inner constructor turns a plain string into a primitive cell and a
-`Function` into a computed thunk, so it covers both the value and reactive forms.
+An XML attribute, a first-class document so the selection can descend into its
+value. Supports `[]` / `[]=` on the value.
 """
 @document struct XmlAttribute <: XmlDocument
     name::String
@@ -77,12 +43,7 @@ auto-wrapping inner constructor turns a plain string into a primitive cell and a
     selection::Reference = nothing
 end
 
-"""
-    xmlattr(name::AbstractString, value::AbstractString)
-
-Convenience constructor for creating an `XmlAttribute`. Creates an attribute
-with a primitive cell holding the given string value.
-"""
+# convenience: an `XmlAttribute` holding the given plain string value
 xmlattr(name::AbstractString, value::AbstractString) = XmlAttribute(name, value)
 
 Base.getindex(a::XmlAttribute) = a.value::String
@@ -93,20 +54,7 @@ setval!(a::XmlAttribute, v::AbstractString) = (setval!(getfield(a, :value), Stri
 # ── Text node ─────────────────────────────────────────────────────────────
 
 """
-    XmlText
-
-Represents a text node in an XML document. Selection semantics: `.content{k}`
-is the cursor at boundary k of the text content (0-based). Supports indexing and
-assignment via `[]` and `[]=`.
-
-# Fields
-
-- `content::String` — the text content (stored in a Cell)
-- `selection::Reference` — a `ReferencePath` or `nothing` (stored in a Cell)
-
-The macro's Rule Y generates the `XmlText(content)` constructor; its auto-wrapping
-inner constructor turns a plain string into a primitive cell and a `Function` into
-a computed thunk, so it covers both the value and reactive forms.
+A text node in an XML element. Supports `[]` / `[]=` on the content.
 """
 @document struct XmlText <: XmlDocument
     content::String
@@ -121,31 +69,9 @@ setval!(t::XmlText, v::AbstractString) = (setval!(getfield(t, :content), String(
 # ── Element ───────────────────────────────────────────────────────────────
 
 """
-    XmlElement
-
-Represents an XML element with a tag, attributes, and child nodes. Selection
-semantics: `.children[i]` for the i-th child node, `.attrs[i].value{k}` for a
-cursor in the i-th attribute's value. Supports array-like operations on children
-and dictionary-like operations on attributes.
-
-# Fields
-
-- `tag::String` — the element tag name
-- `attrs::CellVector` — holds `XmlAttribute` objects
-- `children::CellVector` — holds child `XmlDocument` nodes
-- `collapsed::Bool` — whether the element is collapsed in the UI (stored in a Cell)
-- `selection::Reference` — a `ReferencePath` or `nothing` (stored in a Cell)
-
-# Constructors
-
-The macro's Rule Y generates the empty `XmlElement(tag)` form. The remaining
-constructors disambiguate an attribute vector from a child vector by element type
-— something the macro cannot do, since `attrs` and `children` are both
-`CellVector` fields:
-
-- `XmlElement(tag, attrs::Vector{XmlAttribute})` — element with attributes
-- `XmlElement(tag, children::Vector{<:XmlDocument})` — element with children
-- `XmlElement(tag, attrs, children)` — element with both attributes and children
+An XML element with a tag, attributes (`attrs`) and child nodes (`children`).
+`collapsed` hides its children behind a marker in the projection. The empty
+`XmlElement(tag)` form comes from the macro.
 """
 @document struct XmlElement <: XmlDocument
     tag::String
@@ -155,14 +81,16 @@ constructors disambiguate an attribute vector from a child vector by element typ
     selection::Reference = nothing
 end
 
+# `attrs` and `children` are both `CellVector` fields, so the macro can't tell an
+# attribute vector from a child vector; these ctors disambiguate by element type.
 XmlElement(tag::AbstractString, attrs::Vector{XmlAttribute}) =
     XmlElement(tag, attrs, XmlDocument[])
 
 XmlElement(tag::AbstractString, children::Vector{<:XmlDocument}) =
     XmlElement(tag, XmlAttribute[], children)
 
-# The 3-arg CellVector call lands on the macro's generated positional ctor, which
-# fills the `collapsed`/`selection` defaults.
+# The 3-arg CellVector call lands on the macro's generated ctor, filling the
+# `collapsed`/`selection` defaults.
 XmlElement(tag::AbstractString, attrs::Vector{XmlAttribute}, children::Vector{<:XmlDocument}) =
     XmlElement(tag, CellVector(attrs), CellVector(children))
 
@@ -178,12 +106,10 @@ end
 Base.haskey(e::XmlElement, name::AbstractString) = any(a -> a.name == name, e.attrs)
 
 """
-    setattr!(e::XmlElement, name::AbstractString, value::AbstractString)
+    setattr!(e::XmlElement, name, value)
 
-Set or update an attribute on an XML element. If the attribute already exists,
-its value is updated. If it doesn't exist, a new attribute is added.
-
-Returns the modified element for chaining.
+Set attribute `name` to `value` (updating it in place if present, else adding it),
+returning `e`.
 """
 function setattr!(e::XmlElement, name::AbstractString, value::AbstractString)
     for a in e.attrs
@@ -197,12 +123,9 @@ function setattr!(e::XmlElement, name::AbstractString, value::AbstractString)
 end
 
 """
-    deleteattr!(e::XmlElement, name::AbstractString)
+    deleteattr!(e::XmlElement, name)
 
-Delete an attribute from an XML element. If the attribute doesn't exist,
-the element is unchanged.
-
-Returns the modified element for chaining.
+Remove attribute `name` if present (else leave `e` unchanged), returning `e`.
 """
 function deleteattr!(e::XmlElement, name::AbstractString)
     for i in length(e.attrs):-1:1
@@ -211,13 +134,9 @@ function deleteattr!(e::XmlElement, name::AbstractString)
     return e
 end
 
-# ── String-replace operation ────────────────────────────────────────────
-#
-# Text-replace edits for the XML domain are handled generically by `splice_value!`
-# (see OperationApiModule): the type-in target fields — `XmlText.content`,
-# `XmlAttribute.value`/`name`, and `XmlElement.tag` — are all plain strings, so
-# the string representation covers them. (The opening and closing tags both
-# render from the single `tag` field, so editing it updates both reactively.)
-# No per-type method is needed.
+# Text-replace edits need no per-type method: the type-in target fields —
+# `XmlText.content`, `XmlAttribute.name`/`value`, and `XmlElement.tag` — are all
+# plain strings. (Both the open and close tags render from the single `tag`
+# field, so editing it updates them together.)
 
 end # module
