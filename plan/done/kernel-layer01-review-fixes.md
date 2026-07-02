@@ -19,6 +19,41 @@ item here as it lands, and record any decision changes inline.
 
 ---
 
+## Implementation outcome (2026-07-03)
+
+**All 34 items implemented** on branch `kernel-layer01-review` (worktree
+`projectured-julia-wt-layer01`), in ~15 focused commits grouped by concern
+(layer-0 prose, api docstrings, common docstrings, scattered comments, stale-doc
+fixes, code cleanups, DSL docstrings, then the structural/correctness work: D4
+include reorder, D2 selection-descent dedup, D1 macro-codegen share, C2
+multibyte, C3 CellVector, C1 type-preserving concat, D3 reference_steps, L10
+invalidate_projection!, L11 window-op move).
+
+**Notable as-built decisions/deviations:**
+- **L1** additionally made `Editor.perf!` read the timing keys via `get(...,0)`
+  since they are no longer pre-seeded.
+- **L4** was done conservatively: concrete domain *type names* generalized, but
+  the recursion-contract prose and kernel-resident combinator examples kept.
+- **D7** was done by making the reflection-walk swallows observable under
+  `@debug` + documented, rather than type-narrowing (which risked destabilizing
+  best-effort search over arbitrary types without a full test run).
+- **C3** made `CellVector(x)`/`CellVector(x,y)` uniformly build element vectors;
+  `CellVector(undef, n)` is the explicit "n empty slots".
+- **C1** junction rule = D-1 as agreed; untyped inputs are provably unchanged.
+
+**Verification (no heavy Julia here — editor-host constraint):** every file
+parse-checked (`Meta.parseall`). Beyond that, light-path throwaway-module loads
+(source include, no package precompile) verified the real code: D1 macro
+equivalence (byte-identical to the old inline codegen), C1 on the real
+`@document` reference types (prefix/junction/annotated-b/strict-==), C2 multibyte
+splices, D3 round-trip, L11 (ScreenDocumentModule loads + ops construct/evaluate),
+and a full-chain integration load through `OperationRerooting` exercising the D4
+reorder and the `@iomap` path end-to-end. **The full `test_all` suite still needs
+a run in an external terminal** — these loads validate compilation/behavior of the
+changed units, not the whole editor pipeline.
+
+---
+
 ## Group C — correctness
 
 - [x] **C1. Type-preserving path concatenation.** Three copies of path-concat all
