@@ -121,6 +121,6 @@ include("device/ScreenDevice.jl")
 include("editor/GestureRecognizer.jl")
 include("editor/Editor.jl")
 # Scripted live playback builds on the editor loop, so it loads last.
-include("editor/LivePlayback.jl")
+include("editor/Playback.jl")
 
 end # module ProjecturedKernel
