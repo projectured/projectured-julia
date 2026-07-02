@@ -393,17 +393,11 @@ function _gen_value_match(valex, pat::PVTypedBind, success, bound::Set{Symbol})
     end
 end
 
-function _gen_step_match(hex, tex, step::PSType, rest_success, bound::Set{Symbol})
-    ty = esc(step.typeexpr)
-    ex = quote
-        if $hex isa ReferenceModule.TypeReference && $hex.type <: $ty
-            $rest_success
-        else
-            _nomatch
-        end
-    end
-    return ex, bound
-end
+# No `_gen_step_match(::PSType, …)`: a `PSType` is always intercepted at the top of
+# `_gen_path_match` / `_gen_prefix_match` (which handle the optional, tolerant type
+# assertion) before per-step dispatch is ever reached, so a step method would be
+# dead code. Every step reaches position 1 in the recursion, so this holds for
+# `PSType` anywhere in a pattern.
 
 function _gen_step_match(hex, tex, step::PSField, rest_success, bound::Set{Symbol})
     nameexpr = :($hex.name)

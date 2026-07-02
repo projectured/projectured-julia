@@ -184,23 +184,23 @@ Layer 1 — core:
   nothing from `OperationModule`, so include it *before* `common/Operation.jl`
   and replace the `nameof(typeof(node)) === :CellVector` name-match hack in
   `_preorder_documents!` with a real import + `isa`.
-- [ ] **D5. Redundant Cell-wrapping outer ctors** in `reference/Reference.jl`:
+- [x] **D5. Redundant Cell-wrapping outer ctors** in `reference/Reference.jl`:
   `RangeReference(Int,Int)`, `FieldReference(String)`, `PointReference(Int,Int)`
   — the `@document` inner ctor already auto-wraps. Delete.
 - [x] **D6. Silent catch-all `evaluate_operation(editor, op)`.** Opposite
   philosophy to `DeviceModule`'s documented "deliberately no catch-all". If the
   swallow is intentional (raw events bubbling out of the reader), say so in the
   comment; otherwise narrow it.
-- [ ] **D7. Swallowed exceptions in `collect_references` / `_search_document`**
+- [x] **D7. Swallowed exceptions in `collect_references` / `_search_document`**
   (`reference/Reference.jl`): three bare `catch end` blocks plus a blanket
   `@error`. Narrow to what each is expected to absorb (unindexable access,
   non-iterable field).
-- [ ] **D8. `copy_document` Cell rewrap edge** (`common/Document.jl`): reads
+- [x] **D8. `copy_document` Cell rewrap edge** (`common/Document.jl`): reads
   `raw isa Cell ? raw[] : raw` but then unconditionally re-wraps in `Cell(...)`
   — for a non-Cell field of a hand-written Document this changes the field's
   representation and fails the default ctor. Either assert the all-Cell
   convention or preserve rawness.
-- [ ] **D9. Dead `_gen_step_match(..., ::PSType, ...)`** in
+- [x] **D9. Dead `_gen_step_match(..., ::PSType, ...)`** in
   `reference/ReferenceCase.jl`: both `_gen_path_match` and `_gen_prefix_match`
   intercept a leading `PSType` before step dispatch and steps are always
   consumed from position 1, so the method is unreachable. Verify and delete.

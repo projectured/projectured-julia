@@ -416,11 +416,13 @@ end
 """
     copy_document(value)
 
-Recursively clone `value`. For a `Document` every field is cloned into a fresh
-`Cell`, except `selection`, which is reset to `nothing` (the copy starts with no
-selection). Plain immutable leaves (strings, numbers, symbols, reference paths)
-are returned as-is. `CollectionModule` adds a `CellVector` method that clones each
-element into a fresh `Cell`.
+Recursively clone `value`. For a `Document` each **Cell-backed** field is cloned
+into a fresh `Cell`, except `selection`, which is reset to `nothing` (the copy
+starts with no selection). A non-Cell field (a hand-written Document that stores a
+plain value) is cloned **in place**, keeping its representation rather than being
+re-wrapped in a `Cell`. Plain immutable leaves (strings, numbers, symbols,
+reference paths) are returned as-is. `CollectionModule` adds a `CellVector` method
+that clones each element into a fresh `Cell`.
 
 The result shares **no** `Cell` with the original, so mutating the original's
 reactive graph after copying leaves the copy untouched.
@@ -431,12 +433,15 @@ function copy_document(doc::Document)
     T = typeof(doc)
     args = Any[]
     for nm in fieldnames(T)
+        raw = getfield(doc, nm)
         if nm === :selection
-            push!(args, Cell(nothing))
+            # Reset the selection; keep the field's representation (Cell per the
+            # Document contract, but tolerate a hand-written plain field).
+            push!(args, raw isa Cell ? Cell(nothing) : nothing)
+        elseif raw isa Cell
+            push!(args, Cell(copy_document(raw[])))   # fresh Cell → independent graph
         else
-            raw = getfield(doc, nm)
-            val = raw isa Cell ? raw[] : raw
-            push!(args, Cell(copy_document(val)))
+            push!(args, copy_document(raw))           # non-Cell field: keep it raw
         end
     end
     T(args...)

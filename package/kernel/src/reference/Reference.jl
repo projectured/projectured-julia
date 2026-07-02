@@ -59,7 +59,9 @@ valid boundaries are 0 to n.
     stop::Int
 end
 
-RangeReference(start::Int, stop::Int) = RangeReference(Cell(start), Cell(stop))
+# `RangeReference(start, stop)` needs no explicit Int constructor: the `@document`
+# inner constructor auto-wraps raw values into `Cell`s (and passes `Cell`s
+# through). Same for `FieldReference`/`PointReference` below.
 
 # ── Backward-compatible constructors ─────────────────────────────────────
 
@@ -108,8 +110,6 @@ References a named field of an object/record.
 @document struct FieldReference <: ReferenceStep
     name::String
 end
-
-FieldReference(name::String) = FieldReference(Cell(name))
 
 """
     TypeReference(type)
@@ -241,8 +241,6 @@ to that element's origin.
     x::Int
     y::Int
 end
-
-PointReference(x::Int, y::Int) = PointReference(Cell(x), Cell(y))
 
 """
     TextRectangularReference(start, stop)
@@ -743,8 +741,12 @@ function collect_references(document, search_value)
     end
 end
 
+# Best-effort reflection walk over arbitrary values, so each probe below tolerates
+# a throw rather than aborting the whole search. The swallows are intentional but
+# no longer silent: they surface under `@debug` logging (compiled out otherwise).
 function _search_document(node, current_path, search_value, results)
-    # Check if current node matches
+    # Match check: a user-defined `==` or a `.value` access may throw; a throw here
+    # just means "not a match at this node", so fall through to the field walk.
     try
         if hasfield(typeof(node), :value) && getfield(node, :value) isa Cell
             if getfield(node, :value)[] == search_value
@@ -755,7 +757,8 @@ function _search_document(node, current_path, search_value, results)
             push!(results, current_path)
             return
         end
-    catch
+    catch e
+        @debug "collect_references: match check threw; treating as non-match" exception = e
     end
 
     # Skip non-document types
@@ -769,12 +772,15 @@ function _search_document(node, current_path, search_value, results)
         fval = getfield(node, fname)
         field_path = append_reference(current_path, FieldReference(string(fname)))
         if fval isa Cell
+            # An error deep in one field's subtree drops that branch, not the rest.
             try
                 _search_document(fval[], field_path, search_value, results)
-            catch
+            catch e
+                @debug "collect_references: recursion into $fname threw" exception = e
             end
         elseif !(fval isa Union{AbstractString, Number, Bool, Nothing, Symbol}) && !(fval isa ReferencePath)
-            # Try to iterate as a collection
+            # Probe whether the field is iterable; a non-iterable throws from
+            # `iterate` and we fall back to a struct recursion below.
             iterated = false
             try
                 r = iterate(fval)
@@ -789,7 +795,8 @@ function _search_document(node, current_path, search_value, results)
                         r = iterate(fval, state)
                     end
                 end
-            catch
+            catch e
+                @debug "collect_references: iteration probe on $fname threw" exception = e
             end
             # If not iterable, recurse as struct
             if !iterated && isstructtype(typeof(fval))
