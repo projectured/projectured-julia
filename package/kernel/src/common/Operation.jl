@@ -1,8 +1,18 @@
 """
     OperationModule
 
-Default evaluate_operation methods for built-in operations. Loaded after
-EditorModule so the Editor type is available.
+The built-in operations and the selection machinery that applies them. Holds the
+concrete `Operation` subtypes the reader side of the pipeline produces
+(`ReplaceSelectionOperation`, `ReplaceReferencedValue`, the window/zoom/collapse
+operations, `CompoundOperation`, …) with their `evaluate_operation` methods, the
+`clear_selection!` / `set_selection!` / `update_selection!` propagation over the
+document tree, and the `splice_*` text-edit helpers. The abstract `Operation`
+vocabulary and the `evaluate_operation` generic live in the pure `OperationApiModule`
+(`api/Operation.jl`); this module carries the implementations.
+
+`evaluate_operation` is duck-typed on `editor`, so nothing here references a
+concrete editor type — the module loads early (well before the editor loop) and
+still works against whatever object carries `editor.document`.
 """
 module OperationModule
 
@@ -31,7 +41,11 @@ struct NoOperation <: Operation end
 evaluate_operation(editor, ::NoOperation) = nothing
 function evaluate_operation(editor, op::Nothing) end
 
-# Fallback for any other input (e.g., raw events returned by reader)
+# Catch-all: silently ignore anything that is not an Operation. Unlike the device
+# I/O generics (which deliberately omit a catch-all so an unimplemented backend
+# fails loudly), this one is *meant* to swallow: a reader that declines returns a
+# raw gesture/event or `nothing`, and those flow all the way up to here, where
+# "not an operation" simply means "nothing to apply".
 function evaluate_operation(editor, op) end
 
 # ── Text-splice helpers ─────────────────────────────────────────────────────
@@ -79,13 +93,12 @@ covers every domain:
 - `Nothing`        — a cleared text field; splice against the empty string.
 - `Number`         — splice the textual form and reparse (editing a number's text
                      means "reparse it"; see [`splice_number`](@ref)).
-- `TextString`     — the field holds a styled span; splice its `.content` in place.
-- `TextText`       — the field holds a flat span sequence; locate the span the
-                     range falls inside and splice it.
 
-The last two methods live in `TextModule` (which owns those types). A later
-unification of all replace-part operations around a reference will add a
-sequence/`CellVector` method here for structural element edits.
+A domain whose field holds a richer text representation (a styled span, or a
+sequence of spans) adds its own method here; those methods live in the module
+that owns those types. A later unification of all replace-part operations around
+a reference will add a sequence/`CellVector` method here for structural element
+edits.
 """
 function splice_value! end
 
@@ -105,11 +118,9 @@ struct QuitEditorException <: Exception end
 
 Apply a sequence of operations in order, as a single editor step. The Julia
 counterpart of Lisp's `make-operation/compound`: a reader returns one
-`CompoundOperation` and the editor's `evaluate_operation` runs each member
-operation against the same editor in turn.
-
-Used by the clipboard cut gesture, which both writes the selected object into
-the clipboard slice and replaces the selection target with an empty document.
+`CompoundOperation` and `evaluate_operation` runs each member operation against
+the same editor in turn — for an intent that is naturally several writes at once
+(e.g. a cut that both saves the selected value and clears the slot it came from).
 """
 struct CompoundOperation <: Operation
     operations::Vector{Any}
@@ -126,8 +137,8 @@ end
 """
     QuitEditorOperation()
 
-Operation that signals the editor loop to stop.
-Produced when the user closes the window or presses Escape.
+Operation that signals the editor to stop, by throwing `QuitEditorException`
+(which the editor loop catches to exit).
 """
 struct QuitEditorOperation <: Operation end
 
@@ -140,9 +151,9 @@ end
 
 Editor-global *uniform* readability zoom: `delta` is +1 (in), -1 (out) or 0
 (reset). Magnifies the whole editor. The concrete behaviour — rescaling the
-display factor, reflowing windows and repainting — lives in the SDL backend's
+display factor, reflowing and repainting — lives in a rendering backend's
 `evaluate_operation`; the generic no-op fallback above keeps it harmless under
-backends (Console/PDF) that do not implement it.
+backends that do not implement it.
 """
 struct AdjustZoomOperation <: Operation
     delta::Int
@@ -152,8 +163,8 @@ end
     AdjustFontZoomOperation(delta)
 
 Editor-global *font-only* readability zoom, like [`AdjustZoomOperation`](@ref)
-but scaling only text (via the reactive `_FONT_ZOOM` cell), so fixed graphics and
-spacing keep their size. Behaviour also lives in the SDL backend.
+but scaling only text, so fixed graphics and spacing keep their size. Behaviour
+also lives in a rendering backend.
 """
 struct AdjustFontZoomOperation <: Operation
     delta::Int
@@ -162,16 +173,14 @@ end
 """
     ReplaceSelectionOperation(path)
 
-Operation that replaces the current selection with `path`.
-Produced by the reader side of the projection pipeline and applied to the
-document by `evaluate_operation` in the editor loop.
+Operation that replaces the current selection with `path`. Produced by the reader
+side of the projection pipeline and applied by `evaluate_operation`.
 
-Click-versus-keyboard disambiguation no longer rides on this operation: a
-projection that gives a projection-introduced glyph a second, click-only meaning
-— e.g. the inline expand/collapse marker in `SyntaxNodeToText`, which toggles on
-click but must stay a plain cursor stop under `Ctrl+Home` / arrow keys — keys
-that behaviour off the originating gesture (`change.gesture isa MousePress`),
-which now rides through the reader chain in the `Change`.
+Click-versus-keyboard disambiguation does **not** ride on this operation. A
+projection that wants a glyph to behave differently on click than under keyboard
+navigation keys that off the originating gesture (`change.gesture isa MousePress`),
+which travels the reader chain in the `Change`, rather than off a flag on this
+operation.
 """
 struct ReplaceSelectionOperation <: Operation
     path::ReferencePath
@@ -336,7 +345,7 @@ and whose value is the item vector. When `selection` is non-`nothing`, a trailin
 into the new element (re-rooting prepends the same steps to both members).
 
 `root` defaults to `nothing` (rooted at `editor.document`); pass a carried object
-for an identity-rooted splice (e.g. a `WorkbenchPage`).
+for an identity-rooted splice against a document that is not in the tree.
 """
 function insert_elements(path::ReferencePath, index::Integer, items, selection=nothing; root=nothing)
     write = ReplaceReferencedValue(root, append_reference(path, RangeReference(index, index)),
@@ -360,14 +369,14 @@ delete_elements(path::ReferencePath, index::Integer, count::Integer=1; root=noth
 # SelectNextInsertionOperation — move the cursor to the next "hole"
 #
 # An editor-global navigation step: walk `editor.document` in pre-order and move
-# the selection to the first Document satisfying `predicate` (a "hole", e.g. a
-# `JuliaInsertion`) that comes *after* the currently-selected node, placing the
-# cursor at `<hole> ⧺ cursor` (the hole's own char cursor, e.g. `value{0}`). It
-# carries no reference of its own, so it bubbles up the reader chain unchanged
-# (the pass-through arms in `ProjectionModule.projection_read` and the else-branch
-# of `prepend_steps_to_op`). The domain gesture supplies the predicate/cursor, so
-# the kernel stays domain-agnostic; the Julia Tab gesture builds
-# `SelectNextInsertionOperation(d -> d isa JuliaInsertion, @reference value{0})`.
+# the selection to the first Document satisfying `predicate` (a "hole", e.g. an
+# insertion placeholder) that comes *after* the currently-selected node, placing
+# the cursor at `<hole> ⧺ cursor` (the hole's own char cursor, e.g. `value{0}`).
+# It carries no reference of its own, so it bubbles up the reader chain unchanged
+# (the pass-through arms in the default `projection_read` and the else-branch of
+# `prepend_steps_to_op`). A domain gesture supplies the predicate/cursor, so the
+# kernel stays domain-agnostic — e.g. a "jump to next hole" key builds
+# `SelectNextInsertionOperation(d -> d isa SomeInsertion, @reference value{0})`.
 """
     SelectNextInsertionOperation(predicate[, cursor])
 
@@ -452,16 +461,10 @@ end
 Operation that flips the `collapsed` field of a single collapsible node.
 
 `target` is the node whose `collapsed` cell should be toggled, or `nothing`.
-A `nothing` target reaches the projection layer that owns the collapse state
-(`SyntaxNodeToText`), which resolves it to the **innermost** collapsible node
-containing the current selection before the operation propagates back up — so
-the editor only ever evaluates an operation with a concrete `target`.
-
-Two entry points produce it (see `SyntaxToText` / `TextToGraphics`):
-- a keyboard chord (`Ctrl+.`), which carries no target and is resolved from
-  the selection, and
-- a click on the inline expand/collapse marker (or the collapsed ellipsis),
-  which already carries the clicked node as its target.
+A `nothing` target is resolved by whichever projection owns the collapse state to
+the **innermost** collapsible node containing the current selection, before the
+operation propagates back up — so `evaluate_operation` only ever sees a concrete
+`target` (a click that already knows the node it hit supplies one directly).
 
 The operation only affects *rendering*: the source document is untouched, so a
 selection that pointed inside the just-collapsed subtree simply stops drawing a
@@ -642,12 +645,14 @@ end
 
 Recursively sets the selection on `document` and its children to `path`.
 
-The path is first **canonicalized** against `document`: any existing type
-checkpoints are stripped and a fresh `TypeReference(typeof(node))` is inserted
-before every navigation step (see `annotate_reference_types`). This is the single
-binding point that makes every stored selection self-describing — callers hand in
-a plain navigation skeleton (built with `@reference`) and it becomes canonical
-against the live document. Annotation is idempotent on an unchanged document.
+The path is first **canonicalized** against `document`: it is stripped to its
+plain navigation skeleton and then re-annotated so every node records the
+`typeof` the document it stands on (see `annotate_reference_types` — in the
+folded model the type is a *field* on each path node, not a separate step). This
+is the single binding point that makes every stored selection self-describing —
+callers hand in a plain navigation skeleton (built with `@reference`) and it
+becomes canonical against the live document. Annotation is idempotent on an
+unchanged document.
 """
 function set_selection!(document, path)
     canonical = path === nothing ? path :

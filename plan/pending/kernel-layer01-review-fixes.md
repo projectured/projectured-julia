@@ -55,12 +55,12 @@ item here as it lands, and record any decision changes inline.
 
 ## Group S — stale docs/comments (mostly type-folding leftovers)
 
-- [ ] **S1.** `OperationModule` docstring is factually wrong: "Loaded after
+- [x] **S1.** `OperationModule` docstring is factually wrong: "Loaded after
   EditorModule so the Editor type is available" — it loads far *before*
   EditorModule and `evaluate_operation` is duck-typed; the Editor type is never
   available (`common/Operation.jl:1-6`). Rewrite to describe what the module
   actually is (built-in operations + selection propagation + splice helpers).
-- [ ] **S2.** `set_selection!` docstring says a fresh `TypeReference(typeof(node))`
+- [x] **S2.** `set_selection!` docstring says a fresh `TypeReference(typeof(node))`
   is "inserted before every navigation step" — the folded model fills node
   `type` *fields*; no step is inserted (`common/Operation.jl`).
 - [ ] **S3.** Vestiges in `clear_selection!` / `_set_selection_walk!`: the
@@ -187,7 +187,7 @@ Layer 1 — core:
 - [ ] **D5. Redundant Cell-wrapping outer ctors** in `reference/Reference.jl`:
   `RangeReference(Int,Int)`, `FieldReference(String)`, `PointReference(Int,Int)`
   — the `@document` inner ctor already auto-wraps. Delete.
-- [ ] **D6. Silent catch-all `evaluate_operation(editor, op)`.** Opposite
+- [x] **D6. Silent catch-all `evaluate_operation(editor, op)`.** Opposite
   philosophy to `DeviceModule`'s documented "deliberately no catch-all". If the
   swallow is intentional (raw events bubbling out of the reader), say so in the
   comment; otherwise narrow it.
