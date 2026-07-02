@@ -323,6 +323,31 @@ reach it.
       the new include path) and the kernel still loads (52 names). Basename-only mentions
       ("see Reactive.jl") and the `architecture.md` inventory were left as-is (filename
       unchanged; the inventory is Phase 3's job).
+- [x] **Layer A — split the reactive engine into its three concerns** (`b4f9a1e`).
+      `reactive/PerformanceCounter.jl` (`PerformanceCounterModule`) and
+      `reactive/EditorTime.jl` (`EditorTimeModule`) extracted out of `Reactive.jl` as
+      their own single-purpose modules; PerformanceCounter loads before Reactive (which
+      imports the shared `_perf` so the Cell hot path stays a bare dict write), EditorTime
+      after (layered on `Cell`). Done as separate *modules* (not module-less fragment
+      files) so the Phase 1 guard validates them directly. Blast radius: perf importers =
+      Editor only; editor-time = Editor/WidgetToGraphics/Video → import from
+      `EditorTimeModule`; added `PerformanceCounterModule`/`EditorTimeModule` domain
+      aliases. Guard green; kernel + `using Projectured` both precompile.
+- [x] **Extract `Change` from the projection api** (`b4f9a1e`). `api/Change.jl`
+      (`ChangeModule`) now owns the reader-side `Change` type + `as_change`;
+      `ProjectionApiModule` imports and **re-exports** them, so its ~many importers are
+      untouched (zero blast radius). Loads before `Projection.jl`.
+- [x] **Kernel-local `documentation/` folder** (`d5d009b`). Added
+      `package/kernel/documentation/architecture.md` (kernel-only layer diagram, hubs,
+      api-as-SPI, guard, load order) and `reactive.md` (the reactive layer's three modules),
+      cross-linking the repo-level guides rather than duplicating them.
+- [!] **Rename `src/` → `source/` — BLOCKED (infeasible).** Empirically verified Julia
+      hardcodes `src/<Name>.jl` as a package's entry point (`base/loading.jl`): an
+      otherwise-identical package in `source/` fails to load
+      (`ArgumentError: Package … does not seem to be installed`), the `src/` control loads.
+      So a plain rename breaks `using ProjecturedKernel` (and the whole umbrella). Options
+      if still wanted: a `src → source` symlink (real files in `source/`, fragile on
+      Windows/git), or keep `src/`. **Not done — needs a decision.**
 - [ ] Merge Reference + ReferenceCase + ReferenceBuilder → one `ReferenceModule`.
 - [ ] Merge EventCase + GestureBinding (→ `gesture/`).
 - [ ] Merge the 17 projection-algebra modules + ProjectionModule + PrinterContext into
