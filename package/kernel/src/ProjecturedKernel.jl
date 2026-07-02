@@ -116,7 +116,7 @@ include("editor/Mcp.jl")
 # The read-eval-print loop and its immediate dependencies: the animation clock
 # (built on Cell, advanced once per frame), the Screen device, and the gesture
 # recognizer (which needs ScreenDocument). Editor pulls in nearly every layer above.
-include("editor/EditorTime.jl")
+include("editor/Time.jl")
 include("device/ScreenDevice.jl")
 include("editor/GestureRecognizer.jl")
 include("editor/Editor.jl")

@@ -13,7 +13,7 @@ The module includes:
 Two concerns were split out of this file. The instrumentation counters
 (`PerformanceCounterModule`, `reactive/PerformanceCounter.jl`, whose `_perf` dict
 this module still bumps inline on the hot path) stay in the reactive layer. The
-animation clock (`EditorTimeModule`, `editor/EditorTime.jl`) is *built on* `Cell`
+animation clock (`EditorTimeModule`, `editor/Time.jl`) is *built on* `Cell`
 rather than part of the engine, so it lives in the editor layer.
 
 Dependency tracking is automatic: when a computed cell evaluates its thunk,
@@ -206,7 +206,7 @@ Read a cell's value **without** registering a dependency (an untracked read).
 Unlike `c[]`, calling this inside a computed thunk does not make the thunk a
 dependent of `c`. A generic reactive primitive (cf. Solid's `untrack`, MobX's
 `untracked`). The animation clock in `EditorTimeModule`
-(reactive/EditorTime.jl) uses it to *sample* the editor time rather than
+(editor/Time.jl) uses it to *sample* the editor time rather than
 subscribe to it.
 """
 function Base.peek(c::Cell)

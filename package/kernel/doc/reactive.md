@@ -21,7 +21,7 @@ They were split out of a single `Reactive.jl` so each concern has its own home; 
 load order above is the dependency order the include-order guard checks. A third
 concern once bundled here — the animation clock (`EditorTimeModule`) — is *built on*
 `Cell` rather than part of the engine, so it lives in the **editor** layer
-([src/editor/EditorTime.jl](../src/editor/EditorTime.jl)), not here.
+([src/editor/Time.jl](../src/editor/Time.jl)), not here.
 
 ## ReactiveModule — the Cell engine
 
