@@ -34,8 +34,8 @@ include("api/Document.jl")
 include("api/IoMap.jl")
 include("api/Agent.jl")
 
-# ── Reactive engine ────────────────────────────────────────────────────────
-include("common/Reactive.jl")
+# ── Reactive engine (layer A — the DAG's single dependency-free source) ─────
+include("reactive/Reactive.jl")
 
 # ── Document core & references ──────────────────────────────────────────────
 # Reactive-backed Document/IoMap, the reference machinery, operations, and the

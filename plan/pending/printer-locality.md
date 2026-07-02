@@ -19,7 +19,7 @@ audit decides which land.
 ## Why locality matters here
 
 The reactive engine
-([package/kernel/src/common/Reactive.jl](../../package/kernel/src/common/Reactive.jl))
+([package/kernel/src/reactive/Reactive.jl](../../package/kernel/src/reactive/Reactive.jl))
 is **pull-based and write-driven with no equality check** (see
 [documentation/reactive-cells.md](../../documentation/reactive-cells.md), the
 "Propagation is write-driven, not value-driven" invariant): writing a cell

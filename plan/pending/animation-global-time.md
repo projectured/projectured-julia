@@ -155,7 +155,7 @@ reactive-cells.md should be updated to say "no *ad-hoc* clocks — subscribe via
 
 ### 1. The time cell and its two readers
 
-Lives in [package/kernel/src/common/Reactive.jl](../../package/kernel/src/common/Reactive.jl),
+Lives in [package/kernel/src/reactive/Reactive.jl](../../package/kernel/src/reactive/Reactive.jl),
 next to the engine it belongs to (and the existing global `_computing` stack),
 so any layer can read it without a dependency cycle:
 
@@ -671,7 +671,7 @@ Cross-cutting notes:
 
 ## Dependencies
 
-- The reactive cell engine ([Reactive.jl](../../package/kernel/src/common/Reactive.jl))
+- The reactive cell engine ([Reactive.jl](../../package/kernel/src/reactive/Reactive.jl))
   — `EDITOR_TIME`, the generic `peek` (untracked read), and the two readers
   `reactive_editor_time()` / `editor_time()` are added there; write-driven
   invalidation is the load-bearing mechanism and already exists.

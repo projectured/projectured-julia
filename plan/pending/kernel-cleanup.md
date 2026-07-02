@@ -305,6 +305,24 @@ layer-module middle ground keeps the boundaries that the architecture docs teach
       above ("Kernel layer diagram") was generated from the same parse.
 
 ### Phase 2 — module consolidation (the big one; order within phase = risk order)
+
+**Execution strategy: layer by layer, bottom-up** (started 2026-07-02). Rather than land
+all merges at once, walk the layer diagram from its dependency-free source (A) upward, so
+each step is small, independently loadable, and guarded by the Phase 1 include-order test.
+Establishing each layer's own `src/` folder (out of the `common/` grab-bag) happens as we
+reach it.
+
+- [x] **Layer A — reactive engine.** `git mv common/Reactive.jl → reactive/Reactive.jl`;
+      updated the include (relabelled "layer A — the DAG's single dependency-free source")
+      and the live path links in `documentation/reactive-cells.md` (also de-rotted the
+      stale `program/src/...` link text), `documentation/projectured-overview.md`, and the
+      two pending plans that link it (`animation-global-time.md`, `printer-locality.md`).
+      `ReactiveModule` is already a single self-contained module (no `..X` imports, 19
+      dependents), so this is a pure folder relocation — no code change, module name
+      unchanged. Phase 1 guard stayed green (its `Set(includes) == on_disk` check verifies
+      the new include path) and the kernel still loads (52 names). Basename-only mentions
+      ("see Reactive.jl") and the `architecture.md` inventory were left as-is (filename
+      unchanged; the inventory is Phase 3's job).
 - [ ] Merge Reference + ReferenceCase + ReferenceBuilder → one `ReferenceModule`.
 - [ ] Merge EventCase + GestureBinding (→ `gesture/`).
 - [ ] Merge the 17 projection-algebra modules + ProjectionModule + PrinterContext into
