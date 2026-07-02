@@ -48,11 +48,11 @@ struct PSField <: PatStep
 end
 
 struct PSIndex <: PatStep
-    idxpat::PatValue    # matches ElementReference.index[] :: Int
+    idxpat::PatValue    # matches a single-element RangeReference; 1-based index = start + 1
 end
 
 struct PSPosition <: PatStep
-    idxpat::PatValue    # matches PositionReference.index[] :: Int
+    idxpat::PatValue    # matches a zero-width RangeReference (a cursor position); 0-based = start
 end
 
 struct PSRange <: PatStep

@@ -68,17 +68,17 @@ item here as it lands, and record any decision changes inline.
   happens; one ends with a dangling "(mirrors evaluate_reference / )"; the
   `nav = path; nav isa ConcreteReferencePath || return` re-check is redundant
   with the line above it (`common/Operation.jl`). (Largely subsumed by D2.)
-- [ ] **S4.** `ReferenceCase.jl` PSIndex/PSPosition comments reference
+- [x] **S4.** `ReferenceCase.jl` PSIndex/PSPosition comments reference
   "`ElementReference.index[]`" / "`PositionReference.index[]`" — those structs
   no longer exist (unified `RangeReference`).
-- [ ] **S5.** `ReferenceModule` docstring claims "All reference steps and paths
+- [x] **S5.** `ReferenceModule` docstring claims "All reference steps and paths
   are immutable" — `@document` makes them *mutable* structs of Cells (that is
   what `_mutate_terminal_step!` exploits). Also fix two wrong docstring
   signatures: `ReferencePath(steps::Reference...)` and
   `append_reference(base, steps::Reference...)` → `ReferenceStep...`.
-- [ ] **S6.** `CollectionDocument` docstring describes only 2 of its 4 union
+- [x] **S6.** `CollectionDocument` docstring describes only 2 of its 4 union
   members (`document/Collection.jl`).
-- [ ] **S7.** The "Inter-string boundary behaviour" paragraph is pasted into both
+- [x] **S7.** The "Inter-string boundary behaviour" paragraph is pasted into both
   replace-range op docstrings; it is meaningless for
   `NumberReplaceRangeOperation` (numbers have no adjacent string spans). Keep it
   on the string op only (`document/Primitive.jl`).

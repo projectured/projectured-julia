@@ -434,9 +434,11 @@ end
 """
     CollectionDocument
 
-Type alias representing the union of supported collection types.
-Documents use either `CellVector` (finite, eager) or `ListNode`
-(potentially infinite, lazy).
+Type alias for the union of the collection document types:
+- `CellVector` — indexed growable vector (finite, eager);
+- `CellMatrix` — dense rectangular matrix of cells;
+- `CellTable`  — a `CellVector` of `CellVector` rows;
+- `ListNode`   — doubly-linked list node (potentially infinite, lazy).
 """
 const CollectionDocument = Union{CellVector, CellMatrix, CellTable, ListNode}
 

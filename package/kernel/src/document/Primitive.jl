@@ -92,9 +92,6 @@ target `PrimitiveNumber`. After evaluation the target's `selection` is updated
 to a zero-width cursor at `s + length(replacement)`.
 
 An empty result sets the value to `nothing`.
-
-Inter-string boundary behaviour: when the cursor sits exactly on the boundary
-between two adjacent `PrimitiveString` spans, the behaviour is undefined.
 """
 struct NumberReplaceRangeOperation <: Operation
     reference::ReferencePath

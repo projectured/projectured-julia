@@ -2,12 +2,11 @@
     ReferenceModule
 
 The reference module provides path-like references into document trees,
-implemented as an immutable reactive linked list of typed steps. Each step
-descends one level by integer index, named field, projection-introduced
-element, or pixel coordinate. The selection mechanism propagates paths
-recursively, writing each suffix into the matching child Document's selection
-cell so every node in the tree always holds the sub-path relevant to its
-own subtree.
+implemented as a reactive linked list of typed steps. Each step descends one
+level by integer index, named field, projection-introduced element, or pixel
+coordinate. The selection mechanism propagates paths recursively, writing each
+suffix into the matching child Document's selection cell so every node in the
+tree always holds the sub-path relevant to its own subtree.
 
 The module includes:
 - **Reference steps**: `RangeReference` (unified sequence step with backward-compatible
@@ -17,8 +16,11 @@ The module includes:
   `ConcreteReferencePath`
 - **Functions**: `append_reference`, `evaluate_reference`, `is_valid_reference`
 
-All reference steps and paths are immutable for safety, with reactive cells
-for dynamic values.
+The linked-list *shape* is persistent — extending a path reuses the existing
+tail rather than copying. The `@document`-backed step/path structs are mutable
+and store their dynamic values (indices, positions, the head/tail links) in
+reactive `Cell`s, so a caret move can update those cells in place (see
+`update_selection!`) without rebuilding the chain.
 """
 module ReferenceModule
 
@@ -268,7 +270,7 @@ end
 ConcreteReferencePath(head::ReferenceStep) = ConcreteReferencePath(nothing, head, EmptyReferencePath())
 
 """
-    ReferencePath(steps::Reference...)
+    ReferencePath(steps::ReferenceStep...)
 
 Build a `ReferencePath` from a sequence of reference steps (left = outermost).
 """
@@ -422,7 +424,7 @@ is_prefix_of(a::ConcreteReferencePath, b::ConcreteReferencePath) =
 # ── Path construction helpers ────────────────────────────────────────────
 
 """
-    append_reference(base::ReferencePath, steps::Reference...) -> ReferencePath
+    append_reference(base::ReferencePath, steps::ReferenceStep...) -> ReferencePath
 
 Return a new `ReferencePath` formed by appending `steps` to the end of
 `base`. The first step in `steps` becomes the direct successor of the last
