@@ -85,6 +85,7 @@ const layout_example         = Example("layout",         make_layout_document_ex
 const constraint_layout_example = Example("constraint_layout", make_constraint_layout_document_example, make_constraint_layout_projection_example)
 const book_example           = Example("book",           make_book_document_example,           make_book_projection_example)
 const markdown_example       = Example("markdown",       make_markdown_document_example,       make_markdown_projection_example)
+const markdown_rendered_example = Example("markdown_rendered", make_markdown_document_example,   make_markdown_rendered_projection_example)
 const filesystem_example     = Example("filesystem",     make_filesystem_document_example,     make_filesystem_projection_example)
 const filesystem_widget_example = Example("filesystem_widget", make_filesystem_document_example, make_filesystem_widget_projection_example)
 const navigator_example      = Example("navigator",      make_navigator_document_example,      make_navigator_projection_example)
@@ -170,7 +171,7 @@ const examples = [
     widget_toggle_example, widget_toggle_group_example, widget_select_example,
     widget_textarea_example, widget_accordion_example, widget_table_example, widget_tree_example,
     widget_disabled_example, widget_focus_example,
-    layout_example, constraint_layout_example, book_example, markdown_example, filesystem_example, filesystem_widget_example, navigator_example,
+    layout_example, constraint_layout_example, book_example, markdown_example, markdown_rendered_example, filesystem_example, filesystem_widget_example, navigator_example,
     collection_example, reversing_example, filtering_example, searching_example, sorting_example, focusing_example, table_example, math_table_example, graph_example, workbench_example,
     math_example,
     julia_example,

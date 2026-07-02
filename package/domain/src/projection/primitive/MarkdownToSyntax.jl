@@ -1,19 +1,21 @@
 """
     MarkdownToSyntaxModule
 
-Markdown → SyntaxDocument projection, written entirely with `@projection_template`
-so the reader (selection forward/backward and character type-in) is derived from
-the recorded wiring — no hand-written `map_reference_*`/`projection_read`.
+Markdown → SyntaxDocument projection with two presentations, selected by
+`MarkdownToSyntax(; style)`:
 
-Each Markdown node maps to a matching syntax shape:
-- leaves: `MarkdownText`, `MarkdownCode` (bound content), `MarkdownThematicBreak`
-  and `MarkdownInsertion` (opaque markers);
-- homogeneous-collection nodes: `MarkdownParagraph`, `MarkdownEmphasis`,
-  `MarkdownStrong`, `MarkdownHeading` (its level is a reactive `#…` open marker),
-  `MarkdownQuote`, `MarkdownList`, `MarkdownListItem`, `MarkdownRoot`;
-- fixed-children nodes: `MarkdownLink` (`[content](url)`), `MarkdownImage`
-  (`![alt](url)`) and `MarkdownCodeBlock` (fenced), each pairing a bound leaf with
-  a nested collection or another bound leaf.
+- `:source` (default) — colourised **raw markdown**: `#` headings, `**bold**`,
+  `` `code` ``, `[text](url)`, `- ` bullets, ` ``` ` fences, `>` quotes, `---`.
+  Every marker is an editable text span. Written entirely with
+  `@projection_template`, so the reader is derived from the wiring.
+- `:rendered` — **formatted markdown**, marker-free: big bold headings, real
+  bold/italic, plain inline code, `•` bullets, `▏` quote bars, `───` rules, blue
+  links. Inline font weight/size cascades from a container to its descendant text
+  via an ambient `:md_style` carried in the printer context (School A: containers
+  delegate to their children and only *augment* the ambient style; the leaf reads
+  it). This mirrors YAML's `YamlToSyntax(; style)`: most rules stay on
+  `@projection_template` (rendered field values), only the cascading nodes
+  (Text/Strong/Emphasis/Heading/Link) are hand-written.
 
 Blocks stack flush-left (`indentation=0` + a newline `sep`, the BookToSyntax
 idiom); inline runs concatenate (`sep=""`).
@@ -21,31 +23,50 @@ idiom); inline runs concatenate (`sep=""`).
 module MarkdownToSyntaxModule
 
 import ..ReactiveModule: Cell
-import ..ProjectionApiModule: Projection
+import ..CollectionModule: CellVector
+import ..ProjectionApiModule: Projection, projection_print, projection_printer_recurse, projection_read,
+                              map_reference_forward, map_reference_backward
 import ..ProjectionModule: var"@projection"
 import ..MarkdownModule: MarkdownInsertion, MarkdownText, MarkdownCode, MarkdownEmphasis,
                          MarkdownStrong, MarkdownLink, MarkdownImage, MarkdownHeading,
                          MarkdownParagraph, MarkdownCodeBlock, MarkdownThematicBreak,
                          MarkdownQuote, MarkdownList, MarkdownListItem, MarkdownRoot
 import ..TextModule: TextString, hinted_text
-import ..FontModule: font_ubuntu_monospace_regular_20, font_ubuntu_monospace_bold_20
+import ..FontModule: font_ubuntu_monospace_regular_20, font_ubuntu_monospace_bold_20,
+                     font_ubuntu_regular_20, font_ubuntu_bold_20, font_ubuntu_italic_20,
+                     font_ubuntu_bold_36, font_ubuntu_bold_24, font_ubuntu_bold_22, font_ubuntu_bold_18,
+                     font_dejavu_monospace_regular_20
 import ..ColorModule: color_black, color_solarized_blue, color_solarized_green,
-                      color_solarized_magenta, color_solarized_cyan, color_solarized_yellow,
+                      color_solarized_magenta, color_solarized_cyan,
                       color_solarized_gray, color_solarized_violet
 import ..StyleTextModule: StyleText
-import ..SyntaxModule: SyntaxLeaf, SyntaxNode
+import ..SyntaxModule: SyntaxDocument, SyntaxLeaf, SyntaxNode
 import ..TypeDispatchingModule: TypeDispatchingProjection
 import ..CopyingProjectionModule: CopyingProjection
+import ..IoMapModule: SimpleIoMap, ChildrenIoMap
+import ..PrinterContextModule: child_context, with_property, get_property
+import ..ReferenceModule: ConcreteReferencePath, FieldReference, RangeReference, ElementReference,
+                          ProjectionReference, EmptyReferencePath
+import ..ReferenceCaseModule: var"@reference_case"
+import ..ReferenceBuilderModule: var"@reference"
+import ..OperationModule: ReplaceSelectionOperation
+import ..PrimitiveModule: StringReplaceRangeOperation
 import ..ProjectionTemplateModule: var"@projection_template", bound, collection
 export MarkdownInsertionToSyntaxLeaf, MarkdownTextToSyntaxLeaf, MarkdownCodeToSyntaxLeaf,
        MarkdownThematicBreakToSyntaxLeaf, MarkdownEmphasisToSyntaxNode, MarkdownStrongToSyntaxNode,
        MarkdownParagraphToSyntaxNode, MarkdownHeadingToSyntaxNode, MarkdownQuoteToSyntaxNode,
        MarkdownListToSyntaxNode, MarkdownListItemToSyntaxNode, MarkdownRootToSyntaxNode,
        MarkdownLinkToSyntaxNode, MarkdownImageToSyntaxNode, MarkdownCodeBlockToSyntaxNode,
+       MarkdownStyledTextToSyntaxLeaf, MarkdownStyledInline, MarkdownStrongToStyledNode,
+       MarkdownEmphasisToStyledNode, MarkdownHeadingToStyledNode, MarkdownLinkToStyledNode,
        MarkdownToSyntax
 
 const _MONO      = font_ubuntu_monospace_regular_20
 const _MONO_BOLD = font_ubuntu_monospace_bold_20
+
+# ══════════════════════════════════════════════════════════════════════════════
+# Source view (style = :source) — colourised raw markdown, all @projection_template
+# ══════════════════════════════════════════════════════════════════════════════
 
 # ── MarkdownInsertionToSyntaxLeaf ─────────────────────────────────────────────
 
@@ -67,28 +88,32 @@ end
                      hinted_text(() -> doc.content, () -> isempty(doc.content), "text", prj.style)))
 
 # ── MarkdownCodeToSyntaxLeaf ──────────────────────────────────────────────────
+# `tick` is the delimiter shown around the code (`` ` `` in source, "" rendered).
 
 @projection struct MarkdownCodeToSyntaxLeaf
     value_style::StyleText = StyleText(_MONO, color_solarized_green)
     tick_style::StyleText  = StyleText(_MONO, color_solarized_gray)
+    tick::String           = "`"
 end
 
 @projection_template MarkdownCodeToSyntaxLeaf MarkdownCode (prj, doc) ->
     SyntaxLeaf(bound(:content, String,
                      hinted_text(() -> doc.content, () -> isempty(doc.content), "code", prj.value_style));
-               open=TextString("`", prj.tick_style),
-               close=TextString("`", prj.tick_style))
+               open=TextString(prj.tick, prj.tick_style),
+               close=TextString(prj.tick, prj.tick_style))
 
 # ── MarkdownThematicBreakToSyntaxLeaf ─────────────────────────────────────────
+# `text` is "---" in source, a `───` rule (DejaVu box-drawing) when rendered.
 
 @projection struct MarkdownThematicBreakToSyntaxLeaf
     style::StyleText = StyleText(_MONO, color_solarized_gray)
+    text::String     = "---"
 end
 
 @projection_template MarkdownThematicBreakToSyntaxLeaf MarkdownThematicBreak (prj, doc) ->
-    SyntaxLeaf(TextString("---", prj.style))
+    SyntaxLeaf(TextString(prj.text, prj.style))
 
-# ── MarkdownEmphasisToSyntaxNode ──────────────────────────────────────────────
+# ── MarkdownEmphasisToSyntaxNode / MarkdownStrongToSyntaxNode (source) ─────────
 
 @projection struct MarkdownEmphasisToSyntaxNode
     marker_style::StyleText = StyleText(_MONO, color_solarized_gray)
@@ -100,8 +125,6 @@ end
                close=TextString("*", prj.marker_style),
                sep=TextString(""))
 
-# ── MarkdownStrongToSyntaxNode ────────────────────────────────────────────────
-
 @projection struct MarkdownStrongToSyntaxNode
     marker_style::StyleText = StyleText(_MONO, color_solarized_gray)
 end
@@ -112,16 +135,14 @@ end
                close=TextString("**", prj.marker_style),
                sep=TextString(""))
 
-# ── MarkdownParagraphToSyntaxNode ─────────────────────────────────────────────
+# ── MarkdownParagraphToSyntaxNode (shared by both styles) ─────────────────────
 
 @projection struct MarkdownParagraphToSyntaxNode end
 
 @projection_template MarkdownParagraphToSyntaxNode MarkdownParagraph (prj, doc) ->
     SyntaxNode(collection(:content); sep=TextString(""), indentation=0)
 
-# ── MarkdownHeadingToSyntaxNode ───────────────────────────────────────────────
-# `level` is rendered as a reactive `#…` open marker (projection-introduced, not a
-# bound field — level editing is deferred). Content is the inline collection.
+# ── MarkdownHeadingToSyntaxNode (source; `#…` open marker) ─────────────────────
 
 @projection struct MarkdownHeadingToSyntaxNode
     hash_style::StyleText = StyleText(_MONO_BOLD, color_solarized_blue)
@@ -133,40 +154,40 @@ end
                sep=TextString(""), indentation=0)
 
 # ── MarkdownQuoteToSyntaxNode ─────────────────────────────────────────────────
+# `open_marker`/`sep_marker` prefix each quoted line (`> ` source, `▏ ` rendered).
 
 @projection struct MarkdownQuoteToSyntaxNode
     marker_style::StyleText = StyleText(_MONO, color_solarized_gray)
+    open_marker::String     = "> "
+    sep_marker::String      = "\n> "
 end
 
 @projection_template MarkdownQuoteToSyntaxNode MarkdownQuote (prj, doc) ->
     SyntaxNode(collection(:elements);
-               open=TextString("> ", prj.marker_style),
-               sep=TextString("\n> ", prj.marker_style),
+               open=TextString(prj.open_marker, prj.marker_style),
+               sep=TextString(prj.sep_marker, prj.marker_style),
                indentation=0)
 
 # ── MarkdownListItemToSyntaxNode ──────────────────────────────────────────────
-# A `- ` bullet (ordered numbering is deferred — see plan). Continuation blocks of
-# a multi-block item are joined with an indented newline.
+# `bullet` is `- ` (source) or `• ` (rendered). Ordered numbering is deferred.
 
 @projection struct MarkdownListItemToSyntaxNode
     bullet_style::StyleText = StyleText(_MONO, color_solarized_gray)
+    bullet::String          = "- "
 end
 
 @projection_template MarkdownListItemToSyntaxNode MarkdownListItem (prj, doc) ->
     SyntaxNode(collection(:elements);
-               open=TextString("- ", prj.bullet_style),
+               open=TextString(prj.bullet, prj.bullet_style),
                sep=TextString("\n  "),
                indentation=0)
 
-# ── MarkdownListToSyntaxNode ──────────────────────────────────────────────────
+# ── MarkdownListToSyntaxNode / MarkdownRootToSyntaxNode (shared) ───────────────
 
 @projection struct MarkdownListToSyntaxNode end
 
 @projection_template MarkdownListToSyntaxNode MarkdownList (prj, doc) ->
     SyntaxNode(collection(:items); sep=TextString("\n"), indentation=0)
-
-# ── MarkdownRootToSyntaxNode ──────────────────────────────────────────────────
-# Flush-left blocks separated by a blank line (the BookBookToSyntaxNode idiom).
 
 @projection struct MarkdownRootToSyntaxNode
     style::StyleText = StyleText(_MONO, color_black)
@@ -177,9 +198,7 @@ end
                sep=TextString("\n\n", prj.style),
                indentation=0)
 
-# ── MarkdownLinkToSyntaxNode ──────────────────────────────────────────────────
-# Fixed node `[content](url)`: the inline content is a nested collection sub-node
-# (SubNodeSlot, JuliaCall's `(args)` shape) and the url a bound leaf (KeySlot).
+# ── MarkdownLinkToSyntaxNode (source `[content](url)`) ────────────────────────
 
 @projection struct MarkdownLinkToSyntaxNode
     bracket_style::StyleText = StyleText(_MONO, color_solarized_gray)
@@ -198,8 +217,7 @@ end
                      close=TextString(")", prj.bracket_style)) ],
         0, false, nothing)
 
-# ── MarkdownImageToSyntaxNode ─────────────────────────────────────────────────
-# Fixed node `![alt](url)`: two bound leaves (KeySlots).
+# ── MarkdownImageToSyntaxNode (source `![alt](url)`) ──────────────────────────
 
 @projection struct MarkdownImageToSyntaxNode
     bracket_style::StyleText = StyleText(_MONO, color_solarized_gray)
@@ -219,8 +237,7 @@ end
                      close=TextString(")", prj.bracket_style)) ],
         0, false, nothing)
 
-# ── MarkdownCodeBlockToSyntaxNode ─────────────────────────────────────────────
-# Fenced block ```` ```lang\ncode\n``` ````: two bound leaves (language, code).
+# ── MarkdownCodeBlockToSyntaxNode (fenced; shared) ────────────────────────────
 
 @projection struct MarkdownCodeBlockToSyntaxNode
     fence_style::StyleText = StyleText(_MONO, color_solarized_gray)
@@ -237,9 +254,203 @@ end
                      open=TextString("\n", prj.fence_style)) ],
         0, false, nothing)
 
-# ── Compound convenience constructor ──────────────────────────────────────────
+# ══════════════════════════════════════════════════════════════════════════════
+# Rendered view (style = :rendered) — cascading inline styles via ambient context
+# ══════════════════════════════════════════════════════════════════════════════
 
-function MarkdownToSyntax()
+const _BODY = StyleText(font_ubuntu_regular_20, color_black)
+const _HEADING_COLOR = color_solarized_blue
+
+_heading_font(level) = level <= 1 ? font_ubuntu_bold_36 :
+                       level == 2 ? font_ubuntu_bold_24 :
+                       level == 3 ? font_ubuntu_bold_22 :
+                                    font_ubuntu_bold_18
+
+# Augment the ambient style with a container's mode. There is no bold-italic face,
+# so nesting keeps the innermost weight (a documented v1 limitation).
+function _mode_style(mode::Symbol, ambient::StyleText, doc)
+    mode === :bold    && return StyleText(font_ubuntu_bold_20, ambient.color)
+    mode === :italic  && return StyleText(font_ubuntu_italic_20, ambient.color)
+    mode === :link    && return StyleText(ambient.font, color_solarized_blue)
+    mode === :heading && return StyleText(_heading_font(clamp(doc.level, 1, 6)), _HEADING_COLOR)
+    ambient
+end
+
+# ── MarkdownStyledTextToSyntaxLeaf (rendered MarkdownText; reads ambient) ──────
+# Same output shape and reference mapping as the source text leaf; the only
+# difference is the font, taken from the ambient `:md_style` (or the body default).
+
+@projection struct MarkdownStyledTextToSyntaxLeaf
+    style::StyleText = _BODY
+end
+
+function map_reference_forward(::MarkdownStyledTextToSyntaxLeaf, iomap, reference)
+    @reference_case reference begin
+        ::MarkdownText.content.rest... => @reference ::SyntaxLeaf.value::TextString.^(rest)
+    end
+end
+
+function map_reference_backward(::MarkdownStyledTextToSyntaxLeaf, iomap, reference)
+    @reference_case reference begin
+        ::SyntaxLeaf.value.rest... => @reference ::MarkdownText.content::String.^(rest)
+    end
+end
+
+function projection_print(p::MarkdownStyledTextToSyntaxLeaf, recursion, t::MarkdownText, ctx)
+    style = get_property(ctx, :md_style, p.style)
+    sel = Cell(() -> begin
+        s = t.selection
+        s isa ConcreteReferencePath && s.head isa ProjectionReference && return s
+        map_reference_forward(p, nothing, s)
+    end)
+    SimpleIoMap(p, t, SyntaxLeaf(TextString(() -> t.content, style); selection=sel))
+end
+
+function projection_read(p::MarkdownStyledTextToSyntaxLeaf, iomap, op::StringReplaceRangeOperation)
+    new_ref = map_reference_backward(p, iomap, op.reference)
+    new_ref === nothing && return nothing
+    StringReplaceRangeOperation(new_ref, op.replacement)
+end
+
+function projection_read(p::MarkdownStyledTextToSyntaxLeaf, iomap, op::ReplaceSelectionOperation)
+    path = op.path
+    path isa ConcreteReferencePath || return nothing
+    h = path.head
+    if h isa FieldReference && h.name == "value"
+        return ReplaceSelectionOperation(@reference content.^(path.tail))
+    else
+        return ReplaceSelectionOperation(@reference proj(p, ^(path)))
+    end
+end
+
+# ── MarkdownStyledInline (rendered Strong/Emphasis/Heading/Link) ───────────────
+# A marker-free inline container that sets an ambient `:md_style` (its `mode`) and
+# projects its `content` children through it (School A delegation). Output shape:
+# a `SyntaxNode` whose children are the recursively projected content, so the
+# reference mapping is the standard "delegate to child i" (modeled on
+# YamlSequenceToBlockSyntaxNode, minus the per-item wrapper).
+
+abstract type MarkdownStyledInline <: Projection end
+
+struct MarkdownStrongToStyledNode   <: MarkdownStyledInline end
+struct MarkdownEmphasisToStyledNode <: MarkdownStyledInline end
+struct MarkdownHeadingToStyledNode  <: MarkdownStyledInline end
+struct MarkdownLinkToStyledNode     <: MarkdownStyledInline end
+
+_mode(::MarkdownStrongToStyledNode)   = :bold
+_mode(::MarkdownEmphasisToStyledNode) = :italic
+_mode(::MarkdownHeadingToStyledNode)  = :heading
+_mode(::MarkdownLinkToStyledNode)     = :link
+
+function projection_print(p::MarkdownStyledInline, recursion, doc, ctx)
+    ambient = get_property(ctx, :md_style, _BODY)
+    style = _mode_style(_mode(p), ambient, doc)
+    child_iomaps = Cell(() -> [
+        projection_printer_recurse(recursion, child,
+            with_property(child_context(ctx, FieldReference("content"), ElementReference(i)), :md_style, style))
+        for (i, child) in enumerate(doc.content)])
+    items = CellVector(() -> SyntaxDocument[im.output for im in child_iomaps[]])
+    iomap_cell = Cell(nothing)
+    sel = Cell(() -> begin
+        im = iomap_cell[]
+        im === nothing && return nothing
+        path = doc.selection
+        path === nothing && return nothing
+        map_reference_forward(p, im, path)
+    end)
+    node = SyntaxNode(items; indentation=0, selection=sel)
+    iomap = ChildrenIoMap(p, doc, node, child_iomaps)
+    iomap_cell[] = iomap
+    return iomap
+end
+
+# Forward is shared (input matched by the `content` field name, output is
+# `::SyntaxNode`): no input-type literal is needed.
+function map_reference_forward(p::MarkdownStyledInline, iomap::ChildrenIoMap, reference)
+    @reference_case reference begin
+        ∅ => @reference ::SyntaxNode
+        proj(^(p), _) => reference
+        content{s:e}.rest... => begin
+            child_i = s + 1
+            iomaps = iomap.child_iomaps[]
+            1 <= child_i <= length(iomaps) || return nothing
+            child = iomaps[child_i]
+            inner = map_reference_forward(child.projection, child, rest)
+            inner === nothing && return nothing
+            @reference ::SyntaxNode.children[child_i].^(inner)
+        end
+    end
+end
+
+# Backward needs the input node type for the folded whole-element (`∅`) form and
+# the `content[i]` owner, so there is one tiny method per concrete type.
+for (T, D) in ((:MarkdownStrongToStyledNode,   :MarkdownStrong),
+               (:MarkdownEmphasisToStyledNode, :MarkdownEmphasis),
+               (:MarkdownHeadingToStyledNode,  :MarkdownHeading),
+               (:MarkdownLinkToStyledNode,     :MarkdownLink))
+    @eval function map_reference_backward(p::$T, iomap::ChildrenIoMap, reference)
+        @reference_case reference begin
+            ∅ => EmptyReferencePath($D)
+            ::SyntaxNode.children{s:e}.rest... => begin
+                child_i = s + 1
+                iomaps = iomap.child_iomaps[]
+                1 <= child_i <= length(iomaps) || return nothing
+                child = iomaps[child_i]
+                inner = map_reference_backward(child.projection, child, rest)
+                inner === nothing && return nothing
+                @reference ::$D.content[child_i].^(inner)
+            end
+        end
+    end
+end
+
+function projection_read(p::MarkdownStyledInline, iomap::ChildrenIoMap, op::ReplaceSelectionOperation)
+    r = map_reference_backward(p, iomap, op.path)
+    r === nothing ? nothing : ReplaceSelectionOperation(r)
+end
+
+function projection_read(p::MarkdownStyledInline, iomap::ChildrenIoMap, op::StringReplaceRangeOperation)
+    r = map_reference_backward(p, iomap, op.reference)
+    r === nothing ? nothing : StringReplaceRangeOperation(r, op.replacement)
+end
+
+# ══════════════════════════════════════════════════════════════════════════════
+# Dispatcher
+# ══════════════════════════════════════════════════════════════════════════════
+
+"""
+    MarkdownToSyntax(; style::Symbol = :source)
+
+Build the Markdown → Syntax projection. `style` is `:source` (colourised raw
+markdown, fully editable including markers) or `:rendered` (formatted, marker-free
+— see the module docstring).
+"""
+function MarkdownToSyntax(; style::Symbol = :source)
+    style in (:source, :rendered) || error("MarkdownToSyntax: style must be :source or :rendered, got :$style")
+    if style === :rendered
+        gray_dejavu = StyleText(font_dejavu_monospace_regular_20, color_solarized_gray)
+        return TypeDispatchingProjection(
+            MarkdownInsertion     => MarkdownInsertionToSyntaxLeaf(),
+            MarkdownText          => MarkdownStyledTextToSyntaxLeaf(),
+            MarkdownCode          => MarkdownCodeToSyntaxLeaf(tick="",
+                                        value_style=StyleText(_MONO, color_solarized_magenta)),
+            MarkdownThematicBreak => MarkdownThematicBreakToSyntaxLeaf(text="────────────",
+                                        style=gray_dejavu),
+            MarkdownEmphasis      => MarkdownEmphasisToStyledNode(),
+            MarkdownStrong        => MarkdownStrongToStyledNode(),
+            MarkdownParagraph     => MarkdownParagraphToSyntaxNode(),
+            MarkdownHeading       => MarkdownHeadingToStyledNode(),
+            MarkdownCodeBlock     => MarkdownCodeBlockToSyntaxNode(),
+            MarkdownQuote         => MarkdownQuoteToSyntaxNode(open_marker="▏ ", sep_marker="\n▏ ",
+                                        marker_style=gray_dejavu),
+            MarkdownList          => MarkdownListToSyntaxNode(),
+            MarkdownListItem      => MarkdownListItemToSyntaxNode(bullet="• ", bullet_style=gray_dejavu),
+            MarkdownLink          => MarkdownLinkToStyledNode(),
+            MarkdownImage         => MarkdownImageToSyntaxNode(),
+            MarkdownRoot          => MarkdownRootToSyntaxNode(),
+            Vector{Cell}          => CopyingProjection(),
+        )
+    end
     TypeDispatchingProjection(
         MarkdownInsertion     => MarkdownInsertionToSyntaxLeaf(),
         MarkdownText          => MarkdownTextToSyntaxLeaf(),
