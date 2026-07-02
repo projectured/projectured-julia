@@ -47,7 +47,7 @@ item here as it lands, and record any decision changes inline.
   character-aware. Multibyte content breaks both. Route them through
   `splice_string` / character-aware indexing (`document/Primitive.jl`).
 
-- [ ] **C3. `CellVector(n::Integer)` footgun.** `CellVector(5)` makes five
+- [x] **C3. `CellVector(n::Integer)` footgun.** `CellVector(5)` makes five
   `nothing` slots; `CellVector(5, 6)` makes elements `[5, 6]` — same name,
   unrelated semantics, one argument apart (`document/Collection.jl`). Replace the
   `Integer` ctor with `CellVector(undef, n)` and migrate every call site in

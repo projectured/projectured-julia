@@ -41,7 +41,10 @@ end
 CellVector()                        = CellVector(Cell(Cell[]),           Cell(nothing))
 CellVector(cells::Vector{Cell})     = CellVector(Cell(copy(cells)),      Cell(nothing))
 CellVector(items::AbstractVector)   = CellVector(Cell[Cell(x) for x in items])
-CellVector(n::Integer)              = CellVector(Cell([Cell(nothing) for _ in 1:n]), Cell(nothing))
+# `CellVector(undef, n)` — n empty (`nothing`) slots. Spelled with `undef` so it
+# never collides with `CellVector(x)` / `CellVector(x, y)`, which build an element
+# vector from their arguments (a bare integer is an *element*, not a slot count).
+CellVector(::UndefInitializer, n::Integer) = CellVector(Cell([Cell(nothing) for _ in 1:n]), Cell(nothing))
 CellVector(items...)                = CellVector(Cell[Cell(x) for x in items])
 function CellVector(f::Function)
     cv = CellVector(Cell(Cell[]), Cell(nothing))
@@ -240,7 +243,7 @@ end
 CellTable() = CellTable(Cell(CellVector()), Cell(nothing))
 
 CellTable(nrows::Integer, ncols::Integer) =
-    CellTable(Cell(CellVector(Cell[Cell(CellVector(ncols)) for _ in 1:nrows])), Cell(nothing))
+    CellTable(Cell(CellVector(Cell[Cell(CellVector(undef, ncols)) for _ in 1:nrows])), Cell(nothing))
 
 function CellTable(items::AbstractMatrix)
     nr, nc = size(items)
