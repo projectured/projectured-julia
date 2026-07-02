@@ -736,6 +736,12 @@ _route_crossing_to_children(child_entries::Vector, evt) =
         (x, y) -> evt isa MouseEnter ? MouseEnter(x, y, evt.buttons, evt.modifiers) :
                                        MouseLeave(x, y, evt.buttons, evt.modifiers))
 
+# Route pointer motion to the hit child (coordinate-translated), so a hovered
+# widget nested in a band container still sees MouseMove.
+_route_move_to_children(child_entries::Vector, evt::MouseMove) =
+    _route_to_children(child_entries, evt.x, evt.y,
+        (x, y) -> MouseMove(x, y, evt.buttons, evt.modifiers))
+
 # Translate a path-bearing op from `op`'s current domain (this projection's
 # child's input domain — what the bubbled-up reader returned) into this
 # projection's own input domain by running its reference through
@@ -1874,6 +1880,12 @@ function projection_read(p::WidgetShellToGraphicsCanvas, iomap::ChildrenIoMap, e
     op = @event_case evt begin
         MouseScroll => _route_scroll_to_children(child_iomaps, evt)
         MousePress  => _route_click_to_children(child_iomaps, evt)
+        # Pointer motion / crossings carry coordinates: route them to the band under
+        # the pointer (coordinate-translated), so a hovered widget inside the content
+        # band gets the MouseMove/MouseEnter/MouseLeave the hover tracker synthesises.
+        MouseMove   => _route_move_to_children(child_iomaps, evt)
+        MouseEnter  => _route_crossing_to_children(child_iomaps, evt)
+        MouseLeave  => _route_crossing_to_children(child_iomaps, evt)
         # Forward keyboard (and other coordless) events to the wrapped
         # child. The reader at the focused leaf returns an op; others
         # return nothing.
@@ -2609,12 +2621,15 @@ function projection_read(p::WidgetTabbedPaneToGraphicsCanvas, iomap::ChildrenIoM
         end
         return _tab_prefix(_route_active_tab(iomap, child_iomaps, evt))
     end
-    # Drag events carry coordinates and target the visible tab regardless of
-    # selection — a splitter drag inside the active tab must keep receiving
-    # motion even when the pane carries no selection (the bootstrap case the
-    # SplitPaneDrag tests cover). `_route_active_tab` translates coords into
-    # the tab's frame for them.
-    if evt isa MouseDown || evt isa MouseUp || evt isa MouseMove
+    # Coordinate-bearing events (drags + hover crossings) target the *visible* tab
+    # regardless of selection: a splitter drag inside the active tab must keep
+    # receiving motion even when the pane carries no selection (the bootstrap case
+    # the SplitPaneDrag tests cover), and a hover crossing must reach whatever the
+    # pointer is over — routing to the *selected* tab (as coordless events do) left
+    # a hovered widget inside a tab unlit. `_route_active_tab` translates coords into
+    # the tab's frame (hit-gating the crossings so the tab strip is excluded).
+    if evt isa MouseDown || evt isa MouseUp || evt isa MouseMove ||
+       evt isa MouseEnter || evt isa MouseLeave
         return _tab_prefix(_route_active_tab(iomap, child_iomaps, evt))
     end
     # Coordless events (KeyDown, KeyPress, …): forward to the tab the selection
@@ -2679,6 +2694,16 @@ function _route_active_tab(iomap::ChildrenIoMap, child_iomaps::Vector, evt)
             MouseUp(button, x - ox - Int(canvas.x), y - oy - Int(canvas.y), evt.modifiers)
         MouseMove(x, y) =>
             MouseMove(x - ox - Int(canvas.x), y - oy - Int(canvas.y), evt.buttons, evt.modifiers)
+        # Hover crossings hit-test like a click (a MouseEnter over the tab strip,
+        # not the content, must not fall into the active tab); MouseLeave clears the
+        # child's hover so it is translated but forwarded even off-content.
+        MouseEnter(x, y) => begin
+            lx, ly = x - ox - Int(canvas.x), y - oy - Int(canvas.y)
+            hit_element_at(canvas, lx, ly) === nothing && return nothing
+            MouseEnter(lx, ly, evt.buttons, evt.modifiers)
+        end
+        MouseLeave(x, y) =>
+            MouseLeave(x - ox - Int(canvas.x), y - oy - Int(canvas.y), evt.buttons, evt.modifiers)
         _ => evt
     end
     op = projection_read(cim.projection, cim, child_evt)
@@ -4299,6 +4324,8 @@ const _WT_HL_COLOR = StyleColor(0x88 / 255, 0xbb / 255, 0xee / 255, 0x40 / 255)
 # selection alpha, so a selected+hovered row still reads as selected).
 const _WT_HOVER_COLOR = StyleColor(0x88 / 255, 0xbb / 255, 0xee / 255, 0x20 / 255)
 const _WT_HL_RADIUS = 4
+# Fully transparent fill for the tree's whole-canvas hit target (see the printer).
+const _WT_HIT_COLOR = StyleColor(0.0, 0.0, 0.0, 0.0)
 
 # Grid geometry snapshot for a WidgetTable, derived from the GridLayoutIoMap plus
 # the table's own padding / border. `col_x` / `row_y` are cumulative left/top
@@ -5082,6 +5109,16 @@ function projection_print(p::WidgetTreeToGraphicsCanvas, recursion, w::WidgetTre
 
     chevron_stroke = max(1, _sc(p.chevron.width))
 
+    # Whole-canvas transparent hit target. The tree hit-tests by *row band* (a whole
+    # row is clickable/hoverable, not just its glyphs), but a parent container gates
+    # routing on `hit_element_at`, which only fires over an actual element — so a tree
+    # nested in a layout/tab would ignore clicks/hover on the empty part of a row.
+    # A full-size (invisible) rect makes the whole canvas a hit target, matching the
+    # top-level tree. Its geometry reads `geometry[]` so it tracks size reactively.
+    hit_target = GraphicsRect(0, 0, 0, 0, _WT_HIT_COLOR, 0)
+    setfn!(getfield(hit_target, :w), () -> Int32(geometry[].total_w))
+    setfn!(getfield(hit_target, :h), () -> Int32(geometry[].total_h))
+
     # Persistent selection-band overlay: one full-width rect whose y/height read
     # the selection (0 height when no node is selected → the renderer skips it).
     # Keeping the selection read OUT of the elements thunk means a node move
@@ -5105,6 +5142,9 @@ function projection_print(p::WidgetTreeToGraphicsCanvas, recursion, w::WidgetTre
     elements = CellVector(() -> begin
         geom = geometry[]
         result = Any[]
+        # 0. Invisible whole-canvas hit target (behind everything) so a nested tree
+        #    is clickable/hoverable over the whole row, not just over its glyphs.
+        push!(result, hit_target)
         # 1. Hover + selection band overlays (persistent; their geometry reads the
         #    hovered / selected node so this thunk does not), behind the row content.
         push!(result, hover_band)
@@ -5148,27 +5188,24 @@ map_reference_backward(::WidgetTreeToGraphicsCanvas, iomap, reference) = nothing
 # Gesture reader: a left click on a parent's chevron toggles collapse, otherwise
 # selects the node under the cursor; pointer crossings (`MouseEnter`/`MouseMove`/
 # `MouseLeave`, synthesised by `WidgetHoverTrackingProjection`) drive the hover
-# band; ↑/↓ walk the flattened rows. Everything else defers to the generic
-# operation re-targeter.
-function projection_read(p::WidgetTreeToGraphicsCanvas, recursion, change::Change,
-                         iomap::WidgetTreeToGraphicsCanvasIoMap)
-    g = change.gesture
-    if change.operation === nothing
-        if g isa MousePress && g.button === :left
-            return Change(g, _wtree_mouse_press(iomap, g))
-        elseif g isa MouseEnter
-            return Change(g, _wtree_hover_set(iomap, g.x, g.y, true))
-        elseif g isa MouseMove
-            return Change(g, _wtree_hover_set(iomap, g.x, g.y, false))
-        elseif g isa MouseLeave
-            return Change(g, _wtree_hover_clear(iomap))
-        elseif g isa KeyDown
-            op = _wtree_key_navigate(iomap, g)
-            op === nothing || return Change(g, op)
-        end
+# band; ↑/↓ walk the flattened rows. Handled in the 3-arg form (like the other
+# widgets) so a container routing an event into the tree via
+# `projection_read(cim.projection, cim, evt)` reaches it — the default 4-arg
+# `projection_read` bridges the editor's top-level `Change` to this. Non-gestures
+# return nothing: the tree is a leaf (no child ops bubble up to re-target).
+function projection_read(p::WidgetTreeToGraphicsCanvas, iomap::WidgetTreeToGraphicsCanvasIoMap, evt)
+    if evt isa MousePress && evt.button === :left
+        return _wtree_mouse_press(iomap, evt)
+    elseif evt isa MouseEnter
+        return _wtree_hover_set(iomap, evt.x, evt.y, true)
+    elseif evt isa MouseMove
+        return _wtree_hover_set(iomap, evt.x, evt.y, false)
+    elseif evt isa MouseLeave
+        return _wtree_hover_clear(iomap)
+    elseif evt isa KeyDown
+        return _wtree_key_navigate(iomap, evt)
     end
-    payload = change.operation === nothing ? g : change.operation
-    return Change(g, projection_read(p, iomap, payload))
+    return nothing
 end
 
 # A left click on a parent row's chevron column toggles its collapse; anywhere

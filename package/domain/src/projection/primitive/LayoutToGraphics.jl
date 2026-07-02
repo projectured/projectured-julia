@@ -31,7 +31,7 @@ import ..CollectionModule: CellVector
 import ..GraphicsModule: GraphicsCanvas, GraphicsDocument, graphics_size, layout_none, hit_element_at
 import ..IoMapModule: SimpleIoMap, ChildrenIoMap, ContentIoMap
 import ..IoMapApiModule: IoMap
-import ..MouseModule: MouseScroll, MousePress
+import ..MouseModule: MouseScroll, MousePress, MouseMove, MouseEnter, MouseLeave
 import ..EventCaseModule: var"@event_case"
 import ..OperationApiModule: Operation
 import ..OperationRerootingModule: prepend_steps_to_op
@@ -177,6 +177,20 @@ _route_click(entries, evt::MousePress) =
     _route_to_children(entries, evt.x, evt.y,
         (x, y) -> MousePress(evt.button, x, y, evt.modifiers))
 
+# Pointer motion / crossings carry coordinates, so they hit-test the laid-out
+# children exactly like a click — routing to the child *under the pointer*, not the
+# selected one. Without this a hovered child inside a layout never sees the
+# MouseEnter/MouseMove/MouseLeave the hover tracker synthesises. Mirrors
+# WidgetComposite's crossing routing.
+_route_move(entries, evt::MouseMove) =
+    _route_to_children(entries, evt.x, evt.y,
+        (x, y) -> MouseMove(x, y, evt.buttons, evt.modifiers))
+
+_route_crossing(entries, evt) =
+    _route_to_children(entries, evt.x, evt.y,
+        (x, y) -> evt isa MouseEnter ? MouseEnter(x, y, evt.buttons, evt.modifiers) :
+                                       MouseLeave(x, y, evt.buttons, evt.modifiers))
+
 # Forward a coordless event to the single child the layout's selection points at.
 function _forward_layout_event_slot(entries::Vector, evt, slot::Int)
     (1 <= slot <= length(entries)) || return nothing
@@ -243,6 +257,9 @@ function _route_layout_event(iomap::_LayoutChildrenIoMap, evt)
     res = @event_case evt begin
         MousePress  => _route_click(entries, evt)
         MouseScroll => _route_scroll(entries, evt)
+        MouseMove   => _route_move(entries, evt)
+        MouseEnter  => _route_crossing(entries, evt)
+        MouseLeave  => _route_crossing(entries, evt)
         _ => begin
             # Selection-only: route the coordless event to the child the
             # selection points at, or nowhere (no broadcast fallback) — selection

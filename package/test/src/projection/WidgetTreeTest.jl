@@ -7,7 +7,8 @@
 # selection, so they are coordinate-space-agnostic. Here we drive the WidgetTree
 # projection directly with a deterministic text measure so row geometry is exact.
 
-using Projectured: WidgetTree, WidgetToGraphics, Point2D, Change,
+using Projectured: WidgetTree, WidgetTreeNode, WidgetToGraphics, VerticalLayout,
+    WidgetTabbedPane, WidgetShell, Point2D, Change,
     MousePress, MouseEnter, MouseMove, MouseLeave, Modifiers,
     ReplaceReferencedValue, ReplaceSelectionOperation,
     GraphicsRect, font_ubuntu_regular_20, projection_print, projection_read
@@ -107,15 +108,62 @@ end
     @test op isa ReplaceSelectionOperation
 end
 
+# Only the translucent bands (alpha > 0); excludes the invisible whole-canvas hit
+# target, which is always full-height.
+_bands(io) = [r for r in _rects(io) if r.color.alpha[] > 0]
+
 @testset "hover band overlay tracks w.hovered" begin
     w, io = _fresh()
     _ = io.geometry[]
-    rects = _rects(io)
-    @test length(rects) == 2                            # hover + selection bands
-    @test all(Int(r.h[]) == 0 for r in rects)           # neither active yet
+    bands = _bands(io)
+    @test length(bands) == 2                            # hover + selection bands
+    @test all(Int(r.h[]) == 0 for r in bands)           # neither active yet
     # Hover row 1 → one band gains the row's height.
     getfield(w, :hovered)[] = _readop(io, MouseEnter(2, io.geometry[].rows[1].y0 + 2, :none, _mods)).value
-    @test any(Int(r.h[]) == 24 for r in _rects(io))
+    @test any(Int(r.h[]) == 24 for r in _bands(io))
+end
+
+@testset "the whole tree canvas is a hit target (nested routability)" begin
+    w, io = _fresh()
+    _ = io.geometry[]
+    # A transparent full-canvas rect makes the tree hittable over empty row space
+    # when nested in a container that gates on hit_element_at.
+    hit = [r for r in _rects(io) if r.color.alpha[] == 0]
+    @test length(hit) == 1
+    @test Int(hit[1].w[]) == io.geometry[].total_w && Int(hit[1].h[]) == io.geometry[].total_h
+end
+
+# Regression: a tree nested in a layout / tabbed pane / shell must still receive
+# the pointer. Containers used to route MouseEnter/MouseMove/MouseLeave via the
+# coordless, selection-only path (so a hovered tree in a tab stayed unlit), and the
+# tree's gesture logic lived only in the 4-arg reader (which containers don't call).
+@testset "crossings + clicks reach a tree nested in containers" begin
+    _full = make_widget_projection_example(measure = _det)
+    _tree() = WidgetTree(Point2D(0, 0), Any[
+        WidgetTreeNode(:folder, "src", Any[WidgetTreeNode(:file, "a.jl")]),
+        WidgetTreeNode(:file, "README")])
+    # Count grid points whose MouseEnter / MousePress reach the tree.
+    function reach(doc; xs, ys)
+        io = projection_print(_full, doc)
+        enters = clicks = 0
+        for x in xs, y in ys
+            ce = projection_read(_full, nothing, Change(MouseEnter(x, y, :none, _mods), nothing), io)
+            oe = ce isa Change ? ce.operation : ce
+            oe isa ReplaceReferencedValue && oe.document isa WidgetTree && (enters += 1)
+            cp = projection_read(_full, nothing, Change(MousePress(:left, x, y, _mods), nothing), io)
+            op = cp isa Change ? cp.operation : cp
+            op isa ReplaceSelectionOperation && (clicks += 1)
+        end
+        (enters, clicks)
+    end
+    for doc in (VerticalLayout(Any[_tree()]),
+                WidgetTabbedPane([("Data", VerticalLayout(Any[_tree()]))]),
+                WidgetShell(WidgetTabbedPane([("Data", VerticalLayout(Any[_tree()]))]);
+                            size = Point2D(400, 300)))
+        e, c = reach(doc; xs = 0:6:240, ys = 0:6:200)
+        @test e > 0     # MouseEnter reaches the tree (was 0 before the fix)
+        @test c > 0     # MousePress selects a tree node through the container
+    end
 end
 
 end # @testset
