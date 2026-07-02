@@ -5,17 +5,15 @@ Generic reference/operation **re-rooting** helpers shared by container
 projections. A container that routes an event into one of its children gets
 back an operation whose reference is rooted in the *child's* output domain; to
 forward that operation up, the container must prepend the step(s) that lead
-from itself to that child (e.g. `elements[i]` for a `WidgetComposite`,
-`children[i]` for a layout).
+from itself to that child (e.g. `elements[i]`, `children[i]`).
 
 These helpers depend only on `Reference` paths and the path-bearing `Operation`
-types — no widget or layout knowledge — so both `WidgetToGraphics` and
-`LayoutToGraphics` (and any future container) reuse them instead of duplicating
-the prepend logic. The same lift powers the **recursive gesture reader** in
-`ProjectionTemplate.jl`: a structural projection delegates a raw authoring gesture
-to the selected child's projection and lifts the returned operation by prepending
-the input step that reaches the child — see the "Recursive gesture reading"
-section of `documentation/projection-system.md`.
+types — no knowledge of any concrete container domain — so any container
+projection reuses them instead of duplicating the prepend logic. The same lift
+powers the **recursive gesture reader**: a structural projection delegates a raw
+authoring gesture to the selected child's projection and lifts the returned
+operation by prepending the input step that reaches the child — see the
+"Recursive gesture reading" section of `documentation/projection-system.md`.
 """
 module OperationRerootingModule
 

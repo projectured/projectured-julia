@@ -186,7 +186,7 @@ end
 
 # `x::T` type suffix: a bare `T` is a checkpoint; a `T{i}` / `T[i]` (which Julia
 # parses as a parametric/indexed type) is read as the checkpoint `T` followed by
-# a position/range/element step — so `value::TextString{s:e}` needs no parens.
+# a position/range/element step — so `value::Leaf{s:e}` needs no parens.
 function _build_type_suffix!(steps::Vector{BuildStep}, T)
     if T isa Expr && T.head == :curly
         push!(steps, BSType(T.args[1]))
@@ -206,8 +206,8 @@ function _build_type_suffix!(steps::Vector{BuildStep}, T)
 end
 
 # Leading `::X`: a bare symbol is just the checkpoint; a chain like
-# `JsonNumber.value{s:e}` (which Julia parses entirely under the `::`) is read as
-# checkpoint `JsonNumber` followed by the `.value{s:e}` steps — so no parens.
+# `Node.value{s:e}` (which Julia parses entirely under the `::`) is read as
+# checkpoint `Node` followed by the `.value{s:e}` steps — so no parens.
 function _build_leading_type!(steps::Vector{BuildStep}, X)
     if X isa Symbol
         push!(steps, BSType(X))

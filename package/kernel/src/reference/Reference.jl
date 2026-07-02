@@ -332,8 +332,8 @@ function Base.show(io::IO, s::TextRectangularReference)
     print(io, "▭(", s.start, ":", s.stop, ")")
 end
 
-# Short name of a recorded node type, e.g. `JsonObject` rather than the
-# fully-qualified path; falls back to `string` for non-types.
+# Short name of a recorded node type, e.g. `Foo` rather than the fully-qualified
+# `SomeModule.Foo`; falls back to `string` for non-types.
 _show_node_type(io::IO, t) = print(io, "::", t isa Type ? nameof(t) : t)
 
 function Base.show(io::IO, e::EmptyReferencePath)
@@ -479,18 +479,17 @@ is_valid_reference(::Any) = false
 # Cells are transparent to reference navigation: a step that lands on a `Cell`
 # descends into its value. Field access already unwraps inline (`f isa Cell ?
 # f[] : f`); element/range access must do the same, otherwise a step into a plain
-# `Vector{Cell}` (e.g. an iomap's `step_iomaps`) would stop on the raw `Cell` and
-# the rest of the path — recorded by `search_references` against the *unwrapped*
-# value — would fail to resolve (and `annotate_reference_types` would stop adding
-# type checkpoints there). `CellVector` already unwraps on `getindex`, so this is
-# a no-op for it.
+# `Vector{Cell}` would stop on the raw `Cell` and the rest of the path — recorded
+# against the *unwrapped* value — would fail to resolve (and
+# `annotate_reference_types` would stop adding type checkpoints there).
+# `CellVector` already unwraps on `getindex`, so this is a no-op for it.
 _deref_cell(x) = x isa Cell ? x[] : x
 
 # A `FieldReference` addresses a struct field by name — OR, when the document is
-# an `AbstractDict`, a dict entry by key. `search_references` records dict entries
-# this way (the reference grammar has no dedicated key step), so navigation must
-# follow them back. Dict keys may be stored as `String` or `Symbol`; the recorded
-# name is the `string(key)`, so try it as both. Results are cell-unwrapped.
+# an `AbstractDict`, a dict entry by key. A reference into a dict records the
+# entry this way (the reference grammar has no dedicated key step), so navigation
+# must follow it back. Dict keys may be stored as `String` or `Symbol`; the
+# recorded name is the `string(key)`, so try it as both. Results are cell-unwrapped.
 _has_field(document::AbstractDict, name) = haskey(document, name) || haskey(document, Symbol(name))
 _has_field(document, name) = hasproperty(document, Symbol(name))
 
@@ -572,10 +571,10 @@ function valid_reference_prefix(document, path::ConcreteReferencePath)
     child = try
         if step isa RangeReference
             idx = step.start + 1
-            # Probe the index via getindex rather than `length(document)`:
-            # container documents (JsonArray, …) support indexing but no longer
-            # forward `length` (cf0482c). An out-of-range / unindexable access
-            # throws and is caught below, truncating the path.
+            # Probe the index via getindex rather than `length(document)`: some
+            # container documents support indexing but do not forward `length`.
+            # An out-of-range / unindexable access throws and is caught below,
+            # truncating the path.
             idx < 1 && return EmptyReferencePath()
             _deref_cell(document[idx])
         elseif step isa FieldReference
@@ -643,7 +642,8 @@ function annotate_reference_types(document, path::ConcreteReferencePath)
             # an insertion point), not a descent into an item — it is terminal,
             # so the node it would reach is left untyped. Element/range steps
             # descend into item start+1. Probe via getindex, not length, so
-            # container documents (JsonArray, …) annotate their element types too.
+            # container documents that index but do not forward `length` still
+            # annotate their element types.
             if is_position_reference(step)
                 nothing
             else

@@ -85,7 +85,7 @@ default is present, the macro also generates:
    This holds whether the sibling fields are **required** (`Foo(callee, [args])`)
    or all default (`Foo([a, b])`, plus the variadic `Foo(a, b)` when the collection
    is the sole content). Elements are typed `Document` (the universal base), so a
-   collection may hold children of any domain (mixed JSON / text / widget …).
+   collection may hold children of any domain, even a mix of domains.
 """
 macro document(structdef)
     structdef.head === :struct || error("@document expects a struct definition")
@@ -259,7 +259,7 @@ macro document(structdef)
         #    emitted here. Both are Cell-based `Foo` only. `AbstractVector` (not
         #    `Vector`) stays less specific than any hand-written `Foo(::Vector{…})`;
         #    `Document...` doesn't clash with typed-variadic sugar like
-        #    `JsonObject(::Pair...)` and loses to a more specific `Foo(::SomeDoc...)`.
+        #    `Foo(::Pair...)` and loses to a more specific `Foo(::SomeDoc...)`.
         if p ≥ 1 &&
            all(haskey(default_map, f) for (f, ft) in original_fields if ft !== :CellVector)
             cvf = field_names[p]
@@ -301,14 +301,14 @@ end
 Generate delegating methods that forward each listed function on `T` to the
 value of `T`'s `field`. For example
 
-    @forward JsonArray elements [Base.length, Base.getindex]
+    @forward Wrapper items [Base.length, Base.getindex]
 
 emits
 
-    Base.length(x::JsonArray, args...; kw...)   = Base.length(x.elements, args...; kw...)
-    Base.getindex(x::JsonArray, args...; kw...)  = Base.getindex(x.elements, args...; kw...)
+    Base.length(x::Wrapper, args...; kw...)   = Base.length(x.items, args...; kw...)
+    Base.getindex(x::Wrapper, args...; kw...)  = Base.getindex(x.items, args...; kw...)
 
-so a wrapper type can expose its field's protocol (e.g. a `CellVector`'s vector
+so a wrapper type can expose its field's protocol (e.g. a backing vector's
 interface) without hand-writing one method per function. The field is read
 through `getproperty`, so it sees the unwrapped value of a `@document` Cell
 field.
@@ -402,11 +402,12 @@ macro forward_map(T, field, keyfield, valfield, ctor)
 end
 
 # ── Deep copy of document subtrees ─────────────────────────────────────────
-# The Julia counterpart of Lisp's `deep-copy`, used by the clipboard / versioning
-# projections' copy / note / paste gestures. Unlike `Base.deepcopy` it understands
-# the `@document` Cell-wrapped field convention, allocates **fresh** `Cell`s so the
-# copy is independent of the original's reactive graph, and **resets** the copy's
-# `selection` to `nothing` rather than duplicating the original's selection path.
+# The Julia counterpart of Lisp's `deep-copy`, for anywhere a document subtree
+# must be cloned independently of the original (copy/paste, snapshots, …). Unlike
+# `Base.deepcopy` it understands the `@document` Cell-wrapped field convention,
+# allocates **fresh** `Cell`s so the copy is independent of the original's reactive
+# graph, and **resets** the copy's `selection` to `nothing` rather than duplicating
+# the original's selection path.
 #
 # The `CellVector`-specific method lives in `CollectionModule` (`Collection.jl`),
 # where `CellVector` is defined — it loads after this module, so it extends this

@@ -137,11 +137,11 @@ Layer 1 — core:
   ops), `MousePress` / `Ctrl+Home` (`ReplaceSelectionOperation`),
   `JuliaInsertion` / "the Julia Tab gesture" (`SelectNextInsertionOperation`),
   `WorkbenchPage`, "the clipboard cut gesture" (`CompoundOperation`).
-- [ ] **L8. OperationRerooting docstring.** Generalize away `WidgetComposite` /
+- [x] **L8. OperationRerooting docstring.** Generalize away `WidgetComposite` /
   `WidgetToGraphics` / `LayoutToGraphics` / `ProjectionTemplate.jl` (all domain
   package): "a container projection prepends the steps that reach the routed
   child" carries the idea.
-- [ ] **L9. Scattered comments.** `reference/Reference.jl`: `search_references`
+- [x] **L9. Scattered comments.** `reference/Reference.jl`: `search_references`
   (lives in the domain package) and `step_iomaps` (layer 2) in the `_deref_cell`
   comment; `JsonArray` + commit hash in `valid_reference_prefix`.
   `ReferenceCase.jl`: `TextString`, "the navigator repl". `ReferenceBuilder.jl`:

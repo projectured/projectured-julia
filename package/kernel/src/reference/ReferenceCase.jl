@@ -261,7 +261,7 @@ function _parse_subpath(ex)
 end
 
 # `x::T` type suffix in a pattern: bare `T` is a checkpoint; `T{i}`/`T[i]` is read
-# as checkpoint `T` then a position/range/element step (so `value::TextString{s:e}`
+# as checkpoint `T` then a position/range/element step (so `value::Leaf{s:e}`
 # needs no parens).
 function _pat_type_suffix!(steps::Vector{PatStep}, T)
     if T isa Expr && T.head == :curly
@@ -281,8 +281,8 @@ function _pat_type_suffix!(steps::Vector{PatStep}, T)
     end
 end
 
-# Leading `::X`: a bare symbol is the checkpoint; a chain like `JsonObject.entries{s:e}`
-# is read as checkpoint `JsonObject` then the `.entries{s:e}` steps (no parens).
+# Leading `::X`: a bare symbol is the checkpoint; a chain like `Node.entries{s:e}`
+# is read as checkpoint `Node` then the `.entries{s:e}` steps (no parens).
 function _pat_leading_type!(steps::Vector{PatStep}, X)
     if X isa Symbol
         push!(steps, PSType(X))
@@ -518,7 +518,7 @@ function _gen_path_match(path_ex, steps::Vector{PatStep}, success, bound::Set{Sy
     # the SAME path for a folded node (the type is a field, consuming no step) and
     # advances past a transitional `TypeReference` *step* if one is present. (An
     # enforcing `<: T` gate here wrongly rejects re-rooted child selections whose
-    # folded node type differs from the documented one — see the navigator repl.)
+    # folded node type differs from the documented one.)
     if steps[1] isa PSType
         sp = gensym(:sp)
         rest_on_tail, b1 = _gen_path_match(:(ReferenceModule.tail($sp)), steps[2:end], success, bound)
