@@ -1438,7 +1438,13 @@ function projection_print(p::WidgetMenuItemToGraphicsCanvas, recursion, w::Widge
     final = Any[]
     _push_hover_surface!(final, w, enabled, control_w, control_h, p.hover_color)
     append!(final, elems)
-    WidgetMenuItemToGraphicsCanvasIoMap(p, w, _make_canvas(0, 0, final),
+    # Bound the canvas to the item's own footprint so `hit_element_at` clips pointer
+    # events to it. A `GraphicsText` has no right edge, so an auto-sized (w=h=0) item
+    # canvas would claim hits anywhere to the right of its label — harmless in a
+    # vertical menu (per-item y-bands differ) but in a *horizontal* toolbar / menu
+    # bar the leftmost item then swallows every crossing, so hover always lit the
+    # first button. See `hit_element_at` in document/Graphics.jl.
+    WidgetMenuItemToGraphicsCanvasIoMap(p, w, _make_canvas(0, 0, control_w, control_h, final),
                                         Cell(child_iomaps), ctx.reference,
                                         control_w, control_h)
 end
