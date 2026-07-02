@@ -10,11 +10,11 @@ The module includes:
 - **Cell**: Reactive cell that holds either a primitive value or a lazy computation
 - **Functions**: `setval!`, `setfn!`, `isuptodate`, `peek`
 
-Two concerns were split out of this file. The instrumentation counters
-(`PerformanceCounterModule`, `reactive/PerformanceCounter.jl`, whose `_perf` dict
-this module still bumps inline on the hot path) stay in the reactive layer. The
-animation clock (`EditorTimeModule`, `editor/Time.jl`) is *built on* `Cell`
-rather than part of the engine, so it lives in the editor layer.
+The instrumentation counters (`PerformanceCounterModule`,
+`reactive/PerformanceCounter.jl`, whose `_perf` dict this module still bumps
+inline on the hot path) were split out of this file but stay in the reactive
+layer. Anything *built on* `Cell` rather than part of the engine — an animation
+clock that samples time, say — belongs in a higher layer, not here.
 
 Dependency tracking is automatic: when a computed cell evaluates its thunk,
 every `Cell` read via `c[]` is recorded as a dependency. When any upstream
@@ -104,11 +104,11 @@ function Base.getindex(c::Cell)
 end
 
 # Force a computed cell's thunk. The fast path is a direct call; if that raises a
-# `MethodError` (typically a world-age miss — a thunk built at runtime by, say,
-# the assistant's `execute_julia_code`, then forced later by the older-world
-# render loop), retry once through `Base.invokelatest`, which resolves against the
-# latest method table. A genuine `MethodError` simply rethrows from the retry.
-# Thunks are contractually pure, so a second evaluation is safe.
+# `MethodError` (typically a world-age miss — a thunk constructed in a newer world
+# than the caller's, then forced from an older-world call site), retry once through
+# `Base.invokelatest`, which resolves against the latest method table. A genuine
+# `MethodError` simply rethrows from the retry. Thunks are contractually pure, so a
+# second evaluation is safe.
 function _force_thunk(@nospecialize(f))
     try
         return f()
@@ -195,7 +195,7 @@ end
 
 """Return `true` if the cached value is up to date."""
 isuptodate(c::Cell) = c.valid
-isuptodate(cs::Vector{Cell}) = all(c -> c.valid, cs)
+isuptodate(cs::Vector{Cell}) = all(isuptodate, cs)
 
 # ── untracked read ─────────────────────────────────────────────────────────
 
@@ -205,9 +205,8 @@ isuptodate(cs::Vector{Cell}) = all(c -> c.valid, cs)
 Read a cell's value **without** registering a dependency (an untracked read).
 Unlike `c[]`, calling this inside a computed thunk does not make the thunk a
 dependent of `c`. A generic reactive primitive (cf. Solid's `untrack`, MobX's
-`untracked`). The animation clock in `EditorTimeModule`
-(editor/Time.jl) uses it to *sample* the editor time rather than
-subscribe to it.
+`untracked`) — for callers that want to *sample* a cell's current value rather
+than subscribe to it.
 """
 function Base.peek(c::Cell)
     c.valid || recompute!(c)
@@ -235,8 +234,8 @@ function Base.show(io::IO, c::Cell)
     kind = c.thunk === nothing ? "primitive" : "computed"
     print(io, "Cell(", kind, ", ")
     # Forward `io` (rather than `repr`, which would build a fresh buffer) so the
-    # value is shown in the same IOContext — this keeps the document `show`
-    # depth limit (`:document_depth`) effective across Cell-wrapped subtrees.
+    # value is shown in the same IOContext — any depth/limit keys a caller set on
+    # `io` stay in effect across Cell-wrapped subtrees.
     c.valid ? show(io, c.value) : print(io, "<invalid>")
     print(io, ")")
 end

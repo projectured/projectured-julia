@@ -172,9 +172,12 @@ when the editor processed a non-nothing operation.
 function perf!(editor::Editor)
     editor.operation === nothing && return
     c = perf_counters()
-    rt = c[:read_time] / 1e6
-    et = c[:evaluate_time] / 1e6
-    pt = c[:print_time] / 1e6
+    # The per-stage timing keys are the editor's own (recorded via `@perf_time`
+    # below), not seeded by the reactive engine, so read them defensively: a frame
+    # that ran no stage yet leaves them absent.
+    rt = get(c, :read_time, 0) / 1e6
+    et = get(c, :evaluate_time, 0) / 1e6
+    pt = get(c, :print_time, 0) / 1e6
     # @info (not raw println) so this never writes to the global stdout the
     # assistant's `execute_julia_code` may have redirected to a now-closed pipe.
     @info "[perf] reads=$(c[:reads]) computes=$(c[:computes]) invalidations=$(c[:invalidations]) writes=$(c[:writes]) read=$(round(rt; digits=2))ms eval=$(round(et; digits=2))ms print=$(round(pt; digits=2))ms"

@@ -1,36 +1,39 @@
 """
     PerformanceCounterModule
 
-Lightweight instrumentation for the reactive engine and the editor loop. A single
-process-global `Dict{Symbol,Int}` of counters that the `Cell` engine bumps inline
-on the hot path (`:reads`, `:computes`, `:invalidations`, `:writes`) and that the
-editor folds per-stage timings into (`:read_time`, `:evaluate_time`,
-`:print_time`). Extracted from `Reactive.jl` so the counter vocabulary is one
-cohesive unit; `ReactiveModule` imports the shared `_perf` dict to keep its
-increments a bare `Dict` write.
+Lightweight instrumentation for the reactive engine. A single process-global
+`Dict{Symbol,Int}` of counters that the `Cell` engine bumps inline on the hot
+path (`:reads`, `:computes`, `:invalidations`, `:writes`). Callers above the
+engine can fold their own externally measured quantities (e.g. per-stage timings)
+into the same store under keys of their choosing via `perf_record!`, which
+creates a key on demand — so the engine seeds only its own counters and stays
+ignorant of who else records here. Extracted from `Reactive.jl` so the counter
+vocabulary is one cohesive unit; `ReactiveModule` imports the shared `_perf` dict
+to keep its increments a bare `Dict` write.
 """
 module PerformanceCounterModule
 
 export perf_counters, perf_reset!, perf_record!, @perf_time
 
-# The shared counter store. `ReactiveModule` imports this and mutates it inline
-# on the read/compute/invalidate/write paths; the editor and other callers fold
-# in externally measured quantities via `perf_record!`.
+# The shared counter store, seeded with the engine's own counters. `ReactiveModule`
+# imports this and mutates it inline on the read/compute/invalidate/write paths;
+# other callers fold in externally measured quantities via `perf_record!` (which
+# creates keys on demand, so their names need not be listed here).
 const _perf = Dict{Symbol,Int}(
-    :reads => 0, :computes => 0, :invalidations => 0, :writes => 0,
-    :read_time => 0, :evaluate_time => 0, :print_time => 0)
+    :reads => 0, :computes => 0, :invalidations => 0, :writes => 0)
 
 """
     perf_counters() -> Dict{Symbol,Int}
 
-Return a copy of the performance counters dictionary. The counters track:
+Return a copy of the performance counters dictionary. The reactive engine's own
+counters are:
 - `:reads` — number of cell reads
 - `:computes` — number of cell re-computations
 - `:invalidations` — number of cell invalidations
 - `:writes` — number of cell writes
-- `:read_time` — nanoseconds spent in the editor's read stage
-- `:evaluate_time` — nanoseconds spent in the editor's evaluate stage
-- `:print_time` — nanoseconds spent in the editor's print stage
+
+Callers that use `perf_record!` (e.g. to fold in per-stage timings) contribute
+further keys of their own, which also appear here.
 """
 perf_counters() = copy(_perf)
 
@@ -40,7 +43,9 @@ perf_counters() = copy(_perf)
 Reset all performance counters to zero.
 """
 function perf_reset!()
-    for k in keys(_perf); _perf[k] = 0; end
+    for k in keys(_perf)
+        _perf[k] = 0
+    end
 end
 
 """
