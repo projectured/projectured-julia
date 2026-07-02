@@ -22,7 +22,7 @@ module EditorTimeModule
 
 import ..ReactiveModule: Cell
 
-export EDITOR_TIME, editor_time, reactive_editor_time, tick!
+export editor_time, reactive_editor_time, tick!
 
 const EDITOR_TIME = Cell(0.0)
 
