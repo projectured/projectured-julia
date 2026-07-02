@@ -32,7 +32,7 @@ include("common/IoMap.jl")
 include("reference/Reference.jl")
 include("reference/ReferenceCase.jl")
 include("reference/ReferenceBuilder.jl")
-include("context/PrinterContext.jl")
+include("editor/PrinterContext.jl")
 include("common/Operation.jl")
 
 # ── Foundational document vocabulary the engine depends on ─────────────────
