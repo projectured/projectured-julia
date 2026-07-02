@@ -60,18 +60,13 @@ on next read.
     setfn!(c, f) # switch to a computed cell with thunk `f`
     setval!(c, v) # switch to a primitive cell with value `v`
 """
-mutable struct R
+mutable struct Cell
     value::Any
     thunk::Union{Nothing, Function}
     valid::Bool
-    deps::Set{R}              # cells I read from  (upstream)
-    dependents::Set{R}        # cells that read me  (downstream)
+    deps::Set{Cell}           # cells I read from  (upstream)
+    dependents::Set{Cell}     # cells that read me  (downstream)
 end
-
-# TRANSITIONAL ALIAS — `R` is the reactive cell's real (shorter) name. `Cell` is
-# kept only so the rest of the codebase keeps loading; the end state is every
-# `Cell` use renamed to `R` and this alias (and the `Cell` export) removed.
-const Cell = R
 
 # ── global tracking stack ────────────────────────────────────────────────
 # While a Cell's thunk is running, that Cell sits on this stack so that
