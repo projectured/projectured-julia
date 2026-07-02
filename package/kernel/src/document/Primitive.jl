@@ -14,7 +14,7 @@ import ..OperationApiModule: Operation, evaluate_operation
 import ..OperationModule: splice_string, splice_value!, splice_number
 import ..ReferenceModule: Reference, ReferencePath, ConcreteReferencePath, EmptyReferencePath,
                           ReferenceStep, FieldReference, RangeReference, evaluate_reference,
-                          strip_reference_types
+                          strip_reference_types, reference_steps
 export PrimitiveDocument, PrimitiveInsertion, PrimitiveBool, PrimitiveNumber, PrimitiveString,
        NumberReplaceRangeOperation, StringReplaceRangeOperation,
        evaluate_operation,
@@ -134,13 +134,7 @@ end
 function _split_replace_reference(path::ReferencePath)
     # Operate on the plain navigation path: drop selection-style type checkpoints
     # so the `.<field>[range]` suffix split sees only real steps.
-    path = strip_reference_types(path)
-    steps = ReferenceStep[]
-    cur = path
-    while cur isa ConcreteReferencePath
-        push!(steps, cur.head)
-        cur = cur.tail
-    end
+    steps = reference_steps(strip_reference_types(path))
     # An un-splittable reference has no editable `.<field>[range]` slot — e.g. an
     # edit aimed at a projection-introduced span (a placeholder/insertion rendered
     # as `…[i].proj(p, .value[k])`, whose terminal is a `ProjectionReference` with
@@ -151,11 +145,7 @@ function _split_replace_reference(path::ReferencePath)
     range_step = steps[end]
     field_step isa FieldReference || return nothing
     range_step isa RangeReference || return nothing
-    target_path = EmptyReferencePath()
-    for i in (length(steps) - 2):-1:1
-        target_path = ConcreteReferencePath(steps[i], target_path)
-    end
-    (target_path, field_step.name::AbstractString, range_step)
+    (ReferencePath(steps[1:end-2]...), field_step.name::AbstractString, range_step)
 end
 
 # Replace the terminal RangeReference of `path` with a zero-width
@@ -163,21 +153,11 @@ end
 function _replace_terminal_with_cursor(path::ReferencePath, replacement::AbstractString)
     # Plain navigation path only; the rebuilt path is re-canonicalized when it is
     # handed to `set_selection!`.
-    path = strip_reference_types(path)
-    steps = ReferenceStep[]
-    cur = path
-    while cur isa ConcreteReferencePath
-        push!(steps, cur.head)
-        cur = cur.tail
-    end
+    steps = reference_steps(strip_reference_types(path))
     range_step = steps[end]::RangeReference
     new_pos = range_step.start + length(replacement)
     steps[end] = RangeReference(new_pos, new_pos)
-    result = EmptyReferencePath()
-    for i in length(steps):-1:1
-        result = ConcreteReferencePath(steps[i], result)
-    end
-    result
+    ReferencePath(steps...)
 end
 
 # A number edit always has number semantics regardless of the field's current

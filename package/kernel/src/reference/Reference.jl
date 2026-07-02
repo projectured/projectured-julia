@@ -26,7 +26,7 @@ module ReferenceModule
 
 import ..ReactiveModule: Cell
 import ..DocumentModule: @document
-export Reference, ReferenceStep, ElementReference, PositionReference, RangeReference, FieldReference, TypeReference, FunctionReference, ProjectionReference, PointReference, TextRectangularReference, ReferencePath, EmptyReferencePath, ConcreteReferencePath, append_reference, concat_references, evaluate_reference, is_valid_reference, collect_references,
+export Reference, ReferenceStep, ElementReference, PositionReference, RangeReference, FieldReference, TypeReference, FunctionReference, ProjectionReference, PointReference, TextRectangularReference, ReferencePath, EmptyReferencePath, ConcreteReferencePath, append_reference, concat_references, reference_steps, evaluate_reference, is_valid_reference, collect_references,
        is_element_reference, is_position_reference, is_range_reference,
        IRangeReference, IFieldReference, IConcreteReferencePath, IPointReference,
        reference_equal, is_prefix_of, reference_equal_ignoring_types, is_prefix_of_ignoring_types,
@@ -463,6 +463,26 @@ concat_references(a::EmptyReferencePath, b::ConcreteReferencePath) =
     b.type === nothing ? ConcreteReferencePath(a.type, b.head, tail(b)) : b
 concat_references(a::EmptyReferencePath, b::EmptyReferencePath) =
     EmptyReferencePath(b.type === nothing ? a.type : b.type)
+
+"""
+    reference_steps(path::ReferencePath) -> Vector{ReferenceStep}
+
+Unroll `path` into its ordered vector of navigation steps (heads), dropping the
+terminal type/`EmptyReferencePath`. The inverse is `ReferencePath(steps...)`, which
+rebuilds a plain (untyped) skeleton — so this pair is the shared "path ↔ steps
+vector" conversion used by callers that need to inspect or rewrite a path's tail
+(e.g. splitting off the terminal step). Type checkpoints are read as steps; strip
+first (`strip_reference_types`) when a pure navigation skeleton is wanted.
+"""
+function reference_steps(path::ReferencePath)
+    steps = ReferenceStep[]
+    cur = path
+    while cur isa ConcreteReferencePath
+        push!(steps, cur.head)
+        cur = cur.tail
+    end
+    steps
+end
 
 # ── Reference validation ─────────────────────────────────────────────────
 

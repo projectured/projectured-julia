@@ -18,7 +18,7 @@ module OperationModule
 
 import ..OperationApiModule: Operation, evaluate_operation
 import ..DocumentApiModule: Document, clear_selection!, set_selection!, with_selection
-import ..ReferenceModule: ReferencePath, ConcreteReferencePath, EmptyReferencePath, FieldReference, RangeReference, TypeReference, is_element_reference, evaluate_reference, reference_equal, annotate_reference_types, strip_reference_types, append_reference, concat_references
+import ..ReferenceModule: ReferencePath, ConcreteReferencePath, EmptyReferencePath, FieldReference, RangeReference, TypeReference, is_element_reference, evaluate_reference, reference_equal, annotate_reference_types, strip_reference_types, append_reference, concat_references, reference_steps
 import ..ReactiveModule: Cell
 import ..CollectionModule: CellVector
 export NoOperation, ReplaceSelectionOperation, QuitEditorOperation, QuitEditorException, replace_selection!,
@@ -198,20 +198,11 @@ end
 # the new value. See plan/done/consolidate-operations-replace.md (step 3).
 
 
-# Split a non-empty path into (everything-but-last-step, last-step).
+# Split a non-empty path into (everything-but-last-step, last-step). The prefix is
+# rebuilt as a plain skeleton (callers pass an already type-stripped path).
 function _split_terminal_step(path::ConcreteReferencePath)
-    steps = []
-    cur = path
-    while cur isa ConcreteReferencePath
-        push!(steps, cur.head)
-        cur = cur.tail
-    end
-    terminal = steps[end]
-    prefix = EmptyReferencePath()
-    for i in (length(steps) - 1):-1:1
-        prefix = ConcreteReferencePath(steps[i], prefix)
-    end
-    (prefix, terminal)
+    steps = reference_steps(path)
+    (ReferencePath(steps[1:end-1]...), steps[end])
 end
 
 # Write `value` into the slot `step` selects on `parent`. A FieldReference names a

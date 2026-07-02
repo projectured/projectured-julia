@@ -174,7 +174,7 @@ Layer 1 — core:
   FieldReference/RangeReference descent block with the same comment
   (`common/Operation.jl`). Express the first two via `_selection_child`.
   Subsumes S3.
-- [ ] **D3. Path unroll/rebuild helpers.** `_split_terminal_step`
+- [x] **D3. Path unroll/rebuild helpers.** `_split_terminal_step`
   (`common/Operation.jl`) and `_split_replace_reference` /
   `_replace_terminal_with_cursor` (`document/Primitive.jl`) re-implement the
   same "steps vector ↔ path" walk. Provide shared helpers in `ReferenceModule`
