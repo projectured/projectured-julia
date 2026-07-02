@@ -338,7 +338,7 @@ reach it.
       `ProjectionApiModule` imports and **re-exports** them, so its ~many importers are
       untouched (zero blast radius). Loads before `Projection.jl`.
 - [x] **Kernel-local `documentation/` folder** (`d5d009b`). Added
-      `package/kernel/documentation/architecture.md` (kernel-only layer diagram, hubs,
+      `package/kernel/doc/architecture.md` (kernel-only layer diagram, hubs,
       api-as-SPI, guard, load order) and `reactive.md` (the reactive layer's three modules),
       cross-linking the repo-level guides rather than duplicating them.
 - [!] **Rename `src/` → `source/` — BLOCKED (infeasible).** Empirically verified Julia
