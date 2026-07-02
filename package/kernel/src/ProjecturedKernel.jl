@@ -18,7 +18,14 @@ re-exported by the `Projectured` umbrella.
 """
 module ProjecturedKernel
 
-# ── API (abstract types + function stubs) ────────────────────────────────
+# The include list is a hand-maintained topological sort: every file appears
+# after the modules named in its `import ..XxxModule` headers. The sections
+# below group the files by architectural layer; within a section, order still
+# obeys those dependency edges. Only ProjectionApiModule (api/Projection.jl) is
+# structurally load-bearing among the api stubs.
+
+# ── API — abstract types + `function foo end` stubs ────────────────────────
+# Device depends on Backend; the rest are independent interface-only modules.
 include("api/Backend.jl")
 include("api/Device.jl")
 include("api/Projection.jl")
@@ -27,31 +34,47 @@ include("api/Document.jl")
 include("api/IoMap.jl")
 include("api/Agent.jl")
 
-# ── Infrastructure ────────────────────────────────────────────────────────
+# ── Reactive engine ────────────────────────────────────────────────────────
 include("common/Reactive.jl")
+
+# ── Document core & references ──────────────────────────────────────────────
+# Reactive-backed Document/IoMap, the reference machinery, operations, and the
+# foundational document vocabulary (Collection, Primitive) the engine depends
+# on. OperationRerooting needs Operation + Primitive, so it closes the section.
 include("common/Document.jl")
 include("common/IoMap.jl")
 include("reference/Reference.jl")
 include("reference/ReferenceCase.jl")
 include("reference/ReferenceBuilder.jl")
-include("editor/PrinterContext.jl")
 include("common/Operation.jl")
-
-# ── Foundational document vocabulary the engine depends on ─────────────────
 include("document/Collection.jl")
+include("document/Primitive.jl")
+include("common/OperationRerooting.jl")
+
+# ── Input devices & events ─────────────────────────────────────────────────
+# Keyboard/Mouse need Modifiers + the Device stub; EventCase (the `@event_case`
+# pattern parser) needs the event types. These must precede GestureBinding.
 include("device/Modifiers.jl")
 include("device/Keyboard.jl")
 include("device/Mouse.jl")
 include("device/EventCase.jl")
-include("common/GestureBinding.jl")
-include("document/Primitive.jl")
-include("common/OperationRerooting.jl")
-# Agent LLM client seam (dependency-free LlmBackend/AnthropicLlm/FakeLlm; the
-# Anthropic HTTP client lives in the `ProjecturedLlm` package, package/llm).
-include("editor/Llm.jl")
+
+# ── Foundational documents (projection output vocabulary) ──────────────────
+# ScreenDocument needs Collection; it is consumed by the window/envelope
+# higher-order projections, GestureRecognizer, and the editor loop.
 include("document/ScreenDocument.jl")
 
-# ── Domain-agnostic projection algebra ─────────────────────────────────────
+# ── Gestures ───────────────────────────────────────────────────────────────
+# GestureBinding reuses EventCase's parser and needs the devices + the
+# Document/Projection api stubs; several projections attach gestures through it.
+include("common/GestureBinding.jl")
+
+# ── Projection infrastructure & algebra ────────────────────────────────────
+# PrinterContext (Reactive + Reference only) is projection-layer infrastructure
+# consumed by ProjectionModule and the generic projections, so it leads here.
+# Then the higher-order combinators and the generic projections; Preserving
+# precedes Reversing/Sorting, which build on it.
+include("editor/PrinterContext.jl")
 include("projection/higherorder/Sequential.jl")
 include("projection/higherorder/TypeDispatching.jl")
 include("projection/higherorder/Recursive.jl")
@@ -61,7 +84,6 @@ include("projection/higherorder/ReferenceDispatching.jl")
 include("projection/higherorder/Nesting.jl")
 include("projection/higherorder/WindowManager.jl")
 include("projection/higherorder/EnvelopeUnwrapping.jl")
-include("common/Projection.jl")
 include("projection/generic/Preserving.jl")
 include("projection/generic/Reversing.jl")
 include("projection/generic/Filtering.jl")
@@ -71,13 +93,27 @@ include("projection/generic/Copying.jl")
 include("projection/generic/Invariably.jl")
 include("projection/generic/Focusing.jl")
 
-# ── Devices, editor loop, agent control surface ────────────────────────────
+# ── Projection defaults & the `@projection` macro ──────────────────────────
+# ProjectionModule holds the four-generic fallbacks and the `@projection`
+# macro. Nothing in the kernel imports it, so it loads after the whole algebra;
+# it needs Primitive, ReferenceCase/Builder, PrinterContext, Keyboard, Mouse.
+include("common/Projection.jl")
+
+# ── Agent surface ──────────────────────────────────────────────────────────
+# Dependency-free agent seams. Llm and ToolRegistry have no kernel imports; Mcp
+# needs only ToolRegistry. The real LLM/MCP transports are the opt-in
+# `ProjecturedLlm` (package/llm) and `ProjecturedMcp` (package/mcp) packages;
+# these files hold only the dependency-free client seam and editor tools.
+include("editor/Llm.jl")
+include("editor/ToolRegistry.jl")
+include("editor/Mcp.jl")
+
+# ── Editor ─────────────────────────────────────────────────────────────────
+# The read-eval-print loop and its immediate dependencies: the Screen device
+# and the gesture recognizer (which needs ScreenDocument). Editor pulls in
+# nearly every layer above.
 include("device/ScreenDevice.jl")
 include("editor/GestureRecognizer.jl")
-include("editor/ToolRegistry.jl")
-# Mcp.jl holds the dependency-free editor tools; the MCP transport (McpServer,
-# wire bridges) lives in the `ProjecturedMcp` package, package/mcp.
-include("editor/Mcp.jl")
 include("editor/Editor.jl")
 
 end # module ProjecturedKernel
