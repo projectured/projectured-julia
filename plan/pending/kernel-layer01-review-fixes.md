@@ -164,7 +164,7 @@ Layer 1 — core:
 
 ## Group D — duplication / purity
 
-- [ ] **D1. `@iomap` duplicates `@document`'s codegen** (~80 lines: Cell field
+- [x] **D1. `@iomap` duplicates `@document`'s codegen** (~80 lines: Cell field
   rewrite, auto-wrapping inner ctor, getproperty/setproperty! chains, kwctor)
   in `common/IoMap.jl` vs `common/Document.jl`. Extract shared helper functions
   (the way `_forward_defs` already serves `@forward*`); `@iomap` is a strict

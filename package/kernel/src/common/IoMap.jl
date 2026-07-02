@@ -10,6 +10,9 @@ module IoMapModule
 
 import ..ReactiveModule: Cell
 import ..IoMapApiModule: IoMap
+# Shared Cell-struct codegen (also used by `@document`); see `common/Document.jl`.
+import ..DocumentModule: _cell_autowrap_ctor, _cell_property_accessors,
+                         _cell_kw_params, _cell_kwctor
 
 export SimpleIoMap, ChildrenIoMap, ContentIoMap, @iomap
 
@@ -118,41 +121,15 @@ macro iomap(structdef)
         end
     end
 
-    # Replace the default inner constructor with one that auto-wraps
-    # non-Cell values into Cell for Cell-typed fields.
+    # Replace the default inner constructor with one that auto-wraps non-Cell
+    # values into Cell for Cell-typed fields (shared with `@document`).
     if !isempty(all_fields)
-        arg_names = [gensym(f[1]) for f in all_fields]
-        new_args = map(enumerate(all_fields)) do (i, (fname, ftype))
-            a = arg_names[i]
-            fname in cell_set ? :($a isa Cell ? $a : Cell($a)) : a
-        end
-        ctor = :(function $(struct_name)($(arg_names...))
-            $(Expr(:call, :new, new_args...))
-        end)
-        push!(body.args, ctor)
+        push!(body.args,
+              _cell_autowrap_ctor(struct_name, [f[1] for f in all_fields], cell_set))
     end
 
-    # Build if-elseif chain for getproperty
-    get_body = :(getfield(obj, name))
-    for fname in reverse(cell_fields)
-        get_body = Expr(:if, :(name === $(QuoteNode(fname))),
-                        :(return getfield(obj, $(QuoteNode(fname)))[]),
-                        get_body)
-    end
-    getprop = :(function Base.getproperty(obj::$(struct_name), name::Symbol)
-        $get_body
-    end)
-
-    # Build if-elseif chain for setproperty!
-    set_body = :(setfield!(obj, name, val))
-    for fname in reverse(cell_fields)
-        set_body = Expr(:if, :(name === $(QuoteNode(fname))),
-                        :(return getfield(obj, $(QuoteNode(fname)))[] = val),
-                        set_body)
-    end
-    setprop = :(function Base.setproperty!(obj::$(struct_name), name::Symbol, val)
-        $set_body
-    end)
+    # getproperty / setproperty! read/write through the Cell fields (shared).
+    getprop, setprop = _cell_property_accessors(struct_name, cell_fields)
 
     # Keyword constructor (only when ≥1 default is declared) that forwards into
     # the positional inner ctor above, so Cell auto-wrapping is unchanged. Fields
@@ -160,13 +137,9 @@ macro iomap(structdef)
     extra = Any[]
     if !isempty(defaults)
         default_map = Dict(defaults)
-        kw_params = map(all_fields) do (fname, _)
-            haskey(default_map, fname) ? Expr(:kw, fname, default_map[fname]) : fname
-        end
-        kwctor = :(function $(struct_name)(; $(kw_params...))
-            $(Expr(:call, struct_name, (f[1] for f in all_fields)...))
-        end)
-        push!(extra, kwctor)
+        field_names = [f[1] for f in all_fields]
+        push!(extra, _cell_kwctor(struct_name, field_names,
+                                  _cell_kw_params(field_names, default_map)))
     end
 
     return esc(Expr(:block, :(Base.@__doc__ $structdef), getprop, setprop, extra...))
