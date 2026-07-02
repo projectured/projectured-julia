@@ -11,15 +11,8 @@ module DocumentModule
 import ..DocumentApiModule: Document
 import ..ReactiveModule: Cell
 
-export Document, selection, copy_document,
+export Document, copy_document,
        @document, @forward, @forward_vector, @forward_map
-
-"""
-    selection(doc::Document)
-
-Return the current selection value of a document.
-"""
-selection(doc::Document) = doc.selection
 
 """
 Maximum nesting depth printed by the generic document `show` before child
