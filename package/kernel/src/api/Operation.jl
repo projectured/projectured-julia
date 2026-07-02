@@ -8,7 +8,7 @@ from the raw device event that triggered it.
 """
 module OperationApiModule
 
-export Operation, evaluate_operation, splice_string, splice_value!, splice_number
+export Operation, NoOperation, evaluate_operation, splice_string, splice_value!, splice_number
 
 """
     Operation
@@ -17,6 +17,20 @@ Abstract supertype for all domain operations. Concrete operations are produced
 by the reader side of the projection pipeline and applied by `evaluate_operation`.
 """
 abstract type Operation end
+
+"""
+    NoOperation()
+
+An operation that does nothing when applied. Its purpose is to *consume* a
+gesture without effecting a change: a reader (or a per-instance gesture binding)
+returns `NoOperation()` to say "this gesture is handled — stop looking",
+distinct from returning `nothing`, which means "declined, keep looking / fall
+through". The canonical way for a per-instance binding to **suppress** a default
+behavior (see `instance_gestures`) is to map the pattern to a `NoOperation()`.
+"""
+struct NoOperation <: Operation end
+
+evaluate_operation(editor, ::NoOperation) = nothing
 
 """
     evaluate_operation(editor, operation::Operation)

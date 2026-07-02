@@ -47,7 +47,8 @@ export GesturePattern, KeyPressPattern, KeyDownPattern, KeyUpPattern,
        MouseDownPattern, MouseUpPattern, MousePressPattern, MouseMovePattern,
        MouseScrollPattern,
        GestureBinding, matches, describe,
-       document_gestures, document_gestures_own, read_document_gesture,
+       document_gestures, document_gestures_own, instance_gestures,
+       read_document_gesture, read_node_gesture,
        projection_gestures, read_projection_gesture, collect_gestures, applicable_gestures,
        is_help_gesture, var"@gestures", var"@gesture_set"
 
@@ -243,18 +244,22 @@ end
 document_gestures(doc::Document) = document_gestures(typeof(doc))
 
 """
-    read_document_gesture(doc, event) -> Operation | Nothing
+    instance_gestures(doc) -> Vector{GestureBinding}
 
-Fire the first reified binding of `doc`'s type whose pattern `matches` the event
-and whose `applicable` precondition holds for the current selection. A binding
-whose `operation` returns `nothing` (a finer event-dependent guard declining) is
-skipped, so a later binding may still fire. This is the single interpreter that
-backs `document_read` for every `@gestures`-declared type.
+Per-*instance* gesture bindings carried by `doc` itself, checked ahead of the
+per-type table so an instance can add, override (by shadowing a same-pattern
+default), or suppress behavior. Default empty, so any object that does not opt in
+behaves exactly as before. Widgets override this to return their `gestures`
+field; because the default is empty and untyped it also serves non-`Document`
+values (e.g. a `WidgetTreeNode`) — see [`read_node_gesture`](@ref).
 """
-function read_document_gesture(doc, event)
-    bindings = document_gestures(typeof(doc))
-    isempty(bindings) && return nothing
-    sel = getfield(doc, :selection)[]
+instance_gestures(doc) = GestureBinding[]
+
+# Shared firing loop: the first binding whose pattern `matches` and whose
+# `applicable` precondition holds (for `doc` + `sel`) and whose `operation`
+# returns non-`nothing` wins. A binding whose operation returns `nothing` is a
+# finer event-dependent decline and is skipped so a later binding may still fire.
+function _fire_gestures(bindings, doc, sel, event)
     for b in bindings
         if matches(b.pattern, event) && b.applicable(doc, sel)
             op = b.operation(doc, event)
@@ -262,6 +267,41 @@ function read_document_gesture(doc, event)
         end
     end
     return nothing
+end
+
+"""
+    read_document_gesture(doc, event) -> Operation | Nothing
+
+Fire the first matching binding for `doc`, checking its per-instance
+[`instance_gestures`](@ref) first and then its per-type [`document_gestures`](@ref)
+table (walking the supertype chain), evaluated against the current selection.
+Instance bindings therefore shadow same-pattern type defaults. This is the single
+interpreter that backs `document_read` for every `@gestures`-declared type; an
+object with neither instance nor type bindings yields `nothing`, exactly as the
+old default.
+"""
+function read_document_gesture(doc, event)
+    inst = instance_gestures(doc)
+    type = document_gestures(typeof(doc))
+    (isempty(inst) && isempty(type)) && return nothing
+    sel = getfield(doc, :selection)[]
+    bindings = isempty(inst) ? type : (isempty(type) ? inst : vcat(inst, type))
+    return _fire_gestures(bindings, doc, sel, event)
+end
+
+"""
+    read_node_gesture(node, event, selection) -> Operation | Nothing
+
+The selection-agnostic sibling of [`read_document_gesture`](@ref) for values that
+are *not* `Document`s and so carry no `selection` field of their own — notably a
+`WidgetTreeNode`, whose identity is its path inside the enclosing tree. Fires
+`node`'s [`instance_gestures`](@ref) against the explicitly supplied `selection`
+(usually the enclosing document's).
+"""
+function read_node_gesture(node, event, selection)
+    bindings = instance_gestures(node)
+    isempty(bindings) && return nothing
+    return _fire_gestures(bindings, node, selection, event)
 end
 
 # The projection-independent reader for any `@gestures`-declared document is the
