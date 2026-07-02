@@ -32,8 +32,11 @@ between the tag name and the first attribute is a reactive `close` on the tag le
 module XmlToSyntaxModule
 
 import ..ReactiveModule: Cell
-import ..ProjectionApiModule: projection_print, Projection
+import ..ProjectionApiModule: projection_print, projection_read, map_reference_forward, map_reference_backward, Projection
 import ..ProjectionModule: var"@projection"
+import ..ReferenceModule: ConcreteReferencePath, ProjectionReference, PositionReference
+import ..OperationModule: ReplaceSelectionOperation
+import ..SyntaxToTextModule: SyntaxNodeToText, _syntax_to_flat
 import ..XmlModule: XmlInsertion, XmlText, XmlAttribute, XmlElement
 import ..TextModule: TextString
 import ..FontModule: font_ubuntu_monospace_regular_20, font_ubuntu_monospace_bold_20
@@ -42,7 +45,7 @@ import ..ColorModule: color_black, color_default, color_solarized_blue, color_so
 import ..StyleTextModule: StyleText
 import ..SyntaxModule: SyntaxLeaf, SyntaxNode
 import ..TypeDispatchingModule: TypeDispatchingProjection
-import ..ProjectionTemplateModule: var"@projection_template", bound, collection
+import ..ProjectionTemplateModule: var"@projection_template", bound, collection, RuleIoMap
 export XmlInsertionToSyntaxLeaf, XmlTextToSyntaxLeaf, XmlElementToSyntaxNode, XmlToSyntax
 
 # ── XmlTextToSyntaxLeaf ─────────────────────────────────────────────────────
@@ -108,6 +111,39 @@ end
     SyntaxNode(TextString(""), TextString(""), TextString(""),
                [ tag_leaf, attrs_node, body_node, close_leaf ],
                0, false, nothing)
+end
+
+# ── Structural-caret navigation (the one bit the template engine can't supply) ─
+#
+# The element node carries projection-introduced text that has no input pre-image:
+# the delimiters (`<`, `>`, `</`, `"`, `=`) and the closing tag (which re-renders
+# `.tag` as a display-only child). A text caret there maps back to *nothing* through
+# the wiring. The template's domain-neutral fallback wraps the whole (output-domain)
+# path in a `ProjectionReference`; but `strip_reference_types` (which the navigation
+# BFS dedups on) does not collapse that, so each round-trip through such a caret grows
+# the path without bound and the caret walk never terminates.
+#
+# XML instead collapses an unmapped caret to a single canonical **flat offset** into
+# the rendered node (`_syntax_to_flat`, the same machinery SyntaxToText round-trips
+# through) — a bounded set, so navigation terminates. This is the SyntaxToText-specific
+# piece the engine deliberately leaves to the domain; the printer, reference mapping,
+# and every other reader still come from `@projection_template`.
+function projection_read(p::XmlElementToSyntaxNode, iomap::RuleIoMap, op::ReplaceSelectionOperation)
+    result = map_reference_backward(p, iomap, op.path)
+    result !== nothing && return ReplaceSelectionOperation(result)
+    flat = _syntax_to_flat(iomap.output::SyntaxNode, op.path, SyntaxNodeToText(), 0)
+    flat < 0 && return nothing
+    ReplaceSelectionOperation(ConcreteReferencePath(ProjectionReference(p, ConcreteReferencePath(PositionReference(flat)))))
+end
+
+# Render that flat structural caret back out: a `proj(p, …)` selection is this
+# projection's own introduced position, so pass it through unchanged (the fixed-node
+# forward mapper handles field references but not our own projection wrap). Everything
+# else defers to the generic template mapper.
+function map_reference_forward(p::XmlElementToSyntaxNode, iomap::RuleIoMap, reference)
+    reference isa ConcreteReferencePath && reference.head isa ProjectionReference &&
+        return reference
+    invoke(map_reference_forward, Tuple{Projection, RuleIoMap, Any}, p, iomap, reference)
 end
 
 # ── XmlToSyntax (composite) ─────────────────────────────────────────────────
