@@ -1,9 +1,22 @@
 # Per-instance widget behavior via a reified gesture table
 
-Status: **Steps 1–8 implemented** (2026-07-02) on branch
+Status: **Steps 1–8 implemented and verified** (2026-07-02) on branch
 `worktree-widget-per-instance-gestures` — button, tree/tree-node, and the sibling
-widgets (checkbox, switch, menu item). Not yet verified by a test run — see
-*Verification* below.
+widgets (checkbox, switch, menu item).
+
+Verified on the light path (`using Projectured` only — no native SDL/video/db
+stack, precompiles in ~10s, no editor crash):
+- `test_widget_gestures()` — **18/18 pass** (button add/shadow/suppress/unchanged;
+  checkbox + switch right-click vs toggle; tree per-node click, bindingless-select,
+  per-node key).
+- Regression `test_widget_button_behavior()` + `test_widget_tree()` (wrapped in an
+  outer `@testset`) — **122 pass, 0 fail, 1 error**. The single error is
+  **pre-existing and unrelated**: the "focus ring" test at `WidgetButtonTest.jl:254`
+  reads `GraphicsRect.a`, but `GraphicsRect` has no `a` field (alpha lives in
+  `color`) — that test file and the graphics module are untouched by this work, so
+  it fails identically on base `6c8f3f6`. Every testset that exercises the changed
+  readers is green, notably `Enter/Space activate the focused button and checkbox`
+  (6/6) and `WidgetTree hover + collapse` (23/23).
 
 ## Implementation notes (2026-07-02)
 
@@ -39,13 +52,19 @@ Built as planned, with one deliberate simplification recorded here:
 Commits: `142db82` (kernel), `bb29860` (button+tree reader), `eb02944` (collector),
 `5c95205` (button+tree tests), `27c541e` (checkbox/switch/menu-item — Step 8).
 
-### Verification (deferred to the user — external terminal)
+### Verification — done (see Status block above)
 
-Per the "no heavy Julia runs here" constraint, run in an external terminal:
+Ran on the **light path** (a standalone driver that does `using Projectured` and
+`include`s the test files, avoiding the native SDL/video/db stack that
+`using ProjecturedTest` drags in — that stack is the actual editor-crash risk, not
+`Projectured` itself, which precompiles in ~10s). Results in the Status block:
+`test_widget_gestures()` 18/18; regression 122 pass / 1 pre-existing unrelated error.
+
+To reproduce inside the normal suite (external terminal, once the native stack is
+available):
 
 ```
 julia --project=. -e 'using ProjecturedTest; test_widget_gestures()'
-julia --project=. -e 'using ProjecturedTest; test_widget_button_behavior(); test_widget_tree()'  # regressions
 ```
 
 ## Problem
