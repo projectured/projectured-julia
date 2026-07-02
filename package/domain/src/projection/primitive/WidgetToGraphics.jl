@@ -4570,11 +4570,31 @@ function projection_print(p::WidgetTableToGraphicsCanvas, recursion, w::WidgetTa
     setfn!(getfield(highlight_rect, :w), () -> Int32(hl_bounds[][3]))
     setfn!(getfield(highlight_rect, :h), () -> Int32(hl_bounds[][4]))
 
+    # Persistent hover-band overlay: same pattern as the selection band but reading
+    # `w.hovered` (the row / column-header under the pointer) in the fainter hover
+    # colour. Drawn behind the selection band so a selected+hovered row still reads
+    # as selected.
+    hov_bounds = Cell(() -> _wt_highlight_bounds(w.hovered, geometry[]))
+    hover_rect = GraphicsRect(0, 0, 0, 0, _WT_HOVER_COLOR, _WT_HL_RADIUS)
+    setfn!(getfield(hover_rect, :x), () -> Int32(hov_bounds[][1]))
+    setfn!(getfield(hover_rect, :y), () -> Int32(hov_bounds[][2]))
+    setfn!(getfield(hover_rect, :w), () -> Int32(hov_bounds[][3]))
+    setfn!(getfield(hover_rect, :h), () -> Int32(hov_bounds[][4]))
+
+    # Invisible whole-canvas hit target so a table nested in a container (which
+    # gates routing on `hit_element_at`) is hoverable/clickable over empty cell
+    # interiors, not just over drawn glyphs/rules. Cf. the WidgetTree hit target.
+    hit_target = GraphicsRect(0, 0, 0, 0, _WT_HIT_COLOR, 0)
+    setfn!(getfield(hit_target, :w), () -> Int32(geometry[].total_w))
+    setfn!(getfield(hit_target, :h), () -> Int32(geometry[].total_h))
+
     elements = CellVector(() -> begin
         geom = geometry[]
         gim = grid_iomap[]
         result = Any[]
         geom.grid_cols == 0 && return result
+        # 0. Whole-canvas hit target (behind everything).
+        push!(result, hit_target)
         # 1. Header strip backgrounds (behind everything). The column-header strip
         #    occupies grid row 1; the row-header strip occupies grid column 1.
         if geom.has_col_headers
@@ -4583,8 +4603,10 @@ function projection_print(p::WidgetTableToGraphicsCanvas, recursion, w::WidgetTa
         if geom.has_row_headers
             push!(result, GraphicsRect(0, 0, geom.col_x[2], geom.total_h, p.header_fill))
         end
-        # 2. Selection highlight overlay (persistent; its geometry reads the
-        #    selection so this thunk does not), behind the grid content and rules.
+        # 2. Hover + selection highlight overlays (persistent; their geometry reads
+        #    the hovered / selected node so this thunk does not), behind the grid
+        #    content and rules. Hover is behind selection.
+        push!(result, hover_rect)
         push!(result, highlight_rect)
         # 3. The positioned grid content (from GridLayout), offset by grid_off.
         if gim isa GridLayoutIoMap
@@ -4727,6 +4749,19 @@ function projection_read(p::WidgetTableToGraphicsCanvas, recursion, change::Chan
     if change.operation === nothing && g isa MousePress && g.button === :left
         return Change(g, _wt_mouse_select(iomap, g))
     end
+    # Pointer crossings (synthesised by WidgetHoverTrackingProjection) drive the
+    # hover band: MouseEnter always re-writes (so the tracker keeps the table as its
+    # hover target), MouseMove writes only when the hovered row changes, MouseLeave
+    # clears.
+    if change.operation === nothing && g isa MouseEnter
+        return Change(g, _wt_hover_set(iomap, g.x, g.y, true))
+    end
+    if change.operation === nothing && g isa MouseMove
+        return Change(g, _wt_hover_set(iomap, g.x, g.y, false))
+    end
+    if change.operation === nothing && g isa MouseLeave
+        return Change(g, _wt_hover_clear(iomap))
+    end
     if change.operation === nothing && g isa KeyDown
         op = _wt_key_navigate(iomap, g, iomap.geometry[])
         op === nothing || return Change(g, op)
@@ -4796,6 +4831,36 @@ function _wt_hit_test(geom::WTGeometry, x::Int, y::Int)
     else
         return (:cell, gr - geom.row_offset, gc - geom.col_offset)
     end
+end
+
+# ── Hover (whole-row) ────────────────────────────────────────────────────────
+# The hover band highlights the *row* under the pointer (a body cell or a row
+# header → that row); a column header → its column; the corner / outside → none.
+# Returns the `hovered` reference for (x, y), or nothing.
+function _wt_hover_ref(geom::WTGeometry, x::Int, y::Int)
+    hit = _wt_hit_test(geom, x, y)
+    kind = hit[1]
+    (kind === :cell || kind === :row) && return _wt_row_ref(hit[2])
+    kind === :col && return _wt_col_ref(hit[2])
+    return nothing
+end
+
+# Set `hovered` to the row/column under (x, y). `force` (a MouseEnter, i.e. a
+# boundary crossing) always re-emits so the hover tracker keeps the table as its
+# target; a plain MouseMove emits only when the hovered region changes. Off the
+# grid returns nothing (the tracker's MouseLeave clears it).
+function _wt_hover_set(iomap::WidgetTableToGraphicsCanvasIoMap, x::Int, y::Int, force::Bool)
+    w = iomap.input
+    ref = _wt_hover_ref(iomap.geometry[], x, y)
+    ref === nothing && return nothing
+    (!force && w.hovered == ref) && return nothing
+    ReplaceReferencedValue(w, "hovered", ref)
+end
+
+function _wt_hover_clear(iomap::WidgetTableToGraphicsCanvasIoMap)
+    w = iomap.input
+    w.hovered === nothing && return nothing
+    ReplaceReferencedValue(w, "hovered", nothing)
 end
 
 # Route a plain click into a data cell's content sub-pipeline (via the grid
@@ -4937,7 +5002,8 @@ end
 # navigation), so a bare MousePress/KeyDown is lifted into a Change and handled by
 # the 4-arg reader. Anything else dispatches to the grid and is re-rooted.
 function projection_read(p::WidgetTableToGraphicsCanvas, iomap::WidgetTableToGraphicsCanvasIoMap, event)
-    if event isa MousePress || event isa KeyDown
+    if event isa MousePress || event isa KeyDown ||
+       event isa MouseEnter || event isa MouseMove || event isa MouseLeave
         return projection_read(p, nothing, Change(event, nothing), iomap).operation
     end
     return _wt_grid_passthrough(p, iomap, event)

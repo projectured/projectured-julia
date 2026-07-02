@@ -1526,6 +1526,7 @@ existing call sites (`WidgetTable(pos, headers, rows)`) keep working unchanged.
     border_width::Int
     visible::Bool
     selection::Reference
+    hovered::Reference   # transient: whole-row (or column-header) ref under the pointer, or nothing
 end
 
 # Wrap a raw cell value in a renderable widget document; pass Documents through.
@@ -1551,7 +1552,7 @@ function WidgetTable(position::Point2D, column_headers::Vector, row_headers::Vec
                 CellVector(Cell[Cell(_table_cell_doc(h)) for h in row_headers]),
                 CellVector(Cell[Cell(_table_row(r)) for r in rows]),
                 Cell(Int(column_count)), Cell(Int(padding)), Cell(Int(border_width)),
-                Cell(visible), Cell(nothing))
+                Cell(visible), Cell(nothing), Cell(nothing))
 end
 
 # String convenience shim: headers become a column-header strip, rows become the

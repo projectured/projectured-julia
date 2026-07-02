@@ -64,7 +64,7 @@ function projection_print(p::CellTableToWidgetTable, recursion, ct::CellTable, c
                         rows,
                         Cell(nc),
                         Cell(8), Cell(1),    # padding, border_width
-                        Cell(true), Cell(nothing))
+                        Cell(true), Cell(nothing), Cell(nothing))
     SimpleIoMap(p, ct, table)
 end
 
