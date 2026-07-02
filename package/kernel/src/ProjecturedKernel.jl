@@ -24,9 +24,14 @@ module ProjecturedKernel
 # obeys those dependency edges. Only ProjectionApiModule (api/Projection.jl) is
 # structurally load-bearing among the api stubs.
 
+# ── Reactive engine (layer 0 — the DAG's dependency-free base) ─────────────
+# PerformanceCounter (leaf) before Reactive, which bumps its `_perf` on the hot path.
+include("reactive/PerformanceCounter.jl")
+include("reactive/Reactive.jl")
+
 # ── API — abstract types + `function foo end` stubs ────────────────────────
 # Independent interface-only modules. Change (the reader-side protocol type) is a
-# leaf that ProjectionApiModule re-exports, so it precedes Projection.
+# leaf that the projection readers import, so it precedes Projection.
 include("api/Backend.jl")
 include("api/Device.jl")
 include("api/Change.jl")
@@ -35,11 +40,6 @@ include("api/Operation.jl")
 include("api/Document.jl")
 include("api/IoMap.jl")
 include("api/Agent.jl")
-
-# ── Reactive engine (layer A — the DAG's single dependency-free source) ─────
-# PerformanceCounter (leaf) before Reactive, which bumps its `_perf` on the hot path.
-include("reactive/PerformanceCounter.jl")
-include("reactive/Reactive.jl")
 
 # ── Document core & references ──────────────────────────────────────────────
 # Reactive-backed Document/IoMap, the reference machinery, operations, and the

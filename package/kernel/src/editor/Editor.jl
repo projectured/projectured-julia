@@ -206,8 +206,8 @@ function run!(editor::Editor; mcp::Bool=false,
         nothing
     end
     server === nothing || agent_server_start!(server)
-    # Advance the global animation clock once per frame. `tick!` writes
-    # EDITOR_TIME, so any computed cell that subscribed via
+    # Advance the global animation clock once per frame. `tick!` writes the
+    # clock cell, so any computed cell that subscribed via
     # `reactive_editor_time()` is invalidated and re-evaluated on the next pull.
     # Logical time is wall-clock seconds since the loop started.
     t_start = Base.time()

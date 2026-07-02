@@ -24,15 +24,15 @@ import ..ReactiveModule: Cell
 
 export editor_time, reactive_editor_time, tick!
 
-const EDITOR_TIME = Cell(0.0)
+const _EDITOR_TIME = Cell(0.0)
 
 """Tracked read of the editor time — subscribe (re-run every frame)."""
-reactive_editor_time() = EDITOR_TIME[]
+reactive_editor_time() = _EDITOR_TIME[]
 
 """Untracked read of the editor time — sample (no dependency)."""
-editor_time() = peek(EDITOR_TIME)
+editor_time() = peek(_EDITOR_TIME)
 
 """Write the current logical time, invalidating everything that subscribed."""
-tick!(t::Real) = (EDITOR_TIME[] = Float64(t); nothing)
+tick!(t::Real) = (_EDITOR_TIME[] = Float64(t); nothing)
 
 end # module
