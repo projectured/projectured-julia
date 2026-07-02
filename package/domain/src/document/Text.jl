@@ -34,8 +34,7 @@ import ..GeometryModule: Inset
 import ..ReferenceModule: Reference, ConcreteReferencePath, EmptyReferencePath, RangeReference, FieldReference, TextRectangularReference, strip_reference_types
 import ..ReferenceCaseModule: var"@reference_case"
 import ..ReferenceBuilderModule: var"@reference"
-import ..OperationApiModule: splice_string, splice_value!
-import ..OperationModule: ReplaceSelectionOperation, ToggleCollapseOperation
+import ..OperationModule: ReplaceSelectionOperation, ToggleCollapseOperation, splice_string, splice_value!
 import ..PrimitiveModule: StringReplaceRangeOperation
 import ..GestureBindingModule: var"@gestures"
 export TextDocument, TextInsertion, TextNewline, TextSpacing, TextString, TextGraphics, TextText, setfn!,

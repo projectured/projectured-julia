@@ -10,8 +10,8 @@ module PrimitiveModule
 import ..ReactiveModule: Cell, setfn!, setval!
 import ..DocumentModule: Document, @document
 import ..DocumentApiModule: clear_selection!, set_selection!
-import ..OperationApiModule: Operation, evaluate_operation,
-                              splice_string, splice_value!, splice_number
+import ..OperationApiModule: Operation, evaluate_operation
+import ..OperationModule: splice_string, splice_value!, splice_number
 import ..ReferenceModule: Reference, ReferencePath, ConcreteReferencePath, EmptyReferencePath,
                           ReferenceStep, FieldReference, RangeReference, evaluate_reference,
                           strip_reference_types
