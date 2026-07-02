@@ -3,29 +3,49 @@
 
 YAML → SyntaxDocument projection. Maps each YAML value type to a matching syntax
 tree shape: null, bool, number, and string scalars become leaves; sequences and
-mappings become nodes carrying their flow delimiters and comma separators.
+mappings become nodes.
 
-YAML is a JSON superset, so the structure closely follows `JsonToSyntaxModule`,
-rendered in **flow style** with YAML flavor: mapping keys and string scalars are
-plain (unquoted), sequences read `[…]` and mappings `{…}`.
+The container rendering is selectable via `YamlToSyntax(; style)`:
+
+- `:block` (default) — idiomatic block YAML: `key: value` lines and `- item`
+  sequences, laid out by indentation, no braces/brackets/commas.
+- `:flow` — flow YAML (a JSON superset): `{key: value}` and `[a, b]` with commas.
+
+String scalars and mapping keys are plain (unquoted) in both styles.
+
+Mappings are rendered through `@projection_template` (the flow/block difference is
+just the wrapper's open/close/separator). Block **sequences** need a `- ` before
+every item, which the template's homogeneous `collection` cannot inject, so the
+block sequence is a hand-written projection (like `FileSystemDirectoryToSyntaxNode`).
 """
 module YamlToSyntaxModule
 
 import ..ReactiveModule: Cell
-import ..ProjectionApiModule: projection_print, Projection
+import ..CollectionModule: CellVector
+import ..ProjectionApiModule: projection_print, projection_printer_recurse, projection_read,
+                              map_reference_forward, map_reference_backward, Projection
 import ..ProjectionModule: var"@projection"
 import ..YamlModule: YamlInsertion, YamlNull, YamlBool, YamlNumber, YamlString, YamlSequence, YamlMapping, YamlMappingEntry
 import ..TextModule: TextString, hinted_text
 import ..FontModule: font_ubuntu_monospace_regular_20, font_ubuntu_monospace_bold_20
 import ..ColorModule: color_solarized_blue, color_solarized_green, color_solarized_magenta, color_solarized_yellow, color_solarized_gray
 import ..StyleTextModule: StyleText
-import ..SyntaxModule: SyntaxLeaf, SyntaxNode
+import ..SyntaxModule: SyntaxDocument, SyntaxLeaf, SyntaxNode
 import ..TypeDispatchingModule: TypeDispatchingProjection
 import ..CopyingProjectionModule: CopyingProjection
 import ..ProjectionTemplateModule: var"@projection_template", bound, project, collection
-import ..PrimitiveModule: NumberReplaceRangeOperation
+import ..PrimitiveModule: NumberReplaceRangeOperation, StringReplaceRangeOperation
+import ..IoMapModule: ChildrenIoMap
+import ..ReferenceModule: ConcreteReferencePath, ElementReference, FieldReference, RangeReference, ProjectionReference, EmptyReferencePath
+import ..ReferenceCaseModule: var"@reference_case"
+import ..ReferenceBuilderModule: var"@reference"
+import ..PrinterContextModule: child_context
+import ..OperationModule: ReplaceSelectionOperation
+import ..OperationRerootingModule: prepend_steps_to_op
+import ..DocumentApiModule: document_read
+import ..KeyboardModule: KeyPress, KeyDown
 export YamlInsertionToSyntaxLeaf, YamlNullToSyntaxLeaf, YamlBoolToSyntaxLeaf, YamlNumberToSyntaxLeaf,
-       YamlStringToSyntaxLeaf, YamlSequenceToSyntaxNode, YamlMappingToSyntaxNode,
+       YamlStringToSyntaxLeaf, YamlSequenceToSyntaxNode, YamlSequenceToBlockSyntaxNode, YamlMappingToSyntaxNode,
        YamlToSyntax
 
 # ── YamlNullToSyntaxLeaf ─────────────────────────────────────────────────────
@@ -79,7 +99,42 @@ end
     SyntaxLeaf(bound(:value, String,
                      hinted_text(() -> doc.value, () -> isempty(doc.value), "enter yaml string", prj.style)))
 
-# ── YamlSequenceToSyntaxNode ─────────────────────────────────────────────────
+# ── YamlMappingToSyntaxNode (template; flow or block via delimiter fields) ────
+#
+# Each entry renders `key: value` with an unquoted (plain) key leaf and the value
+# delegated to its own projection. The wrapper's open/close/separator are fields so
+# the same rule renders flow (`{a: 1, b: 2}`) or block (indented `key: value`
+# lines) — see `YamlToSyntax`.
+
+@projection struct YamlMappingToSyntaxNode
+    delimiter_style::StyleText = StyleText(font_ubuntu_monospace_bold_20, color_solarized_gray)
+    separator_style::StyleText = StyleText(font_ubuntu_monospace_regular_20, color_solarized_gray)
+    key_style::StyleText = StyleText(font_ubuntu_monospace_regular_20, color_solarized_blue)
+    colon_style::StyleText = StyleText(font_ubuntu_monospace_regular_20, color_solarized_gray)
+    open::String = ""      # "{" flow, "" block
+    close::String = ""     # "}" flow, "" block
+    sep::String = ""       # ", " flow, "" block (indentation provides the newline)
+    # +1 (flow) keeps a trailing newline so the close brace lands on its own line;
+    # -1 (block) is block layout WITHOUT that trailing newline, so nested blocks
+    # don't leave a blank line before the next sibling.
+    indent::Int = -1
+end
+
+@projection_template YamlMappingToSyntaxNode YamlMapping (prj, doc) ->
+    SyntaxNode(collection(:entries) do e
+                   SyntaxNode(TextString("", prj.delimiter_style),
+                              TextString("", prj.delimiter_style),
+                              TextString(": ", prj.colon_style),
+                              [ SyntaxLeaf(bound(:key, String, hinted_text(() -> e.key, () -> isempty(e.key), "enter key", prj.key_style))),
+                                project(:value) ],
+                              0, false, getfield(e, :selection))
+               end;
+               open=TextString(prj.open, prj.delimiter_style),
+               close=TextString(prj.close, prj.delimiter_style),
+               sep=TextString(prj.sep, prj.separator_style),
+               indentation=prj.indent)
+
+# ── YamlSequenceToSyntaxNode (template; flow style [a, b]) ────────────────────
 
 @projection struct YamlSequenceToSyntaxNode
     delimiter_style::StyleText = StyleText(font_ubuntu_monospace_bold_20, color_solarized_gray)
@@ -93,42 +148,143 @@ end
                sep=TextString(", ", prj.separator_style),
                indentation=1)
 
-# ── YamlMappingToSyntaxNode ──────────────────────────────────────────────────
+# ── YamlSequenceToBlockSyntaxNode (hand-written; block style `- item`) ────────
 #
-# Each entry renders `key: value` with an unquoted (plain) key leaf and the value
-# delegated to its own projection. The mapping wraps its entries in flow `{…}`.
+# The template cannot put a `- ` before each element (a homogeneous `collection`
+# projects the bare element with no per-item open), so the block sequence is
+# hand-written like `FileSystemDirectoryToSyntaxNode`. Output shape:
+#
+#   SyntaxNode(indentation=1):                 ← one item per indented line
+#     children[i] = SyntaxNode(open="- ",      ← the "- " marker
+#                     children[1] = <projected element i>)
+#
+# Selection: .elements[i].rest ↔ .children[i].children[1].<child-mapped rest>
+# (the extra `.children[1]` hop steps through the "- " wrapper). The tail is
+# delegated through the stored child iomaps (School A); the two mappers are the
+# single source of truth for the printer's selection cell and the readers.
 
-@projection struct YamlMappingToSyntaxNode
-    delimiter_style::StyleText = StyleText(font_ubuntu_monospace_bold_20, color_solarized_gray)
-    separator_style::StyleText = StyleText(font_ubuntu_monospace_regular_20, color_solarized_gray)
-    key_style::StyleText = StyleText(font_ubuntu_monospace_regular_20, color_solarized_blue)
-    colon_style::StyleText = StyleText(font_ubuntu_monospace_regular_20, color_solarized_gray)
+@projection struct YamlSequenceToBlockSyntaxNode
+    marker_style::StyleText = StyleText(font_ubuntu_monospace_bold_20, color_solarized_gray)
 end
 
-@projection_template YamlMappingToSyntaxNode YamlMapping (prj, doc) ->
-    SyntaxNode(collection(:entries) do e
-                   SyntaxNode(TextString("", prj.delimiter_style),
-                              TextString("", prj.delimiter_style),
-                              TextString(": ", prj.colon_style),
-                              [ SyntaxLeaf(bound(:key, String, hinted_text(() -> e.key, () -> isempty(e.key), "enter key", prj.key_style))),
-                                project(:value) ],
-                              0, false, getfield(e, :selection))
-               end;
-               open=TextString("{", prj.delimiter_style),
-               close=TextString("}", prj.delimiter_style),
-               sep=TextString(", ", prj.separator_style),
-               indentation=1)
+function projection_print(p::YamlSequenceToBlockSyntaxNode, recursion, seq::YamlSequence, ctx)
+    child_iomaps = Cell(() -> [projection_printer_recurse(recursion, elem,
+                                   child_context(ctx, FieldReference("elements"), ElementReference(i)))
+                               for (i, elem) in enumerate(seq.elements)])
+
+    items = CellVector(() -> SyntaxDocument[
+        SyntaxNode(CellVector(Cell[Cell(im.output)]); open=TextString("- ", p.marker_style))
+        for im in child_iomaps[]])
+
+    iomap_cell = Cell(nothing)
+    sel = Cell(() -> begin
+        im = iomap_cell[]
+        im === nothing && return nothing
+        path = seq.selection
+        path === nothing && return nothing
+        map_reference_forward(p, im, path)
+    end)
+
+    # indentation=-1: block layout (one item per indented line) without the
+    # trailing newline, so a nested sequence leaves no blank line after its items.
+    node = SyntaxNode(items; indentation=-1, selection=sel)
+    iomap = ChildrenIoMap(p, seq, node, child_iomaps)
+    iomap_cell[] = iomap
+    return iomap
+end
+
+function map_reference_forward(p::YamlSequenceToBlockSyntaxNode, iomap::ChildrenIoMap, reference)
+    @reference_case reference begin
+        ∅ => @reference ::SyntaxNode
+        proj(^(p), _) => reference
+        ::YamlSequence.elements{s:e}.rest... => begin
+            child_i = s + 1
+            iomaps = iomap.child_iomaps[]
+            1 <= child_i <= length(iomaps) || return nothing
+            child = iomaps[child_i]
+            inner = map_reference_forward(child.projection, child, rest)
+            inner === nothing && return nothing
+            @reference ::SyntaxNode.children[child_i].children[1].^(inner)
+        end
+    end
+end
+
+function map_reference_backward(p::YamlSequenceToBlockSyntaxNode, iomap::ChildrenIoMap, reference)
+    @reference_case reference begin
+        ∅ => @reference ::YamlSequence
+        ::SyntaxNode.children{s:e}.children[1].rest... => begin
+            child_i = s + 1
+            iomaps = iomap.child_iomaps[]
+            1 <= child_i <= length(iomaps) || return nothing
+            child = iomaps[child_i]
+            inner = map_reference_backward(child.projection, child, rest)
+            inner === nothing && return nothing
+            @reference ::YamlSequence.elements[child_i].^(inner)
+        end
+    end
+end
+
+function projection_read(p::YamlSequenceToBlockSyntaxNode, iomap::ChildrenIoMap, op::ReplaceSelectionOperation)
+    result = map_reference_backward(p, iomap, op.path)
+    result === nothing && return nothing
+    ReplaceSelectionOperation(result)
+end
+
+function projection_read(p::YamlSequenceToBlockSyntaxNode, iomap::ChildrenIoMap, op::StringReplaceRangeOperation)
+    new_ref = map_reference_backward(p, iomap, op.reference)
+    new_ref === nothing && return nothing
+    StringReplaceRangeOperation(new_ref, op.replacement)
+end
+
+# The input step into the focused child plus that child's iomap, derived from the
+# sequence's own selection — the reader-side mirror of the recursive printer. A
+# non-`.elements[i]` selection yields nothing, so the gesture falls to the
+# sequence's own `document_read` (its `@gestures`, e.g. `,` to insert an element).
+function _block_seq_focused_child(iomap, sel)
+    @reference_case sel begin
+        ::YamlSequence.elements{s:e}.rest... => begin
+            i = s + 1
+            ims = iomap.child_iomaps[]
+            1 <= i <= length(ims) || return nothing
+            (ims[i], (FieldReference("elements"), ElementReference(i)))
+        end
+    end
+end
+
+function projection_read(p::YamlSequenceToBlockSyntaxNode, iomap::ChildrenIoMap, evt::Union{KeyPress, KeyDown})
+    seq = iomap.input
+    sel = getfield(seq, :selection)[]
+    if sel !== nothing
+        fc = _block_seq_focused_child(iomap, sel)
+        if fc !== nothing
+            child, steps = fc
+            child_op = projection_read(child.projection, child, evt)
+            child_op === nothing || return prepend_steps_to_op(child_op, steps)
+        end
+    end
+    return document_read(seq, evt)
+end
 
 # ── Compound convenience constructor ────────────────────────────────────────
 
-function YamlToSyntax()
+"""
+    YamlToSyntax(; style::Symbol = :block)
+
+Build the YAML → Syntax projection. `style` is `:block` (idiomatic block YAML) or
+`:flow` (JSON-superset flow YAML). See the module docstring.
+"""
+function YamlToSyntax(; style::Symbol = :block)
+    style in (:block, :flow) || error("YamlToSyntax: style must be :block or :flow, got :$style")
+    sequence = style === :flow ? YamlSequenceToSyntaxNode() : YamlSequenceToBlockSyntaxNode()
+    mapping  = style === :flow ? YamlMappingToSyntaxNode(open="{", close="}", sep=", ", indent=1) :
+                                 YamlMappingToSyntaxNode()
     TypeDispatchingProjection(
         YamlNull         => YamlNullToSyntaxLeaf(),
         YamlBool         => YamlBoolToSyntaxLeaf(),
         YamlNumber       => YamlNumberToSyntaxLeaf(),
         YamlString       => YamlStringToSyntaxLeaf(),
-        YamlSequence     => YamlSequenceToSyntaxNode(),
-        YamlMapping      => YamlMappingToSyntaxNode(),
+        YamlSequence     => sequence,
+        YamlMapping      => mapping,
         YamlInsertion    => YamlInsertionToSyntaxLeaf(),
         YamlMappingEntry => CopyingProjection(),
         Vector{Cell}     => CopyingProjection(),
