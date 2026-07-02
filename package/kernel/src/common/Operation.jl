@@ -6,15 +6,27 @@ EditorModule so the Editor type is available.
 """
 module OperationModule
 
-import ..OperationApiModule: Operation, NoOperation, evaluate_operation
+import ..OperationApiModule: Operation, evaluate_operation
 import ..DocumentApiModule: Document, clear_selection!, set_selection!, with_selection
 import ..ReferenceModule: ReferencePath, ConcreteReferencePath, EmptyReferencePath, FieldReference, RangeReference, TypeReference, is_element_reference, evaluate_reference, reference_equal, annotate_reference_types, strip_reference_types, append_reference
 import ..ReactiveModule: Cell
-export ReplaceSelectionOperation, QuitEditorOperation, QuitEditorException, replace_selection!,
+export NoOperation, ReplaceSelectionOperation, QuitEditorOperation, QuitEditorException, replace_selection!,
        OpenWindowOperation, OpenPopupOperation, CloseWindowOperation, ResizeWindowOperation, ToggleCollapseOperation,
        ReplaceReferencedValue, replace_document, insert_elements, delete_elements, SelectNextInsertionOperation,
        CompoundOperation, AdjustZoomOperation, AdjustFontZoomOperation, update_selection!,
        splice_string, splice_number, splice_value!
+
+"""
+    NoOperation()
+
+An operation that does nothing when applied. Its purpose is to *consume* a
+gesture without effecting a change: a reader (or a per-instance gesture binding)
+returns `NoOperation()` to say "this gesture is handled — stop looking",
+distinct from returning `nothing`, which means "declined, keep looking / fall
+through". The canonical way for a per-instance binding to **suppress** a default
+behavior (see `instance_gestures`) is to map the pattern to a `NoOperation()`.
+"""
+struct NoOperation <: Operation end
 
 evaluate_operation(editor, ::NoOperation) = nothing
 function evaluate_operation(editor, op::Nothing) end

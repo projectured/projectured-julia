@@ -1,10 +1,10 @@
 """
     ChangeModule
 
-The backward-flowing unit of the reader pipeline. Extracted from
-`ProjectionApiModule` (api/Projection.jl) so the reader-side protocol type has its
-own home; `ProjectionApiModule` re-exports `Change`/`as_change`, so nothing that
-imports them from there needs to change.
+The backward-flowing unit of the reader pipeline — the reader-side protocol data
+type (`Change`) plus its `as_change` shim. It is a concrete data vehicle, not an
+interface to implement, so it lives in `common/` rather than the pure-interface
+`api/` tier; readers import `Change`/`as_change` from here directly.
 """
 module ChangeModule
 

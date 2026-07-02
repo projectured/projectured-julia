@@ -30,11 +30,10 @@ include("reactive/PerformanceCounter.jl")
 include("reactive/Reactive.jl")
 
 # ── API — abstract types + `function foo end` stubs ────────────────────────
-# Independent interface-only modules. Change (the reader-side protocol type) is a
-# leaf that the projection readers import, so it precedes Projection.
+# Pure interface modules: abstract types and generic-function stubs only. The
+# concrete protocol data types (Change, NoOperation) live in common/, not here.
 include("api/Backend.jl")
 include("api/Device.jl")
-include("api/Change.jl")
 include("api/Projection.jl")
 include("api/Operation.jl")
 include("api/Document.jl")
@@ -45,6 +44,8 @@ include("api/Agent.jl")
 # Reactive-backed Document/IoMap, the reference machinery, operations, and the
 # foundational document vocabulary (Collection, Primitive) the engine depends
 # on. OperationRerooting needs Operation + Primitive, so it closes the section.
+# Change (the reader's backward-flowing protocol type) is a dependency-free leaf.
+include("common/Change.jl")
 include("common/Document.jl")
 include("common/IoMap.jl")
 include("reference/Reference.jl")

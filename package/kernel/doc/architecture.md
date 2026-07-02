@@ -64,7 +64,7 @@ the side.
                                     ▼
    ┌──────────────────────────────────────────────────────────────┐
  B │  API STUBS (abstract types + `function foo end`)               │
-   │  Change · Projection · Operation · Document · IoMap ·          │
+   │  Projection · Operation · Document · IoMap ·                   │
    │  Backend · Device · Agent          ← the cycle-breaker         │
    └───────────────────────────────┬──────────────────────────────┘
                                     ▼
@@ -89,11 +89,13 @@ import); everything else is depended on ≤7 times:
 Tier B is not just an internal decoupling seam — it is the **service-provider
 interface** a third party implements to extend ProjecturEd (a new `Backend`,
 `Device`, agent server, domain `Document`, or `Projection`). It is kept **pure**:
-abstract types + generic function *declarations* (`function f end`) + the protocol
-data types that cross the seam (`Change`, `NoOperation`) + docstrings — **no**
-algorithms, factory registries, or mutable globals. (Implementations that used to
-sit here — the `splice_*` text helpers, the default `evaluate_operation` methods —
-now live in their impl modules.) The stateless factory seams `make_backend(kind)` /
+abstract types + generic function *declarations* (`function f end`) + docstrings —
+**no** concrete types, algorithms, factory registries, or mutable globals.
+(Implementations that used to sit here now live in their impl modules: the
+`splice_*` text helpers and default `evaluate_operation` methods in
+`OperationModule`, and the concrete protocol data types `Change` / `NoOperation`
+in `common/` — they are data vehicles that cross the seam, not interfaces to
+implement.) The stateless factory seams `make_backend(kind)` /
 `make_agent_server(kind)` are the one deliberate exception, kept as the SPI's own
 registration entry. An interface is its functions, not just its type, so api
 modules are expected to grow accessor/behaviour operations (e.g. the
@@ -137,7 +139,7 @@ Current shape:
 | `reference/` | reference paths, `@reference`, `@reference_case` |
 | `device/` | Modifiers, Keyboard, Mouse, EventCase, ScreenDevice |
 | `document/` | Collection, Primitive, ScreenDocument (the engine's own vocabulary) |
-| `common/` | remaining cross-layer impl (Document, IoMap, Operation, GestureBinding, Projection defaults) — being dissolved into per-layer folders |
+| `common/` | remaining cross-layer impl (Change, Document, IoMap, Operation, GestureBinding, Projection defaults) — being dissolved into per-layer folders |
 | `projection/` | the projection algebra (`higherorder/`, `generic/`) |
 | `editor/` | EditorTime (the animation clock), PrinterContext, GestureRecognizer, ToolRegistry, Llm, Mcp, Editor |
 
