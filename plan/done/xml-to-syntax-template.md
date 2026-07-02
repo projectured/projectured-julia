@@ -73,22 +73,44 @@ Helpers (`_xml_child_element_insert`, `_xml_child_text_insert`,
 
 ## Steps
 
-1. [x] Study the macro + reference impls; capture baseline. (done)
+1. [x] Study the macro + reference impls; capture baseline.
 2. [x] Add authoring `@gestures` + helpers to `document/Xml.jl`; new imports.
 3. [x] Rewrite `XmlToSyntax.jl` printers via `@projection_template`; drop the
    hand-written mappers/readers.
-4. [ ] **Verify** (BLOCKED in this environment): the 4 example tests + the 2 XML
-   unit tests all green. Julia's parallel precompilation of the 8 packages this
-   change invalidates repeatedly crashed the VS Code host, so the run must happen
-   in a **plain external terminal**, not the editor's Claude extension:
-   ```
-   cd .../.claude/worktrees/xml-template
-   julia --project=. -e 'using ProjecturedTest, ProjecturedExample; \
-     ProjecturedTest.test_xml_to_syntax(); ProjecturedTest.test_xml_to_syntax_reader(); \
-     test_printer(xml_example); test_reader(xml_example); \
-     test_repl(xml_example); test_text_navigation(xml_example)'
-   ```
-5. [ ] Once green, move this plan to `plan/done/` (and fix anything the run surfaces).
+4. [x] **Verified** (run in a plain external terminal — Julia's parallel
+   precompilation of the invalidated packages crashes the editor host; see
+   [[no-heavy-julia-runs-crash-vscode]]):
+   | test | result |
+   |---|---|
+   | `test_xml_to_syntax` | 7/7 |
+   | `test_xml_to_syntax_reader` | 32/32 |
+   | `test_printer(xml_example)` | 7337 / 0 / 0 |
+   | `test_reader(xml_example)` | 225 / 0 / 0 |
+   | `test_repl(xml_example)` | 225 / 0 / 0 |
+   | `test_text_navigation(xml_example)` | 978 states / 0 errors (bounded) |
+5. [x] Plan moved to `plan/done/`.
+
+## The one non-obvious fix (step 3 → 4)
+
+The first template-only rewrite passed 5/6 but the text-navigation caret BFS ran
+away (>3156 states climbing, 14 GB). Cause: the engine's domain-neutral
+`ReplaceSelectionOperation` fallback wraps an unmapped caret's *full output path*
+in a `ProjectionReference`, and `strip_reference_types` (the BFS dedup key) does not
+collapse it, so every round-trip through a projection-introduced caret (a delimiter,
+or the display-only closing tag re-rendering `.tag`) grows the path unboundedly.
+
+Fix (XML-local, no engine change): restore the two SyntaxToText-specific pieces the
+engine deliberately leaves to the domain — a `projection_read(::ReplaceSelectionOperation)`
+that collapses an unmapped caret to a canonical **flat offset** (`_syntax_to_flat`,
+a bounded set → BFS terminates), and a `map_reference_forward` that passes this
+projection's own `proj(p, …)` selection through (the fixed-node mapper handles field
+refs but not the projection's own wrap). JSON is pure-template and does *not* need
+this because it never re-renders an input field as a second child leaf; XML's closing
+tag does. This is the same gap noted (deferred) in JuliaToSyntax's header comment.
+
+The 978 (vs the old hand-written 1015) reachable carets differ by a few delimiter
+positions; `test_text_navigation` asserts no-errors + reachable (not an exact count),
+and XML is not in the reaches-all set, so this is green.
 
 ## Facts discovered during implementation
 
