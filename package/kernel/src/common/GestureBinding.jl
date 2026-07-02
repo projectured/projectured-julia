@@ -41,6 +41,9 @@ import ..ModifiersModule: Modifiers
 import ..DocumentApiModule: Document, document_read
 import ..ProjectionApiModule: Projection
 # Reuse the `@event_case` pattern parser for the LHS of `@gestures` rules.
+# These EventCase internals are deliberately shared (not exported) — see the
+# "deliberately-shared parser internals" note in device/EventCase.jl; the seam
+# goes away when Phase 2 merges EventCase + GestureBinding into one module.
 import ..EventCaseModule: _parse_rule, _EVENT_TYPES, EvPat, EvWild, EvBind, EvLit, EvInterp
 
 export GesturePattern, KeyPressPattern, KeyDownPattern, KeyUpPattern,

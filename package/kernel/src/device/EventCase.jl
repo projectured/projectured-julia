@@ -67,6 +67,22 @@ import ..ModifiersModule
 export var"@event_case"
 
 # ------------------------------------------------------------
+# NOTE — deliberately-shared parser internals
+#
+# The private names below (`_EVENT_TYPES`, `EvPat`/`EvWild`/`EvBind`/`EvLit`/
+# `EvInterp`, and `_parse_rule`) are imported by `GestureBindingModule`
+# (common/GestureBinding.jl): the `@gestures` pattern parser reuses this
+# `@event_case` rule parser rather than duplicating it. They are intentionally
+# NOT exported — the `Projectured` umbrella mechanically re-exports every
+# exported name of every kernel submodule, so exporting these internals would
+# push them into the public flat API, which is worse than a private import.
+# The private-import seam is temporary: EventCase and GestureBinding are one
+# feature (event pattern matching) split across two files, and Phase 2 of the
+# kernel cleanup (plan/pending/kernel-cleanup.md) merges them into a single
+# gesture module, at which point the cross-module import disappears.
+# ------------------------------------------------------------
+
+# ------------------------------------------------------------
 # Event-type table
 #
 # Maps the constructor name used in a pattern to its (fully-qualified) type
