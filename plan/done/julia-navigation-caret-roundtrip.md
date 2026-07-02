@@ -68,9 +68,24 @@ path that re-wraps downstream via fix #2 / the reader fallback.
 - **Char-descent into opaque Julia leaves** (the documented "28 unreached `name{k}`
   carets"): still deferred — Julia leaves carry no `bound(…)` marker.
 
-## Verification
-- Light-path BFS (above) — run here, safe (no native stack).
-- Authoritative full suite (native stack — hand to user, external terminal):
-  `test_printer/reader/repl(julia_example)`, `test_text_navigation`/`test_tree_navigation`
-  for julia + json + xml + syntax + sql, and `test_json_to_syntax` / `test_xml_to_syntax`
-  / `test_syntax` to guard the shared template-engine + Syntax.jl changes.
+## Verification — DONE (2026-07-02)
+
+Ran the **real** ProjecturedTest functions via the light path (a driver that does
+`using Projectured, ProjecturedExample` and `include`s the specific test source
+files — no `using ProjecturedTest`, so the native SDL/Video/Odbc/Tulip stack that
+crashes the editor host is never recompiled):
+
+```
+test_printer / test_reader / test_repl / test_text_navigation / test_tree_navigation (julia_example)
+test_json_to_syntax / test_xml_to_syntax / test_syntax                       (shared-engine guards)
+test_text_navigation(json_example) / test_text_navigation(xml_example)
+test_tree_navigation(json_example)                                            (regression guards)
+```
+
+Result: **3487 pass / 0 fail / 0 error** (1m26s). The shared template-engine +
+`Syntax.jl` changes are non-regressive; julia text/tree navigation, printer,
+reader and repl are all green.
+
+Committed: 43ec6e7 (fixes). Native full-suite / SDL rendering not exercised here
+(unchanged by these edits); run in an external terminal if a broader sweep is
+wanted.
