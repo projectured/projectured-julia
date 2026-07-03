@@ -712,8 +712,9 @@ end
 
 # ── SyntaxListToText ──────────────────────────────────────────────────
 # ListNode(SyntaxDocument) → TextText with ListNode elements.
-# Each SyntaxLeaf/Node is rendered to spans, with TextNewline separators
-# between elements. The ListNode structure is preserved lazily.
+# Each element is projected one level down via `print_child(recursion, …)` and its
+# output spans are spliced into the lazy ListNode chain, with a `TextNewline`
+# separator between elements. The ListNode structure is preserved lazily.
 
 struct SyntaxListToText <: Projection end
 
@@ -729,12 +730,13 @@ end
     print_document(::SyntaxListToText, recursion, ln::ListNode, ctx)
 
 Convert a `ListNode(SyntaxDocument)` to a `TextText` with `ListNode` elements.
-Each syntax element becomes its text spans (open, value, close for leaves),
-with `TextNewline` separators between elements.
+Each syntax element is projected through `recursion` (so a nested `SyntaxNode`
+renders exactly as it would standalone — with its own newlines/indentation),
+and its output spans are spliced in, `TextNewline`-separated.
 """
 function print_document(p::SyntaxListToText, recursion, ln::ListNode, ctx)
     cache = IdDict{ListNode, ListNode}()
-    out_head = _syntax_list_to_text_node(ln, recursion, cache)
+    out_head = _syntax_list_to_text_node(ln, recursion, ctx, cache)
     SimpleIoMap(p, ln, TextText(out_head, Cell(nothing)))
 end
 
@@ -742,11 +744,13 @@ end
 # span chain.  This makes the projection idempotent under repeated traversal:
 # walking next then prev returns to the same object instead of materialising
 # a fresh prev-chain on every call.
-function _syntax_list_to_text_node(input_node::ListNode, recursion, cache::IdDict)
+function _syntax_list_to_text_node(input_node::ListNode, recursion, ctx, cache::IdDict)
     haskey(cache, input_node) && return cache[input_node]
 
-    elem = input_node.value
-    spans = _render_syntax_to_spans(elem)
+    # Delegate this element one level down; its output spans (a leaf's
+    # open/value/close, or a whole node's multi-line rendering) are spliced in.
+    child_iomap = print_child(recursion, input_node.value, ctx)
+    spans = collect(child_iomap.output.elements)
 
     first_out = ListNode(spans[1])
     cache[input_node] = first_out
@@ -770,7 +774,7 @@ function _syntax_list_to_text_node(input_node::ListNode, recursion, cache::IdDic
     set_function!(getfield(nl_node, :next), () -> begin
         input_next = input_node.next
         input_next === nothing && return nothing
-        next_first = _syntax_list_to_text_node(input_next, recursion, cache)
+        next_first = _syntax_list_to_text_node(input_next, recursion, ctx, cache)
         set_value!(getfield(next_first, :prev), nl_node)
         next_first
     end)
@@ -778,7 +782,7 @@ function _syntax_list_to_text_node(input_node::ListNode, recursion, cache::IdDic
     set_function!(getfield(first_out, :prev), () -> begin
         input_prev = input_node.prev
         input_prev === nothing && return nothing
-        prev_first = _syntax_list_to_text_node(input_prev, recursion, cache)
+        prev_first = _syntax_list_to_text_node(input_prev, recursion, ctx, cache)
         # Walk forward through this paragraph's span chain to its trailing
         # nl_node. Stop at the TextNewline rather than reading `cur.next`
         # past it — nl_node.next is a lazy thunk that materialises the
@@ -794,27 +798,6 @@ function _syntax_list_to_text_node(input_node::ListNode, recursion, cache::IdDic
     end)
 
     first_out
-end
-
-function _render_syntax_to_spans(leaf::SyntaxLeaf)
-    TextDocument[leaf.open, leaf.value, leaf.close]
-end
-
-function _render_syntax_to_spans(node::SyntaxNode)
-    # Simple flat rendering for ListNode context
-    spans = TextDocument[]
-    push!(spans, node.open)
-    for (i, child) in enumerate(node.children)
-        i > 1 && push!(spans, node.sep)
-        append!(spans, _render_syntax_to_spans(child))
-    end
-    push!(spans, node.close)
-    spans
-end
-
-function _render_syntax_to_spans(other)
-    # Fallback: convert to string
-    TextDocument[TextString(string(other))]
 end
 
 # ── Compound convenience constructor ────────────────────────────────────────

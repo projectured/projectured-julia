@@ -415,16 +415,23 @@ Replace flat-char input-tree walks with: *classify the element index into a zone
   `SyntaxTreeNavigationTest.jl`.
 - [x] Commit: `refactor(syntax-to-text): reader routes clicks by element zone, delegates to children`.
 
-### S4 — `SyntaxListToText` (lower priority)
+### S4 — `SyntaxListToText` (lower priority) ✅ DONE
 
-- [ ] In `_syntax_list_to_text_node` ([:434–486](../../package/domain/src/projection/primitive/SyntaxToText.jl#L434-L486)),
-  replace `_render_syntax_to_spans(elem)` ([:488–507](../../package/domain/src/projection/primitive/SyntaxToText.jl#L488-L507))
-  with `projection_printer_recurse(recursion, elem, ctx′)` and splice
-  `iomap.output.elements` into the lazy ListNode chain. Delete the three
-  `_render_syntax_to_spans` methods. Note the current flat render emits **no
-  newlines/indentation** for nested nodes — delegated rendering will add them;
-  check `test_syntax()` list cases and accept/record the (improved) difference.
-- [ ] Commit: `refactor(syntax-to-text): SyntaxListToText delegates elements via recursion`.
+- [x] `_syntax_list_to_text_node` now threads `ctx` and calls
+  `print_child(recursion, input_node.value, ctx)`, splicing
+  `collect(child_iomap.output.elements)` into the lazy ListNode chain (the
+  chain-building and prev/next thunks are unchanged — only the span *source*
+  changed). Deleted the three `_render_syntax_to_spans` methods.
+- [x] **Verified in-session (finite-ListNode differential OLD vs NEW):** leaves
+  unchanged; a nested block node now renders multi-line with proper indentation
+  (`[ x, y ]` → `[⏎  x,⏎  y⏎]`) — the predicted improvement; forward and backward
+  walks of the output chain agree (`FWD == reverse(BWD)`), so the lazy prev/next
+  traversal is preserved. Note `RecursionContractTest` does **not** probe
+  `SyntaxListToText` (its `_should_delegate` covers only `SyntaxNode`/`Json*`/
+  `XmlElement`, not `ListNode`), so its known-flattener entry was vestigial — see
+  S5. **Heavy suite for the user:** `test_syntax()` list cases;
+  `run_example(lazy_example)` / `run_example(lazy_bidirectional_example)`.
+- [x] Commit: `refactor(syntax-to-text): SyntaxListToText delegates elements via recursion`.
 
 ### S5 — Cleanup + docs
 
