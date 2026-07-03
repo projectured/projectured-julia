@@ -17,7 +17,7 @@ truth reused by the printer's selection wiring and the generic reader.
 """
 module FileSystemToWidgetModule
 
-import ..ReactiveModule: Cell
+import ..CellModule: Cell
 import ..CollectionModule: CellVector
 import ..ProjectionApiModule: print_document, map_reference_forward, map_reference_backward, Projection
 import ..FileSystemModule: FileSystemDocument, FileSystemFile, FileSystemDirectory

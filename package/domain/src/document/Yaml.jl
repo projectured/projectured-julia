@@ -11,7 +11,7 @@ The domain includes:
 """
 module YamlModule
 
-import ..ReactiveModule: Cell
+import ..CellModule: Cell
 import ..DocumentApiModule: Document
 import ..DocumentModule: @document, @forward_vector, @forward_map
 import ..CollectionModule: CellVector

@@ -9,7 +9,7 @@ module PrimitiveToSyntaxModule
 
 import ..ProjectionApiModule: print_document, read_intent, map_reference_forward, map_reference_backward, Projection
 import ..ProjectionModule: var"@projection"
-import ..ReactiveModule: Cell
+import ..CellModule: Cell
 import ..PrimitiveModule: PrimitiveDocument, PrimitiveBool, PrimitiveNumber, PrimitiveString,
                           ReplaceStringRangeOperation, ReplaceNumberRangeOperation
 import ..SyntaxModule: SyntaxLeaf

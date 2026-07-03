@@ -27,7 +27,7 @@ state that is not in the content (`collapsed`, `selection`) lives on the part.
 """
 module ConversationModule
 
-import ..ReactiveModule: Cell, set_function!, set_value!
+import ..CellModule: Cell, set_function!, set_value!
 import ..DocumentApiModule: Document
 import ..DocumentModule: @document
 import ..CollectionModule: CellVector

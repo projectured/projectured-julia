@@ -14,7 +14,7 @@ the input tree and gives the decorator something to dispatch on.
 """
 module TooltipDocumentModule
 
-import ..ReactiveModule: Cell
+import ..CellModule: Cell
 import ..DocumentApiModule: Document
 import ..DocumentModule: @document
 import ..ReferenceModule: Reference

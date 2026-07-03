@@ -155,7 +155,7 @@ end
         if n isa GraphicsCanvas
             bx = ox + Int(n.x[]); by = oy + Int(n.y[])
             for e in n.elements
-                a = e isa Projectured.ReactiveModule.Cell ? e[] : e
+                a = e isa Projectured.CellModule.Cell ? e[] : e
                 walk(a, bx, by)
             end
         elseif n isa GraphicsText && occursin("valuevalue", String(n.text))

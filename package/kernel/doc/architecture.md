@@ -80,7 +80,7 @@ import); everything else is depended on ≤7 times:
 | Hub | Tier | Depended on by |
 | --- | --- | --- |
 | `ProjectionApiModule` | B | ~20 modules |
-| `ReactiveModule` | A | ~19 |
+| `CellModule` | A | ~19 |
 | `ReferenceModule` | C | ~17 |
 | `IoMapApiModule` | B | ~12 |
 

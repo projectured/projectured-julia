@@ -26,10 +26,10 @@ module ProjecturedKernel
 
 # ── Cell kinds (layer 0 — the DAG's dependency-free base) ──────────────────
 # PerformanceCounter (leaf) before the cells, whose reactive kind bumps its
-# `_perf` on the hot path. Reactive.jl is the module aggregator; it includes the
-# three kind files (ReactiveCell/MutableCell/ImmutableCell).
+# `_perf` on the hot path. Cell.jl is the module aggregator; it includes the base
+# type and the three kind files (AbstractCell/ReactiveCell/MutableCell/ImmutableCell).
 include("cell/PerformanceCounter.jl")
-include("cell/Reactive.jl")
+include("cell/CellModule.jl")
 
 # ── API — abstract types + `function foo end` stubs ────────────────────────
 # Pure interface modules: abstract types and generic-function stubs only. The

@@ -12,7 +12,7 @@ The domain includes:
 """
 module TabularModule
 
-import ..ReactiveModule: Cell, set_function!, set_value!
+import ..CellModule: Cell, set_function!, set_value!
 import ..DocumentApiModule: Document
 import ..DocumentModule: @document
 import ..CollectionModule: CellVector, get_cell_at

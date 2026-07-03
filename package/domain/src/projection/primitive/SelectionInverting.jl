@@ -26,7 +26,7 @@ module SelectionInvertingModule
 import ..ProjectionApiModule: print_document, read_intent, map_reference_forward, map_reference_backward, Projection
 import ..TextModule: TextText, TextDocument, TextString, text_flat_length, text_selection_flat
 import ..ColorModule: StyleColor, color_solarized_background_dark, color_solarized_content_lighter
-import ..ReactiveModule: Cell
+import ..CellModule: Cell
 import ..CollectionModule: CellVector
 import ..IoMapApiModule: IoMap
 import ..ReferenceModule: ConcreteReferencePath, RangeReference, FieldReference, EmptyReferencePath, strip_reference_types

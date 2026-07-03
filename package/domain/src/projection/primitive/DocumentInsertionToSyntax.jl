@@ -52,7 +52,7 @@ import ..FontModule: font_ubuntu_monospace_regular_20, StyleFont
 import ..ColorModule: color_solarized_gray, color_solarized_green, color_default, StyleColor
 import ..StyleTextModule: StyleText
 import ..IoMapModule: SimpleIoMap
-import ..ReactiveModule: Cell
+import ..CellModule: Cell
 
 export InsertionToSyntaxLeaf, DocumentInsertionToSyntaxLeaf, JuliaInsertionToSyntaxLeaf,
        SqlInsertionToSyntaxLeaf, default_factory, default_completion,

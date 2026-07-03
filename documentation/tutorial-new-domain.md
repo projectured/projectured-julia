@@ -29,7 +29,7 @@ A BookmarkList is an ordered collection of BookmarkEntry documents.
 """
 module BookmarkModule
 
-import ..ReactiveModule: Cell
+import ..CellModule: Cell
 import ..DocumentModule: Document, @document
 import ..CollectionModule: CellVector
 import ..ReferenceModule: Reference
@@ -146,7 +146,7 @@ are the entry leaves.
 """
 module BookmarkToSyntaxModule
 
-import ..ReactiveModule: Cell
+import ..CellModule: Cell
 import ..CollectionModule: CellVector
 import ..ProjectionApiModule: print_document, print_child,
                                map_reference_forward, map_reference_backward, Projection

@@ -23,7 +23,7 @@ using Projectured: ReplaceStringRangeOperation, evaluate_operation,
                    ReferencePath, EmptyReferencePath,
                    FieldReference, RangeReference, PositionReference,
                    GraphicsCanvas, GraphicsRect, GraphicsViewport, KeyPress
-using Projectured.ReactiveModule: Cell
+using Projectured.CellModule: Cell
 using Projectured.CollectionModule: CellVector
 using Projectured.FontModule: StyleFont
 using Projectured.TextModule: TextString, TextText

@@ -20,7 +20,7 @@ Two ways to read it, named so intent is obvious:
 """
 module TimeModule
 
-import ..ReactiveModule: Cell
+import ..CellModule: Cell
 
 export get_editor_time, get_reactive_editor_time, tick_editor_time!
 

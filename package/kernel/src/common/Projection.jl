@@ -23,7 +23,7 @@ import ..IntentModule: Intent
 import ..OperationModule: ReplaceSelectionOperation, ToggleCollapseOperation,
                           ReplaceReferencedValueOperation, CompoundOperation, SelectNextInsertionOperation
 import ..PrimitiveModule: ReplaceStringRangeOperation, ReplaceNumberRangeOperation
-import ..ReactiveModule: Cell, AbstractCell
+import ..CellModule: Cell, AbstractCell
 import ..DocumentModule: snapshot
 import ..ReferenceModule: EmptyReferencePath
 import ..PrinterContextModule: PrinterContext

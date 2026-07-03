@@ -37,7 +37,7 @@ import ..FontModule: font_ubuntu_bold_22
 import ..ColorModule: color_indigo_600, color_solarized_cyan, color_slate_600
 import ..IoMapModule: SimpleIoMap, ChildrenIoMap
 import ..OperationModule: ToggleCollapseOperation
-import ..ReactiveModule: Cell
+import ..CellModule: Cell
 import ..CollectionModule: CellVector
 import ..TypeDispatchingProjectionModule: TypeDispatchingProjection
 import ..PrinterContextModule: make_child_context

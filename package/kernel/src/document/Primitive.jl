@@ -7,7 +7,7 @@ is stored in a reactive Cell so changes are tracked.
 """
 module PrimitiveModule
 
-import ..ReactiveModule: Cell, set_function!, set_value!
+import ..CellModule: Cell, set_function!, set_value!
 import ..DocumentApiModule: Document
 import ..DocumentModule: @document
 import ..DocumentApiModule: clear_selection!, set_selection!

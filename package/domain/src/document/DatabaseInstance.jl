@@ -12,7 +12,7 @@ ODBC DSN from this instance via `ConnectionPoolModule.dsn_for`.
 """
 module DatabaseInstanceDocumentModule
 
-import ..ReactiveModule: Cell
+import ..CellModule: Cell
 import ..DocumentApiModule: Document
 import ..DocumentModule: @document
 import ..ReferenceModule: Reference

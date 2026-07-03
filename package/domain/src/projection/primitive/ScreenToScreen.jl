@@ -23,7 +23,7 @@ module ScreenToScreenModule
 import ..ProjectionApiModule: print_document, print_child, read_intent,
                               map_reference_forward, map_reference_backward, Projection
 import ..IntentModule: Intent
-import ..ReactiveModule: Cell
+import ..CellModule: Cell
 import ..ScreenDocumentModule: ScreenDocument, WindowDocument, EventEnvelope
 import ..CollectionModule: CellVector
 import ..ReferenceModule: ReferencePath, ConcreteReferencePath, EmptyReferencePath,

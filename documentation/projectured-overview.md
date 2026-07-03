@@ -292,7 +292,7 @@ Deep pipelines that stay fast.
   text, layout, and most graphics are served from cache.
 - `get_performance_counters()` exposes read/compute/write counts per frame.
 
-<span class="muted">cell/Reactive.jl · every @document field is a Cell</span>
+<span class="muted">cell/CellModule.jl · every @document field is a Cell</span>
 
 ---
 

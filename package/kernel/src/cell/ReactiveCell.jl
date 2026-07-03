@@ -1,6 +1,7 @@
 # ReactiveCell — the pull-based reactive kind and its engine. Included into
-# `ReactiveModule` (see Reactive.jl). `AbstractCell` and the `_perf` import are
-# already in scope from the aggregator.
+# `CellModule` (see CellModule.jl); `AbstractCell` is already in scope. This is the
+# only cell kind that touches the performance counters, so it imports `_perf`.
+import ..PerformanceCounterModule: _perf
 
 """
     ReactiveCell{T}   (alias: `Cell`; `Cell(v)` ≡ `ReactiveCell{Any}(v)`)
@@ -48,12 +49,12 @@ mutable struct ReactiveCell{T} <: AbstractCell{T}
 end
 
 """
-`Cell` is the historical name of the untyped reactive cell: a `const` alias for
-the **concrete** `ReactiveCell{Any}`, so `Vector{Cell}`, `Set{Cell}` and `::Cell`
-struct fields stay concretely typed exactly as before the kind parameterization
-(an abstract alias measurably degraded dispatch across the whole machinery).
-Code that means "a cell of any kind" tests `isa AbstractCell`; code that means
-"a reactive cell of any value type" tests `isa ReactiveCell`.
+`Cell` is a `const` alias for the **concrete** `ReactiveCell{Any}` — the untyped
+reactive cell. It is deliberately concrete (not an abstract alias) so
+`Vector{Cell}`, `Set{Cell}` and `::Cell` struct fields stay concretely typed,
+which dispatch across the machinery depends on. Code that means "a cell of any
+kind" tests `isa AbstractCell`; code that means "a reactive cell of any value
+type" tests `isa ReactiveCell`.
 """
 const Cell = ReactiveCell{Any}
 
@@ -70,8 +71,8 @@ const _computing = ReactiveCell[]
 
 # Performance counters (`_perf`, `get_performance_counters`, `reset_performance_counters!`,
 # `record_performance!`, `@performance_time`) live in `PerformanceCounterModule`
-# (cell/PerformanceCounter.jl). `_perf` is imported by the aggregator so the Cell
-# hot path below stays a bare `Dict` write.
+# (cell/PerformanceCounter.jl). `_perf` is imported at the top of this file so the
+# Cell hot path below stays a bare `Dict` write.
 
 # ── reading ──────────────────────────────────────────────────────────────
 

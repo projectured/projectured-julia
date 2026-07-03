@@ -24,7 +24,7 @@ so a click landing inside the rendered panel produces no operation.
 """
 module ReferenceInspectorToTextModule
 
-import ..ReactiveModule: Cell
+import ..CellModule: Cell
 import ..ProjectionApiModule: print_document, map_reference_forward,
                               map_reference_backward, Projection
 import ..ReferenceInspectorDocumentModule: ReferenceInspector

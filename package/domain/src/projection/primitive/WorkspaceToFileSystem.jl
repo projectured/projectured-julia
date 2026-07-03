@@ -14,7 +14,7 @@ when the user expands directory nodes.
 """
 module WorkspaceToFileSystemModule
 
-import ..ReactiveModule: Cell
+import ..CellModule: Cell
 import ..CollectionModule: CellVector
 import ..ProjectionApiModule: print_document, print_child, read_intent,
                                map_reference_forward, map_reference_backward, Projection

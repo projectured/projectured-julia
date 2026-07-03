@@ -17,7 +17,7 @@ at construction time.
 """
 module TextToGraphicsModule
 
-import ..ReactiveModule: Cell, set_function!, set_value!
+import ..CellModule: Cell, set_function!, set_value!
 import ..CollectionModule: CellVector, ListNode, CollectionDocument
 import ..ProjectionApiModule: print_document, read_intent, map_reference_forward, map_reference_backward, Projection
 import ..TextModule: TextText, TextString, TextNewline, TextGraphics, TextDocument,

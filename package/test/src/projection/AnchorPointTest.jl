@@ -13,7 +13,7 @@ proj = make_layout_projection_example()
 mkbtn(w, h, label) = WidgetButton(Point2D(0, 0), Point2D(w, h), label;
                                   border=Inset(1, 1, 1, 1), padding=Inset(4, 4, 8, 8))
 
-_gv(c, s) = (v = getfield(c, s); Int(v isa Projectured.ReactiveModule.Cell ? v[] : v))
+_gv(c, s) = (v = getfield(c, s); Int(v isa Projectured.CellModule.Cell ? v[] : v))
 
 # Absolute top-left of the canvas reached by descending `elements[idx]` for each
 # index in `path` (1-based), summing every canvas origin along the way.

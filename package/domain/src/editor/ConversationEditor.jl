@@ -27,7 +27,7 @@ into the chooser does **not** auto-switch — ENTER commits it via the factory.
 """
 module ConversationEditorModule
 
-import ..ReactiveModule: Cell, set_function!
+import ..CellModule: Cell, set_function!
 import ..CollectionModule: CellVector
 import ..OperationApiModule: Operation, evaluate_operation
 import ..ProjectionApiModule: print_document, read_intent,

@@ -25,7 +25,7 @@ import ProjecturedDomain.CollectionModule: ListNode, CellVector
 import ProjecturedDomain.ColorModule: StyleColor
 import ProjecturedDomain.GeometryModule: AffineTransform, affine_identity
 import ProjecturedDomain.FontModule: StyleFont, font_logical_size
-import ProjecturedDomain.ReactiveModule: Cell, is_up_to_date
+import ProjecturedDomain.CellModule: Cell, is_up_to_date
 import ProjecturedDomain.ScreenDeviceModule: WindowQuit
 import ProjecturedDomain.ScreenDocumentModule: ScreenDocument, WindowDocument, EventEnvelope,
                                WindowClose, WindowResize, WindowDefocus

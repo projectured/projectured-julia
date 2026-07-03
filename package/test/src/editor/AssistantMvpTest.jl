@@ -43,7 +43,7 @@ using Projectured: ConversationConversation, ConversationTurn, ConversationPart,
                    MarkdownDocument
 import Projectured.LlmModule: stream_turn
 using Projectured: with_available_size, GraphicsCanvas
-import Projectured.ReactiveModule: Cell
+import Projectured.CellModule: Cell
 
 # The multi-round scripted backend `ScriptedLlm` (each `stream_turn` consumes the
 # next round of SSE events) now lives in `Projectured.LlmModule` so examples can

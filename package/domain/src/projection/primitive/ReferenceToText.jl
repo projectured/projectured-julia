@@ -18,7 +18,7 @@ TextText spans.
 """
 module ReferenceToTextModule
 
-import ..ReactiveModule: Cell
+import ..CellModule: Cell
 import ..CollectionModule: CellVector
 import ..ProjectionApiModule: print_document, read_intent,
                               map_reference_forward, map_reference_backward, Projection

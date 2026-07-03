@@ -6,7 +6,7 @@ file path and a point size.
 """
 module FontModule
 
-import ..ReactiveModule: Cell, set_value!
+import ..CellModule: Cell, set_value!
 
 export StyleFont, make_style_font, font_scaled_size, font_logical_size, font_device_size,
        _DISPLAY_SCALE, _BASE_DISPLAY_SCALE, _USER_ZOOM, _FONT_ZOOM,

@@ -27,7 +27,7 @@ payload, eliminated by a projection that decides which child becomes the output.
 """
 module VersioningModule
 
-import ..ReactiveModule: Cell
+import ..CellModule: Cell
 import ..DocumentApiModule: Document
 import ..DocumentModule: @document
 import ..CollectionModule: CellVector

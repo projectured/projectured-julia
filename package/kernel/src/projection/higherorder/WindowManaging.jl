@@ -25,7 +25,7 @@ module WindowManagingProjectionModule
 import ..ProjectionApiModule: print_document, print_child, read_intent, map_reference_forward, map_reference_backward, Projection
 import ..IntentModule: Intent
 import ..IoMapApiModule: IoMap
-import ..ReactiveModule: Cell
+import ..CellModule: Cell
 import ..ScreenDocumentModule: ScreenDocument, WindowDocument, EventEnvelope, WindowResize, WindowClose, WindowDefocus, OpenWindowOperation, CloseWindowOperation, ResizeWindowOperation
 import ..OperationModule: CompoundOperation
 

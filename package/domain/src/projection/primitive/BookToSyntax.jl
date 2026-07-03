@@ -23,7 +23,7 @@ printer recurses" section of documentation/projection-system.md.
 """
 module BookToSyntaxModule
 
-import ..ReactiveModule: Cell, set_function!
+import ..CellModule: Cell, set_function!
 import ..CollectionModule: CellVector
 import ..ImageModule: ImageFile
 import ..BackendApiModule: decode_image

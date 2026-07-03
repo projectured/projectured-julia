@@ -8,14 +8,14 @@ engine can fold their own externally measured quantities (e.g. per-stage timings
 into the same store under keys of their choosing via `record_performance!`, which
 creates a key on demand — so the engine seeds only its own counters and stays
 ignorant of who else records here. Extracted from `Reactive.jl` so the counter
-vocabulary is one cohesive unit; `ReactiveModule` imports the shared `_perf` dict
+vocabulary is one cohesive unit; `CellModule` imports the shared `_perf` dict
 to keep its increments a bare `Dict` write.
 """
 module PerformanceCounterModule
 
 export get_performance_counters, reset_performance_counters!, record_performance!, @performance_time
 
-# The shared counter store, seeded with the engine's own counters. `ReactiveModule`
+# The shared counter store, seeded with the engine's own counters. `CellModule`
 # imports this and mutates it inline on the read/compute/invalidate/write paths;
 # other callers fold in externally measured quantities via `record_performance!` (which
 # creates keys on demand, so their names need not be listed here).

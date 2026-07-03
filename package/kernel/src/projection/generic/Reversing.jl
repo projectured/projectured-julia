@@ -8,7 +8,7 @@ module ReversingProjectionModule
 
 import ..ProjectionApiModule: print_document, print_child, map_reference_forward, map_reference_backward, Projection
 import ..IoMapModule: SimpleIoMap, ChildrenIoMap
-import ..ReactiveModule: Cell
+import ..CellModule: Cell
 import ..ReferenceModule: ConcreteReferencePath, ElementReference, PositionReference, RangeReference, append_reference
 import ..ReferenceCaseModule: var"@reference_case"
 import ..PrinterContextModule: make_child_context

@@ -14,7 +14,7 @@ import ..IntentModule: Intent
 import ..GestureBindingModule: collect_gesture_bindings, GestureBinding
 import ..IoMapModule: SimpleIoMap
 import ..IoMapApiModule: IoMap
-import ..ReactiveModule: Cell, AbstractCell
+import ..CellModule: Cell, AbstractCell
 export ChainingProjection, ChainingProjectionIoMap
 
 # Each `step_iomaps` cell holds one stage's IoMap, recomputed (re-printed) when an

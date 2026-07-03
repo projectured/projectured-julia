@@ -20,7 +20,7 @@ recursive rendering handles both widget chrome and text content.
 """
 module TextToWidgetModule
 
-import ..ReactiveModule: Cell
+import ..CellModule: Cell
 import ..ProjectionApiModule: print_document, read_intent,
                                map_reference_forward, map_reference_backward, Projection
 import ..TextModule: TextText

@@ -10,7 +10,7 @@ using Projectured: GraphicsPolyline, GraphicsText, GraphicsViewport, font_ubuntu
 function _prims_of(canvas, ::Type{T}) where {T}
     out = T[]
     walk(c) = for el in c.elements
-        el = el isa Projectured.ReactiveModule.Cell ? el[] : el
+        el = el isa Projectured.CellModule.Cell ? el[] : el
         el isa T && push!(out, el)
         el isa GraphicsCanvas && walk(el)
         el isa GraphicsViewport && walk(el.content)

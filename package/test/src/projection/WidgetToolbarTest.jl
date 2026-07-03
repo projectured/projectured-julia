@@ -8,7 +8,7 @@
 using Projectured: WidgetToolbar, WidgetMenuItem, WidgetMenu, Inset, Intent,
     MouseEnter, Modifiers, ReplaceReferencedValueOperation, GraphicsCanvas,
     print_document, read_intent
-using Projectured.ReactiveModule: Cell
+using Projectured.CellModule: Cell
 
 function test_widget_toolbar()
 @testset "WidgetToolbar pointer routing" begin

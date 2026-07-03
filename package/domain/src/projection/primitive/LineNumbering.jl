@@ -13,7 +13,7 @@ import ..ProjectionApiModule: print_document, read_intent, map_reference_forward
 import ..TextModule: TextText, TextDocument, TextString, TextNewline
 import ..ColorModule: StyleColor, color_default
 import ..FontModule: StyleFont, font_ubuntu_monospace_regular_20
-import ..ReactiveModule: Cell
+import ..CellModule: Cell
 import ..CollectionModule: CellVector
 import ..IoMapModule: SimpleIoMap
 import ..PrinterContextModule: make_child_context

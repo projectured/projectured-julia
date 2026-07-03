@@ -20,7 +20,7 @@ block sequence is a hand-written projection (like `FileSystemDirectoryToSyntaxNo
 """
 module YamlToSyntaxModule
 
-import ..ReactiveModule: Cell
+import ..CellModule: Cell
 import ..CollectionModule: CellVector
 import ..ProjectionApiModule: print_document, print_child, read_intent,
                               map_reference_forward, map_reference_backward, Projection

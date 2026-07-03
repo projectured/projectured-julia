@@ -31,7 +31,7 @@ between the tag name and the first attribute is a reactive `close` on the tag le
 """
 module XmlToSyntaxModule
 
-import ..ReactiveModule: Cell
+import ..CellModule: Cell
 import ..ProjectionApiModule: print_document, read_intent, map_reference_forward, map_reference_backward, Projection
 import ..ProjectionModule: var"@projection"
 import ..ReferenceModule: ConcreteReferencePath, ProjectionReference, PositionReference

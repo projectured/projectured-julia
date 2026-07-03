@@ -21,7 +21,7 @@ module TooltipDecoratorProjectionModule
 import ..ProjectionApiModule: print_document, print_child, read_intent, map_reference_forward, map_reference_backward, Projection
 import ..IntentModule: Intent
 import ..IoMapApiModule: IoMap
-import ..ReactiveModule: Cell
+import ..CellModule: Cell
 import ..ReferenceModule: ReferencePath, ConcreteReferencePath, FieldReference, head, tail
 import ..TooltipDocumentModule: TooltipSource
 import ..ScreenDocumentModule: OpenWindowOperation, CloseWindowOperation

@@ -8,7 +8,7 @@ module FilteringProjectionModule
 
 import ..ProjectionApiModule: print_document, map_reference_forward, map_reference_backward, Projection
 import ..IoMapApiModule: IoMap
-import ..ReactiveModule: Cell
+import ..CellModule: Cell
 import ..CollectionModule: CellVector
 import ..ReferenceModule: ConcreteReferencePath, ElementReference, PositionReference, append_reference
 import ..ReferenceCaseModule: var"@reference_case"

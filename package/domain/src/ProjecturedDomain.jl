@@ -10,8 +10,8 @@ by the `Projectured` umbrella.
 
 Kernel submodules are bound here as `const` aliases so the domain source files
 can keep their original relative `..XxxModule` references unchanged — inside a
-submodule of `ProjecturedDomain`, `..ReactiveModule` resolves through the
-`const ReactiveModule = ProjecturedKernel.ReactiveModule` binding below.
+submodule of `ProjecturedDomain`, `..CellModule` resolves through the
+`const CellModule = ProjecturedKernel.CellModule` binding below.
 """
 module ProjecturedDomain
 
@@ -49,7 +49,7 @@ const PrimitiveModule = ProjecturedKernel.PrimitiveModule
 const PrinterContextModule = ProjecturedKernel.PrinterContextModule
 const ProjectionApiModule = ProjecturedKernel.ProjectionApiModule
 const ProjectionModule = ProjecturedKernel.ProjectionModule
-const ReactiveModule = ProjecturedKernel.ReactiveModule
+const CellModule = ProjecturedKernel.CellModule
 const RecursiveProjectionModule = ProjecturedKernel.RecursiveProjectionModule
 const ReferenceBuilderModule = ProjecturedKernel.ReferenceBuilderModule
 const ReferenceCaseModule = ProjecturedKernel.ReferenceCaseModule

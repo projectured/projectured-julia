@@ -12,7 +12,7 @@ using Projectured: WidgetTree, WidgetTreeNode, WidgetToGraphics, VerticalLayout,
     MousePress, MouseEnter, MouseMove, MouseLeave, Modifiers,
     ReplaceReferencedValueOperation, ReplaceSelectionOperation,
     GraphicsRect, font_ubuntu_regular_20, print_document, read_intent
-using Projectured.ReactiveModule: Cell
+using Projectured.CellModule: Cell
 
 function test_widget_tree()
 @testset "WidgetTree hover + collapse" begin

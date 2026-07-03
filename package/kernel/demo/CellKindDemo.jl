@@ -13,7 +13,7 @@
 # Nothing includes this file; it exists to be reviewed and rerun.
 
 using ProjecturedKernel
-import ProjecturedKernel.ReactiveModule: AbstractCell, Cell, ReactiveCell, MutableCell,
+import ProjecturedKernel.CellModule: AbstractCell, Cell, ReactiveCell, MutableCell,
                                          ImmutableCell, set_function!, is_up_to_date
 import ProjecturedKernel.DocumentApiModule: Document
 import ProjecturedKernel.PerformanceCounterModule: get_performance_counters, reset_performance_counters!

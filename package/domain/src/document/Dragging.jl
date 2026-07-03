@@ -15,7 +15,7 @@ the document tree.
 """
 module DraggingDocumentModule
 
-import ..ReactiveModule: Cell
+import ..CellModule: Cell
 import ..DocumentApiModule: Document
 import ..DocumentModule: @document
 import ..ReferenceModule: Reference

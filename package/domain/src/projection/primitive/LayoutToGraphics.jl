@@ -17,7 +17,7 @@ downstream position/extent cells, no re-projection of the layout.
 """
 module LayoutToGraphicsModule
 
-import ..ReactiveModule: Cell
+import ..CellModule: Cell
 import ..ProjectionApiModule: print_document, print_child, read_intent,
                                map_reference_forward, map_reference_backward, Projection
 import ..DocumentApiModule: Document

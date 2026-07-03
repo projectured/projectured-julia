@@ -16,7 +16,7 @@ inside another component, or as a standalone top-level document.
 """
 module ComponentModule
 
-import ..ReactiveModule: Cell, set_function!, set_value!
+import ..CellModule: Cell, set_function!, set_value!
 import ..DocumentApiModule: Document
 import ..DocumentModule: @document
 import ..ReferenceModule: Reference

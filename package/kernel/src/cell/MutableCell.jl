@@ -1,5 +1,5 @@
 # MutableCell — the plain mutable, non-reactive kind. Included into
-# `ReactiveModule` (see Reactive.jl).
+# `CellModule` (see CellModule.jl).
 
 """
     MutableCell{T}

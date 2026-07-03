@@ -15,7 +15,7 @@ let projections extend the context without knowing its full field set.
 """
 module PrinterContextModule
 
-import ..ReactiveModule: Cell
+import ..CellModule: Cell
 import ..ReferenceModule: ReferencePath, EmptyReferencePath, ReferenceStep, append_reference
 
 export PrinterContext, make_child_context, with_available_size,

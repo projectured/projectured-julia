@@ -9,7 +9,7 @@ module SwitchingProjectionModule
 
 import ..ProjectionApiModule: print_document, read_intent, map_reference_forward, map_reference_backward, Projection
 import ..IntentModule: Intent
-import ..ReactiveModule: Cell
+import ..CellModule: Cell
 import ..IoMapApiModule: IoMap
 export SwitchingProjection, SwitchingProjectionIoMap
 

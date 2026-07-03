@@ -19,7 +19,7 @@ owns and delegate the tail through the same field unchanged).
 """
 module GraphToGraphLayoutModule
 
-import ..ReactiveModule: Cell
+import ..CellModule: Cell
 import ..CollectionModule: CellVector
 import ..ProjectionApiModule: print_document, print_child, read_intent,
                               map_reference_forward, map_reference_backward, Projection

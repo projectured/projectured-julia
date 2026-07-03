@@ -24,7 +24,7 @@ using Projectured: JuliaInsertion, JuliaFunction, JuliaIdentifier, JuliaInteger,
                    ConcreteReferencePath, FieldReference, RangeReference, EmptyReferencePath,
                    RecursiveProjection, JuliaToSyntax, print_document, read_intent,
                    KeyPress, KeyDown, Modifiers
-using Projectured.ReactiveModule: Cell
+using Projectured.CellModule: Cell
 using ProjecturedExample: make_julia_document_example
 
 const _JT_M      = Projectured.DocumentInsertionToSyntaxModule

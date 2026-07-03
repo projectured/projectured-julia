@@ -24,7 +24,7 @@ evaluating set as a safety net that returns an error result rather than looping.
 """
 module FormulaModule
 
-import ..ReactiveModule: Cell, set_function!, set_value!
+import ..CellModule: Cell, set_function!, set_value!
 import ..DocumentApiModule: Document
 import ..DocumentModule: @document
 import ..CollectionModule: CellVector

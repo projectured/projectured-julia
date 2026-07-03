@@ -13,7 +13,7 @@ printed text output.
 """
 module SqlDocumentModule
 
-import ..ReactiveModule: Cell
+import ..CellModule: Cell
 import ..DocumentApiModule: Document
 import ..DocumentModule: @document
 import ..CollectionModule: CellVector

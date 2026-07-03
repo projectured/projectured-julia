@@ -27,7 +27,7 @@ target back into the owning `SyntaxNode`, identical to `ConversationToWidget`.
 """
 module SyntaxToWidgetModule
 
-import ..ReactiveModule: Cell
+import ..CellModule: Cell
 import ..CollectionModule: CellVector
 import ..ProjectionApiModule: print_document, print_child,
                               read_intent, map_reference_forward,

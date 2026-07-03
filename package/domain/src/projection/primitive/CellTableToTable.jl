@@ -15,7 +15,7 @@ Read-only: no reference mapping or read support.
 """
 module CellTableToTableModule
 
-import ..ReactiveModule: Cell
+import ..CellModule: Cell
 import ..CollectionModule: CellVector, CellTable
 import ..WidgetModule: WidgetTable, Point2D
 import ..JsonModule: JsonString, JsonNumber, JsonBool, JsonNull

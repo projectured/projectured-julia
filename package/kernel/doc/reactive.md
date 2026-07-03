@@ -1,4 +1,4 @@
-# The reactive layer
+# The cell layer
 
 Layer A of the kernel — the bottom of the dependency DAG, the one part with **no
 kernel dependencies** that everything else is built on. This page is an overview of
@@ -8,28 +8,34 @@ the invariants, and idioms — see the repository-level
 [documentation/reactive-cells.md](../../../documentation/reactive-cells.md); this
 page does not repeat it.
 
-The layer lives in [src/reactive/](../src/reactive/) and is two single-purpose
-modules, loaded in this order:
+The layer lives in [src/cell/](../src/cell/): the instrumentation counter module
+and the cell module, loaded in this order:
 
 ```
 PerformanceCounter.jl   (PerformanceCounterModule)   — instrumentation
         │  _perf imported by ↓
-Reactive.jl             (ReactiveModule)             — the Cell engine
+CellModule.jl            (CellModule)                 — the cell kinds, one file each:
+        ├─ AbstractCell.jl    — the AbstractCell{T} base + shared protocol
+        ├─ ReactiveCell.jl    — the pull-based reactive engine (imports _perf)
+        ├─ MutableCell.jl     — plain mutable box, no reactive bookkeeping
+        └─ ImmutableCell.jl   — read-only, zero-cost wrapper
 ```
 
-They were split out of a single `Reactive.jl` so each concern has its own home; the
-load order above is the dependency order the include-order guard checks. A third
-concern once bundled here — the animation clock (`TimeModule`) — is *built on*
-`Cell` rather than part of the engine, so it lives in the **editor** layer
-([src/editor/Time.jl](../src/editor/Time.jl)), not here.
+The load order is the dependency order the include-order guard checks. The
+animation clock (`TimeModule`) is *built on* `Cell` rather than part of the engine,
+so it lives in the **editor** layer ([src/editor/Time.jl](../src/editor/Time.jl)),
+not here.
 
-## ReactiveModule — the Cell engine
+## CellModule — the cell kinds
 
-The core: the `Cell` type and the pull-based reactive graph. A `Cell` is either
-*primitive* (a value) or *computed* (a zero-arg thunk). Reading a cell inside
-another cell's thunk records a dependency edge; writing a cell eagerly invalidates
-its transitive dependents, and recomputation is lazy (on the next read). This is
-the incrementality substrate the whole projection pipeline rides on.
+A cell is a typed box `AbstractCell{T}`; the kind decides its behavior. `Cell` is
+`ReactiveCell{Any}`, the pull-based reactive graph: a cell is either *primitive* (a
+value) or *computed* (a zero-arg thunk); reading a cell inside another cell's thunk
+records a dependency edge; writing a cell eagerly invalidates its transitive
+dependents, and recomputation is lazy (on the next read). This is the
+incrementality substrate the whole projection pipeline rides on. `MutableCell{T}`
+and `ImmutableCell{T}` are non-reactive boxes — a mutable one for high-frequency
+state, a read-only one for derived content — for values that do not need the graph.
 
 It also defines `peek` — an **untracked** read (read a cell's value without
 registering a dependency), a general reactive primitive (cf. Solid's `untrack`)
@@ -48,7 +54,7 @@ engine bumps the reactive counters **inline on the hot path** — `:reads`,
 into `:read_time`, `:evaluate_time`, `:print_time`.
 
 Because the increments are on the hottest path (`getindex` on every cell read),
-this module loads **first** and `ReactiveModule` imports the shared `_perf` dict, so
+this module loads **first** and `ReactiveCell` imports the shared `_perf` dict, so
 the increments stay a bare `Dict` write rather than a cross-module function call.
 
 Public surface: `get_performance_counters()` (a copy of the dict), `reset_performance_counters!()`,
@@ -63,7 +69,7 @@ A single global primitive cell, `EDITOR_TIME`, holding the current logical time 
 seconds. The editor's main loop writes it once per frame via `tick_editor_time!`; because cell
 writes invalidate dependents, any computed cell that read the time is re-evaluated
 on the next pull — which is all animation needs. It is layered *on top of* `Cell`,
-so it loads **after** `ReactiveModule`.
+so it loads **after** `CellModule`.
 
 Two reads, named so intent is obvious:
 

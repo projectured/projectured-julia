@@ -8,7 +8,7 @@ flat cursor offset back to the correct subtree and local position within it.
 """
 module SyntaxToTextModule
 
-import ..ReactiveModule: Cell, set_function!, set_value!
+import ..CellModule: Cell, set_function!, set_value!
 import ..CollectionModule: CellVector, ListNode
 import ..ProjectionApiModule: print_document, read_intent, map_reference_forward, map_reference_backward, Projection
 import ..IntentModule: Intent

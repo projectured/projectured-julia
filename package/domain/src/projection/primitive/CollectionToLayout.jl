@@ -20,7 +20,7 @@ unchanged and is mapped later by the layout renderer's own child IO maps.
 """
 module CollectionToLayoutModule
 
-import ..ReactiveModule: Cell
+import ..CellModule: Cell
 import ..CollectionModule: CellVector
 import ..LayoutModule: VerticalLayout
 import ..ProjectionApiModule: print_document, map_reference_forward, map_reference_backward, Projection

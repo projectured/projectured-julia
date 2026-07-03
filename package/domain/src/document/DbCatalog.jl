@@ -8,7 +8,7 @@ No global state — constructors are plain wrappers with no side effects.
 """
 module DbCatalogDocumentModule
 
-import ..ReactiveModule: Cell
+import ..CellModule: Cell
 import ..DocumentApiModule: Document
 import ..DocumentModule: @document
 import ..CollectionModule: CellVector

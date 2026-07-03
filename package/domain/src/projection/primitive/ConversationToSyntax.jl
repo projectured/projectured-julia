@@ -18,7 +18,7 @@ is the widget-presentation work (`ConversationToWidget`, later stages).
 """
 module ConversationToSyntaxModule
 
-import ..ReactiveModule: Cell
+import ..CellModule: Cell
 import ..CollectionModule: CellVector
 import ..ProjectionApiModule: print_document, print_child, read_intent,
                               map_reference_forward, map_reference_backward, Projection

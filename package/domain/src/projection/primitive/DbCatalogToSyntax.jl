@@ -25,7 +25,7 @@ The three levels correspond to: keyword_node → keyword_body → actual child.
 """
 module DbCatalogToSyntaxModule
 
-import ..ReactiveModule: Cell
+import ..CellModule: Cell
 import ..CollectionModule: CellVector
 import ..ProjectionApiModule: print_document, print_child, read_intent, map_reference_forward, map_reference_backward, Projection
 import ..ProjectionModule: var"@projection"

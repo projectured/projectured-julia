@@ -8,7 +8,7 @@ own specialised IoMap struct alongside their projection type.
 """
 module IoMapModule
 
-import ..ReactiveModule: Cell
+import ..CellModule: Cell
 import ..IoMapApiModule: IoMap
 # Shared Cell-struct codegen (also used by `@document`); see `common/Document.jl`.
 import ..DocumentModule: _cell_autowrap_ctor, _cell_property_accessors,

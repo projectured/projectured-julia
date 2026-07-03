@@ -22,7 +22,7 @@ idiom); inline runs concatenate (`sep=""`).
 """
 module MarkdownToSyntaxModule
 
-import ..ReactiveModule: Cell, set_function!
+import ..CellModule: Cell, set_function!
 import ..CollectionModule: CellVector
 import ..ProjectionApiModule: Projection, print_document, print_child, read_intent,
                               map_reference_forward, map_reference_backward

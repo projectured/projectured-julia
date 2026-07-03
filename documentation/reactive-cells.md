@@ -3,7 +3,7 @@
 The reactive cell system is the foundation of ProjecturEd's incrementality. It is a
 lightweight pull-based reactive engine that replaces the original Common Lisp
 ProjecturEd's `hu.dwim.computed-class`. It lives entirely in
-[package/kernel/src/cell/Reactive.jl](../package/kernel/src/cell/Reactive.jl) and has no
+[package/kernel/src/cell/CellModule.jl](../package/kernel/src/cell/CellModule.jl) and has no
 dependencies on the rest of the codebase — every other layer is built on top of it.
 
 ## Cell

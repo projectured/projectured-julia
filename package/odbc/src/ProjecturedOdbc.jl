@@ -381,7 +381,7 @@ import ProjecturedDomain.DatabaseModule: db_query
 import ..OdbcAdapterModule: OdbcDatabaseAdapter
 import ProjecturedDomain.TabularModule: TabularGrid, TabularRow, TabularCell
 import ProjecturedDomain.CollectionModule: CellVector
-import ProjecturedDomain.ReactiveModule: Cell
+import ProjecturedDomain.CellModule: Cell
 
 """
     db_query(adapter, table, ::Type{TabularGrid}; columns, where, limit) -> TabularGrid
@@ -426,7 +426,7 @@ import ProjecturedDomain.DatabaseDocumentModule: DatabaseTable,
                                   DatabaseUpdateOperation, DatabaseInsertOperation
 import ProjecturedDomain.TabularModule: TabularGrid, TabularRow, TabularCell
 import ProjecturedDomain.CollectionModule: CellVector
-import ProjecturedDomain.ReactiveModule: Cell
+import ProjecturedDomain.CellModule: Cell
 import ProjecturedDomain.ProjectionApiModule: print_document, read_intent,
                               map_reference_forward, map_reference_backward, Projection
 import ProjecturedDomain.IoMapApiModule: IoMap
@@ -649,7 +649,7 @@ end # module DatabaseTableToTabularGridModule
 
 module SqlToCellTableModule
 
-import ProjecturedDomain.ReactiveModule: Cell
+import ProjecturedDomain.CellModule: Cell
 import ProjecturedDomain.CollectionModule: CellVector, CellTable
 import ProjecturedDomain.ProjectionApiModule: print_document, read_intent,
                               map_reference_forward, map_reference_backward, Projection
@@ -709,7 +709,7 @@ import ..ConnectionPoolModule: OdbcConnectionPool, with_connection
 import ProjecturedDomain.IoMapModule: SimpleIoMap
 import ProjecturedDomain.ProjectionApiModule: print_document, read_intent,
                               map_reference_forward, map_reference_backward, Projection
-import ProjecturedDomain.ReactiveModule: set_function!
+import ProjecturedDomain.CellModule: set_function!
 import ProjecturedDomain.ReferenceModule: EmptyReferencePath
 import ProjecturedDomain.ReferenceCaseModule: var"@reference_case"
 import ProjecturedDomain.ReferenceBuilderModule: var"@reference"

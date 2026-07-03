@@ -19,7 +19,7 @@ type of the value each step is applied to via `evaluate_reference`.
 """
 module ReferenceInspectorDocumentModule
 
-import ..ReactiveModule: Cell
+import ..CellModule: Cell
 import ..DocumentApiModule: Document
 import ..DocumentModule: @document
 import ..ReferenceModule: Reference

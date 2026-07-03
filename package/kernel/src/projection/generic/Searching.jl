@@ -14,7 +14,7 @@ module SearchingProjectionModule
 
 import ..ProjectionApiModule: print_document, map_reference_forward, map_reference_backward, Projection
 import ..IoMapApiModule: IoMap
-import ..ReactiveModule: Cell, AbstractCell, set_function!
+import ..CellModule: Cell, AbstractCell, set_function!
 import ..CollectionModule: CellVector
 import ..DocumentApiModule: Document
 import ..ReferenceModule: ReferencePath, EmptyReferencePath, ConcreteReferencePath,

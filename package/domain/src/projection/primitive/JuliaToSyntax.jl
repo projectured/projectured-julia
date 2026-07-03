@@ -13,7 +13,7 @@ tree with colorized tokens:
 """
 module JuliaToSyntaxModule
 
-import ..ReactiveModule: Cell
+import ..CellModule: Cell
 import ..CollectionModule: CellVector
 import ..ProjectionApiModule: print_document, Projection
 import ..ProjectionModule: var"@projection"

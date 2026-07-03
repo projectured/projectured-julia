@@ -27,7 +27,7 @@ documents — no adapter or engine change.
 """
 module ProjectionTemplateModule
 
-import ..ReactiveModule: Cell
+import ..CellModule: Cell
 import ..CollectionModule: CellVector
 import ..IoMapApiModule: IoMap
 import ..ProjectionApiModule: map_reference_forward, map_reference_backward, read_intent, Projection,

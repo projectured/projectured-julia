@@ -13,7 +13,7 @@ document type carried; that stub has been replaced by the working serializers.)
 """
 module DocumentCoreModule
 
-import ..ReactiveModule: Cell
+import ..CellModule: Cell
 import ..DocumentApiModule: Document
 import ..DocumentModule: @document
 import ..ReferenceModule: Reference, ReferencePath

@@ -9,7 +9,7 @@ propagate a path generically without knowing the concrete type.
 module DocumentModule
 
 import ..DocumentApiModule: Document
-import ..ReactiveModule: Cell, AbstractCell, ReactiveCell, MutableCell, ImmutableCell
+import ..CellModule: Cell, AbstractCell, ReactiveCell, MutableCell, ImmutableCell
 
 export Document, copy_document, cell_kind, rekind, snapshot, hydrate, sync_document!,
        @document, @forward, @forward_vector, @forward_map

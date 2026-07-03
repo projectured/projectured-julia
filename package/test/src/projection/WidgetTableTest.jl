@@ -12,7 +12,7 @@ using Projectured: WidgetTable, VerticalLayout, WidgetTabbedPane, WidgetShell, P
     ReplaceReferencedValueOperation, ReplaceSelectionOperation, GraphicsRect,
     WidgetToGraphics, LayoutToGraphics, TypeDispatchingProjection, RecursiveProjection,
     font_ubuntu_regular_20, print_document, read_intent
-using Projectured.ReactiveModule: Cell
+using Projectured.CellModule: Cell
 
 function test_widget_table()
 @testset "WidgetTable hover" begin

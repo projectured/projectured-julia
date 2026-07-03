@@ -29,7 +29,7 @@ Selection semantics (`[i]` = 1-based item, `{k}` = 0-based cursor):
 """
 module MathModule
 
-import ..ReactiveModule: Cell
+import ..CellModule: Cell
 import ..DocumentApiModule: Document
 import ..DocumentModule: @document
 import ..ReferenceModule: Reference

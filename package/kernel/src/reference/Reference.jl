@@ -24,7 +24,7 @@ reactive `Cell`s, so a caret move can update those cells in place (see
 """
 module ReferenceModule
 
-import ..ReactiveModule: Cell, AbstractCell
+import ..CellModule: Cell, AbstractCell
 import ..DocumentModule: @document
 export Reference, ReferenceStep, ElementReference, PositionReference, RangeReference, FieldReference, TypeReference, FunctionReference, ProjectionReference, PointReference, TextRectangularReference, ReferencePath, EmptyReferencePath, ConcreteReferencePath, append_reference, concat_references, reference_steps, evaluate_reference, is_valid_reference, collect_references,
        is_element_reference, is_position_reference, is_range_reference,

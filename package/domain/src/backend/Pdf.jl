@@ -35,7 +35,7 @@ import ..ProjectionApiModule: print_document, Projection
 import ..IoMapModule: SimpleIoMap
 import ..PrinterContextModule: PrinterContext
 import ..ReferenceModule: EmptyReferencePath
-import ..ReactiveModule: Cell
+import ..CellModule: Cell
 
 export write_pdf, GraphicsCanvasToPdfFile, pdf_measure_text, truetype_measure_text
 

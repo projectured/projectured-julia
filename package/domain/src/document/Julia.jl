@@ -30,7 +30,7 @@ JuliaFunction(
 """
 module JuliaModule
 
-import ..ReactiveModule: Cell
+import ..CellModule: Cell
 import ..DocumentApiModule: Document
 import ..DocumentModule: @document
 import ..CollectionModule: CellVector
