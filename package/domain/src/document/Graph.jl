@@ -21,7 +21,7 @@ reference vocabulary per the `Document` contract.
 """
 module GraphModule
 
-import ..ReactiveModule: Cell, setfn!, setval!
+import ..ReactiveModule: Cell, set_function!, set_value!
 import ..DocumentApiModule: Document
 import ..DocumentModule: @document
 import ..CollectionModule: CellVector

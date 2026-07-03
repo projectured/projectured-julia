@@ -10,7 +10,7 @@ filename, and content.
 """
 module WorkbenchModule
 
-import ..ReactiveModule: Cell, setfn!, setval!
+import ..ReactiveModule: Cell, set_function!, set_value!
 import ..DocumentApiModule: Document
 import ..DocumentModule: @document
 import ..CollectionModule: CellVector
@@ -31,7 +31,7 @@ export WorkbenchDocument, WorkbenchInsertion,
        WorkbenchOperator, WorkbenchSearcher, WorkbenchEvaluator,
        WorkbenchAssistant,
        WorkbenchEditor,
-       title, setfn!,
+       title, set_function!,
        IWorkbenchInsertion,
        IWorkbenchWorkbench, IWorkbenchPage,
        IWorkbenchNavigator, IWorkbenchConsole, IWorkbenchDescriptor,
@@ -94,7 +94,7 @@ function WorkbenchWorkbench(navigation_page::WorkbenchDocument,
                        Cell(nothing))
 end
 
-setfn!(p::WorkbenchPage, f::Function) = (setfn!(getfield(p.elements, :elements), () -> Cell[Cell(x) for x in f()]); p)
+set_function!(p::WorkbenchPage, f::Function) = (set_function!(getfield(p.elements, :elements), () -> Cell[Cell(x) for x in f()]); p)
 
 # ── WorkbenchNavigator ────────────────────────────────────────────────────────
 
@@ -136,7 +136,7 @@ function WorkbenchConsole(content::TextText)
 end
 
 title(::WorkbenchConsole) = WORKBENCH_CONSOLE_TITLE
-setfn!(c::WorkbenchConsole, f::Function) = (setfn!(getfield(c, :content), f); c)
+set_function!(c::WorkbenchConsole, f::Function) = (set_function!(getfield(c, :content), f); c)
 
 # ── WorkbenchDescriptor ───────────────────────────────────────────────────────
 
@@ -211,7 +211,7 @@ function WorkbenchEvaluator(content)
 end
 
 title(::WorkbenchEvaluator) = WORKBENCH_EVALUATOR_TITLE
-setfn!(e::WorkbenchEvaluator, f::Function) = (setfn!(getfield(e, :content), f); e)
+set_function!(e::WorkbenchEvaluator, f::Function) = (set_function!(getfield(e, :content), f); e)
 
 # ── WorkbenchAssistant ────────────────────────────────────────────────────────
 
@@ -320,7 +320,7 @@ function WorkbenchAssistant(; conversation::ConversationConversation = Conversat
 end
 
 title(::WorkbenchAssistant) = WORKBENCH_ASSISTANT_TITLE
-setfn!(a::WorkbenchAssistant, f::Function) = (setfn!(getfield(a, :conversation), f); a)
+set_function!(a::WorkbenchAssistant, f::Function) = (set_function!(getfield(a, :conversation), f); a)
 
 # ── WorkbenchEditor ──────────────────────────────────────────────────────────
 
@@ -348,7 +348,7 @@ function WorkbenchEditor(content;
 end
 
 title(e::WorkbenchEditor) = e.title
-setfn!(e::WorkbenchEditor, f::Function) = (setfn!(getfield(e, :content), f); e)
+set_function!(e::WorkbenchEditor, f::Function) = (set_function!(getfield(e, :content), f); e)
 
 # ── Workbench manipulation (B1) ───────────────────────────────────────────────
 #

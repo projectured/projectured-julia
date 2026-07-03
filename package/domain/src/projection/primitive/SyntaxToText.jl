@@ -8,7 +8,7 @@ flat cursor offset back to the correct subtree and local position within it.
 """
 module SyntaxToTextModule
 
-import ..ReactiveModule: Cell, setfn!, setval!
+import ..ReactiveModule: Cell, set_function!, set_value!
 import ..CollectionModule: CellVector, ListNode
 import ..ProjectionApiModule: projection_print, projection_read, map_reference_forward, map_reference_backward, Projection
 import ..ChangeModule: Change
@@ -444,8 +444,8 @@ function _syntax_list_to_text_node(input_node::ListNode, recursion, cache::IdDic
     cur_out = first_out
     for i in 2:length(spans)
         next_out = ListNode(spans[i])
-        setval!(getfield(cur_out, :next), next_out)
-        setval!(getfield(next_out, :prev), cur_out)
+        set_value!(getfield(cur_out, :next), next_out)
+        set_value!(getfield(next_out, :prev), cur_out)
         cur_out = next_out
     end
 
@@ -454,18 +454,18 @@ function _syntax_list_to_text_node(input_node::ListNode, recursion, cache::IdDic
     # baked-in default; fall back to the module default only for an empty render.
     nl_font = !isempty(spans) && spans[1] isa TextString ? spans[1].font : font_ubuntu_monospace_regular_20
     nl_node = ListNode(TextNewline(font=nl_font))
-    setval!(getfield(cur_out, :next), nl_node)
-    setval!(getfield(nl_node, :prev), cur_out)
+    set_value!(getfield(cur_out, :next), nl_node)
+    set_value!(getfield(nl_node, :prev), cur_out)
 
-    setfn!(getfield(nl_node, :next), () -> begin
+    set_function!(getfield(nl_node, :next), () -> begin
         input_next = input_node.next
         input_next === nothing && return nothing
         next_first = _syntax_list_to_text_node(input_next, recursion, cache)
-        setval!(getfield(next_first, :prev), nl_node)
+        set_value!(getfield(next_first, :prev), nl_node)
         next_first
     end)
 
-    setfn!(getfield(first_out, :prev), () -> begin
+    set_function!(getfield(first_out, :prev), () -> begin
         input_prev = input_node.prev
         input_prev === nothing && return nothing
         prev_first = _syntax_list_to_text_node(input_prev, recursion, cache)
@@ -479,7 +479,7 @@ function _syntax_list_to_text_node(input_node::ListNode, recursion, cache::IdDic
             nxt === nothing && break
             cur = nxt
         end
-        setval!(getfield(cur, :next), first_out)
+        set_value!(getfield(cur, :next), first_out)
         cur
     end)
 

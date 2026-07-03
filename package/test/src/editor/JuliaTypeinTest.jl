@@ -28,7 +28,7 @@ using Projectured.ReactiveModule: Cell
 using ProjecturedExample: make_julia_document_example
 
 const _JT_M      = Projectured.DocumentInsertionToSyntaxModule
-const _jt_reroot = Projectured.OperationRerootingModule.prepend_steps_to_op
+const _jt_reroot = Projectured.OperationRerootingModule.reroot_operation
 
 # `value{0}` — an empty hole's own char cursor.
 _jt_v0() = ConcreteReferencePath(FieldReference("value"),

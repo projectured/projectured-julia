@@ -19,7 +19,7 @@ etree = projection_print(x2s, edoc).output
 eout = Cell(() -> render(etree))
 @test eout[] == "<old></old>"
 edoc.tag = "new"
-@test !isuptodate(eout)
+@test !is_up_to_date(eout)
 @test eout[] == "<new></new>"
 
 end # @testset "XmlToSyntax"

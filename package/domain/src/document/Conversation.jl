@@ -27,7 +27,7 @@ state that is not in the content (`collapsed`, `selection`) lives on the part.
 """
 module ConversationModule
 
-import ..ReactiveModule: Cell, setfn!, setval!
+import ..ReactiveModule: Cell, set_function!, set_value!
 import ..DocumentApiModule: Document
 import ..DocumentModule: @document
 import ..CollectionModule: CellVector
@@ -179,15 +179,15 @@ end
 ConversationDraft(parts::Vector = ConversationPart[], assistant = nothing) =
     ConversationDraft(CellVector(Cell[Cell(p) for p in parts]), Cell(assistant), Cell(nothing))
 
-setfn!(d::ConversationDraft, f::Function) =
-    (setfn!(getfield(d.parts, :elements), () -> Cell[Cell(x) for x in f()]); d)
+set_function!(d::ConversationDraft, f::Function) =
+    (set_function!(getfield(d.parts, :elements), () -> Cell[Cell(x) for x in f()]); d)
 
-# ── setfn! delegation (mirror Workbench panel pattern) ────────────────────────
+# ── set_function! delegation (mirror Workbench panel pattern) ────────────────────────
 
-setfn!(c::ConversationConversation, f::Function) =
-    (setfn!(getfield(c.turns, :elements), () -> Cell[Cell(x) for x in f()]); c)
+set_function!(c::ConversationConversation, f::Function) =
+    (set_function!(getfield(c.turns, :elements), () -> Cell[Cell(x) for x in f()]); c)
 
-setfn!(t::ConversationTurn, f::Function) =
-    (setfn!(getfield(t.parts, :elements), () -> Cell[Cell(x) for x in f()]); t)
+set_function!(t::ConversationTurn, f::Function) =
+    (set_function!(getfield(t.parts, :elements), () -> Cell[Cell(x) for x in f()]); t)
 
 end # module

@@ -6,7 +6,7 @@ file path and a point size.
 """
 module FontModule
 
-import ..ReactiveModule: Cell, setval!
+import ..ReactiveModule: Cell, set_value!
 
 export StyleFont, make_style_font, font_scaled_size, font_logical_size, font_device_size,
        _DISPLAY_SCALE, _BASE_DISPLAY_SCALE, _USER_ZOOM, _FONT_ZOOM,
@@ -162,11 +162,11 @@ end
     adjust_font_zoom!(delta::Integer) -> Float64
 
 Step the font-only zoom (+1 in, -1 out, 0 reset). Writes the reactive `_FONT_ZOOM`
-cell via `setval!`, which invalidates the text-layout cells that read it so the
+cell via `set_value!`, which invalidates the text-layout cells that read it so the
 next print relayouts. Returns the new font zoom.
 """
 function adjust_font_zoom!(delta::Integer)
-    setval!(_FONT_ZOOM, _stepped_zoom(_FONT_ZOOM[], delta))
+    set_value!(_FONT_ZOOM, _stepped_zoom(_FONT_ZOOM[], delta))
     _FONT_ZOOM[]
 end
 

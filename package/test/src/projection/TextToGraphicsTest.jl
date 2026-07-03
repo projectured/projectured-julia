@@ -74,9 +74,9 @@ st_react = TextText(
 sdl_react = projection_print(TextToGraphics(measure=_test_measure(10, 48)), st_react).output
 line1 = sdl_react.elements[2].elements[1]   # top[2]=line stack, [1]=first line sub-canvas
 _ = length(line1.elements)
-@test isuptodate(getfield(line1.elements, :elements))
+@test is_up_to_date(getfield(line1.elements, :elements))
 st_react.elements[1].content = "changed"
-@test !isuptodate(getfield(line1.elements, :elements))
+@test !is_up_to_date(getfield(line1.elements, :elements))
 items_r = _texts(sdl_react)
 @test items_r[1].text == "changed"
 
@@ -141,7 +141,7 @@ node.next = node2
 node2.prev = node
 
 node3 = ListNode(TextString("Para 2", font_ubuntu_monospace_regular_20, color_white))
-setfn!(getfield(node2, :next), () -> begin
+set_function!(getfield(node2, :next), () -> begin
     counter[] += 1
     node3.prev = node2
     node3
@@ -282,16 +282,16 @@ end
 topback   = getfield(canvas.elements, :elements)
 stackback = getfield(stack.elements, :elements)
 lineback(L) = getfield(lines[L].elements, :elements)
-@test isuptodate(topback) && isuptodate(stackback)
-@test all(L -> isuptodate(lineback(L)), 1:3)
+@test is_up_to_date(topback) && is_up_to_date(stackback)
+@test all(L -> is_up_to_date(lineback(L)), 1:3)
 
 # Edit the LAST line. Only its segment vector goes stale.
 st.elements[5].content = "gamma!"          # element 5 = the 3rd TextString
-@test isuptodate(topback)                  # line list is structural — untouched
-@test isuptodate(stackback)
-@test isuptodate(lineback(1))
-@test isuptodate(lineback(2))
-@test !isuptodate(lineback(3))
+@test is_up_to_date(topback)                  # line list is structural — untouched
+@test is_up_to_date(stackback)
+@test is_up_to_date(lineback(1))
+@test is_up_to_date(lineback(2))
+@test !is_up_to_date(lineback(3))
 @test _texts(lines[3])[1].text == "gamma!"
 
 end # @testset "TextToGraphics per-line locality"

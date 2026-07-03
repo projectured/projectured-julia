@@ -24,7 +24,7 @@ Each span has reactive styling fields:
 """
 module TextModule
 
-import ..ReactiveModule: Cell, setfn!, setval!
+import ..ReactiveModule: Cell, set_function!, set_value!
 import ..DocumentApiModule: Document
 import ..DocumentModule: @document
 import ..CollectionModule: CellVector, ListNode, CollectionDocument
@@ -38,7 +38,7 @@ import ..ReferenceBuilderModule: var"@reference"
 import ..OperationModule: ReplaceSelectionOperation, ToggleCollapseOperation, splice_string, splice_value!
 import ..PrimitiveModule: ReplaceStringRangeOperation
 import ..GestureBindingModule: var"@gestures"
-export TextDocument, TextInsertion, TextNewline, TextSpacing, TextString, TextGraphics, TextText, setfn!,
+export TextDocument, TextInsertion, TextNewline, TextSpacing, TextString, TextGraphics, TextText, set_function!,
        ITextInsertion, ITextNewline, ITextSpacing, ITextString, ITextGraphics, ITextText,
        text_flat_length, text_selection_flat, hinted_text,
        text_selection_substring, text_insert_op
@@ -591,10 +591,10 @@ end
 _build_selection_path(span_idx::Int, char_idx::Int) =
     @reference elements[span_idx].content{char_idx}
 
-# ── setfn! delegation ───────────────────────────────────────────────
+# ── set_function! delegation ───────────────────────────────────────────────
 
-setfn!(s::TextString, f::Function) = (setfn!(getfield(s, :content), f); s)
-setfn!(st::TextText, f::Function) = (setfn!(getfield(st.elements, :elements), () -> Cell[Cell(x) for x in f()]); st)
+set_function!(s::TextString, f::Function) = (set_function!(getfield(s, :content), f); s)
+set_function!(st::TextText, f::Function) = (set_function!(getfield(st.elements, :elements), () -> Cell[Cell(x) for x in f()]); st)
 
 # ── Selection → flat character range ───────────────────────────────
 #

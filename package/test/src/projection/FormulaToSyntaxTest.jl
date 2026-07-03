@@ -35,7 +35,7 @@ end
 
     # Renaming the target updates every reference reactively (no rewrite).
     target.name = "B7"
-    @test !isuptodate(rendered)
+    @test !is_up_to_date(rendered)
     @test rendered[] == "B7"
 end
 

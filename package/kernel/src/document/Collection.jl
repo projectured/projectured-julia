@@ -22,13 +22,13 @@ slot's dependents, not the entire collection.
 """
 module CollectionModule
 
-import ..ReactiveModule: Cell, setfn!, setval!
+import ..ReactiveModule: Cell, set_function!, set_value!
 import ..DocumentApiModule: Document
 import ..DocumentModule: copy_document, @document, @forward
 import ..ReferenceModule: Reference
 export CellVector, CellMatrix, CellTable, ListNode, CollectionDocument,
        left_tail, right_tail, cell_at, take_first_n,
-       insertrow!, insertcol!, deleterow!, deletecol!, insertrow, deleterow,
+       insert_row!, insert_column!, delete_row!, delete_column!, insert_row, delete_row,
        ICellVector, ICellMatrix, ICellTable, IListNode
 
 # ── CellVector ────────────────────────────────────────────────────────────
@@ -49,7 +49,7 @@ CellVector(::UndefInitializer, n::Integer) = CellVector(Cell([Cell(nothing) for 
 CellVector(items...)                = CellVector(Cell[Cell(x) for x in items])
 function CellVector(f::Function)
     cv = CellVector(Cell(Cell[]), Cell(nothing))
-    setfn!(getfield(cv, :elements), () -> Cell[Cell(x) for x in f()])
+    set_function!(getfield(cv, :elements), () -> Cell[Cell(x) for x in f()])
     cv
 end
 
@@ -153,7 +153,7 @@ CellMatrix(items::AbstractMatrix) =
 
 function CellMatrix(f::Function)
     cm = CellMatrix(Cell(Matrix{Cell}(undef, 0, 0)), Cell(nothing))
-    setfn!(getfield(cm, :elements), () -> [Cell(x) for x in f()])
+    set_function!(getfield(cm, :elements), () -> [Cell(x) for x in f()])
     cm
 end
 
@@ -187,7 +187,7 @@ function Base.setindex!(cm::CellMatrix, cell::Cell, r::Integer, c::Integer)
     return cell
 end
 
-function insertrow!(cm::CellMatrix, r::Integer, cells::Vector{Cell})
+function insert_row!(cm::CellMatrix, r::Integer, cells::Vector{Cell})
     elems = _elems(cm)
     nrows, ncols = size(elems)
     length(cells) == ncols || throw(DimensionMismatch("expected $ncols cells, got $(length(cells))"))
@@ -199,7 +199,7 @@ function insertrow!(cm::CellMatrix, r::Integer, cells::Vector{Cell})
     return cm
 end
 
-function insertcol!(cm::CellMatrix, c::Integer, cells::Vector{Cell})
+function insert_column!(cm::CellMatrix, c::Integer, cells::Vector{Cell})
     elems = _elems(cm)
     nrows, ncols = size(elems)
     length(cells) == nrows || throw(DimensionMismatch("expected $nrows cells, got $(length(cells))"))
@@ -211,7 +211,7 @@ function insertcol!(cm::CellMatrix, c::Integer, cells::Vector{Cell})
     return cm
 end
 
-function deleterow!(cm::CellMatrix, r::Integer)
+function delete_row!(cm::CellMatrix, r::Integer)
     elems = _elems(cm)
     nrows, ncols = size(elems)
     new_elems = Matrix{Cell}(undef, nrows - 1, ncols)
@@ -221,7 +221,7 @@ function deleterow!(cm::CellMatrix, r::Integer)
     return cm
 end
 
-function deletecol!(cm::CellMatrix, c::Integer)
+function delete_column!(cm::CellMatrix, c::Integer)
     elems = _elems(cm)
     nrows, ncols = size(elems)
     new_elems = Matrix{Cell}(undef, nrows, ncols - 1)
@@ -265,17 +265,17 @@ function Base.setindex!(ct::CellTable, val, r::Integer, c::Integer)
     return val
 end
 
-function insertrow(ct::CellTable, r::Integer, row::CellVector)
+function insert_row(ct::CellTable, r::Integer, row::CellVector)
     insert!(ct.rows, r, Cell(row))
     return ct
 end
 
-function insertrow(ct::CellTable, r::Integer, items::AbstractVector)
+function insert_row(ct::CellTable, r::Integer, items::AbstractVector)
     insert!(ct.rows, r, Cell(CellVector(items)))
     return ct
 end
 
-function deleterow(ct::CellTable, r::Integer)
+function delete_row(ct::CellTable, r::Integer)
     deleteat!(ct.rows, r)
     return ct
 end

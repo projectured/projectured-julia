@@ -27,7 +27,7 @@ into the chooser does **not** auto-switch — ENTER commits it via the factory.
 """
 module ConversationEditorModule
 
-import ..ReactiveModule: Cell, setfn!
+import ..ReactiveModule: Cell, set_function!
 import ..CollectionModule: CellVector
 import ..OperationApiModule: Operation, evaluate_operation
 import ..ProjectionApiModule: projection_print, projection_read,
@@ -409,7 +409,7 @@ _caret_selection(span::Int, k::Int) =
 # Install the reactive caret on `body`, tracking `content`'s cursor in `span`.
 # `span_len` is the rendered length of that span so the cursor stays in range.
 function _attach_caret!(body::TextText, content, span::Int, span_len)
-    setfn!(getfield(body, :selection),
+    set_function!(getfield(body, :selection),
            () -> _caret_selection(span, clamp(_cursor(content), 0, span_len())))
     body
 end
@@ -431,7 +431,7 @@ function _editable_body(c::DocumentInsertion)
     # While the value is empty, anchor the caret to the end of the (non-empty)
     # prefix span — `TextToGraphics` can't place a caret in a zero-width span, and
     # this lands at the same x (just after "Insert a new ").
-    setfn!(getfield(body, :selection), function ()
+    set_function!(getfield(body, :selection), function ()
         v = _value(c)
         isempty(v) ? _caret_selection(1, length(_INS_PREFIX)) :
                      _caret_selection(2, clamp(_cursor(c), 0, length(v)))
@@ -444,7 +444,7 @@ end
 function _editable_body(c)
     show() = (v = _value(c); isempty(v) ? _PLACEHOLDER : v)
     ts = TextString(show, _FONT, color_default)
-    setfn!(getfield(ts, :font_color),
+    set_function!(getfield(ts, :font_color),
            () -> isempty(_value(c)) ? color_solarized_gray : color_default)
     _attach_caret!(TextText(ts), c, 1, () -> length(show()))
 end

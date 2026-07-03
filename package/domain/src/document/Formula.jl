@@ -24,7 +24,7 @@ evaluating set as a safety net that returns an error result rather than looping.
 """
 module FormulaModule
 
-import ..ReactiveModule: Cell, setfn!, setval!
+import ..ReactiveModule: Cell, set_function!, set_value!
 import ..DocumentApiModule: Document
 import ..DocumentModule: @document
 import ..CollectionModule: CellVector
@@ -438,7 +438,7 @@ Wire `formula.result` to a reactive thunk that re-evaluates the body whenever an
 dependency's value changes. Idempotent.
 """
 function wire_result!(formula::FormulaFormula, env::FormulaEnvironment)
-    setfn!(getfield(formula, :result), () -> evaluate_formula(formula, env))
+    set_function!(getfield(formula, :result), () -> evaluate_formula(formula, env))
     formula
 end
 

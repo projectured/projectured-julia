@@ -11,7 +11,7 @@ import ..OperationApiModule: Operation, evaluate_operation
 import ..OperationModule: ReplaceSelectionOperation
 import ..ReferenceModule: ReferencePath, ConcreteReferencePath, EmptyReferencePath, evaluate_reference, append_reference, strip_reference_types
 import ..IoMapModule: SimpleIoMap
-import ..ReactiveModule: setfn!
+import ..ReactiveModule: set_function!
 import ..GestureBindingModule: GestureBinding, KeyDownPattern,
                               projection_gestures, read_projection_gesture
 
@@ -47,7 +47,7 @@ function projection_print(p::FocusingProjection, recursion, input, ctx)
     # input. Lazy: re-derived whenever input.selection changes. Mirrors the
     # SearchingProjection pattern.
     if hasproperty(output, :selection)
-        setfn!(getfield(output, :selection), () -> begin
+        set_function!(getfield(output, :selection), () -> begin
             sel = hasfield(typeof(input), :selection) ? input.selection : nothing
             sel === nothing && return nothing
             map_reference_forward(p, iomap, sel)

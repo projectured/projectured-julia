@@ -41,7 +41,7 @@ import ..ReferenceCaseModule: var"@reference_case"
 import ..ReferenceBuilderModule: var"@reference"
 import ..PrinterContextModule: child_context
 import ..OperationModule: ReplaceSelectionOperation
-import ..OperationRerootingModule: prepend_steps_to_op
+import ..OperationRerootingModule: reroot_operation
 import ..DocumentApiModule: document_read
 import ..KeyboardModule: KeyPress, KeyDown
 export YamlInsertionToSyntaxLeaf, YamlNullToSyntaxLeaf, YamlBoolToSyntaxLeaf, YamlNumberToSyntaxLeaf,
@@ -259,7 +259,7 @@ function projection_read(p::YamlSequenceToBlockSyntaxNode, iomap::ChildrenIoMap,
         if fc !== nothing
             child, steps = fc
             child_op = projection_read(child.projection, child, evt)
-            child_op === nothing || return prepend_steps_to_op(child_op, steps)
+            child_op === nothing || return reroot_operation(child_op, steps)
         end
     end
     return document_read(seq, evt)

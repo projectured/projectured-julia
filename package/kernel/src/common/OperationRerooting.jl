@@ -21,16 +21,16 @@ import ..ReferenceModule: ReferencePath, ConcreteReferencePath
 import ..OperationModule: ReplaceSelectionOperation, ReplaceReferencedValueOperation, CompoundOperation
 import ..PrimitiveModule: ReplaceStringRangeOperation, ReplaceNumberRangeOperation
 
-export prepend_steps_to_ref, prepend_steps_to_op
+export reroot_reference, reroot_operation
 
 """
-    prepend_steps_to_ref(ref, steps::Tuple) -> ReferencePath
+    reroot_reference(ref, steps::Tuple) -> ReferencePath
 
 Prepend each step in `steps` (outermost first) to `ref`, producing a longer
 `ConcreteReferencePath`. Used by container readers that need to add several
 steps at once (e.g. a split pane's `elements[i].child`).
 """
-function prepend_steps_to_ref(ref::ReferencePath, steps::Tuple)
+function reroot_reference(ref::ReferencePath, steps::Tuple)
     result = ref
     for step in reverse(steps)
         result = ConcreteReferencePath(step, result)
@@ -39,7 +39,7 @@ function prepend_steps_to_ref(ref::ReferencePath, steps::Tuple)
 end
 
 """
-    prepend_steps_to_op(op, steps::Tuple) -> op
+    reroot_operation(op, steps::Tuple) -> op
 
 Prepend `steps` to the reference inside a path-bearing operation
 (`ReplaceSelectionOperation` / `ReplaceStringRangeOperation` /
@@ -49,7 +49,7 @@ Prepend `steps` to the reference inside a path-bearing operation
 (`document === nothing`); a self-contained one (carrying its own root object) is
 returned unchanged, as is any operation type not listed here.
 """
-function prepend_steps_to_op(op, steps::Tuple)
+function reroot_operation(op, steps::Tuple)
     # INVARIANT: the reference-carrying operation types matched here must stay in
     # sync with the default `ProjectionModule.projection_read`. A path-bearing
     # operation missing from this list falls through to the `else` and is returned
@@ -59,15 +59,15 @@ function prepend_steps_to_op(op, steps::Tuple)
         # Self-contained (carries its own root): pass through. Document-rooted:
         # reroot the reference, exactly as the dedicated path-bearing ops below.
         op.document === nothing || return op
-        ReplaceReferencedValueOperation(nothing, prepend_steps_to_ref(op.reference, steps), op.value)
+        ReplaceReferencedValueOperation(nothing, reroot_reference(op.reference, steps), op.value)
     elseif op isa ReplaceSelectionOperation
-        ReplaceSelectionOperation(prepend_steps_to_ref(op.path, steps))
+        ReplaceSelectionOperation(reroot_reference(op.path, steps))
     elseif op isa ReplaceStringRangeOperation
-        ReplaceStringRangeOperation(prepend_steps_to_ref(op.reference, steps), op.replacement)
+        ReplaceStringRangeOperation(reroot_reference(op.reference, steps), op.replacement)
     elseif op isa ReplaceNumberRangeOperation
-        ReplaceNumberRangeOperation(prepend_steps_to_ref(op.reference, steps), op.replacement)
+        ReplaceNumberRangeOperation(reroot_reference(op.reference, steps), op.replacement)
     elseif op isa CompoundOperation
-        CompoundOperation(Any[prepend_steps_to_op(o, steps) for o in op.operations])
+        CompoundOperation(Any[reroot_operation(o, steps) for o in op.operations])
     else
         op
     end

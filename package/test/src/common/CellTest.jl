@@ -5,45 +5,45 @@ a = Cell(1)
 b = Cell(2)
 @test a[] == 1
 @test b[] == 2
-@test isuptodate(a)
-@test isuptodate(b)
+@test is_up_to_date(a)
+@test is_up_to_date(b)
 
 # computed cell
 c = Cell(() -> a[] + b[])
-@test !isuptodate(c)
+@test !is_up_to_date(c)
 @test c[] == 3
-@test isuptodate(c)
+@test is_up_to_date(c)
 
 # mutation invalidates dependents
 a[] = 10
-@test isuptodate(a)
-@test !isuptodate(c)
+@test is_up_to_date(a)
+@test !is_up_to_date(c)
 @test c[] == 12
 
 # deep chain
 d = Cell(() -> c[] * 2)
 @test d[] == 24
 b[] = 3
-@test !isuptodate(c)
-@test !isuptodate(d)
+@test !is_up_to_date(c)
+@test !is_up_to_date(d)
 @test d[] == 26  # (10+3)*2
 
 # switch computed → primitive
 c[] = 99
 @test c[] == 99
-@test isuptodate(c)
+@test is_up_to_date(c)
 a[] = 50
-@test isuptodate(c)  # no longer depends on a
+@test is_up_to_date(c)  # no longer depends on a
 @test c[] == 99
 
 # switch primitive → computed
-setfn!(c, () -> a[] * b[])
-@test !isuptodate(c)
+set_function!(c, () -> a[] * b[])
+@test !is_up_to_date(c)
 @test c[] == 150  # 50*3
 
-# re-tracking after setfn!
+# re-tracking after set_function!
 a[] = 2
-@test !isuptodate(c)
+@test !is_up_to_date(c)
 @test c[] == 6   # 2*3
 
 # conditional dependency
@@ -55,7 +55,7 @@ cond = Cell(() -> flag[] ? x[] : y[])
 flag[] = false
 @test cond[] == 20
 x[] = 999          # x is no longer a dep after last eval
-@test isuptodate(cond)  # cond should still be valid
+@test is_up_to_date(cond)  # cond should still be valid
 
 end # @testset "Cell"
 end # test_cell

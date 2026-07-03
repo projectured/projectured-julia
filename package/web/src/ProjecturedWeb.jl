@@ -25,7 +25,7 @@ import ProjecturedDomain.CollectionModule: ListNode, CellVector
 import ProjecturedDomain.ColorModule: StyleColor
 import ProjecturedDomain.GeometryModule: AffineTransform, affine_identity
 import ProjecturedDomain.FontModule: StyleFont, font_logical_size
-import ProjecturedDomain.ReactiveModule: Cell, isuptodate
+import ProjecturedDomain.ReactiveModule: Cell, is_up_to_date
 import ProjecturedDomain.ScreenDeviceModule: WindowQuit
 import ProjecturedDomain.ScreenDocumentModule: ScreenDocument, WindowDocument, EventEnvelope,
                                WindowClose, WindowResize, WindowDefocus
@@ -363,7 +363,7 @@ end
 # ════════════════════════════════════════════════════════════════════════
 #
 # Walk the window's content canvas the way the renderer does, but test each
-# unit's reactive `isuptodate` flag *before* reading its value (reading
+# unit's reactive `is_up_to_date` flag *before* reading its value (reading
 # recomputes). Stale computed-container cells (a canvas's `elements`, a
 # CellVector's backing vector, a ListNode's spine) mark a whole subtree dirty;
 # a leaf whose own field cell is stale (in-place mutation) is a tight dirty unit.
@@ -406,7 +406,7 @@ function _node_dirty(elem)::Bool
         (f === :selection || f === :prev || f === :next) && continue
         c = getfield(elem, f)
         c isa Cell || continue
-        isuptodate(c) || return true
+        is_up_to_date(c) || return true
     end
     false
 end
@@ -429,12 +429,12 @@ function _collect_canvas_dirty!(canvas::GraphicsCanvas, ox::Int, oy::Int,
                                 acc::_DAcc, prev::Dict{UInt,NTuple{4,Int}};
                                 include_xy::Bool=true)
     ec = getfield(canvas, :elements)
-    cd = !isuptodate(ec)
+    cd = !is_up_to_date(ec)
     if include_xy && !cd
-        cd = !isuptodate(getfield(canvas, :x)) || !isuptodate(getfield(canvas, :y))
+        cd = !is_up_to_date(getfield(canvas, :x)) || !is_up_to_date(getfield(canvas, :y))
     end
     ev = canvas.elements                      # read after capturing validity above
-    if !cd && ev isa CellVector && !isuptodate(getfield(ev, :elements))
+    if !cd && ev isa CellVector && !is_up_to_date(getfield(ev, :elements))
         cd = true
     end
     if cd
@@ -457,7 +457,7 @@ function _collect_listnode_dirty!(head::ListNode, ox::Int, oy::Int,
                                   acc::_DAcc, prev::Dict{UInt,NTuple{4,Int}})
     nodes = _list_nodes(head)
     for n in nodes
-        if !isuptodate(getfield(n, :next)) || !isuptodate(getfield(n, :prev))
+        if !is_up_to_date(getfield(n, :next)) || !is_up_to_date(getfield(n, :prev))
             _union_unit!(acc, prev, objectid(head), _bounds_of_listnode(head, ox, oy))
             return
         end

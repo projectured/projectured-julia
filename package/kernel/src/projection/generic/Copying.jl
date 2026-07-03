@@ -12,7 +12,7 @@ child iomaps so that map_reference_backward can delegate through them
 module CopyingProjectionModule
 
 import ..ProjectionApiModule: projection_print, projection_printer_recurse, map_reference_forward, map_reference_backward, Projection
-import ..ReactiveModule: Cell, setfn!, setval!
+import ..ReactiveModule: Cell, set_function!, set_value!
 import ..DocumentApiModule: Document
 import ..ReferenceModule: ConcreteReferencePath, FieldReference, RangeReference,
                           ElementReference, is_element_reference, head, tail
@@ -71,22 +71,22 @@ function _map_node(p::CopyingProjection, input_node::ListNode, recursion, ctx, i
     out_node = ListNode(elem_iomap.output)
 
     # Lazy next
-    setfn!(getfield(out_node, :next), () -> begin
+    set_function!(getfield(out_node, :next), () -> begin
         next_input = input_node.next
         next_input === nothing && return nothing
         next_out = _map_node(p, next_input, recursion, ctx, index + 1)
         # Link back: prevent recreating current node on backward traversal
-        setval!(getfield(next_out, :prev), out_node)
+        set_value!(getfield(next_out, :prev), out_node)
         next_out
     end)
 
     # Lazy prev
-    setfn!(getfield(out_node, :prev), () -> begin
+    set_function!(getfield(out_node, :prev), () -> begin
         prev_input = input_node.prev
         prev_input === nothing && return nothing
         prev_out = _map_node(p, prev_input, recursion, ctx, index - 1)
         # Link forward: prevent recreating current node on forward traversal
-        setval!(getfield(prev_out, :next), out_node)
+        set_value!(getfield(prev_out, :next), out_node)
         prev_out
     end)
 

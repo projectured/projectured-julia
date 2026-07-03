@@ -16,7 +16,7 @@ conceptual core is the two fields `form` + `result`.
 """
 module EvaluatorModule
 
-import ..ReactiveModule: Cell, setfn!, setval!
+import ..ReactiveModule: Cell, set_function!, set_value!
 import ..DocumentApiModule: Document
 import ..DocumentModule: @document
 import ..CollectionModule: CellVector
@@ -86,7 +86,7 @@ end
 EvaluatorToplevel(elements::Vector) =
     EvaluatorToplevel(CellVector(Cell[Cell(e) for e in elements]), Cell(nothing))
 
-setfn!(t::EvaluatorToplevel, f::Function) =
-    (setfn!(getfield(t.elements, :elements), () -> Cell[Cell(x) for x in f()]); t)
+set_function!(t::EvaluatorToplevel, f::Function) =
+    (set_function!(getfield(t.elements, :elements), () -> Cell[Cell(x) for x in f()]); t)
 
 end # module

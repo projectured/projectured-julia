@@ -8,7 +8,7 @@ dependents as stale; recomputation is lazy — it happens on the next read.
 
 The module includes:
 - **Cell**: Reactive cell that holds either a primitive value or a lazy computation
-- **Functions**: `setval!`, `setfn!`, `isuptodate`, `peek`
+- **Functions**: `set_value!`, `set_function!`, `is_up_to_date`, `peek`
 
 The instrumentation counters (`PerformanceCounterModule`,
 `reactive/PerformanceCounter.jl`, whose `_perf` dict this module still bumps
@@ -37,7 +37,7 @@ module ReactiveModule
 
 import ..PerformanceCounterModule: _perf
 
-export Cell, setval!, setfn!, isuptodate
+export Cell, set_value!, set_function!, is_up_to_date
 
 """
     Cell
@@ -57,8 +57,8 @@ on next read.
 
     c[]         # read (triggers computation if invalid)
     c[] = v     # set a primitive value, invalidating dependents
-    setfn!(c, f) # switch to a computed cell with thunk `f`
-    setval!(c, v) # switch to a primitive cell with value `v`
+    set_function!(c, f) # switch to a computed cell with thunk `f`
+    set_value!(c, v) # switch to a primitive cell with value `v`
 """
 mutable struct Cell
     value::Any
@@ -171,20 +171,20 @@ function Base.setindex!(c::Cell, value)
 end
 
 """
-    setval!(c, value)
+    set_value!(c, value)
 
 Equivalent to `c[] = value`. Turns `c` into a primitive cell.
 """
-setval!(c::Cell, value) = (c[] = value)
+set_value!(c::Cell, value) = (c[] = value)
 
 """
-    setfn!(c, thunk::Function)
+    set_function!(c, thunk::Function)
 
 Turn `c` into a computed cell. `thunk` is a zero-argument function that
 will be called lazily. Previous value is discarded and dependents are
 invalidated immediately.
 """
-function setfn!(c::Cell, thunk::Function)
+function set_function!(c::Cell, thunk::Function)
     _detach_upstream!(c)
     c.thunk = thunk
     c.value = nothing
@@ -194,8 +194,8 @@ function setfn!(c::Cell, thunk::Function)
 end
 
 """Return `true` if the cached value is up to date."""
-isuptodate(c::Cell) = c.valid
-isuptodate(cs::Vector{Cell}) = all(isuptodate, cs)
+is_up_to_date(c::Cell) = c.valid
+is_up_to_date(cs::Vector{Cell}) = all(is_up_to_date, cs)
 
 # ── untracked read ─────────────────────────────────────────────────────────
 

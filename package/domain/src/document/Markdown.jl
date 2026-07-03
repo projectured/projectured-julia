@@ -16,7 +16,7 @@ The domain includes:
 """
 module MarkdownModule
 
-import ..ReactiveModule: Cell, setfn!, setval!
+import ..ReactiveModule: Cell, set_function!, set_value!
 import ..DocumentApiModule: Document
 import ..DocumentModule: @document, @forward_vector
 import ..CollectionModule: CellVector
@@ -24,7 +24,7 @@ import ..ReferenceModule: Reference
 export MarkdownDocument, MarkdownInsertion, MarkdownText, MarkdownCode, MarkdownEmphasis,
        MarkdownStrong, MarkdownLink, MarkdownImage, MarkdownHeading, MarkdownParagraph,
        MarkdownCodeBlock, MarkdownThematicBreak, MarkdownQuote, MarkdownList, MarkdownListItem,
-       MarkdownRoot, setfn!,
+       MarkdownRoot, set_function!,
        IMarkdownInsertion, IMarkdownText, IMarkdownCode, IMarkdownEmphasis, IMarkdownStrong,
        IMarkdownLink, IMarkdownImage, IMarkdownHeading, IMarkdownParagraph, IMarkdownCodeBlock,
        IMarkdownThematicBreak, IMarkdownQuote, IMarkdownList, IMarkdownListItem, IMarkdownRoot
@@ -54,8 +54,8 @@ end
 
 Base.getindex(t::MarkdownText) = t.content::String
 Base.setindex!(t::MarkdownText, v::AbstractString) = (t.content = String(v))
-setfn!(t::MarkdownText, f::Function) = (setfn!(getfield(t, :content), f); t)
-setval!(t::MarkdownText, v::AbstractString) = (setval!(getfield(t, :content), String(v)); t)
+set_function!(t::MarkdownText, f::Function) = (set_function!(getfield(t, :content), f); t)
+set_value!(t::MarkdownText, v::AbstractString) = (set_value!(getfield(t, :content), String(v)); t)
 
 """
 An inline code span (`` `code` ``). Supports `[]` / `[]=` on the content.
@@ -67,8 +67,8 @@ end
 
 Base.getindex(c::MarkdownCode) = c.content::String
 Base.setindex!(c::MarkdownCode, v::AbstractString) = (c.content = String(v))
-setfn!(c::MarkdownCode, f::Function) = (setfn!(getfield(c, :content), f); c)
-setval!(c::MarkdownCode, v::AbstractString) = (setval!(getfield(c, :content), String(v)); c)
+set_function!(c::MarkdownCode, f::Function) = (set_function!(getfield(c, :content), f); c)
+set_value!(c::MarkdownCode, v::AbstractString) = (set_value!(getfield(c, :content), String(v)); c)
 
 """
 Emphasised (italic) inline content (`*…*`), a sequence of inline nodes.

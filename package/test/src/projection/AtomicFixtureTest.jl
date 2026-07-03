@@ -76,7 +76,7 @@ function test_atomic_render(fx::AtomicFixture)
         end
         if fx.mutate !== nothing
             fx.mutate(document)
-            @test !isuptodate(out)     # the edit invalidated the render cell
+            @test !is_up_to_date(out)     # the edit invalidated the render cell
             fx.render_after === nothing || _assert_render(fx.name, out[], fx.render_after)
         end
     end

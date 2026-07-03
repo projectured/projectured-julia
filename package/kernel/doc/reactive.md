@@ -35,7 +35,7 @@ It also defines `peek` — an **untracked** read (read a cell's value without
 registering a dependency), a general reactive primitive (cf. Solid's `untrack`)
 that the animation clock uses to *sample* time rather than subscribe to it.
 
-Public surface: `Cell`, `setval!`, `setfn!`, `isuptodate`, `peek`. See
+Public surface: `Cell`, `set_value!`, `set_function!`, `is_up_to_date`, `peek`. See
 [reactive-cells.md](../../../documentation/reactive-cells.md) for semantics and the
 unchecked invariants (acyclic graph, monotone invalidation, write-driven
 propagation, pure thunks).

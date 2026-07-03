@@ -45,7 +45,7 @@ import ..OperationModule: ReplaceSelectionOperation
 import ..PrimitiveModule: ReplaceStringRangeOperation, ReplaceNumberRangeOperation
 import ..DocumentApiModule: Document, document_read
 import ..KeyboardModule: KeyDown, KeyPress
-import ..OperationRerootingModule: prepend_steps_to_op
+import ..OperationRerootingModule: reroot_operation
 
 export Bound, Project, Collection, Tokens, Sections, bound, project, collection, tokens, sections, RuleIoMap, var"@projection_template"
 
@@ -1142,7 +1142,7 @@ end
 # (`document_read`) — only when the child declines: innermost-first, with bubbling
 # to the nearest enclosing structural node. This is the reader-side mirror of the
 # recursive printer (`collection`/`project`) and the recursive operation reader
-# (`map_reference_backward` below), and reuses the same lift (`prepend_steps_to_op`)
+# (`map_reference_backward` below), and reuses the same lift (`reroot_operation`)
 # the container projections (`WidgetToGraphics`/`LayoutToGraphics`) use. The general
 # principle is documented in documentation/projection-system.md.
 #
@@ -1245,7 +1245,7 @@ function projection_read(p::Projection, iomap::RuleIoMap, evt::Union{KeyPress, K
         if fc !== nothing
             child, steps = fc
             child_op = projection_read(child.projection, child, evt)
-            child_op === nothing || return prepend_steps_to_op(child_op, steps)
+            child_op === nothing || return reroot_operation(child_op, steps)
         end
     end
     # Own-level handling: the nearest enclosing node's reified gestures, and the

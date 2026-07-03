@@ -44,7 +44,7 @@ module ObjectToWidgetModule
 import ..ProjectionApiModule: projection_print, projection_read,
                               map_reference_forward, map_reference_backward, Projection
 import ..IoMapApiModule: IoMap
-import ..ReactiveModule: Cell, setfn!
+import ..ReactiveModule: Cell, set_function!
 import ..CollectionModule: CellVector
 import ..WidgetModule: WidgetDocument, WidgetLabel, WidgetText, WidgetCheckbox,
                        WidgetComposite, WidgetCard, Point2D
@@ -250,9 +250,9 @@ _vector_title(vec) = string(length(vec)) * (length(vec) == 1 ? " item" : " items
 # persistent cursor stored in the (projection-output) control bar.
 function _editable_text_control(p::ObjectToWidget, cell::Cell)
     ts = TextString("", p.style)
-    setfn!(getfield(ts, :content), () -> _as_string(cell[]))
+    set_function!(getfield(ts, :content), () -> _as_string(cell[]))
     tt = TextText(ts)
-    setfn!(getfield(tt, :selection), () -> _end_cursor(length(_as_string(cell[]))))
+    set_function!(getfield(tt, :selection), () -> _end_cursor(length(_as_string(cell[]))))
     WidgetText(Point2D(0, 0), tt)
 end
 

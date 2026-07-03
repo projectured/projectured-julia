@@ -43,12 +43,12 @@ import ..TextModule: TextText, TextString
 import ..FontModule: font_ubuntu_monospace_regular_20
 import ..ColorModule: StyleColor, color_default
 import ..IoMapModule: SimpleIoMap, ContentIoMap, ChildrenIoMap
-import ..ReactiveModule: Cell, setfn!
+import ..ReactiveModule: Cell, set_function!
 import ..IoMapApiModule: IoMap
 import ..TypeDispatchingProjectionModule: TypeDispatchingProjection
 import ..OperationModule: ReplaceSelectionOperation, ReplaceReferencedValueOperation, CompoundOperation
 import ..OperationApiModule: Operation
-import ..OperationRerootingModule: prepend_steps_to_op
+import ..OperationRerootingModule: reroot_operation
 import ..PrimitiveModule: ReplaceStringRangeOperation, ReplaceNumberRangeOperation
 import ..KeyboardModule: KeyDown, KeyPress
 import ..DocumentApiModule: document_read
@@ -209,9 +209,9 @@ function projection_print(::WorkbenchWorkbenchToWidgetShell,
     # main split's selection is the shell selection without its leading
     # `content` step; the center column's is the main split's without its
     # `elements[2].child` (slot 2) step.
-    setfn!(getfield(main_split, :selection),
+    set_function!(getfield(main_split, :selection),
            () -> _strip_field(_shell_sel(), "content"))
-    setfn!(getfield(center_split, :selection),
+    set_function!(getfield(center_split, :selection),
            () -> _strip_split_child(_strip_field(_shell_sel(), "content"), 2))
 
     # Track the window: the shell fills whatever extent the parent (the
@@ -224,7 +224,7 @@ function projection_print(::WorkbenchWorkbenchToWidgetShell,
     )
     shell = WidgetShell(main_split;
                         size=shell_size)
-    setfn!(getfield(shell, :selection), _shell_sel)
+    set_function!(getfield(shell, :selection), _shell_sel)
 
     iomap = WorkbenchWorkbenchToWidgetShellIoMap(nothing, w, shell,
                                                  nav_iomap, edit_iomap, info_iomap, ctrl_iomap)
@@ -261,7 +261,7 @@ function projection_print(::WorkbenchPageToWidgetTabbedPane,
     # routing can no longer tell which tab is selected (clicking a tab would not
     # switch the active page).
     psel = getfield(page, :selection)
-    setfn!(getfield(tabbed, :selection), () -> begin
+    set_function!(getfield(tabbed, :selection), () -> begin
         sel = psel[]
         sel === nothing && return nothing
         map_reference_forward(WorkbenchPageToWidgetTabbedPane(), iomap, _tab_index_prefix(sel))
@@ -770,9 +770,9 @@ end
 # Operations that target a captured Julia value (e.g. SubmitProseOperation
 # holds its WorkbenchAssistant directly) need no prefixing.
 # Prepend a panel's location steps to a path-bearing op routed up from that panel.
-# Delegates to the shared `prepend_steps_to_op`, so ReplaceReferencedValueOperation (the
+# Delegates to the shared `reroot_operation`, so ReplaceReferencedValueOperation (the
 # folded document-replace / sequence-splice ops) and CompoundOperation reroot too.
-_prefix_operation(op, prefix_steps::Tuple) = prepend_steps_to_op(op, prefix_steps)
+_prefix_operation(op, prefix_steps::Tuple) = reroot_operation(op, prefix_steps)
 
 function projection_read(p::WorkbenchPageToWidgetTabbedPane,
                           iomap::WorkbenchPageToWidgetTabbedPaneIoMap, op)

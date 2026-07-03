@@ -57,7 +57,7 @@ end
     n2 = ListNode(GraphicsRect(0, 20, Int(src[]), 10))
     n3 = ListNode(GraphicsRect(0, 40, 50, 10))
     n1.next = n2; n2.prev = n1; n2.next = n3; n3.prev = n2
-    setfn!(getfield(n2, :value), () -> GraphicsRect(0, 20, Int(src[]), 10))
+    set_function!(getfield(n2, :value), () -> GraphicsRect(0, 20, Int(src[]), 10))
     canvas = GraphicsCanvas(n1, layout_vertical, false)
     res = make_res()
 
@@ -73,7 +73,7 @@ end
     # A spine change (a `.next` pointer invalidated, as when a line is
     # inserted/removed) reflows everything below → dirty extends to the bottom
     # of the viewport (window height 600).
-    setfn!(getfield(n1, :next), () -> n2)
+    set_function!(getfield(n1, :next), () -> n2)
     d = SDL._compute_dirty_rect(res, canvas)
     @test d !== nothing
     @test d[2] == 0      # from the top of the affected list

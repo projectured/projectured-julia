@@ -15,7 +15,7 @@ import ..ChangeModule: Change
 import ..ScreenDocumentModule: EventEnvelope
 import ..OperationApiModule: Operation
 import ..OperationModule: QuitEditorException
-import ..OperationRerootingModule: prepend_steps_to_op
+import ..OperationRerootingModule: reroot_operation
 import ..ReferenceModule: ReferencePath, EmptyReferencePath, ConcreteReferencePath
 import ..BackendApiModule: Backend, init!, quit!
 import ..DeviceApiModule: Device
@@ -58,7 +58,7 @@ function _timeline_operation(editor::Editor, entry, window_id::Symbol, op_prefix
     if haskey(entry, :operation)
         op = entry.operation isa Function ? entry.operation(editor.document) : entry.operation
         op isa Operation || return nothing
-        return isempty(op_prefix) ? op : prepend_steps_to_op(op, op_prefix)
+        return isempty(op_prefix) ? op : reroot_operation(op, op_prefix)
     else
         editor.iomap === nothing && return nothing
         env = EventEnvelope(window_id, entry.event)

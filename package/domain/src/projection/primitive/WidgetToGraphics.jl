@@ -17,7 +17,7 @@ the content projection via the recursion argument.
 """
 module WidgetToGraphicsModule
 
-import ..ReactiveModule: Cell, setfn!
+import ..ReactiveModule: Cell, set_function!
 import ..TimeModule: editor_time, reactive_editor_time
 import ..ProjectionApiModule: projection_print, projection_printer_recurse, projection_read,
                                map_reference_forward, map_reference_backward, Projection
@@ -68,7 +68,7 @@ import ..ScreenDocumentModule: OpenPopupOperation, OpenWindowOperation, CloseWin
 import ..PrimitiveModule: ReplaceStringRangeOperation, ReplaceNumberRangeOperation
 import ..ReferenceModule: ReferencePath, ConcreteReferencePath, FieldReference, RangeReference,
                           ElementReference, EmptyReferencePath, is_element_reference, PointReference
-import ..OperationRerootingModule: prepend_steps_to_op
+import ..OperationRerootingModule: reroot_operation
 import ..TypeDispatchingProjectionModule: TypeDispatchingProjection
 import ..PrinterContextModule: child_context, with_available_size
 import ..LayoutModule: LayoutDocument, LayoutConstraint, GridLayout, VerticalLayout, allocate_axis, layout_min, layout_max,
@@ -363,8 +363,8 @@ function _push_focus_ring!(elems::Vector, w::WidgetDocument, cw::Int, ch::Int,
                            ring_color::StyleColor, radius::Int)
     ring = GraphicsRect(0, 0, 0, 0, StyleColor(0.0, 0.0, 0.0, 0.0), radius;
                         border_width=2, border_color=ring_color)
-    setfn!(getfield(ring, :w), () -> getfield(w, :selection)[] === nothing ? Int32(0) : Int32(cw))
-    setfn!(getfield(ring, :h), () -> getfield(w, :selection)[] === nothing ? Int32(0) : Int32(ch))
+    set_function!(getfield(ring, :w), () -> getfield(w, :selection)[] === nothing ? Int32(0) : Int32(cw))
+    set_function!(getfield(ring, :h), () -> getfield(w, :selection)[] === nothing ? Int32(0) : Int32(ch))
     push!(elems, ring)
 end
 
@@ -778,7 +778,7 @@ function _retarget_op(p, iomap, op)
 end
 
 # Reference/operation re-rooting now lives in `OperationRerootingModule`
-# (`prepend_steps_to_op` / `prepend_steps_to_ref`) — shared with the layout
+# (`reroot_operation` / `reroot_reference`) — shared with the layout
 # container readers so the prepend logic is defined once.
 
 # ── WidgetLabel ─────────────────────────────────────────────────────────────
@@ -1618,7 +1618,7 @@ end
 # goes to the child the composite's selection points at, falling back to trying
 # each child. The op a child returns is re-rooted by prepending `elements[i]` —
 # the same scheme WidgetSplitPane uses. Identity-bearing ops (ReplaceReferencedValueOperation
-# from a control) pass through `prepend_steps_to_op` unchanged.
+# from a control) pass through `reroot_operation` unchanged.
 function projection_read(p::WidgetCompositeToGraphicsCanvas, iomap::ChildrenIoMap, evt)
     child_iomaps = iomap.child_iomaps[]::Vector
     # Tab traversal (Stage 2): distributed focus advance. Handle before the generic
@@ -1653,7 +1653,7 @@ function projection_read(p::WidgetCompositeToGraphicsCanvas, iomap::ChildrenIoMa
     end
     res === nothing && return nothing
     op, slot_idx = res
-    prepend_steps_to_op(op, (FieldReference("elements"), RangeReference(slot_idx - 1, slot_idx)))
+    reroot_operation(op, (FieldReference("elements"), RangeReference(slot_idx - 1, slot_idx)))
 end
 
 # Hit-test a coordinate event against each child canvas; returns `(op, i)` for
@@ -1707,7 +1707,7 @@ end
 # off its own end), advances the selection to its next focusable sibling; if it
 # has no next sibling it declines too, so its parent advances. The selection move
 # is a `ReplaceSelectionOperation` *relative to this composite*; the parent's
-# `prepend_steps_to_op` makes it absolute as it bubbles up (the same re-rooting
+# `reroot_operation` makes it absolute as it bubbles up (the same re-rooting
 # applied to edit ops). With selection-only routing (Step 1) a non-root container
 # only ever receives Tab when the selection is inside it, so a Tab that arrives
 # with no child slot selected means "the selection is on me (∅)" — bootstrap into
@@ -1731,7 +1731,7 @@ function _composite_tab(w::WidgetComposite, child_iomaps::Vector, evt)
     deleg = _forward_composite_event_slot(child_iomaps, evt, i)
     if deleg !== nothing
         op, slot = deleg
-        return prepend_steps_to_op(op, (FieldReference("elements"), RangeReference(slot - 1, slot)))
+        return reroot_operation(op, (FieldReference("elements"), RangeReference(slot - 1, slot)))
     end
     # Child declined: advance to my next focusable sibling, entering its first leaf.
     j = _next_focusable_in(w.elements, i, reverse)
@@ -2028,8 +2028,8 @@ function projection_print(p::WidgetSplitPaneToGraphicsCanvas, recursion, w::Widg
     # pane) has no way to size its viewport to its slot.
     # The allocation is a forward-declared *reactive* cell: slot cells read it now
     # (before it has a value) and the real allocation thunk is installed via
-    # `setfn!` once intrinsic sizes are readable (below). Reading it before then
-    # yields `nothing` → a transient 0 slot; `setfn!` invalidates the slot cells so
+    # `set_function!` once intrinsic sizes are readable (below). Reading it before then
+    # yields `nothing` → a transient 0 slot; `set_function!` invalidates the slot cells so
     # they recompute with the real allocation. (A plain `Ref` was not reactive, so
     # a slot forced early — e.g. by a follow-end scroll pane measuring its
     # word-wrapped content — both crashed and could cache a stale size.)
@@ -2071,7 +2071,7 @@ function projection_print(p::WidgetSplitPaneToGraphicsCanvas, recursion, w::Widg
         n_local     = n
         sizes_local = sizes
         pinned_cv   = w.pinned
-        setfn!(alloc_cell, function ()
+        set_function!(alloc_cell, function ()
             mins  = Vector{Int}(undef, n_local)
             maxs  = Vector{Int}(undef, n_local)
             prefs = Vector{Int}(undef, n_local)
@@ -2371,7 +2371,7 @@ function projection_read(p::WidgetSplitPaneToGraphicsCanvas, iomap::ChildrenIoMa
     steps = elem isa LayoutConstraint ?
             (FieldReference("elements"), RangeReference(slot_idx-1, slot_idx), FieldReference("child")) :
             (FieldReference("elements"), RangeReference(slot_idx-1, slot_idx))
-    prepend_steps_to_op(op, steps)
+    reroot_operation(op, steps)
 end
 
 # Tab traversal for a split pane (Stage 2), mirroring `_composite_tab` but with the
@@ -2395,7 +2395,7 @@ function _split_tab(w::WidgetSplitPane, child_iomaps::Vector, evt)
         steps = elem isa LayoutConstraint ?
                 (FieldReference("elements"), RangeReference(slot-1, slot), FieldReference("child")) :
                 (FieldReference("elements"), RangeReference(slot-1, slot))
-        return prepend_steps_to_op(op, steps)
+        return reroot_operation(op, steps)
     end
     j = _next_focusable_in(w.elements, i, reverse)
     j == 0 && return nothing
@@ -2777,7 +2777,7 @@ end
 function _tab_prefix(res)
     res === nothing && return nothing
     op, idx = res
-    prepend_steps_to_op(op,
+    reroot_operation(op,
         (FieldReference("selector_element_pairs"), RangeReference(idx-1, idx)))
 end
 
@@ -3471,7 +3471,7 @@ function projection_print(p::WidgetSwitchToGraphicsCanvas, recursion, w::WidgetS
     # the slide is over it only *samples* the time (`editor_time()`), drops the
     # time subscription, and holds the final position — settling with no
     # registry (see plan/pending/animation-global-time.md §5).
-    setfn!(getfield(knob, :cx), () -> begin
+    set_function!(getfield(knob, :cx), () -> begin
         target_x = (w.checked === true) ? right_x : left_x
         dur = w.duration
         t0  = w.anim_t0
@@ -4604,10 +4604,10 @@ function projection_print(p::WidgetTableToGraphicsCanvas, recursion, w::WidgetTa
     # (printer-locality dimension A; the focus-ring / text-cursor overlay pattern).
     hl_bounds = Cell(() -> _wt_highlight_bounds(w.selection, geometry[]))
     highlight_rect = GraphicsRect(0, 0, 0, 0, _WT_HL_COLOR, _WT_HL_RADIUS)
-    setfn!(getfield(highlight_rect, :x), () -> Int32(hl_bounds[][1]))
-    setfn!(getfield(highlight_rect, :y), () -> Int32(hl_bounds[][2]))
-    setfn!(getfield(highlight_rect, :w), () -> Int32(hl_bounds[][3]))
-    setfn!(getfield(highlight_rect, :h), () -> Int32(hl_bounds[][4]))
+    set_function!(getfield(highlight_rect, :x), () -> Int32(hl_bounds[][1]))
+    set_function!(getfield(highlight_rect, :y), () -> Int32(hl_bounds[][2]))
+    set_function!(getfield(highlight_rect, :w), () -> Int32(hl_bounds[][3]))
+    set_function!(getfield(highlight_rect, :h), () -> Int32(hl_bounds[][4]))
 
     # Persistent hover-band overlay: same pattern as the selection band but reading
     # `w.hovered` (the row / column-header under the pointer) in the fainter hover
@@ -4615,17 +4615,17 @@ function projection_print(p::WidgetTableToGraphicsCanvas, recursion, w::WidgetTa
     # as selected.
     hov_bounds = Cell(() -> _wt_highlight_bounds(w.hovered, geometry[]))
     hover_rect = GraphicsRect(0, 0, 0, 0, _WT_HOVER_COLOR, _WT_HL_RADIUS)
-    setfn!(getfield(hover_rect, :x), () -> Int32(hov_bounds[][1]))
-    setfn!(getfield(hover_rect, :y), () -> Int32(hov_bounds[][2]))
-    setfn!(getfield(hover_rect, :w), () -> Int32(hov_bounds[][3]))
-    setfn!(getfield(hover_rect, :h), () -> Int32(hov_bounds[][4]))
+    set_function!(getfield(hover_rect, :x), () -> Int32(hov_bounds[][1]))
+    set_function!(getfield(hover_rect, :y), () -> Int32(hov_bounds[][2]))
+    set_function!(getfield(hover_rect, :w), () -> Int32(hov_bounds[][3]))
+    set_function!(getfield(hover_rect, :h), () -> Int32(hov_bounds[][4]))
 
     # Invisible whole-canvas hit target so a table nested in a container (which
     # gates routing on `hit_element_at`) is hoverable/clickable over empty cell
     # interiors, not just over drawn glyphs/rules. Cf. the WidgetTree hit target.
     hit_target = GraphicsRect(0, 0, 0, 0, _WT_HIT_COLOR, 0)
-    setfn!(getfield(hit_target, :w), () -> Int32(geometry[].total_w))
-    setfn!(getfield(hit_target, :h), () -> Int32(geometry[].total_h))
+    set_function!(getfield(hit_target, :w), () -> Int32(geometry[].total_w))
+    set_function!(getfield(hit_target, :h), () -> Int32(geometry[].total_h))
 
     elements = CellVector(() -> begin
         geom = geometry[]
@@ -5221,8 +5221,8 @@ function projection_print(p::WidgetTreeToGraphicsCanvas, recursion, w::WidgetTre
     # A full-size (invisible) rect makes the whole canvas a hit target, matching the
     # top-level tree. Its geometry reads `geometry[]` so it tracks size reactively.
     hit_target = GraphicsRect(0, 0, 0, 0, _WT_HIT_COLOR, 0)
-    setfn!(getfield(hit_target, :w), () -> Int32(geometry[].total_w))
-    setfn!(getfield(hit_target, :h), () -> Int32(geometry[].total_h))
+    set_function!(getfield(hit_target, :w), () -> Int32(geometry[].total_w))
+    set_function!(getfield(hit_target, :h), () -> Int32(geometry[].total_h))
 
     # Persistent selection-band overlay: one full-width rect whose y/height read
     # the selection (0 height when no node is selected → the renderer skips it).
@@ -5231,18 +5231,18 @@ function projection_print(p::WidgetTreeToGraphicsCanvas, recursion, w::WidgetTre
     # the focus-ring / text-cursor overlay pattern).
     band_yh = Cell(() -> _wtree_highlight_band(w.selection, geometry[]))
     selection_band = GraphicsRect(0, 0, 0, 0, _WT_HL_COLOR, _WT_HL_RADIUS)
-    setfn!(getfield(selection_band, :y), () -> Int32(band_yh[][1]))
-    setfn!(getfield(selection_band, :h), () -> Int32(band_yh[][2]))
-    setfn!(getfield(selection_band, :w), () -> Int32(geometry[].total_w))
+    set_function!(getfield(selection_band, :y), () -> Int32(band_yh[][1]))
+    set_function!(getfield(selection_band, :h), () -> Int32(band_yh[][2]))
+    set_function!(getfield(selection_band, :w), () -> Int32(geometry[].total_w))
 
     # Persistent hover-band overlay, same pattern as the selection band but reading
     # `w.hovered` (the row under the pointer). Drawn behind the selection band so a
     # selected+hovered row still reads as selected.
     hover_yh = Cell(() -> _wtree_highlight_band(w.hovered, geometry[]))
     hover_band = GraphicsRect(0, 0, 0, 0, _WT_HOVER_COLOR, _WT_HL_RADIUS)
-    setfn!(getfield(hover_band, :y), () -> Int32(hover_yh[][1]))
-    setfn!(getfield(hover_band, :h), () -> Int32(hover_yh[][2]))
-    setfn!(getfield(hover_band, :w), () -> Int32(geometry[].total_w))
+    set_function!(getfield(hover_band, :y), () -> Int32(hover_yh[][1]))
+    set_function!(getfield(hover_band, :h), () -> Int32(hover_yh[][2]))
+    set_function!(getfield(hover_band, :w), () -> Int32(geometry[].total_w))
 
     elements = CellVector(() -> begin
         geom = geometry[]

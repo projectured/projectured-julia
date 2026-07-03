@@ -8,7 +8,7 @@ carries reactive Cell fields for all mutable properties.
 """
 module WidgetModule
 
-import ..ReactiveModule: Cell, setfn!, setval!
+import ..ReactiveModule: Cell, set_function!, set_value!
 import ..DocumentApiModule: Document
 import ..DocumentModule: @document
 import ..CollectionModule: CellVector
@@ -42,7 +42,7 @@ export Inset, Point2D,
        evaluate_operation,
        inset_default, inset_size, inset_width, inset_height,
        inset_top_left, inset_top_right, inset_bottom_left, inset_bottom_right,
-       setfn!,
+       set_function!,
        IWidgetInsertion,
        IWidgetLabel, IWidgetText, IWidgetCheckbox, IWidgetButton,
        IWidgetTooltip, IWidgetContextMenu, IWidgetDialog, IWidgetMenu, IWidgetMenuItem, IWidgetComposite,
@@ -111,7 +111,7 @@ function WidgetLabel(position::Point2D, content;
                 Cell(nothing))
 end
 
-setfn!(w::WidgetLabel, f::Function) = (setfn!(getfield(w, :content), f); w)
+set_function!(w::WidgetLabel, f::Function) = (set_function!(getfield(w, :content), f); w)
 
 # ── WidgetText ─────────────────────────────────────────────────────────────
 
@@ -149,7 +149,7 @@ function WidgetText(position::Point2D, content;
                     padding_color=nothing)
     # `validator` (optional) is a callable consulted before an edit commits
     # (Stage 6). Stored as a primitive cell value, like an action callback.
-    validator_cell = Cell(nothing); setval!(validator_cell, validator)
+    validator_cell = Cell(nothing); set_value!(validator_cell, validator)
     WidgetText(Cell(position), Cell(content), Cell(content_fill_color), validator_cell,
                Cell(visible), Cell(enabled), Cell(margin), Cell(margin_color),
                Cell(border), Cell(border_color),
@@ -157,7 +157,7 @@ function WidgetText(position::Point2D, content;
                Cell(nothing))
 end
 
-setfn!(w::WidgetText, f::Function) = (setfn!(getfield(w, :content), f); w)
+set_function!(w::WidgetText, f::Function) = (set_function!(getfield(w, :content), f); w)
 
 """
     numeric_validator(; integer=false, allow_negative=true) -> (String) -> Bool
@@ -207,7 +207,7 @@ function WidgetSpinBox(position::Point2D, value;
                        min=nothing, max=nothing, step=1, width::Integer=120,
                        validator=numeric_validator(),
                        visible::Bool=true, enabled::Bool=true)
-    validator_cell = Cell(nothing); setval!(validator_cell, validator)
+    validator_cell = Cell(nothing); set_value!(validator_cell, validator)
     WidgetSpinBox(Cell(position), Cell(value), Cell(min), Cell(max), Cell(step),
                   Cell(Int(width)), validator_cell, Cell(visible), Cell(enabled), Cell(nothing))
 end
@@ -281,7 +281,7 @@ function WidgetCheckbox(position::Point2D, content;
                    Cell(nothing), Cell(gestures))
 end
 
-setfn!(w::WidgetCheckbox, f::Function) = (setfn!(getfield(w, :content), f); w)
+set_function!(w::WidgetCheckbox, f::Function) = (set_function!(getfield(w, :content), f); w)
 instance_gestures(w::WidgetCheckbox) = w.gestures
 
 # ── WidgetButton ───────────────────────────────────────────────────────────
@@ -355,12 +355,12 @@ function WidgetButton(position::Point2D, size::Point2D, content;
     # `action` is a callback, not reactive content. `Cell(f::Function)` builds a
     # *computed* cell (thunk called with 0 args), so wrapping the callback as
     # `Cell(action)` would invoke it on read. Store it as a primitive cell value.
-    action_cell = Cell(nothing); setval!(action_cell, action)
+    action_cell = Cell(nothing); set_value!(action_cell, action)
     # `gestures` is a per-instance `Vector{GestureBinding}` (behavior, not content).
     # It is consulted by the reader ahead of the built-in click/key handling, so a
     # binding can add (right-click, shift-click, …), override (same pattern), or
     # suppress (map to `NoOperation()`) a default. Stored as a plain primitive cell.
-    gestures_cell = Cell(nothing); setval!(gestures_cell, gestures)
+    gestures_cell = Cell(nothing); set_value!(gestures_cell, gestures)
     # `command` (optional) is a shared `Action` (Stage 4); `icon` (optional) is an
     # icon name drawn left of the label (Stage 5); `dialog` (optional) is a child
     # `WidgetDialog` opened modally on click.
@@ -372,7 +372,7 @@ function WidgetButton(position::Point2D, size::Point2D, content;
                  Cell(nothing), Cell(false), Cell(false))
 end
 
-setfn!(w::WidgetButton, f::Function) = (setfn!(getfield(w, :content), f); w)
+set_function!(w::WidgetButton, f::Function) = (set_function!(getfield(w, :content), f); w)
 
 # Per-instance gesture bindings (see `instance_gestures` / `read_document_gesture`).
 instance_gestures(w::WidgetButton) = w.gestures
@@ -423,7 +423,7 @@ function WidgetTooltip(position::Point2D, size::Point2D, content;
                   Cell(nothing))
 end
 
-setfn!(w::WidgetTooltip, f::Function) = (setfn!(getfield(w, :content), f); w)
+set_function!(w::WidgetTooltip, f::Function) = (set_function!(getfield(w, :content), f); w)
 
 # ── WidgetContextMenu ──────────────────────────────────────────────────────
 
@@ -468,7 +468,7 @@ function WidgetContextMenu(child, menu;
                       Cell(nothing))
 end
 
-setfn!(w::WidgetContextMenu, f::Function) = (setfn!(getfield(w, :child), f); w)
+set_function!(w::WidgetContextMenu, f::Function) = (set_function!(getfield(w, :child), f); w)
 
 # ── WidgetDialog ───────────────────────────────────────────────────────────
 
@@ -517,7 +517,7 @@ function WidgetDialog(title, content, buttons::Vector;
                  Cell(nothing))
 end
 
-setfn!(w::WidgetDialog, f::Function) = (setfn!(getfield(w, :content), f); w)
+set_function!(w::WidgetDialog, f::Function) = (set_function!(getfield(w, :content), f); w)
 
 """
     WidgetMessageBox(title, message; buttons=["OK"], popup_id=:widget_dialog)
@@ -587,7 +587,7 @@ end
 
 WidgetMenu(; kwargs...) = WidgetMenu(Any[]; kwargs...)
 
-setfn!(w::WidgetMenu, f::Function) = (setfn!(getfield(w.elements, :elements), () -> Cell[Cell(x) for x in f()]); w)
+set_function!(w::WidgetMenu, f::Function) = (set_function!(getfield(w.elements, :elements), () -> Cell[Cell(x) for x in f()]); w)
 
 # ── WidgetMenuItem ─────────────────────────────────────────────────────────
 
@@ -642,7 +642,7 @@ function WidgetMenuItem(content;
                         padding_color=nothing)
     # `action` is a callback, not reactive content — store it as a primitive cell
     # value (a computed `Cell(f)` would invoke it on read). Mirrors WidgetButton.
-    action_cell = Cell(nothing); setval!(action_cell, action)
+    action_cell = Cell(nothing); set_value!(action_cell, action)
     WidgetMenuItem(Cell(content), action_cell, Cell(gestures), Cell(command), Cell(icon), Cell(submenu),
                    Cell(visible), Cell(enabled), Cell(margin), Cell(margin_color),
                    Cell(border), Cell(border_color),
@@ -651,7 +651,7 @@ function WidgetMenuItem(content;
 end
 instance_gestures(w::WidgetMenuItem) = w.gestures
 
-setfn!(w::WidgetMenuItem, f::Function) = (setfn!(getfield(w, :content), f); w)
+set_function!(w::WidgetMenuItem, f::Function) = (set_function!(getfield(w, :content), f); w)
 
 # ── WidgetComposite ────────────────────────────────────────────────────────
 
@@ -689,7 +689,7 @@ function WidgetComposite(position::Point2D, elements::Vector;
                     Cell(nothing))
 end
 
-setfn!(w::WidgetComposite, f::Function) = (setfn!(getfield(w.elements, :elements), () -> Cell[Cell(x) for x in f()]); w)
+set_function!(w::WidgetComposite, f::Function) = (set_function!(getfield(w.elements, :elements), () -> Cell[Cell(x) for x in f()]); w)
 
 # ── WidgetToolbar ──────────────────────────────────────────────────────────
 
@@ -728,8 +728,8 @@ end
 
 WidgetToolbar(; kwargs...) = WidgetToolbar(Any[]; kwargs...)
 
-setfn!(w::WidgetToolbar, f::Function) =
-    (setfn!(getfield(w.elements, :elements), () -> Cell[Cell(x) for x in f()]); w)
+set_function!(w::WidgetToolbar, f::Function) =
+    (set_function!(getfield(w.elements, :elements), () -> Cell[Cell(x) for x in f()]); w)
 
 # ── WidgetStatusBar ──────────────────────────────────────────────────────────
 
@@ -769,8 +769,8 @@ end
 
 WidgetStatusBar(; kwargs...) = WidgetStatusBar(Any[]; kwargs...)
 
-setfn!(w::WidgetStatusBar, f::Function) =
-    (setfn!(getfield(w.elements, :elements), () -> Cell[Cell(x) for x in f()]); w)
+set_function!(w::WidgetStatusBar, f::Function) =
+    (set_function!(getfield(w.elements, :elements), () -> Cell[Cell(x) for x in f()]); w)
 
 # ── WidgetShell ────────────────────────────────────────────────────────────
 
@@ -823,7 +823,7 @@ function WidgetShell(content;
                 Cell(nothing))
 end
 
-setfn!(w::WidgetShell, f::Function) = (setfn!(getfield(w, :content), f); w)
+set_function!(w::WidgetShell, f::Function) = (set_function!(getfield(w, :content), f); w)
 
 # ── WidgetTitlePane ────────────────────────────────────────────────────────
 
@@ -866,7 +866,7 @@ function WidgetTitlePane(title, content;
                     Cell(nothing))
 end
 
-setfn!(w::WidgetTitlePane, f::Function) = (setfn!(getfield(w, :content), f); w)
+set_function!(w::WidgetTitlePane, f::Function) = (set_function!(getfield(w, :content), f); w)
 
 # ── WidgetSplitPane ────────────────────────────────────────────────────────
 
@@ -924,7 +924,7 @@ end
 WidgetSplitPane(elements::Vector; kwargs...) =
     WidgetSplitPane(:horizontal, elements; kwargs...)
 
-setfn!(w::WidgetSplitPane, f::Function) = (setfn!(getfield(w.elements, :elements), () -> Cell[Cell(x) for x in f()]); w)
+set_function!(w::WidgetSplitPane, f::Function) = (set_function!(getfield(w.elements, :elements), () -> Cell[Cell(x) for x in f()]); w)
 
 # ── WidgetTabbedPane ───────────────────────────────────────────────────────
 
@@ -993,7 +993,7 @@ end
 
 WidgetTabbedPane(; kwargs...) = WidgetTabbedPane(Any[]; kwargs...)
 
-setfn!(w::WidgetTabbedPane, f::Function) = (setfn!(getfield(w.selector_element_pairs, :elements), () -> Cell[Cell(x) for x in f()]); w)
+set_function!(w::WidgetTabbedPane, f::Function) = (set_function!(getfield(w.selector_element_pairs, :elements), () -> Cell[Cell(x) for x in f()]); w)
 
 # ── WidgetScrollPane ───────────────────────────────────────────────────────
 
@@ -1045,7 +1045,7 @@ function WidgetScrollPane(content;
                      Cell(nothing))
 end
 
-setfn!(w::WidgetScrollPane, f::Function) = (setfn!(getfield(w, :content), f); w)
+set_function!(w::WidgetScrollPane, f::Function) = (set_function!(getfield(w, :content), f); w)
 
 # ── WidgetTransformPane ──────────────────────────────────────────────────────
 
@@ -1100,7 +1100,7 @@ function WidgetTransformPane(content;
                         Cell(nothing))
 end
 
-setfn!(w::WidgetTransformPane, f::Function) = (setfn!(getfield(w, :content), f); w)
+set_function!(w::WidgetTransformPane, f::Function) = (set_function!(getfield(w, :content), f); w)
 
 # ── WidgetScrollBar ────────────────────────────────────────────────────────
 
@@ -1748,7 +1748,7 @@ function Action(label;
                callback=nothing)
     # `callback` is a callable, not reactive content — store it as a primitive cell
     # value (a computed `Cell(f)` would invoke it on read). Mirrors WidgetButton.
-    callback_cell = Cell(nothing); setval!(callback_cell, callback)
+    callback_cell = Cell(nothing); set_value!(callback_cell, callback)
     Action(Cell(label), Cell(icon), Cell(enabled), Cell(shortcut), callback_cell)
 end
 

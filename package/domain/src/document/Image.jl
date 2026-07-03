@@ -6,11 +6,11 @@ documents. Both subtypes share the abstract `ImageDocument` base.
 """
 module ImageModule
 
-import ..ReactiveModule: Cell, setfn!, setval!
+import ..ReactiveModule: Cell, set_function!, set_value!
 import ..DocumentApiModule: Document
 import ..DocumentModule: @document
 import ..ReferenceModule: Reference
-export ImageDocument, ImageInsertion, ImageFile, ImageMemory, setfn!,
+export ImageDocument, ImageInsertion, ImageFile, ImageMemory, set_function!,
        IImageInsertion, IImageFile, IImageMemory
 
 # ── Abstract base ──────────────────────────────────────────────────────────
@@ -64,9 +64,9 @@ function ImageMemory(raw; selection=nothing)
     ImageMemory(Cell(raw), Cell(selection))
 end
 
-# ── setfn! delegation ──────────────────────────────────────────────────────
+# ── set_function! delegation ──────────────────────────────────────────────────────
 
-setfn!(img::ImageFile,   f::Function) = (setfn!(getfield(img, :raw), f); img)
-setfn!(img::ImageMemory, f::Function) = (setfn!(getfield(img, :raw), f); img)
+set_function!(img::ImageFile,   f::Function) = (set_function!(getfield(img, :raw), f); img)
+set_function!(img::ImageMemory, f::Function) = (set_function!(getfield(img, :raw), f); img)
 
 end # module

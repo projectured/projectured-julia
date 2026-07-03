@@ -25,7 +25,7 @@ jout = Cell(() -> render(jtree))
 @test occursin("10", jout[])
 
 jdoc["x"].value = 99
-@test !isuptodate(jout)
+@test !is_up_to_date(jout)
 @test occursin("99", jout[])
 
 # structural change

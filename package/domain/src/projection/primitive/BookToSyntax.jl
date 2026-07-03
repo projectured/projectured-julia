@@ -23,7 +23,7 @@ printer recurses" section of documentation/projection-system.md.
 """
 module BookToSyntaxModule
 
-import ..ReactiveModule: Cell, setfn!
+import ..ReactiveModule: Cell, set_function!
 import ..CollectionModule: CellVector
 import ..ImageModule: ImageFile
 import ..BackendApiModule: decode_image
@@ -592,7 +592,7 @@ function _picture_leaf_value(content, style::StyleText, placeholder::StyleText; 
         path = String(content)
         img  = ImageFile(path)
         raw  = getfield(img, :raw)
-        setfn!(raw, () -> (try decode_image(path) catch; nothing end))
+        set_function!(raw, () -> (try decode_image(path) catch; nothing end))
         _nat(i, fb) = (r = raw[]; (r isa Tuple && length(r) == 3) ? Int(r[i]) : fb)
         dw = Cell(() -> Int32(min(_nat(2, 720), max_w)))
         dh = Cell(() -> begin w = min(_nat(2, 720), max_w); Int32(round(Int, _nat(3, 460) * w / _nat(2, 720))) end)

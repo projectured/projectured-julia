@@ -40,7 +40,7 @@ import ..ReferenceModule: ReferencePath, EmptyReferencePath, ConcreteReferencePa
 import ..DraggingDocumentModule: DraggingState
 import ..OperationModule: ReplaceSelectionOperation
 import ..OperationApiModule: Operation, evaluate_operation
-import ..OperationRerootingModule: prepend_steps_to_op
+import ..OperationRerootingModule: reroot_operation
 import ..MouseModule: MouseDown, MouseUp, MouseMove, MousePress
 import ..ModifiersModule: Modifiers
 
@@ -193,10 +193,10 @@ function projection_read(p::DraggingProjection, recursion, change::Change, iomap
         # — the same lift `map_reference_backward` performs. Without this,
         # `set_selection!` can't descend into `content` and the cursor never
         # re-renders (and walk-right / repl round-trips stall). nothing /
-        # ToggleCollapseOperation pass through `prepend_steps_to_op` unchanged.
+        # ToggleCollapseOperation pass through `reroot_operation` unchanged.
         inner = projection_read(iomap.inner_iomap.projection, recursion, change, iomap.inner_iomap)
         inner_op = inner isa Change ? inner.operation : inner
-        return Change(change.gesture, prepend_steps_to_op(inner_op, (FieldReference("content"),)))
+        return Change(change.gesture, reroot_operation(inner_op, (FieldReference("content"),)))
     end
 end
 

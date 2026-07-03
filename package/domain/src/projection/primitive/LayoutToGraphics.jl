@@ -34,7 +34,7 @@ import ..IoMapApiModule: IoMap
 import ..MouseModule: MouseScroll, MousePress, MouseMove, MouseEnter, MouseLeave
 import ..EventCaseModule: var"@event_case"
 import ..OperationApiModule: Operation
-import ..OperationRerootingModule: prepend_steps_to_op
+import ..OperationRerootingModule: reroot_operation
 import ..ReferenceModule: ConcreteReferencePath, FieldReference, RangeReference, PointReference
 import ..OperationModule: ReplaceSelectionOperation
 import ..KeyboardModule: KeyDown
@@ -237,7 +237,7 @@ function _layout_tab(w, entries::Vector, evt)
     deleg = _forward_layout_event_slot(entries, evt, i)
     if deleg !== nothing
         op, slot = deleg
-        return prepend_steps_to_op(op, (FieldReference("children"), RangeReference(slot - 1, slot)))
+        return reroot_operation(op, (FieldReference("children"), RangeReference(slot - 1, slot)))
     end
     j = _next_focusable_in(w.children, i, reverse)
     j == 0 && return nothing
@@ -271,7 +271,7 @@ function _route_layout_event(iomap::_LayoutChildrenIoMap, evt)
     end
     res === nothing && return nothing
     op, i = res
-    prepend_steps_to_op(op, (FieldReference("children"), RangeReference(i - 1, i)))
+    reroot_operation(op, (FieldReference("children"), RangeReference(i - 1, i)))
 end
 
 """
@@ -1158,7 +1158,7 @@ function _route_stack_event(iomap::ChildrenIoMap, evt)
     end
     res === nothing && return nothing
     op, i = res
-    prepend_steps_to_op(op, (FieldReference("children"), RangeReference(i - 1, i)))
+    reroot_operation(op, (FieldReference("children"), RangeReference(i - 1, i)))
 end
 
 function projection_print(p::StackLayoutToGraphicsCanvas,

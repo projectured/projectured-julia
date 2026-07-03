@@ -15,7 +15,7 @@ All fields are reactive Cells for automatic dependency tracking and incremental 
 """
 module GraphicsModule
 
-import ..ReactiveModule: Cell, setfn!, setval!
+import ..ReactiveModule: Cell, set_function!, set_value!
 import ..DocumentApiModule: Document
 import ..DocumentModule: @document
 import ..CollectionModule: CellVector, ListNode, CollectionDocument
@@ -27,7 +27,7 @@ export GraphicsDocument, LayoutDirection, layout_none, layout_horizontal, layout
        GraphicsInsertion, GraphicsText, GraphicsRect, GraphicsLine, GraphicsCircle,
        GraphicsPolyline, GraphicsSpline,
        GraphicsCanvas, GraphicsViewport, GraphicsImage,
-       GraphicsFence, setfn!, hit_element_at, graphics_size,
+       GraphicsFence, set_function!, hit_element_at, graphics_size,
        tessellate_spline, polyline_arrowhead, point_near_polyline,
        IGraphicsInsertion, IGraphicsText, IGraphicsRect, IGraphicsLine, IGraphicsCircle,
        IGraphicsPolyline, IGraphicsSpline,

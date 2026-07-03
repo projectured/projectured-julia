@@ -1,7 +1,7 @@
 # Helper to create a ListNode with lazy thunk for next direction
 function lazy_node(value, next_thunk::Function)
     node = ListNode(value)
-    setfn!(getfield(node, :next), next_thunk)
+    set_function!(getfield(node, :next), next_thunk)
     node
 end
 
@@ -37,8 +37,8 @@ function sieve(stream, transform::Function = identity, parent=nothing)
     filtered = lazy_filter(stream, x -> x.value % head_num != 0)
     transformed_head = transform(head_val)
     node = ListNode(transformed_head)
-    setfn!(getfield(node, :next), () -> sieve(filtered, transform, node))
-    parent !== nothing && setval!(getfield(node, :prev), parent)
+    set_function!(getfield(node, :next), () -> sieve(filtered, transform, node))
+    parent !== nothing && set_value!(getfield(node, :prev), parent)
     node
 end
 
@@ -81,8 +81,8 @@ end
 # Helper to create a ListNode with lazy thunks for both directions
 function lazy_bidirectional_node(value, prev_thunk::Function, next_thunk::Function)
     node = ListNode(value)
-    setfn!(getfield(node, :prev), prev_thunk)
-    setfn!(getfield(node, :next), next_thunk)
+    set_function!(getfield(node, :prev), prev_thunk)
+    set_function!(getfield(node, :next), next_thunk)
     node
 end
 
@@ -152,8 +152,8 @@ function sieve_prev(stream, transform::Function = identity, child=nothing)
     filtered = lazy_filter(stream, x -> x.value % head_num != 0)
     transformed_head = transform(head_val)
     node = ListNode(transformed_head)
-    setfn!(getfield(node, :prev), () -> sieve_prev(filtered, transform, node))
-    child !== nothing && setval!(getfield(node, :next), child)
+    set_function!(getfield(node, :prev), () -> sieve_prev(filtered, transform, node))
+    child !== nothing && set_value!(getfield(node, :next), child)
     node
 end
 
@@ -168,8 +168,8 @@ function make_lazy_bidirectional_document_example()
     # `pos_primes` already has value=2 and a lazy `.next` chain — use it
     # directly as the head, then graft the neg chain onto its `.prev`.
     head = pos_primes
-    setval!(getfield(head, :prev), neg_primes)
-    setval!(getfield(neg_primes, :next), head)
+    set_value!(getfield(head, :prev), neg_primes)
+    set_value!(getfield(neg_primes, :next), head)
 
     head
 end
