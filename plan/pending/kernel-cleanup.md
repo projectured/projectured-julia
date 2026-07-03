@@ -1,5 +1,11 @@
 # Kernel cleanup — structure review and proposal
 
+> **Superseded in part (2026-07-03):** the "Target structure (proposal)" section and the
+> remaining unchecked Phase 2/3 items are superseded by
+> [kernel-layered-architecture.md](kernel-layered-architecture.md) (kernel/base package
+> split with strict per-layer tests and docs). The findings, audits, and the completed
+> Phase 0/1 work below remain valid and are reused by that plan.
+
 Review of `package/kernel` (2026-07-02): 49 source files, ~11.1k lines, **48 modules —
 one module per file**, zero external dependencies. Findings are grouped by the cleanup
 aspects that motivated the review; a phased execution plan and the open decisions follow.
