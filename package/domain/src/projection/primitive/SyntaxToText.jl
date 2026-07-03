@@ -10,7 +10,8 @@ module SyntaxToTextModule
 
 import ..CellModule: Cell, set_function!, set_value!
 import ..CollectionModule: CellVector, ListNode
-import ..ProjectionApiModule: print_document, read_intent, map_reference_forward, map_reference_backward, Projection
+import ..ProjectionApiModule: print_document, print_child, read_intent, map_reference_forward, map_reference_backward, Projection
+import ..PrinterContextModule: make_child_context
 import ..IntentModule: Intent
 import ..SyntaxModule: SyntaxDocument, SyntaxLeaf, SyntaxNode
 import ..TextModule: TextText, TextString, TextNewline, TextGraphics, TextDocument
@@ -145,7 +146,20 @@ struct SyntaxNodeToTextIoMap <: IoMap
     projection::Any
     input::SyntaxNode
     output::TextText
-    child_char_ranges::Cell
+    # Cell{Vector{IoMap}}: one IoMap per (expanded) child, in order — the result
+    # of `print_child`-ing each `node.children[i]`. Empty when collapsed. Storing
+    # them lets the mappers/reader peel the one `.children[i]` step this projection
+    # owns and delegate the tail to the child's own mapper (School A).
+    child_iomaps::Cell
+    # Cell{Vector{UnitRange{Int}}}: 1-based inclusive range in `output.elements`
+    # that each child's spliced element list occupies (parallel to child_iomaps).
+    child_elem_ranges::Cell
+    # Cell{Vector{Int}}: element indices in `output.elements` of every line-start
+    # indent span in the whole spliced output — this node's own indents plus each
+    # child's indent_indices shifted by its splice base. This is what makes
+    # re-indent-on-splice compositional (an `indentation != 0` ancestor widens
+    # exactly these).
+    indent_indices::Cell
     # Cell{Int}: index of the inline expand/collapse marker span in
     # `output.elements` (always element 1 when present), or 0 when no marker
     # was emitted. Recorded so the reader can recognise clicks on the marker.
@@ -193,45 +207,160 @@ end
 #        .close[k]     →  .elements at char k of the close span
 #        .children[i]  →  .elements at offset of child i + child's cursor
 function print_document(p::SyntaxNodeToText, recursion, node::SyntaxNode, ctx)
-    # Spans depend only on the syntax content, not the selection: the spans-only
-    # pass (`want_cursor=false`) skips every selection read, so the output
-    # TextText's element vector is stable across caret moves and only the
-    # separate selection cell below changes. (The cursor pass re-runs the same
-    # collection to locate the flat cursor, identical to the spans layout.)
     # Per-projection decorative-span cache (no module-global state): reused across
-    # re-layouts so a structural edit keeps the identity of every unchanged newline/
-    # indent span. Evict slots not seen this pass so the cache cannot grow unbounded.
-    # The cursor pass below uses no cache — its spans are thrown away.
+    # re-layouts so a structural edit keeps the identity of every unchanged
+    # marker/newline/indent/ellipsis span *and* every splice-widened child indent.
+    # Evict slots not seen this pass so the cache cannot grow unbounded.
     deco = _DecoCache()
+
+    # Delegate every child one level down through `recursion` (never re-walk the
+    # subtree by type). An identity cache keyed on the child *object* reuses a
+    # child's IoMap across sibling inserts — the input nodes are identity-stable
+    # (the template engine reconciles them), so an unchanged subtree keeps its
+    # output objects for downstream reuse (printer locality). A collapsed node
+    # projects no children (its reactive subtree is pruned).
+    child_cache = IdDict{Any, IoMap}()
+    child_iomaps = Cell(() -> begin
+        node.collapsed && return IoMap[]
+        kids = node.children
+        result = IoMap[]
+        for (i, child) in enumerate(kids)
+            child_ctx = make_child_context(ctx, @reference ^(ctx.reference).children[i])
+            push!(result, get!(() -> print_child(recursion, child, child_ctx), child_cache, child))
+        end
+        seen = Set{UInt}(objectid(c) for c in kids)
+        for k in collect(keys(child_cache))
+            objectid(k) in seen || delete!(child_cache, k)
+        end
+        result
+    end)
+
+    # Own chrome interleaved with each child's spliced element list. Returns a
+    # tuple `(elements, child_elem_ranges, indent_indices)`. This cell reads only
+    # syntax content and `child_iomaps` — never any selection cell — so the output
+    # element vector is stable across caret moves (spans-stability property); the
+    # separate selection cell below is what recomputes on a caret move.
     spans = Cell(() -> begin
         empty!(deco.seen)
-        res = _collect_spans(node, p, 0, recursion, false; deco=deco)
+        res = _splice_node(node, p, deco, child_iomaps[])
         for k in collect(keys(deco.spans))
             k in deco.seen || delete!(deco.spans, k)
         end
         res
     end)
-    cursor_cell = Cell(() -> _collect_spans(node, p, 0, recursion, true)[2])
+
     output = TextText(
         CellVector(() -> spans[][1]),
-        Cell(() -> begin
-            node_sel = strip_reference_types(node.selection)   # canonical → plain skeleton
-            node_sel isa EmptyReferencePath && return @reference()
-            # Detect nested child whole-element selection (.children[i]…∅)
-            # and emit a TextRectangularReference carrying the child's flat range.
-            flat_range = node_sel isa ReferencePath ? _syntax_to_flat_range(node, node_sel, p, 0) : nothing
-            if flat_range !== nothing
-                return ConcreteReferencePath(
-                    TextRectangularReference(flat_range[1], flat_range[2]),
-                    EmptyReferencePath())
+        Cell(() -> _compose_node_selection(node, p, spans[], child_iomaps[])))
+
+    SyntaxNodeToTextIoMap(p, node, output,
+        child_iomaps,
+        Cell(() -> spans[][2]),
+        Cell(() -> spans[][3]),
+        Cell(() -> _active_marker(p, node) === nothing ? 0 : 1))
+end
+
+# Assemble this node's output element vector by delegation + splice. Own chrome
+# (marker, open, sep, newline/indent decorations, ellipsis, close) is emitted at
+# **relative depth 0**; each child's `output.elements` are spliced verbatim, save
+# that an `indentation != 0` parent widens every span in the child's
+# `indent_indices` by one indent level (re-indent-on-splice — Settled decision 2).
+# Summed over ancestors this reproduces the old `depth * indent_size` widths
+# byte-for-byte. Returns `(elements, child_elem_ranges, indent_indices)`.
+function _splice_node(node::SyntaxNode, p::SyntaxNodeToText, deco, cims)
+    elements = TextDocument[]
+    child_elem_ranges = UnitRange{Int}[]
+    indent_indices = Int[]
+    nid = objectid(node)                 # structural-slot key prefix for deco spans
+    deco_font = node.open.font           # whitespace decorations track content size
+    indent = node.indentation
+
+    # optional inline expand/collapse marker, before the open delimiter
+    marker = _active_marker(p, node)
+    marker !== nothing && push!(elements, marker)
+
+    # open delimiter
+    push!(elements, node.open)
+
+    if node.collapsed
+        # Collapsed body: a single ellipsis stands in for the (un-projected)
+        # children; a childless node gets none.
+        if length(node.children) > 0
+            ell = p.ellipsis_text
+            push!(elements, _deco_span(deco, (nid, 0, :ellipsis),
+                () -> TextString(ell.content, StyleFont(ell.font.filename, deco_font.size), ell.font_color)))
+        end
+    else
+        for (i, cim) in enumerate(cims)
+            i > 1 && push!(elements, node.sep)
+            if indent != 0
+                # This node's own child-line chrome, at relative depth 0: a
+                # newline then an indent of width `1 * indent_size` (ancestors
+                # widen it further). Both go into indent_indices for that widening.
+                push!(elements, _deco_span(deco, (nid, i, :nl), () -> _newline_span(deco_font)))
+                push!(elements, _deco_span(deco, (nid, i, :ind), () -> _indent_span(p, 1, deco_font)))
+                push!(indent_indices, length(elements))
             end
-            cursor = cursor_cell[]
-            cursor < 0 && return nothing
-            _flat_to_text_elem_path(spans[][1], cursor)
-        end))
-    child_ranges = Cell(() -> spans[][3])
-    marker_idx = Cell(() -> _active_marker(p, node) === nothing ? 0 : 1)
-    SyntaxNodeToTextIoMap(p, node, output, child_ranges, marker_idx)
+            base = length(elements) + 1
+            child_iset = cim isa SyntaxNodeToTextIoMap ? Set(cim.indent_indices[]) : Set{Int}()
+            for (j, s) in enumerate(cim.output.elements)
+                if j in child_iset && indent != 0
+                    s = _widen_indent_span(deco, (nid, :widen, objectid(cim.input), j), s, p.indent_size)
+                end
+                push!(elements, s)
+                # Propagate the child's line-start indents upward (shifted to their
+                # spliced position) so a higher `indentation != 0` ancestor widens
+                # them too — inline (`indentation == 0`) parents propagate without
+                # widening.
+                j in child_iset && push!(indent_indices, length(elements))
+            end
+            push!(child_elem_ranges, base:length(elements))
+        end
+        if indent > 0
+            # Trailing newline + indent before the close delimiter. The indent is
+            # width 0 at relative depth 0 (an empty span is still emitted so there
+            # is always a slot to widen and element counts never depend on depth).
+            push!(elements, _deco_span(deco, (nid, 0, :tnl), () -> _newline_span(deco_font)))
+            push!(elements, _deco_span(deco, (nid, 0, :tind), () -> _indent_span(p, 0, deco_font)))
+            push!(indent_indices, length(elements))
+        end
+    end
+
+    # close delimiter
+    push!(elements, node.close)
+    (elements, child_elem_ranges, indent_indices)
+end
+
+# The output TextText cursor, composed from this node's own selection and its
+# children's composed selections (Settled decision 5). Precedence, structural
+# wins: (1) node.selection ∅ → whole-node highlight; (2) node.selection ending in
+# ∅ under `.children[i]…` → a TextRectangularReference in parent-flat chars;
+# (3) node.selection mapping to a flat cursor (structural); (4) the first child
+# whose composed selection is a plain cursor element path, shifted by its splice
+# base — a child returning ∅ or a TextRect is skipped, not promoted; (5) none.
+#
+# (S1 note: cases 2/3 reuse `_syntax_to_flat_range`/`_syntax_to_flat` on the input
+# subtree; the S2 mapper rewrite replaces them with child delegation.)
+function _compose_node_selection(node::SyntaxNode, p::SyntaxNodeToText, spans_tuple, cims)
+    node_sel = strip_reference_types(node.selection)     # canonical → plain skeleton
+    node_sel isa EmptyReferencePath && return @reference()                    # case 1
+    elements = spans_tuple[1]
+    if node_sel isa ReferencePath
+        fr = _syntax_to_flat_range(node, node_sel, p, 0)                       # case 2
+        fr !== nothing && return ConcreteReferencePath(
+            TextRectangularReference(fr[1], fr[2]), EmptyReferencePath())
+        sc = _syntax_to_flat(node, node_sel, p, 0)                            # case 3
+        sc >= 0 && return _flat_to_text_elem_path(elements, sc)
+    end
+    ranges = spans_tuple[2]                                                    # case 4
+    for (i, cim) in enumerate(cims)
+        csel = cim.output.selection
+        csel === nothing && continue
+        span_idx, char_idx = _parse_text_elem_path(csel)
+        span_idx === nothing && continue           # skip ∅ / TextRect / non-cursor
+        return _text_elem_path(ranges[i].start + span_idx - 1, char_idx)
+    end
+    return nothing                                                            # case 5
 end
 
 # Gesture-aware reader. With the originating gesture in hand, all pointer-driven
@@ -538,6 +667,14 @@ _indent_span(p::SyntaxNodeToText, depth::Int, font::StyleFont) =
     TextString(" " ^ (depth * p.indent_size), font, color_default)
 _newline_span(font::StyleFont) = TextString("\n", font, color_default)
 
+# Widen a child's line-start indent span by `extra` spaces when an
+# `indentation != 0` parent splices it (re-indent-on-splice — Settled decision 2).
+# Preserves the child's font/color so the line height still tracks the child's
+# content size; cached like the other deco spans so re-layouts keep identity.
+_widen_indent_span(deco, key, span::TextString, extra::Int) =
+    _deco_span(deco, key, () ->
+        TextString(span.content * (" " ^ extra), span.font, span.font_color))
+
 # `_collect_spans` re-runs whole on any structural change, allocating fresh newline
 # and indentation `TextString`s each pass — so a structural edit orphans all of them
 # (printer locality — dimension C). They are pure, immutable content never used as a
@@ -742,16 +879,12 @@ function _syntax_to_flat(node::SyntaxNode, path::ReferencePath, p::SyntaxNodeToT
     return -1
 end
 
-function _structural_cursor(node::SyntaxNode, p::SyntaxNodeToText, depth::Int)
-    sel = node.selection
-    sel === nothing && return -1
-    _syntax_to_flat(node, sel, p, depth)
-end
-
 # ── Flat range for whole-element selections ──────────────────────────────
 # Like _syntax_to_flat but returns the (start, stop) character range when
 # the path terminates in ∅ (a whole-element selection). Returns nothing
-# when the path is a normal cursor or doesn't match.
+# when the path is a normal cursor or doesn't match. Used by the selection
+# cell's case 2 (child whole-element highlight → TextRectangularReference);
+# the S2 mapper rewrite will fold this into `map_reference_forward`.
 
 function _syntax_to_flat_range(leaf::SyntaxLeaf, ::EmptyReferencePath, p::SyntaxNodeToText, depth::Int)
     (0, _subtree_len(leaf, p, depth))
@@ -807,15 +940,6 @@ function _syntax_to_flat_range(node::SyntaxNode, path::ConcreteReferencePath, p:
     return nothing
 end
 
-function _collect_child_spans(leaf::SyntaxLeaf, p::SyntaxNodeToText, depth::Int, recursion, want_cursor::Bool; deco=nothing)
-    (TextDocument[leaf.open, leaf.value, leaf.close], want_cursor ? _leaf_cursor(leaf) : -1)
-end
-
-function _collect_child_spans(node::SyntaxNode, p::SyntaxNodeToText, depth::Int, recursion, want_cursor::Bool; deco=nothing)
-    spans, cursor, _ = _collect_spans(node, p, depth, recursion, want_cursor; deco=deco)
-    (spans, cursor)
-end
-
 function _span_len(s::TextString)
     length(s.content::AbstractString)
 end
@@ -824,111 +948,6 @@ end
 # `TextToGraphics` advances its cursor over an image span.
 _span_len(::TextGraphics) = 1
 
-function _collect_spans(node::SyntaxNode, p::SyntaxNodeToText, depth::Int, recursion, want_cursor::Bool=true; deco=nothing)
-    spans = TextDocument[]
-    nid = objectid(node)               # structural-slot key prefix for decorative spans
-    cursor_offset = -1
-    char_count = 0
-    children = node.children
-    open_str = node.open.content
-    # Whitespace decorations (newline/indent) inherit this node's delimiter font so
-    # the line height tracks the content size rather than a baked-in default.
-    deco_font = node.open.font
-
-    # optional inline expand/collapse marker, before the open delimiter
-    marker = _active_marker(p, node)
-    if marker !== nothing
-        push!(spans, marker)
-        char_count += _span_len(marker)
-    end
-
-    # open delimiter
-    push!(spans, node.open)
-    char_count += length(open_str)
-
-    child_ranges = UnitRange{Int}[]
-
-    if node.collapsed
-        # Collapsed body: a single ellipsis glyph stands in for the children,
-        # which are not laid out at all (their reactive subtree is pruned —
-        # editing inside a collapsed node triggers no re-render here). A
-        # childless node gets no ellipsis (nothing to fold).
-        if length(children) > 0
-            # The ellipsis keeps its own font *family* (DejaVu, which carries the …
-            # glyph) and gray chrome color, but takes this node's font *size* so a
-            # collapsed line's height matches the surrounding content. Same content
-            # length as `p.ellipsis_text`, so every offset/length stays unchanged.
-            ell = p.ellipsis_text
-            ellipsis = _deco_span(deco, (nid, 0, :ellipsis),
-                () -> TextString(ell.content, StyleFont(ell.font.filename, deco_font.size), ell.font_color))
-            push!(spans, ellipsis)
-            char_count += _span_len(ellipsis)
-        end
-    elseif node.indentation != 0
-        child_depth = depth + 1
-        for (i, child) in enumerate(children)
-            if i > 1
-                push!(spans, node.sep)
-                char_count += _span_len(node.sep)
-            end
-            nl = _deco_span(deco, (nid, i, :nl), () -> _newline_span(deco_font))
-            push!(spans, nl)
-            char_count += 1
-            ind = _deco_span(deco, (nid, i, :ind), () -> _indent_span(p, child_depth, deco_font))
-            push!(spans, ind)
-            char_count += _span_len(ind)
-
-            child_start = char_count
-            child_spans, child_cursor = _collect_child_spans(child, p, child_depth, recursion, want_cursor; deco=deco)
-            if child_cursor >= 0 && cursor_offset < 0
-                cursor_offset = char_count + child_cursor
-            end
-            for s in child_spans
-                push!(spans, s)
-                char_count += _span_len(s)
-            end
-            push!(child_ranges, child_start:char_count-1)
-        end
-        if node.indentation > 0
-            push!(spans, _deco_span(deco, (nid, 0, :tnl), () -> _newline_span(deco_font)))
-            char_count += 1
-            ind = _deco_span(deco, (nid, 0, :tind), () -> _indent_span(p, depth, deco_font))
-            push!(spans, ind)
-            char_count += _span_len(ind)
-        end
-    else
-        for (i, child) in enumerate(children)
-            if i > 1
-                push!(spans, node.sep)
-                char_count += _span_len(node.sep)
-            end
-            child_start = char_count
-            child_spans, child_cursor = _collect_child_spans(child, p, depth, recursion, want_cursor; deco=deco)
-            if child_cursor >= 0 && cursor_offset < 0
-                cursor_offset = char_count + child_cursor
-            end
-            for s in child_spans
-                push!(spans, s)
-                char_count += _span_len(s)
-            end
-            push!(child_ranges, child_start:char_count-1)
-        end
-    end
-
-    # structural cursor always wins over stale leaf cursors (cursor pass only —
-    # reading node.selection here is what would otherwise couple the spans to the
-    # selection, so the spans-only pass skips it)
-    if want_cursor
-        sc = _structural_cursor(node, p, depth)
-        if sc >= 0
-            cursor_offset = sc
-        end
-    end
-
-    # close delimiter
-    push!(spans, node.close)
-    return (spans, cursor_offset, child_ranges)
-end
 
 function _subtree_len(leaf::SyntaxLeaf, ::SyntaxNodeToText, _depth::Int)
     length(leaf.open.content) + _span_len(leaf.value) + length(leaf.close.content)

@@ -172,6 +172,23 @@ Consequences:
 These were open questions in earlier revisions; they are now decided. Record any
 deviation discovered during implementation back into this section.
 
+> **Implementation note (naming drift):** since this plan was written, a kernel
+> naming refactor renamed `projection_print`→`print_document`,
+> `projection_read`→`read_intent`, `projection_printer_recurse`→`print_child`,
+> `Change`→`Intent`, `StringReplaceRangeOperation`→`ReplaceStringRangeOperation`,
+> and children contexts are built with `make_child_context(ctx, @reference
+> ^(ctx.reference).children[i])`. The plan's line numbers/names below predate that;
+> the current names are used in the code.
+>
+> **Deviation (S1):** to keep S1 *provably* byte-identical, the S1 selection cell
+> reuses the surviving input-walk helpers — `_syntax_to_flat` (case 3, structural)
+> and `_syntax_to_flat_range` (case 2, child-∅ TextRect) — rather than deleting
+> `_syntax_to_flat_range` in S1. Only case 4 (descendant-cursor fallback) is done
+> by delegation (reading each `child_iomap.output.selection`). The full
+> mapper-based delegation for cases 2/3 lands in S2 with the rewritten
+> `map_reference_forward`; `_syntax_to_flat_range` is deleted then. `_structural_cursor`
+> *is* deleted in S1 (its one-line body is inlined into the selection cell).
+
 1. **IoMap:** keep `SyntaxNodeToTextIoMap`, reshaped to
    `(projection, input::SyntaxNode, output::TextText, child_iomaps::Cell,
    child_elem_ranges::Cell, indent_indices::Cell, marker_index::Cell)`.
@@ -284,40 +301,37 @@ Work in a dedicated git worktree. One commit per stage; the flat text must be
 byte-identical after S1 and S2 (S1's harness proves it). Update the checkboxes
 and record deviations in "Settled design decisions" as you go.
 
-### S1 — Printer + IoMap: delegate, splice, compose selection
+### S1 — Printer + IoMap: delegate, splice, compose selection ✅ DONE
 
-- [ ] Rewrite `projection_print(::SyntaxNodeToText, …)` ([:194–234](../../package/domain/src/projection/primitive/SyntaxToText.jl#L194-L234)):
-  - `child_iomaps = Cell(() -> …)` — when `node.collapsed`, `IoMap[]`; otherwise
-    `projection_printer_recurse(recursion, child, child_ctx)` per child through
-    the IdDict identity cache (decision 3). `child_ctx` extends `ctx` by the
-    `.children[i]` steps via `child_context`.
-  - Spans cell: assemble own chrome — `marker?`, `open`, per-child (`sep` when
-    `i>1`; if `indentation != 0`: `\n` + indent(width `indent_size`)), trailing
-    `\n` + empty indent when `indentation > 0`, `ellipsis` when collapsed,
-    `close` — interleaved with each child's `output.elements`, widening the
-    child's `indent_indices` elements when `indentation != 0` (decision 2). Own
-    chrome keeps using `_deco_span` with the existing keys; widened child indents
-    use the `(child objectid, elem idx)` cache. Record per-child element ranges
-    and the composed `indent_indices` as by-products (same cell, tuple result,
-    like today's `spans[][k]` pattern).
-  - Selection cell: decision 5. Delete the `cursor_cell` / `want_cursor` pass.
-  - Construct the reshaped `SyntaxNodeToTextIoMap` (decision 1).
-- [ ] Delete `_collect_spans`, `_collect_child_spans`, `_structural_cursor`,
-  `_syntax_to_flat_range`.
-- [ ] **Interim shim so S1 is testable alone:** the old mappers/readers
-  ([:154–184](../../package/domain/src/projection/primitive/SyntaxToText.jl#L154-L184), [:245–350](../../package/domain/src/projection/primitive/SyntaxToText.jl#L245-L350))
-  keep working *unchanged* through S1 because they walk the **input** tree with
-  `_syntax_to_flat`/`_pos_to_selection`/`_subtree_len` — all still present — and
-  byte-identical output means the flat metric still agrees. Only
-  `_syntax_to_flat_range` is consumed by the old selection cell you are deleting,
-  so it goes now. Keep `_pos_to_selection`, `_pos_to_tree_selection`,
-  `_node_at_collapse_glyph` until S2/S3.
-- [ ] **Byte-identity harness (gate for this commit):** before starting, capture
-  `print_example` output for `json_example`, `xml_example`, `math_example`, and a
-  collapsed-state variant into the scratchpad; after S1, diff — must be
-  byte-identical. Then `test_printer(json_example)`, `test_printer(xml_example)`,
-  `test_syntax()`.
-- [ ] Commit: `refactor(syntax-to-text): printer delegates children via recursion, splices element lists`.
+- [x] Rewrote `print_document(::SyntaxNodeToText, …)`:
+  - `child_iomaps = Cell(() -> …)` — `IoMap[]` when collapsed; otherwise
+    `print_child(recursion, child, child_ctx)` per child through an IdDict
+    identity cache keyed on the child object (decision 3), with `child_ctx =
+    make_child_context(ctx, @reference ^(ctx.reference).children[i])`.
+  - Spans cell → `_splice_node` returns `(elements, child_elem_ranges,
+    indent_indices)`: own chrome interleaved with each child's `output.elements`,
+    child indents widened when `indentation != 0` (decision 2, via
+    `_widen_indent_span` cached `(nid, :widen, child objectid, j)`). Own chrome
+    keeps the existing `_deco_span` keys. Emits child-line indent at width
+    `1*indent_size` (`_indent_span(p, 1, …)`) and trailing indent at width 0
+    (`_indent_span(p, 0, …)`), an empty span always present.
+  - Selection cell → `_compose_node_selection` (decision 5). `cursor_cell` /
+    `want_cursor` pass deleted.
+  - Reshaped `SyntaxNodeToTextIoMap` (decision 1); imports `print_child`,
+    `make_child_context`.
+- [x] Deleted `_collect_spans`, `_collect_child_spans`, `_structural_cursor`.
+  **Kept** `_syntax_to_flat_range` (deviation — see Settled decisions note: the S1
+  selection cell reuses it for case 2; it is deleted in S2). Kept `_pos_to_selection`,
+  `_pos_to_tree_selection`, `_node_at_collapse_glyph` (S2/S3) and the old
+  mappers/readers unchanged (interim shim).
+- [x] **Byte-identity harness (gate):** `print_example` for 20 SyntaxToText-exercising
+  examples (json/xml/math/yaml/sql/filesystem/markdown/julia/… — full pipeline to
+  graphics, so layout geometry is gated) — **byte-identical** before/after.
+  Plus a **differential selection driver** (`sel_check.jl`, 14 scenarios covering
+  all 5 decision-5 cases incl. child-∅ TextRect and the case-4 descendant fallback)
+  — OLD (main) vs NEW (worktree) **identical**. (`test_printer`/`test_syntax` handed
+  to the user — heavy stack.)
+- [x] Commit: `refactor(syntax-to-text): printer delegates children via recursion, splices element lists`.
 
 ### S2 — Mappers + StringReplaceRange: element-zone classification
 
