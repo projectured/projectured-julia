@@ -302,8 +302,8 @@ end
 SqlInsertStatement(table::SqlTableName, columns::CellVector, values::CellVector) =
     SqlInsertStatement(table, columns, values, Cell(nothing))
 SqlInsertStatement(table::SqlTableName,
-                   columns::AbstractVector{SqlColumnName},
-                   values::AbstractVector{SqlScalarValue}) =
+                   columns::AbstractVector{<:SqlColumnName},
+                   values::AbstractVector{<:SqlScalarValue}) =
     SqlInsertStatement(table, CellVector([columns...]), CellVector([values...]), Cell(nothing))
 
 # ── UPDATE ─────────────────────────────────────────────────────────────────────
@@ -328,7 +328,7 @@ SqlUpdateStatement(table::SqlTableName, assignments::CellVector) =
 SqlUpdateStatement(table::SqlTableName, assignments::CellVector, wc::SqlWhereClause) =
     SqlUpdateStatement(table, assignments, wc, Cell(nothing))
 SqlUpdateStatement(table::SqlTableName,
-                   assignments::AbstractVector{SqlUpdateAssignment},
+                   assignments::AbstractVector{<:SqlUpdateAssignment},
                    wc::SqlWhereClause=SqlWhereClause()) =
     SqlUpdateStatement(table, CellVector([assignments...]), wc, Cell(nothing))
 
@@ -355,7 +355,7 @@ end
 SqlCreateTableStatement(table_name::SqlTableName, columns::CellVector) =
     SqlCreateTableStatement(table_name, columns, Cell(nothing))
 SqlCreateTableStatement(table_name::SqlTableName,
-                        columns::AbstractVector{SqlColumnDefinition}) =
+                        columns::AbstractVector{<:SqlColumnDefinition}) =
     SqlCreateTableStatement(table_name, CellVector([columns...]), Cell(nothing))
 
 # `CREATE SCHEMA <schema-name>`.
