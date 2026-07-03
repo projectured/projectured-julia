@@ -83,10 +83,12 @@ Extracted from all 115 source files' real `import ..Module` edges:
 Rule: **home(projection) ≥ max(tier(input), tier(output), tier(every other import))**
 under kernel < base < visual < domain(core < slices < serialization < apps). Verified
 over all 115 files with the placement below: **zero violations except
-`DocumentInsertionToSyntax` (see D1)**, and the domain slice→slice edges form a DAG
-(no cycles): formula→julia, sql→json, conversation→{json,julia,xml},
-serialization→{json,xml,sql,julia,math,book,filesystem}, workbench→{conversation,
-serialization, parsers}.
+`DocumentInsertionToSyntax` (see D1) and one Widget focus-path import in
+`LayoutToGraphics` (see V1)** — both resolved by refactor. The domain slice→slice
+edges form a DAG (no cycles): formula→julia, dbcatalog→sql, tabular→json,
+conversation→{json,julia,xml}, serialization→{json,xml,sql,julia,math,book,filesystem},
+workbench→{conversation, serialization, parsers}. The visual slice ordering
+style → graphics → layout → text → widget → syntax → backend verifies with V1 applied.
 
 Why it holds structurally: pipelines flow *specific → generic* (source document →
 visual substrate), so a projection placed at its more-specific end always sees both
@@ -101,13 +103,25 @@ Widget live in visual, above base) — their least legal home is **visual**.
 
 ## Target packaging
 
-### ProjecturedVisual (new, `package/visual`) — 3 layers, depends on kernel + base
+### ProjecturedVisual (new, `package/visual`) — 7 feature slices, depends on kernel + base
 
-| # | Folder | Contents | Story |
+The visual package is feature-sliced like domain — one folder per visual domain, each
+owning its document + its projections — not a folder-by-kind `render/` grab-bag.
+Slice order (each imports only slices to its left): style → graphics → layout →
+text → widget → syntax → backend. Machine-verified with one refactor (V1 below):
+LayoutToGraphics imports three Widget focus-path helpers (one private —
+`_next_focusable_in`); those helpers move down into `layout/` as open generics, after
+which layout/ is Widget-free and the ordering above holds with zero violations.
+
+| # | Slice | Contents | Story |
 | --- | --- | --- | --- |
-| 1 | `style/` | Color, Font, Geometry, Image, StyleText, StyleStroke, ConstraintSolver | pure value types every visual thing shares |
-| 2 | `render/` | the five render-target documents Syntax, Text, Graphics, Widget, Layout + the spine-internal projections (SyntaxToText, SyntaxToWidget, TextToGraphics, TextToWidget, TextToString, WidgetToGraphics, LayoutToGraphics, CollectionToLayout, GraphicsCaching, the Text→Text decorators LineNumbering/TextFiltering/TextFirstLine/TextHighlighting/WordWrapping/SelectionInverting) + the generic→visual bridges (ObjectToSyntax, CollectionToSyntax, PrimitiveToSyntax, PrimitiveToText, ReferenceToText, ObjectToWidget) + widget decorators (WidgetHoverTracking, ProjectionConfiguring, WidgetPopupResolver) | how anything becomes visible |
-| 3 | `backend/` | Console.jl (renders Text), Pdf.jl (renders Graphics) | the dependency-free concrete backends |
+| 1 | `style/` | Color, Font, Geometry, Image, StyleText, StyleStroke | pure value types every visual thing shares |
+| 2 | `graphics/` | Graphics + GraphicsCaching | the retained drawing target everything bottoms out in |
+| 3 | `layout/` | Layout + ConstraintSolver + LayoutToGraphics, CollectionToLayout (+ the V1 focus-path generics) | spatial arrangement |
+| 4 | `text/` | Text + TextToGraphics, TextToString, the Text→Text decorators (LineNumbering, WordWrapping, TextFiltering, TextFirstLine, TextHighlighting, SelectionInverting) + PrimitiveToText, ReferenceToText | styled text and its renderings |
+| 5 | `widget/` | Widget + WidgetToGraphics, TextToWidget, ObjectToWidget + the decorators WidgetHoverTracking, ProjectionConfiguring, WidgetPopupResolver (adds its focus-path methods to the layout/ generics) | the UI widget system |
+| 6 | `syntax/` | Syntax + SyntaxToText, SyntaxToWidget + the bridges ObjectToSyntax, CollectionToSyntax, PrimitiveToSyntax | the tree-presentation domain every source domain targets |
+| 7 | `backend/` | Console.jl (renders text), Pdf.jl (renders graphics) | the dependency-free concrete backends |
 
 38 files total, all moved from `domain`. `sdl`/`web`/`video` re-point their domain
 imports to `visual`; `odbc` re-points its SyntaxToText/TextToString imports.
@@ -116,7 +130,7 @@ imports to `visual`; `odbc` re-points its SyntaxToText/TextToString imports.
 
 Tier rule inside the package: core(0) < source slices(1) < serialization(2) < apps(3);
 slice→slice edges within tier 1 are allowed if acyclic (guard-checked, currently:
-formula→julia, sql→json).
+formula→julia, dbcatalog→sql, tabular→json).
 
 ```
 domain/src/
@@ -179,61 +193,72 @@ unchanged in the first pass. Files marked *(new)* are created by a refactor.
 
 ```
 src/
-  ProjecturedVisual.jl          # top module: kernel/base alias preamble + 3 layer sections
+  ProjecturedVisual.jl          # top module: kernel/base alias preamble + 7 slice sections
 
-  style/                        # LAYER 1 — pure value types every visual thing shares
+  style/                        # SLICE 1 — pure value types every visual thing shares
     Color.jl                    # RGBA color value type + defaults/equality
     Font.jl                     # font descriptor (family, size, style)
     Geometry.jl                 # 2D points, sizes, rectangles
     Image.jl                    # bitmap image value type
     StyleText.jl                # styled-run text attributes (→ Font, Color)
     StyleStroke.jl              # stroke/outline style (→ Color)
-    ConstraintSolver.jl         # the layout constraint solver (used by LayoutToGraphics)
 
-  render/                       # LAYER 2 — the five render targets + spine projections
-    Syntax.jl                   # tree-presentation domain: leaves/nodes, delimiters,
-                                #   indentation, collapsibles — every source domain's target
-    Text.jl                     # styled-text domain (TextText/TextString/TextNewline…)
-    Graphics.jl                 # retained drawing domain (text/rect/canvas/viewport/image)
-    Widget.jl                   # UI widget domain (labels, buttons, panes, menus…)
-    Layout.jl                   # layout container domain
-    SyntaxToText.jl             # flattens syntax trees to styled text (the shared step
-                                #   many XToSyntax projections reuse helpers from)
-    SyntaxToWidget.jl           # syntax → widget forms
-    TextToGraphics.jl           # text → canvas + caret rendering
-    TextToWidget.jl             # text → editable widget (→ TextToGraphics, WidgetToGraphics)
-    TextToString.jl             # text → plain String (textualization endpoint)
-    WidgetToGraphics.jl         # widget tree → canvas (the big one; → Layout, StyleStroke)
-    LayoutToGraphics.jl         # layout → canvas via the constraint solver
-    CollectionToLayout.jl       # base CellVector → layout container
+  graphics/                     # SLICE 2 — the retained drawing target
+    Graphics.jl                 # drawing domain (text/rect/canvas/viewport/image/fence)
     GraphicsCaching.jl          # graphics → graphics caching layer
+
+  layout/                       # SLICE 3 — spatial arrangement
+    Layout.jl                   # layout container domain
+    ConstraintSolver.jl         # the layout constraint solver
+    LayoutToGraphics.jl         # layout → canvas via the solver (V1: its Widget
+                                #   focus-path import moves down here as open generics)
+    CollectionToLayout.jl       # base CellVector → layout container
+
+  text/                         # SLICE 4 — styled text and its renderings
+    Text.jl                     # styled-text domain (TextText/TextString/TextNewline…)
+    TextToGraphics.jl           # text → canvas + caret rendering
+    TextToString.jl             # text → plain String (textualization endpoint)
     LineNumbering.jl            # Text→Text decorator: line-number gutter
     WordWrapping.jl             # Text→Text decorator: soft wrap
     TextFiltering.jl            # Text→Text decorator: row filter
     TextFirstLine.jl            # Text→Text decorator: first-line preview
     TextHighlighting.jl         # Text→Text decorator: match highlighting
     SelectionInverting.jl       # Text→Text decorator: inverted-selection rendering
-    ObjectToSyntax.jl           # bridge: any Julia value → syntax tree (reflection)
-    CollectionToSyntax.jl       # bridge: base collections → syntax tree
-    PrimitiveToSyntax.jl        # bridge: base primitive docs → syntax tree
     PrimitiveToText.jl          # bridge: base primitive docs → text
     ReferenceToText.jl          # bridge: kernel references → text
+
+  widget/                       # SLICE 5 — the UI widget system
+    Widget.jl                   # widget domain (labels, buttons, panes, menus…);
+                                #   adds its focus-path methods to layout/'s V1 generics
+    WidgetToGraphics.jl         # widget tree → canvas (the big one; → layout/, StyleStroke)
+    TextToWidget.jl             # text → editable widget (→ text/, own slice)
     ObjectToWidget.jl           # bridge: reflection-driven editable form for Cell fields
     WidgetHoverTracking.jl      # decorator: hover state over widgets
     ProjectionConfiguring.jl    # decorator: editable parameter-control bar (→ ObjectToWidget)
     WidgetPopupResolver.jl      # decorator: resolves widget popups onto the screen
 
-  backend/                      # LAYER 3 — the dependency-free concrete backends
+  syntax/                       # SLICE 6 — the tree-presentation target of every source domain
+    Syntax.jl                   # leaves/nodes, delimiters, indentation, collapsibles
+    SyntaxToText.jl             # flattens syntax trees to styled text (the shared step
+                                #   many XToSyntax projections reuse helpers from)
+    SyntaxToWidget.jl           # syntax → widget forms
+    ObjectToSyntax.jl           # bridge: any Julia value → syntax tree (reflection)
+    CollectionToSyntax.jl       # bridge: base collections → syntax tree
+    PrimitiveToSyntax.jl        # bridge: base primitive docs → syntax tree
+
+  backend/                      # SLICE 7 — the dependency-free concrete backends
     Console.jl                  # ANSI terminal backend rendering the Text domain
     Pdf.jl                      # SDL-free vector-PDF export of the Graphics domain
 
 test/
-  runtests.jl                   # guard: LAYERS = ["style","render","backend"]
-  style/ · render/ · backend/   # migrated from ProjecturedTest: TextTest, SyntaxTest,
+  runtests.jl                   # guard: LAYERS = ["style","graphics","layout","text",
+                                #                  "widget","syntax","backend"]
+  style/ · … · backend/         # migrated from ProjecturedTest: TextTest, SyntaxTest,
                                 #   GraphicsTest, GeometryTest, SyntaxToTextTest,
                                 #   TextToGraphicsTest, the Widget*Test family, …
 doc/
-  architecture.md · style.md · render.md · backend.md
+  architecture.md               # slice order, the V1 seam, what belongs where
+  style.md · graphics.md · layout.md · text.md · widget.md · syntax.md · backend.md
 ```
 
 ### `package/domain/` — the feature slices
@@ -252,21 +277,22 @@ src/
     DocumentInsertion.jl        # (new, D1) the insertion registration seam; each slice
                                 #   registers its own insertion rendering/parsing
 
-  json/                         # TIER 1 — source slices (document + parser + projection)
-    Json.jl · JsonParser.jl · JsonToSyntax.jl · JsonInsertion.jl (new, D1)
-  xml/       Xml.jl · XmlParser.jl · XmlToSyntax.jl · XmlInsertion.jl (new, D1)
+  json/                         # TIER 1 — source slices (document + parser + projection;
+                                #   D1 insertion methods live IN these existing files)
+    Json.jl · JsonParser.jl · JsonToSyntax.jl
+  xml/       Xml.jl · XmlParser.jl · XmlToSyntax.jl
   yaml/      Yaml.jl · YamlParser.jl · YamlToSyntax.jl
-  julia/     Julia.jl · JuliaParser.jl · JuliaToSyntax.jl · JuliaInsertion.jl (new, D1)
+  julia/     Julia.jl · JuliaParser.jl · JuliaToSyntax.jl
   math/      Math.jl · MathToSyntax.jl
   markdown/  Markdown.jl · MarkdownParser.jl · MarkdownToSyntax.jl
   book/      Book.jl · BookToSyntax.jl
-  sql/       Sql.jl · SqlParser.jl · SqlToSyntax.jl · SqlInsertion.jl (new, D1)
-             DbCatalog.jl                # database-catalog document
+  sql/       Sql.jl · SqlParser.jl · SqlToSyntax.jl
+  dbcatalog/ DbCatalog.jl                # database-catalog document (→ sql/, sideways)
              DbCatalogToSql.jl           # catalog → SQL statements (domain-to-domain)
              DbCatalogToSyntax.jl
-             Database.jl · DatabaseInstance.jl · DatabaseAdapters.jl (ex external/Database.jl)
+  database/  Database.jl · DatabaseInstance.jl · DatabaseAdapters.jl (ex external/Database.jl)
                                          # adapter layer odbc plugs into (D3: wire here)
-             Tabular.jl · CellTableToTable.jl   # tabular grid (D2: Json import smell)
+  tabular/   Tabular.jl · CellTableToTable.jl   # tabular grid (→ json/; D2 smell)
   graph/     Graph.jl · GraphLayout.jl          # graph + laid-out-graph documents
              GraphLayoutEngine.jl               # the layout algorithm
              GraphToGraphLayout.jl · GraphLayoutToGraphics.jl
@@ -323,10 +349,18 @@ Returned to `package/base` (combinator aggregates with no document imports):
   Today it imports Json+Xml+Sql+Julia documents *and parsers*, while
   `SqlToSyntax`/`JuliaToSyntax` import it back — a slices↔core knot (6 upward edges,
   the only ones in the package). Fix, mirroring kernel R1/R2: `core/DocumentInsertion.jl`
-  keeps only the generic insertion document + a registration seam (an open generic or
-  registry keyed by document type); each slice registers its own insertion rendering
-  and parsing in its own files. After D1, core has zero upward imports and the slices
-  don't import each other through insertion.
+  keeps only the generic insertion document + open generics dispatched on document
+  type; each slice adds its methods **in the files it already has** — the rendering
+  method in its `XToSyntax.jl`, the parsing method in its `XParser.jl`. Multiple
+  dispatch *is* the registration; **no new per-slice files** (a file is a readability
+  boundary, and a couple of methods doesn't earn one). After D1, core has zero upward
+  imports and the slices don't import each other through insertion.
+- **V1 — `LayoutToGraphics` imports Widget focus-path helpers** (`first_focusable_path`,
+  `last_focusable_path`, and the private `_next_focusable_in` — an encapsulation smell
+  too). Not a real domain dependency: shared focus-navigation logic. Move the walk into
+  `layout/` as open generics; `widget/` adds its methods beside its types. Frees
+  `layout/` to be its own Widget-free slice below `widget/` (verified: with V1 applied,
+  the 7-slice visual ordering has zero violations).
 - **D2 — `CellTableToTable` imports Json (smell, decide at implementation).** Legal
   under slice ordering (sql→json is in the DAG) but conceptually odd. Either keep the
   edge and the ordering, or remove the Json dependency; look at the actual use first.
@@ -340,7 +374,7 @@ Returned to `package/base` (combinator aggregates with no document imports):
 ## Guards, tests, docs (same discipline as the kernel plan)
 
 - **Guards**: both packages get the kernel's fragment- and layer-aware
-  `test/runtests.jl` guard. visual `LAYERS = ["style","render","backend"]`. domain
+  `test/runtests.jl` guard. visual `LAYERS = ["style","graphics","layout","text","widget","syntax","backend"]`. domain
   layers = `["core", <slices...>, "serialization", "workbench", "conversation"]` with
   the addition the kernel guard doesn't need: **within tier 1, slice→slice edges are
   allowed but must be acyclic** (the guard computes the slice DAG and topo-sorts the
