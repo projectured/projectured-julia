@@ -11,9 +11,15 @@ struct Example
     # the projection.
     render_width
     render_height
-    Example(name, make_document, make_projection; render_width=nothing, render_height=nothing) =
+    # The projection's terminal output domain — `:abstract` (unknown / domain-agnostic),
+    # `:syntax`, `:text`, or `:graphics`. It is the single pivot the discovered catalog
+    # uses to decide *which tests apply* and *whether the example is runnable on screen*
+    # (see Catalog.jl). Authored examples leave it `:abstract`; catalog entries set it by
+    # construction. Presentation-only; does not affect projection behaviour.
+    terminal
+    Example(name, make_document, make_projection; render_width=nothing, render_height=nothing, terminal=:abstract) =
         new(name, make_document, make_projection, make_document(), make_projection(),
-            render_width, render_height)
+            render_width, render_height, terminal)
 end
 
 const json_example           = Example("json",           make_json_document_example,           make_json_projection_example)

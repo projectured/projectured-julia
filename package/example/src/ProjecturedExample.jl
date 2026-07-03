@@ -98,9 +98,12 @@ include(joinpath(_EXAMPLE_DIR, "projection", "Dragging.jl"))
 
 include(joinpath(_EXAMPLE_DIR, "document", "RotatingVector.jl"))
 include(joinpath(_EXAMPLE_DIR, "Examples.jl"))
+include(joinpath(_EXAMPLE_DIR, "Catalog.jl"))
 include(joinpath(_EXAMPLE_DIR, "LiveExamples.jl"))
 include(joinpath(_EXAMPLE_DIR, "FileEditor.jl"))
 
+export minimal, is_leaf_document, catalog, discover_atomic_pairs, reachability_examples
+export BRIDGES, paths, path_sequences, projection_to, runnable, catalog_domain
 export EditorDomain, EDITOR_DOMAINS, editor_domain, build_file_editor, run_file_editor, warm_file_editor
 export EXTENSION_DOMAINS, domain_for_path
 export make_json_document_example, make_json_projection_example
