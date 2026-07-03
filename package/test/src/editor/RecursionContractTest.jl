@@ -21,9 +21,10 @@
 #      often it is called, and forces the result so the lazy child cells run.
 #      A node whose input has projectable children MUST call the spy at least
 #      once; a projection that flattens its subtree (ignores `recursion`) never
-#      does — which is exactly how `SyntaxNodeToText`/`SyntaxListToText` break
-#      the contract today (recorded as @test_broken until
-#      plan/pending/syntaxtotext-delegation.md lands).
+#      does — which is exactly how `SyntaxNodeToText`/`SyntaxListToText` used to
+#      break the contract. The delegation refactor
+#      (plan/done/syntaxtotext-delegation.md) fixed them, so there are no known
+#      flatteners left and every probed node is now a plain `@test`.
 #
 #   2. Reference reachability + round-trip.  For every content caret enumerated
 #      from the document, `map_reference_forward` must yield an image (the
@@ -66,7 +67,11 @@ function _should_delegate(input)
     false
 end
 
-_is_known_flattener(p) = nameof(typeof(p)) in (:SyntaxNodeToText, :SyntaxListToText)
+# No known flatteners remain: `SyntaxNodeToText` / `SyntaxListToText` were the last
+# two and the delegation refactor (plan/done/syntaxtotext-delegation.md) fixed them,
+# so every probed node projection is now asserted with a plain `@test`. Kept as a
+# hook: add a name here to record a *new* flattener as `@test_broken` until fixed.
+_is_known_flattener(p) = nameof(typeof(p)) in ()
 
 # Collect every IoMap reachable from `iomap`, forcing cells along the way, so we
 # can probe each node projection that actually ran in the pipeline.
@@ -203,7 +208,7 @@ function walk_recursion_contract(document, projection)
     errors = String[]
     for r in probe_delegation(document, projection)
         r.delegated && continue
-        marker = r.broken ? " (known — see plan/pending/syntaxtotext-delegation.md)" : ""
+        marker = r.broken ? " (known — recorded in _is_known_flattener)" : ""
         push!(errors, "$(r.projection_name) has projectable children but never delegated to `recursion`$marker")
     end
     append!(errors, walk_reference_roundtrip(document, projection))
@@ -220,10 +225,9 @@ function test_recursion_contract(label, document, projection)
         probed = probe_delegation(document, projection)
         for r in probed
             if r.broken
-                # Known flattener: it does NOT delegate today. @test_broken keeps
-                # the suite green and flips to an (unexpected) pass the moment the
-                # delegation refactor (plan/pending/syntaxtotext-delegation.md)
-                # lands — the cue to promote it to a plain @test.
+                # A newly-recorded flattener (none today): `@test_broken` keeps the
+                # suite green and flips to an (unexpected) pass the moment it is
+                # fixed — the cue to remove it from `_is_known_flattener`.
                 r.delegated || @warn "[$label] $(r.projection_name) does not delegate (known violation)"
                 @test_broken r.delegated
             else
@@ -244,9 +248,10 @@ test_recursion_contract(example::Example) =
 
 # Curated to the structural, recursing pipelines: `json` / `xml` exercise the
 # compliant `*ToSyntaxNode` delegators, and all four reach `SyntaxNodeToText`
-# transitively (the known flattener). Widget / graphics-layout / table /
-# database pipelines are excluded for the same reason the navigation suites
-# curate their inputs — their node types are not in the delegation predicate.
+# transitively (now a compliant delegator too, post-refactor). Widget /
+# graphics-layout / table / database pipelines are excluded for the same reason the
+# navigation suites curate their inputs — their node types are not in the
+# delegation predicate.
 const _recursion_contract_examples = ["json", "xml", "syntax", "math"]
 
 function test_recursion_contracts()

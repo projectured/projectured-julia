@@ -70,9 +70,10 @@ The rest of this guide is the contract spelled out per function: the printer
 recurses via `recursion` ([§ Recursion across projections](#recursion-across-projections)),
 and the reader and both mappers recurse via the stored child IoMaps
 ([§ Mapping references when the printer recurses](#mapping-references-when-the-printer-recurses)).
-The one projection in the tree that currently breaks the contract is
-`SyntaxNodeToText`/`SyntaxListToText` (it flattens the syntax subtree); the repair is
-scoped in `plan/pending/syntaxtotext-delegation.md`.
+Every projection in the tree now honours it. `SyntaxNodeToText`/`SyntaxListToText`
+were the last holdouts (they flattened the syntax subtree into one flat `TextText`);
+the delegation refactor in `plan/done/syntaxtotext-delegation.md` converted them to
+School A — a worked before/after example of this contract.
 
 ## The four functions
 
@@ -674,11 +675,12 @@ When the child the printer recursed into went through a `CopyingProjection` (as
 >
 > The same prohibition applies to the **printer**. Flattening a child subtree
 > into your own output — walking `input`'s descendants yourself instead of calling
-> `print_document(recursion, recursion, child, …)` and composing each
-> `child_iomap.output` — is the printer-side School B. It forecloses composing any
-> descendant with another projection, for the same reasons. (`SyntaxNodeToText`
-> historically did exactly this; see
-> `plan/pending/syntaxtotext-delegation.md`.)
+> `print_child(recursion, child, …)` and composing each `child_iomap.output` — is
+> the printer-side School B. It forecloses composing any descendant with another
+> projection, for the same reasons. (`SyntaxNodeToText`/`SyntaxListToText`
+> historically did exactly this; the delegation refactor in
+> `plan/done/syntaxtotext-delegation.md` fixed them — splicing each child's
+> `output.elements` and re-indenting on splice.)
 
 ## Type dispatching
 

@@ -1,10 +1,13 @@
 """
     SyntaxToTextModule
 
-Syntax → Text projection. Word-wrapping layout engine that converts a tree
-of delimited spans into a flat sequence of styled strings. Character ranges
-for each child subtree are recorded in the IoMap so the reader can map a
-flat cursor offset back to the correct subtree and local position within it.
+Syntax → Text projection. Each `SyntaxNode` transforms only its own single level —
+marker, delimiters, separators, newline/indent decoration — and projects every
+child one level down through `recursion` (`print_child`), splicing the child's
+output element list into its own (School A; see the recursion contract in
+documentation/projection-system.md). The per-child element ranges and the child
+IoMaps are recorded in the IoMap so the mappers and reader can peel the one
+`.children[i]` step this node owns and delegate the rest to the child's own mapper.
 """
 module SyntaxToTextModule
 
@@ -112,9 +115,10 @@ read_intent(::SyntaxLeafToText, iomap::SimpleIoMap, evt::KeyDown) = evt
 #   open_delim \n indent child₁ sep \n indent child₂ … \n dedent close_delim
 # For inline nodes (empty open delimiter, like key: value pairs):
 #   child₁ sep child₂ …
-# Reading node.children[] registers it as a dependency of the
-# TextText's spans cell, so structural changes trigger a rebuild.
-# Children are projected recursively via print_document(recursion, ...).
+# Each child is projected one level down via `print_child(recursion, child, …)`
+# and its `output.elements` are spliced in — this node never walks the subtree by
+# type (School A). Reading node.children registers it as a dependency of the
+# `child_iomaps` cell, so structural changes trigger a re-splice.
 
 # Default rule for which nodes may carry an inline expand/collapse marker:
 # any node with at least one child. Projection instances can pass a custom
@@ -343,14 +347,10 @@ function _backward_zone(p::SyntaxNodeToText, iomap::SyntaxNodeToTextIoMap, j::In
     return @reference proj(p, {flat})
 end
 
-# Selection mapping (SyntaxNode → TextText):
-# Renders open, children interleaved with sep (plus \n+indent when indentation>0),
-# then close.  The output TextText cursor comes from two sources; structural wins:
-#   1. First child whose selection cell yields a valid cursor via _leaf_cursor.
-#   2. node.selection[] translated by _syntax_to_flat:
-#        .open[k]      →  .elements at char k of the open span
-#        .close[k]     →  .elements at char k of the close span
-#        .children[i]  →  .elements at offset of child i + child's cursor
+# Renders `marker? open`, children interleaved with `sep` (plus `\n`+indent when
+# `indentation != 0`), then `close`, splicing each child's `output.elements`. The
+# output selection is composed by `_compose_node_selection` (forward-mapping
+# node.selection, then a first-descendant-cursor fallback). See those functions.
 function print_document(p::SyntaxNodeToText, recursion, node::SyntaxNode, ctx)
     # Per-projection decorative-span cache (no module-global state): reused across
     # re-layouts so a structural edit keeps the identity of every unchanged
@@ -839,17 +839,19 @@ _widen_indent_span(deco, key, span::TextString, extra::Int) =
     _deco_span(deco, key, () ->
         TextString(span.content * (" " ^ extra), span.font, span.font_color))
 
-# `_collect_spans` re-runs whole on any structural change, allocating fresh newline
-# and indentation `TextString`s each pass — so a structural edit orphans all of them
-# (printer locality — dimension C). They are pure, immutable content never used as a
-# selection target (the selection only ever descends into a leaf's `.content{k}`,
-# see `_leaf_cursor`), so each decorative position can keep ONE reused span across
+# `_splice_node` re-runs the whole node's span assembly on any structural change,
+# which would allocate fresh newline/indent (and splice-widened child indent)
+# `TextString`s each pass — so a structural edit would orphan all of them (printer
+# locality — dimension C). They are pure, immutable content never used as a selection
+# target (the selection only ever descends into a leaf's `.content{k}`, see
+# `_leaf_cursor`), so each decorative position can keep ONE reused span across
 # re-layouts. `_DecoCache` is the reuse cache: a per-projection-invocation cache (it
 # lives in the `spans` cell's closure — never module-global state), keyed by the
-# decorative span's *structural slot* `(node objectid, child index, role)`, which is
-# stable across edits because the syntax nodes are themselves identity-stable (the
-# template engine reconciles them). `seen` records the slots touched in the current
-# pass so the caller can evict the rest.
+# decorative span's *structural slot* — `(node objectid, child index, role)` for own
+# chrome, `(node objectid, :widen, child objectid, elem index)` for a widened child
+# indent — stable across edits because the syntax nodes are themselves identity-stable
+# (the template engine reconciles them). `seen` records the slots touched in the
+# current pass so the caller can evict the rest.
 struct _DecoCache
     spans::Dict{Any,TextString}
     seen::Set{Any}
@@ -1044,7 +1046,7 @@ function _syntax_to_flat(node::SyntaxNode, path::ReferencePath, p::SyntaxNodeToT
         # A ProjectionReference is a position some projection introduced. It is
         # transparent here: strip the wrapper and keep navigating the inner path
         # within this same node. The one terminal case — a bare flat {k} — is this
-        # node's own offset (what SyntaxToText itself emits, via `_pos_to_selection`).
+        # node's own offset (what SyntaxToText's backward mapper emits as `proj(p, {k})`).
         inner = h.output_path
         inner isa ConcreteReferencePath || return -1
         inner.head isa RangeReference && inner.tail isa EmptyReferencePath &&

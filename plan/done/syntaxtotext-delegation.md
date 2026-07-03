@@ -1,9 +1,27 @@
 # SyntaxToText: delegate children instead of flattening the subtree
 
-> **STATUS (2026-07-02, implementation-ready rewrite):** Expanded to code level so an
-> implementer can execute it directly. Part A (the code fix) is **entirely open**;
-> Part B (docs) is **entirely done**. Audited against the working tree on
-> 2026-07-02 — every line number below is current as of that date.
+> **STATUS (2026-07-03, IMPLEMENTED):** Part A (S1–S5) is **complete** on branch
+> `worktree-syntaxtotext-delegation` (commits 08b853e, d98fe7a, 25e42cc, c93413e,
+> + this docs commit). `SyntaxNodeToText`/`SyntaxListToText` now delegate every
+> child through `print_child` and the stored `child_iomaps`; no input-subtree walk
+> remains in the printer, mappers, or reader. Part B (docs) was already done.
+>
+> Verified in-session with light `using Projectured` differential drivers (heavy
+> `test_*`/native stack crashes the VS Code host, so it is handed to the user — see
+> Verification): printing byte-identical across 20 examples through the full graphics
+> pipeline; `output.selection` byte-identical to pre-refactor; every reachable cursor
+> round-trips; Alt+click tree-selection and marker/ellipsis collapse identical to
+> pre-refactor on real click anchors. **Behaviour changes accepted by the user (full
+> delegation):** backward-mapping at chrome boundaries and empty spans now yields
+> `proj`/`.open`/`.close`/whole-child (round-trip-safe) rather than the old
+> flat-descent-into-value — separators/decoration are now non-editable projection
+> chrome; and a nested `SyntaxNode` inside a `ListNode` list now renders multi-line.
+> These need the heavy suite (`test_syntax_to_text`, `test_text_navigation`,
+> `test_repl`, `SyntaxToTextTest`, `test_typein`, `SyntaxTreeSelectionTest`,
+> `CollapseRoundtripTest`) to confirm against the recorded baselines.
+>
+> Line numbers/names below predate a kernel naming refactor (see the note under
+> Settled design decisions); the code uses the current names.
 >
 > Since the original plan was written, three relevant things landed:
 > - `projection_printer_recurse(recursion, input, ctx)` exists
@@ -435,16 +453,23 @@ Replace flat-char input-tree walks with: *classify the element index into a zone
 
 ### S5 — Cleanup + docs
 
-- [ ] Fix the false comment at [:113–115](../../package/domain/src/projection/primitive/SyntaxToText.jl#L113-L115)
-  (it is finally true) and the module docstring (lines 1–8: "character ranges …
-  recorded in the IoMap" → element ranges + delegation).
-- [ ] Update the `_DecoCache` block comment ([:540–555](../../package/domain/src/projection/primitive/SyntaxToText.jl#L540-L555))
-  — the "re-runs whole on any structural change" premise no longer holds.
-- [ ] Remove the printer-side anti-pattern callout naming `SyntaxNodeToText` in
+- [x] Fixed the false comment above `SyntaxNodeToText` (children are now genuinely
+  projected via `print_child`) and rewrote the module docstring (character ranges →
+  element ranges + delegation). Retargeted the stale `_pos_to_selection`/`_collect_spans`
+  mentions and the "two sources" selection-mapping comment.
+- [x] Updated the `_DecoCache` block comment (now covers own chrome *and* the
+  splice-widened child-indent cache keys; the "re-runs whole" premise reworded).
+- [x] Reworded the printer-side anti-pattern callout in
   [documentation/projection-system.md](../../documentation/projection-system.md)
-  (~L552–558) — or reword it past-tense as a worked example.
-- [ ] Move this plan to `plan/done/`.
-- [ ] Commit: `docs(syntax-to-text): update comments and guides after delegation refactor`.
+  past-tense (worked before/after example) — both the intro (§ two prohibitions)
+  and the § Mapping-references callout. Updated
+  [documentation/testing.md](../../documentation/testing.md) (delegation-probe note).
+- [x] **Forced by S1–S3:** promoted `RecursionContractTest.jl` — `SyntaxNodeToText`
+  now delegates, so its `@test_broken` would be an unexpected pass; emptied
+  `_is_known_flattener` and updated the comments (`SyntaxListToText` was never probed
+  — `_should_delegate` doesn't cover `ListNode` — so its entry was vestigial).
+- [x] Move this plan to `plan/done/`.
+- [x] Commit: `docs(syntax-to-text): update comments and guides after delegation refactor`.
 
 ---
 

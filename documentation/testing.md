@@ -167,12 +167,12 @@ The harness lives in
 
 The asserted check is the **delegation probe** — the discriminating test, which adds
 no per-projection generic function (the spy is an ordinary higher-order projection).
-The one node that does not delegate today is `SyntaxNodeToText` (the syntax→text
-flattener, reached transitively by all four examples); it is recorded with
-`@test_broken`, so the suite stays green and flips to an unexpected pass the moment
-the refactor in `plan/pending/syntaxtotext-delegation.md` lands. `test_recursion_contracts()`
-is opt-in (not yet wired into `test_all`); the reference round-trip is exposed as the
-REPL walkers above rather than asserted, pending calibration on a running editor.
+Every probed node now delegates: `SyntaxNodeToText` was the last flattener (reached
+transitively by all four examples) and the refactor in
+`plan/done/syntaxtotext-delegation.md` converted it to School A, so it is now a plain
+`@test`. `test_recursion_contracts()` is opt-in (not yet wired into `test_all`); the
+reference round-trip is exposed as the REPL walkers above rather than asserted,
+pending calibration on a running editor.
 
 ## Running tests via Pkg
 
