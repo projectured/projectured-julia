@@ -343,7 +343,7 @@ there is no separate in-window overlay layer. The flow:
    emits an **`OpenWindowOperation`**. That bubbles up to `WindowManager`, which
    opens the popup window (`style = :floating`).
 3. **Dismissal** is a window-level event: the popup window's
-   `WindowCloseRequest` (Esc / close) or `WindowFocusLost` (outside-click) becomes
+   `WindowClose` (Esc / close) or `WindowDefocus` (outside-click) becomes
    a `CloseWindowOperation`. The `auto_dismiss` flag gates focus-lost so only
    popups (never the main window) self-close. An option/menu-item click writes its
    value **and** closes the popup in one `CompoundOperation`.

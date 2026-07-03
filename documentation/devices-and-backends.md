@@ -42,7 +42,7 @@ KeyDown(:return, Modifiers(ctrl=true)) # Ctrl-Enter
 MousePress(:left, 132, 47)             # left button at pixel (132, 47)
 MouseMove(120, 90)                     # cursor moved to (120, 90)
 MouseScroll(0, 1, 200, 300)            # wheel scrolled (dx, dy) at (200, 300)
-QuitEvent()                            # window close or Escape
+WindowQuit()                            # window close or Escape
 ```
 
 This vocabulary is what insulates a `TextToGraphics.projection_read` (which
@@ -99,7 +99,7 @@ a `TextText` rather than a `ScreenDocument`. Highlights:
 - `read_from_devices` polls `backend.input` (default `stdin`) non-blockingly and
   translates terminal bytes — printable chars, `ESC[` arrow/Home/End/Delete
   sequences, Enter/Backspace/Tab, Ctrl-Space, Ctrl-C — into the same
-  `KeyDown`/`KeyPress`/`QuitEvent` vocabulary the readers already use, wrapped in
+  `KeyDown`/`KeyPress`/`WindowQuit` vocabulary the readers already use, wrapped in
   an `EventEnvelope(:console, …)`. `init!`/`quit!` toggle the terminal's raw mode.
 - Because the console has no screen/window layer, the pipeline supplies its own
   envelope-unwrapping seam — `EnvelopeUnwrappingProjection`
@@ -264,7 +264,7 @@ itself never sees the backend type.
    so projection code does not need to change.
 4. Provide a `measure_text` callback for projections that need it.
 
-The fact that every event projection-level is a `KeyPress`/`KeyDown`/`Mouse*`/`QuitEvent`
+The fact that every event projection-level is a `KeyPress`/`KeyDown`/`Mouse*`/`WindowQuit`
 is the contract that keeps backends interchangeable.
 
 [backend/Web.jl](../package/web/src/Web.jl) is a worked second example: it

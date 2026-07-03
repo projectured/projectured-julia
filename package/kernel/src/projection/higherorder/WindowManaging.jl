@@ -26,7 +26,7 @@ import ..ProjectionApiModule: projection_print, projection_printer_recurse, proj
 import ..ChangeModule: Change
 import ..IoMapApiModule: IoMap
 import ..ReactiveModule: Cell
-import ..ScreenDocumentModule: ScreenDocument, WindowDocument, EventEnvelope, WindowResizeEvent, WindowCloseRequest, WindowFocusLost, OpenWindowOperation, CloseWindowOperation, ResizeWindowOperation
+import ..ScreenDocumentModule: ScreenDocument, WindowDocument, EventEnvelope, WindowResize, WindowClose, WindowDefocus, OpenWindowOperation, CloseWindowOperation, ResizeWindowOperation
 import ..OperationModule: CompoundOperation
 
 export WindowManagingProjection, WindowManagingProjectionIoMap
@@ -76,18 +76,18 @@ function projection_read(p::WindowManagingProjection, recursion, change::Change,
     # A window resize is a window-management concern owned here: resolve the
     # window by id (no coordinate mapping needed) and emit a
     # ResizeWindowOperation, before the inner copier ever sees the envelope.
-    if env isa EventEnvelope && env.event isa WindowResizeEvent
+    if env isa EventEnvelope && env.event isa WindowResize
         win = _find_window(iomap.input, env.window_id)
         win === nothing && return Change(change.gesture, nothing)
         return Change(change.gesture,
                       ResizeWindowOperation(win, env.event.width, env.event.height))
     end
     # The native window close button (SDL_WINDOWEVENT_CLOSE / web close) arrives
-    # as a WindowCloseRequest carrying the window id. Resolve the window and
+    # as a WindowClose carrying the window id. Resolve the window and
     # remove it from both input and output here — the same dual-mutation the
     # manager performs for a CloseWindowOperation bubbling up from below, so the
     # close is owned in one place rather than relying on evaluate_operation.
-    if env isa EventEnvelope && env.event isa WindowCloseRequest
+    if env isa EventEnvelope && env.event isa WindowClose
         win = _find_window(iomap.input, env.window_id)
         win === nothing && return Change(change.gesture, nothing)
         _apply_close!(iomap, CloseWindowOperation(env.window_id))
@@ -95,7 +95,7 @@ function projection_read(p::WindowManagingProjection, recursion, change::Change,
     end
     # Losing focus dismisses only a popup (`auto_dismiss`), so the pointer acting
     # elsewhere closes a dropdown/menu but never the main window or a tooltip.
-    if env isa EventEnvelope && env.event isa WindowFocusLost
+    if env isa EventEnvelope && env.event isa WindowDefocus
         win = _find_window(iomap.input, env.window_id)
         (win !== nothing && win.auto_dismiss === true) || return Change(change.gesture, nothing)
         _apply_close!(iomap, CloseWindowOperation(env.window_id))

@@ -53,7 +53,7 @@ cleanly. The MCP server is started before the loop and stopped in the
 `read_from_devices(backend, devices)` polls the backend's event queue (in
 the SDL case, `SDL_PollEvent`) and returns the next `EventEnvelope` wrapping a
 backend-agnostic event: `KeyDown`, `KeyUp`, `KeyPress`, `MouseDown`, `MouseUp`,
-`MousePress`, `MouseMove`, `MouseScroll`, or `QuitEvent`. The envelope is then
+`MousePress`, `MouseMove`, `MouseScroll`, or `WindowQuit`. The envelope is then
 wrapped in a `Change` and passed through
 `projection_read(editor.projection, nothing, Change(env, nothing), editor.iomap)`
 — the entire pipeline walks backward, each projection contributing a translation
@@ -177,7 +177,7 @@ In the example layer this is wired up for you — see `play_live_example` and
   with ANSI colors, the selection encoded as inverse-video span colors by a
   `SelectionInverting` projection at the end of the pipeline, and
   `read_from_devices` turns keystrokes into the same `KeyDown`/`KeyPress`/
-  `QuitEvent` events. Because it has no screen/window layer, its pipeline adds an
+  `WindowQuit` events. Because it has no screen/window layer, its pipeline adds an
   `EnvelopeUnwrappingProjection` to strip the `EventEnvelope` that
   `ScreenToScreen` would otherwise strip. Run it with
   `run_console_example()` / `run_console_example(interactive=true)`. See

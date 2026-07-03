@@ -14,7 +14,7 @@ import ..ChangeModule: Change
 import ..IoMapApiModule: IoMap
 import ..DeviceApiModule: Device, read_from_devices, write_to_devices
 import ..BackendApiModule: Backend, init!, quit!
-import ..ScreenDeviceModule: Screen, QuitEvent
+import ..ScreenDeviceModule: Screen, WindowQuit
 import ..ScreenDocumentModule: EventEnvelope
 import ..PerformanceCounterModule: perf_counters, perf_reset!, @perf_time
 import ..TimeModule: tick!
@@ -79,7 +79,7 @@ Raw backend events are first pulled through the editor's `GestureRecognizer`
 e.g. a `MouseDown`/`MouseUp` pair is recognised as a `MousePress` click. The
 recogniser returns an `EventEnvelope` wrapping a backend-agnostic gesture
 (KeyDown, KeyUp, KeyPress, MouseDown, MouseUp, MousePress, MouseMove,
-MouseScroll, QuitEvent, WindowCloseRequest, …) together with the originating
+MouseScroll, WindowQuit, WindowClose, …) together with the originating
 `WindowDocument.id`. The envelope is passed to the projection pipeline reader
 which translates it via the last stored IoMap.
 """
@@ -90,7 +90,7 @@ function read!(editor::Editor)
         if env === nothing
             editor.operation = nothing
             return false
-        elseif env isa EventEnvelope && env.event isa QuitEvent
+        elseif env isa EventEnvelope && env.event isa WindowQuit
             editor.operation = QuitEditorOperation()
             return true
         elseif editor.iomap === nothing

@@ -11,7 +11,7 @@ module ScreenDeviceModule
 
 import ..DeviceApiModule: Device
 
-export Screen, QuitEvent
+export Screen, WindowQuit
 
 """
     Screen()
@@ -28,13 +28,14 @@ Multi-monitor support would express each physical display as its own
 struct Screen <: Device end
 
 """
-    QuitEvent
+    WindowQuit
 
 Backend-agnostic event signalling that the user requested to quit
 the entire application (e.g. `SDL_QUIT`, or Escape in the focused
-window). Per-window close requests are signalled by a
-`WindowCloseRequest` carried inside an `EventEnvelope`.
+window). It is a *request* the application may refuse. Per-window
+close requests are signalled by a `WindowClose` carried inside an
+`EventEnvelope`.
 """
-struct QuitEvent end
+struct WindowQuit end
 
 end # module

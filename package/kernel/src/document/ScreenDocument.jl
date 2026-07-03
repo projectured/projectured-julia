@@ -18,7 +18,7 @@ from; the backend produces these and `CopyingProjection`'s reader uses
 them to dispatch events into the matching `WindowDocument.content`'s
 sub-iomap.
 
-`WindowCloseRequest` is the inner event for the native window's close
+`WindowClose` is the inner event for the native window's close
 button being clicked; readers translate it into a document mutation
 (typically: remove the matching `WindowDocument` from `windows`).
 """
@@ -30,8 +30,8 @@ import ..CollectionModule: CellVector
 import ..ReferenceModule: Reference, ReferencePath
 import ..OperationApiModule: Operation, evaluate_operation
 
-export ScreenDocument, WindowDocument, EventEnvelope, WindowCloseRequest,
-       WindowResizeEvent, WindowFocusLost, IScreenDocument, IWindowDocument,
+export ScreenDocument, WindowDocument, EventEnvelope, WindowClose,
+       WindowResize, WindowDefocus, IScreenDocument, IWindowDocument,
        OpenWindowOperation, OpenPopupOperation, CloseWindowOperation, ResizeWindowOperation
 
 # ── ScreenDocument ────────────────────────────────────────────────────────
@@ -76,7 +76,7 @@ projected.
 - `style::Symbol` — `:normal`, `:tooltip`, `:floating`, … Backend
   applies per-style behaviour (default `:normal`).
 - `auto_dismiss::Bool` — when `true`, the window closes itself on a
-  `WindowFocusLost` (it is a transient popup: a dropdown/menu/context menu that
+  `WindowDefocus` (it is a transient popup: a dropdown/menu/context menu that
   should vanish when the pointer acts elsewhere). The main window and tooltips
   stay `false`, so losing focus to a popup never closes them. Default `false`.
 - `content::Document` — the document tree this window displays. Before
@@ -138,23 +138,24 @@ struct EventEnvelope
     event::Any
 end
 
-# ── WindowCloseRequest ────────────────────────────────────────────────────
+# ── WindowClose ────────────────────────────────────────────────────
 
 """
-    WindowCloseRequest()
+    WindowClose()
 
 Inner event carried by an `EventEnvelope` when the user clicks a
-window's native close button (`SDL_WINDOWEVENT_CLOSE`).
-`WindowManagingProjection`'s reader resolves the window by
+window's native close button (`SDL_WINDOWEVENT_CLOSE`). It is a
+*request* the application may refuse — the event reports what the
+user did, not what must happen. `WindowManagingProjection`'s reader resolves the window by
 `EventEnvelope.window_id` and removes the matching `WindowDocument`
 from `ScreenDocument.windows` (via `CloseWindowOperation`).
 """
-struct WindowCloseRequest end
+struct WindowClose end
 
-# ── WindowResizeEvent ─────────────────────────────────────────────────────
+# ── WindowResize ─────────────────────────────────────────────────────
 
 """
-    WindowResizeEvent(width, height)
+    WindowResize(width, height)
 
 Inner event carried by an `EventEnvelope` when the user resizes a window's
 native frame (`SDL_WINDOWEVENT_RESIZED`). `width`/`height` are the new pixel
@@ -163,15 +164,15 @@ translates it into a `ResizeWindowOperation` that writes the new size into the
 matching `WindowDocument`'s `width`/`height` cells — which the printer reads
 as the available layout extent, so the content re-lays-out reactively.
 """
-struct WindowResizeEvent
+struct WindowResize
     width::Int
     height::Int
 end
 
-# ── WindowFocusLost ───────────────────────────────────────────────────────
+# ── WindowDefocus ───────────────────────────────────────────────────────
 
 """
-    WindowFocusLost()
+    WindowDefocus()
 
 Inner event carried by an `EventEnvelope` when a window loses input focus
 (SDL `SDL_WINDOWEVENT_FOCUS_LOST` / web `blur`). `WindowManagingProjection`'s
@@ -180,7 +181,7 @@ popup dismissing because the pointer acted elsewhere. The main window and
 tooltips (`auto_dismiss = false`) ignore it, so focusing a popup never closes
 them.
 """
-struct WindowFocusLost end
+struct WindowDefocus end
 
 # ── Window operations ───────────────────────────────────────────────────────
 # The screen domain's own operation vocabulary: requests to open/close/resize a

@@ -26,9 +26,9 @@ import ProjecturedDomain.ColorModule: StyleColor
 import ProjecturedDomain.GeometryModule: AffineTransform, affine_identity
 import ProjecturedDomain.FontModule: StyleFont, font_logical_size
 import ProjecturedDomain.ReactiveModule: Cell, isuptodate
-import ProjecturedDomain.ScreenDeviceModule: QuitEvent
+import ProjecturedDomain.ScreenDeviceModule: WindowQuit
 import ProjecturedDomain.ScreenDocumentModule: ScreenDocument, WindowDocument, EventEnvelope,
-                               WindowCloseRequest, WindowResizeEvent, WindowFocusLost
+                               WindowClose, WindowResize, WindowDefocus
 import ProjecturedDomain.ModifiersModule: Modifiers
 import ProjecturedDomain.KeyboardModule: KeyDown, KeyUp, KeyPress
 import ProjecturedDomain.MouseModule: MouseDown, MouseUp, MouseMove, MouseScroll
@@ -588,7 +588,7 @@ function _decode_and_enqueue!(backend::WebBackend, msg)
         m = _mods(obj)
         key = String(obj[:key])
         if key == "Escape"
-            put!(backend.inbound, EventEnvelope(:none, QuitEvent()))
+            put!(backend.inbound, EventEnvelope(:none, WindowQuit()))
             return
         end
         sym = web_key_to_symbol(key, String(get(obj, :code, "")), m)
@@ -605,16 +605,16 @@ function _decode_and_enqueue!(backend::WebBackend, msg)
         put!(backend.inbound, EventEnvelope(wid, KeyPress(first(text), text, _mods(obj))))
 
     elseif typ == "resize"
-        put!(backend.inbound, EventEnvelope(wid, WindowResizeEvent(Int(obj[:w]), Int(obj[:h]))))
+        put!(backend.inbound, EventEnvelope(wid, WindowResize(Int(obj[:w]), Int(obj[:h]))))
 
     elseif typ == "close"
-        put!(backend.inbound, EventEnvelope(wid, WindowCloseRequest()))
+        put!(backend.inbound, EventEnvelope(wid, WindowClose()))
 
     elseif typ == "blur"
-        put!(backend.inbound, EventEnvelope(wid, WindowFocusLost()))
+        put!(backend.inbound, EventEnvelope(wid, WindowDefocus()))
 
     elseif typ == "quit"
-        put!(backend.inbound, EventEnvelope(:none, QuitEvent()))
+        put!(backend.inbound, EventEnvelope(:none, WindowQuit()))
 
     elseif typ == "resync"
         # Client (re)launched popups and wants a fresh full state for everything.

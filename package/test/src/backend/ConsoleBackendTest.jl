@@ -86,7 +86,7 @@ function test_console_backend()
         # Home maps to the reader's "select root" chord (Ctrl+Alt+Home).
         @test _parse(0x1b, UInt8('['), UInt8('H')) == KeyDown(:home, Modifiers(ctrl=true, alt=true))
         @test _parse(0x1b, UInt8('['), UInt8('F')) == KeyDown(:end, Modifiers())
-        @test _parse(0x03) isa Projectured.QuitEvent           # Ctrl-C
+        @test _parse(0x03) isa Projectured.WindowQuit           # Ctrl-C
         @test _parse(0x00) == KeyDown(:space, Modifiers(ctrl=true))  # Ctrl-Space
         @test _parse(0x0d) == KeyDown(:return, Modifiers())
         @test _parse(0x7f) == KeyDown(:backspace, Modifiers())

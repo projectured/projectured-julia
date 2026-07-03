@@ -123,10 +123,10 @@ projection_read(projection, iomap, EventEnvelope(:main, :tick))
 
 end # @testset
 
-@testset "WindowCloseRequest removes the matching window" begin
+@testset "WindowClose removes the matching window" begin
 
 # A bare WindowManager over a two-window screen: the native close button on a
-# window arrives as an EventEnvelope(window_id, WindowCloseRequest()) and must
+# window arrives as an EventEnvelope(window_id, WindowClose()) and must
 # remove exactly that window from both the input and the mirrored output.
 main  = WindowDocument(; id=:main,  content=PrimitiveNumber(0))
 popup = WindowDocument(; id=:popup, content=PrimitiveString("p"))
@@ -144,7 +144,7 @@ iomap = projection_print(projection, screen)
 @test length(screen.windows) == 2
 
 # Close the popup via its native close button.
-op = projection_read(projection, iomap, EventEnvelope(:popup, WindowCloseRequest()))
+op = projection_read(projection, iomap, EventEnvelope(:popup, WindowClose()))
 @test !(op isa Operation)
 @test length(screen.windows) == 1
 @test length(iomap.output.windows) == 1
@@ -152,17 +152,17 @@ op = projection_read(projection, iomap, EventEnvelope(:popup, WindowCloseRequest
 @test iomap.output.windows[1].id === :main
 
 # A close for an unknown id is a silent no-op.
-projection_read(projection, iomap, EventEnvelope(:ghost, WindowCloseRequest()))
+projection_read(projection, iomap, EventEnvelope(:ghost, WindowClose()))
 @test length(screen.windows) == 1
 
 # The main window can be closed too (e.g. quitting via the frame).
-projection_read(projection, iomap, EventEnvelope(:main, WindowCloseRequest()))
+projection_read(projection, iomap, EventEnvelope(:main, WindowClose()))
 @test length(screen.windows) == 0
 @test length(iomap.output.windows) == 0
 
 end # @testset
 
-@testset "WindowFocusLost dismisses only auto_dismiss windows" begin
+@testset "WindowDefocus dismisses only auto_dismiss windows" begin
 
 # Losing focus closes a transient popup (auto_dismiss=true) but never the main
 # window or a tooltip (auto_dismiss=false), so opening a popup — which takes focus
@@ -183,17 +183,17 @@ iomap = projection_print(projection, screen)
 @test length(screen.windows) == 2
 
 # Focus-lost on the main window: ignored (not a popup).
-projection_read(projection, iomap, EventEnvelope(:main, WindowFocusLost()))
+projection_read(projection, iomap, EventEnvelope(:main, WindowDefocus()))
 @test length(screen.windows) == 2
 
 # Focus-lost on the popup: dismissed, on both input and output.
-projection_read(projection, iomap, EventEnvelope(:popup, WindowFocusLost()))
+projection_read(projection, iomap, EventEnvelope(:popup, WindowDefocus()))
 @test length(screen.windows) == 1
 @test screen.windows[1].id === :main
 @test length(iomap.output.windows) == 1
 
 # Focus-lost for an unknown id: no-op.
-projection_read(projection, iomap, EventEnvelope(:ghost, WindowFocusLost()))
+projection_read(projection, iomap, EventEnvelope(:ghost, WindowDefocus()))
 @test length(screen.windows) == 1
 
 end # @testset

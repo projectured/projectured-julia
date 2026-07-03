@@ -106,7 +106,7 @@ The full old → new mapping with reasoning is in the table at the end of this f
       `generic/` and hold no child projections.
 - [x] **Batch 3 — operation names** *(done)*: `ReplaceReferencedValueOperation`,
       `ReplaceNumberRangeOperation`, `ReplaceStringRangeOperation`.
-- [ ] **Batch 4 — event names**: `WindowClose`, `WindowResize`,
+- [x] **Batch 4 — event names** *(done)*: `WindowClose`, `WindowResize`,
       `WindowDefocus`, `WindowQuit`.
 - [ ] **Batch 5 — collisions & export ownership**: `LlmBackend` → `Llm`
       (frees `Backend` to uniquely mean the platform/render backend;

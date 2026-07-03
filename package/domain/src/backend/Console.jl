@@ -42,7 +42,7 @@ import ..ColorModule: StyleColor, color_default, color_equal
 import ..FontModule: StyleFont
 import ..ModifiersModule: Modifiers
 import ..KeyboardModule: KeyDown, KeyPress
-import ..ScreenDeviceModule: QuitEvent
+import ..ScreenDeviceModule: WindowQuit
 import ..ScreenDocumentModule: EventEnvelope
 
 export ConsoleBackend, console_render
@@ -305,12 +305,12 @@ function _next_event!(buf::Vector{UInt8})
         elseif length(buf) == 1
             return nothing  # lone ESC so far; wait (Ctrl-C is the quit key)
         else
-            deleteat!(buf, 1); return QuitEvent()  # ESC + non-'[' → quit
+            deleteat!(buf, 1); return WindowQuit()  # ESC + non-'[' → quit
         end
     end
 
     deleteat!(buf, 1)
-    if b0 == 0x03;  return QuitEvent()                                  # Ctrl-C
+    if b0 == 0x03;  return WindowQuit()                                  # Ctrl-C
     elseif b0 == 0x00; return KeyDown(:space, Modifiers(ctrl=true))     # Ctrl-Space
     elseif b0 == 0x0d || b0 == 0x0a; return KeyDown(:return, Modifiers())
     elseif b0 == 0x7f || b0 == 0x08; return KeyDown(:backspace, Modifiers())

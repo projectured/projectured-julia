@@ -36,8 +36,8 @@ import ProjecturedDomain.ColorModule: StyleColor
 import ProjecturedDomain.FontModule: StyleFont, font_scaled_size, font_logical_size, font_device_size,
                          _DISPLAY_SCALE, _BASE_DISPLAY_SCALE, recompute_display_scale!,
                          adjust_user_zoom!, adjust_font_zoom!, _FONT_DIR
-import ProjecturedDomain.ScreenDeviceModule: Screen, QuitEvent
-import ProjecturedDomain.ScreenDocumentModule: ScreenDocument, WindowDocument, EventEnvelope, WindowCloseRequest, WindowResizeEvent, WindowFocusLost
+import ProjecturedDomain.ScreenDeviceModule: Screen, WindowQuit
+import ProjecturedDomain.ScreenDocumentModule: ScreenDocument, WindowDocument, EventEnvelope, WindowClose, WindowResize, WindowDefocus
 import ProjecturedDomain.ModifiersModule: Modifiers
 import ProjecturedDomain.KeyboardModule: KeyDown, KeyUp, KeyPress
 import ProjecturedDomain.MouseModule: MouseDown, MouseUp, MousePress, MouseMove, MouseScroll
@@ -2176,10 +2176,10 @@ end
 
 Poll the SDL event queue once and return an `EventEnvelope` wrapping a
 backend-agnostic inner event:
-- `SDL_QUIT`                           → `EventEnvelope(:none, QuitEvent())`
-- `SDL_WINDOWEVENT_CLOSE` for a window → `EventEnvelope(<id>, WindowCloseRequest())`
-- `SDL_WINDOWEVENT_RESIZED`            → `EventEnvelope(<id>, WindowResizeEvent(w, h))`
-- `SDL_KEYDOWN`                        → `EventEnvelope(<id>, KeyDown)` (Escape → `QuitEvent()`)
+- `SDL_QUIT`                           → `EventEnvelope(:none, WindowQuit())`
+- `SDL_WINDOWEVENT_CLOSE` for a window → `EventEnvelope(<id>, WindowClose())`
+- `SDL_WINDOWEVENT_RESIZED`            → `EventEnvelope(<id>, WindowResize(w, h))`
+- `SDL_KEYDOWN`                        → `EventEnvelope(<id>, KeyDown)` (Escape → `WindowQuit()`)
 - `SDL_KEYUP`                          → `EventEnvelope(<id>, KeyUp)`
 - `SDL_TEXTINPUT`                      → `EventEnvelope(<id>, KeyPress)`
 - `SDL_MOUSEBUTTONDOWN`                → `EventEnvelope(<id>, MouseDown)`
@@ -2201,16 +2201,16 @@ function read_from_devices(backend::SdlBackend, devices)
         t = evt.type
 
         if t == SDL_QUIT
-            return EventEnvelope(:none, QuitEvent())
+            return EventEnvelope(:none, WindowQuit())
 
         elseif t == 0x00000200  # SDL_WINDOWEVENT
             # event byte 1 = SDL_WindowEventID
             sub = evt.window.event
             wid = _lookup_window_id(backend, evt.window.windowID)
             if sub == UInt8(14)  # SDL_WINDOWEVENT_CLOSE
-                return EventEnvelope(wid, WindowCloseRequest())
+                return EventEnvelope(wid, WindowClose())
             elseif sub == UInt8(12)  # SDL_WINDOWEVENT_FOCUS_LOST
-                return EventEnvelope(wid, WindowFocusLost())
+                return EventEnvelope(wid, WindowDefocus())
             elseif sub == UInt8(5)  # SDL_WINDOWEVENT_RESIZED (external/user only)
                 # SDL reports device pixels; the document works in logical pixels.
                 nw = _to_logical(Int(evt.window.data1))
@@ -2223,7 +2223,7 @@ function read_from_devices(backend::SdlBackend, devices)
                     res.width = nw
                     res.height = nh
                 end
-                return EventEnvelope(wid, WindowResizeEvent(nw, nh))
+                return EventEnvelope(wid, WindowResize(nw, nh))
             end
             # Other window events are not currently surfaced; keep polling.
             continue
@@ -2232,7 +2232,7 @@ function read_from_devices(backend::SdlBackend, devices)
             keysym = evt.key.keysym.sym
             wid = _lookup_window_id(backend, evt.key.windowID)
             if keysym == Int32(27)  # SDLK_ESCAPE
-                return EventEnvelope(:none, QuitEvent())
+                return EventEnvelope(:none, WindowQuit())
             end
             is_repeat = evt.key.repeat != 0
             return EventEnvelope(wid, sdl_to_keydown(keysym, evt.key.keysym.mod, is_repeat))
