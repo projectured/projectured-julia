@@ -24,10 +24,12 @@ module ProjecturedKernel
 # obeys those dependency edges. Only ProjectionApiModule (api/Projection.jl) is
 # structurally load-bearing among the api stubs.
 
-# ── Reactive engine (layer 0 — the DAG's dependency-free base) ─────────────
-# PerformanceCounter (leaf) before Reactive, which bumps its `_perf` on the hot path.
-include("reactive/PerformanceCounter.jl")
-include("reactive/Reactive.jl")
+# ── Cell kinds (layer 0 — the DAG's dependency-free base) ──────────────────
+# PerformanceCounter (leaf) before the cells, whose reactive kind bumps its
+# `_perf` on the hot path. Reactive.jl is the module aggregator; it includes the
+# three kind files (ReactiveCell/MutableCell/ImmutableCell).
+include("cell/PerformanceCounter.jl")
+include("cell/Reactive.jl")
 
 # ── API — abstract types + `function foo end` stubs ────────────────────────
 # Pure interface modules: abstract types and generic-function stubs only. The
