@@ -12,7 +12,8 @@ The domain includes:
 module XmlModule
 
 import ..ReactiveModule: Cell
-import ..DocumentModule: Document, @document, @forward_map
+import ..DocumentApiModule: Document
+import ..DocumentModule: @document, @forward_map
 import ..CollectionModule: CellVector
 import ..ReferenceModule: Reference, ConcreteReferencePath, FieldReference, EmptyReferencePath, ProjectionReference, evaluate_reference
 import ..ReferenceBuilderModule: var"@reference"

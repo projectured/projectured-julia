@@ -17,7 +17,8 @@ is evaluated against that document's current selection):
 module GestureMapModule
 
 import ..ReactiveModule: Cell
-import ..DocumentModule: Document, @document
+import ..DocumentApiModule: Document
+import ..DocumentModule: @document
 import ..ReferenceModule: Reference
 import ..GestureBindingModule: GestureBinding, describe
 

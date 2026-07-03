@@ -18,7 +18,7 @@ Two concrete backends:
 """
 module LlmModule
 
-export LlmBackend, AnthropicLlm, FakeLlm, stream_turn,
+export Llm, AnthropicLlm, FakeLlm, stream_turn,
        ScriptedLlm, scripted_turn, scripted_think, scripted_say, scripted_run
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -26,7 +26,7 @@ export LlmBackend, AnthropicLlm, FakeLlm, stream_turn,
 # ═══════════════════════════════════════════════════════════════════════
 
 """
-    LlmBackend
+    Llm
 
 Abstract supertype for chat backends. Each concrete subtype defines a
 method on `stream_turn` that takes the assistant's current context
@@ -36,7 +36,7 @@ streaming spec — `message_start`, `content_block_start`,
 `content_block_delta`, `content_block_stop`, `message_delta`,
 `message_stop` — so the same event handler works for all backends.
 """
-abstract type LlmBackend end
+abstract type Llm end
 
 """
     stream_turn(backend, api_key, model, system, messages, tools; on_event)
@@ -57,7 +57,7 @@ function stream_turn end
 Real Claude backend. Requires `api_key` to be set on the assistant
 (typically from `ENV["ANTHROPIC_API_KEY"]`).
 """
-struct AnthropicLlm <: LlmBackend
+struct AnthropicLlm <: Llm
     base_url::String
     max_tokens::Int
 end
@@ -69,7 +69,7 @@ AnthropicLlm(; base_url::AbstractString = "https://api.anthropic.com/v1/messages
 # The `stream_turn(::AnthropicLlm, …)` method calls `ProjecturedLlm.stream_message`
 # (HTTP/JSON3) and therefore lives in the standalone `ProjecturedLlm` package
 # (package/llm) — not here. This module stays dependency-free: it holds only the
-# abstract `LlmBackend`, the `stream_turn` generic, the (dep-free) `AnthropicLlm`
+# abstract `Llm`, the `stream_turn` generic, the (dep-free) `AnthropicLlm`
 # struct, and the in-process `FakeLlm`.
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -90,7 +90,7 @@ more `thinking_delta`s, a single `signature_delta{signature:"sig_fake"}`,
 then `content_block_stop` — so the whole thinking capture/round-trip path
 is exercisable offline.
 """
-struct FakeLlm <: LlmBackend
+struct FakeLlm <: Llm
     reply::String
     chunk_size::Int
     delay::Float64
@@ -183,7 +183,7 @@ already spread prose across delayed deltas.
 
 The older positional form `ScriptedLlm(scripts)` (no timing) keeps working.
 """
-mutable struct ScriptedLlm <: LlmBackend
+mutable struct ScriptedLlm <: Llm
     scripts::Vector{Vector{NamedTuple}}
     cursor::Int
     delay::Float64

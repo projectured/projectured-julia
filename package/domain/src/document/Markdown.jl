@@ -17,7 +17,8 @@ The domain includes:
 module MarkdownModule
 
 import ..ReactiveModule: Cell, setfn!, setval!
-import ..DocumentModule: Document, @document, @forward_vector
+import ..DocumentApiModule: Document
+import ..DocumentModule: @document, @forward_vector
 import ..CollectionModule: CellVector
 import ..ReferenceModule: Reference
 export MarkdownDocument, MarkdownInsertion, MarkdownText, MarkdownCode, MarkdownEmphasis,

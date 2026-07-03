@@ -1,7 +1,7 @@
 """
     Llm
 
-Opt-in package: the Anthropic Messages API client (real-Claude `LlmBackend`).
+Opt-in package: the Anthropic Messages API client (real-Claude `Llm`).
 Depends on `ProjecturedKernel` + HTTP/JSON3; `using ProjecturedLlm` adds the
 `stream_turn(::AnthropicLlm)` method to the kernel's `LlmModule` seam. Relocated
 from the former program/src/editor/Anthropic.jl (AnthropicModule).
@@ -156,7 +156,7 @@ function _drain_sse_events!(buf::IOBuffer, on_event::Function; final::Bool = fal
     end
 end
 
-# The real-Claude `LlmBackend.stream_turn` method lives here (not in LlmModule)
+# The real-Claude `Llm.stream_turn` method lives here (not in LlmModule)
 # because it calls `stream_message` (HTTP/JSON3): this keeps LlmModule
 # dependency-free and confines the network dependency to this module, which
 # becomes the LLM package extension.

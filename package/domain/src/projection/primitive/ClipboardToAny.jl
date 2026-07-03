@@ -47,7 +47,7 @@ import ..OperationModule: ReplaceSelectionOperation, ReplaceReferencedValueOpera
                           insert_elements, delete_elements, CompoundOperation
 import ..PrimitiveModule: ReplaceStringRangeOperation, ReplaceNumberRangeOperation, PrimitiveString
 import ..ReactiveModule: Cell
-import ..DocumentModule: Document
+import ..DocumentApiModule: Document
 import ..DocumentCoreModule: DocumentNothing
 import ..DocumentModule: copy_document
 import ..ClipboardModule: ClipboardSlice, ClipboardCollection

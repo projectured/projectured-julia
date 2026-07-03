@@ -13,7 +13,8 @@ The domain includes:
 module TabularModule
 
 import ..ReactiveModule: Cell, setfn!, setval!
-import ..DocumentModule: Document, @document
+import ..DocumentApiModule: Document
+import ..DocumentModule: @document
 import ..CollectionModule: CellVector, cell_at
 import ..ReferenceModule: Reference
 export TabularDocument, TabularCell, TabularRow, TabularGrid,

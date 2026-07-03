@@ -25,7 +25,8 @@ Each span has reactive styling fields:
 module TextModule
 
 import ..ReactiveModule: Cell, setfn!, setval!
-import ..DocumentModule: Document, @document
+import ..DocumentApiModule: Document
+import ..DocumentModule: @document
 import ..CollectionModule: CellVector, ListNode, CollectionDocument
 import ..FontModule: StyleFont, font_ubuntu_monospace_regular_20
 import ..ColorModule: StyleColor, color_default, color_solarized_gray

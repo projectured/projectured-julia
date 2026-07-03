@@ -11,12 +11,13 @@ filename, and content.
 module WorkbenchModule
 
 import ..ReactiveModule: Cell, setfn!, setval!
-import ..DocumentModule: Document, @document
+import ..DocumentApiModule: Document
+import ..DocumentModule: @document
 import ..CollectionModule: CellVector
 import ..TextModule: TextText
 import ..PrimitiveModule: PrimitiveString
 import ..ConversationModule: ConversationConversation, ConversationTurn, ConversationPart, ConversationDraft
-import ..LlmModule: LlmBackend
+import ..LlmModule: Llm
 import ..ReferenceModule: Reference, ReferencePath, ConcreteReferencePath, ElementReference, RangeReference, EmptyReferencePath, FieldReference, is_element_reference
 import ..WorkspaceModule: Workspace, WorkspaceFolder
 import ..OperationApiModule: Operation, evaluate_operation
@@ -269,7 +270,7 @@ editable prompt (`input`, a `PrimitiveString` so the existing text-edit
 projections route `KeyPress`/backspace/delete to it directly), the
 Anthropic model id (`model`), the system prompt (`system`), the Anthropic
 API key (`api_key`), a `status` symbol (`:idle`, `:streaming`, `:error`,
-...), and a pluggable `llm::LlmBackend` that decides how submit turns are
+...), and a pluggable `llm::Llm` that decides how submit turns are
 serviced (real Claude vs. a canned-reply fake).
 
 `llm` defaults to `nothing` and `api_key` to empty: the concrete backend
@@ -290,7 +291,7 @@ Pass an explicit `llm` (e.g. `FakeLlm("ok")` in tests) to bypass resolution.
     api_key::String
     status::Symbol
     collapse_thinking::Bool
-    llm::Union{Nothing,LlmBackend}
+    llm::Union{Nothing,Llm}
     selection::Reference
 end
 
@@ -305,7 +306,7 @@ function WorkbenchAssistant(; conversation::ConversationConversation = Conversat
                               api_key::AbstractString = "",
                               status::Symbol = :idle,
                               collapse_thinking::Bool = true,
-                              llm::Union{Nothing,LlmBackend} = nothing)
+                              llm::Union{Nothing,Llm} = nothing)
     a = WorkbenchAssistant(Cell(conversation), Cell(input), Cell(draft),
                            Cell(String(model)), Cell(String(system)),
                            Cell(String(api_key)), Cell(status),

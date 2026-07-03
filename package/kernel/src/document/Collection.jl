@@ -23,7 +23,8 @@ slot's dependents, not the entire collection.
 module CollectionModule
 
 import ..ReactiveModule: Cell, setfn!, setval!
-import ..DocumentModule: Document, copy_document, @document, @forward
+import ..DocumentApiModule: Document
+import ..DocumentModule: copy_document, @document, @forward
 import ..ReferenceModule: Reference
 export CellVector, CellMatrix, CellTable, ListNode, CollectionDocument,
        left_tail, right_tail, cell_at, take_first_n,

@@ -9,7 +9,8 @@ carries reactive Cell fields for all mutable properties.
 module WidgetModule
 
 import ..ReactiveModule: Cell, setfn!, setval!
-import ..DocumentModule: Document, @document
+import ..DocumentApiModule: Document
+import ..DocumentModule: @document
 import ..CollectionModule: CellVector
 import ..OperationApiModule: Operation, evaluate_operation
 import ..GestureBindingModule: KeyDownPattern, matches, GestureBinding, instance_gestures

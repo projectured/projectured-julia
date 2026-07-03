@@ -108,7 +108,7 @@ The full old → new mapping with reasoning is in the table at the end of this f
       `ReplaceNumberRangeOperation`, `ReplaceStringRangeOperation`.
 - [x] **Batch 4 — event names** *(done)*: `WindowClose`, `WindowResize`,
       `WindowDefocus`, `WindowQuit`.
-- [ ] **Batch 5 — collisions & export ownership**: `LlmBackend` → `Llm`
+- [x] **Batch 5 — collisions & export ownership** *(done)*: `LlmBackend` → `Llm`
       (frees `Backend` to uniquely mean the platform/render backend;
       `AnthropicLlm <: Llm` reads naturally); `Document` exported from
       `api/` only; `evaluate_operation` owned and exported by `api/` only —

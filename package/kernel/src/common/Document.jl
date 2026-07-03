@@ -11,7 +11,7 @@ module DocumentModule
 import ..DocumentApiModule: Document
 import ..ReactiveModule: Cell
 
-export Document, copy_document,
+export copy_document,
        @document, @forward, @forward_vector, @forward_map
 
 """

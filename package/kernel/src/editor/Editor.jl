@@ -18,7 +18,7 @@ import ..ScreenDeviceModule: Screen, WindowQuit
 import ..ScreenDocumentModule: EventEnvelope
 import ..PerformanceCounterModule: perf_counters, perf_reset!, @perf_time
 import ..TimeModule: tick!
-import ..DocumentModule: Document
+import ..DocumentApiModule: Document
 import ..KeyboardModule: Keyboard, KeyDown
 import ..MouseModule: Mouse
 import ..OperationApiModule: Operation, evaluate_operation, invalidate_projection!

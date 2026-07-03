@@ -17,7 +17,8 @@ conceptual core is the two fields `form` + `result`.
 module EvaluatorModule
 
 import ..ReactiveModule: Cell, setfn!, setval!
-import ..DocumentModule: Document, @document
+import ..DocumentApiModule: Document
+import ..DocumentModule: @document
 import ..CollectionModule: CellVector
 import ..ReferenceModule: Reference
 import ..TextModule: TextText, TextString

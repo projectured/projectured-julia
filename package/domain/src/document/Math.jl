@@ -30,7 +30,8 @@ Selection semantics (`[i]` = 1-based item, `{k}` = 0-based cursor):
 module MathModule
 
 import ..ReactiveModule: Cell
-import ..DocumentModule: Document, @document
+import ..DocumentApiModule: Document
+import ..DocumentModule: @document
 import ..ReferenceModule: Reference
 export MathDocument, MathInsertion, MathVariable, MathBinaryOperation, MathParenthesized, MathAssignment,
        IMathInsertion, IMathVariable, IMathBinaryOperation, IMathParenthesized, IMathAssignment,

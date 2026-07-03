@@ -45,7 +45,7 @@ import ..OperationModule: ReplaceSelectionOperation, ReplaceReferencedValueOpera
                           insert_elements, delete_elements, CompoundOperation
 import ..PrimitiveModule: ReplaceStringRangeOperation, ReplaceNumberRangeOperation
 import ..ReactiveModule: Cell
-import ..DocumentModule: Document
+import ..DocumentApiModule: Document
 import ..DocumentCoreModule: DocumentNothing
 import ..DocumentModule: copy_document
 import ..VersioningModule: VersionedObject, ObjectVersion, VersionProperties,

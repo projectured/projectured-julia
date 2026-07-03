@@ -13,7 +13,8 @@ free of any backend dependency.
 module DatabaseDocumentModule
 
 import ..ReactiveModule: Cell
-import ..DocumentModule: Document, @document
+import ..DocumentApiModule: Document
+import ..DocumentModule: @document
 import ..ReferenceModule: Reference
 import ..OperationApiModule: Operation
 

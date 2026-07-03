@@ -14,7 +14,8 @@ document type carried; that stub has been replaced by the working serializers.)
 module DocumentCoreModule
 
 import ..ReactiveModule: Cell
-import ..DocumentModule: Document, @document
+import ..DocumentApiModule: Document
+import ..DocumentModule: @document
 import ..ReferenceModule: Reference, ReferencePath
 export DocumentBase, DocumentNothing, DocumentInsertion, DocumentReference,
        IDocumentNothing, IDocumentInsertion, IDocumentReference

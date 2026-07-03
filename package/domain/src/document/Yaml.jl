@@ -12,7 +12,8 @@ The domain includes:
 module YamlModule
 
 import ..ReactiveModule: Cell
-import ..DocumentModule: Document, @document, @forward_vector, @forward_map
+import ..DocumentApiModule: Document
+import ..DocumentModule: @document, @forward_vector, @forward_map
 import ..CollectionModule: CellVector
 import ..ReferenceModule: Reference, ReferencePath, ConcreteReferencePath, PositionReference, RangeReference, FieldReference, EmptyReferencePath, ProjectionReference, evaluate_reference
 import ..ReferenceBuilderModule: var"@reference"

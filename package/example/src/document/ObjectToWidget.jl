@@ -1,4 +1,5 @@
-using Projectured.DocumentModule: Document, @document
+using Projectured.DocumentApiModule: Document
+using Projectured.DocumentModule: @document
 using Projectured.ReferenceModule: Reference
 
 # A small settings object whose scalar Cell fields ObjectToWidget reflects into

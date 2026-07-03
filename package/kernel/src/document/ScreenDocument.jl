@@ -25,7 +25,8 @@ button being clicked; readers translate it into a document mutation
 module ScreenDocumentModule
 
 import ..ReactiveModule: Cell, setfn!, setval!
-import ..DocumentModule: Document, @document
+import ..DocumentApiModule: Document
+import ..DocumentModule: @document
 import ..CollectionModule: CellVector
 import ..ReferenceModule: Reference, ReferencePath
 import ..OperationApiModule: Operation, evaluate_operation

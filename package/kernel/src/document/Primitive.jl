@@ -8,7 +8,8 @@ is stored in a reactive Cell so changes are tracked.
 module PrimitiveModule
 
 import ..ReactiveModule: Cell, setfn!, setval!
-import ..DocumentModule: Document, @document
+import ..DocumentApiModule: Document
+import ..DocumentModule: @document
 import ..DocumentApiModule: clear_selection!, set_selection!
 import ..OperationApiModule: Operation, evaluate_operation
 import ..OperationModule: splice_string, splice_value!, splice_number
@@ -17,7 +18,6 @@ import ..ReferenceModule: Reference, ReferencePath, ConcreteReferencePath, Empty
                           strip_reference_types, reference_steps
 export PrimitiveDocument, PrimitiveInsertion, PrimitiveBool, PrimitiveNumber, PrimitiveString,
        ReplaceNumberRangeOperation, ReplaceStringRangeOperation,
-       evaluate_operation,
        IPrimitiveInsertion, IPrimitiveBool, IPrimitiveNumber, IPrimitiveString
 
 # ── Abstract base ─────────────────────────────────────────────────────────────

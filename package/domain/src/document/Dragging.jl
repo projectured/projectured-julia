@@ -16,7 +16,8 @@ the document tree.
 module DraggingDocumentModule
 
 import ..ReactiveModule: Cell
-import ..DocumentModule: Document, @document
+import ..DocumentApiModule: Document
+import ..DocumentModule: @document
 import ..ReferenceModule: Reference
 
 export DraggingDocument, DraggingState, IDraggingState

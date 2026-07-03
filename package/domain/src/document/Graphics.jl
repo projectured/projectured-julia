@@ -16,7 +16,8 @@ All fields are reactive Cells for automatic dependency tracking and incremental 
 module GraphicsModule
 
 import ..ReactiveModule: Cell, setfn!, setval!
-import ..DocumentModule: Document, @document
+import ..DocumentApiModule: Document
+import ..DocumentModule: @document
 import ..CollectionModule: CellVector, ListNode, CollectionDocument
 import ..FontModule: StyleFont, font_logical_size
 import ..ColorModule: StyleColor, color_white, color_black

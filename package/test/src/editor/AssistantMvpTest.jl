@@ -31,7 +31,7 @@ using Projectured: PrimitiveDocument, PrimitiveToSyntax, SyntaxToText,
                    VerticalLayout
 using Projectured: ConcreteReferencePath, FieldReference, RangeReference,
                    EmptyReferencePath
-using Projectured: LlmBackend, FakeLlm, ScriptedLlm,
+using Projectured: Llm, FakeLlm, ScriptedLlm,
                    scripted_turn, scripted_think, scripted_say, scripted_run
 using Projectured: ComposerInputOperation, SubmitDraftTurnOperation, SubmitProseOperation
 using Projectured.McpModule: register_default_tools_and_resources!
@@ -189,7 +189,7 @@ function _mvp_test_scenes()
 end
 
 # Verify the FakeLlm backend can be swapped to produce a different canned
-# reply — proves the LlmBackend dispatch actually routes through.
+# reply — proves the Llm dispatch actually routes through.
 function _mvp_test_fake_llm_dispatch()
     @testset "FakeLlm dispatch" begin
         a = make_assistant_mvp_setup(; reply = "hi there")

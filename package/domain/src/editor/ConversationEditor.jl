@@ -44,7 +44,7 @@ import ..JuliaParserModule: juliaparse
 import ..JsonParserModule: jsonparse
 import ..XmlParserModule: xmlparse
 import ..McpModule: execute_julia_code, last_eval_value
-import ..DocumentModule: Document
+import ..DocumentApiModule: Document
 import ..WidgetModule: WidgetCard, WidgetAvatar, WidgetLabel, Point2D
 import ..LayoutModule: VerticalLayout, HorizontalLayout
 import ..StyleTextModule: StyleText

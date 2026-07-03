@@ -10,7 +10,8 @@ not stored in the document.
 module WorkspaceModule
 
 import ..ReactiveModule: Cell
-import ..DocumentModule: Document, @document
+import ..DocumentApiModule: Document
+import ..DocumentModule: @document
 import ..CollectionModule: CellVector
 import ..ReferenceModule: Reference
 export WorkspaceDocument, WorkspaceFolder, Workspace,

@@ -17,7 +17,8 @@ inside another component, or as a standalone top-level document.
 module ComponentModule
 
 import ..ReactiveModule: Cell, setfn!, setval!
-import ..DocumentModule: Document, @document
+import ..DocumentApiModule: Document
+import ..DocumentModule: @document
 import ..ReferenceModule: Reference
 export ComponentDocument,
        ComponentMasterDetail,

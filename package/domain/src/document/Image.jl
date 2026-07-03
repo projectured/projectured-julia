@@ -7,7 +7,8 @@ documents. Both subtypes share the abstract `ImageDocument` base.
 module ImageModule
 
 import ..ReactiveModule: Cell, setfn!, setval!
-import ..DocumentModule: Document, @document
+import ..DocumentApiModule: Document
+import ..DocumentModule: @document
 import ..ReferenceModule: Reference
 export ImageDocument, ImageInsertion, ImageFile, ImageMemory, setfn!,
        IImageInsertion, IImageFile, IImageMemory
