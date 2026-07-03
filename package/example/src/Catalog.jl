@@ -17,7 +17,12 @@
 _icompanion_name(::Type{T}) where {T} = Symbol(:I, nameof(T))
 _has_icompanion(::Type{T}) where {T} = isdefined(parentmodule(T), _icompanion_name(T))
 _icompanion(::Type{T}) where {T} = getfield(parentmodule(T), _icompanion_name(T))
-_declared_field_types(::Type{T}) where {T} = collect(fieldtypes(_icompanion(T)))
+# The `I`-companion's fields are `ImmutableCell{T}` (the immutable cell kind); unwrap
+# to the declared element type `T` the instantiator/leaf-check actually need. Document
+# types are *abstract umbrellas* (`JsonNull`) over reactive/immutable kinds (`RJsonNull`
+# / `IJsonNull`), so we key on `<: Document`, never on `isconcretetype`.
+_uncell(ft) = (ft isa DataType && ft <: AbstractCell && !isempty(ft.parameters)) ? ft.parameters[1] : ft
+_declared_field_types(::Type{T}) where {T} = Any[_uncell(ft) for ft in fieldtypes(_icompanion(T))]
 
 _unwrap(o) = o isa AbstractCell ? o[] : o
 
@@ -62,7 +67,8 @@ function _minimal_field(@nospecialize ft)
     ft <: Integer        && return 0
     ft <: Real           && return 0
     ft <: AbstractString && return ""
-    Nothing <: ft        && return nothing           # e.g. `selection::Reference`
+    ft <: CellVector     && return CellVector()       # empty container (Phase 0)
+    Nothing <: ft        && return nothing            # e.g. `selection::Reference`
     ft <: Document       && return minimal(isconcretetype(ft) ? ft : _UNIT_DOCUMENT)
     try ft() catch; nothing end
 end
@@ -160,12 +166,14 @@ catalog_domain(ex::Example) = _domain(typeof(ex.document))
 runnable(ex::Example) = ex.terminal in (:text, :graphics)   # graphics→screen/web, text→console
 
 # ── Generators ──────────────────────────────────────────────────────────────────
+# Document umbrella types are cell-kind `UnionAll`s (`JsonNull = JsonNull{K} where K`),
+# `<: Document` but NOT `DataType` — so we test `isa Type`, never `isa DataType`.
 function _projectable_document_types()
-    ts = DataType[]
+    ts = Type[]
     for m in methods(print_document)
         length(m.sig.parameters) == 5 || continue               # (fn, p, recursion, doc, ctx)
         d = m.sig.parameters[4]
-        d isa DataType && d <: Document && isconcretetype(d) && d ∉ ts && push!(ts, d)
+        d isa Type && d <: Document && d !== Document && d ∉ ts && push!(ts, d)
     end
     ts
 end
@@ -178,13 +186,13 @@ _atomic_example(docT, projT, term) =
 #    domain-agnostic testers (printer/reader/repl).
 function discover_atomic_pairs()
     examples = Example[]
-    seen = Set{Tuple{DataType,DataType}}()
+    seen = Set{Tuple{Type,Type}}()
     for m in methods(print_document)
         length(m.sig.parameters) == 5 || continue
         projT = m.sig.parameters[2]; docT = m.sig.parameters[4]
-        (projT isa DataType && docT isa DataType) || continue
-        (docT <: Document && isconcretetype(docT))  || continue
-        (projT <: Projection && isconcretetype(projT)) || continue
+        (projT isa Type && docT isa Type) || continue
+        (docT <: Document && docT !== Document)       || continue   # cell-kind umbrella (UnionAll)
+        (projT <: Projection && projT !== Projection) || continue
         (docT, projT) in seen && continue; push!(seen, (docT, projT))
         (_has_icompanion(docT) && is_leaf_document(docT)) || continue
         local doc, proj
