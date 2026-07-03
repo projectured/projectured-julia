@@ -38,9 +38,7 @@ import ..ReferenceBuilderModule: var"@reference"
 import ..OperationModule: ReplaceSelectionOperation, ToggleCollapseOperation, splice_string, splice_value!
 import ..PrimitiveModule: ReplaceStringRangeOperation
 import ..GestureBindingModule: var"@gestures"
-export TextDocument, TextInsertion, TextNewline, TextSpacing, TextString, TextGraphics, TextText, set_function!,
-       ITextInsertion, ITextNewline, ITextSpacing, ITextString, ITextGraphics, ITextText,
-       text_flat_length, text_selection_flat, hinted_text,
+export TextDocument, set_function!, text_flat_length, text_selection_flat, hinted_text,
        text_selection_substring, text_insert_op
 
 # ── TextDocument (base) ───────────────────────────────────────────────────

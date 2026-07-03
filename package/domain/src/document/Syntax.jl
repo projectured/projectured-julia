@@ -32,11 +32,7 @@ import ..KeyboardModule: KeyDown
 import ..GestureBindingModule: var"@gestures"
 import ..FontModule: font_ubuntu_monospace_regular_20
 import ..ColorModule: color_default
-export SyntaxNode, SyntaxLeaf, SyntaxDocument, SyntaxInsertion, render, set_function!,
-       SyntaxDelimitation, SyntaxIndentation, SyntaxCollapsible,
-       SyntaxNavigation, SyntaxConcatenation, SyntaxSeparation,
-       ISyntaxNode, ISyntaxLeaf, ISyntaxInsertion, ISyntaxDelimitation, ISyntaxIndentation,
-       ISyntaxCollapsible, ISyntaxNavigation, ISyntaxConcatenation, ISyntaxSeparation
+export SyntaxDocument, render, set_function!
 
 """
     SyntaxDocument

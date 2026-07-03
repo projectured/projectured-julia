@@ -33,9 +33,7 @@ import ..CellModule: Cell
 import ..DocumentApiModule: Document
 import ..DocumentModule: @document
 import ..ReferenceModule: Reference
-export MathDocument, MathInsertion, MathVariable, MathBinaryOperation, MathParenthesized, MathAssignment,
-       IMathInsertion, IMathVariable, IMathBinaryOperation, IMathParenthesized, IMathAssignment,
-       _operator_string
+export MathDocument, _operator_string
 
 # ── Abstract base ─────────────────────────────────────────────────────────────
 

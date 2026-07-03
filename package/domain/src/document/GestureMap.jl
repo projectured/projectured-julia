@@ -22,7 +22,7 @@ import ..DocumentModule: @document
 import ..ReferenceModule: Reference
 import ..GestureBindingModule: GestureBinding, describe
 
-export GestureMap, GestureRow, gesture_map
+export GestureRow, gesture_map
 
 """
     GestureRow(gesture, description, domain, applicable)

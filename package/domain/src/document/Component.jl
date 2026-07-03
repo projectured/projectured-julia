@@ -20,9 +20,7 @@ import ..CellModule: Cell, set_function!, set_value!
 import ..DocumentApiModule: Document
 import ..DocumentModule: @document
 import ..ReferenceModule: Reference
-export ComponentDocument,
-       ComponentMasterDetail,
-       IComponentMasterDetail
+export ComponentDocument
 
 # ── ComponentDocument (abstract base) ────────────────────────────────────────
 

@@ -18,8 +18,7 @@ import ..DocumentModule: @document
 import ..ReferenceModule: Reference
 import ..OperationApiModule: Operation
 
-export DatabaseDocument, DatabaseTable, IDatabaseTable,
-       DatabaseUpdateOperation, DatabaseInsertOperation
+export DatabaseDocument, DatabaseUpdateOperation, DatabaseInsertOperation
 
 # ── Abstract base ─────────────────────────────────────────────────────────────
 

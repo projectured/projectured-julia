@@ -10,8 +10,7 @@ import ..CellModule: Cell, set_function!, set_value!
 import ..DocumentApiModule: Document
 import ..DocumentModule: @document
 import ..ReferenceModule: Reference
-export ImageDocument, ImageInsertion, ImageFile, ImageMemory, set_function!,
-       IImageInsertion, IImageFile, IImageMemory
+export ImageDocument, set_function!
 
 # ── Abstract base ──────────────────────────────────────────────────────────
 

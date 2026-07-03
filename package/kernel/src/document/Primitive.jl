@@ -16,9 +16,7 @@ import ..OperationModule: splice_string, splice_value!, splice_number
 import ..ReferenceModule: Reference, ReferencePath, ConcreteReferencePath, EmptyReferencePath,
                           ReferenceStep, FieldReference, RangeReference, evaluate_reference,
                           strip_reference_types, reference_steps
-export PrimitiveDocument, PrimitiveInsertion, PrimitiveBool, PrimitiveNumber, PrimitiveString,
-       ReplaceNumberRangeOperation, ReplaceStringRangeOperation,
-       IPrimitiveInsertion, IPrimitiveBool, IPrimitiveNumber, IPrimitiveString
+export PrimitiveDocument, ReplaceNumberRangeOperation, ReplaceStringRangeOperation
 
 # ── Abstract base ─────────────────────────────────────────────────────────────
 

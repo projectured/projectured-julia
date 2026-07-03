@@ -26,10 +26,8 @@ import ..CellModule: Cell, AbstractCell, ReactiveCell, ImmutableCell, MutableCel
 import ..DocumentModule: Document, copy_document, rekind, sync_document!, _same_cell,
        _same_wrapper, _shadow_elem, @document, @forward
 import ..ReferenceModule: Reference
-export CellVector, CellMatrix, CellTable, ListNode, CollectionDocument,
-       get_left_tail, get_right_tail, get_cell_at, take_first,
-       insertrow!, insertcol!, deleterow!, deletecol!, insertrow, deleterow,
-       ICellVector, ICellMatrix, ICellTable, IListNode
+export CollectionDocument, get_left_tail, get_right_tail, get_cell_at, take_first, insertrow!,
+       insertcol!, deleterow!, deletecol!, insertrow, deleterow
 
 # ── CellVector ────────────────────────────────────────────────────────────
 # A vector document where each slot is a reactive Cell.

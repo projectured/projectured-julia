@@ -39,13 +39,9 @@ import ..JuliaModule: JuliaDocument,
                       JuliaWhile, JuliaReturn, JuliaBreak, JuliaContinue, JuliaTry,
                       JuliaBegin, JuliaIf, JuliaFunction, JuliaBlock, _julia_operator_string
 
-export FormulaDocument, FormulaInsertion, FormulaReference, FormulaFormula,
-       FormulaEnvironment, formula_result_text, wire_result!,
-       resolve, column_letter, cell_name,
-       formula_references, formula_dependencies,
-       would_create_cycle, topological_order,
-       formula_to_expr, evaluate_formula,
-       IFormulaInsertion, IFormulaReference, IFormulaFormula, IFormulaEnvironment
+export FormulaDocument, formula_result_text, wire_result!, resolve, column_letter, cell_name,
+       formula_references, formula_dependencies, would_create_cycle, topological_order,
+       formula_to_expr, evaluate_formula
 
 # ── Abstract base ────────────────────────────────────────────────────────────
 

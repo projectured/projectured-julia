@@ -23,8 +23,7 @@ import ..CollectionModule: CellVector
 import ..ReferenceModule: Reference
 import ..TextModule: TextText, TextString
 
-export EvaluatorDocument, EvaluatorForm, EvaluatorToplevel, result_text,
-       eval_kind_label, IEvaluatorForm, IEvaluatorToplevel
+export EvaluatorDocument, result_text, eval_kind_label
 
 # ── Abstract base ────────────────────────────────────────────────────────────
 

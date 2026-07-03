@@ -21,13 +21,7 @@ import ..DocumentApiModule: Document
 import ..DocumentModule: @document, @forward_vector
 import ..CollectionModule: CellVector
 import ..ReferenceModule: Reference
-export MarkdownDocument, MarkdownInsertion, MarkdownText, MarkdownCode, MarkdownEmphasis,
-       MarkdownStrong, MarkdownLink, MarkdownImage, MarkdownHeading, MarkdownParagraph,
-       MarkdownCodeBlock, MarkdownThematicBreak, MarkdownQuote, MarkdownList, MarkdownListItem,
-       MarkdownRoot, set_function!,
-       IMarkdownInsertion, IMarkdownText, IMarkdownCode, IMarkdownEmphasis, IMarkdownStrong,
-       IMarkdownLink, IMarkdownImage, IMarkdownHeading, IMarkdownParagraph, IMarkdownCodeBlock,
-       IMarkdownThematicBreak, IMarkdownQuote, IMarkdownList, IMarkdownListItem, IMarkdownRoot
+export MarkdownDocument, set_function!
 
 abstract type MarkdownDocument <: Document end
 

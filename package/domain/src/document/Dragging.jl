@@ -20,7 +20,7 @@ import ..DocumentApiModule: Document
 import ..DocumentModule: @document
 import ..ReferenceModule: Reference
 
-export DraggingDocument, DraggingState, IDraggingState
+export DraggingDocument
 
 """
     DraggingDocument

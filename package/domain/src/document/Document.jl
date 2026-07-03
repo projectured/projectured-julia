@@ -17,8 +17,7 @@ import ..CellModule: Cell
 import ..DocumentApiModule: Document
 import ..DocumentModule: @document
 import ..ReferenceModule: Reference, ReferencePath
-export DocumentBase, DocumentNothing, DocumentInsertion, DocumentReference,
-       IDocumentNothing, IDocumentInsertion, IDocumentReference
+export DocumentBase
 
 # ── DocumentBase (abstract) ───────────────────────────────────────────────────
 

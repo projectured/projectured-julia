@@ -22,8 +22,7 @@ import ..OperationModule: replace_document, insert_elements, ReplaceSelectionOpe
 import ..DocumentApiModule: with_selection
 import ..KeyboardModule: KeyPress, KeyDown
 import ..GestureBindingModule: var"@gestures"
-export YamlDocument, YamlInsertion, YamlNull, YamlBool, YamlNumber, YamlString, YamlSequence, YamlMapping, YamlMappingEntry,
-       IYamlInsertion, IYamlNull, IYamlBool, IYamlNumber, IYamlString, IYamlSequence, IYamlMapping, IYamlMappingEntry
+export YamlDocument
 
 abstract type YamlDocument <: Document end
 

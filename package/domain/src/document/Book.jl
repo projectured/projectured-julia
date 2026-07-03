@@ -16,8 +16,7 @@ import ..DocumentApiModule: Document
 import ..DocumentModule: @document
 import ..CollectionModule: CellVector
 import ..ReferenceModule: Reference
-export BookDocument, BookInsertion, BookBook, BookChapter, BookParagraph, BookList, BookPicture,
-       IBookInsertion, IBookBook, IBookChapter, IBookParagraph, IBookList, IBookPicture
+export BookDocument
 
 abstract type BookDocument <: Document end
 

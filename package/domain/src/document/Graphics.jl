@@ -24,15 +24,8 @@ import ..ColorModule: StyleColor, color_white, color_black
 import ..ReferenceModule: Reference
 import ..GeometryModule: AffineTransform, affine_identity, affine_is_axis_aligned
 export GraphicsDocument, LayoutDirection, layout_none, layout_horizontal, layout_vertical,
-       GraphicsInsertion, GraphicsText, GraphicsRect, GraphicsLine, GraphicsCircle,
-       GraphicsPolyline, GraphicsSpline,
-       GraphicsCanvas, GraphicsViewport, GraphicsImage,
-       GraphicsFence, set_function!, hit_element_at, graphics_size,
-       tessellate_spline, polyline_arrowhead, point_near_polyline,
-       IGraphicsInsertion, IGraphicsText, IGraphicsRect, IGraphicsLine, IGraphicsCircle,
-       IGraphicsPolyline, IGraphicsSpline,
-       IGraphicsCanvas, IGraphicsViewport, IGraphicsImage,
-       IGraphicsFence
+       set_function!, hit_element_at, graphics_size, tessellate_spline, polyline_arrowhead,
+       point_near_polyline
 
 abstract type GraphicsDocument <: Document end
 

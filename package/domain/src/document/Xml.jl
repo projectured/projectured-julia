@@ -22,8 +22,7 @@ import ..OperationModule: replace_document, insert_elements, ReplaceSelectionOpe
 import ..DocumentApiModule: with_selection
 import ..KeyboardModule: KeyPress, KeyDown
 import ..GestureBindingModule: var"@gestures"
-export XmlDocument, XmlInsertion, XmlText, XmlAttribute, XmlElement,
-       IXmlInsertion, IXmlText, IXmlAttribute, IXmlElement
+export XmlDocument
 
 abstract type XmlDocument <: Document end
 

@@ -17,8 +17,7 @@ import ..DocumentApiModule: Document
 import ..DocumentModule: @document
 import ..ReferenceModule: Reference
 
-export DatabaseInstanceDocument, DatabaseInstance, DatabaseCredentials,
-       IDatabaseInstance, IDatabaseCredentials
+export DatabaseInstanceDocument
 
 abstract type DatabaseInstanceDocument <: Document end
 

@@ -27,8 +27,7 @@ import ..DocumentModule: @document
 import ..CollectionModule: CellVector
 import ..ReferenceModule: Reference
 
-export GraphDocument, GraphInsertion, GraphVertex, GraphEdge, GraphGraph,
-       IGraphInsertion, IGraphVertex, IGraphEdge, IGraphGraph
+export GraphDocument
 
 # ── Abstract base ───────────────────────────────────────────────────────────
 

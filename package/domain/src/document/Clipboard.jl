@@ -13,8 +13,7 @@ import ..DocumentApiModule: Document
 import ..DocumentModule: @document
 import ..CollectionModule: CellVector
 import ..ReferenceModule: Reference
-export ClipboardDocument, ClipboardInsertion, ClipboardSlice, ClipboardCollection,
-       IClipboardInsertion, IClipboardSlice, IClipboardCollection
+export ClipboardDocument
 
 # ── Abstract base ─────────────────────────────────────────────────────────────
 

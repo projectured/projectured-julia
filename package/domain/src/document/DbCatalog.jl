@@ -14,9 +14,7 @@ import ..DocumentModule: @document
 import ..CollectionModule: CellVector
 import ..ReferenceModule: Reference
 
-export DbCatalogDocument,
-       DbCatalogRdbms, DbCatalogDatabase, DbCatalogSchema,
-       DbCatalogTable, DbCatalogColumn
+export DbCatalogDocument
 
 abstract type DbCatalogDocument <: Document end
 

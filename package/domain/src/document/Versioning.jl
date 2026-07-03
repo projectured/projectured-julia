@@ -33,11 +33,8 @@ import ..DocumentModule: @document
 import ..CollectionModule: CellVector
 import ..ReferenceModule: Reference
 
-export VersioningDocument, VersionProperties, ObjectVersion, VersionedObject,
-       IVersionProperties, IObjectVersion, IVersionedObject,
-       VersionCriterion, VersionCriterionLatest, VersionCriterionIndex,
-       VersionCriterionByAuthor, VersionCriterionAsOf, VersionCriterionPredicate,
-       select_version
+export VersioningDocument, VersionCriterion, VersionCriterionLatest, VersionCriterionIndex,
+       VersionCriterionByAuthor, VersionCriterionAsOf, VersionCriterionPredicate, select_version
 
 # ── Abstract base ─────────────────────────────────────────────────────────────
 

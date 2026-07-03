@@ -31,9 +31,8 @@ import ..CollectionModule: CellVector
 import ..ReferenceModule: Reference, ReferencePath
 import ..OperationApiModule: Operation, evaluate_operation
 
-export ScreenDocument, WindowDocument, EventEnvelope, WindowClose,
-       WindowResize, WindowDefocus, IScreenDocument, IWindowDocument,
-       OpenWindowOperation, OpenPopupOperation, CloseWindowOperation, ResizeWindowOperation
+export EventEnvelope, WindowClose, WindowResize, WindowDefocus, OpenWindowOperation,
+       OpenPopupOperation, CloseWindowOperation, ResizeWindowOperation
 
 # ── ScreenDocument ────────────────────────────────────────────────────────
 

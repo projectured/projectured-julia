@@ -19,8 +19,6 @@ import ..DocumentApiModule: Document
 import ..DocumentModule: @document
 import ..ReferenceModule: Reference
 
-export TooltipSource, ITooltipSource
-
 """
     TooltipSource(; child, content, style=:tooltip, id)
 

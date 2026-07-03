@@ -35,25 +35,7 @@ import ..DocumentApiModule: Document
 import ..DocumentModule: @document
 import ..CollectionModule: CellVector
 import ..ReferenceModule: Reference
-export JuliaDocument, JuliaInsertion,
-       JuliaIdentifier, JuliaInteger, JuliaFloat, JuliaString, JuliaBool,
-       JuliaNothing, JuliaSymbol, JuliaChar,
-       JuliaBinaryOp, JuliaUnaryOp, JuliaCall, JuliaTernary,
-       JuliaIndex, JuliaFieldAccess, JuliaTuple, JuliaArray, JuliaRange,
-       JuliaTypeAnnotation,
-       JuliaAssignment, JuliaFor, JuliaForIterator, JuliaWhile,
-       JuliaReturn, JuliaBreak, JuliaContinue, JuliaTry, JuliaBegin,
-       JuliaIf, JuliaFunction, JuliaBlock, JuliaUsing, JuliaLambda,
-       _julia_operator_string,
-       IJuliaInsertion,
-       IJuliaIdentifier, IJuliaInteger, IJuliaFloat, IJuliaString, IJuliaBool,
-       IJuliaNothing, IJuliaSymbol, IJuliaChar,
-       IJuliaBinaryOp, IJuliaUnaryOp, IJuliaCall, IJuliaTernary,
-       IJuliaIndex, IJuliaFieldAccess, IJuliaTuple, IJuliaArray, IJuliaRange,
-       IJuliaTypeAnnotation,
-       IJuliaAssignment, IJuliaFor, IJuliaForIterator, IJuliaWhile,
-       IJuliaReturn, IJuliaBreak, IJuliaContinue, IJuliaTry, IJuliaBegin,
-       IJuliaIf, IJuliaFunction, IJuliaBlock
+export JuliaDocument, _julia_operator_string
 
 # ── Abstract base ─────────────────────────────────────────────────────────────
 

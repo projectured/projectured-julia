@@ -20,16 +20,8 @@ import ..DocumentModule: @document
 import ..CollectionModule: CellVector
 import ..ReferenceModule: Reference
 
-export LayoutDocument,
-       HorizontalLayout, VerticalLayout, GridLayout, FormLayout, FlowLayout, StackLayout,
-       LayoutConstraint,
-       ConstraintLayout, LayoutRelation, LayoutAnchor, LayoutExpr,
-       anchor, constrain,
-       allocate_axis,
-       layout_min, layout_max, layout_preferred, layout_weight,
-       IHorizontalLayout, IVerticalLayout, IGridLayout, IFlowLayout, IStackLayout,
-       ILayoutConstraint,
-       IConstraintLayout, ILayoutRelation, ILayoutAnchor
+export LayoutDocument, FormLayout, LayoutExpr, anchor, constrain, allocate_axis, layout_min,
+       layout_max, layout_preferred, layout_weight
 
 # ── Abstract base ───────────────────────────────────────────────────────────
 

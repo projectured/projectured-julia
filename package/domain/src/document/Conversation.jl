@@ -34,11 +34,7 @@ import ..CollectionModule: CellVector
 import ..TextModule: TextText, TextString
 import ..ReferenceModule: Reference, ReferencePath
 
-export ConversationDocument, ConversationConversation,
-       ConversationTurn, ConversationPart, ConversationDraft,
-       ConversationThinking, thinking_part,
-       IConversationConversation, IConversationTurn, IConversationPart,
-       IConversationDraft, IConversationThinking
+export ConversationDocument, thinking_part
 
 # ── Abstract base ─────────────────────────────────────────────────────────────
 

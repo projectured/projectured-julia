@@ -21,8 +21,7 @@ import ..OperationModule: replace_document, insert_elements, ReplaceSelectionOpe
 import ..DocumentApiModule: with_selection
 import ..KeyboardModule: KeyPress, KeyDown
 import ..GestureBindingModule: var"@gestures"
-export JsonDocument, JsonInsertion, JsonNull, JsonBool, JsonNumber, JsonString, JsonArray, JsonObject, JsonObjectEntry, entries,
-       IJsonInsertion, IJsonNull, IJsonBool, IJsonNumber, IJsonString, IJsonArray, IJsonObject, IJsonObjectEntry
+export JsonDocument, entries
 
 abstract type JsonDocument <: Document end
 

@@ -14,8 +14,7 @@ import ..DocumentApiModule: Document
 import ..DocumentModule: @document
 import ..CollectionModule: CellVector
 import ..ReferenceModule: Reference
-export FileSystemDocument, FileSystemInsertion, FileSystemFile, FileSystemDirectory, make_filesystem_pathname,
-       IFileSystemInsertion, IFileSystemFile, IFileSystemDirectory
+export FileSystemDocument, make_filesystem_pathname
 
 abstract type FileSystemDocument <: Document end
 

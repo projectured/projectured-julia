@@ -25,8 +25,7 @@ import ..DocumentModule: @document
 import ..CollectionModule: CellVector
 import ..ReferenceModule: Reference
 
-export GraphLayoutDocument, VertexLayout, EdgeLayout, GraphLayout, GraphConstraint,
-       IVertexLayout, IEdgeLayout, IGraphLayout, IGraphConstraint
+export GraphLayoutDocument
 
 abstract type GraphLayoutDocument <: Document end
 

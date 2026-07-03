@@ -26,11 +26,13 @@ module ReferenceModule
 
 import ..CellModule: Cell, AbstractCell
 import ..DocumentModule: @document
-export Reference, ReferenceStep, ElementReference, PositionReference, RangeReference, FieldReference, TypeReference, FunctionReference, ProjectionReference, PointReference, TextRectangularReference, ReferencePath, EmptyReferencePath, ConcreteReferencePath, append_reference, concat_references, reference_steps, evaluate_reference, is_valid_reference, collect_references,
-       is_element_reference, is_position_reference, is_range_reference,
-       IRangeReference, IFieldReference, IConcreteReferencePath, IPointReference,
-       is_reference_equal, is_prefix_of, is_reference_equal_ignoring_types, is_prefix_of_ignoring_types,
-       ReferenceTypeMismatch, get_valid_reference_prefix, annotate_reference_types, strip_reference_types,
+export Reference, ReferenceStep, ElementReference, PositionReference, TypeReference,
+       FunctionReference, ProjectionReference, TextRectangularReference, ReferencePath,
+       EmptyReferencePath, append_reference, concat_references, reference_steps,
+       evaluate_reference, is_valid_reference, collect_references, is_element_reference,
+       is_position_reference, is_range_reference, is_reference_equal, is_prefix_of,
+       is_reference_equal_ignoring_types, is_prefix_of_ignoring_types, ReferenceTypeMismatch,
+       get_valid_reference_prefix, annotate_reference_types, strip_reference_types,
        fold_reference_types
 
 # ── ReferenceStep ─────────────────────────────────────────────────────

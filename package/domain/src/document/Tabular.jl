@@ -17,10 +17,8 @@ import ..DocumentApiModule: Document
 import ..DocumentModule: @document
 import ..CollectionModule: CellVector, get_cell_at
 import ..ReferenceModule: Reference
-export TabularDocument, TabularCell, TabularRow, TabularGrid,
-       ITabularCell, ITabularRow, ITabularGrid,
-       tabular_cell, tabular_column,
-       insert_row!, delete_row!, insert_column!, delete_column!
+export TabularDocument, tabular_cell, tabular_column, insert_row!, delete_row!, insert_column!,
+       delete_column!
 
 # ── Abstract base ────────────────────────────────────────────────────────────
 

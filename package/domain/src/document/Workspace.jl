@@ -14,8 +14,7 @@ import ..DocumentApiModule: Document
 import ..DocumentModule: @document
 import ..CollectionModule: CellVector
 import ..ReferenceModule: Reference
-export WorkspaceDocument, WorkspaceFolder, Workspace,
-       IWorkspaceFolder, IWorkspace
+export WorkspaceDocument
 
 abstract type WorkspaceDocument <: Document end
 

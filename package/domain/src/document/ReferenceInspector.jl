@@ -24,8 +24,6 @@ import ..DocumentApiModule: Document
 import ..DocumentModule: @document
 import ..ReferenceModule: Reference
 
-export ReferenceInspector
-
 """
     ReferenceInspector(; reference, target)
 

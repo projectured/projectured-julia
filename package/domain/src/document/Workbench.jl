@@ -25,20 +25,7 @@ import ..OperationModule: insert_elements, delete_elements
 import ..JsonParserModule: jsonparse_file
 import ..XmlParserModule: xmlparse_file
 import ..JuliaParserModule: juliaparse_file
-export WorkbenchDocument, WorkbenchInsertion,
-       WorkbenchWorkbench, WorkbenchPage,
-       WorkbenchNavigator, WorkbenchConsole, WorkbenchDescriptor,
-       WorkbenchOperator, WorkbenchSearcher, WorkbenchEvaluator,
-       WorkbenchAssistant,
-       WorkbenchEditor,
-       title, set_function!,
-       IWorkbenchInsertion,
-       IWorkbenchWorkbench, IWorkbenchPage,
-       IWorkbenchNavigator, IWorkbenchConsole, IWorkbenchDescriptor,
-       IWorkbenchOperator, IWorkbenchSearcher, IWorkbenchEvaluator,
-       IWorkbenchAssistant,
-       IWorkbenchEditor,
-       DEFAULT_ASSISTANT_SYSTEM,
+export WorkbenchDocument, title, set_function!, DEFAULT_ASSISTANT_SYSTEM,
        WorkbenchOpenDocumentOperation, WorkbenchCloseDocumentOperation
 
 # ── WorkbenchDocument (abstract base) ────────────────────────────────────────
