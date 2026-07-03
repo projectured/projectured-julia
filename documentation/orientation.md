@@ -18,7 +18,7 @@ browsing tools below. Do not guess names — search for them.
 | Reference | `ReferencePath`, `EmptyReferencePath`, `ConcreteReferencePath`; steps `FieldReference`, `RangeReference` (`ElementReference`/`PositionReference`), `ProjectionReference`, `TypeReference`; DSL `@reference`, `@reference_case`; `evaluate_reference` | `editor/reference` |
 | Selection | `set_selection!`, `clear_selection!`, `replace_selection!` | `editor/selection`, `selection-deep-dive` |
 | Search (by content) | `search_references`, `search_objects`, `print_object` (search a document **or an iomap** — the whole pipeline) | `editor/finding-and-selecting`, `debugging` |
-| Operation | `Operation`, `evaluate_operation`, `ReplaceSelectionOperation`, `ReplaceReferencedValue` (+ `replace_document` / `insert_elements` / `delete_elements`), `StringReplaceRangeOperation`, `CompoundOperation` | `operations` |
+| Operation | `Operation`, `evaluate_operation`, `ReplaceSelectionOperation`, `ReplaceReferencedValueOperation` (+ `replace_document` / `insert_elements` / `delete_elements`), `ReplaceStringRangeOperation`, `CompoundOperation` | `operations` |
 | Editor & loop | `Editor`, `run!`, `read!`/`evaluate!`/`print!`, `McpServer`, `execute_julia_code` | `editor` |
 | Screen / workbench | `ScreenDocument` → `WindowDocument` → `WorkbenchWorkbench` → `WorkbenchPage` → `WorkbenchEditor`; `ScreenToScreen`, `WindowManagingProjection` | `document/workbench`, `editor` |
 | Backends / devices | `Backend`/`SdlBackend`, `Device`/`Screen`/`Keyboard`/`Mouse`, `KeyPress`, `MousePress` | `devices-and-backends` |

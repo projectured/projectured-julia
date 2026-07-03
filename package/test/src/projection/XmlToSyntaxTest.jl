@@ -49,7 +49,7 @@ read_key(doc, sel, evt) = begin
 end
 
 # A type-to-replace gesture returns the folded `replace_document` compound;
-# `_written` is the document its first member (the ReplaceReferencedValue) writes.
+# `_written` is the document its first member (the ReplaceReferencedValueOperation) writes.
 _written(op) = op.operations[1].value
 
 @testset "insertion replace builds the right node" begin
@@ -88,7 +88,7 @@ end
     e = XmlElement("a", XmlDocument[XmlText("hi")])
     op = read_key(e, whole, KeyPress('<'))
     @test op isa CompoundOperation                        # splice + select-new
-    @test op.operations[1] isa ReplaceReferencedValue
+    @test op.operations[1] isa ReplaceReferencedValueOperation
     ed = _XmlReaderEditor(e, nothing)
     evaluate_operation(ed, op)
     @test length(e.children) == 2

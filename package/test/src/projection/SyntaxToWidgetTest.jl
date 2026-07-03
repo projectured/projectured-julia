@@ -94,12 +94,12 @@ end
     # An edit into the open delimiter span (span 1) is declined (only the value
     # span, span 2, is editable here).
     op = projection_read(SyntaxLeafToWidget(), iomap,
-                         StringReplaceRangeOperation(span_range_ref(1, 0, 1), "x"))
+                         ReplaceStringRangeOperation(span_range_ref(1, 0, 1), "x"))
     @test op === nothing
     # An edit into the value span maps to `.value[1:2]`.
     op2 = projection_read(SyntaxLeafToWidget(), iomap,
-                          StringReplaceRangeOperation(span_range_ref(2, 1, 2), "x"))
-    @test op2 isa StringReplaceRangeOperation
+                          ReplaceStringRangeOperation(span_range_ref(2, 1, 2), "x"))
+    @test op2 isa ReplaceStringRangeOperation
     @test op2.replacement == "x"
 end
 

@@ -63,9 +63,9 @@ import ..IoMapApiModule: IoMap
 import ..MouseModule: MouseScroll, MousePress, MouseDown, MouseUp, MouseMove, MouseEnter, MouseLeave
 import ..EventCaseModule: var"@event_case"
 import ..OperationApiModule: Operation
-import ..OperationModule: ReplaceSelectionOperation, ReplaceReferencedValue, ToggleCollapseOperation, CompoundOperation
+import ..OperationModule: ReplaceSelectionOperation, ReplaceReferencedValueOperation, ToggleCollapseOperation, CompoundOperation
 import ..ScreenDocumentModule: OpenPopupOperation, OpenWindowOperation, CloseWindowOperation
-import ..PrimitiveModule: StringReplaceRangeOperation, NumberReplaceRangeOperation
+import ..PrimitiveModule: ReplaceStringRangeOperation, ReplaceNumberRangeOperation
 import ..ReferenceModule: ReferencePath, ConcreteReferencePath, FieldReference, RangeReference,
                           ElementReference, EmptyReferencePath, is_element_reference, PointReference
 import ..OperationRerootingModule: prepend_steps_to_op
@@ -376,8 +376,8 @@ end
 # A widget's reader falls through to this for crossing events: it writes the
 # `hovered` state, or `nothing` for any other event.
 _hover_state_op(w, evt) =
-    evt isa MouseEnter ? ReplaceReferencedValue(w, "hovered", true) :
-    evt isa MouseLeave ? ReplaceReferencedValue(w, "hovered", false) : nothing
+    evt isa MouseEnter ? ReplaceReferencedValueOperation(w, "hovered", true) :
+    evt isa MouseLeave ? ReplaceReferencedValueOperation(w, "hovered", false) : nothing
 
 # Draw the hover surface behind a widget when its `hovered` cell is set and it is
 # enabled. Pushed first so the content draws over it.
@@ -749,7 +749,7 @@ _route_move_to_children(child_entries::Vector, evt::MouseMove) =
 # child's input domain — what the bubbled-up reader returned) into this
 # projection's own input domain by running its reference through
 # `map_reference_backward`. Identity-rooted / non-path-bearing ops (an
-# identity-rooted `ReplaceReferencedValue`, `SelectTabOperation`, …) pass through
+# identity-rooted `ReplaceReferencedValueOperation`, `SelectTabOperation`, …) pass through
 # unchanged; `nothing` passes through.
 # Returns `nothing` if the backward mapping rejects the reference.
 function _retarget_op(p, iomap, op)
@@ -757,18 +757,18 @@ function _retarget_op(p, iomap, op)
     if op isa ReplaceSelectionOperation
         new_ref = map_reference_backward(p, iomap, op.path)
         return new_ref === nothing ? nothing : ReplaceSelectionOperation(new_ref)
-    elseif op isa StringReplaceRangeOperation
+    elseif op isa ReplaceStringRangeOperation
         new_ref = map_reference_backward(p, iomap, op.reference)
-        return new_ref === nothing ? nothing : StringReplaceRangeOperation(new_ref, op.replacement)
-    elseif op isa NumberReplaceRangeOperation
+        return new_ref === nothing ? nothing : ReplaceStringRangeOperation(new_ref, op.replacement)
+    elseif op isa ReplaceNumberRangeOperation
         new_ref = map_reference_backward(p, iomap, op.reference)
-        return new_ref === nothing ? nothing : NumberReplaceRangeOperation(new_ref, op.replacement)
-    elseif op isa ReplaceReferencedValue
+        return new_ref === nothing ? nothing : ReplaceNumberRangeOperation(new_ref, op.replacement)
+    elseif op isa ReplaceReferencedValueOperation
         # `editor.document`-rooted (document === nothing) ⇒ reroot the reference;
         # a self-contained one (carried root) passes through unchanged.
         op.document === nothing || return op
         new_ref = map_reference_backward(p, iomap, op.reference)
-        return new_ref === nothing ? nothing : ReplaceReferencedValue(nothing, new_ref, op.value)
+        return new_ref === nothing ? nothing : ReplaceReferencedValueOperation(nothing, new_ref, op.value)
     elseif op isa CompoundOperation
         mapped = Any[_retarget_op(p, iomap, o) for o in op.operations]
         return any(isnothing, mapped) ? nothing : CompoundOperation(mapped)
@@ -924,7 +924,7 @@ end
 function _validate_text_edit(w::WidgetText, op)
     v = w.validator
     (v === nothing || op === nothing) && return op
-    op isa StringReplaceRangeOperation || return op
+    op isa ReplaceStringRangeOperation || return op
     (v(string(op.replacement)) === true) ? op : nothing
 end
 
@@ -971,11 +971,11 @@ function map_reference_backward(::WidgetCheckboxToGraphicsCanvas, iomap, referen
 end
 
 # A click toggles the checkbox. By convention a leaf control reports an edit as
-# `ReplaceReferencedValue(self, content, new_value)`; a configuring projection
+# `ReplaceReferencedValueOperation(self, content, new_value)`; a configuring projection
 # (ObjectToWidget) intercepts it by control identity and redirects it onto the
 # bound parameter cell. A bare click that does not reach here leaves the value
 # unchanged.
-_checkbox_toggle(w) = ReplaceReferencedValue(w,
+_checkbox_toggle(w) = ReplaceReferencedValueOperation(w,
     ConcreteReferencePath(FieldReference("content"), EmptyReferencePath()), !(w.content === true))
 
 function projection_read(::WidgetCheckboxToGraphicsCanvas, iomap::SimpleIoMap, evt::MousePress)
@@ -1093,13 +1093,13 @@ function projection_read(::WidgetButtonToGraphicsCanvas, iomap::SimpleIoMap, evt
     op === nothing || return op
     @event_case evt begin
         MousePress(button, x, y) => button === :left ? _button_primary_op(w) : nothing
-        MouseDown(button, x, y)  => button === :left ? ReplaceReferencedValue(w, "pressed", true) : nothing
-        MouseUp(button, x, y)    => button === :left ? ReplaceReferencedValue(w, "pressed", false) : nothing
-        MouseEnter               => ReplaceReferencedValue(w, "hovered", true)
+        MouseDown(button, x, y)  => button === :left ? ReplaceReferencedValueOperation(w, "pressed", true) : nothing
+        MouseUp(button, x, y)    => button === :left ? ReplaceReferencedValueOperation(w, "pressed", false) : nothing
+        MouseEnter               => ReplaceReferencedValueOperation(w, "hovered", true)
         # Leaving clears hover *and* any in-progress press (the release may land
         # off the button when dragged away).
-        MouseLeave               => CompoundOperation(Any[ReplaceReferencedValue(w, "hovered", false),
-                                                          ReplaceReferencedValue(w, "pressed", false)])
+        MouseLeave               => CompoundOperation(Any[ReplaceReferencedValueOperation(w, "hovered", false),
+                                                          ReplaceReferencedValueOperation(w, "pressed", false)])
         # Enter / Space activate the focused button (key reaches it via selection
         # routing). `:tab` is intentionally not matched, so it falls through to
         # `nothing` and focus traversal can claim it.
@@ -1617,7 +1617,7 @@ end
 # is hit-tested against each child canvas; a coordless event (KeyPress/KeyDown)
 # goes to the child the composite's selection points at, falling back to trying
 # each child. The op a child returns is re-rooted by prepending `elements[i]` —
-# the same scheme WidgetSplitPane uses. Identity-bearing ops (ReplaceReferencedValue
+# the same scheme WidgetSplitPane uses. Identity-bearing ops (ReplaceReferencedValueOperation
 # from a control) pass through `prepend_steps_to_op` unchanged.
 function projection_read(p::WidgetCompositeToGraphicsCanvas, iomap::ChildrenIoMap, evt)
     child_iomaps = iomap.child_iomaps[]::Vector
@@ -2652,7 +2652,7 @@ function projection_read(p::WidgetTabbedPaneToGraphicsCanvas, iomap::ChildrenIoM
                     delta = evt.dx != 0 ? evt.dx : -evt.dy
                     s = _tab_scroll_offset(w, strip_w, view_w)
                     new_s = clamp(s + delta * step, 0, max_s)
-                    return ReplaceReferencedValue(w, "tab_scroll", new_s)
+                    return ReplaceReferencedValueOperation(w, "tab_scroll", new_s)
                 end
             end
         end
@@ -2888,7 +2888,7 @@ end
 # of the new (old+delta) value — the old value is read from the pane at read time,
 # which equals its value at evaluate time (no intervening mutation in the loop).
 _scroll_by(sp, dx, dy) = let old = sp.scroll_position
-    ReplaceReferencedValue(sp, "scroll_position", Point2D(old.x[] + dx, old.y[] + dy))
+    ReplaceReferencedValueOperation(sp, "scroll_position", Point2D(old.x[] + dx, old.y[] + dy))
 end
 
 function projection_read(p::WidgetScrollPaneToGraphicsCanvas, iomap::WidgetScrollPaneToGraphicsCanvasIoMap, evt)
@@ -3015,7 +3015,7 @@ _zoom_about(M::AffineTransform, factor, ax, ay) =
 _pan_by(M::AffineTransform, dx, dy) = affine_translate(dx, dy) ∘ M
 
 # One zoom step about `(ax, ay)`: `dir > 0` zooms in, `dir < 0` out. Returns the
-# `ReplaceReferencedValue`, or `nothing` if the clamp leaves the scale unchanged
+# `ReplaceReferencedValueOperation`, or `nothing` if the clamp leaves the scale unchanged
 # (already at `_ZOOM_MIN`/`_ZOOM_MAX`). Shared by the wheel and keyboard readers.
 function _zoom_op(w, M::AffineTransform, dir, ax, ay)
     cur = M.a == 0.0 ? 1.0 : M.a
@@ -3023,7 +3023,7 @@ function _zoom_op(w, M::AffineTransform, dir, ax, ay)
     new_scale = clamp(cur * f, _ZOOM_MIN, _ZOOM_MAX)
     f = new_scale / cur
     f == 1.0 && return nothing
-    ReplaceReferencedValue(w, "transform", _zoom_about(M, f, ax, ay))
+    ReplaceReferencedValueOperation(w, "transform", _zoom_about(M, f, ax, ay))
 end
 
 function projection_read(p::WidgetTransformPaneToGraphicsCanvas, iomap::WidgetTransformPaneToGraphicsCanvasIoMap, evt)
@@ -3043,8 +3043,8 @@ function projection_read(p::WidgetTransformPaneToGraphicsCanvas, iomap::WidgetTr
             hit_element_at(canvas, x, y) === nothing && return nothing
             _, step = p.measure("M", p.font)
             return dx != 0 && dy == 0 ?
-                ReplaceReferencedValue(w, "transform", _pan_by(M, dx * step, 0)) :
-                ReplaceReferencedValue(w, "transform", _pan_by(M, 0, dy * step))
+                ReplaceReferencedValueOperation(w, "transform", _pan_by(M, dx * step, 0)) :
+                ReplaceReferencedValueOperation(w, "transform", _pan_by(M, 0, dy * step))
         end
     end
     # Forward other events to the content, mapping pointer coords through the
@@ -3072,7 +3072,7 @@ function projection_read(p::WidgetTransformPaneToGraphicsCanvas, iomap::WidgetTr
         KeyDown(:equals; ctrl) => return _zoom_op(w, M, 1, acx, acy)
         KeyDown(:minus; ctrl)  => return _zoom_op(w, M, -1, acx, acy)
         KeyDown(:zero; ctrl)   => return M === affine_identity ? nothing :
-                                         ReplaceReferencedValue(w, "transform", affine_identity)
+                                         ReplaceReferencedValueOperation(w, "transform", affine_identity)
     end
     nothing
 end
@@ -3210,7 +3210,7 @@ function projection_read(p::WidgetScrollBarToGraphicsCanvas, iomap::SimpleIoMap,
         new_value = clamp(Float64(evt.y - coy - div(th, 2)) / max(1, ch - th), 0.0, 1.0)
     end
     # new_value is already clamped to [0,1] above.
-    ReplaceReferencedValue(w, "value", new_value)
+    ReplaceReferencedValueOperation(w, "value", new_value)
 end
 
 # ════════════════════════════════════════════════════════════════════════════
@@ -3494,18 +3494,18 @@ end
 # switch is currently showing (`anim_from`) and the start time (`anim_t0`),
 # sampled now — and then flips `checked`. The printer's knob-cx cell reads those
 # fields, so the next frames animate. `anim_from`/`anim_t0` are written via
-# ordinary `ReplaceReferencedValue`s on the carried widget; no new operation type
+# ordinary `ReplaceReferencedValueOperation`s on the carried widget; no new operation type
 # is needed because the time and current position are sampled here, in the reader.
 function _switch_toggle(w::WidgetSwitch)
     new_checked = !(w.checked === true)
-    toggle = ReplaceReferencedValue(w,
+    toggle = ReplaceReferencedValueOperation(w,
         ConcreteReferencePath(FieldReference("checked"), EmptyReferencePath()), new_checked)
     w.duration <= 0 && return toggle
     now  = editor_time()
     from = _switch_fraction(w, now)
     CompoundOperation(Any[
-        ReplaceReferencedValue(w, ConcreteReferencePath(FieldReference("anim_from"), EmptyReferencePath()), from),
-        ReplaceReferencedValue(w, ConcreteReferencePath(FieldReference("anim_t0"),   EmptyReferencePath()), now),
+        ReplaceReferencedValueOperation(w, ConcreteReferencePath(FieldReference("anim_from"), EmptyReferencePath()), from),
+        ReplaceReferencedValueOperation(w, ConcreteReferencePath(FieldReference("anim_t0"),   EmptyReferencePath()), now),
         toggle,
     ])
 end
@@ -4074,7 +4074,7 @@ map_reference_backward(::WidgetOptionToGraphicsCanvas, iomap, reference) = nothi
 # WindowManager's CompoundOperation unpacking applies the close; the value write
 # bubbles to `evaluate_operation`.
 _pick_option(w::WidgetOption) = CompoundOperation(Any[
-    ReplaceReferencedValue(w.select, "value", w.value),
+    ReplaceReferencedValueOperation(w.select, "value", w.value),
     CloseWindowOperation(w.popup_id),
 ])
 
@@ -4150,7 +4150,7 @@ projection_read(::WidgetSpinBoxToGraphicsCanvas, iomap::SimpleIoMap, evt) = noth
 function projection_read(p::WidgetSpinBoxToGraphicsCanvas, iomap::WidgetSpinBoxToGraphicsCanvasIoMap, evt)
     w = iomap.input
     (w.enabled === false) && return nothing
-    _step(delta) = ReplaceReferencedValue(w, "value", _spin_clamp(w.value + delta, w.min, w.max))
+    _step(delta) = ReplaceReferencedValueOperation(w, "value", _spin_clamp(w.value + delta, w.min, w.max))
     @event_case evt begin
         MousePress(button, x, y) =>
             (button === :left && x >= iomap.control_width - iomap.stepper_w) ?
@@ -4225,11 +4225,11 @@ function projection_read(p::WidgetListToGraphicsCanvas, iomap::WidgetListToGraph
     n = length(collect(w.items))
     n == 0 && return nothing
     sel = Int(w.selected)
-    click_row(yy) = (r = yy ÷ iomap.row_height + 1; (1 <= r <= n) ? ReplaceReferencedValue(w, "selected", r) : nothing)
+    click_row(yy) = (r = yy ÷ iomap.row_height + 1; (1 <= r <= n) ? ReplaceReferencedValueOperation(w, "selected", r) : nothing)
     @event_case evt begin
         MousePress(button, x, y) => button === :left ? click_row(y) : nothing
-        when(KeyDown(k), k === :down) => ReplaceReferencedValue(w, "selected", sel == 0 ? 1 : min(sel + 1, n))
-        when(KeyDown(k), k === :up)   => ReplaceReferencedValue(w, "selected", sel <= 1 ? 1 : sel - 1)
+        when(KeyDown(k), k === :down) => ReplaceReferencedValueOperation(w, "selected", sel == 0 ? 1 : min(sel + 1, n))
+        when(KeyDown(k), k === :up)   => ReplaceReferencedValueOperation(w, "selected", sel <= 1 ? 1 : sel - 1)
         _ => nothing
     end
 end
@@ -4893,13 +4893,13 @@ function _wt_hover_set(iomap::WidgetTableToGraphicsCanvasIoMap, x::Int, y::Int, 
     ref = _wt_hover_ref(iomap.geometry[], x, y)
     ref === nothing && return nothing
     (!force && w.hovered == ref) && return nothing
-    ReplaceReferencedValue(w, "hovered", ref)
+    ReplaceReferencedValueOperation(w, "hovered", ref)
 end
 
 function _wt_hover_clear(iomap::WidgetTableToGraphicsCanvasIoMap)
     w = iomap.input
     w.hovered === nothing && return nothing
-    ReplaceReferencedValue(w, "hovered", nothing)
+    ReplaceReferencedValueOperation(w, "hovered", nothing)
 end
 
 # Route a plain click into a data cell's content sub-pipeline (via the grid
@@ -5386,7 +5386,7 @@ function _wtree_toggle_collapse(iomap::WidgetTreeToGraphicsCanvasIoMap, path::Ve
     w = iomap.input
     next = copy(w.collapsed)
     path in next ? delete!(next, path) : push!(next, path)
-    ReplaceReferencedValue(w, "collapsed", next)
+    ReplaceReferencedValueOperation(w, "collapsed", next)
 end
 
 # Set the hovered row to the one under (x, y). `force` (a `MouseEnter`, i.e. a
@@ -5400,7 +5400,7 @@ function _wtree_hover_set(iomap::WidgetTreeToGraphicsCanvasIoMap, x::Int, y::Int
         for row in geom.rows
             if row.y0 <= y < row.y0 + row.height
                 (!force && _wtree_ref_path(w.hovered) == row.path) && return nothing
-                return ReplaceReferencedValue(w, "hovered", _wtree_path_ref(row.path))
+                return ReplaceReferencedValueOperation(w, "hovered", _wtree_path_ref(row.path))
             end
         end
     end
@@ -5410,7 +5410,7 @@ end
 function _wtree_hover_clear(iomap::WidgetTreeToGraphicsCanvasIoMap)
     w = iomap.input
     w.hovered === nothing && return nothing
-    ReplaceReferencedValue(w, "hovered", nothing)
+    ReplaceReferencedValueOperation(w, "hovered", nothing)
 end
 
 function _wtree_key_navigate(iomap::WidgetTreeToGraphicsCanvasIoMap, g::KeyDown)

@@ -82,7 +82,7 @@ end
     @test length(op.operations) == 2
 
     write = op.operations[1]
-    @test write isa ReplaceReferencedValue
+    @test write isa ReplaceReferencedValueOperation
     @test write.document === select          # identity-rooted: targets the real select
     @test write.value == "Banana"
 

@@ -35,7 +35,7 @@ import ..ReferenceModule: Reference, ConcreteReferencePath, EmptyReferencePath, 
 import ..ReferenceCaseModule: var"@reference_case"
 import ..ReferenceBuilderModule: var"@reference"
 import ..OperationModule: ReplaceSelectionOperation, ToggleCollapseOperation, splice_string, splice_value!
-import ..PrimitiveModule: StringReplaceRangeOperation
+import ..PrimitiveModule: ReplaceStringRangeOperation
 import ..GestureBindingModule: var"@gestures"
 export TextDocument, TextInsertion, TextNewline, TextSpacing, TextString, TextGraphics, TextText, setfn!,
        ITextInsertion, ITextNewline, ITextSpacing, ITextString, ITextGraphics, ITextText,
@@ -424,7 +424,7 @@ function _text_insert(text::TextText, str::AbstractString)
     rng = _text_selection_range(text)
     rng === nothing && return nothing
     span_idx, char_start, char_stop = rng
-    StringReplaceRangeOperation(_text_replace_path(span_idx, char_start, char_stop), str)
+    ReplaceStringRangeOperation(_text_replace_path(span_idx, char_start, char_stop), str)
 end
 
 # Backspace / Delete: replace the appropriate character range with "".
@@ -452,7 +452,7 @@ function _text_delete(text::TextText, key::Symbol)
             return nothing
         end
     end
-    StringReplaceRangeOperation(_text_replace_path(span_idx, new_range[1], new_range[2]), "")
+    ReplaceStringRangeOperation(_text_replace_path(span_idx, new_range[1], new_range[2]), "")
 end
 
 # Ctrl+Home / Ctrl+End: cursor to the very start / end of the text.
@@ -562,7 +562,7 @@ end
 """
     text_insert_op(text::TextText, str) -> Union{Operation,Nothing}
 
-The `StringReplaceRangeOperation` that inserts `str` at the text cursor, replacing
+The `ReplaceStringRangeOperation` that inserts `str` at the text cursor, replacing
 any selected range. `nothing` when the selection is not a character cursor/range.
 The caret advances past the inserted text automatically on evaluation. Used by the
 clipboard to paste text.

@@ -14,7 +14,7 @@ import ..CollectionModule: CellVector
 import ..ProjectionApiModule: projection_print, projection_read, map_reference_forward, map_reference_backward, Projection
 import ..ProjectionModule: var"@projection"
 import ..PrimitiveModule: PrimitiveDocument, PrimitiveBool, PrimitiveNumber, PrimitiveString,
-                          StringReplaceRangeOperation
+                          ReplaceStringRangeOperation
 import ..TextModule: TextDocument, TextText, TextString
 import ..FontModule: StyleFont, font_ubuntu_monospace_regular_20
 import ..ColorModule: StyleColor, color_solarized_cyan, color_solarized_magenta, color_solarized_green
@@ -151,7 +151,7 @@ end
 _string_value_path(range::RangeReference) = @reference value.^(range)
 
 # String editing is a *document-level* concern (it produces a
-# `StringReplaceRangeOperation` in the `PrimitiveString`'s own `value[range]`
+# `ReplaceStringRangeOperation` in the `PrimitiveString`'s own `value[range]`
 # vocabulary), so it is reified once as `@gestures PrimitiveString` rather than
 # duplicated in every primitive projection's reader. Both `PrimitiveStringToTextText`
 # and `PrimitiveStringToSyntaxLeaf` reach it through the generic `document_read`
@@ -162,7 +162,7 @@ _string_value_path(range::RangeReference) = @reference value.^(range)
 @gestures PrimitiveString begin
     when(_string_value_range(doc) !== nothing)
     KeyPress(_, t)       => "Insert character" =>
-        StringReplaceRangeOperation(_string_value_path(_string_value_range(doc)), t)
+        ReplaceStringRangeOperation(_string_value_path(_string_value_range(doc)), t)
     KeyDown(:backspace;) => "Delete backward"  => _string_delete(doc, :backspace)
     KeyDown(:delete;)    => "Delete forward"   => _string_delete(doc, :delete)
 end
@@ -182,7 +182,7 @@ function _string_delete(s::PrimitiveString, dir::Symbol)
         range.stop < n ? RangeReference(range.stop, range.stop + 1) : nothing
     end
     new_range === nothing && return nothing
-    StringReplaceRangeOperation(_string_value_path(new_range), "")
+    ReplaceStringRangeOperation(_string_value_path(new_range), "")
 end
 
 # ── PrimitiveToText (composite) ──────────────────────────────────────────────

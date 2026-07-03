@@ -45,8 +45,8 @@ end # @testset
                   ConcreteReferencePath(RangeReference(0, 1),
                     ConcreteReferencePath(FieldReference("content"),
                       ConcreteReferencePath(RangeReference(5, 5), EmptyReferencePath())))))))
-    op = projection_read(ObjectToWidget(), iomap, StringReplaceRangeOperation(ref, "X"))
-    @test op isa ReplaceReferencedValue
+    op = projection_read(ObjectToWidget(), iomap, ReplaceStringRangeOperation(ref, "X"))
+    @test op isa ReplaceReferencedValueOperation
     @test op.document === proj
     @test op.reference.head == FieldReference("pattern")
     @test op.value == "dolorX"
@@ -61,8 +61,8 @@ end # @testset
     # The checkbox control emits an edit rooted at itself; redirect to the field.
     cb_ctrl = iomap.controls[2][1]
     op = projection_read(ObjectToWidget(), iomap,
-                         ReplaceReferencedValue(cb_ctrl, _content_ref(), true))
-    @test op isa ReplaceReferencedValue
+                         ReplaceReferencedValueOperation(cb_ctrl, _content_ref(), true))
+    @test op isa ReplaceReferencedValueOperation
     @test op.document === proj
     @test op.reference.head == FieldReference("case_insensitive")
     @test op.value == true
@@ -76,7 +76,7 @@ end # @testset
     cb_ctrl = iomap.controls[2][1]
 
     op = projection_read(ObjectToWidget(), iomap,
-                         ReplaceReferencedValue(cb_ctrl, _content_ref(), true))
+                         ReplaceReferencedValueOperation(cb_ctrl, _content_ref(), true))
     evaluate_operation(nothing, op)
     @test proj.case_insensitive[] === true
 
@@ -87,7 +87,7 @@ end # @testset
     proj = _proj()
     iomap = projection_print(ObjectToWidget(), proj)
     foreign = WidgetText(Point2D(0, 0), "x")
-    op = ReplaceReferencedValue(foreign, _content_ref(), "y")
+    op = ReplaceReferencedValueOperation(foreign, _content_ref(), "y")
     @test projection_read(ObjectToWidget(), iomap, op) === op
 
 end # @testset
@@ -103,7 +103,7 @@ end # @testset
     iomap = projection_print(cb_proj, nothing, cb, PrinterContext())
     op = projection_read(cb_proj, iomap, MousePress(:left, 1, 1, Modifiers()))
 
-    @test op isa ReplaceReferencedValue
+    @test op isa ReplaceReferencedValueOperation
     @test op.document === cb
     @test op.reference.head == FieldReference("content")
     @test op.value === true            # toggled from false
@@ -175,8 +175,8 @@ end # @testset
     vis_ctrl, vis_path = vis
 
     op = projection_read(ObjectToWidget(), iomap,
-                         ReplaceReferencedValue(vis_ctrl, _content_ref(), false))
-    @test op isa ReplaceReferencedValue
+                         ReplaceReferencedValueOperation(vis_ctrl, _content_ref(), false))
+    @test op isa ReplaceReferencedValueOperation
     @test op.document === app
     @test op.reference.head == FieldReference("window")
     @test op.reference.tail.head == FieldReference("visible")

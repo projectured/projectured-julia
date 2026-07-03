@@ -104,7 +104,7 @@ The full old → new mapping with reasoning is in the table at the end of this f
       `WindowManager` → `WindowManaging`. Also fix the Invariably/Preserving
       docstrings, which call themselves "higher-order" although they live in
       `generic/` and hold no child projections.
-- [ ] **Batch 3 — operation names**: `ReplaceReferencedValueOperation`,
+- [x] **Batch 3 — operation names** *(done)*: `ReplaceReferencedValueOperation`,
       `ReplaceNumberRangeOperation`, `ReplaceStringRangeOperation`.
 - [ ] **Batch 4 — event names**: `WindowClose`, `WindowResize`,
       `WindowDefocus`, `WindowQuit`.

@@ -42,7 +42,7 @@ end
     iomap = projection_print(_proj(), nothing, doc, PrinterContext())
 
     op = projection_read(_proj(), iomap, KeyPress('X', "X", Modifiers()))
-    @test op isa StringReplaceRangeOperation
+    @test op isa ReplaceStringRangeOperation
     # The widget prepended `content` to the Text-domain reference.
     @test op.reference.head == FieldReference("content")
 
@@ -66,7 +66,7 @@ end
     iomap = projection_print(_proj(), nothing, doc, PrinterContext())
 
     bs = projection_read(_proj(), iomap, KeyDown(:backspace, Modifiers()))
-    @test bs isa StringReplaceRangeOperation
+    @test bs isa ReplaceStringRangeOperation
     @test bs.reference.head == FieldReference("content")
     evaluate_operation(_WidgetTextMockEditor(doc), bs)
     @test doc.content.elements[1].content == "edi me"

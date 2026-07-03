@@ -23,7 +23,7 @@ import ..ReferenceBuilderModule: var"@reference"
 import ..IoMapModule: SimpleIoMap
 import ..IoMapApiModule: IoMap
 import ..OperationModule: ReplaceSelectionOperation, ToggleCollapseOperation
-import ..PrimitiveModule: StringReplaceRangeOperation
+import ..PrimitiveModule: ReplaceStringRangeOperation
 import ..DocumentApiModule: document_read
 import ..KeyboardModule: KeyDown
 import ..EventCaseModule: var"@event_case"
@@ -86,19 +86,19 @@ function projection_read(p::SyntaxLeafToText, iomap::SimpleIoMap, op::ReplaceSel
     return ReplaceSelectionOperation(input_path)
 end
 
-# Translate a TextText-domain `StringReplaceRangeOperation` (referencing
+# Translate a TextText-domain `ReplaceStringRangeOperation` (referencing
 # `.elements[i].content[s:e]`) back to a SyntaxLeaf-domain op (`.value[s:e]`).
 # For now only spans the value span (i == 2); editing into the open/close
 # delimiter span is deferred — those are typically projection-introduced
 # characters that need a different kind of structural edit.
-function projection_read(p::SyntaxLeafToText, iomap::SimpleIoMap, op::StringReplaceRangeOperation)
+function projection_read(p::SyntaxLeafToText, iomap::SimpleIoMap, op::ReplaceStringRangeOperation)
     parsed = _parse_text_elem_range(op.reference)
     parsed === nothing && return nothing
     span_idx, char_start, char_stop = parsed
     span_idx == 2 || return nothing
     new_ref = ConcreteReferencePath(FieldReference("value"),
                   ConcreteReferencePath(RangeReference(char_start, char_stop), EmptyReferencePath()))
-    StringReplaceRangeOperation(new_ref, op.replacement)
+    ReplaceStringRangeOperation(new_ref, op.replacement)
 end
 
 # Pass KeyDown events through so upstream projections (e.g.
@@ -310,11 +310,11 @@ function projection_read(p::SyntaxNodeToText, iomap::SyntaxNodeToTextIoMap, evt:
     return document_read(iomap.input, evt)
 end
 
-# Translate a flat-text `StringReplaceRangeOperation` to a SyntaxNode-domain
+# Translate a flat-text `ReplaceStringRangeOperation` to a SyntaxNode-domain
 # op rooted at the enclosing leaf. The start and stop offsets are mapped via
 # `_text_elem_path_to_flat` and `_pos_to_selection`; if both endpoints don't
 # resolve to the same leaf's `.value` field, the op is rejected.
-function projection_read(p::SyntaxNodeToText, iomap::SyntaxNodeToTextIoMap, op::StringReplaceRangeOperation)
+function projection_read(p::SyntaxNodeToText, iomap::SyntaxNodeToTextIoMap, op::ReplaceStringRangeOperation)
     parsed = _parse_text_elem_range(op.reference)
     parsed === nothing && return nothing
     span_idx, char_start, char_stop = parsed
@@ -339,7 +339,7 @@ function projection_read(p::SyntaxNodeToText, iomap::SyntaxNodeToTextIoMap, op::
         sel = iomap.input.selection
         if sel isa ConcreteReferencePath && _ends_in_field_range(sel) &&
            _syntax_to_flat(iomap.input, sel, p, 0) == flat_start
-            return StringReplaceRangeOperation(sel, op.replacement)
+            return ReplaceStringRangeOperation(sel, op.replacement)
         end
     end
 
@@ -347,11 +347,11 @@ function projection_read(p::SyntaxNodeToText, iomap::SyntaxNodeToTextIoMap, op::
     stop_sel  = _pos_to_selection(iomap.input, flat_stop,  p, 0)
     new_ref = _join_leaf_range(start_sel, stop_sel)
     new_ref === nothing && return nothing
-    StringReplaceRangeOperation(new_ref, op.replacement)
+    ReplaceStringRangeOperation(new_ref, op.replacement)
 end
 
 # True iff `path` ends in `.<field>[range]` — the shape a
-# StringReplaceRangeOperation reference must have for `_split_replace_reference`.
+# ReplaceStringRangeOperation reference must have for `_split_replace_reference`.
 function _ends_in_field_range(path)
     path isa ConcreteReferencePath || return false
     penult = nothing

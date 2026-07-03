@@ -150,7 +150,7 @@ end
     xy = _first_text_xy(iomap.output)
     # The menu routes the crossing to the hit item, which flips `hovered`.
     op = projection_read(proj, iomap, MouseEnter(xy[1] + 2, xy[2] + 2, :none, Modifiers()))
-    @test op isa ReplaceReferencedValue
+    @test op isa ReplaceReferencedValueOperation
     @test op.value === true
 
     # A hovered item renders an extra (hover surface) element vs an un-hovered one.

@@ -11,7 +11,7 @@ import ..ProjectionApiModule: projection_print, projection_read, map_reference_f
 import ..ProjectionModule: var"@projection"
 import ..ReactiveModule: Cell
 import ..PrimitiveModule: PrimitiveDocument, PrimitiveBool, PrimitiveNumber, PrimitiveString,
-                          StringReplaceRangeOperation, NumberReplaceRangeOperation
+                          ReplaceStringRangeOperation, ReplaceNumberRangeOperation
 import ..SyntaxModule: SyntaxLeaf
 import ..TextModule: TextString
 import ..FontModule: StyleFont, font_ubuntu_monospace_regular_20

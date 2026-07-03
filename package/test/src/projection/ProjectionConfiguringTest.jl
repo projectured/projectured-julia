@@ -34,10 +34,10 @@ end # @testset
     iomap = projection_print(pcp, nothing, _input(), PrinterContext())
 
     ctrl = iomap.control_iomap.controls[1][1]   # the pattern control
-    edit = ReplaceReferencedValue(ctrl, _content_ref(), "alpha")
+    edit = ReplaceReferencedValueOperation(ctrl, _content_ref(), "alpha")
     out  = projection_read(pcp, nothing, _mkchange(nothing, edit), iomap)
 
-    @test out.operation isa ReplaceReferencedValue
+    @test out.operation isa ReplaceReferencedValueOperation
     @test out.operation.document === th
     @test out.operation.reference.head == FieldReference("pattern")
 
@@ -54,18 +54,18 @@ end # @testset
     # Control starts visible → Ctrl+F hides it.
     ctrl_f = KeyDown(:f, Modifiers(ctrl=true))
     op = projection_read(pcp, nothing, _mkchange(ctrl_f, nothing), iomap).operation
-    @test op isa ReplaceReferencedValue && op.value == false   # hide = visible←false
+    @test op isa ReplaceReferencedValueOperation && op.value == false   # hide = visible←false
     @test op.document === iomap.control_widget
 
     # Escape also hides while visible.
     esc = KeyDown(:escape, Modifiers())
     op_esc = projection_read(pcp, nothing, _mkchange(esc, nothing), iomap).operation
-    @test op_esc isa ReplaceReferencedValue && op_esc.value == false
+    @test op_esc isa ReplaceReferencedValueOperation && op_esc.value == false
 
     # After hiding, Ctrl+F shows again.
     iomap.control_widget.visible = false
     op2 = projection_read(pcp, nothing, _mkchange(ctrl_f, nothing), iomap).operation
-    @test op2 isa ReplaceReferencedValue && op2.value == true   # show = visible←true
+    @test op2 isa ReplaceReferencedValueOperation && op2.value == true   # show = visible←true
 
 end # @testset
 
@@ -87,12 +87,12 @@ end # @testset
     iomap = projection_print(proj, nothing, doc, PrinterContext())
 
     # A click that lands on a checkbox routes through renderer → split pane →
-    # composite rows → checkbox, bubbles a ReplaceReferencedValue, and PCP
+    # composite rows → checkbox, bubbles a ReplaceReferencedValueOperation, and PCP
     # redirects it onto the inner projection's bool cell.
     flipped = false
     for y in 0:4:120, x in 150:5:230
         op = projection_read(proj, iomap, MousePress(:left, x, y, Modifiers()))
-        op isa ReplaceReferencedValue || continue
+        op isa ReplaceReferencedValueOperation || continue
         evaluate_operation(_PcEditor(doc), op)
         if inner.case_insensitive[] || inner.invert[]
             flipped = true
@@ -122,7 +122,7 @@ end # @testset
 
     # A KeyPress routes to the (only) editable control and appends to the pattern.
     op = projection_read(proj, nothing, _mkchange(KeyPress('X', "X", Modifiers()), nothing), iomap).operation
-    @test op isa ReplaceReferencedValue
+    @test op isa ReplaceReferencedValueOperation
     @test op.reference.head == FieldReference("pattern")
     evaluate_operation(_PcEditor(doc), op)
     @test inner.pattern[] == "dolorX"

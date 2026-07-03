@@ -30,8 +30,8 @@ import ..ReferenceModule: ReferencePath, ConcreteReferencePath, EmptyReferencePa
                           FieldReference, RangeReference, ElementReference, PointReference, head, tail
 import ..PrinterContextModule: PrinterContext, child_context, with_available_size
 import ..IoMapApiModule: IoMap
-import ..OperationModule: ReplaceSelectionOperation, ReplaceReferencedValue, CompoundOperation
-import ..PrimitiveModule: StringReplaceRangeOperation, NumberReplaceRangeOperation
+import ..OperationModule: ReplaceSelectionOperation, ReplaceReferencedValueOperation, CompoundOperation
+import ..PrimitiveModule: ReplaceStringRangeOperation, ReplaceNumberRangeOperation
 
 export ScreenToScreen, ScreenToScreenIoMap, ScreenWindowIoMap
 
@@ -197,15 +197,15 @@ end
 # `.slice` from the clipboard projection).
 function _prefix_op(op, steps::Tuple)
     op === nothing && return nothing
-    if op isa StringReplaceRangeOperation
-        return StringReplaceRangeOperation(_prepend(steps, op.reference), op.replacement)
-    elseif op isa NumberReplaceRangeOperation
-        return NumberReplaceRangeOperation(_prepend(steps, op.reference), op.replacement)
+    if op isa ReplaceStringRangeOperation
+        return ReplaceStringRangeOperation(_prepend(steps, op.reference), op.replacement)
+    elseif op isa ReplaceNumberRangeOperation
+        return ReplaceNumberRangeOperation(_prepend(steps, op.reference), op.replacement)
     elseif op isa ReplaceSelectionOperation
         return ReplaceSelectionOperation(_prepend(steps, op.path))
-    elseif op isa ReplaceReferencedValue
+    elseif op isa ReplaceReferencedValueOperation
         return op.document === nothing ?
-            ReplaceReferencedValue(nothing, _prepend(steps, op.reference), op.value) : op
+            ReplaceReferencedValueOperation(nothing, _prepend(steps, op.reference), op.value) : op
     elseif op isa CompoundOperation
         return CompoundOperation(Any[_prefix_op(o, steps) for o in op.operations])
     else

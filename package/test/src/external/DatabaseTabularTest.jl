@@ -69,7 +69,7 @@ function test_projection_read_header_readonly(adapter)
         p     = DatabaseTableToTabularGrid()
         iomap = projection_print(p, doc)
         ref   = @reference rows[1].cells[1].content.value{0:3}
-        op    = StringReplaceRangeOperation(ref, "XYZ")
+        op    = ReplaceStringRangeOperation(ref, "XYZ")
         result = projection_read(p, iomap, op)
         @test result === nothing
     end
@@ -81,7 +81,7 @@ function test_projection_read_data_row(adapter)
         p     = DatabaseTableToTabularGrid()
         iomap = projection_print(p, doc)
         ref   = @reference rows[2].cells[1].content.value{0:5}
-        op    = StringReplaceRangeOperation(ref, "Dave")
+        op    = ReplaceStringRangeOperation(ref, "Dave")
         result = projection_read(p, iomap, op)
         @test result isa DatabaseUpdateOperation
         @test result.column == "name"

@@ -10,7 +10,7 @@
 using Projectured: WidgetTree, WidgetTreeNode, WidgetToGraphics, VerticalLayout,
     WidgetTabbedPane, WidgetShell, Point2D, Change,
     MousePress, MouseEnter, MouseMove, MouseLeave, Modifiers,
-    ReplaceReferencedValue, ReplaceSelectionOperation,
+    ReplaceReferencedValueOperation, ReplaceSelectionOperation,
     GraphicsRect, font_ubuntu_regular_20, projection_print, projection_read
 using Projectured.ReactiveModule: Cell
 
@@ -61,12 +61,12 @@ end
     w, io = _fresh()
     r1 = io.geometry[].rows[1]
     op = _readop(io, MouseEnter(r1.chevron_x1 + 2, r1.y0 + 2, :none, _mods))
-    @test op isa ReplaceReferencedValue && op.value !== nothing
+    @test op isa ReplaceReferencedValueOperation && op.value !== nothing
     getfield(w, :hovered)[] = op.value
     @test w.hovered !== nothing
 
     op = _readop(io, MouseLeave(0, 0, :none, _mods))
-    @test op isa ReplaceReferencedValue && op.value === nothing
+    @test op isa ReplaceReferencedValueOperation && op.value === nothing
     getfield(w, :hovered)[] = op.value
     @test w.hovered === nothing
     # A leave with nothing already hovered is a no-op.
@@ -82,7 +82,7 @@ end
     @test _readop(io, MouseMove(r1.chevron_x1 + 5, r1.y0 + 5, :none, _mods)) === nothing
     # Different row → a fresh write.
     op = _readop(io, MouseMove(r2.chevron_x1 + 5, r2.y0 + 5, :none, _mods))
-    @test op isa ReplaceReferencedValue && op.value !== nothing
+    @test op isa ReplaceReferencedValueOperation && op.value !== nothing
 end
 
 @testset "clicking a chevron collapses/expands; clicking a label selects" begin
@@ -90,7 +90,7 @@ end
     r1 = io.geometry[].rows[1]
     # Chevron click on the parent → collapse (children hidden, flag set).
     op = _readop(io, MousePress(:left, (r1.chevron_x0 + r1.chevron_x1) ÷ 2, r1.y0 + 2, _mods))
-    @test op isa ReplaceReferencedValue
+    @test op isa ReplaceReferencedValueOperation
     getfield(w, :collapsed)[] = op.value
     @test [1] in w.collapsed
     g = io.geometry[]
@@ -149,7 +149,7 @@ end
         for x in xs, y in ys
             ce = projection_read(_full, nothing, Change(MouseEnter(x, y, :none, _mods), nothing), io)
             oe = ce isa Change ? ce.operation : ce
-            oe isa ReplaceReferencedValue && oe.document isa WidgetTree && (enters += 1)
+            oe isa ReplaceReferencedValueOperation && oe.document isa WidgetTree && (enters += 1)
             cp = projection_read(_full, nothing, Change(MousePress(:left, x, y, _mods), nothing), io)
             op = cp isa Change ? cp.operation : cp
             op isa ReplaceSelectionOperation && (clicks += 1)

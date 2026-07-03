@@ -7,12 +7,12 @@ using Projectured: DocumentInsertion, JuliaInsertion, JsonInsertion, JuliaDocume
                    DocumentNothing, DocumentInsertionToSyntaxLeaf, JuliaInsertionToSyntaxLeaf,
                    default_factory, default_completion,
                    projection_print, projection_read, evaluate_operation,
-                   ReplaceReferencedValue, CompoundOperation, StringReplaceRangeOperation,
+                   ReplaceReferencedValueOperation, CompoundOperation, ReplaceStringRangeOperation,
                    KeyPress, KeyDown, Modifiers,
                    ConcreteReferencePath, FieldReference, RangeReference, EmptyReferencePath
 
 # A `replace_document(path, doc)` fold expands to a CompoundOperation whose first
-# member is the ReplaceReferencedValue that writes `doc`.
+# member is the ReplaceReferencedValueOperation that writes `doc`.
 _written_doc(op) = op.operations[1].value
 
 _ins_vpath(n) = ConcreteReferencePath(FieldReference("value"),
@@ -37,7 +37,7 @@ function test_document_insertion()
 
             # A printable key edits the value.
             op = projection_read(proj, iom, KeyPress('a'))
-            @test op isa StringReplaceRangeOperation
+            @test op isa ReplaceStringRangeOperation
             evaluate_operation((document = ins,), op)
             @test ins.value == "julia"
 

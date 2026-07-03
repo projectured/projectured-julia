@@ -10,7 +10,7 @@
 #   3. Print the projection and check that a cursor is present in the
 #      Graphics-domain image (a thin GraphicsRect).
 #   4. Simulate a keypress through the reader; it must yield a
-#      StringReplaceRangeOperation.
+#      ReplaceStringRangeOperation.
 #   5. Evaluate that operation against the document.
 #   6. Check that the string in the original input document changed exactly
 #      as the keypress dictates (the typed character inserted at the cursor).
@@ -18,7 +18,7 @@
 
 using Projectured
 using ProjecturedExample
-using Projectured: StringReplaceRangeOperation, evaluate_operation,
+using Projectured: ReplaceStringRangeOperation, evaluate_operation,
                    clear_selection!, set_selection!, evaluate_reference, append_reference,
                    ReferencePath, EmptyReferencePath,
                    FieldReference, RangeReference, PositionReference,
@@ -208,8 +208,8 @@ function _typein_one(document, projection, target, ch)
     catch e
         return (false, "projection_read(KeyPress) threw: $e")
     end
-    op isa StringReplaceRangeOperation ||
-        return (false, "KeyPress produced $(op === nothing ? "nothing" : string(typeof(op))), not StringReplaceRangeOperation")
+    op isa ReplaceStringRangeOperation ||
+        return (false, "KeyPress produced $(op === nothing ? "nothing" : string(typeof(op))), not ReplaceStringRangeOperation")
 
     # 4. Evaluate the operation and 5. verify the input string changed.
     before = try
@@ -237,7 +237,7 @@ end
 
 For every string reachable in `document`, set the cursor into it, assert the
 cursor renders in the Graphics image, type `replacement`'s first character via
-the reader, evaluate the resulting `StringReplaceRangeOperation`, and verify
+the reader, evaluate the resulting `ReplaceStringRangeOperation`, and verify
 the string changed accordingly.  Returns one `(ref, ok, message)` result per
 string visited so callers can assert (and count) each one; `message` is empty
 on success.

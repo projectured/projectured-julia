@@ -121,7 +121,7 @@ evaluate_operation(editor, op::SaveDocumentOperation) =
 
 Replace `editor.document` with the document read from `path` (see
 [`load_document`](@ref)). A **whole-root swap**, identical to the empty-path
-branch of `ReplaceReferencedValue`: rebind `editor.document` and drop the cached
+branch of `ReplaceReferencedValueOperation`: rebind `editor.document` and drop the cached
 `editor.iomap` so the next print rebuilds the projection on the freshly loaded
 root.
 """

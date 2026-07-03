@@ -56,7 +56,7 @@ _mvp_measure(text, font) = (length(text) * 10, 20)
 
 # Chain that exercises the PrimitiveString input. KeyPress events bubble
 # up the reader chain; PrimitiveStringToSyntaxLeaf catches them and emits
-# StringReplaceRangeOperation. The test then evaluates the operation
+# ReplaceStringRangeOperation. The test then evaluates the operation
 # against the assistant's input directly.
 function _input_chain()
     ChainingProjection(

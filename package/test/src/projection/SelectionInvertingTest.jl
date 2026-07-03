@@ -135,8 +135,8 @@ end # @testset
     proj = SelectionInverting()
     iomap = projection_print(proj, _doc("alphabet", _range(1, 2, 5)))
     # Output span 3 is the trailing "bet", starting at input char 5.
-    edit = projection_read(proj, iomap, StringReplaceRangeOperation(_range(3, 0, 3), "X"))
-    @test edit isa StringReplaceRangeOperation
+    edit = projection_read(proj, iomap, ReplaceStringRangeOperation(_range(3, 0, 3), "X"))
+    @test edit isa ReplaceStringRangeOperation
     @test edit.reference == _range(1, 5, 8)
     @test edit.replacement == "X"
 

@@ -18,8 +18,8 @@ operation by prepending the input step that reaches the child — see the
 module OperationRerootingModule
 
 import ..ReferenceModule: ReferencePath, ConcreteReferencePath
-import ..OperationModule: ReplaceSelectionOperation, ReplaceReferencedValue, CompoundOperation
-import ..PrimitiveModule: StringReplaceRangeOperation, NumberReplaceRangeOperation
+import ..OperationModule: ReplaceSelectionOperation, ReplaceReferencedValueOperation, CompoundOperation
+import ..PrimitiveModule: ReplaceStringRangeOperation, ReplaceNumberRangeOperation
 
 export prepend_steps_to_ref, prepend_steps_to_op
 
@@ -42,10 +42,10 @@ end
     prepend_steps_to_op(op, steps::Tuple) -> op
 
 Prepend `steps` to the reference inside a path-bearing operation
-(`ReplaceSelectionOperation` / `StringReplaceRangeOperation` /
-`NumberReplaceRangeOperation` / …). `nothing` passes through as `nothing`.
+(`ReplaceSelectionOperation` / `ReplaceStringRangeOperation` /
+`ReplaceNumberRangeOperation` / …). `nothing` passes through as `nothing`.
 
-`ReplaceReferencedValue` is rerooted only when it is **`editor.document`-rooted**
+`ReplaceReferencedValueOperation` is rerooted only when it is **`editor.document`-rooted**
 (`document === nothing`); a self-contained one (carrying its own root object) is
 returned unchanged, as is any operation type not listed here.
 """
@@ -55,17 +55,17 @@ function prepend_steps_to_op(op, steps::Tuple)
     # operation missing from this list falls through to the `else` and is returned
     # unchanged — its reference never gets rerooted. See documentation/operations.md.
     op === nothing && return nothing
-    if op isa ReplaceReferencedValue
+    if op isa ReplaceReferencedValueOperation
         # Self-contained (carries its own root): pass through. Document-rooted:
         # reroot the reference, exactly as the dedicated path-bearing ops below.
         op.document === nothing || return op
-        ReplaceReferencedValue(nothing, prepend_steps_to_ref(op.reference, steps), op.value)
+        ReplaceReferencedValueOperation(nothing, prepend_steps_to_ref(op.reference, steps), op.value)
     elseif op isa ReplaceSelectionOperation
         ReplaceSelectionOperation(prepend_steps_to_ref(op.path, steps))
-    elseif op isa StringReplaceRangeOperation
-        StringReplaceRangeOperation(prepend_steps_to_ref(op.reference, steps), op.replacement)
-    elseif op isa NumberReplaceRangeOperation
-        NumberReplaceRangeOperation(prepend_steps_to_ref(op.reference, steps), op.replacement)
+    elseif op isa ReplaceStringRangeOperation
+        ReplaceStringRangeOperation(prepend_steps_to_ref(op.reference, steps), op.replacement)
+    elseif op isa ReplaceNumberRangeOperation
+        ReplaceNumberRangeOperation(prepend_steps_to_ref(op.reference, steps), op.replacement)
     elseif op isa CompoundOperation
         CompoundOperation(Any[prepend_steps_to_op(o, steps) for o in op.operations])
     else

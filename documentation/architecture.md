@@ -117,7 +117,7 @@ Anthropic HTTP client are in the opt-in `Mcp`/`Llm`.
 | `Book.jl` | `BookBook`, `BookChapter`, `BookParagraph`, `BookList`, `BookPicture` |
 | `Math.jl` | `MathVariable`, `MathBinaryOperation`, `MathParenthesized`, `MathAssignment` |
 | `Julia.jl` | `JuliaIdentifier`, `JuliaInteger`, `JuliaBinaryOp`, `JuliaCall`, `JuliaIf`, `JuliaFunction`, `JuliaBlock` |
-| `Primitive.jl` | `PrimitiveBool`, `PrimitiveNumber`, `PrimitiveString`; ops `NumberReplaceRangeOperation`, `StringReplaceRangeOperation` |
+| `Primitive.jl` | `PrimitiveBool`, `PrimitiveNumber`, `PrimitiveString`; ops `ReplaceNumberRangeOperation`, `ReplaceStringRangeOperation` |
 | `Table.jl` | `TableCell`, `TableRow`, `TableColumn`, `TableTable` |
 | `FileSystem.jl` | `FileSystemFile`, `FileSystemDirectory` |
 | `Collection.jl` | `CellVector`, `CellMatrix`, `CellTable`, `ListNode` |
@@ -286,7 +286,7 @@ Reactive  (no deps)
 | `SyntaxNodeToText` — flat position → recursive child path | ✅ |
 | `JsonToSyntax` — all node types | ✅ |
 | `ChainingProjection`, `TypeDispatching`, `RecursiveProjection` | ✅ |
-| Character editing (`StringReplaceRangeOperation`) | ⚠️ wired + tested (`test_typeins`) for field-addressed examples; not every domain |
+| Character editing (`ReplaceStringRangeOperation`) | ⚠️ wired + tested (`test_typeins`) for field-addressed examples; not every domain |
 | Mouse click-to-select | ⚠️ wired + tested (`test_mouse_clicks` / `test_click_roundtrips`); not every domain |
 | Undo / redo | ❌ |
 
@@ -310,5 +310,5 @@ Reactive  (no deps)
 | Navigation operations | `Operation.jl` (`ReplaceSelectionOperation`) | ✅ |
 | Editor REPL | `Editor.jl` | ✅ |
 | All higher-order projections | `projection/higherorder/` | ✅ |
-| Insert / delete operations | `Operation.jl` (`insert_elements` / `delete_elements` → a `ReplaceReferencedValue` splice) | ✅ (collections; produced by JSON/XML readers) |
+| Insert / delete operations | `Operation.jl` (`insert_elements` / `delete_elements` → a `ReplaceReferencedValueOperation` splice) | ✅ (collections; produced by JSON/XML readers) |
 | Undo / redo | — | ❌ |

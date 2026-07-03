@@ -10,7 +10,7 @@ using Projectured: WidgetButton, WidgetCheckbox, WidgetSwitch, WidgetTree, Widge
     ChainingProjection, WidgetHoverTrackingProjection, RecursiveProjection, TypeDispatchingProjection,
     MousePress, KeyDown, Modifiers,
     GestureBinding, MousePressPattern, KeyDownPattern,
-    NoOperation, InvokeWidgetActionOperation, ReplaceReferencedValue, ReplaceSelectionOperation,
+    NoOperation, InvokeWidgetActionOperation, ReplaceReferencedValueOperation, ReplaceSelectionOperation,
     FieldReference, RangeReference, ConcreteReferencePath, EmptyReferencePath,
     font_ubuntu_monospace_regular_20, font_ubuntu_regular_20,
     projection_print, projection_read, evaluate_operation
@@ -50,7 +50,7 @@ end
 
 @testset "button: an instance binding shadows the default left-click" begin
     shadow = GestureBinding(MousePressPattern(:left, nothing, nothing),
-                            (doc, evt) -> ReplaceReferencedValue(doc, "hovered", true),
+                            (doc, evt) -> ReplaceReferencedValueOperation(doc, "hovered", true),
                             _always, "custom left", "test")
     fired = Ref(false)
     btn = WidgetButton(Point2D(0, 0), Point2D(120, 40), "Go";
@@ -58,7 +58,7 @@ end
     proj = _bproj()
     iomap = projection_print(proj, nothing, btn, PrinterContext())
     op = projection_read(proj, iomap, MousePress(:left, 10, 10, Modifiers()))
-    @test op isa ReplaceReferencedValue                 # the instance binding won…
+    @test op isa ReplaceReferencedValueOperation                 # the instance binding won…
     @test !(op isa InvokeWidgetActionOperation)         # …the default primary op did not fire
 end
 
@@ -101,7 +101,7 @@ end
     iomap = projection_print(proj, nothing, cb, PrinterContext())
     op = projection_read(proj, iomap, MousePress(:right, 5, 5, Modifiers()))
     @test fired[] == true && op isa NoOperation
-    @test projection_read(proj, iomap, MousePress(:left, 5, 5, Modifiers())) isa ReplaceReferencedValue
+    @test projection_read(proj, iomap, MousePress(:left, 5, 5, Modifiers())) isa ReplaceReferencedValueOperation
 end
 
 @testset "switch: a right-click binding fires; left-click still toggles" begin
@@ -114,7 +114,7 @@ end
     iomap = projection_print(proj, nothing, sw, PrinterContext())
     op = projection_read(proj, iomap, MousePress(:right, 5, 5, Modifiers()))
     @test fired[] == true && op isa NoOperation
-    @test projection_read(proj, iomap, MousePress(:left, 5, 5, Modifiers())) isa ReplaceReferencedValue
+    @test projection_read(proj, iomap, MousePress(:left, 5, 5, Modifiers())) isa ReplaceReferencedValueOperation
 end
 
 # ── WidgetTree / WidgetTreeNode ──────────────────────────────────────────────

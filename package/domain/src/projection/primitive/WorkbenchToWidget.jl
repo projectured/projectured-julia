@@ -46,10 +46,10 @@ import ..IoMapModule: SimpleIoMap, ContentIoMap, ChildrenIoMap
 import ..ReactiveModule: Cell, setfn!
 import ..IoMapApiModule: IoMap
 import ..TypeDispatchingProjectionModule: TypeDispatchingProjection
-import ..OperationModule: ReplaceSelectionOperation, ReplaceReferencedValue, CompoundOperation
+import ..OperationModule: ReplaceSelectionOperation, ReplaceReferencedValueOperation, CompoundOperation
 import ..OperationApiModule: Operation
 import ..OperationRerootingModule: prepend_steps_to_op
-import ..PrimitiveModule: StringReplaceRangeOperation, NumberReplaceRangeOperation
+import ..PrimitiveModule: ReplaceStringRangeOperation, ReplaceNumberRangeOperation
 import ..KeyboardModule: KeyDown, KeyPress
 import ..DocumentApiModule: document_read
 import ..ReferenceModule: ReferencePath, ConcreteReferencePath, ElementReference, PositionReference, RangeReference, EmptyReferencePath, FieldReference, append_reference
@@ -502,7 +502,7 @@ map_reference_forward(::WorkbenchSearcherToWidgetScrollPane, iomap, reference) =
 # workbench field name. The default `projection_read` consults these
 # functions to translate `ReplaceSelectionOperation`, and custom
 # `projection_read` overrides below extend the same translation to
-# `StringReplaceRangeOperation` / `NumberReplaceRangeOperation`.
+# `ReplaceStringRangeOperation` / `ReplaceNumberRangeOperation`.
 
 function map_reference_backward(::WorkbenchEditorToWidgetScrollPane,
                                  iomap::ContentIoMap,
@@ -673,26 +673,26 @@ function projection_read(p::WorkbenchWorkbenchToWidgetShell,
         new_path = map_reference_backward(p, iomap, op.path)
         return new_path === nothing ? nothing : ReplaceSelectionOperation(new_path)
     end
-    if op isa StringReplaceRangeOperation
+    if op isa ReplaceStringRangeOperation
         new_ref = map_reference_backward(p, iomap, op.reference)
-        return new_ref === nothing ? nothing : StringReplaceRangeOperation(new_ref, op.replacement)
+        return new_ref === nothing ? nothing : ReplaceStringRangeOperation(new_ref, op.replacement)
     end
-    if op isa NumberReplaceRangeOperation
+    if op isa ReplaceNumberRangeOperation
         new_ref = map_reference_backward(p, iomap, op.reference)
-        return new_ref === nothing ? nothing : NumberReplaceRangeOperation(new_ref, op.replacement)
+        return new_ref === nothing ? nothing : ReplaceNumberRangeOperation(new_ref, op.replacement)
     end
-    # A document-rooted ReplaceReferencedValue (e.g. a folded document-replace /
+    # A document-rooted ReplaceReferencedValueOperation (e.g. a folded document-replace /
     # sequence-splice from a doc edited in a panel) must be rerooted too; a compound
     # of such ops maps over its members.
-    if op isa ReplaceReferencedValue && op.document === nothing
+    if op isa ReplaceReferencedValueOperation && op.document === nothing
         new_ref = map_reference_backward(p, iomap, op.reference)
-        return new_ref === nothing ? nothing : ReplaceReferencedValue(nothing, new_ref, op.value)
+        return new_ref === nothing ? nothing : ReplaceReferencedValueOperation(nothing, new_ref, op.value)
     end
     if op isa CompoundOperation
         mapped = Any[projection_read(p, iomap, o) for o in op.operations]
         return any(isnothing, mapped) ? nothing : CompoundOperation(mapped)
     end
-    # 3. Other operation types (an identity-rooted ReplaceReferencedValue that
+    # 3. Other operation types (an identity-rooted ReplaceReferencedValueOperation that
     # targets a widget directly, not a path) — pass through.
     op isa Operation && return op
     # 4. Raw events (KeyPress / KeyDown). Focus follows the workbench selection:
@@ -770,7 +770,7 @@ end
 # Operations that target a captured Julia value (e.g. SubmitProseOperation
 # holds its WorkbenchAssistant directly) need no prefixing.
 # Prepend a panel's location steps to a path-bearing op routed up from that panel.
-# Delegates to the shared `prepend_steps_to_op`, so ReplaceReferencedValue (the
+# Delegates to the shared `prepend_steps_to_op`, so ReplaceReferencedValueOperation (the
 # folded document-replace / sequence-splice ops) and CompoundOperation reroot too.
 _prefix_operation(op, prefix_steps::Tuple) = prepend_steps_to_op(op, prefix_steps)
 
@@ -822,7 +822,7 @@ function projection_read(p::WorkbenchAssistantToWidgetSplitPane,
     # `WorkbenchAssistantModule` (loaded later in the include chain) and
     # take precedence via multiple dispatch. For everything else that
     # reaches us, translate path-bearing ops to the assistant's input
-    # domain and let widget-target ops (an identity-rooted ReplaceReferencedValue)
+    # domain and let widget-target ops (an identity-rooted ReplaceReferencedValueOperation)
     # pass through; unhandled raw events return `nothing`.
     if op isa Operation
         return _retarget_panel_op(p, iomap, op)
@@ -854,16 +854,16 @@ function _retarget_panel_op(p, iomap, op)
     if op isa ReplaceSelectionOperation
         new_path = map_reference_backward(p, iomap, op.path)
         return new_path === nothing ? nothing : ReplaceSelectionOperation(new_path)
-    elseif op isa StringReplaceRangeOperation
+    elseif op isa ReplaceStringRangeOperation
         new_ref = map_reference_backward(p, iomap, op.reference)
-        return new_ref === nothing ? nothing : StringReplaceRangeOperation(new_ref, op.replacement)
-    elseif op isa NumberReplaceRangeOperation
+        return new_ref === nothing ? nothing : ReplaceStringRangeOperation(new_ref, op.replacement)
+    elseif op isa ReplaceNumberRangeOperation
         new_ref = map_reference_backward(p, iomap, op.reference)
-        return new_ref === nothing ? nothing : NumberReplaceRangeOperation(new_ref, op.replacement)
-    elseif op isa ReplaceReferencedValue
+        return new_ref === nothing ? nothing : ReplaceNumberRangeOperation(new_ref, op.replacement)
+    elseif op isa ReplaceReferencedValueOperation
         op.document === nothing || return op
         new_ref = map_reference_backward(p, iomap, op.reference)
-        return new_ref === nothing ? nothing : ReplaceReferencedValue(nothing, new_ref, op.value)
+        return new_ref === nothing ? nothing : ReplaceReferencedValueOperation(nothing, new_ref, op.value)
     elseif op isa CompoundOperation
         mapped = Any[_retarget_panel_op(p, iomap, o) for o in op.operations]
         return any(isnothing, mapped) ? nothing : CompoundOperation(mapped)

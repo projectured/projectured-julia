@@ -75,7 +75,7 @@ alongside it.
 - **Operations are verb-first phrases with the `Operation` suffix**:
   `ReplaceSelectionOperation`, `OpenWindowOperation`,
   `ReplaceNumberRangeOperation`. No exceptions — not
-  `NumberReplaceRangeOperation`, not a bare `ReplaceReferencedValue`.
+  `ReplaceNumberRangeOperation`, not a bare `ReplaceReferencedValueOperation`.
 - **Events are `<Source><Action>`, suffixless and tenseless**: `KeyDown`,
   `MouseMove`, `MouseLeave`, `WindowClose`, `WindowResize`, `WindowDefocus`,
   `WindowQuit`. An event reports what the user or system did, never what

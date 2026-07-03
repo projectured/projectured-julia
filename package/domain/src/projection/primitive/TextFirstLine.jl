@@ -33,7 +33,7 @@ import ..IoMapApiModule: IoMap
 import ..ReferenceModule: ConcreteReferencePath, RangeReference, FieldReference, EmptyReferencePath, strip_reference_types
 import ..ReferenceBuilderModule: var"@reference"
 import ..OperationModule: ReplaceSelectionOperation
-import ..PrimitiveModule: StringReplaceRangeOperation
+import ..PrimitiveModule: ReplaceStringRangeOperation
 
 export TextFirstLine, TextFirstLineIoMap
 
@@ -148,7 +148,7 @@ end
 
 # A range edit on the first line maps back to the identical span/range (indices
 # and char offsets are preserved for the visible prefix).
-function projection_read(p::TextFirstLine, iomap::TextFirstLineIoMap, op::StringReplaceRangeOperation)
+function projection_read(p::TextFirstLine, iomap::TextFirstLineIoMap, op::ReplaceStringRangeOperation)
     parsed = _parse_text_elem_range(op.reference)
     parsed === nothing && return nothing
     out_span, char_start, char_stop = parsed
@@ -157,7 +157,7 @@ function projection_read(p::TextFirstLine, iomap::TextFirstLineIoMap, op::String
                       ConcreteReferencePath(FieldReference("content"),
                           ConcreteReferencePath(RangeReference(char_start, char_stop),
                                                 EmptyReferencePath()))))
-    StringReplaceRangeOperation(new_ref, op.replacement)
+    ReplaceStringRangeOperation(new_ref, op.replacement)
 end
 
 # Forward arbitrary events (KeyDown / KeyPress / …) upstream so projections above

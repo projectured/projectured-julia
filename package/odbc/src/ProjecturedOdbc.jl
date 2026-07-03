@@ -433,7 +433,7 @@ import ProjecturedDomain.IoMapApiModule: IoMap
 import ProjecturedDomain.ReferenceModule: ReferencePath, EmptyReferencePath, ConcreteReferencePath,
                           FieldReference, RangeReference, is_element_reference, strip_reference_types
 import ProjecturedDomain.OperationModule: ReplaceSelectionOperation
-import ProjecturedDomain.PrimitiveModule: StringReplaceRangeOperation, NumberReplaceRangeOperation
+import ProjecturedDomain.PrimitiveModule: ReplaceStringRangeOperation, ReplaceNumberRangeOperation
 import ProjecturedDomain.OperationApiModule: evaluate_operation
 import ProjecturedDomain.ReferenceBuilderModule: var"@reference"
 
@@ -603,10 +603,10 @@ function projection_read(p::DatabaseTableToTabularGrid,
 
     ref_path    = nothing
     replacement = ""
-    if op isa StringReplaceRangeOperation
+    if op isa ReplaceStringRangeOperation
         ref_path    = op.reference
         replacement = op.replacement
-    elseif op isa NumberReplaceRangeOperation
+    elseif op isa ReplaceNumberRangeOperation
         ref_path    = op.reference
         replacement = op.replacement
     else

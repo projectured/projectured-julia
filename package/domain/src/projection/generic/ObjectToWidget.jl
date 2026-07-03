@@ -31,7 +31,7 @@ drives collapse from `node.collapsed`.
 
 **Editing.** Controls edit the *object's own* cells. A checkbox click or a text
 edit is matched (by control identity, or by the top-level grid row) and converted
-to `ReplaceReferencedValue(root, path, value)` where `path` is the full reference
+to `ReplaceReferencedValueOperation(root, path, value)` where `path` is the full reference
 from the root to the edited field — so an edit at any nesting depth writes the
 right cell. Caret navigation *into* the tree (real `map_reference_*`) and nested
 text-caret editing are deferred to a later navigation stage.
@@ -56,8 +56,8 @@ import ..StyleTextModule: StyleText
 import ..ReferenceModule: ReferencePath, ConcreteReferencePath, EmptyReferencePath,
                           FieldReference, RangeReference, ElementReference,
                           append_reference, evaluate_reference
-import ..OperationModule: ReplaceReferencedValue, ReplaceSelectionOperation
-import ..PrimitiveModule: StringReplaceRangeOperation
+import ..OperationModule: ReplaceReferencedValueOperation, ReplaceSelectionOperation
+import ..PrimitiveModule: ReplaceStringRangeOperation
 
 export ObjectToWidget, ObjectToWidgetIoMap
 
@@ -266,28 +266,28 @@ _end_cursor(n::Int) = ConcreteReferencePath(FieldReference("elements"),
 
 # ── projection_read ───────────────────────────────────────────────────────
 # Two control-edit shapes are converted to the input domain (a
-# ReplaceReferencedValue that sets the parameter cell):
+# ReplaceReferencedValueOperation that sets the parameter cell):
 #
-# - A checkbox click arrives as ReplaceReferencedValue rooted at the control
+# - A checkbox click arrives as ReplaceReferencedValueOperation rooted at the control
 #   widget (identity); redirect it to the bound field at its full path — works at
 #   any nesting depth.
-# - A text edit arrives as a StringReplaceRangeOperation whose reference is rooted
+# - A text edit arrives as a ReplaceStringRangeOperation whose reference is rooted
 #   at this projection's output (`…children[row]…content…`); identify the
 #   *top-level* field from the grid row, apply the character-range edit, and emit
 #   the new whole value. Nested text-caret edits are deferred to the navigation
 #   stage and pass through.
 
-function projection_read(p::ObjectToWidget, iomap::ObjectToWidgetIoMap, op::ReplaceReferencedValue)
+function projection_read(p::ObjectToWidget, iomap::ObjectToWidgetIoMap, op::ReplaceReferencedValueOperation)
     for (control, path) in iomap.controls
         op.document === control || continue
         current = evaluate_reference(iomap.input, path)
         value = _coerce(current, op.value)
-        return ReplaceReferencedValue(iomap.input, path, value)
+        return ReplaceReferencedValueOperation(iomap.input, path, value)
     end
     op   # not one of ours — pass through
 end
 
-function projection_read(p::ObjectToWidget, iomap::ObjectToWidgetIoMap, op::StringReplaceRangeOperation)
+function projection_read(p::ObjectToWidget, iomap::ObjectToWidgetIoMap, op::ReplaceStringRangeOperation)
     parsed = _parse_control_edit(op.reference)
     parsed === nothing && return op
     row, cstart, cstop = parsed
@@ -301,7 +301,7 @@ function projection_read(p::ObjectToWidget, iomap::ObjectToWidgetIoMap, op::Stri
     path = ConcreteReferencePath(FieldReference(String(nm)), EmptyReferencePath())
     current = _as_string(f[])
     newval = _coerce(f[], _apply_range(current, cstart, cstop, op.replacement))
-    ReplaceReferencedValue(iomap.input, path, newval)
+    ReplaceReferencedValueOperation(iomap.input, path, newval)
 end
 
 # A click on a control arrives as a ReplaceSelectionOperation rooted at the widget

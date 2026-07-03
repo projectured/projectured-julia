@@ -43,9 +43,9 @@ import ..ProjectionApiModule: projection_print, projection_printer_recurse, proj
                               map_reference_forward, map_reference_backward, Projection
 import ..ChangeModule: Change
 import ..OperationApiModule: Operation, evaluate_operation
-import ..OperationModule: ReplaceSelectionOperation, ReplaceReferencedValue, replace_document,
+import ..OperationModule: ReplaceSelectionOperation, ReplaceReferencedValueOperation, replace_document,
                           insert_elements, delete_elements, CompoundOperation
-import ..PrimitiveModule: StringReplaceRangeOperation, NumberReplaceRangeOperation, PrimitiveString
+import ..PrimitiveModule: ReplaceStringRangeOperation, ReplaceNumberRangeOperation, PrimitiveString
 import ..ReactiveModule: Cell
 import ..DocumentModule: Document
 import ..DocumentCoreModule: DocumentNothing
@@ -312,7 +312,7 @@ end
 # In text mode copy/cut/paste move *character ranges*, not document nodes. The
 # slice stores the copied text as a TextString (the ProjecturEd clipboard); the OS
 # clipboard is always mirrored on copy/cut and used as the paste fallback. Edits are
-# `StringReplaceRangeOperation`s built by `text_insert_op`, re-rooted under
+# `ReplaceStringRangeOperation`s built by `text_insert_op`, re-rooted under
 # `content`; the caret advances automatically on evaluation.
 
 # The plain string held by a stored slice, or `nothing` when it carries no text.
@@ -585,13 +585,13 @@ function _prefix_op(op, steps::Tuple)
     op === nothing && return nothing
     if op isa ReplaceSelectionOperation
         ReplaceSelectionOperation(_prepend(steps, op.path))
-    elseif op isa StringReplaceRangeOperation
-        StringReplaceRangeOperation(_prepend(steps, op.reference), op.replacement)
-    elseif op isa NumberReplaceRangeOperation
-        NumberReplaceRangeOperation(_prepend(steps, op.reference), op.replacement)
-    elseif op isa ReplaceReferencedValue
+    elseif op isa ReplaceStringRangeOperation
+        ReplaceStringRangeOperation(_prepend(steps, op.reference), op.replacement)
+    elseif op isa ReplaceNumberRangeOperation
+        ReplaceNumberRangeOperation(_prepend(steps, op.reference), op.replacement)
+    elseif op isa ReplaceReferencedValueOperation
         op.document === nothing ?
-            ReplaceReferencedValue(nothing, _prepend(steps, op.reference), op.value) : op
+            ReplaceReferencedValueOperation(nothing, _prepend(steps, op.reference), op.value) : op
     elseif op isa CompoundOperation
         CompoundOperation(Any[_prefix_op(o, steps) for o in op.operations])
     else

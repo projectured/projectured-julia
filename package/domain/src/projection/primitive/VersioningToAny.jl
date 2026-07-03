@@ -41,9 +41,9 @@ import ..ProjectionApiModule: projection_print, projection_printer_recurse, proj
                               map_reference_forward, map_reference_backward, Projection
 import ..ChangeModule: Change
 import ..OperationApiModule: Operation, evaluate_operation
-import ..OperationModule: ReplaceSelectionOperation, ReplaceReferencedValue,
+import ..OperationModule: ReplaceSelectionOperation, ReplaceReferencedValueOperation,
                           insert_elements, delete_elements, CompoundOperation
-import ..PrimitiveModule: StringReplaceRangeOperation, NumberReplaceRangeOperation
+import ..PrimitiveModule: ReplaceStringRangeOperation, ReplaceNumberRangeOperation
 import ..ReactiveModule: Cell
 import ..DocumentModule: Document
 import ..DocumentCoreModule: DocumentNothing
@@ -252,13 +252,13 @@ function _prefix_op(op, steps::Tuple)
     op === nothing && return nothing
     if op isa ReplaceSelectionOperation
         ReplaceSelectionOperation(_prepend(steps, op.path))
-    elseif op isa StringReplaceRangeOperation
-        StringReplaceRangeOperation(_prepend(steps, op.reference), op.replacement)
-    elseif op isa NumberReplaceRangeOperation
-        NumberReplaceRangeOperation(_prepend(steps, op.reference), op.replacement)
-    elseif op isa ReplaceReferencedValue
+    elseif op isa ReplaceStringRangeOperation
+        ReplaceStringRangeOperation(_prepend(steps, op.reference), op.replacement)
+    elseif op isa ReplaceNumberRangeOperation
+        ReplaceNumberRangeOperation(_prepend(steps, op.reference), op.replacement)
+    elseif op isa ReplaceReferencedValueOperation
         op.document === nothing ?
-            ReplaceReferencedValue(nothing, _prepend(steps, op.reference), op.value) : op
+            ReplaceReferencedValueOperation(nothing, _prepend(steps, op.reference), op.value) : op
     elseif op isa CompoundOperation
         CompoundOperation(Any[_prefix_op(o, steps) for o in op.operations])
     else

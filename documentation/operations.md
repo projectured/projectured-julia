@@ -45,14 +45,14 @@ Produced when the user closes the window or presses Escape. Its evaluation
 throws a `QuitEditorException`, which the `run!` loop catches and uses to
 break out cleanly.
 
-## The generic write operation: `ReplaceReferencedValue`
+## The generic write operation: `ReplaceReferencedValueOperation`
 
 Most operations do one thing — **write a value into one slot of some object** — so
 they are all really the *same* operation, differing only in which object, which
 slot, and what value:
 
 ```julia
-struct ReplaceReferencedValue
+struct ReplaceReferencedValueOperation
     document    # root to resolve `reference` against; `nothing` ⇒ editor.document
     reference   # ReferencePath to the slot being written
     value       # the value to write
@@ -82,7 +82,7 @@ readers stay small:
 
 | Builder | Builds |
 |---|---|
-| `ReplaceReferencedValue(obj, "field", v)` | a single field write on a carried root |
+| `ReplaceReferencedValueOperation(obj, "field", v)` | a single field write on a carried root |
 | `replace_document(path, doc)` | write `doc` at `path`, then move the cursor to `path ⧺ doc.selection` — a `CompoundOperation` |
 | `insert_elements(path, i, items[, sel]; root=nothing)` | zero-width splice (insert); with `sel`, append a cursor move |
 | `delete_elements(path, i[, n]; root=nothing)` | range-with-empty splice (delete `n` elements) |
@@ -92,12 +92,12 @@ rerooting maps over the members, so a write and its cursor move stay in sync. Th
 is how a document replace or a sequence insert-and-select is expressed, and what the
 clipboard cut/copy/paste produce.
 
-`ReplaceReferencedValue` and these builders **replace a whole family** of former
+`ReplaceReferencedValueOperation` and these builders **replace a whole family** of former
 single-purpose operations — `ReplaceDocumentOperation`, `HideWidgetOperation`,
 `ShowWidgetOperation`, `ScrollWidgetOperation`, `SetScrollBarValueOperation`,
 `SetWidgetHoverOperation`, `SetWidgetPressedOperation`, `CollectionInsertOperation`,
 `CollectionDeleteOperation`, and the Workbench open/close. **Reach for
-`ReplaceReferencedValue` (or a builder) before writing a new operation struct.** See
+`ReplaceReferencedValueOperation` (or a builder) before writing a new operation struct.** See
 [`plan/done/consolidate-operations-replace.md`](../plan/done/consolidate-operations-replace.md).
 
 ## Operations that remain distinct
@@ -106,7 +106,7 @@ These do something other than a single-slot write, so they stay their own types:
 
 | Operation | Where it lives | Why it stays |
 |---|---|---|
-| `StringReplaceRangeOperation` / `NumberReplaceRangeOperation` | `document/Primitive.jl` | character-range edits on a string/number value; kept distinct because ~19 projection readers dispatch on the type to specialize char-edit handling (span↔flat mapping, control-edit parsing, …) |
+| `ReplaceStringRangeOperation` / `ReplaceNumberRangeOperation` | `document/Primitive.jl` | character-range edits on a string/number value; kept distinct because ~19 projection readers dispatch on the type to specialize char-edit handling (span↔flat mapping, control-edit parsing, …) |
 | `SelectTabOperation(tabbed_pane, index)` | `document/Widget.jl` | event-like signal — the workbench overloads it into a document-selection move |
 | `ReplaceFocusPartOperation(projection, part)` | `projection/generic/Focusing.jl` | retargets a `FocusingProjection` |
 | `MoveRangeOperation(src, a, b, dst, i)` | `projection/higherorder/Dragging.jl` | identity-preserving relocation of `CellVector` elements (carries the `CellVector`s directly) |
@@ -199,7 +199,7 @@ enclosing* object/array rather than only the root. See
 ## Adding a new operation
 
 **First ask whether you need one.** If the gesture just writes a value into a slot
-(a field, or an element of a sequence), emit a `ReplaceReferencedValue` — or a
+(a field, or an element of a sequence), emit a `ReplaceReferencedValueOperation` — or a
 `replace_document` / `insert_elements` / `delete_elements` builder, optionally inside
 a `CompoundOperation` with a `ReplaceSelectionOperation` cursor move. No new type,
 no new evaluator, and rerooting already works. Add a new `Operation` struct only for
@@ -237,14 +237,14 @@ When you do need a new one:
   projection graph. If an operation instead swaps a whole value/subtree out from
   under the projection (replacing the structure the iomap was built against), it
   must **null `editor.iomap`** to force a fresh `projection_print` — exactly what a
-  `ReplaceReferencedValue` with an empty reference (the `replace_document` whole-root
+  `ReplaceReferencedValueOperation` with an empty reference (the `replace_document` whole-root
   swap) does. An operation that silently rebinds structure without dropping the iomap
   renders stale.
 - **A new *reference-carrying* operation must be registered in two places.** If
   your operation embeds a `ReferencePath` that has to cross projection boundaries
-  — the generic `ReplaceReferencedValue` (when `document === nothing`), or the
+  — the generic `ReplaceReferencedValueOperation` (when `document === nothing`), or the
   remaining path-bearing types `ReplaceSelectionOperation` /
-  `StringReplaceRangeOperation` / `NumberReplaceRangeOperation`, or a
+  `ReplaceStringRangeOperation` / `ReplaceNumberRangeOperation`, or a
   `CompoundOperation` of them — it is only retargeted/rerooted automatically if it
   is handled in **both** the default `projection_read`
   ([common/Projection.jl](../package/kernel/src/common/Projection.jl)) **and**
@@ -252,7 +252,7 @@ When you do need a new one:
   ([common/OperationRerooting.jl](../package/kernel/src/common/OperationRerooting.jl)).
   Both enumerate the path-bearing operation types explicitly; an operation missing
   from either is **silently passed through unmapped** — its reference stays in the
-  wrong domain with no error. A `ReplaceReferencedValue` that carries its own root
+  wrong domain with no error. A `ReplaceReferencedValueOperation` that carries its own root
   (`document !== nothing`) needs no rerooting — it is passed through unchanged — so
   prefer that form for an operation targeting a carried object.
 

@@ -56,7 +56,7 @@ Editor(backend, document, projection, devices) =
 
 # Drop the cached IoMap so the next `print!` rebuilds the projection from scratch.
 # The default `invalidate_projection!` (in `OperationApiModule`) is a no-op; this
-# method is what an operation like a whole-root `ReplaceReferencedValue` swap
+# method is what an operation like a whole-root `ReplaceReferencedValueOperation` swap
 # actually reaches when it runs against a real `Editor`.
 invalidate_projection!(editor::Editor) = (editor.iomap = nothing)
 

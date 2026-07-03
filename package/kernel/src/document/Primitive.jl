@@ -16,7 +16,7 @@ import ..ReferenceModule: Reference, ReferencePath, ConcreteReferencePath, Empty
                           ReferenceStep, FieldReference, RangeReference, evaluate_reference,
                           strip_reference_types, reference_steps
 export PrimitiveDocument, PrimitiveInsertion, PrimitiveBool, PrimitiveNumber, PrimitiveString,
-       NumberReplaceRangeOperation, StringReplaceRangeOperation,
+       ReplaceNumberRangeOperation, ReplaceStringRangeOperation,
        evaluate_operation,
        IPrimitiveInsertion, IPrimitiveBool, IPrimitiveNumber, IPrimitiveString
 
@@ -90,7 +90,7 @@ PrimitiveString(value; selection=nothing) =
 # ── Operations ────────────────────────────────────────────────────────────────
 
 """
-    NumberReplaceRangeOperation(reference, replacement)
+    ReplaceNumberRangeOperation(reference, replacement)
 
 Replace characters in the string representation of a `PrimitiveNumber`'s value.
 `reference` is a `ReferencePath` rooted at the editor's document whose terminal
@@ -101,13 +101,13 @@ to a zero-width cursor at `s + length(replacement)`.
 
 An empty result sets the value to `nothing`.
 """
-struct NumberReplaceRangeOperation <: Operation
+struct ReplaceNumberRangeOperation <: Operation
     reference::ReferencePath
     replacement::String
 end
 
 """
-    StringReplaceRangeOperation(reference, replacement)
+    ReplaceStringRangeOperation(reference, replacement)
 
 Replace characters in a `PrimitiveString`'s value. `reference` is a
 `ReferencePath` rooted at the editor's document whose terminal step is a
@@ -119,7 +119,7 @@ zero-width cursor at `s + length(replacement)`.
 Inter-string boundary behaviour: when the cursor sits exactly on the boundary
 between two adjacent `PrimitiveString` spans, the behaviour is undefined.
 """
-struct StringReplaceRangeOperation <: Operation
+struct ReplaceStringRangeOperation <: Operation
     reference::ReferencePath
     replacement::String
 end
@@ -163,7 +163,7 @@ end
 # A number edit always has number semantics regardless of the field's current
 # value (an empty/cleared field reparses from ""), so it does not go through the
 # representation-dispatched `splice_value!` — it forces the number path here.
-function evaluate_operation(editor, op::NumberReplaceRangeOperation)
+function evaluate_operation(editor, op::ReplaceNumberRangeOperation)
     document = editor.document
     split = _split_replace_reference(op.reference)
     split === nothing && return            # no editable slot (e.g. projection-introduced span)
@@ -177,7 +177,7 @@ function evaluate_operation(editor, op::NumberReplaceRangeOperation)
     _replace_selection_with_cursor!(document, op)
 end
 
-function evaluate_operation(editor, op::StringReplaceRangeOperation)
+function evaluate_operation(editor, op::ReplaceStringRangeOperation)
     document = editor.document
     split = _split_replace_reference(op.reference)
     split === nothing && return            # no editable slot (e.g. projection-introduced span)

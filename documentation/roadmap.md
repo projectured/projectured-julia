@@ -15,11 +15,11 @@ backends), **then distribute** (network, collaboration, external data).
 The projection pipeline is complete and bidirectional. Cursor movement works
 across all domains. What's missing is the ability to *change* a document.
 
-### 1. Character editing (`StringReplaceRangeOperation`)
+### 1. Character editing (`ReplaceStringRangeOperation`)
 
 Wire printable key events and backspace/delete into `evaluate_operation` for
 `JsonString`, `XmlText`, `PrimitiveString`, and any domain with text-valued
-leaf nodes. The `StringReplaceRangeOperation` type already exists in the
+leaf nodes. The `ReplaceStringRangeOperation` type already exists in the
 `Primitive` domain; it needs to be produced by the reader chain and evaluated
 by the editor.
 
@@ -34,7 +34,7 @@ handles flat positions. This is the highest-impact, lowest-effort change.
 ### 3. Structural insert / delete
 
 Add/remove elements from `JsonArray`, entries from `JsonObject`, children from
-`SyntaxNode`. Requires `insert_elements` / `delete_elements` (a `ReplaceReferencedValue`
+`SyntaxNode`. Requires `insert_elements` / `delete_elements` (a `ReplaceReferencedValueOperation`
 splice) and reader-side logic that detects when the cursor is on structural whitespace
 and a structural key is pressed.
 
@@ -74,7 +74,7 @@ new implementations. Enables SSH-accessible editing and headless CI.
 
 A `FocusingProjection`-based mode where typing a query narrows the visible
 document to matching subtrees. The reader maps edits back through the filter.
-Ctrl+F opens the search input; confirmations produce `StringReplaceRangeOperation`s
+Ctrl+F opens the search input; confirmations produce `ReplaceStringRangeOperation`s
 on the matching nodes.
 
 ### 9. Transactional / staged editing

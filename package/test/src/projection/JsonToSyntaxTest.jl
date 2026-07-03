@@ -58,7 +58,7 @@ read_key(doc, sel, evt) = begin
 end
 
 # A type-to-replace gesture now returns the folded `replace_document` compound:
-# CompoundOperation([ReplaceReferencedValue(writes the new doc), ReplaceSelection]).
+# CompoundOperation([ReplaceReferencedValueOperation(writes the new doc), ReplaceSelection]).
 # `_written` pulls out the document that the first member writes.
 _written(op) = op.operations[1].value
 
@@ -114,7 +114,7 @@ end
     arr = JsonArray([JsonNumber(1)])
     op = read_key(arr, whole, KeyPress(','))
     @test op isa CompoundOperation                       # splice + select-new
-    @test op.operations[1] isa ReplaceReferencedValue
+    @test op.operations[1] isa ReplaceReferencedValueOperation
     ed = _JsonReaderEditor(arr, nothing)
     evaluate_operation(ed, op)
     @test length(arr.elements) == 2

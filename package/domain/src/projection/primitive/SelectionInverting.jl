@@ -33,7 +33,7 @@ import ..ReferenceModule: ConcreteReferencePath, RangeReference, FieldReference,
 import ..ReferenceBuilderModule: var"@reference"
 import ..OperationApiModule: Operation
 import ..OperationModule: ReplaceSelectionOperation
-import ..PrimitiveModule: StringReplaceRangeOperation
+import ..PrimitiveModule: ReplaceStringRangeOperation
 export SelectionInverting, SelectionInvertingIoMap, SelSeg
 
 # ── Projection struct ───────────────────────────────────────────────────────
@@ -254,9 +254,9 @@ function projection_read(p::SelectionInverting, iomap::SelectionInvertingIoMap, 
     ReplaceSelectionOperation(input_path)
 end
 
-# Translate a `StringReplaceRangeOperation` from the split output domain back to
+# Translate a `ReplaceStringRangeOperation` from the split output domain back to
 # the un-split input domain, shifting the char range by the sub-span's start.
-function projection_read(p::SelectionInverting, iomap::SelectionInvertingIoMap, op::StringReplaceRangeOperation)
+function projection_read(p::SelectionInverting, iomap::SelectionInvertingIoMap, op::ReplaceStringRangeOperation)
     parsed = _parse_text_elem_range(op.reference)
     parsed === nothing && return nothing
     out_span, char_start, char_stop = parsed
@@ -269,7 +269,7 @@ function projection_read(p::SelectionInverting, iomap::SelectionInvertingIoMap, 
                           ConcreteReferencePath(FieldReference("content"),
                               ConcreteReferencePath(RangeReference(new_start, new_stop),
                                                     EmptyReferencePath()))))
-        return StringReplaceRangeOperation(new_ref, op.replacement)
+        return ReplaceStringRangeOperation(new_ref, op.replacement)
     end
     nothing
 end

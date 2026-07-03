@@ -64,8 +64,8 @@ The geometry-free half of the Text reader lives on the document itself:
 maps an input gesture to an operation expressed against the `TextText`'s own
 references (reading only `elements` and `selection`, never any pixel layout):
 
-- `KeyPress(c)` → `StringReplaceRangeOperation` (character insert)
-- `Backspace` / `Delete` → `StringReplaceRangeOperation`
+- `KeyPress(c)` → `ReplaceStringRangeOperation` (character insert)
+- `Backspace` / `Delete` → `ReplaceStringRangeOperation`
 - `Left` / `Right` → cross-span character cursor movement
 - `Ctrl+Home` / `Ctrl+End` → jump to the first/last span character
 - `Ctrl+.` → `ToggleCollapseOperation` (recognised here, resolved at the syntax layer)

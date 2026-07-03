@@ -6,7 +6,7 @@
 # lit the first button. Bounding the item canvas to its footprint fixes it.
 
 using Projectured: WidgetToolbar, WidgetMenuItem, WidgetMenu, Inset, Change,
-    MouseEnter, Modifiers, ReplaceReferencedValue, GraphicsCanvas,
+    MouseEnter, Modifiers, ReplaceReferencedValueOperation, GraphicsCanvas,
     projection_print, projection_read
 using Projectured.ReactiveModule: Cell
 
@@ -45,7 +45,7 @@ end
             g = MouseEnter(Int(c.x) + 6, Int(c.y) + dy, :none, _mods)
             ch = projection_read(proj, nothing, Change(g, nothing), io)
             op = ch isa Change ? ch.operation : ch
-            op isa ReplaceReferencedValue && return op.document.content
+            op isa ReplaceReferencedValueOperation && return op.document.content
         end
         return nothing
     end

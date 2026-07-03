@@ -4,7 +4,7 @@ using Projectured: PrimitiveBool, PrimitiveNumber, PrimitiveString,
                     projection_print, projection_read,
                     map_reference_forward, map_reference_backward,
                     SimpleIoMap, ReplaceSelectionOperation,
-                    StringReplaceRangeOperation,
+                    ReplaceStringRangeOperation,
                     KeyPress, KeyDown, Modifiers,
                     ConcreteReferencePath, EmptyReferencePath,
                     FieldReference, RangeReference, ElementReference, PositionReference,
@@ -129,13 +129,13 @@ end
 
 # ── KeyPress / KeyDown producers ─────────────────────────────────────────────
 
-@testset "string KeyPress produces StringReplaceRangeOperation" begin
+@testset "string KeyPress produces ReplaceStringRangeOperation" begin
     s = PrimitiveString("ab")
     set_selection!(s, _value_range(0, 0))
     p = PrimitiveStringToTextText()
     iomap = SimpleIoMap(p, s, nothing)
     op = projection_read(p, iomap, KeyPress('x'))
-    @test op isa StringReplaceRangeOperation
+    @test op isa ReplaceStringRangeOperation
     @test op.replacement == "x"
     @test op.reference.head isa FieldReference && op.reference.head.name == "value"
     @test op.reference.tail.head isa RangeReference
@@ -148,7 +148,7 @@ end
     p = PrimitiveStringToTextText()
     iomap = SimpleIoMap(p, s, nothing)
     op = projection_read(p, iomap, KeyDown(:backspace, Modifiers()))
-    @test op isa StringReplaceRangeOperation
+    @test op isa ReplaceStringRangeOperation
     @test op.replacement == ""
     @test op.reference.tail.head.start == 1 && op.reference.tail.head.stop == 2
 end
@@ -159,7 +159,7 @@ end
     p = PrimitiveStringToTextText()
     iomap = SimpleIoMap(p, s, nothing)
     op = projection_read(p, iomap, KeyDown(:delete, Modifiers()))
-    @test op isa StringReplaceRangeOperation
+    @test op isa ReplaceStringRangeOperation
     @test op.reference.tail.head.start == 0 && op.reference.tail.head.stop == 1
 end
 
@@ -174,7 +174,7 @@ end
     iomap = SimpleIoMap(p, s, nothing)
     evt = KeyPress('x', "x", Modifiers(true, false, false, false))
     op = projection_read(p, iomap, evt)
-    @test op isa StringReplaceRangeOperation
+    @test op isa ReplaceStringRangeOperation
     @test op.replacement == "x"
 end
 

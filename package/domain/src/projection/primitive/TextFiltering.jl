@@ -27,7 +27,7 @@ import ..IoMapApiModule: IoMap
 import ..ReferenceModule: ConcreteReferencePath, RangeReference, FieldReference, EmptyReferencePath, strip_reference_types
 import ..ReferenceBuilderModule: var"@reference"
 import ..OperationModule: ReplaceSelectionOperation
-import ..PrimitiveModule: StringReplaceRangeOperation
+import ..PrimitiveModule: ReplaceStringRangeOperation
 export TextFiltering, TextFilteringIoMap
 
 # ── Projection struct ───────────────────────────────────────────────────────
@@ -175,10 +175,10 @@ function projection_read(p::TextFiltering, iomap::TextFilteringIoMap, op::Replac
     ReplaceSelectionOperation(input_path)
 end
 
-# Translate a `StringReplaceRangeOperation` from the filtered output domain back
+# Translate a `ReplaceStringRangeOperation` from the filtered output domain back
 # to the input domain: remap the element index via the kept table, keep the
 # character range unchanged.
-function projection_read(p::TextFiltering, iomap::TextFilteringIoMap, op::StringReplaceRangeOperation)
+function projection_read(p::TextFiltering, iomap::TextFilteringIoMap, op::ReplaceStringRangeOperation)
     parsed = _parse_text_elem_range(op.reference)
     parsed === nothing && return nothing
     out_span, char_start, char_stop = parsed
@@ -190,7 +190,7 @@ function projection_read(p::TextFiltering, iomap::TextFilteringIoMap, op::String
                       ConcreteReferencePath(FieldReference("content"),
                           ConcreteReferencePath(RangeReference(char_start, char_stop),
                                                 EmptyReferencePath()))))
-    StringReplaceRangeOperation(new_ref, op.replacement)
+    ReplaceStringRangeOperation(new_ref, op.replacement)
 end
 
 # Forward arbitrary events upstream (KeyDown / KeyPress / etc.) so projections

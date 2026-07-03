@@ -175,8 +175,8 @@ instead dispatches it to the sub-projection of the relevant document part.
 
 **Most projections need no `projection_read` method.** The default in
 `ProjectionModule` re-targets any reference-carrying operation —
-`ReplaceSelectionOperation`, `StringReplaceRangeOperation`,
-`NumberReplaceRangeOperation` — by mapping its reference with
+`ReplaceSelectionOperation`, `ReplaceStringRangeOperation`,
+`ReplaceNumberRangeOperation` — by mapping its reference with
 `map_reference_backward`. So a projection that only moves the cursor or edits a
 value through a structure-preserving map needs **only** the two reference-mapping
 functions. Write a `projection_read` method (the 4-arg `Change` form above) only
@@ -186,13 +186,13 @@ lightest touch to the most involved:
 - **Re-target the references.** Most often the incoming operation is the right
   *kind* and only its references need moving from output to input coordinates
   with `map_reference_backward` — rewrite the `.reference` of a
-  `StringReplaceRangeOperation` / `NumberReplaceRangeOperation`, or the `.path`
+  `ReplaceStringRangeOperation` / `ReplaceNumberRangeOperation`, or the `.path`
   of a `ReplaceSelectionOperation` (this is what the default already does for
   you), then rebuild the op.
 - **Convert to a different operation.** It is perfectly valid to turn the
   incoming operation into a *completely different* one — retype it (e.g.
-  `JsonNumberToSyntaxLeaf` turns a `StringReplaceRangeOperation` into a
-  `NumberReplaceRangeOperation` so the evaluator re-parses the value), or
+  `JsonNumberToSyntaxLeaf` turns a `ReplaceStringRangeOperation` into a
+  `ReplaceNumberRangeOperation` so the evaluator re-parses the value), or
   replace it outright with whatever operation expresses the same intent in this
   projection's input domain.
 - **Recurse, then extend.** When `projection_print` descended into children,

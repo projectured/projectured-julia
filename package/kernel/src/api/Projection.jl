@@ -192,12 +192,12 @@ these are the moves available — from the lightest touch to the most involved:
 - **Re-target the references.** Most often the incoming operation is the right
   *kind* and only its references need moving from the output domain to the input
   domain with `map_reference_backward` — rewrite the `.reference` of a
-  `StringReplaceRangeOperation` / `NumberReplaceRangeOperation`, or the `.path`
+  `ReplaceStringRangeOperation` / `ReplaceNumberRangeOperation`, or the `.path`
   of a `ReplaceSelectionOperation` (what the default does), then rebuild the op.
 - **Convert to a different operation.** It is perfectly valid to turn the
   incoming operation into a *completely different* one — retype it (e.g. a
-  projection over a numeric leaf turns an incoming `StringReplaceRangeOperation`
-  into a `NumberReplaceRangeOperation` so the evaluator re-parses the edited text
+  projection over a numeric leaf turns an incoming `ReplaceStringRangeOperation`
+  into a `ReplaceNumberRangeOperation` so the evaluator re-parses the edited text
   as a number), or replace it outright with whatever operation expresses the same
   intent in this projection's input domain.
 - **Recurse, then extend.** When `projection_print` descended into children, the

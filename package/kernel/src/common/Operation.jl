@@ -3,7 +3,7 @@
 
 The built-in operations and the selection machinery that applies them. Holds the
 concrete `Operation` subtypes the reader side of the pipeline produces
-(`ReplaceSelectionOperation`, `ReplaceReferencedValue`, the window/zoom/collapse
+(`ReplaceSelectionOperation`, `ReplaceReferencedValueOperation`, the window/zoom/collapse
 operations, `CompoundOperation`, …) with their `evaluate_operation` methods, the
 `clear_selection!` / `set_selection!` / `update_selection!` propagation over the
 document tree, and the `splice_*` text-edit helpers. The abstract `Operation`
@@ -23,7 +23,7 @@ import ..ReactiveModule: Cell
 import ..CollectionModule: CellVector
 export NoOperation, ReplaceSelectionOperation, QuitEditorOperation, QuitEditorException, replace_selection!,
        ToggleCollapseOperation,
-       ReplaceReferencedValue, replace_document, insert_elements, delete_elements, SelectNextInsertionOperation,
+       ReplaceReferencedValueOperation, replace_document, insert_elements, delete_elements, SelectNextInsertionOperation,
        CompoundOperation, AdjustZoomOperation, AdjustFontZoomOperation, update_selection!,
        splice_string, splice_number, splice_value!
 
@@ -191,7 +191,7 @@ function evaluate_operation(editor, op::ReplaceSelectionOperation)
     update_selection!(editor.document, op.path)
 end
 
-# ReplaceDocumentOperation was folded into ReplaceReferencedValue + a trailing
+# ReplaceDocumentOperation was folded into ReplaceReferencedValueOperation + a trailing
 # ReplaceSelectionOperation, bundled by `replace_document` (below). It replaced the
 # document at `path` (rooted at editor.document) with a new `document`, then moved
 # the editor selection to `path ⧺ document.selection` so the cursor landed inside
@@ -208,11 +208,11 @@ end
 # Write `value` into the slot `step` selects on `parent`. A FieldReference names a
 # `Cell`-backed field (e.g. `JsonObjectEntry.value`, or a widget's `visible`); a
 # RangeReference selects an element of a sequence container (`CellVector`) and
-# overwrites it. Shared by `ReplaceReferencedValue` (single-slot writes of either a
+# overwrites it. Shared by `ReplaceReferencedValueOperation` (single-slot writes of either a
 # document or a scalar) — terminal-kind dispatch is what unifies the two.
 function _write_slot!(parent, step::FieldReference, value)
     f = getfield(parent, Symbol(step.name))
-    f isa Cell || error("ReplaceReferencedValue: field $(step.name) of $(typeof(parent)) is not a Cell")
+    f isa Cell || error("ReplaceReferencedValueOperation: field $(step.name) of $(typeof(parent)) is not a Cell")
     f[] = value
 end
 
@@ -237,7 +237,7 @@ function _write_slot!(parent, step::RangeReference, items::AbstractVector)
 end
 
 """
-    ReplaceReferencedValue(document, reference, value)
+    ReplaceReferencedValueOperation(document, reference, value)
 
 Set the scalar `value` at `reference` (a `ReferencePath`) resolved against a
 root selected by the `document` field:
@@ -259,21 +259,21 @@ reference + a plain value, reusing the same terminal-slot-write split. (Folding
 `ReplaceDocumentOperation` and the Group 2–4 single-slot writes into this is the
 subject of `plan/done/consolidate-operations-replace.md`.)
 """
-struct ReplaceReferencedValue <: Operation
+struct ReplaceReferencedValueOperation <: Operation
     document::Any
     reference::ReferencePath
     value::Any
 end
 
 # Convenience for the common single-field write on a carried root:
-# `ReplaceReferencedValue(obj, "field", v)` writes `obj.field = v`. Dispatches by
+# `ReplaceReferencedValueOperation(obj, "field", v)` writes `obj.field = v`. Dispatches by
 # the second argument's type (`AbstractString` vs `ReferencePath`), so it never
 # collides with the field-by-field constructor above.
-ReplaceReferencedValue(document, field::AbstractString, value) =
-    ReplaceReferencedValue(document,
+ReplaceReferencedValueOperation(document, field::AbstractString, value) =
+    ReplaceReferencedValueOperation(document,
         ConcreteReferencePath(FieldReference(field), EmptyReferencePath()), value)
 
-function evaluate_operation(editor, op::ReplaceReferencedValue)
+function evaluate_operation(editor, op::ReplaceReferencedValueOperation)
     reference = strip_reference_types(op.reference)
     # `document === nothing` ⇒ the reference is rooted at `editor.document`
     # (where the former `ReplaceDocumentOperation` rooted its path); otherwise the
@@ -287,7 +287,7 @@ function evaluate_operation(editor, op::ReplaceReferencedValue)
         # write into Cells). `invalidate_projection!` is the editor's own concern
         # (default no-op); this module does not know how the projection is cached.
         op.document === nothing ||
-            error("ReplaceReferencedValue: empty reference on a carried root has no slot to write")
+            error("ReplaceReferencedValueOperation: empty reference on a carried root has no slot to write")
         editor.document = op.value
         invalidate_projection!(editor)
         return
@@ -308,16 +308,16 @@ edits — every JSON/XML type-to-replace gesture (`[` → array, `{` → object,
 the clipboard cut/paste produce one.
 
 This is the folded form of the former `ReplaceDocumentOperation`: a
-`ReplaceReferencedValue(nothing, path, document)` write paired with a trailing
+`ReplaceReferencedValueOperation(nothing, path, document)` write paired with a trailing
 `ReplaceSelectionOperation`, bundled in a `CompoundOperation` so re-rooting prepends
 the same steps to both as the operation bubbles up. An empty `path` is a whole-root
-swap (the `ReplaceReferencedValue` rebinds `editor.document` and drops the iomap).
+swap (the `ReplaceReferencedValueOperation` rebinds `editor.document` and drops the iomap).
 """
 function replace_document(path::ReferencePath, document)
     inner_sel = getfield(document, :selection)[]
     inner_sel === nothing && (inner_sel = EmptyReferencePath())
     CompoundOperation(Any[
-        ReplaceReferencedValue(nothing, path, document),
+        ReplaceReferencedValueOperation(nothing, path, document),
         ReplaceSelectionOperation(concat_references(strip_reference_types(path), inner_sel)),
     ])
 end
@@ -327,7 +327,7 @@ end
 
 Insert each of `items` into the sequence container at `path` (a `CellVector` such
 as a JSON array's `.elements`), at the 0-based `index`. Expressed as a splice — a
-`ReplaceReferencedValue` whose terminal step is a **zero-width** `RangeReference(index, index)`
+`ReplaceReferencedValueOperation` whose terminal step is a **zero-width** `RangeReference(index, index)`
 and whose value is the item vector. When `selection` is non-`nothing`, a trailing
 `ReplaceSelectionOperation` is appended in a `CompoundOperation` to drop the cursor
 into the new element (re-rooting prepends the same steps to both members).
@@ -336,7 +336,7 @@ into the new element (re-rooting prepends the same steps to both members).
 for an identity-rooted splice against a document that is not in the tree.
 """
 function insert_elements(path::ReferencePath, index::Integer, items, selection=nothing; root=nothing)
-    write = ReplaceReferencedValue(root, append_reference(path, RangeReference(index, index)),
+    write = ReplaceReferencedValueOperation(root, append_reference(path, RangeReference(index, index)),
                                    Vector{Any}(items))
     selection === nothing ? write :
         CompoundOperation(Any[write, ReplaceSelectionOperation(selection)])
@@ -346,12 +346,12 @@ end
     delete_elements(path, index[, count]; root=nothing) -> operation
 
 Remove `count` (default 1) elements from the sequence container at `path`, starting
-at the 0-based `index`. Expressed as a splice — a `ReplaceReferencedValue` whose
+at the 0-based `index`. Expressed as a splice — a `ReplaceReferencedValueOperation` whose
 terminal step is `RangeReference(index, index+count)` and whose value is the empty
 vector (replace the range with nothing). The inverse of `insert_elements`.
 """
 delete_elements(path::ReferencePath, index::Integer, count::Integer=1; root=nothing) =
-    ReplaceReferencedValue(root, append_reference(path, RangeReference(index, index + count)), Any[])
+    ReplaceReferencedValueOperation(root, append_reference(path, RangeReference(index, index + count)), Any[])
 
 # ─────────────────────────────────────────────────────────────────────────
 # SelectNextInsertionOperation — move the cursor to the next "hole"

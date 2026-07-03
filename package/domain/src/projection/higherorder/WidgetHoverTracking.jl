@@ -42,7 +42,7 @@ import ..ChangeModule: Change
 import ..IoMapApiModule: IoMap
 import ..GestureBindingModule: collect_gestures
 import ..MouseModule: MouseMove, MouseEnter, MouseLeave
-import ..OperationModule: CompoundOperation, ReplaceReferencedValue, ReplaceSelectionOperation
+import ..OperationModule: CompoundOperation, ReplaceReferencedValueOperation, ReplaceSelectionOperation
 import ..KeyboardModule: KeyDown
 # The focus-path helpers live in WidgetModule (document layer), available for the
 # top-level Tab wrap-around rule.
@@ -153,11 +153,11 @@ end
 # Opaque identity of the widget an enter-response came from. The tracker never
 # interprets the operation beyond this token, so it stays agnostic of any widget's
 # concrete hover/press operations: a legacy widget-identity op exposes it as
-# `.widget`; an identity-rooted `ReplaceReferencedValue` (the folded hover/press
+# `.widget`; an identity-rooted `ReplaceReferencedValueOperation` (the folded hover/press
 # write) carries its target widget as the root `.document`.
 function _target_of(op)
     op === nothing && return nothing
-    op isa ReplaceReferencedValue && return op.document
+    op isa ReplaceReferencedValueOperation && return op.document
     hasproperty(op, :widget) ? op.widget : nothing
 end
 

@@ -13,10 +13,10 @@ then stacks the two in a `WidgetSplitPane` (control above document by default).
 
 The reader routes backward-flowing changes three ways:
 
-- a `ReplaceReferencedValue` produced by a control is handed to the control
+- a `ReplaceReferencedValueOperation` produced by a control is handed to the control
   reader, which redirects it onto the inner projection's parameter cell;
 - a show/hide gesture (`Ctrl+F` toggles, `Escape` hides) flips the control
-  widget's `visible` cell via `ReplaceReferencedValue(control_widget, "visible", …)`;
+  widget's `visible` cell via `ReplaceReferencedValueOperation(control_widget, "visible", …)`;
 - everything else delegates to the inner projection's reader (document edits).
 
 Because the control edits the *same* parameter `Cell`s the inner projection
@@ -34,8 +34,8 @@ import ..ChangeModule: Change
 import ..IoMapApiModule: IoMap
 import ..WidgetModule: WidgetDocument, WidgetSplitPane, WidgetScrollPane
 import ..ObjectToWidgetModule: ObjectToWidget
-import ..OperationModule: ReplaceReferencedValue, ReplaceSelectionOperation
-import ..PrimitiveModule: StringReplaceRangeOperation
+import ..OperationModule: ReplaceReferencedValueOperation, ReplaceSelectionOperation
+import ..PrimitiveModule: ReplaceStringRangeOperation
 import ..ReferenceModule: ConcreteReferencePath, FieldReference, RangeReference
 import ..KeyboardModule: KeyDown, is_ctrl
 
@@ -93,9 +93,9 @@ function projection_read(p::ProjectionConfiguringProjection, recursion,
                          change::Change, iomap::ProjectionConfiguringProjectionIoMap)
     op = change.operation
 
-    # 1. A checkbox click (ReplaceReferencedValue rooted at a control widget) →
+    # 1. A checkbox click (ReplaceReferencedValueOperation rooted at a control widget) →
     #    redirect onto the inner projection's parameter cell.
-    if op isa ReplaceReferencedValue
+    if op isa ReplaceReferencedValueOperation
         redirected = projection_read(p.control, iomap.control_iomap, op)
         redirected !== op && return Change(change.gesture, redirected)
     end
@@ -103,13 +103,13 @@ function projection_read(p::ProjectionConfiguringProjection, recursion,
     # 2. A control-bar text edit. The renderer re-roots it at our output split
     #    pane; if it falls in the control slot (1), strip that step and hand the
     #    output-domain edit to the control reader, which converts it to a
-    #    ReplaceReferencedValue on the parameter.
-    if op isa StringReplaceRangeOperation
+    #    ReplaceReferencedValueOperation on the parameter.
+    if op isa ReplaceStringRangeOperation
         rest = _strip_control_slot(op.reference)
         if rest !== nothing
             converted = projection_read(p.control, iomap.control_iomap,
-                                        StringReplaceRangeOperation(rest, op.replacement))
-            converted isa ReplaceReferencedValue && return Change(change.gesture, converted)
+                                        ReplaceStringRangeOperation(rest, op.replacement))
+            converted isa ReplaceReferencedValueOperation && return Change(change.gesture, converted)
         end
     end
 
@@ -153,9 +153,9 @@ function _toggle_operation(gesture, control_widget)
     gesture isa KeyDown || return nothing
     hidden = control_widget.visible == false
     if gesture.key === :f && is_ctrl(gesture)
-        return ReplaceReferencedValue(control_widget, "visible", hidden)
+        return ReplaceReferencedValueOperation(control_widget, "visible", hidden)
     elseif gesture.key === :escape
-        return hidden ? nothing : ReplaceReferencedValue(control_widget, "visible", false)
+        return hidden ? nothing : ReplaceReferencedValueOperation(control_widget, "visible", false)
     end
     nothing
 end

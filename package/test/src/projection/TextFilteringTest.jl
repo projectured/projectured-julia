@@ -82,9 +82,9 @@ end # @testset
     @test sel isa ReplaceSelectionOperation
     @test sel.path == _ref(5, 2)
 
-    # StringReplaceRangeOperation on output span 3 → input span 5, range preserved.
-    edit = projection_read(proj, iomap, StringReplaceRangeOperation(_range(3, 1, 4), "XYZ"))
-    @test edit isa StringReplaceRangeOperation
+    # ReplaceStringRangeOperation on output span 3 → input span 5, range preserved.
+    edit = projection_read(proj, iomap, ReplaceStringRangeOperation(_range(3, 1, 4), "XYZ"))
+    @test edit isa ReplaceStringRangeOperation
     @test edit.reference == _range(5, 1, 4)
     @test edit.replacement == "XYZ"
 

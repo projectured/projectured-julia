@@ -19,7 +19,7 @@
 # tabs become reachable.
 
 using Projectured: WorkbenchToWidget, RecursiveProjection, ReplaceSelectionOperation,
-    ReplaceReferencedValue, evaluate_operation, ConcreteReferencePath, FieldReference,
+    ReplaceReferencedValueOperation, evaluate_operation, ConcreteReferencePath, FieldReference,
     RangeReference, GraphicsText, GraphicsCanvas, GraphicsViewport, MousePress, MouseScroll,
     Modifiers, Change, PrinterContext, EmptyReferencePath, KeyPress, ComposerInputOperation
 
@@ -143,12 +143,12 @@ end
     sch = projection_read(proj, nothing,
                           Change(MouseScroll(0, -3, 430, 17, Modifiers()), nothing), iomap)
     sop = sch === nothing ? nothing : sch.operation
-    @test sop isa ReplaceReferencedValue
+    @test sop isa ReplaceReferencedValueOperation
     @test sop.value isa Integer && sop.value > 0    # scrolled the strip rightwards
 
     # Scroll the strip to its end (the printer clamps the offset) and the overflow tab
     # becomes reachable; a leading tab scrolls off and is no longer reachable.
-    evaluate_operation((; document = doc), ReplaceReferencedValue(sop.document, "tab_scroll", 100000))
+    evaluate_operation((; document = doc), ReplaceReferencedValueOperation(sop.document, "tab_scroll", 100000))
     @test click_selects_editor("table.pred")
     @test !click_selects_editor("book")
 end

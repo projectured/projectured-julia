@@ -53,7 +53,7 @@ import ..ReferenceModule: ConcreteReferencePath, FieldReference, RangeReference,
 import ..ReferenceCaseModule: var"@reference_case"
 import ..ReferenceBuilderModule: var"@reference"
 import ..OperationModule: ReplaceSelectionOperation
-import ..PrimitiveModule: StringReplaceRangeOperation
+import ..PrimitiveModule: ReplaceStringRangeOperation
 import ..ProjectionTemplateModule: var"@projection_template", bound, collection
 export MarkdownInsertionToSyntaxLeaf, MarkdownTextToSyntaxLeaf, MarkdownCodeToSyntaxLeaf,
        MarkdownThematicBreakToSyntaxLeaf, MarkdownEmphasisToSyntaxNode, MarkdownStrongToSyntaxNode,
@@ -312,10 +312,10 @@ function projection_print(p::MarkdownStyledTextToSyntaxLeaf, recursion, t::Markd
     SimpleIoMap(p, t, SyntaxLeaf(TextString(() -> t.content, style); selection=sel))
 end
 
-function projection_read(p::MarkdownStyledTextToSyntaxLeaf, iomap, op::StringReplaceRangeOperation)
+function projection_read(p::MarkdownStyledTextToSyntaxLeaf, iomap, op::ReplaceStringRangeOperation)
     new_ref = map_reference_backward(p, iomap, op.reference)
     new_ref === nothing && return nothing
-    StringReplaceRangeOperation(new_ref, op.replacement)
+    ReplaceStringRangeOperation(new_ref, op.replacement)
 end
 
 function projection_read(p::MarkdownStyledTextToSyntaxLeaf, iomap, op::ReplaceSelectionOperation)
@@ -415,9 +415,9 @@ function projection_read(p::MarkdownStyledInline, iomap::ChildrenIoMap, op::Repl
     r === nothing ? nothing : ReplaceSelectionOperation(r)
 end
 
-function projection_read(p::MarkdownStyledInline, iomap::ChildrenIoMap, op::StringReplaceRangeOperation)
+function projection_read(p::MarkdownStyledInline, iomap::ChildrenIoMap, op::ReplaceStringRangeOperation)
     r = map_reference_backward(p, iomap, op.reference)
-    r === nothing ? nothing : StringReplaceRangeOperation(r, op.replacement)
+    r === nothing ? nothing : ReplaceStringRangeOperation(r, op.replacement)
 end
 
 # ── MarkdownImageToStyledNode (rendered; real image via TextGraphics) ─────────
@@ -488,9 +488,9 @@ function projection_read(p::MarkdownImageToStyledNode, iomap::SimpleIoMap, op::R
     r = map_reference_backward(p, iomap, op.path)
     r === nothing ? nothing : ReplaceSelectionOperation(r)
 end
-function projection_read(p::MarkdownImageToStyledNode, iomap::SimpleIoMap, op::StringReplaceRangeOperation)
+function projection_read(p::MarkdownImageToStyledNode, iomap::SimpleIoMap, op::ReplaceStringRangeOperation)
     r = map_reference_backward(p, iomap, op.reference)
-    r === nothing ? nothing : StringReplaceRangeOperation(r, op.replacement)
+    r === nothing ? nothing : ReplaceStringRangeOperation(r, op.replacement)
 end
 
 # ── MarkdownListToStyledNode (rendered; `1.` ordered / `•` unordered) ──────────
@@ -566,9 +566,9 @@ function projection_read(p::MarkdownListToStyledNode, iomap::ChildrenIoMap, op::
     r = map_reference_backward(p, iomap, op.path)
     r === nothing ? nothing : ReplaceSelectionOperation(r)
 end
-function projection_read(p::MarkdownListToStyledNode, iomap::ChildrenIoMap, op::StringReplaceRangeOperation)
+function projection_read(p::MarkdownListToStyledNode, iomap::ChildrenIoMap, op::ReplaceStringRangeOperation)
     r = map_reference_backward(p, iomap, op.reference)
-    r === nothing ? nothing : StringReplaceRangeOperation(r, op.replacement)
+    r === nothing ? nothing : ReplaceStringRangeOperation(r, op.replacement)
 end
 
 # ══════════════════════════════════════════════════════════════════════════════

@@ -41,7 +41,7 @@ import ..SqlParserModule: sqlparse
 import ..SyntaxModule: SyntaxLeaf
 import ..OperationModule: replace_document, ReplaceSelectionOperation,
                           SelectNextInsertionOperation, CompoundOperation
-import ..PrimitiveModule: StringReplaceRangeOperation
+import ..PrimitiveModule: ReplaceStringRangeOperation
 import ..ReferenceModule: ConcreteReferencePath, FieldReference, RangeReference,
                           EmptyReferencePath, ProjectionReference
 import ..ReferenceCaseModule: var"@reference_case"
@@ -160,7 +160,7 @@ end
 # Insert printable text at the value cursor; nothing without a value[range] cursor.
 function _insertion_insert(ins, text)
     range = _value_range(ins)
-    range === nothing ? nothing : StringReplaceRangeOperation(_value_path(range), text)
+    range === nothing ? nothing : ReplaceStringRangeOperation(_value_path(range), text)
 end
 
 # Commit the typed value through the projection's `commit` callback; nothing when
@@ -182,7 +182,7 @@ function _insertion_delete(ins, dir::Symbol)
     else  # :delete
         range.stop < n ? RangeReference(range.stop, range.stop + 1) : nothing
     end
-    new_range === nothing ? nothing : StringReplaceRangeOperation(_value_path(new_range), "")
+    new_range === nothing ? nothing : ReplaceStringRangeOperation(_value_path(new_range), "")
 end
 
 projection_read(p::InsertionToSyntaxLeaf, iomap::SimpleIoMap, event) =

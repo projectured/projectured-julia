@@ -52,7 +52,7 @@ nothing about how it will be displayed, and a text domain type knows nothing
 about JSON. This independence is what makes the system composable.
 
 Every domain also defines **operations** — the primitive mutations that make
-sense for its data. For JSON strings that is `StringReplaceRangeOperation`
+sense for its data. For JSON strings that is `ReplaceStringRangeOperation`
 (insert or delete characters). For JSON arrays it is a collection insert or
 delete. Operations are structural: "insert element at index 3" rather than
 "delete the `[` at line 12 column 7".
@@ -132,10 +132,10 @@ root, and `set_selection!` writes to each node along the path independently.
 
 An **operation** is the description of a mutation in a domain's own terms.
 The most common is `ReplaceSelectionOperation` — move the selection to a new
-path. Character-level editing uses `StringReplaceRangeOperation` (insert or
+path. Character-level editing uses `ReplaceStringRangeOperation` (insert or
 delete a range of characters in a string). Most other edits — setting a field,
 swapping a value, inserting or deleting sequence elements — are the single
-generic `ReplaceReferencedValue` (a slot write, with the slot named by a
+generic `ReplaceReferencedValueOperation` (a slot write, with the slot named by a
 reference), often built via `replace_document` / `insert_elements` /
 `delete_elements`. See [operations.md](operations.md).
 

@@ -25,7 +25,7 @@ import ..ReferenceModule: ConcreteReferencePath, RangeReference, FieldReference,
 import ..ReferenceCaseModule: var"@reference_case"
 import ..ReferenceBuilderModule: var"@reference"
 import ..OperationModule: ReplaceSelectionOperation
-import ..PrimitiveModule: StringReplaceRangeOperation
+import ..PrimitiveModule: ReplaceStringRangeOperation
 export WordWrapping, WordWrappingIoMap, WrapSeg
 
 # ── Projection struct ───────────────────────────────────────────────────────
@@ -286,12 +286,12 @@ function projection_read(p::WordWrapping, iomap::WordWrappingIoMap, op::ReplaceS
     ReplaceSelectionOperation(input_path)
 end
 
-# Translate a `StringReplaceRangeOperation` from the wrapped output domain
+# Translate a `ReplaceStringRangeOperation` from the wrapped output domain
 # back to the unwrapped input domain. The output path is
 # `.elements[out_span].content[s:e]`; we look up the input span and shift
 # the character range by the sub-span's start offset. Ranges that span more
 # than one input span are rejected (return `nothing`) for now.
-function projection_read(p::WordWrapping, iomap::WordWrappingIoMap, op::StringReplaceRangeOperation)
+function projection_read(p::WordWrapping, iomap::WordWrappingIoMap, op::ReplaceStringRangeOperation)
     parsed = _parse_text_elem_range(op.reference)
     parsed === nothing && return nothing
     out_span, char_start, char_stop = parsed
@@ -305,7 +305,7 @@ function projection_read(p::WordWrapping, iomap::WordWrappingIoMap, op::StringRe
                           ConcreteReferencePath(FieldReference("content"),
                               ConcreteReferencePath(RangeReference(new_start, new_stop),
                                                     EmptyReferencePath()))))
-        return StringReplaceRangeOperation(new_ref, op.replacement)
+        return ReplaceStringRangeOperation(new_ref, op.replacement)
     end
     nothing
 end

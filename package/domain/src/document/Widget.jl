@@ -311,7 +311,7 @@ refuses to invoke the action.
 interaction: `hovered` is `true` while the pointer is inside the button,
 `pressed` is `true` while the left button is held down on it. The printer reads
 them to pick the surface fill, so changing them re-renders only this button.
-They are written by the `WidgetButton` reader (a `ReplaceReferencedValue` into the
+They are written by the `WidgetButton` reader (a `ReplaceReferencedValueOperation` into the
 `hovered` / `pressed` cell) and are not part of the document's content — they
 are not meant to be serialised.
 """
@@ -1059,7 +1059,7 @@ matrix, so content is magnified/panned inside a fixed on-screen box.
 
 `transform` is **transient view state** (like `WidgetScrollPane.scroll_position`)
 — it is not serialised. It defaults to `affine_identity`. Gestures edit it via a
-single-field `ReplaceReferencedValue(pane, "transform", M')`: Ctrl+wheel zooms
+single-field `ReplaceReferencedValueOperation(pane, "transform", M')`: Ctrl+wheel zooms
 about the cursor, a plain wheel pans, and Ctrl+0 resets to the identity. Only the
 translate+scale subset is rendered today; rotation/shear is future work.
 """
@@ -1661,10 +1661,10 @@ instance_gestures(w::WidgetTree) = w.gestures
 # ── Operations ─────────────────────────────────────────────────────────────
 
 # HideWidgetOperation / ShowWidgetOperation / ScrollWidgetOperation /
-# SetScrollBarValueOperation were folded into ReplaceReferencedValue — a carried
+# SetScrollBarValueOperation were folded into ReplaceReferencedValueOperation — a carried
 # widget + a single-field write (`visible` / `scroll_position` / `value`). The
 # producing readers (ProjectionConfiguring, WidgetScrollPane/ScrollBar readers in
-# WidgetToGraphics) now emit `ReplaceReferencedValue(widget, "field", value)` and
+# WidgetToGraphics) now emit `ReplaceReferencedValueOperation(widget, "field", value)` and
 # do the clamp/old+delta arithmetic themselves. See
 # plan/done/consolidate-operations-replace.md (step 2).
 
@@ -1794,8 +1794,8 @@ struct InvokeActionOperation <: Operation
 end
 
 # SetWidgetHoverOperation / SetWidgetPressedOperation were folded into
-# ReplaceReferencedValue: the WidgetButton reader emits
-# `ReplaceReferencedValue(widget, "hovered"/"pressed", bool)`. See
+# ReplaceReferencedValueOperation: the WidgetButton reader emits
+# `ReplaceReferencedValueOperation(widget, "hovered"/"pressed", bool)`. See
 # plan/done/consolidate-operations-replace.md (step 2).
 
 # ── Operation evaluation ───────────────────────────────────────────────────

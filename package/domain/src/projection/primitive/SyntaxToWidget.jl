@@ -40,7 +40,7 @@ import ..WidgetModule: WidgetCard, WidgetLabel, Point2D
 import ..LayoutModule: HorizontalLayout, VerticalLayout
 import ..IoMapModule: SimpleIoMap, ChildrenIoMap
 import ..OperationModule: ReplaceSelectionOperation, ToggleCollapseOperation
-import ..PrimitiveModule: StringReplaceRangeOperation
+import ..PrimitiveModule: ReplaceStringRangeOperation
 import ..ReferenceModule: ConcreteReferencePath, FieldReference, RangeReference,
                           ProjectionReference, ReferencePath, EmptyReferencePath, strip_reference_types
 import ..ReferenceCaseModule: var"@reference_case"
@@ -156,16 +156,16 @@ function projection_read(p::SyntaxLeafToWidget, iomap::SimpleIoMap, op::ReplaceS
     return ReplaceSelectionOperation(input_path)
 end
 
-# Translate a TextText-domain StringReplaceRangeOperation (referencing
+# Translate a TextText-domain ReplaceStringRangeOperation (referencing
 # `.elements[2].content[s:e]`, the value span) back to a `.value[s:e]` op.
-function projection_read(p::SyntaxLeafToWidget, iomap::SimpleIoMap, op::StringReplaceRangeOperation)
+function projection_read(p::SyntaxLeafToWidget, iomap::SimpleIoMap, op::ReplaceStringRangeOperation)
     parsed = _parse_text_elem_range(op.reference)
     parsed === nothing && return nothing
     span_idx, char_start, char_stop = parsed
     span_idx == 2 || return nothing
     new_ref = ConcreteReferencePath(FieldReference("value"),
                   ConcreteReferencePath(RangeReference(char_start, char_stop), EmptyReferencePath()))
-    StringReplaceRangeOperation(new_ref, op.replacement)
+    ReplaceStringRangeOperation(new_ref, op.replacement)
 end
 
 # Pass KeyDown through so upstream projections can react (Backspace/Delete etc.).
@@ -441,9 +441,9 @@ function projection_read(p::SyntaxNodeToWidget, iomap::ChildrenIoMap, op::Replac
     new === nothing ? nothing : ReplaceSelectionOperation(new)
 end
 
-function projection_read(p::SyntaxNodeToWidget, iomap::ChildrenIoMap, op::StringReplaceRangeOperation)
+function projection_read(p::SyntaxNodeToWidget, iomap::ChildrenIoMap, op::ReplaceStringRangeOperation)
     new = map_reference_backward(p, iomap, op.reference)
-    new === nothing ? nothing : StringReplaceRangeOperation(new, op.replacement)
+    new === nothing ? nothing : ReplaceStringRangeOperation(new, op.replacement)
 end
 
 # Anything else (scrolls, non-path ops, …) passes through.

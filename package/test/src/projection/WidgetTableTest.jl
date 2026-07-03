@@ -9,7 +9,7 @@
 
 using Projectured: WidgetTable, VerticalLayout, WidgetTabbedPane, WidgetShell, Point2D,
     Change, MouseEnter, MouseMove, MouseLeave, MousePress, Modifiers,
-    ReplaceReferencedValue, ReplaceSelectionOperation, GraphicsRect,
+    ReplaceReferencedValueOperation, ReplaceSelectionOperation, GraphicsRect,
     WidgetToGraphics, LayoutToGraphics, TypeDispatchingProjection, RecursiveProjection,
     font_ubuntu_regular_20, projection_print, projection_read
 using Projectured.ReactiveModule: Cell
@@ -45,24 +45,24 @@ end
     w = _mktable(); io = projection_print(_rec, w); g = io.geometry[]
     # Enter a body cell → its whole row.
     op = _rd(io, MouseEnter(_bx(g), _rowy(g, 1), :none, _mods))
-    @test op isa ReplaceReferencedValue && op.document === w && op.value !== nothing
+    @test op isa ReplaceReferencedValueOperation && op.document === w && op.value !== nothing
     getfield(w, :hovered)[] = op.value
     row1 = op.value
     # Move within the same row → no churn.
     @test _rd(io, MouseMove(_bx(g) + 2, _rowy(g, 1), :none, _mods)) === nothing
     # Move to another row → a fresh, different write.
     op2 = _rd(io, MouseMove(_bx(g), _rowy(g, 2), :none, _mods))
-    @test op2 isa ReplaceReferencedValue && op2.value !== nothing && op2.value != row1
+    @test op2 isa ReplaceReferencedValueOperation && op2.value !== nothing && op2.value != row1
     # Leave → clear.
     op3 = _rd(io, MouseLeave(0, 0, :none, _mods))
-    @test op3 isa ReplaceReferencedValue && op3.value === nothing
+    @test op3 isa ReplaceReferencedValueOperation && op3.value === nothing
 end
 
 @testset "column header hovers the column; a click still selects" begin
     w = _mktable(); io = projection_print(_rec, w); g = io.geometry[]
     chy = (g.row_y[1] + g.row_y[2]) ÷ 2    # grid row 1 = the column-header strip
     op = _rd(io, MouseEnter(_bx(g), chy, :none, _mods))
-    @test op isa ReplaceReferencedValue && op.value !== nothing
+    @test op isa ReplaceReferencedValueOperation && op.value !== nothing
     hov = op.value
     # Clicking the column header still selects the column (hover didn't shadow the
     # click path). A body cell here holds a WidgetLabel, whose click routes into the
@@ -91,7 +91,7 @@ end
         e = c = 0
         for x in xs, y in ys
             oe = _rd(io, MouseEnter(x, y, :none, _mods))
-            oe isa ReplaceReferencedValue && oe.document isa WidgetTable && oe.value !== nothing && (e += 1)
+            oe isa ReplaceReferencedValueOperation && oe.document isa WidgetTable && oe.value !== nothing && (e += 1)
             op = _rd(io, MousePress(:left, x, y, _mods))
             op isa ReplaceSelectionOperation && (c += 1)
         end

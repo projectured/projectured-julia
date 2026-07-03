@@ -157,10 +157,10 @@ end
     iomap = projection_print(p, IdentityProjection(), vo, PrinterContext())
 
     # Ctrl+Shift+S snapshots the active value into a new front ObjectVersion via a
-    # sequence splice (insert_elements) — a ReplaceReferencedValue whose terminal is
+    # sequence splice (insert_elements) — a ReplaceReferencedValueOperation whose terminal is
     # a zero-width RangeReference(0,0) into `versions` and whose value is the items.
     op = projection_read(p, iomap, KeyDown(:s, ctrl_shift))
-    @test op isa ReplaceReferencedValue
+    @test op isa ReplaceReferencedValueOperation
     @test op.reference.head.name == "versions"
     @test op.reference.tail.head isa RangeReference && op.reference.tail.head.start == 0
     snapshot = op.value[1]
@@ -170,9 +170,9 @@ end
     @test snapshot.value !== vo.versions[1].value       # deep copy
 
     # Ctrl+Delete deletes the active version via a splice (delete_elements): a
-    # ReplaceReferencedValue with terminal RangeReference(0,1) and an empty value.
+    # ReplaceReferencedValueOperation with terminal RangeReference(0,1) and an empty value.
     op = projection_read(p, iomap, KeyDown(:delete, ctrl))
-    @test op isa ReplaceReferencedValue
+    @test op isa ReplaceReferencedValueOperation
     @test op.reference.head.name == "versions"
     @test op.reference.tail.head isa RangeReference && op.reference.tail.head.start == 0
     @test isempty(op.value)

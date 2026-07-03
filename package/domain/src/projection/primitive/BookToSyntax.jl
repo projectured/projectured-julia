@@ -45,7 +45,7 @@ import ..ReferenceModule: ConcreteReferencePath, ElementReference, PositionRefer
 import ..ReferenceCaseModule: var"@reference_case"
 import ..ReferenceBuilderModule: var"@reference"
 import ..OperationModule: ReplaceSelectionOperation
-import ..PrimitiveModule: StringReplaceRangeOperation
+import ..PrimitiveModule: ReplaceStringRangeOperation
 import ..SyntaxToTextModule: SyntaxNodeToText, _syntax_to_flat
 import ..PrinterContextModule: child_context
 import ..ProjectionTemplateModule: var"@projection_template", bound, RuleIoMap
@@ -241,10 +241,10 @@ end
 # domain (`.title`, `.author`, `.elements[i].…`) through map_reference_backward,
 # the single definition reused for selection reads.
 function projection_read(p::BookBookToSyntaxNode,
-                          iomap::ChildrenIoMap, op::StringReplaceRangeOperation)
+                          iomap::ChildrenIoMap, op::ReplaceStringRangeOperation)
     new_ref = map_reference_backward(p, iomap, op.reference)
     new_ref === nothing && return nothing
-    StringReplaceRangeOperation(new_ref, op.replacement)
+    ReplaceStringRangeOperation(new_ref, op.replacement)
 end
 
 # ── BookChapterToSyntaxNode ───────────────────────────────────────────────────
@@ -420,10 +420,10 @@ end
 # (shifted by the numbering prefix); element edits delegate through the child IO
 # maps. map_reference_backward owns the shift and the range stays intact.
 function projection_read(p::BookChapterToSyntaxNode,
-                          iomap::ChildrenIoMap, op::StringReplaceRangeOperation)
+                          iomap::ChildrenIoMap, op::ReplaceStringRangeOperation)
     new_ref = map_reference_backward(p, iomap, op.reference)
     new_ref === nothing && return nothing
-    StringReplaceRangeOperation(new_ref, op.replacement)
+    ReplaceStringRangeOperation(new_ref, op.replacement)
 end
 
 # ── BookParagraphToSyntaxLeaf ─────────────────────────────────────────────────
@@ -550,10 +550,10 @@ end
 # Type-in: each bullet wraps its element at `.children[i].children[1]`; the edit
 # delegates through the child IO map back to `.elements[i].…`.
 function projection_read(p::BookListToSyntaxNode,
-                          iomap::ChildrenIoMap, op::StringReplaceRangeOperation)
+                          iomap::ChildrenIoMap, op::ReplaceStringRangeOperation)
     new_ref = map_reference_backward(p, iomap, op.reference)
     new_ref === nothing && return nothing
-    StringReplaceRangeOperation(new_ref, op.replacement)
+    ReplaceStringRangeOperation(new_ref, op.replacement)
 end
 
 # ── BookPictureToSyntaxLeaf ───────────────────────────────────────────────────

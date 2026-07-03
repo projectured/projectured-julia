@@ -4,7 +4,7 @@ function test_clipboard_to_any()
 cpath(steps...) = foldr((s, acc) -> ConcreteReferencePath(s, acc), steps; init=EmptyReferencePath())
 
 # A `replace_document(path, doc)` fold is a CompoundOperation whose first member is
-# the ReplaceReferencedValue that writes `doc` at `path`. These read that target
+# the ReplaceReferencedValueOperation that writes `doc` at `path`. These read that target
 # reference and written value out of the (nested) compound.
 _rd_ref(rd) = rd.operations[1].reference
 _rd_val(rd) = rd.operations[1].value
@@ -186,7 +186,7 @@ end
     # Add — inserts the selected object at the front of `elements`.
     coll.selection = cpath(FieldReference("content"))
     op = projection_read(p, iomap, KeyDown(:equals, ctrl))
-    @test op isa ReplaceReferencedValue                     # insert_elements splice
+    @test op isa ReplaceReferencedValueOperation                     # insert_elements splice
     @test op.reference.head.name == "elements"
     @test op.reference.tail.head isa RangeReference && op.reference.tail.head.start == 0
     @test op.value[1] === content
@@ -194,7 +194,7 @@ end
     # Remove — deletes the selected element (0-based index → RangeReference start).
     coll.selection = cpath(FieldReference("elements"), ElementReference(2))
     op = projection_read(p, iomap, KeyDown(:minus, ctrl))
-    @test op isa ReplaceReferencedValue                     # delete_elements splice
+    @test op isa ReplaceReferencedValueOperation                     # delete_elements splice
     @test op.reference.head.name == "elements"
     @test op.reference.tail.head isa RangeReference && op.reference.tail.head.start == 1
     @test isempty(op.value)
@@ -202,7 +202,7 @@ end
     # Remove with a non-element selection does not delete: it falls through to
     # the content reader rather than emitting a splice.
     coll.selection = cpath(FieldReference("content"))
-    @test !(projection_read(p, iomap, KeyDown(:minus, ctrl)) isa ReplaceReferencedValue)
+    @test !(projection_read(p, iomap, KeyDown(:minus, ctrl)) isa ReplaceReferencedValueOperation)
 end
 
 @testset "slice OS clipboard bridge" begin
@@ -299,7 +299,7 @@ end
         evaluate_operation(nothing, op.operations[end])
         @test buf[] == "world"
 
-        # Cut: stores the substring + a delete (StringReplaceRangeOperation "") rooted
+        # Cut: stores the substring + a delete (ReplaceStringRangeOperation "") rooted
         # under content + OS mirror.
         s = mkslice()
         iom = projection_print(p, IdentityProjection(), s, PrinterContext())
@@ -307,17 +307,17 @@ end
         @test op isa CompoundOperation
         @test _rd_val(op.operations[1]) isa TextString
         del = op.operations[2]
-        @test del isa StringReplaceRangeOperation
+        @test del isa ReplaceStringRangeOperation
         @test del.replacement == ""
         @test del.reference.head.name == "content"
         @test op.operations[end] isa WriteOsClipboardOperation
 
-        # Paste from the projectured slice: a content-rooted StringReplaceRangeOperation
+        # Paste from the projectured slice: a content-rooted ReplaceStringRangeOperation
         # splicing the stored text over the selected range.
         s = mkslice(stored = TextString("ZZZ"))
         iom = projection_print(p, IdentityProjection(), s, PrinterContext())
         op = projection_read(p, iom, KeyDown(:v, ctrl))
-        @test op isa StringReplaceRangeOperation
+        @test op isa ReplaceStringRangeOperation
         @test op.replacement == "ZZZ"
         @test op.reference.head.name == "content"
 
@@ -326,7 +326,7 @@ end
         s = mkslice()                                   # no stored slice
         iom = projection_print(p, IdentityProjection(), s, PrinterContext())
         op = projection_read(p, iom, KeyDown(:v, ctrl))
-        @test op isa StringReplaceRangeOperation
+        @test op isa ReplaceStringRangeOperation
         @test op.replacement == "OSPASTE"
 
         # An empty caret (no range) declines copy.

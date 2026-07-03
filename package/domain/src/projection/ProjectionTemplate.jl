@@ -42,7 +42,7 @@ import ..ReferenceModule: ConcreteReferencePath, EmptyReferencePath, FieldRefere
                           fold_reference_types, strip_reference_types
 import ..PrinterContextModule: child_context
 import ..OperationModule: ReplaceSelectionOperation
-import ..PrimitiveModule: StringReplaceRangeOperation, NumberReplaceRangeOperation
+import ..PrimitiveModule: ReplaceStringRangeOperation, ReplaceNumberRangeOperation
 import ..DocumentApiModule: Document, document_read
 import ..KeyboardModule: KeyDown, KeyPress
 import ..OperationRerootingModule: prepend_steps_to_op
@@ -1261,7 +1261,7 @@ projection_read(rp::RecursiveProjection, iomap::RuleIoMap, evt::Union{KeyPress, 
     projection_read(rp, nothing, Change(evt), iomap).operation
 
 # Value-edit retype (atomic) + plain String/Number retargeting (both shapes).
-function projection_read(p::Projection, iomap::RuleIoMap, op::StringReplaceRangeOperation)
+function projection_read(p::Projection, iomap::RuleIoMap, op::ReplaceStringRangeOperation)
     w = iomap.wiring
     # An opaque atomic leaf (no bound field — `JsonInsertion`, `JsonNull`, …) has
     # no editable text, so a character insert there is never a valid text edit.
@@ -1273,7 +1273,7 @@ function projection_read(p::Projection, iomap::RuleIoMap, op::StringReplaceRange
     if w isa AtomicWiring && w.retype !== nothing
         return w.retype(new_ref, op.replacement)
     end
-    return StringReplaceRangeOperation(new_ref, op.replacement)
+    return ReplaceStringRangeOperation(new_ref, op.replacement)
 end
 
 # Whole-element selection: map back, else (node) the position is a structural
@@ -1292,7 +1292,7 @@ end
 # concrete-typed method per op (not a Union, which would still tie with the
 # `Projection`/exact-op reader on arg 3) defers to the wrapper, which threads the
 # read into its child projection.
-projection_read(rp::RecursiveProjection, iomap::RuleIoMap, op::StringReplaceRangeOperation) =
+projection_read(rp::RecursiveProjection, iomap::RuleIoMap, op::ReplaceStringRangeOperation) =
     projection_read(rp, nothing, Change(op), iomap).operation
 projection_read(rp::RecursiveProjection, iomap::RuleIoMap, op::ReplaceSelectionOperation) =
     projection_read(rp, nothing, Change(op), iomap).operation

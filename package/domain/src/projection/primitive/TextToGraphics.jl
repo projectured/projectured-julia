@@ -30,7 +30,7 @@ import ..ReferenceModule: ReferencePath, ConcreteReferencePath, ElementReference
 import ..ReferenceCaseModule: var"@reference_case"
 import ..ReferenceBuilderModule: var"@reference"
 import ..OperationModule: ReplaceSelectionOperation, ToggleCollapseOperation
-import ..PrimitiveModule: StringReplaceRangeOperation
+import ..PrimitiveModule: ReplaceStringRangeOperation
 import ..DocumentApiModule: document_read
 import ..KeyboardModule: KeyDown, KeyPress
 import ..MouseModule: MousePress
@@ -102,7 +102,7 @@ end
 
 # KeyPress producer: the character-insert mapping is geometry-free, so it lives
 # on the Text domain (`document_read(::TextText, ::KeyPress)` in `TextModule`).
-# Delegate to it; the operation it produces (a `StringReplaceRangeOperation`
+# Delegate to it; the operation it produces (a `ReplaceStringRangeOperation`
 # against `.elements[i].content[range]`) flows back through the chain unchanged.
 function projection_read(p::TextToGraphics, iomap::TextToGraphicsIoMap, evt::KeyPress)
     return document_read(iomap.input, evt)

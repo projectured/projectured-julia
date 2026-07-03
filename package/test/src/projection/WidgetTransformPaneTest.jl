@@ -1,5 +1,5 @@
 # Reader-level tests for WidgetTransformPane: Ctrl+wheel zooms about the cursor,
-# a plain wheel pans, both as a `ReplaceReferencedValue(pane, "transform", M')`.
+# a plain wheel pans, both as a `ReplaceReferencedValueOperation(pane, "transform", M')`.
 function test_widget_transform_pane()
 @testset "WidgetTransformPane zoom/pan" begin
 
@@ -17,7 +17,7 @@ function test_widget_transform_pane()
         proj  = _proj()
         iomap = projection_print(proj, doc)
         op = projection_read(proj, iomap, MouseScroll(0, 1, 50, 50, Modifiers(ctrl=true)))
-        @test op isa ReplaceReferencedValue
+        @test op isa ReplaceReferencedValueOperation
         M = op.value
         @test M isa AffineTransform
         @test M.a ≈ 1.1            # zoomed in by one step
@@ -31,7 +31,7 @@ function test_widget_transform_pane()
         proj  = _proj()
         iomap = projection_print(proj, doc)
         op = projection_read(proj, iomap, MouseScroll(0, -1, 50, 50, Modifiers(ctrl=true)))
-        @test op isa ReplaceReferencedValue
+        @test op isa ReplaceReferencedValueOperation
         @test op.value.a ≈ 1.0 / 1.1
     end
 
@@ -50,7 +50,7 @@ function test_widget_transform_pane()
         proj  = _proj()
         iomap = projection_print(proj, doc)
         op = projection_read(proj, iomap, MouseScroll(0, 1, 50, 50, Modifiers()))
-        @test op isa ReplaceReferencedValue
+        @test op isa ReplaceReferencedValueOperation
         M = op.value
         @test M.a ≈ 1.0            # no scale change
         @test M.d ≈ 1.0
@@ -63,7 +63,7 @@ function test_widget_transform_pane()
         proj  = _proj()
         iomap = projection_print(proj, doc)
         op = projection_read(proj, iomap, MouseScroll(1, 0, 50, 50, Modifiers()))
-        @test op isa ReplaceReferencedValue
+        @test op isa ReplaceReferencedValueOperation
         @test op.value.e ≈ 24.0
         @test op.value.f ≈ 0.0
     end
@@ -83,7 +83,7 @@ function test_widget_transform_pane()
         proj  = _proj()
         iomap = projection_print(proj, doc)
         op = projection_read(proj, iomap, KeyDown(:equals, Modifiers(ctrl=true)))
-        @test op isa ReplaceReferencedValue
+        @test op isa ReplaceReferencedValueOperation
         @test op.value.a ≈ 1.1
         @test all(affine_apply(op.value, 100.0, 100.0) .≈ (100.0, 100.0))
     end
@@ -93,7 +93,7 @@ function test_widget_transform_pane()
         proj  = _proj()
         iomap = projection_print(proj, doc)
         op = projection_read(proj, iomap, KeyDown(:minus, Modifiers(ctrl=true)))
-        @test op isa ReplaceReferencedValue
+        @test op isa ReplaceReferencedValueOperation
         @test op.value.a ≈ 1.0 / 1.1
     end
 
@@ -103,7 +103,7 @@ function test_widget_transform_pane()
         proj  = _proj()
         iomap = projection_print(proj, doc)
         op = projection_read(proj, iomap, KeyDown(:zero, Modifiers(ctrl=true)))
-        @test op isa ReplaceReferencedValue
+        @test op isa ReplaceReferencedValueOperation
         @test op.value == affine_identity
     end
 

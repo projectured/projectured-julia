@@ -20,7 +20,7 @@ import ..SyntaxModule: SyntaxLeaf, SyntaxNode
 import ..TypeDispatchingProjectionModule: TypeDispatchingProjection
 import ..CopyingProjectionModule: CopyingProjection
 import ..ProjectionTemplateModule: var"@projection_template", bound, project, collection
-import ..PrimitiveModule: NumberReplaceRangeOperation
+import ..PrimitiveModule: ReplaceNumberRangeOperation
 export JsonInsertionToSyntaxLeaf, JsonNullToSyntaxLeaf, JsonBoolToSyntaxLeaf, JsonNumberToSyntaxLeaf,
        JsonStringToSyntaxLeaf, JsonArrayToSyntaxNode, JsonObjectToSyntaxNode,
        JsonToSyntax
@@ -61,7 +61,7 @@ end
 @projection_template JsonNumberToSyntaxLeaf JsonNumber (prj, doc) ->
     SyntaxLeaf(bound(:value, Real,
                      hinted_text(() -> string(doc.value), () -> doc.value === nothing, "enter json number", prj.style);
-                     retype = NumberReplaceRangeOperation))
+                     retype = ReplaceNumberRangeOperation))
 
 # ── JsonStringToSyntaxLeaf ───────────────────────────────────────────────────
 

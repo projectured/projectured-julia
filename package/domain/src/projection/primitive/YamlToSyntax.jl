@@ -34,7 +34,7 @@ import ..SyntaxModule: SyntaxDocument, SyntaxLeaf, SyntaxNode
 import ..TypeDispatchingProjectionModule: TypeDispatchingProjection
 import ..CopyingProjectionModule: CopyingProjection
 import ..ProjectionTemplateModule: var"@projection_template", bound, project, collection
-import ..PrimitiveModule: NumberReplaceRangeOperation, StringReplaceRangeOperation
+import ..PrimitiveModule: ReplaceNumberRangeOperation, ReplaceStringRangeOperation
 import ..IoMapModule: ChildrenIoMap
 import ..ReferenceModule: ConcreteReferencePath, ElementReference, FieldReference, RangeReference, ProjectionReference, EmptyReferencePath
 import ..ReferenceCaseModule: var"@reference_case"
@@ -84,7 +84,7 @@ end
 @projection_template YamlNumberToSyntaxLeaf YamlNumber (prj, doc) ->
     SyntaxLeaf(bound(:value, Real,
                      hinted_text(() -> string(doc.value), () -> doc.value === nothing, "enter yaml number", prj.style);
-                     retype = NumberReplaceRangeOperation))
+                     retype = ReplaceNumberRangeOperation))
 
 # ── YamlStringToSyntaxLeaf ───────────────────────────────────────────────────
 #
@@ -230,10 +230,10 @@ function projection_read(p::YamlSequenceToBlockSyntaxNode, iomap::ChildrenIoMap,
     ReplaceSelectionOperation(result)
 end
 
-function projection_read(p::YamlSequenceToBlockSyntaxNode, iomap::ChildrenIoMap, op::StringReplaceRangeOperation)
+function projection_read(p::YamlSequenceToBlockSyntaxNode, iomap::ChildrenIoMap, op::ReplaceStringRangeOperation)
     new_ref = map_reference_backward(p, iomap, op.reference)
     new_ref === nothing && return nothing
-    StringReplaceRangeOperation(new_ref, op.replacement)
+    ReplaceStringRangeOperation(new_ref, op.replacement)
 end
 
 # The input step into the focused child plus that child's iomap, derived from the

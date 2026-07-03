@@ -1,7 +1,7 @@
 using Projectured: PositionReference, ConcreteReferencePath, EmptyReferencePath,
                     FieldReference, RangeReference,
                     PrimitiveString, PrimitiveNumber,
-                    StringReplaceRangeOperation, NumberReplaceRangeOperation,
+                    ReplaceStringRangeOperation, ReplaceNumberRangeOperation,
                     PrimitiveStringToSyntaxLeaf, SimpleIoMap, KeyPress, KeyDown,
                     Modifiers, evaluate_operation, projection_read, set_selection!,
                     strip_reference_types, @reference
@@ -25,11 +25,11 @@ end
 function test_primitive()
 @testset "PrimitiveReplaceRange" begin
 
-# ── StringReplaceRangeOperation ─────────────────────────────────────────
+# ── ReplaceStringRangeOperation ─────────────────────────────────────────
 
 @testset "string insert at cursor" begin
     doc = PrimitiveString("ab")
-    op = StringReplaceRangeOperation(_value_range_ref(0, 0), "x")
+    op = ReplaceStringRangeOperation(_value_range_ref(0, 0), "x")
     evaluate_operation((document=doc,), op)
     @test doc.value == "xab"
     range = _cursor_at(doc)
@@ -38,7 +38,7 @@ end
 
 @testset "string insert in middle" begin
     doc = PrimitiveString("ac")
-    op = StringReplaceRangeOperation(_value_range_ref(1, 1), "b")
+    op = ReplaceStringRangeOperation(_value_range_ref(1, 1), "b")
     evaluate_operation((document=doc,), op)
     @test doc.value == "abc"
     range = _cursor_at(doc)
@@ -48,7 +48,7 @@ end
 @testset "string backspace deletes char to left" begin
     doc = PrimitiveString("abc")
     # backspace at cursor position 2 deletes char at position 2 (1-based: 'b')
-    op = StringReplaceRangeOperation(_value_range_ref(1, 2), "")
+    op = ReplaceStringRangeOperation(_value_range_ref(1, 2), "")
     evaluate_operation((document=doc,), op)
     @test doc.value == "ac"
     range = _cursor_at(doc)
@@ -58,7 +58,7 @@ end
 @testset "string delete removes char to right, cursor stays" begin
     doc = PrimitiveString("abc")
     # delete at cursor position 1 removes char at index 2 ('b'); cursor stays at 1
-    op = StringReplaceRangeOperation(_value_range_ref(1, 2), "")
+    op = ReplaceStringRangeOperation(_value_range_ref(1, 2), "")
     evaluate_operation((document=doc,), op)
     @test doc.value == "ac"
     range = _cursor_at(doc)
@@ -67,7 +67,7 @@ end
 
 @testset "string range replace substitutes selection" begin
     doc = PrimitiveString("abcdef")
-    op = StringReplaceRangeOperation(_value_range_ref(1, 4), "XY")
+    op = ReplaceStringRangeOperation(_value_range_ref(1, 4), "XY")
     evaluate_operation((document=doc,), op)
     @test doc.value == "aXYef"
     range = _cursor_at(doc)
@@ -76,18 +76,18 @@ end
 
 @testset "string range delete with empty replacement" begin
     doc = PrimitiveString("abcdef")
-    op = StringReplaceRangeOperation(_value_range_ref(2, 5), "")
+    op = ReplaceStringRangeOperation(_value_range_ref(2, 5), "")
     evaluate_operation((document=doc,), op)
     @test doc.value == "abf"
     range = _cursor_at(doc)
     @test range.start == 2 && range.stop == 2
 end
 
-# ── NumberReplaceRangeOperation ─────────────────────────────────────────
+# ── ReplaceNumberRangeOperation ─────────────────────────────────────────
 
 @testset "number insert digit" begin
     doc = PrimitiveNumber(12)
-    op = NumberReplaceRangeOperation(_value_range_ref(2, 2), "3")
+    op = ReplaceNumberRangeOperation(_value_range_ref(2, 2), "3")
     evaluate_operation((document=doc,), op)
     @test doc.value == 123.0
     range = _cursor_at(doc)
@@ -97,14 +97,14 @@ end
 @testset "number empty result becomes nothing" begin
     doc = PrimitiveNumber(9)
     # delete the only digit
-    op = NumberReplaceRangeOperation(_value_range_ref(0, 1), "")
+    op = ReplaceNumberRangeOperation(_value_range_ref(0, 1), "")
     evaluate_operation((document=doc,), op)
     @test doc.value === nothing
 end
 
 @testset "number non-parseable result becomes nothing" begin
     doc = PrimitiveNumber(1)
-    op = NumberReplaceRangeOperation(_value_range_ref(1, 1), "x")
+    op = ReplaceNumberRangeOperation(_value_range_ref(1, 1), "x")
     evaluate_operation((document=doc,), op)
     @test doc.value === nothing
 end
@@ -118,7 +118,7 @@ end
     iomap = SimpleIoMap(p, s, nothing)
     evt = KeyPress('x')
     op = projection_read(p, iomap, evt)
-    @test op isa StringReplaceRangeOperation
+    @test op isa ReplaceStringRangeOperation
     @test op.replacement == "x"
     pref = op.reference
     @test pref isa ConcreteReferencePath
@@ -135,7 +135,7 @@ end
     iomap = SimpleIoMap(p, s, nothing)
     evt = KeyDown(:backspace, Modifiers())
     op = projection_read(p, iomap, evt)
-    @test op isa StringReplaceRangeOperation
+    @test op isa ReplaceStringRangeOperation
     @test op.replacement == ""
     @test op.reference.tail.head.start == 1 && op.reference.tail.head.stop == 2
 end
@@ -147,7 +147,7 @@ end
     iomap = SimpleIoMap(p, s, nothing)
     evt = KeyDown(:delete, Modifiers())
     op = projection_read(p, iomap, evt)
-    @test op isa StringReplaceRangeOperation
+    @test op isa ReplaceStringRangeOperation
     @test op.replacement == ""
     @test op.reference.tail.head.start == 0 && op.reference.tail.head.stop == 1
 end
@@ -165,7 +165,7 @@ end
     iomap = SimpleIoMap(p, s, nothing)
     evt = KeyPress('x', "x", Modifiers(true, false, false, false))
     op = projection_read(p, iomap, evt)
-    @test op isa StringReplaceRangeOperation
+    @test op isa ReplaceStringRangeOperation
     @test op.replacement == "x"
 end
 

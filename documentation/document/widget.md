@@ -153,7 +153,7 @@ field.
 `hovered` and `pressed` (today on `WidgetButton`) are **transient UI state**, not
 document content — they are not serialised. The convention:
 
-- The **reader** writes them via `ReplaceReferencedValue(self, "hovered"/"pressed",
+- The **reader** writes them via `ReplaceReferencedValueOperation(self, "hovered"/"pressed",
   bool)` in response to `MouseEnter`/`MouseLeave` (hover) and `MouseDown`/`MouseUp`
   (press); see [Button behavior](#button-behavior).
 - The **printer** reads them to pick the surface fill (`pressed → active`, else
@@ -180,7 +180,7 @@ shows them together.
 
 - **`WidgetSpinBox(pos, value; min, max, step, width, validator)`** — a numeric
   field with up/down steppers (the `:plus` / `:minus` icons). A click on a stepper
-  emits `ReplaceReferencedValue(spin, "value", clamp(value ± step, min, max))`;
+  emits `ReplaceReferencedValueOperation(spin, "value", clamp(value ± step, min, max))`;
   `Up`/`Down` do the same from the keyboard. The default `validator` is
   `numeric_validator()`, so typing only commits numeric text. Disabled is inert.
 - **`WidgetList(pos, items; selected, width)`** — a first-class single-column
@@ -204,7 +204,7 @@ shows them together.
   the `QStackedWidget` page container. Out-of-range clamps to empty.
 - **Validators** — a `validator::Any` callable on `WidgetText` (and
   `WidgetSpinBox`), consulted by the editable-text reader before a
-  `StringReplaceRangeOperation` commits: an **acceptor** `(String) -> Bool` drops
+  `ReplaceStringRangeOperation` commits: an **acceptor** `(String) -> Bool` drops
   the edit when it returns `false`. `nothing` (the default) imposes no constraint.
   The built-in `numeric_validator(; integer=false, allow_negative=true)` accepts
   digits with an optional sign / decimal point.
@@ -213,21 +213,21 @@ shows them together.
 
 Most widget edits are a **single-field write into a carried widget**, so the
 `WidgetToGraphics` reader emits a self-contained
-`ReplaceReferencedValue(widget, "field", value)` (see
+`ReplaceReferencedValueOperation(widget, "field", value)` (see
 [operations.md](../operations.md#the-generic-write-operation-replacereferencedvalue))
 rather than a bespoke operation. Because the widget is carried by identity
 (`document !== nothing`), the write bubbles up through every container unchanged.
 
 | Gesture | Operation emitted |
 |---|---|
-| show / hide | `ReplaceReferencedValue(w, "visible", true/false)` |
-| enable / disable | `ReplaceReferencedValue(w, "enabled", true/false)` (disabled readers emit nothing) |
-| scroll wheel | `ReplaceReferencedValue(scroll_pane, "scroll_position", old + Δ)` (reader reads `old`) |
-| wheel over a tab strip | `ReplaceReferencedValue(tabbed_pane, "tab_scroll", clamped)` — scrolls overflow tabs into view |
-| Ctrl+wheel / wheel on a transform pane | `ReplaceReferencedValue(transform_pane, "transform", M')` (zoom about cursor / pan) |
-| Ctrl+`=`/`-`/`0` on a transform pane | `ReplaceReferencedValue(transform_pane, "transform", M')` (zoom in/out / reset, about centre) |
-| drag scroll-bar | `ReplaceReferencedValue(bar, "value", clamped)` |
-| hover / press a button | `ReplaceReferencedValue(widget, "hovered"/"pressed", bool)` |
+| show / hide | `ReplaceReferencedValueOperation(w, "visible", true/false)` |
+| enable / disable | `ReplaceReferencedValueOperation(w, "enabled", true/false)` (disabled readers emit nothing) |
+| scroll wheel | `ReplaceReferencedValueOperation(scroll_pane, "scroll_position", old + Δ)` (reader reads `old`) |
+| wheel over a tab strip | `ReplaceReferencedValueOperation(tabbed_pane, "tab_scroll", clamped)` — scrolls overflow tabs into view |
+| Ctrl+wheel / wheel on a transform pane | `ReplaceReferencedValueOperation(transform_pane, "transform", M')` (zoom about cursor / pan) |
+| Ctrl+`=`/`-`/`0` on a transform pane | `ReplaceReferencedValueOperation(transform_pane, "transform", M')` (zoom in/out / reset, about centre) |
+| drag scroll-bar | `ReplaceReferencedValueOperation(bar, "value", clamped)` |
+| hover / press a button | `ReplaceReferencedValueOperation(widget, "hovered"/"pressed", bool)` |
 
 The operations that remain bespoke (genuinely not single-slot writes) are defined
 alongside the widget types in
@@ -463,7 +463,7 @@ the same machinery — a scroll is `translate(−offset)`, a zoom is `scale(z)`.
   resets, all about the viewport centre. The keyboard zoom is a *fallback* —
   the key is forwarded to the content first, so a `Ctrl`+`=`/`-` bound inside the
   content (e.g. collection add/remove) still wins. Every edit is a single
-  `ReplaceReferencedValue(pane, "transform", M')`, like other widget edits; other
+  `ReplaceReferencedValueOperation(pane, "transform", M')`, like other widget edits; other
   events are forwarded to the content with the pointer mapped through
   `affine_inverse(M)`, then re-rooted at `.content` exactly as the scroll pane.
 - **`transform` is transient view state** (like `scroll_position`) — not

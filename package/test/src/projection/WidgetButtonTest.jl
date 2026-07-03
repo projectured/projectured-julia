@@ -60,13 +60,13 @@ end
     iomap = projection_print(proj, nothing, button, PrinterContext())
 
     down = projection_read(proj, iomap, MouseDown(:left, 10, 10, Modifiers()))
-    @test down isa ReplaceReferencedValue
+    @test down isa ReplaceReferencedValueOperation
     @test down.value == true
     evaluate_operation(_WidgetButtonMockEditor(button), down)
     @test button.pressed == true
 
     up = projection_read(proj, iomap, MouseUp(:left, 10, 10, Modifiers()))
-    @test up isa ReplaceReferencedValue
+    @test up isa ReplaceReferencedValueOperation
     @test up.value == false
     evaluate_operation(_WidgetButtonMockEditor(button), up)
     @test button.pressed == false
@@ -77,7 +77,7 @@ end
     proj = _proj()
     iomap = projection_print(proj, nothing, button, PrinterContext())
     op = projection_read(proj, iomap, MouseMove(10, 10, :none, Modifiers()))
-    @test op isa ReplaceReferencedValue
+    @test op isa ReplaceReferencedValueOperation
     @test op.document === button && op.value == true
     evaluate_operation(_WidgetButtonMockEditor(button), op)
     @test button.hovered == true
@@ -93,7 +93,7 @@ end
 
     iomap = projection_print(proj, nothing, composite, PrinterContext())
     op_a = projection_read(proj, iomap, MouseMove(10, 10, :none, Modifiers()))
-    @test op_a isa ReplaceReferencedValue && op_a.document === a
+    @test op_a isa ReplaceReferencedValueOperation && op_a.document === a
     evaluate_operation(ed, op_a)
     @test a.hovered == true
 
@@ -284,8 +284,8 @@ end
     cb = WidgetCheckbox(Point2D(0, 0), false)
     ciomap = projection_print(proj, nothing, cb, PrinterContext())
     op = projection_read(proj, ciomap, KeyDown(:space, Modifiers()))
-    @test op isa ReplaceReferencedValue && op.value == true
-    @test projection_read(proj, ciomap, KeyDown(:return, Modifiers())) isa ReplaceReferencedValue
+    @test op isa ReplaceReferencedValueOperation && op.value == true
+    @test projection_read(proj, ciomap, KeyDown(:return, Modifiers())) isa ReplaceReferencedValueOperation
     dcb = WidgetCheckbox(Point2D(0, 0), false; enabled = false)
     @test projection_read(proj, projection_print(proj, nothing, dcb, PrinterContext()),
                           KeyDown(:space, Modifiers())) === nothing

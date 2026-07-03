@@ -74,8 +74,8 @@ end # @testset
     proj = TextHighlighting(r"alpha", color=color_red)
     iomap = projection_print(proj, TextText(TextString("alpha beta alpha", _font, color_default)))
     # Output span 3 is the second "alpha", starting at input char 11.
-    edit = projection_read(proj, iomap, StringReplaceRangeOperation(_range(3, 0, 5), "X"))
-    @test edit isa StringReplaceRangeOperation
+    edit = projection_read(proj, iomap, ReplaceStringRangeOperation(_range(3, 0, 5), "X"))
+    @test edit isa ReplaceStringRangeOperation
     @test edit.reference == _range(1, 11, 16)
     @test edit.replacement == "X"
 

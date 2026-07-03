@@ -20,8 +20,8 @@ module ProjectionModule
 import ..ProjectionApiModule: projection_print, projection_read, map_reference_forward, map_reference_backward, Projection
 import ..ChangeModule: Change
 import ..OperationModule: ReplaceSelectionOperation, ToggleCollapseOperation,
-                          ReplaceReferencedValue, CompoundOperation, SelectNextInsertionOperation
-import ..PrimitiveModule: StringReplaceRangeOperation, NumberReplaceRangeOperation
+                          ReplaceReferencedValueOperation, CompoundOperation, SelectNextInsertionOperation
+import ..PrimitiveModule: ReplaceStringRangeOperation, ReplaceNumberRangeOperation
 import ..ReactiveModule: Cell
 import ..ReferenceModule: EmptyReferencePath
 import ..PrinterContextModule: PrinterContext
@@ -70,13 +70,13 @@ end
 Default implementation for projection operation reading. Re-targets any
 operation that carries a reference from output space to input space using
 `map_reference_backward`: the path/reference of `ReplaceSelectionOperation`,
-`StringReplaceRangeOperation`, and `NumberReplaceRangeOperation`, plus each member
+`ReplaceStringRangeOperation`, and `ReplaceNumberRangeOperation`, plus each member
 of a `CompoundOperation` recursively (so edits flow back through generic
 projections such as `SortingProjection`/`ReversingProjection`/`CopyingProjection`
 without a bespoke reader). A `document === nothing` (`editor.document`-rooted)
-`ReplaceReferencedValue` has its `reference` re-targeted — this now covers the
+`ReplaceReferencedValueOperation` has its `reference` re-targeted — this now covers the
 former document-replace and sequence-insert/delete operations, which are
-`ReplaceReferencedValue`s with a terminal `RangeReference`; a self-contained one
+`ReplaceReferencedValueOperation`s with a terminal `RangeReference`; a self-contained one
 (carrying its own root) is forwarded unchanged. `ToggleCollapseOperation` is
 forwarded unchanged; all other operation types return `nothing`.
 """
@@ -95,7 +95,7 @@ function projection_read(projection::Projection, iomap, operation)
         # 4-arg readers and never reach this leaf default.)
         input = (iomap !== nothing && hasproperty(iomap, :input)) ? iomap.input : nothing
         return input isa Document ? document_read(input, operation) : nothing
-    elseif operation isa ReplaceReferencedValue
+    elseif operation isa ReplaceReferencedValueOperation
         # Self-contained (carries its own root): forward unchanged — this is the
         # path identity-rooted controls (`ObjectToWidget`/`WidgetToGraphics`) take
         # back through any generic projection. Document-rooted (`document === nothing`):
@@ -103,19 +103,19 @@ function projection_read(projection::Projection, iomap, operation)
         operation.document === nothing || return operation
         input_ref = map_reference_backward(projection, iomap, operation.reference)
         input_ref === nothing && return nothing
-        return ReplaceReferencedValue(nothing, input_ref, operation.value)
+        return ReplaceReferencedValueOperation(nothing, input_ref, operation.value)
     elseif operation isa ReplaceSelectionOperation
         input_selection = map_reference_backward(projection, iomap, operation.path)
         input_selection === nothing && return nothing
         return ReplaceSelectionOperation(input_selection)
-    elseif operation isa StringReplaceRangeOperation
+    elseif operation isa ReplaceStringRangeOperation
         input_ref = map_reference_backward(projection, iomap, operation.reference)
         input_ref === nothing && return nothing
-        return StringReplaceRangeOperation(input_ref, operation.replacement)
-    elseif operation isa NumberReplaceRangeOperation
+        return ReplaceStringRangeOperation(input_ref, operation.replacement)
+    elseif operation isa ReplaceNumberRangeOperation
         input_ref = map_reference_backward(projection, iomap, operation.reference)
         input_ref === nothing && return nothing
-        return NumberReplaceRangeOperation(input_ref, operation.replacement)
+        return ReplaceNumberRangeOperation(input_ref, operation.replacement)
     elseif operation isa CompoundOperation
         mapped = Any[projection_read(projection, iomap, o) for o in operation.operations]
         any(isnothing, mapped) && return nothing
