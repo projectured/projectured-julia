@@ -388,29 +388,32 @@ Replace flat-char input-tree walks with: *classify the element index into a zone
 
 ### S3 — Reader: collapse + Alt+click by delegation
 
-- [ ] Rewrite the gesture branch of the 4-arg reader ([:245–258](../../package/domain/src/projection/primitive/SyntaxToText.jl#L245-L258)):
-  resolve the click to an element index (via `_click_flat_pos` +
-  `_flat_to_text_elem_path`, both output-space). Then:
-  - Own marker (use `marker_index`, finally read; include today's
-    boundary-pixel tolerance, [:1113–1118](../../package/domain/src/projection/primitive/SyntaxToText.jl#L1113-L1118))
-    or own ellipsis element → `Change(gesture, ToggleCollapseOperation(node))`.
-  - Child zone → forward the **Change** (path shifted child-local) to
-    `projection_read(child_iomap.projection, recursion, change′, child_iomap)`.
-    A returned `ToggleCollapseOperation` carries the target `SyntaxNode`
-    **object** — propagates up unchanged, no path rewrite. A returned
-    path-based op (Alt+click tree selection) gets `.children[i]` prepended.
-  - Alt+click on own delimiters/chrome → `ReplaceSelectionOperation(∅)` (select
-    this whole node — today's close-delimiter behavior at
-    [:1015–1016](../../package/domain/src/projection/primitive/SyntaxToText.jl#L1015-L1016)).
-- [ ] Delete `_node_at_collapse_glyph`, `_pos_to_tree_selection`.
-- [ ] Keep untouched (A6 of the old plan): `KeyDown → document_read(iomap.input, evt)`,
-  `ToggleCollapseOperation` resolution via `_resolve_collapsible`, and the
-  console fallback — all input-domain or output-whole concerns that only the
-  root instance exercises.
-- [ ] Verify: `test_repl` on a collapse-exercising example, `CollapseRoundtripTest.jl`,
-  `SyntaxTreeSelectionTest.jl`, `SyntaxTreeNavigationTest.jl` (baselines: see
-  Verification).
-- [ ] Commit: `refactor(syntax-to-text): reader routes clicks by element zone, delegates to children`.
+- [x] Rewrote the click branch of the 4-arg reader into `_resolve_click(p, iomap,
+  gesture, path)`, which classifies the click's element (from the reference's own
+  index, or the flat offset for a bare `{n}`) and:
+  - own marker (incl. the boundary pixel: `flat <= length(marker element)`) or
+    own collapsed ellipsis (`j == marker_index + 2`) → `ToggleCollapseOperation(node)`;
+  - a **node** child zone → recurse `_resolve_click(child.projection, child, gesture,
+    child-local element path)`; a returned `ToggleCollapseOperation` (object target)
+    propagates up unchanged, a returned tree `ReplaceSelectionOperation` gets
+    `.children[i]` prepended;
+  - a **leaf** child zone → Alt: whole-leaf `.children[i]∅`; else cursor (`nothing`);
+  - own delimiters/decoration → Alt: whole-node `∅`; else cursor (`nothing`).
+  Note: passing the child-local *element path* (not a flat delta) is what keeps this
+  correct across re-indent-on-splice widening.
+- [x] Deleted `_node_at_collapse_glyph`, `_pos_to_tree_selection`.
+- [x] Kept untouched: `KeyDown → read_gesture(iomap.input, evt)`,
+  `ToggleCollapseOperation` resolution via `_resolve_collapsible`, and the console
+  fallback.
+- [x] **Verified in-session (click differential OLD vs NEW):** on real (non-empty)
+  click anchors, Alt+click tree-selection is **identical** to OLD, and
+  marker/ellipsis collapse (`TOGGLE(target)`) is **identical**. The only residual
+  diffs are `plain` clicks falling through to the S2 backward mapper (the accepted
+  chrome-boundary category). byte-identity / selection / round-trip unchanged.
+  **Heavy suite for the user:** `test_repl` on a collapse example,
+  `CollapseRoundtripTest.jl`, `SyntaxTreeSelectionTest.jl` (baseline 12/9/4),
+  `SyntaxTreeNavigationTest.jl`.
+- [x] Commit: `refactor(syntax-to-text): reader routes clicks by element zone, delegates to children`.
 
 ### S4 — `SyntaxListToText` (lower priority)
 

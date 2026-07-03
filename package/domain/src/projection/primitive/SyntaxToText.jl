@@ -512,26 +512,22 @@ end
 
 # Gesture-aware reader. With the originating gesture in hand, all pointer-driven
 # tree behaviour is resolved here — the text/graphics layers below stay dumb and
-# emit only a plain character cursor. Two click reinterpretations, keyed off
+# emit only a plain character cursor. Click reinterpretations are keyed off
 # `change.gesture isa MousePress` (the Lisp `(typep -gesture- 'gesture/mouse/click)`)
 # so keyboard navigation that lands on the same glyph still places the cursor:
 #   1. A click on a node's inline marker (either state) or its collapsed ellipsis
 #      is a fold gesture → toggle that specific node.
-#   2. Alt+click promotes the mapped position to a whole-element (tree) selection
-#      on the enclosing node — the mouse half of tree navigation.
+#   2. Alt+click promotes the click to a whole-element (tree) selection on the
+#      enclosing node — the mouse half of tree navigation.
+# Both are resolved by `_resolve_click`, which classifies the click's element into
+# a zone and delegates a child-zone click to that child's own click resolution —
+# never re-walking the input subtree.
 function read_intent(p::SyntaxNodeToText, recursion, change::Intent, iomap::SyntaxNodeToTextIoMap)
     op = change.operation
     gesture = change.gesture
     if op isa ReplaceSelectionOperation && gesture isa MousePress
-        flat = _click_flat_pos(iomap, op.path)
-        if flat >= 0
-            node = _node_at_collapse_glyph(iomap.input, flat, p, 0)
-            node !== nothing && return Intent(gesture, ToggleCollapseOperation(node))
-            if gesture.modifiers.alt
-                tree_sel = _pos_to_tree_selection(iomap.input, flat, p, 0)
-                return Intent(gesture, ReplaceSelectionOperation(tree_sel))
-            end
-        end
+        resolved = _resolve_click(p, iomap, gesture, op.path)
+        resolved !== nothing && return Intent(gesture, resolved)
     end
     # Everything else (keyboard, plain clicks, other operations) falls through to
     # the operation-typed readers below.
@@ -556,6 +552,64 @@ function read_intent(p::SyntaxNodeToText, recursion, change::Intent, iomap::Synt
     end
 
     return Intent(gesture, result)
+end
+
+# Resolve a click (given as an output reference `path`) to a tree Operation, or
+# `nothing` to fall through to a plain character cursor. Classifies the click's
+# element into a zone over this node's own output and delegates a child-zone click
+# to that child's own `_resolve_click` (recursion in lockstep with the printer):
+#   - own inline marker (incl. the right-edge boundary pixel) or collapsed ellipsis
+#     → `ToggleCollapseOperation(this node)` — any modifier;
+#   - a child node zone → recurse with the child-local element path; a returned
+#     `ToggleCollapseOperation` (object target) propagates up unchanged, a returned
+#     tree `ReplaceSelectionOperation` gets `.children[i]` prepended;
+#   - a leaf child zone → Alt: whole-leaf `.children[i]∅`; else cursor (`nothing`);
+#   - own delimiters/decoration → Alt: whole-node `∅`; else cursor (`nothing`).
+function _resolve_click(p::SyntaxNodeToText, iomap::SyntaxNodeToTextIoMap, gesture, path)
+    elements = iomap.output.elements
+    # Locate the clicked element (prefer the reference's own element index; fall
+    # back through the flat offset for a bare `{n}`), plus the flat for the marker
+    # boundary-pixel test.
+    j, c = _parse_text_elem_path(path)
+    if j === nothing
+        flat0 = _click_flat_pos(iomap, path)
+        flat0 < 0 && return nothing
+        ep = _flat_to_text_elem_path(elements, flat0)
+        ep === nothing && return nothing
+        j, c = _parse_text_elem_path(ep)
+        j === nothing && return nothing
+    end
+    flat = _text_elem_path_to_flat(elements, j, c)
+    node = iomap.input
+    mi = iomap.marker_index[]
+
+    # Own inline marker: [0, marker_len] inclusive of the boundary pixel (the
+    # right edge of the glyph maps to the open delimiter's first column).
+    mi > 0 && flat <= length(elements[mi].content::AbstractString) &&
+        return ToggleCollapseOperation(node)
+    # Own collapsed-body ellipsis (element after marker? + open).
+    node.collapsed && length(node.children) > 0 && j == mi + 2 &&
+        return ToggleCollapseOperation(node)
+
+    for (i, r) in enumerate(iomap.child_elem_ranges[])
+        if j in r
+            cim = iomap.child_iomaps[][i]
+            if cim isa SyntaxNodeToTextIoMap
+                # Delegate the child-local element click to the child's resolver.
+                inner = _resolve_click(cim.projection, cim, gesture, _text_elem_path(j - r.start + 1, c))
+                inner === nothing && return nothing
+                inner isa ToggleCollapseOperation && return inner   # object target, unchanged
+                inner isa ReplaceSelectionOperation &&
+                    return ReplaceSelectionOperation(_prepend_child(i, inner.path))
+                return inner
+            end
+            # Leaf child: Alt selects the whole leaf; a plain click places a cursor.
+            return gesture.modifiers.alt ?
+                ReplaceSelectionOperation(_prepend_child(i, EmptyReferencePath())) : nothing
+        end
+    end
+    # Own delimiters / decoration: Alt selects this whole node.
+    gesture.modifiers.alt ? ReplaceSelectionOperation(EmptyReferencePath()) : nothing
 end
 
 function read_intent(p::SyntaxNodeToText, iomap::SyntaxNodeToTextIoMap, op::ReplaceSelectionOperation)
@@ -1057,114 +1111,7 @@ function _subtree_len(node::SyntaxNode, p::SyntaxNodeToText, depth::Int)
     return n
 end
 
-# ── Tree selection (Alt+click) ─────────────────────────────────────────────
-# Like _pos_to_selection but returns ∅ at leaves (whole-element selection on
-# the innermost node). Structural positions (newlines, indentation, sep)
-# select the nearest child.
-
-_pos_to_tree_selection(::SyntaxLeaf, _pos::Int, ::SyntaxNodeToText, _depth::Int) = EmptyReferencePath()
-
-function _pos_to_tree_selection(node::SyntaxNode, local_pos::Int, p::SyntaxNodeToText, depth::Int)
-    marker_len = _marker_len(p, node)
-    local_pos < marker_len && return EmptyReferencePath()
-
-    open_len = length(node.open.content)
-    local_pos < marker_len + open_len && return EmptyReferencePath()
-
-    children = node.children
-    char_count = marker_len + open_len
-
-    if node.collapsed
-        return EmptyReferencePath()
-    end
-
-    if node.indentation != 0
-        child_depth = depth + 1
-        for (i, child) in enumerate(children)
-            if i > 1
-                sep_len = length(node.sep.content)
-                char_count += sep_len
-            end
-            struct_len = 1 + child_depth * p.indent_size
-            char_count += struct_len
-            child_len = _subtree_len(child, p, child_depth)
-            if char_count <= local_pos < char_count + child_len
-                sel = _pos_to_tree_selection(child, local_pos - char_count, p, child_depth)
-                return @reference children[i].^(sel)
-            end
-            char_count += child_len
-        end
-    else
-        for (i, child) in enumerate(children)
-            if i > 1
-                sep_len = length(node.sep.content)
-                char_count += sep_len
-            end
-            child_len = _subtree_len(child, p, depth)
-            if char_count <= local_pos < char_count + child_len
-                sel = _pos_to_tree_selection(child, local_pos - char_count, p, depth)
-                return @reference children[i].^(sel)
-            end
-            char_count += child_len
-        end
-    end
-
-    # close delimiter or trailing structural — select the node itself
-    return EmptyReferencePath()
-end
-
-# ── Collapse hit-testing and resolution ──────────────────────────────────────
-
-# Walk the rendered layout to the SyntaxNode whose inline expand/collapse
-# marker — or, when that node is collapsed, its ellipsis glyph — occupies the
-# flat character offset `local_pos`. Returns `nothing` when the position is on
-# ordinary content/delimiters. The offset arithmetic mirrors `_pos_to_selection`.
-_node_at_collapse_glyph(::SyntaxLeaf, _local_pos::Int, ::SyntaxNodeToText, _depth::Int) = nothing
-
-function _node_at_collapse_glyph(node::SyntaxNode, local_pos::Int, p::SyntaxNodeToText, depth::Int)
-    marker_len = _marker_len(p, node)
-    # The marker occupies [0, marker_len) and toggles this node in either state.
-    # The boundary pixel (local_pos == marker_len) is the leftmost pixel of the
-    # open delimiter; because TextToGraphics can map a click at the right edge of
-    # the marker glyph to that boundary position, we include it so that clicking
-    # anywhere visually overlapping the marker still toggles the node.
-    local_pos <= marker_len && marker_len > 0 && return node
-
-    open_len = length(node.open.content)
-    char_count = marker_len + open_len
-
-    if node.collapsed
-        # Clicking the ellipsis expands the node; no children are rendered to
-        # descend into.
-        ell_len = _ellipsis_len(p, node)
-        (char_count <= local_pos < char_count + ell_len) && return node
-        return nothing
-    end
-
-    children = node.children
-    if node.indentation != 0
-        child_depth = depth + 1
-        for (i, child) in enumerate(children)
-            i > 1 && (char_count += length(node.sep.content))
-            char_count += 1 + child_depth * p.indent_size   # \n + indent
-            child_len = _subtree_len(child, p, child_depth)
-            if char_count <= local_pos <= char_count + child_len
-                return _node_at_collapse_glyph(child, local_pos - char_count, p, child_depth)
-            end
-            char_count += child_len
-        end
-    else
-        for (i, child) in enumerate(children)
-            i > 1 && (char_count += length(node.sep.content))
-            child_len = _subtree_len(child, p, depth)
-            if char_count <= local_pos <= char_count + child_len
-                return _node_at_collapse_glyph(child, local_pos - char_count, p, depth)
-            end
-            char_count += child_len
-        end
-    end
-    return nothing
-end
+# ── Collapse resolution ───────────────────────────────────────────────────────
 
 # Innermost SyntaxNode along `path` (a selection rooted at `node`). Descends
 # through `.children[i]` steps as long as the child is itself a SyntaxNode,
