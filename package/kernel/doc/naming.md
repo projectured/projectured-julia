@@ -74,8 +74,11 @@ alongside it.
   consistently by the `@document` macro — never hand-roll one.
 - **Operations are verb-first phrases with the `Operation` suffix**:
   `ReplaceSelectionOperation`, `OpenWindowOperation`,
-  `ReplaceNumberRangeOperation`. No exceptions — not
-  `NumberReplaceRangeOperation`, not a bare `ReplaceReferencedValue`.
+  `ReplaceNumberRangeOperation`. Even the null operation is verb-first:
+  `DoNothingOperation`. No word-order exceptions — not
+  `NumberReplaceRangeOperation`, not a bare `ReplaceReferencedValue`. The
+  one structural exception is `CompoundOperation`, a sequence of operations
+  evaluated as one.
 - **Events are `<Source><Action>`, suffixless and tenseless**: `KeyDown`,
   `MouseMove`, `MouseLeave`, `WindowClose`, `WindowResize`, `WindowDefocus`,
   `WindowQuit`. An event reports what the user or system did, never what
@@ -149,8 +152,9 @@ dispatch, not by the name.
   `fn`, `reference` not `ref`, `operation` not `op`, `performance` not
   `perf`, `evaluated` not `eval`.
 - **The sanctioned compact words are exactly these**: `Api` (the layer
-  marker), `IoMap`/`iomap` (a name in its own right), and the generated
-  `I<Document>` prefix. Nothing else.
+  marker), `IoMap`/`iomap` (a name in its own right), the generated
+  `I<Document>` prefix, and the canonical keyboard modifier labels
+  `ctrl`/`alt`/`meta` (`is_ctrl`; nobody says `is_alternate`). Nothing else.
 - This convention governs exported names. Local and argument names are
   outside its scope, though full words are encouraged there too
   (`context` over `ctx`).

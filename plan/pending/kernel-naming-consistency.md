@@ -140,6 +140,12 @@ The full old → new mapping with reasoning is in the table at the end of this f
       `is_reference_equal(_ignoring_types)`, `pop_gesture!`,
       `make_child_context`, `make_copying_field_iomap`/`make_copying_element_iomap`,
       `make_scripted_*`, `reset_performance_counters!`/`record_performance!`.
+      Plus the second-audit rulings: `NoOperation` → `DoNothingOperation`,
+      `run!` → `run_editor!`, `tick!` → `tick_editor_time!`, `recognize!` →
+      `recognize_gesture!`, `init!`/`quit!` → `initialize_backend!`/
+      `quit_backend!`, `list_classes`/`read_class_documentation` →
+      `list_types`/`read_type_documentation`, `take_first_n` → `take_first`,
+      `@perf_time` → `@performance_time`.
 
 ### Open decisions (not yet scheduled)
 
@@ -158,10 +164,13 @@ The full old → new mapping with reasoning is in the table at the end of this f
   become `print_document`/`read_intent`/`Intent` — the concepts and the REPL
   verbs survive, the literal names don't.)
 
-### Second audit findings (pending ruling)
+### Second audit findings (ruled 2026-07-03)
 
 A re-check of every exported name against the finished rules found these
-additional items:
+additional items. Rulings: `DoNothingOperation` (rename, not blessing);
+`CompoundOperation` stays as the one blessed structural noun operation;
+`ctrl`/`alt`/`meta` blessed as canonical key labels; all bare-verb and Mcp
+renames adopted (folded into Batch 9).
 
 - `NoOperation` and `CompoundOperation` violate "operations are verb-first,
   no exceptions" — they are the two *structural* operations (the null
@@ -747,6 +756,14 @@ function: @reference, @step
 | `perf_reset!` | `reset_performance_counters!` | function | verb first; expand the abbreviation |
 | `perf_record!` | `record_performance!` | function | same |
 | `agent_server_start!` / `agent_server_stop!` | `start_agent_server!` / `stop_agent_server!` | function | verb first; keeps the `agent_server` stem shared with `make_agent_server` |
+| `NoOperation` | `DoNothingOperation` | type | operations are verb-first, even the null one |
+| `run!` | `run_editor!` | function | bare verb too generic (`start_agent_server!` precedent) |
+| `tick!` | `tick_editor_time!` | function | same |
+| `recognize!` | `recognize_gesture!` | function | same; recognition verbs take the recognized thing as object |
+| `init!` / `quit!` | `initialize_backend!` / `quit_backend!` | function | bare verbs + `init` is an abbreviation |
+| `list_classes` / `read_class_documentation` | `list_types` / `read_type_documentation` | function | "class" is not a Julia concept; they list structs |
+| `take_first_n` | `take_first` | function | the count is an argument, not part of the name |
+| `@perf_time` | `@performance_time` | macro | macros are exempt from the verb rule, not the abbreviation rule |
 | `reference_equal` / `reference_equal_ignoring_types` | `is_reference_equal` / `is_reference_equal_ignoring_types` | function | predicates start with `is_` |
 | `next_gesture!` | `pop_gesture!` | function | mutating action needs a verb; it consumes the pending queue |
 | `child_context` | `make_child_context` | function | constructs a derived context; factories are `make_*` |
