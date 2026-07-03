@@ -6,6 +6,12 @@ guessable naming schemes — a reader should be able to derive a name from the
 concept (and vice versa) without looking it up. Idiomatic-Julia brevity is
 explicitly not a goal.
 
+**Status: implemented (2026-07-03)** on branch `kernel-naming`, one commit per
+batch. Verified: printers sweep 180134/180134, readers sweep 20925/20925,
+text-navigation sweep 12 failures — the pre-existing Ctrl+Home-seed baseline,
+identical failure set on untouched main. Side fix along the way: dangling
+`write_to_device` import in ProjecturedSdl (pre-existing, removed).
+
 ---
 
 ## Naming rules to adopt
