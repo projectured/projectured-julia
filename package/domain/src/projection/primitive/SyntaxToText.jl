@@ -166,36 +166,181 @@ struct SyntaxNodeToTextIoMap <: IoMap
     marker_index::Cell
 end
 
+# ── Reference mapping (School A: own level + child delegation) ────────────
+# Both directions own exactly the one level this node lays out — marker/open/
+# close/sep/newline/indent/ellipsis chrome — and delegate anything inside a child
+# to that child's *own* mapper via the stored `child_iomaps`, shifting between the
+# child's element space and this node's spliced element space. No projection ever
+# re-walks the input subtree by type. `_syntax_to_flat` survives only as the shared
+# flat metric for the `*ToSyntax` flat-offset readers (see its section below).
+
+_rr_start(x) = x isa RangeReference ? x.start::Int : nothing
+
+# An own-span (open/close/sep) forward result. Convert (element index, char) to a
+# flat offset over this node's own output and re-anchor via `_flat_to_text_elem_path`
+# — this reproduces the end-of-span → next-non-empty-span anchoring exactly and
+# keeps every own-span forward image byte-identical to the pre-delegation printer.
+function _anchor_nonempty(elements, elem_idx::Int, char_idx::Int)
+    (1 <= elem_idx <= length(elements)) || return nothing
+    flat = _text_elem_path_to_flat(elements, elem_idx, char_idx)
+    flat < 0 && return nothing
+    _flat_to_text_elem_path(elements, flat)
+end
+
+# Shift a child's forward *cursor* image into this node's element/flat space: map
+# the child's element index to its spliced parent index, take the parent flat, and
+# re-anchor through `_flat_to_text_elem_path` (matching the old whole-tree walk and
+# — crucially — reading the *widened* parent spans, so re-indent-on-splice is
+# accounted for). Whole-element (∅) images are handled separately via element
+# ranges (`_child_elem_range`), never by adding a child-local flat.
+function _shift_child_cursor(inner, elements, range::UnitRange{Int})
+    span_idx, char_idx = _parse_text_elem_path(inner)
+    span_idx === nothing && return nothing
+    pf = _text_elem_path_to_flat(elements, range.start + span_idx - 1, char_idx)
+    pf < 0 && return nothing
+    _flat_to_text_elem_path(elements, pf)
+end
+
+# Element-index range (in `iomap.output.elements`) covered by a whole-element
+# (∅-terminating, children-only) sub-path under child `child_i`. Recurses through
+# nested `.children[j]` steps, shifting each level's child range by its splice
+# base — so the final flat, taken from *this* node's spliced (and widened) spans,
+# is correct even for indented descendants. `nothing` when the tail is a cursor
+# path (ends in a field position) rather than a whole element, or descends into a
+# non-node child.
+function _child_elem_range(iomap::SyntaxNodeToTextIoMap, child_i::Int, tail)
+    ranges = iomap.child_elem_ranges[]
+    (1 <= child_i <= length(ranges)) || return nothing
+    base = ranges[child_i]
+    tail isa EmptyReferencePath && return base
+    tail isa ConcreteReferencePath || return nothing
+    h = tail.head
+    (h isa FieldReference && h.name == "children") || return nothing
+    r = tail.tail
+    r isa ConcreteReferencePath || return nothing
+    gj = _rr_start(r.head); gj === nothing && return nothing
+    cim = iomap.child_iomaps[][child_i]
+    cim isa SyntaxNodeToTextIoMap || return nothing
+    sub = _child_elem_range(cim, gj + 1, r.tail)
+    sub === nothing && return nothing
+    offset = base.start - 1
+    return (sub.start + offset):(sub.stop + offset)
+end
+
 function map_reference_forward(p::SyntaxNodeToText, iomap::SyntaxNodeToTextIoMap, reference)
     reference = strip_reference_types(reference)   # selections are canonical (checkpointed)
-    reference isa EmptyReferencePath && return @reference()
-    flat_pos = _syntax_to_flat(iomap.input, reference, p, 0)
-    flat_pos < 0 && return nothing
-    _flat_to_text_elem_path(iomap.output.elements, flat_pos)
+    reference isa EmptyReferencePath && return @reference()     # whole node
+    reference isa ConcreteReferencePath || return nothing
+    elements = iomap.output.elements
+    node = iomap.input
+    h = reference.head
+    if h isa ProjectionReference
+        # A projection-introduced position. A bare flat `{k}` is this node's own
+        # offset; any other inner path is transparent — keep navigating this node.
+        inner = h.output_path
+        inner isa ConcreteReferencePath || return nothing
+        if inner.head isa RangeReference && inner.tail isa EmptyReferencePath
+            return _flat_to_text_elem_path(elements, inner.head.start::Int)
+        end
+        return map_reference_forward(p, iomap, inner)
+    end
+    h isa FieldReference || return nothing
+    rest = reference.tail
+    rest isa ConcreteReferencePath || return nothing
+    fname = h.name
+    if fname == "open"
+        k = _rr_start(rest.head); k === nothing && return nothing
+        return _anchor_nonempty(elements, iomap.marker_index[] + 1, k)
+    elseif fname == "close"
+        k = _rr_start(rest.head); k === nothing && return nothing
+        return _anchor_nonempty(elements, length(elements), k)
+    elseif fname == "sep"
+        # The separator renders between every pair of children; a `.sep` cursor is
+        # placed at its first occurrence (right after child 1).
+        (node.collapsed || length(node.children) < 2) && return nothing
+        k = _rr_start(rest.head); k === nothing && return nothing
+        ranges = iomap.child_elem_ranges[]
+        return _anchor_nonempty(elements, ranges[1].stop + 1, k)
+    elseif fname == "children"
+        node.collapsed && return nothing   # a collapsed node lays out no children
+        ci = _rr_start(rest.head); ci === nothing && return nothing
+        child_i = ci + 1
+        cims = iomap.child_iomaps[]
+        (1 <= child_i <= length(cims)) || return nothing
+        ctail = rest.tail
+        # Whole-element (∅-terminating) selection → a parent-flat rectangle over
+        # the child subtree's spliced (widened) spans.
+        rng = _child_elem_range(iomap, child_i, ctail)
+        if rng !== nothing
+            s = _text_elem_path_to_flat(elements, rng.start, 0)
+            s < 0 && return nothing
+            e = s + sum(_span_len(elements[j]) for j in rng; init = 0)
+            return ConcreteReferencePath(TextRectangularReference(s, e), EmptyReferencePath())
+        end
+        # Cursor → delegate to the child's own mapper, then re-anchor at parent flat.
+        child = cims[child_i]
+        inner = map_reference_forward(child.projection, child, ctail)
+        inner === nothing && return nothing
+        return _shift_child_cursor(inner, elements, iomap.child_elem_ranges[][child_i])
+    end
+    nothing
 end
+
+# Build a child-local output sub-reference to hand to a child's backward mapper:
+# a whole element (`char === nothing`) or a `.content{char}` cursor.
+_child_tree_path(idx::Int) =
+    ConcreteReferencePath(FieldReference("elements"),
+        ConcreteReferencePath(RangeReference(idx - 1, idx), EmptyReferencePath()))
+_prepend_child(i::Int, inner) = @reference children[i].^(inner)
 
 function map_reference_backward(p::SyntaxNodeToText, iomap::SyntaxNodeToTextIoMap, reference)
     reference = strip_reference_types(reference)   # selections are canonical (checkpointed)
-    reference isa EmptyReferencePath && return @reference()
-    # Also accept bare flat char index: ConcreteReferencePath(PositionReference(n))
-    if reference isa ConcreteReferencePath
-        h = reference.head
-        if h isa RangeReference && reference.tail isa EmptyReferencePath
-            return _pos_to_selection(iomap.input, h.start::Int, p, 0)
-        end
+    reference isa EmptyReferencePath && return @reference()     # whole node
+    elements = iomap.output.elements
+    # Bare flat `{n}` → the rendered element path, then classify like any other.
+    if reference isa ConcreteReferencePath && reference.head isa RangeReference &&
+       reference.tail isa EmptyReferencePath
+        ep = _flat_to_text_elem_path(elements, reference.head.start::Int)
+        ep === nothing && return nothing
+        return map_reference_backward(p, iomap, ep)
     end
-    # Tree selection path: .elements[i]∅ (no .content{k})
-    tree_span = _parse_tree_elem_path(reference)
-    if tree_span !== nothing
-        flat_pos = _text_elem_path_to_flat(iomap.output.elements, tree_span, 0)
-        flat_pos < 0 && return nothing
-        return _pos_to_tree_selection(iomap.input, flat_pos, p, 0)
-    end
+    # Whole-element (tree) selection `.elements[j]∅`.
+    tree_j = _parse_tree_elem_path(reference)
+    tree_j !== nothing && return _backward_zone(p, iomap, tree_j, nothing)
+    # Cursor `.elements[j].content{c}`.
     span_idx, char_idx = _parse_text_elem_path(reference)
     span_idx === nothing && return nothing
-    flat_pos = _text_elem_path_to_flat(iomap.output.elements, span_idx, char_idx)
-    flat_pos < 0 && return nothing
-    _pos_to_selection(iomap.input, flat_pos, p, 0)
+    _backward_zone(p, iomap, span_idx, char_idx)
+end
+
+# Classify output element `j` into a zone and produce the source-domain selection.
+# `char === nothing` means a whole-element (∅) query; otherwise a cursor at `char`.
+#   child zone i → delegate the (shifted) sub-reference to child i's mapper and
+#                  prepend `.children[i]`;
+#   open / close → `.open{c}` / `.close{c}` (whole element on own chrome → ∅);
+#   any other own chrome (marker/newline/indent/sep/ellipsis) → a
+#                  projection-introduced position `proj(p, {node-local flat})`.
+function _backward_zone(p::SyntaxNodeToText, iomap::SyntaxNodeToTextIoMap, j::Int, char)
+    elements = iomap.output.elements
+    (1 <= j <= length(elements)) || return nothing
+    ranges = iomap.child_elem_ranges[]
+    for (i, r) in enumerate(ranges)
+        if j in r
+            cim = iomap.child_iomaps[][i]
+            child_local = j - r.start + 1
+            sub = char === nothing ? _child_tree_path(child_local) :
+                  _text_elem_path(child_local, char::Int)
+            inner = map_reference_backward(cim.projection, cim, sub)
+            inner === nothing && return nothing
+            return _prepend_child(i, inner)
+        end
+    end
+    char === nothing && return @reference()        # whole element on own chrome → whole node
+    c = char::Int
+    j == iomap.marker_index[] + 1 && return @reference open{c}
+    j == length(elements)         && return @reference close{c}
+    flat = _text_elem_path_to_flat(elements, j, c)
+    return @reference proj(p, {flat})
 end
 
 # Selection mapping (SyntaxNode → TextText):
@@ -249,15 +394,22 @@ function print_document(p::SyntaxNodeToText, recursion, node::SyntaxNode, ctx)
         res
     end)
 
+    # The selection cell forward-maps through this projection's own mapper, so it
+    # needs the finished IoMap. Build the IoMap after the output but let the
+    # selection thunk close over a cell that is filled in below (the standard
+    # forward-reference break, as in CollectionToSyntax/BookToSyntax).
+    iomap_cell = Cell(nothing)
     output = TextText(
         CellVector(() -> spans[][1]),
-        Cell(() -> _compose_node_selection(node, p, spans[], child_iomaps[])))
+        Cell(() -> _compose_node_selection(node, p, iomap_cell[], child_iomaps[])))
 
-    SyntaxNodeToTextIoMap(p, node, output,
+    iomap = SyntaxNodeToTextIoMap(p, node, output,
         child_iomaps,
         Cell(() -> spans[][2]),
         Cell(() -> spans[][3]),
         Cell(() -> _active_marker(p, node) === nothing ? 0 : 1))
+    iomap_cell[] = iomap
+    iomap
 end
 
 # Assemble this node's output element vector by delegation + splice. Own chrome
@@ -333,26 +485,21 @@ end
 
 # The output TextText cursor, composed from this node's own selection and its
 # children's composed selections (Settled decision 5). Precedence, structural
-# wins: (1) node.selection ∅ → whole-node highlight; (2) node.selection ending in
-# ∅ under `.children[i]…` → a TextRectangularReference in parent-flat chars;
-# (3) node.selection mapping to a flat cursor (structural); (4) the first child
-# whose composed selection is a plain cursor element path, shifted by its splice
-# base — a child returning ∅ or a TextRect is skipped, not promoted; (5) none.
-#
-# (S1 note: cases 2/3 reuse `_syntax_to_flat_range`/`_syntax_to_flat` on the input
-# subtree; the S2 mapper rewrite replaces them with child delegation.)
-function _compose_node_selection(node::SyntaxNode, p::SyntaxNodeToText, spans_tuple, cims)
+# wins: (1) node.selection ∅ → whole-node highlight; (2)/(3) forward-map
+# node.selection through this projection's own mapper — a path ending in ∅ under
+# `.children[i]…` becomes a `TextRectangularReference`, a cursor path an element
+# path; (4) otherwise the first child whose composed selection is a plain cursor
+# element path, shifted by its splice base — a child returning ∅ or a TextRect is
+# skipped, not promoted; (5) none.
+function _compose_node_selection(node::SyntaxNode, p::SyntaxNodeToText, iomap, cims)
+    iomap === nothing && return nothing
     node_sel = strip_reference_types(node.selection)     # canonical → plain skeleton
     node_sel isa EmptyReferencePath && return @reference()                    # case 1
-    elements = spans_tuple[1]
     if node_sel isa ReferencePath
-        fr = _syntax_to_flat_range(node, node_sel, p, 0)                       # case 2
-        fr !== nothing && return ConcreteReferencePath(
-            TextRectangularReference(fr[1], fr[2]), EmptyReferencePath())
-        sc = _syntax_to_flat(node, node_sel, p, 0)                            # case 3
-        sc >= 0 && return _flat_to_text_elem_path(elements, sc)
+        fwd = map_reference_forward(p, iomap, node_sel)                        # cases 2 & 3
+        fwd !== nothing && return fwd
     end
-    ranges = spans_tuple[2]                                                    # case 4
+    ranges = iomap.child_elem_ranges[]                                         # case 4
     for (i, cim) in enumerate(cims)
         csel = cim.output.selection
         csel === nothing && continue
@@ -439,17 +586,19 @@ function read_intent(p::SyntaxNodeToText, iomap::SyntaxNodeToTextIoMap, evt::Key
     return read_gesture(iomap.input, evt)
 end
 
-# Translate a flat-text `ReplaceStringRangeOperation` to a SyntaxNode-domain
-# op rooted at the enclosing leaf. The start and stop offsets are mapped via
-# `_text_elem_path_to_flat` and `_pos_to_selection`; if both endpoints don't
-# resolve to the same leaf's `.value` field, the op is rejected.
+# Translate a flat-text `ReplaceStringRangeOperation` to a SyntaxNode-domain op.
+# The reference is single-span (`.elements[j].content{s:e}`). Classify element `j`
+# into a zone: a child zone delegates the shifted 3-arg read to that child's own
+# reader (the leaf `.value{s:e}` rewrite lives in `SyntaxLeafToText`) and prepends
+# `.children[i]`; own chrome is not editable. The zero-width input-selection
+# disambiguation is preserved.
 function read_intent(p::SyntaxNodeToText, iomap::SyntaxNodeToTextIoMap, op::ReplaceStringRangeOperation)
     parsed = _parse_text_elem_range(op.reference)
     parsed === nothing && return nothing
     span_idx, char_start, char_stop = parsed
-    spans = iomap.output.elements
-    flat_start = _text_elem_path_to_flat(spans, span_idx, char_start)
-    flat_stop  = _text_elem_path_to_flat(spans, span_idx, char_stop)
+    elements = iomap.output.elements
+    flat_start = _text_elem_path_to_flat(elements, span_idx, char_start)
+    flat_stop  = _text_elem_path_to_flat(elements, span_idx, char_stop)
     (flat_start < 0 || flat_stop < 0) && return nothing
 
     # Input-selection disambiguation. The collision between, say, an empty
@@ -472,12 +621,27 @@ function read_intent(p::SyntaxNodeToText, iomap::SyntaxNodeToTextIoMap, op::Repl
         end
     end
 
-    start_sel = _pos_to_selection(iomap.input, flat_start, p, 0)
-    stop_sel  = _pos_to_selection(iomap.input, flat_stop,  p, 0)
-    new_ref = _join_leaf_range(start_sel, stop_sel)
-    new_ref === nothing && return nothing
-    ReplaceStringRangeOperation(new_ref, op.replacement)
+    # Both endpoints share element `span_idx`; delegate its child zone.
+    for (i, r) in enumerate(iomap.child_elem_ranges[])
+        if span_idx in r
+            cim = iomap.child_iomaps[][i]
+            child_local = span_idx - r.start + 1
+            child_op = ReplaceStringRangeOperation(
+                _text_elem_range(child_local, char_start, char_stop), op.replacement)
+            result = read_intent(cim.projection, cim, child_op)
+            (result isa ReplaceStringRangeOperation) || return nothing
+            return ReplaceStringRangeOperation(_prepend_child(i, result.reference), result.replacement)
+        end
+    end
+    return nothing   # own chrome (open/close/sep/decoration) is not string-editable
 end
+
+# `.elements[idx].content{s:e}` — the single-span replace-range reference shape.
+_text_elem_range(idx::Int, s::Int, e::Int) =
+    ConcreteReferencePath(FieldReference("elements"),
+        ConcreteReferencePath(RangeReference(idx - 1, idx),
+            ConcreteReferencePath(FieldReference("content"),
+                ConcreteReferencePath(RangeReference(s, e), EmptyReferencePath()))))
 
 # True iff `path` ends in `.<field>[range]` — the shape a
 # ReplaceStringRangeOperation reference must have for `_split_replace_reference`.
@@ -490,43 +654,6 @@ function _ends_in_field_range(path)
         cur = cur.tail
     end
     penult isa FieldReference && cur.head isa RangeReference
-end
-
-# Given two SyntaxNode-domain selection paths whose tails are `.value[k]`
-# inside the same leaf, build a single replace-range path whose tail is
-# `.value[s:e]`. Returns `nothing` if they don't share the same leaf or the
-# terminal field isn't `value`.
-function _join_leaf_range(start_path, stop_path)
-    (start_path === nothing || stop_path === nothing) && return nothing
-    start_path isa ConcreteReferencePath || return nothing
-    stop_path  isa ConcreteReferencePath || return nothing
-    h_start = start_path.head
-    h_stop  = stop_path.head
-    if h_start isa FieldReference && h_stop isa FieldReference
-        h_start.name == h_stop.name || return nothing
-        if h_start.name == "value"
-            t_start = start_path.tail
-            t_stop  = stop_path.tail
-            t_start isa ConcreteReferencePath || return nothing
-            t_stop  isa ConcreteReferencePath || return nothing
-            r_start = t_start.head
-            r_stop  = t_stop.head
-            (r_start isa RangeReference && r_stop isa RangeReference) || return nothing
-            return ConcreteReferencePath(FieldReference("value"),
-                ConcreteReferencePath(RangeReference(r_start.start::Int, r_stop.start::Int), EmptyReferencePath()))
-        else
-            # `children` field: recurse into the matching child index.
-            inner = _join_leaf_range(start_path.tail, stop_path.tail)
-            inner === nothing && return nothing
-            return ConcreteReferencePath(h_start, inner)
-        end
-    elseif h_start isa RangeReference && h_stop isa RangeReference
-        h_start == h_stop || return nothing
-        inner = _join_leaf_range(start_path.tail, stop_path.tail)
-        inner === nothing && return nothing
-        return ConcreteReferencePath(h_start, inner)
-    end
-    nothing
 end
 
 # ── SyntaxListToText ──────────────────────────────────────────────────
@@ -775,6 +902,17 @@ function _leaf_cursor(leaf::SyntaxLeaf)
     return -1
 end
 
+# ── Shared flat metric of a syntax subtree ────────────────────────────────────
+# `_syntax_to_flat` / `_subtree_len` / `_span_len` are the canonical flat-character
+# metric of a syntax subtree, measured with a default `SyntaxNodeToText()` at
+# depth 0. SyntaxToText's *own* mapping no longer uses them (it delegates through
+# `child_iomaps`); they survive because six `*ToSyntax` projections rely on them
+# for the flat-offset `ReplaceSelectionOperation` reader pattern — MathToSyntax,
+# BookToSyntax, SqlToSyntax, CollectionToSyntax, XmlToSyntax, DbCatalogToSyntax —
+# collapsing an unmapped caret on their output syntax subtree to a bounded flat
+# offset. The zero-width edit disambiguation above also still uses `_syntax_to_flat`.
+# Do not widen the accepted reference shapes.
+
 # Maps a SyntaxLeaf-domain path to the flat character offset within the leaf.
 # .open[k] → k,  .value[k] → L_o+k,  .close[k] → L_o+L_v+k.  Returns -1 on mismatch.
 function _syntax_to_flat(leaf::SyntaxLeaf, path::ReferencePath, ::SyntaxNodeToText, _depth::Int)
@@ -879,67 +1017,6 @@ function _syntax_to_flat(node::SyntaxNode, path::ReferencePath, p::SyntaxNodeToT
     return -1
 end
 
-# ── Flat range for whole-element selections ──────────────────────────────
-# Like _syntax_to_flat but returns the (start, stop) character range when
-# the path terminates in ∅ (a whole-element selection). Returns nothing
-# when the path is a normal cursor or doesn't match. Used by the selection
-# cell's case 2 (child whole-element highlight → TextRectangularReference);
-# the S2 mapper rewrite will fold this into `map_reference_forward`.
-
-function _syntax_to_flat_range(leaf::SyntaxLeaf, ::EmptyReferencePath, p::SyntaxNodeToText, depth::Int)
-    (0, _subtree_len(leaf, p, depth))
-end
-
-function _syntax_to_flat_range(leaf::SyntaxLeaf, ::ConcreteReferencePath, ::SyntaxNodeToText, ::Int)
-    nothing
-end
-
-function _syntax_to_flat_range(node::SyntaxNode, ::EmptyReferencePath, p::SyntaxNodeToText, depth::Int)
-    (0, _subtree_len(node, p, depth))
-end
-
-function _syntax_to_flat_range(node::SyntaxNode, path::ConcreteReferencePath, p::SyntaxNodeToText, depth::Int)
-    h = path.head
-    h isa FieldReference || return nothing
-    h.name == "children" || return nothing
-    node.collapsed && return nothing
-    rest = path.tail
-    rest isa ConcreteReferencePath || return nothing
-    h2 = rest.head
-    h2 isa RangeReference || return nothing
-    child_i = h2.start + 1
-    children = node.children
-    (1 <= child_i <= length(children)) || return nothing
-    rest2 = rest.tail
-
-    # Accumulate the flat offset up to child_i
-    char_count = _marker_len(p, node) + length(node.open.content)
-    if node.indentation != 0
-        child_depth = depth + 1
-        for i in 1:child_i
-            i > 1 && (char_count += length(node.sep.content))
-            char_count += 1 + child_depth * p.indent_size
-            if i == child_i
-                inner = _syntax_to_flat_range(children[i], rest2, p, child_depth)
-                inner === nothing && return nothing
-                return (char_count + inner[1], char_count + inner[2])
-            end
-            char_count += _subtree_len(children[i], p, child_depth)
-        end
-    else
-        for i in 1:child_i
-            i > 1 && (char_count += length(node.sep.content))
-            if i == child_i
-                inner = _syntax_to_flat_range(children[i], rest2, p, depth)
-                inner === nothing && return nothing
-                return (char_count + inner[1], char_count + inner[2])
-            end
-            char_count += _subtree_len(children[i], p, depth)
-        end
-    end
-    return nothing
-end
-
 function _span_len(s::TextString)
     length(s.content::AbstractString)
 end
@@ -1034,90 +1111,6 @@ function _pos_to_tree_selection(node::SyntaxNode, local_pos::Int, p::SyntaxNodeT
 
     # close delimiter or trailing structural — select the node itself
     return EmptyReferencePath()
-end
-
-function _pos_to_selection(leaf::SyntaxLeaf, local_pos::Int, ::SyntaxNodeToText, _depth::Int)
-    open_len    = length(leaf.open.content::AbstractString)
-    value_len   = _span_len(leaf.value)
-    close_start = open_len + value_len
-    if local_pos < open_len
-        @reference open{local_pos}
-    elseif local_pos <= close_start
-        @reference value{local_pos - open_len}
-    else
-        @reference close{local_pos - close_start}
-    end
-end
-
-function _pos_to_selection(node::SyntaxNode, local_pos::Int, p::SyntaxNodeToText, depth::Int)
-    _proj(k) = @reference proj(p, {k})
-
-    # A position inside the leading marker has no source-domain coordinate;
-    # report it as a projection-introduced position. Everything from the open
-    # delimiter onwards is the existing layout shifted right by the marker.
-    marker_len = _marker_len(p, node)
-    local_pos < marker_len && return _proj(local_pos)
-
-    open_len = length(node.open.content)
-    local_pos < marker_len + open_len && return @reference open{local_pos - marker_len}
-
-    children = node.children
-    char_count = marker_len + open_len
-
-    if node.collapsed
-        # Collapsed layout: marker, open, ellipsis, close. The ellipsis is a
-        # projection-introduced glyph with no source-domain coordinate.
-        ell_len = _ellipsis_len(p, node)
-        local_pos < char_count + ell_len && return _proj(local_pos)
-        char_count += ell_len
-        close_len = length(node.close.content)
-        local_pos < char_count + close_len && return @reference close{local_pos - char_count}
-        return _proj(local_pos)
-    end
-
-    if node.indentation != 0
-        child_depth = depth + 1
-        for (i, child) in enumerate(children)
-            if i > 1
-                sep_len = length(node.sep.content)
-                local_pos < char_count + sep_len && return _proj(local_pos)
-                char_count += sep_len
-            end
-            struct_len = 1 + child_depth * p.indent_size   # \n + indent
-            local_pos < char_count + struct_len && return _proj(local_pos)
-            char_count += struct_len
-            child_len = _subtree_len(child, p, child_depth)
-            if char_count <= local_pos <= char_count + child_len
-                sel = _pos_to_selection(child, local_pos - char_count, p, child_depth)
-                return @reference children[i].^(sel)
-            end
-            char_count += child_len
-        end
-        if node.indentation > 0
-            # Trailing \n + indent before close.
-            trail_len = 1 + depth * p.indent_size
-            local_pos < char_count + trail_len && return _proj(local_pos)
-            char_count += trail_len
-        end
-    else
-        for (i, child) in enumerate(children)
-            if i > 1
-                sep_len = length(node.sep.content)
-                local_pos < char_count + sep_len && return _proj(local_pos)
-                char_count += sep_len
-            end
-            child_len = _subtree_len(child, p, depth)
-            if char_count <= local_pos <= char_count + child_len
-                sel = _pos_to_selection(child, local_pos - char_count, p, depth)
-                return @reference children[i].^(sel)
-            end
-            char_count += child_len
-        end
-    end
-
-    close_len = length(node.close.content)
-    local_pos < char_count + close_len && return @reference close{local_pos - char_count}
-    return _proj(local_pos)
 end
 
 # ── Collapse hit-testing and resolution ──────────────────────────────────────

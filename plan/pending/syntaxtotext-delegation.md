@@ -338,54 +338,53 @@ and record deviations in "Settled design decisions" as you go.
 Replace flat-char input-tree walks with: *classify the element index into a zone
 (own chrome vs child range), delegate child zones, shift indices.*
 
-- [ ] `map_reference_forward` ([:154–160](../../package/domain/src/projection/primitive/SyntaxToText.jl#L154-L160)) —
-  after `strip_reference_types` / `∅ → @reference()`:
-  - `.open{k}` / `.close{k}` → own span's element index + char `k`, through
-    `_anchor_nonempty`.
-  - `.sep{k}` → first separator occurrence's element index + `k` (today's
-    documented behavior, [:674–691](../../package/domain/src/projection/primitive/SyntaxToText.jl#L674-L691)).
-  - `.children[i] + rest` → `nothing` when collapsed; else delegate `rest` to
-    `child_iomaps[][i]` (Math idiom), then shift the returned `.elements[m]…` by
-    `base_i − 1`. A child-returned `TextRect` shifts by flat chars (decision 5.2).
-  - `proj(p, {flat})` (own introduced position) → node-local flat over **own
-    output** via `_flat_to_text_elem_path(output.elements, flat)`. Preserve the
-    transparent-unwrap behavior for other `proj(_, inner)` shapes
-    ([:730–741](../../package/domain/src/projection/primitive/SyntaxToText.jl#L730-L741)).
-  - Marker / ellipsis / newline / indent: projection-introduced, no input
-    pre-image — absent from the forward image (as today).
-- [ ] `map_reference_backward` ([:162–184](../../package/domain/src/projection/primitive/SyntaxToText.jl#L162-L184)):
-  - Bare flat `{n}` → element path via `_flat_to_text_elem_path`, then fall
-    through to the element-path logic.
-  - Tree path `.elements[j]∅` → whole-element: own chrome element → `@reference()`;
-    child zone → delegate `.elements[j − base_i + 1]∅`, prepend `.children[i]`.
-  - `.elements[j].content{c}` → own `open`/`close`/`sep` element → `.open{c}` /
-    `.close{c}` / `.sep{c}`; own chrome (marker, ellipsis, newline, indent) →
-    `proj(p, {node-local flat})` exactly as `_pos_to_selection`'s `_proj` does
-    today (compute the flat with `_text_elem_path_to_flat` over own output);
-    child zone → delegate with the index shifted child-local, prepend
-    `.children[i]` to the result. Delegation reproduces today's shapes because
-    chrome *inside* a child already comes back `proj(p, {child-local flat})` from
-    the child's own mapper.
-- [ ] `projection_read(…, ::StringReplaceRangeOperation)` ([:316–350](../../package/domain/src/projection/primitive/SyntaxToText.jl#L316-L350)):
-  the reference is single-span (`_parse_text_elem_range`). Classify its element:
-  child zone → shift child-local, delegate the 3-arg read to
-  `child_iomap.projection`, prepend `.children[i]` to the returned op's
-  reference; the leaf `.value{s:e}` rewrite already lives in `SyntaxLeafToText`
-  ([:93–101](../../package/domain/src/projection/primitive/SyntaxToText.jl#L93-L101)).
-  Keep the zero-width input-selection disambiguation ([:337–343](../../package/domain/src/projection/primitive/SyntaxToText.jl#L337-L343)),
-  re-expressed in output space: forward-map `iomap.input.selection` via the new
-  mapper and compare element path + char to the edit target (replaces the
-  `_syntax_to_flat(…) == flat_start` comparison).
-- [ ] Delete `_pos_to_selection` and (if now unused) `_join_leaf_range`. Keep
-  `_syntax_to_flat` / `_subtree_len` / `_span_len` — external consumers; move
-  them under a clearly-labeled "shared flat metric of a syntax subtree — used by
-  *ToSyntax flat-offset readers, not by this projection's own mapping" section
-  divider with a docstring naming the consumers.
-- [ ] Verify: `test_syntax_to_text()`, `test_json_to_syntax()`,
-  `test_example(json_example)`, `test_example(xml_example)`,
-  `test_example(math_example)`,
-  `test_text_navigation(json_example; check_reaches_all=true)`.
-- [ ] Commit: `refactor(syntax-to-text): mappers delegate by element zone through child iomaps`.
+- [x] `map_reference_forward` — rewritten as element-zone + delegation:
+  - `.open{k}` / `.close{k}` / `.sep{k}` → own span element index + char through
+    `_anchor_nonempty` (flat round-trip → **byte-identical** own-span images).
+  - `.children[i] + rest` → `nothing` when collapsed; a **whole-element**
+    (∅-terminating, children-only) tail becomes a parent-flat `TextRect` via
+    `_child_elem_range` (element ranges shifted through each splice level, flat
+    taken from *this* node's **widened** spans — a child-local flat + base is wrong
+    for indented descendants; that was a bug caught by the selection differential);
+    a **cursor** tail delegates to the child's mapper and re-anchors at parent flat
+    (`_shift_child_cursor`).
+  - `proj(_, {flat})` → own-output flat; transparent unwrap for other inner shapes.
+  - **Deviation:** the old mapper returned `nothing` for `.children[i]∅`; the new
+    one returns the `TextRect`. This *unifies* the mapper with the old selection
+    cell (which produced the rect via `_syntax_to_flat_range`) — so `output.selection`
+    is unchanged (verified identical), and the selection cell now just forward-maps.
+- [x] `map_reference_backward` — rewritten as element-zone + delegation:
+  - Bare flat `{n}` → rendered element path, then classified like any element path.
+  - `.elements[j]∅` whole-element → own chrome → `@reference()`; child zone →
+    delegate `.elements[j−base_i+1]∅`, prepend `.children[i]`.
+  - `.elements[j].content{c}` → open/close → `.open{c}`/`.close{c}`; child zone →
+    delegate + prepend; **all other own chrome (marker/newline/indent/sep/ellipsis)
+    → `proj(p, {node-local flat})`**.
+  - **Deviation from the plan:** `sep` maps **backward** to `proj`, **not** `.sep{c}`.
+    A `.sep{c}` selection would forward-map only to the *first* separator, so
+    backward-from-a-later-sep → `.sep` → forward would jump the caret — breaking the
+    navigation round-trip. `proj(flat)` round-trips exactly. (`.sep{k}` is still
+    accepted forward.) This also makes separators/decoration non-editable
+    projection chrome — a principled behavior change from the old
+    `_pos_to_selection`, which redirected a click on chrome into an adjacent value.
+- [x] `read_intent(…, ::ReplaceStringRangeOperation)`: single-span reference;
+  classify its element, delegate child zones (prepend `.children[i]`), own chrome
+  not editable. Zero-width input-selection disambiguation kept as-is (still uses
+  `_syntax_to_flat`, which survives).
+- [x] Deleted `_pos_to_selection`, `_join_leaf_range`, `_syntax_to_flat_range`.
+  Kept `_syntax_to_flat` / `_subtree_len` / `_span_len` (external consumers +
+  disambiguation) under a labeled "shared flat metric" divider; kept
+  `_pos_to_tree_selection` / `_node_at_collapse_glyph` for the S3 reader.
+- [x] **Verified in-session (light drivers):** printing byte-identical (20 examples);
+  `output.selection` byte-identical to OLD (14-scenario differential); mapper
+  differential OLD-vs-NEW shows *only* the two intended categories (forward
+  child-∅→RECT; backward chrome/boundary → proj/open/close) with **no lost
+  mappings**; round-trip driver → **0 failures** (every reachable cursor survives
+  backward∘forward). **Heavy suite for the user:** `test_syntax_to_text()`,
+  `test_json_to_syntax()`, `test_text_navigation(json_example; check_reaches_all=true)`,
+  `test_example` on json/xml/math, `SyntaxToTextTest.jl`, `test_typein`, `test_repl`
+  — to confirm the backward boundary/edit changes are acceptable.
+- [x] Commit: `refactor(syntax-to-text): mappers delegate by element zone through child iomaps`.
 
 ### S3 — Reader: collapse + Alt+click by delegation
 
