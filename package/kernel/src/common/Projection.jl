@@ -31,7 +31,7 @@ import ..ReferenceCaseModule: var"@reference_case"
 import ..ReferenceBuilderModule: var"@reference"
 import ..KeyboardModule: KeyPress, KeyDown
 import ..MouseModule: MousePress
-import ..DocumentApiModule: Document, document_read
+import ..DocumentApiModule: Document, read_gesture
 
 export @projection, pure_print
 
@@ -113,13 +113,13 @@ function read_intent(projection::Projection, iomap, operation)
     if operation isa Union{KeyPress, KeyDown, MousePress}
         # Generic event fallback: a leaf projection with no authoring reader of
         # its own delegates a raw input gesture to the projection-independent
-        # `document_read` of its input document. This generalizes the per-projection
+        # `read_gesture` of its input document. This generalizes the per-projection
         # delegation `SyntaxToText`/`TextToGraphics` already do by hand, so any
         # `@gestures`-declared domain is reachable through any projection with no
         # bespoke reader. (Higher-order projections route events through their own
         # 4-arg readers and never reach this leaf default.)
         input = (iomap !== nothing && hasproperty(iomap, :input)) ? iomap.input : nothing
-        return input isa Document ? document_read(input, operation) : nothing
+        return input isa Document ? read_gesture(input, operation) : nothing
     elseif operation isa ReplaceReferencedValueOperation
         # Self-contained (carries its own root): forward unchanged — this is the
         # path identity-rooted controls (`ObjectToWidget`/`WidgetToGraphics`) take
