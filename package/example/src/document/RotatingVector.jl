@@ -17,7 +17,7 @@
 # Solarized `color_solarized_*` constants.
 #
 # It is perpetual — nothing settles. The projection is the identity
-# `PreservingProjection`: the document already *is* the animated `GraphicsCanvas`,
+# `IdentityProjection`: the document already *is* the animated `GraphicsCanvas`,
 # so it passes straight through to the backend / `write_image`.
 
 function make_rotating_vector_document(; w = 600, h = 600,   # canvas size

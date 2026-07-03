@@ -31,7 +31,7 @@ st_wrap = TextText(
     TextString("Hello world this is a long text", font_ubuntu_monospace_regular_20, color_red),
 )
 m = _test_measure(10, 18)
-chain = SequentialProjection(WordWrapping(max_width=200, measure=m), TextToGraphics(measure=m))
+chain = ChainingProjection(WordWrapping(max_width=200, measure=m), TextToGraphics(measure=m))
 sdl_cell = projection_print(chain, st_wrap).output
 texts = _texts(sdl_cell)
 @test length(texts) >= 2  # should wrap
@@ -100,7 +100,7 @@ tt = TextText()
 tt.elements = node
 
 p = TextToGraphics(measure=_test_measure(10, 20))
-iomap = projection_print(p, PreservingProjection(), tt, PrinterContext())
+iomap = projection_print(p, IdentityProjection(), tt, PrinterContext())
 canvas = iomap.output
 
 # Top-level canvas has ListNode elements, layout_vertical, non-overlapping
@@ -151,7 +151,7 @@ tt = TextText()
 tt.elements = node
 
 p = TextToGraphics(measure=_test_measure(10, 20))
-iomap = projection_print(p, PreservingProjection(), tt, PrinterContext())
+iomap = projection_print(p, IdentityProjection(), tt, PrinterContext())
 
 # The first paragraph collects spans until it finds the TextNewline,
 # walking past it forces node2.next thunk to find where para 2 starts

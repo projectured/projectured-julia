@@ -150,7 +150,7 @@ const formula_example        = Example("formula",         make_formula_document_
 # `run_example(versioning_example)`.
 const versioning_example     = Example("versioning",      make_versioning_document_example,     make_versioning_projection_example)
 
-const rotating_vector_example = Example("rotating_vector", make_rotating_vector_document, PreservingProjection)
+const rotating_vector_example = Example("rotating_vector", make_rotating_vector_document, IdentityProjection)
 
 const examples = [
     json_example, json_sorted_example, json_null_example, json_insertion_example, json_string_example, json_widget_example,
@@ -471,22 +471,22 @@ function _multi_window_projection(projections::Vector; measure=truetype_measure_
         # Exact match — apply that window's example projection here, wrapped in a
         # GestureHelpProjection so F1 in the focused window opens a help window
         # listing the gestures collected from this content's own pipeline. The
-        # NestingProjection (recursion=PreservingProjection) lets the inner
+        # NestingProjection (recursion=IdentityProjection) lets the inner
         # projection's own recursion take over below this point.
         for i in 1:n
             reference_equal(ref, targets[i]) || continue
             return GestureHelpProjection(
-                inner = NestingProjection(projections[i]; recursion=PreservingProjection()),
+                inner = NestingProjection(projections[i]; recursion=IdentityProjection()),
                 state = help_state)
         end
         # The ScreenDocument root is the window-management seam: route it
-        # through WindowManagerProjection (window open/close/resize ops are
+        # through WindowManagingProjection (window open/close/resize ops are
         # owned there) wrapping ScreenToScreen, which projects the screen
         # shell and recurses each window's content back through this dispatch.
         ref isa EmptyReferencePath &&
-            return WindowManagerProjection(inner = ScreenToScreen())
+            return WindowManagingProjection(inner = ScreenToScreen())
         # Anything outside a window's content target — preserve.
-        return PreservingProjection()
+        return IdentityProjection()
     end)
     # A type seam in front of the reference dispatch so dynamically-opened windows
     # render by content type: a `WindowDocument` (re-projected by the manager when
@@ -496,7 +496,7 @@ function _multi_window_projection(projections::Vector; measure=truetype_measure_
     return RecursiveProjection(
         TypeDispatchingProjection(
             WindowDocument => ScreenToScreen(),
-            GestureMap     => SequentialProjection(GestureMapToSyntax(),
+            GestureMap     => ChainingProjection(GestureMapToSyntax(),
                                                    RecursiveProjection(SyntaxToText()),
                                                    WordWrapping(measure=measure),
                                                    TextToGraphics(measure=measure)),
@@ -511,7 +511,7 @@ end
 # every frame and rebuilds the colored spans via `ReferenceToText`. The
 # `TooltipDecoratorProjection` reader watches the wrapped document and
 # emits `OpenWindowOperation` / `CloseWindowOperation` as the selection
-# arrives / clears; the `WindowManagerProjection` applies those to the
+# arrives / clears; the `WindowManagingProjection` applies those to the
 # screen.
 
 function _make_tooltip_source(doc; id::Symbol)
@@ -554,21 +554,21 @@ function _multi_window_projection_tooltipped(projections::Vector; measure=truety
         for i in 1:n
             reference_equal(ref, targets[i]) || continue
             return NestingProjection(projections[i];
-                                      recursion=PreservingProjection())
+                                      recursion=IdentityProjection())
         end
         for t in targets
             is_prefix_of(ref, t) || continue
             return CopyingProjection()
         end
-        return PreservingProjection()
+        return IdentityProjection()
     end)
     RecursiveProjection(
         TypeDispatchingProjection(
-            ScreenDocument => WindowManagerProjection(inner = ScreenToScreen()),
+            ScreenDocument => WindowManagingProjection(inner = ScreenToScreen()),
             WindowDocument => ScreenToScreen(),
             CellVector     => CopyingProjection(),
             TooltipSource  => decorator,
-            TextText       => SequentialProjection(WordWrapping(measure=measure), TextToGraphics(measure=measure)),
+            TextText       => ChainingProjection(WordWrapping(measure=measure), TextToGraphics(measure=measure)),
             Any            => ref_dispatch,
         ),
     )
@@ -590,24 +590,24 @@ function _multi_window_projection_inspector(projections::Vector; measure=truetyp
     ref_dispatch = ReferenceDispatchingProjection(ref -> begin
         for i in 1:n
             reference_equal(ref, targets[i]) || continue
-            inner = NestingProjection(projections[i]; recursion=PreservingProjection())
+            inner = NestingProjection(projections[i]; recursion=IdentityProjection())
             return HoverProbeProjection(inner = inner, id = :inspector, pointer = pointer)
         end
         for t in targets
             is_prefix_of(ref, t) || continue
             return CopyingProjection()
         end
-        return PreservingProjection()
+        return IdentityProjection()
     end)
     RecursiveProjection(
         TypeDispatchingProjection(
-            ScreenDocument     => WindowManagerProjection(inner = ScreenToScreen()),
+            ScreenDocument     => WindowManagingProjection(inner = ScreenToScreen()),
             WindowDocument     => ScreenToScreen(),
             CellVector         => CopyingProjection(),
-            ReferenceInspector => SequentialProjection(ReferenceInspectorToText(),
+            ReferenceInspector => ChainingProjection(ReferenceInspectorToText(),
                                                        WordWrapping(measure=measure),
                                                        TextToGraphics(measure=measure)),
-            TextText           => SequentialProjection(WordWrapping(measure=measure), TextToGraphics(measure=measure)),
+            TextText           => ChainingProjection(WordWrapping(measure=measure), TextToGraphics(measure=measure)),
             Any                => ref_dispatch,
         ),
     )

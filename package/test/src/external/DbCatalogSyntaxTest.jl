@@ -384,7 +384,7 @@ function test_dbcatalog_collapse_roundtrip(; show_detail=false)
     @testset "DbCatalog collapse roundtrip" begin
         _with_real_db_catalog(show_detail=show_detail) do rdbms, db, schema, table, col
             # Build the full pipeline: DbCatalogToSyntax → SyntaxToText → TextToGraphics
-            proj = SequentialProjection(
+            proj = ChainingProjection(
                 RecursiveProjection(DbCatalogToSyntax()),
                 RecursiveProjection(SyntaxToText(
                     expanded_marker  = TextString("▾", font_dejavu_monospace_regular_20, color_default),

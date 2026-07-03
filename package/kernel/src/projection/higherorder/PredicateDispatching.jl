@@ -1,5 +1,5 @@
 """
-    PredicateDispatchingModule
+    PredicateDispatchingProjectionModule
 
 A higher-order projection that selects an inner projection based on
 user-supplied predicate functions applied to the input document. Each
@@ -7,7 +7,7 @@ predicate is tested in order; the first one that returns true wins. This
 complements TypeDispatchingProjection for cases where type alone is not a
 sufficient discriminator.
 """
-module PredicateDispatchingModule
+module PredicateDispatchingProjectionModule
 
 import ..ProjectionApiModule: projection_print, projection_read, map_reference_forward, map_reference_backward, Projection
 import ..ChangeModule: Change

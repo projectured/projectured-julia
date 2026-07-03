@@ -75,7 +75,7 @@ end
 @testset "GraphicsCanvasToPdfFile projection" begin
     doc  = make_json_document_example()
     filename = tempname() * ".pdf"
-    proj = SequentialProjection(
+    proj = ChainingProjection(
         make_graphics_image_projection_example(measure=pdf_measure_text),
         GraphicsCanvasToPdfFile(filename; width=400, height=300),
     )

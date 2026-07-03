@@ -1,6 +1,6 @@
 # The graph projection: GraphGraph → GraphLayout → GraphicsCanvas, with each
 # vertex's content rendered by a per-domain sub-pipeline (the "recursion"). The
-# two graph stages run as a SequentialProjection; a NestingProjection threads the
+# two graph stages run as a ChainingProjection; a NestingProjection threads the
 # content projection as their recursion (mirrors make_table_projection_example).
 #
 # Defaults to the pure-Julia FallbackLayoutEngine. Pass an engine to swap it
@@ -24,7 +24,7 @@ function make_graph_projection_example(; measure=truetype_measure_text,
         )
     end
 
-    graph_stages = SequentialProjection(
+    graph_stages = ChainingProjection(
         GraphGraphToGraphLayout(engine),
         GraphLayoutToGraphicsCanvas(),
     )

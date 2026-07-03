@@ -1,9 +1,9 @@
 function test_copying_projection()
 @testset "CopyingProjection CellVector" begin
 
-# Identity mapping over CellVector using PreservingProjection
+# Identity mapping over CellVector using IdentityProjection
 cv = CellVector(Cell[Cell(PrimitiveNumber(10)), Cell(PrimitiveNumber(20)), Cell(PrimitiveNumber(30))])
-inner = PreservingProjection()
+inner = IdentityProjection()
 iomap = projection_print(CopyingProjection(), inner, cv, PrinterContext())
 
 @test iomap.output isa CellVector
@@ -22,8 +22,8 @@ head = ListNode(PrimitiveNumber(10))
 push!(head, PrimitiveNumber(20))
 push!(head, PrimitiveNumber(30))
 
-# Use PreservingProjection as inner recursion (identity mapping)
-inner = PreservingProjection()
+# Use IdentityProjection as inner recursion (identity mapping)
+inner = IdentityProjection()
 iomap = projection_print(CopyingProjection(), inner, head, PrinterContext())
 
 @test iomap.output isa ListNode
@@ -68,7 +68,7 @@ end
 head = make_lazy_chain(100)
 counter[] = 0  # reset after head creation
 
-inner = PreservingProjection()
+inner = IdentityProjection()
 iomap = projection_print(CopyingProjection(), inner, head, PrinterContext())
 
 # Only head should be projected — no thunks forced yet
@@ -113,7 +113,7 @@ end # @testset
 head = ListNode(PrimitiveNumber(42))
 push!(head, PrimitiveNumber(99))
 
-inner = PreservingProjection()
+inner = IdentityProjection()
 iomap = projection_print(CopyingProjection(), inner, head, PrinterContext())
 
 @test iomap isa CopyingProjectionIoMap

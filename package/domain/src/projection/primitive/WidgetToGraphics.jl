@@ -69,7 +69,7 @@ import ..PrimitiveModule: StringReplaceRangeOperation, NumberReplaceRangeOperati
 import ..ReferenceModule: ReferencePath, ConcreteReferencePath, FieldReference, RangeReference,
                           ElementReference, EmptyReferencePath, is_element_reference, PointReference
 import ..OperationRerootingModule: prepend_steps_to_op
-import ..TypeDispatchingModule: TypeDispatchingProjection
+import ..TypeDispatchingProjectionModule: TypeDispatchingProjection
 import ..PrinterContextModule: child_context, with_available_size
 import ..LayoutModule: LayoutDocument, LayoutConstraint, GridLayout, VerticalLayout, allocate_axis, layout_min, layout_max,
                        layout_preferred, layout_weight

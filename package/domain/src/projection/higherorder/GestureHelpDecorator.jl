@@ -12,7 +12,7 @@ inner declines and the event is the help gesture, the decorator collects every
 gesture reachable from *its own inner iomap* (the chain it just printed) via
 `collect_gestures` — the projection-form collector, not anything reaching into the
 editor — builds a snapshot `GestureMap`, and emits an `OpenWindowOperation` whose
-`content` is that map. The op bubbles up to `WindowManagerProjection`, which opens
+`content` is that map. The op bubbles up to `WindowManagingProjection`, which opens
 a real sibling window beside the content (the same rail tooltips ride). A second
 help gesture emits `CloseWindowOperation`, so F1 toggles the window.
 

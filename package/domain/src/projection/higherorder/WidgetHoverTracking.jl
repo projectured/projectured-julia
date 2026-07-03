@@ -172,7 +172,7 @@ map_reference_backward(::WidgetHoverTrackingProjection, iomap::WidgetHoverTracki
 # so F1 help must see the wrapped pipeline's gestures. Without this the default
 # leaf `collect_gestures` would stop at the tracker (it only knows the root
 # document), and wrapping a whole pipeline in the tracker would hide every gesture
-# below it (cf. the SequentialProjection / RecursiveProjection combinator methods).
+# below it (cf. the ChainingProjection / RecursiveProjection combinator methods).
 collect_gestures(::WidgetHoverTrackingProjection, recursion, iomap::WidgetHoverTrackingProjectionIoMap) =
     collect_gestures(iomap.child_iomap.projection, recursion, iomap.child_iomap)
 

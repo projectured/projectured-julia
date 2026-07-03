@@ -1,9 +1,9 @@
 module HigherOrderCompoundModule
 
 import ..RecursiveProjectionModule: RecursiveProjection
-import ..ReferenceDispatchingModule: ReferenceDispatchingProjection
+import ..ReferenceDispatchingProjectionModule: ReferenceDispatchingProjection
 import ..CopyingProjectionModule: CopyingProjection
-import ..PreservingProjectionModule: PreservingProjection
+import ..IdentityProjectionModule: IdentityProjection
 import ..NestingProjectionModule: NestingProjection
 import ..ReferenceModule: ReferencePath
 import ..ReferenceCaseModule: var"@reference_case", prefix
@@ -26,9 +26,9 @@ function ApplyAtProjection(reference::ReferencePath, projection)
         prefix(^(reference)) => CopyingProjection()
         ^(reference)         => NestingProjection(
             projection;
-            recursion=PreservingProjection(),
+            recursion=IdentityProjection(),
         )
-        _                    => PreservingProjection()
+        _                    => IdentityProjection()
     end))
 end
 

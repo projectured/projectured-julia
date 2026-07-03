@@ -1,5 +1,5 @@
 """
-    WindowManagerProjectionModule
+    WindowManagingProjectionModule
 
 A higher-order projection that wraps the `ScreenDocument` case of the
 type dispatcher in the main pipeline. Its printer is a passthrough to
@@ -20,7 +20,7 @@ propagate to the output. The manager therefore stores the outer
 `recursion` projection and `ctx` it was called with, and re-runs the
 recursion on each new window to produce the output side.
 """
-module WindowManagerProjectionModule
+module WindowManagingProjectionModule
 
 import ..ProjectionApiModule: projection_print, projection_printer_recurse, projection_read, map_reference_forward, map_reference_backward, Projection
 import ..ChangeModule: Change
@@ -29,23 +29,23 @@ import ..ReactiveModule: Cell
 import ..ScreenDocumentModule: ScreenDocument, WindowDocument, EventEnvelope, WindowResizeEvent, WindowCloseRequest, WindowFocusLost, OpenWindowOperation, CloseWindowOperation, ResizeWindowOperation
 import ..OperationModule: CompoundOperation
 
-export WindowManagerProjection, WindowManagerProjectionIoMap
+export WindowManagingProjection, WindowManagingProjectionIoMap
 
 """
-    WindowManagerProjection(; inner)
+    WindowManagingProjection(; inner)
 
 Wraps `inner` (a projection over `ScreenDocument`, typically
 `CopyingProjection`) and intercepts window-management operations on
 the reader side.
 """
-struct WindowManagerProjection <: Projection
+struct WindowManagingProjection <: Projection
     inner::Any
 end
 
-WindowManagerProjection(; inner) = WindowManagerProjection(inner)
+WindowManagingProjection(; inner) = WindowManagingProjection(inner)
 
-struct WindowManagerProjectionIoMap <: IoMap
-    projection::WindowManagerProjection
+struct WindowManagingProjectionIoMap <: IoMap
+    projection::WindowManagingProjection
     input::Any
     output::Any
     inner_iomap::Any
@@ -55,14 +55,14 @@ end
 
 # ── Printer (passthrough; remembers recursion + ctx for the reader) ──────
 
-function projection_print(p::WindowManagerProjection, recursion, input, ctx)
+function projection_print(p::WindowManagingProjection, recursion, input, ctx)
     inner_iomap = projection_print(p.inner, recursion, input, ctx)
-    WindowManagerProjectionIoMap(p, input, inner_iomap.output, inner_iomap, recursion, ctx)
+    WindowManagingProjectionIoMap(p, input, inner_iomap.output, inner_iomap, recursion, ctx)
 end
 
 # ── Reader ────────────────────────────────────────────────────────────────
 
-function projection_read(p::WindowManagerProjection, recursion, change::Change, iomap::WindowManagerProjectionIoMap)
+function projection_read(p::WindowManagingProjection, recursion, change::Change, iomap::WindowManagingProjectionIoMap)
     env = change.gesture
     # Modality: while a modal window is open, only it receives input. Drop any
     # envelope routed to a different window — base content gets no events, with no
@@ -138,7 +138,7 @@ function _apply_window_ops(iomap, change, inner)
     end
 end
 
-projection_read(p::WindowManagerProjection, iomap::WindowManagerProjectionIoMap, payload) =
+projection_read(p::WindowManagingProjection, iomap::WindowManagingProjectionIoMap, payload) =
     projection_read(p, nothing, Change(payload), iomap).operation
 
 # Apply Open: add a new window (or update an existing one with the same
@@ -146,7 +146,7 @@ projection_read(p::WindowManagerProjection, iomap::WindowManagerProjectionIoMap,
 # projecting the new WindowDocument through the same recursion that
 # produced the rest of the output.
 
-function _apply_open!(iomap::WindowManagerProjectionIoMap, op::OpenWindowOperation)
+function _apply_open!(iomap::WindowManagingProjectionIoMap, op::OpenWindowOperation)
     input = iomap.input
     output = iomap.output
     input isa ScreenDocument || return
@@ -209,7 +209,7 @@ end
 
 # Apply Close: remove the matching window from both input and output.
 
-function _apply_close!(iomap::WindowManagerProjectionIoMap, op::CloseWindowOperation)
+function _apply_close!(iomap::WindowManagingProjectionIoMap, op::CloseWindowOperation)
     input = iomap.input
     output = iomap.output
     input isa ScreenDocument || return
@@ -248,11 +248,11 @@ end
 
 # ── Reference mapping (passthrough) ──────────────────────────────────────
 
-function map_reference_forward(::WindowManagerProjection, iomap::WindowManagerProjectionIoMap, reference)
+function map_reference_forward(::WindowManagingProjection, iomap::WindowManagingProjectionIoMap, reference)
     map_reference_forward(iomap.inner_iomap.projection, iomap.inner_iomap, reference)
 end
 
-function map_reference_backward(::WindowManagerProjection, iomap::WindowManagerProjectionIoMap, reference)
+function map_reference_backward(::WindowManagingProjection, iomap::WindowManagingProjectionIoMap, reference)
     map_reference_backward(iomap.inner_iomap.projection, iomap.inner_iomap, reference)
 end
 

@@ -1,5 +1,5 @@
 function make_reversing_projection_example(; measure=truetype_measure_text)
-    SequentialProjection(
+    ChainingProjection(
         ReversingProjection(),
         NestingProjection(CollectionToSyntax(), PrimitiveStringToSyntaxLeaf()),
         RecursiveProjection(SyntaxToText()),

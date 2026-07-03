@@ -121,10 +121,10 @@ function probe_delegation(document, projection)
         # Higher-order composers delegate to pipeline *stages*, not to a child
         # document via `recursion`, so the node-delegation contract does not apply
         # to them (they are classified higher-order, not node projections — see
-        # documentation/projection-system.md). `SequentialProjection` is the
+        # documentation/projection-system.md). `ChainingProjection` is the
         # pipeline wrapper at the top of every curated example; probing it is a
         # false positive (the spy never sees a node recurse through the chain).
-        p isa Projectured.SequentialProjection && continue
+        p isa Projectured.ChainingProjection && continue
         _should_delegate(input) || continue
         key = (objectid(p), objectid(input))
         key in seen && continue

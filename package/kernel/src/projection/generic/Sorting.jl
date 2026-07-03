@@ -15,7 +15,7 @@ import ..ReferenceModule: ConcreteReferencePath, ElementReference, PositionRefer
 import ..ReferenceCaseModule: var"@reference_case"
 import ..ReferenceBuilderModule: var"@reference"
 import ..PrinterContextModule: child_context
-import ..PreservingProjectionModule: PreservingProjection
+import ..IdentityProjectionModule: IdentityProjection
 export SortingProjection, SortingProjectionIoMap
 
 """
@@ -46,7 +46,7 @@ struct SortingProjectionIoMap <: IoMap
 end
 
 function projection_print(p::SortingProjection, recursion, input::CellVector, ctx)
-    recursion = something(recursion, PreservingProjection())
+    recursion = something(recursion, IdentityProjection())
     n = length(input)
     perm = sortperm(1:n; by = i -> p.by(input[i]), lt=p.lt, rev=p.rev)
     # Recursively project each element (CellVector getindex already unwraps the Cell)
@@ -62,7 +62,7 @@ function projection_print(p::SortingProjection, recursion, input::CellVector, ct
 end
 
 function projection_print(p::SortingProjection, recursion, input::Vector{Cell}, ctx)
-    recursion = something(recursion, PreservingProjection())
+    recursion = something(recursion, IdentityProjection())
     n = length(input)
     perm = sortperm(1:n; by = i -> p.by(input[i]), lt=p.lt, rev=p.rev)
     # Recursively project each element (unwrapping Cell like CopyingProjection does)
@@ -76,7 +76,7 @@ function projection_print(p::SortingProjection, recursion, input::Vector{Cell}, 
 end
 
 function projection_print(p::SortingProjection, recursion, input, ctx)
-    recursion = something(recursion, PreservingProjection())
+    recursion = something(recursion, IdentityProjection())
     n = length(input)
     perm = sortperm(1:n; by = i -> p.by(input[i]), lt=p.lt, rev=p.rev)
     # Recursively project each element

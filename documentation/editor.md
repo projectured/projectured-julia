@@ -21,7 +21,7 @@ end
 
 - `backend` — the display/input backend (e.g. `SdlBackend`)
 - `document` — the reactive document being edited
-- `projection` — the projection pipeline; typically a `SequentialProjection`
+- `projection` — the projection pipeline; typically a `ChainingProjection`
   that ends in a `GraphicsCanvas`-producing step
 - `devices` — `Vector{Device}` with the screen, keyboard, and mouse
 - `iomap` — the most recent IoMap from `projection_print`; needed by
@@ -90,7 +90,7 @@ using Projectured
 
 backend  = SdlBackend()
 document = JsonString("hello world")
-proj     = SequentialProjection(
+proj     = ChainingProjection(
     JsonToSyntax(),
     SyntaxToText(),
     TextToGraphics(measure = (t, f) -> sdl_measure_text(backend, t, f)),
@@ -149,7 +149,7 @@ A timeline is authored in the **bare-content** domain (the document the example
 projects, the same coordinates `record_video` uses). When the example is wrapped
 in a window for live playback, the live document root is a `ScreenDocument`, not
 the content. `:event` entries are rerooted automatically — the
-`ScreenToScreen` / `WindowManagerProjection` readers prepend the
+`ScreenToScreen` / `WindowManagingProjection` readers prepend the
 `windows[i].content` steps to every operation they emit. A directly-injected
 `:operation` **bypasses the reader**, so its bare-content path would be applied
 to the screen root and fail. `op_prefix` (a `ReferencePath`) closes the gap:

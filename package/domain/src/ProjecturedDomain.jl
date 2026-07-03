@@ -43,8 +43,8 @@ const OperationApiModule = ProjecturedKernel.OperationApiModule
 const OperationModule = ProjecturedKernel.OperationModule
 const OperationRerootingModule = ProjecturedKernel.OperationRerootingModule
 const PerformanceCounterModule = ProjecturedKernel.PerformanceCounterModule
-const PredicateDispatchingModule = ProjecturedKernel.PredicateDispatchingModule
-const PreservingProjectionModule = ProjecturedKernel.PreservingProjectionModule
+const PredicateDispatchingProjectionModule = ProjecturedKernel.PredicateDispatchingProjectionModule
+const IdentityProjectionModule = ProjecturedKernel.IdentityProjectionModule
 const PrimitiveModule = ProjecturedKernel.PrimitiveModule
 const PrinterContextModule = ProjecturedKernel.PrinterContextModule
 const ProjectionApiModule = ProjecturedKernel.ProjectionApiModule
@@ -53,14 +53,14 @@ const ReactiveModule = ProjecturedKernel.ReactiveModule
 const RecursiveProjectionModule = ProjecturedKernel.RecursiveProjectionModule
 const ReferenceBuilderModule = ProjecturedKernel.ReferenceBuilderModule
 const ReferenceCaseModule = ProjecturedKernel.ReferenceCaseModule
-const ReferenceDispatchingModule = ProjecturedKernel.ReferenceDispatchingModule
+const ReferenceDispatchingProjectionModule = ProjecturedKernel.ReferenceDispatchingProjectionModule
 const ReferenceModule = ProjecturedKernel.ReferenceModule
 const ScreenDocumentModule = ProjecturedKernel.ScreenDocumentModule
 const ScreenDeviceModule = ProjecturedKernel.ScreenDeviceModule
-const SequentialProjectionModule = ProjecturedKernel.SequentialProjectionModule
+const ChainingProjectionModule = ProjecturedKernel.ChainingProjectionModule
 const SortingProjectionModule = ProjecturedKernel.SortingProjectionModule
 const ToolRegistryModule = ProjecturedKernel.ToolRegistryModule
-const TypeDispatchingModule = ProjecturedKernel.TypeDispatchingModule
+const TypeDispatchingProjectionModule = ProjecturedKernel.TypeDispatchingProjectionModule
 
 # ── Concrete domains, parsers, projections, backends, editors ──────────────
 include("common/OsClipboard.jl")

@@ -2001,7 +2001,7 @@ So an omitted axis yields an image that hugs the content, never larger than the
 corresponding `max_*`.
 
 ```julia
-proj = SequentialProjection(
+proj = ChainingProjection(
     RecursiveProjection(JsonToSyntax()),
     RecursiveProjection(SyntaxToText()),
     TextToGraphics(measure=sdl_measure_text),
@@ -2068,7 +2068,7 @@ Printer-only projection. On `projection_print` it renders the input
 of the returned `SimpleIoMap` is an `ImageFile` document. Has no reader.
 
 ```julia
-proj = SequentialProjection(
+proj = ChainingProjection(
     RecursiveProjection(JsonToSyntax()),
     RecursiveProjection(SyntaxToText()),
     TextToGraphics(measure=sdl_measure_text),

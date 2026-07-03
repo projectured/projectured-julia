@@ -56,7 +56,7 @@ end
     select = WidgetSelect(Point2D(0, 0), "Apple"; options=["Apple", "Banana"], width=180)
     # Mirror the real pipeline: the resolver wraps the content projection, isolated
     # through a NestingProjection (as HoverProbe does).
-    inner = NestingProjection(proj; recursion = PreservingProjection())
+    inner = NestingProjection(proj; recursion = IdentityProjection())
     resolver = WidgetPopupResolverProjection(inner = inner)
     rio = projection_print(resolver, select)
 

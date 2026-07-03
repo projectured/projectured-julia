@@ -138,14 +138,14 @@ composes with any higher-order projection.
 
 | Struct | Role |
 |---|---|
-| `SequentialProjection` | Chains projections left-to-right; reader chains right-to-left |
+| `ChainingProjection` | Chains projections left-to-right; reader chains right-to-left |
 | `TypeDispatchingProjection` | Dispatches on `typeof(input)` |
 | `RecursiveProjection` | Passes itself as `recursion` for self-referential trees |
-| `AlternativeProjection` | Tries each sub-projection; uses the first that succeeds |
+| `SwitchingProjection` | Tries each sub-projection; uses the first that succeeds |
 | `PredicateDispatchingProjection` | Dispatches on a boolean predicate over the input |
 | `ReferenceDispatchingProjection` | Dispatches on the current selection reference |
 | `NestingProjection` | Scopes an inner projection to a sub-document |
-| `WindowManagerProjection` | Passthrough printer; reader applies window open/close ops to the `ScreenDocument` |
+| `WindowManagingProjection` | Passthrough printer; reader applies window open/close ops to the `ScreenDocument` |
 | `EnvelopeUnwrappingProjection` | Passthrough printer; reader strips the `EventEnvelope` off the gesture — the envelope-unwrap seam for pipelines with no screen/window layer (e.g. the `ConsoleBackend`'s) |
 | `TooltipDecoratorProjection` | Dispatches on `TooltipSource`; reader runs a show/hide state machine |
 | `DraggingProjection` | Dispatches on `DraggingState`; reader runs a press→drag→drop state machine emitting `MoveRangeOperation` |
@@ -155,8 +155,8 @@ composes with any higher-order projection.
 
 | Struct | Role |
 |---|---|
-| `PreservingProjection` | Identity (output = input) |
-| `InvariablyProjection` | Returns a fixed output regardless of input |
+| `IdentityProjection` | Identity (output = input) |
+| `ConstantProjection` | Returns a fixed output regardless of input |
 | `CopyingProjection` | Deep-copies a document tree |
 | `ReversingProjection` | Reverses child order |
 | `SortingProjection` | Sorts children by a key function |
@@ -238,7 +238,7 @@ Reactive  (no deps)
   ├── Json.jl               (depends on Reactive, Reference)
   ├── Xml.jl                (depends on Reactive, Reference)
   │
-  ├── SequentialProjection  (depends on ProjectionApi, IoMap)
+  ├── ChainingProjection  (depends on ProjectionApi, IoMap)
   ├── TypeDispatching       (depends on ProjectionApi)
   ├── RecursiveProjection   (depends on ProjectionApi)
   │
@@ -285,7 +285,7 @@ Reactive  (no deps)
 | `SyntaxLeafToText` — flat position → leaf-domain path | ✅ |
 | `SyntaxNodeToText` — flat position → recursive child path | ✅ |
 | `JsonToSyntax` — all node types | ✅ |
-| `SequentialProjection`, `TypeDispatching`, `RecursiveProjection` | ✅ |
+| `ChainingProjection`, `TypeDispatching`, `RecursiveProjection` | ✅ |
 | Character editing (`StringReplaceRangeOperation`) | ⚠️ wired + tested (`test_typeins`) for field-addressed examples; not every domain |
 | Mouse click-to-select | ⚠️ wired + tested (`test_mouse_clicks` / `test_click_roundtrips`); not every domain |
 | Undo / redo | ❌ |

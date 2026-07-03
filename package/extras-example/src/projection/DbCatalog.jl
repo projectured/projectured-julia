@@ -2,7 +2,7 @@
 
 function make_dbcatalog_projection_example(; measure=truetype_measure_text,
                                              pool=OdbcConnectionPool())
-    SequentialProjection(
+    ChainingProjection(
         DatabaseInstanceToDbCatalog(pool),
         RecursiveProjection(DbCatalogToSyntax()),
         RecursiveProjection(SyntaxToText(
@@ -14,7 +14,7 @@ function make_dbcatalog_projection_example(; measure=truetype_measure_text,
 end
 
 function make_dvdrental_dbcatalog_projection_example(; measure=truetype_measure_text)
-    SequentialProjection(
+    ChainingProjection(
         RecursiveProjection(DbCatalogToSyntax()),
         RecursiveProjection(SyntaxToText(
             expanded_marker  = TextString("▾", font_dejavu_monospace_regular_20, color_default),
@@ -39,7 +39,7 @@ end
 # pool) only when the tree is first forced at print time.
 function make_dvdrental_object_projection_example(; measure=truetype_measure_text,
                                                     pool=OdbcConnectionPool())
-    SequentialProjection(
+    ChainingProjection(
         DatabaseInstanceToDbCatalog(pool),
         RecursiveProjection(ObjectToSyntax()),
         RecursiveProjection(SyntaxToText()),
@@ -57,7 +57,7 @@ end
 
 function make_dbcatalog_widget_projection_example(; measure=truetype_measure_text,
                                                     pool=OdbcConnectionPool())
-    SequentialProjection(
+    ChainingProjection(
         DatabaseInstanceToDbCatalog(pool),
         RecursiveProjection(DbCatalogToSyntax()),
         RecursiveProjection(SyntaxToWidget(marker_eligible = dbcatalog_marker_eligible)),
@@ -66,7 +66,7 @@ function make_dbcatalog_widget_projection_example(; measure=truetype_measure_tex
 end
 
 function make_dvdrental_dbcatalog_widget_projection_example(; measure=truetype_measure_text)
-    SequentialProjection(
+    ChainingProjection(
         RecursiveProjection(DbCatalogToSyntax()),
         RecursiveProjection(SyntaxToWidget(marker_eligible = dbcatalog_marker_eligible)),
         make_syntax_widget_graphics(measure=measure),

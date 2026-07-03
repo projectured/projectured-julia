@@ -20,13 +20,13 @@ import ..FontModule: StyleFont, font_ubuntu_monospace_regular_20, font_ubuntu_mo
 import ..ColorModule: StyleColor, color_black, color_default, color_solarized_blue, color_solarized_green, color_solarized_magenta, color_solarized_cyan, color_solarized_yellow, color_solarized_gray
 import ..StyleTextModule: StyleText
 import ..SyntaxModule: SyntaxDocument, SyntaxLeaf, SyntaxNode
-import ..TypeDispatchingModule: TypeDispatchingProjection
+import ..TypeDispatchingProjectionModule: TypeDispatchingProjection
 import ..IoMapModule: SimpleIoMap
 import ..ReferenceModule: ReferencePath, ConcreteReferencePath, ElementReference, PositionReference, RangeReference, FieldReference, EmptyReferencePath, append_reference, annotate_reference_types
 import ..PrinterContextModule: PrinterContext, child_context, with_property, get_property
 import ..SyntaxToTextModule: SyntaxToText
 import ..TextToStringModule: TextToString
-import ..SequentialProjectionModule: SequentialProjection
+import ..ChainingProjectionModule: ChainingProjection
 import ..RecursiveProjectionModule: RecursiveProjection
 
 export NothingToSyntaxLeaf, BoolToSyntaxLeaf, NumberToSyntaxLeaf,
@@ -305,7 +305,7 @@ print_object(obj; filter=v -> !(v isa Bool))   # hide boolean fields
 """
 function print_object(obj; include_selection=false, open_delimiter="{", close_delimiter="}",
                       newlines::Bool=true, indent::Int=2, filter=nothing)
-    seq = SequentialProjection(
+    seq = ChainingProjection(
         RecursiveProjection(ObjectToSyntax(include_selection=include_selection,
                                            open_delimiter=open_delimiter, close_delimiter=close_delimiter,
                                            newlines=newlines, filter=filter)),

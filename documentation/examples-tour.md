@@ -197,7 +197,7 @@ The navigator pane on the left shows the document tree.
 - `NestingProjection` — the workbench editor pane wraps an arbitrary inner
   projection; the nested projection's events and selections are scoped
   correctly
-- `AlternativeProjection` — the workbench pane switcher routes events to the
+- `SwitchingProjection` — the workbench pane switcher routes events to the
   currently focused pane
 
 ---

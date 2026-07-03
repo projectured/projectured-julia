@@ -25,7 +25,7 @@ module NaturalFormatModule
 import ..ProjectionApiModule: projection_print
 import ..DocumentApiModule: Document
 import ..OperationApiModule: Operation, evaluate_operation
-import ..SequentialProjectionModule: SequentialProjection
+import ..ChainingProjectionModule: ChainingProjection
 import ..RecursiveProjectionModule: RecursiveProjection
 import ..SyntaxToTextModule: SyntaxToText
 import ..TextToStringModule: TextToString
@@ -75,7 +75,7 @@ Render `document` to its natural text by running the domain's
 text is the editor's rendered form (indented), which the domain parser re-reads.
 """
 function document_to_text(document::Document)
-    pipeline = SequentialProjection(
+    pipeline = ChainingProjection(
         RecursiveProjection(_domain_to_syntax(document)),
         RecursiveProjection(SyntaxToText()),
         RecursiveProjection(TextToString()),

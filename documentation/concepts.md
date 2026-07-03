@@ -94,7 +94,7 @@ JsonObject
   ──[TextToGraphics]──▶ GraphicsCanvas ──▶ SDL window
 ```
 
-`SequentialProjection` chains them. The printer runs left to right; the reader
+`ChainingProjection` chains them. The printer runs left to right; the reader
 runs right to left, translating the raw key event back through each step.
 
 Because projections are pure functions (no side effects, no mutable state), they
@@ -178,7 +178,7 @@ general rather than tied to any one domain or any one display.
   `JsonToSyntax`, `SyntaxToText`, `TextToGraphics`. Each is a printer/reader
   pair with a single focused job.
 - **Combination** happens through higher-order projections.
-  `SequentialProjection` chains projections end-to-end; `NestingProjection`
+  `ChainingProjection` chains projections end-to-end; `NestingProjection`
   embeds one domain inside another; sorting, filtering, and focusing
   projections wrap an inner projection and modify its behaviour. The
   combinators are themselves projections, so they compose freely with each
@@ -190,7 +190,7 @@ general rather than tied to any one domain or any one display.
   [recursion contract](projection-system.md#the-recursion-contract), and it is why
   any domain immediately works under any higher-order projection.
 - **Abstraction** is again ordinary Julia code. A function that returns a
-  fully wired `SequentialProjection(...)` configured for a particular display
+  fully wired `ChainingProjection(...)` configured for a particular display
   — a JSON viewer, a syntax-highlighted Lisp editor, a workbench pane — is a
   projection-level abstraction. Whole families of editors are just functions
   over projections.

@@ -1,5 +1,5 @@
 """
-    EnvelopeUnwrappingModule
+    EnvelopeUnwrappingProjectionModule
 
 A higher-order projection that strips the `EventEnvelope` off an input gesture
 before handing it to its inner projection's reader.
@@ -19,15 +19,15 @@ backend renders the `TextText` directly), and the reader replaces an
 reader. No reference re-rooting is needed because there is no window/content
 nesting above the document.
 """
-module EnvelopeUnwrappingModule
+module EnvelopeUnwrappingProjectionModule
 
 import ..ProjectionApiModule: projection_print, projection_read, map_reference_forward, map_reference_backward, Projection
 import ..ChangeModule: Change
 import ..IoMapApiModule: IoMap
 import ..ScreenDocumentModule: EventEnvelope
-export EnvelopeUnwrappingProjection, EnvelopeUnwrappingIoMap
+export EnvelopeUnwrappingProjection, EnvelopeUnwrappingProjectionIoMap
 
-struct EnvelopeUnwrappingIoMap <: IoMap
+struct EnvelopeUnwrappingProjectionIoMap <: IoMap
     projection::Any
     input::Any
     output::Any
@@ -50,10 +50,10 @@ EnvelopeUnwrappingProjection(; inner) = EnvelopeUnwrappingProjection(inner)
 
 function projection_print(p::EnvelopeUnwrappingProjection, recursion, input, ctx)
     inner = projection_print(p.inner, recursion, input, ctx)
-    EnvelopeUnwrappingIoMap(p, input, inner.output, inner)
+    EnvelopeUnwrappingProjectionIoMap(p, input, inner.output, inner)
 end
 
-function projection_read(p::EnvelopeUnwrappingProjection, recursion, change::Change, iomap::EnvelopeUnwrappingIoMap)
+function projection_read(p::EnvelopeUnwrappingProjection, recursion, change::Change, iomap::EnvelopeUnwrappingProjectionIoMap)
     env = change.gesture
     inner_change = env isa EventEnvelope ? Change(env.event, change.operation) : change
     out = projection_read(p.inner, recursion, inner_change, iomap.inner_iomap)
@@ -62,13 +62,13 @@ function projection_read(p::EnvelopeUnwrappingProjection, recursion, change::Cha
     return Change(change.gesture, out.operation)
 end
 
-projection_read(p::EnvelopeUnwrappingProjection, iomap::EnvelopeUnwrappingIoMap, payload) =
+projection_read(p::EnvelopeUnwrappingProjection, iomap::EnvelopeUnwrappingProjectionIoMap, payload) =
     projection_read(p, nothing, Change(payload), iomap).operation
 
-map_reference_forward(p::EnvelopeUnwrappingProjection, iomap::EnvelopeUnwrappingIoMap, reference) =
+map_reference_forward(p::EnvelopeUnwrappingProjection, iomap::EnvelopeUnwrappingProjectionIoMap, reference) =
     map_reference_forward(p.inner, iomap.inner_iomap, reference)
 
-map_reference_backward(p::EnvelopeUnwrappingProjection, iomap::EnvelopeUnwrappingIoMap, reference) =
+map_reference_backward(p::EnvelopeUnwrappingProjection, iomap::EnvelopeUnwrappingProjectionIoMap, reference) =
     map_reference_backward(p.inner, iomap.inner_iomap, reference)
 
 end # module

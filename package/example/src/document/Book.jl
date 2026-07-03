@@ -25,7 +25,7 @@ function make_book_document_example()
                     BookList([
                         BookParagraph(TextText(TextString("Reactive cells propagate changes automatically.", font_ubuntu_monospace_regular_20, color_default))),
                         BookParagraph(TextText(TextString("Forward and backward reference mapping enables editing.", font_ubuntu_monospace_regular_20, color_default))),
-                        BookParagraph(TextText(TextString("Projections are composable via SequentialProjection.", font_ubuntu_monospace_regular_20, color_default))),
+                        BookParagraph(TextText(TextString("Projections are composable via ChainingProjection.", font_ubuntu_monospace_regular_20, color_default))),
                     ]),
                 ],
             ),

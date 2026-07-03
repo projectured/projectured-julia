@@ -8,7 +8,7 @@ function test_sql_to_syntax()
         stmt = SqlSelectStatement("persons")
 
         # SqlToSyntax + SyntaxToText + TextToString renders the display form
-        pipe = SequentialProjection(
+        pipe = ChainingProjection(
             RecursiveProjection(SqlToSyntax()),
             RecursiveProjection(SyntaxToText()),
             RecursiveProjection(TextToString()))
@@ -24,7 +24,7 @@ function test_sql_to_syntax()
         @test projection_print(SqlColumnReferenceToSyntaxLeaf(), SqlColumnReference("id")).output isa SyntaxLeaf
 
         # Full pipeline (Sql→Syntax→Text→String) covers all types
-        sql_pipe = SequentialProjection(
+        sql_pipe = ChainingProjection(
             RecursiveProjection(SqlToSyntax()),
             RecursiveProjection(SyntaxToText()),
             RecursiveProjection(TextToString()))
@@ -144,7 +144,7 @@ function test_sql_to_syntax_selection()
                 SqlScalarValue("X")))))
 
     measure = (text, font) -> (length(text) * 10, 18)
-    proj = SequentialProjection(
+    proj = ChainingProjection(
         RecursiveProjection(SqlToSyntax()),
         RecursiveProjection(SyntaxToText()),
         TextToGraphics(measure=measure))
@@ -154,7 +154,7 @@ end
 
 function test_sql_ddl()
     @testset "SqlToSyntax DDL (CREATE TABLE / SCHEMA)" begin
-        sql_pipe = SequentialProjection(
+        sql_pipe = ChainingProjection(
             RecursiveProjection(SqlToSyntax()),
             RecursiveProjection(SyntaxToText()),
             RecursiveProjection(TextToString()))

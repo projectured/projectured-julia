@@ -157,9 +157,9 @@ import ..FontModule: font_ubuntu_monospace_regular_18
 import ..ColorModule: StyleColor, color_default, color_solarized_blue,
                       color_solarized_cyan
 import ..SyntaxModule: SyntaxLeaf, SyntaxNode
-import ..TypeDispatchingModule: TypeDispatchingProjection
+import ..TypeDispatchingProjectionModule: TypeDispatchingProjection
 import ..RecursiveProjectionModule: RecursiveProjection
-import ..SequentialProjectionModule: SequentialProjection
+import ..ChainingProjectionModule: ChainingProjection
 import ..IoMapModule: SimpleIoMap, ChildrenIoMap
 import ..ReferenceModule: ConcreteReferencePath, ElementReference, FieldReference,
                            PositionReference, ReferencePath, EmptyReferencePath
@@ -388,7 +388,7 @@ Create `example/src/projection/Bookmark.jl`:
 
 ```julia
 function make_bookmark_projection_example(; measure=sdl_measure_text)
-    SequentialProjection(
+    ChainingProjection(
         RecursiveProjection(BookmarkToSyntax()),
         RecursiveProjection(SyntaxToText()),
         TextToGraphics(measure=measure),
@@ -426,7 +426,7 @@ function test_bookmark_to_syntax()
     entry = BookmarkEntry("Julia", "https://julialang.org")
     # projection_print(projection, recursion, input, ctx)
     iomap = projection_print(BookmarkEntryToSyntaxNode(),
-                             PreservingProjection(), entry,
+                             IdentityProjection(), entry,
                              Projectured.PrinterContextModule.PrinterContext())
     node = iomap.output
     @test node isa SyntaxNode
@@ -443,7 +443,7 @@ end
         BookmarkEntry("A", "http://a.example"),
         BookmarkEntry("B", "http://b.example"),
     ])
-    proj = SequentialProjection(
+    proj = ChainingProjection(
         RecursiveProjection(BookmarkToSyntax()),
         RecursiveProjection(SyntaxToText()),
         TextToGraphics(measure=(t,f) -> (length(t)*10, 20)),

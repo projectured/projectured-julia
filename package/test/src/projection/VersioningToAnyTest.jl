@@ -69,14 +69,14 @@ end
     p = VersioningToAnyProjection()
 
     # Latest: the wrapper vanishes; output is the newest version's value.
-    iomap = projection_print(p, PreservingProjection(), vo, PrinterContext())
+    iomap = projection_print(p, IdentityProjection(), vo, PrinterContext())
     @test iomap.index == 1
     @test iomap.output isa PrimitiveString
     @test iomap.output.value == "v3"
 
     # Index(2): the second version's value.
     vo.criterion = VersionCriterionIndex(2)
-    iomap2 = projection_print(p, PreservingProjection(), vo, PrinterContext())
+    iomap2 = projection_print(p, IdentityProjection(), vo, PrinterContext())
     @test iomap2.index == 2
     @test iomap2.output.value == "v2"
 end
@@ -85,7 +85,7 @@ end
     p = VersioningToAnyProjection()
 
     empty_vo = VersionedObject(ObjectVersion[])
-    iomap = projection_print(p, PreservingProjection(), empty_vo, PrinterContext())
+    iomap = projection_print(p, IdentityProjection(), empty_vo, PrinterContext())
     @test iomap.output isa DocumentNothing
     @test iomap.index === nothing
     @test iomap.value_iomap === nothing
@@ -93,7 +93,7 @@ end
     # A criterion that matches nothing also yields DocumentNothing without error.
     vo = make_versioned()
     vo.criterion = VersionCriterionByAuthor("nobody")
-    iomap_nm = projection_print(p, PreservingProjection(), vo, PrinterContext())
+    iomap_nm = projection_print(p, IdentityProjection(), vo, PrinterContext())
     @test iomap_nm.output isa DocumentNothing
 
     # Reference maps decline on the empty case.
@@ -104,9 +104,9 @@ end
 @testset "reference mapping peel / prepend" begin
     vo = make_versioned()   # Latest → index 1
     p = VersioningToAnyProjection()
-    iomap = projection_print(p, PreservingProjection(), vo, PrinterContext())
+    iomap = projection_print(p, IdentityProjection(), vo, PrinterContext())
 
-    # Backward: delegate to value child (PreservingProjection is identity) and
+    # Backward: delegate to value child (IdentityProjection is identity) and
     # prepend versions[1].value.
     back = map_reference_backward(p, iomap, EmptyReferencePath())
     @test back isa ConcreteReferencePath
@@ -129,13 +129,13 @@ end
 @testset "reader re-roots delegated value operations" begin
     vo = make_versioned()   # Latest → index 1
     p = VersioningToAnyProjection()
-    iomap = projection_print(p, PreservingProjection(), vo, PrinterContext())
+    iomap = projection_print(p, IdentityProjection(), vo, PrinterContext())
 
     # A value-domain selection move flowing up from the value child is re-rooted
-    # under versions[1].value (PreservingProjection passes it through unchanged).
+    # under versions[1].value (IdentityProjection passes it through unchanged).
     value_sel = ReplaceSelectionOperation(EmptyReferencePath())
     change = Change(KeyDown(:right, Modifiers()), value_sel)
-    out = projection_read(p, PreservingProjection(), change, iomap)
+    out = projection_read(p, IdentityProjection(), change, iomap)
     @test out.operation isa ReplaceSelectionOperation
     rerooted = out.operation.path
     @test rerooted.head.name == "versions"
@@ -145,8 +145,8 @@ end
 
     # The empty case declines (no value child to delegate into).
     empty_vo = VersionedObject(ObjectVersion[])
-    iomap_e = projection_print(p, PreservingProjection(), empty_vo, PrinterContext())
-    out_e = projection_read(p, PreservingProjection(),
+    iomap_e = projection_print(p, IdentityProjection(), empty_vo, PrinterContext())
+    out_e = projection_read(p, IdentityProjection(),
         Change(KeyDown(:right, Modifiers()), value_sel), iomap_e)
     @test out_e.operation === nothing
 end
@@ -154,7 +154,7 @@ end
 @testset "reader own gestures" begin
     vo = make_versioned()   # Latest → index 1
     p = VersioningToAnyProjection()
-    iomap = projection_print(p, PreservingProjection(), vo, PrinterContext())
+    iomap = projection_print(p, IdentityProjection(), vo, PrinterContext())
 
     # Ctrl+Shift+S snapshots the active value into a new front ObjectVersion via a
     # sequence splice (insert_elements) — a ReplaceReferencedValue whose terminal is
@@ -189,7 +189,7 @@ end
 
     pipeline = RecursiveProjection(TypeDispatchingProjection(
         VersionedObject => VersioningToAnyProjection(),
-        PrimitiveString => PreservingProjection(),
+        PrimitiveString => IdentityProjection(),
     ))
     iomap = projection_print(VersioningToAnyProjection(), pipeline, outer, PrinterContext())
     # Outer eliminates to its (only) version's value = inner VersionedObject,

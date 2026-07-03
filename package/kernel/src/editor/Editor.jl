@@ -35,7 +35,7 @@ export Editor, run!
 Holds the state for a read-eval-print loop:
   - `backend`    — the display/input backend (e.g. SdlBackend)
   - `document`   — the reactive document being edited
-  - `projection` — the projection (or SequentialProjection)
+  - `projection` — the projection (or ChainingProjection)
   - `devices`    — input/output devices (e.g. window, keyboard)
   - `iomap`      — the latest IoMap from the printer (internal)
   - `operation`  — the latest operation from the reader (internal)

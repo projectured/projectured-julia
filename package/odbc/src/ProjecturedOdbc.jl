@@ -658,7 +658,7 @@ import ProjecturedDomain.SqlToSyntaxModule: SqlToSyntax
 import ProjecturedDomain.SyntaxToTextModule: SyntaxToText
 import ProjecturedDomain.TextToStringModule: TextToString
 import ProjecturedDomain.RecursiveProjectionModule: RecursiveProjection
-import ProjecturedDomain.SequentialProjectionModule: SequentialProjection
+import ProjecturedDomain.ChainingProjectionModule: ChainingProjection
 import ProjecturedDomain.DatabaseInstanceDocumentModule: DatabaseInstance
 import ProjecturedDomain.DatabaseModule: RawDatabaseResult, db_execute_raw
 import ..ConnectionPoolModule: OdbcConnectionPool, with_connection
@@ -673,7 +673,7 @@ end
 
 function projection_print(p::SqlToCellTable, recursion, stmt::SqlSelectStatement, ctx)
     raw = Cell(() -> begin
-        pipe = SequentialProjection(
+        pipe = ChainingProjection(
             RecursiveProjection(SqlToSyntax()),
             RecursiveProjection(SyntaxToText()),
             RecursiveProjection(TextToString()))

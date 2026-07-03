@@ -25,7 +25,7 @@ the same standard, universally-rerooted sequence splices the clipboard uses;
 `criterion` lives on the document as a `Cell`, and the printer defers
 `select_version` into a derived `selection_cell`, so `SetVersionCriterionOperation`
 is a plain reactive cell write: the new version is selected and re-printed and the
-reactive `SequentialProjection` re-pulls the output downstream, with **no
+reactive `ChainingProjection` re-pulls the output downstream, with **no
 `editor.iomap` drop** (mirroring `ToggleClipboardSliceDisplayOperation`).
 
 ## Empty / no-match
@@ -83,7 +83,7 @@ struct VersioningToAnyProjection <: Projection end
 # re-derives it (re-printing the newly-selected version's value) with no
 # `editor.iomap` drop. `output`/`index`/`value_iomap` read it transparently via
 # `getproperty`, so the reference maps and reader see the *current* selection and the
-# reactive `SequentialProjection` re-pulls the output downstream.
+# reactive `ChainingProjection` re-pulls the output downstream.
 struct VersioningToAnyProjectionIoMap <: IoMap
     projection::VersioningToAnyProjection
     input::Any                # VersionedObject
@@ -165,7 +165,7 @@ end
 Replace the `criterion` of the `target` `VersionedObject` (e.g. switch from
 *latest* to *as-of T*, or pin an index). A plain reactive cell write: the
 projection's `selection_cell` is derived from `criterion`, so the new version is
-selected (and re-printed) and the reactive `SequentialProjection` re-pulls it
+selected (and re-printed) and the reactive `ChainingProjection` re-pulls it
 downstream — no `editor.iomap` drop (see `ToggleClipboardSliceDisplayOperation`).
 """
 struct SetVersionCriterionOperation <: Operation

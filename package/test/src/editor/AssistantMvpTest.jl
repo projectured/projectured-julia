@@ -59,7 +59,7 @@ _mvp_measure(text, font) = (length(text) * 10, 20)
 # StringReplaceRangeOperation. The test then evaluates the operation
 # against the assistant's input directly.
 function _input_chain()
-    SequentialProjection(
+    ChainingProjection(
         RecursiveProjection(PrimitiveToSyntax()),
         RecursiveProjection(SyntaxToText()),
         TextToGraphics(measure = _mvp_measure),

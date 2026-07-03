@@ -145,7 +145,7 @@ end
 
 Inner event carried by an `EventEnvelope` when the user clicks a
 window's native close button (`SDL_WINDOWEVENT_CLOSE`).
-`WindowManagerProjection`'s reader resolves the window by
+`WindowManagingProjection`'s reader resolves the window by
 `EventEnvelope.window_id` and removes the matching `WindowDocument`
 from `ScreenDocument.windows` (via `CloseWindowOperation`).
 """
@@ -158,7 +158,7 @@ struct WindowCloseRequest end
 
 Inner event carried by an `EventEnvelope` when the user resizes a window's
 native frame (`SDL_WINDOWEVENT_RESIZED`). `width`/`height` are the new pixel
-size of the window's content area. `WindowManagerProjection`'s reader
+size of the window's content area. `WindowManagingProjection`'s reader
 translates it into a `ResizeWindowOperation` that writes the new size into the
 matching `WindowDocument`'s `width`/`height` cells — which the printer reads
 as the available layout extent, so the content re-lays-out reactively.
@@ -174,7 +174,7 @@ end
     WindowFocusLost()
 
 Inner event carried by an `EventEnvelope` when a window loses input focus
-(SDL `SDL_WINDOWEVENT_FOCUS_LOST` / web `blur`). `WindowManagerProjection`'s
+(SDL `SDL_WINDOWEVENT_FOCUS_LOST` / web `blur`). `WindowManagingProjection`'s
 reader closes the window **only when its `auto_dismiss` is `true`** — a transient
 popup dismissing because the pointer acted elsewhere. The main window and
 tooltips (`auto_dismiss = false`) ignore it, so focusing a popup never closes

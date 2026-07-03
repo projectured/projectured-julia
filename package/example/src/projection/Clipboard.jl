@@ -60,7 +60,7 @@ end
 #   Ctrl+V        paste the stored slice (or, if empty, the OS clipboard) over the selection
 #   Ctrl+Shift+V  paste a fresh deep copy of the stored slice
 function make_clipboard_projection_example(; measure=truetype_measure_text)
-    SequentialProjection(
+    ChainingProjection(
         RecursiveProjection(TypeDispatchingProjection(
             ClipboardSlice  => ClipboardSliceToAnyProjection(; to_text=_json_to_text, from_text=_json_from_text),
             JsonNull        => JsonNullToSyntaxLeaf(),

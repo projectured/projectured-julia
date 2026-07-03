@@ -92,8 +92,8 @@ returns an `IoMap` that carries both the input and the output (and any
 additional mapping data the reader needs). This ensures the reader always has
 access to both contexts without any additional bookkeeping.
 
-`SequentialProjection` collects all step IO maps into
-`SequentialProjectionIoMap.step_iomaps`, enabling the reader to walk backward
+`ChainingProjection` collects all step IO maps into
+`ChainingProjectionIoMap.step_iomaps`, enabling the reader to walk backward
 through each step:
 
 ```julia

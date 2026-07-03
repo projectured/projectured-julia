@@ -145,7 +145,7 @@ end
 
 # Render a parsed/constructed SQL document to executable text through the
 # Sql→Syntax→Text→String pipeline (the same path an LLM-facing DDL view uses).
-_ddl_render_pipe() = SequentialProjection(
+_ddl_render_pipe() = ChainingProjection(
     RecursiveProjection(SqlToSyntax()),
     RecursiveProjection(SyntaxToText()),
     RecursiveProjection(TextToString()))
@@ -229,7 +229,7 @@ function test_db_catalog_to_sql_live(adapter)
             Cell(DbCatalogColumn("length", "integer"))]))
         schema = DbCatalogSchema("test", CellVector(Cell[Cell(film)]))
 
-        pipe = SequentialProjection(
+        pipe = ChainingProjection(
             RecursiveProjection(DbCatalogToSql()),
             RecursiveProjection(SqlToSyntax()),
             RecursiveProjection(SyntaxToText()),

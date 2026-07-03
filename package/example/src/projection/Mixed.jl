@@ -15,7 +15,7 @@ function JsonXmlToSyntax()
 end
 
 function make_mixed_projection_example(; measure=truetype_measure_text)
-    SequentialProjection(
+    ChainingProjection(
         JsonXmlToSyntax(),
         RecursiveProjection(SyntaxToText()),
         TextToGraphics(measure=measure),

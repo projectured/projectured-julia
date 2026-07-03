@@ -1436,7 +1436,7 @@ identity pointer, so its click writes straight back to that object regardless of
 where it lives in the tree), the `value` to assign, the `label` to render, and the
 `popup_id` of the floating window to dismiss. A left click emits a
 `CompoundOperation` that writes `select.value = value` and closes `popup_id` — the
-window-route close is unpacked by `WindowManagerProjection`, the value write bubbles
+window-route close is unpacked by `WindowManagingProjection`, the value write bubbles
 to `evaluate_operation`.
 """
 @document struct WidgetOption <: WidgetDocument

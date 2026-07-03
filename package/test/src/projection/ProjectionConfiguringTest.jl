@@ -81,7 +81,7 @@ end # @testset
     renderer = RecursiveProjection(TypeDispatchingProjection(vcat(
         w2g.dispatch,
         Pair{DataType,Any}[TextText => TextToGraphics(measure=stub)])))
-    proj  = SequentialProjection(pcp, renderer)
+    proj  = ChainingProjection(pcp, renderer)
 
     doc   = TextText(TextString("alpha dolor", font, color_default))
     iomap = projection_print(proj, nothing, doc, PrinterContext())
@@ -114,7 +114,7 @@ end # @testset
     renderer = RecursiveProjection(TypeDispatchingProjection(vcat(
         w2g.dispatch,
         Pair{DataType,Any}[TextText => TextToGraphics(measure=stub)])))
-    proj  = SequentialProjection(pcp, renderer)
+    proj  = ChainingProjection(pcp, renderer)
 
     doc   = TextText(TextString("alpha dolor", font, color_default))
     ctx   = with_available_size(PrinterContext(); width=Cell(800), height=Cell(600))

@@ -66,7 +66,7 @@ end
     wrap = WidgetContextMenu(WidgetLabel(Point2D(0, 0), "target"), menu)
     # Mirror the real pipeline (as WidgetSelectTest does): the resolver wraps the
     # content projection, isolated through a NestingProjection.
-    inner    = NestingProjection(proj; recursion = PreservingProjection())
+    inner    = NestingProjection(proj; recursion = IdentityProjection())
     resolver = WidgetPopupResolverProjection(inner = inner)
     rio = projection_print(resolver, wrap)
 

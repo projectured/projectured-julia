@@ -337,7 +337,7 @@ there is no separate in-window overlay layer. The flow:
    `(0, box_height + gap)` and a context menu uses the local click coordinates).
    The trigger never computes its own absolute position.
 2. A **`WidgetPopupResolverProjection`** sits at the content root (for a windowed
-   app, *between* `WindowManagerProjection` and `ScreenToScreen`). It intercepts
+   app, *between* `WindowManagingProjection` and `ScreenToScreen`). It intercepts
    the `OpenPopupOperation`, forward-maps the anchor to absolute coordinates via
    `anchor_point` (which rides `map_reference_forward`), adds the offset, and
    emits an **`OpenWindowOperation`**. That bubbles up to `WindowManager`, which

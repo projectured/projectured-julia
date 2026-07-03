@@ -20,7 +20,7 @@ _conversation_widget_graphics(; measure=truetype_measure_text) =
         MarkdownDocument => make_markdown_rendered_projection_example(measure=measure),
         # Pass a graphics document straight through; the layout sizes/places it
         # via the generic graphics_size seam (so `GraphicsCircle(10,10,10)` shows).
-        GraphicsDocument => PreservingProjection(),
+        GraphicsDocument => IdentityProjection(),
     ])
 
 """
@@ -32,7 +32,7 @@ renders it. Place **before** any `ConversationDocument` entry, since
 `ConversationDraft <: ConversationDocument`.
 """
 conversation_draft_entry(; measure=truetype_measure_text) =
-    ConversationDraft => SequentialProjection(
+    ConversationDraft => ChainingProjection(
         RecursiveProjection(ConversationComposerToWidget()),
         _conversation_widget_graphics(measure=measure))
 
@@ -44,7 +44,7 @@ Stage-2 widget chat bubbles (`ConversationToWidget → widget_graphics`). Shared
 the assistant, workbench, and wrapper panels so they all show the widget chat.
 """
 conversation_widget_entry(; measure=truetype_measure_text) =
-    ConversationDocument => SequentialProjection(
+    ConversationDocument => ChainingProjection(
         RecursiveProjection(ConversationToWidget()),
         _conversation_widget_graphics(measure=measure))
 
@@ -75,7 +75,7 @@ function make_assistant_projection_example(; measure=truetype_measure_text)
             conversation_widget_entry(measure=measure),
         ],
     )))
-    SequentialProjection(
+    ChainingProjection(
         RecursiveProjection(WorkbenchToWidget()),
         inner_chain,
     )

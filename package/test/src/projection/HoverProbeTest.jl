@@ -18,7 +18,7 @@ using Projectured
 using ProjecturedExample
 using Projectured: ReplaceSelectionOperation, OpenWindowOperation,
                     ReferenceInspector, HoverProbeProjection, ReferenceInspectorToText,
-                    NestingProjection, PreservingProjection, SequentialProjection,
+                    NestingProjection, IdentityProjection, ChainingProjection,
                     WordWrapping, TextToGraphics, GraphicsCanvas, truetype_measure_text,
                     reference_equal, MouseMove, MousePress, Modifiers,
                     ScreenDocument, WindowDocument, EventEnvelope, Change
@@ -69,7 +69,7 @@ function test_reference_inspector_text()
         # The full follower-window content chain (the one the dispatcher runs
         # for a ReferenceInspector window) must bottom out in a GraphicsCanvas —
         # that is what the window reconciler requires.
-        chain = SequentialProjection(ReferenceInspectorToText(),
+        chain = ChainingProjection(ReferenceInspectorToText(),
                                      WordWrapping(measure = truetype_measure_text),
                                      TextToGraphics(measure = truetype_measure_text))
         canvas = projection_print(chain, ReferenceInspector(reference = ref, target = doc)).output
@@ -118,7 +118,7 @@ function test_hover_probe()
 
         # Mirror the real pipeline: the probe wraps a NestingProjection so the
         # example projection's own recursion is isolated.
-        inner = NestingProjection(proj; recursion = PreservingProjection())
+        inner = NestingProjection(proj; recursion = IdentityProjection())
         hp = HoverProbeProjection(inner = inner, id = :inspector,
                                   pointer = () -> (7, 9))
         hpio = projection_print(hp, doc)
@@ -151,7 +151,7 @@ end
 
 End-to-end through the real `_multi_window_projection_inspector` pipeline: an
 `EventEnvelope`-wrapped hover routed into the main window's content makes the
-`WindowManagerProjection` add an `:inspector` follower window to the screen.
+`WindowManagingProjection` add an `:inspector` follower window to the screen.
 """
 function test_hover_probe_pipeline()
     @testset "HoverProbe pipeline" begin

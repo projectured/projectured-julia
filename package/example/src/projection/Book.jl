@@ -1,5 +1,5 @@
 function make_book_projection_example(; measure=truetype_measure_text)
-    SequentialProjection(
+    ChainingProjection(
         RecursiveProjection(BookToSyntax()),
         RecursiveProjection(SyntaxToText()),
         WordWrapping(measure=measure),

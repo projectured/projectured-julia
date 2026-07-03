@@ -45,7 +45,7 @@ import ..ColorModule: StyleColor, color_default
 import ..IoMapModule: SimpleIoMap, ContentIoMap, ChildrenIoMap
 import ..ReactiveModule: Cell, setfn!
 import ..IoMapApiModule: IoMap
-import ..TypeDispatchingModule: TypeDispatchingProjection
+import ..TypeDispatchingProjectionModule: TypeDispatchingProjection
 import ..OperationModule: ReplaceSelectionOperation, ReplaceReferencedValue, CompoundOperation
 import ..OperationApiModule: Operation
 import ..OperationRerootingModule: prepend_steps_to_op

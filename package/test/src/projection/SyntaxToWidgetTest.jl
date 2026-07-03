@@ -145,7 +145,7 @@ end
     key = SyntaxLeaf("k"; open="\"", close="\"")
     val = SyntaxLeaf("valuevalue"; open="\"", close="\"")     # clearly to the right
     pair = SyntaxNode(SyntaxDocument[key, val]; sep=TextString(": "))
-    gproj = SequentialProjection(RecursiveProjection(SyntaxToWidget()),
+    gproj = ChainingProjection(RecursiveProjection(SyntaxToWidget()),
                                  make_syntax_widget_graphics())
     iomap = projection_print(gproj, pair)
 

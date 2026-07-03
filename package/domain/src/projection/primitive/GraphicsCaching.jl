@@ -5,7 +5,7 @@ GraphicsCanvas → GraphicsImage projection. Finite leaf canvases (no nested
 canvases, no infinite `ListNode`-backed element lists) are passed through
 `GraphicsCanvasToGraphicsImage` which will eventually rasterize them to a
 cached image. Non-leaf or infinite canvases are preserved as-is via
-`PreservingProjection` so that recursion can process their children.
+`IdentityProjection` so that recursion can process their children.
 
 The reader performs mouse hit-testing: click coordinates are matched against
 canvas elements and translated into a pixel-offset selection path that
@@ -21,9 +21,9 @@ import ..CollectionModule: CellVector, ListNode
 import ..ReactiveModule: Cell, setfn!
 import ..CopyingProjectionModule: CopyingProjection
 import ..IoMapModule: SimpleIoMap
-import ..TypeDispatchingModule: TypeDispatchingProjection
-import ..PredicateDispatchingModule: PredicateDispatchingProjection
-import ..PreservingProjectionModule: PreservingProjection
+import ..TypeDispatchingProjectionModule: TypeDispatchingProjection
+import ..PredicateDispatchingProjectionModule: PredicateDispatchingProjection
+import ..IdentityProjectionModule: IdentityProjection
 import ..ReferenceModule: ConcreteReferencePath, ElementReference, PositionReference, RangeReference, PointReference
 import ..OperationModule: ReplaceSelectionOperation
 import ..MouseModule: MousePress
@@ -181,7 +181,7 @@ function GraphicsCaching(; render)
         GraphicsViewport => CopyingProjection(),
         CellVector => CopyingProjection(),
         ListNode => CopyingProjection(),
-        Any => PreservingProjection(),
+        Any => IdentityProjection(),
     )
 end
 

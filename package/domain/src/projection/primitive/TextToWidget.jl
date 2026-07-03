@@ -33,7 +33,7 @@ import ..FontModule: StyleFont
 import ..ColorModule: StyleColor
 import ..TextToGraphicsModule: TextToGraphics
 import ..WidgetToGraphicsModule: WidgetToGraphics, WidgetTheme, widget_theme_slate_light
-import ..TypeDispatchingModule: TypeDispatchingProjection
+import ..TypeDispatchingProjectionModule: TypeDispatchingProjection
 import ..RecursiveProjectionModule: RecursiveProjection
 
 export TextToWidget, TextToWidgetIoMap, WidgetAndTextToGraphics

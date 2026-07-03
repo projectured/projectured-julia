@@ -10,7 +10,7 @@ nothing to the visual output.
 **Reader** — runs a small per-source state machine each time it sees an
 event. The `trigger` callback decides whether the tooltip should
 currently be visible; transitions emit `OpenWindowOperation` /
-`CloseWindowOperation`, which bubble up to `WindowManagerProjection`.
+`CloseWindowOperation`, which bubble up to `WindowManagingProjection`.
 
 State (arm-time / is-open) is held per `source.id` on the projection
 instance, so a single decorator instance can handle multiple sibling

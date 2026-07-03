@@ -12,7 +12,7 @@ function make_layout_projection_example(; measure=truetype_measure_text)
     # default (light) background, without a `WidgetShell` to provide a
     # dark fill behind it.
     fg   = (0x22, 0x22, 0x2a, 0xff)
-    SequentialProjection(
+    ChainingProjection(
         RecursiveProjection(TypeDispatchingProjection(
             HorizontalLayout => HorizontalLayoutToGraphicsCanvas(),
             VerticalLayout   => VerticalLayoutToGraphicsCanvas(),
@@ -38,7 +38,7 @@ from the opt-in `ProjecturedTulip` package for real constraint solving; the
 function make_constraint_layout_projection_example(; measure=truetype_measure_text,
                                                    solver=FallbackConstraintSolver())
     font = font_ubuntu_regular_20
-    SequentialProjection(
+    ChainingProjection(
         RecursiveProjection(TypeDispatchingProjection(
             ConstraintLayout => ConstraintLayoutToGraphicsCanvas(solver=solver),
             Any              => WidgetToGraphics(font; measure=measure),

@@ -8,7 +8,7 @@
 function make_conversation_projection_example(; measure=truetype_measure_text)
     font = font_ubuntu_monospace_regular_20
     w2g  = WidgetToGraphics(font; measure=measure)
-    text_to_graphics = SequentialProjection(WordWrapping(measure=measure),
+    text_to_graphics = ChainingProjection(WordWrapping(measure=measure),
                                             TextToGraphics(measure=measure))
     RecursiveProjection(TypeDispatchingProjection(vcat(
         w2g.dispatch,
@@ -19,7 +19,7 @@ function make_conversation_projection_example(; measure=truetype_measure_text)
             MarkdownDocument     => make_markdown_rendered_projection_example(measure=measure),
             # `indent_size=0` keeps newlines inside message bodies aligned at
             # column 0 with the surrounding messages (same as the assistant).
-            ConversationDocument => SequentialProjection(
+            ConversationDocument => ChainingProjection(
                                         RecursiveProjection(ConversationToSyntax()),
                                         RecursiveProjection(SyntaxToText(indent_size=0)),
                                         text_to_graphics),
@@ -34,7 +34,7 @@ end
 # rendered to graphics by `_conversation_widget_graphics`, the shared
 # NaturalToGraphics-based content renderer (so a part can hold any document).
 make_conversation_widget_projection_example(; measure=truetype_measure_text) =
-    SequentialProjection(
+    ChainingProjection(
         RecursiveProjection(ConversationToWidget()),
         _conversation_widget_graphics(measure=measure),
     )
@@ -46,7 +46,7 @@ make_conversation_widget_projection_example(; measure=truetype_measure_text) =
 # graphics by the same `_conversation_widget_graphics` as the conversation and
 # assistant panels.
 make_conversation_editor_projection_example(; measure=truetype_measure_text) =
-    SequentialProjection(
+    ChainingProjection(
         RecursiveProjection(ConversationComposerToWidget()),
         _conversation_widget_graphics(measure=measure),
     )

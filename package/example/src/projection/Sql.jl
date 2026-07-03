@@ -1,5 +1,5 @@
 function make_sql_syntax_projection_example(; measure=truetype_measure_text)
-    SequentialProjection(
+    ChainingProjection(
         RecursiveProjection(SqlToSyntax()),
         RecursiveProjection(SyntaxToText()),
         TextToGraphics(measure=measure),
@@ -7,7 +7,7 @@ function make_sql_syntax_projection_example(; measure=truetype_measure_text)
 end
 
 function make_sql_insert_syntax_projection_example(; measure=truetype_measure_text)
-    SequentialProjection(
+    ChainingProjection(
         RecursiveProjection(SqlToSyntax()),
         RecursiveProjection(SyntaxToText()),
         TextToGraphics(measure=measure),
@@ -15,7 +15,7 @@ function make_sql_insert_syntax_projection_example(; measure=truetype_measure_te
 end
 
 function make_sql_update_syntax_projection_example(; measure=truetype_measure_text)
-    SequentialProjection(
+    ChainingProjection(
         RecursiveProjection(SqlToSyntax()),
         RecursiveProjection(SyntaxToText()),
         TextToGraphics(measure=measure),
@@ -23,7 +23,7 @@ function make_sql_update_syntax_projection_example(; measure=truetype_measure_te
 end
 
 function make_sql_nested_syntax_projection_example(; measure=truetype_measure_text)
-    SequentialProjection(
+    ChainingProjection(
         RecursiveProjection(SqlToSyntax()),
         RecursiveProjection(SyntaxToText()),
         TextToGraphics(measure=measure),

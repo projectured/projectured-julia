@@ -67,7 +67,7 @@ wb = WorkbenchWorkbench(
     WorkbenchPage([WorkbenchOperator()]),
 )
 
-proj = SequentialProjection(
+proj = ChainingProjection(
     WorkbenchToWidget(),
     WidgetToGraphics(font),
 )

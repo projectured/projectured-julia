@@ -60,7 +60,7 @@ Graphics use pixel coordinates:
 window. Provide the same projection you would use for `run_example`:
 
 ```julia
-proj = SequentialProjection(
+proj = ChainingProjection(
     RecursiveProjection(JsonToSyntax()),
     RecursiveProjection(SyntaxToText()),
     TextToGraphics(measure=sdl_measure_text),
@@ -78,7 +78,7 @@ To compose the save step into a pipeline, use `GraphicsCanvasToImageFile` as
 the final projection — its output is an `ImageFile` document:
 
 ```julia
-proj = SequentialProjection(
+proj = ChainingProjection(
     RecursiveProjection(JsonToSyntax()),
     RecursiveProjection(SyntaxToText()),
     TextToGraphics(measure=sdl_measure_text),
@@ -103,7 +103,7 @@ any zoom and the text is selectable and searchable. Fonts are embedded
 (Type0 / CIDFontType2, `Identity-H`), so output is self-contained.
 
 ```julia
-proj = SequentialProjection(
+proj = ChainingProjection(
     RecursiveProjection(JsonToSyntax()),
     RecursiveProjection(SyntaxToText()),
     TextToGraphics(measure=sdl_measure_text),
@@ -118,7 +118,7 @@ A given canvas writes directly, and the save step composes into a pipeline via
 ```julia
 write_pdf(canvas, "snapshot.pdf"; width=800, height=600)
 
-proj = SequentialProjection(
+proj = ChainingProjection(
     make_graphics_image_projection_example(),
     GraphicsCanvasToPdfFile("snapshot.pdf"; width=1200, height=800),
 )

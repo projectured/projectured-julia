@@ -1,5 +1,5 @@
 function make_formula_projection_example(; measure=truetype_measure_text)
-    SequentialProjection(
+    ChainingProjection(
         RecursiveProjection(FormulaToSyntax()),
         RecursiveProjection(SyntaxToText()),
         TextToGraphics(measure=measure),

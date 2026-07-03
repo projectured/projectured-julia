@@ -44,7 +44,7 @@ import ..ColorModule: color_black, color_solarized_blue, color_solarized_green,
                       color_solarized_gray, color_solarized_violet
 import ..StyleTextModule: StyleText
 import ..SyntaxModule: SyntaxDocument, SyntaxLeaf, SyntaxNode
-import ..TypeDispatchingModule: TypeDispatchingProjection
+import ..TypeDispatchingProjectionModule: TypeDispatchingProjection
 import ..CopyingProjectionModule: CopyingProjection
 import ..IoMapModule: SimpleIoMap, ChildrenIoMap
 import ..PrinterContextModule: child_context, with_property, get_property

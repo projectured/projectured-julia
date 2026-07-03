@@ -845,7 +845,7 @@ page width — given (the projection reflows to it) or the content's natural wid
 capped at `max_width`. `max_height` is ignored in this mode.
 
 ```julia
-proj = SequentialProjection(
+proj = ChainingProjection(
     RecursiveProjection(JsonToSyntax()),
     RecursiveProjection(SyntaxToText()),
     TextToGraphics(measure=sdl_measure_text),

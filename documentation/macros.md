@@ -233,7 +233,7 @@ machinery, and with it the same three sharp edges:
   plain `struct ... <: Projection` is the exception, used when the macro can't
   be: `SyntaxNodeToText` stays plain because it stores a `Function` field (which
   the auto-wrapping ctor would turn into a thunk — see "Gotchas"), and
-  `AlternativeProjection` stays plain even though it holds a reactive
+  `SwitchingProjection` stays plain even though it holds a reactive
   `index::Cell`, reading the cell explicitly rather than through `@projection`.
   A plain struct gets no supertype defaulting, so it must write `<: Projection`.
 

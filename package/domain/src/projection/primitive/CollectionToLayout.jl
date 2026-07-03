@@ -7,7 +7,7 @@ stack of independent graphics blocks rather than collapsing to one syntax tree.
 `CellVectorToVerticalLayout` relocates the collection's elements under the
 layout's `children` field **without transforming them** (the element subtrees are
 identical on both sides, just moved). Paired with `VerticalLayoutToGraphicsCanvas`
-in a `SequentialProjection`, the layout renderer then recurses each element
+in a `ChainingProjection`, the layout renderer then recurses each element
 through the surrounding `recursion` (the natural renderer), so every element is
 rendered in its *own* domain — prose as prose, JSON as JSON, a widget as a
 widget — instead of every element being forced through the to-syntax fabric.

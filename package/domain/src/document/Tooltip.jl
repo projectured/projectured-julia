@@ -9,7 +9,7 @@ content document, plus the style and id that the eventual tooltip
 `TooltipSource` is *not* the tooltip — the tooltip is the
 `WindowDocument` that gets added to `ScreenDocument.windows` once the
 `TooltipDecoratorProjection` reader emits an `OpenWindowOperation` and
-the `WindowManagerProjection` reader applies it. The source just sits in
+the `WindowManagingProjection` reader applies it. The source just sits in
 the input tree and gives the decorator something to dispatch on.
 """
 module TooltipDocumentModule

@@ -92,7 +92,7 @@ end
 _json_array_node_projection() =
     RecursiveProjection(TypeDispatchingProjection(
         JsonArray    => JsonArrayToSyntaxNode(),
-        SyntaxLeaf   => PreservingProjection(),
+        SyntaxLeaf   => IdentityProjection(),
         Vector{Cell} => CopyingProjection(),
     ))
 

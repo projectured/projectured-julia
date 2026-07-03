@@ -38,9 +38,9 @@ end # @testset "ReactiveSDL"
     @test img2.data == UInt8[0xff]
 end
 
-@testset "PreservingProjection" begin
+@testset "IdentityProjection" begin
     canvas = GraphicsCanvas([GraphicsText("a", 0, 0, font_ubuntu_monospace_regular_20)])
-    proj = PreservingProjection()
+    proj = IdentityProjection()
     iomap = projection_print(proj, nothing, canvas, nothing)
     @test iomap.input === canvas
     @test iomap.output === canvas

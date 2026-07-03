@@ -11,7 +11,7 @@ When a trigger (e.g. a `WidgetSelect`) emits an `OpenPopupOperation` carrying an
 `anchor` reference + an offset, this seam resolves the anchor to the widget's
 absolute position via [`anchor_point`] (which rides `map_reference_forward`),
 adds the offset, and emits an `OpenWindowOperation` at that position. That op then
-bubbles up to `WindowManagerProjection`, which opens the popup window — the same
+bubbles up to `WindowManagingProjection`, which opens the popup window — the same
 window route the tooltip already uses.
 
 Transparent on print and for reference mapping; only the reader does work. Mirrors

@@ -14,7 +14,7 @@ domain-independent `CopyingProjection` need not. It:
   `window_id`, hands the inner event to that window's `content` reader, and
   prepends the `windows[i].content` steps to the operation that comes back.
 
-`ScreenToScreen` is normally the `inner` of a `WindowManagerProjection`, which
+`ScreenToScreen` is normally the `inner` of a `WindowManagingProjection`, which
 layers window-management *operations* (open/close/resize) on top. The two are
 separate concerns: structural projection here, operation interception there.
 """

@@ -12,7 +12,7 @@ executable `CREATE …` script:
     DbCatalogDatabase → every schema's statements, flattened
     DbCatalogRdbms    → every database's statements, flattened
 
-The DDL view is the compound `SequentialProjection(DbCatalogToSql(), SqlToSyntax())`
+The DDL view is the compound `ChainingProjection(DbCatalogToSql(), SqlToSyntax())`
 (each stage wrapped in `RecursiveProjection`) — `SqlToSyntax` stays the single
 source of truth for SQL text. This projection **constructs the SQL documents
 directly** (not print-and-parse).
@@ -38,7 +38,7 @@ import ..SqlDocumentModule: SqlColumnDefinition, SqlCreateTableStatement,
 import ..ProjectionApiModule: projection_print, projection_printer_recurse, projection_read,
                               map_reference_forward, map_reference_backward, Projection
 import ..IoMapModule: SimpleIoMap
-import ..TypeDispatchingModule: TypeDispatchingProjection
+import ..TypeDispatchingProjectionModule: TypeDispatchingProjection
 import ..ReferenceModule: ElementReference
 import ..PrinterContextModule: child_context, with_property, get_property
 

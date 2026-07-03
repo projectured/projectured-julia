@@ -77,12 +77,12 @@ function test_gesture_help()
         state = GestureHelpState()
         projection = RecursiveProjection(
             TypeDispatchingProjection(
-                ScreenDocument => WindowManagerProjection(inner = ScreenToScreen()),
+                ScreenDocument => WindowManagingProjection(inner = ScreenToScreen()),
                 WindowDocument => ScreenToScreen(),
                 GestureMap     => GestureMapToSyntax(),
                 JsonArray      => GestureHelpProjection(inner = RecursiveProjection(JsonToSyntax()),
                                                         state = state),
-                Any            => PreservingProjection(),
+                Any            => IdentityProjection(),
             ),
         )
         screen = ScreenDocument([WindowDocument(; id = :main, content = arr)])
@@ -137,7 +137,7 @@ function test_gesture_help()
         content = PrimitiveString("hello")
         slice = ClipboardSlice(content)
         p = ClipboardSliceToAnyProjection()
-        iomap = projection_print(p, PreservingProjection(), slice, PrinterContext())
+        iomap = projection_print(p, IdentityProjection(), slice, PrinterContext())
         descs = [b.description for b in collect_gestures(p, nothing, iomap)]
         @test "Copy" in descs                # the clipboard's own gesture
         @test "Insert character" in descs    # descended into the PrimitiveString content

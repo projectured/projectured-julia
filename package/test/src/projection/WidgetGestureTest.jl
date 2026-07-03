@@ -7,7 +7,7 @@
 
 using Projectured: WidgetButton, WidgetCheckbox, WidgetSwitch, WidgetTree, WidgetTreeNode, Point2D,
     WidgetToGraphics, Change, PrinterContext,
-    SequentialProjection, WidgetHoverTrackingProjection, RecursiveProjection, TypeDispatchingProjection,
+    ChainingProjection, WidgetHoverTrackingProjection, RecursiveProjection, TypeDispatchingProjection,
     MousePress, KeyDown, Modifiers,
     GestureBinding, MousePressPattern, KeyDownPattern,
     NoOperation, InvokeWidgetActionOperation, ReplaceReferencedValue, ReplaceSelectionOperation,
@@ -26,7 +26,7 @@ _always(_doc, _sel) = true
 # ── WidgetButton ─────────────────────────────────────────────────────────────
 _bfont = font_ubuntu_monospace_regular_20
 _bstub(t, f) = (length(t) * 10, 24)
-_bproj() = SequentialProjection(
+_bproj() = ChainingProjection(
     WidgetHoverTrackingProjection(inner = RecursiveProjection(TypeDispatchingProjection(
         WidgetToGraphics(_bfont; measure = _bstub).dispatch))))
 

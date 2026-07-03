@@ -107,7 +107,7 @@ end
     g = GraphGraph([v1, v2], [GraphEdge(v1, v2; directed=true)])
 
     content = make_mixed_projection_example(measure=(t, f) -> (length(t) * 10, 20))
-    graph_stages = SequentialProjection(
+    graph_stages = ChainingProjection(
         GraphGraphToGraphLayout(FallbackLayoutEngine()),
         GraphLayoutToGraphicsCanvas(),
     )

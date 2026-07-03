@@ -32,7 +32,7 @@ import ..ColorModule: color_default,
                      color_solarized_blue, color_solarized_green,
                      color_solarized_magenta, color_solarized_gray
 import ..SyntaxModule: SyntaxDocument, SyntaxLeaf, SyntaxNode
-import ..TypeDispatchingModule: TypeDispatchingProjection
+import ..TypeDispatchingProjectionModule: TypeDispatchingProjection
 import ..IoMapModule: SimpleIoMap
 import ..PrinterContextModule: child_context
 

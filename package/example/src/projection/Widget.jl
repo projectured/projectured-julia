@@ -14,7 +14,7 @@ function make_widget_projection_example(; measure=truetype_measure_text)
     )))
     # Wrap in the hover tracker so a button's `hovered` flag clears when the
     # pointer leaves it (container routing only delivers a move to the hit child).
-    SequentialProjection(
+    ChainingProjection(
         WidgetHoverTrackingProjection(inner = inner),
     )
 end
@@ -31,11 +31,11 @@ function make_widget_popup_projection_example(; measure=truetype_measure_text)
     widget_proj = make_widget_projection_example(; measure=measure)
     ref_dispatch = ReferenceDispatchingProjection(ref -> begin
         _is_window_content(ref) &&
-            return NestingProjection(widget_proj; recursion=PreservingProjection())
+            return NestingProjection(widget_proj; recursion=IdentityProjection())
         ref isa EmptyReferencePath &&
-            return WindowManagerProjection(
+            return WindowManagingProjection(
                 inner = WidgetPopupResolverProjection(inner = ScreenToScreen()))
-        return PreservingProjection()
+        return IdentityProjection()
     end)
     RecursiveProjection(
         TypeDispatchingProjection(

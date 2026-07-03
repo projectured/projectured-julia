@@ -13,8 +13,8 @@ though it changes the output domain.
 
 | Projection | Effect on the output |
 |---|---|
-| `PreservingProjection` | Identity — output is the same object as the input |
-| `InvariablyProjection` | Constant — always emits a fixed `output` |
+| `IdentityProjection` | Identity — output is the same object as the input |
+| `ConstantProjection` | Constant — always emits a fixed `output` |
 | `CopyingProjection` | Deep recursive copy where every child is re-projected via the `recursion` argument |
 | `ReversingProjection` | Reverses the elements of a collection |
 | `SortingProjection` | Sorts a collection by a configurable `by`/`lt`/`rev` |
@@ -23,10 +23,10 @@ though it changes the output domain.
 | `SearchingProjection` | Walks the input and collects every object with a field matching a `Regex`, as a flat `CellVector` |
 | `ObjectToWidget` | Reflection-driven form: emits a labelled control row per editable `Cell` field of the object |
 
-## PreservingProjection
+## IdentityProjection
 
 ```julia
-struct PreservingProjection <: Projection end
+struct IdentityProjection <: Projection end
 ```
 
 Pass-through. `projection_print` returns `SimpleIoMap(p, input, input)` —
@@ -34,10 +34,10 @@ the *same* object on both sides. `projection_read` and the reference maps
 are the identity. Useful as a no-op branch inside dispatchers (e.g.
 "sort entries, preserve everything else").
 
-## InvariablyProjection
+## ConstantProjection
 
 ```julia
-InvariablyProjection(output)
+ConstantProjection(output)
 ```
 
 Always emits the stored `output` regardless of input. The reader returns
@@ -128,7 +128,7 @@ The canonical pattern is `ApplyAtProjection`:
 ApplyAtProjection(@reference(entries), SortingProjection(by = e -> e.key))
 ```
 
-`PreservingProjection` and `CopyingProjection` are also the building blocks
+`IdentityProjection` and `CopyingProjection` are also the building blocks
 behind `ReferenceDispatchingProjection` cases: "preserve everywhere except
 at the target path, where we apply the real transformation, and copy the
 spine that leads there".

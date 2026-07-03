@@ -9,7 +9,7 @@ using Projectured
 # executable `CREATE …` script.
 
 # Render a catalog node to its DDL text through the whole pipeline.
-_ddl_pipe() = SequentialProjection(
+_ddl_pipe() = ChainingProjection(
     RecursiveProjection(DbCatalogToSql()),
     RecursiveProjection(SqlToSyntax()),
     RecursiveProjection(SyntaxToText()),

@@ -1,5 +1,5 @@
 function make_text_projection_example(; measure=truetype_measure_text)
-    SequentialProjection(
+    ChainingProjection(
         WordWrapping(measure=measure),
         TextToGraphics(measure=measure),
     )
@@ -9,7 +9,7 @@ end
 # with `make_plain_text_document_example`, this is the minimal flat-text
 # pipeline used to watch the renderer's dirty rectangle on caret moves.
 function make_plain_text_projection_example(; measure=truetype_measure_text)
-    SequentialProjection(
+    ChainingProjection(
         TextToGraphics(measure=measure),
     )
 end

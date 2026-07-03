@@ -1,12 +1,12 @@
 """
-    SequentialProjectionModule
+    ChainingProjectionModule
 
 Chains projections left-to-right for the printer and right-to-left for
 the reader. Intermediate IoMaps are stored so the reader can walk backwards
 through the chain, translating an event from the output domain back to the
 input domain one step at a time.
 """
-module SequentialProjectionModule
+module ChainingProjectionModule
 
 import ..ProjectionApiModule: projection_print, projection_read, map_reference_forward, map_reference_backward, Projection
 import ..ChangeModule: Change
@@ -14,7 +14,7 @@ import ..GestureBindingModule: collect_gestures, GestureBinding
 import ..IoMapModule: SimpleIoMap
 import ..IoMapApiModule: IoMap
 import ..ReactiveModule: Cell
-export SequentialProjection, SequentialProjectionIoMap
+export ChainingProjection, ChainingProjectionIoMap
 
 # Each `step_iomaps` cell holds one stage's IoMap, recomputed (re-printed) when an
 # upstream stage's output changes *structurally*. `iomap.output` returns the LAST
@@ -24,19 +24,19 @@ export SequentialProjection, SequentialProjectionIoMap
 # pulls the last stage cell, which recomputes lazily if a structural change upstream
 # invalidated the chain. (Only the threading *between* stages unwraps a Cell-valued
 # output to the plain value the next stage prints — see `_seq_stage`.)
-struct SequentialProjectionIoMap <: IoMap
+struct ChainingProjectionIoMap <: IoMap
     projection::Any
     input::Any
     step_iomaps::Vector{Cell}
 end
 
-function Base.getproperty(io::SequentialProjectionIoMap, name::Symbol)
+function Base.getproperty(io::ChainingProjectionIoMap, name::Symbol)
     name === :output && return getfield(io, :step_iomaps)[end][].output
     getfield(io, name)
 end
 
 """
-    SequentialProjection(projections...)
+    ChainingProjection(projections...)
 
 A compound higher-order projection that applies a sequence of projections
 one after the other.  Given projections `[p₁, p₂, …, pₙ]`, calling
@@ -52,22 +52,22 @@ source propagate through each layer only when (and as far as) needed.
 
 # Example
 
-    seq = SequentialProjection(
+    seq = ChainingProjection(
         JsonToSyntax(),
         SyntaxToText(),
         TextToGraphics()
     )
     sdl_texts = projection_print(seq, json_doc)
 """
-struct SequentialProjection <: Projection
+struct ChainingProjection <: Projection
     projections::Vector{Any}
-    SequentialProjection(projections::Vector{Any}) = new(projections)
+    ChainingProjection(projections::Vector{Any}) = new(projections)
 end
 
-SequentialProjection(ps...) = SequentialProjection(collect(Any, ps))
+ChainingProjection(ps...) = ChainingProjection(collect(Any, ps))
 
 """
-    projection_print(seq::SequentialProjection, recursion, input, ctx) -> output
+    projection_print(seq::ChainingProjection, recursion, input, ctx) -> output
 
 Apply each projection in order, threading the reactive output of one as the input
 to the next. Each stage's `projection_print` is wrapped in a computed cell keyed on
@@ -82,7 +82,7 @@ time (the same timing the rest of the pipeline assumes), not lazily on the first
 reader/render access. Cells stay re-pullable, so a later structural change still
 recomputes only the affected stages; we just don't defer the *first* compute.
 """
-function projection_print(seq::SequentialProjection, recursion, input, ctx)
+function projection_print(seq::ChainingProjection, recursion, input, ctx)
     step_iomaps = Cell[]
     out = Cell(input)                         # stage 1's input, as a (constant) cell
     for p in seq.projections
@@ -90,7 +90,7 @@ function projection_print(seq::SequentialProjection, recursion, input, ctx)
         push!(step_iomaps, iomap_cell)
     end
     foreach(getindex, step_iomaps)            # eager initial build (forces every stage)
-    return SequentialProjectionIoMap(seq, input, step_iomaps)
+    return ChainingProjectionIoMap(seq, input, step_iomaps)
 end
 
 # One stage: its IoMap is a cell over the previous stage's output cell (so it
@@ -107,7 +107,7 @@ function _seq_stage(p, recursion, prev::Cell, ctx)
 end
 
 """
-    projection_read(seq::SequentialProjection, recursion, change::Change, iomap::SequentialProjectionIoMap)
+    projection_read(seq::ChainingProjection, recursion, change::Change, iomap::ChainingProjectionIoMap)
 
 Thread one `Change` through the chain. Search the steps from last to first until
 one produces an operation (a change whose `operation !== nothing`), then walk
@@ -128,7 +128,7 @@ is produced as before. Only at the start of a read (`change.operation === nothin
 so a re-entrant thread is not re-overridden, and only with output stages present
 (`n ≥ 2`) since a single stage already handles its own gesture.
 """
-function projection_read(seq::SequentialProjection, recursion, change::Change, iomap::SequentialProjectionIoMap)
+function projection_read(seq::ChainingProjection, recursion, change::Change, iomap::ChainingProjectionIoMap)
     n = length(seq.projections)
     g = change.gesture
     if n >= 2 && g !== nothing && change.operation === nothing
@@ -151,13 +151,13 @@ end
 
 # 3-arg compatibility shim: legacy callers (tests, hit-test recursion) that pass a
 # bare event/operation get it wrapped into a Change and the operation back.
-projection_read(seq::SequentialProjection, iomap::SequentialProjectionIoMap, payload) =
+projection_read(seq::ChainingProjection, iomap::ChainingProjectionIoMap, payload) =
     projection_read(seq, nothing, Change(payload), iomap).operation
 
 # Where the reader threads one change through the chain, the collector gathers
 # every stage's gestures (each stage's own input document, plus projection-owned
 # gestures), so the help shows the union available across the whole pipeline.
-function collect_gestures(seq::SequentialProjection, recursion, iomap::SequentialProjectionIoMap)
+function collect_gestures(seq::ChainingProjection, recursion, iomap::ChainingProjectionIoMap)
     result = GestureBinding[]
     for (p, step) in zip(seq.projections, iomap.step_iomaps)
         append!(result, collect_gestures(p, recursion, step[]))
@@ -172,7 +172,7 @@ end
 # the final stage) resolves end-to-end through a Sequential — e.g. anchoring a
 # popup to a widget. A stage that drops the reference returns `nothing`, which
 # short-circuits.
-function map_reference_forward(::SequentialProjection, iomap, reference)
+function map_reference_forward(::ChainingProjection, iomap, reference)
     ref = reference
     for cell in iomap.step_iomaps
         ref === nothing && return nothing
@@ -182,7 +182,7 @@ function map_reference_forward(::SequentialProjection, iomap, reference)
     ref
 end
 
-function map_reference_backward(::SequentialProjection, iomap, reference)
+function map_reference_backward(::ChainingProjection, iomap, reference)
     return nothing
 end
 

@@ -1,5 +1,5 @@
 function test_tooltip()
-@testset "TooltipDecoratorProjection + WindowManagerProjection" begin
+@testset "TooltipDecoratorProjection + WindowManagingProjection" begin
 
 # Build a screen with one main window whose content is a TooltipSource
 # wrapping a PrimitiveNumber. The tooltip itself shows a PrimitiveString.
@@ -23,11 +23,11 @@ decorator = TooltipDecoratorProjection(
 
 projection = RecursiveProjection(
     TypeDispatchingProjection(
-        ScreenDocument => WindowManagerProjection(inner = ScreenToScreen()),
+        ScreenDocument => WindowManagingProjection(inner = ScreenToScreen()),
         WindowDocument => ScreenToScreen(),
         CellVector     => CopyingProjection(),
         TooltipSource  => decorator,
-        Any            => PreservingProjection(),
+        Any            => IdentityProjection(),
     ),
 )
 
@@ -96,11 +96,11 @@ deco = TooltipDecoratorProjection(
 )
 projection = RecursiveProjection(
     TypeDispatchingProjection(
-        ScreenDocument => WindowManagerProjection(inner=ScreenToScreen()),
+        ScreenDocument => WindowManagingProjection(inner=ScreenToScreen()),
         WindowDocument => ScreenToScreen(),
         CellVector     => CopyingProjection(),
         TooltipSource  => deco,
-        Any            => PreservingProjection(),
+        Any            => IdentityProjection(),
     ),
 )
 iomap = projection_print(projection, screen)
@@ -134,10 +134,10 @@ screen = ScreenDocument([main, popup])
 
 projection = RecursiveProjection(
     TypeDispatchingProjection(
-        ScreenDocument => WindowManagerProjection(inner=ScreenToScreen()),
+        ScreenDocument => WindowManagingProjection(inner=ScreenToScreen()),
         WindowDocument => ScreenToScreen(),
         CellVector     => CopyingProjection(),
-        Any            => PreservingProjection(),
+        Any            => IdentityProjection(),
     ),
 )
 iomap = projection_print(projection, screen)
@@ -173,10 +173,10 @@ screen = ScreenDocument([main, popup])
 
 projection = RecursiveProjection(
     TypeDispatchingProjection(
-        ScreenDocument => WindowManagerProjection(inner=ScreenToScreen()),
+        ScreenDocument => WindowManagingProjection(inner=ScreenToScreen()),
         WindowDocument => ScreenToScreen(),
         CellVector     => CopyingProjection(),
-        Any            => PreservingProjection(),
+        Any            => IdentityProjection(),
     ),
 )
 iomap = projection_print(projection, screen)

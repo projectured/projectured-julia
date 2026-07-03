@@ -1,5 +1,5 @@
 """
-    ReferenceDispatchingModule
+    ReferenceDispatchingProjectionModule
 
 A higher-order projection that selects an inner projection based on matching
 the current *reference path* argument against a list of known keys, with a
@@ -8,7 +8,7 @@ structurally (step values are read from their Cells). Complements
 PredicateDispatchingProjection for cases where the dispatch key is a concrete
 reference path.
 """
-module ReferenceDispatchingModule
+module ReferenceDispatchingProjectionModule
 
 import ..ProjectionApiModule: projection_print, projection_read, map_reference_forward, map_reference_backward, Projection
 import ..ChangeModule: Change
@@ -16,7 +16,7 @@ import ..ReferenceModule: ReferencePath, EmptyReferencePath, ConcreteReferencePa
                           FieldReference, RangeReference, PointReference, ProjectionReference,
                           head, tail, reference_equal, is_prefix_of
 import ..IoMapApiModule: IoMap
-export ReferenceDispatchingProjection, ReferenceDispatchingIoMap
+export ReferenceDispatchingProjection, ReferenceDispatchingProjectionIoMap
 
 """
     ReferenceDispatchingProjection(default, pairs...)
@@ -41,7 +41,7 @@ The function-based form takes a `reference -> Projection` callable, enabling
     rdp = ReferenceDispatchingProjection(ref -> @reference_case ref begin
         prefix(entries) => CopyingProjection()
         entries         => SortingProjection(by = x -> x.key)
-        _               => PreservingProjection()
+        _               => IdentityProjection()
     end)
 """
 struct ReferenceDispatchingProjection <: Projection
@@ -68,7 +68,7 @@ function _dispatch_proj(rdp::ReferenceDispatchingProjection, reference)
     return rdp.default
 end
 
-struct ReferenceDispatchingIoMap <: IoMap
+struct ReferenceDispatchingProjectionIoMap <: IoMap
     projection::ReferenceDispatchingProjection
     input::Any
     output::Any
@@ -79,23 +79,23 @@ end
 function projection_print(rdp::ReferenceDispatchingProjection, recursion, input, ctx)
     proj = _dispatch_proj(rdp, ctx.reference)
     inner = projection_print(proj, recursion, input, ctx)
-    ReferenceDispatchingIoMap(rdp, input, inner.output, ctx.reference, inner)
+    ReferenceDispatchingProjectionIoMap(rdp, input, inner.output, ctx.reference, inner)
 end
 
-function projection_read(rdp::ReferenceDispatchingProjection, recursion, change::Change, iomap::ReferenceDispatchingIoMap)
+function projection_read(rdp::ReferenceDispatchingProjection, recursion, change::Change, iomap::ReferenceDispatchingProjectionIoMap)
     proj = _dispatch_proj(rdp, iomap.reference)
     return projection_read(proj, recursion, change, iomap.inner_iomap)
 end
 
-projection_read(rdp::ReferenceDispatchingProjection, iomap::ReferenceDispatchingIoMap, payload) =
+projection_read(rdp::ReferenceDispatchingProjection, iomap::ReferenceDispatchingProjectionIoMap, payload) =
     projection_read(rdp, nothing, Change(payload), iomap).operation
 
-function map_reference_forward(::ReferenceDispatchingProjection, iomap::ReferenceDispatchingIoMap, reference)
+function map_reference_forward(::ReferenceDispatchingProjection, iomap::ReferenceDispatchingProjectionIoMap, reference)
     proj = _dispatch_proj(iomap.projection, iomap.reference)
     return map_reference_forward(proj, iomap.inner_iomap, reference)
 end
 
-function map_reference_backward(::ReferenceDispatchingProjection, iomap::ReferenceDispatchingIoMap, reference)
+function map_reference_backward(::ReferenceDispatchingProjection, iomap::ReferenceDispatchingProjectionIoMap, reference)
     proj = _dispatch_proj(iomap.projection, iomap.reference)
     return map_reference_backward(proj, iomap.inner_iomap, reference)
 end

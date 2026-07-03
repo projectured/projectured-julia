@@ -16,7 +16,7 @@ function test_sql_parser()
         end
 
         # ── helper: parse → Sql→Syntax→Text→String → normalize ───────
-        sql_pipe = SequentialProjection(
+        sql_pipe = ChainingProjection(
             RecursiveProjection(SqlToSyntax()),
             RecursiveProjection(SyntaxToText()),
             RecursiveProjection(TextToString()))

@@ -1,12 +1,12 @@
 """
-    TypeDispatchingModule
+    TypeDispatchingProjectionModule
 
 A higher-order projection that selects an inner projection based on the
 runtime type of the input document. Enables polymorphic pipelines (e.g.
 handling both JSON and XML in one pass) without scattering type-case logic
 across individual projection methods.
 """
-module TypeDispatchingModule
+module TypeDispatchingProjectionModule
 
 import ..ProjectionApiModule: projection_print, projection_read, map_reference_forward, map_reference_backward, Projection
 import ..ChangeModule: Change

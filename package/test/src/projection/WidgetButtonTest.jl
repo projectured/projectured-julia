@@ -18,7 +18,7 @@ function _canvas_has_image(canvas)
 end
 
 # The standard widget renderer used by the button examples.
-_proj() = SequentialProjection(
+_proj() = ChainingProjection(
     WidgetHoverTrackingProjection(inner = RecursiveProjection(TypeDispatchingProjection(
         WidgetToGraphics(_font; measure=_stub).dispatch))))
 
@@ -391,7 +391,7 @@ end
     _slot(op) = op.path.tail.head.start + 1
     # A renderer that dispatches both layout nodes and widget nodes (as the widget
     # examples do), wrapped in the hover tracker for the top-level Tab wrap-around.
-    lproj = SequentialProjection(WidgetHoverTrackingProjection(inner =
+    lproj = ChainingProjection(WidgetHoverTrackingProjection(inner =
         RecursiveProjection(TypeDispatchingProjection(vcat(
             LayoutToGraphics().dispatch,
             WidgetToGraphics(_font; measure=_stub).dispatch)))))

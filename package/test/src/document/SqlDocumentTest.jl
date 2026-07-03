@@ -5,7 +5,7 @@ using Projectured
 
 # Helper: run the Sql→Syntax→Text→String pipeline to produce a plain String.
 function _sql_text(doc)
-    pipe = SequentialProjection(
+    pipe = ChainingProjection(
         RecursiveProjection(SqlToSyntax()),
         RecursiveProjection(SyntaxToText()),
         RecursiveProjection(TextToString()))

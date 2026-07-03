@@ -10,26 +10,26 @@ There are twelve higher-order projections in ProjecturEd:
 
 | Projection | Selects by | Key file |
 |---|---|---|
-| `SequentialProjection` | order in a list | `Sequential.jl` |
+| `ChainingProjection` | order in a list | `Sequential.jl` |
 | `TypeDispatchingProjection` | `typeof(input)` | `TypeDispatching.jl` |
 | `PredicateDispatchingProjection` | `pred(input)` | `PredicateDispatching.jl` |
 | `ReferenceDispatchingProjection` | the `reference` argument | `ReferenceDispatching.jl` |
 | `RecursiveProjection` | identity — wraps a child and supplies *itself* as `recursion` | `Recursive.jl` |
-| `AlternativeProjection` | a reactive `Cell{Int}` index | `Alternative.jl` |
+| `SwitchingProjection` | a reactive `Cell{Int}` index | `Alternative.jl` |
 | `NestingProjection` | nests by element list, with recursion fallback | `Nesting.jl` |
-| `WindowManagerProjection` | passthrough printer; reader applies `OpenWindowOperation`/`CloseWindowOperation` to the `ScreenDocument` | `WindowManager.jl` |
+| `WindowManagingProjection` | passthrough printer; reader applies `OpenWindowOperation`/`CloseWindowOperation` to the `ScreenDocument` | `WindowManager.jl` |
 | `EnvelopeUnwrappingProjection` | passthrough printer; reader strips the `EventEnvelope` off the gesture for pipelines with no screen/window layer | `EnvelopeUnwrapping.jl` |
 | `TooltipDecoratorProjection` | dispatches on `TooltipSource`; reader runs a show/hide state machine | `TooltipDecorator.jl` |
 | `DraggingProjection` | dispatches on `DraggingState`; reader runs a press→drag→drop state machine emitting `MoveRangeOperation` | `Dragging.jl` |
 | `ProjectionConfiguringProjection` | extends the inner projection's output with an editable parameter-control bar | `ProjectionConfiguring.jl` |
 
-## SequentialProjection
+## ChainingProjection
 
 Pipelines projections left-to-right for the printer and right-to-left for the
 reader.
 
 ```julia
-SequentialProjection(
+ChainingProjection(
     JsonToSyntax(),
     SyntaxToText(),
     TextToGraphics(measure = ...),
@@ -37,7 +37,7 @@ SequentialProjection(
 ```
 
 `projection_print` threads the previous step's `iomap.output` as the next
-step's input and stores every step's iomap in `SequentialProjectionIoMap.step_iomaps`.
+step's input and stores every step's iomap in `ChainingProjectionIoMap.step_iomaps`.
 `projection_read` walks from the *last* step backward. If a step returns
 `nothing`, the reader keeps trying earlier steps until one accepts the event,
 then translates the result through the remaining earlier steps. This is what
@@ -86,7 +86,7 @@ ReferenceDispatchingProjection(
 ReferenceDispatchingProjection(ref -> @reference_case ref begin
     prefix(entries) => CopyingProjection()
     entries         => SortingProjection(by = e -> e.key)
-    _               => PreservingProjection()
+    _               => IdentityProjection()
 end)
 ```
 
@@ -122,11 +122,11 @@ half of [the recursion contract](projection-system.md#the-recursion-contract):
 descent rides the four core functions and never a fifth one (see also the recursion
 principle in [projection-system.md](projection-system.md#recursion-across-projections)).
 
-## AlternativeProjection
+## SwitchingProjection
 
 ```julia
 index = Cell(1)
-ap    = AlternativeProjection([JsonToSyntax(), XmlToSyntax()], index)
+ap    = SwitchingProjection([JsonToSyntax(), XmlToSyntax()], index)
 # later:
 ap.index[] = 2   # next print uses XmlToSyntax
 ```
@@ -139,7 +139,7 @@ mode-switching, e.g. between view-mode and edit-mode rendering.
 ## NestingProjection
 
 ```julia
-NestingProjection(outer, inner; recursion = PreservingProjection())
+NestingProjection(outer, inner; recursion = IdentityProjection())
 ```
 
 Applies the first element to the input, passing a new `NestingProjection`
@@ -154,9 +154,9 @@ and the *inherited* `recursion` passed in at print time. The **stored one wins**
 the inherited one is used only when none is stored
 (`effective = stored !== nothing ? stored : inherited`). This is exactly how
 `ApplyAtProjection(reference, projection)` preserves the target subtree's
-contents: it builds `NestingProjection(projection; recursion = PreservingProjection())`,
+contents: it builds `NestingProjection(projection; recursion = IdentityProjection())`,
 so once `projection` has run at the target, everything below is handed to the
-stored `PreservingProjection` rather than continuing down the outer pipeline.
+stored `IdentityProjection` rather than continuing down the outer pipeline.
 
 ## DraggingProjection
 
@@ -216,8 +216,8 @@ everything below." Internally it expands to:
 ```julia
 RecursiveProjection(ReferenceDispatchingProjection(ref -> @reference_case ref begin
     prefix(^(reference)) => CopyingProjection()
-    ^(reference)         => NestingProjection(projection; recursion = PreservingProjection())
-    _                    => PreservingProjection()
+    ^(reference)         => NestingProjection(projection; recursion = IdentityProjection())
+    _                    => IdentityProjection()
 end))
 ```
 
@@ -231,8 +231,8 @@ common case of sorting.
 | The Julia type of the input | `TypeDispatchingProjection` |
 | A predicate over the input | `PredicateDispatchingProjection` |
 | The location of the input in the document | `ReferenceDispatchingProjection` |
-| A reactive flag that changes at runtime | `AlternativeProjection` |
+| A reactive flag that changes at runtime | `SwitchingProjection` |
 | The shape of a recursive call | `RecursiveProjection` |
 | A "do X at path P, preserve elsewhere" pattern | `ApplyAtProjection` |
 
-All of these compose freely with `SequentialProjection`.
+All of these compose freely with `ChainingProjection`.

@@ -39,7 +39,7 @@ import ..IoMapModule: SimpleIoMap, ChildrenIoMap
 import ..OperationModule: ToggleCollapseOperation
 import ..ReactiveModule: Cell
 import ..CollectionModule: CellVector
-import ..TypeDispatchingModule: TypeDispatchingProjection
+import ..TypeDispatchingProjectionModule: TypeDispatchingProjection
 import ..PrinterContextModule: child_context
 
 export ConversationConversationToWidgetComposite,

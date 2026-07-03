@@ -7,7 +7,7 @@ function make_object_to_widget_projection_example(; measure=truetype_measure_tex
     font = font_ubuntu_monospace_regular_20
     fg   = (0x22, 0x22, 0x22, 0xff)
     w2g  = WidgetToGraphics(font; measure=measure)
-    SequentialProjection(
+    ChainingProjection(
         ObjectToWidget(style=StyleText(font, color_default)),
         # The form is a GridLayout of widgets, so the renderer dispatches layout
         # nodes to LayoutToGraphics, widgets to WidgetToGraphics, and the

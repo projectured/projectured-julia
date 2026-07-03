@@ -96,7 +96,7 @@ The full old → new mapping with reasoning is in the table at the end of this f
       `TimeModule` (the files keep their names — `editor/Playback.jl` and
       `editor/Time.jl` — the `editor/` folder already gives the context the
       `Live`/`Editor` prefixes were adding).
-- [ ] **Batch 2 — projection stem rule**: add `Projection` to the four
+- [x] **Batch 2 — projection stem rule** *(done)*: add `Projection` to the four
       higher-order module names and the two IoMap names; rename the stems
       that break the scheme or mislead (each covers file + module + type +
       iomap): `Invariably` → `Constant`, `Preserving` → `Identity`,

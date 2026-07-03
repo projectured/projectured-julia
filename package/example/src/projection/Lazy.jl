@@ -1,5 +1,5 @@
 function make_lazy_projection_example(; measure=truetype_measure_text)
-    SequentialProjection(
+    ChainingProjection(
         NestingProjection(CollectionToSyntax(), PrimitiveNumberToSyntaxLeaf()),
         RecursiveProjection(SyntaxToText()),
         TextToGraphics(measure=measure),
@@ -7,7 +7,7 @@ function make_lazy_projection_example(; measure=truetype_measure_text)
 end
 
 function make_lazy_bidirectional_projection_example(; measure=truetype_measure_text)
-    SequentialProjection(
+    ChainingProjection(
         NestingProjection(CollectionToSyntax(), PrimitiveNumberToSyntaxLeaf()),
         RecursiveProjection(SyntaxToText()),
         TextToGraphics(measure=measure),

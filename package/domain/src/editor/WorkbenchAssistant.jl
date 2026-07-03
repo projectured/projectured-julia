@@ -38,7 +38,7 @@ import ..JsonModule: JsonDocument
 import ..XmlModule: XmlDocument
 import ..YamlModule: YamlDocument
 import ..MarkdownModule: MarkdownDocument
-import ..SequentialProjectionModule: SequentialProjection
+import ..ChainingProjectionModule: ChainingProjection
 import ..RecursiveProjectionModule: RecursiveProjection
 import ..JuliaToSyntaxModule: JuliaToSyntax
 import ..JsonToSyntaxModule: JsonToSyntax
@@ -182,15 +182,15 @@ _content_to_string(d) = hasproperty(d, :name) ? String(d.name) : string(d)
 # flattening the resulting (possibly nested) TextText — the same rendering the
 # editor shows, so the LLM sees exactly the displayed source. Built once.
 
-const _JULIA_TO_TEXT = SequentialProjection(RecursiveProjection(JuliaToSyntax()),
+const _JULIA_TO_TEXT = ChainingProjection(RecursiveProjection(JuliaToSyntax()),
                                             RecursiveProjection(SyntaxToText()))
-const _JSON_TO_TEXT  = SequentialProjection(RecursiveProjection(JsonToSyntax()),
+const _JSON_TO_TEXT  = ChainingProjection(RecursiveProjection(JsonToSyntax()),
                                             RecursiveProjection(SyntaxToText()))
-const _XML_TO_TEXT   = SequentialProjection(RecursiveProjection(XmlToSyntax()),
+const _XML_TO_TEXT   = ChainingProjection(RecursiveProjection(XmlToSyntax()),
                                             RecursiveProjection(SyntaxToText()))
-const _YAML_TO_TEXT  = SequentialProjection(RecursiveProjection(YamlToSyntax()),
+const _YAML_TO_TEXT  = ChainingProjection(RecursiveProjection(YamlToSyntax()),
                                             RecursiveProjection(SyntaxToText()))
-const _MARKDOWN_TO_TEXT = SequentialProjection(RecursiveProjection(MarkdownToSyntax()),
+const _MARKDOWN_TO_TEXT = ChainingProjection(RecursiveProjection(MarkdownToSyntax()),
                                                RecursiveProjection(SyntaxToText()))
 
 _flatten_text!(io, s::TextString) = (c = s.content; c isa AbstractString && print(io, c); nothing)

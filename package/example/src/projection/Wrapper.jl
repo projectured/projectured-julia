@@ -1,5 +1,5 @@
 function make_graphics_caching(projection; render=render_canvas)
-    SequentialProjection(projection, RecursiveProjection(GraphicsCaching(render=render)))
+    ChainingProjection(projection, RecursiveProjection(GraphicsCaching(render=render)))
 end
 
 function make_scrolling_projection(projection; measure=truetype_measure_text,
@@ -14,7 +14,7 @@ function make_introspection_projection(projection; measure=truetype_measure_text
     font = font_ubuntu_monospace_regular_20
     fg   = (0xee, 0xee, 0xee, 0xff)
     w2g  = WidgetToGraphics(font; measure=measure)
-    object_chain = SequentialProjection(
+    object_chain = ChainingProjection(
         RecursiveProjection(ObjectToSyntax()),
         RecursiveProjection(SyntaxToText()),
         WordWrapping(measure=measure),
@@ -29,18 +29,18 @@ function make_introspection_projection(projection; measure=truetype_measure_text
         w2g.dispatch,
         Pair{DataType,Any}[
             EditorIntrospection => object_chain,
-            Any                 => NestingProjection(projection; recursion=PreservingProjection()),
+            Any                 => NestingProjection(projection; recursion=IdentityProjection()),
         ],
     )))
 end
 
 # Stack the clipboard projection on top of an arbitrary example projection, as a
-# two-stage SequentialProjection (mirroring the hand-written
+# two-stage ChainingProjection (mirroring the hand-written
 # `make_clipboard_projection_example`, but domain-generic):
 #
 #   stage 1: the clipboard dispatcher exposes the *active child document* (the
 #            wrapped content, or the stored slice once toggled) unchanged — its `Any`
-#            branch is a PreservingProjection, so the recursion just hands the child
+#            branch is a IdentityProjection, so the recursion just hands the child
 #            document back.
 #   stage 2: the example's own projection (isolated in a NestingProjection) renders
 #            that document all the way to graphics.
@@ -48,7 +48,7 @@ end
 # Why not collapse to a single RecursiveProjection that renders to graphics inside
 # the clipboard's `Any` branch? Because `ClipboardSliceToAnyProjection.output` is a
 # reactive `Cell` (it has to be, so the display toggle propagates without dropping
-# `editor.iomap`). A SequentialProjection de-references a stage's cell-valued output
+# `editor.iomap`). A ChainingProjection de-references a stage's cell-valued output
 # before feeding the next stage, but the *last* stage's output is returned raw — so a
 # clipboard projection used as the outermost stage would leak a `Cell` to the
 # backend (which expects a `GraphicsCanvas`). Keeping the example projection as a
@@ -65,12 +65,12 @@ function make_clipboard_projection(projection; collection=false,
     clip = collection ?
         ClipboardCollectionToAnyProjection() :
         ClipboardSliceToAnyProjection(; to_text=to_text, from_text=from_text, text=text)
-    SequentialProjection(
+    ChainingProjection(
         RecursiveProjection(TypeDispatchingProjection(Pair{DataType,Any}[
             (collection ? ClipboardCollection : ClipboardSlice) => clip,
-            Any => PreservingProjection(),
+            Any => IdentityProjection(),
         ])),
-        NestingProjection(projection; recursion=PreservingProjection()),
+        NestingProjection(projection; recursion=IdentityProjection()),
     )
 end
 
@@ -91,7 +91,7 @@ function make_text_configuring_projection(inner_text_projection;
             TextText => TextToGraphics(measure=measure),
         ],
     )))
-    SequentialProjection(
+    ChainingProjection(
         ProjectionConfiguringProjection(inner=inner_text_projection),
         renderer,
     )
@@ -99,19 +99,19 @@ end
 
 function make_workbench_projection(; measure=truetype_measure_text,
                                    content_projections=Pair{DataType,Any}[
-                                       JsonDocument         => SequentialProjection(RecursiveProjection(JsonToSyntax()), RecursiveProjection(SyntaxToText()), WordWrapping(measure=measure), TextToGraphics(measure=measure)),
-                                       XmlDocument          => SequentialProjection(RecursiveProjection(XmlToSyntax()), RecursiveProjection(SyntaxToText()), WordWrapping(measure=measure), TextToGraphics(measure=measure)),
+                                       JsonDocument         => ChainingProjection(RecursiveProjection(JsonToSyntax()), RecursiveProjection(SyntaxToText()), WordWrapping(measure=measure), TextToGraphics(measure=measure)),
+                                       XmlDocument          => ChainingProjection(RecursiveProjection(XmlToSyntax()), RecursiveProjection(SyntaxToText()), WordWrapping(measure=measure), TextToGraphics(measure=measure)),
                                        JuliaDocument        => make_julia_projection_example(measure=measure),
                                        SqlDocument          => make_sql_syntax_projection_example(measure=measure),
-                                       TextDocument         => SequentialProjection(WordWrapping(measure=measure), TextToGraphics(measure=measure)),
+                                       TextDocument         => ChainingProjection(WordWrapping(measure=measure), TextToGraphics(measure=measure)),
                                        # Navigator: render the workspace file system as a native WidgetTree
                                        # (icons, chevrons, selection band) — `Workspace → FileSystem →
                                        # WidgetTree → Graphics` — instead of the generic object projection.
-                                       WorkspaceDocument    => SequentialProjection(RecursiveProjection(WorkspaceToFileSystem()), RecursiveProjection(FileSystemToWidget()), WidgetToGraphics(font_ubuntu_monospace_regular_20; measure=measure)),
+                                       WorkspaceDocument    => ChainingProjection(RecursiveProjection(WorkspaceToFileSystem()), RecursiveProjection(FileSystemToWidget()), WidgetToGraphics(font_ubuntu_monospace_regular_20; measure=measure)),
                                        # Assistant panel: composer input + widget chat history.
                                        conversation_draft_entry(measure=measure),
                                        conversation_widget_entry(measure=measure),
-                                       PrimitiveDocument    => SequentialProjection(RecursiveProjection(PrimitiveToSyntax()), RecursiveProjection(SyntaxToText()), WordWrapping(measure=measure), TextToGraphics(measure=measure)),
+                                       PrimitiveDocument    => ChainingProjection(RecursiveProjection(PrimitiveToSyntax()), RecursiveProjection(SyntaxToText()), WordWrapping(measure=measure), TextToGraphics(measure=measure)),
                                    ])
     # `NaturalToGraphics` provides the widget/layout/Any rendering; the caller's
     # `content_projections` are passed as `extra` (matched first, so they win).
@@ -120,7 +120,7 @@ function make_workbench_projection(; measure=truetype_measure_text,
     # only delivers a MouseMove to the child under the pointer, so the tracker is
     # what synthesises the MouseEnter/MouseLeave crossings (cf.
     # make_workbench_projection_example / make_widget_projection_example).
-    WidgetHoverTrackingProjection(inner = SequentialProjection(
+    WidgetHoverTrackingProjection(inner = ChainingProjection(
         RecursiveProjection(WorkbenchToWidget()),
         NaturalToGraphics(measure=measure, extra=content_projections),
     ))

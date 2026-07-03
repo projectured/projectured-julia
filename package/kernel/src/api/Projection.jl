@@ -78,7 +78,7 @@ domain into its output domain. Returns an `IoMap` recording `projection`,
 `input`, `output`, and whatever the reader and the reference maps need to
 invert the transformation — crucially the **child IoMaps** when the projection
 recurses. Each concrete projection adds a method; compound projections such as
-`SequentialProjection` compose arbitrary projections purely via this dispatch.
+`ChainingProjection` compose arbitrary projections purely via this dispatch.
 
 # Arguments
 - `recursion` — the projection to invoke when descending into a child. A leaf
@@ -174,7 +174,7 @@ compound projections that thread the change to children override the 4-arg form.
 
 The editor hands the raw device event (key press, mouse click) to the
 **top-level** projection's `projection_read`; from there, routing is entirely
-up to each projection. A `SequentialProjection` forwards the event down its
+up to each projection. A `ChainingProjection` forwards the event down its
 chain and threads the operation that comes back up through each earlier step,
 translating it one domain closer to the input at every step. A different
 projection might instead dispatch the event to the sub-projection of one of its
@@ -251,7 +251,7 @@ its docstring), so getting it right gives the forward cursor mapping for free.
   one that triggered it).
 - **Do not add a parallel "resolve position" generic.** Because forward mapping
   is this *single* recursive map method, every compositional wrapper
-  (`SequentialProjection`, `RecursiveProjection`, `TypeDispatchingProjection`, …)
+  (`ChainingProjection`, `RecursiveProjection`, `TypeDispatchingProjection`, …)
   already threads or composes it for free. A second generic for coordinate
   resolution would force each of those wrappers to re-implement the same
   composition. Reuse `map_reference_forward` instead: a projection takes part

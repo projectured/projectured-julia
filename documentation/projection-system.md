@@ -169,7 +169,7 @@ re-mapped, gesture preserved), or a nothing-change if it has nothing to say.
 
 The editor hands the raw device event to the **top-level** projection's
 `projection_read`; routing from there is up to each projection. A
-`SequentialProjection` forwards the change down its chain and threads the
+`ChainingProjection` forwards the change down its chain and threads the
 operation that comes back up through each earlier step; a routing projection
 instead dispatches it to the sub-projection of the relevant document part.
 
@@ -370,7 +370,7 @@ Every IoMap has a `projection`, `input`, and `output` field. Common shapes:
 | `ContentIoMap` | Wraps a single inner projection |
 | `{Name}IoMap` | Specialised — each non-trivial projection defines its own |
 
-`SequentialProjectionIoMap` stores `step_iomaps::Vector{Any}` so the reader can
+`ChainingProjectionIoMap` stores `step_iomaps::Vector{Any}` so the reader can
 walk the pipeline backward. `TextToGraphicsIoMap` carries a
 `char_to_coord::Cell` so the reader can binary-search a click position back to
 a character offset.
@@ -388,8 +388,8 @@ rows are representative (every domain adds its own `*To*` projection).
 |---|---|---|
 | **Domain-to-domain** | `JsonToSyntax`, `SyntaxToText`, `TextToGraphics`, `WidgetToGraphics`, `WorkbenchToWidget`, `XmlToSyntax`, `ObjectToSyntax`, `BookToSyntax`, `JuliaToSyntax`, `MathToSyntax`, `FileSystemToSyntax`, `TableToGraphics`, `PrimitiveToSyntax`, `CollectionToSyntax`, … | Translate between two distinct domains |
 | **Domain-preserving** | `WordWrapping`, `LineNumbering`, `TextHighlighting`, `TextFiltering`, `GraphicsCaching`, `ScreenToScreen`, … | Same domain in and out (`ScreenToScreen` is the screen-domain projection — see [the screen pipeline](#the-screen-pipeline)) |
-| **Generic (domain-independent)** | `CopyingProjection`, `SortingProjection`, `ReversingProjection`, `FilteringProjection`, `SearchingProjection`, `FocusingProjection`, `PreservingProjection`, `InvariablyProjection`, `ObjectToWidget` | Operate on any input domain *by structure, not by type* (the 9 in `generic/`). Most also preserve the domain; `ObjectToWidget` is input-independent but produces widgets |
-| **Higher-order** | `SequentialProjection`, `TypeDispatchingProjection`, `PredicateDispatchingProjection`, `ReferenceDispatchingProjection`, `RecursiveProjection`, `AlternativeProjection`, `NestingProjection`, `WindowManagerProjection`, `TooltipDecoratorProjection`, `ProjectionConfiguringProjection` | Compose other projections (the 10 in `higherorder/`) |
+| **Generic (domain-independent)** | `CopyingProjection`, `SortingProjection`, `ReversingProjection`, `FilteringProjection`, `SearchingProjection`, `FocusingProjection`, `IdentityProjection`, `ConstantProjection`, `ObjectToWidget` | Operate on any input domain *by structure, not by type* (the 9 in `generic/`). Most also preserve the domain; `ObjectToWidget` is input-independent but produces widgets |
+| **Higher-order** | `ChainingProjection`, `TypeDispatchingProjection`, `PredicateDispatchingProjection`, `ReferenceDispatchingProjection`, `RecursiveProjection`, `SwitchingProjection`, `NestingProjection`, `WindowManagingProjection`, `TooltipDecoratorProjection`, `ProjectionConfiguringProjection` | Compose other projections (the 10 in `higherorder/`) |
 | **Compound** | `ApplyAtProjection`, `SortingAtProjection` | Convenience combinators built from higher-order primitives |
 
 See [higher-order projections](higher-order-projections.md) and
@@ -717,12 +717,12 @@ each:
   to that window's content reader, and prepends the `windows[i].content` steps
   to the operation that comes back. The window-content reference is
   `windows[i].content` (the i-th window is an `ElementReference`).
-- **`WindowManagerProjection`** wraps `ScreenToScreen` (`inner = ScreenToScreen()`)
+- **`WindowManagingProjection`** wraps `ScreenToScreen` (`inner = ScreenToScreen()`)
   and owns window-management *operations* — it intercepts
   `OpenWindowOperation` / `CloseWindowOperation` / resize bubbling up and applies
   them to both the input and the projected output.
 
 `CopyingProjection` is deliberately **not** involved: it is generic and knows
 nothing about screens. Keeping the screen-structural concern in `ScreenToScreen`
-and the operation-interception concern in `WindowManagerProjection` is why each
+and the operation-interception concern in `WindowManagingProjection` is why each
 has a single reason to change.

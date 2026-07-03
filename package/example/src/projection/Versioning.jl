@@ -11,7 +11,7 @@
 #   Ctrl+Shift+S   snapshot the active value into a new (front) ObjectVersion
 #   Ctrl+Delete    delete the active version
 function make_versioning_projection_example(; measure=truetype_measure_text)
-    SequentialProjection(
+    ChainingProjection(
         RecursiveProjection(TypeDispatchingProjection(
             VersionedObject => VersioningToAnyProjection(),
             JsonNull        => JsonNullToSyntaxLeaf(),

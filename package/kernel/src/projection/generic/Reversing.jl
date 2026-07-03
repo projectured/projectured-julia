@@ -12,7 +12,7 @@ import ..ReactiveModule: Cell
 import ..ReferenceModule: ConcreteReferencePath, ElementReference, PositionReference, RangeReference, append_reference
 import ..ReferenceCaseModule: var"@reference_case"
 import ..PrinterContextModule: child_context
-import ..PreservingProjectionModule: PreservingProjection
+import ..IdentityProjectionModule: IdentityProjection
 export ReversingProjection
 
 """
@@ -28,7 +28,7 @@ A generic projection that reverses the order of elements in the input collection
 struct ReversingProjection <: Projection end
 
 function projection_print(p::ReversingProjection, recursion, input, ctx)
-    recursion = something(recursion, PreservingProjection())
+    recursion = something(recursion, IdentityProjection())
     child_iomaps = Cell(() -> [
         projection_printer_recurse(recursion, input[i],
             child_context(ctx, ElementReference(i)))

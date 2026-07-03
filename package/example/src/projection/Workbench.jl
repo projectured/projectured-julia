@@ -8,8 +8,8 @@ function make_workbench_projection_example(; measure=truetype_measure_text)
     fg   = StyleColor(0x22/255, 0x22/255, 0x22/255, 1.0)
     # Dimmed gray for the empty assistant-input "type message here" placeholder.
     hint = StyleColor(0x88/255, 0x88/255, 0x88/255, 1.0)
-    text_to_graphics = SequentialProjection(WordWrapping(measure=measure), TextToGraphics(measure=measure))
-    object_chain = SequentialProjection(
+    text_to_graphics = ChainingProjection(WordWrapping(measure=measure), TextToGraphics(measure=measure))
+    object_chain = ChainingProjection(
         RecursiveProjection(ObjectToSyntax()),
         RecursiveProjection(SyntaxToText()),
         text_to_graphics,
@@ -19,7 +19,7 @@ function make_workbench_projection_example(; measure=truetype_measure_text)
     # context-specific overrides. `extra` is matched first, so these win:
     renderer = NaturalToGraphics(measure=measure, font=font, extra=Pair{Type,Any}[
         # Book is prose-like → word-wrapped (the generic syntax path is no-wrap).
-        BookDocument          => SequentialProjection(RecursiveProjection(BookToSyntax()), RecursiveProjection(SyntaxToText()), text_to_graphics),
+        BookDocument          => ChainingProjection(RecursiveProjection(BookToSyntax()), RecursiveProjection(SyntaxToText()), text_to_graphics),
         JuliaDocument         => make_julia_projection_example(measure=measure),
         # Lazy/possibly-infinite list — must use the lazy projection, not the
         # generic collection-as-stack.
@@ -28,7 +28,7 @@ function make_workbench_projection_example(; measure=truetype_measure_text)
         CellVector            => make_collection_projection_example(measure=measure),
         # Assistant input → text directly (no SyntaxLeaf → no quotes), with a
         # pale "type message here" hint when empty.
-        PrimitiveDocument     => SequentialProjection(RecursiveProjection(PrimitiveToText(string_kw=(style=StyleText(font_ubuntu_monospace_regular_20, fg), placeholder="type message here", placeholder_style=StyleText(font_ubuntu_monospace_regular_20, hint)))), text_to_graphics),
+        PrimitiveDocument     => ChainingProjection(RecursiveProjection(PrimitiveToText(string_kw=(style=StyleText(font_ubuntu_monospace_regular_20, fg), placeholder="type message here", placeholder_style=StyleText(font_ubuntu_monospace_regular_20, hint)))), text_to_graphics),
         # Assistant panel: composer input (draft) + widget chat-bubble history.
         # ConversationDraft precedes ConversationDocument (its subtype).
         conversation_draft_entry(measure=measure),
@@ -37,7 +37,7 @@ function make_workbench_projection_example(; measure=truetype_measure_text)
         # (icons, chevrons, selection band) — `Workspace → FileSystem →
         # WidgetTree → Graphics` — matching the real workbench projection
         # (make_workbench_projection) instead of the generic text tree.
-        WorkspaceDocument     => SequentialProjection(RecursiveProjection(WorkspaceToFileSystem()), RecursiveProjection(FileSystemToWidget()), WidgetToGraphics(font_ubuntu_monospace_regular_20; measure=measure)),
+        WorkspaceDocument     => ChainingProjection(RecursiveProjection(WorkspaceToFileSystem()), RecursiveProjection(FileSystemToWidget()), WidgetToGraphics(font_ubuntu_monospace_regular_20; measure=measure)),
         EditorIntrospection   => object_chain,
     ])
     # Wrap in the hover tracker so a hovered widget (e.g. a navigator tree row)
@@ -47,5 +47,5 @@ function make_workbench_projection_example(; measure=truetype_measure_text)
     # MouseEnter/MouseLeave crossings the widgets react to (cf.
     # make_widget_projection_example).
     WidgetHoverTrackingProjection(inner =
-        SequentialProjection(RecursiveProjection(WorkbenchToWidget()), renderer))
+        ChainingProjection(RecursiveProjection(WorkbenchToWidget()), renderer))
 end

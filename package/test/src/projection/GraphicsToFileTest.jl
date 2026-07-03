@@ -26,7 +26,7 @@ end
     filename = tempname() * ".bmp"
     # GraphicsCanvasToImageFile is exported by the Sdl package, which the
     # test module opts into via `using ProjecturedSdl`.
-    proj = SequentialProjection(
+    proj = ChainingProjection(
         make_graphics_image_projection_example(),
         GraphicsCanvasToImageFile(filename; width=400, height=300),
     )

@@ -7,7 +7,7 @@ bidirectionally — without the caller hand-assembling a per-context dispatch
 table.
 
 It is built entirely from existing, already-bidirectional projections
-(`TypeDispatchingProjection`, `RecursiveProjection`, `SequentialProjection`, and
+(`TypeDispatchingProjection`, `RecursiveProjection`, `ChainingProjection`, and
 the per-domain `*ToSyntax` / `*ToGraphics` projections), so it inherits the
 printer, the reader, and both reference maps for free — there are no new
 `projection_print` / `projection_read` / `map_reference_*` methods here.
@@ -60,9 +60,9 @@ edge case.
 module NaturalProjectionModule
 
 import ..FontModule: font_ubuntu_monospace_regular_20
-import ..TypeDispatchingModule: TypeDispatchingProjection
+import ..TypeDispatchingProjectionModule: TypeDispatchingProjection
 import ..RecursiveProjectionModule: RecursiveProjection
-import ..SequentialProjectionModule: SequentialProjection
+import ..ChainingProjectionModule: ChainingProjection
 import ..WidgetToGraphicsModule: WidgetToGraphics
 import ..LayoutToGraphicsModule: LayoutToGraphics, VerticalLayoutToGraphicsCanvas
 import ..CollectionToLayoutModule: CellVectorToVerticalLayout
@@ -141,12 +141,12 @@ function NaturalToGraphics(; measure::Function,
 
     # Prose: optionally word-wrapped. Structured syntax/code: never wrapped.
     prose_chain = wrap ?
-        SequentialProjection(WordWrapping(measure = measure), TextToGraphics(measure = measure)) :
+        ChainingProjection(WordWrapping(measure = measure), TextToGraphics(measure = measure)) :
         TextToGraphics(measure = measure)
 
     # The shared element-recursion fabric (mixed domains + collections), then the
     # Syntax→Text→Graphics tail.
-    syntax_to_graphics = SequentialProjection(
+    syntax_to_graphics = ChainingProjection(
         RecursiveProjection(TypeDispatchingProjection(natural_to_syntax_dispatch())),
         RecursiveProjection(SyntaxToText()),
         TextToGraphics(measure = measure),
@@ -161,7 +161,7 @@ function NaturalToGraphics(; measure::Function,
             # A collection renders as a stack of independent graphics blocks: each
             # element re-enters this renderer in its own domain (prose→prose,
             # JSON→JSON, widget→widget), instead of collapsing to one syntax tree.
-            CellVector   => SequentialProjection(CellVectorToVerticalLayout(),
+            CellVector   => ChainingProjection(CellVectorToVerticalLayout(),
                                                  VerticalLayoutToGraphicsCanvas()),
             Any          => syntax_to_graphics,
         ],

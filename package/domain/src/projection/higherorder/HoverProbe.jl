@@ -14,7 +14,7 @@ feeding a synthetic `MousePress(:left, x, y)` to the **inner** reader — the
 exact path a real click would take — and reads the would-be
 `ReplaceSelectionOperation.path` without committing it. It then drives a
 follower window (id `id`, `:tooltip` style) via `OpenWindowOperation` /
-`CloseWindowOperation`, which `WindowManagerProjection` applies:
+`CloseWindowOperation`, which `WindowManagingProjection` applies:
 
 - over a clickable glyph → `OpenWindowOperation` carrying a
   `ReferenceInspector(reference, target)` as content, positioned near the

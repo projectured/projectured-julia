@@ -23,7 +23,7 @@ import ..WorkspaceModule: WorkspaceDocument, Workspace, WorkspaceFolder
 import ..FileSystemModule: FileSystemDocument, FileSystemFile, FileSystemDirectory, make_filesystem_pathname
 import ..IoMapModule: SimpleIoMap, ChildrenIoMap
 import ..IoMapApiModule: IoMap
-import ..TypeDispatchingModule: TypeDispatchingProjection
+import ..TypeDispatchingProjectionModule: TypeDispatchingProjection
 import ..ReferenceModule: ConcreteReferencePath, ElementReference, FieldReference
 import ..PrinterContextModule: child_context
 export WorkspaceFolderToFileSystemDirectory, WorkspaceToFileSystem
@@ -48,7 +48,7 @@ end
 
 # Identity on references: this projection renames no reference steps, so an
 # operation threaded back from below passes through unchanged. But it must NOT
-# pass a *raw gesture* through as if it were an operation — the SequentialProjection
+# pass a *raw gesture* through as if it were an operation — the ChainingProjection
 # reader gives the input-domain stage first say on the bare gesture, and returning
 # the gesture there would short-circuit the whole read with a non-operation
 # "operation" (the navigator's clicks/hover/collapse all die that way). Decline

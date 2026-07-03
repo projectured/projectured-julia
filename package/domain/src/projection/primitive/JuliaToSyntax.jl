@@ -33,7 +33,7 @@ import ..ColorModule: StyleColor, color_default, color_solarized_blue, color_sol
                       color_solarized_violet
 import ..StyleTextModule: StyleText
 import ..SyntaxModule: SyntaxLeaf, SyntaxNode
-import ..TypeDispatchingModule: TypeDispatchingProjection
+import ..TypeDispatchingProjectionModule: TypeDispatchingProjection
 import ..DocumentInsertionToSyntaxModule: JuliaInsertionToSyntaxLeaf
 import ..ProjectionTemplateModule: var"@projection_template", project, collection
 export JuliaIdentifierToSyntaxLeaf, JuliaIntegerToSyntaxLeaf,

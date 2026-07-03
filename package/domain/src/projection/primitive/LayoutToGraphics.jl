@@ -41,7 +41,7 @@ import ..KeyboardModule: KeyDown
 # Focus-path helpers live in the document-layer WidgetModule, included before this
 # module, so layout containers can share Tab traversal with the widget readers.
 import ..WidgetModule: first_focusable_path, last_focusable_path, _next_focusable_in
-import ..TypeDispatchingModule: TypeDispatchingProjection
+import ..TypeDispatchingProjectionModule: TypeDispatchingProjection
 import ..ReferenceBuilderModule: var"@reference"
 import ..PrinterContextModule: child_context, with_available_size
 export HorizontalLayoutToGraphicsCanvas, VerticalLayoutToGraphicsCanvas,

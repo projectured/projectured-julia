@@ -126,7 +126,7 @@ end
     item = WidgetMenuItem("File"; submenu = submenu)
     # Mirror the real pipeline (as WidgetSelectTest does): the resolver wraps the
     # content projection, isolated through a NestingProjection.
-    inner = NestingProjection(proj; recursion = PreservingProjection())
+    inner = NestingProjection(proj; recursion = IdentityProjection())
     resolver = WidgetPopupResolverProjection(inner = inner)
     rio = projection_print(resolver, item)
 

@@ -12,7 +12,7 @@ import ..ProjectionApiModule: projection_print, projection_printer_recurse, proj
 import ..TextModule: TextText, TextDocument, TextString, TextNewline
 import ..ReactiveModule: Cell
 import ..IoMapModule: SimpleIoMap
-import ..TypeDispatchingModule: TypeDispatchingProjection
+import ..TypeDispatchingProjectionModule: TypeDispatchingProjection
 import ..ReferenceModule: ConcreteReferencePath, ElementReference, PositionReference, RangeReference, FieldReference, EmptyReferencePath, append_reference
 import ..PrinterContextModule: child_context
 export TextTextToString, TextStringToString, TextNewlineToString, TextToString

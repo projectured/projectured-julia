@@ -8,7 +8,7 @@ function make_sql_table_projection_example(; measure=truetype_measure_text,
                                              instance=make_database_instance_document_example())
     # The query result cells are JSON documents; render them like the table example.
     w2g  = WidgetToGraphics(font_ubuntu_regular_20; measure=measure)
-    json = SequentialProjection(
+    json = ChainingProjection(
         RecursiveProjection(JsonToSyntax()),
         RecursiveProjection(SyntaxToText()),
         TextToGraphics(measure=measure),
@@ -18,7 +18,7 @@ function make_sql_table_projection_example(; measure=truetype_measure_text,
         w2g.dispatch,
         Pair{Type,Any}[JsonDocument => json],
     )))
-    SequentialProjection(
+    ChainingProjection(
         # SqlSelectStatement → CellTable (executes against the instance via the pool)
         SqlToCellTable(pool, instance),
         # CellTable → WidgetTable

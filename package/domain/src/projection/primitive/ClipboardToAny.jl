@@ -22,7 +22,7 @@ delegate through the stored child IoMap, never re-walk by document type).
 
 The display flag is a `Cell`, and each projection's `output` is a derived cell over
 it. Flipping the flag is a plain reactive cell write: the reactive
-`SequentialProjection` re-pulls the changed output and re-prints only the downstream
+`ChainingProjection` re-pulls the changed output and re-prints only the downstream
 stages, so the view switches with **no `editor.iomap` drop**. (Earlier this swap
 required nulling `editor.iomap`; reactive composition makes that unnecessary.)
 
@@ -139,7 +139,7 @@ function projection_print(p::ClipboardSliceToAnyProjection, recursion, input::Cl
             child_context(ctx, FieldReference("slice"))) : nothing
     # Reactive output: a derived cell over the display flag (the projection stays
     # domain-generic — it still exposes the active child directly). The reactive
-    # SequentialProjection re-pulls this through its own per-stage cells, so
+    # ChainingProjection re-pulls this through its own per-stage cells, so
     # flipping `display_slice` switches the exposed child with no `editor.iomap`
     # drop — only the downstream stages re-print.
     output = Cell(() -> (p.display_slice[] && slice_iomap !== nothing) ?
@@ -155,7 +155,7 @@ function projection_print(p::ClipboardCollectionToAnyProjection, recursion, inpu
                           child_context(ctx, FieldReference("elements"), ElementReference(i)))
                       for i in 1:length(elements)]
     # Reactive output (see the slice printer): a derived cell over the display flag,
-    # re-pulled by the reactive SequentialProjection — no `editor.iomap` drop.
+    # re-pulled by the reactive ChainingProjection — no `editor.iomap` drop.
     output = Cell(() -> p.display_collection[] ?
         CellVector(Cell[Cell(im.output) for im in element_iomaps]) :
         content_iomap.output)
@@ -241,7 +241,7 @@ end
 Flip the `display_slice` `Cell` of a `ClipboardSliceToAnyProjection`, swapping the
 output between the wrapped content and the stored slice. This is a plain reactive
 cell write: the projection's derived `output` cell re-derives and the reactive
-`SequentialProjection` re-pulls it downstream — no `editor.iomap` drop.
+`ChainingProjection` re-pulls it downstream — no `editor.iomap` drop.
 """
 struct ToggleClipboardSliceDisplayOperation <: Operation
     projection::ClipboardSliceToAnyProjection

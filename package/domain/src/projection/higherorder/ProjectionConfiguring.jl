@@ -22,7 +22,7 @@ The reader routes backward-flowing changes three ways:
 Because the control edits the *same* parameter `Cell`s the inner projection
 reads inside its reactive thunks, configuring re-projects the document live.
 
-Reader-routing model mirrors `WindowManagerProjection`: intercept the changes
+Reader-routing model mirrors `WindowManagingProjection`: intercept the changes
 this projection owns, delegate the rest.
 """
 module ProjectionConfiguringProjectionModule

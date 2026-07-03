@@ -14,13 +14,13 @@ browsing tools below. Do not guess names — search for them.
 | Reactive cell | `Cell`, `setfn!`, `getfield` (escape hatch), `perf_counters` | `reactive-cells` |
 | Macros | `@document`, `@projection`, `@iomap` | `macros` |
 | Projection (interface) | `Projection`, `projection_print`, `projection_read`, `map_reference_forward`, `map_reference_backward`, `PrinterContext`, `IoMap`/`SimpleIoMap`/`ChildrenIoMap` | `projection-system` |
-| Projection composition | `SequentialProjection`, `RecursiveProjection`, `TypeDispatchingProjection`, `NestingProjection`, `AlternativeProjection`; generic: `CopyingProjection`, `SortingProjection`, `FilteringProjection`, `FocusingProjection` | `higher-order-projections`, `generic-projections` |
+| Projection composition | `ChainingProjection`, `RecursiveProjection`, `TypeDispatchingProjection`, `NestingProjection`, `SwitchingProjection`; generic: `CopyingProjection`, `SortingProjection`, `FilteringProjection`, `FocusingProjection` | `higher-order-projections`, `generic-projections` |
 | Reference | `ReferencePath`, `EmptyReferencePath`, `ConcreteReferencePath`; steps `FieldReference`, `RangeReference` (`ElementReference`/`PositionReference`), `ProjectionReference`, `TypeReference`; DSL `@reference`, `@reference_case`; `evaluate_reference` | `editor/reference` |
 | Selection | `set_selection!`, `clear_selection!`, `replace_selection!` | `editor/selection`, `selection-deep-dive` |
 | Search (by content) | `search_references`, `search_objects`, `print_object` (search a document **or an iomap** — the whole pipeline) | `editor/finding-and-selecting`, `debugging` |
 | Operation | `Operation`, `evaluate_operation`, `ReplaceSelectionOperation`, `ReplaceReferencedValue` (+ `replace_document` / `insert_elements` / `delete_elements`), `StringReplaceRangeOperation`, `CompoundOperation` | `operations` |
 | Editor & loop | `Editor`, `run!`, `read!`/`evaluate!`/`print!`, `McpServer`, `execute_julia_code` | `editor` |
-| Screen / workbench | `ScreenDocument` → `WindowDocument` → `WorkbenchWorkbench` → `WorkbenchPage` → `WorkbenchEditor`; `ScreenToScreen`, `WindowManagerProjection` | `document/workbench`, `editor` |
+| Screen / workbench | `ScreenDocument` → `WindowDocument` → `WorkbenchWorkbench` → `WorkbenchPage` → `WorkbenchEditor`; `ScreenToScreen`, `WindowManagingProjection` | `document/workbench`, `editor` |
 | Backends / devices | `Backend`/`SdlBackend`, `Device`/`Screen`/`Keyboard`/`Mouse`, `KeyPress`, `MousePress` | `devices-and-backends` |
 
 ## How to browse

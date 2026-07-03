@@ -1,5 +1,5 @@
 function make_json_projection_example(; measure=truetype_measure_text)
-    SequentialProjection(
+    ChainingProjection(
         RecursiveProjection(JsonToSyntax()),
         RecursiveProjection(SyntaxToText()),
         TextToGraphics(measure=measure),
@@ -20,7 +20,7 @@ end
 # not on the wrapping envelope).
 function make_json_console_projection_example()
     EnvelopeUnwrappingProjection(
-        SequentialProjection(
+        ChainingProjection(
             RecursiveProjection(JsonToSyntax()),
             RecursiveProjection(SyntaxToText()),
             # Bake the selection into the spans as inverse video so the dumb
@@ -51,7 +51,7 @@ function make_syntax_widget_graphics(; measure=truetype_measure_text)
 end
 
 function make_json_widget_projection_example(; measure=truetype_measure_text)
-    SequentialProjection(
+    ChainingProjection(
         RecursiveProjection(JsonToSyntax()),
         RecursiveProjection(SyntaxToWidget()),
         make_syntax_widget_graphics(measure=measure),
@@ -59,7 +59,7 @@ function make_json_widget_projection_example(; measure=truetype_measure_text)
 end
 
 function make_json_sorted_projection_example(; measure=truetype_measure_text)
-    SequentialProjection(
+    ChainingProjection(
         SortingAtProjection(@reference(windows[1].content.entries), x -> x.key),
         RecursiveProjection(JsonToSyntax()),
         RecursiveProjection(SyntaxToText()),
@@ -68,7 +68,7 @@ function make_json_sorted_projection_example(; measure=truetype_measure_text)
 end
 
 function make_json_null_projection_example(; measure=truetype_measure_text)
-    SequentialProjection(
+    ChainingProjection(
         JsonNullToSyntaxLeaf(),
         SyntaxLeafToText(),
         TextToGraphics(measure=measure),
@@ -76,7 +76,7 @@ function make_json_null_projection_example(; measure=truetype_measure_text)
 end
 
 function make_json_string_projection_example(; measure=truetype_measure_text)
-    SequentialProjection(
+    ChainingProjection(
         JsonStringToSyntaxLeaf(),
         SyntaxLeafToText(),
         TextToGraphics(measure=measure),

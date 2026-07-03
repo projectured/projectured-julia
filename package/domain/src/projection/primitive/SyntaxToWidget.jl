@@ -46,7 +46,7 @@ import ..ReferenceModule: ConcreteReferencePath, FieldReference, RangeReference,
 import ..ReferenceCaseModule: var"@reference_case"
 import ..ReferenceBuilderModule: var"@reference"
 import ..KeyboardModule: KeyDown
-import ..TypeDispatchingModule: TypeDispatchingProjection
+import ..TypeDispatchingProjectionModule: TypeDispatchingProjection
 import ..PrinterContextModule: child_context
 
 export SyntaxLeafToWidget, SyntaxNodeToWidget, SyntaxToWidget

@@ -1,5 +1,5 @@
 function make_filesystem_projection_example(; measure=truetype_measure_text)
-    SequentialProjection(
+    ChainingProjection(
         RecursiveProjection(FileSystemToSyntax()),
         RecursiveProjection(SyntaxToText(
             expanded_marker  = TextString("▾", font_dejavu_monospace_regular_20, color_default),
@@ -16,7 +16,7 @@ end
 # maps the selection back through the tree to the file-system node.
 function make_filesystem_widget_projection_example(; measure=truetype_measure_text)
     font = font_ubuntu_monospace_regular_20
-    SequentialProjection(
+    ChainingProjection(
         RecursiveProjection(FileSystemToWidget()),
         WidgetToGraphics(font; measure=measure),
     )
