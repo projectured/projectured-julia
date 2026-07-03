@@ -35,7 +35,7 @@ gesture without effecting a change: a reader (or a per-instance gesture binding)
 returns `NoOperation()` to say "this gesture is handled — stop looking",
 distinct from returning `nothing`, which means "declined, keep looking / fall
 through". The canonical way for a per-instance binding to **suppress** a default
-behavior (see `instance_gestures`) is to map the pattern to a `NoOperation()`.
+behavior (see `get_instance_gesture_bindings`) is to map the pattern to a `NoOperation()`.
 """
 struct NoOperation <: Operation end
 

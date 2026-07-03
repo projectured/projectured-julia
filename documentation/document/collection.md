@@ -50,7 +50,7 @@ dependencies invalidate.
 ### Access patterns
 
 - `cv[i]` — returns the *value* stored at slot `i` (1-based).
-- `cell_at(cv, i)` — returns the raw `Cell` at slot `i` (escape hatch).
+- `get_cell_at(cv, i)` — returns the raw `Cell` at slot `i` (escape hatch).
 - `cv[i] = val` — writes the value into the cell.
 - `cv[i] = cell` (where `cell isa Cell`) — replaces the slot itself.
 - `push!`, `pop!`, `insert!`, `deleteat!`, `sort`, `reverse` — standard
@@ -86,7 +86,7 @@ both directions can be lazy.
 - `head[0]`, `head[-1]`, … walk `prev`
 
 `push!(head, v)` appends to the right tail, `pushfirst!(head, v)`
-prepends to the left tail. `left_tail(node)` and `right_tail(node)` walk
+prepends to the left tail. `get_left_tail(node)` and `get_right_tail(node)` walk
 to the far end of the respective direction.
 
 ### Laziness
@@ -106,7 +106,7 @@ for n in head_node
 end
 ```
 
-Iteration starts from `left_tail(head_node)` and walks rightward through
+Iteration starts from `get_left_tail(head_node)` and walks rightward through
 `next`, yielding the whole reachable list. `Base.IteratorSize(ListNode) =
 SizeUnknown()` because the right tail may be unbounded.
 

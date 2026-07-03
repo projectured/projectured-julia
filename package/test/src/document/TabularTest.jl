@@ -44,7 +44,7 @@ end
 @testset "T3 reactive sharing via column view" begin
     g = make_person_grid()
     col = tabular_column(g, 1)
-    c = cell_at(col, 2)
+    c = get_cell_at(col, 2)
     c[] = TabularCell("Bobby")
     @test tabular_cell(g, 2, 1).content == "Bobby"
 end

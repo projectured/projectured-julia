@@ -10,7 +10,7 @@ unchanged, so the content window looks exactly as it did without the decorator.
 **Reader** — the inner reader has priority (it is the real editor). When the
 inner declines and the event is the help gesture, the decorator collects every
 gesture reachable from *its own inner iomap* (the chain it just printed) via
-`collect_gestures` — the projection-form collector, not anything reaching into the
+`collect_gesture_bindings` — the projection-form collector, not anything reaching into the
 editor — builds a snapshot `GestureMap`, and emits an `OpenWindowOperation` whose
 `content` is that map. The op bubbles up to `WindowManagingProjection`, which opens
 a real sibling window beside the content (the same rail tooltips ride). A second
@@ -27,7 +27,7 @@ import ..IntentModule: Intent
 import ..IoMapApiModule: IoMap
 import ..ScreenDocumentModule: OpenWindowOperation, CloseWindowOperation
 import ..OperationApiModule: Operation
-import ..GestureBindingModule: is_help_gesture, collect_gestures
+import ..GestureBindingModule: is_help_gesture, collect_gesture_bindings
 import ..GestureMapModule: gesture_map
 
 export GestureHelpProjection, GestureHelpState, GestureHelpProjectionIoMap
@@ -96,7 +96,7 @@ function read_intent(p::GestureHelpProjection, recursion, change::Intent, iomap:
             p.state.open = false
             return Intent(change.gesture, CloseWindowOperation(p.id))
         end
-        bindings = collect_gestures(p.inner, recursion, iomap.inner_iomap)
+        bindings = collect_gesture_bindings(p.inner, recursion, iomap.inner_iomap)
         gm = gesture_map(bindings, iomap.input)
         p.state.open = true
         return Intent(change.gesture, OpenWindowOperation(

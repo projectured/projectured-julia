@@ -57,7 +57,7 @@ import ..ReferenceModule: ReferencePath, ConcreteReferencePath, EmptyReferencePa
 import ..PrinterContextModule: PrinterContext, child_context
 import ..IoMapApiModule: IoMap
 import ..GestureBindingModule: GestureBinding, KeyDownPattern,
-                              projection_gestures, read_projection_gesture, collect_gestures
+                              get_projection_gesture_bindings, read_projection_gesture, collect_gesture_bindings
 
 export VersioningToAnyProjection, VersioningToAnyProjectionIoMap,
        SetVersionCriterionOperation
@@ -201,12 +201,12 @@ function _delete_version(iomap::VersioningToAnyProjectionIoMap)
     delete_elements(_field_path("versions"), iomap.index - 1)
 end
 
-# Own gestures, reified as a `projection_gestures` table so the same set that
-# fires (via `read_projection_gesture`) is the one `collect_gestures` shows. The
+# Own gestures, reified as a `get_projection_gesture_bindings` table so the same set that
+# fires (via `read_projection_gesture`) is the one `collect_gesture_bindings` shows. The
 # operations capture `iomap` (they snapshot/delete the selected version) and
 # return `nothing` to decline (no selected version), falling through to the
 # value-child delegation. Modifiers are matched exactly.
-function projection_gestures(p::VersioningToAnyProjection, iomap)
+function get_projection_gesture_bindings(p::VersioningToAnyProjection, iomap)
     GestureBinding[
         GestureBinding(KeyDownPattern(:s, [:ctrl, :shift], nothing),
             (doc, event) -> _create_version(iomap),
@@ -236,11 +236,11 @@ read_intent(p::VersioningToAnyProjection, iomap::VersioningToAnyProjectionIoMap,
 
 # Own gestures (create/delete version) plus the selected value's, so the help
 # window shows both -- the collector mirrors the reader's own-then-delegate shape.
-function collect_gestures(p::VersioningToAnyProjection, recursion, iomap::VersioningToAnyProjectionIoMap)
+function collect_gesture_bindings(p::VersioningToAnyProjection, recursion, iomap::VersioningToAnyProjectionIoMap)
     result = GestureBinding[]
-    append!(result, projection_gestures(p, iomap))
+    append!(result, get_projection_gesture_bindings(p, iomap))
     vim = iomap.value_iomap
-    vim === nothing || append!(result, collect_gestures(vim.projection, recursion, vim))
+    vim === nothing || append!(result, collect_gesture_bindings(vim.projection, recursion, vim))
     result
 end
 

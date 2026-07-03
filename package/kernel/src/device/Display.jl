@@ -9,7 +9,7 @@ state**, so it lives here rather than in the pure `BackendApiModule` interface.
 """
 module DisplayModule
 
-export display_size, set_display_size_provider!
+export get_display_size, set_display_size_provider!
 
 # A rendering backend that can query the real display (the SDL backend) registers
 # a provider; without one, a fixed default is used so headless/SDL-free callers
@@ -25,12 +25,12 @@ that can query the display, e.g. SDL).
 set_display_size_provider!(f) = (_DISPLAY_SIZE_PROVIDER[] = f)
 
 """
-    display_size(; display=0) -> (width, height)
+    get_display_size(; display=0) -> (width, height)
 
 The display's pixel size when a backend has registered a provider (e.g. SDL),
 otherwise a fixed SDL-free default `(1280, 800)`.
 """
-function display_size(; display::Integer=0)
+function get_display_size(; display::Integer=0)
     p = _DISPLAY_SIZE_PROVIDER[]
     p === nothing ? (1280, 800) : p(; display=display)
 end

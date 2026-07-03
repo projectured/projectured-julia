@@ -178,7 +178,7 @@ function printer_locality_report(document, projection, mutate!)
         print_document(projection, document)
     catch e
         push!(errors, "print_document threw: $e")
-        return LocalityReport(LocalityCell[], 0, 0, 0, 0, 0, perf_counters(), errors)
+        return LocalityReport(LocalityCell[], 0, 0, 0, 0, 0, get_performance_counters(), errors)
     end
     output = iomap.output
 
@@ -202,7 +202,7 @@ function printer_locality_report(document, projection, mutate!)
     # Re-force to recompute and re-collect object identities + perf delta.
     after_objs = Set{UInt64}()
     _collect_locality!(output, nothing, :_, Set{UInt64}(), LocalityCell[], after_objs, errors, 0)
-    perf = perf_counters()
+    perf = get_performance_counters()
 
     preserved = length(intersect(before_objs, after_objs))
     lost_set = setdiff(before_objs, after_objs)

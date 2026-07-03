@@ -11,7 +11,7 @@ using Projectured: ConversationTurn, ConversationPart, PrimitiveString, TextText
                    ComposerEvaluateOperation, ComposerRevertOperation,
                    ComposerSubmitOperation,
                    print_document, read_intent, evaluate_operation,
-                   projection_gestures,
+                   get_projection_gesture_bindings,
                    KeyPress, KeyDown
 using Projectured: Modifiers
 
@@ -118,11 +118,11 @@ function test_conversation_editor()
             @test read_intent(proj, iom, KeyDown(:return, Modifiers(shift=true))) isa ComposerNewlineOperation
         end
 
-        @testset "show: projection_gestures mirrors what the reader fires (fire == show)" begin
+        @testset "show: get_projection_gesture_bindings mirrors what the reader fires (fire == show)" begin
             proj = ConversationComposerToWidget()
             turn = _ce_draft()
             iom = print_document(proj, turn)
-            descs() = Set(b.description for b in projection_gestures(proj, iom))
+            descs() = Set(b.description for b in get_projection_gesture_bindings(proj, iom))
 
             # text typein mode — Submit / New line / Add a structured part / Insert
             @test "Submit" in descs()

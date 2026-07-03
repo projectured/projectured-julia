@@ -11,7 +11,7 @@ browsing tools below. Do not guess names — search for them.
 | Concept | Names to search | Guide |
 |---|---|---|
 | Document & domains | `@document`; `JsonObject`/`JsonString`/`JsonNumber`, `XmlElement`, `TextText`/`TextString`, `SyntaxNode`/`SyntaxLeaf`, `GraphicsCanvas`, `WidgetButton`, `JuliaCall`, `TableTable` | `concepts`, `architecture`, `document/*` |
-| Reactive cell | `Cell`, `set_function!`, `getfield` (escape hatch), `perf_counters` | `reactive-cells` |
+| Reactive cell | `Cell`, `set_function!`, `getfield` (escape hatch), `get_performance_counters` | `reactive-cells` |
 | Macros | `@document`, `@projection`, `@iomap` | `macros` |
 | Projection (interface) | `Projection`, `print_document`, `read_intent`, `map_reference_forward`, `map_reference_backward`, `PrinterContext`, `IoMap`/`SimpleIoMap`/`ChildrenIoMap` | `projection-system` |
 | Projection composition | `ChainingProjection`, `RecursiveProjection`, `TypeDispatchingProjection`, `NestingProjection`, `SwitchingProjection`; generic: `CopyingProjection`, `SortingProjection`, `FilteringProjection`, `FocusingProjection` | `higher-order-projections`, `generic-projections` |

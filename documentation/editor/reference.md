@@ -249,7 +249,7 @@ k-step path has k+1 typed nodes (every boundary plus the terminal).
 
 - `evaluate_reference(document, path)` throws `ReferenceTypeMismatch(expected,
   actual)` when a node's recorded type no longer matches the document reached.
-- `valid_reference_prefix(document, path)` walks the path and returns the
+- `get_valid_reference_prefix(document, path)` walks the path and returns the
   **longest prefix that still resolves** — it stops at the first node whose type
   mismatches (or an unfollowable structural step), dropping the invalid remainder.
 - `is_valid_reference(document, path)` (the two-argument, document-aware method)
@@ -291,7 +291,7 @@ edit:
 ```julia
 annotated = annotate_reference_types(document, path)   # or just read a selection cell
 # … document is edited …
-live     = valid_reference_prefix(document, annotated)  # truncate at first mismatch
+live     = get_valid_reference_prefix(document, annotated)  # truncate at first mismatch
 ```
 
 > **Implementation note.** `TypeReference(T)` survives only as an internal

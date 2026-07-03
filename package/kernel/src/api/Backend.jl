@@ -14,7 +14,7 @@ because its backend package isn't loaded raises a `MethodError` (or, for the
 module BackendApiModule
 
 export Backend, init!, quit!, measure_text, make_backend, write_image, record_video,
-       render_canvas, decode_image, pointer_position
+       render_canvas, decode_image, get_pointer_position
 
 """
     Backend
@@ -59,7 +59,7 @@ Return the `(pixel_width, pixel_height)` of `text` rendered in `font`.
 function measure_text end
 
 """
-    pointer_position(::Backend) -> (x, y)
+    get_pointer_position(::Backend) -> (x, y)
 
 The current global mouse pointer position in screen pixels, or `(-1, -1)` when
 the backend cannot report it (the default). A caller that needs it — e.g. to
@@ -67,7 +67,7 @@ place a follower window near the cursor — closes over this behind a `pointer`
 callback so it stays free of any concrete backend dependency (the same
 indirection as `measure_text`).
 """
-pointer_position(::Backend) = (-1, -1)
+get_pointer_position(::Backend) = (-1, -1)
 
 """
     write_image(document, projection, filename; kwargs...)
@@ -104,7 +104,7 @@ image decoder; forward-declared here so callers need not name it.
 """
 function decode_image end
 
-# `display_size` + its provider glue (mutable global state) live in `DisplayModule`
+# `get_display_size` + its provider glue (mutable global state) live in `DisplayModule`
 # (device/Display.jl), not in this pure interface.
 
 end # module

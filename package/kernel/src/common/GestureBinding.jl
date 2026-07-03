@@ -18,17 +18,17 @@ The pieces:
   (build the edit) + `applicable(doc, selection)->Bool` (an *event-independent*
   state precondition) + a human `description` + a `domain` tag.
 - **Registry** keyed by document type with supertype inheritance:
-  `document_gestures(T)` collects `T`'s own bindings plus every supertype's, so
+  `get_document_gesture_bindings(T)` collects `T`'s own bindings plus every supertype's, so
   `@gestures JsonDocument` covers `JsonNull`, `JsonArray`, … for free. The own
-  bindings live in `document_gestures_own(::Type{T})` *methods* (not a mutable
+  bindings live in `get_document_gesture_bindings_own(::Type{T})` *methods* (not a mutable
   table) so they survive precompilation.
 - **`@gestures DocType begin … end`** — the declarative authoring form. It emits
-  the `document_gestures_own(::Type{DocType})` method holding the reified table.
+  the `get_document_gesture_bindings_own(::Type{DocType})` method holding the reified table.
   Firing is then a *single generic interpreter* (`read_document_gesture`, wired
   into `read_gesture`) that walks that very table — so what *fires* is provably
   the set that is *shown*.
 
-This is the kernel half (Stage 1 + the `projection_gestures` seam / collector
+This is the kernel half (Stage 1 + the `get_projection_gesture_bindings` seam / collector
 defaults of Stage 2). The JSON authoring set is ported onto it in
 `document/Json.jl`; the contextual collector combinator methods live with the
 projection combinators they mirror.
@@ -50,9 +50,9 @@ export GesturePattern, KeyPressPattern, KeyDownPattern, KeyUpPattern,
        MouseDownPattern, MouseUpPattern, MousePressPattern, MouseMovePattern,
        MouseScrollPattern,
        GestureBinding, matches, describe,
-       document_gestures, document_gestures_own, instance_gestures,
+       get_document_gesture_bindings, get_document_gesture_bindings_own, get_instance_gesture_bindings,
        read_document_gesture, read_node_gesture,
-       projection_gestures, read_projection_gesture, collect_gestures, applicable_gestures,
+       get_projection_gesture_bindings, read_projection_gesture, collect_gesture_bindings, get_applicable_gesture_bindings,
        is_help_gesture, var"@gestures", var"@gesture_set"
 
 # ─────────────────────────────────────────────────────────────────────────
@@ -205,49 +205,49 @@ end
 # ─────────────────────────────────────────────────────────────────────────
 # Registry (own bindings per type) + supertype inheritance
 #
-# Own bindings are held in `document_gestures_own(::Type{T})` *methods* (emitted
+# Own bindings are held in `get_document_gesture_bindings_own(::Type{T})` *methods* (emitted
 # by `@gestures`), not a mutable table, so they persist across precompilation —
-# mutating a Dict at a domain module's load time would be lost. `document_gestures`
+# mutating a Dict at a domain module's load time would be lost. `get_document_gesture_bindings`
 # walks the supertype chain over those methods, caching the merged result in a
 # runtime Dict (caches repopulate at runtime, so they are precompile-safe).
 # ─────────────────────────────────────────────────────────────────────────
 
 """
-    document_gestures_own(::Type{T}) -> Vector{GestureBinding}
+    get_document_gesture_bindings_own(::Type{T}) -> Vector{GestureBinding}
 
 The bindings declared *directly* on type `T` by `@gestures T …` (default empty).
-Use `document_gestures` to also collect inherited supertype bindings.
+Use `get_document_gesture_bindings` to also collect inherited supertype bindings.
 """
-document_gestures_own(::Type) = GestureBinding[]
+get_document_gesture_bindings_own(::Type) = GestureBinding[]
 
 const _GESTURE_CACHE = IdDict{Type,Vector{GestureBinding}}()
 
 """
-    document_gestures(T::Type) -> Vector{GestureBinding}
-    document_gestures(doc)     -> Vector{GestureBinding}
+    get_document_gesture_bindings(T::Type) -> Vector{GestureBinding}
+    get_document_gesture_bindings(doc)     -> Vector{GestureBinding}
 
 Every binding that applies to document type `T`: `T`'s own bindings, most
 specific first, followed by each supertype's, walking up the chain. The result
 is the reified table the help projection shows and the `read_document_gesture`
 interpreter fires — one source of truth.
 """
-function document_gestures(T::Type)
+function get_document_gesture_bindings(T::Type)
     cached = get(_GESTURE_CACHE, T, nothing)
     cached === nothing || return cached
     result = GestureBinding[]
     S = T
     while true
-        append!(result, document_gestures_own(S))
+        append!(result, get_document_gesture_bindings_own(S))
         S === Any && break
         S = supertype(S)
     end
     _GESTURE_CACHE[T] = result
     return result
 end
-document_gestures(doc::Document) = document_gestures(typeof(doc))
+get_document_gesture_bindings(doc::Document) = get_document_gesture_bindings(typeof(doc))
 
 """
-    instance_gestures(doc) -> Vector{GestureBinding}
+    get_instance_gesture_bindings(doc) -> Vector{GestureBinding}
 
 Per-*instance* gesture bindings carried by `doc` itself, checked ahead of the
 per-type table so an instance can add, override (by shadowing a same-pattern
@@ -256,7 +256,7 @@ behaves exactly as before. Widgets override this to return their `gestures`
 field; because the default is empty and untyped it also serves non-`Document`
 values (e.g. a `WidgetTreeNode`) — see [`read_node_gesture`](@ref).
 """
-instance_gestures(doc) = GestureBinding[]
+get_instance_gesture_bindings(doc) = GestureBinding[]
 
 # Shared firing loop: the first binding whose pattern `matches` and whose
 # `applicable` precondition holds (for `doc` + `sel`) and whose `operation`
@@ -276,7 +276,7 @@ end
     read_document_gesture(doc, event) -> Operation | Nothing
 
 Fire the first matching binding for `doc`, checking its per-instance
-[`instance_gestures`](@ref) first and then its per-type [`document_gestures`](@ref)
+[`get_instance_gesture_bindings`](@ref) first and then its per-type [`get_document_gesture_bindings`](@ref)
 table (walking the supertype chain), evaluated against the current selection.
 Instance bindings therefore shadow same-pattern type defaults. This is the single
 interpreter that backs `read_gesture` for every `@gestures`-declared type; an
@@ -284,8 +284,8 @@ object with neither instance nor type bindings yields `nothing`, exactly as the
 old default.
 """
 function read_document_gesture(doc, event)
-    inst = instance_gestures(doc)
-    type = document_gestures(typeof(doc))
+    inst = get_instance_gesture_bindings(doc)
+    type = get_document_gesture_bindings(typeof(doc))
     (isempty(inst) && isempty(type)) && return nothing
     sel = getfield(doc, :selection)[]
     bindings = isempty(inst) ? type : (isempty(type) ? inst : vcat(inst, type))
@@ -298,11 +298,11 @@ end
 The selection-agnostic sibling of [`read_document_gesture`](@ref) for values that
 are *not* `Document`s and so carry no `selection` field of their own — notably a
 `WidgetTreeNode`, whose identity is its path inside the enclosing tree. Fires
-`node`'s [`instance_gestures`](@ref) against the explicitly supplied `selection`
+`node`'s [`get_instance_gesture_bindings`](@ref) against the explicitly supplied `selection`
 (usually the enclosing document's).
 """
 function read_node_gesture(node, event, selection)
-    bindings = instance_gestures(node)
+    bindings = get_instance_gesture_bindings(node)
     isempty(bindings) && return nothing
     return _fire_gestures(bindings, node, selection, event)
 end
@@ -318,32 +318,32 @@ read_gesture(doc::Document, event) = read_document_gesture(doc, event)
 # ─────────────────────────────────────────────────────────────────────────
 
 """
-    projection_gestures(projection, iomap) -> Vector{GestureBinding}
+    get_projection_gesture_bindings(projection, iomap) -> Vector{GestureBinding}
 
 Gestures owned by a *projection* rather than a document (focus, collapse glyph,
 clipboard, …). Default empty; a projection overrides this to contribute its own
-rows to the contextual collector. The combinator `collect_gestures` methods
+rows to the contextual collector. The combinator `collect_gesture_bindings` methods
 (beside the `read_intent` combinators) gather these across the chain.
 """
-projection_gestures(::Projection, iomap) = GestureBinding[]
+get_projection_gesture_bindings(::Projection, iomap) = GestureBinding[]
 
 """
     read_projection_gesture(projection, iomap, event) -> Operation | Nothing
 
-Fire the first reified `projection_gestures(projection, iomap)` binding whose
+Fire the first reified `get_projection_gesture_bindings(projection, iomap)` binding whose
 pattern `matches` the event and whose `applicable` precondition holds; a binding
 whose `operation` returns `nothing` is skipped so a later one may still fire. The
 projection-layer analogue of [`read_document_gesture`](@ref): a projection whose
-reader delegates here (e.g. Clipboard) *fires* the very table `collect_gestures`
+reader delegates here (e.g. Clipboard) *fires* the very table `collect_gesture_bindings`
 *shows*, so fire == show holds at the projection layer too.
 
-The binding `operation`/`applicable` closures are built by `projection_gestures`
+The binding `operation`/`applicable` closures are built by `get_projection_gesture_bindings`
 over `projection` and `iomap`, so they already capture what they need; the `doc`
 and `selection` passed here are `iomap.input` and its selection (a binding may
 ignore them and use its captured `iomap`).
 """
 function read_projection_gesture(projection, iomap, event)
-    bindings = projection_gestures(projection, iomap)
+    bindings = get_projection_gesture_bindings(projection, iomap)
     isempty(bindings) && return nothing
     input = hasproperty(iomap, :input) ? iomap.input : nothing
     sel = (input !== nothing && hasfield(typeof(input), :selection)) ?
@@ -358,37 +358,37 @@ function read_projection_gesture(projection, iomap, event)
 end
 
 """
-    collect_gestures(projection, recursion, iomap) -> Vector{GestureBinding}
+    collect_gesture_bindings(projection, recursion, iomap) -> Vector{GestureBinding}
 
 Gather every gesture available at `iomap` — the data-driven generalization of
 `read_intent`'s 4-arg routing: where the reader *matches* one gesture, this
 *collects* them all. The leaf default is the projection's own
-`projection_gestures` plus `document_gestures(iomap.input)`; compound projections
+`get_projection_gesture_bindings` plus `get_document_gesture_bindings(iomap.input)`; compound projections
 override to recurse in lockstep with their reader. Each combinator method lives
 beside that combinator's `read_intent` (so coverage extends incrementally —
 un-reified layers simply contribute nothing).
 """
-function collect_gestures(p::Projection, recursion, iomap)
+function collect_gesture_bindings(p::Projection, recursion, iomap)
     result = GestureBinding[]
-    append!(result, projection_gestures(p, iomap))
+    append!(result, get_projection_gesture_bindings(p, iomap))
     input = hasproperty(iomap, :input) ? iomap.input : nothing
     if input isa Document
         # Per-instance bindings first (they shadow same-pattern type defaults in
         # the reader), then the per-type table — the same order `read_document_gesture`
         # fires, so the help window shows exactly what would fire.
-        append!(result, instance_gestures(input))
-        append!(result, document_gestures(typeof(input)))
+        append!(result, get_instance_gesture_bindings(input))
+        append!(result, get_document_gesture_bindings(typeof(input)))
     end
     return result
 end
 
 """
-    applicable_gestures(doc, bindings) -> Vector{GestureBinding}
+    get_applicable_gesture_bindings(doc, bindings) -> Vector{GestureBinding}
 
 The subset of `bindings` whose `applicable` precondition holds for `doc`'s
 current selection — the rows the help projection shows un-greyed.
 """
-function applicable_gestures(doc, bindings)
+function get_applicable_gesture_bindings(doc, bindings)
     sel = getfield(doc, :selection)[]
     GestureBinding[b for b in bindings if b.applicable(doc, sel)]
 end
@@ -409,7 +409,7 @@ end
 
 True when `event` is the gesture that summons the gesture-help window (F1). A
 content-level `GestureHelpProjection` decorator matches this and emits an
-`OpenWindowOperation` whose content renders `collect_gestures` over the focused
+`OpenWindowOperation` whose content renders `collect_gesture_bindings` over the focused
 pipeline; the help window closes itself.
 """
 is_help_gesture(event) = event isa KeyDown && event.key === :f1
@@ -566,22 +566,22 @@ of:
 
 Bindings shared by a whole type family go on the common abstract supertype (e.g.
 `@gestures JsonDocument`) and are inherited by every subtype via
-[`document_gestures`](@ref); a set shared by *unrelated* types (no common
+[`get_document_gesture_bindings`](@ref); a set shared by *unrelated* types (no common
 supertype) is a `@gesture_set` `splice`d into each.
 """
 macro gestures(doctype, block)
     entries = block isa Expr && block.head == :block ? block.args : [block]
     applicable_ex, items = _parse_gesture_block(entries, _typename_string(doctype))
 
-    # Emit a `document_gestures_own(::Type{DocType})` method holding the reified
-    # table (built fresh per call; cached by `document_gestures`). A method, not a
+    # Emit a `get_document_gesture_bindings_own(::Type{DocType})` method holding the reified
+    # table (built fresh per call; cached by `get_document_gesture_bindings`). A method, not a
     # mutable registry, so the bindings survive precompilation. The function name
-    # is the module-qualified `GestureBindingModule.document_gestures_own` so the
+    # is the module-qualified `GestureBindingModule.get_document_gesture_bindings_own` so the
     # method *extends* the kernel generic regardless of how the caller imported it
-    # (a bare `function document_gestures_own` would be hygienically gensym'd into
+    # (a bare `function get_document_gesture_bindings_own` would be hygienically gensym'd into
     # a fresh local function instead of extending ours).
     quote
-        function $(GestureBindingModule).document_gestures_own(::Type{$(esc(doctype))})
+        function $(GestureBindingModule).get_document_gesture_bindings_own(::Type{$(esc(doctype))})
             _applicable = $applicable_ex
             GestureBinding[$(items...)]
         end

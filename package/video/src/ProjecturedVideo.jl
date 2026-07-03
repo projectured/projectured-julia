@@ -129,7 +129,7 @@ function record_video(document, projection, gestures::AbstractVector,
     tmpdir = mktempdir()
     frame = Ref(0)
     # Wall-clock origin for the reactive editor clock. Every emitted frame ticks
-    # `reactive_editor_time()` to the elapsed wall time and re-prints, so an
+    # `get_reactive_editor_time()` to the elapsed wall time and re-prints, so an
     # animated document (a canvas whose cells read the editor time) actually moves
     # across the recording — including during otherwise-static hold frames.
     anim_t0 = time()

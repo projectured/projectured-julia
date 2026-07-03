@@ -12,7 +12,7 @@
 
 using Projectured: MoveRangeOperation, DraggingProjection, DraggingProjectionIoMap, DraggingState,
                    ReplaceSelectionOperation, JsonArray, JsonNumber,
-                   Intent, Projection, print_document, read_intent, evaluate_operation, Operation, cell_at,
+                   Intent, Projection, print_document, read_intent, evaluate_operation, Operation, get_cell_at,
                    MouseDown, MouseUp, MouseMove, MousePress, Modifiers
 
 # Stub inner projection: `f(gesture) -> op` plays the graphics-layer hit-test.
@@ -52,7 +52,7 @@ function test_dragging()
 
     @testset "press → drag → drop reorders the collection" begin
         content = JsonArray(JsonNumber(10), JsonNumber(20), JsonNumber(30), JsonNumber(40))
-        c2 = cell_at(content.elements, 2)
+        c2 = get_cell_at(content.elements, 2)
         proj, iomap = _drag_setup(content, _hit_2_or_4)
 
         # MouseDown hit-tests the grab point (x=100 → element 2) and arms a
@@ -71,7 +71,7 @@ function test_dragging()
 
         evaluate_operation(nothing, op)
         @test [Int(content.elements[i].value) for i in 1:4] == [10, 30, 20, 40]
-        @test cell_at(content.elements, 3) === c2          # cell identity preserved
+        @test get_cell_at(content.elements, 3) === c2          # cell identity preserved
     end
 
     @testset "sub-threshold press-release is a click, not a drag" begin
@@ -106,7 +106,7 @@ function test_dragging()
     # stub). The array renders one element per line at y = 24/48/72, x ≈ 24.
     @testset "real pipeline: drag an array element to reorder" begin
         content = JsonArray(JsonNumber(10), JsonNumber(20), JsonNumber(30))
-        c1 = cell_at(content.elements, 1)
+        c1 = get_cell_at(content.elements, 1)
         inner = print_document(make_json_projection_example(), content)
         proj  = DraggingProjection()
         iomap = DraggingProjectionIoMap(proj, DraggingState(content; threshold=5),
@@ -122,7 +122,7 @@ function test_dragging()
 
         evaluate_operation(nothing, op)
         @test [Int(content.elements[i].value) for i in 1:3] == [20, 10, 30]
-        @test cell_at(content.elements, 2) === c1                                     # identity preserved
+        @test get_cell_at(content.elements, 2) === c1                                     # identity preserved
     end
 
 end

@@ -13,7 +13,7 @@ import ..DocumentApiModule: Document
 import ..DocumentModule: @document
 import ..CollectionModule: CellVector
 import ..OperationApiModule: Operation, evaluate_operation
-import ..GestureBindingModule: KeyDownPattern, matches, GestureBinding, instance_gestures
+import ..GestureBindingModule: KeyDownPattern, matches, GestureBinding, get_instance_gesture_bindings
 import ..ColorModule: StyleColor
 import ..StyleTextModule: StyleText
 import ..ReferenceModule: Reference, ReferencePath, ConcreteReferencePath, ElementReference,
@@ -261,7 +261,7 @@ operation.
     padding::Inset
     padding_color::StyleColor
     selection::Reference
-    gestures::Any               # per-instance gesture bindings (see instance_gestures)
+    gestures::Any               # per-instance gesture bindings (see get_instance_gesture_bindings)
 end
 
 function WidgetCheckbox(position::Point2D, content;
@@ -282,7 +282,7 @@ function WidgetCheckbox(position::Point2D, content;
 end
 
 set_function!(w::WidgetCheckbox, f::Function) = (set_function!(getfield(w, :content), f); w)
-instance_gestures(w::WidgetCheckbox) = w.gestures
+get_instance_gesture_bindings(w::WidgetCheckbox) = w.gestures
 
 # ── WidgetButton ───────────────────────────────────────────────────────────
 
@@ -374,8 +374,8 @@ end
 
 set_function!(w::WidgetButton, f::Function) = (set_function!(getfield(w, :content), f); w)
 
-# Per-instance gesture bindings (see `instance_gestures` / `read_document_gesture`).
-instance_gestures(w::WidgetButton) = w.gestures
+# Per-instance gesture bindings (see `get_instance_gesture_bindings` / `read_document_gesture`).
+get_instance_gesture_bindings(w::WidgetButton) = w.gestures
 
 """
     WidgetToolButton(icon; label="", size=Point2D(0, 0), <WidgetButton kwargs>)
@@ -649,7 +649,7 @@ function WidgetMenuItem(content;
                    Cell(padding), Cell(padding_color),
                    Cell(nothing), Cell(false))
 end
-instance_gestures(w::WidgetMenuItem) = w.gestures
+get_instance_gesture_bindings(w::WidgetMenuItem) = w.gestures
 
 set_function!(w::WidgetMenuItem, f::Function) = (set_function!(getfield(w, :content), f); w)
 
@@ -1245,13 +1245,13 @@ the logical on/off value.
     anim_from::Float64   # knob fraction [0,1] when the current slide began
     anim_t0::Float64     # editor time (s) when the current slide began; NaN = idle
     selection::Reference
-    gestures::Any        # per-instance gesture bindings (see instance_gestures)
+    gestures::Any        # per-instance gesture bindings (see get_instance_gesture_bindings)
 end
 WidgetSwitch(position::Point2D, checked::Bool=false; visible::Bool=true, enabled::Bool=true,
              duration::Integer=0, gestures=GestureBinding[]) =
     WidgetSwitch(Cell(position), Cell(checked), Cell(visible), Cell(enabled),
                  Cell(Int(duration)), Cell(0.0), Cell(NaN), Cell(nothing), Cell(gestures))
-instance_gestures(w::WidgetSwitch) = w.gestures
+get_instance_gesture_bindings(w::WidgetSwitch) = w.gestures
 
 # ── WidgetProgress ──────────────────────────────────────────────────────────
 
@@ -1623,7 +1623,7 @@ WidgetTreeNode(icon, label, children; gestures=GestureBinding[]) =
 WidgetTreeNode(icon, label; gestures=GestureBinding[]) =
     WidgetTreeNode(icon, label, Any[], gestures)
 
-instance_gestures(node::WidgetTreeNode) = node.gestures
+get_instance_gesture_bindings(node::WidgetTreeNode) = node.gestures
 
 """
     WidgetTree(position, roots)
@@ -1656,8 +1656,8 @@ WidgetTree(position::Point2D, roots::Vector; visible::Bool=true, gestures=Gestur
                Cell(nothing), Cell(nothing), Cell(Set{Vector{Int}}()), Cell(gestures))
 
 # Tree-level gestures (over the whole tree); per-node gestures live on each
-# `WidgetTreeNode`. See `instance_gestures` / `read_document_gesture`.
-instance_gestures(w::WidgetTree) = w.gestures
+# `WidgetTreeNode`. See `get_instance_gesture_bindings` / `read_document_gesture`.
+get_instance_gesture_bindings(w::WidgetTree) = w.gestures
 
 # ── Operations ─────────────────────────────────────────────────────────────
 

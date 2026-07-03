@@ -10,7 +10,7 @@ module RecursiveProjectionModule
 
 import ..ProjectionApiModule: print_document, print_child, read_intent, map_reference_forward, map_reference_backward, Projection
 import ..IntentModule: Intent
-import ..GestureBindingModule: collect_gestures
+import ..GestureBindingModule: collect_gesture_bindings
 export RecursiveProjection
 
 """
@@ -54,8 +54,8 @@ read_intent(rp::RecursiveProjection, iomap, payload) =
 
 # Gather like the reader recurses: pass self as the recursion so the child's
 # gathering re-enters this wrapper.
-collect_gestures(rp::RecursiveProjection, recursion, iomap) =
-    collect_gestures(rp.child, rp, iomap)
+collect_gesture_bindings(rp::RecursiveProjection, recursion, iomap) =
+    collect_gesture_bindings(rp.child, rp, iomap)
 
 function map_reference_forward(::RecursiveProjection, iomap, reference)
     return nothing

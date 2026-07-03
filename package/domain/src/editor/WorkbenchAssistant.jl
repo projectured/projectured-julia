@@ -62,12 +62,12 @@ import ..WorkbenchModule: WorkbenchAssistant
 import ..WorkbenchToWidgetModule: WorkbenchAssistantToWidgetSplitPane
 import ..KeyboardModule: KeyDown
 import ..ToolRegistryModule: list_tools, list_resources, call_tool, read_resource,
-                              anthropic_tool_schema, Tool
+                              get_anthropic_tool_schema, Tool
 import ..KeyboardModule: KeyPress
 import ..EventCaseModule: var"@event_case"
 import ..PrimitiveModule: ReplaceStringRangeOperation
 import ..LlmModule: Llm, stream_turn, FakeLlm, AnthropicLlm
-import ..McpModule: execute_julia_code, last_eval_value, register_default_tools_and_resources!
+import ..McpModule: execute_julia_code, get_last_evaluated_value, register_default_tools_and_resources!
 import ..DocumentApiModule: Document
 import ..ConversationModule: ConversationDraft
 import ..ConversationEditorModule: composer_read, ComposerSubmitOperation,
@@ -271,7 +271,7 @@ function evaluate_operation(editor, op::SubmitJuliaOperation)
     is_error = occursin("ERROR", output) || occursin("Error", output)
     # A Document return value (e.g. a live SimulationTaskDocument) is embedded as
     # the result so it renders live; anything else falls back to its text repr.
-    val = last_eval_value()
+    val = get_last_evaluated_value()
     result = val isa Document ? val : result_text(output)
     push!(a.conversation.turns,
           ConversationTurn(:user, [ConversationPart(
@@ -372,7 +372,7 @@ Return the tool schemas to send to Claude:
   registry's read-only resources through the Anthropic tool-use interface.
 """
 function assistant_tool_schemas()
-    schemas = anthropic_tool_schema(list_tools())
+    schemas = get_anthropic_tool_schema(list_tools())
     push!(schemas, Dict(
         "name"         => "list_resources",
         "description"  => "List every read-only documentation resource registered in the editor. " *
@@ -722,7 +722,7 @@ function _run_agent_loop!(editor, a::WorkbenchAssistant)
             # live result (renders in place); other tools / non-Document values
             # keep the text repr. (Claude still sees the text tool_result, which
             # build_messages derives from this result.)
-            val = tu.name == "execute_julia_code" ? last_eval_value() : nothing
+            val = tu.name == "execute_julia_code" ? get_last_evaluated_value() : nothing
             result = val isa Document ? val : result_text(output)
             push!(turn.parts, Cell(ConversationPart(
                 EvaluatorForm(_eval_form_doc(code);

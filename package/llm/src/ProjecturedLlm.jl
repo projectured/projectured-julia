@@ -28,7 +28,7 @@ const _ANTHROPIC_VERSION = "2023-06-01"
 
 POST a streaming Messages request to Anthropic. `messages` is the array
 of message dicts already shaped for the API; `tools` is a vector of
-JSON-Schema tool descriptions (see `ToolRegistryModule.anthropic_tool_schema`).
+JSON-Schema tool descriptions (see `ToolRegistryModule.get_anthropic_tool_schema`).
 
 `thinking` (when non-`nothing`) is attached as the request's `thinking`
 parameter to enable extended thinking, e.g.

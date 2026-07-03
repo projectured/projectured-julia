@@ -51,7 +51,7 @@ Because the increments are on the hottest path (`getindex` on every cell read),
 this module loads **first** and `ReactiveModule` imports the shared `_perf` dict, so
 the increments stay a bare `Dict` write rather than a cross-module function call.
 
-Public surface: `perf_counters()` (a copy of the dict), `perf_reset!()`,
+Public surface: `get_performance_counters()` (a copy of the dict), `perf_reset!()`,
 `perf_record!(key, n)` (fold in an external measurement), and `@perf_time key expr`
 (time `expr`, record the elapsed ns under `key`). The editor's main loop resets and
 reports these every frame, which is the easiest way to profile what work a
@@ -67,9 +67,9 @@ so it loads **after** `ReactiveModule`.
 
 Two reads, named so intent is obvious:
 
-- `reactive_editor_time()` — **subscribe**. A tracked read; the calling cell becomes
+- `get_reactive_editor_time()` — **subscribe**. A tracked read; the calling cell becomes
   a dependent and re-runs every frame. Use inside an animated thunk.
-- `editor_time()` — **sample**. An untracked read (via `peek`) that registers no
+- `get_editor_time()` — **sample**. An untracked read (via `peek`) that registers no
   dependency. Use to *arm* an animation (capture a start instant) without the
   arming code itself re-running every frame.
 

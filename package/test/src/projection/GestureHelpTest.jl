@@ -1,7 +1,7 @@
 # Tests for GestureHelpProjection — the content-level decorator that opens the
 # gesture-help window on F1. Proves the mechanism without the full screen
 # pipeline: the help gesture collects every binding reachable from the
-# decorator's own inner iomap (collect_gestures, the projection-form collector)
+# decorator's own inner iomap (collect_gesture_bindings, the projection-form collector)
 # and emits an OpenWindowOperation carrying that GestureMap; a second F1 closes
 # it (toggle); every other gesture passes straight through to the wrapped editor.
 
@@ -21,7 +21,7 @@ function test_gesture_help()
         iomap = print_document(help, arr)
 
         # What the window must show == what collect yields over the same iomap.
-        expected = gesture_map(collect_gestures(inner, nothing, iomap.inner_iomap), arr)
+        expected = gesture_map(collect_gesture_bindings(inner, nothing, iomap.inner_iomap), arr)
         @test length(expected.rows) == 9          # the array's full reified set
 
         op = read_intent(help, iomap, f1)
@@ -130,15 +130,15 @@ function test_gesture_help()
         @test any(r -> occursin("Insert a new element", r.description), rows)
     end
 
-    # A decorator projection's `collect_gestures` gathers its own gestures *and*
+    # A decorator projection's `collect_gesture_bindings` gathers its own gestures *and*
     # descends into the wrapped content, so the help window shows both. Without the
     # combinator method, only the clipboard's own commands would surface.
-    @testset "collect_gestures descends into a clipboard's content" begin
+    @testset "collect_gesture_bindings descends into a clipboard's content" begin
         content = PrimitiveString("hello")
         slice = ClipboardSlice(content)
         p = ClipboardSliceToAnyProjection()
         iomap = print_document(p, IdentityProjection(), slice, PrinterContext())
-        descs = [b.description for b in collect_gestures(p, nothing, iomap)]
+        descs = [b.description for b in collect_gesture_bindings(p, nothing, iomap)]
         @test "Copy" in descs                # the clipboard's own gesture
         @test "Insert character" in descs    # descended into the PrimitiveString content
     end

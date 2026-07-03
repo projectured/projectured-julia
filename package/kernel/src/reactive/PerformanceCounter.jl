@@ -13,7 +13,7 @@ to keep its increments a bare `Dict` write.
 """
 module PerformanceCounterModule
 
-export perf_counters, perf_reset!, perf_record!, @perf_time
+export get_performance_counters, perf_reset!, perf_record!, @perf_time
 
 # The shared counter store, seeded with the engine's own counters. `ReactiveModule`
 # imports this and mutates it inline on the read/compute/invalidate/write paths;
@@ -23,7 +23,7 @@ const _perf = Dict{Symbol,Int}(
     :reads => 0, :computes => 0, :invalidations => 0, :writes => 0)
 
 """
-    perf_counters() -> Dict{Symbol,Int}
+    get_performance_counters() -> Dict{Symbol,Int}
 
 Return a copy of the performance counters dictionary. The reactive engine's own
 counters are:
@@ -35,7 +35,7 @@ counters are:
 Callers that use `perf_record!` (e.g. to fold in per-stage timings) contribute
 further keys of their own, which also appear here.
 """
-perf_counters() = copy(_perf)
+get_performance_counters() = copy(_perf)
 
 """
     perf_reset!()

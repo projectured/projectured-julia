@@ -30,7 +30,7 @@ export Reference, ReferenceStep, ElementReference, PositionReference, RangeRefer
        is_element_reference, is_position_reference, is_range_reference,
        IRangeReference, IFieldReference, IConcreteReferencePath, IPointReference,
        reference_equal, is_prefix_of, reference_equal_ignoring_types, is_prefix_of_ignoring_types,
-       ReferenceTypeMismatch, valid_reference_prefix, annotate_reference_types, strip_reference_types,
+       ReferenceTypeMismatch, get_valid_reference_prefix, annotate_reference_types, strip_reference_types,
        fold_reference_types
 
 # ── ReferenceStep ─────────────────────────────────────────────────────
@@ -120,7 +120,7 @@ with the rest of the path. The point of the checkpoint is *validity*: when a
 stored path is replayed against a document whose structure has changed, a
 `TypeReference` whose recorded `type` no longer matches the actual node marks the
 **remaining path as invalid** (see [`evaluate_reference`](@ref),
-[`valid_reference_prefix`](@ref), [`annotate_reference_types`](@ref)).
+[`get_valid_reference_prefix`](@ref), [`annotate_reference_types`](@ref)).
 
 The match rule is `node isa type`. Checkpoints are normally created from
 `typeof(node)` by [`annotate_reference_types`](@ref), so on an unchanged document
@@ -588,7 +588,7 @@ end
 # ── Document-aware validity ──────────────────────────────────────────────
 
 """
-    valid_reference_prefix(document, path::ReferencePath) -> ReferencePath
+    get_valid_reference_prefix(document, path::ReferencePath) -> ReferencePath
 
 Walk `path` against `document` and return the **longest prefix that still
 navigates cleanly**. Traversal stops — and the path is truncated — at the first
@@ -598,12 +598,12 @@ longer matches the node reached, or a structural step that cannot be followed
 that `evaluate_reference` can still resolve; the discarded suffix is the part
 made invalid by a structural change to `document`.
 """
-function valid_reference_prefix(document, path::EmptyReferencePath)
+function get_valid_reference_prefix(document, path::EmptyReferencePath)
     # Folded terminal checkpoint: drop the recorded type if it no longer holds.
     (path.type === nothing || document isa path.type) ? path : EmptyReferencePath()
 end
 
-function valid_reference_prefix(document, path::ConcreteReferencePath)
+function get_valid_reference_prefix(document, path::ConcreteReferencePath)
     # Folded node checkpoint: truncate here if this node's recorded type no longer
     # matches the document reached.
     path.type === nothing || document isa path.type || return EmptyReferencePath()
@@ -612,7 +612,7 @@ function valid_reference_prefix(document, path::ConcreteReferencePath)
     if step isa TypeReference
         # Transitional tolerance for a stray checkpoint *step*.
         document isa step.type || return EmptyReferencePath()
-        return valid_reference_prefix(document, rest)
+        return get_valid_reference_prefix(document, rest)
     end
     # structural step: try to descend one level
     child = try
@@ -637,7 +637,7 @@ function valid_reference_prefix(document, path::ConcreteReferencePath)
     catch
         return EmptyReferencePath()
     end
-    ConcreteReferencePath(path.type, step, valid_reference_prefix(child, rest))
+    ConcreteReferencePath(path.type, step, get_valid_reference_prefix(child, rest))
 end
 
 """
@@ -645,12 +645,12 @@ end
 
 Document-aware validity: `true` iff every step of `path` — in particular every
 [`TypeReference`](@ref) checkpoint — resolves against `document`. Equivalent to
-`valid_reference_prefix(document, path) == path`. This is distinct from the
+`get_valid_reference_prefix(document, path) == path`. This is distinct from the
 single-argument [`is_valid_reference`](@ref) which only checks *structural*
 well-formedness of the reference object itself.
 """
 is_valid_reference(document, path::ReferencePath) =
-    valid_reference_prefix(document, path) == path
+    get_valid_reference_prefix(document, path) == path
 
 # ── Type-checkpoint annotation ───────────────────────────────────────────
 
@@ -662,7 +662,7 @@ Return `path` with each node's `type` field **filled in** against `document`: a
 the terminal `EmptyReferencePath` records the type of the node the path lands on.
 This is the *folded* canonical form — the type lives on each node, not as a
 separate interleaved `TypeReference` step. The result can be persisted and later
-re-checked with [`valid_reference_prefix`](@ref) / the document-aware
+re-checked with [`get_valid_reference_prefix`](@ref) / the document-aware
 [`is_valid_reference`](@ref) to detect structural changes. Inverse of
 [`strip_reference_types`](@ref).
 

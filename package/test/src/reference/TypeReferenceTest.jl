@@ -39,7 +39,7 @@ annotated = annotate_reference_types(arr, plain)
 changed = JsonArray([JsonNumber(9), num])
 @test !is_valid_reference(changed, annotated)
 
-prefix = valid_reference_prefix(changed, annotated)
+prefix = get_valid_reference_prefix(changed, annotated)
 @test prefix != annotated
 @test evaluate_reference(changed, prefix) === changed[1]
 @test strip_reference_types(prefix) == plain
@@ -48,7 +48,7 @@ prefix = valid_reference_prefix(changed, annotated)
 
 # An out-of-range index is unfollowable: the whole path is dropped.
 oob = ConcreteReferencePath(ElementReference(5), EmptyReferencePath())
-@test valid_reference_prefix(arr, oob) == EmptyReferencePath()
+@test get_valid_reference_prefix(arr, oob) == EmptyReferencePath()
 
 # ── the one-arg structural check is unchanged ─────────────────────────────
 

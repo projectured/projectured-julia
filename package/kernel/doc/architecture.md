@@ -99,7 +99,7 @@ implement.) The stateless factory seams `make_backend(kind)` /
 `make_agent_server(kind)` are the one deliberate exception, kept as the SPI's own
 registration entry. An interface is its functions, not just its type, so api
 modules are expected to grow accessor/behaviour operations (e.g. the
-`iomap_projection` / `iomap_input` / `iomap_output` accessors on `IoMapApiModule`).
+`get_iomap_projection` / `get_iomap_input` / `get_iomap_output` accessors on `IoMapApiModule`).
 
 ## Load order and the include-order guard
 

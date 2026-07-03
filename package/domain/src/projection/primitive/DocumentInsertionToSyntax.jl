@@ -47,7 +47,7 @@ import ..ReferenceModule: ConcreteReferencePath, FieldReference, RangeReference,
 import ..ReferenceCaseModule: var"@reference_case"
 import ..ReferenceBuilderModule: var"@reference"
 import ..GestureBindingModule: GestureBinding, KeyDownPattern, KeyPressPattern,
-                              projection_gestures, read_projection_gesture, var"@gestures"
+                              get_projection_gesture_bindings, read_projection_gesture, var"@gestures"
 import ..FontModule: font_ubuntu_monospace_regular_20, StyleFont
 import ..ColorModule: color_solarized_gray, color_solarized_green, color_default, StyleColor
 import ..StyleTextModule: StyleText
@@ -128,15 +128,15 @@ function read_intent(p::InsertionToSyntaxLeaf, iomap::SimpleIoMap, op::ReplaceSe
     h.name == "value" ? op : ReplaceSelectionOperation(ConcreteReferencePath(ProjectionReference(p, path)))
 end
 
-# Own gestures, reified as a `projection_gestures` table fired through
-# `read_projection_gesture` -- so the same set that fires is what `collect_gestures`
+# Own gestures, reified as a `get_projection_gesture_bindings` table fired through
+# `read_projection_gesture` -- so the same set that fires is what `collect_gesture_bindings`
 # shows. Value char-editing (insert / Backspace / Delete) mirrors PrimitiveString;
 # Commit / Cancel are projection-specific (they call `p.commit` / abort to a
 # `DocumentNothing`), which is why this stays a projection table rather than a
 # document-level `@gestures`. Modifiers are matched loosely (`mods=nothing`) to
 # preserve the old bare `@event_case` patterns exactly. Operations capture `p`/`ins`
 # and return `nothing` to decline (no value cursor / commit refused).
-function projection_gestures(p::InsertionToSyntaxLeaf, iomap)
+function get_projection_gesture_bindings(p::InsertionToSyntaxLeaf, iomap)
     ins = iomap.input
     GestureBinding[
         GestureBinding(KeyDownPattern(:return, nothing, nothing),

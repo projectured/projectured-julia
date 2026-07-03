@@ -10,7 +10,7 @@ module ChainingProjectionModule
 
 import ..ProjectionApiModule: print_document, read_intent, map_reference_forward, map_reference_backward, Projection
 import ..IntentModule: Intent
-import ..GestureBindingModule: collect_gestures, GestureBinding
+import ..GestureBindingModule: collect_gesture_bindings, GestureBinding
 import ..IoMapModule: SimpleIoMap
 import ..IoMapApiModule: IoMap
 import ..ReactiveModule: Cell
@@ -157,10 +157,10 @@ read_intent(seq::ChainingProjection, iomap::ChainingProjectionIoMap, payload) =
 # Where the reader threads one change through the chain, the collector gathers
 # every stage's gestures (each stage's own input document, plus projection-owned
 # gestures), so the help shows the union available across the whole pipeline.
-function collect_gestures(seq::ChainingProjection, recursion, iomap::ChainingProjectionIoMap)
+function collect_gesture_bindings(seq::ChainingProjection, recursion, iomap::ChainingProjectionIoMap)
     result = GestureBinding[]
     for (p, step) in zip(seq.projections, iomap.step_iomaps)
-        append!(result, collect_gestures(p, recursion, step[]))
+        append!(result, collect_gesture_bindings(p, recursion, step[]))
     end
     return result
 end

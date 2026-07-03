@@ -16,7 +16,7 @@ import ..DeviceApiModule: Device, read_from_devices, write_to_devices
 import ..BackendApiModule: Backend, init!, quit!
 import ..ScreenDeviceModule: Screen, WindowQuit
 import ..ScreenDocumentModule: EventEnvelope
-import ..PerformanceCounterModule: perf_counters, perf_reset!, @perf_time
+import ..PerformanceCounterModule: get_performance_counters, perf_reset!, @perf_time
 import ..TimeModule: tick!
 import ..DocumentApiModule: Document
 import ..KeyboardModule: Keyboard, KeyDown
@@ -177,7 +177,7 @@ when the editor processed a non-nothing operation.
 """
 function perf!(editor::Editor)
     editor.operation === nothing && return
-    c = perf_counters()
+    c = get_performance_counters()
     # The per-stage timing keys are the editor's own (recorded via `@perf_time`
     # below), not seeded by the reactive engine, so read them defensively: a frame
     # that ran no stage yet leaves them absent.
@@ -216,7 +216,7 @@ function run!(editor::Editor; mcp::Bool=false,
     server === nothing || agent_server_start!(server)
     # Advance the global animation clock once per frame. `tick!` writes the
     # clock cell, so any computed cell that subscribed via
-    # `reactive_editor_time()` is invalidated and re-evaluated on the next pull.
+    # `get_reactive_editor_time()` is invalidated and re-evaluated on the next pull.
     # Logical time is wall-clock seconds since the loop started.
     t_start = Base.time()
     try

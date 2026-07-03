@@ -27,7 +27,7 @@ import ..DocumentApiModule: Document
 import ..DocumentModule: copy_document, @document, @forward
 import ..ReferenceModule: Reference
 export CellVector, CellMatrix, CellTable, ListNode, CollectionDocument,
-       left_tail, right_tail, cell_at, take_first_n,
+       get_left_tail, get_right_tail, get_cell_at, take_first_n,
        insert_row!, insert_column!, delete_row!, delete_column!, insert_row, delete_row,
        ICellVector, ICellMatrix, ICellTable, IListNode
 
@@ -69,7 +69,7 @@ function Base.iterate(cv::CellVector, s...)
 end
 
 Base.getindex(cv::CellVector, i::Integer) = _elems(cv)[i][]  # returns the stored value
-cell_at(cv::CellVector, i::Integer) = _elems(cv)[i]        # returns the raw Cell
+get_cell_at(cv::CellVector, i::Integer) = _elems(cv)[i]        # returns the raw Cell
 
 function Base.setindex!(cv::CellVector, val, i::Integer)
     elems = _elems(cv)
@@ -173,7 +173,7 @@ function Base.iterate(cm::CellMatrix, s...)
 end
 
 Base.getindex(cm::CellMatrix, r::Integer, c::Integer) = _elems(cm)[r, c][]
-cell_at(cm::CellMatrix, r::Integer, c::Integer)       = _elems(cm)[r, c]
+get_cell_at(cm::CellMatrix, r::Integer, c::Integer)       = _elems(cm)[r, c]
 
 function Base.setindex!(cm::CellMatrix, val, r::Integer, c::Integer)
     _elems(cm)[r, c][] = val
@@ -258,7 +258,7 @@ Base.length(ct::CellTable) = length(ct.rows)
 Base.isempty(ct::CellTable) = isempty(ct.rows)
 
 Base.getindex(ct::CellTable, r::Integer, c::Integer) = (ct.rows[r]::CellVector)[c]
-cell_at(ct::CellTable, r::Integer, c::Integer) = cell_at(ct.rows[r]::CellVector, c)
+get_cell_at(ct::CellTable, r::Integer, c::Integer) = get_cell_at(ct.rows[r]::CellVector, c)
 
 function Base.setindex!(ct::CellTable, val, r::Integer, c::Integer)
     (ct.rows[r]::CellVector)[c] = val
@@ -354,14 +354,14 @@ function Base.pushfirst!(head::ListNode, value)
 end
 
 # Walk to the leftmost node (far end of the prev tail).
-function left_tail(n::ListNode)
+function get_left_tail(n::ListNode)
     cur = n
     while cur.prev !== nothing; cur = cur.prev::ListNode end
     return cur
 end
 
 # Walk to the rightmost node (far end of the next tail).
-function right_tail(n::ListNode)
+function get_right_tail(n::ListNode)
     cur = n
     while cur.next !== nothing; cur = cur.next::ListNode end
     return cur
@@ -370,8 +370,8 @@ end
 Base.IteratorSize(::Type{ListNode}) = Base.SizeUnknown()
 Base.eltype(::Type{ListNode})       = ListNode
 
-# Iterate from left_tail through to right_tail.
-function Base.iterate(n::ListNode, cur::Union{ListNode,Nothing} = left_tail(n))
+# Iterate from get_left_tail through to get_right_tail.
+function Base.iterate(n::ListNode, cur::Union{ListNode,Nothing} = get_left_tail(n))
     cur === nothing && return nothing
     return (cur, cur.next)
 end

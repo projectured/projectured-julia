@@ -231,7 +231,7 @@ and drives the follower window via `OpenWindowOperation` / `CloseWindowOperation
 The window's content is a `ReferenceInspector` rendered the same two ways as the
 tooltip (compact `ReferenceToText` + human-readable `ReferenceToHumanReadableText`).
 It closes over dead space. Desktop-only (needs the SDL backend's global mouse via
-`pointer_position`); mutually exclusive with `tooltip` and `workbench`.
+`get_pointer_position`); mutually exclusive with `tooltip` and `workbench`.
 
 When `introspection=true`, each example's content is wrapped in a
 `WidgetTabbedPane` with three tabs: the original content (rendered with
@@ -281,7 +281,7 @@ function run_example(examples::Vector{Example}; width=nothing, height=nothing,
         error("run_example: clipboard=true is not compatible with tooltip=true or inspector=true")
     end
     if width === nothing || height === nothing
-        sw, sh = display_size()
+        sw, sh = get_display_size()
         width  = something(width,  sw)
         height = something(height, sh)
     end
@@ -357,7 +357,7 @@ function run_example(examples::Vector{Example}; width=nothing, height=nothing,
     content_unwrap = tooltip ? :tooltip : clipboard ? :clipboard : :plain
     # `compose(projs, backend)` — the inspector pipeline needs the backend for its
     # pointer closure, hence the second argument.
-    compose = inspector ? (p, b) -> _multi_window_projection_inspector(p; pointer = () -> pointer_position(b)) :
+    compose = inspector ? (p, b) -> _multi_window_projection_inspector(p; pointer = () -> get_pointer_position(b)) :
               tooltip   ? (p, b) -> _multi_window_projection_tooltipped(p) :
                           (p, b) -> _multi_window_projection(p)
     _run_window_scene(docs, projs, String[ex.name for ex in examples];

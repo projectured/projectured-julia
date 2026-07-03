@@ -8,7 +8,7 @@ the declaration from the implementation and avoids circular dependencies.
 """
 module DocumentApiModule
 
-export Document, selection, clear_selection!, set_selection!, with_selection, read_gesture
+export Document, get_selection, clear_selection!, set_selection!, with_selection, read_gesture
 
 """
     Document
@@ -35,14 +35,14 @@ Two contracts bind every concrete document:
 abstract type Document end
 
 """
-    selection(document) -> reference or nothing
+    get_selection(document) -> reference or nothing
 
 The document's current selection — a `ReferencePath` or `nothing`. Every document
 has one (the [`Document`](@ref) contract requires a `selection` field); the default
 reads that conventional field, so a concrete document gets it for free, and one that
 stores its selection differently overrides this method.
 """
-selection(document::Document) = document.selection
+get_selection(document::Document) = document.selection
 
 """
     clear_selection!(document)
@@ -89,7 +89,7 @@ without re-implementing them, and a backend that renders the domain directly
 
 The catch-all `read_gesture(::Document, gesture)` is supplied by
 `GestureBindingModule` (`common/GestureBinding.jl`): it interprets the reified
-`document_gestures` table for the document's type, so a domain authored with
+`get_document_gesture_bindings` table for the document's type, so a domain authored with
 `@gestures` needs no hand-written reader. A concrete `read_gesture(::SomeDoc, …)`
 method is more specific and still takes precedence; a document type with neither a
 method nor any registered gestures yields `nothing`.

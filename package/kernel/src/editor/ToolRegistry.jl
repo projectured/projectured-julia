@@ -9,7 +9,7 @@ A `Tool` is an action with a name, JSON-Schema-style parameters, and a
 handler `(editor, args::Dict) -> String`. A `Resource` is a read-only piece
 of data identified by a URI and produced lazily by a `provider` function.
 
-A dependency-free bridge to the Anthropic Messages API (`anthropic_tool_schema`)
+A dependency-free bridge to the Anthropic Messages API (`get_anthropic_tool_schema`)
 lives here. The MCP wire-format bridges (`mcp_tools` / `mcp_resources`) require
 `ModelContextProtocol` and therefore live in `McpModule` (which becomes the MCP
 package extension), keeping this registry free of optional dependencies.
@@ -19,7 +19,7 @@ module ToolRegistryModule
 export Tool, Resource,
        register_tool!, register_tools!, list_tools, call_tool, find_tool,
        register_resource!, register_resources!, list_resources, read_resource, find_resource,
-       anthropic_tool_schema,
+       get_anthropic_tool_schema,
        clear_registry!
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -150,12 +150,12 @@ end
 # ═══════════════════════════════════════════════════════════════════════
 
 """
-    anthropic_tool_schema(tools = list_tools()) -> Vector{Dict}
+    get_anthropic_tool_schema(tools = list_tools()) -> Vector{Dict}
 
 Render the given tools as the JSON-Schema-shaped vector expected by the
 Anthropic Messages API `tools` parameter.
 """
-function anthropic_tool_schema(tools::AbstractVector{Tool} = list_tools())
+function get_anthropic_tool_schema(tools::AbstractVector{Tool} = list_tools())
     out = Dict[]
     for t in tools
         properties = Dict{String,Any}()

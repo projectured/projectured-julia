@@ -91,7 +91,7 @@ one and you get a hang, a stale render, or a stack overflow rather than an error
 ## Performance counters
 
 ```julia
-perf_counters()  # Dict{Symbol,Int} with :reads :computes :invalidations :writes
+get_performance_counters()  # Dict{Symbol,Int} with :reads :computes :invalidations :writes
 perf_reset!()    # zero them
 ```
 

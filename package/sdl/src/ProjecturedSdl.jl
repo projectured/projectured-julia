@@ -5,7 +5,7 @@ Opt-in package: the SDL display/input backend (window, GPU rendering, SDL_ttf te
 rasterisation, offscreen image output). Depends on `ProjecturedDomain` +
 SimpleDirectMediaLayer/SDL2_jll; `using ProjecturedSdl` registers
 `make_backend(:sdl)` plus the render/decode/image seam methods, and (via
-`__init__`) installs SDL as the real `display_size` provider. Exposes `SdlBackend`,
+`__init__`) installs SDL as the real `get_display_size` provider. Exposes `SdlBackend`,
 `GraphicsCanvasToImageFile`, and the `sdl_*` helpers. Also exports the offscreen
 primitives (`_open_offscreen_renderer`, `_close_offscreen_renderer`, `_emit_frames!`)
 that the opt-in `ProjecturedVideo` package builds `record_video` on (FFMPEG lives there,
@@ -22,8 +22,8 @@ using ProjecturedDomain
 using SimpleDirectMediaLayer
 using SimpleDirectMediaLayer.LibSDL2
 import ProjecturedDomain.BackendApiModule: Backend, init!, quit!, measure_text, make_backend, write_image,
-                        render_canvas, decode_image, pointer_position
-import ProjecturedDomain.DisplayModule: display_size, set_display_size_provider!
+                        render_canvas, decode_image, get_pointer_position
+import ProjecturedDomain.DisplayModule: get_display_size, set_display_size_provider!
 import ProjecturedDomain.DeviceApiModule: Device, read_from_devices, write_to_devices, write_to_device
 import ProjecturedDomain.GraphicsModule: GraphicsCanvas, GraphicsText, GraphicsRect, GraphicsLine, GraphicsCircle,
                          GraphicsPolyline, GraphicsSpline, GraphicsViewport, GraphicsImage,
@@ -521,14 +521,14 @@ const _HOVER_MOTION_INTERVAL = 0.03   # seconds (~33 Hz)
 const _LAST_HOVER_MOTION = Ref(0.0)
 
 """
-    pointer_position(::SdlBackend) -> (x, y)
+    get_pointer_position(::SdlBackend) -> (x, y)
 
 Current global mouse position in screen pixels (the same coordinate space as
 `SDL_SetWindowPosition`, so the result can place a window directly). Not run
 through `_to_logical`: window positions and global mouse coordinates are both
 in SDL screen coordinates.
 """
-function pointer_position(::SdlBackend)
+function get_pointer_position(::SdlBackend)
     x_ref, y_ref = Ref{Cint}(0), Ref{Cint}(0)
     SDL_GetGlobalMouseState(x_ref, y_ref)
     (Int(x_ref[]), Int(y_ref[]))
@@ -2509,7 +2509,7 @@ make_backend(::Val{:sdl}; kwargs...) = SdlBackend(; kwargs...)
 # Image decode via the generic seam.
 decode_image(filename::AbstractString) = sdl_decode_image(filename)
 
-# Register SDL as the real display-size provider so `display_size()` returns the
+# Register SDL as the real display-size provider so `get_display_size()` returns the
 # actual display once this package is loaded. This mutates a Ref owned by
 # ProjecturedKernel (via ProjecturedDomain), so it MUST run in `__init__` (at load
 # time) — doing it at top level would write the Ref during *this* package's

@@ -170,7 +170,7 @@ function run_file_editor(domain::Symbol; file=nothing, workbench::Bool=false,
                          backend=nothing, width=nothing, height=nothing, mcp::Bool=false)
     document, projection, name = build_file_editor(domain; file=file, workbench=workbench)
     if width === nothing || height === nothing
-        sw, sh = display_size()
+        sw, sh = get_display_size()
         width  = something(width,  sw)
         height = something(height, sh)
     end

@@ -20,7 +20,7 @@ import ..ToolRegistryModule: Tool, Resource,
                               register_tool!, register_resource!,
                               list_tools, list_resources
 
-export execute_julia_code, last_eval_value, list_guides, read_guide,
+export execute_julia_code, get_last_evaluated_value, list_guides, read_guide,
        list_modules, list_classes, list_functions,
        read_module_documentation, read_class_documentation, read_function_documentation,
        search_documentation, search_api,
@@ -40,20 +40,20 @@ const _SCRATCH = Ref{Module}()
 
 # The actual last value produced by the most recent `execute_julia_code` call —
 # reset to `nothing` at the start of each call, set on success. The conversation
-# eval reads this (via `last_eval_value()`) so a `Document` return value (e.g. a
+# eval reads this (via `get_last_evaluated_value()`) so a `Document` return value (e.g. a
 # live `SimulationTaskDocument`) can be embedded as the EvaluatorForm result and
 # render live, instead of only its text repr. `nothing` after an error or a
 # `nothing` result.
 const LAST_VALUE = Ref{Any}(nothing)
 
 """
-    last_eval_value()
+    get_last_evaluated_value()
 
 The value produced by the most recent `execute_julia_code` call (`nothing` if it
 errored or returned `nothing`). Lets the conversation eval embed a `Document`
 return value as a live EvaluatorForm result instead of stringifying it.
 """
-last_eval_value() = LAST_VALUE[]
+get_last_evaluated_value() = LAST_VALUE[]
 
 # The umbrella `Projectured` package (loaded but not a dependency of the kernel —
 # that would be circular) re-exports both kernel and domain names. Prefer it so

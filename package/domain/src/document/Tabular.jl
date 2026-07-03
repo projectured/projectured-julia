@@ -15,7 +15,7 @@ module TabularModule
 import ..ReactiveModule: Cell, set_function!, set_value!
 import ..DocumentApiModule: Document
 import ..DocumentModule: @document
-import ..CollectionModule: CellVector, cell_at
+import ..CollectionModule: CellVector, get_cell_at
 import ..ReferenceModule: Reference
 export TabularDocument, TabularCell, TabularRow, TabularGrid,
        ITabularCell, ITabularRow, ITabularGrid,
@@ -136,7 +136,7 @@ hit the same reactive `Cell` in the graph.
 """
 function tabular_column(g::TabularGrid, c::Int)
     nrows = length(g.rows)
-    shared = [cell_at(g.rows[r].cells, c) for r in 1:nrows]
+    shared = [get_cell_at(g.rows[r].cells, c) for r in 1:nrows]
     CellVector(shared)
 end
 

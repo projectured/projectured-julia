@@ -128,7 +128,7 @@ The full old → new mapping with reasoning is in the table at the end of this f
       batch — these are the most-implemented functions in the codebase.
       (`read_document_gesture`, `read_node_gesture`, `read_projection_gesture`,
       `matches` and `describe` were already verb-first and stay unchanged.)
-- [ ] **Batch 8 — getters become `get_*`**: every noun-phrase accessor gains
+- [x] **Batch 8 — getters become `get_*`** *(done)*: every noun-phrase accessor gains
       the `get_` prefix so it pairs with its `set_stem!` twin
       (`get_selection` / `set_selection!`); ~20 renames, see the table.
       The `*_gestures` family additionally fixes its rung: those functions

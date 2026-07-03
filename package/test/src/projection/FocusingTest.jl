@@ -1,6 +1,6 @@
 # Tests for FocusingProjection's reified focus gestures (Ctrl+, focus out;
 # Ctrl+. focus in). The projection previously had no test coverage; these
-# characterise the firing of its `projection_gestures` table through
+# characterise the firing of its `get_projection_gesture_bindings` table through
 # `read_projection_gesture` — fire == show at the projection layer.
 
 function test_focusing()

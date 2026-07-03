@@ -10,7 +10,7 @@ module TypeDispatchingProjectionModule
 
 import ..ProjectionApiModule: print_document, read_intent, map_reference_forward, map_reference_backward, Projection
 import ..IntentModule: Intent
-import ..GestureBindingModule: collect_gestures, GestureBinding
+import ..GestureBindingModule: collect_gesture_bindings, GestureBinding
 export TypeDispatchingProjection
 
 """
@@ -70,10 +70,10 @@ read_intent(tdp::TypeDispatchingProjection, iomap, payload) =
 
 # Gather from the projection that matches the (transparent) input's type, exactly
 # as the reader dispatches to it.
-function collect_gestures(tdp::TypeDispatchingProjection, recursion, iomap)
+function collect_gesture_bindings(tdp::TypeDispatchingProjection, recursion, iomap)
     for (T, proj) in tdp.dispatch
         if iomap.input isa T
-            return collect_gestures(proj, recursion, iomap)
+            return collect_gesture_bindings(proj, recursion, iomap)
         end
     end
     return GestureBinding[]

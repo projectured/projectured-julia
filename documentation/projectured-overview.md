@@ -290,7 +290,7 @@ Deep pipelines that stay fast.
   in O(depth); only what's actually *read* recomputes, in O(affected).
 - Editing one character in a huge document reruns a *handful* of cells —
   text, layout, and most graphics are served from cache.
-- `perf_counters()` exposes read/compute/write counts per frame.
+- `get_performance_counters()` exposes read/compute/write counts per frame.
 
 <span class="muted">reactive/Reactive.jl · every @document field is a Cell</span>
 

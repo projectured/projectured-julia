@@ -43,7 +43,7 @@ import ..TextModule: TextText, TextString
 import ..JuliaParserModule: juliaparse
 import ..JsonParserModule: jsonparse
 import ..XmlParserModule: xmlparse
-import ..McpModule: execute_julia_code, last_eval_value
+import ..McpModule: execute_julia_code, get_last_evaluated_value
 import ..DocumentApiModule: Document
 import ..WidgetModule: WidgetCard, WidgetAvatar, WidgetLabel, Point2D
 import ..LayoutModule: VerticalLayout, HorizontalLayout
@@ -54,7 +54,7 @@ import ..ReferenceModule: Reference, ConcreteReferencePath, FieldReference,
                           RangeReference, EmptyReferencePath
 import ..KeyboardModule: KeyDown, KeyPress
 import ..GestureBindingModule: GestureBinding, KeyDownPattern, KeyPressPattern,
-                              matches, projection_gestures
+                              matches, get_projection_gesture_bindings
 import ..IoMapModule: SimpleIoMap
 
 export ConversationComposerToWidget, composer_read, finalize_draft!, new_draft, reset_draft!,
@@ -280,7 +280,7 @@ function evaluate_operation(editor, op::ComposerEvaluateOperation)
     # is kept as the result so it renders live; otherwise the text repr.
     # `execute_julia_code` `println`s the result repr, so the captured output ends
     # in a newline — strip it so the result text doesn't render a trailing tofu box.
-    val = last_eval_value()
+    val = get_last_evaluated_value()
     result = val isa Document ? val : result_text(rstrip(output))
     _replace_active!(op.draft,
         EvaluatorForm(form; result = result, is_error = is_err))
@@ -496,7 +496,7 @@ into the conversation instead of merely normalizing it.
 # The composer's gesture table, reified as `GestureBinding`s and dispatched on the
 # **active** (last) part's mode, so the very set that fires (`composer_read`, shared
 # with the assistant panel) is the set the gesture-help window shows
-# (`projection_gestures`) — fire == show. Char insert + Backspace are shared by every
+# (`get_projection_gesture_bindings`) — fire == show. Char insert + Backspace are shared by every
 # editable mode; the Return / Shift+Return / Alt+Return / Tab / Esc meaning is
 # mode-specific. Modifiers are matched as the old `@event_case` did: `[:shift]`/`[:alt]`
 # are exact, a bare key (`mods=nothing`) matches any modifiers, and the exact-modifier
@@ -599,7 +599,7 @@ end
 
 # The show side of the very table the reader fires (fire == show): the help window
 # enumerates exactly the composer gestures available for the draft's current mode.
-projection_gestures(::ConversationComposerToWidget, iomap) =
+get_projection_gesture_bindings(::ConversationComposerToWidget, iomap) =
     iomap.input isa ConversationDraft ? _composer_bindings(iomap.input) : GestureBinding[]
 
 end # module

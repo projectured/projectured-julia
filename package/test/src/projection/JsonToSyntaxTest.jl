@@ -159,8 +159,8 @@ end
 end # @testset "JsonToSyntax reader commands"
 end # test_json_to_syntax_reader
 
-# The contextual collector: collect_gestures walks the projection chain to the
-# reified JSON tables, and applicable_gestures reflects the current selection —
+# The contextual collector: collect_gesture_bindings walks the projection chain to the
+# reified JSON tables, and get_applicable_gesture_bindings reflects the current selection —
 # the data-driven dual of what the reader could fire.
 function test_json_gesture_collection()
 @testset "JsonToSyntax gesture collection" begin
@@ -169,8 +169,8 @@ function test_json_gesture_collection()
     collect_for(doc, sel) = begin
         set_selection!(doc, sel)
         iomap = print_document(j2s, doc)
-        bindings = collect_gestures(j2s, nothing, iomap)
-        (bindings, applicable_gestures(doc, bindings))
+        bindings = collect_gesture_bindings(j2s, nothing, iomap)
+        (bindings, get_applicable_gesture_bindings(doc, bindings))
     end
 
     @testset "root scalar exposes the type-to-replace set" begin

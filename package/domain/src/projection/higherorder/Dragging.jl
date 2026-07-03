@@ -33,7 +33,7 @@ import ..ProjectionApiModule: print_document, print_child, read_intent,
 import ..IntentModule: Intent
 import ..IoMapApiModule: IoMap
 import ..ReactiveModule: Cell
-import ..CollectionModule: CellVector, cell_at
+import ..CollectionModule: CellVector, get_cell_at
 import ..ReferenceModule: ReferencePath, EmptyReferencePath, ConcreteReferencePath,
                           RangeReference, FieldReference, is_element_reference, evaluate_reference,
                           head, tail
@@ -126,7 +126,7 @@ function evaluate_operation(editor, op::MoveRangeOperation)
     n = b - a + 1
 
     # Lift the raw cells (preserve identity), then remove them from the source.
-    moved = [cell_at(src, i) for i in a:b]
+    moved = [get_cell_at(src, i) for i in a:b]
     for _ in 1:n
         deleteat!(src, a)
     end

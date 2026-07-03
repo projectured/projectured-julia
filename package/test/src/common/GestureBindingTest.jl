@@ -101,7 +101,7 @@ function test_gesture_binding()
     end
 
     @testset "@gestures registers an own table; descriptions captured" begin
-        own = document_gestures_own(GestureProbe)
+        own = get_document_gesture_bindings_own(GestureProbe)
         @test length(own) == 4
         @test [b.description for b in own] ==
               ["make negative", "make positive", "set digit", "toggle"]
@@ -109,9 +109,9 @@ function test_gesture_binding()
     end
 
     @testset "supertype inheritance: subtype = own + base, most-specific first" begin
-        leaf = document_gestures(GestureProbeLeaf)
+        leaf = get_document_gesture_bindings(GestureProbeLeaf)
         @test length(leaf) == 4                       # only inherited base bindings
-        arr = document_gestures(GestureProbeArray)
+        arr = get_document_gesture_bindings(GestureProbeArray)
         @test length(arr) == 5                        # own (1) + base (4)
         @test arr[1].description == "append"          # own first
         @test arr[2].description == "make negative"   # then inherited
@@ -130,9 +130,9 @@ function test_gesture_binding()
     @testset "applicable precondition gates firing (and greys help rows)" begin
         leaf = GestureProbeLeaf()           # selection === nothing → precondition false
         @test read_document_gesture(leaf, KeyPress('n')) === nothing
-        @test isempty(applicable_gestures(leaf, document_gestures(GestureProbeLeaf)))
+        @test isempty(get_applicable_gesture_bindings(leaf, get_document_gesture_bindings(GestureProbeLeaf)))
         leaf.selection = EmptyReferencePath()
-        @test length(applicable_gestures(leaf, document_gestures(GestureProbeLeaf))) == 4
+        @test length(get_applicable_gesture_bindings(leaf, get_document_gesture_bindings(GestureProbeLeaf))) == 4
     end
 
     @testset "read_gesture interpreter routes through the reified table" begin
@@ -148,8 +148,8 @@ function test_gesture_binding()
         @test [b.description for b in probe_clipboard] == ["Copy", "Paste"]
         @test all(b -> b.domain == "probe_clipboard", probe_clipboard)
 
-        alpha = document_gestures(ProbeAlpha)
-        beta = document_gestures(ProbeBeta)
+        alpha = get_document_gesture_bindings(ProbeAlpha)
+        beta = get_document_gesture_bindings(ProbeBeta)
         # Each type = spliced set (in position) + its own rule.
         @test [b.description for b in alpha] == ["Copy", "Paste", "alpha only"]
         @test [b.description for b in beta] == ["Copy", "Paste", "beta only"]

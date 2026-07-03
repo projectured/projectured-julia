@@ -13,7 +13,7 @@ import ..ReferenceModule: ReferencePath, ConcreteReferencePath, EmptyReferencePa
 import ..IoMapModule: SimpleIoMap
 import ..ReactiveModule: set_function!
 import ..GestureBindingModule: GestureBinding, KeyDownPattern,
-                              projection_gestures, read_projection_gesture
+                              get_projection_gesture_bindings, read_projection_gesture
 
 export FocusingProjection, ReplaceFocusPartOperation
 
@@ -87,12 +87,12 @@ function read_intent(p::FocusingProjection, iomap::SimpleIoMap, event::ReplaceSe
     return ReplaceSelectionOperation(input_selection)
 end
 
-# Own gestures, reified as a `projection_gestures` table so the firing path (via
-# `read_projection_gesture`) is the one `collect_gestures` shows. Focus-out is
+# Own gestures, reified as a `get_projection_gesture_bindings` table so the firing path (via
+# `read_projection_gesture`) is the one `collect_gesture_bindings` shows. Focus-out is
 # gated by `applicable` (so its op may assume a non-empty part); focus-in
 # self-declines in its operation (no selection, or no deeper part of the right
 # type). Modifiers are matched exactly.
-function projection_gestures(p::FocusingProjection, iomap)
+function get_projection_gesture_bindings(p::FocusingProjection, iomap)
     GestureBinding[
         GestureBinding(KeyDownPattern(:comma, [:ctrl], nothing),
             (doc, event) -> ReplaceFocusPartOperation(p, _drop_last(p.part)),

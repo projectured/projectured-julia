@@ -59,7 +59,7 @@ import ..ReferenceModule: ReferencePath, ConcreteReferencePath, EmptyReferencePa
 import ..PrinterContextModule: PrinterContext, child_context
 import ..IoMapApiModule: IoMap
 import ..GestureBindingModule: GestureBinding, KeyDownPattern,
-                              projection_gestures, read_projection_gesture, collect_gestures
+                              get_projection_gesture_bindings, read_projection_gesture, collect_gesture_bindings
 import ..OsClipboardModule: os_clipboard_read, os_clipboard_write
 
 export ClipboardSliceToAnyProjection, ClipboardCollectionToAnyProjection,
@@ -490,14 +490,14 @@ end
 
 # ── Readers ─────────────────────────────────────────────────────────────────
 
-# Own gestures, reified as a `projection_gestures` table so the same set that
-# fires (via `read_projection_gesture`) is the one `collect_gestures` shows. The
+# Own gestures, reified as a `get_projection_gesture_bindings` table so the same set that
+# fires (via `read_projection_gesture`) is the one `collect_gesture_bindings` shows. The
 # operations capture the projection `p` (for the display toggle) and take the
 # clipboard document as their `doc` argument; they return `nothing` to decline
 # (e.g. no usable selection), falling through to the content-child delegation.
 # Modifiers are matched exactly, so `Ctrl+Shift+V` (paste-copy) and `Ctrl+V`
 # (paste) are distinct — order between them is therefore immaterial.
-function projection_gestures(p::ClipboardSliceToAnyProjection, iomap)
+function get_projection_gesture_bindings(p::ClipboardSliceToAnyProjection, iomap)
     GestureBinding[
         GestureBinding(KeyDownPattern(:slash, [:ctrl], nothing),
             (doc, event) -> ToggleClipboardSliceDisplayOperation(p),
@@ -530,17 +530,17 @@ function read_intent(p::ClipboardSliceToAnyProjection, recursion, change::Intent
 end
 
 # Gather this projection's own gestures plus the content child's, mirroring the
-# reader's own-then-delegate structure, so `collect_gestures` (the help window)
+# reader's own-then-delegate structure, so `collect_gesture_bindings` (the help window)
 # shows both the clipboard commands and whatever the wrapped content offers.
-function collect_gestures(p::ClipboardSliceToAnyProjection, recursion, iomap::ClipboardSliceToAnyProjectionIoMap)
+function collect_gesture_bindings(p::ClipboardSliceToAnyProjection, recursion, iomap::ClipboardSliceToAnyProjectionIoMap)
     result = GestureBinding[]
-    append!(result, projection_gestures(p, iomap))
+    append!(result, get_projection_gesture_bindings(p, iomap))
     cim = iomap.content_iomap
-    cim === nothing || append!(result, collect_gestures(cim.projection, recursion, cim))
+    cim === nothing || append!(result, collect_gesture_bindings(cim.projection, recursion, cim))
     result
 end
 
-function projection_gestures(p::ClipboardCollectionToAnyProjection, iomap)
+function get_projection_gesture_bindings(p::ClipboardCollectionToAnyProjection, iomap)
     GestureBinding[
         GestureBinding(KeyDownPattern(:asterisk, [:ctrl], nothing),
             (doc, event) -> ToggleClipboardCollectionDisplayOperation(p),
@@ -563,11 +563,11 @@ function read_intent(p::ClipboardCollectionToAnyProjection, recursion, change::I
     Intent(change.gesture, _prefix_op(inner.operation, (FieldReference("content"),)))
 end
 
-function collect_gestures(p::ClipboardCollectionToAnyProjection, recursion, iomap::ClipboardCollectionToAnyProjectionIoMap)
+function collect_gesture_bindings(p::ClipboardCollectionToAnyProjection, recursion, iomap::ClipboardCollectionToAnyProjectionIoMap)
     result = GestureBinding[]
-    append!(result, projection_gestures(p, iomap))
+    append!(result, get_projection_gesture_bindings(p, iomap))
     cim = iomap.content_iomap
-    cim === nothing || append!(result, collect_gestures(cim.projection, recursion, cim))
+    cim === nothing || append!(result, collect_gesture_bindings(cim.projection, recursion, cim))
     result
 end
 

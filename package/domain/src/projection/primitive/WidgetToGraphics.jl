@@ -18,7 +18,7 @@ the content projection via the recursion argument.
 module WidgetToGraphicsModule
 
 import ..ReactiveModule: Cell, set_function!
-import ..TimeModule: editor_time, reactive_editor_time
+import ..TimeModule: get_editor_time, get_reactive_editor_time
 import ..ProjectionApiModule: print_document, print_child, read_intent,
                                map_reference_forward, map_reference_backward, Projection
 import ..IntentModule: Intent
@@ -3467,8 +3467,8 @@ function print_document(p::WidgetSwitchToGraphicsCanvas, recursion, w::WidgetSwi
                           border_width=max(1, _sc(p.knob_border.width)), border_color=p.knob_border.color)
     # The knob's x is a computed cell. It reads `checked` (so it tracks the
     # logical state and snaps when there is no animation) and, while a slide is
-    # in flight, `reactive_editor_time()` (so it re-evaluates every frame). Once
-    # the slide is over it only *samples* the time (`editor_time()`), drops the
+    # in flight, `get_reactive_editor_time()` (so it re-evaluates every frame). Once
+    # the slide is over it only *samples* the time (`get_editor_time()`), drops the
     # time subscription, and holds the final position — settling with no
     # registry (see plan/pending/animation-global-time.md §5).
     set_function!(getfield(knob, :cx), () -> begin
@@ -3477,10 +3477,10 @@ function print_document(p::WidgetSwitchToGraphicsCanvas, recursion, w::WidgetSwi
         t0  = w.anim_t0
         (dur <= 0 || isnan(t0)) && return Int32(target_x)
         t1 = t0 + dur / 1000
-        now = editor_time()                       # SAMPLE: decide done, no subscription
+        now = get_editor_time()                       # SAMPLE: decide done, no subscription
         now >= t1 && return Int32(target_x)       # settled → stops animating
         from_x = left_x + (right_x - left_x) * w.anim_from
-        t = reactive_editor_time()                # SUBSCRIBE while sliding
+        t = get_reactive_editor_time()                # SUBSCRIBE while sliding
         Int32(round(from_x + (target_x - from_x) * _switch_ease((t - t0) / (t1 - t0))))
     end)
     push!(elements, knob)
@@ -3501,7 +3501,7 @@ function _switch_toggle(w::WidgetSwitch)
     toggle = ReplaceReferencedValueOperation(w,
         ConcreteReferencePath(FieldReference("checked"), EmptyReferencePath()), new_checked)
     w.duration <= 0 && return toggle
-    now  = editor_time()
+    now  = get_editor_time()
     from = _switch_fraction(w, now)
     CompoundOperation(Any[
         ReplaceReferencedValueOperation(w, ConcreteReferencePath(FieldReference("anim_from"), EmptyReferencePath()), from),
@@ -5340,7 +5340,7 @@ end
 # Per-node gesture consult: find the node targeted by `g` — the row under the
 # pointer for a `MousePress` (any button/modifier; the binding's own pattern does
 # the matching), or the currently selected node for a `KeyDown` — and fire its
-# `instance_gestures` against the enclosing tree's selection. A node has no
+# `get_instance_gesture_bindings` against the enclosing tree's selection. A node has no
 # `selection` of its own, hence `read_node_gesture` rather than
 # `read_document_gesture`.
 function _wtree_node_gesture(iomap::WidgetTreeToGraphicsCanvasIoMap, g)
