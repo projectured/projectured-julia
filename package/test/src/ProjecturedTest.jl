@@ -142,6 +142,7 @@ include("editor/AssistantMvpTest.jl")
 include("editor/ConversationPanelTest.jl")
 include("editor/VideoTest.jl")
 include("editor/WorkbenchFileTest.jl")
+include("projection/CatalogTest.jl")
 include("external/DatabaseTest.jl")
 include("external/DatabaseTabularTest.jl")
 include("external/DbCatalogTest.jl")
@@ -307,6 +308,7 @@ export explore_text_selections, collect_text_selections, collect_tree_selections
 export test_recursion_contract, test_recursion_contracts, walk_recursion_contract, walk_reference_roundtrip, probe_delegation
 export test_reader, test_readers, walk_reader_events
 export test_repl, test_repls, walk_repl_loop
+export test_catalog
 export test_typein, test_typeins, walk_typein
 export test_julia_typein
 export test_mouse_click_roundtrip, test_mouse_clicks
