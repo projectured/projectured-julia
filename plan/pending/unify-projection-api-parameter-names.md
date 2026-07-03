@@ -2,7 +2,7 @@
 
 > **⏳ AUDIT 2026-06-23 — ENTIRE PLAN STILL OPEN (verified against current code).**
 > The codebase was restructured (`program/src/...` → `package/<sub>/src/...`); the
-> referenced files now live at `package/kernel/src/api/Projection.jl`,
+> referenced files now live at `package/kernel/src/api/ProjectionApi.jl`,
 > `package/kernel/src/common/Projection.jl`, and
 > `package/domain/src/projection/...`. None of the canonical renames have been
 > applied:
@@ -15,7 +15,7 @@
 > - mapper 3rd param is still **`reference`** (76×), not `ref`.
 > - legacy reader payloads still include 2× `operation` and many `evt` (e.g.
 >   `LayoutToGraphics.jl`, `WidgetToGraphics.jl`, `TextToGraphics.jl`).
-> - docstrings in `api/Projection.jl` + `common/Projection.jl` still document the
+> - docstrings in `api/ProjectionApi.jl` + `common/Projection.jl` still document the
 >   OLD names; guide prose (`documentation/projection-system.md` lines 10-12, 117)
 >   still shows `projection/recursion/input/reference`.
 > The Conversation files do `rec, ref = recursion, ctx.reference` as local aliases
@@ -27,7 +27,7 @@
 
 The four generic projection functions —
 [`projection_print`, `projection_read`, `map_reference_forward`,
-`map_reference_backward`](../../program/src/api/Projection.jl) — are implemented
+`map_reference_backward`](../../program/src/api/ProjectionApi.jl) — are implemented
 across **42 files** under [`program/src/projection/`](../../program/src/projection/).
 Their parameter names have drifted, so the same slot reads differently from one
 file to the next. A survey of every signature shows:
@@ -137,18 +137,18 @@ Also need the per-function `input` rename:
 [`WidgetToGraphics.jl`](../../program/src/projection/primitive/WidgetToGraphics.jl).
 
 **C. The interface + defaults (do first — defines the names).**
-[`api/Projection.jl`](../../program/src/api/Projection.jl) and
+[`api/ProjectionApi.jl`](../../program/src/api/ProjectionApi.jl) and
 [`common/Projection.jl`](../../program/src/common/Projection.jl): rename the
 default-method params **and** update the signature lines in the docstrings so
 the documented API matches. *(⏳ OPEN — files moved to
-`package/kernel/src/api/Projection.jl` and `package/kernel/src/common/Projection.jl`;
+`package/kernel/src/api/ProjectionApi.jl` and `package/kernel/src/common/Projection.jl`;
 both still use old param names in signatures and docstrings.)*
 
 ## Phasing
 
-1. **⏳ OPEN (verified):** **Bucket C** — `api/Projection.jl` + `common/Projection.jl` (defaults +
+1. **⏳ OPEN (verified):** **Bucket C** — `api/ProjectionApi.jl` + `common/Projection.jl` (defaults +
    docstrings). Establishes the canonical names. *Now at
-   `package/kernel/src/api/Projection.jl` (docstrings still use
+   `package/kernel/src/api/ProjectionApi.jl` (docstrings still use
    `projection, recursion, input, context` / `..., reference`) and
    `package/kernel/src/common/Projection.jl` (`projection_print(projection, input)`,
    `map_reference_forward(projection::Projection, iomap, reference)`,

@@ -77,7 +77,7 @@ This unifies three existing plans into one staged line of work:
 - ✅ **Recognizer** — `GestureRecognizer` (`program/src/editor/GestureRecognizer.jl`)
   turns raw events into gestures; `MouseDown`+`MouseUp` → `MousePress`. Driven by
   `next_gesture!` in `Editor.read!`.
-- ✅ **`document_read` seam** — declared in `program/src/api/Document.jl`
+- ✅ **`document_read` seam** — declared in `program/src/api/DocumentApi.jl`
   (`document_read(document, gesture) -> Operation|Nothing`), documented as *"the
   projection-independent half of a domain's reader."* Implemented for `TextText`
   (`program/src/document/Text.jl`) and `SyntaxNode` (`program/src/document/Syntax.jl`);
@@ -181,7 +181,7 @@ right after `EventCase.jl`.
   `document_gestures(typeof(doc))` first-match (`matches && applicable`, skipping
   a binding whose `operation` returns `nothing`). It is wired in as the
   `document_read(::Document, ::Any)` catch-all (the `= nothing` default was
-  removed from `api/Document.jl`), so **what fires is provably the set that is
+  removed from `api/DocumentApi.jl`), so **what fires is provably the set that is
   shown**. Concrete `document_read(::SyntaxNode/::TextText, …)` methods remain
   more specific and still win.
 
@@ -472,7 +472,7 @@ directly, already independent of `_multi_window_projection`).
   `document_gestures_own`/`document_gestures`, `@gestures`, `read_document_gesture`,
   `document_read` catch-all, `projection_gestures`, `collect_gestures` leaf default,
   `applicable_gestures`, `is_help_gesture`); included in `ProjecturedKernel.jl`.
-- **Edit:** `program/src/api/Document.jl` (removed the `= nothing` default; the
+- **Edit:** `program/src/api/DocumentApi.jl` (removed the `= nothing` default; the
   catch-all now comes from `GestureBindingModule`).
 - **Edit:** `program/src/common/Projection.jl` (generic event fallback in the leaf
   default reader).

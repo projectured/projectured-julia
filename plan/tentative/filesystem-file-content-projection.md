@@ -73,7 +73,7 @@ Domain depends on kernel, never the reverse. Therefore the kernel cannot know
 about `FileSystemFile`. The kernel must expose a **generic per-frame extension
 point**; the file-specific synchronizer is implemented in the domain layer and
 plugged in — the same way `Device`/`Backend` are abstract in the kernel
-(`package/kernel/src/api/Device.jl`, `.../Backend.jl`) and made concrete higher up.
+(`package/kernel/src/api/DeviceApi.jl`, `.../Backend.jl`) and made concrete higher up.
 
 ## Design overview
 
@@ -414,7 +414,7 @@ are deterministic and fast. Tests must use the session scratch dir for temp file
   changes as input *events* (flowing through `projection_read` → operation →
   `evaluate!`) and flushes dirty content on write. Conceptually clean and
   backend-swappable, but it **does not fit the current `Device` interface**
-  (`package/kernel/src/api/Device.jl`) without non-trivial changes, for two
+  (`package/kernel/src/api/DeviceApi.jl`) without non-trivial changes, for two
   concrete reasons:
 
   1. **Polling is backend-mediated, not device-driven.** `read_from_devices(::Backend, devices)`

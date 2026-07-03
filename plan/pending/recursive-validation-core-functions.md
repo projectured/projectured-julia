@@ -22,7 +22,7 @@ A projection exposes exactly **four** generic functions — the "great four":
 
 Every screen the user sees and every gesture they make flows through one or more
 projections via these four functions and nothing else. They are declared in
-[package/kernel/src/api/Projection.jl](../../package/kernel/src/api/Projection.jl)
+[package/kernel/src/api/ProjectionApi.jl](../../package/kernel/src/api/ProjectionApi.jl)
 and dispatched on the concrete projection struct.
 
 Each of the four is **recursive**: when a projection descends into child
@@ -220,7 +220,7 @@ State the contract — including the "no fifth recursive function" rule — as a
 first-class, named concept, cross-linked across the API and guides.
 
 - **API** —
-  [package/kernel/src/api/Projection.jl](../../package/kernel/src/api/Projection.jl):
+  [package/kernel/src/api/ProjectionApi.jl](../../package/kernel/src/api/ProjectionApi.jl):
   add a **"The recursion contract"** section to the module docstring naming the four
   functions, the delegation vehicles (`recursion` / `child_iomaps`), and the negative
   constraint (no fifth recursive generic function; it breaks composition because not

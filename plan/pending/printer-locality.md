@@ -207,7 +207,7 @@ Likely **justified exceptions** (must be written down, with the reason):
   [documentation/projection-system.md](../../documentation/projection-system.md)
   (a "Locality: smallest possible output change" subsection next to the
   recursion principle) and in the `projection_print` docstring
-  ([package/kernel/src/api/Projection.jl](../../package/kernel/src/api/Projection.jl)):
+  ([package/kernel/src/api/ProjectionApi.jl](../../package/kernel/src/api/ProjectionApi.jl)):
   state the selection-isolation rule, the keyed-reconciliation expectation for
   collections, and that exceptions must be justified.
 

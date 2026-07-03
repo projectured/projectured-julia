@@ -176,14 +176,14 @@ specific linearization, so Phase 2 is free to re-group as long as that holds.
 
 The `api/` tier exists but is **impure and incomplete**:
 
-- `api/Operation.jl` contains implementations: `NoOperation` + its
+- `api/OperationApi.jl` contains implementations: `NoOperation` + its
   `evaluate_operation` method, `splice_string`, `splice_number`, two `splice_value!`
   methods.
-- `api/Backend.jl` contains the `make_backend` Val-dispatch registry, a
+- `api/BackendApi.jl` contains the `make_backend` Val-dispatch registry, a
   `pointer_position` default, and the `display_size` provider with a module-level
   `Ref` global.
-- `api/Agent.jl` contains the `make_agent_server` Val-dispatch implementation.
-- `api/Device.jl` and parts of `api/Backend.jl` define **silent no-op methods**
+- `api/AgentApi.jl` contains the `make_agent_server` Val-dispatch implementation.
+- `api/DeviceApi.jl` and parts of `api/BackendApi.jl` define **silent no-op methods**
   (`function write_to_device(::Backend, device, document) end`) instead of true stubs
   (`function write_to_device end`) — a missing backend method silently does nothing
   rather than erroring.
@@ -196,9 +196,9 @@ The `api/` tier exists but is **impure and incomplete**:
   describe the LLM/MCP code as **weakdep extensions** (`ProjecturedLLMExt`,
   `ProjecturedMCPExt`) — `Project.toml` says they are standalone packages (`llm/`,
   `mcp/`) now.
-- Stale pre-split paths: `program/src/common/Projection.jl` (`api/Projection.jl:70`),
+- Stale pre-split paths: `program/src/common/Projection.jl` (`api/ProjectionApi.jl:70`),
   `program/ext/ProjecturedMCPExt.jl` (`editor/Mcp.jl:18`), `backend/Sdl.jl`
-  (`api/Backend.jl:6`).
+  (`api/BackendApi.jl:6`).
 
 ## Target structure (proposal)
 

@@ -7,7 +7,7 @@ and whether the operation should be completely self-contained instead.
 
 ## Current state
 
-The API signature (`api/Operation.jl`):
+The API signature (`api/OperationApi.jl`):
 
 ```julia
 evaluate_operation(operation::Operation, document)
@@ -173,7 +173,7 @@ available as a future move if those needs materialise.
 
 ### Minimal action items
 
-- Change the signature of `evaluate_operation` in `api/Operation.jl` to
+- Change the signature of `evaluate_operation` in `api/OperationApi.jl` to
   `evaluate_operation(operation::Operation)`.
 - Add a `document::Document` field to `ReplaceSelectionOperation`.
 - Update the reader pipeline that constructs `ReplaceSelectionOperation` to
