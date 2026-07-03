@@ -64,6 +64,10 @@ Package chain: **kernel ← base ← domain ← umbrella**; `llm`/`mcp` ← kern
 `sdl`/`web` ← domain (unchanged). Standing boundary rules for future code: a *document*
 is kernel-side only if the machinery itself needs it (currently: none); a *projection*
 is kernel-side iff it imports no concrete document.
+([domain-layered-architecture.md](domain-layered-architecture.md) later extends the
+chain to kernel ← base ← **visual** ← domain and feature-slices the domain package;
+it also assigns 4 domain files back to base: ScreenToScreen, the two compound
+combinator aggregates, ProjectionTemplate.)
 
 ### No-cycle verification (2026-07-03)
 
