@@ -368,17 +368,17 @@ macro document(structdef)
         end
     end
 
-    # The kind aliases are generated API, so the macro exports them itself (the
-    # bare name stays under the module's explicit export policy, as before; a
-    # module re-exporting an I-name explicitly is a harmless duplicate).
-    alias_exports = Expr(:export, r_name, i_name, m_name)
+    # The stem and its kind aliases are all generated API, so the macro exports
+    # them itself. A module re-exporting any of these names explicitly (e.g. the
+    # bare name in a domain's `export` line) is a harmless duplicate.
+    type_exports = Expr(:export, struct_name, r_name, i_name, m_name)
 
     # The stem stays an **immutable** struct: all mutation flows through the
     # cells (`setproperty!` writes cell *contents*); a field's cell object can
     # never be swapped after construction — sharing is established at
     # construction time instead.
     return esc(Expr(:block, :(Base.@__doc__ $structdef), getprop, setprop,
-                     r_alias, i_alias, m_alias, alias_exports,
+                     r_alias, i_alias, m_alias, type_exports,
                      i_ctor, m_ctor, dvt, extra...))
 end
 
