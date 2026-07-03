@@ -82,6 +82,128 @@ defines only the step's shape and never imports `Projection`; only higher layers
 construct and interpret the payload (same pattern as `Intent`). So projection → reference
 (PrinterContext, reference mapping) is the only edge, and it points down.
 
+## Target file tree (folders, files, one-line descriptions)
+
+The readable overview. A **folder = a layer**; an aggregator `XxxModule.jl` = the layer's
+public module; *fragments* are files it `include`s that share its namespace (so a large
+module stays one importable unit while its code lives in per-concept files).
+
+### `package/kernel/` — the engine: machinery + interfaces, zero concrete documents
+
+```
+src/
+  ProjecturedKernel.jl          # top module: 9 layer sections, includes aggregators in order
+
+  cell/                         # LAYER 1 — reactive change propagation
+    PerformanceCounter.jl       # process-global read/compute/invalidate/write counters
+    CellModule.jl               # aggregator: the AbstractCell{T} box + its three kinds
+    AbstractCell.jl             #   fragment: the AbstractCell{T} supertype
+    ReactiveCell.jl             #   fragment: pull-based reactive cell, auto dependency tracking
+    MutableCell.jl              #   fragment: plain mutable cell, no bookkeeping
+    ImmutableCell.jl            #   fragment: read-only, zero-cost cell
+    Time.jl                     # the one global animation clock (a single Cell)
+
+  document/                     # LAYER 2 — what a document is (the contract)
+    DocumentModule.jl           # aggregator
+    Interface.jl                #   fragment: Document abstract type + selection generics
+    Document.jl                 #   fragment: the @document macro, snapshot/copy_document/rekind
+
+  reference/                    # LAYER 3 — paths into documents
+    ReferenceModule.jl          # aggregator
+    Reference.jl                #   fragment: reference-path types, evaluate_reference
+    ReferenceCase.jl            #   fragment: the @reference_case pattern-matching DSL
+    ReferenceBuilder.jl         #   fragment: the @reference / @step construction DSL
+
+  operation/                    # LAYER 4 — changing documents
+    OperationModule.jl          # aggregator (owns the child_reference_steps traversal seam, R1)
+    Interface.jl                #   fragment: Operation abstract + evaluate_operation stub
+    Operations.jl               #   fragment: built-in ops, selection machinery, splice helpers
+    Rerooting.jl                #   fragment: open reroot_operation generic (container → child, R2)
+
+  device/                       # LAYER 5 — input devices, events, gestures
+    Device.jl                   # Device abstract + read/write_from_devices stubs
+    Modifiers.jl                # the Ctrl/Shift/Alt/Meta modifier struct
+    Keyboard.jl                 # Keyboard device + key event types
+    Mouse.jl                    # Mouse device + mouse event types
+    ScreenDevice.jl             # Screen display device + WindowQuit
+    GestureModule.jl            # aggregator (owns the rehomed EventEnvelope, R5)
+    EventCase.jl                #   fragment: the @event_case dispatch-table macro + parser
+    GestureBinding.jl           #   fragment: gesture→operation bindings, @gestures registry
+    GestureRecognizer.jl        # synthesises MousePress/KeyChord from raw event streams
+
+  backend/                      # LAYER 6 — rendering targets
+    Backend.jl                  # Backend abstract, measure_text, the make_backend factory seam
+    Display.jl                  # display-size query + the provider indirection
+    HeadlessBackend.jl          # NEW: dependency-free in-memory backend + scripted event source
+
+  projection/                   # LAYER 7 — how documents transform + the structural algebra
+    ProjectionModule.jl         # aggregator (owns the R3 gesture-projection seams)
+    Interface.jl                #   fragment: the four generics + Projection + print_child
+    Intent.jl                   #   fragment: the reader's backward-flowing Intent type
+    IoMapInterface.jl           #   fragment: IoMap abstract + accessors
+    IoMap.jl                    #   fragment: SimpleIoMap/ChildrenIoMap + @iomap
+    PrinterContext.jl           #   fragment: the downward per-print_document context
+    Defaults.jl                 #   fragment: @projection macro + the document-free fallbacks
+    algebra/Identity.jl         #   fragment: pass-through projection
+    algebra/Constant.jl         #   fragment: fixed-output projection
+    algebra/Chaining.jl         #   fragment: chains projections L→R (reader R→L)
+    algebra/Switching.jl        #   fragment: delegates to a reactively-selected projection
+    algebra/TypeDispatching.jl  #   fragment: dispatches on typeof(input)
+    algebra/PredicateDispatching.jl  # fragment: dispatches on a boolean predicate
+    algebra/ReferenceDispatching.jl  # fragment: dispatches on the current reference path
+    algebra/Recursive.jl        #   fragment: passes itself as recursion for self-similar trees
+    algebra/Nesting.jl          #   fragment: scopes an inner projection to a sub-document
+    algebra/EnvelopeUnwrapping.jl    # fragment: strips the EventEnvelope off a gesture
+    algebra/Focusing.jl         #   fragment: projects a focused sub-document
+    algebra/Reversing.jl        #   fragment: reverses child order
+
+  agent/                        # LAYER 8 — the AI control surface (side-stack)
+    Agent.jl                    # the make_agent_server / start / stop factory seam
+    ToolRegistry.jl             # in-process registry of Tools + Resources
+    Llm.jl                      # pluggable LLM backend seam (stream_turn)
+    Mcp.jl                      # MCP server skeleton + the doc-introspection tools
+
+  editor/                       # LAYER 9 — the read-eval-print loop
+    Editor.jl                   # run_editor!: read → evaluate → print → tick
+    Playback.jl                 # scripted live playback on a wall-clock timeline
+
+test/
+  runtests.jl                   # fragment- & layer-aware include-order + boundary guard
+  cell/ … editor/               # one folder per layer; tests import only that layer and below
+
+doc/
+  architecture.md               # the 9-layer diagram, guard, kernel/base boundary rule
+  cell.md · document.md · … · editor.md   # one guide per layer
+```
+
+### `package/base/` — the library: all concrete documents and projections
+
+```
+src/
+  ProjecturedBase.jl            # top module: kernel-alias preamble + 2 layer sections
+
+  document/                     # LAYER 1 — the built-in documents everything ships with
+    Collection.jl               # CellVector / CellMatrix / CellTable / ListNode
+    Primitive.jl                # editable bool/number/string docs + their splice-range ops
+    ScreenDocument.jl           # the multi-window screen model + window events/ops
+
+  projection/                   # LAYER 2 — the document-shaped projection library
+    BaseProjectionModule.jl     # aggregator
+    Sorting.jl                  #   fragment: sorts collection children by a key
+    Filtering.jl                #   fragment: keeps children matching a predicate
+    Searching.jl                #   fragment: collects objects whose field matches a Regex
+    Copying.jl                  #   fragment: domain-independent deep copy with iomaps
+    WindowManaging.jl           #   fragment: the ScreenDocument open/close/resize reader
+    ReaderDefaults.jl           #   fragment: the Primitive-op read_intent defaults (R6)
+
+test/
+  runtests.jl                   # same guard, LAYERS = ["document","projection"]
+  document/ · projection/       # per-layer tests
+
+doc/
+  architecture.md · document.md · projection.md
+```
+
 ## Target folder/file structure (with exports and kernel imports)
 
 Generated from the real source headers (export statements, `@document struct`
@@ -120,7 +242,7 @@ package/kernel/src/
             read_gesture
     Document.jl (fragment)
         exports: Document, copy_document, cell_kind, rekind, snapshot, hydrate, sync_document!,
-            @document, @forward, @forward_vector, @forward_map, T*, Foo*
+            @document, @forward, @forward_vector, @forward_map
         imports CellModule: Cell, AbstractCell, ReactiveCell, MutableCell, ImmutableCell
     DocumentModule.jl (aggregator)
   reference/                                # layer 3 - reference
