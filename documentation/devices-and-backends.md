@@ -9,8 +9,8 @@ panel) without modifying existing backends beyond the device's own
 dispatch.
 
 The abstract interfaces live in
-[api/Backend.jl](../package/kernel/src/api/Backend.jl) and
-[api/Device.jl](../package/kernel/src/api/Device.jl). There are three backends: the
+[api/BackendApi.jl](../package/kernel/src/api/BackendApi.jl) and
+[api/DeviceApi.jl](../package/kernel/src/api/DeviceApi.jl). There are three backends: the
 SDL2 graphics backend (default; native windows), a terminal `ConsoleBackend`, and
 a `WebBackend` that runs the editor in an HTTP + WebSocket server and renders in
 the browser (all described below).
@@ -54,12 +54,12 @@ any specific backend.
 ```julia
 abstract type Backend end
 
-# Backend interface (api/Backend.jl)
+# Backend interface (api/BackendApi.jl)
 initialize_backend!(::Backend)                    # set up libraries, allocate caches
 quit_backend!(::Backend)                    # release everything
 measure_text(::Backend, text, font) # (px_width, px_height)
 
-# Device I/O interface (api/Device.jl) — driven by the backend
+# Device I/O interface (api/DeviceApi.jl) — driven by the backend
 read_from_devices(::Backend, devices)           # poll → EventEnvelope
 write_to_devices(::Backend, devices, document)  # render the output
 ```

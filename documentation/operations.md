@@ -6,7 +6,7 @@ the projection pipeline produces operations; the editor applies them via
 `evaluate_operation`.
 
 The abstract supertype lives in
-[api/Operation.jl](../package/kernel/src/api/Operation.jl) and the built-in operations
+[api/OperationApi.jl](../package/kernel/src/api/OperationApi.jl) and the built-in operations
 in [common/Operation.jl](../package/kernel/src/common/Operation.jl).
 
 ```julia

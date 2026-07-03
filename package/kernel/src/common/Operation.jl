@@ -8,7 +8,7 @@ operations, `CompoundOperation`, …) with their `evaluate_operation` methods, t
 `clear_selection!` / `set_selection!` / `update_selection!` propagation over the
 document tree, and the `splice_*` text-edit helpers. The abstract `Operation`
 vocabulary and the `evaluate_operation` generic live in the pure `OperationApiModule`
-(`api/Operation.jl`); this module carries the implementations.
+(`api/OperationApi.jl`); this module carries the implementations.
 
 `evaluate_operation` is duck-typed on `editor`, so nothing here references a
 concrete editor type — the module loads early (well before the editor loop) and

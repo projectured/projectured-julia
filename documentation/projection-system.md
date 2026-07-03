@@ -27,7 +27,7 @@ guide leans on — is:
 > how a path crosses the projection, written once and reused on both sides.
 
 All four are generic functions declared in
-[program/src/api/Projection.jl](../package/kernel/src/api/Projection.jl) and dispatched on
+[program/src/api/ProjectionApi.jl](../package/kernel/src/api/ProjectionApi.jl) and dispatched on
 the concrete projection struct.
 
 ## The recursion contract
@@ -80,7 +80,7 @@ School A — a worked before/after example of this contract.
 ### `print_document` — the printer
 
 Forward transformation from the input domain to the output domain. Returns an
-`IoMap` (subtype of `IoMap`, see [api/IoMap.jl](../package/kernel/src/api/IoMap.jl))
+`IoMap` (subtype of `IoMap`, see [api/IoMapApi.jl](../package/kernel/src/api/IoMapApi.jl))
 that records the input, the output, and any extra data the reader needs to
 invert the transformation.
 
@@ -134,7 +134,7 @@ reader route events by selection — see below and
 
 ### The `Intent` the reader threads
 
-The reader's payload is a **`Intent`** ([api/Projection.jl](../package/kernel/src/api/Projection.jl)) —
+The reader's payload is a **`Intent`** ([api/ProjectionApi.jl](../package/kernel/src/api/ProjectionApi.jl)) —
 the backward-flowing dual of the document that flows forward through the printer:
 
 ```julia
@@ -236,7 +236,7 @@ really the *projection's* business:
 The geometry-independent half is a property of the **domain document**, not of
 the projection that happens to render it. It lives behind
 `read_gesture(document, gesture) -> Union{Operation, Nothing}`
-([api/Document.jl](../package/kernel/src/api/Document.jl)): the document maps the
+([api/DocumentApi.jl](../package/kernel/src/api/DocumentApi.jl)): the document maps the
 gesture to an operation in its **own** reference vocabulary (reading only its
 structure and `document.selection`), or returns `nothing` when it does not handle
 the gesture (which also serves as "I decline this gesture so an outer layer can

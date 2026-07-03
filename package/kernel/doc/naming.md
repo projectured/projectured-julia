@@ -11,11 +11,12 @@ types and modules, `!` for mutation, and avoiding abbreviations.
 
 ## Files and modules
 
-- **Module = filename + `Module`.** `Keyboard.jl` defines `KeyboardModule`.
-  Grep-by-guess must work in both directions.
-- **`Api` is a layer marker.** Every file in `api/` defines an `XApiModule`
-  (`Document.jl` → `DocumentApiModule`, `Backend.jl` → `BackendApiModule`),
-  regardless of whether the name would clash with anything.
+- **Module = filename + `Module`.** `Keyboard.jl` defines `KeyboardModule`,
+  `DocumentApi.jl` defines `DocumentApiModule`. Grep-by-guess must work in
+  both directions — with no per-folder exceptions.
+- **`Api` is a layer marker carried in the filename.** Every file in `api/`
+  ends in `Api` (`DocumentApi.jl`, `BackendApi.jl`), so the rule above yields
+  its `XApiModule` directly — no special case.
 - Every exported name has exactly one owning module. Never export the same
   name from two modules. For a generic function, the owning module defines
   and exports the generic; other modules may import it and add methods, but

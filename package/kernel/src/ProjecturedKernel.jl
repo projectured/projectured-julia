@@ -21,7 +21,7 @@ module ProjecturedKernel
 # The include list is a hand-maintained topological sort: every file appears
 # after the modules named in its `import ..XxxModule` headers. The sections
 # below group the files by architectural layer; within a section, order still
-# obeys those dependency edges. Only ProjectionApiModule (api/Projection.jl) is
+# obeys those dependency edges. Only ProjectionApiModule (api/ProjectionApi.jl) is
 # structurally load-bearing among the api stubs.
 
 # ── Cell kinds (layer 0 — the DAG's dependency-free base) ──────────────────
@@ -34,13 +34,13 @@ include("cell/CellModule.jl")
 # ── API — abstract types + `function foo end` stubs ────────────────────────
 # Pure interface modules: abstract types and generic-function stubs only. The
 # concrete protocol data types (Intent, DoNothingOperation) live in common/, not here.
-include("api/Backend.jl")
-include("api/Device.jl")
-include("api/Projection.jl")
-include("api/Operation.jl")
-include("api/Document.jl")
-include("api/IoMap.jl")
-include("api/Agent.jl")
+include("api/BackendApi.jl")
+include("api/DeviceApi.jl")
+include("api/ProjectionApi.jl")
+include("api/OperationApi.jl")
+include("api/DocumentApi.jl")
+include("api/IoMapApi.jl")
+include("api/AgentApi.jl")
 
 # ── Document core & references ──────────────────────────────────────────────
 # Reactive-backed Document/IoMap, the reference machinery, operations, and the
