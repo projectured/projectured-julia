@@ -8,7 +8,8 @@ across individual projection methods.
 """
 module TypeDispatchingProjectionModule
 
-import ..ProjectionApiModule: print_document, read_intent, map_reference_forward, map_reference_backward, Projection
+import ..ProjectionApiModule: print_document, read_intent, map_reference_forward, map_reference_backward, Projection,
+       pure_print_document
 import ..IntentModule: Intent
 import ..GestureBindingModule: collect_gesture_bindings, GestureBinding
 export TypeDispatchingProjection
@@ -48,6 +49,16 @@ function print_document(tdp::TypeDispatchingProjection, recursion, input, ctx)
     for (T, proj) in tdp.dispatch
         if input isa T
             return print_document(proj, recursion, input, ctx)
+        end
+    end
+    error("TypeDispatchingProjection: no projection registered for type $(typeof(input))")
+end
+
+# Pure: same first-match dispatch, into the selected projection's pure interpreter.
+function pure_print_document(tdp::TypeDispatchingProjection, recursion, input, ctx)
+    for (T, proj) in tdp.dispatch
+        if input isa T
+            return pure_print_document(proj, recursion, input, ctx)
         end
     end
     error("TypeDispatchingProjection: no projection registered for type $(typeof(input))")

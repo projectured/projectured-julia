@@ -58,7 +58,8 @@ for the selection mechanism.
 """
 module ProjectionApiModule
 
-export print_document, print_child, read_intent, map_reference_forward, map_reference_backward, Projection
+export print_document, print_child, read_intent, map_reference_forward, map_reference_backward, Projection,
+       pure_print_document, pure_print_child
 
 """
     Projection
@@ -153,6 +154,36 @@ one place and call sites read as "recurse into this child".
 """
 print_child(recursion, input, ctx) =
     print_document(recursion, recursion, input, ctx)
+
+"""
+    pure_print_document(projection, recursion, input, ctx) -> output tree
+
+The **pure** forward half: a second interpreter of a projection that produces the
+projected *output document tree directly* — no iomap, no reactive cells, no
+selection wiring — for batch/export use (write_image / write_pdf / text
+serialization) where nothing is edited and no selection is mapped back. Output
+nodes are immutable-kind, so the tree is cheap to allocate and cheap to traverse
+repeatedly (multi-page layout, serialization).
+
+Higher-order projections (Sequential / Recursive / TypeDispatching) thread it so a
+whole *pipeline* is pure; every concrete projection falls back to a snapshot of the
+reactive output (`snapshot(print_document(...).output[])`) — slower (it builds the
+reactive machinery first, then copies), but total, so `pure_print` works end-to-end
+for any pipeline. A genuinely fast per-projection interpreter is future work,
+justified only where a profile shows it pays (most render-stage projections are
+hand-written, not template-generated). See plan/pending/cell-kind-documents.md,
+Phase 6.
+"""
+function pure_print_document end
+
+"""
+    pure_print_child(recursion, input, ctx) -> output tree
+
+Pure analogue of [`print_child`](@ref): recurse into a child
+through the whole pipeline, producing pure (immutable) output.
+"""
+pure_print_child(recursion, input, ctx) =
+    pure_print_document(recursion, recursion, input, ctx)
 
 """
     read_intent(projection, recursion, change::Intent, iomap) -> Intent

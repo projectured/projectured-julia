@@ -80,7 +80,7 @@ end # @testset
     w2g   = WidgetToGraphics(font; measure=stub)
     renderer = RecursiveProjection(TypeDispatchingProjection(vcat(
         w2g.dispatch,
-        Pair{DataType,Any}[TextText => TextToGraphics(measure=stub)])))
+        Pair{Type,Any}[TextText => TextToGraphics(measure=stub)])))
     proj  = ChainingProjection(pcp, renderer)
 
     doc   = TextText(TextString("alpha dolor", font, color_default))
@@ -113,7 +113,7 @@ end # @testset
     w2g   = WidgetToGraphics(font; measure=stub)
     renderer = RecursiveProjection(TypeDispatchingProjection(vcat(
         w2g.dispatch,
-        Pair{DataType,Any}[TextText => TextToGraphics(measure=stub)])))
+        Pair{Type,Any}[TextText => TextToGraphics(measure=stub)])))
     proj  = ChainingProjection(pcp, renderer)
 
     doc   = TextText(TextString("alpha dolor", font, color_default))

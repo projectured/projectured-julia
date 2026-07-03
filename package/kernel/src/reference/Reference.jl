@@ -24,7 +24,7 @@ reactive `Cell`s, so a caret move can update those cells in place (see
 """
 module ReferenceModule
 
-import ..ReactiveModule: Cell
+import ..ReactiveModule: Cell, AbstractCell
 import ..DocumentModule: @document
 export Reference, ReferenceStep, ElementReference, PositionReference, RangeReference, FieldReference, TypeReference, FunctionReference, ProjectionReference, PointReference, TextRectangularReference, ReferencePath, EmptyReferencePath, ConcreteReferencePath, append_reference, concat_references, reference_steps, evaluate_reference, is_valid_reference, collect_references,
        is_element_reference, is_position_reference, is_range_reference,
@@ -530,7 +530,7 @@ is_valid_reference(::Any) = false
 # against the *unwrapped* value — would fail to resolve (and
 # `annotate_reference_types` would stop adding type checkpoints there).
 # `CellVector` already unwraps on `getindex`, so this is a no-op for it.
-_deref_cell(x) = x isa Cell ? x[] : x
+_deref_cell(x) = x isa AbstractCell ? x[] : x
 
 # A `FieldReference` addresses a struct field by name — OR, when the document is
 # an `AbstractDict`, a dict entry by key. A reference into a dict records the
@@ -669,9 +669,17 @@ re-checked with [`get_valid_reference_prefix`](@ref) / the document-aware
 A zero-width position (`{k}`) is a cursor *between* items — it lands on no child
 node, so the terminal after it keeps `type === nothing`.
 """
+# The kind-agnostic name of a node's type: the UnionAll wrapper of a
+# kind-parameterized `@document` type (`JsonString{ImmutableCell{String},…}` →
+# `JsonString`), or the type itself for a non-parametric (hand-written) document.
+# Recording the wrapper makes type checkpoints kind-agnostic: a path annotated on
+# a reactive node still `isa`-matches its immutable snapshot, and matches the bare
+# names the `@reference` macro emits. `typename(T).wrapper` handles both cases.
+_node_type(document) = Base.typename(typeof(document)).wrapper
+
 function annotate_reference_types(document, ::EmptyReferencePath)
     # Whole-element / terminal node: record the type of the node it lands on.
-    EmptyReferencePath(typeof(document))
+    EmptyReferencePath(_node_type(document))
 end
 
 function annotate_reference_types(document, path::ConcreteReferencePath)
@@ -682,7 +690,7 @@ function annotate_reference_types(document, path::ConcreteReferencePath)
     if step isa TypeReference
         return annotate_reference_types(document, rest)
     end
-    nodetype = typeof(document)
+    nodetype = _node_type(document)
     child = try
         if step isa RangeReference
             # A zero-width position is a cursor *between* items (a text caret or
@@ -795,7 +803,7 @@ function _search_document(node, current_path, search_value, results)
     # Match check: a user-defined `==` or a `.value` access may throw; a throw here
     # just means "not a match at this node", so fall through to the field walk.
     try
-        if hasfield(typeof(node), :value) && getfield(node, :value) isa Cell
+        if hasfield(typeof(node), :value) && getfield(node, :value) isa AbstractCell
             if getfield(node, :value)[] == search_value
                 push!(results, current_path)
                 return
@@ -818,7 +826,7 @@ function _search_document(node, current_path, search_value, results)
     for fname in fieldnames(T)
         fval = getfield(node, fname)
         field_path = append_reference(current_path, FieldReference(string(fname)))
-        if fval isa Cell
+        if fval isa AbstractCell
             # An error deep in one field's subtree drops that branch, not the rest.
             try
                 _search_document(fval[], field_path, search_value, results)

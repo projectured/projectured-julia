@@ -19,7 +19,7 @@ function _proj()
     w2g = WidgetToGraphics(_font; measure=_stub)
     RecursiveProjection(TypeDispatchingProjection(vcat(
         w2g.dispatch,
-        Pair{DataType,Any}[TextText => TextToGraphics(measure=_stub)],
+        Pair{Type,Any}[TextText => TextToGraphics(measure=_stub)],
     )))
 end
 

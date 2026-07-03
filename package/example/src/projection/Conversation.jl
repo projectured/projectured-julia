@@ -12,7 +12,7 @@ function make_conversation_projection_example(; measure=truetype_measure_text)
                                             TextToGraphics(measure=measure))
     RecursiveProjection(TypeDispatchingProjection(vcat(
         w2g.dispatch,
-        Pair{DataType,Any}[
+        Pair{Type,Any}[
             TextDocument         => text_to_graphics,
             JuliaDocument        => make_julia_projection_example(measure=measure),
             # Rendered markdown on screen; the model still gets raw source.

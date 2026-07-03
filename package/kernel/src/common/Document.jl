@@ -9,9 +9,9 @@ propagate a path generically without knowing the concrete type.
 module DocumentModule
 
 import ..DocumentApiModule: Document
-import ..ReactiveModule: Cell
+import ..ReactiveModule: Cell, AbstractCell, ReactiveCell, MutableCell, ImmutableCell
 
-export copy_document,
+export Document, copy_document, cell_kind, rekind, snapshot, hydrate, sync_document!,
        @document, @forward, @forward_vector, @forward_map
 
 """
@@ -117,56 +117,75 @@ _cell_kwctor(type_name, field_names, kw_params) =
 """
     @document struct T [<: Super] ... end
 
-Annotate a Document struct whose fields should be transparent reactive Cells.
-The programmer writes real value types; the macro generates:
+Annotate a Document struct whose fields are transparent cells. The programmer
+writes real value types; the macro generates the **kind-parameterized stem**
+(see plan/pending/cell-kind-documents.md):
 
-1. **Cell-based struct** (same name) — all fields become `::Cell`, with
-   `getproperty`/`setproperty!` reading/writing through Cells transparently.
-   An auto-wrapping inner constructor accepts either raw values or Cells.
+1. **Immutable parametric struct** (same name) — one cell type-parameter per
+   field (`Foo{C1<:AbstractCell, …}`), so the *cell kind* in the fields decides
+   the behavior: reactive, mutable, or immutable. Bounds are deliberately loose
+   (`<: AbstractCell`, not `<: AbstractCell{T}`): `AbstractCell{T}` is invariant,
+   and machinery freely creates untyped `Cell(x)` cells (deferred selection
+   cells, `bound(…)` template markers stored in typed fields), which strict
+   bounds would reject. Declared field types are enforced by the kind ctors, not
+   the type system. `getproperty`/`setproperty!` read/write through the cells
+   uniformly for every kind.
 
-2. **Immutable struct** (`I` prefix) — original field types preserved, no
-   Cell indirection, standard Julia field access.
+2. **Auto-wrapping constructor** (bare name) — `Foo(args…)` accepts raw values
+   or cells; a raw value is wrapped in `ReactiveCell{Any}` (exactly the historic
+   `Cell`), so the bare name builds the **reactive kind** with unchanged
+   semantics. Passing cells (of any kind, even mixed) stores them as-is.
 
-3. **Conversion constructors** — `IFoo(foo::Foo)` snapshots cells into an
-   immutable value; `Foo(ifoo::IFoo)` hydrates back into reactive Cells.
+3. **Kind aliases** — `RFoo` (all fields `ReactiveCell{Any}`, what the bare ctor
+   builds), `IFoo` (`ImmutableCell{declared-type}`), `MFoo`
+   (`MutableCell{declared-type}`), plus value-accepting ctors `IFoo(args…)` /
+   `MFoo(args…)` that wrap raw values in their kind's typed cells. Convert a
+   whole subtree with [`rekind`](@ref) / [`snapshot`](@ref) / [`hydrate`](@ref);
+   query a node's kind with [`cell_kind`](@ref).
 
 Fields may carry `@kwdef`-style defaults (`field::T = value`). When at least one
 default is present, the macro also generates:
 
-4. **Keyword constructors** for both `Foo` and `IFoo` — fields with a default are
-   optional keywords, fields without one are required keywords.
+4. **Keyword constructors** for `Foo`, `IFoo` and `MFoo` — fields with a default
+   are optional keywords, fields without one are required keywords.
 
-5. **Positional default constructors** (Rule Y) — the positional analog of
-   `@kwdef`: for a trailing run of defaulted fields, ctors `Foo(f₁..f_k)` that fill
-   the omitted suffix with its defaults. Emitted only when ≥1 leading field is
-   required (so the zero-arg form never shadows the keyword ctor); fully-defaulted
-   structs get none.
+5. **Positional default constructors** (Rule Y, bare name only) — the positional
+   analog of `@kwdef`: for a trailing run of defaulted fields, ctors `Foo(f₁..f_k)`
+   that fill the omitted suffix with its defaults. Emitted only when ≥1 leading
+   field is required (so the zero-arg form never shadows the keyword ctor);
+   fully-defaulted structs get none.
 
-6. **Single-`CellVector` constructors** (Rule C) — when exactly one field is a
-   `CellVector`, a positional ctor accepts that slot as an `AbstractVector` and
-   wraps it per-element via `CellVector(items)`, filling any trailing defaults.
-   This holds whether the sibling fields are **required** (`Foo(callee, [args])`)
-   or all default (`Foo([a, b])`, plus the variadic `Foo(a, b)` when the collection
-   is the sole content). Elements are typed `Document` (the universal base), so a
-   collection may hold children of any domain, even a mix of domains.
+6. **Single-`CellVector` constructors** (Rule C, bare name only) — when exactly
+   one field is a `CellVector`, a positional ctor accepts that slot as an
+   `AbstractVector` and wraps it per-element via `CellVector(items)`, filling any
+   trailing defaults. This holds whether the sibling fields are **required**
+   (`Foo(callee, [args])`) or all default (`Foo([a, b])`, plus the variadic
+   `Foo(a, b)` when the collection is the sole content). Elements are typed
+   `Document` (the universal base), so a collection may hold children of any
+   domain, even a mix of domains.
+
+Since the stem is immutable, a node's field *cells* can never be swapped after
+construction (`setfield!` is gone); all mutation flows through the cells, and
+construction-time cell sharing replaces retargeting (see ProjectionTemplate's
+`_with_selection`).
 """
 macro document(structdef)
     structdef.head === :struct || error("@document expects a struct definition")
     # Default the supertype to `Document` unless one is written explicitly, so
     # `@document struct Foo … end` means `struct Foo <: Document … end`. A domain
     # abstract supertype (`<: JsonDocument`, …) or any explicit `<: …` always
-    # wins. Normalizing `name_expr` to always carry a `<:` here also feeds the
-    # I-struct supertype logic below. The injected `:Document` resolves in the
-    # caller's scope (the result is `esc`'d) — same mechanic as `@iomap`/`IoMap`.
+    # wins. The injected `:Document` resolves in the caller's scope (the result
+    # is `esc`'d) — same mechanic as `@iomap`/`IoMap`.
     name_expr = structdef.args[2]
     if !(name_expr isa Expr && name_expr.head === :(<:))
         name_expr = Expr(:(<:), name_expr, :Document)
         structdef.args[2] = name_expr
     end
     struct_name = name_expr.args[1]
+    supertype_expr = name_expr.args[2]
     body = structdef.args[3]
 
-    # ── Collect original field info and replace types with Cell ────────
+    # ── Collect original field info; retype each field with its own parameter ──
     original_fields = Tuple{Symbol, Any}[]  # (name, original_type_or_nothing)
     cell_fields = Symbol[]
     defaults = Pair{Symbol, Any}[]  # field => default-value expr (declaration order)
@@ -174,15 +193,15 @@ macro document(structdef)
         if ex isa Symbol
             push!(cell_fields, ex)
             push!(original_fields, (ex, nothing))
-            body.args[i] = :($(ex)::Cell)
+            body.args[i] = :($(ex)::$(Symbol("C", length(cell_fields))))
         elseif ex isa Expr && ex.head === :(::) && length(ex.args) == 2
             push!(cell_fields, ex.args[1])
             push!(original_fields, (ex.args[1], ex.args[2]))
-            ex.args[2] = :Cell
+            ex.args[2] = Symbol("C", length(cell_fields))
         elseif ex isa Expr && ex.head === :(=) && length(ex.args) == 2
             # `name = v` / `name::T = v` — @kwdef-style default. Strip the default
-            # out of the (plain) struct body and remember it for the keyword ctor;
-            # the original declared type still feeds the immutable I-struct.
+            # out of the struct body and remember it for the keyword ctor; the
+            # declared type still feeds the typed kind aliases and ctors.
             lhs = ex.args[1]
             if lhs isa Symbol
                 fname, ftype = lhs, nothing
@@ -192,59 +211,104 @@ macro document(structdef)
             push!(cell_fields, fname)
             push!(original_fields, (fname, ftype))
             push!(defaults, fname => ex.args[2])
-            body.args[i] = :($(fname)::Cell)
+            body.args[i] = :($(fname)::$(Symbol("C", length(cell_fields))))
         end
     end
     isempty(cell_fields) && return esc(structdef)
 
-    cell_set = Set(cell_fields)
+    n = length(cell_fields)
+    Cs = [Symbol("C", i) for i in 1:n]
+    field_names = [f[1] for f in original_fields]
+    # Declared value types as exprs (Any when untyped); resolve in caller scope.
+    Tvals = Any[t === nothing ? :Any : t for (_, t) in original_fields]
 
-    # ── Auto-wrapping inner constructor ───────────────────────────────
-    # The ONLY inner constructor; hand-written convenience constructors
-    # remain as outer constructors and just call T(plain_values...).
-    if !isempty(original_fields)
-        push!(body.args,
-              _cell_autowrap_ctor(struct_name, [f[1] for f in original_fields], cell_set))
+    # Parametric header: `Foo{C1<:AbstractCell, …} <: Super`. The cell types are
+    # spliced as *objects* (not names), so callers need no extra imports.
+    structdef.args[2] = Expr(:(<:),
+        Expr(:curly, struct_name, [Expr(:(<:), C, AbstractCell) for C in Cs]...),
+        supertype_expr)
+
+    # ── Auto-wrapping inner constructor (the ONLY inner constructor) ──────────
+    # Raw values wrap in `ReactiveCell{Any}` — the historic untyped `Cell`, so the
+    # bare name keeps today's semantics exactly (template markers, `nothing`
+    # defaults, shared wider-typed cells all keep working). Cells pass through,
+    # which is also how the kind ctors, `rekind` and `copy_document` construct
+    # every other kind. Hand-written convenience ctors stay outer and call
+    # `Foo(values…)` as before.
+    #
+    # `new{…}` needs the cell types as parameters; computing them via `typeof` is
+    # a runtime `apply_type` per construction (~2.5× build cost, measured on the
+    # JSON bench). Two fast paths with *constant* parameters cover the dominant
+    # cases: all args already `ReactiveCell{Any}` (machinery reconstruction,
+    # `copy_document`, cell-sharing ctors) and no arg a cell at all (parsers,
+    # bulk building). Only genuinely mixed/typed-cell construction (kind ctors,
+    # `rekind`) pays the generic path.
+    arg_names = [gensym(f) for f in field_names]
+    rc_any = fill(ReactiveCell{Any}, n)
+    all_rc  = mapreduce(a -> :($a isa $(ReactiveCell{Any})), (x, y) -> :($x && $y), arg_names)
+    any_cell = mapreduce(a -> :($a isa $(AbstractCell)), (x, y) -> :($x || $y), arg_names)
+    wrap_stmts = Any[]
+    wrapped = Symbol[]
+    for (i, a) in enumerate(arg_names)
+        w = gensym(field_names[i])
+        push!(wrapped, w)
+        push!(wrap_stmts, :($w = $a isa $(AbstractCell) ? $a : $(ReactiveCell{Any})($a)))
     end
+    push!(body.args, :(function $(struct_name)($(arg_names...))
+        if $all_rc
+            return $(Expr(:call, Expr(:curly, :new, rc_any...), arg_names...))
+        elseif !($any_cell)
+            return $(Expr(:call, Expr(:curly, :new, rc_any...),
+                          [:($(ReactiveCell{Any})($a)) for a in arg_names]...))
+        end
+        $(wrap_stmts...)
+        $(Expr(:call, Expr(:curly, :new, [:(typeof($w)) for w in wrapped]...), wrapped...))
+    end))
 
-    # ── getproperty / setproperty!: read/write through Cell ───────────
-    getprop, setprop = _cell_property_accessors(struct_name, cell_fields)
+    # ── Uniform accessors: kind dispatch happens in the cell ──────────────────
+    getprop = :(Base.getproperty(obj::$(struct_name), name::Symbol) = getfield(obj, name)[])
+    setprop = :(Base.setproperty!(obj::$(struct_name), name::Symbol, val) =
+        (getfield(obj, name)[] = val))
 
-    # ── I-prefixed immutable struct ───────────────────────────────────
-    i_name = Symbol("I", struct_name)
-    i_fields = [typ === nothing ? fname : :($fname::$typ) for (fname, typ) in original_fields]
-    i_supertype = name_expr.args[2]   # always present: normalized at the top
-    i_name_expr = Expr(:(<:), i_name, i_supertype)
-    i_struct = Expr(:struct, false, i_name_expr, Expr(:block, i_fields...))
+    # ── Kind aliases + typed kind ctors ───────────────────────────────────────
+    r_name, i_name, m_name = (Symbol(p, struct_name) for p in ("R", "I", "M"))
+    r_alias = Expr(:const, Expr(:(=), r_name,
+        Expr(:curly, struct_name, fill(ReactiveCell{Any}, n)...)))
+    i_alias = Expr(:const, Expr(:(=), i_name,
+        Expr(:curly, struct_name, [Expr(:curly, ImmutableCell, T) for T in Tvals]...)))
+    m_alias = Expr(:const, Expr(:(=), m_name,
+        Expr(:curly, struct_name, [Expr(:curly, MutableCell, T) for T in Tvals]...)))
 
-    # Snapshot constructor: IFoo(foo::Foo) — reads all cells via getproperty
-    snap_args = [:(obj.$(fname)) for (fname, _) in original_fields]
-    snapshot = :($(i_name)(obj::$(struct_name)) = $(Expr(:call, i_name, snap_args...)))
+    kind_ctor(kname, K) = :($(kname)($(arg_names...)) =
+        $(Expr(:call, struct_name,
+            [:($a isa $(AbstractCell) ? $a : $(Expr(:curly, K, Tvals[i]))($a))
+             for (i, a) in enumerate(arg_names)]...)))
+    i_ctor = kind_ctor(i_name, ImmutableCell)
+    m_ctor = kind_ctor(m_name, MutableCell)
 
-    # Hydrate constructor: Foo(ifoo::IFoo) — auto-wrapping constructor handles Cell wrapping
-    hyd_args = [:(obj.$(fname)) for (fname, _) in original_fields]
-    hydrate = :($(struct_name)(obj::$(i_name)) = $(Expr(:call, struct_name, hyd_args...)))
+    # Declared value types, for `rekind`'s typed I/M targets. The method is added
+    # through the function object's singleton type — a spliced object is not a
+    # valid method-definition *name*, but `(::typeof(f))(…)` is.
+    dvt = :((::typeof($(_declared_value_types)))(::Type{<:$(struct_name)}) = ($(Tvals...),))
 
     # ── Keyword constructors (only when ≥1 default is declared) ────────
-    # Forward into the positional ctors of both the Cell-based `Foo` and the
-    # immutable `IFoo`, so defaults are available on either. Fields without a
-    # default become required keywords, à la `Base.@kwdef`.
+    # Forward into the positional ctors of the bare `Foo` and the typed kind
+    # ctors `IFoo`/`MFoo`, so defaults are available on any kind. Fields without
+    # a default become required keywords, à la `Base.@kwdef`.
     extra = Any[]
     if !isempty(defaults)
         default_map = Dict(defaults)
-        field_names = [fname for (fname, _) in original_fields]
         kw_params = _cell_kw_params(field_names, default_map)
-        # A keyword ctor for both the Cell-based `Foo` and the immutable `IFoo`,
-        # so defaults are available on either.
         push!(extra, _cell_kwctor(struct_name, field_names, kw_params))
         push!(extra, _cell_kwctor(i_name, field_names, kw_params))
+        push!(extra, _cell_kwctor(m_name, field_names, kw_params))
 
         # ── Rule Y: positional ctors that omit a trailing run of defaulted
         #    fields (the positional analog of `@kwdef`). Generated only when at
         #    least one leading field is required (`req ≥ 1`), so we never emit a
         #    zero-arg form colliding with the keyword ctor's `Foo()`; fully
-        #    defaulted structs are left to their keyword / hand-written ctors. ──
-        n = length(original_fields)
+        #    defaulted structs are left to their keyword / hand-written ctors.
+        #    Bare (reactive) name only — the kind aliases keep full-arity + kw. ──
         trailing = 0
         for (fname, _) in Iterators.reverse(original_fields)
             haskey(default_map, fname) || break
@@ -272,8 +336,6 @@ macro document(structdef)
                 filled = Any[default_map[field_names[j]] for j in (k+1):n]
                 push!(extra, :($(struct_name)($(kept...)) =
                     $(Expr(:call, struct_name, kept..., filled...))))
-                push!(extra, :($(i_name)($(kept...)) =
-                    $(Expr(:call, i_name, kept..., filled...))))
                 if 1 ≤ p ≤ k                       # kept prefix contains the CellVector
                     params   = Any[j == p ? :($(field_names[p])::AbstractVector) : field_names[j] for j in 1:k]
                     callargs = Any[j == p ? :(CellVector($(field_names[p])))     : field_names[j] for j in 1:k]
@@ -306,15 +368,18 @@ macro document(structdef)
         end
     end
 
-    # The Cell-based variant is a **mutable** struct: every field is a `Cell`, so
-    # mutating field *contents* already worked via `setproperty!`, but making the
-    # struct itself mutable additionally allows swapping a field's Cell object
-    # (`setfield!`) — needed to keep/replace Cell identity. The immutable snapshot
-    # is the I-prefixed variant above.
-    structdef.args[1] = true
+    # The kind aliases are generated API, so the macro exports them itself (the
+    # bare name stays under the module's explicit export policy, as before; a
+    # module re-exporting an I-name explicitly is a harmless duplicate).
+    alias_exports = Expr(:export, r_name, i_name, m_name)
 
+    # The stem stays an **immutable** struct: all mutation flows through the
+    # cells (`setproperty!` writes cell *contents*); a field's cell object can
+    # never be swapped after construction — sharing is established at
+    # construction time instead.
     return esc(Expr(:block, :(Base.@__doc__ $structdef), getprop, setprop,
-                     i_struct, snapshot, hydrate, extra...))
+                     r_alias, i_alias, m_alias, alias_exports,
+                     i_ctor, m_ctor, dvt, extra...))
 end
 
 # Build one delegating method per function: `f(x::T, args...) =
@@ -464,20 +529,153 @@ copy_document(value) = value
 
 function copy_document(doc::Document)
     T = typeof(doc)
+    base = Base.typename(T).wrapper   # the UnionAll: its ctor accepts cells/values
     args = Any[]
     for nm in fieldnames(T)
         raw = getfield(doc, nm)
         if nm === :selection
-            # Reset the selection; keep the field's representation (Cell per the
-            # Document contract, but tolerate a hand-written plain field).
-            push!(args, raw isa Cell ? Cell(nothing) : nothing)
-        elseif raw isa Cell
-            push!(args, Cell(copy_document(raw[])))   # fresh Cell → independent graph
+            # Reset the selection; keep the field's cell kind and value type (a
+            # hand-written plain field stays plain).
+            push!(args, raw isa AbstractCell ? _same_cell(raw, nothing) : nothing)
+        elseif raw isa AbstractCell
+            push!(args, _same_cell(raw, copy_document(raw[])))  # fresh cell → independent graph
         else
-            push!(args, copy_document(raw))           # non-Cell field: keep it raw
+            push!(args, copy_document(raw))                     # non-cell field: keep it raw
         end
     end
-    T(args...)
+    base(args...)
 end
+
+# A fresh cell of the same kind and value type as `c`, holding `v`.
+_same_cell(c::AbstractCell{T}, v) where {T} = _cell_kind_of(typeof(c)){T}(v)
+
+# ── Cell kinds on documents ─────────────────────────────────────────────────
+
+_cell_kind_of(::Type{<:ReactiveCell})  = ReactiveCell
+_cell_kind_of(::Type{<:MutableCell})   = MutableCell
+_cell_kind_of(::Type{<:ImmutableCell}) = ImmutableCell
+
+"""
+    cell_kind(doc) -> ReactiveCell | MutableCell | ImmutableCell | nothing
+
+The cell kind of a `@document` node, read off its first field's cell.
+`nothing` for a hand-written document with plain fields. Nodes are normally
+kind-uniform (the ctors build them that way); an ad-hoc mixed node reports the
+kind of its first field.
+"""
+function cell_kind(doc::Document)
+    isempty(fieldnames(typeof(doc))) && return nothing
+    c = getfield(doc, 1)
+    c isa AbstractCell ? _cell_kind_of(typeof(c)) : nothing
+end
+
+# Declared field value types of a `@document` type, emitted by the macro; the
+# fallback covers hand-written documents (rekind then keeps each source cell's
+# own value type).
+_declared_value_types(::Type) = nothing
+
+"""
+    rekind(K, doc) -> Document
+
+Recursively rebuild `doc` with every cell replaced by a cell of kind `K`
+(`ReactiveCell` / `MutableCell` / `ImmutableCell`). Value types: the reactive
+target uses `Any` (the historic untyped `Cell`, and what all machinery-built
+cells are); the mutable/immutable targets use each field's **declared** type when
+the current value conforms — so a fully-conforming node inhabits the `MFoo` /
+`IFoo` alias — but fall back to the *value's own* type otherwise. The fallback is
+load-bearing: the reactive kind stores every field as `Any`, so a nominally
+`StyleColor` field may actually hold `nothing` (an unset optional); a typed
+`ImmutableCell{StyleColor}(nothing)` would be unconstructable, so that field lands
+on `ImmutableCell{Nothing}` instead (still type-stable, just off the alias). Cell
+*values* (including the current selection) are carried over; the result shares no
+cell with the original. `CollectionModule` adds the `CellVector` method.
+
+    snapshot(doc) ≡ rekind(ImmutableCell, doc)
+    hydrate(doc)  ≡ rekind(ReactiveCell, doc)
+"""
+rekind(::Type{K}, v) where {K<:AbstractCell} = v
+
+function rekind(::Type{K}, doc::Document) where {K<:AbstractCell}
+    T = typeof(doc)
+    base = Base.typename(T).wrapper
+    Ts = _declared_value_types(base)
+    args = Any[]
+    for (i, nm) in enumerate(fieldnames(T))
+        raw = getfield(doc, nm)
+        if raw isa AbstractCell
+            v = rekind(K, raw[])
+            Tv = _rekind_value_type(K, Ts, i, v)
+            push!(args, K{Tv}(v))
+        else
+            push!(args, rekind(K, raw))
+        end
+    end
+    base(args...)
+end
+
+# The value type for a rekinded field cell: `Any` for the reactive kind (parity
+# with the untyped `Cell`); otherwise the declared type when `v` conforms, else
+# `v`'s own concrete type (see `rekind`'s note on off-declared-type values).
+function _rekind_value_type(::Type{K}, Ts, i, v) where {K<:AbstractCell}
+    K === ReactiveCell && return Any
+    Ts === nothing && return typeof(v)
+    Td = Ts[i]
+    v isa Td ? Td : typeof(v)
+end
+
+_value_type(::AbstractCell{T}) where {T} = T
+
+"""Rebuild `doc` as the immutable kind (`rekind(ImmutableCell, doc)`)."""
+snapshot(doc::Document) = rekind(ImmutableCell, doc)
+
+"""Rebuild `doc` as the reactive kind (`rekind(ReactiveCell, doc)`)."""
+hydrate(doc::Document) = rekind(ReactiveCell, doc)
+
+# ── M→R shadow sync ─────────────────────────────────────────────────────────
+# The double-buffer pattern (plan/pending/cell-kind-documents.md, Phase 7): a
+# simulator mutates a MutableCell-kind document freely (zero reactive overhead per
+# event, no observable intermediate states), then at a pause point `sync_document!`
+# diff-copies it into a shadow ReactiveCell-kind tree that feeds the projection
+# pipeline. The two trees have the same field-for-field shape (generated from one
+# `@document` declaration), which is exactly what lets the sync be one generic walk.
+
+# Same document type ignoring cell kind (compare the UnionAll wrappers).
+_same_wrapper(a, b) = Base.typename(typeof(a)).wrapper === Base.typename(typeof(b)).wrapper
+
+"""
+    sync_document!(shadow, source) -> shadow
+
+Update the reactive `shadow` document to match `source` (typically a mutable-kind
+simulation state), writing a shadow cell **only when its value changed** — so the
+reactive graph downstream sees a *minimal* invalidation set, not a wholesale
+rebuild. Recurses structurally: a child document is synced in place when it is the
+same type, else replaced (`hydrate`d fresh); a leaf field is written only on
+`!isequal`. `CollectionModule` adds the `CellVector` element reconciler.
+
+The result is a consistent reactive view of `source` after each sync; between syncs
+the simulator owns `source` alone and pays nothing for observation.
+"""
+function sync_document!(shadow::Document, source::Document)
+    _same_wrapper(shadow, source) ||
+        error("sync_document!: type mismatch, $(typeof(shadow)) vs $(typeof(source))")
+    for nm in fieldnames(typeof(source))
+        sv  = getproperty(source, nm)
+        cur = getproperty(shadow, nm)
+        if sv isa Document
+            if cur isa Document && _same_wrapper(cur, sv)
+                sync_document!(cur, sv)                 # recurse in place
+            else
+                setproperty!(shadow, nm, hydrate(sv))   # type changed ⇒ rebuild reactive
+            end
+        else
+            isequal(cur, sv) || setproperty!(shadow, nm, sv)   # leaf: write iff changed
+        end
+    end
+    shadow
+end
+
+# A source element rebuilt for the reactive shadow (a document is hydrated fresh; a
+# plain value passes through). Shared by the CellVector reconciler.
+_shadow_elem(x) = x isa Document ? hydrate(x) : x
 
 end # module

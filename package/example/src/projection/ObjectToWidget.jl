@@ -15,7 +15,7 @@ function make_object_to_widget_projection_example(; measure=truetype_measure_tex
         RecursiveProjection(TypeDispatchingProjection(vcat(
             LayoutToGraphics().dispatch,
             w2g.dispatch,
-            Pair{DataType,Any}[
+            Pair{Type,Any}[
                 TextText => TextToGraphics(measure=measure),
             ],
         ))),

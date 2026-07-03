@@ -27,7 +27,7 @@ function make_introspection_projection(projection; measure=truetype_measure_text
     # so its own recursion machinery isn't disturbed.
     RecursiveProjection(TypeDispatchingProjection(vcat(
         w2g.dispatch,
-        Pair{DataType,Any}[
+        Pair{Type,Any}[
             EditorIntrospection => object_chain,
             Any                 => NestingProjection(projection; recursion=IdentityProjection()),
         ],
@@ -66,7 +66,7 @@ function make_clipboard_projection(projection; collection=false,
         ClipboardCollectionToAnyProjection() :
         ClipboardSliceToAnyProjection(; to_text=to_text, from_text=from_text, text=text)
     ChainingProjection(
-        RecursiveProjection(TypeDispatchingProjection(Pair{DataType,Any}[
+        RecursiveProjection(TypeDispatchingProjection(Pair{Type,Any}[
             (collection ? ClipboardCollection : ClipboardSlice) => clip,
             Any => IdentityProjection(),
         ])),
@@ -87,7 +87,7 @@ function make_text_configuring_projection(inner_text_projection;
     w2g = WidgetToGraphics(font; measure=measure)
     renderer = RecursiveProjection(TypeDispatchingProjection(vcat(
         w2g.dispatch,
-        Pair{DataType,Any}[
+        Pair{Type,Any}[
             TextText => TextToGraphics(measure=measure),
         ],
     )))
@@ -98,7 +98,7 @@ function make_text_configuring_projection(inner_text_projection;
 end
 
 function make_workbench_projection(; measure=truetype_measure_text,
-                                   content_projections=Pair{DataType,Any}[
+                                   content_projections=Pair{Type,Any}[
                                        JsonDocument         => ChainingProjection(RecursiveProjection(JsonToSyntax()), RecursiveProjection(SyntaxToText()), WordWrapping(measure=measure), TextToGraphics(measure=measure)),
                                        XmlDocument          => ChainingProjection(RecursiveProjection(XmlToSyntax()), RecursiveProjection(SyntaxToText()), WordWrapping(measure=measure), TextToGraphics(measure=measure)),
                                        JuliaDocument        => make_julia_projection_example(measure=measure),

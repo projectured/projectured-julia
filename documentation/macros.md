@@ -41,31 +41,49 @@ that module must have it in scope (every framework module already imports it).
 end
 ```
 
-The macro rewrites the struct so that every field becomes `::Cell`:
+The macro rewrites the struct into the **kind-parameterized stem**: an
+immutable struct with one cell type-parameter per field
+(see [plan/pending/cell-kind-documents.md](../plan/pending/cell-kind-documents.md)):
 
 ```julia
-mutable struct JsonString <: JsonDocument
-    value::Cell        # actually holds a Cell wrapping a String
-    selection::Cell    # actually holds a Cell wrapping a Reference
+struct JsonString{C1 <: AbstractCell, C2 <: AbstractCell} <: JsonDocument
+    value::C1          # a cell holding the String
+    selection::C2      # a cell holding the Reference
 end
 ```
 
-It also generates:
+The *cell kind* in the fields decides the node's behavior — `ReactiveCell{T}`
+(the reactive engine, historic `Cell`), `MutableCell{T}` (plain box, no
+reactive bookkeeping), or `ImmutableCell{T}` (read-only, zero-cost). The bare
+name is a UnionAll matching every kind, so `::JsonString` dispatch and
+`x isa JsonString` cover all of them. The macro also generates:
 
-- **A `getproperty` method**: `s.value` calls `getfield(s, :value)[]`,
-  returning the current value and registering a reactive dependency if any
-  computed cell is observing.
+- **A `getproperty` method**: `s.value` calls `getfield(s, :value)[]` — one
+  uniform method for every kind; a reactive dependency is registered only when
+  the cell is reactive.
 - **A `setproperty!` method**: `s.value = "x"` calls
-  `getfield(s, :value)[] = "x"`, which invalidates downstream dependents.
-- **An auto-wrapping inner constructor**: callers can pass either a plain
-  value or an already-wrapped `Cell`; both work.
-- **An I-prefixed immutable struct** (`IJsonString`) with the original
-  declared field types — no Cell indirection. This is useful for
-  snapshotting or serialisation.
-- **Conversion constructors**: `IJsonString(obj::JsonString)` snapshots all
-  cells; `JsonString(ifoo::IJsonString)` hydrates back into reactive cells.
+  `getfield(s, :value)[] = "x"` — invalidates dependents on the reactive kind,
+  plainly stores on the mutable kind, and is a `MethodError` on the immutable
+  kind (that is the contract).
+- **An auto-wrapping constructor** (bare name): `JsonString("x")` wraps raw
+  values in `ReactiveCell{Any}` — exactly the historic untyped `Cell`, so the
+  bare name builds the reactive kind with unchanged semantics. Cells (of any
+  kind, even mixed per-field) pass through as-is.
+- **Kind aliases + ctors**: `RJsonString` (what the bare ctor builds),
+  `IJsonString` / `MJsonString` (immutable / mutable kinds with *typed* cells,
+  `ImmutableCell{String}` etc.), each with value-accepting and keyword ctors.
+  The aliases are exported by the macro itself.
+- **Kind conversion** happens through the generic functions, not ctors:
+  `snapshot(doc)` (→ immutable), `hydrate(doc)` (→ reactive),
+  `rekind(MutableCell, doc)`, and `cell_kind(doc)` to query.
 
-### Why every field is a Cell
+Why loose bounds (`C <: AbstractCell`, not `C <: AbstractCell{String}`)?
+`AbstractCell{T}` is invariant, and the projection machinery freely stores
+untyped cells and even non-`String` values (template `bound(…)` markers) in a
+"String" field before stripping them — declared types are enforced by the
+typed kind ctors, not by the type system.
+
+### Why every field is a cell
 
 The uniformity matters:
 
@@ -73,15 +91,17 @@ The uniformity matters:
    `set_function!(getfield(obj, :field), thunk)` — without changing types.
 2. Projections can read any field as if it were the source of truth and the
    reactive engine will invalidate the projection automatically.
-3. Equality, struct hashing, and reflection still work because the field
-   layout is consistent.
+3. One printer/reader body serves every kind, because access goes through the
+   same `getproperty` for all of them.
 
 ### Escape hatch
 
-When you genuinely need the raw `Cell` (for example to share it between two
+When you genuinely need the raw cell (for example to share it between two
 documents or pass it to `set_function!`), use `getfield(obj, :field)`. The
 projection layer does this often, e.g. to make the `selection` field of a
 `SyntaxLeaf` literally the same Cell as the upstream `JsonString.selection`.
+Since the stem is immutable, such sharing must be established at
+construction time — a field's cell object can never be swapped afterwards.
 
 ## `@projection`
 
@@ -233,7 +253,7 @@ machinery, and with it the same three sharp edges:
   plain `struct ... <: Projection` is the exception, used when the macro can't
   be: `SyntaxNodeToText` stays plain because it stores a `Function` field (which
   the auto-wrapping ctor would turn into a thunk — see "Gotchas"), and
-  `SwitchingProjection` stays plain even though it holds a reactive
+  `AlternativeProjection` stays plain even though it holds a reactive
   `index::Cell`, reading the cell explicitly rather than through `@projection`.
   A plain struct gets no supertype defaulting, so it must write `<: Projection`.
 

@@ -17,25 +17,50 @@ directly mirrors the input structure.
 """
 module ProjectionModule
 
-import ..ProjectionApiModule: print_document, read_intent, map_reference_forward, map_reference_backward, Projection
+import ..ProjectionApiModule: print_document, read_intent, map_reference_forward, map_reference_backward, Projection,
+       pure_print_document, pure_print_child
 import ..IntentModule: Intent
 import ..OperationModule: ReplaceSelectionOperation, ToggleCollapseOperation,
                           ReplaceReferencedValueOperation, CompoundOperation, SelectNextInsertionOperation
 import ..PrimitiveModule: ReplaceStringRangeOperation, ReplaceNumberRangeOperation
-import ..ReactiveModule: Cell
+import ..ReactiveModule: Cell, AbstractCell
+import ..DocumentModule: snapshot
 import ..ReferenceModule: EmptyReferencePath
 import ..PrinterContextModule: PrinterContext
 import ..ReferenceCaseModule: var"@reference_case"
 import ..ReferenceBuilderModule: var"@reference"
 import ..KeyboardModule: KeyPress, KeyDown
 import ..MouseModule: MousePress
-import ..DocumentApiModule: Document, read_gesture
+import ..DocumentApiModule: Document, document_read
 
-export @projection
+export @projection, pure_print
 
 function print_document(projection, input)
     print_document(projection, nothing, input, PrinterContext())
 end
+
+"""
+    pure_print(projection, input) -> immutable output tree
+
+Entry point for the pure batch printer (see
+[`pure_print_document`](@ref)): project `input` to a fully-built, immutable
+output tree with no iomap / reactive / selection machinery.
+"""
+pure_print(projection, input) =
+    pure_print_document(projection, nothing, input, PrinterContext())
+
+# Snapshot the forced output of a projection to the immutable kind, when it is a
+# document; non-document outputs (a String, a graphics value) pass through.
+_pure_snapshot(x) = x isa Document ? snapshot(x) : x
+_force_output(o) = o isa AbstractCell ? o[] : o
+
+# Total fallback for any projection without a specialized pure interpreter: run
+# the reactive printer once and snapshot its output. Slower than a real pure
+# interpreter (it builds the reactive machinery first), but it makes the pure
+# pipeline total from day one — a Sequential chain can mix template stages (fast,
+# pure) with hand-written stages (this fallback) transparently.
+pure_print_document(p::Projection, recursion, input, ctx) =
+    _pure_snapshot(_force_output(print_document(p, recursion, input, ctx).output))
 
 """
     map_reference_forward(projection::Projection, iomap, reference)
@@ -82,19 +107,19 @@ forwarded unchanged; all other operation types return `nothing`.
 """
 function read_intent(projection::Projection, iomap, operation)
     # INVARIANT: the set of reference-carrying operation types handled here must
-    # stay in sync with `OperationRerootingModule.reroot_operation`. A new
+    # stay in sync with `OperationRerootingModule.prepend_steps_to_op`. A new
     # path-bearing operation missing from either is silently passed through with
     # its reference left in the wrong domain. See documentation/operations.md.
     if operation isa Union{KeyPress, KeyDown, MousePress}
         # Generic event fallback: a leaf projection with no authoring reader of
         # its own delegates a raw input gesture to the projection-independent
-        # `read_gesture` of its input document. This generalizes the per-projection
+        # `document_read` of its input document. This generalizes the per-projection
         # delegation `SyntaxToText`/`TextToGraphics` already do by hand, so any
         # `@gestures`-declared domain is reachable through any projection with no
         # bespoke reader. (Higher-order projections route events through their own
         # 4-arg readers and never reach this leaf default.)
         input = (iomap !== nothing && hasproperty(iomap, :input)) ? iomap.input : nothing
-        return input isa Document ? read_gesture(input, operation) : nothing
+        return input isa Document ? document_read(input, operation) : nothing
     elseif operation isa ReplaceReferencedValueOperation
         # Self-contained (carries its own root): forward unchanged — this is the
         # path identity-rooted controls (`ObjectToWidget`/`WidgetToGraphics`) take

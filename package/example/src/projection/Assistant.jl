@@ -70,7 +70,7 @@ function make_assistant_projection_example(; measure=truetype_measure_text)
     # `ConversationDraft` precedes `ConversationDocument` (its subtype).
     inner_chain = RecursiveProjection(TypeDispatchingProjection(vcat(
         w2g.dispatch,
-        Pair{DataType,Any}[
+        Pair{Type,Any}[
             conversation_draft_entry(measure=measure),
             conversation_widget_entry(measure=measure),
         ],

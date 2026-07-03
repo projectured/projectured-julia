@@ -42,7 +42,7 @@ function make_syntax_widget_graphics(; measure=truetype_measure_text)
     w2g  = WidgetToGraphics(font; measure=measure)
     RecursiveProjection(TypeDispatchingProjection(vcat(
         w2g.dispatch,
-        Pair{DataType,Any}[
+        Pair{Type,Any}[
             HorizontalLayout => HorizontalLayoutToGraphicsCanvas(),
             VerticalLayout   => VerticalLayoutToGraphicsCanvas(),
             TextText         => TextToGraphics(measure=measure),

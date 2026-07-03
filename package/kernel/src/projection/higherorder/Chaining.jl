@@ -8,12 +8,13 @@ input domain one step at a time.
 """
 module ChainingProjectionModule
 
-import ..ProjectionApiModule: print_document, read_intent, map_reference_forward, map_reference_backward, Projection
+import ..ProjectionApiModule: print_document, read_intent, map_reference_forward, map_reference_backward, Projection,
+       pure_print_document
 import ..IntentModule: Intent
 import ..GestureBindingModule: collect_gesture_bindings, GestureBinding
 import ..IoMapModule: SimpleIoMap
 import ..IoMapApiModule: IoMap
-import ..ReactiveModule: Cell
+import ..ReactiveModule: Cell, AbstractCell
 export ChainingProjection, ChainingProjectionIoMap
 
 # Each `step_iomaps` cell holds one stage's IoMap, recomputed (re-printed) when an
@@ -93,6 +94,16 @@ function print_document(seq::ChainingProjection, recursion, input, ctx)
     return ChainingProjectionIoMap(seq, input, step_iomaps)
 end
 
+# Pure: thread each stage's immutable output straight into the next stage — no
+# per-stage cells, no iomaps. Each stage recurses through the pure interpreter.
+function pure_print_document(seq::ChainingProjection, recursion, input, ctx)
+    out = input
+    for p in seq.projections
+        out = pure_print_document(p, recursion, out, ctx)
+    end
+    out
+end
+
 # One stage: its IoMap is a cell over the previous stage's output cell (so it
 # re-prints when that output changes); its output cell unwraps a Cell-valued
 # `iomap.output` (projections may expose a reactive output) to the plain value the
@@ -101,7 +112,7 @@ function _seq_stage(p, recursion, prev::Cell, ctx)
     iomap_cell = Cell(() -> print_document(p, recursion, prev[], ctx))
     out_cell   = Cell(() -> begin
         o = iomap_cell[].output
-        o isa Cell ? o[] : o
+        o isa AbstractCell ? o[] : o
     end)
     (iomap_cell, out_cell)
 end

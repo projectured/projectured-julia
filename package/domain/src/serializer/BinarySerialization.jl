@@ -22,7 +22,7 @@ layout, so it is a *same-version* persistence format, not an interchange format.
 """
 module BinarySerializationModule
 
-import ..ReactiveModule: Cell
+import ..ReactiveModule: Cell, ReactiveCell
 import ..DocumentApiModule: Document
 import ..OperationApiModule: Operation, evaluate_operation
 using Serialization
@@ -44,21 +44,25 @@ export save_document, load_document, SaveDocumentOperation, LoadDocumentOperatio
 # tree and is re-shared by the next `set_selection!`/`update_selection!`, a
 # perf nuance, not a correctness issue. Document trees are acyclic, so dropping
 # cycle tracking cannot loop.
-function Serialization.serialize(s::AbstractSerializer, c::Cell)
-    Serialization.serialize_type(s, Cell)
+function Serialization.serialize(s::AbstractSerializer, c::ReactiveCell)
+    # The concrete type (`ReactiveCell{T}`) is the tag, so typed cells round-trip
+    # their value-type parameter. Deserialization rebuilds a fresh primitive cell.
+    Serialization.serialize_type(s, typeof(c))
     Serialization.serialize(s, getfield(c, :value))
 end
 
-function Serialization.deserialize(s::AbstractSerializer, ::Type{Cell})
+function Serialization.deserialize(s::AbstractSerializer, ::Type{ReactiveCell{T}}) where {T}
     value = Serialization.deserialize(s)
-    Cell(value, nothing, true, Set{Cell}(), Set{Cell}())
+    ReactiveCell{T}(value)
 end
 
 # ── On-disk format ─────────────────────────────────────────────────────────
 # A small header precedes the document so `load_document` can reject foreign or
 # future-version files instead of returning a garbled object.
 const _MAGIC = "PROJECTURED-DOC"
-const _VERSION = 1
+# v2: `Cell` became the parametric `ReactiveCell{T}`; cells are tagged with their
+# concrete type. v1 files (untyped `Cell` tag) are rejected by the version check.
+const _VERSION = 2
 
 """
     save_document(document, path) -> path

@@ -133,7 +133,7 @@ function WidgetAndTextToGraphics(font::StyleFont; measure::Function,
     w2g = WidgetToGraphics(font; measure=measure, theme=theme)
     RecursiveProjection(TypeDispatchingProjection(vcat(
         w2g.dispatch,
-        Pair{DataType,Any}[TextText => TextToGraphics(measure=measure)],
+        Pair{Type,Any}[TextText => TextToGraphics(measure=measure)],
     )))
 end
 

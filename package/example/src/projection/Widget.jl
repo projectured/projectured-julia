@@ -68,7 +68,7 @@ function make_widget_text_projection_example(; measure=truetype_measure_text)
     w2g  = WidgetToGraphics(font; measure=measure)
     RecursiveProjection(TypeDispatchingProjection(vcat(
         w2g.dispatch,
-        Pair{DataType,Any}[
+        Pair{Type,Any}[
             TextText => TextToGraphics(measure=measure),
         ],
     )))

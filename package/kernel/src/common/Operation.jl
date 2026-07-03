@@ -19,7 +19,7 @@ module OperationModule
 import ..OperationApiModule: Operation, evaluate_operation, invalidate_projection!
 import ..DocumentApiModule: Document, clear_selection!, set_selection!, with_selection
 import ..ReferenceModule: ReferencePath, ConcreteReferencePath, EmptyReferencePath, FieldReference, RangeReference, TypeReference, is_element_reference, evaluate_reference, is_reference_equal, annotate_reference_types, strip_reference_types, append_reference, concat_references, reference_steps
-import ..ReactiveModule: Cell
+import ..ReactiveModule: Cell, AbstractCell
 import ..CollectionModule: CellVector
 export DoNothingOperation, ReplaceSelectionOperation, QuitEditorOperation, QuitEditorException, replace_selection!,
        ToggleCollapseOperation,
@@ -212,7 +212,7 @@ end
 # document or a scalar) — terminal-kind dispatch is what unifies the two.
 function _write_slot!(parent, step::FieldReference, value)
     f = getfield(parent, Symbol(step.name))
-    f isa Cell || error("ReplaceReferencedValueOperation: field $(step.name) of $(typeof(parent)) is not a Cell")
+    f isa AbstractCell || error("ReplaceReferencedValueOperation: field $(step.name) of $(typeof(parent)) is not a Cell")
     f[] = value
 end
 
@@ -232,7 +232,7 @@ function _write_slot!(parent, step::RangeReference, items::AbstractVector)
         deleteat!(parent, step.start + 1)
     end
     for (k, item) in enumerate(items)
-        insert!(parent, step.start + k, item isa Cell ? item : Cell(item))
+        insert!(parent, step.start + k, item isa AbstractCell ? item : Cell(item))
     end
 end
 
@@ -422,7 +422,7 @@ function _preorder_documents!(node, path::ReferencePath, seen, out)
     for nm in fieldnames(typeof(node))
         nm === :selection && continue
         raw = getfield(node, nm)
-        val = raw isa Cell ? raw[] : raw
+        val = raw isa AbstractCell ? raw[] : raw
         val isa Document || continue
         _preorder_documents!(val, append_reference(path, FieldReference(string(nm))), seen, out)
     end
@@ -639,7 +639,7 @@ function _selection_child(document, path::ConcreteReferencePath)
         # guard the field's presence explicitly.
         hasproperty(document, sym) || return nothing
         f = getfield(document, sym)
-        f isa Cell ? f[] : f
+        f isa AbstractCell ? f[] : f
     elseif h isa RangeReference
         document isa AbstractString && return nothing
         idx = h.start + 1
