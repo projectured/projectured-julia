@@ -73,7 +73,7 @@ end
 
 function print_document(p::CollectionCellVectorToSyntax, recursion, cv::CellVector, ctx)
     child_iomaps = Cell(() -> [print_child(recursion, x,
-                                   child_context(ctx, ElementReference(i)))
+                                   make_child_context(ctx, ElementReference(i)))
                                for (i, x) in enumerate(cv)])
     # Wire the output SyntaxNode's selection cell to forward-project the input
     # CellVector's selection.  The iomap_cell trick (same as DbCatalogToSyntax)
@@ -150,7 +150,7 @@ function print_document(p::CollectionListNodeToSyntax, recursion, ln::ListNode, 
 end
 
 function _map_listnode(recursion, input_node::ListNode, ctx, index::Int)
-    child_ctx = child_context(ctx, ElementReference(index))
+    child_ctx = make_child_context(ctx, ElementReference(index))
     child_iomap = print_child(recursion, input_node.value, child_ctx)
     out_node = ListNode(child_iomap.output)
 
@@ -178,7 +178,7 @@ end
 # ── CollectionToSyntax (composite) ───────────────────────────────────────────
 
 import ..TypeDispatchingProjectionModule: TypeDispatchingProjection
-import ..PrinterContextModule: child_context
+import ..PrinterContextModule: make_child_context
 
 """
     CollectionToSyntax()

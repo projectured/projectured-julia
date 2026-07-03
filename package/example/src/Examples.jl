@@ -425,12 +425,12 @@ function _run_window_scene(docs, projs, names; width, height, backend,
     if profile
         Profile.clear()
         try
-            Profile.@profile run!(backend, composed, screen; mcp=mcp)
+            Profile.@profile run_editor!(backend, composed, screen; mcp=mcp)
         finally
             Profile.print(; mincount=10)
         end
     else
-        run!(backend, composed, screen; mcp=mcp)
+        run_editor!(backend, composed, screen; mcp=mcp)
     end
 end
 
@@ -474,7 +474,7 @@ function _multi_window_projection(projections::Vector; measure=truetype_measure_
         # NestingProjection (recursion=IdentityProjection) lets the inner
         # projection's own recursion take over below this point.
         for i in 1:n
-            reference_equal(ref, targets[i]) || continue
+            is_reference_equal(ref, targets[i]) || continue
             return GestureHelpProjection(
                 inner = NestingProjection(projections[i]; recursion=IdentityProjection()),
                 state = help_state)
@@ -552,7 +552,7 @@ function _multi_window_projection_tooltipped(projections::Vector; measure=truety
     )
     ref_dispatch = ReferenceDispatchingProjection(ref -> begin
         for i in 1:n
-            reference_equal(ref, targets[i]) || continue
+            is_reference_equal(ref, targets[i]) || continue
             return NestingProjection(projections[i];
                                       recursion=IdentityProjection())
         end
@@ -589,7 +589,7 @@ function _multi_window_projection_inspector(projections::Vector; measure=truetyp
     end
     ref_dispatch = ReferenceDispatchingProjection(ref -> begin
         for i in 1:n
-            reference_equal(ref, targets[i]) || continue
+            is_reference_equal(ref, targets[i]) || continue
             inner = NestingProjection(projections[i]; recursion=IdentityProjection())
             return HoverProbeProjection(inner = inner, id = :inspector, pointer = pointer)
         end
@@ -689,7 +689,7 @@ function run_console_example(; document=make_json_document_example(),
         # that lands on the rendered screen and corrupts it (the console owns the
         # display). Discard those logs for the duration of the interactive loop.
         Base.CoreLogging.with_logger(Base.CoreLogging.NullLogger()) do
-            run!(backend, projection, document; devices=Device[Keyboard()])
+            run_editor!(backend, projection, document; devices=Device[Keyboard()])
         end
     else
         backend = make_backend(:console; ansi=ansi, clear=something(clear, false))
@@ -722,7 +722,7 @@ end
 function write_example_pdf(example::Example, filename;
                            width=nothing, height=nothing,
                            max_width=1800, max_height=1200, kwargs...)
-    init!(make_backend(:sdl))
+    initialize_backend!(make_backend(:sdl))
     write_pdf(example.document, example.projection, filename;
               width=width, height=height,
               max_width=max_width, max_height=max_height,

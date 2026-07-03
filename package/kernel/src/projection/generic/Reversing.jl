@@ -11,7 +11,7 @@ import ..IoMapModule: SimpleIoMap, ChildrenIoMap
 import ..ReactiveModule: Cell
 import ..ReferenceModule: ConcreteReferencePath, ElementReference, PositionReference, RangeReference, append_reference
 import ..ReferenceCaseModule: var"@reference_case"
-import ..PrinterContextModule: child_context
+import ..PrinterContextModule: make_child_context
 import ..IdentityProjectionModule: IdentityProjection
 export ReversingProjection
 
@@ -31,7 +31,7 @@ function print_document(p::ReversingProjection, recursion, input, ctx)
     recursion = something(recursion, IdentityProjection())
     child_iomaps = Cell(() -> [
         print_child(recursion, input[i],
-            child_context(ctx, ElementReference(i)))
+            make_child_context(ctx, ElementReference(i)))
         for i in 1:length(input)
     ])
     ChildrenIoMap(p, input, reverse(input), child_iomaps)

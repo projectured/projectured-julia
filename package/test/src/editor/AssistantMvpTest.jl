@@ -32,7 +32,7 @@ using Projectured: PrimitiveDocument, PrimitiveToSyntax, SyntaxToText,
 using Projectured: ConcreteReferencePath, FieldReference, RangeReference,
                    EmptyReferencePath
 using Projectured: Llm, FakeLlm, ScriptedLlm,
-                   scripted_turn, scripted_think, scripted_say, scripted_run
+                   make_scripted_turn, make_scripted_think, make_scripted_say, make_scripted_run
 using Projectured: ComposerInputOperation, SubmitDraftTurnOperation, SubmitProseOperation
 using Projectured.McpModule: register_default_tools_and_resources!
 using Projectured.WorkbenchAssistantModule: _text_to_string, _run_agent_loop!,
@@ -453,7 +453,7 @@ end
 
 # ── Timestamped scripted builders + JSON round-trip ────────────────────
 #
-# The `scripted_turn` / `scripted_think` / `scripted_say` / `scripted_run`
+# The `make_scripted_turn` / `make_scripted_think` / `make_scripted_say` / `make_scripted_run`
 # helpers must produce rounds the agent loop consumes exactly as the hand-built
 # `_tool_use_script` does — including a multi-line `execute_julia_code` block that
 # round-trips through the JSON `{"code": …}` encode/parse without corruption.
@@ -464,12 +464,12 @@ function _mvp_test_scripted_builders()
         # Multi-line code with an embedded quote — stresses the JSON escaper.
         code = "v = 6 * 7\nstring(\"n=\", v)"
         llm = ScriptedLlm([
-            scripted_turn(
-                scripted_think("Let me compute this carefully"; delay = 0.0),
-                scripted_say("Working on it."; delay = 0.0),
-                scripted_run(code; tool_id = "tu_demo", delay = 0.0);
+            make_scripted_turn(
+                make_scripted_think("Let me compute this carefully"; delay = 0.0),
+                make_scripted_say("Working on it."; delay = 0.0),
+                make_scripted_run(code; tool_id = "tu_demo", delay = 0.0);
                 stop_reason = "tool_use"),
-            scripted_turn(scripted_say("Done."; delay = 0.0)),
+            make_scripted_turn(make_scripted_say("Done."; delay = 0.0)),
         ]; delay = 0.0)
         a = WorkbenchAssistant(; llm = llm)
         push!(a.conversation.turns, ConversationTurn(:user, [ConversationPart("compute")]))

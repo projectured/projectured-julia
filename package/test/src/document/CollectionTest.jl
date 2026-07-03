@@ -53,9 +53,9 @@ current = force_next(current)
 current = force_next(current)
 @test current.value.value == 5
 
-# ── take_first_n function ─────────────────────────────────────────────────
+# ── take_first function ─────────────────────────────────────────────────
 
-# Test take_first_n in :next direction
+# Test take_first in :next direction
 counter2 = Ref(1)
 head2 = lazy_node(PrimitiveNumber(counter2[]), function()
     counter2[] += 1
@@ -71,13 +71,13 @@ head2 = lazy_node(PrimitiveNumber(counter2[]), function()
     end)
 end)
 
-result = take_first_n(head2, 3, :next)
+result = take_first(head2, 3, :next)
 @test length(result) == 3
 @test result[1].value == 1
 @test result[2].value == 2
 @test result[3].value == 3
 
-result5 = take_first_n(head2, 5, :next)
+result5 = take_first(head2, 5, :next)
 @test length(result5) == 5
 @test result5[1].value == 1
 @test result5[5].value == 5
@@ -91,7 +91,7 @@ end
 
 # Test infinite integers starting from 1
 inf_ints = lazy_integers_from(1)
-first_10 = take_first_n(inf_ints, 10, :next)
+first_10 = take_first(inf_ints, 10, :next)
 @test length(first_10) == 10
 @test first_10[1].value == 1
 @test first_10[2].value == 2
@@ -106,7 +106,7 @@ first_10 = take_first_n(inf_ints, 10, :next)
 
 # Test infinite integers starting from 100
 inf_ints_100 = lazy_integers_from(100)
-first_5_from_100 = take_first_n(inf_ints_100, 5, :next)
+first_5_from_100 = take_first(inf_ints_100, 5, :next)
 @test length(first_5_from_100) == 5
 @test first_5_from_100[1].value == 100
 @test first_5_from_100[2].value == 101

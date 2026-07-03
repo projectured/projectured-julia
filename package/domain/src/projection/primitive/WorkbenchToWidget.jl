@@ -55,7 +55,7 @@ import ..DocumentApiModule: read_gesture
 import ..ReferenceModule: ReferencePath, ConcreteReferencePath, ElementReference, PositionReference, RangeReference, EmptyReferencePath, FieldReference, append_reference
 import ..ReferenceBuilderModule: var"@reference"
 import ..ReferenceCaseModule: var"@reference_case"
-import ..PrinterContextModule: child_context
+import ..PrinterContextModule: make_child_context
 export WorkbenchWorkbenchToWidgetShell,    WorkbenchWorkbenchToWidgetShellIoMap,
        WorkbenchPageToWidgetTabbedPane,    WorkbenchPageToWidgetTabbedPaneIoMap,
        WorkbenchNavigatorToWidgetScrollPane, WorkbenchNavigatorToWidgetScrollPaneIoMap,
@@ -166,10 +166,10 @@ end
 
 function print_document(::WorkbenchWorkbenchToWidgetShell,
                            recursion, w::WorkbenchWorkbench, ctx)
-    nav_iomap  = _recurse(recursion, w.navigation_page,  child_context(ctx, @reference ^(ctx.reference).navigation_page))
-    edit_iomap = _recurse(recursion, w.editing_page,     child_context(ctx, @reference ^(ctx.reference).editing_page))
-    info_iomap = _recurse(recursion, w.information_page, child_context(ctx, @reference ^(ctx.reference).information_page))
-    ctrl_iomap = _recurse(recursion, w.control_page,     child_context(ctx, @reference ^(ctx.reference).control_page))
+    nav_iomap  = _recurse(recursion, w.navigation_page,  make_child_context(ctx, @reference ^(ctx.reference).navigation_page))
+    edit_iomap = _recurse(recursion, w.editing_page,     make_child_context(ctx, @reference ^(ctx.reference).editing_page))
+    info_iomap = _recurse(recursion, w.information_page, make_child_context(ctx, @reference ^(ctx.reference).information_page))
+    ctrl_iomap = _recurse(recursion, w.control_page,     make_child_context(ctx, @reference ^(ctx.reference).control_page))
 
     # Placeholder filled once the IoMap is built below, so the
     # forward-projected selection cells can reference it.
@@ -235,7 +235,7 @@ end
 function print_document(::WorkbenchPageToWidgetTabbedPane,
                            recursion, page::WorkbenchPage, ctx)
     element_iomaps = Any[_recurse(recursion, page.elements[i],
-                             child_context(ctx, @reference ^(ctx.reference).elements[i]))
+                             make_child_context(ctx, @reference ^(ctx.reference).elements[i]))
                          for i in eachindex(page.elements)]
     pairs = Any[(_title_widget(page.elements[i]), element_iomaps[i].output)
                 for i in eachindex(page.elements)]
@@ -296,7 +296,7 @@ end
 
 function print_document(::WorkbenchConsoleToWidgetScrollPane,
                            recursion, c::WorkbenchConsole, ctx)
-    content_iomap = _recurse(recursion, c.content, child_context(ctx, @reference ^(ctx.reference).content))
+    content_iomap = _recurse(recursion, c.content, make_child_context(ctx, @reference ^(ctx.reference).content))
     scroll = WidgetScrollPane(content_iomap.output;
                               padding=_PAD5, padding_color=_WHITE)
     ContentIoMap(nothing, c, scroll, content_iomap)
@@ -329,7 +329,7 @@ end
 
 function print_document(::WorkbenchEvaluatorToWidgetScrollPane,
                            recursion, e::WorkbenchEvaluator, ctx)
-    content_iomap = _recurse(recursion, e.content, child_context(ctx, @reference ^(ctx.reference).content))
+    content_iomap = _recurse(recursion, e.content, make_child_context(ctx, @reference ^(ctx.reference).content))
     scroll = WidgetScrollPane(content_iomap.output;
                               padding=_PAD5, padding_color=_WHITE)
     ContentIoMap(nothing, e, scroll, content_iomap)
@@ -368,7 +368,7 @@ end
 
 function print_document(::WorkbenchEditorToWidgetScrollPane,
                            recursion, e::WorkbenchEditor, ctx)
-    content_iomap = _recurse(recursion, e.content, child_context(ctx, @reference ^(ctx.reference).content))
+    content_iomap = _recurse(recursion, e.content, make_child_context(ctx, @reference ^(ctx.reference).content))
     scroll = WidgetScrollPane(content_iomap.output;
                               follow_end=e.follow_end === true,
                               padding=_PAD5, padding_color=_WHITE)

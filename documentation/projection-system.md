@@ -96,7 +96,7 @@ The two extra arguments are essential:
   editor's document root to the *current* input, plus optional layout extent
   (`available_width`/`available_height`) and an open `properties` Dict. Each
   projection extends the reference before recursing into a child by calling
-  `child_context(ctx, step…)` (or `child_context(ctx, full_path)`), so every
+  `make_child_context(ctx, step…)` (or `make_child_context(ctx, full_path)`), so every
   projection knows where in the original document it sits — which is what
   enables [ReferenceDispatchingProjection](higher-order-projections.md) to
   switch behaviour based on document-root-relative location. The top-level call
@@ -406,7 +406,7 @@ JsonString ──JsonStringToSyntaxLeaf──► SyntaxLeaf ──SyntaxLeafToTe
 ```
 
 Forward, each step extends the `context`'s reference path (via
-`child_context`) so child projections know their position relative to the
+`make_child_context`) so child projections know their position relative to the
 document root, and wires its output selection with `map_reference_forward`.
 Backward, each step's IoMap is visited in reverse, with each projection's
 `read_intent` translating the operation a step closer to the document's
@@ -509,11 +509,11 @@ struct MyNodeProjection <: Projection end
 function print_document(p::MyNodeProjection, recursion, node::MyNode, ctx)
     # Step 1+2: project children, store IO maps in a shared cell.
     # `print_child` re-enters the whole pipeline for each child;
-    # `child_context` extends the reference path to child i.
+    # `make_child_context` extends the reference path to child i.
     child_iomaps = Cell(() -> [
         print_child(recursion,
                                    getfield(node, :children)[][i][],
-                                   child_context(ctx, ElementReference(i)))
+                                   make_child_context(ctx, ElementReference(i)))
         for i in 1:length(node.children)
     ])
 
@@ -581,7 +581,7 @@ print_child(recursion, child, child_ctx)
 ```
 
 where `child_ctx` extends the current context
-(`child_context(ctx, <step to the child>)`). The helper expands to
+(`make_child_context(ctx, <step to the child>)`). The helper expands to
 `print_document(recursion, recursion, child, child_ctx)` — `recursion`
 appears **twice** on purpose: the first slot is the projection to invoke, the
 second is *that* call's own `recursion` argument. Both must be `recursion` (not
@@ -659,7 +659,7 @@ delegate to:
 
 When the child the printer recursed into went through a `CopyingProjection` (as
 `JsonObjectToSyntaxNode`'s entries do), reach its stored child IO map with
-`copying_field_iomap` / `copying_element_iomap` and delegate through that.
+`make_copying_field_iomap` / `make_copying_element_iomap` and delegate through that.
 
 > **Anti-pattern — re-walking the input by type (the former "School B").** Do
 > *not* implement the mapper by recursing over the input document and dispatching

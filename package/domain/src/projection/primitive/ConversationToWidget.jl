@@ -40,7 +40,7 @@ import ..OperationModule: ToggleCollapseOperation
 import ..ReactiveModule: Cell
 import ..CollectionModule: CellVector
 import ..TypeDispatchingProjectionModule: TypeDispatchingProjection
-import ..PrinterContextModule: child_context
+import ..PrinterContextModule: make_child_context
 
 export ConversationConversationToWidgetComposite,
        ConversationTurnToWidgetComposite,
@@ -121,7 +121,7 @@ function print_document(::ConversationConversationToWidgetComposite,
     # so the produced cards keep a stable identity that the toggle reader can
     # match against. The layout reads each iomap's `.output`.
     ioms = Cell(() -> Any[
-        print_document(rec, rec, c.turns[i], child_context(ctx, ref))
+        print_document(rec, rec, c.turns[i], make_child_context(ctx, ref))
         for i in eachindex(c.turns)
     ])
     layout = VerticalLayout(CellVector(() -> Any[im.output for im in ioms[]]),
@@ -135,7 +135,7 @@ function print_document(::ConversationTurnToWidgetComposite,
                           recursion, t::ConversationTurn, ctx)
     rec, ref = recursion, ctx.reference
     ioms = Cell(() -> Any[
-        print_document(rec, rec, t.parts[i], child_context(ctx, ref))
+        print_document(rec, rec, t.parts[i], make_child_context(ctx, ref))
         for i in eachindex(t.parts)
     ])
     body = VerticalLayout(CellVector(() -> Any[im.output for im in ioms[]]),

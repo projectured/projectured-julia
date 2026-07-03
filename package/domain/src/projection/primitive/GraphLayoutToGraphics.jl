@@ -32,7 +32,7 @@ import ..IoMapApiModule: IoMap
 import ..ReferenceModule: ConcreteReferencePath, FieldReference, RangeReference, EmptyReferencePath
 import ..ReferenceBuilderModule: var"@reference"
 import ..ReferenceCaseModule: var"@reference_case"
-import ..PrinterContextModule: child_context
+import ..PrinterContextModule: make_child_context
 import ..OperationModule: ReplaceSelectionOperation
 import ..MouseModule: MousePress
 
@@ -94,7 +94,7 @@ function print_document(p::GraphLayoutToGraphicsCanvas, recursion, layout::Graph
                 content = v isa GraphVertex ? getfield(v, :content)[] : nothing
                 if content !== nothing
                     cref = @reference ^(reference).vertex_layouts[i].vertex.content
-                    cim = print_child(recursion, content, child_context(ctx, cref))
+                    cim = print_child(recursion, content, make_child_context(ctx, cref))
                     push!(entries, (Int(vl.x), Int(vl.y), cim))
                 else
                     push!(entries, (Int(vl.x), Int(vl.y), nothing))
@@ -117,7 +117,7 @@ function print_document(p::GraphLayoutToGraphicsCanvas, recursion, layout::Graph
             label = e isa GraphEdge ? getfield(e, :label)[] : nothing
             if label !== nothing
                 lref = @reference ^(reference).edge_layouts[i].edge.label
-                push!(out, print_child(recursion, label, child_context(ctx, lref)))
+                push!(out, print_child(recursion, label, make_child_context(ctx, lref)))
             else
                 push!(out, nothing)
             end

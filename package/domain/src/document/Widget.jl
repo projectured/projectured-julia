@@ -300,7 +300,7 @@ state. A `nothing` action makes the button inert on click.
 beyond the plain click: the reader consults it *before* the built-in
 click/Enter/Space handling, so a binding can add a gesture (e.g. right-click,
 shift-click), override a default (same pattern shadows it), or suppress one (map
-the pattern to a `NoOperation()`). Each binding maps a `GesturePattern` to an
+the pattern to a `DoNothingOperation()`). Each binding maps a `GesturePattern` to an
 `(doc, event) -> Operation | Nothing` builder — the same reified vocabulary the
 gesture-help window shows.
 
@@ -359,7 +359,7 @@ function WidgetButton(position::Point2D, size::Point2D, content;
     # `gestures` is a per-instance `Vector{GestureBinding}` (behavior, not content).
     # It is consulted by the reader ahead of the built-in click/key handling, so a
     # binding can add (right-click, shift-click, …), override (same pattern), or
-    # suppress (map to `NoOperation()`) a default. Stored as a plain primitive cell.
+    # suppress (map to `DoNothingOperation()`) a default. Stored as a plain primitive cell.
     gestures_cell = Cell(nothing); set_value!(gestures_cell, gestures)
     # `command` (optional) is a shared `Action` (Stage 4); `icon` (optional) is an
     # icon name drawn left of the label (Stage 5); `dialog` (optional) is a child

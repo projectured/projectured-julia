@@ -20,7 +20,7 @@ using Projectured: ReplaceSelectionOperation, OpenWindowOperation,
                     ReferenceInspector, HoverProbeProjection, ReferenceInspectorToText,
                     NestingProjection, IdentityProjection, ChainingProjection,
                     WordWrapping, TextToGraphics, GraphicsCanvas, truetype_measure_text,
-                    reference_equal, MouseMove, MousePress, Modifiers,
+                    is_reference_equal, MouseMove, MousePress, Modifiers,
                     ScreenDocument, WindowDocument, EventEnvelope, Intent
 using Projectured.TextModule: TextText, TextString
 
@@ -136,7 +136,7 @@ function test_hover_probe()
             # The displayed reference equals what a real click here selects.
             press = read_intent(proj, plain, MousePress(:left, cx, cy, Modifiers()))
             if press isa ReplaceSelectionOperation
-                @test reference_equal(mv.content.reference, press.path)
+                @test is_reference_equal(mv.content.reference, press.path)
             end
         end
 

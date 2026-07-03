@@ -56,7 +56,7 @@ import ..CollectionModule: CellVector
 import ..ReferenceModule: ReferencePath, ConcreteReferencePath, EmptyReferencePath,
                           FieldReference, RangeReference, ElementReference,
                           evaluate_reference, head, tail, strip_reference_types
-import ..PrinterContextModule: PrinterContext, child_context
+import ..PrinterContextModule: PrinterContext, make_child_context
 import ..IoMapApiModule: IoMap
 import ..GestureBindingModule: GestureBinding, KeyDownPattern,
                               get_projection_gesture_bindings, read_projection_gesture, collect_gesture_bindings
@@ -132,11 +132,11 @@ end
 
 function print_document(p::ClipboardSliceToAnyProjection, recursion, input::ClipboardSlice, ctx)
     content_iomap = print_child(recursion, input.content,
-                        child_context(ctx, FieldReference("content")))
+                        make_child_context(ctx, FieldReference("content")))
     slice_val = input.slice
     slice_iomap = slice_val isa Document ?
         print_child(recursion, slice_val,
-            child_context(ctx, FieldReference("slice"))) : nothing
+            make_child_context(ctx, FieldReference("slice"))) : nothing
     # Reactive output: a derived cell over the display flag (the projection stays
     # domain-generic — it still exposes the active child directly). The reactive
     # ChainingProjection re-pulls this through its own per-stage cells, so
@@ -149,10 +149,10 @@ end
 
 function print_document(p::ClipboardCollectionToAnyProjection, recursion, input::ClipboardCollection, ctx)
     content_iomap = print_child(recursion, input.content,
-                        child_context(ctx, FieldReference("content")))
+                        make_child_context(ctx, FieldReference("content")))
     elements = input.elements
     element_iomaps = [print_child(recursion, elements[i],
-                          child_context(ctx, FieldReference("elements"), ElementReference(i)))
+                          make_child_context(ctx, FieldReference("elements"), ElementReference(i)))
                       for i in 1:length(elements)]
     # Reactive output (see the slice printer): a derived cell over the display flag,
     # re-pulled by the reactive ChainingProjection — no `editor.iomap` drop.

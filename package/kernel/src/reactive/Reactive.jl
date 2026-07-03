@@ -73,8 +73,8 @@ end
 # any Cell read during evaluation can register itself as a dependency.
 const _computing = Cell[]
 
-# Performance counters (`_perf`, `get_performance_counters`, `perf_reset!`, `perf_record!`,
-# `@perf_time`) live in `PerformanceCounterModule` (reactive/PerformanceCounter.jl).
+# Performance counters (`_perf`, `get_performance_counters`, `reset_performance_counters!`, `record_performance!`,
+# `@performance_time`) live in `PerformanceCounterModule` (reactive/PerformanceCounter.jl).
 # `_perf` is imported above so the Cell hot path below stays a bare `Dict` write.
 
 # ── constructors ─────────────────────────────────────────────────────────

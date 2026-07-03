@@ -27,7 +27,7 @@ import ..IoMapModule: SimpleIoMap, ChildrenIoMap
 import ..ReferenceModule: ConcreteReferencePath, ElementReference, PositionReference, RangeReference, FieldReference, ProjectionReference, ReferencePath, EmptyReferencePath, append_reference
 import ..ReferenceCaseModule: var"@reference_case"
 import ..ReferenceBuilderModule: var"@reference"
-import ..PrinterContextModule: child_context
+import ..PrinterContextModule: make_child_context
 import ..OperationModule: ReplaceSelectionOperation
 import ..PrimitiveToSyntaxModule: PrimitiveNumberToSyntaxLeaf
 import ..SyntaxToTextModule: SyntaxNodeToText, _syntax_to_flat
@@ -129,8 +129,8 @@ end
 
 function print_document(p::MathBinaryOperationToSyntaxNode, recursion, m::MathBinaryOperation, ctx)
     reference = ctx.reference
-    left_ctx  = child_context(ctx, @reference ^(reference).left)
-    right_ctx = child_context(ctx, @reference ^(reference).right)
+    left_ctx  = make_child_context(ctx, @reference ^(reference).left)
+    right_ctx = make_child_context(ctx, @reference ^(reference).right)
     left_iomap = Cell(() -> print_child(recursion, m.left, left_ctx))
     right_iomap = Cell(() -> print_child(recursion, m.right, right_ctx))
 
@@ -208,7 +208,7 @@ end
 
 function print_document(p::MathParenthesizedToSyntaxNode, recursion, m::MathParenthesized, ctx)
     reference = ctx.reference
-    content_ctx = child_context(ctx, @reference ^(reference).content)
+    content_ctx = make_child_context(ctx, @reference ^(reference).content)
     content_iomap = Cell(() -> print_child(recursion, m.content, content_ctx))
 
     sel = Cell(() -> begin
@@ -293,8 +293,8 @@ end
 
 function print_document(p::MathAssignmentToSyntaxNode, recursion, m::MathAssignment, ctx)
     reference = ctx.reference
-    target_ctx = child_context(ctx, @reference ^(reference).target)
-    value_ctx  = child_context(ctx, @reference ^(reference).value)
+    target_ctx = make_child_context(ctx, @reference ^(reference).target)
+    value_ctx  = make_child_context(ctx, @reference ^(reference).value)
     target_iomap = Cell(() -> print_child(recursion, m.target, target_ctx))
     value_iomap = Cell(() -> print_child(recursion, m.value, value_ctx))
 

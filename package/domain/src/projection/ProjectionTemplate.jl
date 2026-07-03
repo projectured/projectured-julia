@@ -40,7 +40,7 @@ import ..RecursiveProjectionModule: RecursiveProjection
 import ..ReferenceModule: ConcreteReferencePath, EmptyReferencePath, FieldReference, RangeReference, ElementReference,
                           TypeReference, ProjectionReference, ReferencePath, Reference,
                           fold_reference_types, strip_reference_types
-import ..PrinterContextModule: child_context
+import ..PrinterContextModule: make_child_context
 import ..OperationModule: ReplaceSelectionOperation
 import ..PrimitiveModule: ReplaceStringRangeOperation, ReplaceNumberRangeOperation
 import ..DocumentApiModule: Document, read_gesture
@@ -79,7 +79,7 @@ _override(as, v) = as === nothing ? nothing : (as isa Function ? as(v) : as)
 _project_child_cell(recursion, doc, ctx, prj::Project) =
     _reconciling_child_iomap(() -> getproperty(doc, prj.input),
         v -> begin
-            cctx = child_context(ctx, FieldReference(String(prj.input)))
+            cctx = make_child_context(ctx, FieldReference(String(prj.input)))
             ov = _override(prj.override, v)
             ov === nothing ? print_child(recursion, v, cctx) :
                              ProjectionApiModule.print_document(ov, recursion, v, cctx)
@@ -426,12 +426,12 @@ function _node_print(p, recursion, doc, ctx, out, children_field, coll)
         # homogeneous: each element projected by its own projection
         _reconciling_child_iomaps(elements_fn, (i, x) ->
             print_child(recursion, x,
-                child_context(ctx, FieldReference(String(input_field)), ElementReference(i))))
+                make_child_context(ctx, FieldReference(String(input_field)), ElementReference(i))))
     else
         # templated: build a fixed-children node per element via the element builder
         _reconciling_child_iomaps(elements_fn, (i, x) ->
             _fixed_print(p, recursion, x,
-                child_context(ctx, FieldReference(String(input_field)), ElementReference(i)),
+                make_child_context(ctx, FieldReference(String(input_field)), ElementReference(i)),
                 coll.element(x)))
     end
     iomap_cell = Cell(nothing)
@@ -606,7 +606,7 @@ function _mixed_print(p, recursion, doc, ctx, out, children_field)
     coll_field === nothing && error("ProjectionTemplate: mixed node has no spliced collection")
     coll_iomaps = Cell(() -> [
         print_child(recursion, x,
-            child_context(ctx, FieldReference(String(coll_field)), ElementReference(i)))
+            make_child_context(ctx, FieldReference(String(coll_field)), ElementReference(i)))
         for (i, x) in enumerate(getproperty(doc, coll_field))])
     children = CellVector(() -> vcat(
         [s isa Cell ? s[].output : s for s in prefix_sources],
@@ -683,7 +683,7 @@ function _sections_print(p, recursion, doc, ctx, out, children_field, specs)
             coll = getproperty(doc, field)
             isempty(coll) && continue
             entries = [print_child(recursion, x,
-                           child_context(ctx, FieldReference(String(field)), ElementReference(i)))
+                           make_child_context(ctx, FieldReference(String(field)), ElementReference(i)))
                        for (i, x) in enumerate(coll)]
             push!(res, (field=field, mk=mk, entries=entries))
         end

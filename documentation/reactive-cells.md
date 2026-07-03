@@ -92,11 +92,11 @@ one and you get a hang, a stale render, or a stack overflow rather than an error
 
 ```julia
 get_performance_counters()  # Dict{Symbol,Int} with :reads :computes :invalidations :writes
-perf_reset!()    # zero them
+reset_performance_counters!()    # zero them
 ```
 
 The editor's main loop resets and reports these every frame (see
-[Editor.run!](../package/kernel/src/editor/Editor.jl)), which is the easiest way to
+[Editor.run_editor!](../package/kernel/src/editor/Editor.jl)), which is the easiest way to
 profile what work a particular edit actually triggered.
 
 ## How the cell appears in the rest of the codebase

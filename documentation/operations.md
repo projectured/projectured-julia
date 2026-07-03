@@ -42,7 +42,7 @@ is the function to call when scripting selection from Julia code.
 ### `QuitEditorOperation()`
 
 Produced when the user closes the window or presses Escape. Its evaluation
-throws a `QuitEditorException`, which the `run!` loop catches and uses to
+throws a `QuitEditorException`, which the `run_editor!` loop catches and uses to
 break out cleanly.
 
 ## The generic write operation: `ReplaceReferencedValueOperation`

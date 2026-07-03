@@ -13,21 +13,21 @@ import ..ProjectionApiModule: Projection, print_document, read_intent
 import ..IntentModule: Intent
 import ..IoMapApiModule: IoMap
 import ..DeviceApiModule: Device, read_from_devices, write_to_devices
-import ..BackendApiModule: Backend, init!, quit!
+import ..BackendApiModule: Backend, initialize_backend!, quit_backend!
 import ..ScreenDeviceModule: Screen, WindowQuit
 import ..ScreenDocumentModule: EventEnvelope
-import ..PerformanceCounterModule: get_performance_counters, perf_reset!, @perf_time
-import ..TimeModule: tick!
+import ..PerformanceCounterModule: get_performance_counters, reset_performance_counters!, @performance_time
+import ..TimeModule: tick_editor_time!
 import ..DocumentApiModule: Document
 import ..KeyboardModule: Keyboard, KeyDown
 import ..MouseModule: Mouse
 import ..OperationApiModule: Operation, evaluate_operation, invalidate_projection!
 import ..OperationModule: ReplaceSelectionOperation, QuitEditorOperation, AdjustZoomOperation, AdjustFontZoomOperation
 import ..OperationModule: QuitEditorException
-import ..GestureRecognizerModule: GestureRecognizer, next_gesture!
-import ..AgentApiModule: make_agent_server, agent_server_start!, agent_server_stop!
+import ..GestureRecognizerModule: GestureRecognizer, pop_gesture!
+import ..AgentApiModule: make_agent_server, start_agent_server!, stop_agent_server!
 
-export Editor, run!
+export Editor, run_editor!
 
 """
     Editor(backend, document, projection, devices)
@@ -68,14 +68,14 @@ invalidate_projection!(editor::Editor) = (editor.iomap = nothing)
 Drain input envelopes via the backend until one translates into an
 operation. Returns `true` when an operation was produced (stored in
 `editor.operation`), `false` once the backend has nothing left to
-deliver — used by `run!` to decide when to stop draining and repaint.
+deliver — used by `run_editor!` to decide when to stop draining and repaint.
 
 Envelopes that don't yield an operation (no iomap yet, or a projection
 reader that passed the event through unchanged) are silently consumed;
 there's nothing to evaluate or repaint for them.
 
 Raw backend events are first pulled through the editor's `GestureRecognizer`
-(`next_gesture!`), which is where multi-event combinations become gestures —
+(`pop_gesture!`), which is where multi-event combinations become gestures —
 e.g. a `MouseDown`/`MouseUp` pair is recognised as a `MousePress` click. The
 recogniser returns an `EventEnvelope` wrapping a backend-agnostic gesture
 (KeyDown, KeyUp, KeyPress, MouseDown, MouseUp, MousePress, MouseMove,
@@ -85,7 +85,7 @@ which translates it via the last stored IoMap.
 """
 function read!(editor::Editor)
     while true
-        env = next_gesture!(editor.recognizer,
+        env = pop_gesture!(editor.recognizer,
                             () -> read_from_devices(editor.backend, editor.devices))
         if env === nothing
             editor.operation = nothing
@@ -178,7 +178,7 @@ when the editor processed a non-nothing operation.
 function perf!(editor::Editor)
     editor.operation === nothing && return
     c = get_performance_counters()
-    # The per-stage timing keys are the editor's own (recorded via `@perf_time`
+    # The per-stage timing keys are the editor's own (recorded via `@performance_time`
     # below), not seeded by the reactive engine, so read them defensively: a frame
     # that ran no stage yet leaves them absent.
     rt = get(c, :read_time, 0) / 1e6
@@ -192,7 +192,7 @@ end
 # ── Main loop ──────────────────────────────────────────────────────────
 
 """
-    run!(editor::Editor; mcp::Bool=false)
+    run_editor!(editor::Editor; mcp::Bool=false)
 
 Execute the read-eval-print loop. Each frame: `read!` pulls (at most)
 one operation from the backend, `evaluate!` applies it, `print!`
@@ -204,7 +204,7 @@ MCP server) get to run between polls.
 When `mcp=true`, an MCP server is started alongside the loop so external
 clients can drive the editor; off by default.
 """
-function run!(editor::Editor; mcp::Bool=false,
+function run_editor!(editor::Editor; mcp::Bool=false,
               mcp_instructions::Union{AbstractString,Nothing}=nothing)
     server = if mcp
         mcp_instructions === nothing ?
@@ -213,31 +213,31 @@ function run!(editor::Editor; mcp::Bool=false,
     else
         nothing
     end
-    server === nothing || agent_server_start!(server)
-    # Advance the global animation clock once per frame. `tick!` writes the
+    server === nothing || start_agent_server!(server)
+    # Advance the global animation clock once per frame. `tick_editor_time!` writes the
     # clock cell, so any computed cell that subscribed via
     # `get_reactive_editor_time()` is invalidated and re-evaluated on the next pull.
     # Logical time is wall-clock seconds since the loop started.
     t_start = Base.time()
     try
         while true
-            perf_reset!()
-            tick!(Base.time() - t_start)
-            @perf_time :read_time     read!(editor)
-            @perf_time :evaluate_time evaluate!(editor)
-            @perf_time :print_time    print!(editor)
+            reset_performance_counters!()
+            tick_editor_time!(Base.time() - t_start)
+            @performance_time :read_time     read!(editor)
+            @performance_time :evaluate_time evaluate!(editor)
+            @performance_time :print_time    print!(editor)
             perf!(editor)
             sleep(0.01)
         end
     catch e
         e isa QuitEditorException || rethrow()
     finally
-        server === nothing || agent_server_stop!(server)
+        server === nothing || stop_agent_server!(server)
     end
 end
 
 """
-    run!(backend::Backend, projection, document; mcp::Bool=false)
+    run_editor!(backend::Backend, projection, document; mcp::Bool=false)
 
 Bootstrap overload: initialise the backend, wire up an `Editor` with
 the given projection and document, and run the read-eval-print loop
@@ -258,14 +258,14 @@ Pass `mcp=true` to start an MCP server alongside the loop.
 which has no native window or pointer — pass their own set (e.g.
 `Device[Keyboard()]`).
 """
-function run!(backend::Backend, projection, document; mcp::Bool=false,
+function run_editor!(backend::Backend, projection, document; mcp::Bool=false,
               devices::Vector{Device}=Device[Screen(), Keyboard(), Mouse()])
-    init!(backend)
+    initialize_backend!(backend)
     try
         editor = Editor(backend, document, projection, devices)
-        run!(editor; mcp=mcp)
+        run_editor!(editor; mcp=mcp)
     finally
-        quit!(backend)
+        quit_backend!(backend)
     end
 end
 

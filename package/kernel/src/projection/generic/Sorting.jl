@@ -14,7 +14,7 @@ import ..CollectionModule: CellVector
 import ..ReferenceModule: ConcreteReferencePath, ElementReference, PositionReference, RangeReference, append_reference
 import ..ReferenceCaseModule: var"@reference_case"
 import ..ReferenceBuilderModule: var"@reference"
-import ..PrinterContextModule: child_context
+import ..PrinterContextModule: make_child_context
 import ..IdentityProjectionModule: IdentityProjection
 export SortingProjection, SortingProjectionIoMap
 
@@ -51,7 +51,7 @@ function print_document(p::SortingProjection, recursion, input::CellVector, ctx)
     perm = sortperm(1:n; by = i -> p.by(input[i]), lt=p.lt, rev=p.rev)
     # Recursively project each element (CellVector getindex already unwraps the Cell)
     children = [print_child(recursion, input[i],
-                    child_context(ctx, ElementReference(i)))
+                    make_child_context(ctx, ElementReference(i)))
                 for i in 1:n]
     # Build output by arranging projected elements in sorted order
     out_cells = Cell[Cell(children[perm[j]].output) for j in 1:n]
@@ -67,7 +67,7 @@ function print_document(p::SortingProjection, recursion, input::Vector{Cell}, ct
     perm = sortperm(1:n; by = i -> p.by(input[i]), lt=p.lt, rev=p.rev)
     # Recursively project each element (unwrapping Cell like CopyingProjection does)
     children = [print_child(recursion, c[],
-                    child_context(ctx, ElementReference(i)))
+                    make_child_context(ctx, ElementReference(i)))
                 for (i, c) in enumerate(input)]
     # Build output by arranging projected Cells in sorted order (no double-wrapping)
     output = [children[perm[j]].output for j in 1:n]
@@ -81,7 +81,7 @@ function print_document(p::SortingProjection, recursion, input, ctx)
     perm = sortperm(1:n; by = i -> p.by(input[i]), lt=p.lt, rev=p.rev)
     # Recursively project each element
     children = [print_child(recursion, input[i],
-                    child_context(ctx, ElementReference(i)))
+                    make_child_context(ctx, ElementReference(i)))
                 for i in 1:n]
     # Build output by arranging projected elements in sorted order
     output = [children[perm[j]].output for j in 1:n]

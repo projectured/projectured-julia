@@ -135,7 +135,7 @@ The full old → new mapping with reasoning is in the table at the end of this f
       return `Vector{GestureBinding}`, not gestures, so the stem becomes
       `gesture_bindings` (`get_document_gesture_bindings`,
       `collect_gesture_bindings`, …).
-- [ ] **Batch 9 — remaining non-verb stragglers**:
+- [x] **Batch 9 — remaining non-verb stragglers** *(done)*:
       `start_agent_server!`/`stop_agent_server!`,
       `is_reference_equal(_ignoring_types)`, `pop_gesture!`,
       `make_child_context`, `make_copying_field_iomap`/`make_copying_element_iomap`,

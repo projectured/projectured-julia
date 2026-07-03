@@ -46,14 +46,14 @@ function test_list_modules()
 end
 
 function test_list_classes()
-    @testset "list_classes" begin
+    @testset "list_types" begin
         # Test with a known module
-        result = list_classes("DocumentModule")
+        result = list_types("DocumentModule")
         @test isa(result, String)
         # May return "No classes found" or actual classes
         
         # Test with non-existent module
-        result = list_classes("NonExistentModule")
+        result = list_types("NonExistentModule")
         @test occursin("not found", result) || occursin("No classes", result)
     end
 end
@@ -87,17 +87,17 @@ function test_read_module_documentation()
 end
 
 function test_read_class_documentation()
-    @testset "read_class_documentation" begin
+    @testset "read_type_documentation" begin
         # Test reading documentation for a known class
-        result = read_class_documentation("DocumentModule", "Document")
+        result = read_type_documentation("DocumentModule", "Document")
         @test isa(result, String)
         
         # Test with non-existent module
-        result = read_class_documentation("NonExistentModule", "SomeClass")
+        result = read_type_documentation("NonExistentModule", "SomeClass")
         @test occursin("not found", result)
         
         # Test with non-existent class
-        result = read_class_documentation("DocumentModule", "NonExistentClass")
+        result = read_type_documentation("DocumentModule", "NonExistentClass")
         @test occursin("not found", result)
     end
 end

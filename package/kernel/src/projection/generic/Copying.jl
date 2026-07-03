@@ -16,11 +16,11 @@ import ..ReactiveModule: Cell, set_function!, set_value!
 import ..DocumentApiModule: Document
 import ..ReferenceModule: ConcreteReferencePath, FieldReference, RangeReference,
                           ElementReference, is_element_reference, head, tail
-import ..PrinterContextModule: PrinterContext, child_context
+import ..PrinterContextModule: PrinterContext, make_child_context
 import ..CollectionModule: CellVector, ListNode
 import ..IoMapApiModule: IoMap
 
-export CopyingProjection, CopyingProjectionIoMap, copying_field_iomap, copying_element_iomap
+export CopyingProjection, CopyingProjectionIoMap, make_copying_field_iomap, make_copying_element_iomap
 
 struct CopyingProjection <: Projection end
 
@@ -47,7 +47,7 @@ _unwrap(c::Cell) = c[]
 
 function print_document(p::CopyingProjection, recursion, input::CellVector, ctx)
     children = [print_child(recursion, input[i],
-                    child_context(ctx, ElementReference(i)))
+                    make_child_context(ctx, ElementReference(i)))
                 for i in 1:length(input)]
     out_cells = Cell[Cell(im.output) for im in children]
     output = CellVector(out_cells)
@@ -65,7 +65,7 @@ end
 function _map_node(p::CopyingProjection, input_node::ListNode, recursion, ctx, index::Int)
     # Project current element
     elem_iomap = print_child(recursion, input_node.value,
-                     child_context(ctx, ElementReference(index)))
+                     make_child_context(ctx, ElementReference(index)))
 
     # Create output node
     out_node = ListNode(elem_iomap.output)
@@ -97,7 +97,7 @@ end
 
 function print_document(p::CopyingProjection, recursion, input::Vector{Cell}, ctx)
     children = [print_child(recursion, c[],
-                    child_context(ctx, ElementReference(i)))
+                    make_child_context(ctx, ElementReference(i)))
                 for (i, c) in enumerate(input)]
     out_cells = Cell[Cell(im.output) for im in children]
     output = CellVector(out_cells)
@@ -123,7 +123,7 @@ function print_document(p::CopyingProjection, recursion, input, ctx)
                 map_reference_forward(p, im, sel)
             end))
         elseif _is_doc_field(fv)
-            child_ctx = child_context(ctx, FieldReference(string(nm)))
+            child_ctx = make_child_context(ctx, FieldReference(string(nm)))
             im = print_child(recursion, _unwrap(fv), child_ctx)
             push!(children, im); push!(names, string(nm))
             push!(field_vals, im.output)
@@ -145,26 +145,26 @@ end
 # that delegation from poking at CopyingProjectionIoMap's fields directly.
 
 """
-    copying_field_iomap(iomap, name) -> child_iomap_or_nothing
+    make_copying_field_iomap(iomap, name) -> child_iomap_or_nothing
 
 The child IoMap for the struct field `name`, or `nothing` if `iomap` is not a
 struct-shaped `CopyingProjectionIoMap` or has no projected field of that name.
 """
-copying_field_iomap(::Any, ::AbstractString) = nothing
-function copying_field_iomap(iomap::CopyingProjectionIoMap, name::AbstractString)
+make_copying_field_iomap(::Any, ::AbstractString) = nothing
+function make_copying_field_iomap(iomap::CopyingProjectionIoMap, name::AbstractString)
     iomap.field_names isa Vector || return nothing
     idx = findfirst(==(name), iomap.field_names)
     idx === nothing ? nothing : iomap.children[idx]
 end
 
 """
-    copying_element_iomap(iomap, i) -> child_iomap_or_nothing
+    make_copying_element_iomap(iomap, i) -> child_iomap_or_nothing
 
 The child IoMap for the 1-based element `i` of a vector-shaped
 `CopyingProjectionIoMap`, or `nothing` when out of range / not vector-shaped.
 """
-copying_element_iomap(::Any, ::Integer) = nothing
-function copying_element_iomap(iomap::CopyingProjectionIoMap, i::Integer)
+make_copying_element_iomap(::Any, ::Integer) = nothing
+function make_copying_element_iomap(iomap::CopyingProjectionIoMap, i::Integer)
     iomap.children isa Vector || return nothing
     (1 <= i <= length(iomap.children)) ? iomap.children[i] : nothing
 end
@@ -215,7 +215,7 @@ function _get_listnode_child_iomap(iomap::CopyingProjectionIoMap, index::Int)
     input_node = _walk_to_index(iomap.input::ListNode, index)
     input_node === nothing && return nothing
     return print_child(iomap.recursion, input_node.value,
-               child_context(iomap.base_ctx, ElementReference(index)))
+               make_child_context(iomap.base_ctx, ElementReference(index)))
 end
 
 function _walk_to_index(head_node::ListNode, index::Int)

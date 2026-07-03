@@ -255,7 +255,7 @@ function warm_file_editor(domain::Symbol; workbench::Bool = false)
         screen    = _build_window_scene(Any[document], String[name]; width = 800, height = 600)
         composed  = _multi_window_projection(Any[projection])
         window_id = Symbol(name)
-        # A real `Editor`, but never `init!`ed: we drive read/eval/print by hand and
+        # A real `Editor`, but never `initialize_backend!`ed: we drive read/eval/print by hand and
         # skip `write_to_devices`, so no window opens. The backend is only a field
         # here — `evaluate_operation` dispatches on the operation, not the backend —
         # so the window-free console backend is enough.

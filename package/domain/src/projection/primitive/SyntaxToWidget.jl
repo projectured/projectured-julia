@@ -47,7 +47,7 @@ import ..ReferenceCaseModule: var"@reference_case"
 import ..ReferenceBuilderModule: var"@reference"
 import ..KeyboardModule: KeyDown
 import ..TypeDispatchingProjectionModule: TypeDispatchingProjection
-import ..PrinterContextModule: child_context
+import ..PrinterContextModule: make_child_context
 
 export SyntaxLeafToWidget, SyntaxNodeToWidget, SyntaxToWidget
 
@@ -211,7 +211,7 @@ function print_document(p::SyntaxNodeToWidget, recursion, node::SyntaxNode, ctx)
     # reader can match the produced widgets and the layout reads each `.output`.
     child_ioms = Cell(() -> Any[
         print_child(recursion, node.children[i],
-                                   child_context(ctx, @reference ^(ref).children[i]))
+                                   make_child_context(ctx, @reference ^(ref).children[i]))
         for i in eachindex(node.children)
     ])
 

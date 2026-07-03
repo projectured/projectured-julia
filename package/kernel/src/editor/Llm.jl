@@ -19,7 +19,7 @@ Two concrete backends:
 module LlmModule
 
 export Llm, AnthropicLlm, FakeLlm, stream_turn,
-       ScriptedLlm, scripted_turn, scripted_think, scripted_say, scripted_run
+       ScriptedLlm, make_scripted_turn, make_scripted_think, make_scripted_say, make_scripted_run
 
 # ═══════════════════════════════════════════════════════════════════════
 # Interface
@@ -177,8 +177,8 @@ assistant turn typically spans several rounds).
 
 Timing makes the stream feel real: after emitting each event the backend sleeps
 for that event's `:delay` field, or for the backend-wide `delay` when the event
-carries none. Build rounds with [`scripted_turn`](@ref) and the block helpers
-[`scripted_think`](@ref) / [`scripted_say`](@ref) / [`scripted_run`](@ref), which
+carries none. Build rounds with [`make_scripted_turn`](@ref) and the block helpers
+[`make_scripted_think`](@ref) / [`make_scripted_say`](@ref) / [`make_scripted_run`](@ref), which
 already spread prose across delayed deltas.
 
 The older positional form `ScriptedLlm(scripts)` (no timing) keeps working.
@@ -218,7 +218,7 @@ end
 
 # ── Scripted-round builders (dependency-free SSE NamedTuple factories) ──────────
 #
-# Each block builder returns a `Vector{NamedTuple}`; `scripted_turn` concatenates
+# Each block builder returns a `Vector{NamedTuple}`; `make_scripted_turn` concatenates
 # blocks and wraps them in the `message_start … message_stop` envelope with a
 # `stop_reason`. The shapes match exactly what `_handle_sse_event!` consumes.
 
@@ -267,12 +267,12 @@ function _json_string(s::AbstractString)
 end
 
 """
-    scripted_think(text; chunk_words = 4, delay = 0.05, signature = "sig_demo")
+    make_scripted_think(text; chunk_words = 4, delay = 0.05, signature = "sig_demo")
 
 A thinking content block: `content_block_start{thinking}`, `thinking_delta`s (a
 few words each, paced by `delay`), a `signature_delta`, then `content_block_stop`.
 """
-function scripted_think(text::AbstractString; chunk_words::Integer = 4,
+function make_scripted_think(text::AbstractString; chunk_words::Integer = 4,
                         delay::Real = 0.05, signature::AbstractString = "sig_demo")
     evs = NamedTuple[_sse(:content_block_start,
         Dict{Symbol,Any}(:content_block => Dict{Symbol,Any}(:type => "thinking")))]
@@ -289,11 +289,11 @@ function scripted_think(text::AbstractString; chunk_words::Integer = 4,
 end
 
 """
-    scripted_say(text; chunk_words = 3, delay = 0.05)
+    make_scripted_say(text; chunk_words = 3, delay = 0.05)
 
 A text content block streamed a few words at a time so the prose types itself out.
 """
-function scripted_say(text::AbstractString; chunk_words::Integer = 3, delay::Real = 0.05)
+function make_scripted_say(text::AbstractString; chunk_words::Integer = 3, delay::Real = 0.05)
     evs = NamedTuple[_sse(:content_block_start,
         Dict{Symbol,Any}(:content_block => Dict{Symbol,Any}(:type => "text")))]
     for chunk in _word_chunks(text, chunk_words)
@@ -306,13 +306,13 @@ function scripted_say(text::AbstractString; chunk_words::Integer = 3, delay::Rea
 end
 
 """
-    scripted_run(code; tool_id = "tu_…", tool_name = "execute_julia_code", delay = 0.0)
+    make_scripted_run(code; tool_id = "tu_…", tool_name = "execute_julia_code", delay = 0.0)
 
 A `tool_use` content block carrying `{"code": code}` for `execute_julia_code` (or
 another registered tool). A round containing one of these must declare
 `stop_reason = "tool_use"` so the agent loop dispatches the tool and continues.
 """
-function scripted_run(code::AbstractString;
+function make_scripted_run(code::AbstractString;
                       tool_id::AbstractString = "tu_" * string(rand(UInt32); base = 16),
                       tool_name::AbstractString = "execute_julia_code",
                       delay::Real = 0.0)
@@ -328,14 +328,14 @@ function scripted_run(code::AbstractString;
 end
 
 """
-    scripted_turn(blocks...; stop_reason = "end_turn") -> Vector{NamedTuple}
+    make_scripted_turn(blocks...; stop_reason = "end_turn") -> Vector{NamedTuple}
 
-Wrap one or more content blocks (from `scripted_think` / `scripted_say` /
-`scripted_run`) into a single streaming round: `message_start`, the blocks in
+Wrap one or more content blocks (from `make_scripted_think` / `make_scripted_say` /
+`make_scripted_run`) into a single streaming round: `message_start`, the blocks in
 order, `message_delta{stop_reason}`, `message_stop`. Use `stop_reason = "tool_use"`
-for a round that ends in a `scripted_run` block.
+for a round that ends in a `make_scripted_run` block.
 """
-function scripted_turn(blocks::Vector...; stop_reason::AbstractString = "end_turn")
+function make_scripted_turn(blocks::Vector...; stop_reason::AbstractString = "end_turn")
     evs = NamedTuple[_sse(:message_start, Dict{Symbol,Any}())]
     for b in blocks
         append!(evs, b)

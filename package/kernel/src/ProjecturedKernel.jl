@@ -31,7 +31,7 @@ include("reactive/Reactive.jl")
 
 # ── API — abstract types + `function foo end` stubs ────────────────────────
 # Pure interface modules: abstract types and generic-function stubs only. The
-# concrete protocol data types (Intent, NoOperation) live in common/, not here.
+# concrete protocol data types (Intent, DoNothingOperation) live in common/, not here.
 include("api/Backend.jl")
 include("api/Device.jl")
 include("api/Projection.jl")

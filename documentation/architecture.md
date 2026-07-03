@@ -99,7 +99,7 @@ Anthropic HTTP client are in the opt-in `Mcp`/`Llm`.
   every cell read during a computation as an upstream dependency.
 - **Invalidation:** writing a primitive cell (`c[] = v`) marks all transitive
   downstream dependents invalid; they recompute lazily on next read.
-- **Performance counters:** `get_performance_counters()` / `perf_reset!()` expose
+- **Performance counters:** `get_performance_counters()` / `reset_performance_counters!()` expose
   per-frame read/compute/write tallies.
 
 ### Layer 1 — Domain modules (`document/`)
@@ -209,7 +209,7 @@ composes with any higher-order projection.
 
 | Module | Role |
 |---|---|
-| `Editor.jl` | REPL loop: read → eval → print; `run!(backend, projection, document)` entry point |
+| `Editor.jl` | REPL loop: read → eval → print; `run_editor!(backend, projection, document)` entry point |
 | `backend/Sdl.jl` | SDL2 + SDL_ttf backend: graphics rendering, event translation, `write_image` |
 | `backend/Console.jl` | Terminal backend: renders the **Text** domain (a `TextText`) to the terminal with ANSI colors and reads keystrokes — no `TextToGraphics`/SDL ([devices and backends](devices-and-backends.md#consolebackend)) |
 | `backend/Web.jl` | Web backend: HTTP + WebSocket server, JSON draw-list (with dirty-rect patches), browser renderer in [package/web/assets/](../package/web/assets/) |

@@ -163,7 +163,7 @@ import ..ChainingProjectionModule: ChainingProjection
 import ..IoMapModule: SimpleIoMap, ChildrenIoMap
 import ..ReferenceModule: ConcreteReferencePath, ElementReference, FieldReference,
                            PositionReference, ReferencePath, EmptyReferencePath
-import ..PrinterContextModule: PrinterContext, child_context
+import ..PrinterContextModule: PrinterContext, make_child_context
 import ..ReferenceCaseModule: var"@reference_case"
 import ..ReferenceBuilderModule: var"@reference"
 
@@ -251,12 +251,12 @@ function print_document(p::BookmarkListToSyntaxNode,
                            recursion, list::BookmarkList, ctx)
     iomap_cell = Cell(nothing)
     # Project each entry recursively via `print_child`, which
-    # re-enters the whole pipeline for the child; `child_context` extends the
+    # re-enters the whole pipeline for the child; `make_child_context` extends the
     # reference path with the `entries` field step and the element step, so the
     # child knows it sits at `entries[i]` relative to this node.
     child_iomaps = Cell(() ->
         [print_child(recursion, getfield(list, :entries)[][i][],
-                                    child_context(ctx, FieldReference("entries"),
+                                    make_child_context(ctx, FieldReference("entries"),
                                                   ElementReference(i)))
          for i in 1:length(list.entries)])
 

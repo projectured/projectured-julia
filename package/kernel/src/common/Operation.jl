@@ -18,28 +18,28 @@ module OperationModule
 
 import ..OperationApiModule: Operation, evaluate_operation, invalidate_projection!
 import ..DocumentApiModule: Document, clear_selection!, set_selection!, with_selection
-import ..ReferenceModule: ReferencePath, ConcreteReferencePath, EmptyReferencePath, FieldReference, RangeReference, TypeReference, is_element_reference, evaluate_reference, reference_equal, annotate_reference_types, strip_reference_types, append_reference, concat_references, reference_steps
+import ..ReferenceModule: ReferencePath, ConcreteReferencePath, EmptyReferencePath, FieldReference, RangeReference, TypeReference, is_element_reference, evaluate_reference, is_reference_equal, annotate_reference_types, strip_reference_types, append_reference, concat_references, reference_steps
 import ..ReactiveModule: Cell
 import ..CollectionModule: CellVector
-export NoOperation, ReplaceSelectionOperation, QuitEditorOperation, QuitEditorException, replace_selection!,
+export DoNothingOperation, ReplaceSelectionOperation, QuitEditorOperation, QuitEditorException, replace_selection!,
        ToggleCollapseOperation,
        ReplaceReferencedValueOperation, replace_document, insert_elements, delete_elements, SelectNextInsertionOperation,
        CompoundOperation, AdjustZoomOperation, AdjustFontZoomOperation, update_selection!,
        splice_string, splice_number, splice_value!
 
 """
-    NoOperation()
+    DoNothingOperation()
 
 An operation that does nothing when applied. Its purpose is to *consume* a
 gesture without effecting a change: a reader (or a per-instance gesture binding)
-returns `NoOperation()` to say "this gesture is handled — stop looking",
+returns `DoNothingOperation()` to say "this gesture is handled — stop looking",
 distinct from returning `nothing`, which means "declined, keep looking / fall
 through". The canonical way for a per-instance binding to **suppress** a default
-behavior (see `get_instance_gesture_bindings`) is to map the pattern to a `NoOperation()`.
+behavior (see `get_instance_gesture_bindings`) is to map the pattern to a `DoNothingOperation()`.
 """
-struct NoOperation <: Operation end
+struct DoNothingOperation <: Operation end
 
-evaluate_operation(editor, ::NoOperation) = nothing
+evaluate_operation(editor, ::DoNothingOperation) = nothing
 function evaluate_operation(editor, op::Nothing) end
 
 # Catch-all: silently ignore anything that is not an Operation. Unlike the device
@@ -592,7 +592,7 @@ function _sync_selection!(document, path)
     hasproperty(document, :selection) || return path
     cell = getfield(document, :selection)
     old = cell[]
-    (old isa ReferencePath && path isa ReferencePath && reference_equal(old, path)) && return old
+    (old isa ReferencePath && path isa ReferencePath && is_reference_equal(old, path)) && return old
 
     if old isa ConcreteReferencePath && path isa ConcreteReferencePath
         old_child = _selection_child(document, old)
@@ -607,7 +607,7 @@ function _sync_selection!(document, path)
         # Terminal cursor moved within the same leaf step: mutate start/stop in
         # place, leaving every selection cell on the path untouched.
         if new_child === nothing && old_child === nothing &&
-           reference_equal(old.tail, path.tail) && _mutate_terminal_step!(old.head, path.head)
+           is_reference_equal(old.tail, path.tail) && _mutate_terminal_step!(old.head, path.head)
             return old
         end
     end

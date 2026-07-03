@@ -40,7 +40,7 @@ import ..ProjectionApiModule: print_document, print_child, read_intent,
 import ..IoMapModule: SimpleIoMap
 import ..TypeDispatchingProjectionModule: TypeDispatchingProjection
 import ..ReferenceModule: ElementReference
-import ..PrinterContextModule: child_context, with_property, get_property
+import ..PrinterContextModule: make_child_context, with_property, get_property
 
 export DbCatalogRdbmsToSql, DbCatalogDatabaseToSql, DbCatalogSchemaToSql,
        DbCatalogTableToSql, DbCatalogColumnToSql, DbCatalogToSql
@@ -51,7 +51,7 @@ const SCHEMA_PROPERTY = :sql_schema_name
 # Recurse a single catalog child through the dispatcher, returning its built Sql
 # document. Iterating a (lazy) child `CellVector` forces its query.
 _recurse(recursion, ctx, child, i) =
-    print_child(recursion, child, child_context(ctx, ElementReference(i))).output
+    print_child(recursion, child, make_child_context(ctx, ElementReference(i))).output
 
 # Flatten a sequence of catalog children — each of which projects to a
 # `SqlStatementList` — into one flat vector of statements.

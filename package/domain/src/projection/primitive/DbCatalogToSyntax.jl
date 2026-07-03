@@ -43,7 +43,7 @@ import ..ReferenceModule: ConcreteReferencePath, EmptyReferencePath, ReferencePa
                            FieldReference, ProjectionReference, append_reference
 import ..ReferenceCaseModule: var"@reference_case"
 import ..ReferenceBuilderModule: var"@reference"
-import ..PrinterContextModule: child_context
+import ..PrinterContextModule: make_child_context
 import ..SyntaxToTextModule: SyntaxNodeToText, _syntax_to_flat
 import ..OperationModule: ReplaceSelectionOperation
 export DbCatalogColumnToSyntaxLeaf, DbCatalogTableToSyntaxNode, DbCatalogSchemaToSyntaxNode,
@@ -216,7 +216,7 @@ function _catalog_syntax_node(p, recursion, ctx, input_doc,
                               name_style::StyleText,
                               keyword::String, label, children)
     child_iomaps = Cell(() -> begin
-        [print_child(recursion, elem, child_context(ctx, ElementReference(i)))
+        [print_child(recursion, elem, make_child_context(ctx, ElementReference(i)))
          for (i, elem) in enumerate(children)]
     end)
 

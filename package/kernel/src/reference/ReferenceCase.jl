@@ -542,7 +542,7 @@ function _gen_path_match(path_ex, steps::Vector{PatStep}, success, bound::Set{Sy
 
     if length(steps) == 1 && steps[1] isa PSPathInterp
         expr = esc(steps[1].expr)
-        return :(ReferenceModule.reference_equal_ignoring_types($path_ex, $expr) ? $success : _nomatch), bound
+        return :(ReferenceModule.is_reference_equal_ignoring_types($path_ex, $expr) ? $success : _nomatch), bound
     end
 
     p = gensym(:p)

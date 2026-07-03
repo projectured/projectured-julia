@@ -70,7 +70,7 @@ import ..ReferenceModule: ReferencePath, ConcreteReferencePath, FieldReference, 
                           ElementReference, EmptyReferencePath, is_element_reference, PointReference
 import ..OperationRerootingModule: reroot_operation
 import ..TypeDispatchingProjectionModule: TypeDispatchingProjection
-import ..PrinterContextModule: child_context, with_available_size
+import ..PrinterContextModule: make_child_context, with_available_size
 import ..LayoutModule: LayoutDocument, LayoutConstraint, GridLayout, VerticalLayout, allocate_axis, layout_min, layout_max,
                        layout_preferred, layout_weight
 import ..LayoutToGraphicsModule: GridLayoutToGraphicsCanvas, GridLayoutIoMap, _forward_descend, _shift_child_image
@@ -1087,7 +1087,7 @@ function read_intent(::WidgetButtonToGraphicsCanvas, iomap::SimpleIoMap, evt)
     _button_enabled(w) || return nothing
     # Per-instance gestures are consulted first, so a binding can add a gesture
     # (right-click, shift-click, …), override a built-in (same pattern shadows it),
-    # or suppress one (map the pattern to `NoOperation()`). An empty table returns
+    # or suppress one (map the pattern to `DoNothingOperation()`). An empty table returns
     # `nothing` immediately, so a plain button behaves exactly as before.
     op = read_document_gesture(w, evt)
     op === nothing || return op
@@ -1553,7 +1553,7 @@ function print_document(p::WidgetMenuToGraphicsCanvas, recursion, w::WidgetMenu,
         # Extend the reference per item so a nested trigger (e.g. a submenu-opener)
         # captures `…elements[i]` as its anchor, which a content-root resolver can
         # forward-map back to graphics coordinates (Step 4c).
-        cctx = child_context(ctx, FieldReference("elements"), RangeReference(i - 1, i))
+        cctx = make_child_context(ctx, FieldReference("elements"), RangeReference(i - 1, i))
         cim = print_child(recursion, item, cctx)
         push!(child_iomaps, (x_cursor, y_cursor, cim))
         push!(elems, _make_canvas(x_cursor, y_cursor, Any[cim.output]))
@@ -1758,7 +1758,7 @@ function print_document(p::WidgetShellToGraphicsCanvas, recursion, w::WidgetShel
     if mb isa WidgetDocument
         # Extend the reference into `menu_bar` so a menu-bar entry's submenu anchor
         # (`menu_bar.elements[i]`) forward-maps back through the shell (Step 4c).
-        mb_ctx = child_context(ctx, FieldReference("menu_bar"))
+        mb_ctx = make_child_context(ctx, FieldReference("menu_bar"))
         cim = print_child(recursion, mb, mb_ctx)
         push!(child_iomaps, (cox, content_y, cim))
         push!(elems, _make_canvas(cox, content_y, Any[cim.output]))

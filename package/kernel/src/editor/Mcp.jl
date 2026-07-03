@@ -21,8 +21,8 @@ import ..ToolRegistryModule: Tool, Resource,
                               list_tools, list_resources
 
 export execute_julia_code, get_last_evaluated_value, list_guides, read_guide,
-       list_modules, list_classes, list_functions,
-       read_module_documentation, read_class_documentation, read_function_documentation,
+       list_modules, list_types, list_functions,
+       read_module_documentation, read_type_documentation, read_function_documentation,
        search_documentation, search_api,
        register_default_tools_and_resources!
 
@@ -213,7 +213,7 @@ end
     list_modules() -> String
 
 List all modules in the ProjecturEd codebase with one-paragraph documentation
-for each module and a list of top-level classes (structs).
+for each module and a list of top-level types (structs).
 """
 function list_modules()
     proj = _projectured()
@@ -230,35 +230,35 @@ function list_modules()
 end
 
 """
-    list_classes(module_name) -> String
+    list_types(module_name) -> String
 
-List all classes (structs) within a specific module with their one-paragraph documentation.
+List all types (structs) within a specific module with their one-paragraph documentation.
 """
-function list_classes(module_name)
+function list_types(module_name)
     mod = _find_module(module_name)
     isnothing(mod) && return "Module '$module_name' not found."
-    classes_info = String[]
+    types_info = String[]
     for (name, T) in _struct_types(mod)
         doc = _doc_string(T)
         summary = isempty(doc) ? "No documentation available." : _first_paragraph(doc)
         mutable_str = ismutabletype(T) ? "mutable " : ""
-        push!(classes_info, "**$mutable_str$name**: $summary")
+        push!(types_info, "**$mutable_str$name**: $summary")
     end
-    isempty(classes_info) && return "No classes found in module '$module_name'."
-    join(classes_info, "\n\n")
+    isempty(types_info) && return "No types found in module '$module_name'."
+    join(types_info, "\n\n")
 end
 
 """
-    list_functions(module_name, class_name=nothing) -> String
+    list_functions(module_name, type_name=nothing) -> String
 
-List all functions within a specific module or class with their signatures and one-paragraph documentation.
+List all functions within a specific module or type with their signatures and one-paragraph documentation.
 """
-function list_functions(module_name, class_name=nothing)
+function list_functions(module_name, type_name=nothing)
     mod = _find_module(module_name)
     isnothing(mod) && return "Module '$module_name' not found."
     functions_info = String[]
     for (name, fn) in _module_functions(mod)
-        if class_name !== nothing && !any(occursin(class_name, string(m.sig)) for m in methods(fn))
+        if type_name !== nothing && !any(occursin(type_name, string(m.sig)) for m in methods(fn))
             continue
         end
         doc = _doc_string(fn)
@@ -283,32 +283,32 @@ function read_module_documentation(module_name)
 end
 
 """
-    read_class_documentation(module_name, class_name) -> String
+    read_type_documentation(module_name, type_name) -> String
 
-Read the full documentation for a specific class within a module.
+Read the full documentation for a specific type within a module.
 """
-function read_class_documentation(module_name, class_name)
+function read_type_documentation(module_name, type_name)
     mod = _find_module(module_name)
     isnothing(mod) && return "Module '$module_name' not found."
-    sym = Symbol(class_name)
-    (isdefined(mod, sym) && getfield(mod, sym) isa Type) || return "Class '$class_name' not found in module '$module_name'."
+    sym = Symbol(type_name)
+    (isdefined(mod, sym) && getfield(mod, sym) isa Type) || return "Type '$type_name' not found in module '$module_name'."
     T = getfield(mod, sym)
     doc = _doc_string(T)
     if isempty(doc)
         fields = fieldnames(T)
-        isempty(fields) && return "$class_name — no documentation available."
+        isempty(fields) && return "$type_name — no documentation available."
         field_info = join(["- `$(f)::$(fieldtype(T, f))`" for f in fields], "\n")
-        return "# $class_name\n\n## Fields\n$field_info"
+        return "# $type_name\n\n## Fields\n$field_info"
     end
     doc
 end
 
 """
-    read_function_documentation(module_name, function_signature, class_name=nothing) -> String
+    read_function_documentation(module_name, function_signature, type_name=nothing) -> String
 
-Read the full documentation for a specific function within a module or class.
+Read the full documentation for a specific function within a module or type.
 """
-function read_function_documentation(module_name, function_signature, class_name=nothing)
+function read_function_documentation(module_name, function_signature, type_name=nothing)
     mod = _find_module(module_name)
     isnothing(mod) && return "Module '$module_name' not found."
     func_name = replace(function_signature, r"\(.*" => "")
@@ -329,7 +329,7 @@ end
 
 Populate the shared `ToolRegistry` with the editor's built-in tool
 (`execute_julia_code`) and the read-only documentation resources
-(guides, module/class/function docs). Idempotent — repeated calls
+(guides, module/type/function docs). Idempotent — repeated calls
 replace entries rather than duplicating them.
 """
 function register_default_tools_and_resources!()
@@ -394,9 +394,9 @@ function register_default_tools_and_resources!()
 
     register_tool!(Tool(
         "search_api",
-        "Search ProjecturEd modules, structs (classes), and functions by name and " *
+        "Search ProjecturEd modules, structs (types), and functions by name and " *
         "docstring. Returns ranked hits with a one-line doc and how to read the full " *
-        "docs: a resource:// URI for modules/classes, or a read_function_documentation(…) " *
+        "docs: a resource:// URI for modules/types, or a read_function_documentation(…) " *
         "call for functions. Use this to find the right type or function and NEVER guess " *
         "names or signatures.",
         NamedTuple[
@@ -409,7 +409,7 @@ function register_default_tools_and_resources!()
              description="Treat `query` as a regular expression instead of keywords (default false)",
              required=false),
             (name="kind", type="string",
-             description="Optional filter: \"module\", \"class\", or \"function\"", required=false),
+             description="Optional filter: \"module\", \"type\", or \"function\"", required=false),
             (name="limit", type="number",
              description="Maximum number of results (default 8)", required=false),
         ],
@@ -436,7 +436,7 @@ function register_default_tools_and_resources!()
         "resource://modules",
         "ProjecturEd Modules",
         "List all modules in the ProjecturEd codebase with one-paragraph documentation " *
-        "for each module and a list of top-level classes (structs).",
+        "for each module and a list of top-level types (structs).",
         list_modules,
     ))
 
@@ -473,10 +473,10 @@ function register_default_tools_and_resources!()
         for (cls_sym, _) in _struct_types(mod)
             let mn = String(mod_sym), cn = String(cls_sym)
                 register_resource!(Resource(
-                    "resource://class/$mn/$cn",
-                    "Class: $mn.$cn",
-                    "Full documentation for the $cn class in module $mn.",
-                    () -> read_class_documentation(mn, cn),
+                    "resource://type/$mn/$cn",
+                    "Type: $mn.$cn",
+                    "Full documentation for the $cn type in module $mn.",
+                    () -> read_type_documentation(mn, cn),
                 ))
             end
         end
@@ -762,10 +762,10 @@ function search_documentation(query::Union{AbstractString,Regex}; limit::Integer
     String(take!(io))
 end
 
-# ── API (module / class / function) index ──────────────────────────────────
+# ── API (module / type / function) index ──────────────────────────────────
 
 struct _ApiEntry
-    kind::String      # "module" | "class" | "function"
+    kind::String      # "module" | "type" | "function"
     qualname::String  # "Mod" or "Mod.Name"
     doc::String       # first-paragraph documentation
     locator::String   # how to read the full docs
@@ -782,9 +782,9 @@ function _index_api()
         for (cls_sym, T) in _struct_types(mod)
             cn = String(cls_sym)
             startswith(cn, "#") && continue  # skip compiler-generated closure types
-            push!(entries, _ApiEntry("class", "$mn.$cn",
+            push!(entries, _ApiEntry("type", "$mn.$cn",
                                      _first_paragraph(_binding_doc(mod, cls_sym)),
-                                     "resource://class/$mn/$cn"))
+                                     "resource://type/$mn/$cn"))
         end
         for (fn_sym, fn) in _module_functions(mod)
             fnn = String(fn_sym)
@@ -826,12 +826,12 @@ end
 """
     search_api(query; kind=nothing, limit=8) -> String
 
-Search ProjecturEd modules, structs (classes), and functions by name and
+Search ProjecturEd modules, structs (types), and functions by name and
 docstring. Ranks exact name matches above name substrings above docstring
 matches and returns the top `limit` hits. Each hit shows its kind, qualified
 name, one-line doc, and how to read full docs: a `resource://…` URI for modules
-and classes, or a `read_function_documentation(…)` call for functions. Pass
-`kind` (`"module"`, `"class"`, or `"function"`) to filter.
+and types, or a `read_function_documentation(…)` call for functions. Pass
+`kind` (`"module"`, `"type"`, or `"function"`) to filter.
 
 The **query type selects the mode** (Julia dispatch):
 

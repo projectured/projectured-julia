@@ -21,7 +21,7 @@ using ProjecturedDomain
 
 using SimpleDirectMediaLayer
 using SimpleDirectMediaLayer.LibSDL2
-import ProjecturedDomain.BackendApiModule: Backend, init!, quit!, measure_text, make_backend, write_image,
+import ProjecturedDomain.BackendApiModule: Backend, initialize_backend!, quit_backend!, measure_text, make_backend, write_image,
                         render_canvas, decode_image, get_pointer_position
 import ProjecturedDomain.DisplayModule: get_display_size, set_display_size_provider!
 import ProjecturedDomain.DeviceApiModule: Device, read_from_devices, write_to_devices, write_to_device
@@ -97,7 +97,7 @@ picking a default window size. The monitor's device-pixel size is divided by
 [`_DISPLAY_SCALE`](@ref) so that a window sized to it fills exactly one monitor
 once the backend scales it back to device pixels. Falls back to `(1280, 720)`
 if SDL cannot answer (no display, headless run, etc.). The video subsystem and
-the display scale are initialized lazily; safe to call before `init!`.
+the display scale are initialized lazily; safe to call before `initialize_backend!`.
 
 On X11 SDL sometimes folds a multi-monitor screen into a single "display"
 whose bounds span every monitor (e.g. 7290×4032 across two), which would
@@ -108,7 +108,7 @@ instead so the default fills one monitor, not the span.
 function sdl_display_size(; display::Integer=0)
     SDL_Init(SDL_INIT_VIDEO) == 0 || return (1280, 720)
     # Ensure the scale is known before converting device → logical, since this
-    # may run before `init!` (early detection is window-free: env + Xft.dpi).
+    # may run before `initialize_backend!` (early detection is window-free: env + Xft.dpi).
     _BASE_DISPLAY_SCALE[] == 1.0 && _detect_display_scale!()
 
     # Detect the SDL-collapses-multiple-monitors case and prefer the real
@@ -187,7 +187,7 @@ mutable struct SdlBackend <: Backend
     # Multi-window reconciliation state.
     windows::Dict{Symbol, SdlWindowResources}
     window_ids::Dict{UInt32, Symbol}
-    # Render controls (diagnostics / benchmarking). `init!` copies these into the
+    # Render controls (diagnostics / benchmarking). `initialize_backend!` copies these into the
     # `_PARTIAL_RENDER` / `_DEBUG_DIRTY` globals the render path reads:
     #   partial_render — incremental dirty-rectangle repaint (false = full frame)
     #   debug_dirty    — outline the repainted region in red
@@ -208,7 +208,7 @@ SdlBackend(; partial_render::Union{Bool,Nothing} = nothing,
 
 # Module-level TTF font cache, keyed by (filename, scaled_size).
 # Shared by window rendering, offscreen image rendering, and text measurement.
-# Populated lazily by `_get_font`; freed by `quit!`.
+# Populated lazily by `_get_font`; freed by `quit_backend!`.
 const _font_cache = Dict{Tuple{String,Int}, Ptr{TTF_Font}}()
 
 # Module-level text-texture cache. Rendering a `GraphicsText` rasterizes the
@@ -219,7 +219,7 @@ const _font_cache = Dict{Tuple{String,Int}, Ptr{TTF_Font}}()
 # `SDL_QueryTexture` is skipped too) keyed by renderer + text + font + colour and
 # reuse it across frames. Textures are renderer-specific, so entries are evicted
 # when their renderer is destroyed (`_close_native_window!`,
-# `_close_offscreen_renderer`) and all are freed by `quit!`.
+# `_close_offscreen_renderer`) and all are freed by `quit_backend!`.
 struct _TextTextureKey
     renderer::Ptr{SDL_Renderer}
     text::String
@@ -252,7 +252,7 @@ const _TEXT_TEXTURE_CACHE_CAP = 16384
 #   repaint). `_DEBUG_DIRTY` — when on, outline the repainted region in red so it
 #   is visible which part of the screen was painted.
 #
-# These globals are the values the render path reads; `init!` sets them from the
+# These globals are the values the render path reads; `initialize_backend!` sets them from the
 # active `SdlBackend`'s `partial_render` / `debug_dirty` fields, which in turn
 # default to the PROJECTURED_PARTIAL_RENDER / PROJECTURED_DEBUG_DIRTY env vars.
 const _PARTIAL_RENDER = Ref(true)
@@ -538,7 +538,7 @@ end
 #
 # Two-phase detection:
 #
-#   _detect_display_scale!() — called from init!, before any window exists:
+#   _detect_display_scale!() — called from initialize_backend!, before any window exists:
 #     1. PROJECTURED_DISPLAY_SCALE env var — explicit override, always respected.
 #     2. Xft.dpi from X resources — reliable on X11/XWayland (GNOME writes
 #        Xft.dpi = 96 × scale, e.g. 192 for 200%).
@@ -584,7 +584,7 @@ function _detect_display_scale!()
 end
 
 function _update_display_scale!(win::Ptr{SDL_Window}, renderer::Ptr{SDL_Renderer})
-    # Skip if already resolved during init!.
+    # Skip if already resolved during initialize_backend!.
     _BASE_DISPLAY_SCALE[] != 1.0 && return
 
     # SDL renderer output size vs logical window size.
@@ -611,7 +611,7 @@ function _update_display_scale!(win::Ptr{SDL_Window}, renderer::Ptr{SDL_Renderer
 end
 
 # Destroy one native SDL window. Loaded fonts persist in the
-# module-level cache until `quit!`.
+# module-level cache until `quit_backend!`.
 function _close_native_window!(res::SdlWindowResources)
     res.target != C_NULL && SDL_DestroyTexture(res.target)
     _evict_renderer_textures!(res.renderer)
@@ -2144,7 +2144,7 @@ end
 # Application lifecycle
 # ════════════════════════════════════════════════════════════════════════
 
-function init!(backend::SdlBackend)
+function initialize_backend!(backend::SdlBackend)
     @assert SDL_Init(SDL_INIT_VIDEO) == 0 "SDL init failed: $(unsafe_string(SDL_GetError()))"
     @assert TTF_Init() == 0 "TTF init failed: $(unsafe_string(SDL_GetError()))"
     SDL_StartTextInput()   # enable SDL_TEXTINPUT events (explicit for portability)
@@ -2153,7 +2153,7 @@ function init!(backend::SdlBackend)
     _DEBUG_DIRTY[]    = backend.debug_dirty
 end
 
-function quit!(::SdlBackend)
+function quit_backend!(::SdlBackend)
     SDL_StopTextInput()
     # Free cached textures while their renderers are still alive (before SDL_Quit).
     _clear_text_texture_cache!()

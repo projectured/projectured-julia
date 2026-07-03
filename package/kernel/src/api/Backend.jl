@@ -13,7 +13,7 @@ because its backend package isn't loaded raises a `MethodError` (or, for the
 """
 module BackendApiModule
 
-export Backend, init!, quit!, measure_text, make_backend, write_image, record_video,
+export Backend, initialize_backend!, quit_backend!, measure_text, make_backend, write_image, record_video,
        render_canvas, decode_image, get_pointer_position
 
 """
@@ -38,18 +38,18 @@ make_backend(::Val{K}; kwargs...) where {K} = error(
     "No backend registered for :$(K). Is the package/extension that provides it loaded?")
 
 """
-    init!(backend)
+    initialize_backend!(backend)
 
 Initialise the backend (create windows, load libraries, …).
 """
-function init! end
+function initialize_backend! end
 
 """
-    quit!(backend)
+    quit_backend!(backend)
 
 Tear down the backend and release resources.
 """
-function quit! end
+function quit_backend! end
 
 """
     measure_text(backend, text, font) -> (Int, Int)

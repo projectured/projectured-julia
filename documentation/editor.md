@@ -3,7 +3,7 @@
 The editor ties everything together: it owns the document, the projection
 pipeline, the backend, and the input devices, and runs a read-eval-print loop
 that responds to user input. The implementation lives in
-[program/src/editor/Editor.jl](../package/kernel/src/editor/Editor.jl), whose `run!`
+[program/src/editor/Editor.jl](../package/kernel/src/editor/Editor.jl), whose `run_editor!`
 function is the entry point.
 
 ## The Editor struct
@@ -31,11 +31,11 @@ end
 
 ## The Read-Eval-Print loop
 
-`run!(editor)` executes:
+`run_editor!(editor)` executes:
 
 ```julia
 while true
-    perf_reset!()
+    reset_performance_counters!()
     read!(editor)      # poll devices → read_intent → editor.operation
     evaluate!(editor)  # evaluate_operation(editor, editor.operation)
     print!(editor)     # print_document → editor.iomap; render to devices
@@ -83,7 +83,7 @@ reactive and will refresh on the next read.
 
 ## Running an editor
 
-The entry point is the bootstrap overload `run!(backend, projection, document; mcp=false)`:
+The entry point is the bootstrap overload `run_editor!(backend, projection, document; mcp=false)`:
 
 ```julia
 using Projectured
@@ -96,7 +96,7 @@ proj     = ChainingProjection(
     TextToGraphics(measure = (t, f) -> sdl_measure_text(backend, t, f)),
 )
 
-run!(backend, proj, document)
+run_editor!(backend, proj, document)
 ```
 
 The backend is pluggable: swap `SdlBackend()` for `WebBackend()` to run the same
@@ -104,11 +104,11 @@ editor in a browser instead of a native window (see the
 [devices and backends guide](devices-and-backends.md#web-backend)), or
 `ConsoleBackend()` for the terminal. Nothing else changes.
 
-This overload calls `init!(backend)`, builds a `Vector{Device}` (default
+This overload calls `initialize_backend!(backend)`, builds a `Vector{Device}` (default
 `Screen()`, `Keyboard()`, `Mouse()`), constructs the `Editor`, and runs the
 loop. Native windows are not pre-allocated — the backend opens them on demand
 the first time `write_to_devices` sees a `ScreenDocument` output (the pipeline is
-expected to end in one). `quit!(backend)` cleanup is in a `finally` block. Pass
+expected to end in one). `quit_backend!(backend)` cleanup is in a `finally` block. Pass
 `mcp=true` to start an MCP server alongside the loop. A backend that drives a
 different channel passes its own `devices` (the `ConsoleBackend` uses
 `devices = Device[Keyboard()]` — no `Screen`/`Mouse`).
@@ -167,7 +167,7 @@ In the example layer this is wired up for you — see `play_live_example` and
   and `Mouse` — see [the devices and backends guide](devices-and-backends.md).
 - `Backend` is the abstraction over the display/input platform. There are two
   implementations: `SdlBackend` (graphics) and `ConsoleBackend` (terminal). The
-  backend provides `init!`, `quit!`, and `measure_text`; `read_from_devices` /
+  backend provides `initialize_backend!`, `quit_backend!`, and `measure_text`; `read_from_devices` /
   `write_to_devices` are the `Device` interface.
 - Projections that need to measure text take a `measure::Function` argument
   (e.g. `TextToGraphics`); the backend's `sdl_measure_text` is the usual
@@ -185,7 +185,7 @@ In the example layer this is wired up for you — see `play_live_example` and
 
 ## MCP server
 
-When `run!` starts, it constructs an `McpServer` bound to the editor and
+When `run_editor!` starts, it constructs an `McpServer` bound to the editor and
 launches it on `http://127.0.0.1:9876/mcp` (see
 [program/src/editor/Mcp.jl](../package/kernel/src/editor/Mcp.jl)). The server
 speaks JSON-RPC 2.0 via HTTP+SSE using
@@ -203,11 +203,11 @@ stays bound for the next — the caller can build up state incrementally instead
 of resending one large block. It returns the repr of the last value plus any
 captured stdout/stderr.
 
-The server is stopped in the `finally` block of `run!`.
+The server is stopped in the `finally` block of `run_editor!`.
 
 ## Performance counters
 
-Each frame the editor calls `perf_reset!()` before reading input and
+Each frame the editor calls `reset_performance_counters!()` before reading input and
 `perf!()` after rendering, which logs
 
 ```

@@ -43,7 +43,7 @@ import ..KeyboardModule: KeyDown
 import ..WidgetModule: first_focusable_path, last_focusable_path, _next_focusable_in
 import ..TypeDispatchingProjectionModule: TypeDispatchingProjection
 import ..ReferenceBuilderModule: var"@reference"
-import ..PrinterContextModule: child_context, with_available_size
+import ..PrinterContextModule: make_child_context, with_available_size
 export HorizontalLayoutToGraphicsCanvas, VerticalLayoutToGraphicsCanvas,
        GridLayoutToGraphicsCanvas, FlowLayoutToGraphicsCanvas,
        StackLayoutToGraphicsCanvas, LayoutConstraintToGraphicsCanvas,
@@ -352,7 +352,7 @@ function print_document(p::LayoutConstraintToGraphicsCanvas,
     inner = recursion === nothing ?
             SimpleIoMap(nothing, child, child) :
             print_child(recursion, child,
-                             child_context(ctx, @reference ^(ctx.reference).child))
+                             make_child_context(ctx, @reference ^(ctx.reference).child))
     output = inner.output isa GraphicsDocument ? inner.output : _empty_canvas()
     ContentIoMap(p, doc, output, inner)
 end
@@ -504,7 +504,7 @@ function _hl_build(recursion, doc, ctx)
     # `available_height` cell, never `outer_h`.
     child_iomaps = Any[]
     for i in 1:n
-        cctx = child_context(ctx, @reference ^(ctx.reference).children[i])
+        cctx = make_child_context(ctx, @reference ^(ctx.reference).children[i])
         cctx = with_available_size(cctx; width=nothing)
         push!(child_iomaps, _recurse_child(recursion, doc.children[i], cctx))
     end
@@ -595,7 +595,7 @@ function _vl_build(recursion, doc, ctx)
     # child reads the *parent-supplied* `available_width` cell, never `outer_w`.
     child_iomaps = Any[]
     for i in 1:n
-        cctx = child_context(ctx, @reference ^(ctx.reference).children[i])
+        cctx = make_child_context(ctx, @reference ^(ctx.reference).children[i])
         cctx = with_available_size(cctx; height=nothing)
         push!(child_iomaps, _recurse_child(recursion, doc.children[i], cctx))
     end
@@ -801,7 +801,7 @@ function print_document(p::GridLayoutToGraphicsCanvas,
     child_iomaps = Any[]
     for i in 1:n
         cim = _recurse_child(recursion, doc.children[i],
-                             child_context(ctx, @reference ^(ctx.reference).children[i]))
+                             make_child_context(ctx, @reference ^(ctx.reference).children[i]))
         push!(child_iomaps, cim)
     end
 
@@ -1005,7 +1005,7 @@ function print_document(p::FlowLayoutToGraphicsCanvas,
     child_iomaps = Any[]
     for i in 1:n
         cim = _recurse_child(recursion, doc.children[i],
-                             child_context(ctx, @reference ^(ctx.reference).children[i]))
+                             make_child_context(ctx, @reference ^(ctx.reference).children[i]))
         push!(child_iomaps, cim)
     end
 
@@ -1173,7 +1173,7 @@ function print_document(p::StackLayoutToGraphicsCanvas,
 
     child_iomaps = Any[]
     for i in 1:n
-        cctx = child_context(ctx, @reference ^(ctx.reference).children[i])
+        cctx = make_child_context(ctx, @reference ^(ctx.reference).children[i])
         cctx = with_available_size(cctx; width=nothing, height=nothing)
         cim = _recurse_child(recursion, doc.children[i], cctx)
         push!(child_iomaps, cim)
@@ -1312,7 +1312,7 @@ function _cl_build(solver, recursion, doc, ctx)
     # never see one.
     measure_iomaps = Any[]
     for i in 1:n
-        cctx = child_context(ctx, @reference ^(ctx.reference).children[i])
+        cctx = make_child_context(ctx, @reference ^(ctx.reference).children[i])
         cctx = with_available_size(cctx; width=nothing, height=nothing)
         push!(measure_iomaps, _recurse_child(recursion, doc.children[i], cctx))
     end
@@ -1354,7 +1354,7 @@ function _cl_build(solver, recursion, doc, ctx)
         if !xset[i] && !yset[i]
             push!(final_iomaps, measure_iomaps[i])
         else
-            cctx = child_context(ctx, @reference ^(ctx.reference).children[i])
+            cctx = make_child_context(ctx, @reference ^(ctx.reference).children[i])
             cctx = with_available_size(cctx;
                                        width  = xset[i] ? sw[i] : nothing,
                                        height = yset[i] ? sh[i] : nothing)

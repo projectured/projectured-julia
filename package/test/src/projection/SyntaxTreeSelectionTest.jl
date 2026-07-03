@@ -116,7 +116,7 @@ end
     node_io = print_document(j2s, arr)
     expected_child = ConcreteReferencePath(FieldReference("children"),
                          ConcreteReferencePath(ElementReference(2), EmptyReferencePath()))
-    @test reference_equal(strip_reference_types(node_io.output.selection), expected_child)
+    @test is_reference_equal(strip_reference_types(node_io.output.selection), expected_child)
 
     # The text layer now emits a TextRectangularReference carrying the child's
     # flat character range for the highlight box.
@@ -133,7 +133,7 @@ end
     # Backward: `.children[2]` maps back to `.elements[2]` on the JSON array.
     op_json = read_intent(j2s, node_io, ReplaceSelectionOperation(node_io.output.selection))
     @test op_json isa ReplaceSelectionOperation
-    @test reference_equal(strip_reference_types(op_json.path), nested)
+    @test is_reference_equal(strip_reference_types(op_json.path), nested)
 end
 
 end # @testset "SyntaxTreeSelection"

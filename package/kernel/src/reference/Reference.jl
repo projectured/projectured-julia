@@ -29,7 +29,7 @@ import ..DocumentModule: @document
 export Reference, ReferenceStep, ElementReference, PositionReference, RangeReference, FieldReference, TypeReference, FunctionReference, ProjectionReference, PointReference, TextRectangularReference, ReferencePath, EmptyReferencePath, ConcreteReferencePath, append_reference, concat_references, reference_steps, evaluate_reference, is_valid_reference, collect_references,
        is_element_reference, is_position_reference, is_range_reference,
        IRangeReference, IFieldReference, IConcreteReferencePath, IPointReference,
-       reference_equal, is_prefix_of, reference_equal_ignoring_types, is_prefix_of_ignoring_types,
+       is_reference_equal, is_prefix_of, is_reference_equal_ignoring_types, is_prefix_of_ignoring_types,
        ReferenceTypeMismatch, get_valid_reference_prefix, annotate_reference_types, strip_reference_types,
        fold_reference_types
 
@@ -365,7 +365,7 @@ Base.:(==)(a::TextRectangularReference, b::TextRectangularReference) = a.start =
 Base.:(==)(::ReferenceStep,        ::ReferenceStep)        = false
 
 # Strict equality: the folded node `type` fields are significant, so an annotated
-# (canonical) path is not `==` its stripped skeleton. `reference_equal_ignoring_types`
+# (canonical) path is not `==` its stripped skeleton. `is_reference_equal_ignoring_types`
 # blanks the types (via `strip_reference_types`) for cross-form comparison.
 Base.:(==)(a::EmptyReferencePath,   b::EmptyReferencePath)   = a.type === b.type
 Base.:(==)(::EmptyReferencePath,   ::ConcreteReferencePath) = false
@@ -374,28 +374,28 @@ Base.:(==)(a::ConcreteReferencePath, b::ConcreteReferencePath) =
     a.type === b.type && head(a) == head(b) && tail(a) == tail(b)
 
 """
-    reference_equal(a, b)
+    is_reference_equal(a, b)
 
 Structural equality of two reference paths. **Strict**: node type fields are
 significant, so an annotated path is not equal to its stripped form. Use
-[`reference_equal_ignoring_types`](@ref) to compare across annotated/plain forms.
+[`is_reference_equal_ignoring_types`](@ref) to compare across annotated/plain forms.
 """
-reference_equal(a::ReferencePath, b::ReferencePath) = a == b
+is_reference_equal(a::ReferencePath, b::ReferencePath) = a == b
 
 # `skip_type_checkpoints` was retired: in the folded model a node's `head` is
 # always a navigation step (the type lives in the node's `type` field), so there
 # are no interleaved checkpoint *steps* to skip past — consumers read `head`/`tail`
 # directly. Cross-form comparison ignoring node types uses
-# `reference_equal_ignoring_types` / `is_prefix_of_ignoring_types`.
+# `is_reference_equal_ignoring_types` / `is_prefix_of_ignoring_types`.
 
 """
-    reference_equal_ignoring_types(a, b)
+    is_reference_equal_ignoring_types(a, b)
 
 Structural equality of two reference paths **ignoring** type checkpoints: both
 paths are stripped of their [`TypeReference`](@ref) steps before comparison, so an
 annotated (canonical) path compares equal to its plain navigation skeleton.
 """
-reference_equal_ignoring_types(a::ReferencePath, b::ReferencePath) =
+is_reference_equal_ignoring_types(a::ReferencePath, b::ReferencePath) =
     strip_reference_types(a) == strip_reference_types(b)
 
 """

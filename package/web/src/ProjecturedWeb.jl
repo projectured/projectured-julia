@@ -15,7 +15,7 @@ using HTTP
 using JSON3
 using Base64: base64encode
 
-import ProjecturedDomain.BackendApiModule: Backend, init!, quit!, measure_text, make_backend
+import ProjecturedDomain.BackendApiModule: Backend, initialize_backend!, quit_backend!, measure_text, make_backend
 import ProjecturedDomain.DeviceApiModule: Device, read_from_devices, write_to_devices
 import ProjecturedDomain.GraphicsModule: GraphicsCanvas, GraphicsText, GraphicsRect, GraphicsLine,
                          GraphicsCircle, GraphicsPolyline, GraphicsSpline,
@@ -744,7 +744,7 @@ end
 # Backend interface
 # ════════════════════════════════════════════════════════════════════════
 
-function init!(backend::WebBackend)
+function initialize_backend!(backend::WebBackend)
     # Text metrics come from the pure-Julia TrueType measurer (pdf_measure_text),
     # so no SDL/SDL_ttf initialisation is needed — the web backend is SDL-free.
     backend.server = HTTP.listen!(backend.host, backend.port) do http
@@ -758,7 +758,7 @@ function init!(backend::WebBackend)
     return nothing
 end
 
-function quit!(backend::WebBackend)
+function quit_backend!(backend::WebBackend)
     conn = backend.conn
     if conn !== nothing
         try; close(conn.outbox); catch; end

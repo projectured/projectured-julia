@@ -188,7 +188,7 @@ function printer_locality_report(document, projection, mutate!)
     _collect_locality!(output, nothing, :_, Set{UInt64}(), cells, before_objs, errors, 0;
                        sel_objects=before_sel_objs)
 
-    perf_reset!()
+    reset_performance_counters!()
     try
         mutate!(document)
     catch e

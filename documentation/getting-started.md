@@ -95,7 +95,7 @@ See [the testing guide](testing.md) for all per-layer helpers.
 
 ## For AI assistants using MCP
 
-When `run!` is active the editor exposes an MCP server on port 9876.
+When `run_editor!` is active the editor exposes an MCP server on port 9876.
 Recommended workflow:
 
 1. Read `resource://guides` to discover the documentation layout.

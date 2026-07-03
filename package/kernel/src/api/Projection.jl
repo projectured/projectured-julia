@@ -98,13 +98,13 @@ recurses. Each concrete projection adds a method; compound projections such as
   `reference` path locating `input` relative to the document root, plus
   optional layout extent (`available_width`/`available_height`) and an
   extensible `properties` Dict. Extend it for a child with
-  `child_context(ctx, step…)` (or `child_context(ctx, full_path)`) before
+  `make_child_context(ctx, step…)` (or `make_child_context(ctx, full_path)`) before
   recursing; the top level passes a fresh `PrinterContext()`.
 
 # Implementing a printer
 1. Build the output document from `input`.
 2. If `input` has children, **recurse** into each via `recursion` (see above)
-   with `child_context(ctx, <step to that child>)`, **store the returned child
+   with `make_child_context(ctx, <step to that child>)`, **store the returned child
    IoMaps in your own IoMap** (`ChildrenIoMap`, or a bespoke field), and build
    your output's children from each `child_iomap.output`. Storing the child
    IoMaps is what lets the reader and the reference maps recurse in lockstep.

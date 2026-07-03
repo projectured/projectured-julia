@@ -39,7 +39,7 @@ import ..IoMapModule: ChildrenIoMap
 import ..ReferenceModule: ConcreteReferencePath, ElementReference, FieldReference, RangeReference, ProjectionReference, EmptyReferencePath
 import ..ReferenceCaseModule: var"@reference_case"
 import ..ReferenceBuilderModule: var"@reference"
-import ..PrinterContextModule: child_context
+import ..PrinterContextModule: make_child_context
 import ..OperationModule: ReplaceSelectionOperation
 import ..OperationRerootingModule: reroot_operation
 import ..DocumentApiModule: read_gesture
@@ -169,7 +169,7 @@ end
 
 function print_document(p::YamlSequenceToBlockSyntaxNode, recursion, seq::YamlSequence, ctx)
     child_iomaps = Cell(() -> [print_child(recursion, elem,
-                                   child_context(ctx, FieldReference("elements"), ElementReference(i)))
+                                   make_child_context(ctx, FieldReference("elements"), ElementReference(i)))
                                for (i, elem) in enumerate(seq.elements)])
 
     items = CellVector(() -> SyntaxDocument[

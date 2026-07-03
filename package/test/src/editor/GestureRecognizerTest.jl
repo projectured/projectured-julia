@@ -8,7 +8,7 @@
 # ═══════════════════════════════════════════════════════════════════════════
 
 using Projectured
-using Projectured: GestureRecognizer, recognize!, next_gesture!
+using Projectured: GestureRecognizer, recognize_gesture!, pop_gesture!
 using Projectured: EventEnvelope, MouseDown, MouseUp, MousePress, MouseMove,
                    MouseScroll, KeyDown, KeyPress, KeyChord, Modifiers
 
@@ -25,9 +25,9 @@ _mk_source(envs::Vector) = () -> isempty(envs) ? nothing : popfirst!(envs)
 function _drive_click!(rec, t::Ref{Float64}, x, y, t_up; button = :left)
     empty!(rec.pending)
     t[] = t_up - 0.02
-    recognize!(rec, EventEnvelope(:win, MouseDown(button, x, y, Modifiers())))
+    recognize_gesture!(rec, EventEnvelope(:win, MouseDown(button, x, y, Modifiers())))
     t[] = t_up
-    recognize!(rec, EventEnvelope(:win, MouseUp(button, x, y, Modifiers())))
+    recognize_gesture!(rec, EventEnvelope(:win, MouseUp(button, x, y, Modifiers())))
     isempty(rec.pending) ? 0 : rec.pending[end].event.count
 end
 
@@ -37,12 +37,12 @@ function test_gesture_recognizer()
     # ── a quick, in-place down/up pair synthesises a MousePress ──────────────
     let t = Ref(0.0), rec = GestureRecognizer(; clock = _mk_clock(t))
         down = EventEnvelope(:win, MouseDown(:left, 10, 20, Modifiers()))
-        @test recognize!(rec, down) === down        # forwarded unchanged
+        @test recognize_gesture!(rec, down) === down        # forwarded unchanged
         @test isempty(rec.pending)                  # nothing synthesised yet
 
         t[] = 0.1
         up = EventEnvelope(:win, MouseUp(:left, 11, 21, Modifiers()))
-        @test recognize!(rec, up) === up            # the up is still forwarded
+        @test recognize_gesture!(rec, up) === up            # the up is still forwarded
         @test length(rec.pending) == 1              # plus a synthesised click
         press = rec.pending[1]
         @test press isa EventEnvelope
@@ -54,25 +54,25 @@ function test_gesture_recognizer()
 
     # ── too far away: no click ───────────────────────────────────────────────
     let t = Ref(0.0), rec = GestureRecognizer(; clock = _mk_clock(t))
-        recognize!(rec, EventEnvelope(:win, MouseDown(:left, 10, 20, Modifiers())))
+        recognize_gesture!(rec, EventEnvelope(:win, MouseDown(:left, 10, 20, Modifiers())))
         t[] = 0.1
-        recognize!(rec, EventEnvelope(:win, MouseUp(:left, 100, 20, Modifiers())))
+        recognize_gesture!(rec, EventEnvelope(:win, MouseUp(:left, 100, 20, Modifiers())))
         @test isempty(rec.pending)
     end
 
     # ── too slow: no click ───────────────────────────────────────────────────
     let t = Ref(0.0), rec = GestureRecognizer(; clock = _mk_clock(t))
-        recognize!(rec, EventEnvelope(:win, MouseDown(:left, 10, 20, Modifiers())))
+        recognize_gesture!(rec, EventEnvelope(:win, MouseDown(:left, 10, 20, Modifiers())))
         t[] = 0.5   # > CLICK_MAX_DURATION (0.3)
-        recognize!(rec, EventEnvelope(:win, MouseUp(:left, 10, 20, Modifiers())))
+        recognize_gesture!(rec, EventEnvelope(:win, MouseUp(:left, 10, 20, Modifiers())))
         @test isempty(rec.pending)
     end
 
     # ── different button up does not complete a click ────────────────────────
     let t = Ref(0.0), rec = GestureRecognizer(; clock = _mk_clock(t))
-        recognize!(rec, EventEnvelope(:win, MouseDown(:left, 10, 20, Modifiers())))
+        recognize_gesture!(rec, EventEnvelope(:win, MouseDown(:left, 10, 20, Modifiers())))
         t[] = 0.1
-        recognize!(rec, EventEnvelope(:win, MouseUp(:right, 10, 20, Modifiers())))
+        recognize_gesture!(rec, EventEnvelope(:win, MouseUp(:right, 10, 20, Modifiers())))
         @test isempty(rec.pending)
     end
 
@@ -82,12 +82,12 @@ function test_gesture_recognizer()
                     MouseScroll(0, -1, 5, 6, Modifiers()),
                     MouseMove(1, 2, :none, Modifiers()))
             env = EventEnvelope(:win, evt)
-            @test recognize!(rec, env) === env
+            @test recognize_gesture!(rec, env) === env
         end
         @test isempty(rec.pending)
     end
 
-    # ── next_gesture! drains pending before pulling new input, in order ──────
+    # ── pop_gesture! drains pending before pulling new input, in order ──────
     let t = Ref(0.0), rec = GestureRecognizer(; clock = _mk_clock(t))
         script = Any[
             EventEnvelope(:win, MouseDown(:left, 10, 20, Modifiers())),
@@ -95,17 +95,17 @@ function test_gesture_recognizer()
         ]
         source = _mk_source(script)
 
-        g1 = next_gesture!(rec, source)             # MouseDown forwarded
+        g1 = pop_gesture!(rec, source)             # MouseDown forwarded
         @test g1.event isa MouseDown
 
-        g2 = next_gesture!(rec, source)             # MouseUp forwarded, click queued
+        g2 = pop_gesture!(rec, source)             # MouseUp forwarded, click queued
         @test g2.event isa MouseUp
         @test length(rec.pending) == 1
 
-        g3 = next_gesture!(rec, source)             # queued click delivered next
+        g3 = pop_gesture!(rec, source)             # queued click delivered next
         @test g3.event isa MousePress
 
-        @test next_gesture!(rec, source) === nothing # source exhausted
+        @test pop_gesture!(rec, source) === nothing # source exhausted
     end
 
     # ── multi-click: consecutive in-window clicks increment the count ────────
@@ -139,11 +139,11 @@ function test_gesture_recognizer()
         rec    = GestureRecognizer(; chords = chords)
 
         pfx = EventEnvelope(:win, KeyDown(:c, ctrl))
-        @test recognize!(rec, pfx) === nothing       # prefix absorbed, nothing out
+        @test recognize_gesture!(rec, pfx) === nothing       # prefix absorbed, nothing out
         @test length(rec.chord_buffer) == 1
 
         fin   = EventEnvelope(:win, KeyDown(:k, ctrl))
-        chord = recognize!(rec, fin)
+        chord = recognize_gesture!(rec, fin)
         @test chord isa EventEnvelope
         @test chord.window_id == :win                # window id of the first key
         @test chord.event isa KeyChord
@@ -156,9 +156,9 @@ function test_gesture_recognizer()
         chords = [[KeyDown(:c, ctrl), KeyDown(:k, ctrl)]],
         rec    = GestureRecognizer(; chords = chords)
 
-        recognize!(rec, EventEnvelope(:win, KeyDown(:c, ctrl)))   # prefix buffered
+        recognize_gesture!(rec, EventEnvelope(:win, KeyDown(:c, ctrl)))   # prefix buffered
         breaker = EventEnvelope(:win, KeyDown(:x, ctrl))
-        flushed = recognize!(rec, breaker)
+        flushed = recognize_gesture!(rec, breaker)
         @test flushed isa EventEnvelope
         @test flushed.event isa KeyDown && flushed.event.key == :c  # prefix emitted first
         @test length(rec.pending) == 1
@@ -169,11 +169,11 @@ function test_gesture_recognizer()
     # ── chords disabled by default: every key passes straight through ────────
     let rec = GestureRecognizer()
         e = EventEnvelope(:win, KeyDown(:c, Modifiers(ctrl = true)))
-        @test recognize!(rec, e) === e
+        @test recognize_gesture!(rec, e) === e
         @test isempty(rec.chord_buffer)
     end
 
-    # ── next_gesture! absorbs the prefix and returns the chord in one pull ───
+    # ── pop_gesture! absorbs the prefix and returns the chord in one pull ───
     let ctrl   = Modifiers(ctrl = true),
         chords = [[KeyDown(:c, ctrl), KeyDown(:k, ctrl)]],
         rec    = GestureRecognizer(; chords = chords)
@@ -182,9 +182,9 @@ function test_gesture_recognizer()
             EventEnvelope(:win, KeyDown(:c, ctrl)),
             EventEnvelope(:win, KeyDown(:k, ctrl)),
         ])
-        g = next_gesture!(rec, source)               # Ctrl-C absorbed, chord delivered
+        g = pop_gesture!(rec, source)               # Ctrl-C absorbed, chord delivered
         @test g.event isa KeyChord
-        @test next_gesture!(rec, source) === nothing # source exhausted
+        @test pop_gesture!(rec, source) === nothing # source exhausted
     end
 
     # ── a dangling prefix persists across an input-exhausted pull ────────────
@@ -193,7 +193,7 @@ function test_gesture_recognizer()
         rec    = GestureRecognizer(; chords = chords)
 
         source = _mk_source(Any[EventEnvelope(:win, KeyDown(:c, ctrl))])
-        @test next_gesture!(rec, source) === nothing # prefix buffered, no more input
+        @test pop_gesture!(rec, source) === nothing # prefix buffered, no more input
         @test length(rec.chord_buffer) == 1          # kept for the next frame
     end
 

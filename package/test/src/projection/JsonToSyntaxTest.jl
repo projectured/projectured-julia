@@ -139,7 +139,7 @@ end
     obj = JsonObject("a" => JsonNumber(1))
     op = read_key(obj, (@reference entries[1].key{0}), KeyDown(:tab, Modifiers()))
     @test op isa ReplaceSelectionOperation
-    @test reference_equal(op.path, @reference entries[1].value)
+    @test is_reference_equal(op.path, @reference entries[1].value)
     # Tab outside a key does nothing.
     @test read_key(obj, whole, KeyDown(:tab, Modifiers())) === nothing
 end

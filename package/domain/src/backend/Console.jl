@@ -35,7 +35,7 @@ itself no longer resolves the selection or emits a reverse-video attribute).
 """
 module ConsoleBackendModule
 
-import ..BackendApiModule: Backend, init!, quit!, measure_text, make_backend
+import ..BackendApiModule: Backend, initialize_backend!, quit_backend!, measure_text, make_backend
 import ..DeviceApiModule: Device, read_from_devices, write_to_devices
 import ..TextModule: TextDocument, TextText, TextString, TextNewline, TextSpacing, TextGraphics
 import ..ColorModule: StyleColor, color_default, color_equal
@@ -64,8 +64,8 @@ keystrokes back from it.
               effect when `ansi` is also on; ignored otherwise.
 
 `inbuf` holds bytes read from `input` but not yet consumed into an event (e.g.
-a partial escape sequence). `raw_active` records whether `init!` put the
-terminal into raw mode so `quit!` can restore it. `last_frame` caches the bytes
+a partial escape sequence). `raw_active` records whether `initialize_backend!` put the
+terminal into raw mode so `quit_backend!` can restore it. `last_frame` caches the bytes
 last written so the read-eval-print loop can skip a repaint when nothing
 changed — without it the editor's per-tick `print!` would clear and redraw the
 screen continuously, flickering the terminal.
@@ -91,7 +91,7 @@ ConsoleBackend(; io::IO=stdout, input::IO=stdin, ansi::Bool=true, clear::Bool=tr
 # reflects incoming bytes (without `start_reading` the internal buffer is never
 # filled and the poll always sees zero). No-op (and harmless) when `input` is
 # not a TTY, e.g. an `IOBuffer` in tests.
-function init!(backend::ConsoleBackend)
+function initialize_backend!(backend::ConsoleBackend)
     _set_raw!(backend, true)
     io = backend.input
     if io isa Base.TTY
@@ -104,7 +104,7 @@ function init!(backend::ConsoleBackend)
     return nothing
 end
 
-function quit!(backend::ConsoleBackend)
+function quit_backend!(backend::ConsoleBackend)
     io = backend.input
     if io isa Base.TTY
         try

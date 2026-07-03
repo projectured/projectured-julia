@@ -65,8 +65,8 @@ oob = ConcreteReferencePath(ElementReference(5), EmptyReferencePath())
 
 # Ignoring-types equality treats an annotated path as equal to its skeleton,
 # while strict equality keeps them distinct.
-@test Projectured.reference_equal_ignoring_types(annotated, plain)
-@test !reference_equal(annotated, plain)
+@test Projectured.is_reference_equal_ignoring_types(annotated, plain)
+@test !is_reference_equal(annotated, plain)
 
 # set_selection! / clear_selection! walk an annotated path exactly like the
 # stripped form — the checkpoints are skipped during descent.

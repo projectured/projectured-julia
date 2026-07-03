@@ -14,7 +14,7 @@ import ..ReactiveModule: Cell
 import ..IoMapModule: SimpleIoMap
 import ..TypeDispatchingProjectionModule: TypeDispatchingProjection
 import ..ReferenceModule: ConcreteReferencePath, ElementReference, PositionReference, RangeReference, FieldReference, EmptyReferencePath, append_reference
-import ..PrinterContextModule: child_context
+import ..PrinterContextModule: make_child_context
 export TextTextToString, TextStringToString, TextNewlineToString, TextToString
 
 # ── TextStringToString ───────────────────────────────────────────────────────
@@ -73,7 +73,7 @@ end
 # combines their output cells into a single reactive Cell{String}.
 function print_document(proj::TextTextToString, recursion, text::TextText, ctx)
     child_iomaps = Cell(() -> [print_child(recursion, elem,
-                                   child_context(ctx, FieldReference("elements"), ElementReference(i)))
+                                   make_child_context(ctx, FieldReference("elements"), ElementReference(i)))
                                for (i, elem) in enumerate(text.elements)])
     output = Cell(() -> begin
         buf = IOBuffer()

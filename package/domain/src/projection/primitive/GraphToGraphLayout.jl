@@ -34,7 +34,7 @@ import ..ReferenceModule: ConcreteReferencePath, FieldReference, RangeReference,
                           EmptyReferencePath
 import ..ReferenceBuilderModule: var"@reference"
 import ..ReferenceCaseModule: var"@reference_case"
-import ..PrinterContextModule: child_context
+import ..PrinterContextModule: make_child_context
 
 export GraphGraphToGraphLayout, GraphToGraphLayout, GraphGraphToGraphLayoutIoMap
 
@@ -73,7 +73,7 @@ function print_document(p::GraphGraphToGraphLayout, recursion, graph::GraphGraph
             content = v isa GraphVertex ? getfield(v, :content)[] : nothing
             if content !== nothing
                 cref = @reference ^(ctx.reference).vertices[i].content
-                push!(ims, print_child(recursion, content, child_context(ctx, cref)))
+                push!(ims, print_child(recursion, content, make_child_context(ctx, cref)))
             else
                 push!(ims, nothing)
             end

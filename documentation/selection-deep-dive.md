@@ -210,7 +210,7 @@ passing the input suffix directly:
 **Step 1 — Recurse first, collect child IO maps.**
 ```julia
 child_iomaps = Cell(() -> [print_child(recursion, child,
-                                                       child_context(ctx, ElementReference(i)))
+                                                       make_child_context(ctx, ElementReference(i)))
                             for (i, child) in enumerate(elements)])
 ```
 

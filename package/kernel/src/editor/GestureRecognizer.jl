@@ -33,16 +33,16 @@ composite gestures a single home.
 
 ## Contract
 
-- [`recognize!`](@ref)`(rec, env)` consumes one `EventEnvelope`, updates the
+- [`recognize_gesture!`](@ref)`(rec, env)` consumes one `EventEnvelope`, updates the
   recogniser's state, may enqueue *synthesised* gesture envelopes (e.g. a
   `MousePress` once a click completes) on `rec.pending`, and returns either the
   envelope to forward now or `nothing` when the event was *absorbed* (e.g. the
   first key of a not-yet-complete chord).
-- [`next_gesture!`](@ref)`(rec, source)` is the editor-facing pull: it drains any
+- [`pop_gesture!`](@ref)`(rec, source)` is the editor-facing pull: it drains any
   previously-synthesised gestures first, otherwise pulls raw envelopes from
-  `source` and runs them through `recognize!`, skipping absorbed events until one
+  `source` and runs them through `recognize_gesture!`, skipping absorbed events until one
   produces a gesture (or input runs out). A buffered chord prefix is therefore
-  swallowed *inside* a single `next_gesture!` call and never surfaces to the
+  swallowed *inside* a single `pop_gesture!` call and never surfaces to the
   editor as the "input exhausted" `nothing`.
 """
 module GestureRecognizerModule
@@ -51,7 +51,7 @@ import ..MouseModule: MouseDown, MouseUp, MousePress
 import ..KeyboardModule: KeyDown, KeyChord
 import ..ScreenDocumentModule: EventEnvelope
 
-export GestureRecognizer, recognize!, next_gesture!
+export GestureRecognizer, recognize_gesture!, pop_gesture!
 
 # Click recognition window: a MouseUp counts as a click (synthesises a
 # `MousePress`) when it lands within this many pixels of the preceding MouseDown
@@ -115,14 +115,14 @@ GestureRecognizer(; clock::Function = time,
                       clock)
 
 """
-    recognize!(rec::GestureRecognizer, env::EventEnvelope) -> EventEnvelope or nothing
+    recognize_gesture!(rec::GestureRecognizer, env::EventEnvelope) -> EventEnvelope or nothing
 
 Feed one raw input envelope through the recogniser. Updates recognition state
 and, when an event *completes* a composite gesture, either enqueues the
 synthesised gesture on `rec.pending` for later delivery (clicks) or returns it
 directly (chords). Returns the envelope to forward for this event now, or
 `nothing` when the event is *absorbed* (the first key of a not-yet-complete
-chord) — `next_gesture!` skips over such absorbed events.
+chord) — `pop_gesture!` skips over such absorbed events.
 
 Recognised today:
 
@@ -137,7 +137,7 @@ Recognised today:
   `nothing`), emits a `KeyChord` when a sequence completes, or flushes the
   buffered keys back as raw events when a key breaks the in-progress chord.
 """
-function recognize!(rec::GestureRecognizer, env::EventEnvelope)
+function recognize_gesture!(rec::GestureRecognizer, env::EventEnvelope)
     evt = env.event
     if evt isa MouseDown
         rec.last_down_button = evt.button
@@ -237,7 +237,7 @@ _keydown_matches(spec::KeyDown, e::KeyDown) =
     spec.modifiers.meta  == e.modifiers.meta
 
 """
-    next_gesture!(rec::GestureRecognizer, source) -> EventEnvelope or nothing
+    pop_gesture!(rec::GestureRecognizer, source) -> EventEnvelope or nothing
 
 Pull the next gesture envelope to feed the reader pipeline. `source` is a 0-arg
 callable returning the next raw `EventEnvelope` (or `nothing` when the input
@@ -247,20 +247,20 @@ queue is empty) — the editor passes a closure over the backend's
 Previously-synthesised gestures (in `rec.pending`) are delivered first, ahead of
 new raw input — matching the backend's old "deliver pending before polling"
 behaviour, so the order readers observe (e.g. `MouseUp` then the synthesised
-`MousePress`) is preserved. New raw input is then run through `recognize!`; an
-*absorbed* event (a buffered chord prefix, for which `recognize!` returns
+`MousePress`) is preserved. New raw input is then run through `recognize_gesture!`; an
+*absorbed* event (a buffered chord prefix, for which `recognize_gesture!` returns
 `nothing`) is skipped and the next event pulled, so a partial chord never
 surfaces as the "input exhausted" `nothing`. A `nothing` from `source` (genuine
 exhaustion) is propagated. Non-envelope payloads, should any arise, pass through
 untouched.
 """
-function next_gesture!(rec::GestureRecognizer, source)
+function pop_gesture!(rec::GestureRecognizer, source)
     while true
         isempty(rec.pending) || return popfirst!(rec.pending)
         env = source()
         env === nothing && return nothing
         env isa EventEnvelope || return env
-        gesture = recognize!(rec, env)
+        gesture = recognize_gesture!(rec, env)
         gesture === nothing && continue       # absorbed (e.g. chord prefix)
         return gesture
     end

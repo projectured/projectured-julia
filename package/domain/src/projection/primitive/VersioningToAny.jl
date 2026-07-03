@@ -54,7 +54,7 @@ import ..CollectionModule: CellVector
 import ..ReferenceModule: ReferencePath, ConcreteReferencePath, EmptyReferencePath,
                           FieldReference, RangeReference, ElementReference,
                           evaluate_reference, head, tail
-import ..PrinterContextModule: PrinterContext, child_context
+import ..PrinterContextModule: PrinterContext, make_child_context
 import ..IoMapApiModule: IoMap
 import ..GestureBindingModule: GestureBinding, KeyDownPattern,
                               get_projection_gesture_bindings, read_projection_gesture, collect_gesture_bindings
@@ -109,7 +109,7 @@ function print_document(p::VersioningToAnyProjection, recursion, input::Versione
         selected === nothing && return nothing
         idx, version = selected
         value_iomap = print_child(recursion, version.value,
-                          child_context(ctx, FieldReference("versions"),
+                          make_child_context(ctx, FieldReference("versions"),
                                         ElementReference(idx), FieldReference("value")))
         (idx, value_iomap)
     end)

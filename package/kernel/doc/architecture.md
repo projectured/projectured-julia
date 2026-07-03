@@ -32,7 +32,7 @@ the side.
 
 ```
    ┌──────────────────────────────────────────────────────────────┐
- H │  EDITOR      EditorModule  ·  ScreenDeviceModule(device)  ·          │  run!/play_live!
+ H │  EDITOR      EditorModule  ·  ScreenDeviceModule(device)  ·          │  run_editor!/play_live!
    │              GestureRecognizerModule                           │
    └───┬───────────────────────────────┬─────────────────┬─────────┘
        │ (pulls in nearly every tier)  │                 │ via AgentApiModule stub
@@ -93,7 +93,7 @@ abstract types + generic function *declarations* (`function f end`) + docstrings
 **no** concrete types, algorithms, factory registries, or mutable globals.
 (Implementations that used to sit here now live in their impl modules: the
 `splice_*` text helpers and default `evaluate_operation` methods in
-`OperationModule`, and the concrete protocol data types `Intent` / `NoOperation`
+`OperationModule`, and the concrete protocol data types `Intent` / `DoNothingOperation`
 in `common/` — they are data vehicles that cross the seam, not interfaces to
 implement.) The stateless factory seams `make_backend(kind)` /
 `make_agent_server(kind)` are the one deliberate exception, kept as the SPI's own

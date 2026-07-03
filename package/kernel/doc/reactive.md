@@ -51,8 +51,8 @@ Because the increments are on the hottest path (`getindex` on every cell read),
 this module loads **first** and `ReactiveModule` imports the shared `_perf` dict, so
 the increments stay a bare `Dict` write rather than a cross-module function call.
 
-Public surface: `get_performance_counters()` (a copy of the dict), `perf_reset!()`,
-`perf_record!(key, n)` (fold in an external measurement), and `@perf_time key expr`
+Public surface: `get_performance_counters()` (a copy of the dict), `reset_performance_counters!()`,
+`record_performance!(key, n)` (fold in an external measurement), and `@performance_time key expr`
 (time `expr`, record the elapsed ns under `key`). The editor's main loop resets and
 reports these every frame, which is the easiest way to profile what work a
 particular edit triggered.
@@ -60,7 +60,7 @@ particular edit triggered.
 ## TimeModule — the animation clock
 
 A single global primitive cell, `EDITOR_TIME`, holding the current logical time in
-seconds. The editor's main loop writes it once per frame via `tick!`; because cell
+seconds. The editor's main loop writes it once per frame via `tick_editor_time!`; because cell
 writes invalidate dependents, any computed cell that read the time is re-evaluated
 on the next pull — which is all animation needs. It is layered *on top of* `Cell`,
 so it loads **after** `ReactiveModule`.
@@ -73,7 +73,7 @@ Two reads, named so intent is obvious:
   dependency. Use to *arm* an animation (capture a start instant) without the
   arming code itself re-running every frame.
 
-And `tick!(t)` — write the current logical time, invalidating everything that
-subscribed. Driven by `Editor.run!` (wall-clock) and by `ProjecturedVideo`
+And `tick_editor_time!(t)` — write the current logical time, invalidating everything that
+subscribed. Driven by `Editor.run_editor!` (wall-clock) and by `ProjecturedVideo`
 (elapsed-time frames). See `package/example/src/document/RotatingVector.jl` for a
 worked subscribe/sample example.

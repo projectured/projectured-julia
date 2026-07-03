@@ -73,7 +73,7 @@ testing, CI-based visual regression checks, and print-quality export.
 
 ## The MCP bridge: AI-native editing
 
-When the editor's `run!` loop is active it exposes an MCP server on port 9876.
+When the editor's `run_editor!` loop is active it exposes an MCP server on port 9876.
 An AI assistant connected to this server can:
 
 - **Read the live document structure** via `resource://guide/...` and
@@ -94,7 +94,7 @@ always semantically coherent.
 ## Multi-backend future
 
 The platform abstraction is split in two: the `Backend` interface is
-`init!` / `quit!` / `measure_text`, and the `Device` interface is
+`initialize_backend!` / `quit_backend!` / `measure_text`, and the `Device` interface is
 `write_to_device(s)` / `read_from_device(s)`. Any platform that can implement
 these is a valid backend.
 

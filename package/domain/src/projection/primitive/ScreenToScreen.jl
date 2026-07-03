@@ -28,7 +28,7 @@ import ..ScreenDocumentModule: ScreenDocument, WindowDocument, EventEnvelope
 import ..CollectionModule: CellVector
 import ..ReferenceModule: ReferencePath, ConcreteReferencePath, EmptyReferencePath,
                           FieldReference, RangeReference, ElementReference, PointReference, head, tail
-import ..PrinterContextModule: PrinterContext, child_context, with_available_size
+import ..PrinterContextModule: PrinterContext, make_child_context, with_available_size
 import ..IoMapApiModule: IoMap
 import ..OperationModule: ReplaceSelectionOperation, ReplaceReferencedValueOperation, CompoundOperation
 import ..PrimitiveModule: ReplaceStringRangeOperation, ReplaceNumberRangeOperation
@@ -59,7 +59,7 @@ function print_document(p::ScreenToScreen, recursion, input::ScreenDocument, ctx
     iomap_cell = Cell(nothing)
     window_iomaps = Cell(() -> [
         print_document(p, recursion, input.windows[i],
-                         child_context(ctx, FieldReference("windows"), ElementReference(i)))
+                         make_child_context(ctx, FieldReference("windows"), ElementReference(i)))
         for i in 1:length(input.windows)
     ])
     out_windows = Cell(() -> CellVector(Cell[Cell(im.output) for im in window_iomaps[]]))
@@ -77,7 +77,7 @@ end
 function print_document(p::ScreenToScreen, recursion, input::WindowDocument, ctx)
     # Seed the window's pixel size as the available layout extent for its
     # content, so split/tabbed/scroll panes size to the window.
-    content_ctx = with_available_size(child_context(ctx, FieldReference("content"));
+    content_ctx = with_available_size(make_child_context(ctx, FieldReference("content"));
                                       width=getfield(input, :width),
                                       height=getfield(input, :height))
     content_iomap = print_child(recursion, input.content, content_ctx)

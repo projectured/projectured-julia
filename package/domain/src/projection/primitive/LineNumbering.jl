@@ -16,7 +16,7 @@ import ..FontModule: StyleFont, font_ubuntu_monospace_regular_20
 import ..ReactiveModule: Cell
 import ..CollectionModule: CellVector
 import ..IoMapModule: SimpleIoMap
-import ..PrinterContextModule: child_context
+import ..PrinterContextModule: make_child_context
 import ..ReferenceModule: ConcreteReferencePath, RangeReference, FieldReference, EmptyReferencePath, strip_reference_types
 import ..ReferenceBuilderModule: var"@reference"
 import ..OperationModule: ReplaceSelectionOperation

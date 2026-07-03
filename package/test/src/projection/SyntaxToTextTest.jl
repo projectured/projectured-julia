@@ -229,16 +229,16 @@ child1 = @reference children[1]            # .children[1]∅
 child2 = @reference children[2]            # .children[2]∅
 
 @testset "plain arrows drive the tree once a whole element is selected" begin
-    @test reference_equal(op_path(root,   :down),  child1)   # root → first child
-    @test reference_equal(op_path(child1, :right), child2)   # next sibling
-    @test reference_equal(op_path(child2, :left),  child1)   # previous sibling
-    @test reference_equal(op_path(child1, :up),    root)     # child → parent
+    @test is_reference_equal(op_path(root,   :down),  child1)   # root → first child
+    @test is_reference_equal(op_path(child1, :right), child2)   # next sibling
+    @test is_reference_equal(op_path(child2, :left),  child1)   # previous sibling
+    @test is_reference_equal(op_path(child1, :up),    root)     # child → parent
 end
 
 @testset "plain arrows match their Alt counterparts in structural mode" begin
     alt = Modifiers(alt=true)
     for (sel, key) in ((root, :down), (child1, :right), (child2, :left), (child1, :up))
-        @test reference_equal(op_path(sel, key), op_path(sel, key, alt))
+        @test is_reference_equal(op_path(sel, key), op_path(sel, key, alt))
     end
 end
 
@@ -246,8 +246,8 @@ end
     # :up at the root has no parent → the reader declines (nothing).
     @test read_key(root, :up) === nothing
     # :left at the first sibling / :right at the last stay put (same path).
-    @test reference_equal(op_path(child1, :left),  child1)
-    @test reference_equal(op_path(child2, :right), child2)
+    @test is_reference_equal(op_path(child1, :left),  child1)
+    @test is_reference_equal(op_path(child2, :right), child2)
 end
 
 @testset "plain arrows with a character cursor are not tree navigation" begin
@@ -259,7 +259,7 @@ end
     @test read_key(cursor, :down) === nothing
     right_op = read_key(cursor, :right)
     @test right_op isa ReplaceSelectionOperation
-    @test reference_equal(right_op.path, (@reference children[1].value{3}))
+    @test is_reference_equal(right_op.path, (@reference children[1].value{3}))
 end
 
 @testset "Ctrl+Space toggles structural ⇄ text" begin
@@ -267,12 +267,12 @@ end
     # text → structural: promote a leaf cursor to the whole leaf.
     cursor = @reference children[1].value{2}
     promoted = op_path(cursor, :space, ctrl)
-    @test reference_equal(promoted, child1)
+    @test is_reference_equal(promoted, child1)
     # structural → text: descend to the first leaf's value start.
     descended = op_path(child1, :space, ctrl)
-    @test reference_equal(descended, (@reference children[1].value{0}))
+    @test is_reference_equal(descended, (@reference children[1].value{0}))
     # round-trip lands back in the same leaf (at its start — stateless).
-    @test reference_equal(op_path(promoted, :space, ctrl), descended)
+    @test is_reference_equal(op_path(promoted, :space, ctrl), descended)
 end
 end # let
 end # @testset "SyntaxToText plain-arrow navigation & Ctrl+Space toggle"

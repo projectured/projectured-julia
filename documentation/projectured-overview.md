@@ -265,7 +265,7 @@ One document. One projection. Three rendering paths.
 - **PDF** export — vector output with self-contained TrueType embedding,
   headless, no SDL required.
 
-Swapping is one argument: `run!(WebBackend(), proj, doc)`.
+Swapping is one argument: `run_editor!(WebBackend(), proj, doc)`.
 The projection only ever sees neutral events like `KeyDown(:left)`.
 
 <span class="muted">backend/{Sdl,Console,Web,Pdf}.jl · api/{Backend,Device}.jl</span>

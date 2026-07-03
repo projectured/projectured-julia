@@ -9,7 +9,7 @@ real window. Extracted from Editor.jl; builds on the editor-loop primitives
 module PlaybackModule
 
 import ..EditorModule: Editor, read!, evaluate!, print!, perf!
-import ..PerformanceCounterModule: perf_reset!, @perf_time
+import ..PerformanceCounterModule: reset_performance_counters!, @performance_time
 import ..ProjectionApiModule: read_intent
 import ..IntentModule: Intent
 import ..ScreenDocumentModule: EventEnvelope
@@ -17,7 +17,7 @@ import ..OperationApiModule: Operation
 import ..OperationModule: QuitEditorException
 import ..OperationRerootingModule: reroot_operation
 import ..ReferenceModule: ReferencePath, EmptyReferencePath, ConcreteReferencePath
-import ..BackendApiModule: Backend, init!, quit!
+import ..BackendApiModule: Backend, initialize_backend!, quit_backend!
 import ..DeviceApiModule: Device
 import ..ScreenDeviceModule: Screen
 import ..KeyboardModule: Keyboard
@@ -108,8 +108,8 @@ function play_live!(editor::Editor, timeline; window_id::Symbol, initial_hold::R
     next = 1
     try
         while true
-            perf_reset!()
-            @perf_time :read_time read!(editor)
+            reset_performance_counters!()
+            @performance_time :read_time read!(editor)
             # When no real-input operation is pending and the next scheduled
             # entry is due, inject it. Real input wins the frame; the scheduled
             # entry retries on the following frame.
@@ -117,8 +117,8 @@ function play_live!(editor::Editor, timeline; window_id::Symbol, initial_hold::R
                 editor.operation = _timeline_operation(editor, timeline[next], window_id, prefix_steps)
                 next += 1
             end
-            @perf_time :evaluate_time evaluate!(editor)
-            @perf_time :print_time    print!(editor)
+            @performance_time :evaluate_time evaluate!(editor)
+            @performance_time :print_time    print!(editor)
             perf!(editor)
             sleep(0.01)
         end
@@ -132,21 +132,21 @@ end
                window_id::Symbol, initial_hold::Real=0.5)
 
 Bootstrap overload: initialise the backend, wire up an `Editor`, and run the
-scripted live loop above. Like [`run!`](@ref), the pipeline is expected to
+scripted live loop above. Like [`run_editor!`](@ref), the pipeline is expected to
 produce a `ScreenDocument` so the backend opens a real window; `window_id` is the
 `WindowDocument.id` scripted events are routed to.
 """
 function play_live!(backend::Backend, projection, document, timeline;
                     window_id::Symbol, initial_hold::Real=0.5,
                     op_prefix::ReferencePath=EmptyReferencePath())
-    init!(backend)
+    initialize_backend!(backend)
     try
         devices = Device[Screen(), Keyboard(), Mouse()]
         editor = Editor(backend, document, projection, devices)
         play_live!(editor, timeline; window_id=window_id, initial_hold=initial_hold,
                    op_prefix=op_prefix)
     finally
-        quit!(backend)
+        quit_backend!(backend)
     end
 end
 

@@ -33,7 +33,7 @@ import ..ReferenceModule: ConcreteReferencePath, ElementReference, PositionRefer
 import ..ReferenceCaseModule: var"@reference_case"
 import ..ReferenceBuilderModule: var"@reference"
 import ..OperationModule: ReplaceSelectionOperation
-import ..PrinterContextModule: child_context
+import ..PrinterContextModule: make_child_context
 export FileSystemFileToSyntaxLeaf, FileSystemDirectoryToSyntaxNode, FileSystemToSyntax,
        filesystem_marker_eligible
 
@@ -78,7 +78,7 @@ end
 
 function print_document(p::FileSystemDirectoryToSyntaxNode, recursion, d::FileSystemDirectory, ctx)
     child_iomaps = Cell(() -> [print_child(recursion, elem,
-                                   child_context(ctx, FieldReference("elements"), ElementReference(i)))
+                                   make_child_context(ctx, FieldReference("elements"), ElementReference(i)))
                                for (i, elem) in enumerate(d.elements)])
 
     name_leaf = SyntaxLeaf(

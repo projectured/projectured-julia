@@ -27,7 +27,7 @@ import ..DocumentApiModule: Document
 import ..DocumentModule: copy_document, @document, @forward
 import ..ReferenceModule: Reference
 export CellVector, CellMatrix, CellTable, ListNode, CollectionDocument,
-       get_left_tail, get_right_tail, get_cell_at, take_first_n,
+       get_left_tail, get_right_tail, get_cell_at, take_first,
        insert_row!, insert_column!, delete_row!, delete_column!, insert_row, delete_row,
        ICellVector, ICellMatrix, ICellTable, IListNode
 
@@ -378,7 +378,7 @@ end
 
 # Take first n elements from a ListNode in specified direction
 # direction = :next for forward, :prev for backward
-function take_first_n(node::ListNode, n::Int, direction::Symbol=:next)
+function take_first(node::ListNode, n::Int, direction::Symbol=:next)
     result = Any[]
     current = node
     for _ in 1:n
@@ -392,7 +392,7 @@ end
 
 # Take n elements in prev direction and m elements in next direction from center node
 # Returns a vector with prev elements first (in reverse order), then center, then next elements
-function take_first_n(node::ListNode, n_prev::Int, n_next::Int)
+function take_first(node::ListNode, n_prev::Int, n_next::Int)
     result = Any[]
     # Collect prev elements (in reverse order since we traverse from center outward)
     prev_elements = Any[]

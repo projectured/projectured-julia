@@ -42,7 +42,7 @@ import ..ReferenceModule: ConcreteReferencePath, ElementReference, PositionRefer
                           ReferencePath, EmptyReferencePath
 import ..ReferenceCaseModule: var"@reference_case"
 import ..ReferenceBuilderModule: var"@reference"
-import ..PrinterContextModule: child_context
+import ..PrinterContextModule: make_child_context
 import ..JuliaToSyntaxModule: JuliaToSyntax
 
 export FormulaInsertionToSyntaxLeaf, FormulaReferenceToSyntaxLeaf,
@@ -117,7 +117,7 @@ function _result_to_string(result)
 end
 
 function print_document(p::FormulaFormulaToSyntaxNode, recursion, f::FormulaFormula, ctx)
-    code_ref = child_context(ctx, @reference ^(ctx.reference).code)
+    code_ref = make_child_context(ctx, @reference ^(ctx.reference).code)
     code_iomap = Cell(() -> print_child(recursion, f.code, code_ref))
 
     # The name leaf displays the formula name; renaming is a structural
@@ -216,7 +216,7 @@ end
 function print_document(p::FormulaEnvironmentToSyntaxNode, recursion, e::FormulaEnvironment, ctx)
     child_iomaps = Cell(() ->
         [print_child(recursion, e.formulas[i],
-             child_context(ctx, @reference ^(ctx.reference).formulas[i]))
+             make_child_context(ctx, @reference ^(ctx.reference).formulas[i]))
          for i in 1:length(e.formulas)])
 
     iomap_cell = Cell(nothing)

@@ -110,12 +110,12 @@ Iteration starts from `get_left_tail(head_node)` and walks rightward through
 `next`, yielding the whole reachable list. `Base.IteratorSize(ListNode) =
 SizeUnknown()` because the right tail may be unbounded.
 
-### `take_first_n` helpers
+### `take_first` helpers
 
 ```julia
-take_first_n(node, n)                 # n values walking :next
-take_first_n(node, n, :prev)          # n values walking :prev
-take_first_n(node, n_prev, n_next)    # window centred on node
+take_first(node, n)                 # n values walking :next
+take_first(node, n, :prev)          # n values walking :prev
+take_first(node, n_prev, n_next)    # window centred on node
 ```
 
 Useful when projecting a slice of a potentially infinite list to a

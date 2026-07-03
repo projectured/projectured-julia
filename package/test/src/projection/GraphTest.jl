@@ -144,7 +144,7 @@ end
     @test fwd !== nothing
     back = map_reference_backward(stage, s1, fwd)
     @test back !== nothing
-    @test reference_equal(back, @reference vertices[1])
+    @test is_reference_equal(back, @reference vertices[1])
 end
 
 end # test_graph

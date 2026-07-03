@@ -7,15 +7,15 @@ another device/backend that reads operations from an agent and writes document
 state back.
 
 Concrete servers (e.g. the MCP server) live in their own modules / package
-extensions and register methods for `make_agent_server` / `agent_server_start!`
-/ `agent_server_stop!`. The editor loop drives an agent server only through
+extensions and register methods for `make_agent_server` / `start_agent_server!`
+/ `stop_agent_server!`. The editor loop drives an agent server only through
 these generics, so it never names a concrete server type — letting the
 implementation move into an optional extension whose type cannot be referenced
 at load time.
 """
 module AgentApiModule
 
-export make_agent_server, agent_server_start!, agent_server_stop!
+export make_agent_server, start_agent_server!, stop_agent_server!
 
 """
     make_agent_server(kind::Symbol, editor; kwargs...)
@@ -30,17 +30,17 @@ make_agent_server(::Val{K}, editor; kwargs...) where {K} = error(
     "provides it loaded?")
 
 """
-    agent_server_start!(server)
+    start_agent_server!(server)
 
 Start the agent server (begin processing in the background).
 """
-function agent_server_start! end
+function start_agent_server! end
 
 """
-    agent_server_stop!(server)
+    stop_agent_server!(server)
 
 Stop the agent server and release its resources.
 """
-function agent_server_stop! end
+function stop_agent_server! end
 
 end # module

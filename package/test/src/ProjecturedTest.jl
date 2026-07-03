@@ -27,7 +27,7 @@ using Projectured: ElementReference, RangeReference, PositionReference, FieldRef
 # Built lazily in __init__ (runtime, after the SDL extension has loaded) rather
 # than as a precompile-time const, so precompilation doesn't depend on the extension.
 function __init__()
-    init!(make_backend(:sdl))
+    initialize_backend!(make_backend(:sdl))
 end
 
 # Live-DB fixture helpers used by the opt-in `external/` catalog tests. They used

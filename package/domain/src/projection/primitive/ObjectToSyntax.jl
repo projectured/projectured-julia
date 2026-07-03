@@ -23,7 +23,7 @@ import ..SyntaxModule: SyntaxDocument, SyntaxLeaf, SyntaxNode
 import ..TypeDispatchingProjectionModule: TypeDispatchingProjection
 import ..IoMapModule: SimpleIoMap
 import ..ReferenceModule: ReferencePath, ConcreteReferencePath, ElementReference, PositionReference, RangeReference, FieldReference, EmptyReferencePath, append_reference, annotate_reference_types
-import ..PrinterContextModule: PrinterContext, child_context, with_property, get_property
+import ..PrinterContextModule: PrinterContext, make_child_context, with_property, get_property
 import ..SyntaxToTextModule: SyntaxToText
 import ..TextToStringModule: TextToString
 import ..ChainingProjectionModule: ChainingProjection
@@ -173,7 +173,7 @@ function _field_node(p::ObjectNodeToSyntaxNode, recursion, obj, ctx, fn::Symbol)
     name_leaf = SyntaxLeaf(TextString(string(fn), p.field_name))
     value_node = isdefined(obj, fn) ?
         print_child(recursion, getfield(obj, fn),
-                         child_context(ctx, FieldReference(string(fn)))).output :
+                         make_child_context(ctx, FieldReference(string(fn)))).output :
         SyntaxLeaf(TextString("<undefined>", p.undef))
     SyntaxNode("", "", " ", SyntaxDocument[name_leaf, value_node]; indentation=0)
 end
@@ -211,7 +211,7 @@ function print_document(p::ObjectNodeToSyntaxNode, recursion, obj, ctx)
                [i for i in 1:length(obj) if p.filter(_unwrap_cell(obj[i]))]
         element_nodes = SyntaxDocument[
             print_child(recursion, obj[i],
-                           child_context(ctx, ElementReference(i))).output
+                           make_child_context(ctx, ElementReference(i))).output
             for i in idxs
         ]
         node = SyntaxNode(p.open_delimiter, p.close_delimiter, " ",

@@ -15,9 +15,9 @@ SDL2 graphics backend (default; native windows), a terminal `ConsoleBackend`, an
 a `WebBackend` that runs the editor in an HTTP + WebSocket server and renders in
 the browser (all described below).
 
-Every backend is a drop-in: `run!` takes the backend as an argument, so switching
-is just e.g. `run!(WebBackend(), projection, document)` instead of
-`run!(SdlBackend(), projection, document)` — nothing in the editor loop,
+Every backend is a drop-in: `run_editor!` takes the backend as an argument, so switching
+is just e.g. `run_editor!(WebBackend(), projection, document)` instead of
+`run_editor!(SdlBackend(), projection, document)` — nothing in the editor loop,
 projection pipeline, or domains changes.
 
 ## Devices
@@ -55,8 +55,8 @@ any specific backend.
 abstract type Backend end
 
 # Backend interface (api/Backend.jl)
-init!(::Backend)                    # set up libraries, allocate caches
-quit!(::Backend)                    # release everything
+initialize_backend!(::Backend)                    # set up libraries, allocate caches
+quit_backend!(::Backend)                    # release everything
 measure_text(::Backend, text, font) # (px_width, px_height)
 
 # Device I/O interface (api/Device.jl) — driven by the backend
@@ -100,7 +100,7 @@ a `TextText` rather than a `ScreenDocument`. Highlights:
   translates terminal bytes — printable chars, `ESC[` arrow/Home/End/Delete
   sequences, Enter/Backspace/Tab, Ctrl-Space, Ctrl-C — into the same
   `KeyDown`/`KeyPress`/`WindowQuit` vocabulary the readers already use, wrapped in
-  an `EventEnvelope(:console, …)`. `init!`/`quit!` toggle the terminal's raw mode.
+  an `EventEnvelope(:console, …)`. `initialize_backend!`/`quit_backend!` toggle the terminal's raw mode.
 - Because the console has no screen/window layer, the pipeline supplies its own
   envelope-unwrapping seam — `EnvelopeUnwrappingProjection`
   ([projection/higherorder/EnvelopeUnwrapping.jl](../package/kernel/src/projection/higherorder/EnvelopeUnwrapping.jl))
@@ -149,7 +149,7 @@ arguments as `run_example`; under the hood it is just
 - **`measure_text` stays on the server.** The layout pipeline calls
   `measure_text` synchronously *while printing*, long before any primitive
   reaches the browser, so the server must measure glyphs the same way the browser
-  renders them. `init!` runs `SDL_Init` + `TTF_Init` (no window) and reuses
+  renders them. `initialize_backend!` runs `SDL_Init` + `TTF_Init` (no window) and reuses
   `sdl_measure_text`; the same TTFs are served to the browser (`/font/<name>`,
   loaded via the `FontFace` API) so metrics line up. The browser handles HiDPI
   with `devicePixelRatio`, so the server stays in logical pixels.
@@ -250,7 +250,7 @@ itself never sees the backend type.
 1. Subtype `Device` in `program/src/device/`.
 2. Add backend methods: `read_from_device(::SdlBackend, ::YourDevice)` and
    if relevant `write_to_device(::SdlBackend, ::YourDevice, document)`.
-3. Add the device to the `Vector{Device}` built by the `run!(backend, projection,
+3. Add the device to the `Vector{Device}` built by the `run_editor!(backend, projection,
    document)` bootstrap in `editor/Editor.jl` (`Device[Screen(), Keyboard(), Mouse()]`).
 4. If it emits novel events, declare backend-agnostic event structs alongside
    the device so projection readers can match on them.
@@ -258,7 +258,7 @@ itself never sees the backend type.
 ## Adding a new backend
 
 1. Subtype `Backend` in `program/src/backend/`.
-2. Implement the `Backend` interface (`init!`, `quit!`, `measure_text`) and the
+2. Implement the `Backend` interface (`initialize_backend!`, `quit_backend!`, `measure_text`) and the
    `Device` I/O functions (`read_from_devices`, `write_to_devices`).
 3. Translate native events into the existing backend-agnostic event types
    so projection code does not need to change.

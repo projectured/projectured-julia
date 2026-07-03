@@ -22,7 +22,7 @@ using ModelContextProtocol: HttpTransport, TextResourceContents, ServerConfig
 
 import ProjecturedKernel.ToolRegistryModule: Tool, Resource, list_tools, list_resources
 import ProjecturedKernel.McpModule: register_default_tools_and_resources!
-import ProjecturedKernel.AgentApiModule: make_agent_server, agent_server_start!, agent_server_stop!
+import ProjecturedKernel.AgentApiModule: make_agent_server, start_agent_server!, stop_agent_server!
 
 export McpServer, mcp_start!, mcp_stop!, mcp_tools, mcp_resources
 
@@ -42,7 +42,7 @@ const DEFAULT_MCP_INSTRUCTIONS =
     McpServer(editor; instructions = DEFAULT_MCP_INSTRUCTIONS)
 
 An MCP server bound to an editor. Start/stop it through the `AgentApiModule`
-generics (`agent_server_start!` / `agent_server_stop!`).
+generics (`start_agent_server!` / `stop_agent_server!`).
 """
 mutable struct McpServer
     editor::Any
@@ -77,8 +77,8 @@ end
 # Agent control-surface factory methods: the editor loop drives the MCP server
 # through the generic AgentApiModule interface without naming `McpServer`.
 make_agent_server(::Val{:mcp}, editor; kwargs...) = McpServer(editor; kwargs...)
-agent_server_start!(mcp::McpServer) = mcp_start!(mcp)
-agent_server_stop!(mcp::McpServer) = mcp_stop!(mcp)
+start_agent_server!(mcp::McpServer) = mcp_start!(mcp)
+stop_agent_server!(mcp::McpServer) = mcp_stop!(mcp)
 
 """
     mcp_start!(mcp::McpServer) -> McpServer

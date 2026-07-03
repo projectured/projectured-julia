@@ -25,7 +25,7 @@ import ..IoMapModule: SimpleIoMap, ChildrenIoMap
 import ..IoMapApiModule: IoMap
 import ..TypeDispatchingProjectionModule: TypeDispatchingProjection
 import ..ReferenceModule: ConcreteReferencePath, ElementReference, FieldReference
-import ..PrinterContextModule: child_context
+import ..PrinterContextModule: make_child_context
 export WorkspaceFolderToFileSystemDirectory, WorkspaceToFileSystem
 
 # ── WorkspaceFolderToFileSystemDirectory ─────────────────────────────────────
@@ -64,7 +64,7 @@ struct WorkspaceWorkspaceProjection <: Projection end
 function print_document(p::WorkspaceWorkspaceProjection,
                            recursion, w::Workspace, ctx)
     child_iomaps = [print_child(recursion, elem,
-                                   child_context(ctx, FieldReference("folders"), ElementReference(i)))
+                                   make_child_context(ctx, FieldReference("folders"), ElementReference(i)))
                     for (i, elem) in enumerate(w.folders)]
     # The output is the first folder's output for single-root workspaces.
     # Multi-root rendering can be refined later with a composite output.

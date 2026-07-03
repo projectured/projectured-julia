@@ -5,7 +5,7 @@
 # axis, and the cosine (the x-coordinate) aligned to the horizontal axis. Every
 # animated value is a computed cell that *subscribes* to the global editor time
 # via `get_reactive_editor_time()`; the editor's main loop advances that time once
-# per frame (see `Editor.run!`), so the cells re-evaluate and the canvas
+# per frame (see `Editor.run_editor!`), so the cells re-evaluate and the canvas
 # redraws. The phase origin is *sampled* once at construction via `get_editor_time()`
 # so the angle starts at zero without the constructor itself becoming reactive.
 #

@@ -43,7 +43,7 @@ import ..ReferenceCaseModule: var"@reference_case"
 import ..ReferenceBuilderModule: var"@reference"
 import ..OperationModule: ReplaceSelectionOperation
 import ..SyntaxToTextModule: SyntaxNodeToText, _syntax_to_flat
-import ..PrinterContextModule: child_context
+import ..PrinterContextModule: make_child_context
 
 export SqlAllColumnsToSyntaxLeaf, SqlColumnReferenceToSyntaxLeaf,
        SqlColumnNameToSyntaxLeaf, SqlTableNameToSyntaxLeaf,
@@ -153,7 +153,7 @@ end
 
 function print_document(p::SqlSubqueryFromItemToSyntaxNode, recursion, doc::SqlSubqueryFromItem, ctx)
     subq_im = Cell(() -> print_document(recursion, recursion, doc.subquery,
-                                          child_context(ctx, FieldReference("subquery"))))
+                                          make_child_context(ctx, FieldReference("subquery"))))
     child_iomaps_cell = Cell(() -> Any[subq_im[]])
 
     paren_node = SyntaxNode("(", ")", " ", () -> SyntaxDocument[subq_im[].output])
@@ -246,7 +246,7 @@ end
 
 function print_document(p::SqlSelectItemToSyntaxNode, recursion, doc::SqlSelectItem, ctx)
     expr_im = Cell(() -> print_document(recursion, recursion, doc.expression,
-                                          child_context(ctx, FieldReference("expression"))))
+                                          make_child_context(ctx, FieldReference("expression"))))
     child_iomaps_cell = Cell(() -> Any[expr_im[]])
 
     iomap_cell = Cell(nothing)
@@ -320,7 +320,7 @@ end
 
 function print_document(p::SqlSelectClauseToSyntaxNode, recursion, doc::SqlSelectClause, ctx)
     item_ims = Cell(() -> [
-        print_document(recursion, recursion, item, child_context(ctx, ElementReference(i)))
+        print_document(recursion, recursion, item, make_child_context(ctx, ElementReference(i)))
         for (i, item) in enumerate(doc.items)])
 
     items_body = _comma_body(() -> SyntaxDocument[im.output for im in item_ims[]])
@@ -403,12 +403,12 @@ end
 function print_document(p::SqlJoinedFromItemToSyntaxNode, recursion, doc::SqlJoinedFromItem, ctx)
     projected = Cell(() -> begin
         jt = print_document(recursion, recursion, doc.join_type,
-                              child_context(ctx, FieldReference("join_type")))
+                              make_child_context(ctx, FieldReference("join_type")))
         fi = print_document(recursion, recursion, doc.from_item,
-                              child_context(ctx, FieldReference("from_item")))
+                              make_child_context(ctx, FieldReference("from_item")))
         cond_im = doc.condition === nothing ? nothing :
             print_document(recursion, recursion, doc.condition,
-                             child_context(ctx, FieldReference("condition")))
+                             make_child_context(ctx, FieldReference("condition")))
         (jt, fi, cond_im)
     end)
     child_iomaps_cell = Cell(() -> begin
@@ -511,7 +511,7 @@ end
 function print_document(p::SqlJoinOnConditionToSyntaxNode, recursion, doc::SqlJoinOnCondition, ctx)
     expr_im = Cell(() ->
         print_document(recursion, recursion, doc.expression,
-                         child_context(ctx, FieldReference("expression"))))
+                         make_child_context(ctx, FieldReference("expression"))))
     child_iomaps_cell = Cell(() -> Any[expr_im[]])
 
     iomap_cell = Cell(nothing)
@@ -577,9 +577,9 @@ end
 function print_document(p::SqlFromItemToSyntaxNode, recursion, doc::SqlFromItem, ctx)
     projected = Cell(() -> begin
         base = print_document(recursion, recursion, doc.base_item,
-                                child_context(ctx, FieldReference("base_item")))
+                                make_child_context(ctx, FieldReference("base_item")))
         joins = [print_document(recursion, recursion, seg,
-                                  child_context(ctx, ElementReference(i)))
+                                  make_child_context(ctx, ElementReference(i)))
                  for (i, seg) in enumerate(doc.joins)]
         (base, joins)
     end)
@@ -677,7 +677,7 @@ end
 
 function print_document(p::SqlFromClauseToSyntaxNode, recursion, doc::SqlFromClause, ctx)
     item_ims = Cell(() -> [
-        print_document(recursion, recursion, item, child_context(ctx, ElementReference(i)))
+        print_document(recursion, recursion, item, make_child_context(ctx, ElementReference(i)))
         for (i, item) in enumerate(doc.items)])
 
     items_body = _comma_body(() -> SyntaxDocument[im.output for im in item_ims[]])
@@ -752,7 +752,7 @@ end
 function print_document(p::SqlWhereFilterConditionToSyntaxNode, recursion, doc::SqlWhereFilterCondition, ctx)
     expr_im = Cell(() ->
         print_document(recursion, recursion, doc.expression,
-                         child_context(ctx, FieldReference("expression"))))
+                         make_child_context(ctx, FieldReference("expression"))))
     child_iomaps_cell = Cell(() -> Any[expr_im[]])
 
     iomap_cell = Cell(nothing)
@@ -817,7 +817,7 @@ end
 function print_document(p::SqlWhereClauseToSyntaxNode, recursion, doc::SqlWhereClause, ctx)
     cond_im = Cell(() -> doc.condition === nothing ? nothing :
         print_document(recursion, recursion, doc.condition,
-                         child_context(ctx, FieldReference("condition"))))
+                         make_child_context(ctx, FieldReference("condition"))))
     cond_body = _newline_body(() -> begin
         ci = cond_im[]
         ci !== nothing ? SyntaxDocument[ci.output] : SyntaxDocument[]
@@ -914,9 +914,9 @@ end
 function print_document(p::SqlComparisonToSyntaxNode, recursion, doc::SqlComparison, ctx)
     projected = Cell(() -> begin
         left  = print_document(recursion, recursion, doc.left,
-                                 child_context(ctx, FieldReference("left")))
+                                 make_child_context(ctx, FieldReference("left")))
         right = print_document(recursion, recursion, doc.right,
-                                 child_context(ctx, FieldReference("right")))
+                                 make_child_context(ctx, FieldReference("right")))
         (left, right)
     end)
     child_iomaps_cell = Cell(() -> begin left, right = projected[]; Any[left, right] end)
@@ -1002,9 +1002,9 @@ SqlBooleanBinaryToSyntaxNode(keyword; keyword_style=StyleText(font_ubuntu_monosp
 function print_document(p::SqlBooleanBinaryToSyntaxNode, recursion, doc, ctx)
     projected = Cell(() -> begin
         left  = print_document(recursion, recursion, doc.left,
-                                 child_context(ctx, FieldReference("left")))
+                                 make_child_context(ctx, FieldReference("left")))
         right = print_document(recursion, recursion, doc.right,
-                                 child_context(ctx, FieldReference("right")))
+                                 make_child_context(ctx, FieldReference("right")))
         (left, right)
     end)
     child_iomaps_cell = Cell(() -> begin left, right = projected[]; Any[left, right] end)
@@ -1088,7 +1088,7 @@ end
 
 function print_document(p::SqlNotToSyntaxNode, recursion, doc::SqlNot, ctx)
     expr_im = Cell(() -> print_document(recursion, recursion, doc.expression,
-                                          child_context(ctx, FieldReference("expression"))))
+                                          make_child_context(ctx, FieldReference("expression"))))
     child_iomaps_cell = Cell(() -> Any[expr_im[]])
 
     iomap_cell = Cell(nothing)
@@ -1164,12 +1164,12 @@ end
 function print_document(p::SqlSelectStatementToSyntaxNode, recursion, stmt::SqlSelectStatement, ctx)
     projected = Cell(() -> begin
         sc = print_document(recursion, recursion, stmt.select_clause,
-                              child_context(ctx, FieldReference("select_clause")))
+                              make_child_context(ctx, FieldReference("select_clause")))
         fc = print_document(recursion, recursion, stmt.from_clause,
-                              child_context(ctx, FieldReference("from_clause")))
+                              make_child_context(ctx, FieldReference("from_clause")))
         wc = stmt.where_clause.condition === nothing ? nothing :
              print_document(recursion, recursion, stmt.where_clause,
-                              child_context(ctx, FieldReference("where_clause")))
+                              make_child_context(ctx, FieldReference("where_clause")))
         (sc, fc, wc)
     end)
 
@@ -1274,12 +1274,12 @@ end
 function print_document(p::SqlInsertStatementToSyntaxNode, recursion, stmt::SqlInsertStatement, ctx)
     projected = Cell(() -> begin
         table_im = print_document(recursion, recursion, stmt.table,
-                                    child_context(ctx, FieldReference("table")))
+                                    make_child_context(ctx, FieldReference("table")))
         col_ims = [print_document(recursion, recursion, c,
-                                    child_context(ctx, FieldReference("columns"), ElementReference(i)))
+                                    make_child_context(ctx, FieldReference("columns"), ElementReference(i)))
                    for (i, c) in enumerate(stmt.columns)]
         val_ims = [print_document(recursion, recursion, v,
-                                    child_context(ctx, FieldReference("values"), ElementReference(i)))
+                                    make_child_context(ctx, FieldReference("values"), ElementReference(i)))
                    for (i, v) in enumerate(stmt.values)]
         (table_im, col_ims, val_ims)
     end)
@@ -1418,9 +1418,9 @@ end
 function print_document(p::SqlUpdateAssignmentToSyntaxNode, recursion, doc::SqlUpdateAssignment, ctx)
     projected = Cell(() -> begin
         col_im = print_document(recursion, recursion, doc.column_name,
-                                  child_context(ctx, FieldReference("column_name")))
+                                  make_child_context(ctx, FieldReference("column_name")))
         val_im = print_document(recursion, recursion, doc.value,
-                                  child_context(ctx, FieldReference("value")))
+                                  make_child_context(ctx, FieldReference("value")))
         (col_im, val_im)
     end)
     child_iomaps_cell = Cell(() -> begin col_im, val_im = projected[]; Any[col_im, val_im] end)
@@ -1511,13 +1511,13 @@ end
 function print_document(p::SqlUpdateStatementToSyntaxNode, recursion, stmt::SqlUpdateStatement, ctx)
     projected = Cell(() -> begin
         table_im = print_document(recursion, recursion, stmt.table,
-                                    child_context(ctx, FieldReference("table")))
+                                    make_child_context(ctx, FieldReference("table")))
         assign_ims = [print_document(recursion, recursion, a,
-                                       child_context(ctx, FieldReference("assignments"), ElementReference(i)))
+                                       make_child_context(ctx, FieldReference("assignments"), ElementReference(i)))
                       for (i, a) in enumerate(stmt.assignments)]
         where_im = stmt.where_clause.condition === nothing ? nothing :
             print_document(recursion, recursion, stmt.where_clause.condition,
-                             child_context(ctx, FieldReference("where_clause"), FieldReference("condition")))
+                             make_child_context(ctx, FieldReference("where_clause"), FieldReference("condition")))
         (table_im, assign_ims, where_im)
     end)
     child_iomaps_cell = Cell(() -> begin
@@ -1646,7 +1646,7 @@ end
 
 function print_document(p::SqlColumnDefinitionToSyntaxNode, recursion, doc::SqlColumnDefinition, ctx)
     col_im = Cell(() -> print_document(recursion, recursion, doc.column_name,
-                                         child_context(ctx, FieldReference("column_name"))))
+                                         make_child_context(ctx, FieldReference("column_name"))))
     child_iomaps_cell = Cell(() -> Any[col_im[]])
 
     iomap_cell = Cell(nothing)
@@ -1723,9 +1723,9 @@ end
 function print_document(p::SqlCreateTableStatementToSyntaxNode, recursion, stmt::SqlCreateTableStatement, ctx)
     projected = Cell(() -> begin
         table_im = print_document(recursion, recursion, stmt.table_name,
-                                    child_context(ctx, FieldReference("table_name")))
+                                    make_child_context(ctx, FieldReference("table_name")))
         col_ims = [print_document(recursion, recursion, c,
-                                    child_context(ctx, FieldReference("columns"), ElementReference(i)))
+                                    make_child_context(ctx, FieldReference("columns"), ElementReference(i)))
                    for (i, c) in enumerate(stmt.columns)]
         (table_im, col_ims)
     end)
@@ -1891,7 +1891,7 @@ end
 
 function print_document(p::SqlStatementListToSyntaxNode, recursion, doc::SqlStatementList, ctx)
     stmt_ims = Cell(() -> [
-        print_document(recursion, recursion, s, child_context(ctx, ElementReference(i)))
+        print_document(recursion, recursion, s, make_child_context(ctx, ElementReference(i)))
         for (i, s) in enumerate(doc.statements)])
     child_iomaps_cell = Cell(() -> Any[im for im in stmt_ims[]])
 
